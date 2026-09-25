@@ -196,6 +196,12 @@ public:
 	[[nodiscard]] int32_t navigationsOnOwner() const { return navigationsOnOwner_; }
 	/// Navigates that hit the machine's read backstop; required 0 (termination does not depend on it).
 	[[nodiscard]] int32_t navigationGiveUps() const { return navigation_.giveUps(); }
+	/// Confirm walks begun -- the SYNTH/KIT change-type.
+	[[nodiscard]] int32_t confirmsRun() const { return confirmsRun_; }
+	/// Of those, the ones begun on the storage owner; required 0.
+	[[nodiscard]] int32_t confirmsOnOwner() const { return confirmsOnOwner_; }
+	/// Confirms that hit the machine's read backstop; required 0.
+	[[nodiscard]] int32_t confirmGiveUps() const { return confirmGiveUps_; }
 	/// @}
 
 private:
@@ -310,6 +316,9 @@ private:
 	int32_t slotScansOnOwner_{0};
 	int32_t navigationsRun_{0};
 	int32_t navigationsOnOwner_{0};
+	int32_t confirmsRun_{0};
+	int32_t confirmsOnOwner_{0};
+	int32_t confirmGiveUps_{0};
 	Error lastError_{Error::NONE};
 };
 

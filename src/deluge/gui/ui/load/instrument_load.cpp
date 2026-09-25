@@ -411,6 +411,9 @@ void InstrumentLoad::runWalkOp(void* self) {
 		// dispatch has to be a deliberate edit rather than a fall-through.
 		break;
 	case deluge::storage::AcquireWalk::Confirm: {
+		// Counted for the preset-load gate (AQ-CHANGE-TIER): where the walk began.
+		load->confirmsRun_++;
+		load->confirmsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 		std::string searchName = spec.name;
 		auto result =
 		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(spec.outputType, &searchName, spec.availability);

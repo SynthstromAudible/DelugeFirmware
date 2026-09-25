@@ -29,6 +29,14 @@
 #   AQ-NEW     an empty session pad pressed makes a synth track on the first unused synth preset, its sample bound; then
 #              shift+SYNTH gives that clip a new blank synth under an unused slot name.
 #   AQ-CHANGE  the clip view's KIT button on that empty clip lands on the first unused kit preset, its drum bound.
+#   AQ-CHANGE-TIER
+#              AQ-CHANGE's KIT press walked once, off the storage owner, through the directory channel, leaving the
+#              browser's folder alone.
+#   AQ-CHANGE-NAMED / AQ-CHANGE-NEXT / AQ-CHANGE-MISSING
+#              KIT with a remembered AQNAV/NAV05 lands there; with an absent NAV05X, on the next one; with a remembered
+#              folder that does not exist, on what the whole-type Unlaunched search finds.
+#   AQ-CHANGE-STALL
+#              a change-type with its folder open held past the bound: SD_CARD, the synth kept, nothing in flight.
 #   AQ-NAVIGATE
 #              the select encoder turned from the clip view, a held grid pad and an auditioned arranger row: each turn
 #              lands on the next unused kit preset, its drum bound.
@@ -139,7 +147,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
-	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-NAV-TIER AQ-NAV-WRAP AQ-NAV-STALL AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-SLOT AQ-SLOT-STALL AQ-EXT AQ-TIER \
+	AQ-NEW AQ-CHANGE AQ-CHANGE-TIER AQ-CHANGE-NAMED AQ-CHANGE-NEXT AQ-CHANGE-MISSING AQ-CHANGE-STALL AQ-NAVIGATE AQ-NAV-TIER AQ-NAV-WRAP AQ-NAV-STALL AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-SLOT AQ-SLOT-STALL AQ-EXT AQ-TIER \
 	RV-CARD RV-MEMORY RV-STALL MD-BROWSER BS-BOOT BS-CLEAR BS-EDITED \
 	PL-WALK-FOUND PL-WALK-DEPTH PL-WALK-PAGED PL-WALK-EXHAUST PL-WALK-TIER \
 	PW-WALK-FOUND PW-WALK-DEPTH PW-WALK-PAGED PW-WALK-EXHAUST PW-WALK-TIER PL-RESULT; do

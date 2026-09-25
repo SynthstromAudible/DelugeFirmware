@@ -53,10 +53,12 @@
 #include "processing/source.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
+#include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/owner.h"
 #include "storage/storage_manager.h"
+#include "util/functions.h" // getInstrumentFolder
 
 #include <algorithm>
 #include <cstdio>
@@ -226,6 +228,14 @@ constexpr const char* kNavDir = "KITS/AQNAV";
 constexpr int32_t kNavCount = 25;
 constexpr const char* kNavFirst = "NAV00";
 constexpr const char* kNavLast = "NAV24";
+/// AqChangeCases' remembered kit presets: one there, one absent (sorting just after NAV05), one in a folder that
+/// does not exist.
+constexpr const char* kChangeNamed = "NAV05";
+constexpr const char* kChangeAbsent = "NAV05X";
+constexpr const char* kChangeMissingDir = "KITS/NOSUCH";
+/// MEASURED on the owner tree before pinning: where the named and the absent-name confirms land.
+constexpr const char* kChangeNamedLands = "NAV05";
+constexpr const char* kChangeNextLands = "NAV06";
 static_assert(kNavCount > FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, "the folder must overflow the window");
 
 enum class Leg : uint8_t {
@@ -248,6 +258,7 @@ enum class Leg : uint8_t {
 	AqRefuse,
 	AqClone,
 	AqNavWrap,
+	AqChangeCases,
 	RevertCard,
 	RevertMemory,
 	Stall,
@@ -262,6 +273,8 @@ enum class Leg : uint8_t {
 	/// Last. Queued behind AqSlotStall's held open, on a path of its own: the channel keys answers by path, so a
 	/// navigate of SYNTHS here would collect AqSlotStall's open when its hold ended.
 	AqNavStall,
+	/// Last. A remembered kit folder of its own, for the same reason as AqNavStall.
+	AqChangeStall,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, Settle, Act, Wait };
@@ -357,6 +370,8 @@ const char* legName(Leg leg) {
 		return "aq-clone";
 	case Leg::AqNavWrap:
 		return "aq-nav-wrap";
+	case Leg::AqChangeCases:
+		return "aq-change-cases";
 	case Leg::RevertCard:
 		return "revert-card";
 	case Leg::RevertMemory:
@@ -377,6 +392,8 @@ const char* legName(Leg leg) {
 		return "aq-stall";
 	case Leg::AqNavStall:
 		return "aq-nav-stall";
+	case Leg::AqChangeStall:
+		return "aq-change-stall";
 	case Leg::AqSlotStall:
 		return "aq-slot-stall";
 	case Leg::Done:
@@ -682,8 +699,10 @@ const char* legPreset() {
 	case Leg::AqRefuse:
 	case Leg::AqClone:
 	case Leg::AqNavWrap:
+	case Leg::AqChangeCases:
 	case Leg::AqStall:
 	case Leg::AqNavStall:
+	case Leg::AqChangeStall:
 	case Leg::AqSlotStall:
 	case Leg::WalkMachine:
 	case Leg::Done:
@@ -1184,8 +1203,10 @@ void checkLeg() {
 	case Leg::AqRefuse:
 	case Leg::AqClone:
 	case Leg::AqNavWrap:
+	case Leg::AqChangeCases:
 	case Leg::AqStall:
 	case Leg::AqNavStall:
+	case Leg::AqChangeStall:
 	case Leg::AqSlotStall:
 	case Leg::Done:
 		break;
@@ -1235,6 +1256,15 @@ int32_t g_navRunBefore = 0;
 int32_t g_navOnOwnerBefore = 0;
 int32_t g_navRequestsBefore = 0;
 std::string g_navDirBefore;
+/// What AQ-CHANGE-TIER reads around AQ-CHANGE's KIT press.
+int32_t g_changeRunBefore = 0;
+int32_t g_changeOnOwnerBefore = 0;
+int32_t g_changeRequestsBefore = 0;
+std::string g_changeDirBefore;
+/// AQ-CHANGE-MISSING's reference: what the whole-type Unlaunched search finds, computed on the storage owner by the
+/// very function the old fallback discarded, for the availability the gesture uses.
+std::string g_changeReference;
+Availability g_changeAvailability = Availability::ANY;
 /// The clip AQ-NEW's new-track gesture makes, which AQ-CHANGE, AQ-NAVIGATE, AQ-SUPERSEDE and AQ-CLONE act on.
 Clip* g_aqClip = nullptr;
 /// What AQ-SLOT-STALL's clip held before the gesture.
@@ -1263,8 +1293,10 @@ bool isAcquireLeg(Leg leg) {
 	case Leg::AqRefuse:
 	case Leg::AqClone:
 	case Leg::AqNavWrap:
+	case Leg::AqChangeCases:
 	case Leg::AqStall:
 	case Leg::AqNavStall:
+	case Leg::AqChangeStall:
 	case Leg::AqSlotStall:
 		return true;
 	default:
@@ -1274,7 +1306,10 @@ bool isAcquireLeg(Leg leg) {
 
 /// How many gestures the leg makes, one after another.
 int32_t acquireActs(Leg leg) {
-	return leg == Leg::AqNavigate ? 3 : (leg == Leg::AqNew || leg == Leg::AqNavWrap) ? 2 : 1;
+	return leg == Leg::AqChangeCases                      ? 6
+	       : leg == Leg::AqNavigate                       ? 3
+	       : (leg == Leg::AqNew || leg == Leg::AqNavWrap) ? 2
+	                                                      : 1;
 }
 
 /// What the acquisition legs count: InstrumentLoad's own reads and loads, which is all there is to count now.
@@ -1314,7 +1349,7 @@ bool focusClip(Clip* clip) {
 
 void prepareAcquire() {
 	g_aqAct = 0;
-	if (g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall) {
+	if (g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall || g_leg == Leg::AqChangeStall) {
 		g_aqClip = nullptr; // the song was cleared by the blank-song legs; the act picks its own clip
 	}
 	g_aqTierMark = markAcquireTier();
@@ -1377,6 +1412,13 @@ bool actAcquire() {
 		// Parked for AQ-EXT: a walk that borrows the filter must put back whatever it found.
 		g_extensionsBefore = PresetAcquireProbe::extensions();
 		PresetAcquireProbe::setExtensions(kSentinelExtensions);
+	}
+	if (g_leg == Leg::AqChange) {
+		g_changeRunBefore = deluge::gui::instrumentLoad.confirmsRun();
+		g_changeOnOwnerBefore = deluge::gui::instrumentLoad.confirmsOnOwner();
+		g_changeRequestsBefore = Browser::directoryRequests();
+		g_changeDirBefore = Browser::currentDir;
+		Browser::currentDir = kSlotSentinelDir;
 	}
 	if (g_leg == Leg::AqNavigate) {
 		g_navRunBefore = deluge::gui::instrumentLoad.navigationsRun();
@@ -1450,6 +1492,48 @@ bool actAcquire() {
 		g_aqNameBefore = g_synthClip->output->name;
 		instrumentClipView.selectEncoderAction(1);
 		return true;
+	case Leg::AqChangeCases: {
+		using namespace deluge::hid::button;
+		if (!focusClip(g_aqClip)) {
+			return fail(leg, "the new-track gesture made no clip");
+		}
+		if ((g_aqAct % 2) == 0) {
+			(void)instrumentClipView.buttonAction(SYNTH, true, false);
+			(void)instrumentClipView.buttonAction(SYNTH, false, false);
+			return true;
+		}
+		auto* clip = static_cast<InstrumentClip*>(g_aqClip);
+		const auto kitIdx = static_cast<size_t>(OutputType::KIT);
+		if (g_aqAct == 1) {
+			clip->backedUpInstrumentDirPath[kitIdx] = kNavDir;
+			clip->backedUpInstrumentName[kitIdx] = kChangeNamed;
+		}
+		else if (g_aqAct == 3) {
+			clip->backedUpInstrumentDirPath[kitIdx] = kNavDir;
+			clip->backedUpInstrumentName[kitIdx] = kChangeAbsent;
+		}
+		else {
+			clip->backedUpInstrumentDirPath[kitIdx] = kChangeMissingDir;
+			clip->backedUpInstrumentName[kitIdx] = kChangeNamed;
+			// The reference, on the owner where the recursive search is legal, for the gesture's own availability.
+			(void)currentSong->shouldOldOutputBeReplaced(clip, &g_changeAvailability);
+			g_changeReference.clear();
+			onOwner([] {
+				Browser::currentDir = getInstrumentFolder(OutputType::KIT);
+				auto found = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
+				    currentSong, OutputType::KIT, g_changeAvailability);
+				if (found.has_value()) {
+					FileItem* item = *found;
+					g_changeReference =
+					    (item->instrument != nullptr) ? item->instrument->name : item->getFilenameWithoutExtension();
+				}
+				Browser::emptyFileItems();
+			});
+		}
+		(void)instrumentClipView.buttonAction(KIT, true, false);
+		(void)instrumentClipView.buttonAction(KIT, false, false);
+		return true;
+	}
 	case Leg::AqNavWrap: {
 		if (!focusClip(g_aqClip)) {
 			return fail(leg, "the new-track gesture made no clip");
@@ -1461,6 +1545,22 @@ bool actAcquire() {
 			kit->name = kNavLast;
 		}
 		instrumentClipView.selectEncoderAction(g_aqAct == 0 ? 1 : -1);
+		return true;
+	}
+	case Leg::AqChangeStall: {
+		using namespace deluge::hid::button;
+		g_aqClip = (std::ssize(currentSong->sessionClips) > 0) ? currentSong->sessionClips[0] : nullptr;
+		if (!focusClip(g_aqClip) || g_aqClip->output->type != OutputType::SYNTH) {
+			return fail(leg, "the song has no synth clip to change to a kit");
+		}
+		auto* clip = static_cast<InstrumentClip*>(g_aqClip);
+		clip->backedUpInstrumentDirPath[static_cast<size_t>(OutputType::KIT)] = "KITS/AQCHSTALL";
+		clip->backedUpInstrumentName[static_cast<size_t>(OutputType::KIT)] = kChangeNamed;
+		g_slotStallOutputBefore = g_aqClip->output;
+		g_aqNameBefore = g_aqClip->output->name;
+		deluge_file_directory_set_latency_ms(kStallHoldMs);
+		(void)instrumentClipView.buttonAction(KIT, true, false);
+		(void)instrumentClipView.buttonAction(KIT, false, false);
 		return true;
 	}
 	case Leg::AqNavStall: {
@@ -1539,6 +1639,19 @@ void checkAcquireAct() {
 		if (!kept) {
 			aqFail("AQ-EXT", "a preset walk left the browser's extension filter changed: the next browser listing "
 			                 "would filter for the walk's files, not its own");
+		}
+	}
+	if (g_leg == Leg::AqChange) {
+		const int32_t run = deluge::gui::instrumentLoad.confirmsRun() - g_changeRunBefore;
+		const int32_t onOwner = deluge::gui::instrumentLoad.confirmsOnOwner() - g_changeOnOwnerBefore;
+		const int32_t requests = Browser::directoryRequests() - g_changeRequestsBefore;
+		const bool untouched = Browser::currentDir == kSlotSentinelDir;
+		Browser::currentDir = g_changeDirBefore;
+		printf("AQ-CHANGE-TIER run=%d onOwner=%d requests=%d browserUntouched=%d\n", run, onOwner, requests,
+		       untouched ? 1 : 0);
+		if (run != 1 || onOwner != 0 || requests < 1 || !untouched) {
+			aqFail("AQ-CHANGE-TIER", "a change-type must walk once, off the storage owner, through the directory "
+			                         "channel, and leave the browser's folder alone");
 		}
 	}
 	if (g_leg == Leg::AqNavigate) {
@@ -1687,6 +1800,23 @@ void checkAcquireAct() {
 		}
 		break;
 	}
+	case Leg::AqChangeCases: {
+		if ((g_aqAct % 2) == 0) {
+			break; // the SYNTH press only sets up the next KIT
+		}
+		const char* marker = (g_aqAct == 1)   ? "AQ-CHANGE-NAMED"
+		                     : (g_aqAct == 3) ? "AQ-CHANGE-NEXT"
+		                                      : "AQ-CHANGE-MISSING";
+		const std::string want = (g_aqAct == 1)   ? kChangeNamedLands
+		                         : (g_aqAct == 3) ? kChangeNextLands
+		                                          : g_changeReference;
+		const bool isKit = output != nullptr && output->type == OutputType::KIT;
+		printf("%s name=%s want=%s kit=%d runs=%d\n", marker, name.c_str(), want.c_str(), isKit ? 1 : 0, runs);
+		if (!isKit || name != want || want.empty()) {
+			aqFail(marker, "the KIT press did not land on the preset its remembered folder and name call for");
+		}
+		break;
+	}
 	case Leg::AqNavWrap: {
 		// MEASURED on the tree where the walk ran on the owner, then pinned: the far-end reads, which this conversion
 		// rewrote, must land where they always did.
@@ -1696,6 +1826,20 @@ void checkAcquireAct() {
 		if (name != want) {
 			aqFail("AQ-NAV-WRAP", "a navigate off the end of a folder bigger than its window did not wrap round to "
 			                      "the far end");
+		}
+		break;
+	}
+	case Leg::AqChangeStall: {
+		deluge_file_directory_set_latency_ms(0);
+		const Error error = deluge::gui::instrumentLoad.lastError();
+		const bool kept = output == g_slotStallOutputBefore && name == g_aqNameBefore;
+		const bool idle = !loadInstrumentPresetUI.presetAcquisitionInFlight();
+		const int32_t giveUps = deluge::gui::instrumentLoad.confirmGiveUps();
+		printf("AQ-CHANGE-STALL error=%d kept=%d idle=%d giveUps=%d before=%s name=%s\n", static_cast<int>(error),
+		       kept ? 1 : 0, idle ? 1 : 0, giveUps, g_aqNameBefore.c_str(), name.c_str());
+		if (error != Error::SD_CARD || !kept || !idle || giveUps != 0) {
+			aqFail("AQ-CHANGE-STALL", "a change-type whose folder open never answered must give up with the card "
+			                          "error, leave the clip on the synth it had, and leave nothing in flight");
 		}
 		break;
 	}
@@ -1787,7 +1931,8 @@ void runAcquireTick() {
 				break;
 			}
 		}
-		const int32_t maxTicks = (g_leg == Leg::AqStall || g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall)
+		const int32_t maxTicks = (g_leg == Leg::AqStall || g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall
+		                          || g_leg == Leg::AqChangeStall)
 		                             ? kMaxStallTicks
 		                             : kMaxLegTicks;
 		const bool ended = g_waitTicks >= 1 && !loadInstrumentPresetUI.presetAcquisitionInFlight()
@@ -1803,7 +1948,7 @@ void runAcquireTick() {
 			g_aqStep = AqStep::Act;
 			break;
 		}
-		if (g_leg != Leg::AqSlotStall && g_leg != Leg::AqNavStall) {
+		if (g_leg != Leg::AqSlotStall && g_leg != Leg::AqNavStall && g_leg != Leg::AqChangeStall) {
 			checkAcquireTier(); // a slot scan loads nothing, which AQ-TIER would call a leg that did no work
 		}
 		nextLeg();
