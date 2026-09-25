@@ -116,10 +116,24 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 		FREEZE_WITH_ERROR("E413");
 	}
 #endif
+	// don't steal from ourselves
+	if (other == this) {
+		return;
+	}
 
 	int32_t mpeParamsOffsetOther = other->getExpressionParamSetOffset();
 	int32_t mpeParamsOffsetHere = getExpressionParamSetOffset();
 	int32_t stopAtOther = mpeParamsOffsetOther;
+
+	// Main collections already owned by the destination are about to be
+	// overwritten. Release them while retaining its expression collection.
+	for (int32_t i = 0; i < mpeParamsOffsetHere; i++) {
+		if (summaries[i].paramCollection) {
+			summaries[i].paramCollection->~ParamCollection();
+			delugeDealloc(summaries[i].paramCollection);
+			summaries[i] = {0};
+		}
+	}
 
 	// If we're planning to steal expression params, and yes "other" does in fact have them...
 	if (stealExpressionParams && other->summaries[stopAtOther].paramCollection) {
@@ -142,6 +156,7 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	int32_t i;
 	for (i = 0; i < stopAtOther; i++) {
 		summaries[i] = other->summaries[i];
+		other->summaries[i] = {0};
 	}
 
 	summaries[stopAtOther] = hereMpeParamsOrNull; // Could the expression params, or NULL

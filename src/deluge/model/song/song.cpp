@@ -3931,10 +3931,11 @@ void Song::deleteBackedUpParamManagersForClip(Clip* clip) {
 			else {
 
 				ParamManagerForTimeline paramManager;
-				paramManager.stealParamCollectionsFrom(&backedUp->paramManager);
+				paramManager.stealParamCollectionsFrom(&backedUp->paramManager, false);
 				ModControllableAudio* modControllable = backedUp->modControllable;
 
-				// We have to delete that element...
+				// Destruct backed up param manager in case it also had expression params
+				backedUp->~BackedUpParamManager();
 				backedUpParamManagers.deleteAtIndex(i);
 
 				// ...and then go find the first one that had this ModControllable
