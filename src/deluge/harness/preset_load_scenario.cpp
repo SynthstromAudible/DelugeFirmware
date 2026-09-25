@@ -256,9 +256,12 @@ enum class Leg : uint8_t {
 	MidiDef,
 	BlankClear,
 	BlankEdited,
-	AqNavStall,
-	/// Last: its held directory open outlives the leg, and would answer PENDING to any later read of SYNTHS.
+	/// Its held directory open outlives the leg, and would answer PENDING to any later read of SYNTHS -- so the
+	/// only leg after it reads a folder nothing else asks for.
 	AqSlotStall,
+	/// Last. Queued behind AqSlotStall's held open, on a path of its own: the channel keys answers by path, so a
+	/// navigate of SYNTHS here would collect AqSlotStall's open when its hold ended.
+	AqNavStall,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, Settle, Act, Wait };
@@ -1461,14 +1464,15 @@ bool actAcquire() {
 		return true;
 	}
 	case Leg::AqNavStall: {
-		// The blank song's default synth, placed at a synth preset the fixture wrote, and turned with every directory
-		// open held past the browser's bound.
+		// The blank song's default synth, placed in a folder no other leg asks for, and turned with every directory
+		// open held past the browser's bound. A folder of its own because answers are keyed by path: SYNTHS would
+		// have this navigate collect AqSlotStall's held open when that hold ended, inside this leg's bound.
 		g_aqClip = (std::ssize(currentSong->sessionClips) > 0) ? currentSong->sessionClips[0] : nullptr;
 		if (!focusClip(g_aqClip)) {
 			return fail(leg, "the song has no session clip to navigate");
 		}
 		auto* synth = static_cast<Instrument*>(g_aqClip->output);
-		synth->dirPath = "SYNTHS";
+		synth->dirPath = "SYNTHS/AQNAVSTALL";
 		synth->name = kAqSynthName;
 		g_slotStallOutputBefore = g_aqClip->output;
 		g_aqNameBefore = synth->name;
@@ -1696,8 +1700,9 @@ void checkAcquireAct() {
 		break;
 	}
 	case Leg::AqNavStall: {
-		// AqSlotStall runs next, behind this leg's held open: the directory task serves one open at a time, so its
-		// own open is answered PENDING for the whole bound either way. Its claim -- SD_CARD, clip kept -- still holds.
+		// Runs behind AqSlotStall's held open -- the directory task serves one at a time -- and then under its own
+		// hold, so no answer can arrive inside this leg's bound (each stall leg's own SD_CARD shows a bound under the
+		// 30 s hold). The folder does not exist: on the owner tree the direct open fails FOLDER_DOESNT_EXIST instead.
 		deluge_file_directory_set_latency_ms(0);
 		const Error error = deluge::gui::instrumentLoad.lastError();
 		const bool kept = output == g_slotStallOutputBefore && name == g_aqNameBefore;
