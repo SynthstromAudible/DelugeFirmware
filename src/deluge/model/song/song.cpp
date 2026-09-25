@@ -22,8 +22,10 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
+#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
@@ -2971,8 +2973,21 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	auto intTempo = (int32_t)(tempoBPM * 100);
-	int32_t pos = -1; // means use the live position
-	tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+
+	// edit the tempo BPM for a specific point on the timeline by holding on a
+	// grid timeline pad while moving tempo encoder in arranger view
+	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW) {
+		uint32_t xScroll = this->xScroll[NAVIGATION_ARRANGEMENT];
+		int32_t xZoom = this->xZoom[NAVIGATION_ARRANGEMENT];
+		int32_t squareStart = automationView.getPosFromSquare(arrangerView.xPressed, xScroll, xZoom);
+		tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, squareStart,
+		                                                 arrangerView.getMaxLength());
+	}
+	else {
+		int32_t pos = -1; // means use the live position
+		tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+	}
+
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
