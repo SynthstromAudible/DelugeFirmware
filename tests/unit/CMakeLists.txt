@@ -95,6 +95,7 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/util/name_compare.cpp
         ../../src/deluge/gui/ui/browser/default_name.cpp
         ../../src/deluge/gui/ui/load/navigation_step.cpp
+        ../../src/deluge/gui/ui/load/confirm_step.cpp
         # For waveform peak math tests
         ../../src/deluge/gui/waveform/waveform_peak_math.cpp
         # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
@@ -153,6 +154,7 @@ add_executable(UnitTests
         name_compare_tests.cpp
         default_name_tests.cpp
         navigation_step_tests.cpp
+        confirm_step_tests.cpp
         rgb_tests.cpp
         notes_state_tests.cpp
         waveform_peak_math_tests.cpp
