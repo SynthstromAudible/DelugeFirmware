@@ -13,11 +13,7 @@ constexpr NavigationItem O{.isOld = true, .inSong = true};  // the old instrumen
 
 template <size_t N>
 NavigationWindow window(const std::array<NavigationItem, N>& items, int32_t atStart = 0, int32_t atEnd = 0) {
-	return {.items = items,
-	        .deletedAtStart = atStart,
-	        .deletedAtEnd = atEnd,
-	        .firstRemaining = "NAV02.XML",
-	        .lastRemaining = "NAV21.XML"};
+	return {.items = items, .deletedAtStart = atStart, .deletedAtEnd = atEnd};
 }
 
 void checkLand(const NavigationDecision& d, int32_t index, int32_t wraps) {
@@ -101,20 +97,24 @@ TEST(NavigationStepTests, skippingStopsAfterTwoWrapsInOneWindow) {
 
 // ── Paging, the change ────────────────────────────────────────────────────────
 
-TEST(NavigationStepTests, pagesOnFromLastRemaining) {
-	// The old code re-read from the old name here: the same window, for ever.
-	const std::array items{S, S};
+TEST(NavigationStepTests, pagesOnFromTheLastEntryShown) {
+	// The old code re-read from the old name here: the same window, for ever. The page goes on from the last entry
+	// the window SHOWS -- not from FileListing::lastRemaining, which dropFoldersAndDuplicates pops off the window and
+	// the next read (which excludes its own search name) would then skip.
+	const std::array items{NavigationItem{.inSong = true, .name = "NAV01.XML"},
+	                       NavigationItem{.inSong = true, .name = "NAV09.XML"}};
 	const auto d = decideNavigation(window(items, 0, 5), 1, true, true, 0);
 	CHECK(std::holds_alternative<PageOn>(d));
-	STRCMP_EQUAL("NAV21.XML", std::get<PageOn>(d).from.c_str());
+	STRCMP_EQUAL("NAV09.XML", std::get<PageOn>(d).from.c_str());
 	CHECK_EQUAL(0, std::get<PageOn>(d).wraps);
 }
 
-TEST(NavigationStepTests, pagesBackFromFirstRemaining) {
-	const std::array items{S, S};
+TEST(NavigationStepTests, pagesBackFromTheFirstEntryShown) {
+	const std::array items{NavigationItem{.inSong = true, .name = "NAV15.XML"},
+	                       NavigationItem{.inSong = true, .name = "NAV23.XML"}};
 	const auto d = decideNavigation(window(items, 5, 0), -1, true, true, 0);
 	CHECK(std::holds_alternative<PageOn>(d));
-	STRCMP_EQUAL("NAV02.XML", std::get<PageOn>(d).from.c_str());
+	STRCMP_EQUAL("NAV15.XML", std::get<PageOn>(d).from.c_str());
 }
 
 TEST(NavigationStepTests, skippingStopsOnceTheWalkHasWrappedTwice) {

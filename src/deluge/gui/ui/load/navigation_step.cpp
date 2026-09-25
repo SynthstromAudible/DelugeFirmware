@@ -34,7 +34,9 @@ NavigationDecision decideNavigation(const NavigationWindow& window, int32_t offs
 	for (;;) {
 		if (i < 0) {
 			if (window.deletedAtStart > 0) {
-				return PageOn{.from = std::string{window.firstRemaining}, .wraps = wraps};
+				// From the first entry the window SHOWS. Not FileListing::firstRemaining: that entry is taken off the
+				// window after the read, and a read from its name would exclude it, so it would never be offered.
+				return PageOn{.from = std::string{window.items.front().name}, .wraps = wraps};
 			}
 			wraps++;
 			if (window.deletedAtEnd > 0) {
@@ -44,7 +46,7 @@ NavigationDecision decideNavigation(const NavigationWindow& window, int32_t offs
 		}
 		else if (i >= size) {
 			if (window.deletedAtEnd > 0) {
-				return PageOn{.from = std::string{window.lastRemaining}, .wraps = wraps};
+				return PageOn{.from = std::string{window.items.back().name}, .wraps = wraps}; // see the backward case
 			}
 			wraps++;
 			if (window.deletedAtStart > 0) {

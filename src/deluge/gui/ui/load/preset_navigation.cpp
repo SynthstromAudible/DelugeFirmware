@@ -83,14 +83,15 @@ bool PresetNavigation::tick() {
 		std::vector<NavigationItem> items;
 		items.reserve(listing_.size());
 		for (const FileItem& item : listing_.items()) {
+			// The name is a view of the item's own filename (displayName() returns a reference), and the listing is not
+			// touched again before the decision is read.
 			items.push_back({.isOld = item.instrument != nullptr && item.instrument == oldInstrument_,
-			                 .inSong = item.instrument != nullptr && item.instrumentAlreadyInSong});
+			                 .inSong = item.instrument != nullptr && item.instrumentAlreadyInSong,
+			                 .name = item.displayName()});
 		}
 		const NavigationDecision decision = decideNavigation({.items = items,
 		                                                      .deletedAtStart = listing_.numDeletedAtStart(),
-		                                                      .deletedAtEnd = listing_.numDeletedAtEnd(),
-		                                                      .firstRemaining = listing_.firstRemaining(),
-		                                                      .lastRemaining = listing_.lastRemaining()},
+		                                                      .deletedAtEnd = listing_.numDeletedAtEnd()},
 		                                                     offset_, skipInSong_, !searchName_.empty(), wraps_);
 
 		if (const Land* land = std::get_if<Land>(&decision)) {
