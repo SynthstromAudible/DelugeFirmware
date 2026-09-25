@@ -131,6 +131,7 @@
   "menuRoundedCorners": "c1.3",
   "menuTrimFromStartOfAudioClip": "c1.3",
   "menuShowBatteryLevel": "c1.3",
+  "menuRoundRobinSampleVariants": "c1.3",
 
   "__subsection_01_07_batteryLevelMenu": "Subsection: Battery level",
   "batteryLevelMenu": "c1.3",
@@ -269,6 +270,10 @@
 
   "__subsection_05_05_soundFXMenu": "Subsection: FX",
   "foldMenu": "c1.0",
+
+  "__subsection_05_05a_oscillatorMenus": "Subsection: Oscillator 1 / Oscillator 2",
+  "sample0RoundRobinMenu": "c1.3",
+  "sample1RoundRobinMenu": "c1.3",
 
   "__subsection_05_06_oscMixerMenu": "Subsection: Osc mixer",
   "oscMixerMenu": "c1.3",
