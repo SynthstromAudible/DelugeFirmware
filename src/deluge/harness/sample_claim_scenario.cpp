@@ -152,9 +152,14 @@ constexpr const char* kRandomizeStallSample = "SAMPLES/RDS/S1.WAV";
 /// cancel has to drain rather than end. Shorter than RandomizeDrums' own 300 ms give-up bound, or the drain would
 /// give up before the handle it is waiting for ever arrived -- and it is the arrival that has to be collected.
 constexpr uint32_t kRandomizeCancelHoldMs = 100;
-/// Passes let through before the cancel. The first one puts the row's open on the channel (the walk requests from
+/// Passes let through before each cancel. The first one puts the row's open on the channel (the walk requests from
 /// its own await step, not from the press), so cancelling on it would find nothing outstanding and never drain.
 constexpr int32_t kRandomizeCancelPasses = 2;
+/// Cancels made, one per round: one more than the eight directory handles libdeluge/file_directory.h documents. A
+/// drain that collected its handle without adopting it would have burned every slot before the last round, so the
+/// ordinary randomize the leg ends with could not open its folder at all. That walk landing is the claim: counting
+/// the collects cannot make it, since the collect is what happens either way.
+constexpr int32_t kRandomizeCancelRounds = 9;
 
 constexpr int32_t kRandomizeGateEditX = 1;
 
@@ -1020,13 +1025,18 @@ bool g_rdGateSecondWalkRefused = false;
 bool g_rdGateEditRefused = false;
 bool g_rdGateEditTakenAfter = false;
 
-/// What the cancel leg saw: how many passes it has let through, whether the cancel has been made, and the drain
-/// counts as they were before it.
+/// What the cancel leg saw: the round it is on, how many passes that round has let through, whether its cancel has
+/// been made, whether the ordinary randomize that follows the rounds has been pressed, and what the rounds left
+/// behind -- all read before that last walk touches anything.
+int32_t g_rdCancelRound = 0;
 int32_t g_rdCancelPasses = 0;
-bool g_rdCancelDone = false;
+bool g_rdCancelCancelled = false;
+bool g_rdCancelFinalPressed = false;
 int32_t g_rdCancelDrainsEnteredBefore = 0;
 int32_t g_rdCancelDrainsCollectedBefore = 0;
 int32_t g_rdCancelScansBefore = 0;
+int32_t g_rdCancelDrained = 0;
+bool g_rdCancelRowUntouched = false;
 
 /// Every note in the randomizer kit clip's rows.
 int32_t kitClipNotes() {
@@ -1108,9 +1118,24 @@ void tickImportGate() {
 	g_imGateSecondRefused = markImport().listings == listingsBefore;
 }
 
+/// The randomizer's gesture: LOAD held (which the randomizer reads through Buttons::isButtonPressed), AFFECT_ENTIRE
+/// held too when @p affectEntire, then the pad. Buttons::buttonAction is what sets the held state a press reads.
+void pressRandomize(bool affectEntire) {
+	using namespace deluge::hid::button;
+	(void)Buttons::buttonAction(LOAD, true, false);
+	if (affectEntire) {
+		(void)Buttons::buttonAction(AFFECT_ENTIRE, true, false);
+	}
+	(void)instrumentClipView.padAction(15, 2, 1);
+	(void)instrumentClipView.padAction(15, 2, 0);
+	if (affectEntire) {
+		(void)Buttons::buttonAction(AFFECT_ENTIRE, false, false);
+	}
+	(void)Buttons::buttonAction(LOAD, false, false);
+}
+
 void actLeg() {
 	if (isRandomize()) {
-		using namespace deluge::hid::button;
 		g_randomizeMark = markRandomize();
 		recordRandomizeRows();
 		g_rdGateTried = false;
@@ -1118,23 +1143,16 @@ void actLeg() {
 		g_rdGateSecondWalkRefused = false;
 		g_rdGateEditRefused = false;
 		g_rdGateEditTakenAfter = false;
+		g_rdCancelRound = 0;
 		g_rdCancelPasses = 0;
-		g_rdCancelDone = false;
+		g_rdCancelCancelled = false;
+		g_rdCancelFinalPressed = false;
+		g_rdCancelDrained = 0;
+		g_rdCancelRowUntouched = false;
 		g_rdCancelDrainsEnteredBefore = deluge::gui::randomizeDrums.drainsEntered();
 		g_rdCancelDrainsCollectedBefore = deluge::gui::randomizeDrums.drainsCollected();
 		g_rdCancelScansBefore = deluge::gui::randomizeDrums.scansRun();
-		// The gesture: LOAD held (which the randomizer reads through Buttons::isButtonPressed), AFFECT_ENTIRE held too
-		// for the all-rows leg, then the pad. Buttons::buttonAction is what sets the held state a press reads.
-		(void)Buttons::buttonAction(LOAD, true, false);
-		if (g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeStall) {
-			(void)Buttons::buttonAction(AFFECT_ENTIRE, true, false);
-		}
-		(void)instrumentClipView.padAction(15, 2, 1);
-		(void)instrumentClipView.padAction(15, 2, 0);
-		if (g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeStall) {
-			(void)Buttons::buttonAction(AFFECT_ENTIRE, false, false);
-		}
-		(void)Buttons::buttonAction(LOAD, false, false);
+		pressRandomize(g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeStall);
 		return;
 	}
 	finishScroll();
@@ -1250,9 +1268,9 @@ bool legEnded() {
 		       && getCurrentUI() != &deluge::gui::context_menu::sample_browser::synth;
 	}
 	if (g_leg == Leg::RandomizeCancelScan) {
-		// A cancel releases the gate on the spot, so the mode says nothing about the drain: the leg ends when the
-		// drain the cancel started has finished -- which is the whole thing it is here to watch.
-		return g_rdCancelDone && !deluge::gui::randomizeDrums.draining();
+		// Every round releases the gate as it cancels, so the mode says nothing until the ordinary randomize the
+		// rounds are there to set up: the leg ends when THAT one has ended.
+		return g_rdCancelFinalPressed && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	}
 	if (isRandomize()) {
 		// The gesture closes the gate and the walk releases it: the leg ends when the mode is gone -- for the gate leg,
@@ -1682,32 +1700,39 @@ void checkLeg() {
 		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
 		const int32_t entered = deluge::gui::randomizeDrums.drainsEntered() - g_rdCancelDrainsEnteredBefore;
 		const int32_t collected = deluge::gui::randomizeDrums.drainsCollected() - g_rdCancelDrainsCollectedBefore;
-		const int32_t drained = deluge::gui::randomizeDrums.scansRun() - g_rdCancelScansBefore;
-		// Untouched: the walk was cancelled before its row could be unbound, and the drain must not undo that either.
-		const bool rowUntouched = holder != nullptr && holder->audioFile == nullptr
-		                          && holder->filePath == kRandomizeFirstSample
-		                          && drum->drumName == kRandomizeDrums[0].name;
+		// The claim the rounds are for: a randomize made after them still gets a directory handle, so every handle
+		// their cancelled opens produced went back. Nothing else in this leg can see a burned handle -- a drain that
+		// collects and drops one looks identical from the outside until the slots run out.
+		const bool landed =
+		    holder != nullptr && holder->audioFile != nullptr && holder->filePath.rfind(kRandomizeFolder, 0) == 0;
 		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
-		printf("RD-CANCELSCAN cancelled=%d entered=%d collected=%d drained=%d rowUntouched=%d released=%d ticks=%d\n",
-		       g_rdCancelDone ? 1 : 0, entered, collected, drained, rowUntouched ? 1 : 0, released ? 1 : 0,
-		       g_waitTicks);
-		if (!g_rdCancelDone || entered != 1) {
-			// Without this the leg proves nothing: every claim below is about what the drain does, and a cancel that
+		printf("RD-CANCELSCAN rounds=%d entered=%d collected=%d drained=%d rowUntouched=%d landed=%d released=%d "
+		       "ticks=%d\n",
+		       g_rdCancelRound, entered, collected, g_rdCancelDrained, g_rdCancelRowUntouched ? 1 : 0, landed ? 1 : 0,
+		       released ? 1 : 0, g_waitTicks);
+		if (g_rdCancelRound != kRandomizeCancelRounds || entered != kRandomizeCancelRounds) {
+			// Without this the leg proves nothing: every claim below is about what a drain does, and a cancel that
 			// found nothing outstanding never drains. This is the leg that went quietly green once the cancel's own
 			// test could no longer be true.
-			printf("RD-CANCELSCAN FAIL the walk was not cancelled with its row's open still out, so nothing drained: "
-			       "entered=%d (want 1)\n",
-			       entered);
+			printf("RD-CANCELSCAN FAIL only %d of %d walks were cancelled with the row's open still out, so the "
+			       "drain ran %d time(s)\n",
+			       g_rdCancelRound, kRandomizeCancelRounds, entered);
 			g_failures++;
 		}
-		else if (collected != 1) {
-			printf("RD-CANCELSCAN FAIL the drain did not collect the handle its cancelled open produced: a handle "
-			       "nobody adopts is burned for good, and there are only eight\n");
+		else if (collected != kRandomizeCancelRounds) {
+			printf("RD-CANCELSCAN FAIL %d of %d drains never collected the handle their cancelled open produced\n",
+			       kRandomizeCancelRounds - collected, kRandomizeCancelRounds);
 			g_failures++;
 		}
-		else if (drained != 0 || !rowUntouched || !released) {
-			printf("RD-CANCELSCAN FAIL a cancelled walk did more than discard: it must read no entries, leave the "
-			       "row's holder and name as they were, and have released the gate\n");
+		else if (!landed) {
+			printf("RD-CANCELSCAN FAIL a randomize made after %d cancelled opens could not open its folder: the "
+			       "handles those opens produced were collected but never given back\n",
+			       kRandomizeCancelRounds);
+			g_failures++;
+		}
+		else if (g_rdCancelDrained != 0 || !g_rdCancelRowUntouched || !released) {
+			printf("RD-CANCELSCAN FAIL a cancelled walk did more than discard: it must read no entries and leave the "
+			       "row's holder and name as they were, and the gate must be released at the end\n");
 			g_failures++;
 		}
 		break;
@@ -1811,14 +1836,45 @@ void tickSupersede() {
 	}
 }
 
-/// One tick of the cancel leg: passes let through until the row's open is on the channel, then the user action that
-/// cancels a walk -- returning to the clip view, which is the only caller of cancelWalk().
+/// One tick of the cancel leg.
+///
+/// A round lets the row's open reach the held directory channel, cancels the walk through the real user action --
+/// returning to the clip view, the only caller of cancelWalk() -- and waits for the drain that cancel starts. After
+/// the last round the hold comes off and the leg randomizes for real: that walk needs a directory handle, and the
+/// rounds have asked for one more than there are.
 void tickRandomizeCancel() {
-	if (g_rdCancelDone || ++g_rdCancelPasses < kRandomizeCancelPasses) {
+	auto& walk = deluge::gui::randomizeDrums;
+	if (g_rdCancelFinalPressed) {
+		return; // the real walk is running; legEnded() waits for it
+	}
+	if (!g_rdCancelCancelled) {
+		if (++g_rdCancelPasses < kRandomizeCancelPasses) {
+			return; // this round's open has not reached the channel yet
+		}
+		instrumentClipView.focusRegained();
+		g_rdCancelCancelled = true;
 		return;
 	}
-	instrumentClipView.focusRegained();
-	g_rdCancelDone = true;
+	if (walk.draining()) {
+		return; // waiting for the handle the cancelled open still produces
+	}
+	g_rdCancelRound++;
+	g_rdCancelCancelled = false;
+	g_rdCancelPasses = 0;
+	if (g_rdCancelRound < kRandomizeCancelRounds) {
+		pressRandomize(/*affectEntire=*/false);
+		return;
+	}
+	// Read before the real walk runs: it reads a folder and rebinds the row, which is exactly what a cancelled one
+	// must not have done.
+	g_rdCancelDrained = walk.scansRun() - g_rdCancelScansBefore;
+	SoundDrum* drum = kitDrum();
+	AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+	g_rdCancelRowUntouched = holder != nullptr && holder->audioFile == nullptr
+	                         && holder->filePath == kRandomizeFirstSample && drum->drumName == kRandomizeDrums[0].name;
+	deluge_file_directory_set_latency_ms(0);
+	pressRandomize(/*affectEntire=*/false);
+	g_rdCancelFinalPressed = true;
 }
 
 void nextLeg() {
