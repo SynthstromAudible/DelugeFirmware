@@ -45,9 +45,7 @@ static int32_t nextSDTestDirection = 1;
 static uint32_t encodersWaitingForCardRoutineEnd;
 
 void interpretEncodersTask() {
-	// Block before draining so an IRQ that arrives during interpretation can re-wake this task.
-	// Blocking after interpretEncoders() can strand a freshly queued tick until the next encoder IRQ.
-	blockTask(EncoderTaskID);
+	poll_encoder_pins();
 	interpretEncoders(false);
 }
 
