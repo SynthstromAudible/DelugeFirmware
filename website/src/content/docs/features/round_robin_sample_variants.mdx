@@ -22,11 +22,17 @@ variants of one zone (up to 4 per note: one primary plus 3 alternates), instead 
 dropped as before. Each sample's note comes from the root-note tag embedded in its WAV/AIFF header when
 present, or from pitch detection otherwise.
 
-A folder of at most 4 files that all carry the *same* embedded root note is treated as a deliberately
+A folder of at most 4 files that all carry the _same_ embedded root note is treated as a deliberately
 prepared round-robin set - for example four takes of one kick, all tagged C3 - and imports as a single
 full-keyboard zone with the takes as variants. (Larger folders where every file claims the same root note are
 still assumed to be mis-tagged by the exporting software, and fall back to pitch detection, as they always
 have.)
+
+If every sample that lands on a note has a velocity tag in its filename - `vel` (or `velocity`) followed by a
+number from 1 to 127, such as `Snare_vel40.wav` and `Snare_vel100.wav` - that zone is set to `VELOCITY` mode
+and 1-127 is split between its samples, each boundary falling halfway between neighbouring tags. If any sample
+on the note is untagged, the zone stays in `CYCLE` with every slot on the full range. A bare `v` is not read
+as a velocity, since `Kick_v2.wav` usually means version 2.
 
 With the community feature turned off, none of this happens: folder import keeps its original behaviour, one
 sample per note with duplicates skipped, and no variant data is created or saved.
@@ -104,7 +110,7 @@ exactly one slot ever matches and this is the straightforward velocity switch it
 
 Velocities that fall in a gap between configured ranges play slot 1, so a zone always makes a sound.
 
-This differs from an MPC, where overlapping layers sound *together* - a Deluge voice plays one sample per
+This differs from an MPC, where overlapping layers sound _together_ - a Deluge voice plays one sample per
 oscillator, so the overlap alternates instead of stacking. The cycle position is carried across bands rather
 than kept per band, so alternating hard and soft hits keeps working through each band's takes instead of
 sticking on the first one.
