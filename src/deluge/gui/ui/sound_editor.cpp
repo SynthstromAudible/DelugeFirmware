@@ -1451,7 +1451,6 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 			// Shortcut to patch a modulation source to the parameter we're already looking at
 			if (getCurrentUI() == &soundEditor && ((x == 14 && y >= 5) || x == 15)) {
-
 				const int32_t modSourceX = x - 14;
 				PatchSource source = modSourceShortcuts[modSourceX][y];
 
@@ -1524,6 +1523,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 							endScreen();
 
 							modulationItemFound = true;
+							item = nullptr; // don't open another shortcut on top of this
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
 							if (!wentBack) {
