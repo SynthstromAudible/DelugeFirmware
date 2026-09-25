@@ -182,6 +182,12 @@ public:
 	[[nodiscard]] int32_t supersessions() const { return supersessions_; }
 	/// Sample loads that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
+	/// UnusedSlot walks begun -- the slot name a new blank instrument takes.
+	[[nodiscard]] int32_t slotScans() const { return slotScans_; }
+	/// Of those, the ones begun on the storage owner; required 0.
+	[[nodiscard]] int32_t slotScansOnOwner() const { return slotScansOnOwner_; }
+	/// The error the most recent load or acquisition finished with; Error::NONE after a success.
+	[[nodiscard]] Error lastError() const { return lastError_; }
 	/// @}
 
 private:
@@ -286,6 +292,9 @@ private:
 	int32_t sampleLoadsOnOwner_{0};
 	int32_t supersessions_{0};
 	int32_t giveUps_{0};
+	int32_t slotScans_{0};
+	int32_t slotScansOnOwner_{0};
+	Error lastError_{Error::NONE};
 };
 
 extern InstrumentLoad instrumentLoad;

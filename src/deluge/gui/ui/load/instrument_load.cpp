@@ -362,6 +362,9 @@ void InstrumentLoad::runWalkOp(void* self) {
 		break;
 	}
 	case deluge::storage::AcquireWalk::UnusedSlot: {
+		// Counted for the preset-load gate (AQ-SLOT): where the walk began.
+		load->slotScans_++;
+		load->slotScansOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 		const char* thingName = (spec.outputType == OutputType::SYNTH) ? "SYNT" : "KIT";
 		found.error = loadInstrumentPresetUI.getUnusedSlot(spec.outputType, &found.name, thingName);
 		break;
@@ -599,6 +602,7 @@ void InstrumentLoad::abandon() {
 }
 
 bool InstrumentLoad::finish(Error error, bool deliver) {
+	lastError_ = error;
 	const bool commit = active_.commit;
 	const auto completion = active_.completion;
 	const bool acquire = active_.kind == Kind::Acquire;
