@@ -130,7 +130,15 @@ sdError:
 	}
 
 	String currentPath;
-	currentPath.set(&soundEditor.getCurrentAudioFileHolder()->filePath);
+	if (getCurrentClip()->type == ClipType::AUDIO) {
+		currentPath.set(&soundEditor.getCurrentAudioFileHolder()->filePath);
+	}
+	else {
+		AudioFileHolder* targetHolder = getCurrentInstrumentTargetHolder(false);
+		if (targetHolder != nullptr) {
+			currentPath.set(&targetHolder->filePath);
+		}
+	}
 
 	char const* searchFilename;
 
@@ -741,18 +749,61 @@ possiblyExit:
 	return ActionResult::DEALT_WITH;
 }
 
+AudioFileHolder* SampleBrowser::getCurrentInstrumentTargetHolder(bool createIfNeeded) {
+	if (getCurrentClip()->type == ClipType::AUDIO) {
+		return soundEditor.getCurrentAudioFileHolder();
+	}
+
+	MultisampleRange* range = static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
+	if (range == nullptr) {
+		return nullptr;
+	}
+
+	if (targetRoundRobinSlot == 0) {
+		return range->getAudioFileHolder();
+	}
+
+	SampleHolderForVoice* holder = range->getVariantHolder(targetRoundRobinSlot);
+	if (holder == nullptr && createIfNeeded && range->canPopulateAlternateSlot(targetRoundRobinSlot - 1)) {
+		holder = range->ensureAlternateHolder(targetRoundRobinSlot - 1);
+		if (holder != nullptr && targetRoundRobinSlot > range->rrCount) {
+			range->rrCount = targetRoundRobinSlot;
+		}
+	}
+
+	return static_cast<AudioFileHolder*>(holder);
+}
+
 Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts) {
 	soundEditor.cutSound();
 
-	AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
-	holder->setAudioFile(nullptr);
-	Error error = getCurrentFilePath(&holder->filePath);
-	if (error != Error::NONE) {
-		return error;
+	// Remember whether this claim is about to create a brand-new alternate slot, so a failed load
+	// can remove it again - an empty slot would otherwise silently mute every Nth trigger.
+	MultisampleRange* rangeForCleanup = nullptr;
+	if (targetRoundRobinSlot > 0 && getCurrentClip()->type != ClipType::AUDIO) {
+		auto* range = static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
+		if (range != nullptr && !range->hasAlternateLoaded(targetRoundRobinSlot - 1)) {
+			rangeForCleanup = range;
+		}
 	}
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
-	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
+	AudioFileHolder* holder = getCurrentInstrumentTargetHolder();
+	if (holder == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	holder->setAudioFile(nullptr);
+	Error error = getCurrentFilePath(&holder->filePath);
+	if (error == Error::NONE) {
+		error = holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
+		                         CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
+	}
+
+	if (error != Error::NONE && rangeForCleanup != nullptr
+	    && rangeForCleanup->hasAlternateLoaded(targetRoundRobinSlot - 1)) {
+		rangeForCleanup->clearAlternateSlot(targetRoundRobinSlot - 1);
+	}
+
+	return error;
 }
 
 Error SampleBrowser::claimAudioFileForAudioClip() {
@@ -915,7 +966,6 @@ doLoadAsWaveTable:
 		else {
 			numTypesTried++;
 doLoadAsSample:
-
 			/*
 			// If multiple Ranges, then forbid the changing from WaveTable to Sample.
 			if (soundEditor.currentSource->ranges.getNumElements() > 1
@@ -934,11 +984,22 @@ doLoadAsSample:
 				goto removeLoadingAnimationAndGetOut;
 			}
 
-			Sample* sample = (Sample*)soundEditor.getCurrentAudioFileHolder()->audioFile;
+			// Fetch the holder only after setOscType() and the claim - converting from WAVETABLE reallocates
+			// the ranges array, so any holder pointer taken earlier would dangle.
+			AudioFileHolder* targetHolder = getCurrentInstrumentTargetHolder();
+			if (targetHolder == nullptr) {
+				error = Error::INSUFFICIENT_RAM;
+				goto removeLoadingAnimationAndGetOut;
+			}
+			SampleHolderForVoice* targetSampleHolder = static_cast<SampleHolderForVoice*>(targetHolder);
+
+			Sample* sample = (Sample*)targetHolder->audioFile;
 
 			// If the file was actually clearly a wavetable file, and we're allowed to load one, then go do that
-			// instead.
-			if (mayDoWaveTable && numTypesTried <= 1 && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
+			// instead. Never do this for an alternate round-robin slot though - converting the source to
+			// WAVETABLE would destroy all its variants.
+			if (mayDoWaveTable && numTypesTried <= 1 && targetRoundRobinSlot == 0
+			    && sample->fileExplicitlySpecifiesSelfAsWaveTable) {
 				goto doLoadAsWaveTable;
 			}
 
@@ -946,50 +1007,54 @@ doLoadAsSample:
 
 			int32_t mSec = sample->getLengthInMSec();
 
-			// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
-			if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
+			// Skip repeat-mode inference for alternate round-robin slots — the mode was already set
+			// for the primary slot and should not be overwritten by loading an additional layer.
+			if (targetRoundRobinSlot == 0) {
+				// If 20ms or less, and we're not a kit, then we'd like to be a single-cycle waveform.
+				if (!soundEditor.editingKit() && (mayDoSingleCycle == 2 || (mayDoSingleCycle == 1 && mSec <= 20))) {
 
-				// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
-				if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
-				    && sample->lengthInSamples >= kWavetableMinCycleSize
-				    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
+					// Ideally, we'd like to use the wavetable engine for this single-cycle-ness
+					if (mayDoWaveTable && numTypesTried <= 1 && sample->numChannels == 1
+					    && sample->lengthInSamples >= kWavetableMinCycleSize
+					    && sample->lengthInSamples <= kWavetableMaxCycleSize) {
 
-					makeWaveTableWorkAtAllCosts = true; // So that the loading functions don't just chicken out when it
-					                                    // doesn't look all that wavetabley.
-					goto doLoadAsWaveTable;
+						makeWaveTableWorkAtAllCosts = true; // So that the loading functions don't just chicken out when
+						                                    // it doesn't look all that wavetabley.
+						goto doLoadAsWaveTable;
+					}
+
+					// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty
+					// rare.)
+					soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+					doingSingleCycleNow = true;
 				}
 
-				// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty
-				// rare.)
-				soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
-				doingSingleCycleNow = true;
-			}
+				// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
+				if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
+				    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
 
-			// If time stretching or looping on (or we just decided to do single-cycle, above), leave that the case
-			if (soundEditor.currentSource->repeatMode == SampleRepeatMode::STRETCH
-			    || soundEditor.currentSource->repeatMode == SampleRepeatMode::LOOP) {}
-
-			// Otherwise...
-			else {
-
-				// If source file had loop points set...
-				if (sample->fileLoopEndSamples) {
-
-					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
-					// long, we can do a ONCE.
-					if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
-					}
-					else {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
-					}
-				}
-
+				// Otherwise...
 				else {
 
-					// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
-					soundEditor.currentSource->repeatMode =
-					    (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+					// If source file had loop points set...
+					if (sample->fileLoopEndSamples) {
+
+						// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
+						// long, we can do a ONCE.
+						if (targetSampleHolder->loopEndPos && mSec < 2002) {
+							soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
+						}
+						else {
+							soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+						}
+					}
+
+					else {
+
+						// If 2 seconds or less, set play mode to ONCE. Otherwise, CUT.
+						soundEditor.currentSource->repeatMode =
+						    (mSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+					}
 				}
 			}
 
@@ -998,34 +1063,37 @@ doLoadAsSample:
 
 				SoundDrum* drum = (SoundDrum*)soundEditor.currentSound;
 
-				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.get());
+				// Only rename the drum when loading the primary sample, not an alternate slot.
+				if (targetRoundRobinSlot == 0) {
+					autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.get());
 
-				// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
-				drum->drumName.clear();
+					// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
+					drum->drumName.clear();
 
-				String newName;
-				if (!numCharsInPrefix || display->haveOLED()) {
-					newName.set(&enteredText);
-				}
-				else {
-					error = newName.set(&enteredText.get()[numCharsInPrefix]);
-					if (error != Error::NONE) {
-						goto removeLoadingAnimationAndGetOut;
+					String newName;
+					if (!numCharsInPrefix || display->haveOLED()) {
+						newName.set(&enteredText);
 					}
-				}
-
-				Kit* kit = getCurrentKit();
-
-				// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
-				if (kit->getDrumFromName(newName.get())) {
-
-					error = kit->makeDrumNameUnique(&newName, 2);
-					if (error != Error::NONE) {
-						goto removeLoadingAnimationAndGetOut;
+					else {
+						error = newName.set(&enteredText.get()[numCharsInPrefix]);
+						if (error != Error::NONE) {
+							goto removeLoadingAnimationAndGetOut;
+						}
 					}
-				}
 
-				drum->drumName = newName.get();
+					Kit* kit = getCurrentKit();
+
+					// Ensure Drum name isn't a duplicate, and if need be, make a new name from the fileNamePostPrefix.
+					if (kit->getDrumFromName(newName.get())) {
+
+						error = kit->makeDrumNameUnique(&newName, 2);
+						if (error != Error::NONE) {
+							goto removeLoadingAnimationAndGetOut;
+						}
+					}
+
+					drum->drumName = newName.get();
+				}
 			}
 
 			// If a synth...
@@ -1035,15 +1103,14 @@ doLoadAsSample:
 				if (mayDoPitchDetection) {
 					bool shouldMinimizeOctaves = (soundEditor.currentSource->ranges.getNumElements() == 1);
 
-					((MultisampleRange*)soundEditor.currentMultiRange)
-					    ->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycleNow);
+					targetSampleHolder->setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycleNow);
 				}
 
 				else {
 					// Otherwise, reset pitch. Popular request, late 2022.
 					// https://forums.synthstrom.com/discussion/4814/v4-0-1-after-loading-a-non-c-sample-into-synth-reloading-the-sample-as-basic-doesnt-reset-pitch
-					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = 0;
-					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(0);
+					targetSampleHolder->transpose = 0;
+					targetSampleHolder->setCents(0);
 				}
 			}
 

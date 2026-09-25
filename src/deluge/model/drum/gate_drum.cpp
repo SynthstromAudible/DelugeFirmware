@@ -31,7 +31,8 @@ GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
 }
 
 void GateDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
-                      int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
+                      int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
+                      bool noteMightBeConstant) {
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...

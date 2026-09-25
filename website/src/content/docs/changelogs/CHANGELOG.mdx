@@ -125,6 +125,17 @@ import RecentMainChanges from "../../../components/RecentMainChanges.astro"
   set the stutter configuration independently of the song configuration if you wish.
 - Quantized stutter is enabled by default.
 
+#### <ins>Samples</ins>
+
+- Added round-robin sample variants. Each sample zone can hold up to 4 samples - the primary plus 3 alternates -
+  played in turn each time the zone is triggered, removing the "machine gun" effect of repeated hits.
+  - Set up in the new `VARIANTS` menu under `OSC1`/`OSC2`, with a `MODE` of `CYCLE`, `RANDOM` or `NO REPEAT`, and
+    per-variant `START`/`END`, `TRANSPOSE` and `VOLUME`.
+  - Importing a whole folder stacks samples that land on the same note as variants of one zone.
+  - Can be turned off in `SETTINGS > COMMUNITY FEATURES > ROUND-ROBIN SAMPLE VARIANTS (VARI)`; variants already saved
+    in a song are kept either way.
+  - See the [Round-Robin Sample Variants](/features/round_robin_sample_variants) page for details.
+
 ### User Interface
 
 #### <ins>General</ins>

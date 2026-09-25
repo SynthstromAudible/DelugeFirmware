@@ -44,4 +44,10 @@ public:
 	uint32_t loopEndPlaybackAtByte;   // 0 means disabled
 
 	bool noteOffReceived;
+
+	/// True when this voice resolved a round-robin *alternate* (slot 2-4) rather than the zone's
+	/// primary sample. An alternate never had repeatMode inferred for it - loading one deliberately
+	/// skips that step - so it inherits whatever the primary's load happened to set. See
+	/// getLoopingType().
+	bool isRoundRobinAlternate;
 };

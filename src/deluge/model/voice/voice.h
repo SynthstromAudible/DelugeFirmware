@@ -100,7 +100,8 @@ public:
 	bool sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, MarkerType markerType);
 	bool noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
 	            int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength, int32_t ticksLate,
-	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues);
+	            uint32_t samplesLate, bool resetEnvelopes, int32_t fromMIDIChannel, const int16_t* mpeValues,
+	            bool noteMightBeConstant = false);
 	void noteOff(ModelStackWithSoundFlags* modelStack, bool allowReleaseStage = true);
 
 	void randomizeOscPhases(const Sound& sound);

@@ -27,6 +27,11 @@ public:
 
 	[[nodiscard]] std::string_view getName() const override { return getNameOrTitle(title); }
 	[[nodiscard]] std::string_view getTitle() const override {
+		// Deliberately says nothing about the keyboard zone. Once any zone has variants, everything
+		// left on this page - type, reverse, repeat, speed, pitch/speed, interpolation - is a setting
+		// for the whole oscillator; the zone-scoped items have moved under VARIANTS. Naming a zone
+		// here would claim a scope the page doesn't have. The zone is named on the Variants screen and
+		// its slot pages instead, which is where editing really is confined to one zone.
 		auto l10nString = title;
 
 		// If we are in the sample oscillator menu and not on the first page,
