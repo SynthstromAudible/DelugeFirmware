@@ -44,6 +44,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
+#include "gui/waveform/waveform_render_data.h" // COL_STATUS_*
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -51,6 +52,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
+#include "libdeluge/clock.h" // deluge_clock_now
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -623,12 +625,13 @@ void SampleBrowser::cancelPreview() {
 	sampleClaim.cancelAutoLoad();
 	previewWanted_.reset();
 	previewLoad_.cancel();
-	previewShow_.clear_queued();
-	// A show already dispatched finds its generation passed, and does nothing.
+	// A redraw pending for the preview being left finds its generation passed, and does nothing.
 	previewGeneration_++;
 }
 
 void SampleBrowser::browserGraphicsRoutine() {
+	// The redraw first: tickPreview() returns early whenever nothing is wanted or pending.
+	tickPreviewRedraw();
 	tickPreview();
 	// No UI::graphicsRoutine() tail: Browser::graphicsRoutine() makes that call, once, after this
 	// returns. Repeating it here would run the base tick twice per frame.
@@ -739,32 +742,15 @@ void SampleBrowser::finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewT
 		});
 	}
 
-	// The waveform draw still reads the card, so it stays on the storage owner.
+	// Drawn here, on the interaction tier. A cluster not yet resident does not block: off the worker fiber the reader
+	// enqueues it for the streaming loader and reports it missing, renderFullScreen() returns false, and
+	// tickPreviewRedraw() finishes the waveform as the clusters land.
 	const PreviewShow show{
 	    .movementDirection = outcome.payload.movementDirection,
 	    .generation = previewGeneration_,
 	};
-	if (previewShow_.request(show) && !deluge::storage::Owner::run(&SampleBrowser::runPreviewShowOp, this)) {
-		// Owner queue full: the op won't run, so release the guard (which would otherwise wedge single-flight for ever)
-		// and drop the show. The display is left as it is.
-		previewShow_.reset();
-	}
-}
-
-void SampleBrowser::runPreviewShowOp(void* self) {
-	auto* browser = static_cast<SampleBrowser*>(self);
-	const PreviewShow show = browser->previewShow_.current();
-
-	// Checked BEFORE the work: since this was dispatched, a newer preview may have started, whose holder is already
-	// unbound, so drawing now would clear the waveform meant to stay up until the new one lands; or the cursor may have
-	// moved somewhere with no preview at all. Claiming or drawing a file the cursor has left is the damage.
-	if (show.generation == browser->previewGeneration_) {
-		browser->showPreview(show);
-	}
-
-	if (browser->previewShow_.complete().has_value()
-	    && !deluge::storage::Owner::run(&SampleBrowser::runPreviewShowOp, self)) {
-		browser->previewShow_.reset(); // re-dispatch dropped (see finishPreviewLoad)
+	if (show.generation == previewGeneration_) {
+		showPreview(show);
 	}
 }
 
@@ -820,12 +806,73 @@ void SampleBrowser::showPreview(const PreviewShow& show) {
 		}
 	}
 
-	if (didDraw && rendered) {
-		previewDrawsComplete_++;
+	if (didDraw && !rendered) {
+		// Some columns' clusters were not resident: they are enqueued now. renderFullScreen() drew nothing, so blank
+		// the pads rather than leave the last file's waveform up, and finish the waveform as the clusters land.
+		auto* target = (currentUIMode == UI_MODE_HORIZONTAL_SCROLL) ? PadLEDs::imageStore : PadLEDs::image;
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			memset(target[y], 0, kDisplayWidth * sizeof(RGB));
+		}
+		if (currentUIMode != UI_MODE_HORIZONTAL_SCROLL) {
+			PadLEDs::sendOutMainPadColours();
+		}
+		previewRedrawPending_ = true;
+		previewRedrawGeneration_ = show.generation;
+		previewResolvedCols_ = previewResolvedColumns();
+		previewRedrawSpan_.reset();
+	}
+	else {
+		previewRedrawPending_ = false;
+		if (didDraw) {
+			previewDrawsComplete_++;
+		}
 	}
 
 	if (!didDraw) {
 		clearPreviewDisplay(show.movementDirection);
+	}
+}
+
+int32_t SampleBrowser::previewResolvedColumns() const {
+	int32_t resolved = 0;
+	for (const uint8_t status : waveformBasicNavigator.renderData.colStatus) {
+		resolved += (status != COL_STATUS_NOT_INVESTIGATED) ? 1 : 0;
+	}
+	return resolved;
+}
+
+void SampleBrowser::tickPreviewRedraw() {
+	if (!previewRedrawPending_) {
+		return;
+	}
+	if (!currentlyShowingSamplePreview || previewRedrawGeneration_ != previewGeneration_) {
+		previewRedrawPending_ = false; // the preview it belonged to is gone
+		return;
+	}
+	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL || qwertyVisible) {
+		return; // the pads are animating or covered: try again once they are not
+	}
+	previewRedraws_++;
+	const bool rendered = waveformRenderer.renderFullScreen(
+	    waveformBasicNavigator.sample, waveformBasicNavigator.xScroll, waveformBasicNavigator.xZoom, PadLEDs::image,
+	    &waveformBasicNavigator.renderData);
+	PadLEDs::sendOutMainPadColours();
+	if (rendered) {
+		previewRedrawPending_ = false;
+		previewDrawsComplete_++;
+		return;
+	}
+	const int32_t resolved = previewResolvedColumns();
+	if (resolved > previewResolvedCols_) {
+		previewResolvedCols_ = resolved; // progress: the bound starts again
+		previewRedrawSpan_.reset();
+		return;
+	}
+	previewRedrawSpan_.note(deluge_clock_now());
+	if (previewRedrawSpan_.elapsedUs > deluge::storage::kMaxUnproductiveUs) {
+		// Nothing more is arriving. What was drawn stays; the display is all this was for, so no error.
+		previewRedrawPending_ = false;
+		previewDrawGiveUps_++;
 	}
 }
 

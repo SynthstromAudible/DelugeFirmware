@@ -247,10 +247,13 @@ constexpr int32_t kStallSettleTicks = 64;
 
 extern "C" void deluge_streaming_set_fill_latency_ms(uint32_t ms); // host harness only; streaming_loader.rs
 
-/// The preview-draw stall stage's file (see the Rust fixture): many clusters, none resident.
+/// The preview-draw stall stage's file (see the Rust fixture): six clusters, each column reading its own.
 constexpr const char* kDrawStallPath = "SAMPLES/DRAWSTALL.WAV";
-/// How long the streaming loader holds each drain pass in that stage: far past the redraw bound.
-constexpr uint32_t kDrawStallHoldMs = 30000;
+/// How long the streaming loader holds each drain pass in that stage: far past the 300 ms redraw bound, and short
+/// enough that the pass it delays is over well before the next preview's clusters are wanted. The stage runs before the
+/// stall stage: that one holds the audio loader, which is single-flight, and a load asked for behind its held one
+/// stalls.
+constexpr uint32_t kDrawStallHoldMs = 2000;
 /// Ticks the stage may take before it is called wedged: far past the 300 ms redraw bound.
 constexpr int32_t kMaxDrawStallTicks = 20000;
 
@@ -333,7 +336,7 @@ std::string g_ejectReferenceLine{};
 
 /// Which stage `dispatch_step` is in, in order. `Eject` sits between the case list and the
 /// browser-driven stages deliberately — see runOneStep()'s hand-off for why it cannot follow them.
-enum class Stage : uint8_t { Cases, Eject, Preview, Cancel, Stall, DrawStall, Done };
+enum class Stage : uint8_t { Cases, Eject, Preview, Cancel, DrawStall, Stall, Done };
 Stage g_stage = Stage::Cases;
 /// Whether previewFile() has been called. It is called exactly once.
 bool g_previewStarted = false;
@@ -360,6 +363,10 @@ bool g_dsMovedDrawn = false;
 /// filePath then is a use-after-free (it crashed this stage's first run).
 int32_t g_dsDrawsBefore = 0;
 int32_t g_dsMoveDrawsBefore = 0;
+int32_t g_dsCompleteBefore = 0;
+int32_t g_dsStallDraws = 0;
+int32_t g_dsStallComplete = 0;
+int32_t g_dsStallTicks = 0;
 /// graphicsRoutine() calls made while the stalled preview was pending.
 int32_t g_stallTicks = 0;
 /// graphicsRoutine() calls made after the wait ended.
@@ -656,6 +663,8 @@ void runOnePreviewTick() {
 		// The ONE user-driven action of this stage: the browser is told which file to preview,
 		// exactly as a cursor move tells it. Nothing below ever calls this again.
 		g_previewStarted = true;
+		// Its waveform is what the draw legs watch, and the browser draws none with the keyboard up.
+		sampleBrowser.hideKeyboardForHarness();
 		g_previewTier = markTier();
 		g_drawsBefore = sampleBrowser.previewDraws();
 		g_drawsOnOwnerBefore = sampleBrowser.previewDrawsOnOwner();
@@ -709,9 +718,13 @@ void finishPreviewStage(bool drawn) {
 	const int32_t complete = sampleBrowser.previewDrawsComplete() - g_drawsCompleteBefore;
 	printf("AB-PREVIEW-DRAW draws=%d onOwner=%d redraws=%d complete=%d redrawPending=%d\n", draws, onOwner, redraws,
 	       complete, sampleBrowser.previewRedrawPending() ? 1 : 0);
-	if (draws != 1 || onOwner != 0 || complete < 1 || sampleBrowser.previewRedrawPending()) {
-		printf("FAIL [audioLoadAB/preview-draw]: the preview must be drawn once, off the storage owner, and end on a "
-		       "complete render with nothing left to redraw\n");
+	// redraws >= 1 is measured, not assumed: the preview's first draw finds its cluster enqueued but not yet filled,
+	// and one redraw finishes it (measured redraws=1). A draw that completed at once would be a draw that waited for
+	// the card.
+	if (draws != 1 || onOwner != 0 || redraws < 1 || complete < 1 || sampleBrowser.previewRedrawPending()) {
+		printf(
+		    "FAIL [audioLoadAB/preview-draw]: the preview must be drawn once, off the storage owner, without waiting "
+		    "for its clusters, and end on a complete render with nothing left to redraw\n");
 		g_failures++;
 	}
 	checkTier("preview", g_previewTier);
@@ -867,6 +880,7 @@ void runOneDrawStallTick() {
 		g_dsRedrawsBefore = sampleBrowser.previewRedraws();
 		g_dsGiveUpsBefore = sampleBrowser.previewDrawGiveUps();
 		g_dsDrawsBefore = sampleBrowser.previewDraws();
+		g_dsCompleteBefore = sampleBrowser.previewDrawsComplete();
 		sampleBrowser.previewFile(kDrawStallPath, /*movementDirection=*/0);
 		g_drawStallStep = DrawStallStep::Wait;
 		return;
@@ -879,6 +893,9 @@ void runOneDrawStallTick() {
 			return;
 		}
 		g_dsPendingAtEnd = sampleBrowser.previewRedrawPending();
+		g_dsStallDraws = sampleBrowser.previewDraws() - g_dsDrawsBefore;
+		g_dsStallComplete = sampleBrowser.previewDrawsComplete() - g_dsCompleteBefore;
+		g_dsStallTicks = g_drawStallTicks;
 		deluge_streaming_set_fill_latency_ms(0);
 		g_drawStallStep = DrawStallStep::Move;
 		return;
@@ -908,8 +925,9 @@ void runOneDrawStallTick() {
 void finishDrawStallStage() {
 	const int32_t redraws = sampleBrowser.previewRedraws() - g_dsRedrawsBefore;
 	const int32_t giveUps = sampleBrowser.previewDrawGiveUps() - g_dsGiveUpsBefore;
-	printf("AB-PREVIEW-DRAW-STALL redraws=%d giveUps=%d pendingAtEnd=%d movedDrawn=%d\n", redraws, giveUps,
-	       g_dsPendingAtEnd ? 1 : 0, g_dsMovedDrawn ? 1 : 0);
+	printf("AB-PREVIEW-DRAW-STALL draws=%d complete=%d ticks=%d redraws=%d giveUps=%d pendingAtEnd=%d movedDrawn=%d\n",
+	       g_dsStallDraws, g_dsStallComplete, g_dsStallTicks, redraws, giveUps, g_dsPendingAtEnd ? 1 : 0,
+	       g_dsMovedDrawn ? 1 : 0);
 	if (redraws < 1 || giveUps != 1 || g_dsPendingAtEnd || !g_dsMovedDrawn) {
 		printf("FAIL [audioLoadAB/preview-draw-stall]: a preview whose clusters never arrived must redraw, give up "
 		       "exactly once with nothing left pending, and leave the browser previewing the next file\n");
@@ -1126,6 +1144,10 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_dsMovedDrawn = false;
 	g_dsDrawsBefore = 0;
 	g_dsMoveDrawsBefore = 0;
+	g_dsCompleteBefore = 0;
+	g_dsStallDraws = 0;
+	g_dsStallComplete = 0;
+	g_dsStallTicks = 0;
 	g_ejectStep = EjectStep::Request;
 	g_ejectTicks = 0;
 	g_ejectCollectDeferrals = 0;
@@ -1169,7 +1191,7 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 	    || g_stage == Stage::DrawStall) {
 		// The browser-driven stages run on the UI tier, not the worker fiber -- that is where the
 		// real browser calls these from. graphicsRoutine() ticks the preview's load here and
-		// dispatches its draw onto the owner itself. A marker op behind them releases the latch: the
+		// draws it on this tier. A marker op behind them releases the latch: the
 		// owner queue is FIFO, so it runs after whatever they just queued (and immediately if they
 		// queued nothing). The cancellation stage's window needs no ordering: previewFile() only
 		// records the file, so cancelPreview() lands before any tick has started its load.
@@ -1186,23 +1208,23 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 			runOneCancelTick();
 			if (g_cancelTicks >= kCancelTicks) {
 				finishCancelStage();
-				g_stage = Stage::Stall;
+				g_stage = Stage::DrawStall;
 			}
 		}
 		else if (g_stage == Stage::DrawStall) {
 			runOneDrawStallTick();
 			if (g_drawStallStep == DrawStallStep::Finished) {
 				finishDrawStallStage();
-				g_stage = Stage::Done;
-				printSummary();
-				g_summaryPrinted = true;
+				g_stage = Stage::Stall;
 			}
 		}
 		else {
 			runOneStallTick();
 			if (g_stallStep == StallStep::Finished) {
 				finishStallStage();
-				g_stage = Stage::DrawStall;
+				g_stage = Stage::Done;
+				printSummary();
+				g_summaryPrinted = true;
 			}
 		}
 		if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {

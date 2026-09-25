@@ -20,8 +20,8 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 #include "hid/button.h"
+#include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
 #include "storage/audio/latest_sample_load.h"
-#include "storage/latest_wins.h"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -96,14 +96,22 @@ public:
 	/// supersedes the preview; without this, a load started for the file the cursor has LEFT ends, and then sounds and
 	/// draws that file over whatever the user actually moved to -- or, on the exit paths, after the browser is gone.
 	///
-	/// Clears the wanted file, drops the load, drops a show not yet dispatched, and moves the generation so that a show
-	/// already dispatched does nothing. Cancelling strands nothing: a dropped load's request stays with the loader,
+	/// Clears the wanted file, drops the load, and moves the generation so that a redraw still pending for the preview
+	/// being left does nothing. Cancelling strands nothing: a dropped load's request stays with the loader,
 	/// where a later lookup of the same path collects it, and a result nobody collects is evicted.
 	///
 	/// Public because the A/B gate has to be able to drive it: that harness calls previewFile()
 	/// directly and never populates a file list, so it can never reach the folder branch that calls
 	/// this in the real UI.
 	void cancelPreview();
+
+	/// @brief Put the browser in the state opened() leaves it in for drawing: the keyboard hidden, so a preview draws
+	///        its waveform. The A/B gate never opens the browser, and with the keyboard up a preview draws no waveform.
+	void hideKeyboardForHarness() {
+		qwertyVisible = false;
+		qwertyAlwaysVisible = false;
+		qwertyCurrentlyDrawnOnscreen = false;
+	}
 
 	/// @brief Whether a preview is wanted and not yet started, or its load has not ended.
 	///
@@ -193,16 +201,10 @@ private:
 	/// @brief Act on the end of a preview's load.
 	///
 	/// A load that found its file, or settled without one, shows any lookup error, sounds the preview if the browser
-	/// should, and dispatches the show operation. A load that stalled, or found the card unusable, gives up with the
+	/// should, and draws the preview. A load that stalled, or found the card unusable, gives up with the
 	/// card error and leaves the display as it is; nothing is asked for again until the next move onto the file.
 	/// @param outcome How the load ended, with the target it was started for.
 	void finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewTarget>::Outcome outcome);
-	/// @brief The show operation: show the latest show asked for, unless a newer preview has started or the preview
-	///        was cancelled since.
-	///
-	/// Runs on the storage owner (inline on legacy/host), latest-wins through previewShow_.
-	/// @param self The SampleBrowser instance.
-	static void runPreviewShowOp(void* self);
 	/// @brief Draw the preview drum's sample, or clear the preview display
 	///        when the drum holds none.
 	/// @param show The show to draw.
@@ -212,13 +214,17 @@ private:
 	/// Shared by the no-file path and a show with no sample to draw.
 	/// @param movementDirection Scroll direction driving the teardown animation.
 	void clearPreviewDisplay(int32_t movementDirection);
+	/// @brief Redraw a preview a render left incomplete, once no scroll animation or QWERTY covers the pads. Gives up
+	///        after kMaxUnproductiveUs with no new column resolved. Called from browserGraphicsRoutine().
+	void tickPreviewRedraw();
+	/// @brief How many of the preview view's columns the renderer has resolved (investigated, or found past the
+	///        waveform's end).
+	[[nodiscard]] int32_t previewResolvedColumns() const;
 
 	/// @brief The file a cursor move asked to preview, until the next tick starts its load.
 	std::optional<PreviewTarget> previewWanted_{};
 	/// @brief The preview's load, ticked by tickPreview(). Holds the target it was started for.
 	deluge::storage::LatestSampleLoad<PreviewTarget> previewLoad_{};
-	/// @brief The show operation's single flight, latest-wins.
-	deluge::storage::LatestWins<PreviewShow> previewShow_{};
 	/// @brief Moves each time a preview's load starts or the preview is cancelled. A show from an earlier generation
 	///        does nothing.
 	uint32_t previewGeneration_{0};
@@ -232,6 +238,13 @@ private:
 	int32_t previewDrawGiveUps_{0};
 	/// Set by a draw that renderFullScreen left incomplete; see tickPreviewRedraw().
 	bool previewRedrawPending_{false};
+	/// The generation the pending redraw belongs to: a newer preview's start or a cancel moves previewGeneration_,
+	/// and a redraw for an older one is dropped.
+	uint32_t previewRedrawGeneration_{0};
+	/// Columns of the view resolved at the last attempt: progress is more of them than this.
+	int32_t previewResolvedCols_{0};
+	/// How long redraws have gone without progress. Elapsed time, never ticks.
+	deluge::storage::UnproductiveSpan previewRedrawSpan_{};
 
 	/// @brief Preview load steps that ran on the storage owner. See previewLoadsOnOwner().
 	int32_t previewLoadsOnOwner_{0};

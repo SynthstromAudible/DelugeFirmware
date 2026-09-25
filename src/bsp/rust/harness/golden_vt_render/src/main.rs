@@ -1066,9 +1066,11 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     // The stall stage's file (kStallPath): previewed while the loader holds every load, so it must
     // never load or draw. A real, loadable file for the same reason as `CANCEL.WAV`.
     write_test_wav(&samples.join("STALL.WAV"), 1, 16, 3840, 0xDE);
-    // The preview-draw stall stage's file: long enough to span many clusters, so a draw made while the streaming
-    // loader holds every fill cannot find them all resident. Asked for by nothing else.
-    write_test_wav(&samples.join("DRAWSTALL.WAV"), 1, 16, 1_048_576, 0xDF);
+    // The preview-draw stall stage's file: six 32 KB clusters, so each of the view's columns covers less than two of
+    // them and reads its cluster directly -- a draw made while the streaming loader holds every fill cannot find them
+    // resident. A file of 16 clusters or more is not enough: each column then spans whole clusters, which the draw
+    // takes from the overview the load already filled, never waiting for a fill. Asked for by nothing else.
+    write_test_wav(&samples.join("DRAWSTALL.WAV"), 1, 16, 196_608, 0xDF);
 
     // The card-ejection stage's three files (see `audio_load_ab_scenario.cpp`'s kSwapPath block
     // comment). `SWAP.WAV` is the file the loader parses BEFORE the ejection; `SWAPB.WAV` is the
