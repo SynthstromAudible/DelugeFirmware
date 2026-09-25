@@ -2521,6 +2521,7 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
                        uint32_t samplesLate, bool noteMightBeConstant, PendingNoteOnList* pendingNoteOnList) {
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 	Output* output = clip->output;
+	bool is_drone = noteMightBeConstant && thisNote && thisNote->isDrone(modelStack->getLoopLength());
 
 	if (output->type != OutputType::KIT) {
 		// If it's a note-on, we'll send it "soon", after all note-offs
@@ -2531,7 +2532,9 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 				// Special case for Sounds
 				if (output->type == OutputType::SYNTH) {
 					if (check_for_note_still_sounding(modelStack, static_cast<SoundInstrument*>(output))) {
-						// Alright yup the note's still sounding from before - no need to do anything
+						// Alright yup the note's still sounding from before
+						// We'll check below whether it is a drone note and should therefore be
+						// re-evaluated against probability/iteration/fill for note off
 					}
 
 					// Or if those conditions failed, then yes we need to send the note again
@@ -2540,29 +2543,28 @@ void NoteRow::playNote(bool on, ModelStackWithNoteRow* modelStack, Note* thisNot
 					}
 				}
 
-				// Or for all other MelodicInstruments, we just don't send
+				// if we're here it means the note is still sounding
+				// or for non-audio, the note off was not yet sent
+				// check if it's a drone note so that we can store it as pending and currently droning
+				// this will trigger a re-evaluation of the probability/iteration/fill conditions
+				// against this droning note in InstrumentClip::processCurrentPos
+				if (is_drone) {
+					// try to store drone in pending note on list if there's room
+					// if there's no room, no harm, note will just continue droning
+					store_pending_note_on(modelStack, thisNote, ticksLate, pendingNoteOnList, is_drone);
+				}
+
+				// if it's not a drone note, then nothing else to do
 			}
 			else {
 
 doSentNoteForMelodicInstrument:
 				// If there's room in the buffer, store the note-on to send soon
-				if (pendingNoteOnList && pendingNoteOnList->count < kMaxNumNoteOnsPending) {
-storePendingNoteOn:
-					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteRow = this;
-					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteRowId = modelStack->noteRowId;
-					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].velocity = thisNote->getVelocity();
-					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].probability =
-					    thisNote->getProbability();
-					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].iterance = thisNote->getIterance();
-					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].fill = thisNote->getFill();
-					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].sampleSyncLength =
-					    thisNote->getLength();
-					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
-					pendingNoteOnList->count++;
-				}
+				bool stored_pending = store_pending_note_on(modelStack, thisNote, ticksLate, pendingNoteOnList);
 				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per
-				// render without culling Otherwise, just send it now.
-				else {
+				// render without culling
+				// Otherwise, just send it now.
+				if (!stored_pending) {
 					int16_t mpeValues[kNumExpressionDimensions];
 					getMPEValues(modelStack, mpeValues);
 
@@ -2597,20 +2599,28 @@ storePendingNoteOn:
 		if (on) {
 			if (noteMightBeConstant && drum->hasActiveVoices()
 			    && drum->allowNoteTails(modelStackWithThreeMainThings->addSoundFlags())) {
-				// Alright yup the note's still sounding from before - no need to do anything
+				// Alright yup the note's still sounding from before
+				// or for non-audio, the note off was not yet sent
 				if (drum->type == DrumType::SOUND) {
 					((SoundDrum*)drum)->resetTimeEnteredState();
 				}
+
+				// check if it's a drone note so that we can store it as pending and currently droning
+				// this will trigger a re-evaluation of the probability/iteration/fill conditions
+				// against this droning note in InstrumentClip::processCurrentPos
+				if (is_drone) {
+					// try to store drone in pending note on list if there's room
+					// if there's no room, no harm, note will just continue droning
+					store_pending_note_on(modelStack, thisNote, ticksLate, pendingNoteOnList, is_drone);
+				}
 			}
 			else {
-
 				// If there's room in the buffer, store the note-on to send soon
-				if (pendingNoteOnList && pendingNoteOnList->count < kMaxNumNoteOnsPending) {
-					goto storePendingNoteOn;
-				}
+				bool stored_pending = store_pending_note_on(modelStack, thisNote, ticksLate, pendingNoteOnList);
 				// FIXME: this is almost certainly a bad idea, we can't handle more than 8-10 note ons per
-				// render without culling Otherwise, just send it now.
-				else {
+				// render without culling
+				// Otherwise, just send it now.
+				if (!stored_pending) {
 					int16_t mpeValues[kNumExpressionDimensions];
 					getMPEValues(modelStack, mpeValues);
 
@@ -2637,6 +2647,28 @@ storePendingNoteOn:
 			sequenced = true;
 		}
 	}
+}
+
+bool NoteRow::store_pending_note_on(ModelStackWithNoteRow* model_stack, Note* this_note, int32_t ticks_late,
+                                    PendingNoteOnList* pending_note_on_list, bool is_sounding_drone) {
+	// if there's room in the pending note on buffer, store it, otherwise return false so note can be potentially sent
+	// now
+	if (!pending_note_on_list || pending_note_on_list->count >= kMaxNumNoteOnsPending) {
+		return false;
+	}
+
+	pending_note_on_list->pendingNoteOns[pending_note_on_list->count].noteRow = this;
+	pending_note_on_list->pendingNoteOns[pending_note_on_list->count].noteRowId = model_stack->noteRowId;
+	pending_note_on_list->pendingNoteOns[pending_note_on_list->count].velocity = this_note->getVelocity();
+	pending_note_on_list->pendingNoteOns[pending_note_on_list->count].probability = this_note->getProbability();
+	pending_note_on_list->pendingNoteOns[pending_note_on_list->count].iterance = this_note->getIterance();
+	pending_note_on_list->pendingNoteOns[pending_note_on_list->count].fill = this_note->getFill();
+	pending_note_on_list->pendingNoteOns[pending_note_on_list->count].is_sounding_drone = is_sounding_drone;
+	pending_note_on_list->pendingNoteOns[pending_note_on_list->count].sampleSyncLength = this_note->getLength();
+	pending_note_on_list->pendingNoteOns[pending_note_on_list->count].ticksLate = ticks_late;
+	pending_note_on_list->count++;
+
+	return true;
 }
 
 bool shouldResumePlaybackOnNoteRowLengthSet = true; // Ugly hack global prevention thing.
