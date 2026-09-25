@@ -76,16 +76,20 @@ void RandomizeDrums::cancelWalk() {
 		return;
 	}
 	load_.cancel();
-	if (opRunning_) {
-		// The scan still reads the row's folder: nothing may unbind the row's holder until it reports. Its result is
-		// discarded.
+	// An OPEN is outstanding exactly when this row's collect has not answered yet. This used to test
+	// `opRunning_`, the flag the owner-dispatched scan set -- which the directory channel never sets,
+	// so the test was silently always false and Draining became unreachable. Found by neutering the
+	// handle collect below and watching nothing go red; RD-CANCELSCAN covers it now.
+	if (phase_ == Phase::AwaitScan && !scanCollected_) {
+		// The open is still out: nothing may unbind the row's holder until it reports, and the handle
+		// it may yet produce has to be collected rather than leaked. Its result is discarded.
+		drainsEntered_++;
 		phase_ = Phase::Draining;
 		releaseGate();
 		return;
 	}
 	releaseGate();
 	phase_ = Phase::Idle;
-	opDispatched_ = false;
 }
 
 void RandomizeDrums::routine() {
@@ -121,6 +125,7 @@ bool RandomizeDrums::step() {
 		DelugeStatus st = DELUGE_OK;
 		const uint8_t answer = deluge_file_directory_collect(rowFolder_.c_str(), &handle, &st);
 		if (answer == DELUGE_FILE_DIRECTORY_READY) {
+			drainsCollected_++;
 			(void)deluge::io::Directory::adopt(handle); // closed on the spot by RAII
 		}
 		else if (answer == DELUGE_FILE_DIRECTORY_PENDING) {
@@ -132,7 +137,6 @@ bool RandomizeDrums::step() {
 		}
 		// UNKNOWN or FAILED: nothing is outstanding for us, or it already ended.
 		phase_ = Phase::Idle;
-		opDispatched_ = false;
 		return false;
 	}
 	}
@@ -326,7 +330,6 @@ void RandomizeDrums::end(Error error) {
 	load_.cancel();
 	releaseGate();
 	phase_ = Phase::Idle;
-	opDispatched_ = false;
 }
 
 void RandomizeDrums::drainScan(deluge::io::Directory& dir) {

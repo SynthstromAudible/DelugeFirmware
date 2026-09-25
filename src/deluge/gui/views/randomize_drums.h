@@ -86,6 +86,17 @@ public:
 	/// happened" and "it happened on the owner". Once the scan leaves the owner the second goes to
 	/// zero, and a leg reading only that would quietly stop checking the first.
 	[[nodiscard]] int32_t scansRun() const { return scansRun_; }
+	/// @brief Walks cancelled with the row's open still outstanding, which therefore had to drain.
+	///
+	/// Zero here means the cancel-during-open path was never taken, so nothing the drain does was
+	/// tested -- which is how that path came to hold a condition that could never be true.
+	[[nodiscard]] int32_t drainsEntered() const { return drainsEntered_; }
+
+	/// @brief Drains that collected a handle and discarded it: the handle leak this path exists to prevent.
+	[[nodiscard]] int32_t drainsCollected() const { return drainsCollected_; }
+
+	/// @brief Whether a cancelled walk is still waiting for its open to report.
+	[[nodiscard]] bool draining() const { return phase_ == Phase::Draining; }
 	/// Row loads that began on the storage owner; required 0.
 	[[nodiscard]] int32_t loadsOnOwner() const { return loadsOnOwner_; }
 	/// Walks that ended on a load that stopped moving (AsyncSampleLoad's stall bound).
@@ -126,7 +137,6 @@ private:
 	void end(Error error);
 	/// @brief The next row to try, advancing the cursor: an eligible drum, or nullptr once the rows are exhausted.
 	Drum* nextRow();
-	/// @brief Queue the scan on the storage owner, or leave it for the next pass if the queue is full.
 
 	/// @brief Drain an opened row folder, reservoir-sampling one audio file from it.
 	///
@@ -166,14 +176,14 @@ private:
 	/// How long this row's open has gone unanswered, and how long a cancelled walk has waited for
 	/// its outstanding one. Elapsed time, never ticks.
 	deluge::storage::UnproductiveSpan scanSpan_{};
-	bool opDispatched_{false};
-	/// Set as the scan is queued, and cleared by the scan as it ends: what a drain waits for.
-	bool opRunning_{false};
+	/// What this row's drain wrote: the file it picked, or the error that stopped it.
 	ScanResult scan_{};
 	/// @}
 
 	int32_t scansOnOwner_{0};
 	int32_t scansRun_{0};
+	int32_t drainsEntered_{0};
+	int32_t drainsCollected_{0};
 	int32_t loadsOnOwner_{0};
 	int32_t giveUps_{0};
 };

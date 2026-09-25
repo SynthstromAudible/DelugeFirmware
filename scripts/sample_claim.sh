@@ -39,6 +39,9 @@
 #   RD-STALL   a randomize over three rows whose second load is held past the stall bound: the walk must end there,
 #              with the first row kept on its file, the second left unbound, the third untouched, and the gate
 #              released.
+#   RD-CANCELSCAN a randomize cancelled -- by returning to the clip view -- while its row's folder open is still out
+#              on the directory channel: the walk must DRAIN, collecting and discarding the handle that open still
+#              produces, read none of its entries, leave the row exactly as it was, and release the gate.
 #   IM-KIT     the kit context menu's "Load All" over a folder of its own: one drum per file in filename order, each
 #              named after its file without the folder's shared prefix, bound to it and with a NoteRow; the kit
 #              edited and the browser closed.
@@ -118,7 +121,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL IM-KIT IM-MULTI IM-TIER IM-GATE IM-STALL SC-ONOWNER SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL RD-CANCELSCAN IM-KIT IM-MULTI IM-TIER IM-GATE IM-STALL SC-ONOWNER SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^(SC|RD|IM)-' "$OUT/run.txt"

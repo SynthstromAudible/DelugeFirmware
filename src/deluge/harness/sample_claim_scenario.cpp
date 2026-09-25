@@ -42,6 +42,7 @@
 #include "hid/led/pad_leds.h"
 #include "libdeluge/audio_load.h" // deluge_audio_load_set_latency_ms
 #include "libdeluge/control_surface.h"
+#include "libdeluge/file_directory.h" // deluge_file_directory_set_latency_ms
 #include "memory/fast_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
@@ -147,6 +148,14 @@ constexpr const char* kRandomizeStallKeptName = "K1";
 /// The stall leg's second row: a folder of files nothing has loaded, so its load is held past the stall bound.
 constexpr const char* kRandomizeStallSample = "SAMPLES/RDS/S1.WAV";
 /// The column the gate leg's edit pad presses: empty on every row, inside the clip.
+/// The cancel leg's hold on the DIRECTORY channel: the row's open is still out when the walk is cancelled, so the
+/// cancel has to drain rather than end. Shorter than RandomizeDrums' own 300 ms give-up bound, or the drain would
+/// give up before the handle it is waiting for ever arrived -- and it is the arrival that has to be collected.
+constexpr uint32_t kRandomizeCancelHoldMs = 100;
+/// Passes let through before the cancel. The first one puts the row's open on the channel (the walk requests from
+/// its own await step, not from the press), so cancelling on it would find nothing outstanding and never drain.
+constexpr int32_t kRandomizeCancelPasses = 2;
+
 constexpr int32_t kRandomizeGateEditX = 1;
 
 /// The folder import legs' folders, each its own: the kit import's three files share the prefix "IMK_", which the kit's
@@ -219,6 +228,7 @@ enum class Leg : uint8_t {
 	ImportGate,
 	Stall,
 	RandomizeStall,
+	RandomizeCancelScan,
 	ImportStall,
 	Done
 };
@@ -337,6 +347,8 @@ const char* legName(Leg leg) {
 		return "import-stall";
 	case Leg::RandomizeStall:
 		return "randomize-stall";
+	case Leg::RandomizeCancelScan:
+		return "randomize-cancelscan";
 	case Leg::Done:
 		return "done";
 	}
@@ -710,6 +722,21 @@ void prepareLeg() {
 			       runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::DrumRandomizer) ? 1 : 0);
 		});
 		break;
+	case Leg::RandomizeCancelScan:
+		onOwner([] {
+			// The legs before this one left the first drum on the stall folder. Back to the randomizer's own folder,
+			// unbound: a cancelled walk must leave both exactly as they are, so both are what the check reads.
+			SoundDrum* drum = kitDrum();
+			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+			if (holder == nullptr) {
+				fail("randomize-cancelscan", "the randomizer kit's first drum has no holder");
+				return;
+			}
+			holder->setAudioFile(nullptr);
+			holder->filePath = kRandomizeFirstSample;
+			drum->drumName = kRandomizeDrums[0].name;
+		});
+		break;
 	case Leg::RandomizeGate:
 		onOwner([] {
 			SoundDrum* drum = kitDrum();
@@ -876,6 +903,10 @@ bool openLeg() {
 	case Leg::RandomizeStall:
 		deluge_audio_load_set_latency_ms(kStallHoldMs);
 		return openRandomizeLeg("randomize-stall", nullptr);
+	case Leg::RandomizeCancelScan:
+		// The DIRECTORY channel held, not the loader: this leg never reaches a load.
+		deluge_file_directory_set_latency_ms(kRandomizeCancelHoldMs);
+		return openRandomizeLeg("randomize-cancelscan", kitDrum());
 	case Leg::ImportKit: {
 		if (g_importKitClip == nullptr || g_importKitClip->output == nullptr
 		    || g_importKitClip->output->type != OutputType::KIT) {
@@ -955,6 +986,7 @@ const char* legFile() {
 	case Leg::RandomizeAll:
 	case Leg::RandomizeGate:
 	case Leg::RandomizeStall:
+	case Leg::RandomizeCancelScan:
 		// No browser listing: the randomizer picks the file itself, from the folder the drum's sample sits in.
 		return kRandomizeFirstSample;
 	case Leg::Done:
@@ -967,7 +999,7 @@ const char* legFile() {
 /// Whether the current leg is one of the randomizer legs.
 bool isRandomize() {
 	return g_leg == Leg::RandomizeOne || g_leg == Leg::RandomizeAll || g_leg == Leg::RandomizeGate
-	       || g_leg == Leg::RandomizeStall;
+	       || g_leg == Leg::RandomizeStall || g_leg == Leg::RandomizeCancelScan;
 }
 
 /// Whether the current leg is one of the two supersede legs.
@@ -987,6 +1019,14 @@ bool g_rdGateWhileRunning = false;
 bool g_rdGateSecondWalkRefused = false;
 bool g_rdGateEditRefused = false;
 bool g_rdGateEditTakenAfter = false;
+
+/// What the cancel leg saw: how many passes it has let through, whether the cancel has been made, and the drain
+/// counts as they were before it.
+int32_t g_rdCancelPasses = 0;
+bool g_rdCancelDone = false;
+int32_t g_rdCancelDrainsEnteredBefore = 0;
+int32_t g_rdCancelDrainsCollectedBefore = 0;
+int32_t g_rdCancelScansBefore = 0;
 
 /// Every note in the randomizer kit clip's rows.
 int32_t kitClipNotes() {
@@ -1078,6 +1118,11 @@ void actLeg() {
 		g_rdGateSecondWalkRefused = false;
 		g_rdGateEditRefused = false;
 		g_rdGateEditTakenAfter = false;
+		g_rdCancelPasses = 0;
+		g_rdCancelDone = false;
+		g_rdCancelDrainsEnteredBefore = deluge::gui::randomizeDrums.drainsEntered();
+		g_rdCancelDrainsCollectedBefore = deluge::gui::randomizeDrums.drainsCollected();
+		g_rdCancelScansBefore = deluge::gui::randomizeDrums.scansRun();
 		// The gesture: LOAD held (which the randomizer reads through Buttons::isButtonPressed), AFFECT_ENTIRE held too
 		// for the all-rows leg, then the pad. Buttons::buttonAction is what sets the held state a press reads.
 		(void)Buttons::buttonAction(LOAD, true, false);
@@ -1203,6 +1248,11 @@ bool legEnded() {
 		// An import that aborts closes just the menu and releases the gate; one that finishes closes the browser too.
 		return currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
 		       && getCurrentUI() != &deluge::gui::context_menu::sample_browser::synth;
+	}
+	if (g_leg == Leg::RandomizeCancelScan) {
+		// A cancel releases the gate on the spot, so the mode says nothing about the drain: the leg ends when the
+		// drain the cancel started has finished -- which is the whole thing it is here to watch.
+		return g_rdCancelDone && !deluge::gui::randomizeDrums.draining();
 	}
 	if (isRandomize()) {
 		// The gesture closes the gate and the walk releases it: the leg ends when the mode is gone -- for the gate leg,
@@ -1626,6 +1676,42 @@ void checkLeg() {
 		}
 		break;
 	}
+	case Leg::RandomizeCancelScan: {
+		deluge_file_directory_set_latency_ms(0);
+		SoundDrum* drum = kitDrum();
+		AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
+		const int32_t entered = deluge::gui::randomizeDrums.drainsEntered() - g_rdCancelDrainsEnteredBefore;
+		const int32_t collected = deluge::gui::randomizeDrums.drainsCollected() - g_rdCancelDrainsCollectedBefore;
+		const int32_t drained = deluge::gui::randomizeDrums.scansRun() - g_rdCancelScansBefore;
+		// Untouched: the walk was cancelled before its row could be unbound, and the drain must not undo that either.
+		const bool rowUntouched = holder != nullptr && holder->audioFile == nullptr
+		                          && holder->filePath == kRandomizeFirstSample
+		                          && drum->drumName == kRandomizeDrums[0].name;
+		const bool released = currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		printf("RD-CANCELSCAN cancelled=%d entered=%d collected=%d drained=%d rowUntouched=%d released=%d ticks=%d\n",
+		       g_rdCancelDone ? 1 : 0, entered, collected, drained, rowUntouched ? 1 : 0, released ? 1 : 0,
+		       g_waitTicks);
+		if (!g_rdCancelDone || entered != 1) {
+			// Without this the leg proves nothing: every claim below is about what the drain does, and a cancel that
+			// found nothing outstanding never drains. This is the leg that went quietly green once the cancel's own
+			// test could no longer be true.
+			printf("RD-CANCELSCAN FAIL the walk was not cancelled with its row's open still out, so nothing drained: "
+			       "entered=%d (want 1)\n",
+			       entered);
+			g_failures++;
+		}
+		else if (collected != 1) {
+			printf("RD-CANCELSCAN FAIL the drain did not collect the handle its cancelled open produced: a handle "
+			       "nobody adopts is burned for good, and there are only eight\n");
+			g_failures++;
+		}
+		else if (drained != 0 || !rowUntouched || !released) {
+			printf("RD-CANCELSCAN FAIL a cancelled walk did more than discard: it must read no entries, leave the "
+			       "row's holder and name as they were, and have released the gate\n");
+			g_failures++;
+		}
+		break;
+	}
 	case Leg::RandomizeOne:
 	case Leg::RandomizeAll: {
 		const RandomizeMark now = markRandomize();
@@ -1723,6 +1809,16 @@ void tickSupersede() {
 		deluge_audio_load_set_latency_ms(kSupersedeHoldMs);
 		sampleBrowser.previewFile(kSupersedeLoading, 0);
 	}
+}
+
+/// One tick of the cancel leg: passes let through until the row's open is on the channel, then the user action that
+/// cancels a walk -- returning to the clip view, which is the only caller of cancelWalk().
+void tickRandomizeCancel() {
+	if (g_rdCancelDone || ++g_rdCancelPasses < kRandomizeCancelPasses) {
+		return;
+	}
+	instrumentClipView.focusRegained();
+	g_rdCancelDone = true;
 }
 
 void nextLeg() {
@@ -1838,6 +1934,9 @@ void runTick() {
 			instrumentClipView.graphicsRoutine();
 			if (g_leg == Leg::RandomizeGate) {
 				tickRandomizeGate();
+			}
+			if (g_leg == Leg::RandomizeCancelScan) {
+				tickRandomizeCancel();
 			}
 		}
 		if ((g_leg == Leg::Slice || g_leg == Leg::SliceManual) && getCurrentUI() == &slicer) {
