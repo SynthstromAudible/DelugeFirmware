@@ -58,6 +58,7 @@ public:
 	               uint8_t thisOccupancyMask[], int32_t renderWidth);
 	void editPadAction(int32_t x, int32_t y, bool on);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
+	void tempoEncoderAction(int8_t offset, bool encoderButtonPressed, bool shiftButtonPressed);
 	void shiftAutomationHorizontally(int32_t offset, int32_t scroll_amount, Action* action);
 	void shiftClipsHorizontally(int32_t offset, int32_t scroll_amount, Action* action);
 	uint32_t getMaxLength() override;

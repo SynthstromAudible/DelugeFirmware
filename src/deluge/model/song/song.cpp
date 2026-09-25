@@ -3111,6 +3111,26 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
+// Edit the tempo BPM for a specific point on the timeline (e.g. by holding on
+// a grid timeline pad while moving tempo encoder in arranger view).
+//
+// This fills in the tempo automation on the timeline with "tempoBPM" from
+// "pos" until the next automation event.
+void Song::setTempoAutomationUntilNextNode(int32_t pos, float tempoBPM, bool shouldLogAction) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
+	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
+	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
+	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
+	auto intTempo = (int32_t)(tempoBPM * 100);
+
+	int32_t length = tempoParam->autoParam->getDistanceToNextNode(tempoParam, pos, false);
+	tempoParam->autoParam->setValuePossiblyForRegion(intTempo, tempoParam, pos,
+	                                                 std::min<int32_t>(length, arrangerView.getMaxLength()));
+
+	setBPMInner(tempoBPM, shouldLogAction);
+}
+
 void Song::clearTempoAutomation() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
