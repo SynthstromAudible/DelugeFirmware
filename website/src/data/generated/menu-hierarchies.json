@@ -11894,6 +11894,13 @@
                       "oled": "No Repeat",
                       "code": "NREP",
                       "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_3",
+                      "token": "STRING_FOR_VELOCITY",
+                      "oled": "Velocity",
+                      "code": "Velocity",
+                      "children": []
                     }
                   ]
                 },
@@ -11929,6 +11936,20 @@
                       "token": "STRING_FOR_TRANSPOSE",
                       "oled": "Transpose",
                       "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin1",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax1",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
                       "children": []
                     },
                     {
@@ -11975,6 +11996,20 @@
                       "children": []
                     },
                     {
+                      "varName": "sample0RRVelocityMin2",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax2",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
                       "varName": "sample0RRVolume2",
                       "token": "STRING_FOR_VARIANT_VOLUME",
                       "oled": "Volume",
@@ -12018,6 +12053,20 @@
                       "children": []
                     },
                     {
+                      "varName": "sample0RRVelocityMin3",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax3",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
                       "varName": "sample0RRVolume3",
                       "token": "STRING_FOR_VARIANT_VOLUME",
                       "oled": "Volume",
@@ -12058,6 +12107,20 @@
                       "token": "STRING_FOR_TRANSPOSE",
                       "oled": "Transpose",
                       "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin4",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax4",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
                       "children": []
                     },
                     {
@@ -14319,6 +14382,13 @@
                       "oled": "No Repeat",
                       "code": "NREP",
                       "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_3",
+                      "token": "STRING_FOR_VELOCITY",
+                      "oled": "Velocity",
+                      "code": "Velocity",
+                      "children": []
                     }
                   ]
                 },
@@ -14354,6 +14424,20 @@
                       "token": "STRING_FOR_TRANSPOSE",
                       "oled": "Transpose",
                       "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin1",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax1",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
                       "children": []
                     },
                     {
@@ -14400,6 +14484,20 @@
                       "children": []
                     },
                     {
+                      "varName": "sample1RRVelocityMin2",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax2",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
                       "varName": "sample1RRVolume2",
                       "token": "STRING_FOR_VARIANT_VOLUME",
                       "oled": "Volume",
@@ -14443,6 +14541,20 @@
                       "children": []
                     },
                     {
+                      "varName": "sample1RRVelocityMin3",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax3",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
                       "varName": "sample1RRVolume3",
                       "token": "STRING_FOR_VARIANT_VOLUME",
                       "oled": "Volume",
@@ -14483,6 +14595,20 @@
                       "token": "STRING_FOR_TRANSPOSE",
                       "oled": "Transpose",
                       "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin4",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax4",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
                       "children": []
                     },
                     {
@@ -22507,6 +22633,13 @@
                       "oled": "No Repeat",
                       "code": "NREP",
                       "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample0RoundRobinModeMenu_3",
+                      "token": "STRING_FOR_VELOCITY",
+                      "oled": "Velocity",
+                      "code": "Velocity",
+                      "children": []
                     }
                   ]
                 },
@@ -22542,6 +22675,20 @@
                       "token": "STRING_FOR_TRANSPOSE",
                       "oled": "Transpose",
                       "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin1",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax1",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
                       "children": []
                     },
                     {
@@ -22588,6 +22735,20 @@
                       "children": []
                     },
                     {
+                      "varName": "sample0RRVelocityMin2",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax2",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
                       "varName": "sample0RRVolume2",
                       "token": "STRING_FOR_VARIANT_VOLUME",
                       "oled": "Volume",
@@ -22631,6 +22792,20 @@
                       "children": []
                     },
                     {
+                      "varName": "sample0RRVelocityMin3",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax3",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
                       "varName": "sample0RRVolume3",
                       "token": "STRING_FOR_VARIANT_VOLUME",
                       "oled": "Volume",
@@ -22671,6 +22846,20 @@
                       "token": "STRING_FOR_TRANSPOSE",
                       "oled": "Transpose",
                       "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMin4",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample0RRVelocityMax4",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
                       "children": []
                     },
                     {
@@ -24932,6 +25121,13 @@
                       "oled": "No Repeat",
                       "code": "NREP",
                       "children": []
+                    },
+                    {
+                      "varName": "virtualSelector_sample1RoundRobinModeMenu_3",
+                      "token": "STRING_FOR_VELOCITY",
+                      "oled": "Velocity",
+                      "code": "Velocity",
+                      "children": []
                     }
                   ]
                 },
@@ -24967,6 +25163,20 @@
                       "token": "STRING_FOR_TRANSPOSE",
                       "oled": "Transpose",
                       "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin1",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax1",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
                       "children": []
                     },
                     {
@@ -25013,6 +25223,20 @@
                       "children": []
                     },
                     {
+                      "varName": "sample1RRVelocityMin2",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax2",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
                       "varName": "sample1RRVolume2",
                       "token": "STRING_FOR_VARIANT_VOLUME",
                       "oled": "Volume",
@@ -25056,6 +25280,20 @@
                       "children": []
                     },
                     {
+                      "varName": "sample1RRVelocityMin3",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax3",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
+                      "children": []
+                    },
+                    {
                       "varName": "sample1RRVolume3",
                       "token": "STRING_FOR_VARIANT_VOLUME",
                       "oled": "Volume",
@@ -25096,6 +25334,20 @@
                       "token": "STRING_FOR_TRANSPOSE",
                       "oled": "Transpose",
                       "code": "Transpose",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMin4",
+                      "token": "STRING_FOR_VELOCITY_MIN",
+                      "oled": "Velocity min",
+                      "code": "VMIN",
+                      "children": []
+                    },
+                    {
+                      "varName": "sample1RRVelocityMax4",
+                      "token": "STRING_FOR_VELOCITY_MAX",
+                      "oled": "Velocity max",
+                      "code": "VMAX",
                       "children": []
                     },
                     {

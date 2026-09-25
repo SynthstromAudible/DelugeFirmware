@@ -141,6 +141,10 @@ import RecentMainChanges from "../../../components/RecentMainChanges.astro"
   - Can be turned off in `SETTINGS > COMMUNITY FEATURES > ROUND-ROBIN SAMPLE VARIANTS (VARI)`; variants already saved
     in a song are kept either way.
   - See the [Round-Robin Sample Variants](/features/round_robin_sample_variants) page for details.
+- Added velocity layers to sample variants. The new `VELOCITY` variant `MODE` plays the slot whose `VMIN`-`VMAX`
+  range covers the note's velocity; slots whose ranges overlap alternate, and velocities in a gap play slot 1.
+  - Importing a folder sets this up when every sample on a note has a `vel` tag in its filename, such as
+    `Snare_vel40.wav`.
 
 ### User Interface
 
