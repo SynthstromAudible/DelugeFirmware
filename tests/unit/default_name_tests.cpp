@@ -144,3 +144,41 @@ TEST(DefaultNameTests, presetsKeepTheNumericSuffix) {
 	FakeFileList files{{"SYNT005.XML"}};
 	CHECK_EQUAL(std::string{"SYNT005 2"}, nextDefaultName("SYNT005", "", files));
 }
+
+using deluge::gui::browser::nextSlotName;
+
+TEST_GROUP(NextSlotNameTests){};
+
+TEST(NextSlotNameTests, noEntryIsSlotOne) {
+	CHECK_EQUAL(std::string{"SYNT1"}, nextSlotName("", "SYNT"));
+}
+
+TEST(NextSlotNameTests, followsTheLastNumber) {
+	CHECK_EQUAL(std::string{"SYNT7"}, nextSlotName("SYNT6", "SYNT"));
+}
+
+TEST(NextSlotNameTests, keepsTheDigitCount) {
+	CHECK_EQUAL(std::string{"SYNT008"}, nextSlotName("SYNT007", "SYNT"));
+}
+
+TEST(NextSlotNameTests, growsADigit) {
+	CHECK_EQUAL(std::string{"SYNT10"}, nextSlotName("SYNT9", "SYNT"));
+}
+
+TEST(NextSlotNameTests, nonDigitAfterPrefixIsSlotOne) {
+	// Today's parse stops at the first non-digit, having read none: slot 0 + 1, no padding.
+	CHECK_EQUAL(std::string{"SYNT1"}, nextSlotName("SYNTHY", "SYNT"));
+}
+
+TEST(NextSlotNameTests, digitsThenSuffixUseTheDigits) {
+	CHECK_EQUAL(std::string{"SYNT13"}, nextSlotName("SYNT12A", "SYNT"));
+}
+
+TEST(NextSlotNameTests, shorterThanPrefixIsSlotOne) {
+	// Today's parse indexes past the end of such a name; defined here as "no digits".
+	CHECK_EQUAL(std::string{"SYNT1"}, nextSlotName("SY", "SYNT"));
+}
+
+TEST(NextSlotNameTests, kitPrefix) {
+	CHECK_EQUAL(std::string{"KIT21"}, nextSlotName("KIT20", "KIT"));
+}

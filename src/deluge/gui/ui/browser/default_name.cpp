@@ -19,6 +19,8 @@
 #include <cctype>
 #include <cstdint>
 #include <cstring>
+#include <string>
+#include <string_view>
 
 namespace deluge::gui::browser {
 
@@ -147,6 +149,28 @@ std::string nextDefaultName(std::string_view currentName, std::string_view slotP
 		}
 	}
 	return std::string{currentName};
+}
+
+std::string nextSlotName(std::string_view lastName, std::string_view thingName) {
+	// The arithmetic Browser::getUnusedSlot always did, lifted out unchanged, except that a name
+	// shorter than the prefix is read as "no digits" rather than read past its end.
+	int32_t freeSlotNumber = 1;
+	size_t minNumDigits = 1;
+	if (!lastName.empty()) {
+		freeSlotNumber = 0;
+		minNumDigits = 0;
+		for (size_t i = thingName.size(); i < lastName.size() && lastName[i] >= '0' && lastName[i] <= '9'; i++) {
+			freeSlotNumber = (freeSlotNumber * 10) + (lastName[i] - '0');
+			minNumDigits++;
+		}
+		freeSlotNumber++;
+	}
+	std::string digits = std::to_string(freeSlotNumber);
+	if (digits.size() < minNumDigits) {
+		// deluge::string::fromInt's padding, for a number that is never negative.
+		digits.insert(0, minNumDigits - digits.size(), '0');
+	}
+	return std::string{thingName} + digits;
 }
 
 } // namespace deluge::gui::browser

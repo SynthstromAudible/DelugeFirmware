@@ -1090,30 +1090,9 @@ doReturn:
 	}
 
 	sortFileItems();
-
-	{
-		int32_t freeSlotNumber = 1;
-		int32_t minNumDigits = 1;
-		if (!listing.empty()) {
-			FileItem* fileItem = &listing.item(listing.size() - 1);
-			// The name carries the prefix on both displays now, so read the real filename, not a display form.
-			std::string filename = fileItem->getFilenameWithoutExtension();
-			char const* readingChar = &filename.c_str()[strlen(thingName)];
-			freeSlotNumber = 0;
-			minNumDigits = 0;
-			while (*readingChar >= '0' && *readingChar <= '9') {
-				freeSlotNumber *= 10;
-				freeSlotNumber += *readingChar - '0';
-				minNumDigits++;
-				readingChar++;
-			}
-			freeSlotNumber++;
-		}
-
-		(*newName) = thingName;
-		(*newName).append(deluge::string::fromInt(freeSlotNumber, minNumDigits));
-		error = Error::NONE;
-	}
+	*newName = deluge::gui::browser::nextSlotName(
+	    listing.empty() ? std::string{} : listing.item(listing.size() - 1).getFilenameWithoutExtension(), thingName);
+	error = Error::NONE;
 
 emptyFileItemsAndReturn:
 	emptyFileItems();
