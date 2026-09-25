@@ -32,6 +32,13 @@
 #   AQ-NAVIGATE
 #              the select encoder turned from the clip view, a held grid pad and an auditioned arranger row: each turn
 #              lands on the next unused kit preset, its drum bound.
+#   AQ-NAV-TIER
+#              per AQ-NAVIGATE gesture: the navigate walked once, off the storage owner, through the directory
+#              channel, leaving the browser's folder alone.
+#   AQ-NAV-WRAP
+#              a 25-kit subfolder, past its window: forward from NAV24 wraps to NAV00, back from NAV00 to NAV24.
+#   AQ-NAV-STALL
+#              a navigate with its folder open held past the bound: SD_CARD, clip kept, nothing in flight.
 #   AQ-SUPERSEDE
 #              the loader holding every sample load, a turn onto a heavy kit and a second once its sample load has begun:
 #              the light kit loaded, the heavy kit never swapped in, nothing of it left, and a supersession counted.
@@ -132,7 +139,7 @@ if [ "$status" -ne 0 ]; then
 fi
 
 for marker in PL-SETUP PL-SELECT PL-SYNTH PL-KIT PL-ROW PL-CLONE PL-TIER PL-RACE PL-SUPERSEDE PL-GATE PL-STALL \
-	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-SLOT AQ-SLOT-STALL AQ-EXT AQ-TIER \
+	AQ-NEW AQ-CHANGE AQ-NAVIGATE AQ-NAV-TIER AQ-NAV-WRAP AQ-NAV-STALL AQ-SUPERSEDE AQ-REFUSE AQ-CLONE AQ-STALL AQ-SLOT AQ-SLOT-STALL AQ-EXT AQ-TIER \
 	RV-CARD RV-MEMORY RV-STALL MD-BROWSER BS-BOOT BS-CLEAR BS-EDITED \
 	PL-WALK-FOUND PL-WALK-DEPTH PL-WALK-PAGED PL-WALK-EXHAUST PL-WALK-TIER \
 	PW-WALK-FOUND PW-WALK-DEPTH PW-WALK-PAGED PW-WALK-EXHAUST PW-WALK-TIER PL-RESULT; do

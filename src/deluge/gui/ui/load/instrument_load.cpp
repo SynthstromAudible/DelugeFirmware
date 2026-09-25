@@ -390,6 +390,9 @@ void InstrumentLoad::runWalkOp(void* self) {
 		// exhaustive, and so that re-adding the dispatch has to be a deliberate edit rather than a fall-through.
 		break;
 	case deluge::storage::AcquireWalk::Navigate: {
+		// Counted for the preset-load gate (AQ-NAV-TIER): where the walk began.
+		load->navigationsRun_++;
+		load->navigationsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 		PresetNavigationResult result = loadInstrumentPresetUI.doPresetNavigation(
 		    spec.offset, spec.oldInstrument, spec.outputType, spec.name, spec.dirPath, spec.availability);
 		if (result.error == Error::NONE) {

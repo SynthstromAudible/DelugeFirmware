@@ -220,6 +220,13 @@ constexpr const char* kAqSlotName = "SYNT1";
 /// A folder no gesture reads, parked in Browser::currentDir before a slot scan: a scan that moved the browser leaves
 /// something else there.
 constexpr const char* kSlotSentinelDir = "PLSENTINEL";
+/// A kit subfolder bigger than a navigation window (FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, 20), so a navigate
+/// in it reads a trimmed window. NAV00..NAV24.
+constexpr const char* kNavDir = "KITS/AQNAV";
+constexpr int32_t kNavCount = 25;
+constexpr const char* kNavFirst = "NAV00";
+constexpr const char* kNavLast = "NAV24";
+static_assert(kNavCount > FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, "the folder must overflow the window");
 
 enum class Leg : uint8_t {
 	BlankBoot,
@@ -240,6 +247,7 @@ enum class Leg : uint8_t {
 	AqSupersede,
 	AqRefuse,
 	AqClone,
+	AqNavWrap,
 	RevertCard,
 	RevertMemory,
 	Stall,
@@ -248,6 +256,7 @@ enum class Leg : uint8_t {
 	MidiDef,
 	BlankClear,
 	BlankEdited,
+	AqNavStall,
 	/// Last: its held directory open outlives the leg, and would answer PENDING to any later read of SYNTHS.
 	AqSlotStall,
 	Done
@@ -343,6 +352,8 @@ const char* legName(Leg leg) {
 		return "aq-refuse";
 	case Leg::AqClone:
 		return "aq-clone";
+	case Leg::AqNavWrap:
+		return "aq-nav-wrap";
 	case Leg::RevertCard:
 		return "revert-card";
 	case Leg::RevertMemory:
@@ -361,6 +372,8 @@ const char* legName(Leg leg) {
 		return "stall";
 	case Leg::AqStall:
 		return "aq-stall";
+	case Leg::AqNavStall:
+		return "aq-nav-stall";
 	case Leg::AqSlotStall:
 		return "aq-slot-stall";
 	case Leg::Done:
@@ -665,7 +678,9 @@ const char* legPreset() {
 	case Leg::AqSupersede:
 	case Leg::AqRefuse:
 	case Leg::AqClone:
+	case Leg::AqNavWrap:
 	case Leg::AqStall:
+	case Leg::AqNavStall:
 	case Leg::AqSlotStall:
 	case Leg::WalkMachine:
 	case Leg::Done:
@@ -1165,7 +1180,9 @@ void checkLeg() {
 	case Leg::AqSupersede:
 	case Leg::AqRefuse:
 	case Leg::AqClone:
+	case Leg::AqNavWrap:
 	case Leg::AqStall:
+	case Leg::AqNavStall:
 	case Leg::AqSlotStall:
 	case Leg::Done:
 		break;
@@ -1210,6 +1227,11 @@ std::vector<std::string> g_slotListingBefore;
 /// An extension list no browser uses, parked before each AQ-NEW act; and what was there before it.
 char const* kSentinelExtensions[] = {"PLX", nullptr};
 char const** g_extensionsBefore = nullptr;
+/// What AQ-NAV-TIER reads around each AQ-NAVIGATE act, and the browser folder it parks the sentinel over.
+int32_t g_navRunBefore = 0;
+int32_t g_navOnOwnerBefore = 0;
+int32_t g_navRequestsBefore = 0;
+std::string g_navDirBefore;
 /// The clip AQ-NEW's new-track gesture makes, which AQ-CHANGE, AQ-NAVIGATE, AQ-SUPERSEDE and AQ-CLONE act on.
 Clip* g_aqClip = nullptr;
 /// What AQ-SLOT-STALL's clip held before the gesture.
@@ -1237,7 +1259,9 @@ bool isAcquireLeg(Leg leg) {
 	case Leg::AqSupersede:
 	case Leg::AqRefuse:
 	case Leg::AqClone:
+	case Leg::AqNavWrap:
 	case Leg::AqStall:
+	case Leg::AqNavStall:
 	case Leg::AqSlotStall:
 		return true;
 	default:
@@ -1247,7 +1271,7 @@ bool isAcquireLeg(Leg leg) {
 
 /// How many gestures the leg makes, one after another.
 int32_t acquireActs(Leg leg) {
-	return leg == Leg::AqNavigate ? 3 : leg == Leg::AqNew ? 2 : 1;
+	return leg == Leg::AqNavigate ? 3 : (leg == Leg::AqNew || leg == Leg::AqNavWrap) ? 2 : 1;
 }
 
 /// What the acquisition legs count: InstrumentLoad's own reads and loads, which is all there is to count now.
@@ -1287,7 +1311,7 @@ bool focusClip(Clip* clip) {
 
 void prepareAcquire() {
 	g_aqAct = 0;
-	if (g_leg == Leg::AqSlotStall) {
+	if (g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall) {
 		g_aqClip = nullptr; // the song was cleared by the blank-song legs; the act picks its own clip
 	}
 	g_aqTierMark = markAcquireTier();
@@ -1303,6 +1327,13 @@ void prepareAcquire() {
 		const char* liteName = kAqLiteName;
 		ok = ok && writeKitPreset(kAqHeavyPreset, kAqHeavyDrumNames, kAqHeavySamples, 3)
 		     && writeKitPreset(kAqLitePreset, &liteName, &kAqLiteSample, 1);
+		(void)deluge::io::mkdir(kNavDir);
+		for (int32_t i = 0; ok && i < kNavCount; i++) {
+			char path[48];
+			snprintf(path, sizeof(path), "%s/NAV%02d.XML", kNavDir, static_cast<int>(i));
+			const char* drumName = "NAVD";
+			ok = writeKitPreset(path, &drumName, &kAqKitSamples[0], 1);
+		}
 		printf("AQ-PROBE prepared presets=%d\n", ok ? 1 : 0);
 	});
 }
@@ -1343,6 +1374,13 @@ bool actAcquire() {
 		// Parked for AQ-EXT: a walk that borrows the filter must put back whatever it found.
 		g_extensionsBefore = PresetAcquireProbe::extensions();
 		PresetAcquireProbe::setExtensions(kSentinelExtensions);
+	}
+	if (g_leg == Leg::AqNavigate) {
+		g_navRunBefore = deluge::gui::instrumentLoad.navigationsRun();
+		g_navOnOwnerBefore = deluge::gui::instrumentLoad.navigationsOnOwner();
+		g_navRequestsBefore = Browser::directoryRequests();
+		g_navDirBefore = Browser::currentDir;
+		Browser::currentDir = kSlotSentinelDir;
 	}
 	switch (g_leg) {
 	case Leg::AqNew:
@@ -1409,6 +1447,35 @@ bool actAcquire() {
 		g_aqNameBefore = g_synthClip->output->name;
 		instrumentClipView.selectEncoderAction(1);
 		return true;
+	case Leg::AqNavWrap: {
+		if (!focusClip(g_aqClip)) {
+			return fail(leg, "the new-track gesture made no clip");
+		}
+		if (g_aqAct == 0) {
+			// The clip's kit placed at the folder's last preset: what a navigate reads is its folder and name.
+			auto* kit = static_cast<Instrument*>(g_aqClip->output);
+			kit->dirPath = kNavDir;
+			kit->name = kNavLast;
+		}
+		instrumentClipView.selectEncoderAction(g_aqAct == 0 ? 1 : -1);
+		return true;
+	}
+	case Leg::AqNavStall: {
+		// The blank song's default synth, placed at a synth preset the fixture wrote, and turned with every directory
+		// open held past the browser's bound.
+		g_aqClip = (std::ssize(currentSong->sessionClips) > 0) ? currentSong->sessionClips[0] : nullptr;
+		if (!focusClip(g_aqClip)) {
+			return fail(leg, "the song has no session clip to navigate");
+		}
+		auto* synth = static_cast<Instrument*>(g_aqClip->output);
+		synth->dirPath = "SYNTHS";
+		synth->name = kAqSynthName;
+		g_slotStallOutputBefore = g_aqClip->output;
+		g_aqNameBefore = synth->name;
+		deluge_file_directory_set_latency_ms(kStallHoldMs);
+		instrumentClipView.selectEncoderAction(1);
+		return true;
+	}
 	case Leg::AqSlotStall: {
 		// The blank-song legs have just run: the song's first session clip is its default synth's. Made g_aqClip so
 		// checkAcquireAct's `output`/`name` read this clip.
@@ -1468,6 +1535,20 @@ void checkAcquireAct() {
 		if (!kept) {
 			aqFail("AQ-EXT", "a preset walk left the browser's extension filter changed: the next browser listing "
 			                 "would filter for the walk's files, not its own");
+		}
+	}
+	if (g_leg == Leg::AqNavigate) {
+		static constexpr const char* kNavGestures[] = {"clip", "grid", "arranger"};
+		const int32_t run = deluge::gui::instrumentLoad.navigationsRun() - g_navRunBefore;
+		const int32_t onOwner = deluge::gui::instrumentLoad.navigationsOnOwner() - g_navOnOwnerBefore;
+		const int32_t requests = Browser::directoryRequests() - g_navRequestsBefore;
+		const bool untouched = Browser::currentDir == kSlotSentinelDir;
+		Browser::currentDir = g_navDirBefore;
+		printf("AQ-NAV-TIER gesture=%s run=%d onOwner=%d requests=%d browserUntouched=%d\n", kNavGestures[g_aqAct], run,
+		       onOwner, requests, untouched ? 1 : 0);
+		if (run != 1 || onOwner != 0 || requests < 1 || !untouched) {
+			aqFail("AQ-NAV-TIER", "a preset navigate must walk once, off the storage owner, through the directory "
+			                      "channel, and leave the browser's folder alone");
 		}
 	}
 	switch (g_leg) {
@@ -1602,6 +1683,34 @@ void checkAcquireAct() {
 		}
 		break;
 	}
+	case Leg::AqNavWrap: {
+		// MEASURED on the tree where the walk ran on the owner, then pinned: the far-end reads, which this conversion
+		// rewrote, must land where they always did.
+		const char* want = (g_aqAct == 0) ? kNavFirst : kNavLast;
+		printf("AQ-NAV-WRAP turn=%s before=%s name=%s want=%s runs=%d\n", g_aqAct == 0 ? "forward" : "back",
+		       g_aqNameBefore.c_str(), name.c_str(), want, runs);
+		if (name != want) {
+			aqFail("AQ-NAV-WRAP", "a navigate off the end of a folder bigger than its window did not wrap round to "
+			                      "the far end");
+		}
+		break;
+	}
+	case Leg::AqNavStall: {
+		// AqSlotStall runs next, behind this leg's held open: the directory task serves one open at a time, so its
+		// own open is answered PENDING for the whole bound either way. Its claim -- SD_CARD, clip kept -- still holds.
+		deluge_file_directory_set_latency_ms(0);
+		const Error error = deluge::gui::instrumentLoad.lastError();
+		const bool kept = output == g_slotStallOutputBefore && name == g_aqNameBefore;
+		const bool idle = !loadInstrumentPresetUI.presetAcquisitionInFlight();
+		const int32_t giveUps = deluge::gui::instrumentLoad.navigationGiveUps();
+		printf("AQ-NAV-STALL error=%d kept=%d idle=%d giveUps=%d before=%s name=%s\n", static_cast<int>(error),
+		       kept ? 1 : 0, idle ? 1 : 0, giveUps, g_aqNameBefore.c_str(), name.c_str());
+		if (error != Error::SD_CARD || !kept || !idle || giveUps != 0) {
+			aqFail("AQ-NAV-STALL", "a navigate whose folder open never answered must give up with the card error, "
+			                       "leave the clip on the instrument it had, and leave nothing in flight");
+		}
+		break;
+	}
 	case Leg::AqSlotStall: {
 		deluge_file_directory_set_latency_ms(0);
 		const Error error = deluge::gui::instrumentLoad.lastError();
@@ -1673,7 +1782,9 @@ void runAcquireTick() {
 				break;
 			}
 		}
-		const int32_t maxTicks = (g_leg == Leg::AqStall || g_leg == Leg::AqSlotStall) ? kMaxStallTicks : kMaxLegTicks;
+		const int32_t maxTicks = (g_leg == Leg::AqStall || g_leg == Leg::AqSlotStall || g_leg == Leg::AqNavStall)
+		                             ? kMaxStallTicks
+		                             : kMaxLegTicks;
 		const bool ended = g_waitTicks >= 1 && !loadInstrumentPresetUI.presetAcquisitionInFlight()
 		                   && (g_leg != Leg::AqSupersede || g_aqTurned);
 		if (!ended && ++g_waitTicks <= maxTicks) {
@@ -1687,7 +1798,7 @@ void runAcquireTick() {
 			g_aqStep = AqStep::Act;
 			break;
 		}
-		if (g_leg != Leg::AqSlotStall) {
+		if (g_leg != Leg::AqSlotStall && g_leg != Leg::AqNavStall) {
 			checkAcquireTier(); // a slot scan loads nothing, which AQ-TIER would call a leg that did no work
 		}
 		nextLeg();
