@@ -2755,10 +2755,10 @@ enum class ByPathStep : uint8_t {
 	ReloadWrapSeekWait,
 	ReloadWrap,
 	ReloadWrapWait,
-	ReloadStall,
-	ReloadStallWait,
 	ReloadWrapDown,
 	ReloadWrapDownWait,
+	ReloadStall,
+	ReloadStallWait,
 	StallInside,
 	StallInsideWait,
 	StallEntry,
@@ -3034,18 +3034,49 @@ void runByPathTick() {
 			finishByPathStage();
 			return;
 		}
+		g_byPathStep = ByPathStep::ReloadWrapDown;
+		return;
+
+	case ByPathStep::ReloadWrapDown:
+		// SP-RELOAD wrapdown. Down from the folder's last song wraps back to the start, which is a reload: onto the
+		// folder's first song.
+		//
+		// BEFORE the stall, never after it. The channel samples the hold once per open and sleeps it out, so the
+		// stalled open of this same folder stays in flight for the whole hold after the browser has given up on it,
+		// and a reload asking for the folder in that time is answered PENDING until it ends.
+		g_reloadTurns = 1;
+		g_byPathTicks = 0;
+		if (!beginReloadTurn(+1)) {
+			printf("SP-RELOAD FAIL case=wrapdown turning down from %s began no reload\n",
+			       g_reloadBefore.entered.c_str());
+			g_failures++;
+			finishByPathStage();
+			return;
+		}
+		g_byPathStep = ByPathStep::ReloadWrapDownWait;
+		return;
+
+	case ByPathStep::ReloadWrapDownWait:
+		if (!byPathListingSettled("the wrap-down reload") || g_byPathStep == ByPathStep::Finished) {
+			return;
+		}
+		reportReload("wrapdown", kReloadFirstName);
+		if (getCurrentUI() != &loadSongUI) {
+			finishByPathStage();
+			return;
+		}
 		g_byPathStep = ByPathStep::ReloadStall;
 		return;
 
 	case ByPathStep::ReloadStall:
-		// SP-RELOAD-STALL. Down from the folder's last song wraps back to the start, which is a reload. With every open
-		// held past the browser's bound it must give up with the card error and put the window it replaced back.
+		// SP-RELOAD-STALL. Up from the folder's first song, with songs culled from the end, is a reload. With every
+		// open held past the browser's bound it must give up with the card error and put the window it replaced back.
 		deluge_file_directory_set_latency_ms(kStallHoldMs);
 		g_reloadTurns = 1;
 		g_byPathTicks = 0;
 		g_listingFailuresBefore = Browser::listingFailures();
-		if (!beginReloadTurn(+1)) {
-			printf("SP-RELOAD-STALL FAIL turning down from %s began no reload\n", kReloadLastName);
+		if (!beginReloadTurn(-1)) {
+			printf("SP-RELOAD-STALL FAIL turning up from %s began no reload\n", kReloadFirstName);
 			g_failures++;
 			finishByPathStage();
 			return;
@@ -3082,35 +3113,9 @@ void runByPathTick() {
 			finishByPathStage();
 			return;
 		}
-		g_byPathStep = ByPathStep::ReloadWrapDown;
-		return;
-	}
-
-	case ByPathStep::ReloadWrapDown:
-		// SP-RELOAD wrapdown. The same turn with the hold lifted: it must now succeed, onto the folder's first song.
-		g_reloadTurns = 1;
-		g_byPathTicks = 0;
-		if (!beginReloadTurn(+1)) {
-			printf("SP-RELOAD FAIL case=wrapdown turning down from %s began no reload\n",
-			       g_reloadBefore.entered.c_str());
-			g_failures++;
-			finishByPathStage();
-			return;
-		}
-		g_byPathStep = ByPathStep::ReloadWrapDownWait;
-		return;
-
-	case ByPathStep::ReloadWrapDownWait:
-		if (!byPathListingSettled("the wrap-down reload") || g_byPathStep == ByPathStep::Finished) {
-			return;
-		}
-		reportReload("wrapdown", kReloadFirstName);
-		if (getCurrentUI() != &loadSongUI) {
-			finishByPathStage();
-			return;
-		}
 		g_byPathStep = ByPathStep::StallInside;
 		return;
+	}
 
 	case ByPathStep::StallInside:
 		// SP-LISTING-STALL, inside. A favourite opened from inside the browser, with every directory open held far past
