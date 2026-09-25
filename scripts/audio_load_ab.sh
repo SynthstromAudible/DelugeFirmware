@@ -34,6 +34,9 @@
 #   AB-PREVIEW-DRAW-STALL
 #             a preview whose clusters the streaming loader holds: redrawn, then given up once, nothing pending, and
 #             the next file still previewed.
+#   AB-PREVIEW-DRAW-RELEASE
+#             a redraw pending when the preview's sample is released (Select, a typed move): dropped, never drawn
+#             from the released sample.
 #             for each of those three stages: no preview load step ran on the storage owner, and no sample was read
 #             from the card on the interaction tier.
 #   AB-SUMMARY / AB-DEFER
@@ -129,11 +132,11 @@ if ! grep -q '^AB-RESULT ' "$OUT_ROOT/run.txt"; then
 fi
 if ! grep -q '^AB-RESULT failures=0$' "$OUT_ROOT/run.txt"; then
 	echo "FAIL — in-process failures:"
-	grep -E '^(FAIL|AB-REF|AB-PREVIEW|AB-CANCEL|AB-PREVIEW-STALL|AB-PREVIEW-TIER|AB-PREVIEW-DRAW|AB-PREVIEW-DRAW-STALL|AB-EJECT-SUMMARY|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/run.txt"
+	grep -E '^(FAIL|AB-REF|AB-PREVIEW|AB-CANCEL|AB-PREVIEW-STALL|AB-PREVIEW-TIER|AB-PREVIEW-DRAW|AB-PREVIEW-DRAW-STALL|AB-PREVIEW-DRAW-RELEASE|AB-EJECT-SUMMARY|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/run.txt"
 	exit 1
 fi
 
-for marker in AB-PREVIEW AB-CANCEL AB-PREVIEW-STALL AB-PREVIEW-TIER AB-PREVIEW-DRAW AB-PREVIEW-DRAW-STALL AB-EJECT AB-EJECT-SUMMARY AB-DEFER AB-SUMMARY; do
+for marker in AB-PREVIEW AB-CANCEL AB-PREVIEW-STALL AB-PREVIEW-TIER AB-PREVIEW-DRAW AB-PREVIEW-DRAW-STALL AB-PREVIEW-DRAW-RELEASE AB-EJECT AB-EJECT-SUMMARY AB-DEFER AB-SUMMARY; do
 	if ! grep -q "^$marker " "$OUT_ROOT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^AB-' "$OUT_ROOT/run.txt"
@@ -161,4 +164,4 @@ fi
 
 echo "PASS — the async loader loaded all $CASES sample(s) as the synchronous path does, and agreed with it across a"
 echo "       card swap, and a preview held past its bound gave up"
-grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL \|^AB-PREVIEW-STALL \|^AB-PREVIEW-TIER \|^AB-PREVIEW-DRAW \|^AB-PREVIEW-DRAW-STALL \|^AB-EJECT-SUMMARY ' "$OUT_ROOT/run.txt"
+grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL \|^AB-PREVIEW-STALL \|^AB-PREVIEW-TIER \|^AB-PREVIEW-DRAW \|^AB-PREVIEW-DRAW-STALL \|^AB-PREVIEW-DRAW-RELEASE \|^AB-EJECT-SUMMARY ' "$OUT_ROOT/run.txt"

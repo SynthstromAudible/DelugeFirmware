@@ -849,6 +849,17 @@ void SampleBrowser::tickPreviewRedraw() {
 		previewRedrawPending_ = false; // the preview it belonged to is gone
 		return;
 	}
+	// Select and a typed move release the preview's sample (stopAnyPreviewing) without moving the generation. Once the
+	// holder no longer has it, nothing keeps it alive: never read it again.
+	const AudioFile* held = nullptr;
+	if (std::ssize(AudioEngine::sampleForPreview->sources[0].ranges) >= 1) {
+		held =
+		    ((MultisampleRange*)AudioEngine::sampleForPreview->sources[0].ranges.getElement(0))->sampleHolder.audioFile;
+	}
+	if (held == nullptr || held != waveformBasicNavigator.sample) {
+		previewRedrawPending_ = false;
+		return;
+	}
 	if (currentUIMode == UI_MODE_HORIZONTAL_SCROLL || qwertyVisible) {
 		return; // the pads are animating or covered: try again once they are not
 	}

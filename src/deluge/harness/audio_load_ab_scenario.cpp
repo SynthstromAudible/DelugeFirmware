@@ -351,7 +351,7 @@ int32_t g_cancelTicks = 0;
 /// Where the stall stage is.
 enum class StallStep : uint8_t { Start, Wait, Settle, Finished };
 StallStep g_stallStep = StallStep::Start;
-enum class DrawStallStep : uint8_t { Start, Wait, Move, MoveWait, Finished };
+enum class DrawStallStep : uint8_t { Start, Armed, Release, Restart, Wait, Move, MoveWait, Finished };
 DrawStallStep g_drawStallStep = DrawStallStep::Start;
 int32_t g_drawStallTicks = 0;
 int32_t g_dsRedrawsBefore = 0;
@@ -364,6 +364,11 @@ bool g_dsMovedDrawn = false;
 int32_t g_dsDrawsBefore = 0;
 int32_t g_dsMoveDrawsBefore = 0;
 int32_t g_dsCompleteBefore = 0;
+/// The release sub-leg: whether a redraw was armed, and whether one ran, or stayed pending, after the preview's sample
+/// was released.
+bool g_dsArmed = false;
+int32_t g_dsRedrawsAfterRelease = -1;
+bool g_dsPendingAfterRelease = true;
 int32_t g_dsStallDraws = 0;
 int32_t g_dsStallComplete = 0;
 int32_t g_dsStallTicks = 0;
@@ -389,6 +394,7 @@ int32_t g_redrawsBefore = 0;
 int32_t g_drawsCompleteBefore = 0;
 TierMark g_cancelTier{};
 TierMark g_stallTier{};
+TierMark g_drawStallTier{};
 
 TierMark markTier() {
 	return {sampleBrowser.previewLoadsOnOwner(),
@@ -876,7 +882,34 @@ void finishStallStage() {
 void runOneDrawStallTick() {
 	switch (g_drawStallStep) {
 	case DrawStallStep::Start:
+		g_drawStallTier = markTier();
 		deluge_streaming_set_fill_latency_ms(kDrawStallHoldMs);
+		sampleBrowser.previewFile(kDrawStallPath, /*movementDirection=*/0);
+		g_drawStallStep = DrawStallStep::Armed;
+		return;
+	case DrawStallStep::Armed:
+		// First, a release with a redraw pending: Select (enterKeyPress) and a typed move release the preview's sample
+		// through stopAnyPreviewing() without moving the generation. The redraw must not read the released sample.
+		if (!sampleBrowser.previewRedrawPending() && g_drawStallTicks < kMaxDrawStallTicks) {
+			g_drawStallTicks++;
+			sampleBrowser.graphicsRoutine();
+			return;
+		}
+		g_dsArmed = sampleBrowser.previewRedrawPending();
+		g_drawStallStep = DrawStallStep::Release;
+		return;
+	case DrawStallStep::Release: {
+		const int32_t redrawsBefore = sampleBrowser.previewRedraws();
+		AudioEngine::stopAnyPreviewing();
+		sampleBrowser.graphicsRoutine();
+		g_dsRedrawsAfterRelease = sampleBrowser.previewRedraws() - redrawsBefore;
+		g_dsPendingAfterRelease = sampleBrowser.previewRedrawPending();
+		g_drawStallStep = DrawStallStep::Restart;
+		return;
+	}
+	case DrawStallStep::Restart:
+		// Then the give-up: the same file previewed again, its clusters still held.
+		g_drawStallTicks = 0;
 		g_dsRedrawsBefore = sampleBrowser.previewRedraws();
 		g_dsGiveUpsBefore = sampleBrowser.previewDrawGiveUps();
 		g_dsDrawsBefore = sampleBrowser.previewDraws();
@@ -928,6 +961,15 @@ void finishDrawStallStage() {
 	printf("AB-PREVIEW-DRAW-STALL draws=%d complete=%d ticks=%d redraws=%d giveUps=%d pendingAtEnd=%d movedDrawn=%d\n",
 	       g_dsStallDraws, g_dsStallComplete, g_dsStallTicks, redraws, giveUps, g_dsPendingAtEnd ? 1 : 0,
 	       g_dsMovedDrawn ? 1 : 0);
+	printf("AB-PREVIEW-DRAW-RELEASE armed=%d redrawsAfter=%d pendingAfter=%d\n", g_dsArmed ? 1 : 0,
+	       g_dsRedrawsAfterRelease, g_dsPendingAfterRelease ? 1 : 0);
+	if (!g_dsArmed || g_dsRedrawsAfterRelease != 0 || g_dsPendingAfterRelease) {
+		printf(
+		    "FAIL [audioLoadAB/preview-draw-release]: a redraw pending when the preview's sample is released must be "
+		    "dropped, never drawn from the released sample\n");
+		g_failures++;
+	}
+	checkTier("draw-stall", g_drawStallTier);
 	if (redraws < 1 || giveUps != 1 || g_dsPendingAtEnd || !g_dsMovedDrawn) {
 		printf("FAIL [audioLoadAB/preview-draw-stall]: a preview whose clusters never arrived must redraw, give up "
 		       "exactly once with nothing left pending, and leave the browser previewing the next file\n");
@@ -1145,6 +1187,10 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_dsDrawsBefore = 0;
 	g_dsMoveDrawsBefore = 0;
 	g_dsCompleteBefore = 0;
+	g_dsArmed = false;
+	g_dsRedrawsAfterRelease = -1;
+	g_dsPendingAfterRelease = true;
+	g_drawStallTier = {};
 	g_dsStallDraws = 0;
 	g_dsStallComplete = 0;
 	g_dsStallTicks = 0;
