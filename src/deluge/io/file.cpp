@@ -1,5 +1,7 @@
 #include "io/file.hpp"
 
+#include "libdeluge/file_directory.h"
+
 #include <cstdint>
 
 namespace deluge::io {
@@ -233,6 +235,34 @@ std::expected<void, Status> Directory::close() {
 	deluge_efatfs_dir_close(unbox_dir_handle(handle_));
 	handle_ = nullptr; // matters even on error: don't let the destructor double-close
 	return {};
+}
+
+DirOpen collectOrRequestDir(const char* path, std::optional<Directory>* out, Status* outStatus) {
+	uint32_t handle = 0;
+	DelugeStatus st = DELUGE_OK;
+	switch (deluge_file_directory_collect(path, &handle, &st)) {
+	case DELUGE_FILE_DIRECTORY_READY:
+		// emplace, not assign: Directory is move-only with no default constructor, so there is no
+		// empty slot to assign into. Adopting here is what puts the handle back under RAII.
+		out->emplace(Directory::adopt(handle));
+		return DirOpen::Ready;
+
+	case DELUGE_FILE_DIRECTORY_UNKNOWN:
+		// "Request it (again)" -- the documented meaning of UNKNOWN, and where the FIRST request is
+		// issued, which is why no separate "have I asked yet" flag is needed.
+		deluge_file_directory_request(path, /*create_if_missing=*/false);
+		return DirOpen::Pending;
+
+	case DELUGE_FILE_DIRECTORY_PENDING:
+		return DirOpen::Pending;
+
+	case DELUGE_FILE_DIRECTORY_FAILED:
+	default:
+		// TERMINAL, and deliberately NOT re-requested: a folder that cannot be opened would be
+		// re-opened on every tick, forever, for as long as the caller sat on it.
+		*outStatus = to_status(st);
+		return DirOpen::Failed;
+	}
 }
 
 std::expected<bool, Status> presence_from_open(const std::expected<Directory, Status>& opened) {

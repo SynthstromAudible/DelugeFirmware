@@ -1491,9 +1491,16 @@ void checkLeg() {
 			       legName(g_leg), loads, files, sampleIo);
 			g_failures++;
 		}
-		if (listings != 1 || pitch != wantPitch) {
+		// The folder's listing used to run on the storage owner and this leg required it (want 1). It
+		// now goes through the directory channel, so zero is the claim: the assertion is KEPT and
+		// inverted rather than dropped, because what it guards is still worth guarding -- a listing
+		// that came back to the owner would be the regression.
+		//
+		// The pitch detection is a different family and still belongs there: it streams a whole
+		// sample through SampleFrameReader with cluster loading, so `wantPitch` is unchanged.
+		if (listings != 0 || pitch != wantPitch) {
 			printf(
-			    "IM-TIER FAIL leg=%s listings on the owner %d (want 1), pitch detections on the owner %d (want %d)\n",
+			    "IM-TIER FAIL leg=%s listings on the owner %d (want 0), pitch detections on the owner %d (want %d)\n",
 			    legName(g_leg), listings, pitch, wantPitch);
 			g_failures++;
 		}

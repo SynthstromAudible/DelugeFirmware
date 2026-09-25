@@ -18,6 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/file.hpp"
+#include "model/sample/recorder_write_policy.h" // UnproductiveSpan
 #include "model/sample/sample_holder.h"
 #include "storage/audio/latest_sample_load.h"
 
@@ -129,7 +131,13 @@ private:
 	/// @brief Whether the operation out has reported; re-dispatches one the queue refused.
 	bool opReported();
 
-	static void runListOp(void* self);
+	/// @brief Drain an opened folder's entries into @ref names_.
+	///
+	/// Was `runListOp`, an `Owner::run` callback that opened the folder itself. The open now comes
+	/// from the directory channel; everything below the loop's first line is unchanged, which is
+	/// what keeps the audio-filename filter's behaviour identical.
+	/// @param dir The adopted directory. Walking it costs no card I/O: it is an in-memory snapshot.
+	void drainListing(deluge::io::Directory& dir);
 	static void runPitchOp(void* self);
 
 	Phase phase_{Phase::Idle};
@@ -138,6 +146,10 @@ private:
 	/// @name The listing's result, written by the listing on the owner.
 	/// @{
 	Error listError_{Error::NONE};
+	/// Whether this import's folder has been opened and drained yet. Reset when a listing starts.
+	bool listCollected_{false};
+	/// How long the folder's open has gone unanswered. Elapsed time, never ticks.
+	deluge::storage::UnproductiveSpan listSpan_{};
 	std::vector<std::string> names_{};
 	/// @}
 

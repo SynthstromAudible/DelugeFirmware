@@ -17,6 +17,8 @@
 
 #include "gui/ui/browser/folder_import.h"
 
+#include "libdeluge/clock.h" // deluge_clock_now
+
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -189,7 +191,10 @@ bool FolderImport::step() {
 	case Phase::Idle:
 		return false;
 	case Phase::List:
-		dispatch(&FolderImport::runListOp);
+		// Nothing is dispatched: the folder's open goes through the directory channel, and
+		// collectOrRequestDir issues the first request itself when it reports UNKNOWN.
+		listCollected_ = false;
+		listSpan_.reset();
 		phase_ = Phase::AwaitList;
 		return false;
 	case Phase::AwaitList:
@@ -280,8 +285,28 @@ bool FolderImport::step() {
 }
 
 bool FolderImport::stepAwaitList() {
-	if (!opReported()) {
-		return false;
+	if (!listCollected_) {
+		std::optional<deluge::io::Directory> dir;
+		deluge::io::Status status = deluge::io::Status::OK;
+		switch (deluge::io::collectOrRequestDir(request_.folder.c_str(), &dir, &status)) {
+		case deluge::io::DirOpen::Pending:
+			listSpan_.note(deluge_clock_now());
+			if (listSpan_.elapsedUs > deluge::storage::kMaxUnproductiveUs) {
+				// The open never answered. Giving up beats an import that waits for ever.
+				listError_ = Error::SD_CARD;
+				break;
+			}
+			return false;
+		case deluge::io::DirOpen::Failed:
+			listError_ = Error::SD_CARD;
+			break;
+		case deluge::io::DirOpen::Ready:
+			// FS-free from here: the whole snapshot is drained in this tick, exactly as the owner
+			// arm drained it.
+			drainListing(*dir);
+			break;
+		}
+		listCollected_ = true;
 	}
 	if (listError_ != Error::NONE) {
 		abort(Error::SD_CARD);
@@ -1029,30 +1054,19 @@ bool FolderImport::opReported() {
 	return true;
 }
 
-void FolderImport::runListOp(void* self) {
-	auto* import = static_cast<FolderImport*>(self);
-	// Counted for the sample-claim gate (IM-TIER): a folder listing on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		import->listingsOnOwner_++;
-	}
-	auto opened = deluge::io::Directory::open(import->request_.folder);
-	if (!opened.has_value()) {
-		import->listError_ = Error::SD_CARD;
-	}
-	else {
-		deluge::io::Directory dir = std::move(*opened);
-		for (;;) {
-			auto entry = dir.read();
-			if (!entry.has_value() || !entry->has_value()) {
-				break; // an error, or the end of the folder
-			}
-			if ((*entry)->name[0] == '.' || (*entry)->is_directory || !isAudioFilename((*entry)->name)) {
-				continue; // dot entries, folders, and anything that's not an audio file
-			}
-			import->names_.emplace_back((*entry)->name);
+void FolderImport::drainListing(deluge::io::Directory& dir) {
+	// `listingsOnOwner_` is deliberately NOT incremented here and NOT deleted: IM-TIER reporting it
+	// as zero is the evidence that this listing left the storage owner.
+	for (;;) {
+		auto entry = dir.read();
+		if (!entry.has_value() || !entry->has_value()) {
+			break; // an error, or the end of the folder
 		}
+		if ((*entry)->name[0] == '.' || (*entry)->is_directory || !isAudioFilename((*entry)->name)) {
+			continue; // dot entries, folders, and anything that's not an audio file
+		}
+		names_.emplace_back((*entry)->name);
 	}
-	import->opRunning_ = false;
 }
 
 void FolderImport::runPitchOp(void* self) {
