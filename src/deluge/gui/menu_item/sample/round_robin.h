@@ -194,7 +194,7 @@ public:
 		return title_buf_;
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
 		    || !isSampleModeSample(modControllable, sourceId_)) {
 			return false;
@@ -296,7 +296,7 @@ public:
 
 	bool shouldEnterSubmenu() override { return false; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_);
 	}
 
@@ -336,7 +336,7 @@ public:
 
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
 	}
 
@@ -391,7 +391,7 @@ public:
 
 	bool isRangeDependent() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
 	}
 
@@ -443,7 +443,7 @@ public:
 
 	bool isRangeDependent() override { return true; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
 	}
 
@@ -492,7 +492,7 @@ public:
 	RoundRobinSlot(l10n::String newName, std::span<MenuItem*> children, uint8_t sourceId, uint8_t slotIndex)
 	    : menu_item::HorizontalMenu(newName, children), sourceId_(sourceId), slotIndex_(slotIndex) {}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return isSampleModeSample(modControllable, sourceId_);
 	}
 
@@ -581,7 +581,7 @@ public:
 		return {l10n::getView(STRING_FOR_CYCLE), l10n::getView(STRING_FOR_RANDOM), l10n::getView(STRING_FOR_NO_REPEAT)};
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		if (!isSampleModeSample(modControllable, sourceId_)) {
 			return false;
 		}

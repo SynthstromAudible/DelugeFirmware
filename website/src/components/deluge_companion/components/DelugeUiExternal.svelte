@@ -531,6 +531,10 @@
     svgElement.appendChild(overlay);
   }
 
+  function shouldUseStaticHighlight(actions: Set<Action> | undefined): boolean {
+    return !!actions?.has(Action.HOLD) && !actions.has(Action.PRESS);
+  }
+
   // Load SVG when container becomes available
   $: if (svgHost && !isSvgLoaded) {
     console.log("[DelugeUiExternal] Container detected, loading SVG...");
@@ -606,7 +610,8 @@
         const directSvgIds = getControlSvgIds(control as Control);
         if (directSvgIds.length > 0) {
           const isTurnControl = turnControls.has(control as Control);
-          const shouldBlinkTurn = shouldBlinkTurnControl(controlActions.get(control as Control));
+          const actions = controlActions.get(control as Control);
+          const shouldBlinkTurn = shouldBlinkTurnControl(actions);
 
           if (isTurnControl) {
             directSvgIds.forEach((id) => svgIdsToTurn.add(id));
@@ -616,6 +621,8 @@
             } else {
               directSvgIds.forEach((id) => svgIdsToStaticHighlight.add(id));
             }
+          } else if (shouldUseStaticHighlight(actions)) {
+            directSvgIds.forEach((id) => svgIdsToStaticHighlight.add(id));
           } else {
             directSvgIds.forEach((id) => svgIdsToHighlight.add(id));
           }
@@ -627,7 +634,8 @@
         for (const coord of coords) {
           const svgIds = getSvgIdsForCoordinate(coordinateToSvgIds, coord.x, coord.y);
           const isTurnControl = turnControls.has(control as Control);
-          const shouldBlinkTurn = shouldBlinkTurnControl(controlActions.get(control as Control));
+          const actions = controlActions.get(control as Control);
+          const shouldBlinkTurn = shouldBlinkTurnControl(actions);
 
           if (isTurnControl) {
             svgIds.forEach((id) => svgIdsToTurn.add(id));
@@ -636,6 +644,8 @@
             } else {
               svgIds.forEach((id) => svgIdsToStaticHighlight.add(id));
             }
+          } else if (shouldUseStaticHighlight(actions)) {
+            svgIds.forEach((id) => svgIdsToStaticHighlight.add(id));
           } else {
             svgIds.forEach((id) => svgIdsToHighlight.add(id));
           }

@@ -64,7 +64,7 @@ Default metronome level is 50%.
 #COMMUNITY
 
 ```shortcut
-press(SHIFT) + press(LEARN) + press(ENTIRE)
+hold(SHIFT) + hold(LEARN) + press(ENTIRE)
 ```
 
 ```community

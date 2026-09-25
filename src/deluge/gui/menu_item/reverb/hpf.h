@@ -33,7 +33,7 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return RenderingStyle::HPF; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		auto model = AudioEngine::reverb.getModel();
 		return (model == dsp::Reverb::Model::MUTABLE) || (model == dsp::Reverb::Model::DIGITAL);
 	}

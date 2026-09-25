@@ -1801,14 +1801,12 @@ void SessionView::resyncNewClip(Clip* newClip, ModelStackWithTimelineCounter* mo
 }
 
 void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
-	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
-
 	if (!clip || clip->type != ClipType::INSTRUMENT) {
 		return;
 	}
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid
-	    && currentSong->getClipWithOutput(clip->output, false, clip)) {
+	// don't convert a track to audio if it has clip instances in arranger or more than one clip in session view
+	if (clip->output->clipHasInstance(clip) || currentSong->getClipWithOutput(clip->output, false, clip)) {
 		display->displayPopup(deluge::l10n::get(
 		    deluge::l10n::String::STRING_FOR_INSTRUMENTS_WITH_CLIPS_CANT_BE_TURNED_INTO_AUDIO_TRACKS));
 		return;
@@ -1820,6 +1818,7 @@ void SessionView::replaceInstrumentClipWithAudioClip(Clip* clip) {
 		return;
 	}
 
+	int32_t clipIndex = currentSong->sessionClips.getIndexForClip(clip);
 	Clip* newClip = currentSong->replaceInstrumentClipWithAudioClip(clip, clipIndex);
 
 	if (!newClip) {

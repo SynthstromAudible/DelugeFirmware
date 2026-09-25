@@ -379,7 +379,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 }
 
 int32_t getNumAudio() {
-	return currentSong != nullptr ? currentSong->countAudioClips() : 0;
+	return currentSong != nullptr ? currentSong->countAudioVoices() : 0;
 }
 
 int32_t getNumVoices() {
@@ -516,7 +516,7 @@ inline void setDireness(size_t numSamples) { // Consider direness and culling - 
 			cpuDireness = newDireness;
 			timeDirenessChanged = audioSampleTimer;
 		}
-		auto numAudio = currentSong ? currentSong->countAudioClips() : 0;
+		auto numAudio = currentSong ? currentSong->countAudioVoices() : 0;
 		auto numVoice = getNumVoices();
 		if (!bypassCulling) {
 			cullVoices(numSamples, numAudio, numVoice);

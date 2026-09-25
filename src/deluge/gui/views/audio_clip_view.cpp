@@ -105,6 +105,9 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
 		return true;
 	}
+	if (maybeRenderShortcutsOverview(whichRows, image, occupancyMask, drawUndefinedArea)) {
+		return true;
+	}
 
 	// If no Sample, just clear display
 	if (!getSample()) {
@@ -328,6 +331,7 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	maybeStartShortcutOverview(b, on);
 	ActionResult result;
 
 	// Song view button
@@ -789,6 +793,7 @@ doReRender:
 }
 
 ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
+	stopShortcutOverview();
 	// Shift and x pressed - edit length of clip without timestretching
 	if (isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
 		return editClipLengthWithoutTimestretching(offset);
@@ -839,6 +844,7 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 }
 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	stopShortcutOverview();
 	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.

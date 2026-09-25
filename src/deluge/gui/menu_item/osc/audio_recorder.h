@@ -57,7 +57,7 @@ public:
 		audioRecorder.process();
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		return sound->getSynthMode() == SynthMode::SUBTRACTIVE;
 	}

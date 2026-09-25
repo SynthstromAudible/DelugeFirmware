@@ -32,7 +32,7 @@
 
 namespace deluge::gui::menu_item::sample {
 
-bool LoopPoint::isRelevant(ModControllableAudio* modControllable, int32_t) {
+bool LoopPoint::isRelevant(ModControllableAudio* modControllable, int32_t) const {
 	if (!isSampleModeSample(modControllable, sourceId_)) {
 		return false;
 	}

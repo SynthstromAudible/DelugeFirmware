@@ -33,7 +33,7 @@ public:
 	Param(int32_t newP = 0) : p(newP) {}
 	[[nodiscard]] virtual int32_t getMaxValue() const { return kMaxMenuValue; }
 	[[nodiscard]] virtual int32_t getMinValue() const { return kMinMenuValue; }
-	virtual uint8_t getP() { return p; };
+	virtual uint8_t getP() const { return p; };
 	MenuItem* selectButtonPress();
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
 	virtual ModelStackWithAutoParam* getModelStack(void* memory) = 0;

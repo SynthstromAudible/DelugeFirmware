@@ -94,7 +94,7 @@ Deletes recorded automation for the selected parameter.
 #COMMUNITY #ARRANGER
 
 ```shortcut
-press(SHIFT) + press(TEMPO)
+hold(SHIFT) + press(TEMPO)
 ```
 
 Deletes recorded automation for tempo in arranger view.

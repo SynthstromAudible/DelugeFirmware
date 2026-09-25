@@ -116,6 +116,8 @@ public:
 	uint8_t maxVoiceCount = 8;
 
 	int16_t transpose = 0;
+	int8_t cents = 0;
+	PhaseIncrementFineTuner fineTuner;
 
 	uint8_t numUnison = 1;
 	int8_t unisonDetune = 8;
@@ -232,6 +234,7 @@ public:
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
+	void set_cents(int8_t new_cents);
 	Error loadAllAudioFiles(bool mayActuallyReadFiles);
 	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
 	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
@@ -328,6 +331,7 @@ public:
 
 private:
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
+	void recalculateFineTuner();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
 	void setupUnisonStereoSpread();

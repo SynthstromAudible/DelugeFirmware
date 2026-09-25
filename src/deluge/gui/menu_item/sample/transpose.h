@@ -139,7 +139,7 @@ public:
 
 	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return source_id_; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		Source& source = sound->sources[source_id_];
 		if (source.oscType == OscType::SAMPLE) {

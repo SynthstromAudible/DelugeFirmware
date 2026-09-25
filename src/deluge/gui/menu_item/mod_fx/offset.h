@@ -26,7 +26,7 @@ class Offset final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const {
 		return (
 		    util::one_of(modControllable->getModFXType(), {ModFXType::CHORUS, ModFXType::CHORUS_STEREO,
 		                                                   ModFXType::GRAIN, ModFXType::WARBLE, ModFXType::DIMENSION}));

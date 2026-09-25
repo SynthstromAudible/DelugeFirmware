@@ -533,6 +533,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 		else {
 			phaseIncrement = source->fineTuner.detune(phaseIncrement);
 		}
+		phaseIncrement = sound.fineTuner.detune(phaseIncrement); // master transpose
 
 		// If only one unison
 		if (sound.numUnison == 1) {
@@ -577,6 +578,7 @@ makeInactive: // Frequency too high to render! (Higher than 22.05kHz)
 
 			// Cents
 			phaseIncrement = sound.modulatorTransposers[m].detune(phaseIncrement);
+			phaseIncrement = sound.fineTuner.detune(phaseIncrement); // master transpose
 
 			// If only one unison
 			if (sound.numUnison == 1) {
@@ -1913,7 +1915,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
-			uint32_t sum = (uint32_t) * (fmSample++) + (uint32_t)feedback;
+			uint32_t sum = (uint32_t)*(fmSample++) + (uint32_t)feedback;
 
 			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);

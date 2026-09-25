@@ -10,7 +10,7 @@ sub-sub-capability-order: 3
 #COMMUNITY #ARRANGER #SESSION #KIT
 
 ```shortcut
-press(SAVE) + press(RECORD)
+hold(SAVE) + press(RECORD)
 ```
 
 Starts audio export from Session/Arranger, or Kit drum export when you are in Kit Instrument Clip View.

@@ -2727,6 +2727,7 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 
 	// Note: this isn't quite perfect - it doesn’t know if Clip will cut out due to another one launching. But the ill
 	// effects of this are pretty minor.
+	// todo: fix this for LAST iteration
 	bool willLoop =
 	    !launchEventAtSwungTickCount             // If no launch event scheduled, obviously it'll loop
 	    || numRepeatsTilLaunch > 1               // If the launch event is gonna just trigger another repeat, it'll loop
