@@ -56,7 +56,6 @@ bool g_stem_export_dispatch_finished = false;
 /// below.
 bool g_song_load_begin_finished = false;
 bool g_song_load_begin_result = false;
-std::string g_song_load_begin_path;
 
 /// Same start/finished-latch shape as g_stem_export_dispatch_finished, for the
 /// recorder-roundtrip scenario dispatched onto the storage-owner worker fiber.
@@ -87,36 +86,10 @@ bool deluge_scenario_song_listing_in_progress() {
 }
 
 void deluge_scenario_start_song_load(const char* full_path) {
-	// deluge_scenario_begin_song_load() (above) is called SYNCHRONOUSLY by its
-	// existing callers (e.g. the streaming-underrun harness's scenario.rs), which
-	// is fine there because THEY only ever reach it from a context that either IS
-	// the worker fiber already or never touches the newer storage paths this one
-	// does. This scenario's own caller is neither: it runs on a plain Rust task,
-	// off the worker fiber, and `openUI(&loadSongUI)`'s opened() chain
-	// (LoadSongUI::opened -> FavouritesManager::loadFavouritesBank ->
-	// StorageManager::fileExists) does a real storage read. Under `sim_latency`
-	// (on by default for golden_vt_render) that read needs a `Timer` fired by a
-	// SEPARATE Embassy task (`sim_latency::pump`) to ever resolve — off-fiber it
-	// runs through a non-yielding `embassy_futures::block_on` that can never let
-	// that task get polled, livelocking the whole process. So dispatch
-	// deluge_scenario_begin_song_load() itself onto the worker fiber (same
-	// pattern as deluge_scenario_start_stem_export() above), rather than calling
-	// it directly. deluge_scenario_begin_song_load() is UNCHANGED and still
-	// callable directly by any context that's actually safe doing so.
-	g_song_load_begin_finished = false;
-	g_song_load_begin_result = false;
-	g_song_load_begin_path = full_path;
-	bool dispatched = deluge::storage::Owner::run(
-	    [](void*) {
-		    g_song_load_begin_result = deluge_scenario_begin_song_load(g_song_load_begin_path.c_str());
-		    g_song_load_begin_finished = true;
-	    },
-	    nullptr);
-	if (!dispatched) {
-		// Owner queue rejected the dispatch — nothing will ever flip the latch.
-		g_song_load_begin_result = false;
-		g_song_load_begin_finished = true;
-	}
+	// Called directly: the livelock that once kept this on the worker fiber (the opened() chain's synchronous
+	// favourites fileExists under a non-yielding block_on) went when favourites moved to their channel.
+	g_song_load_begin_result = deluge_scenario_begin_song_load(full_path);
+	g_song_load_begin_finished = true;
 }
 
 bool deluge_scenario_song_load_begin_done() {
