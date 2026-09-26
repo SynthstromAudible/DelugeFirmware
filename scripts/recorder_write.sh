@@ -83,7 +83,9 @@ BIN="$TARGET_DIR/release/golden_vt_render"
 }
 
 OUT="$(mktemp -d "${TMPDIR:-/tmp}/recorder_write.XXXXXX")"
-trap 'rm -rf "$OUT"' EXIT
+# RECORDER_WRITE_KEEP=<file> keeps the scenario's full output: the gate prints only its verdicts, and a change that
+# moves the oracle's case lines is judged by diffing that output, not the verdicts.
+trap '[ -n "${RECORDER_WRITE_KEEP:-}" ] && cp "$OUT/run.txt" "$RECORDER_WRITE_KEEP"; rm -rf "$OUT"' EXIT
 fail=0
 
 echo "recorder write: running"
