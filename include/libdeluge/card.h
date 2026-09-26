@@ -62,13 +62,14 @@ extern "C" {
 /// **That is a statement about the loaders' tables, not about the whole load pipeline.** A result
 /// already handed out is past the loader's reach: @ref deluge_audio_load_collect removes it, and the
 /// caller then runs @ref deluge_audio_load_begin -> @ref deluge_audio_load_bind_read_stream -> @ref
-/// deluge_audio_load_apply_geometry, of which the bind is a real open that can yield the storage
-/// owner. An ejection landing in that window has nothing left to flush -- the geometry is already on
-/// the caller's stack. It degrades to a read error rather than a wrong load, because the re-insert
-/// (`AudioFileManager::reinitEjectedCard` -> `deluge_efatfs_remount`) was dispatched to that same
-/// owner through the storage `Coalescer` and so could not run during the bind: the open hits the old
-/// mount and fails. The owner and the `Coalescer` are retired; the re-insert now runs from
-/// `AudioFileManager::slowRoutine`.
+/// deluge_audio_load_apply_geometry, of which the bind is a real open. An ejection landing in that
+/// window has nothing left to flush -- the geometry is already on the caller's stack. It degrades to a
+/// read error rather than a wrong load, because the re-insert (`AudioFileManager::reinitEjectedCard`
+/// -> `deluge_efatfs_remount`) cannot run during the bind: it runs from `AudioFileManager::slowRoutine`,
+/// a scheduler task on the same tier, and `buildSampleFromLoadResult` runs begin, bind and
+/// apply-geometry in one call whose blocking open runs no other task. The open hits the old mount and
+/// fails. (This used to hold because both ran on the retired storage owner, the re-insert through its
+/// `Coalescer`.)
 ///
 /// Afterwards every flushed path reports @ref DELUGE_AUDIO_LOAD_UNKNOWN, whose documented meaning is
 /// already "request it (again)" -- the collector needs no new lifecycle for this.

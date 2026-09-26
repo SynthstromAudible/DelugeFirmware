@@ -105,8 +105,8 @@ pub extern "C" fn deluge_streaming_signal_fill() {
 // never reaches it at runtime because the reader gates on `deluge_streaming_async_active()`.
 
 /// Most-urgent loader priority (lower = more urgent), the opposite end of `kLowestLoaderPriority`
-/// (the passive-lookahead prefetch value `0xFFFF_FFFF`) — used to enqueue a chunk a caller is
-/// synchronously BLOCKING on so the drain lands it ahead of any queued prefetch.
+/// (the passive-lookahead prefetch value `0xFFFF_FFFF`) — used to enqueue a chunk a caller has
+/// asked for and is waiting on, so the drain lands it ahead of any queued prefetch.
 const BLOCKING_FILL_PRIORITY: u32 = 0;
 
 unsafe extern "C" {
@@ -119,7 +119,7 @@ unsafe extern "C" {
     /// the requester dropping its own (`deluge_resource.h`).
     fn deluge_resource_loader_enqueue_owned(mgr: *mut c_void, slot: u32, priority: u32);
     /// Non-destructive "loader queue non-empty" predicate (`deluge_resource.h`): true while any
-    /// queued+leased chunk remains — the condition the drain-all-queued wait below polls to empty.
+    /// queued+leased chunk remains — what [`queue_is_drained`] below negates.
     fn deluge_resource_loader_has_any(mgr: *mut c_void) -> bool;
 }
 

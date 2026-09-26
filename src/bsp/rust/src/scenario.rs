@@ -147,12 +147,13 @@ pub struct ScenarioResult {
     /// Audio blocks rendered from just before playback started to when the target was
     /// reached (or the timeout gave up) — see `crate::audio_host::drive_count()`.
     pub blocks_rendered: u64,
-    /// SD block reads observed over the same window — the async fill task's real
-    /// cluster reads (`crate::sd::stats::reads()`). This is the proof of the async
-    /// streaming-fill task's REAL dispatch, with a REAL queued cluster (this song's samples).
+    /// ALL SD block reads observed over the same window (`crate::sd::stats::reads()`):
+    /// mostly the async fill task's cluster reads for this song's samples, plus anything
+    /// else that read the card meanwhile (e.g. the `concurrent_listing_every_blocks`
+    /// browses).
     pub cluster_reads: u64,
-    /// SD block writes observed over the same window — the recorder's real card writes
-    /// (`crate::sd::stats::writes()`).
+    /// ALL SD block writes observed over the same window (`crate::sd::stats::writes()`),
+    /// mostly the recorder's card writes.
     pub recorder_writes: u64,
     /// WAIT-class underrun misses over the same window: the audio thread found a
     /// needed sample cluster not loaded yet on a play-needed path and deferred the voice

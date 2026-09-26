@@ -778,9 +778,6 @@ async fn host_app_task() {
     boot::mark_finished();
     log::info!("deluge-bsp-rust: host scheduler running");
 
-    // Same wake-driven pump shape as the device `app_task` — see there for the
-    // full rationale (busy: race WORKER_WAKE against a coarse 8ms fallback;
-    // idle: sleep on WORKER_WAKE alone).
     // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
     // fiber this loop used to drive is retired.
     core::future::pending::<()>().await
@@ -961,7 +958,7 @@ fn main() {
                         .to_path_buf();
                     let img = crate::sd_image::pack_golden_fixture(&repo_root, &fixture);
                     // SAFETY: called before any thread below is spawned (no concurrent
-                    // env access yet) — same precondition sim_latency_host_exercise.rs
+                    // env access yet) — same precondition tests/sim_latency_host.rs
                     // documents for its own DELUGE_SD_IMAGE set_var.
                     unsafe { std::env::set_var("DELUGE_SD_IMAGE", &img) };
                 }

@@ -882,8 +882,8 @@ impl Manager {
     }
 
     /// Any queued + leased chunk at all, regardless of priority — the non-destructive
-    /// "is the loader queue non-empty" predicate the offline async drain
-    /// (`deluge_streaming_drain_queue_blocking`) polls until it goes false. Neither pops nor mutates
+    /// "is the loader queue non-empty" predicate the non-blocking
+    /// `deluge_streaming_queue_drained` asks (an offline render waits on it, pass by pass). Neither pops nor mutates
     /// queue state (unlike `loader_next`), and does not filter on priority (unlike
     /// `loader_has_lowest`): it answers exactly "would `loader_next` return non-null", i.e. is there
     /// any drain work left.

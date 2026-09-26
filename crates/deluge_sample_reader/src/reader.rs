@@ -318,7 +318,7 @@ impl Reader {
         // - true (the Rust/Embassy BSP): request the fill on the async drain
         //   ([`deluge_streaming_request_chunk`]) and report not-ready: a synchronous `block_on` here
         //   would deadlock a single-threaded executor against the drain it waits for. The caller (the
-        //   display-only background waveform overview pre-scan) retries on its next tick, which takes
+        //   display-only background waveform overview pre-scan, or a pitch scan) retries on its next tick, which takes
         //   a cache hit -- never affecting audio/stem output (overview data is display-only).
         // SAFETY: `deluge_streaming_async_active`/`_request_chunk` are the streaming-fill C-ABI;
         // `backing` is the just-`request`ed, still-leased chunk (its lease is held here).

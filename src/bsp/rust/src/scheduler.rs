@@ -33,9 +33,6 @@ use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Instant, Timer};
 
-#[cfg(not(target_os = "none"))]
-#[cfg(target_os = "none")]
-use crate::sys::RunCondition;
 /// Host stand-in for the bindgen `RunCondition` typedef (`typedef bool (*RunCondition)();`): `mod sys` (the bindgen
 /// output) is device-only, so mirror the C type's shape here.
 #[cfg(not(target_os = "none"))]

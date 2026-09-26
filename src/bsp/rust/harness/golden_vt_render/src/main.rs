@@ -474,8 +474,8 @@ fn stem_export_mode() -> i32 {
 ///
 /// Cluster fills DO drain here: `async_active` is on for this package (see
 /// `Cargo.toml`'s `default` features), so `StemExport::renderWait`'s offline
-/// loop drains the loader queue through the real async `streaming_fill_task`
-/// (via `deluge_streaming_drain_queue_blocking`). A sample-backed fixture
+/// loop waits, pass by pass, for the real async `streaming_fill_task` to drain
+/// the loader queue (it asks `deluge_streaming_queue_drained()` and returns). A sample-backed fixture
 /// therefore renders real audio, not silence — this task proves both the
 /// plumbing (real WAV files, right count/structure, clean exit) and, with the
 /// fills drained, sample-content correctness.

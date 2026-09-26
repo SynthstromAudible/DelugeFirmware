@@ -7,8 +7,8 @@
 //!
 //! `deluge-bsp-rust` is bin-only (no `[lib]` target — see `Cargo.toml`), so this
 //! recompiles `src/audio_loader.rs` unmodified into this test binary via
-//! `#[path]`, the same convention `tests/streaming_fill_host.rs` and
-//! `tests/owner_host.rs` use. Only the driver and the
+//! `#[path]`, the same convention `tests/streaming_fill_host.rs`
+//! uses. Only the driver and the
 //! always-compiled request/collect tier are needed — the `prod` submodule (the
 //! efatfs backing) is gated on device/`host_app` and stays uncompiled, so this
 //! test never needs the C++ app linked.
