@@ -128,6 +128,8 @@ void SampleClaim::cancelAutoLoad() {
 void SampleClaim::cancel() {
 	cancels_++;
 	load_.cancel();
+	pitchScan_.cancel(); // a detection is dropped, never drained: nothing reads the sample after this
+	pitchWanted_ = false;
 	if (animationShown_) {
 		display->removeLoadingAnimation();
 		animationShown_ = false;
@@ -484,29 +486,33 @@ bool SampleClaim::stepAwaitWavetable() {
 }
 
 bool SampleClaim::stepDetectPitch() {
-	opSample_ = (Sample*)claimHolder()->audioFile;
-	opSingleCycle_ = doingSingleCycle_;
-	opFn_ = &SampleClaim::runPitchOp;
-	op_ = {};
-	opDispatched_ = false;
-	dispatchOp();
+	pitchSample_ = (Sample*)claimHolder()->audioFile;
+	pitchWanted_ = !pitchSample_->midiNoteWithoutScan(doingSingleCycle_);
+	if (pitchWanted_) {
+		// Counted for SC-TIER: a pitch detection begun on the storage owner.
+		if (deluge::storage::Owner::on_owner()) {
+			pitchScansOnOwner_++;
+		}
+		pitchScan_.arm(*pitchSample_, {});
+	}
 	phase_ = Phase::AwaitPitch;
-	return false;
+	return true;
 }
 
 bool SampleClaim::stepAwaitPitch() {
-	if (!opDispatched_) {
-		dispatchOp();
-		return false;
+	if (pitchWanted_) {
+		if (pitchScan_.tick() == deluge::sample::PitchScan::Progress::Pending) {
+			pitchScanTicks_++;
+			return false;
+		}
+		pitchWanted_ = false;
+		pitchGiveUps_ += pitchScan_.gaveUp() ? 1 : 0;
+		pitchSample_->setMidiNoteFromFrequency(pitchScan_.result());
 	}
-	if (!op_.done) {
-		return false;
-	}
-	opDispatched_ = false;
 
 	auto* range = (MultisampleRange*)soundEditor.currentMultiRange;
 	const float midiNote = ((Sample*)range->sampleHolder.audioFile)->midiNote;
-	// The operation worked the note out. A note it could not find is left as it is: asking again here would scan the
+	// The detection worked the note out. A note it could not find is left as it is: asking again here would scan the
 	// sample on this tier, and would leave the transpose alone just the same.
 	if (midiNote != MIDI_NOTE_ERROR && midiNote != MIDI_NOTE_UNSET) {
 		bool shouldMinimizeOctaves = (std::ssize(soundEditor.currentSource->ranges) == 1);
@@ -568,6 +574,8 @@ void SampleClaim::end(bool success, Error error) {
 	}
 	animationShown_ = false;
 	load_.cancel();
+	pitchScan_.cancel();
+	pitchWanted_ = false;
 	if (current_.origin == ClaimOrigin::Explicit
 	    && !(queued_.has_value() && queued_->origin == ClaimOrigin::Explicit)) {
 		openGate();
@@ -600,17 +608,6 @@ void SampleClaim::runWaveTableOp(void* self) {
 	                                            deluge::storage::AsyncLoadMode::Blocking, /*context=*/nullptr);
 	claim->op_.file = file;
 	claim->op_.error = error;
-	claim->op_.done = true;
-	claim->opRunning_ = false;
-}
-
-void SampleClaim::runPitchOp(void* self) {
-	auto* claim = static_cast<SampleClaim*>(self);
-	// Counted for SC-TIER: a pitch detection on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		claim->pitchScansOnOwner_++;
-	}
-	claim->opSample_->workOutMIDINote(claim->opSingleCycle_);
 	claim->op_.done = true;
 	claim->opRunning_ = false;
 }

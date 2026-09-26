@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "io/file.hpp"
+#include "model/sample/pitch_scan.h"
 #include "model/sample/recorder_write_policy.h" // UnproductiveSpan
 #include "model/sample/sample_holder.h"
 #include "storage/audio/latest_sample_load.h"
@@ -51,27 +52,28 @@ struct FolderImportRequest {
 /// A phase machine on the interaction tier, advanced by request() and by routine() from its own repeating task. One
 /// minimal operation on the storage owner lists the folder's audio filenames; each file then loads in turn through
 /// LatestSampleLoad on a scratch holder, and the machine keeps the sample with a reason of its own. For Multisamples,
-/// every pitch detection, including the correction pass's re-detections, is one operation on the owner. Sorting, the
-/// corrections' arithmetic and every model change happen on this tier; the finishes are the importers' own bodies.
+/// every pitch detection, including the correction pass's re-detections, is a PitchScan ticked here, which never waits
+/// for the card. Sorting, the corrections' arithmetic and every model change happen on this tier; the finishes are the
+/// importers' own bodies.
 ///
 /// request() closes UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES with the "Working" animation; the import releases it, if
 /// it is still that mode, when it ends. A file whose load fails, finds nothing or stops moving aborts the import: every
-/// sample loaded so far loses its reason, the error is shown, and the completion is told. A cancel with an operation
-/// out drains: the samples are left alone until the operation reports.
+/// sample loaded so far loses its reason, the error is shown, and the completion is told. A cancel drops a detection in
+/// progress before it releases the samples.
 class FolderImport {
 public:
 	/// @brief Start an import, and run one pass. Ignored while an import is already in flight: its gate refuses the
 	///        presses that would ask for another.
 	void request(FolderImportRequest request);
 
-	/// @brief Abandon an import: drain if an operation is out, otherwise release its samples, its gate and go idle.
+	/// @brief Abandon an import: drop a detection in progress, release its samples and its gate, and go idle.
 	void cancel();
 
 	/// @brief Advance the import as far as it can go without waiting. Called by the "folder import" repeating task.
 	void routine();
 
-	/// @brief Whether an import is in flight (not idle, not draining).
-	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle && phase_ != Phase::Draining; }
+	/// @brief Whether an import is in flight.
+	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle; }
 
 	/// @name Counts for the sample-claim gate.
 	/// @{
@@ -101,15 +103,14 @@ private:
 		LoadFile,      ///< Request the next file's load, or move on once every file has landed.
 		AwaitLoad,     ///< Tick the load; a bound sample is kept with a reason.
 		Prepare,       ///< Allocate the sort area and apply the common-note rule.
-		Detect,        ///< Dispatch the next sample's pitch detection (Multisamples).
-		AwaitDetect,   ///< Wait for it.
+		Detect,        ///< Start the next sample's pitch detection (Multisamples).
+		AwaitDetect,   ///< Tick it.
 		Sort,          ///< Sort by filename; for Multisamples, mark the pitches out of filename order.
 		Redetect,      ///< The correction pass: the next marked sample's detection within narrowed limits.
-		AwaitRedetect, ///< Wait for it; a failure tries an octave up.
-		AwaitOctaveUp, ///< Wait for the octave-up detection.
+		AwaitRedetect, ///< Tick it; a failure tries an octave up.
+		AwaitOctaveUp, ///< Tick the octave-up detection.
 		FinishKit,     ///< The kit importer's body.
 		FinishMulti,   ///< The multisample importer's body.
-		Draining,      ///< A cancelled import waiting for its operation to report.
 	};
 
 	bool step();
@@ -134,10 +135,10 @@ private:
 	/// @brief Release the gate and the animation, go idle, and tell the completion @p success.
 	void end(bool success);
 
-	/// @brief Queue @p fn on the storage owner, or leave it for the next pass if the queue is full.
-	void dispatch(void (*fn)(void*));
-	/// @brief Whether the operation out has reported; re-dispatches one the queue refused.
-	bool opReported();
+	/// @brief Start @p sample's detection within @p limits, unless its note is settled without one.
+	void startPitch(Sample& sample, deluge::sample::PitchScan::Limits limits);
+	/// @brief Tick the detection. @return Whether it has ended (its note set), or there was none.
+	bool pitchReported();
 
 	/// @brief Drain an opened folder's entries into @ref names_.
 	///
@@ -146,7 +147,6 @@ private:
 	/// what keeps the audio-filename filter's behaviour identical.
 	/// @param dir The adopted directory. Walking it costs no card I/O: it is an in-memory snapshot.
 	void drainListing(deluge::io::Directory& dir);
-	static void runPitchOp(void* self);
 
 	Phase phase_{Phase::Idle};
 	FolderImportRequest request_{};
@@ -184,16 +184,12 @@ private:
 	int32_t prefixAndDirLength_{0};
 	/// @}
 
-	/// @name The operation out.
+	/// @name The detection in progress.
 	/// @{
-	void (*opFn_)(void*){nullptr};
-	bool opDispatched_{false};
-	/// Set as an operation is queued, and cleared by the operation as it ends: what a drain waits for.
-	bool opRunning_{false};
-	Sample* opSample_{nullptr};
-	bool opLimited_{false};
-	float opMinFreqHz_{0};
-	float opMaxFreqHz_{0};
+	deluge::sample::PitchScan pitchScan_{};
+	bool pitchWanted_{false};
+	Sample* pitchSample_{nullptr};
+	deluge::sample::PitchScan::Limits pitchLimits_{};
 	/// @}
 
 	int32_t listingsOnOwner_{0};

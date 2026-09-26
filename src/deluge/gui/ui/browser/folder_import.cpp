@@ -165,21 +165,17 @@ void FolderImport::request(FolderImportRequest request) {
 }
 
 void FolderImport::cancel() {
-	if (phase_ == Phase::Idle || phase_ == Phase::Draining) {
+	if (phase_ == Phase::Idle) {
 		return;
 	}
 	load_.cancel();
+	pitchScan_.cancel(); // before the samples it reads are released
+	pitchWanted_ = false;
 	scratch_.setAudioFile(nullptr);
 	display->removeWorkingAnimation();
 	openGate();
-	if (opRunning_) {
-		// The operation still reads a sample: nothing may release it until the operation reports.
-		phase_ = Phase::Draining;
-		return;
-	}
 	releaseSamples();
 	phase_ = Phase::Idle;
-	opDispatched_ = false;
 }
 
 void FolderImport::routine() {
@@ -210,13 +206,11 @@ bool FolderImport::step() {
 			phase_ = Phase::Sort;
 			return true;
 		}
-		opSample_ = sortArea_[cursor_];
-		opLimited_ = false;
-		dispatch(&FolderImport::runPitchOp);
+		startPitch(*sortArea_[cursor_], {});
 		phase_ = Phase::AwaitDetect;
-		return false;
+		return true;
 	case Phase::AwaitDetect:
-		if (!opReported()) {
+		if (!pitchReported()) {
 			return false;
 		}
 		cursor_++;
@@ -227,31 +221,31 @@ bool FolderImport::step() {
 	case Phase::Redetect:
 		return stepRedetect();
 	case Phase::AwaitRedetect:
-		if (!opReported()) {
+		if (!pitchReported()) {
 			return false;
 		}
 		// If didn't work, see if we can pretend we're looking for 1 octave higher, where there'd probably be a
 		// harmonic too. This can help if the fundamental isn't visible - it worked on Leo's piano samples before I
 		// realised that those harmonics had just been deleted by my aggressive use of a threshold
-		if (opSample_->midiNote == MIDI_NOTE_ERROR) {
-			opMinFreqHz_ *= 2;
-			opMaxFreqHz_ *= 2;
+		if (pitchSample_->midiNote == MIDI_NOTE_ERROR) {
+			pitchLimits_.minFreqHz *= 2;
+			pitchLimits_.maxFreqHz *= 2;
 			D_PRINTLN("pretending an octave up...");
-			dispatch(&FolderImport::runPitchOp);
+			startPitch(*pitchSample_, pitchLimits_);
 			phase_ = Phase::AwaitOctaveUp;
-			return false;
+			return true;
 		}
-		prevNote_ = opSample_->midiNote;
+		prevNote_ = pitchSample_->midiNote;
 		cursor_++;
 		phase_ = Phase::Redetect;
 		return true;
 	case Phase::AwaitOctaveUp:
-		if (!opReported()) {
+		if (!pitchReported()) {
 			return false;
 		}
-		if (opSample_->midiNote != MIDI_NOTE_ERROR) {
-			opSample_->midiNote -= 12;
-			prevNote_ = opSample_->midiNote;
+		if (pitchSample_->midiNote != MIDI_NOTE_ERROR) {
+			pitchSample_->midiNote -= 12;
+			prevNote_ = pitchSample_->midiNote;
 		}
 		cursor_++;
 		phase_ = Phase::Redetect;
@@ -273,13 +267,6 @@ bool FolderImport::step() {
 		}
 		return false;
 	}
-	case Phase::Draining:
-		if (!opRunning_) {
-			releaseSamples();
-			phase_ = Phase::Idle;
-			opDispatched_ = false;
-		}
-		return false;
 	}
 	return false;
 }
@@ -617,13 +604,9 @@ bool FolderImport::stepRedetect() {
 
 	D_PRINT("redoing, limited to %d to %d", minFreqHz, maxFreqHz);
 
-	opSample_ = thisSample;
-	opLimited_ = true;
-	opMinFreqHz_ = minFreqHz;
-	opMaxFreqHz_ = maxFreqHz;
-	dispatch(&FolderImport::runPitchOp);
+	startPitch(*thisSample, {.minFreqHz = minFreqHz, .maxFreqHz = maxFreqHz, .doPrimeTest = false});
 	phase_ = Phase::AwaitRedetect;
-	return false;
+	return true;
 }
 
 void FolderImport::settleSortArea() {
@@ -1016,6 +999,8 @@ void FolderImport::releaseSamples() {
 
 void FolderImport::abort(Error error) {
 	load_.cancel();
+	pitchScan_.cancel(); // before the samples it reads are released
+	pitchWanted_ = false;
 	scratch_.setAudioFile(nullptr);
 	releaseSamples();
 	display->displayError(error);
@@ -1026,31 +1011,35 @@ void FolderImport::end(bool success) {
 	display->removeWorkingAnimation();
 	openGate();
 	phase_ = Phase::Idle;
-	opDispatched_ = false;
 	if (request_.completion != nullptr) {
 		request_.completion(success);
 	}
 }
 
-void FolderImport::dispatch(void (*fn)(void*)) {
-	opFn_ = fn;
-	// Marked before it is queued, so an operation that runs at once still clears it.
-	opRunning_ = true;
-	opDispatched_ = deluge::storage::Owner::run(fn, this);
-	if (!opDispatched_) {
-		opRunning_ = false;
+void FolderImport::startPitch(Sample& sample, deluge::sample::PitchScan::Limits limits) {
+	pitchSample_ = &sample;
+	pitchLimits_ = limits;
+	pitchWanted_ = !sample.midiNoteWithoutScan(doingSingleCycle_);
+	if (pitchWanted_) {
+		// Counted for the sample-claim gate (IM-TIER): a pitch detection begun on the storage owner.
+		if (deluge::storage::Owner::on_owner()) {
+			pitchOnOwner_++;
+		}
+		pitchScan_.arm(sample, limits);
 	}
 }
 
-bool FolderImport::opReported() {
-	if (!opDispatched_) {
-		dispatch(opFn_);
+bool FolderImport::pitchReported() {
+	if (!pitchWanted_) {
+		return true;
+	}
+	if (pitchScan_.tick() == deluge::sample::PitchScan::Progress::Pending) {
+		pitchScanTicks_++;
 		return false;
 	}
-	if (opRunning_) {
-		return false;
-	}
-	opDispatched_ = false;
+	pitchWanted_ = false;
+	pitchGiveUps_ += pitchScan_.gaveUp() ? 1 : 0;
+	pitchSample_->setMidiNoteFromFrequency(pitchScan_.result());
 	return true;
 }
 
@@ -1068,22 +1057,6 @@ void FolderImport::drainListing(deluge::io::Directory& dir) {
 		}
 		names_.emplace_back((*entry)->name);
 	}
-}
-
-void FolderImport::runPitchOp(void* self) {
-	auto* import = static_cast<FolderImport*>(self);
-	// Counted for the sample-claim gate (IM-TIER): a pitch detection on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		import->pitchOnOwner_++;
-	}
-	if (import->opLimited_) {
-		import->opSample_->workOutMIDINote(import->doingSingleCycle_, import->opMinFreqHz_, import->opMaxFreqHz_,
-		                                   false);
-	}
-	else {
-		import->opSample_->workOutMIDINote(import->doingSingleCycle_);
-	}
-	import->opRunning_ = false;
 }
 
 } // namespace deluge::gui

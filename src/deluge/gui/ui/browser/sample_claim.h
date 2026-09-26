@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/sample/pitch_scan.h"
 #include "storage/audio/latest_sample_load.h"
 
 #include <cstdint>
@@ -55,13 +56,15 @@ struct ClaimRequest {
 ///        clip.
 ///
 /// A phase machine on the interaction tier, advanced by request() and by routine() from its own repeating task, so it
-/// runs whichever UI is on top. The file's load goes through the async sample load. The two steps that still read the
-/// card synchronously run as minimal operations on the storage owner, each returning a result and changing no model: a
-/// wavetable's lookup, and pitch detection's scan. Every model and UI change happens on the interaction tier.
+/// runs whichever UI is on top. The file's load goes through the async sample load, and pitch detection is a PitchScan
+/// ticked here, which never waits for the card. A wavetable's lookup, which still reads the card synchronously, runs
+/// as a minimal operation on the storage owner, returning a result and changing no model. Every model and UI change
+/// happens on the interaction tier.
 ///
 /// An explicit claim closes the browser's gate (UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES) until it ends. An auto-load
-/// claim does not, and the next cursor move cancels it. A claim cancelled while an operation is out drains: nothing
-/// touches its holder until the operation reports, and a claim asked for meanwhile waits.
+/// claim does not, and the next cursor move cancels it. A claim cancelled while its wavetable lookup is out drains:
+/// nothing touches its holder until the lookup reports, and a claim asked for meanwhile waits. A cancelled pitch
+/// detection is dropped at once.
 class SampleClaim {
 public:
 	/// @brief Ask for a claim.
@@ -120,8 +123,8 @@ private:
 		DecideSample,     ///< Act on the bound sample: redirect to a wavetable, name a drum, or go to pitch detection.
 		PrepareWavetable, ///< Cut, unbind, set the path, and dispatch the wavetable lookup.
 		AwaitWavetable,   ///< Wait for the wavetable lookup's result.
-		DetectPitch,      ///< Dispatch pitch detection.
-		AwaitPitch,       ///< Wait for pitch detection, then apply its note.
+		DetectPitch,      ///< Start pitch detection.
+		AwaitPitch,       ///< Tick pitch detection, then apply its note.
 		Finish,           ///< The claim's tail: edits, the browser's exit, the animation.
 		Draining,         ///< A cancelled claim waiting for its operation to report.
 	};
@@ -157,7 +160,6 @@ private:
 	void removeWaveTableKnobs();
 
 	static void runWaveTableOp(void* self);
-	static void runPitchOp(void* self);
 
 	Phase phase_{Phase::Idle};
 	ClaimRequest current_{};
@@ -181,8 +183,13 @@ private:
 	OpResult op_{};
 	AudioFileHolder* opHolder_{nullptr};
 	bool opMakeWaveTable_{false};
-	Sample* opSample_{nullptr};
-	bool opSingleCycle_{false};
+	/// @}
+
+	/// @name The detection in progress.
+	/// @{
+	deluge::sample::PitchScan pitchScan_{};
+	bool pitchWanted_{false};
+	Sample* pitchSample_{nullptr};
 	/// @}
 
 	int32_t loadsOnOwner_{0};

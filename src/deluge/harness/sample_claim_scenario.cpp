@@ -251,11 +251,12 @@ enum class Leg : uint8_t {
 	ImportKit,
 	ImportMulti,
 	ImportGate,
+	// Before the loader-hold legs: the audio loader is single-flight, and a claim asked for behind a held load stalls.
+	PitchStall,
 	Stall,
 	RandomizeStall,
 	RandomizeCancelScan,
 	ImportStall,
-	PitchStall,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, Act, Wait };
