@@ -100,4 +100,4 @@ if [ "$fails" -ne 0 ]; then
 	exit 1
 fi
 
-echo "PASS — the swap walked $residents resident sample(s): the intact one survived, the removed one was marked unloadable, the unreferenced one was evicted, in $tier_got owner op(s)"
+echo "PASS — the swap walked $residents resident sample(s): the intact one survived, the removed one was marked unloadable, the unreferenced one was evicted"

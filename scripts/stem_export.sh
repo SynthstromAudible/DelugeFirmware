@@ -113,4 +113,4 @@ if [ "$failures" -ne 0 ]; then
 	exit 1
 fi
 echo "ST-RESULT failures=0"
-echo "PASS — the export rendered byte-identical audio, wrote $bytes bytes, and dispatched $tier_got owner op(s)"
+echo "PASS — the export rendered byte-identical audio, and wrote $bytes bytes"
