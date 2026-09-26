@@ -264,12 +264,12 @@ unsafe extern "C" {
     fn deluge_scenario_start_stem_export(mode: i32);
     fn deluge_scenario_stem_export_done() -> bool;
     fn deluge_scenario_copy_stems_out(out_dir: *const c_char);
-    fn deluge_scenario_start_recorder_roundtrip();
-    fn deluge_scenario_start_recorder_roundtrip_rest();
+    fn deluge_scenario_run_recorder_roundtrip() -> i32;
     fn deluge_scenario_recorder_cases_tick() -> i32;
     fn deluge_scenario_recorder_finalized_begin();
     fn deluge_scenario_recorder_finalized_tick() -> i32;
-    fn deluge_scenario_recorder_roundtrip_done() -> bool;
+    fn deluge_scenario_recorder_rest_begin();
+    fn deluge_scenario_recorder_rest_tick() -> i32;
     fn deluge_scenario_recorder_roundtrip_failures() -> i32;
     fn deluge_scenario_offowner_begin(mode: i32);
     fn deluge_scenario_offowner_tick() -> i32;
@@ -638,10 +638,9 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
 /// The `GOLDEN_SCENARIO=recorder_roundtrip` alternative to [`run_stem_export_scenario`]:
 /// runs the SampleRecorder byte-exact round-trip oracle (the ex-`deluge_recorder_roundtrip`
 /// binary, now the `deluge_scenario_run_recorder_roundtrip` harness scenario) on THIS Embassy
-/// substrate. Waits for boot+mount, dispatches the oracle onto the storage-owner worker fiber
-/// (`deluge_scenario_start_recorder_roundtrip` — where its file I/O and the finalized probe's
-/// async fill drain can block/resume), polls to quiescence until it finishes, then exits with
-/// its result. Unlike the stem-export scenario, no song load and no fixture image: `main`
+/// substrate. Waits for boot+mount, sets the oracle up inline, then ticks its cases, the finalized
+/// probe's pump and the tail, one step per await, and exits with its result. Nothing runs on the
+/// storage owner. Unlike the stem-export scenario, no song load and no fixture image: `main`
 /// formats an EMPTY FAT image (the recorder only ever writes new files) and leaves
 /// `DELUGE_SD_ROOT` unset so the finalized probe reads efatfs on the same image it wrote.
 #[embassy_executor::task]
@@ -661,30 +660,14 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         Timer::after_millis(5).await;
     }
 
-    log::info!(
-        "golden_vt_render: boot+mount confirmed; dispatching recorder round-trip onto the worker fiber"
-    );
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    log::info!("golden_vt_render: boot+mount confirmed; starting the recorder round-trip");
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`. Set-up only: it
+    // blocks on nothing, so it runs here, inline, like everything after it.
     let owner_jobs_before = owner_jobs();
-    unsafe { deluge_scenario_start_recorder_roundtrip() };
-
-    let deadline = Instant::now() + Duration::from_secs(300);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_recorder_roundtrip_done() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: recorder round-trip did not complete within the 300s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
+    unsafe { deluge_scenario_run_recorder_roundtrip() };
 
     // The CASES, driven from HERE -- one step per tick with a yield between, so the storage driver can
-    // answer. They used to run inside the dispatch above, in a 200000-iteration loop that never
+    // answer. They used to run inside an owner dispatch, in a 200000-iteration loop that never
     // yielded; that only ever worked because the fiber blocks and resumes. Off the fiber, on the
     // channel arm, a caller that does not return cannot be answered -- which is the whole reason the
     // fiber could not be deleted.
@@ -717,13 +700,14 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // The oracle's tail: the live-readback probe and the summary, back on the fiber.
+    // The oracle's tail -- the live-readback probe, the finalized probe's acquire, the summary -- ticked the
+    // same way: its drains are requests now, answered between these calls.
     // SAFETY: as above.
-    unsafe { deluge_scenario_start_recorder_roundtrip_rest() };
+    unsafe { deluge_scenario_recorder_rest_begin() };
     let rest_deadline = Instant::now() + Duration::from_secs(300);
     loop {
         // SAFETY: as above.
-        if unsafe { deluge_scenario_recorder_roundtrip_done() } {
+        if unsafe { deluge_scenario_recorder_rest_tick() } != 0 {
             break;
         }
         if Instant::now() >= rest_deadline {
@@ -732,7 +716,7 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
             );
             hard_exit(2);
         }
-        Timer::after_millis(5).await;
+        Timer::after_millis(1).await;
     }
 
     // SAFETY: as above.
@@ -743,10 +727,10 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         );
         hard_exit(1);
     }
-    // The off-owner case. Driven from HERE -- this task is not the fiber (it dispatches INTO it
-    // above), so `on_owner()` is false and the recorder takes the path the device actually takes:
-    // the cluster write goes through the channel, and the blocking ticks dispatch back to the owner.
-    // The eleven cases above cannot cover either, because the oracle runs wholesale on the fiber.
+    // The off-owner case. Driven from HERE -- this task is not the fiber, so `on_owner()` is false and
+    // the recorder takes the path the device actually takes: the cluster write goes through the
+    // channel. This case is set up to cover the async write path and the blocking ticks from where the
+    // device drives them.
     // SAFETY: same C-ABI contract as the calls above; called only from this task.
     unsafe { deluge_scenario_offowner_begin(0) };
     let off_deadline = Instant::now() + Duration::from_secs(300);
@@ -2906,7 +2890,7 @@ fn owner_jobs() -> u32 {
 
 /// The scenarios with work still deferred to S2 -- legs that only work on the storage owner -- and EXACTLY how many jobs
 /// each runs there. Any other count fails, so a new owner job cannot hide behind the deferral. S2 empties this table.
-const OWNER_JOBS_DEFERRED: [(&str, u32); 1] = [("recorder_roundtrip", 2)];
+const OWNER_JOBS_DEFERRED: [(&str, u32); 1] = [("recorder_roundtrip", 0)];
 
 /// Fail the run unless the jobs run on the storage owner since `before` are exactly what the scenario's S2 deferral
 /// accounts for (none, for every scenario not in [`OWNER_JOBS_DEFERRED`]).

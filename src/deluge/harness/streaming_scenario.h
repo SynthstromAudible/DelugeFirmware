@@ -183,27 +183,6 @@ bool deluge_scenario_stem_export_done();
 /// @param out_dir Host directory to copy the stems into (created if missing).
 void deluge_scenario_copy_stems_out(const char* out_dir);
 
-/// @brief Dispatch the SampleRecorder byte-exact round-trip oracle
-///        (`deluge_scenario_run_recorder_roundtrip`, harness/recorder_roundtrip_scenario.cpp)
-///        onto the storage-owner worker fiber.
-///
-/// Returns immediately — the oracle runs later on the fiber (its file I/O + the finalized
-/// probe's async fill drain need that context). Poll deluge_scenario_recorder_roundtrip_done(),
-/// then read deluge_scenario_recorder_roundtrip_failures(). Assumes an empty formatted
-/// `DELUGE_SD_IMAGE` is mounted and `DELUGE_SD_ROOT` is UNSET (so the finalized probe reads
-/// efatfs on the same image the recorder wrote, no POSIX mirror).
-void deluge_scenario_start_recorder_roundtrip();
-
-/// @brief Whether the round-trip dispatched by deluge_scenario_start_recorder_roundtrip() has
-///        finished (its worker-fiber closure returned).
-/// @return True once the dispatched closure has returned.
-bool deluge_scenario_recorder_roundtrip_done();
-
-/// @brief Once deluge_scenario_recorder_roundtrip_done() is true, the oracle's failure count
-///        (0 = all cases passed). -1 until the dispatched closure has set it.
-/// @return The oracle's failure count, or -1 if not yet available.
-int32_t deluge_scenario_recorder_roundtrip_failures();
-
 } // extern "C"
 
 #endif // DELUGE_HOST

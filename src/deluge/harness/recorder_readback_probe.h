@@ -41,28 +41,21 @@
 
 extern "C" {
 
-/// @brief Run the whole probe in one call and return the resulting region state.
+/// @brief Set the probe up and feed it audio.
 /// @param numChannels Recording channel count (1 or 2).
-/// @param numFrames   Frames of deterministic audio to feed before probing (must be small enough to
-///                    stay within the first cluster so `index=0` below is meaningful).
-/// @param pumpDrainTicks How many times to call the fiber drain (`cardRoutine()`) BEFORE probing —
-///                    lets the caller compare "probe immediately" vs. "probe after N drain ticks"
-///                    (relevant since `async_streaming_loader`'s fill is a background task that may
-///                    need scheduler ticks to run between the acquire call and a retry).
-/// @return The `DelugeRegionState` for cluster index 0 (`DELUGE_REGION_READY` == 1,
-///         `DELUGE_REGION_LOADING` == 2, `DELUGE_REGION_UNAVAILABLE` == 3), or 0 if the recorder
-///         itself could not be set up (a harness failure, not a routing-divergence finding).
-/// Set the probe up and feed it audio. Returns 1 on success, 0 if setup failed.
+/// @param numFrames   Frames of deterministic audio to feed (small enough to stay within the first cluster, so
+///                    `index=0` is meaningful).
+/// @return 1 when set up, 0 if the recorder itself could not be set up (a harness failure, not a finding).
 ///
-/// Does NOT drain: the caller drives that with @ref deluge_harness_recorder_probe_drain_tick, one
-/// tick per yield, so the storage driver can run between ticks. Draining in a tight loop here worked
-/// only on the recorder's synchronous arm and is what blocked `Owner::run` going inline.
-uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames, uint32_t pumpDrainTicks);
+/// Does NOT drain or acquire: the caller drives the drain with @ref deluge_harness_recorder_probe_drain_tick, one
+/// tick per yield, so the storage driver can run between ticks, then calls @ref deluge_harness_recorder_probe_acquire.
+uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames);
 
 /// One tick of the drain. Call it between yields, as many times as the caller wants to flush.
 void deluge_harness_recorder_probe_drain_tick();
 
-/// Open the region source over the still-recording Sample and take the first acquire.
+/// Open the region source over the still-recording Sample and take the first acquire; poll with
+/// @ref deluge_harness_recorder_probe_poll.
 /// @return the `DelugeRegionState`, or 0 if the probe was never set up.
 uint8_t deluge_harness_recorder_probe_acquire();
 
@@ -70,6 +63,14 @@ uint8_t deluge_harness_recorder_probe_acquire();
 ///        poll (e.g. after letting the host_app async executor run some more ticks) to see whether a
 ///        LOADING result ever resolves. Returns `DELUGE_REGION_UNAVAILABLE` (3) if no probe is open.
 uint8_t deluge_harness_recorder_probe_poll();
+
+/// @brief Abort the probe's recorder and close its cursor. Tick @ref deluge_harness_recorder_probe_settle_tick until
+///        it returns 1, then call @ref deluge_harness_recorder_probe_end: off the storage owner a request can still be
+///        in flight, and the recorder must not be deleted under it.
+void deluge_harness_recorder_probe_abort();
+
+/// @brief One cardRoutine() of the aborted probe's recorder. @return 1 once it has settled (or there is none), else 0.
+uint8_t deluge_harness_recorder_probe_settle_tick();
 
 /// @brief Tear down the probe's recorder/cursor (aborts the recording, closes the cursor). Safe to
 ///        call even if no probe is open.
@@ -113,17 +114,19 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe(uint8_t numChannels
 ///        probe is open.
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_poll();
 
-/// @return The waveform overview cache's physical entry count (`Sample::overviewCacheSize()`)
-///         captured immediately after finalize (before any acquire) -- the direct assertion for "was
-///         the finalize-time grow left under-sized". 0 if no probe has run (harness-error state, not
-///         a valid measurement).
 /// One tick of the finalized probe's pump. 0 = still going, 1 = COMPLETE, 2 = failed/bounded out.
 /// The caller ticks this with a yield in between, so the storage driver can answer.
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_tick();
 
-/// Acquire and verify, once the pump above has reported COMPLETE.
+/// Open a read cursor on the finalized file and take the first acquire of @p regionIndex, once the pump above has
+/// reported COMPLETE. A LOADING result is the caller's to poll with
+/// @ref deluge_harness_recorder_finalized_multicluster_probe_poll.
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t regionIndex);
 
+/// @return The waveform overview cache's physical entry count (`Sample::overviewCacheSize()`)
+///         captured immediately after finalize (before any acquire) -- the direct assertion for "was
+///         the finalize-time grow left under-sized". 0 if no probe has run (harness-error state, not
+///         a valid measurement).
 uint32_t deluge_harness_recorder_finalized_multicluster_probe_table_clusters();
 
 /// @return The finalized recording's true required cluster count for the same geometry

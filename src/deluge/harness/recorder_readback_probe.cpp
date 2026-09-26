@@ -23,7 +23,7 @@
 #include "dsp/stereo_sample.h"
 #include "io/file.hpp"
 #include "libdeluge/sample_source.h"
-#include "libdeluge/streaming_fill.h" // deluge_streaming_drain_queue_blocking
+#include "libdeluge/streaming_fill.h" // deluge_streaming_request_drain
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "storage/cluster/cluster.h"
@@ -47,18 +47,8 @@ int32_t expected24(uint32_t frameIndex, uint32_t channel) {
 	return static_cast<int32_t>(v) - (1 << 23);
 }
 
-// Drive the streaming fill so a pending region-acquire can progress LOADING->READY: yield the worker
-// fiber and drain the whole loader queue via the async fill task. Valid because the probes run ON the
-// storage-owner worker fiber (dispatched by the recorder-roundtrip scenario on the Embassy renderer),
-// and because the bounded retry loops that call it have no other yield point - the fiber suspending
-// inside the drain is the only thing that lets the fill task run at all.
-void driveFillDrain() {
-	deluge_streaming_drain_queue_blocking();
-}
-
-// The same demand, for the _poll() entry points below. Those are called repeatedly by the Rust harness,
-// which awaits a timer between calls, so its loop is what lets the fill task run - asking is enough,
-// and blocking here would suspend the fiber for a drain the caller is already driving.
+// Ask the async fill task for a drain, for the _poll() entry points below. Their callers yield between calls, and
+// that yield is what lets the fill task run -- asking is enough.
 void requestFillDrain() {
 	deluge_streaming_request_drain();
 }
@@ -115,9 +105,9 @@ void teardown() {
 		g_source = nullptr;
 	}
 	if (g_recorder != nullptr) {
-		// abort() is the correct teardown for a recorder that's still CAPTURING_DATA -- it marks
-		// the recorder for file/sample cleanup on its next cardRoutine() tick (see cardRoutine()'s
-		// ABORTED branch); we don't drive that drain here, this is a one-shot diagnostic process.
+		// Callers abort and tick _settle_tick() until settled first: off the storage owner a request can still be
+		// in flight, and deleting the recorder under it would leave the channel writing into freed memory. abort()
+		// again is harmless.
 		g_recorder->abort();
 		delete g_recorder;
 		g_recorder = nullptr;
@@ -163,7 +153,7 @@ void finalizedTeardown() {
 
 extern "C" {
 
-uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames, uint32_t pumpDrainTicks) {
+uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames) {
 	teardown(); // idempotent; drop any previous probe first
 
 	g_recorder = new SampleRecorder();
@@ -182,26 +172,10 @@ uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames, u
 	}
 	g_recorder->feedAudio(std::span<StereoSample>(input));
 
-	// The drain is NOT run here any more. It used to be
-	//
-	//     for (uint32_t i = 0; i < pumpDrainTicks; i++) { g_recorder->cardRoutine(); }
-	//
-	// which is a tight loop with no yield between ticks. That works only while `cardRoutine()` blocks
-	// and completes inline -- i.e. only on the recorder's SYNCHRONOUS arm. Ask the channel instead and
-	// the Rust driver never gets to run between iterations, so nothing is ever answered and the
-	// recording never lands. It is the one spinner `advanceFinalize()`'s comment was right about:
-	// "the harness's own pump".
-	//
-	// The caller drives it now, one tick per await -- `deluge_harness_recorder_probe_drain_tick()`.
-	// Deliberately still no endSyncedRecording()/finalize: status stays CAPTURING_DATA, so the Sample
-	// genuinely has no efatfs read handle for the whole probe.
-	// The ORIGINAL contract, kept for the C++ scenario caller, which has no way to await between
-	// ticks: drain inline, then acquire, and return the region state. That caller is still a spinner
-	// and still blocks `Owner::run` going inline -- it needs its own tick-spanning drive.
-	for (uint32_t i = 0; i < pumpDrainTicks; i++) {
-		(void)g_recorder->cardRoutine();
-	}
-	return deluge_harness_recorder_probe_acquire();
+	// Set up: the caller drains (..._drain_tick) and acquires (..._acquire), one step per yield. Deliberately no
+	// endSyncedRecording()/finalize: status stays CAPTURING_DATA, so the Sample genuinely has no efatfs read handle
+	// for the whole probe.
+	return 1;
 }
 
 /// One tick of the drain the probe used to spin on. Returns nothing: what it flushes is observed by
@@ -241,16 +215,9 @@ uint8_t deluge_harness_recorder_probe_acquire() {
 	DelugeSampleRegion out{};
 	DelugeRegionState state = deluge_sample_region_acquire_ex(g_source, /*index=*/0, /*direction=*/+1,
 	                                                          /*priority=*/0, &out);
-
-	// A first CLUSTER_ENQUEUE-style acquire is expected to come back LOADING (the fill is scheduled,
-	// not synchronous) -- retry a bounded number of times, draining the fill via the async task
-	// (driveFillDrain -> deluge_streaming_drain_queue_blocking) in between. A still-recording Sample
-	// has no efatfs read handle, so the read fails and the acquire stays LOADING here regardless of
-	// draining -- that non-resolution is the point being probed, not a harness bug.
-	for (int i = 0; i < 32 && state == DELUGE_REGION_LOADING; i++) {
-		driveFillDrain();
-		state = deluge_sample_region_acquire_ex(g_source, /*index=*/0, /*direction=*/+1, /*priority=*/0, &out);
-	}
+	// A first CLUSTER_ENQUEUE-style acquire comes back LOADING (the fill is scheduled, not synchronous); the caller
+	// polls with _poll(). A still-recording Sample has no efatfs read handle, so the read fails and the acquire stays
+	// LOADING however often it is drained -- that non-resolution is the point being probed, not a harness bug.
 
 	return static_cast<uint8_t>(state);
 }
@@ -267,6 +234,24 @@ uint8_t deluge_harness_recorder_probe_poll() {
 	DelugeRegionState state =
 	    deluge_sample_region_acquire_ex(g_source, /*index=*/0, /*direction=*/+1, /*priority=*/0, &out);
 	return static_cast<uint8_t>(state);
+}
+
+void deluge_harness_recorder_probe_abort() {
+	if (g_source != nullptr) {
+		deluge_sample_source_close(g_source);
+		g_source = nullptr;
+	}
+	if (g_recorder != nullptr) {
+		g_recorder->abort();
+	}
+}
+
+uint8_t deluge_harness_recorder_probe_settle_tick() {
+	if (g_recorder == nullptr || g_recorder->settled()) {
+		return 1;
+	}
+	(void)g_recorder->cardRoutine();
+	return 0;
 }
 
 void deluge_harness_recorder_probe_end() {
@@ -398,13 +383,7 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t reg
 	DelugeSampleRegion out{};
 	DelugeRegionState state =
 	    deluge_sample_region_acquire_ex(g_finalizedSource, regionIndex, /*direction=*/+1, /*priority=*/0, &out);
-	// Same bounded sim-side drain-retry loop as deluge_harness_recorder_probe() above; a no-op under
-	// async_streaming_loader (host_app), where deluge_harness_recorder_finalized_multicluster_probe_poll()
-	// is the Rust-driven counterpart.
-	for (int i = 0; i < 32 && state == DELUGE_REGION_LOADING; i++) {
-		driveFillDrain();
-		state = deluge_sample_region_acquire_ex(g_finalizedSource, regionIndex, +1, 0, &out);
-	}
+	// The caller polls a LOADING result with deluge_harness_recorder_finalized_multicluster_probe_poll().
 	g_finalizedLastReady = (state == DELUGE_REGION_READY);
 	if (g_finalizedLastReady) {
 		g_finalizedLastRegion = out;

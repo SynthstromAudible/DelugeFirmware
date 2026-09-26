@@ -24,6 +24,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "io/file.hpp"
+#include "libdeluge/sample_source.h" // DELUGE_REGION_LOADING
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
@@ -43,16 +44,21 @@
 #include <string>
 #include <vector>
 
-// Regression-gate probes (see harness/recorder_readback_probe.h). Their fill drain runs on the
-// async fill task via deluge_streaming_drain_queue_blocking() (the probes run on the worker fiber).
+// Regression-gate probes (see harness/recorder_readback_probe.h), driven one step per call below.
 extern "C" {
-uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames, uint32_t pumpDrainTicks);
+uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames);
+void deluge_harness_recorder_probe_drain_tick();
+uint8_t deluge_harness_recorder_probe_acquire();
+uint8_t deluge_harness_recorder_probe_poll();
+void deluge_harness_recorder_probe_abort();
+uint8_t deluge_harness_recorder_probe_settle_tick();
 void deluge_harness_recorder_probe_end();
 
 uint8_t deluge_harness_recorder_finalized_multicluster_probe(uint8_t numChannels, uint32_t numFrames,
                                                              uint32_t regionIndex);
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_tick();
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t regionIndex);
+uint8_t deluge_harness_recorder_finalized_multicluster_probe_poll();
 uint32_t deluge_harness_recorder_finalized_multicluster_probe_table_clusters();
 uint32_t deluge_harness_recorder_finalized_multicluster_probe_expected_clusters();
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_bytes_ok();
@@ -790,46 +796,54 @@ extern "C" int32_t deluge_scenario_recorder_finalized_tick() {
 	return deluge_harness_recorder_finalized_multicluster_probe_tick();
 }
 
-/// The rest of the oracle: the two probes and the summary. Runs after the cases are done.
-extern "C" int32_t deluge_scenario_recorder_roundtrip_rest() {
-	const uint32_t clusterSize = static_cast<uint32_t>(Cluster::size);
-	auto framesForBytes = [](uint32_t headerLen, uint32_t frameBytes, uint32_t targetBytes) -> uint32_t {
-		uint32_t avail = (targetBytes > headerLen) ? (targetBytes - headerLen) : 0;
-		return avail / frameBytes;
-	};
+namespace {
 
-	// Probe live read-back of a still-recording sample on THIS target. RecordingReadSource
-	// is gone, so this must NOT resolve READY (state=1) anywhere -- a still-recording Sample has no
-	// valid reader. The failed read gets re-queued at lowest priority rather than failed outright (the
-	// async fill task's fill_once, streaming_loader.rs), so the acquire is expected to stay LOADING
-	// (state=2), not settle on UNAVAILABLE.
-	uint8_t state = deluge_harness_recorder_probe(/*numChannels=*/1, /*numFrames=*/50, /*pumpDrainTicks=*/10);
-	printf("recorder live-readback probe: state=%u (1=READY 2=LOADING 3=UNAVAILABLE 0=harness-error)\n", state);
-	deluge_harness_recorder_probe_end();
-	if (state != 2) {
-		fprintf(stderr, "  NOTE: still-recording live-readback probe did not resolve LOADING (state=%u)\n", state);
+/// The oracle's tail, one step per call: the live-readback probe, then the finalized probe's acquire, then the
+/// summary. It used to run as one call on the storage owner, where its drains could suspend the fiber.
+enum class RestStep : uint8_t {
+	LiveDrain,     ///< ONE cardRoutine() per call on the still-recording probe, kLiveDrainTicks of them.
+	LivePoll,      ///< Re-acquire, asking for a drain each time, while LOADING: it must never resolve.
+	LiveSettle,    ///< The aborted probe's cardRoutine(), one per call, until the recorder has settled.
+	FinalizedPoll, ///< Region 1 of the finalized recording, asking for a drain each call, until not LOADING.
+	Done,
+};
+/// The one-call probe's drain: ten cardRoutine() ticks before the first acquire.
+constexpr uint32_t kLiveDrainTicks = 10;
+/// The one-call probe's watch: thirty-two drain-and-retry rounds, each now a drain request and a yield.
+constexpr uint32_t kLivePolls = 32;
+
+struct RestRun {
+	RestStep step = RestStep::Done;
+	uint32_t ticks = 0;
+	uint8_t liveState = 0;
+	uint8_t finalizedState = 0;
+};
+RestRun g_rest;
+
+void reportLive() {
+	printf("recorder live-readback probe: state=%u (1=READY 2=LOADING 3=UNAVAILABLE 0=harness-error)\n",
+	       g_rest.liveState);
+	if (g_rest.liveState != DELUGE_REGION_LOADING) {
+		fprintf(stderr, "  NOTE: still-recording live-readback probe did not resolve LOADING (state=%u)\n",
+		        g_rest.liveState);
 		g_failures++;
 	}
+}
 
-	// Regression gate: a real, FINALIZED (COMPLETE) multi-cluster mono recording --
-	// finalizeRecordedFile()'s no-alteration else-branch, the only branch AudioClip recording ever
-	// takes -- must leave the overview cache sized to the real cluster count, and region index 1+
-	// must resolve READY with correct bytes through the same port real playback uses.
-	// Driven by the caller now -- see deluge_scenario_recorder_finalized_*. Its pump used to spin here.
-	uint8_t regressionState = deluge_harness_recorder_finalized_multicluster_probe_finish(/*regionIndex=*/1);
+void reportFinalizedAndSummary() {
 	uint32_t tableClusters = deluge_harness_recorder_finalized_multicluster_probe_table_clusters();
 	uint32_t expectedClusters = deluge_harness_recorder_finalized_multicluster_probe_expected_clusters();
 	uint8_t bytesOk = deluge_harness_recorder_finalized_multicluster_probe_bytes_ok();
 	printf("  table_clusters()=%u expected_clusters()=%u acquire_state=%u (1=READY) bytes_ok=%u\n", tableClusters,
-	       expectedClusters, regressionState, bytesOk);
+	       expectedClusters, g_rest.finalizedState, bytesOk);
 	deluge_harness_recorder_finalized_multicluster_probe_end();
 	bool regressionOk =
-	    (tableClusters != 0) && (tableClusters >= expectedClusters) && (regressionState == 1) && (bytesOk == 1);
+	    (tableClusters != 0) && (tableClusters >= expectedClusters) && (g_rest.finalizedState == 1) && (bytesOk == 1);
 	if (!regressionOk) {
 		fprintf(stderr,
 		        "  FAIL: finalized multi-cluster regression gate -- table_clusters=%u expected_clusters=%u "
 		        "acquire_state=%u bytes_ok=%u\n",
-		        tableClusters, expectedClusters, regressionState, bytesOk);
+		        tableClusters, expectedClusters, g_rest.finalizedState, bytesOk);
 		g_failures++;
 	}
 	printf("  %s\n", regressionOk ? "PASS" : "FAIL");
@@ -842,8 +856,75 @@ extern "C" int32_t deluge_scenario_recorder_roundtrip_rest() {
 	// A terminator, so a run that aborted part-way is a gate FAILURE rather than a silently
 	// truncated log: a stage that never ran asserts nothing, and the failure count cannot show that.
 	printf("RW-RESULT failures=%d\n", (int)g_failures);
-
 	fflush(nullptr);
+}
+
+} // namespace
+
+/// Start the oracle's tail. Probe live read-back of a still-recording sample: RecordingReadSource is gone, so it must
+/// NOT resolve READY anywhere -- a still-recording Sample has no valid reader. The failed read is re-queued at lowest
+/// priority rather than failed outright (the async fill task's fill_once, streaming_loader.rs), so the acquire is
+/// expected to stay LOADING, not settle on UNAVAILABLE.
+extern "C" void deluge_scenario_recorder_rest_begin() {
+	g_rest = RestRun{};
+	if (deluge_harness_recorder_probe(/*numChannels=*/1, /*numFrames=*/50) == 0) {
+		g_rest.liveState = 0; // the harness error the report names
+		reportLive();
+		g_rest.step = RestStep::LiveSettle;
+		return;
+	}
+	g_rest.step = RestStep::LiveDrain;
+}
+
+/// One step of the tail. 0 while it runs, 1 once RW-RESULT has printed.
+///
+/// After the live probe, the regression gate: a real, FINALIZED (COMPLETE) multi-cluster mono recording --
+/// finalizeRecordedFile()'s no-alteration else-branch, the only branch AudioClip recording ever takes -- must leave the
+/// overview cache sized to the real cluster count, and region index 1+ must resolve READY with correct bytes through
+/// the same port real playback uses.
+extern "C" int32_t deluge_scenario_recorder_rest_tick() {
+	switch (g_rest.step) {
+	case RestStep::LiveDrain:
+		deluge_harness_recorder_probe_drain_tick();
+		if (++g_rest.ticks >= kLiveDrainTicks) {
+			g_rest.liveState = deluge_harness_recorder_probe_acquire();
+			g_rest.ticks = 0;
+			g_rest.step = RestStep::LivePoll;
+		}
+		return 0;
+	case RestStep::LivePoll:
+		if (g_rest.liveState == DELUGE_REGION_LOADING && g_rest.ticks < kLivePolls) {
+			g_rest.ticks++;
+			g_rest.liveState = deluge_harness_recorder_probe_poll();
+			return 0;
+		}
+		reportLive();
+		deluge_harness_recorder_probe_abort();
+		g_rest.step = RestStep::LiveSettle;
+		return 0;
+	case RestStep::LiveSettle:
+		if (deluge_harness_recorder_probe_settle_tick() == 0) {
+			return 0;
+		}
+		deluge_harness_recorder_probe_end();
+		g_rest.finalizedState = deluge_harness_recorder_finalized_multicluster_probe_finish(/*regionIndex=*/1);
+		g_rest.step = RestStep::FinalizedPoll;
+		return 0;
+	case RestStep::FinalizedPoll:
+		if (g_rest.finalizedState == DELUGE_REGION_LOADING) {
+			g_rest.finalizedState = deluge_harness_recorder_finalized_multicluster_probe_poll();
+			return 0;
+		}
+		reportFinalizedAndSummary();
+		g_rest.step = RestStep::Done;
+		return 1;
+	case RestStep::Done:
+		return 1;
+	}
+	return 1;
+}
+
+extern "C" int32_t deluge_scenario_recorder_roundtrip_failures() {
 	return g_failures;
 }
 

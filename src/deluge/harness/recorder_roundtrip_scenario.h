@@ -24,8 +24,8 @@
 /// The whole geometry matrix + the two readback probes, minus the
 /// host-side image formatting and process exit (the caller owns those). Assumes `DELUGE_SD_IMAGE`
 /// is already mounted (boot mounts it). Reads back through `deluge::io::File` (drain-independent)
-/// except the `finalized_multicluster` probe, whose fill drain routes unconditionally onto
-/// `deluge_streaming_drain_queue_blocking()` (the async fill task) — see `recorder_readback_probe.cpp`.
+/// except the `finalized_multicluster` probe, which the caller polls, asking the async fill task for a drain
+/// each time — see `recorder_readback_probe.cpp`. Every stage is driven one step per call, from a non-fiber context.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness dir is globbed in), so the
 ///       Embassy binary — which links `deluge_app`, not `host_recorder_roundtrip_main.cpp` — can
@@ -36,20 +36,27 @@
 
 extern "C" {
 
-/// @brief Run the whole recorder round-trip matrix synchronously on the CURRENT context (the
-///        storage-owner worker fiber on Embassy; the cooperative host driver on C-host), so its
-///        file I/O — recorder writes, `deluge::io::File` reads, `open_read_stream` — can block on
-///        that context.
-/// @return Number of failed cases (0 = all passed).
+/// @brief Set the round-trip up: print RW-ACTIVE and the cluster size, and build the case list. Blocks on
+///        nothing; call inline, then tick `deluge_scenario_recorder_cases_tick()`.
+/// @return 0.
 int32_t deluge_scenario_run_recorder_roundtrip();
+
+/// @brief Start the oracle's tail -- the live-readback probe, the finalized probe's acquire, the summary -- once the
+///        cases and the finalized probe's pump are done.
+void deluge_scenario_recorder_rest_begin();
+
+/// @brief One step of the tail. Call with a yield between calls: the probes' drains are requests, answered in between.
+/// @return 0 while it runs, 1 once RW-RESULT has printed.
+int32_t deluge_scenario_recorder_rest_tick();
+
+/// @return The oracle's failure count so far (0 = all passed); final once the tail has returned 1.
+int32_t deluge_scenario_recorder_roundtrip_failures();
 
 /// @brief Set up the off-owner recording case. Call from a NON-fiber context.
 ///
-/// The eleven cases in @ref deluge_scenario_run_recorder_roundtrip all run on the storage owner,
-/// because the oracle is dispatched there wholesale for the finalized probe's streaming drain. This
-/// case exists to cover what that cannot: a recorder driven from where the device actually drives
-/// one, so the async cluster write is exercised and `cardRoutine`'s dispatch of its BLOCKING ticks
-/// back to the owner is load-bearing rather than dead code.
+/// The cases above ride whichever arm their recorder picks; this one is set up to be driven entirely from a
+/// non-fiber context, the shape the device uses, so the async cluster write and the recorder's blocking ticks are
+/// exercised where the device drives them.
 /// @param mode Which case:
 ///             - 0 `recording`: mono, finished normally.
 ///             - 1 `alterfile`: stereo with a silent right channel and alteration permitted, so finalize

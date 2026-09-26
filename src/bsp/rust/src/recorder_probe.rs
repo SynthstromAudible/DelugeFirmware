@@ -24,14 +24,12 @@ use embassy_time::{Duration, Instant, Timer};
 // firmware). Manually declared here, same pattern as `scenario.rs`'s bridge: harness-only entry
 // points the app exposes to the platform, not part of the libdeluge C-ABI the app CONSUMES.
 unsafe extern "C" {
-    fn deluge_harness_recorder_probe(
-        num_channels: u8,
-        num_frames: u32,
-        pump_drain_ticks: u32,
-    ) -> u8;
+    fn deluge_harness_recorder_probe(num_channels: u8, num_frames: u32) -> u8;
     fn deluge_harness_recorder_probe_drain_tick();
     fn deluge_harness_recorder_probe_acquire() -> u8;
     fn deluge_harness_recorder_probe_poll() -> u8;
+    fn deluge_harness_recorder_probe_abort();
+    fn deluge_harness_recorder_probe_settle_tick() -> u8;
     fn deluge_harness_recorder_probe_end();
 }
 
@@ -55,9 +53,8 @@ pub struct RecorderProbeResult {
     /// `registerTasks()` claimed a scheduler slot within `step_timeout` (same boot-readiness
     /// signal `scenario::ScenarioResult::boot_ready` uses).
     pub boot_ready: bool,
-    /// The state `deluge_harness_recorder_probe()`'s own bounded C++-side retry loop settled on
-    /// (see that function's doc: with `RecordingReadSource` deleted this is expected to read
-    /// LOADING uniformly, on sim as well as `host_app`).
+    /// The first acquire's state, after the drain ticks (with `RecordingReadSource` deleted this is
+    /// expected to read LOADING uniformly, on sim as well as `host_app`).
     pub initial_state: u8,
     /// The state after this task's own poll loop (which lets the REAL async fill task run between
     /// checks, via `Timer::after` yields — the mechanism that actually owns the drain on
@@ -103,9 +100,8 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
     // 50 frames * 3 bytes = 150 bytes) so probing cluster index 0 is meaningful, and a handful of
     // C++-side drain ticks to get it flushed to the SD file before probing (mirrors the sim
     // round-trip harness's own pump pattern).
-    // Set up and feed, but drain NOTHING here (0 ticks): the loop below does it with a yield between
-    // ticks, which is the whole point.
-    let setup = unsafe { deluge_harness_recorder_probe(1, 50, 0) };
+    // Set up and feed; the loop below drains, with a yield between ticks, which is the whole point.
+    let setup = unsafe { deluge_harness_recorder_probe(1, 50) };
     if setup == STATE_HARNESS_ERROR {
         result.initial_state = STATE_HARNESS_ERROR;
         return result;
@@ -132,6 +128,11 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
     result.final_state = state;
     result.resolved_ready = state == STATE_READY;
 
+    // Settle before deleting: off the storage owner a request can still be in flight.
+    unsafe { deluge_harness_recorder_probe_abort() };
+    while unsafe { deluge_harness_recorder_probe_settle_tick() } == 0 {
+        Timer::after_millis(1).await;
+    }
     unsafe { deluge_harness_recorder_probe_end() };
     result
 }
