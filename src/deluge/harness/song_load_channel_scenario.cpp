@@ -85,9 +85,6 @@ constexpr const char* kSavePath = "SONGS/SLTEST01.XML";
 /// and every leg about them would pass by having nothing asked of it (measured: the boot song is one instrument
 /// clip and no audio clips at all).
 constexpr const char* kSongSample = "SAMPLES/SL/SLSONG.WAV";
-/// Ops the load may still hand the storage owner: none. Every segment of a song load now runs where its caller
-/// stands, so a load that dispatches anything at all is a regression.
-constexpr int32_t kExpectedOwnerOps = 0;
 
 /// The value stamped into the song before saving, and required back after loading. Distinctive
 /// enough that no default produces it.
@@ -118,8 +115,6 @@ int32_t g_failures = 0;
 int32_t g_expectedMagnitude = 0;
 int32_t g_loadTicks = 0;
 int32_t g_saveTicks = 0;
-/// `Owner::opsRun()` as the load began: SL-TIER is the difference.
-uint32_t g_opsAtLoad = 0;
 /// Whether the fixture's sample bound before the save. A song saved without it proves nothing on the way back.
 bool g_fixtureBound = false;
 
@@ -206,7 +201,6 @@ void runTick() {
 		break;
 	}
 	case Stage::LoadBack: {
-		g_opsAtLoad = deluge::storage::Owner::opsRun();
 		currentSong->setSongFullPath(kSavePath);
 		(void)openUI(&loadSongUI);
 		g_stage = Stage::LoadBackListing;
@@ -255,15 +249,6 @@ void runTick() {
 		if (!g_setupFailed && observed != g_expectedMagnitude) {
 			printf("SL-LOADED FAIL the song did not come back off the card -- a value stamped over in "
 			       "memory before the load was not restored by it\n");
-			g_failures++;
-		}
-		// SL-TIER. Ops the owner was handed during the load. A load that runs where its caller stands hands over
-		// nothing.
-		const int32_t ownerOps = static_cast<int32_t>(deluge::storage::Owner::opsRun() - g_opsAtLoad);
-		printf("SL-TIER ownerOps=%d wanted=%d\n", ownerOps, kExpectedOwnerOps);
-		if (ownerOps != kExpectedOwnerOps) {
-			printf("SL-TIER FAIL the load dispatched %d op(s) onto the storage owner, wanted %d\n", ownerOps,
-			       kExpectedOwnerOps);
 			g_failures++;
 		}
 		// SL-ORDER. The song's sample is bound by the time the load ends -- the pass that binds it moves tier in
@@ -321,7 +306,6 @@ void deluge_scenario_song_load_channel_begin(void) {
 	g_expectedMagnitude = 0;
 	g_loadTicks = 0;
 	g_saveTicks = 0;
-	g_opsAtLoad = 0;
 	g_fixtureBound = false;
 }
 

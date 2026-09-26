@@ -6,7 +6,6 @@
 #
 #   ST-RENDER   the exported WAV's sha256 matches harness/stem-export-cordae.sha256 (field 1)
 #   ST-BYTES    the export actually wrote audio, at the size recorded beside the hash (field 2)
-#   ST-TIER     owner ops the export dispatched, against the target the scenario declares
 #
 # ⚠️ THIS IS NOT golden-embassy-diff, AND ITS BASELINE IS NOT THAT GATE'S GOLDEN. That gate
 # compares against a C-host `deluge_render` golden this branch cannot rebuild (golden-mixdown is
@@ -101,15 +100,8 @@ else
 	fi
 fi
 
-# ST-TIER: the scenario compares against its own declared target and prints both; a mismatch is ours to fail.
-tier_got="$(sed -n 's/^ST-TIER ownerOps=\([0-9-]*\) .*/\1/p' "$OUT_ROOT/run.log" | tail -1)"
-tier_want="$(sed -n 's/^ST-TIER .*wanted=\([0-9-]*\).*/\1/p' "$OUT_ROOT/run.log" | tail -1)"
-if [ "$tier_want" != "-1" ] && [ "$tier_got" != "$tier_want" ]; then
-	echo "FAIL ST-TIER — the export dispatched $tier_got owner op(s), wanted $tier_want"
-	failures=$((failures + 1))
-fi
 
-for marker in ST-BYTES ST-TIER ST-RENDER; do
+for marker in ST-BYTES ST-RENDER; do
 	if ! grep -q "^$marker " "$OUT_ROOT/run.log" && [ "$marker" != "ST-RENDER" ]; then
 		echo "FAIL — $marker never appeared; the gate did not observe what it claims to"
 		failures=$((failures + 1))

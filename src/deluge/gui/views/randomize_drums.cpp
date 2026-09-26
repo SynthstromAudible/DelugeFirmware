@@ -254,10 +254,6 @@ bool RandomizeDrums::stepAwaitScan() {
 }
 
 bool RandomizeDrums::stepLoadRow() {
-	// Counted for the sample-claim gate (RD-TIER): a row load that began on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		loadsOnOwner_++;
-	}
 	AudioEngine::stopAnyPreviewing();
 	rowDrum_->killAllVoices();
 	rowHolder_->setAudioFile(nullptr);
@@ -333,8 +329,6 @@ void RandomizeDrums::end(Error error) {
 }
 
 void RandomizeDrums::drainScan(deluge::io::Directory& dir) {
-	// `scansOnOwner_` is deliberately NOT incremented here and NOT deleted: RD-TIER reporting it as
-	// zero is the evidence that this scan left the storage owner.
 	scansRun_++;
 	ScanResult& scan = scan_;
 	for (;;) {

@@ -189,10 +189,6 @@ void runTick() {
 			printf("SF-TIER FAIL startup fail-safe I/O ran on the interaction tier\n");
 			g_failures++;
 		}
-		// ABSOLUTE, not a delta like `illegal` below: boot's settings reads ran before this scenario
-		// started, and they are exactly what this number is here to count. Measured 3 before the
-		// reads moved off boot (b414b4f40); 0 is the claim that they no longer take the arm at all.
-		printf("SF-ONOWNER trueAfterStart=%d\n", (int)deluge::storage::Owner::onOwnerTrue());
 		const int32_t inlineRan = deluge::storage::bytes::inlineRuns();
 		printf("SF-INLINE ok=%d ran=%d\n", (int)(inlineRan == 0), (int)inlineRan);
 		if (inlineRan != 0) {

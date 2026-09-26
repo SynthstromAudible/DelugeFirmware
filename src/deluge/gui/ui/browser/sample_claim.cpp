@@ -183,10 +183,6 @@ bool SampleClaim::step() {
 }
 
 bool SampleClaim::stepStart() {
-	// Counted for the sample-claim gate (SC-TIER): a claim that begins on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		loadsOnOwner_++;
-	}
 
 	if (claimingAudioClip() && getCurrentClip()->getCurrentlyRecordingLinearly()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_IS_RECORDING));
@@ -399,10 +395,6 @@ bool SampleClaim::stepPrepareWavetable() {
 	oldOscType_ = soundEditor.currentSource->getOscType();
 	soundEditor.currentSource->setOscType(OscType::WAVETABLE);
 	waveTableHolder_ = prepareHolder(current_.path);
-	// Counted for SC-TIER: a wavetable lookup on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		waveTableLookupsOnOwner_++;
-	}
 	// A wavetable still loads synchronously. Blocking on the storage tier is permitted here, and song load's
 	// AsyncSampleLoad makes this same lookup on this tier.
 	waveTableError_ = Error::NONE;
@@ -465,10 +457,6 @@ bool SampleClaim::stepDetectPitch() {
 	pitchSample_ = (Sample*)claimHolder()->audioFile;
 	pitchWanted_ = !pitchSample_->midiNoteWithoutScan(doingSingleCycle_);
 	if (pitchWanted_) {
-		// Counted for SC-TIER: a pitch detection begun on the storage owner.
-		if (deluge::storage::Owner::on_owner()) {
-			pitchScansOnOwner_++;
-		}
 		pitchScan_.arm(*pitchSample_, {});
 	}
 	phase_ = Phase::AwaitPitch;

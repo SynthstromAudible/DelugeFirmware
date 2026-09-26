@@ -175,32 +175,22 @@ public:
 	/// @{
 	/// Preset documents (and device definitions) staged.
 	[[nodiscard]] int32_t documentReads() const { return documentReads_; }
-	/// Of those, the ones begun on the storage owner; required 0.
-	[[nodiscard]] int32_t documentReadsOnOwner() const { return documentReadsOnOwner_; }
 	/// Sample loads begun, one per Instrument or drum.
 	[[nodiscard]] int32_t sampleLoads() const { return sampleLoads_; }
-	/// Of those, the ones begun on the storage owner; required 0.
-	[[nodiscard]] int32_t sampleLoadsOnOwner() const { return sampleLoadsOnOwner_; }
 	/// Loads cancelled by a newer request.
 	[[nodiscard]] int32_t supersessions() const { return supersessions_; }
 	/// Sample loads that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
 	/// UnusedSlot walks begun -- the slot name a new blank instrument takes.
 	[[nodiscard]] int32_t slotScans() const { return slotScans_; }
-	/// Of those, the ones begun on the storage owner; required 0.
-	[[nodiscard]] int32_t slotScansOnOwner() const { return slotScansOnOwner_; }
 	/// The error the most recent load or acquisition finished with; Error::NONE after a success.
 	[[nodiscard]] Error lastError() const { return lastError_; }
 	/// Navigate walks begun -- the preset scroll.
 	[[nodiscard]] int32_t navigationsRun() const { return navigationsRun_; }
-	/// Of those, the ones begun on the storage owner; required 0.
-	[[nodiscard]] int32_t navigationsOnOwner() const { return navigationsOnOwner_; }
 	/// Navigates that hit the machine's read backstop; required 0 (termination does not depend on it).
 	[[nodiscard]] int32_t navigationGiveUps() const { return navigation_.giveUps(); }
 	/// Confirm walks begun -- the SYNTH/KIT change-type.
 	[[nodiscard]] int32_t confirmsRun() const { return confirmsRun_; }
-	/// Of those, the ones begun on the storage owner; required 0.
-	[[nodiscard]] int32_t confirmsOnOwner() const { return confirmsOnOwner_; }
 	/// Confirms that hit the machine's read backstop; required 0.
 	[[nodiscard]] int32_t confirmGiveUps() const { return confirm_.giveUps(); }
 	/// @}
@@ -301,17 +291,12 @@ private:
 	/// @}
 
 	int32_t documentReads_{0};
-	int32_t documentReadsOnOwner_{0};
 	int32_t sampleLoads_{0};
-	int32_t sampleLoadsOnOwner_{0};
 	int32_t supersessions_{0};
 	int32_t giveUps_{0};
 	int32_t slotScans_{0};
-	int32_t slotScansOnOwner_{0};
 	int32_t navigationsRun_{0};
-	int32_t navigationsOnOwner_{0};
 	int32_t confirmsRun_{0};
-	int32_t confirmsOnOwner_{0};
 	Error lastError_{Error::NONE};
 };
 

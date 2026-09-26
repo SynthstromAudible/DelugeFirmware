@@ -308,23 +308,20 @@ void InstrumentLoad::tickWalkHere() {
 
 void InstrumentLoad::beginWalkHere() {
 	if (walkOut_.walk == deluge::storage::AcquireWalk::UnusedSlot) {
-		// Counted for the preset-load gate (AQ-SLOT): where the walk began.
+		// Counted for the preset-load gate (AQ-SLOT): a walk begun.
 		slotScans_++;
-		slotScansOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 		slot_scan_.arm(loadInstrumentPresetUI, walkOut_.dirPath, walkOut_.outputType);
 		return;
 	}
 	if (walkOut_.walk == deluge::storage::AcquireWalk::Navigate) {
-		// Counted for the preset-load gate (AQ-NAV-TIER): where the walk began.
+		// Counted for the preset-load gate (AQ-NAV-TIER): a walk begun.
 		navigationsRun_++;
-		navigationsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 		navigation_.arm(loadInstrumentPresetUI, walkOut_);
 		return;
 	}
 	if (walkOut_.walk == deluge::storage::AcquireWalk::Confirm) {
-		// Counted for the preset-load gate (AQ-CHANGE-TIER): where the walk began.
+		// Counted for the preset-load gate (AQ-CHANGE-TIER): a walk begun.
 		confirmsRun_++;
-		confirmsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 		confirm_.arm(loadInstrumentPresetUI, walkOut_);
 		return;
 	}
@@ -422,10 +419,8 @@ void InstrumentLoad::echoNavigation() const {
 
 StorageManager::StagedOpen InstrumentLoad::stage(const char* path, const char* firstTagName, const char* altTagName) {
 	if (!stagingOpen_) {
-		// Counted for the preset-load gate (PL-TIER, AQ-TIER): a document read, and whether it began on the storage
-		// owner.
+		// Counted for the preset-load gate (PL-TIER, AQ-TIER): a document read.
 		documentReads_++;
-		documentReadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 		previousDeserializer_ = activeDeserializer;
 		stagingOpen_ = true;
 	}
@@ -477,9 +472,8 @@ bool InstrumentLoad::stepStage() {
 }
 
 void InstrumentLoad::beginSampleLoad(Instrument& instrument) {
-	// Counted for the preset-load gate (PL-TIER, AQ-TIER): a sample load, and whether it began on the storage owner.
+	// Counted for the preset-load gate (PL-TIER, AQ-TIER): a sample load.
 	sampleLoads_++;
-	sampleLoadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 	display->displayLoadingAnimationText("Loading", false, true);
 	load_.emplace(deluge::storage::AsyncSampleLoad::forOutput(instrument, nullptr));
 }
@@ -514,9 +508,8 @@ bool InstrumentLoad::stepParse() {
 	}
 
 	if (newDrum_ != nullptr) {
-		// Counted for the preset-load gate (PL-TIER): a sample load, and whether it began on the storage owner.
+		// Counted for the preset-load gate (PL-TIER): a sample load.
 		sampleLoads_++;
-		sampleLoadsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 		display->displayLoadingAnimationText("Loading", false, true);
 		load_.emplace(deluge::storage::AsyncSampleLoad::forDrum(*newDrum_, nullptr));
 	}

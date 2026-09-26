@@ -58,14 +58,6 @@ struct Owner {
 	/// @return true iff on the storage worker context.
 	static bool on_owner();
 
-	/// @brief How many times @ref on_owner has answered TRUE after @ref started. For gates only.
-	///
-	/// The question the whole `on_owner()` collapse turns on: every site that branches on it is only
-	/// interesting while something still RUNS there. At zero across the estate, every one of those
-	/// branches is already taking its off-owner path and the collapse is mechanical rather than a
-	/// site-by-site audit. Counted here, once, rather than at 51 call sites.
-	[[nodiscard]] static int32_t onOwnerTrue();
-
 	/// @brief True iff the owner has run at least once - i.e. an owner exists to be `on_owner()`
 	/// of at all. False only during the narrow pre-owner boot window (the synchronous
 	/// `deluge_boot()` call chain, before the worker pump's first poll); true for the rest of the
@@ -76,16 +68,6 @@ struct Owner {
 	/// a caller asserts `on_owner() || !started()` rather than `on_owner()` alone.
 	/// @return true iff the storage owner has run at least once.
 	static bool started();
-
-	/// @brief How many ops the owner has been handed since boot.
-	///
-	/// Every successful `run()`/`run_sd_routine()` counts once; a dropped dispatch does not, because nothing was
-	/// handed over. The lens the migration's gates use to ask whether a consumer still dispatches: a consumer that
-	/// has left the owner moves this number not at all.
-	///
-	/// @warning A gate reading this across an operation must subtract any ops IT dispatched in the same window --
-	///          the song-load gate, for one, queues a marker behind every tick.
-	[[nodiscard]] static uint32_t opsRun();
 
 	/// @brief Run `fn(ctx)` on the worker, but inline if already on_owner() (or on a
 	/// cooperative/host BSP). For dual-context callers: the leaf work runs on the

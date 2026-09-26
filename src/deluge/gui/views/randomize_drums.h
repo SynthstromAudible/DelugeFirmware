@@ -77,14 +77,7 @@ public:
 
 	/// @name Counts for the sample-claim gate.
 	/// @{
-	/// Directory scans that ran on the storage owner.
-	[[nodiscard]] int32_t scansOnOwner() const { return scansOnOwner_; }
-
-	/// @brief Directory scans that RAN, on whatever tier.
-	///
-	/// Separate from @ref scansOnOwner because RD-TIER's single counter was doing two jobs: "a scan
-	/// happened" and "it happened on the owner". Once the scan leaves the owner the second goes to
-	/// zero, and a leg reading only that would quietly stop checking the first.
+	/// @brief Directory scans that ran.
 	[[nodiscard]] int32_t scansRun() const { return scansRun_; }
 	/// @brief Walks cancelled with the row's open still outstanding, which therefore had to drain.
 	///
@@ -97,8 +90,6 @@ public:
 
 	/// @brief Whether a cancelled walk is still waiting for its open to report.
 	[[nodiscard]] bool draining() const { return phase_ == Phase::Draining; }
-	/// Row loads that began on the storage owner; required 0.
-	[[nodiscard]] int32_t loadsOnOwner() const { return loadsOnOwner_; }
 	/// Walks that ended on a load that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
 	/// @}
@@ -180,11 +171,9 @@ private:
 	ScanResult scan_{};
 	/// @}
 
-	int32_t scansOnOwner_{0};
 	int32_t scansRun_{0};
 	int32_t drainsEntered_{0};
 	int32_t drainsCollected_{0};
-	int32_t loadsOnOwner_{0};
 	int32_t giveUps_{0};
 };
 

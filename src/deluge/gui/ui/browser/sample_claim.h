@@ -85,12 +85,6 @@ public:
 
 	/// @name Counts for the sample-claim gate.
 	/// @{
-	/// Claims that began on the storage owner; required 0.
-	[[nodiscard]] int32_t loadsOnOwner() const { return loadsOnOwner_; }
-	/// Wavetable lookups that ran on the storage owner.
-	[[nodiscard]] int32_t waveTableLookupsOnOwner() const { return waveTableLookupsOnOwner_; }
-	/// Pitch detections that ran on the storage owner.
-	[[nodiscard]] int32_t pitchScansOnOwner() const { return pitchScansOnOwner_; }
 	/// Claims whose load stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
 	/// Claims cancelled.
@@ -166,9 +160,6 @@ private:
 	Sample* pitchSample_{nullptr};
 	/// @}
 
-	int32_t loadsOnOwner_{0};
-	int32_t waveTableLookupsOnOwner_{0};
-	int32_t pitchScansOnOwner_{0};
 	int32_t giveUps_{0};
 	int32_t cancels_{0};
 	int32_t finishes_{0};

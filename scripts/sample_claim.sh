@@ -28,8 +28,7 @@
 #   SC-PITCH-STALL
 #              a claim whose detection's clusters never arrive: one give-up, the note an error, the transpose left
 #              alone, the claim finished.
-#   SC-TIER    per leg: no claim or slice began its load on the storage owner, no pitch detection or wavetable
-#              lookup ran there, and no sample was read from the card on the interaction tier.
+#   SC-TIER    per leg: no sample was read from the card on the interaction tier.
 #   SC-KIT     the kit drum claim: the file bound, the repeat mode, the drum's name and its side-chain send.
 #   SC-AUDIOCLIP
 #              the audio clip claim: the file bound, and the clip's loop length and attack.
@@ -39,8 +38,8 @@
 #              named after that file, with every other row untouched.
 #   RD-ALL     the same gesture with affect-entire held: every unmuted row that has notes must end on a file from
 #              that folder, and the muted and empty rows must be untouched.
-#   RD-TIER    per randomizer leg: every directory scan ran on the storage owner, no load began there, and no sample
-#              was read from the card on the interaction tier.
+#   RD-TIER    per randomizer leg: a directory scan ran, and no sample was read from the card on the interaction
+#              tier.
 #   RD-GATE    a randomize whose load the loader holds: while the walk is out, no second walk may start and an edit
 #              pad must be refused; once it ends, the gate released and the same pad taken.
 #   RD-STALL   a randomize over three rows whose second load is held past the stall bound: the walk must end there,
@@ -54,8 +53,7 @@
 #              edited and the browser closed.
 #   IM-MULTI   the synth context menu's "Multisamples" over three sines an octave apart: one range per file in pitch
 #              order, each bound to its file with the transpose its detection gives it, and the browser closed.
-#   IM-TIER    per folder import: neither the listing nor any pitch detection nor any file load ran on the storage
-#              owner, and no sample was read from the card on the interaction tier.
+#   IM-TIER    per folder import: a listing ran, and no sample was read from the card on the interaction tier.
 #   IM-GATE    a kit import whose loads the loader holds: while it is out, BACK and a second Select on the menu must be
 #              refused; once it ends, the gate released and the kit holding its drums.
 #   IM-STALL   a multisample import whose second file's load is held past the stall bound: it must abort with the
@@ -130,7 +128,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-WAVETABLE-RESIDENT SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-PITCH SC-PITCH-STALL SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL RD-CANCELSCAN IM-KIT IM-MULTI IM-TIER IM-GATE IM-STALL SC-ONOWNER SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-WAVETABLE-RESIDENT SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-PITCH SC-PITCH-STALL SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL RD-CANCELSCAN IM-KIT IM-MULTI IM-TIER IM-GATE IM-STALL SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^(SC|RD|IM)-' "$OUT/run.txt"

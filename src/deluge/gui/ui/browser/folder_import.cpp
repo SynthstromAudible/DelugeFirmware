@@ -315,10 +315,6 @@ bool FolderImport::stepLoadFile() {
 		phase_ = Phase::Prepare;
 		return true;
 	}
-	// Counted for the sample-claim gate (IM-TIER): a file load begun on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		loadsOnOwner_++;
-	}
 	scratch_.setAudioFile(nullptr);
 	scratch_.filePath = dirWithSlash_;
 	scratch_.filePath.append(names_[cursor_]);
@@ -1020,10 +1016,6 @@ void FolderImport::startPitch(Sample& sample, deluge::sample::PitchScan::Limits 
 	pitchLimits_ = limits;
 	pitchWanted_ = !sample.midiNoteWithoutScan(doingSingleCycle_);
 	if (pitchWanted_) {
-		// Counted for the sample-claim gate (IM-TIER): a pitch detection begun on the storage owner.
-		if (deluge::storage::Owner::on_owner()) {
-			pitchOnOwner_++;
-		}
 		pitchScan_.arm(sample, limits);
 	}
 }
@@ -1043,8 +1035,6 @@ bool FolderImport::pitchReported() {
 }
 
 void FolderImport::drainListing(deluge::io::Directory& dir) {
-	// `listingsOnOwner_` is deliberately NOT incremented here and NOT deleted: IM-TIER reporting it
-	// as zero is the evidence that this listing left the storage owner.
 	listingsRun_++;
 	for (;;) {
 		auto entry = dir.read();

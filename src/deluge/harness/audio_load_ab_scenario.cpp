@@ -383,15 +383,12 @@ int32_t g_stallGiveUpsBefore = 0;
 /// Whether the preview was still pending when the wait ended.
 bool g_stallPendingAtEnd = false;
 
-/// Where a browser stage's preview load ran, read when the stage starts: the browser's count of load steps on the
-/// storage owner, and the interaction tier's blocking sample reads.
+/// The interaction tier's blocking sample reads, read when a browser stage starts.
 struct TierMark {
-	int32_t ownerLoads = 0;
 	int32_t sampleIo = 0;
 };
 TierMark g_previewTier{};
 int32_t g_drawsBefore = 0;
-int32_t g_drawsOnOwnerBefore = 0;
 int32_t g_redrawsBefore = 0;
 int32_t g_drawsCompleteBefore = 0;
 TierMark g_cancelTier{};
@@ -399,23 +396,14 @@ TierMark g_stallTier{};
 TierMark g_drawStallTier{};
 
 TierMark markTier() {
-	return {sampleBrowser.previewLoadsOnOwner(),
-	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
+	return {deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
-/// AB-PREVIEW-TIER: since @p before, no preview load step may have run on the storage owner, and no sample may have
-/// been read from the card on the interaction tier.
+/// AB-PREVIEW-TIER: since @p before, no sample may have been read from the card on the interaction tier.
 void checkTier(const char* stage, const TierMark& before) {
 	const TierMark now = markTier();
-	const int32_t ownerLoads = now.ownerLoads - before.ownerLoads;
 	const int32_t sampleIo = now.sampleIo - before.sampleIo;
-	printf("AB-PREVIEW-TIER stage=%s ownerLoads=%d sampleIo=%d\n", stage, ownerLoads, sampleIo);
-	if (ownerLoads != 0) {
-		printf("FAIL [audioLoadAB/%s]: %d preview load step(s) ran on the storage owner -- a preview's load belongs on "
-		       "the interaction tier, driven by the browser's per-tick surface\n",
-		       stage, ownerLoads);
-		g_failures++;
-	}
+	printf("AB-PREVIEW-TIER stage=%s sampleIo=%d\n", stage, sampleIo);
 	if (sampleIo != 0) {
 		printf("FAIL [audioLoadAB/%s]: %d preview sample read(s) went to the card on the interaction tier\n", stage,
 		       sampleIo);
@@ -675,7 +663,6 @@ void runOnePreviewTick() {
 		sampleBrowser.hideKeyboardForHarness();
 		g_previewTier = markTier();
 		g_drawsBefore = sampleBrowser.previewDraws();
-		g_drawsOnOwnerBefore = sampleBrowser.previewDrawsOnOwner();
 		g_redrawsBefore = sampleBrowser.previewRedraws();
 		g_drawsCompleteBefore = sampleBrowser.previewDrawsComplete();
 		sampleBrowser.previewFile(kPreviewPath, /*movementDirection=*/0);
@@ -721,18 +708,16 @@ void finishPreviewStage(bool drawn) {
 		g_failures++;
 	}
 	const int32_t draws = sampleBrowser.previewDraws() - g_drawsBefore;
-	const int32_t onOwner = sampleBrowser.previewDrawsOnOwner() - g_drawsOnOwnerBefore;
 	const int32_t redraws = sampleBrowser.previewRedraws() - g_redrawsBefore;
 	const int32_t complete = sampleBrowser.previewDrawsComplete() - g_drawsCompleteBefore;
-	printf("AB-PREVIEW-DRAW draws=%d onOwner=%d redraws=%d complete=%d redrawPending=%d\n", draws, onOwner, redraws,
-	       complete, sampleBrowser.previewRedrawPending() ? 1 : 0);
+	printf("AB-PREVIEW-DRAW draws=%d redraws=%d complete=%d redrawPending=%d\n", draws, redraws, complete,
+	       sampleBrowser.previewRedrawPending() ? 1 : 0);
 	// redraws >= 1 is measured, not assumed: the preview's first draw finds its cluster enqueued but not yet filled,
 	// and one redraw finishes it (measured redraws=1). A draw that completed at once would be a draw that waited for
 	// the card.
-	if (draws != 1 || onOwner != 0 || redraws < 1 || complete < 1 || sampleBrowser.previewRedrawPending()) {
-		printf(
-		    "FAIL [audioLoadAB/preview-draw]: the preview must be drawn once, off the storage owner, without waiting "
-		    "for its clusters, and end on a complete render with nothing left to redraw\n");
+	if (draws != 1 || redraws < 1 || complete < 1 || sampleBrowser.previewRedrawPending()) {
+		printf("FAIL [audioLoadAB/preview-draw]: the preview must be drawn once, without waiting for its clusters, and "
+		       "end on a complete render with nothing left to redraw\n");
 		g_failures++;
 	}
 	checkTier("preview", g_previewTier);

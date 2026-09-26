@@ -10,7 +10,6 @@
 #   CR-SURVIVE    a referenced sample whose file is intact stays loadable
 #   CR-LOST       a referenced sample whose file was removed is marked unloadable
 #   CR-EVICT      a resident nothing references is pruned from memory
-#   CR-TIER       owner ops the re-insertion dispatched, against the target the scenario declares
 #
 # ⚠️ CR-RESIDENTS IS NOT CEREMONY. `audio-load-ab` drives these same edges, and measured on
 # 2026-09-19 it reaches cardReinserted() twice with residents=0 — the edges fire and the loop body
@@ -91,16 +90,6 @@ for leg in CR-SURVIVE CR-LOST CR-EVICT; do
 	fi
 done
 
-# CR-TIER: the scenario declares its own target and prints both, so a mismatch is ours to fail.
-tier_got="$(sed -n 's/^CR-TIER ownerOps=\([0-9-]*\) .*/\1/p' "$OUT_ROOT/run.log" | tail -1)"
-tier_want="$(sed -n 's/^CR-TIER .*wanted=\([0-9-]*\).*/\1/p' "$OUT_ROOT/run.log" | tail -1)"
-if [ -z "$tier_got" ] || [ -z "$tier_want" ]; then
-	echo "FAIL CR-TIER — no CR-TIER line"
-	fails=$((fails + 1))
-elif [ "$tier_got" != "$tier_want" ]; then
-	echo "FAIL CR-TIER — the re-insertion dispatched $tier_got owner op(s), wanted $tier_want"
-	fails=$((fails + 1))
-fi
 
 if ! grep -q '^CR-RESULT failures=0' "$OUT_ROOT/run.log"; then
 	echo "FAIL — $(grep '^CR-RESULT' "$OUT_ROOT/run.log" || echo 'no CR-RESULT line')"

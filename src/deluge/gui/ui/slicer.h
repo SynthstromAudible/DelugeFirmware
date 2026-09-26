@@ -69,12 +69,6 @@ public:
 	/// @brief How many auditions gave up on a load that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
 
-	/// @brief How many slices began their load on the storage owner.
-	///
-	/// A slice's load belongs on the interaction tier; a slice that begins on the owner was dispatched there. Exposed
-	/// for the sample-claim gate's SC-TIER check, which requires none.
-	[[nodiscard]] int32_t sliceLoadsOnOwner() const { return sliceLoadsOnOwner_; }
-
 	int32_t numManualSlice{};
 	int32_t currentSlice{};
 	int32_t slicerMode{};
@@ -129,9 +123,6 @@ private:
 
 	/// @brief Auditions that gave up on a load that stopped moving. See previewGiveUps().
 	int32_t previewGiveUps_{0};
-
-	/// @brief Slices that began their load on the storage owner. See sliceLoadsOnOwner().
-	int32_t sliceLoadsOnOwner_{0};
 
 	/// @brief Snapshot of the Select "commit slice" gesture, taken as it is pressed.
 	///

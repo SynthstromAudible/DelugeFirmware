@@ -29,8 +29,7 @@
 #             once, with nothing pending and nothing drawn, and stay given up once the hold is lifted.
 #   AB-PREVIEW-TIER
 #   AB-PREVIEW-DRAW
-#             the preview stage's draw: once, off the storage owner, ending on a complete render with nothing left to
-#             redraw.
+#             the preview stage's draw: once, ending on a complete render with nothing left to redraw.
 #   AB-PREVIEW-DRAW-STALL
 #             a preview whose clusters the streaming loader holds: redrawn, then given up once, nothing pending, and
 #             the next file still previewed.

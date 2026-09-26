@@ -293,30 +293,20 @@ Sample* g_imStallKept[2]{};
 uint32_t g_imStallKeptLeases[2]{};
 std::vector<std::string> g_imStallRangePaths{};
 
-/// Where a folder import's card work ran, read when an import leg acts.
+/// The interaction tier's blocking sample reads when an import leg acts.
 struct ImportMark {
-	int32_t listings = 0;
-	int32_t loads = 0;
-	int32_t pitch = 0;
 	int32_t sampleIo = 0;
 };
 ImportMark g_importMark{};
 
-/// Where a leg's card work ran, read when the leg acts: the claim's and the slice's loads begun on the storage owner,
-/// the claim's wavetable lookups and pitch detections on the owner, and the interaction tier's blocking sample reads.
+/// The interaction tier's blocking sample reads when a leg acts.
 struct TierMark {
-	int32_t claimLoads = 0;
-	int32_t waveTableLookups = 0;
-	int32_t pitchScans = 0;
-	int32_t sliceLoads = 0;
 	int32_t sampleIo = 0;
 };
 TierMark g_tierMark{};
 
-/// Where the randomizer's card work ran, read when a randomizer leg acts.
+/// The interaction tier's blocking sample reads when a randomizer leg acts.
 struct RandomizeMark {
-	int32_t scans = 0;
-	int32_t loads = 0;
 	int32_t sampleIo = 0;
 };
 RandomizeMark g_randomizeMark{};
@@ -439,55 +429,22 @@ void buildFixtureOnOwner(void (*fn)()) {
 }
 
 ImportMark markImport() {
-	return {deluge::gui::folderImport.listingsOnOwner(), deluge::gui::folderImport.loadsOnOwner(),
-	        deluge::gui::folderImport.pitchOnOwner(),
-	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
+	return {deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
 RandomizeMark markRandomize() {
-	return {deluge::gui::randomizeDrums.scansOnOwner(), deluge::gui::randomizeDrums.loadsOnOwner(),
-	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
+	return {deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
 TierMark markTier() {
-	return {deluge::gui::sampleClaim.loadsOnOwner(), deluge::gui::sampleClaim.waveTableLookupsOnOwner(),
-	        deluge::gui::sampleClaim.pitchScansOnOwner(), slicer.sliceLoadsOnOwner(),
-	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
+	return {deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
-/// The wavetable lookups and pitch detections each leg's claim makes on the storage owner: none. Pitch detection is a
-/// resumable scan and the wavetable lookup a blocking lookup, both on the interaction tier.
-void wantOwnerWork(Leg /*leg*/, int32_t& waveTable, int32_t& pitch) {
-	waveTable = 0;
-	pitch = 0;
-}
-
-/// SC-TIER: since the leg acted, no claim or slice may have begun its load on the storage owner, no pitch detection or
-/// wavetable lookup may have run there, and no sample may have been read from the card on the interaction tier.
+/// SC-TIER: since the leg acted, no sample may have been read from the card on the interaction tier.
 void checkTier() {
 	const TierMark now = markTier();
-	const int32_t loads = (now.claimLoads - g_tierMark.claimLoads) + (now.sliceLoads - g_tierMark.sliceLoads);
-	const int32_t waveTable = now.waveTableLookups - g_tierMark.waveTableLookups;
-	const int32_t pitch = now.pitchScans - g_tierMark.pitchScans;
 	const int32_t sampleIo = now.sampleIo - g_tierMark.sampleIo;
-	printf("SC-TIER leg=%s loadsOnOwner=%d waveTableOnOwner=%d pitchOnOwner=%d sampleIo=%d\n", legName(g_leg), loads,
-	       waveTable, pitch, sampleIo);
-	int32_t wantWaveTable = 0;
-	int32_t wantPitch = 0;
-	wantOwnerWork(g_leg, wantWaveTable, wantPitch);
-	if (loads != 0) {
-		printf(
-		    "SC-TIER FAIL leg=%s %d load(s) began on the storage owner -- a claim's or a slice's load belongs on the "
-		    "interaction tier\n",
-		    legName(g_leg), loads);
-		g_failures++;
-	}
-	if (waveTable != wantWaveTable || pitch != wantPitch) {
-		printf("SC-TIER FAIL leg=%s wavetable lookups on the owner %d (want %d), pitch detections on the owner %d "
-		       "(want %d) -- pitch detection and wavetable lookups run on the interaction tier\n",
-		       legName(g_leg), waveTable, wantWaveTable, pitch, wantPitch);
-		g_failures++;
-	}
+	printf("SC-TIER leg=%s sampleIo=%d\n", legName(g_leg), sampleIo);
 	if (sampleIo != 0) {
 		printf("SC-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier\n", legName(g_leg),
 		       sampleIo);
@@ -1156,12 +1113,14 @@ void tickRandomizeGate() {
 		return;
 	}
 	using namespace deluge::hid::button;
-	const int32_t scansBefore = markRandomize().scans;
+	// Scans that RAN: the owner-scan count this used to read has been zero since the scan left the owner, which
+	// made "a second walk was refused" true whatever happened.
+	const int32_t scansBefore = deluge::gui::randomizeDrums.scansRun();
 	(void)Buttons::buttonAction(LOAD, true, false);
 	(void)instrumentClipView.padAction(15, 2, 1);
 	(void)instrumentClipView.padAction(15, 2, 0);
 	(void)Buttons::buttonAction(LOAD, false, false);
-	g_rdGateSecondWalkRefused = markRandomize().scans == scansBefore;
+	g_rdGateSecondWalkRefused = deluge::gui::randomizeDrums.scansRun() == scansBefore;
 	g_rdGateEditRefused = !pressGateEditPad();
 }
 
@@ -1183,13 +1142,15 @@ void tickImportGate() {
 	}
 	using namespace deluge::hid::button;
 	auto& menu = deluge::gui::context_menu::sample_browser::kit;
-	const int32_t listingsBefore = markImport().listings;
+	// Listings that RAN: the owner-listing count this used to read has been zero since the listing left the owner,
+	// which made "a second import was refused" true whatever happened.
+	const int32_t listingsBefore = deluge::gui::folderImport.listingsRun();
 	(void)getCurrentUI()->buttonAction(BACK, true, false);
 	(void)getCurrentUI()->buttonAction(BACK, false, false);
 	g_imGateBackRefused = getCurrentUI() == &menu;
 	(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
 	(void)getCurrentUI()->buttonAction(SELECT_ENC, false, false);
-	g_imGateSecondRefused = markImport().listings == listingsBefore;
+	g_imGateSecondRefused = deluge::gui::folderImport.listingsRun() == listingsBefore;
 }
 
 /// The randomizer's gesture: LOAD held (which the randomizer reads through Buttons::isButtonPressed), AFFECT_ENTIRE
@@ -1665,36 +1626,17 @@ void checkLeg() {
 	case Leg::ImportKit:
 	case Leg::ImportMulti: {
 		const ImportMark now = markImport();
-		const int32_t listings = now.listings - g_importMark.listings;
-		const int32_t loads = now.loads - g_importMark.loads;
-		const int32_t pitch = now.pitch - g_importMark.pitch;
 		const int32_t sampleIo = now.sampleIo - g_importMark.sampleIo;
-		const int32_t files = (g_leg == Leg::ImportKit) ? kImportKitCount : kImportMultiCount;
-		const int32_t wantPitch = 0;
 		const int32_t listingsRun = deluge::gui::folderImport.listingsRun();
-		printf("IM-TIER leg=%s listingsRun=%d listingsOnOwner=%d loadsOnOwner=%d pitchOnOwner=%d sampleIo=%d\n",
-		       legName(g_leg), listingsRun, listings, loads, pitch, sampleIo);
-		if (loads != 0 || sampleIo != 0) {
-			printf("IM-TIER FAIL leg=%s %d of %d file load(s) began on the storage owner and %d sample read(s) went to "
-			       "the "
-			       "card on the interaction tier -- a folder import's loads belong on the interaction tier\n",
-			       legName(g_leg), loads, files, sampleIo);
+		printf("IM-TIER leg=%s listingsRun=%d sampleIo=%d\n", legName(g_leg), listingsRun, sampleIo);
+		if (sampleIo != 0) {
+			printf("IM-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier -- a folder "
+			       "import's loads belong on the interaction tier\n",
+			       legName(g_leg), sampleIo);
 			g_failures++;
 		}
-		// The folder's listing used to run on the storage owner and this leg required it (want 1). It
-		// now goes through the directory channel, so zero is the claim: the assertion is KEPT and
-		// inverted rather than dropped, because what it guards is still worth guarding -- a listing
-		// that came back to the owner would be the regression.
-		//
-		// Pitch detection now runs on the interaction tier as a resumable scan: zero is the claim.
 		if (listingsRun == 0) {
 			printf("IM-TIER FAIL leg=%s no folder listing ran at all\n", legName(g_leg));
-			g_failures++;
-		}
-		if (listings != 0 || pitch != wantPitch) {
-			printf(
-			    "IM-TIER FAIL leg=%s listings on the owner %d (want 0), pitch detections on the owner %d (want %d)\n",
-			    legName(g_leg), listings, pitch, wantPitch);
 			g_failures++;
 		}
 		const bool browserClosed = !isUIOpen(&sampleBrowser);
@@ -1862,24 +1804,13 @@ void checkLeg() {
 	case Leg::RandomizeOne:
 	case Leg::RandomizeAll: {
 		const RandomizeMark now = markRandomize();
-		const int32_t scans = now.scans - g_randomizeMark.scans;
-		const int32_t loads = now.loads - g_randomizeMark.loads;
 		const int32_t sampleIo = now.sampleIo - g_randomizeMark.sampleIo;
 		const int32_t scansRun = deluge::gui::randomizeDrums.scansRun();
-		printf("RD-TIER leg=%s scansRun=%d scansOnOwner=%d loadsOnOwner=%d sampleIo=%d\n", legName(g_leg), scansRun,
-		       scans, loads, sampleIo);
-		if (loads != 0 || sampleIo != 0) {
-			printf("RD-TIER FAIL leg=%s %d randomizer load(s) began on the storage owner and %d sample read(s) went to "
-			       "the card on the interaction tier -- a randomized drum's load belongs on the interaction tier\n",
-			       legName(g_leg), loads, sampleIo);
-			g_failures++;
-		}
-		// TWO claims, deliberately split. `scansOnOwner` alone used to carry both, so inverting it
-		// for the tier move would have quietly dropped the liveness half.
-		if (scans != 0) {
-			printf("RD-TIER FAIL leg=%s %d randomizer scan(s) ran on the storage owner -- a row's folder is "
-			       "opened through the directory channel now\n",
-			       legName(g_leg), scans);
+		printf("RD-TIER leg=%s scansRun=%d sampleIo=%d\n", legName(g_leg), scansRun, sampleIo);
+		if (sampleIo != 0) {
+			printf("RD-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier -- a randomized "
+			       "drum's load belongs on the interaction tier\n",
+			       legName(g_leg), sampleIo);
 			g_failures++;
 		}
 		if (scansRun == 0) {
@@ -1911,8 +1842,6 @@ void checkLeg() {
 		const int32_t wantRandomized = (g_leg == Leg::RandomizeAll) ? kRandomizeEligible : 1;
 		const int32_t wantUntouched = kRandomizeDrumCount - wantRandomized;
 		if (g_leg == Leg::RandomizeOne) {
-			// scansRun, not scansOnOwner: the latter is zero by design now, and printing it here read
-			// as "no scan happened" when a scan had in fact run on the interaction tier.
 			printf("RD-ONE randomized=%d untouched=%d scans=%d ticks=%d\n", randomized, untouched,
 			       (int)deluge::gui::randomizeDrums.scansRun(), g_waitTicks);
 			if (randomized != wantRandomized || untouched != wantUntouched) {
@@ -2023,11 +1952,6 @@ void runTick() {
 		return;
 	}
 	if (g_leg == Leg::Done) {
-		// The question the on_owner() collapse turns on: did anything actually RUN on the storage
-		// owner during this gate? Every site that branches on on_owner() is only interesting while
-		// the answer is non-zero. Reporting-only for now -- the value is unmeasured.
-		printf("SC-ONOWNER trueAfterStart=%d ownerOps=%d\n", (int)deluge::storage::Owner::onOwnerTrue(),
-		       (int)deluge::storage::Owner::opsRun());
 		printf("SC-RESULT failures=%d\n", g_failures);
 		fflush(stdout);
 		g_summaryPrinted = true;

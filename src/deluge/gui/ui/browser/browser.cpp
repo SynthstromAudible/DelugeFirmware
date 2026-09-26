@@ -92,8 +92,6 @@ int32_t g_listingFailures = 0;
 Error g_lastListingFailure = Error::NONE;
 /// See Browser::reloadsRun().
 int32_t g_reloadsRun = 0;
-/// See Browser::reloadsOnOwner().
-int32_t g_reloadsOnOwner = 0;
 } // namespace
 
 int32_t Browser::unusedSlotCalls() {
@@ -118,10 +116,6 @@ Error Browser::lastListingFailure() {
 
 int32_t Browser::reloadsRun() {
 	return g_reloadsRun;
-}
-
-int32_t Browser::reloadsOnOwner() {
-	return g_reloadsOnOwner;
 }
 
 bool Browser::listingInProgress_;
@@ -1288,9 +1282,6 @@ Error Browser::reloadImpl(int32_t direction) {
 	// Counted where the reload STARTS, which is once per reload on either arm: a resumed listing
 	// re-enters stepListing(), never this.
 	g_reloadsRun++;
-	if (deluge::storage::Owner::on_owner()) {
-		g_reloadsOnOwner++;
-	}
 
 	const ReloadTail tail = pendingListing_.reload.value_or(ReloadTail{});
 	ListingRead read{

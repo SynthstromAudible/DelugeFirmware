@@ -127,9 +127,8 @@ public:
 	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
 	/// @name Counts for the A/B gate's preview-draw legs.
 	/// @{
-	/// Preview draws made (showPreview calls), and of those the ones on the storage owner; the latter required 0.
+	/// Preview draws made (showPreview calls).
 	[[nodiscard]] int32_t previewDraws() const { return previewDraws_; }
-	[[nodiscard]] int32_t previewDrawsOnOwner() const { return previewDrawsOnOwner_; }
 	/// Redraws of a preview a render left incomplete.
 	[[nodiscard]] int32_t previewRedraws() const { return previewRedraws_; }
 	/// Preview renders that came back complete, first draw or redraw.
@@ -139,12 +138,6 @@ public:
 	/// Whether an incomplete preview is waiting to be redrawn.
 	[[nodiscard]] bool previewRedrawPending() const { return previewRedrawPending_; }
 	/// @}
-
-	/// @brief How many preview load steps ran on the storage owner.
-	///
-	/// A preview's load belongs on the interaction tier, where the browser's per-tick surface ticks it; a step on the
-	/// owner means the load was sent there. Exposed for the A/B gate's AB-PREVIEW-TIER check, which requires none.
-	[[nodiscard]] int32_t previewLoadsOnOwner() const { return previewLoadsOnOwner_; }
 
 	std::string lastFilePathLoaded{};
 
@@ -232,7 +225,6 @@ private:
 	/// @brief Previews that gave up on a stalled load. See previewGiveUps().
 	int32_t previewGiveUps_{0};
 	int32_t previewDraws_{0};
-	int32_t previewDrawsOnOwner_{0};
 	int32_t previewRedraws_{0};
 	int32_t previewDrawsComplete_{0};
 	int32_t previewDrawGiveUps_{0};
@@ -245,9 +237,6 @@ private:
 	int32_t previewResolvedCols_{0};
 	/// How long redraws have gone without progress. Elapsed time, never ticks.
 	deluge::storage::UnproductiveSpan previewRedrawSpan_{};
-
-	/// @brief Preview load steps that ran on the storage owner. See previewLoadsOnOwner().
-	int32_t previewLoadsOnOwner_{0};
 
 	bool canImportWholeKit();
 

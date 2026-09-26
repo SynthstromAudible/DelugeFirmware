@@ -642,11 +642,6 @@ void SampleBrowser::tickPreview() {
 		return;
 	}
 
-	// Counted for the A/B gate (AB-PREVIEW-TIER): a preview load step on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		previewLoadsOnOwner_++;
-	}
-
 	if (previewWanted_.has_value()) {
 		PreviewTarget target = std::move(*previewWanted_);
 		previewWanted_.reset();
@@ -755,9 +750,8 @@ void SampleBrowser::finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewT
 }
 
 void SampleBrowser::showPreview(const PreviewShow& show) {
-	// Counted for the A/B gate (AB-PREVIEW-DRAW): a preview draw, and whether it ran on the storage owner.
+	// Counted for the A/B gate (AB-PREVIEW-DRAW): a preview draw.
 	previewDraws_++;
-	previewDrawsOnOwner_ += deluge::storage::Owner::on_owner() ? 1 : 0;
 	bool rendered = true;
 
 	bool didDraw = false;

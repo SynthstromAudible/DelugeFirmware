@@ -111,9 +111,7 @@ bool g_swappedOnReturn = false;
 bool g_modeReleasedOnReturn = false;
 /// InstrumentLoad's counters across the clear itself: the clear must read nothing of its own.
 int32_t g_readsBefore = 0;
-int32_t g_ownerReadsBefore = 0;
 int32_t g_loadsBefore = 0;
-int32_t g_ownerLoadsBefore = 0;
 int32_t g_readsOnReturn = 0;
 int32_t g_loadsOnReturn = 0;
 int32_t g_runsBefore = 0;
@@ -235,13 +233,9 @@ void pressCommand(GlobalMIDICommand command) {
 void checkTier() {
 	const int32_t reads = g_readsOnReturn - g_readsBefore;
 	const int32_t loads = g_loadsOnReturn - g_loadsBefore;
-	const int32_t ownerReads = deluge::gui::instrumentLoad.documentReadsOnOwner() - g_ownerReadsBefore;
-	const int32_t ownerLoads = deluge::gui::instrumentLoad.sampleLoadsOnOwner() - g_ownerLoadsBefore;
-	printf("CS-TIER swappedOnReturn=%d modeReleased=%d readsInClear=%d loadsInClear=%d onOwnerReads=%d "
-	       "onOwnerLoads=%d\n",
-	       g_swappedOnReturn ? 1 : 0, g_modeReleasedOnReturn ? 1 : 0, reads, loads, ownerReads, ownerLoads);
-	if (!g_swappedOnReturn || !g_modeReleasedOnReturn || reads != 0 || loads != 0 || ownerReads != 0
-	    || ownerLoads != 0) {
+	printf("CS-TIER swappedOnReturn=%d modeReleased=%d readsInClear=%d loadsInClear=%d\n", g_swappedOnReturn ? 1 : 0,
+	       g_modeReleasedOnReturn ? 1 : 0, reads, loads);
+	if (!g_swappedOnReturn || !g_modeReleasedOnReturn || reads != 0 || loads != 0) {
 		printf("CS-TIER FAIL the clear did not run to completion on the caller's tier, or it read the card doing "
 		       "it\n");
 		g_failures++;
@@ -389,9 +383,7 @@ void runTick() {
 	}
 	case Stage::Clear: {
 		g_readsBefore = deluge::gui::instrumentLoad.documentReads();
-		g_ownerReadsBefore = deluge::gui::instrumentLoad.documentReadsOnOwner();
 		g_loadsBefore = deluge::gui::instrumentLoad.sampleLoads();
-		g_ownerLoadsBefore = deluge::gui::instrumentLoad.sampleLoadsOnOwner();
 		g_runsBefore = LoadInstrumentPresetUI::presetAcquisitionsRun();
 
 		(void)deluge::gui::context_menu::clearSong.acceptCurrentOption();

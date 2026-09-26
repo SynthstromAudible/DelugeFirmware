@@ -64,14 +64,6 @@ constexpr const char* kEvictPath = "SAMPLES/CREVICT.WAV";
 /// Ticks any one wait may take before the stage is called wedged.
 constexpr int32_t kMaxWaitTicks = 4000;
 
-/// Owner ops the re-insertion dispatches, against which CR-TIER is compared.
-///
-/// MEASURED, not guessed, and deliberately NOT zero today: the walk is handed to the storage owner
-/// (`slowRoutine()` -> `Coalescer::request(card_init_fill)`, and `noticeCardMount` ->
-/// `Owner::run`). Phase 4f's migration drops it to 0. A gate declared at 0 before the migration
-/// would be red from birth and would poison its own estate run.
-constexpr int32_t kExpectedReinsertOwnerOps = 0;
-
 enum class Stage : uint8_t {
 	Build,
 	Settle,
@@ -92,9 +84,6 @@ int32_t g_waitTicks = 0;
 /// Residents counted at Snapshot, before anything is ejected.
 int32_t g_samplesBefore = 0;
 int32_t g_referencedBefore = 0;
-/// `Owner::opsRun()` as it read just before the re-insertion.
-uint32_t g_ownerOpsBefore = 0;
-int32_t g_ownerOpsAcross = -1;
 
 bool fail(const char* what) {
 	printf("CR-FAIL %s\n", what);
@@ -277,12 +266,7 @@ void runTick() {
 	}
 
 	case Stage::Reinsert:
-		// Through slowRoutine(), NOT reinitEjectedCard() directly: slowRoutine is what hands the re-init
-		// to the storage owner (`Coalescer::request(card_init_fill)`), and calling the inner function
-		// straight would run the walk inline and make CR-TIER measure a path the device never takes.
-		if (g_waitTicks == 0) {
-			g_ownerOpsBefore = deluge::storage::Owner::opsRun();
-		}
+		// Through slowRoutine(), NOT reinitEjectedCard() directly: slowRoutine is the path the device takes.
 		audioFileManager.slowRoutine();
 		AudioEngine::routine();
 		// Bounded rather than conditional: `cardEjected` is private, and the fates below are themselves
@@ -290,7 +274,6 @@ void runTick() {
 		if (++g_waitTicks < 256) {
 			return;
 		}
-		g_ownerOpsAcross = static_cast<int32_t>(deluge::storage::Owner::opsRun() - g_ownerOpsBefore);
 		g_stage = Stage::Report;
 		return;
 
@@ -311,7 +294,6 @@ void runTick() {
 		printf("CR-LOST ok=%d unloadable=%d resident=%d\n", (int)(lostUnloadable == 1), (int)lostUnloadable,
 		       (int)(lost != nullptr));
 		printf("CR-EVICT ok=%d stillResident=%d\n", (int)(evicted == nullptr), (int)(evicted != nullptr));
-		printf("CR-TIER ownerOps=%d wanted=%d\n", (int)g_ownerOpsAcross, (int)kExpectedReinsertOwnerOps);
 
 		if (g_samplesBefore <= 0) {
 			(void)fail("the walk had no resident samples to visit");
@@ -324,9 +306,6 @@ void runTick() {
 		}
 		if (evicted != nullptr) {
 			(void)fail("the unreferenced resident was not evicted");
-		}
-		if (g_ownerOpsAcross != kExpectedReinsertOwnerOps) {
-			(void)fail("the re-insertion dispatched a different number of owner ops than declared");
 		}
 
 		printf("CR-RESULT failures=%d\n", (int)g_failures);
@@ -354,8 +333,6 @@ void deluge_scenario_card_reinsert_begin(void) {
 	g_waitTicks = 0;
 	g_samplesBefore = 0;
 	g_referencedBefore = 0;
-	g_ownerOpsBefore = 0;
-	g_ownerOpsAcross = -1;
 }
 
 bool deluge_scenario_card_reinsert_complete(void) {

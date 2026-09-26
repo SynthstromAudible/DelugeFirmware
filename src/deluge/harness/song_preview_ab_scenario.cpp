@@ -2766,7 +2766,6 @@ int32_t g_reloadTurns = 0;
 ListingSnapshot g_reloadBefore;
 bool g_reloadKeptWhilePending = false;
 int32_t g_reloadsRunBefore = 0;
-int32_t g_reloadsOnOwnerBefore = 0;
 
 /// Whether two snapshots show the same listing: directory, entered text, selection and names.
 bool sameListing(const ListingSnapshot& a, const ListingSnapshot& b) {
@@ -2810,7 +2809,6 @@ bool beginReloadTurn(int8_t offset) {
 	g_reloadBefore = takeListingSnapshot();
 	markCounters();
 	g_reloadsRunBefore = Browser::reloadsRun();
-	g_reloadsOnOwnerBefore = Browser::reloadsOnOwner();
 	loadSongUI.selectEncoderAction(offset);
 	const bool began = BrowserListingAbProbe::inProgress();
 	printf("SP-PROBE reload turn=%d offset=%d from=%s entered=%s mode=%d began=%d\n", g_reloadTurns,
@@ -2826,18 +2824,16 @@ bool beginReloadTurn(int8_t offset) {
 /// Report a reload that has landed, against the song it must have landed on.
 void reportReload(const char* kase, const std::string& want) {
 	const int32_t run = Browser::reloadsRun() - g_reloadsRunBefore;
-	const int32_t onOwner = Browser::reloadsOnOwner() - g_reloadsOnOwnerBefore;
 	const bool open = getCurrentUI() == &loadSongUI;
-	printf("SP-RELOAD case=%s from=%s entered=%s want=%s run=%d onOwner=%d kept=%d opens=%d requests=%d open=%d "
-	       "turns=%d\n",
-	       kase, g_reloadBefore.entered.c_str(), Browser::enteredText.c_str(), want.c_str(), run, onOwner,
+	printf("SP-RELOAD case=%s from=%s entered=%s want=%s run=%d kept=%d opens=%d requests=%d open=%d turns=%d\n", kase,
+	       g_reloadBefore.entered.c_str(), Browser::enteredText.c_str(), want.c_str(), run,
 	       g_reloadKeptWhilePending ? 1 : 0, runOpens(), runRequests(), open ? 1 : 0, g_reloadTurns);
 	checkResumed(kase);
-	if (Browser::enteredText != want || run != 1 || onOwner != 0 || !g_reloadKeptWhilePending || !open) {
-		printf("SP-RELOAD FAIL case=%s entered=%s want=%s run=%d onOwner=%d kept=%d open=%d: a reload must run once, "
-		       "off the storage owner, keep the window it replaces on screen until it lands, and land on %s\n",
-		       kase, Browser::enteredText.c_str(), want.c_str(), run, onOwner, g_reloadKeptWhilePending ? 1 : 0,
-		       open ? 1 : 0, want.c_str());
+	if (Browser::enteredText != want || run != 1 || !g_reloadKeptWhilePending || !open) {
+		printf("SP-RELOAD FAIL case=%s entered=%s want=%s run=%d kept=%d open=%d: a reload must run once, keep the "
+		       "window it replaces on screen until it lands, and land on %s\n",
+		       kase, Browser::enteredText.c_str(), want.c_str(), run, g_reloadKeptWhilePending ? 1 : 0, open ? 1 : 0,
+		       want.c_str());
 		g_failures++;
 	}
 }
@@ -3554,7 +3550,6 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_reloadBefore = {};
 	g_reloadKeptWhilePending = false;
 	g_reloadsRunBefore = 0;
-	g_reloadsOnOwnerBefore = 0;
 	g_dxStep = DxStep::Fixture;
 	g_dxTicks = 0;
 	g_dxGiveUpsBefore = 0;

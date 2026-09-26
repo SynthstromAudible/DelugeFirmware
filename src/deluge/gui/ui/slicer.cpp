@@ -373,11 +373,6 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			getCurrentKit()->firstDrum->killAllVoices(); // stop
 		}
 
-		// Counted for the sample-claim gate (SC-TIER): a slice that begins on the storage owner.
-		if (deluge::storage::Owner::on_owner()) {
-			sliceLoadsOnOwner_++;
-		}
-
 		// The gate, until tickSlice() ends the slice: the top of this function refuses BACK and a second Select while
 		// it is set, so nothing closes the slicer or slices twice while the load is out.
 		currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;

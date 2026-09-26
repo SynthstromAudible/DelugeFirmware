@@ -310,7 +310,6 @@ constexpr const char* kMidiDefinition = "MIDI_DEVICES/DEFINITION/MDTEST.XML";
 constexpr int32_t kMidiDefinitionCC = 74;
 constexpr const char* kMidiDefinitionLabel = "CUTOFF";
 int32_t g_midiDefReadsBefore = 0;
-int32_t g_midiDefOwnerReadsBefore = 0;
 
 /// The revert legs: the clip's original, read as the leg opens, and what the exit was seen to do.
 std::string g_revertName{};
@@ -327,13 +326,11 @@ bool g_gateWhileRunning = false;
 bool g_gateTypeRefused = false;
 bool g_gateEncoderRefused = false;
 
-/// Where a leg's card work ran, read when the leg opens the browser: the loads' document reads and sample loads
-/// begun on the storage owner, all of them, and the interaction tier's blocking sample reads.
+/// A leg's card work, read when the leg opens the browser: the loads' document reads and sample loads, and the
+/// interaction tier's blocking sample reads.
 struct TierMark {
 	int32_t documentReads = 0;
-	int32_t documentReadsOnOwner = 0;
 	int32_t sampleLoads = 0;
-	int32_t sampleLoadsOnOwner = 0;
 	int32_t sampleIo = 0;
 };
 TierMark g_tierMark{};
@@ -414,8 +411,7 @@ bool fail(const char* leg, const char* what) {
 }
 
 TierMark markTier() {
-	return {deluge::gui::instrumentLoad.documentReads(), deluge::gui::instrumentLoad.documentReadsOnOwner(),
-	        deluge::gui::instrumentLoad.sampleLoads(), deluge::gui::instrumentLoad.sampleLoadsOnOwner(),
+	return {deluge::gui::instrumentLoad.documentReads(), deluge::gui::instrumentLoad.sampleLoads(),
 	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
@@ -793,7 +789,6 @@ void prepareLeg() {
 			printf("PL-PROBE leg=midi-def written=%d midi=%d\n", written ? 1 : 0, midi != nullptr ? 1 : 0);
 		});
 		g_midiDefReadsBefore = deluge::gui::instrumentLoad.documentReads();
-		g_midiDefOwnerReadsBefore = deluge::gui::instrumentLoad.documentReadsOnOwner();
 		return;
 	}
 	if (g_leg != Leg::Synth) {
@@ -954,26 +949,23 @@ bool legEnded() {
 	return !isUIOpen(&loadInstrumentPresetUI);
 }
 
-/// PL-TIER: since the leg opened the browser, loads read documents and loaded samples, none of it begun on the storage
-/// owner, and no sample was read from the card on the interaction tier.
+/// PL-TIER: since the leg opened the browser, loads read documents and loaded samples, and no sample was read from the
+/// card on the interaction tier.
 void checkTier() {
 	const TierMark now = markTier();
 	const int32_t reads = now.documentReads - g_tierMark.documentReads;
-	const int32_t readsOnOwner = now.documentReadsOnOwner - g_tierMark.documentReadsOnOwner;
 	const int32_t loads = now.sampleLoads - g_tierMark.sampleLoads;
-	const int32_t loadsOnOwner = now.sampleLoadsOnOwner - g_tierMark.sampleLoadsOnOwner;
 	const int32_t sampleIo = now.sampleIo - g_tierMark.sampleIo;
-	printf("PL-TIER leg=%s documentReads=%d readsOnOwner=%d sampleLoads=%d loadsOnOwner=%d sampleIo=%d\n",
-	       legName(g_leg), reads, readsOnOwner, loads, loadsOnOwner, sampleIo);
+	printf("PL-TIER leg=%s documentReads=%d sampleLoads=%d sampleIo=%d\n", legName(g_leg), reads, loads, sampleIo);
 	if (reads == 0 || loads == 0) {
 		printf("PL-TIER FAIL leg=%s the leg read no document or loaded no samples\n", legName(g_leg));
 		g_failures++;
 	}
-	if (readsOnOwner != 0 || loadsOnOwner != 0 || sampleIo != 0) {
-		printf(
-		    "PL-TIER FAIL leg=%s %d document read(s) and %d sample load(s) began on the storage owner, and %d sample "
-		    "read(s) went to the card on the interaction tier -- a preset load belongs on the interaction tier\n",
-		    legName(g_leg), readsOnOwner, loadsOnOwner, sampleIo);
+	if (sampleIo != 0) {
+		printf("PL-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier -- a preset load "
+		       "belongs on "
+		       "the interaction tier\n",
+		       legName(g_leg), sampleIo);
 		g_failures++;
 	}
 }
@@ -1033,10 +1025,9 @@ void checkMidiDefinition() {
 	    isMidi && static_cast<MIDIInstrument*>(output)->getNameFromCC(kMidiDefinitionCC) == kMidiDefinitionLabel;
 	const bool closed = !isUIOpen(&loadMidiDeviceDefinitionUI);
 	const int32_t reads = deluge::gui::instrumentLoad.documentReads() - g_midiDefReadsBefore;
-	const int32_t onOwner = deluge::gui::instrumentLoad.documentReadsOnOwner() - g_midiDefOwnerReadsBefore;
-	printf("MD-BROWSER midi=%d labelled=%d closed=%d reads=%d onOwner=%d ticks=%d\n", isMidi ? 1 : 0, labelled ? 1 : 0,
-	       closed ? 1 : 0, reads, onOwner, g_waitTicks);
-	if (!isMidi || !labelled || !closed || reads != 1 || onOwner != 0) {
+	printf("MD-BROWSER midi=%d labelled=%d closed=%d reads=%d ticks=%d\n", isMidi ? 1 : 0, labelled ? 1 : 0,
+	       closed ? 1 : 0, reads, g_waitTicks);
+	if (!isMidi || !labelled || !closed || reads != 1) {
 		printf("MD-BROWSER FAIL the definition browser did not stage its file through InstrumentLoad and label the "
 		       "instrument from it\n");
 		g_failures++;
@@ -1279,7 +1270,6 @@ int32_t g_aqAct = 0;
 /// What AQ-SLOT reads around the Shift+SYNTH act: the slot counters and the channel's requests before it, and the
 /// browser's list as it stood.
 int32_t g_slotScansBefore = 0;
-int32_t g_slotOnOwnerBefore = 0;
 int32_t g_slotRequestsBefore = 0;
 std::vector<std::string> g_slotListingBefore;
 /// An extension list no browser uses, parked before each AQ-NEW act; and what was there before it.
@@ -1287,12 +1277,10 @@ char const* kSentinelExtensions[] = {"PLX", nullptr};
 char const** g_extensionsBefore = nullptr;
 /// What AQ-NAV-TIER reads around each AQ-NAVIGATE act, and the browser folder it parks the sentinel over.
 int32_t g_navRunBefore = 0;
-int32_t g_navOnOwnerBefore = 0;
 int32_t g_navRequestsBefore = 0;
 std::string g_navDirBefore;
 /// What AQ-CHANGE-TIER reads around AQ-CHANGE's KIT press.
 int32_t g_changeRunBefore = 0;
-int32_t g_changeOnOwnerBefore = 0;
 int32_t g_changeRequestsBefore = 0;
 std::string g_changeDirBefore;
 /// AQ-CHANGE-MISSING's reference: what the whole-type Unlaunched search finds, computed on the storage owner by the
@@ -1460,7 +1448,6 @@ std::vector<std::string> browserListingNames() {
 /// Mark the slot counters and park the sentinel, just before a Shift+SYNTH.
 void markSlotScan() {
 	g_slotScansBefore = deluge::gui::instrumentLoad.slotScans();
-	g_slotOnOwnerBefore = deluge::gui::instrumentLoad.slotScansOnOwner();
 	g_slotRequestsBefore = Browser::directoryRequests();
 	Browser::currentDir = kSlotSentinelDir;
 	g_slotListingBefore = browserListingNames();
@@ -1482,14 +1469,12 @@ bool actAcquire() {
 	}
 	if (g_leg == Leg::AqChange) {
 		g_changeRunBefore = deluge::gui::instrumentLoad.confirmsRun();
-		g_changeOnOwnerBefore = deluge::gui::instrumentLoad.confirmsOnOwner();
 		g_changeRequestsBefore = Browser::directoryRequests();
 		g_changeDirBefore = Browser::currentDir;
 		Browser::currentDir = kSlotSentinelDir;
 	}
 	if (g_leg == Leg::AqNavigate) {
 		g_navRunBefore = deluge::gui::instrumentLoad.navigationsRun();
-		g_navOnOwnerBefore = deluge::gui::instrumentLoad.navigationsOnOwner();
 		g_navRequestsBefore = Browser::directoryRequests();
 		g_navDirBefore = Browser::currentDir;
 		Browser::currentDir = kSlotSentinelDir;
@@ -1710,29 +1695,26 @@ void checkAcquireAct() {
 	}
 	if (g_leg == Leg::AqChange) {
 		const int32_t run = deluge::gui::instrumentLoad.confirmsRun() - g_changeRunBefore;
-		const int32_t onOwner = deluge::gui::instrumentLoad.confirmsOnOwner() - g_changeOnOwnerBefore;
 		const int32_t requests = Browser::directoryRequests() - g_changeRequestsBefore;
 		const bool untouched = Browser::currentDir == kSlotSentinelDir;
 		Browser::currentDir = g_changeDirBefore;
-		printf("AQ-CHANGE-TIER run=%d onOwner=%d requests=%d browserUntouched=%d\n", run, onOwner, requests,
-		       untouched ? 1 : 0);
-		if (run != 1 || onOwner != 0 || requests < 1 || !untouched) {
-			aqFail("AQ-CHANGE-TIER", "a change-type must walk once, off the storage owner, through the directory "
-			                         "channel, and leave the browser's folder alone");
+		printf("AQ-CHANGE-TIER run=%d requests=%d browserUntouched=%d\n", run, requests, untouched ? 1 : 0);
+		if (run != 1 || requests < 1 || !untouched) {
+			aqFail("AQ-CHANGE-TIER", "a change-type must walk once, through the directory channel, and leave the "
+			                         "browser's folder alone");
 		}
 	}
 	if (g_leg == Leg::AqNavigate) {
 		static constexpr const char* kNavGestures[] = {"clip", "grid", "arranger"};
 		const int32_t run = deluge::gui::instrumentLoad.navigationsRun() - g_navRunBefore;
-		const int32_t onOwner = deluge::gui::instrumentLoad.navigationsOnOwner() - g_navOnOwnerBefore;
 		const int32_t requests = Browser::directoryRequests() - g_navRequestsBefore;
 		const bool untouched = Browser::currentDir == kSlotSentinelDir;
 		Browser::currentDir = g_navDirBefore;
-		printf("AQ-NAV-TIER gesture=%s run=%d onOwner=%d requests=%d browserUntouched=%d\n", kNavGestures[g_aqAct], run,
-		       onOwner, requests, untouched ? 1 : 0);
-		if (run != 1 || onOwner != 0 || requests < 1 || !untouched) {
-			aqFail("AQ-NAV-TIER", "a preset navigate must walk once, off the storage owner, through the directory "
-			                      "channel, and leave the browser's folder alone");
+		printf("AQ-NAV-TIER gesture=%s run=%d requests=%d browserUntouched=%d\n", kNavGestures[g_aqAct], run, requests,
+		       untouched ? 1 : 0);
+		if (run != 1 || requests < 1 || !untouched) {
+			aqFail("AQ-NAV-TIER", "a preset navigate must walk once, through the directory channel, and leave the "
+			                      "browser's folder alone");
 		}
 	}
 	switch (g_leg) {
@@ -1761,16 +1743,15 @@ void checkAcquireAct() {
 		}
 		{
 			const int32_t scans = deluge::gui::instrumentLoad.slotScans() - g_slotScansBefore;
-			const int32_t onOwner = deluge::gui::instrumentLoad.slotScansOnOwner() - g_slotOnOwnerBefore;
 			const int32_t requests = Browser::directoryRequests() - g_slotRequestsBefore;
 			const bool untouched =
 			    Browser::currentDir == kSlotSentinelDir && browserListingNames() == g_slotListingBefore;
-			printf("AQ-SLOT name=%s want=%s scans=%d onOwner=%d requests=%d browserUntouched=%d\n", name.c_str(),
-			       kAqSlotName, scans, onOwner, requests, untouched ? 1 : 0);
-			if (name != kAqSlotName || scans != 1 || onOwner != 0 || requests < 1 || !untouched) {
-				aqFail("AQ-SLOT", "the new instrument's slot name must be read once, off the storage owner, through "
-				                  "the directory channel, leaving the browser's folder and list as they were, and "
-				                  "come out as the old walk named it");
+			printf("AQ-SLOT name=%s want=%s scans=%d requests=%d browserUntouched=%d\n", name.c_str(), kAqSlotName,
+			       scans, requests, untouched ? 1 : 0);
+			if (name != kAqSlotName || scans != 1 || requests < 1 || !untouched) {
+				aqFail("AQ-SLOT", "the new instrument's slot name must be read once, through the directory channel, "
+				                  "leaving the browser's folder and list as they were, and come out as the old walk "
+				                  "named it");
 			}
 		}
 		break;
@@ -1945,26 +1926,23 @@ void checkAcquireAct() {
 	}
 }
 
-/// AQ-TIER: since the leg began, its acquisitions read documents and loaded samples, none of it begun on the storage
-/// owner, and no sample was read from the card on the interaction tier.
+/// AQ-TIER: since the leg began, its acquisitions read documents and loaded samples, and no sample was read from the
+/// card on the interaction tier.
 void checkAcquireTier() {
 	const TierMark now = markAcquireTier();
 	const int32_t reads = now.documentReads - g_aqTierMark.documentReads;
-	const int32_t readsOnOwner = now.documentReadsOnOwner - g_aqTierMark.documentReadsOnOwner;
 	const int32_t loads = now.sampleLoads - g_aqTierMark.sampleLoads;
-	const int32_t loadsOnOwner = now.sampleLoadsOnOwner - g_aqTierMark.sampleLoadsOnOwner;
 	const int32_t sampleIo = now.sampleIo - g_aqTierMark.sampleIo;
-	printf("AQ-TIER leg=%s documentReads=%d readsOnOwner=%d sampleLoads=%d loadsOnOwner=%d sampleIo=%d\n",
-	       legName(g_leg), reads, readsOnOwner, loads, loadsOnOwner, sampleIo);
+	printf("AQ-TIER leg=%s documentReads=%d sampleLoads=%d sampleIo=%d\n", legName(g_leg), reads, loads, sampleIo);
 	if (reads == 0 || loads == 0) {
 		printf("AQ-TIER FAIL leg=%s the leg read no document or loaded no samples\n", legName(g_leg));
 		g_failures++;
 	}
-	if (readsOnOwner != 0 || loadsOnOwner != 0 || sampleIo != 0) {
-		printf("AQ-TIER FAIL leg=%s %d document read(s) and %d sample load(s) began on the storage owner, and %d "
-		       "sample read(s) went to the card on the interaction tier -- an acquisition's load belongs on the "
-		       "interaction tier\n",
-		       legName(g_leg), readsOnOwner, loadsOnOwner, sampleIo);
+	if (sampleIo != 0) {
+		printf("AQ-TIER FAIL leg=%s %d sample read(s) went to the card on the interaction tier -- an acquisition's "
+		       "load belongs on "
+		       "the interaction tier\n",
+		       legName(g_leg), sampleIo);
 		g_failures++;
 	}
 }
@@ -2029,7 +2007,6 @@ enum class BlankStep : uint8_t { Prepare, Act, Wait };
 BlankStep g_blankStep{BlankStep::Prepare};
 int32_t g_blankRunsBefore = 0;
 int32_t g_blankReadsBefore = 0;
-int32_t g_blankOwnerReadsBefore = 0;
 bool g_blankEdited = false;
 
 /// Whether @p leg is one of the blank-song legs, which drive no browser.
@@ -2241,13 +2218,11 @@ void checkBlankClear() {
 	Instrument* instrument = blankInstrument();
 	const std::string name = (instrument != nullptr) ? instrument->name : "";
 	const int32_t reads = deluge::gui::instrumentLoad.documentReads() - g_blankReadsBefore;
-	const int32_t onOwner = deluge::gui::instrumentLoad.documentReadsOnOwner() - g_blankOwnerReadsBefore;
 	if (g_leg == Leg::BlankClear) {
-		printf("BS-CLEAR name=%s bound=%d reads=%d onOwner=%d outputs=%d ticks=%d\n", name.c_str(),
-		       blankBound() ? 1 : 0, reads, onOwner, countOutputs(), g_waitTicks);
-		if (name.empty() || name == kDefaultSynthName || !blankBound() || reads < 1 || onOwner != 0) {
-			printf("BS-CLEAR FAIL a cleared song did not land on a SYNTHS preset staged by InstrumentLoad off the "
-			       "storage owner\n");
+		printf("BS-CLEAR name=%s bound=%d reads=%d outputs=%d ticks=%d\n", name.c_str(), blankBound() ? 1 : 0, reads,
+		       countOutputs(), g_waitTicks);
+		if (name.empty() || name == kDefaultSynthName || !blankBound() || reads < 1) {
+			printf("BS-CLEAR FAIL a cleared song did not land on a SYNTHS preset staged by InstrumentLoad\n");
 			g_failures++;
 		}
 		return;
@@ -2288,7 +2263,6 @@ void runBlankTick() {
 	case BlankStep::Act:
 		g_blankRunsBefore = LoadInstrumentPresetUI::presetAcquisitionsRun();
 		g_blankReadsBefore = deluge::gui::instrumentLoad.documentReads();
-		g_blankOwnerReadsBefore = deluge::gui::instrumentLoad.documentReadsOnOwner();
 		g_blankEdited = false;
 		if (g_leg == Leg::BlankEdited) {
 			// The preset's sample is held, so the default synth can be edited while the song's request is still out.
