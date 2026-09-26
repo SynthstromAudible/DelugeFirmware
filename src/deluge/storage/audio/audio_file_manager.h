@@ -319,7 +319,18 @@ public:
 	/// @return false when the lookup must answer @p error.
 	bool collectFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
 
+	/// @brief WaveTables converted from a fully cached resident Sample, over the process's life.
+	[[nodiscard]] int32_t waveTablesConverted() const { return waveTablesConverted_; }
+	/// @brief WaveTables built by reading the file from the card, over the process's life.
+	[[nodiscard]] int32_t waveTablesBuiltFromCard() const { return waveTablesBuiltFromCard_; }
+	/// @brief Clusters held pinned while a conversion ran, summed over conversions: the evidence the pins exist.
+	[[nodiscard]] int32_t conversionPinnedClusters() const { return conversionPinnedClusters_; }
+
 private:
+	int32_t waveTablesConverted_ = 0;
+	int32_t waveTablesBuiltFromCard_ = 0;
+	int32_t conversionPinnedClusters_ = 0;
+
 	/// @brief getAudioFileFromFilename() without its host-only load trace (see storage/audio/load_trace.h). The
 	///        public function traces its entry and exit and calls this.
 	AudioFile* getAudioFileFromFilenameUntraced(deluge::storage::AudioLoadContext& context, std::string& fileName,

@@ -43,6 +43,8 @@
 #include "libdeluge/audio_load.h" // deluge_audio_load_set_latency_ms
 #include "libdeluge/control_surface.h"
 #include "libdeluge/file_directory.h" // deluge_file_directory_set_latency_ms
+#include "libdeluge/sample_source.h"
+#include "libdeluge/streaming_fill.h"
 #include "memory/fast_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
@@ -64,8 +66,10 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
+#include "storage/cluster/cluster.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
+#include "storage/wave_table/wave_table.h"
 
 #include <cstdio>
 #include <iterator>
@@ -105,6 +109,13 @@ constexpr const char* kCycleSample = "SAMPLES/SCCYCLE.WAV";
 /// The resident-wavetable leg's file: previewed (resident as a Sample, most clusters not yet filled) then claimed as a
 /// wavetable, which converts the resident Sample. See the Rust fixture.
 constexpr const char* kResidentWaveTableSample = "SAMPLES/SCWTBIG.WAV";
+/// The converted-wavetable leg's file: 32768 frames, three clusters (its 44-byte header pushes the last 44 bytes of
+/// audio into a third), made fully resident as a Sample, then claimed as a wavetable,
+/// which converts it from memory. Its twin holds the same bytes and is only ever built from the card.
+constexpr const char* kFullWaveTableSample = "SAMPLES/SCWTFULL.WAV";
+constexpr const char* kFullWaveTableTwin = "SAMPLES/SCWTFUL2.WAV";
+/// The clusters the converted leg's file spans: 44 + 65536 bytes.
+constexpr int32_t kFullWaveTableClusters = 3;
 constexpr const char* kStereoSample = "SAMPLES/SCSTER.WAV";
 /// The gate and stall legs' files: held by the loader from the moment their browser opens, so neither is in memory when
 /// its claim begins.
@@ -238,6 +249,7 @@ enum class Leg : uint8_t {
 	Synth,
 	WaveTable,
 	WaveTableResident,
+	WaveTableConverted,
 	Fallback,
 	Gate,
 	Supersede,
@@ -261,7 +273,7 @@ enum class Leg : uint8_t {
 	ImportStall,
 	Done
 };
-enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, Act, Wait };
+enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, ResidentWait, Act, Wait };
 
 Leg g_leg = Leg::Synth;
 Step g_step = Step::Prepare;
@@ -368,6 +380,8 @@ const char* legName(Leg leg) {
 		return "randomize-cancelscan";
 	case Leg::WaveTableResident:
 		return "wavetable-resident";
+	case Leg::WaveTableConverted:
+		return "wavetable-converted";
 	case Leg::Pitch:
 		return "pitch";
 	case Leg::PitchStall:
@@ -651,6 +665,82 @@ bool openBrowserOnSynth(const char* leg, OscType osc) {
 
 // ── The legs ─────────────────────────────────────────────────────────────────
 
+/// The conversion counters, taken before a wavetable claim so a leg reads only its own.
+struct ConversionMark {
+	int32_t converted;
+	int32_t fromCard;
+	int32_t pinned;
+};
+ConversionMark g_convBefore{};
+
+ConversionMark markConversions() {
+	return {audioFileManager.waveTablesConverted(), audioFileManager.waveTablesBuiltFromCard(),
+	        audioFileManager.conversionPinnedClusters()};
+}
+
+ConversionMark conversionsSince(const ConversionMark& before) {
+	const ConversionMark now = markConversions();
+	return {now.converted - before.converted, now.fromCard - before.fromCard, now.pinned - before.pinned};
+}
+
+/// Whether every audio cluster of @p sample is resident, asking for any that is not. Pins nothing beyond the call.
+bool acquireAllClusters(Sample& sample) {
+	DelugeSampleGeometry geometry{};
+	geometry.audio_data_start_bytes = sample.audioDataStartPosBytes;
+	geometry.audio_data_length_bytes = sample.audioDataLengthBytes;
+	geometry.cluster_size_bytes = static_cast<uint32_t>(Cluster::size);
+	geometry.byte_depth = sample.byteDepth;
+	geometry.num_channels = sample.numChannels;
+	geometry.raw_data_format = static_cast<uint8_t>(sample.rawDataFormat);
+	DelugeSampleSource* source = deluge_sample_source_open(&sample.stream(), geometry);
+	if (source == nullptr) {
+		return false;
+	}
+	const uint32_t first = sample.audioDataStartPosBytes >> Cluster::size_magnitude;
+	const uint32_t last = (sample.audioDataStartPosBytes + static_cast<uint32_t>(sample.audioDataLengthBytes) - 1)
+	                      >> Cluster::size_magnitude;
+	bool all = true;
+	for (uint32_t i = first; i <= last; i++) {
+		DelugeSampleRegion region{};
+		if (deluge_sample_region_acquire_ex(source, i, +1, 0, &region) != DELUGE_REGION_READY) {
+			all = false;
+		}
+	}
+	deluge_sample_source_close(source); // releases every lease the cursor took
+	if (!all) {
+		// A fill is queued, not run: ask the fill task for a drain, which runs between this tick and the next.
+		deluge_streaming_request_drain();
+	}
+	return all;
+}
+
+/// CRC-32 of a WaveTable's shape and every band's cycle data: each cycle's cycleSizeNoDuplicates samples. The 7
+/// samples after each cycle (WAVETABLE_NUM_DUPLICATE_SAMPLES_AT_END_OF_CYCLE, wave_table.cpp) are copies.
+uint32_t waveTableCrc(const WaveTable& wt) {
+	uint32_t crc = 0xFFFFFFFFu;
+	auto feed = [&](const void* p, size_t n) {
+		const auto* b = static_cast<const uint8_t*>(p);
+		for (size_t i = 0; i < n; i++) {
+			crc ^= b[i];
+			for (int k = 0; k < 8; k++) {
+				crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+			}
+		}
+	};
+	feed(&wt.numCycles, sizeof(wt.numCycles));
+	for (const WaveTableBand& band : wt.bands) {
+		feed(&band.maxPhaseIncrement, sizeof(band.maxPhaseIncrement));
+		feed(&band.fromCycleNumber, sizeof(band.fromCycleNumber));
+		feed(&band.toCycleNumber, sizeof(band.toCycleNumber));
+		feed(&band.cycleSizeNoDuplicates, sizeof(band.cycleSizeNoDuplicates));
+		const int32_t stride = band.cycleSizeNoDuplicates + 7;
+		for (int32_t c = band.fromCycleNumber; c < band.toCycleNumber; c++) {
+			feed(&band.dataAccessAddress[stride * c], band.cycleSizeNoDuplicates * sizeof(int16_t));
+		}
+	}
+	return ~crc;
+}
+
 void prepareLeg() {
 	switch (g_leg) {
 	case Leg::Kit:
@@ -874,6 +964,8 @@ bool openLeg() {
 		// Fills held briefly, so the Sample the preview leaves resident still lacks most of its clusters at the claim.
 		deluge_streaming_set_fill_latency_ms(kPitchHoldMs);
 		return openBrowserOnSynth("wavetable-resident", OscType::SAMPLE);
+	case Leg::WaveTableConverted:
+		return openBrowserOnSynth("wavetable-converted", OscType::SAMPLE);
 	case Leg::Fallback:
 		// A wavetable oscillator: the claim tries the file as a wavetable first.
 		return openBrowserOnSynth("fallback", OscType::WAVETABLE);
@@ -967,6 +1059,8 @@ const char* legFile() {
 		return kCycleSample;
 	case Leg::WaveTableResident:
 		return kResidentWaveTableSample;
+	case Leg::WaveTableConverted:
+		return kFullWaveTableSample;
 	case Leg::Fallback:
 		return kStereoSample;
 	case Leg::Gate:
@@ -1148,6 +1242,9 @@ void pressRandomize(bool affectEntire) {
 }
 
 void actLeg() {
+	if (g_leg == Leg::WaveTableResident || g_leg == Leg::WaveTableConverted) {
+		g_convBefore = markConversions();
+	}
 	if (isRandomize()) {
 		g_randomizeMark = markRandomize();
 		recordRandomizeRows();
@@ -1223,7 +1320,7 @@ void actLeg() {
 		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
 		return;
 	}
-	if (g_leg == Leg::WaveTable || g_leg == Leg::WaveTableResident) {
+	if (g_leg == Leg::WaveTable || g_leg == Leg::WaveTableResident || g_leg == Leg::WaveTableConverted) {
 		using namespace deluge::hid::button;
 		// A long press on Select: the press, then what the UI timer's callback does once it has been held.
 		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
@@ -1394,15 +1491,51 @@ void checkLeg() {
 		sampleBrowser.exitAndNeverDeleteDrum();
 		break;
 	}
+	case Leg::WaveTableConverted: {
+		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		const bool bound = holder != nullptr && holder->audioFile != nullptr;
+		const bool isWaveTable = bound && holder->audioFile->type == AudioFileType::WAVETABLE;
+		const ConversionMark conv = conversionsSince(g_convBefore);
+		const uint32_t crc = isWaveTable ? waveTableCrc(*static_cast<WaveTable*>(holder->audioFile)) : 0;
+		// The reference: the twin, never previewed, so built from the card. Measured after the deltas above, which
+		// its own card build would otherwise count.
+		uint32_t twinCrc = 0;
+		{
+			std::string twin = kFullWaveTableTwin;
+			Error error = Error::NONE;
+			AudioFile* twinFile = audioFileManager.getAudioFileFromFilename(
+			    twin, /*mayReadCard=*/true, &error, AudioFileType::WAVETABLE, /*makeWaveTableWorkAtAllCosts=*/true);
+			if (twinFile != nullptr && twinFile->type == AudioFileType::WAVETABLE) {
+				twinCrc = waveTableCrc(*static_cast<WaveTable*>(twinFile));
+			}
+		}
+		printf("SC-WAVETABLE-CONVERTED bound=%d waveTable=%d converted=%d fromCard=%d pinned=%d crc=%08X twinCrc=%08X "
+		       "ticks=%d\n",
+		       bound ? 1 : 0, isWaveTable ? 1 : 0, conv.converted, conv.fromCard, conv.pinned, (unsigned)crc,
+		       (unsigned)twinCrc, g_waitTicks);
+		if (!isWaveTable || conv.converted != 1 || conv.fromCard != 0 || conv.pinned != kFullWaveTableClusters
+		    || crc == 0 || crc != twinCrc) {
+			printf("SC-WAVETABLE-CONVERTED FAIL a fully cached Sample claimed as a wavetable must be converted from "
+			       "memory, with every cluster pinned, into the WaveTable the card would have built\n");
+			g_failures++;
+		}
+		break;
+	}
 	case Leg::WaveTableResident: {
 		deluge_streaming_set_fill_latency_ms(0);
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
 		const bool bound = holder != nullptr && holder->audioFile != nullptr;
 		const bool isWaveTable = bound && holder->audioFile->type == AudioFileType::WAVETABLE;
 		const OscType osc = g_synth->sources[0].oscType;
-		printf("SC-WAVETABLE-RESIDENT bound=%d waveTable=%d osc=%d path=%s ticks=%d\n", bound ? 1 : 0,
-		       isWaveTable ? 1 : 0, static_cast<int>(osc), holder != nullptr ? holder->filePath.c_str() : "",
-		       g_waitTicks);
+		const ConversionMark conv = conversionsSince(g_convBefore);
+		printf("SC-WAVETABLE-RESIDENT bound=%d waveTable=%d osc=%d path=%s ticks=%d converted=%d fromCard=%d\n",
+		       bound ? 1 : 0, isWaveTable ? 1 : 0, static_cast<int>(osc),
+		       holder != nullptr ? holder->filePath.c_str() : "", g_waitTicks, conv.converted, conv.fromCard);
+		if (conv.converted != 0 || conv.fromCard != 1) {
+			printf("SC-WAVETABLE-RESIDENT FAIL a Sample with clusters not yet cached must be built from the card, not "
+			       "converted\n");
+			g_failures++;
+		}
 		if (!bound || !isWaveTable || osc != OscType::WAVETABLE) {
 			printf("SC-WAVETABLE-RESIDENT FAIL a file resident as a Sample, most of its clusters not yet filled, must "
 			       "still be claimed as a wavetable\n");
@@ -1976,7 +2109,8 @@ void runTick() {
 		                                                     : "");
 		g_waitTicks = 0;
 		// The resident-wavetable leg claims a file the preview has made resident as a Sample.
-		g_step = (g_leg == Leg::Slice || g_leg == Leg::SliceManual || isSupersede() || g_leg == Leg::WaveTableResident)
+		g_step = (g_leg == Leg::Slice || g_leg == Leg::SliceManual || isSupersede() || g_leg == Leg::WaveTableResident
+		          || g_leg == Leg::WaveTableConverted)
 		             ? Step::PreviewWait
 		             : Step::Act;
 		break;
@@ -1985,12 +2119,27 @@ void runTick() {
 		const Sample* drawn = waveformBasicNavigator.sample;
 		if (drawn != nullptr && drawn->filePath == legFile()) {
 			printf("SC-PROBE leg=%s preview drawn ticks=%d\n", legName(g_leg), g_waitTicks);
-			g_step = Step::Act;
+			g_step = (g_leg == Leg::WaveTableConverted) ? Step::ResidentWait : Step::Act;
+			g_waitTicks = 0;
 			break;
 		}
 		sampleBrowser.graphicsRoutine();
 		if (++g_waitTicks > kMaxLegTicks) {
 			fail(legName(g_leg), "the browser's preview never drew the file");
+			nextLeg();
+		}
+		break;
+	}
+	case Step::ResidentWait: {
+		// The converted leg claims a file every cluster of which is cached: ask for each until all are there at once.
+		Sample* previewed = waveformBasicNavigator.sample;
+		if (previewed != nullptr && previewed->filePath == legFile() && acquireAllClusters(*previewed)) {
+			printf("SC-PROBE leg=%s fully resident ticks=%d\n", legName(g_leg), g_waitTicks);
+			g_step = Step::Act;
+			break;
+		}
+		if (++g_waitTicks > kMaxLegTicks) {
+			fail(legName(g_leg), "the file never became fully resident");
 			nextLeg();
 		}
 		break;

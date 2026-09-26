@@ -1785,6 +1785,9 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 ///   pitch stall leg.
 /// - `SAMPLES/SCWTBIG.WAV`: 64 wavetable-length cycles, previewed and then claimed as a wavetable: the conversion of a
 ///   resident multi-cluster Sample.
+/// - `SAMPLES/SCWTFULL.WAV`: 16 wavetable-length cycles, made fully resident as a Sample and then claimed as a
+///   wavetable, which converts it from memory. `SAMPLES/SCWTFUL2.WAV` holds the same bytes and is only ever built
+///   from the card: the reference the conversion is compared against.
 /// - `SAMPLES/SCCYCLE.WAV`: one 512-frame cycle of a sine, claimed as a wavetable from the context menu.
 /// - `SAMPLES/SCSTER.WAV`: stereo, claimed into a wavetable oscillator, which cannot take it and falls back to a
 ///   sample.
@@ -1847,6 +1850,11 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     // The resident-wavetable leg's file: 64 wavetable-length cycles (131072 frames, 8 clusters), previewed -- so resident
     // as a Sample -- and then claimed as a wavetable, which converts that Sample by reading every cluster of it.
     write_sine_wav(&samples.join("SCWTBIG.WAV"), 1, 131_072, 44_100.0 / 2048.0);
+    // The converted-wavetable leg's file: 16 wavetable-length cycles (32768 frames; three clusters with its
+    // header), made fully resident as a Sample and then claimed as a wavetable, which converts it from memory.
+    // Its twin has the same bytes and is never previewed: the card build the conversion is compared against.
+    write_sine_wav(&samples.join("SCWTFULL.WAV"), 1, 32_768, 44_100.0 / 2048.0);
+    write_sine_wav(&samples.join("SCWTFUL2.WAV"), 1, 32_768, 44_100.0 / 2048.0);
     write_test_wav(&samples.join("SCSTER.WAV"), 2, 16, 8192, 0x36);
     write_test_wav(&samples.join("SCGATE.WAV"), 1, 16, 4096, 0x37);
     write_test_wav(&samples.join("SCSTALL.WAV"), 1, 16, 4096, 0x38);

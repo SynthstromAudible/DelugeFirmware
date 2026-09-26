@@ -1392,6 +1392,7 @@ AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
 			destroyAudioFileObject(*audioFile);
 			return nullptr;
 		}
+		waveTablesBuiltFromCard_++;
 
 		audioFile->finalizeAfterLoad(sizeBytes);
 		overviewScanAllDone = false; // A newly loaded audio file may need pre-scanning (#4460)
