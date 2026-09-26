@@ -390,7 +390,6 @@ void doAnyPendingUIRendering() {
 	}
 
 	pendingUIRenderingLock = true;
-
 	doAnyPendingGridRendering();
 	doAnyPendingOLEDRendering();
 
