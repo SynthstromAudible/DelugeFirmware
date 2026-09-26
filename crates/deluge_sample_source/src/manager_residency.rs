@@ -29,8 +29,9 @@ mod host_streaming_stubs {
 /// this provider only schedules; tests drive readiness through the manager directly.
 ///
 /// `cluster_size`/`num_clusters` are supplied by the caller (the cursor, which owns
-/// the `Geometry` and derives `num_clusters` from it — `ceil(audio_data_length /
-/// cluster_size)`, sentinel/zero-length treated as "caller decides"), not recomputed
+/// the `Geometry` and derives `num_clusters` from it — `ceil((audio_data_start +
+/// audio_data_length) / cluster_size)`, the file's clusters, sentinel/zero-length
+/// treated as "caller decides"), not recomputed
 /// here: this provider does no length math of its own, keeping `resident_bytes_for`
 /// in `geometry.rs` the single home of the short-last-cluster arithmetic (and any
 /// cluster-count arithmetic that piggybacks on the same geometry).

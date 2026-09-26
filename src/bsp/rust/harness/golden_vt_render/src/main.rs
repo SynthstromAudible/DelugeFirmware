@@ -1783,8 +1783,8 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 /// - `SAMPLES/SCPITCH.WAV`, `SCSUPA.WAV`, `SCSUPB.WAV`, `SCPSTALL.WAV`: SCSYN.WAV's sine under paths of their own, for
 ///   the legs that must catch a pitch detection waiting for a cluster -- the resume leg, the two supersede legs and the
 ///   pitch stall leg.
-/// - `SAMPLES/SCWTBIG.WAV`: 64 wavetable-length cycles, previewed and then claimed as a wavetable: the conversion of a
-///   resident multi-cluster Sample.
+/// - `SAMPLES/SCWTBIG.WAV`: 64 wavetable-length cycles, previewed and then claimed as a wavetable: a resident
+///   multi-cluster Sample most of whose clusters are not cached, so it is built from the card.
 /// - `SAMPLES/SCWTFULL.WAV`: 16 wavetable-length cycles, made fully resident as a Sample and then claimed as a
 ///   wavetable, which converts it from memory. `SAMPLES/SCWTFUL2.WAV` holds the same bytes and is only ever built
 ///   from the card: the reference the conversion is compared against.
@@ -1848,7 +1848,7 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     write_sine_wav(&samples.join("SCPSTALL.WAV"), 1, 22_050, 440.0);
     write_sine_wav(&samples.join("SCCYCLE.WAV"), 1, 512, 44_100.0 / 512.0);
     // The resident-wavetable leg's file: 64 wavetable-length cycles (131072 frames, 8 clusters), previewed -- so resident
-    // as a Sample -- and then claimed as a wavetable, which converts that Sample by reading every cluster of it.
+    // as a Sample, most clusters not cached -- and then claimed as a wavetable, which builds it from the card.
     write_sine_wav(&samples.join("SCWTBIG.WAV"), 1, 131_072, 44_100.0 / 2048.0);
     // The converted-wavetable leg's file: 16 wavetable-length cycles (32768 frames; three clusters with its
     // header), made fully resident as a Sample and then claimed as a wavetable, which converts it from memory.

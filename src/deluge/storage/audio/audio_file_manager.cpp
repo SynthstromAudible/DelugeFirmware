@@ -800,11 +800,12 @@ std::optional<AudioFile*> AudioFileManager::tryConvertResidentSample(Sample& sam
 	}
 	conversionPinnedClusters_ += static_cast<int32_t>(leases.size());
 
+	// Out of memory with every cluster pinned is not a verdict about the file: the card build runs with those
+	// clusters evictable again, so it may succeed where this could not. Fall back to it.
 	void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
 	if (waveTableMemory == nullptr) {
-		*error = Error::INSUFFICIENT_RAM;
 		releaseAll();
-		return nullptr;
+		return std::nullopt;
 	}
 
 	auto* newWaveTable = new (waveTableMemory) WaveTable;
@@ -819,6 +820,10 @@ std::optional<AudioFile*> AudioFileManager::tryConvertResidentSample(Sample& sam
 		sample.removeReason("E400");
 		destroyAudioFileObject(*newWaveTable);
 		releaseAll();
+		if (*error == Error::INSUFFICIENT_RAM) {
+			*error = Error::NONE; // as above: the card build may still fit
+			return std::nullopt;
+		}
 		return nullptr;
 	}
 

@@ -107,7 +107,7 @@ constexpr int32_t kPitchTranspose = 3;
 constexpr int32_t kImportMultiTransposes[] = {15, 3, -9};
 constexpr const char* kCycleSample = "SAMPLES/SCCYCLE.WAV";
 /// The resident-wavetable leg's file: previewed (resident as a Sample, most clusters not yet filled) then claimed as a
-/// wavetable, which converts the resident Sample. See the Rust fixture.
+/// wavetable, which builds it from the card: only a fully cached Sample is converted. See the Rust fixture.
 constexpr const char* kResidentWaveTableSample = "SAMPLES/SCWTBIG.WAV";
 /// The converted-wavetable leg's file: 32768 frames, three clusters (its 44-byte header pushes the last 44 bytes of
 /// audio into a third), made fully resident as a Sample, then claimed as a wavetable,
