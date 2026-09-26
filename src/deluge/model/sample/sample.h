@@ -71,6 +71,24 @@ public:
 	void markAsUnloadable();
 	float determinePitch(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest);
 	void workOutMIDINote(bool doingSingleCycle, float minFreqHz = 20, float maxFreqHz = 10000, bool doPrimeTest = true);
+	/// @brief Settle midiNote without scanning, if it can be: already known, a single cycle, or the note the file
+	///        names. @return Whether it is settled; false means a pitch scan must find it.
+	bool midiNoteWithoutScan(bool doingSingleCycle);
+	/// @brief Set midiNote from a detected frequency in Hz; 0 (a failed detection) sets MIDI_NOTE_ERROR.
+	void setMidiNoteFromFrequency(float hz);
+	/// @name The pitch scan's analysis: deluge::sample::PitchScan fills the buffer and calls these.
+	/// @{
+	/// @brief What one analysis of a filled pitch window decided.
+	struct PitchVerdict {
+		enum class Kind : uint8_t { Failed, Found, LongerLength } kind;
+		float hz; ///< The fundamental in Hz when Found.
+	};
+	/// @brief Bytes of the scan's buffer: the FFT input, its output, and the float index table, back to back.
+	static size_t pitchBufferBytes();
+	/// @brief FFT and fundamental search over a filled window in @p buffer (pitchBufferBytes() long).
+	PitchVerdict analysePitchWindow(int32_t* buffer, int32_t lengthDoublings, int32_t defaultLengthDoublings,
+	                                float minFreqHz, float maxFreqHz, bool doPrimeTest);
+	/// @}
 	uint32_t getLengthInMSec();
 	SampleCache* getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio,
 	                              bool reversed, bool mayCreate, bool* created);
