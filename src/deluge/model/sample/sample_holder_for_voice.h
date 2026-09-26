@@ -52,9 +52,9 @@ public:
 	void recalculateFineTuner();
 	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
 	/// @brief Set the transpose from the sample's midiNote, which its detection has already settled; an unset or failed
-	///        note leaves the transpose alone.
+	///        note leaves the transpose alone. @p thatOneNote is the MIDI key a range covering just one note covers.
 	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool rangeCoversJustOneNote = false,
-	                                        bool thatOneNote = 0);
+	                                        int32_t thatOneNote = 0);
 	uint32_t getMSecLimit(Source* source);
 
 	/// In samples. 0 means not set.

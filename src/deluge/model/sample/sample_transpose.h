@@ -34,8 +34,8 @@ struct SampleTranspose {
 /// @param minimizeOctaves        The sample is its source's only range: fold the semitones into -5..6.
 /// @param rangeCoversJustOneNote The sample's range covers a single key: a detection within 4 cents of that key is
 ///                               snapped to it, so the file plays exactly in tune there.
-/// @param thatOneNote            That key.
+/// @param thatOneNote            That key, as a MIDI note.
 [[nodiscard]] SampleTranspose transposeForNote(float midiNote, bool minimizeOctaves, bool rangeCoversJustOneNote,
-                                               bool thatOneNote);
+                                               int32_t thatOneNote);
 
 } // namespace deluge::sample

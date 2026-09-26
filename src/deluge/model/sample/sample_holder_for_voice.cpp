@@ -127,7 +127,7 @@ uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
 }
 
 void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool rangeCoversJustOneNote,
-                                                              bool thatOneNote) {
+                                                              int32_t thatOneNote) {
 	// The note is the detection's: every caller has run it. Nothing is scanned here.
 	const float midiNote = ((Sample*)audioFile)->midiNote;
 	if (midiNote != MIDI_NOTE_ERROR && midiNote != MIDI_NOTE_UNSET) {

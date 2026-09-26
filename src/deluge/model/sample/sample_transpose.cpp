@@ -21,7 +21,8 @@
 
 namespace deluge::sample {
 
-SampleTranspose transposeForNote(float midiNote, bool minimizeOctaves, bool rangeCoversJustOneNote, bool thatOneNote) {
+SampleTranspose transposeForNote(float midiNote, bool minimizeOctaves, bool rangeCoversJustOneNote,
+                                 int32_t thatOneNote) {
 	float semitones = (float)60 - midiNote;
 	int32_t semitonesInt = roundf(semitones);
 	int32_t cents = roundf((semitones - semitonesInt) * 100);
