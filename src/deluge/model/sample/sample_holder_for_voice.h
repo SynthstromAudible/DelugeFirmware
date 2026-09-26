@@ -51,8 +51,10 @@ public:
 	void setCents(int32_t newCents);
 	void recalculateFineTuner();
 	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
-	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false,
-	                                        bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
+	/// @brief Set the transpose from the sample's midiNote, which its detection has already settled; an unset or failed
+	///        note leaves the transpose alone.
+	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool rangeCoversJustOneNote = false,
+	                                        bool thatOneNote = 0);
 	uint32_t getMSecLimit(Source* source);
 
 	/// In samples. 0 means not set.

@@ -69,8 +69,6 @@ public:
 	void workOutBitMask();
 	Error initialize(int32_t numClusters);
 	void markAsUnloadable();
-	float determinePitch(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest);
-	void workOutMIDINote(bool doingSingleCycle, float minFreqHz = 20, float maxFreqHz = 10000, bool doPrimeTest = true);
 	/// @brief Settle midiNote without scanning, if it can be: already known, a single cycle, or the note the file
 	///        names. @return Whether it is settled; false means a pitch scan must find it.
 	bool midiNoteWithoutScan(bool doingSingleCycle);

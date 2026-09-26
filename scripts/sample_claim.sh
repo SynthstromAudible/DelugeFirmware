@@ -20,7 +20,7 @@
 #   SC-SUPERSEDE
 #              an auto-load claim the cursor leaves while its pitch detection waits for a cluster, for a next
 #              preview that lands at once (case=landed) and for one still loading (case=loading): it must be
-#              cancelled once, drop its detection without draining, and only the next file's claim may finish.
+#              cancelled once, and only the next file's claim may finish.
 #   SC-PITCH   a claim whose detection finds its clusters held briefly: it waits, resumes, and finds the same note.
 #   SC-PITCH-STALL
 #              a claim whose detection's clusters never arrive: one give-up, the note an error, the transpose left

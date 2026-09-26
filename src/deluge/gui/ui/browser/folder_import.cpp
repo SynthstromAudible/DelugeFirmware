@@ -770,8 +770,7 @@ skipOctaveCorrection:
 		range->sampleHolder.setAudioFile(thisSample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
 		                                 true);
 		bool rangeCoversJustOneNote = (topNote == lastTopNote + 1);
-		range->sampleHolder.setTransposeAccordingToSamplePitch(false, doingSingleCycle, rangeCoversJustOneNote,
-		                                                       topNote);
+		range->sampleHolder.setTransposeAccordingToSamplePitch(false, rangeCoversJustOneNote, topNote);
 
 		totalMSec += thisSample->getLengthInMSec();
 		if (thisSample->fileLoopEndSamples) {

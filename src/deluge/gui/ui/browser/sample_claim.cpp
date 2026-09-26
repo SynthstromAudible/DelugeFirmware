@@ -91,7 +91,7 @@ void openGate() {
 } // namespace
 
 bool SampleClaim::explicitInFlight() const {
-	return (phase_ != Phase::Idle && phase_ != Phase::Draining && current_.origin == ClaimOrigin::Explicit)
+	return (phase_ != Phase::Idle && current_.origin == ClaimOrigin::Explicit)
 	       || (queued_.has_value() && queued_->origin == ClaimOrigin::Explicit);
 }
 
@@ -104,7 +104,7 @@ void SampleClaim::request(ClaimRequest request) {
 		// The explicit claim is already claiming a file; this can only come from a preview that was already loading.
 		return;
 	}
-	if (phase_ != Phase::Idle && phase_ != Phase::Draining) {
+	if (phase_ != Phase::Idle) {
 		// Latest-wins: an auto-load claim replaced by the next, or by an explicit claim. Browser input is refused while
 		// an explicit claim is in flight, so no request reaches here past one.
 		cancel();
@@ -120,7 +120,7 @@ void SampleClaim::cancelAutoLoad() {
 	if (queued_.has_value() && queued_->origin == ClaimOrigin::AutoLoad) {
 		queued_.reset();
 	}
-	if (phase_ != Phase::Idle && phase_ != Phase::Draining && current_.origin == ClaimOrigin::AutoLoad) {
+	if (phase_ != Phase::Idle && current_.origin == ClaimOrigin::AutoLoad) {
 		cancel();
 	}
 }
@@ -137,15 +137,7 @@ void SampleClaim::cancel() {
 	if (current_.origin == ClaimOrigin::Explicit) {
 		openGate();
 	}
-	if (opOutstanding()) {
-		// The operation still reads or scans the holder's file: nothing may unbind it, or bind the holder, until it
-		// reports. Its result is discarded; a wavetable it acquired stays in memory with no reason, and can be evicted.
-		drains_++;
-		phase_ = Phase::Draining;
-		return;
-	}
 	phase_ = Phase::Idle;
-	opDispatched_ = false;
 }
 
 void SampleClaim::routine() {
@@ -154,12 +146,8 @@ void SampleClaim::routine() {
 			if (!queued_.has_value()) {
 				return;
 			}
-			if (opOutstanding()) {
-				startsUnderOp_++;
-			}
 			current_ = std::move(*queued_);
 			queued_.reset();
-			opDispatched_ = false;
 			phase_ = Phase::Start;
 		}
 		if (!step()) {
@@ -182,21 +170,14 @@ bool SampleClaim::step() {
 		return stepDecideSample();
 	case Phase::PrepareWavetable:
 		return stepPrepareWavetable();
-	case Phase::AwaitWavetable:
-		return stepAwaitWavetable();
+	case Phase::DecideWavetable:
+		return stepDecideWavetable();
 	case Phase::DetectPitch:
 		return stepDetectPitch();
 	case Phase::AwaitPitch:
 		return stepAwaitPitch();
 	case Phase::Finish:
 		return stepFinish();
-	case Phase::Draining:
-		if (!opRunning_) {
-			phase_ = Phase::Idle;
-			opDispatched_ = false;
-			return true;
-		}
-		return false;
 	}
 	return false;
 }
@@ -417,27 +398,22 @@ bool SampleClaim::stepPrepareWavetable() {
 	numTypesTried_++;
 	oldOscType_ = soundEditor.currentSource->getOscType();
 	soundEditor.currentSource->setOscType(OscType::WAVETABLE);
-	opHolder_ = prepareHolder(current_.path);
-	opMakeWaveTable_ = makeWaveTable_;
-	opFn_ = &SampleClaim::runWaveTableOp;
-	op_ = {};
-	opDispatched_ = false;
-	dispatchOp();
-	phase_ = Phase::AwaitWavetable;
-	return false;
+	waveTableHolder_ = prepareHolder(current_.path);
+	// Counted for SC-TIER: a wavetable lookup on the storage owner.
+	if (deluge::storage::Owner::on_owner()) {
+		waveTableLookupsOnOwner_++;
+	}
+	// A wavetable still loads synchronously. Blocking on the storage tier is permitted here, and song load's
+	// AsyncSampleLoad makes this same lookup on this tier.
+	waveTableError_ = Error::NONE;
+	waveTableFile_ = waveTableHolder_->acquire(/*mayActuallyReadFile=*/true, &waveTableError_, makeWaveTable_,
+	                                           deluge::storage::AsyncLoadMode::Blocking, /*context=*/nullptr);
+	phase_ = Phase::DecideWavetable;
+	return true;
 }
 
-bool SampleClaim::stepAwaitWavetable() {
-	if (!opDispatched_) {
-		dispatchOp();
-		return false;
-	}
-	if (!op_.done) {
-		return false;
-	}
-	opDispatched_ = false;
-
-	Error error = op_.error;
+bool SampleClaim::stepDecideWavetable() {
+	Error error = waveTableError_;
 	if (error != Error::NONE) {
 		// If word has come back that this file isn't wanting to load as a WaveTable...
 		if (error == Error::FILE_NOT_LOADABLE_AS_WAVETABLE
@@ -457,9 +433,9 @@ bool SampleClaim::stepAwaitWavetable() {
 		return true;
 	}
 
-	if (op_.file != nullptr) {
-		opHolder_->setAudioFile(op_.file, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
-		                        /*manuallySelected=*/true, CLUSTER_ENQUEUE);
+	if (waveTableFile_ != nullptr) {
+		waveTableHolder_->setAudioFile(waveTableFile_, soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+		                               /*manuallySelected=*/true, CLUSTER_ENQUEUE);
 	}
 
 	// if oscillator wasn't already a wavetable, update custom knob assignments, otherwise leave as is
@@ -516,7 +492,7 @@ bool SampleClaim::stepAwaitPitch() {
 	// sample on this tier, and would leave the transpose alone just the same.
 	if (midiNote != MIDI_NOTE_ERROR && midiNote != MIDI_NOTE_UNSET) {
 		bool shouldMinimizeOctaves = (std::ssize(soundEditor.currentSource->ranges) == 1);
-		range->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves, doingSingleCycle_);
+		range->sampleHolder.setTransposeAccordingToSamplePitch(shouldMinimizeOctaves);
 	}
 
 	removeWaveTableKnobs();
@@ -586,30 +562,6 @@ void SampleClaim::end(bool success, Error error) {
 	if (completion != nullptr) {
 		completion(success);
 	}
-}
-
-void SampleClaim::dispatchOp() {
-	// Marked before it is queued, so an operation that runs at once still clears it.
-	opRunning_ = true;
-	opDispatched_ = deluge::storage::Owner::run(opFn_, this);
-	if (!opDispatched_) {
-		opRunning_ = false;
-	}
-}
-
-void SampleClaim::runWaveTableOp(void* self) {
-	auto* claim = static_cast<SampleClaim*>(self);
-	// Counted for SC-TIER: a wavetable lookup on the storage owner.
-	if (deluge::storage::Owner::on_owner()) {
-		claim->waveTableLookupsOnOwner_++;
-	}
-	Error error = Error::NONE;
-	AudioFile* file = claim->opHolder_->acquire(/*mayActuallyReadFile=*/true, &error, claim->opMakeWaveTable_,
-	                                            deluge::storage::AsyncLoadMode::Blocking, /*context=*/nullptr);
-	claim->op_.file = file;
-	claim->op_.error = error;
-	claim->op_.done = true;
-	claim->opRunning_ = false;
 }
 
 void SampleClaim::removeWaveTableKnobs() {

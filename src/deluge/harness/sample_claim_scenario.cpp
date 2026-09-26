@@ -330,8 +330,6 @@ bool g_supersedeFired = false;
 /// The claim's counts when a leg acted.
 int32_t g_giveUpsBefore = 0;
 int32_t g_cancelsBefore = 0;
-int32_t g_drainsBefore = 0;
-int32_t g_startsUnderOpBefore = 0;
 int32_t g_finishesBefore = 0;
 
 const char* legName(Leg leg) {
@@ -1189,8 +1187,6 @@ void actLeg() {
 	g_tierMark = markTier();
 	g_giveUpsBefore = deluge::gui::sampleClaim.giveUps();
 	g_cancelsBefore = deluge::gui::sampleClaim.cancels();
-	g_drainsBefore = deluge::gui::sampleClaim.drains();
-	g_startsUnderOpBefore = deluge::gui::sampleClaim.startsUnderOp();
 	g_finishesBefore = deluge::gui::sampleClaim.finishes();
 	if (isSupersede()) {
 		using namespace deluge::hid::button;
@@ -1396,19 +1392,15 @@ void checkLeg() {
 		const char* supersedeCase = (g_leg == Leg::Supersede) ? "landed" : "loading";
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
 		const int32_t cancels = claim.cancels() - g_cancelsBefore;
-		const int32_t drains = claim.drains() - g_drainsBefore;
-		const int32_t startsUnderOp = claim.startsUnderOp() - g_startsUnderOpBefore;
 		const int32_t finishes = claim.finishes() - g_finishesBefore;
 		const bool boundSecond =
 		    holder != nullptr && holder->audioFile != nullptr && holder->filePath == supersedeSecond();
-		printf("SC-SUPERSEDE case=%s underOp=%d cancels=%d drains=%d startsUnderOp=%d finishes=%d boundSecond=%d "
-		       "ticks=%d\n",
-		       supersedeCase, g_supersedeFired ? 1 : 0, cancels, drains, startsUnderOp, finishes, boundSecond ? 1 : 0,
-		       g_waitTicks);
-		if (!g_supersedeFired || cancels != 1 || drains != 0 || startsUnderOp != 0 || finishes != 1 || !boundSecond) {
+		printf("SC-SUPERSEDE case=%s underOp=%d cancels=%d finishes=%d boundSecond=%d ticks=%d\n", supersedeCase,
+		       g_supersedeFired ? 1 : 0, cancels, finishes, boundSecond ? 1 : 0, g_waitTicks);
+		if (!g_supersedeFired || cancels != 1 || finishes != 1 || !boundSecond) {
 			printf(
 			    "SC-SUPERSEDE FAIL case=%s an auto-load claim the cursor left with its pitch detection waiting must be "
-			    "cancelled once, drop its detection without draining, and only the next file's claim may finish\n",
+			    "cancelled once, and only the next file's claim may finish\n",
 			    supersedeCase);
 			g_failures++;
 		}

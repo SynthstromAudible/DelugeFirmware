@@ -57,20 +57,18 @@ struct ClaimRequest {
 ///
 /// A phase machine on the interaction tier, advanced by request() and by routine() from its own repeating task, so it
 /// runs whichever UI is on top. The file's load goes through the async sample load, and pitch detection is a PitchScan
-/// ticked here, which never waits for the card. A wavetable's lookup, which still reads the card synchronously, runs
-/// as a minimal operation on the storage owner, returning a result and changing no model. Every model and UI change
-/// happens on the interaction tier.
+/// ticked here, which never waits for the card. A wavetable's lookup still reads the card synchronously: a blocking
+/// lookup on this tier, as song load's. Every model and UI change happens on the interaction tier.
 ///
 /// An explicit claim closes the browser's gate (UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES) until it ends. An auto-load
-/// claim does not, and the next cursor move cancels it. A claim cancelled while its wavetable lookup is out drains:
-/// nothing touches its holder until the lookup reports, and a claim asked for meanwhile waits. A cancelled pitch
-/// detection is dropped at once.
+/// claim does not, and the next cursor move cancels it. A cancelled claim ends at once: nothing of it is out anywhere
+/// else.
 class SampleClaim {
 public:
 	/// @brief Ask for a claim.
 	///
 	/// An auto-load claim asked for while an explicit claim is in flight is dropped. Any other request cancels a claim
-	/// in flight, and waits for its drain if it has one. An explicit request closes the gate at once. Runs one pass.
+	/// in flight. An explicit request closes the gate at once. Runs one pass.
 	void request(ClaimRequest request);
 
 	/// @brief Cancel an auto-load claim in flight, or waiting to start. An explicit claim is left as it is.
@@ -79,14 +77,11 @@ public:
 	/// @brief Advance the claim as far as it can go without waiting. Called by its repeating task.
 	void routine();
 
-	/// @brief Whether a claim is in flight, draining, or waiting to start.
+	/// @brief Whether a claim is in flight or waiting to start.
 	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle || queued_.has_value(); }
 
 	/// @brief Whether an explicit claim is in flight or waiting to start: browser input is refused while it is.
 	[[nodiscard]] bool explicitInFlight() const;
-
-	/// @brief Whether an operation queued on the storage owner has not finished running, whichever claim queued it.
-	[[nodiscard]] bool opOutstanding() const { return opRunning_; }
 
 	/// @name Counts for the sample-claim gate.
 	/// @{
@@ -100,10 +95,6 @@ public:
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
 	/// Claims cancelled.
 	[[nodiscard]] int32_t cancels() const { return cancels_; }
-	/// Cancelled claims that waited for an operation to report.
-	[[nodiscard]] int32_t drains() const { return drains_; }
-	/// Claims started while an operation was still out; required 0.
-	[[nodiscard]] int32_t startsUnderOp() const { return startsUnderOp_; }
 	/// Claims that ended claimed.
 	[[nodiscard]] int32_t finishes() const { return finishes_; }
 	/// Ticks a pitch detection spent waiting for a cluster.
@@ -121,19 +112,11 @@ private:
 		PrepareSample,    ///< Cut the sound, unbind, set the path, and request the async load.
 		LoadSample,       ///< Tick the async load.
 		DecideSample,     ///< Act on the bound sample: redirect to a wavetable, name a drum, or go to pitch detection.
-		PrepareWavetable, ///< Cut, unbind, set the path, and dispatch the wavetable lookup.
-		AwaitWavetable,   ///< Wait for the wavetable lookup's result.
+		PrepareWavetable, ///< Cut, unbind, set the path, and look the wavetable up (blocking, on this tier).
+		DecideWavetable,  ///< Act on the lookup's result.
 		DetectPitch,      ///< Start pitch detection.
 		AwaitPitch,       ///< Tick pitch detection, then apply its note.
 		Finish,           ///< The claim's tail: edits, the browser's exit, the animation.
-		Draining,         ///< A cancelled claim waiting for its operation to report.
-	};
-
-	/// @brief One operation's result slot: written by the operation on the owner, read by the next pass.
-	struct OpResult {
-		bool done = false;
-		AudioFile* file = nullptr;
-		Error error = Error::NONE;
 	};
 
 	/// @brief One step of the transition function.
@@ -144,7 +127,7 @@ private:
 	bool stepLoadSample();
 	bool stepDecideSample();
 	bool stepPrepareWavetable();
-	bool stepAwaitWavetable();
+	bool stepDecideWavetable();
 	bool stepDetectPitch();
 	bool stepAwaitPitch();
 	bool stepFinish();
@@ -152,14 +135,10 @@ private:
 	/// @brief End the claim: remove the animation and show @p error unless it succeeded, release the gate, and tell the
 	///        completion.
 	void end(bool success, Error error);
-	/// @brief Cancel the claim in flight: drain if an operation is out, otherwise end it at once, telling no one.
+	/// @brief Cancel the claim in flight: end it at once, telling no one.
 	void cancel();
-	/// @brief Queue an operation on the storage owner, or leave it for the next pass if the queue is full.
-	void dispatchOp();
 	/// @brief Remove the wavetable gold-knob assignments from a claim that ended as a sample.
 	void removeWaveTableKnobs();
-
-	static void runWaveTableOp(void* self);
 
 	Phase phase_{Phase::Idle};
 	ClaimRequest current_{};
@@ -173,16 +152,11 @@ private:
 	bool doingSingleCycle_{false};
 	OscType oldOscType_{OscType::SQUARE};
 
-	/// @name The operation out, and what it works on.
+	/// @name The wavetable lookup's result.
 	/// @{
-	void (*opFn_)(void*) = nullptr;
-	bool opDispatched_{false};
-	/// Set as an operation is queued, and cleared by the operation as it ends: what a drain waits for, and what no
-	/// claim may start under.
-	bool opRunning_{false};
-	OpResult op_{};
-	AudioFileHolder* opHolder_{nullptr};
-	bool opMakeWaveTable_{false};
+	AudioFileHolder* waveTableHolder_{nullptr};
+	AudioFile* waveTableFile_{nullptr};
+	Error waveTableError_{Error::NONE};
 	/// @}
 
 	/// @name The detection in progress.
@@ -197,8 +171,6 @@ private:
 	int32_t pitchScansOnOwner_{0};
 	int32_t giveUps_{0};
 	int32_t cancels_{0};
-	int32_t drains_{0};
-	int32_t startsUnderOp_{0};
 	int32_t finishes_{0};
 	int32_t pitchScanTicks_{0};
 	int32_t pitchGiveUps_{0};

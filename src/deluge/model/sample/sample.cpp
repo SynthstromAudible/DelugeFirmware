@@ -1151,13 +1151,6 @@ void Sample::setMidiNoteFromFrequency(float hz) {
 	D_PRINTLN("midiNote:  %d", midiNote);
 }
 
-void Sample::workOutMIDINote(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest) {
-	if (!midiNoteWithoutScan(doingSingleCycle)) {
-		// And finally, detect the pitch the hard way
-		setMidiNoteFromFrequency(determinePitch(doingSingleCycle, minFreqHz, maxFreqHz, doPrimeTest));
-	}
-}
-
 uint32_t Sample::getLengthInMSec() {
 	return (uint64_t)(lengthInSamples - 1) * 1000 / sampleRate + 1;
 }
@@ -1585,19 +1578,6 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 	float freq = freqBeforeAdjustment / (1 << lengthDoublings);
 	D_PRINTLN("freq: %.2f", freq);
 	return {PitchVerdict::Kind::Found, freq};
-}
-
-// Returns 0 if error. A synchronous detection, until plan 2 retires its last caller: a miss is final, as it always was
-// -- on the storage owner a window blocks until its cluster is resident, and anywhere else the first miss ended the
-// scan with 0.
-float Sample::determinePitch(bool /*doingSingleCycle*/, float minFreqHz, float maxFreqHz, bool doPrimeTest) {
-	deluge::sample::PitchScan scan;
-	scan.arm(*this, {.minFreqHz = minFreqHz, .maxFreqHz = maxFreqHz, .doPrimeTest = doPrimeTest});
-	if (scan.tick() == deluge::sample::PitchScan::Progress::Pending) {
-		scan.cancel();
-		return 0;
-	}
-	return scan.result();
 }
 
 int32_t Sample::getMaxPeakFromZero() {

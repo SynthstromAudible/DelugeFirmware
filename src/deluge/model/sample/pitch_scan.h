@@ -90,7 +90,7 @@ private:
 	uint32_t sourceId_{0};
 	uint32_t frameSizeBytes_{0};
 
-	/// @name The read cursor: everything determinePitch kept on its stack between two samples.
+	/// @name The read cursor: everything the synchronous detector kept on its stack between two samples.
 	/// @{
 	std::optional<SampleFrameReader> reader_{};
 	DelugeFrameWindow window_{};

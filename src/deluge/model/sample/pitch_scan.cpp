@@ -55,7 +55,7 @@ void PitchScan::arm(Sample& sample, Limits limits) {
 	while (maxFreqHere < kMinAccurateFrequency) {
 		lengthDoublings_++;
 		if (lengthDoublings_ >= 10) {
-			finish(0); // Keep things sane; determinePitch returned here without freeing its buffer
+			finish(0); // Keep things sane (the synchronous detector returned here without freeing its buffer)
 			return;
 		}
 		maxFreqHere *= 2;

@@ -125,11 +125,11 @@ uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
 	}
 }
 
-void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool doingSingleCycle,
-                                                              bool rangeCoversJustOneNote, bool thatOneNote) {
-	((Sample*)audioFile)->workOutMIDINote(doingSingleCycle);
-	float midiNote = ((Sample*)audioFile)->midiNote;
-	if (midiNote != -1000) {
+void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool rangeCoversJustOneNote,
+                                                              bool thatOneNote) {
+	// The note is the detection's: every caller has run it. Nothing is scanned here.
+	const float midiNote = ((Sample*)audioFile)->midiNote;
+	if (midiNote != MIDI_NOTE_ERROR && midiNote != MIDI_NOTE_UNSET) {
 		float semitones = (float)60 - midiNote;
 		int32_t semitonesInt = roundf(semitones);
 		int32_t cents = roundf((semitones - semitonesInt) * 100);
