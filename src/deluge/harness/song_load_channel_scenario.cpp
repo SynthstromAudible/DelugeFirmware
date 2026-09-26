@@ -118,11 +118,8 @@ int32_t g_failures = 0;
 int32_t g_expectedMagnitude = 0;
 int32_t g_loadTicks = 0;
 int32_t g_saveTicks = 0;
-/// Markers this scenario has queued behind its own ticks, so the owner-op count can subtract them.
-int32_t g_markerOps = 0;
-/// `Owner::opsRun()` and `g_markerOps` as the load began: SL-TIER is the difference of the differences.
+/// `Owner::opsRun()` as the load began: SL-TIER is the difference.
 uint32_t g_opsAtLoad = 0;
-int32_t g_markersAtLoad = 0;
 /// Whether the fixture's sample bound before the save. A song saved without it proves nothing on the way back.
 bool g_fixtureBound = false;
 
@@ -210,7 +207,6 @@ void runTick() {
 	}
 	case Stage::LoadBack: {
 		g_opsAtLoad = deluge::storage::Owner::opsRun();
-		g_markersAtLoad = g_markerOps;
 		currentSong->setSongFullPath(kSavePath);
 		(void)openUI(&loadSongUI);
 		g_stage = Stage::LoadBackListing;
@@ -261,10 +257,9 @@ void runTick() {
 			       "memory before the load was not restored by it\n");
 			g_failures++;
 		}
-		// SL-TIER. Ops the owner was handed during the load, less the markers this scenario queued behind its
-		// own ticks. A load that runs where its caller stands hands over nothing.
-		const int32_t ownerOps =
-		    static_cast<int32_t>(deluge::storage::Owner::opsRun() - g_opsAtLoad) - (g_markerOps - g_markersAtLoad);
+		// SL-TIER. Ops the owner was handed during the load. A load that runs where its caller stands hands over
+		// nothing.
+		const int32_t ownerOps = static_cast<int32_t>(deluge::storage::Owner::opsRun() - g_opsAtLoad);
 		printf("SL-TIER ownerOps=%d wanted=%d\n", ownerOps, kExpectedOwnerOps);
 		if (ownerOps != kExpectedOwnerOps) {
 			printf("SL-TIER FAIL the load dispatched %d op(s) onto the storage owner, wanted %d\n", ownerOps,
@@ -326,9 +321,7 @@ void deluge_scenario_song_load_channel_begin(void) {
 	g_expectedMagnitude = 0;
 	g_loadTicks = 0;
 	g_saveTicks = 0;
-	g_markerOps = 0;
 	g_opsAtLoad = 0;
-	g_markersAtLoad = 0;
 	g_fixtureBound = false;
 }
 
@@ -342,16 +335,8 @@ void deluge_scenario_song_load_channel_dispatch_step(void) {
 	}
 	g_stepDone = false;
 	runTick();
-	// A marker op behind whatever the tick queued: the owner queue is FIFO, so this runs after the
-	// dispatched save or load (and immediately if nothing was dispatched). That is what makes each
-	// check stage read a result the op has actually produced. Setting g_stepDone directly here
-	// instead races the owner, and the scenario sails past work it has only just queued.
-	if (deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_markerOps++; // counted so SL-TIER can subtract what this scenario itself handed over
-	}
-	else {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_song_load_channel_step_done(void) {

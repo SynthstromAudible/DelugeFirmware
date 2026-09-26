@@ -648,9 +648,8 @@ void deluge_scenario_offset_io_dispatch_step(void) {
 	// scenario owns the tick, so without this call a queued request would never be processed.
 	smSysex::handleNextSysEx();
 	runTick();
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_offset_io_step_done(void) {

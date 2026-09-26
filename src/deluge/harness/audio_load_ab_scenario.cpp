@@ -169,6 +169,8 @@ int32_t g_failures = 0;
 deluge::storage::AudioLoadContext g_loadContext{};
 /// Set false by dispatch_step(), true by the dispatched closure on its way out.
 bool g_stepDone = true;
+/// A cases or ejection step dispatched and not yet run. See deluge_scenario_audio_load_ab_dispatch_step.
+bool g_cardStepPending = false;
 /// Set once the summary has been printed, so complete() latches.
 bool g_summaryPrinted = false;
 
@@ -1273,40 +1275,34 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 				g_summaryPrinted = true;
 			}
 		}
-		if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-			g_stepDone = true;
-		}
+		// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+		g_stepDone = true;
 		return;
 	}
 
+	// The attempt opens files and binds a read stream, and the ejection stage renames a file and remounts the
+	// volume: card I/O that runs from any context. It runs when the runner next asks whether the step is done --
+	// one virtual millisecond after this dispatch, where the retired storage-owner queue ran it; the stages are
+	// paced to that.
 	g_stepDone = false;
-	// Onto the storage-owner worker fiber: the attempt opens files and binds a read stream, which is
-	// card I/O and has to run where card I/O is allowed. Same dispatch shape as
-	// deluge_scenario_start_recorder_roundtrip. The ejection stage goes here too — it also renames a
-	// file and remounts the volume.
-	const bool queued = deluge::storage::Owner::run(
-	    [](void*) {
-		    if (g_stage == Stage::Eject) {
-			    runOneEjectTick();
-			    if (g_ejectStep == EjectStep::Finished) {
-				    finishEjectStage();
-				    g_stage = Stage::Preview;
-			    }
-		    }
-		    else {
-			    runOneStep();
-		    }
-		    g_stepDone = true;
-	    },
-	    nullptr);
-	if (!queued) {
-		// The worker queue was full, so the closure will NOT run: release the latch rather than
-		// letting the platform driver wait forever for a step that was dropped.
-		g_stepDone = true;
-	}
+	g_cardStepPending = true;
 }
 
 bool deluge_scenario_audio_load_ab_step_done(void) {
+	if (g_cardStepPending) {
+		g_cardStepPending = false;
+		if (g_stage == Stage::Eject) {
+			runOneEjectTick();
+			if (g_ejectStep == EjectStep::Finished) {
+				finishEjectStage();
+				g_stage = Stage::Preview;
+			}
+		}
+		else {
+			runOneStep();
+		}
+		g_stepDone = true;
+	}
 	return g_stepDone;
 }
 

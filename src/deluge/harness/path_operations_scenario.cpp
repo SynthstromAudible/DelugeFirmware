@@ -842,12 +842,8 @@ void deluge_scenario_path_operations_dispatch_step(void) {
 	// scenario owns the tick, so without this call a queued request would never be processed.
 	smSysex::handleNextSysEx();
 	runTick();
-	// A marker op behind whatever the tick queued: the owner queue is FIFO, so this runs after the
-	// dispatched operation (and immediately if nothing was dispatched). That is what makes each
-	// *Check stage read a result the operation has actually produced.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_path_operations_step_done(void) {

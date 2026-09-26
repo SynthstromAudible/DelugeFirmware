@@ -146,11 +146,6 @@ int32_t g_burstServed = 0;
 int32_t g_burstIllegal = 0;
 int32_t g_orderIllegal = 0;
 int32_t g_orderServed = 0;
-/// Harness markers the owner queue refused. A refused marker ends a step before its owner work has run.
-int32_t g_markerDrops = 0;
-/// A marker the owner queue refused, still to be enqueued. See deluge_scenario_settings_channel_step_done.
-bool g_markerPending = false;
-int32_t g_markerDropsBefore = 0;
 /// What the oversize stage found before it wrote: whether the community-features file was there, and its bytes.
 bool g_oversizeHadFile = false;
 std::vector<uint8_t> g_oversizeBefore;
@@ -273,7 +268,6 @@ void runTick() {
 		}
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
-		g_markerDropsBefore = g_markerDrops;
 		runtimeFeatureSettings.set(kProbeSetting, kBurstFirst);
 		runtimeFeatureSettings.writeSettingsToFile();
 		// Drive the seam once, HERE, so the first write is in flight before the other two are submitted. Not a
@@ -310,8 +304,7 @@ void runTick() {
 	case Stage::BurstCheck: {
 		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
 		const bool channel = deluge_file_bytes_async_active();
-		printf("SC-BURST value=%u served=%d illegal=%d markerDrops=%d\n", value, g_burstServed, g_burstIllegal,
-		       g_markerDrops - g_markerDropsBefore);
+		printf("SC-BURST value=%u served=%d illegal=%d\n", value, g_burstServed, g_burstIllegal);
 		if (value != kBurstThird) {
 			printf("SC-BURST FAIL the last write of the burst did not land (read %u, wanted %u)\n", value, kBurstThird);
 			g_failures++;
@@ -655,8 +648,6 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_burstServed = 0;
 	g_burstIllegal = 0;
 	g_orderIllegal = 0;
-	g_markerDrops = 0;
-	g_markerPending = false;
 }
 
 bool deluge_scenario_settings_channel_complete(void) {
@@ -673,26 +664,11 @@ void deluge_scenario_settings_channel_dispatch_step(void) {
 	// collected -- and a dead channel would pass, which is the failure rung 3 shipped.
 	deluge::storage::bytes::serviceRoutine();
 	runTick();
-	// A marker op behind whatever the tick queued: the owner queue is FIFO, so this runs after the
-	// dispatched operation (and immediately if nothing was dispatched). That is what makes each
-	// *Check stage read a result the operation has actually produced.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		// The owner queue is full -- NOT a reason to call the step done. Declaring it done here moved the scenario
-		// on before the owner had run the work this tick queued (a burst of three settings writes plus any other
-		// owner op fills the four slots), and the owner arms then serialised a later tick's in-memory state.
-		// Keep asking from step_done until the marker is queued, behind that work.
-		g_markerDrops++;
-		g_markerPending = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_settings_channel_step_done(void) {
-	if (g_markerPending) {
-		if (deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-			g_markerPending = false;
-		}
-		return false;
-	}
 	return g_stepDone;
 }
 

@@ -39,6 +39,7 @@
 #include <cstdio>
 #include <iterator>
 #include <string>
+#include <vector>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases printf to an implementation this harness has no
 // `putchar_` for -- every line below would become an undefined symbol at link time.
@@ -94,9 +95,6 @@ int32_t g_referencedBefore = 0;
 /// `Owner::opsRun()` as it read just before the re-insertion.
 uint32_t g_ownerOpsBefore = 0;
 int32_t g_ownerOpsAcross = -1;
-/// Marker ops THIS scenario queues (one per dispatch_step). Subtracted from CR-TIER.
-int32_t g_scenarioOps = 0;
-int32_t g_scenarioOpsBefore = 0;
 
 bool fail(const char* what) {
 	printf("CR-FAIL %s\n", what);
@@ -136,13 +134,26 @@ AudioFileHolder* firstHolder(Source& source) {
 	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
 }
 
-/// Run @p fn on the storage owner. The fixture's loads are blocking card I/O, which may not happen on
-/// the interaction tier -- the same reason sample_load_tree builds its song this way.
-void onOwner(void (*fn)()) {
-	if (!deluge::storage::Owner::run([](void* ctx) { reinterpret_cast<void (*)()>(ctx)(); },
-	                                 reinterpret_cast<void*>(fn))) {
-		(void)fail("the storage owner's queue was full");
+/// Fixture builds a tick asked for, run when the runner next asks whether the step is done: one virtual
+/// millisecond after the tick, which is where the retired storage-owner queue ran them. The gates are paced to that
+/// order, so builds are queued here rather than run inside the tick.
+std::vector<void (*)()> g_pendingFixtures{};
+
+/// Queue a fixture build for the end of this step. See g_pendingFixtures.
+void buildFixture(void (*fn)()) {
+	g_pendingFixtures.push_back(fn);
+}
+
+/// Run the next build this step queued, if any: one per call, as the owner queue ran one job per poll.
+/// @return Whether a build ran -- the step is not done on a call that ran one.
+bool runPendingFixture() {
+	if (g_pendingFixtures.empty()) {
+		return false;
 	}
+	void (*fn)() = g_pendingFixtures.front();
+	g_pendingFixtures.erase(g_pendingFixtures.begin());
+	fn();
+	return true;
 }
 
 /// Put the two referenced samples in the song, and leave the third resident but unheld.
@@ -209,7 +220,7 @@ void runTick() {
 	switch (g_stage) {
 
 	case Stage::Build:
-		onOwner([] {
+		buildFixture([] {
 			if (!buildFixture()) {
 				g_stage = Stage::Report;
 			}
@@ -271,7 +282,6 @@ void runTick() {
 		// straight would run the walk inline and make CR-TIER measure a path the device never takes.
 		if (g_waitTicks == 0) {
 			g_ownerOpsBefore = deluge::storage::Owner::opsRun();
-			g_scenarioOpsBefore = g_scenarioOps;
 		}
 		audioFileManager.slowRoutine();
 		AudioEngine::routine();
@@ -280,10 +290,7 @@ void runTick() {
 		if (++g_waitTicks < 256) {
 			return;
 		}
-		// Minus this scenario's own marker ops: dispatch_step queues one per tick, and the wait above
-		// runs many, so the raw difference would report the harness rather than the code under test.
-		g_ownerOpsAcross = static_cast<int32_t>(deluge::storage::Owner::opsRun() - g_ownerOpsBefore)
-		                   - (g_scenarioOps - g_scenarioOpsBefore);
+		g_ownerOpsAcross = static_cast<int32_t>(deluge::storage::Owner::opsRun() - g_ownerOpsBefore);
 		g_stage = Stage::Report;
 		return;
 
@@ -349,8 +356,6 @@ void deluge_scenario_card_reinsert_begin(void) {
 	g_referencedBefore = 0;
 	g_ownerOpsBefore = 0;
 	g_ownerOpsAcross = -1;
-	g_scenarioOps = 0;
-	g_scenarioOpsBefore = 0;
 }
 
 bool deluge_scenario_card_reinsert_complete(void) {
@@ -363,16 +368,14 @@ void deluge_scenario_card_reinsert_dispatch_step(void) {
 	}
 	g_stepDone = false;
 	runTick();
-	// A marker op behind whatever the stage queued: the owner queue is FIFO, so this runs after it.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
-	else {
-		g_scenarioOps++;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_card_reinsert_step_done(void) {
+	if (runPendingFixture()) {
+		return false;
+	}
 	return g_stepDone;
 }
 

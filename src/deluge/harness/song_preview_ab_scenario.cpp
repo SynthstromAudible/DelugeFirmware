@@ -723,19 +723,12 @@ void runReferenceDecode(void*) {
 }
 
 /// Ask for the reference decode of `path`, once.
-/// @return Whether it has landed. Call again on each tick until it has: the owner runs it before the step's marker op.
+/// @return Whether it has landed. The decode runs now, on this tier; the answer is read on the next tick, as before.
 bool referenceReady(const std::string& path) {
 	if (!g_referenceDispatched) {
 		g_referenceDispatched = true;
 		g_reference = Reference{.path = path};
-		if (!deluge::storage::Owner::run(&runReferenceDecode, nullptr)) {
-			printf("FAIL [songPreviewAB/reference]: the storage owner would not take the reference decode of '%s'\n",
-			       path.c_str());
-			g_failures++;
-			// Truncated is never a reference outcome, so every comparison against this one fails.
-			g_reference.outcome = SongPreviewOutcome::Truncated;
-			g_reference.done = true;
-		}
+		runReferenceDecode(nullptr);
 		return false;
 	}
 	return g_reference.done;
@@ -987,11 +980,7 @@ void readCorpusCount(void*) {
 void runCorpusCountTick() {
 	if (!g_corpusCountDispatched) {
 		g_corpusCountDispatched = true;
-		if (!deluge::storage::Owner::run(&readCorpusCount, nullptr)) {
-			printf("FAIL [songPreviewAB/corpus]: the storage owner would not take the count read\n");
-			g_failures++;
-			g_corpusCountFailed = true;
-		}
+		readCorpusCount(nullptr);
 		return;
 	}
 	// The marker op behind the dispatch has run by now (the owner queue is FIFO), so the count is in.
@@ -1167,13 +1156,8 @@ void runSwapTick() {
 		return;
 
 	case SwapStep::Eject:
-		// Onto the storage owner: it renames a file and remounts the volume.
-		if (!deluge::storage::Owner::run(&runSwapEject, nullptr)) {
-			printf("FAIL [songPreviewAB/swap]: the storage owner would not take the ejection\n");
-			g_failures++;
-			g_swapFailed = true;
-			g_swapStep = SwapStep::Finished;
-		}
+		// It renames a file and remounts the volume: card I/O that runs from any context.
+		runSwapEject(nullptr);
 		return;
 
 	case SwapStep::Collect: {
@@ -1681,6 +1665,7 @@ void finishRun() {
 		buildSlotFixture();
 		g_slotRan = false;
 		g_slotTicks = 0;
+		// Deferred to S2: Browser::getUnusedSlot freezes off the storage owner, so the reference still runs there.
 		(void)deluge::storage::Owner::run(
 		    [](void*) {
 			    g_slotName = BrowserListingAbProbe::unusedSlotIn(kSlotDir);
@@ -3654,13 +3639,9 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 		break;
 	}
 
-	// Everything above runs on the UI tier, which is where the browser calls these from; the file
-	// backing dispatches its own card work onto the storage owner itself. A marker op behind it
-	// releases the latch: the owner queue is FIFO, so it runs after whatever was just queued (and
-	// immediately if nothing was).
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Everything above runs on the UI tier, which is where the browser calls these from. Nothing this tick queued runs
+	// anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_song_preview_ab_step_done(void) {

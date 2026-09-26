@@ -419,10 +419,44 @@ TierMark markTier() {
 	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
-/// Queue @p fn on the storage owner: the fixture builds write the card, which belongs there.
-void onOwner(void (*fn)()) {
-	if (!deluge::storage::Owner::run([](void* ctx) { reinterpret_cast<void (*)()>(ctx)(); },
-	                                 reinterpret_cast<void*>(fn))) {
+/// Fixture builds a tick asked for, run when the runner next asks whether the step is done: one virtual
+/// millisecond after the tick, which is where the retired storage-owner queue ran them. The gates are paced to that
+/// order, so builds are queued here rather than run inside the tick.
+std::vector<void (*)()> g_pendingFixtures{};
+
+/// Queue a fixture build for the end of this step. See g_pendingFixtures.
+void buildFixture(void (*fn)()) {
+	g_pendingFixtures.push_back(fn);
+}
+
+/// Run the next build this step queued, if any: one per call, as the owner queue ran one job per poll.
+/// @return Whether a build ran -- the step is not done on a call that ran one.
+bool runPendingFixture() {
+	if (g_pendingFixtures.empty()) {
+		return false;
+	}
+	void (*fn)() = g_pendingFixtures.front();
+	g_pendingFixtures.erase(g_pendingFixtures.begin());
+	fn();
+	return true;
+}
+
+/// Owner fixture builds queued and not yet run.
+int32_t g_ownerFixturesPending = 0;
+
+/// Runs the fixture build on the storage owner. Deferred to S2: the build calls `createNewInstrumentClip` or
+/// `findAnUnlaunchedPresetIncludingWithinSubfolders`, which only work on the owner (the first queues itself with a
+/// pointer into its own stack frame, the second freezes). The step is not done until it has run: step_done waits on
+/// g_ownerFixturesPending, as the retired marker did.
+void buildFixtureOnOwner(void (*fn)()) {
+	g_ownerFixturesPending++;
+	if (!deluge::storage::Owner::run(
+	        [](void* ctx) {
+		        reinterpret_cast<void (*)()>(ctx)();
+		        g_ownerFixturesPending--;
+	        },
+	        reinterpret_cast<void*>(fn))) {
+		g_ownerFixturesPending--;
 		fail(legName(g_leg), "the storage owner's queue was full");
 	}
 }
@@ -745,7 +779,7 @@ void prepareLeg() {
 		return;
 	}
 	if (g_leg == Leg::MidiDef) {
-		onOwner([] {
+		buildFixture([] {
 			(void)deluge::io::mkdir("MIDI_DEVICES");
 			(void)deluge::io::mkdir("MIDI_DEVICES/DEFINITION");
 			const bool written = writeMidiDefinition(kMidiDefinition);
@@ -765,7 +799,7 @@ void prepareLeg() {
 	if (g_leg != Leg::Synth) {
 		return;
 	}
-	onOwner([] {
+	buildFixtureOnOwner([] {
 		bool ok = writeSampleSynthPreset(kSynthPreset, kSynthSample) && writeSampleSynthPreset(kRowPreset, kRowSample)
 		          && writeSampleSynthPreset(kClonePreset, kCloneSample)
 		          && writeKitPreset(kKitPreset, kKitDrumNames, kKitSamples, kKitDrumCount);
@@ -1389,7 +1423,7 @@ void prepareAcquire() {
 	if (g_leg != Leg::AqNew) {
 		return;
 	}
-	onOwner([] {
+	buildFixture([] {
 		bool ok = writeSampleSynthPreset(kAqSynthPreset, kAqSynthSample)
 		          && writeSampleSynthPreset(kAqStallPreset, kAqStallSample);
 		for (int32_t i = 0; ok && i < kAqKitCount; i++) {
@@ -1551,7 +1585,7 @@ bool actAcquire() {
 			// The reference, on the owner where the recursive search is legal, for the gesture's own availability.
 			(void)currentSong->shouldOldOutputBeReplaced(clip, &g_changeAvailability);
 			g_changeReference.clear();
-			onOwner([] {
+			buildFixtureOnOwner([] {
 				Browser::currentDir = getInstrumentFolder(OutputType::KIT);
 				auto found = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
 				    currentSong, OutputType::KIT, g_changeAvailability);
@@ -2455,14 +2489,15 @@ void deluge_scenario_preset_load_dispatch_step(void) {
 	}
 	g_stepDone = false;
 	runTick();
-	// A marker op behind whatever the stage queued: the owner queue is FIFO, so this runs after it.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_preset_load_step_done(void) {
-	return g_stepDone;
+	if (runPendingFixture()) {
+		return false;
+	}
+	return g_stepDone && g_ownerFixturesPending == 0;
 }
 
 int32_t deluge_scenario_preset_load_failures(void) {

@@ -352,7 +352,7 @@ bool setupUndoLeg() {
 			return false;
 		}
 		// The card loses the file the undo is about to ask for.
-		deluge::storage::Owner::run_or_inline([](void*) { (void)deluge::io::unlink(kUndoSampleGone); }, nullptr);
+		(void)deluge::io::unlink(kUndoSampleGone);
 		return true;
 	}
 	case UnLeg::Done:
@@ -364,12 +364,8 @@ bool setupUndoLeg() {
 void runTick() {
 	switch (g_stage) {
 	case Stage::Fixture:
-		deluge::storage::Owner::run_or_inline(
-		    [](void*) {
-			    g_fixtureWritten = writeSampleSynthPreset(kSynthPreset, kSynthSample);
-			    printf("CS-PROBE fixture written=%d\n", g_fixtureWritten ? 1 : 0);
-		    },
-		    nullptr);
+		g_fixtureWritten = writeSampleSynthPreset(kSynthPreset, kSynthSample);
+		printf("CS-PROBE fixture written=%d\n", g_fixtureWritten ? 1 : 0);
 		g_ticks = 0;
 		g_stage = Stage::Settle;
 		break;
@@ -516,10 +512,8 @@ void deluge_scenario_clear_song_undo_dispatch_step(void) {
 	}
 	g_stepDone = false;
 	runTick();
-	// A marker op behind whatever the stage queued: the owner queue is FIFO, so this runs after it.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_clear_song_undo_step_done(void) {

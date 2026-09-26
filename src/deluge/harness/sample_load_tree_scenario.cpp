@@ -164,7 +164,11 @@ constexpr int32_t kMaxWaitTicks = 200000;
 /// audio engine, and a ticked walk returns to the run loop, which runs it anyway. 45 -> 42 -> 39 as the essential
 /// pass and then the rest pass started ticking; the crucial count 102 -> 99 -> 85, further because the rest pass
 /// is the larger of the two.
-constexpr int32_t kSongRoutines = 39;
+///
+/// 39 -> 40 when the harness stopped queuing its step markers and fixture builds on the storage owner (Kate's
+/// decision, 2026-09-26). No product code changed: the song load starts one tick later against the harness's own
+/// step timing, which the retired owner queue had set. Every other SLT line was identical before and after.
+constexpr int32_t kSongRoutines = 40;
 constexpr int32_t kSynthRoutines = 2;
 constexpr int32_t kKitRoutines = 3;
 constexpr int32_t kCrucialRoutines = 85;
@@ -1165,7 +1169,7 @@ bool beginAsyncLeg() {
 	return true;
 }
 
-void onOwner(void (*fn)());
+void buildFixture(void (*fn)());
 
 /// The card-gone leg's steps around a tick of its load. False while the leg is still between its steps.
 bool stepCardGone(const deluge::storage::AsyncSampleLoad::Progress& progress) {
@@ -1185,7 +1189,7 @@ bool stepCardGone(const deluge::storage::AsyncSampleLoad::Progress& progress) {
 		g_cardGoneStatusAfter = g_asyncContext.alternateDirStatus;
 		// The card back, on the owner as the card-detect routine puts it back; the probe's hold lifted; and a second
 		// load on the same context, whose first folder answer is the one this leg is about.
-		onOwner([] { audioFileManager.reinitEjectedCard(); });
+		buildFixture([] { audioFileManager.reinitEjectedCard(); });
 		deluge_file_bytes_set_latency_ms(0);
 		g_firstProbeAnswerArmed = true;
 		g_asyncLoad.emplace(AsyncSampleLoad::forSong(*currentSong, &g_asyncContext));
@@ -1512,10 +1516,43 @@ void checkAsyncLeg() {
 	}
 }
 
-/// Queue @p fn on the storage owner: the builds and preset loads do card I/O, which belongs there.
-void onOwner(void (*fn)()) {
-	if (!deluge::storage::Owner::run([](void* ctx) { reinterpret_cast<void (*)()>(ctx)(); },
-	                                 reinterpret_cast<void*>(fn))) {
+/// Fixture builds a tick asked for, run when the runner next asks whether the step is done: one virtual
+/// millisecond after the tick, which is where the retired storage-owner queue ran them. The gates are paced to that
+/// order, so builds are queued here rather than run inside the tick.
+std::vector<void (*)()> g_pendingFixtures{};
+
+/// Queue a fixture build for the end of this step. See g_pendingFixtures.
+void buildFixture(void (*fn)()) {
+	g_pendingFixtures.push_back(fn);
+}
+
+/// Run the next build this step queued, if any: one per call, as the owner queue ran one job per poll.
+/// @return Whether a build ran -- the step is not done on a call that ran one.
+bool runPendingFixture() {
+	if (g_pendingFixtures.empty()) {
+		return false;
+	}
+	void (*fn)() = g_pendingFixtures.front();
+	g_pendingFixtures.erase(g_pendingFixtures.begin());
+	fn();
+	return true;
+}
+
+/// Owner fixture builds queued and not yet run.
+int32_t g_ownerFixturesPending = 0;
+
+/// Runs the fixture build on the storage owner. Deferred to S2: the build calls `createNewInstrumentClip`, which queues
+/// itself on the owner with a pointer into its own stack frame when called anywhere else. The step is not done until it
+/// has run: step_done waits on g_ownerFixturesPending, as the retired marker did.
+void buildFixtureOnOwner(void (*fn)()) {
+	g_ownerFixturesPending++;
+	if (!deluge::storage::Owner::run(
+	        [](void* ctx) {
+		        reinterpret_cast<void (*)()>(ctx)();
+		        g_ownerFixturesPending--;
+	        },
+	        reinterpret_cast<void*>(fn))) {
+		g_ownerFixturesPending--;
 		printf("SLT-SETUP FAIL the storage owner's queue was full\n");
 		g_failures++;
 	}
@@ -1539,7 +1576,7 @@ void runTick() {
 	}
 	switch (g_stage) {
 	case Stage::SongKit:
-		onOwner([] {
+		buildFixture([] {
 			if (!writeKitPreset(kSongKitPath, {{kKitDrumName, kKitSample}})) {
 				g_stage = Stage::Report;
 			}
@@ -1551,7 +1588,7 @@ void runTick() {
 			g_stage = Stage::Report;
 			break;
 		}
-		onOwner([] {
+		buildFixtureOnOwner([] {
 			if (!buildSong()) {
 				g_stage = Stage::Report;
 			}
@@ -1590,7 +1627,7 @@ void runTick() {
 		}
 		break;
 	case Stage::Release:
-		onOwner(releaseSongFiles);
+		buildFixture(releaseSongFiles);
 		g_stage = Stage::LoadOpen;
 		break;
 	case Stage::LoadOpen:
@@ -1631,7 +1668,7 @@ void runTick() {
 		g_stage = Stage::Presets;
 		break;
 	case Stage::Presets:
-		onOwner([] {
+		buildFixture([] {
 			if (!writePresets()) {
 				g_stage = Stage::Report;
 			}
@@ -1639,15 +1676,15 @@ void runTick() {
 		g_stage = Stage::SynthPreset;
 		break;
 	case Stage::SynthPreset:
-		onOwner(loadSynthPreset);
+		buildFixture(loadSynthPreset);
 		g_stage = Stage::KitPreset;
 		break;
 	case Stage::KitPreset:
-		onOwner(loadKitPresetWithAbort);
+		buildFixture(loadKitPresetWithAbort);
 		g_stage = Stage::CrucialKit;
 		break;
 	case Stage::CrucialKit:
-		onOwner([] {
+		buildFixture([] {
 			if (!writeKitPreset(kCrucialKitPath, {{kCrucialDrumA, kCrucialKitSampleA},
 			                                      {kCrucialDrumB, kCrucialKitSampleB},
 			                                      {kCrucialDrumC, kCrucialKitSampleC}})) {
@@ -1657,7 +1694,7 @@ void runTick() {
 		g_stage = Stage::CrucialBuild;
 		break;
 	case Stage::CrucialBuild:
-		onOwner([] {
+		buildFixtureOnOwner([] {
 			if (!buildCrucialSong()) {
 				g_stage = Stage::Report;
 			}
@@ -1695,7 +1732,7 @@ void runTick() {
 		}
 		break;
 	case Stage::CrucialRelease:
-		onOwner(releaseCrucialSongFiles);
+		buildFixture(releaseCrucialSongFiles);
 		g_stage = Stage::CrucialPlay;
 		break;
 	case Stage::CrucialPlay:
@@ -1772,7 +1809,7 @@ void runTick() {
 		g_stage = Stage::AsyncRelease;
 		break;
 	case Stage::AsyncRelease:
-		onOwner(releaseForAsyncLeg);
+		buildFixture(releaseForAsyncLeg);
 		g_stage = Stage::AsyncBegin;
 		break;
 	case Stage::AsyncBegin:
@@ -1864,14 +1901,15 @@ void deluge_scenario_sample_load_tree_dispatch_step(void) {
 	}
 	g_stepDone = false;
 	runTick();
-	// A marker op behind whatever the stage queued: the owner queue is FIFO, so this runs after it.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_sample_load_tree_step_done(void) {
-	return g_stepDone;
+	if (runPendingFixture()) {
+		return false;
+	}
+	return g_stepDone && g_ownerFixturesPending == 0;
 }
 
 int32_t deluge_scenario_sample_load_tree_failures(void) {

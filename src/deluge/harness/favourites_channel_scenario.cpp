@@ -451,10 +451,8 @@ void deluge_scenario_favourites_channel_dispatch_step(void) {
 	deluge::storage::bytes::serviceRoutine();
 	favouritesManager.serviceRoutine();
 	runTick();
-	// A marker behind whatever the tick queued: the owner queue is FIFO, so this runs after it.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_favourites_channel_step_done(void) {

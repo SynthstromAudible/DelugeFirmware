@@ -396,10 +396,44 @@ bool fail(const char* leg, const char* what) {
 	return false;
 }
 
-/// Queue @p fn on the storage owner: the fixture builds read and write the card, which belongs there.
-void onOwner(void (*fn)()) {
-	if (!deluge::storage::Owner::run([](void* ctx) { reinterpret_cast<void (*)()>(ctx)(); },
-	                                 reinterpret_cast<void*>(fn))) {
+/// Fixture builds a tick asked for, run when the runner next asks whether the step is done: one virtual
+/// millisecond after the tick, which is where the retired storage-owner queue ran them. The gates are paced to that
+/// order, so builds are queued here rather than run inside the tick.
+std::vector<void (*)()> g_pendingFixtures{};
+
+/// Queue a fixture build for the end of this step. See g_pendingFixtures.
+void buildFixture(void (*fn)()) {
+	g_pendingFixtures.push_back(fn);
+}
+
+/// Run the next build this step queued, if any: one per call, as the owner queue ran one job per poll.
+/// @return Whether a build ran -- the step is not done on a call that ran one.
+bool runPendingFixture() {
+	if (g_pendingFixtures.empty()) {
+		return false;
+	}
+	void (*fn)() = g_pendingFixtures.front();
+	g_pendingFixtures.erase(g_pendingFixtures.begin());
+	fn();
+	return true;
+}
+
+/// Owner fixture builds queued and not yet run.
+int32_t g_ownerFixturesPending = 0;
+
+/// Runs the fixture build on the storage owner. Deferred to S2: the build calls
+/// `deluge::harness::createNewInstrumentClip`, which queues itself on the owner with a pointer into its own stack frame
+/// when called anywhere else. The step is not done until it has run: step_done waits on g_ownerFixturesPending, as the
+/// retired marker did.
+void buildFixtureOnOwner(void (*fn)()) {
+	g_ownerFixturesPending++;
+	if (!deluge::storage::Owner::run(
+	        [](void* ctx) {
+		        reinterpret_cast<void (*)()>(ctx)();
+		        g_ownerFixturesPending--;
+	        },
+	        reinterpret_cast<void*>(fn))) {
+		g_ownerFixturesPending--;
 		fail(legName(g_leg), "the storage owner's queue was full");
 	}
 }
@@ -685,7 +719,7 @@ bool openBrowserOnSynth(const char* leg, OscType osc) {
 void prepareLeg() {
 	switch (g_leg) {
 	case Leg::Kit:
-		onOwner([] {
+		buildFixtureOnOwner([] {
 			const KitPresetDrum presetDrum{.name = kKitDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kKitPresetPath, &presetDrum, 1)) {
 				// The new-kit-track gesture, which takes the first kit preset nobody in the song is using:
@@ -696,10 +730,10 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::AudioClip:
-		onOwner([] { g_audioClip = sessionView.createNewClip(OutputType::AUDIO, 2); });
+		buildFixture([] { g_audioClip = sessionView.createNewClip(OutputType::AUDIO, 2); });
 		break;
 	case Leg::RandomizeOne:
-		onOwner([] {
+		buildFixtureOnOwner([] {
 			// A kit of its own, whose drums all name the randomizer folder's first file: the randomizer picks from the
 			// folder a drum's sample sits in, and every other fixture is outside it.
 			KitPresetDrum drums[kRandomizeDrumCount];
@@ -749,7 +783,7 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::RandomizeCancelScan:
-		onOwner([] {
+		buildFixture([] {
 			// The legs before this one left the first drum on the stall folder. Back to the randomizer's own folder,
 			// unbound: a cancelled walk must leave both exactly as they are, so both are what the check reads.
 			SoundDrum* drum = kitDrum();
@@ -764,7 +798,7 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::RandomizeGate:
-		onOwner([] {
+		buildFixture([] {
 			SoundDrum* drum = kitDrum();
 			AudioFileHolder* holder = (drum != nullptr) ? firstHolder(drum->sources[0]) : nullptr;
 			if (holder == nullptr) {
@@ -776,7 +810,7 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::RandomizeStall:
-		onOwner([] {
+		buildFixture([] {
 			if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
 				fail("randomize-stall", "the randomizer kit clip is missing");
 				return;
@@ -815,7 +849,7 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::ImportKit:
-		onOwner([] {
+		buildFixtureOnOwner([] {
 			// A one-drum kit of its own: the kit menu offers "Load All" only into a kit with one drum.
 			const KitPresetDrum presetDrum{.name = kImportKitDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kImportKitPresetPath, &presetDrum, 1)) {
@@ -825,7 +859,7 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::ImportMulti:
-		onOwner([] {
+		buildFixtureOnOwner([] {
 			// A synth of its own, from a preset of its own: the multisample import replaces its source's ranges, and
 			// the new-synth-track gesture needs a synth preset nobody in the song is using.
 			if (writeSynthPreset(kImportSynthPresetPath)) {
@@ -838,7 +872,7 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::ImportGate:
-		onOwner([] {
+		buildFixtureOnOwner([] {
 			// A one-drum kit of its own: the import kit leg's kit holds three drums by now.
 			const KitPresetDrum presetDrum{.name = kImportGateDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kImportGatePresetPath, &presetDrum, 1)) {
@@ -848,7 +882,7 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::ImportStall:
-		onOwner([] {
+		buildFixture([] {
 			// The first and last files in memory before the hold, and the synth's ranges as the multisample leg left
 			// them.
 			Error error = Error::NONE;
@@ -873,7 +907,7 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::SliceManual:
-		onOwner([] {
+		buildFixtureOnOwner([] {
 			// A kit of its own: the region slice left the first with four drums.
 			const KitPresetDrum presetDrum{.name = kKitDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kManualKitPresetPath, &presetDrum, 1)) {
@@ -2133,14 +2167,15 @@ void deluge_scenario_sample_claim_dispatch_step(void) {
 	}
 	g_stepDone = false;
 	runTick();
-	// A marker op behind whatever the stage queued: the owner queue is FIFO, so this runs after it.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_sample_claim_step_done(void) {
-	return g_stepDone;
+	if (runPendingFixture()) {
+		return false;
+	}
+	return g_stepDone && g_ownerFixturesPending == 0;
 }
 
 int32_t deluge_scenario_sample_claim_failures(void) {

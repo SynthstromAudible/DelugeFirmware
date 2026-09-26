@@ -1357,6 +1357,9 @@ async fn run_offset_io_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_offset_io_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_offset_io_step_done() } {
             Timer::after_millis(1).await;
@@ -1419,6 +1422,9 @@ async fn run_path_operations_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_path_operations_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_path_operations_step_done() } {
             Timer::after_millis(1).await;
@@ -1480,6 +1486,9 @@ async fn run_startup_failsafe_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_startup_failsafe_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_startup_failsafe_step_done() } {
             Timer::after_millis(1).await;
@@ -1541,6 +1550,9 @@ async fn run_settings_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_settings_channel_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_settings_channel_step_done() } {
             Timer::after_millis(1).await;
@@ -1602,6 +1614,9 @@ async fn run_favourites_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_favourites_channel_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_favourites_channel_step_done() } {
             Timer::after_millis(1).await;
@@ -1658,6 +1673,9 @@ async fn run_song_save_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_song_save_channel_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_song_save_channel_step_done() } {
             Timer::after_millis(1).await;
@@ -1714,6 +1732,9 @@ async fn run_sample_collect_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_sample_collect_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_sample_collect_step_done() } {
             Timer::after_millis(1).await;
@@ -1908,6 +1929,9 @@ async fn run_sample_claim_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_sample_claim_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_sample_claim_step_done() } {
             Timer::after_millis(1).await;
@@ -2064,6 +2088,9 @@ async fn run_clear_song_undo_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_clear_song_undo_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_clear_song_undo_step_done() } {
             Timer::after_millis(1).await;
@@ -2121,6 +2148,9 @@ async fn run_preset_load_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_preset_load_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_preset_load_step_done() } {
             Timer::after_millis(1).await;
@@ -2176,6 +2206,9 @@ async fn run_card_reinsert_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_card_reinsert_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_card_reinsert_step_done() } {
             Timer::after_millis(1).await;
@@ -2231,6 +2264,9 @@ async fn run_sample_load_tree_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_sample_load_tree_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_sample_load_tree_step_done() } {
             Timer::after_millis(1).await;
@@ -2294,6 +2330,9 @@ async fn run_document_save_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_document_save_channel_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_document_save_channel_step_done() } {
             Timer::after_millis(1).await;
@@ -2376,6 +2415,9 @@ async fn run_song_load_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_song_load_channel_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_song_load_channel_step_done() } {
             Timer::after_millis(1).await;
@@ -2438,6 +2480,9 @@ async fn run_save_roundtrip_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_save_roundtrip_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_save_roundtrip_step_done() } {
             Timer::after_millis(1).await;
@@ -2505,6 +2550,9 @@ async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
         // One tick on the UI tier (with a marker op behind it on the storage owner)...
         // SAFETY: as above.
         unsafe { deluge_scenario_song_preview_ab_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // ...then wait for it to come back, letting the executor poll `file_prefix_task` (and the
         // fiber pump that runs the owner ops) in between.
         // SAFETY: as above.
@@ -2576,6 +2624,9 @@ async fn run_audio_load_ab_scenario(done: &'static AtomicBool) {
         // One attempt on the worker fiber...
         // SAFETY: as above.
         unsafe { deluge_scenario_audio_load_ab_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
         // ...then wait for it to come back, letting the executor poll `audio_load_task` (and the
         // fiber pump that runs the attempt itself) in between.
         // SAFETY: as above.
@@ -2852,23 +2903,31 @@ fn owner_jobs() -> u32 {
     unsafe { deluge_worker_jobs_run() }
 }
 
-/// The scenarios whose legs still exercise a product on-owner arm, deferred to S2: they report their count and pass.
-const OWNER_JOBS_ALLOWED: [&str; 2] = ["path_operations", "recorder_roundtrip"];
+/// The scenarios with work still deferred to S2 -- legs and fixture builds that call a product function which only works
+/// on the storage owner -- and EXACTLY how many jobs each runs there. Any other count fails, so a new owner job cannot
+/// hide behind the deferral. S2 empties this table.
+const OWNER_JOBS_DEFERRED: [(&str, u32); 6] = [
+    ("path_operations", 1),
+    ("recorder_roundtrip", 2),
+    ("sample_claim", 6),
+    ("preset_load", 2),
+    ("sample_load_tree", 2),
+    ("song_preview_ab", 1),
+];
 
-/// Fail the run if any job ran on the storage owner since `before` -- nothing but the S2-deferred legs may.
+/// Fail the run unless the jobs run on the storage owner since `before` are exactly what the scenario's S2 deferral
+/// accounts for (none, for every scenario not in [`OWNER_JOBS_DEFERRED`]).
 fn check_owner_jobs(scenario: &str, before: u32) {
     let jobs = owner_jobs().wrapping_sub(before);
-    if jobs == 0 {
-        return;
-    }
-    if OWNER_JOBS_ALLOWED.contains(&scenario) {
-        log::info!(
-            "golden_vt_render: {scenario}: {jobs} job(s) ran on the storage owner (deferred to S2)"
-        );
+    let expected = OWNER_JOBS_DEFERRED
+        .iter()
+        .find(|(name, _)| *name == scenario)
+        .map_or(0, |(_, n)| *n);
+    if jobs == expected {
         return;
     }
     log::error!(
-        "golden_vt_render: {jobs} job(s) ran on the storage owner after boot during {scenario}"
+        "golden_vt_render: {jobs} job(s) ran on the storage owner after boot during {scenario}, expected {expected}"
     );
     hard_exit(1);
 }

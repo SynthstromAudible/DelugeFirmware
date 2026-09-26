@@ -518,12 +518,8 @@ void deluge_scenario_save_roundtrip_dispatch_step(void) {
 	}
 	g_stepDone = false;
 	runTick();
-	// A marker op behind whatever the tick queued: the owner queue is FIFO, so this runs after the
-	// dispatched save (and immediately if nothing was dispatched). That is what makes each *Check
-	// stage read a result the op has actually produced.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_save_roundtrip_step_done(void) {

@@ -1057,12 +1057,8 @@ void deluge_scenario_document_save_channel_dispatch_step(void) {
 	}
 	g_stepDone = false;
 	runTick();
-	// A marker op behind whatever the tick queued: the owner queue is FIFO, so this runs after any
-	// work the tick dispatched. Setting g_stepDone directly races the owner, and the scenario sails
-	// past work it only just queued.
-	if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
-		g_stepDone = true;
-	}
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
 }
 
 bool deluge_scenario_document_save_channel_step_done(void) {
