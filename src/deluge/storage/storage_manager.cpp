@@ -41,7 +41,6 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
-#include "storage/owner.h"
 
 #include "etl/string.h"
 #include "util/firmware_version.h"

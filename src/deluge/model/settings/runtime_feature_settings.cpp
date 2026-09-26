@@ -193,7 +193,7 @@ void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 bool RuntimeFeatureSettings::readSettingsFromFile(deluge::storage::bytes::DoneFn onDone) {
 	// The channel first: it does the read in Rust, so nothing blocks anywhere. A false means the channel is
 	// not the place for this read here (boot, the owner, or a build without it) -- a busy channel queues it
-	// instead -- and the owner arm below does the same work where blocking is legal.
+	// instead -- and the inline arm below does the same work where blocking is legal.
 	if (deluge::storage::bytes::submitRead(RUNTIME_FEATURE_SETTINGS_FILE, LEGACY_RUNTIME_FEATURE_SETTINGS_FILE,
 	                                       &RuntimeFeatureSettings::parseSettingsBytes,
 	                                       /*onAbsent=*/nullptr, this, onDone)) {
@@ -221,7 +221,7 @@ void RuntimeFeatureSettings::parseSettingsBytes(void* ctx, char* bytes, uint32_t
 	activeDeserializer = previous;
 }
 
-void RuntimeFeatureSettings::readSettingsOnOwner() {
+void RuntimeFeatureSettings::readSettingsInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// CommunityFeatures.XML
 	switch (deluge::storage::bootstrap_action(StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE))) {
@@ -319,7 +319,7 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
-		writer.write(StorageManager::kXmlDocumentHead); // the owner arm gets this from createXMLFile
+		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
 		serialiseSettings(writer);
 		if (deluge::storage::bytes::submitWrite(RUNTIME_FEATURE_SETTINGS_FILE, writer.getBufferPtr(),
 		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
@@ -329,10 +329,10 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 		// blocking is legal; after boot it is refused and nothing is written.
 	}
 	(void)deluge::storage::bytes::runDuringBoot(
-	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->writeSettingsOnOwner(); }, this);
+	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->writeSettingsInline(); }, this);
 }
 
-void RuntimeFeatureSettings::writeSettingsOnOwner() {
+void RuntimeFeatureSettings::writeSettingsInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	deluge::io::unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 

@@ -21,7 +21,6 @@
 #include "libdeluge/file_bytes.h"
 #include "model/favourite/favourite_manager.h"
 #include "storage/byte_channel.h"
-#include "storage/owner.h"
 
 #include <cstdio>
 #include <cstring>

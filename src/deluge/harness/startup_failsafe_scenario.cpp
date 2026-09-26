@@ -22,7 +22,6 @@
 #include "libdeluge/file_bytes.h"
 #include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
-#include "storage/owner.h"
 #include "storage/startup_song.h"
 
 #include <cstdio>

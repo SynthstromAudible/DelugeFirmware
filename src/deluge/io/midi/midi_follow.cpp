@@ -1629,7 +1629,7 @@ void MidiFollow::writeDefaultsToFile() {
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
-		writer.write(StorageManager::kXmlDocumentHead); // the owner arm gets this from createXMLFile
+		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
 		serialiseDefaults(writer);
 		if (deluge::storage::bytes::submitWrite(MIDI_FOLLOW_XML, writer.getBufferPtr(),
 		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
@@ -1638,11 +1638,11 @@ void MidiFollow::writeDefaultsToFile() {
 		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
 		// blocking is legal; after boot it is refused and nothing is written.
 	}
-	(void)deluge::storage::bytes::runDuringBoot(
-	    [](void* ctx) { static_cast<MidiFollow*>(ctx)->writeDefaultsOnOwner(); }, this);
+	(void)deluge::storage::bytes::runDuringBoot([](void* ctx) { static_cast<MidiFollow*>(ctx)->writeDefaultsInline(); },
+	                                            this);
 }
 
-void MidiFollow::writeDefaultsOnOwner() {
+void MidiFollow::writeDefaultsInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// MidiFollow.xml
 	Error error = StorageManager::createXMLFile(MIDI_FOLLOW_XML, smSerializer, true);
@@ -1816,7 +1816,7 @@ void MidiFollow::writeDisplayParamSettingToFile(Serializer& writer) {
 bool MidiFollow::readDefaultsFromFile(deluge::storage::bytes::DoneFn onDone) {
 	if (deluge::storage::bytes::usingByteChannel()) {
 		// The early-out and the in-memory defaults happen HERE, before anything is submitted, because
-		// they are exactly what must be true whether the file turns up or not -- the owner arm sets
+		// they are exactly what must be true whether the file turns up or not -- the inline arm sets
 		// them up before its own read for the same reason.
 		if (successfullyReadDefaultsFromFile) {
 			return false; // nothing submitted, so nothing will report
@@ -1844,7 +1844,7 @@ void MidiFollow::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
 		self->successfullyReadDefaultsFromFile = true;
 	}
 	else {
-		// A document that will not open is treated exactly as the owner arm treats a failed
+		// A document that will not open is treated exactly as the inline arm treats a failed
 		// `openXMLFile`: write the defaults over it. Not a silent give-up -- that path is
 		// pre-existing behaviour, preserved.
 		activeDeserializer = previous;
@@ -1873,7 +1873,7 @@ void MidiFollow::writeDefaultsAbsent(void* ctx) {
 	self->successfullyReadDefaultsFromFile = true;
 }
 
-void MidiFollow::readDefaultsOnOwner() {
+void MidiFollow::readDefaultsInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {

@@ -39,7 +39,6 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/byte_channel.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include <cstdio>
 #include <cstring>

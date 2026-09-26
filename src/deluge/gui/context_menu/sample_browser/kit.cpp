@@ -23,7 +23,6 @@
 #include "gui/ui/slicer.h"
 #include "hid/display/display.h"
 #include "storage/file_item.h"
-#include "storage/owner.h"
 #include "util/functions.h"
 
 namespace deluge::gui::context_menu::sample_browser {

@@ -43,7 +43,6 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/owner.h"
 #include "util/functions.h"
 
 #include <cmath>

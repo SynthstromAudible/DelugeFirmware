@@ -23,7 +23,6 @@
 #include "libdeluge/file_directory.h"
 #include "storage/byte_channel.h"
 #include "storage/fs_status.h"
-#include "storage/owner.h"
 #include "storage/smsysex.h"
 #include "util/pack.h"
 

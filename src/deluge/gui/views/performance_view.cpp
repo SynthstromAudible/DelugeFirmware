@@ -1664,7 +1664,7 @@ void PerformanceView::writeDefaultsToFile() {
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
-		writer.write(StorageManager::kXmlDocumentHead); // the owner arm gets this from createXMLFile
+		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
 		serialiseDefaults(writer);
 		if (deluge::storage::bytes::submitWrite(PERFORM_DEFAULTS_XML, writer.getBufferPtr(),
 		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
@@ -1679,10 +1679,10 @@ void PerformanceView::writeDefaultsToFile() {
 	}
 	// A refusal leaves `anyChangesToSave` set, so the layout still reads as unsaved.
 	(void)deluge::storage::bytes::runDuringBoot(
-	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->writeDefaultsOnOwner(); }, this);
+	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->writeDefaultsInline(); }, this);
 }
 
-void PerformanceView::writeDefaultsOnOwner() {
+void PerformanceView::writeDefaultsInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// PerformanceView.xml
 	Error error = StorageManager::createXMLFile(PERFORM_DEFAULTS_XML, smSerializer, true);
@@ -1837,7 +1837,7 @@ void PerformanceView::readDefaultsFromFile() {
 		if (successfullyReadDefaultsFromFile) {
 			return;
 		}
-		// The pre-1.3 file at the card root is migrated by the channel, as the owner arm renames it.
+		// The pre-1.3 file at the card root is migrated by the channel, as the inline arm renames it.
 		if (deluge::storage::bytes::submitRead(PERFORM_DEFAULTS_XML, "PerformanceView.XML",
 		                                       &PerformanceView::parseDefaultsBytes, &PerformanceView::defaultsAbsent,
 		                                       this, &PerformanceView::defaultsReadDone)) {
@@ -1847,7 +1847,7 @@ void PerformanceView::readDefaultsFromFile() {
 	// The body where blocking is legal. The document is staged whole and walked over memory through
 	// `activeDeserializer`, so nothing here holds the card open across a parse.
 	(void)deluge::storage::bytes::runDuringBoot(
-	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->readDefaultsOnOwner(); }, this);
+	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->readDefaultsInline(); }, this);
 }
 
 void PerformanceView::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
@@ -1857,7 +1857,7 @@ void PerformanceView::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
 	FileDeserializer* previous = activeDeserializer;
 	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false, PERFORM_DEFAULTS_TAG)
 	    != Error::NONE) {
-		// A document that will not open lands on the default layout, as the owner arm's failed open does.
+		// A document that will not open lands on the default layout, as the inline arm's failed open does.
 		activeDeserializer = previous;
 		self->loadDefaultLayout();
 		return;
@@ -1876,18 +1876,18 @@ void PerformanceView::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
 }
 
 void PerformanceView::defaultsAbsent(void* ctx) {
-	// Absent in both locations: the owner arm's `WriteDefaults` case, which ends on the default layout.
+	// Absent in both locations: the inline arm's `WriteDefaults` case, which ends on the default layout.
 	static_cast<PerformanceView*>(ctx)->loadDefaultLayout();
 }
 
 void PerformanceView::defaultsReadDone(void* ctx, deluge::storage::bytes::SettingsOutcome outcome) {
-	// An unreadable card is the owner arm's `UseInMemoryOnly`: the default layout for this session, nothing written.
+	// An unreadable card is the inline arm's `UseInMemoryOnly`: the default layout for this session, nothing written.
 	if (outcome == deluge::storage::bytes::SettingsOutcome::Unreadable) {
 		static_cast<PerformanceView*>(ctx)->loadDefaultLayout();
 	}
 }
 
-void PerformanceView::readDefaultsOnOwner() {
+void PerformanceView::readDefaultsInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {

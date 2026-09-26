@@ -703,7 +703,7 @@ static void deluge_boot(const DelugeBoard* board) {
 	// (storage/startup_song.h) behind the same card-ready trigger as the startup song, through the
 	// byte channel. Boot therefore touches the card not at all, and the UI starts without waiting
 	// for it -- which is what lets the reads' blocking arms be deleted, and with them the boot
-	// window that `Owner::started()` exists to name.
+	// window that `deluge::boot::finished()` names.
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
 	addConditionalTask(startupConditionalTask, 100, isCardReady, "startup/render", RESOURCE_SD | RESOURCE_SD_ROUTINE);

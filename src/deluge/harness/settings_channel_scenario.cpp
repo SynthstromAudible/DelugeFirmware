@@ -25,7 +25,6 @@
 #include "libdeluge/file_bytes.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/byte_channel.h"
-#include "storage/owner.h"
 
 #include <cstdio>
 #include <cstring>

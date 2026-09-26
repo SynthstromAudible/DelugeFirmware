@@ -453,9 +453,8 @@ enum class IoTier : uint8_t {
 
 /// @brief Record one entry. Call as the FIRST statement of each consumer's io path.
 ///
-/// Boot is the one legal exception: `deluge.cpp` reads all three settings files before any
-/// interaction tier exists, measured `on_owner=0 started=0`. `Owner::started()` is the same
-/// monotonic latch the TIR reader checks use.
+/// Boot is the one legal exception: before `deluge::boot::finished()`, blocking on the card is legal, and nothing is
+/// counted.
 void noteIoTier(IoTier which);
 
 /// @}

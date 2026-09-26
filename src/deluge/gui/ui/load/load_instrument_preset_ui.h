@@ -25,7 +25,6 @@
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/latest_wins.h"
-#include "storage/owner.h"
 #include "storage/preset_acquisition.h"
 
 class Instrument;

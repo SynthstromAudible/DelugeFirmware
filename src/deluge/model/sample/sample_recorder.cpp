@@ -960,7 +960,7 @@ bool SampleRecorder::closeFailedTake() {
 namespace {
 /// Create `path` and every missing level above it, synchronously.
 ///
-/// The owner arm's counterpart to the byte channel's `mkdir_all`, which walks the segments in Rust.
+/// The inline arm's counterpart to the byte channel's `mkdir_all`, which walks the segments in Rust.
 /// This is the same one-level-at-a-time retry the create block used to express with
 /// `cutRecordingFolderPathAndTryCreating`, minus the goto: shorten the path at each separator until
 /// a mkdir succeeds, then create back down.

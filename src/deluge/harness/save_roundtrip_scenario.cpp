@@ -28,7 +28,6 @@
 #include "gui/views/arranger_view.h"
 #include "io/file.hpp"
 #include "model/song/song.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include <cstdio>
 #include <cstdlib>

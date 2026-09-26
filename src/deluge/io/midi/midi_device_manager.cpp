@@ -448,12 +448,12 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 }
 
 /// @brief `writeDevicesToFile`'s body, run where blocking on the card is legal.
-void writeDevicesOnOwner();
+void writeDevicesInline();
 /// @brief `readDevicesFromFile`'s body, run where blocking on the card is legal.
-void readDevicesOnOwner();
+void readDevicesInline();
 /// @brief Walk an already-opened document into the in-memory device table.
 ///
-/// Shared by both arms: the owner arm's reader is a file, the channel arm's is the bytes the channel
+/// Shared by both arms: the inline arm's reader is a file, the channel arm's is the bytes the channel
 /// delivered, and neither difference reaches here.
 void parseDevices(Deserializer& reader);
 /// @brief Write the device table into an already-opened serialiser, file- or memory-backed.
@@ -463,7 +463,7 @@ void parseDevicesBytes(void* ctx, char* bytes, uint32_t len);
 
 /// @brief Whether any port or hosted device has settings worth putting in the file.
 ///
-/// Factored out of `writeDevicesOnOwner` so the dispatcher can ask it before choosing an arm: a
+/// Factored out of `writeDevicesInline` so the dispatcher can ask it before choosing an arm: a
 /// "nothing worth writing" answer means DELETE the file, and this channel carries no unlink.
 bool anythingWorthWriting() {
 	if (dinMIDIPorts.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
@@ -480,8 +480,8 @@ bool anythingWorthWriting() {
 
 void writeDevicesToFile() {
 	if (deluge::storage::bytes::usingByteChannel() && anyChangesToSave && !anythingWorthWriting()) {
-		// Nothing worth keeping: remove the file -- the unlink the owner arm below makes inline, carried by the channel
-		// instead. A file that is already gone counts as removed.
+		// Nothing worth keeping: remove the file -- the unlink the inline arm below makes inline, carried by the
+		// channel instead. A file that is already gone counts as removed.
 		if (deluge::storage::bytes::submitUnlink(MIDI_DEVICES_XML)) {
 			anyChangesToSave = false;
 			return;
@@ -492,7 +492,7 @@ void writeDevicesToFile() {
 		// dies at the end of this scope, which is safe because `submitWrite` copies.
 		XMLSerializer writer;
 		writer.setMemoryBased();
-		writer.write(StorageManager::kXmlDocumentHead); // the owner arm gets this from createXMLFile
+		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
 		serialiseDevices(writer);
 		if (deluge::storage::bytes::submitWrite(MIDI_DEVICES_XML, writer.getBufferPtr(),
 		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
@@ -506,10 +506,10 @@ void writeDevicesToFile() {
 		// blocking is legal; after boot it is refused and nothing is written.
 	}
 	// A refusal leaves `anyChangesToSave` set, so the next save retries.
-	(void)deluge::storage::bytes::runDuringBoot([](void*) { writeDevicesOnOwner(); }, nullptr);
+	(void)deluge::storage::bytes::runDuringBoot([](void*) { writeDevicesInline(); }, nullptr);
 }
 
-void writeDevicesOnOwner() {
+void writeDevicesInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	if (!anyChangesToSave) {
 		return;
@@ -607,7 +607,7 @@ void parseDevicesBytes(void* /*ctx*/, char* bytes, uint32_t len) {
 	activeDeserializer = previous;
 }
 
-void readDevicesOnOwner() {
+void readDevicesInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// Owner-audit exemption: this runs once at boot, before the storage-owner worker pump is
 	// reliably driving, and reads the card when nothing else does (so it is not a FatFS-reentrancy

@@ -116,13 +116,13 @@ public:
 	/// @return Whether the CHANNEL accepted the read -- i.e. whether @p onDone will be called.
 	bool readSettingsFromFile(deluge::storage::bytes::DoneFn onDone = nullptr);
 	/// @brief readSettingsFromFile's body, run where blocking on the card is legal.
-	void readSettingsOnOwner();
+	void readSettingsInline();
 	void writeSettingsToFile();
 	/// @brief writeSettingsToFile's body, run where blocking on the card is legal.
-	void writeSettingsOnOwner();
+	void writeSettingsInline();
 	/// @brief Walk an already-opened document into the in-memory settings.
 	///
-	/// Shared by both arms: the owner arm's reader is a file, the channel arm's is the bytes the
+	/// Shared by both arms: the inline arm's reader is a file, the channel arm's is the bytes the
 	/// channel delivered, and neither difference reaches here.
 	void parseSettings(Deserializer& reader);
 	/// @brief Write the settings into an already-opened serialiser, file-backed or memory-backed.

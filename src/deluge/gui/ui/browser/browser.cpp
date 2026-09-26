@@ -450,7 +450,7 @@ void Browser::close() {
 	// Nothing needs to chase the channel: an answer nobody collects is refused at its take on the
 	// next card generation, and the handle it holds is closed there or by the next flush.
 	if (listingInProgress_) {
-		// Only runPendingListing's own exit used to clear this, and under the owner arm that exit was
+		// Only runPendingListing's own exit used to clear this, and under the inline arm that exit was
 		// always reached because the queued op always ran. A tick-surface attempt cancelled here has
 		// no such exit, so without this the browser closes with "Working" left on screen and nothing
 		// remaining to take it down.
@@ -640,7 +640,7 @@ Error Browser::setFileByFullPathImpl(char const* fullPath) {
 }
 
 namespace {
-/// The path the owner arm is creating. Held here because the dispatched body runs after this call
+/// The path the inline arm is creating. Held here because the dispatched body runs after this call
 /// has returned, so it cannot read the caller's argument.
 std::string g_ownerCreatePath;
 
@@ -2022,7 +2022,7 @@ namespace {
 /// Unchanged from what `createFoldersRecursiveIfNotExists` did inline, including its pre-existing
 /// quirk, which is not this rung's to fix. The channel arm does not come here at all: its walk lives
 /// in Rust, in one place, so neither this caller nor `smSysex` needs a loop of its own.
-Error createFoldersRecursiveOnOwner(const char* path) {
+Error createFoldersRecursiveInline(const char* path) {
 	char tempPath[256];
 	size_t len = 0;
 
@@ -2069,7 +2069,7 @@ Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
 	(void)deluge::storage::bytes::runDuringBoot(
 	    [](void*) {
 		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
-		    (void)createFoldersRecursiveOnOwner(g_ownerCreatePath.c_str());
+		    (void)createFoldersRecursiveInline(g_ownerCreatePath.c_str());
 	    },
 	    nullptr);
 	return Error::NONE;

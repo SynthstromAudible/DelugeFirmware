@@ -162,7 +162,7 @@ private:
 	/// write/load default values
 	void writeDefaultsToFile();
 	/// @brief writeDefaultsToFile's body, run where blocking on the card is legal.
-	void writeDefaultsOnOwner();
+	void writeDefaultsInline();
 	/// @brief Write the performance defaults into an already-opened serialiser, file- or
 	///        memory-backed.
 	void serialiseDefaults(Serializer& writer);
@@ -174,7 +174,7 @@ private:
 	void readDefaultsFromBackedUpFile();
 	void readDefaultsFromFile();
 	/// @brief readDefaultsFromFile's body, run where blocking on the card is legal.
-	void readDefaultsOnOwner();
+	void readDefaultsInline();
 	/// @brief `deluge::storage::bytes::ParseFn` for the defaults, over channel-delivered bytes.
 	static void parseDefaultsBytes(void* ctx, char* bytes, uint32_t len);
 	/// @brief `deluge::storage::bytes::AbsentFn`: the defaults file is absent in both locations.

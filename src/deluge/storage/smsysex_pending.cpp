@@ -80,10 +80,10 @@ bool viaChannel() {
 
 /// Copy `from` to `to` synchronously, block by block.
 ///
-/// Only the owner arm reaches this. Its shape is `smSysex::performFileCopy`'s former body, minus the
+/// Only the inline arm reaches this. Its shape is `smSysex::performFileCopy`'s former body, minus the
 /// path-creation retry: the destination's parent is created by the open below, and the channel arm
 /// does not come here at all.
-deluge::io::Status copyOnOwner(const std::string& from, const std::string& to) {
+deluge::io::Status copyInline(const std::string& from, const std::string& to) {
 	auto src = deluge::io::File::open(from, DELUGE_FILE_READ);
 	if (!src.has_value()) {
 		return src.error();
@@ -121,7 +121,7 @@ deluge::io::Status copyOnOwner(const std::string& from, const std::string& to) {
 
 /// Run the operation synchronously. Reached only through `runDuringBoot`, so never anywhere a
 /// card wait is disallowed.
-void runOnOwner() {
+void runInline() {
 	std::expected<void, deluge::io::Status> result{};
 	switch (g_op) {
 	case PathOp::Unlink:
@@ -219,8 +219,8 @@ void runOnOwner() {
 		// The loop, kept HERE and only here. The channel arm has none -- `copy_file` is one request
 		// and the loop runs in Rust -- but a build without the channel must still be able to copy a
 		// file, so the fallback keeps the walk. Same division as the browser's recursive mkdir: the
-		// channel arm is loop-free, the owner arm is not.
-		g_ownerStatus = copyOnOwner(g_pathA, g_pathB);
+		// channel arm is loop-free, the inline arm is not.
+		g_ownerStatus = copyInline(g_pathA, g_pathB);
 		g_ownerDone = true;
 		return;
 	case PathOp::None:
@@ -278,7 +278,7 @@ void issue() {
 		return;
 	}
 	g_ownerDone = false;
-	if (!deluge::storage::bytes::runDuringBoot([](void*) { runOnOwner(); }, nullptr)) {
+	if (!deluge::storage::bytes::runDuringBoot([](void*) { runInline(); }, nullptr)) {
 		// Refused: after boot, off the owner, only a channel that stopped answering reaches here. The host
 		// is told the operation timed out rather than left waiting for a reply that never comes.
 		g_ownerStatus = deluge::io::Status::TIMEOUT;

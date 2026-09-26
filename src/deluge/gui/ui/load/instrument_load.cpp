@@ -30,7 +30,6 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/file_item.h"
-#include "storage/owner.h"
 #include "util/functions.h"
 
 namespace deluge::gui {

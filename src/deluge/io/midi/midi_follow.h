@@ -44,13 +44,13 @@ public:
 	void factoryReset(bool showPopup = true);
 	void writeDefaultsToFile();
 	/// @brief writeDefaultsToFile's body, run where blocking on the card is legal.
-	void writeDefaultsOnOwner();
+	void writeDefaultsInline();
 	/// @brief Read the follow defaults, preferring the channel.
 	/// @param onDone Told how the channel operation ended, when the channel took it.
 	/// @return Whether the CHANNEL accepted the read -- i.e. whether @p onDone will be called.
 	bool readDefaultsFromFile(deluge::storage::bytes::DoneFn onDone = nullptr);
 	/// @brief readDefaultsFromFile's body, run where blocking on the card is legal.
-	void readDefaultsOnOwner();
+	void readDefaultsInline();
 	/// @brief Put the in-memory follow settings into their out-of-the-box state.
 	///
 	/// What must be true whether the file turns up or not, so both arms do it before reading.

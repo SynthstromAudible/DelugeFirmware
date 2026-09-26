@@ -91,7 +91,7 @@ public:
 private:
 	/// The one operation issued and not yet applied.
 	///
-	/// The owner arm fills `outcome` and `scratch` on the storage owner and only THEN sets `resultReady`;
+	/// The inline arm fills `outcome` and `scratch` on the storage owner and only THEN sets `resultReady`;
 	/// the interaction tier reads nothing but `resultReady` until it is set, and the owner touches nothing
 	/// after setting it.
 	struct InFlight {
@@ -113,8 +113,8 @@ private:
 
 	static void parseBankBytes(void* ctx, char* bytes, uint32_t len);
 	static void channelDone(void* ctx, deluge::storage::bytes::SettingsOutcome outcome);
-	static void runIntentOnOwner(void* ctx);
-	static void loadOnOwner(InFlight& inFlight);
+	static void runIntentInline(void* ctx);
+	static void loadInline(InFlight& inFlight);
 
 	bool unsavedChanges = false;
 	std::string currentCategory{};

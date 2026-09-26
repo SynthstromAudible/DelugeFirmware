@@ -22,7 +22,6 @@
 #include "hid/display/display.h"
 #include "io/file.hpp"
 #include "storage/existence_policy.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 
 #include <cstdint>
@@ -124,7 +123,7 @@ void FavouritesManager::requestLoad() {
 std::string FavouritesManager::serialiseBank() const {
 	XMLSerializer writer;
 	writer.setMemoryBased();
-	// The owner arm used to get this head from createXMLFile. Both arms now write this same snapshot, head
+	// The inline arm used to get this head from createXMLFile. Both arms now write this same snapshot, head
 	// included, so the two legs' files are byte-identical.
 	writer.write(StorageManager::kXmlDocumentHead);
 	writer.writeArrayStart("favourites");
@@ -272,7 +271,7 @@ void FavouritesManager::issueNext() {
 		// Not taken: too large for the channel (a busy channel queues instead).
 	}
 
-	if (bytes::runDuringBoot(&runIntentOnOwner, this)) {
+	if (bytes::runDuringBoot(&runIntentInline, this)) {
 		return;
 	}
 	// Refused: off the owner after boot, with an intent the channel would not take. End it now, as a failure, so the
@@ -293,7 +292,7 @@ void FavouritesManager::parseBankBytes(void* ctx, char* bytes, uint32_t len) {
 		(void)loadFavouritesFromFile(*activeDeserializer, self->inFlight_.scratch);
 	}
 	// A document that will not open leaves the scratch empty and the outcome Parsed: today's "reset to empty
-	// and carry on" for a corrupt bank, preserved. The owner arm matches it for FILE_CORRUPTED.
+	// and carry on" for a corrupt bank, preserved. The inline arm matches it for FILE_CORRUPTED.
 	activeDeserializer = previous;
 }
 
@@ -304,12 +303,12 @@ void FavouritesManager::channelDone(void* ctx, SettingsOutcome outcome) {
 	self->inFlight_.resultReady.store(true, std::memory_order_release);
 }
 
-void FavouritesManager::runIntentOnOwner(void* ctx) {
+void FavouritesManager::runIntentInline(void* ctx) {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Favourites);
 	auto* self = static_cast<FavouritesManager*>(ctx);
 	InFlight& inFlight = self->inFlight_;
 	if (inFlight.intent.kind == FavouritesIntent::Kind::Load) {
-		loadOnOwner(inFlight);
+		loadInline(inFlight);
 	}
 	else {
 		inFlight.outcome = writeSnapshot(inFlight.intent.path, inFlight.intent.bytes) ? SettingsOutcome::Written
@@ -319,7 +318,7 @@ void FavouritesManager::runIntentOnOwner(void* ctx) {
 	inFlight.resultReady.store(true, std::memory_order_release);
 }
 
-void FavouritesManager::loadOnOwner(InFlight& inFlight) {
+void FavouritesManager::loadInline(InFlight& inFlight) {
 	const char* path = inFlight.intent.path.c_str();
 	// Unknown is never absent: see the spec's data loss path 1.
 	switch (deluge::storage::presence_of(StorageManager::fileExists(path))) {
