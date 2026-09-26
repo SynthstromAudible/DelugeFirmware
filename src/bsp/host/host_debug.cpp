@@ -88,12 +88,14 @@ void onSignal(int sig) {
 	g_request = (sig == SIGUSR1) ? 1 : 2;
 }
 
-// Kit-copy reproduction harness. With DELUGE_HOST_KIT_COPY_REPS=N, once the app has booted, create N new KIT tracks -
-// each calls the path from the bug report (createNewTrackForInstrumentClip -> setPresetOrNextUnlaunchedOne, which loads
-// the *next* unlaunched kit preset from KITS/ plus all its samples). The first loads 000 TR-808, then 001, 002 SDS-5,
-// ... exactly as the device log showed. We snapshot the allocation table around it; the FULL-internal pressure shows in
-// the D_PRINTLN log, and anything leaked on the INSUFFICIENT_RAM error path shows in the closing leakReport().
+// Kit-copy reproduction harness. With DELUGE_HOST_KIT_COPY_REPS=N and DELUGE_HOST_KIT_COPY_PRESET=<path> (e.g.
+// "KITS/000 TR-808.XML"), once the app has booted, create N new KIT tracks, each loading that preset plus all its
+// samples into a fresh Instrument, as the new-track gesture does. (The bug report's path loaded the *next* unlaunched
+// kit preset each time; the synchronous walk that picked it is retired, so the preset is named instead.) We snapshot
+// the allocation table around it; the FULL-internal pressure shows in the D_PRINTLN log, and anything leaked on the
+// INSUFFICIENT_RAM error path shows in the closing leakReport().
 int g_kitCopyReps = -1; // -1 = not yet read, 0 = disabled
+const char* g_kitCopyPreset = nullptr;
 uint32_t g_pollCount = 0;
 bool g_kitCopyDone = false;
 
@@ -101,6 +103,12 @@ void runKitCopyHarnessIfDue() {
 	if (g_kitCopyReps < 0) {
 		const char* env = std::getenv("DELUGE_HOST_KIT_COPY_REPS");
 		g_kitCopyReps = env ? std::atoi(env) : 0;
+		g_kitCopyPreset = std::getenv("DELUGE_HOST_KIT_COPY_PRESET");
+		if (g_kitCopyReps > 0 && g_kitCopyPreset == nullptr) {
+			printf("[kit-copy] DELUGE_HOST_KIT_COPY_PRESET is not set; nothing to load\n");
+			std::fflush(stdout);
+			g_kitCopyReps = 0;
+		}
 	}
 	if (g_kitCopyReps <= 0 || g_kitCopyDone) {
 		return;
@@ -111,12 +119,12 @@ void runKitCopyHarnessIfDue() {
 	}
 	g_kitCopyDone = true;
 
-	printf("[kit-copy] creating %d new KIT tracks (each loads the next kit preset + its samples)\n", g_kitCopyReps);
+	printf("[kit-copy] creating %d new KIT tracks (each loads %s + its samples)\n", g_kitCopyReps, g_kitCopyPreset);
 	std::fflush(stdout);
 	uint32_t snap = leakSnapshot();
 
 	for (int i = 0; i < g_kitCopyReps; i++) {
-		Clip* clip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 0);
+		Clip* clip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 0, g_kitCopyPreset);
 		printf("[kit-copy] rep %d: clip=%p, live allocations now %u\n", i, (void*)clip, (unsigned)leakLiveCount());
 		std::fflush(stdout);
 		if (clip == nullptr) {
