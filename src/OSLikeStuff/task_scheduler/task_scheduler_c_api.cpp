@@ -17,6 +17,7 @@
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
+#include "libdeluge/boot.h"
 #include "libdeluge/storage_owner.h" // deluge_storage_on_owner — cooperative default (Embassy BSP overrides)
 #include "libdeluge/storage_wait.h"
 #include "libdeluge/system.h" // deluge_in_interrupt — the ISR guard, via the boundary
@@ -136,6 +137,11 @@ bool deluge_worker_on_worker(void) {
 // first time an interaction-tier caller reached one of load_instrument_preset_ui.cpp's readers on
 // this BSP, since `on_owner()` staying always-false would then never satisfy the left-hand side.
 bool deluge_worker_started(void) {
+	return false;
+}
+
+// libdeluge/boot.h -- C++-only default: the BSP owns the boot latch; a build without one never finishes booting.
+bool deluge_boot_finished(void) {
 	return false;
 }
 

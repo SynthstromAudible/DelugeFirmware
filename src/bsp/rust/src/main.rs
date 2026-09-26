@@ -152,6 +152,8 @@ mod audio_loader;
 /// bring-up bodies get host no-op siblings — see board.rs).
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod board;
+/// The boot latch (`libdeluge/boot.h`): set once, right after `deluge_app_init` returns.
+mod boot;
 /// C++ memory-model bring-up (SDRAM bss/data, global ctors).
 #[cfg(target_os = "none")]
 mod boot_mem;
@@ -733,6 +735,7 @@ async fn app_task() {
     // executor via scheduler::set_spawner's stashed spawner. They begin running as
     // soon as we yield below.
     unsafe { deluge_app_init(board::deluge_board()) };
+    boot::mark_finished();
     log::info!("deluge-rust: scheduler running; pumping async worker");
 
     // The scheduler's task runners own the periodic app work. This task now pumps
@@ -813,6 +816,7 @@ async fn host_app_task() {
     // executor via scheduler::set_spawner's stashed spawner. They begin running
     // as soon as we yield below.
     unsafe { deluge_app_init(board::deluge_board()) };
+    boot::mark_finished();
     log::info!("deluge-bsp-rust: host scheduler running; pumping async worker");
 
     // Same wake-driven pump shape as the device `app_task` — see there for the

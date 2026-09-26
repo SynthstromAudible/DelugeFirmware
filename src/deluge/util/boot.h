@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "libdeluge/worker.h"
+#include "libdeluge/boot.h"
 
 namespace deluge::boot {
 
@@ -27,9 +27,10 @@ namespace deluge::boot {
 /// the channels are the only place card I/O may start from. A C++-only build (cooperative scheduler, C-host
 /// tools, host unit tests) never finishes booting in this sense, so it always takes the inline arm.
 ///
-/// Monotonic: false, then true for the rest of the process.
+/// Monotonic: false, then true for the rest of the process. Backed by the BSP's boot latch
+/// (`deluge_boot_mark_finished`).
 [[nodiscard]] inline bool finished() {
-	return deluge_worker_started();
+	return deluge_boot_finished();
 }
 
 } // namespace deluge::boot

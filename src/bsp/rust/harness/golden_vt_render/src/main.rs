@@ -141,6 +141,8 @@ mod audio_host;
 mod audio_loader;
 #[path = "../../../src/board.rs"]
 mod board;
+#[path = "../../../src/boot.rs"]
+mod boot;
 /// `deluge_card_flush` — the ejection hook that bumps the shared card generation and then clears
 /// every loader's tables. Compiled unconditionally, like the loaders it clears.
 #[path = "../../../src/card.rs"]
@@ -414,6 +416,7 @@ async fn boot_task() {
     // SAFETY: called once, after `scheduler::set_spawner` (main, below) and
     // before anything else touches `currentSong`/scheduler state.
     unsafe { deluge_app_init(board::deluge_board()) };
+    boot::mark_finished();
     BOOT_MOUNTED.store(true, Ordering::Release);
     log::info!("golden_vt_render: boot+mount complete; scheduler running; pumping async worker");
 

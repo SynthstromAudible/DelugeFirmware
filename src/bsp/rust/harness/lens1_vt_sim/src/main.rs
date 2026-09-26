@@ -121,6 +121,8 @@ mod sys {
 mod audio_host;
 #[path = "../../../src/board.rs"]
 mod board;
+#[path = "../../../src/boot.rs"]
+mod boot;
 #[path = "../../../src/control.rs"]
 mod control;
 #[path = "../../../src/display.rs"]
@@ -225,6 +227,7 @@ async fn boot_task() {
     // SAFETY: called once, after `scheduler::set_spawner` (main, below) and
     // before anything else touches `currentSong`/scheduler state.
     unsafe { deluge_app_init(board::deluge_board()) };
+    boot::mark_finished();
     log::info!("lens1-vt-sim: scheduler running; pumping async worker");
 
     use embassy_futures::select::select;
