@@ -60,10 +60,11 @@ enum class WalkPhase : uint8_t {
 /// returns `Error::LISTING_DEFERRED`, and the phase does not advance, so re-entering re-asks for the
 /// same directory and no open is ever made twice.
 ///
-/// What this replaces is `LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders`,
-/// which recurses into subfolders with backtracking. A recursion cannot be split across a deferral,
-/// which is why that walk had to run start-to-finish on the storage owner and why it is one of the
-/// last things keeping the fiber alive. Here the recursion is an explicit frame stack, and the read
+/// What this replaced is the retired synchronous walk
+/// (`LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders`), which recursed into
+/// subfolders with backtracking. A recursion cannot be split across a deferral, which is why that walk
+/// had to run start-to-finish on the storage owner and why it was one of the last things keeping the
+/// fiber alive. Here the recursion is an explicit frame stack, and the read
 /// that each frame makes is the browser's own resumable one.
 ///
 /// @warning **A failed descent resumes the parent through the PAGING path**, not by advancing a
@@ -115,7 +116,7 @@ public:
 	/// @brief What the search found. Only meaningful once @ref running is false.
 	[[nodiscard]] std::expected<FileItem*, Error> result() const { return result_; }
 
-	/// @name Lenses for the `preset-load` gate's PL-WALK legs.
+	/// @name Lenses for the `preset-load` gate's PW-WALK legs.
 	/// @{
 	/// The deepest the stack got. 1 means the walk never descended -- the failure a flat card cannot
 	/// see, and the one that would make a user's nested presets silently vanish.

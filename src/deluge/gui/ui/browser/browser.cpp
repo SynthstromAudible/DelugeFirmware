@@ -1052,8 +1052,9 @@ Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char c
 	//    that can.
 	//
 	// Boot is the same legal exception the siblings carry. Anything else is an interaction-tier call
-	// with nowhere to put a deferral. FREEZE_WITH_ERROR rather than a bare assert() for the reason
-	// given at the sibling in findAnUnlaunchedPresetIncludingWithinSubfolders().
+	// with nowhere to put a deferral. FREEZE_WITH_ERROR rather than a bare assert(): a bare assert() is
+	// compiled out of the shipping build, and on the Rust BSP abort() ends the process with nothing on the
+	// display (the reason the retired synchronous walk's own guard gave).
 	if (ALPHA_OR_BETA_VERSION && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()
 	    && !listing_.active) {
 		FREEZE_WITH_ERROR("TIR4");

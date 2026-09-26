@@ -1854,7 +1854,7 @@ bool buildPresetFixture(const char* dir, const char* namePrefix, int32_t count) 
 
 // Drives the REAL gesture entry point that acquires an instrument -- ArrangerView::
 // beginNewInstrumentAcquisition(), extracted verbatim from the pad-press handler -- which is the
-// only thing that exercises findAnUnlaunchedPresetIncludingWithinSubfolders' recursive descent (see
+// only thing that exercises the Unlaunched search's descent into subfolders (see
 // the rung 5 spec, section 2b). Since rung 5 task 3, this gesture DISPATCHES onto the storage owner
 // (Owner::run_or_inline enqueues rather than running inline -- this Embassy host harness's
 // on_owner() is false while a tick is running, since the tick itself runs on the UI tier, not the
@@ -1910,7 +1910,7 @@ enum class AcquireStep : uint8_t {
 };
 AcquireStep g_acquireStep = AcquireStep::Fixture;
 
-// The INSTRUMENT folder, not a song folder: findAnUnlaunchedPresetIncludingWithinSubfolders reads
+// The INSTRUMENT folder, not a song folder: the Unlaunched search (PresetWalk) reads
 // getInstrumentFolder(outputType), which is "SYNTHS". BIGLIST holds song XML and would make every
 // acquisition fail identically on both legs -- a gate comparing two failures. Pinned against drift
 // by AcquireStep::Fixture, which compares this literal to getInstrumentFolder(OutputType::SYNTH)
@@ -2123,9 +2123,8 @@ void runAcquireTick() {
 	}
 	case AcquireStep::Nested: {
 		// The top level is now empty (Reference released, but Converted kept, the one preset there
-		// ever was), so findAnUnlaunchedPresetIncludingWithinSubfolders MUST reach its subfolder loop
-		// (load_instrument_preset_ui.cpp:1317) to find anything -- the recursive descent this whole
-		// stage exists to cover.
+		// ever was), so the Unlaunched search (PresetWalk) MUST descend into a subfolder to find
+		// anything -- the descent this whole stage exists to cover.
 		dispatchAcquisitionGesture();
 		g_acqLoads++;
 		g_acquireStep = AcquireStep::NestedCheck;
@@ -2532,7 +2531,7 @@ void runAcquireTick() {
 		// getUnusedSlot(), not one of the three LoadInstrumentPresetUI readers -- see the rung 5 task 6
 		// fix round). Deliberately LAST: it creates a genuinely new "SYNT<N>"-named Instrument and adds
 		// it to the live Song (createNewInstrument() -> currentSong->addOutput()), which earlier steps'
-		// findAnUnlaunchedPresetIncludingWithinSubfolders()-backed scans would otherwise pick up as an
+		// Unlaunched scans would otherwise pick up as an
 		// in-memory candidate (readFolder() merges card files with live Outputs)
 		// and land on instead of the fixture file they expect -- found by running this step earlier and
 		// watching AcquireStep::SessionNavigate fail downstream.

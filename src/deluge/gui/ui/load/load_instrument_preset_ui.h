@@ -75,9 +75,6 @@ public:
 	}
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
-	std::expected<FileItem*, Error>
-	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
-	                                                Availability availabilityRequirement);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
 	                         InstrumentClip* instrumentClipToLoadFor_) {
 		Browser::outputTypeToLoad = newOutputType;

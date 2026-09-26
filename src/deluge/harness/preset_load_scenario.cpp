@@ -56,7 +56,6 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_range.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h" // getInstrumentFolder
 
@@ -183,7 +182,7 @@ constexpr const char* kNestedPreset = "SYNTHS/WALK/ZNEST/PLNEST.XML";
 /// The folder the nested preset lives in: where a correct search must END.
 constexpr const char* kNestedPresetDir = "SYNTHS/WALK/ZNEST";
 constexpr const char* kNestedSample = "SAMPLES/PL/PLNEST.WAV";
-/// What the walk must return for PL-WALK-DEPTH: only a descent can produce it.
+/// What the walk must find: only a descent can produce it.
 constexpr const char* kNestedFilename = "PLNEST.XML";
 /// Subfolders the walk's start folder holds: 24 empty fillers plus ZNEST. Must stay above
 /// FILE_ITEMS_MAX_NUM_ELEMENTS or the cull never happens and paging goes untested.
@@ -236,14 +235,15 @@ constexpr const char* kChangeMissingDir = "KITS/NOSUCH";
 /// MEASURED on the owner tree before pinning: where the named and the absent-name confirms land.
 constexpr const char* kChangeNamedLands = "NAV05";
 constexpr const char* kChangeNextLands = "NAV06";
+/// MEASURED on 4c2a4e19f from the retired owner reference (the whole-type Unlaunched search), then pinned.
+constexpr const char* kChangeMissingLands = "AQKB";
 static_assert(kNavCount > FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, "the folder must overflow the window");
 
 enum class Leg : uint8_t {
 	BlankBoot,
 	Synth,
-	/// The SAME search as checkPresetWalk's, over the same fixture, run through PresetWalk instead of
-	/// the recursive function -- and ticked from here, on the interaction tier, which is the half the
-	/// PL-WALK legs cannot reach. Placed right after Synth because Synth's prepare writes the fixture.
+	/// The preset search over the nested walk fixture, run through PresetWalk and ticked from here, on the
+	/// interaction tier. Placed right after Synth because Synth's prepare writes the fixture.
 	WalkMachine,
 	Kit,
 	Row,
@@ -437,26 +437,6 @@ bool runPendingFixture() {
 	return true;
 }
 
-/// Owner fixture builds queued and not yet run.
-int32_t g_ownerFixturesPending = 0;
-
-/// Runs the fixture build on the storage owner. Deferred to S2: the build calls `createNewInstrumentClip` or
-/// `findAnUnlaunchedPresetIncludingWithinSubfolders`, which only work on the owner (the first queues itself with a
-/// pointer into its own stack frame, the second freezes). The step is not done until it has run: step_done waits on
-/// g_ownerFixturesPending, as the retired marker did.
-void buildFixtureOnOwner(void (*fn)()) {
-	g_ownerFixturesPending++;
-	if (!deluge::storage::Owner::run(
-	        [](void* ctx) {
-		        reinterpret_cast<void (*)()>(ctx)();
-		        g_ownerFixturesPending--;
-	        },
-	        reinterpret_cast<void*>(fn))) {
-		g_ownerFixturesPending--;
-		fail(legName(g_leg), "the storage owner's queue was full");
-	}
-}
-
 AudioFileHolder* firstHolder(Source& source) {
 	MultiRange* range = source.getOrCreateFirstRange();
 	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
@@ -503,69 +483,6 @@ bool writeSampleSynthPreset(const char* path, const char* samplePath) {
 	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
 	                                &paramManager, true);
 	return writeInstrumentDocument(*instrument, path, "\n</sound>\n");
-}
-
-/// Drive `findAnUnlaunchedPresetIncludingWithinSubfolders` once and pin what it does TODAY.
-///
-/// Runs on the storage owner, which is where the walk is legal until it is converted -- the four TIR
-/// guards freeze otherwise, and they are what caught the fiber-inline attempt.
-///
-/// The start folder holds NO presets of its own, only `NESTED/`. That is the whole fixture: with a
-/// usable preset at the start folder the walk returns it immediately and never recurses, so the leg
-/// would pass while proving nothing. Measured 2026-09-19: no gate reached depth > 1 before this.
-void checkPresetWalk() {
-	const int32_t tierBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
-
-	const std::string savedDir = Browser::currentDir;
-	Browser::currentDir = kWalkStartDir;
-	auto found = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, OutputType::SYNTH,
-	                                                                                    Availability::ANY);
-	const bool descended =
-	    found.has_value() && *found != nullptr && std::string((*found)->filename) == std::string(kNestedFilename);
-	printf("PL-WALK-FOUND ok=%d name=%s\n", (int)(found.has_value() && *found != nullptr),
-	       (found.has_value() && *found != nullptr) ? (*found)->filename.c_str() : "-");
-	printf("PL-WALK-DEPTH ok=%d descended=%d\n", (int)descended, (int)descended);
-
-	// PAGING, proved the same indirect way DEPTH is. `SYNTHS/WALK` holds 25 subfolders and the cap is
-	// FILE_ITEMS_MAX_NUM_ELEMENTS (20), so the first chunk CANNOT contain ZNEST -- it sorts last and is
-	// culled from the end. Only a re-read from a search name (`goto goAgain`) can reach it. Finding
-	// PLNEST therefore means the walk paged, and finding it means it also popped back out of 24 empty
-	// subfolders on the way, which is the return-from-recursion path.
-	printf("PL-WALK-PAGED ok=%d entries=%d cap=%d\n", (int)descended, (int)kWalkFolderCount,
-	       (int)FILE_ITEMS_MAX_NUM_ELEMENTS);
-	if (kWalkFolderCount <= FILE_ITEMS_MAX_NUM_ELEMENTS) {
-		fail("walk", "the walk fixture no longer exceeds the cull cap, so paging is not exercised");
-	}
-	loadInstrumentPresetUI.emptyFileItems();
-
-	// A folder with nothing usable at any depth must report exhaustion, not a false hit.
-	Browser::currentDir = "SYNTHS/WALK/W01";
-	auto none = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, OutputType::SYNTH,
-	                                                                                   Availability::ANY);
-	// The SPECIFIC error, not merely "an error". An earlier draft of this leg searched a folder that
-	// does not exist and passed on FOLDER_DOESNT_EXIST (10) -- which tests a missing folder, not an
-	// exhausted search. W01 is a real, empty filler folder, so the only honest answer is
-	// NO_FURTHER_FILES_THIS_DIRECTION (16).
-	const bool exhausted = !none.has_value() && none.error() == Error::NO_FURTHER_FILES_THIS_DIRECTION;
-	printf("PL-WALK-EXHAUST ok=%d error=%d\n", (int)exhausted, (int)(none.has_value() ? Error::NONE : none.error()));
-	loadInstrumentPresetUI.emptyFileItems();
-	Browser::currentDir = savedDir;
-
-	const int32_t tierIo =
-	    deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser) - tierBefore;
-	// Passes TODAY because the walk runs on the owner; must STILL pass after the conversion, for the
-	// opposite reason -- on the interaction tier, never blocking. Holding across both is its value.
-	printf("PL-WALK-TIER ok=%d tierIo=%d\n", (int)(tierIo == 0), (int)tierIo);
-
-	if (!descended) {
-		fail("walk", "the preset search did not descend into a subfolder");
-	}
-	if (!exhausted) {
-		fail("walk", "a search with nothing usable did not report NO_FURTHER_FILES_THIS_DIRECTION");
-	}
-	if (tierIo != 0) {
-		fail("walk", "the preset search did card I/O on the interaction tier");
-	}
 }
 
 /// A sample drum, the way the slicer builds one, added to @p kit.
@@ -794,7 +711,7 @@ void prepareLeg() {
 	if (g_leg != Leg::Synth) {
 		return;
 	}
-	buildFixtureOnOwner([] {
+	buildFixture([] {
 		bool ok = writeSampleSynthPreset(kSynthPreset, kSynthSample) && writeSampleSynthPreset(kRowPreset, kRowSample)
 		          && writeSampleSynthPreset(kClonePreset, kCloneSample)
 		          && writeKitPreset(kKitPreset, kKitDrumNames, kKitSamples, kKitDrumCount);
@@ -818,9 +735,6 @@ void prepareLeg() {
 		g_synthClip = (g_synth != nullptr) ? currentSong->getClipWithOutput(g_synth) : nullptr;
 		printf("PL-PROBE prepared presets=%d kitClip=%d synthClip=%d\n", ok ? 1 : 0, g_kitClip != nullptr ? 1 : 0,
 		       g_synthClip != nullptr ? 1 : 0);
-		if (ok) {
-			checkPresetWalk();
-		}
 	});
 }
 
@@ -1283,10 +1197,6 @@ std::string g_navDirBefore;
 int32_t g_changeRunBefore = 0;
 int32_t g_changeRequestsBefore = 0;
 std::string g_changeDirBefore;
-/// AQ-CHANGE-MISSING's reference: what the whole-type Unlaunched search finds, computed on the storage owner by the
-/// very function the old fallback discarded, for the availability the gesture uses.
-std::string g_changeReference;
-Availability g_changeAvailability = Availability::ANY;
 /// The clip AQ-NEW's new-track gesture makes, which AQ-CHANGE, AQ-NAVIGATE, AQ-SUPERSEDE and AQ-CLONE act on.
 Clip* g_aqClip = nullptr;
 /// What AQ-SLOT-STALL's clip held before the gesture.
@@ -1567,20 +1477,6 @@ bool actAcquire() {
 		else {
 			clip->backedUpInstrumentDirPath[kitIdx] = kChangeMissingDir;
 			clip->backedUpInstrumentName[kitIdx] = kChangeNamed;
-			// The reference, on the owner where the recursive search is legal, for the gesture's own availability.
-			(void)currentSong->shouldOldOutputBeReplaced(clip, &g_changeAvailability);
-			g_changeReference.clear();
-			buildFixtureOnOwner([] {
-				Browser::currentDir = getInstrumentFolder(OutputType::KIT);
-				auto found = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-				    currentSong, OutputType::KIT, g_changeAvailability);
-				if (found.has_value()) {
-					FileItem* item = *found;
-					g_changeReference =
-					    (item->instrument != nullptr) ? item->instrument->name : item->getFilenameWithoutExtension();
-				}
-				Browser::emptyFileItems();
-			});
 		}
 		(void)instrumentClipView.buttonAction(KIT, true, false);
 		(void)instrumentClipView.buttonAction(KIT, false, false);
@@ -1857,7 +1753,7 @@ void checkAcquireAct() {
 		                                      : "AQ-CHANGE-MISSING";
 		const std::string want = (g_aqAct == 1)   ? kChangeNamedLands
 		                         : (g_aqAct == 3) ? kChangeNextLands
-		                                          : g_changeReference;
+		                                          : kChangeMissingLands;
 		const bool isKit = output != nullptr && output->type == OutputType::KIT;
 		printf("%s name=%s want=%s kit=%d runs=%d\n", marker, name.c_str(), want.c_str(), isKit ? 1 : 0, runs);
 		if (!isKit || name != want || want.empty()) {
@@ -2016,16 +1912,9 @@ bool isBlankLeg(Leg leg) {
 
 /// @name The preset search, run through PresetWalk
 ///
-/// The PL-WALK legs call `findAnUnlaunchedPresetIncludingWithinSubfolders` directly from inside an
-/// `onOwner` block, so they pin the recursive walk and CANNOT see the machine that replaces it. They
-/// are not repointed: the recursive walk survives this pilot -- the fixture loader and
-/// AQ-CHANGE-MISSING's reference still call it -- so it still needs its coverage. These five legs sit beside them
-/// instead, over the same fixture with the same assertions, so one run carries both drivers and the pair is a
-/// differential rather than a replacement.
-///
-/// ⚠️ PW-WALK-TIER is the one that reads differently from its PL sibling. PL-WALK-TIER passes
-/// because the walk runs ON the owner; this one passes because the machine runs on the INTERACTION
-/// tier and defers instead of blocking. Same number, opposite reason -- which is the whole point.
+/// PresetWalk over the nested walk fixture: it descends from a start folder with no presets of its own, pages past the
+/// cull cap, reports exhaustion for a folder with nothing usable, and does all of it on the INTERACTION tier, deferring
+/// instead of blocking. The recursive synchronous walk these legs once sat beside is retired; they are the coverage.
 /// @{
 deluge::gui::PresetWalk g_presetWalk;
 
@@ -2471,7 +2360,7 @@ bool deluge_scenario_preset_load_step_done(void) {
 	if (runPendingFixture()) {
 		return false;
 	}
-	return g_stepDone && g_ownerFixturesPending == 0;
+	return g_stepDone;
 }
 
 int32_t deluge_scenario_preset_load_failures(void) {
