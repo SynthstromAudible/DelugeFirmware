@@ -1257,6 +1257,13 @@ constexpr const char* kMissingPrefix = "ZZZZNOPE";
 constexpr const char* kNewName = "SONG1";
 constexpr int32_t kNewNameOpens = 3;
 
+/// The slot-naming fixture: two numbered songs, and one whose name sorts AFTER getUnusedSlot's "SONG:" search key.
+/// The save browser entered on it finds no exact match and names a brand-new song (`pickBrandNewName`), whose read
+/// keeps only what sorts before the key and numbers the next slot from the last entry kept: the one-sided trim is what
+/// keeps SONGZZZ from being that entry. Without it the slot comes out as SONG1.
+constexpr const char* kSlotDir = "SLOTTEST";
+constexpr const char* kSlotExpected = "SONG003";
+
 /// How long every directory open is held in flight while the listing and by-path stages run, in milliseconds of the
 /// harness's virtual clock. Long enough that each open is still pending when it is asked for again on the next ticks.
 constexpr uint32_t kDirectoryHoldMs = 5;
@@ -1273,6 +1280,7 @@ enum class ListingStep : uint8_t {
 	Fallback,
 	Create,
 	NewName,
+	SlotName,
 	/// Unmounts the card, then lists: the tick after the new-name run.
 	Unmount,
 	Mount,
@@ -1291,6 +1299,22 @@ uint32_t g_mountNoticesBefore = 0;
 size_t g_itemsWhenRunBegan = 0;
 /// Set if a suspended listing was ever seen with an empty list it should have been preserving.
 bool g_sawBlankWhileSuspended = false;
+
+/// Build kSlotDir. Idempotent, like buildFixtureDir: a reused image already has the files.
+void buildSlotFixture() {
+	(void)deluge::io::mkdir(kSlotDir);
+	for (const char* name : {"SONG001.XML", "SONG002.XML", "SONGZZZ.XML"}) {
+		char path[64];
+		snprintf(path, sizeof(path), "%s/%s", kSlotDir, name);
+		auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE_NEW);
+		if (!file.has_value()) {
+			continue; // already present from a previous run
+		}
+		const char body[] = "<song firmwareVersion=\"c1.3.0\"></song>";
+		(void)file->write(std::as_bytes(std::span{body, sizeof(body) - 1}));
+		(void)file->close();
+	}
+}
 
 ListingSnapshot takeListingSnapshot() {
 	ListingSnapshot snap;
@@ -1435,6 +1459,8 @@ const char* listingStepName(ListingStep step) {
 		return "create";
 	case ListingStep::NewName:
 		return "newname";
+	case ListingStep::SlotName:
+		return "slotname";
 	case ListingStep::Unmount:
 		return "unmount";
 	case ListingStep::Mount:
@@ -1457,6 +1483,7 @@ bool tickRun() {
 		}
 		return !BrowserListingAbProbe::predicting();
 	case ListingStep::NewName:
+	case ListingStep::SlotName:
 		if (BrowserListingAbProbe::inProgress()) {
 			BrowserListingAbProbe::tickSave();
 		}
@@ -1624,6 +1651,21 @@ void finishRun() {
 		if (got.entered != kNewName || runOpens() != kNewNameOpens) {
 			printf("SP-NEWNAME FAIL the save browser named %s in %d open(s), wanted %s in %d\n", got.entered.c_str(),
 			       runOpens(), kNewName, kNewNameOpens);
+			g_failures++;
+		}
+		// The same naming in a folder that already holds numbered songs, as a user saving a new song there sees it.
+		buildSlotFixture();
+		beginRun(ListingStep::SlotName);
+		BrowserListingAbProbe::beginSaveListing(kSlotDir);
+		return;
+
+	case ListingStep::SlotName:
+		printf("SP-SLOT dir=%s name=%s\n", kSlotDir, got.entered.c_str());
+		checkResumed("slotname");
+		if (got.entered != kSlotExpected) {
+			printf("SP-SLOT FAIL named %s, wanted %s -- an entry sorting after the search key stayed in the read, "
+			       "and the slot was numbered from it\n",
+			       got.entered.c_str(), kSlotExpected);
 			g_failures++;
 		}
 		g_listingStep = ListingStep::Unmount;

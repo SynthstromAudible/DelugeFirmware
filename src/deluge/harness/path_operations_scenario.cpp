@@ -484,6 +484,13 @@ void runTick() {
 		    && ++g_deleteTicks < kMaxDeleteTicks) {
 			break;
 		}
+		if (!deluge::storage::bytes::idle()) {
+			printf("PO-DELETE FAIL fixture: the byte channel never went idle, so the delete's counts would include an "
+			       "earlier stage's operation\n");
+			g_failures++;
+			g_stage = Stage::DeleteClose;
+			break;
+		}
 		if (!PathOperationsBrowserProbe::listed(kDeleteA) || !PathOperationsBrowserProbe::listed(kDeleteB)
 		    || !PathOperationsBrowserProbe::listed(kDeleteC)) {
 			printf("PO-DELETE FAIL fixture: the listing of %s lacks a delete file (listing %s)\n", kDeleteDir,
