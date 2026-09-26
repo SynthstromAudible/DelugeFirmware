@@ -367,15 +367,9 @@ bool stepCase() {
 
 namespace {
 
-/// The off-owner recording case: a real `SampleRecorder` driven ENTIRELY from a non-fiber context,
-/// which is the shape the device actually uses and the one the eight cases above cannot reach.
-///
-/// They cannot reach it because `deluge_scenario_start_recorder_roundtrip` dispatches the whole
-/// oracle onto the fiber -- it has to, because the finalized probe's streaming drain must block and
-/// resume against the fill task there. So every one of those cases measures `on_owner=1`, the
-/// cluster write takes its synchronous arm, and two things go untested: the async write path itself,
-/// and `cardRoutine`'s dispatch of its BLOCKING ticks (create, finalize, abort) back to the owner.
-/// Deleting that dispatch left all eleven cases passing.
+/// The off-owner recording cases: a real `SampleRecorder` driven ENTIRELY from a non-fiber context,
+/// the shape the device actually uses, with the shapes the eight cases above do not take -- the
+/// alteration branch, an abort, a busy channel, a stalled write -- each with its own evidence line.
 ///
 /// Tick-driven rather than a loop, because that is the point: the pump must return to its caller so
 /// the storage owner can run the ticks this case hands it, and so the Rust write task can make

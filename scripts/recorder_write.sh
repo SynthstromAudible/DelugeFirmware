@@ -10,9 +10,8 @@
 #                 and broke the recording on the way. It earned its keep here: a recycled stream
 #                 handle collecting a previous recorder's answer showed up as exactly this, and
 #                 nothing else in the run noticed.
-#   RW-CHANNEL    that the async arm was EXECUTED by the off-owner recordings: they must serve more
-#                 writes than the on-fiber oracle. The oracle stands on the owner, which writes
-#                 synchronously -- an owner that spins never lets the driver answer -- so it serves none.
+#   RW-CHANNEL    that the async arm was EXECUTED by the off-owner recordings: they must serve writes
+#                 beyond the ones the oracle's cases served (RW-SUMMARY's count, taken before they run).
 #   RW-OFFOWNER   that the drain ran OFF the storage owner. This is the gate's real subject. Without
 #                 it RW-CHANNEL can be non-zero while every write was still served on the owner.
 #   RW-OFFOWNER-CREATE  that CREATING the recording's file ran off the storage owner.
@@ -21,11 +20,8 @@
 #   RW-LEAK       that an aborted recording gives its clusters back. It does NOT currently catch a
 #                 premature unlink -- single-flight sends that unlink down its synchronous arm anyway
 #                 -- but it does catch a cleanup that fails to delete at all.
-#   RW-OFFOWNER-CASE  that a whole recording driven from a NON-fiber context -- the shape the device
-#                 actually uses -- still reads back byte-for-byte identical to the on-fiber ones, and
-#                 that its cluster writes went through the channel. The eight on-fiber cases cannot
-#                 show this: the oracle is dispatched onto the fiber wholesale, so every one of them
-#                 measures on_owner=1 and takes the synchronous arm.
+#   RW-OFFOWNER-CASE  that each off-owner case -- a recording, the alteration branch, an abort --
+#                 ran with onOwner=0 and reads back byte-for-byte, its cluster writes through the channel.
 #   RW-TIER       how many synchronous card operations the recorder began off the storage owner after
 #                 boot, over every off-owner case, and how many of its channel requests were refused.
 #                 Required 0: off the owner every recorder operation goes through a channel.
@@ -120,8 +116,8 @@ if ! grep -q '^RW-RESULT failures=0' "$OUT/run.txt"; then
 	fail=1
 fi
 
-# The off-owner cases run AFTER the on-fiber oracle has printed RW-SUMMARY, so their evidence is
-# their own lines. There are three, and each covers a shape the eight on-fiber cases cannot.
+# The off-owner cases run AFTER the oracle has printed RW-SUMMARY, so their evidence is their own
+# lines. There are three, and each covers a shape the oracle's eight cases do not take.
 #
 # The alteration case exists because nothing else sets allowFileAlterationAfter, so without it
 # finalize's whole batch machine would have no coverage.
@@ -214,7 +210,7 @@ offowner=$(sed -n 's/^RW-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/run.tx
 [ -n "$offowner" ] || offowner=0
 
 if [ "$oo_served" -le "$served" ]; then
-	echo "FAIL RW-CHANNEL — the off-owner recording served nothing beyond the on-fiber oracle's $served"
+	echo "FAIL RW-CHANNEL — the off-owner recording served nothing beyond the oracle's $served"
 	fail=1
 fi
 if [ "$offowner" -eq 0 ]; then
