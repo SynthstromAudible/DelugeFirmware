@@ -150,6 +150,18 @@ pub fn on_fiber() -> bool {
 /// for the full rationale.
 static WORKER_STARTED: AtomicBool = AtomicBool::new(false);
 
+/// Jobs the worker has started since boot. Host harness evidence only: a gate whose run moved it ran something on
+/// the storage owner. Relaxed: incremented only by `worker_poll`, read by the runner between scenario steps.
+#[cfg(feature = "host_app")]
+static JOBS_RUN: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// C-ABI (host harness only): jobs the worker has started since boot. See [`JOBS_RUN`].
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_worker_jobs_run() -> u32 {
+    JOBS_RUN.load(Ordering::Relaxed)
+}
+
 /// Has the worker pump run at least once yet? `false` only during the narrow
 /// pre-owner boot window (the synchronous `deluge_boot()` FatFS mount); `true`
 /// for the remainder of the process's life once `app_task`/`host_app_task`
@@ -672,6 +684,8 @@ pub fn worker_poll() -> bool {
         let Some((f, ctx, is_sd)) = dequeue() else {
             return false;
         };
+        #[cfg(feature = "host_app")]
+        JOBS_RUN.fetch_add(1, Ordering::Relaxed);
         ACTIVE_IS_SD_ROUTINE.store(is_sd, Ordering::Relaxed);
         FIBER_BUSY.store(true, Ordering::Relaxed);
         let completed = start(f, ctx);
