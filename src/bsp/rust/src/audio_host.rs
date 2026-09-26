@@ -189,6 +189,7 @@ pub extern "C" fn deluge_audio_sample_rate() -> u32 {
 /// contract-valid "no new audio needed" outcome).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_drive() -> u32 {
+    let _tier = crate::tier::enter(crate::tier::Tier::Audio);
     if should_skip_render() {
         return 0;
     }

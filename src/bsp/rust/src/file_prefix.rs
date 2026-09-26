@@ -749,6 +749,14 @@ async fn read_prefix<O: LoadOps>(
 ))]
 #[embassy_executor::task]
 pub async fn file_prefix_task() {
+    crate::tier::scoped(crate::tier::Tier::Storage, file_prefix_task_body()).await
+}
+
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
+))]
+async fn file_prefix_task_body() {
     PREFIX_WAKE.wait().await;
     let ops = super::audio_loader::ProdOps::new();
     // One buffer for the life of the task, and not in the task: an 8 KiB array held across the awaits

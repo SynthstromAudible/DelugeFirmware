@@ -174,6 +174,8 @@ mod sim_block;
 /// the feature and are only spawned (below, in `main`) when it's enabled.
 #[path = "../../../src/streaming_loader.rs"]
 mod streaming_loader;
+#[path = "../../../src/tier.rs"]
+mod tier;
 
 unsafe extern "C" {
     fn deluge_app_init(board: *const sys::DelugeBoard);

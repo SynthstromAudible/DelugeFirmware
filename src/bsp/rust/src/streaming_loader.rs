@@ -513,6 +513,14 @@ pub extern "C" fn deluge_streaming_set_fill_latency_ms(ms: u32) {
 ))]
 #[embassy_executor::task]
 pub async fn streaming_fill_task() {
+    crate::tier::scoped(crate::tier::Tier::Storage, streaming_fill_task_body()).await
+}
+
+#[cfg(all(
+    feature = "async_streaming_loader",
+    any(target_os = "none", feature = "host_app")
+))]
+async fn streaming_fill_task_body() {
     FILL_WAKE.wait().await;
     let ops = ProdOps::new();
     loop {

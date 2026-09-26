@@ -21,6 +21,7 @@
 #include "libdeluge/storage_busy.h" // deluge_storage_fs_busy — cooperative default
 #include "libdeluge/storage_wait.h"
 #include "libdeluge/system.h" // deluge_in_interrupt — the ISR guard, via the boundary
+#include "libdeluge/tier.h"
 #include "resource_checker.h"
 
 extern TaskManager taskManager;
@@ -96,6 +97,24 @@ bool yieldToIdle(RunCondition until) {
 // libdeluge/boot.h -- C++-only default: the BSP owns the boot latch; a build without one never finishes booting.
 bool deluge_boot_finished(void) {
 	return false;
+}
+
+// libdeluge/tier.h -- C++-only defaults: the BSP owns tier tagging and the synchronous-call meter; a build without
+// one runs everything on the interaction tier and counts nothing.
+uint8_t deluge_tier_current(void) {
+	return DELUGE_TIER_INTERACTION;
+}
+uint8_t deluge_tier_sync_entries(void) {
+	return 0;
+}
+uint32_t deluge_tier_sync_count(uint8_t) {
+	return 0;
+}
+uint32_t deluge_tier_sync_total(void) {
+	return 0;
+}
+const char* deluge_tier_sync_name(uint8_t) {
+	return "";
 }
 
 // libdeluge/storage_busy.h — cooperative/C-host default: FatFS runs inline on the

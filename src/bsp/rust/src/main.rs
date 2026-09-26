@@ -303,6 +303,8 @@ mod sim_block;
 /// compilation tiers".
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod streaming_loader;
+/// Which execution tier is running the caller (`libdeluge/tier.h`).
+mod tier;
 /// USB device bring-up — USB-MIDI 1.0 peripheral (Deluge → computer).
 #[cfg(target_os = "none")]
 mod usb;

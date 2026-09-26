@@ -1243,6 +1243,14 @@ pub use prod::ProdOps;
 ))]
 #[embassy_executor::task]
 pub async fn audio_load_task() {
+    crate::tier::scoped(crate::tier::Tier::Storage, audio_load_task_body()).await
+}
+
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
+))]
+async fn audio_load_task_body() {
     LOAD_WAKE.wait().await;
     let ops = ProdOps::new();
     loop {

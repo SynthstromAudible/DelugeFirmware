@@ -233,6 +233,8 @@ mod sim_block;
 /// package (see `Cargo.toml`).
 #[path = "../../../src/streaming_loader.rs"]
 mod streaming_loader;
+#[path = "../../../src/tier.rs"]
+mod tier;
 
 unsafe extern "C" {
     fn deluge_app_init(board: *const sys::DelugeBoard);
