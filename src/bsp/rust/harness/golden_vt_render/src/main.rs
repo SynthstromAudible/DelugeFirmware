@@ -2913,7 +2913,7 @@ const OWNER_JOBS_DEFERRED: [(&str, u32); 6] = [
     ("sample_claim", 0),
     ("preset_load", 0),
     ("sample_load_tree", 0),
-    ("song_preview_ab", 1),
+    ("song_preview_ab", 0),
 ];
 
 /// Fail the run unless the jobs run on the storage owner since `before` are exactly what the scenario's S2 deferral

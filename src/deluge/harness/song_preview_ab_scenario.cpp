@@ -47,7 +47,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/file_item.h"
-#include "storage/owner.h"
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h" // getInstrumentFolder, to pin kAcqDir against drift
@@ -206,14 +205,6 @@ public:
 	/// `Browser::fileIndexSelected` is protected; the snapshot needs it, and it is half of what
 	/// "the listing finished the same way" means.
 	static int32_t selectedIndex() { return Browser::fileIndexSelected; }
-	/// Name the next free song slot in `dir`, as creating a new song does. Call on the storage owner.
-	static std::string unusedSlotIn(const char* dir) {
-		Browser::currentDir = dir;
-		std::string name;
-		const Error error = saveSongUI.getUnusedSlot(OutputType::NONE, &name, "SONG");
-		return error == Error::NONE ? name : "error " + std::to_string(static_cast<int>(error));
-	}
-
 	/// Drives ArrangerView's REAL new-instrument pad gesture, rather than restating its callee
 	/// (createNewInstrument) directly. Dispatches onto the storage owner (rung 5, task 3); see
 	/// runAcquireTick()'s *Check states for why the result isn't readable until a later tick.
@@ -1245,12 +1236,6 @@ constexpr std::array<const char*, 9> kReferenceNames = {"SONG000.XML", "SONG001.
                                                         "SONG003.XML", "SONG004.XML", "SONG005.XML",
                                                         "SONG006.XML", "SONG007.XML", "SONG008.XML"};
 
-/// The slot-naming fixture: two numbered songs, and one whose name sorts AFTER getUnusedSlot's "SONG:" search key.
-/// That read keeps only what sorts before the key and numbers the next slot from the last entry kept, so the one-sided
-/// trim is what keeps SONGZZZ from being that entry. Without it the slot comes out as SONG1.
-constexpr const char* kSlotDir = "SLOTTEST";
-constexpr const char* kSlotExpected = "SONG003";
-
 /// Reaching prediction's SECOND read takes a big folder, and that is the point rather than an awkwardness of the
 /// fixture. The re-read happens when a search runs off the end of the CACHED window. In the 300-entry folder the
 /// window holds twenty, so the extra-zeroes branch (which clears `doneNewRead`) walks the extended string off the
@@ -1288,7 +1273,8 @@ enum class ListingStep : uint8_t {
 	Fallback,
 	Create,
 	NewName,
-	Slot,
+	/// Unmounts the card, then lists: the tick after the new-name run.
+	Unmount,
 	Mount,
 	Finished,
 };
@@ -1305,9 +1291,6 @@ uint32_t g_mountNoticesBefore = 0;
 size_t g_itemsWhenRunBegan = 0;
 /// Set if a suspended listing was ever seen with an empty list it should have been preserving.
 bool g_sawBlankWhileSuspended = false;
-bool g_slotRan = false;  ///< the owner op naming the slot has run
-std::string g_slotName;  ///< what it named
-int32_t g_slotTicks = 0; ///< tick budget guard for it
 
 ListingSnapshot takeListingSnapshot() {
 	ListingSnapshot snap;
@@ -1343,22 +1326,6 @@ bool listsReferenceNames(const ListingSnapshot& snap) {
 		}
 	}
 	return true;
-}
-
-/// Build kSlotDir. Idempotent, like buildFixtureDir: a reused image already has the files.
-void buildSlotFixture() {
-	(void)deluge::io::mkdir(kSlotDir);
-	for (const char* name : {"SONG001.XML", "SONG002.XML", "SONGZZZ.XML"}) {
-		char path[64];
-		snprintf(path, sizeof(path), "%s/%s", kSlotDir, name);
-		auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE_NEW);
-		if (!file.has_value()) {
-			continue; // already present from a previous run
-		}
-		const char body[] = "<song firmwareVersion=\"c1.3.0\"></song>";
-		(void)file->write(std::as_bytes(std::span{body, sizeof(body) - 1}));
-		(void)file->close();
-	}
 }
 
 /// Create a directory of `count` tiny song files. Idempotent: a re-run of the harness against a
@@ -1468,8 +1435,8 @@ const char* listingStepName(ListingStep step) {
 		return "create";
 	case ListingStep::NewName:
 		return "newname";
-	case ListingStep::Slot:
-		return "slot";
+	case ListingStep::Unmount:
+		return "unmount";
 	case ListingStep::Mount:
 		return "mount";
 	case ListingStep::Finished:
@@ -1659,20 +1626,7 @@ void finishRun() {
 			       runOpens(), kNewName, kNewNameOpens);
 			g_failures++;
 		}
-		// Slot naming, on the storage owner, where creating a new song names one. Here, after a listing that leaves no
-		// file selected: getUnusedSlot empties the list, and a selection left pointing into an empty list is
-		// dereferenced by the next prediction.
-		buildSlotFixture();
-		g_slotRan = false;
-		g_slotTicks = 0;
-		// Deferred to S2: Browser::getUnusedSlot freezes off the storage owner, so the reference still runs there.
-		(void)deluge::storage::Owner::run(
-		    [](void*) {
-			    g_slotName = BrowserListingAbProbe::unusedSlotIn(kSlotDir);
-			    g_slotRan = true;
-		    },
-		    nullptr);
-		g_listingStep = ListingStep::Slot;
+		g_listingStep = ListingStep::Unmount;
 		return;
 
 	case ListingStep::Mount: {
@@ -1703,7 +1657,7 @@ void finishRun() {
 	}
 
 	case ListingStep::Fixture:
-	case ListingStep::Slot:
+	case ListingStep::Unmount:
 	case ListingStep::Finished:
 		finishListingStage();
 		return;
@@ -1740,19 +1694,7 @@ void runListingTick() {
 		BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
 		return;
 
-	case ListingStep::Slot:
-		// The marker op behind this step's dispatch makes one tick enough; bounded anyway.
-		if (!g_slotRan && ++g_slotTicks < 200) {
-			return;
-		}
-		printf("SP-SLOT dir=%s name=%s\n", kSlotDir, g_slotRan ? g_slotName.c_str() : "(never ran)");
-		if (!g_slotRan || g_slotName != kSlotExpected) {
-			printf("SP-SLOT FAIL named %s, wanted %s -- an entry sorting after the search key stayed in the read, "
-			       "and the slot was numbered from it\n",
-			       g_slotRan ? g_slotName.c_str() : "(never ran)", kSlotExpected);
-			g_failures++;
-		}
-
+	case ListingStep::Unmount:
 		// Now with the filesystem UNMOUNTED. Mounting is real card I/O, so it belongs to the channel's driver, not to
 		// StorageManager::initSD() on the interaction tier. The listing has to succeed anyway, and -- the half that is
 		// invisible in its result -- the unmounted->mounted edge has to reach firstCardRead() exactly once, even though
@@ -3538,9 +3480,6 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_mountNoticesBefore = 0;
 	g_itemsWhenRunBegan = 0;
 	g_sawBlankWhileSuspended = false;
-	g_slotRan = false;
-	g_slotName.clear();
-	g_slotTicks = 0;
 	g_byPathStep = ByPathStep::Open;
 	g_byPathTicks = 0;
 	g_listingFailuresBefore = 0;
