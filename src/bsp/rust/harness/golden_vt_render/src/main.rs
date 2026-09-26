@@ -736,7 +736,6 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: as above.
-    check_owner_jobs("recorder_roundtrip", owner_jobs_before);
     let failures = unsafe { deluge_scenario_recorder_roundtrip_failures() };
     if failures != 0 {
         log::error!(
@@ -853,6 +852,8 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         hard_exit(1);
     }
 
+    // After the off-owner cases, not before: their blocking ticks may still hand work to the owner.
+    check_owner_jobs("recorder_roundtrip", owner_jobs_before);
     log::info!("golden_vt_render: recorder round-trip PASSED (0 failures); exiting cleanly");
     done.store(true, Ordering::Release);
 }
