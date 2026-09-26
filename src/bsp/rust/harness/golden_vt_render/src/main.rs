@@ -2888,23 +2888,15 @@ fn owner_jobs() -> u32 {
     unsafe { deluge_worker_jobs_run() }
 }
 
-/// The scenarios with work still deferred to S2 -- legs that only work on the storage owner -- and EXACTLY how many jobs
-/// each runs there. Any other count fails, so a new owner job cannot hide behind the deferral. S2 empties this table.
-const OWNER_JOBS_DEFERRED: [(&str, u32); 1] = [("recorder_roundtrip", 0)];
-
-/// Fail the run unless the jobs run on the storage owner since `before` are exactly what the scenario's S2 deferral
-/// accounts for (none, for every scenario not in [`OWNER_JOBS_DEFERRED`]).
+/// Fail the run if any job ran on the storage owner since `before`. After boot nothing may: every card operation
+/// goes through the channels, and a job here is work that still leans on the fiber.
 fn check_owner_jobs(scenario: &str, before: u32) {
     let jobs = owner_jobs().wrapping_sub(before);
-    let expected = OWNER_JOBS_DEFERRED
-        .iter()
-        .find(|(name, _)| *name == scenario)
-        .map_or(0, |(_, n)| *n);
-    if jobs == expected {
+    if jobs == 0 {
         return;
     }
     log::error!(
-        "golden_vt_render: {jobs} job(s) ran on the storage owner after boot during {scenario}, expected {expected}"
+        "golden_vt_render: {jobs} job(s) ran on the storage owner after boot during {scenario}, expected 0"
     );
     hard_exit(1);
 }
