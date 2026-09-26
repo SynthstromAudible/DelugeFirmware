@@ -350,15 +350,6 @@ private:
 	void tickFinish();
 	/// @}
 
-	/// @name `Owner::run` trampolines for the three stretches above.
-	/// @{
-
-	/// @}
-
-	/// @brief Queues the next stretch on the storage owner, leaving the phase alone if the queue is full.
-	/// @param segment One of the trampolines above.
-	void dispatchLoadSegment(void (*segment)(void*));
-
 	/// @brief Ends the load: clears the phase and runs the caller's completion exactly once.
 	void endLoad();
 

@@ -31,7 +31,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
-#include "storage/owner.h"
 
 #include <memory>
 
@@ -551,8 +550,7 @@ extern "C" void deluge_scenario_offowner_begin(int32_t mode) {
 	// stdout-only line can be lost at exit -- and a case whose output vanishes is a case nobody can
 	// tell from one that never ran.
 	const char* modeName = (mode >= 0 && mode <= 5) ? kModeNames[mode] : "unknown";
-	printf("CASE offowner_%s (channels=%d frames=%u onOwner=%d)\n", modeName, g_offOwner.alter ? 2 : 1, kOffOwnerFrames,
-	       (int)deluge::storage::Owner::on_owner());
+	printf("CASE offowner_%s (channels=%d frames=%u)\n", modeName, g_offOwner.alter ? 2 : 1, kOffOwnerFrames);
 	fflush(nullptr);
 
 	Error err = g_offOwner.rec->setup(g_offOwner.alter ? 2 : 1, AudioInputChannel::MIX, /*newKeepingReasons=*/false,

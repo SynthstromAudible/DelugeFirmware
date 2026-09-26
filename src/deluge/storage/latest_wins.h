@@ -27,11 +27,11 @@ namespace deluge::storage {
 /// desired target; at most one dispatch runs at a time, and when it completes the
 /// *latest* requested target (if it changed meanwhile) is dispatched next — so the
 /// result converges on where the user actually landed, never a stale intermediate.
-/// Contrast `Coalescer`, which drops new requests while one is in flight (correct for
-/// demand-collapsing, wrong for "show the newest").
+/// Contrast a single-flight coalescer (the retired storage `Coalescer`), which drops new
+/// requests while one is in flight (correct for demand-collapsing, wrong for "show the newest").
 ///
 /// Not thread-safe: all calls are expected from the single executor-thread context
-/// that also runs the dispatched op (same contract as `Coalescer`).
+/// that also runs the dispatched op.
 template <typename T>
 class LatestWins {
 public:

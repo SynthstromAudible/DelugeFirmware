@@ -28,7 +28,6 @@
 #include "gui/ui_timer_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 
 #include <cstdio>
@@ -58,21 +57,13 @@ void dealloc(void* /*ptr*/) {
 }
 } // namespace deluge::memory
 
-// The storage owner and the byte channel, as they exist on a host with neither.
+// The byte channel, as it exists on a host without one.
 //
-// StorageManager::openDocumentStaged() consults these to choose an arm. `started()` is false because
-// no owner has ever run here, and that alone routes every staged open to its synchronous arm -- which
-// is the arm these specs want, since a request issued from a test that never yields could not be
-// answered by anything. The byte-channel pair below is therefore UNREACHABLE from the specs; it is
-// defined so the link succeeds, and answers "nothing is known" rather than inventing a result.
-namespace deluge::storage {
-bool Owner::on_owner() {
-	return false;
-}
-bool Owner::started() {
-	return false;
-}
-} // namespace deluge::storage
+// StorageManager::openDocumentStaged() chooses its arm by boot::finished(), which is false here (no BSP marks
+// boot finished), and that alone routes every staged open to its synchronous arm -- which is the arm these specs
+// want, since a request issued from a test that never yields could not be answered by anything. The byte-channel
+// pair below is therefore UNREACHABLE from the specs; it is defined so the link succeeds, and answers "nothing is
+// known" rather than inventing a result.
 
 namespace deluge::storage::bytes {
 ByteIo requestStat(const char* /*path*/) {

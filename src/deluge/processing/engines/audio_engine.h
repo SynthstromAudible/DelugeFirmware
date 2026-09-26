@@ -162,10 +162,8 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher);
 LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
 void slowRoutine();
 void doRecorderCardRoutines();
-/// @brief The entry point for doRecorderCardRoutines() -- the recorder card-write drain.
-///
-/// Runs inline after boot, and always on legacy/host; before boot on Embassy it is coalesced onto the worker fiber
-/// (SD-routine-class).
+/// @brief Run the recorder card-write drain (doRecorderCardRoutines()) inline. Counts the drains after boot:
+///        the gates' evidence that the drain runs off the storage tier.
 void requestRecorderCardRoutines();
 
 /// @brief How many recorder drains ran OFF the storage owner.

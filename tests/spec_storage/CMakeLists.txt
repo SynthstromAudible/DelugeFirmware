@@ -1,9 +1,6 @@
 # tests/spec_storage/CMakeLists.txt
 #
-# deluge::storage specs. Links the seam(s) under src/deluge/storage/ against
-# mock_worker.cpp, a host-only stand-in for include/libdeluge/worker.h's
-# deluge_worker_run (runs the op inline -- see mock_worker.cpp), NOT the real
-# scheduler/Embassy dispatch (that's the firmware build's concern).
+# deluge::storage specs: the header-only seams under src/deluge/storage/.
 include(FetchContent)
 FetchContent_Declare(CppSpec
   URL https://github.com/toroidal-code/cppspec/archive/refs/heads/main.tar.gz
@@ -15,14 +12,11 @@ function(create_specs_driver driver_name spec_dir)
   create_test_sourcelist(specs ${driver_name}.cpp ${spec_sources})
   add_executable(${driver_name}
     ${specs}
-    mock_worker.cpp
-    ../../src/deluge/storage/owner.cpp
   )
   target_link_libraries(${driver_name} PRIVATE c++spec)
   target_include_directories(${driver_name} PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}
-    ../../include      # libdeluge/worker.h
-    ../../src/deluge    # storage/owner.h
+    ../../src/deluge    # storage/*.h
   )
   set_target_properties(${driver_name} PROPERTIES
     CXX_STANDARD 26

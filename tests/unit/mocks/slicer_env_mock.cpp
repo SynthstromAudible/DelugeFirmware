@@ -30,7 +30,6 @@
 #include "processing/sound/sound_drum.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/owner.h"
 
 #include <cstddef>
 #include <cstring>
@@ -221,20 +220,6 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 	deluge::test::auditionNoteCount++;
 	deluge::test::lastAuditionOn = on ? 1 : 0;
 }
-
-namespace deluge::storage {
-/// Owner::run, with the legacy/host semantics `owner.h` documents: "on legacy/host it runs inline on
-/// the caller's stack". Not a stub -- running the op is what makes this build's Owner faithful, and it
-/// is the same thing `owner.cpp` does via `deluge_worker_run` on a BSP with no worker fiber. The real
-/// owner.cpp is not linked here because it would drag `libdeluge/worker.h`'s whole ABI in.
-///
-/// The queue-full return (false) therefore never happens in these specs -- the same coverage boundary the
-/// Embassy-only fiber queue has everywhere else in the tree.
-bool Owner::run(void (*fn)(void*), void* ctx) {
-	fn(ctx);
-	return true;
-}
-} // namespace deluge::storage
 
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t newValue) {
 }

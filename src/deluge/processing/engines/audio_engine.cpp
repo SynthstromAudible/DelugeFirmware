@@ -42,10 +42,8 @@
 #include "libdeluge/audio_io.h"
 #include "libdeluge/file_write.h"
 #include "libdeluge/signals.h"
-#include "libdeluge/storage_owner.h"  // deluge_storage_on_owner
 #include "libdeluge/streaming_fill.h" // deluge_streaming_resource_manager()
 #include "libdeluge/system.h"
-#include "libdeluge/worker.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stack_guard.h"
 #include "model/instrument/kit.h"
@@ -68,7 +66,6 @@
 #include "storage/audio/load_trace.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/owner.h" // deluge::storage::Coalescer (SD-routine dispatch)
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
 #include "util/boot.h"
@@ -1644,16 +1641,6 @@ void doRecorderCardRoutines() {
 }
 
 namespace {
-// Coalesced SD-routine dispatch of the recorder card-write drain onto the storage
-// owner (the worker fiber on Embassy) -- before boot only; after it the drain runs inline. SD-routine-class: while a
-// drain is in flight the RESOURCE_SD_ROUTINE gate holds off audioRecorder.slowRoutine (discardRecorder), so the
-// recorder can't be freed mid-drain. Only ever touched on the main executor.
-deluge::storage::Coalescer g_recorder_coalescer{/*sd_routine=*/true};
-
-void recorder_card_routines_fill(void*) {
-	doRecorderCardRoutines();
-}
-
 /// How many recorder drains ran OFF the storage owner. Without this a gate cannot tell a channel
 /// that served writes from a channel that served them while everything still ran on the owner --
 /// which is the only difference between this conversion and a rename.
@@ -1701,29 +1688,17 @@ void noteOffOwnerCreateTick() {
 }
 
 void requestRecorderCardRoutines() {
-	// Never from an ISR / the audio interrupt-executor: deluge_storage_on_owner() is false there
-	// and we'd race the coalescer's main-executor-only state. The recorder drain is never driven
-	// from an ISR.
+	// Never from an ISR / the audio interrupt-executor: the recorder drain is never driven from an ISR.
 	if (deluge_in_interrupt()) {
 		return;
 	}
-	// Already the storage owner -- always, on a cooperative or C-host build, where FatFS runs inline on the
-	// caller: run the drain inline. On Embassy only the before-boot coalescer below dispatches onto the fiber, and its
-	// job never re-enters here.
-	if (deluge_storage_on_owner()) {
-		doRecorderCardRoutines();
-		return;
-	}
-
-	// After boot: run the drain HERE. cardRoutine()'s card operations go through the write channel, which is
-	// always there, so there is nothing to hand anywhere else. Only a caller before boot reaches the coalescer below.
+	// Inline, always: cardRoutine()'s card operations go through the write channel after boot, and before boot
+	// blocking is legal (and no recorder exists yet). Counted after boot only -- the gates' evidence that the drain
+	// runs off the storage tier.
 	if (deluge::boot::finished()) {
 		g_recorderOffOwnerTicks++;
-		doRecorderCardRoutines();
-		return;
 	}
-
-	g_recorder_coalescer.request(recorder_card_routines_fill, nullptr);
+	doRecorderCardRoutines();
 }
 
 void slowRoutine() {

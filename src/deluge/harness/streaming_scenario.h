@@ -33,14 +33,12 @@
 ///       drivers; only the Rust harness calls these.
 ///
 /// ## Why two-phase song load
-/// On the Embassy BSP, `Browser::beginListing` (which `openUI(&loadSongUI)` triggers)
-/// dispatches the directory listing onto the single storage-owner fiber ASYNCHRONOUSLY —
-/// unlike the legacy/cooperative host_bsp (`host_render_main.cpp`'s `deluge_render_driver`),
-/// where every `Owner::run` dispatch happens to run inline. So the harness must poll for the
+/// On the Embassy BSP, `Browser::beginListing` (which `openUI(&loadSongUI)` triggers) reads the
+/// directory through the directory channel ASYNCHRONOUSLY. So the harness must poll for the
 /// listing to finish before committing the load, exactly as a real LOAD-button UI flow does
-/// (open browser → listing completes asynchronously → user presses LOAD → the load itself
-/// dispatches as a SEPARATE fiber job). See `deluge_scenario_begin_song_load` /
-/// `deluge_scenario_song_listing_in_progress` / `deluge_scenario_commit_song_load` below.
+/// (open browser → listing completes asynchronously → user presses LOAD → the load itself). See
+/// `deluge_scenario_begin_song_load` / `deluge_scenario_song_listing_in_progress` / `deluge_scenario_commit_song_load`
+/// below.
 #ifdef DELUGE_HOST
 
 #include <cstdint>
