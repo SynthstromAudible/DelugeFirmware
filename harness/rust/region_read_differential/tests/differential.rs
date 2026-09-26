@@ -110,17 +110,15 @@ extern "C" fn deluge_efatfs_read_at(
 
 /// No async streaming-fill task in this differential harness, so `Reader::acquire_and_fill` takes
 /// its synchronous `fill_now` route (through `deluge_efatfs_read_at` above) — the same path this
-/// harness has always exercised. `deluge_streaming_fill_chunk_blocking` below is the async-BSP
-/// alternative, never reached here (this returns false); both must exist for the binary to link.
+/// harness has always exercised. `deluge_streaming_request_chunk` below is the async-BSP
+/// alternative, never reached here; both must exist for the binary to link.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_streaming_async_active() -> bool {
     false
 }
 
 #[unsafe(no_mangle)]
-extern "C" fn deluge_streaming_fill_chunk_blocking(_chunk_backing: *mut c_void) -> bool {
-    false
-}
+extern "C" fn deluge_streaming_request_chunk(_chunk_backing: *mut c_void) {}
 
 /// The one process-wide resource manager pointer `deluge_streaming_resource_manager` (just below)
 /// hands back to `deluge_sample_fill::native_finish` (called by [`ChunkHarness::new`] to seed each

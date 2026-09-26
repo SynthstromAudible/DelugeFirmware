@@ -356,7 +356,10 @@ if(DELUGE_SIM_SANITIZE)
 endif()
 add_custom_command(
     OUTPUT ${SIM_RUST_LIB}
-    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET} ${SIM_RUST_FEATURES}
+    # --target-dir pins the output to SIM_RUST_LIB's directory: a CARGO_TARGET_DIR in the environment (the harness
+    # runner sets one) would otherwise build the staticlib elsewhere and leave this link on a stale copy.
+    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET} --target-dir ${SIM_RUST_WS}/target
+            ${SIM_RUST_FEATURES}
     WORKING_DIRECTORY ${SIM_RUST_WS}
     DEPENDS ${SIM_RUST_SOURCES}
         ${SIM_RUST_WS}/Cargo.lock
