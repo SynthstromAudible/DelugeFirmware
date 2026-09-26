@@ -18,6 +18,7 @@
 #include "model/sample/sample_holder_for_voice.h"
 #include "io/debug/log.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_transpose.h"
 #include "processing/source.h"
 #include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
@@ -130,31 +131,10 @@ void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctav
 	// The note is the detection's: every caller has run it. Nothing is scanned here.
 	const float midiNote = ((Sample*)audioFile)->midiNote;
 	if (midiNote != MIDI_NOTE_ERROR && midiNote != MIDI_NOTE_UNSET) {
-		float semitones = (float)60 - midiNote;
-		int32_t semitonesInt = roundf(semitones);
-		int32_t cents = roundf((semitones - semitonesInt) * 100);
-
-		// If it's the only range, minimize the transpose
-		if (minimizeOctaves) {
-			while (semitonesInt <= -6) {
-				semitonesInt += 12;
-			}
-			while (semitonesInt > 6) {
-				semitonesInt -= 12;
-			}
-		}
-
-		else if (rangeCoversJustOneNote) {
-			if (semitonesInt == 60 - thatOneNote) {
-				if (cents >= -4 && cents <= 4) {
-					cents = 0;
-					// Uart::println("discarded cents");
-				}
-			}
-		}
-
-		transpose = semitonesInt;
-		setCents(cents);
+		const deluge::sample::SampleTranspose t =
+		    deluge::sample::transposeForNote(midiNote, minimizeOctaves, rangeCoversJustOneNote, thatOneNote);
+		transpose = t.semitones;
+		setCents(t.cents);
 	}
 }
 
