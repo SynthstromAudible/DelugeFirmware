@@ -1038,21 +1038,16 @@ std::expected<Browser::SelectionOutcome, Error> Browser::pickBrandNewName() {
 
 // You must set currentDir before calling this.
 Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName) {
-	// The FOURTH leaf that reaches a folder read, alongside LoadInstrumentPresetUI's three readers --
-	// and the one the conversion kept missing, because it does not look like a "preset reader" at all.
-	// After boot it has one legal caller (a new instrument's slot name no longer comes through here:
-	// SlotNameScan reads it on the interaction tier, into a listing of its own):
+	// A leaf that reaches a folder read without looking like a "preset reader" at all, which is why the
+	// conversion kept missing it. After boot its one legal caller is `pickBrandNewName()`, from INSIDE an
+	// active listing, where a read that is not ready comes back as Error::LISTING_DEFERRED and suspends
+	// the listing in its Select phase (see stepListing()) -- hence `listing_.active`. (A new
+	// instrument's slot name no longer comes through here: SlotNameScan reads it on the interaction
+	// tier, into a listing of its own.)
 	//
-	//  - `pickBrandNewName()`, from INSIDE an active listing, where a read that is not ready comes
-	//    back as Error::LISTING_DEFERRED and suspends the listing in its Select phase (see
-	//    stepListing()). That is why this check permits `listing_.active` and its three siblings do
-	//    not: those three cannot be suspended mid-walk, this one is only ever entered from a machine
-	//    that can.
-	//
-	// Boot is the same legal exception the siblings carry. Anything else is an interaction-tier call
-	// with nowhere to put a deferral. FREEZE_WITH_ERROR rather than a bare assert(): a bare assert() is
-	// compiled out of the shipping build, and on the Rust BSP abort() ends the process with nothing on the
-	// display (the reason the retired synchronous walk's own guard gave).
+	// Boot is the other legal exception. Anything else is an interaction-tier call with nowhere to put
+	// a deferral. FREEZE_WITH_ERROR rather than a bare assert(): a bare assert() is compiled out of the
+	// shipping build, and on the Rust BSP abort() ends the process with nothing on the display.
 	if (ALPHA_OR_BETA_VERSION && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()
 	    && !listing_.active) {
 		FREEZE_WITH_ERROR("TIR4");

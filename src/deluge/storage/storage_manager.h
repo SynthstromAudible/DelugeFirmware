@@ -491,9 +491,8 @@ void releaseStaging(StagingState* state);
 /// @brief Stage a document synchronously in a shared slot and open it for parsing.
 ///
 /// For the single-shot openers below, whose callers run a whole load start-to-finish inside one
-/// call and so cannot act on a StagedOpen::Deferred. `LoadInstrumentPresetUI::performLoad()` states
-/// that invariant outright and enforces it with FREEZE_WITH_ERROR("TIR1"); the pattern, favourite,
-/// MIDI-definition and synth-to-drum loads have the same one-call shape.
+/// call and so cannot act on a StagedOpen::Deferred: the pattern, favourite, MIDI-definition and
+/// synth-to-drum loads all have that one-call shape.
 ///
 /// This is behaviour-preserving rather than a relocation: those callers blocked through the
 /// streaming reader before and block the same amount here. What changes is only that the parse now

@@ -17,12 +17,13 @@
 
 #pragma once
 
-/// @brief The scenarios' own preset loader, on the storage owner.
+/// @brief The scenarios' own preset loader.
 ///
 /// The firmware reads presets on the interaction tier now: every production path goes through
 /// `deluge::gui::InstrumentLoad`, and the blocking wrapper the scenarios used to share with it
 /// (`StorageManager::loadInstrumentFromFile()`) is gone. A scenario still needs a preset in memory before it can drive
-/// a gesture at one, so it builds its fixtures here instead -- blocking, on the owner, where a scenario's setup runs.
+/// a gesture at one, so it builds its fixtures here instead -- blocking, called inline from a fixture build on the
+/// interaction tier.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 #ifdef DELUGE_HOST
