@@ -118,27 +118,6 @@ void deluge_streaming_signal_fill(void);
 /// @return true once the chunk is resident+ready; false on the off-fiber degrade or a failed fill.
 bool deluge_streaming_fill_chunk_blocking(void* chunk_backing);
 
-/// @brief Drain the WHOLE loader queue through the async fill task, blocking on the worker fiber.
-///
-/// The offline stem-export drain (`StemExport::renderWait`'s async-BSP branch), reached only when
-/// deluge_streaming_async_active() is true. Unlike deluge_streaming_fill_chunk_blocking, which blocks
-/// on ONE named chunk, this wakes `streaming_fill_task` and yield-waits until the loader queue is
-/// empty — the same drain-everything-the-preceding-`AudioEngine::routine()`-enqueued semantics the
-/// old C-host between-routines `loader::pump()` once provided. renderWait's offline loop has no other
-/// yield point, so this is
-/// what lets the single Embassy executor actually run the fill task between audio routines.
-/// - ON the worker fiber (renderWait's context): yields until the queue drains, bounded by a cycle
-///   cap so a persistently-failing read degrades to a not-fully-drained result instead of wedging.
-/// - OFF the worker fiber: returns false immediately (no stack to suspend; renderWait is always
-///   on-fiber, so this is only a safety net).
-///
-/// The real implementation lives in `streaming_loader.rs` (always compiled on the Rust/Embassy BSP);
-/// every other BSP/config links the `__attribute__((weak))` fallback in `async_fill.cpp` (returns
-/// false — never reached on the hot path, since those retired configs run no offline stem-export
-/// drain at all).
-/// @return true once the queue is fully drained; false on the off-fiber degrade or a hit cycle cap.
-bool deluge_streaming_drain_queue_blocking(void);
-
 /// @brief Enqueues a chunk for filling and returns immediately
 ///
 /// The return-to-loop form of deluge_streaming_fill_chunk_blocking: a caller that cannot block --
@@ -155,8 +134,7 @@ bool deluge_streaming_chunk_ready(void* chunk_backing);
 
 /// @brief Wakes the fill task to drain the loader queue and returns immediately
 ///
-/// The return-to-loop form of deluge_streaming_drain_queue_blocking; pair with
-/// deluge_streaming_queue_drained().
+/// Pair with deluge_streaming_queue_drained().
 void deluge_streaming_request_drain(void);
 
 /// @brief Reports whether the loader queue holds nothing outstanding. Never waits.
@@ -168,7 +146,7 @@ bool deluge_streaming_queue_drained(void);
 ///
 /// The sync→async bridge for the streaming READ path: C++ calls this synchronously at sample-load,
 /// and the Rust implementation (`efatfs_fs.rs`, cargo feature `efatfs_streaming`) bridges to the
-/// async handle table via the worker fiber's `block_on_fiber`. Valid only while on the worker fiber.
+/// async handle table by blocking on the async open.
 /// @param path           NUL-terminated absolute file path.
 /// @param out_handle     Receives the opaque handle on success; untouched on failure.
 /// @param out_table_full Always written (on both success and failure): true iff the open failed
@@ -178,15 +156,13 @@ bool deluge_streaming_queue_drained(void);
 ///                       rather than the misleading `Error::FILE_NOT_FOUND`. Always `false` when
 ///                       @p out_handle was written.
 /// @return true if the file was opened and @p out_handle written; false (caller falls back to the
-///         C-FatFS sector path) if not on the worker fiber, the path/pointer is invalid, the FS is
+///         C-FatFS sector path) if the path/pointer is invalid, the FS is
 ///         unmounted, or the open failed. Every non-efatfs BSP/config links the weak no-op fallback
 ///         in `async_fill.cpp`, which always returns false and writes `*out_table_full = false`.
 bool deluge_efatfs_open(const char* path, uint32_t* out_handle, bool* out_table_full);
 
 /// @brief Close a streaming file handle previously returned by deluge_efatfs_open.
 ///
-/// @note An off-fiber close cannot bridge to the async table, so the slot leaks until reuse —
-///       acceptable for the flag-gated SP1a path (few handles); a deferred-close is future work.
 /// @param handle The handle to close. A no-op on every non-efatfs BSP/config (weak fallback).
 void deluge_efatfs_close(uint32_t handle);
 
@@ -195,7 +171,7 @@ void deluge_efatfs_close(uint32_t handle);
 /// The sync-path counterpart of the async `ProdOps::read` efatfs branch: the range reader's
 /// synchronous `fill_now` (`deluge_sample_reader`) reads through this. The Rust implementation
 /// (`efatfs_fs.rs` / `efatfs_host_shim.rs`, cargo feature `efatfs_streaming`) bridges to the async
-/// handle table via the worker fiber's `block_on_fiber` — valid only while on the worker fiber.
+/// handle table by blocking on the async read.
 /// @param handle     A handle previously returned by deluge_efatfs_open.
 /// @param byte_offset Absolute byte offset within the file to read from.
 /// @param dst        Destination buffer; exactly @p count bytes are written on success.

@@ -9,24 +9,17 @@
 //!
 //! `deluge-bsp-rust` is bin-only (no `[lib]` target — see `Cargo.toml`), so this
 //! recompiles `src/streaming_loader.rs` unmodified into this test binary via
-//! `#[path]`, same convention as `tests/owner_host.rs`. Only the
+//! `#[path]`. Only the
 //! `async_streaming_loader`-gated `fill_once`/`FillOps` orchestration is needed
 //! here — the `host_app`-gated `prod` submodule (the real `extern "C"` wiring)
 //! stays uncompiled, so this test never needs the real C++ app linked.
-//!
-//! `streaming_loader.rs`'s unconditionally-compiled `deluge_streaming_fill_chunk_blocking`/
-//! `deluge_streaming_drain_queue_blocking` reach `crate::fiber::{on_fiber,block_on_fiber}`, so
-//! `fiber.rs` is path-included too, same convention. Its host branch (`not(target_os = "none")`)
-//! is self-contained (its one `crate::sys` dependency is device-only), so no further modules
-//! are needed here.
+
 #![cfg(feature = "async_streaming_loader")]
 #![cfg(not(target_os = "none"))]
 
 use core::ffi::c_void;
 use std::cell::{Cell, RefCell};
 
-#[path = "../src/fiber.rs"]
-mod fiber;
 #[path = "../src/streaming_loader.rs"]
 mod streaming_loader;
 

@@ -144,8 +144,6 @@ mod efatfs_host_shim;
 mod ffi;
 #[path = "../../../src/ffi_extra.rs"]
 mod ffi_extra;
-#[path = "../../../src/fiber.rs"]
-mod fiber;
 #[path = "../../../src/flash.rs"]
 mod flash;
 #[path = "../../../src/host_link_stubs.rs"]
@@ -228,21 +226,11 @@ async fn boot_task() {
     // before anything else touches `currentSong`/scheduler state.
     unsafe { deluge_app_init(board::deluge_board()) };
     boot::mark_finished();
-    log::info!("lens1-vt-sim: scheduler running; pumping async worker");
+    log::info!("lens1-vt-sim: scheduler running");
 
-    use embassy_futures::select::select;
-    loop {
-        let busy = fiber::worker_poll();
-        if busy {
-            let _ = select(
-                fiber::WORKER_WAKE.wait(),
-                embassy_time::Timer::after_millis(8),
-            )
-            .await;
-        } else {
-            fiber::WORKER_WAKE.wait().await;
-        }
-    }
+    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
+    // fiber this loop used to drive is retired.
+    core::future::pending::<()>().await
 }
 
 /// Runs [`scenario::run`], stashes the result, and flags `done`. A thin task
@@ -713,13 +701,13 @@ fn main() {
             "lens1-vt-sim: WEDGED (watchdog) — wall-clock wall timeout ({wall_timeout_s}s) \
              exceeded; the main thread never returned to its own in-loop check (see report for \
              why): virtual t={}us quiescence_passes={} advances={} next_deadline={} \
-             on_fiber_reads={} on_fiber_writes={} timeline_hash={}",
+             card_reads={} card_writes={} timeline_hash={}",
             VIRTUAL_NOW_US.load(Ordering::Relaxed),
             QUIESCENCE_PASSES.load(Ordering::Relaxed),
             ADVANCES.load(Ordering::Relaxed),
             NEXT_DEADLINE_US.load(Ordering::Relaxed),
-            sd::stats::on_fiber_reads(),
-            sd::stats::on_fiber_writes(),
+            sd::stats::reads(),
+            sd::stats::writes(),
             TIMELINE_HASH.load(Ordering::Relaxed),
         );
         // Belt-and-suspenders against the two `hard_exit` call sites racing
@@ -943,11 +931,11 @@ fn main() {
                     "lens1-vt-sim: WEDGED — wall-clock wall timeout ({wall_timeout_s}s) exceeded \
                      inside the quiescence loop (scenario not making progress): virtual \
                      t={}us quiescence_passes={quiescence_passes} advances={advances_now} \
-                     next_deadline={:?} on_fiber_reads={} on_fiber_writes={} timeline_hash={}",
+                     next_deadline={:?} card_reads={} card_writes={} timeline_hash={}",
                     driver.now(),
                     driver.peek_next_deadline(),
-                    sd::stats::on_fiber_reads(),
-                    sd::stats::on_fiber_writes(),
+                    sd::stats::reads(),
+                    sd::stats::writes(),
                     TIMELINE_HASH.load(Ordering::Relaxed),
                 );
                 let _ = std::io::Write::flush(&mut std::io::stdout());
@@ -983,10 +971,10 @@ fn main() {
         if advances.is_multiple_of(20_000) {
             log::info!(
                 "lens1-vt-sim: progress: virtual t={}us advances={advances} passes={quiescence_passes} \
-                 on_fiber_reads={} on_fiber_writes={}",
+                 card_reads={} card_writes={}",
                 driver.now(),
-                sd::stats::on_fiber_reads(),
-                sd::stats::on_fiber_writes(),
+                sd::stats::reads(),
+                sd::stats::writes(),
             );
         }
     }

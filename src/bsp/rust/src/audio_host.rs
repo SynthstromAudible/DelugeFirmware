@@ -161,7 +161,7 @@ fn render_mode() -> bool {
 ///   `host_app`'s own boot smoke (`audio_thread_render_seen`/`drive_count`)
 ///   does.
 fn should_skip_render() -> bool {
-    if !crate::fiber::worker_started() || crate::fiber::on_fiber() {
+    if !crate::boot::finished() {
         return false;
     }
     // Off-fiber, worker started: skip UNLESS this is host_app's real separate

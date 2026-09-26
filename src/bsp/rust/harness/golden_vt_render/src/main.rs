@@ -168,8 +168,6 @@ mod efatfs_host_shim;
 mod ffi;
 #[path = "../../../src/ffi_extra.rs"]
 mod ffi_extra;
-#[path = "../../../src/fiber.rs"]
-mod fiber;
 /// The single-slot whole-file byte channel and its request/collect C ABI. Compiled UNCONDITIONALLY:
 /// the channel has no feature switch, and `deluge_card_flush` names it. A build without it would let
 /// the C++ weak fallback resolve `deluge_file_bytes_async_active` to false, and every settings read
@@ -348,7 +346,6 @@ unsafe extern "C" {
     fn deluge_scenario_sample_load_tree_step_done() -> bool;
     fn deluge_scenario_sample_load_tree_failures() -> i32;
     fn deluge_scenario_sample_claim_begin();
-    fn deluge_worker_jobs_run() -> u32;
     fn deluge_scenario_sample_claim_complete() -> bool;
     fn deluge_scenario_sample_claim_dispatch_step();
     fn deluge_scenario_sample_claim_step_done() -> bool;
@@ -418,21 +415,11 @@ async fn boot_task() {
     unsafe { deluge_app_init(board::deluge_board()) };
     boot::mark_finished();
     BOOT_MOUNTED.store(true, Ordering::Release);
-    log::info!("golden_vt_render: boot+mount complete; scheduler running; pumping async worker");
+    log::info!("golden_vt_render: boot+mount complete; scheduler running");
 
-    use embassy_futures::select::select;
-    loop {
-        let busy = fiber::worker_poll();
-        if busy {
-            let _ = select(
-                fiber::WORKER_WAKE.wait(),
-                embassy_time::Timer::after_millis(8),
-            )
-            .await;
-        } else {
-            fiber::WORKER_WAKE.wait().await;
-        }
-    }
+    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
+    // fiber this loop used to drive is retired.
+    core::future::pending::<()>().await
 }
 
 /// In-image `SONGS/*.XML` path for `fixture` — the same `SONG_XML` values
@@ -528,7 +515,6 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
     // process under sim_latency.
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has already run
     // `deluge_app_init`, so `currentSong` exists. `song_path_c` outlives the call.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_start_song_load(song_path_c.as_ptr()) };
 
     let deadline = Instant::now() + Duration::from_secs(30);
@@ -633,7 +619,6 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
         }
     }
 
-    check_owner_jobs("stem_export", owner_jobs_before);
     log::info!("golden_vt_render: stems copied to {out_dir}; exiting cleanly");
     done.store(true, Ordering::Release);
 }
@@ -666,7 +651,6 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: boot+mount confirmed; starting the recorder round-trip");
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`. Set-up only: it
     // blocks on nothing, so it runs here, inline, like everything after it.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_run_recorder_roundtrip() };
 
     // The CASES, driven from HERE -- one step per tick with a yield between, so the storage driver can
@@ -839,8 +823,6 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         hard_exit(1);
     }
 
-    // After the off-owner cases, not before: their blocking ticks may still hand work to the owner.
-    check_owner_jobs("recorder_roundtrip", owner_jobs_before);
     log::info!("golden_vt_render: recorder round-trip PASSED (0 failures); exiting cleanly");
     done.store(true, Ordering::Release);
 }
@@ -1328,7 +1310,6 @@ async fn run_offset_io_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_offset_io_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -1355,8 +1336,6 @@ async fn run_offset_io_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("offset_io", owner_jobs_before);
     let failures = unsafe { deluge_scenario_offset_io_failures() };
     if failures != 0 {
         log::error!(
@@ -1393,7 +1372,6 @@ async fn run_path_operations_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_path_operations_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -1420,8 +1398,6 @@ async fn run_path_operations_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("path_operations", owner_jobs_before);
     let failures = unsafe { deluge_scenario_path_operations_failures() };
     if failures != 0 {
         log::error!(
@@ -1457,7 +1433,6 @@ async fn run_startup_failsafe_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_startup_failsafe_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -1484,8 +1459,6 @@ async fn run_startup_failsafe_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("startup_failsafe", owner_jobs_before);
     let failures = unsafe { deluge_scenario_startup_failsafe_failures() };
     if failures != 0 {
         log::error!(
@@ -1521,7 +1494,6 @@ async fn run_settings_channel_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_settings_channel_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -1548,8 +1520,6 @@ async fn run_settings_channel_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("settings_channel", owner_jobs_before);
     let failures = unsafe { deluge_scenario_settings_channel_failures() };
     if failures != 0 {
         log::error!(
@@ -1585,7 +1555,6 @@ async fn run_favourites_channel_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_favourites_channel_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -1612,8 +1581,6 @@ async fn run_favourites_channel_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("favourites_channel", owner_jobs_before);
     let failures = unsafe { deluge_scenario_favourites_channel_failures() };
     if failures != 0 {
         log::error!(
@@ -1644,7 +1611,6 @@ async fn run_song_save_channel_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_song_save_channel_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -1671,8 +1637,6 @@ async fn run_song_save_channel_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("song_save_channel", owner_jobs_before);
     let failures = unsafe { deluge_scenario_song_save_channel_failures() };
     if failures != 0 {
         log::error!(
@@ -1703,7 +1667,6 @@ async fn run_sample_collect_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_sample_collect_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -1730,8 +1693,6 @@ async fn run_sample_collect_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("sample_collect", owner_jobs_before);
     let failures = unsafe { deluge_scenario_sample_collect_failures() };
     if failures != 0 {
         log::error!(
@@ -1908,7 +1869,6 @@ async fn run_sample_claim_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_sample_claim_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -1935,8 +1895,6 @@ async fn run_sample_claim_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("sample_claim", owner_jobs_before);
     let failures = unsafe { deluge_scenario_sample_claim_failures() };
     if failures != 0 {
         log::error!(
@@ -2067,7 +2025,6 @@ async fn run_clear_song_undo_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_clear_song_undo_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -2094,8 +2051,6 @@ async fn run_clear_song_undo_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("clear_song_undo", owner_jobs_before);
     let failures = unsafe { deluge_scenario_clear_song_undo_failures() };
     if failures != 0 {
         log::error!(
@@ -2127,7 +2082,6 @@ async fn run_preset_load_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_preset_load_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -2154,8 +2108,6 @@ async fn run_preset_load_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("preset_load", owner_jobs_before);
     let failures = unsafe { deluge_scenario_preset_load_failures() };
     if failures != 0 {
         log::error!(
@@ -2185,7 +2137,6 @@ async fn run_card_reinsert_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_card_reinsert_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -2212,8 +2163,6 @@ async fn run_card_reinsert_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("card_reinsert", owner_jobs_before);
     let failures = unsafe { deluge_scenario_card_reinsert_failures() };
     if failures != 0 {
         log::error!(
@@ -2243,7 +2192,6 @@ async fn run_sample_load_tree_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_sample_load_tree_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -2270,8 +2218,6 @@ async fn run_sample_load_tree_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("sample_load_tree", owner_jobs_before);
     let failures = unsafe { deluge_scenario_sample_load_tree_failures() };
     if failures != 0 {
         log::error!(
@@ -2308,7 +2254,6 @@ async fn run_document_save_channel_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_document_save_channel_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -2336,8 +2281,6 @@ async fn run_document_save_channel_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("document_save_channel", owner_jobs_before);
     let failures = unsafe { deluge_scenario_document_save_channel_failures() };
     if failures != 0 {
         log::error!(
@@ -2393,7 +2336,6 @@ async fn run_song_load_channel_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_song_load_channel_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -2421,8 +2363,6 @@ async fn run_song_load_channel_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("song_load_channel", owner_jobs_before);
     let failures = unsafe { deluge_scenario_song_load_channel_failures() };
     if failures != 0 {
         log::error!(
@@ -2459,7 +2399,6 @@ async fn run_save_roundtrip_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_save_roundtrip_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -2486,8 +2425,6 @@ async fn run_save_roundtrip_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("save_roundtrip", owner_jobs_before);
     let failures = unsafe { deluge_scenario_save_roundtrip_failures() };
     if failures != 0 {
         log::error!(
@@ -2528,7 +2465,6 @@ async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_song_preview_ab_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -2558,8 +2494,6 @@ async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("song_preview_ab", owner_jobs_before);
     let failures = unsafe { deluge_scenario_song_preview_ab_failures() };
     if failures != 0 {
         log::error!(
@@ -2602,7 +2536,6 @@ async fn run_audio_load_ab_scenario(done: &'static AtomicBool) {
     }
 
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    let owner_jobs_before = owner_jobs();
     unsafe { deluge_scenario_audio_load_ab_begin() };
 
     let deadline = Instant::now() + Duration::from_secs(300);
@@ -2632,8 +2565,6 @@ async fn run_audio_load_ab_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // SAFETY: as above.
-    check_owner_jobs("audio_load_ab", owner_jobs_before);
     let failures = unsafe { deluge_scenario_audio_load_ab_failures() };
     if failures != 0 {
         log::error!(
@@ -2891,25 +2822,6 @@ fn main() {
     log::info!("golden_vt_render: boot + mount succeeded; exiting cleanly");
 
     hard_exit(0);
-}
-
-/// Jobs the storage-owner worker has started since boot (see fiber.rs `JOBS_RUN`).
-fn owner_jobs() -> u32 {
-    // SAFETY: a plain atomic load behind a C ABI.
-    unsafe { deluge_worker_jobs_run() }
-}
-
-/// Fail the run if any job ran on the storage owner since `before`. After boot nothing may: every card operation
-/// goes through the channels, and a job here is work that still leans on the fiber.
-fn check_owner_jobs(scenario: &str, before: u32) {
-    let jobs = owner_jobs().wrapping_sub(before);
-    if jobs == 0 {
-        return;
-    }
-    log::error!(
-        "golden_vt_render: {jobs} job(s) ran on the storage owner after boot during {scenario}, expected 0"
-    );
-    hard_exit(1);
 }
 
 /// Immediate, unconditional process termination — skips libc's atexit-run C++

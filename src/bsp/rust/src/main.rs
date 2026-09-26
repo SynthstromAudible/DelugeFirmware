@@ -215,9 +215,6 @@ mod ffi;
 /// linker script).
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod ffi_extra;
-/// The worker fiber: a stackful coroutine for the long synchronous C++ operations
-/// that pause via `yield()`. This module is the context-switch primitive.
-mod fiber;
 /// file_bytes.h — the whole-file byte channel: read, write or rename a small settings file on the
 /// storage tier and hand the BYTES to a caller that must not wait on the card. Gated identically to
 /// `file_directory` above, and to `card` — which reaches this module's `flush_tables` and so must
@@ -572,10 +569,6 @@ pub extern "C" fn main() -> ! {
         rza1l_hal::gic::set_priority(STREAM_SGI as u16, STREAM_SGI_PRIORITY);
     }
 
-    // Verify the worker-fiber context switch in isolation before it drives real
-    // operations. Pure + synchronous; logs PASS/FAIL over RTT.
-    fiber::selftest();
-
     // Unmask IRQs so the time driver and peripheral ISRs fire.
     unsafe { cortex_ar::interrupt::enable() };
 
@@ -736,7 +729,7 @@ async fn app_task() {
     // soon as we yield below.
     unsafe { deluge_app_init(board::deluge_board()) };
     boot::mark_finished();
-    log::info!("deluge-rust: scheduler running; pumping async worker");
+    log::info!("deluge-rust: scheduler running");
 
     // The scheduler's task runners own the periodic app work. This task now pumps
     // the worker fiber ([`fiber`]): it drives the long user-initiated operations
@@ -750,19 +743,9 @@ async fn app_task() {
     // an op is suspended a coarse fallback timer also re-checks (covers predicate
     // flips that aren't signalled — most are, via deluge_worker_run, the task
     // runners, and the SD waker); when idle we sleep until an op is submitted.
-    use embassy_futures::select::select;
-    loop {
-        let busy = fiber::worker_poll();
-        if busy {
-            let _ = select(
-                fiber::WORKER_WAKE.wait(),
-                embassy_time::Timer::after_millis(8),
-            )
-            .await;
-        } else {
-            fiber::WORKER_WAKE.wait().await;
-        }
-    }
+    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
+    // fiber this loop used to drive is retired.
+    core::future::pending::<()>().await
 }
 
 /// `host_app` feature: host sibling of [`app_task`] above — the real C++ app's
@@ -817,24 +800,14 @@ async fn host_app_task() {
     // as soon as we yield below.
     unsafe { deluge_app_init(board::deluge_board()) };
     boot::mark_finished();
-    log::info!("deluge-bsp-rust: host scheduler running; pumping async worker");
+    log::info!("deluge-bsp-rust: host scheduler running");
 
     // Same wake-driven pump shape as the device `app_task` — see there for the
     // full rationale (busy: race WORKER_WAKE against a coarse 8ms fallback;
     // idle: sleep on WORKER_WAKE alone).
-    use embassy_futures::select::select;
-    loop {
-        let busy = fiber::worker_poll();
-        if busy {
-            let _ = select(
-                fiber::WORKER_WAKE.wait(),
-                embassy_time::Timer::after_millis(8),
-            )
-            .await;
-        } else {
-            fiber::WORKER_WAKE.wait().await;
-        }
-    }
+    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
+    // fiber this loop used to drive is retired.
+    core::future::pending::<()>().await
 }
 
 /// Host harness entry (`cargo build`/`cargo test` off-target, no `target_os =
@@ -850,8 +823,6 @@ async fn host_app_task() {
 fn main() {
     env_logger::init();
     log::info!("deluge-bsp-rust: HOST harness");
-    // Run the fiber selftest.
-    assert!(fiber::selftest(), "fiber selftest failed on host");
 
     // sd.rs host shim round-trip: write a known sector via the C-ABI
     // deluge_block_write, read it back via deluge_block_read, and verify the

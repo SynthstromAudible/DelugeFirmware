@@ -110,13 +110,6 @@ pub extern "C" fn deluge_streaming_signal_fill() {
 /// synchronously BLOCKING on so the drain lands it ahead of any queued prefetch.
 const BLOCKING_FILL_PRIORITY: u32 = 0;
 
-/// Bound on the number of yield/re-poll cycles the on-fiber wait spins before giving up (a read
-/// that repeatedly fails while the chunk stays leased — e.g. the card was pulled — would otherwise
-/// never flip `loaded`). Far more than a successful single-cluster fill ever needs (that lands in
-/// one drain cycle), finite so a permanent fault degrades to a not-ready result instead of wedging
-/// the fiber.
-const BLOCKING_FILL_MAX_CYCLES: u32 = 4096;
-
 unsafe extern "C" {
     /// The process-wide resource-manager singleton (see the `prod` module's own copy of this
     /// prototype; a foreign-fn prototype may be declared in more than one module without conflict).
@@ -133,9 +126,7 @@ unsafe extern "C" {
 
 /// True once `chunk_backing`'s fill has landed.
 ///
-/// The single definition of chunk readiness: both [`WaitChunkLoaded`] and the non-blocking
-/// [`deluge_streaming_chunk_ready`] call it, so a poller and a waiter cannot disagree about what
-/// "ready" means.
+/// The single definition of chunk readiness, used by the non-blocking [`deluge_streaming_chunk_ready`].
 fn chunk_is_loaded(chunk_backing: *mut c_void) -> bool {
     // SAFETY: the caller holds a lease on `chunk_backing` for the duration, so it stays resident
     // while we read its `loaded` flag.
@@ -144,8 +135,7 @@ fn chunk_is_loaded(chunk_backing: *mut c_void) -> bool {
 
 /// True when the loader queue holds nothing outstanding.
 ///
-/// The single definition of drained-ness, shared by [`WaitQueueDrained`] and the non-blocking
-/// [`deluge_streaming_queue_drained`].
+/// The single definition of drained-ness, used by the non-blocking [`deluge_streaming_queue_drained`].
 fn queue_is_drained(mgr: *mut c_void) -> bool {
     // SAFETY: `mgr` is the boot-singleton manager; the predicate only reads per-slot queue state,
     // popping and mutating nothing.
@@ -154,10 +144,10 @@ fn queue_is_drained(mgr: *mut c_void) -> bool {
 
 /// Enqueues `chunk_backing` for the fill task under a queue-owned lease and wakes the drain.
 ///
-/// Shared by the blocking and non-blocking request paths so both hand the drain the same protocol.
-/// The owned enqueue is what lets a fire-and-forget request survive the requester walking away --
-/// see [`deluge_streaming_fill_chunk_blocking`]'s doc for why the un-owned form silently discarded
-/// the overview pre-scan's work.
+/// Shared by both request paths so they hand the drain the same protocol. The owned enqueue is what
+/// lets a fire-and-forget request survive the requester walking away -- see
+/// [`deluge_streaming_fill_chunk_blocking`]'s doc for why the un-owned form silently discarded the
+/// overview pre-scan's work.
 fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
     // SAFETY: `deluge_streaming_resource_manager` returns the boot-singleton manager;
     // `chunk_backing` is a resident, leased `StreamedChunk*`.
@@ -169,145 +159,25 @@ fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
     FILL_WAKE.signal(());
 }
 
-/// Poll-until-`loaded` future the on-fiber wait in [`deluge_streaming_fill_chunk_blocking`] drives
-/// through `block_on_fiber`. Each `Pending` suspends the fiber (via `block_on_fiber`'s own
-/// `yield_now`), letting the executor run [`streaming_fill_task`] to drain the queue; the fiber is
-/// re-polled by `worker_poll` and re-checks the flag. `remaining` bounds the spin so a chunk that
-/// never lands (a persistently failing read) reports not-ready rather than wedging the fiber.
-struct WaitChunkLoaded {
-    chunk: *mut c_void,
-    remaining: u32,
-}
-
-impl core::future::Future for WaitChunkLoaded {
-    type Output = bool;
-
-    fn poll(
-        mut self: core::pin::Pin<&mut Self>,
-        _cx: &mut core::task::Context<'_>,
-    ) -> core::task::Poll<bool> {
-        if chunk_is_loaded(self.chunk) {
-            return core::task::Poll::Ready(true);
-        }
-        if self.remaining == 0 {
-            return core::task::Poll::Ready(false); // Gave up: repeated drains never landed it.
-        }
-        self.remaining -= 1;
-        // Re-wake the drain in case it idled after a failed attempt re-queued this chunk at lowest
-        // priority; the executor runs `streaming_fill_task` while this fiber is suspended.
-        FILL_WAKE.signal(());
-        core::task::Poll::Pending
-    }
-}
-
-/// Fill a reserved chunk through the async drain, blocking on the worker fiber — the reader
-/// range-fill's async-BSP path. See `streaming_fill.h`'s `deluge_streaming_fill_chunk_blocking` doc
-/// for the full contract; in brief: enqueue + wake the drain, then on-fiber yield-wait until the
-/// chunk's `loaded` flag flips (byte-equivalent to the synchronous fill, same `native_finish`
-/// tail), off-fiber return false immediately (degrade-to-eventual — no stack to suspend, and a
-/// non-yielding `block_on` here is the very livelock this replaces).
+/// Enqueue a reserved chunk's fill and report it not ready: the reader range-fill's async-BSP path. The fill lands on
+/// the fill task later, and the caller's next tick takes a cache hit.
 ///
 /// # Why the enqueue takes a queue-owned lease
 ///
 /// `deluge_resource_loader_next` only serves a chunk with a live lease, and *silently de-queues* any
-/// other. The off-fiber degrade returns false, whereupon the reader drops the lease it was holding
-/// (`Reader::acquire_and_fill`'s `if !filled` arm) — so the entry this call had just enqueued was
-/// discarded on the drain's very next poll, and the chunk never loaded. That is why the display-only
-/// overview pre-scan never converged on device: every `slowRoutine` tick re-requested the same
-/// cluster, re-enqueued it at the most-urgent priority against the live streaming queue, and threw
-/// its own progress away. Enqueueing through `deluge_resource_loader_enqueue_owned` gives the queue
-/// the lease it requires, so a fire-and-forget fill survives the requester walking away: the drain
-/// lands it, `native_finish` marks it ready, and the scan's next tick takes a cache hit.
-///
-/// Both branches use the owned enqueue, so the drain has one protocol to honour rather than two.
-/// On-fiber that is redundant but harmless (the suspended reader holds its own lease throughout).
+/// other. Returning false makes the reader drop the lease it was holding (`Reader::acquire_and_fill`'s
+/// `if !filled` arm), so an un-owned entry would be discarded on the drain's very next poll and the
+/// chunk would never load -- which is why the display-only overview pre-scan once never converged on
+/// device. Enqueueing through `deluge_resource_loader_enqueue_owned` gives the queue the lease it
+/// requires, so the fill survives the requester walking away.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_streaming_fill_chunk_blocking(chunk_backing: *mut c_void) -> bool {
     if chunk_backing.is_null() {
         return false;
     }
     enqueue_chunk_for_fill(chunk_backing);
-
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(WaitChunkLoaded {
-            chunk: chunk_backing,
-            remaining: BLOCKING_FILL_MAX_CYCLES,
-        })
-    } else {
-        // Off the worker fiber (the display-only overview pre-scan): no stack to suspend. The chunk
-        // is enqueued under a queue-owned lease (see above), so it loads without us; return
-        // not-ready and the consumer's next tick finds it resident.
-        false
-    }
+    false
 }
-
-/// Poll-until-queue-empty future the offline drain in [`deluge_streaming_drain_queue_blocking`]
-/// drives through `block_on_fiber`. Each `Pending` suspends the fiber (via `block_on_fiber`'s own
-/// `yield_now`), letting the executor run [`streaming_fill_task`] to drain the queue; the fiber is
-/// re-polled by `worker_poll` and re-checks. Same shape as [`WaitChunkLoaded`], but the readiness
-/// predicate is "the loader queue is empty" (`deluge_resource_loader_has_any` false) rather than one
-/// named chunk's `loaded` flag. `remaining` bounds the spin so a cluster whose read keeps failing
-/// (and re-queuing itself) reports drained-with-cap rather than wedging the fiber.
-struct WaitQueueDrained {
-    mgr: *mut c_void,
-    remaining: u32,
-}
-
-impl core::future::Future for WaitQueueDrained {
-    type Output = bool;
-
-    fn poll(
-        mut self: core::pin::Pin<&mut Self>,
-        _cx: &mut core::task::Context<'_>,
-    ) -> core::task::Poll<bool> {
-        if queue_is_drained(self.mgr) {
-            return core::task::Poll::Ready(true); // Queue drained — nothing left to load.
-        }
-        if self.remaining == 0 {
-            return core::task::Poll::Ready(false); // Gave up: a read kept failing and re-queuing.
-        }
-        self.remaining -= 1;
-        // Wake the drain: the executor runs `streaming_fill_task` while this fiber is suspended.
-        FILL_WAKE.signal(());
-        core::task::Poll::Pending
-    }
-}
-
-/// Drain the WHOLE loader queue through the async fill task, blocking on the worker fiber — the
-/// offline stem-export drain (`StemExport::renderWait`'s async-BSP branch). See `streaming_fill.h`'s
-/// `deluge_streaming_drain_queue_blocking` doc for the C-side contract; in brief: unlike
-/// [`deluge_streaming_fill_chunk_blocking`] (which blocks on ONE named chunk), this wakes
-/// `streaming_fill_task` and yield-waits until the loader queue is empty
-/// (`deluge_resource_loader_has_any` false) — draining everything the preceding
-/// `AudioEngine::routine()` enqueued. On-fiber it yields until
-/// drained, bounded by [`BLOCKING_FILL_MAX_CYCLES`]; off-fiber it returns false immediately (no stack
-/// to suspend — renderWait is always on-fiber, so this is only a safety net).
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_streaming_drain_queue_blocking() -> bool {
-    // SAFETY: `deluge_streaming_resource_manager` returns the boot-singleton manager.
-    let mgr = unsafe { deluge_streaming_resource_manager() };
-    if mgr.is_null() {
-        return false;
-    }
-    FILL_WAKE.signal(());
-
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(WaitQueueDrained {
-            mgr,
-            remaining: BLOCKING_FILL_MAX_CYCLES,
-        })
-    } else {
-        // Off the worker fiber: no stack to suspend. renderWait always runs on-fiber; this branch is
-        // a safety net only.
-        false
-    }
-}
-
-// ── Non-blocking request/poll pairs ─────────────────────────────────────────
-//
-// The return-to-loop form of the two blocking waits above. A caller that cannot block -- because its
-// predicate needs another task to be polled, and it is itself inside the executor's poll -- requests
-// the work, returns to its own loop, and asks again next tick. Neither function ever waits.
 
 /// Enqueues `chunk_backing` for filling and returns immediately.
 ///

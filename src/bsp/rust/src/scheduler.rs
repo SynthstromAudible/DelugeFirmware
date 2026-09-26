@@ -38,7 +38,12 @@ use embassy_time::{Duration, Instant, Timer};
 // already defines for the same C typedef (`storage_wait.h`), keeping the
 // scheduler's logic (this file) untouched — only the type's source differs.
 #[cfg(not(target_os = "none"))]
-use crate::fiber::RunCondition;
+#[cfg(target_os = "none")]
+use crate::sys::RunCondition;
+/// Host stand-in for the bindgen `RunCondition` typedef (`typedef bool (*RunCondition)();`): `mod sys` (the bindgen
+/// output) is device-only, so mirror the C type's shape here.
+#[cfg(not(target_os = "none"))]
+pub type RunCondition = Option<unsafe extern "C" fn() -> bool>;
 #[cfg(target_os = "none")]
 use crate::sys::RunCondition;
 
@@ -64,10 +69,6 @@ const RESOURCE_NONE: ResourceID = 0;
 // unused ABI mirror only produced a `-Wunused` warning.
 /// USB transport — `scheduler_api.h` RESOURCE_USB.
 const RESOURCE_USB: ResourceID = 2;
-/// "Must not run inside an SD routine" — `scheduler_api.h` RESOURCE_SD_ROUTINE.
-/// Approximated here by gating on the SD mutex (held across any SD task's handle),
-/// which is the only SD_ROUTINE user (the one-shot startup-song task) needs.
-const RESOURCE_SD_ROUTINE: ResourceID = 4;
 
 // ABI guard: these must match scheduler_api.h's `typedef`s exactly, or the C++
 // side reads/writes ids and resources at the wrong width across the boundary.
@@ -453,17 +454,6 @@ async fn task_runner(slot: &'static TaskSlot) {
 
         let resource = slot.resource.load(Ordering::Relaxed) as ResourceID;
 
-        // Hold off RESOURCE_SD_ROUTINE tasks while an SD-routine op is in flight on
-        // the worker (fiber.rs SD_ROUTINE_HELD). Mirrors the cooperative BSP's
-        // isSDRoutineActive() gate: a task that would free an object such an op is
-        // mid-way through (discardRecorder freeing the recorder) must not run. The
-        // counter lingers across the whole in-flight window (sd.rs `block_on_fiber`
-        // makes SD transfers actually yield), not just a synchronous
-        // run-to-completion instant, so this is the real hold-off.
-        if resource & RESOURCE_SD_ROUTINE != 0 && crate::fiber::sd_routine_held() {
-            continue;
-        }
-
         // Acquire the resource gate(s) the schedule asks for, held across the
         // (synchronous) handle so same-resource tasks can't overlap. (RESOURCE_SD
         // has no gate here — see the comment on `USB_GATE` above.)
@@ -488,11 +478,6 @@ async fn task_runner(slot: &'static TaskSlot) {
             // _usb gate released here, before the once-check and back-off.
         };
         slot.record(run_us);
-
-        // This task just made progress; if a worker-fiber op is suspended on a
-        // predicate that depends on it (cluster drain, button release, playback
-        // stop, ...), wake the pump to re-check. No-op when the worker is idle.
-        crate::fiber::wake_if_busy();
 
         if slot.once.load(Ordering::Relaxed) {
             break;
@@ -688,34 +673,23 @@ pub extern "C" fn startTaskManager() {}
 /// Defensive fallback when a `yield*` is somehow reached off the worker fiber
 /// (shouldn't happen — every yielding op is dispatched to the worker). Evaluates
 /// the predicate once and returns it; never waits, never hangs.
-fn off_fiber_yield(until: RunCondition) -> bool {
+fn poll_once(until: RunCondition) -> bool {
     // SAFETY: `until` is the C++ caller's predicate; calling it is benign polling.
     until.map_or(true, |p| unsafe { p() })
 }
 
 #[unsafe(export_name = "yield")]
 pub extern "C" fn r#yield(until: RunCondition) {
-    if crate::fiber::on_fiber() {
-        crate::fiber::yield_until(until, None);
-    } else {
-        off_fiber_yield(until);
-    }
+    poll_once(until);
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn yieldWithTimeout(until: RunCondition, timeout: f64) -> bool {
-    if crate::fiber::on_fiber() {
-        crate::fiber::yield_until(until, Some(secs_to_us(timeout)))
-    } else {
-        off_fiber_yield(until)
-    }
+    let _ = timeout;
+    poll_once(until)
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn yieldToIdle(until: RunCondition) -> bool {
-    if crate::fiber::on_fiber() {
-        crate::fiber::yield_until(until, None)
-    } else {
-        off_fiber_yield(until)
-    }
+    poll_once(until)
 }

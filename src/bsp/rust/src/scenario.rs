@@ -251,8 +251,8 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
     // is genuinely attributable to THIS run's streaming/recording, not the song load
     // itself (which also issues on-fiber SD reads for its essential-sample clusters).
     let blocks_before = crate::audio_host::drive_count();
-    let reads_before = crate::sd::stats::on_fiber_reads();
-    let writes_before = crate::sd::stats::on_fiber_writes();
+    let reads_before = crate::sd::stats::reads();
+    let writes_before = crate::sd::stats::writes();
     let underrun_wait_before = unsafe { deluge_sim_underrun_wait_count() };
     let underrun_unassign_before = unsafe { deluge_sim_underrun_unassign_count() };
 
@@ -394,8 +394,8 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
     }
 
     result.blocks_rendered = crate::audio_host::drive_count().saturating_sub(blocks_before);
-    result.cluster_reads = crate::sd::stats::on_fiber_reads().saturating_sub(reads_before);
-    result.recorder_writes = crate::sd::stats::on_fiber_writes().saturating_sub(writes_before);
+    result.cluster_reads = crate::sd::stats::reads().saturating_sub(reads_before);
+    result.recorder_writes = crate::sd::stats::writes().saturating_sub(writes_before);
     result.underrun_wait =
         unsafe { deluge_sim_underrun_wait_count() }.saturating_sub(underrun_wait_before);
     result.underrun_unassign =

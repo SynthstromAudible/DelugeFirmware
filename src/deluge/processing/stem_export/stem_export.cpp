@@ -32,7 +32,7 @@
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
 #include "libdeluge/file_write.h"
-#include "libdeluge/streaming_fill.h" // deluge_streaming_drain_queue_blocking
+#include "libdeluge/streaming_fill.h" // deluge_streaming_request_drain
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/non_audio_instrument.h"

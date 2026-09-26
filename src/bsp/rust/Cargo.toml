@@ -168,10 +168,6 @@ embassy-time = { version = "0.5.1", features = ["std"] }
 critical-section = { version = "1", features = ["std"] }
 # Host `main`'s logger (device uses `log` over RTT instead; see the `rtt` feature).
 env_logger = "0.11"
-# Host implementation of fiber.rs's low-level switch (`corosensei::Coroutine`/
-# `Yielder`), standing in for the device's ARM `fiber_switch` global_asm. Its
-# `sanitize` feature (below) is ASan-only — see that feature's comment.
-corosensei = "0.3"
 # The host-built C++ `deluge_app` closure (host_app feature) calls the same
 # deluge_resource_* / deluge_{alloc,slab_*,heap_*} C ABIs the device resolves via
 # the dep above. On host these crates are plain std rlibs (no panic_handler, no
@@ -223,12 +219,6 @@ default = ["rtt", "async_streaming_loader", "efatfs_streaming"]
 ## rza1l_rtt.x linker script (via build.rs) and registers the log logger.
 rtt = ["dep:rtt-target", "rza1l-hal/rtt"]
 
-## corosensei sanitizer instrumentation for the host fiber switch. ASan-only: it
-## wires AddressSanitizer's `__sanitizer_*_switch_fiber` API, which ThreadSanitizer's
-## runtime doesn't implement, so `-Zsanitizer=thread` fails to link with it on.
-## Off by default (enabling it without a sanitizer build causes linker errors).
-sanitize = ["corosensei/sanitizer"]
-
 ## Link the host-built C++ `deluge_app` object and bindgen the libdeluge headers
 ## for the host ABI, so the host binary can reach the C++ app boundary without a
 ## device build. Pulls in the host-side `deluge_resource` dep, plus (R0b) the
@@ -247,11 +237,6 @@ host_app = [
     "dep:embedded-fatfs",
     "dep:embedded-io-async",
 ]
-
-## Diagnostic: make `deluge_block_read`/`deluge_block_write` debug_assert! the
-## caller is on the storage worker fiber, surfacing card transfers not yet on the
-## single-owner path. Off by default. See include/libdeluge/storage_owner.h.
-storage-owner-audit = []
 
 ## SP1a: build the single-owner `embedded-fatfs` mount (`efatfs_fs.rs`) — one
 ## `FileSystem` behind an async `Mutex`. Off by default; nothing calls

@@ -118,16 +118,7 @@ __attribute__((weak)) bool deluge_streaming_fill_chunk_blocking(void* /*chunk_ba
 	return false;
 }
 
-// Weak fallback for the offline stem-export drain-all-queued routine. The Rust Embassy BSP provides
-// the real definition (streaming_loader.rs) whenever it links that crate; every other BSP/config
-// resolves this instead. StemExport::renderWait (the only caller) runs only on BSPs that do offline
-// export, which are exactly the ones that link the real definition — so this fallback just returns
-// false (nothing drained) for a stray call and is never reached on the hot path.
-__attribute__((weak)) bool deluge_streaming_drain_queue_blocking(void) {
-	return false;
-}
-
-// Weak fallbacks for the non-blocking request/poll pairs, matching the two blocking routines above:
+// Weak fallbacks for the non-blocking request/poll pairs:
 // the Rust Embassy BSP provides the real definitions (streaming_loader.rs), every other BSP/config
 // resolves these. The request halves are no-ops. The two poll halves answer differently, and
 // deliberately: chunk_ready reports NOT ready, degrading a stray call to a not-ready read rather than

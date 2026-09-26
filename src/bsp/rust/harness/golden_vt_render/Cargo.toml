@@ -47,14 +47,11 @@ embassy-time-queue-utils = "0.3.2"
 embassy-futures = "0.1.2"
 embassy-sync = "0.8.0"
 # `std` backend: a real critical-section impl on host (global mutex) — the
-# shared source files (sd.rs/fiber.rs/scheduler.rs) are compiled
+# shared source files (sd.rs/scheduler.rs) are compiled
 # `not(target_os = "none")`, std, same as deluge-bsp-rust's own host target.
 critical-section = { version = "1", features = ["std"] }
 log = "0.4"
 env_logger = "0.11"
-# Host implementation of `fiber.rs`'s low-level coroutine switch — same dep,
-# same version, as `deluge-bsp-rust`'s own host target.
-corosensei = "0.3"
 
 # Sibling deluge-sdk BSP: `sd.rs` calls `deluge_bsp::sd::*` uniformly (dual-target,
 # see that file's module doc). Host-only relevant surface (block_device.h's backing
@@ -170,11 +167,9 @@ sim_latency = []
 # see `lens1_vt_sim/Cargo.toml`'s identical comment for why (only the async
 # fill path ever consults `StreamingFillDescriptor.handle`).
 efatfs_streaming = ["async_streaming_loader"]
-# Not enabled — exists only so the shared `#[cfg(feature = "storage-owner-audit")]`/
-# `#[cfg(feature = "rtt")]` conditionals in `sd.rs`/`services.rs` don't trip
-# rustc's unknown-cfg lint in this package (they're real features over there,
-# unrelated to this package's own concerns).
-storage-owner-audit = []
+# Not enabled — exists only so the shared `#[cfg(feature = "rtt")]` conditionals in
+# `services.rs` don't trip rustc's unknown-cfg lint in this package (it is a real
+# feature over there, unrelated to this package's own concerns).
 rtt = []
 # Mirrors `../Cargo.toml`'s `async_streaming_loader` feature exactly (same
 # spelling, so `streaming_loader.rs`'s `#[cfg(feature = "async_streaming_loader")]`

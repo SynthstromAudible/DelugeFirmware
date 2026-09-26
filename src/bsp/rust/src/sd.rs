@@ -54,11 +54,6 @@ use embassy_sync::mutex::Mutex;
 static SD_BUS: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
 #[cfg(target_os = "none")]
-use crate::fiber::block_on_fiber;
-#[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
-use crate::fiber::block_on_fiber;
-
-#[cfg(target_os = "none")]
 use crate::sys::{
     DelugeCardEvent, DelugeCardEvent_DELUGE_CARD_EVENT_EJECTED as CARD_EJECTED,
     DelugeCardEvent_DELUGE_CARD_EVENT_INSERTED as CARD_INSERTED,
@@ -265,7 +260,7 @@ pub async fn locked_read_sectors(lba: u32, count: u32, buf: &mut [u8]) -> Result
     // its own bespoke transfer and is instrumented separately — see its doc
     // comment). Host-only, matching `stats`'s own `#[cfg]`.
     #[cfg(not(target_os = "none"))]
-    stats::note_read(crate::fiber::on_fiber());
+    stats::note_read();
     #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
     {
         // Model EVERY transfer, on-fiber or not. This used to have an off-fiber escape hatch
@@ -295,7 +290,7 @@ pub async fn locked_read_sectors(lba: u32, count: u32, buf: &mut [u8]) -> Result
 pub async fn locked_write_sectors(lba: u32, count: u32, buf: &[u8]) -> Result<(), sd::SdError> {
     let _guard = SD_BUS.lock().await;
     #[cfg(not(target_os = "none"))]
-    stats::note_write(crate::fiber::on_fiber());
+    stats::note_write();
     #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
     {
         sim_latency::modeled_write(lba, count, buf).await
@@ -446,23 +441,6 @@ pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) ->
     }
 }
 
-/// libdeluge/storage_owner.h — Embassy: the storage owner IS the worker fiber.
-#[unsafe(no_mangle)]
-/// Is the caller already the storage owner (the worker fiber on this BSP)?
-///
-/// Its consumers (`audio_engine.cpp:1662`, `audio_file_manager.cpp:970`) use it for one purpose:
-/// "am I already on the owner, so run the work inline instead of re-dispatching onto the context
-/// I am already running on". That meaning is unaffected by storage becoming callable from
-/// anywhere — `on_fiber()` still truthfully answers it, and self-dispatch is still pointless.
-///
-/// What DID change is the `else` branch at those sites. Coalescing onto the fiber used to be
-/// mandatory, because an off-fiber caller could not perform the I/O at all; now it is a policy
-/// choice that still earns its keep by bounding how many card-init / recorder drains are in
-/// flight. Revisiting that policy belongs to `Owner`'s redesign, not here.
-pub extern "C" fn deluge_storage_on_owner() -> bool {
-    crate::fiber::on_fiber()
-}
-
 // FatFS is not re-entrant. The app's SD-reentrancy guard is
 // `deluge_storage_fs_busy()`, which this BSP backs with the efatfs FS-mutex
 // state (see `efatfs_fs.rs`), so it now genuinely reflects whether a FatFS
@@ -503,12 +481,6 @@ pub extern "C" fn deluge_block_read(
     // FatFS since nothing else can run concurrently before the owner is up.
     // Once the owner IS up (`worker_started()`), every transfer must be on the
     // fiber — this audits that.
-    #[cfg(feature = "storage-owner-audit")]
-    debug_assert!(
-        crate::fiber::on_fiber() || !crate::fiber::worker_started(),
-        "FatFS card transfer off the storage owner after the owner started — \
-         single-owner discipline violated at runtime (async-sd staging ladder)"
-    );
     if unit != 0 || !sd::is_ready() {
         return DELUGE_ERR_NODEV;
     }
@@ -516,11 +488,7 @@ pub extern "C" fn deluge_block_read(
     // SAFETY: caller guarantees `dst` holds `count` sectors.
     let out = unsafe { core::slice::from_raw_parts_mut(dst, len) };
     let fut = locked_read_sectors(sector, count, out);
-    match if crate::fiber::on_fiber() {
-        block_on_fiber(fut)
-    } else {
-        block_on(fut)
-    } {
+    match block_on(fut) {
         Ok(()) => DELUGE_OK,
         Err(_) => DELUGE_ERR_IO,
     }
@@ -543,12 +511,6 @@ pub extern "C" fn deluge_block_write(
     // FatFS since nothing else can run concurrently before the owner is up.
     // Once the owner IS up (`worker_started()`), every transfer must be on the
     // fiber — this audits that.
-    #[cfg(feature = "storage-owner-audit")]
-    debug_assert!(
-        crate::fiber::on_fiber() || !crate::fiber::worker_started(),
-        "FatFS card transfer off the storage owner after the owner started — \
-         single-owner discipline violated at runtime (async-sd staging ladder)"
-    );
     if unit != 0 || !sd::is_ready() {
         return DELUGE_ERR_NODEV;
     }
@@ -559,11 +521,7 @@ pub extern "C" fn deluge_block_write(
     // SAFETY: caller guarantees `src` holds `count` sectors.
     let data = unsafe { core::slice::from_raw_parts(src, len) };
     let fut = locked_write_sectors(sector, count, data);
-    match if crate::fiber::on_fiber() {
-        block_on_fiber(fut)
-    } else {
-        block_on(fut)
-    } {
+    match block_on(fut) {
         Ok(()) => DELUGE_OK,
         Err(e) => {
             log::warn!("deluge_block_write err {e:?} (sector={sector} count={count})");
@@ -615,33 +573,27 @@ pub extern "C" fn deluge_block_write(
 pub(crate) mod stats {
     use core::sync::atomic::{AtomicU64, Ordering};
 
-    static ON_FIBER_READS: AtomicU64 = AtomicU64::new(0);
-    static ON_FIBER_WRITES: AtomicU64 = AtomicU64::new(0);
+    static READS: AtomicU64 = AtomicU64::new(0);
+    static WRITES: AtomicU64 = AtomicU64::new(0);
 
-    pub(crate) fn note_read(on_fiber: bool) {
-        if on_fiber {
-            ON_FIBER_READS.fetch_add(1, Ordering::Relaxed);
-        }
+    pub(crate) fn note_read() {
+        READS.fetch_add(1, Ordering::Relaxed);
     }
 
-    pub(crate) fn note_write(on_fiber: bool) {
-        if on_fiber {
-            ON_FIBER_WRITES.fetch_add(1, Ordering::Relaxed);
-        }
+    pub(crate) fn note_write() {
+        WRITES.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Total SD block reads observed while `fiber::on_fiber()` was true — any
-    /// backend (C-FatFS's plain/`sim_latency` `deluge_block_read`, or
-    /// efatfs's `HostSdBlockDevice::read` via `locked_read_sectors`).
-    pub fn on_fiber_reads() -> u64 {
-        ON_FIBER_READS.load(Ordering::Relaxed)
+    /// Total SD block reads, any backend (the plain/`sim_latency` `deluge_block_read`, or efatfs's
+    /// `HostSdBlockDevice::read` via `locked_read_sectors`).
+    pub fn reads() -> u64 {
+        READS.load(Ordering::Relaxed)
     }
 
-    /// Total SD block writes observed while `fiber::on_fiber()` was true — any
-    /// backend (C-FatFS's plain/`sim_latency` `deluge_block_write`, or
-    /// efatfs's `HostSdBlockDevice::write` via `locked_write_sectors`).
-    pub fn on_fiber_writes() -> u64 {
-        ON_FIBER_WRITES.load(Ordering::Relaxed)
+    /// Total SD block writes, any backend (the plain/`sim_latency` `deluge_block_write`, or efatfs's
+    /// `HostSdBlockDevice::write` via `locked_write_sectors`).
+    pub fn writes() -> u64 {
+        WRITES.load(Ordering::Relaxed)
     }
 }
 
@@ -674,12 +626,6 @@ pub extern "C" fn deluge_block_read(
     // FatFS since nothing else can run concurrently before the owner is up.
     // Once the owner IS up (`worker_started()`), every transfer must be on the
     // fiber — this audits that.
-    #[cfg(feature = "storage-owner-audit")]
-    debug_assert!(
-        crate::fiber::on_fiber() || !crate::fiber::worker_started(),
-        "FatFS card transfer off the storage owner after the owner started — \
-         single-owner discipline violated at runtime (async-sd staging ladder)"
-    );
     if unit != 0 {
         return DELUGE_ERR_NODEV;
     }
@@ -723,12 +669,6 @@ pub extern "C" fn deluge_block_write(
     // FatFS since nothing else can run concurrently before the owner is up.
     // Once the owner IS up (`worker_started()`), every transfer must be on the
     // fiber — this audits that.
-    #[cfg(feature = "storage-owner-audit")]
-    debug_assert!(
-        crate::fiber::on_fiber() || !crate::fiber::worker_started(),
-        "FatFS card transfer off the storage owner after the owner started — \
-         single-owner discipline violated at runtime (async-sd staging ladder)"
-    );
     if unit != 0 {
         return DELUGE_ERR_NODEV;
     }
@@ -776,17 +716,10 @@ pub extern "C" fn deluge_block_read(
 ) -> DelugeStatus {
     // See the plain host `deluge_block_read`'s identical comment above for the
     // `worker_started()` vs. `on_fiber()` rationale.
-    #[cfg(feature = "storage-owner-audit")]
-    debug_assert!(
-        crate::fiber::on_fiber() || !crate::fiber::worker_started(),
-        "FatFS card transfer off the storage owner after the owner started — \
-         single-owner discipline violated at runtime (async-sd staging ladder)"
-    );
     if unit != 0 {
         return DELUGE_ERR_NODEV;
     }
-    let on_fiber = crate::fiber::on_fiber();
-    stats::note_read(on_fiber);
+    stats::note_read();
     let len = count as usize * SECTOR_SIZE;
     // SAFETY: caller guarantees `dst` holds `count` sectors.
     let out = unsafe { core::slice::from_raw_parts_mut(dst, len) };
@@ -794,19 +727,10 @@ pub extern "C" fn deluge_block_read(
     // — this path calls `sim_latency::modeled_read`, not `sd::read_sectors`, so it
     // can't reuse that helper). Locked once per branch, at the same single level
     // as every other entry point — never nested.
-    let result = if on_fiber {
-        let fut = async {
-            let _guard = SD_BUS.lock().await;
-            sim_latency::modeled_read(sector, count, out).await
-        };
-        block_on_fiber(fut)
-    } else {
-        let fut = async {
-            let _guard = SD_BUS.lock().await;
-            sim_latency::modeled_read(sector, count, out).await
-        };
-        crate::sim_block::block_on(fut)
-    };
+    let result = crate::sim_block::block_on(async {
+        let _guard = SD_BUS.lock().await;
+        sim_latency::modeled_read(sector, count, out).await
+    });
     match result {
         Ok(()) => DELUGE_OK,
         Err(e) => {
@@ -828,39 +752,23 @@ pub extern "C" fn deluge_block_write(
     sector: u32,
     count: u32,
 ) -> DelugeStatus {
-    #[cfg(feature = "storage-owner-audit")]
-    debug_assert!(
-        crate::fiber::on_fiber() || !crate::fiber::worker_started(),
-        "FatFS card transfer off the storage owner after the owner started — \
-         single-owner discipline violated at runtime (async-sd staging ladder)"
-    );
     if unit != 0 {
         return DELUGE_ERR_NODEV;
     }
     if sd::is_write_protected() {
         return DELUGE_ERR_WRITE_PROTECTED;
     }
-    let on_fiber = crate::fiber::on_fiber();
-    stats::note_write(on_fiber);
+    stats::note_write();
     let len = count as usize * SECTOR_SIZE;
     // SAFETY: caller guarantees `src` holds `count` sectors.
     let data = unsafe { core::slice::from_raw_parts(src, len) };
     // See the read sibling's identical comment above: SD_BUS locked inline per
     // branch (this path calls `sim_latency::modeled_write`, not
     // `sd::write_sectors`, so it can't reuse `locked_write_sectors`).
-    let result = if on_fiber {
-        let fut = async {
-            let _guard = SD_BUS.lock().await;
-            sim_latency::modeled_write(sector, count, data).await
-        };
-        block_on_fiber(fut)
-    } else {
-        let fut = async {
-            let _guard = SD_BUS.lock().await;
-            sim_latency::modeled_write(sector, count, data).await
-        };
-        crate::sim_block::block_on(fut)
-    };
+    let result = crate::sim_block::block_on(async {
+        let _guard = SD_BUS.lock().await;
+        sim_latency::modeled_write(sector, count, data).await
+    });
     match result {
         Ok(()) => DELUGE_OK,
         Err(e) => {
