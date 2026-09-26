@@ -34,8 +34,8 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
+#include "util/boot.h"
 
 #include <cstring>
 
@@ -254,16 +254,16 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 	AudioEngine::logAction("openDocumentStaged");
 
 	// An async request issued from a context that will not YIELD can never complete: the driver only
-	// runs when this caller returns to its executor. On the owner we therefore fill synchronously,
-	// which is legal there. Off it both channels are always there: the byte channel's stat sizes the
+	// runs when this caller returns to its executor. During boot we therefore fill synchronously,
+	// which is legal then. After it both channels are always there: the byte channel's stat sizes the
 	// buffer and the write channel's whole-file read fills it.
-	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	const bool booting = !deluge::boot::finished();
 
-	if (!onOwner) {
+	if (!booting) {
 		AudioEngine::noteOffOwnerSongStageTick();
 	}
 
-	if (onOwner) {
+	if (booting) {
 		if (state->buffer == nullptr && readWholeFileSynchronously(path, state) != Error::NONE) {
 			return StagedOpen::Failed;
 		}

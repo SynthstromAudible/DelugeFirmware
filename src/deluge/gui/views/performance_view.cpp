@@ -1675,10 +1675,10 @@ void PerformanceView::writeDefaultsToFile() {
 			return;
 		}
 		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
-		// blocking is legal; after boot, off the owner, it is refused and nothing is written.
+		// blocking is legal; after boot it is refused and nothing is written.
 	}
 	// A refusal leaves `anyChangesToSave` set, so the layout still reads as unsaved.
-	(void)deluge::storage::bytes::runInlineWhereLegal(
+	(void)deluge::storage::bytes::runDuringBoot(
 	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->writeDefaultsOnOwner(); }, this);
 }
 
@@ -1846,7 +1846,7 @@ void PerformanceView::readDefaultsFromFile() {
 	}
 	// The body where blocking is legal. The document is staged whole and walked over memory through
 	// `activeDeserializer`, so nothing here holds the card open across a parse.
-	(void)deluge::storage::bytes::runInlineWhereLegal(
+	(void)deluge::storage::bytes::runDuringBoot(
 	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->readDefaultsOnOwner(); }, this);
 }
 

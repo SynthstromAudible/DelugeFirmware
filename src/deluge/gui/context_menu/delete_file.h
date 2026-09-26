@@ -76,7 +76,7 @@ private:
 	void applyOutcome(Outcome outcome);
 	/// @brief Close this menu, and the save menu when that is what it was opened from.
 	void closeMenus();
-	/// @brief The removal where blocking on the card is legal, for `bytes::runInlineWhereLegal`.
+	/// @brief The removal where blocking on the card is legal, for `bytes::runDuringBoot`.
 	/// @param ctx This menu.
 	static void unlinkInline(void* ctx);
 	/// @brief `bytes::DoneFn` for the channel's removal.

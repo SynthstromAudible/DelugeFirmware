@@ -272,7 +272,7 @@ void FavouritesManager::issueNext() {
 		// Not taken: too large for the channel (a busy channel queues instead).
 	}
 
-	if (bytes::runInlineWhereLegal(&runIntentOnOwner, this)) {
+	if (bytes::runDuringBoot(&runIntentOnOwner, this)) {
 		return;
 	}
 	// Refused: off the owner after boot, with an intent the channel would not take. End it now, as a failure, so the

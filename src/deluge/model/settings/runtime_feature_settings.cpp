@@ -326,9 +326,9 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 			return;
 		}
 		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
-		// blocking is legal; after boot, off the owner, it is refused and nothing is written.
+		// blocking is legal; after boot it is refused and nothing is written.
 	}
-	(void)deluge::storage::bytes::runInlineWhereLegal(
+	(void)deluge::storage::bytes::runDuringBoot(
 	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->writeSettingsOnOwner(); }, this);
 }
 

@@ -72,8 +72,8 @@ bool DeleteFile::acceptCurrentOption() {
 		applyOutcome(Outcome::Failed);
 		return true;
 	}
-	// On the storage owner, or before it has started: blocking on the card is legal here.
-	if (!bytes::runInlineWhereLegal(&DeleteFile::unlinkInline, this)) {
+	// During boot: blocking on the card is legal here.
+	if (!bytes::runDuringBoot(&DeleteFile::unlinkInline, this)) {
 		applyOutcome(Outcome::Failed);
 	}
 	return true;

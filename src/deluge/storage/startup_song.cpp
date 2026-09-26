@@ -210,7 +210,7 @@ void issueExists(const char* path) {
 	static std::string ownerPath;
 	ownerPath = path;
 	g_ownerDone = false;
-	if (!deluge::storage::bytes::runInlineWhereLegal(
+	if (!deluge::storage::bytes::runDuringBoot(
 	        [](void*) {
 		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 		        g_ownerPresence = StorageManager::fileExists(ownerPath.c_str());
@@ -270,7 +270,7 @@ void issueCanaryWrite() {
 		return;
 	}
 	g_ownerDone = false;
-	if (!deluge::storage::bytes::runInlineWhereLegal(
+	if (!deluge::storage::bytes::runDuringBoot(
 	        [](void*) {
 		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 		        auto canary = deluge::io::File::open(g_canaryPath, DELUGE_FILE_WRITE_CREATE);
@@ -339,7 +339,7 @@ void issueTemplateWrite() {
 	// The synchronous arm, where blocking is legal -- boot, before the channel's task runs.
 	g_ownerDone = false;
 	g_templateBytes = bytes;
-	if (!deluge::storage::bytes::runInlineWhereLegal(
+	if (!deluge::storage::bytes::runDuringBoot(
 	        [](void*) {
 		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 		        auto file = deluge::io::File::open(kDefaultSongFullPath, DELUGE_FILE_WRITE_CREATE);
@@ -438,7 +438,7 @@ void issueUnlink(const std::string& path) {
 	static std::string ownerPath;
 	ownerPath = path;
 	g_ownerDone = false;
-	if (!deluge::storage::bytes::runInlineWhereLegal(
+	if (!deluge::storage::bytes::runDuringBoot(
 	        [](void*) {
 		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 		        (void)deluge::io::unlink(ownerPath);
@@ -741,10 +741,10 @@ void finishStartupSong() {
 		enter(StartupPhase::UnlinkCanary);
 		return;
 	}
-	// On the owner, or during boot: blocking is legal here, so the body always runs.
+	// During boot: blocking is legal here, so the body always runs.
 	static std::string path;
 	path = g_startupFailSafePath;
-	(void)deluge::storage::bytes::runInlineWhereLegal(
+	(void)deluge::storage::bytes::runDuringBoot(
 	    [](void*) {
 		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 		    (void)deluge::io::unlink(path);

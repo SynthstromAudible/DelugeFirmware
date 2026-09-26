@@ -21,7 +21,7 @@
 #include "hid/display/display.h"
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
-#include "storage/owner.h"
+#include "util/boot.h"
 
 #include <cstddef>
 #include <cstring>
@@ -91,7 +91,7 @@ int32_t g_channelServed = 0;
 
 /// See @ref illegalInline.
 int32_t g_illegalInline = 0;
-/// How many operations `runInlineWhereLegal` actually RAN. See its header note.
+/// How many operations `runDuringBoot` actually RAN. See its header note.
 int32_t g_inlineRuns = 0;
 
 /// Count one channel operation that reached a terminal status, and pass that status through.
@@ -114,12 +114,10 @@ ByteIo counted(ByteIo status) {
 } // namespace
 
 bool usingByteChannel() {
-	// `started()` as well as `on_owner()`, and the extra term is load-bearing. `deluge.cpp` reads all
-	// three settings files during boot, measured `on_owner=0 started=0` -- so `on_owner()` alone would
-	// route those reads through the channel, whose task is not yet running and whose answer nothing is
-	// yet ticking to collect. Boot would come up with defaults for every setting. This is the same
-	// monotonic latch `Owner::started()`'s own doc names for exactly this class of caller.
-	return !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started() && deluge_file_bytes_async_active();
+	// Boot as well as the switch, and the boot term is load-bearing: `deluge.cpp` reads all three settings files
+	// during boot, when the channel's task is not yet running and nothing is ticking to collect an answer. Boot would
+	// come up with defaults for every setting.
+	return deluge::boot::finished() && deluge_file_bytes_async_active();
 }
 
 ByteIo requestRead(const char* path) {
@@ -652,8 +650,8 @@ bool idle() {
 	return g_pending.step == Step::Idle && g_waiting.empty();
 }
 
-bool runInlineWhereLegal(OwnerFn fn, void* ctx) {
-	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
+bool runDuringBoot(OwnerFn fn, void* ctx) {
+	if (!deluge::boot::finished()) {
 		g_inlineRuns++;
 		fn(ctx);
 		return true;
@@ -828,7 +826,7 @@ int32_t interactionTierIo(IoTier which) {
 }
 
 void noteIoTier(IoTier which) {
-	if (!deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()) {
+	if (deluge::boot::finished()) {
 		// Counted as well as frozen: the count is what
 		// let each gate report its pre-conversion number, which is the evidence that the conversion
 		// did something. The freeze is what keeps it from coming back.

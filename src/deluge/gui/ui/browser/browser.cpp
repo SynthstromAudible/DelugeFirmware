@@ -2008,7 +2008,7 @@ Error Browser::createFolder() {
 	}
 	g_ownerCreatePath = newDirPath;
 	// Where blocking is legal only. A refusal creates nothing, and the listing below reports the folder missing.
-	(void)deluge::storage::bytes::runInlineWhereLegal(
+	(void)deluge::storage::bytes::runDuringBoot(
 	    [](void*) {
 		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 		    (void)deluge::io::mkdir(g_ownerCreatePath.c_str());
@@ -2071,7 +2071,7 @@ Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
 	}
 	g_ownerCreatePath = path;
 	// Where blocking is legal only. A refusal creates nothing, and that folder's listing reports it missing.
-	(void)deluge::storage::bytes::runInlineWhereLegal(
+	(void)deluge::storage::bytes::runDuringBoot(
 	    [](void*) {
 		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 		    (void)createFoldersRecursiveOnOwner(g_ownerCreatePath.c_str());

@@ -106,8 +106,7 @@ void discardTemp(const std::string& temp) {
 		return;
 	}
 	std::string path = temp;
-	(void)bytes::runInlineWhereLegal([](void* ctx) { (void)deluge::io::unlink(*static_cast<std::string*>(ctx)); },
-	                                 &path);
+	(void)bytes::runDuringBoot([](void* ctx) { (void)deluge::io::unlink(*static_cast<std::string*>(ctx)); }, &path);
 }
 
 } // namespace deluge::storage

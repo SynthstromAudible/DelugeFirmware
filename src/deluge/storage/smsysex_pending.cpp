@@ -119,7 +119,7 @@ deluge::io::Status copyOnOwner(const std::string& from, const std::string& to) {
 	return status;
 }
 
-/// Run the operation synchronously. Reached only through `runInlineWhereLegal`, so never anywhere a
+/// Run the operation synchronously. Reached only through `runDuringBoot`, so never anywhere a
 /// card wait is disallowed.
 void runOnOwner() {
 	std::expected<void, deluge::io::Status> result{};
@@ -278,7 +278,7 @@ void issue() {
 		return;
 	}
 	g_ownerDone = false;
-	if (!deluge::storage::bytes::runInlineWhereLegal([](void*) { runOnOwner(); }, nullptr)) {
+	if (!deluge::storage::bytes::runDuringBoot([](void*) { runOnOwner(); }, nullptr)) {
 		// Refused: after boot, off the owner, only a channel that stopped answering reaches here. The host
 		// is told the operation timed out rather than left waiting for a reply that never comes.
 		g_ownerStatus = deluge::io::Status::TIMEOUT;

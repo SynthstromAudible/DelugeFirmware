@@ -59,14 +59,9 @@ enum class ByteIo : uint8_t {
 ///
 /// @return true when the caller must request/collect; false when it must take its synchronous arm.
 ///
-/// Mirrors `Browser::usingDirectoryChannel()`, and inherits its reasoning: on the owner the
-/// synchronous path is correct and cheaper, because blocking there is legal and the channel exists
-/// to keep the INTERACTION tier off the card.
-///
-/// It adds an `Owner::started()` term that the browser's does not need, and that term is what keeps
-/// the three boot reads in `deluge.cpp` working. They measure `on_owner=0 started=0`, so `on_owner()`
-/// alone would route them through a channel whose task is not yet running and whose answer nothing is
-/// yet ticking to collect -- and the device would boot with defaults for every setting.
+/// Mirrors `Browser::usingDirectoryChannel()`: after boot, and only while the Rust channel is switched on. The boot
+/// term is what keeps the three boot reads in `deluge.cpp` working: the channel's task is not yet running then, and
+/// nothing is ticking to collect an answer -- the device would boot with defaults for every setting.
 ///
 /// The selector is checked LAST because with the channel absent the weak collect answers UNKNOWN
 /// forever, so a caller that consulted it would defer every tick and never read anything.
@@ -329,7 +324,7 @@ using DoneFn = void (*)(void* ctx, SettingsOutcome outcome);
 ///                   channel. May be nullptr.
 /// @return true when the channel took it -- in flight or queued behind what is -- and @p onDone (if any) will
 ///         be called later. **false when the caller must do the read itself**, because the channel is not the
-///         place for it here (switch off, on the owner, before boot) or @p path does not fit
+///         place for it here (switch off, or before boot) or @p path does not fit
 ///         `DELUGE_FILE_BYTES_MAX_PATH`. A busy channel is never a false: it queues.
 ///
 /// @note The path is COPIED; the caller's string may be a temporary.
@@ -380,21 +375,21 @@ bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDon
 ///         because the channel is not the place for it here or @p path does not fit. A busy channel is never a false.
 bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr);
 
-/// @brief Run @p fn inline where blocking on the card is legal, and nowhere else.
+/// @brief Run @p fn inline during boot, and nowhere else.
 ///
-/// Legal means on the storage owner, or before the owner has started: boot, and every C++-only build, whose worker is
-/// inline and never reports started. Anywhere else the byte channel is the only place card I/O may start from, so an
-/// operation that reaches here there is one the channel could not carry (a document over its bound). It is not run,
-/// not dispatched, and it is counted in @ref illegalInline.
+/// Before boot has finished (and always, in a C++-only build) blocking on the card is legal and nothing yet answers a
+/// channel. After it the channels are the only place card I/O may start from, so an operation that reaches here then is
+/// one the channel could not carry (a document over its bound). It is not run, not dispatched, and it is counted in
+/// @ref illegalInline.
 /// @param fn  The consumer's synchronous body.
 /// @param ctx Passed through to @p fn.
 /// @return true when @p fn ran; false when it was refused.
-[[nodiscard]] bool runInlineWhereLegal(OwnerFn fn, void* ctx);
+[[nodiscard]] bool runDuringBoot(OwnerFn fn, void* ctx);
 
-/// @brief How many operations @ref runInlineWhereLegal refused because the caller was off the owner after boot.
+/// @brief How many operations @ref runDuringBoot refused because boot had finished.
 [[nodiscard]] int32_t illegalInline();
 
-/// @brief How many operations @ref runInlineWhereLegal actually RAN inline.
+/// @brief How many operations @ref runDuringBoot actually RAN inline.
 ///
 /// The complement of @ref illegalInline, and the evidence a consumer needs before deleting its
 /// blocking arm: a refusal count of zero is equally consistent with the arm running every single
