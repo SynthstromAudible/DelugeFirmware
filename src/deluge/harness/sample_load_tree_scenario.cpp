@@ -57,7 +57,6 @@
 #include "storage/audio/sample_load_walk.h"
 #include "storage/byte_channel.h"
 #include "storage/multi_range/multi_range.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 
 #include <algorithm>
@@ -378,8 +377,8 @@ bool buildSong() {
 	waveTableHolder->filePath = kWaveTable;
 	(void)synth->loadAllAudioFiles(true);
 
-	// The new-kit-track gesture, which takes the first kit preset nobody in the song is using: kSongKitPath.
-	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1);
+	// The new-kit-track gesture, which loads kSongKitPath.
+	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1, kSongKitPath);
 	if (kitClipBase == nullptr || kitClipBase->output == nullptr || kitClipBase->output->type != OutputType::KIT) {
 		return fail("no kit clip could be created from the song kit preset");
 	}
@@ -786,7 +785,7 @@ bool buildCrucialSong() {
 
 	// A second kit, from kCrucialKitPath: drum A's row gets a note, drum B's gets a note and is muted, drum C's stays
 	// empty. Playing.
-	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 3);
+	Clip* kitClipBase = deluge::harness::createNewInstrumentClip(OutputType::KIT, 3, kCrucialKitPath);
 	if (kitClipBase == nullptr || kitClipBase->output == nullptr || kitClipBase->output->type != OutputType::KIT) {
 		return fail("no kit clip could be created from the crucial kit preset");
 	}
@@ -823,8 +822,8 @@ bool buildCrucialSong() {
 		return fail("the crucial kit clip does not have its three drums");
 	}
 
-	// A second synth, from whichever synth preset the gesture picks, on its own sample. Not playing.
-	Clip* synthClipBase = deluge::harness::createNewInstrumentClip(OutputType::SYNTH, 4);
+	// A second synth, from kSynthPresetPath, on its own sample. Not playing.
+	Clip* synthClipBase = deluge::harness::createNewInstrumentClip(OutputType::SYNTH, 4, kSynthPresetPath);
 	if (synthClipBase == nullptr || synthClipBase->output == nullptr
 	    || synthClipBase->output->type != OutputType::SYNTH) {
 		return fail("no second synth clip could be created");
@@ -1538,26 +1537,6 @@ bool runPendingFixture() {
 	return true;
 }
 
-/// Owner fixture builds queued and not yet run.
-int32_t g_ownerFixturesPending = 0;
-
-/// Runs the fixture build on the storage owner. Deferred to S2: the build calls `createNewInstrumentClip`, which queues
-/// itself on the owner with a pointer into its own stack frame when called anywhere else. The step is not done until it
-/// has run: step_done waits on g_ownerFixturesPending, as the retired marker did.
-void buildFixtureOnOwner(void (*fn)()) {
-	g_ownerFixturesPending++;
-	if (!deluge::storage::Owner::run(
-	        [](void* ctx) {
-		        reinterpret_cast<void (*)()>(ctx)();
-		        g_ownerFixturesPending--;
-	        },
-	        reinterpret_cast<void*>(fn))) {
-		g_ownerFixturesPending--;
-		printf("SLT-SETUP FAIL the storage owner's queue was full\n");
-		g_failures++;
-	}
-}
-
 /// Whether the blank song's own preset request has landed. The boot song starts on the built-in default synth and asks
 /// InstrumentLoad for the first SYNTHS preset on the interaction tier; a scenario that acted on the boot clip before
 /// that landed would be working on an Instrument about to be replaced, which no user can do.
@@ -1588,7 +1567,7 @@ void runTick() {
 			g_stage = Stage::Report;
 			break;
 		}
-		buildFixtureOnOwner([] {
+		buildFixture([] {
 			if (!buildSong()) {
 				g_stage = Stage::Report;
 			}
@@ -1694,7 +1673,7 @@ void runTick() {
 		g_stage = Stage::CrucialBuild;
 		break;
 	case Stage::CrucialBuild:
-		buildFixtureOnOwner([] {
+		buildFixture([] {
 			if (!buildCrucialSong()) {
 				g_stage = Stage::Report;
 			}
@@ -1909,7 +1888,7 @@ bool deluge_scenario_sample_load_tree_step_done(void) {
 	if (runPendingFixture()) {
 		return false;
 	}
-	return g_stepDone && g_ownerFixturesPending == 0;
+	return g_stepDone;
 }
 
 int32_t deluge_scenario_sample_load_tree_failures(void) {

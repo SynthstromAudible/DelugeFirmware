@@ -19,13 +19,9 @@
 
 #ifdef DELUGE_HOST
 
-#include "gui/ui/browser/browser.h"
-#include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/views/session_view.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
-#include "storage/file_item.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
@@ -47,69 +43,42 @@ Error loadPresetFixture(Song* song, OutputType outputType, Instrument** getInstr
 	return error;
 }
 
-deluge::storage::AcquireResult acquireUnlaunchedPreset(OutputType outputType) {
+namespace {
+
+/// Load @p presetPath as the gesture's acquisition would, without the walk: a fixture knows which preset it wrote.
+deluge::storage::AcquireResult loadNamedPreset(OutputType outputType, const char* presetPath) {
 	deluge::storage::AcquireResult acquired{};
-	Browser::currentDir = getInstrumentFolder(outputType);
-
-	auto result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-	    currentSong, outputType, Availability::INSTRUMENT_UNUSED);
-	if (!result.has_value()) {
-		acquired.error = result.error();
-		Browser::emptyFileItems();
-		return acquired;
+	const std::string path = presetPath;
+	const size_t slash = path.rfind('/');
+	std::string dirPath = (slash == std::string::npos) ? std::string{} : path.substr(0, slash);
+	std::string name = path.substr(slash == std::string::npos ? 0 : slash + 1);
+	if (const size_t dot = name.rfind('.'); dot != std::string::npos) {
+		name.resize(dot);
 	}
-
-	FileItem* fileItem = *result;
-	Instrument* instrument = fileItem->instrument;
-	acquired.alreadyInSong = instrument != nullptr && fileItem->instrumentAlreadyInSong;
-	acquired.wasHibernating = instrument != nullptr && !fileItem->instrumentAlreadyInSong;
-	if (instrument == nullptr) {
-		std::string name = fileItem->getFilenameWithoutExtension();
-		std::string dirPath = Browser::currentDir;
-		const std::string path = Browser::currentDir + "/" + fileItem->getFilenameWithExtension();
-		acquired.error = loadPresetFixture(currentSong, outputType, &instrument, path.c_str(), &name, &dirPath);
-		acquired.loadedFromFile = acquired.error == Error::NONE;
-		acquired.name = name;
-	}
-	else {
-		acquired.name = instrument->name;
-	}
-	// The list is rebuilt by the next listing; nothing above may outlive it, so it is emptied before the samples.
-	Browser::emptyFileItems();
-
+	Instrument* instrument = nullptr;
+	acquired.error = loadPresetFixture(currentSong, outputType, &instrument, path.c_str(), &name, &dirPath);
 	if (acquired.error != Error::NONE) {
 		return acquired;
 	}
+	acquired.loadedFromFile = true;
+	acquired.name = name;
 	acquired.instrument = instrument;
-	if (!acquired.alreadyInSong) {
-		// What the gesture's own acquisition loads: a preset read from the card, or a hibernating Instrument's
-		// samples. One already active in the song is taken as it is.
-		(void)instrument->loadAllAudioFiles(true);
-	}
+	// What the gesture's own acquisition loads: the preset's samples.
+	(void)instrument->loadAllAudioFiles(true);
 	return acquired;
 }
 
-Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay) {
-	struct Ctx {
-		OutputType outputType;
-		int32_t yDisplay;
-		Clip* result;
-	} ctx{outputType, yDisplay, nullptr};
+} // namespace
 
-	// On the owner: the walk recurses over subfolders and must run start-to-finish there, which is what the gesture's
-	// own walk does through InstrumentLoad.
-	deluge::storage::Owner::run_or_inline(
-	    [](void* ctxPtr) {
-		    auto* c = static_cast<Ctx*>(ctxPtr);
-		    if (c->outputType != OutputType::SYNTH && c->outputType != OutputType::KIT) {
-			    c->result = sessionView.createNewInstrumentClipAcquired(c->outputType, c->yDisplay, nullptr);
-			    return;
-		    }
-		    deluge::storage::AcquireResult acquired = acquireUnlaunchedPreset(c->outputType);
-		    c->result = sessionView.createNewInstrumentClipAcquired(c->outputType, c->yDisplay, &acquired);
-	    },
-	    &ctx);
-	return ctx.result;
+Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay, const char* presetPath) {
+	if (outputType != OutputType::SYNTH && outputType != OutputType::KIT) {
+		return sessionView.createNewInstrumentClipAcquired(outputType, yDisplay, nullptr);
+	}
+	deluge::storage::AcquireResult acquired = loadNamedPreset(outputType, presetPath);
+	if (acquired.error != Error::NONE) {
+		return nullptr;
+	}
+	return sessionView.createNewInstrumentClipAcquired(outputType, yDisplay, &acquired);
 }
 
 } // namespace deluge::harness

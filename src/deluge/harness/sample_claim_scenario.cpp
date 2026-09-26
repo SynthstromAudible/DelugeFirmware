@@ -65,7 +65,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
 #include "storage/multi_range/multi_range.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 
 #include <cstdio>
@@ -130,9 +129,8 @@ constexpr const char* kKickSample = "SAMPLES/SCKICK.WAV";
 constexpr const char* kClipSample = "SAMPLES/SCAUD.WAV";
 constexpr const char* kSliceSample = "SAMPLES/SCSLICE.WAV";
 
-/// The one-drum kit presets the new-kit-track gesture picks up, each the first one nobody in the song is using: the kit
-/// leg's, then the manual slice leg's. The region slice leaves the first kit with four drums, and a slice indexes the
-/// drums it makes from the kit's first.
+/// The one-drum kit presets the new-kit-track gesture loads: the kit leg's, then the manual slice leg's. The region
+/// slice leaves the first kit with four drums, and a slice indexes the drums it makes from the kit's first.
 constexpr const char* kKitPresetPath = "KITS/SCKIT.XML";
 constexpr const char* kManualKitPresetPath = "KITS/SCKIT2.XML";
 constexpr const char* kKitDrumName = "SCD1";
@@ -408,26 +406,6 @@ bool runPendingFixture() {
 	return true;
 }
 
-/// Owner fixture builds queued and not yet run.
-int32_t g_ownerFixturesPending = 0;
-
-/// Runs the fixture build on the storage owner. Deferred to S2: the build calls
-/// `deluge::harness::createNewInstrumentClip`, which queues itself on the owner with a pointer into its own stack frame
-/// when called anywhere else. The step is not done until it has run: step_done waits on g_ownerFixturesPending, as the
-/// retired marker did.
-void buildFixtureOnOwner(void (*fn)()) {
-	g_ownerFixturesPending++;
-	if (!deluge::storage::Owner::run(
-	        [](void* ctx) {
-		        reinterpret_cast<void (*)()>(ctx)();
-		        g_ownerFixturesPending--;
-	        },
-	        reinterpret_cast<void*>(fn))) {
-		g_ownerFixturesPending--;
-		fail(legName(g_leg), "the storage owner's queue was full");
-	}
-}
-
 ImportMark markImport() {
 	return {deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
@@ -676,12 +654,11 @@ bool openBrowserOnSynth(const char* leg, OscType osc) {
 void prepareLeg() {
 	switch (g_leg) {
 	case Leg::Kit:
-		buildFixtureOnOwner([] {
+		buildFixture([] {
 			const KitPresetDrum presetDrum{.name = kKitDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kKitPresetPath, &presetDrum, 1)) {
-				// The new-kit-track gesture, which takes the first kit preset nobody in the song is using:
-				// kKitPresetPath.
-				g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1);
+				// The new-kit-track gesture, which loads kKitPresetPath.
+				g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1, kKitPresetPath);
 			}
 			printf("SC-PROBE leg=kit prepared kitClip=%d\n", g_kitClip != nullptr ? 1 : 0);
 		});
@@ -690,7 +667,7 @@ void prepareLeg() {
 		buildFixture([] { g_audioClip = sessionView.createNewClip(OutputType::AUDIO, 2); });
 		break;
 	case Leg::RandomizeOne:
-		buildFixtureOnOwner([] {
+		buildFixture([] {
 			// A kit of its own, whose drums all name the randomizer folder's first file: the randomizer picks from the
 			// folder a drum's sample sits in, and every other fixture is outside it.
 			KitPresetDrum drums[kRandomizeDrumCount];
@@ -700,7 +677,7 @@ void prepareLeg() {
 			if (!writeKitPreset(kRandomizeKitPresetPath, drums, kRandomizeDrumCount)) {
 				return;
 			}
-			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 4);
+			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 4, kRandomizeKitPresetPath);
 			if (g_kitClip == nullptr || g_kitClip->output == nullptr || g_kitClip->output->type != OutputType::KIT) {
 				fail("randomize-one", "no kit clip could be created from the randomizer preset");
 				return;
@@ -806,21 +783,22 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::ImportKit:
-		buildFixtureOnOwner([] {
+		buildFixture([] {
 			// A one-drum kit of its own: the kit menu offers "Load All" only into a kit with one drum.
 			const KitPresetDrum presetDrum{.name = kImportKitDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kImportKitPresetPath, &presetDrum, 1)) {
-				g_importKitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 5);
+				g_importKitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 5, kImportKitPresetPath);
 			}
 			printf("SC-PROBE leg=import-kit prepared kitClip=%d\n", g_importKitClip != nullptr ? 1 : 0);
 		});
 		break;
 	case Leg::ImportMulti:
-		buildFixtureOnOwner([] {
+		buildFixture([] {
 			// A synth of its own, from a preset of its own: the multisample import replaces its source's ranges, and
-			// the new-synth-track gesture needs a synth preset nobody in the song is using.
+			// the new-synth-track gesture loads it.
 			if (writeSynthPreset(kImportSynthPresetPath)) {
-				g_importSynthClip = deluge::harness::createNewInstrumentClip(OutputType::SYNTH, 6);
+				g_importSynthClip =
+				    deluge::harness::createNewInstrumentClip(OutputType::SYNTH, 6, kImportSynthPresetPath);
 			}
 			printf("SC-PROBE leg=import-multi prepared synthClip=%d type=%d\n", g_importSynthClip != nullptr ? 1 : 0,
 			       (g_importSynthClip != nullptr && g_importSynthClip->output != nullptr)
@@ -829,11 +807,11 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::ImportGate:
-		buildFixtureOnOwner([] {
+		buildFixture([] {
 			// A one-drum kit of its own: the import kit leg's kit holds three drums by now.
 			const KitPresetDrum presetDrum{.name = kImportGateDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kImportGatePresetPath, &presetDrum, 1)) {
-				g_importGateClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 7);
+				g_importGateClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 7, kImportGatePresetPath);
 			}
 			printf("SC-PROBE leg=import-gate prepared kitClip=%d\n", g_importGateClip != nullptr ? 1 : 0);
 		});
@@ -864,11 +842,11 @@ void prepareLeg() {
 		});
 		break;
 	case Leg::SliceManual:
-		buildFixtureOnOwner([] {
+		buildFixture([] {
 			// A kit of its own: the region slice left the first with four drums.
 			const KitPresetDrum presetDrum{.name = kKitDrumName, .samplePath = kKitPresetSample};
 			if (writeKitPreset(kManualKitPresetPath, &presetDrum, 1)) {
-				g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 3);
+				g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 3, kManualKitPresetPath);
 			}
 			const SoundDrum* drum = kitDrum();
 			int32_t drums = 0;
@@ -2099,7 +2077,7 @@ bool deluge_scenario_sample_claim_step_done(void) {
 	if (runPendingFixture()) {
 		return false;
 	}
-	return g_stepDone && g_ownerFixturesPending == 0;
+	return g_stepDone;
 }
 
 int32_t deluge_scenario_sample_claim_failures(void) {

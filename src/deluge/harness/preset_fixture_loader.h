@@ -50,30 +50,18 @@ namespace deluge::harness {
 /// @param name      In/out: the preset's name, as the parse rewrites it.
 /// @param dirPath   In/out: the preset's folder, as the parse rewrites it.
 /// @return Error::NONE, or why the document could not be read.
-/// @pre Runs on the storage owner.
 Error loadPresetFixture(Song* song, OutputType outputType, Instrument** getInstrument, char const* path,
                         std::string* name, std::string* dirPath);
 
-/// @brief Walk the instrument folder for the first preset nobody in the song uses, and load it.
+/// @brief Make a new track and clip on the preset at @p presetPath, as the session view's empty-pad gesture does.
 ///
-/// The walk today's gestures run (`findAnUnlaunchedPresetIncludingWithinSubfolders()`), then @ref loadPresetFixture
-/// and the samples, shaped as the `AcquireResult` a gesture's follow-up is handed. An Instrument already active in the
-/// song is taken as it is; a hibernating one has its samples loaded, as `InstrumentLoad` does for the same case.
-/// @param outputType SYNTH or KIT.
-/// @return What was found, or an error with no Instrument.
-/// @pre Runs on the storage owner.
-deluge::storage::AcquireResult acquireUnlaunchedPreset(OutputType outputType);
-
-/// @brief Make a new track and clip on the first unused preset of @p outputType, as the session view's empty-pad
-///        gesture does.
-///
-/// The scenarios' stand-in for that gesture: it acquires the preset itself (@ref acquireUnlaunchedPreset, on the
-/// owner) and hands `SessionView::createNewInstrumentClip()` the result, which is what the gesture's own acquisition
-/// does on the interaction tier.
+/// Creates a clip on the preset at @p presetPath, loaded as the new-track gesture's acquisition would load it — no
+/// walk: a fixture names the preset it wrote. Synchronous; any context.
 /// @param outputType SYNTH or KIT (MIDI and CV read no card and are acquired nothing).
 /// @param yDisplay   The session row to build the clip on.
-/// @return The new clip, or null if the preset could not be acquired or the clip could not be made.
-Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay);
+/// @param presetPath The preset file, e.g. "KITS/SCKIT.XML"; ignored for MIDI and CV.
+/// @return The new clip, or null if the preset could not be loaded or the clip could not be made.
+Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay, const char* presetPath);
 
 } // namespace deluge::harness
 

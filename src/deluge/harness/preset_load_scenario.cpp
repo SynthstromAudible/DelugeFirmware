@@ -806,8 +806,8 @@ void prepareLeg() {
 		     && writeKitPreset(kHeavyPreset, kHeavyDrumNames, kHeavySamples, 3)
 		     && writeKitPreset(kLitePreset, &liteName, &kLiteSample, 1);
 		if (ok) {
-			// The new-kit-track gesture, which takes the first kit preset nobody in the song is using: PLBASE.
-			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1);
+			// The new-kit-track gesture, which loads kBaseKitPreset.
+			g_kitClip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 1, kBaseKitPreset);
 		}
 		for (Output* output = currentSong->firstOutput; output != nullptr && g_synth == nullptr;
 		     output = output->next) {

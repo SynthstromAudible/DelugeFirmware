@@ -209,7 +209,7 @@ public:
 	ActionResult gridHandleScroll(int32_t offsetX, int32_t offsetY);
 
 #ifdef DELUGE_HOST
-	/// @brief The scenarios' entry to the new-track gesture: they acquire the preset themselves, on the storage owner
+	/// @brief The scenarios' entry to the new-track gesture: they load the preset they name themselves
 	///        (deluge::harness::createNewInstrumentClip()), and hand the result over here -- which is what the
 	///        gesture's own acquisition does from the interaction tier. Host-only: no device image carries it.
 	Clip* createNewInstrumentClipAcquired(OutputType type, int32_t yDisplay,

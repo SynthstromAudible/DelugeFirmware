@@ -2910,9 +2910,9 @@ fn owner_jobs() -> u32 {
 const OWNER_JOBS_DEFERRED: [(&str, u32); 6] = [
     ("path_operations", 1),
     ("recorder_roundtrip", 2),
-    ("sample_claim", 6),
+    ("sample_claim", 0),
     ("preset_load", 2),
-    ("sample_load_tree", 2),
+    ("sample_load_tree", 0),
     ("song_preview_ab", 1),
 ];
 
