@@ -843,14 +843,17 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 			return residentOfWantedType;
 		}
 
-		// We found the path but not the wanted type. If we want a WaveTable but have the Sample, we can convert.
-		if (type == AudioFileType::WAVETABLE) {
+		// We found the path but not the wanted type. If we want a WaveTable but have the Sample, we can convert -- on
+		// the storage owner only. The conversion reads every cluster through the sample reader, which waits for a
+		// cluster only on the owner's fiber; anywhere else a cluster not yet filled fails the read, and the claim with
+		// it. There the WaveTable is built from the card instead, as when no Sample is resident.
+		if (type == AudioFileType::WAVETABLE && deluge::storage::Owner::on_owner()) {
 			return convertSampleToWaveTable(static_cast<Sample&>(*audioFiles[audioFileI]), makeWaveTableWorkAtAllCosts,
 			                                error);
 		}
 
-		// Otherwise (want Sample, have WaveTable) we can't convert, so load from card after all — restoring the
-		// original filePath if we'd switched to the alternate one (pretty unlikely scenario).
+		// Otherwise (want Sample, have WaveTable; or want WaveTable off the owner) we don't convert, so load from card
+		// after all — restoring the original filePath if we'd switched to the alternate one (pretty unlikely scenario).
 		if (!backedUpFilePath.empty()) {
 			filePath = backedUpFilePath;
 		}

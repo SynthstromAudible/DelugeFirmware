@@ -1758,6 +1758,8 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 /// - `SAMPLES/SCPITCH.WAV`, `SCSUPA.WAV`, `SCSUPB.WAV`, `SCPSTALL.WAV`: SCSYN.WAV's sine under paths of their own, for
 ///   the legs that must catch a pitch detection waiting for a cluster -- the resume leg, the two supersede legs and the
 ///   pitch stall leg.
+/// - `SAMPLES/SCWTBIG.WAV`: 64 wavetable-length cycles, previewed and then claimed as a wavetable: the conversion of a
+///   resident multi-cluster Sample.
 /// - `SAMPLES/SCCYCLE.WAV`: one 512-frame cycle of a sine, claimed as a wavetable from the context menu.
 /// - `SAMPLES/SCSTER.WAV`: stereo, claimed into a wavetable oscillator, which cannot take it and falls back to a
 ///   sample.
@@ -1817,6 +1819,9 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     write_sine_wav(&samples.join("SCSUPB.WAV"), 1, 22_050, 440.0);
     write_sine_wav(&samples.join("SCPSTALL.WAV"), 1, 22_050, 440.0);
     write_sine_wav(&samples.join("SCCYCLE.WAV"), 1, 512, 44_100.0 / 512.0);
+    // The resident-wavetable leg's file: 64 wavetable-length cycles (131072 frames, 8 clusters), previewed -- so resident
+    // as a Sample -- and then claimed as a wavetable, which converts that Sample by reading every cluster of it.
+    write_sine_wav(&samples.join("SCWTBIG.WAV"), 1, 131_072, 44_100.0 / 2048.0);
     write_test_wav(&samples.join("SCSTER.WAV"), 2, 16, 8192, 0x36);
     write_test_wav(&samples.join("SCGATE.WAV"), 1, 16, 4096, 0x37);
     write_test_wav(&samples.join("SCSTALL.WAV"), 1, 16, 4096, 0x38);

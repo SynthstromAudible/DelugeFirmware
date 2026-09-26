@@ -103,6 +103,9 @@ constexpr int32_t kPitchTranspose = 3;
 /// IM-MULTI's measured transposes (SC-PROBE leg=import-multi, 05e423da8): 110, 220 and 440 Hz.
 constexpr int32_t kImportMultiTransposes[] = {15, 3, -9};
 constexpr const char* kCycleSample = "SAMPLES/SCCYCLE.WAV";
+/// The resident-wavetable leg's file: previewed (resident as a Sample, most clusters not yet filled) then claimed as a
+/// wavetable, which converts the resident Sample. See the Rust fixture.
+constexpr const char* kResidentWaveTableSample = "SAMPLES/SCWTBIG.WAV";
 constexpr const char* kStereoSample = "SAMPLES/SCSTER.WAV";
 /// The gate and stall legs' files: held by the loader from the moment their browser opens, so neither is in memory when
 /// its claim begins.
@@ -236,6 +239,7 @@ constexpr int32_t kMaxStallTicks = 20000;
 enum class Leg : uint8_t {
 	Synth,
 	WaveTable,
+	WaveTableResident,
 	Fallback,
 	Gate,
 	Supersede,
@@ -374,6 +378,8 @@ const char* legName(Leg leg) {
 		return "randomize-stall";
 	case Leg::RandomizeCancelScan:
 		return "randomize-cancelscan";
+	case Leg::WaveTableResident:
+		return "wavetable-resident";
 	case Leg::Pitch:
 		return "pitch";
 	case Leg::PitchStall:
@@ -895,6 +901,10 @@ bool openLeg() {
 		return openBrowserOnSynth("synth", OscType::SAMPLE);
 	case Leg::WaveTable:
 		return openBrowserOnSynth("wavetable", OscType::SAMPLE);
+	case Leg::WaveTableResident:
+		// Fills held briefly, so the Sample the preview leaves resident still lacks most of its clusters at the claim.
+		deluge_streaming_set_fill_latency_ms(kPitchHoldMs);
+		return openBrowserOnSynth("wavetable-resident", OscType::SAMPLE);
 	case Leg::Fallback:
 		// A wavetable oscillator: the claim tries the file as a wavetable first.
 		return openBrowserOnSynth("fallback", OscType::WAVETABLE);
@@ -986,6 +996,8 @@ const char* legFile() {
 		return kSynthSample;
 	case Leg::WaveTable:
 		return kCycleSample;
+	case Leg::WaveTableResident:
+		return kResidentWaveTableSample;
 	case Leg::Fallback:
 		return kStereoSample;
 	case Leg::Gate:
@@ -1238,7 +1250,7 @@ void actLeg() {
 		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
 		return;
 	}
-	if (g_leg == Leg::WaveTable) {
+	if (g_leg == Leg::WaveTable || g_leg == Leg::WaveTableResident) {
 		using namespace deluge::hid::button;
 		// A long press on Select: the press, then what the UI timer's callback does once it has been held.
 		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
@@ -1246,7 +1258,7 @@ void actLeg() {
 		auto& menu = deluge::gui::context_menu::sample_browser::synth;
 		const bool menuOnTop = getCurrentUI() == &menu;
 		menu.currentOption = kWaveTableOption;
-		printf("SC-SETUP leg=wavetable menuOnTop=%d\n", menuOnTop ? 1 : 0);
+		printf("SC-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
 		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
 		return;
 	}
@@ -1407,6 +1419,22 @@ void checkLeg() {
 		// Auto-load off again, and out of the browser, which auto-load leaves open.
 		(void)getCurrentUI()->buttonAction(deluge::hid::button::LOAD, false, false);
 		sampleBrowser.exitAndNeverDeleteDrum();
+		break;
+	}
+	case Leg::WaveTableResident: {
+		deluge_streaming_set_fill_latency_ms(0);
+		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		const bool bound = holder != nullptr && holder->audioFile != nullptr;
+		const bool isWaveTable = bound && holder->audioFile->type == AudioFileType::WAVETABLE;
+		const OscType osc = g_synth->sources[0].oscType;
+		printf("SC-WAVETABLE-RESIDENT bound=%d waveTable=%d osc=%d path=%s ticks=%d\n", bound ? 1 : 0,
+		       isWaveTable ? 1 : 0, static_cast<int>(osc), holder != nullptr ? holder->filePath.c_str() : "",
+		       g_waitTicks);
+		if (!bound || !isWaveTable || osc != OscType::WAVETABLE) {
+			printf("SC-WAVETABLE-RESIDENT FAIL a file resident as a Sample, most of its clusters not yet filled, must "
+			       "still be claimed as a wavetable\n");
+			g_failures++;
+		}
 		break;
 	}
 	case Leg::Pitch: {
@@ -2011,7 +2039,10 @@ void runTick() {
 		       sampleBrowser.getCurrentFileItem() != nullptr ? sampleBrowser.getCurrentFileItem()->filename.c_str()
 		                                                     : "");
 		g_waitTicks = 0;
-		g_step = (g_leg == Leg::Slice || g_leg == Leg::SliceManual || isSupersede()) ? Step::PreviewWait : Step::Act;
+		// The resident-wavetable leg claims a file the preview has made resident as a Sample.
+		g_step = (g_leg == Leg::Slice || g_leg == Leg::SliceManual || isSupersede() || g_leg == Leg::WaveTableResident)
+		             ? Step::PreviewWait
+		             : Step::Act;
 		break;
 	case Step::PreviewWait: {
 		// The slicer draws the browser's previewed waveform, so a user opens it only once the preview shows the file.

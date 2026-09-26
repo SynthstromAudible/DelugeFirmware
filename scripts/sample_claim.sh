@@ -21,6 +21,9 @@
 #              an auto-load claim the cursor leaves while its pitch detection waits for a cluster, for a next
 #              preview that lands at once (case=landed) and for one still loading (case=loading): it must be
 #              cancelled once, and only the next file's claim may finish.
+#   SC-WAVETABLE-RESIDENT
+#              a context-menu wavetable claim of a file the preview left resident as a Sample, its clusters held:
+#              it must still bind as a wavetable (the conversion must not fail on a cluster not yet filled).
 #   SC-PITCH   a claim whose detection finds its clusters held briefly: it waits, resumes, and finds the same note.
 #   SC-PITCH-STALL
 #              a claim whose detection's clusters never arrive: one give-up, the note an error, the transpose left
@@ -127,7 +130,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-PITCH SC-PITCH-STALL SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL RD-CANCELSCAN IM-KIT IM-MULTI IM-TIER IM-GATE IM-STALL SC-ONOWNER SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-WAVETABLE-RESIDENT SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-PITCH SC-PITCH-STALL SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL RD-CANCELSCAN IM-KIT IM-MULTI IM-TIER IM-GATE IM-STALL SC-ONOWNER SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^(SC|RD|IM)-' "$OUT/run.txt"
