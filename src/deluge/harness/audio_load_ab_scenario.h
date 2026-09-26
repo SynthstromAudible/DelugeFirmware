@@ -33,8 +33,8 @@
 /// @note Runs as a STEP MACHINE rather than one blocking call, because that is what the async
 ///       backing requires: a deferred load answers `Error::LOAD_IN_PROGRESS` and the caller must
 ///       return to its own loop so the Embassy loader task can be polled at all. Each
-///       `dispatch_step()` runs one attempt on the storage-owner worker fiber (where card I/O is
-///       allowed) and returns; the platform driver waits for `step_done()`, lets its executor run,
+///       `dispatch_step()` arms one attempt, which runs when the driver next polls
+///       `step_done()`, and returns; the platform driver waits for `step_done()`, lets its executor run,
 ///       and dispatches again.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
@@ -54,7 +54,7 @@ void deluge_scenario_audio_load_ab_begin(void);
 /// @brief True once every case has been recorded and the summary printed.
 bool deluge_scenario_audio_load_ab_complete(void);
 
-/// @brief Queue one load attempt for the current case onto the storage-owner worker fiber.
+/// @brief Arm one load attempt for the current case.
 /// @note Fire-and-forget: poll deluge_scenario_audio_load_ab_step_done() for its completion.
 void deluge_scenario_audio_load_ab_dispatch_step(void);
 

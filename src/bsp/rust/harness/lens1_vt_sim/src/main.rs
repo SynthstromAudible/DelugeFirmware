@@ -20,8 +20,8 @@
 //! # The boot livelock (see `sd.rs`'s `locked_read_sectors` doc comment for the
 //! full mechanism and its history)
 //!
-//! `deluge_app_init` calls the boot-time FatFS mount SYNCHRONOUSLY, off the
-//! worker fiber, via `embassy_futures::block_on` — a tight busy-spin poll loop
+//! `deluge_app_init` calls the boot-time FatFS mount SYNCHRONOUSLY, via
+//! `embassy_futures::block_on` — a tight busy-spin poll loop
 //! (confirmed by reading `embassy-futures` 0.1.2's actual source: `loop { if let
 //! Ready(v) = fut.poll(cx) { return v } }`, no thread parking, no waker use at
 //! all) that never returns control to anything else on this one OS thread. Under
@@ -45,15 +45,15 @@
 //! spin has to be able to drive it to release.
 //!
 //! **Fix (current): the progress hook, and modeled latency now reaches EVERY transfer.**
-//! Off-fiber storage no longer spins hooklessly — it goes through
+//! Storage no longer spins hooklessly — it goes through
 //! `sim_block::block_on`, whose hook pumps `HP_EXEC` (where `sim_latency::pump` lives) and
 //! advances the virtual clock on each `Pending`. So the `Timer` the boot mount waits on is
 //! exactly what the hook completes, and the busy-spin has something to wait on after all.
 //!
 //! This replaced an earlier fix: `sd.rs` used to carry an `off_fiber_instant` escape hatch that
-//! made off-fiber transfers skip modeling and take the real synchronous read. That was removed
+//! made transfers off the (since retired) worker fiber skip modeling and take the real synchronous read. That was removed
 //! once the hook made it unnecessary — verified, not assumed, by running this harness's four
-//! spin selftests and a full sweep with modeled latency reaching off-fiber reads for the first
+//! spin selftests and a full sweep with modeled latency reaching those reads for the first
 //! time, with no livelock. The gain is fidelity: task-context reads are now modeled here, where
 //! they previously escaped modeling entirely. It does NOT make the margin arm any less vacuous —
 //! that is the render-path issue in the charter note below, not a latency-modeling one.
@@ -61,7 +61,7 @@
 //! # Reused shared substrate
 //!
 //! `#[path]`-includes the SAME source files `deluge-bsp-rust`'s own `host_app`
-//! build compiles (`fiber.rs`, `scheduler.rs`, `sd.rs`, `board.rs`, `control.rs`,
+//! build compiles (`boot.rs`, `scheduler.rs`, `sd.rs`, `board.rs`, `control.rs`,
 //! `display.rs`, `ffi.rs`, `ffi_extra.rs`, `flash.rs`, `services.rs`,
 //! `audio_host.rs`, `scenario.rs`, `sd_image.rs`) — a second, independently
 //! configured COMPILATION of the same source (this package's own `mod
@@ -116,7 +116,7 @@ mod sys {
 }
 
 // Reuse deluge-bsp-rust's own source files verbatim via `#[path]` — the same
-// pattern `tests/*.rs` already use for `fiber.rs`/`sd.rs` (see `HOST_HARNESS.md`).
+// pattern `tests/*.rs` already use for `sd.rs`/`streaming_loader.rs` (see `HOST_HARNESS.md`).
 #[path = "../../../src/audio_host.rs"]
 mod audio_host;
 #[path = "../../../src/board.rs"]
@@ -195,7 +195,7 @@ unsafe extern "C" {
 const DEFAULT_AUDIO_BLOCK_PERIOD_US: u64 = 128 * 1_000_000 / 44_100; // 2902 (floor)
 
 /// Boot task: mirrors `deluge-bsp-rust`'s `host_app_task` exactly (PIC-ready
-/// wait, SD bring-up, `deluge_app_init`, worker-fiber pump loop) — see
+/// wait, SD bring-up, `deluge_app_init`, boot marked finished) — see
 /// `../src/main.rs`'s `host_app_task` doc comment for the full rationale behind
 /// each step. Not `#[path]`-included: `host_app_task` is defined INSIDE
 /// `../src/main.rs` itself (not a separate module file), which also carries a
@@ -209,8 +209,8 @@ async fn boot_task() {
     crate::sd::boot_init().await;
 
     // Mirrors `deluge-bsp-rust`'s `host_app_task` efatfs mount (see its comment). This mount
-    // runs off-fiber and its transfers ARE modeled — the `off_fiber_instant` escape hatch that
-    // used to exempt them is gone, because off-fiber storage now spins through
+    // runs synchronously and its transfers ARE modeled — the `off_fiber_instant` escape hatch that
+    // used to exempt them is gone, because storage now spins through
     // `sim_block::block_on` and the progress hook completes the modeled `Timer`. A failed mount
     // must NOT abort boot — see the device/host_app_task comments this mirrors.
     #[cfg(feature = "efatfs_streaming")]
@@ -477,7 +477,7 @@ fn main() {
         unsafe { std::env::set_var("DELUGE_SD_IMAGE", &img) };
     }
 
-    // See this file's module doc: sidesteps the boot-time off-fiber block_on
+    // See this file's module doc: sidesteps the boot-time block_on
     // livelock. Set once, before anything spawns.
     // `post_load_sim_latency`'s design applies the modeled latency ONLY after
     // load completes, deliberately sparing the essential-sample preload (load
@@ -674,7 +674,7 @@ fn main() {
     // reentrancy allowance is a THREAD-LOCAL flag — safe for the main thread
     // to re-enter its own critical section, but a genuine cross-thread lock
     // for this watchdog thread. If a future wedge ever spun *inside* that
-    // critical section (or suspended a fiber while holding it), this thread
+    // critical section (or suspended while holding it), this thread
     // would block on `lock()` forever and the guard would silently fail
     // (unbounded hang again). Today's `cordae` wedge happens not to hold that
     // lock — which is why a driver-call version of this watchdog "worked" in
@@ -764,10 +764,10 @@ fn main() {
     // the scenario spawn (and before the driver loop below, which never gets a chance to
     // run in this mode).
     if std::env::args().any(|a| a == "--selftest-block") {
-        // This selftest calls `sd::locked_read_sectors` directly from `main`, i.e. off-fiber
-        // (no fiber exists yet — `boot_task` hasn't even been polled). That used to need an
+        // This selftest calls `sd::locked_read_sectors` directly from `main`, before `boot_task`
+        // has even been polled. That used to need an
         // explicit `set_off_fiber_instant(false)` here, because the harness otherwise exempted
-        // off-fiber transfers from modeling and the read would have completed in zero virtual
+        // such transfers from modeling and the read would have completed in zero virtual
         // time on the FIRST poll — vacuously "passing" without exercising the hook-driven spin
         // at all. The exemption no longer exists, so the read is modeled unconditionally and
         // this mode is non-vacuous by construction.

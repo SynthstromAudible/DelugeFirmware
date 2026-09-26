@@ -1,7 +1,7 @@
 //! Request/collect over the stream-write handle table that already exists.
 //!
-//! `SampleRecorder` writes one cluster per tick and, until now, blocked the storage owner for the
-//! whole of each write. This module drives the same `stream_write_at` future on an Embassy task so
+//! `SampleRecorder` writes one cluster per tick and once blocked the caller for the whole of each
+//! write. This module drives the same `stream_write_at` future on an Embassy task so
 //! the recorder can issue a write, return, and collect it on a later tick.
 //!
 //! There is no handle table here on purpose: `efatfs_fs`'s `STREAM_WRITE_CTX` is one already, sized

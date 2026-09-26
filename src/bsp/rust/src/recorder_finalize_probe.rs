@@ -141,8 +141,8 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderFinal
 static RESULT: Mutex<Option<RecorderFinalizeProbeResult>> = Mutex::new(None);
 
 /// `host_app` boot-path convenience wrapper (NOT part of a reusable driver — same shape as
-/// [`crate::recorder_probe::recorder_probe_task`]). Spawn on the SAME executor `host_app_task`'s
-/// worker-fiber pump loop and the async streaming-fill task run on, then poll [`take_result`] from
+/// [`crate::recorder_probe::recorder_probe_task`]). Spawn on the SAME executor `host_app_task`
+/// and the async streaming-fill task run on, then poll [`take_result`] from
 /// the OS thread. Embassy task args must be `Copy`; durations are passed as plain millis.
 #[embassy_executor::task]
 pub async fn recorder_finalize_probe_task(step_timeout_ms: u64, poll_window_ms: u64) {

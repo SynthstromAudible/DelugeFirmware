@@ -122,8 +122,7 @@ public:
 
 	static OutputType outputTypeToLoad;
 
-	/// @brief True while an async listing (beginListing()'s dispatch onto the storage-owner fiber)
-	///        is in flight.
+	/// @brief True while a listing begun by beginListing() is in flight.
 	///
 	/// A caller that drives beginListing() from outside the normal HID-event flow (e.g. a headless
 	/// harness) needs this to know when it's safe to act on the listing's result
@@ -480,7 +479,7 @@ protected:
 	///        graphicsRoutine() each tick while listingInProgress_.
 	void runPendingListing();
 
-	// Completion hooks (run inside the op, on the fiber):
+	// Completion hooks (run inside the listing):
 	virtual void onBrowserOpened() {} ///< Open-only bespoke tail (default empty).
 	/// @brief Default handling for a failed listing: displayError(), then close() (not exitAction()) -- unless the
 	///        listing began inside an open browser and put back what it replaced, in which case the browser stays
@@ -488,7 +487,7 @@ protected:
 	/// @param error The failure reported by the listing.
 	virtual void onListingFailed(Error error);
 
-	// Bodies of the listing actions, run on the fiber inside runPendingListing().
+	// Bodies of the listing actions, run inside runPendingListing().
 	Error openListingImpl(int32_t direction, char const* filenameToStartAt, char const* defaultDir);
 	Error goIntoFolderImpl(char const* folderName);
 	Error goUpOneDirectoryLevelImpl();
@@ -498,7 +497,7 @@ protected:
 	/// @brief Shared selectEncoderAction tail: applies the fileIndexSelected/scroll update and fires
 	///        currentFileChanged.
 	///
-	/// Runs either synchronously (no reload needed) or from reloadImpl() on the fiber.
+	/// Runs either synchronously (no reload needed) or from reloadImpl() inside the listing.
 	/// @param newFileIndex The newly selected file index.
 	/// @param offset       The encoder offset that produced this selection.
 	/// @return Error::NONE on success, or the failure from the underlying reload/selection.

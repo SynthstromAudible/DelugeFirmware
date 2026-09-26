@@ -33,10 +33,6 @@ use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Instant, Timer};
 
-// `RunCondition` is a bindgen type (`crate::sys`, device-only — no C++ ABI is
-// linked on host). On host, reuse the identical host stand-in `fiber.rs`
-// already defines for the same C typedef (`storage_wait.h`), keeping the
-// scheduler's logic (this file) untouched — only the type's source differs.
 #[cfg(not(target_os = "none"))]
 #[cfg(target_os = "none")]
 use crate::sys::RunCondition;
@@ -228,12 +224,10 @@ static CURRENT: AtomicI8 = AtomicI8::new(-1);
 /// can't run concurrently. Audio (RESOURCE_NONE) never touches this, so the
 /// audio interrupt-executor never blocks on it.
 ///
-/// There is no equivalent RESOURCE_SD gate: that serialization is provided by the
-/// single-owner storage discipline (the storage owner IS the worker fiber; see
-/// `deluge_storage_on_owner` in sd.rs and the `storage-owner-audit` feature) plus
-/// the `block_on_fiber` flip in sd.rs, which yields the fiber mid-transfer instead
-/// of parking the executor. `RESOURCE_SD_ROUTINE` tasks still get a hold-off, but
-/// via `fiber::sd_routine_held()` below, not a gate.
+/// There is no equivalent RESOURCE_SD gate: storage serializes itself (the efatfs
+/// FS mutex and `sd.rs`'s `SD_BUS`). `RESOURCE_SD_ROUTINE` needs no hold-off here
+/// either: the retired storage worker fiber was the only thing that ran SD-routine
+/// work across a yield.
 static USB_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
 // ---------------------------------------------------------------------------
@@ -660,19 +654,17 @@ pub extern "C" fn startTaskManager() {}
 // ---------------------------------------------------------------------------
 // Cooperative yield (scheduler_api.h yield / yieldWithTimeout / yieldToIdle).
 //
-// The yielding operations (song load, stem export, grid clip create) run on the
-// worker fiber (see fiber.rs), so `yield()` suspends the fiber and the executor
-// runs everything else until the predicate holds. There is no off-fiber yield on
-// this BSP — all yielding ops are dispatched to the worker via deluge_worker_run —
-// so the off-fiber path is a defensive no-wait (it never busy-waits and never
-// hangs). The legacy `storage_wait.h` hooks (yieldingRoutine*ForSD) are gone here:
+// Nothing on this BSP suspends: the yielding operations (song load, stem export,
+// grid clip create) that once ran on a storage worker fiber, where `yield()`
+// suspended the fiber, are machines stepped by their callers now, and the fiber
+// is retired. A `yield*` here is a defensive no-wait (it never busy-waits and
+// never hangs). The legacy `storage_wait.h` hooks (yieldingRoutine*ForSD) are gone here:
 // their only callers live in the legacy C HAL (src/RZA1 / src/bsp/rza1), which the
 // Embassy BSP does not link — SD goes through the async driver (sd.rs).
 // ---------------------------------------------------------------------------
 
-/// Defensive fallback when a `yield*` is somehow reached off the worker fiber
-/// (shouldn't happen — every yielding op is dispatched to the worker). Evaluates
-/// the predicate once and returns it; never waits, never hangs.
+/// The whole of `yield*` on this BSP: evaluates the predicate once and returns it;
+/// never waits, never hangs.
 fn poll_once(until: RunCondition) -> bool {
     // SAFETY: `until` is the C++ caller's predicate; calling it is benign polling.
     until.map_or(true, |p| unsafe { p() })

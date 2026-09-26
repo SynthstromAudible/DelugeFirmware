@@ -70,7 +70,7 @@ extern "C" {
 /// deluge::harness::noteUnderrunWait.
 ///
 /// Monotonic — callers baseline-subtract across a window, same pattern as `sd.rs`'s
-/// `on_fiber_reads`/`on_fiber_writes`.
+/// `stats::reads()`/`stats::writes()`.
 /// @return Cumulative WAIT-class miss count.
 uint64_t deluge_sim_underrun_wait_count();
 

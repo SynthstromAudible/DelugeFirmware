@@ -92,8 +92,8 @@ fn read_and_assert_modeled_latency() -> Result<(Duration, usize), String> {
         return Err(format!(
             "modeled read completed in {}us virtual time, but `sim_latency::latency_for({})` \
              predicts {}us — the completion did not come from the modeled path this selftest \
-             exists to prove. Check that `sim_latency` is enabled and that `off_fiber_instant` \
-             is not exempting this path.",
+             exists to prove. Check that `sim_latency` is enabled and that nothing \
+             is exempting this path.",
             elapsed.as_micros(),
             buf.len(),
             expected.as_micros(),

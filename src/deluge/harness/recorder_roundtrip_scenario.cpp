@@ -366,7 +366,7 @@ bool stepCase() {
 
 namespace {
 
-/// The off-owner recording cases: a real `SampleRecorder` driven ENTIRELY from a non-fiber context,
+/// The off-owner recording cases: a real `SampleRecorder` driven ENTIRELY by the caller's ticks,
 /// the shape the device actually uses, with the shapes the eight cases above do not take -- the
 /// alteration branch, an abort, a busy channel, a stalled write -- each with its own evidence line.
 ///
@@ -651,7 +651,7 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 		}
 		const bool ok = verifyRecordedFile(path, /*channels=*/1, kOffOwnerFrames, /*extraMargins=*/false);
 		// The evidence for THIS case, taken here rather than from RW-SUMMARY: that line is printed by
-		// the on-fiber oracle, which has already returned by the time this case runs, so it cannot
+		// the oracle, which has already returned by the time this case runs, so it cannot
 		// see anything the off-owner recording did.
 		printf("OO-RESULT ok=%d served=%d offOwnerTicks=%d offOwnerFinalizeTicks=%d offOwnerCreateTicks=%d ticks=%d\n",
 		       (int)ok, (int)SampleRecorder::writeChannelServedOps(), (int)AudioEngine::recorderDrainTicks(),
@@ -741,7 +741,7 @@ extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
 
 	// The cases are driven by deluge_scenario_recorder_cases_tick(), one step per call, so the caller
 	// can let the storage driver run in between. That is what lets them work on the CHANNEL arm --
-	// which is the arm they will be on once the fiber goes and `on_owner()` is false everywhere.
+	// which is the arm they are on after boot.
 	return 0;
 }
 

@@ -1725,8 +1725,7 @@ void slowRoutine() {
 
 	createdNewRecorder = false;
 
-	// Go through all SampleRecorders, getting them to write etc (inline after boot, and always on legacy/host;
-	// coalesced onto the fiber on Embassy only before boot).
+	// Go through all SampleRecorders, getting them to write etc (inline, on every BSP).
 	requestRecorderCardRoutines();
 }
 
@@ -1784,15 +1783,14 @@ errorAfterAllocation:
 //
 // Diagnostic only, not a hard invariant (see docs/dev/sd_busy_audit.md, audio_engine.cpp): this used
 // to FREEZE_WITH_ERROR("E251") here. On Embassy isSDRoutineActive() is hardwired false
-// (scheduler.rs:658), so before sd_busy() was backed for real, this check never fired at all -- it was
+// (scheduler.rs), so before sd_busy() was backed for real, this check never fired at all -- it was
 // exactly as dead as save_song_ui.cpp's E316, not "half-live". sd_busy() is now real, but it answers "is
 // ANY FS operation in flight anywhere", not "is THIS recorder's own cardRoutine() suspended mid-transfer"
 // -- the two can differ, since FatFS work is serialized but not per-caller-attributed. The precise
-// invariant this comment actually wants is tracked per-op on the BSP (fiber.rs's SD_ROUTINE_HELD /
-// sd_routine_held(), consumed by the RESOURCE_SD_ROUTINE scheduler gate) but is not yet exported through
-// the libdeluge C-ABI -- exporting it is the correct future fix, not a new export sneaked in here. Until
-// then, treat a busy signal at this call site as informative, not as proof this recorder is the one
-// suspended -- log it rather than freeze a beta build on what may be an unrelated FS operation.
+// invariant this comment actually wants was tracked per-op by the retired worker fiber (SD_ROUTINE_HELD),
+// and went with it; nothing on the BSP tracks it now. Treat a busy signal at this call site as informative, not as
+// proof this recorder is the one suspended -- log it rather than freeze a beta build on what may be an unrelated FS
+// operation.
 void discardRecorder(SampleRecorder* recorder) {
 	if (ALPHA_OR_BETA_VERSION && (isSDRoutineActive() || deluge::sync::sd_busy())) {
 		D_PRINTLN("discardRecorder: isSDRoutineActive()/sd_busy() was true on entry (see sd_busy_audit.md)");

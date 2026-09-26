@@ -11,9 +11,8 @@
 //! embassy executor is driving it (`platform-std`, a future single-threaded custom
 //! `raw::Executor`+`MockDriver`, ...) — it only `.await`s [`embassy_time::Timer`]s in a
 //! plain poll loop, which every embassy executor variant supports identically. The caller
-//! is responsible for having already booted the real C++ app (`deluge_app_init` returned,
-//! and *something* is draining the worker-fiber ring — see `fiber::worker_poll()`) on
-//! whatever executor is driving it; this module just issues the same C-ABI calls a
+//! is responsible for having already booted the real C++ app (`deluge_app_init` returned)
+//! on whatever executor is driving it; this module just issues the same C-ABI calls a
 //! LOAD/PLAY/RECORD button press would (`harness/streaming_scenario.h`/`.cpp` on the C++
 //! side) and polls the same observable state a UI would (`LoadSongUI::isLoadingSong()`,
 //! `PlaybackHandler::isEitherClockActive()`).
@@ -47,7 +46,7 @@ unsafe extern "C" {
     // Task-context contention knob (R5a Phase 0 Task 4): the DISPATCHED variant of
     // `deluge_scenario_begin_song_load`, plus its completion latch. See
     // `ScenarioConfig::concurrent_listing_every_blocks`'s doc comment for why the plain
-    // (synchronous) `deluge_scenario_begin_song_load` isn't safe to reuse for this off-fiber,
+    // (synchronous) `deluge_scenario_begin_song_load` isn't safe to reuse for this
     // repeated-during-playback call pattern.
     fn deluge_scenario_start_song_load(full_path: *const c_char);
     fn deluge_scenario_song_load_begin_done() -> bool;
@@ -99,15 +98,14 @@ pub struct ScenarioConfig {
     /// every `n` audio blocks' worth of elapsed time during that same wait, via the
     /// DISPATCHED `deluge_scenario_start_song_load`/`deluge_scenario_song_load_begin_done()`
     /// pair — never `deluge_scenario_commit_song_load()` — so the load browser's async
-    /// directory listing repeatedly contends with the storage-owner fiber a real
-    /// sample-streaming read is queued on, without ever replacing the song this scenario is
+    /// directory listing repeatedly contends for the card with the real
+    /// sample-streaming reads, without ever replacing the song this scenario is
     /// playing back (committing would end the very playback the block-target wait is
     /// measuring). This mirrors the real hazard the R5a spec §2 describes ("loading a preset
     /// while a sample streams") rather than a synthetic probe: `deluge_scenario_begin_song_load`
     /// itself (the plain, synchronous entry point the pre-existing steps above use) is NOT
-    /// reused here — its `openUI(&loadSongUI)` -> `opened()` chain does a real storage read
-    /// off-fiber, which under `sim_latency` can livelock a caller that isn't the fiber
-    /// itself (see `streaming_scenario.h`'s doc comment on
+    /// reused here — its `openUI(&loadSongUI)` -> `opened()` chain does a real blocking storage
+    /// read, which under `sim_latency` can livelock its caller (see `streaming_scenario.h`'s doc comment on
     /// `deluge_scenario_start_song_load`).
     ///
     /// "Roughly `n` blocks" — NOT `n` [`crate::audio_host::drive_count`] deltas, unlike
@@ -129,15 +127,13 @@ pub struct ScenarioConfig {
 pub struct ScenarioResult {
     /// The app finished enough of boot (`registerTasks()` claimed at least one scheduler
     /// slot — the same signal `main.rs`'s own boot-OK check uses) for `currentSong` to
-    /// exist. `run` is safe to call as soon as SOMETHING is draining the worker-fiber ring
-    /// (`fiber::worker_poll()`) concurrently — it does not itself require the caller to
-    /// have already confirmed boot; this field records that `run` waited it out itself.
+    /// exist. `run` does not itself require the caller to have already confirmed boot; this field records that `run` waited it out itself.
     pub boot_ready: bool,
     /// `deluge_scenario_begin_song_load` returned true (currentSong existed to target).
     pub song_load_dispatched: bool,
     /// The async directory listing it triggers completed within `step_timeout`.
     pub listing_completed: bool,
-    /// `deluge_scenario_commit_song_load` dispatched onto the storage-owner fiber.
+    /// `deluge_scenario_commit_song_load` dispatched.
     pub load_committed: bool,
     /// The committed load (`LoadSongUI::performLoad`) finished within `step_timeout`.
     pub load_completed: bool,
@@ -151,13 +147,12 @@ pub struct ScenarioResult {
     /// Audio blocks rendered from just before playback started to when the target was
     /// reached (or the timeout gave up) — see `crate::audio_host::drive_count()`.
     pub blocks_rendered: u64,
-    /// On-fiber SD block reads observed over the same window — the async fill task's
-    /// real, dispatched cluster reads (`crate::sd::stats::on_fiber_reads()`). This is the
-    /// proof of the async streaming-fill task's REAL dispatch, with a REAL queued cluster
-    /// (this song's samples), drained through `fiber::worker_poll()`.
+    /// SD block reads observed over the same window — the async fill task's real
+    /// cluster reads (`crate::sd::stats::reads()`). This is the proof of the async
+    /// streaming-fill task's REAL dispatch, with a REAL queued cluster (this song's samples).
     pub cluster_reads: u64,
-    /// On-fiber SD block writes observed over the same window — the recorder's real,
-    /// dispatched card writes (`crate::sd::stats::on_fiber_writes()`).
+    /// SD block writes observed over the same window — the recorder's real card writes
+    /// (`crate::sd::stats::writes()`).
     pub recorder_writes: u64,
     /// WAIT-class underrun misses over the same window: the audio thread found a
     /// needed sample cluster not loaded yet on a play-needed path and deferred the voice
@@ -249,7 +244,7 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
 
     // Baseline right before starting playback/recording — everything counted from here on
     // is genuinely attributable to THIS run's streaming/recording, not the song load
-    // itself (which also issues on-fiber SD reads for its essential-sample clusters).
+    // itself (which also issues SD reads for its essential-sample clusters).
     let blocks_before = crate::audio_host::drive_count();
     let reads_before = crate::sd::stats::reads();
     let writes_before = crate::sd::stats::writes();
@@ -298,7 +293,7 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
             // own module doc says host_app's SEPARATE "deluge-audio" OS thread is what
             // `scheduler::set_audio_spawner` needs for `should_skip_render()` to stop
             // discarding renders, and `lens1_vt_sim` never calls that (confirmed by
-            // grep — see the report) — every render after the worker fiber starts is
+            // grep — see the report) — every render after boot finishes is
             // silently discarded (returns 0, no `DRIVE_COUNT` increment). Verified live:
             // across every configuration tried, `drive_count()` reaches exactly 1 (the
             // one pre-registration render `audio_host.rs:235-241` logs) and never
@@ -350,8 +345,8 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
                 }
                 // Never fire a second listing while one is still in flight — this
                 // scenario measures contention from a realistic browse cadence, not from
-                // an unbounded pile-up of dispatches the storage owner couldn't have
-                // reached anyway.
+                // an unbounded pile-up of dispatches the card couldn't have
+                // served anyway.
                 if !listing_in_flight && now >= next_fire_at {
                     if listings_fired >= MAX_SAFE_LISTINGS {
                         if !cap_logged {
@@ -410,7 +405,7 @@ static RESULT: Mutex<Option<ScenarioResult>> = Mutex::new(None);
 /// NOT part of the reusable driver (see module doc) — a convenience wrapper for THIS
 /// crate's own `host_app` boot path (`main.rs`), which owns the host-app executor from a
 /// plain OS thread and can't `.await` [`run`] directly. Spawn this as an embassy task on
-/// the SAME executor `host_app_task`'s worker-fiber pump loop runs on, then poll
+/// the SAME executor `host_app_task` runs on, then poll
 /// [`take_result`] from the OS thread.
 #[embassy_executor::task]
 pub async fn scenario_task(cfg: ScenarioConfig) {

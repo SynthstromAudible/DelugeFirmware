@@ -165,7 +165,7 @@ const DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED: u32 = 0xFFFF_FFFF;
 /// assumption holds because its only other user is `embedded-fatfs`, which runs
 /// inside `with_fs` under the single FS mutex. This task runs on a *preempting*
 /// interrupt executor, so a `String` allocated or dropped here could call
-/// `Tlsf::free` while the thread-mode fiber is mid-`Tlsf::malloc` on the same
+/// `Tlsf::free` while thread mode is mid-`Tlsf::malloc` on the same
 /// control block — corrupted free lists, surfacing later at some unrelated mount
 /// or read.
 ///

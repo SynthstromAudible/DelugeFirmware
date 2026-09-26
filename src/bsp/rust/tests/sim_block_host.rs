@@ -10,8 +10,8 @@ use core::sync::atomic::{AtomicU32, Ordering};
 use core::task::{Context, Poll};
 use std::sync::Mutex;
 
-// No `deluge_bsp_rust::` path exists (bin-only crate) — re-include the module the same way
-// `tests/owner_host.rs:15-18` re-includes `fiber`/`sd`.
+// No `deluge_bsp_rust::` path exists (bin-only crate) — re-include the module by path,
+// the same way the other `tests/*_host.rs` files do.
 #[path = "../src/sim_block.rs"]
 mod sim_block;
 

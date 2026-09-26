@@ -531,9 +531,9 @@ mod tests {
     /// Manager::release` composes with the manager's asymmetric masked discipline
     /// (`sync::Masked`) exactly right in each context — it decrements exactly once
     /// either way, and only the main path takes the critical section (the ISR path
-    /// is lock-free by the manager's own atomic-vs-fiber guarantee). Uses the same
+    /// is lock-free by the manager's own atomic-vs-thread-mode guarantee). Uses the same
     /// `sync::stubs` two-context model (`audio_isr_context_set`) + critical-section
-    /// counters that `sync.rs`'s own `fiber_masks_rmw` / `audio_skips_mask` tests use.
+    /// counters that `sync.rs`'s own `thread_mode_masks_rmw` / `audio_skips_mask` tests use.
     ///
     /// `cargo test`'s critical-section counters are thread-local (see `sync::stubs`),
     /// so this single-threaded test — flipping the in-interrupt flag to model the two
@@ -574,7 +574,7 @@ mod tests {
         );
 
         // (b) AUDIO-ISR context: dropping a Lease must NOT mask (the audio path is
-        // already atomic w.r.t. the fiber, so the manager skips the lock) yet must
+        // already atomic w.r.t. thread mode, so the manager skips the lock) yet must
         // still decrement exactly once.
         stubs::audio_isr_context_set(true);
         let l = rsrc.lease(c); // add_lease here is itself lock-free (ISR context)

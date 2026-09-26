@@ -736,9 +736,9 @@ void SampleBrowser::finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewT
 		});
 	}
 
-	// Drawn here, on the interaction tier. A cluster not yet resident does not block: off the worker fiber the reader
-	// enqueues it for the streaming loader and reports it missing, renderFullScreen() returns false, and
-	// tickPreviewRedraw() finishes the waveform as the clusters land.
+	// Drawn here, on the interaction tier. A cluster not yet resident does not block: with the async streaming loader
+	// active the reader enqueues it for the streaming loader and reports it missing, renderFullScreen() returns false,
+	// and tickPreviewRedraw() finishes the waveform as the clusters land.
 	const PreviewShow show{
 	    .movementDirection = outcome.payload.movementDirection,
 	    .generation = previewGeneration_,

@@ -133,7 +133,7 @@ void finalizedTeardown() {
 	}
 	if (g_finalizedRecorder != nullptr) {
 		// Unlike teardown() above, this recorder has already reached RecorderStatus::COMPLETE (its
-		// file finalized and closed) by the time this normally runs -- no fiber cleanup work is left
+		// file finalized and closed) by the time this normally runs -- no card-routine work is left
 		// to drive, so a direct delete (which still runs ~SampleRecorder()'s unconditional
 		// detachSample()) is sufficient, same as host_recorder_roundtrip_main.cpp's stack-allocated
 		// SampleRecorder going out of scope.

@@ -42,15 +42,8 @@
 
 namespace {
 
-/// Set false at the start of every deluge_scenario_start_stem_export() dispatch,
-/// true only once the dispatched worker-fiber closure itself returns. See
-/// deluge_scenario_stem_export_done()'s header doc for why this can't just read
-/// `stemExport.processStarted` directly.
-bool g_stem_export_dispatch_finished = false;
-
-/// Same start/finished-latch shape as g_stem_export_dispatch_finished, for
-/// deluge_scenario_start_song_load()/deluge_scenario_song_load_begin_done()
-/// below.
+/// Start/finished latch for deluge_scenario_start_song_load()/
+/// deluge_scenario_song_load_begin_done() below.
 bool g_song_load_begin_finished = false;
 bool g_song_load_begin_result = false;
 
@@ -91,8 +84,8 @@ bool deluge_scenario_song_load_begin_ok() {
 }
 
 bool deluge_scenario_commit_song_load() {
-	// beginLoad() owns its own dispatch onto the storage owner and returns straight away; the scenario
-	// then polls deluge_scenario_song_load_in_progress() as it did before.
+	// beginLoad() starts the load and returns straight away; the scenario then polls
+	// deluge_scenario_song_load_in_progress() as it did before.
 	loadSongUI.beginLoad();
 	return true;
 }
@@ -143,8 +136,8 @@ void deluge_scenario_start_stem_export(int32_t mode) {
 	if (stemMode == StemExportType::MIXDOWN) {
 		stemExport.includeSongFX = true;
 	}
-	// Start the export and return. It no longer runs as one long call: each step is queued onto the
-	// storage owner from the export's own pump task, so completion is observed rather than awaited.
+	// Start the export and return. It does not run as one long call: the export's own pump task
+	// advances it a step at a time, so completion is observed rather than awaited.
 	stemExport.startStemExportProcess(stemMode);
 }
 

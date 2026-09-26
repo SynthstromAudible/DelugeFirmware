@@ -48,8 +48,8 @@ extern "C" {
 /// @brief Point `currentSong` at @p full_path and open the load browser (mirrors
 ///        `host_render_main.cpp`'s headless load sequence).
 ///
-/// Only DISPATCHES the async directory listing (`Browser::beginListing`) onto the
-/// storage-owner fiber — poll deluge_scenario_song_listing_in_progress() before calling
+/// Only BEGINS the directory listing (`Browser::beginListing`), which runs on the
+/// browser's tick surface — poll deluge_scenario_song_listing_in_progress() before calling
 /// deluge_scenario_commit_song_load().
 /// @param full_path Song path (e.g. `"SONGS/Cordae.XML"` — same shape
 ///                   `Song::setSongFullPath` expects).
@@ -65,17 +65,13 @@ bool deluge_scenario_begin_song_load(const char* full_path);
 /// @return True while the listing is in progress.
 bool deluge_scenario_song_listing_in_progress();
 
-/// @brief Dispatch deluge_scenario_begin_song_load() itself onto the storage-owner
-///        worker fiber, rather than calling it inline.
+/// @brief Run deluge_scenario_begin_song_load() and latch its result.
 ///
-/// For a caller running OFF the worker fiber (this scenario's own Rust task, unlike
-/// the streaming-underrun harness's `scenario.rs`, which happens to only ever reach
-/// this from a safe context): `openUI(&loadSongUI)`'s `opened()` chain does a real
-/// storage read (`FavouritesManager::loadFavouritesBank` ->
-/// `StorageManager::fileExists`) before the async listing dispatch even happens.
-/// Reached off-fiber under `sim_latency`, that read can livelock the whole process
-/// (a non-yielding busy-loop that can never let the `Timer`-firing task it's
-/// waiting on get polled). Poll deluge_scenario_song_load_begin_done() for
+/// It once had to be dispatched onto the storage worker fiber: `openUI(&loadSongUI)`'s
+/// `opened()` chain read the favourites file synchronously, and under `sim_latency` that
+/// read could livelock a caller off the fiber. The read moved to the favourites channel,
+/// so this now calls it directly; the start/done/ok shape is kept for its callers. Poll
+/// deluge_scenario_song_load_begin_done() for
 /// completion, then deluge_scenario_song_load_begin_ok() for the result (the same
 /// value deluge_scenario_begin_song_load() itself would have returned).
 /// @param full_path Song path (e.g. `"SONGS/Cordae.XML"`).
@@ -90,14 +86,12 @@ bool deluge_scenario_song_load_begin_done();
 /// @return The result deluge_scenario_begin_song_load() would have returned.
 bool deluge_scenario_song_load_begin_ok();
 
-/// @brief Commit the load: dispatch `LoadSongUI::performLoad()` onto the storage-owner
-///        fiber.
+/// @brief Commit the load: start `LoadSongUI::beginLoad()`, which returns straight away.
 ///
-/// Mirrors `LoadSongUI::enterKeyPress()`'s non-folder branch (same dispatch, same
-/// callback), minus its `LASTOPENED` settings-file write (irrelevant to the harness).
-/// `performLoad()` itself yields internally (waiting for essential-sample clusters); poll
+/// Mirrors `LoadSongUI::enterKeyPress()`'s non-folder branch, minus its `LASTOPENED`
+/// settings-file write (irrelevant to the harness). Poll
 /// deluge_scenario_song_load_in_progress() for completion.
-/// @return False if the owner queue rejected the dispatch (never actually ran).
+/// @return Always true.
 bool deluge_scenario_commit_song_load();
 
 /// @brief Whether a load committed by deluge_scenario_commit_song_load() is still running.
@@ -142,29 +136,22 @@ uint32_t deluge_scenario_debug_ui_mode();
 ///         load screen yet).
 uint32_t deluge_scenario_debug_load_state();
 
-/// @brief Dispatch a full offline `StemExport` run onto the storage-owner worker
-///        fiber (mirrors `host_render_main.cpp`'s `deluge_render_driver`: sets
-///        `renderOffline`/`exportToSilence`, then `StemExport::startStemExportProcess`).
+/// @brief Start a full offline `StemExport` run (mirrors `host_render_main.cpp`'s
+///        `deluge_render_driver`: sets `renderOffline`/`exportToSilence`, then
+///        `StemExport::startStemExportProcess`).
 ///
-/// Returns immediately — the export itself runs later (and, once dispatched, to
-/// completion in one synchronous fiber op, since `StemExport::renderWait` drives
-/// `AudioEngine::routine()` directly in an offline render rather than yielding).
+/// Returns immediately — the export's own pump task advances it a step at a time.
 /// Poll deluge_scenario_stem_export_done() for completion.
 /// @param mode `StemExportType` (CLIP=0, TRACK=1, DRUM=2, MIXDOWN=3 — see
 ///             `definitions_cxx.hpp`), carried as `int32_t` per the FFI fixed-width
 ///             convention rather than the C++ enum type directly.
 void deluge_scenario_start_stem_export(int32_t mode);
 
-/// @brief Whether the export dispatched by deluge_scenario_start_stem_export() has
+/// @brief Whether the export started by deluge_scenario_start_stem_export() has
 ///        finished.
 ///
-/// Deliberately NOT implemented as `!stemExport.processStarted`: that flag reads
-/// false both BEFORE the dispatched closure has run at all (the owner queue hasn't
-/// drained it yet) and AFTER it has finished — indistinguishable from here, and the
-/// two states straddle this function's very first call (immediately after
-/// deluge_scenario_start_stem_export() returns, the dispatch is still merely
-/// queued). Instead, a private latch is set only once the dispatched closure
-/// itself returns — see the .cpp.
+/// Reads `StemExport::isExportInFlight()`, not `!stemExport.processStarted`: that flag
+/// reads false both before an export has started and after it has finished.
 /// @return True once the export has fully completed (or aborted).
 bool deluge_scenario_stem_export_done();
 

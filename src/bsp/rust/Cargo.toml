@@ -160,7 +160,7 @@ critical-section = "1"
 
 # ── Host (x86/std) ────────────────────────────────────────────────────────────
 # Same source, but the executor is std-thread-backed with no cortex-ar/BSP deps,
-# so the Embassy scheduler/fiber concurrency can be exercised off-hardware
+# so the Embassy scheduler concurrency can be exercised off-hardware
 # (e.g. under ThreadSanitizer). No C++ app is linked on host (see build.rs).
 [target.'cfg(not(target_os = "none"))'.dependencies]
 embassy-executor = { version = "0.10.0", features = ["nightly", "platform-std", "executor-thread"] }
@@ -245,17 +245,16 @@ host_app = [
 efatfs_streaming = []
 
 ## Host-harness only: give host SD reads/writes a modeled per-transfer latency so
-## a transfer on the storage-owner fiber genuinely suspends (yields the executor)
-## instead of the host's never-suspend `block_on`. Data is unchanged — only timing
+## a transfer takes modeled virtual time (the host spin's progress hook advances the
+## clock) instead of completing instantly. Data is unchanged — only timing
 ## is modeled. Off by default (off = byte-identical to no feature).
 sim_latency = []
 
 ## Build + spawn the Rust async cluster-fill task (`streaming_loader.rs`), which
 ## drains the resource-manager loader queue and awaits the SD read instead of the
-## C++ fiber pump running it inline. The selector/wakeup C-ABI
+## C++ side running it inline. The selector/wakeup C-ABI
 ## (`deluge_streaming_async_active`/`_signal_fill`) is always compiled so the C++
-## side always has a real symbol; `async_active()`'s return value is the switch
-## (false ⇒ `loader.cpp`'s fiber pump behaves exactly as before). On by default;
+## side always has a real symbol; `async_active()`'s return value is the switch. On by default;
 ## opt out with --no-default-features.
 async_streaming_loader = []
 

@@ -36,7 +36,7 @@ struct Slot {
 /// The slot table itself. A plain blocking `Mutex<CriticalSectionRawMutex, _>`, not
 /// `deluge_resource::sync::Masked`: this crate has no dependency on `deluge_resource` (it reaches
 /// the manager only through the late-bound externs in `lib.rs`), and neither `open`/`close`/
-/// `set_geometry`/`set_asset_id` (main/load thread) nor `read_at` (the worker fiber's synchronous
+/// `set_geometry`/`set_asset_id` (main/load thread) nor `read_at` (the synchronous
 /// fill) ever run on the audio render ISR — mirrors `deluge_sample_fill::FILL_CONTEXTS`'s own
 /// choice and rationale (see that static's doc).
 static REGISTRY: Mutex<CriticalSectionRawMutex, RefCell<[Option<Slot>; CAP]>> =

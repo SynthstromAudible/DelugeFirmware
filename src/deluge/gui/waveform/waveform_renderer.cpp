@@ -683,20 +683,12 @@ bool WaveformRenderer::advanceOverviewScan(Sample* sample, int32_t maxClusters) 
 
 		// Authoritative "is card I/O safe right now?" guard: each investigateWholeCluster can issue a
 		// synchronous load, so bail before every one rather than compete with the card or audio routine
-		// (#4460), and it scales safely if maxClusters ever grows past 1. This guard is load-bearing, not
-		// defensive: without it, this scan's synchronous read runs off the storage owner and can block on
-		// the efatfs FS mutex while it's held by the worker fiber suspended mid-operation. That fiber can
-		// only be resumed by a MAIN-executor task — but the spin itself occupies MAIN's executor.poll(),
-		// so nothing can ever resume the fiber. That's an unbreakable deadlock, not a stall -- in the
-		// Embassy HOST harness specifically: the executor-parking spin this paragraph describes is
-		// `embassy_futures::block_on`, which lives only in efatfs_host_shim.rs (the host_app feature).
-		// The device build has no such spin: every entry point in efatfs_fs.rs (e.g.
-		// deluge_efatfs_read_at, the function this scan's fill path actually calls) gates on on_fiber()
-		// and REJECTS an off-fiber caller immediately instead of blocking, so on real hardware this
-		// guard's job is to stop the scan from churning always-failing off-fiber attempts, not to prevent
-		// an executor deadlock that was never going to happen there. `sd_busy()` (deluge::sync,
-		// sync/sd_access.h) reports whether the FS mutex is actually held right now, so a future reader
-		// must not mistake this check for redundant and delete it. This is only meaningful on BSPs that
+		// (#4460), and it scales safely if maxClusters ever grows past 1. The read spins on the efatfs FS
+		// mutex rather than yielding, so starting one while another operation holds that mutex holds this
+		// tier for the whole of the other operation. (It was worse while the storage worker fiber existed:
+		// a fiber suspended mid-operation holding the mutex could only be resumed by the executor the spin
+		// was occupying, a deadlock on the host harness.) `sd_busy()` (deluge::sync, sync/sd_access.h)
+		// reports whether the FS mutex is actually held right now. This is only meaningful on BSPs that
 		// back the seam with a real mutex-held check (Embassy); cooperative/C-host builds answer false
 		// unconditionally because storage there runs inline on the caller, so there's no FS mutex to
 		// report on and no deadlock of this shape to guard against.

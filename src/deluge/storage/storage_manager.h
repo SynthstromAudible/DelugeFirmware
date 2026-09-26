@@ -546,7 +546,7 @@ void noticeCardMount();
 /// @param pathName Absolute path on the SD volume.
 /// @return `true` if the file is present; `false` if it is **known absent**
 ///         (Status::NOT_FOUND). Otherwise an error if existence could not be determined, e.g.
-///         Status::BUSY (caller is not on the storage worker fiber) or Status::NO_FILESYSTEM
+///         Status::BUSY (the filesystem refused to answer) or Status::NO_FILESYSTEM
 ///         (card unusable).
 /// @warning Callers must never treat an error as absence — see
 ///          docs/superpowers/specs/2026-08-08-existence-check-conflation-design.md.

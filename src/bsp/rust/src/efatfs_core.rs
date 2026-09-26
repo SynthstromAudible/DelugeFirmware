@@ -798,7 +798,7 @@ where
         // EVERY allocation on this path is fallible. A snapshot is proportional to
         // the directory's size, the arena backing it is fixed (96 KiB on device),
         // and an infallible `push`/`String::from` reaches `handle_alloc_error` when
-        // it runs out -- which panics, and a panic on the storage-owner fiber spins
+        // it runs out -- which panics, and a panic on the calling task spins
         // there forever and takes the front panel with it. A folder with too many
         // files must degrade to an error the browser can display, never to a brick.
         let mut owned = String::new();

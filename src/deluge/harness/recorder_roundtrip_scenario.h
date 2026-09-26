@@ -25,7 +25,7 @@
 /// host-side image formatting and process exit (the caller owns those). Assumes `DELUGE_SD_IMAGE`
 /// is already mounted (boot mounts it). Reads back through `deluge::io::File` (drain-independent)
 /// except the `finalized_multicluster` probe, which the caller polls, asking the async fill task for a drain
-/// each time — see `recorder_readback_probe.cpp`. Every stage is driven one step per call, from a non-fiber context.
+/// each time — see `recorder_readback_probe.cpp`. Every stage is driven one step per call, by the caller's ticks.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness dir is globbed in), so the
 ///       Embassy binary — which links `deluge_app`, not `host_recorder_roundtrip_main.cpp` — can
@@ -52,10 +52,10 @@ int32_t deluge_scenario_recorder_rest_tick();
 /// @return The oracle's failure count so far (0 = all passed); final once the tail has returned 1.
 int32_t deluge_scenario_recorder_roundtrip_failures();
 
-/// @brief Set up the off-owner recording case. Call from a NON-fiber context.
+/// @brief Set up the off-owner recording case.
 ///
-/// The cases above ride whichever arm their recorder picks; this one is set up to be driven entirely from a
-/// non-fiber context, the shape the device uses, so the async cluster write and the recorder's blocking ticks are
+/// The cases above ride whichever arm their recorder picks; this one is driven entirely by the caller's ticks,
+/// the shape the device uses, so the async cluster write and the recorder's blocking ticks are
 /// exercised where the device drives them.
 /// @param mode Which case:
 ///             - 0 `recording`: mono, finished normally.
@@ -69,7 +69,7 @@ int32_t deluge_scenario_recorder_roundtrip_failures();
 ///               synchronous write. Prints `RW-STALL`.
 void deluge_scenario_offowner_begin(int32_t mode);
 
-/// @brief Advance the off-owner case by one tick. Call from the SAME non-fiber context.
+/// @brief Advance the off-owner case by one tick. Call from the same context as the begin.
 ///
 /// Tick-driven on purpose: the pump must return so the storage owner can run the ticks this case
 /// hands it and the Rust write task can make progress.

@@ -16,11 +16,10 @@
 //!
 //! ### Why the sync `deluge_block_read` path was WRONG (the Lens 1 deadlock)
 //!
-//! `deluge_block_read`/`_write` are *synchronous* C-ABI functions: internally
-//! they drive the transfer with `block_on_fiber` (on the worker fiber) or
-//! `embassy_futures::block_on` (off it) — `sd.rs` keeps that dispatch, which is why this
-//! section still describes it. The streaming READ path runs on the
-//! async fill task (`streaming_loader::streaming_fill_task`), which is OFF the
+//! `deluge_block_read`/`_write` are *synchronous* C-ABI functions: at the time
+//! they drove the transfer with `block_on_fiber` (on the since-retired worker fiber)
+//! or `embassy_futures::block_on` (off it). The streaming READ path runs on the
+//! async fill task (`streaming_loader::streaming_fill_task`), which was OFF the
 //! worker fiber — so a shim read reached that way took the off-fiber
 //! `block_on` branch: a NON-yielding busy spin. When a recorder card-write on
 //! the fiber had suspended mid-transfer holding `SD_BUS` (`block_on_fiber`
@@ -31,7 +30,7 @@
 //! `executor.poll()` (100% CPU, virtual clock frozen); Lens 2 dodged it only by
 //! having a second OS thread. The device `SdBlockDevice` never had the bug
 //! because it `.await`s (yields) instead of nesting a `block_on`. This shim now
-//! does the same: on the fill task the read genuinely suspends, letting the
+//! does the same (and still does, with the fiber gone): on the fill task the read genuinely suspends, letting the
 //! executor advance the clock, fire the `sim_latency` pump `Timer`, resume the
 //! fiber, finish the write, and release `SD_BUS`. Modeled latency now applies
 //! to efatfs streaming reads exactly as it does to the C-FatFS path, so Lens 1
@@ -186,7 +185,7 @@ static FS: Mutex<CriticalSectionRawMutex, Option<Fs>> = Mutex::new(None);
 /// task, a genuine async context: the mount's block reads go through
 /// [`HostSdBlockDevice`], which now `.await`s `crate::sd::locked_*_sectors`,
 /// so they suspend and resume normally on the executor — no
-/// `set_off_fiber_instant` wrap or special-casing needed here.
+/// special-casing needed here.
 /// How many times the filesystem has become mounted, as a monotonic counter.
 ///
 /// The C++ side reads this to notice an unmounted->mounted EDGE, which is what drives

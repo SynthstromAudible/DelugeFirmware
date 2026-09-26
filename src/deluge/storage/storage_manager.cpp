@@ -79,7 +79,7 @@ extern void songLoaded(Song* song);
 Error StorageManager::checkSpaceOnCard() {
 	uint32_t freeClusters = 0;
 	uint32_t totalClusters = 0;
-	// Best-effort: if the query can't run (unmounted, off-fiber, or a non-efatfs BSP whose weak stub
+	// Best-effort: if the query can't run (unmounted, or a non-efatfs BSP whose weak stub
 	// returns false), don't spuriously report the card full — treat it as space available.
 	if (!deluge_efatfs_stats(&freeClusters, &totalClusters)) {
 		return Error::NONE;

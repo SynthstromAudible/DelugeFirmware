@@ -115,7 +115,7 @@ public:
 	///        before any recording began is still in a valid state.
 	///
 	/// @note Atomic: the producer (audio) publishes a completed buffer via a release store at
-	///       createNextCluster; the consumer (fiber) reads it acquire as its drain bound -- the index
+	///       createNextCluster; the consumer (card routine) reads it acquire as its drain bound -- the index
 	///       into our own private bufferTable_ (see below), not a shared residency table. See
 	///       docs/dev/known-concurrency-bugs.md (B3).
 	std::atomic<int32_t> currentRecordClusterIndex = -1;
@@ -134,9 +134,9 @@ public:
 	/// @brief This recorder's current lifecycle state; see RecorderStatus.
 	///
 	/// @note Atomic: the finishCapturing (audio) -> ABORTED (either thread) transitions are release
-	///       stores; the fiber's cardRoutine() decision reads are acquire loads, so seeing
+	///       stores; the card routine's cardRoutine() decision reads are acquire loads, so seeing
 	///       FINISHED_CAPTURING_BUT_STILL_WRITING (or ABORTED) also makes visible the producer's final
-	///       currentRecordClusterIndex/payload writes before the fiber takes over as producer in
+	///       currentRecordClusterIndex/payload writes before the card routine takes over as producer in
 	///       finalizeRecordedFile(). See docs/dev/known-concurrency-bugs.md (B3).
 	std::atomic<RecorderStatus> status = RecorderStatus::CAPTURING_DATA;
 	static_assert(std::atomic<RecorderStatus>::is_always_lock_free);
@@ -405,7 +405,7 @@ private:
 	/// (util/misc.h) wherever both become visible in the same translation unit, and sample_recorder.h
 	/// is included far too widely to risk that.
 	/// @note Same release/acquire discipline as deluge::util::SpscRing (see that header's doc for the
-	///       full reasoning): the producer (fiber, recycleBuffer()) release-stores tail_ after writing
+	///       full reasoning): the producer (card routine, recycleBuffer()) release-stores tail_ after writing
 	///       a slot; the consumer (audio thread, allocateBuffer()) acquire-loads tail_ before reading a
 	///       slot and release-stores head_ after freeing it, which the producer acquire-loads to know
 	///       the slot is free again.
@@ -454,11 +454,11 @@ private:
 	/// Maps a buffer's logical index (the same index space `currentRecordClusterIndex`/
 	/// `firstUnwrittenClusterIndex` already walk) to its physical storage.
 	/// @note Growth (audio-thread-only, single-writer) is pre-`reserve`d up front in setup() so it
-	///       never reallocates the segment-pointer index concurrently with the fiber's `operator[]`
+	///       never reallocates the segment-pointer index concurrently with the card routine's `operator[]`
 	///       reads -- same B2 discipline the shared table used to require.
 	deluge::SegmentedVector<std::byte*, 256, deluge::memory::fast_allocator> bufferTable_{};
 
-	/// @brief Recycles a flushed buffer's memory back for reuse: the fiber pushes after a successful
+	/// @brief Recycles a flushed buffer's memory back for reuse: the card routine pushes after a successful
 	///        write_at, the audio thread pops when it needs a fresh buffer.
 	///
 	/// @note Either side of this ring can "miss" without correctness cost -- a full push just frees

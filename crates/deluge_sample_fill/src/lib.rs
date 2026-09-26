@@ -31,7 +31,7 @@ pub mod fill_logic;
 /// ... needs [release-like density] to fit at debug opt-levels" caveat — this table just measurably
 /// hit that ceiling too). Rather than shrink the table below a size that would make it useless for
 /// real per-asset coverage, [`FILL_CONTEXTS`] is placed in SDRAM instead (`.sdram_bss`, 64 MiB, a
-/// rounding error at this size) on device — the same fix already used for `fiber::WORKER_STACK`,
+/// rounding error at this size) on device — the same fix already used for
 /// `audio::RENDER_BLOCK`/`INPUT_BLOCK`, and `ffi_extra::NEWLIB_HEAP`.
 const FILL_CONTEXT_CAP: usize = 4096;
 

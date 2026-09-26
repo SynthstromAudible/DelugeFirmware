@@ -4,7 +4,7 @@
 //! `Mutex`. [`with_fs`] is the ONLY way live code may touch the FS.
 //!
 //! embedded-fatfs's `FileSystem` wraps its disk in a `RefCell`, which assumes
-//! *exclusive* (non-reentrant, non-concurrent) access — two fibers/tasks
+//! *exclusive* (non-reentrant, non-concurrent) access — two tasks
 //! calling into it at once would panic the `RefCell` (or worse, race the
 //! underlying SD transfer). An async `Mutex` (not the `RefCell` itself, and
 //! not a blocking lock) serializes all FS operations here while letting a
@@ -292,12 +292,12 @@ pub async fn close(handle: u32) {
 // real and accepted: the calling context is HELD for the duration of the transfer rather than
 // yielded, so thread-mode tasks (PIC pump, OLED, UI) do not run during one. Streaming is
 // unaffected — it lives on its own interrupt executor. The answer to the responsiveness cost is
-// a genuinely async `Owner::await`, not reinstating the yield.
+// a genuinely async caller, not reinstating the yield.
 use core::ffi::{CStr, c_char};
 
 /// C-ABI: open a sample file for streaming; writes the handle to `*out_handle`.
-/// Returns false (caller falls back to the C-FatFS map) if not on the worker
-/// fiber, the path/pointer is null or invalid, the FS is unmounted, or the open
+/// Returns false (caller falls back to the C-FatFS map) if the path/pointer is
+/// null or invalid, the FS is unmounted, or the open
 /// failed. `*out_table_full` is always written on a `false` return — true iff
 /// the failure was specifically [`HANDLES`] having no free slot (as opposed to
 /// a genuinely missing file or unmounted FS), so the caller can surface a
@@ -893,7 +893,7 @@ pub extern "C" fn deluge_efatfs_stats(
 }
 
 /// C-ABI: mount the FS if it isn't already mounted (idempotent -- see
-/// [`mount`]). True if mounted (or already was), false on failure/off-fiber.
+/// [`mount`]). True if mounted (or already was), false on failure.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_mount() -> bool {
     crate::sim_block::block_on(mount()).is_ok()
@@ -911,8 +911,8 @@ pub extern "C" fn deluge_efatfs_is_mounted() -> bool {
 ///
 /// NON-BLOCKING and callable from any context — deliberately unlike
 /// [`deluge_efatfs_is_mounted`], which is callable anywhere too but BLOCKS (it spins on the FS
-/// mutex). This one only probes. Off-owner
-/// callers asking "may I start filesystem work now?" are the primary consumer, and blocking here
+/// mutex). This one only probes.
+/// Callers asking "may I start filesystem work now?" are the primary consumer, and blocking here
 /// would be the very deadlock this exists to prevent.
 ///
 /// `try_lock()` returns `Err` when the mutex is HELD — do not invert this. On `Ok` the guard is

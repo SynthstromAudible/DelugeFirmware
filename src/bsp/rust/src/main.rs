@@ -230,7 +230,7 @@ mod file_bytes;
 /// hand the ready handle to a caller that must not wait on the card. Gated identically to
 /// `file_prefix` below, and to `card` — which reaches this module's `flush_tables` and so must
 /// never be compiled without it. It has no feature switch: after boot, every browser listing, SysEx directory
-/// request and recording-folder scan off the storage owner opens its directory through it.
+/// request and recording-folder scan opens its directory through it.
 ///
 /// Unlike `file_prefix` it borrows nothing from `audio_loader`: a directory open is not one of
 /// `LoadOps`'s four file operations, so it declares its own two-operation trait.
@@ -294,7 +294,7 @@ mod signals;
 mod sim_block;
 /// The async cluster-fill task (R1) and its selector/wakeup C ABI (R2.1): drains
 /// the resource manager's loader queue on this executor, awaiting the SD read
-/// instead of running it inline on the fiber as the old C++ `loader::pump()`
+/// instead of running it inline as the old C++ `loader::pump()`
 /// did. Compiled on the Embassy
 /// BSP unconditionally (device, or host under `host_app`) so
 /// `deluge_streaming_async_active`/`deluge_streaming_signal_fill` always link;
@@ -358,7 +358,7 @@ fn panic(_info: &PanicInfo) -> ! {
     // `log::error!`, the `log` crate's max level was compiled out in release (see
     // deluge-sdk's workspace `log` dependency), and every panic on the only profile that
     // fits the device was therefore silent. The spin below happens in whatever context
-    // panicked, so on the storage-owner fiber it stalls the whole thread-mode executor
+    // panicked, so in thread mode it stalls the whole thread-mode executor
     // while audio carries on in its own interrupt executor -- a dead front panel with
     // sound still playing, and not one byte of explanation. `rprintln!` shares the
     // channel the logger sits on but owes it nothing.
@@ -409,8 +409,8 @@ fn audio_sgi_handler() {
 /// executor at a priority *between* audio and thread mode, so audio still preempts the fill
 /// and the fill preempts thread mode.
 ///
-/// That ordering is the whole point: once the worker fiber's storage waits become
-/// non-yielding spins, a spin in thread mode must not be able to monopolise the context that
+/// That ordering is the whole point: thread-mode storage waits are non-yielding spins, and a
+/// spin in thread mode must not be able to monopolise the context that
 /// releases the filesystem mutex — which is this task, since it holds that mutex across its
 /// SD await (`efatfs_fs::read_at` -> `with_fs`).
 #[cfg(target_os = "none")]
@@ -421,7 +421,7 @@ static STREAM_EXEC: InterruptExecutor = InterruptExecutor::new();
 #[cfg(target_os = "none")]
 const STREAM_SGI: u8 = 9;
 /// Streaming SGI GIC priority. Numerically BELOW [`AUDIO_SGI_PRIORITY`] (20) so audio
-/// preempts the fill, above thread mode so the fill preempts the fiber, and below PMR (31) so
+/// preempts the fill, above thread mode so the fill preempts thread mode, and below PMR (31) so
 /// it is forwarded at all. (Lower number = more urgent.)
 #[cfg(target_os = "none")]
 const STREAM_SGI_PRIORITY: u8 = 24;
@@ -449,7 +449,7 @@ fn stream_sgi_handler() {
 ///
 /// The audio-file load task lands here rather than on the thread-mode executor for the reason
 /// its own module doc gives: like the fill task, it holds the single `efatfs` FS mutex across
-/// an SD await, and the storage fiber's non-yielding `sim_block::block_on` spin would deadlock
+/// an SD await, and a thread-mode caller's non-yielding `sim_block::block_on` spin would deadlock
 /// against that if both shared an executor. The file-prefix task is here for the same reason
 /// and on the same terms.
 #[cfg(all(
@@ -467,7 +467,7 @@ async fn stream_bootstrap() {
     #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(audio_loader::audio_load_task().unwrap());
     // Here rather than on the thread-mode executor for the same reason as the load task above: it
-    // holds the FS mutex across an SD await, and the storage fiber's non-yielding
+    // holds the FS mutex across an SD await, and a thread-mode caller's non-yielding
     // `sim_block::block_on` spin would deadlock against that if the two shared an executor.
     #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(file_prefix::file_prefix_task().unwrap());
@@ -593,7 +593,7 @@ pub extern "C" fn main() -> ! {
     // directly.
     // Every task this executor can host is listed, not just the ones that happened to be on when it was
     // written: a channel switched on without its entry here would have its task spawned onto an executor
-    // nobody started -- a dead channel that every consumer's owner arm would then hide.
+    // nobody started -- a dead channel that every consumer's inline arm would then hide.
     #[cfg(any(feature = "async_streaming_loader", feature = "efatfs_streaming"))]
     STREAM_EXEC
         .start(STREAM_SGI)
@@ -633,9 +633,8 @@ pub extern "C" fn main() -> ! {
         spawner.spawn(usb::midi_tx_task(usb_midi.ep_in).unwrap());
         spawner.spawn(app_task().unwrap());
         // Re-identifies the card after a swap. Must be its own task: `sd::init()`
-        // needs embassy-time Timers, which the storage-owner fiber cannot provide
-        // (see `sd::card_service`), and parking `app_task` on a ~1.3 s card
-        // bring-up would stall the worker-fiber pump it owns.
+        // needs embassy-time Timers, which a blocking storage call cannot provide
+        // (see `sd::card_service`).
         spawner.spawn(sd::card_service().unwrap());
         // The async cluster-fill task is NOT spawned here any more: it runs on STREAM_EXEC,
         // its own preemptive interrupt executor (see `STREAM_EXEC` and `stream_bootstrap`).
@@ -731,18 +730,6 @@ async fn app_task() {
     boot::mark_finished();
     log::info!("deluge-rust: scheduler running");
 
-    // The scheduler's task runners own the periodic app work. This task now pumps
-    // the worker fiber ([`fiber`]): it drives the long user-initiated operations
-    // (song load, stem export, grid clip create) that `yield()` instead of
-    // busy-waiting. Each pass starts/resumes a ready operation; between passes the
-    // executor runs every other task + I/O, so the awaited work makes progress
-    // (this is what lets song-load-while-playing complete instead of hanging on a
-    // frozen executor).
-    //
-    // Wake-driven: sleep on WORKER_WAKE rather than polling on a fixed tick. While
-    // an op is suspended a coarse fallback timer also re-checks (covers predicate
-    // flips that aren't signalled — most are, via deluge_worker_run, the task
-    // runners, and the SD waker); when idle we sleep until an op is submitted.
     // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
     // fiber this loop used to drive is retired.
     core::future::pending::<()>().await
@@ -754,17 +741,8 @@ async fn app_task() {
 /// PIC handshake, bring SD up, then `deluge_app_init`), minus the device-only
 /// SYNC LED blink (no GPIO on host).
 ///
-/// After init, this runs the SAME worker-fiber pump loop as the device
-/// [`app_task`] (see its doc comment for the full rationale) rather than
-/// parking. The loop is needed here too: it drives the worker ring, so
-/// owner-dispatched storage work actually runs. Coalesced owner ops (the
-/// recorder card-write drain, card re-init) enqueue onto that ring; without the
-/// loop draining it, a `Coalescer`'s single-flight guard latches
-/// `in_flight_ = true` on its first dispatch and never releases
-/// (`run_and_release` never runs), so every later request silently no-ops. It
-/// is also what lets a real streaming cluster read (once one is queued — see
-/// the `sim_latency`/streaming-underrun harness) genuinely reach the fiber and,
-/// under `sim_latency`, suspend it.
+/// After init it marks boot finished and parks, as the device [`app_task`] does:
+/// the scheduler's task runners, spawned by `deluge_app_init`, own the app's work.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 #[embassy_executor::task]
 async fn host_app_task() {
@@ -780,11 +758,9 @@ async fn host_app_task() {
     // notes embedded-fatfs's `alloc` feature just uses the host's implicit std
     // allocator. A failed mount must NOT abort boot — but the streaming read
     // is efatfs-only, so a failed mount means streamed samples won't load
-    // rather than reverting to C-FatFS, exactly like the device. No `sim_latency::set_off_fiber_instant`
-    // dance is needed on this path either: this mount's block device awaits the
-    // SD_BUS-guarded async helpers directly (see the shim's module doc) rather
-    // than bridging through a synchronous off-fiber dispatch that would need
-    // that workaround, and in any case `sim_latency::pump` runs on the
+    // rather than reverting to C-FatFS, exactly like the device. This mount's
+    // block device awaits the SD_BUS-guarded async helpers directly (see the
+    // shim's module doc), and in any case `sim_latency::pump` runs on the
     // dedicated audio OS thread (spawned above in `main`, before this task),
     // so this task's `block_on` busy-spin never starves it (see Appendix A of
     // the R0 design doc for why Lens 1's single-threaded shape is different).
@@ -811,10 +787,9 @@ async fn host_app_task() {
 }
 
 /// Host harness entry (`cargo build`/`cargo test` off-target, no `target_os =
-/// "none"`). Exercises the core host modules (`fiber`, `scheduler`, `sd`,
-/// `services`) on std without any device BSP/HAL — no MMU/GIC/SDRAM bring-up.
-/// Proves the host binary actually links and runs: the fiber context switch
-/// works on a std thread stack, and the `sd.rs` file-backed block-device shim
+/// "none"`). Exercises the core host modules (`scheduler`, `sd`, `services`) on
+/// std without any device BSP/HAL — no MMU/GIC/SDRAM bring-up. Proves the host
+/// binary actually links and runs: the `sd.rs` file-backed block-device shim
 /// round-trips real bytes through the same `deluge_block_read`/
 /// `deluge_block_write` C ABI the app would call. With `host_app` off, no C++
 /// app is linked (see build.rs); with it on, this also boots the real C++ app
@@ -829,22 +804,16 @@ fn main() {
     // bytes survive — proves the file-backed shim actually persists data, not
     // just that it links. Sector 1 (not 0): leaves a notional boot sector alone.
     //
-    // Deliberately called here, synchronously, before any executor/fiber
-    // exists — it is a bootstrap-time smoke test of the raw ABI shim itself,
-    // not an app FatFS access, so it has no owner to route through yet. Under
-    // `storage-owner-audit`'s pre-flight gate this does NOT
-    // trip `sd.rs`'s `on_fiber()` debug_assert!: the assert's guard is
-    // `on_fiber() || !worker_started()`, and `worker_started()` only latches
-    // true once the first `worker_poll()` runs, which is after this
-    // synchronous self-test returns — so it runs unconditionally in both
-    // configs.
+    // Deliberately called here, synchronously, before any executor exists — it
+    // is a bootstrap-time smoke test of the raw ABI shim itself, not an app
+    // FatFS access, so it runs unconditionally in both configs.
     //
     // `sim_latency`-on only: SKIPPED here instead. Under `sim_latency`,
     // `deluge_block_write`/`deluge_block_read` route through
     // `sim_latency::modeled_write`/`modeled_read` (see sd.rs's module doc),
     // which pends on `sim_latency::pump` — a genuinely-spawned Embassy task —
     // to resolve the modeled delay. No executor exists yet at this point in
-    // `fn main()`, so nothing could ever spawn `pump`, and the off-fiber
+    // `fn main()`, so nothing could ever spawn `pump`, and the
     // `block_on` below would busy-spin forever waiting on a modeled transfer
     // nobody services. The same round trip (write + read, byte-for-byte data
     // assertion) stays covered under `sim_latency` by
@@ -1130,7 +1099,7 @@ fn main() {
                 executor.run(|spawner: Spawner| {
                     // sim_latency harness only: spawned HERE — on this separate OS
                     // thread's executor, not the host-app executor's — deliberately.
-                    // `deluge_app_init` (called synchronously, off-fiber, from
+                    // `deluge_app_init` (called synchronously from
                     // `host_app_task` below) can itself issue a `sim_latency`-modeled
                     // transfer (e.g. the boot-time FatFS mount read) via a plain
                     // `block_on`, which hijacks its OS thread with a busy poll loop
@@ -1230,17 +1199,16 @@ fn main() {
                     // NOTE: `sim_latency::pump` is deliberately NOT spawned on this
                     // executor — see the audio-thread executor closure above for why
                     // (this thread's `host_app_task` calls `deluge_app_init`
-                    // synchronously, off-fiber, which can itself busy-spin a
+                    // synchronously, which can itself busy-spin a
                     // `block_on`'d sim_latency transfer and would starve a
                     // same-thread `pump`).
                     spawner.spawn(host_app_task().unwrap());
                     // The async cluster-fill task is NOT spawned here any more: it owns the
                     // `"deluge-stream"` thread above, mirroring the device's STREAM_EXEC. A
-                    // non-yielding storage spin on THIS thread — the one `host_app_task`'s
-                    // worker-fiber pump loop and the C++ enqueue path run on — must not be
-                    // able to starve it.
+                    // non-yielding storage spin on THIS thread — the one `host_app_task` and
+                    // the C++ enqueue path run on — must not be able to starve it.
                     // Streaming-underrun harness: spawned on THIS executor —
-                    // the same one `host_app_task`'s worker-fiber pump loop runs on —
+                    // the same one `host_app_task` runs on —
                     // so `scenario::run`'s C-ABI calls interleave cooperatively with
                     // the real app's own task graph, exactly like a real HID event
                     // handler would (see scenario.rs's module doc: it never spawns a

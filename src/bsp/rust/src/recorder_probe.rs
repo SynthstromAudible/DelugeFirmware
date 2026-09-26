@@ -110,7 +110,7 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
     // The drain, one tick per YIELD. It used to be a tight C++ loop, which only ever worked on the
     // recorder's synchronous arm: with the channel arm the storage driver gets no chance to run
     // between ticks, so nothing is answered and nothing lands. Awaiting here is what lets the op
-    // complete, and it is what unblocks `Owner::run` going inline.
+    // complete.
     for _ in 0..4 {
         unsafe { deluge_harness_recorder_probe_drain_tick() };
         Timer::after_millis(1).await;
@@ -128,7 +128,7 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
     result.final_state = state;
     result.resolved_ready = state == STATE_READY;
 
-    // Settle before deleting: off the storage owner a request can still be in flight.
+    // Settle before deleting: a request can still be in flight.
     unsafe { deluge_harness_recorder_probe_abort() };
     while unsafe { deluge_harness_recorder_probe_settle_tick() } == 0 {
         Timer::after_millis(1).await;
@@ -141,7 +141,7 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
 static RESULT: Mutex<Option<RecorderProbeResult>> = Mutex::new(None);
 
 /// `host_app` boot-path convenience wrapper (NOT part of a reusable driver — same shape as
-/// `scenario::scenario_task`). Spawn on the SAME executor `host_app_task`'s worker-fiber pump loop
+/// `scenario::scenario_task`). Spawn on the SAME executor `host_app_task`
 /// and the async streaming-fill task run on, then poll [`take_result`] from the OS thread.
 /// Embassy task args must be `Copy`; durations are passed as plain millis.
 #[embassy_executor::task]

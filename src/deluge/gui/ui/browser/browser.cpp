@@ -718,7 +718,7 @@ Error Browser::readFolder(FileListing& into, ListingRead& read) {
 	return Error::NONE;
 }
 
-// Body of ListingAction::Open, run on the fiber inside runPendingListing(). arrivedInNewFolder()
+// Body of ListingAction::Open, run inside runPendingListing() on the interaction tier. arrivedInNewFolder()
 // is the full synchronous listing body: readFolder + fileIndexSelected
 // search + folderContentsReady() + render.
 Error Browser::openListingImpl(int32_t direction, char const* filenameToStartAt, char const* defaultDir) {
@@ -1875,7 +1875,7 @@ ActionResult Browser::backButtonAction() {
 	}
 	// goUpOneDirectoryLevel() checks for the root-of-tree case synchronously (see its comment) and returns
 	// NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP without dispatching, so pressing Back at the root is handled
-	// right here, synchronously. Any other failure is discovered on the fiber and routed through
+	// right here, synchronously. Any other failure is discovered by the listing and routed through
 	// onListingFailed (displayError + close()).
 	Error error = goUpOneDirectoryLevel();
 	if (error != Error::NONE) {
@@ -1940,7 +1940,7 @@ Error Browser::goIntoFolderImpl(char const* folderName) {
 }
 
 Error Browser::goUpOneDirectoryLevel() {
-	// The "already at root" case is checked synchronously here, not on the fiber: it returns
+	// The "already at root" case is checked synchronously here, not in the listing: it returns
 	// NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP with no popup and no UI transition, and backButtonAction()
 	// depends on getting that back synchronously so it can handle the root case inline. Only dispatch
 	// the (SD-touching) listing when there IS a level to ascend.
@@ -1954,8 +1954,8 @@ Error Browser::goUpOneDirectoryLevel() {
 	return Error::NONE;
 }
 
-// The pre-listing currentDir manipulation (finding the parent, resizing currentDir) runs here, on
-// the fiber alongside the listing, rather than synchronously in goUpOneDirectoryLevel() - it must
+// The pre-listing currentDir manipulation (finding the parent, resizing currentDir) runs here, inside
+// the listing, rather than synchronously in goUpOneDirectoryLevel() - it must
 // happen atomically with arrivedInNewFolder()'s SD access, not race the caller's next HID event.
 // goUpOneDirectoryLevel() has already confirmed synchronously that there IS a level to go up before
 // dispatching here; the check is repeated defensively since currentDir is re-read from scratch.

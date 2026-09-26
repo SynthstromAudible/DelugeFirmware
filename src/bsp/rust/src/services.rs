@@ -43,7 +43,7 @@ static CS_DEPTH: AtomicU32 = AtomicU32::new(0);
 // Host per-thread critical-section nesting depth. Each thread independently
 // acquires the global `critical-section` mutex on its OUTERMOST enter and
 // nests within itself, so two real OS threads (the `"deluge-audio"` executor
-// and the fiber/executor thread in the preemptive harness) are mutually
+// and the main executor thread in the preemptive harness) are mutually
 // excluded — unlike a process-global depth, which would let a second thread
 // enter while the first still holds the lock. Device uses the CPU IRQ mask
 // (`CS_DEPTH` below), which is genuinely single-context per core.
@@ -200,9 +200,9 @@ pub extern "C" fn deluge_system_reset() -> ! {
 
 /// Busy-wait `us` microseconds via the OSTM-backed embassy-time driver. [task]
 ///
-/// NOTE: kept as `block_for`, NOT a fiber-yield. A delay can be
-/// called mid-operation (incl. inside SD/FatFS sequences); yielding the fiber there
-/// would let other tasks re-enter non-reentrant state. See sd.rs.
+/// NOTE: a busy-wait (`block_for`), NOT a yield. A delay can be
+/// called mid-operation (incl. inside SD/FatFS sequences); yielding there
+/// would let other tasks re-enter non-reentrant state.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_clock_delay_us(us: u32) {
     embassy_time::block_for(embassy_time::Duration::from_micros(us as u64));

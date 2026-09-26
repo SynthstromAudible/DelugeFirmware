@@ -22,7 +22,7 @@
 /// prologue (allocate + adopt a `Sample`), the I/O (open the alternate dir, open the read stream,
 /// open the file, parse its header), and an I/O-free epilogue (apply the parsed geometry, publish).
 /// This boundary exposes the I/O-free halves plus the read-stream bind so a Rust async task can own
-/// the file-open-and-parse I/O in between -- that part moves off the calling fiber without moving the
+/// the file-open-and-parse I/O in between -- that part moves off the calling tier without moving the
 /// allocation/bookkeeping with it.
 ///
 /// **Call order.** The candidate policy comes FIRST and on a different tier from the parse, because

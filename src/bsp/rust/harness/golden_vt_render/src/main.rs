@@ -2,8 +2,8 @@
 //! `deluge_app` on this repo's Rust/Embassy host substrate (the same
 //! `raw::Executor` + `PeekableMockDriver` + no-thread pender shape
 //! `../lens1_vt_sim/` pioneered for the streaming-underrun harness), mounts a
-//! fixture SD-card image, dispatches a real offline `StemExport` run onto the
-//! storage-owner worker fiber, copies the produced stem WAV(s) out of the
+//! fixture SD-card image, starts a real offline `StemExport` run, copies the
+//! produced stem WAV(s) out of the
 //! image, and exits cleanly. Sample cluster fills drain through the real async
 //! Embassy `streaming_fill_task` during the offline render (the reader/overview
 //! and voice-playback paths route their fills onto that drain under
@@ -32,8 +32,8 @@
 //! # The boot livelock (see `../lens1_vt_sim/src/main.rs`'s module-doc section
 //! for the full mechanism and its history)
 //!
-//! `deluge_app_init` calls the boot-time FatFS mount SYNCHRONOUSLY, off the
-//! worker fiber, via `embassy_futures::block_on` — a tight busy-spin poll loop
+//! `deluge_app_init` calls the boot-time FatFS mount SYNCHRONOUSLY, via
+//! `embassy_futures::block_on` — a tight busy-spin poll loop
 //! that never returns control to anything else on this one OS thread. Under
 //! `sim_latency`, that polled future's completion depends on a separately
 //! spawned `pump()` task's `Timer::after(latency).await` being POLLED by the
@@ -65,7 +65,7 @@
 //! # Reused shared substrate
 //!
 //! `#[path]`-includes the SAME source files `deluge-bsp-rust`'s own `host_app`
-//! build (and `../lens1_vt_sim/`) compiles (`fiber.rs`, `scheduler.rs`, `sd.rs`,
+//! build (and `../lens1_vt_sim/`) compiles (`boot.rs`, `scheduler.rs`, `sd.rs`,
 //! `board.rs`, `control.rs`, `display.rs`, `ffi.rs`, `ffi_extra.rs`, `flash.rs`,
 //! `services.rs`, `audio_host.rs`, `sd_image.rs`, `streaming_loader.rs`,
 //! `efatfs_core.rs`, `efatfs_host_shim.rs`) — a second, independently
@@ -368,13 +368,13 @@ unsafe extern "C" {
 }
 
 /// Set once [`boot_task`] has run the efatfs mount, `deluge_app_init` (which
-/// itself runs the C FatFS mount synchronously), and is about to enter its
-/// worker-fiber pump loop. [`run_stem_export_scenario`] waits on this flag
+/// itself runs the C FatFS mount synchronously), and has marked boot finished.
+/// [`run_stem_export_scenario`] waits on this flag
 /// before dispatching the stem export.
 static BOOT_MOUNTED: AtomicBool = AtomicBool::new(false);
 
 /// Boot task: mirrors `deluge-bsp-rust`'s `host_app_task` exactly (PIC-ready
-/// wait, SD bring-up, efatfs mount, `deluge_app_init`, worker-fiber pump loop)
+/// wait, SD bring-up, efatfs mount, `deluge_app_init`, boot marked finished)
 /// — see `../lens1_vt_sim/src/main.rs`'s `boot_task` doc comment for the full
 /// rationale behind each step; this is the same ~15-line reimplementation (not
 /// `#[path]`-included for the same reason: `host_app_task` lives inside
@@ -386,8 +386,8 @@ async fn boot_task() {
     crate::sd::boot_init().await;
 
     // Mirrors `deluge-bsp-rust`'s `host_app_task` efatfs mount (see its comment). This mount
-    // runs off-fiber; with `sim_latency` off for this package its transfers are plain
-    // synchronous reads, so there is no modeled delay for an off-fiber caller to get stuck on.
+    // runs synchronously; with `sim_latency` off for this package its transfers are plain
+    // synchronous reads, so there is no modeled delay to get stuck on.
     // A failed mount must NOT abort boot — see the device/host_app_task comments this mirrors.
     #[cfg(feature = "efatfs_streaming")]
     match crate::efatfs_host_shim::mount().await {
@@ -462,8 +462,8 @@ fn stem_export_mode() -> i32 {
 }
 
 /// The render scenario: waits for [`boot_task`] to finish booting + mounting,
-/// dispatches a real offline `StemExport` run onto the storage-owner worker
-/// fiber (`deluge_scenario_start_stem_export`), polls the driver to quiescence
+/// starts a real offline `StemExport` run (`deluge_scenario_start_stem_export`),
+/// polls the driver to quiescence
 /// until it completes (`deluge_scenario_stem_export_done`), copies the produced
 /// stem WAV(s) out of the mounted image (`deluge_scenario_copy_stems_out` —
 /// mirrors `host_render_main.cpp`'s `copy_stems_out`), then declares the run
@@ -508,11 +508,8 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
     log::info!("golden_vt_render: boot+mount confirmed for fixture={fixture}; loading {song_path}");
     let song_path_c =
         CString::new(song_path.clone()).expect("fixture_song_path never contains a NUL byte");
-    // Dispatched onto the worker fiber (deluge_scenario_start_song_load), NOT
-    // called inline — see that C-ABI entry's doc: called directly from this
-    // off-fiber Rust task, deluge_scenario_begin_song_load()'s own
-    // openUI(&loadSongUI) chain does a real storage read that can livelock the
-    // process under sim_latency.
+    // Started through deluge_scenario_start_song_load -- see that C-ABI entry's doc for how the load
+    // is stepped.
     // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has already run
     // `deluge_app_init`, so `currentSong` exists. `song_path_c` outlives the call.
     unsafe { deluge_scenario_start_song_load(song_path_c.as_ptr()) };
@@ -558,7 +555,7 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
     let committed = unsafe { deluge_scenario_commit_song_load() };
     if !committed {
         log::error!(
-            "golden_vt_render: deluge_scenario_commit_song_load() returned false (owner queue rejected it)"
+            "golden_vt_render: deluge_scenario_commit_song_load() returned false (the load was refused)"
         );
         hard_exit(2);
     }
@@ -583,13 +580,10 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
     log::info!("golden_vt_render: dispatching stem export mode={mode}");
     // SAFETY: DELUGE_HOST harness C-ABI; the song load above has completed, so
     // `currentSong` is the fixture's real song. Fire-and-forget: this only
-    // enqueues the export onto the storage-owner worker fiber (see the C++ doc
-    // comment) — it does not itself run the export.
+    // starts the export (see the C++ doc comment) — it does not itself run it.
     unsafe { deluge_scenario_start_stem_export(mode) };
 
-    // The export runs as ONE synchronous worker-fiber op once dispatched (no
-    // yield points inside it yet — see the module doc's fill-drain note), so
-    // this wait budget only needs to cover real wall-clock render time, not a
+    // This wait budget only needs to cover real wall-clock render time, not a
     // wedge in the usual "stuck forever" sense; keep it generous regardless.
     let deadline = Instant::now() + Duration::from_secs(300);
     loop {
@@ -627,8 +621,8 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
 /// runs the SampleRecorder byte-exact round-trip oracle (the ex-`deluge_recorder_roundtrip`
 /// binary, now the `deluge_scenario_run_recorder_roundtrip` harness scenario) on THIS Embassy
 /// substrate. Waits for boot+mount, sets the oracle up inline, then ticks its cases, the finalized
-/// probe's pump and the tail, one step per await, and exits with its result. Nothing runs on the
-/// storage owner. Unlike the stem-export scenario, no song load and no fixture image: `main`
+/// probe's pump and the tail, one step per await, and exits with its result. Unlike the stem-export
+/// scenario, no song load and no fixture image: `main`
 /// formats an EMPTY FAT image (the recorder only ever writes new files) and leaves
 /// `DELUGE_SD_ROOT` unset so the finalized probe reads efatfs on the same image it wrote.
 #[embassy_executor::task]
@@ -654,10 +648,9 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     unsafe { deluge_scenario_run_recorder_roundtrip() };
 
     // The CASES, driven from HERE -- one step per tick with a yield between, so the storage driver can
-    // answer. They used to run inside an owner dispatch, in a 200000-iteration loop that never
-    // yielded; that only ever worked because the fiber blocks and resumes. Off the fiber, on the
-    // channel arm, a caller that does not return cannot be answered -- which is the whole reason the
-    // fiber could not be deleted.
+    // answer. They once ran inside a storage-owner dispatch, in a 200000-iteration loop that never
+    // yielded, which only worked because the (since retired) worker fiber blocked and resumed. On the
+    // channel arm, a caller that does not return cannot be answered.
     let case_deadline = Instant::now() + Duration::from_secs(300);
     loop {
         // SAFETY: as above.
@@ -714,10 +707,9 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         );
         hard_exit(1);
     }
-    // The off-owner case. Driven from HERE -- this task is not the fiber, so `on_owner()` is false and
-    // the recorder takes the path the device actually takes: the cluster write goes through the
-    // channel. This case is set up to cover the async write path and the blocking ticks from where the
-    // device drives them.
+    // The off-owner cases (named for the retired storage owner). Driven from HERE, as the device drives a
+    // recorder: the cluster write goes through the channel. They cover the async write path and the
+    // blocking ticks from where the device drives them.
     // SAFETY: same C-ABI contract as the calls above; called only from this task.
     unsafe { deluge_scenario_offowner_begin(0) };
     let off_deadline = Instant::now() + Duration::from_secs(300);
@@ -733,8 +725,8 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
             );
             hard_exit(2);
         }
-        // Yield so the storage owner can run the ticks the case handed it and the write task can
-        // make progress on the clusters it has been given. Without this the case cannot advance.
+        // Yield so the write task can make progress on the clusters the case has handed it. Without
+        // this the case cannot advance.
         Timer::after_millis(1).await;
     };
     if off_result != 1 {
@@ -1034,7 +1026,7 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     // begins and its load necessarily goes through the loader.
     write_test_wav(&samples.join("PREVIEW.WAV"), 1, 16, 2816, 0xCC);
     // The cancellation stage's file (kCancelPath): asked for once and then abandoned before the
-    // storage owner runs the load. It is a real, loadable file on purpose -- the stage asserts that
+    // load runs. It is a real, loadable file on purpose -- the stage asserts that
     // NOTHING loaded or drew it, and a file that could not have loaded anyway would let that pass
     // for the wrong reason.
     write_test_wav(&samples.join("CANCEL.WAV"), 1, 16, 3328, 0xDD);
@@ -2231,7 +2223,7 @@ async fn run_sample_load_tree_scenario(done: &'static AtomicBool) {
 
 /// The `GOLDEN_SCENARIO=document_save_channel` scenario: save a preset through the real ENTER
 /// gesture, require the written document to be whole, and report whether the storage channel served
-/// the write off the owner.
+/// the write.
 ///
 /// Two legs are built from this one scenario -- with and without the channel features -- because
 /// `write_file` begins life with no harness building it, which is precisely the position the
@@ -2314,7 +2306,7 @@ fn pack_song_load_channel_image() -> std::path::PathBuf {
 
 /// The `GOLDEN_SCENARIO=song_load_channel` scenario: save a song carrying a distinctive value, load
 /// it back through the real `LoadSongUI`, and report both whether the value returned and whether the
-/// storage channel served the read off the owner.
+/// storage channel served the read.
 ///
 /// Until this gate existed, `recorder_write.sh` was the only script that built the write channel, so
 /// the whole-file staging read had never executed under any harness at all.
@@ -2378,9 +2370,9 @@ async fn run_song_load_channel_scenario(done: &'static AtomicBool) {
 /// Drives the save round-trip gate: save a song through the real SaveSongUI gesture, load it back,
 /// overwrite it, and require the two written files to be identical.
 ///
-/// Stepped rather than one blocking call for the same reason the song-preview A/B is: saving is
-/// dispatched onto the storage owner, so an op is only ENQUEUED when the gesture runs and each check
-/// must read its result on a later tick.
+/// Stepped rather than one blocking call for the same reason the song-preview A/B is: saving goes
+/// through the channels, so an op is only REQUESTED when the gesture runs and each check must read
+/// its result on a later tick.
 #[embassy_executor::task]
 async fn run_save_roundtrip_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: run_save_roundtrip_scenario: awaiting boot+mount");
@@ -2441,12 +2433,12 @@ async fn run_save_roundtrip_scenario(done: &'static AtomicBool) {
 /// `SP-CASE` line.
 ///
 /// The previews go through the prefix channel, with `file_prefix_task` spawned in `main` below, and
-/// the scenario holds each one to the same file decoded the synchronous way on the storage owner.
+/// the scenario holds each one to the same file decoded the synchronous way.
 /// `scripts/song_preview_ab.sh` builds and runs it once.
 ///
 /// The step machine is not ceremony: a preview whose prefix has not arrived is answered on a later
-/// tick, and on this single-executor substrate the C++ worker fiber is what runs while the executor
-/// is not polling, so a C++-side retry spin would starve the reader task it is waiting for.
+/// tick, and on this single-executor substrate a C++-side retry spin would starve the reader task it
+/// is waiting for.
 #[embassy_executor::task]
 async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: run_song_preview_ab_scenario: awaiting boot+mount");
@@ -2479,14 +2471,13 @@ async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
             );
             hard_exit(2);
         }
-        // One tick on the UI tier (with a marker op behind it on the storage owner)...
+        // One tick on the UI tier...
         // SAFETY: as above.
         unsafe { deluge_scenario_song_preview_ab_dispatch_step() };
         // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
         // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
         Timer::after_millis(1).await;
-        // ...then wait for it to come back, letting the executor poll `file_prefix_task` (and the
-        // fiber pump that runs the owner ops) in between.
+        // ...then wait for it to come back, letting the executor poll `file_prefix_task` in between.
         // SAFETY: as above.
         while !unsafe { deluge_scenario_song_preview_ab_step_done() } {
             Timer::after_millis(1).await;
@@ -2514,9 +2505,8 @@ async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
 /// requires the two to agree. `scripts/audio_load_ab.sh` checks its markers.
 ///
 /// The step machine is not ceremony. A deferred load answers `Error::LOAD_IN_PROGRESS` and its
-/// caller must RETURN to its own loop; on this single-executor substrate the C++ worker fiber is
-/// what runs while the executor is not polling, so a C++-side retry spin would starve the very task
-/// it is waiting for. One attempt per dispatch, with an `await` in between, is what gives
+/// caller must RETURN to its own loop; on this single-executor substrate a C++-side retry spin would
+/// starve the very task it is waiting for. One attempt per dispatch, with an `await` in between, is what gives
 /// `audio_load_task` the polls it needs to make progress.
 #[embassy_executor::task]
 async fn run_audio_load_ab_scenario(done: &'static AtomicBool) {
@@ -2550,14 +2540,13 @@ async fn run_audio_load_ab_scenario(done: &'static AtomicBool) {
             );
             hard_exit(2);
         }
-        // One attempt on the worker fiber...
+        // One attempt...
         // SAFETY: as above.
         unsafe { deluge_scenario_audio_load_ab_dispatch_step() };
         // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
         // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
         Timer::after_millis(1).await;
-        // ...then wait for it to come back, letting the executor poll `audio_load_task` (and the
-        // fiber pump that runs the attempt itself) in between.
+        // ...then wait for it to come back, letting the executor poll `audio_load_task` in between.
         // SAFETY: as above.
         while !unsafe { deluge_scenario_audio_load_ab_step_done() } {
             Timer::after_millis(1).await;
@@ -2705,8 +2694,8 @@ fn main() {
     #[cfg(feature = "sim_latency")]
     spawner.spawn(sd::sim_latency::pump().unwrap());
     spawner.spawn(boot_task().unwrap());
-    // The async cluster-fill task, on the SAME executor `boot_task`'s
-    // worker-fiber pump loop and the C++ enqueue path run on (this binary has
+    // The async cluster-fill task, on the SAME executor `boot_task` and the
+    // C++ enqueue path run on (this binary has
     // only the one executor — see the module doc's "Executor + clock"). Owns
     // the loader queue only once `deluge_streaming_async_active()` reports
     // true (i.e. only under this feature — on by default for this package);
@@ -2719,7 +2708,7 @@ fn main() {
     // The prefix reader, on the same executor, always. Without this spawn every preview and cartridge
     // load waits on a request nothing serves.
     spawner.spawn(file_prefix::file_prefix_task().unwrap());
-    // The directory opener, always: every listing off the storage owner opens through it, and without this spawn
+    // The directory opener, always: every listing after boot opens through it, and without this spawn
     // each one waits on a request nothing serves.
     spawner.spawn(file_directory::file_directory_task().unwrap());
     // The whole-file worker, always. Without this the channel's collects answer UNKNOWN forever and

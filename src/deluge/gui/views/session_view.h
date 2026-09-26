@@ -377,10 +377,10 @@ private:
 	/// user has chosen a clip type, which happens on a later tick.
 	Clip* gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Output* targetOutput, Clip* sourceClip,
 	                       const deluge::storage::AcquireResult* acquired = nullptr);
-	// Worker-fiber jobs for the new-track grid gesture: gridCreateClip() yields for the
-	// interactive clip-type picker, which can't run synchronously on this BSP, so the
-	// create + the call site's post-logic run on the fiber. Press x/y are packed into
-	// the single arg (y<<16 | x). One per call site (their post-logic differs).
+	// Deferred continuations for the new-track grid gesture: the clip can't be created until
+	// the interactive clip-type picker answers, so the create + the call site's post-logic
+	// run once it does. Press x/y are packed into the single arg (y<<16 | x). One per call
+	// site (their post-logic differs).
 	/// @brief Which post-create continuation a deferred new-track gesture asked for
 	enum class PendingGridClip : uint8_t {
 		NONE,   ///< no gesture in flight

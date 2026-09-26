@@ -123,8 +123,8 @@ static DelugeFaultRanges s_ranges;
 }
 
 // Whether `value` points into any stack the board declared. Both are checked because a fault can be
-// raised on a stack other than the program one (the Rust BSP's storage worker fiber has its own, in a
-// different region): the walk below is gated on this, so missing that stack reduced the report to a
+// raised on a stack other than the program one (the Rust BSP's retired storage worker fiber had its own,
+// in a different region): the walk below is gated on this, so missing that stack reduced the report to a
 // single address with no call chain — see DelugeFaultRanges::alt_stack_start.
 [[gnu::always_inline]] static inline bool isStackPointer(uint32_t value) {
 	return (s_ranges.stack_start != 0 && value >= s_ranges.stack_start && value < s_ranges.stack_end)

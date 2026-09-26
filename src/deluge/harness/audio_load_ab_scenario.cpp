@@ -490,9 +490,9 @@ std::string caseLine(const char* tag, const char* label, AudioFile* file, Error 
 
 /// Load @p path through the synchronous card path, as the reference its async load must match, and drop it again.
 ///
-/// Runs on the storage-owner worker fiber, where a blocking card read is legal. It loads under a copy of the load's
-/// context: the context is per-load state that each load moves, and the async load has to start from the state this
-/// one started from, or the two would be proposed different candidates.
+/// Runs from the card step (see deluge_scenario_audio_load_ab_dispatch_step()), where a blocking card read is legal. It
+/// loads under a copy of the load's context: the context is per-load state that each load moves, and the async load has
+/// to start from the state this one started from, or the two would be proposed different candidates.
 std::string referenceLine(const char* tag, const char* label, const char* path) {
 	deluge::storage::AudioLoadContext referenceContext = g_loadContext;
 	std::string fileName = path;
@@ -568,7 +568,7 @@ void printSummary() {
 	fflush(stdout);
 }
 
-/// One load attempt for the current case, on the storage-owner worker fiber.
+/// One load attempt for the current case, run as the card step.
 ///
 /// Either it defers (LOAD_IN_PROGRESS: return, the platform driver lets the loader task run and
 /// dispatches again) or it settles the case: record the line, check the invariants, drop the file's
@@ -631,7 +631,7 @@ void runOneStep() {
 	g_referenceTaken = false;
 
 	if (g_caseIndex == kCases.size()) {
-		// The ejection stage next, not the browser ones. It runs on this same worker fiber, and it has
+		// The ejection stage next, not the browser ones. It runs as the same card step, and it has
 		// to run BEFORE the preview stage: a previewed sample stays leased for as long as it is on
 		// screen, so checkLoadInvariants' leaked-reason half would report that legitimate lease as a
 		// failure for every load attempted afterwards.
@@ -1221,11 +1221,9 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 
 	if (g_stage == Stage::Preview || g_stage == Stage::Cancel || g_stage == Stage::Stall
 	    || g_stage == Stage::DrawStall) {
-		// The browser-driven stages run on the UI tier, not the worker fiber -- that is where the
+		// The browser-driven stages run on the UI tier, not as the card step -- that is where the
 		// real browser calls these from. graphicsRoutine() ticks the preview's load here and
-		// draws it on this tier. A marker op behind them releases the latch: the
-		// owner queue is FIFO, so it runs after whatever they just queued (and immediately if they
-		// queued nothing). The cancellation stage's window needs no ordering: previewFile() only
+		// draws it on this tier. The cancellation stage's window needs no ordering: previewFile() only
 		// records the file, so cancelPreview() lands before any tick has started its load.
 		g_stepDone = false;
 		if (g_stage == Stage::Preview) {

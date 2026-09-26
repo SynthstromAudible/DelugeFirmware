@@ -8,7 +8,7 @@
 //! docs/superpowers/specs/2026-07-19-manager-b1-sync-design.md.
 //!
 //! There are three such contexts on the Rust BSP: audio (highest, skips), the streaming
-//! fill task (its own interrupt executor, masks), and thread mode / the worker fiber
+//! fill task (its own interrupt executor, masks), and thread mode
 //! (masks). The predicate is audio-specific rather than "in an interrupt" precisely so the
 //! middle one keeps its mask — see [`Masked`].
 //!
@@ -79,7 +79,7 @@ pub fn m_set<T>(c: &Cell<T>, v: T) {
 }
 
 /// Masked get→modify→set window over a single cell. The whole window is
-/// indivisible w.r.t. the fiber (and atomic on the audio path).
+/// indivisible w.r.t. thread mode (and atomic on the audio path).
 #[inline]
 pub fn m_rmw<T: Copy, R>(c: &Cell<T>, f: impl FnOnce(&mut T) -> R) -> R {
     let _m = Masked::enter();

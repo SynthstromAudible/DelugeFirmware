@@ -98,7 +98,7 @@ void SampleRecorder::detachSample() {
 // Frees every capture buffer we still own -- undrained bufferTable_ entries (firstUnwrittenClusterIndex
 // through the last assigned index, which covers a live currentRecordBuffer too, since it's always the
 // last entry assigned) plus anything sitting in the recycle ring. Called from detachSample(), which by
-// its own contract only ever runs once the fiber is done touching this recorder (status has reached
+// its own contract only ever runs once the card routine is done touching this recorder (status has reached
 // ABORTED or >= COMPLETE) -- so this is single-threaded, no concurrent push/pop to race.
 void SampleRecorder::releaseCaptureBuffers() {
 	for (int32_t i = firstUnwrittenClusterIndex; static_cast<size_t>(i) < bufferTable_.size(); i++) {
@@ -114,7 +114,7 @@ void SampleRecorder::releaseCaptureBuffers() {
 	}
 }
 
-// [audio thread] Get a capture buffer -- a recycled one if the fiber's returned any, otherwise
+// [audio thread] Get a capture buffer -- a recycled one if the card routine's returned any, otherwise
 // grow by allocating fresh. Either way this never blocks and never fails silently by dropping audio;
 // the only failure mode is genuine RAM exhaustion (nullptr), same as the shared-table allocation this
 // replaces. Sized Cluster::size plus a few trailing bytes of overshoot slack -- a sample frame can
@@ -127,7 +127,7 @@ std::byte* SampleRecorder::allocateBuffer() {
 	return static_cast<std::byte*>(deluge::memory::alloc_external(Cluster::size + kTrailingSlackBytes, 16));
 }
 
-// [fiber] Return a flushed buffer's memory for reuse. Best-effort -- if the recycle ring is
+// [card routine] Return a flushed buffer's memory for reuse. Best-effort -- if the recycle ring is
 // full (the audio thread has fallen far behind draining it, unlikely given its small capacity here
 // only bounds *reuse*, not availability), just free the buffer outright; the audio thread will
 // allocate fresh next time it needs one. Either way, no audio data is at risk: this only runs after
@@ -162,7 +162,7 @@ Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, b
 
 	// Reserve our own buffer table's segment-pointer index to the max recording size up front
 	// (single-threaded, before any concurrent audio-thread growth in createNextCluster), so that
-	// growth never reallocates the index under the fiber's concurrent operator[] reads (B2: the
+	// growth never reallocates the index under the card routine's concurrent operator[] reads (B2: the
 	// SegmentedVector keeps element addresses stable, but its pointer index must be pre-reserved
 	// to stay stable under concurrent growth). maxClusters is derived from the runtime cluster size,
 	// so this imposes no recording-length limit beyond the existing MAX_FILE_SIZE cap.
@@ -386,8 +386,8 @@ void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
 // status, then do the descrutcion and file deletion when we know we're out of the card routine. Also, this gets called
 // in audio routine! So don't do anything drastic.
 void SampleRecorder::abort() {
-	// RELEASE: abort() is callable cross-thread (audio or fiber); pairs with the acquire loads in
-	// cardRoutine()/finalizeRecordedFile() so a fiber that observes ABORTED also observes any writes
+	// RELEASE: abort() is callable cross-thread (audio or card routine); pairs with the acquire loads in
+	// cardRoutine()/finalizeRecordedFile() so a card routine that observes ABORTED also observes any writes
 	// that preceded this call on whichever thread invoked it.
 	status.store(RecorderStatus::ABORTED, std::memory_order_release); // Note: it may already equal this!
 }
@@ -425,7 +425,7 @@ aborted:
 		// only happen from AudioRecorder. Or if the abort comes from a failure within this class and the AudioClip
 		// hasn't realised yet?
 		if (!pointerHeldElsewhere) {
-			// RELAXED: fiber-owned write; no other thread reads AWAITING_DELETION as a hand-off signal.
+			// RELAXED: card-routine-owned write; no other thread reads AWAITING_DELETION as a hand-off signal.
 			status.store(RecorderStatus::AWAITING_DELETION, std::memory_order_relaxed);
 		}
 		return Error::NONE;
@@ -519,13 +519,13 @@ gotError:
 				abort();
 			}
 			else {
-				// RELAXED: fiber-owned write.
+				// RELAXED: card-routine-owned write.
 				status.store(RecorderStatus::COMPLETE, std::memory_order_relaxed);
 			}
 			error = Error::MAX_FILE_SIZE_REACHED;
 		}
 		else {
-			// RELAXED: fiber-owned write.
+			// RELAXED: card-routine-owned write.
 			status.store(autoDeleteWhenDone ? RecorderStatus::AWAITING_DELETION : RecorderStatus::COMPLETE,
 			             std::memory_order_relaxed);
 		}
@@ -1263,7 +1263,7 @@ SampleRecorder::CreateStep SampleRecorder::createTransition(uint8_t collected, b
 SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 	using deluge::storage::FinalizePhase;
 
-	// ACQUIRE: cardRoutine() decision read (debug assertion, same fiber path as the flip observation
+	// ACQUIRE: cardRoutine() decision read (debug assertion, same card-routine path as the flip observation
 	// above).
 	if (ALPHA_OR_BETA_VERSION && finalizePhase_ == FinalizePhase::DrainClusters && !finalizeIssued_
 	    && (status.load(std::memory_order_acquire) == RecorderStatus::ABORTED || hadCardError)) {
@@ -1613,7 +1613,7 @@ void SampleRecorder::updateDataLengthInHeader(std::span<std::byte> headerBuf) {
 
 extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 
-// Called by the fiber (writeOneCompletedCluster()/finalizeRecordedFile()) for a buffer whose
+// Called by the card routine (writeOneCompletedCluster()/finalizeRecordedFile()) for a buffer whose
 // index is already < currentRecordClusterIndex (or the final partial one), so bufferTable_[clusterIndex]
 // is stable -- the audio thread never rewrites an already-assigned slot, only appends new ones (see
 // bufferTable_'s doc). Flushes it to disk, advances the committed-length watermark, then recycles the
@@ -1786,7 +1786,7 @@ Error SampleRecorder::createNextCluster() {
 	}
 
 	// We need our next capture buffer -- a recycled one if the free-list has one, otherwise grow by
-	// allocating fresh (the "grow if the fiber's fallen behind" case; see bufferTable_'s doc).
+	// allocating fresh (the "grow if the card routine's fallen behind" case; see bufferTable_'s doc).
 	std::byte* newBuffer = allocateBuffer();
 
 	// If couldn't allocate a buffer (would normally only happen if no SD card present so recording only to RAM)
@@ -1819,8 +1819,8 @@ Error SampleRecorder::createNextCluster() {
 // Gets called when we've captured all the samples of audio that we wanted - either as a direct result of user
 // action, or after being fed a few more samples to make up for latency.
 void SampleRecorder::finishCapturing() {
-	// RELEASE: this is the producer-role hand-off to the fiber. Pairs with the acquire load in
-	// cardRoutine() so the fiber, on seeing this status, also observes our final currentRecordClusterIndex
+	// RELEASE: this is the producer-role hand-off to the card routine. Pairs with the acquire load in
+	// cardRoutine() so the card routine, on seeing this status, also observes our final currentRecordClusterIndex
 	// and payload writes before it takes over as producer in finalizeRecordedFile(). See B3.
 	status.store(RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING, std::memory_order_release);
 

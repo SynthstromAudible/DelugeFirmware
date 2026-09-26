@@ -35,10 +35,11 @@ constexpr int32_t kMaxLengthDoublings = (16 - kPitchDetectWindowSizeMagnitude);
 
 /// @brief One pitch detection of a Sample, a tick at a time, never waiting for the card.
 ///
-/// The read fills an FFT window through a SampleFrameReader. Off the worker fiber a window not yet resident is enqueued
-/// for the streaming loader and reported missing; the scan then saves its whole cursor and resumes at that frame on the
-/// next tick. A miss and a failed read look alike, so the bound tells them apart: kMaxUnproductiveUs with no frame
-/// consumed ends the scan as a failed detection (0 Hz). The analysis is Sample::analysePitchWindow().
+/// The read fills an FFT window through a SampleFrameReader. With the async streaming loader active a window not yet
+/// resident is enqueued for the streaming loader and reported missing; the scan then saves its whole cursor and resumes
+/// at that frame on the next tick. A miss and a failed read look alike, so the bound tells them apart:
+/// kMaxUnproductiveUs with no frame consumed ends the scan as a failed detection (0 Hz). The analysis is
+/// Sample::analysePitchWindow().
 class PitchScan {
 public:
 	enum class Progress : uint8_t { Pending, Done };

@@ -1839,14 +1839,10 @@ bool buildPresetFixture(const char* dir, const char* namePrefix, int32_t count) 
 // Drives the REAL gesture entry point that acquires an instrument -- ArrangerView::
 // beginNewInstrumentAcquisition(), extracted verbatim from the pad-press handler -- which is the
 // only thing that exercises the Unlaunched search's descent into subfolders (see
-// the rung 5 spec, section 2b). Since rung 5 task 3, this gesture DISPATCHES onto the storage owner
-// (Owner::run_or_inline enqueues rather than running inline -- this Embassy host harness's
-// on_owner() is false while a tick is running, since the tick itself runs on the UI tier, not the
-// worker fiber). The op only runs during the queue-drain wait AFTER dispatch_step() returns (see
-// that function's marker-op comment), so every step that reads a dispatched gesture's result is
-// split into a dispatching state and a `*Check` state one tick later -- reading in the SAME tick as
-// the dispatch would see the pre-dispatch state, not a race so much as a guarantee that the op has
-// not run yet.
+// the rung 5 spec, section 2b). The gesture only STARTS an acquisition, whose walk advances on later
+// ticks, so every step that reads a gesture's result is split into a starting state and a `*Check`
+// state after it -- reading in the SAME tick as the gesture would see the state before it, not a race
+// so much as a guarantee that the walk has not run yet.
 //
 // The recursive descent (load_instrument_preset_ui.cpp:1291-1296 vs :1317) is only reached once the
 // TOP LEVEL is exhausted -- a preset sitting at the top level is always returned first, however many

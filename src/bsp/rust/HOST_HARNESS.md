@@ -1,5 +1,12 @@
 # Host harness (`deluge-bsp-rust`, M1)
 
+> **Status: the worker fiber is retired.** `fiber.rs`, `corosensei`, the `sanitize` feature,
+> the fiber selftest and the M1 Task 5 entry points (`tests/scheduler_host.rs`,
+> `examples/scheduler_host_tsan.rs`) were deleted together with the fiber; storage now runs
+> inline on its caller. The M1 sections below are kept as the record of that shape and of the
+> TSan findings it produced. The TSan environment setup, the custom target spec and the M4c
+> whole-app invocation (`--features host_app`, no `--example`) still apply.
+
 The Rust/Embassy BSP (`src/bsp/rust`) dual-targets: `cargo device`
 (`armv7a-none-eabihf`) builds the real Deluge firmware image; plain `cargo
 build`/`cargo run`/`cargo test` (no `--target`, or `--target

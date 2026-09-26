@@ -155,7 +155,7 @@ void deluge_efatfs_close(uint32_t handle);
 /// @param dst        Destination buffer; exactly @p count bytes are written on success.
 /// @param count      Number of bytes to read.
 /// @param out_read   Receives the bytes read on success (== @p count); untouched on failure.
-/// @return true iff the full @p count bytes were read. false (off-fiber, unmounted, bad handle, or a
+/// @return true iff the full @p count bytes were read. false (unmounted, bad handle, or a
 ///         short/failed read) leaves @p dst partially written and @p out_read untouched — the caller
 ///         must treat it as a read error. Every non-efatfs BSP/config links the weak no-op fallback.
 bool deluge_efatfs_read_at(uint32_t handle, uint32_t byte_offset, void* dst, uint32_t count, uint32_t* out_read);

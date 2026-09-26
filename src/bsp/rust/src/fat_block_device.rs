@@ -69,7 +69,7 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
         };
         // Route through the SD_BUS-guarded helper, NOT the raw driver call.
         //
-        // The original reason was to stop an efatfs transfer interleaving with a fiber-side
+        // The original reason was to stop an efatfs transfer interleaving with a (since-retired) fiber-side
         // C-FatFS transfer on the one SDHI controller. C-FatFS is gone, but the lock is NOT
         // redundant and must not be removed: `sd::card_service` holds SD_BUS across
         // `sd::init().await` — the ~1.3 s card-identification sequence — with no FS mutex

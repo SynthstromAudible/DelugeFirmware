@@ -50,11 +50,10 @@ typedef struct DelugeFaultRanges {
 	uintptr_t stack_end;
 	/// @brief Optional second stack, `[alt_stack_start, alt_stack_end)`; zeroed if the board has none.
 	///
-	/// A board may run application code on a stack other than the program stack — on the Rust BSP the
-	/// storage worker fiber has its own, in a different memory region entirely. The pointer walk is
-	/// gated on the faulting SP falling inside a known stack, so a fault on such a stack used to
-	/// produce a single address (the link register) and no call chain at all. That is the case worth
-	/// reporting most: storage, sample-preview and browser operations all run on the fiber.
+	/// A board may run application code on a stack other than the program stack — the Rust BSP's
+	/// storage worker fiber had its own, in a different memory region, until it was retired; no board
+	/// has one now. The pointer walk is gated on the faulting SP falling inside a known stack, so a
+	/// fault on such a stack would produce a single address (the link register) and no call chain.
 	uintptr_t alt_stack_start;
 	uintptr_t alt_stack_end;
 } DelugeFaultRanges;

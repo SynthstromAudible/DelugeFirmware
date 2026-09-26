@@ -1,7 +1,6 @@
 //! The Rust async cluster-fill task and its BSP wiring: drains the resource
-//! manager's loader queue (`deluge_resource_loader_next`) on the same
-//! thread-mode Embassy executor the fiber pump and the C++ enqueue path run on,
-//! awaiting the actual SD read instead of running it synchronously inline.
+//! manager's loader queue (`deluge_resource_loader_next`), awaiting the actual
+//! SD read instead of running it synchronously inline.
 //!
 //! ## Two compilation tiers
 //!
@@ -70,7 +69,7 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 
 /// Raised to wake [`streaming_fill_task`] out of its idle wait — e.g. when a
-/// cluster is newly enqueued. Same shape as `fiber::WORKER_WAKE`. Always
+/// cluster is newly enqueued. Always
 /// compiled (see the module doc's "Two compilation tiers") — with the feature
 /// off, or before the task is spawned, nobody ever awaits it; signalling it is
 /// just a harmless flag set.

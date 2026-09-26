@@ -126,46 +126,35 @@ fn render_mode() -> bool {
 /// on a single-executor host harness (`golden_vt_render`/`lens1_vt_sim`, which
 /// — per this repo's "deterministic single-threaded executor ONLY" constraint —
 /// never call [`crate::scheduler::set_audio_spawner`], so the priority-0 audio
-/// task falls back to running on the SAME executor as the storage worker
-/// fiber, not a separate thread):
+/// task falls back to running on the SAME executor as everything else, not a
+/// separate thread):
 ///
-/// - **On the storage worker fiber** (`crate::fiber::on_fiber()` true) —
-///   `StemExport::renderWait`'s offline loop drives `AudioEngine::routine()`
-///   directly, which calls this at `audio_engine.cpp:1116` to drain the
-///   just-rendered block into any live `SampleRecorder`. Load-bearing; never
-///   skipped.
-/// - **Before the worker fiber exists** (`crate::fiber::worker_started()`
-///   false) — `AudioEngine::runRoutine()`'s one-time pre-registration call from
+/// - **Before boot has finished** (`crate::boot::finished()` false) —
+///   `AudioEngine::runRoutine()`'s one-time pre-registration call from
 ///   `deluge_boot()` (see this module's doc comment: skipping it freezes
 ///   boot). Never skipped.
-/// - **Off the fiber, after it's started** — the independent priority-0
-///   `AudioEngine::routine_task`'s own periodic tick (spawned by
-///   `registerTasks()`, polled on its own schedule by this crate's
-///   `scheduler::task_runner`). On a real two-OS-thread `host_app` boot
-///   (`crate::scheduler::set_audio_spawner` called, the audio task runs on a
-///   genuinely separate `"deluge-audio"` OS thread) this is the NORMAL,
-///   load-bearing render path and must never be skipped either — hence the
-///   thread-name check below, which is `false` there. On a single-executor
-///   harness, though, this same call can reach C++ sample-playback code that
-///   does a SYNCHRONOUS efatfs read off the storage worker fiber
-///   (`efatfs_host_shim.rs`'s `on_fiber()`-gated FFI bridge) — under
+/// - **After boot, on host_app's real `"deluge-audio"` OS thread**
+///   (`crate::scheduler::set_audio_spawner` called) — the NORMAL, load-bearing
+///   render path. Never skipped.
+/// - **After boot, anywhere else** — the priority-0 `AudioEngine::routine_task`'s
+///   own periodic tick on a single-executor harness. This call can reach C++
+///   sample-playback code that does a SYNCHRONOUS efatfs read; under
 ///   `sim_latency` that read needs a `Timer` fired by a separate task
-///   (`sim_latency::pump`) to ever resolve, and the off-fiber branch is a
-///   non-yielding `embassy_futures::block_on` that can never let that task get
-///   polled: a full-process livelock (a real offline `StemExport` run
-///   against a sample-backed song hung at 100% CPU inside exactly this call
-///   chain). Skipping this
-///   specific case is safe: the render this call would have produced is
-///   discarded anyway (a null sink), and the harness doesn't need the
-///   priority-0 task ticking between fiber-driven operations the way
-///   `host_app`'s own boot smoke (`audio_thread_render_seen`/`drive_count`)
-///   does.
+///   (`sim_latency::pump`) to ever resolve, and a non-yielding `block_on` can
+///   never let that task get polled: a full-process livelock (a real offline
+///   `StemExport` run against a sample-backed song hung at 100% CPU inside
+///   exactly this call chain). Skipping it is safe: the render this call would
+///   have produced is discarded anyway (a null sink).
+///
+/// History: an offline `StemExport` render once reached this on the storage worker fiber and was never skipped.
+/// Nothing has run on that fiber since the on-owner collapse (S2), and the fiber is now retired; this rule is the
+/// old one with that arm gone, and the estate captured identically across the change.
 fn should_skip_render() -> bool {
     if !crate::boot::finished() {
         return false;
     }
-    // Off-fiber, worker started: skip UNLESS this is host_app's real separate
-    // audio OS thread, where this is the legitimate, load-bearing render path.
+    // After boot: skip UNLESS this is host_app's real separate audio OS thread,
+    // where this is the legitimate, load-bearing render path.
     let thread_name = std::thread::current().name().unwrap_or("").to_string();
     thread_name != "deluge-audio"
 }
