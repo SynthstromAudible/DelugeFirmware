@@ -70,8 +70,8 @@ int32_t g_refusals = 0;
 int32_t g_pendingTicks = 0;
 
 /// The synchronous arm's answer, read on the tick after the one that ran (or refused) it.
-bool g_ownerDone = false;
-deluge::io::Status g_ownerStatus = deluge::io::Status::OK;
+bool g_inlineDone = false;
+deluge::io::Status g_inlineStatus = deluge::io::Status::OK;
 
 /// Whether the channel should carry this operation, or the synchronous arm should.
 bool viaChannel() {
@@ -142,23 +142,23 @@ void runInline() {
 	case PathOp::ReadAt: {
 		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
 		if (!file.has_value()) {
-			g_ownerStatus = file.error();
-			g_ownerDone = true;
+			g_inlineStatus = file.error();
+			g_inlineDone = true;
 			return;
 		}
 		auto seeked = file->seek(g_offset);
 		if (!seeked.has_value()) {
-			g_ownerStatus = seeked.error();
+			g_inlineStatus = seeked.error();
 			(void)file->close();
-			g_ownerDone = true;
+			g_inlineDone = true;
 			return;
 		}
 		auto read = file->read(std::span{reinterpret_cast<std::byte*>(g_block), g_blockLen});
 		// A short read is end-of-file, not a failure -- the same rule the channel arm follows.
 		g_blockLen = read.has_value() ? static_cast<uint32_t>(read->size()) : 0;
-		g_ownerStatus = read.has_value() ? deluge::io::Status::OK : read.error();
+		g_inlineStatus = read.has_value() ? deluge::io::Status::OK : read.error();
 		(void)file->close();
-		g_ownerDone = true;
+		g_inlineDone = true;
 		return;
 	}
 	case PathOp::WriteAt: {
@@ -173,46 +173,46 @@ void runInline() {
 			file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
 		}
 		if (!file.has_value()) {
-			g_ownerStatus = file.error();
-			g_ownerDone = true;
+			g_inlineStatus = file.error();
+			g_inlineDone = true;
 			return;
 		}
 		auto seeked = file->seek(g_offset);
 		if (!seeked.has_value()) {
-			g_ownerStatus = seeked.error();
+			g_inlineStatus = seeked.error();
 			(void)file->close();
-			g_ownerDone = true;
+			g_inlineDone = true;
 			return;
 		}
 		auto written = file->write(std::span{reinterpret_cast<const std::byte*>(g_block), g_blockLen});
 		g_resultValue = written.has_value() ? static_cast<uint32_t>(*written) : 0;
-		g_ownerStatus = written.has_value() ? deluge::io::Status::OK : written.error();
+		g_inlineStatus = written.has_value() ? deluge::io::Status::OK : written.error();
 		(void)file->close();
-		g_ownerDone = true;
+		g_inlineDone = true;
 		return;
 	}
 	case PathOp::Stat: {
 		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
 		if (!file.has_value()) {
-			g_ownerStatus = file.error();
-			g_ownerDone = true;
+			g_inlineStatus = file.error();
+			g_inlineDone = true;
 			return;
 		}
 		auto size = file->size();
 		g_resultValue = size.has_value() ? *size : 0;
-		g_ownerStatus = size.has_value() ? deluge::io::Status::OK : size.error();
+		g_inlineStatus = size.has_value() ? deluge::io::Status::OK : size.error();
 		(void)file->close();
-		g_ownerDone = true;
+		g_inlineDone = true;
 		return;
 	}
 	case PathOp::CreateEmpty: {
 		// Truncating on purpose here, unlike WriteAt: this IS the create-and-empty step.
 		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_WRITE_CREATE);
-		g_ownerStatus = file.has_value() ? deluge::io::Status::OK : file.error();
+		g_inlineStatus = file.has_value() ? deluge::io::Status::OK : file.error();
 		if (file.has_value()) {
 			(void)file->close();
 		}
-		g_ownerDone = true;
+		g_inlineDone = true;
 		return;
 	}
 	case PathOp::Copy:
@@ -220,14 +220,14 @@ void runInline() {
 		// and the loop runs in Rust -- but a build without the channel must still be able to copy a
 		// file, so the fallback keeps the walk. Same division as the browser's recursive mkdir: the
 		// channel arm is loop-free, the inline arm is not.
-		g_ownerStatus = copyInline(g_pathA, g_pathB);
-		g_ownerDone = true;
+		g_inlineStatus = copyInline(g_pathA, g_pathB);
+		g_inlineDone = true;
 		return;
 	case PathOp::None:
 		return;
 	}
-	g_ownerStatus = result.has_value() ? deluge::io::Status::OK : result.error();
-	g_ownerDone = true;
+	g_inlineStatus = result.has_value() ? deluge::io::Status::OK : result.error();
+	g_inlineDone = true;
 }
 
 /// Issue the request on whichever arm is in force.
@@ -277,12 +277,12 @@ void issue() {
 		}
 		return;
 	}
-	g_ownerDone = false;
+	g_inlineDone = false;
 	if (!deluge::storage::bytes::runDuringBoot([](void*) { runInline(); }, nullptr)) {
 		// Refused: after boot, only a channel that stopped answering reaches here. The host
 		// is told the operation timed out rather than left waiting for a reply that never comes.
-		g_ownerStatus = deluge::io::Status::TIMEOUT;
-		g_ownerDone = true;
+		g_inlineStatus = deluge::io::Status::TIMEOUT;
+		g_inlineDone = true;
 	}
 	g_issued = true;
 }
@@ -301,7 +301,7 @@ bool pathOpStart(PathOp op, const char* a, const char* b, DelugeTimestamp stamp)
 	g_issued = false;
 	g_refusals = 0;
 	g_pendingTicks = 0;
-	g_ownerDone = false;
+	g_inlineDone = false;
 	issue();
 	if (!g_issued) {
 		// Refused on the first attempt. Left PENDING deliberately rather than cleared: the handler is
@@ -329,7 +329,7 @@ bool pathOpStartBlock(PathOp op, const char* path, uint32_t offset, const uint8_
 	g_issued = false;
 	g_refusals = 0;
 	g_pendingTicks = 0;
-	g_ownerDone = false;
+	g_inlineDone = false;
 	issue();
 	return g_issued;
 }
@@ -361,10 +361,10 @@ std::optional<deluge::io::Status> pathOpCollect() {
 	}
 
 	if (!viaChannel()) {
-		if (!g_ownerDone) {
+		if (!g_inlineDone) {
 			return std::nullopt;
 		}
-		return g_ownerStatus;
+		return g_inlineStatus;
 	}
 
 	DelugeStatus status = DELUGE_OK;
@@ -433,7 +433,7 @@ void pathOpClear() {
 	g_issued = false;
 	g_refusals = 0;
 	g_pendingTicks = 0;
-	g_ownerDone = false;
+	g_inlineDone = false;
 }
 
 uint8_t pathOpStage() {

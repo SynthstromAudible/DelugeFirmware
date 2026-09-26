@@ -16,7 +16,7 @@
  */
 #ifndef RESOURCE_CHECKER_H
 #define RESOURCE_CHECKER_H
-#include "libdeluge/storage_owner.h"
+#include "libdeluge/storage_busy.h"
 #include <OSLikeStuff/scheduler_api.h>
 #include <bitset>
 extern uint32_t usbLock;
@@ -39,7 +39,7 @@ public:
 			// libdeluge/ C-ABI boundary — it must NOT include sync/sd_access.h or call
 			// deluge::sync::sd_busy() directly, since that lives on the app side. Calling
 			// deluge_storage_fs_busy() here is legitimate specifically because the symbol is
-			// declared in libdeluge/storage_owner.h, i.e. it IS that boundary. Do not "simplify"
+			// declared in libdeluge/storage_busy.h, i.e. it IS that boundary. Do not "simplify"
 			// this to the app-side call.
 			anythingLocked |= deluge_storage_fs_busy();
 		}

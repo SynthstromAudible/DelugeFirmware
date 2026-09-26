@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef LIBDELUGE_STORAGE_OWNER_H
-#define LIBDELUGE_STORAGE_OWNER_H
+#ifndef LIBDELUGE_STORAGE_BUSY_H
+#define LIBDELUGE_STORAGE_BUSY_H
 
 #include <stdbool.h>
 
@@ -38,4 +38,4 @@ bool deluge_storage_fs_busy(void);
 }
 #endif
 
-#endif // LIBDELUGE_STORAGE_OWNER_H
+#endif // LIBDELUGE_STORAGE_BUSY_H

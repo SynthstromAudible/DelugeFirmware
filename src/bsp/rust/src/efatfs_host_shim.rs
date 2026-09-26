@@ -946,7 +946,7 @@ pub extern "C" fn deluge_efatfs_is_mounted() -> bool {
     crate::sim_block::block_on(fut).is_some()
 }
 
-/// C-ABI (libdeluge/storage_owner.h): is a filesystem operation in flight? Host mirror of the
+/// C-ABI (libdeluge/storage_busy.h): is a filesystem operation in flight? Host mirror of the
 /// device impl in `efatfs_fs.rs` — see that file's `deluge_storage_fs_busy` for the full
 /// rationale (non-blocking, callable from any context, `Err` means held, check-then-act is sound
 /// here because there's no `await` between this probe and the caller's own FS access — do not

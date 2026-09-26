@@ -206,13 +206,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn fiber_masks_rmw() {
+    fn thread_mode_masks_rmw() {
         cs_reset_counts();
-        deluge_in_interrupt_set(false); // fiber context
+        deluge_in_interrupt_set(false); // thread mode
         let c = Cell::new(1u32);
         m_rmw(&c, |v| *v += 1);
         assert_eq!(c.get(), 2);
-        assert_eq!(cs_enter_count(), 1, "fiber RMW must mask exactly once");
+        assert_eq!(
+            cs_enter_count(),
+            1,
+            "thread-mode RMW must mask exactly once"
+        );
         assert_eq!(cs_exit_count(), 1);
     }
 

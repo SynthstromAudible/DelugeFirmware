@@ -224,8 +224,8 @@ fn one_chunk(id: usize, begin_ok: bool) -> FakeChunk {
         begin_ok,
         unloadable: false,
         lease_count: 1, // still wanted by default; the read-failure-drop test overrides this
-        // Every chunk reaching the drain came through `loader_enqueue_owned` (both branches of
-        // `deluge_streaming_fill_chunk_blocking` use it), so the queue lease starts held.
+        // Every chunk reaching the drain came through `loader_enqueue_owned` (the request path uses
+        // it), so the queue lease starts held.
         queue_leased: Cell::new(true),
         buf: RefCell::new(vec![0u8; (num_sectors as usize) * 512]),
         handle: 0,

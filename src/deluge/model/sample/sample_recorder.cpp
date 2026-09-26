@@ -1000,7 +1000,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 	// The channel is usable only after boot -- see advanceFinalize() for why.
 	const bool mayUseChannel = deluge::boot::finished();
 
-	AudioEngine::noteOffOwnerCreateTick();
+	AudioEngine::noteCreateTick();
 
 	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
 	bool spaceExhausted = false;
@@ -1274,7 +1274,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 	// PENDING forever. Blocking is legal then anyway, so take the synchronous arm.
 	const bool finalizeMayUseChannel = deluge::boot::finished();
 
-	AudioEngine::noteOffOwnerFinalizeTick();
+	AudioEngine::noteFinalizeTick();
 
 	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
 

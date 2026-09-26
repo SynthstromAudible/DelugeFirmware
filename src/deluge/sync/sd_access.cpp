@@ -16,7 +16,7 @@
  */
 #include "sync/sd_access.h"
 
-#include "libdeluge/storage_owner.h"
+#include "libdeluge/storage_busy.h"
 
 namespace deluge::sync {
 

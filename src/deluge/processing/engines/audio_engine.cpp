@@ -1644,47 +1644,47 @@ namespace {
 /// How many recorder drains ran OFF the storage owner. Without this a gate cannot tell a channel
 /// that served writes from a channel that served them while everything still ran on the owner --
 /// which is the only difference between this conversion and a rename.
-int32_t g_recorderOffOwnerTicks = 0;
+int32_t g_recorderDrainTicks = 0;
 
 /// Finalize ticks that ran OFF the storage owner. Separate from the drain counter above because they
 /// answer different questions: that one says the DRAIN moved, this one says the FINALIZE did. A
 /// served count establishes neither -- the previous rung's first measured run served writes while
 /// every one of them ran on the owner.
-int32_t g_offOwnerFinalizeTicks = 0;
+int32_t g_finalizeTicks = 0;
 
 /// Create ticks that ran OFF the storage owner. The third of these counters, and they answer three
 /// different questions: the drain moved, the finalize moved, the CREATE moved. A served count
 /// answers none of them -- an earlier rung served writes while every one of them ran on the owner.
-int32_t g_offOwnerCreateTicks = 0;
-int32_t g_offOwnerSongStageTicks = 0;
+int32_t g_createTicks = 0;
+int32_t g_songStageTicks = 0;
 } // namespace
 
-int32_t recorderOffOwnerTicks() {
-	return g_recorderOffOwnerTicks;
+int32_t recorderDrainTicks() {
+	return g_recorderDrainTicks;
 }
 
-int32_t offOwnerFinalizeTicks() {
-	return g_offOwnerFinalizeTicks;
+int32_t finalizeTicks() {
+	return g_finalizeTicks;
 }
 
-void noteOffOwnerFinalizeTick() {
-	g_offOwnerFinalizeTicks++;
+void noteFinalizeTick() {
+	g_finalizeTicks++;
 }
 
-int32_t offOwnerCreateTicks() {
-	return g_offOwnerCreateTicks;
+int32_t createTicks() {
+	return g_createTicks;
 }
 
-int32_t offOwnerSongStageTicks() {
-	return g_offOwnerSongStageTicks;
+int32_t songStageTicks() {
+	return g_songStageTicks;
 }
 
-void noteOffOwnerSongStageTick() {
-	g_offOwnerSongStageTicks++;
+void noteSongStageTick() {
+	g_songStageTicks++;
 }
 
-void noteOffOwnerCreateTick() {
-	g_offOwnerCreateTicks++;
+void noteCreateTick() {
+	g_createTicks++;
 }
 
 void requestRecorderCardRoutines() {
@@ -1696,7 +1696,7 @@ void requestRecorderCardRoutines() {
 	// blocking is legal (and no recorder exists yet). Counted after boot only -- the gates' evidence that the drain
 	// runs off the storage tier.
 	if (deluge::boot::finished()) {
-		g_recorderOffOwnerTicks++;
+		g_recorderDrainTicks++;
 	}
 	doRecorderCardRoutines();
 }

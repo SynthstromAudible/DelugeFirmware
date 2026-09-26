@@ -170,33 +170,33 @@ void requestRecorderCardRoutines();
 ///
 /// The evidence that the drain actually moved. A served count alone can be non-zero while every
 /// write was still handled on the owner, which would be a rename rather than a relocation.
-[[nodiscard]] int32_t recorderOffOwnerTicks();
+[[nodiscard]] int32_t recorderDrainTicks();
 
 /// @brief How many finalize ticks have run. Every one runs off the storage owner now; the name is the gates'.
 ///
 /// The evidence that finishing a recording ran at all off the owner's old path. Distinct from
-/// @ref recorderOffOwnerTicks, which only says the drain did.
-[[nodiscard]] int32_t offOwnerFinalizeTicks();
+/// @ref recorderDrainTicks, which only says the drain did.
+[[nodiscard]] int32_t finalizeTicks();
 
 /// @brief How many create ticks have run. Every one runs off the storage owner now; the name is the gates'.
 ///
 /// The evidence that creating a recording's file ran through the create machine at all.
-[[nodiscard]] int32_t offOwnerCreateTicks();
+[[nodiscard]] int32_t createTicks();
 
 /// @brief How many document-staging attempts ran OFF the storage owner.
 ///
 /// The evidence that the song load's card read moved. Reading zero means the load still takes its
 /// bytes on the owner, which is the whole thing this is here to disprove.
-[[nodiscard]] int32_t offOwnerSongStageTicks();
+[[nodiscard]] int32_t songStageTicks();
 
 /// @brief Record one off-owner staging attempt.
-void noteOffOwnerSongStageTick();
+void noteSongStageTick();
 
 /// @brief Record one create tick that ran off the owner.
-void noteOffOwnerCreateTick();
+void noteCreateTick();
 
 /// @brief Record one finalize tick that ran off the owner.
-void noteOffOwnerFinalizeTick();
+void noteFinalizeTick();
 
 int32_t getNumSamplesLeftToOutputFromPreviousRender();
 

@@ -22,14 +22,13 @@ DelugeResource* deluge_streaming_resource_manager() {
 
 // No async streaming-fill task in this spec: `Reader::acquire_and_fill` gates on
 // deluge_streaming_async_active() (false here) and takes its synchronous fill route, never calling
-// deluge_streaming_fill_chunk_blocking. Both are declared as externs by the reader crate, so they
-// must exist for the link even though this spec's one scenario never reaches either.
+// deluge_streaming_request_chunk. Both are declared as externs by the reader crate, so they must exist
+// for the link even though this spec's one scenario never reaches either.
 bool deluge_streaming_async_active() {
 	return false;
 }
 
-bool deluge_streaming_fill_chunk_blocking(void* /*chunk_backing*/) {
-	return false;
+void deluge_streaming_request_chunk(void* /*chunk_backing*/) {
 }
 
 // Every reservation enqueue wakes the async fill task through this. With no such task here (see

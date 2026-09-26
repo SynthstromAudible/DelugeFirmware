@@ -378,7 +378,7 @@ void runTick() {
 		       favouritesManager.channelCompletions());
 		const int32_t issued = favouritesManager.intentsIssued();
 		const int32_t channel = favouritesManager.channelCompletions();
-		const int32_t owner = favouritesManager.ownerCompletions();
+		const int32_t owner = favouritesManager.inlineCompletions();
 		printf("FV-ACCOUNTED issued=%d channel=%d owner=%d\n", issued, channel, owner);
 		if (issued == 0 || channel + owner != issued) {
 			printf("FV-ACCOUNTED FAIL every issued card operation must end on exactly one arm\n");

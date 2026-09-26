@@ -95,34 +95,12 @@ bool deluge_streaming_async_active(void);
 /// hits the weak no-op fallback in `async_fill.cpp`.
 void deluge_streaming_signal_fill(void);
 
-/// @brief Fill a reserved chunk through the async drain, blocking on the worker fiber.
-///
-/// The async-BSP replacement for the range reader's synchronous `fill_now` (deluge_sample_reader's
-/// `reader.rs`), reached only when deluge_streaming_async_active() is true. Enqueues @p chunk_backing
-/// on the loader queue at the most-urgent priority and wakes `streaming_fill_task`, then:
-/// - ON the worker fiber: yields (the executor drains the fill task while suspended) until the
-///   chunk's `loaded` flag flips, returning readiness. Byte-equivalent to the synchronous fill —
-///   same `native_finish` convert/stitch/publish tail — just awaited instead of run inline, and
-///   without the off-fiber `block_on` that deadlocks a single-threaded executor against a
-///   fiber-suspended load holding the embedded-fatfs mutex.
-/// - OFF the worker fiber: returns false immediately (degrade-to-eventual). An off-fiber caller has
-///   no stack to suspend; the chunk stays enqueued. The sole off-fiber caller today is the
-///   display-only background waveform overview pre-scan, whose consumer already retries a not-ready
-///   read on the next tick.
-///
-/// The real implementation lives in `streaming_loader.rs` (always compiled on the Rust/Embassy BSP);
-/// every other BSP/config links the `__attribute__((weak))` fallback in `async_fill.cpp` (returns
-/// false, never reached on the hot path since those BSPs report deluge_streaming_async_active()
-/// false and take the synchronous `fill_now` branch).
-/// @param chunk_backing Opaque `StreamedChunk` backing pointer for a reserved, still-leased chunk.
-/// @return true once the chunk is resident+ready; false on the off-fiber degrade or a failed fill.
-bool deluge_streaming_fill_chunk_blocking(void* chunk_backing);
-
 /// @brief Enqueues a chunk for filling and returns immediately
 ///
-/// The return-to-loop form of deluge_streaming_fill_chunk_blocking: a caller that cannot block --
-/// because its predicate needs another task to be polled, and it is itself inside the executor's poll
-/// -- requests the fill, returns to its own loop, and asks deluge_streaming_chunk_ready() next tick.
+/// A caller that cannot block -- because its predicate needs another task to be polled, and it is itself
+/// inside the executor's poll -- requests the fill, returns to its own loop, and asks
+/// deluge_streaming_chunk_ready() next tick. The range reader's async-BSP fill route
+/// (deluge_sample_reader's `reader.rs`) is one such caller.
 /// The chunk is enqueued under a queue-owned lease, so the fill survives the requester walking away.
 /// @param chunk_backing the resident StreamedChunk to fill. Null is ignored.
 void deluge_streaming_request_chunk(void* chunk_backing);

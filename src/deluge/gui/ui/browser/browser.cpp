@@ -642,7 +642,7 @@ Error Browser::setFileByFullPathImpl(char const* fullPath) {
 namespace {
 /// The path the inline arm is creating. Held here because the dispatched body runs after this call
 /// has returned, so it cannot read the caller's argument.
-std::string g_ownerCreatePath;
+std::string g_inlineCreatePath;
 
 } // namespace
 
@@ -2001,12 +2001,12 @@ Error Browser::createFolder() {
 		goIntoFolder(enteredText.c_str()); // Dispatches the listing async; always returns Error::NONE.
 		return Error::NONE;
 	}
-	g_ownerCreatePath = newDirPath;
+	g_inlineCreatePath = newDirPath;
 	// Where blocking is legal only. A refusal creates nothing, and the listing below reports the folder missing.
 	(void)deluge::storage::bytes::runDuringBoot(
 	    [](void*) {
 		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
-		    (void)deluge::io::mkdir(g_ownerCreatePath.c_str());
+		    (void)deluge::io::mkdir(g_inlineCreatePath.c_str());
 	    },
 	    nullptr);
 
@@ -2064,12 +2064,12 @@ Error Browser::createFoldersRecursiveIfNotExists(const char* path) {
 	if (deluge::storage::bytes::submitMkdirAll(path)) {
 		return Error::NONE;
 	}
-	g_ownerCreatePath = path;
+	g_inlineCreatePath = path;
 	// Where blocking is legal only. A refusal creates nothing, and that folder's listing reports it missing.
 	(void)deluge::storage::bytes::runDuringBoot(
 	    [](void*) {
 		    deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
-		    (void)createFoldersRecursiveInline(g_ownerCreatePath.c_str());
+		    (void)createFoldersRecursiveInline(g_inlineCreatePath.c_str());
 	    },
 	    nullptr);
 	return Error::NONE;

@@ -99,9 +99,9 @@ pub extern "C" fn deluge_streaming_signal_fill() {
     FILL_WAKE.signal(());
 }
 
-// ── Always-compiled C ABI: reader range-fill blocking-fill routing ──────────
-// See `include/libdeluge/streaming_fill.h`'s `deluge_streaming_fill_chunk_blocking` doc for the
-// C-side contract. Always compiled (like the selector above) so the reader crate's call site links
+// ── Always-compiled C ABI: the non-blocking request/poll pairs ──────────────
+// See `include/libdeluge/streaming_fill.h` for the C-side contract. Always compiled (like the
+// selector above) so the reader crate's call site links
 // on any Rust/Embassy BSP regardless of the `async_streaming_loader` feature; a non-async build
 // never reaches it at runtime because the reader gates on `deluge_streaming_async_active()`.
 
@@ -144,10 +144,11 @@ fn queue_is_drained(mgr: *mut c_void) -> bool {
 
 /// Enqueues `chunk_backing` for the fill task under a queue-owned lease and wakes the drain.
 ///
-/// Shared by both request paths so they hand the drain the same protocol. The owned enqueue is what
-/// lets a fire-and-forget request survive the requester walking away -- see
-/// [`deluge_streaming_fill_chunk_blocking`]'s doc for why the un-owned form silently discarded the
-/// overview pre-scan's work.
+/// The owned enqueue is what lets a fire-and-forget request survive the requester walking away:
+/// `deluge_resource_loader_next` only serves a chunk with a live lease, and *silently de-queues* any
+/// other, so an un-owned entry whose requester dropped its lease (the reader's `if !filled` arm) was
+/// discarded on the drain's next poll -- which is why the display-only overview pre-scan once never
+/// converged on device.
 fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
     // SAFETY: `deluge_streaming_resource_manager` returns the boot-singleton manager;
     // `chunk_backing` is a resident, leased `StreamedChunk*`.
@@ -157,26 +158,6 @@ fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
         unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, BLOCKING_FILL_PRIORITY) };
     }
     FILL_WAKE.signal(());
-}
-
-/// Enqueue a reserved chunk's fill and report it not ready: the reader range-fill's async-BSP path. The fill lands on
-/// the fill task later, and the caller's next tick takes a cache hit.
-///
-/// # Why the enqueue takes a queue-owned lease
-///
-/// `deluge_resource_loader_next` only serves a chunk with a live lease, and *silently de-queues* any
-/// other. Returning false makes the reader drop the lease it was holding (`Reader::acquire_and_fill`'s
-/// `if !filled` arm), so an un-owned entry would be discarded on the drain's very next poll and the
-/// chunk would never load -- which is why the display-only overview pre-scan once never converged on
-/// device. Enqueueing through `deluge_resource_loader_enqueue_owned` gives the queue the lease it
-/// requires, so the fill survives the requester walking away.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_streaming_fill_chunk_blocking(chunk_backing: *mut c_void) -> bool {
-    if chunk_backing.is_null() {
-        return false;
-    }
-    enqueue_chunk_for_fill(chunk_backing);
-    false
 }
 
 /// Enqueues `chunk_backing` for filling and returns immediately.

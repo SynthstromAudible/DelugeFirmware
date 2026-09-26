@@ -654,8 +654,8 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 		// the on-fiber oracle, which has already returned by the time this case runs, so it cannot
 		// see anything the off-owner recording did.
 		printf("OO-RESULT ok=%d served=%d offOwnerTicks=%d offOwnerFinalizeTicks=%d offOwnerCreateTicks=%d ticks=%d\n",
-		       (int)ok, (int)SampleRecorder::writeChannelServedOps(), (int)AudioEngine::recorderOffOwnerTicks(),
-		       (int)AudioEngine::offOwnerFinalizeTicks(), (int)AudioEngine::offOwnerCreateTicks(), g_offOwner.ticks);
+		       (int)ok, (int)SampleRecorder::writeChannelServedOps(), (int)AudioEngine::recorderDrainTicks(),
+		       (int)AudioEngine::finalizeTicks(), (int)AudioEngine::createTicks(), g_offOwner.ticks);
 		fflush(nullptr);
 		return ok ? 1 : 2;
 	}
@@ -844,7 +844,7 @@ void reportFinalizedAndSummary() {
 	// actually left the storage owner. Served alone can be non-zero while every write was still
 	// handled on the owner, which would be a rename rather than a relocation.
 	printf("RW-SUMMARY served=%d offOwnerTicks=%d\n", (int)SampleRecorder::writeChannelServedOps(),
-	       (int)AudioEngine::recorderOffOwnerTicks());
+	       (int)AudioEngine::recorderDrainTicks());
 	// A terminator, so a run that aborted part-way is a gate FAILURE rather than a silently
 	// truncated log: a stage that never ran asserts nothing, and the failure count cannot show that.
 	printf("RW-RESULT failures=%d\n", (int)g_failures);

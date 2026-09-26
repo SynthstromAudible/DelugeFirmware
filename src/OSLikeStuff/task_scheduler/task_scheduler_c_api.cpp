@@ -18,7 +18,7 @@
 #include "OSLikeStuff/scheduler_api.h"
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
 #include "libdeluge/boot.h"
-#include "libdeluge/storage_owner.h" // deluge_storage_fs_busy — cooperative default
+#include "libdeluge/storage_busy.h" // deluge_storage_fs_busy — cooperative default
 #include "libdeluge/storage_wait.h"
 #include "libdeluge/system.h" // deluge_in_interrupt — the ISR guard, via the boundary
 #include "resource_checker.h"
@@ -98,7 +98,7 @@ bool deluge_boot_finished(void) {
 	return false;
 }
 
-// libdeluge/storage_owner.h — cooperative/C-host default: FatFS runs inline on the
+// libdeluge/storage_busy.h — cooperative/C-host default: FatFS runs inline on the
 // caller, so no other context can be holding the filesystem. Embassy overrides
 // (true while the efatfs FS mutex is held). Always false in production — see
 // fsBusyTestOverride above for the one exception, which only a unit test can reach.

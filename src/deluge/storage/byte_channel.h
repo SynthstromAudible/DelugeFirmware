@@ -289,7 +289,7 @@ using ParseFn = void (*)(void* ctx, char* bytes, uint32_t len);
 using AbsentFn = void (*)(void* ctx);
 
 /// @brief A consumer's existing synchronous body, to run where blocking is legal.
-using OwnerFn = void (*)(void* ctx);
+using InlineFn = void (*)(void* ctx);
 
 /// @brief How an operation the channel ACCEPTED ended. Reported once, through @ref DoneFn.
 ///
@@ -384,7 +384,7 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 /// @param fn  The consumer's synchronous body.
 /// @param ctx Passed through to @p fn.
 /// @return true when @p fn ran; false when it was refused.
-[[nodiscard]] bool runDuringBoot(OwnerFn fn, void* ctx);
+[[nodiscard]] bool runDuringBoot(InlineFn fn, void* ctx);
 
 /// @brief How many operations @ref runDuringBoot refused because boot had finished.
 [[nodiscard]] int32_t illegalInline();

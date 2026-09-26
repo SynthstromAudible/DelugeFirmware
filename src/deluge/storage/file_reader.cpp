@@ -260,7 +260,7 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 	const bool booting = !deluge::boot::finished();
 
 	if (!booting) {
-		AudioEngine::noteOffOwnerSongStageTick();
+		AudioEngine::noteSongStageTick();
 	}
 
 	if (booting) {

@@ -268,7 +268,7 @@ void runTick() {
 			g_failures++;
 		}
 		printf("SL-SUMMARY served=%d offOwnerTicks=%d\n", (int)StorageManager::stagingChannelServedOps(),
-		       (int)AudioEngine::offOwnerSongStageTicks());
+		       (int)AudioEngine::songStageTicks());
 		// Leave the card as we found it. These harness images are keyed by fingerprint and SHARED with
 		// other gates, so a song left behind here changes what THEIR browser listings see -- which is
 		// exactly how this run broke save-roundtrip once, and the accumulation trap this project has

@@ -82,7 +82,7 @@ public:
 	[[nodiscard]] bool idle() const { return !inFlight_.active && waiting_.empty(); }
 	[[nodiscard]] int32_t intentsIssued() const { return intentsIssued_; }
 	[[nodiscard]] int32_t channelCompletions() const { return channelCompletions_; }
-	[[nodiscard]] int32_t ownerCompletions() const { return ownerCompletions_.load(std::memory_order_acquire); }
+	[[nodiscard]] int32_t inlineCompletions() const { return inlineCompletions_.load(std::memory_order_acquire); }
 	/// @}
 
 	uint8_t currentBankNumber{};
@@ -126,7 +126,7 @@ private:
 	InFlight inFlight_;
 	int32_t intentsIssued_ = 0;
 	int32_t channelCompletions_ = 0;
-	std::atomic<int32_t> ownerCompletions_{0};
+	std::atomic<int32_t> inlineCompletions_{0};
 };
 
 extern FavouritesManager favouritesManager;

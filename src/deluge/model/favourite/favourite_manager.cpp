@@ -314,7 +314,7 @@ void FavouritesManager::runIntentInline(void* ctx) {
 		inFlight.outcome = writeSnapshot(inFlight.intent.path, inFlight.intent.bytes) ? SettingsOutcome::Written
 		                                                                              : SettingsOutcome::WriteFailed;
 	}
-	self->ownerCompletions_.fetch_add(1, std::memory_order_acq_rel);
+	self->inlineCompletions_.fetch_add(1, std::memory_order_acq_rel);
 	inFlight.resultReady.store(true, std::memory_order_release);
 }
 

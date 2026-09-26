@@ -142,7 +142,7 @@ TEST(Scheduler, sdRoutineActiveBlocksSdRoutineTask) {
 	mock().checkExpectations();
 };
 
-// RESOURCE_SD is gated on deluge_storage_fs_busy() (the libdeluge/storage_owner.h seam), not on the
+// RESOURCE_SD is gated on deluge_storage_fs_busy() (the libdeluge/storage_busy.h seam), not on the
 // retired currentlyAccessingCard flag. fsBusyTestOverride is the cooperative default's test-only hook
 // (task_scheduler_c_api.cpp) that drives that seam's return value from here, since this TU #includes
 // the .cpp directly rather than linking it.

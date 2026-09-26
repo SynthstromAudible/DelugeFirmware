@@ -907,7 +907,7 @@ pub extern "C" fn deluge_efatfs_is_mounted() -> bool {
     crate::sim_block::block_on(with_fs(async |_fs| ())).is_some()
 }
 
-/// C-ABI (libdeluge/storage_owner.h): is a filesystem operation in flight?
+/// C-ABI (libdeluge/storage_busy.h): is a filesystem operation in flight?
 ///
 /// NON-BLOCKING and callable from any context — deliberately unlike
 /// [`deluge_efatfs_is_mounted`], which is callable anywhere too but BLOCKS (it spins on the FS

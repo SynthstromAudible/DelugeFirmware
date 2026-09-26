@@ -145,9 +145,9 @@ int32_t g_pendingTicks = 0;
 /// The synchronous arm runs inline where blocking is legal, or is refused, and the collect reads its
 /// answer on the next tick either way. These hold it in between.
 /// @{
-bool g_ownerDone = false;
-std::expected<bool, deluge::io::Status> g_ownerPresence;
-bool g_ownerOk = false;
+bool g_inlineDone = false;
+std::expected<bool, deluge::io::Status> g_inlinePresence;
+bool g_inlineOk = false;
 /// @}
 
 /// Whether the canary write was CONFIRMED terminal before the machine advanced past it.
@@ -169,7 +169,7 @@ void enter(StartupPhase phase) {
 	g_requested = false;
 	g_attemptsWithoutProgress = 0;
 	g_pendingTicks = 0;
-	g_ownerDone = false;
+	g_inlineDone = false;
 }
 
 /// Whether the channel should carry this operation, or the synchronous arm should.
@@ -207,20 +207,20 @@ void issueExists(const char* path) {
 	}
 	// The synchronous arm, where blocking is legal. `noteIoTier` lives inside the body, not here: what
 	// the gate counts is where the card is touched.
-	static std::string ownerPath;
-	ownerPath = path;
-	g_ownerDone = false;
+	static std::string inlinePath;
+	inlinePath = path;
+	g_inlineDone = false;
 	if (!deluge::storage::bytes::runDuringBoot(
 	        [](void*) {
 		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
-		        g_ownerPresence = StorageManager::fileExists(ownerPath.c_str());
-		        g_ownerDone = true;
+		        g_inlinePresence = StorageManager::fileExists(inlinePath.c_str());
+		        g_inlineDone = true;
 	        },
 	        nullptr)) {
 		// Refused: after boot, only a stalled channel reaches here. The question has no
 		// answer -- "could not tell", which `startup_action` reads as Unusable and the policy never acts on.
-		g_ownerPresence = std::unexpected(deluge::io::Status::TIMEOUT);
-		g_ownerDone = true;
+		g_inlinePresence = std::unexpected(deluge::io::Status::TIMEOUT);
+		g_inlineDone = true;
 	}
 	g_requested = true;
 }
@@ -249,10 +249,10 @@ std::optional<StartupPresence> collectExists(const char* path) {
 		}
 		return StartupPresence::Unusable;
 	}
-	if (!g_ownerDone) {
+	if (!g_inlineDone) {
 		return std::nullopt;
 	}
-	return startup_action(g_ownerPresence);
+	return startup_action(g_inlinePresence);
 }
 
 /// Issue the canary write on whichever arm is in force. A zero-byte file: only its EXISTENCE means
@@ -269,25 +269,25 @@ void issueCanaryWrite() {
 		}
 		return;
 	}
-	g_ownerDone = false;
+	g_inlineDone = false;
 	if (!deluge::storage::bytes::runDuringBoot(
 	        [](void*) {
 		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
 		        auto canary = deluge::io::File::open(g_canaryPath, DELUGE_FILE_WRITE_CREATE);
 		        if (canary.has_value()) {
 			        (void)canary->close(); // RAII would close anyway; explicit for parity with f_close
-			        g_ownerOk = true;
+			        g_inlineOk = true;
 		        }
 		        else {
-			        g_ownerOk = false;
+			        g_inlineOk = false;
 		        }
-		        g_ownerDone = true;
+		        g_inlineDone = true;
 	        },
 	        nullptr)) {
 		// Refused: no canary. The machine already treats that as "skip the startup song", with nothing to
 		// clean up.
-		g_ownerOk = false;
-		g_ownerDone = true;
+		g_inlineOk = false;
+		g_inlineDone = true;
 	}
 	g_requested = true;
 }
@@ -319,8 +319,8 @@ void issueTemplateWrite() {
 	const bool staged = stageTemplateDocument(&bytes, &len);
 	g_templateLength = len;
 	if (!staged) {
-		g_ownerOk = false;
-		g_ownerDone = true;
+		g_inlineOk = false;
+		g_inlineDone = true;
 		g_requested = true;
 		return;
 	}
@@ -337,7 +337,7 @@ void issueTemplateWrite() {
 		return;
 	}
 	// The synchronous arm, where blocking is legal -- boot, before the channel's task runs.
-	g_ownerDone = false;
+	g_inlineDone = false;
 	g_templateBytes = bytes;
 	if (!deluge::storage::bytes::runDuringBoot(
 	        [](void*) {
@@ -346,17 +346,17 @@ void issueTemplateWrite() {
 		        if (file.has_value()) {
 			        const auto put = file->write(std::span<const std::byte>(
 			            reinterpret_cast<const std::byte*>(g_templateBytes), g_templateLength));
-			        g_ownerOk = put.has_value() && *put == g_templateLength;
+			        g_inlineOk = put.has_value() && *put == g_templateLength;
 			        (void)file->close();
 		        }
 		        else {
-			        g_ownerOk = false;
+			        g_inlineOk = false;
 		        }
-		        g_ownerDone = true;
+		        g_inlineDone = true;
 	        },
 	        nullptr)) {
-		g_ownerOk = false;
-		g_ownerDone = true;
+		g_inlineOk = false;
+		g_inlineDone = true;
 	}
 	g_requested = true;
 }
@@ -382,10 +382,10 @@ std::optional<bool> collectTemplateWrite() {
 			return false;
 		}
 	}
-	if (!g_ownerDone) {
+	if (!g_inlineDone) {
 		return std::nullopt;
 	}
-	return g_ownerOk;
+	return g_inlineOk;
 }
 
 /// Collect the canary write, or `nullopt` while it is still running.
@@ -414,11 +414,11 @@ std::optional<bool> collectCanaryWrite() {
 		}
 		return false;
 	}
-	if (!g_ownerDone) {
+	if (!g_inlineDone) {
 		return std::nullopt;
 	}
-	g_canaryConfirmed = g_ownerOk;
-	return g_ownerOk;
+	g_canaryConfirmed = g_inlineOk;
+	return g_inlineOk;
 }
 
 /// Issue the canary removal. Fire-and-forget in spirit: a canary that outlives its attempt by a few
@@ -435,19 +435,19 @@ void issueUnlink(const std::string& path) {
 		}
 		return;
 	}
-	static std::string ownerPath;
-	ownerPath = path;
-	g_ownerDone = false;
+	static std::string inlinePath;
+	inlinePath = path;
+	g_inlineDone = false;
 	if (!deluge::storage::bytes::runDuringBoot(
 	        [](void*) {
 		        deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Startup);
-		        (void)deluge::io::unlink(ownerPath);
-		        g_ownerDone = true;
+		        (void)deluge::io::unlink(inlinePath);
+		        g_inlineDone = true;
 	        },
 	        nullptr)) {
 		// Refused: the canary stays. The next boot takes the cautious route -- a skipped song, never a
 		// crash loop.
-		g_ownerDone = true;
+		g_inlineDone = true;
 	}
 	g_requested = true;
 }
@@ -471,7 +471,7 @@ bool unlinkFinished(const std::string& path) {
 		}
 		return true;
 	}
-	return g_ownerDone;
+	return g_inlineDone;
 }
 
 } // namespace

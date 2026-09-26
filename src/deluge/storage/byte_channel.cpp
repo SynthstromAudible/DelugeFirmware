@@ -650,7 +650,7 @@ bool idle() {
 	return g_pending.step == Step::Idle && g_waiting.empty();
 }
 
-bool runDuringBoot(OwnerFn fn, void* ctx) {
+bool runDuringBoot(InlineFn fn, void* ctx) {
 	if (!deluge::boot::finished()) {
 		g_inlineRuns++;
 		fn(ctx);
