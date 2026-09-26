@@ -143,6 +143,7 @@ int32_t getNumTimesIncorrectSampleOrderSeen(int32_t numSamples, Sample** samples
 } // namespace
 
 void FolderImport::request(FolderImportRequest request) {
+	requestsReceived_++;
 	if (phase_ != Phase::Idle) {
 		return;
 	}

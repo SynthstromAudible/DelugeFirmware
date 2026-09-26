@@ -36,8 +36,7 @@
 #   AB-PREVIEW-DRAW-RELEASE
 #             a redraw pending when the preview's sample is released (Select, a typed move): dropped, never drawn
 #             from the released sample.
-#             for each of those three stages: no preview load step ran on the storage owner, and no sample was read
-#             from the card on the interaction tier.
+#             for each of those three stages: no sample was read from the card on the interaction tier.
 #   AB-SUMMARY / AB-DEFER
 #             that the loader was active and that every case deferred at least once, so no case was
 #             quietly answered on the synchronous path.

@@ -43,9 +43,9 @@
 #             the browser, it closes it.
 #   SP-RELOAD / SP-RELOAD-STALL
 #             the scroll past a culled window's edge, which re-reads the folder: forward, wrapping up from the first
-#             song, and wrapping down from the last. It must run once, off the storage owner, resume rather than
-#             restart, keep the old window on screen until it lands, and land on the right song; held past the
-#             bound it must give up with SD_CARD and put the window back.
+#             song, and wrapping down from the last. It must run once, resume rather than restart, keep the old
+#             window on screen until it lands, and land on the right song; held past the bound it must give up with
+#             SD_CARD and put the window back.
 #   SP-PREVIEW-STALL
 #             a song preview whose prefix read is held far past the preview's 600-tick bound gives up with
 #             the card error, draws blank, and releases the scroll-in it owed.

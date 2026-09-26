@@ -14,8 +14,8 @@
 #   PL-ROW     a synth preset loaded into a kit row: the row's drum named after the preset, its sample bound.
 #   PL-CLONE   the long-press menu's clone of a synth preset: a new synth under a variation of the preset's name, its
 #              sample bound, edited, and the browser closed.
-#   PL-TIER    per load: documents read and samples loaded, none of it begun on the storage owner, and no sample read
-#              from the card on the interaction tier.
+#   PL-TIER    per load: documents read and samples loaded, and no sample read from the card on the interaction
+#              tier.
 #   PL-RACE    a clone made straight after the selection, without waiting for its scroll-load: the clone survives.
 #   PL-SUPERSEDE
 #              the loader holding every sample, a scroll onto a heavy kit and on to a light one: the heavy kit never
@@ -32,8 +32,7 @@
 #              shift+SYNTH gives that clip a new blank synth under an unused slot name.
 #   AQ-CHANGE  the clip view's KIT button on that empty clip lands on the first unused kit preset, its drum bound.
 #   AQ-CHANGE-TIER
-#              AQ-CHANGE's KIT press walked once, off the storage owner, through the directory channel, leaving the
-#              browser's folder alone.
+#              AQ-CHANGE's KIT press walked once, through the directory channel, leaving the browser's folder alone.
 #   AQ-CHANGE-NAMED / AQ-CHANGE-NEXT / AQ-CHANGE-MISSING
 #              KIT with a remembered AQNAV/NAV05 lands there; with an absent NAV05X, on the next one; with a remembered
 #              folder that does not exist, on what the whole-type Unlaunched search finds.
@@ -43,8 +42,8 @@
 #              the select encoder turned from the clip view, a held grid pad and an auditioned arranger row: each turn
 #              lands on the next unused kit preset, its drum bound.
 #   AQ-NAV-TIER
-#              per AQ-NAVIGATE gesture: the navigate walked once, off the storage owner, through the directory
-#              channel, leaving the browser's folder alone.
+#              per AQ-NAVIGATE gesture: the navigate walked once, through the directory channel, leaving the
+#              browser's folder alone.
 #   AQ-NAV-WRAP
 #              a 25-kit subfolder, past its window: forward from NAV24 wraps to NAV00, back from NAV00 to NAV24.
 #   AQ-NAV-STALL
@@ -57,14 +56,14 @@
 #   AQ-CLONE   a new-track press and a grid clone into an empty column in one tick: both tracks made.
 #   AQ-STALL   a turn whose sample load is held past the stall bound: the synth delivered with that holder empty and one
 #              give-up counted.
-#   AQ-SLOT    Shift+SYNTH's new synth: its slot name read once, off the storage owner, through the directory
-#              channel, leaving the browser's folder and list as they were, and named as the owner walk named it.
+#   AQ-SLOT    Shift+SYNTH's new synth: its slot name read once, through the directory channel, leaving the
+#              browser's folder and list as they were, and named as the old walk named it.
 #   AQ-SLOT-STALL
 #              the same gesture with the folder open held past the bound: SD_CARD, the clip keeps its instrument,
 #              nothing left in flight. The LAST leg: its held open outlives it.
 #   AQ-EXT     around each AQ-NEW act: the preset walk leaves the browser's extension filter as it found it.
-#   AQ-TIER    per acquisition leg: documents read and samples loaded, none of it begun on the storage owner, and no
-#              sample read from the card on the interaction tier.
+#   AQ-TIER    per acquisition leg: documents read and samples loaded, and no sample read from the card on the
+#              interaction tier.
 #
 # The revert legs back out of the browser, which puts the clip's original preset back:
 #   RV-CARD    an original that left memory: the browser closed on the exit tick, the gate closed while the revert
@@ -73,14 +72,13 @@
 #   RV-STALL   an original whose sample load is held past the stall bound: back with that holder empty, the gate
 #              released.
 #   MD-BROWSER a MIDI device definition written through the firmware and loaded through its own browser: the file's CC
-#              label on the instrument, the browser closed, and the document staged once by InstrumentLoad off the
-#              storage owner.
+#              label on the instrument, the browser closed, and the document staged once by InstrumentLoad.
 #
 # The blank-song legs cover the song a Deluge starts with, and the one Create New Song makes:
 #   BS-BOOT    the boot song, before any preset is written: its clip on the default synth, having asked for a preset
 #              exactly once and found none.
 #   BS-CLEAR   clear-song with presets on the card: the new song's clip on a SYNTHS preset, its sample bound, the
-#              document staged by InstrumentLoad off the storage owner and nothing read synchronously.
+#              document staged by InstrumentLoad and nothing read synchronously.
 #   BS-EDITED  clear-song with the preset's sample held and the default synth edited while the request is out: the
 #              preset not swapped in, and nothing of it left in the song.
 #

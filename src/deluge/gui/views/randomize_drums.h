@@ -79,6 +79,8 @@ public:
 	/// @{
 	/// @brief Directory scans that ran.
 	[[nodiscard]] int32_t scansRun() const { return scansRun_; }
+	/// @brief Requests that reached request(), accepted or not: what the gate is there to stop.
+	[[nodiscard]] int32_t requestsReceived() const { return requestsReceived_; }
 	/// @brief Walks cancelled with the row's open still outstanding, which therefore had to drain.
 	///
 	/// Zero here means the cancel-during-open path was never taken, so nothing the drain does was
@@ -172,6 +174,7 @@ private:
 	/// @}
 
 	int32_t scansRun_{0};
+	int32_t requestsReceived_{0};
 	int32_t drainsEntered_{0};
 	int32_t drainsCollected_{0};
 	int32_t giveUps_{0};

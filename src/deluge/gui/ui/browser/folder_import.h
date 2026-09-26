@@ -79,6 +79,8 @@ public:
 	/// @{
 	/// Folder listings that ran.
 	[[nodiscard]] int32_t listingsRun() const { return listingsRun_; }
+	/// @brief Requests that reached request(), accepted or not: what the gate is there to stop.
+	[[nodiscard]] int32_t requestsReceived() const { return requestsReceived_; }
 	/// Imports that aborted on a load that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
 	/// Ticks a pitch detection spent waiting for a cluster.
@@ -185,6 +187,7 @@ private:
 	/// @}
 
 	int32_t listingsRun_{0};
+	int32_t requestsReceived_{0};
 	int32_t giveUps_{0};
 	int32_t pitchScanTicks_{0};
 	int32_t pitchGiveUps_{0};

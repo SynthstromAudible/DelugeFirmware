@@ -57,6 +57,7 @@ void releaseGate() {
 } // namespace
 
 void RandomizeDrums::request(const RandomizeRequest& request) {
+	requestsReceived_++;
 	if (phase_ == Phase::Draining) {
 		// A cancelled walk still waiting on its scan released the gate, so this press closed it again: nothing would
 		// release it, so it is released here and the press is dropped.

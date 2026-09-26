@@ -1113,14 +1113,14 @@ void tickRandomizeGate() {
 		return;
 	}
 	using namespace deluge::hid::button;
-	// Scans that RAN: the owner-scan count this used to read has been zero since the scan left the owner, which
-	// made "a second walk was refused" true whatever happened.
-	const int32_t scansBefore = deluge::gui::randomizeDrums.scansRun();
+	// Requests that reached the randomizer: what the gate stops. (A scan count cannot tell -- a second walk would not
+	// have scanned yet in this window -- and the owner-scan count this once read was zero whatever happened.)
+	const int32_t requestsBefore = deluge::gui::randomizeDrums.requestsReceived();
 	(void)Buttons::buttonAction(LOAD, true, false);
 	(void)instrumentClipView.padAction(15, 2, 1);
 	(void)instrumentClipView.padAction(15, 2, 0);
 	(void)Buttons::buttonAction(LOAD, false, false);
-	g_rdGateSecondWalkRefused = deluge::gui::randomizeDrums.scansRun() == scansBefore;
+	g_rdGateSecondWalkRefused = deluge::gui::randomizeDrums.requestsReceived() == requestsBefore;
 	g_rdGateEditRefused = !pressGateEditPad();
 }
 
@@ -1142,15 +1142,15 @@ void tickImportGate() {
 	}
 	using namespace deluge::hid::button;
 	auto& menu = deluge::gui::context_menu::sample_browser::kit;
-	// Listings that RAN: the owner-listing count this used to read has been zero since the listing left the owner,
-	// which made "a second import was refused" true whatever happened.
-	const int32_t listingsBefore = deluge::gui::folderImport.listingsRun();
+	// Requests that reached the import: what the gate stops. (A listing count cannot tell -- a second import would not
+	// have listed yet in this window -- and the owner-listing count this once read was zero whatever happened.)
+	const int32_t requestsBefore = deluge::gui::folderImport.requestsReceived();
 	(void)getCurrentUI()->buttonAction(BACK, true, false);
 	(void)getCurrentUI()->buttonAction(BACK, false, false);
 	g_imGateBackRefused = getCurrentUI() == &menu;
 	(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
 	(void)getCurrentUI()->buttonAction(SELECT_ENC, false, false);
-	g_imGateSecondRefused = deluge::gui::folderImport.listingsRun() == listingsBefore;
+	g_imGateSecondRefused = deluge::gui::folderImport.requestsReceived() == requestsBefore;
 }
 
 /// The randomizer's gesture: LOAD held (which the randomizer reads through Buttons::isButtonPressed), AFFECT_ENTIRE
