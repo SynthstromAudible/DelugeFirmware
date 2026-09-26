@@ -71,6 +71,7 @@
 #include "storage/owner.h" // deluge::storage::Coalescer (SD-routine dispatch)
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
+#include "util/boot.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>
@@ -1706,22 +1707,16 @@ void requestRecorderCardRoutines() {
 	if (deluge_in_interrupt()) {
 		return;
 	}
-	// Already on the owner (fiber on Embassy; always on legacy/host) — run inline, so a
-	// fiber-context caller doesn't re-dispatch onto the fiber it already runs on.
-	//
-	// This is also what keeps the OFFLINE stem-export drain loop working. That loop calls
-	// doRecorderCardRoutines() in a bounded loop expecting each call to COMPLETE a cluster write so
-	// the renderer cannot outrun the card, and it runs on the owner — so it lands here and keeps the
-	// synchronous behaviour it depends on.
+	// Already the storage owner -- always, on a cooperative or C-host build, where FatFS runs inline on the
+	// caller: run the drain inline. On Embassy nothing runs on the fiber any more, so this is never taken there.
 	if (deluge_storage_on_owner()) {
 		doRecorderCardRoutines();
 		return;
 	}
 
-	// Off the owner once it has started: run the drain HERE. cardRoutine()'s card operations go through
-	// the write channel, which is always there, so there is nothing left to hand the owner. Only a caller
-	// before the owner has started reaches the coalescer below.
-	if (deluge::storage::Owner::started()) {
+	// After boot: run the drain HERE. cardRoutine()'s card operations go through the write channel, which is
+	// always there, so there is nothing to hand anywhere else. Only a caller before boot reaches the coalescer below.
+	if (deluge::boot::finished()) {
 		g_recorderOffOwnerTicks++;
 		doRecorderCardRoutines();
 		return;

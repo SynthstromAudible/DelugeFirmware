@@ -174,16 +174,15 @@ void requestRecorderCardRoutines();
 /// write was still handled on the owner, which would be a rename rather than a relocation.
 [[nodiscard]] int32_t recorderOffOwnerTicks();
 
-/// @brief How many finalize ticks ran OFF the storage owner.
+/// @brief How many finalize ticks have run. Every one runs off the storage owner now; the name is the gates'.
 ///
-/// The evidence that finishing a recording actually moved. Distinct from @ref recorderOffOwnerTicks,
-/// which only says the drain moved.
+/// The evidence that finishing a recording ran at all off the owner's old path. Distinct from
+/// @ref recorderOffOwnerTicks, which only says the drain did.
 [[nodiscard]] int32_t offOwnerFinalizeTicks();
 
-/// @brief How many create ticks ran OFF the storage owner.
+/// @brief How many create ticks have run. Every one runs off the storage owner now; the name is the gates'.
 ///
-/// The evidence that creating a recording's file moved. Creating it was the last thing this recorder
-/// dispatched away, so this reading zero means the rung relocated nothing.
+/// The evidence that creating a recording's file ran through the create machine at all.
 [[nodiscard]] int32_t offOwnerCreateTicks();
 
 /// @brief How many document-staging attempts ran OFF the storage owner.

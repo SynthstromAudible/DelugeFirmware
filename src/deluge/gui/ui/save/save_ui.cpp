@@ -28,9 +28,9 @@
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_write.h"
 #include "storage/file_item.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include "storage/temp_swap.h"
+#include "util/boot.h"
 #include <optional>
 #include <span>
 
@@ -331,9 +331,9 @@ void SaveUI::runWritePhase() {
 	// A temp save overwrites only its own leftover from an earlier failed save; a direct save never overwrites.
 	const bool mayOverwrite = inFlightRequest_.mayOverwrite;
 
-	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	const bool booting = !deluge::boot::finished();
 
-	if (onOwner) {
+	if (booting) {
 		// Blocking is legal here, and the driver could not run anyway: a request issued from a
 		// context that will not yield can never be answered.
 		bool alreadyExists = false;
@@ -412,9 +412,9 @@ void SaveUI::runStagedVerifyPhase() {
 	using deluge::storage::ReadBackTick;
 
 	const char* path = stagedWritePath_.c_str();
-	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	const bool booting = !deluge::boot::finished();
 
-	if (onOwner) {
+	if (booting) {
 		++verifyOwnerServedOps_;
 		finishStagedVerify(deluge::storage::readBackSynchronously(path, stagedReadBackExpectation()));
 		return;
@@ -508,8 +508,8 @@ void SaveUI::runSwapPhase() {
 
 	// From here a failure keeps the temp file: once the target is deleted it is the only good copy.
 	swapStarted_ = true;
-	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
-	if (onOwner) {
+	const bool booting = !deluge::boot::finished();
+	if (booting) {
 		if (!deluge::storage::swapSynchronously(inFlightRequest_.filePath, stagedWritePath_)) {
 			display->displayError(Error::SD_CARD);
 			endStagedSave(false);

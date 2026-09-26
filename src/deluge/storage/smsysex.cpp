@@ -16,9 +16,9 @@
 #include "scheduler_api.h"
 #include "storage/byte_channel.h"
 #include "storage/fs_status.h"
-#include "storage/owner.h"
 #include "storage/smsysex_pending.h"
 #include "sync/sd_access.h"
+#include "util/boot.h"
 #include "util/containers.h"
 #include "util/pack.h"
 #include <cstdint>
@@ -642,8 +642,8 @@ errorFound:;
 ///         two are told apart by `*outCode`.
 std::optional<deluge::io::Directory> smSysex::openDirectoryForSysex(const char* path, FsWireStatus* outCode) {
 	*outCode = FsWireStatus::Ok;
-	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
-		// Blocking is legal on the owner, and before it starts there is no channel driver running to wait for.
+	if (!deluge::boot::finished()) {
+		// Blocking is legal during boot, when there is no channel driver running to wait for.
 		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Sysex);
 		auto opened = deluge::io::Directory::open(path);
 		if (!opened.has_value()) {

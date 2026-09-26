@@ -30,8 +30,7 @@
 #include "libdeluge/block_device.h"
 #include "libdeluge/card.h" // deluge_card_flush
 #include "libdeluge/file_directory.h"
-#include "libdeluge/file_io.h"       // deluge_efatfs_cluster_size
-#include "libdeluge/storage_owner.h" // deluge_storage_on_owner
+#include "libdeluge/file_io.h" // deluge_efatfs_cluster_size
 #include "libdeluge/stream_io.h"
 #include "libdeluge/system.h" // deluge_in_interrupt
 #include "memory/general_memory_allocator.h"
@@ -49,9 +48,9 @@
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
 #include "storage/existence_policy.h"
-#include "storage/owner.h" // deluge::storage::Coalescer
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
+#include "util/boot.h"
 #include "util/string.h"
 #include "util/try.h"
 #include <algorithm>
@@ -290,7 +289,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 		// `std::optional` rather than the `std::expected` this used to be: both answer `has_value()`
 		// and `operator->`, so the loop is untouched either way.
 		std::optional<deluge::io::Directory> dir;
-		const bool useDirChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
+		const bool useDirChannel = deluge::boot::finished();
 		if (!useDirChannel) {
 			// Counted, and frozen in alpha and beta builds, if it is ever reached off the storage owner after boot.
 			deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Recorder);
@@ -707,60 +706,6 @@ bool AudioFileManager::resolveAlternateLoadDirStatus(deluge::storage::AudioLoadC
 	return false; // unreachable -- silences -Wreturn-type on the (exhaustive) enum switch above
 }
 
-AudioFile* AudioFileManager::convertSampleToWaveTable(Sample& foundSample, bool makeWaveTableWorkAtAllCosts,
-                                                      Error* error) {
-	// Stereo files can never be WaveTables.
-	if (foundSample.numChannels != 1) {
-		*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
-		return nullptr;
-	}
-
-	// If the user isn't insisting, some signs show we probably don't want to load this as a WaveTable: an
-	// AIFF, or a file that neither specifies itself as a wavetable nor has a wavetable-looking length.
-	if (!makeWaveTableWorkAtAllCosts) {
-		const bool looksLikeWaveTable =
-		    foundSample.fileExplicitlySpecifiesSelfAsWaveTable || (foundSample.lengthInSamples & 2047) == 0;
-		if (isAiffFilename(foundSample.filePath.c_str()) || !looksLikeWaveTable) {
-			*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
-			return nullptr;
-		}
-	}
-
-	void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
-	if (waveTableMemory == nullptr) {
-		*error = Error::INSUFFICIENT_RAM;
-		return nullptr;
-	}
-
-	auto* newWaveTable = new (waveTableMemory) WaveTable;
-	adoptAudioFileObject(newWaveTable); // resource-manager evictable object (before addReason)
-	newWaveTable->addReason();          // So it's protected while setting up.
-	foundSample.addReason();
-
-	*error = newWaveTable->setupFromSample(foundSample);
-	if (*error != Error::NONE) {
-		// Release the source Sample's protect-during-setup reason on this path too. The legacy goto
-		// (waveTableCloneError) jumped straight to destroy + return and skipped this, leaking a reason and
-		// pinning the Sample as project-referenced / non-evictable after a failed conversion.
-		foundSample.removeReason("E400");
-		destroyAudioFileObject(*newWaveTable);
-		return nullptr;
-	}
-
-	const auto inserted = audioFiles.insertElement(newWaveTable);
-	*error = inserted ? Error::NONE : inserted.error();
-
-	newWaveTable->removeReason("E397");
-	foundSample.removeReason("E398");
-
-	if (!inserted) {
-		destroyAudioFileObject(*newWaveTable);
-		return nullptr;
-	}
-
-	return newWaveTable;
-}
-
 AudioFile* AudioFileManager::matchingResidentAudioFile(int32_t audioFileI, const std::string& filePath,
                                                        AudioFileType type) const {
 	// Correct type at the found index...
@@ -843,17 +788,9 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 			return residentOfWantedType;
 		}
 
-		// We found the path but not the wanted type. If we want a WaveTable but have the Sample, we can convert -- on
-		// the storage owner only. The conversion reads every cluster through the sample reader, which waits for a
-		// cluster only on the owner's fiber; anywhere else a cluster not yet filled fails the read, and the claim with
-		// it. There the WaveTable is built from the card instead, as when no Sample is resident.
-		if (type == AudioFileType::WAVETABLE && deluge::storage::Owner::on_owner()) {
-			return convertSampleToWaveTable(static_cast<Sample&>(*audioFiles[audioFileI]), makeWaveTableWorkAtAllCosts,
-			                                error);
-		}
-
-		// Otherwise (want Sample, have WaveTable; or want WaveTable off the owner) we don't convert, so load from card
-		// after all — restoring the original filePath if we'd switched to the alternate one (pretty unlikely scenario).
+		// We found the path but not the wanted type (want Sample, have WaveTable, or the reverse). We don't convert: a
+		// WaveTable wanted over a resident Sample is built from the card, as when no Sample is resident. So load from
+		// card after all -- restoring the original filePath if we'd switched to the alternate one (pretty unlikely).
 		if (!backedUpFilePath.empty()) {
 			filePath = backedUpFilePath;
 		}
@@ -1467,9 +1404,7 @@ AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
 // Only needs calling a couple times per second. Must be called outside of the audio / SD-reading routine
 // Call this repeatedly so SD card is re-initialized on re-insert before we actually urgently need audio from it
 namespace {
-// Plain coalesced dispatch of the card re-init onto the storage owner. No lifetime
-// coupling (unlike the recorder) → plain Owner::run, not the SD-routine flavor.
-// Single-flight so a slow initSD on the fiber can't stack across slowRoutine ticks.
+// The card re-init, run directly from slowRoutine.
 void card_init_fill(void*) {
 	audioFileManager.reinitEjectedCard();
 }

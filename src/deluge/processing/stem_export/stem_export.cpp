@@ -46,7 +46,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
-#include "storage/owner.h" // deluge::storage::Owner::run — run the export on the worker fiber
+#include "util/boot.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/string.h"
@@ -1006,8 +1006,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 		// Failed, the refusal every other unanswerable question here already gets.
 		constexpr int32_t kMaxStemSearchStallTicks = 600;
 
-		const bool mayUseChannel = !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()
-		                           && deluge_file_bytes_async_active();
+		const bool mayUseChannel = deluge::boot::finished() && deluge_file_bytes_async_active();
 
 		while (stemSearchPhase_ != deluge::storage::StemSearchPhase::Done
 		       && stemSearchPhase_ != deluge::storage::StemSearchPhase::Failed) {

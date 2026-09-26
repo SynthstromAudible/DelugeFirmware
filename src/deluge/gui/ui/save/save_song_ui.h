@@ -21,6 +21,7 @@
 #include "io/file.hpp"
 #include "storage/readback_check.h"
 #include "storage/save_dispatch.h"
+#include "util/boot.h"
 #include <expected>
 
 class AudioFile;
@@ -222,9 +223,9 @@ private:
 	void abandonDocument(Error error);
 	/// @brief Retry next tick, or give up if the stall bound is exhausted.
 	[[nodiscard]] bool deferDocument();
-	/// @brief Whether this step must run inline because it is already on the owner (or none exists).
-	[[nodiscard]] static bool docOnOwner();
-	/// @brief Run the current phase synchronously, on the owner. @return false if the step failed.
+	/// @brief Whether this step must run inline: during boot, when nothing yet answers a channel.
+	[[nodiscard]] static bool docInline();
+	/// @brief Run the current phase synchronously, during boot. @return false if the step failed.
 	[[nodiscard]] bool runOneDocStep();
 	/// @brief One document step, blocking. Only legal on the storage owner.
 	[[nodiscard]] bool docStepSynchronously();

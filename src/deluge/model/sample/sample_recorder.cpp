@@ -38,7 +38,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
-#include "storage/owner.h"
+#include "util/boot.h"
 #include "util/exceptions.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
@@ -58,7 +58,7 @@ namespace {
 /// SampleRecorder::channelRefusals.
 int32_t g_channelRefusals = 0;
 
-/// Count one synchronous card operation by the recorder. Off the storage owner after boot that is a
+/// Count one synchronous card operation by the recorder. After boot that is a
 /// violation; see deluge::storage::bytes::noteIoTier.
 void noteRecorderIo() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Recorder);
@@ -769,10 +769,9 @@ Error SampleRecorder::finalizeBookkeeping() {
 // short-name slot receive this handle's deferred flush.
 
 bool SampleRecorder::advanceAbort() {
-	// The channel is usable only from a context that will yield before asking again -- see
-	// advanceFinalize() for why. On the owner the synchronous arm is both legal and the only one
-	// that can make progress.
-	const bool mayUseChannel = deluge::storage::Owner::started();
+	// The channel is usable only after boot -- see advanceFinalize() for why. Before it the synchronous arm is both
+	// legal and the only one that can make progress.
+	const bool mayUseChannel = deluge::boot::finished();
 
 	switch (abortPhase_) {
 
@@ -928,7 +927,7 @@ bool SampleRecorder::closeFailedTake() {
 	if (!file) {
 		return false;
 	}
-	const bool mayUseChannel = deluge::storage::Owner::started();
+	const bool mayUseChannel = deluge::boot::finished();
 	if (!failedCloseIssued_) {
 		if (mayUseChannel) {
 			// Refused, however often: ask again, for the reason advanceAbort() gives. The take has already failed
@@ -998,13 +997,10 @@ bool mkdirAllSynchronously(const std::string& path) {
 SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 	using deluge::storage::CreatePhase;
 
-	// The channel is usable only from a context that will YIELD before asking again -- see
-	// advanceFinalize() for why. On the owner the caller spins and the Rust driver never runs.
-	const bool mayUseChannel = deluge::storage::Owner::started();
+	// The channel is usable only after boot -- see advanceFinalize() for why.
+	const bool mayUseChannel = deluge::boot::finished();
 
-	if (!deluge::storage::Owner::on_owner()) {
-		AudioEngine::noteOffOwnerCreateTick();
-	}
+	AudioEngine::noteOffOwnerCreateTick();
 
 	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
 	bool spaceExhausted = false;
@@ -1274,16 +1270,11 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 		FREEZE_WITH_ERROR("E273");
 	}
 
-	// The channel is usable only from a context that will YIELD before asking again. On the storage
-	// owner the caller spins -- the offline stem-export drain and the harness's own pump both do --
-	// and the Rust driver never gets to run, so an issued request would stay PENDING forever. There
-	// blocking is legal anyway, so take the synchronous arm. `started()` keeps anything running
-	// before the worker exists on the arm it has always used.
-	const bool finalizeMayUseChannel = deluge::storage::Owner::started();
+	// The channel is usable only after boot: before it nothing is running to answer, so an issued request would stay
+	// PENDING forever. Blocking is legal then anyway, so take the synchronous arm.
+	const bool finalizeMayUseChannel = deluge::boot::finished();
 
-	if (!deluge::storage::Owner::on_owner()) {
-		AudioEngine::noteOffOwnerFinalizeTick();
-	}
+	AudioEngine::noteOffOwnerFinalizeTick();
 
 	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
 
@@ -1323,8 +1314,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 				// same; doing it here instead would block this tier on the card.
 				return file->request_truncate(finalizeTruncateTo_) ? finalizeAccepted() : finalizeRefused();
 			}
-			// On the owner, or before the owner has started: blocking is legal there, and it is the only arm that
-			// makes progress.
+			// During boot: blocking is legal then, and it is the only arm that makes progress.
 			noteRecorderIo();
 			if (!file->truncate(finalizeTruncateTo_)) {
 				return FinalizeStep::Failed;
@@ -1749,11 +1739,9 @@ Error SampleRecorder::writeClusterSynchronously(int32_t clusterIndex, size_t num
 }
 
 Error SampleRecorder::writeCluster(int32_t clusterIndex, size_t numBytes, bool mayUseChannel) {
-	// The same selector as create, finalize and abort. Off the owner once it has started, the channel is the
-	// only arm: a refusal leaves the write owed rather than falling back to blocking here. On the owner the
-	// write is synchronous from the start: an owner that spins -- the offline stem-export drain, the
-	// harness's own pump -- never lets the driver answer, and blocking there is legal.
-	if (mayUseChannel && deluge::storage::Owner::started()) {
+	// The same selector as create, finalize and abort. After boot the channel is the only arm: a refusal leaves the
+	// write owed rather than falling back to blocking here. Before it the write is synchronous, which is legal then.
+	if (mayUseChannel && deluge::boot::finished()) {
 		inFlightClusterIndex_ = clusterIndex;
 		inFlightNumBytes_ = static_cast<uint32_t>(numBytes);
 		inFlightIssued_ = false;

@@ -478,10 +478,6 @@ private:
 	// construction it calls (setupAlternateAudioFilePath) can't actually fail.
 	bool resolveFileSize(deluge::storage::AudioLoadContext& context, std::string& filePath, bool mayReadCard,
 	                     std::string& usingAlternateLocation, uint64_t& sizeBytes, Error* error);
-	// Convert an already-in-memory Sample into a WaveTable (the caller wanted a wavetable but only the Sample
-	// form is resident). Returns the new WaveTable (held by no reason), or nullptr with `*error` set if it
-	// can't be a wavetable (stereo, or not wavetable-looking unless insisted) or alloc/setup fails.
-	AudioFile* convertSampleToWaveTable(Sample& foundSample, bool makeWaveTableWorkAtAllCosts, Error* error);
 	/// @brief Construct an AudioFile from a resolved file: alloc + adopt the object, build it, insert it
 	///        into audioFiles, and finalize.
 	///

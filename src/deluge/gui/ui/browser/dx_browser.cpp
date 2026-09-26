@@ -23,7 +23,7 @@
 #include "hid/display/oled.h"
 #include "libdeluge/file_prefix.h"
 #include "storage/byte_channel.h" // noteIoTier, for the inline cartridge read
-#include "storage/owner.h"
+#include "util/boot.h"
 #include <array>
 #include <span>
 #include <string>
@@ -159,11 +159,10 @@ void DxSyxBrowser::enterKeyPress() {
 		if (path.empty() || g_cartridgeLoadInFlight) {
 			return;
 		}
-		if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
-			// Inline: on the owner a blocking read belongs here, and before it starts nothing would answer
-			// the channel. Off the owner after boot this would hold the interaction tier for the whole read,
-			// which is why it is noted as a tier violation, and why it is unreachable there. tryLoad() shows
-			// its own popups on failure.
+		if (!deluge::boot::finished()) {
+			// Inline during boot, when nothing would answer the channel. After boot this would hold the
+			// interaction tier for the whole read, which is why it is noted as a tier violation, and why it is
+			// unreachable there. tryLoad() shows its own popups on failure.
 			deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 			if (menu_item::dxCartridge.tryLoad(path)) {
 				enterLoadedCartridge();

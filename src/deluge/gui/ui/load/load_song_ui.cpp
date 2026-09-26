@@ -50,6 +50,7 @@
 #include "storage/flash_storage.h"
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
+#include "util/boot.h"
 #include "util/try.h"
 
 #include <array>
@@ -1056,11 +1057,11 @@ void LoadSongUI::dispatchPreview(const PreviewTarget& target) {
 }
 
 void LoadSongUI::drivePreview() {
-	if (deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started()) {
-		// Read the file inline. On the storage owner a blocking read belongs there; before the owner starts -- which
-		// on a C++-only build, with no Rust prefix channel, is always -- nothing would ever answer a request. Off the
-		// owner after boot this arm would hold the interaction tier for the whole read (the efatfs entry points do
-		// not yield), which is why it is noted as a tier violation, and why it is unreachable there.
+	if (!deluge::boot::finished()) {
+		// Read the file inline. During boot -- which on a C++-only build, with no Rust prefix channel, is always --
+		// nothing would ever answer a request. After boot this arm would hold the interaction tier for the whole read
+		// (the efatfs entry points do not yield), which is why it is noted as a tier violation, and why it is
+		// unreachable there.
 		for (;;) {
 			const auto attempt = previewLoad_.attempt();
 			deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);

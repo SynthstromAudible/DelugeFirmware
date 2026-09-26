@@ -34,11 +34,11 @@
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/flash_storage.h"
-#include "storage/owner.h"
 #include "storage/readback_check.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
 #include "sync/sd_access.h"
+#include "util/boot.h"
 #include "util/functions.h"
 #include "util/string.h"
 #include "util/try.h"
@@ -286,9 +286,9 @@ void SaveSongUI::runExistsPhase() {
 	using deluge::storage::bytes::ByteIo;
 
 	const char* path = existsRequest_.filePath.c_str();
-	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	const bool booting = !deluge::boot::finished();
 
-	if (onOwner) {
+	if (booting) {
 		// Blocking is legal here, and a channel request issued from a context that will not yield could
 		// never be answered.
 		++documentOwnerServedOps_;
@@ -464,9 +464,9 @@ void SaveSongUI::runTransferPhase() {
 	}
 	PlannedTransfer& entry = transfers_[transferCursor_];
 
-	const bool onOwner = deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+	const bool booting = !deluge::boot::finished();
 
-	if (onOwner) {
+	if (booting) {
 		// Blocking is legal here, and asking the channel would be worse than pointless: a request
 		// issued from a context that will not yield can never be answered.
 		++transferOwnerServedOps_;
@@ -662,8 +662,8 @@ constexpr int32_t kMaxDocStallTicks = 600;
 constexpr int32_t kMaxTempNameAttempts = 10000;
 } // namespace
 
-bool SaveSongUI::docOnOwner() {
-	return deluge::storage::Owner::on_owner() || !deluge::storage::Owner::started();
+bool SaveSongUI::docInline() {
+	return !deluge::boot::finished();
 }
 
 bool SaveSongUI::deferDocument() {
@@ -747,7 +747,7 @@ void SaveSongUI::runTempNamePhase() {
 	docWritePath_.append(deluge::string::fromInt(docTempNumber_, 4));
 	docWritePath_.append(writeJsonFlag ? ".Json" : ".XML");
 
-	if (docOnOwner()) {
+	if (docInline()) {
 		(void)runOneDocStep();
 		return;
 	}
@@ -788,7 +788,7 @@ void SaveSongUI::runTempNamePhase() {
 }
 
 void SaveSongUI::runWritePhase() {
-	if (docOnOwner()) {
+	if (docInline()) {
 		(void)runOneDocStep();
 		return;
 	}
@@ -850,7 +850,7 @@ void SaveSongUI::runWritePhase() {
 void SaveSongUI::runVerifyPhase() {
 	using deluge::storage::ReadBackTick;
 
-	if (docOnOwner()) {
+	if (docInline()) {
 		(void)runOneDocStep();
 		return;
 	}
@@ -885,7 +885,7 @@ void SaveSongUI::runVerifyPhase() {
 void SaveSongUI::runUnlinkPhase() {
 	using deluge::storage::bytes::ByteIo;
 
-	if (docOnOwner()) {
+	if (docInline()) {
 		(void)runOneDocStep();
 		return;
 	}
@@ -921,7 +921,7 @@ void SaveSongUI::runUnlinkPhase() {
 void SaveSongUI::runRenamePhase() {
 	using deluge::storage::bytes::ByteIo;
 
-	if (docOnOwner()) {
+	if (docInline()) {
 		(void)runOneDocStep();
 		return;
 	}

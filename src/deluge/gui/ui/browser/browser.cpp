@@ -36,8 +36,8 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/byte_channel.h"
 #include "storage/file_item.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
+#include "util/boot.h"
 #include "util/functions.h"
 #include "util/string.h"
 #include "util/try.h"
@@ -194,14 +194,10 @@ static Error directoryOpenError(DelugeStatus status) {
 }
 
 bool Browser::usingDirectoryChannel() {
-	// Every caller that reaches readFileItemsForFolder from the interaction tier can suspend: listings and typing
-	// predictions resume from graphicsRoutine(). Instrument acquisition runs on the storage owner, which on_owner()
-	// excludes -- a recursive subfolder descent cannot be split across deferrals at all, so it must never reach the
-	// channel.
-	//
-	// started() is the other half. Before the owner starts there is no driver running to answer, and a C++-only
-	// build's owner never starts; both open directly, which is legal there.
-	return !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started();
+	// Every caller that reaches readFileItemsForFolder after boot can suspend: listings and typing predictions resume
+	// from graphicsRoutine(). Before boot there is no driver running to answer, and a C++-only build never finishes
+	// booting; both open directly, which is legal there.
+	return deluge::boot::finished();
 }
 
 std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path, bool createIfMissing) {
@@ -1048,8 +1044,7 @@ Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char c
 	// Boot is the other legal exception. Anything else is an interaction-tier call with nowhere to put
 	// a deferral. FREEZE_WITH_ERROR rather than a bare assert(): a bare assert() is compiled out of the
 	// shipping build, and on the Rust BSP abort() ends the process with nothing on the display.
-	if (ALPHA_OR_BETA_VERSION && !deluge::storage::Owner::on_owner() && deluge::storage::Owner::started()
-	    && !listing_.active) {
+	if (ALPHA_OR_BETA_VERSION && deluge::boot::finished() && !listing_.active) {
 		FREEZE_WITH_ERROR("TIR4");
 	}
 	g_unusedSlotCalls++;
