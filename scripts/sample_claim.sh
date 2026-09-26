@@ -25,8 +25,8 @@
 #   SC-PITCH-STALL
 #              a claim whose detection's clusters never arrive: one give-up, the note an error, the transpose left
 #              alone, the claim finished.
-#   SC-TIER    per leg: no claim or slice began its load on the storage owner, no pitch detection ran there, its
-#              wavetable lookups all did, and no sample was read from the card on the interaction tier.
+#   SC-TIER    per leg: no claim or slice began its load on the storage owner, no pitch detection or wavetable
+#              lookup ran there, and no sample was read from the card on the interaction tier.
 #   SC-KIT     the kit drum claim: the file bound, the repeat mode, the drum's name and its side-chain send.
 #   SC-AUDIOCLIP
 #              the audio clip claim: the file bound, and the clip's loop length and attack.

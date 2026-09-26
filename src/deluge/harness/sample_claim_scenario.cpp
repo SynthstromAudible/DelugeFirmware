@@ -417,17 +417,15 @@ TierMark markTier() {
 	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
-/// The wavetable lookups each leg's claim makes on the storage owner, and the pitch detections it makes there: none.
-/// Pitch detection runs on the interaction tier as a resumable scan; the wavetable lookup still reads the card
-/// synchronously, on the owner.
-void wantOwnerWork(Leg leg, int32_t& waveTable, int32_t& pitch) {
+/// The wavetable lookups and pitch detections each leg's claim makes on the storage owner: none. Pitch detection is a
+/// resumable scan and the wavetable lookup a blocking lookup, both on the interaction tier.
+void wantOwnerWork(Leg /*leg*/, int32_t& waveTable, int32_t& pitch) {
+	waveTable = 0;
 	pitch = 0;
-	waveTable = (leg == Leg::WaveTable || leg == Leg::Fallback) ? 1 : 0;
 }
 
-/// SC-TIER: since the leg acted, no claim or slice may have begun its load on the storage owner, no pitch detection
-/// may have run there, its wavetable lookups must all have, and no sample may have been read from the card on the
-/// interaction tier.
+/// SC-TIER: since the leg acted, no claim or slice may have begun its load on the storage owner, no pitch detection or
+/// wavetable lookup may have run there, and no sample may have been read from the card on the interaction tier.
 void checkTier() {
 	const TierMark now = markTier();
 	const int32_t loads = (now.claimLoads - g_tierMark.claimLoads) + (now.sliceLoads - g_tierMark.sliceLoads);
@@ -448,8 +446,7 @@ void checkTier() {
 	}
 	if (waveTable != wantWaveTable || pitch != wantPitch) {
 		printf("SC-TIER FAIL leg=%s wavetable lookups on the owner %d (want %d), pitch detections on the owner %d "
-		       "(want %d) -- pitch detection runs on the interaction tier; wavetable lookups still read the card "
-		       "synchronously on the owner\n",
+		       "(want %d) -- pitch detection and wavetable lookups run on the interaction tier\n",
 		       legName(g_leg), waveTable, wantWaveTable, pitch, wantPitch);
 		g_failures++;
 	}
