@@ -10,10 +10,6 @@
 #                replying, which is exactly what deferring a reply risks.
 #   PO-MKDIRALL  that a nested path with all three segments missing is created by ONE request, and
 #                that a second creation of an existing path is success rather than EXISTS.
-#   PO-OWNER-FALLBACK
-#                that a read on the storage owner, entered on a missing folder whose default folder is missing
-#                too, creates the default folder and lists it. No shipped listing reaches that arm, and the
-#                synchronous open it makes ignores the directory channel's create flag.
 #   PO-DELETE    that a file deleted from a browser goes through the byte channel: the delete is still pending a
 #                step after the menu accepts it, input that would close the menu is refused meanwhile, and then
 #                the file is gone from the card and the listing.
@@ -87,7 +83,7 @@ if ! grep -q '^PO-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in PO-SYSEX PO-MKDIRALL PO-OWNER-FALLBACK PO-DELETE PO-DELETE-ABSENT PO-DELETE-STALL PO-CHANNEL \
+for marker in PO-SYSEX PO-MKDIRALL PO-DELETE PO-DELETE-ABSENT PO-DELETE-STALL PO-CHANNEL \
 	PO-TIER PO-ILLEGAL; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"

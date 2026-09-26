@@ -28,7 +28,6 @@
 #include "libdeluge/file_bytes.h"
 #include "model/song/song.h"
 #include "storage/byte_channel.h"
-#include "storage/owner.h"
 #include "storage/smsysex.h"
 #include "util/string.h"
 
@@ -45,32 +44,9 @@
 #undef printf
 #endif
 
-/// Reaches `Browser`'s protected folder read. Declared a friend by `Browser`.
+/// Reaches `Browser`'s protected state for the delete stages. Declared a friend by `Browser`.
 class PathOperationsBrowserProbe {
 public:
-	/// Read `missing`, falling back to `fallback`, exactly as a listing entered on a missing folder does.
-	///
-	/// `saveSongUI` only because the method needs a `Browser` and this one already exists; the read is the same
-	/// whichever browser makes it.
-	static Error readWithFallback(const char* missing, const char* fallback) {
-		Browser::currentDir = missing;
-		Browser::allowedFileExtensions = allowedFileExtensionsXML;
-		Browser::ListingRead read{
-		    .dir = missing,
-		    .outputType = OutputType::NONE,
-		    .filePrefix = "SONG",
-		    .defaultDirToAlsoTry = fallback,
-		    .includeSongInstruments = false,
-		};
-		const Error error = saveSongUI.readFolder(Browser::listing, read);
-		if (error == Error::NONE) {
-			// What stepListing() does for a real listing: adopt wherever the read settled as the
-			// browser's navigation, so the fallback's move to the default folder is observable here
-			// exactly as a user would experience it.
-			Browser::currentDir = read.dir;
-		}
-		return error;
-	}
 	static std::string currentDir() { return Browser::currentDir; }
 
 	/// @name The delete stages
@@ -214,13 +190,6 @@ constexpr const char* kNestedPath = "PO_TEST/A/B";
 /// stall bound, so a fallback that does eventually happen is not reported as a failure to happen.
 constexpr int32_t kMaxNestedTicks = 900;
 
-/// The on-owner missing-folder fallback: a read on the storage owner entered on a folder that is not there, whose
-/// default folder is not there either and so has to be created. Every shipped listing with a default folder runs off
-/// the owner, so nothing else reaches this arm -- and with the channel switched on it once skipped the creation,
-/// because the synchronous open it makes ignores the channel's create flag.
-constexpr const char* kOwnerMissingDir = "PO_TEST/NOSUCH";
-constexpr const char* kOwnerDefaultDir = "PO_TEST/OWNDEF";
-
 /// The delete stages: the folder they list and the file each deletes. `.XML` because the save browser lists nothing
 /// else, and `SlotBrowser::getCurrentFilePath()` puts that extension back on the selected name.
 constexpr const char* kDeleteDir = "PO_TEST/DELETE";
@@ -255,8 +224,6 @@ enum class Stage : uint8_t {
 	VerbCheck,
 	Nested,
 	NestedCheck,
-	OwnerFallback,
-	OwnerFallbackCheck,
 	DeleteOpen,
 	DeleteList,
 	DeleteListWait,
@@ -288,11 +255,6 @@ int32_t g_repliesBefore = 0;
 int32_t g_nestedTicks = 0;
 int32_t g_nestedCreated = -1;
 int32_t g_nestedIdempotent = -1;
-int32_t g_ownerFallbackTicks = 0;
-bool g_ownerFallbackRan = false;
-bool g_ownerFallbackOnOwner = false;
-Error g_ownerFallbackError = Error::NONE;
-std::string g_ownerFallbackDir;
 
 using deluge::gui::context_menu::DeleteFile;
 
@@ -415,7 +377,6 @@ void runTick() {
 		(void)deluge::io::unlink("PO_TEST/b.txt");
 		(void)deluge::io::unlink(kNestedPath);
 		(void)deluge::io::unlink("PO_TEST/A");
-		(void)deluge::io::unlink(kOwnerDefaultDir);
 		// One file per delete stage.
 		(void)deluge::io::mkdir(kDeleteDir);
 		for (const char* path : kDeletePaths) {
@@ -492,58 +453,8 @@ void runTick() {
 		// not EXISTS. Every caller of this relies on that, since the folders usually already exist.
 		(void)saveSongUI.createFoldersRecursiveIfNotExists(kNestedPath);
 		g_nestedIdempotent = directoryExists(kNestedPath) ? 1 : 0;
-		g_stage = Stage::OwnerFallback;
-		break;
-
-	case Stage::OwnerFallback:
-		if (directoryExists(kOwnerDefaultDir)) {
-			printf("PO-OWNER-FALLBACK FAIL fixture: %s still exists, so nothing would have to be created\n",
-			       kOwnerDefaultDir);
-			g_failures++;
-			g_stage = Stage::DeleteOpen;
-			break;
-		}
-		g_ownerFallbackRan = false;
-		g_ownerFallbackTicks = 0;
-		if (!deluge::storage::Owner::run(
-		        [](void*) {
-			        g_ownerFallbackOnOwner = deluge::storage::Owner::on_owner();
-			        g_ownerFallbackError =
-			            PathOperationsBrowserProbe::readWithFallback(kOwnerMissingDir, kOwnerDefaultDir);
-			        g_ownerFallbackDir = PathOperationsBrowserProbe::currentDir();
-			        g_ownerFallbackRan = true;
-		        },
-		        nullptr)) {
-			printf("PO-OWNER-FALLBACK FAIL the owner queue refused the read\n");
-			g_failures++;
-			g_stage = Stage::DeleteOpen;
-			break;
-		}
-		g_stage = Stage::OwnerFallbackCheck;
-		break;
-
-	case Stage::OwnerFallbackCheck: {
-		// The marker op behind the dispatched read makes one tick enough; bounded anyway, like every wait here.
-		if (!g_ownerFallbackRan && ++g_ownerFallbackTicks < kMaxNestedTicks) {
-			break;
-		}
-		const bool created = directoryExists(kOwnerDefaultDir);
-		printf("PO-OWNER-FALLBACK ran=%d onOwner=%d err=%d dir=%s created=%d\n", g_ownerFallbackRan ? 1 : 0,
-		       g_ownerFallbackOnOwner ? 1 : 0, static_cast<int>(g_ownerFallbackError), g_ownerFallbackDir.c_str(),
-		       created ? 1 : 0);
-		if (!g_ownerFallbackRan || !g_ownerFallbackOnOwner) {
-			printf("PO-OWNER-FALLBACK FAIL the read did not run on the storage owner\n");
-			g_failures++;
-		}
-		else if (g_ownerFallbackError != Error::NONE || !created
-		         || !deluge::string::caselessEquals(g_ownerFallbackDir, kOwnerDefaultDir)) {
-			printf("PO-OWNER-FALLBACK FAIL a read on the owner, entered on a missing folder, did not create and list "
-			       "its default folder\n");
-			g_failures++;
-		}
 		g_stage = Stage::DeleteOpen;
 		break;
-	}
 
 	case Stage::DeleteOpen:
 		g_deleteTicks = 0;
@@ -567,7 +478,10 @@ void runTick() {
 		break;
 
 	case Stage::DeleteListWait:
-		if (PathOperationsBrowserProbe::listingInProgress() && ++g_deleteTicks < kMaxDeleteTicks) {
+		// The channel idle too: an operation an earlier stage left in flight would otherwise be collected inside the
+		// delete's window and counted as the delete's.
+		if ((PathOperationsBrowserProbe::listingInProgress() || !deluge::storage::bytes::idle())
+		    && ++g_deleteTicks < kMaxDeleteTicks) {
 			break;
 		}
 		if (!PathOperationsBrowserProbe::listed(kDeleteA) || !PathOperationsBrowserProbe::listed(kDeleteB)

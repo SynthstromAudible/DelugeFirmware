@@ -2908,7 +2908,7 @@ fn owner_jobs() -> u32 {
 /// on the storage owner -- and EXACTLY how many jobs each runs there. Any other count fails, so a new owner job cannot
 /// hide behind the deferral. S2 empties this table.
 const OWNER_JOBS_DEFERRED: [(&str, u32); 6] = [
-    ("path_operations", 1),
+    ("path_operations", 0),
     ("recorder_roundtrip", 2),
     ("sample_claim", 0),
     ("preset_load", 0),
