@@ -18,11 +18,15 @@
 #   SC-STALL   an explicit claim whose load is held past the stall bound: it must give up, leaving the holder
 #              unbound, the browser open and the gate released, having given up once.
 #   SC-SUPERSEDE
-#              an auto-load claim the cursor leaves while its pitch detection is out on the storage owner, for a next
+#              an auto-load claim the cursor leaves while its pitch detection waits for a cluster, for a next
 #              preview that lands at once (case=landed) and for one still loading (case=loading): it must be
-#              cancelled once and drain before the next claim starts, and only the next file's claim may finish.
-#   SC-TIER    per leg: no claim or slice began its load on the storage owner, its wavetable lookups and pitch
-#              detections all ran there, and no sample was read from the card on the interaction tier.
+#              cancelled once, drop its detection without draining, and only the next file's claim may finish.
+#   SC-PITCH   a claim whose detection finds its clusters held briefly: it waits, resumes, and finds the same note.
+#   SC-PITCH-STALL
+#              a claim whose detection's clusters never arrive: one give-up, the note an error, the transpose left
+#              alone, the claim finished.
+#   SC-TIER    per leg: no claim or slice began its load on the storage owner, no pitch detection ran there, its
+#              wavetable lookups all did, and no sample was read from the card on the interaction tier.
 #   SC-KIT     the kit drum claim: the file bound, the repeat mode, the drum's name and its side-chain send.
 #   SC-AUDIOCLIP
 #              the audio clip claim: the file bound, and the clip's loop length and attack.
@@ -46,9 +50,9 @@
 #              named after its file without the folder's shared prefix, bound to it and with a NoteRow; the kit
 #              edited and the browser closed.
 #   IM-MULTI   the synth context menu's "Multisamples" over three sines an octave apart: one range per file in pitch
-#              order, each bound to its file, and the browser closed.
-#   IM-TIER    per folder import: the listing and every pitch detection ran on the storage owner, no file load began
-#              there, and no sample was read from the card on the interaction tier.
+#              order, each bound to its file with the transpose its detection gives it, and the browser closed.
+#   IM-TIER    per folder import: neither the listing nor any pitch detection nor any file load ran on the storage
+#              owner, and no sample was read from the card on the interaction tier.
 #   IM-GATE    a kit import whose loads the loader holds: while it is out, BACK and a second Select on the menu must be
 #              refused; once it ends, the gate released and the kit holding its drums.
 #   IM-STALL   a multisample import whose second file's load is held past the stall bound: it must abort with the
@@ -110,7 +114,9 @@ trap cleanup EXIT
 
 echo "sample claim: running"
 set +e
-GOLDEN_SCENARIO=sample_claim "$BIN" >"$OUT/run.txt" 2>"$OUT/run.err"
+# Three legs hold the loader for 30 virtual seconds each (SC-STALL, RD-STALL's randomize, IM-STALL) and the pitch legs
+# hold the streaming loader on top, which is more than the runner's default 60s virtual-time budget covers.
+GOLDEN_SCENARIO=sample_claim GOLDEN_VIRTUAL_BUDGET_MS=180000 "$BIN" >"$OUT/run.txt" 2>"$OUT/run.err"
 status=$?
 set -e
 
@@ -121,7 +127,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL RD-CANCELSCAN IM-KIT IM-MULTI IM-TIER IM-GATE IM-STALL SC-ONOWNER SC-RESULT; do
+for marker in SC-SETUP SC-SELECT SC-SYNTH SC-WAVETABLE SC-FALLBACK SC-GATE SC-STALL SC-SUPERSEDE SC-PITCH SC-PITCH-STALL SC-TIER SC-KIT SC-AUDIOCLIP SC-SLICE SC-SLICE-MANUAL RD-ONE RD-ALL RD-TIER RD-GATE RD-STALL RD-CANCELSCAN IM-KIT IM-MULTI IM-TIER IM-GATE IM-STALL SC-ONOWNER SC-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^(SC|RD|IM)-' "$OUT/run.txt"

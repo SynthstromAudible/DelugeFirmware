@@ -83,6 +83,25 @@ namespace {
 
 /// Each leg's file, asked for by that leg only (see pack_sample_claim_image in the harness).
 constexpr const char* kSynthSample = "SAMPLES/SCSYN.WAV";
+
+extern "C" void deluge_streaming_set_fill_latency_ms(uint32_t ms); // host harness only; streaming_loader.rs
+
+/// The resume leg's file, the supersede legs' first files, and the pitch stall leg's file: see the Rust fixture.
+constexpr const char* kPitchSample = "SAMPLES/SCPITCH.WAV";
+constexpr const char* kSupersedeFirstLanded = "SAMPLES/SCSUPA.WAV";
+constexpr const char* kSupersedeFirstLoading = "SAMPLES/SCSUPB.WAV";
+constexpr const char* kPitchStallSample = "SAMPLES/SCPSTALL.WAV";
+/// How long the streaming loader holds each drain pass in the resume and supersede legs: long enough that a detection
+/// finds its cluster not yet filled, well inside the 300 ms bound, so it waits and resumes.
+constexpr uint32_t kPitchHoldMs = 100;
+/// ...and in the pitch stall leg: far past the bound.
+constexpr uint32_t kPitchStallHoldMs = 2000;
+/// Set on the synth's holder before a pitch leg: only a detection that found the note moves it.
+constexpr int32_t kTransposeSentinel = 99;
+/// SCSYN.WAV's measured transpose (SC-SYNTH transpose=3): the same sine must give the same one.
+constexpr int32_t kPitchTranspose = 3;
+/// IM-MULTI's measured transposes (SC-PROBE leg=import-multi, 05e423da8): 110, 220 and 440 Hz.
+constexpr int32_t kImportMultiTransposes[] = {15, 3, -9};
 constexpr const char* kCycleSample = "SAMPLES/SCCYCLE.WAV";
 constexpr const char* kStereoSample = "SAMPLES/SCSTER.WAV";
 /// The gate and stall legs' files: held by the loader from the moment their browser opens, so neither is in memory when
@@ -221,6 +240,7 @@ enum class Leg : uint8_t {
 	Gate,
 	Supersede,
 	SupersedeLoading,
+	Pitch,
 	Kit,
 	AudioClip,
 	Slice,
@@ -235,6 +255,7 @@ enum class Leg : uint8_t {
 	RandomizeStall,
 	RandomizeCancelScan,
 	ImportStall,
+	PitchStall,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, Act, Wait };
@@ -354,6 +375,10 @@ const char* legName(Leg leg) {
 		return "randomize-stall";
 	case Leg::RandomizeCancelScan:
 		return "randomize-cancelscan";
+	case Leg::Pitch:
+		return "pitch";
+	case Leg::PitchStall:
+		return "pitch-stall";
 	case Leg::Done:
 		return "done";
 	}
@@ -391,38 +416,17 @@ TierMark markTier() {
 	        deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoad)};
 }
 
-/// The wavetable lookups and pitch detections each leg's claim makes, every one of them on the storage owner.
+/// The wavetable lookups each leg's claim makes on the storage owner, and the pitch detections it makes there: none.
+/// Pitch detection runs on the interaction tier as a resumable scan; the wavetable lookup still reads the card
+/// synchronously, on the owner.
 void wantOwnerWork(Leg leg, int32_t& waveTable, int32_t& pitch) {
-	switch (leg) {
-	case Leg::Synth:
-	case Leg::Gate:
-		waveTable = 0;
-		pitch = 1;
-		return;
-	case Leg::WaveTable:
-		waveTable = 1;
-		pitch = 0;
-		return;
-	case Leg::Fallback:
-		waveTable = 1;
-		pitch = 1;
-		return;
-	case Leg::Supersede:
-	case Leg::SupersedeLoading:
-		// The cancelled claim's detection, which still runs, and the next claim's.
-		waveTable = 0;
-		pitch = 2;
-		return;
-	default:
-		waveTable = 0;
-		pitch = 0;
-		return;
-	}
+	pitch = 0;
+	waveTable = (leg == Leg::WaveTable || leg == Leg::Fallback) ? 1 : 0;
 }
 
-/// SC-TIER: since the leg acted, no claim or slice may have begun its load on the storage owner, its wavetable lookups
-/// and pitch detections must all have run there, and no sample may have been read from the card on the interaction
-/// tier.
+/// SC-TIER: since the leg acted, no claim or slice may have begun its load on the storage owner, no pitch detection
+/// may have run there, its wavetable lookups must all have, and no sample may have been read from the card on the
+/// interaction tier.
 void checkTier() {
 	const TierMark now = markTier();
 	const int32_t loads = (now.claimLoads - g_tierMark.claimLoads) + (now.sliceLoads - g_tierMark.sliceLoads);
@@ -443,7 +447,8 @@ void checkTier() {
 	}
 	if (waveTable != wantWaveTable || pitch != wantPitch) {
 		printf("SC-TIER FAIL leg=%s wavetable lookups on the owner %d (want %d), pitch detections on the owner %d "
-		       "(want %d) -- they read the card synchronously and belong on the owner\n",
+		       "(want %d) -- pitch detection runs on the interaction tier; wavetable lookups still read the card "
+		       "synchronously on the owner\n",
 		       legName(g_leg), waveTable, wantWaveTable, pitch, wantPitch);
 		g_failures++;
 	}
@@ -457,6 +462,20 @@ void checkTier() {
 AudioFileHolder* firstHolder(Source& source) {
 	MultiRange* range = source.getOrCreateFirstRange();
 	return (range != nullptr) ? range->getAudioFileHolder() : nullptr;
+}
+
+int32_t g_pitchTicksBefore = 0;
+int32_t g_pitchGiveUpsBefore = 0;
+
+/// Arm a pitch leg: the streaming loader held for @p holdMs, the synth's transpose set to the sentinel, the claim's
+/// pitch counts marked.
+void armPitchLeg(uint32_t holdMs) {
+	deluge_streaming_set_fill_latency_ms(holdMs);
+	if (AudioFileHolder* holder = firstHolder(g_synth->sources[0]); holder != nullptr) {
+		static_cast<SampleHolderForVoice*>(holder)->transpose = kTransposeSentinel;
+	}
+	g_pitchTicksBefore = deluge::gui::sampleClaim.pitchScanTicks();
+	g_pitchGiveUpsBefore = deluge::gui::sampleClaim.pitchGiveUps();
 }
 
 // ── Fixture construction ─────────────────────────────────────────────────────
@@ -890,9 +909,17 @@ bool openLeg() {
 		deluge_audio_load_set_latency_ms(kStallHoldMs);
 		return openBrowserOnSynth("stall", OscType::SAMPLE);
 	case Leg::Supersede:
+		armPitchLeg(kPitchHoldMs);
 		return openBrowserOnSynth("supersede", OscType::SAMPLE);
 	case Leg::SupersedeLoading:
+		armPitchLeg(kPitchHoldMs);
 		return openBrowserOnSynth("supersede-loading", OscType::SAMPLE);
+	case Leg::Pitch:
+		armPitchLeg(kPitchHoldMs);
+		return openBrowserOnSynth("pitch", OscType::SAMPLE);
+	case Leg::PitchStall:
+		armPitchLeg(kPitchStallHoldMs);
+		return openBrowserOnSynth("pitch-stall", OscType::SAMPLE);
 	case Leg::Kit:
 	case Leg::Slice:
 	case Leg::SliceManual:
@@ -970,8 +997,13 @@ const char* legFile() {
 	case Leg::Stall:
 		return kStallSample;
 	case Leg::Supersede:
+		return kSupersedeFirstLanded;
 	case Leg::SupersedeLoading:
-		return kSynthSample;
+		return kSupersedeFirstLoading;
+	case Leg::Pitch:
+		return kPitchSample;
+	case Leg::PitchStall:
+		return kPitchStallSample;
 	case Leg::Kit:
 		return kKickSample;
 	case Leg::ImportKit:
@@ -1361,6 +1393,7 @@ void checkLeg() {
 	case Leg::Supersede:
 	case Leg::SupersedeLoading: {
 		deluge_audio_load_set_latency_ms(0);
+		deluge_streaming_set_fill_latency_ms(0);
 		const auto& claim = deluge::gui::sampleClaim;
 		const char* supersedeCase = (g_leg == Leg::Supersede) ? "landed" : "loading";
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
@@ -1374,15 +1407,51 @@ void checkLeg() {
 		       "ticks=%d\n",
 		       supersedeCase, g_supersedeFired ? 1 : 0, cancels, drains, startsUnderOp, finishes, boundSecond ? 1 : 0,
 		       g_waitTicks);
-		if (!g_supersedeFired || cancels != 1 || drains != 1 || startsUnderOp != 0 || finishes != 1 || !boundSecond) {
-			printf("SC-SUPERSEDE FAIL case=%s an auto-load claim the cursor left with its pitch detection out must be "
-			       "cancelled once and drain before the next claim starts, and only the next file's claim may finish\n",
-			       supersedeCase);
+		if (!g_supersedeFired || cancels != 1 || drains != 0 || startsUnderOp != 0 || finishes != 1 || !boundSecond) {
+			printf(
+			    "SC-SUPERSEDE FAIL case=%s an auto-load claim the cursor left with its pitch detection waiting must be "
+			    "cancelled once, drop its detection without draining, and only the next file's claim may finish\n",
+			    supersedeCase);
 			g_failures++;
 		}
 		// Auto-load off again, and out of the browser, which auto-load leaves open.
 		(void)getCurrentUI()->buttonAction(deluge::hid::button::LOAD, false, false);
 		sampleBrowser.exitAndNeverDeleteDrum();
+		break;
+	}
+	case Leg::Pitch: {
+		deluge_streaming_set_fill_latency_ms(0);
+		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		const bool bound = holder != nullptr && holder->audioFile != nullptr;
+		const int32_t transpose = holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0;
+		const int32_t scanTicks = deluge::gui::sampleClaim.pitchScanTicks() - g_pitchTicksBefore;
+		const int32_t giveUps = deluge::gui::sampleClaim.pitchGiveUps() - g_pitchGiveUpsBefore;
+		printf("SC-PITCH bound=%d transpose=%d scanTicks=%d giveUps=%d ticks=%d\n", bound ? 1 : 0, transpose, scanTicks,
+		       giveUps, g_waitTicks);
+		if (!bound || transpose != kPitchTranspose || scanTicks < 1 || giveUps != 0) {
+			printf("SC-PITCH FAIL a detection whose clusters arrive late must wait for them and find the same note\n");
+			g_failures++;
+		}
+		break;
+	}
+	case Leg::PitchStall: {
+		deluge_streaming_set_fill_latency_ms(0);
+		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
+		const bool bound = holder != nullptr && holder->audioFile != nullptr;
+		const bool noteError = bound && static_cast<Sample*>(holder->audioFile)->midiNote == MIDI_NOTE_ERROR;
+		const int32_t transpose = holder != nullptr ? static_cast<SampleHolderForVoice*>(holder)->transpose : 0;
+		const int32_t giveUps = deluge::gui::sampleClaim.pitchGiveUps() - g_pitchGiveUpsBefore;
+		const bool inFlight = deluge::gui::sampleClaim.inFlight();
+		const bool released = (currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES);
+		printf("SC-PITCH-STALL bound=%d noteError=%d transpose=%d giveUps=%d inFlight=%d released=%d ticks=%d\n",
+		       bound ? 1 : 0, noteError ? 1 : 0, transpose, giveUps, inFlight ? 1 : 0, released ? 1 : 0, g_waitTicks);
+		// inFlight()==false with the gate released is the claim machine able to take the next claim: routine() starts
+		// a queued claim only from Idle.
+		if (!bound || !noteError || transpose != kTransposeSentinel || giveUps != 1 || inFlight || !released) {
+			printf("SC-PITCH-STALL FAIL a detection whose clusters never arrive must give up once, leave the note an "
+			       "error and the transpose alone, and still finish the claim\n");
+			g_failures++;
+		}
 		break;
 	}
 	case Leg::Kit: {
@@ -1549,7 +1618,7 @@ void checkLeg() {
 		const int32_t pitch = now.pitch - g_importMark.pitch;
 		const int32_t sampleIo = now.sampleIo - g_importMark.sampleIo;
 		const int32_t files = (g_leg == Leg::ImportKit) ? kImportKitCount : kImportMultiCount;
-		const int32_t wantPitch = (g_leg == Leg::ImportKit) ? 0 : kImportMultiCount;
+		const int32_t wantPitch = 0;
 		const int32_t listingsRun = deluge::gui::folderImport.listingsRun();
 		printf("IM-TIER leg=%s listingsRun=%d listingsOnOwner=%d loadsOnOwner=%d pitchOnOwner=%d sampleIo=%d\n",
 		       legName(g_leg), listingsRun, listings, loads, pitch, sampleIo);
@@ -1565,8 +1634,7 @@ void checkLeg() {
 		// inverted rather than dropped, because what it guards is still worth guarding -- a listing
 		// that came back to the owner would be the regression.
 		//
-		// The pitch detection is a different family and still belongs there: it streams a whole
-		// sample through SampleFrameReader with cluster loading, so `wantPitch` is unchanged.
+		// Pitch detection now runs on the interaction tier as a resumable scan: zero is the claim.
 		if (listingsRun == 0) {
 			printf("IM-TIER FAIL leg=%s no folder listing ran at all\n", legName(g_leg));
 			g_failures++;
@@ -1627,7 +1695,8 @@ void checkLeg() {
 				printf("SC-PROBE leg=import-multi range=%d top=%d path=%s bound=%d transpose=%d\n", i, range->topNote,
 				       range->sampleHolder.filePath.c_str(), bound ? 1 : 0, range->sampleHolder.transpose);
 				if (i < kImportMultiCount && bound && range->sampleHolder.filePath == kImportMultiFiles[i]
-				    && range->topNote == kImportMultiTopNotes[i]) {
+				    && range->topNote == kImportMultiTopNotes[i]
+				    && range->sampleHolder.transpose == kImportMultiTransposes[i]) {
 					matched++;
 				}
 			}
@@ -1636,10 +1705,11 @@ void checkLeg() {
 			       synth->editedByUser ? 1 : 0, browserClosed ? 1 : 0, g_waitTicks);
 			if (ranges != kImportMultiCount || matched != kImportMultiCount
 			    || source.repeatMode != SampleRepeatMode::ONCE || !browserClosed) {
-				printf(
-				    "IM-MULTI FAIL the multisample import did not end with one range per file in pitch order, each "
-				    "bound to its file with the top note today's importer gives it, one-second files playing once, and "
-				    "the browser closed\n");
+				printf("IM-MULTI FAIL the multisample import did not end with one range per file in pitch order, each "
+				       "bound to its file with the top note today's importer gives it and the transpose its detection "
+				       "gives "
+				       "it, one-second files playing once, and "
+				       "the browser closed\n");
 				g_failures++;
 			}
 		}
@@ -1819,13 +1889,14 @@ void checkLeg() {
 /// the cursor moved on to the second file, which cancels that claim.
 void tickSupersede() {
 	sampleBrowser.graphicsRoutine();
-	if (g_supersedeFired || !deluge::gui::sampleClaim.opOutstanding()) {
+	if (g_supersedeFired || !deluge::gui::sampleClaim.pitchPending()) {
 		return;
 	}
 	g_supersedeFired = true;
 	if (g_leg == Leg::Supersede) {
-		// In memory, so its preview lands in this same tick with the detection still out -- as on the device, where
-		// detection reads the card for longer than a graphics tick -- and asks for the next claim at once.
+		// In memory, so its preview lands in this same tick with the detection still waiting for its cluster -- as on
+		// the device, where detection reads the card for longer than a graphics tick -- and asks for the next claim at
+		// once.
 		sampleBrowser.previewFile(kSupersedeLanded, 0);
 		sampleBrowser.graphicsRoutine();
 	}
@@ -2000,7 +2071,8 @@ void runTick() {
 			slicer.graphicsRoutine();
 		}
 		if (legEnded()
-		    || ++g_waitTicks > ((g_leg == Leg::Stall || g_leg == Leg::RandomizeStall || g_leg == Leg::ImportStall)
+		    || ++g_waitTicks > ((g_leg == Leg::Stall || g_leg == Leg::RandomizeStall || g_leg == Leg::ImportStall
+		                         || g_leg == Leg::PitchStall)
 		                            ? kMaxStallTicks
 		                            : kMaxLegTicks)) {
 			checkLeg();

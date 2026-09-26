@@ -1755,6 +1755,9 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 ///
 /// Every file is asked for by one leg only, so a holder naming it can only be that leg's doing:
 /// - `SAMPLES/SCSYN.WAV`: a 440 Hz sine, claimed into the boot song's synth, whose pitch detection names its note.
+/// - `SAMPLES/SCPITCH.WAV`, `SCSUPA.WAV`, `SCSUPB.WAV`, `SCPSTALL.WAV`: SCSYN.WAV's sine under paths of their own, for
+///   the legs that must catch a pitch detection waiting for a cluster -- the resume leg, the two supersede legs and the
+///   pitch stall leg.
 /// - `SAMPLES/SCCYCLE.WAV`: one 512-frame cycle of a sine, claimed as a wavetable from the context menu.
 /// - `SAMPLES/SCSTER.WAV`: stereo, claimed into a wavetable oscillator, which cannot take it and falls back to a
 ///   sample.
@@ -1807,6 +1810,12 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
         std::fs::create_dir_all(dir).expect("creating the sample-claim fixture directories");
     }
     write_sine_wav(&samples.join("SCSYN.WAV"), 1, 22_050, 440.0);
+    // The pitch legs' files: each the same 440 Hz sine as SCSYN.WAV, under a path no other leg reads, so its clusters
+    // are not resident when its claim's detection starts -- a scan that has read a file once never misses on it again.
+    write_sine_wav(&samples.join("SCPITCH.WAV"), 1, 22_050, 440.0);
+    write_sine_wav(&samples.join("SCSUPA.WAV"), 1, 22_050, 440.0);
+    write_sine_wav(&samples.join("SCSUPB.WAV"), 1, 22_050, 440.0);
+    write_sine_wav(&samples.join("SCPSTALL.WAV"), 1, 22_050, 440.0);
     write_sine_wav(&samples.join("SCCYCLE.WAV"), 1, 512, 44_100.0 / 512.0);
     write_test_wav(&samples.join("SCSTER.WAV"), 2, 16, 8192, 0x36);
     write_test_wav(&samples.join("SCGATE.WAV"), 1, 16, 4096, 0x37);

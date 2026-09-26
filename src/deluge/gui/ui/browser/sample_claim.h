@@ -103,6 +103,12 @@ public:
 	[[nodiscard]] int32_t startsUnderOp() const { return startsUnderOp_; }
 	/// Claims that ended claimed.
 	[[nodiscard]] int32_t finishes() const { return finishes_; }
+	/// Ticks a pitch detection spent waiting for a cluster.
+	[[nodiscard]] int32_t pitchScanTicks() const { return pitchScanTicks_; }
+	/// Pitch detections that gave up: no frame arrived for kMaxUnproductiveUs.
+	[[nodiscard]] int32_t pitchGiveUps() const { return pitchGiveUps_; }
+	/// Whether the claim in flight is waiting for its pitch detection.
+	[[nodiscard]] bool pitchPending() const { return phase_ == Phase::AwaitPitch; }
 	/// @}
 
 private:
@@ -187,6 +193,8 @@ private:
 	int32_t drains_{0};
 	int32_t startsUnderOp_{0};
 	int32_t finishes_{0};
+	int32_t pitchScanTicks_{0};
+	int32_t pitchGiveUps_{0};
 };
 
 extern SampleClaim sampleClaim;

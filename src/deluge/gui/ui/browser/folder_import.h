@@ -87,6 +87,10 @@ public:
 	[[nodiscard]] int32_t pitchOnOwner() const { return pitchOnOwner_; }
 	/// Imports that aborted on a load that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
+	/// Ticks a pitch detection spent waiting for a cluster.
+	[[nodiscard]] int32_t pitchScanTicks() const { return pitchScanTicks_; }
+	/// Pitch detections that gave up: no frame arrived for kMaxUnproductiveUs.
+	[[nodiscard]] int32_t pitchGiveUps() const { return pitchGiveUps_; }
 	/// @}
 
 private:
@@ -197,6 +201,8 @@ private:
 	int32_t loadsOnOwner_{0};
 	int32_t pitchOnOwner_{0};
 	int32_t giveUps_{0};
+	int32_t pitchScanTicks_{0};
+	int32_t pitchGiveUps_{0};
 };
 
 extern FolderImport folderImport;
