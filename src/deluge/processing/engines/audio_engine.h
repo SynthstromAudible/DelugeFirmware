@@ -162,10 +162,10 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher);
 LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
 void slowRoutine();
 void doRecorderCardRoutines();
-/// @brief Owner-mediated, coalesced entry point for doRecorderCardRoutines() — the recorder
-///        card-write drain, routed through the storage owner (SD-routine-class).
+/// @brief The entry point for doRecorderCardRoutines() -- the recorder card-write drain.
 ///
-/// Runs inline on legacy/host; coalesced onto the worker fiber on Embassy.
+/// Runs inline after boot, and always on legacy/host; before boot on Embassy it is coalesced onto the worker fiber
+/// (SD-routine-class).
 void requestRecorderCardRoutines();
 
 /// @brief How many recorder drains ran OFF the storage owner.

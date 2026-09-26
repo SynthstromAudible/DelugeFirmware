@@ -192,7 +192,7 @@ void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 
 bool RuntimeFeatureSettings::readSettingsFromFile(deluge::storage::bytes::DoneFn onDone) {
 	// The channel first: it does the read in Rust, so nothing blocks anywhere. A false means the channel is
-	// not the place for this read here (boot, the owner, or a build without it) -- a busy channel queues it
+	// not the place for this read here (boot, or a build without it) -- a busy channel queues it
 	// instead -- and the inline arm below does the same work where blocking is legal.
 	if (deluge::storage::bytes::submitRead(RUNTIME_FEATURE_SETTINGS_FILE, LEGACY_RUNTIME_FEATURE_SETTINGS_FILE,
 	                                       &RuntimeFeatureSettings::parseSettingsBytes,

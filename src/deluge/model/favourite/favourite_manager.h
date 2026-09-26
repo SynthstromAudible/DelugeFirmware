@@ -91,9 +91,9 @@ public:
 private:
 	/// The one operation issued and not yet applied.
 	///
-	/// The inline arm fills `outcome` and `scratch` on the storage owner and only THEN sets `resultReady`;
-	/// the interaction tier reads nothing but `resultReady` until it is set, and the owner touches nothing
-	/// after setting it.
+	/// The arm that runs the operation fills `outcome` and `scratch` and only THEN sets `resultReady`; the
+	/// interaction tier reads nothing but `resultReady` until it is set, and that arm touches nothing after
+	/// setting it.
 	struct InFlight {
 		deluge::favourites::FavouritesIntent intent;
 		bool active = false;

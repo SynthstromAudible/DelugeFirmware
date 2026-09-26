@@ -74,9 +74,6 @@ public:
 	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
 	                int32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
 	                int32_t waveIndexIncrement);
-	// Build this WaveTable from an already-in-memory Sample (the Sample→WaveTable conversion). Reads the
-	// Sample's cluster data; takes its cycle size / channels / byte depth from the Sample.
-	Error setupFromSample(Sample& sample);
 	/// @brief Build this WaveTable by reading audio data from a file, via a FileByteSource.
 	///
 	/// The header fields come from the parser (parseWaveTableHeader).
@@ -105,7 +102,10 @@ protected:
 	void numReasonsDecreasedToZero(char const* errorCode) override;
 
 private:
-	/// @brief Shared implementation behind setupFromSample() and setupFromFile().
+	/// @brief The implementation behind setupFromFile().
+	///
+	/// @note Its in-memory branch (@p sample non-null) is unreached: the Sample→WaveTable conversion that used it is
+	///       gone, and a WaveTable is always built from the card.
 	///
 	/// Exactly one of @p sample (in-memory source) or @p byteSource (file source) is used; the
 	/// other parameters are ignored in the in-memory case (taken from the Sample). The two public

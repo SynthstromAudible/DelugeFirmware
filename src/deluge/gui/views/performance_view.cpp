@@ -1831,7 +1831,7 @@ void PerformanceView::readDefaultsFromBackedUpFile() {
 
 /// read defaults from XML
 void PerformanceView::readDefaultsFromFile() {
-	// The channel first. The view reads its defaults when it is opened -- after boot, off the owner -- and the owner
+	// The channel first. The view reads its defaults when it is opened -- after boot -- and the owner
 	// dispatch this replaces was already deferred, so the layout lands a few ticks after the view opens either way.
 	if (deluge::storage::bytes::usingByteChannel()) {
 		if (successfullyReadDefaultsFromFile) {

@@ -211,7 +211,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 	}
 
 	if (!usingDirectoryChannel()) {
-		// Counted, and frozen in alpha and beta builds, if it is ever reached off the storage owner after boot. The
+		// Counted, and frozen in alpha and beta builds, if it is ever reached after boot. The
 		// selector above rules that out; this keeps it ruled out.
 		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 		auto opened = deluge::io::Directory::open(path);

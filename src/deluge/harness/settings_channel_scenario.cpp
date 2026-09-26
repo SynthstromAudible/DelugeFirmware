@@ -325,7 +325,7 @@ void runTick() {
 
 	case Stage::OrderSubmit:
 		// Write then read in ONE tick, so the read is submitted while the write is still waiting. No scrub of
-		// the in-memory value in between, and deliberately: the channel-off leg's owner arm serialises the
+		// the in-memory value in between, and deliberately: the channel-off leg's inline arm serialises the
 		// settings when it RUNS, not when it was called, so a scrub made in this tick would be what it wrote.
 		// A read that started ahead of the write would load the file's previous value over this one, which
 		// is what the check below catches; the served count is what shows the read ran at all.
@@ -480,7 +480,7 @@ void runTick() {
 	}
 
 	case Stage::PerfRead:
-		// The view reads its defaults when it is opened: after boot, off the owner. Forget the read that already
+		// The view reads its defaults when it is opened: after boot. Forget the read that already
 		// happened and ask again through the entry point `focusRegained()` uses.
 		SettingsChannelProbe::forgetPerformanceDefaults();
 		g_servedBefore = deluge::storage::bytes::channelServedOps();
@@ -535,7 +535,7 @@ void runTick() {
 	case Stage::OversizeCheck: {
 		std::vector<uint8_t> after;
 		const bool hasFile = readWholeFile("SETTINGS/CommunityFeatures.XML", after);
-		// The entries come out only now. An owner arm serialises when it RUNS, so taking them out in the submitting
+		// The entries come out only now. An inline arm serialises when it RUNS, so taking them out in the submitting
 		// tick would let a dispatched write put an ordinary document on the card and pass this check.
 		SettingsChannelProbe::truncateUnknownSettings(g_unknownBefore);
 		const bool unchanged = hasFile == g_oversizeHadFile && after == g_oversizeBefore;

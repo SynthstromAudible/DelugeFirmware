@@ -274,7 +274,7 @@ void FavouritesManager::issueNext() {
 	if (bytes::runDuringBoot(&runIntentInline, this)) {
 		return;
 	}
-	// Refused: off the owner after boot, with an intent the channel would not take. End it now, as a failure, so the
+	// Refused: after boot, with an intent the channel would not take. End it now, as a failure, so the
 	// bank is never left in flight and a failed save still shows the card error.
 	inFlight_.outcome =
 	    intent.kind == FavouritesIntent::Kind::Load ? SettingsOutcome::Unreadable : SettingsOutcome::WriteFailed;

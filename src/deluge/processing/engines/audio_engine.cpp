@@ -1645,9 +1645,9 @@ void doRecorderCardRoutines() {
 
 namespace {
 // Coalesced SD-routine dispatch of the recorder card-write drain onto the storage
-// owner (the worker fiber on Embassy). SD-routine-class: while a drain is in flight
-// the RESOURCE_SD_ROUTINE gate holds off audioRecorder.slowRoutine (discardRecorder),
-// so the recorder can't be freed mid-drain. Only ever touched on the main executor.
+// owner (the worker fiber on Embassy) -- before boot only; after it the drain runs inline. SD-routine-class: while a
+// drain is in flight the RESOURCE_SD_ROUTINE gate holds off audioRecorder.slowRoutine (discardRecorder), so the
+// recorder can't be freed mid-drain. Only ever touched on the main executor.
 deluge::storage::Coalescer g_recorder_coalescer{/*sd_routine=*/true};
 
 void recorder_card_routines_fill(void*) {
@@ -1708,7 +1708,8 @@ void requestRecorderCardRoutines() {
 		return;
 	}
 	// Already the storage owner -- always, on a cooperative or C-host build, where FatFS runs inline on the
-	// caller: run the drain inline. On Embassy nothing runs on the fiber any more, so this is never taken there.
+	// caller: run the drain inline. On Embassy only the before-boot coalescer below dispatches onto the fiber, and its
+	// job never re-enters here.
 	if (deluge_storage_on_owner()) {
 		doRecorderCardRoutines();
 		return;
@@ -1749,8 +1750,8 @@ void slowRoutine() {
 
 	createdNewRecorder = false;
 
-	// Go through all SampleRecorders, getting them to write etc — via the storage
-	// owner (SD-routine-class; inline on legacy/host, coalesced on the fiber on Embassy).
+	// Go through all SampleRecorders, getting them to write etc (inline after boot, and always on legacy/host;
+	// coalesced onto the fiber on Embassy only before boot).
 	requestRecorderCardRoutines();
 }
 

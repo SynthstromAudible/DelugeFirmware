@@ -24,7 +24,6 @@
 #include "libdeluge/file_io.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
-#include "storage/owner.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <string.h>
@@ -33,15 +32,14 @@
 Error SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 
 	// NO inline initSD() pre-flight here. This runs on the interaction tier (thread mode), where the
-	// storage C-ABI legitimately refuses to act: off the storage owner `deluge_efatfs_mount()` returns
-	// false, so initSD() answered Error::SD_CARD ("the card is broken") for what was really "ask me
-	// from the owner". On the Rust BSP that made every slot browser — LOAD SONG included — fail with
-	// "SD card error" on a perfectly healthy mounted card.
+	// storage C-ABI refused to act from there: `deluge_efatfs_mount()` returned false, so initSD() answered
+	// Error::SD_CARD ("the card is broken") for a card that was fine. On the Rust BSP that made every slot
+	// browser — LOAD SONG included — fail with "SD card error" on a perfectly healthy mounted card.
 	//
-	// Nothing is lost by dropping it: the listing that follows is dispatched onto the storage owner
-	// (Browser::beginListing -> Owner::run), calls initSD() there where the filesystem can answer, and
-	// reports a genuine failure through Browser::onListingFailed(). The check only ever bought us not
-	// drawing the QWERTY keyboard before a card error, and it paid for that by inventing card errors.
+	// Nothing is lost by dropping it: the listing that follows reads the folder through the directory
+	// channel (Browser::beginListing), and reports a genuine failure through Browser::onListingFailed(). The check only
+	// ever bought us not drawing the QWERTY keyboard before a card error, and it paid for that by inventing card
+	// errors.
 
 	// But we won't try to open the folder yet, because we don't yet know what it should be.
 

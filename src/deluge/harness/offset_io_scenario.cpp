@@ -485,7 +485,7 @@ void runTick() {
 		printf("OI-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
 
 		{
-			// Every verb above ran after boot, off the owner: none may have been refused.
+			// Every verb above ran after boot: none may have been refused.
 			const int32_t illegal = deluge::storage::bytes::illegalInline();
 			printf("OI-ILLEGAL illegal=%d\n", illegal);
 			if (illegal != 0) {

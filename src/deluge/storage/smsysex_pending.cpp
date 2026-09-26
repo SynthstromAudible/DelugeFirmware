@@ -279,7 +279,7 @@ void issue() {
 	}
 	g_ownerDone = false;
 	if (!deluge::storage::bytes::runDuringBoot([](void*) { runInline(); }, nullptr)) {
-		// Refused: after boot, off the owner, only a channel that stopped answering reaches here. The host
+		// Refused: after boot, only a channel that stopped answering reaches here. The host
 		// is told the operation timed out rather than left waiting for a reply that never comes.
 		g_ownerStatus = deluge::io::Status::TIMEOUT;
 		g_ownerDone = true;

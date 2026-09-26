@@ -54,7 +54,7 @@ constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 /// The channel is single-flight across all operation kinds, so a settings write in flight refuses
 /// this machine's request. Retrying is right -- the machine is already ticking -- but an unbounded
 /// retry would let a busy channel wedge boot. After this many the machine runs the operation inline
-/// where blocking is legal; after boot, off the owner, that is refused, and the operation fails
+/// where blocking is legal; after boot, that is refused, and the operation fails
 /// through the machine's own cautious paths.
 ///
 /// **It counts re-asks as well as refusals, and that is the half that matters.** A refusal is a
@@ -217,7 +217,7 @@ void issueExists(const char* path) {
 		        g_ownerDone = true;
 	        },
 	        nullptr)) {
-		// Refused: after boot, off the owner, only a stalled channel reaches here. The question has no
+		// Refused: after boot, only a stalled channel reaches here. The question has no
 		// answer -- "could not tell", which `startup_action` reads as Unusable and the policy never acts on.
 		g_ownerPresence = std::unexpected(deluge::io::Status::TIMEOUT);
 		g_ownerDone = true;

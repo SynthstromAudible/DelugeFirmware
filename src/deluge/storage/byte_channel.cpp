@@ -324,7 +324,7 @@ void finishWith(SettingsOutcome outcome) {
 
 /// Give up on the channel for the operation in flight, tell its submitter it failed, and go idle.
 ///
-/// Nothing is redone elsewhere: after boot, off the owner, the channel is the only legal place for card I/O.
+/// Nothing is redone elsewhere: after boot, the channel is the only legal place for card I/O.
 void abandonChannel() {
 	switch (g_pending.step) {
 	case Step::MkdirAllRequest:

@@ -227,7 +227,7 @@ private:
 	[[nodiscard]] static bool docInline();
 	/// @brief Run the current phase synchronously, during boot. @return false if the step failed.
 	[[nodiscard]] bool runOneDocStep();
-	/// @brief One document step, blocking. Only legal on the storage owner.
+	/// @brief One document step, blocking. Only legal during boot.
 	[[nodiscard]] bool docStepSynchronously();
 
 	CollectPhase collectPhase_{CollectPhase::NONE};

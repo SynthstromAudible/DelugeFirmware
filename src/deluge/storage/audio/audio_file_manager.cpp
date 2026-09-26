@@ -291,7 +291,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 		std::optional<deluge::io::Directory> dir;
 		const bool useDirChannel = deluge::boot::finished();
 		if (!useDirChannel) {
-			// Counted, and frozen in alpha and beta builds, if it is ever reached off the storage owner after boot.
+			// Counted, and frozen in alpha and beta builds, if it is ever reached after boot.
 			deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Recorder);
 			auto opened = deluge::io::Directory::open(audioRecordingFolderNames[folderID]);
 			if (opened.has_value()) {
