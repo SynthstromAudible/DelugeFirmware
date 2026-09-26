@@ -38,7 +38,10 @@
 #include "storage/audio/card_reinsert.h"
 
 #include "deluge_resource.h" // resource manager: unlease manager-owned SAMPLE clusters
+#include "libdeluge/sample_reader.h"
+#include "libdeluge/sample_source.h"
 #include "model/sample/sample_cache.h"
+#include "model/sample/sample_reader_bridge.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -729,6 +732,112 @@ AudioFile* AudioFileManager::matchingResidentAudioFile(int32_t audioFileI, const
 	return nullptr;
 }
 
+std::optional<AudioFile*> AudioFileManager::tryConvertResidentSample(Sample& sample, bool makeWaveTableWorkAtAllCosts,
+                                                                     Error* error) {
+	// Stereo files can never be WaveTables.
+	if (sample.numChannels != 1) {
+		*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
+		return nullptr;
+	}
+
+	// If the user isn't insisting, some signs show we probably don't want to load this as a WaveTable: an
+	// AIFF, or a file that neither specifies itself as a wavetable nor has a wavetable-looking length.
+	if (!makeWaveTableWorkAtAllCosts) {
+		const bool looksLikeWaveTable =
+		    sample.fileExplicitlySpecifiesSelfAsWaveTable || (sample.lengthInSamples & 2047) == 0;
+		if (isAiffFilename(sample.filePath.c_str()) || !looksLikeWaveTable) {
+			*error = Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
+			return nullptr;
+		}
+	}
+
+	// Only a Sample whose every audio cluster is cached is converted: the rest would be card reads anyway, and the
+	// card build reads the file in one sequential pass. Peek first -- it neither loads nor pins -- so a Sample that
+	// is not fully resident costs nothing here.
+	const uint32_t first = sample.audioDataStartPosBytes >> Cluster::size_magnitude;
+	const uint32_t last = (sample.audioDataStartPosBytes + static_cast<uint32_t>(sample.audioDataLengthBytes) - 1)
+	                      >> Cluster::size_magnitude;
+	const uint32_t sourceId = deluge::sample::source_id_for(sample);
+	const uint32_t stride = static_cast<uint32_t>(sample.byteDepth) * sample.numChannels;
+	for (uint32_t c = first; c <= last; c++) {
+		const uint64_t clusterFirstByte =
+		    std::max<uint64_t>(static_cast<uint64_t>(c) << Cluster::size_magnitude, sample.audioDataStartPosBytes);
+		const uint64_t frame = (clusterFirstByte - sample.audioDataStartPosBytes + stride - 1) / stride;
+		if (deluge_sample_peek(sourceId, frame, +1).frames == nullptr) {
+			return std::nullopt;
+		}
+	}
+
+	// Pin every cluster for the whole conversion: it allocates (the WaveTable and its bands), and an allocation may
+	// evict an unpinned cluster of this very Sample mid-read. Anything not READY now was evicted after the peek.
+	DelugeSampleGeometry geometry{};
+	geometry.audio_data_start_bytes = sample.audioDataStartPosBytes;
+	geometry.audio_data_length_bytes = sample.audioDataLengthBytes;
+	geometry.cluster_size_bytes = static_cast<uint32_t>(Cluster::size);
+	geometry.byte_depth = sample.byteDepth;
+	geometry.num_channels = sample.numChannels;
+	geometry.raw_data_format = static_cast<uint8_t>(sample.rawDataFormat);
+	DelugeSampleSource* source = deluge_sample_source_open(&sample.stream(), geometry);
+	if (source == nullptr) {
+		return std::nullopt;
+	}
+	std::vector<uint64_t> leases;
+	leases.reserve(last - first + 1);
+	auto releaseAll = [&] {
+		for (uint64_t lease : leases) {
+			deluge_sample_region_release(lease);
+		}
+		deluge_sample_source_close(source);
+	};
+	for (uint32_t c = first; c <= last; c++) {
+		DelugeSampleRegion region{};
+		if (deluge_sample_region_acquire_ex(source, c, +1, 0, &region) != DELUGE_REGION_READY) {
+			releaseAll();
+			return std::nullopt;
+		}
+		deluge_sample_region_retain(region.lease);
+		leases.push_back(region.lease);
+	}
+	conversionPinnedClusters_ += static_cast<int32_t>(leases.size());
+
+	void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
+	if (waveTableMemory == nullptr) {
+		*error = Error::INSUFFICIENT_RAM;
+		releaseAll();
+		return nullptr;
+	}
+
+	auto* newWaveTable = new (waveTableMemory) WaveTable;
+	adoptAudioFileObject(newWaveTable); // resource-manager evictable object (before addReason)
+	newWaveTable->addReason();          // So it's protected while setting up.
+	sample.addReason();
+
+	*error = newWaveTable->setupFromSample(sample);
+	if (*error != Error::NONE) {
+		// Release the source Sample's protect-during-setup reason on this path too, or it stays pinned as
+		// project-referenced and non-evictable after a failed conversion.
+		sample.removeReason("E400");
+		destroyAudioFileObject(*newWaveTable);
+		releaseAll();
+		return nullptr;
+	}
+
+	const auto inserted = audioFiles.insertElement(newWaveTable);
+	*error = inserted ? Error::NONE : inserted.error();
+
+	newWaveTable->removeReason("E397");
+	sample.removeReason("E398");
+	releaseAll();
+
+	if (!inserted) {
+		destroyAudioFileObject(*newWaveTable);
+		return nullptr;
+	}
+
+	waveTablesConverted_++;
+	return newWaveTable;
+}
+
 AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
                                                       AudioFileType type, bool makeWaveTableWorkAtAllCosts,
                                                       deluge::storage::AsyncLoadMode asyncMode,
@@ -788,9 +897,18 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 			return residentOfWantedType;
 		}
 
-		// We found the path but not the wanted type (want Sample, have WaveTable, or the reverse). We don't convert: a
-		// WaveTable wanted over a resident Sample is built from the card, as when no Sample is resident. So load from
-		// card after all -- restoring the original filePath if we'd switched to the alternate one (pretty unlikely).
+		// We found the path but not the wanted type. A WaveTable wanted over a resident Sample is converted from
+		// memory when every cluster of it is cached; otherwise it is built from the card, as when no Sample is
+		// resident.
+		if (type == AudioFileType::WAVETABLE && audioFiles[audioFileI]->type == AudioFileType::SAMPLE) {
+			if (std::optional<AudioFile*> converted = tryConvertResidentSample(
+			        static_cast<Sample&>(*audioFiles[audioFileI]), makeWaveTableWorkAtAllCosts, error)) {
+				return *converted;
+			}
+		}
+
+		// Otherwise (want Sample, have WaveTable; or a Sample not fully cached) load from card after all -- restoring
+		// the original filePath if we'd switched to the alternate one (pretty unlikely scenario).
 		if (!backedUpFilePath.empty()) {
 			filePath = backedUpFilePath;
 		}

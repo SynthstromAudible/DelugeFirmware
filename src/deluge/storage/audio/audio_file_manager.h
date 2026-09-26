@@ -327,6 +327,14 @@ public:
 	[[nodiscard]] int32_t conversionPinnedClusters() const { return conversionPinnedClusters_; }
 
 private:
+	/// @brief Convert @p sample into a WaveTable from memory, if every one of its audio clusters is cached.
+	///
+	/// Peeks every cluster (loading and pinning nothing), then pins them all for the conversion and releases them
+	/// on every path. One synchronous call over pinned memory: it never waits for a cluster.
+	/// @return The WaveTable (held by no reason); std::nullopt when not every cluster is resident (build from the
+	///         card); or nullptr with @p error set when the Sample cannot be a WaveTable at all.
+	std::optional<AudioFile*> tryConvertResidentSample(Sample& sample, bool makeWaveTableWorkAtAllCosts, Error* error);
+
 	int32_t waveTablesConverted_ = 0;
 	int32_t waveTablesBuiltFromCard_ = 0;
 	int32_t conversionPinnedClusters_ = 0;
