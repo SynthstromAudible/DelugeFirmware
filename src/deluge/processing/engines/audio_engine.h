@@ -26,6 +26,7 @@
 #include "model/output.h"
 #include "util/audio_owned_list.h"
 #include "util/containers.h"
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 
@@ -263,4 +264,17 @@ void feedReverbBackdoorForGrain(int index, q31_t value);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
+
+/// @brief [interaction] Hand a drum the caller has already taken out of its kit over to the render, which ends its
+///        voices and deregisters it at the top of its next block; it is destroyed and freed two blocks after that.
+///        Replaces `drum->~SoundDrum(); delugeDealloc(...)`: the caller must not touch @p drum afterwards.
+void retire(SoundDrum* drum);
+/// @brief [interaction] As above, for an output the caller has already unlinked from the song's lists. A synth's Sound
+///        and every SoundDrum of a kit are let go by the render; every output kind is destroyed two blocks later.
+void retire(Output* output);
+/// @brief [interaction] Destroy every retired object the render has let go of and run two blocks past. Called by
+///        a repeating scheduler task and, opportunistically, by retire().
+void reclaimRetired();
+/// @brief [interaction] How many retired objects are still waiting to be destroyed. Test/diagnostic hook.
+std::size_t retiredPending();
 } // namespace AudioEngine

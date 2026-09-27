@@ -61,8 +61,6 @@ Kit::~Kit() {
 
 	// Delete all Drums
 	while (firstDrum) {
-		AudioEngine::logAction("~Kit");
-		AudioEngine::routineWithClusterLoading();
 		Drum* toDelete = firstDrum;
 		firstDrum = firstDrum->next;
 

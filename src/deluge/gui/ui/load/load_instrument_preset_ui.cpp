@@ -1253,9 +1253,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	if (soundDrumToReplace != nullptr) {
 		currentSong->deleteBackedUpParamManagersForModControllable(soundDrumToReplace);
 		soundDrumToReplace->wontBeRenderedForAWhile();
-		void* toDealloc = static_cast<void*>(soundDrumToReplace);
-		soundDrumToReplace->~SoundDrum();
-		deluge::memory::dealloc(toDealloc);
+		AudioEngine::retire(soundDrumToReplace);
 	}
 	soundDrumToReplace = newDrum;
 

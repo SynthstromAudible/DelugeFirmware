@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # sound_lifetime.sh — the sound-lifetime probe.
 #
-# Deletes a sounding synth and a sounding kit through each real deletion path, and reports how many Sounds each path
-# destroyed while they still had live voices (Sound::soundsDestroyedWithLiveVoices()).
+# Deletes a sounding synth and a sounding kit through each real deletion path, and requires that no path destroys a
+# Sound while it still has live voices (Sound::soundsDestroyedWithLiveVoices()), and that everything the deletions
+# retired is freed once the render has run past it.
 #
 # ## Why this gate exists
 #
@@ -18,15 +19,21 @@
 #   SL-SYNTH     a synth in the song, deleted through Song::deleteOutputThatIsInMainList().
 #   SL-UNEDITED  an un-edited synth in no list, deleted through Song::deleteOrAddToHibernationListOutput().
 #   SL-KIT       a kit in the song with a sounding synth drum, deleted through deleteOutputThatIsInMainList().
-#   SL-DELETEDRUM a sounding drum deleted with InstrumentClipView::deleteDrum()'s steps: Kit::removeDrum(), the note
-#                row's reassignment, then the destroy-and-free. The only drum-delete site that can destroy a sounding
-#                drum: the preset-replace site kills the voices first, and the folder-import, slicer and
-#                instrument-load sites only drop drums that never sounded.
+#   SL-DELETEDRUM a sounding drum deleted with InstrumentClipView::deleteDrum()'s steps: the note row's note stopped
+#                and the drum taken out of drumsWithRenderingActive, Kit::removeDrum(), the note row's reassignment,
+#                then AudioEngine::retire(). The only drum-delete site that can reach a sounding drum: the
+#                preset-replace site kills the voices first, and the folder-import, slicer and instrument-load sites
+#                only drop drums that never sounded.
+#   SL-RECLAIM   after the last leg and a few more blocks: how many retired objects still wait to be destroyed.
 #
-# Report only: the counts are printed, not asserted. The run fails only when a leg's fixture could not be built or
-# never sounded, a line is missing, or a deletion ends the process: a firmware freeze (E321 from Kit::removeDrum on a
-# drum still in drumsWithRenderingActive; FREEZE_WITH_ERROR aborts on the host BSP) or a std::terminate. A leg that
-# does still prints its count first, marked aborted=1 with the step it died in, and the run's SL-RESULT.
+# Every deletion now retires (AudioEngine::retire): the render ends the voices and deregisters the Sounds at the top
+# of its next block, and the memory is freed two blocks later, so a leg's count is read after its settle blocks, and
+# a leg whose objects are still waiting at that point fails. Required: every leg destroyedWithLiveVoices=0 and
+# SL-RECLAIM pending=0. The run also fails when a leg's fixture could not be built or never sounded, a line is
+# missing, or a deletion ends the process: a firmware freeze (E321 from Kit::removeDrum on a drum still in
+# drumsWithRenderingActive; FREEZE_WITH_ERROR aborts on the host BSP) or a std::terminate, during the deletion or the
+# deferred destruction in the settle. A leg that does still prints its count first, marked aborted=1 with the step it
+# died in, and the run's SL-RESULT.
 #
 # A missing marker fails the run: a stage that never ran reports nothing, and the failure count cannot show that.
 #
@@ -95,7 +102,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SL-SYNTH SL-UNEDITED SL-KIT SL-DELETEDRUM SL-RESULT; do
+for marker in SL-SYNTH SL-UNEDITED SL-KIT SL-DELETEDRUM SL-RECLAIM SL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^SL-' "$OUT/run.txt"
@@ -110,5 +117,19 @@ if ! grep -q '^SL-RESULT failures=0$' "$OUT/run.txt"; then
 	exit 1
 fi
 
+# Every deletion path must end a Sound's voices before any part of it is destroyed.
+for leg in SL-SYNTH SL-UNEDITED SL-KIT SL-DELETEDRUM; do
+	if ! grep -q "^$leg destroyedWithLiveVoices=0\$" "$OUT/run.txt"; then
+		echo "FAIL — $(grep "^$leg destroyedWithLiveVoices=" "$OUT/run.txt"): a Sound was destroyed with live voices"
+		exit 1
+	fi
+done
+
+# Everything retired has been freed once the render has run two blocks past it.
+if ! grep -q '^SL-RECLAIM pending=0$' "$OUT/run.txt"; then
+	echo "FAIL — $(grep '^SL-RECLAIM' "$OUT/run.txt"): a retired object was never freed"
+	exit 1
+fi
+
 grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
-echo "PASS — every leg sounded and was deleted; the counts above are reported, not asserted"
+echo "PASS — every leg sounded and was deleted with no live voices, and everything retired was freed"

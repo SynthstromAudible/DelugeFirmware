@@ -38,7 +38,9 @@ bool deluge_scenario_sound_lifetime_complete(void);
 void deluge_scenario_sound_lifetime_dispatch_step(void);
 /// @brief Whether the last stage has run.
 bool deluge_scenario_sound_lifetime_step_done(void);
-/// @brief How many fixtures could not be built, or never sounded. The counts themselves are reported, not asserted.
+/// @brief How many fixtures could not be built or never sounded, deletions left objects waiting to be destroyed at
+///        their report, or retired objects were never freed. The destroyed-with-live-voices counts are checked by
+///        the script.
 int32_t deluge_scenario_sound_lifetime_failures(void);
 
 } // extern "C"

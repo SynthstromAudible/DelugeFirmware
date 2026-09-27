@@ -44,6 +44,7 @@
 #include "libdeluge/signals.h"
 #include "libdeluge/streaming_fill.h" // deluge_streaming_resource_manager()
 #include "libdeluge/system.h"
+#include "libdeluge/tier.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stack_guard.h"
 #include "model/instrument/kit.h"
@@ -80,6 +81,12 @@
 #include <numeric>
 #include <ranges>
 
+// Last, after every other header: these declare namespace deluge::util, which would shadow the global ::util for
+// the headers above that name util:: from inside namespace deluge.
+#include "deluge/util/retire_list.h"
+#include "deluge/util/spsc_ring.h"
+#include "processing/engines/render_domain.h"
+
 namespace params = deluge::modulation::params;
 
 using namespace deluge;
@@ -102,6 +109,80 @@ extern "C" uint32_t getAudioSampleTimerMS() {
 }
 // Pitch, Y, Pressure
 int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
+
+// Retirement: how the interaction tier hands the render an object it has stopped using (a deleted output or drum), so
+// that the render lets go of it before its memory is freed. See AudioEngine::retire().
+namespace {
+deluge::util::SnapshotDomain renderDomain_;
+deluge::RetireList retireList{renderDomain_};
+
+/// What the render must let go of before a retired object may be destroyed.
+struct RetireRequest {
+	Output* output = nullptr;  ///< a retired output (a SoundInstrument is a Sound; a Kit owns SoundDrums)
+	SoundDrum* drum = nullptr; ///< a retired drum
+};
+deluge::util::SpscRing<RetireRequest, 64> retireRing;
+std::vector<RetireRequest> retireOverflow; ///< [interaction] requests the ring had no room for, re-pushed at reclaim
+
+/// [render] End a Sound's voices and take it out of the registry: after this no walk can reach it.
+void letGoOfSound(Sound& sound) {
+	sound.killAllVoices();
+	AudioEngine::sounds.remove(&sound);
+}
+
+/// [render] Let go of everything a retired object owns that the render can reach.
+void letGo(const RetireRequest& r) {
+	if (r.drum != nullptr) {
+		letGoOfSound(*r.drum);
+	}
+	if (r.output != nullptr) {
+		if (r.output->type == OutputType::SYNTH) {
+			letGoOfSound(*static_cast<SoundInstrument*>(r.output));
+		}
+		else if (r.output->type == OutputType::KIT) {
+			for (Drum* d = static_cast<Kit*>(r.output)->firstDrum; d != nullptr; d = d->next) {
+				if (d->type == DrumType::SOUND) {
+					letGoOfSound(*static_cast<SoundDrum*>(d));
+				}
+			}
+		}
+	}
+}
+
+void pushOrOverflow(const RetireRequest& r) {
+	if (!retireRing.try_push(r)) {
+		retireOverflow.push_back(r);
+	}
+}
+
+/// Hand a retired object over: the render lets go of it (ends voices, deregisters Sounds), then it is destroyed once
+/// two blocks have passed. Three cases, decided once from a single epoch read:
+///  - the render has never run (epoch 0, boot): nothing can reach it; let go inline and destroy now;
+///  - the caller IS the render: let go inline, destroy later (other walks this block may hold it). No render path
+///    retires today (the song swap runs on the interaction tier), and RetireList is single-threaded on the
+///    interaction side, so a render path that starts retiring needs its own handover of the destroy;
+///  - otherwise: the render lets go at the top of its next block (the ring); destroy later.
+void handOver(const RetireRequest& r, void* object, void (*destroy)(void*)) {
+	const bool renderHasRun = renderDomain_.audio_epoch() != 0;
+	if (!renderHasRun) {
+		letGo(r);
+		destroy(object);
+		return;
+	}
+	const uint8_t tier = deluge_tier_current();
+	if (tier == DELUGE_TIER_AUDIO) {
+		letGo(r);
+	}
+	else {
+		// The ring is single-producer: only the interaction tier may push to it.
+		if (tier != DELUGE_TIER_INTERACTION) {
+			FREEZE_WITH_ERROR("E455");
+		}
+		pushOrOverflow(r);
+	}
+	retireList.retire(object, destroy);
+}
+} // namespace
 
 namespace AudioEngine {
 
@@ -628,6 +709,11 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 	checkStack("AudioDriver::routine");
 
 	fillInputRing(in, frames);
+
+	// A new block: advance the lifetime epoch, then let go of everything retired since the last one -- before any
+	// walk below can reach it. The epoch's release store is what lets RetireList free it two blocks later.
+	renderDomain_.advance_epoch();
+	(void)retireRing.drain([](RetireRequest&& r) { letGo(r); }, 16);
 
 	bool offline = stemExport.processStarted && stemExport.renderOffline;
 
@@ -1583,7 +1669,7 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 
 // TODO: delete unused ones
 LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
-	const auto idx = util::to_underlying(inputType) - util::to_underlying(OscType::INPUT_L);
+	const auto idx = ::util::to_underlying(inputType) - ::util::to_underlying(OscType::INPUT_L);
 	if (!liveInputBuffers[idx]) {
 		if (!mayCreate) {
 			return nullptr;
@@ -1833,6 +1919,48 @@ bool isAnyInternalRecordingHappening() {
 	}
 
 	return false;
+}
+
+deluge::util::SnapshotDomain& renderDomain() {
+	return renderDomain_;
+}
+
+void retire(SoundDrum* drum) {
+	handOver(RetireRequest{.drum = drum}, drum, [](void* p) {
+		auto* d = static_cast<SoundDrum*>(p);
+		void* memory = dynamic_cast<void*>(d);
+		d->~SoundDrum();
+		delugeDealloc(memory);
+	});
+	reclaimRetired();
+}
+
+void retire(Output* output) {
+	handOver(RetireRequest{.output = output}, output, [](void* p) {
+		auto* o = static_cast<Output*>(p);
+		void* memory = dynamic_cast<void*>(o);
+		o->~Output();
+		delugeDealloc(memory);
+	});
+	reclaimRetired();
+}
+
+void reclaimRetired() {
+	while (!retireOverflow.empty() && retireRing.try_push(retireOverflow.front())) {
+		retireOverflow.erase(retireOverflow.begin());
+	}
+	// A request still in the ring or the overflow names an object the render has not let go of yet: it is still in
+	// the Sound registry, so a walk can still reach it, whatever its stamp says. Destroy nothing until the render has
+	// drained every request pushed so far (the drain budget is per block, so a burst can take several blocks).
+	if (!retireOverflow.empty() || !retireRing.drained()) {
+		return;
+	}
+	retireList.reclaim();
+}
+
+std::size_t retiredPending() {
+	// Every retired object not yet destroyed is in the list, whether or not its request has reached the render.
+	return retireList.size();
 }
 
 } // namespace AudioEngine

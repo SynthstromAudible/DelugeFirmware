@@ -903,8 +903,7 @@ getOut:
 
 				range = source->getOrCreateFirstRange();
 				if (!range) {
-					drum->~SoundDrum();
-					delugeDealloc(drumMemory);
+					AudioEngine::retire(drum);
 					goto getOut;
 				}
 

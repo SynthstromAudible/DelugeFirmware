@@ -470,6 +470,8 @@ void registerTasks() {
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
 	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow", RESOURCE_NONE);
+	// frees what deleted outputs and drums handed to the render, once it has run two blocks past them
+	addRepeatingTask([]() { AudioEngine::reclaimRetired(); }, p++, 0.005, 0.01, 0.05, "reclaim retired", RESOURCE_NONE);
 	addRepeatingTask(&(readButtonsAndPadsOnce), p++, 0.005, 0.005, 0.01, "buttons and pads", RESOURCE_NONE);
 
 	// 11-19: Medium priority (20 for dyn tasks)

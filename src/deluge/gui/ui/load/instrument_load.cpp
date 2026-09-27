@@ -28,6 +28,7 @@
 #include "model/instrument/instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/file_item.h"
 #include "util/functions.h"
@@ -602,9 +603,7 @@ void InstrumentLoad::abandon() {
 	}
 	if (newDrum_ != nullptr) {
 		currentSong->deleteBackedUpParamManagersForModControllable(newDrum_);
-		void* toDealloc = static_cast<void*>(newDrum_);
-		newDrum_->~SoundDrum();
-		deluge::memory::dealloc(toDealloc);
+		AudioEngine::retire(newDrum_);
 		newDrum_ = nullptr;
 	}
 }

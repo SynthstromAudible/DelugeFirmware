@@ -759,8 +759,7 @@ Error Slicer::doSlice(int32_t sliceCount) {
 
 			MultisampleRange* range = (MultisampleRange*)newDrum->sources[0].getOrCreateFirstRange();
 			if (!range) {
-				newDrum->~SoundDrum();
-				delugeDealloc(drumMemory);
+				AudioEngine::retire(newDrum);
 				return Error::INSUFFICIENT_RAM;
 			}
 

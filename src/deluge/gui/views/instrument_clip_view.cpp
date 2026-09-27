@@ -5445,18 +5445,28 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
 	Kit* kit = getCurrentKit();
 
-	kit->removeDrum(drum);
-
 	// Find Drum's NoteRow
 	int32_t noteRowIndex;
 	NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(drum, &noteRowIndex);
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+
+	// The drum may still be sounding (an audition pad held through LOAD/KIT and back), and the kit's render only
+	// ever reaches a drum in its drumsWithRenderingActive: end its note and take it out of that set before removing
+	// it, as the preset-replace path (LoadInstrumentPresetUI::swapKitRow) does. Its voices are ended by the render
+	// when it lets go of the retired drum, below.
+	// TODO: drumsWithRenderingActive is the render's set, written here from the interaction tier (swapKitRow does
+	// the same). A pre-existing cross-tier write, left for the interaction-side voice/render-set commands.
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    (noteRow != nullptr) ? modelStack->addNoteRow(noteRowIndex, noteRow) : nullptr;
 	if (noteRow) {
+		noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+	}
+	kit->drumsWithRenderingActive.erase(drum);
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	kit->removeDrum(drum);
 
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
-
+	if (noteRow) {
 		// Give NoteRow another unassigned Drum, or no Drum if there are none
 		noteRow->setDrum(kit->getFirstUnassignedDrum(getCurrentInstrumentClip()), kit, modelStackWithNoteRow);
 
@@ -5472,11 +5482,9 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 		}
 	}
 
-	// Delete the Drum we came here to delete
+	// Delete the Drum we came here to delete: the render ends its voices and lets go of it before it is freed
 	currentSong->deleteBackedUpParamManagersForModControllable(drum);
-	void* toDealloc = dynamic_cast<void*>(drum);
-	drum->~SoundDrum();
-	delugeDealloc(toDealloc);
+	AudioEngine::retire(drum);
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 

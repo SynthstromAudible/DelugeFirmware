@@ -65,7 +65,7 @@ constexpr int32_t kSettleTicks = 10;
 /// Each leg is one real deletion path, run on a Sound that is sounding when it is deleted.
 enum class Leg : uint8_t { Synth, Unedited, Kit, DeleteDrum, Done };
 
-enum class Stage : uint8_t { Setup, Sounding, Delete, Settle, Report, Summary, Done };
+enum class Stage : uint8_t { Setup, Sounding, Delete, Settle, Report, Reclaim, Summary, Done };
 
 Stage g_stage = Stage::Setup;
 Leg g_leg = Leg::Synth;
@@ -91,6 +91,9 @@ uint32_t g_timerAtNoteOn = 0;
 int32_t g_before = 0;
 /// Which step of the deletion is running, for the abort report: a deletion that aborts has no other way to say where.
 const char* volatile g_step = nullptr;
+/// The handlers the deletion's own replaced, restored at the report.
+std::terminate_handler g_previousTerminate = nullptr;
+void (*g_previousAbort)(int) = SIG_DFL;
 /// Set by the terminate handler, so the abort report can tell a std::terminate from a firmware freeze.
 volatile bool g_terminated = false;
 /// DELETEDRUM: whether the drum was in its kit's drumsWithRenderingActive when the deletion began. Kit::drumRemoved()
@@ -313,18 +316,26 @@ void deleteLeg() {
 		// only drum-delete site that can destroy a sounding drum: the preset-replace site kills the drum's voices
 		// first (wontBeRenderedForAWhile()), and the folder-import, slicer and instrument-load sites only drop drums
 		// that were never in a kit.
+		int32_t noteRowIndex = 0;
+		NoteRow* noteRow = g_clip->getNoteRowForDrum(g_drum, &noteRowIndex);
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, g_clip);
+
+		g_step = "stopNote";
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    (noteRow != nullptr) ? modelStack->addNoteRow(noteRowIndex, noteRow) : nullptr;
+		if (noteRow != nullptr) {
+			noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+		}
+		g_kit->drumsWithRenderingActive.erase(g_drum);
+
 		g_renderingActiveAtDelete = g_kit->drumsWithRenderingActive.contains(g_drum);
 		g_step = "removeDrum";
 		g_kit->removeDrum(g_drum);
 
 		g_step = "noteRow";
-		int32_t noteRowIndex = 0;
-		NoteRow* noteRow = g_clip->getNoteRowForDrum(g_drum, &noteRowIndex);
 		if (noteRow != nullptr) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithTimelineCounter* modelStack =
-			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, g_clip);
-			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 			noteRow->setDrum(g_kit->getFirstUnassignedDrum(g_clip), g_kit, modelStackWithNoteRow);
 			if (noteRow->drum == nullptr && noteRow->hasNoNotes() && g_clip->getNumNoteRows() > 1) {
 				if (noteRowIndex == 0) {
@@ -334,11 +345,9 @@ void deleteLeg() {
 			}
 		}
 
-		g_step = "destroy";
+		g_step = "retire";
 		currentSong->deleteBackedUpParamManagersForModControllable(g_drum);
-		void* toDealloc = dynamic_cast<void*>(g_drum);
-		g_drum->~SoundDrum();
-		delugeDealloc(toDealloc);
+		AudioEngine::retire(g_drum);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 		g_step = nullptr;
 		break;
@@ -366,7 +375,8 @@ void runTick() {
 	switch (g_stage) {
 	case Stage::Setup:
 		if (g_leg == Leg::Done) {
-			g_stage = Stage::Summary;
+			g_ticks = 0;
+			g_stage = Stage::Reclaim;
 			break;
 		}
 		if (!setupLeg()) {
@@ -397,17 +407,18 @@ void runTick() {
 		g_before = Sound::soundsDestroyedWithLiveVoices();
 		g_step = nullptr;
 		g_terminated = false;
-		const std::terminate_handler previousTerminate = std::set_terminate(noteTerminatedDeletion);
-		const auto previousAbort = std::signal(SIGABRT, reportAbortedDeletion);
+		// The handlers stay in until the report: the deletion hands the leg's objects to the render, and they are
+		// destroyed during the settle, two blocks later.
+		g_previousTerminate = std::set_terminate(noteTerminatedDeletion);
+		g_previousAbort = std::signal(SIGABRT, reportAbortedDeletion);
 		deleteLeg();
-		std::signal(SIGABRT, previousAbort);
-		std::set_terminate(previousTerminate);
 		g_ticks = 0;
 		g_stage = Stage::Settle;
 		break;
 	}
 	case Stage::Settle:
 		// A block per tick, so a destruction deferred to the render's next blocks has them.
+		g_step = "settle";
 		renderBlocks(1);
 		if (++g_ticks < kSettleTicks) {
 			break;
@@ -415,11 +426,33 @@ void runTick() {
 		g_stage = Stage::Report;
 		break;
 	case Stage::Report:
+		std::signal(SIGABRT, g_previousAbort);
+		std::set_terminate(g_previousTerminate);
+		g_step = nullptr;
 		printf("SL-%s destroyedWithLiveVoices=%d\n", legName(g_leg), Sound::soundsDestroyedWithLiveVoices() - g_before);
 		fflush(stdout);
+		if (AudioEngine::retiredPending() != 0) {
+			// The count covers only what was destroyed: an object still waiting would not be in it.
+			fail("the deletion's objects were still waiting to be destroyed at the report");
+		}
 		g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 		g_stage = Stage::Setup;
 		break;
+	case Stage::Reclaim: {
+		// Every leg's deletion handed its objects to the render, which frees them two blocks later: once the
+		// render has run a few more blocks (and the scheduler's reclaim task with them), nothing may be pending.
+		renderBlocks(1);
+		if (++g_ticks < kSettleTicks) {
+			break;
+		}
+		const std::size_t pending = AudioEngine::retiredPending();
+		printf("SL-RECLAIM pending=%u\n", static_cast<unsigned>(pending));
+		if (pending != 0) {
+			g_failures++;
+		}
+		g_stage = Stage::Summary;
+		break;
+	}
 	case Stage::Summary:
 		printf("SL-RESULT failures=%d\n", g_failures);
 		// The Rust runner ends a failing run with process::exit, which does NOT flush C stdio.
