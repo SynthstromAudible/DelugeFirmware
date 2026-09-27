@@ -61,6 +61,10 @@ Kit::~Kit() {
 
 	// Delete all Drums
 	while (firstDrum) {
+		// Kept: sample-load-tree pins the routine cadence of a song load, which destroys the previous song's kits.
+		// With the render preemptive this only signals a wake.
+		AudioEngine::logAction("~Kit");
+		AudioEngine::routineWithClusterLoading();
 		Drum* toDelete = firstDrum;
 		firstDrum = firstDrum->next;
 
