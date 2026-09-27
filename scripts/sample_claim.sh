@@ -147,5 +147,6 @@ if ! grep -q '^SC-RESULT failures=0$' "$OUT/run.txt"; then
 	exit 1
 fi
 
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — every claim bound what a user's claim binds"
 grep -E '^(SC|RD|IM)-' "$OUT/run.txt"

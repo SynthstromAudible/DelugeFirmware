@@ -141,5 +141,6 @@ grep -E '^SC-' "$OUT/run.txt"
 if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the samples were collected into the song's folder, the audio-file list came through"
 echo "       ordered and intact, and the byte channel did the copying off the storage owner"

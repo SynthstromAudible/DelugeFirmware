@@ -104,4 +104,5 @@ grep -E '^SL-' "$OUT/run.txt"
 if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the song loaded back, and the channel staged it off the storage owner"

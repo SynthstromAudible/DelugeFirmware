@@ -147,6 +147,7 @@ grep -E '^DS-' "$OUT/run.txt"
 if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the document was written whole off the storage owner and read back through the channel, a taken"
 echo "       name was refused rather than replaced, and a confirmed overwrite kept the old document until its"
 echo "       replacement was verified"

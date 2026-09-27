@@ -140,5 +140,6 @@ fi
 grep -E '^SR-' "$OUT/evict.txt"
 echo "SL-EVICT ok — same bytes with the song staged into a heap that had to evict first"
 
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" "$OUT/evict.txt" || true
 echo "PASS — the song round-tripped byte-identically, the overwrite seam behaved, no streaming"
 echo "       document reader survives, and staging under eviction changed nothing"

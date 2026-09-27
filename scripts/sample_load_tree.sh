@@ -118,6 +118,7 @@ if ! grep -q '^SLT-RESULT failures=0$' "$OUT/run.txt"; then
 fi
 
 grep -E '^SLT-' "$OUT/run.txt"
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — every holder resolved where the fixture put its file, the abort stopped the kit load, and the"
 echo "       audio clip kept its sample's name; a load while playing bound only what the playing clips need"
 echo "       first, and the rest after its armed swap; and each load, again through the async sample load,"

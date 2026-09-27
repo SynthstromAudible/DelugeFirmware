@@ -106,5 +106,6 @@ if [ -z "$served" ] || [ "$served" -eq 0 ]; then
 fi
 
 grep -E '^PO-' "$OUT/run.txt"
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the protocol replied, browser deletes went through the byte channel, no browser folder creation or"
 echo "       delete ran on the interaction tier, and the byte channel served $served operation(s)"

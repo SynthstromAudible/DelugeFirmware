@@ -101,5 +101,6 @@ if [ -z "$served" ] || [ "$served" -eq 0 ]; then
 fi
 
 grep -E '^SF-' "$OUT/run.txt"
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — no startup fail-safe I/O ran on the interaction tier, and the byte channel served"
 echo "       $served operation(s)"

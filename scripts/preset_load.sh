@@ -163,5 +163,6 @@ if ! grep -q '^PL-RESULT failures=0$' "$OUT/run.txt"; then
 	exit 1
 fi
 
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — every preset load bound what a user's load binds"
 grep -E '^(PL|PW|AQ|RV|MD|BS)-' "$OUT/run.txt"

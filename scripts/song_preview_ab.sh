@@ -191,6 +191,7 @@ if [ "$REFERENCES" -ne $((CASES + 2)) ]; then
 	exit 1
 fi
 
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT_ROOT"/*.txt || true
 echo "PASS — the prefix channel drew all $CASES song(s) as the file read does, agreed on every outcome, held across a card swap, and parsed the DX7 bank"
 grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY \|^SP-PREVIEW-STALL ' "$OUT_ROOT/prefix.txt"
 grep -hE '^SP-LISTING|^SP-NEWNAME|^SP-PREDICT|^SP-SLOT|^SP-BYPATH|^SP-DX|^SP-TIER|^SP-RELOAD' "$OUT_ROOT/prefix.txt" | sed 's/^/ run     /'

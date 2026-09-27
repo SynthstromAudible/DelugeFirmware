@@ -2834,6 +2834,8 @@ fn main() {
 /// discarded.
 fn hard_exit(code: i32) -> ! {
     use std::io::Write as _;
+    // The synchronous-call inventory, on every exit: a failing run's numbers matter as much as a passing one's.
+    tier_meter::print_report();
     let _ = std::io::stdout().flush();
     let _ = std::io::stderr().flush();
     #[cfg(all(target_os = "linux", target_arch = "x86_64"))]

@@ -103,4 +103,5 @@ if ! grep -q '^CS-RESULT failures=0$' "$OUT/run.txt"; then
 	exit 1
 fi
 
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the clear ran on the caller's tier, read no card, and its song landed on a preset InstrumentLoad acquired"

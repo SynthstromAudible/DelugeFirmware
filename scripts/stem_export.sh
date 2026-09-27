@@ -113,4 +113,5 @@ if [ "$failures" -ne 0 ]; then
 	exit 1
 fi
 echo "ST-RESULT failures=0"
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT_ROOT/run.log" || true
 echo "PASS — the export rendered byte-identical audio, and wrote $bytes bytes"

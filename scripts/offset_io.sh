@@ -104,5 +104,6 @@ if [ -z "$served" ] || [ "$served" -eq 0 ]; then
 fi
 
 grep -E '^OI-' "$OUT/run.txt"
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the transfer and the copy reached the card, and the byte channel served $served"
 echo "       operation(s)"

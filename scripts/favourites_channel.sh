@@ -89,5 +89,6 @@ if [ -z "$fav" ] || [ "$fav" -eq 0 ]; then
 fi
 
 grep -E '^FV-' "$OUT/run.txt"
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the favourites bank round-tripped through the byte channel, never applied a stale bank,"
 echo "       never wrote a bank it had not loaded, and did no card I/O on the interaction tier"

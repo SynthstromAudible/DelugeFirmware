@@ -103,5 +103,6 @@ if [ -z "$served" ] || [ "$served" -eq 0 ]; then
 fi
 
 grep -E '^SC-' "$OUT/run.txt"
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the settings round-tripped, the byte channel served $served operation(s), and no"
 echo "       settings I/O ran on the interaction tier"

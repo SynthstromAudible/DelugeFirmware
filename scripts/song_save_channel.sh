@@ -167,5 +167,6 @@ grep -E '^SS-' "$OUT/run.txt"
 if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the song document was built in memory, placed on the card through the write channel off"
 echo "       the storage owner, read back, and loaded as a song"

@@ -160,6 +160,7 @@ if [ "$CASES" -lt "$MIN_CASES" ]; then
 	exit 1
 fi
 
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT_ROOT/run.txt" || true
 echo "PASS — the async loader loaded all $CASES sample(s) as the synchronous path does, and agreed with it across a"
 echo "       card swap, and a preview held past its bound gave up"
 grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL \|^AB-PREVIEW-STALL \|^AB-PREVIEW-TIER \|^AB-PREVIEW-DRAW \|^AB-PREVIEW-DRAW-STALL \|^AB-PREVIEW-DRAW-RELEASE \|^AB-EJECT-SUMMARY ' "$OUT_ROOT/run.txt"

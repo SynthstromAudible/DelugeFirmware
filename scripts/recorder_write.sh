@@ -233,4 +233,5 @@ if [ "$fail" -ne 0 ]; then
 	echo "recorder write: FAILED"
 	exit 1
 fi
+grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" "$OUT/drain.txt" || true
 echo "recorder write: OK (served=$served->${oo_served} offOwner drain=$offowner finalize=$oo_fin create=$oo_create tier=$tier)"
