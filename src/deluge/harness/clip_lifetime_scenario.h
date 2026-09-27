@@ -18,11 +18,14 @@
 #pragma once
 
 /// @brief Host-only C ABI for the clip-lifetime probe: a playing clip is deleted through each real clip deletion path,
-///        and each path reports how many Clips it destroyed while something the render reads between blocks still
-///        pointed at them (Clip::clipsDestroyedWhileReferenced()).
+///        a sounding drum through the two direct drum destroys (the song save's orphan-drum drop, and what a load or
+///        clear during playback runs first), and the song through its clear, its stopped-clock load and its armed
+///        swap. Each path reports how many Clips, Songs and Sounds it destroyed while the render could still reach them
+///        (Clip::clipsDestroyedWhileReferenced(), Song::songsDestroyedWhileReachable(),
+///        Sound::soundsDestroyedWithLiveVoices()), and the run what is still retired and waiting (CL-RECLAIM).
 ///
-/// @note Report-only: the counts are evidence for the paths that must retire a clip rather than destroy it, and no
-///       count fails the run.
+/// @note Report-only: the counts are evidence for the paths that must retire what they delete rather than destroy it,
+///       and no count fails the run.
 ///
 /// @note Runs as a step machine: each `dispatch_step()` does one stage, and the platform driver lets virtual time
 ///       advance between steps. The scenario drives the render itself.

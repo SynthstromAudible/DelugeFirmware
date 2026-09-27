@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # clip_lifetime.sh — the clip-lifetime probe (report-only).
 #
-# Deletes a playing clip through each real clip deletion path, and reports how many Clips each path destroyed while
-# something the render reads between blocks still pointed at them (Clip::clipsDestroyedWhileReferenced()).
+# Deletes a playing clip through each real clip deletion path, a sounding drum through the two direct drum destroys, and
+# the song through each way it is replaced, and reports how many Clips, Songs and Sounds each path destroyed while the
+# render could still reach them.
 #
 # ## Why this gate exists
 #
@@ -37,6 +38,25 @@
 #   CL-RECORDSOURCE the clip another clip records from (beingRecordedFromClip), deleted through the session view's
 #                   delete gesture.
 #   CL-SYNCSCALE    the sync-scaling clip, deleted through Song::removeSessionClip() (the session view refuses it).
+#   CL-SAVEKIT      a playing kit clip's kit holds a second drum no note row has, triggered just before the song is
+#                   saved (Song::writeToFile() into memory, as the song save serialises): Kit::writeDataToFile()
+#                   destroys that drum. CL-SAVE says what the drum was doing at the save and how many bytes it wrote;
+#                   CL-DANGLING (inKit=, renderingActive=) whether the kit still holds it afterwards.
+#   CL-SONGCLEAR    stopped clock, a synth sounding: the context menu's Create New Song
+#                   (ClearSongContextMenu::runAccept() -> deleteOldSongBeforeLoadingNew()). CL-CLEARED once it is over.
+#   CL-SONGLOAD     stopped clock, a synth sounding: a song the scenario wrote through Song::writeToFile() is loaded
+#                   through the load browser (LoadSongUI -> deleteOldSongBeforeLoadingNew()). CL-LOADED loaded=1 when
+#                   the song came off the card.
+#   CL-SONGSWAP     the same load with the clock running and a synth sounding: the load arms a swap
+#                   (Session::armForSongSwap()), the render launches it (doSongSwap()), and
+#                   LoadSongUI::runFinishSegment() destroys the old song.
+#   CL-RECLAIM      after those legs and before WONTSOUND: AudioEngine::retiredPending() once the render has run and
+#                   reclaimRetired() has been called. More than 0 is red.
+#   CL-WONTSOUND    last, because it is expected to end the process: a playing kit clip whose drum is sounding with an
+#                   empty note row, then AudioEngine::songSwapAboutToHappen() -- what a load or clear started during
+#                   playback runs first -> Song::deleteSoundsWhichWontSound() -> InstrumentClip::
+#                   deleteSoundsWhichWontSound(), which destroys the drum (or freezes with E176 on an alpha/beta build,
+#                   which the host harness is).
 #   CL-RESULT       fixtures that could not be built, or a clock that never ran.
 #
 # Each leg line is `CL-<LEG> clipsReferenced=<n> songsReachable=<n> soundsLive=<n>`: how far
@@ -50,8 +70,9 @@
 # with the step it died in, and a CL-RESULT. That is a red leg, not a failure of the run: the script records it and
 # starts a new run at the next leg (CLIP_LIFETIME_FROM), so one crashing path does not hide the others.
 #
-# The run FAILS only when a leg line is missing, a fixture could not be built (CL-RESULT failures>0), or the process
-# ended some other way: an exit with no aborted=1 line for the leg that was running, or a wedge.
+# The run FAILS only when a leg line or the CL-RECLAIM line is missing, a fixture could not be built (CL-RESULT
+# failures>0), or the process ended some other way: an exit with no aborted=1 line for the leg that was running, or a
+# wedge.
 #
 # Usage: scripts/clip_lifetime.sh
 #
@@ -102,7 +123,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE RECORDSOURCE SYNCSCALE)
+LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE RECORDSOURCE SYNCSCALE SAVEKIT SONGCLEAR SONGLOAD SONGSWAP
+	WONTSOUND)
 
 # The leg after $1, or nothing after the last.
 next_leg() {
@@ -151,6 +173,12 @@ for leg in "${LEGS[@]}"; do
 	fi
 done
 
+if ! grep -qE '^CL-RECLAIM pending=[0-9]+$' "$OUT/all.txt"; then
+	echo "FAIL — no CL-RECLAIM line"
+	grep -E '^CL-' "$OUT/all.txt"
+	exit 1
+fi
+
 grep -E '^CL-' "$OUT/all.txt"
 
 if grep -E '^CL-RESULT ' "$OUT/all.txt" | grep -qv '^CL-RESULT failures=0$'; then
@@ -161,4 +189,7 @@ fi
 red="$(grep -E '^CL-[A-Z]+ (restored=[01] )?clipsReferenced=' "$OUT/all.txt" |
 	grep -E 'aborted=1|(clipsReferenced|songsReachable|soundsLive)=[1-9]' | sed -E 's/^CL-([A-Z]+) .*/\1/' | sort -u |
 	tr '\n' ' ' || true)"
+if grep -qE '^CL-RECLAIM pending=[1-9]' "$OUT/all.txt"; then
+	red="${red}RECLAIM "
+fi
 echo "PASS — report-only: every leg ran; red legs: ${red:-none}"

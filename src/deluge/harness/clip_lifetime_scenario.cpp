@@ -21,18 +21,26 @@
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/context_menu/clear_song.h"
+#include "gui/ui/browser/browser.h"
+#include "gui/ui/load/instrument_load.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "io/file.hpp"
 #include "libdeluge/app.h"
 #include "libdeluge/types.h"
+#include "memory/fast_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -41,6 +49,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
@@ -51,6 +60,7 @@
 #include <cstring>
 #include <exception>
 #include <initializer_list>
+#include <new>
 #include <unistd.h>
 
 // The firmware headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`. This
@@ -77,12 +87,40 @@ constexpr int32_t kMaxBlocksBefore = 400;
 constexpr int32_t kUndoBlocks = 4;
 /// A y beyond the grid: the new-clip gesture then appends the clip after every other session clip.
 constexpr int32_t kAppendY = 1000;
+/// The song SONGLOAD and SONGSWAP load: the song current at the leg's setup, written through the song save's own
+/// serialiser (Song::writeToFile()) -- a fixture is never hand-written XML.
+constexpr const char* kSongDir = "SONGS";
+constexpr const char* kSongPath = "SONGS/CLLOAD.XML";
+/// Stamped over the old song's swing after the fixture is written, so the loaded song can be told from the old one by
+/// value: the new Song may land at the address the old one freed.
+constexpr int8_t kSwingDecoy = 5;
+/// The most steps a song leg waits for its clear or load to finish (and for the load browser's listing).
+constexpr int32_t kMaxAwaitSteps = 20000;
+/// Blocks rendered per step while an armed swap waits for its launch: the launch waits for the longest clip's loop,
+/// some 700 blocks.
+constexpr int32_t kSwapBlocksPerStep = 8;
+/// Blocks rendered before CL-RECLAIM, one per step, so the render drains and the reclaim task runs between them.
+constexpr int32_t kReclaimBlocks = 10;
 
-/// Each leg is one real clip deletion path, run on a playing clip. The risky legs -- a dangling pointer the render
-/// reads on every tick -- run last.
-enum class Leg : uint8_t { SessionDelete, ArrangerDelete, SwapType, UndoDelete, RecordSource, SyncScale, Done };
+/// Each leg is one real deletion path, run on a playing clip or a sounding Sound. The clip legs' risky ones -- a
+/// dangling pointer the render reads on every tick -- run after the others; WONTSOUND, which is expected to end the
+/// process, runs last, after CL-RECLAIM.
+enum class Leg : uint8_t {
+	SessionDelete,
+	ArrangerDelete,
+	SwapType,
+	UndoDelete,
+	RecordSource,
+	SyncScale,
+	SaveKit,
+	SongClear,
+	SongLoad,
+	SongSwap,
+	WontSound,
+	Done
+};
 
-enum class Stage : uint8_t { Setup, Before, Delete, After, Undo, Report, Summary, Done };
+enum class Stage : uint8_t { Setup, Before, Delete, Listing, Await, After, Undo, Report, Reclaim, Summary, Done };
 
 Stage g_stage = Stage::Setup;
 Leg g_leg = Leg::SessionDelete;
@@ -104,6 +142,17 @@ int32_t g_magnitudeBefore = 0;
 int32_t g_magnitudeOffsetBefore = 0;
 /// UNDODELETE: whether the undo put the clip back in the arranger (arrangementOnlyClips, with an instance).
 bool g_restored = false;
+/// The Sound the leg holds a note on: the clip's synth, or a kit leg's drum. Not read once the deletion has run.
+Sound* g_sound = nullptr;
+/// SAVEKIT and WONTSOUND: the leg's kit, and the drum it sounds (SAVEKIT's has no note row anywhere).
+Kit* g_kit = nullptr;
+SoundDrum* g_drum = nullptr;
+/// SONGLOAD and SONGSWAP: the swing the fixture song was written with, which only a real load brings back.
+int8_t g_fixtureSwing = 0;
+/// Steps a song leg has waited for its listing, then its clear or load.
+int32_t g_awaitSteps = 0;
+/// Whether CL-RECLAIM has been printed this run.
+bool g_reclaimDone = false;
 
 /// The counters at the start of the deletion.
 int32_t g_clipsBefore = 0;
@@ -133,10 +182,41 @@ const char* legName(Leg leg) {
 		return "RECORDSOURCE";
 	case Leg::SyncScale:
 		return "SYNCSCALE";
+	case Leg::SaveKit:
+		return "SAVEKIT";
+	case Leg::SongClear:
+		return "SONGCLEAR";
+	case Leg::SongLoad:
+		return "SONGLOAD";
+	case Leg::SongSwap:
+		return "SONGSWAP";
+	case Leg::WontSound:
+		return "WONTSOUND";
 	case Leg::Done:
 		break;
 	}
 	return "DONE";
+}
+
+/// The legs that delete a clip, as Task 1's do: their probe and dangling lines are about references to that clip.
+bool isClipLeg(Leg leg) {
+	return static_cast<uint8_t>(leg) <= static_cast<uint8_t>(Leg::SyncScale);
+}
+
+/// The legs that replace the whole song.
+bool isSongLeg(Leg leg) {
+	return leg == Leg::SongClear || leg == Leg::SongLoad || leg == Leg::SongSwap;
+}
+
+/// The legs that load the fixture song through the load browser.
+bool isLoadLeg(Leg leg) {
+	return leg == Leg::SongLoad || leg == Leg::SongSwap;
+}
+
+/// Whether the leg runs with the internal clock going. The stopped-clock song paths are the ones that destroy the old
+/// song before the new one is built.
+bool legPlays(Leg leg) {
+	return leg != Leg::SongClear && leg != Leg::SongLoad;
 }
 
 bool fail(const char* what) {
@@ -187,16 +267,155 @@ void holdNote(InstrumentClip* clip) {
 	synth->Sound::noteOn(ms, &synth->arpeggiator, kNote, zeroMPEValues);
 }
 
+/// A blank-synth drum, added to @p kit the way sound_lifetime_scenario.cpp builds one, with its ParamManager backed up
+/// in the song.
+SoundDrum* makeDrum(Kit* kit) {
+	ParamManagerForTimeline paramManager;
+	if (paramManager.setupWithPatching() != Error::NONE) {
+		fail("a drum's ParamManager could not be set up");
+		return nullptr;
+	}
+	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
+	if (memory == nullptr) {
+		fail("no memory for a drum");
+		return nullptr;
+	}
+	auto* drum = new (memory) SoundDrum();
+	Sound::initParams(&paramManager);
+	kit->addDrum(drum);
+	drum->setupAsBlankSynth(&paramManager);
+	currentSong->backUpParamManager(drum, nullptr, &paramManager, true);
+	return drum;
+}
+
+/// A playing-ready session kit clip, made through the new-clip gesture from a kit of one blank-synth drum (handed over
+/// as makeSynthClip() hands over its synth). The gesture gives the clip a note row for that drum, with no notes.
+InstrumentClip* makeKitClip() {
+	ParamManagerForTimeline kitParams;
+	Instrument* instrument = StorageManager::createNewInstrument(OutputType::KIT, &kitParams);
+	if (instrument == nullptr) {
+		fail("no kit");
+		return nullptr;
+	}
+	auto* kit = static_cast<Kit*>(instrument);
+	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(kit->toModControllable()), nullptr, &kitParams,
+	                                true);
+	SoundDrum* drum = makeDrum(kit);
+	if (drum == nullptr) {
+		return nullptr;
+	}
+
+	deluge::storage::AcquireResult acquired;
+	acquired.instrument = kit;
+	acquired.loadedFromFile = true;
+	Clip* clip = sessionView.createNewInstrumentClipAcquired(OutputType::KIT, kAppendY, &acquired);
+	if (clip == nullptr) {
+		fail("the new-clip gesture made no kit clip");
+		return nullptr;
+	}
+	clip->activeIfNoSolo = true;
+	g_kit = kit;
+	g_drum = drum;
+	return static_cast<InstrumentClip*>(clip);
+}
+
+/// Hold a note on @p drum, the audition path's shape (no note row), with @p paramManager.
+bool soundDrum(SoundDrum* drum, InstrumentClip* clip, ParamManager* paramManager) {
+	if (paramManager == nullptr) {
+		return fail("the drum has no ParamManager");
+	}
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, drum, clip, paramManager);
+	drum->Sound::noteOn(ms, &drum->arpeggiator, kNote, zeroMPEValues);
+	return true;
+}
+
+/// SAVEKIT's drum's ParamManager: it has no note row, so the one backed up in the song.
+ParamManager* orphanParamManager() {
+	return currentSong->getBackedUpParamManagerPreferablyWithClip(g_drum, nullptr);
+}
+
+/// Write the current song to kSongPath through the song save's own serialiser: Song::writeToFile() over a file the
+/// storage manager created, as the preset fixtures elsewhere are written.
+bool writeFixtureSong() {
+	(void)deluge::io::mkdir(kSongDir);
+	(void)deluge::io::unlink(kSongPath);
+	g_fixtureSwing = currentSong->swingAmount;
+	Error error =
+	    StorageManager::createXMLFile(kSongPath, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false);
+	if (error != Error::NONE) {
+		return fail("the fixture song could not be created");
+	}
+	currentSong->writeToFile();
+	error = GetSerializer().closeFileAfterWriting(kSongPath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", nullptr);
+	if (error != Error::NONE) {
+		return fail("the fixture song could not be closed");
+	}
+	// The old song now differs from the file, so a real load can be told from none.
+	currentSong->swingAmount = static_cast<int8_t>(g_fixtureSwing + kSwingDecoy);
+	return true;
+}
+
+/// SAVEKIT's save: the song save's serialisation, into memory as SaveSongUI::serializeSongToBuffer() does it. Saving
+/// a song (not a kit) is what reaches Kit::writeDataToFile()'s destroy of a drum no note row has. Returns the bytes.
+int32_t serializeSong() {
+	auto& writer = static_cast<FileWriter&>(smSerializer);
+	writer.setMemoryBased();
+	g_step = "writeToFile";
+	currentSong->writeToFile();
+	const int32_t written = writer.bytesWritten();
+	writer.clearMemoryBased();
+	GetSerializer().reset();
+	return written;
+}
+
 /// Build the running leg's clips, with the clock stopped, and point the song's references at the victim.
 bool setupLeg() {
 	g_victim = nullptr;
 	g_recorder = nullptr;
 	g_restored = false;
+	g_sound = nullptr;
+	g_kit = nullptr;
+	g_drum = nullptr;
+	if (g_leg == Leg::SaveKit || g_leg == Leg::WontSound) {
+		InstrumentClip* clip = makeKitClip();
+		if (clip == nullptr) {
+			return false;
+		}
+		g_victim = clip;
+		if (g_leg == Leg::SaveKit) {
+			// A second drum, added after the clip was made: no note row in any clip has it. Kit::writeDataToFile()
+			// destroys exactly such a drum when the song is saved.
+			SoundDrum* orphan = makeDrum(g_kit);
+			if (orphan == nullptr) {
+				return false;
+			}
+			if (currentSong->findNoteRowForDrum(g_kit, orphan) != nullptr) {
+				return fail("the orphan drum has a note row");
+			}
+			g_drum = orphan;
+		}
+		else {
+			// The drum's note row has no notes, so it will not sound again: deleteSoundsWhichWontSound() deletes the
+			// drum if the drum itself is not rendering.
+			NoteRow* row = clip->getNoteRowForDrum(g_drum);
+			if (row == nullptr || !row->hasNoNotes()) {
+				return fail("the kit clip has no empty note row for its drum");
+			}
+		}
+		g_sound = g_drum;
+		return true;
+	}
+	if (isLoadLeg(g_leg) && !writeFixtureSong()) {
+		return false;
+	}
 	InstrumentClip* clip = makeSynthClip();
 	if (clip == nullptr) {
 		return false;
 	}
 	g_victim = clip;
+	g_sound = static_cast<SoundInstrument*>(clip->output);
 	switch (g_leg) {
 	case Leg::SessionDelete:
 	case Leg::SwapType:
@@ -243,10 +462,34 @@ bool setupLeg() {
 		g_magnitudeOffsetBefore = currentSong->insideWorldTickMagnitudeOffsetFromBPM;
 		currentSong->setInputTickScaleClip(clip);
 		break;
+	case Leg::SongClear:
+	case Leg::SongLoad:
+	case Leg::SongSwap:
+		// The synth the user is playing in the old song.
+		selectClip(clip);
+		break;
+	case Leg::SaveKit:
+	case Leg::WontSound:
 	case Leg::Done:
 		break;
 	}
 	return true;
+}
+
+/// Hold the leg's note: on the clip's synth, or on the kit leg's drum.
+bool soundLeg() {
+	switch (g_leg) {
+	case Leg::SaveKit:
+		return soundDrum(g_drum, static_cast<InstrumentClip*>(g_victim), orphanParamManager());
+	case Leg::WontSound: {
+		auto* clip = static_cast<InstrumentClip*>(g_victim);
+		NoteRow* row = clip->getNoteRowForDrum(g_drum);
+		return soundDrum(g_drum, clip, (row != nullptr) ? &row->paramManager : nullptr);
+	}
+	default:
+		holdNote(static_cast<InstrumentClip*>(g_victim));
+		return true;
+	}
 }
 
 [[noreturn]] void noteTerminatedDeletion() {
@@ -358,9 +601,53 @@ void deleteLeg() {
 		g_step = "removeSessionClip";
 		currentSong->removeSessionClip(clip, currentSong->sessionClips.getIndexForClip(clip));
 		break;
+	case Leg::SaveKit: {
+		// The kit's render kills the voices of a drum its clip has no row for, so the note held since the setup is
+		// gone by now -- but the drum stays in the set the render walks. Said before the save, which may end the
+		// process.
+		printf("CL-SAVE leg=SAVEKIT voicesAtSave=%d renderingActive=%d\n",
+		       static_cast<int32_t>(g_drum->numActiveVoices()),
+		       g_kit->drumsWithRenderingActive.contains(g_drum) ? 1 : 0);
+		fflush(stdout);
+		const int32_t bytes = serializeSong();
+		printf("CL-SAVE leg=SAVEKIT bytes=%d\n", bytes);
+		fflush(stdout);
+		break;
+	}
+	case Leg::SongClear:
+		// The context menu's accept: ClearSongContextMenu::runAccept(), which with the clock stopped goes through
+		// deleteOldSongBeforeLoadingNew() and then builds the new song.
+		g_step = "clearSong";
+		(void)deluge::gui::context_menu::clearSong.acceptCurrentOption();
+		break;
+	case Leg::SongLoad:
+	case Leg::SongSwap:
+		// The load browser on the fixture song, as song_load_channel_scenario.cpp opens it. The load itself begins
+		// once its listing has landed (Stage::Listing).
+		g_step = "openLoadSongUI";
+		currentSong->setSongFullPath(kSongPath);
+		(void)openUI(&loadSongUI);
+		break;
+	case Leg::WontSound:
+		// What a load or clear started during playback runs first: Song::deleteSoundsWhichWontSound() over the playing
+		// song.
+		g_step = "songSwapAboutToHappen";
+		AudioEngine::songSwapAboutToHappen();
+		break;
 	case Leg::Done:
 		break;
 	}
+}
+
+/// SAVEKIT and WONTSOUND, just after the deletion: whether the kit still lists the drum, and whether the drum is still
+/// in the set of drums the kit's render walks. Compared by value only: the drum may be freed.
+void printDrumDangling() {
+	bool inKit = false;
+	for (Drum const* drum = g_kit->firstDrum; drum != nullptr; drum = drum->next) {
+		inKit = inKit || drum == g_drum;
+	}
+	printf("CL-DANGLING leg=%s inKit=%d renderingActive=%d\n", legName(g_leg), inKit ? 1 : 0,
+	       g_kit->drumsWithRenderingActive.contains(g_drum) ? 1 : 0);
 }
 
 /// Which of the render's references still hold the deleted clip's address, just after its deletion. Compared by
@@ -381,8 +668,34 @@ void printDangling() {
 	       inSong ? 1 : 0);
 }
 
+/// A song leg's clean-up: the old song is gone, and with it every pointer the leg held (the new song may have been
+/// allocated where they pointed, so none is compared). Stop the clock and point the UI at the new song's first clip.
+void cleanUpSongLeg() {
+	g_victim = nullptr;
+	g_recorder = nullptr;
+	g_sound = nullptr;
+	if (playbackHandler.isEitherClockActive()) {
+		playbackHandler.endPlayback();
+	}
+	if (isLoadLeg(g_leg)) {
+		// The image is this run's own, but a later load leg writes the same path.
+		(void)deluge::io::unlink(kSongPath);
+	}
+	changeRootUI(&sessionView);
+	g_home = (currentSong != nullptr && !currentSong->sessionClips.empty()) ? currentSong->sessionClips[0] : nullptr;
+	if (g_home == nullptr) {
+		fail("the new song has no clip");
+		return;
+	}
+	selectClip(g_home);
+}
+
 /// Put back what the leg left pointing at a clip that may be gone, stop the clock, and point the UI home.
 void cleanUpLeg() {
+	if (isSongLeg(g_leg)) {
+		cleanUpSongLeg();
+		return;
+	}
 	Clip* victim = g_victim;
 	if (currentSong->getCurrentClip() == victim) {
 		currentSong->setCurrentClip(g_home);
@@ -406,6 +719,7 @@ void cleanUpLeg() {
 	selectClip(g_home);
 	g_victim = nullptr;
 	g_recorder = nullptr;
+	g_sound = nullptr;
 }
 
 /// Whether the arranger holds the victim again: in arrangementOnlyClips, with an instance on its output.
@@ -466,6 +780,31 @@ void restoreHandlers() {
 	std::set_terminate(g_previousTerminate);
 }
 
+/// Whether the running song leg's clear or load is over. A clear is over once its UI-mode gate is released and the new
+/// song's own preset request has landed; a load once LoadSongUI says its load has run to completion.
+bool songLegOver() {
+	if (g_leg == Leg::SongClear) {
+		const bool pending = currentSong != nullptr && currentSong->blankPresetPending;
+		return currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES && !pending
+		       && !deluge::gui::instrumentLoad.inFlight();
+	}
+	return !loadSongUI.loadInFlight();
+}
+
+/// CL-RECLAIM, before WONTSOUND (which may end the process): render some blocks, so the render lets go of everything
+/// retired and the reclaim task runs between them, then reclaim and say what is still waiting.
+void runReclaim() {
+	renderBlocks(1);
+	if (++g_ticks < kReclaimBlocks) {
+		return;
+	}
+	AudioEngine::reclaimRetired();
+	printf("CL-RECLAIM pending=%u\n", static_cast<unsigned>(AudioEngine::retiredPending()));
+	fflush(stdout);
+	g_reclaimDone = true;
+	g_stage = Stage::Setup;
+}
+
 void runTick() {
 	switch (g_stage) {
 	case Stage::Setup:
@@ -473,14 +812,24 @@ void runTick() {
 			g_stage = Stage::Summary;
 			break;
 		}
+		if (g_leg == Leg::WontSound && !g_reclaimDone) {
+			g_ticks = 0;
+			g_stage = Stage::Reclaim;
+			break;
+		}
 		if (!setupLeg()) {
 			g_stage = Stage::Summary;
 			break;
 		}
-		// Playback on the internal clock, with no count-in: every active clip starts from the top.
-		playbackHandler.setupPlaybackUsingInternalClock(0, false);
+		if (legPlays(g_leg)) {
+			// Playback on the internal clock, with no count-in: every active clip starts from the top.
+			playbackHandler.setupPlaybackUsingInternalClock(0, false);
+		}
 		g_timerAtStart = AudioEngine::audioSampleTimer;
-		holdNote(static_cast<InstrumentClip*>(g_victim));
+		if (!soundLeg()) {
+			g_stage = Stage::Summary;
+			break;
+		}
 		g_ticks = 0;
 		g_stage = Stage::Before;
 		break;
@@ -488,23 +837,38 @@ void runTick() {
 		renderBlocks(1);
 		// The internal clock's first tick lands some ten thousand samples after playback is set up, so the leg
 		// renders until the render has actioned a tick of this playback, not just a few blocks. lastTimerTickActioned
-		// keeps the previous playback's value until that first tick, so a tick is told by its time instead.
+		// keeps the previous playback's value until that first tick, so a tick is told by its time instead. A
+		// stopped-clock leg renders its blocks and no more.
+		const bool plays = legPlays(g_leg);
 		const bool ticked =
-		    static_cast<int32_t>(static_cast<uint32_t>(playbackHandler.timeLastTimerTickBig >> 32) - g_timerAtStart)
-		    >= 0;
+		    plays
+		    && static_cast<int32_t>(static_cast<uint32_t>(playbackHandler.timeLastTimerTickBig >> 32) - g_timerAtStart)
+		           >= 0;
 		const auto ticks = ticked ? static_cast<int32_t>(playbackHandler.lastTimerTickActioned) : 0;
 		// Past this playback's tick 0, so the clock has moved on from where it started.
-		if (++g_ticks < kBlocksBefore || (ticks <= 0 && g_ticks < kMaxBlocksBefore)) {
+		if (++g_ticks < kBlocksBefore || (plays && ticks <= 0 && g_ticks < kMaxBlocksBefore)) {
 			break;
 		}
-		auto* synth = static_cast<SoundInstrument*>(g_victim->output);
 		const bool playing = playbackHandler.isEitherClockActive() && currentSong->isClipActive(g_victim);
-		printf("CL-PROBE leg=%s playing=%d ticks=%d voices=%d current=%d sync=%d view=%d recordSource=%d\n",
-		       legName(g_leg), playing ? 1 : 0, ticks, static_cast<int32_t>(synth->numActiveVoices()),
-		       currentSong->getCurrentClip() == g_victim ? 1 : 0, currentSong->syncScalingClip == g_victim ? 1 : 0,
-		       view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_victim ? 1 : 0,
-		       (g_recorder != nullptr && g_recorder->beingRecordedFromClip == g_victim) ? 1 : 0);
-		if (ticks <= 0) {
+		const auto voices = static_cast<int32_t>(g_sound->numActiveVoices());
+		if (isClipLeg(g_leg)) {
+			printf("CL-PROBE leg=%s playing=%d ticks=%d voices=%d current=%d sync=%d view=%d recordSource=%d\n",
+			       legName(g_leg), playing ? 1 : 0, ticks, voices, currentSong->getCurrentClip() == g_victim ? 1 : 0,
+			       currentSong->syncScalingClip == g_victim ? 1 : 0,
+			       view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_victim ? 1 : 0,
+			       (g_recorder != nullptr && g_recorder->beingRecordedFromClip == g_victim) ? 1 : 0);
+		}
+		else if (g_kit != nullptr) {
+			printf("CL-PROBE leg=%s playing=%d ticks=%d voices=%d renderingActive=%d\n", legName(g_leg),
+			       playing ? 1 : 0, ticks, voices, g_kit->drumsWithRenderingActive.contains(g_drum) ? 1 : 0);
+		}
+		else {
+			// view=1: the view's active timeline counter is the old song's synth clip, which the armed swap leaves in
+			// place until the old song is gone (LoadSongUI::runBeginSegment() says so).
+			printf("CL-PROBE leg=%s playing=%d ticks=%d voices=%d view=%d\n", legName(g_leg), playing ? 1 : 0, ticks,
+			       voices, view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_victim ? 1 : 0);
+		}
+		if (plays && ticks <= 0) {
 			fail("the render actioned no ticks: the clock never ran");
 			g_stage = Stage::Summary;
 			break;
@@ -521,10 +885,61 @@ void runTick() {
 		installHandlers();
 		deleteLeg();
 		g_step = nullptr;
-		printDangling();
+		g_ticks = 0;
+		g_awaitSteps = 0;
+		if (isClipLeg(g_leg)) {
+			printDangling();
+		}
+		else if (g_leg == Leg::SaveKit || g_leg == Leg::WontSound) {
+			printDrumDangling();
+		}
+		g_stage = isLoadLeg(g_leg) ? Stage::Listing : (g_leg == Leg::SongClear) ? Stage::Await : Stage::After;
+		break;
+	case Stage::Listing:
+		// The load browser's own listing lands first, as a LOAD press waits for it. Nothing else ticks a browser in
+		// the headless harness.
+		g_step = "listing";
+		if (legPlays(g_leg)) {
+			renderBlocks(1);
+		}
+		if (Browser::isListingInProgress()) {
+			loadSongUI.graphicsRoutine();
+			if (++g_awaitSteps > kMaxAwaitSteps) {
+				fail("the load browser's listing never finished");
+				g_stage = Stage::After;
+			}
+			break;
+		}
+		g_step = "beginLoad";
+		loadSongUI.beginLoad();
+		g_awaitSteps = 0;
+		g_stage = Stage::Await;
+		break;
+	case Stage::Await: {
+		// The clear or load runs on its own, a tick at a time; an armed swap launches in the render, at the end of the
+		// longest clip's loop, and LoadSongUI then destroys the old song (runFinishSegment()).
+		g_step = "await";
+		renderBlocks(isLoadLeg(g_leg) && legPlays(g_leg) ? kSwapBlocksPerStep : 1);
+		const bool over = songLegOver();
+		if (!over && ++g_awaitSteps < kMaxAwaitSteps) {
+			break;
+		}
+		if (!over) {
+			fail("the clear or load never finished");
+		}
+		if (isLoadLeg(g_leg)) {
+			const bool loaded = currentSong != nullptr && currentSong->swingAmount == g_fixtureSwing;
+			printf("CL-LOADED leg=%s loaded=%d steps=%d\n", legName(g_leg), loaded ? 1 : 0, g_awaitSteps);
+		}
+		else {
+			printf("CL-CLEARED leg=%s clips=%d steps=%d\n", legName(g_leg),
+			       currentSong != nullptr ? static_cast<int32_t>(currentSong->sessionClips.size()) : -1, g_awaitSteps);
+		}
+		fflush(stdout);
 		g_ticks = 0;
 		g_stage = Stage::After;
 		break;
+	}
 	case Stage::After:
 		g_step = "render";
 		renderBlocks(1);
@@ -560,9 +975,12 @@ void runTick() {
 		restoreHandlers();
 		g_step = nullptr;
 		g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
-		g_stage = Stage::Setup;
+		g_stage = (g_failures > 0) ? Stage::Summary : Stage::Setup;
 		break;
 	}
+	case Stage::Reclaim:
+		runReclaim();
+		break;
 	case Stage::Summary:
 		printf("CL-RESULT failures=%d\n", g_failures);
 		// The Rust runner ends a failing run with process::exit, which does NOT flush C stdio.
@@ -601,6 +1019,7 @@ void deluge_scenario_clip_lifetime_begin(void) {
 	g_summaryPrinted = false;
 	g_failures = 0;
 	g_ticks = 0;
+	g_reclaimDone = false;
 	// Every leg's gesture is made from the session view. The root UI has to be it: the clip view the harness boots
 	// into dereferences getCurrentInstrumentClip() unconditionally, and a leg moves the current clip away from it.
 	changeRootUI(&sessionView);
