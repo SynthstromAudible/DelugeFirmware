@@ -72,9 +72,12 @@
 #   CL-SONGSWAP     the same load with the clock running and a synth sounding: the load arms a swap
 #                   (Session::armForSongSwap()), the render launches it (doSongSwap()), and
 #                   LoadSongUI::runFinishSegment() hands the old song to the render.
-#   CL-BURST        BURSTSONG's song before the clear: how many outputs and session clips it holds.
-#   CL-BURSTSONG    a song of 20 synths with two session clips each, cleared with the clock stopped: the whole song is
-#                   let go of and freed inside the clear's bounded wait (pending=0, violations=0).
+#   CL-BURST        BURSTSONG's song before the clear: how many outputs, session clips and registered Sounds it holds.
+#   CL-LETGO        BURSTSONG's letGoMicros: the host wall time of the longest block-top let-go during the clear -- the
+#                   one that lets go of the whole song, all of it inside one render block. Reported, not required.
+#   CL-BURSTSONG    a song of 20 outputs -- 10 synths and 10 kits of 32 drums -- with two session clips each, cleared
+#                   with the clock stopped: the whole song is let go of and freed inside the clear's bounded wait
+#                   (pending=0, violations=0).
 #   CL-CLEARPLAYING Create New Song while following an external clock (runAccept() keeps that playback going), with an
 #                   audio clip holding what an unsaved recording leaves: a Sample with a TEMP path. The clear swaps in
 #                   the new song, hands the old one to the render, then frees every temp-recorded Sample

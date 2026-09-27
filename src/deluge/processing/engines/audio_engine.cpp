@@ -76,6 +76,7 @@
 #include "util/misc.h"
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <execution>
@@ -216,18 +217,37 @@ void letGoOfClip(Clip* clip) {
 	clearViewIfClip(clip);
 }
 
-void letGo(const RetireRequest& r);
-
 /// [render] Let go of a retired song: end the voices of, and deregister, every Sound of every output it owns (its
 /// main and hibernating lists, as Song::deleteAllOutputs() walks them), then drop the view's reference to it or to
 /// anything it owns. AudioEngine::retire(Song*) already dropped that reference on the interaction tier; this is the
 /// catch. The song is no longer current, so the render reaches none of its clips through currentSong; its own
 /// currentClip, syncScalingClip and beingRecordedFromClip fields are left alone -- they may name clips already freed.
 void letGoOfSong(Song* song) {
+	// A song can hold hundreds of Sounds (every drum of every kit), and this runs inside one block. Taking each out of
+	// the registry on its own would scan the registry once per Sound; mark them instead, then take every marked one
+	// out in a single pass.
+	bool anyMarked = false;
+	auto mark = [&anyMarked](Sound& sound) {
+		sound.killAllVoices();
+		sound.letGoWithSong = true;
+		anyMarked = true;
+	};
 	for (Output* first : {song->firstOutput, static_cast<Output*>(song->firstHibernatingInstrument)}) {
 		for (Output* output = first; output != nullptr; output = output->next) {
-			letGo(RetireRequest{.output = output});
+			if (output->type == OutputType::SYNTH) {
+				mark(*static_cast<SoundInstrument*>(output));
+			}
+			else if (output->type == OutputType::KIT) {
+				for (Drum* d = static_cast<Kit*>(output)->firstDrum; d != nullptr; d = d->next) {
+					if (d->type == DrumType::SOUND) {
+						mark(*static_cast<SoundDrum*>(d));
+					}
+				}
+			}
 		}
+	}
+	if (anyMarked) {
+		AudioEngine::sounds.remove_if([](Sound const* sound) { return sound->letGoWithSong; });
 	}
 	if (viewNamesSong(song)) {
 		clearViewModelStack();
@@ -324,8 +344,17 @@ void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
 /// sequence's release stores are what let reclaim free an object. Run by every block the render starts, and by a block
 /// a host harness skips rendering (deluge_app_render_skipped), so retirement completes whether or not audio is
 /// produced.
+#ifdef DELUGE_HOST
+/// [render] -> [interaction] The longest block-top let-go (the drain below) since the last reset, in host wall-clock
+/// microseconds. A host-only measurement; see AudioEngine::retireDrainMicrosMax().
+std::atomic<uint32_t> retireDrainMicrosMax_{0};
+#endif
+
 void renderRetirementStep() {
 	renderDomain_.advance_epoch();
+#ifdef DELUGE_HOST
+	const auto drainStart = std::chrono::steady_clock::now();
+#endif
 	uint64_t lastLetGo = 0;
 	const std::size_t drained = retireRing.drain(
 	    [&lastLetGo](RetireRequest&& r) {
@@ -336,6 +365,13 @@ void renderRetirementStep() {
 	if (drained != 0) {
 		retireSequenceLetGo.store(lastLetGo, std::memory_order_release);
 	}
+#ifdef DELUGE_HOST
+	const auto micros = static_cast<uint32_t>(
+	    std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - drainStart).count());
+	if (micros > retireDrainMicrosMax_.load(std::memory_order_relaxed)) {
+		retireDrainMicrosMax_.store(micros, std::memory_order_relaxed);
+	}
+#endif
 }
 } // namespace
 
@@ -2193,6 +2229,13 @@ void reclaimRetired() {
 std::size_t retireViolations() {
 	return retireViolations_;
 }
+
+#ifdef DELUGE_HOST
+uint32_t retireDrainMicrosMax(bool reset) {
+	return reset ? retireDrainMicrosMax_.exchange(0, std::memory_order_relaxed)
+	             : retireDrainMicrosMax_.load(std::memory_order_relaxed);
+}
+#endif
 
 std::size_t retiredPending() {
 	// Every retired object not yet destroyed is in the list, whether or not its request has reached the render.

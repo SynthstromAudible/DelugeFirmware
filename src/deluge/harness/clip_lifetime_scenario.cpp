@@ -109,9 +109,11 @@ constexpr int32_t kMaxAwaitSteps = 20000;
 constexpr int32_t kSwapBlocksPerStep = 8;
 /// Blocks rendered before CL-RECLAIM, one per step, so the render drains and the reclaim task runs between them.
 constexpr int32_t kReclaimBlocks = 10;
-/// BURSTSONG's song: this many synths, each with two session clips.
+/// BURSTSONG's song: this many outputs -- half synths, half kits of kBurstDrumsPerKit drums -- each with two session
+/// clips. The kits make the let-go's cost show: every drum is a Sound in the registry.
 constexpr int32_t kBurstOutputs = 20;
 constexpr int32_t kBurstClipsPerOutput = 2;
+constexpr int32_t kBurstDrumsPerKit = 32;
 /// The MIDI note the song legs inject once their clear or load has returned.
 constexpr uint8_t kMidiNote = 64;
 constexpr uint8_t kMidiVelocity = 100;
@@ -178,6 +180,8 @@ bool g_reclaimDone = false;
 int32_t g_pendingAfterDelete = 0;
 /// CLEARPLAYING: the temp-recorded Sample its audio clip holds. Compared by value only once the clear has run.
 Sample* g_tempSample = nullptr;
+/// BURSTSONG: AudioEngine::retireDrainMicrosMax() over the clear -- the longest block-top let-go.
+uint32_t g_letGoMicros = 0;
 int32_t g_pendingAtBuild = -1;
 std::size_t g_violationsBefore = 0;
 
@@ -445,12 +449,23 @@ Clip* cloneIntoSession(Clip* source) {
 bool buildBurstSong(InstrumentClip* first) {
 	std::vector<Clip*> originals{first};
 	for (int32_t i = 1; i < kBurstOutputs; i++) {
-		InstrumentClip* clip = makeSynthClip();
+		const bool kit = (i % 2) != 0;
+		InstrumentClip* clip = kit ? makeKitClip() : makeSynthClip();
 		if (clip == nullptr) {
 			return false;
 		}
+		if (kit) {
+			for (int32_t d = 1; d < kBurstDrumsPerKit; d++) {
+				if (makeDrum(g_kit) == nullptr) {
+					return false;
+				}
+			}
+		}
 		originals.push_back(clip);
 	}
+	// makeKitClip() points these at its kit; BURSTSONG's leg is about the synth clip it started from.
+	g_kit = nullptr;
+	g_drum = nullptr;
 	for (Clip* original : originals) {
 		for (int32_t copy = 1; copy < kBurstClipsPerOutput; copy++) {
 			if (cloneIntoSession(original) == nullptr) {
@@ -462,7 +477,9 @@ bool buildBurstSong(InstrumentClip* first) {
 	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
 		outputs++;
 	}
-	printf("CL-BURST outputs=%d clips=%d\n", outputs, static_cast<int32_t>(currentSong->sessionClips.size()));
+	const auto sounds = AudioEngine::sounds.walk([](const auto& all) { return static_cast<int32_t>(all.size()); });
+	printf("CL-BURST outputs=%d clips=%d sounds=%d\n", outputs, static_cast<int32_t>(currentSong->sessionClips.size()),
+	       sounds);
 	fflush(stdout);
 	return true;
 }
@@ -1093,9 +1110,16 @@ void runTick() {
 		g_step = nullptr;
 		// The handlers stay in until the report: what the deletion leaves dangling is read by the blocks after it.
 		installHandlers();
+		(void)AudioEngine::retireDrainMicrosMax(true);
 		deleteLeg();
 		// A clear has built the new song by now; a load has only opened its browser.
 		g_pendingAfterDelete = static_cast<int32_t>(AudioEngine::retiredPending());
+		g_letGoMicros = AudioEngine::retireDrainMicrosMax(false);
+		if (g_leg == Leg::BurstSong) {
+			// The whole song's let-go runs in one block's top: its host wall time, the longest such step in the clear.
+			printf("CL-LETGO leg=BURSTSONG letGoMicros=%u\n", static_cast<unsigned>(g_letGoMicros));
+			fflush(stdout);
+		}
 		if (g_leg == Leg::ClearPlaying) {
 			// runAccept() has returned, so deleteAnyTempRecordedSamplesFromMemory() has run. It frees the Sample the
 			// old song's audio clip holds a reason to: the old song must be gone by then (pending=0), or its

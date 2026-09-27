@@ -86,6 +86,11 @@ public:
 	///       reassessRenderSkippingStatus() then calls the pure virtual getArpSettings(). The count is taken first.
 	static int32_t soundsDestroyedWithLiveVoices();
 
+	/// @brief [render] Set by the render when it lets go of the retired song this Sound belongs to, just before it
+	///        takes every Sound so marked out of AudioEngine::sounds in one pass. Never cleared: the Sound is
+	///        destroyed when the song is.
+	bool letGoWithSong = false;
+
 	Patcher patcher;
 
 	ParamLPF paramLPF{};

@@ -301,4 +301,9 @@ std::size_t retiredPending();
 /// @brief [interaction] How many retired objects were destroyed while a Sound of theirs was still in the Sound
 ///        registry -- before the render let go of it. Always 0 unless the retirement's ordering is broken.
 std::size_t retireViolations();
+#ifdef DELUGE_HOST
+/// @brief [interaction] Host-only measurement: the longest block-top let-go of retired objects since the last reset, in
+///        host wall-clock microseconds. @p reset zeroes it and returns the value it replaced.
+uint32_t retireDrainMicrosMax(bool reset);
+#endif
 } // namespace AudioEngine

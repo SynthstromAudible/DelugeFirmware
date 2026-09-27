@@ -12,6 +12,7 @@
 #include "libdeluge/system.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <utility>
 #include <vector>
 
@@ -28,6 +29,14 @@ public:
 	void remove(T* entry) {
 		AudioExcludedSection section;
 		std::erase(entries_, entry);
+	}
+
+	/// Remove every entry @p pred holds for, in one pass over the list. As with remove(), no walk reaches a removed
+	/// entry once this returns. Returns how many were removed.
+	template <class Pred>
+	std::size_t remove_if(Pred&& pred) {
+		AudioExcludedSection section;
+		return std::erase_if(entries_, std::forward<Pred>(pred));
 	}
 
 	/// Call `f(const Container&)` with the list held still. Consume any view of it inside `f`.
