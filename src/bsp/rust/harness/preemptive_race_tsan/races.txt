@@ -82,6 +82,12 @@ open	src/deluge/model/note/note_row.cpp	^NoteRow::processCurrentPos\(ModelStackW
 open	src/deluge/model/song/song.cpp	^Song::isClipActive\(Clip const\*\) const$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in the C2a confirmation pass, 2026-09-27)
 open	src/deluge/playback/mode/arrangement.cpp	^Arrangement::getPosAtWhichClipWillCut\(ModelStackWithTimelineCounter const\*\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in the C2a confirmation pass, 2026-09-27)
 open	src/deluge/playback/playback_handler.h	^PlaybackHandler::isEitherClockActive\(\)$	audio×interaction	state: global 'playbackHandler' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::getActualSwungTickCount\(unsigned int\*\)$	audio×interaction	state: global 'playbackHandler' (first seen in catalogue convergence batch 1, 2026-09-27)
+open	src/deluge/playback/mode/arrangement.cpp	^Arrangement::setupPlayback\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 1, 2026-09-27)
+open	src/deluge/model/instrument/kit.cpp	^Kit::renderGlobalEffectableForClip\(ModelStackWithTimelineCounter\*, std::span<StereoSample, 18446744073709551615ul>, int\*, int\*, int, int, bool, bool, int, int, int\)$	audio×interaction	state: global 'playbackHandler' (first seen in catalogue convergence batch 1, 2026-09-27)
+open	src/deluge/playback/mode/arrangement.cpp	^Arrangement::getLivePos\(unsigned int\*\)$	audio×interaction	state: global 'arrangement' (first seen in catalogue convergence batch 1, 2026-09-27)
+open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::getNumSwungTicksInSinceLastActionedSwungTick\(unsigned int\*\)$	audio×interaction	state: global 'currentlyActioningSwungTickOrResettingPlayPos' (first seen in catalogue convergence batch 1, 2026-09-27)
+open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::getNumSwungTicksInSinceLastTimerTick\(unsigned int\*\)$	audio×interaction	state: global 'playbackHandler' (first seen in catalogue convergence batch 1, 2026-09-27)
 # Index by shared state (state → entries). The second invariant's to-do list.
 #   Sound::voices_ (C2b): the getNumVoices lambda, terminateOneVoice. (AudioEngine::sounds itself: fixed by C2a,
 #     AudioOwnedList — its getNumVoices() entry removed.)
@@ -107,5 +113,6 @@ open	src/deluge/playback/playback_handler.h	^PlaybackHandler::isEitherClockActiv
 #   The playback handler and the sequencer tick (playbackHandler, the song's clips): actionTimerTick,
 #     scheduleNextTimerTick, isExternalClockActive, actionSwungTick, isEitherClockActive, Arrangement::doTickForward,
 #     getPosAtWhichClipWillCut, Clip/InstrumentClip/NoteRow::processCurrentPos, Song::isClipActive, Kit::getArpSettings,
-#     AudioEngine::tickSongFinalizeWindows
+#     AudioEngine::tickSongFinalizeWindows, getActualSwungTickCount, getNumSwungTicksInSinceLast*, Arrangement::setupPlayback,
+#     Arrangement::getLivePos, Kit::renderGlobalEffectableForClip
 
