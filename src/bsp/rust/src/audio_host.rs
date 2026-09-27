@@ -43,6 +43,9 @@ unsafe extern "C" {
         output: *mut DelugeStereoSample,
         frames: u32,
     );
+    /// A block skipped by [`should_skip_render`]: the app still runs the render's block-start lifetime step (app.h),
+    /// so objects handed to the render are let go of and freed on a single-executor harness too.
+    fn deluge_app_render_skipped();
 }
 
 /// Maximum frames per `deluge_app_render` call. MUST match device `audio.rs`'s
@@ -191,6 +194,10 @@ pub extern "C" fn deluge_audio_sample_rate() -> u32 {
 pub extern "C" fn deluge_audio_drive() -> u32 {
     let _tier = crate::tier::enter(crate::tier::Tier::Audio);
     if should_skip_render() {
+        // No audio, but the render's lifetime step still runs on this (render-tier) call: without it the epoch
+        // would stand still and nothing retired would ever be let go of or freed.
+        // SAFETY: an app entry point with no arguments, called on the render tier as app.h requires.
+        unsafe { deluge_app_render_skipped() };
         return 0;
     }
 

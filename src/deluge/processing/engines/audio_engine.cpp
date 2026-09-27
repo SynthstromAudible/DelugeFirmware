@@ -156,31 +156,35 @@ void pushOrOverflow(const RetireRequest& r) {
 }
 
 /// Hand a retired object over: the render lets go of it (ends voices, deregisters Sounds), then it is destroyed once
-/// two blocks have passed. Three cases, decided once from a single epoch read:
+/// two blocks have passed. Two cases, decided once from a single epoch read:
 ///  - the render has never run (epoch 0, boot): nothing can reach it; let go inline and destroy now;
-///  - the caller IS the render: let go inline, destroy later (other walks this block may hold it). No render path
-///    retires today (the song swap runs on the interaction tier), and RetireList is single-threaded on the
-///    interaction side, so a render path that starts retiring needs its own handover of the destroy;
 ///  - otherwise: the render lets go at the top of its next block (the ring); destroy later.
+///
+/// Only the interaction tier may retire (E455 otherwise). The ring is single-producer, and the retire list, the
+/// overflow list and reclaimRetired() are single-threaded on the interaction side. A retire from the render itself
+/// (the song swap, if it ever runs there) would need its own render-to-interaction handover of the destroy; that is
+/// left to the Song/Clip deletion work, and until then it freezes rather than corrupt the list.
 void handOver(const RetireRequest& r, void* object, void (*destroy)(void*)) {
+	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
+		FREEZE_WITH_ERROR("E455");
+	}
 	const bool renderHasRun = renderDomain_.audio_epoch() != 0;
 	if (!renderHasRun) {
 		letGo(r);
 		destroy(object);
 		return;
 	}
-	const uint8_t tier = deluge_tier_current();
-	if (tier == DELUGE_TIER_AUDIO) {
-		letGo(r);
-	}
-	else {
-		// The ring is single-producer: only the interaction tier may push to it.
-		if (tier != DELUGE_TIER_INTERACTION) {
-			FREEZE_WITH_ERROR("E455");
-		}
-		pushOrOverflow(r);
-	}
+	pushOrOverflow(r);
 	retireList.retire(object, destroy);
+}
+
+/// [render] The render's block-start lifetime step: advance the epoch, then let go of everything retired since the
+/// last block -- before any walk of this block can reach it. The epoch's release store is what lets RetireList free
+/// an object two blocks later. Run by every block the render starts, and by a block a host harness skips rendering
+/// (deluge_app_render_skipped), so retirement completes whether or not audio is produced.
+void renderRetirementStep() {
+	renderDomain_.advance_epoch();
+	(void)retireRing.drain([](RetireRequest&& r) { letGo(r); }, 16);
 }
 } // namespace
 
@@ -674,6 +678,12 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 /// windows still end exactly on sequencer events; `in` holds the `frames` input
 /// samples aligned with `out`. The window-length policy (how `frames` is
 /// chosen) is the board's: on RZ/A1L it stays the DMA-polled variable window.
+/// See <libdeluge/app.h>: a block the board chose not to render still runs the render's block-start lifetime step, so
+/// objects handed to the render are let go of and freed on schedule.
+extern "C" void deluge_app_render_skipped(void) {
+	renderRetirementStep();
+}
+
 extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) {
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
@@ -711,9 +721,8 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 	fillInputRing(in, frames);
 
 	// A new block: advance the lifetime epoch, then let go of everything retired since the last one -- before any
-	// walk below can reach it. The epoch's release store is what lets RetireList free it two blocks later.
-	renderDomain_.advance_epoch();
-	(void)retireRing.drain([](RetireRequest&& r) { letGo(r); }, 16);
+	// walk below can reach it.
+	renderRetirementStep();
 
 	bool offline = stemExport.processStarted && stemExport.renderOffline;
 
