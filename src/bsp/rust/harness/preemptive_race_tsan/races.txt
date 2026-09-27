@@ -21,7 +21,6 @@
 
 intrinsic	DEEP	src/lib/printf\.c	-	printf's buffer, written by more than one tier; the SUMMARY site is a bare intercept
 intrinsic	DEEP	core::ffi::c_str::strlen::runtime	-	strlen intercept inside CStr; the SUMMARY site is a bare intercept
-intrinsic	DEEP	library/core/src/str/validations\.rs:23[23]:52 in core::str::validations::run_utf8_validation	-	UTF-8 validation intercept; the SUMMARY site is a bare intercept
 
 open	src/lib/printf.c	^_out_buffer$	audio×interaction	state: global 'logDebug::buffer'
 open	src/deluge/gui/ui/ui.cpp	^getCurrentUI\(\)$	audio×interaction	state: global 'uiNavigationHierarchy'
@@ -64,6 +63,7 @@ open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::routine\(\)$	audio×in
 
 open	src/deluge/deluge.cpp	^inputRoutine\(\)$	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global read by the input routine; first seen in the C1 gate run)
 open	src/deluge/gui/ui/load/load_song_ui.cpp	^LoadSongUI::isLoadingSong\(\)$	audio×interaction	state: global 'loadSongUI' (load state polled across tiers; first seen in the C1 gate run)
+open	library/core/src/str/validations.rs	^core::str::validations::run_utf8_validation$	-	state: a string validated while another tier writes it (carried from the old catalogue, where it was filed as DEEP; its tiers were not recorded)
 # Index by shared state (state → entries). The second invariant's to-do list.
 #   AudioEngine::sounds / Sound::voices_ (C2; crashes): getNumVoices, its lambda, terminateOneVoice
 #   The TLSF allocator's arena (deluge_alloc, audio allocates/frees): Tlsf::search_suitable, split, BlockHeader::size,

@@ -132,7 +132,8 @@ site_parts() {
 
 # classify_block BLOCK — BLOCK is one \037-joined finding from extract_findings(). Prints "<status> <line>" for
 # the races.txt entry it matches, or "uncatalogued". Site entries are tried first (file suffix + function ERE,
-# against the SUMMARY site only — never an ancestor frame); intrinsic entries only then, against every frame.
+# against the SUMMARY site only — never an ancestor frame); intrinsic entries only then, and only for a bare
+# intercept (a site with no source path), against every frame.
 classify_block() {
     local block="$1" frames site i
     frames="$(tr '\037' '\n' <<<"$block")"
@@ -146,6 +147,12 @@ classify_block() {
             return
         fi
     done
+    # Intrinsic entries apply ONLY to a bare intercept (a site with no source path). A sourced site that no site
+    # entry names is a new race, even when its other stack runs through an intercepted frame.
+    if [[ -n "$SITE_PATH" ]]; then
+        echo uncatalogued
+        return
+    fi
     for i in "${!C_STATUS[@]}"; do
         [[ "${C_STATUS[i]}" == intrinsic ]] || continue
         if grep -Eq -- "${C_FUNC[i]}" <<<"$frames"; then
