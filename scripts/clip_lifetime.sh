@@ -54,6 +54,8 @@
 #   CL-SONGSWAP     the same load with the clock running and a synth sounding: the load arms a swap
 #                   (Session::armForSongSwap()), the render launches it (doSongSwap()), and
 #                   LoadSongUI::runFinishSegment() destroys the old song.
+#   CL-WINDOW       SESSIONDELETE and ARRANGERNOUNDO, just after the deletion and before any block: whether the song's
+#                   currentClip or the view's active timeline counter still names the retired clip. Required 0 and 0.
 #   CL-FREED        per clip leg, before its leg line: the scenario renders a few blocks and reclaims, so the retired
 #                   clip is destroyed (and ~Clip()'s check runs) inside its own leg; pending= is what is still waiting.
 #   CL-RECLAIM      after those legs and before WONTSOUND: AudioEngine::retiredPending() once the render has run and
@@ -212,6 +214,13 @@ for leg in "${REQUIRED_LEGS[@]}"; do
 	elif ! grep -qE "^CL-FREED leg=$leg pending=0$" "$OUT/all.txt"; then
 		# The clip was never freed inside the leg, so ~Clip()'s check never ran on it: a 0 would prove nothing.
 		required_fail="$required_fail$leg(not-freed) "
+	fi
+done
+# Just after the deletion, before any block: the interaction tier must no longer see the retired clip as the current
+# clip or the view's active one (AudioEngine::retire(Clip*) clears them itself).
+for leg in SESSIONDELETE ARRANGERNOUNDO; do
+	if ! grep -qE "^CL-WINDOW leg=$leg currentClip=0 view=0$" "$OUT/all.txt"; then
+		required_fail="$required_fail$leg(window) "
 	fi
 done
 if [ -n "$required_fail" ]; then

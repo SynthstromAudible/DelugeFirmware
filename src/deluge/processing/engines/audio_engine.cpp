@@ -144,9 +144,12 @@ void letGoOfSound(Sound& sound) {
 }
 
 /// [render] Drop every reference the render keeps from block to block to a retired clip. The caller already unlinked
-/// it from its song's arrays, clip instances and output (Clip::prepareForDestruction()); these four are the ones the
-/// render itself reads or writes across blocks and nothing else clears. Only the current song is looked at: the render
-/// reaches clips through currentSong alone, and a song that is no longer current takes its references with it.
+/// it from its song's arrays, clip instances and output (Clip::prepareForDestruction()), and AudioEngine::retire(Clip*)
+/// already cleared the ones the interaction tier writes (currentClip, syncScalingClip, the view's active stack). This
+/// is the catch for what the render itself may have written between the retire and this let-go: another clip's
+/// beingRecordedFromClip and syncScalingClip (the recording ticks), and currentClip (session.cpp's new-recording
+/// hand-over). Only the current song is looked at: the render reaches clips through currentSong alone, and a song that
+/// is no longer current takes its references with it.
 void letGoOfClip(Clip* clip) {
 	if (currentSong != nullptr) {
 		if (currentSong->getCurrentClip() == clip) {
@@ -2050,6 +2053,23 @@ void retire(Clip* clip) {
 		FREEZE_WITH_ERROR("i001"); // Trying to diversify Qui's E278
 	}
 #endif
+	// The references the interaction tier itself reads and writes are cleared here, at once, as ~Clip() used to: no
+	// handler that runs before the render's next block may see the retired (detached, possibly output-less) clip as
+	// the current clip or the view's active one, nor copy it somewhere nothing clears. letGoOfClip() is the catch for
+	// what the render writes itself before it lets go.
+	if (currentSong != nullptr) {
+		if (currentSong->getCurrentClip() == clip) {
+			currentSong->setCurrentClip(nullptr);
+		}
+		if (currentSong->syncScalingClip == clip) {
+			currentSong->syncScalingClip = nullptr;
+		}
+	}
+	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
+		view.activeModControllableModelStack.modControllable = nullptr;
+		view.activeModControllableModelStack.setTimelineCounter(nullptr);
+		view.activeModControllableModelStack.paramManager = nullptr;
+	}
 	handOver(RetireRequest{.clip = clip}, clip, [](void* p) {
 		auto* c = static_cast<Clip*>(p);
 		void* memory = dynamic_cast<void*>(c);

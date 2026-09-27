@@ -903,6 +903,13 @@ void runTick() {
 		g_step = nullptr;
 		g_ticks = 0;
 		g_awaitSteps = 0;
+		if (g_leg == Leg::ArrangerNoUndo || g_leg == Leg::SessionDelete) {
+			// Before any block: what the interaction tier itself can still read of the retired clip. Its handlers run
+			// between the retire and the render's let-go, so these must already be clear.
+			printf("CL-WINDOW leg=%s currentClip=%d view=%d\n", legName(g_leg),
+			       currentSong->getCurrentClip() == g_victim ? 1 : 0,
+			       view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_victim ? 1 : 0);
+		}
 		if (isClipLeg(g_leg)) {
 			printDangling();
 		}
