@@ -5485,7 +5485,10 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 	// Delete the Drum we came here to delete: the render ends its voices and lets go of it before it is freed
 	currentSong->deleteBackedUpParamManagersForModControllable(drum);
 	// Out of the kit for good: the render's let-go of the drum must not write back into the kit's
-	// drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit).
+	// drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit). Erase
+	// again first: a sequencer note-on between the first erase and the note row's reassignment re-inserts the drum,
+	// and after this nothing can name it. The render will own this set in later work.
+	kit->drumsWithRenderingActive.erase(drum);
 	drum->kit = nullptr;
 	AudioEngine::retire(drum);
 

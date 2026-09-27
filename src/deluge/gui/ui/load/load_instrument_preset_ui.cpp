@@ -1255,6 +1255,9 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 		soundDrumToReplace->wontBeRenderedForAWhile();
 		// Out of the kit for good: the render's let-go of the drum must not write back into the kit's
 		// drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit).
+		// Erase again first: a sequencer note-on between the first erase and here re-inserts the drum. The render
+		// will own this set in later work.
+		kitToLoadFor->drumsWithRenderingActive.erase(soundDrumToReplace);
 		soundDrumToReplace->kit = nullptr;
 		AudioEngine::retire(soundDrumToReplace);
 	}
