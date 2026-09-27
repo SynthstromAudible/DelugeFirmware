@@ -266,6 +266,14 @@ fn audio_spawner() -> Option<SendSpawner> {
     unsafe { *core::ptr::addr_of!(AUDIO_SPAWNER) }
 }
 
+/// Whether the priority-0 (audio) task runs on an executor of its own -- the device's preemptive SGI executor, or
+/// host_app's `"deluge-audio"` thread -- rather than on the cooperative thread executor with everything else (the
+/// single-executor host harnesses). Decided once at startup, by [`set_audio_spawner`].
+#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+pub fn has_audio_executor() -> bool {
+    audio_spawner().is_some()
+}
+
 /// Lens-1-only (deterministic virtual-time streaming-underrun harness)
 /// override for the priority-0 (audio) task's schedule. `AudioEngine::routine_task`'s
 /// registered period (`deluge.cpp`: `8 / 44100.` seconds) is a scheduler poll/backoff

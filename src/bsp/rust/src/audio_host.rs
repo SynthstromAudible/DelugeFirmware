@@ -169,6 +169,24 @@ pub fn drive_count() -> u64 {
     DRIVE_COUNT.load(Ordering::Relaxed)
 }
 
+/// Two cases, as [`should_skip_render`] draws them:
+///
+/// - **host_app** (`scheduler::set_audio_spawner` called): the render runs on its own `"deluge-audio"` thread, the
+///   device's preemptive audio executor's stand-in. Rendering here would run a second render alongside it, so sleep
+///   briefly and let that thread render.
+/// - **A single-executor harness** (golden, Lens 1): the audio task is a cooperative task on the caller's own
+///   executor, and cannot run while the caller waits. Run its step inline: [`deluge_audio_drive`] enters the audio
+///   tier itself, and after boot it runs the block-start step of the render it skips
+///   (`deluge_app_render_skipped`), which is what lets go of what was handed over.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_await_block() {
+    if crate::scheduler::has_audio_executor() {
+        std::thread::sleep(std::time::Duration::from_millis(1));
+    } else {
+        let _ = deluge_audio_drive();
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_max_block_frames() -> u32 {
     APP_BLOCK_FRAMES as u32

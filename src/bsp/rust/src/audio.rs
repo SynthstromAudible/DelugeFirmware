@@ -9,11 +9,15 @@
 //!
 //! All state is touched only from the app's single task (deluge_audio_drive runs
 //! inside deluge_app_tick; the timing queries from the same app context), and no
-//! ISR touches it, so the `static mut` access is single-threaded.
+//! ISR touches it, so the `static mut` access is single-threaded. The one
+//! exception is [`RENDER_BLOCKS`], an atomic the render bumps and thread mode
+//! reads in [`deluge_audio_await_block`].
 #![allow(non_upper_case_globals)]
 // This module is a single-threaded port (state touched only from the app task,
 // no ISR); the unsafe ops inside the unsafe fns are documented per-site.
 #![allow(unsafe_op_in_unsafe_fn)]
+
+use core::sync::atomic::{AtomicU32, Ordering};
 
 use rza1l_hal::ssi;
 
@@ -69,6 +73,14 @@ static mut PENDING_END: usize = 0;
 // Anchors of the current render block, for sample-accurate gate/MIDI timing.
 static mut BLOCK_START_WRITE: usize = 0;
 static mut BLOCK_START_PLAY: usize = 0;
+
+/// [audio] -> [task] How many render blocks have begun: bumped just before each `deluge_app_render` call, read by
+/// [`deluge_audio_await_block`]. Wraps; only a change is ever looked for.
+static RENDER_BLOCKS: AtomicU32 = AtomicU32::new(0);
+
+/// How long [`deluge_audio_await_block`] waits for a block before it returns anyway, so a render that is not running
+/// cannot hang its caller: the caller's own deadline decides. Several blocks' worth (one is ~2.9 ms at 128 frames).
+const AWAIT_BLOCK_BOUND_MS: u64 = 20;
 
 /// DMA TX play head as a frame index into the ring.
 #[inline]
@@ -203,6 +215,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
             BLOCK_START_WRITE = TX_WRITE;
             BLOCK_START_PLAY = PLAY_CACHED;
             prepare_input_block(frames);
+            RENDER_BLOCKS.fetch_add(1, Ordering::Release);
             deluge_app_render(
                 core::ptr::addr_of!(INPUT_BLOCK) as *const DelugeStereoSample,
                 core::ptr::addr_of_mut!(RENDER_BLOCK) as *mut DelugeStereoSample,
@@ -214,6 +227,23 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
         }
     }
     renders
+}
+
+/// The render runs on the preemptive audio executor, which preempts thread mode: a block cannot be under way while
+/// this runs, and calling the render from here would run a second one alongside the executor's. So wait -- the CPU
+/// idles until an interrupt -- for the render to begin its next block. Bounded ([`AWAIT_BLOCK_BOUND_MS`]): a render
+/// that never runs (masked interrupts, a stopped audio task) returns control to the caller's own deadline.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_await_block() {
+    let start = RENDER_BLOCKS.load(Ordering::Acquire);
+    let deadline =
+        embassy_time::Instant::now() + embassy_time::Duration::from_millis(AWAIT_BLOCK_BOUND_MS);
+    while RENDER_BLOCKS.load(Ordering::Acquire) == start && embassy_time::Instant::now() < deadline
+    {
+        // SAFETY: WFI only idles the core until the next interrupt (the audio executor's SGI, the time driver's
+        // alarm); it touches no memory.
+        unsafe { core::arch::asm!("wfi", options(nostack, preserves_flags)) };
+    }
 }
 
 #[unsafe(no_mangle)]
