@@ -381,6 +381,18 @@ ci = "nightly"
 runtime = "~1m"
 
 [[harness]]
+name = "container-guard"
+path = "."
+kind = "property"
+status = "gate"
+gates = "Which structural edits to the containers the audio render walks are made while the render could preempt them. On the device the render preempts thread mode at any instruction, so an insert, erase, reorder, relink or reallocation of a clip's note rows, a row's notes, an automation node list, the song's clip arrays, an output's clip instances, the song's output list or a kit's drum list must run inside an AudioExcludedSection (libdeluge/system.h). Each such container reports every structural edit to a probe (src/deluge/util/structural_edit_probe.h) that counts those made outside a section. With playback on the internal clock, each leg makes one edit through the model's own entry point and reports CG-<LEG> unguarded=<n> kinds=<kind=n,...>: NOTEADD, NOTEDEL, ROWADD, ROWDEL, CLIPNEW, CLIPDEL, CLIPDUP, ARRANGE, AUTOMATE, DRUM, REPLACE, UNDO and BIGROW (a row inserted below 128 others). The script's REQUIRED_LEGS must read unguarded=0; the others are reported. The run fails on a missing leg line, a fixture that could not be built or a clock that never ran, or an edit that ends the process. Every golden run also prints GUARD-UNGUARDED total=<n> at exit when any unguarded edit was made."
+build = []
+run = ["scripts/container_guard.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~1m"
+
+[[harness]]
 name = "card-reinsert"
 path = "."
 kind = "property"

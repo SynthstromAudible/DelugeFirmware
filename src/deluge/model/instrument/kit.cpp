@@ -45,9 +45,17 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "util/structural_edit_probe.h"
 #include <cstring>
 
 namespace params = deluge::modulation::params;
+
+namespace {
+/// Report a splice of a kit's drum list to the structural-edit probe (util/structural_edit_probe.h).
+void noteDrumListEdit() {
+	deluge::noteStructuralEdit(deluge::StructuralContainer::DRUM_LIST);
+}
+} // namespace
 
 Kit::Kit() : Instrument(OutputType::KIT), arpeggiator(), defaultArpSettings() {
 	defaultArpSettings.numOctaves = 1;
@@ -159,6 +167,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 				                &selectedDrumIndex, &drumIndex, song);
 
 				removeDrumFromLinkedList(drum);
+				noteDrumListEdit();
 				drum->next = nullptr;
 				*newLastDrum = drum;
 				newLastDrum = &drum->next;
@@ -211,6 +220,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 				// doesn't affect drumIndexes!
 				if (!song->findNoteRowForDrum(this, thisDrum)) {
 
+					noteDrumListEdit();
 					*prevPointer = thisDrum->next;
 
 					if (thisDrum->type == DrumType::SOUND) {
@@ -255,6 +265,7 @@ moveOn:
 
 	writer.writeArrayEnding("soundSources");
 
+	noteDrumListEdit();
 	*newLastDrum = firstDrum;
 	firstDrum = newFirstDrum;
 
@@ -414,6 +425,7 @@ void Kit::addDrum(Drum* newDrum) {
 	while (*prevPointer != nullptr) {
 		prevPointer = &((*prevPointer)->next);
 	}
+	noteDrumListEdit();
 	*prevPointer = newDrum;
 
 	newDrum->kit = this;
@@ -432,6 +444,7 @@ void Kit::removeDrumFromLinkedList(Drum* drum) {
 	Drum** prevPointer = &firstDrum;
 	while (*prevPointer) {
 		if (*prevPointer == drum) {
+			noteDrumListEdit();
 			*prevPointer = drum->next;
 			return;
 		}

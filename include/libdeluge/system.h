@@ -83,20 +83,36 @@ struct CriticalSectionGuard {
 	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
 };
 
+/// The nesting depth of AudioExcludedSection in the calling context. Sections nest; the count is per thread on
+/// host (each thread's sections are its own) and a plain global on the device, where only thread mode and the
+/// storage handler enter a section and the audio render never does.
+#ifdef DELUGE_HOST
+inline thread_local int32_t g_delugeAudioExcludedDepth = 0;
+#else
+inline int32_t g_delugeAudioExcludedDepth = 0;
+#endif
+
+/// How many AudioExcludedSections the calling context is inside. [task] [isr]
+inline int32_t deluge_audio_excluded_depth() {
+	return g_delugeAudioExcludedDepth;
+}
+
 /// RAII asymmetric critical section: enters iff the caller is NOT the audio render (`!deluge_in_audio_context()`).
 ///
 /// The C++ twin of the resource manager's `deluge_resource::sync::Masked`. Guard every change to a structure the
 /// audio render walks, and every walk. On the device the audio render skips the mask: it preempts every other
 /// context, so nothing can change the structure mid-walk; every other context masks for its window. On host,
 /// deluge_in_audio_context() is always false, so every thread takes the one global lock, which is what excludes the
-/// audio thread's walks from another thread's changes.
+/// audio thread's walks from another thread's changes. Its depth is deluge_audio_excluded_depth().
 struct AudioExcludedSection {
 	AudioExcludedSection() : entered_(!deluge_in_audio_context()) {
 		if (entered_) {
 			ENTER_CRITICAL_SECTION();
 		}
+		g_delugeAudioExcludedDepth++;
 	}
 	~AudioExcludedSection() {
+		g_delugeAudioExcludedDepth--;
 		if (entered_) {
 			EXIT_CRITICAL_SECTION();
 		}

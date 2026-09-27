@@ -300,6 +300,7 @@ Song::~Song() {
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "libdeluge/system.h"
+#include "util/structural_edit_probe.h"
 extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
@@ -347,12 +348,22 @@ void Song::setupDefault() {
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
+/// Report a splice of this song's output or hibernation list to the structural-edit probe. Only the current song's
+/// lists are walked by the render, so a splice to any other song (one being built by a load, or torn down at reclaim)
+/// is not counted.
+static void noteOutputListEdit(const Song* song) {
+	if (song == currentSong) {
+		deluge::noteStructuralEdit(deluge::StructuralContainer::OUTPUT_LIST);
+	}
+}
+
 void Song::deleteAllOutputs(Output** prevPointer) {
 
 	while (*prevPointer) {
 		AudioEngine::logAction("s6");
 		AudioEngine::routineWithClusterLoading();
 		Output* toDelete = *prevPointer;
+		noteOutputListEdit(this);
 		*prevPointer = toDelete->next;
 
 		// toDelete is already unlinked, so this only visits outputs that are still alive
@@ -2010,6 +2021,7 @@ loadOutput:
 							return error;
 						}
 						((Instrument*)newOutput)->mightExistOnCard = true;
+						noteOutputListEdit(this);
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
 						reader.match('}');
@@ -3275,6 +3287,7 @@ uint32_t Song::getTimePerTimerTickRounded() {
 
 void Song::addOutput(Output* output, bool atStart) {
 
+	noteOutputListEdit(this);
 	if (atStart) {
 		output->next = firstOutput;
 		firstOutput = output;
@@ -3343,6 +3356,7 @@ int32_t Song::removeOutputFromMainList(
 		outputIndex++;
 	}
 
+	noteOutputListEdit(this);
 	*prevPointer = output->next;
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
@@ -3398,6 +3412,7 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// Remove the oldInstrument from the list of Instruments
 	Output** prevPointer;
 	for (prevPointer = &firstOutput; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
+	noteOutputListEdit(this);
 	newOutput->next = oldOutput->next;
 	*prevPointer = oldOutput->next;
 
@@ -3511,6 +3526,7 @@ traverseClips:
 	deleteOrAddToHibernationListOutput(oldOutput);
 
 	// Put the newInstrument into the master list
+	noteOutputListEdit(this);
 	*prevPointer = newOutput;
 	if (outputRecordingOldOutput) {
 		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput);
@@ -3604,6 +3620,7 @@ void Song::moveInstrumentToHibernationList(Instrument* instrument) {
 
 void Song::addInstrumentToHibernationList(Instrument* instrument) {
 	instrument->prepareForHibernationOrDeletion();
+	noteOutputListEdit(this);
 	instrument->next = firstHibernatingInstrument;
 	firstHibernatingInstrument = instrument;
 	instrument->setActiveClip(nullptr); // Just be sure!
@@ -3621,6 +3638,7 @@ void Song::removeInstrumentFromHibernationList(Instrument* instrument) {
 		}
 	}
 
+	noteOutputListEdit(this);
 	*prevPointer = (Instrument*)instrument->next;
 }
 
@@ -3651,6 +3669,7 @@ void Song::deleteHibernatingInstrumentWithSlot(OutputType outputType, char const
 		if (instrument->type == outputType) {
 
 			if (!strcasecmp(name, instrument->name.c_str())) {
+				noteOutputListEdit(this);
 				*prevPointer = (Instrument*)instrument->next;
 
 				deleteOutput(instrument);
@@ -5070,6 +5089,7 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	Output** prevPointer;
 	for (prevPointer = &firstOutput; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
+	noteOutputListEdit(this);
 	newOutput->next = oldOutput->next;
 	*prevPointer = newOutput;
 

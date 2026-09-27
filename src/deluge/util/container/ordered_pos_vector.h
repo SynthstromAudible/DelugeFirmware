@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "util/containers.h"
+#include "util/structural_edit_probe.h"
 #include <algorithm>
 #include <cstring>
 #include <expected>
@@ -48,7 +49,10 @@ public:
 
 	/// Forget the current contents *without* freeing them. Only for use when this object is a byte-copy of
 	/// another instance and so doesn't own what it points at (the legacy cloning idiom).
-	void init() { new (&elements_) fast_vector<T>(); }
+	void init() {
+		noteEdit();
+		new (&elements_) fast_vector<T>();
+	}
 
 	using iterator = typename fast_vector<T>::iterator;
 	using const_iterator = typename fast_vector<T>::const_iterator;
@@ -62,6 +66,7 @@ public:
 
 	/// Inserts numToInsert default-constructed elements at index i.
 	std::expected<void, Error> insertAt(int32_t i, int32_t numToInsert = 1) {
+		noteEdit();
 		try {
 			if constexpr (std::is_copy_constructible_v<T>) {
 				elements_.insert(elements_.begin() + i, numToInsert, T{});
@@ -92,6 +97,7 @@ public:
 
 	/// Reserves room for this many elements beyond the current size.
 	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
+		noteEdit();
 		try {
 			elements_.reserve(elements_.size() + numAdditionalElementsNeeded);
 		} catch (deluge::exception&) {
@@ -100,7 +106,10 @@ public:
 		return {};
 	}
 
-	void swap(OrderedPosVector& other) noexcept { elements_.swap(other.elements_); }
+	void swap(OrderedPosVector& other) noexcept {
+		noteEdit();
+		elements_.swap(other.elements_);
+	}
 
 	iterator begin() { return elements_.begin(); }
 	iterator end() { return elements_.end(); }
@@ -132,8 +141,14 @@ public:
 	}
 
 	/// Erases by iterator (returns the iterator following the removed range, as std containers do)
-	iterator erase(iterator first, iterator last) { return elements_.erase(first, last); }
-	iterator erase(iterator at) { return elements_.erase(at); }
+	iterator erase(iterator first, iterator last) {
+		noteEdit();
+		return elements_.erase(first, last);
+	}
+	iterator erase(iterator at) {
+		noteEdit();
+		return elements_.erase(at);
+	}
 
 	/// Batch lower-bound search: each term is replaced with the index of the first element whose key is >= it.
 	/// The terms must be in ascending order.
@@ -154,6 +169,7 @@ public:
 
 	/// Moves the element at iFrom so it sits at iTo, shuffling those in between along by one.
 	void repositionElement(int32_t iFrom, int32_t iTo) {
+		noteEdit();
 		if (iFrom < iTo) {
 			std::rotate(elements_.begin() + iFrom, elements_.begin() + iFrom + 1, elements_.begin() + iTo + 1);
 		}
@@ -163,6 +179,7 @@ public:
 	}
 
 	void deleteAtKey(int32_t key) {
+		noteEdit();
 		auto it = find_key(key);
 		if (it != elements_.end()) {
 			elements_.erase(it);
@@ -172,7 +189,10 @@ public:
 	// Standard container surface
 	[[nodiscard]] size_t size() const { return elements_.size(); }
 	[[nodiscard]] bool empty() const { return elements_.empty(); }
-	void clear() { elements_.clear(); }
+	void clear() {
+		noteEdit();
+		elements_.clear();
+	}
 	T& operator[](size_t i) { return elements_[i]; }
 	T const& operator[](size_t i) const { return elements_[i]; }
 	T& front() { return elements_.front(); }
@@ -180,6 +200,7 @@ public:
 	T* data() { return elements_.data(); }
 
 	bool cloneFrom(OrderedPosVector const* other) {
+		noteEdit();
 		try {
 			elements_ = other->elements_;
 			return true;
@@ -195,6 +216,7 @@ public:
 	/// Until this is called, the byte-copy aliases the original's buffer, which the original still owns; on
 	/// failure this copy is detached and left empty.
 	Error beenCloned() {
+		noteEdit();
 		int32_t num = static_cast<int32_t>(elements_.size());
 		T const* sourceData = elements_.data(); // Reading through the aliased buffer is safe
 		fast_vector<T> fresh;
@@ -215,6 +237,7 @@ public:
 	/// Rotates all keys forward by `amount` (which may be negative) within a span of `effectiveLength`,
 	/// keeping the array sorted by rotating the elements correspondingly.
 	void shiftHorizontal(int32_t amount, int32_t effectiveLength) {
+		noteEdit();
 		if (elements_.empty()) {
 			return;
 		}
@@ -252,6 +275,7 @@ public:
 
 	/// Tiles the contents (all of which must lie before wrapPoint) out to endPos. Returns false on OOM.
 	bool generateRepeats(int32_t wrapPoint, int32_t endPos) {
+		noteEdit();
 		if (elements_.empty()) {
 			return true;
 		}
@@ -298,6 +322,10 @@ public:
 	}
 
 protected:
+	/// Every structural edit (insert, erase, reorder, reallocate, clone) reports to the probe; see
+	/// util/structural_edit_probe.h.
+	static void noteEdit() { noteStructuralEdit(StructuralContainer::ORDERED_POS_VECTOR); }
+
 	fast_vector<T> elements_{};
 };
 
