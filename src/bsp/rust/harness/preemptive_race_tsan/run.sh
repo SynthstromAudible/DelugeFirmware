@@ -13,7 +13,10 @@
 # (file + function), with a status — open (a real violation, not fixed), accepted (judged
 # benign, with a written reason) or intrinsic (a bare runtime intercept whose real site is a
 # named deeper frame). A site with no entry is UNCATALOGUED and fails the run; an entry nobody
-# hits is reported "not seen", which is information only, since races are timing-dependent.
+# hits is reported "not seen", which is information only, since races are timing-dependent. A
+# fourth class, lifetime, needs no races.txt entry: a constructor (X::X()) writing heap-arena
+# memory is reported but never fails the run, since C2b's retirement — not a catalogue entry —
+# is what removes it.
 #
 # Each finding is classified on its RACE SITE — the `SUMMARY: ThreadSanitizer:` line — never
 # on an ancestor frame: on the audio thread almost every stack passes through the same roots
@@ -31,8 +34,9 @@
 #   SKIP_BUILD=1 ./run.sh         # reuse an already-built TSan tree + binary (fast iteration)
 #   ./run.sh --self-test          # no build/run: replay self_test/*.log fixtures through the
 #                                  # classifier and assert each matches its *.expect verdict
-#                                  # (open/known/uncatalogued) — the regression test for this
-#                                  # classifier's own logic, independent of the TSan binary.
+#                                  # (open/accepted/intrinsic/lifetime/uncatalogued) — the
+#                                  # regression test for this classifier's own logic,
+#                                  # independent of the TSan binary.
 #
 # Prerequisites (see HOST_HARNESS.md's M4c section for the one-time setup):
 #   - clang/clang++ whose LLVM major matches `rustc +nightly`'s bundled LLVM.
@@ -147,6 +151,14 @@ classify_block() {
             return
         fi
     done
+    # The cross-tier lifetime class: a constructor writing heap-arena memory another tier last touched can only be
+    # memory reused after a free with no handover from the render. Reported, never failed: C2b's retirement is what
+    # removes the class. Constructor = the function's last two name components are equal (`X::X(`).
+    if [[ -n "$SITE_PATH" ]] && grep -q "Location is global '[^']*HOST_INTERNAL'" <<<"$frames" \
+        && grep -Eq '(^|::)([A-Za-z_][A-Za-z0-9_]*)::\2\(' <<<"$SITE_FUNC"; then
+        echo lifetime
+        return
+    fi
     # Intrinsic entries apply ONLY to a bare intercept (a site with no source path). A sourced site that no site
     # entry names is a new race, even when its other stack runs through an intercepted frame.
     if [[ -n "$SITE_PATH" ]]; then
@@ -164,15 +176,16 @@ classify_block() {
 }
 
 uncatalogued_lines_file="$(mktemp)"
-trap 'rm -f "$uncatalogued_lines_file"' EXIT
+lifetime_lines_file="$(mktemp)"
+trap 'rm -f "$uncatalogued_lines_file" "$lifetime_lines_file"' EXIT
 load_catalog
 
 if [[ "${1:-}" == "--self-test" ]]; then
     # Regression test for the classifier logic itself: replay each self_test/*.log fixture
     # (one WARNING..SUMMARY finding per file) through the SAME extract_findings/
     # classify_block functions the real run uses, and assert it lands in the *.expect verdict
-    # (open/accepted/intrinsic/uncatalogued). No TSan build or binary involved. See self_test/README (the
-    # header of each fixture) for what each one proves.
+    # (open/accepted/intrinsic/lifetime/uncatalogued). No TSan build or binary involved. See
+    # self_test/README (the header of each fixture) for what each one proves.
     self_test_dir="$SCRIPT_DIR/self_test"
     self_test_fail=0
     shopt -s nullglob
@@ -262,7 +275,7 @@ fi
 
 echo "== [3/3] Running $NUM_RUNS iteration(s): song=$SONG blocks=$BLOCKS fixture=$FIXTURE =="
 declare -A HITS=()
-total_open=0 total_accepted=0 total_intrinsic=0 total_uncatalogued=0
+total_open=0 total_accepted=0 total_intrinsic=0 total_lifetime=0 total_uncatalogued=0
 any_scenario_fail=0
 
 for i in $(seq 1 "$NUM_RUNS"); do
@@ -287,7 +300,7 @@ for i in $(seq 1 "$NUM_RUNS"); do
     fi
 
     findings="$(extract_findings "$log")"
-    open=0 accepted=0 intrinsic=0 uncat=0
+    open=0 accepted=0 intrinsic=0 lifetime=0 uncat=0
     while IFS= read -r block; do
         [[ -z "$block" ]] && continue
         verdict="$(classify_block "$block")"
@@ -295,6 +308,7 @@ for i in $(seq 1 "$NUM_RUNS"); do
             open) open=$((open + 1)) ;;
             accepted) accepted=$((accepted + 1)) ;;
             intrinsic) intrinsic=$((intrinsic + 1)) ;;
+            lifetime) lifetime=$((lifetime + 1)); echo "$block" >>"$lifetime_lines_file"; continue ;;
             *)
                 uncat=$((uncat + 1))
                 echo "$block" >>"$uncatalogued_lines_file"
@@ -308,8 +322,9 @@ for i in $(seq 1 "$NUM_RUNS"); do
     total_open=$((total_open + open))
     total_accepted=$((total_accepted + accepted))
     total_intrinsic=$((total_intrinsic + intrinsic))
+    total_lifetime=$((total_lifetime + lifetime))
     total_uncatalogued=$((total_uncatalogued + uncat))
-    echo "run $i: scenario=$scenario_status  open=$open accepted=$accepted intrinsic=$intrinsic UNCATALOGUED=$uncat  (log: $log)"
+    echo "run $i: scenario=$scenario_status  open=$open accepted=$accepted intrinsic=$intrinsic lifetime=$lifetime UNCATALOGUED=$uncat  (log: $log)"
 done
 
 echo
@@ -317,6 +332,10 @@ echo "== Summary over $NUM_RUNS run(s) =="
 echo "  open (catalogued cross-tier race) hits: $total_open"
 echo "  accepted (catalogued, judged benign) hits: $total_accepted"
 echo "  intrinsic (runtime intercept) hits: $total_intrinsic"
+echo "  lifetime (reported, not failed) hits: $total_lifetime"
+if [[ "$total_lifetime" != "0" ]]; then
+    tr '\037' '\n' <"$lifetime_lines_file" | grep '^SUMMARY: ThreadSanitizer:' | sort -u | sed 's/^/    /'
+fi
 echo "  UNCATALOGUED hits: $total_uncatalogued"
 echo
 echo "== Per entry (races.txt line: status file function — hits over $NUM_RUNS run(s)) =="
