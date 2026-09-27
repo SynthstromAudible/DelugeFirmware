@@ -233,6 +233,10 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
 /// this runs, and calling the render from here would run a second one alongside the executor's. So wait -- the CPU
 /// idles until an interrupt -- for the render to begin its next block. Bounded ([`AWAIT_BLOCK_BOUND_MS`]): a render
 /// that never runs (masked interrupts, a stopped audio task) returns control to the caller's own deadline.
+///
+/// The bound itself relies on some interrupt waking the WFI: nothing here arms an alarm for the deadline. In practice
+/// the priority-0 audio task's own `Timer` always has one queued (and the audio executor's SGI follows it), so the core
+/// wakes at least once a block; with every other alarm and interrupt quiet, the loop would sleep past its deadline.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_await_block() {
     let start = RENDER_BLOCKS.load(Ordering::Acquire);

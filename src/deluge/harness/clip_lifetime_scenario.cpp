@@ -997,8 +997,11 @@ bool songLegOver() {
 
 /// A stopped-clock song leg, once its clear or load has returned: what the rest of the interaction tier does next. A UI
 /// timer fires (the play-enable flash, which walks the current song's session clips -- the timer LoadSongUI unsets
-/// before it deletes the old song), then a MIDI note arrives on the DIN port and is let go of. Neither may see a song
-/// that is gone, or no song at all.
+/// before it deletes the old song), then a MIDI note arrives on the DIN port and is let go of. A regression guard for
+/// "the clear or load left currentSong null or pointing at the old song" -- it runs after the operation returns. It is
+/// not evidence about the wait inside it: that no interaction task runs while currentSong is null holds by
+/// construction (awaitRetired() runs no scheduler; on this harness the render step runs inline), and nothing here can
+/// observe that window.
 void runInteractionAfterLoad() {
 	g_step = "uiTimer";
 	uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, 0);

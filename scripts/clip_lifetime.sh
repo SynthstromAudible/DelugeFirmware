@@ -67,8 +67,10 @@
 #                   was constructed: the old song must already be freed), pending= (what was still waiting once the
 #                   clear or load returned) and violations= (AudioEngine::retireViolations() over the leg).
 #   CL-AFTER        each stopped-clock song leg, once its clear or load is over: a UI timer fires (the play-enable
-#                   flash, which walks the current song's clips) and a MIDI note arrives on the DIN port. Neither may
-#                   find the song gone.
+#                   flash, which walks the current song's clips) and a MIDI note arrives on the DIN port. A regression
+#                   guard that the clear or load left currentSong set (song=1) and usable. It runs after the operation
+#                   returns, so it says nothing about the wait inside it: that no interaction task runs while currentSong
+#                   is null holds by construction (the wait runs no scheduler), and no leg can observe that window.
 #   CL-SONGSWAP     the same load with the clock running and a synth sounding: the load arms a swap
 #                   (Session::armForSongSwap()), the render launches it (doSongSwap()), and
 #                   LoadSongUI::runFinishSegment() hands the old song to the render.
@@ -192,7 +194,8 @@ REQUIRED_SOUND_LEGS=(SAVEKIT WONTSOUND)
 # waiting once the clear or load returned (pending=0).
 REQUIRED_SONG_LEGS=(EPOCH0 SONGCLEAR SONGLOAD SONGSWAP BURSTSONG CLEARPLAYING)
 STOPPED_SONG_LEGS=(EPOCH0 SONGCLEAR SONGLOAD BURSTSONG)
-# The stopped-clock song legs the scenario drives a UI timer and a MIDI note-in after (CL-AFTER).
+# The stopped-clock song legs the scenario drives a UI timer and a MIDI note-in after (CL-AFTER): currentSong must be
+# set and usable once the clear or load has returned.
 AFTER_LEGS=(SONGCLEAR SONGLOAD BURSTSONG)
 
 # The leg after $1, or nothing after the last.

@@ -154,13 +154,6 @@ void letGoOfSound(Sound& sound) {
 	AudioEngine::sounds.remove(&sound);
 }
 
-/// [render] Drop every reference the render keeps from block to block to a retired clip. The caller already unlinked
-/// it from its song's arrays, clip instances and output (Clip::prepareForDestruction()), and AudioEngine::retire(Clip*)
-/// already cleared the ones the interaction tier writes (currentClip, syncScalingClip, the view's active stack). This
-/// is the catch for what the render itself may have written between the retire and this let-go: another clip's
-/// beingRecordedFromClip and syncScalingClip (the recording ticks), and currentClip (session.cpp's new-recording
-/// hand-over). Only the current song is looked at: the render reaches clips through currentSong alone, and a song that
-/// is no longer current takes its references with it.
 /// Point the view's active ModControllable model stack at nothing.
 void clearViewModelStack() {
 	view.activeModControllableModelStack.modControllable = nullptr;
@@ -204,6 +197,13 @@ bool viewNamesSong(Song* song) {
 	return false;
 }
 
+/// [render] Drop every reference the render keeps from block to block to a retired clip. The caller already unlinked
+/// it from its song's arrays, clip instances and output (Clip::prepareForDestruction()), and AudioEngine::retire(Clip*)
+/// already cleared the ones the interaction tier writes (currentClip, syncScalingClip, the view's active stack). This
+/// is the catch for what the render itself may have written between the retire and this let-go: another clip's
+/// beingRecordedFromClip and syncScalingClip (the recording ticks), and currentClip (session.cpp's new-recording
+/// hand-over). Only the current song is looked at: the render reaches clips through currentSong alone, and a song that
+/// is no longer current takes its references with it.
 void letGoOfClip(Clip* clip) {
 	if (currentSong != nullptr) {
 		if (currentSong->getCurrentClip() == clip) {

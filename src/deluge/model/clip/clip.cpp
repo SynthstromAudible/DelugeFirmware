@@ -583,6 +583,11 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 		int32_t maxLength = arrangementRecordPos - clipInstance->pos;
 
 		if (maxLength <= 0) { // Shouldn't normally go below 0...
+			// This can run on the render (arrangement recording's ticks). There, deletingClipInstanceForClip() would
+			// freeze with E455: with no action it discards the undo logs and deletes the clip at once, and both hand
+			// clips to AudioEngine::retire(), which only the interaction tier may call. Believed unreachable: it needs
+			// the output's last instance to start at or after the record position, and arrangement recording clears
+			// the instances from that position on before it begins a new one.
 			song->deletingClipInstanceForClip(output, clipInstance->clip, nullptr, false); // Calls audio routine...
 			clipInstanceI--;
 			goto setupClipInstance;

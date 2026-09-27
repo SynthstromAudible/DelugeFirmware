@@ -2134,9 +2134,11 @@ async fn run_sound_lifetime_scenario(done: &'static AtomicBool) {
     hard_exit(0);
 }
 
-/// The `GOLDEN_SCENARIO=clip_lifetime` scenario: delete a playing clip through each real clip deletion path, and
-/// report how many Clips each path destroyed while something the render reads still pointed at them. Report-only:
-/// the counts fail nothing; `CLIP_LIFETIME_FROM=<LEG>` starts the run at that leg.
+/// The `GOLDEN_SCENARIO=clip_lifetime` scenario: delete a playing clip, a drum and the whole song through each real
+/// deletion path, and report how many Clips, Songs and Sounds each path destroyed while the render could still reach
+/// them. The counts themselves are judged by `scripts/clip_lifetime.sh`, which requires them clean; this task exits 1
+/// only on an in-process failure (a fixture that could not be built, a clock that never ran).
+/// `CLIP_LIFETIME_FROM=<LEG>` starts the run at that leg.
 #[embassy_executor::task]
 async fn run_clip_lifetime_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: run_clip_lifetime_scenario: awaiting boot+mount");
