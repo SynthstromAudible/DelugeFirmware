@@ -81,8 +81,9 @@ public:
 	}
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
-	/// @note A destruction that finds live voices is one the render may still be reaching into: a voice culled
-	///       mid-destruction calls back into this Sound's pure virtuals. The count is the evidence for that.
+	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
+	///       member's destructor recycles each voice, and ~Voice unassigns it back into this Sound, whose
+	///       reassessRenderSkippingStatus() then calls the pure virtual getArpSettings(). The count is taken first.
 	static int32_t soundsDestroyedWithLiveVoices();
 
 	Patcher patcher;

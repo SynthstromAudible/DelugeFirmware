@@ -63,6 +63,7 @@
 #include "util/misc.h"
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <iterator>
 #include <limits>
 #include <ranges>
@@ -79,16 +80,17 @@ constexpr Patcher::Config kPatcherConfigForSound = {
 };
 
 namespace {
-/// Sounds destroyed while they still had live voices. A plain always-on counter: evidence, not synchronisation.
-int32_t g_soundsDestroyedWithLiveVoices = 0;
+/// Sounds destroyed while they still had live voices. Always on; relaxed, because it is evidence, not synchronisation:
+/// a Sound may be destroyed on one tier while the count is read on another.
+std::atomic<int32_t> g_soundsDestroyedWithLiveVoices{0};
 } // namespace
 
 void Sound::noteDestroyedWithLiveVoices() {
-	g_soundsDestroyedWithLiveVoices++;
+	g_soundsDestroyedWithLiveVoices.fetch_add(1, std::memory_order_relaxed);
 }
 
 int32_t Sound::soundsDestroyedWithLiveVoices() {
-	return g_soundsDestroyedWithLiveVoices;
+	return g_soundsDestroyedWithLiveVoices.load(std::memory_order_relaxed);
 }
 
 Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalValues) {

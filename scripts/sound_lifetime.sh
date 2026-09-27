@@ -6,20 +6,27 @@
 #
 # ## Why this gate exists
 #
-# A Sound destroyed while it still has live voices can have one culled by the render mid-destruction, and the cull
-# calls back into the Sound's pure virtuals. Reading the deletion paths guesses which of them can do that; this
-# measures it. Every deletion path must end a Sound's voices before any part of it is destroyed.
+# A Sound destroyed while it still has live voices crashes itself, with no render involved: after ~Sound's body, its
+# own voices_ member destructor recycles each voice, and ~Voice -> Voice::setAsUnassigned -> Sound::voiceUnassigned ->
+# reassessRenderSkippingStatus calls getArpSettings(), pure virtual in Sound by then. Reading the deletion paths
+# guesses which of them can do that; this measures it. Every deletion path must end a Sound's voices before any part
+# of it is destroyed.
 #
 # What the lines cover (src/deluge/harness/sound_lifetime_scenario.cpp writes them):
-#   SL-PROBE     per leg: the render ran over the held note, and how many voices were live at the deletion.
+#   SL-PROBE     per leg: how many voices were live at the deletion, whether the output is in the song (the render
+#                reaches only those voices), and how far the render's clock moved with the note held.
 #   SL-SYNTH     a synth in the song, deleted through Song::deleteOutputThatIsInMainList().
 #   SL-UNEDITED  an un-edited synth in no list, deleted through Song::deleteOrAddToHibernationListOutput().
 #   SL-KIT       a kit in the song with a sounding synth drum, deleted through deleteOutputThatIsInMainList().
-#   SL-DRUMTAIL  a sounding drum removed from its kit and destroyed the way the five drum-delete sites do it.
+#   SL-DELETEDRUM a sounding drum deleted with InstrumentClipView::deleteDrum()'s steps: Kit::removeDrum(), the note
+#                row's reassignment, then the destroy-and-free. The only drum-delete site that can destroy a sounding
+#                drum: the preset-replace site kills the voices first, and the folder-import, slicer and
+#                instrument-load sites only drop drums that never sounded.
 #
 # Report only: the counts are printed, not asserted. The run fails only when a leg's fixture could not be built or
-# never sounded, a line is missing, or a deletion terminates the process -- a leg that does still prints its count
-# first, marked terminated=1, and the run's SL-RESULT, before it aborts.
+# never sounded, a line is missing, or a deletion ends the process: a firmware freeze (E321 from Kit::removeDrum on a
+# drum still in drumsWithRenderingActive; FREEZE_WITH_ERROR aborts on the host BSP) or a std::terminate. A leg that
+# does still prints its count first, marked aborted=1 with the step it died in, and the run's SL-RESULT.
 #
 # A missing marker fails the run: a stage that never ran reports nothing, and the failure count cannot show that.
 #
@@ -88,7 +95,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SL-SYNTH SL-UNEDITED SL-KIT SL-DRUMTAIL SL-RESULT; do
+for marker in SL-SYNTH SL-UNEDITED SL-KIT SL-DELETEDRUM SL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^SL-' "$OUT/run.txt"
