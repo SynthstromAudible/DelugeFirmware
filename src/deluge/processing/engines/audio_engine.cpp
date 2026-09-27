@@ -47,6 +47,8 @@
 #include "libdeluge/tier.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stack_guard.h"
+#include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -121,6 +123,7 @@ deluge::RetireList retireList{renderDomain_};
 struct RetireRequest {
 	Output* output = nullptr;  ///< a retired output (a SoundInstrument is a Sound; a Kit owns SoundDrums)
 	SoundDrum* drum = nullptr; ///< a retired drum
+	Clip* clip = nullptr;      ///< a retired clip
 	uint64_t sequence = 0;     ///< its place in the order requests reach the render (see retireSequenceLetGo)
 };
 deluge::util::SpscRing<RetireRequest, 64> retireRing;
@@ -140,8 +143,38 @@ void letGoOfSound(Sound& sound) {
 	AudioEngine::sounds.remove(&sound);
 }
 
+/// [render] Drop every reference the render keeps from block to block to a retired clip. The caller already unlinked
+/// it from its song's arrays, clip instances and output (Clip::prepareForDestruction()); these four are the ones the
+/// render itself reads or writes across blocks and nothing else clears. Only the current song is looked at: the render
+/// reaches clips through currentSong alone, and a song that is no longer current takes its references with it.
+void letGoOfClip(Clip* clip) {
+	if (currentSong != nullptr) {
+		if (currentSong->getCurrentClip() == clip) {
+			currentSong->setCurrentClip(nullptr);
+		}
+		if (currentSong->syncScalingClip == clip) {
+			currentSong->syncScalingClip = nullptr;
+		}
+		for (ClipArray* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
+			for (Clip* other : *array) {
+				if (other->beingRecordedFromClip == clip) {
+					other->beingRecordedFromClip = nullptr;
+				}
+			}
+		}
+	}
+	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
+		view.activeModControllableModelStack.modControllable = nullptr;
+		view.activeModControllableModelStack.setTimelineCounter(nullptr);
+		view.activeModControllableModelStack.paramManager = nullptr;
+	}
+}
+
 /// [render] Let go of everything a retired object owns that the render can reach.
 void letGo(const RetireRequest& r) {
+	if (r.clip != nullptr) {
+		letGoOfClip(r.clip);
+	}
 	if (r.drum != nullptr) {
 		letGoOfSound(*r.drum);
 	}
@@ -2005,6 +2038,22 @@ void retire(Output* output) {
 		checkLetGoBeforeDestroy(o, nullptr);
 		void* memory = dynamic_cast<void*>(o);
 		o->~Output();
+		delugeDealloc(memory);
+	});
+}
+
+void retire(Clip* clip) {
+	// First, so a stream of retires frees what earlier ones handed over.
+	reclaimRetired();
+#if ALPHA_OR_BETA_VERSION
+	if (clip->type == ClipType::AUDIO && static_cast<AudioClip*>(clip)->recorder != nullptr) {
+		FREEZE_WITH_ERROR("i001"); // Trying to diversify Qui's E278
+	}
+#endif
+	handOver(RetireRequest{.clip = clip}, clip, [](void* p) {
+		auto* c = static_cast<Clip*>(p);
+		void* memory = dynamic_cast<void*>(c);
+		c->~Clip();
 		delugeDealloc(memory);
 	});
 }

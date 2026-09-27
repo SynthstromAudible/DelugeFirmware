@@ -48,6 +48,7 @@ class Metronome;
 class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
+class Clip;
 class AbsValueFollower;
 
 namespace deluge::dsp {
@@ -274,6 +275,13 @@ void retire(SoundDrum* drum);
 /// @brief [interaction] As above, for an output the caller has already unlinked from the song's lists. A synth's Sound
 ///        and every SoundDrum of a kit are let go by the render; every output kind is destroyed as above.
 void retire(Output* output);
+/// @brief [interaction] As above, for a clip the caller has already prepared for destruction
+///        (Clip::prepareForDestruction()) and taken out of its song's arrays and clip instances. At the top of a
+///        following block the render nulls what it still holds of it from block to block -- the current song's
+///        currentClip and syncScalingClip, any of its clips' beingRecordedFromClip, and the view's active
+///        ModControllable timeline counter -- and it is then destroyed as above. An AudioClip must no longer be
+///        recording (i001 on alpha/beta builds).
+void retire(Clip* clip);
 /// @brief [interaction] Destroy every retired object the render has let go of, once two blocks have begun since it
 ///        was handed over. Called by a repeating scheduler task and, before each handover, by retire().
 void reclaimRetired();

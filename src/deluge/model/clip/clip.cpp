@@ -128,16 +128,17 @@ int32_t Clip::clipsDestroyedWhileReferenced() {
 }
 
 Clip::~Clip() {
-	// Counted before the fallback below clears currentClip: the fallback is what hides that reference today.
+	// A deleted clip reaches here through AudioEngine::retire(), after the render let go of everything it held of it,
+	// or from ~Song(), once the whole song is unreachable (currentSong is null or already another song). Either way
+	// nothing the render reads may still point here.
 	if (renderStillReferences(this)) {
 		g_clipsDestroyedWhileReferenced.fetch_add(1, std::memory_order_relaxed);
 	}
-
-	// currentSong is null while the old song is being torn down in deleteOldSongBeforeLoadingNew() (it's nulled before
-	// the delete), so guard against it - getCurrentClip() dereferences currentSong.
-	if (currentSong && getCurrentClip() == this) {
-		currentSong->setCurrentClip(nullptr);
+#if ALPHA_OR_BETA_VERSION
+	if (currentSong != nullptr && currentSong->getCurrentClip() == this) {
+		FREEZE_WITH_ERROR("E457");
 	}
+#endif
 }
 
 // This is more exhaustive than copyBasicsFrom(), and is designed to be used *between* different Clip types, just for

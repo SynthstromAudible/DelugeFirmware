@@ -182,6 +182,10 @@ public:
 	void setBPM(float tempoBPM, bool shouldLogAction);
 	void setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction);
 	void deleteSoundsWhichWontSound();
+	/// @brief [interaction] Delete a clip the caller has already taken out of this song's arrays. Unless
+	///        @p songBeingDestroyedToo, prepares it for destruction and hands it to AudioEngine::retire(), so it is
+	///        freed only after the render let go of it: the caller must not touch @p clip afterwards. From ~Song()
+	///        (@p songBeingDestroyedToo), destroys it at once.
 	void
 	deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
 	                 InstrumentRemoval instrumentRemovalInstruction = InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);

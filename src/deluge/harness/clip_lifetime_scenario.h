@@ -24,8 +24,9 @@
 ///        (Clip::clipsDestroyedWhileReferenced(), Song::songsDestroyedWhileReachable(),
 ///        Sound::soundsDestroyedWithLiveVoices()), and the run what is still retired and waiting (CL-RECLAIM).
 ///
-/// @note Report-only: the counts are evidence for the paths that must retire what they delete rather than destroy it,
-///       and no count fails the run.
+/// @note The scenario itself fails nothing on a count: scripts/clip_lifetime.sh requires the clip legs clean (their
+///       clip is retired, so each clip leg renders and reclaims before its line -- CL-FREED -- to destroy the clip
+///       inside the leg), and keeps the song and drum legs report-only.
 ///
 /// @note Runs as a step machine: each `dispatch_step()` does one stage, and the platform driver lets virtual time
 ///       advance between steps. The scenario drives the render itself.
@@ -48,7 +49,7 @@ bool deluge_scenario_clip_lifetime_complete(void);
 void deluge_scenario_clip_lifetime_dispatch_step(void);
 /// @brief Whether the last stage has run.
 bool deluge_scenario_clip_lifetime_step_done(void);
-/// @brief How many legs' fixtures could not be built or never played. The counts themselves fail nothing.
+/// @brief How many legs' fixtures could not be built or never played. The counts are judged by the script.
 int32_t deluge_scenario_clip_lifetime_failures(void);
 
 } // extern "C"

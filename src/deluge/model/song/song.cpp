@@ -3137,8 +3137,15 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
 
 		clip->prepareForDestruction(modelStack, instrumentRemovalInstruction);
+
+		// The render may still hold the clip from block to block (currentClip, syncScalingClip, another clip's
+		// beingRecordedFromClip, the view's active timeline counter): it lets go of those at its next block, and only
+		// then is the clip freed.
+		AudioEngine::retire(clip);
+		return;
 	}
 
+	// From ~Song(): the whole song is unreachable, so nothing the render reads can reach the clip.
 #if ALPHA_OR_BETA_VERSION
 	if (clip->type == ClipType::AUDIO) {
 		if (((AudioClip*)clip)->recorder) {

@@ -706,6 +706,9 @@ void cleanUpLeg() {
 	if (currentSong->syncScalingClip == victim) {
 		// Not setInputTickScaleClip(): that reads the old clip's length.
 		currentSong->syncScalingClip = nullptr;
+	}
+	if (g_leg == Leg::SyncScale) {
+		// Whether the leg or the render dropped the sync-scaling clip, the tick scale it set is still in place.
 		currentSong->insideWorldTickMagnitude = g_magnitudeBefore;
 		currentSong->insideWorldTickMagnitudeOffsetFromBPM = g_magnitudeOffsetBefore;
 	}
@@ -959,6 +962,17 @@ void runTick() {
 		break;
 	case Stage::Report: {
 		g_step = "report";
+		if (isClipLeg(g_leg)) {
+			// A retired clip is freed only by a reclaim after the render let go of it and two blocks began: render
+			// those blocks and reclaim here, so the leg's own clip is destroyed -- and ~Clip()'s check runs -- inside
+			// the leg rather than at whatever reclaim comes next.
+			g_step = "reclaim";
+			renderBlocks(kUndoBlocks);
+			AudioEngine::reclaimRetired();
+			printf("CL-FREED leg=%s pending=%u\n", legName(g_leg),
+			       static_cast<unsigned>(AudioEngine::retiredPending()));
+			g_step = "report";
+		}
 		const int32_t clips = Clip::clipsDestroyedWhileReferenced() - g_clipsBefore;
 		const int32_t songs = Song::songsDestroyedWhileReachable() - g_songsBefore;
 		const int32_t sounds = Sound::soundsDestroyedWithLiveVoices() - g_soundsBefore;

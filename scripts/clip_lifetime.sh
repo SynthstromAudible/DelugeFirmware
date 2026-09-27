@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# clip_lifetime.sh — the clip-lifetime probe (report-only).
+# clip_lifetime.sh — the clip-lifetime gate.
 #
 # Deletes a playing clip through each real clip deletion path, a sounding drum through the two direct drum destroys, and
 # the song through each way it is replaced, and reports how many Clips, Songs and Sounds each path destroyed while the
@@ -11,8 +11,9 @@
 # beingRecordedFromClip, view.activeModControllableModelStack's timeline counter, and each output's activeClip.
 # Song::deleteClipObject() destroys a clip at once, on the interaction tier, and no deletion path clears all of those
 # first -- ~Clip's own fallback clears only currentClip. This measures which paths leave one pointing at a freed clip.
-# The counts are the evidence for the paths that must hand the clip to the render instead; until they do, no count
-# fails the run.
+# The clip deletion paths now hand the clip to the render (AudioEngine::retire(Clip*)), which drops those references at
+# its next block before the clip is freed; the clip legs are REQUIRED clean (see "Required legs" below). The song and
+# drum legs are still report-only.
 #
 # What the lines cover (src/deluge/harness/clip_lifetime_scenario.cpp writes them). Every leg plays its clip on the
 # internal clock, holding a note on the clip's blank synth, and the scenario renders 8 blocks before the deletion and 8
@@ -50,6 +51,8 @@
 #   CL-SONGSWAP     the same load with the clock running and a synth sounding: the load arms a swap
 #                   (Session::armForSongSwap()), the render launches it (doSongSwap()), and
 #                   LoadSongUI::runFinishSegment() destroys the old song.
+#   CL-FREED        per clip leg, before its leg line: the scenario renders a few blocks and reclaims, so the retired
+#                   clip is destroyed (and ~Clip()'s check runs) inside its own leg; pending= is what is still waiting.
 #   CL-RECLAIM      after those legs and before WONTSOUND: AudioEngine::retiredPending() once the render has run and
 #                   reclaimRetired() has been called. More than 0 is red.
 #   CL-WONTSOUND    last, because it is expected to end the process: a playing kit clip whose drum is sounding with an
@@ -70,7 +73,13 @@
 # with the step it died in, and a CL-RESULT. That is a red leg, not a failure of the run: the script records it and
 # starts a new run at the next leg (CLIP_LIFETIME_FROM), so one crashing path does not hide the others.
 #
-# The run FAILS only when a leg line or the CL-RECLAIM line is missing, a fixture could not be built (CL-RESULT
+# ## Required legs
+#
+# SESSIONDELETE, ARRANGERDELETE, SWAPTYPE, UNDODELETE, RECORDSOURCE and SYNCSCALE must each read clipsReferenced=0,
+# must not abort, and must show CL-FREED pending=0 (the clip really was freed inside the leg); UNDODELETE must also
+# read restored=1. Any of them failing that fails the run.
+#
+# The run also FAILS when a leg line or the CL-RECLAIM line is missing, a fixture could not be built (CL-RESULT
 # failures>0), or the process ended some other way: an exit with no aborted=1 line for the leg that was running, or a
 # wedge.
 #
@@ -125,6 +134,8 @@ trap cleanup EXIT
 
 LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE RECORDSOURCE SYNCSCALE SAVEKIT SONGCLEAR SONGLOAD SONGSWAP
 	WONTSOUND)
+# Required: the clip legs. The rest stay report-only.
+REQUIRED_LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE RECORDSOURCE SYNCSCALE)
 
 # The leg after $1, or nothing after the last.
 next_leg() {
@@ -137,7 +148,7 @@ next_leg() {
 	done
 }
 
-echo "clip lifetime: running (report-only)"
+echo "clip lifetime: running"
 : >"$OUT/all.txt"
 from=""
 run=0
@@ -186,10 +197,29 @@ if grep -E '^CL-RESULT ' "$OUT/all.txt" | grep -qv '^CL-RESULT failures=0$'; the
 	exit 1
 fi
 
+# The clip legs whose deletion hands the clip to the render: each must free its clip with nothing the render reads
+# still pointing at it, and without ending the process. UNDODELETE's undo must also bring the clip back.
+required_fail=""
+for leg in "${REQUIRED_LEGS[@]}"; do
+	line="$(grep -E "^CL-$leg (restored=[01] )?clipsReferenced=" "$OUT/all.txt" | tail -1)"
+	if ! grep -qE '(^| )clipsReferenced=0( |$)' <<<"$line" || grep -q 'aborted=1' <<<"$line"; then
+		required_fail="$required_fail$leg "
+	elif [ "$leg" = UNDODELETE ] && ! grep -q ' restored=1 ' <<<"$line"; then
+		required_fail="$required_fail$leg "
+	elif ! grep -qE "^CL-FREED leg=$leg pending=0$" "$OUT/all.txt"; then
+		# The clip was never freed inside the leg, so ~Clip()'s check never ran on it: a 0 would prove nothing.
+		required_fail="$required_fail$leg(not-freed) "
+	fi
+done
+if [ -n "$required_fail" ]; then
+	echo "FAIL — required clip legs left a reference to a freed clip, aborted, or did not restore: $required_fail"
+	exit 1
+fi
+
 red="$(grep -E '^CL-[A-Z]+ (restored=[01] )?clipsReferenced=' "$OUT/all.txt" |
 	grep -E 'aborted=1|(clipsReferenced|songsReachable|soundsLive)=[1-9]' | sed -E 's/^CL-([A-Z]+) .*/\1/' | sort -u |
 	tr '\n' ' ' || true)"
 if grep -qE '^CL-RECLAIM pending=[1-9]' "$OUT/all.txt"; then
 	red="${red}RECLAIM "
 fi
-echo "PASS — report-only: every leg ran; red legs: ${red:-none}"
+echo "PASS — required clip legs clean; report-only legs ran; red legs: ${red:-none}"
