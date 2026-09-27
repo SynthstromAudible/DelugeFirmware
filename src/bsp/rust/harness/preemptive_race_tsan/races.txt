@@ -1,0 +1,85 @@
+# races.txt — the cross-tier race catalogue for Lens 2 (preemptive-race-tsan): one entry per race SITE.
+#
+# The north-star's second invariant: state shared across tiers is owned by exactly one tier and handed over
+# explicitly. Every entry here is a place the run observed that invariant broken (or a runtime intercept whose
+# real site is a deeper frame). An uncatalogued site fails the gate; an entry nobody hits is reported "not seen".
+#
+# Fields, TAB-separated:  status  file  function-ERE  tiers  note
+#   status    open       a real violation, not fixed; the note names the shared state and the owning task
+#             accepted   judged benign; the note is the one-line reason. Kate reviews each one. (C1 adds none.)
+#             intrinsic  a bare runtime intercept (no source site); `file` is DEEP and the third field is an ERE
+#                        matched against EVERY frame of the finding, naming the real site
+#   file      repo-relative source path suffix, any `dir/../` collapsed
+#   function  ERE matched against the SUMMARY site's function (triage.sh emits it escaped and anchored)
+#   tiers     the racing tiers, from the threads' names (audio, storage, interaction, main)
+#   note      the shared state (TSan's "Location is ..." line, or the variable read off the frames) and the owner.
+#             TSan names the NEAREST symbol for memory inside a static arena, so "__frunk_bss_end" and
+#             "HOST_INTERNAL" mean heap memory in the allocator's arena, not those symbols.
+#
+# Scope: the one scenario Lens 2 runs (Cordae playback while recording). Not the whole firmware.
+# Rows come from triage.sh over the run logs; see the spec docs/superpowers/specs/2026-09-26-race-catalogue-design.md.
+
+intrinsic	DEEP	src/lib/printf\.c	-	printf's buffer, written by more than one tier; the SUMMARY site is a bare intercept
+intrinsic	DEEP	core::ffi::c_str::strlen::runtime	-	strlen intercept inside CStr; the SUMMARY site is a bare intercept
+intrinsic	DEEP	library/core/src/str/validations\.rs:23[23]:52 in core::str::validations::run_utf8_validation	-	UTF-8 validation intercept; the SUMMARY site is a bare intercept
+
+open	src/lib/printf.c	^_out_buffer$	audio×interaction	state: global 'logDebug::buffer'
+open	src/deluge/gui/ui/ui.cpp	^getCurrentUI\(\)$	audio×interaction	state: global 'uiNavigationHierarchy'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routineWithClusterLoading\(\)$	audio×interaction	state: global 'AudioEngine::routineBeenCalled'
+open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::workOutNextEventTime\(\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getNumVoices\(\)$	audio×interaction	state: global 'AudioEngine::sounds' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAudio\(unsigned long\)$	audio×interaction	state: global 'currentSong'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routine\(\)$	audio×interaction	state: global 'AudioEngine::routineBeenCalled'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::terminateOneVoice\(unsigned long\)$	audio×interaction	state: global '__frunk_bss_end' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::updateReverbParams\(\)$	audio×interaction	state: global 'AudioEngine::reverbSidechainVolume'
+open	src/deluge/processing/engines/audio_engine.cpp	^deluge_app_render$	audio×interaction	state: global 'AudioEngine::audioSampleTimer'
+open	src/deluge/dsp/reverb/freeverb/comb.hpp	^freeverb::Comb::process\(int\)$	audio×interaction	state: global 'AudioEngine::reverb'
+open	src/deluge/gui/waveform/waveform_renderer.cpp	^WaveformRenderer::advanceOverviewScan\(Sample\*, int\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked'
+open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::Tlsf>::search_suitable$	audio×interaction	state: global '__frunk_bss_end'
+open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlayback\(int, int, bool, bool, int\)$	audio×interaction	state: global 'playbackHandler'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getNewRecorder\(int, AudioRecordingFolder, AudioInputChannel, bool, bool, int, bool, Output\*, RecorderConfig\)$	audio×interaction	state: global 'AudioEngine::firstRecorder'
+open	src/deluge/gui/ui/ui.cpp	^openUI\(UI\*\)$	audio×interaction	state: global 'numUIsOpen'
+open	src/deluge/gui/ui/ui.cpp	^setRootUILowLevel\(UI\*\)$	audio×interaction	state: global 'numUIsOpen'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderReverb\(unsigned long\)$	audio×interaction	state: global 'AudioEngine::mustUpdateReverbParamsBeforeNextRender'
+open	src/deluge/processing/engines/audio_engine.cpp	^_ZZN11AudioEngine12getNumVoicesEvENK3\$_0clIP5SoundEEDaT_$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
+open	library/core/src/ptr/mod.rs	^core::ptr::read::<\*mut deluge_alloc::tlsf::BlockHeader>$	audio×interaction	state: global '__frunk_bss_end'
+open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::BlockHeader>::set_prev_free$	audio×interaction	state: global '__frunk_bss_end'
+open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::BlockHeader>::size$	audio×interaction	state: global '__frunk_bss_end'
+open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::Tlsf>::split$	audio×interaction	state: global '__frunk_bss_end'
+open	src/deluge/deluge.cpp	^deleteOldSongBeforeLoadingNew\(\)$	audio×interaction	state: global 'currentSong'
+open	src/deluge/dsp/reverb/freeverb/freeverb.hpp	^deluge::dsp::reverb::Freeverb::ProcessOne\(int, StereoSample&\)$	audio×interaction	state: global 'AudioEngine::reverb'
+open	src/deluge/gui/ui/audio_recorder.cpp	^AudioRecorder::beginOutputRecording\(AudioRecordingFolder, AudioInputChannel, bool, bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
+open	src/deluge/gui/ui/ui.cpp	^nullifyUIs\(\)$	audio×interaction	state: global 'numUIsOpen'
+open	src/deluge/io/debug/resource_clock.cpp	^deluge_debug_now_frames$	audio×storage	state: global 'AudioEngine::audioSampleTimer'
+open	src/deluge/memory/alloc_metadata.cpp	^mem_guard::recordAlloc\(void\*, unsigned int, void\*\)$	audio×interaction	state: global 'mem_guard::(anonymou'
+open	src/deluge/model/output.cpp	^Output::setActiveClip\(ModelStackWithTimelineCounter\*, PgmChangeSend\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL'
+open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::doSongSwap\(bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getNumSamplesLeftToOutputFromPreviousRender\(\)$	audio×interaction	state: global 'AudioEngine::renderingBufferOutputPos'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getReverbParamsFromSong\(Song\*\)$	audio×interaction	state: global 'AudioEngine::reverbSidechainVolume'
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::setMonitoringMode\(\)$	audio×interaction	state: global 'audioRecorder'
+open	src/deluge/processing/sound/sound.cpp	^Sound::renderingVoicesInStereo\(ModelStackWithSoundFlags\*\)$	audio×interaction	state: global 'AudioEngine::renderInStereo'
+open	src/deluge/modulation/arpeggiator.cpp	^ArpeggiatorSettings::updateParamsFromUnpatchedParamSet\(UnpatchedParamSet\*\)$	audio×interaction	state: arpeggiator settings written by the UI while the render reads them (seen in the 2026-09-26 probe, 10+ hits; not in the 10-run triage)
+open	src/deluge/modulation/arpeggiator.cpp	^ArpeggiatorSettings::cloneFrom\(ArpeggiatorSettings const\*\)$	audio×interaction	state: arpeggiator settings copied while the render reads them (2026-09-26 probe; not in the 10-run triage)
+open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::routine\(\)$	audio×interaction	state: AudioEngine::audioSampleTimer read by the UI timer routine while audio writes it (2026-09-26 probe; not in the 10-run triage)
+
+open	src/deluge/deluge.cpp	^inputRoutine\(\)$	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global read by the input routine; first seen in the C1 gate run)
+open	src/deluge/gui/ui/load/load_song_ui.cpp	^LoadSongUI::isLoadingSong\(\)$	audio×interaction	state: global 'loadSongUI' (load state polled across tiers; first seen in the C1 gate run)
+# Index by shared state (state → entries). The second invariant's to-do list.
+#   AudioEngine::sounds / Sound::voices_ (C2; crashes): getNumVoices, its lambda, terminateOneVoice
+#   The TLSF allocator's arena (deluge_alloc, audio allocates/frees): Tlsf::search_suitable, split, BlockHeader::size,
+#     BlockHeader::set_prev_free, core::ptr::read::<*mut BlockHeader>; mem_guard::recordAlloc
+#   Render-routine globals (audioSampleTimer, routineBeenCalled, renderingBufferOutputPos, renderInStereo,
+#     bypassCulling, audioRoutineLocked): deluge_app_render, AudioEngine::routine, routineWithClusterLoading,
+#     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames,
+#     Sound::renderingVoicesInStereo, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
+#     WaveformRenderer::advanceOverviewScan
+#   Reverb (AudioEngine::reverb, reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender):
+#     updateReverbParams, getReverbParamsFromSong, renderReverb, freeverb Comb::process, Freeverb::ProcessOne
+#   The current song (currentSong, loadSongUI): renderAudio, deleteOldSongBeforeLoadingNew, LoadSongUI::isLoadingSong; playbackHandler: setupPlayback;
+#     Output::setActiveClip
+#   The UI navigation stack (uiNavigationHierarchy, numUIsOpen): getCurrentUI, openUI, setRootUILowLevel, nullifyUIs
+#   The recorder list and monitoring (AudioEngine::firstRecorder, audioRecorder): getNewRecorder, setMonitoringMode
+#   Debug log buffer (logDebug::buffer): printf _out_buffer
+#   Arpeggiator settings: ArpeggiatorSettings::updateParamsFromUnpatchedParamSet, cloneFrom
+#   UI timers (audioSampleTimer read by the timer routine): UITimerManager::routine, workOutNextEventTime
+

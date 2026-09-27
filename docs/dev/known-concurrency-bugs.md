@@ -3,6 +3,10 @@
 **Status:** PARTIALLY FIXED — **B1 + B2 + B3 + B7 FIXED** (B1/B2/B3 2026-07-19; B1 = the `Manager` chunk-table `Cell<ChunkSlot>` race, synchronized via asymmetric fiber-side critical sections; B2/B3 = the recorder hand-off races. B7 2026-07-21 = the efatfs block device's `SD_BUS` bypass. See each below.). **B4, B5 and B6 remain OPEN**, as do additional pre-existing **streaming-path** races the harness surfaces nondeterministically (see "Additional surfaced races"). A run's `UNCATALOGUED=0` is therefore not guaranteed; the specific, reproducible guarantee is that the recorder B2/B3 races are gone and the B1 `Cell<ChunkSlot>`/`mem::replace`/`loader_next` signatures are synchronized at the source.
 **Found by:** the host streaming-underrun harness (`src/bsp/rust/harness/preemptive_race_tsan/` — ThreadSanitizer over the real `deluge_app` with a preemptive audio thread) and its deterministic timing lens (`src/bsp/rust/harness/lens1_vt_sim/`). All found on host, **without hardware**.
 
+> **2026-09-26:** the harness no longer uses `known_patterns.txt` / `open_findings_races.txt`. Both were replaced by
+> `races.txt`, one entry per race site (file + function), where every cross-tier race is a finding; this record keeps
+> the old names where it describes what happened at the time.
+
 ## Scope / when these bite
 
 Bug **B5** (plus the pre-existing streaming-path races) is a data race on the audio-thread ↔ loader/fiber-thread hand-off in the **storage / cluster / resource-manager / scheduler** path (B1, on the resource-manager chunk table, and B2 + B3, on the **recorder** hand-off, are now fixed). They manifest **only when the audio task is genuinely preemptive** relative to the loader/fiber thread — i.e. on the **Embassy `InterruptExecutor` target** (see the `embassy-scheduler-migration` / `audio-callback-relocation` work). On the legacy **cooperative** BSP (audio runs cooperatively, never preempting mid-op) they cannot occur.

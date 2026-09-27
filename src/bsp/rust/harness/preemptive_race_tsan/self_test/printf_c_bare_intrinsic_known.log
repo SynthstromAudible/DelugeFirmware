@@ -2,7 +2,7 @@ Self-test fixture (printf_c_bare_intrinsic_known): a REAL finding captured verba
 logs/run_4.log (2026-08-06 fresh run, cordae fixture) -- the one instance across all 5
 runs where the SUMMARY site is a bare, source-free runtime intercept ("in strlen", no
 file:line:col) instead of the real logDebug shared-buffer site. Proves the DEEP tag on
-known_patterns.txt's src/lib/printf\.c pattern still classifies this class correctly:
+races.txt's intrinsic src/lib/printf\.c entry (the old DEEP pattern) still classifies this class correctly:
 the OTHER thread's stack (Previous write, thread T1) carries printf.c's _out_buffer /
 _out_rev / _ftoa / _vsnprintf / logDebug frames, which a SITE-only match on the bare
 "in strlen" summary would miss entirely. Expected verdict: known.
