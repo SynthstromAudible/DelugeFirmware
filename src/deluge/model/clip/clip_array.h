@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "libdeluge/system.h"
 #include "util/containers.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
@@ -34,6 +35,7 @@ public:
 	Clip** getElementAddress(int32_t index) { return &clips_[index]; }
 
 	std::expected<void, Error> insertClipAt(Clip* clip, int32_t index) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
 		try {
 			clips_.insert(clips_.begin() + index, clip);
@@ -44,6 +46,7 @@ public:
 	}
 
 	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
 		try {
 			clips_.reserve(clips_.size() + numAdditionalElementsNeeded);
@@ -54,10 +57,12 @@ public:
 	}
 
 	auto erase(deluge::fast_vector<Clip*>::iterator first, deluge::fast_vector<Clip*>::iterator last) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
 		return clips_.erase(first, last);
 	}
 	auto erase(deluge::fast_vector<Clip*>::iterator at) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
 		return clips_.erase(at);
 	}
@@ -71,6 +76,7 @@ public:
 	[[nodiscard]] size_t size() const { return clips_.size(); }
 	[[nodiscard]] bool empty() const { return clips_.empty(); }
 	void clear() {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
 		clips_.clear();
 	}
@@ -82,7 +88,9 @@ public:
 	auto end() const { return clips_.end(); }
 
 private:
-	/// Every structural edit reports to the probe; see util/structural_edit_probe.h.
+	/// Every structural edit runs inside an AudioExcludedSection (libdeluge/system.h): the render walks a song's clips
+	/// and, on the device, preempts thread mode at any instruction. Each edit also reports to the probe
+	/// (util/structural_edit_probe.h), which counts any made outside a section.
 	static void noteEdit() { deluge::noteStructuralEdit(deluge::StructuralContainer::CLIP_ARRAY); }
 
 	deluge::fast_vector<Clip*> clips_{};

@@ -97,7 +97,7 @@ fi
 
 LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW"
 # The legs whose edits must all be made while the render is excluded.
-REQUIRED_LEGS=""
+REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPDUP ARRANGE AUTOMATE UNDO BIGROW"
 
 for leg in $LEGS; do
 	if ! grep -qE "^CG-$leg unguarded=[0-9]+ " "$OUT/run.txt"; then
