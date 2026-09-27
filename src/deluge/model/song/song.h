@@ -104,6 +104,11 @@ class Song final : public TimelineCounter {
 public:
 	Song();
 	~Song() override;
+
+	/// @brief How many Songs have been destroyed while the render could still reach them, since boot: the Song was
+	///        still currentSong, or a Sound of one of its outputs (a synth, or a kit's sound drum) was still in the
+	///        Sound registry. Checked at the top of ~Song's body, before anything is torn down.
+	static int32_t songsDestroyedWhileReachable();
 	bool mayDoubleTempo();
 	/// @brief Build the first session Clip if the song has none, on the built-in default synth.
 	///

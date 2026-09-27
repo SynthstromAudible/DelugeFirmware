@@ -34,6 +34,8 @@
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include <atomic>
+#include <initializer_list>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -74,7 +76,63 @@ Clip::Clip(ClipType newType) : type(newType) {
 	sequenceDirectionMode = SequenceDirection::FORWARD;
 }
 
+namespace {
+/// Clips destroyed while a reference the render reads between blocks still pointed at them. Always on; relaxed,
+/// because it is evidence, not synchronisation: a Clip may be destroyed on one tier while the count is read on another.
+std::atomic<int32_t> g_clipsDestroyedWhileReferenced{0};
+
+/// Whether @p output is in @p song's main or hibernating list. Compares pointers only, so an output already freed is
+/// never dereferenced.
+bool outputIsInSong(Song const& song, Output const* output) {
+	for (Output const* o = song.firstOutput; o != nullptr; o = o->next) {
+		if (o == output) {
+			return true;
+		}
+	}
+	for (Output const* o = song.firstHibernatingInstrument; o != nullptr; o = o->next) {
+		if (o == output) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// Whether anything the render reads between blocks still points at @p clip: the current song's currentClip or
+/// syncScalingClip, another of its clips' beingRecordedFromClip, the view's active ModControllable timeline counter,
+/// or the activeClip of an output the current song still holds. Only the current song is looked at: the render reaches
+/// clips through currentSong alone.
+bool renderStillReferences(Clip* clip) {
+	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == static_cast<TimelineCounter*>(clip)) {
+		return true;
+	}
+	if (currentSong == nullptr) {
+		return false;
+	}
+	if (currentSong->getCurrentClip() == clip || currentSong->syncScalingClip == clip) {
+		return true;
+	}
+	for (ClipArray const* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
+		for (Clip const* other : *array) {
+			if (other != clip && other->beingRecordedFromClip == clip) {
+				return true;
+			}
+		}
+	}
+	return clip->output != nullptr && outputIsInSong(*currentSong, clip->output)
+	       && clip->output->getActiveClip() == clip;
+}
+} // namespace
+
+int32_t Clip::clipsDestroyedWhileReferenced() {
+	return g_clipsDestroyedWhileReferenced.load(std::memory_order_relaxed);
+}
+
 Clip::~Clip() {
+	// Counted before the fallback below clears currentClip: the fallback is what hides that reference today.
+	if (renderStillReferences(this)) {
+		g_clipsDestroyedWhileReferenced.fetch_add(1, std::memory_order_relaxed);
+	}
+
 	// currentSong is null while the old song is being torn down in deleteOldSongBeforeLoadingNew() (it's nulled before
 	// the delete), so guard against it - getCurrentClip() dereferences currentSong.
 	if (currentSong && getCurrentClip() == this) {

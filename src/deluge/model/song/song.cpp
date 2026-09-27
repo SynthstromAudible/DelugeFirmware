@@ -41,6 +41,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/instrument/cv_instrument.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -57,6 +58,7 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/blocking_sample_load.h"
@@ -67,6 +69,8 @@
 #include "util/lookuptables/lookuptables.h"
 #include "util/string.h"
 #include "util/try.h"
+#include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <hid/buttons.h>
 #include <iterator>
@@ -211,7 +215,44 @@ Song::Song() {
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
+namespace {
+/// Songs destroyed while the render could still reach them. Always on; relaxed, because it is evidence, not
+/// synchronisation: a Song may be destroyed on one tier while the count is read on another.
+std::atomic<int32_t> g_songsDestroyedWhileReachable{0};
+
+/// Whether @p sound is still in the Sound registry the render walks.
+bool soundRegistered(Sound const* sound) {
+	return AudioEngine::sounds.walk([sound](const auto& all) { return std::ranges::find(all, sound) != all.end(); });
+}
+
+/// Whether any Sound of an output in the list starting at @p first is still in the Sound registry.
+bool anySoundRegistered(Output const* first) {
+	for (Output const* output = first; output != nullptr; output = output->next) {
+		if (output->type == OutputType::SYNTH) {
+			if (soundRegistered(static_cast<SoundInstrument const*>(output))) {
+				return true;
+			}
+		}
+		else if (output->type == OutputType::KIT) {
+			for (Drum const* d = static_cast<Kit const*>(output)->firstDrum; d != nullptr; d = d->next) {
+				if (d->type == DrumType::SOUND && soundRegistered(static_cast<SoundDrum const*>(d))) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+} // namespace
+
+int32_t Song::songsDestroyedWhileReachable() {
+	return g_songsDestroyedWhileReachable.load(std::memory_order_relaxed);
+}
+
 Song::~Song() {
+	if (currentSong == this || anySoundRegistered(firstOutput) || anySoundRegistered(firstHibernatingInstrument)) {
+		g_songsDestroyedWhileReachable.fetch_add(1, std::memory_order_relaxed);
+	}
 
 	// Delete existing Clips, if any
 	for (int32_t c = 0; c < std::ssize(sessionClips); c++) {
