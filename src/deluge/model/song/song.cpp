@@ -3407,6 +3407,33 @@ allDone:
 // Hibernates or deletes old one.
 // Any audio routine calls that happen during the course of this function won't have access to either the old or new
 // Instrument, because neither will be in the master list when they happen
+void Song::moveOutput(Output* output, int32_t direction) {
+	if (direction >= 0) {
+		Output** prevPointer = &firstOutput;
+		while (*prevPointer != output) {
+			prevPointer = &((*prevPointer)->next);
+		}
+		Output* higher = output->next;
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		*prevPointer = higher;
+		output->next = higher->next;
+		higher->next = output;
+	}
+	else {
+		Output** prevPointer = &firstOutput;
+		while ((*prevPointer)->next != output) {
+			prevPointer = &((*prevPointer)->next);
+		}
+		Output* lower = (*prevPointer);
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		*prevPointer = output;
+		lower->next = output->next;
+		output->next = lower;
+	}
+}
+
 void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool keepNoteRowsWithMIDIInput) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == newOutput) {

@@ -203,6 +203,9 @@ public:
 	AudioOutput* getAudioOutputFromName(std::string_view name);
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
+	/// Move @p output one place along the output list: towards the end if @p direction >= 0, else towards the start.
+	/// The caller has checked there is an output to swap with. (The arranger's output drag.)
+	void moveOutput(Output* output, int32_t direction);
 	void stopAllMIDIAndGateNotesPlaying();
 	void stopAllAuditioning();
 	void deleteOrHibernateOutput(Output* output);

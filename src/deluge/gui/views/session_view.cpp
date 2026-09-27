@@ -1552,7 +1552,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		actionLogger.deleteAllLogs();
 
 		int32_t newIndex = oldIndex + direction;
-		std::swap(currentSong->sessionClips[newIndex], currentSong->sessionClips[oldIndex]);
+		currentSong->sessionClips.swapClips(newIndex, oldIndex);
 	}
 
 	currentSong->songViewYScroll += direction;

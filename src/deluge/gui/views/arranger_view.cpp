@@ -3152,29 +3152,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 		currentSong->arrangementYScroll += direction;
 
 		// Drag selected output against the scroll
-		// Shift Output up
-		if (direction >= 0) {
-			Output** prevPointer = &currentSong->firstOutput;
-			while (*prevPointer != output) {
-				prevPointer = &((*prevPointer)->next);
-			}
-			Output* higher = output->next;
-			*prevPointer = higher;
-			output->next = higher->next;
-			higher->next = output;
-		}
-
-		// Shift Output down
-		else {
-			Output** prevPointer = &currentSong->firstOutput;
-			while ((*prevPointer)->next != output) {
-				prevPointer = &((*prevPointer)->next);
-			}
-			Output* lower = (*prevPointer);
-			*prevPointer = output;
-			lower->next = output->next;
-			output->next = lower;
-		}
+		currentSong->moveOutput(output, direction);
 	}
 	else {
 		currentSong->arrangementYScroll += direction;

@@ -24,6 +24,10 @@
 #   CG-DRUM                  a drum added to a playing kit (Kit::addDrum()) and removed (Kit::removeDrum())
 #   CG-REPLACE               a playing clip's synth replaced (Song::replaceInstrument())
 #   CG-UNDO                  a logged note delete, undone
+#   CG-ROWDRAG               the clip view's note-row drag (scrollVertical_dragSelectedNoteRow(): two rows swapped)
+#   CG-CLIPMOVE              the session view's clip drag (ClipArray::swapClips())
+#   CG-OUTPUTMOVE            the arranger's output drag (Song::moveOutput(): a three-pointer splice)
+#   CG-QUANTIZE              a row quantized (NoteRow::quantize(), which rotates its notes in place)
 #   CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
 #                            wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
 #
@@ -97,9 +101,9 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW"
+LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE"
 # The legs whose edits must all be made while the render is excluded.
-REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW"
+REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE"
 
 for leg in $LEGS; do
 	if ! grep -qE "^CG-$leg unguarded=[0-9]+ " "$OUT/run.txt"; then

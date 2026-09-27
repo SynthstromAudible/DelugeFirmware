@@ -21,6 +21,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "libdeluge/app.h"
@@ -98,6 +99,10 @@ enum class Leg : uint8_t {
 	Replace,
 	Undo,
 	BigRow,
+	RowDrag,
+	ClipMove,
+	OutputMove,
+	Quantize,
 	Done,
 };
 
@@ -148,6 +153,14 @@ const char* legName(Leg leg) {
 		return "UNDO";
 	case Leg::BigRow:
 		return "BIGROW";
+	case Leg::RowDrag:
+		return "ROWDRAG";
+	case Leg::ClipMove:
+		return "CLIPMOVE";
+	case Leg::OutputMove:
+		return "OUTPUTMOVE";
+	case Leg::Quantize:
+		return "QUANTIZE";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -305,6 +318,20 @@ bool setupLeg() {
 		return false;
 	}
 	switch (g_leg) {
+	case Leg::RowDrag:
+		// Two rows to swap, straight into the row vector (scale mode discards empty out-of-scale rows).
+		return (g_clip->noteRows.insertNoteRowAtY(kRowNote) != nullptr
+		        && g_clip->noteRows.insertNoteRowAtY(kRowNote + 2) != nullptr)
+		           ? true
+		           : fail("no memory for two note rows");
+	case Leg::Quantize:
+		g_row = rowFor(kRowNote, &g_rowIndex);
+		if (g_row == nullptr) {
+			return false;
+		}
+		addNote(kNotePos + 3, nullptr);
+		addNote(kNotePos + 29, nullptr);
+		return true;
 	case Leg::NoteAdd:
 	case Leg::NoteDel:
 	case Leg::Undo:
@@ -445,6 +472,31 @@ void editLeg() {
 		// Below every other row: the insert moves all kBigRowCount rows (and reallocates when full).
 		(void)g_clip->noteRows.insertNoteRowAtY(0);
 		break;
+	case Leg::RowDrag:
+		g_step = "scrollVertical_dragSelectedNoteRow";
+		// The clip view's note-row drag, which swaps the dragged row with its neighbour.
+		instrumentClipView.scrollVertical_dragSelectedNoteRow(g_clip, g_clip->output, false, 0, 1);
+		break;
+	case Leg::ClipMove: {
+		g_step = "swapClips";
+		// The session view's clip drag: the clip swaps places with the one above it.
+		const int32_t index = currentSong->sessionClips.getIndexForClip(g_clip);
+		currentSong->sessionClips.swapClips(index, index - 1);
+		break;
+	}
+	case Leg::OutputMove:
+		g_step = "moveOutput";
+		// The arranger's output drag: the clip's output moves one place along the output list.
+		currentSong->moveOutput(g_clip->output, (g_clip->output->next != nullptr) ? 1 : -1);
+		break;
+	case Leg::Quantize: {
+		g_step = "quantize";
+		char rowMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(rowMemory, currentSong, g_clip);
+		ModelStackWithNoteRow* rowStack = ms->addNoteRow(g_rowIndex, g_row);
+		(void)g_row->quantize(rowStack, kNoteLength, 10);
+		break;
+	}
 	case Leg::Done:
 		break;
 	}

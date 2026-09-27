@@ -23,6 +23,7 @@
 #include "util/structural_edit_probe.h"
 #include <algorithm>
 #include <expected>
+#include <utility>
 
 class Clip;
 
@@ -75,6 +76,13 @@ public:
 	// Standard container surface
 	[[nodiscard]] size_t size() const { return clips_.size(); }
 	[[nodiscard]] bool empty() const { return clips_.empty(); }
+	/// Swap two clips in place (a session-view clip drag).
+	void swapClips(int32_t a, int32_t b) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
+		std::swap(clips_[a], clips_[b]);
+	}
+
 	void clear() {
 		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();

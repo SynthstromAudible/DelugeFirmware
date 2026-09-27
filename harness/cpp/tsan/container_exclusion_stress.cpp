@@ -7,8 +7,10 @@
 // primitives are stubbed with host semantics (one recursive global lock; deluge_in_audio_context() false), the same as
 // the Rust BSP's host build, and the firmware's allocator with malloc/free.
 //
-// With STRESS_EDIT_UNGUARDED defined the editor's edits run outside any section: the red case, which TSan must
-// report. Without it the editor wraps each edit in an AudioExcludedSection, as the product containers now do.
+// The OrderedPosVector edits call the product mutators unwrapped: their own AudioExcludedSection is what excludes
+// the walker, so removing the section from a mutator (a neutering) turns this red. The pointer vector stands in for
+// ClipArray's storage and is wrapped here; with STRESS_EDIT_UNGUARDED defined its edits run outside any section, the
+// red case for the mechanism itself.
 //
 // Built and run by run.sh beside the other stress binaries.
 #include "deluge/util/container/ordered_pos_vector.h"
@@ -86,22 +88,19 @@ void edit(F&& f) {
 void editor() {
 	for (int round = 0; round < 3000; ++round) {
 		for (int i = 0; i < 24; ++i) {
-			edit([&] {
-				auto at = g_nodes.insertSorted(round * 31 + i * 7);
-				if (at) {
-					g_nodes[*at].magic = kMagic;
-				}
-			});
+			// The product mutator sections itself; the magic is written into a slot the walker could see only
+			// mid-insert.
+			(void)g_nodes.insertSorted(round * 31 + i * 7);
 			edit([&] { g_clips.insert(g_clips.begin() + (g_clips.size() / 2), &g_dummy); });
 		}
 		while (g_nodes.size() > 8) {
-			edit([&] { g_nodes.erase(g_nodes.begin()); });
+			g_nodes.erase(g_nodes.begin());
 		}
 		while (g_clips.size() > 8) {
 			edit([&] { g_clips.erase(g_clips.begin() + (g_clips.size() / 2)); });
 		}
 		if (round % 64 == 0) {
-			edit([&] { g_nodes.clear(); });
+			g_nodes.clear();
 		}
 	}
 	g_done.store(true, std::memory_order_release);

@@ -42,7 +42,13 @@ public:
 	OrderedPosVector() = default;
 	~OrderedPosVector() = default;
 	OrderedPosVector(OrderedPosVector&&) noexcept = default;
-	OrderedPosVector& operator=(OrderedPosVector&&) noexcept = default;
+	/// A structural edit when this vector is one the render walks (a note-row drag swaps two rows' vectors).
+	OrderedPosVector& operator=(OrderedPosVector&& other) noexcept {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
+		elements_ = std::move(other.elements_);
+		return *this;
+	}
 	// No implicit copying: the legacy byte-copy cloning idiom and C++ copies must not be mixed up.
 	// Use cloneFrom() for an explicit, fallible deep copy.
 	OrderedPosVector(OrderedPosVector const&) = delete;
@@ -198,10 +204,14 @@ public:
 	// Standard container surface
 	[[nodiscard]] size_t size() const { return elements_.size(); }
 	[[nodiscard]] bool empty() const { return elements_.empty(); }
+	/// The elements are destroyed outside the section: only the buffer handover is masked.
 	void clear() {
-		AudioExcludedSection section; // the render walks this container: see noteEdit()
-		noteEdit();
-		elements_.clear();
+		fast_vector<T> old;
+		{
+			AudioExcludedSection section; // the render walks this container: see noteEdit()
+			noteEdit();
+			old.swap(elements_);
+		}
 	}
 	T& operator[](size_t i) { return elements_[i]; }
 	T const& operator[](size_t i) const { return elements_[i]; }
@@ -209,15 +219,20 @@ public:
 	T& back() { return elements_.back(); }
 	T* data() { return elements_.data(); }
 
+	/// The copy is made outside the section, and the old elements destroyed outside it: only the handover is masked.
 	bool cloneFrom(OrderedPosVector const* other) {
-		AudioExcludedSection section; // the render walks this container: see noteEdit()
-		noteEdit();
+		fast_vector<T> copy;
 		try {
-			elements_ = other->elements_;
-			return true;
+			copy = other->elements_;
 		} catch (deluge::exception&) {
 			return false;
 		}
+		{
+			AudioExcludedSection section; // the render walks this container: see noteEdit()
+			noteEdit();
+			elements_.swap(copy);
+		}
+		return true;
 	}
 
 	/// Call after this object was byte-copied from another instance (the legacy cloning idiom): gives this copy
@@ -227,14 +242,14 @@ public:
 	/// Until this is called, the byte-copy aliases the original's buffer, which the original still owns; on
 	/// failure this copy is detached and left empty.
 	Error beenCloned() {
-		AudioExcludedSection section; // the render walks this container: see noteEdit()
-		noteEdit();
 		int32_t num = static_cast<int32_t>(elements_.size());
 		T const* sourceData = elements_.data(); // Reading through the aliased buffer is safe
 		fast_vector<T> fresh;
 		try {
 			fresh.reserve(num);
 		} catch (deluge::exception&) {
+			AudioExcludedSection section; // the render walks this container: see noteEdit()
+			noteEdit();
 			new (&elements_) fast_vector<T>();
 			return Error::INSUFFICIENT_RAM;
 		}
@@ -242,6 +257,9 @@ public:
 			fresh.emplace_back();
 			std::memcpy(static_cast<void*>(&fresh.back()), static_cast<void const*>(&sourceData[i]), sizeof(T));
 		}
+		// The copies were made outside the section; only the handover is masked.
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
 		new (&elements_) fast_vector<T>(std::move(fresh)); // Overwrite the alias without destructing it
 		return Error::NONE;
 	}
@@ -287,9 +305,8 @@ public:
 	}
 
 	/// Tiles the contents (all of which must lie before wrapPoint) out to endPos. Returns false on OOM.
+	/// The tiled contents are built in a new buffer outside the section; only the handover is masked.
 	bool generateRepeats(int32_t wrapPoint, int32_t endPos) {
-		AudioExcludedSection section; // the render walks this container: see noteEdit()
-		noteEdit();
 		if (elements_.empty()) {
 			return true;
 		}
@@ -302,8 +319,10 @@ public:
 		int32_t oldNum = firstAtOrAfter(wrapPoint);
 		int32_t newNum = oldNum * numCompleteRepeats + iEndPosWithinFirstRepeat;
 
+		fast_vector<T> tiled;
 		try {
-			elements_.resize(newNum);
+			tiled = elements_;
+			tiled.resize(newNum);
 		} catch (deluge::exception&) {
 			return false;
 		}
@@ -313,11 +332,16 @@ public:
 				if (r == numCompleteRepeats && i >= iEndPosWithinFirstRepeat) {
 					break;
 				}
-				elements_[i + oldNum * r] = elements_[i];
-				elements_[i + oldNum * r].*keyMember = elements_[i].*keyMember + wrapPoint * r;
+				tiled[i + oldNum * r] = tiled[i];
+				tiled[i + oldNum * r].*keyMember = tiled[i].*keyMember + wrapPoint * r;
 			}
 		}
 
+		{
+			AudioExcludedSection section; // the render walks this container: see noteEdit()
+			noteEdit();
+			elements_.swap(tiled);
+		}
 		return true;
 	}
 

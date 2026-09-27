@@ -83,9 +83,10 @@ struct CriticalSectionGuard {
 	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
 };
 
-/// The nesting depth of AudioExcludedSection in the calling context. Sections nest; the count is per thread on
-/// host (each thread's sections are its own) and a plain global on the device, where only thread mode and the
-/// storage handler enter a section and the audio render never does.
+/// The nesting depth of AudioExcludedSections that actually exclude the render (that masked, or on host took the
+/// lock) in the calling context. Sections nest; the count is per thread on host (each thread's sections are its own)
+/// and a plain global on the device. The audio render's own section never counts: on the device it does not mask, so
+/// an interrupt that preempts the render (the storage handler) still sees the depth of the code it interrupted.
 #ifdef DELUGE_HOST
 inline thread_local int32_t g_delugeAudioExcludedDepth = 0;
 #else
@@ -108,12 +109,12 @@ struct AudioExcludedSection {
 	AudioExcludedSection() : entered_(!deluge_in_audio_context()) {
 		if (entered_) {
 			ENTER_CRITICAL_SECTION();
+			g_delugeAudioExcludedDepth++;
 		}
-		g_delugeAudioExcludedDepth++;
 	}
 	~AudioExcludedSection() {
-		g_delugeAudioExcludedDepth--;
 		if (entered_) {
+			g_delugeAudioExcludedDepth--;
 			EXIT_CRITICAL_SECTION();
 		}
 	}

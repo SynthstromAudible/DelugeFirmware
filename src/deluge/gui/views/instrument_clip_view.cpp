@@ -4396,7 +4396,7 @@ void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip
 
 	clip->noteRows[noteRowToShiftI].y = -32768; // Need to remember not to try and use the yNote value
 	                                            // of this NoteRow if we switch back out of Kit mode
-	std::swap(clip->noteRows[noteRowToShiftI], clip->noteRows[noteRowToSwapWithI]);
+	clip->noteRows.swapRows(noteRowToShiftI, noteRowToSwapWithI);
 
 	// If the Kit arpeggiator is active and playback is stopped, we must reset it so notes are reassigned
 	// If playback is active, the rendering will take care of it
