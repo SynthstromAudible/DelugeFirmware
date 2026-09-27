@@ -3040,16 +3040,20 @@ fn main() {
 /// dependency) buffers writes rather than flushing per line, so without this,
 /// a run that fails fast could exit with its diagnostic log output silently
 /// discarded.
-fn hard_exit(code: i32) -> ! {
+fn hard_exit(mut code: i32) -> ! {
     use std::io::Write as _;
     // The synchronous-call inventory, on every exit: a failing run's numbers matter as much as a passing one's.
     tier_meter::print_report();
     // Structural edits to the render's containers made while the render could have preempted them
-    // (util/structural_edit_probe.h): printed only when there are any, so a clean run's markers do not change.
+    // (util/structural_edit_probe.h). Any fails an otherwise passing run (exit 3), so every golden gate checks that
+    // no such edit was made; the line says how many. Nothing is printed on a clean run, so its markers do not change.
     // SAFETY: a DELUGE_HOST C-ABI getter reading relaxed atomics; safe at any point after the app is linked.
     let unguarded = unsafe { deluge_unguarded_structural_edits_total() };
     if unguarded != 0 {
         println!("GUARD-UNGUARDED total={unguarded}");
+        if code == 0 {
+            code = 3;
+        }
     }
     let _ = std::io::stdout().flush();
     let _ = std::io::stderr().flush();

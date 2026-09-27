@@ -24,7 +24,8 @@
 #   CG-DRUM                  a drum added to a playing kit (Kit::addDrum()) and removed (Kit::removeDrum())
 #   CG-REPLACE               a playing clip's synth replaced (Song::replaceInstrument())
 #   CG-UNDO                  a logged note delete, undone
-#   CG-BIGROW                a note row inserted below 128 others, moving them all
+#   CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
+#                            wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
 #
 # REQUIRED_LEGS below lists the legs whose count must be 0; every other leg is reported only. A leg whose edit ends the
 # process is reported with aborted=1 and fails the run. A missing leg line fails the run.
@@ -88,6 +89,7 @@ status=$?
 set -e
 
 grep -E '^CG-' "$OUT/run.txt" || true
+grep -E '^GUARD-UNGUARDED ' "$OUT/run.txt" || true
 
 if [ "$status" -ne 0 ]; then
 	echo "FAIL — the run exited $status"

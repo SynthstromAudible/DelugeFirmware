@@ -323,9 +323,11 @@ bool setupLeg() {
 		return (g_row != nullptr) ? true : fail("the kit clip has no note row for its drum");
 	}
 	case Leg::BigRow:
-		for (int32_t n = 0; n < kBigRowCount; n++) {
-			if (rowFor(kRowNote + n, nullptr) == nullptr) {
-				return false;
+		// Straight into the row vector: the song is in scale mode, where getOrCreateNoteRowForYNote() recalculates the
+		// scale for an out-of-scale row and discards empty rows.
+		for (int32_t n = 1; n <= kBigRowCount; n++) {
+			if (g_clip->noteRows.insertNoteRowAtY(n) == nullptr) {
+				return fail("no memory for a note row");
 			}
 		}
 		return true;
@@ -439,9 +441,9 @@ void editLeg() {
 		break;
 	}
 	case Leg::BigRow:
-		g_step = "insertNoteRowAtIndex(0)";
+		g_step = "insertNoteRowAtY(0)";
 		// Below every other row: the insert moves all kBigRowCount rows (and reallocates when full).
-		(void)rowFor(kRowNote - 1, nullptr);
+		(void)g_clip->noteRows.insertNoteRowAtY(0);
 		break;
 	case Leg::Done:
 		break;
@@ -538,7 +540,17 @@ void runTick() {
 		}
 		std::signal(SIGABRT, reportAborted);
 		std::signal(SIGSEGV, reportAborted);
+		const auto editStart = std::chrono::steady_clock::now();
 		editLeg();
+		const auto editMicros =
+		    std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - editStart).count();
+		if (g_leg == Leg::BigRow) {
+			// The whole edit's host wall time: an upper bound on the section it holds -- the row vector's insert,
+			// which moves every row -- against a render block of 128 frames, some 2900 us.
+			printf("CG-MASK leg=BIGROW rows=%d maskMicros=%lld\n", static_cast<int>(g_clip->noteRows.size()),
+			       static_cast<long long>(editMicros));
+			fflush(stdout);
+		}
 		renderBlocks(kBlocksAfter);
 		std::signal(SIGABRT, SIG_DFL);
 		std::signal(SIGSEGV, SIG_DFL);
