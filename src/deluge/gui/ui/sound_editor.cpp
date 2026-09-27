@@ -833,9 +833,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine, MenuItem* previousItem,
                                                  MenuItem* currentItem, bool isHorizontalMenu) {
 	using namespace deluge::hid::button;
-	// currentItem is null when this call follows a goUpOneLevel() that closed the sound editor entirely
-	// (exitCompletely() nulls menuItemNavigationRecord[navigationDepth]) - there's no menu to compare to,
-	// so there's nothing to do here.
+	// currentItem is null once the sound editor has closed entirely (see exitCompletely()).
 	if (currentItem == nullptr) {
 		return;
 	}
