@@ -169,8 +169,6 @@ void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB im
                                           uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool doKitAffectEntire)
 {
 
-	D_PRINTLN("rendering with kit affect entire? %b ", doKitAffectEntire);
-
 	// Draw the static shortcut colour map first, so that the shortcut blink (handled separately via
 	// PadLEDs::flashMainPad on the PIC) gets overlaid on top of it, instead of replacing the whole display.
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
@@ -195,6 +193,13 @@ void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB im
 bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea)
 {
+
+	if (!image)
+	{
+		D_PRINTLN("no image");
+
+		return true;
+	}
 	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)
 		|| !Buttons::isShiftButtonPressed())
 	{
@@ -219,11 +224,6 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 		return false;
 	}
 
-	if (!image) {
-		D_PRINTLN("no image");
-
-		return true;
-	}
 
 	D_PRINTLN("rendering pad colours");
 
@@ -916,7 +916,9 @@ ActionResult SoundEditor::exitCompletely() {
 
 	// end current menu item session before exiting
 	endScreen();
-
+	navigationDepth = 0;
+	shouldGoUpOneLevelOnBegin = false;
+	menuItemNavigationRecord[navigationDepth] = nullptr;
 	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
@@ -2358,8 +2360,10 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 		}
 		currentMenuItem = menuItemNavigationRecord[navigationDepth - 1];
 	}
-
-	currentMenuItem->renderOLED();
+	if (currentMenuItem)
+	{
+		currentMenuItem->renderOLED();
+	}
 }
 
 /*

@@ -92,18 +92,24 @@ void FileSelector::renderInHorizontalMenu(const SlotPosition& slot) {
 void FileSelector::getColumnLabel(StringBuf& label) {
 	if (const auto audioClip = getCurrentAudioClip(); audioClip != nullptr) {
 		if (const auto audioFile = audioClip->sampleHolder.audioFile; audioFile != nullptr) {
-			return label.append(getLastFolderFromPath(audioFile->filePath));
+			label.append(getLastFolderFromPath(audioFile->filePath));
+			return;
 		}
-		return MenuItem::getColumnLabel(label);
+		MenuItem::getColumnLabel(label);
+		return;
 	}
-
+	if (!soundEditor.currentSound) {
+		return;
+	}
 	auto& source = soundEditor.currentSound->sources[sourceId_];
 	if (!source.hasAtLeastOneAudioFileLoaded()) {
-		return MenuItem::getColumnLabel(label);
+		MenuItem::getColumnLabel(label);
+		return;
 	}
 
 	if (source.ranges.getNumElements() > 1) {
-		return label.append("Mult");
+		label.append("Mult");
+		return;
 	}
 
 	auto path = source.ranges.getElement(0)->getAudioFileHolder()->filePath;
