@@ -80,9 +80,11 @@ void runAccept() {
 	playbackHandler.doSongSwap(playbackHandler.isEitherClockActive());
 	// Only with the clock running: stopped, deleteOldSongBeforeLoadingNew() above already retired the old song and
 	// waited for it to be freed, and left currentSong null. Handed to the render, which lets go of it before it is
-	// freed; no wait, since the swap already held both songs.
+	// freed.
 	if (toDelete) {
 		AudioEngine::retire(toDelete);
+		// Wait until it is freed: the call below destroys temp-recorded Samples the old song's audio clips still hold.
+		AudioEngine::awaitRetired();
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();

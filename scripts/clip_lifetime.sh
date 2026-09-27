@@ -75,6 +75,12 @@
 #   CL-BURST        BURSTSONG's song before the clear: how many outputs and session clips it holds.
 #   CL-BURSTSONG    a song of 20 synths with two session clips each, cleared with the clock stopped: the whole song is
 #                   let go of and freed inside the clear's bounded wait (pending=0, violations=0).
+#   CL-CLEARPLAYING Create New Song while following an external clock (runAccept() keeps that playback going), with an
+#                   audio clip holding what an unsaved recording leaves: a Sample with a TEMP path. The clear swaps in
+#                   the new song, hands the old one to the render, then frees every temp-recorded Sample
+#                   (deleteAnyTempRecordedSamplesFromMemory()). The old song must already be freed by then
+#                   (pendingAtFree=0); otherwise its ~SampleHolder later writes into the freed Sample (E219 on
+#                   alpha). CL-CLEARSAMPLE says whether the Sample is gone and what was still waiting when it went.
 #   CL-WINDOW       SESSIONDELETE and ARRANGERNOUNDO, just after the deletion and before any block: whether the song's
 #                   currentClip or the view's active timeline counter still names the retired clip. Required 0 and 0.
 #   CL-FREED        per clip leg, before its leg line: the scenario renders a few blocks and reclaims, so the retired
@@ -112,11 +118,11 @@
 # SESSIONDELETE, ARRANGERDELETE, SWAPTYPE, UNDODELETE, ARRANGERNOUNDO, RECORDSOURCE and SYNCSCALE must each read clipsReferenced=0,
 # must not abort, and must show CL-FREED pending=0 (the clip really was freed inside the leg); UNDODELETE must also
 # read restored=1. SAVEKIT and WONTSOUND must each read soundsLive=0 and must not abort. The song legs (EPOCH0,
-# SONGCLEAR, SONGLOAD, SONGSWAP, BURSTSONG) must each read clipsReferenced=0 songsReachable=0 soundsLive=0 and
-# violations=0, and must not abort; the stopped-clock ones (EPOCH0, SONGCLEAR, SONGLOAD, BURSTSONG) must also read
-# pendingAtBuild=0 and pending=0, EPOCH0 epoch=0 or 1 and returned=1, and SONGCLEAR, SONGLOAD and BURSTSONG must show their
-# CL-AFTER line. The final CL-RECLAIM line (after WONTSOUND) must read pending=0. Any of them failing that fails the
-# run.
+# SONGCLEAR, SONGLOAD, SONGSWAP, BURSTSONG, CLEARPLAYING) must each read clipsReferenced=0 songsReachable=0
+# soundsLive=0 and violations=0, and must not abort; the stopped-clock ones (EPOCH0, SONGCLEAR, SONGLOAD, BURSTSONG)
+# must also read pendingAtBuild=0 and pending=0, EPOCH0 epoch=0 or 1 and returned=1, and SONGCLEAR, SONGLOAD and
+# BURSTSONG must show their CL-AFTER line; CLEARPLAYING must read pendingAtFree=0. The final CL-RECLAIM line (after
+# WONTSOUND) must read pending=0. Any of them failing that fails the run.
 #
 # The run also FAILS when a leg line or a CL-RECLAIM line is missing, a fixture could not be built (CL-RESULT
 # failures>0), or the process ended some other way: an exit with no aborted=1 line for the leg that was running, or a
@@ -172,7 +178,7 @@ cleanup() {
 trap cleanup EXIT
 
 LEGS=(EPOCH0 SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE ARRANGERNOUNDO RECORDSOURCE SYNCSCALE SAVEKIT SONGCLEAR
-	SONGLOAD SONGSWAP BURSTSONG WONTSOUND)
+	SONGLOAD SONGSWAP BURSTSONG CLEARPLAYING WONTSOUND)
 # Required: the clip legs.
 REQUIRED_LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE ARRANGERNOUNDO RECORDSOURCE SYNCSCALE)
 # Required: the two direct-drum-destroy legs. soundsLive=0 and no abort -- not clipsReferenced (they destroy a drum,
@@ -181,7 +187,7 @@ REQUIRED_SOUND_LEGS=(SAVEKIT WONTSOUND)
 # Required: the song legs -- nothing of the old song reachable when it is destroyed, and no retire violation. The
 # stopped-clock ones must also have freed the old song before building the new one (pendingAtBuild=0) and left nothing
 # waiting once the clear or load returned (pending=0).
-REQUIRED_SONG_LEGS=(EPOCH0 SONGCLEAR SONGLOAD SONGSWAP BURSTSONG)
+REQUIRED_SONG_LEGS=(EPOCH0 SONGCLEAR SONGLOAD SONGSWAP BURSTSONG CLEARPLAYING)
 STOPPED_SONG_LEGS=(EPOCH0 SONGCLEAR SONGLOAD BURSTSONG)
 # The stopped-clock song legs the scenario drives a UI timer and a MIDI note-in after (CL-AFTER).
 AFTER_LEGS=(SONGCLEAR SONGLOAD BURSTSONG)
@@ -295,6 +301,12 @@ done
 # before the render task exists); no scheduled render has run yet.
 if ! grep -qE '^CL-EPOCH0 .* epoch=[01] returned=1 ' "$OUT/all.txt"; then
 	required_fail="${required_fail}EPOCH0(epoch) "
+fi
+# Create New Song with a clock running frees the temp-recorded Samples right after it hands the old song over: the
+# old song, whose audio clip holds one of them, must already be freed by then.
+if ! grep -qE '^CL-CLEARPLAYING .* pendingAtFree=0 ' "$OUT/all.txt" ||
+	! grep -qE '^CL-CLEARSAMPLE leg=CLEARPLAYING sampleFreed=1 pendingAtFree=0$' "$OUT/all.txt"; then
+	required_fail="${required_fail}CLEARPLAYING(order) "
 fi
 for leg in "${AFTER_LEGS[@]}"; do
 	if ! grep -qE "^CL-AFTER leg=$leg uiTimer=1 midiNoteIn=1 song=1$" "$OUT/all.txt"; then

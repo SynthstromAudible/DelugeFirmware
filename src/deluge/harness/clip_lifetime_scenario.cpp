@@ -38,6 +38,7 @@
 #include "memory/fast_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
@@ -45,6 +46,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
@@ -55,6 +57,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
 #include <algorithm>
@@ -131,6 +134,7 @@ enum class Leg : uint8_t {
 	SongLoad,
 	SongSwap,
 	BurstSong,
+	ClearPlaying,
 	WontSound,
 	Done
 };
@@ -172,6 +176,8 @@ bool g_reclaimDone = false;
 /// paths have already built the new song; Song::retiredPendingAtLastConstruction() once the leg's clear or load is
 /// over; and AudioEngine::retireViolations() at the start of the deletion.
 int32_t g_pendingAfterDelete = 0;
+/// CLEARPLAYING: the temp-recorded Sample its audio clip holds. Compared by value only once the clear has run.
+Sample* g_tempSample = nullptr;
 int32_t g_pendingAtBuild = -1;
 std::size_t g_violationsBefore = 0;
 
@@ -217,6 +223,8 @@ const char* legName(Leg leg) {
 		return "SONGSWAP";
 	case Leg::BurstSong:
 		return "BURSTSONG";
+	case Leg::ClearPlaying:
+		return "CLEARPLAYING";
 	case Leg::WontSound:
 		return "WONTSOUND";
 	case Leg::Done:
@@ -233,12 +241,19 @@ bool isClipLeg(Leg leg) {
 
 /// The legs that replace the whole song.
 bool isSongLeg(Leg leg) {
-	return leg == Leg::SongClear || leg == Leg::SongLoad || leg == Leg::SongSwap || leg == Leg::BurstSong;
+	return leg == Leg::SongClear || leg == Leg::SongLoad || leg == Leg::SongSwap || leg == Leg::BurstSong
+	       || leg == Leg::ClearPlaying;
 }
 
-/// The legs that clear the song through the context menu's Create New Song, with the clock stopped.
+/// The legs that clear the song through the context menu's Create New Song.
 bool isClearLeg(Leg leg) {
-	return leg == Leg::SongClear || leg == Leg::BurstSong;
+	return leg == Leg::SongClear || leg == Leg::BurstSong || leg == Leg::ClearPlaying;
+}
+
+/// The legs that follow an external clock: Create New Song then keeps playback going (runAccept() ends only internal
+/// and arrangement playback), so the clear swaps songs with the clock running.
+bool legFollowsExternalClock(Leg leg) {
+	return leg == Leg::ClearPlaying;
 }
 
 /// The stopped-clock song legs: the old song must be freed before the new one is built.
@@ -254,7 +269,7 @@ bool isLoadLeg(Leg leg) {
 /// Whether the leg runs with the internal clock going. The stopped-clock song paths are the ones that destroy the old
 /// song before the new one is built.
 bool legPlays(Leg leg) {
-	return !isStoppedSongLeg(leg);
+	return !isStoppedSongLeg(leg) && !legFollowsExternalClock(leg);
 }
 
 bool fail(const char* what) {
@@ -452,6 +467,53 @@ bool buildBurstSong(InstrumentClip* first) {
 	return true;
 }
 
+/// CLEARPLAYING's audio clip: a new audio track's clip holding what a finished, unsaved recording leaves behind -- a
+/// Sample listed in the audio file manager with a TEMP path (tempFilePathForRecording), held by the clip's
+/// SampleHolder. Built the way SampleRecorder::setup() and its first card routine build one (placement-new, adopt,
+/// a setup reason, a listed file path), with the setup reason then dropped as a finished recording drops its own.
+/// No audio is recorded: the Sample has no clusters. What the leg needs is the ownership, not the audio.
+bool makeTempRecordedAudioClip() {
+	Clip* clip = sessionView.createNewAudioClipForHarness(kAppendY);
+	if (clip == nullptr || clip->type != ClipType::AUDIO) {
+		return fail("no audio clip");
+	}
+	void* memory = deluge::memory::alloc_external(sizeof(Sample), 16);
+	if (memory == nullptr) {
+		return fail("no memory for a Sample");
+	}
+	auto* sample = new (memory) Sample;
+	audioFileManager.adoptAudioFileObject(sample);
+	sample->addReason();
+	if (sample->initialize(1) != Error::NONE) {
+		return fail("the Sample could not be initialised");
+	}
+	sample->byteDepth = 3;
+	sample->numChannels = 1;
+	sample->lengthInSamples = 44100;
+	sample->audioDataLengthBytes = 44100 * 3;
+	sample->audioDataStartPosBytes = 44;
+	sample->filePath = "SAMPLES/CLIPS/CLPLAY.WAV";
+	sample->tempFilePathForRecording = "SAMPLES/CLIPS/TEMP/CLPLAY.WAV";
+	if (!audioFileManager.audioFiles.insertElement(sample)) {
+		return fail("the Sample could not be listed");
+	}
+	static_cast<AudioClip*>(clip)->sampleHolder.filePath = sample->filePath;
+	static_cast<AudioClip*>(clip)->sampleHolder.setAudioFile(sample);
+	sample->removeReason("CLPL"); // the recorder's own reason, gone once the recording finished
+	g_tempSample = sample;
+	return true;
+}
+
+/// Whether the audio file manager still lists @p file. Compared by value only.
+bool audioFileListed(AudioFile const* file) {
+	for (AudioFile const* listed : audioFileManager.audioFiles) {
+		if (listed == file) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /// Build the running leg's clips, with the clock stopped, and point the song's references at the victim.
 bool setupLeg() {
 	g_victim = nullptr;
@@ -460,6 +522,7 @@ bool setupLeg() {
 	g_sound = nullptr;
 	g_kit = nullptr;
 	g_drum = nullptr;
+	g_tempSample = nullptr;
 	if (g_leg == Leg::SaveKit || g_leg == Leg::WontSound) {
 		InstrumentClip* clip = makeKitClip();
 		if (clip == nullptr) {
@@ -553,6 +616,12 @@ bool setupLeg() {
 		break;
 	case Leg::BurstSong:
 		if (!buildBurstSong(clip)) {
+			return false;
+		}
+		selectClip(clip);
+		break;
+	case Leg::ClearPlaying:
+		if (!makeTempRecordedAudioClip()) {
 			return false;
 		}
 		selectClip(clip);
@@ -715,8 +784,10 @@ void deleteLeg() {
 	}
 	case Leg::SongClear:
 	case Leg::BurstSong:
+	case Leg::ClearPlaying:
 		// The context menu's accept: ClearSongContextMenu::runAccept(), which with the clock stopped goes through
-		// deleteOldSongBeforeLoadingNew() and then builds the new song.
+		// deleteOldSongBeforeLoadingNew() and then builds the new song; with an external clock running it arms the
+		// swap, builds the new song, swaps it in and hands the old one over, then frees the temp-recorded Samples.
 		g_step = "clearSong";
 		(void)deluge::gui::context_menu::clearSong.acceptCurrentOption();
 		break;
@@ -958,6 +1029,10 @@ void runTick() {
 			// Playback on the internal clock, with no count-in: every active clip starts from the top.
 			playbackHandler.setupPlaybackUsingInternalClock(0, false);
 		}
+		else if (legFollowsExternalClock(g_leg)) {
+			// Following a MIDI clock: playback runs, though no clock message ever arrives to tick it.
+			playbackHandler.setupPlaybackUsingExternalClock();
+		}
 		g_timerAtStart = AudioEngine::audioSampleTimer;
 		if (!soundLeg()) {
 			g_stage = Stage::Summary;
@@ -1021,6 +1096,14 @@ void runTick() {
 		deleteLeg();
 		// A clear has built the new song by now; a load has only opened its browser.
 		g_pendingAfterDelete = static_cast<int32_t>(AudioEngine::retiredPending());
+		if (g_leg == Leg::ClearPlaying) {
+			// runAccept() has returned, so deleteAnyTempRecordedSamplesFromMemory() has run. It frees the Sample the
+			// old song's audio clip holds a reason to: the old song must be gone by then (pending=0), or its
+			// ~SampleHolder later writes into the freed Sample.
+			printf("CL-CLEARSAMPLE leg=CLEARPLAYING sampleFreed=%d pendingAtFree=%d\n",
+			       audioFileListed(g_tempSample) ? 0 : 1, g_pendingAfterDelete);
+			fflush(stdout);
+		}
 		g_step = nullptr;
 		g_ticks = 0;
 		g_awaitSteps = 0;
@@ -1139,6 +1222,11 @@ void runTick() {
 		else if (g_leg == Leg::SongSwap) {
 			printf("CL-%s clipsReferenced=%d songsReachable=%d soundsLive=%d violations=%d\n", legName(g_leg), clips,
 			       songs, sounds, static_cast<int32_t>(AudioEngine::retireViolations() - g_violationsBefore));
+		}
+		else if (g_leg == Leg::ClearPlaying) {
+			printf("CL-%s clipsReferenced=%d songsReachable=%d soundsLive=%d pendingAtFree=%d violations=%d\n",
+			       legName(g_leg), clips, songs, sounds, g_pendingAfterDelete,
+			       static_cast<int32_t>(AudioEngine::retireViolations() - g_violationsBefore));
 		}
 		else {
 			printf("CL-%s clipsReferenced=%d songsReachable=%d soundsLive=%d\n", legName(g_leg), clips, songs, sounds);
