@@ -110,6 +110,7 @@ enum class Leg : uint8_t {
 	ArrangerDelete,
 	SwapType,
 	UndoDelete,
+	ArrangerNoUndo,
 	RecordSource,
 	SyncScale,
 	SaveKit,
@@ -178,6 +179,8 @@ const char* legName(Leg leg) {
 		return "SWAPTYPE";
 	case Leg::UndoDelete:
 		return "UNDODELETE";
+	case Leg::ArrangerNoUndo:
+		return "ARRANGERNOUNDO";
 	case Leg::RecordSource:
 		return "RECORDSOURCE";
 	case Leg::SyncScale:
@@ -423,7 +426,8 @@ bool setupLeg() {
 		selectClip(clip);
 		break;
 	case Leg::ArrangerDelete:
-	case Leg::UndoDelete: {
+	case Leg::UndoDelete:
+	case Leg::ArrangerNoUndo: {
 		// An arrangement-only clip, made the way the firmware makes one from a session clip: give it an instance in
 		// the arranger, then remove it from the session -- removeSessionClip() then moves it to arrangementOnlyClips
 		// (section 255) rather than deleting it.
@@ -537,9 +541,12 @@ void renderBlocks(int32_t count) {
 /// The arranger's delete gesture on @p clip's one instance: ArrangerView::deleteClipInstance(output, clipInstance) and
 /// the four-argument overload it calls, step for step (both are private). Skipped: the gesture's UI-only steps --
 /// clearing lastInteractedClipInstance (private; MIDI-follow feedback), the OLED clear and exitSubModeWithoutAction().
-/// The action is a real one, so Song::deletingClipInstanceForClip() takes its logged branch: the clip-existence
-/// consequence detaches the clip and keeps it for the undo, and the clip is destroyed only when the log is discarded.
-void arrangerDeleteGesture(Clip* clip) {
+/// With @p logged, the action is a real one, so Song::deletingClipInstanceForClip() takes its logged branch: the
+/// clip-existence consequence detaches the clip and keeps it for the undo, and the clip is destroyed only when the log
+/// is discarded. Without it, the gesture runs as it does when ActionLogger::getNewAction() has no action to give (no
+/// memory for undo history): the action is null, and deletingClipInstanceForClip() deletes the clip at once
+/// (deleteClipObject()) -- the one arranger path that leaves the song's currentClip on the deleted clip.
+void arrangerDeleteGesture(Clip* clip, bool logged) {
 	Output* output = clip->output;
 	int32_t index = -1;
 	for (int32_t i = 0; i < std::ssize(output->clipInstances); i++) {
@@ -559,16 +566,19 @@ void arrangerDeleteGesture(Clip* clip) {
 	arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
 	                      nullptr);
 	g_step = "getNewAction";
-	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
-	if (action == nullptr) {
-		// deletingClipInstanceForClip() would then take its no-undo-memory branch, which this leg is not about.
+	Action* action =
+	    logged ? actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED) : nullptr;
+	if (logged && action == nullptr) {
+		// deletingClipInstanceForClip() would then take its no-undo-memory branch, which ARRANGERNOUNDO drives.
 		fail("no action for the arranger delete");
 		return;
 	}
 
 	// ArrangerView::deleteClipInstance(output, index, clipInstance, action, false):
-	g_step = "recordClipInstanceExistenceChange";
-	action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::DELETE);
+	if (action != nullptr) {
+		g_step = "recordClipInstanceExistenceChange";
+		action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::DELETE);
+	}
 	output->clipInstances.erase(output->clipInstances.begin() + index);
 	g_step = "deletingClipInstanceForClip";
 	currentSong->deletingClipInstanceForClip(output, clip, action, true);
@@ -587,7 +597,10 @@ void deleteLeg() {
 		break;
 	case Leg::ArrangerDelete:
 	case Leg::UndoDelete:
-		arrangerDeleteGesture(clip);
+		arrangerDeleteGesture(clip, true);
+		break;
+	case Leg::ArrangerNoUndo:
+		arrangerDeleteGesture(clip, false);
 		break;
 	case Leg::SwapType:
 		// The session view's change-to-audio gesture: Song::replaceInstrumentClipWithAudioClip() -> swapClips(), then

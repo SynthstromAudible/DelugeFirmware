@@ -36,6 +36,9 @@
 #   CL-UNDO         UNDODELETE's undo: restored=1 when the clip is back in arrangementOnlyClips with an instance.
 #                   Printed before the redo, so it survives a redo that ends the process.
 #   CL-DISCARD      ARRANGERDELETE and UNDODELETE: held=1 when the undo log still held the delete at the discard.
+#   CL-ARRANGERNOUNDO the same arranger delete when the action logger has no action to give (no undo memory): the
+#                   gesture passes a null action, so Song::deletingClipInstanceForClip() deletes the clip at once. The
+#                   one path that leaves the song's currentClip on the deleted clip for the render to drop.
 #   CL-RECORDSOURCE the clip another clip records from (beingRecordedFromClip), deleted through the session view's
 #                   delete gesture.
 #   CL-SYNCSCALE    the sync-scaling clip, deleted through Song::removeSessionClip() (the session view refuses it).
@@ -75,7 +78,7 @@
 #
 # ## Required legs
 #
-# SESSIONDELETE, ARRANGERDELETE, SWAPTYPE, UNDODELETE, RECORDSOURCE and SYNCSCALE must each read clipsReferenced=0,
+# SESSIONDELETE, ARRANGERDELETE, SWAPTYPE, UNDODELETE, ARRANGERNOUNDO, RECORDSOURCE and SYNCSCALE must each read clipsReferenced=0,
 # must not abort, and must show CL-FREED pending=0 (the clip really was freed inside the leg); UNDODELETE must also
 # read restored=1. Any of them failing that fails the run.
 #
@@ -132,10 +135,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE RECORDSOURCE SYNCSCALE SAVEKIT SONGCLEAR SONGLOAD SONGSWAP
+LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE ARRANGERNOUNDO RECORDSOURCE SYNCSCALE SAVEKIT SONGCLEAR SONGLOAD SONGSWAP
 	WONTSOUND)
 # Required: the clip legs. The rest stay report-only.
-REQUIRED_LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE RECORDSOURCE SYNCSCALE)
+REQUIRED_LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE ARRANGERNOUNDO RECORDSOURCE SYNCSCALE)
 
 # The leg after $1, or nothing after the last.
 next_leg() {
