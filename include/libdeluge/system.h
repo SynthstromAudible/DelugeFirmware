@@ -82,6 +82,31 @@ struct CriticalSectionGuard {
 	CriticalSectionGuard() { ENTER_CRITICAL_SECTION(); }
 	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
 };
+
+/// RAII asymmetric critical section: enters iff the caller is NOT the audio render (`!deluge_in_audio_context()`).
+///
+/// The C++ twin of the resource manager's `deluge_resource::sync::Masked`. Guard every change to a structure the
+/// audio render walks, and every walk. On the device the audio render skips the mask: it preempts every other
+/// context, so nothing can change the structure mid-walk; every other context masks for its window. On host,
+/// deluge_in_audio_context() is always false, so every thread takes the one global lock, which is what excludes the
+/// audio thread's walks from another thread's changes.
+struct AudioExcludedSection {
+	AudioExcludedSection() : entered_(!deluge_in_audio_context()) {
+		if (entered_) {
+			ENTER_CRITICAL_SECTION();
+		}
+	}
+	~AudioExcludedSection() {
+		if (entered_) {
+			EXIT_CRITICAL_SECTION();
+		}
+	}
+	AudioExcludedSection(const AudioExcludedSection&) = delete;
+	AudioExcludedSection& operator=(const AudioExcludedSection&) = delete;
+
+private:
+	bool entered_;
+};
 #endif
 
 #endif // LIBDELUGE_SYSTEM_H
