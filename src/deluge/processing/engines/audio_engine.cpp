@@ -73,6 +73,7 @@
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <execution>
@@ -120,9 +121,18 @@ deluge::RetireList retireList{renderDomain_};
 struct RetireRequest {
 	Output* output = nullptr;  ///< a retired output (a SoundInstrument is a Sound; a Kit owns SoundDrums)
 	SoundDrum* drum = nullptr; ///< a retired drum
+	uint64_t sequence = 0;     ///< its place in the order requests reach the render (see retireSequenceLetGo)
 };
 deluge::util::SpscRing<RetireRequest, 64> retireRing;
 std::vector<RetireRequest> retireOverflow; ///< [interaction] requests the ring had no room for, re-pushed at reclaim
+/// [interaction] The sequence of the last request handed over. Requests reach the render in this order (the overflow
+/// list is only ever appended to while it is non-empty, and re-pushed from its front), so "every request up to N has
+/// been let go of" is one number.
+uint64_t retireSequencePushed = 0;
+/// [render] -> [interaction] The highest sequence the render has let go of. Release-stored by the render after its
+/// drain, acquire-loaded by reclaim: an entry whose sequence is at or below it has been let go of, and every effect of
+/// that let-go is visible. An entry is freed once this covers it AND two blocks have begun since its stamp.
+std::atomic<uint64_t> retireSequenceLetGo{0};
 
 /// [render] End a Sound's voices and take it out of the registry: after this no walk can reach it.
 void letGoOfSound(Sound& sound) {
@@ -149,14 +159,44 @@ void letGo(const RetireRequest& r) {
 	}
 }
 
+/// [interaction] Retired objects destroyed while the render could still reach them: a Sound still in the registry
+/// when its destroy ran, i.e. before the render let go of it. Must stay 0; see AudioEngine::retireViolations().
+std::size_t retireViolations_ = 0;
+
+/// [interaction] Whether the render can still reach @p sound through the Sound registry.
+bool stillRegistered(Sound* sound) {
+	return AudioEngine::sounds.walk([sound](const auto& all) { return std::ranges::find(all, sound) != all.end(); });
+}
+
+/// [interaction] Count a destroy that runs before the render let go of what it destroys.
+void checkLetGoBeforeDestroy(Output* output, SoundDrum* drum) {
+	bool reachable = false;
+	if (drum != nullptr) {
+		reachable = stillRegistered(drum);
+	}
+	else if (output->type == OutputType::SYNTH) {
+		reachable = stillRegistered(static_cast<SoundInstrument*>(output));
+	}
+	else if (output->type == OutputType::KIT) {
+		for (Drum* d = static_cast<Kit*>(output)->firstDrum; d != nullptr && !reachable; d = d->next) {
+			reachable = d->type == DrumType::SOUND && stillRegistered(static_cast<SoundDrum*>(d));
+		}
+	}
+	if (reachable) {
+		retireViolations_++;
+	}
+}
+
 void pushOrOverflow(const RetireRequest& r) {
-	if (!retireRing.try_push(r)) {
+	// Behind anything already waiting in the overflow, so requests reach the render in sequence order.
+	if (!retireOverflow.empty() || !retireRing.try_push(r)) {
 		retireOverflow.push_back(r);
 	}
 }
 
-/// Hand a retired object over: the render lets go of it (ends voices, deregisters Sounds), then it is destroyed once
-/// two blocks have passed. Two cases, decided once from a single epoch read:
+/// Hand a retired object over: the render lets go of it (ends voices, deregisters Sounds), then it is destroyed by the
+/// first reclaim after that let-go once two blocks have begun since the handover. Two cases, decided once from a single
+/// epoch read:
 ///  - the render has never run (epoch 0, boot): nothing can reach it; let go inline and destroy now;
 ///  - otherwise: the render lets go at the top of its next block (the ring); destroy later.
 ///
@@ -164,7 +204,7 @@ void pushOrOverflow(const RetireRequest& r) {
 /// overflow list and reclaimRetired() are single-threaded on the interaction side. A retire from the render itself
 /// (the song swap, if it ever runs there) would need its own render-to-interaction handover of the destroy; that is
 /// left to the Song/Clip deletion work, and until then it freezes rather than corrupt the list.
-void handOver(const RetireRequest& r, void* object, void (*destroy)(void*)) {
+void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
 	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
 		FREEZE_WITH_ERROR("E455");
 	}
@@ -174,17 +214,28 @@ void handOver(const RetireRequest& r, void* object, void (*destroy)(void*)) {
 		destroy(object);
 		return;
 	}
+	r.sequence = ++retireSequencePushed;
 	pushOrOverflow(r);
-	retireList.retire(object, destroy);
+	retireList.retire(object, destroy, r.sequence);
 }
 
 /// [render] The render's block-start lifetime step: advance the epoch, then let go of everything retired since the
-/// last block -- before any walk of this block can reach it. The epoch's release store is what lets RetireList free
-/// an object two blocks later. Run by every block the render starts, and by a block a host harness skips rendering
-/// (deluge_app_render_skipped), so retirement completes whether or not audio is produced.
+/// last block -- before any walk of this block can reach it, and publish how far it got. The epoch's and the let-go
+/// sequence's release stores are what let reclaim free an object. Run by every block the render starts, and by a block
+/// a host harness skips rendering (deluge_app_render_skipped), so retirement completes whether or not audio is
+/// produced.
 void renderRetirementStep() {
 	renderDomain_.advance_epoch();
-	(void)retireRing.drain([](RetireRequest&& r) { letGo(r); }, 16);
+	uint64_t lastLetGo = 0;
+	const std::size_t drained = retireRing.drain(
+	    [&lastLetGo](RetireRequest&& r) {
+		    letGo(r);
+		    lastLetGo = r.sequence;
+	    },
+	    16);
+	if (drained != 0) {
+		retireSequenceLetGo.store(lastLetGo, std::memory_order_release);
+	}
 }
 } // namespace
 
@@ -1935,23 +1986,27 @@ deluge::util::SnapshotDomain& renderDomain() {
 }
 
 void retire(SoundDrum* drum) {
+	// First, so a stream of retires frees what earlier ones handed over.
+	reclaimRetired();
 	handOver(RetireRequest{.drum = drum}, drum, [](void* p) {
 		auto* d = static_cast<SoundDrum*>(p);
+		checkLetGoBeforeDestroy(nullptr, d);
 		void* memory = dynamic_cast<void*>(d);
 		d->~SoundDrum();
 		delugeDealloc(memory);
 	});
-	reclaimRetired();
 }
 
 void retire(Output* output) {
+	// First, so a stream of retires frees what earlier ones handed over.
+	reclaimRetired();
 	handOver(RetireRequest{.output = output}, output, [](void* p) {
 		auto* o = static_cast<Output*>(p);
+		checkLetGoBeforeDestroy(o, nullptr);
 		void* memory = dynamic_cast<void*>(o);
 		o->~Output();
 		delugeDealloc(memory);
 	});
-	reclaimRetired();
 }
 
 void reclaimRetired() {
@@ -1959,12 +2014,15 @@ void reclaimRetired() {
 		retireOverflow.erase(retireOverflow.begin());
 	}
 	// A request still in the ring or the overflow names an object the render has not let go of yet: it is still in
-	// the Sound registry, so a walk can still reach it, whatever its stamp says. Destroy nothing until the render has
-	// drained every request pushed so far (the drain budget is per block, so a burst can take several blocks).
-	if (!retireOverflow.empty() || !retireRing.drained()) {
-		return;
-	}
-	retireList.reclaim();
+	// the Sound registry, so a walk can still reach it, whatever its stamp says. Free an entry only once the render
+	// has let go of its request (its sequence is covered) and two blocks have begun since its stamp. One undrained
+	// request holds back only itself and later ones, never an older entry.
+	const uint64_t letGoUpTo = retireSequenceLetGo.load(std::memory_order_acquire);
+	retireList.reclaim([letGoUpTo](uint64_t sequence) { return sequence <= letGoUpTo; });
+}
+
+std::size_t retireViolations() {
+	return retireViolations_;
 }
 
 std::size_t retiredPending() {

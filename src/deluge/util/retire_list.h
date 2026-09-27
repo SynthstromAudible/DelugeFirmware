@@ -40,7 +40,9 @@ public:
 	///        under `reclaim()`: the sweep below always re-reads `retired_.size()` and re-indexes freshly on
 	///        every iteration, so an append (even one that reallocates) during the sweep is compacted
 	///        correctly. `destroy` must NOT call `reclaim()` itself -- see the file banner and `reclaim()`.
-	void retire(void* object, void (*destroy)(void*)) {
+	///        @p tag is the caller's: it is handed back to `reclaim()`'s predicate, so a caller can hold an entry
+	///        past its grace period on a condition of its own (see `reclaim(MayDestroy)`).
+	void retire(void* object, void (*destroy)(void*), std::uint64_t tag = 0) {
 		// Store-buffering fix, paired with the seq_cst fence in `SnapshotDomain::advance_epoch()` right after
 		// its epoch store: without this, the SB litmus lets this epoch read return a stale (pre-advance) value
 		// while [audio]'s advance_epoch() has already committed the epoch that would prove `object` unreachable
@@ -51,7 +53,7 @@ public:
 			destroy(object);
 			return;
 		}
-		retired_.push_back({object, destroy, epoch});
+		retired_.push_back({object, destroy, epoch, tag});
 	}
 
 	/// @brief [task] Destroy every entry whose stamped epoch is at least two block-boundaries behind the
@@ -60,6 +62,13 @@ public:
 	///        with a stale `keep`/`i` after the inner call already compacted and resized `retired_` out from
 	///        under it (double destroys or lost entries). A nested call is a no-op instead, via `reclaiming_`.
 	void reclaim() {
+		reclaim([](std::uint64_t) { return true; });
+	}
+
+	/// @brief [task] As `reclaim()`, but an entry past its grace period is destroyed only if `mayDestroy(tag)` also
+	///        holds, with the tag it was retired with; otherwise it stays for a later call. Same re-entrancy rule.
+	template <class MayDestroy>
+	void reclaim(MayDestroy&& mayDestroy) {
 		if (reclaiming_) {
 			return;
 		}
@@ -68,7 +77,7 @@ public:
 		std::size_t keep = 0;
 		for (std::size_t i = 0; i < retired_.size(); ++i) {
 			const Entry& e = retired_[i];
-			if (e.stamp + 2 <= epoch) {
+			if (e.stamp + 2 <= epoch && mayDestroy(e.tag)) {
 				e.destroy(e.object);
 			}
 			else {
@@ -87,6 +96,7 @@ private:
 		void* object;
 		void (*destroy)(void*);
 		std::uint64_t stamp;
+		std::uint64_t tag;
 	};
 
 	const util::SnapshotDomain& domain_;

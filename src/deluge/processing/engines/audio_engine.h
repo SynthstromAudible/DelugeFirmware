@@ -266,15 +266,20 @@ void feedReverbBackdoorForGrain(int index, q31_t value);
 bool allowedToStartVoice();
 
 /// @brief [interaction] Hand a drum the caller has already taken out of its kit over to the render, which ends its
-///        voices and deregisters it at the top of its next block; it is destroyed and freed two blocks after that.
+///        voices and deregisters it at the top of a following block. It is destroyed and freed at the first
+///        retire() or reclaim-task tick after the render has let go of it and two blocks have begun since the
+///        handover -- so no earlier than two blocks later, and as late as the interaction tier's next such call.
 ///        Replaces `drum->~SoundDrum(); delugeDealloc(...)`: the caller must not touch @p drum afterwards.
 void retire(SoundDrum* drum);
 /// @brief [interaction] As above, for an output the caller has already unlinked from the song's lists. A synth's Sound
-///        and every SoundDrum of a kit are let go by the render; every output kind is destroyed two blocks later.
+///        and every SoundDrum of a kit are let go by the render; every output kind is destroyed as above.
 void retire(Output* output);
-/// @brief [interaction] Destroy every retired object the render has let go of and run two blocks past. Called by
-///        a repeating scheduler task and, opportunistically, by retire().
+/// @brief [interaction] Destroy every retired object the render has let go of, once two blocks have begun since it
+///        was handed over. Called by a repeating scheduler task and, before each handover, by retire().
 void reclaimRetired();
 /// @brief [interaction] How many retired objects are still waiting to be destroyed. Test/diagnostic hook.
 std::size_t retiredPending();
+/// @brief [interaction] How many retired objects were destroyed while a Sound of theirs was still in the Sound
+///        registry -- before the render let go of it. Always 0 unless the retirement's ordering is broken.
+std::size_t retireViolations();
 } // namespace AudioEngine

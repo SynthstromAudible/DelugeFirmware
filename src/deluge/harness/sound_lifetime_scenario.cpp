@@ -63,7 +63,9 @@ constexpr int32_t kRenderBlocksPerNote = 4;
 constexpr int32_t kSettleTicks = 10;
 
 /// Each leg is one real deletion path, run on a Sound that is sounding when it is deleted.
-enum class Leg : uint8_t { Synth, Unedited, Kit, DeleteDrum, Done };
+/// SYNTH..DELETEDRUM delete a sounding Sound through a real path; OPPORTUNISTIC and BURST drive the retirement itself
+/// with blank drums, each in a single step.
+enum class Leg : uint8_t { Synth, Unedited, Kit, DeleteDrum, Opportunistic, Burst, Done };
 
 enum class Stage : uint8_t { Setup, Sounding, Delete, Settle, Report, Reclaim, Summary, Done };
 
@@ -110,6 +112,10 @@ const char* legName(Leg leg) {
 		return "KIT";
 	case Leg::DeleteDrum:
 		return "DELETEDRUM";
+	case Leg::Opportunistic:
+		return "OPPORTUNISTIC";
+	case Leg::Burst:
+		return "BURST";
 	case Leg::Done:
 		break;
 	}
@@ -262,6 +268,8 @@ bool setupLeg() {
 		g_sound = g_drum;
 		return sound(*g_drum, g_drum, &g_drum->arpeggiator, clip, &row->paramManager);
 	}
+	case Leg::Opportunistic:
+	case Leg::Burst:
 	case Leg::Done:
 		break;
 	}
@@ -348,12 +356,15 @@ void deleteLeg() {
 
 		g_step = "retire";
 		currentSong->deleteBackedUpParamManagersForModControllable(g_drum);
+		g_kit->drumsWithRenderingActive.erase(g_drum);
 		g_drum->kit = nullptr;
 		AudioEngine::retire(g_drum);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 		g_step = nullptr;
 		break;
 	}
+	case Leg::Opportunistic:
+	case Leg::Burst:
 	case Leg::Done:
 		break;
 	}
@@ -373,9 +384,86 @@ void renderBlocks(int32_t count) {
 	}
 }
 
+/// A blank drum in no kit, the way the folder-import and slicer sites build one: registered in the Sound registry by
+/// its constructor, never sounded.
+SoundDrum* makeBlankDrum() {
+	void* memory = deluge::memory::alloc_fast(sizeof(SoundDrum));
+	if (memory == nullptr) {
+		fail("no memory for a blank drum");
+		return nullptr;
+	}
+	return new (memory) SoundDrum();
+}
+
+/// Blocks OPPORTUNISTIC renders between its two retires: enough for the render to let go of the first drum and for
+/// two epochs to begin after its stamp.
+constexpr int32_t kOpportunisticBlocks = 3;
+/// Drums BURST retires in one step: more than the retire ring's 64 slots, so the overflow list is used and the
+/// render's 16-per-block drain takes several blocks.
+constexpr int32_t kBurstDrums = 80;
+/// Blocks BURST renders, reclaiming after each, before it gives up waiting for everything to be freed.
+constexpr int32_t kBurstMaxBlocks = 32;
+
+/// OPPORTUNISTIC, in one step: retire A, render until the render has let go of it and two blocks have begun, retire
+/// B. B's retire must free A on its own -- no reclaim-task tick runs inside a step -- so exactly B is left pending.
+void runOpportunisticLeg() {
+	SoundDrum* a = makeBlankDrum();
+	SoundDrum* b = makeBlankDrum();
+	if (a == nullptr || b == nullptr) {
+		return;
+	}
+	const std::size_t before = AudioEngine::retiredPending();
+	AudioEngine::retire(a);
+	renderBlocks(kOpportunisticBlocks);
+	AudioEngine::retire(b);
+	const std::size_t pending = AudioEngine::retiredPending() - before;
+	printf("SL-OPPORTUNISTIC pending=%u\n", static_cast<unsigned>(pending));
+	if (pending != 1) {
+		g_failures++;
+	}
+}
+
+/// BURST, in one step: retire more drums than the ring holds, then render and reclaim block by block. Every drum must
+/// be let go of by the render before it is destroyed (violations counts destroys that found the drum still in the
+/// Sound registry), and all must be freed.
+void runBurstLeg() {
+	const std::size_t violationsBefore = AudioEngine::retireViolations();
+	for (int32_t i = 0; i < kBurstDrums; i++) {
+		SoundDrum* drum = makeBlankDrum();
+		if (drum == nullptr) {
+			return;
+		}
+		AudioEngine::retire(drum);
+	}
+	int32_t blocks = 0;
+	// Everything still retired -- the burst, and whatever OPPORTUNISTIC left -- must come free.
+	while (AudioEngine::retiredPending() > 0 && blocks < kBurstMaxBlocks) {
+		renderBlocks(1);
+		AudioEngine::reclaimRetired();
+		blocks++;
+	}
+	const std::size_t violations = AudioEngine::retireViolations() - violationsBefore;
+	const std::size_t pending = AudioEngine::retiredPending();
+	printf("SL-BURST drums=%d blocks=%d violations=%u pending=%u\n", kBurstDrums, blocks,
+	       static_cast<unsigned>(violations), static_cast<unsigned>(pending));
+	if (violations != 0 || pending != 0) {
+		g_failures++;
+	}
+}
+
 void runTick() {
 	switch (g_stage) {
 	case Stage::Setup:
+		if (g_leg == Leg::Opportunistic || g_leg == Leg::Burst) {
+			if (g_leg == Leg::Opportunistic) {
+				runOpportunisticLeg();
+			}
+			else {
+				runBurstLeg();
+			}
+			g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
+			break;
+		}
 		if (g_leg == Leg::Done) {
 			g_ticks = 0;
 			g_stage = Stage::Reclaim;

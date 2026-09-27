@@ -162,13 +162,6 @@ public:
 		return head_.load(std::memory_order_relaxed) == tail_.load(std::memory_order_acquire);
 	}
 
-	/// @brief [task] True if the consumer has drained everything pushed so far. The acquire load of `head_` pairs
-	///        with `drain()`/`try_pop()`'s release store, so a producer that sees `true` also sees every effect the
-	///        consumer's callbacks had on the elements it drained.
-	[[nodiscard]] bool drained() const noexcept {
-		return head_.load(std::memory_order_acquire) == tail_.load(std::memory_order_relaxed);
-	}
-
 	/// @brief Compile-time capacity (the `N` template parameter).
 	[[nodiscard]] static constexpr std::size_t capacity() noexcept { return N; }
 

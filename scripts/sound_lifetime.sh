@@ -24,12 +24,18 @@
 #                then AudioEngine::retire(). The only drum-delete site that can reach a sounding drum: the
 #                preset-replace site kills the voices first, and the folder-import, slicer and instrument-load sites
 #                only drop drums that never sounded.
+#   SL-OPPORTUNISTIC  in one step: retire a blank drum, render 3 blocks, retire another. The second retire must free
+#                the first on its own (pending=1): no reclaim-task tick runs inside a step.
+#   SL-BURST     in one step: retire 80 blank drums (more than the retire ring's 64 slots), then render and reclaim
+#                block by block. Required: violations=0 (no drum destroyed while still in the Sound registry, i.e.
+#                before the render let go of it) and pending=0.
 #   SL-RECLAIM   after the last leg and a few more blocks: how many retired objects still wait to be destroyed.
 #
 # Every deletion now retires (AudioEngine::retire): the render ends the voices and deregisters the Sounds at the top
-# of its next block, and the memory is freed two blocks later, so a leg's count is read after its settle blocks, and
-# a leg whose objects are still waiting at that point fails. Required: every leg destroyedWithLiveVoices=0 and
-# SL-RECLAIM pending=0. The run also fails when a leg's fixture could not be built or never sounded, a line is
+# of its next block, and the memory is freed by the first reclaim after that once two blocks have begun. So a leg's
+# count is read after its settle blocks, and a leg whose objects are still waiting at that point fails. Required:
+# every leg destroyedWithLiveVoices=0, SL-OPPORTUNISTIC pending=1, SL-BURST violations=0 pending=0 and SL-RECLAIM
+# pending=0. The run also fails when a leg's fixture could not be built or never sounded, a line is
 # missing, or a deletion ends the process: a firmware freeze (E321 from Kit::removeDrum on a drum still in
 # drumsWithRenderingActive; FREEZE_WITH_ERROR aborts on the host BSP) or a std::terminate, during the deletion or the
 # deferred destruction in the settle. A leg that does still prints its count first, marked aborted=1 with the step it
@@ -102,7 +108,7 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-for marker in SL-SYNTH SL-UNEDITED SL-KIT SL-DELETEDRUM SL-RECLAIM SL-RESULT; do
+for marker in SL-SYNTH SL-UNEDITED SL-KIT SL-DELETEDRUM SL-OPPORTUNISTIC SL-BURST SL-RECLAIM SL-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line: a stage never ran"
 		grep -E '^SL-' "$OUT/run.txt"
@@ -124,6 +130,18 @@ for leg in SL-SYNTH SL-UNEDITED SL-KIT SL-DELETEDRUM; do
 		exit 1
 	fi
 done
+
+# A retire frees what the render has already let go of and run two blocks past, with no reclaim-task tick needed.
+if ! grep -q '^SL-OPPORTUNISTIC pending=1$' "$OUT/run.txt"; then
+	echo "FAIL — $(grep '^SL-OPPORTUNISTIC' "$OUT/run.txt"): a retire did not free an older, let-go object"
+	exit 1
+fi
+
+# A burst past the ring's capacity: nothing is destroyed before the render lets go of it, and everything is freed.
+if ! grep -qE '^SL-BURST .* violations=0 pending=0$' "$OUT/run.txt"; then
+	echo "FAIL — $(grep '^SL-BURST' "$OUT/run.txt"): a retired object was destroyed before the render let go of it, or never freed"
+	exit 1
+fi
 
 # Everything retired has been freed once the render has run two blocks past it.
 if ! grep -q '^SL-RECLAIM pending=0$' "$OUT/run.txt"; then
