@@ -15,6 +15,8 @@
 mod sd;
 #[path = "../src/sim_block.rs"]
 mod sim_block;
+#[path = "../src/tier.rs"]
+mod tier;
 
 use std::time::{Duration, Instant};
 
@@ -46,6 +48,7 @@ fn modeled_write_then_read_round_trips_and_takes_the_modeled_time() {
     ));
     // SAFETY: set before any other thread in this test binary exists.
     unsafe { std::env::set_var("DELUGE_SD_IMAGE", &img) };
+    sim_block::block_on(deluge_bsp::sd::init()).expect("the host card initializes");
 
     sim_block::use_threaded_host_hook();
     sd::sim_latency::set_command_overhead_us(OVERHEAD_US);

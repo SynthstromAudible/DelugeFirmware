@@ -42,7 +42,7 @@ use embassy_sync::mutex::Mutex;
 
 /// Serializes SDHI peripheral access between the FatFS transfers and the streaming task's raw-sector reads, so the
 /// two can never drive the one SDHI controller concurrently.
-static SD_BUS: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
+pub(crate) static SD_BUS: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
 #[cfg(target_os = "none")]
 use crate::sys::{
@@ -170,9 +170,11 @@ static CARD_INIT_REQ: embassy_sync::signal::Signal<CriticalSectionRawMutex, ()> 
 /// not ready yet and retries on the next tick.
 ///
 /// Holds [`SD_BUS`] across the init so the identification sequence cannot
-/// interleave with a FatFS transfer or a streaming read on the one SDHI
-/// controller. Those fail fast rather than blocking on it, because a detected
-/// removal has already run `sd::invalidate()`.
+/// interleave with a filesystem transfer or a streaming read on the one SDHI
+/// controller. Storage-tier transfers wait it out and then run on the new card.
+/// Interaction-tier transfers are refused while the card is not ready
+/// (`acquire_bus`): they would otherwise spin on this lock on the very executor
+/// this task needs to finish, and never return.
 #[cfg(target_os = "none")]
 #[embassy_executor::task]
 pub async fn card_service() {
@@ -217,6 +219,29 @@ pub async fn boot_init() {
     );
 }
 
+/// Take [`SD_BUS`] for one transfer.
+///
+/// An INTERACTION-tier caller fails fast with `NotInitialized` while the card is not ready. That caller is a
+/// synchronous spin on the thread executor, and `card_service` holds the bus across the whole of a card's
+/// identification on that same executor: waiting would spin forever, with the only executor that could finish
+/// the identification occupied by the spin. Readiness is re-checked on every poll, and every identification
+/// follows an `invalidate()`, so a caller that arrives during one is refused at once.
+///
+/// Every other tier waits as it always has. A storage-tier read runs on its own executor, lets the
+/// identification finish, and then succeeds on the re-identified card; failing it instead would push a
+/// re-inserted card's samples down the error path.
+async fn acquire_bus()
+-> Result<embassy_sync::mutex::MutexGuard<'static, CriticalSectionRawMutex, ()>, sd::SdError> {
+    let mut lock = core::pin::pin!(SD_BUS.lock());
+    core::future::poll_fn(move |cx| {
+        if crate::tier::current() == crate::tier::Tier::Interaction && !sd::is_ready() {
+            return core::task::Poll::Ready(Err(sd::SdError::NotInitialized));
+        }
+        core::future::Future::poll(lock.as_mut(), cx).map(Ok)
+    })
+    .await
+}
+
 /// Thin async wrapper around `deluge_bsp::sd::read_sectors` for the streaming
 /// fill task (`streaming_loader.rs`). Same dual-target shape as the rest of this
 /// file — no `#[cfg]` needed at the call site. Serializes on [`SD_BUS`] against
@@ -237,7 +262,7 @@ pub async fn boot_init() {
 /// below, which has its own bespoke inline lock+`modeled_read` call and does
 /// NOT route through this function — so no double-modeling either.
 pub async fn locked_read_sectors(lba: u32, count: u32, buf: &mut [u8]) -> Result<(), sd::SdError> {
-    let _guard = SD_BUS.lock().await;
+    let _guard = acquire_bus().await?;
     // The common chokepoint for block reads regardless of
     // backend — both the delegating plain-host `deluge_block_read` (below)
     // and efatfs's `HostSdBlockDevice::read` (efatfs_host_shim.rs) route
@@ -273,7 +298,7 @@ pub async fn locked_read_sectors(lba: u32, count: u32, buf: &mut [u8]) -> Result
 /// same `sim_latency`-dispatch shape (routes to [`sim_latency::modeled_write`]),
 /// same write instrumentation (see the read sibling's doc comment).
 pub async fn locked_write_sectors(lba: u32, count: u32, buf: &[u8]) -> Result<(), sd::SdError> {
-    let _guard = SD_BUS.lock().await;
+    let _guard = acquire_bus().await?;
     #[cfg(not(target_os = "none"))]
     stats::note_write();
     #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
