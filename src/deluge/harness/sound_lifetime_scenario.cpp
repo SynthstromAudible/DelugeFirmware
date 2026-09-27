@@ -322,6 +322,8 @@ void deleteLeg() {
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, g_clip);
 
+		// Sampled before the erase, so a deleteDrum that stopped erasing (and froze in removeDrum) is named E321.
+		g_renderingActiveAtDelete = g_kit->drumsWithRenderingActive.contains(g_drum);
 		g_step = "stopNote";
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    (noteRow != nullptr) ? modelStack->addNoteRow(noteRowIndex, noteRow) : nullptr;
@@ -330,7 +332,6 @@ void deleteLeg() {
 		}
 		g_kit->drumsWithRenderingActive.erase(g_drum);
 
-		g_renderingActiveAtDelete = g_kit->drumsWithRenderingActive.contains(g_drum);
 		g_step = "removeDrum";
 		g_kit->removeDrum(g_drum);
 
@@ -347,6 +348,7 @@ void deleteLeg() {
 
 		g_step = "retire";
 		currentSong->deleteBackedUpParamManagersForModControllable(g_drum);
+		g_drum->kit = nullptr;
 		AudioEngine::retire(g_drum);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 		g_step = nullptr;
