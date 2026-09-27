@@ -167,10 +167,15 @@ constexpr int32_t kMaxWaitTicks = 200000;
 /// 39 -> 40 when the harness stopped queuing its step markers and fixture builds on the storage owner (Kate's
 /// decision, 2026-09-26). No product code changed: the song load starts one tick later against the harness's own
 /// step timing, which the retired owner queue had set. Every other SLT line was identical before and after.
-constexpr int32_t kSongRoutines = 40;
+///
+/// 40 -> 39, and the crucial count 85 -> 84, when ~Kit stopped calling routineWithClusterLoading() between drums
+/// (Kate's decision, 2026-09-27). A load destroys the previous song's one-drum kit, so exactly one call per load went;
+/// the render is preemptive and the call only asked the scheduler to run the routine sooner. Every other SLT line
+/// was identical before and after.
+constexpr int32_t kSongRoutines = 39;
 constexpr int32_t kSynthRoutines = 2;
 constexpr int32_t kKitRoutines = 3;
-constexpr int32_t kCrucialRoutines = 85;
+constexpr int32_t kCrucialRoutines = 84;
 
 /// Milliseconds the loader holds each load during an async leg, so each load spans several scenario ticks.
 constexpr uint32_t kAsyncLatencyMs = 20;

@@ -61,10 +61,6 @@ Kit::~Kit() {
 
 	// Delete all Drums
 	while (firstDrum) {
-		// Lets the audio routine run between drums while a large kit is torn down. With the render preemptive this
-		// only signals its wake.
-		AudioEngine::logAction("~Kit");
-		AudioEngine::routineWithClusterLoading();
 		Drum* toDelete = firstDrum;
 		firstDrum = firstDrum->next;
 
