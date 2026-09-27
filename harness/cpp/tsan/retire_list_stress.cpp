@@ -15,6 +15,16 @@
 //   (c) burst: retire 512 objects in one go, then reclaim() repeatedly until size() == 0.
 // At the end, every object ever retired must have been destroyed exactly once.
 //
+// What this test does and doesn't prove: it is a regression test for "no grace period at all". Neutering
+// retire_list.h's `e.stamp + 2 <= epoch` down to `e.stamp <= epoch` (+0) reliably turns this run RED under TSan,
+// which shows SOME grace period is necessary. It does not, and structurally cannot, show that two epochs are
+// necessary rather than one: TSan instruments real memory accesses but does not force weak-memory reordering
+// windows open, and the +1-vs-+2 gap here is exactly such a window (nanoseconds wide, closed by store draining
+// on real hardware long before this test's [audio] loop gets back around). A `+ 1` variant of retire_list.h
+// passes this test too. `+ 2` is kept because it matches `Published<T>::reclaim`'s grace period (see
+// published.h), which covers the one-block under-count `retire()`'s epoch read can hit -- not because this test
+// demonstrates `+ 1` is unsafe.
+//
 // Built and run by run.sh beside snapshot_primitive_stress.cpp and sound_registry_stress.cpp.
 
 #include "deluge/util/retire_list.h"

@@ -11,9 +11,14 @@
 // Single-threaded on the [task] side: retire() and reclaim() are called from the interaction tier only.
 // Include only from .cpp files: published.h declares namespace deluge::util, which shadows the global ::util
 // inside namespace deluge.
+//
+// Re-entrancy: a destroy callback may call retire() (pushing onto the same list mid-sweep is safe -- see
+// retire()'s comment) but must not call reclaim(). A nested reclaim() call is made a harmless no-op by a
+// reentrancy flag, rather than left to corrupt the list, since the guard costs one bool check.
 
 #include "deluge/util/published.h"
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <vector>
@@ -31,8 +36,16 @@ public:
 
 	/// @brief [task] Hand over ownership of `object`, stamped with the current audio epoch. Destroyed
 	///        immediately if the render has never run (epoch 0: no reader to protect against), otherwise held
-	///        until `reclaim()` proves it unreachable.
+	///        until `reclaim()` proves it unreachable. Safe to call from inside a `destroy` callback running
+	///        under `reclaim()`: the sweep below always re-reads `retired_.size()` and re-indexes freshly on
+	///        every iteration, so an append (even one that reallocates) during the sweep is compacted
+	///        correctly. `destroy` must NOT call `reclaim()` itself -- see the file banner and `reclaim()`.
 	void retire(void* object, void (*destroy)(void*)) {
+		// Store-buffering fix, paired with the seq_cst fence in `SnapshotDomain::advance_epoch()` right after
+		// its epoch store: without this, the SB litmus lets this epoch read return a stale (pre-advance) value
+		// while [audio]'s advance_epoch() has already committed the epoch that would prove `object` unreachable
+		// -- see the comment on `advance_epoch()` for the full argument. Must run before the epoch read below.
+		std::atomic_thread_fence(std::memory_order_seq_cst);
 		const std::uint64_t epoch = domain_.audio_epoch();
 		if (epoch == 0) {
 			destroy(object);
@@ -43,7 +56,14 @@ public:
 
 	/// @brief [task] Destroy every entry whose stamped epoch is at least two block-boundaries behind the
 	///        current audio epoch -- see the file banner and `Published<T>::reclaim` for why two, not one.
+	///        NOT re-entrant: a `destroy` callback that calls back into `reclaim()` would resume this loop
+	///        with a stale `keep`/`i` after the inner call already compacted and resized `retired_` out from
+	///        under it (double destroys or lost entries). A nested call is a no-op instead, via `reclaiming_`.
 	void reclaim() {
+		if (reclaiming_) {
+			return;
+		}
+		reclaiming_ = true;
 		const std::uint64_t epoch = domain_.audio_epoch();
 		std::size_t keep = 0;
 		for (std::size_t i = 0; i < retired_.size(); ++i) {
@@ -56,6 +76,7 @@ public:
 			}
 		}
 		retired_.resize(keep);
+		reclaiming_ = false;
 	}
 
 	/// @brief [task] Number of entries still awaiting their grace period. Test/diagnostic hook.
@@ -70,6 +91,7 @@ private:
 
 	const util::SnapshotDomain& domain_;
 	std::vector<Entry> retired_;
+	bool reclaiming_ = false; ///< Guards against a `destroy` callback re-entering `reclaim()`.
 };
 
 } // namespace deluge
