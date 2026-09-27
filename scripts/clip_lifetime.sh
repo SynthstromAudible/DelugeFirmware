@@ -22,14 +22,18 @@
 #                   the clip is still in the song (compared by value; the clip may be freed).
 #   CL-SESSIONDELETE  the current, selected session clip, deleted through the session view's delete gesture
 #                   (SessionView::removeClip() -> Song::removeSessionClip()).
-#   CL-ARRANGERDELETE an arrangement-only clip that is the current clip, deleted through its clip instance
-#                   (ArrangerView::deleteClipInstance()'s steps with no action -> Song::deletingClipInstanceForClip()).
+#   CL-ARRANGERDELETE an arrangement-only clip that is the current clip, deleted from the arranger with the arranger's
+#                   delete gesture (ArrangerView::deleteClipInstance()'s steps: view to the song, a real
+#                   CLIP_INSTANCE_EDIT action, the instance's existence change, Song::deletingClipInstanceForClip()'s
+#                   logged branch), then destroyed by discarding the logs.
 #   CL-SWAPTYPE     the current, selected clip changed to an audio clip (SessionView::replaceInstrumentClipWithAudioClip()
 #                   -> Song::swapClips()).
-#   CL-UNDODELETE   the current, selected clip deleted through a logged clip-existence consequence, undone (restored=),
-#                   redone, and then destroyed by discarding the logs (ConsequenceClipExistence::prepareForDestruction()).
-#   CL-UNDO         UNDODELETE's undo: restored=1 when the clip is back in the session. Printed before the redo, so it
-#                   survives a redo that ends the process.
+#   CL-UNDODELETE   the same arranger delete, undone (restored=), redone, and then destroyed by discarding the logs
+#                   (ConsequenceClipExistence::prepareForDestruction()). The only logged clip deletion the firmware
+#                   records: the session view's delete discards the logs and records nothing.
+#   CL-UNDO         UNDODELETE's undo: restored=1 when the clip is back in arrangementOnlyClips with an instance.
+#                   Printed before the redo, so it survives a redo that ends the process.
+#   CL-DISCARD      ARRANGERDELETE and UNDODELETE: held=1 when the undo log still held the delete at the discard.
 #   CL-RECORDSOURCE the clip another clip records from (beingRecordedFromClip), deleted through the session view's
 #                   delete gesture.
 #   CL-SYNCSCALE    the sync-scaling clip, deleted through Song::removeSessionClip() (the session view refuses it).

@@ -22,6 +22,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "libdeluge/app.h"
@@ -35,6 +36,7 @@
 #include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
+#include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
@@ -68,10 +70,10 @@ constexpr uint32_t kRenderBlockFrames = 128;
 /// tasks (the retirement's reclaim among them) run between them.
 constexpr int32_t kBlocksBefore = 8;
 constexpr int32_t kBlocksAfter = 8;
-/// Timer ticks the render must have actioned before the deletion, and the most blocks rendered waiting for them.
-constexpr int32_t kTicksBefore = 4;
+/// The most blocks rendered waiting for the render to action a timer tick of this playback past tick 0.
 constexpr int32_t kMaxBlocksBefore = 400;
-/// UNDODELETE's blocks between its undo, its redo and its log discard, rendered inside one step.
+/// Blocks rendered after each of UNDODELETE's undo, redo and log discard (and ARRANGERDELETE's discard), inside one
+/// step.
 constexpr int32_t kUndoBlocks = 4;
 /// A y beyond the grid: the new-clip gesture then appends the clip after every other session clip.
 constexpr int32_t kAppendY = 1000;
@@ -95,12 +97,12 @@ Clip* g_victim = nullptr;
 Clip* g_recorder = nullptr;
 /// The clip the scenario points the song and the view back at between legs: the boot song's first clip, never deleted.
 Clip* g_home = nullptr;
-/// The internal clock's timer tick when the leg's playback began, to show the render actioned ticks.
-int64_t g_tickAtStart = 0;
+/// The render's sample clock when the leg's playback was set up: a timer tick at or after it belongs to this playback.
+uint32_t g_timerAtStart = 0;
 /// SYNCSCALE: the song's tick magnitudes before the leg made its clip the sync-scaling clip, restored afterwards.
 int32_t g_magnitudeBefore = 0;
 int32_t g_magnitudeOffsetBefore = 0;
-/// UNDODELETE: whether the undo put the clip back in the session.
+/// UNDODELETE: whether the undo put the clip back in the arranger (arrangementOnlyClips, with an instance).
 bool g_restored = false;
 
 /// The counters at the start of the deletion.
@@ -198,11 +200,11 @@ bool setupLeg() {
 	switch (g_leg) {
 	case Leg::SessionDelete:
 	case Leg::SwapType:
-	case Leg::UndoDelete:
 		// The clip the user is on: its pad was pressed to select it before the delete or the type change.
 		selectClip(clip);
 		break;
-	case Leg::ArrangerDelete: {
+	case Leg::ArrangerDelete:
+	case Leg::UndoDelete: {
 		// An arrangement-only clip, made the way the firmware makes one from a session clip: give it an instance in
 		// the arranger, then remove it from the session -- removeSessionClip() then moves it to arrangementOnlyClips
 		// (section 255) rather than deleting it.
@@ -218,8 +220,10 @@ bool setupLeg() {
 		if (!clip->isArrangementOnlyClip() || currentSong->arrangementOnlyClips.getIndexForClip(clip) < 0) {
 			return fail("the clip did not become arrangement-only");
 		}
-		// The arranger's clip view: the clip being edited is the current one.
+		// The user entered the clip from the arranger and came back out: it is still the current clip and the view's.
+		// The arranger's own gesture is made from the arranger.
 		selectClip(clip);
+		changeRootUI(&arrangerView);
 		break;
 	}
 	case Leg::RecordSource: {
@@ -254,6 +258,9 @@ bool setupLeg() {
 /// reading what it left dangling) can end the process arrives here: a firmware freeze (FREEZE_WITH_ERROR aborts on the
 /// host BSP), a std::terminate (via the handler above) and a fault. The leg still reports its counts, marked aborted=1
 /// with the step it died in, and the run its result, before the process dies with the signal it was going to die with.
+/// @note Not async-signal-safe: snprintf and fflush may run here while the signal interrupted stdio or the allocator.
+///       Accepted for a host-only diagnostic that is about to die anyway, as in sound_lifetime_scenario.cpp; the line
+///       goes out through write(), which is.
 void reportAbortedDeletion(int signal) {
 	const char* leg = legName(g_leg);
 	const char* step = (g_step != nullptr) ? g_step : "?";
@@ -284,6 +291,46 @@ void renderBlocks(int32_t count) {
 	}
 }
 
+/// The arranger's delete gesture on @p clip's one instance: ArrangerView::deleteClipInstance(output, clipInstance) and
+/// the four-argument overload it calls, step for step (both are private). Skipped: the gesture's UI-only steps --
+/// clearing lastInteractedClipInstance (private; MIDI-follow feedback), the OLED clear and exitSubModeWithoutAction().
+/// The action is a real one, so Song::deletingClipInstanceForClip() takes its logged branch: the clip-existence
+/// consequence detaches the clip and keeps it for the undo, and the clip is destroyed only when the log is discarded.
+void arrangerDeleteGesture(Clip* clip) {
+	Output* output = clip->output;
+	int32_t index = -1;
+	for (int32_t i = 0; i < std::ssize(output->clipInstances); i++) {
+		if (output->clipInstances[i].clip == clip) {
+			index = i;
+			break;
+		}
+	}
+	if (index < 0) {
+		fail("the clip has no instance in the arranger");
+		return;
+	}
+	ClipInstance* clipInstance = &output->clipInstances[index];
+
+	g_step = "setActiveModControllableTimelineCounter";
+	view.setActiveModControllableTimelineCounter(currentSong);
+	arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
+	                      nullptr);
+	g_step = "getNewAction";
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
+	if (action == nullptr) {
+		// deletingClipInstanceForClip() would then take its no-undo-memory branch, which this leg is not about.
+		fail("no action for the arranger delete");
+		return;
+	}
+
+	// ArrangerView::deleteClipInstance(output, index, clipInstance, action, false):
+	g_step = "recordClipInstanceExistenceChange";
+	action->recordClipInstanceExistenceChange(output, clipInstance, ExistenceChangeType::DELETE);
+	output->clipInstances.erase(output->clipInstances.begin() + index);
+	g_step = "deletingClipInstanceForClip";
+	currentSong->deletingClipInstanceForClip(output, clip, action, true);
+}
+
 /// Delete the running leg's clip through its path.
 void deleteLeg() {
 	Clip* clip = g_victim;
@@ -295,39 +342,16 @@ void deleteLeg() {
 		g_step = "removeClip";
 		sessionView.removeClip(clip);
 		break;
-	case Leg::ArrangerDelete: {
-		// ArrangerView::deleteClipInstance() with no action: erase the instance, then the clip goes with it.
-		Output* output = clip->output;
-		g_step = "eraseInstance";
-		for (int32_t i = 0; i < std::ssize(output->clipInstances); i++) {
-			if (output->clipInstances[i].clip == clip) {
-				output->clipInstances.erase(output->clipInstances.begin() + i);
-				break;
-			}
-		}
-		g_step = "deletingClipInstanceForClip";
-		currentSong->deletingClipInstanceForClip(output, clip, nullptr, true);
+	case Leg::ArrangerDelete:
+	case Leg::UndoDelete:
+		arrangerDeleteGesture(clip);
 		break;
-	}
 	case Leg::SwapType:
 		// The session view's change-to-audio gesture: Song::replaceInstrumentClipWithAudioClip() -> swapClips(), then
 		// the view is pointed at the new clip -- after the old one is gone.
 		g_step = "replaceInstrumentClipWithAudioClip";
 		sessionView.replaceInstrumentClipWithAudioClip(clip);
 		break;
-	case Leg::UndoDelete: {
-		// The one way a session clip's deletion is logged: a clip-existence consequence, which does the deletion
-		// itself and keeps the clip for the undo. SessionView::removeClip() discards the logs and records nothing.
-		g_step = "recordClipExistenceChange";
-		Action* action = actionLogger.getNewAction(ActionType::CLIP_DELETE);
-		if (action == nullptr
-		    || !action->recordClipExistenceChange(currentSong, &currentSong->sessionClips, clip,
-		                                          ExistenceChangeType::DELETE)) {
-			fail("the deletion could not be logged");
-		}
-		actionLogger.closeAction(ActionType::CLIP_DELETE);
-		break;
-	}
 	case Leg::SyncScale:
 		// SessionView::removeClip() refuses the sync-scaling clip; removeSessionClip() itself does not.
 		clip->stopAllNotesPlaying(currentSong);
@@ -378,17 +402,47 @@ void cleanUpLeg() {
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
 	}
+	changeRootUI(&sessionView);
 	selectClip(g_home);
 	g_victim = nullptr;
 	g_recorder = nullptr;
 }
 
-/// UNDODELETE's second half, in one step: undo the logged deletion, redo it, then discard the logs -- which destroys
-/// the clip the log was keeping (ConsequenceClipExistence::prepareForDestruction()).
+/// Whether the arranger holds the victim again: in arrangementOnlyClips, with an instance on its output.
+bool victimRestoredToArranger() {
+	if (currentSong->arrangementOnlyClips.getIndexForClip(g_victim) < 0) {
+		return false;
+	}
+	for (ClipInstance const& instance : g_victim->output->clipInstances) {
+		if (instance.clip == g_victim) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// Discard the logs, saying first whether the undo log still held an action -- the logged delete that keeps the clip,
+/// and whose discard destroys it.
+void discardLogs() {
+	printf("CL-DISCARD leg=%s held=%d\n", legName(g_leg), actionLogger.firstAction[BEFORE] != nullptr ? 1 : 0);
+	fflush(stdout);
+	g_step = "deleteAllLogs";
+	actionLogger.deleteAllLogs();
+	renderBlocks(kUndoBlocks);
+}
+
+/// ARRANGERDELETE's second half, in one step: discard the logs, which is when the logged delete actually destroys the
+/// clip (ConsequenceClipExistence::prepareForDestruction()).
+void runDiscard() {
+	discardLogs();
+}
+
+/// UNDODELETE's second half, in one step: undo the logged arranger delete, redo it, then discard the logs -- which
+/// destroys the clip the log was keeping (ConsequenceClipExistence::prepareForDestruction()).
 void runUndo() {
 	g_step = "undo";
 	actionLogger.undo();
-	g_restored = currentSong->sessionClips.getIndexForClip(g_victim) >= 0;
+	g_restored = victimRestoredToArranger();
 	// Said now as well as in the leg's line: the redo or the log discard below may end the process.
 	printf("CL-UNDO leg=%s restored=%d\n", legName(g_leg), g_restored ? 1 : 0);
 	fflush(stdout);
@@ -396,9 +450,7 @@ void runUndo() {
 	g_step = "redo";
 	actionLogger.redo();
 	renderBlocks(kUndoBlocks);
-	g_step = "deleteAllLogs";
-	actionLogger.deleteAllLogs();
-	renderBlocks(kUndoBlocks);
+	discardLogs();
 }
 
 void installHandlers() {
@@ -427,17 +479,22 @@ void runTick() {
 		}
 		// Playback on the internal clock, with no count-in: every active clip starts from the top.
 		playbackHandler.setupPlaybackUsingInternalClock(0, false);
-		g_tickAtStart = playbackHandler.lastTimerTickActioned;
+		g_timerAtStart = AudioEngine::audioSampleTimer;
 		holdNote(static_cast<InstrumentClip*>(g_victim));
 		g_ticks = 0;
 		g_stage = Stage::Before;
 		break;
 	case Stage::Before: {
 		renderBlocks(1);
-		const auto ticks = static_cast<int32_t>(playbackHandler.lastTimerTickActioned - g_tickAtStart);
 		// The internal clock's first tick lands some ten thousand samples after playback is set up, so the leg
-		// renders until the render has actioned a few ticks, not just a few blocks.
-		if (++g_ticks < kBlocksBefore || (ticks < kTicksBefore && g_ticks < kMaxBlocksBefore)) {
+		// renders until the render has actioned a tick of this playback, not just a few blocks. lastTimerTickActioned
+		// keeps the previous playback's value until that first tick, so a tick is told by its time instead.
+		const bool ticked =
+		    static_cast<int32_t>(static_cast<uint32_t>(playbackHandler.timeLastTimerTickBig >> 32) - g_timerAtStart)
+		    >= 0;
+		const auto ticks = ticked ? static_cast<int32_t>(playbackHandler.lastTimerTickActioned) : 0;
+		// Past this playback's tick 0, so the clock has moved on from where it started.
+		if (++g_ticks < kBlocksBefore || (ticks <= 0 && g_ticks < kMaxBlocksBefore)) {
 			break;
 		}
 		auto* synth = static_cast<SoundInstrument*>(g_victim->output);
@@ -474,10 +531,15 @@ void runTick() {
 		if (++g_ticks < kBlocksAfter) {
 			break;
 		}
-		g_stage = (g_leg == Leg::UndoDelete) ? Stage::Undo : Stage::Report;
+		g_stage = (g_leg == Leg::UndoDelete || g_leg == Leg::ArrangerDelete) ? Stage::Undo : Stage::Report;
 		break;
 	case Stage::Undo:
-		runUndo();
+		if (g_leg == Leg::UndoDelete) {
+			runUndo();
+		}
+		else {
+			runDiscard();
+		}
 		g_stage = Stage::Report;
 		break;
 	case Stage::Report: {
