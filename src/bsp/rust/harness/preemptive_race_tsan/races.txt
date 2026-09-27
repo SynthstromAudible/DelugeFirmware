@@ -72,6 +72,16 @@ open	src/deluge/gui/ui/audio_recorder.cpp	^AudioRecorder::setupRecordingToFile\(
 open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::setTimerSamples\(TimerName, int\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
 open	src/deluge/playback/playback_handler.h	^PlaybackHandler::isExternalClockActive\(\)$	audio×interaction	state: global 'playbackHandler' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::outputStage\(DelugeStereoSample\*, unsigned int, unsigned int\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
+open	src/deluge/playback/mode/arrangement.cpp	^Arrangement::doTickForward\(int\)$	audio×interaction	state: global 'arrangement' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/model/clip/clip.cpp	^Clip::processCurrentPos\(ModelStackWithTimelineCounter\*, unsigned int\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::actionSwungTick\(\)$	audio×interaction	state: global 'currentlyActioningSwungTickOrResettingPlayPos' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::tickSongFinalizeWindows\(unsigned long&\)$	audio×interaction	state: global 'playbackHandler' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/model/clip/instrument_clip.cpp	^InstrumentClip::processCurrentPos\(ModelStackWithTimelineCounter\*, unsigned int\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/model/instrument/kit.cpp	^Kit::getArpSettings\(InstrumentClip\*\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/model/note/note_row.cpp	^NoteRow::processCurrentPos\(ModelStackWithNoteRow\*, int, PendingNoteOnList\*\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/model/song/song.cpp	^Song::isClipActive\(Clip const\*\) const$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/playback/mode/arrangement.cpp	^Arrangement::getPosAtWhichClipWillCut\(ModelStackWithTimelineCounter const\*\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in the C2a confirmation pass, 2026-09-27)
+open	src/deluge/playback/playback_handler.h	^PlaybackHandler::isEitherClockActive\(\)$	audio×interaction	state: global 'playbackHandler' (first seen in the C2a confirmation pass, 2026-09-27)
 # Index by shared state (state → entries). The second invariant's to-do list.
 #   Sound::voices_ (C2b): the getNumVoices lambda, terminateOneVoice. (AudioEngine::sounds itself: fixed by C2a,
 #     AudioOwnedList — its getNumVoices() entry removed.)
@@ -94,5 +104,8 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::outputStage\(D
 #   Arpeggiator settings: ArpeggiatorSettings::updateParamsFromUnpatchedParamSet, cloneFrom
 #   UI timers (audioSampleTimer read by the timer routine): UITimerManager::routine, workOutNextEventTime,
 #     setTimerSamples
-#   The playback handler (playbackHandler): actionTimerTick, scheduleNextTimerTick, isExternalClockActive
+#   The playback handler and the sequencer tick (playbackHandler, the song's clips): actionTimerTick,
+#     scheduleNextTimerTick, isExternalClockActive, actionSwungTick, isEitherClockActive, Arrangement::doTickForward,
+#     getPosAtWhichClipWillCut, Clip/InstrumentClip/NoteRow::processCurrentPos, Song::isClipActive, Kit::getArpSettings,
+#     AudioEngine::tickSongFinalizeWindows
 
