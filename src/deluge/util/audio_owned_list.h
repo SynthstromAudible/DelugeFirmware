@@ -15,7 +15,7 @@
 #include <utility>
 #include <vector>
 
-namespace deluge::util {
+namespace deluge {
 
 template <class T, class Container = std::vector<T*>>
 class AudioOwnedList {
@@ -41,4 +41,4 @@ private:
 	Container entries_;
 };
 
-} // namespace deluge::util
+} // namespace deluge

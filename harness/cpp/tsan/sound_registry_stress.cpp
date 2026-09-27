@@ -1,4 +1,4 @@
-// ThreadSanitizer stress harness for deluge::util::AudioOwnedList — the list AudioEngine::sounds is built on.
+// ThreadSanitizer stress harness for deluge::AudioOwnedList — the list AudioEngine::sounds is built on.
 //
 // Models the real split: a [task] producer adds entries (past several capacity doublings, as a kit song's load
 // does), removes older ones, then POISONS and frees each removed entry; an [audio] consumer walks the list in a
@@ -42,7 +42,7 @@ struct Entry {
 	uint64_t check = ~kMagic;
 };
 
-deluge::util::AudioOwnedList<Entry> g_list;
+deluge::AudioOwnedList<Entry> g_list;
 std::atomic<bool> g_done{false};
 
 void producer() {

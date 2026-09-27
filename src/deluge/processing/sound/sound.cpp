@@ -145,7 +145,7 @@ Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalV
 	paramLPF.p = PARAM_LPF_OFF;
 
 	doneReadingFromFile();
-	AudioEngine::sounds.push_back(this);
+	AudioEngine::sounds.add(this);
 }
 
 void Sound::initParams(ParamManager* paramManager) {

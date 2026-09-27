@@ -24,6 +24,7 @@
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"
 #include "model/output.h"
+#include "util/audio_owned_list.h"
 #include "util/containers.h"
 #include <cstdint>
 #include <memory>
@@ -242,7 +243,8 @@ extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
 extern SideChain reverbSidechain;
 extern uint32_t timeThereWasLastSomeReverb;
-extern deluge::fast_vector<Sound*> sounds;
+/// Every live Sound. Changed only by Sound's constructor and destructor, walked by the render: see AudioOwnedList.
+extern deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
 extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;

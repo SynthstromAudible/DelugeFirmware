@@ -219,7 +219,7 @@ int32_t masterVolumeAdjustmentR;
 bool doMonitoring;
 MonitoringAction monitoringAction;
 
-deluge::fast_vector<Sound*> sounds;
+deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
 TaskID routine_task_id = -1;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
@@ -251,9 +251,11 @@ void init() {
 }
 
 void killAllVoices(bool deletingSong) {
-	for (Sound* sound : sounds) {
-		sound->killAllVoices();
-	}
+	sounds.walk([](const auto& all) {
+		for (Sound* sound : all) {
+			sound->killAllVoices();
+		}
+	});
 
 	// Because we unfortunately don't have a master list of VoiceSamples or actively sounding AudioClips,
 	// we have to unassign all of those by going through all AudioOutputs.
@@ -295,106 +297,111 @@ int32_t numAudioLogItems = 0;
 /// same render. Will stop an audio clip if there are no voices to  kill
 void killOneVoice(size_t num_samples) {
 	logAction("kill");
-	auto lowest_priority_voices = sounds //<
-	                              | std::views::filter(&Sound::hasActiveVoices)
-	                              | std::views::transform(&Sound::getLowestPriorityVoice);
-	auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
-		return a->getPriorityRating() < b->getPriorityRating();
-	});
-	if (it == lowest_priority_voices.end()) {
-		if (currentSong) {
-			currentSong->cullAudioClipVoice();
+	sounds.walk([&](const auto& sounds) {
+		auto lowest_priority_voices = sounds //<
+		                              | std::views::filter(&Sound::hasActiveVoices)
+		                              | std::views::transform(&Sound::getLowestPriorityVoice);
+		auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
+			return a->getPriorityRating() < b->getPriorityRating();
+		});
+		if (it == lowest_priority_voices.end()) {
+			if (currentSong) {
+				currentSong->cullAudioClipVoice();
+			}
 		}
-	}
 
-	const Sound::ActiveVoice& voice = *it;
+		const Sound::ActiveVoice& voice = *it;
 
-	bool still_rendering = voice->doImmediateRelease();
-	if (!still_rendering) {
-		voice->sound.freeActiveVoice(voice);
-	}
+		bool still_rendering = voice->doImmediateRelease();
+		if (!still_rendering) {
+			voice->sound.freeActiveVoice(voice);
+		}
 
-	D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples, getNumVoices(),
-	          getNumAudio());
+		D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+		          getNumVoices(), getNumAudio());
+	});
 }
 
 /// Force a voice to release very quickly - will be almost instant but not click
 void terminateOneVoice(size_t numSamples) {
 	logAction("terminate");
+	sounds.walk([&](const auto& sounds) {
+		auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
 
-	auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
-
-	if (all_voices.empty()) {
-		return;
-	}
-
-	// The skip filter must apply to the first voice too (see Sound::terminateOneActiveVoice / issue #4721):
-	// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
-	const Sound::ActiveVoice* best = nullptr;
-	for (const auto& voice : all_voices) {
-		if (voice->isCullFading()) {
-			continue;
+		if (all_voices.empty()) {
+			return;
 		}
-		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
-			best = &voice;
+
+		// The skip filter must apply to the first voice too (see Sound::terminateOneActiveVoice / issue #4721):
+		// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
+		const Sound::ActiveVoice* best = nullptr;
+		for (const auto& voice : all_voices) {
+			if (voice->isCullFading()) {
+				continue;
+			}
+			if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+				best = &voice;
+			}
 		}
-	}
 
-	if (best == nullptr) {
-		return;
-	}
+		if (best == nullptr) {
+			return;
+		}
 
-	const Sound::ActiveVoice& voice = *best;
-	bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
-	if (!still_rendering) {
-		voice->sound.freeActiveVoice(voice);
-	}
+		const Sound::ActiveVoice& voice = *best;
+		bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
+		if (!still_rendering) {
+			voice->sound.freeActiveVoice(voice);
+		}
 
-	D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples, getNumVoices(),
-	          getNumAudio());
+		D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+		          getNumVoices(), getNumAudio());
+	});
 }
 
 /// Force a voice to release, or speed up its release if the oldest voice is already releasing
 void forceReleaseOneVoice(size_t num_samples) {
 	logAction("force release");
-	auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
-	if (all_voices.empty()) {
-		return;
-	}
-
-	// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has a
-	// high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
-	// musical-release tails keep stacking up.
-	const Sound::ActiveVoice* best = nullptr;
-	for (const auto& voice : all_voices) {
-		if (voice->isCullFading()) {
-			continue;
+	sounds.walk([&](const auto& sounds) {
+		auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
+		if (all_voices.empty()) {
+			return;
 		}
-		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
-			best = &voice;
+
+		// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has
+		// a high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
+		// musical-release tails keep stacking up.
+		const Sound::ActiveVoice* best = nullptr;
+		for (const auto& voice : all_voices) {
+			if (voice->isCullFading()) {
+				continue;
+			}
+			if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+				best = &voice;
+			}
 		}
-	}
 
-	if (best == nullptr) {
-		return;
-	}
+		if (best == nullptr) {
+			return;
+		}
 
-	const Sound::ActiveVoice& voice = *best;
+		const Sound::ActiveVoice& voice = *best;
 
-	auto stage = voice->envelopes[0].state;
-	if (stage < EnvelopeStage::FAST_RELEASE) {
-		D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getNumAudio());
-	}
-	else {
-		D_PRINTLN("sped up release for 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getNumAudio());
-	}
+		auto stage = voice->envelopes[0].state;
+		if (stage < EnvelopeStage::FAST_RELEASE) {
+			D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+			          getNumVoices(), getNumAudio());
+		}
+		else {
+			D_PRINTLN("sped up release for 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d",
+			          num_samples, getNumVoices(), getNumAudio());
+		}
 
-	bool still_rendering = voice->speedUpRelease();
-	if (!still_rendering) {
-		voice->sound.freeActiveVoice(voice);
-	}
+		bool still_rendering = voice->speedUpRelease();
+		if (!still_rendering) {
+			voice->sound.freeActiveVoice(voice);
+		}
+	});
 }
 
 int32_t getNumAudio() {
@@ -402,8 +409,10 @@ int32_t getNumAudio() {
 }
 
 int32_t getNumVoices() {
-	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
-	                             [](auto sound) { return sound->voices().size(); });
+	return sounds.walk([](const auto& all) {
+		return std::transform_reduce(all.cbegin(), all.cend(), 0, std::plus{},
+		                             [](auto sound) { return sound->voices().size(); });
+	});
 }
 
 void routineWithClusterLoading() {

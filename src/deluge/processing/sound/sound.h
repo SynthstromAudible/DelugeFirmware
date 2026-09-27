@@ -73,7 +73,7 @@ public:
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
 
 	Sound();
-	~Sound() override { std::erase(AudioEngine::sounds, this); }
+	~Sound() override { AudioEngine::sounds.remove(this); }
 
 	Patcher patcher;
 

@@ -15,3 +15,9 @@ extern "C" bool deluge_in_interrupt(void) {
 extern "C" bool deluge_in_audio_context(void) {
 	return false;
 }
+
+// Single-threaded tests: nothing can preempt them, so a critical section has nothing to exclude.
+extern "C" void ENTER_CRITICAL_SECTION() {
+}
+extern "C" void EXIT_CRITICAL_SECTION() {
+}
