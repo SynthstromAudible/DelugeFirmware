@@ -3513,10 +3513,11 @@ void Song::deleteOutput(Output* output) {
 
 	output->deleteBackedUpParamManagers(this);
 
-	// The destructor runs two render blocks from now (retire, below), so undo here what it would otherwise undo late
-	// on other objects: detach a sample recorder, give up a monitoring claim on the output this one records from, and
-	// clear the pointer of an output recording this one. Each of those objects can be freed in the meantime (a song
-	// swap destroys every output at once), and ~Output/~AudioOutput would then write into freed memory.
+	// The destructor runs later (retire, below: no earlier than two render blocks from now), so undo here what it would
+	// otherwise undo late on other objects: detach a sample recorder, give up a monitoring claim on the output this one
+	// records from, and clear the pointer of an output recording this one. Each of those objects can be freed in the
+	// meantime (a song swap destroys every output at once), and ~Output/~AudioOutput would then write into freed
+	// memory.
 	output->removeRecorder();
 	output->clearRecordingFrom();
 	if (Output* recordingThis = output->getOutputRecordingThis()) {
