@@ -105,6 +105,14 @@ if [ -z "$served" ] || [ "$served" -eq 0 ]; then
 	exit 1
 fi
 
+# The meter's positive control: the scenario makes ONE synchronous open after boot on the interaction tier, and
+# the meter must count exactly one. Without this, a meter that sees nothing and a clean tree read the same.
+probe="$(sed -n 's/^TIER-SYNC-PROBE n=\([0-9]*\)$/\1/p' "$OUT/run.txt")"
+if [ "$probe" != "1" ]; then
+	echo "FAIL TIER-SYNC-PROBE — n=${probe:-none}; the meter did not count the scenario's one synchronous open"
+	exit 1
+fi
+grep '^TIER-SYNC-PROBE ' "$OUT/run.txt"
 grep -E '^PO-' "$OUT/run.txt"
 grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the protocol replied, browser deletes went through the byte channel, no browser folder creation or"

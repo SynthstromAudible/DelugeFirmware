@@ -26,6 +26,7 @@
 #include "io/file.hpp"
 #include "io/midi/midi_device.h"
 #include "libdeluge/file_bytes.h"
+#include "libdeluge/tier.h"
 #include "model/song/song.h"
 #include "storage/byte_channel.h"
 #include "storage/smsysex.h"
@@ -122,6 +123,16 @@ public:
 };
 
 namespace {
+
+/// The meter's count for the entry named @p name, or UINT32_MAX when no entry has that name.
+uint32_t tierSyncCount(const char* name) {
+	for (uint8_t e = 0; e < deluge_tier_sync_entries(); ++e) {
+		if (std::strcmp(deluge_tier_sync_name(e), name) == 0) {
+			return deluge_tier_sync_count(e);
+		}
+	}
+	return UINT32_MAX;
+}
 
 /// A `MIDICable` that keeps what was sent to it instead of putting it on a wire.
 ///
@@ -706,6 +717,13 @@ void runTick() {
 			printf("PO-ILLEGAL FAIL a folder creation or delete was refused for want of a legal place to run\n");
 			g_failures++;
 		}
+
+		// The synchronous-call meter's positive control: one deliberate synchronous open, after boot, on the
+		// interaction tier (this scenario's own tick). Whether the file exists does not matter -- the open is counted
+		// on entry. Reported, not failed here: path_operations.sh requires n=1.
+		const uint32_t before = tierSyncCount("file_open");
+		(void)deluge::io::File::open("PO_TEST/TIER_SYNC_PROBE.TXT", DELUGE_FILE_READ);
+		printf("TIER-SYNC-PROBE n=%u\n", static_cast<unsigned>(tierSyncCount("file_open") - before));
 		g_stage = Stage::Summary;
 		break;
 	}
