@@ -359,6 +359,7 @@ pub extern "C" fn deluge_efatfs_open(
     out_handle: *mut u32,
     out_table_full: *mut bool,
 ) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::Open);
     if path.is_null() || out_handle.is_null() || out_table_full.is_null() {
         return false;
     }
@@ -409,6 +410,7 @@ pub extern "C" fn deluge_efatfs_open(
 /// slot), so it can barely pend at all.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_close(handle: u32) {
+    crate::tier_meter::note(crate::tier_meter::Entry::Close);
     crate::sim_block::block_on(close(handle));
 }
 
@@ -423,6 +425,7 @@ pub extern "C" fn deluge_efatfs_read_at(
     count: u32,
     out_read: *mut u32,
 ) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::ReadAt);
     if dst.is_null() || out_read.is_null() {
         return false;
     }
@@ -669,6 +672,7 @@ pub extern "C" fn deluge_efatfs_file_open(
     mode: u8,
     out_handle: *mut u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::FileOpen);
     if path.is_null() || out_handle.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -699,6 +703,7 @@ pub extern "C" fn deluge_efatfs_file_read(
     count: u32,
     out_read: *mut u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::FileRead);
     if dst.is_null() || out_read.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -726,6 +731,7 @@ pub extern "C" fn deluge_efatfs_file_read_exact(
     count: u32,
     out_read: *mut u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::FileReadExact);
     if dst.is_null() || out_read.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -753,6 +759,7 @@ pub extern "C" fn deluge_efatfs_file_write(
     count: u32,
     out_written: *mut u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::FileWrite);
     if src.is_null() || out_written.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -774,6 +781,7 @@ pub extern "C" fn deluge_efatfs_file_write(
 /// C-ABI: move the handle's cursor to an absolute byte offset.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_seek(handle: u32, offset: u32) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::FileSeek);
     let result = crate::sim_block::block_on(task_file_seek(handle, offset));
     match result {
         Ok(()) => DELUGE_OK,
@@ -784,6 +792,7 @@ pub extern "C" fn deluge_efatfs_file_seek(handle: u32, offset: u32) -> DelugeSta
 /// C-ABI: total file size in bytes.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_size(handle: u32, out_size: *mut u32) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::FileSize);
     if out_size.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -803,6 +812,7 @@ pub extern "C" fn deluge_efatfs_file_size(handle: u32, out_size: *mut u32) -> De
 /// C-ABI: truncate to `new_len` bytes.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_truncate(handle: u32, new_len: u32) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::FileTruncate);
     let result = crate::sim_block::block_on(task_file_truncate(handle, new_len));
     match result {
         Ok(()) => DELUGE_OK,
@@ -813,6 +823,7 @@ pub extern "C" fn deluge_efatfs_file_truncate(handle: u32, new_len: u32) -> Delu
 /// C-ABI: close a task-context file handle.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_close(handle: u32) {
+    crate::tier_meter::note(crate::tier_meter::Entry::FileClose);
     crate::sim_block::block_on(task_file_close(handle));
 }
 
@@ -822,6 +833,7 @@ pub extern "C" fn deluge_efatfs_dir_open(
     path: *const c_char,
     out_handle: *mut u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::DirOpen);
     if path.is_null() || out_handle.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -856,6 +868,7 @@ pub extern "C" fn deluge_efatfs_dir_read(
     out_attrs: *mut u8,
     out_has: *mut bool,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::DirRead);
     if out_name.is_null()
         || out_name_cap == 0
         || out_is_dir.is_null()
@@ -901,6 +914,7 @@ pub extern "C" fn deluge_efatfs_dir_read(
 /// C-ABI: close a directory handle.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_dir_close(handle: u32) {
+    crate::tier_meter::note(crate::tier_meter::Entry::DirClose);
     crate::sim_block::block_on(task_dir_close(handle));
 }
 
@@ -910,6 +924,7 @@ pub extern "C" fn deluge_efatfs_stats(
     out_free_clusters: *mut u32,
     out_total_clusters: *mut u32,
 ) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::Stats);
     if out_free_clusters.is_null() || out_total_clusters.is_null() {
         return false;
     }
@@ -932,6 +947,7 @@ pub extern "C" fn deluge_efatfs_stats(
 /// [`mount`]). True if mounted (or already was), false on failure.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_mount() -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::Mount);
     let fut = mount();
     crate::sim_block::block_on(fut).is_ok()
 }
@@ -941,6 +957,7 @@ pub extern "C" fn deluge_efatfs_mount() -> bool {
 /// can't tell them apart (it's idempotent).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_is_mounted() -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::IsMounted);
     let fut = with_fs(async |_fs| ());
     crate::sim_block::block_on(fut).is_some()
 }
@@ -960,10 +977,12 @@ pub extern "C" fn deluge_storage_fs_busy() -> bool {
 /// C-ABI: drop the filesystem, leaving it unmounted. See [`unmount`].
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_unmount() {
+    crate::tier_meter::note(crate::tier_meter::Entry::Unmount);
     crate::sim_block::block_on(unmount());
 }
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_remount() -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::Remount);
     let fut = remount();
     crate::sim_block::block_on(fut).is_ok()
 }
@@ -971,6 +990,7 @@ pub extern "C" fn deluge_efatfs_remount() -> bool {
 /// C-ABI: the mounted volume's cluster (allocation-unit) size, in bytes.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_cluster_size(out_bytes: *mut u32) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::ClusterSize);
     if out_bytes.is_null() {
         return false;
     }
@@ -1002,6 +1022,7 @@ pub(crate) async fn task_mkdir(path: &str) -> Result<(), DelugeStatus> {
 /// C-ABI: create a directory.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_mkdir(path: *const c_char) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::Mkdir);
     if path.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -1030,6 +1051,7 @@ pub(crate) async fn task_unlink(path: &str) -> Result<(), DelugeStatus> {
 /// C-ABI: delete a file or empty directory.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_unlink(path: *const c_char) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::Unlink);
     if path.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -1061,6 +1083,7 @@ pub extern "C" fn deluge_efatfs_rename(
     old_path: *const c_char,
     new_path: *const c_char,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::Rename);
     if old_path.is_null() || new_path.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -1114,6 +1137,7 @@ pub extern "C" fn deluge_efatfs_set_time(
     minute: u8,
     second: u8,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::SetTime);
     if path.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -1273,6 +1297,7 @@ pub extern "C" fn deluge_efatfs_stream_open(
     mode: u8,
     out_handle: *mut u32,
 ) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::StreamOpen);
     if path.is_null() || out_handle.is_null() {
         return false;
     }
@@ -1304,6 +1329,7 @@ pub extern "C" fn deluge_efatfs_stream_write_at(
     count: u32,
     out_written: *mut u32,
 ) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::StreamWriteAt);
     if src.is_null() || out_written.is_null() {
         return false;
     }
@@ -1332,6 +1358,7 @@ pub extern "C" fn deluge_efatfs_stream_read_at_via(
     count: u32,
     out_read: *mut u32,
 ) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::StreamReadAtVia);
     if dst.is_null() || out_read.is_null() {
         return false;
     }
@@ -1353,18 +1380,21 @@ pub extern "C" fn deluge_efatfs_stream_read_at_via(
 /// C-ABI: persist the handle's accumulated size/mtime edit to disk.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_stream_flush(handle: u32) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::StreamFlush);
     crate::sim_block::block_on(stream_flush(handle))
 }
 
 /// C-ABI: truncate to `new_len` bytes.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_stream_truncate(handle: u32, new_len: u32) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::StreamTruncate);
     crate::sim_block::block_on(stream_truncate(handle, new_len))
 }
 
 /// C-ABI: total size in bytes.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_stream_size(handle: u32, out_size: *mut u32) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::StreamSize);
     if out_size.is_null() {
         return false;
     }
@@ -1384,5 +1414,6 @@ pub extern "C" fn deluge_efatfs_stream_size(handle: u32, out_size: *mut u32) -> 
 /// C-ABI: flush and close a persistent stream-write handle, freeing its slot.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_stream_close(handle: u32) -> bool {
+    crate::tier_meter::note(crate::tier_meter::Entry::StreamClose);
     crate::sim_block::block_on(stream_close(handle))
 }

@@ -5,12 +5,16 @@
 #![cfg(not(target_os = "none"))]
 #![feature(impl_trait_in_assoc_type)]
 
+#[path = "../src/boot.rs"]
+mod boot;
 #[path = "../src/sd.rs"]
 mod sd;
 #[path = "../src/sim_block.rs"]
 mod sim_block;
 #[path = "../src/tier.rs"]
 mod tier;
+#[path = "../src/tier_meter.rs"]
+mod tier_meter;
 
 use core::future::Future;
 use core::pin::pin;

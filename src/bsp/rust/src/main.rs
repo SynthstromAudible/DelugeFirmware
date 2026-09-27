@@ -305,6 +305,8 @@ mod sim_block;
 mod streaming_loader;
 /// Which execution tier is running the caller (`libdeluge/tier.h`).
 mod tier;
+/// Counts synchronous card calls made after boot on the interaction tier (`libdeluge/tier.h`).
+mod tier_meter;
 /// USB device bring-up — USB-MIDI 1.0 peripheral (Deluge → computer).
 #[cfg(target_os = "none")]
 mod usb;

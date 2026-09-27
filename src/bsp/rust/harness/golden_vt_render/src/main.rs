@@ -235,6 +235,8 @@ mod sim_block;
 mod streaming_loader;
 #[path = "../../../src/tier.rs"]
 mod tier;
+#[path = "../../../src/tier_meter.rs"]
+mod tier_meter;
 
 unsafe extern "C" {
     fn deluge_app_init(board: *const sys::DelugeBoard);

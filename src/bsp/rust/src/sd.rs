@@ -470,6 +470,7 @@ pub extern "C" fn deluge_block_read(
     sector: u32,
     count: u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::BlockRead);
     if unit != 0 || !sd::is_ready() {
         return DELUGE_ERR_NODEV;
     }
@@ -491,6 +492,7 @@ pub extern "C" fn deluge_block_write(
     sector: u32,
     count: u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::BlockWrite);
     if unit != 0 || !sd::is_ready() {
         return DELUGE_ERR_NODEV;
     }
@@ -573,6 +575,7 @@ pub extern "C" fn deluge_block_read(
     sector: u32,
     count: u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::BlockRead);
     if unit != 0 {
         return DELUGE_ERR_NODEV;
     }
@@ -607,6 +610,7 @@ pub extern "C" fn deluge_block_write(
     sector: u32,
     count: u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::BlockWrite);
     if unit != 0 {
         return DELUGE_ERR_NODEV;
     }
@@ -649,6 +653,7 @@ pub extern "C" fn deluge_block_read(
     sector: u32,
     count: u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::BlockRead);
     if unit != 0 {
         return DELUGE_ERR_NODEV;
     }
@@ -685,6 +690,7 @@ pub extern "C" fn deluge_block_write(
     sector: u32,
     count: u32,
 ) -> DelugeStatus {
+    crate::tier_meter::note(crate::tier_meter::Entry::BlockWrite);
     if unit != 0 {
         return DELUGE_ERR_NODEV;
     }
