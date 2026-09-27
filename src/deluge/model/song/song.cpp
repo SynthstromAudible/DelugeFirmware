@@ -348,8 +348,9 @@ void Song::setupDefault() {
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
-/// Report a splice of this song's output or hibernation list to the structural-edit probe. Only the current song's
-/// lists are walked by the render, so a splice to any other song (one being built by a load, or torn down at reclaim)
+/// Report a splice of this song's output or hibernation list to the structural-edit probe. Every splice runs inside an
+/// AudioExcludedSection, so the render never walks a half-relinked list. Only the current song's lists are walked by
+/// the render, so a splice to any other song (one being built by a load, or torn down at reclaim)
 /// is not counted.
 static void noteOutputListEdit(const Song* song) {
 	if (song == currentSong) {
@@ -363,8 +364,11 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 		AudioEngine::logAction("s6");
 		AudioEngine::routineWithClusterLoading();
 		Output* toDelete = *prevPointer;
-		noteOutputListEdit(this);
-		*prevPointer = toDelete->next;
+		{
+			AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+			noteOutputListEdit(this);
+			*prevPointer = toDelete->next;
+		}
 
 		// toDelete is already unlinked, so this only visits outputs that are still alive
 		clearRecordingFromReferencesTo(toDelete);
@@ -2021,8 +2025,11 @@ loadOutput:
 							return error;
 						}
 						((Instrument*)newOutput)->mightExistOnCard = true;
-						noteOutputListEdit(this);
-						*lastPointer = newOutput;
+						{
+							AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+							noteOutputListEdit(this);
+							*lastPointer = newOutput;
+						}
 						lastPointer = &newOutput->next;
 						reader.match('}');
 					}
@@ -3287,10 +3294,13 @@ uint32_t Song::getTimePerTimerTickRounded() {
 
 void Song::addOutput(Output* output, bool atStart) {
 
-	noteOutputListEdit(this);
 	if (atStart) {
-		output->next = firstOutput;
-		firstOutput = output;
+		{
+			AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+			noteOutputListEdit(this);
+			output->next = firstOutput;
+			firstOutput = output;
+		}
 
 		arrangementYScroll++;
 	}
@@ -3299,8 +3309,10 @@ void Song::addOutput(Output* output, bool atStart) {
 		while (*prevPointer) {
 			prevPointer = &(*prevPointer)->next;
 		}
-		*prevPointer = output;
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
 		output->next = nullptr;
+		*prevPointer = output;
 	}
 
 	if (output->soloingInArrangementMode) {
@@ -3356,8 +3368,11 @@ int32_t Song::removeOutputFromMainList(
 		outputIndex++;
 	}
 
-	noteOutputListEdit(this);
-	*prevPointer = output->next;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		*prevPointer = output->next;
+	}
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 
@@ -3412,9 +3427,12 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// Remove the oldInstrument from the list of Instruments
 	Output** prevPointer;
 	for (prevPointer = &firstOutput; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
-	noteOutputListEdit(this);
-	newOutput->next = oldOutput->next;
-	*prevPointer = oldOutput->next;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		newOutput->next = oldOutput->next;
+		*prevPointer = oldOutput->next;
+	}
 
 	Clip* favourClipForCloningParamManager = nullptr;
 
@@ -3526,8 +3544,11 @@ traverseClips:
 	deleteOrAddToHibernationListOutput(oldOutput);
 
 	// Put the newInstrument into the master list
-	noteOutputListEdit(this);
-	*prevPointer = newOutput;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		*prevPointer = newOutput;
+	}
 	if (outputRecordingOldOutput) {
 		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput);
 	}
@@ -3620,9 +3641,12 @@ void Song::moveInstrumentToHibernationList(Instrument* instrument) {
 
 void Song::addInstrumentToHibernationList(Instrument* instrument) {
 	instrument->prepareForHibernationOrDeletion();
-	noteOutputListEdit(this);
-	instrument->next = firstHibernatingInstrument;
-	firstHibernatingInstrument = instrument;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		instrument->next = firstHibernatingInstrument;
+		firstHibernatingInstrument = instrument;
+	}
 	instrument->setActiveClip(nullptr); // Just be sure!
 	instrument->inValidState = false;
 }
@@ -3638,6 +3662,7 @@ void Song::removeInstrumentFromHibernationList(Instrument* instrument) {
 		}
 	}
 
+	AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
 	noteOutputListEdit(this);
 	*prevPointer = (Instrument*)instrument->next;
 }
@@ -3669,8 +3694,11 @@ void Song::deleteHibernatingInstrumentWithSlot(OutputType outputType, char const
 		if (instrument->type == outputType) {
 
 			if (!strcasecmp(name, instrument->name.c_str())) {
-				noteOutputListEdit(this);
-				*prevPointer = (Instrument*)instrument->next;
+				{
+					AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+					noteOutputListEdit(this);
+					*prevPointer = (Instrument*)instrument->next;
+				}
 
 				deleteOutput(instrument);
 
@@ -5089,9 +5117,12 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	Output** prevPointer;
 	for (prevPointer = &firstOutput; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
-	noteOutputListEdit(this);
-	newOutput->next = oldOutput->next;
-	*prevPointer = newOutput;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		newOutput->next = oldOutput->next;
+		*prevPointer = newOutput;
+	}
 
 	// Migrate all ClipInstances from oldInstrument to newInstrument
 	newOutput->clipInstances.swap(oldOutput->clipInstances);
