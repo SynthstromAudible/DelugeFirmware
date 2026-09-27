@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # clip_lifetime.sh — the clip-lifetime gate.
 #
-# Deletes a playing clip through each real clip deletion path, a sounding drum through the two direct drum destroys, and
+# Deletes a playing clip through each real clip deletion path, a drum through the two former direct drum destroys
+# (SAVEKIT naturally, WONTSOUND by forcing a state no natural note-on/off path reaches -- see its bullet below), and
 # the song through each way it is replaced, and reports how many Clips, Songs and Sounds each path destroyed while the
 # render could still reach them.
 #
@@ -64,14 +65,17 @@
 #                   run, each time AudioEngine::retiredPending() once the render has run and reclaimRetired() has been
 #                   called. The first is report-only; the final one (the last CL-RECLAIM line) is REQUIRED pending=0.
 #   CL-WONTSOUND    last: a playing kit clip whose drum has an empty note row and is put back in the kit's
-#                   drumsWithRenderingActive by hand -- standing in for a drum whose own voice just ended, with the
-#                   kit's per-block bookkeeping not yet caught up (a real noteOn/off clears itself out of that set at
-#                   the same moment its voice ends, so it would leave nothing for the delete branch below to actually
-#                   exercise) -- then AudioEngine::songSwapAboutToHappen() -- what a load or clear started during
-#                   playback runs first -> Song::deleteSoundsWhichWontSound() -> InstrumentClip::
-#                   deleteSoundsWhichWontSound(), which hands the drum to the render (AudioEngine::retire(SoundDrum*))
-#                   instead of destroying it on the spot (or freezes with E176 on an alpha/beta build, which the host
-#                   harness is, if the drum still has active voices).
+#                   drumsWithRenderingActive by hand -- skipping rendering, yet still in that set, a state no natural
+#                   note-on/off path reaches (SoundDrum::setSkippingRendering() is the only writer of the flag, and it
+#                   erases from the set in the same call that sets it) -- then AudioEngine::songSwapAboutToHappen() --
+#                   what a load or clear started during playback runs first -> Song::deleteSoundsWhichWontSound() ->
+#                   InstrumentClip::deleteSoundsWhichWontSound(), which hands the drum to the render
+#                   (AudioEngine::retire(SoundDrum*)) instead of destroying it on the spot. This leg does not
+#                   reproduce a real precondition; it proves only that the retire hand-off is wired correctly. Its
+#                   real safety value is on release builds: the hasActiveVoices() check that would otherwise catch a
+#                   drum with genuinely active voices (FREEZE_WITH_ERROR("E176")) is ALPHA_OR_BETA_VERSION-only, and
+#                   retire()'s let-go now kills a drum's voices unconditionally before it is freed, whichever build
+#                   this runs on.
 #   CL-RESULT       fixtures that could not be built, or a clock that never ran.
 #
 # Each leg line is `CL-<LEG> clipsReferenced=<n> songsReachable=<n> soundsLive=<n>`: how far

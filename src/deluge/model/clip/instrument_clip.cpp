@@ -3253,6 +3253,10 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 				// its NoteRow?
 				if (clipIsActive && noteRow->drum) {
 
+					// This check is ALPHA_OR_BETA_VERSION-only, so it compiles out on a release build: a drum with
+					// genuinely active voices could still reach the SoundDrum branch below on release. What actually
+					// guards that build is AudioEngine::retire()'s let-go, which kills a drum's voices
+					// unconditionally before it is ever destroyed.
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
 					    && static_cast<SoundDrum*>(noteRow->drum)->hasActiveVoices()) {
 						FREEZE_WITH_ERROR("E176");

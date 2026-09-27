@@ -644,14 +644,16 @@ void deleteLeg() {
 	case Leg::WontSound:
 		// The drum's note row has no notes, so it will not sound again -- but a real note would clear itself out of
 		// drumsWithRenderingActive at the same moment skippingRendering flips back true
-		// (SoundDrum::setSkippingRendering()), so a genuinely-played drum would already be out of the set by the time
-		// it gets here, leaving deleteSoundsWhichWontSound()'s delete branch nothing to actually exercise. Put the
-		// drum back in the set by hand instead, right before the call that reaches it and with no render block in
-		// between (Kit::renderGlobalEffectableForClip's E254 freezes a set member that already reads
-		// skippingRendering, which stays true here since the drum was never played) -- standing in for the kit's own
-		// per-block bookkeeping not yet having caught up with a voice that just ended. This is the stale reference
-		// the render can still reach that this leg exists to catch, matching CL-SAVEKIT's own voicesAtSave=0
-		// renderingActive=1 finding for a drum that has no note row at all.
+		// (SoundDrum::setSkippingRendering() is the only writer of the flag), so a genuinely-played drum would
+		// already be out of the set by the time it gets here. Put the drum back in the set by hand instead: skipping
+		// rendering, yet still in drumsWithRenderingActive, is a state no natural note-on/off path reaches at this
+		// call site, so this does not reproduce a real precondition -- it proves only that
+		// deleteSoundsWhichWontSound() hands a SoundDrum over through AudioEngine::retire() correctly (no E321, the
+		// drum actually gone, reclaimed by the end of the run). The site's real safety value is on release builds:
+		// the hasActiveVoices() check below is ALPHA_OR_BETA_VERSION-only, and retire()'s let-go now kills a drum's
+		// voices unconditionally before it is freed, whichever build this runs on. No render block runs between the
+		// insert and the call that reaches it: Kit::renderGlobalEffectableForClip's E254 freezes a set member that
+		// still reads skippingRendering.
 		g_kit->drumsWithRenderingActive.insert(g_drum);
 		g_step = "songSwapAboutToHappen";
 		AudioEngine::songSwapAboutToHappen();
