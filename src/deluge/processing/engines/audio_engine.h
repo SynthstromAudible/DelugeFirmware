@@ -289,7 +289,8 @@ void retire(Clip* clip);
 ///        directly, since nothing can reach them any more.
 void retire(Song* song);
 /// @brief [interaction] Block until every retired object has been destroyed (retiredPending() == 0), waiting on the
-///        render with deluge_audio_await_block() between reclaims. Bounded: freezes with E459 after 250 ms. For a
+///        render with deluge_audio_await_block() between reclaims. Interaction tier only (E455 otherwise).
+///        Bounded: freezes with E459 after 250 ms or 1000 waits for a block, whichever comes first. For a
 ///        stopped-clock song load or clear, which must free the old song before it builds the new one, and for a
 ///        swap's finish, whose sample-load retry needs the old song's memory back.
 void awaitRetired();

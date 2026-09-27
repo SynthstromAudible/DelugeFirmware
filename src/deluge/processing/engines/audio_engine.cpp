@@ -141,6 +141,12 @@ std::atomic<uint64_t> retireSequenceLetGo{0};
 /// How long AudioEngine::awaitRetired() waits, in getSystemTime() seconds, before it freezes (E459). A song of many
 /// outputs is let go of in one block and freed two blocks later -- a few milliseconds; this is far past that.
 constexpr double kAwaitRetiredTimeoutSeconds = 0.25;
+/// How many render blocks AudioEngine::awaitRetired() waits for before it freezes (E459), whatever the clock says.
+/// A retired object is let go of at the next block and freed two blocks after its stamp, so 2-3 blocks is normal.
+/// Needed where getSystemTime() does not move inside a synchronous wait (the virtual-time host harnesses, which run
+/// the render inline). 1000 is over 300x the normal count; on the device, where a block is ~2.9 ms, it is ~2.9 s, so
+/// the 250 ms time bound always fires first there.
+constexpr int32_t kAwaitRetiredMaxBlocks = 1000;
 
 /// [render] End a Sound's voices and take it out of the registry: after this no walk can reach it.
 void letGoOfSound(Sound& sound) {
@@ -2201,12 +2207,18 @@ void retire(Song* song) {
 }
 
 void awaitRetired() {
+	// Only the interaction tier may wait here: from the render, a single-executor host's inline drive would re-enter
+	// the render. The same code as a retire from the wrong tier.
+	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
+		FREEZE_WITH_ERROR("E455");
+	}
 	// The render is the higher tier: waiting on it here is allowed, and runs no other interaction task, so whatever
 	// the caller left in between (currentSong null during a stopped-clock load) is never seen by one.
 	const double start = getSystemTime();
+	int32_t blocks = 0;
 	reclaimRetired();
 	while (retiredPending() != 0) {
-		if (getSystemTime() - start > kAwaitRetiredTimeoutSeconds) {
+		if (getSystemTime() - start > kAwaitRetiredTimeoutSeconds || ++blocks > kAwaitRetiredMaxBlocks) {
 			FREEZE_WITH_ERROR("E459");
 		}
 		deluge_audio_await_block();
