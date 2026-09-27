@@ -513,6 +513,13 @@ pub extern "C" fn deluge_streaming_set_fill_latency_ms(ms: u32) {
 ))]
 #[embassy_executor::task]
 pub async fn streaming_fill_task() {
+    // The device derives the tier from the storage handler's own mark (`tier::storage_isr`); this line is the
+    // evidence on RTT that the derivation sees it. Expected: `Storage`.
+    #[cfg(target_os = "none")]
+    log::info!(
+        "tier: the streaming fill task runs on {:?}",
+        crate::tier::current()
+    );
     crate::tier::scoped(crate::tier::Tier::Storage, streaming_fill_task_body()).await
 }
 

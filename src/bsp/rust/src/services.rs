@@ -147,8 +147,9 @@ pub fn audio_context_exit(_prev: bool) {
 /// resource manager's mask, because it preempts every other context that touches it. See
 /// `libdeluge/system.h` and `deluge_resource::sync`'s module doc.
 ///
-/// Deliberately NOT `deluge_in_interrupt()`: that is a CPSR mode test, true in the streaming
-/// fill executor's SGI handler too — which audio preempts, so it must keep masking.
+/// Deliberately NOT `deluge_in_interrupt()`: that is a CPSR mode test, and the shared IRQ entry
+/// switches to SYS mode before dispatching, so it is false inside every handler, audio's
+/// included. The streaming fill executor's handler, which audio preempts, must keep masking.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_in_audio_context() -> bool {

@@ -54,8 +54,9 @@ bool deluge_in_interrupt(void);
 /// True iff the caller is executing in the audio render context — the one context that
 /// preempts every other context touching shared audio/resource state, and therefore the one
 /// context permitted to skip a mask that exists to exclude it. Distinct from
-/// deluge_in_interrupt(): a lower-priority interrupt (the streaming fill executor) is "in an
-/// interrupt" but is NOT the audio context, and must still mask.
+/// deluge_in_interrupt(): a lower-priority interrupt (the streaming fill executor) is not the
+/// audio context, and must still mask. (On the Rust BSP deluge_in_interrupt() cannot see either
+/// handler: the shared IRQ entry switches to SYS mode before dispatching.)
 /// [task] [isr]
 bool deluge_in_audio_context(void);
 

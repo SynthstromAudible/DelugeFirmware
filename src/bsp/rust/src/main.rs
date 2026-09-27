@@ -439,6 +439,9 @@ const STREAM_SGI_PRIORITY: u8 = 24;
 /// `deluge_resource::sync`'s module doc.
 #[cfg(target_os = "none")]
 fn stream_sgi_handler() {
+    // Mark the storage tier for `tier::current()` across the whole poll. The CPU mode cannot say this: the shared
+    // IRQ entry has already switched to SYS mode, the same mode thread code runs in.
+    let _storage = crate::tier::storage_isr();
     // SAFETY: only called from the SGI handler, after STREAM_EXEC.start().
     unsafe { STREAM_EXEC.on_interrupt() };
 }
