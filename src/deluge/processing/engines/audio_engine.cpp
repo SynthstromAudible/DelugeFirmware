@@ -874,10 +874,17 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 /// See <libdeluge/app.h>: a block the board chose not to render still runs the render's block-start lifetime step, so
 /// objects handed to the render are let go of and freed on schedule.
 extern "C" void deluge_app_render_skipped(void) {
+	// The render's own work, excluded like a rendered block (see deluge_app_render()).
+	AudioExcludedSection renderBlock;
 	renderRetirementStep();
 }
 
 extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) {
+	// The whole block is one AudioExcludedSection. On the device this is free: the render runs on the audio tier, which
+	// nothing preempts, so it never masks. On host the render is a thread like any other, and this is what gives it
+	// the device's guarantee: an interaction-tier structural edit to a container the render walks (each runs in its
+	// own section) and a render block never overlap.
+	AudioExcludedSection renderBlock;
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
 	if (current_time - last_call_time > 0.003) {
@@ -2211,6 +2218,11 @@ void awaitRetired() {
 	// the render. The same code as a retire from the wrong tier.
 	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
 		FREEZE_WITH_ERROR("E455");
+	}
+	// Inside an AudioExcludedSection the render cannot run a block (on host it waits for the section's lock; on the
+	// device the section masks its interrupt), so waiting for it would never end.
+	if (deluge_audio_excluded_depth() != 0) {
+		FREEZE_WITH_ERROR("E460");
 	}
 	// The render is the higher tier: waiting on it here is allowed, and runs no other interaction task, so whatever
 	// the caller left in between (currentSong null during a stopped-clock load) is never seen by one.

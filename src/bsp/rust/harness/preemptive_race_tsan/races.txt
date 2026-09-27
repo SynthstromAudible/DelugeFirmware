@@ -106,6 +106,7 @@ open	library/core/src/ptr/mod.rs	^core::ptr::write::<\*mut deluge_alloc::tlsf::B
 open	src/deluge/memory/alloc_metadata.cpp	^mem_guard::\(anonymous namespace\)::recordAllocWithEpoch\(unsigned long, unsigned int, unsigned long, unsigned int\)$	audio×interaction	state: global 'mem_guard::(anonymou' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlaybackUsingInternalClock\(int, bool, bool, bool\)$	audio×interaction	state: global 'playbackHandler' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routine_task\(\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked' (first seen after the sound retirement, 2026-09-27)
+open	src/deluge/hid/led/pad_leds.cpp	^PadLEDs::reassessGreyout\(bool\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (first seen after the host render block became one excluded section, 2026-09-27)
 # Index by shared state (state → entries). The second invariant's to-do list.
 #   Sound::voices_ (C2b): the getNumVoices lambda, terminateOneVoice. (AudioEngine::sounds itself: fixed by C2a,
 #     AudioOwnedList — its getNumVoices() entry removed.)
@@ -113,7 +114,7 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routine_task\(
 #     BlockHeader::set_prev_free, core::ptr::read::<*mut BlockHeader>; mem_guard::recordAlloc, insert_free_block, set_size, ptr::write::<*mut BlockHeader>, recordAllocWithEpoch
 #   Render-routine globals (audioSampleTimer, routineBeenCalled, renderingBufferOutputPos, renderInStereo,
 #     bypassCulling, audioRoutineLocked): deluge_app_render, AudioEngine::routine, routine_task, routineWithClusterLoading,
-#     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames,
+#     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
 #     Sound::renderingVoicesInStereo, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
 #     WaveformRenderer::advanceOverviewScan
 #   Reverb (AudioEngine::reverb, reverbSidechainVolume, mustUpdateReverbParamsBeforeNextRender):

@@ -3,7 +3,9 @@
 # deluge::util::SpscRing<E, N> (the "publish spine" primitives,
 # snapshot_primitive_stress.cpp), deluge::util::AudioOwnedList (the list
 # AudioEngine::sounds is built on, sound_registry_stress.cpp), and deluge::RetireList
-# (the epoch-gated deferred-destruction list, retire_list_stress.cpp). STANDALONE TSan
+# (the epoch-gated deferred-destruction list, retire_list_stress.cpp), and the containers
+# the audio render walks, edited only inside an AudioExcludedSection
+# (container_exclusion_stress.cpp). STANDALONE TSan
 # binaries, deliberately not wired into ./dbt test -- see the banner comment in
 # snapshot_primitive_stress.cpp for why.
 #
@@ -27,10 +29,12 @@ SRC2="${SCRIPT_DIR}/sound_registry_stress.cpp"
 BIN2="$(mktemp -t sound_registry_stress.XXXXXX)"
 SRC3="${SCRIPT_DIR}/retire_list_stress.cpp"
 BIN3="$(mktemp -t retire_list_stress.XXXXXX)"
+SRC4="${SCRIPT_DIR}/container_exclusion_stress.cpp"
+BIN4="$(mktemp -t container_exclusion_stress.XXXXXX)"
 RUNS="${1:-10}"
 CXX="${CXX:-clang++}"
 
-cleanup() { rm -f "${BIN}" "${BIN2}" "${BIN3}"; }
+cleanup() { rm -f "${BIN}" "${BIN2}" "${BIN3}" "${BIN4}"; }
 trap cleanup EXIT
 
 echo "== building (${CXX} -fsanitize=thread) =="
@@ -43,9 +47,13 @@ echo "== building (${CXX} -fsanitize=thread) =="
 "${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
     -I "${REPO_ROOT}/src" -I "${REPO_ROOT}/include" -pthread \
     "${SRC3}" -o "${BIN3}"
+# The real OrderedPosVector: its firmware headers resolve from src/deluge; the allocator is stubbed in the source.
+"${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
+    -I "${REPO_ROOT}/src" -I "${REPO_ROOT}/src/deluge" -I "${REPO_ROOT}/include" -pthread \
+    "${SRC4}" -o "${BIN4}"
 
 echo "== confirming the binary is actually TSan-instrumented =="
-for b in "${BIN}" "${BIN2}" "${BIN3}"; do
+for b in "${BIN}" "${BIN2}" "${BIN3}" "${BIN4}"; do
     tsan_syms="$(nm "${b}" 2>/dev/null | grep -c __tsan || true)"
     if [ "${tsan_syms}" -eq 0 ]; then
         echo "ERROR: no __tsan symbols found in ${b} -- not actually instrumented" >&2
@@ -57,7 +65,7 @@ echo "  ${tsan_syms} __tsan symbols linked -- a clean run below is a real negati
 fail=0
 for i in $(seq 1 "${RUNS}"); do
     echo "== run ${i}/${RUNS} =="
-    for b in "${BIN}" "${BIN2}" "${BIN3}"; do
+    for b in "${BIN}" "${BIN2}" "${BIN3}" "${BIN4}"; do
         if ! TSAN_OPTIONS="halt_on_error=1" "${b}"; then
             echo "run ${i} FAILED: $(basename "${b}") (nonzero exit or TSan report)" >&2
             fail=1
