@@ -12,8 +12,9 @@
 # Song::deleteClipObject() destroys a clip at once, on the interaction tier, and no deletion path clears all of those
 # first -- ~Clip's own fallback clears only currentClip. This measures which paths leave one pointing at a freed clip.
 # The clip deletion paths now hand the clip to the render (AudioEngine::retire(Clip*)), which drops those references at
-# its next block before the clip is freed; the clip legs are REQUIRED clean (see "Required legs" below). The song and
-# drum legs are still report-only.
+# its next block before the clip is freed; the clip legs are REQUIRED clean (see "Required legs" below). SAVEKIT and
+# WONTSOUND now hand their drum to the render the same way (AudioEngine::retire(SoundDrum*)) and are REQUIRED clean
+# too. The song legs are still report-only.
 #
 # What the lines cover (src/deluge/harness/clip_lifetime_scenario.cpp writes them). Every leg plays its clip on the
 # internal clock, holding a note on the clip's blank synth, and the scenario renders 8 blocks before the deletion and 8
@@ -44,8 +45,9 @@
 #   CL-SYNCSCALE    the sync-scaling clip, deleted through Song::removeSessionClip() (the session view refuses it).
 #   CL-SAVEKIT      a playing kit clip's kit holds a second drum no note row has, triggered just before the song is
 #                   saved (Song::writeToFile() into memory, as the song save serialises): Kit::writeDataToFile()
-#                   destroys that drum. CL-SAVE says what the drum was doing at the save and how many bytes it wrote;
-#                   CL-DANGLING (inKit=, renderingActive=) whether the kit still holds it afterwards.
+#                   hands that drum to the render (AudioEngine::retire(SoundDrum*)) instead of destroying it on the
+#                   spot. CL-SAVE says what the drum was doing at the save and how many bytes it wrote; CL-DANGLING
+#                   (inKit=, renderingActive=) whether the kit still holds it afterwards.
 #   CL-SONGCLEAR    stopped clock, a synth sounding: the context menu's Create New Song
 #                   (ClearSongContextMenu::runAccept() -> deleteOldSongBeforeLoadingNew()). CL-CLEARED once it is over.
 #   CL-SONGLOAD     stopped clock, a synth sounding: a song the scenario wrote through Song::writeToFile() is loaded
@@ -58,13 +60,18 @@
 #                   currentClip or the view's active timeline counter still names the retired clip. Required 0 and 0.
 #   CL-FREED        per clip leg, before its leg line: the scenario renders a few blocks and reclaims, so the retired
 #                   clip is destroyed (and ~Clip()'s check runs) inside its own leg; pending= is what is still waiting.
-#   CL-RECLAIM      after those legs and before WONTSOUND: AudioEngine::retiredPending() once the render has run and
-#                   reclaimRetired() has been called. More than 0 is red.
-#   CL-WONTSOUND    last, because it is expected to end the process: a playing kit clip whose drum is sounding with an
-#                   empty note row, then AudioEngine::songSwapAboutToHappen() -- what a load or clear started during
+#   CL-RECLAIM      printed twice: once after the other legs and before WONTSOUND, and once more after WONTSOUND has
+#                   run, each time AudioEngine::retiredPending() once the render has run and reclaimRetired() has been
+#                   called. The first is report-only; the final one (the last CL-RECLAIM line) is REQUIRED pending=0.
+#   CL-WONTSOUND    last: a playing kit clip whose drum has an empty note row and is put back in the kit's
+#                   drumsWithRenderingActive by hand -- standing in for a drum whose own voice just ended, with the
+#                   kit's per-block bookkeeping not yet caught up (a real noteOn/off clears itself out of that set at
+#                   the same moment its voice ends, so it would leave nothing for the delete branch below to actually
+#                   exercise) -- then AudioEngine::songSwapAboutToHappen() -- what a load or clear started during
 #                   playback runs first -> Song::deleteSoundsWhichWontSound() -> InstrumentClip::
-#                   deleteSoundsWhichWontSound(), which destroys the drum (or freezes with E176 on an alpha/beta build,
-#                   which the host harness is).
+#                   deleteSoundsWhichWontSound(), which hands the drum to the render (AudioEngine::retire(SoundDrum*))
+#                   instead of destroying it on the spot (or freezes with E176 on an alpha/beta build, which the host
+#                   harness is, if the drum still has active voices).
 #   CL-RESULT       fixtures that could not be built, or a clock that never ran.
 #
 # Each leg line is `CL-<LEG> clipsReferenced=<n> songsReachable=<n> soundsLive=<n>`: how far
@@ -82,9 +89,10 @@
 #
 # SESSIONDELETE, ARRANGERDELETE, SWAPTYPE, UNDODELETE, ARRANGERNOUNDO, RECORDSOURCE and SYNCSCALE must each read clipsReferenced=0,
 # must not abort, and must show CL-FREED pending=0 (the clip really was freed inside the leg); UNDODELETE must also
-# read restored=1. Any of them failing that fails the run.
+# read restored=1. SAVEKIT and WONTSOUND must each read soundsLive=0 and must not abort. The final CL-RECLAIM line
+# (after WONTSOUND) must read pending=0. Any of them failing that fails the run.
 #
-# The run also FAILS when a leg line or the CL-RECLAIM line is missing, a fixture could not be built (CL-RESULT
+# The run also FAILS when a leg line or a CL-RECLAIM line is missing, a fixture could not be built (CL-RESULT
 # failures>0), or the process ended some other way: an exit with no aborted=1 line for the leg that was running, or a
 # wedge.
 #
@@ -141,6 +149,9 @@ LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE ARRANGERNOUNDO RECORDSOUR
 	WONTSOUND)
 # Required: the clip legs. The rest stay report-only.
 REQUIRED_LEGS=(SESSIONDELETE ARRANGERDELETE SWAPTYPE UNDODELETE ARRANGERNOUNDO RECORDSOURCE SYNCSCALE)
+# Required: the two direct-drum-destroy legs. soundsLive=0 and no abort -- not clipsReferenced (they destroy a drum,
+# not a clip) and not CL-FREED (that stage only runs for the clip legs above).
+REQUIRED_SOUND_LEGS=(SAVEKIT WONTSOUND)
 
 # The leg after $1, or nothing after the last.
 next_leg() {
@@ -223,8 +234,24 @@ for leg in SESSIONDELETE ARRANGERNOUNDO; do
 		required_fail="$required_fail$leg(window) "
 	fi
 done
+# The two direct-drum-destroy sites: the drum must be handed to the render (soundsLive=0) rather than destroyed on the
+# spot, and the leg must not end the process.
+for leg in "${REQUIRED_SOUND_LEGS[@]}"; do
+	line="$(grep -E "^CL-$leg clipsReferenced=" "$OUT/all.txt" | tail -1)"
+	if [ -z "$line" ] || grep -q 'aborted=1' <<<"$line" || ! grep -qE '(^| )soundsLive=0( |$)' <<<"$line"; then
+		required_fail="$required_fail$leg "
+	fi
+done
 if [ -n "$required_fail" ]; then
-	echo "FAIL — required clip legs left a reference to a freed clip, aborted, or did not restore: $required_fail"
+	echo "FAIL — a required leg left a reference to a freed clip, a live-voiced Sound destroyed on the spot, aborted, or did not restore: $required_fail"
+	exit 1
+fi
+
+# The final CL-RECLAIM (after CL-WONTSOUND) must read pending=0: everything the render let go of, including the two
+# direct-drum-destroy legs' retired drums, must actually have been reclaimed by the end of the run.
+final_reclaim="$(grep -E '^CL-RECLAIM pending=[0-9]+$' "$OUT/all.txt" | tail -1)"
+if [ -z "$final_reclaim" ] || ! grep -qE ' pending=0$' <<<"$final_reclaim"; then
+	echo "FAIL — the final CL-RECLAIM did not read pending=0: ${final_reclaim:-missing}"
 	exit 1
 fi
 

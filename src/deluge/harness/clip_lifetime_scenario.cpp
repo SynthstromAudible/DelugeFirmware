@@ -103,8 +103,8 @@ constexpr int32_t kSwapBlocksPerStep = 8;
 constexpr int32_t kReclaimBlocks = 10;
 
 /// Each leg is one real deletion path, run on a playing clip or a sounding Sound. The clip legs' risky ones -- a
-/// dangling pointer the render reads on every tick -- run after the others; WONTSOUND, which is expected to end the
-/// process, runs last, after CL-RECLAIM.
+/// dangling pointer the render reads on every tick -- run after the others; WONTSOUND runs last, after the first
+/// CL-RECLAIM, and its own retired drum is drained by the second CL-RECLAIM printed once it is done.
 enum class Leg : uint8_t {
 	SessionDelete,
 	ArrangerDelete,
@@ -485,11 +485,11 @@ bool soundLeg() {
 	switch (g_leg) {
 	case Leg::SaveKit:
 		return soundDrum(g_drum, static_cast<InstrumentClip*>(g_victim), orphanParamManager());
-	case Leg::WontSound: {
-		auto* clip = static_cast<InstrumentClip*>(g_victim);
-		NoteRow* row = clip->getNoteRowForDrum(g_drum);
-		return soundDrum(g_drum, clip, (row != nullptr) ? &row->paramManager : nullptr);
-	}
+	case Leg::WontSound:
+		// Left silent (see deleteLeg()'s Leg::WontSound case for why): a real noteOn/off here would clear itself out
+		// of drumsWithRenderingActive at the very moment skippingRendering flips back true
+		// (SoundDrum::setSkippingRendering()), leaving nothing for the delete branch below to actually exercise.
+		return true;
 	default:
 		holdNote(static_cast<InstrumentClip*>(g_victim));
 		return true;
@@ -642,8 +642,17 @@ void deleteLeg() {
 		(void)openUI(&loadSongUI);
 		break;
 	case Leg::WontSound:
-		// What a load or clear started during playback runs first: Song::deleteSoundsWhichWontSound() over the playing
-		// song.
+		// The drum's note row has no notes, so it will not sound again -- but a real note would clear itself out of
+		// drumsWithRenderingActive at the same moment skippingRendering flips back true
+		// (SoundDrum::setSkippingRendering()), so a genuinely-played drum would already be out of the set by the time
+		// it gets here, leaving deleteSoundsWhichWontSound()'s delete branch nothing to actually exercise. Put the
+		// drum back in the set by hand instead, right before the call that reaches it and with no render block in
+		// between (Kit::renderGlobalEffectableForClip's E254 freezes a set member that already reads
+		// skippingRendering, which stays true here since the drum was never played) -- standing in for the kit's own
+		// per-block bookkeeping not yet having caught up with a voice that just ended. This is the stale reference
+		// the render can still reach that this leg exists to catch, matching CL-SAVEKIT's own voicesAtSave=0
+		// renderingActive=1 finding for a drum that has no note row at all.
+		g_kit->drumsWithRenderingActive.insert(g_drum);
 		g_step = "songSwapAboutToHappen";
 		AudioEngine::songSwapAboutToHappen();
 		break;
@@ -1004,6 +1013,17 @@ void runTick() {
 			printf("CL-%s clipsReferenced=%d songsReachable=%d soundsLive=%d\n", legName(g_leg), clips, songs, sounds);
 		}
 		fflush(stdout);
+		if (g_leg == Leg::WontSound) {
+			// The gate's last leg: render the retired drum's block-and-a-half wait out and reclaim, so this run's own
+			// CL-RECLAIM (the required one -- see scripts/clip_lifetime.sh) reflects what WONTSOUND itself retired,
+			// not just what the earlier clip legs left behind.
+			g_step = "reclaim2";
+			renderBlocks(kReclaimBlocks);
+			AudioEngine::reclaimRetired();
+			printf("CL-RECLAIM pending=%u\n", static_cast<unsigned>(AudioEngine::retiredPending()));
+			fflush(stdout);
+			g_step = "report";
+		}
 		g_step = "cleanUp";
 		cleanUpLeg();
 		restoreHandlers();

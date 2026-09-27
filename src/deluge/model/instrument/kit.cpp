@@ -214,14 +214,32 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 					*prevPointer = thisDrum->next;
 
 					if (thisDrum->type == DrumType::SOUND) {
-						song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
+						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+						song->deleteBackedUpParamManagersForModControllable(soundDrum);
+
+						// No NoteRow has this drum, so there is no note to stop. The render only ever reaches a drum
+						// in this kit's drumsWithRenderingActive: take it out before removing it, as
+						// InstrumentClipView::deleteDrum and LoadInstrumentPresetUI::swapKitRow do. Its voices are
+						// ended by the render when it lets go of the retired drum, below.
+						drumsWithRenderingActive.erase(soundDrum);
+						removeDrum(soundDrum);
+						// Out of the kit for good: the render's let-go of the drum must not write back into
+						// drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering
+						// skips a null kit). Erase again first: a sequencer note-on between the first erase and here
+						// re-inserts the drum, and after this nothing can name it.
+						drumsWithRenderingActive.erase(soundDrum);
+						soundDrum->kit = nullptr;
+						AudioEngine::retire(soundDrum);
 					}
+					else {
+						// MIDI and gate drums have no voices and are never in drumsWithRenderingActive: there is
+						// nothing for the render to let go of, so destroy them directly.
+						drumRemoved(thisDrum);
 
-					drumRemoved(thisDrum);
-
-					void* toDealloc = dynamic_cast<void*>(thisDrum);
-					thisDrum->~Drum();
-					delugeDealloc(toDealloc);
+						void* toDealloc = dynamic_cast<void*>(thisDrum);
+						thisDrum->~Drum();
+						delugeDealloc(toDealloc);
+					}
 
 					continue;
 				}
