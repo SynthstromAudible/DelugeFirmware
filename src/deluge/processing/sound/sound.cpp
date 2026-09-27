@@ -78,6 +78,19 @@ constexpr Patcher::Config kPatcherConfigForSound = {
     .globality = GLOBALITY_GLOBAL,
 };
 
+namespace {
+/// Sounds destroyed while they still had live voices. A plain always-on counter: evidence, not synchronisation.
+int32_t g_soundsDestroyedWithLiveVoices = 0;
+} // namespace
+
+void Sound::noteDestroyedWithLiveVoices() {
+	g_soundsDestroyedWithLiveVoices++;
+}
+
+int32_t Sound::soundsDestroyedWithLiveVoices() {
+	return g_soundsDestroyedWithLiveVoices;
+}
+
 Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalValues) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 

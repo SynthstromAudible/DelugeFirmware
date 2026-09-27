@@ -357,6 +357,18 @@ ci = "nightly"
 runtime = "~1m"
 
 [[harness]]
+name = "sound-lifetime"
+path = "."
+kind = "property"
+status = "gate"
+gates = "Every deletion path must end a Sound's voices before any part of it is destroyed: a voice the render culls mid-destruction calls back into the Sound's pure virtuals. The probe holds a note on a blank synth and on a kit's synth drum, lets the render run over it, then deletes it through each real path -- SL-SYNTH (a synth in the song, Song::deleteOutputThatIsInMainList), SL-UNEDITED (an un-edited synth in no list, Song::deleteOrAddToHibernationListOutput), SL-KIT (a kit in the song, deleteOutputThatIsInMainList) and SL-DRUMTAIL (Kit::removeDrum then the destroy-and-free tail the five drum-delete sites share) -- and reports Sound::soundsDestroyedWithLiveVoices() per path. Report only for now: the counts are printed, not asserted; the run fails only when a leg's fixture could not be built or never sounded, a line is missing, or a deletion terminates the process (a leg that does still prints its count first, with terminated=1)."
+build = []
+run = ["scripts/sound_lifetime.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~1m"
+
+[[harness]]
 name = "card-reinsert"
 path = "."
 kind = "property"

@@ -73,7 +73,17 @@ public:
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
 
 	Sound();
-	~Sound() override { AudioEngine::sounds.remove(this); }
+	~Sound() override {
+		if (!voices_.empty()) {
+			noteDestroyedWithLiveVoices();
+		}
+		AudioEngine::sounds.remove(this);
+	}
+
+	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
+	/// @note A destruction that finds live voices is one the render may still be reaching into: a voice culled
+	///       mid-destruction calls back into this Sound's pure virtuals. The count is the evidence for that.
+	static int32_t soundsDestroyedWithLiveVoices();
 
 	Patcher patcher;
 
@@ -328,6 +338,9 @@ public:
 	virtual const char* getName() { return nullptr; }
 
 private:
+	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
+	static void noteDestroyedWithLiveVoices();
+
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);

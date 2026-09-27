@@ -359,6 +359,11 @@ unsafe extern "C" {
     fn deluge_scenario_clear_song_undo_dispatch_step();
     fn deluge_scenario_clear_song_undo_step_done() -> bool;
     fn deluge_scenario_clear_song_undo_failures() -> i32;
+    fn deluge_scenario_sound_lifetime_begin();
+    fn deluge_scenario_sound_lifetime_complete() -> bool;
+    fn deluge_scenario_sound_lifetime_dispatch_step();
+    fn deluge_scenario_sound_lifetime_step_done() -> bool;
+    fn deluge_scenario_sound_lifetime_failures() -> i32;
     fn deluge_scenario_preset_load_begin();
     fn deluge_scenario_preset_load_complete() -> bool;
     fn deluge_scenario_preset_load_dispatch_step();
@@ -2060,6 +2065,63 @@ async fn run_clear_song_undo_scenario(done: &'static AtomicBool) {
     hard_exit(0);
 }
 
+/// The `GOLDEN_SCENARIO=sound_lifetime` scenario: delete a sounding synth and a sounding kit through each real
+/// deletion path, and report how many Sounds each path destroyed while they still had live voices.
+#[embassy_executor::task]
+async fn run_sound_lifetime_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_sound_lifetime_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_sound_lifetime_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_sound_lifetime_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the sound-lifetime run did not complete within 600s — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_sound_lifetime_dispatch_step() };
+        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
+        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        Timer::after_millis(1).await;
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_sound_lifetime_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    let failures = unsafe { deluge_scenario_sound_lifetime_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the sound-lifetime run FAILED ({failures} in-process failure(s))"
+        );
+        done.store(true, Ordering::Release);
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: the sound-lifetime run passed");
+    done.store(true, Ordering::Release);
+    hard_exit(0);
+}
+
 /// The `GOLDEN_SCENARIO=preset_load` scenario: load synth and kit presets through the real preset browser and report
 /// what each load bound.
 #[embassy_executor::task]
@@ -2621,6 +2683,7 @@ fn main() {
     let sample_claim_mode = scenario == "sample_claim";
     let preset_load_mode = scenario == "preset_load";
     let clear_song_undo_mode = scenario == "clear_song_undo";
+    let sound_lifetime_mode = scenario == "sound_lifetime";
 
     log::info!(
         "golden_vt_render: fixture={fixture} budget_ms={budget_ms} recorder_mode={recorder_mode} \
@@ -2660,6 +2723,8 @@ fn main() {
             pack_preset_load_image()
         } else if clear_song_undo_mode {
             pack_clear_song_undo_image()
+        } else if sound_lifetime_mode {
+            sd_image::format_empty_image()
         } else if song_load_channel_mode {
             pack_song_load_channel_image()
         } else {
@@ -2756,6 +2821,8 @@ fn main() {
         spawner.spawn(run_preset_load_scenario(&DONE).unwrap());
     } else if clear_song_undo_mode {
         spawner.spawn(run_clear_song_undo_scenario(&DONE).unwrap());
+    } else if sound_lifetime_mode {
+        spawner.spawn(run_sound_lifetime_scenario(&DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {

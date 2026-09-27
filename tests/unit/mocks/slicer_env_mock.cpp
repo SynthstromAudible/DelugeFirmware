@@ -320,6 +320,7 @@ DELUGE_STUB_FN(stub_songBackUpParamManager,
 DELUGE_STUB_FN(stub_soundInitParams, "_ZN5Sound10initParamsEP12ParamManager")
 DELUGE_STUB_FN(stub_soundSetupAsSample, "_ZN5Sound13setupAsSampleEP23ParamManagerForTimeline")
 DELUGE_STUB_FN(stub_soundCtor, "_ZN5SoundC2Ev")
+DELUGE_STUB_FN(stub_soundNoteDestroyedWithLiveVoices, "_ZN5Sound27noteDestroyedWithLiveVoicesEv")
 DELUGE_STUB_FN(
     stub_canvasDrawString,
     "_ZN6deluge3hid7display11oled_canvas6Canvas10drawStringESt17basic_string_viewIcSt11char_traitsIcEEiiiiiib")
