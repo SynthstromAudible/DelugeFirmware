@@ -792,16 +792,18 @@ void deleteOldSongBeforeLoadingNew() {
 
 	currentSong->stopAllAuditioning();
 
-	AudioEngine::killAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
-	                                  // Instruments detached and everything on delete
+	// Kept although the render's let-go of the song below ends its Sounds' voices: this also cuts the sound of the
+	// song's audio outputs (AudioOutput::cutAllSound()), which that let-go does not touch.
+	AudioEngine::killAllVoices(true);
 
 	view.activeModControllableModelStack.modControllable = nullptr;
 	view.activeModControllableModelStack.setTimelineCounter(nullptr);
 	view.activeModControllableModelStack.paramManager = nullptr;
 
+	// Hand the old song to the render, then wait -- bounded, on the render -- until it has been freed, so the new song
+	// is built in the memory it gave back. The wait runs no other interaction task, so none sees currentSong null.
 	Song* toDelete = currentSong;
 	currentSong = nullptr;
-	void* toDealloc = dynamic_cast<void*>(toDelete);
-	toDelete->~Song();
-	delugeDealloc(toDelete);
+	AudioEngine::retire(toDelete);
+	AudioEngine::awaitRetired();
 }

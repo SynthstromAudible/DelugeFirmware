@@ -26,10 +26,13 @@
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/file.hpp"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
 #include "libdeluge/app.h"
 #include "libdeluge/types.h"
 #include "memory/fast_allocator.h"
@@ -48,6 +51,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/engines/render_domain.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -62,6 +66,7 @@
 #include <initializer_list>
 #include <new>
 #include <unistd.h>
+#include <vector>
 
 // The firmware headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`. This
 // harness links the Rust BSP, which has no `putchar_` provider, and every line this file writes IS the gate's output.
@@ -101,11 +106,19 @@ constexpr int32_t kMaxAwaitSteps = 20000;
 constexpr int32_t kSwapBlocksPerStep = 8;
 /// Blocks rendered before CL-RECLAIM, one per step, so the render drains and the reclaim task runs between them.
 constexpr int32_t kReclaimBlocks = 10;
+/// BURSTSONG's song: this many synths, each with two session clips.
+constexpr int32_t kBurstOutputs = 20;
+constexpr int32_t kBurstClipsPerOutput = 2;
+/// The MIDI note the song legs inject once their clear or load has returned.
+constexpr uint8_t kMidiNote = 64;
+constexpr uint8_t kMidiVelocity = 100;
 
 /// Each leg is one real deletion path, run on a playing clip or a sounding Sound. The clip legs' risky ones -- a
 /// dangling pointer the render reads on every tick -- run after the others; WONTSOUND runs last, after the first
-/// CL-RECLAIM, and its own retired drum is drained by the second CL-RECLAIM printed once it is done.
+/// CL-RECLAIM, and its own retired drum is drained by the second CL-RECLAIM printed once it is done. EPOCH0 runs at
+/// boot, before the render has run (deluge_scenario_clip_lifetime_boot()), not from the step machine.
 enum class Leg : uint8_t {
+	Epoch0,
 	SessionDelete,
 	ArrangerDelete,
 	SwapType,
@@ -117,6 +130,7 @@ enum class Leg : uint8_t {
 	SongClear,
 	SongLoad,
 	SongSwap,
+	BurstSong,
 	WontSound,
 	Done
 };
@@ -154,6 +168,12 @@ int8_t g_fixtureSwing = 0;
 int32_t g_awaitSteps = 0;
 /// Whether CL-RECLAIM has been printed this run.
 bool g_reclaimDone = false;
+/// Song legs: AudioEngine::retiredPending() just after the clear or load returned or began, when the stopped-clock
+/// paths have already built the new song; Song::retiredPendingAtLastConstruction() once the leg's clear or load is
+/// over; and AudioEngine::retireViolations() at the start of the deletion.
+int32_t g_pendingAfterDelete = 0;
+int32_t g_pendingAtBuild = -1;
+std::size_t g_violationsBefore = 0;
 
 /// The counters at the start of the deletion.
 int32_t g_clipsBefore = 0;
@@ -171,6 +191,8 @@ volatile bool g_terminated = false;
 
 const char* legName(Leg leg) {
 	switch (leg) {
+	case Leg::Epoch0:
+		return "EPOCH0";
 	case Leg::SessionDelete:
 		return "SESSIONDELETE";
 	case Leg::ArrangerDelete:
@@ -193,6 +215,8 @@ const char* legName(Leg leg) {
 		return "SONGLOAD";
 	case Leg::SongSwap:
 		return "SONGSWAP";
+	case Leg::BurstSong:
+		return "BURSTSONG";
 	case Leg::WontSound:
 		return "WONTSOUND";
 	case Leg::Done:
@@ -203,12 +227,23 @@ const char* legName(Leg leg) {
 
 /// The legs that delete a clip, as Task 1's do: their probe and dangling lines are about references to that clip.
 bool isClipLeg(Leg leg) {
-	return static_cast<uint8_t>(leg) <= static_cast<uint8_t>(Leg::SyncScale);
+	return static_cast<uint8_t>(leg) >= static_cast<uint8_t>(Leg::SessionDelete)
+	       && static_cast<uint8_t>(leg) <= static_cast<uint8_t>(Leg::SyncScale);
 }
 
 /// The legs that replace the whole song.
 bool isSongLeg(Leg leg) {
-	return leg == Leg::SongClear || leg == Leg::SongLoad || leg == Leg::SongSwap;
+	return leg == Leg::SongClear || leg == Leg::SongLoad || leg == Leg::SongSwap || leg == Leg::BurstSong;
+}
+
+/// The legs that clear the song through the context menu's Create New Song, with the clock stopped.
+bool isClearLeg(Leg leg) {
+	return leg == Leg::SongClear || leg == Leg::BurstSong;
+}
+
+/// The stopped-clock song legs: the old song must be freed before the new one is built.
+bool isStoppedSongLeg(Leg leg) {
+	return leg == Leg::SongClear || leg == Leg::SongLoad || leg == Leg::BurstSong;
 }
 
 /// The legs that load the fixture song through the load browser.
@@ -219,7 +254,7 @@ bool isLoadLeg(Leg leg) {
 /// Whether the leg runs with the internal clock going. The stopped-clock song paths are the ones that destroy the old
 /// song before the new one is built.
 bool legPlays(Leg leg) {
-	return leg != Leg::SongClear && leg != Leg::SongLoad;
+	return !isStoppedSongLeg(leg);
 }
 
 bool fail(const char* what) {
@@ -373,6 +408,50 @@ int32_t serializeSong() {
 	return written;
 }
 
+/// A copy of @p source appended to the session, on the same output: the clip-copy gesture's clone
+/// (SessionView::gridCloneClip()), placed after every other session clip.
+Clip* cloneIntoSession(Clip* source) {
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* ms = setupModelStackWithSong(memory, currentSong)->addTimelineCounter(source);
+	if (source->clone(ms, false) != Error::NONE) {
+		fail("a clip could not be cloned");
+		return nullptr;
+	}
+	Clip* clone = static_cast<Clip*>(ms->getTimelineCounter());
+	if (!currentSong->sessionClips.insertClipAt(clone, static_cast<int32_t>(currentSong->sessionClips.size()))) {
+		fail("no room for a cloned clip");
+		return nullptr;
+	}
+	return clone;
+}
+
+/// BURSTSONG's song: @p first and kBurstOutputs - 1 more synth clips, each on a synth of its own, then a second clip
+/// on each of those synths.
+bool buildBurstSong(InstrumentClip* first) {
+	std::vector<Clip*> originals{first};
+	for (int32_t i = 1; i < kBurstOutputs; i++) {
+		InstrumentClip* clip = makeSynthClip();
+		if (clip == nullptr) {
+			return false;
+		}
+		originals.push_back(clip);
+	}
+	for (Clip* original : originals) {
+		for (int32_t copy = 1; copy < kBurstClipsPerOutput; copy++) {
+			if (cloneIntoSession(original) == nullptr) {
+				return false;
+			}
+		}
+	}
+	int32_t outputs = 0;
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+		outputs++;
+	}
+	printf("CL-BURST outputs=%d clips=%d\n", outputs, static_cast<int32_t>(currentSong->sessionClips.size()));
+	fflush(stdout);
+	return true;
+}
+
 /// Build the running leg's clips, with the clock stopped, and point the song's references at the victim.
 bool setupLeg() {
 	g_victim = nullptr;
@@ -472,6 +551,13 @@ bool setupLeg() {
 		// The synth the user is playing in the old song.
 		selectClip(clip);
 		break;
+	case Leg::BurstSong:
+		if (!buildBurstSong(clip)) {
+			return false;
+		}
+		selectClip(clip);
+		break;
+	case Leg::Epoch0:
 	case Leg::SaveKit:
 	case Leg::WontSound:
 	case Leg::Done:
@@ -628,6 +714,7 @@ void deleteLeg() {
 		break;
 	}
 	case Leg::SongClear:
+	case Leg::BurstSong:
 		// The context menu's accept: ClearSongContextMenu::runAccept(), which with the clock stopped goes through
 		// deleteOldSongBeforeLoadingNew() and then builds the new song.
 		g_step = "clearSong";
@@ -640,6 +727,8 @@ void deleteLeg() {
 		g_step = "openLoadSongUI";
 		currentSong->setSongFullPath(kSongPath);
 		(void)openUI(&loadSongUI);
+		break;
+	case Leg::Epoch0:
 		break;
 	case Leg::WontSound:
 		// The drum's note row has no notes, so it will not sound again -- but a real note would clear itself out of
@@ -810,12 +899,29 @@ void restoreHandlers() {
 /// Whether the running song leg's clear or load is over. A clear is over once its UI-mode gate is released and the new
 /// song's own preset request has landed; a load once LoadSongUI says its load has run to completion.
 bool songLegOver() {
-	if (g_leg == Leg::SongClear) {
+	if (isClearLeg(g_leg)) {
 		const bool pending = currentSong != nullptr && currentSong->blankPresetPending;
 		return currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES && !pending
 		       && !deluge::gui::instrumentLoad.inFlight();
 	}
 	return !loadSongUI.loadInFlight();
+}
+
+/// A stopped-clock song leg, once its clear or load has returned: what the rest of the interaction tier does next. A UI
+/// timer fires (the play-enable flash, which walks the current song's session clips -- the timer LoadSongUI unsets
+/// before it deletes the old song), then a MIDI note arrives on the DIN port and is let go of. Neither may see a song
+/// that is gone, or no song at all.
+void runInteractionAfterLoad() {
+	g_step = "uiTimer";
+	uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, 0);
+	renderBlocks(1); // the timer fires once the render's sample clock has passed its trigger time
+	uiTimerManager.routine();
+	g_step = "midiNoteIn";
+	midiEngine.midiMessageReceived(MIDIDeviceManager::dinMIDIPorts, 0x09, 0, kMidiNote, kMidiVelocity);
+	midiEngine.midiMessageReceived(MIDIDeviceManager::dinMIDIPorts, 0x08, 0, kMidiNote, kMidiVelocity);
+	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
+	printf("CL-AFTER leg=%s uiTimer=1 midiNoteIn=1 song=%d\n", legName(g_leg), currentSong != nullptr ? 1 : 0);
+	fflush(stdout);
 }
 
 /// CL-RECLAIM, before WONTSOUND (which may end the process): render some blocks, so the render lets go of everything
@@ -907,10 +1013,14 @@ void runTick() {
 		g_clipsBefore = Clip::clipsDestroyedWhileReferenced();
 		g_songsBefore = Song::songsDestroyedWhileReachable();
 		g_soundsBefore = Sound::soundsDestroyedWithLiveVoices();
+		g_violationsBefore = AudioEngine::retireViolations();
+		g_pendingAtBuild = -1;
 		g_step = nullptr;
 		// The handlers stay in until the report: what the deletion leaves dangling is read by the blocks after it.
 		installHandlers();
 		deleteLeg();
+		// A clear has built the new song by now; a load has only opened its browser.
+		g_pendingAfterDelete = static_cast<int32_t>(AudioEngine::retiredPending());
 		g_step = nullptr;
 		g_ticks = 0;
 		g_awaitSteps = 0;
@@ -927,7 +1037,7 @@ void runTick() {
 		else if (g_leg == Leg::SaveKit || g_leg == Leg::WontSound) {
 			printDrumDangling();
 		}
-		g_stage = isLoadLeg(g_leg) ? Stage::Listing : (g_leg == Leg::SongClear) ? Stage::Await : Stage::After;
+		g_stage = isLoadLeg(g_leg) ? Stage::Listing : isClearLeg(g_leg) ? Stage::Await : Stage::After;
 		break;
 	case Stage::Listing:
 		// The load browser's own listing lands first, as a LOAD press waits for it. Nothing else ticks a browser in
@@ -970,6 +1080,15 @@ void runTick() {
 			       currentSong != nullptr ? static_cast<int32_t>(currentSong->sessionClips.size()) : -1, g_awaitSteps);
 		}
 		fflush(stdout);
+		if (isStoppedSongLeg(g_leg)) {
+			// The clear or load built exactly one Song, after it let go of the old one. A load's retired objects are
+			// counted now that it is over; a clear's were counted when it returned.
+			g_pendingAtBuild = Song::retiredPendingAtLastConstruction();
+			if (isLoadLeg(g_leg)) {
+				g_pendingAfterDelete = static_cast<int32_t>(AudioEngine::retiredPending());
+			}
+			runInteractionAfterLoad();
+		}
 		g_ticks = 0;
 		g_stage = Stage::After;
 		break;
@@ -1010,6 +1129,16 @@ void runTick() {
 		if (g_leg == Leg::UndoDelete) {
 			printf("CL-%s restored=%d clipsReferenced=%d songsReachable=%d soundsLive=%d\n", legName(g_leg),
 			       g_restored ? 1 : 0, clips, songs, sounds);
+		}
+		else if (isStoppedSongLeg(g_leg)) {
+			printf(
+			    "CL-%s clipsReferenced=%d songsReachable=%d soundsLive=%d pendingAtBuild=%d pending=%d violations=%d\n",
+			    legName(g_leg), clips, songs, sounds, g_pendingAtBuild, g_pendingAfterDelete,
+			    static_cast<int32_t>(AudioEngine::retireViolations() - g_violationsBefore));
+		}
+		else if (g_leg == Leg::SongSwap) {
+			printf("CL-%s clipsReferenced=%d songsReachable=%d soundsLive=%d violations=%d\n", legName(g_leg), clips,
+			       songs, sounds, static_cast<int32_t>(AudioEngine::retireViolations() - g_violationsBefore));
 		}
 		else {
 			printf("CL-%s clipsReferenced=%d songsReachable=%d soundsLive=%d\n", legName(g_leg), clips, songs, sounds);
@@ -1053,9 +1182,9 @@ void runTick() {
 Leg firstLeg() {
 	const char* from = std::getenv("CLIP_LIFETIME_FROM");
 	if (from == nullptr || *from == '\0') {
-		return Leg::SessionDelete;
+		return Leg::Epoch0;
 	}
-	for (auto leg = static_cast<uint8_t>(Leg::SessionDelete); leg < static_cast<uint8_t>(Leg::Done); leg++) {
+	for (auto leg = static_cast<uint8_t>(Leg::Epoch0); leg < static_cast<uint8_t>(Leg::Done); leg++) {
 		if (std::strcmp(from, legName(static_cast<Leg>(leg))) == 0) {
 			return static_cast<Leg>(leg);
 		}
@@ -1063,14 +1192,51 @@ Leg firstLeg() {
 	return Leg::Done;
 }
 
+/// EPOCH0: Create New Song at boot, before the scheduler has run the render task once. epoch= is how many blocks the
+/// render has begun: 1, the block boot itself renders inline from setupBlankSong() (setUIForLoadedSong() -> the
+/// audio routine, before the render task exists), which is also where the first Song appears -- so epoch 0 with a song
+/// to clear is never reachable. With nothing scheduling the render, the clear's bounded wait for the old song to be
+/// freed must drive the render itself and return, with nothing left waiting, rather than hang.
+void runEpoch0() {
+	g_leg = Leg::Epoch0;
+	const auto epoch = static_cast<unsigned long long>(AudioEngine::renderDomain().audio_epoch());
+	g_clipsBefore = Clip::clipsDestroyedWhileReferenced();
+	g_songsBefore = Song::songsDestroyedWhileReachable();
+	g_soundsBefore = Sound::soundsDestroyedWithLiveVoices();
+	g_violationsBefore = AudioEngine::retireViolations();
+	installHandlers();
+	g_step = "clearSong";
+	(void)deluge::gui::context_menu::clearSong.acceptCurrentOption();
+	g_step = nullptr;
+	printf("CL-EPOCH0 clipsReferenced=%d songsReachable=%d soundsLive=%d epoch=%llu returned=1 pendingAtBuild=%d "
+	       "pending=%u violations=%d\n",
+	       Clip::clipsDestroyedWhileReferenced() - g_clipsBefore, Song::songsDestroyedWhileReachable() - g_songsBefore,
+	       Sound::soundsDestroyedWithLiveVoices() - g_soundsBefore, epoch, Song::retiredPendingAtLastConstruction(),
+	       static_cast<unsigned>(AudioEngine::retiredPending()),
+	       static_cast<int32_t>(AudioEngine::retireViolations() - g_violationsBefore));
+	fflush(stdout);
+	restoreHandlers();
+}
+
 } // namespace
 
 extern "C" {
+
+void deluge_scenario_clip_lifetime_boot(void) {
+	setvbuf(stdout, nullptr, _IOLBF, 0);
+	if (firstLeg() == Leg::Epoch0) {
+		runEpoch0();
+	}
+}
 
 void deluge_scenario_clip_lifetime_begin(void) {
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	g_stage = Stage::Setup;
 	g_leg = firstLeg();
+	if (g_leg == Leg::Epoch0) {
+		// Ran at boot (deluge_scenario_clip_lifetime_boot()).
+		g_leg = Leg::SessionDelete;
+	}
 	g_stepDone = false;
 	g_summaryPrinted = false;
 	g_failures = 0;

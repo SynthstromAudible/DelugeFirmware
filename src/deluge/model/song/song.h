@@ -109,6 +109,10 @@ public:
 	///        still currentSong, or a Sound of one of its outputs (a synth, or a kit's sound drum) was still in the
 	///        Sound registry. Checked at the top of ~Song's body, before anything is torn down.
 	static int32_t songsDestroyedWhileReachable();
+	/// @brief How many retired objects (AudioEngine::retiredPending()) were still waiting to be freed when the most
+	///        recent Song was constructed: a stopped-clock load or clear must have freed the old song before it builds
+	///        the new one, so this reads 0 right after one. Evidence, not state; -1 before any Song is built.
+	static int32_t retiredPendingAtLastConstruction();
 	bool mayDoubleTempo();
 	/// @brief Build the first session Clip if the song has none, on the built-in default synth.
 	///

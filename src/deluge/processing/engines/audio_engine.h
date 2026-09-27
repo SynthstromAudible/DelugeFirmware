@@ -282,6 +282,17 @@ void retire(Output* output);
 ///        ModControllable timeline counter -- and it is then destroyed as above. An AudioClip must no longer be
 ///        recording (i001 on alpha/beta builds).
 void retire(Clip* clip);
+/// @brief [interaction] As above, for a whole song the caller has already replaced as currentSong (E458 if it is still
+///        current). The view's active model stack is dropped at once if it names the song or anything it owns. At the
+///        top of a following block the render lets go of every Sound of every output the song owns (voices ended,
+///        Sounds deregistered), and the song is then destroyed as above: ~Song() destroys its clips and outputs
+///        directly, since nothing can reach them any more.
+void retire(Song* song);
+/// @brief [interaction] Block until every retired object has been destroyed (retiredPending() == 0), waiting on the
+///        render with deluge_audio_await_block() between reclaims. Bounded: freezes with E459 after 250 ms. For a
+///        stopped-clock song load or clear, which must free the old song before it builds the new one, and for a
+///        swap's finish, whose sample-load retry needs the old song's memory back.
+void awaitRetired();
 /// @brief [interaction] Destroy every retired object the render has let go of, once two blocks have begun since it
 ///        was handed over. Called by a repeating scheduler task and, before each handover, by retire().
 void reclaimRetired();

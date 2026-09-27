@@ -364,6 +364,7 @@ unsafe extern "C" {
     fn deluge_scenario_sound_lifetime_dispatch_step();
     fn deluge_scenario_sound_lifetime_step_done() -> bool;
     fn deluge_scenario_sound_lifetime_failures() -> i32;
+    fn deluge_scenario_clip_lifetime_boot();
     fn deluge_scenario_clip_lifetime_begin();
     fn deluge_scenario_clip_lifetime_complete() -> bool;
     fn deluge_scenario_clip_lifetime_dispatch_step();
@@ -427,6 +428,12 @@ async fn boot_task() {
     // SAFETY: called once, after `scheduler::set_spawner` (main, below) and
     // before anything else touches `currentSong`/scheduler state.
     unsafe { deluge_app_init(board::deluge_board()) };
+    if std::env::var("GOLDEN_SCENARIO").unwrap_or_default() == "clip_lifetime" {
+        // CL-EPOCH0: clear the song before the render has run a block. Nothing has been polled since
+        // deluge_app_init spawned the task runners, so the render has not run yet.
+        // SAFETY: DELUGE_HOST harness C-ABI; deluge_app_init has run.
+        unsafe { deluge_scenario_clip_lifetime_boot() };
+    }
     boot::mark_finished();
     BOOT_MOUNTED.store(true, Ordering::Release);
     log::info!("golden_vt_render: boot+mount complete; scheduler running");

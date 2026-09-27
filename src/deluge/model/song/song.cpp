@@ -143,7 +143,15 @@ OutputType getCurrentOutputType() {
 
 using namespace deluge;
 
+namespace {
+/// AudioEngine::retiredPending() when the last Song was constructed. Relaxed, because it is evidence, not
+/// synchronisation (see Song::retiredPendingAtLastConstruction()).
+std::atomic<int32_t> g_retiredPendingAtLastConstruction{-1};
+} // namespace
+
 Song::Song() {
+	g_retiredPendingAtLastConstruction.store(static_cast<int32_t>(AudioEngine::retiredPending()),
+	                                         std::memory_order_relaxed);
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	insideWorldTickMagnitude = FlashStorage::defaultMagnitude;
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
@@ -247,6 +255,10 @@ bool anySoundRegistered(Output const* first) {
 
 int32_t Song::songsDestroyedWhileReachable() {
 	return g_songsDestroyedWhileReachable.load(std::memory_order_relaxed);
+}
+
+int32_t Song::retiredPendingAtLastConstruction() {
+	return g_retiredPendingAtLastConstruction.load(std::memory_order_relaxed);
 }
 
 Song::~Song() {

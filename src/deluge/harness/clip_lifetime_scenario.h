@@ -24,9 +24,9 @@
 ///        (Clip::clipsDestroyedWhileReferenced(), Song::songsDestroyedWhileReachable(),
 ///        Sound::soundsDestroyedWithLiveVoices()), and the run what is still retired and waiting (CL-RECLAIM).
 ///
-/// @note The scenario itself fails nothing on a count: scripts/clip_lifetime.sh requires the clip legs clean (their
+/// @note The scenario itself fails nothing on a count: scripts/clip_lifetime.sh requires every leg clean (a clip leg's
 ///       clip is retired, so each clip leg renders and reclaims before its line -- CL-FREED -- to destroy the clip
-///       inside the leg), and keeps the song and drum legs report-only.
+///       inside the leg; a stopped-clock song leg must have freed the old song before it built the new one).
 ///
 /// @note Runs as a step machine: each `dispatch_step()` does one stage, and the platform driver lets virtual time
 ///       advance between steps. The scenario drives the render itself.
@@ -41,6 +41,10 @@
 
 extern "C" {
 
+/// @brief EPOCH0: clear the song at boot, before the render has run a block. Call once, right after
+///        `deluge_app_init()` returns and before anything else runs; it does nothing when `CLIP_LIFETIME_FROM` names a
+///        later leg.
+void deluge_scenario_clip_lifetime_boot(void);
 /// @brief Reset the scenario to its first stage (or the leg `CLIP_LIFETIME_FROM` names).
 void deluge_scenario_clip_lifetime_begin(void);
 /// @brief Whether the summary line has been printed: the run is over.

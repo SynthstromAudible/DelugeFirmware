@@ -785,9 +785,10 @@ void LoadSongUI::runFinishSegment() {
 	// Delete the old song
 	AudioEngine::logAction("deleting old song");
 	if (loadToDelete_ != nullptr) {
-		void* toDealloc = dynamic_cast<void*>(loadToDelete_);
-		loadToDelete_->~Song();
-		delugeDealloc(toDealloc);
+		// Handed to the render, which lets go of it before it is freed.
+		AudioEngine::retire(loadToDelete_);
+		// Wait until it is freed: the retry below loads samples into the RAM the old song gives back.
+		AudioEngine::awaitRetired();
 		loadToDelete_ = nullptr;
 	}
 

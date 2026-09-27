@@ -113,8 +113,8 @@ extern "C" uint32_t getAudioSampleTimerMS() {
 // Pitch, Y, Pressure
 int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
 
-// Retirement: how the interaction tier hands the render an object it has stopped using (a deleted output or drum), so
-// that the render lets go of it before its memory is freed. See AudioEngine::retire().
+// Retirement: how the interaction tier hands the render an object it has stopped using (a deleted output, drum, clip or
+// whole song), so that the render lets go of it before its memory is freed. See AudioEngine::retire().
 namespace {
 deluge::util::SnapshotDomain renderDomain_;
 deluge::RetireList retireList{renderDomain_};
@@ -124,6 +124,7 @@ struct RetireRequest {
 	Output* output = nullptr;  ///< a retired output (a SoundInstrument is a Sound; a Kit owns SoundDrums)
 	SoundDrum* drum = nullptr; ///< a retired drum
 	Clip* clip = nullptr;      ///< a retired clip
+	Song* song = nullptr;      ///< a retired song, no longer currentSong
 	uint64_t sequence = 0;     ///< its place in the order requests reach the render (see retireSequenceLetGo)
 };
 deluge::util::SpscRing<RetireRequest, 64> retireRing;
@@ -136,6 +137,9 @@ uint64_t retireSequencePushed = 0;
 /// drain, acquire-loaded by reclaim: an entry whose sequence is at or below it has been let go of, and every effect of
 /// that let-go is visible. An entry is freed once this covers it AND two blocks have begun since its stamp.
 std::atomic<uint64_t> retireSequenceLetGo{0};
+/// How long AudioEngine::awaitRetired() waits, in getSystemTime() seconds, before it freezes (E459). A song of many
+/// outputs is let go of in one block and freed two blocks later -- a few milliseconds; this is far past that.
+constexpr double kAwaitRetiredTimeoutSeconds = 0.25;
 
 /// [render] End a Sound's voices and take it out of the registry: after this no walk can reach it.
 void letGoOfSound(Sound& sound) {
@@ -150,6 +154,49 @@ void letGoOfSound(Sound& sound) {
 /// beingRecordedFromClip and syncScalingClip (the recording ticks), and currentClip (session.cpp's new-recording
 /// hand-over). Only the current song is looked at: the render reaches clips through currentSong alone, and a song that
 /// is no longer current takes its references with it.
+/// Point the view's active ModControllable model stack at nothing.
+void clearViewModelStack() {
+	view.activeModControllableModelStack.modControllable = nullptr;
+	view.activeModControllableModelStack.setTimelineCounter(nullptr);
+	view.activeModControllableModelStack.paramManager = nullptr;
+}
+
+/// [interaction] or [render] Stop the view's active ModControllable model stack naming @p clip. Compares only.
+void clearViewIfClip(Clip const* clip) {
+	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
+		clearViewModelStack();
+	}
+}
+
+/// Whether the view's active ModControllable model stack names anything @p song owns: the song itself, one of its
+/// clips, or one of its outputs as the ModControllable. Walks only what the song owns -- its clip arrays and output
+/// lists -- and compares; it follows none of the song's per-clip reference fields (currentClip, syncScalingClip,
+/// beingRecordedFromClip), which may name clips already freed.
+bool viewNamesSong(Song* song) {
+	ModelStackWithThreeMainThings& stack = view.activeModControllableModelStack;
+	TimelineCounter const* counter = stack.getTimelineCounterAllowNull();
+	if (counter == song || stack.modControllable == &song->globalEffectable) {
+		return true;
+	}
+	for (ClipArray const* array : {&song->sessionClips, &song->arrangementOnlyClips}) {
+		for (Clip const* clip : *array) {
+			if (counter == clip) {
+				return true;
+			}
+		}
+	}
+	if (stack.modControllable != nullptr) {
+		for (Output* first : {song->firstOutput, static_cast<Output*>(song->firstHibernatingInstrument)}) {
+			for (Output* output = first; output != nullptr; output = output->next) {
+				if (stack.modControllable == output->toModControllable()) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 void letGoOfClip(Clip* clip) {
 	if (currentSong != nullptr) {
 		if (currentSong->getCurrentClip() == clip) {
@@ -166,15 +213,32 @@ void letGoOfClip(Clip* clip) {
 			}
 		}
 	}
-	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-		view.activeModControllableModelStack.modControllable = nullptr;
-		view.activeModControllableModelStack.setTimelineCounter(nullptr);
-		view.activeModControllableModelStack.paramManager = nullptr;
+	clearViewIfClip(clip);
+}
+
+void letGo(const RetireRequest& r);
+
+/// [render] Let go of a retired song: end the voices of, and deregister, every Sound of every output it owns (its
+/// main and hibernating lists, as Song::deleteAllOutputs() walks them), then drop the view's reference to it or to
+/// anything it owns. AudioEngine::retire(Song*) already dropped that reference on the interaction tier; this is the
+/// catch. The song is no longer current, so the render reaches none of its clips through currentSong; its own
+/// currentClip, syncScalingClip and beingRecordedFromClip fields are left alone -- they may name clips already freed.
+void letGoOfSong(Song* song) {
+	for (Output* first : {song->firstOutput, static_cast<Output*>(song->firstHibernatingInstrument)}) {
+		for (Output* output = first; output != nullptr; output = output->next) {
+			letGo(RetireRequest{.output = output});
+		}
+	}
+	if (viewNamesSong(song)) {
+		clearViewModelStack();
 	}
 }
 
 /// [render] Let go of everything a retired object owns that the render can reach.
 void letGo(const RetireRequest& r) {
+	if (r.song != nullptr) {
+		letGoOfSong(r.song);
+	}
 	if (r.clip != nullptr) {
 		letGoOfClip(r.clip);
 	}
@@ -2065,17 +2129,53 @@ void retire(Clip* clip) {
 			currentSong->syncScalingClip = nullptr;
 		}
 	}
-	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-		view.activeModControllableModelStack.modControllable = nullptr;
-		view.activeModControllableModelStack.setTimelineCounter(nullptr);
-		view.activeModControllableModelStack.paramManager = nullptr;
-	}
+	clearViewIfClip(clip);
 	handOver(RetireRequest{.clip = clip}, clip, [](void* p) {
 		auto* c = static_cast<Clip*>(p);
 		void* memory = dynamic_cast<void*>(c);
 		c->~Clip();
 		delugeDealloc(memory);
 	});
+}
+
+void retire(Song* song) {
+	if (song == currentSong) {
+		FREEZE_WITH_ERROR("E458");
+	}
+	// First, so a stream of retires frees what earlier ones handed over.
+	reclaimRetired();
+	// As retire(Clip*): the view's active model stack is the one reference the interaction tier's own handlers read
+	// that may still name the old song or something it owns (an armed swap leaves it on the old song's clip). Drop it
+	// now, so no handler running before the render's next block reaches the old song through it. letGoOfSong() is the
+	// catch.
+	if (viewNamesSong(song)) {
+		clearViewModelStack();
+	}
+	handOver(RetireRequest{.song = song}, song, [](void* p) {
+		auto* s = static_cast<Song*>(p);
+		for (Output* first : {s->firstOutput, static_cast<Output*>(s->firstHibernatingInstrument)}) {
+			for (Output* output = first; output != nullptr; output = output->next) {
+				checkLetGoBeforeDestroy(output, nullptr);
+			}
+		}
+		void* memory = dynamic_cast<void*>(s);
+		s->~Song();
+		delugeDealloc(memory);
+	});
+}
+
+void awaitRetired() {
+	// The render is the higher tier: waiting on it here is allowed, and runs no other interaction task, so whatever
+	// the caller left in between (currentSong null during a stopped-clock load) is never seen by one.
+	const double start = getSystemTime();
+	reclaimRetired();
+	while (retiredPending() != 0) {
+		if (getSystemTime() - start > kAwaitRetiredTimeoutSeconds) {
+			FREEZE_WITH_ERROR("E459");
+		}
+		deluge_audio_await_block();
+		reclaimRetired();
+	}
 }
 
 void reclaimRetired() {

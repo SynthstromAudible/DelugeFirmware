@@ -78,10 +78,11 @@ void runAccept() {
 	preLoadedSong->ensureAtLeastOneSessionClip(); // Will load a synth preset from SD card
 
 	playbackHandler.doSongSwap(playbackHandler.isEitherClockActive());
+	// Only with the clock running: stopped, deleteOldSongBeforeLoadingNew() above already retired the old song and
+	// waited for it to be freed, and left currentSong null. Handed to the render, which lets go of it before it is
+	// freed; no wait, since the swap already held both songs.
 	if (toDelete) {
-		void* toDealloc = dynamic_cast<void*>(toDelete);
-		toDelete->~Song();
-		delugeDealloc(toDealloc);
+		AudioEngine::retire(toDelete);
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
