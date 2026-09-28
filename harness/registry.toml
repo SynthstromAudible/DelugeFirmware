@@ -502,6 +502,18 @@ ci = "nightly"
 runtime = "~1m"
 
 [[harness]]
+name = "staging-release"
+path = "."
+kind = "property"
+status = "gate"
+gates = "a staged document read that its consumer abandons while the write channel holds its buffer must not write into that memory once it has been freed and handed out again: the scenario releases the staging mid-read, reallocates the same size filled with a sentinel, lets the read finish, and requires the sentinel intact (SR-INTACT). SR-ISSUED requires the read to have been held when the staging was released."
+build = []
+run = ["scripts/staging_release.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~1m"
+
+[[harness]]
 name = "recorder-write"
 path = "."
 kind = "property"
