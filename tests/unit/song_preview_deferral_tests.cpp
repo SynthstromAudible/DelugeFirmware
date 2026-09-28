@@ -102,7 +102,7 @@ TEST(SongPreviewDeferral, aNewerTargetSupersedesADeferredOne) {
 namespace {
 
 /// Read a repository source file. ctest runs from the repo root (`song_preview_decode_tests.cpp`
-/// reads `tests/data/...` the same way), so relative paths resolve.
+/// reads `tests/support/data/...` the same way), so relative paths resolve.
 std::string readSource(const char* path) {
 	std::FILE* f = std::fopen(path, "rb");
 	CHECK_TEXT(f != nullptr, path);

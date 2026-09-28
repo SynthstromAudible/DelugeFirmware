@@ -1,7 +1,7 @@
 // In-memory fake backing include/libdeluge/file_io.h's deluge_efatfs_* C-ABI,
 // for host-only deluge::io tests. Not a real filesystem -- no FatFS, no disk
 // I/O, no real handle-table locking. Mirrors the mock_diskio.cpp/mock_display.cpp
-// pattern already used in tests/32bit_unit_tests/mocks/, one layer higher
+// pattern already used in tests/support/mocks/, one layer higher
 // (file_io.h instead of diskio.h).
 #include "mock_file_io.h"
 

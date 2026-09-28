@@ -107,13 +107,13 @@ TEST(SongPreviewDecode, theBufferWalkMatchesTheFileWalkOnTheJsonFixture) {
 	std::array<Row, kDisplayHeight> fromBuffer{};
 	std::array<Row, kDisplayHeight> fromFile{};
 
-	auto buf = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
+	auto buf = prefixOf("tests/support/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
 	const auto outcome = deluge::storage::decodeSongPreview(buf, true, fromBuffer.data());
 
 	mock_file_io_reset();
-	stageOnCard("tests/data/songs/JsonPreview.Json");
+	stageOnCard("tests/support/data/songs/JsonPreview.Json");
 	const auto reference =
-	    deluge::storage::decodeSongPreviewFromFile("tests/data/songs/JsonPreview.Json", fromFile.data());
+	    deluge::storage::decodeSongPreviewFromFile("tests/support/data/songs/JsonPreview.Json", fromFile.data());
 
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Rendered), static_cast<int>(reference));
 	CHECK_EQUAL(static_cast<int>(reference), static_cast<int>(outcome));
@@ -124,7 +124,7 @@ TEST(SongPreviewDecode, theBufferWalkMatchesTheFileWalkOnTheJsonFixture) {
 /// artwork disappears silently.
 TEST(SongPreviewDecode, aShortPrefixReportsTruncatedRatherThanNoPreview) {
 	std::array<Row, kDisplayHeight> image{};
-	auto buf = prefixOf("tests/data/songs/JsonPreview.Json", 64);
+	auto buf = prefixOf("tests/support/data/songs/JsonPreview.Json", 64);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Truncated),
 	            static_cast<int>(deluge::storage::decodeSongPreview(buf, true, image.data())));
 }
@@ -138,13 +138,13 @@ TEST(SongPreviewDecode, decodeSongPreviewLeavesTheGlobalDeserializerWhereItFound
 	FileDeserializer* const before = activeDeserializer;
 
 	// Success path.
-	auto whole = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
+	auto whole = prefixOf("tests/support/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Rendered),
 	            static_cast<int>(deluge::storage::decodeSongPreview(whole, true, image.data())));
 	POINTERS_EQUAL(before, activeDeserializer);
 
 	// Truncated path.
-	auto shortPrefix = prefixOf("tests/data/songs/JsonPreview.Json", 64);
+	auto shortPrefix = prefixOf("tests/support/data/songs/JsonPreview.Json", 64);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Truncated),
 	            static_cast<int>(deluge::storage::decodeSongPreview(shortPrefix, true, image.data())));
 	POINTERS_EQUAL(before, activeDeserializer);
@@ -178,12 +178,12 @@ TEST(SongPreviewDecode, anEmptyBufferIsAnErrorWithAnErrorCode) {
 TEST(SongPreviewDecode, theOpenErrorOutParamIsWrittenOnlyOnError) {
 	std::array<Row, kDisplayHeight> image{};
 	Error error = Error::NO_FURTHER_FILES_THIS_DIRECTION; // a sentinel no open ever produces
-	auto whole = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
+	auto whole = prefixOf("tests/support/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Rendered),
 	            static_cast<int>(deluge::storage::decodeSongPreview(whole, true, image.data(), &error)));
 	CHECK_EQUAL(static_cast<int>(Error::NO_FURTHER_FILES_THIS_DIRECTION), static_cast<int>(error));
 
-	auto shortPrefix = prefixOf("tests/data/songs/JsonPreview.Json", 64);
+	auto shortPrefix = prefixOf("tests/support/data/songs/JsonPreview.Json", 64);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Truncated),
 	            static_cast<int>(deluge::storage::decodeSongPreview(shortPrefix, true, image.data(), &error)));
 	CHECK_EQUAL(static_cast<int>(Error::NO_FURTHER_FILES_THIS_DIRECTION), static_cast<int>(error));

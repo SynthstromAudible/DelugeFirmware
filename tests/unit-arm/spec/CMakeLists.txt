@@ -18,7 +18,6 @@ add_library(deluge_spec INTERFACE)
 target_include_directories(deluge_spec INTERFACE
   ../../../src/deluge
   ../../../src
-  ../../32bit_unit_test/mocks/
 )
 target_link_libraries(deluge_spec INTERFACE argon)
 

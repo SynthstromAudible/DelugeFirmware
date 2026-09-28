@@ -173,7 +173,7 @@ add_executable(UnitTests
         dx_cartridge_window_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
-# the repo root (tests/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so
+# the repo root (tests/support/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so
 # the binary needs to run from the same place a developer invoking it by hand would, not ctest's
 # default (the build tree).
 add_test(NAME UnitTests

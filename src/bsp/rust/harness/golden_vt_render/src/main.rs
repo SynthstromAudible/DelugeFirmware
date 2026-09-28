@@ -1126,7 +1126,7 @@ fn uniform_preview_song(value: u8) -> String {
 ///
 /// - `SONGS/RENDER.XML` and `SONGS/JSONP.Json` are ordinary songs with artwork inside the read
 ///   window, one through each deserializer. The JSON one is the checked-in
-///   `tests/data/songs/JsonPreview.Json` with its payload rewritten to a uniform colour, rather than
+///   `tests/support/data/songs/JsonPreview.Json` with its payload rewritten to a uniform colour, rather than
 ///   hand-written here: that file is the only JSON song this project has, and reproducing its exact
 ///   structure by hand is how a fixture ends up testing the fixture.
 /// - `SONGS/NOPREV.XML` has no `preview` attribute and is SHORTER than the read window. The
@@ -1199,7 +1199,7 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
 
     // The JSON song, taken from the checked-in fixture with its payload rewritten. Its 864-character
     // preview is a run of hex, so the substitution is a straight slice replacement.
-    let json_source = repo_root.join("tests/data/songs/JsonPreview.Json");
+    let json_source = repo_root.join("tests/support/data/songs/JsonPreview.Json");
     let json = std::fs::read_to_string(&json_source).unwrap_or_else(|e| {
         panic!(
             "reading the checked-in JSON song fixture {}: {e}",

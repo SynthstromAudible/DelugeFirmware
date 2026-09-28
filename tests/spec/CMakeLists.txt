@@ -20,11 +20,11 @@ add_library(deluge_spec STATIC
 ../../src/deluge/util/lookuptables/lookuptables.cpp
 ../../src/deluge/hid/display/starfield.cpp
 ../../src/deluge/hid/display/rainfall.cpp
-../32bit_unit_tests/mocks/mock_display.cpp
-../32bit_unit_tests/mocks/mock_print.cpp
+../support/mocks/mock_display.cpp
+../support/mocks/mock_print.cpp
 # ObjectPool guards its free list with CriticalSectionGuard, whose C ABI the BSP owns; the
 # specs have no BSP, and single-threaded drivers have nothing to mask.
-../32bit_unit_tests/mocks/mock_critical_section.cpp
+../support/mocks/mock_critical_section.cpp
 )
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi)
 
@@ -39,7 +39,7 @@ if(NOT TARGET deluge_rust_rs)
 endif()
 target_link_libraries(deluge_spec PUBLIC deluge_rust_rs)
 
-target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_tests/mocks/ ../../include)
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../support/mocks/ ../../include)
 
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 26

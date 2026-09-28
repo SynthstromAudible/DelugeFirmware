@@ -35,7 +35,7 @@ endfunction()
 enable_testing()
 
 # ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
-# so make it available to every test target (32bit_unit_tests, spec, unit).
+# so make it available to every test target (spec, unit).
 include(FetchContent)
 FetchContent_Declare(
         etl
@@ -84,7 +84,7 @@ if (UNIX AND NOT APPLE)
     # Rust core conformance: the umbrella staticlib linked into -m32 CppSpec drivers.
     # (The legacy C++ MemoryRegion + its MemoryManagerTests / memory_specs targets were
     # retired with the allocator; the shared conformance headers live in spec_memory/,
-    # and the reusable mocks in 32bit_unit_tests/mocks/ are pulled in directly by spec/.)
+    # and the reusable mocks in support/mocks/ are pulled in directly by spec/.)
     add_subdirectory(spec_alloc)
     add_subdirectory(spec_resource)
 

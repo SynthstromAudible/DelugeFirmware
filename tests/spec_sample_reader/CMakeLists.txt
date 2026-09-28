@@ -50,7 +50,7 @@ function(create_specs_driver driver_name spec_dir)
   add_executable(${driver_name}
     ${specs}
     mock_streaming_fill.cpp
-    ../32bit_unit_tests/mocks/mock_critical_section.cpp
+    ../support/mocks/mock_critical_section.cpp
     ../../src/deluge/model/sample/sample_reader_bridge.cpp
     ../../src/deluge/storage/audio/stream/convert.cpp
     ../../src/deluge/storage/audio/stream/stitch.cpp

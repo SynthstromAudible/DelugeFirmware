@@ -102,7 +102,7 @@ TEST(SongPreviewWindow, everyCorpusSongCarriesItsPreviewInsideTheWindow) {
 
 /// The committed JSON fixture pins the format the corpus cannot: the corpus is entirely XML.
 TEST(SongPreviewWindow, theJsonFixtureCarriesItsPreviewInsideTheWindow) {
-	const long end = previewPayloadEnd("tests/data/songs/JsonPreview.Json");
+	const long end = previewPayloadEnd("tests/support/data/songs/JsonPreview.Json");
 	CHECK_TEXT(end >= 0, "fixture must contain a preview");
 	CHECK(static_cast<uint32_t>(end) <= deluge::storage::kSongPreviewWindow);
 }

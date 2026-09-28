@@ -42,7 +42,7 @@ namespace deluge::storage {
 /// window, with room for a firmwareVersion string several times longer than any shipped.
 ///
 /// The JSON arm is NOT measured the same way -- the corpus contains zero real JSON songs, so there is
-/// nothing to measure. `tests/data/songs/JsonPreview.Json` is a hand-traced fixture, built by walking
+/// nothing to measure. `tests/support/data/songs/JsonPreview.Json` is a hand-traced fixture, built by walking
 /// `JsonSerializer`'s actual write calls in `Song::writeToFile()` byte-for-byte rather than by
 /// capturing real writer output. It is the ONLY thing pinning the JSON arm of this constant: it can
 /// catch a future change to that call sequence, but it cannot catch a divergence between this trace

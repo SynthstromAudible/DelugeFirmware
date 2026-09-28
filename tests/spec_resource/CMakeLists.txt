@@ -17,7 +17,7 @@ FetchContent_MakeAvailable(CppSpec)
 function(create_specs_driver driver_name spec_dir)
   file(GLOB_RECURSE spec_sources RELATIVE ${spec_dir} ${spec_dir}/*_spec.cpp)
   create_test_sourcelist(specs ${driver_name}.cpp ${spec_sources})
-  add_executable(${driver_name} ${specs} ../32bit_unit_tests/mocks/mock_critical_section.cpp)
+  add_executable(${driver_name} ${specs} ../support/mocks/mock_critical_section.cpp)
   target_link_libraries(${driver_name} PRIVATE c++spec deluge_rust_rs
     # System libs the Rust std staticlib references.
     pthread dl m)
