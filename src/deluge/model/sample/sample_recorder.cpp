@@ -803,6 +803,21 @@ bool SampleRecorder::advanceAbort() {
 	}
 
 	case AbortPhase::CloseStream: {
+		// An open the channel is still running -- the create's, or finalize's reopen to alter the file -- cannot be
+		// cancelled. Wait for its answer and adopt the handle it returns, so the close below closes it: unlinking
+		// first would leave that handle open for good, and a create landing after the unlink would put the file back.
+		if (openInFlight()) {
+			std::optional<deluge::io::Stream> opened;
+			const uint8_t collected = deluge::io::Stream::collect_open(&opened);
+			if (collected == DELUGE_FILE_WRITE_PENDING) {
+				return true;
+			}
+			if (collected == DELUGE_FILE_WRITE_READY && opened.has_value()) {
+				file = std::move(opened);
+			}
+			createIssued_ = false;
+			finalizeIssued_ = false;
+		}
 		// The unlink follows the close, unless no file was ever created.
 		const AbortPhase afterClose = filePathCreated.empty() ? AbortPhase::Done : AbortPhase::Unlink;
 		if (!file) {

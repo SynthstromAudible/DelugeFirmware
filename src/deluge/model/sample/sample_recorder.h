@@ -200,11 +200,7 @@ public:
 	[[nodiscard]] uint8_t finalizePhaseForDiag() const { return static_cast<uint8_t>(finalizePhase_); }
 	[[nodiscard]] bool finalizeIssuedForDiag() const { return finalizeIssued_; }
 	[[nodiscard]] uint8_t abortPhaseForDiag() const { return static_cast<uint8_t>(abortPhase_); }
-	/// Whether the channel is opening this recorder's file: the create's open, or finalize's reopen to alter it.
-	[[nodiscard]] bool openInFlightForDiag() const {
-		return (createIssued_ && createPhase_ == deluge::storage::CreatePhase::Open)
-		       || (finalizeIssued_ && finalizePhase_ == deluge::storage::FinalizePhase::OpenForAlter);
-	}
+	[[nodiscard]] bool openInFlightForDiag() const { return openInFlight(); }
 
 	/// @brief How many cluster writes have gone through the channel, process-wide.
 	///
@@ -261,6 +257,12 @@ private:
 	/// @{
 	deluge::storage::CreatePhase createPhase_ = deluge::storage::CreatePhase::Stats;
 	bool createIssued_ = false;
+	/// Whether the channel is opening this recorder's file: the create's open, or finalize's reopen to alter it. The
+	/// abort waits such an open out, since its answer is a handle only this recorder can close.
+	[[nodiscard]] bool openInFlight() const {
+		return (createIssued_ && createPhase_ == deluge::storage::CreatePhase::Open)
+		       || (finalizeIssued_ && finalizePhase_ == deluge::storage::FinalizePhase::OpenForAlter);
+	}
 	bool createTriedMakeFolder_ = false;
 	bool createOpenNotFound_ = false;
 	/// How long this phase's request has been unproductive. See deluge::storage::kMaxUnproductiveUs.

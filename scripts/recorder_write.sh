@@ -172,6 +172,8 @@ for c in abortcreate abortalter; do
 	fi
 done
 
+grep '^TK-ABORT-OPEN ' "$OUT/run.txt" || true
+
 # RW-TIER: reported, and required to be zero.
 tier_line=$(grep '^RW-TIER ' "$OUT/run.txt" || true)
 tier=$(printf '%s\n' "$tier_line" | sed -n 's/^RW-TIER violations=\([0-9]*\).*/\1/p')
