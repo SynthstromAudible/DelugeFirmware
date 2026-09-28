@@ -19,8 +19,8 @@
 #   SC-FALLBACK   a busy channel queues -- nothing a burst submits is refused.
 #   SC-CHANNEL    the channel SERVED operations. The byte channel has no feature switch, so there is no
 #                 second build to compare against; this counter is what says the async arm ran rather than
-#                 merely compiled -- the first channel-on run of this gate reported `served=0` because the
-#                 module was missing from the harness's own module list.
+#                 merely compiled -- a harness that left the channel's module out of its own module list
+#                 would report `served=0` with every other check green.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.

@@ -172,7 +172,7 @@ constexpr const char* kRacePreset = "SYNTHS/PLRACE.XML";
 
 /// Reachable ONLY by descending into a subfolder. The walk's recursion has no other coverage:
 /// every other gate reaches depth 1 and the reference card's SYNTHS is flat, so a
-/// conversion that silently stopped recursing would look perfect until a user with subfolders found
+/// walk that silently stopped recursing would look perfect until a user with subfolders found
 /// their presets gone.
 /// The walk starts HERE: a folder with no presets of its own, only a subfolder. That is what forces
 /// the descent -- with a usable preset at the start folder the walk returns it and never recurses,
@@ -2013,9 +2013,9 @@ void runWalkMachineTick() {
 		// got, so "it descended" is a fact rather than an inference from which preset came back.
 		printf("PW-WALK-DEPTH ok=%d descended=%d depth=%d\n", (int)(descended && g_walkMaxDepth >= 2), (int)descended,
 		       (int)g_walkMaxDepth);
-		// Not `> 0`: that was too weak, and a neutering caught it. Making a failed descent give up
-		// instead of resuming the parent collapsed this from 26 reads to 2, and the leg stayed green
-		// -- while its PL sibling went red. Reaching ZNEST means climbing back out of every one of the
+		// Not `> 0`: that is too weak. Making a failed descent give up instead of resuming the parent
+		// collapses this from 26 reads to 2 and would leave the leg green while its PL sibling goes
+		// red. Reaching ZNEST means climbing back out of every one of the
 		// 25 filler folders, and each pop-back re-reads the parent from a search name, so the count
 		// cannot be below the fixture's folder count. That ties the leg to the mechanism rather than
 		// to a measured magic number.

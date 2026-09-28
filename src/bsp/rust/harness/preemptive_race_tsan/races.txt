@@ -6,7 +6,7 @@
 #
 # Fields, TAB-separated:  status  file  function-ERE  tiers  note
 #   status    open       a real violation, not fixed; the note names the shared state and the owning task
-#             accepted   judged benign; the note is the one-line reason. Kate reviews each one. (C1 adds none.)
+#             accepted   judged benign; the note is the one-line reason. Kate reviews each one.
 #             intrinsic  a bare runtime intercept (no source site); `file` is DEEP and the third field is an ERE
 #                        matched against EVERY frame of the finding, naming the real site
 #   file      repo-relative source path suffix, any `dir/../` collapsed
@@ -56,7 +56,7 @@ open	src/deluge/gui/ui_timer_manager.cpp	^UITimerManager::routine\(\)$	audio×in
 
 open	src/deluge/deluge.cpp	^inputRoutine\(\)$	audio×interaction	state: global 'AudioEngine::renderInStereo' (render-routine global read by the input routine; first seen in the C1 gate run)
 open	src/deluge/gui/ui/load/load_song_ui.cpp	^LoadSongUI::isLoadingSong\(\)$	audio×interaction	state: global 'loadSongUI' (load state polled across tiers; first seen in the C1 gate run)
-open	library/core/src/str/validations.rs	^core::str::validations::run_utf8_validation$	-	state: a string validated while another tier writes it (carried from the old catalogue, where it was filed as DEEP; its tiers were not recorded)
+open	library/core/src/str/validations.rs	^core::str::validations::run_utf8_validation$	-	state: a string validated while another tier writes it (its tiers are not recorded)
 open	src/deluge/model/song/song.cpp	^Song::renderAudio\(std::span<StereoSample, 18446744073709551615ul>, int\*, int\)$	audio×interaction	state: global 'AudioEngine::firstRecorder' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
 open	src/deluge/gui/ui/ui.cpp	^changeRootUI\(UI\*\)$	audio×interaction	state: global 'uiNavigationHierarchy' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)
 open	src/deluge/model/sample/sample_recorder.cpp	^SampleRecorder::feedAudio\(std::span<StereoSample, 18446744073709551615ul>, bool, unsigned char\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen once runs stopped crashing: C2a Lens 2 pass, 2026-09-27)

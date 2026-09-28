@@ -136,8 +136,8 @@ void runTick() {
 		(void)deluge::io::unlink(kSavePath);
 		// The save pushes UIs that need a root UI beneath them; this harness boots without one. Session view
 		// rather than arranger view because an AudioClip is about to become the current clip, and the clip
-		// views dereference getCurrentInstrumentClip() unconditionally when they draw (4c plan 2 found that
-		// the hard way, as a SIGSEGV inside setKnobIndicatorLevels()).
+		// views dereference getCurrentInstrumentClip() unconditionally when they draw (a SIGSEGV inside
+		// setKnobIndicatorLevels()).
 		changeRootUI(&sessionView);
 		// Give the song its sample BEFORE the save, through the same gesture the session view's own
 		// new-audio-clip does. The saved document then names the file, and loading it back has to bind it.

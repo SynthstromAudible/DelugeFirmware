@@ -17,9 +17,8 @@
 
 #pragma once
 
-/// @brief Host-only C-ABI for the SampleRecorder byte-exact round-trip oracle, shared so it can run
-///        BOTH on the C-host `deluge_recorder_roundtrip` binary AND on the Rust/Embassy host BSP
-///        (golden_vt_render's `GOLDEN_SCENARIO=recorder_roundtrip` mode).
+/// @brief Host-only C-ABI for the SampleRecorder byte-exact round-trip oracle, run on the Rust/Embassy
+///        host BSP (golden_vt_render's `GOLDEN_SCENARIO=recorder_roundtrip` mode).
 ///
 /// The whole geometry matrix + the two readback probes, minus the
 /// host-side image formatting and process exit (the caller owns those). Assumes `DELUGE_SD_IMAGE`
@@ -28,8 +27,7 @@
 /// each time — see `recorder_readback_probe.cpp`. Every stage is driven one step per call, by the caller's ticks.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness dir is globbed in), so the
-///       Embassy binary — which links `deluge_app`, not `host_recorder_roundtrip_main.cpp` — can
-///       reach it. Inert unless called.
+///       Embassy binary, which links `deluge_app`, can reach it. Inert unless called.
 #ifdef DELUGE_HOST
 
 #include <cstdint>
@@ -55,9 +53,9 @@ int32_t deluge_scenario_recorder_roundtrip_failures();
 
 /// @brief Set up one `ticked_` recording case.
 ///
-/// The cases above ride whichever arm their recorder picks; this one is driven entirely by the caller's ticks,
-/// the shape the device uses, so the async cluster write and the recorder's blocking ticks are
-/// exercised where the device drives them.
+/// The oracle's cases above cover the geometry matrix; the `ticked_` cases take the shapes they do not, each
+/// with its own evidence line. Like them, each is driven entirely by the caller's ticks, the shape the device
+/// uses, so the async cluster write and the recorder's blocking ticks are exercised where the device drives them.
 /// @param mode Which case:
 ///             - 0 `recording`: mono, finished normally.
 ///             - 1 `alterfile`: stereo with a silent right channel and alteration permitted, so finalize

@@ -57,7 +57,7 @@
 #   AQ-STALL   a turn whose sample load is held past the stall bound: the synth delivered with that holder empty and one
 #              give-up counted.
 #   AQ-SLOT    Shift+SYNTH's new synth: its slot name read once, through the directory channel, leaving the
-#              browser's folder and list as they were, and named as the old walk named it.
+#              browser's folder and list as they were, and given the name the fixture pins.
 #   AQ-SLOT-STALL
 #              the same gesture with the folder open held past the bound: SD_CARD, the clip keeps its instrument,
 #              nothing left in flight. The LAST leg: its held open outlives it.

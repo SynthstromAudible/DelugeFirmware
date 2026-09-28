@@ -12,9 +12,9 @@
 #
 #             The OUTCOME is compared, not just the image, and that is the point rather than a detail:
 #             an unreadable song, a song with no artwork and a preview that falls past the read
-#             window all draw an IDENTICAL blank screen. A gate comparing only pixels passed while
-#             one backing showed the user an error popup and the other silently showed nothing —
-#             which is the state the two backings were in when this gate was written.
+#             window all draw an IDENTICAL blank screen. A gate comparing only pixels would pass
+#             while one backing showed the user an error popup and the other silently showed
+#             nothing.
 #   SP-EJECT  the card-swap property: a prefix is read and left uncollected, the card is ejected, a
 #             DIFFERENT song is put at the same path, and the preview is asked for again. Held to a
 #             reference decode of the file now at that path, which holds no card-derived state to go

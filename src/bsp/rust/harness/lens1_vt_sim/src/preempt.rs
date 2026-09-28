@@ -1,4 +1,4 @@
-//! Emulated interrupt preemption for the single-threaded Lens 1 sim (R5a Phase 0).
+//! Emulated interrupt preemption for the single-threaded Lens 1 sim.
 //!
 //! On device, a non-yielding `block_on` in thread mode is preempted by an interrupt
 //! executor, so the task holding a lock (or the `sim_latency::pump` equivalent) still runs
@@ -121,7 +121,7 @@ pub fn init(hp: &'static raw::Executor) {
 /// would be an `HP_EXEC`-resident task itself calling `sim_block::block_on` — which installs
 /// this same `progress_hook` — while ITS OWN `hp.poll()` is already on the stack.
 ///
-/// `streaming_fill_task` now lives on `HP_EXEC` (it is the task a MAIN-resident spin must be
+/// `streaming_fill_task` lives on `HP_EXEC` (it is the task a MAIN-resident spin must be
 /// able to drive to release the FS mutex), and it does NOT trigger this: it reaches storage
 /// through `efatfs_host_shim::read_at(...).await`, a plain await, so it never installs this
 /// hook. So the guard stays unreached — and stays the thing that will catch it if that ever

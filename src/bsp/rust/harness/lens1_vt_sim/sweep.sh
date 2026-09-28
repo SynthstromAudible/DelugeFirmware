@@ -10,9 +10,6 @@
 #   Control A (detection): past the threshold, underrun_unassign > 0; at the fast/default
 #     latency, == 0 — proof the harness's instrumentation actually fires.
 #
-# (Control B — mechanism efficacy of the HIGH-priority dispatch / recorder-drain yield —
-# was retired with that worker-ring tier; the sim knobs it toggled no longer exist.)
-#
 # Every run is a single deterministic virtual-time simulation (no wall-clock, no RNG) —
 # repeat any invocation and the numbers reproduce exactly. This script just automates
 # running `lens1-vt-sim` several times as
@@ -74,12 +71,11 @@ field() { # field <LENS1_RESULT line> <name>
 }
 
 # --- Selftest precondition ------------------------------------------------------------
-# Lens 1 was once never in any implementer's build target, and it silently stopped
-# linking for a long stretch as a result — this script's own reason to exist. The
+# Lens 1 is in no implementer's build target, so without a script that runs it, it can
+# silently stop linking — this script's own reason to exist. The
 # `--selftest-block`/`--selftest-block-nested` modes (main.rs) are the harness's proof
-# that a modeled SD read completes under a non-yielding spin, but they have the
-# IDENTICAL exposure today: runnable, but wired into no script. Running both here,
-# FIRST, closes that gap and fails fast (before the margin sweep burns 15 latency
+# that a modeled SD read completes under a non-yielding spin, and are wired into no
+# other script. Running both here, FIRST, keeps them exercised and fails fast (before the margin sweep burns 15 latency
 # points) if the sim_block/preempt seam ever breaks.
 #
 # Neither mode mounts a filesystem or reads anything but raw sector 0 — unlike the
@@ -88,12 +84,9 @@ field() { # field <LENS1_RESULT line> <name>
 # only need a backing FILE at DELUGE_SD_IMAGE for deluge-bsp's host `sd.rs` to open;
 # content is irrelevant, and it auto-extends anything smaller than its own 8 MiB
 # default. So `pack_selftest_image` below packs a tiny, plain (non-FAT) file ONCE at a
-# predictable, non-per-PID path. `sd_image::pack_image` used to name its images
-# `deluge-streaming-scenario-<pid>.img` under `temp_dir()` and never clean them up, which
-# is what caused an 11GiB /tmp incident during this branch's own development (17 sweep
-# processes x ~573MB each) and a later ~12GiB recurrence; it is now content-addressed and
-# reused across runs (see `sd_image_path.rs`), so that particular leak is fixed at source.
-# This tiny local image is still the better fit here regardless: these two selftest modes
+# predictable, non-per-PID path. (`sd_image::pack_image` names its images by content and
+# reuses them across runs — see `sd_image_path.rs` — so a per-run leak is not the concern.)
+# This tiny local image is the better fit here: these two selftest modes
 # read only raw sector 0, so they need no golden corpus at all — pointing DELUGE_SD_IMAGE
 # at the SAME shared 8 MiB file keeps the precondition to one small file rather than
 # pulling in (or packing) a multi-hundred-MB FAT image they would never read.

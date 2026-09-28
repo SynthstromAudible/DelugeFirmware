@@ -67,10 +67,9 @@ bool deluge_scenario_song_listing_in_progress();
 
 /// @brief Run deluge_scenario_begin_song_load() and latch its result.
 ///
-/// It once had to be dispatched onto the storage worker fiber: `openUI(&loadSongUI)`'s
-/// `opened()` chain read the favourites file synchronously, and under `sim_latency` that
-/// read could livelock a caller off the fiber. The read moved to the favourites channel,
-/// so this now calls it directly; the start/done/ok shape is kept for its callers. Poll
+/// Calls it directly: `openUI(&loadSongUI)`'s `opened()` chain reads the favourites file
+/// through the favourites channel, so nothing in it blocks. The start/done/ok shape is kept
+/// for its callers. Poll
 /// deluge_scenario_song_load_begin_done() for
 /// completion, then deluge_scenario_song_load_begin_ok() for the result (the same
 /// value deluge_scenario_begin_song_load() itself would have returned).

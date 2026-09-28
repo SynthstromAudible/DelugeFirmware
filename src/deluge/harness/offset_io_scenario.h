@@ -28,12 +28,11 @@
 /// `efatfs_core::create_context` truncates unconditionally and the correct open mode looks like a
 /// mistake. Three blocks at ascending offsets is what makes the guard real.
 ///
-/// ## This gate PASSES before the conversion, unlike the last three
+/// ## The tier count is not this gate's evidence
 ///
-/// There is no pre-conversion tier violation to show: `smsysex` never begins a blocking operation
-/// after boot, so its tier count reads zero on both sides. This gate's evidence is
-/// `OI-CHANNEL served=` going non-zero on the channel-on leg, plus the truncation neutering failing.
-/// A reviewer expecting a red-to-green transition should read those two instead.
+/// `smsysex` never begins a blocking operation after boot, so its tier count reads zero whichever
+/// way its I/O runs. This gate's evidence is `OI-CHANNEL served=` going non-zero, plus the truncation
+/// neutering failing.
 extern "C" {
 
 /// @brief Reset the scenario's state and prepare stdout for a piped run.

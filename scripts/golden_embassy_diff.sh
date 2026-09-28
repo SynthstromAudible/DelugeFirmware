@@ -23,8 +23,8 @@
 #                        the pad=0 render. The layout-invariance guard: proves the render
 #                        depends on NO allocation address. Golden-INDEPENDENT (compares
 #                        renders to each other), so it catches layout fragility even when
-#                        the golden matches one fixed layout. Reimplements golden_mixdown.sh's
-#                        retired C-host `padsweep` on the Embassy renderer.
+#                        the golden matches one fixed layout. The Embassy renderer's counterpart
+#                        to golden_mixdown.sh's C-host `padsweep`, which this branch cannot build.
 #
 # Exit: 0 = PASS (byte-identical to the stored golden) / update wrote the baseline,
 # 1 = mismatch or a render crash/wedge, 2 = setup error (no baseline yet, no corpus, etc.)
@@ -87,7 +87,7 @@ if [ "${NO_BUILD:-0}" != 1 ]; then
 		exit 2
 	}
 	# Cargo does not track the C++ sources golden_vt_render links against — force a
-	# rebuild of the host object closure exactly like the plan's build reference does.
+	# rebuild of the host object closure first.
 	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
 		deluge_foundation deluge_midi
 	(cd "$CRATE_DIR" && cargo build --release)

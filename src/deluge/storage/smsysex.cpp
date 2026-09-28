@@ -982,8 +982,8 @@ void smSysex::handleNextSysEx() {
 	// is the single-flight state, and the front entry staying unpopped is what makes the next tick resume
 	// the same request rather than start another.
 	//
-	// `sd_busy()` stays, though it now guards less than it did -- neither arm touches FatFS from this
-	// stack. Removing a guard that still holds some value deserves its own deliberate decision.
+	// `sd_busy()` is a back-off while any filesystem operation is in flight anywhere, not what makes this
+	// call safe: neither arm touches FatFS from this stack.
 	processFrontSysEx();
 }
 

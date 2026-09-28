@@ -35,10 +35,9 @@
 ///
 /// ## `SF-TIER` is the evidence; the rest is context
 ///
-/// It is deliberately non-zero before the conversion, so the gate FAILS then, and zero after. That
-/// transition is the only thing that proves anything moved. `SF-CHANNEL` is reported and not asserted
-/// here: the default build has the byte channel compiled out and 0 is the honest answer, so it is
-/// `scripts/startup_failsafe.sh`'s channel-on leg that requires it non-zero.
+/// It must be zero, and it is the only check that shows which tier the fail-safe's I/O ran on.
+/// `SF-CHANNEL` is reported and not asserted here: a build without the byte channel honestly answers
+/// 0, so it is `scripts/startup_failsafe.sh` that requires it non-zero.
 extern "C" {
 
 /// @brief Reset the scenario's state and prepare stdout for a piped run.

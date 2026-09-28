@@ -13,10 +13,6 @@
 # with nothing shared held, and applying the decisions in one pass -- and SC-ORDERED is what says the
 # answer works.
 #
-# Running this gate for the first time found three defects, none of which any other gate could see:
-# transfers had no owner arm at all, the collected path was built by appending to an empty string
-# (which took embedded-fatfs down), and the check itself asked the wrong question twice over.
-#
 # One leg: the transfers ride the byte channel and the save around them the write channel, and
 # neither has a feature switch.
 #

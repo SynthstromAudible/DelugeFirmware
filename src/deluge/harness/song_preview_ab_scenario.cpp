@@ -25,7 +25,7 @@
 #include "gui/ui/browser/dx_browser.h"                    // dxBrowser, driven by the DX stage
 #include "gui/ui/load/load_instrument_preset_ui.h"        // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/save/save_song_ui.h"   // the converted caller, driven end to end below
+#include "gui/ui/save/save_song_ui.h"   // the real caller, driven end to end below
 #include "gui/ui/ui.h"                  // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
 #include "gui/views/arranger_view.h"    // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
 #include "gui/views/session_view.h"     // the `sessionView` global driving SessionView's three gestures
@@ -344,8 +344,8 @@ public:
 	///
 	/// The picker itself is NOT opened: setupTrackCreation() calls openUI() on a context menu, and
 	/// this stage runs with no UI stack for one to be pushed onto (the same reason the listing stage
-	/// starts its listings with beginListing rather than opening a browser). Everything the
-	/// conversion touches lives below that -- finishGridNewTrackClip() -> dispatch ->
+	/// starts its listings with beginListing rather than opening a browser). Everything under
+	/// test lives below that -- finishGridNewTrackClip() -> dispatch ->
 	/// completeNewTrackGridEnter() -> gridNewTrackClipEntered() -- so the pending state the picker
 	/// would have set is written directly and the funnel is entered for real.
 	static void beginGridNewTrackEnter(int32_t x, int32_t y) {
@@ -1762,9 +1762,8 @@ void runListingTick() {
 /// takes: nothing in it ever calls ENSURE_PARAM_MANAGER_EXISTS (sound.cpp), so
 /// loadInstrumentFromFile finds no backed-up ParamManager, takes its FILE_CORRUPTED/delete cleanup
 /// path (storage_manager.cpp, `paramManagersMissing`), and segfaults freeing the Instrument -- a
-/// real, pre-existing bug, found by running this gate, and not this stage's to fix (see the task
-/// report). Building the fixture from a real Instrument sidesteps it and is more representative of
-/// what the acquisition walk actually reads on a card.
+/// real bug, outside this stage's subject. Building the fixture from a real Instrument sidesteps it
+/// and is more representative of what the acquisition walk actually reads on a card.
 ///
 /// The helper Instrument is deliberately leaked: it is never added to currentSong (no addOutput
 /// call), so nothing else ever scans it, and this is a short-lived test process.
@@ -2060,9 +2059,9 @@ void runAcquireTick() {
 		}
 		else {
 			// Pinned absolutely, not just non-empty: with exactly one top-level preset, the walk has
-			// only one possible correct answer here, and asserting it is what would catch a later
-			// conversion that changed the acquired preset identically on every leg (a bug the
-			// cross-leg shell check below cannot see, because it only diffs legs against each other).
+			// only one possible correct answer here, and asserting it is what catches a change that
+			// alters the acquired preset: AcquireStep::Converted below only compares the walk with
+			// itself, so it cannot see one.
 			if (g_acqReferenceName != kAcqTopLevelName) {
 				printf("SP-ACQUIRE FAIL reference acquired %s, expected the top-level preset %s\n",
 				       g_acqReferenceName.c_str(), kAcqTopLevelName);
@@ -2078,9 +2077,8 @@ void runAcquireTick() {
 	case AcquireStep::Converted: {
 		// Re-run the SAME gesture in the SAME process and require the SAME instrument. This can only
 		// detect in-process NONDETERMINISM: both calls run identical code in the identical binary, so
-		// this pair alone proves nothing about a channel conversion. The one check that spans
-		// backings is the shell's file-vs-dir comparison of this exact "converted" line
-		// (song_preview_ab.sh, the acquisition-agreement loop).
+		// this pair alone proves nothing about which backing served the walk. The absolute pin on
+		// the reference's answer above is what ties the walk to the fixture.
 		dispatchAcquisitionGesture();
 		g_acqLoads++;
 		g_acquireStep = AcquireStep::ConvertedCheck;
@@ -2165,7 +2163,7 @@ void runAcquireTick() {
 		// really does run to completion inline), but presetAcquisitionsRun() is not: if
 		// changeOutputType() ever regressed to dispatching on this arm, the op would only be
 		// ENQUEUED by the time this tick's read ran, and the delta would still read 0 -- passing for
-		// the wrong reason, the same same-tick trap the rest of this stage was fixed for. So the
+		// the wrong reason, the same same-tick trap the rest of this stage avoids. So the
 		// counter is read one tick later, in NonAudioCheck, like every other dispatched gesture here.
 		g_acqNonAudioBefore = acqDispatches();
 		BrowserListingAbProbe::changeOutputType(OutputType::CV);
@@ -2353,8 +2351,8 @@ void runAcquireTick() {
 	}
 	case AcquireStep::SessionNewTrack: {
 		// The empty-pad "create a clip here" gesture, in Rows layout, driven through the REAL
-		// padAction() -- the riskiest conversion in this task, since createNewTrackForInstrumentClip()'s
-		// bool answer feeds three different abandon paths. Those stayed synchronous; what moved is the
+		// padAction() -- the riskiest of these gestures, since createNewTrackForInstrumentClip()'s
+		// bool answer feeds three different abandon paths. Those are synchronous; what defers is the
 		// gesture ABOVE them, so this drives the gesture.
 		g_acqNewTrackClipsBefore = std::ssize(currentSong->sessionClips);
 		g_acqViewBefore = acqDispatches();
@@ -2411,7 +2409,7 @@ void runAcquireTick() {
 	}
 	case AcquireStep::SessionNavigate: {
 		// SessionView's Grid-layout preset-navigation dispatch. The Rows arm delegates to View (already
-		// covered by AcquireStep::ViewNavigate); this is the separate Grid arm this task converted.
+		// covered by AcquireStep::ViewNavigate); this is the separate Grid arm.
 		//
 		// Driven on the clip AcquireStep::SessionNewTrack just created, not the boot clip, and sequenced
 		// after it on purpose: the navigation walk (PresetNavigation) walks ONE folder -- oldInstrument->dirPath -- and

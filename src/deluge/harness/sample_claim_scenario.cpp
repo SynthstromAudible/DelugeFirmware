@@ -1887,8 +1887,7 @@ void checkLeg() {
 		       released ? 1 : 0, g_waitTicks);
 		if (g_rdCancelRound != kRandomizeCancelRounds || entered != kRandomizeCancelRounds) {
 			// Without this the leg proves nothing: every claim below is about what a drain does, and a cancel that
-			// found nothing outstanding never drains. This is the leg that went quietly green once the cancel's own
-			// test could no longer be true.
+			// found nothing outstanding never drains, so a leg whose cancels all come too late goes quietly green.
 			printf("RD-CANCELSCAN FAIL only %d of %d walks were cancelled with the row's open still out, so the "
 			       "drain ran %d time(s)\n",
 			       g_rdCancelRound, kRandomizeCancelRounds, entered);

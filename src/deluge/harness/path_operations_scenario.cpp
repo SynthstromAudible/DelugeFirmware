@@ -696,17 +696,16 @@ void runTick() {
 			g_failures++;
 		}
 
-		// Reported, never asserted here. This gate runs in both configurations, and with the channel
-		// compiled out zero is the honest answer; failing on it would make the default build fail for
-		// doing exactly what it is supposed to do. The channel-on leg of `path_operations.sh` is what
-		// requires this to be non-zero.
+		// Reported, never asserted here: a build without the channel honestly answers zero, and failing
+		// on it would fail that build for doing exactly what it is supposed to do. `path_operations.sh`
+		// is what requires this to be non-zero.
 		printf("PO-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
 
 		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
 		printf("PO-TIER violations=%d\n", violations);
 		if (violations != 0) {
-			// Before the conversion this count is expected to be non-zero, and the gate is expected
-			// to fail on it. After the conversion a non-zero count is a regression.
+			// Browser folder creation and deletion run off the interaction tier; a non-zero count is a
+			// regression.
 			printf("PO-TIER FAIL a browser folder creation or delete ran on the interaction tier\n");
 			g_failures++;
 		}

@@ -87,8 +87,8 @@ public:
 	static void confirmOverwrite() { (void)deluge::gui::context_menu::overwriteFile.acceptCurrentOption(); }
 	/// @return Whether the save screen OPENED -- not whether its listing has finished. The listing is
 	///         asynchronous and settles on a later tick, which is KitOpenWait's job; treating an
-	///         in-flight listing as a failure here is what made the first run report that a screen
-	///         which had opened perfectly well "did not open".
+	///         in-flight listing as a failure here would report that a screen which had opened
+	///         perfectly well "did not open".
 	static bool openKitRow() { return openUI(&saveKitRowUI); }
 	static void pressEnterKitRow() { saveKitRowUI.enterKeyPress(); }
 	/// Open the song save screen on SONGS, the way SongSaveChannelProbe does.
@@ -375,9 +375,9 @@ void runTick() {
 		}
 		g_bytes = bytes.size();
 		g_crc = crc32(bytes.data(), bytes.size());
-		// Shallow on purpose: the cross-leg CRC comparison in the script is what carries the weight.
-		// These two catch the shapes that would make that comparison vacuous -- a document with no
-		// prolog (which is what a staged save that forgot it produces) or one too short to be real.
+		// Shallow on purpose: the save's own read-back (DS-VERIFIED below) is what carries the weight.
+		// These two catch the shapes that would make the later CRC comparisons vacuous -- a document with
+		// no prolog (which is what a staged save that forgot it produces) or one too short to be real.
 		if (bytes.size() < 100 || memcmp(bytes.data(), "<?xml", 5) != 0) {
 			printf("DS-SAVED FAIL the written document is short or has no prolog (%zu bytes)\n", bytes.size());
 			g_failures++;

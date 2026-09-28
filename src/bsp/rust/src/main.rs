@@ -1154,8 +1154,8 @@ fn main() {
         // "Owner exists" is all the barrier buys, and all it should: the fill task's first act
         // is to wait on `FILL_WAKE`, deliberately BEFORE constructing `ProdOps`, because that
         // constructor reads app state `deluge_app_init` is still writing. See
-        // `streaming_fill_task`'s doc — an earlier version of this thread raced
-        // `Cluster::set_size` exactly that way, which is what TSan caught.
+        // `streaming_fill_task`'s doc — constructing it any earlier races `Cluster::set_size`
+        // exactly that way, and TSan reports it.
         //
         // The audio-file load task shares this thread for the same reason it shares
         // `STREAM_EXEC` on device: it too holds the FS mutex across an SD await, so it must not

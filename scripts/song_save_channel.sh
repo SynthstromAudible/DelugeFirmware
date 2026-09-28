@@ -32,9 +32,8 @@
 #                 so a save that fails up to that point leaves the original untouched, and failing
 #                 the read-back is what demonstrates it. It does NOT hold across the unlink-then-
 #                 rename pair at the end: a rename that fails after the unlink succeeded leaves the
-#                 song gone and the new content stranded at the temp name. That window is inherited
-#                 from the streaming save, which made the same two calls in the same order, and this
-#                 conversion preserves it rather than widening or closing it.
+#                 song gone and the new content stranded at the temp name. That window is the cost
+#                 of unlinking before renaming, and this gate does not claim to close it.
 #   SS-CHANNEL    the steps were SERVED by the channels, and the document write by the WRITE channel.
 #   SS-ACCOUNTED  the channels account for every card step, and none took the inline arm. Neither
 #                 SS-CHANNEL nor SS-SAVED can see WHICH arm carried which step.
@@ -155,7 +154,7 @@ if [ -z "${doublings:-}" ] || [ "$doublings" -lt 2 ]; then
 fi
 
 # SS-BACKMIDSAVE / SS-EXITMIDSAVE. A song save spans many ticks with the UI live. Leaving the save screen
-# mid-save -- BACK, or the long-press exit -- used to close it, and the save's own close() then indexed off
+# mid-save -- BACK, or the long-press exit -- would close it, and the save's own close() would then index off
 # the end of the UI stack. Both must be refused while the save runs, and both must actually be tried while
 # it IS running, or the check proves nothing.
 grep -q '^SS-BACKMIDSAVE inFlight=1 back=1$' "$OUT/run.txt" || { echo "FAIL SS-BACKMIDSAVE — $(grep '^SS-BACKMIDSAVE ' "$OUT/run.txt" || echo 'no line')"; fail=1; }

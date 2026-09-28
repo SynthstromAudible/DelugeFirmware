@@ -144,7 +144,7 @@ enum class CaseStep : uint8_t {
 	Failed, ///< Terminal.
 };
 
-/// The case's state, out of the stack frame because the pump now spans ticks.
+/// The case's state, out of the stack frame because the pump spans ticks.
 ///
 /// A loop that pumps straight through without yielding only works on the recorder's SYNCHRONOUS arm:
 /// ask the channel instead and the driver gets no chance to run between ticks, nothing is answered,
@@ -159,7 +159,7 @@ struct CaseRun {
 	std::string path;
 };
 CaseRun g_case;
-/// The case list and cursor, at file scope because the drive spans ticks now.
+/// The case list and cursor, at file scope because the drive spans ticks.
 std::vector<Case> g_caseList;
 size_t g_caseCursor = 0;
 

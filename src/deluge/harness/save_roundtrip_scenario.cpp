@@ -44,7 +44,7 @@
 #endif
 
 /// Reaches `SaveUI::enterKeyPress()`, which is protected: the gate must drive the REAL gesture, not
-/// the save machinery underneath it, or it would keep testing the unconverted path forever. Mirrors
+/// the save machinery underneath it, or it would miss whatever the gesture itself does. Mirrors
 /// `BrowserListingAbProbe`'s friendship in `browser.h`.
 class SaveRoundtripProbe {
 public:
@@ -363,8 +363,8 @@ void runTick() {
 		// index off the end of it.
 		(void)SaveRoundtripProbe::openOn(kSaveDir);
 		// Typing happens on the NEXT tick, not this one. The listing this open starts is async, and
-		// when it settles it picks a brand-new unused name -- which silently overwrote the typed
-		// name here and aimed the second save at a free slot instead of the existing file.
+		// when it settles it picks a brand-new unused name -- which would silently overwrite a name typed
+		// here and aim the second save at a free slot instead of the existing file.
 		g_stage = Stage::SaveSecond;
 		break;
 	}

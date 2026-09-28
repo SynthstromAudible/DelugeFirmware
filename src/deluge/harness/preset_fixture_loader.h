@@ -40,8 +40,8 @@ namespace deluge::harness {
 
 /// @brief Read the preset document at @p path into a new Instrument, blocking.
 ///
-/// Opens the document with the root tags @p outputType names, parses it, and frees the staging: what
-/// `StorageManager::loadInstrumentFromFile()` did for production callers before they moved onto the interaction
+/// Opens the document with the root tags @p outputType names, parses it, and frees the staging: the
+/// blocking read a harness fixture can afford, which production callers never make on the interaction
 /// tier. Samples are not read -- the caller decides, as the production paths do.
 /// @param song      The song the parse hangs its param managers on.
 /// @param outputType SYNTH or KIT.

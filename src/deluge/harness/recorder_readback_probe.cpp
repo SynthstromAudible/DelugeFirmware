@@ -36,7 +36,7 @@
 #include <vector>
 
 namespace {
-/// Tick budget for the finalized probe's pump, now that the caller drives it.
+/// Tick budget for the finalized probe's pump, which the caller drives.
 int32_t g_finalizedPumpTicks = 0;
 
 SampleRecorder* g_recorder = nullptr;
@@ -57,7 +57,7 @@ int32_t rampSample(uint32_t frameIndex, uint32_t channel) {
 	return expected24(frameIndex, channel) << 8;
 }
 
-// Host-sim-only wrinkle: some DELUGE_HOST binaries (e.g. deluge_recorder_roundtrip) back the
+// Host-sim-only wrinkle: a DELUGE_HOST binary may back the
 // STREAMING read path (open_read_stream()/EfatfsReadSource, via host_efatfs_passthrough.cpp) with
 // a plain POSIX directory tree named by DELUGE_SD_ROOT -- separate from the mounted FAT image
 // (DELUGE_SD_IMAGE) a SampleRecorder actually writes into via deluge::io::Stream/File. Mirror the

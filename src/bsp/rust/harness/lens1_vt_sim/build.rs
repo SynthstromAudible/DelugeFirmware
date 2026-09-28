@@ -85,14 +85,14 @@ fn main() {
     // past in normal build output and is not re-emitted on a build where
     // `build.rs` doesn't rerun — too quiet for what a mass-skip actually costs
     // (see this function's other caller-side check above). A handful of
-    // skips from genuinely deleted sources (this filter's original purpose)
+    // skips from genuinely deleted sources (this filter's purpose)
     // is expected and fine; a skip count large enough to push survivors below
     // this floor means something is systemically wrong with path resolution
     // (e.g. a CMake source layout this filter's `src/deluge`-relative
     // derivation doesn't account for) rather than a few stale objects, and
     // must fail the build instead of silently archiving an incomplete
-    // closure. The floor is set comfortably below the current healthy count
-    // (356 objects, 0 skipped, verified while fixing this) so it tolerates
+    // closure. The floor is set comfortably below the healthy count
+    // (356 objects, 0 skipped) so it tolerates
     // ordinary future source deletions but not a systemic one.
     //
     // Unconditional — NOT gated on `!skipped.is_empty()`. An interrupted/truncated
@@ -225,21 +225,19 @@ fn hash_objs_content(objs: &[PathBuf]) -> u64 {
 /// object's path relative to it). Skips orphans: `ninja` never removes a `.o` left
 /// behind by a `.cpp` that was since deleted or relocated, and archiving a stale
 /// object drags in references to symbols that no longer exist anywhere in the tree
-/// — exactly what cost a long detour before this filter existed (see
-/// `task-0-brief.md`). Each object's source lives under `<repo_root>/src/deluge/`
+/// — link failures that point nowhere near their cause. Each object's source lives under `<repo_root>/src/deluge/`
 /// at the same relative subpath with the trailing `.o`/`.obj` stripped; if that
 /// source file is gone, the object is an orphan: it is skipped (with a
 /// `cargo:warning=` naming it, and pushed onto `skipped` for the caller's
 /// sanity-floor check — see `main`) instead of being archived.
 ///
-/// Known blind spot, not fixed here (see the review that added `skipped`'s
-/// caller-side floor check): if CMake ever compiles a source from OUTSIDE this
+/// Known blind spot, guarded by `skipped`'s caller-side floor check rather
+/// than fixed: if CMake ever compiles a source from OUTSIDE this
 /// target's own directory tree, it mangles the object's relative path with a
 /// `__/` per parent-escape, which then resolves against `src/deluge` to a path
 /// that never exists — the object reads as an orphan and is skipped even
-/// though its source is very much alive. No such object exists in this tree
-/// today (verified: 0 skips, 356 objects), so this filter's `src/deluge`-only
-/// derivation is sufficient for now.
+/// though its source is very much alive. No such object exists in this tree,
+/// so this filter's `src/deluge`-only derivation is sufficient.
 fn collect_objs(
     base: &std::path::Path,
     dir: &std::path::Path,

@@ -6,10 +6,10 @@
 #                 harness's module list resolves to the C++ weak fallback, and every write would then
 #                 take the synchronous arm while everything below stayed green.
 #   RW-ROUNDTRIP  that a real recording still reads back byte-correctly, mid-recording AND finalized
-#                 multi-cluster. It is the half that catches a conversion that relocated the write
-#                 and broke the recording on the way. It earned its keep here: a recycled stream
-#                 handle collecting a previous recorder's answer showed up as exactly this, and
-#                 nothing else in the run noticed.
+#                 multi-cluster. It is the half that catches a change that relocated the write
+#                 and broke the recording on the way: a recycled stream handle collecting a previous
+#                 recorder's answer shows up as exactly this, and nothing else in the run would
+#                 notice.
 #   RW-CHANNEL    that the async arm was EXECUTED by the `ticked_` recordings: they must serve writes
 #                 beyond the ones the oracle's cases served (RW-SUMMARY's count, taken before they run).
 #   RW-TICKED   that the recorder drain ran after boot, its writes on the write channel. This is the

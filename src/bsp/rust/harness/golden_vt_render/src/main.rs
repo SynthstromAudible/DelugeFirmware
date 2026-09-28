@@ -171,9 +171,8 @@ mod ffi_extra;
 /// The single-slot whole-file byte channel and its request/collect C ABI. Compiled UNCONDITIONALLY:
 /// the channel has no feature switch, and `deluge_card_flush` names it. A build without it would let
 /// the C++ weak fallback resolve `deluge_file_bytes_async_active` to false, and every settings read
-/// and write would quietly take the inline arm while the gate reported a green run -- which is what
-/// this file did on the first channel-on run of the settings gate, and `SC-CHANNEL served=0` is what
-/// caught it.
+/// and write would quietly take the inline arm while the gate reported a green run; `SC-CHANNEL
+/// served=0` is what catches that.
 #[path = "../../../src/file_bytes.rs"]
 mod file_bytes;
 /// The single-slot directory channel and its request/collect C ABI. Compiled UNCONDITIONALLY, like `file_bytes`
@@ -252,9 +251,9 @@ unsafe extern "C" {
 // not part of the libdeluge C-ABI the app CONSUMES.
 //
 // The song-load quartet (`begin_song_load`/`song_listing_in_progress`/
-// `commit_song_load`/`song_load_in_progress`) pre-dates this task (added for
-// the streaming-underrun harness, `scenario.rs`'s own copy of these same
-// declarations) — this scenario needs its own since it does NOT `#[path]`-
+// `commit_song_load`/`song_load_in_progress`) also serves the streaming-underrun
+// harness (`scenario.rs`'s own copy of these same declarations) — this scenario
+// needs its own since it does NOT `#[path]`-
 // include `scenario.rs` (see the module doc). Without loading a real song
 // first, `currentSong` is still the blank boot-time song `deluge_boot()`
 // leaves in place, and StemExport has nothing to export.
@@ -423,10 +422,11 @@ async fn boot_task() {
         }
     }
 
-    // The stem-render/drain arm (GOLDEN_SCENARIO unset) is not a Deluge: it drives its own render
-    // and never services the byte channel, so anything the boot-settings prelude submits there is
-    // never completed and wedges the drain. Scenario arms DO service the channel and keep the
-    // prelude, which is what exercises it. Must precede deluge_app_init, which registers the task.
+    // The stem-render/drain arm (GOLDEN_SCENARIO unset) is not a Deluge: it renders a fixture song
+    // and needs none of the boot settings, while the prelude's reads (and the write it makes when
+    // MIDI_FOLLOW.XML is absent) would occupy the single-slot byte channel the export's own folder
+    // search uses. Scenario arms keep the prelude, which is what exercises it. Must precede
+    // deluge_app_init, which registers the task.
     if std::env::var("GOLDEN_SCENARIO")
         .unwrap_or_default()
         .is_empty()
@@ -449,8 +449,7 @@ async fn boot_task() {
     BOOT_MOUNTED.store(true, Ordering::Release);
     log::info!("golden_vt_render: boot+mount complete; scheduler running");
 
-    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and there is no
-    // storage-worker fiber loop to drive.
+    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`.
     core::future::pending::<()>().await
 }
 
@@ -650,9 +649,8 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
 }
 
 /// The `GOLDEN_SCENARIO=recorder_roundtrip` alternative to [`run_stem_export_scenario`]:
-/// runs the SampleRecorder byte-exact round-trip oracle (the ex-`deluge_recorder_roundtrip`
-/// binary, now the `deluge_scenario_run_recorder_roundtrip` harness scenario) on THIS Embassy
-/// substrate. Waits for boot+mount, sets the oracle up inline, then ticks its cases, the finalized
+/// runs the SampleRecorder byte-exact round-trip oracle (the
+/// `deluge_scenario_run_recorder_roundtrip` harness scenario) on THIS Embassy substrate. Waits for boot+mount, sets the oracle up inline, then ticks its cases, the finalized
 /// probe's pump and the tail, one step per await, and exits with its result. Unlike the stem-export
 /// scenario, no song load and no fixture image: `main`
 /// formats an EMPTY FAT image (the recorder only ever writes new files) and leaves
@@ -1345,8 +1343,8 @@ async fn run_offset_io_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_offset_io_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_offset_io_step_done() } {
@@ -1369,7 +1367,7 @@ async fn run_offset_io_scenario(done: &'static AtomicBool) {
 /// The `GOLDEN_SCENARIO=pattern_load` scenario: load a pattern file through the real pattern browser, with Enter and
 /// with a PLAY preview, and require the notes it holds to land with no synchronous card call on the interaction tier.
 ///
-/// Stepped: the browser's listing, and the load once it is converted, finish over later ticks.
+/// Stepped: the browser's listing and the pattern read both finish over later ticks.
 #[embassy_executor::task]
 async fn run_pattern_load_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: run_pattern_load_scenario: awaiting boot+mount");
@@ -1465,8 +1463,8 @@ async fn run_path_operations_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_path_operations_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_path_operations_step_done() } {
@@ -1526,8 +1524,8 @@ async fn run_startup_failsafe_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_startup_failsafe_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_startup_failsafe_step_done() } {
@@ -1587,8 +1585,8 @@ async fn run_settings_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_settings_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_settings_channel_step_done() } {
@@ -1648,8 +1646,8 @@ async fn run_favourites_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_favourites_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_favourites_channel_step_done() } {
@@ -1704,8 +1702,8 @@ async fn run_song_save_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_song_save_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_song_save_channel_step_done() } {
@@ -1760,8 +1758,8 @@ async fn run_sample_collect_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_sample_collect_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_sample_collect_step_done() } {
@@ -1962,8 +1960,8 @@ async fn run_sample_claim_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_sample_claim_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_sample_claim_step_done() } {
@@ -2036,7 +2034,7 @@ fn pack_preset_load_image() -> std::path::PathBuf {
     // 24 empty subfolders plus the one holding the preset. More than FILE_ITEMS_MAX_NUM_ELEMENTS
     // (20), so the folder pass CULLS and the walk must page (`goto goAgain`) to see the last entry.
     // ZNEST sorts after every W##, so the 24 empties are descended into and come back empty first --
-    // which is the return-from-recursion path, the one thing a conversion is most likely to break.
+    // which is the return-from-recursion path, the one thing a change to the walk is most likely to break.
     for i in 1..=24 {
         std::fs::create_dir_all(root.join("SYNTHS").join("WALK").join(format!("W{i:02}")))
             .expect("creating the preset-walk filler folders");
@@ -2118,8 +2116,8 @@ async fn run_clear_song_undo_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_clear_song_undo_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_clear_song_undo_step_done() } {
@@ -2175,8 +2173,8 @@ async fn run_sound_lifetime_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_sound_lifetime_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_sound_lifetime_step_done() } {
@@ -2235,8 +2233,8 @@ async fn run_clip_lifetime_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_clip_lifetime_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_clip_lifetime_step_done() } {
@@ -2349,8 +2347,8 @@ async fn run_preset_load_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_preset_load_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_preset_load_step_done() } {
@@ -2404,8 +2402,8 @@ async fn run_card_reinsert_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_card_reinsert_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_card_reinsert_step_done() } {
@@ -2459,8 +2457,8 @@ async fn run_sample_load_tree_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_sample_load_tree_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_sample_load_tree_step_done() } {
@@ -2484,9 +2482,8 @@ async fn run_sample_load_tree_scenario(done: &'static AtomicBool) {
 /// gesture, require the written document to be whole, and report whether the storage channel served
 /// the write.
 ///
-/// Two legs are built from this one scenario -- with and without the channel features -- because
-/// `write_file` begins life with no harness building it, which is precisely the position the
-/// whole-file read was in when it turned out to contain two defects.
+/// One leg: the write channel has no feature switch. No other harness builds `write_file`, and a
+/// feature no gate builds is code that has never run.
 #[embassy_executor::task]
 async fn run_document_save_channel_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: run_document_save_channel_scenario: awaiting boot+mount");
@@ -2522,8 +2519,8 @@ async fn run_document_save_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_document_save_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_document_save_channel_step_done() } {
@@ -2604,8 +2601,8 @@ async fn run_song_load_channel_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_song_load_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_song_load_channel_step_done() } {
@@ -2666,8 +2663,8 @@ async fn run_save_roundtrip_scenario(done: &'static AtomicBool) {
         }
         // SAFETY: as above.
         unsafe { deluge_scenario_save_roundtrip_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // SAFETY: as above.
         while !unsafe { deluge_scenario_save_roundtrip_step_done() } {
@@ -2733,8 +2730,8 @@ async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
         // One tick on the UI tier...
         // SAFETY: as above.
         unsafe { deluge_scenario_song_preview_ab_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // ...then wait for it to come back, letting the executor poll `file_prefix_task` in between.
         // SAFETY: as above.
@@ -2802,8 +2799,8 @@ async fn run_audio_load_ab_scenario(done: &'static AtomicBool) {
         // One attempt...
         // SAFETY: as above.
         unsafe { deluge_scenario_audio_load_ab_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done: what the retired step marker cost
-        // (it ran on the worker's next poll). The gates' tick counts and races are paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
+        // are paced in these milliseconds.
         Timer::after_millis(1).await;
         // ...then wait for it to come back, letting the executor poll `audio_load_task` in between.
         // SAFETY: as above.
@@ -2853,9 +2850,8 @@ fn main() {
         .unwrap_or(60_000);
 
     // GOLDEN_SCENARIO selects what this binary runs on the Embassy substrate: the default
-    // stem-export golden render, or the SampleRecorder byte-exact round-trip oracle (the
-    // ex-`deluge_recorder_roundtrip`, converged onto Embassy so the C++ sync fill drain can be
-    // retired). The recorder scenario ignores GOLDEN_FIXTURE — it formats an empty image and
+    // stem-export golden render, or the SampleRecorder byte-exact round-trip oracle. The
+    // recorder scenario ignores GOLDEN_FIXTURE — it formats an empty image and
     // records into it rather than loading a corpus song.
     let scenario = std::env::var("GOLDEN_SCENARIO").unwrap_or_default();
     let recorder_mode = scenario == "recorder_roundtrip";

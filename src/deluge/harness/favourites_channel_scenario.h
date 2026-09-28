@@ -23,7 +23,7 @@
 ///        entry points, require that no bank is ever written with less than it held, and count every
 ///        favourites card operation that began on the interaction tier.
 ///
-/// Stepped, not one blocking call: once converted, a bank operation is only QUEUED when its entry point
+/// Stepped, not one blocking call: after boot a bank operation is only QUEUED when its entry point
 /// runs, so every check waits for `FavouritesManager::idle()` -- never for a file to appear, which is a
 /// proxy for an operation finishing and not the thing itself.
 extern "C" {

@@ -20,7 +20,7 @@
 #             bug (a flushed path reports UNKNOWN and is asked for again; a stale one is READY on the
 #             first ask).
 #   AB-PREVIEW
-#             the converted CALLER, driven end to end: SampleBrowser previews one file ONCE and is then
+#             a real CALLER, driven end to end: SampleBrowser previews one file ONCE and is then
 #             driven only by its per-tick surface. It must defer at least once and eventually draw.
 #   AB-CANCEL a preview asked for and then abandoned before its load runs: nothing may load, draw or
 #             stay pending.

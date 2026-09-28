@@ -4,9 +4,9 @@
 # Drives real SysEx path requests, the browser's folder creation, and deleting a file from a browser.
 #
 # What the checks below cover, and why each is separate:
-#   PO-SYSEX     that the protocol still ANSWERS. A real request for each converted verb must produce
+#   PO-SYSEX     that the protocol still ANSWERS. A real request for each covered verb must produce
 #                its ^verb reply, captured from a loopback MIDICable rather than inferred from the
-#                filesystem -- asserting the effect alone would pass for a conversion that stopped
+#                filesystem -- asserting the effect alone would pass for a request path that stopped
 #                replying, which is exactly what deferring a reply risks.
 #   PO-MKDIRALL  that a nested path with all three segments missing is created by ONE request, and
 #                that a second creation of an existing path is success rather than EXISTS.

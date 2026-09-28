@@ -69,8 +69,7 @@ bool deluge_scenario_song_listing_in_progress() {
 }
 
 void deluge_scenario_start_song_load(const char* full_path) {
-	// Called directly: the livelock that once kept this on the worker fiber (the opened() chain's synchronous
-	// favourites fileExists under a non-yielding block_on) went when favourites moved to their channel.
+	// Called directly: nothing on the opened() chain blocks -- favourites are read through their channel.
 	g_song_load_begin_result = deluge_scenario_begin_song_load(full_path);
 	g_song_load_begin_finished = true;
 }

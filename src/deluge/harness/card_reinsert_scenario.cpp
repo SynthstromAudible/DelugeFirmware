@@ -191,7 +191,7 @@ bool buildFixture() {
 /// Whether the blank song's own preset request has landed. The boot song starts on the built-in default
 /// synth and asks InstrumentLoad for the first SYNTHS preset on the interaction tier; a scenario that
 /// acted on the boot clip before that landed would be working on an Instrument about to be replaced --
-/// and would find its sources still range-less, which is exactly how this gate failed on its first run.
+/// and would find its sources still range-less.
 bool bootSettled() {
 	static int32_t waited = 0;
 	if (currentSong != nullptr && (currentSong->blankPresetPending || deluge::gui::instrumentLoad.inFlight())

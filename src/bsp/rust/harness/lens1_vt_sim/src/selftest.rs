@@ -1,19 +1,19 @@
-//! Phase 0's proof: a modeled SD read, driven by a NON-YIELDING `sim_block::block_on`,
+//! The proof: a modeled SD read, driven by a NON-YIELDING `sim_block::block_on`,
 //! completes — because the progress hook pumps `HP_EXEC` (where `sim_latency::pump` lives)
 //! and advances the virtual clock.
 //!
-//! Before Phase 0 this shape was the documented livelock: `embassy_futures::block_on` over
-//! `sim_latency::modeled_read` spun at 100% CPU with the virtual clock frozen, because
-//! nothing could poll `pump` (see `sd.rs`'s `off_fiber_instant` doc comment).
+//! Without the hook this shape is the documented livelock: `embassy_futures::block_on` over
+//! `sim_latency::modeled_read` spins at 100% CPU with the virtual clock frozen, because
+//! nothing can poll `pump`.
 //!
 //! Two modes share the identical read-and-assert body ([`read_and_assert_modeled_latency`]),
 //! so the ONLY variable between them is the calling context:
 //!
 //! - [`block_on_modeled_read`] is called directly from `main`, with no `executor.poll()` on
-//!   the stack — Task 3's proof.
+//!   the stack.
 //! - [`block_on_modeled_read_nested`] is called from INSIDE a task while MAIN's
-//!   `executor.poll()` is already on the stack — the shape every Phase 2 production call
-//!   site actually uses, and also the shape of the original boot livelock
+//!   `executor.poll()` is already on the stack — the shape every production call
+//!   site actually uses, and also the shape of the boot livelock
 //!   (`deluge_app_init` → `boot_task` → `executor.poll()`; see `sd.rs:211-231`). Two
 //!   mechanisms differ here and could break it: `progress_hook` advancing the virtual clock
 //!   while a MAIN task's future is `&mut`-borrowed by the outer `executor.poll()`, and

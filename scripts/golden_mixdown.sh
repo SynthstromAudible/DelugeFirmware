@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# RETIRED RENDER VERBS: the sample-streaming golden moved onto the async Embassy renderer,
-# and the C-host `deluge_render` this script drives (check/update/padsweep) was deleted with
-# it. Use `scripts/golden_embassy_diff.sh <fixture> [check|update|padsweep]` for the async
-# song-render golden instead — including the `padsweep` layout-invariance guard, now reimplemented
-# on the Embassy renderer there. Only the `reconstruct` verb below remains in use (it rebuilds a
+# RENDER VERBS UNAVAILABLE ON THIS BRANCH: the sample-streaming golden runs on the async Embassy
+# renderer, and this branch has no C-host `deluge_render` target for check/update/padsweep to
+# drive. Use `scripts/golden_embassy_diff.sh <fixture> [check|update|padsweep]` for the async
+# song-render golden instead — including the `padsweep` layout-invariance guard, which it
+# implements on the Embassy renderer. Only the `reconstruct` verb below remains in use (it rebuilds a
 # fixture's project tree from the backup corpus and drives no renderer — `src/bsp/rust/src/sd_image.rs`
 # calls it).
 #
@@ -82,8 +82,8 @@ reconstruct_project() {
 			echo "  WARN missing sample: $src"; miss=$((miss+1))
 		fi
 	# Both attributes matter: `fileName=` covers kit/synth sample refs, `filePath=` covers audioClip
-	# recordings. Grepping only fileName= silently dropped 36 refs in the icoustic fixture, so those
-	# samples were absent from the reconstructed project and failed to load — quietly shrinking what
+	# recordings. Grepping only fileName= would silently drop the audio-clip refs (36 in the icoustic
+	# fixture), leaving those samples absent from the reconstructed project — quietly shrinking what
 	# the golden render actually exercises.
 	done < <(grep -hoE '(fileName|filePath)="[^"]*"' "$SONG_DIR/$SONG_XML" \
 		| sed -E 's/^(fileName|filePath)="//; s/"$//' | sort -u)

@@ -24,17 +24,16 @@
 ///
 /// ## Why this gate exists
 ///
-/// `write_file` starts life with NO harness building it. A feature no gate builds is code that has
-/// never run, so this gate exists to run it and catch what only running finds.
+/// No other harness builds `write_file`. A feature no gate builds is code that has never run, so
+/// this gate exists to run it and catch what only running finds.
 ///
-/// ## Why the assertion is a CRC compared ACROSS the two legs
+/// ## Why the file check is shallow
 ///
-/// The gate's subject is which arm did the writing, so the property that matters is that both arms
-/// write the SAME bytes. A leg checking only its own output proves the arm ran, not that it agrees
-/// with the other one -- and disagreement is the defect worth catching.
-///
-/// The in-process checks are deliberately shallow (the file exists, opens with the XML prolog, is not
-/// trivially short) because the cross-leg comparison is what carries the weight.
+/// The save verifies its own write by reading the document back through the channel, and only a save
+/// that completed that read-back counts (DS-VERIFIED). The check on the file itself is deliberately
+/// shallow (the file exists, opens with the XML prolog, is not trivially short): it catches the
+/// shapes a verified save could still leave behind, and its CRC is what DS-OCCUPIED and the overwrite
+/// legs compare the document against later.
 ///
 /// @note Runs as a STEP MACHINE: a staged save spans ticks by construction, so every check reads its
 ///       result on a LATER tick than the gesture that caused it.

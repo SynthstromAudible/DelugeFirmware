@@ -308,8 +308,8 @@ void runTick() {
 			printf("SC-BURST FAIL the last write of the burst did not land (read %u, wanted %u)\n", value, kBurstThird);
 			g_failures++;
 		}
-		// Channel leg: exactly two card writes, all through the channel. A leg without the channel: none through
-		// it.
+		// With the channel: exactly two card writes, all through it. A build without the channel (the C++ weak
+		// fallback) must put none through it.
 		if (channel && g_burstServed != 2) {
 			printf("SC-BURST FAIL the channel carried %d writes for a burst that should collapse to 2\n",
 			       g_burstServed);
@@ -325,8 +325,9 @@ void runTick() {
 
 	case Stage::OrderSubmit:
 		// Write then read in ONE tick, so the read is submitted while the write is still waiting. No scrub of
-		// the in-memory value in between, and deliberately: the channel-off leg's inline arm serialises the
-		// settings when it RUNS, not when it was called, so a scrub made in this tick would be what it wrote.
+		// the in-memory value in between, and deliberately: a build without the channel serialises the
+		// settings on its inline arm when it RUNS, not when it was called, so a scrub made in this tick
+		// would be what it wrote.
 		// A read that started ahead of the write would load the file's previous value over this one, which
 		// is what the check below catches; the served count is what shows the read ran at all.
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
@@ -588,9 +589,8 @@ void runTick() {
 		break;
 
 	case Stage::Tier: {
-		// Reported, never asserted here. This gate runs in both configurations: with the channel
-		// compiled out the honest answer is 0, and failing on it would make the default build fail
-		// for doing exactly what it is supposed to do. `settings_channel.sh`'s channel-on leg is what
+		// Reported, never asserted here: a build without the channel honestly answers 0, and failing on it
+		// would fail that build for doing exactly what it is supposed to do. `settings_channel.sh` is what
 		// requires this to be non-zero -- see there.
 		printf("SC-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
 		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Settings);

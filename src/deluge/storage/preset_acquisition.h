@@ -221,7 +221,7 @@ struct PresetRequest {
 
 /// @brief Which walker an acquisition's walk runs. InstrumentLoad ticks it on the interaction tier.
 enum class AcquireWalk : uint8_t {
-	Unlaunched, ///< PresetWalk (the retired synchronous walk's replacement): the first preset nobody in the song uses.
+	Unlaunched, ///< PresetWalk: the first preset nobody in the song uses.
 	Confirm,    ///< ConfirmPreset: a named preset if it may be used, or the next one that may.
 	Navigate,   ///< PresetNavigation: the next preset along from a named one, either way.
 	UnusedSlot, ///< Browser::getUnusedSlot(): a name no preset of the type has. Nothing is loaded.

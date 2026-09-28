@@ -14,13 +14,13 @@
 #   SR-SEAM       the prompt decisions. A save that silently overwrote would still round-trip fine.
 #   SR-ROUNDTRIP  the written bytes. A CRC, not a length -- a save that truncated or reordered
 #                 would pass a length check.
-#   SL-NOSTREAM   that no streaming document reader has come back. A SOURCE check, and unusually so:
-#                 a gate cannot observe a path that is not compiled, so noticing the deletion being
-#                 undone is the only way to keep it deleted. A reader that streams a document off the
-#                 card blocks the parsing tier for the whole parse, however rarely it runs.
+#   SL-NOSTREAM   that no streaming document reader exists. A SOURCE check, and unusually so: a gate
+#                 cannot observe a path that is not compiled, so a grep is the only way to notice one
+#                 appearing. A reader that streams a document off the card blocks the parsing tier
+#                 for the whole parse, however rarely it runs.
 #   SL-EVICT      that the round trip still produces the SAME bytes when the song has to be staged
-#                 into an SDRAM heap too small to hold it without evicting. Loading a song now gives
-#                 up cached sample chunks it never used to; that was a decision, so it gets measured.
+#                 into an SDRAM heap too small to hold it without evicting. Staging a song can give
+#                 up cached sample chunks; that is a decision, so it gets measured.
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
 set -euo pipefail
@@ -96,9 +96,9 @@ fi
 
 grep -E '^SR-' "$OUT/run.txt"
 
-# SL-NOSTREAM. The three StorageManager functions that opened a document by streaming it off the card
-# while parsing it. Their deletion is what makes "nothing parses from the card" true, and nothing at
-# runtime can notice them coming back, so it is checked here.
+# SL-NOSTREAM. The three StorageManager functions that would open a document by streaming it off the
+# card while parsing it. Their absence is what makes "nothing parses from the card" true, and nothing
+# at runtime can notice one appearing, so it is checked here.
 if grep -rnE '\bStorageManager::open(XML|Json)File\(|\bopenDelugeFile\(' \
 	"$REPO_ROOT/src" --include='*.cpp' --include='*.h' --include='*.hpp' >"$OUT/nostream.txt"; then
 	echo "FAIL SL-NOSTREAM — a streaming document reader is back:"

@@ -74,7 +74,7 @@ void runAccept() {
 
 	Song* toDelete = currentSong;
 
-	preLoadedSong->ensureAtLeastOneSessionClip(); // Will load a synth preset from SD card
+	preLoadedSong->ensureAtLeastOneSessionClip(); // The built-in default synth; reads no card
 
 	playbackHandler.doSongSwap(playbackHandler.isEitherClockActive());
 	// Only with the clock running: stopped, deleteOldSongBeforeLoadingNew() above already retired the old song and

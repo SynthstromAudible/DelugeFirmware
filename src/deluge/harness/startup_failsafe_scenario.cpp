@@ -158,10 +158,9 @@ void runTick() {
 		break;
 
 	case Stage::Tier: {
-		// Reported, never asserted here. This gate runs in both configurations, and with the channel
-		// compiled out the honest answer is 0; failing on that would make the default build fail for
-		// doing exactly what it is supposed to do. The channel-on leg of `startup_failsafe.sh` is what
-		// requires this to be non-zero.
+		// Reported, never asserted here: a build without the channel honestly answers 0, and failing on
+		// that would fail that build for doing exactly what it is supposed to do. `startup_failsafe.sh` is
+		// what requires this to be non-zero.
 		const int32_t confirmed = deluge::storage::startupSongCanaryConfirmed() ? 1 : 0;
 		printf("SF-ORDER canaryOnCard=%d confirmedBeforeAdvancing=%d\n", g_canaryOnCard, confirmed);
 		if (confirmed != 1) {

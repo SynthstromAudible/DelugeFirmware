@@ -51,7 +51,7 @@
 # 100% reliable across dozens of runs. If a run reports `load_dispatched=false` with
 # `boot_ready=true`, prefer the cached-image form over debugging boot ordering.
 #
-# The /tmp images are no longer per-invocation: `sd_image::pack_image` names them by a
+# The /tmp images are not per-invocation: `sd_image::pack_image` names them by a
 # fingerprint of the packed corpus, so the FIRST unset-DELUGE_SD_IMAGE run packs one
 # ~2.5GB-sparse image and every later run with the same corpus reuses it (and skips mtools
 # entirely). One image per distinct corpus, not one per run — no periodic `rm -f` needed.

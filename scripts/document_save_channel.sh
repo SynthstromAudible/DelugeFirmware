@@ -6,22 +6,17 @@
 #
 # ## Why this gate exists
 #
-# `write_file` began life with NO harness building it -- exactly where the whole-file READ was one
-# rung earlier, and running THAT for the first time found two defects at once. A feature no gate
-# builds is code that has never run. Building this one immediately found two more: the no-channel arm
-# handed the write to a function that no longer wrote anything, and the counter this rung is measured
-# by was never incremented.
+# No other harness builds `write_file`, and a feature no gate builds is code that has never run.
 #
-# One leg: the write channel has no feature switch, so the no-channel arm the old second leg exercised
-# no longer exists.
+# One leg: the write channel has no feature switch, so there is no second arm to run.
 #
 # What the checks cover:
 #   DS-CHANNEL    the document write was SERVED by the channel -- the async arm ran.
 #   DS-TICKED   the save's steps went through a channel after boot. The gate's actual claim.
-#   DS-VERIFIED   both checked saves COMPLETED a read-back -- counted where a save genuinely succeeds,
+#   DS-VERIFIED   every checked save COMPLETED a read-back -- counted where a save genuinely succeeds,
 #                 because a rejected write has already left its file on the card.
 #   DS-VERIFY-ARM the read-back ran through the channel and never on the inline arm.
-#   DS-KITROW     a kit row was saved and verified. No gate had ever saved one before.
+#   DS-KITROW     a kit row was saved and verified. No other gate saves one.
 #   DS-GUARD-SONG a preset save dispatched while a song save's collection or document machine runs -- with
 #                 the save guard already released -- is refused, and the song document still lands whole.
 #   DS-ACCOUNTED  a read-back the channel answered, and that then failed the save, still counts as served:
@@ -127,9 +122,9 @@ grep -q '^DS-BACKMIDSAVE inFlight=1 back=1$' "$OUT/run.txt" || { echo "FAIL DS-B
 grep -q '^DS-EXITMIDSAVE exit=1$' "$OUT/run.txt" || { echo "FAIL DS-EXITMIDSAVE — $(grep '^DS-EXITMIDSAVE ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
 
 # DS-FINISHED / DS-KITFINISHED / DS-GUARD. What a save does AFTER the document lands, and what it
-# refuses BEFORE. Staging the saves skipped all of it -- close, confirm, rename, and the check that
-# refuses a slot another instrument in the song already holds -- and every byte on the card was still
-# correct, so nothing that compared bytes could see it.
+# refuses BEFORE. A staged save can skip all of it -- close, confirm, rename, and the check that
+# refuses a slot another instrument in the song already holds -- with every byte on the card still
+# correct, so nothing that compares bytes can see it.
 grep -q '^DS-FINISHED closed=1 named=1$' "$OUT/run.txt" || { echo "FAIL DS-FINISHED — $(grep '^DS-FINISHED ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
 grep -q '^DS-KITFINISHED closed=1 named=1 path=SYNTHS$' "$OUT/run.txt" || { echo "FAIL DS-KITFINISHED — $(grep '^DS-KITFINISHED ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
 grep -q '^DS-GUARD refused=1 unchanged=1$' "$OUT/run.txt" || { echo "FAIL DS-GUARD — $(grep '^DS-GUARD ' "$OUT/run.txt" || echo 'no line')"; fail=1; }

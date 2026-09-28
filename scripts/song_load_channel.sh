@@ -6,14 +6,13 @@
 #
 # ## Why this gate exists
 #
-# recorder_write.sh was once the ONLY harness that built the write channel. The whole-file staging read
-# the song load depends on had therefore never executed under ANY gate -- it could have been broken in
-# any way and every gate would still have been green, because every one of them ran the build where that
-# code was compiled out. Building it here found two real defects on its first run: the arm entered on a
-# build with only one of the two channels it needs, and deferred forever when it did.
+# A load that brings back the right song says nothing about how its bytes arrived. This gate pins the
+# whole-file staging read the song load depends on: it must be served by the channels, after boot, and
+# a gate that only checks what came back would stay green with that read broken in any way that still
+# produced the song.
 #
 # One leg: neither the byte channel nor the write channel has a feature switch, so there is no build
-# without them left to compare against.
+# without them to compare against.
 #
 # What the checks cover:
 #   SL-LOADED     the song came back off the card. A value stamped into it before saving and

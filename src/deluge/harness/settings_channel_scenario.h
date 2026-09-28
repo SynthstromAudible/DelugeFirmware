@@ -23,17 +23,15 @@
 ///        consumer entry point, read it back, and require the value to survive -- while counting
 ///        every settings operation that began on the interaction tier.
 ///
-/// ## Two stages, and only the second one changes
+/// ## Two halves
 ///
-/// The round trip is the SAFETY half: it passes before the conversion and must still pass after, so
-/// it is what catches a conversion that moved the I/O and broke the settings. `SC-TIER` is the
-/// EVIDENCE half: it is deliberately non-zero before the conversion and must be zero after, and that
-/// transition is the only thing that proves anything moved.
+/// The round trip is the SAFETY half: it catches a change that moved the I/O and broke the settings
+/// on the way. `SC-TIER` is the EVIDENCE half: it must be zero, and it is the only check that shows
+/// where the I/O ran.
 ///
-/// A round trip alone is not enough: a settings conversion could pass it unchanged if the I/O simply
-/// moved without eliminating the interaction-tier work, so the tier count going non-zero to zero is
-/// the only thing that proves the conversion actually happened; a gate with only a round trip would
-/// report success for a conversion that never took place.
+/// A round trip alone is not enough: it passes the same whichever tier did the I/O, so a gate with
+/// only a round trip would report success with every settings operation still running on the
+/// interaction tier.
 ///
 /// ## Why the count and not a dispatch counter
 ///

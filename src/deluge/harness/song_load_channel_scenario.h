@@ -24,10 +24,9 @@
 ///
 /// ## Why this gate exists at all
 ///
-/// `scripts/recorder_write.sh` was the ONLY harness that built the write channel. The
-/// whole-file staging read the song load now depends on had therefore never executed under any gate:
-/// it could have been broken in any way at all and every gate would still have been green, because
-/// every one of them ran the build where that code is compiled out. This gate runs it.
+/// A load that brings back the right song says nothing about how its bytes arrived. This gate pins
+/// the whole-file staging read the song load depends on: a gate that only checks what came back would
+/// stay green with that read broken in any way that still produced the song.
 ///
 /// ## Why the assertion is a VALUE from inside the song
 ///

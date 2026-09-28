@@ -20,7 +20,7 @@
 #ifdef DELUGE_HOST
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/browser/sample_browser.h"         // the converted caller, driven end to end below
+#include "gui/ui/browser/sample_browser.h"         // the real caller, driven end to end below
 #include "gui/views/instrument_clip_view.h"        // fileBrowserShouldNotPreview
 #include "gui/waveform/waveform_basic_navigator.h" // proof the preview actually DREW
 #include "harness/load_invariants.h"               // checkLoadInvariants -- shared with deluge_loadcheck
@@ -177,9 +177,9 @@ bool g_summaryPrinted = false;
 //
 // Everything above drives the loader through its OWN retry loop: `runOneStep`
 // returns on LOAD_IN_PROGRESS and the platform driver calls it again. That proves
-// the loader completes when something asks repeatedly -- and it is exactly the
-// reason the shipped caller's missing re-drive got through nine gates. The gate's
-// driver WAS the handler the caller lacked.
+// the loader completes when something asks repeatedly, and nothing about whether a
+// real caller asks again: a caller missing its re-drive passes every such check,
+// because the gate's driver IS the handler that caller lacks.
 //
 // This stage removes the harness from that role. It calls the production entry
 // (`SampleBrowser::previewFile`) ONCE, and from then on drives only
@@ -361,7 +361,7 @@ bool g_dsPendingAtEnd = false;
 bool g_dsMovedDrawn = false;
 /// previewDraws() before the stall preview and before the move: the stage's witnesses. Deliberately NOT
 /// waveformBasicNavigator.sample -- starting the next preview releases the sample it points at, and reading its
-/// filePath then is a use-after-free (it crashed this stage's first run).
+/// filePath then is a use-after-free.
 int32_t g_dsDrawsBefore = 0;
 int32_t g_dsMoveDrawsBefore = 0;
 int32_t g_dsCompleteBefore = 0;

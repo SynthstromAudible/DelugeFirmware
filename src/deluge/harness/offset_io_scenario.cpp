@@ -439,8 +439,8 @@ void runTick() {
 	case Stage::Dir:
 		g_repliesBefore = g_cable.replies;
 		g_verbTicks = 0;
-		// The listing verb, whose directory OPEN now goes through the directory channel. Included
-		// because a conversion nothing exercises looks identical to one that works -- this covers a
+		// The listing verb, whose directory OPEN goes through the directory channel. Included
+		// because a channel path nothing exercises looks identical to one that works -- this covers a
 		// site the gate would otherwise never drive.
 		sendJson(R"({"dir":{"path":"OI_TEST","offset":0,"lines":8}})");
 		g_stage = Stage::DirCheck;
@@ -474,8 +474,8 @@ void runTick() {
 			g_failures++;
 		}
 
-		// Reported, never asserted here. With the channel compiled out zero is the honest answer, and
-		// the channel-on leg of `offset_io.sh` is what requires it non-zero.
+		// Reported, never asserted here. A build without the channel honestly answers zero, and
+		// `offset_io.sh` is what requires it non-zero.
 		printf("OI-DIR listed=%d\n", g_dirListed);
 		if (g_dirListed != 1) {
 			printf("OI-DIR FAIL the listing did not return the directory's contents\n");
