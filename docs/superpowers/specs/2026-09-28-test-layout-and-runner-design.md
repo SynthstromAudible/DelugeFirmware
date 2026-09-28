@@ -1,6 +1,6 @@
 # One test tree, one registry, one runner
 
-Status: approved 2026-09-28, with the §11 proposals taken as decided. Step 1 in progress.
+Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 and 2 done.
 - Branch `feat/rung3-browser-listing`. Follows the testing audit of the same day (conversation) and the fixes it led to
   (`1d32a55a8` … `7bc73c7bf`).
 - Lands after this branch merges into `next`, and before `feat/synth-golden-masters` is merged onto it, so the golden
@@ -278,10 +278,23 @@ Each step is one or more commits, and ends with:
          also runs on PRs to `next`. `nightly-build.yml`'s cron is on, and its test jobs check out `next` (they
          checked out the default branch) and run the cumulative nightly selection. `test-results.yml` listens to
          `tests.yml` alone.
-2. **Declared builds.**
-   - [ ] `test_builds.py` with the §6 products; the runner builds the union once.
-   - [ ] Trees move under `build/`, with the old paths honoured for one release.
-   - [ ] The gate scripts' `ninja` and `cargo build` lines go.
+2. **Declared builds.** Done 2026-09-28.
+   - [x] `scripts/tasks/test_builds.py` declares `host-app` (`build/host-app`) and `golden-vt-render` (into
+         `build/cargo-harness`); 26 entries declare `builds = ["golden-vt-render"]` and `lens1-vt-sim`
+         `["host-app"]`. The runner builds the union once, dependencies first, logs a capture's builds to
+         `builds.log`, and reports a test whose product could not be built as failed (or skipped, when the product's
+         own prerequisites are missing) instead of running it. The `build-embassy-hostapp` probe is gone: nothing
+         needs it configured by hand.
+   - [x] Trees: `build/test-unit` (was `build/tests`), `build/test-unit-arm`, `build/host-app` (was
+         `build-embassy-hostapp`), `build/cargo-harness` (was `target/harness`). The three `build.rs` files that
+         default a host-app tree (the BSP's, `golden_vt_render`'s, `lens1_vt_sim`'s) prefer `build/host-app` and fall
+         back to `build-embassy-hostapp` where only that exists. `--clean` removes every tree the runner builds.
+   - [x] The 25 gate scripts lost their `ninja` and `cargo build` block, `BUILD_DIR` and `NO_BUILD`; run by hand
+         before a build, each says to run it through `./dbt test`. `golden_mixdown.sh`, the retired C-host rig,
+         keeps its own.
+   - Not moved: `crates/target` and `crates/target-tests-sim`, which the unit tree's CMake drives cargo into (a
+     `rust-sim-lib` product would have to take that over from CMake); `build-embassy-hostapp-tsan`, which
+     `preemptive_race_tsan/run.sh` builds with its own sanitizer flags; the C-host trees, which are step 5's.
 3. **Scenario table and one driver.**
    - [ ] `scenario_table.h` and `deluge_scenario_find`; each scenario registers itself.
    - [ ] The generic Rust driver replaces the stepped tasks.
