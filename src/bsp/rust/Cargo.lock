@@ -364,7 +364,7 @@ dependencies = [
 [[package]]
 name = "deluge-alloc"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=07c4aabc477c44524afc87907eb703c24c88b674#07c4aabc477c44524afc87907eb703c24c88b674"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=a58edba01a7608d08b28d6f0dd0e77a8f35b3661#a58edba01a7608d08b28d6f0dd0e77a8f35b3661"
 dependencies = [
  "critical-section",
  "rlsf",
