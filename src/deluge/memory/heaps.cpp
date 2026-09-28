@@ -18,6 +18,7 @@
 #include "memory/heaps.h"
 #include "libdeluge/alloc.h"
 #include "libdeluge/memory.h"
+#include "libdeluge/system.h"
 #include "libdeluge/tier.h"
 #include "memory/alloc_metadata.h" // mem_guard leak/corruption side-table (self-guards on MEM_GUARD)
 #include "util/structural_edit_probe.h"
@@ -34,6 +35,24 @@
 extern uint32_t __frunk_bss_end;
 extern uint32_t __frunk_slack_end;
 // NOLINTEND
+
+/// [task] [isr] [audio] A heap step's section (crates/deluge_alloc/src/section.rs), with AudioExcludedSection's rule
+/// and depth count (libdeluge/system.h): the audio render masks nothing -- nothing that touches a heap preempts it --
+/// and every other context masks for the one step.
+extern "C" bool deluge_heap_section_enter(void) {
+	if (deluge_in_audio_context()) {
+		return false;
+	}
+	ENTER_CRITICAL_SECTION();
+	g_delugeAudioExcludedDepth++;
+	return true;
+}
+
+/// [task] [isr] Close what deluge_heap_section_enter opened.
+extern "C" void deluge_heap_section_exit(void) {
+	g_delugeAudioExcludedDepth--;
+	EXIT_CRITICAL_SECTION();
+}
 
 /// [task] [isr] [audio] Each heap step reports here from inside its section (crates/deluge_alloc/src/section.rs).
 extern "C" void deluge_heap_step_note(uint8_t kind) {
@@ -61,7 +80,7 @@ void init_heaps() {
 		return;
 	}
 	g_built = true;
-	deluge_heap_set_section_hooks(nullptr, nullptr, &deluge_heap_step_note);
+	deluge_heap_set_section_hooks(&deluge_heap_section_enter, &deluge_heap_section_exit, &deluge_heap_step_note);
 	for (uint8_t i = 0, n = deluge_memory_region_count(); i < n; ++i) {
 		DelugeMemoryRegion r;
 		if (deluge_memory_region(i, &r) != DELUGE_OK) {

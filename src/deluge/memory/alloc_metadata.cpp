@@ -16,6 +16,7 @@
  */
 
 #include "memory/alloc_metadata.h"
+#include "libdeluge/system.h"
 #include "util/structural_edit_probe.h"
 
 #if MEM_GUARD
@@ -59,6 +60,9 @@ inline uint32_t hashAddress(uintptr_t address) {
 // Shared insert/overwrite core. `epoch` is supplied by the caller so a genuine allocation gets a fresh epoch while an
 // in-place re-key (updateAllocKey) can carry the original epoch forward - a resized block is not a new allocation.
 void recordAllocWithEpoch(uintptr_t key, uint32_t requestedSize, uintptr_t callsite, uint32_t epoch) {
+	// Every context that edits the table but the audio render masks for the edit (it runs on every tier's heap
+	// calls); the render needs nothing.
+	AudioExcludedSection section;
 	deluge::noteStructuralEdit(deluge::StructuralContainer::ALLOC_METADATA);
 	if (key == kEmpty || key == kTombstone) {
 		return;
@@ -125,6 +129,7 @@ Slot* findSlot(uintptr_t key) {
 } // namespace
 
 void recordAlloc(void* address, uint32_t requestedSize, void* callsite) {
+	AudioExcludedSection section; // allocEpoch is the table's too
 	recordAllocWithEpoch((uintptr_t)address, requestedSize, (uintptr_t)callsite, ++allocEpoch);
 }
 
@@ -152,6 +157,9 @@ bool lookupAlloc(void* address, AllocInfo* out) {
 }
 
 bool removeAlloc(void* address) {
+	// Every context that edits the table but the audio render masks for the edit (it runs on every tier's heap
+	// calls); the render needs nothing.
+	AudioExcludedSection section;
 	deluge::noteStructuralEdit(deluge::StructuralContainer::ALLOC_METADATA);
 	uintptr_t key = (uintptr_t)address;
 	if (key == kEmpty || key == kTombstone) {
@@ -174,6 +182,9 @@ bool removeAlloc(void* address) {
 }
 
 void updateAllocKey(void* oldAddress, void* newAddress, uint32_t newRequestedSize) {
+	// Every context that edits the table but the audio render masks for the edit (it runs on every tier's heap
+	// calls); the render needs nothing.
+	AudioExcludedSection section;
 	deluge::noteStructuralEdit(deluge::StructuralContainer::ALLOC_METADATA);
 	Slot* old = findSlot((uintptr_t)oldAddress);
 	if (old == nullptr) {
