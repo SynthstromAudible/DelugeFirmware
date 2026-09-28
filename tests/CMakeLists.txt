@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 project(DelugeTests)
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/ccache.cmake)
 
 if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Gcc")
     # CPPUTEST_PLATFORM defaults to Gcc, which causes the test binaries to

@@ -20,4 +20,5 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 cmake -S . -B build -DDELUGE_SIM_X64=ON
-cmake --build build --target deluge_loadcheck
+# One job per core: the default Makefiles generator otherwise compiles one file at a time.
+cmake --build build --target deluge_loadcheck --parallel "$(nproc)"

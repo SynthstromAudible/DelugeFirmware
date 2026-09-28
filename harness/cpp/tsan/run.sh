@@ -38,19 +38,27 @@ cleanup() { rm -f "${BIN}" "${BIN2}" "${BIN3}" "${BIN4}"; }
 trap cleanup EXIT
 
 echo "== building (${CXX} -fsanitize=thread) =="
-"${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
-    -I "${REPO_ROOT}/src" -I "${REPO_ROOT}/include" -pthread \
-    "${SRC}" -o "${BIN}"
-"${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
-    -I "${REPO_ROOT}/src" -I "${REPO_ROOT}/include" -pthread \
-    "${SRC2}" -o "${BIN2}"
-"${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
-    -I "${REPO_ROOT}/src" -I "${REPO_ROOT}/include" -pthread \
-    "${SRC3}" -o "${BIN3}"
+# The four binaries build concurrently (through ccache when it is installed); each build's own exit status is checked.
+LAUNCHER=""
+command -v ccache >/dev/null 2>&1 && LAUNCHER="ccache"
+build_one() { # SRC BIN [extra include dir]
+    ${LAUNCHER} "${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
+        -I "${REPO_ROOT}/src" ${3:+-I "$3"} -I "${REPO_ROOT}/include" -pthread \
+        "$1" -o "$2"
+}
+build_one "${SRC}" "${BIN}" & p1=$!
+build_one "${SRC2}" "${BIN2}" & p2=$!
+build_one "${SRC3}" "${BIN3}" & p3=$!
 # The real OrderedPosVector: its firmware headers resolve from src/deluge; the allocator is stubbed in the source.
-"${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
-    -I "${REPO_ROOT}/src" -I "${REPO_ROOT}/src/deluge" -I "${REPO_ROOT}/include" -pthread \
-    "${SRC4}" -o "${BIN4}"
+build_one "${SRC4}" "${BIN4}" "${REPO_ROOT}/src/deluge" & p4=$!
+build_failed=0
+for p in "${p1}" "${p2}" "${p3}" "${p4}"; do
+    wait "${p}" || build_failed=1
+done
+if [ "${build_failed}" -ne 0 ]; then
+    echo "ERROR: a stress binary failed to build" >&2
+    exit 1
+fi
 
 echo "== confirming the binary is actually TSan-instrumented =="
 for b in "${BIN}" "${BIN2}" "${BIN3}" "${BIN4}"; do
@@ -63,13 +71,27 @@ done
 echo "  ${tsan_syms} __tsan symbols linked -- a clean run below is a real negative"
 
 fail=0
+LOGS="$(mktemp -d -t tsan_stress_logs.XXXXXX)"
+trap 'cleanup; rm -rf "${LOGS}"' EXIT
+# Each run starts the four binaries at once and waits for all of them: they are independent processes, so running
+# them together changes nothing each one checks, and a run takes as long as its slowest binary rather than the sum.
 for i in $(seq 1 "${RUNS}"); do
     echo "== run ${i}/${RUNS} =="
+    pids=()
     for b in "${BIN}" "${BIN2}" "${BIN3}" "${BIN4}"; do
-        if ! TSAN_OPTIONS="halt_on_error=1" "${b}"; then
+        TSAN_OPTIONS="halt_on_error=1" "${b}" >"${LOGS}/$(basename "${b}").${i}.log" 2>&1 &
+        pids+=("$!")
+    done
+    j=0
+    for b in "${BIN}" "${BIN2}" "${BIN3}" "${BIN4}"; do
+        if ! wait "${pids[$j]}"; then
             echo "run ${i} FAILED: $(basename "${b}") (nonzero exit or TSan report)" >&2
+            sed -n '1,60p' "${LOGS}/$(basename "${b}").${i}.log" >&2
             fail=1
+        else
+            tail -1 "${LOGS}/$(basename "${b}").${i}.log"
         fi
+        j=$((j + 1))
     done
 done
 
