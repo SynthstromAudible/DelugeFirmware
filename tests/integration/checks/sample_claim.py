@@ -1,0 +1,78 @@
+"""The sample-claim gate: files claimed from the real sample browser bind what a user's claim binds.
+
+Claims files from the real sample browser into the boot song's synth, a kit drum and an audio clip, and slices a kit,
+through the gestures a user makes: the sound editor's file selector opens the browser, a by-path listing selects the
+file, and the Select encoder claims it.
+
+What the checks cover (src/deluge/harness/sample_claim_scenario.cpp writes the lines):
+    SC-SETUP   per leg: whether the sound editor could be set up and the sample browser opened on it.
+    SC-SELECT  per leg: the file the by-path listing selected.
+    SC-SYNTH   the synth claim: the file bound, the oscillator type, the repeat mode and the transpose.
+    SC-WAVETABLE
+               the synth context menu's WaveTable claim of a single-cycle file: bound, as a wavetable oscillator.
+    SC-FALLBACK
+               a stereo file claimed into a wavetable oscillator: bound, as a sample oscillator instead.
+    SC-GATE    the select encoder turned while an explicit claim's load is held: the selection must not move, and
+               the gate must be released once the claim ends.
+    SC-STALL   an explicit claim whose load is held past the stall bound: it must give up, leaving the holder
+               unbound, the browser open and the gate released, having given up once.
+    SC-SUPERSEDE
+               an auto-load claim the cursor leaves while its pitch detection waits for a cluster, for a next
+               preview that lands at once (case=landed) and for one still loading (case=loading): it must be
+               cancelled once, and only the next file's claim may finish.
+    SC-WAVETABLE-RESIDENT
+               a context-menu wavetable claim of a file the preview left resident as a Sample, its clusters held:
+               it must still bind as a wavetable, built from the card (converted=0 fromCard=1) -- only a Sample
+               every cluster of which is cached is converted.
+    SC-WAVETABLE-CONVERTED
+               a context-menu wavetable claim of a file every cluster of which is cached: converted from memory
+               (converted=1 fromCard=0), every cluster pinned, and the same WaveTable (CRC) a card build of a
+               byte-identical twin gives.
+    SC-PITCH   a claim whose detection finds its clusters held briefly: it waits, resumes, and finds the same note.
+    SC-PITCH-STALL
+               a claim whose detection's clusters never arrive: one give-up, the note an error, the transpose left
+               alone, the claim finished.
+    SC-TIER    per leg: no sample was read from the card on the interaction tier.
+    SC-KIT     the kit drum claim: the file bound, the repeat mode, the drum's name and its side-chain send.
+    SC-AUDIOCLIP
+               the audio clip claim: the file bound, and the clip's loop length and attack.
+    SC-SLICE   the slicer's four-region slice: how many drums the kit ends with, how many are bound to the sliced
+               sample, and how many NoteRows have a drum.
+    RD-ONE     the Drum Randomizer on one selected drum: it must end on a file from the folder its sample sat in,
+               named after that file, with every other row untouched.
+    RD-ALL     the same gesture with affect-entire held: every unmuted row that has notes must end on a file from
+               that folder, and the muted and empty rows must be untouched.
+    RD-TIER    per randomizer leg: a directory scan ran, and no sample was read from the card on the interaction
+               tier.
+    RD-GATE    a randomize whose load the loader holds: while the walk is out, no second walk may start and an edit
+               pad must be refused; once it ends, the gate released and the same pad taken.
+    RD-STALL   a randomize over three rows whose second load is held past the stall bound: the walk must end there,
+               with the first row kept on its file, the second left unbound, the third untouched, and the gate
+               released.
+    RD-CANCELSCAN a randomize cancelled -- by returning to the clip view -- while its row's folder open is still out
+               on the directory channel: the walk must DRAIN, collecting and discarding the handle that open still
+               produces, read none of its entries, leave the row exactly as it was, and release the gate.
+    IM-KIT     the kit context menu's "Load All" over a folder of its own: one drum per file in filename order, each
+               named after its file without the folder's shared prefix, bound to it and with a NoteRow; the kit
+               edited and the browser closed.
+    IM-MULTI   the synth context menu's "Multisamples" over three sines an octave apart: one range per file in pitch
+               order, each bound to its file with the transpose its detection gives it, and the browser closed.
+    IM-TIER    per folder import: a listing ran, and no sample was read from the card on the interaction tier.
+    IM-GATE    a kit import whose loads the loader holds: while it is out, BACK and a second Select on the menu must be
+               refused; once it ends, the gate released and the kit holding its drums.
+    IM-STALL   a multisample import whose second file's load is held past the stall bound: it must abort with the
+               synth's ranges and the loaded files' reasons as they were, just the menu closed, the browser open and
+               the gate released.
+    SC-SLICE-MANUAL
+               a second kit sliced in manual mode into three slices, the live slice points changed straight after
+               Select: every drum bound to the sliced sample, with a NoteRow, and painted from the points as they
+               were when Select was pressed.
+
+The registry entry requires each marker and the result line, and gives the run a 180 s virtual-time budget: three legs
+hold the loader for 30 virtual seconds each (SC-STALL, RD-STALL's randomize, IM-STALL) and the pitch legs hold the
+streaming loader on top, which is more than the runner's default 60 s covers.
+"""
+
+
+def check(gate, run):
+    gate.say("PASS — every claim bound what a user's claim binds")

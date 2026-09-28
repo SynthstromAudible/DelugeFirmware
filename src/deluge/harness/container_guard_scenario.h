@@ -22,7 +22,7 @@
 ///        output -- through the model's own entry point, and reports how many structural edits were made while the
 ///        render could have preempted them (deluge::unguardedStructuralEditsTotal(), util/structural_edit_probe.h).
 ///
-/// @note The scenario fails nothing on a count: scripts/container_guard.sh judges them.
+/// @note The scenario fails nothing on a count: tests/integration/checks/container_guard.py judges them.
 ///
 /// @note Runs as a step machine: each `dispatch_step()` does one stage, and the platform driver lets virtual time
 ///       advance between steps. The scenario drives the render itself.

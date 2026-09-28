@@ -24,9 +24,10 @@
 ///        (Clip::clipsDestroyedWhileReferenced(), Song::songsDestroyedWhileReachable(),
 ///        Sound::soundsDestroyedWithLiveVoices()), and the run what is still retired and waiting (CL-RECLAIM).
 ///
-/// @note The scenario itself fails nothing on a count: scripts/clip_lifetime.sh requires every leg clean (a clip leg's
-///       clip is retired, so each clip leg renders and reclaims before its line -- CL-FREED -- to destroy the clip
-///       inside the leg; a stopped-clock song leg must have freed the old song before it built the new one).
+/// @note The scenario itself fails nothing on a count: tests/integration/checks/clip_lifetime.py requires every leg
+///       clean (a clip leg's clip is retired, so each clip leg renders and reclaims before its line -- CL-FREED -- to
+///       destroy the clip inside the leg; a stopped-clock song leg must have freed the old song before it built the
+///       new one).
 ///
 /// @note Runs as a step machine: each `dispatch_step()` does one stage, and the platform driver lets virtual time
 ///       advance between steps. The scenario drives the render itself.

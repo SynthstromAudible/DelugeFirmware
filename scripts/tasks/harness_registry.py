@@ -67,6 +67,12 @@ class Harness:
     junit: str = ""
     # Build products (test_builds.py) the runner makes before this test runs.
     builds: list[str] = field(default_factory=list)
+    # runner = "scenario": the GOLDEN_SCENARIO to run ("" for the stem-render arm), the markers each run must print,
+    # the whole line that says it passed, and a module (scenario_gate.py) with the gate's own checks.
+    scenario: str | None = None
+    markers: list[str] = field(default_factory=list)
+    result: str = ""
+    check: str = ""
 
 
 def load_registry(root: Path) -> list[Harness]:
@@ -110,8 +116,19 @@ def load_registry(root: Path) -> list[Harness]:
                 raise ValueError(
                     f"{where}: a ctest test is built and run from 'source' and 'tree', not 'build'/'run'"
                 )
+        elif item["runner"] == "scenario" and "scenario" in item:
+            if item.get("build") or item.get("run"):
+                raise ValueError(
+                    f"{where}: a scenario gate is run from 'scenario', not 'build'/'run'"
+                )
+            if "golden-vt-render" not in item.get("builds", []):
+                raise ValueError(
+                    f"{where}: a scenario gate runs golden_vt_render, so builds must name golden-vt-render"
+                )
         elif not item.get("run"):
             raise ValueError(f"{where}: missing required field 'run'")
+        if item.get("check") and not (root / item["check"]).is_file():
+            raise ValueError(f"{where}: check '{item['check']}' does not exist")
 
         known_products = test_builds.products(root)
         for product in item.get("builds", []):
@@ -152,6 +169,10 @@ def load_registry(root: Path) -> list[Harness]:
                 ctest_args=item.get("ctest_args", []),
                 junit=item.get("junit", ""),
                 builds=item.get("builds", []),
+                scenario=item.get("scenario"),
+                markers=item.get("markers", []),
+                result=item.get("result", ""),
+                check=item.get("check", ""),
             )
         )
 

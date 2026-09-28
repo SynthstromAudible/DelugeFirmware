@@ -28,6 +28,7 @@ import util
 sys.path.insert(0, str(Path(__file__).parent))
 
 import harness_registry as hr
+import scenario_gate
 import test_builds as tb
 
 SHARED_TARGET_SUBDIR = tb.SHARED_TARGET_SUBDIR
@@ -240,6 +241,20 @@ def _run_one(
     products: dict[str, tb.Product],
 ) -> bool:
     env = _environment(root, h, products)
+    if h.runner == "scenario" and h.scenario is not None:
+        if build_only:
+            return True
+        print(
+            f"==> {h.name}: run: GOLDEN_SCENARIO={h.scenario or '(stem render)'}",
+            flush=True,
+        )
+        binary = Path(env["CARGO_TARGET_DIR"]) / "release" / "golden_vt_render"
+        passed = scenario_gate.run_gate(
+            root, h, env, binary, log if log is not None else sys.stdout
+        )
+        if not passed:
+            print(f"test: '{h.name}' failed", file=sys.stderr)
+        return passed
     workdir = root / h.path
     for phase, argv in _steps(root, h, passthrough, junit_dir):
         if build_only and phase == "run":

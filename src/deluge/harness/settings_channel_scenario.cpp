@@ -590,8 +590,8 @@ void runTick() {
 
 	case Stage::Tier: {
 		// Reported, never asserted here: a build without the channel honestly answers 0, and failing on it
-		// would fail that build for doing exactly what it is supposed to do. `settings_channel.sh` is what
-		// requires this to be non-zero -- see there.
+		// would fail that build for doing exactly what it is supposed to do.
+		// `tests/integration/checks/settings_channel.py` is what requires this to be non-zero -- see there.
 		printf("SC-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
 		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Settings);
 		printf("SC-TIER violations=%d\n", violations);

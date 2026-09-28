@@ -697,8 +697,8 @@ void runTick() {
 		}
 
 		// Reported, never asserted here: a build without the channel honestly answers zero, and failing
-		// on it would fail that build for doing exactly what it is supposed to do. `path_operations.sh`
-		// is what requires this to be non-zero.
+		// on it would fail that build for doing exactly what it is supposed to do.
+		// `tests/integration/checks/path_operations.py` is what requires this to be non-zero.
 		printf("PO-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
 
 		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
@@ -719,7 +719,7 @@ void runTick() {
 
 		// The synchronous-call meter's positive control: one deliberate synchronous open, after boot, on the
 		// interaction tier (this scenario's own tick). Whether the file exists does not matter -- the open is counted
-		// on entry. Reported, not failed here: path_operations.sh requires n=1.
+		// on entry. Reported, not failed here: tests/integration/checks/path_operations.py requires n=1.
 		const uint32_t before = tierSyncCount("file_open");
 		(void)deluge::io::File::open("PO_TEST/TIER_SYNC_PROBE.TXT", DELUGE_FILE_READ);
 		printf("TIER-SYNC-PROBE n=%u\n", static_cast<unsigned>(tierSyncCount("file_open") - before));

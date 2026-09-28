@@ -23,7 +23,7 @@
 ///
 /// The channel has no switch, so there is one build and one run: the reference that a second,
 /// file-backed build would otherwise provide is decoded in-process instead (`SP-REFERENCE`, beside
-/// each `SP-CASE`). `scripts/song_preview_ab.sh` runs it.
+/// each `SP-CASE`). `./dbt test song-preview-ab` runs it; `tests/integration/checks/song_preview_ab.py` checks it.
 ///
 /// ## What is compared, and why pixels alone are not enough
 ///

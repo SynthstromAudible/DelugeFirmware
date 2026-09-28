@@ -134,10 +134,22 @@ Running `cargo` by hand inside a harness directory bypasses this and creates a l
 harness directory adds up to tens of gigabytes of duplicate build trees. Prefer `./dbt test <name>`;
 `./dbt test --clean` drops every tree the runner builds.
 
-## Adding a harness
+## Adding a test
 
-Add a `[[harness]]` block to `registry.toml` and regenerate the table. `gates`
-and `status` are mandatory: a harness that cannot state the regression it
-catches is one nobody can later decide to delete: a crate whose own header
-declares it throwaway survives indefinitely when nothing records that fact
-anywhere a reader would look.
+Add a `[[harness]]` block to `registry.toml` and regenerate the table. `gates` and `status` are mandatory: a test
+that cannot state the regression it catches is one nobody can later decide to delete: a crate whose own header
+declares it throwaway survives indefinitely when nothing records that fact anywhere a reader would look.
+
+### A scenario gate
+
+A scenario gate is a stepped scenario the Embassy host harness runs (`runner = "scenario"`). Adding one:
+
+1. **The scenario:** `src/deluge/harness/<name>_scenario.{h,cpp}`, exporting `begin`, `complete`, `dispatch_step`,
+   `step_done` and `failures`, and a row in `src/deluge/harness/scenario_table.cpp`. golden_vt_render's one stepped
+   driver runs any row by name; nothing on the Rust side changes, unless the scenario needs its own card image
+   (`main.rs`, the `match` on the scenario name).
+2. **The registry entry:** `scenario = "<name>"`, `builds = ["golden-vt-render"]`, the `markers` each run must print
+   and the `result` line that says it passed. `./dbt test` checks those, and the exit status, itself.
+3. **A check, only if the gate needs more:** `tests/integration/checks/<name>.py`, named by the entry's `check`,
+   defining `check(gate, run)` (after the standard run) or `run(gate)` (instead of it). See
+   `scripts/tasks/scenario_gate.py`.

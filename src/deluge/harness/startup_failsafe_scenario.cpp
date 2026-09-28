@@ -159,8 +159,8 @@ void runTick() {
 
 	case Stage::Tier: {
 		// Reported, never asserted here: a build without the channel honestly answers 0, and failing on
-		// that would fail that build for doing exactly what it is supposed to do. `startup_failsafe.sh` is
-		// what requires this to be non-zero.
+		// that would fail that build for doing exactly what it is supposed to do.
+		// `tests/integration/checks/startup_failsafe.py` is what requires this to be non-zero.
 		const int32_t confirmed = deluge::storage::startupSongCanaryConfirmed() ? 1 : 0;
 		printf("SF-ORDER canaryOnCard=%d confirmedBeforeAdvancing=%d\n", g_canaryOnCard, confirmed);
 		if (confirmed != 1) {

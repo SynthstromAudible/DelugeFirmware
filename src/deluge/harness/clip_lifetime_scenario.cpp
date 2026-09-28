@@ -1277,8 +1277,8 @@ void runTick() {
 		fflush(stdout);
 		if (g_leg == Leg::WontSound) {
 			// The gate's last leg: render the retired drum's block-and-a-half wait out and reclaim, so this run's own
-			// CL-RECLAIM (the required one -- see scripts/clip_lifetime.sh) reflects what WONTSOUND itself retired,
-			// not just what the earlier clip legs left behind.
+			// CL-RECLAIM (the required one -- see tests/integration/checks/clip_lifetime.py) reflects what WONTSOUND
+			// itself retired, not just what the earlier clip legs left behind.
 			g_step = "reclaim2";
 			renderBlocks(kReclaimBlocks);
 			AudioEngine::reclaimRetired();

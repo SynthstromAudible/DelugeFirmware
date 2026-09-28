@@ -48,8 +48,8 @@
 ///          answers as the design says one should — which is worth having, and is not evidence that
 ///          the real loader answers that way.
 ///          The gate that runs the real Rust loader against this same C++ collector, over real
-///          files, is `audio-load-ab` (harness/registry.toml -> scripts/audio_load_ab.sh ->
-///          src/deluge/harness/audio_load_ab_scenario.cpp), on the Embassy host BSP. If a change
+///          files, is `audio-load-ab` (src/deluge/harness/audio_load_ab_scenario.cpp, checked by
+///          tests/integration/checks/audio_load_ab.py), on the Embassy host BSP. If a change
 ///          here alters what the collector does with a loader result, that is the gate to run.
 
 #include "harness/load_invariants.h" // checkLoadInvariants -- shared with the Embassy A/B gate

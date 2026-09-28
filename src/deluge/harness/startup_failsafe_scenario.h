@@ -37,7 +37,7 @@
 ///
 /// It must be zero, and it is the only check that shows which tier the fail-safe's I/O ran on.
 /// `SF-CHANNEL` is reported and not asserted here: a build without the byte channel honestly answers
-/// 0, so it is `scripts/startup_failsafe.sh` that requires it non-zero.
+/// 0, so it is `tests/integration/checks/startup_failsafe.py` that requires it non-zero.
 extern "C" {
 
 /// @brief Reset the scenario's state and prepare stdout for a piped run.

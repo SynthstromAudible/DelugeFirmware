@@ -475,7 +475,7 @@ void runTick() {
 		}
 
 		// Reported, never asserted here. A build without the channel honestly answers zero, and
-		// `offset_io.sh` is what requires it non-zero.
+		// `tests/integration/checks/offset_io.py` is what requires it non-zero.
 		printf("OI-DIR listed=%d\n", g_dirListed);
 		if (g_dirListed != 1) {
 			printf("OI-DIR FAIL the listing did not return the directory's contents\n");

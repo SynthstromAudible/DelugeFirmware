@@ -5,6 +5,7 @@ Run directly with:
     python3 scripts/tasks/test_harness_registry.py
 """
 
+import io
 import os
 import sys
 import tempfile
@@ -15,6 +16,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).parent))
 
 import harness_registry as hr
+import scenario_gate as sg
 import test_builds as tb
 
 MINIMAL = """
@@ -197,6 +199,50 @@ class LoadRegistryTest(unittest.TestCase):
         self.assertIn("alpha", str(cm.exception))
 
 
+class ScenarioEntryTest(unittest.TestCase):
+    SCENARIO = """
+[[harness]]
+name = "gamma"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "gamma holds"
+scenario = "gamma"
+markers = ["GA-ONE"]
+builds = ["golden-vt-render"]
+tier = "nightly"
+"""
+
+    def _root_with(self, text):
+        root = Path(tempfile.mkdtemp())
+        (root / "harness").mkdir()
+        (root / "harness" / "registry.toml").write_text(text)
+        return root
+
+    def test_loads(self):
+        h = hr.load_registry(self._root_with(self.SCENARIO))[0]
+        self.assertEqual((h.scenario, h.markers), ("gamma", ["GA-ONE"]))
+
+    def test_needs_the_harness_binary(self):
+        with self.assertRaises(ValueError):
+            hr.load_registry(
+                self._root_with(
+                    self.SCENARIO.replace('builds = ["golden-vt-render"]\n', "")
+                )
+            )
+
+    def test_rejects_run(self):
+        with self.assertRaises(ValueError):
+            hr.load_registry(self._root_with(self.SCENARIO + 'run = ["x"]\n'))
+
+    def test_missing_check_module_is_rejected(self):
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(self.SCENARIO + 'check = "nope.py"\n'))
+        self.assertIn("nope.py", str(cm.exception))
+
+
 class BuildsTest(unittest.TestCase):
     def _root_with(self, text):
         root = Path(tempfile.mkdtemp())
@@ -238,6 +284,87 @@ class BuildsTest(unittest.TestCase):
         known = tb.products(Path("/repo"))
         (step,) = known["golden-vt-render"].steps(Path("/repo"))
         self.assertEqual(step.env["DELUGE_HOSTAPP_BUILD_DIR"], "/repo/build/host-app")
+
+
+class ScenarioGateTest(unittest.TestCase):
+    """The standard checks every scenario gate makes, against a stub binary that prints what a run would."""
+
+    def _gate(
+        self,
+        stdout,
+        code=0,
+        markers=("AB-ONE", "AB-TWO"),
+        result="AB-RESULT failures=0",
+        check="",
+    ):
+        root = Path(tempfile.mkdtemp())
+        binary = root / "fake"
+        binary.write_text(
+            "#!/bin/sh\ncat <<'END'\n" + stdout + "\nEND\nexit " + str(code) + "\n"
+        )
+        binary.chmod(0o755)
+        if check:
+            (root / "check.py").write_text(check)
+        entry = hr.Harness(
+            name="g",
+            path=".",
+            level="integration",
+            runner="scenario",
+            kind="property",
+            status="gate",
+            gates="g",
+            tier="nightly",
+            build=[],
+            run=[],
+            requires=[],
+            runtime="?",
+            builds=["golden-vt-render"],
+            scenario="g",
+            markers=list(markers),
+            result=result,
+            check="check.py" if check else "",
+        )
+        log = io.StringIO()
+        return sg.run_gate(root, entry, dict(os.environ), binary, log), log.getvalue()
+
+    GOOD = "AB-ONE x=1\nAB-TWO y=2\nAB-RESULT failures=0"
+
+    def test_a_clean_run_passes(self):
+        passed, log = self._gate(self.GOOD)
+        self.assertTrue(passed, log)
+
+    def test_a_nonzero_exit_fails(self):
+        passed, log = self._gate(self.GOOD, code=1)
+        self.assertFalse(passed)
+        self.assertIn("exited 1", log)
+
+    def test_a_missing_marker_fails(self):
+        passed, log = self._gate("AB-ONE x=1\nAB-RESULT failures=0")
+        self.assertFalse(passed)
+        self.assertIn("no AB-TWO line", log)
+
+    def test_a_marker_must_start_the_line(self):
+        passed, _ = self._gate("AB-ONE x=1\nsaw AB-TWO y=2\nAB-RESULT failures=0")
+        self.assertFalse(passed)
+
+    def test_the_result_line_must_be_whole(self):
+        passed, _ = self._gate("AB-ONE x=1\nAB-TWO y=2\nAB-RESULT failures=01")
+        self.assertFalse(passed)
+
+    def test_a_check_module_runs_after_and_can_fail(self):
+        check = (
+            "from scenario_gate import int_field\n\ndef check(gate, run):\n"
+            "    if int_field(run.first('AB-TWO'), 'y') != 3:\n        gate.fail('AB-TWO y is not 3')\n"
+        )
+        passed, log = self._gate(self.GOOD, check=check)
+        self.assertFalse(passed)
+        self.assertIn("FAIL AB-TWO y is not 3", log)
+
+    def test_field_helpers(self):
+        self.assertEqual(sg.field("AB x=1 y=two", "y"), "two")
+        self.assertIsNone(sg.field("AB xx=1", "x"))
+        self.assertEqual(sg.int_field("AB n=-3", "n"), -3)
+        self.assertIsNone(sg.int_field("AB n=abc", "n"))
 
 
 class ProbeTest(unittest.TestCase):
