@@ -8,9 +8,8 @@
 #   ST-BYTES    the export actually wrote audio, at the size recorded beside the hash (field 2)
 #
 # ⚠️ THIS IS NOT golden-embassy-diff, AND ITS BASELINE IS NOT THAT GATE'S GOLDEN. That gate
-# compares against a C-host `deluge_render` golden this branch cannot rebuild (golden-mixdown is
-# registered "does not build"), which is why it is permanently red and cannot gate a rung. This
-# one compares the Embassy render against ITSELF, recorded here, and so can go green.
+# compares against a golden kept outside the repo in DELUGE_GOLDEN_DIR, reconstructed from the song
+# corpus. This one compares the Embassy render against ITSELF, recorded here, so it needs no corpus.
 #
 # ⚠️ THE BASELINE IS NOT EXPECTED TO MOVE. A walk's cadence is an implementation detail; rendered
 # audio is not. If ST-RENDER goes red, that is a finding to investigate — never a re-baseline.

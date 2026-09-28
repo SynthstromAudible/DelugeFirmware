@@ -39,7 +39,7 @@ if(NOT TARGET deluge_rust_rs)
 endif()
 target_link_libraries(deluge_spec PUBLIC deluge_rust_rs)
 
-target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include)
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_tests/mocks/ ../../include)
 
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 26

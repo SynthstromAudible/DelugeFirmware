@@ -50,13 +50,20 @@ build_one "${SRC}" "${BIN}" & p1=$!
 build_one "${SRC2}" "${BIN2}" & p2=$!
 build_one "${SRC3}" "${BIN3}" & p3=$!
 # The real OrderedPosVector: its firmware headers resolve from src/deluge; the allocator is stubbed in the source.
-# ... and the real RenderingDrums, compiled against a stub SoundDrum (stubs/ comes first on the include path). ETL is
-# fetched by CMake into a build tree's _deps; any configured host tree has it.
+# ... and the real RenderingDrums, compiled against a stub SoundDrum (stubs/ comes first on the include path). ETL comes
+# from a configured host tree's _deps when there is one; otherwise (a fresh CI checkout) the firmware's pinned ETL tag
+# from lib/CMakeLists.txt is cloned into build-harness-deps/.
 ETL_INCLUDE="$(ls -d "${REPO_ROOT}"/build-embassy-hostapp/_deps/etl-src/include "${REPO_ROOT}"/build*/_deps/etl-src/include \
-    "${REPO_ROOT}"/sim/build/_deps/etl-src/include 2>/dev/null | head -1)"
+    "${REPO_ROOT}"/sim/build/_deps/etl-src/include 2>/dev/null | head -1 || true)"
 if [ -z "${ETL_INCLUDE}" ]; then
-    echo "ERROR: no ETL headers found under a build tree's _deps -- configure a host build first" >&2
-    exit 2
+    ETL_TAG="$(awk '/GIT_REPOSITORY https:\/\/github.com\/ETLCPP\/etl/ { found = 1 } found && /GIT_TAG/ { print $2; exit }' \
+        "${REPO_ROOT}/lib/CMakeLists.txt")"
+    ETL_DIR="${REPO_ROOT}/build-harness-deps/etl-${ETL_TAG}"
+    if [ ! -d "${ETL_DIR}/include" ]; then
+        echo "== fetching ETL ${ETL_TAG} into ${ETL_DIR} =="
+        git -c advice.detachedHead=false clone --quiet --depth 1 --branch "${ETL_TAG}" https://github.com/ETLCPP/etl "${ETL_DIR}"
+    fi
+    ETL_INCLUDE="${ETL_DIR}/include"
 fi
 build_one4() {
     ${LAUNCHER} "${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
