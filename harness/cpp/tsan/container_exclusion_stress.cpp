@@ -113,13 +113,10 @@ void editor() {
 			g_nodes.clear();
 		}
 		// The product RenderingDrums sections its own adds and removes: a drum starting and stopping, in any order.
-		// Only drums that are out, as the firmware adds (SoundDrum::setSkippingRendering changes state first): a second
-		// add is a misuse the wrapper freezes on. Only this thread edits, so reading membership here needs no section.
+		// Adds and removes from this tier race the render's own (below): whether a drum is in is decided inside the
+		// section, so either may find it already in or already out.
 		for (int i = 0; i < 16; ++i) {
-			SoundDrum* drum = &g_drumPool[(round * 7 + i) % 16];
-			if (!g_drums.contains(drum)) {
-				g_drums.add(drum);
-			}
+			g_drums.add(&g_drumPool[(round * 7 + i) % 16]);
 		}
 		for (int i = 0; i < 16; i += 2) {
 			g_drums.remove(&g_drumPool[(round * 5 + i) % 16]);
@@ -144,6 +141,9 @@ void walker() {
 				std::abort();
 			}
 		});
+		// The render adds and removes drums too (a drum's voices starting and ending as it renders).
+		g_drums.remove(&g_drumPool[walks % 16]);
+		g_drums.add(&g_drumPool[(walks * 3) % 16]);
 		for (void* clip : g_clips) {
 			if (clip != &g_dummy) {
 				std::fprintf(stderr, "walk saw a clip slot mid-edit\n");

@@ -625,7 +625,24 @@ bool setupLeg() {
 		g_magnitudeOffsetBefore = currentSong->insideWorldTickMagnitudeOffsetFromBPM;
 		currentSong->setInputTickScaleClip(clip);
 		break;
-	case Leg::SongClear:
+	case Leg::SongClear: {
+		// The synth the user is playing in the old song, and a kit drum sounding beside it: the clear must take the
+		// drum out of its kit's rendering list before the kit is destroyed (Kit::~Kit freezes E462 otherwise).
+		selectClip(clip);
+		InstrumentClip* kitClip = makeKitClip();
+		if (kitClip == nullptr) {
+			return false;
+		}
+		SoundDrum* drum = g_drum;
+		NoteRow* row = kitClip->getNoteRowForDrum(drum);
+		// The kit is part of the old song's fixture only: the leg's probes and reports stay about the synth.
+		g_kit = nullptr;
+		g_drum = nullptr;
+		if (row == nullptr || !soundDrum(drum, kitClip, &row->paramManager)) {
+			return fail("the old song's kit drum could not be sounded");
+		}
+		break;
+	}
 	case Leg::SongLoad:
 	case Leg::SongSwap:
 		// The synth the user is playing in the old song.

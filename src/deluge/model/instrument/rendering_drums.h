@@ -37,7 +37,8 @@ public:
 	RenderingDrums(const RenderingDrums&) = delete;
 	RenderingDrums& operator=(const RenderingDrums&) = delete;
 
-	/// [task] [audio] Add @p drum. Does nothing if it is already in; on an alpha/beta build that is a freeze (E463).
+	/// [task] [audio] Add @p drum. Does nothing if it is already in: both tiers add, and whichever runs second finds it
+	/// in.
 	void add(SoundDrum* drum);
 	/// [task] [audio] Remove @p drum. Does nothing if it is not in.
 	void remove(SoundDrum* drum);

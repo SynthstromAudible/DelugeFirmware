@@ -244,9 +244,13 @@ void letGoOfSong(Song* song) {
 				mark(*static_cast<SoundInstrument*>(output));
 			}
 			else if (output->type == OutputType::KIT) {
-				for (Drum* d = static_cast<Kit*>(output)->firstDrum; d != nullptr; d = d->next) {
+				auto* kit = static_cast<Kit*>(output);
+				for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
 					if (d->type == DrumType::SOUND) {
 						mark(*static_cast<SoundDrum*>(d));
+						// Out of the kit's rendering list too: ending the voices does not take it out (a drum leaves
+						// the list only when its render finds it silent), and ~Kit destroys it at reclaim.
+						kit->renderingDrums.remove(static_cast<SoundDrum*>(d));
 					}
 				}
 			}
@@ -276,9 +280,12 @@ void letGo(const RetireRequest& r) {
 			letGoOfSound(*static_cast<SoundInstrument*>(r.output));
 		}
 		else if (r.output->type == OutputType::KIT) {
-			for (Drum* d = static_cast<Kit*>(r.output)->firstDrum; d != nullptr; d = d->next) {
+			auto* kit = static_cast<Kit*>(r.output);
+			for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
 				if (d->type == DrumType::SOUND) {
 					letGoOfSound(*static_cast<SoundDrum*>(d));
+					// As for a song's kits in letGoOfSong(): out of the rendering list before ~Kit destroys it.
+					kit->renderingDrums.remove(static_cast<SoundDrum*>(d));
 				}
 			}
 		}
