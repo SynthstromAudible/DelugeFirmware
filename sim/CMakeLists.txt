@@ -57,6 +57,7 @@ endif()
 # generated util/firmware_version.h gets non-empty PROJECT_VERSION_* components.
 project(DelugeHostSim VERSION 1.3.0 LANGUAGES C CXX)
 include(${CMAKE_CURRENT_LIST_DIR}/../cmake/ccache.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/deps.cmake)
 
 set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/..)
 
@@ -188,16 +189,9 @@ endif()
 # resolve to <simde/arm/neon.h>. Native-NEON hosts (the arm-linux cross, Apple Silicon, arm64
 # Linux) have a real <arm_neon.h> and skip all of this.
 if(NOT DELUGE_SIM_NEON_NATIVE)
-    # SIMDe provides the NEON intrinsics on non-ARM hosts — argon's <arm/neon.h> and the compat
-    # <arm_neon.h> shim resolve into it. Fetch it (pinned) rather than depending on a system package,
-    # so the host-sim builds anywhere without a distro simde install. v0.8.2 matches the version this
-    # was developed against, so the portable-NEON emulation (and thus the golden captures) is unchanged.
-    include(FetchContent)
-    FetchContent_Declare(simde
-        GIT_REPOSITORY https://github.com/simd-everywhere/simde
-        GIT_TAG v0.8.2
-        GIT_SHALLOW TRUE
-    )
+    # SIMDe provides the NEON intrinsics on non-ARM hosts. It is fetched at the pinned revision (cmake/deps.cmake)
+    # rather than taken from a system package, so the portable-NEON emulation, and with it the golden captures, is
+    # the same on every host.
     FetchContent_MakeAvailable(simde)
     # Repo layout is ${simde_SOURCE_DIR}/simde/{arm,x86,...}: the root resolves <simde/arm/neon.h>
     # (the compat shim), the simde/ subdir resolves argon's bare <arm/neon.h>. Both are added below.

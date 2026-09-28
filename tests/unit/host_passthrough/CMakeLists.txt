@@ -3,9 +3,6 @@
 # Specs for the C-host POSIX passthrough (src/bsp/host/host_efatfs_passthrough.cpp): the strong
 # deluge_efatfs_* definitions the sim links, tested directly against a temp dir under DELUGE_SD_ROOT.
 include(FetchContent)
-FetchContent_Declare(CppSpec
-  URL https://github.com/toroidal-code/cppspec/archive/refs/heads/main.tar.gz
-)
 FetchContent_MakeAvailable(CppSpec)
 
 file(GLOB_RECURSE spec_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)

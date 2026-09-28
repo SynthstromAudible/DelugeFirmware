@@ -11,18 +11,9 @@
 # too, exactly like tests/unit/audio_stream/CMakeLists.txt already does for its own convert/stitch
 # specs (this file's argon/SIMDe setup is copied from there verbatim -- keep the two in sync).
 include(FetchContent)
-FetchContent_Declare(CppSpec
-  URL https://github.com/toroidal-code/cppspec/archive/refs/heads/main.tar.gz
-)
 FetchContent_MakeAvailable(CppSpec)
 
-# argon (house NEON/SIMDe abstraction) -- convert.cpp includes "argon.hpp". Pin matches
-# ../audio_stream/CMakeLists.txt (and lib/CMakeLists.txt) so this driver builds against the same
-# argon revision as everything else.
-FetchContent_Declare(argon
-  GIT_REPOSITORY https://github.com/stellar-aria/argon
-  GIT_TAG 5897db725c1cdee452b5f288614796364468f2ea
-)
+# argon (house NEON/SIMDe abstraction) -- convert.cpp includes "argon.hpp".
 FetchContent_MakeAvailable(argon)
 
 # SIMDe backend selection -- mirrors ../audio_stream/CMakeLists.txt (itself mirroring
@@ -32,11 +23,6 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
 endif()
 
 if(NOT SAMPLE_READER_SPEC_NEON_NATIVE)
-  FetchContent_Declare(simde
-    GIT_REPOSITORY https://github.com/simd-everywhere/simde
-    GIT_TAG v0.8.2
-    GIT_SHALLOW TRUE
-  )
   FetchContent_MakeAvailable(simde)
   set(SAMPLE_READER_SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
   if(UNIX AND NOT APPLE)

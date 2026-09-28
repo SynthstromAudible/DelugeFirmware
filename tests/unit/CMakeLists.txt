@@ -36,12 +36,7 @@ enable_testing()
 
 # ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
 # so make it available to every test target (spec, unit).
-include(FetchContent)
-FetchContent_Declare(
-        etl
-        GIT_REPOSITORY https://github.com/ETLCPP/etl
-        GIT_TAG 20.39.4
-)
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/deps.cmake)
 FetchContent_MakeAvailable(etl)
 link_libraries(etl::etl)
 

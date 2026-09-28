@@ -1,16 +1,9 @@
 include(FetchContent)
-FetchContent_Declare(CppSpec
-  URL https://github.com/toroidal-code/cppspec/archive/refs/heads/main.tar.gz
-)
 FetchContent_MakeAvailable(CppSpec)
 
-# Pinned identically to lib/CMakeLists.txt. On this ARM target the toolchain provides a real
+# On this ARM target the toolchain provides a real
 # <arm_neon.h> (-mfpu=neon, __ARM_NEON defined), so argon's arm_simd.hpp dispatch picks the native
 # NEON backend directly -- no SIMDe, no compat shim.
-FetchContent_Declare(argon
-  GIT_REPOSITORY https://github.com/stellar-aria/argon
-  GIT_TAG 5897db725c1cdee452b5f288614796364468f2ea
-)
 FetchContent_MakeAvailable(argon)
 
 add_library(deluge_spec INTERFACE)

@@ -3,18 +3,10 @@
 # deluge::audio::stream ReadSource specs. Exercises the seam via an in-memory MockReadSource
 # (header-only) — no card, no FatFS, no resource manager.
 include(FetchContent)
-FetchContent_Declare(CppSpec
-  URL https://github.com/toroidal-code/cppspec/archive/refs/heads/main.tar.gz
-)
 FetchContent_MakeAvailable(CppSpec)
 
 # argon (house NEON/SIMDe abstraction) — convert.cpp includes "argon.hpp" for the vectorized
-# conversion loops. Pin matches lib/CMakeLists.txt (the firmware/host-sim's own argon pin) so this
-# driver builds against the same argon revision as everything else.
-FetchContent_Declare(argon
-  GIT_REPOSITORY https://github.com/stellar-aria/argon
-  GIT_TAG 5897db725c1cdee452b5f288614796364468f2ea
-)
+# conversion loops.
 FetchContent_MakeAvailable(argon)
 
 # SIMDe backend selection — mirrors sim/CMakeLists.txt:186-214 exactly, and MUST keep matching it:
@@ -28,11 +20,6 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
 endif()
 
 if(NOT AUDIO_STREAM_SPEC_NEON_NATIVE)
-  FetchContent_Declare(simde
-    GIT_REPOSITORY https://github.com/simd-everywhere/simde
-    GIT_TAG v0.8.2
-    GIT_SHALLOW TRUE
-  )
   FetchContent_MakeAvailable(simde)
   # Repo layout is ${simde_SOURCE_DIR}/simde/{arm,x86,...}: the root resolves <simde/arm/neon.h>
   # (the sim/compat shim below), the simde/ subdir resolves argon's bare <arm/neon.h> directly.

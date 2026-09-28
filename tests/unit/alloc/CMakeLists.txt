@@ -7,9 +7,6 @@
 # C ABI (include/libdeluge/alloc.h).
 #
 include(FetchContent)
-FetchContent_Declare(CppSpec
-  URL https://github.com/toroidal-code/cppspec/archive/refs/heads/main.tar.gz
-)
 FetchContent_MakeAvailable(CppSpec)
 
 function(create_specs_driver driver_name spec_dir)

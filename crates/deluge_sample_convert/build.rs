@@ -50,7 +50,7 @@ const ARM_ARCH_FLAGS: [&str; 7] = [
     "-funsafe-math-optimizations",
 ];
 
-// Pins — MUST match the CMake FetchContent tags (tests/unit/audio_stream/CMakeLists.txt, sim/CMakeLists.txt).
+// Pins — MUST match the CMake FetchContent tags (cmake/deps.cmake).
 const ARGON_URL: &str = "https://github.com/stellar-aria/argon";
 const ARGON_SHA: &str = "5897db725c1cdee452b5f288614796364468f2ea";
 const SIMDE_URL: &str = "https://github.com/simd-everywhere/simde";

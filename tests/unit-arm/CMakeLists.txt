@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.24)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
 project(DelugeTestsArm)
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/deps.cmake)
 
 set(CPU_OPTIONS
   -mcpu=cortex-a9

@@ -7,17 +7,9 @@
 # The argon/SIMDe block below mirrors tests/unit/audio_stream/CMakeLists.txt --
 # oscillator.cpp reaches <argon.hpp> transitively through wave_table.h ->
 # storage/audio/stream/convert.h, so this driver needs the same backend setup.
-# Keep the pins in sync with lib/CMakeLists.txt and that sibling driver.
 include(FetchContent)
-FetchContent_Declare(CppSpec
-  URL https://github.com/toroidal-code/cppspec/archive/refs/heads/main.tar.gz
-)
 FetchContent_MakeAvailable(CppSpec)
 
-FetchContent_Declare(argon
-  GIT_REPOSITORY https://github.com/stellar-aria/argon
-  GIT_TAG 5897db725c1cdee452b5f288614796364468f2ea
-)
 FetchContent_MakeAvailable(argon)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
@@ -25,11 +17,6 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
 endif()
 
 if(NOT DSP_SPEC_NEON_NATIVE)
-  FetchContent_Declare(simde
-    GIT_REPOSITORY https://github.com/simd-everywhere/simde
-    GIT_TAG v0.8.2
-    GIT_SHALLOW TRUE
-  )
   FetchContent_MakeAvailable(simde)
   set(DSP_SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
   # Parent builds this tree at -m32 on plain Linux, where SIMDe's native path

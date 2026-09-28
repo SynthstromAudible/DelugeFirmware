@@ -52,13 +52,13 @@ build_one "${SRC3}" "${BIN3}" & p3=$!
 # The real OrderedPosVector: its firmware headers resolve from src/deluge; the allocator is stubbed in the source.
 # ... and the real RenderingDrums, compiled against a stub SoundDrum (stubs/ comes first on the include path). ETL comes
 # from a configured host tree's _deps when there is one; otherwise (a fresh CI checkout) the firmware's pinned ETL tag
-# from lib/CMakeLists.txt is cloned into build-harness-deps/.
+# from cmake/deps.cmake is cloned into build-harness-deps/.
 ETL_INCLUDE="$(ls -d "${REPO_ROOT}"/build/host-app/_deps/etl-src/include "${REPO_ROOT}"/build/*/_deps/etl-src/include \
     "${REPO_ROOT}"/build*/_deps/etl-src/include \
     "${REPO_ROOT}"/sim/build/_deps/etl-src/include 2>/dev/null | head -1 || true)"
 if [ -z "${ETL_INCLUDE}" ]; then
     ETL_TAG="$(awk '/GIT_REPOSITORY https:\/\/github.com\/ETLCPP\/etl/ { found = 1 } found && /GIT_TAG/ { print $2; exit }' \
-        "${REPO_ROOT}/lib/CMakeLists.txt")"
+        "${REPO_ROOT}/cmake/deps.cmake")"
     ETL_DIR="${REPO_ROOT}/build-harness-deps/etl-${ETL_TAG}"
     if [ ! -d "${ETL_DIR}/include" ]; then
         echo "== fetching ETL ${ETL_TAG} into ${ETL_DIR} =="

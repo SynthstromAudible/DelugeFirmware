@@ -6,9 +6,6 @@
 # own tests) -- so these specs get real open/read/write/seek/close and
 # directory-iteration round-trip coverage with no mounted filesystem required.
 include(FetchContent)
-FetchContent_Declare(CppSpec
-  URL https://github.com/toroidal-code/cppspec/archive/refs/heads/main.tar.gz
-)
 FetchContent_MakeAvailable(CppSpec)
 
 function(create_specs_driver driver_name spec_dir)

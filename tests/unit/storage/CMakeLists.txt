@@ -2,9 +2,6 @@
 #
 # deluge::storage specs: the header-only seams under src/deluge/storage/.
 include(FetchContent)
-FetchContent_Declare(CppSpec
-  URL https://github.com/toroidal-code/cppspec/archive/refs/heads/main.tar.gz
-)
 FetchContent_MakeAvailable(CppSpec)
 
 function(create_specs_driver driver_name spec_dir)

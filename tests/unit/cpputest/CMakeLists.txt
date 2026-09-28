@@ -1,27 +1,10 @@
-# CppUTest
-include(FetchContent)
-FetchContent_Declare(
-        CppUTest
-        GIT_REPOSITORY https://github.com/cpputest/cpputest.git
-        GIT_TAG eccbc2190c672e598c1dd2bf5e4295f5ba27aad1
-)
-FetchContent_Declare(
-        etl
-        GIT_REPOSITORY https://github.com/ETLCPP/etl
-        GIT_TAG 20.39.4
-)
-
 FetchContent_MakeAvailable(etl)
 
 # argon + SIMDe, for the one firmware UI translation unit this binary compiles.
 #
 # slicer_preview_tests.cpp drives the REAL gui/ui/slicer.cpp rather than a restatement of it, and
 # that file reaches <argon.hpp> transitively (model/song/song.h -> dsp/reverb). The block mirrors
-# tests/unit/dsp/CMakeLists.txt; keep the pins in sync with lib/CMakeLists.txt and that sibling.
-FetchContent_Declare(argon
-        GIT_REPOSITORY https://github.com/stellar-aria/argon
-        GIT_TAG 5897db725c1cdee452b5f288614796364468f2ea
-)
+# tests/unit/dsp/CMakeLists.txt.
 FetchContent_MakeAvailable(argon)
 
 if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
@@ -29,11 +12,6 @@ if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
 endif ()
 
 if (NOT UNIT_TESTS_NEON_NATIVE)
-    FetchContent_Declare(simde
-            GIT_REPOSITORY https://github.com/simd-everywhere/simde
-            GIT_TAG v0.8.2
-            GIT_SHALLOW TRUE
-    )
     FetchContent_MakeAvailable(simde)
     set(UNIT_TESTS_SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
     # Parent builds this tree at -m32 on plain Linux, where SIMDe's native path drags in AVX512/FMA
