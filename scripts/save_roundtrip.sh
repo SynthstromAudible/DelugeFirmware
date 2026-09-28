@@ -103,8 +103,8 @@ if grep -rnE '\bStorageManager::open(XML|Json)File\(|\bopenDelugeFile\(' \
 	"$REPO_ROOT/src" --include='*.cpp' --include='*.h' --include='*.hpp' >"$OUT/nostream.txt"; then
 	echo "FAIL SL-NOSTREAM — a streaming document reader is back:"
 	cat "$OUT/nostream.txt"
-	echo "  A path that can block the storage owner at runtime is a reason the owner can never be"
-	echo "  removed. Parse from a staged buffer (StorageManager::openDocumentSynchronously) instead."
+	echo "  A streaming reader blocks on the card while it parses, which the interaction tier must never"
+	echo "  do after boot. Parse from a staged buffer (StorageManager::openDocumentSynchronously) instead."
 	exit 1
 fi
 echo "SL-NOSTREAM ok — no streaming document reader in src/"

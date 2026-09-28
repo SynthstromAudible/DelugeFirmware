@@ -36,7 +36,7 @@
 #                 passes SC-ORDERED and fails this.
 #   SC-CHANNEL    the transfers were SERVED by the byte channel -- the async arm ran.
 #   SC-ACCOUNTED  the channel served every collected file and the inline arm served none.
-#   SC-OFFOWNER   the transfers went through the channel after boot (`offOwnerTicks`).
+#   SC-TICKED   the transfers went through the channel after boot (`channelTicks`).
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
@@ -111,26 +111,26 @@ if ! grep -q '^SC-RESULT failures=0$' "$OUT/run.txt"; then
 fi
 
 served="$(sed -n 's/^SC-SUMMARY served=\([0-9]*\) .*/\1/p' "$OUT/run.txt")"
-owner="$(sed -n 's/^SC-SUMMARY .*ownerServed=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
-offowner="$(sed -n 's/^SC-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+inline_served="$(sed -n 's/^SC-SUMMARY .*inlineServed=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+channel_ticks="$(sed -n 's/^SC-SUMMARY .*channelTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
 copies="$(grep -c '^SC-COPIED to=' "$OUT/run.txt" || true)"
 
-# SC-CHANNEL, SC-ACCOUNTED and SC-OFFOWNER: no file may take the inline arm, and the channel must have
+# SC-CHANNEL, SC-ACCOUNTED and SC-TICKED: no file may take the inline arm, and the channel must have
 # served exactly the files that arrived.
 if [ -z "${served:-}" ] || [ "$served" -eq 0 ]; then
 	echo "FAIL SC-CHANNEL — the collection served ${served:-no} transfer(s); the async arm never ran"
 	fail=1
 fi
-if [ "${owner:-1}" -ne 0 ]; then
-	echo "FAIL SC-ACCOUNTED — the collection sent ${owner:-an unknown number of} transfer(s) to the owner"
+if [ "${inline_served:-1}" -ne 0 ]; then
+	echo "FAIL SC-ACCOUNTED — the collection sent ${inline_served:-an unknown number of} transfer(s) through the inline arm"
 	fail=1
 fi
 if [ "${served:-0}" -ne "$copies" ]; then
 	echo "FAIL SC-ACCOUNTED — the collection copied $copies file(s) but the channel served ${served:-no}"
 	fail=1
 fi
-if [ -z "${offowner:-}" ] || [ "$offowner" -eq 0 ]; then
-	echo "FAIL SC-OFFOWNER — no transfer ever ran off the storage owner"
+if [ -z "${channel_ticks:-}" ] || [ "$channel_ticks" -eq 0 ]; then
+	echo "FAIL SC-TICKED — no transfer ever ran through the channel across ticks"
 	fail=1
 fi
 
@@ -141,4 +141,4 @@ if [ "$fail" -ne 0 ]; then
 fi
 grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
 echo "PASS — the samples were collected into the song's folder, the audio-file list came through"
-echo "       ordered and intact, and the byte channel did the copying off the storage owner"
+echo "       ordered and intact, and the byte channel did the copying across ticks"

@@ -154,7 +154,7 @@ public:
 	[[nodiscard]] static int32_t stagedSavesVerified() { return stagedSavesVerified_; }
 	/// @brief Read-back operations the byte CHANNEL served, and read-backs the INLINE arm ran before boot finished.
 	[[nodiscard]] static int32_t verifyChannelServedOps() { return verifyChannelServedOps_; }
-	[[nodiscard]] static int32_t verifyOwnerServedOps() { return verifyOwnerServedOps_; }
+	[[nodiscard]] static int32_t verifyInlineServedOps() { return verifyInlineServedOps_; }
 
 	/// @brief Drive a staged save one step. Registered as a repeating task in deluge.cpp.
 	static void saveRoutine();
@@ -164,7 +164,7 @@ public:
 
 	/// @brief Whole-document writes the CHANNEL has served, and ticks a staged step went through a channel.
 	[[nodiscard]] static int32_t writeChannelServedOps() { return writeChannelServedOps_; }
-	[[nodiscard]] static int32_t offOwnerSaveTicks() { return offOwnerSaveTicks_; }
+	[[nodiscard]] static int32_t channelSaveTicks() { return channelSaveTicks_; }
 	/// @brief Where the in-flight staged save writes its document, or the last one wrote it: the target, or its
 	///        temp file when the save replaces an existing document.
 	[[nodiscard]] static const std::string& stagedWritePath() { return stagedWritePath_; }
@@ -209,7 +209,7 @@ private:
 	static bool deferStagedSave();
 
 	static inline int32_t writeChannelServedOps_{};
-	static inline int32_t offOwnerSaveTicks_{};
+	static inline int32_t channelSaveTicks_{};
 	static inline SavePhase savePhase_{SavePhase::NONE};
 	/// The UI whose staged save is running. The phase state is static because saves are
 	/// single-flight, so this says which instance the static state belongs to.
@@ -229,7 +229,7 @@ private:
 	static inline bool stagedWroteDocument_{};
 	static inline int32_t stagedSavesVerified_{};
 	static inline int32_t verifyChannelServedOps_{};
-	static inline int32_t verifyOwnerServedOps_{};
+	static inline int32_t verifyInlineServedOps_{};
 	/// The prolog runSerializePhase() writes, and so the head every staged document must start with.
 	static constexpr const char* kStagedDocumentHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 	static inline bool stagedSucceeded_{};

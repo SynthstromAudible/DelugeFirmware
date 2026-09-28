@@ -301,8 +301,8 @@ void runTick() {
 		// Both arms are reported, and the gate holds them to account for every transfer between
 		// them: either number alone reads as a success on a build where half the files quietly took
 		// the other arm.
-		printf("SC-SUMMARY served=%d ownerServed=%d offOwnerTicks=%d\n", (int)SaveSongUI::transferChannelServedOps(),
-		       (int)SaveSongUI::transferOwnerServedOps(), (int)SaveSongUI::offOwnerTransferTicks());
+		printf("SC-SUMMARY served=%d inlineServed=%d channelTicks=%d\n", (int)SaveSongUI::transferChannelServedOps(),
+		       (int)SaveSongUI::transferInlineServedOps(), (int)SaveSongUI::channelTransferTicks());
 		printf("SC-RESULT failures=%d\n", g_failures);
 		fflush(stdout);
 		g_summaryPrinted = true;

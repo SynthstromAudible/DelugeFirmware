@@ -904,8 +904,8 @@ void checkRevert() {
 		       reverted ? 1 : 0, bound ? 1 : 0, g_revertClosedAtOnce ? 1 : 0, g_revertGateClosed ? 1 : 0,
 		       released ? 1 : 0, instrument->name.c_str(), g_waitTicks);
 		if (!reverted || !bound || !g_revertClosedAtOnce || !g_revertGateClosed || !released) {
-			printf("RV-CARD FAIL backing out did not close the browser at once and put the original back off the "
-			       "storage owner with its gate closed while it loaded\n");
+			printf("RV-CARD FAIL backing out did not close the browser at once and put the original back through "
+			       "the channels with its gate closed while it loaded\n");
 			g_failures++;
 		}
 		return;

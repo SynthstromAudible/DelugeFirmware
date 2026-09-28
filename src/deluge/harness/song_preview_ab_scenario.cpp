@@ -3469,7 +3469,7 @@ void printSummary() {
 	const int32_t tier = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
 	printf("SP-TIER browser=%d\n", tier);
 	if (tier != 0) {
-		printf("SP-TIER FAIL %d browser directory operation(s) began off the storage owner after boot\n", tier);
+		printf("SP-TIER FAIL %d browser directory operation(s) began synchronously after boot\n", tier);
 		g_failures++;
 	}
 

@@ -275,9 +275,9 @@ unsafe extern "C" {
     fn deluge_scenario_recorder_rest_begin();
     fn deluge_scenario_recorder_rest_tick() -> i32;
     fn deluge_scenario_recorder_roundtrip_failures() -> i32;
-    fn deluge_scenario_offowner_begin(mode: i32);
-    fn deluge_scenario_offowner_tick() -> i32;
-    fn deluge_scenario_offowner_report();
+    fn deluge_scenario_ticked_begin(mode: i32);
+    fn deluge_scenario_ticked_tick() -> i32;
+    fn deluge_scenario_ticked_report();
     fn deluge_scenario_audio_load_ab_begin();
     fn deluge_scenario_audio_load_ab_complete() -> bool;
     fn deluge_scenario_audio_load_ab_dispatch_step();
@@ -732,22 +732,20 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         );
         hard_exit(1);
     }
-    // The `offowner_` cases. Driven from HERE, as the device drives a
+    // The `ticked_` cases. Driven from HERE, as the device drives a
     // recorder: the cluster write goes through the channel. They cover the async write path and the
     // blocking ticks from where the device drives them.
     // SAFETY: same C-ABI contract as the calls above; called only from this task.
-    unsafe { deluge_scenario_offowner_begin(0) };
+    unsafe { deluge_scenario_ticked_begin(0) };
     let off_deadline = Instant::now() + Duration::from_secs(300);
     let off_result = loop {
         // SAFETY: as above.
-        let state = unsafe { deluge_scenario_offowner_tick() };
+        let state = unsafe { deluge_scenario_ticked_tick() };
         if state != 0 {
             break state;
         }
         if Instant::now() >= off_deadline {
-            log::error!(
-                "golden_vt_render: off-owner recording did not complete within 300s — wedged"
-            );
+            log::error!("golden_vt_render: ticked recording did not complete within 300s — wedged");
             hard_exit(2);
         }
         // Yield so the write task can make progress on the clusters the case has handed it. Without
@@ -755,53 +753,51 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     };
     if off_result != 1 {
-        log::error!("golden_vt_render: off-owner recording FAILED — see the log above");
+        log::error!("golden_vt_render: ticked recording FAILED — see the log above");
         hard_exit(1);
     }
 
     // Again, this time through the alteration branch. Separate run rather than a flag inside the
     // first, so a failure names which shape broke.
     // SAFETY: same C-ABI contract as above.
-    unsafe { deluge_scenario_offowner_begin(1) };
+    unsafe { deluge_scenario_ticked_begin(1) };
     let alter_deadline = Instant::now() + Duration::from_secs(300);
     let alter_result = loop {
         // SAFETY: as above.
-        let state = unsafe { deluge_scenario_offowner_tick() };
+        let state = unsafe { deluge_scenario_ticked_tick() };
         if state != 0 {
             break state;
         }
         if Instant::now() >= alter_deadline {
-            log::error!(
-                "golden_vt_render: off-owner alterFile did not complete within 300s — wedged"
-            );
+            log::error!("golden_vt_render: ticked alterFile did not complete within 300s — wedged");
             hard_exit(2);
         }
         Timer::after_millis(1).await;
     };
     if alter_result != 1 {
-        log::error!("golden_vt_render: off-owner alterFile FAILED — see the log above");
+        log::error!("golden_vt_render: ticked alterFile FAILED — see the log above");
         hard_exit(1);
     }
 
     // And once more, abandoning the recording part-way, so the abort machine runs: its close must
     // complete before its unlink, and the free-cluster count is the only thing that can see it.
     // SAFETY: same C-ABI contract as above.
-    unsafe { deluge_scenario_offowner_begin(2) };
+    unsafe { deluge_scenario_ticked_begin(2) };
     let abort_deadline = Instant::now() + Duration::from_secs(300);
     let abort_result = loop {
         // SAFETY: as above.
-        let state = unsafe { deluge_scenario_offowner_tick() };
+        let state = unsafe { deluge_scenario_ticked_tick() };
         if state != 0 {
             break state;
         }
         if Instant::now() >= abort_deadline {
-            log::error!("golden_vt_render: off-owner abort did not complete within 300s — wedged");
+            log::error!("golden_vt_render: ticked abort did not complete within 300s — wedged");
             hard_exit(2);
         }
         Timer::after_millis(1).await;
     };
     if abort_result != 1 {
-        log::error!("golden_vt_render: off-owner abort FAILED — see the log above");
+        log::error!("golden_vt_render: ticked abort FAILED — see the log above");
         hard_exit(1);
     }
 
@@ -811,31 +807,31 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     let mut give_up_failed = false;
     for (mode, name) in [(3, "busy"), (4, "stall"), (5, "dirstall")] {
         // SAFETY: same C-ABI contract as above.
-        unsafe { deluge_scenario_offowner_begin(mode) };
+        unsafe { deluge_scenario_ticked_begin(mode) };
         let deadline = Instant::now() + Duration::from_secs(300);
         let result = loop {
             // SAFETY: as above.
-            let state = unsafe { deluge_scenario_offowner_tick() };
+            let state = unsafe { deluge_scenario_ticked_tick() };
             if state != 0 {
                 break state;
             }
             if Instant::now() >= deadline {
                 log::error!(
-                    "golden_vt_render: off-owner {name} case did not complete within 300s — wedged"
+                    "golden_vt_render: ticked {name} case did not complete within 300s — wedged"
                 );
                 hard_exit(2);
             }
             Timer::after_millis(1).await;
         };
         if result != 1 {
-            log::error!("golden_vt_render: off-owner {name} case FAILED — see the log above");
+            log::error!("golden_vt_render: ticked {name} case FAILED — see the log above");
             give_up_failed = true;
         }
     }
 
-    // Over every `offowner_` case: a synchronous card operation is a violation whichever case made it.
+    // Over every `ticked_` case: a synchronous card operation is a violation whichever case made it.
     // SAFETY: same C-ABI contract as above.
-    unsafe { deluge_scenario_offowner_report() };
+    unsafe { deluge_scenario_ticked_report() };
     if give_up_failed {
         hard_exit(1);
     }

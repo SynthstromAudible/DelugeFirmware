@@ -148,7 +148,7 @@ enum class CaseStep : uint8_t {
 ///
 /// A loop that pumps straight through without yielding only works on the recorder's SYNCHRONOUS arm:
 /// ask the channel instead and the driver gets no chance to run between ticks, nothing is answered,
-/// and the loop exhausts its bound. Shaped after `g_offOwner` below, which holds its recorder the same
+/// and the loop exhausts its bound. Shaped after `g_ticked` below, which holds its recorder the same
 /// way for the same reason.
 struct CaseRun {
 	CaseStep step = CaseStep::Done;
@@ -183,7 +183,7 @@ bool pumpOnce(SampleRecorder& rec) {
 	return true;
 }
 
-/// Byte-exact verification of a finished recording, factored out of runCase() so the `offowner_` cases
+/// Byte-exact verification of a finished recording, factored out of runCase() so the `ticked_` cases
 /// below check the SAME things rather than a weaker copy of them. A recording in one of their shapes
 /// must be indistinguishable from one in the matrix -- that is the whole claim.
 bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t frames, bool extraMargins) {
@@ -278,7 +278,7 @@ bool beginCase(const Case& c) {
 	g_cases++;
 
 	// Field-by-field: SampleRecorder is neither movable nor assignable, so the struct cannot be
-	// replaced wholesale. Same reason `g_offOwner` resets its optional rather than reassigning.
+	// replaced wholesale. Same reason `g_ticked` resets its optional rather than reassigning.
 	g_case.rec.reset();
 	g_case.input.clear();
 	g_case.path.clear();
@@ -364,13 +364,13 @@ bool stepCase() {
 
 namespace {
 
-/// The `offowner_` recording cases: a real `SampleRecorder` driven ENTIRELY by the caller's ticks,
+/// The `ticked_` recording cases: a real `SampleRecorder` driven ENTIRELY by the caller's ticks,
 /// the shape the device actually uses, with the shapes the eight cases above do not take -- the
 /// alteration branch, an abort, a busy channel, a stalled write -- each with its own evidence line.
 ///
 /// Tick-driven rather than a loop, because that is the point: the pump must return to its caller so
 /// the Rust write task can make progress on the clusters it has been given.
-struct OffOwnerCase {
+struct TickedCase {
 	std::unique_ptr<SampleRecorder> rec;
 	/// Whether this run records stereo with a silent right channel and permits alteration, so
 	/// finalize takes its REMOVE_RIGHT_CHANNEL branch. Without a case that does, the whole batch
@@ -404,11 +404,11 @@ struct OffOwnerCase {
 	int32_t ticks = 0;
 	bool started = false;
 };
-OffOwnerCase g_offOwner;
+TickedCase g_ticked;
 
 /// Mono, no margins, and big enough to complete several clusters -- a single-cluster recording would
 /// finish inside the finalize drain and never exercise the steady-state write at all.
-constexpr uint32_t kOffOwnerFrames = 33153;
+constexpr uint32_t kTickedFrames = 33153;
 
 /// `SampleRecorder::AbortPhase::Done`, as the diagnostic accessor reports it.
 constexpr uint8_t kAbortPhaseDone = 3;
@@ -418,7 +418,7 @@ int32_t recorderTier() {
 	return deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Recorder);
 }
 
-/// Each case's name, indexed by the `mode` passed to deluge_scenario_offowner_begin.
+/// Each case's name, indexed by the `mode` passed to deluge_scenario_ticked_begin.
 constexpr const char* kModeNames[] = {"recording", "alterfile", "abort", "busy", "stall", "dirstall"};
 
 /// The write channel's latency in the busy case: long enough that the recorder asks while the competing
@@ -438,42 +438,42 @@ constexpr uint32_t kDirStallLatencyMs = 3000;
 /// tick's gap is what lets the recorder in; without it the neighbour takes the channel the moment it frees
 /// up and the recorder is refused until it gives up.
 void driveNeighbour() {
-	if (g_offOwner.neighbourHeld) {
+	if (g_ticked.neighbourHeld) {
 		uint32_t freeClusters = 0;
 		if (deluge_file_write_collect_stats(&freeClusters) == DELUGE_FILE_WRITE_PENDING) {
 			return;
 		}
-		g_offOwner.neighbourHeld = false;
+		g_ticked.neighbourHeld = false;
 		return; // Leave this tick's channel to the recorder.
 	}
-	g_offOwner.neighbourHeld = deluge_file_write_request_stats();
+	g_ticked.neighbourHeld = deluge_file_write_request_stats();
 }
 
 /// The stall case: slow the channel down once a cluster has been served, so the next cluster write is still
 /// pending when the recorder reaches its bound. Latency is read when an operation starts, so the stalled
 /// write keeps its 3000 ms after this puts the latency back.
 void driveStall(const SampleRecorder& rec) {
-	if (!g_offOwner.stallArmed && SampleRecorder::writeChannelServedOps() > g_offOwner.servedBefore) {
+	if (!g_ticked.stallArmed && SampleRecorder::writeChannelServedOps() > g_ticked.servedBefore) {
 		deluge_file_write_set_latency_ms(kStallLatencyMs);
-		g_offOwner.stallArmed = true;
+		g_ticked.stallArmed = true;
 	}
 	if (rec.hadCardError) {
 		if (rec.writePending()) {
-			g_offOwner.failedWhilePending = true;
+			g_ticked.failedWhilePending = true;
 		}
 		deluge_file_write_set_latency_ms(0);
 	}
 }
 
 /// Report the busy or stall case once its recording is COMPLETE.
-/// @return As deluge_scenario_offowner_tick.
+/// @return As deluge_scenario_ticked_tick.
 int32_t finishGiveUpCase(SampleRecorder& rec) {
-	if (g_offOwner.neighbourHeld) {
+	if (g_ticked.neighbourHeld) {
 		uint32_t freeClusters = 0;
 		if (deluge_file_write_collect_stats(&freeClusters) == DELUGE_FILE_WRITE_PENDING) {
 			return 0; // Let the competing operation finish, so the next case starts on an idle channel.
 		}
-		g_offOwner.neighbourHeld = false;
+		g_ticked.neighbourHeld = false;
 	}
 	deluge_file_write_set_latency_ms(0);
 	const bool cardError = rec.hadCardError;
@@ -481,112 +481,112 @@ int32_t finishGiveUpCase(SampleRecorder& rec) {
 	const bool fileOpen = rec.file.has_value();
 	const std::string path = rec.filePathCreated;
 	// Freed BEFORE the tier is read: a destructor left with a file to close is itself a violation.
-	g_offOwner.rec.reset();
-	const int32_t tier = recorderTier() - g_offOwner.tierBefore;
-	const int32_t refusals = SampleRecorder::channelRefusals() - g_offOwner.refusalsBefore;
-	const int32_t served = SampleRecorder::writeChannelServedOps() - g_offOwner.servedBefore;
-	if (g_offOwner.busy) {
+	g_ticked.rec.reset();
+	const int32_t tier = recorderTier() - g_ticked.tierBefore;
+	const int32_t refusals = SampleRecorder::channelRefusals() - g_ticked.refusalsBefore;
+	const int32_t served = SampleRecorder::writeChannelServedOps() - g_ticked.servedBefore;
+	if (g_ticked.busy) {
 		const bool readBack = !cardError && !path.empty()
-		                      && verifyRecordedFile(path, /*channels=*/1, kOffOwnerFrames, /*extraMargins=*/false);
+		                      && verifyRecordedFile(path, /*channels=*/1, kTickedFrames, /*extraMargins=*/false);
 		const bool ok = readBack && refusals > 0 && tier == 0;
 		printf("RW-BUSY ok=%d readBack=%d refusals=%d served=%d tier=%d ticks=%d\n", (int)ok, (int)readBack,
-		       (int)refusals, (int)served, (int)tier, g_offOwner.ticks);
+		       (int)refusals, (int)served, (int)tier, g_ticked.ticks);
 		fflush(nullptr);
 		return ok ? 1 : 2;
 	}
-	if (g_offOwner.dirStall) {
+	if (g_ticked.dirStall) {
 		deluge_file_directory_set_latency_ms(0);
 		// The create failed at the path search, so there is no path, no file, and no synchronous open behind it.
 		const bool ok = cardError && path.empty() && !fileOpen && tier == 0;
 		printf("RW-DIR-STALL ok=%d cardError=%d path=%s fileOpen=%d tier=%d ticks=%d\n", (int)ok, (int)cardError,
-		       path.empty() ? "-" : path.c_str(), (int)fileOpen, (int)tier, g_offOwner.ticks);
+		       path.empty() ? "-" : path.c_str(), (int)fileOpen, (int)tier, g_ticked.ticks);
 		fflush(nullptr);
 		return ok ? 1 : 2;
 	}
-	const bool ok = cardError && g_offOwner.failedWhilePending && !pendingAtEnd && !fileOpen && tier == 0;
+	const bool ok = cardError && g_ticked.failedWhilePending && !pendingAtEnd && !fileOpen && tier == 0;
 	printf("RW-STALL ok=%d cardError=%d failedWhilePending=%d pendingAtEnd=%d fileOpen=%d "
 	       "served=%d tier=%d ticks=%d\n",
-	       (int)ok, (int)cardError, (int)g_offOwner.failedWhilePending, (int)pendingAtEnd, (int)fileOpen, (int)served,
-	       (int)tier, g_offOwner.ticks);
+	       (int)ok, (int)cardError, (int)g_ticked.failedWhilePending, (int)pendingAtEnd, (int)fileOpen, (int)served,
+	       (int)tier, g_ticked.ticks);
 	fflush(nullptr);
 	return ok ? 1 : 2;
 }
 
 } // namespace
 
-extern "C" void deluge_scenario_offowner_begin(int32_t mode) {
-	g_offOwner.rec = std::make_unique<SampleRecorder>();
-	g_offOwner.ticks = 0;
-	g_offOwner.path.clear();
-	g_offOwner.started = false;
-	g_offOwner.alter = (mode == 1);
-	g_offOwner.abortRun = (mode == 2);
-	g_offOwner.busy = (mode == 3);
-	g_offOwner.stall = (mode == 4);
-	g_offOwner.dirStall = (mode == 5);
-	g_offOwner.neighbourHeld = false;
-	g_offOwner.stallArmed = false;
-	g_offOwner.failedWhilePending = false;
-	g_offOwner.servedBefore = SampleRecorder::writeChannelServedOps();
-	g_offOwner.refusalsBefore = SampleRecorder::channelRefusals();
-	g_offOwner.tierBefore = recorderTier();
-	deluge_file_write_set_latency_ms(g_offOwner.busy ? kBusyLatencyMs : 0);
-	if (g_offOwner.dirStall) {
+extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
+	g_ticked.rec = std::make_unique<SampleRecorder>();
+	g_ticked.ticks = 0;
+	g_ticked.path.clear();
+	g_ticked.started = false;
+	g_ticked.alter = (mode == 1);
+	g_ticked.abortRun = (mode == 2);
+	g_ticked.busy = (mode == 3);
+	g_ticked.stall = (mode == 4);
+	g_ticked.dirStall = (mode == 5);
+	g_ticked.neighbourHeld = false;
+	g_ticked.stallArmed = false;
+	g_ticked.failedWhilePending = false;
+	g_ticked.servedBefore = SampleRecorder::writeChannelServedOps();
+	g_ticked.refusalsBefore = SampleRecorder::channelRefusals();
+	g_ticked.tierBefore = recorderTier();
+	deluge_file_write_set_latency_ms(g_ticked.busy ? kBusyLatencyMs : 0);
+	if (g_ticked.dirStall) {
 		// The scan an earlier case already made is cached; force it again, and hold its open past the bound.
 		audioFileManager.highestUsedAudioRecordingNumberNeedsReChecking.set(
 		    static_cast<size_t>(AudioRecordingFolder::RESAMPLE));
 		deluge_file_directory_set_latency_ms(kDirStallLatencyMs);
 	}
-	g_offOwner.freeBefore = 0;
+	g_ticked.freeBefore = 0;
 	{
 		uint32_t total = 0;
-		(void)deluge_efatfs_stats(&g_offOwner.freeBefore, &total);
+		(void)deluge_efatfs_stats(&g_ticked.freeBefore, &total);
 	}
 
 	// stderr as well as stdout: this case runs AFTER the scenario's own fflush(nullptr), so a
 	// stdout-only line can be lost at exit -- and a case whose output vanishes is a case nobody can
 	// tell from one that never ran.
 	const char* modeName = (mode >= 0 && mode <= 5) ? kModeNames[mode] : "unknown";
-	printf("CASE offowner_%s (channels=%d frames=%u)\n", modeName, g_offOwner.alter ? 2 : 1, kOffOwnerFrames);
+	printf("CASE ticked_%s (channels=%d frames=%u)\n", modeName, g_ticked.alter ? 2 : 1, kTickedFrames);
 	fflush(nullptr);
 
-	Error err = g_offOwner.rec->setup(g_offOwner.alter ? 2 : 1, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
-	                                  /*shouldRecordExtraMargins=*/false, AudioRecordingFolder::RESAMPLE,
-	                                  /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
+	Error err = g_ticked.rec->setup(g_ticked.alter ? 2 : 1, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
+	                                /*shouldRecordExtraMargins=*/false, AudioRecordingFolder::RESAMPLE,
+	                                /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
 	if (err != Error::NONE) {
 		fprintf(stderr, "  FAIL: setup() returned error %d\n", static_cast<int>(err));
-		g_offOwner.rec.reset();
+		g_ticked.rec.reset();
 		return;
 	}
 
 	// Alteration case: permit it, and leave the right channel silent so inputHasNoRightChannel()
 	// picks REMOVE_RIGHT_CHANNEL. The result is a MONO file carrying the left ramp, which is exactly
 	// what the plain case's verification already checks for.
-	g_offOwner.rec->allowFileAlterationAfter = g_offOwner.alter;
+	g_ticked.rec->allowFileAlterationAfter = g_ticked.alter;
 
-	std::vector<StereoSample> input(kOffOwnerFrames);
-	for (uint32_t i = 0; i < kOffOwnerFrames; i++) {
+	std::vector<StereoSample> input(kTickedFrames);
+	for (uint32_t i = 0; i < kTickedFrames; i++) {
 		input[i].l = rampSample(i, 0);
 		input[i].r = 0;
 	}
-	g_offOwner.rec->feedAudio(std::span<StereoSample>(input));
-	if (!g_offOwner.abortRun) {
-		g_offOwner.rec->endSyncedRecording(0);
+	g_ticked.rec->feedAudio(std::span<StereoSample>(input));
+	if (!g_ticked.abortRun) {
+		g_ticked.rec->endSyncedRecording(0);
 	}
 	// The abort run does NOT end the recording here. It lets a few ticks pass first so the file is
 	// actually created and some clusters are on the card -- aborting before that leaves the machine
 	// nothing to close or delete, which is the one shape that proves least.
-	g_offOwner.started = true;
+	g_ticked.started = true;
 }
 
-extern "C" int32_t deluge_scenario_offowner_tick() {
-	if (!g_offOwner.started || !g_offOwner.rec) {
+extern "C" int32_t deluge_scenario_ticked_tick() {
+	if (!g_ticked.started || !g_ticked.rec) {
 		return 2; // failed to start
 	}
-	SampleRecorder& rec = *g_offOwner.rec;
+	SampleRecorder& rec = *g_ticked.rec;
 
-	if (g_offOwner.abortRun) {
-		if (rec.status.load(std::memory_order_acquire) == RecorderStatus::CAPTURING_DATA && g_offOwner.ticks >= 8) {
+	if (g_ticked.abortRun) {
+		if (rec.status.load(std::memory_order_acquire) == RecorderStatus::CAPTURING_DATA && g_ticked.ticks >= 8) {
 			// File created, clusters written: now abandon it.
 			rec.abort();
 		}
@@ -596,18 +596,18 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 		const bool cleanupDone = rec.status.load(std::memory_order_acquire) == RecorderStatus::ABORTED
 		                         && rec.abortPhaseForDiag() == kAbortPhaseDone;
 		if (!cleanupDone) {
-			if (++g_offOwner.ticks > 2000) {
+			if (++g_ticked.ticks > 2000) {
 				fprintf(stderr, "  FAIL: abort cleanup never finished (status=%d phase=%d held=%d)\n",
 				        (int)rec.status.load(std::memory_order_acquire), (int)rec.abortPhaseForDiag(),
 				        (int)rec.pointerHeldElsewhere);
-				g_offOwner.rec.reset();
+				g_ticked.rec.reset();
 				return 2;
 			}
 			(void)rec.cardRoutine();
 			return 0;
 		}
 		const std::string path = rec.filePathCreated;
-		g_offOwner.rec.reset();
+		g_ticked.rec.reset();
 		uint32_t freeAfter = 0;
 		uint32_t total = 0;
 		(void)deluge_efatfs_stats(&freeAfter, &total);
@@ -615,12 +615,12 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 		// chain, and no byte comparison can see that -- the file is gone either way.
 		std::vector<std::byte> leftover;
 		const bool gone = path.empty() || !readWholeFile(path, leftover);
-		const bool noLeak = (freeAfter >= g_offOwner.freeBefore);
-		printf("OO-LEAK freeBefore=%u freeAfter=%u gone=%d ok=%d\n", g_offOwner.freeBefore, freeAfter, (int)gone,
+		const bool noLeak = (freeAfter >= g_ticked.freeBefore);
+		printf("TK-LEAK freeBefore=%u freeAfter=%u gone=%d ok=%d\n", g_ticked.freeBefore, freeAfter, (int)gone,
 		       (int)(gone && noLeak));
 		fflush(nullptr);
 		if (!noLeak) {
-			fprintf(stderr, "  FAIL: aborted recording leaked clusters (%u -> %u)\n", g_offOwner.freeBefore, freeAfter);
+			fprintf(stderr, "  FAIL: aborted recording leaked clusters (%u -> %u)\n", g_ticked.freeBefore, freeAfter);
 		}
 		if (!gone) {
 			fprintf(stderr, "  FAIL: aborted recording left its file behind\n");
@@ -629,37 +629,37 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 	}
 
 	// Before the recorder's own tick, so the neighbour asks first and the recorder is the one refused.
-	if (g_offOwner.busy) {
+	if (g_ticked.busy) {
 		driveNeighbour();
 	}
-	if (g_offOwner.stall) {
+	if (g_ticked.stall) {
 		driveStall(rec);
 	}
 
 	if (rec.status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
-		if (g_offOwner.busy || g_offOwner.stall || g_offOwner.dirStall) {
+		if (g_ticked.busy || g_ticked.stall || g_ticked.dirStall) {
 			return finishGiveUpCase(rec);
 		}
 		const std::string path = rec.filePathCreated;
-		g_offOwner.rec.reset(); // closes the stream and releases the capture buffers
+		g_ticked.rec.reset(); // closes the stream and releases the capture buffers
 		if (path.empty()) {
 			fprintf(stderr, "  FAIL: no file path recorded\n");
 			return 2;
 		}
-		const bool ok = verifyRecordedFile(path, /*channels=*/1, kOffOwnerFrames, /*extraMargins=*/false);
+		const bool ok = verifyRecordedFile(path, /*channels=*/1, kTickedFrames, /*extraMargins=*/false);
 		// The evidence for THIS case, taken here rather than from RW-SUMMARY: that line is printed by
 		// the oracle, which has already returned by the time this case runs, so it cannot
-		// see anything the `offowner_` recording did.
-		printf("OO-RESULT ok=%d served=%d offOwnerTicks=%d offOwnerFinalizeTicks=%d offOwnerCreateTicks=%d ticks=%d\n",
+		// see anything the `ticked_` recording did.
+		printf("TK-RESULT ok=%d served=%d channelTicks=%d channelFinalizeTicks=%d channelCreateTicks=%d ticks=%d\n",
 		       (int)ok, (int)SampleRecorder::writeChannelServedOps(), (int)AudioEngine::recorderDrainTicks(),
-		       (int)AudioEngine::finalizeTicks(), (int)AudioEngine::createTicks(), g_offOwner.ticks);
+		       (int)AudioEngine::finalizeTicks(), (int)AudioEngine::createTicks(), g_ticked.ticks);
 		fflush(nullptr);
 		return ok ? 1 : 2;
 	}
 
-	if (++g_offOwner.ticks > 400000) {
-		fprintf(stderr, "  FAIL: off-owner recording never reached COMPLETE (%d ticks)\n", g_offOwner.ticks);
-		g_offOwner.rec.reset();
+	if (++g_ticked.ticks > 400000) {
+		fprintf(stderr, "  FAIL: ticked recording never reached COMPLETE (%d ticks)\n", g_ticked.ticks);
+		g_ticked.rec.reset();
 		return 2;
 	}
 
@@ -667,14 +667,14 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 	// boot every card operation it starts goes through a channel.
 	Error e = rec.cardRoutine();
 	if (e != Error::NONE && e != Error::MAX_FILE_SIZE_REACHED) {
-		fprintf(stderr, "  FAIL: off-owner cardRoutine() returned error %d\n", static_cast<int>(e));
-		g_offOwner.rec.reset();
+		fprintf(stderr, "  FAIL: ticked cardRoutine() returned error %d\n", static_cast<int>(e));
+		g_ticked.rec.reset();
 		return 2;
 	}
 	return 0;
 }
 
-extern "C" void deluge_scenario_offowner_report() {
+extern "C" void deluge_scenario_ticked_report() {
 	printf("RW-TIER violations=%d refusals=%d\n", (int)recorderTier(), (int)SampleRecorder::channelRefusals());
 	fflush(nullptr);
 }
@@ -837,10 +837,10 @@ void reportFinalizedAndSummary() {
 	}
 	printf("  %s\n", regressionOk ? "PASS" : "FAIL");
 
-	// The evidence this gate exists to show. `served` says the async arm executed; `offOwnerTicks`
+	// The evidence this gate exists to show. `served` says the async arm executed; `channelTicks`
 	// (AudioEngine::recorderDrainTicks()) says the drain ran after boot, with its writes on the write
 	// channel. Served alone says writes were served, not which drain issued them.
-	printf("RW-SUMMARY served=%d offOwnerTicks=%d\n", (int)SampleRecorder::writeChannelServedOps(),
+	printf("RW-SUMMARY served=%d channelTicks=%d\n", (int)SampleRecorder::writeChannelServedOps(),
 	       (int)AudioEngine::recorderDrainTicks());
 	// A terminator, so a run that aborted part-way is a gate FAILURE rather than a silently
 	// truncated log: a stage that never ran asserts nothing, and the failure count cannot show that.

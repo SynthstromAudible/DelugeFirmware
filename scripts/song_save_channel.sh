@@ -38,7 +38,7 @@
 #   SS-CHANNEL    the steps were SERVED by the channels, and the document write by the WRITE channel.
 #   SS-ACCOUNTED  the channels account for every card step, and none took the inline arm. Neither
 #                 SS-CHANNEL nor SS-SAVED can see WHICH arm carried which step.
-#   SS-OFFOWNER   the steps went through the channels after boot. The gate's actual claim.
+#   SS-TICKED   the steps went through the channels after boot. The gate's actual claim.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
@@ -111,8 +111,8 @@ if ! grep -q '^SS-RESULT failures=0$' "$OUT/run.txt"; then
 fi
 
 served="$(sed -n 's/^SS-SUMMARY served=\([0-9]*\) .*/\1/p' "$OUT/run.txt")"
-owner="$(sed -n 's/^SS-SUMMARY .*ownerServed=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
-offowner="$(sed -n 's/^SS-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+inline_served="$(sed -n 's/^SS-SUMMARY .*inlineServed=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+channel_ticks="$(sed -n 's/^SS-SUMMARY .*channelTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
 steps="$(sed -n 's/^SS-SUMMARY .*steps=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
 write="$(sed -n 's/^SS-SUMMARY .*writeServed=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
 doublings="$(sed -n 's/^SS-GREW doublings=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
@@ -132,8 +132,8 @@ if [ -z "${steps:-}" ] || [ "${steps:-0}" -eq 0 ]; then
 	echo "FAIL SS-ACCOUNTED — the save reported no card steps at all"
 	fail=1
 fi
-if [ "${owner:-1}" -ne 0 ]; then
-	echo "FAIL SS-ACCOUNTED — the save sent ${owner} step(s) to the owner; they should all go to a channel"
+if [ "${inline_served:-1}" -ne 0 ]; then
+	echo "FAIL SS-ACCOUNTED — the save ran ${inline_served} step(s) through the inline arm; they should all go to a channel"
 	fail=1
 fi
 if [ "${served:-0}" -ne "${steps:-0}" ]; then
@@ -141,10 +141,10 @@ if [ "${served:-0}" -ne "${steps:-0}" ]; then
 	fail=1
 fi
 
-# SS-OFFOWNER. The gate's actual claim. This counts ONLY ticks on which a document step went through a
+# SS-TICKED. The gate's actual claim. This counts ONLY ticks on which a document step went through a
 # channel after boot.
-if [ -z "${offowner:-}" ] || [ "$offowner" -eq 0 ]; then
-	echo "FAIL SS-OFFOWNER — no document step ever ran off the storage owner"
+if [ -z "${channel_ticks:-}" ] || [ "$channel_ticks" -eq 0 ]; then
+	echo "FAIL SS-TICKED — no document step ever ran through the channel across ticks"
 	fail=1
 fi
 
@@ -167,5 +167,5 @@ if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
 grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
-echo "PASS — the song document was built in memory, placed on the card through the write channel off"
-echo "       the storage owner, read back, and loaded as a song"
+echo "PASS — the song document was built in memory, placed on the card through the write channel across"
+echo "       ticks, read back, and loaded as a song"

@@ -10,20 +10,20 @@
 #                 and broke the recording on the way. It earned its keep here: a recycled stream
 #                 handle collecting a previous recorder's answer showed up as exactly this, and
 #                 nothing else in the run noticed.
-#   RW-CHANNEL    that the async arm was EXECUTED by the `offowner_` recordings: they must serve writes
+#   RW-CHANNEL    that the async arm was EXECUTED by the `ticked_` recordings: they must serve writes
 #                 beyond the ones the oracle's cases served (RW-SUMMARY's count, taken before they run).
-#   RW-OFFOWNER   that the recorder drain ran after boot, its writes on the write channel. This is the
+#   RW-TICKED   that the recorder drain ran after boot, its writes on the write channel. This is the
 #                 gate's real subject: RW-CHANNEL alone says writes were served, not which drain issued them.
-#   RW-OFFOWNER-CREATE  that CREATING the recording's file ran through the create machine.
-#   RW-OFFOWNER-FINALIZE  that FINISHING a recording ran through the finalize machine. A served count says
+#   RW-TICKED-CREATE  that CREATING the recording's file ran through the create machine.
+#   RW-TICKED-FINALIZE  that FINISHING a recording ran through the finalize machine. A served count says
 #                 operations went through the channel, not which machine issued them.
 #   RW-LEAK       that an aborted recording gives its clusters back. It does NOT currently catch a
 #                 premature unlink -- single-flight sends that unlink down its synchronous arm anyway
 #                 -- but it does catch a cleanup that fails to delete at all.
-#   RW-OFFOWNER-CASE  that each `offowner_` case -- a recording, the alteration branch, an abort --
+#   RW-TICKED-CASE  that each `ticked_` case -- a recording, the alteration branch, an abort --
 #                 ran and reads back byte-for-byte, its cluster writes through the channel.
 #   RW-TIER       how many synchronous card operations the recorder began on the interaction tier after
-#                 boot, over every `offowner_` case, and how many of its channel requests were refused.
+#                 boot, over every `ticked_` case, and how many of its channel requests were refused.
 #                 Required 0: after boot every recorder operation goes through a channel.
 #   RW-BUSY       that a recording made while another write-channel operation keeps taking the channel
 #                 is refused, asks again, never writes synchronously, and still reads back exactly.
@@ -38,7 +38,7 @@
 #   NOT covered: the stem-export folder search. Its machine is exercised only by the offline golden
 #                render RW-DRAIN runs, which starts the export after boot, so the search takes its
 #                CHANNEL arm there; no check reads its outcome beyond the render terminating, and its
-#                inline arm is not exercised at all. There is no stem case among the `offowner_`
+#                inline arm is not exercised at all. There is no stem case among the `ticked_`
 #                cases: routing a harness recording down the stem path needs more engine state
 #                than `processStarted` + `currentStemExportType` + `lastFolderNameForStemExport`,
 #                and a case that silently records to RESAMPLE while calling itself a stem case
@@ -118,42 +118,42 @@ if ! grep -q '^RW-RESULT failures=0' "$OUT/run.txt"; then
 	fail=1
 fi
 
-# The `offowner_` cases run AFTER the oracle has printed RW-SUMMARY, so their evidence is their own
+# The `ticked_` cases run AFTER the oracle has printed RW-SUMMARY, so their evidence is their own
 # lines. There are three, and each covers a shape the oracle's eight cases do not take.
 #
 # The alteration case exists because nothing else sets allowFileAlterationAfter, so without it
 # finalize's whole batch machine would have no coverage.
 for c in recording alterfile abort; do
-	if ! grep -q "^CASE offowner_$c " "$OUT/run.txt"; then
-		echo "FAIL RW-OFFOWNER-CASE — the off-owner '$c' case did not run"
+	if ! grep -q "^CASE ticked_$c " "$OUT/run.txt"; then
+		echo "FAIL RW-TICKED-CASE — the ticked '$c' case did not run"
 		fail=1
 	fi
 done
 
-oo_count=$(grep -c '^OO-RESULT ' "$OUT/run.txt" || true)
-oo_ok_count=$(grep -c '^OO-RESULT ok=1 ' "$OUT/run.txt" || true)
-if [ "$oo_count" -lt 2 ] || [ "$oo_ok_count" -ne "$oo_count" ]; then
-	echo "FAIL RW-OFFOWNER-CASE — $oo_ok_count of $oo_count off-owner recordings read back correctly"
-	grep '^OO-RESULT ' "$OUT/run.txt"
+tk_count=$(grep -c '^TK-RESULT ' "$OUT/run.txt" || true)
+tk_ok_count=$(grep -c '^TK-RESULT ok=1 ' "$OUT/run.txt" || true)
+if [ "$tk_count" -lt 2 ] || [ "$tk_ok_count" -ne "$tk_count" ]; then
+	echo "FAIL RW-TICKED-CASE — $tk_ok_count of $tk_count ticked recordings read back correctly"
+	grep '^TK-RESULT ' "$OUT/run.txt"
 	fail=1
 fi
 
-# RW-OFFOWNER-FINALIZE: a recording finished without the finalize machine reads zero here while
+# RW-TICKED-FINALIZE: a recording finished without the finalize machine reads zero here while
 # everything else stays green.
-oo_fin=$(grep '^OO-RESULT ' "$OUT/run.txt" | sed -n 's/.*offOwnerFinalizeTicks=\([0-9]*\).*/\1/p' | sort -n | tail -1)
-[ -n "$oo_fin" ] || oo_fin=0
-if [ "$oo_fin" -eq 0 ]; then
-	echo "FAIL RW-OFFOWNER-FINALIZE — finalize never ran off the owner; nothing relocated"
+tk_fin=$(grep '^TK-RESULT ' "$OUT/run.txt" | sed -n 's/.*channelFinalizeTicks=\([0-9]*\).*/\1/p' | sort -n | tail -1)
+[ -n "$tk_fin" ] || tk_fin=0
+if [ "$tk_fin" -eq 0 ]; then
+	echo "FAIL RW-TICKED-FINALIZE — finalize never ran through the channel across ticks"
 	fail=1
 fi
 
 # RW-LEAK: an aborted recording must give its clusters back.
-oo_leak=$(grep '^OO-LEAK ' "$OUT/run.txt" || true)
-if [ -z "$oo_leak" ]; then
-	echo "FAIL RW-LEAK — no OO-LEAK line; the abort case did not finish"
+tk_leak=$(grep '^TK-LEAK ' "$OUT/run.txt" || true)
+if [ -z "$tk_leak" ]; then
+	echo "FAIL RW-LEAK — no TK-LEAK line; the abort case did not finish"
 	fail=1
-elif ! grep -q '^OO-LEAK .*ok=1' "$OUT/run.txt"; then
-	echo "FAIL RW-LEAK — $oo_leak; an aborted recording did not give its clusters back"
+elif ! grep -q '^TK-LEAK .*ok=1' "$OUT/run.txt"; then
+	echo "FAIL RW-LEAK — $tk_leak; an aborted recording did not give its clusters back"
 	fail=1
 fi
 
@@ -161,13 +161,13 @@ fi
 tier_line=$(grep '^RW-TIER ' "$OUT/run.txt" || true)
 tier=$(printf '%s\n' "$tier_line" | sed -n 's/^RW-TIER violations=\([0-9]*\).*/\1/p')
 if [ -z "$tier" ]; then
-	echo "FAIL RW-TIER — no RW-TIER line; the off-owner cases did not report"
+	echo "FAIL RW-TIER — no RW-TIER line; the ticked cases did not report"
 	fail=1
 	tier=0
 else
 	echo "$tier_line"
 	if [ "$tier" -ne 0 ]; then
-		echo "FAIL RW-TIER — the recorder began $tier synchronous card operation(s) off the storage owner"
+		echo "FAIL RW-TIER — the recorder began $tier synchronous card operation(s) after boot"
 		fail=1
 	fi
 fi
@@ -186,33 +186,33 @@ for check in RW-BUSY RW-STALL RW-DIR-STALL; do
 	fi
 done
 
-# RW-OFFOWNER-CREATE: this reading zero means the recorder created its file without the create
+# RW-TICKED-CREATE: this reading zero means the recorder created its file without the create
 # machine, blocking on the card instead.
-oo_create=$(grep '^OO-RESULT ' "$OUT/run.txt" | sed -n 's/.*offOwnerCreateTicks=\([0-9]*\).*/\1/p' | sort -n | tail -1)
-[ -n "$oo_create" ] || oo_create=0
-if [ "$oo_create" -eq 0 ]; then
-	echo "FAIL RW-OFFOWNER-CREATE — the create tick never ran off the owner; nothing relocated"
+tk_create=$(grep '^TK-RESULT ' "$OUT/run.txt" | sed -n 's/.*channelCreateTicks=\([0-9]*\).*/\1/p' | sort -n | tail -1)
+[ -n "$tk_create" ] || tk_create=0
+if [ "$tk_create" -eq 0 ]; then
+	echo "FAIL RW-TICKED-CREATE — the create tick never ran through the channel across ticks"
 	fail=1
 fi
 
-oo_served=$(grep '^OO-RESULT ' "$OUT/run.txt" | sed -n 's/^OO-RESULT ok=[0-9]* served=\([0-9]*\).*/\1/p' | sort -n | tail -1)
-[ -n "$oo_served" ] || oo_served=0
+tk_served=$(grep '^TK-RESULT ' "$OUT/run.txt" | sed -n 's/^TK-RESULT ok=[0-9]* served=\([0-9]*\).*/\1/p' | sort -n | tail -1)
+[ -n "$tk_served" ] || tk_served=0
 
 served=$(sed -n 's/^RW-SUMMARY served=\([0-9]*\).*/\1/p' "$OUT/run.txt")
-offowner=$(sed -n 's/^RW-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")
+channel_ticks=$(sed -n 's/^RW-SUMMARY .*channelTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")
 [ -n "$served" ] || {
 	echo "FAIL — no RW-SUMMARY line"
 	fail=1
 	served=0
 }
-[ -n "$offowner" ] || offowner=0
+[ -n "$channel_ticks" ] || channel_ticks=0
 
-if [ "$oo_served" -le "$served" ]; then
-	echo "FAIL RW-CHANNEL — the off-owner recording served nothing beyond the oracle's $served"
+if [ "$tk_served" -le "$served" ]; then
+	echo "FAIL RW-CHANNEL — the ticked recording served nothing beyond the oracle's $served"
 	fail=1
 fi
-if [ "$offowner" -eq 0 ]; then
-	echo "FAIL RW-OFFOWNER — served=$served but every drain ran on the storage owner; nothing relocated"
+if [ "$channel_ticks" -eq 0 ]; then
+	echo "FAIL RW-TICKED — served=$served but no drain ran through the channel across ticks"
 	fail=1
 fi
 
@@ -235,4 +235,4 @@ if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
 grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" "$OUT/drain.txt" || true
-echo "recorder write: OK (served=$served->${oo_served} offOwner drain=$offowner finalize=$oo_fin create=$oo_create tier=$tier)"
+echo "recorder write: OK (served=$served->${tk_served} channel drain=$channel_ticks finalize=$tk_fin create=$tk_create tier=$tier)"

@@ -19,7 +19,7 @@
 #   SL-LOADED     the song came back off the card. A value stamped into it before saving and
 #                 deliberately overwritten in memory afterwards.
 #   SL-CHANNEL    the staging read was SERVED by the channel -- the async arm ran.
-#   SL-OFFOWNER   the staging ran through the channels after boot. The gate's actual claim.
+#   SL-TICKED   the staging ran through the channels after boot. The gate's actual claim.
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
 set -euo pipefail
@@ -85,7 +85,7 @@ if ! grep -q '^SL-RESULT failures=0$' "$OUT/run.txt"; then
 fi
 
 served="$(sed -n 's/^SL-SUMMARY served=\([0-9]*\) .*/\1/p' "$OUT/run.txt")"
-offowner="$(sed -n 's/^SL-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+channel_ticks="$(sed -n 's/^SL-SUMMARY .*channelTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
 
 # SL-CHANNEL. The async arm actually RAN.
 if [ -z "${served:-}" ] || [ "$served" -eq 0 ]; then
@@ -93,9 +93,9 @@ if [ -z "${served:-}" ] || [ "$served" -eq 0 ]; then
 	fail=1
 fi
 
-# SL-OFFOWNER. The gate's actual claim: `offOwnerTicks` counts staging attempts after boot, through the channels.
-if [ -z "${offowner:-}" ] || [ "$offowner" -eq 0 ]; then
-	echo "FAIL SL-OFFOWNER — the staging read never ran off the storage owner"
+# SL-TICKED. The gate's actual claim: `channelTicks` counts staging attempts after boot, through the channels.
+if [ -z "${channel_ticks:-}" ] || [ "$channel_ticks" -eq 0 ]; then
+	echo "FAIL SL-TICKED — the staging read never ran through the channel across ticks"
 	fail=1
 fi
 
@@ -105,4 +105,4 @@ if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
 grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
-echo "PASS — the song loaded back, and the channel staged it off the storage owner"
+echo "PASS — the song loaded back, and the channel staged it across ticks"

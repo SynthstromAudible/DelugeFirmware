@@ -589,7 +589,7 @@ void runTick() {
 		const int32_t tier = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Sysex);
 		printf("OI-TIER sysex=%d\n", tier);
 		if (tier != 0) {
-			printf("OI-TIER FAIL %d SysEx directory open(s) began synchronously off the storage owner\n", tier);
+			printf("OI-TIER FAIL %d SysEx directory open(s) began synchronously after boot\n", tier);
 			g_failures++;
 		}
 		g_stage = Stage::Summary;

@@ -267,7 +267,7 @@ void runTick() {
 			printf("SL-ORDER FAIL the song's sample did not come back bound\n");
 			g_failures++;
 		}
-		printf("SL-SUMMARY served=%d offOwnerTicks=%d\n", (int)StorageManager::stagingChannelServedOps(),
+		printf("SL-SUMMARY served=%d channelTicks=%d\n", (int)StorageManager::stagingChannelServedOps(),
 		       (int)AudioEngine::songStageTicks());
 		// Leave the card as we found it. These harness images are keyed by fingerprint and SHARED with
 		// other gates, so a song left behind here changes what THEIR browser listings see -- which is

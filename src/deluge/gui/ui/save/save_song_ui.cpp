@@ -290,7 +290,7 @@ void SaveSongUI::runExistsPhase() {
 	if (booting) {
 		// Blocking is legal here, and a channel request issued from a context that will not yield could
 		// never be answered.
-		++documentOwnerServedOps_;
+		++documentInlineServedOps_;
 		++documentSteps_;
 		resolveExists(StorageManager::fileExists(path));
 		return;
@@ -298,7 +298,7 @@ void SaveSongUI::runExistsPhase() {
 
 	// After boot, so the byte channel is here: the Rust BSP always has it, and a C++-only build never
 	// finishes booting, so it never reaches this line.
-	++offOwnerDocumentTicks_;
+	++channelDocumentTicks_;
 	bool present = false;
 	DelugeStatus status = DELUGE_OK;
 	switch (deluge::storage::bytes::collectExists(path, &present, &status)) {
@@ -468,7 +468,7 @@ void SaveSongUI::runTransferPhase() {
 	if (booting) {
 		// Blocking is legal here, and asking the channel would be worse than pointless: a request
 		// issued from a context that will not yield can never be answered.
-		++transferOwnerServedOps_;
+		++transferInlineServedOps_;
 		if (!transferOneSynchronously()) {
 			abandonCollection();
 			return;
@@ -484,7 +484,7 @@ void SaveSongUI::runTransferPhase() {
 	// Past this point every transfer goes through the channel, from the interaction tier. This counter
 	// is what a gate reads to confirm the work went through the channel. Counting the inline case
 	// here too would make the number say "through the channel" about work that ran inline.
-	++offOwnerTransferTicks_;
+	++channelTransferTicks_;
 
 	DelugeStatus status = DELUGE_OK;
 
@@ -749,7 +749,7 @@ void SaveSongUI::runTempNamePhase() {
 		return;
 	}
 
-	++offOwnerDocumentTicks_;
+	++channelDocumentTicks_;
 	DelugeStatus status = DELUGE_OK;
 	bool present = false;
 	switch (deluge::storage::bytes::collectExists(docWritePath_.c_str(), &present, &status)) {
@@ -795,7 +795,7 @@ void SaveSongUI::runWritePhase() {
 	// across. No song has ever fitted the first: the smallest measured is 11.5 KB and the largest
 	// 1.10 MB. The staged buffer must stay alive and unmodified until the collect is terminal, which
 	// is why nothing releases the serialiser before FINISH.
-	++offOwnerDocumentTicks_;
+	++channelDocumentTicks_;
 
 	if (!docWriteIssued_) {
 		// may_overwrite is false in both cases: on the overwrite path this is a temp name just found
@@ -852,7 +852,7 @@ void SaveSongUI::runVerifyPhase() {
 		return;
 	}
 
-	++offOwnerDocumentTicks_;
+	++channelDocumentTicks_;
 	const ReadBackTick tick = docReadBack_.step(docWritePath_.c_str());
 	// Every answer the channel gave counts, including the one that failed the check.
 	const int32_t served = docReadBack_.takeServedOps();
@@ -887,7 +887,7 @@ void SaveSongUI::runUnlinkPhase() {
 		return;
 	}
 
-	++offOwnerDocumentTicks_;
+	++channelDocumentTicks_;
 	DelugeStatus status = DELUGE_OK;
 	switch (deluge::storage::bytes::collectUnlink(pendingFilePath_.c_str(), &status)) {
 	case ByteIo::Unknown:
@@ -923,7 +923,7 @@ void SaveSongUI::runRenamePhase() {
 		return;
 	}
 
-	++offOwnerDocumentTicks_;
+	++channelDocumentTicks_;
 	DelugeStatus status = DELUGE_OK;
 	switch (deluge::storage::bytes::collectRename(pendingFilePath_.c_str(), &status)) {
 	case ByteIo::Unknown:
@@ -982,7 +982,7 @@ void SaveSongUI::runDocFinishPhase() {
 bool SaveSongUI::runOneDocStep() {
 	// Only ever before boot finishes, where blocking is legal: after boot every phase goes through a
 	// channel, and both channels are always there.
-	++documentOwnerServedOps_;
+	++documentInlineServedOps_;
 	++documentSteps_;
 	if (!docStepSynchronously()) {
 		abandonDocument(Error::WRITE_FAIL);

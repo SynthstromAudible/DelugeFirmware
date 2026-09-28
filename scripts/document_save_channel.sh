@@ -17,7 +17,7 @@
 #
 # What the checks cover:
 #   DS-CHANNEL    the document write was SERVED by the channel -- the async arm ran.
-#   DS-OFFOWNER   the save's steps went through a channel after boot. The gate's actual claim.
+#   DS-TICKED   the save's steps went through a channel after boot. The gate's actual claim.
 #   DS-VERIFIED   both checked saves COMPLETED a read-back -- counted where a save genuinely succeeds,
 #                 because a rejected write has already left its file on the card.
 #   DS-VERIFY-ARM the read-back ran through the channel and never on the inline arm.
@@ -96,9 +96,9 @@ if ! grep -q '^DS-RESULT failures=0$' "$OUT/run.txt"; then
 fi
 
 served="$(sed -n 's/^DS-SUMMARY served=\([0-9]*\) .*/\1/p' "$OUT/run.txt")"
-offowner="$(sed -n 's/^DS-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+channel_ticks="$(sed -n 's/^DS-SUMMARY .*channelTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
 vserved="$(sed -n 's/^DS-SUMMARY .*verifyServed=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
-vowner="$(sed -n 's/^DS-SUMMARY .*verifyOwner=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
+vinline="$(sed -n 's/^DS-SUMMARY .*verifyInline=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
 
 # DS-CHANNEL. The async arm actually RAN.
 if [ -z "${served:-}" ] || [ "$served" -eq 0 ]; then
@@ -106,9 +106,9 @@ if [ -z "${served:-}" ] || [ "$served" -eq 0 ]; then
 	fail=1
 fi
 
-# DS-OFFOWNER. The gate's actual claim: `offOwnerTicks` counts ticks on which a staged step went through a channel.
-if [ -z "${offowner:-}" ] || [ "$offowner" -eq 0 ]; then
-	echo "FAIL DS-OFFOWNER — the save never ran off the storage owner"
+# DS-TICKED. The gate's actual claim: `channelTicks` counts ticks on which a staged step went through a channel.
+if [ -z "${channel_ticks:-}" ] || [ "$channel_ticks" -eq 0 ]; then
+	echo "FAIL DS-TICKED — the save never ran through the channel across ticks"
 	fail=1
 fi
 
@@ -136,9 +136,9 @@ grep -q '^DS-GUARD refused=1 unchanged=1$' "$OUT/run.txt" || { echo "FAIL DS-GUA
 grep -q '^DS-GUARD-SONG tried=1 refused=1 songSaved=1 presetWritten=0$' "$OUT/run.txt" || { echo "FAIL DS-GUARD-SONG — $(grep '^DS-GUARD-SONG ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
 grep -q '^DS-ACCOUNTED tampered=1 failed=1 verifyServed=1$' "$OUT/run.txt" || { echo "FAIL DS-ACCOUNTED — $(grep '^DS-ACCOUNTED ' "$OUT/run.txt" || echo 'no line')"; fail=1; }
 
-# DS-VERIFY-ARM. The read-back rides the channel, and none runs on the inline arm (`verifyOwner`).
-if [ "${vserved:-0}" = "0" ] || [ "${vowner:-1}" != "0" ]; then
-	echo "FAIL DS-VERIFY-ARM — the read-back did not run through the channel (verifyServed=${vserved:-none} verifyOwner=${vowner:-none})"
+# DS-VERIFY-ARM. The read-back rides the channel, and none runs on the inline arm (`verifyInline`).
+if [ "${vserved:-0}" = "0" ] || [ "${vinline:-1}" != "0" ]; then
+	echo "FAIL DS-VERIFY-ARM — the read-back did not run through the channel (verifyServed=${vserved:-none} verifyInline=${vinline:-none})"
 	fail=1
 fi
 
@@ -148,6 +148,6 @@ if [ "$fail" -ne 0 ]; then
 	exit 1
 fi
 grep -hE '^TIER-SYNC(-AT)? ' "$OUT/run.txt" || true
-echo "PASS — the document was written whole off the storage owner and read back through the channel, a taken"
+echo "PASS — the document was written whole and read back through the channel, a taken"
 echo "       name was refused rather than replaced, and a confirmed overwrite kept the old document until its"
 echo "       replacement was verified"

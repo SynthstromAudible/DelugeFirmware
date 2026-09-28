@@ -345,7 +345,7 @@ void SaveUI::runWritePhase() {
 
 	// Past this point the write goes through the channel, from the interaction tier. This counter is
 	// what a gate reads to confirm the write went through the channel.
-	++offOwnerSaveTicks_;
+	++channelSaveTicks_;
 
 	if (!writeIssued_) {
 		if (!deluge_file_write_request_write_file(path, bytes, len, mayOverwrite)) {
@@ -415,7 +415,7 @@ void SaveUI::runStagedVerifyPhase() {
 	const bool booting = !deluge::boot::finished();
 
 	if (booting) {
-		++verifyOwnerServedOps_;
+		++verifyInlineServedOps_;
 		finishStagedVerify(deluge::storage::readBackSynchronously(path, stagedReadBackExpectation()));
 		return;
 	}
@@ -519,7 +519,7 @@ void SaveUI::runSwapPhase() {
 		return;
 	}
 
-	++offOwnerSaveTicks_;
+	++channelSaveTicks_;
 	const SwapTick tick = stagedSwap_.step();
 	swapChannelServedOps_ += stagedSwap_.takeServedOps();
 	switch (tick) {

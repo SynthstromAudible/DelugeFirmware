@@ -980,9 +980,9 @@ void runTick() {
 	case Stage::Report: {
 		printf("DS-VERIFIED completedSaves=%d verified=%d\n", (int)SaveUI::stagedSavesCompleted(),
 		       (int)SaveUI::stagedSavesVerified());
-		printf("DS-SUMMARY served=%d offOwnerTicks=%d verifyServed=%d verifyOwner=%d\n",
-		       (int)SaveUI::writeChannelServedOps(), (int)SaveUI::offOwnerSaveTicks(),
-		       (int)SaveUI::verifyChannelServedOps(), (int)SaveUI::verifyOwnerServedOps());
+		printf("DS-SUMMARY served=%d channelTicks=%d verifyServed=%d verifyInline=%d\n",
+		       (int)SaveUI::writeChannelServedOps(), (int)SaveUI::channelSaveTicks(),
+		       (int)SaveUI::verifyChannelServedOps(), (int)SaveUI::verifyInlineServedOps());
 		printf("DS-RESULT failures=%d\n", g_failures);
 		// Leave the card as we found it: these images are fingerprint-keyed and SHARED between gates,
 		// and a file left behind here changes what another gate's browser listing sees.

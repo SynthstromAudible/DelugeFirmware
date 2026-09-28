@@ -106,7 +106,7 @@ public:
 	/// Reported together and held to account for each other by the gate: on a build where half the
 	/// steps quietly took the other arm, either number alone reads as a success.
 	[[nodiscard]] static int32_t documentChannelServedOps() { return documentChannelServedOps_; }
-	[[nodiscard]] static int32_t documentOwnerServedOps() { return documentOwnerServedOps_; }
+	[[nodiscard]] static int32_t documentInlineServedOps() { return documentInlineServedOps_; }
 
 	/// @brief Document steps the WRITE channel served: the document write itself, and nothing else.
 	///
@@ -124,7 +124,7 @@ public:
 	[[nodiscard]] static int32_t documentSavesCompleted() { return documentSavesCompleted_; }
 
 	/// @brief Ticks on which a document step went through a channel, after boot.
-	[[nodiscard]] static int32_t offOwnerDocumentTicks() { return offOwnerDocumentTicks_; }
+	[[nodiscard]] static int32_t channelDocumentTicks() { return channelDocumentTicks_; }
 
 	/// @brief How many times the staging buffer doubled for the last staged document.
 	///
@@ -134,14 +134,14 @@ public:
 
 	/// @brief Transfers the CHANNEL served, and ticks on which a transfer step went through it, after boot.
 	[[nodiscard]] static int32_t transferChannelServedOps() { return transferChannelServedOps_; }
-	[[nodiscard]] static int32_t offOwnerTransferTicks() { return offOwnerTransferTicks_; }
+	[[nodiscard]] static int32_t channelTransferTicks() { return channelTransferTicks_; }
 
 	/// @brief Transfers the INLINE arm served, synchronously, before boot finished. Zero on a booted build.
 	///
 	/// The counterpart to transferChannelServedOps(). Reported alongside it because the two must
 	/// account for every transfer between them: a build where half the files quietly took the other
 	/// arm reads as a success from either number alone.
-	[[nodiscard]] static int32_t transferOwnerServedOps() { return transferOwnerServedOps_; }
+	[[nodiscard]] static int32_t transferInlineServedOps() { return transferInlineServedOps_; }
 
 private:
 	/// Which part of a sample collection runs next.
@@ -263,11 +263,11 @@ private:
 	static constexpr const char* kSongTailXml = "\n</song>\n";
 
 	static inline int32_t documentChannelServedOps_{};
-	static inline int32_t documentOwnerServedOps_{};
+	static inline int32_t documentInlineServedOps_{};
 	static inline int32_t documentWriteChannelServedOps_{};
 	static inline int32_t documentSteps_{};
 	static inline int32_t documentSavesCompleted_{};
-	static inline int32_t offOwnerDocumentTicks_{};
+	static inline int32_t channelDocumentTicks_{};
 	static inline int32_t stagedDocumentGrowths_{};
 
 	/// Persisted across ticks: this save resolves over many calls, not one, so these locals must live
@@ -280,8 +280,8 @@ private:
 	bool anyErrorMovingTempFiles_{};
 
 	static inline int32_t transferChannelServedOps_{};
-	static inline int32_t transferOwnerServedOps_{};
-	static inline int32_t offOwnerTransferTicks_{};
+	static inline int32_t transferInlineServedOps_{};
+	static inline int32_t channelTransferTicks_{};
 
 public:
 	bool collectingSamples{};

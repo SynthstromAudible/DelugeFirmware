@@ -494,9 +494,9 @@ void runTick() {
 		// Both arms are reported, and the gate holds them to account for every card step between
 		// them: either number alone reads as a success on a build where half the steps quietly took
 		// the other arm.
-		printf("SS-SUMMARY served=%d ownerServed=%d offOwnerTicks=%d steps=%d writeServed=%d\n",
-		       (int)SaveSongUI::documentChannelServedOps(), (int)SaveSongUI::documentOwnerServedOps(),
-		       (int)SaveSongUI::offOwnerDocumentTicks(), (int)SaveSongUI::documentSteps(),
+		printf("SS-SUMMARY served=%d inlineServed=%d channelTicks=%d steps=%d writeServed=%d\n",
+		       (int)SaveSongUI::documentChannelServedOps(), (int)SaveSongUI::documentInlineServedOps(),
+		       (int)SaveSongUI::channelDocumentTicks(), (int)SaveSongUI::documentSteps(),
 		       (int)SaveSongUI::documentWriteChannelServedOps());
 		printf("SS-RESULT failures=%d\n", g_failures);
 		fflush(stdout);
