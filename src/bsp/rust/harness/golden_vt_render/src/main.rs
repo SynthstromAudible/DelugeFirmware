@@ -1608,6 +1608,12 @@ fn main() {
         .to_path_buf();
     // The card: a memory disk filled with the scenario's fixture tree (memory_card.rs), unless DELUGE_SD_IMAGE names a
     // file to use instead.
+    // render_song plays a song as the device does: every block rendered on the audio tier after boot, one 128-frame
+    // block per 2,902 virtual microseconds. Both must be set before deluge_app_init registers the audio task.
+    if scenario == "render_song" {
+        audio_host::set_realtime_render(true);
+        scheduler::set_audio_period_override_us(2902, 0);
+    }
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {
             "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard" => {
@@ -1623,6 +1629,10 @@ fn main() {
             "preset_load" => fill_preset_load_card(),
             "clear_song_undo" => fill_clear_song_undo_card(),
             "song_load_channel" => fill_song_load_channel_card(),
+            "render_song" => memory_card::install(Some(std::path::Path::new(
+                &std::env::var_os("RENDER_TREE")
+                    .expect("render_song: RENDER_TREE names the card tree to play from"),
+            ))),
             _ => memory_card::install(Some(&sd_image::golden_fixture_tree(&repo_root, &fixture))),
         }
     }

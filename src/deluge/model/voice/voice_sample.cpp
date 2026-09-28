@@ -474,6 +474,9 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
                          int32_t timeStretchRatio, int32_t amplitude, int32_t amplitudeIncrement,
                          int32_t interpolationBufferSize, InterpolationMode desiredInterpolationMode,
                          int32_t priorityRating) {
+#ifdef DELUGE_HOST
+	deluge::harness::noteVoiceRender();
+#endif
 
 	int32_t playDirection = guide->playDirection;
 

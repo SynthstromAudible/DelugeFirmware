@@ -19,6 +19,9 @@
 
 #ifdef DELUGE_HOST
 
+#include "libdeluge/tier.h"
+
+#include <array>
 #include <atomic>
 
 namespace deluge::harness {
@@ -30,7 +33,19 @@ namespace {
 // operations.
 std::atomic<uint64_t> underrunWaitCount{0};
 std::atomic<uint64_t> underrunUnassignCount{0};
+std::array<std::atomic<uint64_t>, 3> voiceRenderCount{};
 } // namespace
+
+void noteVoiceRender() {
+	const uint8_t tier = deluge_tier_current();
+	if (tier < voiceRenderCount.size()) {
+		voiceRenderCount[tier].fetch_add(1, std::memory_order_relaxed);
+	}
+}
+
+uint64_t voiceRenderCountLoad(uint8_t tier) {
+	return tier < voiceRenderCount.size() ? voiceRenderCount[tier].load(std::memory_order_relaxed) : 0;
+}
 
 void noteUnderrunWait() {
 	underrunWaitCount.fetch_add(1, std::memory_order_relaxed);
@@ -58,6 +73,10 @@ uint64_t deluge_sim_underrun_wait_count() {
 
 uint64_t deluge_sim_underrun_unassign_count() {
 	return deluge::harness::underrunUnassignCountLoad();
+}
+
+uint64_t deluge_sim_voice_render_count(uint8_t tier) {
+	return deluge::harness::voiceRenderCountLoad(tier);
 }
 
 } // extern "C"

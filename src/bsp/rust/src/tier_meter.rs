@@ -144,6 +144,12 @@ fn print_entries(tag: &str, counts: &[AtomicU32; N]) {
     }
 }
 
+/// C ABI (`libdeluge/tier.h`): synchronous card calls made on the audio tier after boot, over every entry.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_tier_sync_audio_total() -> u32 {
+    AUDIO_COUNTS.iter().map(|c| c.load(Ordering::Relaxed)).sum()
+}
+
 /// C ABI (`libdeluge/tier.h`): how many entries there are.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_tier_sync_entries() -> u8 {

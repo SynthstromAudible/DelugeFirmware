@@ -541,6 +541,12 @@ pub(crate) mod stats {
     pub fn writes() -> u64 {
         WRITES.load(Ordering::Relaxed)
     }
+
+    /// C ABI for scenarios: [`reads`].
+    #[unsafe(no_mangle)]
+    pub extern "C" fn deluge_sim_card_reads() -> u64 {
+        reads()
+    }
 }
 
 /// Host: read `count` sectors via `deluge_bsp::sd::read_sectors` — the SAME

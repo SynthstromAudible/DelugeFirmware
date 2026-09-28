@@ -149,13 +149,82 @@ fn render_mode() -> bool {
 ///   exactly this call chain). Skipping it is safe: the render this call would
 ///   have produced is discarded anyway (a null sink).
 fn should_skip_render() -> bool {
-    if !crate::boot::finished() || render_after_boot() {
+    if !crate::boot::finished() || render_after_boot() || REALTIME_RENDER.load(Ordering::Relaxed) {
         return false;
     }
     // After boot: skip UNLESS this is host_app's real separate audio OS thread,
     // where this is the legitimate, load-bearing render path.
     let thread_name = std::thread::current().name().unwrap_or("").to_string();
     thread_name != "deluge-audio"
+}
+
+/// Set by a scenario that plays a song in real time (`render_song`): render every block after boot, as the device
+/// does. Every other scenario leaves it clear, and keeps the skip its recorded output depends on.
+static REALTIME_RENDER: AtomicBool = AtomicBool::new(false);
+
+/// Render every block after boot for the rest of this run; see [`REALTIME_RENDER`].
+pub fn set_realtime_render(on: bool) {
+    REALTIME_RENDER.store(on, Ordering::Relaxed);
+}
+
+/// The captured output, while capture is on: every rendered block's stereo samples, as little-endian `i32` pairs.
+static CAPTURE: std::sync::Mutex<Option<std::io::BufWriter<std::fs::File>>> =
+    std::sync::Mutex::new(None);
+static CAPTURE_FRAMES: AtomicU64 = AtomicU64::new(0);
+
+/// Start capturing the rendered output into the file `RENDER_PCM_OUT` names. Without it, only the frame count is
+/// kept. C ABI for the scenario that starts playback.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_capture_start() {
+    let file = std::env::var_os("RENDER_PCM_OUT").map(|path| {
+        std::io::BufWriter::new(std::fs::File::create(&path).unwrap_or_else(|e| {
+            panic!(
+                "RENDER_PCM_OUT {}: {e}",
+                std::path::Path::new(&path).display()
+            )
+        }))
+    });
+    *CAPTURE.lock().unwrap() = file;
+    CAPTURE_FRAMES.store(0, Ordering::Relaxed);
+    CAPTURING.store(true, Ordering::Relaxed);
+}
+
+/// Stop capturing and flush what was captured. Returns the frames captured.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_capture_stop() -> u64 {
+    CAPTURING.store(false, Ordering::Relaxed);
+    if let Some(mut file) = CAPTURE.lock().unwrap().take() {
+        use std::io::Write as _;
+        file.flush().expect("RENDER_PCM_OUT: flushing the capture");
+    }
+    CAPTURE_FRAMES.load(Ordering::Relaxed)
+}
+
+static CAPTURING: AtomicBool = AtomicBool::new(false);
+
+fn capture_block() {
+    if !CAPTURING.load(Ordering::Relaxed) {
+        return;
+    }
+    CAPTURE_FRAMES.fetch_add(APP_BLOCK_FRAMES as u64, Ordering::Relaxed);
+    if let Some(file) = CAPTURE.lock().unwrap().as_mut() {
+        use std::io::Write as _;
+        // SAFETY: single-threaded (see module doc): the render that wrote RENDER_BLOCK has returned, and nothing else
+        // touches it until the next drive.
+        let block = unsafe { &*addr_of!(RENDER_BLOCK) };
+        for s in block {
+            file.write_all(&s.l.to_le_bytes())
+                .expect("RENDER_PCM_OUT: writing the capture");
+            file.write_all(&s.r.to_le_bytes())
+                .expect("RENDER_PCM_OUT: writing the capture");
+        }
+    }
+}
+
+/// Blocks rendered since boot; see [`drive_count`]. C ABI for scenarios.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_render_count() -> u64 {
+    drive_count()
 }
 
 /// `DELUGE_RENDER_AFTER_BOOT=1`: never skip, so a single-executor harness renders every block after boot as
@@ -240,6 +309,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
     // Output intentionally discarded: this is a null sink (no DAC/DMA on host).
 
     CURSOR.store(block_start + APP_BLOCK_FRAMES as u64, Ordering::Relaxed);
+    capture_block();
 
     let n = DRIVE_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
     if render_mode() {

@@ -113,6 +113,9 @@ uint32_t deluge_tier_sync_count(uint8_t) {
 uint32_t deluge_tier_sync_total(void) {
 	return 0;
 }
+uint32_t deluge_tier_sync_audio_total(void) {
+	return 0;
+}
 const char* deluge_tier_sync_name(uint8_t) {
 	return "";
 }
