@@ -11,9 +11,11 @@ adds what depends on the song, and why each check is here:
     RS-PCM            the rendered output, against its record in tests/integration/golden/songs.json: the same
                       record the synth golden masters keep (sha256, frames, peak, rms_db).
 
-The song is generated for each run by tests/integration/golden/songs/make_render_song.py, so the card holds exactly
-the bytes the record was made from. RENDER_SONG_UPDATE=1 records the output instead of comparing it; a changed hash
-is a finding to explain in the commit that records the new one.
+By default the song is generated for each run by tests/integration/golden/songs/make_render_song.py, so the card holds
+exactly the bytes the record was made from. An entry that names its own RENDER_SONG plays that song from its
+GOLDEN_FIXTURE corpus card instead (render-song-corpus). Either way the record is keyed by the song's name.
+RENDER_SONG_UPDATE=1 records the output instead of comparing it; a changed hash is a finding to explain in the commit
+that records the new one.
 """
 
 import hashlib
@@ -26,8 +28,7 @@ import sys
 
 from scenario_gate import int_field
 
-SONG = "SONGS/RS_STREAM.XML"
-RECORD = "RS_STREAM"
+GENERATED_SONG = "SONGS/RS_STREAM.XML"
 
 
 def _pcm_record(pcm: bytes) -> dict:
@@ -47,9 +48,9 @@ def _pcm_record(pcm: bytes) -> dict:
     }
 
 
-def run(gate):
+def _generate(gate) -> dict[str, str] | None:
+    """Generate the default song's card tree; the environment that plays it, or None when generating failed."""
     tree = gate.tmp / "card"
-    pcm_path = gate.tmp / "out.pcm"
     made = subprocess.run(
         [
             sys.executable,
@@ -62,15 +63,19 @@ def run(gate):
     )
     if made.returncode != 0:
         gate.fail(f"generating the song failed: {made.stderr.strip()}")
-        return
+        return None
+    return {"RENDER_TREE": str(tree), "RENDER_SONG": GENERATED_SONG}
 
-    result = gate.run(
-        env={
-            "RENDER_TREE": str(tree),
-            "RENDER_SONG": SONG,
-            "RENDER_PCM_OUT": str(pcm_path),
-        }
-    )
+
+def run(gate):
+    pcm_path = gate.tmp / "out.pcm"
+    song = gate.env.get("RENDER_SONG")
+    env = {} if song else _generate(gate)
+    if env is None:
+        return
+    record_name = (song or GENERATED_SONG).rsplit("/", 1)[-1].rsplit(".", 1)[0]
+    env["RENDER_PCM_OUT"] = str(pcm_path)
+    result = gate.run(env=env)
     if not gate.require_standard(result):
         return
     gate.show(result)
@@ -96,16 +101,16 @@ def run(gate):
     records_path = gate.root / "tests/integration/golden/songs.json"
     records = json.loads(records_path.read_text()) if records_path.exists() else {}
     if os.environ.get("RENDER_SONG_UPDATE") == "1":
-        records[RECORD] = record
+        records[record_name] = record
         records_path.write_text(json.dumps(records, indent=1, sort_keys=True) + "\n")
         gate.say(
-            f"RS-PCM recorded as {RECORD} in {records_path.relative_to(gate.root)}"
+            f"RS-PCM recorded as {record_name} in {records_path.relative_to(gate.root)}"
         )
         return
-    expected = records.get(RECORD)
+    expected = records.get(record_name)
     if expected is None:
         gate.fail(
-            f"RS-PCM — no record for {RECORD}; run with RENDER_SONG_UPDATE=1 to make one"
+            f"RS-PCM — no record for {record_name}; run with RENDER_SONG_UPDATE=1 to make one"
         )
     elif expected != record:
         gate.fail(

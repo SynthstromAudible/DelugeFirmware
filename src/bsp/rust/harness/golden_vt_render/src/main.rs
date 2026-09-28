@@ -1629,10 +1629,13 @@ fn main() {
             "preset_load" => fill_preset_load_card(),
             "clear_song_undo" => fill_clear_song_undo_card(),
             "song_load_channel" => fill_song_load_channel_card(),
-            "render_song" => memory_card::install(Some(std::path::Path::new(
-                &std::env::var_os("RENDER_TREE")
-                    .expect("render_song: RENDER_TREE names the card tree to play from"),
-            ))),
+            // The card tree to play from: RENDER_TREE, or the GOLDEN_FIXTURE corpus fixture's.
+            "render_song" => {
+                memory_card::install(Some(&std::env::var_os("RENDER_TREE").map_or_else(
+                    || sd_image::golden_fixture_tree(&repo_root, &fixture),
+                    std::path::PathBuf::from,
+                )))
+            }
             _ => memory_card::install(Some(&sd_image::golden_fixture_tree(&repo_root, &fixture))),
         }
     }

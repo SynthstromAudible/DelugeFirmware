@@ -109,7 +109,7 @@ status = "gate"
 gates = "the SampleRecorder record-then-read-back round trip must be byte-exact on the Embassy host BSP"
 scenario = "recorder_roundtrip"
 builds = ["golden-vt-render"]
-requires = []
+requires = ["song-corpus"]
 tier = "nightly"
 runtime = "~5m"
 
@@ -516,7 +516,7 @@ gates = "an offline stem export must render byte-identical audio and write it. T
 scenario = ""
 check = "tests/integration/checks/stem_export.py"
 builds = ["golden-vt-render"]
-requires = []
+requires = ["song-corpus"]
 tier = "nightly"
 runtime = "~12s"
 
@@ -670,6 +670,24 @@ builds = ["golden-vt-render"]
 requires = []
 tier = "pr"
 runtime = "~20s"
+
+[[harness]]
+name = "render-song-corpus"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the render-song checks, on a real song from the maintainer's card backup (Cordae: eight kits of sampled drums, played in the arranger). The committed render-song song is two synths; this is the one that exercises kits, the arrangement and a real song's sample set, and it is what the streaming-margin work is measured against. Needs the backup, so it is manual."
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+env = { RENDER_SONG = "SONGS/Cordae.XML", GOLDEN_FIXTURE = "cordae" }
+builds = ["golden-vt-render"]
+requires = ["song-corpus"]
+tier = "manual"
+runtime = "~30s"
 
 [[harness]]
 name = "recorder-write"

@@ -31,7 +31,10 @@ PROBES = {
     "mtools": "apt install mtools -- fs_differential's fixtures are built with mformat",
     "qemu-arm": "apt install qemu-user",
     "arm-linux-gnueabihf-gcc": "apt install g++-arm-linux-gnueabihf",
-    "song-corpus": "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs",
+    "song-corpus": (
+        "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs, "
+        "or have the golden fixtures already rebuilt in DELUGE_GOLDEN_DIR (default ~/.cache/deluge-golden)"
+    ),
     "deluge-sdk-sibling": (
         "clone https://github.com/FirestormAudio/deluge-embassy as a sibling "
         "checkout at ../deluge-sdk -- the Rust BSP and its harnesses carry a "
@@ -241,7 +244,15 @@ def probe(requirement: str, root: Path) -> bool:
                 value = os.environ.get(var)
                 if value and Path(value).is_dir():
                     return True
-            return (Path.home() / "Deluge Backup").is_dir()
+            if (Path.home() / "Deluge Backup").is_dir():
+                return True
+            # The fixtures rebuilt from a backup earlier serve without it.
+            golden = Path(
+                os.environ.get(
+                    "DELUGE_GOLDEN_DIR", Path.home() / ".cache/deluge-golden"
+                )
+            )
+            return golden.is_dir() and any(golden.glob("*_proj"))
         case _:
             return False
 
