@@ -1,7 +1,7 @@
 # One test tree, one registry, one runner
 
-Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 to 3½ done, except 3½'s pin move,
-which waits on the deluge-sdk change reaching its remote.
+Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 to 4 done, except 3½'s pin move, which
+waits on the deluge-sdk change reaching its remote. Step 5 waits on the synth-golden-masters merge.
 - Branch `feat/rung3-browser-listing`. Follows the testing audit of the same day (conversation) and the fixes it led to
   (`1d32a55a8` … `7bc73c7bf`).
 - Lands after this branch merges into `next`, and before `feat/synth-golden-masters` is merged onto it, so the golden
@@ -376,9 +376,35 @@ Each step is one or more commits, and ends with:
    - [x] Two consecutive serial captures agree on every marker value except the wall-clock `*Micros=` fields, and a
          parallel capture agrees with them to the same extent (32/32, 1:22). The one-time diff from the mtools cards
          is sample-claim's randomizer picking RD3 for RD1: the directory order is now name order.
-4. **Layout.**
-   - [ ] The moves in §3, one directory per commit; `support/cmake` replaces the copied pins, and ETL is pinned once.
-   - [ ] §8: scenarios out of the firmware build.
+4. **Layout.** Done 2026-09-28.
+   - [x] The moves in §3, one directory per commit: `qemu` → `unit-arm`; the C++ rigs and fuzz target →
+         `component/{stress,dsp-diff,fuzz}`; the Rust differentials → `component/differential`; the registry and
+         README → `tests/`, with the stem-export baseline beside its check; data and the shared mocks →
+         `support/`; every ctest suite → one `tests/unit` tree (`spec_x` → `unit/x`, the CppUTest suite →
+         `unit/cpputest`), still 46 ctest tests. `harness/` and `tests/32bit_unit_tests/` are gone.
+   - [x] Pins: one file, `cmake/deps.cmake`, not `support/cmake`: ETL is pinned once only if the firmware
+         (`lib/`) and the sim include the same file, and firmware CMake has no business reaching into `tests/`.
+         The tests moved from ETL 20.39.4 to the firmware's 20.40.0, and CppSpec from its `main` branch to a
+         commit. `support/cmake/specs.cmake` holds `deluge_specs_driver()` and `deluge_test_neon()`, replacing
+         ten copies of the driver function and four of the SIMDe block; every suite now globs with
+         `CONFIGURE_DEPENDS`.
+   - [x] §8: the scenarios are `tests/integration/scenarios`, the host-only `deluge_scenarios` object library;
+         their `DELUGE_HOST` guards are gone and their headers are `"scenarios/..."`. golden_vt_render,
+         lens1_vt_sim and deluge-bsp-rust's host build archive its objects. `streaming_underrun` stays in
+         `src/deluge/harness`: firmware code calls it.
+   - Differences from the plan:
+     - The device image did not shrink: `.text` is 1,521,616 bytes before and after, with no scenario symbols
+       in either, because `--gc-sections` already dropped the two scenarios that had no guard. What changed is
+       that the firmware no longer compiles them.
+     - `tests/unit/cpputest/mocks` stays separate from `support/mocks`: both have a `mock_print.cpp`, with
+       different bodies.
+   - Verified: a parallel capture after the last move matches step 3½'s on every marker value (masking the
+     wall-clock `*Micros=` fields); the PR tier passes; RelWithDebInfo builds; `deluge_host`, `deluge_loadcheck`
+     and `deluge_audio_header_dump` link.
+   - Found on the way: lens1's sweep had been running a binary from August, because it looked in the crate's own
+     `target/` rather than the runner's target dir (fixed). The fresh binary fails its selftest with
+     `NotInitialized`: since 7f9a63bb9 (2026-09-26), an interaction-tier card call fails fast until the card is
+     identified, and the selftest makes one without identifying the card. Not fixed here.
 5. **Golden masters** (with the synth-golden-masters merge): §9.
 
 Steps 1 and 2 give most of the day-to-day benefit and could stop there if the rest has to wait.
