@@ -61,6 +61,12 @@ use crate::{sd, sim_block};
 /// rather than a hardcoded literal that would silently go stale if this function's buffer
 /// size ever changed.
 fn read_and_assert_modeled_latency() -> Result<(Duration, usize), String> {
+    // Identify the card first, as boot does before any read. The selftest runs before `boot_task`, on the
+    // interaction tier, and an interaction-tier card call is refused with `NotInitialized` until the card is
+    // identified (`sd::acquire_bus`). The host's `init()` never suspends, so a plain `block_on` completes it; it
+    // runs before the baselines below, so neither the elapsed time nor the hook count includes it.
+    embassy_futures::block_on(deluge_bsp::sd::init())
+        .map_err(|e| format!("identifying the card failed: {e:?}"))?;
     let mut buf = [0u8; 512];
     let expected = sd::sim_latency::latency_for(buf.len());
     let t0 = Instant::now();
