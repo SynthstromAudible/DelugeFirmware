@@ -84,7 +84,7 @@ private:
 	/// @param outcome `Written`, `Absent`, or `WriteFailed` -- the card refused it, or the channel stalled.
 	static void unlinkDone(void* ctx, deluge::storage::bytes::SettingsOutcome outcome);
 
-	/// The file the delete in progress, or the last one, was aimed at.
+	/// @brief The file the delete in progress, or the last one, was aimed at.
 	std::string pendingPath_;
 
 	static inline int32_t removed_ = 0;

@@ -51,12 +51,13 @@ extern "C" {
 /// tick per yield, so the storage driver can run between ticks, then calls @ref deluge_harness_recorder_probe_acquire.
 uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames);
 
-/// One tick of the drain. Call it between yields, as many times as the caller wants to flush.
+/// @brief One tick of the drain. Call it between yields, as many times as the caller wants to flush.
 void deluge_harness_recorder_probe_drain_tick();
 
-/// Open the region source over the still-recording Sample and take the first acquire; poll with
-/// @ref deluge_harness_recorder_probe_poll.
-/// @return the `DelugeRegionState`, or 0 if the probe was never set up.
+/// @brief Open the region source over the still-recording Sample and take the first acquire.
+///
+/// Poll with @ref deluge_harness_recorder_probe_poll.
+/// @return The `DelugeRegionState`, or 0 if the probe was never set up.
 uint8_t deluge_harness_recorder_probe_acquire();
 
 /// @brief Re-query the SAME open cursor's state for index 0 without acquiring again — lets a caller
@@ -114,13 +115,16 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe(uint8_t numChannels
 ///        probe is open.
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_poll();
 
-/// One tick of the finalized probe's pump. 0 = still going, 1 = COMPLETE, 2 = failed/bounded out.
-/// The caller ticks this with a yield in between, so the storage driver can answer.
+/// @brief One tick of the finalized probe's pump. The caller ticks this with a yield in between, so the storage
+///        driver can answer.
+/// @return 0 = still going, 1 = COMPLETE, 2 = failed/bounded out.
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_tick();
 
-/// Open a read cursor on the finalized file and take the first acquire of @p regionIndex, once the pump above has
-/// reported COMPLETE. A LOADING result is the caller's to poll with
-/// @ref deluge_harness_recorder_finalized_multicluster_probe_poll.
+/// @brief Open a read cursor on the finalized file and take the first acquire of @p regionIndex, once the pump
+///        above has reported COMPLETE.
+/// @param regionIndex The cluster index to acquire.
+/// @return The `DelugeRegionState`. A LOADING result is the caller's to poll with
+///         @ref deluge_harness_recorder_finalized_multicluster_probe_poll.
 uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t regionIndex);
 
 /// @return The waveform overview cache's physical entry count (`Sample::overviewCacheSize()`)

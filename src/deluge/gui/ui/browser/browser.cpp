@@ -171,9 +171,8 @@ bool Browser::beginListing(ListingRequest req) {
 	//  - StorageManager::initSD(), a flag check on an already-mounted card but real blocking work
 	//    on a re-mount (the ejection path, which already blocks).
 	//
-	// And one that is not a call but a loss: the success tail (folderContentsReady / onBrowserOpened /
-	// currentFileChanged) used to be serialised on the owner alongside every other op that touches
-	// Browser::listing. It no longer is.
+	// And one that is not a call but a gap: the success tail (folderContentsReady / onBrowserOpened /
+	// currentFileChanged) is not serialised alongside the other ops that touch Browser::listing.
 	return true;
 }
 
@@ -285,7 +284,7 @@ void Browser::captureListingRestore() {
 		    .qwertyVisible = qwertyVisible,
 		};
 	} catch (deluge::exception&) {
-		// No memory for the copy: this listing's failure closes the browser, as every failure used to.
+		// No memory for the copy: this listing's failure closes the browser instead of restoring it.
 		listingRestore_.reset();
 	}
 }
@@ -440,20 +439,18 @@ bool Browser::opened() {
 
 void Browser::close() {
 	g_directoryWaitTicks = 0; // an open abandoned by closing does not count against the next browser's
-	// Cancel any attempt still in flight. This rung's is_current: a listing can now span several
-	// ticks, so it can outlive the browser that asked for it, and committing into a closed browser
-	// would put one folder's contents behind another's name. Cancelling HERE rather than testing
-	// getCurrentUI() in the pump because this is the precise event -- the pump's view of the UI stack
-	// says nothing about whether this browser is still interested, and in a headless driver it is not
-	// meaningful at all.
+	// Cancel any attempt still in flight: a listing can span several ticks, so it can outlive the
+	// browser that asked for it, and committing into a closed browser would put one folder's contents
+	// behind another's name. Cancelling HERE rather than testing getCurrentUI() in the pump because
+	// this is the precise event -- the pump's view of the UI stack says nothing about whether this
+	// browser is still interested, and in a headless driver it is not meaningful at all.
 	//
 	// Nothing needs to chase the channel: an answer nobody collects is refused at its take on the
 	// next card generation, and the handle it holds is closed there or by the next flush.
 	if (listingInProgress_) {
-		// Only runPendingListing's own exit used to clear this, and under the inline arm that exit was
-		// always reached because the queued op always ran. A tick-surface attempt cancelled here has
-		// no such exit, so without this the browser closes with "Working" left on screen and nothing
-		// remaining to take it down.
+		// runPendingListing's own exit is the only other place that clears this. A tick-surface
+		// attempt cancelled here has no such exit, so without this the browser closes with "Working"
+		// left on screen and nothing remaining to take it down.
 		display->removeLoadingAnimation();
 	}
 	listingInProgress_ = false;
@@ -611,17 +608,15 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 
 Error Browser::setFileByFullPathImpl(char const* fullPath) {
 	arrivedAtFileByTyping = true;
-	// No StorageManager::fileExists() pre-flight any more. It was a blocking card open on a path the
+	// No StorageManager::fileExists() pre-flight: it would be a blocking card open on a path the
 	// listing below is about to read anyway, and with the channel active this function runs on the
 	// interaction tier, where blocking on the card is exactly what this ladder exists to stop.
 	//
 	// The listing answers the same question better: it searches for this very name and records
-	// whether it matched EXACTLY, which finishPendingListing() then reads. That also retires a check
-	// that could barely fire -- the old tail tested `fileIndexSelected > listing.size()`, but
-	// searchFileItems returns an INSERTION POINT, which is always <= size, so a missing file fell
-	// through it and selected whatever sorted into its place.
-	//
-	// (TODO(conflation-batch-4) went with it: the removed call treated "could not tell" as "absent".)
+	// whether it matched EXACTLY, which finishPendingListing() then reads. A
+	// `fileIndexSelected > listing.size()` test cannot catch a missing file: searchFileItems returns
+	// an INSERTION POINT, which is always <= size, so a missing file fell through it and selected
+	// whatever sorted into its place.
 	const char* fileName = getFileNameFromEndOfPath(fullPath);
 	// Copy the directory portion (everything before the final '/') straight into currentDir. Don't go via
 	// getPathFromFullPath() here: it returns .c_str() of a std::string temporary that's already destroyed by the
@@ -754,13 +749,10 @@ void Browser::graphicsRoutine() {
 
 	// Re-ask for a prediction whose folder read has not arrived.
 	//
-	// take_pending() takes the target OUT before re-driving, not after: the drive runs inline from
-	// here and may arm a SECOND deferral, which clearing afterwards would wipe -- leaving the
-	// prediction to never finish. The same reasoning as LoadSongUI's preview re-ask.
+	// Taken OUT of pendingPrediction_ before re-driving, not after: the drive runs inline from here
+	// and may arm a SECOND deferral, which clearing afterwards would wipe -- leaving the prediction to
+	// never finish. The same reasoning as LoadSongUI's preview re-ask.
 	if (auto target = std::exchange(pendingPrediction_, std::nullopt); target.has_value()) {
-		// Taken OUT before re-driving, not after: the drive runs inline from here and may arm a
-		// SECOND deferral, which clearing afterwards would wipe -- leaving the prediction to never
-		// finish. The same reasoning as LoadSongUI's preview re-ask.
 		prediction_.target = std::move(*target);
 		prediction_.active = true;
 		(void)continuePrediction();
@@ -858,9 +850,9 @@ Error Browser::stepListing() {
 					// the same selection.
 					//
 					// Clearing listing_.active here, which is what the general failure path below does,
-					// left the pump with no active listing: it called startPendingListing() and RESTARTED
+					// leaves the pump with no active listing: it calls startPendingListing() and RESTARTS
 					// from the top, redoing every open before the deferral. Against the real channel --
-					// one slot, consumed at take -- that is the livelock rung 3 already fixed once.
+					// one slot, consumed at take -- that is a livelock.
 					return outcome.error();
 				}
 				emptyFileItems();
@@ -1386,10 +1378,10 @@ gotErrorAfterAllocating:
 				goto gotError;
 				// TODO - need to close UI or something?
 			}
-			// Marked done only once the read has actually HAPPENED. Setting it before, which is where
-			// it used to be, meant a resumption re-entered the loop with the flag already true and
-			// skipped the very read that had deferred -- the prediction then finished having read one
-			// time fewer than a synchronous run, on a smaller folder view, and landed somewhere else.
+			// Marked done only once the read has actually HAPPENED. Setting it earlier would let a
+			// resumption re-enter the loop with the flag already true and skip the very read that had
+			// deferred -- the prediction would then finish having read one time fewer than a
+			// synchronous run, on a smaller folder view, and land somewhere else.
 			target.doneNewRead = true;
 			goto doSearch;
 		}
@@ -2019,9 +2011,9 @@ namespace {
 
 /// The segment walk, for the arm that has no channel to do it.
 ///
-/// Unchanged from what `createFoldersRecursiveIfNotExists` did inline, including its pre-existing
-/// quirk, which is not this rung's to fix. The channel arm does not come here at all: its walk lives
-/// in Rust, in one place, so neither this caller nor `smSysex` needs a loop of its own.
+/// Keeps the pre-existing quirk `createFoldersRecursiveIfNotExists` already had (see its call site's
+/// comment) rather than fixing it here. The channel arm does not come here at all: its walk lives in
+/// Rust, in one place, so neither this caller nor `smSysex` needs a loop of its own.
 Error createFoldersRecursiveInline(const char* path) {
 	char tempPath[256];
 	size_t len = 0;

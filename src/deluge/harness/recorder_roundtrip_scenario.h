@@ -49,6 +49,7 @@ void deluge_scenario_recorder_rest_begin();
 /// @return 0 while it runs, 1 once RW-RESULT has printed.
 int32_t deluge_scenario_recorder_rest_tick();
 
+/// @brief Report the oracle's failure count so far.
 /// @return The oracle's failure count so far (0 = all passed); final once the tail has returned 1.
 int32_t deluge_scenario_recorder_roundtrip_failures();
 

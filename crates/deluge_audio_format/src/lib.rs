@@ -3,7 +3,7 @@
 //! No I/O, no allocation, no async, and no panic on any input. The caller owns
 //! all reading; [`HeaderParser`] owns the walk and asks for one small window at
 //! a time. That shape is the point: it lets an async task drive the parse,
-//! which the pull-based C++ parser this replaces could not, and it makes the
+//! which a pull-based parser cannot, and it makes the
 //! decoder trivially fuzzable.
 //!
 //! **Windows, not prefixes.** The parser asks for at most
@@ -79,6 +79,7 @@ pub enum Reason {
     SampleRateOutOfRange,
 }
 
+/// Why [`parse`] could not produce a header from its (possibly partial) buffer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParseError {
     /// Not a failure: [`parse`]'s prefix ran out. The caller must supply at
@@ -135,8 +136,8 @@ impl From<HeaderError> for ParseError {
 /// What a walk is FOR: which chunks it reads, and which of the file's claims it
 /// insists on.
 ///
-/// Not a style preference — the C++ parser this replaces branched on the same
-/// distinction (`ParseMode`), and dropping it changed which files load. A
+/// Not a style preference: a wavetable load and a sample load accept
+/// different files, and collapsing the two changes which files load. A
 /// wavetable load uses only the audio's shape and location; it never asks what
 /// rate the file plays back at, and it never renders a note. So the metadata
 /// that answers those questions is neither read nor believed.
@@ -462,8 +463,7 @@ enum Phase {
 #[derive(Clone, Debug)]
 pub struct HeaderParser {
     /// The file's true size, when the caller knows it — which every real caller
-    /// does: the filesystem has it, and the C++ parser this replaces bounds its
-    /// own walk with `AudioByteSource::size()`. Knowing it is what makes
+    /// does: the filesystem has it. Knowing it is what makes
     /// [`HeaderParser::pending`] unable to name a byte past the end, and so
     /// makes the walk finite by construction.
     ///
@@ -589,7 +589,7 @@ impl HeaderParser {
     /// It is exposed because a caller can have a verdict that depends only on
     /// the container and should not wait for the rest of the walk: loading a
     /// file as a wavetable rejects AIFF outright unless the user insists, and
-    /// the C++ parser this replaces made that call straight after detecting the
+    /// that verdict is made straight after detecting the
     /// container, before reading a single chunk. Deciding it later instead would
     /// report a *decode* failure for a malformed AIFF, and the browser reads
     /// that error as "this file cannot be a wavetable, but try it as a sample"
@@ -622,8 +622,7 @@ impl HeaderParser {
     /// A caller reading a file as a *wavetable* wants exactly that: everything
     /// past the audio chunk is metadata a wavetable does not use, and walking it
     /// drags the caller's own reader past the audio it is about to read — which
-    /// is why the C++ parser this replaces had a separate WaveTable mode that
-    /// stopped here.
+    /// is why a wavetable walk stops here.
     ///
     /// AIFF's `SSND` carries an offset in its payload, so this stays false until
     /// that payload has been stepped, not merely until the chunk header has.
@@ -875,10 +874,8 @@ impl HeaderParser {
             //
             // In size-aware mode the request was clamped to the file, so a short
             // window means the FILE stops here: there is no chunk at this offset
-            // and no bytes are coming. The C++ parser this replaces reached the
-            // same conclusion by different means — its 8-byte read failed, broke
-            // the walk, and returned the header it had already built — and files
-            // shaped like that load today. Trailing slop is mundane (DAW
+            // and no bytes are coming. Files shaped like that must keep loading.
+            // Trailing slop is mundane (DAW
             // padding, an interrupted copy, a card that filled mid-write), so
             // treating it as corruption would stop such a file loading.
             //
@@ -1685,10 +1682,9 @@ mod tests {
     #[test]
     fn a_tail_too_short_for_a_chunk_header_ends_the_walk() {
         // Trailing slop is mundane — DAW padding, an interrupted copy, a card
-        // that filled mid-write — and the C++ parser this replaces returned the
-        // header it had built when its 8-byte chunk-header read ran off the end.
-        // Such files load today, so every length from 1 to 7 (exactly where that
-        // read gave up) must decode to the same header as the clean file.
+        // that filled mid-write — and such files must keep loading, so every
+        // length from 1 to 7 (exactly where that read gave up) must decode to
+        // the same header as the clean file.
         let clean = riff_fmt_data(2, 44100, 16, 8);
         let expected = decode_streamed(&clean).expect("the file itself must decode");
         for tail in 1..CHUNK_HEADER_LEN {

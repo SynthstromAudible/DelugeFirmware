@@ -837,10 +837,8 @@ Instrument* ArrangerView::createNewInstrument(bool* instrumentAlreadyInSong,
 	return newInstrument;
 }
 
-// Extracted verbatim from auditionPadAction()'s `if (!output)` branch -- see the header doc.
-// The acquisition reads the card, so it runs on the storage owner; everything that used to follow
-// this call now runs in completeNewInstrument(). Snapshot yPressedEffective here -- the op must not
-// read it back (spec section 6).
+// See the header doc. The acquisition reads the card, so it runs on the storage owner. Snapshot
+// yPressedEffective here -- the op must not read it back.
 void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed, UI* ui) {
 
 	int32_t minY = -currentSong->arrangementYScroll - 1;
@@ -864,7 +862,7 @@ void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed, UI* ui) {
 }
 
 // Runs on the storage owner, dispatched by the new-instrument pad gesture. createNewInstrument()
-// itself is unchanged and blocks here, which is legal on this tier.
+// blocks here, which is legal on this tier.
 void ArrangerView::completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui,
                                          const deluge::storage::AcquireResult& acquired) {
 	if (ui == nullptr) {
@@ -2642,7 +2640,7 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 	endAudition(output);
 
 	// Song::navigateThroughPresetsForInstrument() branches internally: MIDI/CV just re-channels the
-	// existing Instrument and reads no card, so it stays synchronous (spec section 2c).
+	// existing Instrument and reads no card, so it stays synchronous.
 	if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
 		completeNavigateThroughPresets(offset, output, yPressedEffective);
 		return;
@@ -2702,8 +2700,8 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	endAudition(oldInstrument);
 
 	// MIDI and CV allocate a non-audio instrument and read no card, so they stay synchronous --
-	// dispatching them would defer this gesture behind a storage round-trip for nothing
-	// (spec section 2c). Only Synth/Kit reaches the directory.
+	// dispatching them would defer this gesture behind a storage round-trip for nothing.
+	// Only Synth/Kit reaches the directory.
 	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
 		completeChangeOutputType(newOutputType, oldInstrument, yPressedEffective);
 		return;
@@ -2722,8 +2720,8 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
-// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. Song::changeOutputType() is
-// unchanged and does its own branch on output type.
+// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. Song::changeOutputType() does its
+// own branch on output type.
 void ArrangerView::completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed,
                                             const deluge::storage::AcquireResult* acquired) {
 	Instrument* newInstrument = (acquired != nullptr) ? currentSong->applyChangeOutputType(oldInstrument, *acquired)

@@ -1,8 +1,8 @@
 //! The one card generation, shared by every loader that caches something read from the card.
 //!
-//! Lifted out of `audio_loader.rs` because it is a property of THE CARD, not of the audio loader: a
-//! second loader caching card-derived state needs the same stamp, and a second hand-rolled counter
-//! is a second chance to reintroduce the bug the take-time belt closed.
+//! This is a property of THE CARD, not of any one loader: a second loader caching card-derived state
+//! needs the same stamp, and a second hand-rolled counter is a second chance to reintroduce the bug
+//! the take-time belt closed.
 //!
 //! # How to use it
 //!

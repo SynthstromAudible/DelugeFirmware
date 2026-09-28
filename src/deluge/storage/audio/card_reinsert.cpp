@@ -32,7 +32,7 @@ namespace deluge::storage {
 namespace {
 
 /// The path this Sample's identity hangs on: the temp recording path while it has one, else the file
-/// path. Unchanged from the blocking walk this replaces.
+/// path.
 const char* pathOf(Sample& sample) {
 	const char* path = sample.tempFilePathForRecording.c_str();
 	return (*path != '\0') ? path : sample.filePath.c_str();
@@ -85,8 +85,7 @@ bool CardReinsert::tick() {
 	}
 
 	// Nothing holds it: this is the opportunity to give the memory back. The cursor deliberately does
-	// NOT advance -- the container closes up behind the removed element, which is what the blocking
-	// loop's `e--` accounted for.
+	// NOT advance -- the container closes up behind the removed element.
 	if (!file->isProjectReferenced()) {
 		audioFileManager.deleteUnusedAudioFileFromMemory(*file, cursor_);
 		return true;
@@ -118,7 +117,7 @@ bool CardReinsert::tick() {
 			break;
 		case bytes::ByteIo::Failed:
 			// "Could not establish", which is NOT absence. Leave this sample's state alone rather than
-			// condemning a file that may be perfectly fine -- see the class doc, and `f37a8ef41`.
+			// condemning a file that may be perfectly fine -- see the class doc.
 			verdict = Verdict::Unestablished;
 			break;
 		case bytes::ByteIo::Unknown:

@@ -86,6 +86,7 @@ public:
 	void displayAutomation();
 	void displayOutputName(Output* output, bool doBlink = true, Clip* clip = nullptr);
 	void instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument);
+	/// @brief Move `modelStack`'s clip's instrument to the next/previous preset in its folder.
 	/// @param offset Scroll direction/amount to move through the folder's presets.
 	/// @param modelStack The caller's stack-local model stack; NOT carried past this call -- the
 	///        Synth/Kit arm rebuilds its own from `clip` once the op actually runs.
@@ -122,8 +123,8 @@ public:
 	/// @param newOutputType The type that was switched to.
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
 	/// @param doBlink Whether the redrawn output name should blink.
-	/// @return Whether the swap actually succeeded (a real answer now, not a dispatch acknowledgement).
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
+	/// @return Whether the swap actually succeeded (the real outcome, not a dispatch acknowledgement).
 	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
 	                              const deluge::storage::AcquireResult* acquired = nullptr);
 	/// @brief Routes a completed (or synchronously-run) changeOutputType() to the completion its
@@ -134,8 +135,8 @@ public:
 	/// @param newOutputType The type that was switched to.
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
 	/// @param doBlink Whether the redrawn output name should blink.
-	/// @return Whether the swap actually succeeded.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
+	/// @return Whether the swap actually succeeded.
 	bool completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer, OutputType newOutputType,
 	                                 InstrumentClip* clip, bool doBlink,
 	                                 const deluge::storage::AcquireResult* acquired = nullptr);

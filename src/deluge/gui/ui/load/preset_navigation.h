@@ -45,6 +45,7 @@ public:
 	/// that alone. Hitting it gets out and is counted.
 	static constexpr int32_t kMaxNavigationReads = 64;
 
+	/// @brief Start a scroll from @p spec's preset, in @p spec's direction.
 	void arm(LoadInstrumentPresetUI& ui, const deluge::storage::AcquireWalkSpec& spec);
 	/// @return Whether it is still waiting on a folder open.
 	bool tick();

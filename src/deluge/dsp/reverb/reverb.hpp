@@ -27,13 +27,15 @@ public:
 	      width_(base_->getWidth()) {}
 	~Reverb() override = default;
 
-	/// Replaces the active reverb with a freshly built one of model `m`.
+	/// @brief Replaces the active reverb with a freshly built one of model @p m.
 	///
 	/// Callable only from outside the audio tier. `emplace` destroys the live reverb and constructs a
 	/// ~128 KB replacement in its storage, which is far too long to mask interrupts for, and the audio
 	/// tier renders from an interrupt executor that can preempt this at any point. So the rebuild
 	/// publishes `rebuilding_` instead: while it is set the audio tier contributes no reverb, which
 	/// costs a few blocks of reverb tail on a model change and never observes a half-built object.
+	///
+	/// @param m Reverb model to switch to.
 	void setModel(Model m) {
 		rebuilding_.store(true, std::memory_order_release);
 		// Re-point `base_` as we go: `emplace` returns a reference to the new alternative, and every
@@ -60,12 +62,15 @@ public:
 
 	Model getModel() { return model_; }
 
-	/// Mixes the reverb into `output`. Audio-tier entry point.
+	/// @brief Mixes the reverb into @p output. Audio-tier entry point.
 	///
 	/// Dispatches through the variant's own discriminant rather than `model_`: the two are separate
 	/// pieces of state and a reader that trusted `model_` could reach `std::get` for an alternative the
 	/// variant no longer held, which throws `bad_variant_access` and terminates. The variant is the
 	/// single source of truth, so it cannot disagree with itself.
+	///
+	/// @param input  Dry signal to feed the reverb.
+	/// @param output Buffer the reverb is mixed into.
 	void process(std::span<int32_t> input, std::span<StereoSample> output) override {
 		// Mid-rebuild there is no reverb to render. `process` mixes into `output`, so contributing
 		// nothing leaves the dry signal intact.
@@ -75,9 +80,14 @@ public:
 		std::visit([&](auto& r) { r.process(input, output); }, reverb_);
 	}
 
-	/// Audio-tier entry point, called each block just before `process`; it reaches the reverb through
-	/// `base_`, so it has to sit out a rebuild for the same reason `process` does. The levels are
-	/// re-applied on the next block.
+	/// @brief Applies stereo pan levels to the active reverb. Audio-tier entry point, called each
+	///        block just before `process`.
+	///
+	/// Reaches the reverb through `base_`, so it has to sit out a rebuild for the same reason
+	/// `process` does. The levels are re-applied on the next block.
+	///
+	/// @param amplitude_left  Left-channel amplitude.
+	/// @param amplitude_right Right-channel amplitude.
 	void setPanLevels(const int32_t amplitude_left, const int32_t amplitude_right) {
 		if (rebuilding_.load(std::memory_order_acquire)) {
 			return;

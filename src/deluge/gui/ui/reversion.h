@@ -30,8 +30,7 @@ namespace deluge::gui {
 /// @brief One undo or redo, on the interaction tier.
 ///
 /// A reversion reads the card for exactly one reason: `ConsequenceAudioClipSetSample::revert()` binds the file the
-/// clip is going back to, and binding reads it if it is not already in memory. That one leaf is why the whole
-/// reversion used to be dispatched onto the storage owner.
+/// clip is going back to, and binding reads it if it is not already in memory.
 ///
 /// So the read happens first, here, and the reversion itself runs card-free:
 /// - **Collect** asks the action logger which action the command would revert and copies out the file every
@@ -39,10 +38,8 @@ namespace deluge::gui {
 ///   a note edit, a clip move, a swing change -- skips straight to Revert in the same pass.
 /// - **Samples** loads those files, one at a time, through the loader every other consumer uses, and holds a
 ///   reference to each so the reversion finds them in memory. A file that cannot be loaded is reported once and does
-///   not stop the reversion: `revert()` shows the error and carries on with an empty holder, which is what it has
-///   always done.
-/// - **Revert** runs `ActionLogger::undo()` or `::redo()` in one pass. Nothing in it reaches the card, and the model
-///   moves exactly as it did when the whole thing ran on the owner.
+///   not stop the reversion: `revert()` shows the error and carries on with an empty holder.
+/// - **Revert** runs `ActionLogger::undo()` or `::redo()` in one pass. Nothing in it reaches the card.
 ///
 /// A command arriving while one is in flight is REFUSED, not queued: undo and redo are steps rather than
 /// destinations, and silently dropping one would lose an edit.
@@ -63,11 +60,11 @@ public:
 
 	/// @name Counts for the clear-song-undo gate.
 	/// @{
-	/// Reversions that have run.
+	/// @brief Reversions that have run.
 	[[nodiscard]] int32_t reversions() const { return reversions_; }
-	/// Files pre-loaded for them.
+	/// @brief Files pre-loaded for them.
 	[[nodiscard]] int32_t preloads() const { return preloads_; }
-	/// Commands refused because one was already in flight.
+	/// @brief Commands refused because one was already in flight.
 	[[nodiscard]] int32_t refused() const { return refused_; }
 	/// @}
 

@@ -30,9 +30,10 @@
 /// EVIDENCE half: it is deliberately non-zero before the conversion and must be zero after, and that
 /// transition is the only thing that proves anything moved.
 ///
-/// Rung 6 is why both halves exist. Its round trip passed identically before and after, so the tier
-/// count going 3 -> 0 was the entire proof; a gate with only a round trip would have reported success
-/// for a conversion that never happened.
+/// A round trip alone is not enough: a settings conversion could pass it unchanged if the I/O simply
+/// moved without eliminating the interaction-tier work, so the tier count going non-zero to zero is
+/// the only thing that proves the conversion actually happened; a gate with only a round trip would
+/// report success for a conversion that never took place.
 ///
 /// ## Why the count and not a dispatch counter
 ///
@@ -48,19 +49,19 @@
 /// a `*Check` successor a tick later.
 extern "C" {
 
-/// Reset the scenario's state and prepare stdout for a piped run.
+/// @brief Reset the scenario's state and prepare stdout for a piped run.
 void deluge_scenario_settings_channel_begin(void);
 
-/// Whether the summary has been printed and the run may stop stepping.
+/// @brief Whether the summary has been printed and the run may stop stepping.
 bool deluge_scenario_settings_channel_complete(void);
 
-/// Run one tick of the scenario, then queue a marker behind whatever it dispatched.
+/// @brief Run one tick of the scenario, then queue a marker behind whatever it dispatched.
 void deluge_scenario_settings_channel_dispatch_step(void);
 
-/// Whether the marker queued by the last dispatch has run.
+/// @brief Whether the marker queued by the last dispatch has run.
 bool deluge_scenario_settings_channel_step_done(void);
 
-/// How many in-process assertions failed.
+/// @brief How many in-process assertions failed.
 int32_t deluge_scenario_settings_channel_failures(void);
 
 } // extern "C"

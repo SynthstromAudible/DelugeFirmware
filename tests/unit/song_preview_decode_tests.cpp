@@ -58,7 +58,7 @@ TEST_GROUP(SongPreviewDecode){};
 ///
 /// Two globals DO survive the call, and this comparison cannot see either: `song_firmware_version`,
 /// which every open overwrites from the document it just read, and `activeDeserializer`, left pointing
-/// at whichever reader ran. Both are true of the browser's walk today, unchanged by this rung -- but
+/// at whichever reader ran. Both are true of the browser's walk today, unchanged here -- but
 /// they are the reason "the reader is discarded" would be too strong a claim to rest on.
 ///
 /// What this comparison also cannot catch is a change applied to BOTH walks: they share one decode

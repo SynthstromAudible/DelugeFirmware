@@ -40,9 +40,7 @@ pub struct SdBlockDevice;
 // B7 REGRESSION GUARD: every transfer in this impl MUST go through
 // `crate::sd::locked_*`, never `deluge_bsp::sd::read_sectors`/`write_sectors`
 // directly. The raw calls bypass SD_BUS, which is what keeps a transfer off the single SDHI
-// controller while `sd::card_service` is re-identifying the card (see `read`'s comment below —
-// the original C-FatFS rationale is dead, the lock is not). This shipped bypassed until
-// 2026-07-21 (see docs/dev/known-concurrency-bugs.md B7).
+// controller while `sd::card_service` is re-identifying the card (see `read`'s comment below).
 impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
     type Error = SdError;
     type Align = A4;
@@ -69,9 +67,7 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
         };
         // Route through the SD_BUS-guarded helper, NOT the raw driver call.
         //
-        // The original reason was to stop an efatfs transfer interleaving with a (since-retired) fiber-side
-        // C-FatFS transfer on the one SDHI controller. C-FatFS is gone, but the lock is NOT
-        // redundant and must not be removed: `sd::card_service` holds SD_BUS across
+        // The lock is not redundant: `sd::card_service` holds SD_BUS across
         // `sd::init().await` — the ~1.3 s card-identification sequence — with no FS mutex
         // involved, so SD_BUS is the only thing keeping a transfer and a card bring-up off the
         // controller at the same time. That ordering matters MORE since streaming moved to its own

@@ -631,7 +631,8 @@ void runTick() {
 	case Stage::SongGuardDispatch: {
 		const bool songRunning = saveSongUI.collectInFlight() || saveSongUI.docInFlight();
 		if (songRunning && !SaveUI::saveInFlight()) {
-			// The window: the song save is still running, and the guard dispatchSave() used to check is down.
+			// The window: the song save is still running, and the guard dispatchSave() checks before proceeding is
+			// down.
 			g_songGuardTried = true;
 			g_songGuardRefused = !DocumentSaveChannelProbe::dispatchPresetSave(kSongGuardPresetName);
 			g_stage = Stage::SongGuardWait;

@@ -154,9 +154,10 @@ public:
 	static void beginOpenListing(const char* dir, const char* filenameToStartAt, const char* defaultDir = "") {
 		Browser::currentDir = dir;
 		Browser::enteredText.clear();
-		// What Browser::opened() sets, and this skips. It used to be left behind by the boot's preset walk,
-		// which set XML and never put the filter back; now that walks restore it, a cold boot reaches this
-		// with the static's initial nullptr, and the extension match dereferences it.
+		// What Browser::opened() sets, which this path skips by calling beginListing() directly. Without this
+		// explicit set, a cold boot leaves allowedFileExtensions at its initial nullptr (the boot's preset walk
+		// restores the filter rather than leaving XML set behind it), and the extension match would
+		// dereference it.
 		Browser::allowedFileExtensions = allowedFileExtensionsXML;
 		(void)loadSongUI.beginListing({.action = Browser::ListingAction::Open,
 		                               .direction = 0,
@@ -182,7 +183,7 @@ public:
 	static void tickSave() { saveSongUI.graphicsRoutine(); }
 	static bool inProgress() { return Browser::isListingInProgress(); }
 	/// Whether the finished listing matched its search string EXACTLY. For a ByPath listing this IS
-	/// the existence answer the retired fileExists() used to give.
+	/// the existence answer: whether the named file is actually there.
 	static bool foundExactMatch() { return Browser::listing_.foundExactMatch; }
 
 	/// Start the REAL predictExtendedText on `dir`, typed as far as `prefix`, to be finished by @ref tick. Never a
@@ -206,7 +207,7 @@ public:
 	/// "the listing finished the same way" means.
 	static int32_t selectedIndex() { return Browser::fileIndexSelected; }
 	/// Drives ArrangerView's REAL new-instrument pad gesture, rather than restating its callee
-	/// (createNewInstrument) directly. Dispatches onto the storage owner (rung 5, task 3); see
+	/// (createNewInstrument) directly. Dispatches onto the storage owner; see
 	/// runAcquireTick()'s *Check states for why the result isn't readable until a later tick.
 	static void beginNewInstrumentAcquisition(int32_t yPressed) {
 		arrangerView.beginNewInstrumentAcquisition(yPressed);
@@ -242,11 +243,11 @@ public:
 	/// Drives ArrangerView's REAL output-type gesture, rather than calling
 	/// Song::getNonAudioInstrumentToSwitchTo directly: that helper isn't what changeOutputType()
 	/// calls for MIDI/CV, so a probe built on it would prove nothing about ArrangerView's own
-	/// synchronous/dispatch split (AcquireStep::NonAudio, rung 5 task 3).
+	/// synchronous/dispatch split (AcquireStep::NonAudio).
 	static void changeOutputType(OutputType newOutputType) { arrangerView.changeOutputType(newOutputType); }
 
-	/// Drives View's REAL preset-navigation gesture on the boot song's session InstrumentClip
-	/// (rung 5, task 4), rather than calling the navigation walk (now PresetNavigation) directly --
+	/// Drives View's REAL preset-navigation gesture on the boot song's session InstrumentClip,
+	/// rather than calling the navigation walk (PresetNavigation) directly --
 	/// that helper isn't what navigateThroughPresetsForInstrumentClip() calls for MIDI/CV, so a probe
 	/// built on it would prove nothing about View's own synchronous/dispatch split. Both
 	/// `navigateThroughPresetsForInstrumentClip` and `changeOutputType` are already public on View,
@@ -275,8 +276,8 @@ public:
 
 	/// Drives InstrumentClipView's REAL shift/FM "create a brand-new instrument" gesture -- the one
 	/// LoadInstrumentPresetUI reader NEVER covers (Browser::getUnusedSlot(), not one of that class's
-	/// three readers) and the one rung 5 task 6's fix round found still reaching the directory
-	/// channel from the interaction tier. Reads getCurrentInstrumentClip() live, exactly as the real
+	/// three readers) and a slot scan that must not reach the directory channel from the interaction
+	/// tier. Reads getCurrentInstrumentClip() live, exactly as the real
 	/// gesture (handleInstrumentChange() -> createNewInstrument()) does -- no clip parameter, to keep
 	/// this a faithful call of the production entry point rather than a reimplementation of it.
 	static bool createNewInstrument(OutputType newOutputType, bool isDx) {
@@ -435,10 +436,10 @@ struct Case {
 ///   shortness is load-bearing: a longer one would legitimately report Truncated on the buffer
 ///   backing (the walk runs out of bytes before it can say there is no preview) and NoPreview on the
 ///   file backing, which is the `window` case below rather than a bug.
-/// - `missing` does not exist. This is the case the two backings USED to disagree about, silently:
+/// - `missing` does not exist. This is the case the two backings must agree on: silently disagreeing,
 ///   the file backing showed an error popup, and the prefix channel published a failed read as an
 ///   empty prefix indistinguishable from a song with no artwork, so the buffer backing drew blank
-///   and said nothing. Both must now report Error/FILE_NOT_FOUND.
+///   and said nothing. Both must report Error/FILE_NOT_FOUND.
 /// - `corrupt` opens and is not a song (its root tag is wrong).
 /// - `empty` opens and has nothing in it -- a DIFFERENT failure from `missing`, and the one that
 ///   makes "READY with zero bytes" mean exactly one thing. Collapse the two and this case and
@@ -588,7 +589,7 @@ bool g_summaryPrinted = false;
 ///
 /// A run-wide total is not enough, and the difference is a hole big enough to hide the thing this
 /// gate exists to pin: one deferral anywhere satisfies a total, while every OTHER song could have
-/// been answered without the async path being reached at all. Rung 1 shipped exactly that.
+/// been answered without the async path being reached at all.
 std::array<int32_t, kCases.size()> g_deferralsByCase{};
 std::array<int32_t, kMaxCorpusCases> g_deferralsByCorpusCase{};
 int32_t g_windowDeferrals = 0;
@@ -1230,7 +1231,7 @@ constexpr int32_t kBigEntries = 300;
 static_assert(kBigEntries > 230, "the case must exceed the arena threshold it exists to guard");
 
 /// What a listing of LISTTEST or BIGLIST from its start holds: the fixture's first nine songs, in order, with the
-/// first selected. Measured (2026-09-12) with the read's edge trims in place. Without them the window held
+/// first selected. Measured with the read's edge trims in place. Without them the window held
 /// SONG000-009 and then SONG020-023: entries read after a cull that sorted into the region it had just deleted.
 constexpr std::array<const char*, 9> kReferenceNames = {"SONG000.XML", "SONG001.XML", "SONG002.XML",
                                                         "SONG003.XML", "SONG004.XML", "SONG005.XML",
@@ -1239,10 +1240,10 @@ constexpr std::array<const char*, 9> kReferenceNames = {"SONG000.XML", "SONG001.
 /// Reaching prediction's SECOND read takes a big folder, and that is the point rather than an awkwardness of the
 /// fixture. The re-read happens when a search runs off the end of the CACHED window. In the 300-entry folder the
 /// window holds twenty, so the extra-zeroes branch (which clears `doneNewRead`) walks the extended string off the
-/// cached end and reads again -- exactly the #4584 case the re-read exists for.
+/// cached end and reads again -- exactly the case the re-read exists for.
 constexpr const char* kPredictDir = kBigDir;
 constexpr const char* kPredictPrefix = "SONG0129";
-/// Where that prediction lands from the list the reference listing leaves, measured (2026-09-12): the first entry of
+/// Where that prediction lands from the list the reference listing leaves, measured: the first entry of
 /// its final window.
 constexpr const char* kPredictText = "SONG281";
 constexpr int32_t kPredictSelected = 0;
@@ -1253,7 +1254,7 @@ constexpr int32_t kPredictMinReads = 2;
 constexpr const char* kMissingPrefix = "ZZZZNOPE";
 
 /// The name the save browser gives a brand-new song in EMPTYDIR, and the opens it takes: the listing's read, the
-/// slot-naming read from inside its selection, and the re-read for the new name. Measured (2026-09-12).
+/// slot-naming read from inside its selection, and the re-read for the new name. Measured against the fixture.
 constexpr const char* kNewName = "SONG1";
 constexpr int32_t kNewNameOpens = 3;
 
@@ -1837,9 +1838,8 @@ bool buildPresetFixture(const char* dir, const char* namePrefix, int32_t count) 
 }
 
 // Drives the REAL gesture entry point that acquires an instrument -- ArrangerView::
-// beginNewInstrumentAcquisition(), extracted verbatim from the pad-press handler -- which is the
-// only thing that exercises the Unlaunched search's descent into subfolders (see
-// the rung 5 spec, section 2b). The gesture only STARTS an acquisition, whose walk advances on later
+// beginNewInstrumentAcquisition() -- which is the only thing that exercises the Unlaunched search's
+// descent into subfolders. The gesture only STARTS an acquisition, whose walk advances on later
 // ticks, so every step that reads a gesture's result is split into a starting state and a `*Check`
 // state after it -- reading in the SAME tick as the gesture would see the state before it, not a race
 // so much as a guarantee that the walk has not run yet.
@@ -1932,7 +1932,7 @@ int32_t g_acqCoalesceBefore = 0; // presetAcquisitionsRun() sampled before Coale
 int32_t g_acqNonAudioBefore = 0; // presetAcquisitionsRun() sampled before NonAudio's CV switch
 
 // The boot song's session InstrumentClip -- View::changeOutputType() and
-// View::navigateThroughPresetsForInstrumentClip() (rung 5, task 4) act on a Clip, not an Output row,
+// View::navigateThroughPresetsForInstrumentClip() act on a Clip, not an Output row,
 // so the arranger's outputsOnScreen rows above cannot drive them at all. setupBlankSong() (deluge.cpp)
 // calls Song::ensureAtLeastOneSessionClip() before this scenario ever runs, so a session Clip -- with
 // a real SYNTH Instrument, dirPath "SYNTHS" -- already exists by the time AcquireStep::ViewNavigate
@@ -1964,7 +1964,7 @@ constexpr int32_t kAcqEnterY = kGridHeight - 1;
 int32_t g_acqAuditionRow = -1;
 
 /// The instrument name an acquisition settled on, or "" if it failed. Reads the Output's name
-/// rather than any FileItem -- a FileItem does not survive emptyFileItems() (spec section 6).
+/// rather than any FileItem -- a FileItem does not survive emptyFileItems().
 std::string acquiredName(Output* output) {
 	return (output != nullptr) ? output->name : std::string{};
 }
@@ -2157,7 +2157,7 @@ void runAcquireTick() {
 		break;
 	}
 	case AcquireStep::NonAudio: {
-		// The MIDI/CV fast path (spec section 2c): changeOutputType() must call
+		// The MIDI/CV fast path: changeOutputType() must call
 		// completeChangeOutputType() INLINE for CV/MIDI rather than dispatching, so no card is read
 		// and no storage op runs at all. Drives the REAL ArrangerView gesture on the row Coalesce
 		// just left a SYNTH Output on -- not Song::getNonAudioInstrumentToSwitchTo() directly, which
@@ -2185,14 +2185,13 @@ void runAcquireTick() {
 		break;
 	}
 	case AcquireStep::ViewNavigate: {
-		// View's Synth/Kit preset-navigation dispatch (rung 5, task 4), driven on the boot song's
+		// View's Synth/Kit preset-navigation dispatch, driven on the boot song's
 		// session InstrumentClip -- see g_viewClip's doc above for why this can't run through any
 		// arranger row. Reuses the SYNTHS fixture the steps above already built; the navigation walk
 		// reads only the top-level folder (it does not recurse into NESTED), so nothing new needs
 		// building. ViewNavigateCheck asserts a REAL outcome (the clip's Output actually changed),
 		// not just that an op ran -- a dispatch-count-only check would pass identically with
-		// PresetConsumer::ViewNavigateClipPreset's switch arm still an empty `break;` (see the rung 5
-		// task 4 review).
+		// PresetConsumer::ViewNavigateClipPreset's switch arm still an empty `break;`.
 		g_viewClip = getCurrentInstrumentClip();
 		if (g_viewClip == nullptr || g_viewClip->output == nullptr) {
 			printf("SP-ACQUIRE FAIL no current InstrumentClip to drive View's gestures with\n");
@@ -2230,7 +2229,7 @@ void runAcquireTick() {
 		break;
 	}
 	case AcquireStep::ViewChangeTypeCV: {
-		// The MIDI/CV fast path (spec section 2c), for View this time: changeOutputType() must call
+		// The MIDI/CV fast path, for View this time: changeOutputType() must call
 		// completeChangeOutputType() INLINE for CV/MIDI, so the bool it returns is a real synchronous
 		// answer (its callers use it to decide whether to beep) and no card is read. Readable in the
 		// SAME tick, unlike every dispatched gesture above -- see AcquireStep::NonAudio's doc for why
@@ -2267,10 +2266,10 @@ void runAcquireTick() {
 		// its own from-scratch fixture writer (Kit's XML root tag and blank-instrument setup differ
 		// from SoundInstrument's, and writeBlankSynthPresetFile()'s doc above already records ONE
 		// real crash this stage found from getting that shape subtly wrong for Synth) -- building and
-		// proving a second one correct was judged higher-risk, for the same proof, than this fix round
-		// had room for. SYNTH and KIT share the exact same code path here (View::changeOutputType()
-		// branches only on MIDI/CV vs everything else), so this is not a narrower proof, just a safer
-		// one. Recorded here rather than silently substituted.
+		// proving a second one correct adds risk without adding proof. SYNTH and KIT share the exact
+		// same code path here (View::changeOutputType() branches only on MIDI/CV vs everything else),
+		// so this is not a narrower proof, just a safer one. Recorded here rather than silently
+		// substituted.
 		g_acqViewBefore = acqDispatches();
 		BrowserListingAbProbe::changeOutputType(g_viewClip, OutputType::SYNTH);
 		g_acquireStep = AcquireStep::ViewChangeTypeSynthCheck;
@@ -2294,7 +2293,7 @@ void runAcquireTick() {
 		break;
 	}
 	case AcquireStep::SessionChangeTypeCV: {
-		// The MIDI/CV fast path (spec section 2c) for SessionView's Grid output-type button: it must
+		// The MIDI/CV fast path for SessionView's Grid output-type button: it must
 		// call completeChangeOutputType() INLINE, reading no card. Readable in the SAME tick precisely
 		// because it is the synchronous arm -- see AcquireStep::NonAudio's doc.
 		if (!BrowserListingAbProbe::aimGridPressAt(g_viewClip)) {
@@ -2397,10 +2396,10 @@ void runAcquireTick() {
 				g_failures++;
 			}
 		}
-		// The gesture's own tail, which used to run through `goto startHoldingDown` on the caller's
-		// stack and now runs from completeNewTrack() a tick later. The probe forced UI_MODE_NONE before
-		// the press, and newTrackPressHeld_ was never cleared (no release was injected), so the held
-		// mode being set proves beginHoldingClipPress() actually ran after the acquisition.
+		// The gesture's own tail, which runs from completeNewTrack() a tick later, off the caller's stack.
+		// The probe forced UI_MODE_NONE before the press, and newTrackPressHeld_ was never cleared (no
+		// release was injected), so the held mode being set proves beginHoldingClipPress() actually ran
+		// after the acquisition.
 		if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
 			printf("SP-ACQUIRE FAIL the created clip was not left held -- completeNewTrack()'s tail did not run\n");
 			g_failures++;
@@ -2463,11 +2462,11 @@ void runAcquireTick() {
 	}
 	case AcquireStep::SessionNewTrackEnter: {
 		// The grid new-track gesture's ENTER continuation, the one consumer whose OUTCOME the deferral
-		// silently changed: gridNewTrackClipEntered() used to compare the press coordinates against the
+		// can silently change: gridNewTrackClipEntered() compares the press coordinates against the
 		// live gridFirstPressedX/Y, and the caller resets those (clipPressEnded()) the moment
-		// exitTrackCreation() returns -- so once the acquisition was deferred, every ENTER gesture read
-		// "pad released" and transitioned INTO the clip instead of holding it. The check below asserts
-		// the held outcome the synchronous version produced.
+		// exitTrackCreation() returns -- so with the acquisition deferred, an ENTER gesture reads "pad
+		// released" and transitions INTO the clip instead of holding it, unless the caller's tail guards
+		// against it. The check below asserts the held outcome the synchronous version produced.
 		g_acqNewTrackClipsBefore = std::ssize(currentSong->sessionClips);
 		g_acqViewBefore = acqDispatches();
 		BrowserListingAbProbe::beginGridNewTrackEnter(kAcqEnterX, kAcqEnterY);
@@ -2508,8 +2507,8 @@ void runAcquireTick() {
 	}
 	case AcquireStep::ViewNewInstrument: {
 		// The shift/FM new-instrument gesture: a DIFFERENT card read from every step above (Browser::
-		// getUnusedSlot(), not one of the three LoadInstrumentPresetUI readers -- see the rung 5 task 6
-		// fix round). Deliberately LAST: it creates a genuinely new "SYNT<N>"-named Instrument and adds
+		// getUnusedSlot(), not one of the three LoadInstrumentPresetUI readers). Deliberately LAST: it
+		// creates a genuinely new "SYNT<N>"-named Instrument and adds
 		// it to the live Song (createNewInstrument() -> currentSong->addOutput()), which earlier steps'
 		// Unlaunched scans would otherwise pick up as an
 		// in-memory candidate (readFolder() merges card files with live Outputs)
@@ -2562,11 +2561,11 @@ void runAcquireTick() {
 		// The arranger's new-instrument PAD PRESS, driven through ArrangerView::handleAuditionPadAction()
 		// -- the handler MatrixDriver::padAction() reaches -- rather than through
 		// beginNewInstrumentAcquisition(), which every step above uses. Those steps cover the card read;
-		// this covers what the press does with the result, and that is where the deferral actually broke
-		// something: the handler used to read outputsOnScreen back immediately after the call and fall
-		// through to the audition sub-mode, the output name, the note and the mod-controllable. Once the
-		// acquisition became a dispatch, that read-back is null on every deferring backing and the entire
-		// tail stopped running -- invisibly, because the synchronous backing still ran it inline.
+		// this covers what the press does with the result: the handler must not read outputsOnScreen
+		// back immediately after the call: once the acquisition is a dispatch, that read-back is null
+		// on every deferring backing, so the tail -- the audition sub-mode, the output name, the note
+		// and the mod-controllable -- cannot depend on it. The synchronous backing runs that tail
+		// inline regardless, which can mask a missing dispatch-safe path.
 		//
 		// currentUIMode is forced to NONE for the same reason the View probes do it: earlier steps in
 		// this stage leave it wherever their own gestures left it (SessionNewTrackEnter leaves a clip
@@ -2606,9 +2605,9 @@ void runAcquireTick() {
 			printf("SP-ACQUIRE FAIL the audition pad press left the row empty -- no Instrument was placed\n");
 			g_failures++;
 		}
-		// The finding this step exists for. completeNewInstrument() used to restore only the row and its
-		// repaint, so the press ended with the arranger in UI_MODE_NONE and no note sounding -- the whole
-		// point of holding an audition pad. A row-only check would pass either way.
+		// completeNewInstrument() must restore the audition state as well as the row and its repaint;
+		// otherwise the press ends in UI_MODE_NONE with no note sounding -- the whole point of holding
+		// an audition pad. A row-only check would pass either way.
 		if (currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
 			printf("SP-ACQUIRE FAIL the audition pad press did not enter the audition mode -- "
 			       "completeNewInstrument() is missing the rest of the press's tail\n");
@@ -2681,10 +2680,11 @@ void runAcquireTick() {
 
 // ── Stage: listing by path ──────────────────────────────────────────────────
 //
-// A ByPath listing must answer "is this file still there?" -- the question the blocking StorageManager::fileExists
-// pre-flight used to answer before every favourite open. The absent case is the regression that pre-flight was hiding:
-// the old completion tail tested `fileIndexSelected > fileItems.size()`, but `searchFileItems` returns an INSERTION
-// POINT, always <= size, so a deleted file fell straight through and the browser opened whatever sorted into its place.
+// A ByPath listing must answer "is this file still there?" -- not with a StorageManager::fileExists()
+// pre-flight, which would be a blocking card open before every favourite open. The absent case is the one that
+// matters: a `fileIndexSelected > fileItems.size()` test cannot catch a missing file: `searchFileItems` returns an
+// INSERTION POINT, always <= size, so a deleted file falls straight through and the browser opens whatever sorted
+// into its place.
 //
 // Through a load browser that is really on the UI stack, because whether a failed listing leaves it open is part of
 // what is checked. After the acquire and DX stages: the DX stage closes the one browser it opened, so nothing this

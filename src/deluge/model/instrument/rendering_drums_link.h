@@ -20,7 +20,8 @@
 #include <cstddef>
 #include <etl/intrusive_links.h>
 
-/// A SoundDrum's link in its kit's list of drums rendering now (model/instrument/rendering_drums.h). Two pointers,
-/// both null while the drum is in no list.
 inline constexpr size_t kRenderingDrumsLinkId = 0;
+
+/// @brief A SoundDrum's link in its kit's list of drums rendering now (model/instrument/rendering_drums.h). Two
+///        pointers, both null while the drum is in no list.
 using RenderingDrumsLink = etl::bidirectional_link<kRenderingDrumsLinkId>;

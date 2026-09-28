@@ -12,9 +12,8 @@
 //! with matching signatures on both targets:
 //! - Device: the real SDHI1+DMA driver. SD ops complete on the SDHI/DMA-
 //!   completion IRQ. The two device transfer sites (`deluge_block_read`/
-//!   `deluge_block_write`) drive the transfer with `block_on`. (They once
-//!   yielded a worker fiber mid-transfer instead; the fiber is retired.) See
-//!   the hazard note above `deluge_block_read`.
+//!   `deluge_block_write`) drive the transfer with `block_on`. See the hazard
+//!   note above `deluge_block_read`.
 //! - Host (`target_os` != `"none"`): a small file-backed disk image (no SDHI
 //!   hardware exists), so the FatFS-shaped C ABI can still be exercised (and
 //!   round-tripped) off-target. `deluge_bsp::sd`'s host `init`/`read_sectors`/
@@ -274,18 +273,11 @@ pub async fn locked_read_sectors(lba: u32, count: u32, buf: &mut [u8]) -> Result
     stats::note_read();
     #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
     {
-        // Model EVERY transfer. This used to have an escape hatch
-        // (`sim_latency::off_fiber_instant`) that skipped modeling and took the real
-        // synchronous read, because a caller off the (since retired) worker fiber arrived through a NON-yielding
-        // `embassy_futures::block_on` — and awaiting `modeled_read`'s `Timer` under a hookless
-        // spin livelocks, since nothing can poll `sim_latency::pump` while the spin never
-        // returns. That was confirmed empirically at the time (100% CPU, virtual clock frozen).
-        //
-        // The escape hatch is gone because its premise is: storage now spins through
-        // `crate::sim_block::block_on`, whose progress hook pumps the executor hosting `pump`
-        // and advances the virtual clock on every `Pending`. So the `Timer` the hatch existed to
-        // avoid is exactly what the hook completes. Consequence, and the point of removing it:
-        // task-context reads get modeled latency for the first time, so Lens 1 sees them.
+        // Model EVERY transfer: storage spins through `crate::sim_block::block_on`, whose
+        // progress hook pumps the executor hosting `pump` and advances the virtual clock on
+        // every `Pending`, so `modeled_read`'s `Timer` always completes — no escape hatch is
+        // needed to dodge a livelock. Consequently task-context reads get modeled latency
+        // too, so Lens 1 sees them.
         sim_latency::modeled_read(lba, count, buf).await
     }
     #[cfg(not(all(not(target_os = "none"), feature = "sim_latency")))]
@@ -460,8 +452,7 @@ pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) ->
 // first place. Yielding mid-transfer unconditionally would still let other
 // tasks re-enter FatFS concurrently and corrupt it (manifests as "NO MORE
 // PRESETS FOUND" on track create, and would also break song/sample loads).
-// These transfer sites therefore park via `block_on`: nothing else enters FatFS while one runs. (A retired storage
-// worker fiber once yielded mid-transfer here, safe only because every FatFS call came from that one fiber.)
+// These transfer sites therefore park via `block_on`: nothing else enters FatFS while one runs.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_block_read(
@@ -515,9 +506,6 @@ pub extern "C" fn deluge_block_write(
 /// Host-only instrumentation (streaming-underrun harness): counts every SD block read and write. `scenario.rs` reports
 /// them as `cluster_reads`/`recorder_writes`, and `lens1_vt_sim` as `card_reads`/`card_writes`. Compiled for every host
 /// build (not gated on `host_app`/`sim_latency`); the counters sit idle unless something reads them.
-///
-/// These once counted only the transfers made on the storage worker fiber, which was every transfer until storage
-/// became callable from any context. The fiber is retired, and they count everything.
 ///
 /// The `note_read`/`note_write` call sites live at [`locked_read_sectors`]/
 /// [`locked_write_sectors`] — the chokepoint both the plain-host `deluge_block_*`

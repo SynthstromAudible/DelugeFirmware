@@ -22,33 +22,36 @@
 
 class SoundDrum;
 
-/// The drums of one kit that are rendering now; the render walks them every block (Kit::renderGlobalEffectableForClip).
+/// @brief The drums of one kit that are rendering now; the render walks them every block
+///        (Kit::renderGlobalEffectableForClip).
 ///
-/// Held in an intrusive list, so adding and removing a drum never allocates: the render adds and removes drums as their
-/// voices start and end, and must not touch the heap. Every add and remove runs inside an AudioExcludedSection
-/// (libdeluge/system.h) -- free on the audio tier, a mask or the host lock anywhere else -- so no tier sees the list
-/// mid-splice, and reports to the structural-edit probe (util/structural_edit_probe.h).
+/// Held in an intrusive list, so adding and removing a drum never allocates: the render adds and removes drums as
+/// their voices start and end, and must not touch the heap. Every add and remove runs inside an
+/// AudioExcludedSection (libdeluge/system.h) -- free on the audio tier, a mask or the host lock anywhere else -- so
+/// no tier sees the list mid-splice, and reports to the structural-edit probe (util/structural_edit_probe.h).
 ///
-/// Drums are kept in address order, the order the std::set this replaces walked them in, so the render mixes them in
-/// the same order. Only this class splices: ETL counts the elements, so nothing else may unlink a drum's link.
+/// @note Drums are kept in address order, so the render mixes them in the same order block to block.
+/// @warning Only this class splices: ETL counts the elements, so nothing else may unlink a drum's link.
 class RenderingDrums {
 public:
 	RenderingDrums() = default;
 	RenderingDrums(const RenderingDrums&) = delete;
 	RenderingDrums& operator=(const RenderingDrums&) = delete;
 
-	/// [task] [audio] Add @p drum. Does nothing if it is already in: both tiers add, and whichever runs second finds it
-	/// in.
+	/// @brief [task] [audio] Add @p drum. Does nothing if it is already in: both tiers add, and whichever runs
+	///        second finds it in.
 	void add(SoundDrum* drum);
-	/// [task] [audio] Remove @p drum. Does nothing if it is not in.
+	/// @brief [task] [audio] Remove @p drum. Does nothing if it is not in.
 	void remove(SoundDrum* drum);
-	/// [task] [audio] Whether @p drum is in (O(1): its link says so).
+	/// @brief [task] [audio] Whether @p drum is in (O(1): its link says so).
 	[[nodiscard]] bool contains(const SoundDrum* drum) const;
 	[[nodiscard]] bool empty() const { return list_.empty(); }
 
-	/// [audio] Call @p f(SoundDrum*) on each drum. A drum may remove itself as it renders: the walk goes on from the
-	/// drum that followed it. If rendering a drum also removed the drum after it (a choke), the walk goes on from the
-	/// current drum's live next if the current drum is still in, and otherwise ends: no removed link is followed.
+	/// @brief [audio] Call @p f(SoundDrum*) on each drum.
+	///
+	/// A drum may remove itself as it renders: the walk goes on from the drum that followed it. If rendering a
+	/// drum also removed the drum after it (a choke), the walk goes on from the current drum's live next if the
+	/// current drum is still in, and otherwise ends: no removed link is followed.
 	template <class F>
 	void walk(F&& f) {
 		Link* node = list_.first();
@@ -70,14 +73,14 @@ public:
 private:
 	using Link = RenderingDrumsLink;
 
-	/// The ETL list, with the O(1) splices its public interface keeps protected: unlinking a known element and reading
-	/// raw links for the walk.
+	/// @brief The ETL list, with the O(1) splices its public interface keeps protected: unlinking a known element
+	///        and reading raw links for the walk.
 	class List : public etl::intrusive_list<SoundDrum, Link> {
 	public:
 		void unlinkElement(Link& link) { this->disconnect_link(link); }
-		/// The first link, or nullptr if empty.
+		/// @brief The first link, or nullptr if empty.
 		Link* first() { return empty() ? nullptr : this->get_head(); }
-		/// The link after @p link, or nullptr at the end.
+		/// @brief The link after @p link, or nullptr at the end.
 		Link* after(Link* link) {
 			Link* next = link->etl_next;
 			return (next == &this->terminal_link) ? nullptr : next;

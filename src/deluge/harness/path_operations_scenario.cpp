@@ -705,8 +705,8 @@ void runTick() {
 		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
 		printf("PO-TIER violations=%d\n", violations);
 		if (violations != 0) {
-			// Before the conversion this is the DEFECT the rung exists to remove, and the gate is
-			// expected to fail on it. After the conversion a non-zero count is a regression.
+			// Before the conversion this count is expected to be non-zero, and the gate is expected
+			// to fail on it. After the conversion a non-zero count is a regression.
 			printf("PO-TIER FAIL a browser folder creation or delete ran on the interaction tier\n");
 			g_failures++;
 		}

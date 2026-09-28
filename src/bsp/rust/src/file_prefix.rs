@@ -74,10 +74,9 @@ use super::audio_loader::{LoadOps, OpenVerdict};
 /// is the DX7 cartridge read (`min(filesize, 8192)`, `gui/menu_item/dx/cartridge.cpp`), not from the
 /// song preview.
 ///
-/// It was equal to `deluge::storage::kSongPreviewWindow` while the preview was the only consumer,
-/// and that coincidence was pinned by an equality `static_assert`. The cartridge broke it: the two
-/// numbers answer different questions -- "how much of a song holds the artwork" (4096) versus "how
-/// big is the slot every consumer's result has to land in" (8192). `file_prefix_abi.cpp` now
+/// Deliberately larger than `deluge::storage::kSongPreviewWindow`: the two answer different
+/// questions -- "how much of a song holds the artwork" (4096) versus "how
+/// big is the slot every consumer's result has to land in" (8192). `file_prefix_abi.cpp`
 /// asserts the surviving relation, that a request never exceeds the slot.
 ///
 /// It bounds the request as well as the slot: [`deluge_file_prefix_request`] clamps `max_bytes` to
@@ -649,10 +648,8 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<PrefixPath> {
 /// distinction all the way out — `None` publishes a FAILURE and `Some(0)` an empty prefix, and
 /// `deluge_file_prefix_collect` reports them as `DELUGE_FILE_PREFIX_FAILED` and READY-with-zero.
 ///
-/// It was not always so: both used to publish an empty prefix, and the caller then had no way to
-/// tell an unreadable song from one with no artwork. It drew blank for both while the synchronous
-/// backing it stands in for put an error on screen for the first. Collapsing them again undoes
-/// that, and does it silently — the two answers are the same length and draw the same pads.
+/// Collapsing them would leave the caller unable to tell an unreadable song from one with no
+/// artwork, while the synchronous backing shows an error for the first.
 pub async fn prefix_io_once<O: LoadOps>(
     ops: &O,
     path: &str,
@@ -669,15 +666,13 @@ pub async fn prefix_io_once<O: LoadOps>(
         // nothing about this file. Making this one failure transient would give one function two
         // conventions and reintroduce a retry that can livelock if handles never free.
         //
-        // ## What terminal COSTS here, restated for what a failure now does
+        // ## What terminal COSTS here
         //
-        // It used to blank one song's artwork until the cursor next visited it. It no longer does:
-        // a published failure reaches the browser as `SongPreviewOutcome::Error` and it shows the
-        // user an error popup — for a song that is perfectly readable and that the synchronous
-        // backing, on the owner where the file read is serialised, would very likely have opened.
-        // Still bounded and still self-healing (the next visit re-asks and the table has drained),
-        // but the symptom is now visible rather than silent, and the trade has to be taken on that
-        // rather than on the old one.
+        // A published failure reaches the browser as `SongPreviewOutcome::Error` and shows an
+        // error popup — for a song that is perfectly readable and that the synchronous backing,
+        // on the owner where the file read is serialised, would very likely have opened. Bounded
+        // and self-healing (the next visit re-asks and the table has drained), but visible rather
+        // than silent, and the trade is taken on that basis.
         //
         // ## The bounded mitigation, recorded and NOT taken
         //

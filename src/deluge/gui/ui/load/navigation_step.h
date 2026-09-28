@@ -60,10 +60,9 @@ using NavigationDecision = std::variant<Land, PageOn, FromEnd, GetOut>;
 
 /// @brief What a preset navigate does with one window: land, read on, read from the far end, or give up.
 ///
-/// The gotos of the old LoadInstrumentPresetUI::doPresetNavigation, per window, with two changes: stepping off an
-/// edge trimmed on that side pages on from the edge entry the window shows instead of re-reading from the old name
-/// (which re-read the same window for ever), and the wrap cap counts across the walk (@p wrapsSoFar) rather than per
-/// window.
+/// Stepping off an edge trimmed on that side pages on from the edge entry the window shows, rather than re-reading
+/// from the old name (which would just re-read the same window forever). The wrap cap counts across the whole walk
+/// via @p wrapsSoFar, not per window.
 /// @param offset The turn: the sign is the direction, the magnitude the step.
 /// @param skipInSong Step past presets already in the song (Availability::INSTRUMENT_UNUSED).
 /// @param haveName Whether this window was read from a search name.

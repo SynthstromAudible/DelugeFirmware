@@ -195,8 +195,8 @@ bool checkProposeLoadCandidates() {
 	}
 
 	// a nested SAMPLES/ path proposes the flattened alt name, then the bare alt name, then the regular
-	// path -- this is the case a two-candidate policy previously dropped (the bare-name-in-alt-dir
-	// fallback), so it's the one that most needs pinning.
+	// path -- a naive two-candidate policy drops the bare-name-in-alt-dir fallback here, so it's the
+	// one that most needs pinning.
 	{
 		const AudioLoadContext context{.alternateDir = "SAMPLES/ALT",
 		                               .alternateDirStatus = AlternateLoadDirStatus::DOES_EXIST};
@@ -1711,8 +1711,8 @@ bool checkAsyncAlternateDirOrder() {
 		}
 	}
 
-	// The sample that exists ONLY in the alternate dir must still be found there -- the requirement the
-	// up-front probe used to serve, now met by resolving after every proposed candidate has missed.
+	// The sample that exists ONLY in the alternate dir must still be found there -- resolved only after
+	// every proposed candidate has missed.
 	if (asynchronous.size() == std::size(kFixtureNames)
 	    && (!asynchronous[3].loaded || asynchronous[3].loadedFromAlternatePath != "SAMPLES/ALT/ALT_ONLY.WAV")) {
 		printf("FAIL [asyncAltDirOrder]: the alternate-dir-only sample was not loaded from the alternate dir "

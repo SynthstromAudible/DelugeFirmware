@@ -37,10 +37,9 @@ ClearSong clearSong{};
 namespace {
 /// "Create New Song": ends playback, tears down the old song, builds a blank one and puts the UI back on it.
 ///
-/// Reads no card. It used to: `ensureAtLeastOneSessionClip()` walked the card for a preset and loaded it, and the
-/// `loadAllSamples()` after it loaded whatever that preset brought. Phase 4b moved the first onto the interaction
-/// tier -- the clip is built on the built-in default synth and `InstrumentLoad` acquires the preset afterwards --
-/// which left the second with a song holding one unsampled synth and nothing to do. So this runs where its caller
+/// Reads no card. `ensureAtLeastOneSessionClip()` builds the clip on the built-in default synth, with
+/// `InstrumentLoad` acquiring the preset afterwards on the interaction tier; that leaves a song holding one
+/// unsampled synth and nothing for a `loadAllSamples()` call to do, so none is made. This runs where its caller
 /// stands, and the whole operation is over when it returns.
 ///
 /// The UI-mode gate around it stays, and is still load-bearing: `nullifyUIs()` below drops `numUIsOpen` to 0, during
@@ -127,8 +126,8 @@ void ClearSong::focusRegained() {
 
 bool ClearSong::acceptCurrentOption() {
 	// Always true (never trigger ContextMenu::buttonAction()'s synchronous close()): runAccept() does the whole
-	// sequence itself, including the UI teardown, and there is no failure branch to report -- the pre-existing code
-	// discarded ensureAtLeastOneSessionClip()'s bool too.
+	// sequence itself, including the UI teardown, and there is no failure branch to report -- this doesn't read
+	// ensureAtLeastOneSessionClip()'s bool either.
 	//
 	// The gate closes around the call rather than inside it: `runAccept()` nullifies the UIs, and a press must not
 	// reach ContextMenu::buttonAction() while that is true. See runAccept()'s comment.

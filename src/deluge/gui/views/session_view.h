@@ -90,13 +90,14 @@ public:
 	ActionResult timerCallback() override;
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
 	void setLedStates();
-	/// @brief The Rows-layout output-type button's follow-up (`:620`), reached via
+	/// @brief The Rows-layout output-type button's follow-up, reached via
 	///        View::completeChangeOutputTypeFor()'s `SessionRowsChangeType` arm -- on the storage owner
-	///        for Synth/Kit, inline for MIDI/CV. Runs the redraw that used to fire unconditionally,
-	///        right after the (now possibly-deferred) swap, at the row the gesture was made on.
+	///        for Synth/Kit, inline for MIDI/CV. Runs the redraw at the row the gesture was made on,
+	///        once the swap (possibly deferred) has actually happened.
 	/// @param newOutputType The type that was switched to.
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
 	/// @param doBlink Whether the redrawn output name should blink.
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	/// @return Whether the swap actually succeeded.
 	bool completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
 	                                  const deluge::storage::AcquireResult* acquired = nullptr);
@@ -104,12 +105,12 @@ public:
 	/// @brief The Grid-layout output-type button's follow-up -- on the storage owner for Synth/Kit,
 	///        inline for MIDI/CV.
 	///
-	/// Holds everything buttonAction()'s Grid arm used to run straight after
-	/// Song::changeOutputType(): the name/mod-controllable update, and the row redraw that used to sit
-	/// unconditionally after the whole if/else.
+	/// Runs buttonAction()'s Grid-arm tail: the name/mod-controllable update, and the row redraw,
+	/// once the swap (possibly deferred) has actually happened.
 	/// @param newOutputType The type being switched to.
 	/// @param oldInstrument The Instrument being replaced. Song-owned, so it survives the op's yields,
 	///                      and re-checked for liveness before the follow-up runs.
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument,
 	                              const deluge::storage::AcquireResult* acquired = nullptr);
 
@@ -118,14 +119,14 @@ public:
 	/// @param offset    Scroll direction, as commandChangeClipPreset() received it.
 	/// @param oldOutput The Output being navigated away from. Song-owned, so it survives the op's
 	///                  yields.
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	void completeNavigate(int32_t offset, Output* oldOutput, const deluge::storage::AcquireResult* acquired = nullptr);
 
 	/// @brief The empty-pad "create a clip here" gesture's follow-up (Rows layout), on the storage
 	///        owner.
 	///
-	/// Runs createNewInstrumentClip() -- unchanged, and still blocking, which is legal here -- and
-	/// then padAction()'s own tail for that branch, including the held-clip state it used to enter
-	/// via `goto startHoldingDown`.
+	/// Runs createNewInstrumentClip() (still blocking, which is legal here) and then padAction()'s
+	/// own tail for that branch, including entering the held-clip UI mode via beginHoldingClipPress().
 	/// @param type      The clip type the gesture decided to create.
 	/// @param xDisplay  The pad column the gesture was made on.
 	/// @param yDisplay  The pad row the gesture was made on.
@@ -211,12 +212,18 @@ public:
 	/// @brief The scenarios' entry to the new-track gesture: they load the preset they name themselves
 	///        (deluge::harness::createNewInstrumentClip()), and hand the result over here -- which is what the
 	///        gesture's own acquisition does from the interaction tier. Host-only: no device image carries it.
+	/// @param type     The clip type to create.
+	/// @param yDisplay The pad row the gesture was made on.
+	/// @param acquired What the scenario's own fixture loader acquired.
+	/// @return The placed clip, or nullptr if creation or placement failed.
 	Clip* createNewInstrumentClipAcquired(OutputType type, int32_t yDisplay,
 	                                      const deluge::storage::AcquireResult* acquired) {
 		return createNewInstrumentClip(type, yDisplay, acquired);
 	}
 	/// @brief The scenarios' entry to the new-audio-clip gesture, for the same reason: the creator is private, and a
 	///        scenario drives the gesture rather than assembling the clip by hand. Host-only.
+	/// @param yDisplay The pad row the gesture was made on.
+	/// @return The placed clip, or nullptr if creation or placement failed.
 	Clip* createNewAudioClipForHarness(int32_t yDisplay) { return createNewAudioClip(yDisplay); }
 #endif
 
@@ -275,9 +282,13 @@ private:
 	void setCentralLEDStates();
 
 	Clip* createNewAudioClip(int32_t yDisplay);
+	/// @brief Create a new instrument clip and track for the empty-pad "create a clip here" gesture.
+	/// @param outputType The type of instrument to create.
+	/// @param yDisplay   The pad row the gesture was made on.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired, or what a scenario's own fixture loader did
 	///        (deluge::harness::createNewInstrumentClip()). Required for those two types; MIDI and CV read no card and
 	///        are given none.
+	/// @return The placed clip, or nullptr if creation or placement failed.
 	Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay,
 	                              const deluge::storage::AcquireResult* acquired = nullptr);
 
@@ -290,10 +301,9 @@ private:
 
 	/// @brief Enters the held-clip UI mode for a clip that was just selected or just created
 	///
-	/// Was padAction()'s `startHoldingDown` label, which the create branch jumped into. That branch's
-	/// tail now runs from completeNewTrack(), possibly a tick or more later, so the shared body is a
-	/// function rather than a `goto` target -- the statements are unchanged and both paths still run
-	/// exactly the same ones.
+	/// A function rather than a `goto` target: the create branch's tail runs from completeNewTrack(),
+	/// possibly a tick or more later than the selection branch's, so the two paths can no longer share
+	/// a jump target, only this shared body.
 	/// @param clip     The clip now being held.
 	/// @param xDisplay The pad column the press is on.
 	/// @param yDisplay The pad row the press is on.
@@ -373,8 +383,15 @@ private:
 	/// @brief Places a freshly created clip into the song and returns it, or nullptr on failure
 	///
 	/// Section assignment, insertion into the session list, source-clip track handling, play-pos resync
-	/// and selection. Split out of gridCreateClip() because the new-track path cannot reach it until the
-	/// user has chosen a clip type, which happens on a later tick.
+	/// and selection. Shared with gridCreateClip(); the new-track path reaches it separately because it
+	/// cannot create the clip until the user has chosen a clip type, which happens on a later tick.
+	/// @param newClip       The freshly created clip to place. nullptr is passed through as nullptr.
+	/// @param targetSection The section to place the clip into.
+	/// @param targetOutput  The existing track to place the clip in, or nullptr to create a new one
+	///                      (a clone with no existing track of its own).
+	/// @param sourceClip    The clip being cloned, or nullptr for a plain new clip.
+	/// @param acquired      Synth/Kit clone into a new track: what InstrumentLoad acquired. nullptr otherwise.
+	/// @return The placed clip, or nullptr on failure.
 	Clip* gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Output* targetOutput, Clip* sourceClip,
 	                       const deluge::storage::AcquireResult* acquired = nullptr);
 	// Deferred continuations for the new-track grid gesture: the clip can't be created until
@@ -404,8 +421,8 @@ private:
 
 	/// @brief Creates and places a grid new-track clip, or nullptr if it could not be created
 	///
-	/// The half finishGridNewTrackClip() ran identically for both continuations, now on the storage
-	/// owner. Only this create-and-place head is shared; the two tails stay separate functions.
+	/// The head shared by both continuations, run on the storage owner. Only this create-and-place
+	/// half is shared; the two tails stay separate functions.
 	/// @param type     The clip type chosen in the picker.
 	/// @param packedXY The press coordinates, `y << 16 | x`.
 	/// @return The placed clip, or nullptr if creation or placement failed.

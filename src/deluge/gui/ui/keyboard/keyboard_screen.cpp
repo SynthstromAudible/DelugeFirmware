@@ -505,7 +505,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 
 	// Kit button
 	//
-	// NEITHER branch of handleInstrumentChange() may gate the layout refresh on its return any more.
+	// NEITHER branch of handleInstrumentChange() may gate the layout refresh on its return.
 	// For Synth/Kit both are dispatches, and the return means "gesture accepted", not "instrument
 	// swapped" -- calling selectLayout(0) here would run it against the PRE-swap instrument and leave
 	// the keyboard on the wrong layout for good, since nothing would refresh it afterwards. So both

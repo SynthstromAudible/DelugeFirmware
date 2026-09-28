@@ -40,7 +40,8 @@ TEST(ConfirmStepTests, emptyReadOtherwiseGoesAnywhere) {
 // ── Nothing available after filtering ────────────────────────────────────────
 
 TEST(ConfirmStepTests, nothingAvailablePagesOnFromBeforeThePoppedEntry) {
-	// The old code went on from NAV05 -- popped off the window unoffered, and excluded by the next read.
+	// Pages on from NAV04, the entry before the popped one: NAV05 was popped off the window unoffered, and the next
+	// read excludes it.
 	const auto d = decideConfirm(window(kThree, true, 0, 0, 5), false);
 	CHECK(std::holds_alternative<ConfirmPageOn>(d));
 	STRCMP_EQUAL("NAV04.XML", std::get<ConfirmPageOn>(d).from.c_str());

@@ -75,9 +75,13 @@ public:
 	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
 
 	/// @brief Load every audio file this drum's sound names, on this tier, before returning.
+	/// @param mayActuallyReadFiles false confines every lookup to files already in memory.
+	/// @param context The load this belongs to, or null for none.
 	/// @return Error::ABORTED_BY_USER if the user aborted the load; otherwise Error::NONE.
 	Error loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
 	/// @brief Report every audio file this drum's sound names to @p visitor, in load order. Loads nothing.
+	/// @param visitor Receives each demand.
+	/// @return Walk::Continue, or Walk::Stop if @p visitor asked to stop early.
 	virtual deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 		return deluge::storage::Walk::Continue;
 	}

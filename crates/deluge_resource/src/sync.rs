@@ -3,9 +3,8 @@
 //! wrap the access in an asymmetric critical section (`Masked`): every context masks the
 //! minimal O(1) window EXCEPT the audio render context, which skips the mask entirely
 //! (gated on `!deluge_in_audio_context()`) because it preempts every other
-//! manager-touching context, so its RMWs are already atomic w.r.t. them. See
-//! docs/dev/known-concurrency-bugs.md (B1) and
-//! docs/superpowers/specs/2026-07-19-manager-b1-sync-design.md.
+//! manager-touching context, so its RMWs are already atomic w.r.t. them.
+//! See docs/dev/known-concurrency-bugs.md (B1).
 //!
 //! There are three such contexts on the Rust BSP: audio (highest, skips), the streaming
 //! fill task (its own interrupt executor, masks), and thread mode

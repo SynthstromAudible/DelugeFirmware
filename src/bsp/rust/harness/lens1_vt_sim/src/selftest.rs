@@ -134,16 +134,15 @@ pub fn block_on_modeled_read_nested() -> Result<(), String> {
 // ── The MUTEX class ─────────────────────────────────────────────────────────────
 //
 // Everything above proves the TIMER class: the spin's future became ready because the virtual
-// clock moved. The two functions below prove the other class, which Phase 0 explicitly did
-// not: the spin's future becomes ready only because ANOTHER TASK RAN TO COMPLETION and
-// dropped a guard.
+// clock moved. The two functions below prove the other class: the spin's future becomes ready
+// only because ANOTHER TASK RAN TO COMPLETION and dropped a guard.
 //
 // The distinction is load-bearing. `progress_hook` pumps `HP_EXEC` and CANNOT poll MAIN from
 // inside MAIN's own `poll()`, so a guard held by a MAIN-resident task is never released while
-// a MAIN-resident spin waits for it. That is the shape the production code had before the
-// streaming fill task moved to `HP_EXEC`: it holds the filesystem mutex across its SD await
-// (`efatfs_fs::read_at` -> `with_fs`), so once the fiber's storage waits become non-yielding
-// spins, a fiber spin would wait forever on a lock only MAIN could release.
+// a MAIN-resident spin waits for it. That is exactly why `streaming_fill_task` lives on
+// `HP_EXEC` rather than MAIN: it holds the filesystem mutex across its SD await
+// (`efatfs_fs::read_at` -> `with_fs`), and its storage waits are non-yielding spins, so on MAIN
+// it would wait forever on a lock only MAIN itself could release.
 //
 // [`block_on_hp_held_mutex`] is the positive case (holder on `HP_EXEC`: must complete).
 // [`block_on_main_held_mutex_control`] is the negative control (holder on MAIN: must NOT

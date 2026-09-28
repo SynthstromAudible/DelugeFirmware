@@ -20,7 +20,7 @@
 namespace deluge::gui {
 
 ConfirmDecision decideConfirm(const ConfirmWindow& window, bool grabbingLeftmost) {
-	// Shared by the empty-read and nothing-available cases, in the old code's order.
+	// Shared by the empty-read and nothing-available cases.
 	const auto fromStartOrAnywhere = [&]() -> ConfirmDecision {
 		if (grabbingLeftmost) {
 			return ConfirmAnyPreset{};

@@ -24,9 +24,8 @@
 ///
 /// ## Why this gate exists
 ///
-/// `write_file` starts life with NO harness building it, which is exactly the position the whole-file
-/// READ was in one rung earlier -- and running that for the first time found two defects at once. A
-/// feature no gate builds is code that has never run.
+/// `write_file` starts life with NO harness building it. A feature no gate builds is code that has
+/// never run, so this gate exists to run it and catch what only running finds.
 ///
 /// ## Why the assertion is a CRC compared ACROSS the two legs
 ///

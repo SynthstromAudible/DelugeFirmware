@@ -33,7 +33,7 @@ namespace deluge::gui {
 void ConfirmPreset::arm(LoadInstrumentPresetUI& ui, const deluge::storage::AcquireWalkSpec& spec) {
 	ui_ = &ui;
 	dir_ = spec.dirPath;
-	searchName_ = spec.name; // no extension, exactly as the old walk passed it (see the plan's Global Constraints)
+	searchName_ = spec.name; // no extension
 	outputType_ = spec.outputType;
 	availability_ = spec.availability;
 	grabbingLeftmost_ = false;
@@ -50,7 +50,7 @@ void ConfirmPreset::finish(std::expected<FileItem*, Error> result) {
 }
 
 void ConfirmPreset::startAnyPreset() {
-	// What justGetAnyPreset did: the type's root folder, the whole song, the gesture's availability.
+	// Searches the type's root folder across the whole song, with the gesture's availability.
 	listing_.clear();
 	walking_ = true;
 	walk_.arm(*ui_, getInstrumentFolder(outputType_), currentSong, outputType_, availability_);
@@ -93,7 +93,7 @@ bool ConfirmPreset::tick() {
 		}
 		reads_++;
 		if (error == Error::FOLDER_DOESNT_EXIST) {
-			startAnyPreset(); // the fallback's result is returned now, not discarded
+			startAnyPreset(); // the fallback's result is returned, not discarded
 			continue;
 		}
 		if (error != Error::NONE) {

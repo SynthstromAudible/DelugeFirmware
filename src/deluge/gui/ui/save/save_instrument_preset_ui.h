@@ -34,8 +34,7 @@ public:
 	[[nodiscard]] bool beforeStagedWrite(const deluge::storage::SaveRequest& request) override;
 	void afterStagedSave(const deluge::storage::SaveRequest& request) override;
 	/// @brief The tail the streaming writer verified this preset against, chosen by output type.
-	/// @return nullptr for output types that never had one -- never an indeterminate pointer, which is
-	///         what the pre-staging code passed for AUDIO, CV and NONE.
+	/// @return nullptr for output types that never had one -- never an indeterminate pointer.
 	[[nodiscard]] const char* verifyTailForSave() const override;
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,

@@ -28,9 +28,9 @@ class Sample;
 
 namespace deluge::sample {
 
-/// Below this (Hz) a detection runs again on a longer, downsampled window.
+/// @brief Below this (Hz) a detection runs again on a longer, downsampled window.
 constexpr int32_t kMinAccurateFrequency = (1638400 >> (kPitchDetectWindowSizeMagnitude));
-/// How many times past the default a window may be lengthened.
+/// @brief How many times past the default a window may be lengthened.
 constexpr int32_t kMaxLengthDoublings = (16 - kPitchDetectWindowSizeMagnitude);
 
 /// @brief One pitch detection of a Sample, a tick at a time, never waiting for the card.
@@ -91,7 +91,8 @@ private:
 	uint32_t sourceId_{0};
 	uint32_t frameSizeBytes_{0};
 
-	/// @name The read cursor: everything the synchronous detector kept on its stack between two samples.
+	/// @name The read cursor: state that must survive between ticks, kept as members rather than stack locals
+	/// so the read can pause and resume.
 	/// @{
 	std::optional<SampleFrameReader> reader_{};
 	DelugeFrameWindow window_{};

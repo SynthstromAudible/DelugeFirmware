@@ -1859,7 +1859,7 @@ void MidiFollow::writeDefaultsAbsent(void* ctx) {
 	// Only a genuinely absent file reaches here, never an unreadable card -- see
 	// `deluge::storage::bytes::AbsentFn`.
 	//
-	// ⚠️ This NO LONGER WRITES, and the name is kept only because it is the `AbsentFn` the read
+	// ⚠️ This does not write; the name is kept only because it is the `AbsentFn` the read
 	// registers. **A read must not mutate.** Writing the defaults file from a read's completion made
 	// the next run see a different card: save-roundtrip's SL-EVICT compares a clamped-heap run
 	// against an unclamped one byte-for-byte, and on a cold card the first run created the file

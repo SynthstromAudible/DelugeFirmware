@@ -44,18 +44,15 @@
 //! `STREAM_EXEC`: it holds the FS mutex across its SD await, so a MAIN-resident
 //! spin has to be able to drive it to release.
 //!
-//! **Fix (current): the progress hook, and modeled latency now reaches EVERY transfer.**
-//! Storage no longer spins hooklessly — it goes through
+//! **Fix: the progress hook. Modeled latency reaches EVERY transfer.**
+//! Storage never spins hooklessly — it goes through
 //! `sim_block::block_on`, whose hook pumps `HP_EXEC` (where `sim_latency::pump` lives) and
 //! advances the virtual clock on each `Pending`. So the `Timer` the boot mount waits on is
 //! exactly what the hook completes, and the busy-spin has something to wait on after all.
 //!
-//! This replaced an earlier fix: `sd.rs` used to carry an `off_fiber_instant` escape hatch that
-//! made transfers off the (since retired) worker fiber skip modeling and take the real synchronous read. That was removed
-//! once the hook made it unnecessary — verified, not assumed, by running this harness's four
-//! spin selftests and a full sweep with modeled latency reaching those reads for the first
-//! time, with no livelock. The gain is fidelity: task-context reads are now modeled here, where
-//! they previously escaped modeling entirely. It does NOT make the margin arm any less vacuous —
+//! Verified, not assumed: this harness's four spin selftests and a full sweep with modeled
+//! latency reaching task-context reads too run clean, with no livelock. The gain is fidelity —
+//! every transfer is modeled, none escapes. It does NOT make the margin arm any less vacuous —
 //! that is the render-path issue in the charter note below, not a latency-modeling one.
 //!
 //! # Reused shared substrate
@@ -213,9 +210,8 @@ async fn boot_task() {
     crate::sd::boot_init().await;
 
     // Mirrors `deluge-bsp-rust`'s `host_app_task` efatfs mount (see its comment). This mount
-    // runs synchronously and its transfers ARE modeled — the `off_fiber_instant` escape hatch that
-    // used to exempt them is gone, because storage now spins through
-    // `sim_block::block_on` and the progress hook completes the modeled `Timer`. A failed mount
+    // runs synchronously and its transfers ARE modeled: storage spins through
+    // `sim_block::block_on`, and the progress hook completes the modeled `Timer`. A failed mount
     // must NOT abort boot — see the device/host_app_task comments this mirrors.
     #[cfg(feature = "efatfs_streaming")]
     match crate::efatfs_host_shim::mount().await {
@@ -232,8 +228,8 @@ async fn boot_task() {
     boot::mark_finished();
     log::info!("lens1-vt-sim: scheduler running");
 
-    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
-    // fiber this loop used to drive is retired.
+    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and there is no
+    // storage-worker fiber loop to drive.
     core::future::pending::<()>().await
 }
 
@@ -769,12 +765,9 @@ fn main() {
     // run in this mode).
     if std::env::args().any(|a| a == "--selftest-block") {
         // This selftest calls `sd::locked_read_sectors` directly from `main`, before `boot_task`
-        // has even been polled. That used to need an
-        // explicit `set_off_fiber_instant(false)` here, because the harness otherwise exempted
-        // such transfers from modeling and the read would have completed in zero virtual
-        // time on the FIRST poll — vacuously "passing" without exercising the hook-driven spin
-        // at all. The exemption no longer exists, so the read is modeled unconditionally and
-        // this mode is non-vacuous by construction.
+        // has even been polled. The read is modeled unconditionally — nothing exempts it and
+        // lets it complete in zero virtual time on the FIRST poll — so this mode is
+        // non-vacuous by construction: it genuinely exercises the hook-driven spin.
         // Let `sim_latency::pump` reach its `REQUEST.wait()` before we issue a transfer —
         // see `selftest`'s module doc ("Why `main` pumps `HP_EXEC` once before issuing the
         // transfer") for why this is good discipline even though `Signal`'s latching

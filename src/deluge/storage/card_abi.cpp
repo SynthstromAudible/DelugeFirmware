@@ -15,10 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/card.h's C++-side fallback. The real implementation is the Rust Embassy BSP's
-/// `card.rs`, which bumps the shared card generation and clears each loader's tables; this file
-/// exists only so BSPs without those loaders (legacy/host-cooperative sim, rza1) still resolve the
-/// symbol and can call it unconditionally.
+/// @file
+/// @brief Weak, do-nothing definition for `libdeluge/card.h`.
+///
+/// The real implementation is the Rust Embassy BSP's `card.rs`, which bumps the shared card
+/// generation and clears each loader's tables; this file exists only so BSPs without those loaders
+/// (legacy/host-cooperative sim, rza1) still resolve the symbol and can call it unconditionally.
 ///
 /// Filed in storage/ rather than storage/audio/ beside audio_load_abi.cpp, because card.h is
 /// card-scoped, not audio-scoped: a card swap invalidates every loader at once, which is the whole

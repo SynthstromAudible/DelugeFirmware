@@ -80,8 +80,7 @@ bool PresetWalk::stepReadFolder() {
 	Frame& frame = top();
 
 	// Nothing to sync: the read is told both the directory and the listing to fill, so the walk
-	// never touches the browser's navigation or its file list. That is the property this machine
-	// was reverted once for lacking.
+	// never touches the browser's navigation or its file list. That independence is load-bearing.
 
 	// Named through LoadInstrumentPresetUI, not Browser: the type is PROTECTED, and this class is a
 	// friend of the derived UI rather than of Browser itself. Clang rejects Browser::ListingRead here;
@@ -179,8 +178,8 @@ void PresetWalk::stepDescend() {
 	auto* fileItem = &listing_.items()[descendIndex_];
 	Frame& frame = top();
 
-	// Computed here, before the descent, exactly as the original did: once the child has read its own
-	// folder this level's list is gone, and whether there was more of it is no longer discoverable.
+	// Computed here, before the descent: once the child has read its own folder, this level's list is
+	// gone, and whether there was more of it is no longer discoverable.
 	frame.anyMoreForLater = listing_.numDeletedAtEnd() || (descendIndex_ < static_cast<int32_t>(listing_.size()) - 1);
 	// Where this level resumes if the child finds nothing: at the subfolder that just failed.
 	frame.searchName = fileItem->displayName();

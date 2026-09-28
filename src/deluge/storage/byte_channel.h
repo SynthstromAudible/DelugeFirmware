@@ -285,7 +285,7 @@ using ParseFn = void (*)(void* ctx, char* bytes, uint32_t len);
 /// large for the channel. That distinction is the whole point of it: two of the four consumers write
 /// their defaults when the file is missing, and writing defaults because the card hiccuped would
 /// replace the user's real settings. It is the same line `bootstrap_action()` draws between
-/// `WriteDefaults` and `UseInMemoryOnly`, and this rung does not move it.
+/// `WriteDefaults` and `UseInMemoryOnly`.
 using AbsentFn = void (*)(void* ctx);
 
 /// @brief A consumer's existing synchronous body, to run where blocking is legal.
@@ -448,7 +448,7 @@ enum class IoTier : uint8_t {
 /// @brief How many of `which`'s file operations have begun on the INTERACTION tier.
 ///
 /// Counted rather than only frozen so a gate can report the number BEFORE a conversion as well as
-/// after: that before/after is each rung's evidence that anything changed.
+/// after: that before/after comparison is the evidence that a conversion actually changed anything.
 [[nodiscard]] int32_t interactionTierIo(IoTier which);
 
 /// @brief Record one entry. Call as the FIRST statement of each consumer's io path.

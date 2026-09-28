@@ -19,11 +19,10 @@
 
 /// @brief The scenarios' own preset loader.
 ///
-/// The firmware reads presets on the interaction tier now: every production path goes through
-/// `deluge::gui::InstrumentLoad`, and the blocking wrapper the scenarios used to share with it
-/// (`StorageManager::loadInstrumentFromFile()`) is gone. A scenario still needs a preset in memory before it can drive
-/// a gesture at one, so it builds its fixtures here instead -- blocking, called inline from a fixture build on the
-/// interaction tier.
+/// The firmware reads presets on the interaction tier: every production path goes through
+/// `deluge::gui::InstrumentLoad`, and there is no blocking wrapper for the scenarios to share with it. A scenario
+/// still needs a preset in memory before it can drive a gesture at one, so it builds its fixtures here instead --
+/// blocking, called inline from a fixture build on the interaction tier.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 #ifdef DELUGE_HOST
@@ -42,7 +41,7 @@ namespace deluge::harness {
 /// @brief Read the preset document at @p path into a new Instrument, blocking.
 ///
 /// Opens the document with the root tags @p outputType names, parses it, and frees the staging: what
-/// `StorageManager::loadInstrumentFromFile()` did for the production callers this rung moved onto the interaction
+/// `StorageManager::loadInstrumentFromFile()` did for production callers before they moved onto the interaction
 /// tier. Samples are not read -- the caller decides, as the production paths do.
 /// @param song      The song the parse hangs its param managers on.
 /// @param outputType SYNTH or KIT.

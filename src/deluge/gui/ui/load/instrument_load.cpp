@@ -277,13 +277,11 @@ void InstrumentLoad::tickWalkHere() {
 	if (!walkRunning_) {
 		return;
 	}
-	// Driven from HERE, not from stepWalk(), and that is not a detail. abandon() relies on the
-	// invariant "a walk still out ends on its own" -- which the storage owner once gave for free,
-	// running its operation whether or not this load was still interested. A walk on this tier has
-	// no such driver. cancel() and supersede() set phase_ = Idle while a walk is out, and step()
-	// returns at Phase::Idle without ever reaching stepWalk(), so a walk ticked only from there is
-	// stranded: walkRunning_ stays true and every later walk queues behind a search nobody is
-	// advancing. Measured: the save gate got one tick and then stopped forever.
+	// Driven from HERE, not from stepWalk(), and that is not a detail. abandon() relies on the invariant "a walk
+	// still out ends on its own", and a walk on this tier has no driver but routine(). cancel() and supersede()
+	// set phase_ = Idle while a walk is out, and step() returns at Phase::Idle without ever reaching stepWalk(),
+	// so a walk ticked only from there would be stranded: walkRunning_ stays true and every later walk queues
+	// behind a search nobody is advancing.
 	bool waiting = false;
 	switch (walkOut_.walk) {
 	case deluge::storage::AcquireWalk::UnusedSlot:
@@ -325,9 +323,8 @@ void InstrumentLoad::beginWalkHere() {
 		confirm_.arm(loadInstrumentPresetUI, walkOut_);
 		return;
 	}
-	// The search's folder goes straight to the walk. It used to be parked in Browser::currentDir for
-	// the walk to read back -- which moved whatever browser was open: an acquisition for "SYNTHS"
-	// relocated a save browser sitting in "SONGS", and its save then wrote nothing.
+	// The search's folder goes straight to the walk, never through Browser::currentDir: reading it back through
+	// the browser's directory would move whichever browser is open underneath the walk.
 	walk_machine_.arm(loadInstrumentPresetUI, walkOut_.dirPath, walkOut_.includeSong ? currentSong : nullptr,
 	                  walkOut_.outputType, walkOut_.availability);
 }
@@ -395,9 +392,8 @@ void InstrumentLoad::finishWalkHere() {
 		found.existing = item->instrument;
 		found.alreadyInSong = item->instrumentAlreadyInSong;
 		found.name = (item->instrument != nullptr) ? item->instrument->name : item->getFilenameWithoutExtension();
-		// The folder the SEARCH ended in, read off the walk's own listing. Not Browser::currentDir:
-		// the walk no longer moves the browser, so the browser's directory is no longer an answer to
-		// where this preset lives.
+		// The folder the SEARCH ended in, read off the walk's own listing, not Browser::currentDir: the walk
+		// doesn't move the browser, so the browser's directory isn't an answer to where this preset lives.
 		found.dirPath = walk_machine_.foundDir();
 		found.path = walk_machine_.foundDir() + "/" + item->getFilenameWithExtension();
 	}

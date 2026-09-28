@@ -16,12 +16,10 @@
  */
 
 /// @file
-/// @brief Why the file-prefix channel's slot had to grow from 4096 bytes to 8192.
+/// @brief Why the file-prefix slot is 8192 bytes.
 ///
-/// The song preview was the channel's only consumer and `kSongPreviewWindow` is 4096, so the slot
-/// was 4096 and an equality `static_assert` on both sides of the ABI recorded that coincidence as
-/// though it were a definition. The DX7 cartridge is the second consumer, and it does not fit: a
-/// 32-voice bank is `kSysexSize` = 4104 bytes.
+/// A 32-voice DX7 bank is `kSysexSize` = 4104 bytes, past the song preview's 4096-byte window, so
+/// the slot is sized for the cartridge.
 ///
 /// This drives the REAL parser, not a restatement of it, because the interesting question is what
 /// `DX7Cartridge::load` does with the truncation rather than what arithmetic says about 4104 > 4096.

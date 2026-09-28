@@ -34,7 +34,7 @@ namespace deluge::gui {
 
 /// @brief Where a preset search has got to.
 ///
-/// One phase per `goto` in the recursive walk this replaces, so the two can be read side by side.
+/// One value per step of the folder scan; at most one phase is active at a time.
 enum class WalkPhase : uint8_t {
 	/// Nothing is being searched for.
 	Idle,
@@ -60,30 +60,24 @@ enum class WalkPhase : uint8_t {
 /// returns `Error::LISTING_DEFERRED`, and the phase does not advance, so re-entering re-asks for the
 /// same directory and no open is ever made twice.
 ///
-/// What this replaced is the retired synchronous walk
-/// (`LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders`), which recursed into
-/// subfolders with backtracking. A recursion cannot be split across a deferral, which is why that walk
-/// had to run start-to-finish on the storage owner and why it was one of the last things keeping the
-/// fiber alive. Here the recursion is an explicit frame stack, and the read
-/// that each frame makes is the browser's own resumable one.
+/// Recursion cannot be split across a deferral, so the search keeps its own explicit frame stack
+/// rather than recursing on the call stack; the read that each frame makes is the browser's own
+/// resumable one.
 ///
 /// @warning **A failed descent resumes the parent through the PAGING path**, not by advancing a
-///          folder index. The original pops `currentDir` back to the parent and re-reads it from the
-///          failed subfolder's name (`goto goAgain`), because `readdir_next` MOVES each name out of
-///          the directory snapshot -- a folder cannot be enumerated twice from one handle, and the
-///          chunk the parent was looking at may have been culled away while the descent ran. So
-///          @ref Frame carries a search name, never an index, and paging and return-from-recursion
-///          are ONE mechanism rather than two.
+///          folder index. `readdir_next` MOVES each name out of the directory snapshot, so a folder
+///          cannot be enumerated twice from one handle, and the chunk the parent was looking at may
+///          have been culled away while the descent ran. So @ref Frame carries a search name, never
+///          an index, and paging and return-from-recursion are ONE mechanism rather than two.
 ///
 /// @note The `FileItem*` handed back on success points into this walk's OWN listing, not the
-///       browser's, and stays valid until the walk is armed again. The recursive walk's pointer
-///       aimed into the shared list, where any listing could invalidate it.
+///       browser's, and stays valid until the walk is armed again.
 class PresetWalk {
 public:
-	/// How deep the search will go. Measured 2026-09-19: depth 1 in every gate, and the reference
-	/// card's SYNTHS folder is flat, so this is generous. A fixed bound rather than a growing stack
-	/// because a card walk must not allocate, and because the recursion it replaces had no bound at
-	/// all -- a deeply nested card overflowed the real stack instead.
+	/// How deep the search will go. Measurement shows depth 1 in every gate, and the reference
+	/// card's SYNTHS folder is flat, so this is generous. A fixed bound rather than a growing stack,
+	/// because a card walk must not allocate and an unbounded recursion risks overflowing the real
+	/// stack on a deeply nested card.
 	static constexpr int32_t kMaxDepth = 8;
 
 	/// @brief Begin a search rooted at the browser's current directory.
@@ -109,8 +103,8 @@ public:
 
 	/// @brief The folder the search ENDED in -- where the preset it returned actually lives.
 	///
-	/// Read by the caller instead of `Browser::currentDir`: the walk no longer moves the browser, so
-	/// the browser's directory is no longer an answer to this question.
+	/// Read by the caller instead of `Browser::currentDir`: the walk does not move the browser, so the
+	/// browser's directory does not answer this question.
 	[[nodiscard]] const std::string& foundDir() const { return listing_.dir(); }
 
 	/// @brief What the search found. Only meaningful once @ref running is false.
@@ -141,7 +135,8 @@ private:
 		/// Which of the two passes this level is on: files first, then subfolders.
 		bool doingSubfolders{};
 		/// Whether this level still has somewhere to look after the child it descended into comes
-		/// back empty. The original computed it before recursing, for the same reason.
+		/// back empty. Computed before the descent: once the child has read its own folder, this
+		/// level's list is gone and whether there was more of it is no longer discoverable.
 		bool anyMoreForLater{};
 	};
 
@@ -153,9 +148,9 @@ private:
 	void stepScanFolders();
 	void stepDescend();
 
-	/// Re-read this level from @p searchName -- the original's `goto goAgain`.
+	/// Re-read this level from @p searchName.
 	void pageFrom(const std::string& searchName);
-	/// Restart this level looking for subfolders -- the original's `goto startDoingFolders`.
+	/// Restart this level looking for subfolders.
 	void startDoingFolders();
 	/// The child just descended into found nothing. The stack top is the PARENT.
 	void childYieldedNothing();
@@ -168,9 +163,9 @@ private:
 
 	/// @brief This walk's own folder listing.
 	///
-	/// The whole point of the type. The walk reads folders without ever replacing what the browser
-	/// is showing, so it can stop between folders and nothing else can observe a half-walked list --
-	/// which is exactly what went wrong when it borrowed the browser's.
+	/// The whole point of the type: the walk reads folders into a listing of its own, without ever
+	/// replacing what the browser is showing, so it can stop between folders without anything else
+	/// observing a half-walked list.
 	deluge::gui::browser::FileListing listing_;
 
 	LoadInstrumentPresetUI* ui_{};

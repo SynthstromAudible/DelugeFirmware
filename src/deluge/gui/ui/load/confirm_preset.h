@@ -35,8 +35,7 @@ namespace deluge::gui {
 ///        any at all.
 ///
 /// Reads one folder a window at a time into a listing of its OWN, through the browser's resumable read, and hands
-/// each window to decideConfirm. "Any at all" is the whole-type Unlaunched search, run by an embedded PresetWalk --
-/// the search the old walk ran for a missing folder and then threw away.
+/// each window to decideConfirm. "Any at all" is the whole-type Unlaunched search, run by an embedded PresetWalk.
 ///
 /// @note The FileItem* handed back points into this machine's listing or its PresetWalk's, whichever landed, and stays
 ///       valid until it is armed again.

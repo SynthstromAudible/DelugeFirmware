@@ -1,5 +1,5 @@
 //! The boot latch: false until the app's run loop starts, then true for good. Set once, right after
-//! `deluge_app_init` returns -- where the worker pump's first poll used to latch the same thing.
+//! `deluge_app_init` returns.
 use core::sync::atomic::{AtomicBool, Ordering};
 
 static FINISHED: AtomicBool = AtomicBool::new(false);

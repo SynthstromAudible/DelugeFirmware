@@ -218,9 +218,9 @@ void waitIdleThen(const char* marker, Stage next, Stage onTimeout) {
 void runTick() {
 	switch (g_stage) {
 	case Stage::Write:
-		// Through the REAL consumer entry point, never the layer underneath it: the whole subject of
-		// this rung is which tier that entry point does its I/O on, so a gate that reached past it
-		// would keep testing the unconverted path forever.
+		// Through the REAL consumer entry point, never the layer underneath it: this gate's whole
+		// subject is which tier that entry point does its I/O on, so a gate that reached past it
+		// would test a path the product never takes.
 		g_wrote = kProbeValue;
 		runtimeFeatureSettings.set(kProbeSetting, g_wrote);
 		runtimeFeatureSettings.writeSettingsToFile();
@@ -237,8 +237,8 @@ void runTick() {
 
 	case Stage::Read:
 		// Scrub the in-memory value first. Without this the read could do nothing at all and the
-		// comparison below would still pass, which is exactly the false-passing shape rung 5's
-		// round trip shipped with (it compared a file against itself).
+		// comparison below would still pass -- a round trip that compares a file against itself
+		// passes vacuously.
 		runtimeFeatureSettings.set(kProbeSetting, kProbeValue + 1);
 		runtimeFeatureSettings.readSettingsFromFile();
 		g_stage = Stage::ReadCheck;
@@ -596,8 +596,7 @@ void runTick() {
 		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Settings);
 		printf("SC-TIER violations=%d\n", violations);
 		if (violations != 0) {
-			// Before the conversion this is the DEFECT the rung exists to remove, and the gate is
-			// expected to fail on it. After the conversion a non-zero count is a regression.
+			// Settings I/O on the interaction tier is the defect this gate exists to catch.
 			printf("SC-TIER FAIL settings I/O ran on the interaction tier\n");
 			g_failures++;
 		}
@@ -660,7 +659,7 @@ void deluge_scenario_settings_channel_dispatch_step(void) {
 	g_stepDone = false;
 	// The channel's pump. In the firmware this is a repeating task registered in `deluge.cpp`; here
 	// the scenario owns the tick, so without this call the channel arm would be requested and never
-	// collected -- and a dead channel would pass, which is the failure rung 3 shipped.
+	// collected -- and a dead channel would pass.
 	deluge::storage::bytes::serviceRoutine();
 	runTick();
 	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.

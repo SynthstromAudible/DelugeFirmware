@@ -25,14 +25,18 @@ enum class StructuralContainer : uint8_t {
 	COUNT_,
 };
 
-/// [task] [audio] Record a structural edit to a container of @p kind. Counts it if the caller is neither on the audio
-/// tier nor inside an AudioExcludedSection.
+/// @brief [task] [audio] Record a structural edit to a container of @p kind. Counts it if the caller is neither on the
+///        audio tier nor inside an AudioExcludedSection.
+/// @param kind Which container kind the edit was made to.
 void noteStructuralEdit(StructuralContainer kind);
 
-/// [task] Structural edits of @p kind made while the render could preempt them, since boot.
+/// @brief [task] Structural edits of @p kind made while the render could preempt them, since boot.
+/// @param kind Which container kind to report.
+/// @return The unguarded-edit count for @p kind.
 uint32_t unguardedStructuralEdits(StructuralContainer kind);
 
-/// [task] Structural edits of every kind made while the render could preempt them, since boot.
+/// @brief [task] Structural edits of every kind made while the render could preempt them, since boot.
+/// @return The unguarded-edit count across every container kind.
 uint32_t unguardedStructuralEditsTotal();
 
 } // namespace deluge

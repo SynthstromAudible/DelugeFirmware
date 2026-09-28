@@ -32,7 +32,7 @@
 Error SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
 
 	// NO inline initSD() pre-flight here. This runs on the interaction tier (thread mode), where the
-	// storage C-ABI refused to act from there: `deluge_efatfs_mount()` returned false, so initSD() answered
+	// storage C-ABI refused to act: `deluge_efatfs_mount()` returned false, so initSD() answered
 	// Error::SD_CARD ("the card is broken") for a card that was fine. On the Rust BSP that made every slot
 	// browser — LOAD SONG included — fail with "SD card error" on a perfectly healthy mounted card.
 	//

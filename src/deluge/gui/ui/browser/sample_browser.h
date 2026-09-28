@@ -127,15 +127,15 @@ public:
 	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
 	/// @name Counts for the A/B gate's preview-draw legs.
 	/// @{
-	/// Preview draws made (showPreview calls).
+	/// @brief Preview draws made (showPreview calls).
 	[[nodiscard]] int32_t previewDraws() const { return previewDraws_; }
-	/// Redraws of a preview a render left incomplete.
+	/// @brief Redraws of a preview a render left incomplete.
 	[[nodiscard]] int32_t previewRedraws() const { return previewRedraws_; }
-	/// Preview renders that came back complete, first draw or redraw.
+	/// @brief Preview renders that came back complete, first draw or redraw.
 	[[nodiscard]] int32_t previewDrawsComplete() const { return previewDrawsComplete_; }
-	/// Redrawing given up: the bound passed with no new column resolved.
+	/// @brief Redrawing given up: the bound passed with no new column resolved.
 	[[nodiscard]] int32_t previewDrawGiveUps() const { return previewDrawGiveUps_; }
-	/// Whether an incomplete preview is waiting to be redrawn.
+	/// @brief Whether an incomplete preview is waiting to be redrawn.
 	[[nodiscard]] bool previewRedrawPending() const { return previewRedrawPending_; }
 	/// @}
 

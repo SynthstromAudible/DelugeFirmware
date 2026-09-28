@@ -291,8 +291,8 @@ void SaveUI::runSerializePhase() {
 	// No card contact at all. This is the half of a save that never needed the owner.
 	smSerializer.reset();
 	smSerializer.setMemoryBased();
-	// The prolog, which createXMLFile() used to write into the writer as it opened the file. Building
-	// the document without it would save every preset headerless.
+	// The prolog: createXMLFile() writes this automatically when it opens a file on the card. Building
+	// the document in memory instead means it has to be written here explicitly, or every preset saves headerless.
 	smSerializer.write(kStagedDocumentHead);
 	if (!serializeForSave(smSerializer)) {
 		endStagedSave(false);
@@ -343,8 +343,8 @@ void SaveUI::runWritePhase() {
 		return;
 	}
 
-	// Past this point the write goes through the channel, from the interaction tier. THIS is the
-	// rung's claim, and the number a gate can read it from.
+	// Past this point the write goes through the channel, from the interaction tier. This counter is
+	// what a gate reads to confirm the write ran off the storage owner.
 	++offOwnerSaveTicks_;
 
 	if (!writeIssued_) {

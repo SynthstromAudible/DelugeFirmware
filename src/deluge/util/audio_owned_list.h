@@ -21,25 +21,33 @@ namespace deluge {
 template <class T, class Container = std::vector<T*>>
 class AudioOwnedList {
 public:
+	/// @brief Add @p entry to the list. As with remove(), no walk can observe a partial change.
+	/// @param entry The entry to add.
 	void add(T* entry) {
 		AudioExcludedSection section;
 		entries_.push_back(entry);
 	}
 
+	/// @brief Remove @p entry from the list. Once this returns, no walk can reach it.
+	/// @param entry The entry to remove.
 	void remove(T* entry) {
 		AudioExcludedSection section;
 		std::erase(entries_, entry);
 	}
 
-	/// Remove every entry @p pred holds for, in one pass over the list. As with remove(), no walk reaches a removed
-	/// entry once this returns. Returns how many were removed.
+	/// @brief Remove every entry @p pred holds for, in one pass over the list. As with remove(), no walk reaches a
+	///        removed entry once this returns.
+	/// @param pred Predicate deciding which entries to remove.
+	/// @return How many entries were removed.
 	template <class Pred>
 	std::size_t remove_if(Pred&& pred) {
 		AudioExcludedSection section;
 		return std::erase_if(entries_, std::forward<Pred>(pred));
 	}
 
-	/// Call `f(const Container&)` with the list held still. Consume any view of it inside `f`.
+	/// @brief Call `f(const Container&)` with the list held still. Consume any view of it inside `f`.
+	/// @param f Callable invoked with the held-still container.
+	/// @return Whatever @p f returns.
 	template <class F>
 	decltype(auto) walk(F&& f) const {
 		AudioExcludedSection section;

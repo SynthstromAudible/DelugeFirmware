@@ -444,8 +444,8 @@ async fn boot_task() {
     BOOT_MOUNTED.store(true, Ordering::Release);
     log::info!("golden_vt_render: boot+mount complete; scheduler running");
 
-    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
-    // fiber this loop used to drive is retired.
+    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and there is no
+    // storage-worker fiber loop to drive.
     core::future::pending::<()>().await
 }
 
@@ -1155,7 +1155,8 @@ fn uniform_preview_song(value: u8) -> String {
 /// - `SONGS/CORRUPT.XML` opens and is not a song; `SONGS/EMPTY.XML` opens and has nothing in it;
 ///   and `SONGS/MISSING.XML` is deliberately NOT written. Three different ways to fail, kept apart
 ///   because what has to match is the reported `Error` IDENTITY, not the mere fact of failure.
-///   `MISSING.XML` is the one the two backings used to disagree about in silence.
+///   `MISSING.XML` pins that the two backings agree on a missing file rather than silently
+///   diverging.
 /// - `SONGS/LATE.XML` carries a filler attribute long enough to push `preview` past the read
 ///   window, which is the one case whose two backings must legitimately differ (Rendered against
 ///   Truncated).
@@ -1972,8 +1973,8 @@ fn pack_preset_load_image() -> std::path::PathBuf {
     write_test_wav(&samples.join("PLBASE.WAV"), 1, 16, 2048, 0x94);
     write_sine_wav(&samples.join("PLRACE.WAV"), 1, 22_050, 660.0);
     // The nested preset's sample. Its preset lives at SYNTHS/NESTED/, reachable only by descending --
-    // measured 2026-09-19, every gate's walk reaches depth 1 and the reference card's SYNTHS is flat,
-    // so the recursion had no coverage anywhere.
+    // every other gate's walk stays at depth 1 and the reference card's SYNTHS is flat, so the
+    // recursion has no coverage anywhere else.
     write_sine_wav(&samples.join("PLNEST.WAV"), 1, 22_050, 770.0);
     // 24 empty subfolders plus the one holding the preset. More than FILE_ITEMS_MAX_NUM_ELEMENTS
     // (20), so the folder pass CULLS and the walk must page (`goto goAgain`) to see the last entry.

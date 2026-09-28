@@ -188,13 +188,13 @@ private:
 	///        create a SYNTH Instrument for the empty row at `yPressed` and place it on screen (see
 	///        completeNewInstrument(), which runs the dispatched request).
 	///
-	/// Extracted verbatim from the pad-press handler's `if (!output)` branch (auditionPadAction) so
-	/// the song-preview A/B harness's BrowserListingAbProbe can drive the SAME gesture entry point a
-	/// pad press uses, rather than restating it. `yPressedEffective` is always written (the clamp
-	/// runs before dispatch) and captured into the request as `yPressed` -- the completion must not
-	/// read the member back (spec section 6). `outputsOnScreen[yPressedEffective]` is left untouched
-	/// by this call; it is written once (if ever) by completeNewInstrument(), which is also where the
-	/// REST of the press now lives -- the handler returns straight after this and reads nothing back.
+	/// This is the pad press's own `if (!output)` branch (auditionPadAction), factored out so the
+	/// song-preview A/B harness's BrowserListingAbProbe can drive the SAME gesture entry point a pad
+	/// press uses, rather than restating it. `yPressedEffective` is always written (the clamp runs
+	/// before dispatch) and captured into the request as `yPressed` -- the completion must not read
+	/// the member back. `outputsOnScreen[yPressedEffective]` is left untouched by
+	/// this call; it is written once (if ever) by completeNewInstrument(), which is also where the
+	/// rest of the press lives -- the handler returns straight after this and reads nothing back.
 	/// @param yPressed The row the gesture was pressed on, before clamping.
 	/// @param ui The UI the pad press came through -- ArrangerView, AutomationView or PerformanceView
 	///        all drive these pads. Carried to the completion so its repaint marks the UI that is

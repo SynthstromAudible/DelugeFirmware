@@ -35,10 +35,9 @@ enum class CardReinsertPhase : uint8_t {
 
 /// @brief Re-checks every resident sample after a card comes back, one per tick.
 ///
-/// What this replaces was a single uninterrupted pass that opened EVERY resident sample's file
-/// synchronously, which is why it had to be handed to the storage owner. A card holding many samples
-/// blocked for the whole walk. Now one resident is checked per tick, through the byte channel, so the
-/// work happens where its caller stands.
+/// Opening every resident sample's file synchronously in one uninterrupted pass would block the caller
+/// for as long as the card holds files. Checking one resident per tick, through the byte channel, keeps
+/// the work on the tier its caller stands on instead.
 ///
 /// @note The check is `bytes::requestExists`/`collectExists`, and that is not a weakening of the
 ///       blocking `Stream::open()` it replaces: `requestExists` OPENS ITS PATH AS A FILE (see
@@ -46,9 +45,9 @@ enum class CardReinsertPhase : uint8_t {
 ///
 /// @warning `Failed` is NOT absence. `collectExists` is three-state: `Ready` with `present == false`
 ///          is "known absent", while `Failed` is "could not establish". Marking a sample unloadable
-///          on `Failed` would re-create the defect fixed in `f37a8ef41`, where `sector_of()`'s
-///          deliberate "I cannot answer" was read as "the file is gone" and every sample went silent
-///          on every re-insertion. Only a definite absence may mark one.
+///          on `Failed` would repeat a defect this class exists to avoid: a deliberate "I cannot
+///          answer" was once read as "the file is gone", making every sample go silent on every
+///          re-insertion. Only a definite absence may mark one.
 ///
 /// Supersede follows @ref SampleClaim's shape: a card that comes back again mid-walk re-arms rather
 /// than restarting immediately, because an outstanding channel request is keyed to a path and its
@@ -65,17 +64,17 @@ public:
 
 	/// @name Lenses for the `card-reinsert` gate.
 	/// @{
-	/// Residents whose existence the channel could not establish. A card answering nothing is a
-	/// different fact from a card whose files are gone, and must not look like one.
+	/// @brief Residents whose existence the channel could not establish. A card answering nothing is a
+	///        different fact from a card whose files are gone, and must not look like one.
 	[[nodiscard]] int32_t unestablished() const { return unestablished_; }
-	/// Completed walks, so a caller can tell a finished re-check from one that never started.
+	/// @brief Completed walks, so a caller can tell a finished re-check from one that never started.
 	[[nodiscard]] int32_t walks() const { return walks_; }
 	/// @}
 
 private:
 	CardReinsertPhase phase_{CardReinsertPhase::Idle};
 	/// Index into `AudioFileManager::audioFiles`. Not advanced after an eviction: the container
-	/// closes up behind the removed element, exactly as the old loop's `e--` accounted for.
+	/// closes up behind the removed element.
 	int32_t cursor_{0};
 	/// A card came back while a walk was still running: restart once this resident settles.
 	bool rearm_{false};

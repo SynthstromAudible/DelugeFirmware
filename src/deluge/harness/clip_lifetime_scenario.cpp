@@ -237,7 +237,7 @@ const char* legName(Leg leg) {
 	return "DONE";
 }
 
-/// The legs that delete a clip, as Task 1's do: their probe and dangling lines are about references to that clip.
+/// The legs that delete a clip: their probe and dangling lines are about references to that clip.
 bool isClipLeg(Leg leg) {
 	return static_cast<uint8_t>(leg) >= static_cast<uint8_t>(Leg::SessionDelete)
 	       && static_cast<uint8_t>(leg) <= static_cast<uint8_t>(Leg::SyncScale);

@@ -29,16 +29,17 @@ class LoadInstrumentPresetUI;
 
 namespace deluge::gui {
 
+/// @brief Where a @ref SlotNameScan has got to.
 enum class ScanPhase : uint8_t { Idle, Read, Done, Failed };
 
 /// @brief The name a new blank instrument takes: the slot after the highest-numbered preset of its type.
 ///
 /// One folder read, made through the browser's resumable readFolder into a listing of its OWN, so the scan never
-/// moves the browser's folder or touches its list -- which the storage-owner walk it replaces did both of. A read
-/// that is not ready leaves the scan in Read, and the next tick asks for the same open again.
+/// moves the browser's folder or touches its list. A read that is not ready leaves the scan in Read, and the next
+/// tick asks for the same open again.
 ///
-/// The read keeps song instruments in the listing (includeSongInstruments), as the walk it replaces did: a numbered
-/// synth that exists only in memory still takes its slot.
+/// The read keeps song instruments in the listing (includeSongInstruments): a numbered synth that exists only in
+/// memory still takes its slot.
 class SlotNameScan {
 public:
 	/// @brief Start a scan of @p dir for @p outputType's next slot name.

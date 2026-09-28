@@ -28,19 +28,19 @@
 /// proxy for an operation finishing and not the thing itself.
 extern "C" {
 
-/// Reset the scenario's state and prepare stdout for a piped run.
+/// @brief Reset the scenario's state and prepare stdout for a piped run.
 void deluge_scenario_favourites_channel_begin(void);
 
-/// Whether the summary has been printed and the run may stop stepping.
+/// @brief Whether the summary has been printed and the run may stop stepping.
 bool deluge_scenario_favourites_channel_complete(void);
 
-/// Drive the channel and the bank, run one tick of the scenario, then queue a marker behind it.
+/// @brief Drive the channel and the bank, run one tick of the scenario, then queue a marker behind it.
 void deluge_scenario_favourites_channel_dispatch_step(void);
 
-/// Whether the marker queued by the last dispatch has run.
+/// @brief Whether the marker queued by the last dispatch has run.
 bool deluge_scenario_favourites_channel_step_done(void);
 
-/// How many in-process assertions failed.
+/// @brief How many in-process assertions failed.
 int32_t deluge_scenario_favourites_channel_failures(void);
 
 } // extern "C"

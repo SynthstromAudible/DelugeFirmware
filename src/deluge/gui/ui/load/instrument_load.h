@@ -173,25 +173,25 @@ public:
 
 	/// @name Counts for the preset-load gate.
 	/// @{
-	/// Preset documents (and device definitions) staged.
+	/// @brief Preset documents (and device definitions) staged.
 	[[nodiscard]] int32_t documentReads() const { return documentReads_; }
-	/// Sample loads begun, one per Instrument or drum.
+	/// @brief Sample loads begun, one per Instrument or drum.
 	[[nodiscard]] int32_t sampleLoads() const { return sampleLoads_; }
-	/// Loads cancelled by a newer request.
+	/// @brief Loads cancelled by a newer request.
 	[[nodiscard]] int32_t supersessions() const { return supersessions_; }
-	/// Sample loads that stopped moving (AsyncSampleLoad's stall bound).
+	/// @brief Sample loads that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
-	/// UnusedSlot walks begun -- the slot name a new blank instrument takes.
+	/// @brief UnusedSlot walks begun -- the slot name a new blank instrument takes.
 	[[nodiscard]] int32_t slotScans() const { return slotScans_; }
-	/// The error the most recent load or acquisition finished with; Error::NONE after a success.
+	/// @brief The error the most recent load or acquisition finished with; Error::NONE after a success.
 	[[nodiscard]] Error lastError() const { return lastError_; }
-	/// Navigate walks begun -- the preset scroll.
+	/// @brief Navigate walks begun -- the preset scroll.
 	[[nodiscard]] int32_t navigationsRun() const { return navigationsRun_; }
-	/// Navigates that hit the machine's read backstop; required 0 (termination does not depend on it).
+	/// @brief Navigates that hit the machine's read backstop; required 0 (termination does not depend on it).
 	[[nodiscard]] int32_t navigationGiveUps() const { return navigation_.giveUps(); }
-	/// Confirm walks begun -- the SYNTH/KIT change-type.
+	/// @brief Confirm walks begun -- the SYNTH/KIT change-type.
 	[[nodiscard]] int32_t confirmsRun() const { return confirmsRun_; }
-	/// Confirms that hit the machine's read backstop; required 0.
+	/// @brief Confirms that hit the machine's read backstop; required 0.
 	[[nodiscard]] int32_t confirmGiveUps() const { return confirm_.giveUps(); }
 	/// @}
 
@@ -236,7 +236,7 @@ private:
 	[[nodiscard]] OutputType outputTypeToParse() const;
 	/// @brief Begin one sample load over @p instrument, counting it.
 	void beginSampleLoad(Instrument& instrument);
-	/// @brief Show the name a navigate's walk landed on, as the walk used to before loading it.
+	/// @brief Show the name a navigate's walk landed on, before its preset loads.
 	void echoNavigation() const;
 
 	/// @brief Advance an inline walk, from routine() rather than from the phase machine.
@@ -273,7 +273,7 @@ private:
 	/// waited for before another is queued, so the two never share @ref walkOut_ and @ref walked_.
 	bool walkRunning_{false};
 	/// The Unlaunched search, a folder at a time. Holds its OWN listing, so it reads folders without
-	/// touching what the browser is showing -- which is what the first attempt at this lacked.
+	/// touching what the browser is showing.
 	PresetWalk walk_machine_{};
 	/// The UnusedSlot walk: one folder read naming a new instrument's slot. Like @ref walk_machine_, it holds its own
 	/// listing.

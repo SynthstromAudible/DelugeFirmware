@@ -223,8 +223,7 @@ static CURRENT: AtomicI8 = AtomicI8::new(-1);
 ///
 /// There is no equivalent RESOURCE_SD gate: storage serializes itself (the efatfs
 /// FS mutex and `sd.rs`'s `SD_BUS`). `RESOURCE_SD_ROUTINE` needs no hold-off here
-/// either: the retired storage worker fiber was the only thing that ran SD-routine
-/// work across a yield.
+/// either: nothing runs SD-routine work across a yield.
 static USB_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
 // ---------------------------------------------------------------------------
@@ -660,10 +659,9 @@ pub extern "C" fn startTaskManager() {}
 // Cooperative yield (scheduler_api.h yield / yieldWithTimeout / yieldToIdle).
 //
 // Nothing on this BSP suspends: the yielding operations (song load, stem export,
-// grid clip create) that once ran on a storage worker fiber, where `yield()`
-// suspended the fiber, are machines stepped by their callers now, and the fiber
-// is retired. A `yield*` here is a defensive no-wait (it never busy-waits and
-// never hangs). The legacy `storage_wait.h` hooks (yieldingRoutine*ForSD) are gone here:
+// grid clip create) are stepped synchronously by their callers, so `yield*`
+// here is a defensive no-wait (it never busy-waits and never hangs). The legacy
+// `storage_wait.h` hooks (yieldingRoutine*ForSD) are gone here:
 // their only callers live in the legacy C HAL (src/RZA1 / src/bsp/rza1), which the
 // Embassy BSP does not link — SD goes through the async driver (sd.rs).
 // ---------------------------------------------------------------------------

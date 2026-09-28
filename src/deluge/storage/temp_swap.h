@@ -57,10 +57,11 @@ public:
 	}
 
 	/// @brief Advance by at most one channel operation.
+	/// @return What this step produced.
 	[[nodiscard]] SwapTick step();
 
-	/// @brief How many channel answers this swap has collected since the last call, whatever they said, and reset
-	///        the count.
+	/// @brief Count and reset the channel answers this swap has collected since the last call.
+	/// @return How many answers arrived, whatever they said.
 	[[nodiscard]] int32_t takeServedOps() {
 		const int32_t served = servedOps_;
 		servedOps_ = 0;

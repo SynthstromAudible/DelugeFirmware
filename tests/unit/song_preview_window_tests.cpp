@@ -75,7 +75,7 @@ TEST_GROUP(SongPreviewWindow){};
 
 /// Every song that HAS a preview must carry the WHOLE of it inside the window, or the async path
 /// would render blank where the synchronous one rendered artwork. Songs with no preview are skipped,
-/// not failed: they render blank today and this rung does not change that.
+/// not failed: they render blank today, unchanged here.
 TEST(SongPreviewWindow, everyCorpusSongCarriesItsPreviewInsideTheWindow) {
 	const char* corpus = std::getenv("DELUGE_SONG_CORPUS");
 	if (corpus == nullptr) {

@@ -624,25 +624,22 @@ doActualSimpleChange:
 							ModelStackWithTimelineCounter* modelStack =
 							    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
 
-							// The redraw below used to run unconditionally right after this call -- but
-							// for Synth/Kit, dispatchPresetAcquisition() only just enqueued the swap, so
-							// redrawing here would show the OLD instrument. completeChangeOutputTypeRows()
-							// runs it instead, once the swap (if any) has actually happened; see the rung
-							// 5 task 4 review.
+							// The redraw cannot run right here: for Synth/Kit, dispatchPresetAcquisition()
+							// only just enqueued the swap, so redrawing now would show the OLD instrument.
+							// completeChangeOutputTypeRows() runs it instead, once the swap (if any) has
+							// actually happened.
 							view.changeOutputType(newOutputType, modelStack, true,
 							                      deluge::storage::PresetConsumer::SessionRowsChangeType);
 							break;
 						}
 						case SessionLayoutType::SessionLayoutTypeGrid: {
-							// Mostly taken from ArrangerView::changeOutputType
 							if (instrument->type == newOutputType) {
-								// Nothing to swap, so nothing to defer -- but the redraw used to run
-								// unconditionally after the whole if/else, so it still has to run here.
+								// Nothing to swap, so nothing to defer, but the row still needs redrawing here.
 								requestRendering(this, 1 << selectedClipYDisplay, 0);
 							}
 							// MIDI and CV allocate a non-audio instrument and read no card, so they stay
 							// synchronous -- dispatching them would defer this gesture behind a storage
-							// round-trip for nothing (spec section 2c). Only Synth/Kit reaches the directory.
+							// round-trip for nothing. Only Synth/Kit reaches the directory.
 							else if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
 								completeChangeOutputType(newOutputType, instrument);
 							}
@@ -899,13 +896,13 @@ removePendingOverdub:
 					// Synth/Kit reach the directory underneath (createNewInstrumentClip() ->
 					// setPresetOrNextUnlaunchedOne()), so the whole create-and-hold sequence moves onto
 					// the storage owner and completeNewTrack() finishes it there. MIDI allocates a
-					// non-audio instrument and reads no card, so it stays synchronous (spec section 2c).
-					// The dispatch itself carries no answer, so this returns the same
-					// ActionResult::DEALT_WITH the old `if (!clip)` early exit did.
+					// non-audio instrument and reads no card, so it stays synchronous.
+					// The dispatch itself carries no answer, so this returns ActionResult::DEALT_WITH
+					// regardless.
 					//
 					// The pad is down right now on BOTH paths, so the held marker is set for both: the
 					// synchronous one cannot see a release in between, so it always finds it true and
-					// enters the held mode exactly as before.
+					// enters the held mode.
 					newTrackPressHeld_ = true;
 					if (toCreate == OutputType::SYNTH || toCreate == OutputType::KIT) {
 						deluge::storage::PresetRequest request{
@@ -915,8 +912,8 @@ removePendingOverdub:
 						    .yPressed = yDisplay,
 						    .xPressed = xDisplay,
 						    .clipIndex = clipIndex,
-						    // Snapshotted here, where the old synchronous ordering read it: the completion
-						    // used to follow within the same press, and now follows a card read.
+						    // Snapshotted here rather than read live in the completion, which runs
+						    // after a card read.
 						    .shiftHeld = Buttons::isShiftButtonPressed(),
 						    .dirPath = getInstrumentFolder(toCreate),
 						};
@@ -1359,7 +1356,7 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 		case SessionLayoutType::SessionLayoutTypeGrid: {
 			Output* oldOutput = clip->output;
 			// Song::navigateThroughPresetsForInstrument() branches internally: MIDI/CV just re-channels
-			// the existing Instrument and reads no card, so it stays synchronous (spec section 2c).
+			// the existing Instrument and reads no card, so it stays synchronous.
 			if (oldOutput->type == OutputType::MIDI_OUT || oldOutput->type == OutputType::CV) {
 				completeNavigate(offset, oldOutput);
 				break;
@@ -1757,9 +1754,8 @@ void SessionView::beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yD
 	view.displayOutputName(clip->output, true, clip);
 }
 
-// Runs on the storage owner for Synth/Kit, inline for MIDI. createNewInstrumentClip() itself is
-// unchanged and blocks here, which is legal on this tier -- and so its three abandon paths, and the
-// bool createNewTrackForInstrumentClip() answers them with, are untouched.
+// Runs on the storage owner for Synth/Kit, inline for MIDI. createNewInstrumentClip() blocks here,
+// which is legal on this tier.
 void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex,
                                    bool shiftHeld, const deluge::storage::AcquireResult* acquired) {
 	Clip* clip = createNewInstrumentClip(type, yDisplay, acquired);
@@ -1791,7 +1787,7 @@ void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yD
 		// Only enter the held mode if the pad is still down. On the dispatched path the release can
 		// already have been consumed while the acquisition was in flight, and nothing would ever leave
 		// a held mode entered after it (see newTrackPressHeld_'s doc). The synchronous path always
-		// finds it set, so it behaves exactly as the old `goto startHoldingDown` did.
+		// finds it set, so it always enters the held mode too.
 		if (newTrackPressHeld_) {
 			newTrackPressHeld_ = false;
 			beginHoldingClipPress(clip, xDisplay, yDisplay);
@@ -3906,7 +3902,7 @@ void SessionView::finishGridNewTrackClip() {
 
 	// Synth/Kit reach the directory underneath createNewClip(), so the create-and-place half plus this
 	// continuation's own tail move onto the storage owner. Audio, MIDI and CV read no card and stay
-	// synchronous (spec section 2c). Each continuation gets its own consumer: their tails
+	// synchronous. Each continuation gets its own consumer: their tails
 	// (gridNewTrackClipEntered() vs gridNewTrackClipSelected()) are different functions.
 	if (toCreate == OutputType::SYNTH || toCreate == OutputType::KIT) {
 		deluge::storage::PresetRequest request{

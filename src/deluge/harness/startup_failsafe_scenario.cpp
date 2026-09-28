@@ -135,9 +135,9 @@ void runTick() {
 		break;
 
 	case Stage::Drive:
-		// The REAL entry point, never the layer underneath it: the whole subject of this rung is which
-		// tier that entry point does its I/O on, so a gate that reached past it would keep testing the
-		// unconverted path forever.
+		// The REAL entry point, never the layer underneath it: this gate's whole subject is which
+		// tier that entry point does its I/O on, so a gate that reached past it would test a path
+		// the product never takes.
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
 		deluge::storage::armStartupSong();
 		g_stage = Stage::DriveCheck;
@@ -183,8 +183,7 @@ void runTick() {
 		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Startup);
 		printf("SF-TIER violations=%d\n", violations);
 		if (violations != 0) {
-			// Before the conversion this is the DEFECT the rung exists to remove, and the gate is
-			// expected to fail on it. After the conversion a non-zero count is a regression.
+			// Fail-safe I/O on the interaction tier is the defect this gate exists to catch.
 			printf("SF-TIER FAIL startup fail-safe I/O ran on the interaction tier\n");
 			g_failures++;
 		}
@@ -271,8 +270,8 @@ void runTick() {
 		// -- StartupPhase::WriteTemplate, which stages the document and writes it through the byte channel.
 		//
 		// Nothing reached this before: the existing legs run LASTOPENED, so `usingTemplate` is false and
-		// CheckTemplate is skipped entirely. Measured on 2026-09-19 with a probe --
-		// the template write was NEVER REACHED by this gate.
+		// CheckTemplate is skipped entirely -- the template write was never reached by this gate without
+		// this leg.
 		FlashStorage::defaultStartupSongMode = StartupSongMode::TEMPLATE;
 		(void)deluge::io::unlink(kDefaultSong);
 		(void)deluge::io::unlink(deluge::storage::startupSongCanaryPath());

@@ -11,6 +11,6 @@
 #include "deluge/util/published.h"
 
 namespace AudioEngine {
-/// The render domain (see above). Defined in audio_engine.cpp.
+/// @brief The render domain (see above). Defined in audio_engine.cpp.
 deluge::util::SnapshotDomain& renderDomain();
 } // namespace AudioEngine

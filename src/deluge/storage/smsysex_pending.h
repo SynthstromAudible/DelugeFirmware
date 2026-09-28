@@ -113,9 +113,10 @@ void pathOpClear();
 
 /// @brief Where a handler that needs SEVERAL operations has got to.
 ///
-/// Only `createDirectory` uses it, to tell "I have created the directory" from "I have also stamped
-/// it". The meaning of the number belongs entirely to the handler; this unit only keeps it across
-/// the ticks the handler is re-entered on.
+/// Used by any handler that runs a sequence of operations (`createDirectory`, `performFileCopy`,
+/// `moveFile`) to tell its steps apart -- e.g. "I have created the directory" from "I have also
+/// stamped it". The meaning of the number belongs entirely to the handler; this unit only keeps it
+/// across the ticks the handler is re-entered on.
 [[nodiscard]] uint8_t pathOpStage();
 
 /// @brief Set the stage. See @ref pathOpStage.

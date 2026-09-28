@@ -107,10 +107,9 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
         return result;
     }
 
-    // The drain, one tick per YIELD. It used to be a tight C++ loop, which only ever worked on the
-    // recorder's synchronous arm: with the channel arm the storage driver gets no chance to run
-    // between ticks, so nothing is answered and nothing lands. Awaiting here is what lets the op
-    // complete.
+    // The drain, one tick per YIELD: the channel arm needs the storage driver to run between
+    // ticks to answer the request, so awaiting here (rather than looping tightly) is what lets
+    // the op complete.
     for _ in 0..4 {
         unsafe { deluge_harness_recorder_probe_drain_tick() };
         Timer::after_millis(1).await;

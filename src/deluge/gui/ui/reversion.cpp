@@ -81,8 +81,7 @@ bool Reversion::stepSamples() {
 		if (!outcome.has_value()) {
 			return false; // still loading
 		}
-		// A file that will not load is not fatal: revert() shows the error and carries on with an empty holder,
-		// which is what it did when the load happened inside it.
+		// A file that will not load is not fatal: revert() shows the error and carries on with an empty holder.
 		nextWanted_++;
 	}
 	if (nextWanted_ >= wanted_.size()) {

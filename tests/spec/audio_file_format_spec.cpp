@@ -335,9 +335,9 @@ describe audio_file_format("audio file header parser", $ {
 		});
 	});
 
-	// Two shapes that loaded before the parse moved to Rust and must keep loading. Neither is in the
-	// sample corpus the port was differentially tested against, which is exactly why they are pinned
-	// here: "not in one person's library" is not the same as "cannot happen".
+	// Two shapes that must keep loading. Neither is in the sample corpus the differential testing
+	// draws from, which is exactly why they are pinned here: "not in one person's library" is not
+	// the same as "cannot happen".
 	context("files that must keep loading", _ {
 		// Trailing slop -- DAW padding, an interrupted copy, a card that filled mid-write -- leaves a
 		// few bytes after the last chunk that cannot hold an 8-byte chunk header. The walk must end

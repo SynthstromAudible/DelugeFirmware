@@ -85,10 +85,9 @@ enum class PresetConsumer : uint8_t {
 	KeyboardNewInstrument,  ///< InstrumentClipView::createNewInstrument(), reached via
 	                        ///< handleInstrumentChange() from KeyboardScreen's own shift/FM buttons.
 	                        ///< Runs ViewNewInstrument's exact tail, PLUS KeyboardScreen::selectLayout() --
-	                        ///< keyboard_screen.cpp used to gate that on createNewInstrument()'s
-	                        ///< synchronous return, which this rung's dispatch removed; a shared
-	                        ///< ViewNewInstrument arm has no KeyboardScreen instance to call it on, so
-	                        ///< this exists to give the layout refresh somewhere correct to run.
+	                        ///< a shared ViewNewInstrument arm has no KeyboardScreen instance to call
+	                        ///< KeyboardScreen::selectLayout() on, so this exists to give the layout
+	                        ///< refresh somewhere correct to run.
 	BlankSongPreset,        ///< The song a Deluge boots with, and the one Create New Song makes: the first SYNTHS
 	                        ///< preset, asked for by InstrumentLoad::routine() when it sees
 	                        ///< Song::blankPresetPending. No gesture and no view -- the follow-up is the song's own
@@ -148,7 +147,7 @@ constexpr bool isCreationConsumer(PresetConsumer consumer) {
 /// @note This is the snapshot. Once dispatched, the op reads ONLY these fields for anything that
 ///       crosses its yield points -- never live Browser or view state, which the UI task can
 ///       mutate or free while the op is yielded. `oldInstrument` is safe because it is Song-owned;
-///       a FileItem* would not be. See the rung 5 spec, section 6.
+///       a FileItem* would not be.
 struct PresetRequest {
 	PresetConsumer consumer{PresetConsumer::ArrangerNewInstrument};
 	OutputType outputType{OutputType::SYNTH};

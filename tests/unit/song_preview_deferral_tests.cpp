@@ -33,9 +33,9 @@ struct Target {
 };
 } // namespace
 
-/// A preview that defers is armed for the per-tick surface, and the surface re-asks. Rung 1 shipped
-/// this broken for the sample browser: the A/B gate drove its own retry loop, so the gate's driver
-/// WAS the handler the real caller lacked. This test drives only what the UI drives.
+/// A preview that defers is armed for the per-tick surface, and the surface re-asks. For the sample
+/// browser, only the A/B gate's own retry loop was driving that re-ask -- the real caller had no
+/// handler of its own. This test drives only what the UI drives.
 TEST(SongPreviewDeferral, aDeferredPreviewIsReAskedByTheTickSurface) {
 	deluge::storage::DeferredLoad<Target> load;
 	const Target a{"SONGS/A.XML", true};

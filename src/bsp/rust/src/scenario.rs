@@ -43,7 +43,7 @@ unsafe extern "C" {
     fn deluge_scenario_start_playback();
     fn deluge_scenario_playback_active() -> bool;
     fn deluge_scenario_start_recording() -> bool;
-    // Task-context contention knob (R5a Phase 0 Task 4): the DISPATCHED variant of
+    // Task-context contention knob: the DISPATCHED variant of
     // `deluge_scenario_begin_song_load`, plus its completion latch. See
     // `ScenarioConfig::concurrent_listing_every_blocks`'s doc comment for why the plain
     // (synchronous) `deluge_scenario_begin_song_load` isn't safe to reuse for this
@@ -88,11 +88,10 @@ pub struct ScenarioConfig {
     /// simply never read).
     #[cfg_attr(not(feature = "sim_latency"), allow(dead_code))]
     pub post_load_sim_latency: Option<(u32, u32)>,
-    /// R5a Phase 0 Task 4 contention knob: task-context file I/O overlapping sustained
-    /// sample streaming, the scenario Task 5's Lens 1 sweep is meant to diff Phase 2
-    /// against. `None` (the default) leaves `run()` byte-identical to before this field
-    /// existed — the final block-target wait is a plain `wait_for`, exactly as it always
-    /// was.
+    /// Task-context contention knob: task-context file I/O overlapping sustained sample
+    /// streaming, so a caller can compare `run()`'s behaviour with and without that
+    /// contention. `None` (the default) leaves the final block-target wait a plain
+    /// `wait_for`, with no concurrent listing.
     ///
     /// `Some(n)` fires a listing-only browse of [`ScenarioConfig::song_full_path`] roughly
     /// every `n` audio blocks' worth of elapsed time during that same wait, via the
@@ -101,8 +100,8 @@ pub struct ScenarioConfig {
     /// directory listing repeatedly contends for the card with the real
     /// sample-streaming reads, without ever replacing the song this scenario is
     /// playing back (committing would end the very playback the block-target wait is
-    /// measuring). This mirrors the real hazard the R5a spec §2 describes ("loading a preset
-    /// while a sample streams") rather than a synthetic probe: `deluge_scenario_begin_song_load`
+    /// measuring). This mirrors a real hazard — loading a preset while a sample streams —
+    /// rather than a synthetic probe: `deluge_scenario_begin_song_load`
     /// itself (the plain, synchronous entry point the pre-existing steps above use) is NOT
     /// reused here — its `openUI(&loadSongUI)` -> `opened()` chain does a real blocking storage
     /// read, which under `sim_latency` can livelock its caller (see `streaming_scenario.h`'s doc comment on
@@ -127,7 +126,8 @@ pub struct ScenarioConfig {
 pub struct ScenarioResult {
     /// The app finished enough of boot (`registerTasks()` claimed at least one scheduler
     /// slot — the same signal `main.rs`'s own boot-OK check uses) for `currentSong` to
-    /// exist. `run` does not itself require the caller to have already confirmed boot; this field records that `run` waited it out itself.
+    /// exist. `run` does not itself require the caller to have already confirmed boot;
+    /// this field records that `run` waited it out itself.
     pub boot_ready: bool,
     /// `deluge_scenario_begin_song_load` returned true (currentSong existed to target).
     pub song_load_dispatched: bool,

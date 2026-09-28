@@ -148,10 +148,6 @@ fn render_mode() -> bool {
 ///   `StemExport` run against a sample-backed song hung at 100% CPU inside
 ///   exactly this call chain). Skipping it is safe: the render this call would
 ///   have produced is discarded anyway (a null sink).
-///
-/// History: an offline `StemExport` render once reached this on the storage worker fiber and was never skipped.
-/// Nothing has run on that fiber since the on-owner collapse (S2), and the fiber is now retired; this rule is the
-/// old one with that arm gone, and the estate captured identically across the change.
 fn should_skip_render() -> bool {
     if !crate::boot::finished() {
         return false;

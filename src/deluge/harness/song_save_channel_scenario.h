@@ -47,10 +47,19 @@
 
 extern "C" {
 
+/// @brief Reset the scenario to its first stage.
 void deluge_scenario_song_save_channel_begin(void);
+
+/// @brief True once the report has been printed.
 bool deluge_scenario_song_save_channel_complete(void);
+
+/// @brief Run one stage of the scenario.
 void deluge_scenario_song_save_channel_dispatch_step(void);
+
+/// @brief True once the step queued by the last dispatch_step() has run.
 bool deluge_scenario_song_save_channel_step_done(void);
+
+/// @brief Number of in-process assertion failures. 0 = the run passed.
 int32_t deluge_scenario_song_save_channel_failures(void);
 
 } // extern "C"

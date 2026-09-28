@@ -41,9 +41,8 @@ enum class StemSearchPhase : uint8_t {
 
 /// @brief Candidates tried before the search gives up.
 ///
-/// The loop this replaces was UNBOUNDED. A directory that somehow answers Present forever would
-/// otherwise search indefinitely, and a stem export that never starts is worse than one that
-/// refuses.
+/// Without a bound, a directory that somehow answers Present forever would search indefinitely, and a
+/// stem export that never starts is worse than one that refuses.
 constexpr int32_t kMaxStemCandidates = 1000;
 
 /// @brief Everything `nextStemSearchPhase` is allowed to look at.
@@ -63,6 +62,8 @@ struct StemSearchInputs {
 /// wrong: only a candidate proven `Absent` may be created (efatfs `mkdir` succeeds on one that
 /// already exists, so create-then-check would adopt an occupied folder), and `Undeterminable`
 /// aborts rather than counting as free.
+/// @param in The current phase and the outcome of whatever operation it issued.
+/// @return The phase to run next.
 [[nodiscard]] StemSearchPhase nextStemSearchPhase(StemSearchInputs in);
 
 } // namespace deluge::storage

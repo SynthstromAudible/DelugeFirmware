@@ -76,10 +76,7 @@ void RandomizeDrums::cancelWalk() {
 		return;
 	}
 	load_.cancel();
-	// An OPEN is outstanding exactly when this row's collect has not answered yet. This used to test
-	// `opRunning_`, the flag the owner-dispatched scan set -- which the directory channel never sets,
-	// so the test was silently always false and Draining became unreachable. Found by neutering the
-	// handle collect below and watching nothing go red; RD-CANCELSCAN covers it now.
+	// An OPEN is outstanding exactly when this row's collect has not answered yet.
 	if (phase_ == Phase::AwaitScan && !scanCollected_) {
 		// The open is still out: nothing may unbind the row's holder until it reports, and the handle
 		// it may yet produce has to be collected rather than leaked. Its result is discarded.
@@ -307,7 +304,7 @@ bool RandomizeDrums::stepAwaitLoad() {
 bool RandomizeDrums::stepFinish() {
 	switch (rowsRandomized_) {
 	case 0:
-		break; // nothing eligible had files to land on: no popup, as before
+		break; // nothing eligible had files to land on: no popup
 	case 1:
 		display->displayPopup(lastName_.data());
 		break;

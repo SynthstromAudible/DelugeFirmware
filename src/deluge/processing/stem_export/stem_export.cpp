@@ -61,10 +61,10 @@ StemExport stemExport{};
 
 /// How many audio blocks one offline pass renders before returning to the run loop.
 ///
-/// Offline export has no scheduler driving the audio routine, so the pass drives it directly - the
-/// whole point of the old bypass, whose per-block scheduling cost capped a headless render at about
-/// realtime. Batching keeps that throughput while still letting go often enough for the fill task, the
-/// UI, and a cancellation to get a look in. A pass also stops early the moment the loader queue has
+/// Offline export has no scheduler driving the audio routine, so the pass drives it directly - routing
+/// each block back through the scheduler instead would cap a headless render at about realtime.
+/// Batching keeps that direct-drive throughput while still letting go often enough for the fill task,
+/// the UI, and a cancellation to get a look in. A pass also stops early the moment the loader queue has
 /// work, so this bound only matters while nothing needs filling.
 constexpr int32_t kOfflineBlocksPerPass = 2048;
 
@@ -99,9 +99,8 @@ StemExport::StemExport() {
 	lastExportFolderPath.clear();
 }
 
-/// starts stem export process which includes setting up UI mode, timer, and preparing
-/// instruments / clips / kit rows for exporting
-/// Sets the export going and returns. Everything after this runs a step at a time from
+/// Starts the stem export process: sets up UI mode and timer, prepares instruments/clips/kit rows for
+/// exporting, and returns immediately. Everything after this runs a step at a time from
 /// exportRoutine(), so the launching menu handler is free the moment this returns - and, more to the
 /// point, the UI keeps running for the whole export, which is what lets the user cancel it.
 void StemExport::startStemExportProcess(StemExportType stemExportType) {
@@ -180,9 +179,9 @@ void StemExport::startNextElement() {
 /// queue has work, since the fill task that serves it only runs once we let go.
 void StemExport::driveElement() {
 	// elementFinished() is NOT a pure predicate - it drives stopOutputRecording(), which is what
-	// eventually ends the recording. So it must be evaluated exactly once per render iteration, as the
-	// old `while (!until())` did. Asking a second time to decide whether the element is done cost the
-	// render one 32-frame block, which is 192 bytes of a fixture's WAV and a failed golden.
+	// eventually ends the recording. It must be evaluated exactly once per render iteration: asking a
+	// second time to decide whether the element is done cost the render one 32-frame block, which is
+	// 192 bytes of a fixture's WAV and a failed golden.
 	bool finished = false;
 
 	if (renderOffline) {
@@ -196,10 +195,9 @@ void StemExport::driveElement() {
 				exportAwaitingDrain = true;
 			}
 
-			// The drain point. deluge_streaming_drain_queue_blocking() used to sit exactly here and
-			// suspend the worker fiber until the loader queue emptied; now we ask and return, resuming
-			// at this same point next pass. Keeping it between the audio routine and the slow routines
-			// is not cosmetic - it is what makes the render come out bit-identical.
+			// The drain point: ask whether the loader queue has emptied and, if not, return, resuming at
+			// this same point next pass. Keeping it between the audio routine and the slow routines is
+			// not cosmetic - it is what makes the render come out bit-identical.
 			if (!deluge_streaming_queue_drained()) {
 				deluge_streaming_request_drain();
 				break;
@@ -212,7 +210,7 @@ void StemExport::driveElement() {
 	}
 	else {
 		// Live: the scheduler is already running the audio routine, playback and the recorder, so all
-		// this pass does is take the one look the old yield's predicate took.
+		// this pass does is take that one look.
 		finished = elementFinished();
 	}
 
@@ -446,9 +444,6 @@ void StemExport::restoreAllInstrumentMutes(int32_t totalNumOutputs) {
 	}
 }
 
-/// iterates through all instruments, arming one instrument at a time for recording
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the arrangement
 /// disarms and prepares all the clips so that they can be exported
 int32_t StemExport::disarmAllClipsForStemExport() {
 	// when we begin stem export, we haven't exported any clips yet, so initialize these variables
@@ -537,9 +532,6 @@ bool StemExport::writeLoopEndPos() {
 	return false;
 }
 
-/// iterates through all clips, arming one clip at a time for recording
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the clip's loop length
 /// disarms and prepares all the drums so that they can be exported
 int32_t StemExport::disarmAllDrumsForStemExport() {
 	// when we begin stem export, we haven't exported any drums yet, so initialize these variables
@@ -594,14 +586,8 @@ void StemExport::restoreAllDrumMutes(int32_t totalNumNoteRows) {
 	}
 }
 
-/// iterates through all drums, arming one drum at a time for recording
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the arrangement
-/// @brief The wait every export type shares.
-///
-/// Lifted out of the four identical lambdas the per-type drivers each carried. `stopRecording` is set
-/// once the recording has something to stop for; the element is done when nothing is recording, no
-/// source is armed, and playback has stopped.
+// stopRecording is set once the recording has something to stop for; the element is done when nothing
+// is recording, no source is armed, and playback has stopped.
 bool StemExport::elementFinished() {
 	if (stemExport.stopRecording) {
 		stemExport.stopOutputRecording();
@@ -985,12 +971,11 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 		// here we loop until we are able to successfully create a folder, or give up because
 		// existence could not be determined for some candidate (searchAborted)
 		// The candidate search, as phases. Each tick issues at most one operation and returns, so a
-		// search over many candidates no longer holds the card for its whole duration.
+		// search over many candidates never holds the card for more than one tick at a time.
 		//
-		// PROBE-THEN-CREATE is preserved deliberately: efatfs mkdir is idempotent and succeeds on a
-		// directory that already exists, so creating first and reading the result would quietly
-		// adopt somebody's finished export. Only a candidate proven Absent is taken. (The old
-		// C-FatFS f_mkdir returned FR_EXIST here, which is where that behaviour came from.)
+		// PROBE-THEN-CREATE is deliberate: efatfs mkdir is idempotent and succeeds on a directory that
+		// already exists, so creating first and reading the result would quietly adopt somebody's
+		// finished export. Only a candidate proven Absent is taken.
 		bool searchAborted = false;
 		if (!stemSearchActive_) {
 			stemSearchActive_ = true;

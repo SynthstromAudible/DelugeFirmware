@@ -53,10 +53,11 @@ void deluge_app_init(const DelugeBoard* board);
 /// [audio]
 void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames);
 
-/// A render block the board chose not to produce (a host harness's null sink that skips rendering). Runs only the
-/// render's block-start lifetime step -- the epoch advance and the let-go of retired objects -- with no audio, so an
-/// object handed to the render is still let go of and freed. Call it on the render tier, in place of
-/// `deluge_app_render` for that block.
+/// @brief A render block the board chose not to produce (a host harness's null sink that skips rendering).
+///
+/// Runs only the render's block-start lifetime step -- the epoch advance and the let-go of retired
+/// objects -- with no audio, so an object handed to the render is still let go of and freed. Call it
+/// on the render tier, in place of `deluge_app_render`, for that block.
 /// [audio]
 void deluge_app_render_skipped(void);
 

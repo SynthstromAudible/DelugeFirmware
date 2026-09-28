@@ -243,9 +243,8 @@ private:
 
 	/// @brief Advance the file-creation machine by one phase. Never blocks off the owner.
 	///
-	/// Replaces the `goto` web the create block used to carry: `tryOpenRecordingStream` and
-	/// `cutRecordingFolderPathAndTryCreating` encoded retry state in control flow, where the phase
-	/// enum states it somewhere @ref deluge::storage::nextCreatePhase can be tested against.
+	/// Retry state lives in @ref deluge::storage::CreatePhase, which @ref deluge::storage::nextCreatePhase
+	/// can be tested against directly.
 	CreateStep advanceCreate();
 	/// @brief The channel accepted this phase's request: collect it from the next tick.
 	CreateStep createAccepted();
@@ -285,9 +284,8 @@ private:
 
 	/// @brief Advance the finalize machine by one phase. Never blocks.
 	///
-	/// Replaces the old single-call `finalizeRecordedFile()`. Each call issues at most one channel
-	/// operation and returns, so the whole of finishing a recording -- header patch, alteration,
-	/// truncate and close -- happens off the storage owner.
+	/// Each call issues at most one channel operation and returns, so the whole of finishing a recording --
+	/// header patch, alteration, truncate and close -- happens off the storage owner.
 	FinalizeStep advanceFinalize();
 	/// @brief The channel accepted this phase's request: collect it from the next tick.
 	FinalizeStep finalizeAccepted();
@@ -329,7 +327,7 @@ private:
 	bool failedCloseIssued_ = false;
 
 	/// @name Finalize phase bodies
-	/// Each holds code moved verbatim out of the old single-call finalize.
+	/// The per-phase work bodies @ref advanceFinalize drives.
 	/// @{
 	void finalizePrologueOnce();
 	Error finalizeWriteFinalPartial();
@@ -386,8 +384,8 @@ private:
 	/// into it asynchronously -- a stack buffer would be freed under the driver.
 	std::array<std::byte, 512> headerScratch_{};
 	/// @}
-	/// @brief Write a cluster synchronously, blocking. The arm that shipped before the channel existed; legal
-	///        only on the storage owner, or before the owner has started.
+	/// @brief Write a cluster synchronously, blocking. Legal only on the storage owner, or before the owner
+	///        has started.
 	Error writeClusterSynchronously(int32_t clusterIndex, size_t numBytes);
 	/// @brief Recycle a written cluster's buffer and clear its table slot.
 	void finishCluster(int32_t clusterIndex);

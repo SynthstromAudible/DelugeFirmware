@@ -70,9 +70,7 @@ public:
 	/// selectLayout() itself is private; this is the seam LoadInstrumentPresetUI's completions call
 	/// through, on the storage owner, once the instrument has actually been created
 	/// (PresetConsumer::KeyboardNewInstrument) or swapped (PresetConsumer::KeyboardChangeType). Each of
-	/// those has its OWN completion and its own currency guard -- this is only the leaf they share, the
-	/// single line keyboard_screen.cpp used to run eagerly off a return that no longer means what it
-	/// used to.
+	/// those has its own completion and its own currency guard -- this is only the leaf they share.
 	void completeLayoutRefresh() { selectLayout(0); }
 
 private:

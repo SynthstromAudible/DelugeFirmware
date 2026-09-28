@@ -74,7 +74,8 @@ public:
 	// and drives eviction. Returns nullptr only if the slab/manager couldn't be created (OOM).
 	DelugeResource* resourceManager();
 
-	// The cluster slab (creating it and the resource manager on first use). nullptr only on OOM.
+	/// @brief The cluster slab, creating it and the resource manager on first use.
+	/// @return The cluster slab, or `nullptr` only on OOM.
 	DelugeSlab* clusterSlab() {
 		ensureClusterSystem();
 		return clusterSlab_;

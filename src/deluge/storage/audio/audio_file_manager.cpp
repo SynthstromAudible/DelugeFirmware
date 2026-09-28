@@ -289,8 +289,8 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 		// FS-free (see `file_directory.rs`) -- so the scan below costs no card access at all and is
 		// left exactly as it was. Same shape `Browser::openDirectoryForListing` uses.
 		//
-		// `std::optional` rather than the `std::expected` this used to be: both answer `has_value()`
-		// and `operator->`, so the loop is untouched either way.
+		// `std::optional`, not `std::expected`: only its `has_value()`/`operator->` are needed, which
+		// is what the loop below assumes.
 		std::optional<deluge::io::Directory> dir;
 		const bool useDirChannel = deluge::boot::finished();
 		if (!useDirChannel) {
@@ -564,9 +564,8 @@ size_t AudioFileManager::proposeLoadCandidates(const deluge::storage::AudioLoadC
 		std::string flattenedName;
 		Error error = setupAlternateAudioFilePath(flattenedName, 0, filePath);
 		if (error != Error::NONE) {
-			// Matches the original code's AltResult::HardError: abort the whole search rather than
-			// silently falling back to the weaker candidates below. See resolveFileSize's note on the
-			// error code a caller sees when this leaves `out` empty.
+			// Abort the whole search rather than silently falling back to the weaker candidates below.
+			// See resolveFileSize's note on the error code a caller sees when this leaves `out` empty.
 			return 0;
 		}
 		std::string flattenedCandidate = context.alternateDir;
@@ -679,7 +678,7 @@ bool AudioFileManager::resolveFileSize(deluge::storage::AudioLoadContext& contex
 	return false;
 }
 
-// Split out of resolveFileSize (its only other caller) so a direct caller -- the C ABI, later -- can
+// Split out of resolveFileSize (its only other caller) so a direct caller -- the C ABI among them -- can
 // run the probe on its own before proposeLoadCandidates(); see the declaration's doc comment.
 bool AudioFileManager::resolveAlternateLoadDirStatus(deluge::storage::AudioLoadContext& context, Error* error) {
 	if (context.alternateDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
@@ -1038,8 +1037,7 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::stora
 	// precisely so it can take THIS recovery instead of the alternate-dir probe below: the loader
 	// opens through the same 128-slot table SampleStream::open_read_stream uses, and that table fills
 	// up by construction under browser preview (each previewed Sample pins a handle for its whole
-	// residency, and samples are small, so handles run out long before the heap does) -- which is this
-	// rung's own workload.
+	// residency, and samples are small, so handles run out long before the heap does).
 	//
 	// The reclaim itself cannot live where the open is: the loader runs on an executor that must make
 	// no synchronous C++ call, so releaseUnleasedAudioFiles() is unreachable from there. It runs here,
@@ -1347,9 +1345,9 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(deluge::stora
 /// Allocate and construct a Sample ready to be populated from the card. No I/O: every step here is
 /// allocation or bookkeeping, which is what lets the open and header parse move to an async task.
 ///
-/// Validates sizeBytes itself (same checks buildAudioFileFromCard used to make on every caller's
-/// behalf) so a direct caller -- the C ABI, later -- gets the same rejection a full card build always
-/// gave, instead of a Sample built with a truncated (possibly zero) cluster count.
+/// Validates sizeBytes itself (the same checks buildAudioFileFromCard makes on every caller's
+/// behalf) so a direct caller -- the C ABI among them -- gets the same rejection a full card build
+/// always gave, instead of a Sample built with a truncated (possibly zero) cluster count.
 ///
 /// The object is adopted and reasoned BEFORE the I/O ("so it's protected while setting up"), so the
 /// caller owns its fate unconditionally from here on: every exit must reach either
@@ -1396,7 +1394,7 @@ Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const
 /// makes every fill-context consumer resolve nothing for this sample.
 ///
 /// Finalizes and publishes fully -- geometry clamp, pre-scan re-arm, and dropping the protect-during-
-/// setup reason -- so a direct caller (the C ABI, later) can't land a half-finished Sample in
+/// setup reason -- so a direct caller (the C ABI among them) can't land a half-finished Sample in
 /// audioFiles: one that's inserted but still holds its setup reason forever (unevictable) and never had
 /// its geometry clamped/quantized by finalizeAfterLoad. @p sizeBytes must be the same value passed to
 /// the matching beginSampleFromCard.

@@ -199,7 +199,7 @@ bool RuntimeFeatureSettings::readSettingsFromFile(deluge::storage::bytes::DoneFn
 	                                       /*onAbsent=*/nullptr, this, onDone)) {
 		return true;
 	}
-	// No blocking arm: boot no longer calls this, so a refusal means the channel is switched off or
+	// No blocking arm: boot does not call this, so a refusal means the channel is switched off or
 	// the path does not fit -- and either way the settings in memory stand, which is exactly what a
 	// refusal has always meant here. The settings prelude sees the refusal as a read it must not
 	// wait for.

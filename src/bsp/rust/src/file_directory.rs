@@ -272,8 +272,8 @@ pub trait DirOps {
 pub async fn dir_io_once<O: DirOps>(ops: &O, path: &str, create: bool) -> DirOutcome {
     if create {
         // On the storage tier, where a card WRITE belongs. This is the browser's missing-folder
-        // fallback: the C++ side used to `mkdir` inline, which is fine on the storage owner but not
-        // on the interaction tier the listing runs on once this channel backs it.
+        // fallback, run here rather than inline at the call site: inline `mkdir` is fine on the
+        // storage owner but not on the interaction tier the listing runs on once this channel backs it.
         ops.create_dir(path).await;
     }
     match ops.open_dir(path).await {
@@ -605,10 +605,10 @@ impl DirOps for ProdDirOps {
         // the identity on the wire.
         match backing::task_dir_open(path).await {
             Err(NO_FILESYSTEM) => {
-                // Not mounted. MOUNTING IS REAL CARD I/O, which is exactly why it happens here:
-                // `StorageManager::initSD()` used to do it before every listing, and with this
-                // channel active that caller runs on the interaction tier. Mounted lazily rather
-                // than before every open, so the steady state costs nothing.
+                // Not mounted. MOUNTING IS REAL CARD I/O, so it happens here rather than in
+                // `StorageManager::initSD()`: with this channel active that caller runs on the
+                // interaction tier. Mounted lazily rather than before every open, so the steady
+                // state costs nothing.
                 //
                 // `mount()` bumps `deluge_efatfs_mount_generation`, which is how the C++ side still
                 // learns to run `firstCardRead()`.

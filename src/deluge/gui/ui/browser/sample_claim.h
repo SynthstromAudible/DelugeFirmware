@@ -85,17 +85,17 @@ public:
 
 	/// @name Counts for the sample-claim gate.
 	/// @{
-	/// Claims whose load stopped moving (AsyncSampleLoad's stall bound).
+	/// @brief Claims whose load stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
-	/// Claims cancelled.
+	/// @brief Claims cancelled.
 	[[nodiscard]] int32_t cancels() const { return cancels_; }
-	/// Claims that ended claimed.
+	/// @brief Claims that ended claimed.
 	[[nodiscard]] int32_t finishes() const { return finishes_; }
-	/// Ticks a pitch detection spent waiting for a cluster.
+	/// @brief Ticks a pitch detection spent waiting for a cluster.
 	[[nodiscard]] int32_t pitchScanTicks() const { return pitchScanTicks_; }
-	/// Pitch detections that gave up: no frame arrived for kMaxUnproductiveUs.
+	/// @brief Pitch detections that gave up: no frame arrived for kMaxUnproductiveUs.
 	[[nodiscard]] int32_t pitchGiveUps() const { return pitchGiveUps_; }
-	/// Whether the claim in flight is waiting for its pitch detection.
+	/// @brief Whether the claim in flight is waiting for its pitch detection.
 	[[nodiscard]] bool pitchPending() const { return phase_ == Phase::AwaitPitch; }
 	/// @}
 

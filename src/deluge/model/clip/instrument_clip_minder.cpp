@@ -165,17 +165,16 @@ bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputTyp
 	return loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
-// The MinderNewInstrument completion: no extra tail, matching what the direct SYNTH-button call
-// sites this replaces did with createNewInstrument()'s bool (discarded it).
+// The MinderNewInstrument completion. No extra tail: createNewInstrument()'s bool is deliberately
+// discarded.
 void InstrumentClipMinder::completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
                                                  const deluge::storage::AcquireResult& acquired) {
 	createNewInstrument(clip, newOutputType, is_dx, acquired);
 }
 
-// Runs on the storage owner -- see beginNewInstrumentAcquisition() above, which is what every caller
-// now goes through instead of this directly. Otherwise unchanged: still blocks on the card read,
-// which is legal on this tier. Acts on `clip` (the dispatch-time snapshot) throughout, not
-// getCurrentInstrumentClip()/getCurrentOutput() -- see this function's doc.
+// Runs on the storage owner, reached only through beginNewInstrumentAcquisition(). Blocks on the
+// card read, which is legal on this tier. Acts on `clip` (the dispatch-time snapshot) throughout,
+// not getCurrentInstrumentClip()/getCurrentOutput() -- see this function's doc.
 bool InstrumentClipMinder::createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
                                                const deluge::storage::AcquireResult& acquired) {
 	Error error;
@@ -535,9 +534,8 @@ bool InstrumentClipMinder::changeOutputType(OutputType newOutputType, deluge::st
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	// setLedStates() ("Might need to change the scale LED's state") used to run right here, gated on
-	// this same bool -- but for Synth/Kit that bool now means "dispatched", not "swapped", so running
-	// it here would read the OLD output type. It runs from View::completeChangeOutputTypeFor()'s
+	// setLedStates() is not run here: for Synth/Kit this bool means "dispatched", not "swapped", so it
+	// would read the OLD output type. It runs from View::completeChangeOutputTypeFor()'s
 	// ViewChangeTypeMinder (or, via InstrumentClipView, ViewChangeType) arm instead, once the swap (if
 	// any) has actually happened.
 	return view.changeOutputType(newOutputType, modelStack, /*doBlink=*/false, consumer);

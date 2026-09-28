@@ -49,9 +49,8 @@ using ConfirmDecision = std::variant<ConfirmLand, ConfirmPageOn, ConfirmFromStar
 
 /// @brief What a change-type confirm does with one window.
 ///
-/// The gotos of the old LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne, with one change: a page goes on
-/// from the entry BEFORE the one dropFoldersAndDuplicates popped, so the next read -- which excludes its own search
-/// name -- includes it. The old code went on from the popped entry, which was then never offered.
+/// A page goes on from the entry BEFORE the one dropFoldersAndDuplicates popped, so the next read -- which excludes
+/// its own search name -- includes it.
 /// @param grabbingLeftmost Whether this window was read from the start after a FromStart.
 [[nodiscard]] ConfirmDecision decideConfirm(const ConfirmWindow& window, bool grabbingLeftmost);
 

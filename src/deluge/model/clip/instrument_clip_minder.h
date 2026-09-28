@@ -50,8 +50,8 @@ public:
 	/// @param clip The clip to create the instrument on/for. Song-owned; caller-snapshotted.
 	/// @param newOutputType SYNTH or KIT (never MIDI/CV -- those never reach this function at all).
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
-	/// @return Whether an instrument was actually created.
 	/// @param acquired The unused slot name InstrumentLoad's walk found, or why there is none.
+	/// @return Whether an instrument was actually created.
 	bool createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
 	                         const deluge::storage::AcquireResult& acquired);
 	/// @brief Dispatch new-instrument creation onto the storage owner. Non-virtual, matching
@@ -75,9 +75,8 @@ public:
 	bool beginNewInstrumentAcquisition(
 	    OutputType newOutputType, bool is_dx = false,
 	    deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::MinderNewInstrument);
-	/// @brief The MinderNewInstrument completion: runs createNewInstrument() on the storage owner with
-	///        no further tail, matching what the direct SYNTH-button call sites this replaces did with
-	///        its bool (discarded it).
+	/// @brief The MinderNewInstrument completion: runs createNewInstrument() on the storage owner.
+	///        No extra tail: createNewInstrument()'s bool is deliberately discarded.
 	/// @param clip The snapshot beginNewInstrumentAcquisition() took; forwarded to createNewInstrument().
 	/// @param newOutputType SYNTH or KIT.
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.

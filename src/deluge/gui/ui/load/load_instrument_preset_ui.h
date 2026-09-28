@@ -158,8 +158,7 @@ private:
 	/// @return Error::NONE, or FILE_CORRUPTED when the new drum has no param manager.
 	Error swapKitRow(const deluge::gui::InstrumentLoadRequest& request, SoundDrum* newDrum);
 	/// @brief Put @p initialInstrument back on the clip, as @p target says: the tail every revert ends with, whether
-	/// the
-	///        original came from memory or off the card.
+	///        the original came from memory or off the card.
 	void swapRevert(const deluge::gui::RevertTarget& target, Instrument* initialInstrument);
 	/// @brief A scroll-load's end: records the error, and shows it.
 	static void onScrollLoaded(Error error);
@@ -186,14 +185,12 @@ private:
 
 	/// @brief Whether `instrument` is still one of currentSong's live outputs.
 	///
-	/// `PresetRequest::oldInstrument` is Song-owned, so it never dangles across the op's yields (spec
-	/// section 6 covers that LIFETIME guarantee) -- but lifetime is not currency. Under coalescing,
-	/// two rapid change-type/navigate gestures on the same row both snapshot the SAME `oldInstrument`
-	/// pointer, because the second reads live state (outputsOnScreen) before the first gesture's op
-	/// has completed. If the first op replaces or hibernates that Instrument, a coalesced follow-up
-	/// for the second gesture must not act on it as though it were still the row's live output --
-	/// this is what re-validates that before any such follow-up runs. Reused by every consumer that
-	/// carries an `oldInstrument` (Tasks 4 and 5 add more).
+	/// `PresetRequest::oldInstrument` is Song-owned, so it never dangles across the op's yields -- but lifetime is
+	/// not currency. Under coalescing, two rapid change-type/navigate gestures on the same row both snapshot the
+	/// SAME `oldInstrument` pointer, because the second reads live state (outputsOnScreen) before the first
+	/// gesture's op has completed. If the first op replaces or hibernates that Instrument, a coalesced follow-up
+	/// for the second gesture must not act on it as though it were still the row's live output -- this is what
+	/// re-validates that before any such follow-up runs. Reused by every consumer that carries an `oldInstrument`.
 	/// @param instrument The snapshot's `oldInstrument`; null is not "still live" (callers should
 	///                    skip this check for consumers that never set it).
 	/// @return true if `instrument` is still in currentSong's live output list.

@@ -77,9 +77,9 @@ void FileListing::eraseRange(int32_t startAt, int32_t stopAt) {
 }
 
 FileItem* FileListing::newItem() {
-	// Was a `goto doCull` backwards jump. Exactly ONE cull happens before giving up, whether it was
-	// the cap or a failed push that asked for it -- culling twice would trim a second window off the
-	// listing on the way to reporting no memory.
+	// Exactly ONE cull happens before giving up, whether it was the cap or a failed push that asked
+	// for it -- culling twice would trim a second window off the listing on the way to reporting no
+	// memory.
 	bool alreadyCulled = false;
 	if (size() >= maxItems_) {
 		cull();

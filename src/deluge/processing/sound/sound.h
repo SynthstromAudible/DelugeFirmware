@@ -85,6 +85,7 @@ public:
 	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
 	///       member's destructor recycles each voice, and ~Voice unassigns it back into this Sound, whose
 	///       reassessRenderSkippingStatus() then calls the pure virtual getArpSettings(). The count is taken first.
+	/// @return The running count of such destructions since boot.
 	static int32_t soundsDestroyedWithLiveVoices();
 
 	/// @brief [render] Set by the render when it lets go of the retired song this Sound belongs to, just before it
@@ -249,6 +250,7 @@ public:
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	/// @brief Report the files of every sample or wavetable source to @p visitor, in source order. Loads nothing.
+	/// @param visitor Receives a demand for each source's audio file and a checkpoint before each one.
 	/// @return Walk::Stop if a checkpoint stopped the walk.
 	deluge::storage::Walk walkSourceDemands(deluge::storage::SampleLoadVisitor& visitor);
 	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
@@ -397,8 +399,9 @@ private:
 	void clearVoices();
 	static void noteVoicesEdit();
 
-	/// @brief Re-trigger a voice already in voices_ (a MONO/LEGATO reuse, or a stolen voice). The caller excludes the
-	/// render.
+	/// @brief Re-trigger a voice already in voices_ (a MONO/LEGATO reuse, or a stolen voice), which may still be
+	///        sounding: its envelopes resume from where they are. The caller excludes the render (or is the render
+	///        itself).
 	void retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
 	                    int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
 	                    int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel);

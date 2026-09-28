@@ -28,11 +28,9 @@ use embedded_fatfs::{DefaultTimeProvider, FileSystem, FsOptions, LossyOemCpConve
 
 use crate::efatfs_core::{self, DirHandleTable, HandleTable, OpenOutcome, TaskFileTable};
 use crate::fat_block_device::SdBlockDevice;
-// No `DELUGE_ERR_BUSY` import any more: it was only ever the "you are off the worker fiber, go
-// away" status the rejection gates returned, and nothing in this module can produce it now that
-// any context may do I/O. The C++ side still maps it (`io/file.cpp:66`) and two consumers still
-// branch on `Status::BUSY` (`existence_policy.h`, `smsysex.cpp:77`) — those branches are simply
-// unreachable from this path now, which is the point of the change rather than an oversight.
+// `DELUGE_ERR_BUSY` is never produced here: any context may do I/O. The C++ side still maps it
+// (`io/file.cpp:66`), and `existence_policy.h` / `smsysex.cpp:77` branch on `Status::BUSY`; those
+// branches are unreachable from this path by design.
 // Leaving them in place is deliberate: pruning them is a separate concern from this module.
 use crate::sys::{
     DelugeStatus, DelugeStatus_DELUGE_ERR_IO as DELUGE_ERR_IO,
@@ -72,19 +70,16 @@ async fn partition_window() -> (u64, u64) {
     }
 }
 
-/// Mount the FS, storing it in [`FS`]. Idempotent: returns `Ok(())`
-/// immediately if a FS is already mounted, so both the eager boot mount and a
-/// later C-ABI [`deluge_efatfs_mount`] call can invoke this safely.
 /// How many times the filesystem has become mounted, as a monotonic counter.
 ///
 /// The C++ side reads this to notice an unmounted->mounted EDGE, which is what drives
 /// `AudioFileManager::firstCardRead()` (and through it `cardReinserted()`, which re-checks every
-/// resident sample against the new card). It used to detect that edge itself, by sampling
-/// `deluge_efatfs_is_mounted()` either side of its own `deluge_efatfs_mount()` call -- which only
-/// works while C++ is the only thing that ever mounts. The directory channel's driver now mounts
-/// too, on the storage tier, because mounting is real card I/O and its caller is on the interaction
-/// tier; a driver that mounted silently would leave `is_mounted()` reading true with the
-/// notification never fired, and every later check would see "already mounted" and skip it forever.
+/// resident sample against the new card). Sampling `deluge_efatfs_is_mounted()` either side of a
+/// `deluge_efatfs_mount()` call only works while C++ is the only thing that ever mounts; the
+/// directory channel's driver also mounts, on the storage tier, because mounting is real card I/O
+/// and its caller is on the interaction tier. A driver that mounted silently would leave
+/// `is_mounted()` reading true with the notification never fired, and every later check would see
+/// "already mounted" and skip it forever.
 ///
 /// A counter rather than a flag so no reader can consume the edge out from under another.
 static MOUNT_GENERATION: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
@@ -95,6 +90,9 @@ pub extern "C" fn deluge_efatfs_mount_generation() -> u32 {
     MOUNT_GENERATION.load(core::sync::atomic::Ordering::Acquire)
 }
 
+/// Mount the FS, storing it in [`FS`]. Idempotent: returns `Ok(())`
+/// immediately if a FS is already mounted, so both the eager boot mount and a
+/// later C-ABI [`deluge_efatfs_mount`] call can invoke this safely.
 pub async fn mount() -> Result<(), ()> {
     if FS.lock().await.is_some() {
         return Ok(()); // already mounted -- idempotent
@@ -131,11 +129,6 @@ async fn reset_all_handle_tables() {
     *STREAM_WRITE_CTX.lock().await = HandleTable::new();
 }
 
-/// Drop the mounted FS, reset the four handle tables, and re-mount fresh.
-/// For a card SWAP: gives a clean [`Fs`] against the new card and invalidates
-/// every stale Rust-side handle from the old one (open streaming reads, task
-/// files, directory browses, and in-progress stream-writes all become
-/// invalid — callers must reopen).
 /// Drop the filesystem, leaving it unmounted.
 ///
 /// The symmetric counterpart of [`mount`], which until now had none: [`remount`] drops and re-mounts
@@ -147,6 +140,11 @@ pub async fn unmount() {
     reset_all_handle_tables().await;
 }
 
+/// Drop the mounted FS, reset the four handle tables, and re-mount fresh.
+/// For a card SWAP: gives a clean [`Fs`] against the new card and invalidates
+/// every stale Rust-side handle from the old one (open streaming reads, task
+/// files, directory browses, and in-progress stream-writes all become
+/// invalid — callers must reopen).
 pub async fn remount() -> Result<(), ()> {
     *FS.lock().await = None; // drop the old Fs (BufStream/StreamSlice discarded with it)
     reset_all_handle_tables().await;
@@ -286,13 +284,10 @@ pub async fn close(handle: u32) {
 // plain non-yielding spin, whose awaited transfer completes by SDHI/DMA interrupt, so nothing
 // else has to run for the future to become ready.
 //
-// Callable from ANY context. These entry points used to require `crate::fiber::on_fiber()` and
-// reject every other caller, which is what made saving fail off-owner and what made
-// `deluge_boot`'s settings read fail before the fiber pump existed. The cost of the spin is
-// real and accepted: the calling context is HELD for the duration of the transfer rather than
-// yielded, so thread-mode tasks (PIC pump, OLED, UI) do not run during one. Streaming is
-// unaffected — it lives on its own interrupt executor. The answer to the responsiveness cost is
-// a genuinely async caller, not reinstating the yield.
+// Callable from ANY context. The cost of the spin is real and accepted: the calling context is
+// HELD for the duration of the transfer rather than yielded, so thread-mode tasks (PIC pump, OLED,
+// UI) do not run during one. Streaming is unaffected — it lives on its own interrupt executor. The
+// answer to the responsiveness cost is a genuinely async caller, not reinstating the yield.
 use core::ffi::{CStr, c_char};
 
 /// C-ABI: open a sample file for streaming; writes the handle to `*out_handle`.
@@ -349,11 +344,9 @@ pub extern "C" fn deluge_efatfs_open(
 
 /// C-ABI: close a streaming file handle, releasing its table slot.
 ///
-/// Closes from ANY context. This used to be wrapped in `if on_fiber()`, which silently skipped
-/// the close off-fiber and leaked the slot until reuse — tolerable only because off-fiber callers
-/// were rejected everywhere else, so an off-fiber close was nearly unreachable. Now that they are
-/// allowed, that leak would be live, and handles are the scarce resource (a full handle table
-/// drops samples silently). A spin needs no fiber, so there is nothing left to gate on.
+/// Closes from ANY context, unconditionally: skipping the close under any guard would leak the
+/// slot until reuse, and handles are the scarce resource here (a full handle table drops samples
+/// silently). A spin needs no fiber, so there is nothing left to gate on.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_close(handle: u32) {
     crate::tier_meter::note(crate::tier_meter::Entry::Close);
@@ -482,8 +475,7 @@ pub(crate) async fn task_file_write(handle: u32, src: &[u8]) -> Result<usize, De
     Ok(n)
 }
 
-/// Set the handle's cursor position directly. No FS access needed.
-/// Seek to an absolute byte offset.
+/// Seek to an absolute byte offset. No FS access needed.
 ///
 /// `pub(crate)` so `file_bytes.rs`'s driver can AWAIT it: the offset-addressed operations seek before
 /// every read and write, and the C ABI beside them reaches the same future through
@@ -783,7 +775,7 @@ pub extern "C" fn deluge_efatfs_file_truncate(handle: u32, new_len: u32) -> Delu
 }
 
 /// C-ABI: close a task-context file handle, releasing its table slot. Closes from any context —
-/// see [`deluge_efatfs_close`] for why the previous `on_fiber()` guard had to go.
+/// see [`deluge_efatfs_close`] for why that's unconditional.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_close(handle: u32) {
     crate::tier_meter::note(crate::tier_meter::Entry::FileClose);
@@ -876,7 +868,7 @@ pub extern "C" fn deluge_efatfs_dir_read(
 }
 
 /// C-ABI: close a directory handle, releasing its table slot. Closes from any context — see
-/// [`deluge_efatfs_close`] for why the previous `on_fiber()` guard had to go.
+/// [`deluge_efatfs_close`] for why that's unconditional.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_dir_close(handle: u32) {
     crate::tier_meter::note(crate::tier_meter::Entry::DirClose);
@@ -950,15 +942,16 @@ pub extern "C" fn deluge_storage_fs_busy() -> bool {
     FS.try_lock().is_err()
 }
 
-/// C-ABI: drop the mounted FS + reset the four handle tables + re-mount fresh
-/// (see [`remount`]). For a card SWAP: gives a clean FS against the new card
-/// and invalidates stale Rust-side handle state from the old one.
 /// C-ABI: drop the filesystem, leaving it unmounted. See [`unmount`].
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_unmount() {
     crate::tier_meter::note(crate::tier_meter::Entry::Unmount);
     crate::sim_block::block_on(unmount());
 }
+
+/// C-ABI: drop the mounted FS + reset the four handle tables + re-mount fresh
+/// (see [`remount`]). For a card SWAP: gives a clean FS against the new card
+/// and invalidates stale Rust-side handle state from the old one.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_remount() -> bool {
     crate::tier_meter::note(crate::tier_meter::Entry::Remount);
@@ -1154,8 +1147,6 @@ static STREAM_WRITE_CTX: Mutex<
     HandleTable<{ efatfs_core::MAX_STREAM_WRITE_HANDLES }>,
 > = Mutex::new(HandleTable::new());
 
-/// `DelugeStreamMode` mode selector matching `stream_io.h`'s C enum's implicit declaration-order
-/// values: 0 = READ, 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW, 3 = WRITE_APPEND.
 /// Free-cluster count: the async half of what `deluge_efatfs_stats` blocks on.
 ///
 /// Exists so the stream channel can answer a space query without holding its caller. Returns only
@@ -1167,6 +1158,8 @@ pub(crate) async fn fs_stats_free() -> Option<u32> {
         .map(|(free, _total)| free)
 }
 
+/// Open `path` as a stream. `mode` is a `DelugeStreamMode` (declaration order: 0 = READ,
+/// 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW, 3 = WRITE_APPEND). Returns the handle, or `None`.
 pub(crate) async fn stream_open(path: &str, mode: u8) -> Option<u32> {
     // `open_context`/`create_context` now report a granular `DelugeStatus`, but
     // this persistent stream-write bridge's contract (`stream_io.h`) is still

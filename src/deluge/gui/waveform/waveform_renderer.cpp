@@ -682,17 +682,14 @@ bool WaveformRenderer::advanceOverviewScan(Sample* sample, int32_t maxClusters) 
 		}
 
 		// Authoritative "is card I/O safe right now?" guard: each investigateWholeCluster can issue a
-		// synchronous load, so bail before every one rather than compete with the card or audio routine
-		// (#4460), and it scales safely if maxClusters ever grows past 1. Defensive on Embassy: there the
+		// synchronous load, so bail before every one rather than compete with the card or audio routine,
+		// and it scales safely if maxClusters ever grows past 1. Defensive on Embassy: there the
 		// scan's frame reader never reads synchronously -- a miss is requested from the async fill task and
-		// reported not-ready -- so this guard only avoids asking while the card is busy. (It was
-		// load-bearing while the storage worker fiber existed: a fiber suspended mid-operation holding the
-		// FS mutex could only be resumed by the executor a blocking read would occupy, a deadlock on the
-		// host harness.) `sd_busy()` (deluge::sync, sync/sd_access.h) reports whether the FS mutex is
-		// actually held right now. This is only meaningful on BSPs that
-		// back the seam with a real mutex-held check (Embassy); cooperative/C-host builds answer false
-		// unconditionally because storage there runs inline on the caller, so there's no FS mutex to
-		// report on and no deadlock of this shape to guard against.
+		// reported not-ready -- so this guard only avoids asking while the card is busy. `sd_busy()`
+		// (deluge::sync, sync/sd_access.h) reports whether the FS mutex is actually held right now. This
+		// is only meaningful on BSPs that back the seam with a real mutex-held check (Embassy);
+		// cooperative/C-host builds answer false unconditionally because storage there runs inline on the
+		// caller, so there's no FS mutex to report on.
 		if (deluge::sync::sd_busy() || AudioEngine::audioRoutineLocked) {
 			return true;
 		}

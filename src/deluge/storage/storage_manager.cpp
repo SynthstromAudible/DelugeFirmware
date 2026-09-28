@@ -226,11 +226,11 @@ Error StorageManager::initSD() {
 	if (!deluge_efatfs_mount()) {
 		return Error::SD_CARD;
 	}
-	// The transition is decided by the shared counter, not by watching our own call. It used to be
-	// `wasMounted` sampled either side of the mount above, which finds the edge only while this is
-	// the ONLY thing that mounts -- and the directory channel's driver now mounts too, on the storage
-	// tier, because mounting is card I/O and its caller is on the interaction tier. Every caller of
-	// initSD() is somewhere the work can run, hence true.
+	// The transition is decided by the shared counter, not by watching our own call: sampling a local
+	// `wasMounted` around this call alone would only find the edge while this is the ONLY thing that
+	// mounts, and the directory channel's driver mounts too, on the storage tier, because mounting is
+	// card I/O and its caller is on the interaction tier. Every caller of initSD() is somewhere the
+	// work can run, hence true.
 	noticeCardMount();
 	return Error::NONE;
 }

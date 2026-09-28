@@ -25,7 +25,7 @@ NavigationDecision decideNavigation(const NavigationWindow& window, int32_t offs
 	// reachedEnd: nothing on this side of the old name, or only the old instrument itself.
 	if (size == 0 || (size == 1 && window.items[0].isOld)) {
 		if (haveName) {
-			return FromEnd{.wraps = 1}; // the old code's "clear the name and read again": a wrap, counted as one
+			return FromEnd{.wraps = 1}; // clear the name and read again: a wrap, counted as one
 		}
 		return GetOut{};
 	}

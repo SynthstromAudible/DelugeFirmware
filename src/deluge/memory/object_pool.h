@@ -140,12 +140,12 @@ private:
 	/// interrupt executor it can interrupt a caller mid-update. `back()` followed by `pop_back()` is a
 	/// read-then-mutate, so without this guard two racing acquirers could both read the same slot and
 	/// hand one object to two owners -- observed on device as a note-on reaching assignClusters with a
-	/// region still held (`i024`). A push arriving mid-read could also reallocate the vector underneath
-	/// it.
+	/// region still held. A push arriving mid-read could also reallocate the vector underneath it.
 	///
 	/// Only the list operation is guarded. Allocation, deallocation and construction all stay outside,
 	/// so the critical section is a couple of vector operations and never reaches the heap -- see
 	/// repopulate(), which reserves `capacity_` so a push cannot grow the vector.
+	/// @return The popped object, or `nullptr` if the free list was empty.
 	T* try_pop() {
 		CriticalSectionGuard guard;
 		if (objects_.empty()) {
@@ -157,7 +157,8 @@ private:
 	}
 
 	/// @brief Returns a slot to the free list
-	/// @returns false if the pool is already at capacity, so the caller must free the slot instead
+	/// @param obj Object to return to the pool.
+	/// @return false if the pool is already at capacity, so the caller must free the slot instead
 	/// @note Guarded for the same reason as try_pop(), and likewise allocation-free.
 	bool try_push(T* obj) {
 		CriticalSectionGuard guard;

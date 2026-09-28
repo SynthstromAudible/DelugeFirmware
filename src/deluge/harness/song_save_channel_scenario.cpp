@@ -285,8 +285,9 @@ void runTick() {
 	case Stage::SaveFirstBack: {
 		// SS-BACKMIDSAVE / SS-EXITMIDSAVE. Leave the save screen while the save is still running, both ways a
 		// user can: a BACK press, and the long-press exit the BACK timer fires. A song save spans many ticks
-		// with the UI live, and leaving used to close the save screen mid-save -- after which the save's own
-		// close() ran against a UI stack it was no longer on and read uiNavigationHierarchy[-1].
+		// with the UI live; this guards against leaving closing the save screen mid-save, which would leave the
+		// save's own close() running against a UI stack it is no longer on and reading uiNavigationHierarchy[-1]
+		// out of bounds.
 		const bool inFlight = saveSongUI.collectInFlight() || saveSongUI.docInFlight() || SaveUI::saveInFlight();
 		SongSaveChannelProbe::pressBack();
 		const bool backBlocked = getCurrentUI() == &saveSongUI;
@@ -330,7 +331,7 @@ void runTick() {
 	}
 	case Stage::SaveFirstCheck: {
 		// SS-GREW first. If the fixture did not outgrow the buffer, every other check here is running
-		// over a path this rung did not touch, and saying so first is what stops a green run being
+		// over a path that never grows the staged buffer, and saying so first is what stops a green run being
 		// mistaken for a meaningful one.
 		const int32_t doublings = SaveSongUI::stagedDocumentGrowths();
 		printf("SS-GREW doublings=%d\n", doublings);
@@ -408,9 +409,8 @@ void runTick() {
 		break;
 	}
 	case Stage::SaveSecondWait: {
-		// The existence answer lands on a LATER tick than the key press. This check used to read the
-		// prompt straight away, which held only while the check ran synchronously through the owner
-		// queue that every harness step drains.
+		// The existence answer lands on a LATER tick than the key press, so this check must wait rather
+		// than read the prompt on the same tick as the key press.
 		if (saveMachineryIdle()) {
 			g_stage = Stage::SaveSecondCheck;
 			break;

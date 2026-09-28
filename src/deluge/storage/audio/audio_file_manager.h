@@ -204,16 +204,16 @@ public:
 	std::bitset<kNumAudioRecordingFolders> highestUsedAudioRecordingNumberNeedsReChecking{};
 	void firstCardRead();
 
-	// The no-I/O halves of buildAudioFileFromCard's SAMPLE path, public because the C ABI (a later
-	// migration step) calls them directly around an async open + header parse. Each validates/finalizes
-	// on its own -- a direct caller gets the same guarantees buildAudioFileFromCard's callers always did.
+	// The no-I/O halves of buildAudioFileFromCard's SAMPLE path, public because the C ABI calls them
+	// directly around an async open + header parse. Each validates/finalizes on its own -- a direct
+	// caller gets the same guarantees buildAudioFileFromCard's callers always did.
 	Sample* beginSampleFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
 	                            uint64_t sizeBytes, Error* error);
 	AudioFile* finishSampleFromCard(Sample* sampleFile, uint64_t sizeBytes, Error* error);
 
 	/// @brief Resolve @p context's alternate-dir status from `MIGHT_EXIST` to `DOES_EXIST` or `NOT_FOUND`. I/O:
 	///        opens the context's alternate directory. Public, and split out of resolveFileSize (its only
-	///        other caller), so the C ABI (a later migration step) can run this probe on its own before
+	///        other caller), so the C ABI can run this probe on its own before
 	///        proposeLoadCandidates() -- that function only proposes the alternate-dir candidates once
 	///        this status is DOES_EXIST, so calling it while still MIGHT_EXIST silently yields an
 	///        incomplete list (see proposeLoadCandidates's doc comment).
@@ -490,8 +490,8 @@ private:
 	// Resolve a not-already-resident audio file's size by path: opens proposeLoadCandidates()'s
 	// candidates, in order, until one exists. Sets `sizeBytes` (+ `usingAlternateLocation`, and may
 	// rewrite `filePath` for preset alternates) and returns true on success; returns false on not-found /
-	// card-unavailable (with `*error` set, except the !mayReadCard case which leaves it untouched, as
-	// before). NB: if proposeLoadCandidates() produced zero candidates (its flattened-name construction
+	// card-unavailable (with `*error` set, except the !mayReadCard case, which leaves it untouched).
+	// NB: if proposeLoadCandidates() produced zero candidates (its flattened-name construction
 	// failed), this reports the generic Error::FILE_UNREADABLE rather than that specific error code --
 	// proposeLoadCandidates has no error channel to carry it. Currently unreachable in practice: the
 	// construction it calls (setupAlternateAudioFilePath) can't actually fail.

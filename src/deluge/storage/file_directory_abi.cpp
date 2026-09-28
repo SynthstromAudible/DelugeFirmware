@@ -15,8 +15,6 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/file_prefix.h's C++-side fallback, plus the two constants that pin the boundary.
-
 /// @file
 /// @brief Weak, synchronous-backing definitions for `libdeluge/file_directory.h`.
 ///
@@ -61,9 +59,6 @@ static_assert(DELUGE_FILE_DIRECTORY_FAILED == 3u);
 // else cross-checks it. Under a divergent numbering that expression would silently mean something
 // other than what it reads as. bindgen's allowlist covers `Deluge.*` TYPES, not macros, so this is
 // the ONLY thing that checks it.
-//
-// Rung 2 shipped its two channels with the numbering misaligned and caught it in review rather than
-// by compiler; this file is that lesson applied before the third channel has a caller.
 static_assert(DELUGE_FILE_DIRECTORY_PENDING == DELUGE_AUDIO_LOAD_PENDING);
 static_assert(DELUGE_FILE_DIRECTORY_READY == DELUGE_AUDIO_LOAD_READY);
 static_assert(DELUGE_FILE_DIRECTORY_UNKNOWN == DELUGE_AUDIO_LOAD_UNKNOWN);

@@ -67,8 +67,8 @@ extern void setupBlankSong();
 using namespace deluge::gui;
 namespace encoders = deluge::hid::encoders;
 
-/// How long a load waits for the sample loader to settle before swapping anyway. Carried over from the
-/// bounded wait this replaced, so a card that never settles still lets the song through.
+/// How long a load waits for the sample loader to settle before swapping anyway: a backstop so a card
+/// that never settles still lets the song through.
 constexpr double kLoadSettleTimeoutSeconds = 5.;
 
 namespace {
@@ -412,7 +412,7 @@ void LoadSongUI::beginLoad(void (*onComplete)()) {
 	// on staging the FIRST song while the user believes they chose the second -- with a channel
 	// request possibly already in flight against the old buffer.
 	//
-	// Before staging moved off the owner this window was one tick wide, which is why nobody hit it.
+	// The window spans many ticks for a large song, so this guard is real, not decorative.
 	if (performingLoad) {
 		return;
 	}
@@ -431,11 +431,10 @@ void LoadSongUI::beginLoad(void (*onComplete)()) {
 	// driver only makes progress once we return to the run loop, so a request issued from inside the
 	// owner stretch -- which does not yield -- could never be answered.
 	//
-	// It also puts the one failure that used to arrive too late in front of everything. startLoad()
-	// deletes the outgoing song partway through, and a file that turns out to be unreadable after that
-	// leaves the messy recovery its `fail:` block exists to perform. An unreadable song now stops the
-	// load before anything has been destroyed.
-	// Raised here, not in startLoad(), because the waiting now starts here: a large song stages for
+	// It also surfaces an unreadable-file failure before startLoad() deletes the outgoing song: after that
+	// point, an unreadable file leaves the messy recovery its `fail:` block exists to perform. Staging first
+	// stops the load before anything has been destroyed.
+	// Raised here, not in startLoad(), because the waiting starts here: a large song stages for
 	// many ticks before the owner stretch is even dispatched, and would otherwise do it in silence.
 	display->displayLoadingAnimationText("Loading");
 
@@ -534,8 +533,8 @@ void LoadSongUI::loadRoutine() {
 		return;
 
 	case LoadPhase::AWAIT_ARM:
-		// The rest of the samples arrive WHILE the user decides. That is the whole difference: this pass used to
-		// run to completion before the arm wait was even entered, because it held the storage owner to do it.
+		// The rest of the samples arrive WHILE the user decides, ticked here a walk at a time rather than run
+		// to completion up front.
 		tickRest();
 		if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
 		    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
@@ -558,10 +557,9 @@ void LoadSongUI::runBeginSegment() {
 	}
 
 	// Open over songStaging_'s bytes: STAGE read them on the interaction tier before this phase began, and
-	// the parse below runs over memory with `activeDeserializer` pointing at the memory reader. This
-	// segment used to re-open the document itself when STAGE had not -- on the owner, where blocking is
-	// legal. There is no owner to fall back to now, so bytes that never arrived end the load the way a
-	// corrupt file does.
+	// the parse below runs over memory with `activeDeserializer` pointing at the memory reader. There is no
+	// owner to fall back to and re-open the document here, so bytes that never arrived end the load the way
+	// a corrupt file does (checked below).
 	//
 	// stagingPrevious_ is what that global gets put back to at every exit. Not hygiene: the memory
 	// reader's fileClusterBuffer IS the staged buffer, and code downstream writes through the global
@@ -690,9 +688,8 @@ gotErrorAfterCreatingSong:
 	// might actually want
 	preLoadedSong->loadAllSamples(false, &sampleLoadContext_);
 
-	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds). This is
-	// the pass that read the card, and the only reason this segment was ever dispatched; it now walks a tick at
-	// a time on this tier, through the loader every other consumer uses.
+	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds). This pass
+	// reads the card, walking a tick at a time on this tier, through the loader every other consumer uses.
 	essentialIsCrucial_ = playbackHandler.isEitherClockActive();
 	if (essentialIsCrucial_) {
 		// Traced on the host only, so a gate can see exactly what this pass bound before any later pass binds more.
@@ -706,10 +703,9 @@ gotErrorAfterCreatingSong:
 }
 
 void LoadSongUI::tickEssential() {
-	// An end is an end, whatever its reason. The blocking pass had none of its own: it returned when the walk
-	// finished and left whatever would not bind empty, and finishLoad()'s pass has always been the mop-up for
-	// what did not arrive. A Failed end says the same thing here, so it displays nothing -- the per-demand
-	// errors have already been shown, by the same code that showed them before.
+	// An end is an end, whatever its reason: whatever this pass does not bind is left for finishLoad()'s
+	// mop-up pass. A Failed end displays nothing here -- the per-demand errors have already been shown, by
+	// the same code that shows them elsewhere.
 	if (essentialLoad_->tick().state == deluge::storage::AsyncSampleLoad::State::Loading) {
 		return;
 	}
@@ -1149,9 +1145,9 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 
 	// READY, the only status left, and the only one that writes the buffer.
 	//
-	// A length of 0 is NOT a failure any more: a failed read comes back as FAILED above, so zero bytes
-	// now means an EMPTY FILE, which is not a song and which the decode below reports as Error --
-	// exactly what the file backing makes of the same file.
+	// A length of 0 is not a failure: a failed read comes back as FAILED above, so zero bytes mean an
+	// EMPTY FILE, which is not a song and which the decode below reports as Error -- exactly what the
+	// file backing makes of the same file.
 	if (imageStore != nullptr) {
 		Error error = Error::NONE;
 		const auto outcome =

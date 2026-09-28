@@ -22,12 +22,11 @@
 #include <array>
 #include <cstdint>
 
-// ALIGNMENT: every table DEFINITION carries `alignas(16)` (see the .cpp files). The oscillator
-// render path reads these through NEON/argon lane loads, and a `const int16_t[]` is only
-// 2-byte-aligned by default — the tables are an odd number of samples long (0x1002 bytes), so
-// consecutive tables alternate 4-byte alignment and roughly half of them landed at 2 (mod 4).
-// On device that produced an alignment DABT (DFSR FS=1) inside `deluge::dsp::renderWave` at
-// argon/lane.hpp, reading `sawWave109` (0x202460ce). Aligning is also simply faster: unaligned
+// ALIGNMENT: every table DEFINITION below carries `alignas(16)` (see the .cpp files). The
+// oscillator render path reads these through NEON/argon lane loads, which require aligned memory,
+// but a plain `const int16_t[]` is only 2-byte-aligned by default. Because the tables are an odd
+// number of samples long, consecutive tables land at alternating alignments and roughly half end
+// up 2 (mod 4) — an unaligned lane load can fault on device, and even when it doesn't, unaligned
 // NEON loads cost extra cycles on Cortex-A9 and can straddle a cache line.
 //
 // The specifier lives on the definitions only, deliberately. [dcl.align] permits a non-defining

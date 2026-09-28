@@ -44,7 +44,8 @@ describe stem_search_policy("the stem folder search never reuses a folder it can
 		expect(nextStemSearchPhase(probe(Presence::Undeterminable, 0)) == StemSearchPhase::Failed).to_equal(true);
 	});
 
-	// The bound this rung adds. The loop was previously unbounded.
+	// Bounds the candidate search: without it, an unbroken run of occupied candidates would let the
+	// loop spin forever.
 	it("gives up after the candidate ceiling rather than searching forever", _ {
 		expect(nextStemSearchPhase(probe(Presence::Present, kMaxStemCandidates - 1))
 		       == StemSearchPhase::ProbeCandidate).to_equal(true);

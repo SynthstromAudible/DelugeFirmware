@@ -44,8 +44,7 @@ constexpr int32_t kMaxRefusals = 600;
 /// means "busy"; PENDING means "working", and a real card operation is legitimately allowed to take
 /// a while. But a channel whose driver is not running answers PENDING **forever** -- the request sits
 /// in its slot with nothing to take it -- and that is neither a refusal nor an answer, so the bound
-/// above never sees it. The startup fail-safe found this by neutering, after it wedged boot entirely;
-/// here it would wedge the SysEx queue.
+/// above never sees it. Left unbounded, it would wedge the SysEx queue instead of boot.
 constexpr int32_t kMaxPendingTicks = 600;
 
 PathOp g_op = PathOp::None;
@@ -80,9 +79,8 @@ bool viaChannel() {
 
 /// Copy `from` to `to` synchronously, block by block.
 ///
-/// Only the inline arm reaches this. Its shape is `smSysex::performFileCopy`'s former body, minus the
-/// path-creation retry: the destination's parent is created by the open below, and the channel arm
-/// does not come here at all.
+/// Only the inline arm reaches this; the channel arm does not come here at all. The destination's
+/// parent is created by the open below, so no separate path-creation retry is needed.
 deluge::io::Status copyInline(const std::string& from, const std::string& to) {
 	auto src = deluge::io::File::open(from, DELUGE_FILE_READ);
 	if (!src.has_value()) {
@@ -109,8 +107,7 @@ deluge::io::Status copyInline(const std::string& from, const std::string& to) {
 			break;
 		}
 		if (*written != read->size()) {
-			// Preserving the pre-existing quirk: a short write here is not itself flagged, and the
-			// copy simply stops.
+			// A short write here is not itself flagged as an error; the copy simply stops.
 			break;
 		}
 	}
@@ -131,9 +128,8 @@ void runInline() {
 		result = deluge::io::rename(g_pathA, g_pathB);
 		break;
 	case PathOp::MkdirAll:
-		// One level, matching what this handler's synchronous form always did: its callers pass a
-		// path whose parent already exists. The channel arm creates every segment, which is a
-		// superset and breaks nothing.
+		// One level: callers pass a path whose parent already exists. The channel arm creates every
+		// segment, which is a superset and breaks nothing.
 		result = deluge::io::mkdir(g_pathA);
 		break;
 	case PathOp::SetTime:

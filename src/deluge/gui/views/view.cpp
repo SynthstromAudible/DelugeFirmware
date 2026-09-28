@@ -2233,7 +2233,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E057", "H057");
 
-	// MIDI/CV read no card (spec section 2c) -- run them inline so this stays fully synchronous for
+	// MIDI/CV read no card -- run them inline so this stays fully synchronous for
 	// those types. Only Synth/Kit reaches the directory.
 	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
 		completeNavigateThroughPresetsForInstrumentClip(offset, clip, doBlink);
@@ -2611,7 +2611,7 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 		return false;
 	}
 
-	// MIDI/CV read no card (spec section 2c) -- run them inline so the gesture's bool is still a
+	// MIDI/CV read no card -- run them inline so the gesture's bool is still a
 	// real answer for those types. Only Synth/Kit reaches the directory. Routed through the SAME
 	// per-consumer completion the dispatched arm below uses, so a caller's redraw/LED tail runs from
 	// exactly one place regardless of which arm actually ran -- never from here directly, or it would
@@ -2635,8 +2635,8 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 }
 
 // Runs on the storage owner for Synth/Kit, inline for MIDI/CV. InstrumentClip::changeOutputType()
-// is unchanged and does its own branch on output type. Core swap + View-level redraw only -- no
-// caller-specific tail; see completeChangeOutputTypeFor() for those.
+// does its own branch on output type. Core swap + View-level redraw only -- no caller-specific
+// tail; see completeChangeOutputTypeFor() for those.
 bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
                                     const deluge::storage::AcquireResult* acquired) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2658,19 +2658,18 @@ bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* cl
 
 // The router changeOutputType() uses for BOTH its arms (see the doc above the MIDI/CV branch): each
 // consumer's completion runs completeChangeOutputType() as its first step, then whatever redraw/LED
-// tail its own caller used to run eagerly on changeOutputType()'s old, always-synchronous bool return
-// -- a return that is no longer safe to gate a tail on now that the Synth/Kit arm can return `true`
-// for a DISPATCHED (not yet complete) acquisition. Distinct consumers, distinct completions, on
-// purpose: guessing a single shared "refresh" from whatever UI happens to be current at completion
-// time is exactly how this class of regression happens (three different callers, three different
-// tails -- see the rung 5 task 4 review).
+// tail its own caller needs. changeOutputType()'s bool return is not safe to gate that tail on: the
+// Synth/Kit arm can return `true` for a DISPATCHED (not yet complete) acquisition. Distinct
+// consumers, distinct completions, on purpose: guessing a single shared "refresh" from whatever UI
+// happens to be current at completion time is exactly how this class of regression happens (three
+// different callers, three different tails).
 bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer, OutputType newOutputType,
                                        InstrumentClip* clip, bool doBlink,
                                        const deluge::storage::AcquireResult* acquired) {
 	using deluge::storage::PresetConsumer;
 	// Exhaustive, deliberately no `default:` -- a `default:` here would silently route any consumer a
 	// future task adds into InstrumentClipView's tail instead of failing to build, which is precisely
-	// the failure this switch exists to prevent (rung 5 task 4 review, fix round 2).
+	// the failure this switch exists to prevent.
 	switch (consumer) {
 	case PresetConsumer::ViewChangeType:
 		// InstrumentClipView::changeOutputType() -- the KIT/SYNTH buttons on InstrumentClipView,
@@ -2698,10 +2697,9 @@ bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer,
 	}
 	case PresetConsumer::KeyboardChangeType: {
 		// KeyboardScreen's own KIT/SYNTH buttons with neither shift nor FM held. Identical to
-		// ViewChangeType -- the call chain really does go through InstrumentClipView -- PLUS the layout
-		// refresh keyboard_screen.cpp used to run eagerly off changeOutputType()'s return. Its own
-		// consumer rather than a flag on ViewChangeType, because every other caller of that arm has no
-		// keyboard layout to refresh and must not get one.
+		// ViewChangeType -- the call chain really does go through InstrumentClipView -- PLUS the
+		// keyboard layout refresh. Its own consumer rather than a flag on ViewChangeType, because
+		// every other caller of that arm has no keyboard layout to refresh and must not get one.
 		bool success = instrumentClipView.completeChangeOutputType(newOutputType, clip, doBlink, acquired);
 		// Gated on the clip still being current, exactly as the KeyboardNewInstrument arm is: unlike
 		// the LED/redraw tail beside it, selectLayout() both READS and WRITES per-clip model state

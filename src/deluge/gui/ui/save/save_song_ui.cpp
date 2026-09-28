@@ -167,8 +167,7 @@ bool SaveSongUI::planTransfers(std::vector<PlannedTransfer>& into, bool collecti
 
 			// The source, in both the worlds TRANSFER might find itself in. If the rename above
 			// succeeds the temporary file is gone and `filePath` is the source; if it fails the
-			// temporary file is still there and is the source -- which is what the old code expressed
-			// by reading a field the rename had or had not cleared.
+			// temporary file is still there and is the source.
 			if (!audioFile->loadedFromAlternatePath.empty()) {
 				entry.copyFromAfterRename = audioFile->loadedFromAlternatePath;
 				entry.copyFromIfRenameFailed = audioFile->loadedFromAlternatePath;
@@ -430,8 +429,8 @@ void SaveSongUI::collectRoutine() {
 		collectPhase_ = CollectPhase::FINISH;
 		return;
 	case CollectPhase::FINISH:
-		// The document write is no longer a blocking owner call, so it is no longer dispatched: the
-		// machine it starts picks an arm per step.
+		// The document write is not a blocking owner call, so it is not dispatched: the machine it
+		// starts picks an arm per step.
 		collectPhase_ = CollectPhase::NONE;
 		(void)finishSaveAfterCollection();
 		return;
@@ -482,9 +481,9 @@ void SaveSongUI::runTransferPhase() {
 		return;
 	}
 
-	// Past this point every transfer goes through the channel, from the interaction tier. THIS is the
-	// rung's claim, and the number a gate can read it from. Counting the on-owner case here too would
-	// have made the number say "off the owner" about work that ran ON it.
+	// Past this point every transfer goes through the channel, from the interaction tier. This counter
+	// is what a gate reads to confirm the work ran off the storage owner. Counting the on-owner case
+	// here too would have made the number say "off the owner" about work that ran ON it.
 	++offOwnerTransferTicks_;
 
 	DelugeStatus status = DELUGE_OK;
@@ -513,8 +512,7 @@ void SaveSongUI::runTransferPhase() {
 			}
 			return;
 		case ByteIo::Failed:
-			// NOT fatal, and deliberately so: the old code warned, left the recording where it was, and
-			// carried on copying from there.
+			// NOT fatal, deliberately: warn, leave the recording where it is, and copy from there.
 			renameIssued_ = true;
 			renameSucceeded_ = false;
 			anyErrorMovingTempFiles_ = true;
@@ -568,8 +566,7 @@ bool SaveSongUI::transferOneSynchronously() {
 	PlannedTransfer& entry = transfers_[transferCursor_];
 
 	if (entry.renameTemp) {
-		// A failed move is NOT fatal: the recording stays where it is and the copy reads from there,
-		// which is what the old code expressed by consulting a field the move had or had not cleared.
+		// A failed move is NOT fatal: the recording stays where it is and the copy reads from there.
 		StorageManager::buildPathToFile(entry.renameTo.c_str());
 		deluge_file_invalidate_cache();
 		const auto renamed = deluge::io::rename(entry.renameFrom, entry.renameTo);
@@ -590,8 +587,8 @@ bool SaveSongUI::transferOneSynchronously() {
 	}
 	auto created = StorageManager::createFile(entry.copyTo.c_str(), false);
 	if (!created) {
-		// Already there from a previous save is SUCCESS, not failure -- the old loop said exactly
-		// this, and treating it as an error would abandon perfectly good saves.
+		// Already there from a previous save is SUCCESS: treating it as an error would abandon
+		// perfectly good saves.
 		return created.error() == Error::FILE_ALREADY_EXISTS;
 	}
 
@@ -965,9 +962,7 @@ void SaveSongUI::runDocFinishPhase() {
 
 	display->removeWorkingAnimation();
 
-	// Carried across from the old tail unchanged. `anyErrorMovingTempFiles_` chose between two popup
-	// strings there, but nothing ever displayed the result -- upstream `main` has the same dead
-	// local -- so preserving behaviour means not adding a popup here.
+	// `anyErrorMovingTempFiles_` is not surfaced as a popup; nothing displays it, as upstream.
 	// The name and folder the save was STARTED with, not whatever the browser holds now: the save spans
 	// many ticks, and reading the live values would record something typed while it ran.
 	currentSong->name = existsRequest_.enteredText;
@@ -1080,8 +1075,8 @@ bool SaveSongUI::serializeSongToBuffer() {
 
 	// No prologue and no closing tag here. Song::writeToFile() calls GetSerializer().reset() itself,
 	// writes the XML declaration, and closes with writeClosingTag("song") -- writing either here
-	// would duplicate it. This is the difference from the staged PRESET saves, whose serialisers do
-	// not write their own header because createXMLFile() used to do it as it opened the file.
+	// would duplicate it. This differs from the staged PRESET saves, whose serialisers write no header
+	// of their own: opening a file with createXMLFile() writes it for them instead.
 	//
 	// setMemoryBased() survives that internal reset(): reset() clears the buffer position, the byte
 	// count and the failure flag, and nothing else.
@@ -1110,9 +1105,8 @@ void SaveSongUI::releaseSongWriter() {
 }
 
 bool SaveSongUI::finishSaveAfterCollection() {
-	// The card work this function used to do has moved into the
-	// document machine, whose steps each choose their own arm; what is left is bookkeeping and runs
-	// legally wherever it is called from.
+	// The card work runs inside the document machine, whose steps each choose their own arm; what
+	// is left here is bookkeeping, which runs legally wherever it is called from.
 	docPhase_ = DocPhase::SERIALIZE;
 	docStallTicks_ = 0;
 	return true;

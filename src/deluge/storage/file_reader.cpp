@@ -18,10 +18,10 @@
 /// @file
 /// FileReader — the byte pump under every deserializer — and the calls that point one at a document.
 ///
-/// Split out of storage_manager.cpp, which otherwise reaches the whole object model (Song, Kit, Sound,
-/// the drums, the clip views) to build what it loads. Nothing here knows any of that: it moves bytes
-/// from a file or a buffer into a deserializer and hands back whether the document opened. That is
-/// what lets a host test link the parser without linking the instrument model behind it.
+/// Deliberately separate from the object model it feeds (Song, Kit, Sound, the drums, the clip
+/// views): it moves bytes from a file or a buffer into a deserializer and hands back whether the
+/// document opened, and knows nothing else. That is what lets a host test link the parser without
+/// linking the instrument model behind it.
 
 #include "gui/ui_timer_manager.h"
 #include "io/file.hpp"

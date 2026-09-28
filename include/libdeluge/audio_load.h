@@ -60,12 +60,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Not currently parsed as C: as of this writing neither wrapper.h nor the libdeluge.h umbrella
+/* Not currently parsed as C: neither wrapper.h nor the libdeluge.h umbrella
  * includes this header (src/bsp/rust/build.rs), so only the two C++ translation units that include
  * it directly (audio_load_abi.cpp, host_loadcheck_main.cpp) ever see it. This macro is forward-
  * looking hardening, not a fix for an active failure: it matches the C-parseable convention the
  * sibling libdeluge headers (audio_format.h, file_io.h) already follow, for whenever a Rust consumer
- * of this ABI is wired in (a later migration step) and this header joins wrapper.h. `noexcept` is
+ * of this ABI is wired in and this header joins wrapper.h. `noexcept` is
  * C++-only and invalid C syntax, so it is spelled through this macro -- #undef'd at the end of the
  * file so it cannot leak into (or collide with a same-named macro in) whatever includes this header
  * next -- rather than written bare. */
@@ -275,8 +275,8 @@ bool deluge_audio_load_apply_geometry(DelugeSampleBuild* build, const DelugeAudi
 
 /// @brief Apply the parse result, register the fill context, and publish to the cache. No I/O.
 ///
-/// Runs the entire trailer `buildAudioFileFromCard`'s synchronous SAMPLE path used to run after a
-/// successful parse -- there is nothing left for the caller to do afterwards, on success or failure.
+/// Runs the whole post-parse trailer of `buildAudioFileFromCard`'s SAMPLE path -- there is nothing
+/// left for the caller to do afterwards, on success or failure.
 /// Always safe against a NULL or already-consumed @p build (a no-op, returning false). Otherwise
 /// always consumes @p build: after this call returns, the pointer is invalid regardless of the
 /// result.

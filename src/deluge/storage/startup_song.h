@@ -44,17 +44,17 @@
 
 namespace deluge::storage {
 
-/// @brief Start the fail-safe. Does no I/O of its own; the routine does all of it.
-///
-/// The `startupConditionalTask` in `deluge.cpp` points here, and that indirection must stay: the
-/// headless stem renderer (`src/bsp/host/host_render_main.cpp`) overrides that handle with its own
-/// driver before `deluge_main()` runs.
 /// @brief The card-ready entry point: read the settings, THEN arm the fail-safe machine.
 ///
 /// Ahead of @ref armStartupSong because that reads `runtimeFeatureSettings.getStartupSong()`, and a
 /// song armed before the settings land loads the wrong song -- silently.
 void armStartupSettings();
 
+/// @brief Start the fail-safe. Does no I/O of its own; the routine does all of it.
+///
+/// Reached through `startupConditionalTask` (deluge.cpp): after armStartupSettings() by default, or
+/// directly on a host that called deluge_startup_skip_settings_prelude(). Keep the indirection:
+/// those hosts swap the handle before `deluge_main()` runs.
 void armStartupSong();
 
 /// @brief Advance the fail-safe by one phase. Registered as a repeating task.
@@ -68,12 +68,6 @@ void startupSongRoutine();
 /// reports whatever happened to have executed rather than what the attempt does.
 [[nodiscard]] bool startupSongIdle();
 
-/// @brief Whether the machine is waiting on the canary write to land.
-///
-/// For the gate, which asserts the ORDERING GUARANTEE: the canary must be readable on the card by the
-/// time the machine leaves this phase, because everything after it leads to the load. Observing that
-/// transition is the only way to test the guarantee without a load, and this harness cannot run one
-/// (`openUI` needs a UI stack it does not have).
 /// @brief Whether the canary write was CONFIRMED terminal before the machine advanced past it.
 ///
 /// The ordering guarantee stated as observable state, and the half that can be TESTED. Its companion
@@ -82,6 +76,12 @@ void startupSongRoutine();
 /// them: it is set only in the branch that saw a terminal answer.
 [[nodiscard]] bool startupSongCanaryConfirmed();
 
+/// @brief Whether the machine is waiting on the canary write to land.
+///
+/// For the gate, which asserts the ORDERING GUARANTEE: the canary must be readable on the card by the
+/// time the machine leaves this phase, because everything after it leads to the load. Observing that
+/// transition is the only way to test the guarantee without a load, and this harness cannot run one
+/// (`openUI` needs a UI stack it does not have).
 [[nodiscard]] bool startupSongAwaitingCanary();
 
 /// @brief The canary path for the attempt in flight, or empty when there is none.
@@ -92,10 +92,9 @@ void startupSongRoutine();
 
 /// @brief Cleanup owed to the startup song load, run as its completion.
 ///
-/// This used to sit on the straight line after `performLoad()` returned. The load now finishes from
-/// the run loop, so the cleanup travels with it — otherwise the canary would be removed while the
-/// song was still loading, and a load that then bricked the device would look like a clean boot next
-/// time.
+/// The cleanup travels with the load's completion, run from the run loop rather than inline after
+/// `performLoad()` returns — otherwise the canary would be removed while the song was still loading,
+/// and a load that then bricked the device would look like a clean boot next time.
 void finishStartupSong();
 
 } // namespace deluge::storage

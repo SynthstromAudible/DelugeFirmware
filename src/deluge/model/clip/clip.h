@@ -54,6 +54,7 @@ public:
 	/// @note A reference counts when it is the current song's currentClip or syncScalingClip, another of its clips'
 	///       beingRecordedFromClip, the timeline counter of view.activeModControllableModelStack, or the activeClip of
 	///       an output in the current song. Each is checked in ~Clip's body, before anything is cleared.
+	/// @return The running count.
 	static int32_t clipsDestroyedWhileReferenced();
 	bool cancelAnyArming();
 	int32_t getMaxZoom();

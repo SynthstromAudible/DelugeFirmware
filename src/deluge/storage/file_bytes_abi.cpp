@@ -71,9 +71,6 @@ static_assert(DELUGE_FILE_BYTES_FAILED == 3u);
 // DELUGE_FILE_DIRECTORY_READY` compiles clean and nothing else cross-checks it. Under a divergent
 // numbering that expression would silently mean something other than what it reads as. bindgen's
 // allowlist covers `Deluge.*` TYPES, not macros, so this is the ONLY thing that checks it.
-//
-// Rung 2 shipped its two channels with the numbering misaligned and caught it in review rather than
-// by compiler; this file is that lesson applied before the fourth channel has a caller.
 static_assert(DELUGE_FILE_BYTES_PENDING == DELUGE_AUDIO_LOAD_PENDING);
 static_assert(DELUGE_FILE_BYTES_READY == DELUGE_AUDIO_LOAD_READY);
 static_assert(DELUGE_FILE_BYTES_UNKNOWN == DELUGE_AUDIO_LOAD_UNKNOWN);

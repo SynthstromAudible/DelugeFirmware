@@ -135,8 +135,7 @@ public:
 	/// getUnusedSlot names a brand-new slot by READING the folder, from inside a listing that is
 	/// already running. A gate needs to prove that a listing which suspended in that read does not
 	/// name a second time when it resumes — `pickBrandNewName`'s `enteredText.empty()` guard is what
-	/// prevents it, and a guard asserted rather than measured is exactly how this rung's earlier
-	/// drafts went wrong.
+	/// prevents it. This counter lets a gate measure that guard rather than assume it.
 	[[nodiscard]] static int32_t unusedSlotCalls();
 
 	/// @brief Every directory open the browser has ever made. For gates only.
@@ -227,9 +226,8 @@ protected:
 	/// so the copy is a plain one.
 	struct ListingRestore {
 		std::string currentDir;
-		/// The whole listing, in one field. It used to be six -- the items, both counters and both
-		/// bracket names -- copied one by one, which is the shape of a value that had not been named
-		/// yet. Restoring is now an assignment.
+		/// The whole listing, in one field: the items, both counters and both bracket names, so
+		/// restoring it is a plain assignment rather than copying each piece by hand.
 		FileListing listing;
 		int32_t fileIndexSelected{};
 		int32_t scrollPosVertical{};
@@ -289,9 +287,9 @@ protected:
 		bool createIfMissing{};
 		/// @brief Whether this read has already created the default folder.
 		///
-		/// Was an in-out `bool&` parameter. It is per-read state that must survive a deferral -- a
-		/// listing that deferred after creating the folder would otherwise `mkdir` it again on
-		/// resume and read the resulting EXISTS as terminal -- so it belongs with the read.
+		/// Per-read state that must survive a deferral -- a listing that deferred after creating the
+		/// folder would otherwise `mkdir` it again on resume and read the resulting EXISTS as
+		/// terminal -- so it belongs with the read.
 		bool triedCreatingFolder{};
 
 		/// @brief Drop the search string, and the search DIRECTION that depends on it.
@@ -515,11 +513,11 @@ protected:
 	/// directory it had already moved away from, with the wrong search string. A caller that does not
 	/// care about the rewrites passes a temporary and lets it go.
 	///
+	/// @param into The listing to fill. The browser's own for a listing, a walk's own for a walk --
+	///        which is the point: a read does not imply whose list is being replaced.
 	/// @param read The read to perform; MUTATED by the fallback.
 	/// @return Error::LISTING_DEFERRED when the directory channel has not answered yet — ask again
 	///         with this same @p read, and no open is ever made twice.
-	/// @param into The listing to fill. The browser's own for a listing, a walk's own for a walk --
-	///        which is the point: a read no longer implies whose list is being replaced.
 	Error readFolder(FileListing& into, ListingRead& read);
 	void favouritesChanged();
 

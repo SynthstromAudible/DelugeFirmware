@@ -146,7 +146,7 @@ constexpr const char* kCrucialKitSampleC = "SAMPLES/SLTCKC.WAV";
 constexpr const char* kCrucialSynthSample = "SAMPLES/SLTCSB.WAV";
 constexpr const char* kCrucialClipSample = "SAMPLES/SLTCAB.WAV";
 
-/// How long the crucial load may take, armed swap included. Probe 1 measured it finishing well inside this.
+/// How long the crucial load may take, armed swap included. The load finishes well inside this.
 constexpr int32_t kMaxCrucialWaitTicks = 20000;
 /// Audio rendered per scenario tick while the crucial load waits for its armed swap. This harness renders nothing on
 /// its own after boot, so without it the playback clock never reaches the swap.
@@ -158,20 +158,8 @@ constexpr int32_t kMaxWaitTicks = 200000;
 /// routineWithClusterLoading calls each load makes, measured on the fixture: the cadence that keeps audio running
 /// while a load walks the tree. Pinned so a walk that drops or adds a call is seen.
 ///
-/// The song and crucial counts fell twice as Phase 4d moved song load off the storage owner, for one reason both
-/// times: these calls existed because a blocking walk holding the owner was the only thing that could run the
-/// audio engine, and a ticked walk returns to the run loop, which runs it anyway. 45 -> 42 -> 39 as the essential
-/// pass and then the rest pass started ticking; the crucial count 102 -> 99 -> 85, further because the rest pass
-/// is the larger of the two.
-///
-/// 39 -> 40 when the harness stopped queuing its step markers and fixture builds on the storage owner (Kate's
-/// decision, 2026-09-26). No product code changed: the song load starts one tick later against the harness's own
-/// step timing, which the retired owner queue had set. Every other SLT line was identical before and after.
-///
-/// 40 -> 39, and the crucial count 85 -> 84, when ~Kit stopped calling routineWithClusterLoading() between drums
-/// (Kate's decision, 2026-09-27). A load destroys the previous song's one-drum kit, so exactly one call per load went;
-/// the render is preemptive and the call only asked the scheduler to run the routine sooner. Every other SLT line
-/// was identical before and after.
+/// These calls keep the audio engine running while a load walks the tree; a ticked walk also returns to the run
+/// loop, so the count reflects how the walk is structured, not a property of the tree.
 constexpr int32_t kSongRoutines = 39;
 constexpr int32_t kSynthRoutines = 2;
 constexpr int32_t kKitRoutines = 3;
@@ -179,7 +167,7 @@ constexpr int32_t kCrucialRoutines = 84;
 
 /// Milliseconds the loader holds each load during an async leg, so each load spans several scenario ticks.
 constexpr uint32_t kAsyncLatencyMs = 20;
-/// Scenario ticks an async leg may take before it is called wedged. Probe 1 measured every leg well inside this.
+/// Scenario ticks an async leg may take before it is called wedged. Every leg finishes well inside this.
 constexpr int32_t kMaxAsyncTicks = 4000;
 /// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit, race, card-gone, stall,
 /// probe-orphan): one per wavetable holder its walk reaches. Measured, and pinned.

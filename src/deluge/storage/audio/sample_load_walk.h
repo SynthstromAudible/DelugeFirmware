@@ -77,8 +77,10 @@ public:
 	virtual void clipCheckpoint() = 0;
 
 	/// @brief A kit or synth is about to be walked. Its samples may also be in its own folder, "<dirPath>/<name>".
-	/// @param thing ThingType::KIT or ThingType::SYNTH.
-	/// @param rule  When that folder applies: see ScopeRule.
+	/// @param dirPath The folder the instrument's own file lives in.
+	/// @param name    The instrument's name.
+	/// @param thing   ThingType::KIT or ThingType::SYNTH.
+	/// @param rule    When that folder applies: see ScopeRule.
 	virtual void beginInstrumentScope(std::string_view dirPath, std::string_view name, ThingType thing,
 	                                  ScopeRule rule) = 0;
 

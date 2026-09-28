@@ -22,9 +22,9 @@
 ///        `AudioFileManager::cardReinserted()`'s walk does to each of them.
 ///
 /// The estate had no coverage of that walk at all. `audio-load-ab` drives the same eject/re-insert
-/// edges, but measured on 2026-09-19 it reaches `cardReinserted()` twice with
-/// `residents=0 samples=0 referenced=0` — the edges fire and the loop body never runs. This scenario
-/// exists to give the walk something to walk, so Phase 4f's migration has evidence that can see it.
+/// edges, but reaches `cardReinserted()` twice with `residents=0 samples=0 referenced=0` — the edges
+/// fire and the loop body never runs. This scenario exists to give the walk something to walk, with
+/// samples actually resident for it to act on.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
 ///       app's sources).

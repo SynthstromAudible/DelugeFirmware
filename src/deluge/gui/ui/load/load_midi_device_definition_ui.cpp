@@ -52,7 +52,7 @@ bool LoadMidiDeviceDefinitionUI::opened() {
 	// failure if one persists. See Browser::createFoldersRecursiveIfNotExists.
 	(void)createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 
-	Error error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	Error error = beginSlotSession(); // Requires currentDir to be set.
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;

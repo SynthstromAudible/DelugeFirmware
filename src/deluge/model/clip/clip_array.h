@@ -76,7 +76,9 @@ public:
 	// Standard container surface
 	[[nodiscard]] size_t size() const { return clips_.size(); }
 	[[nodiscard]] bool empty() const { return clips_.empty(); }
-	/// Swap two clips in place (a session-view clip drag).
+	/// @brief Swap two clips in place (a session-view clip drag).
+	/// @param a Index of the first clip.
+	/// @param b Index of the second clip.
 	void swapClips(int32_t a, int32_t b) {
 		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();

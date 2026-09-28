@@ -27,8 +27,8 @@ namespace {
 
 /// @brief Walk an already-opened document to its `preview` attribute and paint it.
 ///
-/// Lifted unchanged out of the song browser's own preview render, including the early exits: this is the
-/// one walk, and both entry points below run it so the buffer decode cannot drift from the file decode.
+/// This is the one walk; both entry points below run it so the buffer decode cannot drift from the
+/// file decode.
 ///
 /// @param reader     A deserializer whose document is already open and positioned past the root tag.
 /// @param imageStore Destination pad rows, written in place.
@@ -48,8 +48,7 @@ bool runPreviewWalk(FileDeserializer* reader, RGB (*imageStore)[kDisplayWidth + 
 			reader->exitTag("previewNumPads");
 		}
 		else if (!strcmp(tagName, "preview")) {
-			// Dead in the original too -- the row loop never skips. Preserved verbatim rather than
-			// dropped, so this walk stays a pure relocation of the browser's.
+			// Dead: the row loop below never skips.
 			int32_t skipNumCharsAfterRow = 0;
 
 			int32_t startX = 0;
@@ -86,9 +85,8 @@ bool runPreviewWalk(FileDeserializer* reader, RGB (*imageStore)[kDisplayWidth + 
 		}
 	}
 stopLoadingPreview:
-	// Closes activeDeserializer, not `reader`, exactly as the browser did before this walk moved here.
-	// They are the same object for both entry points below -- each takes its reader FROM
-	// activeDeserializer straight after opening -- so this is a faithful move, not a latent mismatch.
+	// Closes activeDeserializer, not `reader`. They are the same object for both entry points below --
+	// each takes its reader FROM activeDeserializer straight after opening.
 	activeDeserializer->closeWriter();
 	return rendered;
 }

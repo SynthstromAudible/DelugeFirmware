@@ -59,6 +59,7 @@ public:
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
 	/// @brief Report each range's file to @p visitor, with a checkpoint before each. Loads nothing.
+	/// @param visitor Receives a demand for each range's audio file and a checkpoint before each one.
 	/// @return Walk::Stop if a checkpoint stopped the walk.
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	void setReversed(bool newReversed);

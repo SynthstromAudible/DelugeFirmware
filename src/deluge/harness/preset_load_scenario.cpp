@@ -171,7 +171,7 @@ constexpr const char* kBaseKitPreset = "KITS/PLBASE.XML";
 constexpr const char* kRacePreset = "SYNTHS/PLRACE.XML";
 
 /// Reachable ONLY by descending into a subfolder. The walk's recursion has no other coverage:
-/// measured 2026-09-19, every gate reaches depth 1 and the reference card's SYNTHS is flat, so a
+/// every other gate reaches depth 1 and the reference card's SYNTHS is flat, so a
 /// conversion that silently stopped recursing would look perfect until a user with subfolders found
 /// their presets gone.
 /// The walk starts HERE: a folder with no presets of its own, only a subfolder. That is what forces
@@ -215,8 +215,7 @@ constexpr int32_t kMaxStallTicks = 20000;
 constexpr int32_t kMaxListingTicks = 20000;
 /// Scenario ticks a load may take before it is called wedged.
 constexpr int32_t kMaxLegTicks = 2000;
-/// The name Shift+SYNTH's new synth takes in AQ-NEW. MEASURED on the tree where the walk still ran on the owner
-/// -- the conversion must produce exactly what the old walk produced.
+/// Pinned: the name Shift+SYNTH's slot scan gives the new synth on this fixture.
 constexpr const char* kAqSlotName = "SYNT1";
 /// A folder no gesture reads, parked in Browser::currentDir before a slot scan: a scan that moved the browser leaves
 /// something else there.
@@ -232,10 +231,10 @@ constexpr const char* kNavLast = "NAV24";
 constexpr const char* kChangeNamed = "NAV05";
 constexpr const char* kChangeAbsent = "NAV05X";
 constexpr const char* kChangeMissingDir = "KITS/NOSUCH";
-/// MEASURED on the owner tree before pinning: where the named and the absent-name confirms land.
+/// Pinned: where the named and the absent-name confirms land.
 constexpr const char* kChangeNamedLands = "NAV05";
 constexpr const char* kChangeNextLands = "NAV06";
-/// MEASURED on 4c2a4e19f from the retired owner reference (the whole-type Unlaunched search), then pinned.
+/// Pinned: where the whole-type Unlaunched search lands.
 constexpr const char* kChangeMissingLands = "AQKB";
 static_assert(kNavCount > FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, "the folder must overflow the window");
 
@@ -416,8 +415,8 @@ TierMark markTier() {
 }
 
 /// Fixture builds a tick asked for, run when the runner next asks whether the step is done: one virtual
-/// millisecond after the tick, which is where the retired storage-owner queue ran them. The gates are paced to that
-/// order, so builds are queued here rather than run inside the tick.
+/// millisecond after the tick, matching the pacing the gates are already tuned to. Builds are queued here
+/// rather than run inside the tick, to keep that order.
 std::vector<void (*)()> g_pendingFixtures{};
 
 /// Queue a fixture build for the end of this step. See g_pendingFixtures.
@@ -1762,8 +1761,7 @@ void checkAcquireAct() {
 		break;
 	}
 	case Leg::AqNavWrap: {
-		// MEASURED on the tree where the walk ran on the owner, then pinned: the far-end reads, which this conversion
-		// rewrote, must land where they always did.
+		// Pinned: the far-end reads land on the folder's first and last entries.
 		const char* want = (g_aqAct == 0) ? kNavFirst : kNavLast;
 		printf("AQ-NAV-WRAP turn=%s before=%s name=%s want=%s runs=%d\n", g_aqAct == 0 ? "forward" : "back",
 		       g_aqNameBefore.c_str(), name.c_str(), want, runs);
@@ -1914,7 +1912,7 @@ bool isBlankLeg(Leg leg) {
 ///
 /// PresetWalk over the nested walk fixture: it descends from a start folder with no presets of its own, pages past the
 /// cull cap, reports exhaustion for a folder with nothing usable, and does all of it on the INTERACTION tier, deferring
-/// instead of blocking. The recursive synchronous walk these legs once sat beside is retired; they are the coverage.
+/// instead of blocking. This is the only coverage of the search.
 /// @{
 deluge::gui::PresetWalk g_presetWalk;
 

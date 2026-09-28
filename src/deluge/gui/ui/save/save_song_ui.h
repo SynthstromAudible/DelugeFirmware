@@ -123,7 +123,7 @@ public:
 	/// nothing about whether the save succeeded. Only reaching the end says that.
 	[[nodiscard]] static int32_t documentSavesCompleted() { return documentSavesCompleted_; }
 
-	/// @brief Ticks on which a document step ran off the storage owner. The rung's claim.
+	/// @brief Ticks on which a document step ran off the storage owner.
 	[[nodiscard]] static int32_t offOwnerDocumentTicks() { return offOwnerDocumentTicks_; }
 
 	/// @brief How many times the staging buffer doubled for the last staged document.
@@ -270,7 +270,8 @@ private:
 	static inline int32_t offOwnerDocumentTicks_{};
 	static inline int32_t stagedDocumentGrowths_{};
 
-	/// Locals the save used to keep on its stack. It no longer finishes inside one call.
+	/// Persisted across ticks: this save resolves over many calls, not one, so these locals must live
+	/// as members rather than on a call stack.
 	std::string pendingFilePath_;
 	bool pendingFileAlreadyExisted_{};
 	/// The dispatch this song save is resolving. Held from beginUnstagedSave() until the existence

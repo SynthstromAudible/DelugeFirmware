@@ -11,7 +11,7 @@ using deluge::storage::StartupPresence;
 // clang-format off
 describe startup_phase("every 'could not tell' answer leaves the card alone", $ {
 
-	// Site 1 (deluge.cpp:452). A canary already there means the LAST boot died mid-load.
+	// A canary already there means the LAST boot died mid-load.
 	it("skips the startup song when the canary is already there, and keeps the canary", _ {
 		auto step = nextStartupPhase(StartupPhase::CheckCanary, StartupPresence::Confirmed, false);
 		expect(step.next == StartupPhase::Done).to_equal(true);
@@ -35,16 +35,15 @@ describe startup_phase("every 'could not tell' answer leaves the card alone", $ 
 		expect(step.next == StartupPhase::WriteCanary).to_equal(false);
 	});
 
-	// Site 2 (deluge.cpp:461). Template mode checks the default song and CREATES it when missing.
-	// The creation is its own phase: it is a card WRITE, and writing it inline here blocked the
-	// interaction tier (measured -- it froze startup-failsafe on TIR6).
+	// Template mode checks the default song and CREATES it when missing. The creation is its own
+	// phase: it is a card WRITE, and writing it inline would block the interaction tier.
 	it("goes on to create the template when it is known absent", _ {
 		auto step = nextStartupPhase(StartupPhase::CheckTemplate, StartupPresence::Missing, true);
 		expect(step.next == StartupPhase::WriteTemplate).to_equal(true);
 	});
 
 	// However the write turns out, the machine carries on to the canary: a template that could not be
-	// written is not a reason to skip the fail-safe, which is what the inline version did too.
+	// written is not a reason to skip the fail-safe.
 	it("goes on to the canary once the template write has settled", _ {
 		for (auto answer : {StartupPresence::Confirmed, StartupPresence::Missing, StartupPresence::Unusable}) {
 			auto step = nextStartupPhase(StartupPhase::WriteTemplate, answer, true);
@@ -63,7 +62,6 @@ describe startup_phase("every 'could not tell' answer leaves the card alone", $ 
 		expect(step.next == StartupPhase::Done).to_equal(true);
 	});
 
-	// Site 3 (deluge.cpp:487).
 	it("loads the song when it is there", _ {
 		auto step = nextStartupPhase(StartupPhase::CheckSong, StartupPresence::Confirmed, false);
 		expect(step.next == StartupPhase::BeginLoad).to_equal(true);
@@ -80,8 +78,8 @@ describe startup_phase("every 'could not tell' answer leaves the card alone", $ 
 		expect(step.next == StartupPhase::UnlinkCanary).to_equal(true);
 	});
 
-	// Site 4 (deluge.cpp:500). Using the template here also SWITCHES MODE, which the caller needs so
-	// the loaded song's name is wiped afterwards.
+	// Using the template here also SWITCHES MODE, which the caller needs so the loaded song's name
+	// is wiped afterwards.
 	it("switches to template mode when falling back to it", _ {
 		auto step = nextStartupPhase(StartupPhase::CheckFallbackTemplate, StartupPresence::Confirmed, false);
 		expect(step.next == StartupPhase::BeginLoad).to_equal(true);

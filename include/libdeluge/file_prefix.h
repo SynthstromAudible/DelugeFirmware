@@ -140,11 +140,10 @@ void deluge_file_prefix_request(const char* file_path, uint32_t max_bytes) DELUG
 /// "request it (again)", and a caller polling a file it cannot read would re-request and re-read it
 /// on every tick for as long as it stayed interested.
 ///
-/// It was previously reported as READY with an `out_len` of 0, which is terminal too but which a
-/// caller cannot tell from a genuinely EMPTY file. That mattered: the synchronous backing this
-/// channel stands in for shows the user an error for a song it cannot open, and a caller served
-/// identical bytes for "unreadable" and "no artwork" has no way to keep doing so. A zero-length
-/// READY now means one thing only -- the file is empty.
+/// A zero-length READY means one thing only -- the file is empty. Collapsing a failed read into a
+/// zero-length READY would be indistinguishable from a genuinely empty file: the synchronous backing
+/// this channel stands in for shows the user an error for a song it cannot open, and a caller served
+/// identical bytes for "unreadable" and "no artwork" would have no way to keep doing so.
 ///
 /// @param file_path The path passed to @ref deluge_file_prefix_request. Must not be NULL.
 /// @param out_buf   Where the bytes go. Must not be NULL. Written only on READY.

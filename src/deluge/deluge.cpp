@@ -407,9 +407,8 @@ void setupBlankSong() {
 
 // Which conditional task fires once the SD card is ready. Normally the settings prelude, which
 // reads the three settings files through the channel and THEN arms the startup-song loader above;
-// the headless stem-render utility (src/bsp/host/host_render_main.cpp) overrides this with its own
-// driver before deluge_main() runs. A plain firmware or interactive-host build never touches it, so
-// behaviour is unchanged on-device.
+// headless hosts override this before deluge_main() runs (see deluge_startup_skip_settings_prelude()).
+// A plain firmware or interactive-host build never touches it, so behaviour is unchanged on-device.
 TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
 
 /// @brief Opt a non-Deluge host out of the boot-settings prelude, leaving only the startup song.
@@ -420,11 +419,8 @@ TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
 /// Measured: the offline stem drain hung for 900s against a cold card image, and finished in 37s
 /// with nothing submitted.
 ///
-/// `host_loadcheck_main.cpp` and `host_audio_header_dump_main.cpp` override
-/// @ref startupConditionalTask for the same reason. The render utility used to as well -- the
-/// comment above still says so -- but its main (`src/bsp/host/host_render_main.cpp`) was deleted and
-/// the override went with it. Nothing noticed, because until the prelude existed the default did no
-/// work worth servicing. This is that override, restored where the render arm can reach it.
+/// `host_loadcheck_main.cpp` and `host_audio_header_dump_main.cpp` override @ref startupConditionalTask
+/// for the same reason; this gives the render arm the same override.
 extern "C" void deluge_startup_skip_settings_prelude() {
 	startupConditionalTask = deluge::storage::armStartupSong;
 }
@@ -701,7 +697,7 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	usbLock = 0;
 
-	// The three settings files are NOT read here any more. They are read by the settings prelude
+	// The three settings files are NOT read here. They are read by the settings prelude
 	// (storage/startup_song.h) behind the same card-ready trigger as the startup song, through the
 	// byte channel. Boot therefore touches the card not at all, and the UI starts without waiting
 	// for it -- which is what lets the reads' blocking arms be deleted, and with them the boot

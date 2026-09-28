@@ -428,8 +428,8 @@ void runTick() {
 			break;
 		}
 		// A case whose expected answer is an ERROR. Without one, a handler replying before its
-		// operation completed reports the same err=0 a correct one does -- which is how the last rung
-		// nearly shipped an untestable gate.
+		// operation completed reports the same err=0 a correct one does, which would make the gate
+		// untestable.
 		const int32_t err = replyAttr(g_cable.lastReply, "err");
 		g_copyMissingReports = (err > 0) ? 1 : 0;
 		g_stage = Stage::Dir;
@@ -440,8 +440,8 @@ void runTick() {
 		g_repliesBefore = g_cable.replies;
 		g_verbTicks = 0;
 		// The listing verb, whose directory OPEN now goes through the directory channel. Included
-		// because converting a site the gate never drives is exactly the shape this ladder keeps
-		// catching -- a conversion nothing exercises looks identical to one that works.
+		// because a conversion nothing exercises looks identical to one that works -- this covers a
+		// site the gate would otherwise never drive.
 		sendJson(R"({"dir":{"path":"OI_TEST","offset":0,"lines":8}})");
 		g_stage = Stage::DirCheck;
 		break;

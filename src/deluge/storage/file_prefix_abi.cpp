@@ -15,7 +15,9 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/file_prefix.h's C++-side fallback, plus the two constants that pin the boundary.
+/// @file
+/// @brief Weak definitions for `libdeluge/file_prefix.h`, plus the two constants that pin the
+///        boundary.
 ///
 /// The real implementation is the Rust Embassy BSP's `file_prefix.rs`, which reads the file on the
 /// storage tier and publishes the bytes into a single card-generation-stamped slot. This file exists
@@ -43,9 +45,7 @@
 // from a song that has no preview at all. src/bsp/rust/src/file_prefix.rs's `PREFIX_CAPACITY` is the
 // Rust half of this pin.
 //
-// This is a BOUND, not an equality. The two constants were equal while the song preview was the
-// channel's only consumer, and that coincidence read as a definition; the DX7 cartridge (a
-// `min(filesize, 8192)` read) ended it. They answer different questions -- kSongPreviewWindow is
+// This is a BOUND, not an equality. The two constants answer different questions -- kSongPreviewWindow is
 // "how much of a song holds the artwork", DELUGE_FILE_PREFIX_CAPACITY is "how big is the slot every
 // request's result lands in" -- and only one relation between them is load-bearing: a request larger
 // than the slot could never be served whole.

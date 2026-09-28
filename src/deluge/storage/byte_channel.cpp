@@ -181,9 +181,8 @@ namespace {
 /// Where a submitted operation has got to.
 ///
 /// A read is up to four channel operations, not one: the file, then -- only when it is genuinely
-/// absent -- the legacy-path migration, then the file again. That sequence IS the migration the
-/// consumers do inline today (`runtime_feature_settings.cpp:199`), moved here unchanged. This rung
-/// adds no existence policy; it relocates the one already there.
+/// absent -- the legacy-path migration, then the file again, mirroring the existence-policy handling
+/// each consumer already performs inline.
 enum class Step : uint8_t {
 	Idle,
 	/// Ask for the file.
@@ -246,9 +245,8 @@ int32_t g_pendingTicks = 0;
 /// Without this bound a submitted operation is polled until the end of time and never happens,
 /// silently: the caller was told the channel took it, so it does not fall back either.
 ///
-/// Found by neutering, twice. The startup fail-safe hit it first and wedged boot; this machine hit it
-/// again through the browser's folder creation, which simply never occurred. Six hundred ticks is
-/// several seconds at this routine's rate -- far beyond any real operation, far short of forever.
+/// Six hundred ticks is several seconds at this routine's rate -- far beyond any real operation, far
+/// short of forever.
 constexpr int32_t kMaxPendingTicks = 600;
 
 /// The bytes in flight: a write's payload on the way out, a read's contents on the way in.

@@ -77,15 +77,15 @@ public:
 
 	/// @name Counts for the sample-claim gate.
 	/// @{
-	/// Folder listings that ran.
+	/// @brief Folder listings that ran.
 	[[nodiscard]] int32_t listingsRun() const { return listingsRun_; }
 	/// @brief Requests that reached request(), accepted or not: what the gate is there to stop.
 	[[nodiscard]] int32_t requestsReceived() const { return requestsReceived_; }
-	/// Imports that aborted on a load that stopped moving (AsyncSampleLoad's stall bound).
+	/// @brief Imports that aborted on a load that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
-	/// Ticks a pitch detection spent waiting for a cluster.
+	/// @brief Ticks a pitch detection spent waiting for a cluster.
 	[[nodiscard]] int32_t pitchScanTicks() const { return pitchScanTicks_; }
-	/// Pitch detections that gave up: no frame arrived for kMaxUnproductiveUs.
+	/// @brief Pitch detections that gave up: no frame arrived for kMaxUnproductiveUs.
 	[[nodiscard]] int32_t pitchGiveUps() const { return pitchGiveUps_; }
 	/// @}
 
@@ -136,9 +136,8 @@ private:
 
 	/// @brief Drain an opened folder's entries into @ref names_.
 	///
-	/// Was `runListOp`, an `Owner::run` callback that opened the folder itself. The open now comes
-	/// from the directory channel; everything below the loop's first line is unchanged, which is
-	/// what keeps the audio-filename filter's behaviour identical.
+	/// The open comes from the directory channel; the audio-filename filter that walks the entries is
+	/// otherwise unchanged.
 	/// @param dir The adopted directory. Walking it costs no card I/O: it is an in-memory snapshot.
 	void drainListing(deluge::io::Directory& dir);
 

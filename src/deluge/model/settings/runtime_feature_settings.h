@@ -92,7 +92,6 @@ class Serializer;
 class Deserializer;
 
 /// Encapsulating class
-
 class RuntimeFeatureSettings {
 public:
 	RuntimeFeatureSettings();

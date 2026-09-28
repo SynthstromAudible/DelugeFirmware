@@ -152,7 +152,7 @@ std::string nextDefaultName(std::string_view currentName, std::string_view slotP
 }
 
 std::string nextSlotName(std::string_view lastName, std::string_view thingName) {
-	// The arithmetic Browser::getUnusedSlot always did, lifted out unchanged, except that a name
+	// Scans the digits that follow the prefix to compute the next free slot number. A name
 	// shorter than the prefix is read as "no digits" rather than read past its end.
 	int32_t freeSlotNumber = 1;
 	size_t minNumDigits = 1;

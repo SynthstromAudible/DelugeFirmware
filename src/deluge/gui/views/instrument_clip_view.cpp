@@ -1724,9 +1724,8 @@ void InstrumentClipView::doubleClipLengthAction() {
 }
 
 // The acquisition reads the card (InstrumentClipMinder::createNewInstrument() -> Browser::
-// getUnusedSlot()), so it runs on the storage owner; everything that used to follow that call's
-// synchronous return now runs in completeNewInstrument() instead -- see this function's declaration
-// for why the return is always false.
+// getUnusedSlot()), so it runs on the storage owner; the follow-up runs in completeNewInstrument()
+// instead -- see this function's declaration for why the return is always false.
 bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx,
                                              deluge::storage::PresetConsumer consumer) {
 	InstrumentClipMinder::beginNewInstrumentAcquisition(newOutputType, is_dx, consumer);
@@ -1763,9 +1762,9 @@ bool InstrumentClipView::changeOutputType(OutputType newOutputType, deluge::stor
 		return false;
 	}
 
-	// The redraw used to run right here, gated on this same bool -- but for Synth/Kit that bool now
-	// means "dispatched", not "swapped", so running it here would repaint the CLIP'S OLD instrument.
-	// completeChangeOutputType() below runs it instead, once the swap (if any) has actually happened,
+	// The redraw cannot run right here: for Synth/Kit this bool means "dispatched", not "swapped", so
+	// running it here would repaint the CLIP'S OLD instrument. completeChangeOutputType() below runs
+	// it instead, once the swap (if any) has actually happened,
 	// whether that was synchronous (MIDI/CV) or deferred (Synth/Kit). A consumer is always passed
 	// explicitly: InstrumentClipMinder::changeOutputType()'s default (ViewChangeTypeMinder) is for
 	// callers that reach IT directly, bypassing this class -- this call is not one of those.

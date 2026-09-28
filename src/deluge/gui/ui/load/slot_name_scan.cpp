@@ -36,8 +36,8 @@ bool SlotNameScan::tick() {
 	if (phase_ != ScanPhase::Read) {
 		return false;
 	}
-	// The key and the prefix the walk this replaces used: search LEFT of "<thing>:", the colon sorting after every
-	// digit, so the listing keeps the numbered entries and the last of them is the highest.
+	// Search LEFT of "<thing>:": the colon sorts after every digit, so the listing keeps the numbered
+	// entries and the last of them is the highest.
 	const char* thingName = (outputType_ == OutputType::SYNTH) ? "SYNT" : "KIT";
 	LoadInstrumentPresetUI::ListingRead read{
 	    .dir = dir_,

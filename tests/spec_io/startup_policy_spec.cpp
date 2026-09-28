@@ -32,9 +32,8 @@ describe startup_policy("the startup fail-safe never reads 'could not tell' as '
 		expect(startup_action(notThere()) == StartupPresence::Missing).to_equal(true);
 	});
 
-	// The whole reason the verb exists. BUSY is what an off-owner refusal looks like, which is the
-	// condition this rung removes -- but the policy must hold even so, because a card can fail for
-	// its own reasons at any time.
+	// The whole reason the verb exists. BUSY is what a refused check looks like, and the policy must
+	// hold regardless of what produces it, because a card can fail for its own reasons at any time.
 	it("reports a refused check as Unusable, NEVER Missing", _ {
 		expect(startup_action(cannotTell(deluge::io::Status::BUSY)) == StartupPresence::Unusable).to_equal(true);
 		expect(startup_action(cannotTell(deluge::io::Status::BUSY)) == StartupPresence::Missing).to_equal(false);

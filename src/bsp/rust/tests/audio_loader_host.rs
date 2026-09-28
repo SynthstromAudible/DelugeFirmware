@@ -632,7 +632,7 @@ fn a_bare_name_candidate_equal_to_the_nominal_path_is_still_an_alternate() {
 ///
 /// The loader opens through the same 128-slot table `open_read_stream` uses, and
 /// `sample_stream.cpp` documents it filling up by construction under browser
-/// preview -- this rung's own workload. Reported as a miss it becomes
+/// preview -- the async loader's own workload. Reported as a miss it becomes
 /// `FILE_UNREADABLE`, which is the collector's retry gate: the load probes the
 /// alternate directory, promotes the load's alternate-dir status for every later sample,
 /// and can answer with a same-named file from there. The synchronous path instead

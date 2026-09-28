@@ -476,12 +476,9 @@ fn cmp_container(out: &mut Vec<Disagreement>, path: &Path, ours: Container, thei
     }
 }
 
-/// A known, historical divergence: since the C++ entry points now call into this crate, this can no
-/// longer actually occur, but the check remains as a guard band. It used to arise because the C++
-/// computed `midiNote - fineTune * 0.01` where the bare `0.01` literal was `double`, so despite both
-/// operands being explicitly cast to `float` the whole expression evaluated in double precision and
-/// only narrowed to `float` at the assignment; the Rust stays in `f32` throughout (matching the
-/// explicit casts, which is what the C++ source visibly intended). Verified exhaustively over all
+/// A guard band for a precision divergence: `midiNote - fineTune * 0.01` with a `double` literal
+/// evaluates in double and narrows only at the assignment; the Rust stays in `f32` throughout
+/// (matching the explicit casts, which is what the C++ source visibly intended). Verified exhaustively over all
 /// 32768 (note, fine_tune) pairs: 285 differed from the exact double-precision computation by less
 /// than 1e-4 semitone. Adjudicated in the RUST's favour — this tolerance existed to absorb that known
 /// double-vs-float promotion artefact, not to paper over a real bug, so it was deliberately far
@@ -522,7 +519,7 @@ fn cmp_midi_note(out: &mut Vec<Disagreement>, path: &Path, ours: Option<f32>, th
 /// even; the AIFF spec pads the WHOLE pstring record (length byte + name) to an even total. The two
 /// formulas disagreed whenever the name length was even (including zero) — the common case, e.g. this
 /// crate's own AIFF corpus generator writes zero-length marker names — and every marker after the
-/// first one in such a file got misread by the old C++ (verified on a real file: marker 2 resolved as
+/// first one in such a file is misread by the `(stringLength + 1) & ~1` skip (verified on a real file: marker 2 resolved as
 /// `id=512 pos=466179` instead of `id=2 pos=1821`). The Rust implementation (`lib.rs`'s `MARK` arm)
 /// uses the corrected skip, `((1 + count + 1) & ~1) - 1`. This was adjudicated in the RUST's favour; a
 /// divergence here on an AIFF file was EXPECTED, not a Rust defect, and was never to be "fixed" by
@@ -1000,7 +997,7 @@ fn write_synthetic_fixtures(dir: &Path) -> Vec<PathBuf> {
     // reject it, and for the same reason.
     put("sample_192k_stereo.wav", synth_wav(2, 192_000, 16, 4096));
     // A `smpl` declaring less than the window that reads it, immediately before `data` — the shape
-    // whose over-read used to walk the byte source into the audio.
+    // which an over-read would walk the byte source into the audio.
     put(
         "wt_smpl_no_loops_before_data.wav",
         synth_wav_with_chunk_before_data(

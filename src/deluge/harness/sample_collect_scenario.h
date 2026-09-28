@@ -25,9 +25,8 @@
 /// ## The check this gate exists for
 ///
 /// `audioFiles` is sorted by `filePath` and searched by bisection. Collecting media REWRITES some of
-/// those paths. The old code did the whole collection inside one uninterrupted stretch, so a broken
-/// ordering was never observable; the converted code performs the transfers a tick at a time, and
-/// something can look in between.
+/// those paths. The transfers run a tick at a time, so something can look in between and see a
+/// half-rewritten ordering.
 ///
 /// `SC-ORDERED` is what says the list is still usable afterwards -- every file findable by
 /// `searchForExactObject`, and the vector non-decreasing by path. Checking only that the files
@@ -40,10 +39,19 @@
 
 extern "C" {
 
+/// @brief Reset the scenario to its first stage.
 void deluge_scenario_sample_collect_begin(void);
+
+/// @brief True once the report has been printed.
 bool deluge_scenario_sample_collect_complete(void);
+
+/// @brief Run one stage of the scenario.
 void deluge_scenario_sample_collect_dispatch_step(void);
+
+/// @brief True once the step queued by the last dispatch_step() has run.
 bool deluge_scenario_sample_collect_step_done(void);
+
+/// @brief Number of in-process assertion failures. 0 = the run passed.
 int32_t deluge_scenario_sample_collect_failures(void);
 
 } // extern "C"

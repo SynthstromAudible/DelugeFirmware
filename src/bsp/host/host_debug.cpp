@@ -90,10 +90,10 @@ void onSignal(int sig) {
 
 // Kit-copy reproduction harness. With DELUGE_HOST_KIT_COPY_REPS=N and DELUGE_HOST_KIT_COPY_PRESET=<path> (e.g.
 // "KITS/000 TR-808.XML"), once the app has booted, create N new KIT tracks, each loading that preset plus all its
-// samples into a fresh Instrument, as the new-track gesture does. (The bug report's path loaded the *next* unlaunched
-// kit preset each time; the synchronous walk that picked it is retired, so the preset is named instead.) We snapshot
-// the allocation table around it; the FULL-internal pressure shows in the D_PRINTLN log, and anything leaked on the
-// INSUFFICIENT_RAM error path shows in the closing leakReport().
+// samples into a fresh Instrument, as the new-track gesture does. There's no automatic "next unlaunched preset"
+// selection, so the preset must always be named explicitly. We snapshot the allocation table around it; the
+// FULL-internal pressure shows in the D_PRINTLN log, and anything leaked on the INSUFFICIENT_RAM error path shows in
+// the closing leakReport().
 int g_kitCopyReps = -1; // -1 = not yet read, 0 = disabled
 const char* g_kitCopyPreset = nullptr;
 uint32_t g_pollCount = 0;
@@ -159,9 +159,8 @@ int g_songLoadReps = -1; // -1 = not yet read, 0 = disabled
 uint32_t g_songPollCount = 0;
 bool g_songLoadDone = false;
 
-// The walk's cursor. The harness used to run its whole double loop inside one poll call, blocking the
-// app until every song had loaded; a load now completes from the run loop, so the walk has to return
-// to it between songs and pick up where it left off.
+// The walk's cursor: a load completes asynchronously from the run loop, so this walk cannot block
+// waiting for each one to finish. It resumes here between songs, picking up where it left off.
 bool g_songWalkStarted = false;
 int g_songRep = 0;
 int g_songIdx = 0;
@@ -246,7 +245,7 @@ void runSongLoadHarnessIfDue() {
 		return;
 	}
 	// One song per poll, resuming where the last one left off. A load completes from the run loop, so
-	// this cannot be a nested loop any more - blocking here would stop the very pump it is waiting on.
+	// this can't be a nested loop: blocking here would stop the very pump it is waiting on.
 	if (!g_songWalkStarted) {
 		g_songWalkStarted = true;
 

@@ -1840,8 +1840,8 @@ void soundPreview() {
 	// E199 assertion fire on a voice something else had removed.
 	//
 	// This narrows the window; it does not close the underlying cross-tier race on voices_ (bypassCulling
-	// is cleared every render, and the race is reachable from any note-on, not just this one). See
-	// docs/superpowers/specs/2026-08-16-voices-cross-tier-race.md.
+	// is cleared every render, and the race is reachable from any note-on, not just this one); see the
+	// containment note in Sound::Sound().
 	bypassCulling = true;
 	sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
 }
@@ -1973,18 +1973,18 @@ void doRecorderCardRoutines() {
 namespace {
 /// How many recorder drains ran OFF the storage owner. Without this a gate cannot tell a channel
 /// that served writes from a channel that served them while everything still ran on the owner --
-/// which is the only difference between this conversion and a rename.
+/// and only the off-owner count shows the drain moved.
 int32_t g_recorderDrainTicks = 0;
 
 /// Finalize ticks that ran OFF the storage owner. Separate from the drain counter above because they
 /// answer different questions: that one says the DRAIN moved, this one says the FINALIZE did. A
-/// served count establishes neither -- the previous rung's first measured run served writes while
-/// every one of them ran on the owner.
+/// served count establishes neither -- writes can be served while every one of them runs on the
+/// owner.
 int32_t g_finalizeTicks = 0;
 
 /// Create ticks that ran OFF the storage owner. The third of these counters, and they answer three
 /// different questions: the drain moved, the finalize moved, the CREATE moved. A served count
-/// answers none of them -- an earlier rung served writes while every one of them ran on the owner.
+/// answers none of them.
 int32_t g_createTicks = 0;
 int32_t g_songStageTicks = 0;
 } // namespace

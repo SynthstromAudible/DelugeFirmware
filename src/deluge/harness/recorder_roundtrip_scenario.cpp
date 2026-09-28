@@ -146,11 +146,10 @@ enum class CaseStep : uint8_t {
 
 /// The case's state, out of the stack frame because the pump now spans ticks.
 ///
-/// It used to be `SampleRecorder rec;` plus a 200000-iteration `pumpToComplete()` loop, straight
-/// through. That loop never yielded, so it only ever worked on the recorder's SYNCHRONOUS arm: ask
-/// the channel instead and the driver gets no chance to run between ticks, nothing is answered, and
-/// the loop exhausts its bound. Shaped after `g_offOwner` below, which already holds its recorder
-/// this way for the same reason.
+/// A loop that pumps straight through without yielding only works on the recorder's SYNCHRONOUS arm:
+/// ask the channel instead and the driver gets no chance to run between ticks, nothing is answered,
+/// and the loop exhausts its bound. Shaped after `g_offOwner` below, which holds its recorder the same
+/// way for the same reason.
 struct CaseRun {
 	CaseStep step = CaseStep::Done;
 	const Case* c = nullptr;
@@ -164,8 +163,7 @@ CaseRun g_case;
 std::vector<Case> g_caseList;
 size_t g_caseCursor = 0;
 
-/// One tick of the pump. Bounded exactly as `pumpToComplete()` was, and reporting the same two
-/// failures, so a wedged state machine still fails the gate rather than hanging it.
+/// One tick of the pump. Bounded, so a wedged state machine fails the gate rather than hanging it.
 bool pumpOnce(SampleRecorder& rec) {
 	if (rec.status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
 		g_case.step = CaseStep::Verify;
@@ -791,7 +789,7 @@ extern "C" int32_t deluge_scenario_recorder_finalized_tick() {
 namespace {
 
 /// The oracle's tail, one step per call: the live-readback probe, then the finalized probe's acquire, then the
-/// summary. It used to run as one call on the storage owner, where its drains could suspend the fiber.
+/// summary. Run one step per call rather than straight through, since a drain must never block the caller.
 enum class RestStep : uint8_t {
 	LiveDrain,     ///< ONE cardRoutine() per call on the still-recording probe, kLiveDrainTicks of them.
 	LivePoll,      ///< Re-acquire, asking for a drain each time, while LOADING: it must never resolve.
@@ -801,7 +799,7 @@ enum class RestStep : uint8_t {
 };
 /// The one-call probe's drain: ten cardRoutine() ticks before the first acquire.
 constexpr uint32_t kLiveDrainTicks = 10;
-/// The one-call probe's watch: thirty-two drain-and-retry rounds, each now a drain request and a yield.
+/// The one-call probe's watch: thirty-two drain-and-retry rounds, each a drain request and a yield.
 constexpr uint32_t kLivePolls = 32;
 
 struct RestRun {
@@ -840,9 +838,9 @@ void reportFinalizedAndSummary() {
 	}
 	printf("  %s\n", regressionOk ? "PASS" : "FAIL");
 
-	// The rung's whole evidence. `served` says the async arm executed; `offOwnerTicks` says the drain
-	// actually left the storage owner. Served alone can be non-zero while every write was still
-	// handled on the owner, which would be a rename rather than a relocation.
+	// The evidence this gate exists to show. `served` says the async arm executed; `offOwnerTicks` says
+	// the drain actually left the storage owner. Served alone can be non-zero while every write was
+	// still handled on the owner, which would be a rename rather than a relocation.
 	printf("RW-SUMMARY served=%d offOwnerTicks=%d\n", (int)SampleRecorder::writeChannelServedOps(),
 	       (int)AudioEngine::recorderDrainTicks());
 	// A terminator, so a run that aborted part-way is a gate FAILURE rather than a silently

@@ -54,8 +54,8 @@ struct UnproductiveSpan {
 
 	/// When the current unproductive run began, or @ref kNone.
 	uint64_t sinceUs = kNone;
-	/// Microseconds from the start of the run to its latest unproductive answer. Zero for the first, which
-	/// is what the tick counters this replaces reported as "ticks before this one".
+	/// Microseconds from the start of the run to its latest unproductive answer. Zero for the first
+	/// unproductive answer in a run.
 	int32_t elapsedUs = 0;
 
 	/// @brief Note one unproductive answer: refused, UNKNOWN, or PENDING.
@@ -79,10 +79,10 @@ struct UnproductiveSpan {
 ///
 /// Unproductive means refused, answered UNKNOWN, or answered PENDING; an accepted request starts the run
 /// again. A void request needs a STALL bound as well as a refusal bound: a channel whose driver is not
-/// running answers PENDING forever, and this project has shipped that wedge three times (the startup
-/// fail-safe's boot wedge, `smsysex_pending`, and the settings submit machine).
+/// running answers PENDING forever, wedging anything waiting on it -- the hazard behind the startup
+/// fail-safe's boot wedge, `smsysex_pending`, and the settings submit machine.
 ///
-/// MEASURED, both ends, before it was pinned -- which the tick constant it replaces never was:
+/// MEASURED, both ends:
 ///   - the offline stem export's longest single unproductive run is 6 ms, 50x below this;
 ///   - every stall gate leg holds its operation for 3000 ms, 10x above this.
 /// Changing it requires re-measuring both.

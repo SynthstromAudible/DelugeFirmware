@@ -99,8 +99,7 @@ int32_t Sound::soundsDestroyedWithLiveVoices() {
 Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalValues) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
-	// CONTAINMENT for the voices_ cross-tier race (see
-	// docs/superpowers/specs/2026-08-16-voices-cross-tier-race.md). The audio render runs on a
+	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
 	// preemptive interrupt executor and iterates every Sound's voices_ while culling; an
 	// interaction-tier note-on can push_back into that same vector at any instruction. If the
 	// push_back reallocates, the audio tier's in-flight traversal walks freed memory.
@@ -1635,8 +1634,7 @@ void Sound::noteOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* 
 	reassessRenderSkippingStatus(modelStackWithSoundFlags);
 }
 
-/// Re-trigger @p voice, which is in voices_ and may be sounding: its envelopes resume from where they are. The caller
-/// holds an AudioExcludedSection (or is the render): the render plays this voice.
+// Re-trigger a voice already in voices_ (see the declaration for the contract).
 void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
                            int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues,
                            uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
@@ -1721,7 +1719,8 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 	}
 	else {
 		// A new voice. Built here, where no Sound's voices_ holds it: the render can neither render nor cull it, so no
-		// reference into voices_ is held across the note-on (a cull used to erase or move that slot mid-note-on: E199).
+		// reference into voices_ is held across the note-on (a cull erasing or moving that slot mid-note-on is what
+		// fires E199).
 		std::optional<ActiveVoice> built; // ActiveVoice's deleter makes it not default-constructible
 		try {
 			built.emplace(AudioEngine::VoicePool::get().acquire(*this));
@@ -4373,7 +4372,6 @@ int16_t Sound::getMinOscTranspose() {
 	return minRawOscTranspose + transpose;
 }
 
-// Returns true if more loading needed later
 deluge::storage::Walk Sound::walkSourceDemands(deluge::storage::SampleLoadVisitor& visitor) {
 
 	for (int32_t s = 0; s < kNumSources; s++) {
@@ -4814,7 +4812,8 @@ void Sound::detachSourcesFromAudioFiles() {
 void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
 	// during memory allocation
-	// audioRoutineLocked used to stand in for this, but it gates only the cooperative audio routine, not the render.
+	// audioRoutineLocked gates only the cooperative audio routine, not the render, so excluding the render here needs
+	// AudioExcludedSection.
 	AudioExcludedSection section;
 	killAllVoices();
 	sources[s].ranges.erase(sources[s].ranges.begin() + r); // Destructs the range
@@ -4938,9 +4937,9 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackW
 void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack, bool erase) {
 	// Capture the identity BEFORE any mutation, and erase by that value rather than by `voice`.
 	//
-	// `voice` aliases an element of `voices_` at every call site: `acquireVoice` returns
-	// `&voices_.back()`, and `AudioEngine::terminateOneVoice` takes `&voice` out of its joined
-	// view. `std::erase(c, value)` is specified as `erase_if(c, [&](auto& e){ return e == value; })`
+	// `voice` aliases an element of `voices_` at every call site: a range-for over `voices_`,
+	// `stealOneActiveVoice()`, and `AudioEngine::terminateOneVoice` all hand back a reference into the
+	// vector itself. `std::erase(c, value)` is specified as `erase_if(c, [&](auto& e){ return e == value; })`
 	// — it compares each element against `value` while `std::remove` shifts elements within the
 	// container. When `value` aliases one of those elements, its storage is overwritten part-way
 	// through the algorithm and the remaining comparisons run against a moved-from value.
@@ -4952,8 +4951,8 @@ void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* 
 	// `remove` rearranges the container.
 	//
 	// Single-threaded UB, not a race — it needs only repeated culling, which is why it surfaces
-	// under a cull storm rather than under concurrency. Distinct from the cross-tier race in
-	// docs/superpowers/specs/2026-08-16-voices-cross-tier-race.md, which remains open.
+	// under a cull storm rather than under concurrency. Distinct from the cross-tier race on
+	// voices_ (see the containment note in Sound::Sound()), which remains open.
 	Voice* const target = voice.get();
 	voice->setAsUnassigned(modelStack);
 	if (erase) {

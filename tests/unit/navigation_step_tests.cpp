@@ -95,12 +95,12 @@ TEST(NavigationStepTests, skippingStopsAfterTwoWrapsInOneWindow) {
 	checkLand(decideNavigation(window(items), 1, true, true, 0), 0, 2);
 }
 
-// ── Paging, the change ────────────────────────────────────────────────────────
+// ── Paging ────────────────────────────────────────────────────────
 
 TEST(NavigationStepTests, pagesOnFromTheLastEntryShown) {
-	// The old code re-read from the old name here: the same window, for ever. The page goes on from the last entry
-	// the window SHOWS -- not from FileListing::lastRemaining, which dropFoldersAndDuplicates pops off the window and
-	// the next read (which excludes its own search name) would then skip.
+	// Pages on from the last entry the window SHOWS -- not from its search name, which would re-read
+	// the same window forever, and not from FileListing::lastRemaining, which dropFoldersAndDuplicates
+	// pops off the window and the next read (which excludes its own search name) would then skip.
 	const std::array items{NavigationItem{.inSong = true, .name = "NAV01.XML"},
 	                       NavigationItem{.inSong = true, .name = "NAV09.XML"}};
 	const auto d = decideNavigation(window(items, 0, 5), 1, true, true, 0);

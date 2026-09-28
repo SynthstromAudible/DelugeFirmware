@@ -41,19 +41,19 @@
 /// `scripts/startup_failsafe.sh`'s channel-on leg that requires it non-zero.
 extern "C" {
 
-/// Reset the scenario's state and prepare stdout for a piped run.
+/// @brief Reset the scenario's state and prepare stdout for a piped run.
 void deluge_scenario_startup_failsafe_begin(void);
 
-/// Whether the summary has been printed and the run may stop stepping.
+/// @brief Whether the summary has been printed and the run may stop stepping.
 bool deluge_scenario_startup_failsafe_complete(void);
 
-/// Run one tick of the scenario, then queue a marker behind whatever it dispatched.
+/// @brief Run one tick of the scenario, then queue a marker behind whatever it dispatched.
 void deluge_scenario_startup_failsafe_dispatch_step(void);
 
-/// Whether the marker queued by the last dispatch has run.
+/// @brief Whether the marker queued by the last dispatch has run.
 bool deluge_scenario_startup_failsafe_step_done(void);
 
-/// How many in-process assertions failed.
+/// @brief How many in-process assertions failed.
 int32_t deluge_scenario_startup_failsafe_failures(void);
 
 } // extern "C"

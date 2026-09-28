@@ -50,10 +50,16 @@ bool removeAlloc(void* address);
 // No-op if `oldAddress` was not tracked.
 void updateAllocKey(void* oldAddress, void* newAddress, uint32_t newRequestedSize);
 
-// Diagnostics: the table's capacity, and how many of its buckets are empty (hold neither a live entry nor a leftover of
-// a removed one). Every edit of the table runs with the render held off (AudioExcludedSection), so its probe chains
-// must stay short: removal leaves no leftovers, and emptyBuckets() == tableCapacity() - liveAllocations().
+/// @brief The table's total capacity (number of buckets).
+/// @return Total number of buckets in the table.
 uint32_t tableCapacity();
+
+/// @brief Number of buckets that are empty (hold neither a live entry nor a leftover of a removed one).
+///
+/// @note Every edit of the table runs with the render held off (AudioExcludedSection), so its probe chains
+///       must stay short: removal leaves no leftovers, and `emptyBuckets() == tableCapacity() -
+///       liveAllocations()`.
+/// @return Count of empty buckets.
 uint32_t emptyBuckets();
 
 // ---- Leak hunting --------------------------------------------------------------------------------------------------

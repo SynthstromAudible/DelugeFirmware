@@ -203,9 +203,10 @@ fn a_failure_from_a_previous_card_is_dropped_not_returned() {
     );
 }
 
-/// The slot must hold the largest single-shot read any consumer makes, and that is no longer the
-/// song preview. The DX7 cartridge reads `min(filesize, 8192)` (`gui/menu_item/dx/cartridge.cpp`),
-/// and a 32-voice bank is 4104 bytes -- 8 past a 4096 slot, which is enough to fail its checksum.
+/// The slot must hold the largest single-shot read any consumer makes, and that is the DX7
+/// cartridge, not the song preview. The DX7 cartridge reads `min(filesize, 8192)`
+/// (`gui/menu_item/dx/cartridge.cpp`), and a 32-voice bank is 4104 bytes -- 8 past a 4096 slot,
+/// which is enough to fail its checksum.
 /// This is a bound a shipped consumer needs, not a defensive round number.
 #[test]
 fn the_slot_holds_a_dx7_bank() {
@@ -716,10 +717,9 @@ mod live_pipeline {
 
     /// A failed read collects FAILED, once, writing neither output — and is UNKNOWN afterwards.
     ///
-    /// The status is the whole point: it used to be READY-with-zero-length, which is what an empty
-    /// FILE gets, so the caller could not tell an unreadable song from one with no artwork and had
-    /// to draw blank for both. The synchronous backing it stands in for shows an error for the
-    /// first, and this is what lets the async one keep doing that.
+    /// The status is the whole point: READY-with-zero-length is what an empty FILE gets, so
+    /// reporting a failure that way leaves the caller unable to tell an unreadable song from one
+    /// with no artwork.
     #[test]
     fn a_failed_read_collects_failed_exactly_once() {
         let _guard = reset();

@@ -486,21 +486,30 @@ enum class Error {
 	POS_PAST_STRING,
 	FILE_NOT_SAVED,
 	TOO_MANY_OPEN_STREAMS,
-	/// Not a failure: the async sample loader has been asked for this file and has not finished yet.
-	/// A caller that gets this got no AudioFile *this* time and should ask again on a later tick --
-	/// it must NOT re-request, report a load failure, or write anything on the strength of it. Only
-	/// produced by AudioFileManager::getAudioFileFromFilename's opt-in async path (see
-	/// libdeluge/audio_load.h); the synchronous path never returns it.
+	/// @brief Not a failure: the async sample loader has been asked for this file and has not
+	///        finished yet.
+	///
+	/// A caller that gets this got no AudioFile *this* time and should ask again on a later
+	/// tick. Only produced by AudioFileManager::getAudioFileFromFilename's opt-in async path
+	/// (see libdeluge/audio_load.h); the synchronous path never returns it.
+	///
+	/// @warning Must NOT re-request, report a load failure, or write anything on the strength
+	///          of this result.
 	LOAD_IN_PROGRESS,
-	/// Not a failure: a folder listing needs a directory the async directory channel has not opened
-	/// yet. The caller got no listing *this* time and should let the browser's per-tick surface run
-	/// the attempt again -- it must NOT re-request, report a failure, or commit anything on the
-	/// strength of it. Only produced off the storage owner after boot, where every directory open goes
-	/// through libdeluge/file_directory.h; the synchronous path never returns it.
+	/// @brief Not a failure: a folder listing needs a directory the async directory channel has
+	///        not opened yet.
+	///
+	/// The caller got no listing *this* time and should let the browser's per-tick surface run
+	/// the attempt again. Only produced off the storage owner after boot, where every directory
+	/// open goes through libdeluge/file_directory.h; the synchronous path never returns it.
 	///
 	/// Deliberately NOT LOAD_IN_PROGRESS, even though the contract is word for word the same:
-	/// `addInstrumentsToFileItems` runs INSIDE a listing and can itself reach the sample loader, so
-	/// one shared enumerator would make "which of the two deferred?" unanswerable at the catch site.
+	/// `addInstrumentsToFileItems` runs INSIDE a listing and can itself reach the sample loader,
+	/// so one shared enumerator would make "which of the two deferred?" unanswerable at the
+	/// catch site.
+	///
+	/// @warning Must NOT re-request, report a failure, or commit anything on the strength of
+	///          this result.
 	LISTING_DEFERRED,
 };
 

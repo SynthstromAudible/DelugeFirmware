@@ -90,7 +90,7 @@ bool LoadPatternUI::opened() {
 	favouritesChanged();
 	currentDir = defaultDir.c_str();
 
-	Error error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	Error error = beginSlotSession(); // Requires currentDir to be set.
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;

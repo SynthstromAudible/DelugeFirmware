@@ -18,7 +18,7 @@
 #pragma once
 
 /// @brief Host-only C ABI for the clear-song/undo gate: Create New Song and, later, undo and redo -- the two
-///        operations Phase 4c takes off the storage owner.
+///        operations that run off the storage owner.
 ///
 /// @note Runs as a step machine: each `dispatch_step()` does one stage and queues a marker op on the storage owner,
 ///       and the platform driver waits for `step_done()` before dispatching again.

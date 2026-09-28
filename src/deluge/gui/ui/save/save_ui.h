@@ -124,16 +124,15 @@ public:
 
 	/// @brief The closing bytes this save's document must end with, or nullptr for no read-back.
 	///
-	/// Non-null only for the saves the streaming writer used to verify by reopening the file:
-	/// building the document in memory skipped that check, and this is how it comes back. A save that
-	/// never verified returns nullptr and gains nothing it did not have.
+	/// Non-null only for saves whose document is verified by checking that it ends with these bytes;
+	/// building the document in memory leaves no file to reopen, so this is how that check runs
+	/// instead. A save that is not verified returns nullptr and gains nothing it did not have.
 	[[nodiscard]] virtual const char* verifyTailForSave() const { return nullptr; }
 
 	/// @brief Run this save's checks BEFORE its document is built, and refuse if they fail.
 	///
 	/// Where a staged save's preconditions live -- a preset may not take a slot another instrument in
-	/// the song already holds. Staging moved every one of these saves off the function that used to run them, which was
-	/// the only place such checks ran, and for a while they ran nowhere.
+	/// the song already holds.
 	/// @param request The dispatched save.
 	/// @return false to refuse; the save then ends as failed and writes nothing.
 	[[nodiscard]] virtual bool beforeStagedWrite(const deluge::storage::SaveRequest& /*request*/) { return true; }

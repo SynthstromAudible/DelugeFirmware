@@ -74,9 +74,9 @@ typedef enum DelugeAudioContainer : uint8_t {
 
 /// @brief What a walk is FOR: which chunks it reads, and which of the file's claims it insists on.
 ///
-/// Not a style preference. The parser this replaces branched on the same distinction, and dropping it
-/// changed which files load: a wavetable load uses only the audio's shape and location, so the
-/// metadata that describes playing a NOTE back is neither read nor believed.
+/// Not a style preference: dropping the distinction changes which files load: a wavetable load uses
+/// only the audio's shape and location, so the metadata that describes playing a NOTE back is
+/// neither read nor believed.
 typedef enum DelugeAudioWalkGoal : uint8_t {
 	/// Everything the header says. What a Sample load wants.
 	DELUGE_AUDIO_WALK_WHOLE_HEADER = 0,

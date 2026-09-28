@@ -7,11 +7,8 @@
 //!
 //! # Why content-addressed
 //!
-//! These images used to be named `deluge-streaming-scenario-<pid>.img`, created and then
-//! simply abandoned: nothing in the tree ever unlinked one. Because the name keyed on
-//! `std::process::id()`, every invocation minted a *new* file, so `/tmp` grew without
-//! bound — twice to the point of incident (see `lens1_vt_sim/sweep.sh`'s note on the 11 GiB
-//! event, and a later ~12 GiB recurrence).
+//! A per-PID name (`deluge-streaming-scenario-<pid>.img`) mints a new file on every invocation,
+//! and nothing unlinks them, so `/tmp` grows without bound (see `lens1_vt_sim/sweep.sh`).
 //!
 //! The obvious fix — an RAII guard that unlinks on drop — is *wrong here*, because
 //! `preemptive_race_tsan/run.sh` documents that packing an image and consuming it as the SD
@@ -20,7 +17,7 @@
 //! image from a later one. Unlinking at exit would destroy exactly the artifact the next run
 //! is supposed to reuse.
 //!
-//! So the contradiction the old scheme sat on — a per-PID name (says "disposable, mine") with
+//! So the contradiction a per-PID scheme sits on — a per-PID name (says "disposable, mine") with
 //! a cross-process lifetime (says "cacheable, shared") — is resolved in favour of *shared*:
 //! the filename keys on a fingerprint of the packed corpus instead of the PID. One image per
 //! distinct corpus, reused by every later run, repacked automatically when the corpus changes.

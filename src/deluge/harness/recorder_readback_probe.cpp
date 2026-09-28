@@ -178,8 +178,7 @@ uint8_t deluge_harness_recorder_probe(uint8_t numChannels, uint32_t numFrames) {
 	return 1;
 }
 
-/// One tick of the drain the probe used to spin on. Returns nothing: what it flushes is observed by
-/// `_acquire()` below.
+/// One tick of the drain. Returns nothing: what it flushes is observed by `_acquire()` below.
 void deluge_harness_recorder_probe_drain_tick() {
 	if (g_recorder != nullptr) {
 		(void)g_recorder->cardRoutine();
@@ -295,10 +294,9 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe(uint8_t numChannels
 	// pattern host_recorder_roundtrip_main.cpp's runCase() uses).
 	g_finalizedRecorder->endSyncedRecording(0);
 
-	// The pump is the CALLER's now -- `..._probe_tick()` below, one cardRoutine() per call. It used to
-	// be a 200000-iteration loop here, which never yielded and so only worked while `cardRoutine()`
-	// blocked inline on the synchronous arm. On the channel arm nothing answers a caller that does not
-	// return, which is exactly what kept the fiber alive.
+	// The pump is the CALLER's -- `..._probe_tick()` below, one cardRoutine() per call. A tight loop that
+	// never yields only works while `cardRoutine()` blocks inline on the synchronous arm; on the channel
+	// arm nothing answers a caller that never returns.
 	g_finalizedPumpTicks = 0;
 	return 1; // set up; caller ticks, then calls _finish()
 }

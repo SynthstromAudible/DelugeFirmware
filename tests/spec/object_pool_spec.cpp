@@ -95,9 +95,8 @@ describe object_pool("ObjectPool", $ {
 		expect(op.empty()).to_be_true();
 	});
 
-	// Was previously asserted the other way round ("two threads should have different
-	// ObjectPools", when `get()`'s instance was `thread_local`). That contract cannot hold
-	// alongside `recycle`, and the two together were a live bug:
+	// One pool per type, shared by every context, is the contract `recycle` already implements —
+	// a per-context (e.g. `thread_local`) pool cannot coexist with it:
 	//
 	//   - `recycle` is static and calls `get()`, so it returns the object to the pool of whichever
 	//     context DESTROYS it, not the one that acquired it. Per-context pools therefore let
@@ -105,13 +104,11 @@ describe object_pool("ObjectPool", $ {
 	//   - Worse, once a pool is at capacity `recycle` falls through to `Alloc<T>().deallocate`, so
 	//     a migrated object turns the pool into a plain heap allocator — defeating the whole point
 	//     of pooling.
-	//   - The global object ceiling becomes capacity x contexts instead of capacity, and callers
-	//     (e.g. the voices_ race analysis) rely on that single global bound.
-	//   - On the firmware it was not per-context at all: nothing initialises the ARM TPIDRURO
-	//     thread pointer, so `thread_local` resolved through an uninitialised register and handed
-	//     back a wild pointer. That was a boot-time abort in AudioEngine::init().
-	//
-	// One pool per type, shared by every context, is the contract `recycle` already implements.
+	//   - The global object ceiling must stay capacity, not capacity x contexts: callers (e.g. the
+	//     voices_ race analysis) rely on that single global bound.
+	//   - On the firmware a per-context pool is unsafe at a lower level too: nothing initialises
+	//     the ARM TPIDRURO thread pointer, so `thread_local` resolves through an uninitialised
+	//     register and hands back a wild pointer — a boot-time abort in AudioEngine::init().
 	it("shares one pool across threads", _{
 		auto& op = ObjectPoolType::get();
 		std::promise<void*> promise;

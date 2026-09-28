@@ -103,7 +103,7 @@ constexpr uint32_t kPitchStallHoldMs = 2000;
 constexpr int32_t kTransposeSentinel = 99;
 /// SCSYN.WAV's measured transpose (SC-SYNTH transpose=3): the same sine must give the same one.
 constexpr int32_t kPitchTranspose = 3;
-/// IM-MULTI's measured transposes (SC-PROBE leg=import-multi, 05e423da8): 110, 220 and 440 Hz.
+/// IM-MULTI's measured transposes (SC-PROBE leg=import-multi): 110, 220 and 440 Hz.
 constexpr int32_t kImportMultiTransposes[] = {15, 3, -9};
 constexpr const char* kCycleSample = "SAMPLES/SCCYCLE.WAV";
 /// The resident-wavetable leg's file: previewed (resident as a Sample, most clusters not yet filled) then claimed as a
@@ -399,8 +399,8 @@ bool fail(const char* leg, const char* what) {
 }
 
 /// Fixture builds a tick asked for, run when the runner next asks whether the step is done: one virtual
-/// millisecond after the tick, which is where the retired storage-owner queue ran them. The gates are paced to that
-/// order, so builds are queued here rather than run inside the tick.
+/// millisecond after the tick, matching the pacing the gates are already tuned to. Builds are queued here
+/// rather than run inside the tick, to keep that order.
 std::vector<void (*)()> g_pendingFixtures{};
 
 /// Queue a fixture build for the end of this step. See g_pendingFixtures.

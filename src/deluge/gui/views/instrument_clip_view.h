@@ -81,12 +81,17 @@ public:
 	// Used to reveal Session macros only after the Session button has passed the long-press threshold.
 	ActionResult timerCallback() override;
 	ActionResult handleScaleButtonAction(bool on, bool inCardRoutine);
+	/// @brief Handle a shift/FM or plain instrument-change gesture for @p outputType.
+	///
 	/// This routes to one of TWO different acquisitions depending on whether shift/FM is held, and
 	/// they need separate consumers: each caller's tail runs from its own completion, and the two
 	/// branches have different ones. KeyboardScreen is the caller that has a tail for both (its layout
 	/// refresh), so it overrides both; every other caller keeps the defaults.
+	/// @param outputType The type to switch to.
 	/// @param newInstrumentConsumer Which completion the shift/FM createNewInstrument() branch runs.
 	/// @param changeTypeConsumer Which completion the plain changeOutputType() branch runs.
+	/// @return Whichever branch ran returns: always false for the shift/FM branch, or whether the
+	///         gesture was accepted for the plain branch.
 	bool handleInstrumentChange(
 	    OutputType outputType,
 	    deluge::storage::PresetConsumer newInstrumentConsumer = deluge::storage::PresetConsumer::ViewNewInstrument,
@@ -244,10 +249,9 @@ public:
 	void drawNoteCode(uint8_t yDisplay);
 	/// @brief Dispatch the shift/FM "create a new instrument" gesture. Always returns false: the
 	///        acquisition reads the card, so this always either dispatches or is rejected by the
-	///        clip-not-empty guard -- there is no synchronous "yes, created" left to report, so
-	///        callers that used to gate a tail on this return (KeyboardScreen's SYNTH/KIT handlers)
-	///        no longer can; that tail runs from the `consumer`'s completion instead
-	///        (see PresetConsumer::KeyboardNewInstrument).
+	///        clip-not-empty guard -- there is no synchronous "yes, created" to report. The tail that
+	///        would otherwise gate on that return (KeyboardScreen's SYNTH/KIT handlers) instead runs
+	///        from the `consumer`'s completion (see PresetConsumer::KeyboardNewInstrument).
 	/// @param instrumentType SYNTH or KIT.
 	/// @param is_fm Whether the new Synth should be FM (DX7). Ignored for KIT.
 	/// @param consumer Which completion runs the tail once the acquisition actually completes; default
@@ -258,15 +262,14 @@ public:
 	                    deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewNewInstrument);
 	/// @brief createNewInstrument()'s follow-up, reached from LoadInstrumentPresetUI::
 	///        runAcquisitionFollowUp()'s `ViewNewInstrument`/`KeyboardNewInstrument` arms, on the
-	///        storage owner. Runs InstrumentClipMinder::createNewInstrument() (unchanged, blocking --
-	///        legal here) then this class's own recolour/repaint/enterDrumCreator tail, since all of
-	///        that used to fire, together, right after the (now-deferred) creation.
+	///        storage owner. Runs InstrumentClipMinder::createNewInstrument() (blocking -- legal
+	///        here) then this class's own recolour/repaint/enterDrumCreator tail.
 	/// @param clip The dispatch-time snapshot (PresetRequest::clip); acted on directly, never
 	///        re-fetched via getCurrentInstrumentClip() -- see createNewInstrument()'s doc for why.
 	/// @param newOutputType SYNTH or KIT.
 	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
-	/// @return Whether an instrument was actually created.
 	/// @param acquired The unused slot name InstrumentLoad's walk found, or why there is none.
+	/// @return Whether an instrument was actually created.
 	bool completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
 	                           const deluge::storage::AcquireResult& acquired);
 	/// @brief Change the current clip's output type through this class's fuller tail.
@@ -278,13 +281,12 @@ public:
 	                      deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewChangeType);
 	/// @brief changeOutputType()'s follow-up, reached via View::completeChangeOutputTypeFor()'s
 	///        `ViewChangeType` and `KeyboardChangeType` arms -- on the storage owner for Synth/Kit,
-	///        inline for MIDI/CV. Runs
-	///        InstrumentClipMinder::changeOutputType()'s LED tail (setLedStates(), inherited) AND this
-	///        class's own recolour/repaint tail, since both used to fire, together, right after the
-	///        (now-deferred) swap -- see the rung 5 task 4 review.
+	///        inline for MIDI/CV. Runs InstrumentClipMinder::changeOutputType()'s LED tail
+	///        (setLedStates(), inherited) AND this class's own recolour/repaint tail.
 	/// @param newOutputType The type that was switched to.
 	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
 	/// @param doBlink Whether the redrawn output name should blink.
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	/// @return Whether the swap actually succeeded.
 	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
 	                              const deluge::storage::AcquireResult* acquired = nullptr);

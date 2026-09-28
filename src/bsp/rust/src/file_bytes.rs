@@ -608,8 +608,7 @@ static RESULT: Mutex<CriticalSectionRawMutex, BytesSlot> = Mutex::new(BytesSlot:
 /// `boot_mem::init_sdram_memory()` before any task runs. A plain byte array is valid zeroed; the
 /// `Mutex<Option<..>>` slots above are not (an empty slot is not all zero bytes), which is why the
 /// slots stay on-chip and only the bytes move. On-chip SRAM grows in 64 KiB steps of the C++ fast
-/// heap, so these buffers -- and the task future that used to carry copies of them -- do not belong
-/// there.
+/// heap, so a buffer this size does not belong there.
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut REQUEST_BYTES: [u8; MAX_BYTES] = [0; MAX_BYTES];
 
@@ -1541,9 +1540,9 @@ impl ProdByteOps {
 
     /// Open `path`, mounting first if the volume is not mounted yet.
     ///
-    /// MOUNTING IS REAL CARD I/O, which is exactly why it happens here: `StorageManager::initSD()`
-    /// used to do it before every settings access, and with this channel active those callers run on
-    /// the interaction tier. Mounted lazily rather than before every open, so the steady state costs
+    /// MOUNTING IS REAL CARD I/O, so it happens here rather than in `StorageManager::initSD()`: with
+    /// this channel active those callers run on the interaction tier. Mounted lazily rather than
+    /// before every open, so the steady state costs
     /// nothing. `mount()` bumps `deluge_efatfs_mount_generation`, which is how the C++ side still
     /// learns to run `firstCardRead()`.
     async fn open_mounted(path: &str, mode: u8) -> Result<u32, i8> {
@@ -1641,7 +1640,8 @@ impl ByteOps for ProdByteOps {
             // Result deliberately discarded: EXISTS is the commonest outcome and is not a failure
             // for "make sure this directory is there", and anything else surfaces as the open
             // failing, which is the answer the caller acts on. This is the `mkdir SETTINGS_FOLDER`
-            // that each of the four consumers used to do inline, on whatever tier it was standing.
+            // call centralized here instead of duplicated inline across the four consumers, each on
+            // whatever tier it happens to run on.
             let _ = backing::task_mkdir(parent).await;
         }
         let handle = Self::open_mounted(path, OPEN_WRITE_CREATE).await?;
@@ -1709,9 +1709,9 @@ impl ByteOps for ProdByteOps {
     }
 
     async fn mkdir_all(&self, path: &str) -> Result<(), i8> {
-        // The walk that used to live in `smSysex::createPathDirectories` and
-        // `Browser::createFoldersRecursiveIfNotExists`, moved below the seam once so neither caller
-        // needs a phase machine to do it.
+        // This directory walk is implemented once here instead of duplicated in each caller
+        // (`smSysex::createPathDirectories`, `Browser::createFoldersRecursiveIfNotExists`), so
+        // neither needs a phase machine to do it.
         //
         // Leading and repeated separators produce empty segments, which are skipped rather than
         // passed to mkdir: `task_mkdir("")` is not a directory anyone asked for.
@@ -1802,8 +1802,8 @@ impl ByteOps for ProdByteOps {
     }
 
     async fn copy_file(&self, from: &str, to: &str, scratch: &mut [u8]) -> Result<(), i8> {
-        // The loop `smSysex::performFileCopy` used to run, moved below the seam so its caller needs
-        // neither a loop nor two open files -- the same move `mkdir_all`'s segment walk made.
+        // This is the loop `smSysex::performFileCopy` ran, implemented once here so its caller needs
+        // neither a loop nor two open files -- the same shape `mkdir_all`'s segment walk has.
         if let Some(parent) = Self::parent_of(to) {
             let _ = backing::task_mkdir(parent).await;
         }

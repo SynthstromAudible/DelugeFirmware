@@ -96,10 +96,10 @@ TEST(SlicerPreview, aColdPressDefersThenSoundsOnTheNextTick) {
 
 /// A load that stops moving gives up once, rather than being asked for on every tick for ever.
 ///
-/// When to give up is the async sample load's own stall bound (600 walks, pinned by sample-load-tree's stall leg); here
-/// the load simply answers Failed/Stalled. At the give-up nothing is left held, no audition note is sent, the card
-/// error is shown and the give-up is counted. The next press asks again, so a card that does answer later still
-/// auditions.
+/// When to give up is the async sample load's own stall bound (600 walks); here the load simply
+/// answers Failed/Stalled. At the give-up nothing is left held, no audition note is sent, the card
+/// error is shown and the give-up is counted. The next press asks again, so a card that does answer
+/// later still auditions.
 TEST(SlicerPreview, aStalledLoadGivesUpOnce) {
 	SlicerPreviewProbe probe;
 	probe.answer(LoadAnswer::Loading);

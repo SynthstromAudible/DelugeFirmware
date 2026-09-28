@@ -292,10 +292,9 @@ mod signals;
 /// The blocking-I/O seam: a plain non-yielding block on device, and on host a spin driven
 /// by a harness-registered progress hook. See the module doc for why host needs the hook.
 mod sim_block;
-/// The async cluster-fill task (R1) and its selector/wakeup C ABI (R2.1): drains
+/// The async cluster-fill task and its selector/wakeup C ABI: drains
 /// the resource manager's loader queue on this executor, awaiting the SD read
-/// instead of running it inline as the old C++ `loader::pump()`
-/// did. Compiled on the Embassy
+/// instead of running it inline. Compiled on the Embassy
 /// BSP unconditionally (device, or host under `host_app`) so
 /// `deluge_streaming_async_active`/`deluge_streaming_signal_fill` always link;
 /// the task itself (spawned below) and the rest of the drain machinery stay
@@ -643,7 +642,7 @@ pub extern "C" fn main() -> ! {
         // needs embassy-time Timers, which a blocking storage call cannot provide
         // (see `sd::card_service`).
         spawner.spawn(sd::card_service().unwrap());
-        // The async cluster-fill task is NOT spawned here any more: it runs on STREAM_EXEC,
+        // The async cluster-fill task is not spawned here: it runs on STREAM_EXEC,
         // its own preemptive interrupt executor (see `STREAM_EXEC` and `stream_bootstrap`).
         // A non-yielding storage spin in thread mode must not be able to starve it.
     });
@@ -737,8 +736,7 @@ async fn app_task() {
     boot::mark_finished();
     log::info!("deluge-rust: scheduler running");
 
-    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
-    // fiber this loop used to drive is retired.
+    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`.
     core::future::pending::<()>().await
 }
 
@@ -785,8 +783,7 @@ async fn host_app_task() {
     boot::mark_finished();
     log::info!("deluge-bsp-rust: host scheduler running");
 
-    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`, and the storage worker
-    // fiber this loop used to drive is retired.
+    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`.
     core::future::pending::<()>().await
 }
 
@@ -1207,7 +1204,7 @@ fn main() {
                     // `block_on`'d sim_latency transfer and would starve a
                     // same-thread `pump`).
                     spawner.spawn(host_app_task().unwrap());
-                    // The async cluster-fill task is NOT spawned here any more: it owns the
+                    // The async cluster-fill task is not spawned here: it owns the
                     // `"deluge-stream"` thread above, mirroring the device's STREAM_EXEC. A
                     // non-yielding storage spin on THIS thread — the one `host_app_task` and
                     // the C++ enqueue path run on — must not be able to starve it.

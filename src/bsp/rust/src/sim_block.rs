@@ -6,13 +6,13 @@
 //!
 //! On host there is no completion interrupt. A pending transfer becomes ready only when
 //! some *other* context runs — the `sim_latency::pump` task advances, or the virtual clock
-//! moves. A plain spin can therefore never complete (empirically confirmed: see
-//! `sd.rs`'s `off_fiber_instant` doc comment). So the host spin calls a **progress hook**
+//! moves. A plain spin can therefore never complete (nothing inside the spin advances the
+//! clock or the pump). So the host spin calls a **progress hook**
 //! the harness registers, which pumps its higher-priority executor and advances virtual
 //! time. This emulates the device's interrupt preemption inside a cooperative,
 //! single-threaded, deterministic sim.
 //!
-//! The hook lives here rather than in the harness so production call sites (R5a Phase 2)
+//! The hook lives here rather than in the harness so production call sites
 //! can call `block_on` without the BSP depending on any harness crate.
 
 use core::future::Future;
@@ -74,8 +74,8 @@ pub fn set_spin_budget(polls: u32) {
 /// The trade is deliberate and worth knowing: because this hook always reports
 /// [`Progress::Advanced`], it does **not** detect a genuinely unsatisfiable spin. That is
 /// acceptable here — wedge detection on a threaded host belongs to the wall-clock timeouts and
-/// TSan, while `lens1_vt_sim` keeps the strict budget-based detector its charter assigns it (R5a
-/// spec §3). **Do not install this hook in a single-threaded sim:** it would silently disarm the
+/// TSan, while `lens1_vt_sim` keeps the strict budget-based detector its charter assigns it.
+/// **Do not install this hook in a single-threaded sim:** it would silently disarm the
 /// detector there, which is the one place the detector is load-bearing.
 #[cfg(not(target_os = "none"))]
 pub fn use_threaded_host_hook() {

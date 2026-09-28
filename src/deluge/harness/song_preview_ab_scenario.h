@@ -21,18 +21,17 @@
 ///        REAL `LoadSongUI` over the prefix channel, and hold each song's rendered image and decode
 ///        outcome to the same file decoded the synchronous way on the storage owner.
 ///
-/// The channel has no switch, so there is one build and one run: the reference a file-backed second
-/// build used to provide is decoded in-process instead (`SP-REFERENCE`, beside each `SP-CASE`).
-/// `scripts/song_preview_ab.sh` runs it.
+/// The channel has no switch, so there is one build and one run: the reference that a second,
+/// file-backed build would otherwise provide is decoded in-process instead (`SP-REFERENCE`, beside
+/// each `SP-CASE`). `scripts/song_preview_ab.sh` runs it.
 ///
 /// ## What is compared, and why pixels alone are not enough
 ///
 /// Each `SP-CASE` line carries a CRC of the rendered pad image AND the `SongPreviewOutcome` the
 /// decode reported, plus the `Error` it put on screen. The outcome is not decoration: an unreadable
 /// song, a song with no artwork, and a preview that falls past the read window all draw an
-/// IDENTICAL blank screen, so a gate that compared only images would have passed while one backing
-/// showed the user an error popup and the other showed nothing at all. That is exactly the state
-/// the two backings were in when this gate was written.
+/// IDENTICAL blank screen, so a gate that compared only images would pass while one backing shows
+/// the user an error popup and the other shows nothing at all.
 ///
 /// ## The re-ask is under test, not simulated
 ///

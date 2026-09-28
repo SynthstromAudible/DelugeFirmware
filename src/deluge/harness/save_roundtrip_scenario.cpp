@@ -124,11 +124,8 @@ constexpr int32_t kMaxSaveWaitTicks = 200000;
 /// Whether the save machinery has gone quiet.
 ///
 /// A song save has not finished when `enterKeyPress()` returns. It serialises, writes and finishes
-/// across ticks, and collects samples on a second machine beside that -- so reading the file back on
-/// the very next tick asks the card a question the save has not answered yet. This scenario used to
-/// do exactly that and passed anyway, because at the time the save still happened to complete inside
-/// the keypress. It stopped being true the moment the collection stopped being kicked off inline,
-/// and the gate reported "the save wrote no file" for a save that was merely still running.
+/// across ticks, and collects samples on a second machine beside that. Reading back on the very next
+/// tick would pass only if the save happened to finish inside the keypress.
 bool saveMachineryIdle() {
 	// Three machines now, not two: the sample collection, the staged document write the song save
 	// runs on a machine of its own, and the staged-save machine the base class runs. Miss any one of
@@ -382,9 +379,8 @@ void runTick() {
 		break;
 	}
 	case Stage::SaveSecondWait: {
-		// The existence answer lands on a LATER tick than the key press. This check used to read the
-		// prompt straight away, which held only while the check ran synchronously through the owner
-		// queue that every harness step drains.
+		// The existence answer lands on a LATER tick than the key press, so this check must wait rather
+		// than read the prompt on the same tick as the key press.
 		if (saveMachineryIdle()) {
 			g_stage = Stage::SaveSecondCheck;
 			break;

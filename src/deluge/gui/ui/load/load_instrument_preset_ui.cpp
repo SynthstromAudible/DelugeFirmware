@@ -306,8 +306,8 @@ void LoadInstrumentPresetUI::onListingFailed(Error error) {
 		changingOutputType_ = false;
 		outputTypeToLoad = outputTypeBeforeChange_;
 		if (!listingRestored_) {
-			// No copy of what the change replaced, for want of memory: changeOutputType()'s original synchronous
-			// path, which silently reverted outputTypeToLoad and left the browser open.
+			// No copy of what the change replaced, for want of memory: outputTypeToLoad is simply reverted, and the
+			// browser stays open.
 			return;
 		}
 		// The failed listing put back the previous type's folder, list and entered text. setupForOutputType() puts
@@ -591,9 +591,8 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx, acquired);
 		break;
 	case PresetConsumer::KeyboardNewInstrument:
-		// Same tail as ViewNewInstrument, plus the layout refresh keyboard_screen.cpp used to run
-		// eagerly off createNewInstrument()'s old synchronous return -- see PresetConsumer::
-		// KeyboardNewInstrument's doc. Gated on the same "did it actually create" bool
+		// Same tail as ViewNewInstrument, plus the layout refresh keyboard_screen.cpp needs -- see
+		// PresetConsumer::KeyboardNewInstrument's doc. Gated on the same "did it actually create" bool
 		// completeNewInstrument() already returns, so a failed acquisition (no unused slot, OOM) does
 		// not refresh the layout for nothing.
 		//
@@ -689,15 +688,13 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		// preset in some way. So first up, make sure there is a file at that path.
 		//
 		// The listing already answered this. `maybeExistsOnCard` is false only for an item built from an
-		// unsaved in-memory instrument, which is exactly the case below -- so asking the card again told
-		// us nothing the browser did not already know, and it asked by BLOCKING: this runs from
+		// unsaved in-memory instrument, which is exactly the case below -- so asking the card again would tell
+		// us nothing the browser doesn't already know, and it would ask by BLOCKING: this runs from
 		// uiTimerManager -> timerCallback() on the interaction tier, where a card wait is what this
-		// ladder exists to stop. Measured: the old `StorageManager::fileExists()` here froze `preset-load`
-		// on TIR6 the moment the site declared its tier.
+		// ladder exists to stop.
 		//
-		// The same swap as `delete_file.cpp`'s, and as this file's own kit-row check below. It also
-		// retires TODO(conflation-batch-4) for this site: the removed call treated "could not tell" as
-		// "absent", while the flag is a definite in-memory fact.
+		// The same swap as `delete_file.cpp`'s, and as this file's own kit-row check below: `maybeExistsOnCard`
+		// is a definite in-memory fact, not a "could not tell" guess.
 		if (!currentFileItem->maybeExistsOnCard) {
 			// An unsaved (in-memory only) synth preset cannot be loaded / cloned because
 			// the XML is read from disk to create the instrument. If the preset hasn't
@@ -903,16 +900,13 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 				// Try getting from file
 				std::string filePath = getCurrentFilePath();
 
-				// No fileExists() pre-flight any more. It was a BLOCKING card open on a path the Revert
-				// below reads anyway, and this runs from padAction() -> exitAction() on the interaction
-				// tier -- measured: it froze `preset-load` on TIR6 once the site declared its tier.
+				// No fileExists() pre-flight: it would be a BLOCKING card open on a path the Revert below reads
+				// anyway, and this runs from padAction() -> exitAction() on the interaction tier, where a card
+				// wait is what this ladder exists to stop.
 				//
-				// It could not have been load-bearing in any case: the file can vanish between the check
-				// and the load, so InstrumentLoad has always had to handle a Revert whose file is gone.
-				// Asking first only made that handling look unnecessary.
-				//
-				// (TODO(conflation-batch-4) goes with it: the removed call treated "could not tell" as
-				// "absent", which is the same conflation browser.cpp retired at setFileByFullPathImpl.)
+				// It would not be load-bearing in any case: the file can vanish between the check and the load,
+				// so InstrumentLoad has always had to handle a Revert whose file is gone. Asking first would only
+				// make that handling look unnecessary.
 
 				// Off the card, on the interaction tier: the browser closes now, and swapRevert() puts the original
 				// back when InstrumentLoad has it. The gate stays closed until then, and closing the browser does not
@@ -1067,9 +1061,9 @@ addNumber:
 
 // I thiiink you're supposed to check currentFileExists before calling this?
 //
-// The card-free prologue of every browser load: what performLoad() and performLoadSynthToKit() decided before they
-// touched the card. It reads the request's snapshot, never the browser's live list, and instrumentToReplace live, as
-// the load before it left it.
+// The card-free prologue of every browser load: nothing to load, an existing or hibernating Instrument to reuse, or
+// a preset to read from the card. It reads the request's snapshot, never the browser's live list, and
+// instrumentToReplace live, as the load before it left it.
 deluge::gui::InstrumentLoadDecision
 LoadInstrumentPresetUI::decideLoad(const deluge::gui::InstrumentLoadRequest& request) {
 	const deluge::gui::InstrumentLoadTarget& target = request.target;
@@ -1159,8 +1153,8 @@ LoadInstrumentPresetUI::decideLoad(const deluge::gui::InstrumentLoadRequest& req
 	return decision;
 }
 
-// The tail of every browser load of a synth, kit or MIDI preset, in one pass: what performLoad() did once its
-// Instrument had its samples.
+// The tail of every browser load of a synth, kit or MIDI preset, in one pass, once the new Instrument has its
+// samples.
 Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRequest& request,
                                              const deluge::gui::InstrumentLoadDecision& decision,
                                              Instrument* newInstrument) {
@@ -1235,8 +1229,8 @@ Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRe
 	return Error::NONE;
 }
 
-// The tail of a synth preset loaded into a kit row, in one pass: what performLoadSynthToKit() and loadSynthToDrum() did
-// around the drum's load, with the old drum taken out only once the new one is ready.
+// The tail of a synth preset loaded into a kit row, in one pass, around the drum's load: the old drum is taken out
+// only once the new one is ready.
 Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadRequest& request, SoundDrum* newDrum) {
 	Kit* kitToLoadFor = static_cast<Kit*>(instrumentToReplace);
 

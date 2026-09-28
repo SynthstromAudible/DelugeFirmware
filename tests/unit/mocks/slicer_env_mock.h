@@ -24,8 +24,8 @@
 ///
 /// The point of this mock is that the REAL `Slicer` translation unit links and runs: the audition
 /// specs drive `Slicer::preview()` and `Slicer::graphicsRoutine()` themselves, not a
-/// re-statement of what they are believed to do. (A spec that re-states the caller cannot notice a
-/// caller that never re-asks -- which is precisely the hole rung 1's A/B gate had.)
+/// re-statement of what they are believed to do. A spec that only re-states the caller cannot catch
+/// a caller that stops re-asking.
 ///
 /// Only the collaborators the audition path actually touches behave; everything else `slicer.cpp`
 /// references is defined just far enough to satisfy the linker.

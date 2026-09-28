@@ -15,9 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// A tokenizer, and nothing more: it knows tags, attributes and bytes. The object model it used to
-// include wholesale (Song, Kit, Sound, the drums, the clips) is the business of whoever reads THROUGH
-// this, never of the reader itself -- and dropping it is what lets a host test link the parser.
+// A tokenizer, and nothing more: it knows tags, attributes and bytes. The object model (Song, Kit,
+// Sound, the drums, the clips) is the business of whoever reads THROUGH this, never of the reader
+// itself -- which is what lets a host test link the parser without linking the instrument model
+// behind it.
 #include "definitions_cxx.hpp"
 #include "hid/display/display.h"
 #include "io/debug/log.h"

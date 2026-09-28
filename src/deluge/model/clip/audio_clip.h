@@ -53,6 +53,8 @@ public:
 	void loadSample(bool mayActuallyReadFile, deluge::storage::AudioLoadContext* context = nullptr);
 	/// @brief Report the clip's sample to @p visitor, with naming the clip after it as the after-bind step. Loads
 	///        nothing.
+	/// @param visitor Receives the demand.
+	/// @return Walk::Continue.
 	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	bool wantsToBeginLinearRecording(Song* song) override;
 	bool isAbandonedOverdub() override;

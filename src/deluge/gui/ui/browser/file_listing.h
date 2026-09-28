@@ -84,8 +84,8 @@ class FileListing {
 public:
 	/// @name Observers
 	/// @{
-	/// The folder these items came from. Set only by the read that filled the listing: there is no
-	/// setter, so the items and the directory they came from cannot disagree.
+	/// @brief The folder these items came from. Set only by the read that filled the listing: there is no
+	///        setter, so the items and the directory they came from cannot disagree.
 	/// @note Returns `const std::string&`, not a `std::string_view`: callers hand it to C APIs as a
 	///       `.c_str()` (`AudioLoadContext::forSong`) and concatenate it, and a view carries no
 	///       terminator guarantee. Same reasoning as @ref search's parameter.
@@ -93,15 +93,15 @@ public:
 	[[nodiscard]] std::span<const FileItem> items() const noexcept { return items_; }
 	[[nodiscard]] bool empty() const noexcept { return items_.empty(); }
 	[[nodiscard]] int32_t size() const noexcept { return static_cast<int32_t>(items_.size()); }
-	/// How many entries the cull dropped from each end of this read.
+	/// @brief How many entries the cull dropped from each end of this read.
 	[[nodiscard]] int32_t numDeletedAtStart() const noexcept { return numDeletedAtStart_; }
 	[[nodiscard]] int32_t numDeletedAtEnd() const noexcept { return numDeletedAtEnd_; }
-	/// Names of the entries that bracket the culled window, remembered ACROSS the cull that erases
-	/// them. Owning copies deliberately: these were once aliases into a `FileItem::filename` that
-	/// this very code then erased.
+	/// @brief Names of the entries that bracket the culled window, remembered ACROSS the cull that erases
+	///        them. Owning copies deliberately: these were once aliases into a `FileItem::filename` that
+	///        this very code then erased.
 	[[nodiscard]] std::string_view firstRemaining() const noexcept { return firstRemaining_; }
 	[[nodiscard]] std::string_view lastRemaining() const noexcept { return lastRemaining_; }
-	/// The search name this read started from, empty for a read with none.
+	/// @brief The search name this read started from, empty for a read with none.
 	[[nodiscard]] std::string_view searchName() const noexcept { return searchName_; }
 
 	/// @brief Binary search by displayName, using strcmpspecial.
@@ -138,14 +138,15 @@ public:
 	               Collation collation);
 
 	void sort();
-	/// Trim towards @ref maxItems_, from whichever end the search direction says, recording what was
-	/// dropped and which entries now bracket the window.
+	/// @brief Trim towards @ref maxItems_, from whichever end the search direction says, recording what was
+	///        dropped and which entries now bracket the window.
 	void cull();
 	/// @brief Make room for one more entry and return it, culling if the cap is reached.
 	/// @return The new entry, or null if there was no memory for it even after a cull.
 	[[nodiscard]] FileItem* newItem();
-	/// Drop folders that share a name with a file, files that share a name with a loaded Instrument,
-	/// and Instruments that fail @p requirement.
+	/// @brief Drop folders that share a name with a file, files that share a name with a loaded Instrument,
+	///        and Instruments that fail @p requirement.
+	/// @param requirement Availability an Instrument must meet to survive the drop.
 	void dropFoldersAndDuplicates(Availability requirement = Availability::ANY);
 	void eraseAt(int32_t index);
 	void eraseRange(int32_t startAt, int32_t stopAt);

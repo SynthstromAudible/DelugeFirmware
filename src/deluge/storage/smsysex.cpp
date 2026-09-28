@@ -52,9 +52,9 @@ struct FILdata {
 	uint32_t fPosition = 0; // file offset noted after last read/write operation.
 	bool fileOpen = false;
 	bool forWrite = false;
-	// No `deluge::io::File` any more. A `fid` is a WIRE concept the client owns, and the transfer is
-	// offset-addressed, so the path and position below are everything a block needs -- nothing has to
-	// be held open across the ticks a deferred operation spans.
+	// A `fid` is a WIRE concept the client owns, and the transfer is offset-addressed, so the path and
+	// position below are everything a block needs -- nothing has to be held open across the ticks a
+	// deferred operation spans.
 };
 
 int32_t FIDcounter = 1;
@@ -257,9 +257,9 @@ void smSysex::sendMsg(MIDICable& cable, JsonSerializer& writer) {
 /// a write needs only the file to exist and be empty.
 void smSysex::beginOpenFIL(const char* fPath, bool forWrite) {
 	if (forWrite) {
-		// Creates the parent, creates the file, truncates it -- exactly what DELUGE_FILE_WRITE_CREATE
-		// meant. It also makes `openFile`'s old createPathDirectories retry unnecessary, because the
-		// whole-file write creates the destination's parent itself.
+		// Creates the parent, creates the file, truncates it -- what DELUGE_FILE_WRITE_CREATE meant.
+		// The whole-file write creates the destination's parent itself, so `openFile` needs no separate
+		// retry for a missing path.
 		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::CreateEmpty, fPath, nullptr, {});
 		return;
 	}
@@ -291,7 +291,7 @@ FsWireStatus smSysex::closeFIL(FILdata* fp) {
 	}
 
 	// Nothing to release: no handle was ever held. That is the point of the stateless design, and it
-	// is why this cannot fail any more.
+	// is why this cannot fail.
 	const deluge::io::Status status = deluge::io::Status::OK;
 	fp->fileOpen = false;
 	fp->forWrite = false;
@@ -331,9 +331,8 @@ bool smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 		return true;
 	}
 
-	// The old path-missing retry is gone with the handle. An open-for-write is now a whole-file write
-	// of zero bytes, and that creates the destination's parent itself -- so there is nothing left for
-	// a createPathDirectories retry to fix.
+	// An open-for-write is a whole-file write of zero bytes, which creates the destination's parent
+	// itself -- so there is nothing left for a createPathDirectories retry to fix.
 	if (!deluge::storage::pathOpPending()) {
 		beginOpenFIL(path.c_str(), forWrite);
 		return false;
@@ -382,7 +381,7 @@ bool smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
 	jWriter.closeTag(true);
 
 	sendMsg(cable, jWriter);
-	return true; // nothing to wait for: closing releases no handle any more
+	return true; // nothing to wait for: closing releases no handle
 }
 
 bool smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
@@ -452,8 +451,7 @@ bool smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	auto timestamp = timestampFromWireDateTime(date, time);
 
 	// TWO operations in sequence, so this is the one handler that needs a stage. Stage 0 creates the
-	// directory; stage 1 stamps it, and only if the creation succeeded and a timestamp was supplied --
-	// exactly the condition the synchronous form tested.
+	// directory; stage 1 stamps it, but only if the creation succeeded and a timestamp was supplied.
 	if (!deluge::storage::pathOpPending()) {
 		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::MkdirAll, path.c_str(), nullptr, {});
 		deluge::storage::pathOpSetStage(0);
@@ -558,10 +556,9 @@ bool smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 	// We should pick up on path changes and out-of-order offset requests.
 
 	if (lineOffset == 0 || activeDirName != path || lineOffset != dirOffsetCounter) {
-		// The OPEN goes through the directory channel -- a different channel from the byte one this
-		// rung extends, and one that has existed since the browser listing was converted. Only the
-		// open touches the card: `readdir` walks the snapshot the open took, in memory, so the loop
-		// below stays exactly as it was.
+		// The OPEN goes through the directory channel -- a separate channel from the byte one this
+		// handler otherwise uses. Only the open touches the card: `readdir` walks the snapshot the
+		// open took, in memory.
 		auto opened = openDirectoryForSysex(path.c_str(), &errCode);
 		if (!opened.has_value()) {
 			if (errCode == FsWireStatus::Ok) {
@@ -635,11 +632,6 @@ errorFound:;
 }
 
 /// Open `path` through the directory channel, or synchronously when it is not in use.
-///
-/// @param outCode Set to a real failure when one occurred; left `Ok` when the open is merely still in
-///                flight, which the caller distinguishes from success by the empty return.
-/// @return the directory once it is open; `nullopt` both while it is opening AND on failure -- the
-///         two are told apart by `*outCode`.
 std::optional<deluge::io::Directory> smSysex::openDirectoryForSysex(const char* path, FsWireStatus* outCode) {
 	*outCode = FsWireStatus::Ok;
 	if (!deluge::boot::finished()) {
@@ -983,22 +975,18 @@ void smSysex::handleNextSysEx() {
 		return;
 	}
 
-	// Called DIRECTLY rather than dispatched onto the storage owner, and that is the whole point of
-	// this conversion: `usingByteChannel()` is false on the owner by design, so an owner-side handler
-	// would take the synchronous arm and nothing would be relocated. Parsing and replying touch no
-	// card; each path operation goes through the channel, or runs inline where blocking is legal -- see
-	// `smsysex_pending.h`.
+	// Called DIRECTLY rather than dispatched onto the storage owner: `usingByteChannel()` is false on
+	// the owner by design, so an owner-side handler would take the synchronous arm and nothing would be
+	// relocated. Parsing and replying touch no card; each path operation goes through the channel, or
+	// runs inline where blocking is legal -- see `smsysex_pending.h`.
 	//
-	// The single-flight guard that used to sit here is gone WITH the dispatch, and the two must go
-	// together. A direct call cannot overlap itself, so the guard is redundant here -- but restoring
-	// the dispatch without it makes a second tick process a queue the first already popped, which
-	// aborts in `SysExQ.front()`. That was confirmed by trying exactly that. The pending path operation
-	// is the single-flight state now, and the front entry staying unpopped is what makes the next tick
-	// resume the same request rather than start another.
+	// No single-flight guard is needed: a direct call cannot overlap itself. Restoring a dispatch
+	// without one would let a second tick process a queue the first already popped, aborting in
+	// `SysExQ.front()`. The pending path operation is the single-flight state now, and the front entry
+	// staying unpopped is what makes the next tick resume the same request rather than start another.
 	//
 	// `sd_busy()` stays, though it now guards less than it did -- neither arm touches FatFS from this
-	// stack. Keeping it is one fewer behaviour change, and it was silently dead once before and had to
-	// be fixed, so removing a live one deserves its own deliberate decision.
+	// stack. Removing a guard that still holds some value deserves its own deliberate decision.
 	processFrontSysEx();
 }
 
@@ -1012,8 +1000,8 @@ void smSysex::processFrontSysEx() {
 	JsonDeserializer parser(de.data + 2, de.len - 2);
 	parser.setReplySeqNum(msgSeqNum);
 
-	// `done` is false only while a converted handler has a path operation in flight. Every other
-	// handler finishes within its tick, exactly as all of them used to.
+	// `done` is false only while a handler has a path operation in flight. Every other handler finishes
+	// within its tick.
 	bool done = true;
 
 	parser.match('{');
@@ -1106,13 +1094,11 @@ bool smSysex::parseFileOpParams(JsonDeserializer& reader, FileOpParams& params) 
 	return !params.fromName.empty() && !params.toName.empty();
 }
 
-// Helper function to perform file copy operation
 /// Copy `from` to `to`, and stamp the result if a timestamp was supplied.
 ///
-/// Two operations in sequence, so callers drive it with `pathOpStage`. The read/write LOOP that used
-/// to live here is gone entirely: `PathOp::Copy` is one request, and the loop runs in Rust. That also
-/// removes the retry-after-createPathDirectories, because the copy creates its destination's parent
-/// itself.
+/// Two operations in sequence, so callers drive it with `pathOpStage`. `PathOp::Copy` is one request,
+/// and the read/write loop runs in Rust; the copy creates its destination's parent itself, so no
+/// separate retry for a missing path is needed.
 ///
 /// @return true when finished, with `*outCode` set; false while an operation is still in flight.
 bool smSysex::performFileCopy(const FileOpParams& params, FsWireStatus* outCode) {
@@ -1212,14 +1198,14 @@ bool smSysex::moveFile(MIDICable& cable, JsonDeserializer& reader) {
 			break; // renamed, nothing further
 		}
 		// The rename could not be done -- across filesystems, or with the destination's path missing.
-		// Fall back to copy-then-delete. The copy creates the destination's parent itself, which is
-		// why the old createPathDirectories retry is gone.
+		// Fall back to copy-then-delete. The copy creates the destination's parent itself, so no
+		// separate retry is needed.
 		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Copy, params.getFromPath(), params.getToPath(), {});
 		deluge::storage::pathOpSetStage(2);
 		return false;
 
 	case 1:
-		// The rename's timestamp. Its failure does not unmake the move, exactly as before.
+		// The rename's timestamp; its failure does not unmake the move.
 		break;
 
 	case 2:
@@ -1245,8 +1231,8 @@ bool smSysex::moveFile(MIDICable& cable, JsonDeserializer& reader) {
 		break;
 
 	case 4:
-		// The cleanup's own outcome is deliberately discarded, and `errCode` reports the DELETE that
-		// failed -- preserving the pre-existing shape exactly.
+		// The cleanup's own outcome is deliberately discarded; `errCode` reports the DELETE that
+		// failed.
 		errCode = deleteResult;
 		break;
 

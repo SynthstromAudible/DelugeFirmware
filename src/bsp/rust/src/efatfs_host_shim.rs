@@ -52,17 +52,15 @@
 //!   actually happens — the `Mutex` is here for shape-fidelity, not for a real
 //!   concurrency need.
 //! - The FFI bridge below uses ONE unconditional `crate::sim_block::block_on` — no
-//!   `on_fiber()` dispatch — exactly matching `efatfs_fs.rs` after the I/O-class collapse.
+//!   `on_fiber()` dispatch — exactly matching `efatfs_fs.rs`.
 //!   The symmetry is the point: `efatfs_fs.rs` is `#![cfg(target_os = "none")]`, so no host
-//!   build compiles a line of it, and if this mirror kept the old branch then every host gate
-//!   (Lens 1's wedge detector, Lens 2 TSan, the goldens) would be exercising a shape the
-//!   device no longer runs.
+//!   build compiles a line of it, and a mirror that diverged would leave every host gate
+//!   (Lens 1's wedge detector, Lens 2 TSan, the goldens) exercising a shape the
+//!   device does not run.
 //!
-//!   An earlier version of this doc warned that "always falling back to
-//!   `embassy_futures::block_on` (a non-yielding spin) would be unsafe once the block device
-//!   awaits modeled latency". That warning was correct and still is — but it is about the
-//!   HOOKLESS spin. `sim_block::block_on` is not that: on host it invokes a registered
-//!   progress hook on every `Pending`, which in `lens1_vt_sim` pumps the higher-priority
+//!   Falling back to a HOOKLESS spin (`embassy_futures::block_on`) would be unsafe once the
+//!   block device awaits modeled latency. `sim_block::block_on` is not that: on host it invokes
+//!   a registered progress hook on every `Pending`, which in `lens1_vt_sim` pumps the higher-priority
 //!   executor (where `sim_latency::pump` lives) and advances the virtual clock. That is the
 //!   whole reason `sim_block` exists, and the case is proven, not assumed —
 //!   `--selftest-block-nested` drives exactly this shape (a spin inside a task with MAIN's
@@ -177,25 +175,16 @@ pub type Fs = FileSystem<Storage, DefaultTimeProvider, LossyOemCpConverter>;
 // the identical `Mutex` shape costs nothing and keeps this a faithful mirror.
 static FS: Mutex<CriticalSectionRawMutex, Option<Fs>> = Mutex::new(None);
 
-/// Mount the FS, storing it in [`FS`]. Idempotent: returns `Ok(())`
-/// immediately if a FS is already mounted, so both the eager boot mount and a
-/// later C-ABI [`deluge_efatfs_mount`] call can invoke this safely. No
-/// partition-window detection (see module doc) — the harness image is always
-/// a single raw FAT volume. Called (`.await`ed) from the host_app/lens boot
-/// task, a genuine async context: the mount's block reads go through
-/// [`HostSdBlockDevice`], which now `.await`s `crate::sd::locked_*_sectors`,
-/// so they suspend and resume normally on the executor — no
-/// special-casing needed here.
 /// How many times the filesystem has become mounted, as a monotonic counter.
 ///
 /// The C++ side reads this to notice an unmounted->mounted EDGE, which is what drives
 /// `AudioFileManager::firstCardRead()` (and through it `cardReinserted()`, which re-checks every
-/// resident sample against the new card). It used to detect that edge itself, by sampling
-/// `deluge_efatfs_is_mounted()` either side of its own `deluge_efatfs_mount()` call -- which only
-/// works while C++ is the only thing that ever mounts. The directory channel's driver now mounts
-/// too, on the storage tier, because mounting is real card I/O and its caller is on the interaction
-/// tier; a driver that mounted silently would leave `is_mounted()` reading true with the
-/// notification never fired, and every later check would see "already mounted" and skip it forever.
+/// resident sample against the new card). Sampling `deluge_efatfs_is_mounted()` either side of a
+/// `deluge_efatfs_mount()` call only works while C++ is the only thing that ever mounts; the
+/// directory channel's driver also mounts, on the storage tier, because mounting is real card I/O
+/// and its caller is on the interaction tier. A driver that mounted silently would leave
+/// `is_mounted()` reading true with the notification never fired, and every later check would see
+/// "already mounted" and skip it forever.
 ///
 /// A counter rather than a flag so no reader can consume the edge out from under another.
 static MOUNT_GENERATION: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
@@ -206,6 +195,15 @@ pub extern "C" fn deluge_efatfs_mount_generation() -> u32 {
     MOUNT_GENERATION.load(core::sync::atomic::Ordering::Acquire)
 }
 
+/// Mount the FS, storing it in [`FS`]. Idempotent: returns `Ok(())`
+/// immediately if a FS is already mounted, so both the eager boot mount and a
+/// later C-ABI [`deluge_efatfs_mount`] call can invoke this safely. No
+/// partition-window detection (see module doc) — the harness image is always
+/// a single raw FAT volume. Called (`.await`ed) from the host_app/lens boot
+/// task, a genuine async context: the mount's block reads go through
+/// [`HostSdBlockDevice`], which `.await`s `crate::sd::locked_*_sectors`,
+/// so they suspend and resume normally on the executor — no
+/// special-casing needed here.
 pub async fn mount() -> Result<(), ()> {
     if FS.lock().await.is_some() {
         return Ok(()); // already mounted -- idempotent
@@ -232,8 +230,6 @@ async fn reset_all_handle_tables() {
     *STREAM_WRITE_CTX.lock().await = HandleTable::new();
 }
 
-/// Drop the mounted FS, reset the four handle tables, and re-mount fresh. See
-/// the device `efatfs_fs::remount` for the full card-swap rationale.
 /// Drop the filesystem, leaving it unmounted.
 ///
 /// The symmetric counterpart of [`mount`], which until now had none: [`remount`] drops and re-mounts
@@ -245,6 +241,8 @@ pub async fn unmount() {
     reset_all_handle_tables().await;
 }
 
+/// Drop the mounted FS, reset the four handle tables, and re-mount fresh. See
+/// the device `efatfs_fs::remount` for the full card-swap rationale.
 pub async fn remount() -> Result<(), ()> {
     *FS.lock().await = None; // drop the old Fs
     reset_all_handle_tables().await;
@@ -534,8 +532,7 @@ pub(crate) async fn task_file_write(handle: u32, src: &[u8]) -> Result<usize, De
     Ok(n)
 }
 
-/// Set the handle's cursor position directly. No FS access needed.
-/// Seek to an absolute byte offset.
+/// Seek to an absolute byte offset. No FS access needed.
 ///
 /// `pub(crate)` so `file_bytes.rs`'s driver can AWAIT it: the offset-addressed operations seek before
 /// every read and write, and the C ABI beside them reaches the same future through
@@ -972,14 +969,15 @@ pub extern "C" fn deluge_storage_fs_busy() -> bool {
     FS.try_lock().is_err()
 }
 
-/// C-ABI: drop the mounted FS + reset the four handle tables + re-mount fresh
-/// (see [`remount`]).
 /// C-ABI: drop the filesystem, leaving it unmounted. See [`unmount`].
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_unmount() {
     crate::tier_meter::note(crate::tier_meter::Entry::Unmount);
     crate::sim_block::block_on(unmount());
 }
+
+/// C-ABI: drop the mounted FS + reset the four handle tables + re-mount fresh
+/// (see [`remount`]).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_remount() -> bool {
     crate::tier_meter::note(crate::tier_meter::Entry::Remount);
@@ -1164,8 +1162,6 @@ static STREAM_WRITE_CTX: Mutex<
     HandleTable<{ efatfs_core::MAX_STREAM_WRITE_HANDLES }>,
 > = Mutex::new(HandleTable::new());
 
-/// `DelugeStreamMode` mode selector matching `stream_io.h`'s C enum's implicit declaration-order
-/// values: 0 = READ, 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW, 3 = WRITE_APPEND.
 /// Free-cluster count: the async half of what `deluge_efatfs_stats` blocks on.
 ///
 /// Exists so the stream channel can answer a space query without holding its caller. Returns only
@@ -1177,6 +1173,8 @@ pub(crate) async fn fs_stats_free() -> Option<u32> {
         .map(|(free, _total)| free)
 }
 
+/// Open `path` as a stream. `mode` is a `DelugeStreamMode` (declaration order: 0 = READ,
+/// 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW, 3 = WRITE_APPEND). Returns the handle, or `None`.
 pub(crate) async fn stream_open(path: &str, mode: u8) -> Option<u32> {
     // `open_context`/`create_context` now report a granular `DelugeStatus`, but
     // this persistent stream-write bridge's contract (`stream_io.h`) is still

@@ -52,8 +52,8 @@
 namespace params = deluge::modulation::params;
 
 namespace {
-/// Report a splice of a kit's drum list to the structural-edit probe (util/structural_edit_probe.h). Every splice runs
-/// inside an AudioExcludedSection, so nothing the render reaches through the list sees it half-relinked.
+// Report a splice of a kit's drum list to the structural-edit probe (util/structural_edit_probe.h). Every splice runs
+// inside an AudioExcludedSection, so nothing the render reaches through the list sees it half-relinked.
 void noteDrumListEdit() {
 	deluge::noteStructuralEdit(deluge::StructuralContainer::DRUM_LIST);
 }

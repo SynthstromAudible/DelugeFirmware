@@ -42,7 +42,7 @@ public:
 	OrderedPosVector() = default;
 	~OrderedPosVector() = default;
 	OrderedPosVector(OrderedPosVector&&) noexcept = default;
-	/// A structural edit when this vector is one the render walks (a note-row drag swaps two rows' vectors).
+	/// @brief A structural edit when this vector is one the render walks (a note-row drag swaps two rows' vectors).
 	OrderedPosVector& operator=(OrderedPosVector&& other) noexcept {
 		AudioExcludedSection section; // the render walks this container: see noteEdit()
 		noteEdit();
@@ -204,7 +204,7 @@ public:
 	// Standard container surface
 	[[nodiscard]] size_t size() const { return elements_.size(); }
 	[[nodiscard]] bool empty() const { return elements_.empty(); }
-	/// The elements are destroyed outside the section: only the buffer handover is masked.
+	/// @brief The elements are destroyed outside the section: only the buffer handover is masked.
 	void clear() {
 		fast_vector<T> old;
 		{
@@ -219,7 +219,8 @@ public:
 	T& back() { return elements_.back(); }
 	T* data() { return elements_.data(); }
 
-	/// The copy is made outside the section, and the old elements destroyed outside it: only the handover is masked.
+	/// @brief The copy is made outside the section, and the old elements destroyed outside it: only the handover is
+	/// masked.
 	bool cloneFrom(OrderedPosVector const* other) {
 		fast_vector<T> copy;
 		try {
@@ -304,7 +305,7 @@ public:
 		std::rotate(elements_.begin(), elements_.begin() + cutoffIndex, elements_.end());
 	}
 
-	/// Tiles the contents (all of which must lie before wrapPoint) out to endPos. Returns false on OOM.
+	/// @brief Tiles the contents (all of which must lie before wrapPoint) out to endPos. Returns false on OOM.
 	/// The tiled contents are built in a new buffer outside the section; only the handover is masked.
 	bool generateRepeats(int32_t wrapPoint, int32_t endPos) {
 		if (elements_.empty()) {

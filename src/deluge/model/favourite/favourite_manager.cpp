@@ -123,8 +123,8 @@ void FavouritesManager::requestLoad() {
 std::string FavouritesManager::serialiseBank() const {
 	XMLSerializer writer;
 	writer.setMemoryBased();
-	// The inline arm used to get this head from createXMLFile. Both arms now write this same snapshot, head
-	// included, so the two legs' files are byte-identical.
+	// Both the channel and inline write arms produce this same snapshot, head included, so their files are
+	// byte-identical.
 	writer.write(StorageManager::kXmlDocumentHead);
 	writer.writeArrayStart("favourites");
 	for (const auto& fav : favourites) {
@@ -291,8 +291,8 @@ void FavouritesManager::parseBankBytes(void* ctx, char* bytes, uint32_t len) {
 	    == Error::NONE) {
 		(void)loadFavouritesFromFile(*activeDeserializer, self->inFlight_.scratch);
 	}
-	// A document that will not open leaves the scratch empty and the outcome Parsed: today's "reset to empty
-	// and carry on" for a corrupt bank, preserved. The inline arm matches it for FILE_CORRUPTED.
+	// A document that will not open leaves the scratch empty with outcome Parsed: a corrupt bank resets to
+	// empty and carries on, matching the inline arm's handling of FILE_CORRUPTED.
 	activeDeserializer = previous;
 }
 
@@ -334,7 +334,7 @@ void FavouritesManager::loadInline(InFlight& inFlight) {
 	inFlight.scratch = emptyBank();
 	Error error = StorageManager::openFavouriteFile(path);
 	if (error == Error::FILE_CORRUPTED) {
-		inFlight.outcome = SettingsOutcome::Parsed; // corrupt: reset to empty and carry on, as before
+		inFlight.outcome = SettingsOutcome::Parsed; // corrupt: reset to empty and carry on
 		return;
 	}
 	if (error != Error::NONE) {

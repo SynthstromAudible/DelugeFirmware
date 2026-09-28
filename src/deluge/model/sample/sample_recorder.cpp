@@ -405,9 +405,8 @@ Error SampleRecorder::cardRoutine() {
 		return Error::NONE; // Still outstanding; come back next tick.
 	}
 
-	// No dispatch to the owner any more. Creating the file was the last tick that blocked, and it is
-	// a machine now like the rest -- so the escape hatch that used to carry those ticks has nothing
-	// left to carry and is gone with them.
+	// Not dispatched to the owner: creating the file runs through the phase machine like
+	// everything else here.
 
 	// If aborted, delete the file.
 	// ACQUIRE: synchronizes-with abort()'s release store.
@@ -440,8 +439,8 @@ aborted:
 
 	if (!hadCardError) {
 
-		// If file not created yet, do that. Four phases now rather than a goto web; see
-		// advanceCreate(). It returns Pending until the file exists, so the tick simply comes back.
+		// If file not created yet, do that: see advanceCreate(). It returns Pending until the file
+		// exists, so the tick simply comes back.
 		if (filePathCreated.empty() || createPhase_ != deluge::storage::CreatePhase::Done) {
 			switch (advanceCreate()) {
 			case CreateStep::Pending:
@@ -548,16 +547,15 @@ Error SampleRecorder::writeOneCompletedCluster(bool mayUseChannel) {
 }
 
 namespace {
-/// The header sector this recorder reads back and patches. 512 is the first-sector size the old
-/// synchronous path used; `audioDataStartPosBytes` is always 44 or 112, well inside it.
+/// The header sector this recorder reads back and patches. `audioDataStartPosBytes` is always 44 or
+/// 112, well inside it.
 constexpr uint32_t kHeaderSectorBytes = 512;
 } // namespace
 
 // --- finalize, as phases -------------------------------------------------------------------------
 //
-// What was one long blocking call is now one operation per tick. Each phase either ISSUES its
-// operation and returns Pending, or COLLECTS the answer it issued last time and asks
-// `nextFinalizePhase` where to go. `finalizeIssued_` is what tells those two apart.
+// Each phase either ISSUES its operation and returns Pending, or COLLECTS the answer it issued last
+// time and asks `nextFinalizePhase` where to go. `finalizeIssued_` is what tells those two apart.
 
 /// The overhang cluster, run once when the machine enters DrainClusters. Pure memory and
 /// bookkeeping apart from the cluster writes it may queue, which the drain phase then picks up.
@@ -679,8 +677,8 @@ void SampleRecorder::finalizeDecide() {
 	finalizeIdealSizeBefore_ = idealFileSizeBeforeAction;
 	if (finalizeAltering_) {
 		// The alteration rewrites the audio in place, so its final length comes from the action, not
-		// from what was captured -- and its truncate is conditional on the same thing the old code
-		// used: an action that halves the data, or a capture that overran.
+		// from what was captured. It truncates when the action halves the data, or the capture
+		// overran.
 		finalizeTruncateTo_ = static_cast<uint32_t>(finalizeDataLenAfter_) + sample->audioDataStartPosBytes;
 		finalizeNeedTruncate_ = (action != MonitoringAction::NONE) || capturedTooMuch;
 		// Input region: `idealFileSizeBeforeAction` bytes from the start, in frames of 3 (mono in,
@@ -776,16 +774,12 @@ bool SampleRecorder::advanceAbort() {
 	switch (abortPhase_) {
 
 	case AbortPhase::Detach: {
-		// Memory only, and still FIRST, exactly as before: a song-swap abort is about to search for
-		// temp samples to delete and must not trip over this one (previously an E281). Its safety
-		// against the channel comes from pumpInFlightWrite() at the top of cardRoutine, which has
-		// already settled anything outstanding by the time we get here.
+		// Memory only, and still FIRST: a song-swap abort is about to search for temp samples to
+		// delete via SampleManager::deleteAnyTempRecordedSamplesFromMemory(), and must not trip over
+		// this one (otherwise E281). Its safety against the channel comes from
+		// pumpInFlightWrite() at the top of cardRoutine, which has already settled anything
+		// outstanding by the time we get here.
 		if (sample != nullptr) { // This might get called multiple times, so check we haven't already detached it.
-
-			// Note: if this abort() is due to a song-swap (loading a different song),
-			// then samples is about to be searched for temp ones to delete, and we'll need to have deleted it here
-			// before that trips over us. Previously caused an E281. So, for that to happen,
-			// SampleManager::deleteAnyTempRecordedSamplesFromMemory() (indirectly) calls us here first.
 
 			detachSample(); // Does not set sample to NULL - we do that below
 
@@ -961,9 +955,8 @@ namespace {
 /// Create `path` and every missing level above it, synchronously.
 ///
 /// The inline arm's counterpart to the byte channel's `mkdir_all`, which walks the segments in Rust.
-/// This is the same one-level-at-a-time retry the create block used to express with
-/// `cutRecordingFolderPathAndTryCreating`, minus the goto: shorten the path at each separator until
-/// a mkdir succeeds, then create back down.
+/// One-level-at-a-time retry: shorten the path at each separator until a mkdir succeeds, then create
+/// back down.
 bool mkdirAllSynchronously(const std::string& path) {
 	if (path.empty()) {
 		return false;
@@ -989,10 +982,8 @@ bool mkdirAllSynchronously(const std::string& path) {
 
 // --- creating the recording's file, as phases ----------------------------------------------------
 //
-// What was a block threaded with `goto tryOpenRecordingStream` and
-// `goto cutRecordingFolderPathAndTryCreating` is now four phases. The retry those labels expressed
-// -- create the parent folder once, then try the open again -- lives in `nextCreatePhase`, where a
-// spec can check it without a filesystem.
+// The retry -- create the parent folder once, then try the open again -- lives in `nextCreatePhase`,
+// where a spec can check it without a filesystem.
 
 SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 	using deluge::storage::CreatePhase;
@@ -1092,10 +1083,10 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 		}
 
 		case CreatePhase::Open: {
-			// Bypasses the Tier 2 locator cache (same as the raw FatFS open createFileRaw used to
-			// do) -- must invalidate it, or a stale cached locator for this exact path (from an
-			// earlier directory listing) could survive a mayOverwrite create-always reopen and feed
-			// a later cache-hit read the pre-overwrite file's stale sclust/objsize.
+			// Bypasses the Tier 2 locator cache -- must invalidate it, or a stale cached locator for
+			// this exact path (from an earlier directory listing) could survive a mayOverwrite
+			// create-always reopen and feed a later cache-hit read the pre-overwrite file's stale
+			// sclust/objsize.
 			deluge_file_invalidate_cache();
 			createOpenNotFound_ = false;
 			if (mayUseChannel) {
@@ -1350,7 +1341,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			updateDataLengthInHeader(headerBytes);
 			if (finalizeAltering_ && finalizeAction_ != MonitoringAction::NONE) {
 				// A channel-combining action leaves a mono file: channel count, byte rate and block
-				// align all follow. Same three patches the old alterFile made.
+				// align all follow.
 				uint16_t data16 = 1;
 				memcpy(headerBytes.data() + 22, &data16, 2);
 				uint32_t data32 = kSampleRate * 1 * 3;
@@ -1362,8 +1353,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 				const std::span<const std::byte> src(headerBytes);
 				return file->request_write_at(0, src) ? finalizeAccepted() : finalizeRefused();
 			}
-			// The old path ignored a failed header write here ("that's a shame, but we don't need to
-			// do anything"), and that judgement is preserved: the audio is on the card either way.
+			// A failed header write here is not fatal: the audio is on the card either way.
 			noteRecorderIo();
 			(void)file->write_at(0, std::span<const std::byte>(headerBytes));
 			break;
@@ -1482,8 +1472,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			collected = file ? file->collect_read_at(&got) : DELUGE_FILE_WRITE_FAILED;
 			if (collected == DELUGE_FILE_WRITE_READY) {
 				if (got == 0) {
-					// Nothing came back at all: there is no header to patch, which the old path
-					// treated as "leave it alone" rather than an error.
+					// Nothing came back at all: there is no header to patch, so leave it alone rather
+					// than treat it as an error.
 					finalizeNeedHeaderPatch_ = false;
 				}
 				finalizeHeaderLen_ = got;
@@ -1620,8 +1610,8 @@ extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 // buffer's memory for reuse.
 namespace {
 /// How many cluster writes went through the channel, process-wide. Counted at the ISSUE, because
-/// that is the point at which the write left the storage owner -- which is the thing this rung
-/// changes and the thing a gate has to be able to see.
+/// that is the point at which the write left the storage owner, which is what a gate has to be
+/// able to see.
 int32_t g_writeChannelServed = 0;
 } // namespace
 

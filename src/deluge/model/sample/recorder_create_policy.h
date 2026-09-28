@@ -23,8 +23,7 @@ namespace deluge::storage {
 
 /// @brief Where `SampleRecorder::advanceCreate()` has got to.
 ///
-/// Replaces the `goto` web the create block used to carry (`tryOpenRecordingStream`,
-/// `cutRecordingFolderPathAndTryCreating`), which encoded its retry state in control flow.
+/// Retry state as an explicit enum rather than encoding it in control flow.
 enum class CreatePhase : uint8_t {
 	/// Free-space query. Zero clusters is a terminal `Error::SD_CARD_FULL`.
 	Stats,

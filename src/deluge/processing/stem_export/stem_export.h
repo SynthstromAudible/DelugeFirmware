@@ -44,9 +44,9 @@ public:
 
 	/// @brief Advances an in-flight export. Cheap no-op when none is running.
 	///
-	/// Registered as a repeating task by registerTasks(). The export used to run as one long call that
-	/// blocked per element, which meant nothing else could run while it did - not the UI that has to
-	/// service a cancellation, and not the fill task the render depends on. Now each step returns here.
+	/// Registered as a repeating task by registerTasks(). Each step returns here rather than blocking
+	/// per element, so the UI can keep servicing a cancellation and the fill task the render depends on
+	/// can keep running while an export is in flight.
 	void exportRoutine();
 
 	/// @brief True from @ref startStemExportProcess until the export has torn down.
@@ -89,22 +89,29 @@ public:
 	int32_t prepareElements();
 
 	/// @brief Fetches element `index`, applying whatever per-type setup it needs (loop lengths, unmutes).
+	/// @param index   The element's position, as counted by @ref prepareElements.
+	/// @param element Filled in on success; left untouched otherwise.
 	/// @return false if that slot is empty, in which case the element is skipped.
 	bool fetchElement(int32_t index, StemElement& element);
 
 	/// @brief Starts recording one element.
+	/// @param index   The element's position, as counted by @ref prepareElements.
+	/// @param element The element fetched by @ref fetchElement.
 	/// @return false if the element is skipped, or if the export was aborted while starting it - the
 	///         two are told apart by whether UI_MODE_STEM_EXPORT is still active.
 	bool startElement(int32_t index, const StemElement& element);
 
 	/// @brief Mutes the element again and counts it. Runs once its recording has finished.
+	/// @param element The element that just finished recording.
 	void finishElement(const StemElement& element);
 
-	/// @brief The wait every export type shares: this element's recording has finished and playback
-	///        has stopped. Matches renderWait()'s RunCondition.
+	/// @brief The wait every export type shares: true once this element's recording has finished and
+	///        playback has stopped.
+	/// @return true when the element's wait is over.
 	static bool elementFinished();
 
 	/// @brief Restores whatever mutes @ref prepareElements changed.
+	/// @param total The element count @ref prepareElements returned.
 	void restoreElements(int32_t total);
 
 	/// @brief Where an in-flight export is parked between run-loop passes.
@@ -119,14 +126,15 @@ public:
 	};
 	ExportPhase exportPhase{ExportPhase::NONE};
 
-	/// @name The export's cursor, promoted from exportStems()' locals because they span the wait.
+	/// @name The export's cursor: these fields carry state across the per-element wait, so they cannot
+	/// be locals of a single call.
 	/// @{
 	int32_t exportTotal;       ///< Element count from prepareElements(); what the teardown restores.
 	int32_t exportIndex;       ///< The element being walked, counting down.
 	StemElement exportElement; ///< The element @ref exportIndex resolved to.
 
 	/// @brief Parked at the offline render's drain point, between the audio routine and the slow
-	///        routines - exactly where the blocking drain used to suspend the worker fiber.
+	///        routines.
 	///
 	/// The rendered audio depends on that ordering: the drain decides cluster eviction and underrun
 	/// behaviour, so moving it even one call earlier or later changes the output bit-for-bit (see
@@ -182,8 +190,8 @@ public:
 	int32_t highestUsedStemFolderNumber;
 
 	/// @name Folder-search machine state
-	/// Cross-tick state for the free-folder search. The loop it replaces held these on the stack and
-	/// blocked until it finished; now it issues one operation per tick and returns.
+	/// Cross-tick state for the free-folder search, which issues one filesystem operation per tick and
+	/// returns rather than blocking until the search is done.
 	/// @{
 	deluge::storage::StemSearchPhase stemSearchPhase_ = deluge::storage::StemSearchPhase::MkdirBase;
 	bool stemSearchIssued_ = false;

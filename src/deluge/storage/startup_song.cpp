@@ -60,8 +60,8 @@ constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 /// **It counts re-asks as well as refusals, and that is the half that matters.** A refusal is a
 /// `false` from a request that returns one; but the read and existence requests return nothing at
 /// all, so a channel that ACCEPTS a request and never answers it produces neither a refusal nor a
-/// result -- just `UNKNOWN` forever, and a machine that re-asks forever. That is exactly the livelock
-/// shape an earlier rung shipped, and it is what a dead channel looks like from here.
+/// result -- just `UNKNOWN` forever, and a machine that re-asks forever. That livelock shape is what
+/// a dead channel looks like from here.
 ///
 /// As many as the stall bound below, and for the same reason. After boot there is no owner to fall
 /// back to, so giving up on a channel that is merely busy would skip a startup song that would have
@@ -78,15 +78,15 @@ constexpr int32_t kMaxAttemptsWithoutProgress = 600;
 /// refusal nor an answer, so the bound above never sees it. Without this one the machine re-asks
 /// until the end of time and boot never completes.
 ///
-/// That is not hypothetical: it is exactly what leaving the Rust worker unspawned produced, and it is
-/// the same livelock shape an earlier rung shipped. Six hundred ticks is several seconds at this
-/// routine's rate -- far beyond any real operation, far short of forever.
+/// That is not hypothetical: leaving the Rust worker unspawned produces exactly this livelock. Six
+/// hundred ticks is several seconds at this routine's rate -- far beyond any real operation, far
+/// short of forever.
 constexpr int32_t kMaxPendingTicks = 600;
 
 /// @name The settings prelude
 ///
-/// The three settings reads boot used to make, moved behind the same card-ready trigger the
-/// fail-safe machine already uses. They are NOT phases of `StartupPhase`: that enum is driven by a
+/// The three settings reads, run behind the same card-ready trigger the fail-safe machine already
+/// uses. They are NOT phases of `StartupPhase`: that enum is driven by a
 /// PURE policy over existence answers (`startup_song_policy.h`, unit-tested), and these are driven
 /// by completion COUNTS, which that function has no way to express.
 ///
@@ -572,9 +572,9 @@ void startupSongRoutine() {
 		}
 		if (*answer == StartupPresence::Missing) {
 			display->consoleText("Creating template");
-			// The write itself is StartupPhase::WriteTemplate below. Done inline here it was a blocking
-			// card write on whatever tier this routine was ticking on -- measured, it froze
-			// startup-failsafe on TIR6.
+			// The write itself is StartupPhase::WriteTemplate below. Done inline here, it would be a
+			// blocking card write on whatever tier this routine was ticking on -- confirmed by
+			// measurement to freeze the startup fail-safe.
 		}
 		auto step = nextStartupPhase(StartupPhase::CheckTemplate, *answer, g_usingTemplate);
 		g_usingTemplate = step.usingTemplate;
@@ -592,8 +592,8 @@ void startupSongRoutine() {
 			return;
 		}
 		if (!*landed) {
-			// Not fatal, and deliberately so: the inline version returned early on a failed create and
-			// the machine carried on to the canary regardless. The canary is what protects the load.
+			// Not fatal, and deliberately so: the machine carries on to the canary regardless of a
+			// failed create. The canary is what protects the load.
 			display->consoleText("Startup fault F3");
 		}
 		// The presence argument is unused for this phase -- see nextStartupPhase -- so any value does.

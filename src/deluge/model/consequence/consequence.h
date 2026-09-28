@@ -41,10 +41,10 @@ public:
 	virtual Error revert(TimeType time, ModelStack* modelStack) = 0;
 	/// @brief The file this consequence's revert() will bind, if it binds one.
 	///
-	/// Reverting used to read the card through here, which is why the whole reversion ran on the storage owner.
 	/// deluge::gui::Reversion asks every consequence this BEFORE reverting and loads what comes back, so revert()
 	/// finds the file in memory and reads nothing. A consequence that binds no file returns null, which is almost
 	/// all of them.
+	/// @return The file path revert() needs bound first, or null if it needs none.
 	[[nodiscard]] virtual const std::string* filePathNeededForRevert() const { return nullptr; }
 	Consequence* next{};
 	uint8_t type;

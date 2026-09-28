@@ -1198,12 +1198,12 @@ mod prod {
                 // next. `efatfs_fs::open` collapses every open failure -- missing,
                 // unmounted, any granular status -- onto NotFound, which is the
                 // same conflation `resolveFileSize`'s tryOpenCandidate makes (see
-                // its own TODO(conflation-batch-5)).
+                // the TODO at its unknown-as-absent branch).
                 crate::efatfs_core::OpenOutcome::NotFound => OpenVerdict::Missing,
                 // NOT a candidate verdict. The loader opens through the same 128-slot
                 // `HANDLES` table `open_read_stream` uses, and `sample_stream.cpp`
                 // documents that table filling up by construction under browser
-                // preview -- this rung's own workload. Kept distinct all the way to
+                // preview -- the loader's own workload. Kept distinct all the way to
                 // the collector so it reaches the reclaim rather than the
                 // alternate-directory probe.
                 crate::efatfs_core::OpenOutcome::TableFull => OpenVerdict::TableFull,

@@ -62,7 +62,6 @@ struct StartupStep {
 /// @return The next phase and the outgoing template mode.
 ///
 /// @note Every `Unusable` answer routes to `Done` or `UnlinkCanary` — never to a phase that writes.
-///       That is the rule the four `TODO(conflation-batch-3)` sites currently break.
 StartupStep nextStartupPhase(StartupPhase current, StartupPresence answer, bool usingTemplate);
 
 } // namespace deluge::storage

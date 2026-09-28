@@ -64,8 +64,7 @@ describe recorder_create_policy("creating a recording's file advances only on an
 	});
 
 	// THE retry ruling. A missing parent folder is the one open failure worth acting on, and it is
-	// worth acting on EXACTLY ONCE -- the old code's `triedCreatingRecordingFolder` flag said the
-	// same thing through a goto.
+	// worth acting on EXACTLY ONCE.
 	it("creates the parent folder once on NOT_FOUND, and only once", _ {
 		CreateInputs in = at(CreatePhase::Open);
 		in.collected = DELUGE_FILE_WRITE_FAILED;

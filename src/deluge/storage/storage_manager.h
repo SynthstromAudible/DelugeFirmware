@@ -396,10 +396,9 @@ Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverw
 /// @brief Open a Deluge document that is already in memory, with no I/O of any kind.
 ///
 /// The only way a document is parsed. It picks the deserializer the caller names rather than
-/// inferring it from a filename extension, points that deserializer at @p buffer, and runs the same
-/// XMLDeserializer::openXMLFile()/JsonDeserializer::openJsonFile() validation as ever -- those are
-/// the deserializers' own methods, and they stay; what has gone is the pair of StorageManager
-/// functions that used to open a document by streaming it off the card while parsing it.
+/// inferring it from a filename extension, points that deserializer at @p buffer, and runs
+/// XMLDeserializer::openXMLFile() or JsonDeserializer::openJsonFile() to validate it -- those remain
+/// the deserializers' own methods.
 ///
 /// @param buffer                 The document bytes. Borrowed, NOT copied: it must outlive every read
 ///                               through `activeDeserializer` that follows. May be a PREFIX of a longer
@@ -494,9 +493,8 @@ void releaseStaging(StagingState* state);
 /// call and so cannot act on a StagedOpen::Deferred: the pattern, favourite, MIDI-definition and
 /// synth-to-drum loads all have that one-call shape.
 ///
-/// This is behaviour-preserving rather than a relocation: those callers blocked through the
-/// streaming reader before and block the same amount here. What changes is only that the parse now
-/// runs over memory, which is what lets the streaming readers go.
+/// These callers block for the load's full duration, exactly as any synchronous document load does.
+/// Only the parse mechanism differs: it runs over memory rather than a streaming reader.
 ///
 /// The shared slot is safe because these openers are never in flight at once -- each is driven by a
 /// single load* wrapper on one call stack. The wrapper MUST call releaseDocumentStaging() once its
@@ -517,8 +515,8 @@ void releaseDocumentStaging();
 
 /// @brief Whole-file staging reads the CHANNEL has completed.
 ///
-/// The evidence that the async arm executed at all. It shipped with no harness building
-/// the write channel, so until this counter had a gate reading it, nothing had ever run it.
+/// The evidence that the async arm executed at all, for a gate to check against -- without it, a test
+/// could pass while quietly always taking the synchronous path.
 [[nodiscard]] int32_t stagingChannelServedOps();
 Error initSD();
 
@@ -530,9 +528,9 @@ Error initSD();
 /// tier. So the unmounted→mounted edge is tracked by a counter both paths share rather than by
 /// `initSD` watching its own call.
 ///
-/// The work it starts no longer cares where its caller stands: `cardReinserted()` ARMS a walk that
+/// The work it starts does not care where its caller stands: `cardReinserted()` ARMS a walk that
 /// checks one resident per tick through the byte channel, rather than opening every resident sample
-/// in one blocking pass. That is why this takes no "may I run the work here?" parameter any more.
+/// in one blocking pass. That is why this takes no "may I run the work here?" parameter.
 void noticeCardMount();
 
 /// @brief How many mount edges @ref noticeCardMount has acted on. For gates only.
@@ -563,6 +561,10 @@ Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParam
 /// The parse half of a staged read: it opens nothing and frees no staging, so a caller that staged the document itself
 /// (openDocumentStaged(), or the harness's own fixture loader) parses it on its own tier. On any failure the Instrument
 /// it made is deleted again.
+/// @param song                   The song the Instrument will belong to.
+/// @param clip                   The clip it is being loaded for, if any.
+/// @param outputType             Which kind of Instrument the document must hold.
+/// @param mayReadSamplesFromFiles Whether sample data may be read from the card while parsing.
 /// @param getInstrument Receives the new Instrument on success; untouched otherwise.
 /// @param name          The Instrument's name.
 /// @param dirPath       The folder the preset is in.
@@ -570,11 +572,17 @@ Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParam
 Error parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
                               Instrument** getInstrument, std::string* name, std::string* dirPath);
 /// @brief The root tag, and its accepted alternative, of an @p outputType preset document.
+/// @param outputType   Which kind of Instrument the document must hold.
+/// @param firstTagName Set to the expected root tag.
+/// @param altTagName   Set to the accepted alternative root tag.
 void instrumentDocumentTags(OutputType outputType, char const** firstTagName, char const** altTagName);
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
 /// @brief Read a device definition into @p midiInstrument from the document `activeDeserializer` has open, and close
 ///        it. The parse half of a staged definition read; it opens nothing and frees no staging.
+/// @param midiInstrument The instrument to read the definition into.
+/// @param fileName       Set to the definition's file name.
+/// @param updateFileName Whether @p fileName should be updated.
 /// @return Error::NONE, or why the definition could not be read.
 Error parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName, bool updateFileName);
 
@@ -589,6 +597,9 @@ Drum* createNewDrum(DrumType drumType);
 ///
 /// The parse half of a staged synth-to-row read; it opens nothing and frees no staging. On success a drum already in
 /// @p getInstrument is deleted and replaced by the new one; on failure the new drum is deleted.
+/// @param song          The song the drum will belong to.
+/// @param clip          The clip it is being loaded for.
+/// @param getInstrument The drum slot to fill.
 /// @return Error::NONE, or why the document could not be read into a drum.
 Error parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument);
 

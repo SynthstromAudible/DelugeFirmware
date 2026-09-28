@@ -7,7 +7,7 @@
 //! ~150 lines of straight-line archiving/linking logic is far lower risk here than
 //! inventing a new shared build-script crate for a single (harness-only) consumer.
 //!
-//! The object-archiving half now mirrors **`../lens1_vt_sim/build.rs`**, not `../build.rs`:
+//! The object-archiving half mirrors **`../lens1_vt_sim/build.rs`**, not `../build.rs`:
 //! same `DELUGE_HOSTAPP_BUILD_DIR` archiving and `-Wl,-u,deluge_app_init` GC root, plus its
 //! orphan filter, build-dir provenance guard and surviving-object floor. Only the log-message
 //! crate label differs, deliberately, so the two copies stay diffable.
@@ -15,8 +15,8 @@
 //! Why the filter matters *here*: this harness is the before/after byte-identity gate for the
 //! storage work, and `ninja` never removes a `.o` whose `.cpp` was deleted or relocated. Without
 //! the filter a stale object is archived silently and can win the link — so the gate would be
-//! measuring a tree that no longer exists. Confirmed empirically before porting it: a planted
-//! zero-byte orphan was archived with no build-script warning at all, surfacing only as
+//! measuring a tree that no longer exists. Confirmed empirically: a planted zero-byte orphan
+//! was archived with no build-script warning at all, surfacing only as
 //! `rust-lld: … is neither ET_REL nor LLVM bitcode`.
 use std::env;
 use std::fs;
@@ -247,8 +247,7 @@ fn hash_objs_content(objs: &[PathBuf]) -> u64 {
 /// the object is an orphan: it is skipped (with a `cargo:warning=` naming it, and pushed onto
 /// `skipped` for the caller's sanity-floor check) instead of being archived.
 ///
-/// Ported from `../lens1_vt_sim/build.rs`, where the filter was added after a stale object cost
-/// a long detour. Kept signature-identical so the two copies stay diffable.
+/// Kept signature-identical to the copy in `../lens1_vt_sim/build.rs` so the two stay diffable.
 ///
 /// Known blind spot, not fixed here: if CMake ever compiles a source from OUTSIDE this target's
 /// own directory tree, it mangles the object's relative path with a `__/` per parent-escape,

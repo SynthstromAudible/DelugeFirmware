@@ -30,7 +30,7 @@ struct SampleTranspose {
 
 /// @brief The transpose that brings a sample detected at @p midiNote to middle C (60). PURE.
 /// @param midiNote               The detected note, fractional. The caller has checked it is neither unset nor an
-/// error.
+///                               error.
 /// @param minimizeOctaves        The sample is its source's only range: fold the semitones into -5..6.
 /// @param rangeCoversJustOneNote The sample's range covers a single key: a detection within 4 cents of that key is
 ///                               snapped to it, so the file plays exactly in tune there.

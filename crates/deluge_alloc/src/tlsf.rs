@@ -599,13 +599,6 @@ impl Tlsf {
         self.free_block(tail); // marks free, coalesces with the following block, inserts
     }
 
-    /// Resize, preserving the leading min(old, new) bytes. A **shrink** is done in
-    /// place (split the tail, pointer-stable, no copy — and no worse for
-    /// fragmentation than moving, since the freed tail still coalesces with any
-    /// following free block). This covers the only remaining in-place-resize
-    /// callers (wave_table / patch_cable_set trims), which all shrink. A **grow**
-    /// has no in-place consumer (ResizeableArray, the lone `extend` user, is gone),
-    /// so it just moves (alloc + copy + free) — correct, only unoptimized.
     /// Shrink `payload`'s block in place if `new_size` fits and the alignment already holds. Returns whether it did,
     /// and the block's current payload size (what a moving realloc must copy).
     pub unsafe fn try_shrink_in_place(
@@ -625,6 +618,13 @@ impl Tlsf {
         (false, cur)
     }
 
+    /// Resize, preserving the leading min(old, new) bytes. A **shrink** is done in
+    /// place (split the tail, pointer-stable, no copy — and no worse for
+    /// fragmentation than moving, since the freed tail still coalesces with any
+    /// following free block). This covers the in-place-resize
+    /// callers (wave_table / patch_cable_set trims), which all shrink. A **grow**
+    /// has no in-place consumer, so it just moves (alloc + copy + free) — correct, only
+    /// unoptimized.
     pub unsafe fn realloc(&mut self, payload: *mut u8, new_size: usize, align: usize) -> *mut u8 {
         if payload.is_null() {
             return self.malloc(new_size, align);

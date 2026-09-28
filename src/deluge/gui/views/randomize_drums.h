@@ -92,7 +92,7 @@ public:
 
 	/// @brief Whether a cancelled walk is still waiting for its open to report.
 	[[nodiscard]] bool draining() const { return phase_ == Phase::Draining; }
-	/// Walks that ended on a load that stopped moving (AsyncSampleLoad's stall bound).
+	/// @brief Walks that ended on a load that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
 	/// @}
 
@@ -133,18 +133,15 @@ private:
 
 	/// @brief Drain an opened row folder, reservoir-sampling one audio file from it.
 	///
-	/// Was `runScanOp`, an `Owner::run` callback that opened the folder itself. The open now comes
-	/// from the directory channel; the loop below it is unchanged, which matters because the
-	/// reservoir sample is only uniform if it sees EVERY entry -- and the snapshot guarantees that,
-	/// being all-or-error rather than ever partial.
+	/// The open comes from the directory channel. Reservoir sampling is only uniform if it sees
+	/// EVERY entry, and the snapshot guarantees that: it is all-or-error, never partial.
 	/// @param dir The adopted directory. Walking it costs no card I/O.
 	void drainScan(deluge::io::Directory& dir);
 
 	Phase phase_{Phase::Idle};
 	RandomizeRequest current_{};
 	/// @brief The next row index to try: a NoteRow index for randomizeAll, a display row for auditioning, and 0 or 1
-	/// for
-	///        the selected drum.
+	///        for the selected drum.
 	int32_t cursor_{0};
 	int32_t rowsRandomized_{0};
 	/// @brief The last randomized file's name without its extension: the one-row popup.

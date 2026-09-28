@@ -68,8 +68,7 @@ extern "C" {
 /// -> `deluge_efatfs_remount`) cannot run during the bind: it runs from `AudioFileManager::slowRoutine`,
 /// a scheduler task on the same tier, and `buildSampleFromLoadResult` runs begin, bind and
 /// apply-geometry in one call whose blocking open runs no other task. The open hits the old mount and
-/// fails. (This used to hold because both ran on the retired storage owner, the re-insert through its
-/// `Coalescer`.)
+/// fails.
 ///
 /// Afterwards every flushed path reports @ref DELUGE_AUDIO_LOAD_UNKNOWN, whose documented meaning is
 /// already "request it (again)" -- the collector needs no new lifecycle for this.
