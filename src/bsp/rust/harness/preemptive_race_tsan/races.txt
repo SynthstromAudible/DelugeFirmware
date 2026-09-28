@@ -33,23 +33,17 @@ open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::updateReverbPa
 open	src/deluge/processing/engines/audio_engine.cpp	^deluge_app_render$	audio×interaction	state: global 'AudioEngine::audioSampleTimer'
 open	src/deluge/dsp/reverb/freeverb/comb.hpp	^freeverb::Comb::process\(int\)$	audio×interaction	state: global 'AudioEngine::reverb'
 open	src/deluge/gui/waveform/waveform_renderer.cpp	^WaveformRenderer::advanceOverviewScan\(Sample\*, int\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked'
-open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::Tlsf>::search_suitable$	audio×interaction	state: global '__frunk_bss_end'
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlayback\(int, int, bool, bool, int\)$	audio×interaction	state: global 'playbackHandler'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getNewRecorder\(int, AudioRecordingFolder, AudioInputChannel, bool, bool, int, bool, Output\*, RecorderConfig\)$	audio×interaction	state: global 'AudioEngine::firstRecorder'
 open	src/deluge/gui/ui/ui.cpp	^openUI\(UI\*\)$	audio×interaction	state: global 'numUIsOpen'
 open	src/deluge/gui/ui/ui.cpp	^setRootUILowLevel\(UI\*\)$	audio×interaction	state: global 'numUIsOpen'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderReverb\(unsigned long\)$	audio×interaction	state: global 'AudioEngine::mustUpdateReverbParamsBeforeNextRender'
 open	src/deluge/processing/engines/audio_engine.cpp	^_ZZN11AudioEngine12getNumVoicesEvENK3\$_0clIP5SoundEEDaT_$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
-open	library/core/src/ptr/mod.rs	^core::ptr::read::<\*mut deluge_alloc::tlsf::BlockHeader>$	audio×interaction	state: global '__frunk_bss_end'
-open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::BlockHeader>::set_prev_free$	audio×interaction	state: global '__frunk_bss_end'
-open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::BlockHeader>::size$	audio×interaction	state: global '__frunk_bss_end'
-open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::Tlsf>::split$	audio×interaction	state: global '__frunk_bss_end'
 open	src/deluge/deluge.cpp	^deleteOldSongBeforeLoadingNew\(\)$	audio×interaction	state: global 'currentSong'
 open	src/deluge/dsp/reverb/freeverb/freeverb.hpp	^deluge::dsp::reverb::Freeverb::ProcessOne\(int, StereoSample&\)$	audio×interaction	state: global 'AudioEngine::reverb'
 open	src/deluge/gui/ui/audio_recorder.cpp	^AudioRecorder::beginOutputRecording\(AudioRecordingFolder, AudioInputChannel, bool, bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
 open	src/deluge/gui/ui/ui.cpp	^nullifyUIs\(\)$	audio×interaction	state: global 'numUIsOpen'
 open	src/deluge/io/debug/resource_clock.cpp	^deluge_debug_now_frames$	audio×storage	state: global 'AudioEngine::audioSampleTimer'
-open	src/deluge/memory/alloc_metadata.cpp	^mem_guard::recordAlloc\(void\*, unsigned int, void\*\)$	audio×interaction	state: global 'mem_guard::(anonymou'
 open	src/deluge/model/output.cpp	^Output::setActiveClip\(ModelStackWithTimelineCounter\*, PgmChangeSend\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL'
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::doSongSwap\(bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::getNumSamplesLeftToOutputFromPreviousRender\(\)$	audio×interaction	state: global 'AudioEngine::renderingBufferOutputPos'
@@ -100,19 +94,18 @@ open	src/deluge/dsp/filter/filter_set.h	^deluge::dsp::filter::FilterSet::FilterS
 open	src/deluge/dsp/filter/ladder_components.h	^deluge::dsp::filter::BasicFilterComponent::BasicFilterComponent\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/model/mod_controllable/ModFXProcessor.h	^ModFXProcessor::ModFXProcessor\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
 open	src/deluge/model/song/song.h	^Song::Song\(\)$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' (first seen in catalogue convergence batch 2, 2026-09-27)
-open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::Tlsf>::insert_free_block( \(\.llvm\.[0-9]+\))?$	audio×interaction	state: global '__frunk_bss_end' (first seen after the sound retirement, 2026-09-27)
-open	crates/deluge_alloc/src/tlsf.rs	^<deluge_alloc::tlsf::BlockHeader>::set_size$	audio×interaction	state: global '__frunk_bss_end' (first seen after the sound retirement, 2026-09-27)
-open	library/core/src/ptr/mod.rs	^core::ptr::write::<\*mut deluge_alloc::tlsf::BlockHeader>$	audio×interaction	state: global '__frunk_bss_end' (first seen after the sound retirement, 2026-09-27)
-open	src/deluge/memory/alloc_metadata.cpp	^mem_guard::\(anonymous namespace\)::recordAllocWithEpoch\(unsigned long, unsigned int, unsigned long, unsigned int\)$	audio×interaction	state: global 'mem_guard::(anonymou' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlaybackUsingInternalClock\(int, bool, bool, bool\)$	audio×interaction	state: global 'playbackHandler' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routine_task\(\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/hid/led/pad_leds.cpp	^PadLEDs::reassessGreyout\(bool\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (first seen after the host render block became one excluded section, 2026-09-27)
 open	src/deluge/model/global_effectable/global_effectable_for_clip.cpp	^GlobalEffectableForClip::renderOutput\(ModelStackWithTimelineCounter\*, ParamManager\*, std::span<StereoSample, [0-9]+ul>, int\*, int, int, bool, bool, OutputType, SampleRecorder\*\)$	audio×interaction	state: global 'playbackHandler' (ticksLeftInCountIn; first seen after the rendering-drums list, 2026-09-27)
+open	src/deluge/modulation/automation/auto_param.cpp	^AutoParam::resetInterpolationIncrement\(\)$	audio×interaction	state: an automated param's play position, set by the interaction tier's setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
+open	src/deluge/modulation/automation/auto_param.cpp	^AutoParam::processCurrentPos\(ModelStackWithAutoParam const\*, bool, bool, bool, bool\)$	audio×interaction	state: an automated param's play position, set by the interaction tier's setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
+open	src/deluge/modulation/params/param_collection_summary.h	^ParamCollectionSummary::resetInterpolationRecord\(int\)$	audio×interaction	state: a param collection's interpolation record, reset by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
+open	src/deluge/modulation/params/param_manager.cpp	^ParamManagerForTimeline::processCurrentPos\(ModelStackWithThreeMainThings\*, int, bool, bool, bool\)$	audio×interaction	state: a param manager's play position, set by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
+open	src/deluge/modulation/params/param_set.cpp	^ParamSet::processCurrentPos\(ModelStackWithParamCollection\*, int, bool, bool, bool\)$	audio×interaction	state: a param set's play position, set by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
 # Index by shared state (state → entries). The second invariant's to-do list.
 #   Sound::voices_ (C2b): the getNumVoices lambda, terminateOneVoice. (AudioEngine::sounds itself: fixed by C2a,
 #     AudioOwnedList — its getNumVoices() entry removed.)
-#   The TLSF allocator's arena (deluge_alloc, audio allocates/frees): Tlsf::search_suitable, split, BlockHeader::size,
-#     BlockHeader::set_prev_free, core::ptr::read::<*mut BlockHeader>; mem_guard::recordAlloc, insert_free_block, set_size, ptr::write::<*mut BlockHeader>, recordAllocWithEpoch
 #   Render-routine globals (audioSampleTimer, routineBeenCalled, renderingBufferOutputPos, renderInStereo,
 #     bypassCulling, audioRoutineLocked): deluge_app_render, AudioEngine::routine, routine_task, routineWithClusterLoading,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
@@ -138,5 +131,9 @@ open	src/deluge/model/global_effectable/global_effectable_for_clip.cpp	^GlobalEf
 #     scheduleNextTimerTick, isExternalClockActive, actionSwungTick, isEitherClockActive, Arrangement::doTickForward,
 #     getPosAtWhichClipWillCut, Clip/InstrumentClip/NoteRow::processCurrentPos, Song::isClipActive, Kit::getArpSettings,
 #     AudioEngine::tickSongFinalizeWindows, getActualSwungTickCount, getNumSwungTicksInSinceLast*, Arrangement::setupPlayback,
-#     Arrangement::getLivePos, Kit::renderGlobalEffectableForClip, GlobalEffectableForClip::renderOutput
+#     Arrangement::getLivePos, Kit::renderGlobalEffectableForClip, GlobalEffectableForClip::renderOutput,
+#     AutoParam/ParamSet/ParamManagerForTimeline::processCurrentPos, AutoParam::resetInterpolationIncrement,
+#     ParamCollectionSummary::resetInterpolationRecord (setupPlayback's setPlayPos against the render's tick)
+#   The heap's arena (TLSF) and MEM_GUARD's side table: fixed by the heap exclusion (2026-09-28); rows removed after
+#     10 Lens 2 runs reached none of them.
 
