@@ -223,7 +223,8 @@ struct OrphanedStaging {
 	uint8_t* buffer = nullptr;
 	uint32_t size = 0;
 };
-/// The channel runs one operation and queues one more, so at most two buffers can be held at once.
+/// The channel admits one operation at a time, so at most one buffer is held at once; the spare slots cover buffers
+/// released before the next reap.
 constexpr size_t kMaxOrphanedStaging = 4;
 std::array<OrphanedStaging, kMaxOrphanedStaging> orphanedStaging{};
 
@@ -263,8 +264,8 @@ void StorageManager::releaseStaging(StagingState* state) {
 			reapOrphanedStaging();
 			auto slot = std::ranges::find_if(orphanedStaging,
 			                                 [](const OrphanedStaging& orphan) { return orphan.buffer == nullptr; });
-			// No free slot cannot happen with at most two held buffers; if it did, keeping the buffer for good is
-			// the safe failure.
+			// No free slot cannot happen with one buffer held at a time; if it did, keeping the buffer for good is the
+			// safe failure.
 			if (slot != orphanedStaging.end()) {
 				*slot = {.buffer = state->buffer, .size = state->size};
 			}
