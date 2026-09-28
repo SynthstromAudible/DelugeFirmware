@@ -1,6 +1,7 @@
 // ThreadSanitizer stress harness for the containers the audio render walks: the real deluge::OrderedPosVector (the
-// type behind a clip's note rows, a row's notes, an automation node list and an output's clip instances) and a
-// ClipArray-shaped vector of pointers (a song's session clips).
+// type behind a clip's note rows, a row's notes, an automation node list and an output's clip instances), the real
+// RenderingDrums (a kit's drums rendering now, over stub drums), and a ClipArray-shaped vector of pointers (a song's
+// session clips).
 //
 // Models the real split: an [audio] walker walks both containers inside an AudioExcludedSection, as the host render
 // block now runs (libdeluge/system.h); a [task] editor inserts and erases, reallocating often. The critical-section
@@ -15,6 +16,8 @@
 // Built and run by run.sh beside the other stress binaries.
 #include "deluge/util/container/ordered_pos_vector.h"
 #include "libdeluge/system.h"
+#include "model/instrument/rendering_drums.h"
+#include "processing/sound/sound_drum.h" // the stub in stubs/: a link and a magic
 
 #include <atomic>
 #include <cstdint>
@@ -36,6 +39,11 @@ extern "C" void EXIT_CRITICAL_SECTION() {
 }
 extern "C" bool deluge_in_audio_context() {
 	return false;
+}
+// The firmware's panic, reached by RenderingDrums' misuse checks: a stress run that hits one fails loudly.
+extern "C" void freezeWithError(char const* errmsg) {
+	std::fprintf(stderr, "freezeWithError(%s)\n", errmsg);
+	std::abort();
 }
 
 namespace deluge::memory {
@@ -72,6 +80,8 @@ struct Node {
 
 deluge::OrderedPosVector<Node> g_nodes;
 std::vector<void*> g_clips; // ClipArray's shape: a vector of pointers, erased and inserted in the middle
+RenderingDrums g_drums;
+SoundDrum g_drumPool[16];
 std::atomic<bool> g_done{false};
 int g_dummy = 0;
 
@@ -102,6 +112,18 @@ void editor() {
 		if (round % 64 == 0) {
 			g_nodes.clear();
 		}
+		// The product RenderingDrums sections its own adds and removes: a drum starting and stopping, in any order.
+		// Only drums that are out, as the firmware adds (SoundDrum::setSkippingRendering changes state first): a second
+		// add is a misuse the wrapper freezes on. Only this thread edits, so reading membership here needs no section.
+		for (int i = 0; i < 16; ++i) {
+			SoundDrum* drum = &g_drumPool[(round * 7 + i) % 16];
+			if (!g_drums.contains(drum)) {
+				g_drums.add(drum);
+			}
+		}
+		for (int i = 0; i < 16; i += 2) {
+			g_drums.remove(&g_drumPool[(round * 5 + i) % 16]);
+		}
 	}
 	g_done.store(true, std::memory_order_release);
 }
@@ -116,6 +138,12 @@ void walker() {
 				std::abort();
 			}
 		}
+		g_drums.walk([](SoundDrum* drum) {
+			if (drum->magic != SoundDrum::kMagic) {
+				std::fprintf(stderr, "walk saw a drum mid-splice\n");
+				std::abort();
+			}
+		});
 		for (void* clip : g_clips) {
 			if (clip != &g_dummy) {
 				std::fprintf(stderr, "walk saw a clip slot mid-edit\n");

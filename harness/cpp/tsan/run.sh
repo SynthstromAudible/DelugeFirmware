@@ -50,7 +50,20 @@ build_one "${SRC}" "${BIN}" & p1=$!
 build_one "${SRC2}" "${BIN2}" & p2=$!
 build_one "${SRC3}" "${BIN3}" & p3=$!
 # The real OrderedPosVector: its firmware headers resolve from src/deluge; the allocator is stubbed in the source.
-build_one "${SRC4}" "${BIN4}" "${REPO_ROOT}/src/deluge" & p4=$!
+# ... and the real RenderingDrums, compiled against a stub SoundDrum (stubs/ comes first on the include path). ETL is
+# fetched by CMake into a build tree's _deps; any configured host tree has it.
+ETL_INCLUDE="$(ls -d "${REPO_ROOT}"/build-embassy-hostapp/_deps/etl-src/include "${REPO_ROOT}"/build*/_deps/etl-src/include \
+    "${REPO_ROOT}"/sim/build/_deps/etl-src/include 2>/dev/null | head -1)"
+if [ -z "${ETL_INCLUDE}" ]; then
+    echo "ERROR: no ETL headers found under a build tree's _deps -- configure a host build first" >&2
+    exit 2
+fi
+build_one4() {
+    ${LAUNCHER} "${CXX}" -std=c++23 -fsanitize=thread -O1 -g \
+        -I "${SCRIPT_DIR}/stubs" -I "${REPO_ROOT}/src" -I "${REPO_ROOT}/src/deluge" -I "${REPO_ROOT}/include" -I "${ETL_INCLUDE}" -pthread \
+        "${SRC4}" "${REPO_ROOT}/src/deluge/model/instrument/rendering_drums.cpp" -o "${BIN4}"
+}
+build_one4 & p4=$!
 build_failed=0
 for p in "${p1}" "${p2}" "${p3}" "${p4}"; do
     wait "${p}" || build_failed=1
