@@ -125,6 +125,11 @@ constexpr const char* kSongGuardPresetPath = "SYNTHS/DSGUARD1.XML";
 /// many ticks and the preset save can be dispatched while they do.
 constexpr uint32_t kSongGuardLatencyMs = 20;
 constexpr const char* kAccountName = "DSACCT01";
+/// DS-HELD's preset: a new name, so the save takes the direct path.
+constexpr const char* kHeldName = "DSHELD01";
+/// How long the write channel holds each operation in DS-HELD, in virtual milliseconds: far past the save's 600-tick
+/// stall bound however fast the save is ticked.
+constexpr uint32_t kHeldLatencyMs = 10000;
 /// Byte-channel latency while the accounting save verifies: long enough to remove the file between the write
 /// landing and the read-back's first answer.
 constexpr uint32_t kAccountLatencyMs = 50;
@@ -179,6 +184,11 @@ enum class Stage : uint8_t {
 	OverwriteFailWait,
 	OverwriteFailDrain,
 	OverwriteFailCheck,
+	HeldOpen,
+	HeldOpenWait,
+	HeldSave,
+	HeldWait,
+	HeldCheck,
 	Report,
 	Done,
 };
@@ -192,6 +202,9 @@ uint32_t g_crc = 0;
 size_t g_bytes = 0;
 std::string g_path;
 std::string g_kitPath;
+std::string g_heldPath;
+int32_t g_heldCompletedBefore = 0;
+int32_t g_heldVerifiedBefore = 0;
 /// The instrument's name before the preset save. If it already equals the name being saved, the
 /// rename check could pass without the save renaming anything, so the check has to know.
 std::string g_nameBefore;
@@ -974,6 +987,57 @@ void runTick() {
 			printf("DS-OVERWRITE-FAIL FAIL the temp file of a failed overwrite is still on the card\n");
 			g_failures++;
 		}
+		g_stage = Stage::HeldOpen;
+		break;
+	}
+	case Stage::HeldOpen: {
+		// DS-HELD. A write the channel is still running cannot be cancelled, so a save must wait it out however long
+		// the card takes: giving up releases the serialiser the write is still copying from, and on a temp save
+		// removes a file the write still has open.
+		changeRootUI(&arrangerView);
+		(void)DocumentSaveChannelProbe::openOn();
+		g_stage = Stage::HeldOpenWait;
+		break;
+	}
+	case Stage::HeldOpenWait: {
+		if (!DocumentSaveChannelProbe::listingInProgress()) {
+			g_stage = Stage::HeldSave;
+		}
+		break;
+	}
+	case Stage::HeldSave: {
+		DocumentSaveChannelProbe::typeName(kHeldName);
+		g_heldPath = DocumentSaveChannelProbe::targetPath();
+		(void)deluge::io::unlink(g_heldPath.c_str());
+		g_heldCompletedBefore = SaveUI::stagedSavesCompleted();
+		g_heldVerifiedBefore = SaveUI::stagedSavesVerified();
+#ifdef DELUGE_HOST
+		deluge_file_write_set_latency_ms(kHeldLatencyMs);
+#endif
+		DocumentSaveChannelProbe::pressEnter();
+		g_waitTicks = 0;
+		g_stage = Stage::HeldWait;
+		break;
+	}
+	case Stage::HeldWait: {
+		if (!SaveUI::saveInFlight() || ++g_waitTicks > kMaxWaitTicks) {
+#ifdef DELUGE_HOST
+			deluge_file_write_set_latency_ms(0);
+#endif
+			g_stage = Stage::HeldCheck;
+		}
+		break;
+	}
+	case Stage::HeldCheck: {
+		const int32_t completed = SaveUI::stagedSavesCompleted() - g_heldCompletedBefore;
+		const int32_t verified = SaveUI::stagedSavesVerified() - g_heldVerifiedBefore;
+		printf("DS-HELD completed=%d verified=%d ticks=%d\n", (int)completed, (int)verified, g_waitTicks);
+		if (completed != 1 || verified != 1) {
+			printf("DS-HELD FAIL a preset save whose write the channel held past the stall bound did not complete "
+			       "and verify\n");
+			g_failures++;
+		}
+		(void)deluge::io::unlink(g_heldPath.c_str());
 		g_stage = Stage::Report;
 		break;
 	}
@@ -1028,6 +1092,9 @@ void deluge_scenario_document_save_channel_begin(void) {
 	g_bytes = 0;
 	g_path.clear();
 	g_kitPath.clear();
+	g_heldPath.clear();
+	g_heldCompletedBefore = 0;
+	g_heldVerifiedBefore = 0;
 	g_kitDrum = nullptr;
 	g_nameBefore.clear();
 	g_songGuardTried = false;

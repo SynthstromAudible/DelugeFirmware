@@ -13,6 +13,9 @@
 # What the checks cover:
 #   DS-CHANNEL    the document write was SERVED by the channel -- the async arm ran.
 #   DS-TICKED   the save's steps went through a channel after boot. The gate's actual claim.
+#   DS-HELD       a preset save whose write the channel holds far past the stall bound still completes and verifies:
+#                 a running write cannot be cancelled, so giving up on it only releases the serialiser it is still
+#                 copying from.
 #   DS-VERIFIED   every checked save COMPLETED a read-back -- counted where a save genuinely succeeds,
 #                 because a rejected write has already left its file on the card.
 #   DS-VERIFY-ARM the read-back ran through the channel and never on the inline arm.
@@ -78,7 +81,7 @@ if [ "$status" -ne 0 ]; then
 fi
 # An abort or a wedge exits before these lines are printed, which is what turns a freeze into a gate
 # failure rather than a silently truncated log.
-for marker in DS-BACKMIDSAVE DS-EXITMIDSAVE DS-SAVED DS-FINISHED DS-OCCUPIED DS-GUARD DS-KITROW DS-KITFINISHED DS-GUARD-SONG DS-ACCOUNTED DS-OVERWRITE DS-OVERWRITE-FAIL DS-VERIFIED DS-SUMMARY DS-RESULT; do
+for marker in DS-BACKMIDSAVE DS-EXITMIDSAVE DS-SAVED DS-FINISHED DS-OCCUPIED DS-GUARD DS-KITROW DS-KITFINISHED DS-GUARD-SONG DS-ACCOUNTED DS-OVERWRITE DS-OVERWRITE-FAIL DS-HELD DS-VERIFIED DS-SUMMARY DS-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^DS-' "$OUT/run.txt"
@@ -107,11 +110,11 @@ if [ -z "${channel_ticks:-}" ] || [ "$channel_ticks" -eq 0 ]; then
 	fail=1
 fi
 
-# DS-VERIFIED. The preset, the kit row and the confirmed overwrite are checked, and all three completed. The
+# DS-VERIFIED. The preset, the kit row, the confirmed overwrite and the held save are checked, and all four completed. The
 # counters are taken where a save genuinely succeeds, so a save that wrote its file and was then
 # rejected by the read-back -- DS-ACCOUNTED's and DS-OVERWRITE-FAIL's -- cannot be counted, which a check on
 # the file's presence alone would miss.
-if ! grep -q '^DS-VERIFIED completedSaves=3 verified=3$' "$OUT/run.txt"; then
+if ! grep -q '^DS-VERIFIED completedSaves=4 verified=4$' "$OUT/run.txt"; then
 	echo "FAIL DS-VERIFIED — $(grep '^DS-VERIFIED ' "$OUT/run.txt" || echo 'no DS-VERIFIED line')"
 	fail=1
 fi

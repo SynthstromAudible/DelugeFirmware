@@ -38,6 +38,9 @@
 #   SS-ACCOUNTED  the channels account for every card step, and none took the inline arm. Neither
 #                 SS-CHANNEL nor SS-SAVED can see WHICH arm carried which step.
 #   SS-TICKED   the steps went through the channels after boot. The gate's actual claim.
+#   SS-HELD       a save whose write the channel holds far past the stall bound still completes, and its file is
+#                 the same document the first save wrote: a running write cannot be cancelled, so giving up on it
+#                 only releases the serialiser it is still copying from.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
@@ -97,7 +100,7 @@ if [ "$status" -ne 0 ]; then
 fi
 # An abort or a wedge exits before these lines are printed, which is what turns a freeze into a
 # gate failure rather than a silently truncated log.
-for marker in SS-BACKMIDSAVE SS-EXITMIDSAVE SS-GREW SS-SAVED SS-VERIFIED SS-PARSES SS-INTACT SS-SUMMARY SS-RESULT; do
+for marker in SS-BACKMIDSAVE SS-EXITMIDSAVE SS-GREW SS-SAVED SS-VERIFIED SS-PARSES SS-INTACT SS-HELD SS-SUMMARY SS-RESULT; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^SS-' "$OUT/run.txt"
