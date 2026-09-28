@@ -53,7 +53,7 @@ deluge::gui::browser::FileListing Browser::listing{};
 bool Browser::qwertyVisible;
 
 int32_t Browser::scrollPosVertical;
-int32_t Browser::fileIndexSelected;
+int32_t Browser::fileIndexSelected = -1;
 int32_t Browser::numCharsInPrefix;
 bool Browser::arrivedAtFileByTyping;
 OutputType Browser::outputTypeToLoad;
@@ -466,6 +466,8 @@ void Browser::close() {
 
 void Browser::emptyFileItems() {
 	listing.clear();
+	// An empty listing has nothing to select.
+	fileIndexSelected = -1;
 }
 
 void Browser::sortFileItems() {
@@ -1693,7 +1695,9 @@ void Browser::displayText(bool blinkImmediately) {
 }
 
 FileItem* Browser::getCurrentFileItem() {
-	if (fileIndexSelected == -1) {
+	// The index can outrun the items: a read empties the listing before it refills it, and the selection is set only
+	// once the read lands. Until then there is no current item.
+	if (fileIndexSelected < 0 || fileIndexSelected >= listing.size()) {
 		return nullptr;
 	}
 	return &listing.item(fileIndexSelected);
