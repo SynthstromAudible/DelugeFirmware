@@ -606,6 +606,25 @@ impl Tlsf {
     /// callers (wave_table / patch_cable_set trims), which all shrink. A **grow**
     /// has no in-place consumer (ResizeableArray, the lone `extend` user, is gone),
     /// so it just moves (alloc + copy + free) — correct, only unoptimized.
+    /// Shrink `payload`'s block in place if `new_size` fits and the alignment already holds. Returns whether it did,
+    /// and the block's current payload size (what a moving realloc must copy).
+    pub unsafe fn try_shrink_in_place(
+        &mut self,
+        payload: *mut u8,
+        new_size: usize,
+        align: usize,
+    ) -> (bool, usize) {
+        let block = block_of(payload);
+        let cur = (*block).size();
+        let want = Self::adjust_size(new_size);
+        let aligned_ok = (payload as usize) & (align.max(ALIGN) - 1) == 0;
+        if aligned_ok && want <= cur {
+            self.shrink_in_place(block, want);
+            return (true, cur);
+        }
+        (false, cur)
+    }
+
     pub unsafe fn realloc(&mut self, payload: *mut u8, new_size: usize, align: usize) -> *mut u8 {
         if payload.is_null() {
             return self.malloc(new_size, align);
@@ -614,15 +633,9 @@ impl Tlsf {
             self.free(payload);
             return ptr::null_mut();
         }
-        let block = block_of(payload);
-        let cur = (*block).size();
-        let want = Self::adjust_size(new_size);
-        let need_align = align.max(ALIGN);
-        let aligned_ok = (payload as usize) & (need_align - 1) == 0;
-
         // Shrink in place (pointer-stable). Growth falls through to a move.
-        if aligned_ok && want <= cur {
-            self.shrink_in_place(block, want);
+        let (shrunk, cur) = self.try_shrink_in_place(payload, new_size, align);
+        if shrunk {
             return payload;
         }
         let np = self.malloc(new_size, align);

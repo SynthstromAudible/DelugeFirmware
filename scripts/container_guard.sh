@@ -38,6 +38,10 @@
 #   CG-VOICEFAIL             a ring-mod note-on whose voice fails to start (a sample source with no sample): the
 #                            voice goes back to the pool unpublished and the note-on still runs to its end
 #                            (CG-VOICEFAIL poolFreeDelta=0 voicesDelta=0 lastNoteSet=1 required)
+#   CG-HEAP                  the interaction tier allocating and freeing on the heaps while the render plays: every
+#                            heap step (crates/deluge_alloc/src/section.rs) must run inside a section
+#   CG-SLAB                  a cluster-slab slot claimed, touched and released from the interaction tier while the
+#                            render plays: each slot's claim or clear must run inside a section
 #   CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
 #   CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
 #                            wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
@@ -112,9 +116,9 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL"
+LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL HEAP SLAB"
 # The legs whose edits must all be made while the render is excluded.
-REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL"
+REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL HEAP SLAB"
 
 for leg in $LEGS; do
 	if ! grep -qE "^CG-$leg unguarded=[0-9]+ " "$OUT/run.txt"; then

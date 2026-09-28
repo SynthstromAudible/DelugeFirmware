@@ -1,10 +1,10 @@
 #pragma once
 
-// A probe for structural edits to the containers the audio render walks: an insert, erase, reorder, relink or
-// reallocation that runs while the render could preempt it. Every such edit must run inside an AudioExcludedSection
-// (libdeluge/system.h), or on the audio tier itself; the containers call noteStructuralEdit() from each mutator, and an
-// edit made outside a section is counted by container kind. The counts are what the container-guard gate and the
-// golden harness's exit line report; they must stay 0.
+// A probe for structural edits to the containers and heaps the audio render walks or edits: an insert, erase, reorder,
+// relink, reallocation or heap step that runs while the render could preempt it. Every such edit must run inside an
+// AudioExcludedSection (libdeluge/system.h), or on the audio tier itself; the containers call noteStructuralEdit() from
+// each mutator, and an edit made outside a section is counted by container kind. The counts are what the
+// container-guard gate and the golden harness's exit line report; they must stay 0.
 //
 // Compiled in only with ALPHA_OR_BETA_VERSION (definitions.h); otherwise noteStructuralEdit() is empty.
 
@@ -19,6 +19,9 @@ enum class StructuralContainer : uint8_t {
 	DRUM_LIST,          ///< a kit's drum list
 	RENDERING_DRUMS,    ///< a kit's drums rendering now (Kit's rendering-drums set)
 	VOICES,             ///< a Sound's active voices (Sound::voices_)
+	HEAP,               ///< a heap's TLSF step (crates/deluge_alloc: malloc, free, shrink, size, reclaim guard)
+	SLAB,               ///< a cluster-slab slot's claim, clear, pin, unpin or touch
+	ALLOC_METADATA,     ///< MEM_GUARD's side table of live allocations (memory/alloc_metadata.cpp)
 	COUNT_,
 };
 

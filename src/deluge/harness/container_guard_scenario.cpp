@@ -24,9 +24,11 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "libdeluge/alloc.h"
 #include "libdeluge/app.h"
 #include "libdeluge/types.h"
 #include "memory/fast_allocator.h"
+#include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -116,6 +118,8 @@ enum class Leg : uint8_t {
 	VoiceKill,
 	VoiceMultiRange,
 	VoiceFail,
+	Heap,
+	Slab,
 	Done,
 };
 
@@ -190,6 +194,10 @@ const char* legName(Leg leg) {
 		return "VOICEMULTIRANGE";
 	case Leg::VoiceFail:
 		return "VOICEFAIL";
+	case Leg::Heap:
+		return "HEAP";
+	case Leg::Slab:
+		return "SLAB";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -210,6 +218,12 @@ const char* kindName(StructuralContainer kind) {
 		return "renderdrums";
 	case StructuralContainer::VOICES:
 		return "voices";
+	case StructuralContainer::HEAP:
+		return "heap";
+	case StructuralContainer::SLAB:
+		return "slab";
+	case StructuralContainer::ALLOC_METADATA:
+		return "memguard";
 	case StructuralContainer::COUNT_:
 		break;
 	}
@@ -680,6 +694,32 @@ void editLeg() {
 		printf("CG-RENDERALLOC renderAllocs=%u\n",
 		       static_cast<unsigned>(deluge::memory::audioTierAllocations() - before));
 		fflush(stdout);
+		break;
+	}
+	case Leg::Heap: {
+		g_step = "alloc";
+		// The interaction tier allocating and freeing while the render plays: every heap step must be sectioned.
+		void* fast = deluge::memory::alloc_fast(64, 16);
+		void* sdram = delugeAlloc(4096, false);
+		delugeDealloc(sdram);
+		deluge::memory::dealloc(fast);
+		break;
+	}
+	case Leg::Slab: {
+		g_step = "slab";
+		// A cluster-slab slot claimed, touched and released from the interaction tier while the render plays.
+		DelugeSlab* slab = GeneralMemoryAllocator::get().clusterSlab();
+		if (slab == nullptr) {
+			fail("no cluster slab");
+			break;
+		}
+		void* slot = deluge_slab_acquire(slab, nullptr);
+		if (slot == nullptr) {
+			fail("cluster slab acquire failed");
+			break;
+		}
+		deluge_slab_touch(slab, slot);
+		GeneralMemoryAllocator::get().freeSdram(slot); // releases through the slab
 		break;
 	}
 	case Leg::Done:
