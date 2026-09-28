@@ -424,7 +424,7 @@ void buildFixture(void (*fn)()) {
 	g_pendingFixtures.push_back(fn);
 }
 
-/// Run the next build this step queued, if any: one per call, as the owner queue ran one job per poll.
+/// Run the next build this step queued, if any: one per call, so each build gets a poll of its own.
 /// @return Whether a build ran -- the step is not done on a call that ran one.
 bool runPendingFixture() {
 	if (g_pendingFixtures.empty()) {
@@ -1788,7 +1788,7 @@ void checkAcquireAct() {
 	case Leg::AqNavStall: {
 		// Runs behind AqSlotStall's held open -- the directory task serves one at a time -- and then under its own
 		// hold, so no answer can arrive inside this leg's bound (each stall leg's own SD_CARD shows a bound under the
-		// 30 s hold). The folder does not exist: on the owner tree the direct open fails FOLDER_DOESNT_EXIST instead.
+		// 30 s hold). The folder does not exist: the direct open taken before boot fails FOLDER_DOESNT_EXIST instead.
 		deluge_file_directory_set_latency_ms(0);
 		const Error error = deluge::gui::instrumentLoad.lastError();
 		const bool kept = output == g_slotStallOutputBefore && name == g_aqNameBefore;
@@ -2255,7 +2255,7 @@ void runTick() {
 		break;
 	case Step::Settle:
 		// The load the selection started, left to finish as a user waits for it before pressing anything: a
-		// scroll-load still queued on the owner would otherwise land after the leg's own load.
+		// scroll-load still in flight would otherwise land after the leg's own load.
 		if (g_leg == Leg::Supersede ? markTier().sampleLoads == g_heavyLoadsBefore
 		                            : loadInstrumentPresetUI.scrollLoadInFlight()) {
 			if (++g_waitTicks > kMaxLegTicks) {

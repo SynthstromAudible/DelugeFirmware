@@ -169,36 +169,36 @@ void doRecorderCardRoutines();
 ///        the gates' evidence that the drain runs off the storage tier.
 void requestRecorderCardRoutines();
 
-/// @brief How many recorder drains ran OFF the storage owner.
+/// @brief How many recorder drains ran after boot, when their card writes go through the write channel.
 ///
-/// The evidence that the drain actually moved. A served count alone can be non-zero while every
-/// write was still handled on the owner, which would be a rename rather than a relocation.
+/// The evidence that the drain itself ran on that path. A served count alone says writes were served,
+/// not which drain issued them.
 [[nodiscard]] int32_t recorderDrainTicks();
 
-/// @brief How many finalize ticks have run. Every one runs off the storage owner now; the name is the gates'.
+/// @brief How many finalize ticks have run.
 ///
-/// The evidence that finishing a recording ran at all off the owner's old path. Distinct from
+/// The evidence that finishing a recording ran through the finalize machine at all. Distinct from
 /// @ref recorderDrainTicks, which only says the drain did.
 [[nodiscard]] int32_t finalizeTicks();
 
-/// @brief How many create ticks have run. Every one runs off the storage owner now; the name is the gates'.
+/// @brief How many create ticks have run.
 ///
 /// The evidence that creating a recording's file ran through the create machine at all.
 [[nodiscard]] int32_t createTicks();
 
-/// @brief How many document-staging attempts ran OFF the storage owner.
+/// @brief How many document-staging attempts ran after boot, through the byte and write channels.
 ///
-/// The evidence that the song load's card read moved. Reading zero means the load still takes its
-/// bytes on the owner, which is the whole thing this is here to disprove.
+/// The evidence that the song load's card read goes through the channels. Reading zero after a song
+/// load means the load took its bytes some other way, which is the whole thing this is here to disprove.
 [[nodiscard]] int32_t songStageTicks();
 
-/// @brief Record one off-owner staging attempt.
+/// @brief Record one staging attempt made after boot.
 void noteSongStageTick();
 
-/// @brief Record one create tick that ran off the owner.
+/// @brief Record one create tick.
 void noteCreateTick();
 
-/// @brief Record one finalize tick that ran off the owner.
+/// @brief Record one finalize tick.
 void noteFinalizeTick();
 
 int32_t getNumSamplesLeftToOutputFromPreviousRender();

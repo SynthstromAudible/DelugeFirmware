@@ -261,9 +261,9 @@ public:
 	createNewInstrument(OutputType instrumentType, bool is_fm = false,
 	                    deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewNewInstrument);
 	/// @brief createNewInstrument()'s follow-up, reached from LoadInstrumentPresetUI::
-	///        runAcquisitionFollowUp()'s `ViewNewInstrument`/`KeyboardNewInstrument` arms, on the
-	///        storage owner. Runs InstrumentClipMinder::createNewInstrument() (blocking -- legal
-	///        here) then this class's own recolour/repaint/enterDrumCreator tail.
+	///        runAcquisitionFollowUp()'s `ViewNewInstrument`/`KeyboardNewInstrument` arms, once the
+	///        acquisition has landed. Runs InstrumentClipMinder::createNewInstrument() (reads no card)
+	///        then this class's own recolour/repaint/enterDrumCreator tail.
 	/// @param clip The dispatch-time snapshot (PresetRequest::clip); acted on directly, never
 	///        re-fetched via getCurrentInstrumentClip() -- see createNewInstrument()'s doc for why.
 	/// @param newOutputType SYNTH or KIT.
@@ -280,11 +280,11 @@ public:
 	bool changeOutputType(OutputType newOutputType,
 	                      deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewChangeType);
 	/// @brief changeOutputType()'s follow-up, reached via View::completeChangeOutputTypeFor()'s
-	///        `ViewChangeType` and `KeyboardChangeType` arms -- on the storage owner for Synth/Kit,
-	///        inline for MIDI/CV. Runs InstrumentClipMinder::changeOutputType()'s LED tail
+	///        `ViewChangeType` and `KeyboardChangeType` arms -- from InstrumentLoad once the acquisition
+	///        has landed for Synth/Kit, inline for MIDI/CV. Runs InstrumentClipMinder::changeOutputType()'s LED tail
 	///        (setLedStates(), inherited) AND this class's own recolour/repaint tail.
 	/// @param newOutputType The type that was switched to.
-	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param clip The clip the gesture was made on (Song-owned; safe while the acquisition is out).
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	/// @return Whether the swap actually succeeded.

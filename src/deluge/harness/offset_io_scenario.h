@@ -30,10 +30,10 @@
 ///
 /// ## This gate PASSES before the conversion, unlike the last three
 ///
-/// There is no pre-conversion tier violation to show: `smsysex` is already owner-dispatched, so its
-/// tier count reads zero on both sides. This gate's evidence is `OI-CHANNEL served=` going non-zero on
-/// the channel-on leg, plus the truncation neutering failing. A reviewer expecting a red-to-green
-/// transition should read those two instead.
+/// There is no pre-conversion tier violation to show: `smsysex` never begins a blocking operation
+/// after boot, so its tier count reads zero on both sides. This gate's evidence is
+/// `OI-CHANNEL served=` going non-zero on the channel-on leg, plus the truncation neutering failing.
+/// A reviewer expecting a red-to-green transition should read those two instead.
 extern "C" {
 
 /// @brief Reset the scenario's state and prepare stdout for a piped run.

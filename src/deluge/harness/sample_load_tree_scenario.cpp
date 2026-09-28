@@ -755,7 +755,7 @@ void forEachSongHolder(Song& song, Visit visit) {
 	}
 }
 
-/// Called from the trace sink at "crucial end", on the storage owner, while the song being loaded is preLoadedSong.
+/// Called from the trace sink at "crucial end", inside the song load, while the song being loaded is preLoadedSong.
 void snapshotCrucial() {
 	g_crucialBound.fill(-1);
 	g_crucialSnapshotTaken = (preLoadedSong != nullptr);
@@ -894,7 +894,7 @@ void checkCrucialLoad() {
 		g_failures++;
 	}
 	// SLT-ARM. The rest of the samples must still be arriving when the user can first arm the swap. A pass that
-	// holds the storage owner cannot do that: it runs to completion before the arm mode is ever set, so every
+	// blocks on the card cannot do that: it runs to completion before the arm mode is ever set, so every
 	// holder already has its file and the user has been waiting on the card for all of it.
 	printf("SLT-ARM unboundAtArm=%d boundAtArm=%d reached=%d\n", g_crucialUnboundAtArm, g_crucialBoundAtArm,
 	       (g_crucialUnboundAtArm >= 0) ? 1 : 0);
@@ -940,8 +940,8 @@ void checkCrucialLoad() {
 
 // ── The async loads ──────────────────────────────────────────────────────────
 //
-// Each load above runs again through AsyncSampleLoad, ticked from dispatch_step on the interaction tier rather than
-// on the storage owner: SLTSONG2's crucial walk and full walk, the synth preset, and the kit preset with its abort.
+// Each load above runs again through AsyncSampleLoad, ticked from dispatch_step on the interaction tier: SLTSONG2's
+// crucial walk and full walk, the synth preset, and the kit preset with its abort.
 // Before each, every file the load binds is dropped from memory, so each must come through the async loader, and the
 // loader holds every load kAsyncLatencyMs so each spans several ticks. Each must end as its blocking load did.
 
@@ -1061,7 +1061,7 @@ void reloadPreset(Instrument* reference, const char* residentPath, OutputType ty
 	}
 }
 
-/// On the storage owner: drop what the leg's load will bind.
+/// Run as a fixture build: drop what the leg's load will bind.
 void releaseForAsyncLeg() {
 	switch (g_asyncLeg) {
 	case AsyncLeg::Crucial:
@@ -1179,7 +1179,7 @@ bool stepCardGone(const deluge::storage::AsyncSampleLoad::Progress& progress) {
 		g_cardGoneFirstState = progress.state;
 		g_cardGoneFirstReason = progress.reason;
 		g_cardGoneStatusAfter = g_asyncContext.alternateDirStatus;
-		// The card back, on the owner as the card-detect routine puts it back; the probe's hold lifted; and a second
+		// The card back, as the card-detect routine puts it back; the probe's hold lifted; and a second
 		// load on the same context, whose first folder answer is the one this leg is about.
 		buildFixture([] { audioFileManager.reinitEjectedCard(); });
 		deluge_file_bytes_set_latency_ms(0);
@@ -1509,8 +1509,8 @@ void checkAsyncLeg() {
 }
 
 /// Fixture builds a tick asked for, run when the runner next asks whether the step is done: one virtual
-/// millisecond after the tick, which is where the retired storage-owner queue ran them. The gates are paced to that
-/// order, so builds are queued here rather than run inside the tick.
+/// millisecond after the tick, matching the pacing the gates are already tuned to. Builds are queued here
+/// rather than run inside the tick, to keep that order.
 std::vector<void (*)()> g_pendingFixtures{};
 
 /// Queue a fixture build for the end of this step. See g_pendingFixtures.
@@ -1518,7 +1518,7 @@ void buildFixture(void (*fn)()) {
 	g_pendingFixtures.push_back(fn);
 }
 
-/// Run the next build this step queued, if any: one per call, as the owner queue ran one job per poll.
+/// Run the next build this step queued, if any: one per call, so each build gets a poll of its own.
 /// @return Whether a build ran -- the step is not done on a call that ran one.
 bool runPendingFixture() {
 	if (g_pendingFixtures.empty()) {

@@ -893,10 +893,10 @@ removePendingOverdub:
 						toCreate = OutputType::SYNTH;
 					}
 
-					// Synth/Kit reach the directory underneath (createNewInstrumentClip() ->
-					// setPresetOrNextUnlaunchedOne()), so the whole create-and-hold sequence moves onto
-					// the storage owner and completeNewTrack() finishes it there. MIDI allocates a
-					// non-audio instrument and reads no card, so it stays synchronous.
+					// Synth/Kit need a preset off the card (what setPresetOrNextUnlaunchedOne() takes), so
+					// InstrumentLoad acquires it and completeNewTrack() runs the whole create-and-hold
+					// sequence once it lands. MIDI allocates a non-audio instrument and reads no card, so
+					// it stays synchronous.
 					// The dispatch itself carries no answer, so this returns ActionResult::DEALT_WITH
 					// regardless.
 					//
@@ -1754,8 +1754,8 @@ void SessionView::beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yD
 	view.displayOutputName(clip->output, true, clip);
 }
 
-// Runs on the storage owner for Synth/Kit, inline for MIDI. createNewInstrumentClip() blocks here,
-// which is legal on this tier.
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed, with `acquired` set; MIDI
+// is called inline. createNewInstrumentClip() takes what was acquired and reads no card of its own.
 void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex,
                                    bool shiftHeld, const deluge::storage::AcquireResult* acquired) {
 	Clip* clip = createNewInstrumentClip(type, yDisplay, acquired);
@@ -3815,10 +3815,10 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	const uint32_t targetSection = gridSectionFromY(targetY);
 
 	// Copying into an EMPTY track column is the one arm that has to acquire an instrument for the new
-	// track (gridPlaceNewClip() -> createNewTrackForInstrumentClip()), so it reads the card and moves
-	// onto the storage owner. Every other copy re-uses an existing Output and stays synchronous (spec
-	// section 2c). The "COPIED" popup is this gesture's tail and goes with it, rather than firing
-	// before the copy it is announcing.
+	// track (gridPlaceNewClip() -> createNewTrackForInstrumentClip()), so it goes through an
+	// InstrumentLoad acquisition, which reads the card. Every other copy re-uses an existing Output and
+	// stays synchronous (spec section 2c). The "COPIED" popup is this gesture's tail and goes with it,
+	// rather than firing before the copy it is announcing.
 	if (targetOutput == nullptr && sourceClip->type == ClipType::INSTRUMENT
 	    && (sourceClip->output->type == OutputType::SYNTH || sourceClip->output->type == OutputType::KIT)) {
 		deluge::storage::PresetRequest request{
@@ -3844,8 +3844,8 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	display->popupTextTemporary("COPIED");
 }
 
-// Runs on the storage owner. targetOutput is null by construction: this consumer exists only for the
-// empty-track-column arm above.
+// Run by InstrumentLoad once the acquisition has landed. targetOutput is null by construction: this
+// consumer exists only for the empty-track-column arm above.
 void SessionView::completeNewTrackClone(uint32_t targetSection, Clip* sourceClip,
                                         const deluge::storage::AcquireResult* acquired) {
 	gridCreateClip(targetSection, nullptr, sourceClip, acquired);
@@ -3900,9 +3900,9 @@ void SessionView::finishGridNewTrackClip() {
 	const int32_t pressY = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
 	const bool padStillPressed = (pressX == gridFirstPressedX && pressY == gridFirstPressedY);
 
-	// Synth/Kit reach the directory underneath createNewClip(), so the create-and-place half plus this
-	// continuation's own tail move onto the storage owner. Audio, MIDI and CV read no card and stay
-	// synchronous. Each continuation gets its own consumer: their tails
+	// Synth/Kit need a preset off the card for createNewClip(), so InstrumentLoad acquires it and the
+	// create-and-place half plus this continuation's own tail run once it lands. Audio, MIDI and CV read
+	// no card and stay synchronous. Each continuation gets its own consumer: their tails
 	// (gridNewTrackClipEntered() vs gridNewTrackClipSelected()) are different functions.
 	if (toCreate == OutputType::SYNTH || toCreate == OutputType::KIT) {
 		deluge::storage::PresetRequest request{
@@ -3942,7 +3942,7 @@ Clip* SessionView::createGridNewTrackClip(OutputType type, uint32_t packedXY,
 	return gridPlaceNewClip(newClip, gridSectionFromY(y), nullptr, nullptr);
 }
 
-// Runs on the storage owner for Synth/Kit, inline for Audio/MIDI/CV.
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed; Audio/MIDI/CV inline.
 void SessionView::completeNewTrackGridEnter(OutputType type, uint32_t packedXY, bool padStillPressed,
                                             const deluge::storage::AcquireResult* acquired) {
 	Clip* clip = createGridNewTrackClip(type, packedXY, acquired);
@@ -3952,7 +3952,7 @@ void SessionView::completeNewTrackGridEnter(OutputType type, uint32_t packedXY, 
 	gridNewTrackClipEntered(clip, padStillPressed);
 }
 
-// Runs on the storage owner for Synth/Kit, inline for Audio/MIDI/CV.
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed; Audio/MIDI/CV inline.
 void SessionView::completeNewTrackGridSelect(OutputType type, uint32_t packedXY, bool padStillPressed,
                                              const deluge::storage::AcquireResult* acquired) {
 	Clip* clip = createGridNewTrackClip(type, packedXY, acquired);

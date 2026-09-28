@@ -41,7 +41,7 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 	// void selectEncoderAction(int8_t offset);
-	/// @brief Start a song save: check the target name off the storage owner, then plan and collect.
+	/// @brief Start a song save: check the target name on a later tick, then plan and collect.
 	[[nodiscard]] bool beginUnstagedSave(const deluge::storage::SaveRequest& request) override;
 
 	/// @brief What one AudioFile needs done, decided but not yet performed.
@@ -101,7 +101,7 @@ public:
 	/// @brief Whether a staged document write is in flight. NOT the same as the UI being open.
 	[[nodiscard]] bool docInFlight() const { return docPhase_ != DocPhase::NONE; }
 
-	/// @brief Document steps the CHANNEL served, and the ones the storage OWNER served.
+	/// @brief Document steps the CHANNEL served, and the ones the INLINE arm served before boot finished.
 	///
 	/// Reported together and held to account for each other by the gate: on a build where half the
 	/// steps quietly took the other arm, either number alone reads as a success.
@@ -123,7 +123,7 @@ public:
 	/// nothing about whether the save succeeded. Only reaching the end says that.
 	[[nodiscard]] static int32_t documentSavesCompleted() { return documentSavesCompleted_; }
 
-	/// @brief Ticks on which a document step ran off the storage owner.
+	/// @brief Ticks on which a document step went through a channel, after boot.
 	[[nodiscard]] static int32_t offOwnerDocumentTicks() { return offOwnerDocumentTicks_; }
 
 	/// @brief How many times the staging buffer doubled for the last staged document.
@@ -132,11 +132,11 @@ public:
 	/// the growth path unexercised and every growth check vacuous.
 	[[nodiscard]] static int32_t stagedDocumentGrowths() { return stagedDocumentGrowths_; }
 
-	/// @brief Transfers the CHANNEL served, and steps that ran off the storage owner.
+	/// @brief Transfers the CHANNEL served, and ticks on which a transfer step went through it, after boot.
 	[[nodiscard]] static int32_t transferChannelServedOps() { return transferChannelServedOps_; }
 	[[nodiscard]] static int32_t offOwnerTransferTicks() { return offOwnerTransferTicks_; }
 
-	/// @brief Transfers the storage OWNER served, synchronously.
+	/// @brief Transfers the INLINE arm served, synchronously, before boot finished. Zero on a booted build.
 	///
 	/// The counterpart to transferChannelServedOps(). Reported alongside it because the two must
 	/// account for every transfer between them: a build where half the files quietly took the other
@@ -184,7 +184,7 @@ private:
 	void applyTransfers();
 	/// @brief End the collection having applied NOTHING, and fail the save.
 	void abandonCollection();
-	/// @brief Perform the current entry with blocking calls. Legal ONLY on the storage owner.
+	/// @brief Perform the current entry with blocking calls. Legal ONLY before boot finishes (the inline arm).
 	bool transferOneSynchronously();
 	/// @brief Defer one more tick, or give up if the collection has stopped making progress.
 	bool deferCollection();

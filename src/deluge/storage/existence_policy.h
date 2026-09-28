@@ -14,7 +14,7 @@ namespace deluge::storage {
 enum class Presence {
 	Present,        ///< the path is there
 	Absent,         ///< the path is known not to be there (Status::NOT_FOUND)
-	Undeterminable, ///< existence could not be determined (e.g. Status::BUSY off-owner)
+	Undeterminable, ///< existence could not be determined (e.g. Status::NO_FILESYSTEM: no usable card)
 };
 
 /// @brief Classify an existence result for exhaustive handling.
@@ -39,8 +39,8 @@ Bootstrap bootstrap_action(const std::expected<bool, deluge::io::Status>& presen
 /// @brief Whether a save may write to a path whose presence has been checked.
 ///
 /// @note `Undeterminable` is REFUSED, never treated as absent — and confirming an overwrite does not
-///       override that. On the storage owner the filesystem answers, so "could not tell" means the
-///       card genuinely did not respond: a fault, not a routine condition. Taking the absent branch
+///       override that. The filesystem answers every caller, so "could not tell" means the card
+///       genuinely did not respond: a fault, not a routine condition. Taking the absent branch
 ///       there would overwrite a file the user still has.
 /// @warning Switch on this enum exhaustively, with no `default:` label, for the same reason given on
 ///          `Presence` above.

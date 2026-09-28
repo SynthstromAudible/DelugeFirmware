@@ -24,7 +24,7 @@
 /// recording headlessly — the exact application entry points a user's LOAD/PLAY/RECORD
 /// button presses reach (LoadSongUI, PlaybackHandler, AudioRecorder), minus the button/HID
 /// layer. None of it changes their behaviour; every function is a thin, direct call into
-/// (or dispatch onto the storage owner of) existing production code.
+/// existing production code.
 ///
 /// @note `DELUGE_HOST`-only (see sim/CMakeLists.txt's `add_compile_definitions(DELUGE_HOST)`):
 ///       compiled into every x86 build off this tree (deluge_host/deluge_render/deluge_loadcheck,

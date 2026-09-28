@@ -35,10 +35,10 @@ constexpr size_t kNumFavourites = 16;
 
 /// @brief The favourites bank on screen, and every card operation it needs, in order.
 ///
-/// Nothing here touches the card from the caller's context. An entry point changes the bank in memory and
-/// QUEUES what the card must do; @ref serviceRoutine issues one operation at a time -- through the byte
-/// channel, or on the storage owner when the channel refuses -- and applies what it produced on the
-/// interaction tier.
+/// After boot nothing here touches the card from the caller's context. An entry point changes the bank in
+/// memory and QUEUES what the card must do; @ref serviceRoutine issues one operation at a time -- through the
+/// byte channel, or inline before boot finishes; after boot, one the channel will not take ends as a
+/// failure -- and applies what it produced on the interaction tier.
 class FavouritesManager {
 public:
 	struct Favorite {

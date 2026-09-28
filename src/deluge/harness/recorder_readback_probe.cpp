@@ -105,7 +105,7 @@ void teardown() {
 		g_source = nullptr;
 	}
 	if (g_recorder != nullptr) {
-		// Callers abort and tick _settle_tick() until settled first: off the storage owner a request can still be
+		// Callers abort and tick _settle_tick() until settled first: after boot a write-channel request can still be
 		// in flight, and deleting the recorder under it would leave the channel writing into freed memory. abort()
 		// again is harmless.
 		g_recorder->abort();

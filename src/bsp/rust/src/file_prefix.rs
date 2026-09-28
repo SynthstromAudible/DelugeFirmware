@@ -670,9 +670,9 @@ pub async fn prefix_io_once<O: LoadOps>(
         //
         // A published failure reaches the browser as `SongPreviewOutcome::Error` and shows an
         // error popup — for a song that is perfectly readable and that the synchronous backing,
-        // on the owner where the file read is serialised, would very likely have opened. Bounded
-        // and self-healing (the next visit re-asks and the table has drained), but visible rather
-        // than silent, and the trade is taken on that basis.
+        // reading inline on its caller where the file read is serialised, would very likely have
+        // opened. Bounded and self-healing (the next visit re-asks and the table has drained), but
+        // visible rather than silent, and the trade is taken on that basis.
         //
         // ## The bounded mitigation, recorded and NOT taken
         //

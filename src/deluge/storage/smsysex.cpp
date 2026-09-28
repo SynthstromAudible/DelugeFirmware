@@ -975,15 +975,12 @@ void smSysex::handleNextSysEx() {
 		return;
 	}
 
-	// Called DIRECTLY rather than dispatched onto the storage owner: `usingByteChannel()` is false on
-	// the owner by design, so an owner-side handler would take the synchronous arm and nothing would be
-	// relocated. Parsing and replying touch no card; each path operation goes through the channel, or
-	// runs inline where blocking is legal -- see `smsysex_pending.h`.
+	// Called DIRECTLY, on the interaction tier. Parsing and replying touch no card; each path operation
+	// goes through the channel after boot, or runs inline before it -- see `smsysex_pending.h`.
 	//
-	// No single-flight guard is needed: a direct call cannot overlap itself. Restoring a dispatch
-	// without one would let a second tick process a queue the first already popped, aborting in
-	// `SysExQ.front()`. The pending path operation is the single-flight state now, and the front entry
-	// staying unpopped is what makes the next tick resume the same request rather than start another.
+	// No single-flight guard is needed: a direct call cannot overlap itself. The pending path operation
+	// is the single-flight state, and the front entry staying unpopped is what makes the next tick resume
+	// the same request rather than start another.
 	//
 	// `sd_busy()` stays, though it now guards less than it did -- neither arm touches FatFS from this
 	// stack. Removing a guard that still holds some value deserves its own deliberate decision.

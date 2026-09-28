@@ -82,7 +82,7 @@ public:
 	void playbackEnded() override;
 	void clipNeedsReRendering(Clip* clip) override;
 
-	/// @brief The new-instrument pad gesture's follow-up, run on the storage owner.
+	/// @brief The new-instrument pad gesture's follow-up, run by InstrumentLoad once the acquisition has landed.
 	///
 	/// Runs the WHOLE remainder of the pad press, not just the row placement: the audition sub-mode,
 	/// the output name, the note and the mod-controllable all live here, because the pad handler
@@ -184,9 +184,9 @@ private:
 	/// @brief Take the Synth a new-instrument gesture acquired: off the hibernation list, and set up without a clip.
 	/// @return The Instrument, or nullptr when the acquisition failed (its error shown).
 	Instrument* createNewInstrument(bool* instrumentAlreadyInSong, const deluge::storage::AcquireResult& acquired);
-	/// @brief The new-instrument acquisition gesture: dispatch onto the storage owner a request to
+	/// @brief The new-instrument acquisition gesture: ask InstrumentLoad for an acquisition to
 	///        create a SYNTH Instrument for the empty row at `yPressed` and place it on screen (see
-	///        completeNewInstrument(), which runs the dispatched request).
+	///        completeNewInstrument(), which applies what it acquired).
 	///
 	/// This is the pad press's own `if (!output)` branch (auditionPadAction), factored out so the
 	/// song-preview A/B harness's BrowserListingAbProbe can drive the SAME gesture entry point a pad

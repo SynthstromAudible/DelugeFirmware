@@ -37,9 +37,9 @@ class InstrumentClipMinder : public ClipMinder {
 public:
 	InstrumentClipMinder();
 	virtual void displayOrLanguageChanged();
-	/// @brief The card-reading half of new-instrument creation, unchanged and blocking. Legal only on
-	///        the storage owner -- see beginNewInstrumentAcquisition()'s doc for why every caller now
-	///        goes through that instead of this directly.
+	/// @brief The card-free half of new-instrument creation, run once the acquisition has found a slot
+	///        name -- see beginNewInstrumentAcquisition()'s doc for why every caller goes through that
+	///        instead of this directly.
 	///
 	/// Acts on `clip`, the snapshot beginNewInstrumentAcquisition() took at dispatch time -- never
 	/// getCurrentInstrumentClip() -- because the clip current when this actually runs may not be the
@@ -54,7 +54,7 @@ public:
 	/// @return Whether an instrument was actually created.
 	bool createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
 	                         const deluge::storage::AcquireResult& acquired);
-	/// @brief Dispatch new-instrument creation onto the storage owner. Non-virtual, matching
+	/// @brief Ask InstrumentLoad for new-instrument creation. Non-virtual, matching
 	///        changeOutputType()'s shape and for the same reason: an unqualified call from a derived
 	///        class's own scope resolves to THIS version, which is exactly why `consumer` defaults to
 	///        the base tail (`MinderNewInstrument`) rather than InstrumentClipView's fuller one;
@@ -75,7 +75,7 @@ public:
 	bool beginNewInstrumentAcquisition(
 	    OutputType newOutputType, bool is_dx = false,
 	    deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::MinderNewInstrument);
-	/// @brief The MinderNewInstrument completion: runs createNewInstrument() on the storage owner.
+	/// @brief The MinderNewInstrument completion: runs createNewInstrument() once the acquisition lands.
 	///        No extra tail: createNewInstrument()'s bool is deliberately discarded.
 	/// @param clip The snapshot beginNewInstrumentAcquisition() took; forwarded to createNewInstrument().
 	/// @param newOutputType SYNTH or KIT.

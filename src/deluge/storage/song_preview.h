@@ -112,9 +112,10 @@ SongPreviewOutcome decodeSongPreview(std::span<uint8_t> buffer, bool isJson,
 
 /// @brief Decode a song's preview artwork by reading the song file, the synchronous way.
 ///
-/// The storage-tier backing for the browser's preview, and the reference the buffer decode above is
+/// The inline-arm backing for the browser's preview, and the reference the buffer decode above is
 /// held to. Opens @p path through the ordinary deserializer and runs the identical walk, so it blocks
-/// on I/O and may only be called where that is allowed (the storage owner).
+/// on I/O and may only be called where that is allowed (before boot finishes, which on a C++-only
+/// build is always).
 ///
 /// @param path       Absolute path of the song file on the card.
 /// @param imageStore Destination pad rows, as for decodeSongPreview().

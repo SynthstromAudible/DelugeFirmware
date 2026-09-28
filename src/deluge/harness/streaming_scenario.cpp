@@ -229,9 +229,8 @@ void deluge_scenario_copy_stems_out(const char* out_dir) {
 	fprintf(stderr, "[golden-scenario] copied %d stem(s) to %s\n", count, out_dir);
 
 	// ST-BYTES. The export must have written audio. Named separately from ST-RENDER because a 0-byte WAV is
-	// exactly what a stem export produces when it runs off the storage owner today -- the recorder takes its
-	// write-channel arm and the bytes never land -- and "the export wrote nothing" must not be reported as
-	// "hash mismatch".
+	// exactly what a stem export produces when the recorder's write-channel arm never lands its bytes, and "the
+	// export wrote nothing" must not be reported as "hash mismatch".
 	fprintf(stderr, "ST-BYTES size=%lld files=%d\n", static_cast<long long>(copiedBytes), count);
 
 	// Give the image back what this render wrote. The card image is cached and SHARED between runs and gates, so

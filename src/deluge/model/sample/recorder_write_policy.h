@@ -23,8 +23,8 @@ namespace deluge::storage {
 
 /// @brief What `SampleRecorder`'s cluster write should do on this tick.
 enum class WriteStep : uint8_t {
-	/// Write synchronously, here and now. Only where the channel cannot be used: on the storage owner, or
-	/// before the owner has started, where blocking is legal.
+	/// Write synchronously, here and now. Only where the channel cannot be used: before boot finishes, where
+	/// blocking is legal.
 	Inline,
 	/// Ask the channel for the owed write: never asked yet, refused last time, or answered UNKNOWN.
 	Issue,
@@ -101,8 +101,7 @@ constexpr int32_t kMaxUnproductiveUs = 300'000;
 /// Pure so every ruling above is testable without fault injection, which is what made the startup
 /// phase machine's conflation rulings provable rather than argued.
 ///
-/// @param channelUsable     Whether this write may use the write channel: the caller is off the storage
-///                          owner and the owner has started.
+/// @param channelUsable     Whether this write may use the write channel: boot has finished.
 /// @param issued            Whether the channel accepted the owed write and it has not been collected.
 /// @param collected         The `DELUGE_FILE_WRITE_*` value from the collect, or
 ///                          `DELUGE_FILE_WRITE_UNKNOWN` when nothing was collected this tick.

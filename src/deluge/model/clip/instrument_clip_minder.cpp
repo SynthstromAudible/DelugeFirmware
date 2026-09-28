@@ -129,10 +129,9 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 	display->popupText(buffer.c_str());
 }
 #pragma GCC pop
-// Dispatch new-instrument creation onto the storage owner: reads the card (Browser::getUnusedSlot(),
-// via createNewInstrument() below) to name a free preset slot, which readFileItemsForFolder() may
-// now defer -- there is no interaction-tier context left to run it inline in. The clip-not-empty
-// guard runs HERE, before any card access, matching View::changeOutputType()'s identical guard
+// Ask InstrumentLoad for new-instrument creation: naming a free preset slot reads the card, which
+// InstrumentLoad's walk does before createNewInstrument() below runs with the name it found. The
+// clip-not-empty guard runs HERE, before any card access, matching View::changeOutputType()'s identical guard
 // (InstrumentClip::changeOutputType(), that leaf's equivalent, carries no copy of it either).
 bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputType, bool is_dx,
                                                          deluge::storage::PresetConsumer consumer) {
@@ -151,7 +150,7 @@ bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputTyp
 	    .outputType = newOutputType,
 	    .isDx = is_dx,
 	    .dirPath = getInstrumentFolder(newOutputType),
-	    // Snapshotted, not re-read by the completion: the clip current when the op actually runs may
+	    // Snapshotted, not re-read by the completion: the clip current when the completion runs may
 	    // not be the clip this gesture was made on. `oldInstrument` doubles as the liveness guard
 	    // runAcquisitionFollowUp() already applies to every other clip-bearing consumer -- if `clip`'s
 	    // output is gone by the time this runs, the completion is skipped rather than acting on a
@@ -159,7 +158,7 @@ bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputTyp
 	    .oldInstrument = (Instrument*)clip->output,
 	    .clip = clip,
 	};
-	// The acquisition may still fail on the owner (no unused slot, OOM, etc); the gesture itself was
+	// The acquisition may still fail once it runs (no unused slot, OOM, etc); the gesture itself was
 	// accepted here, so report success and let the completion surface any error, exactly as
 	// View::changeOutputType() does.
 	return loadInstrumentPresetUI.dispatchPresetAcquisition(request);
@@ -172,9 +171,10 @@ void InstrumentClipMinder::completeNewInstrument(InstrumentClip* clip, OutputTyp
 	createNewInstrument(clip, newOutputType, is_dx, acquired);
 }
 
-// Runs on the storage owner, reached only through beginNewInstrumentAcquisition(). Blocks on the
-// card read, which is legal on this tier. Acts on `clip` (the dispatch-time snapshot) throughout,
-// not getCurrentInstrumentClip()/getCurrentOutput() -- see this function's doc.
+// Run by InstrumentLoad once the acquisition has landed, reached only through
+// beginNewInstrumentAcquisition(). Reads no card: `acquired` carries the slot name. Acts on `clip`
+// (the dispatch-time snapshot) throughout, not getCurrentInstrumentClip()/getCurrentOutput() -- see
+// this function's doc.
 bool InstrumentClipMinder::createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
                                                const deluge::storage::AcquireResult& acquired) {
 	Error error;

@@ -36,7 +36,8 @@ using deluge::favourites::BankState;
 using deluge::favourites::FavouritesIntent;
 using deluge::storage::bytes::SettingsOutcome;
 
-/// Write a save's snapshot. Legal only where blocking is: the storage owner.
+/// Write a save's snapshot, blocking. Legal only before boot finishes: only runIntentInline(), run by
+/// runDuringBoot(), reaches it.
 bool writeSnapshot(const std::string& path, const std::string& bytes) {
 	auto created = StorageManager::createFile(path.c_str(), true);
 	if (!created.has_value()) {
@@ -285,7 +286,7 @@ void FavouritesManager::parseBankBytes(void* ctx, char* bytes, uint32_t len) {
 	auto* self = static_cast<FavouritesManager*>(ctx);
 	self->inFlight_.scratch = emptyBank();
 	// activeDeserializer goes back on EVERY path -- see MidiFollow::parseDefaultsBytes. A memory parse does no
-	// card I/O, so no owner operation can be suspended mid-parse underneath this.
+	// card I/O, so nothing else can reach the card mid-parse underneath this.
 	FileDeserializer* previous = activeDeserializer;
 	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false, "favourites")
 	    == Error::NONE) {

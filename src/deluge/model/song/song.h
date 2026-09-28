@@ -116,8 +116,8 @@ public:
 	bool mayDoubleTempo();
 	/// @brief Build the first session Clip if the song has none, on the built-in default synth.
 	///
-	/// Reads no card: it runs before the interaction tier exists (boot) and inside an owner operation (clear-song), so
-	/// the preset that replaces the default synth is asked for later, through @ref blankPresetPending.
+	/// Reads no card: it runs before the interaction tier exists (boot), and in clear-song on a Song that is not yet
+	/// current, so the preset that replaces the default synth is asked for later, through @ref blankPresetPending.
 	/// @return true if a Clip was created.
 	bool ensureAtLeastOneSessionClip();
 	/// @brief Take @p acquired -- the preset the blank song asked for -- in place of the default synth.

@@ -51,10 +51,9 @@ struct RandomizeRequest {
 /// @brief The Drum Randomizer: each chosen row's drum lands on a random audio file from the folder its sample sits in.
 ///
 /// A phase machine on the interaction tier, advanced by request() and by routine() from InstrumentClipView's graphics
-/// routine. For each row, one minimal operation on the storage owner opens the folder, reads its entries and picks a
-/// filename, changing nothing: a directory's entries have no async surface to read through. The row's load goes through
-/// the async sample load, and the unbind, the bind, the drum's new name and the kit's edited flag all happen on this
-/// tier.
+/// routine. For each row, the folder is opened through the directory channel and its entries are read on this tier to
+/// pick a filename, changing nothing. The row's load goes through the async sample load, and the unbind, the bind, the
+/// drum's new name and the kit's edited flag all happen on this tier.
 ///
 /// The gesture closes UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES before requesting, and the walk releases it when it ends,
 /// if it is still that mode. A row whose folder cannot be opened, or whose load fails or finds nothing, ends the walk
@@ -108,7 +107,7 @@ private:
 		Draining,  ///< A cancelled walk waiting for its scan to report.
 	};
 
-	/// @brief The scan's result slot: written by the scan on the owner, read by the next pass.
+	/// @brief The scan's result slot: written by drainScan() once the row's folder opens, read by the next pass.
 	struct ScanResult {
 		bool done = false;
 		Error error = Error::NONE;

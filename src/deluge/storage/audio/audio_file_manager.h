@@ -188,9 +188,8 @@ public:
 
 	/// @brief Re-initialise the SD card if it is currently marked ejected, clearing the flag on success.
 	///
-	/// Touches FatFS (initSD), so it runs on the storage owner — the fill dispatched by slowRoutine().
-	/// Re-checks the ejected flag itself, so a coalesced duplicate that arrives after re-init is a safe
-	/// no-op.
+	/// Remounts the filesystem, and is called directly from slowRoutine() on the interaction tier.
+	/// Re-checks the ejected flag itself, so a call that arrives after re-init is a safe no-op.
 	void reinitEjectedCard();
 
 	/// Set when the card came back with a cluster size larger than this boot sized its buffers for:

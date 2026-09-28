@@ -112,8 +112,8 @@ public:
 	/// @brief Whether a preset load is in flight or queued.
 	[[nodiscard]] bool scrollLoadInFlight() const;
 
-	/// @brief Ask InstrumentLoad for one instrument acquisition: its walk runs on the storage owner, its load on the
-	///        interaction tier, and the gesture's follow-up runs once the Instrument is ready.
+	/// @brief Ask InstrumentLoad for one instrument acquisition: its walk and its load run on the interaction
+	///        tier, and the gesture's follow-up runs once the Instrument is ready.
 	///
 	/// The caller builds `request` from live state HERE, the only point where reading it is safe; the acquisition then
 	/// acts only on that snapshot. Callers ask ONLY on the Synth/Kit arm: MIDI and CV read no card.

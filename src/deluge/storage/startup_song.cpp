@@ -63,8 +63,8 @@ constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 /// result -- just `UNKNOWN` forever, and a machine that re-asks forever. That livelock shape is what
 /// a dead channel looks like from here.
 ///
-/// As many as the stall bound below, and for the same reason. After boot there is no owner to fall
-/// back to, so giving up on a channel that is merely busy would skip a startup song that would have
+/// As many as the stall bound below, and for the same reason. After boot the inline arm refuses to
+/// run, so giving up on a channel that is merely busy would skip a startup song that would have
 /// loaded a few ticks later: only a channel that has made no progress for as long as a stalled one is
 /// given up on.
 constexpr int32_t kMaxAttemptsWithoutProgress = 600;

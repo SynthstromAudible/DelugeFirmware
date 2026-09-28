@@ -405,8 +405,7 @@ Error SampleRecorder::cardRoutine() {
 		return Error::NONE; // Still outstanding; come back next tick.
 	}
 
-	// Not dispatched to the owner: creating the file runs through the phase machine like
-	// everything else here.
+	// Creating the file runs through the phase machine like everything else here.
 
 	// If aborted, delete the file.
 	// ACQUIRE: synchronizes-with abort()'s release store.
@@ -1002,7 +1001,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 
 		case CreatePhase::Stats: {
 			// initSD stays, and only on this arm. The channel arm mounts lazily (file_write.rs's
-			// open_mounted); the OWNER arm reaches efatfs directly through deluge_efatfs_stream_open
+			// open_mounted); the inline arm reaches efatfs directly through deluge_efatfs_stream_open
 			// and needs the card already mounted. Deleting it would leave the rig green -- it mounts
 			// at boot -- and break a card inserted afterwards. Running it on the channel arm would
 			// block for something about to happen anyway.
@@ -1610,7 +1609,7 @@ extern int32_t pendingGlobalMIDICommandNumClustersWritten;
 // buffer's memory for reuse.
 namespace {
 /// How many cluster writes went through the channel, process-wide. Counted at the ISSUE, because
-/// that is the point at which the write left the storage owner, which is what a gate has to be
+/// that is the point at which the write was handed to the channel, which is what a gate has to be
 /// able to see.
 int32_t g_writeChannelServed = 0;
 } // namespace

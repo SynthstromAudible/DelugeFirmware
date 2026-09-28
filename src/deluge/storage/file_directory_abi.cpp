@@ -19,7 +19,7 @@
 /// @brief Weak, synchronous-backing definitions for `libdeluge/file_directory.h`.
 ///
 /// A BSP without the Rust directory channel resolves these. No caller reaches them: every caller selects the
-/// channel only once the storage owner has started, which such a build never reports, and takes its synchronous arm
+/// channel only once boot has finished, which such a build never reports, and takes its synchronous arm
 /// instead. The Rust Embassy BSP overrides all of them in `file_directory.rs`.
 ///
 /// Every function here is `noexcept`, like every function in `file_prefix_abi.cpp`,
@@ -81,7 +81,7 @@ extern "C" __attribute__((weak)) bool deluge_file_directory_async_active() noexc
 extern "C" __attribute__((weak)) void deluge_file_directory_request(const char* /*dir_path*/,
                                                                     bool /*create_if_missing*/) noexcept {
 	// No directory channel on this BSP/config. No caller reaches here: every caller selects the channel only once
-	// the storage owner has started, which a build linking this fallback never reports. Dropping the request
+	// boot has finished, which a build linking this fallback never reports. Dropping the request
 	// (rather than pretending to have accepted it) is what the collect below already reports.
 }
 

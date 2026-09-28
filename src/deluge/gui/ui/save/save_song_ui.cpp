@@ -271,7 +271,7 @@ bool SaveSongUI::beginUnstagedSave(const deluge::storage::SaveRequest& request) 
 	}
 	display->displayLoadingAnimationText("Saving");
 
-	// The target name is checked on a later tick, off the storage owner. Nothing is planned and no
+	// The target name is checked on a later tick, by runExistsPhase(). Nothing is planned and no
 	// sample is copied until the answer says the name may be written: the collection copies media into
 	// the new song's folder BEFORE the document is written, so learning at the write that the name was
 	// taken would be too late.
@@ -296,8 +296,8 @@ void SaveSongUI::runExistsPhase() {
 		return;
 	}
 
-	// Off the owner after boot, so the byte channel is here: the Rust BSP always has it, and a C++-only build
-	// never starts the owner, so it never reaches this line.
+	// After boot, so the byte channel is here: the Rust BSP always has it, and a C++-only build never
+	// finishes booting, so it never reaches this line.
 	++offOwnerDocumentTicks_;
 	bool present = false;
 	DelugeStatus status = DELUGE_OK;
@@ -429,8 +429,8 @@ void SaveSongUI::collectRoutine() {
 		collectPhase_ = CollectPhase::FINISH;
 		return;
 	case CollectPhase::FINISH:
-		// The document write is not a blocking owner call, so it is not dispatched: the machine it
-		// starts picks an arm per step.
+		// The document write is a machine of its own, started here directly: it picks an arm per
+		// step.
 		collectPhase_ = CollectPhase::NONE;
 		(void)finishSaveAfterCollection();
 		return;
@@ -482,8 +482,8 @@ void SaveSongUI::runTransferPhase() {
 	}
 
 	// Past this point every transfer goes through the channel, from the interaction tier. This counter
-	// is what a gate reads to confirm the work ran off the storage owner. Counting the on-owner case
-	// here too would have made the number say "off the owner" about work that ran ON it.
+	// is what a gate reads to confirm the work went through the channel. Counting the inline case
+	// here too would make the number say "through the channel" about work that ran inline.
 	++offOwnerTransferTicks_;
 
 	DelugeStatus status = DELUGE_OK;
@@ -706,7 +706,7 @@ void SaveSongUI::docRoutine() {
 }
 
 void SaveSongUI::runSerializePhase() {
-	// No card contact whatsoever. This is the half of a save that never needed the owner.
+	// No card contact whatsoever. This is the half of a save that needs no storage at all.
 	const uint32_t capacityBefore = activeSongWriter().bufferCapacity();
 	if (!serializeSongToBuffer()) {
 		abandonDocument(Error::WRITE_FAIL);
@@ -968,8 +968,8 @@ void SaveSongUI::runDocFinishPhase() {
 	currentSong->name = existsRequest_.enteredText;
 	currentSong->dirPath = existsRequest_.dirPath;
 
-	// Both of these choose their own arm: they use the byte channel when it is running and hand the
-	// work to the storage owner when it is not, so calling them from here does not block this tier.
+	// Both of these choose their own arm: they use the byte channel when it is running and write
+	// inline only before boot finishes, so calling them from here does not block this tier.
 	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
 		runtimeFeatureSettings.writeSettingsToFile();
 	}
@@ -980,8 +980,8 @@ void SaveSongUI::runDocFinishPhase() {
 }
 
 bool SaveSongUI::runOneDocStep() {
-	// Only ever on the owner, where blocking is legal: every phase off it goes through a channel, and both
-	// channels are always there.
+	// Only ever before boot finishes, where blocking is legal: after boot every phase goes through a
+	// channel, and both channels are always there.
 	++documentOwnerServedOps_;
 	++documentSteps_;
 	if (!docStepSynchronously()) {

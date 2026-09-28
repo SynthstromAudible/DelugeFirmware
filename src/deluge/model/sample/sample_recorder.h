@@ -224,9 +224,8 @@ public:
 
 private:
 private:
-	/// @param mayUseChannel false forces the synchronous arm. The channel is used only when this is true, the
-	///        caller is off the storage owner, and the owner has started: an owner that spins never lets the
-	///        driver answer.
+	/// @param mayUseChannel false forces the synchronous arm. The channel is used only when this is true and
+	///        boot has finished: before it nothing is running to answer.
 	Error writeCluster(int32_t clusterIndex, size_t numBytes, bool mayUseChannel);
 	/// @brief Ask the channel for the owed write.
 	/// @return Whether the channel accepted it. A refusal leaves the write owed and counts an unproductive tick.
@@ -241,7 +240,7 @@ private:
 	/// @brief What one call to @ref advanceCreate achieved.
 	enum class CreateStep : uint8_t { Pending, Done, Failed };
 
-	/// @brief Advance the file-creation machine by one phase. Never blocks off the owner.
+	/// @brief Advance the file-creation machine by one phase. Never blocks after boot.
 	///
 	/// Retry state lives in @ref deluge::storage::CreatePhase, which @ref deluge::storage::nextCreatePhase
 	/// can be tested against directly.
@@ -285,7 +284,7 @@ private:
 	/// @brief Advance the finalize machine by one phase. Never blocks.
 	///
 	/// Each call issues at most one channel operation and returns, so the whole of finishing a recording --
-	/// header patch, alteration, truncate and close -- happens off the storage owner.
+	/// header patch, alteration, truncate and close -- goes through the channel after boot.
 	FinalizeStep advanceFinalize();
 	/// @brief The channel accepted this phase's request: collect it from the next tick.
 	FinalizeStep finalizeAccepted();
@@ -317,7 +316,7 @@ private:
 	deluge::storage::UnproductiveSpan abortSpan_;
 
 	/// @brief Close a failed take's file, through the channel wherever the channel is usable. Never blocks
-	///        off the owner.
+	///        after boot.
 	///
 	/// A take that failed skips finalize, so nothing else closes its stream, and the stream's destructor would
 	/// close it synchronously on whatever tier frees the recorder.
@@ -384,8 +383,7 @@ private:
 	/// into it asynchronously -- a stack buffer would be freed under the driver.
 	std::array<std::byte, 512> headerScratch_{};
 	/// @}
-	/// @brief Write a cluster synchronously, blocking. Legal only on the storage owner, or before the owner
-	///        has started.
+	/// @brief Write a cluster synchronously, blocking. Legal only before boot finishes.
 	Error writeClusterSynchronously(int32_t clusterIndex, size_t numBytes);
 	/// @brief Recycle a written cluster's buffer and clear its table slot.
 	void finishCluster(int32_t clusterIndex);

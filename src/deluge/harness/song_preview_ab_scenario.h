@@ -19,7 +19,7 @@
 
 /// @brief Host-only C ABI for the song-preview gate: draw every fixture song's artwork through the
 ///        REAL `LoadSongUI` over the prefix channel, and hold each song's rendered image and decode
-///        outcome to the same file decoded the synchronous way on the storage owner.
+///        outcome to the same file decoded synchronously, inline.
 ///
 /// The channel has no switch, so there is one build and one run: the reference that a second,
 /// file-backed build would otherwise provide is decoded in-process instead (`SP-REFERENCE`, beside

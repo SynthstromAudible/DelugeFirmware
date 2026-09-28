@@ -47,7 +47,7 @@ struct SaveRequest {
 	SaveConsumer consumer{SaveConsumer::EnterKey};
 	bool mayOverwrite{};
 	/// @brief `collectingSamples` at dispatch. SaveSongOrInstrument sets it immediately before
-	///        dispatching, so it is live state and must not be read again on the owner.
+	///        dispatching, so it is live state and must not be read again once the save is running.
 	bool collectingSamples{};
 	std::string filePath;    ///< getCurrentFilePath() at dispatch.
 	std::string enteredText; ///< enteredText at dispatch.

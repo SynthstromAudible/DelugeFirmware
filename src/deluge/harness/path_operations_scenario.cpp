@@ -451,11 +451,11 @@ void runTick() {
 		break;
 
 	case Stage::NestedCheck:
-		// Wait for it, bounded. The creation is deferred on both arms, and on a channel that accepts
-		// and never answers the seam falls back to the owner only after its stall bound -- so checking
-		// one tick later would report "not created" for a folder that does arrive. Letting it land
-		// makes a dead channel fail on PO-CHANNEL alone, which is the precise signal, rather than on
-		// this stage as a side effect of timing.
+		// Wait for it, bounded. After boot the creation lands on a later tick through the channel, so
+		// checking one tick later would report "not created" for a folder that does arrive. A channel
+		// that accepts and never answers is given up on only after the seam's stall bound, and creates
+		// nothing; the wait outlasts that bound, so a dead channel is reported here as well as on
+		// PO-CHANNEL, which is the precise signal.
 		if (!directoryExists(kNestedPath) && ++g_nestedTicks < kMaxNestedTicks) {
 			break;
 		}

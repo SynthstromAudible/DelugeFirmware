@@ -218,7 +218,7 @@ bool saveMachineryIdle() {
 /// both would be broken identically.
 ///
 /// Starting and waiting are separate STAGES rather than one blocking helper. A load is driven by the
-/// harness's tick pump -- the owner and the repeating tasks run BETWEEN ticks -- so a helper that
+/// harness's tick pump -- the channels and the repeating tasks run BETWEEN ticks -- so a helper that
 /// spun here could never see one finish, however long it waited.
 bool beginSavedSongLoad(const char* path) {
 	currentSong->setSongFullPath(path);

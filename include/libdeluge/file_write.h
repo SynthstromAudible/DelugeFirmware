@@ -44,9 +44,9 @@
 /// REFUSED (returns false) rather than queued or replaced: a dropped cluster write is lost audio,
 /// so the caller must see the refusal and retry.
 ///
-/// **Eight operations, six keyed by handle and two by path.** The offset write came first; open,
-/// read, truncate, close and stats followed once the recorder's finalize and create needed them off
-/// the owner too. @ref deluge_file_write_request_read_file and
+/// **Eight operations, six keyed by handle and two by path.** The offset write serves the recorder's
+/// drain; open, read, truncate, close and stats serve its finalize and create, which after boot go
+/// through this channel too. @ref deluge_file_write_request_read_file and
 /// @ref deluge_file_write_request_write_file are the two odd ones out: they are keyed by PATH because
 /// each does its own open/transfer/close, for a caller that has a whole file to read or to store and
 /// wants nothing else.

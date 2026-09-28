@@ -50,7 +50,7 @@ struct FolderImportRequest {
 ///        ranges.
 ///
 /// A phase machine on the interaction tier, advanced by request() and by routine() from its own repeating task. One
-/// minimal operation on the storage owner lists the folder's audio filenames; each file then loads in turn through
+/// directory-channel open lists the folder's audio filenames; each file then loads in turn through
 /// LatestSampleLoad on a scratch holder, and the machine keeps the sample with a reason of its own. For Multisamples,
 /// every pitch detection, including the correction pass's re-detections, is a PitchScan ticked here, which never waits
 /// for the card. Sorting, the corrections' arithmetic and every model change happen on this tier; the finishes are the
@@ -144,7 +144,7 @@ private:
 	Phase phase_{Phase::Idle};
 	FolderImportRequest request_{};
 
-	/// @name The listing's result, written by the listing on the owner.
+	/// @name The listing's result, written as the directory channel's snapshot is drained.
 	/// @{
 	Error listError_{Error::NONE};
 	/// Whether this import's folder has been opened and drained yet. Reset when a listing starts.

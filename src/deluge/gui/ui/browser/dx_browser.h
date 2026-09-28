@@ -31,8 +31,8 @@ public:
 	/// @brief Collect a cartridge read that is in flight on the file prefix channel.
 	///
 	/// Overrides the subclass hook, never `graphicsRoutine()` — which is `final` on `Browser` so that
-	/// the listing pump cannot be skipped. Inert while no load is in flight: the inline arm, on the
-	/// storage owner or before it starts, reads and parses in enterKeyPress() itself.
+	/// the listing pump cannot be skipped. Inert while no load is in flight: the inline arm, before
+	/// boot finishes, reads and parses in enterKeyPress() itself.
 	void browserGraphicsRoutine() override;
 
 	/// @brief Cancel an in-flight cartridge read as the browser goes away.

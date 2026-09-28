@@ -476,8 +476,8 @@ void registerTasks() {
 	// 30 Hz update desired?
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
 
-	// Advances a song load past a wait it has finished. Cheap when no load is in flight, and it only ever
-	// queues the next stretch of the load onto the storage owner, so it holds no SD resource itself.
+	// Advances a song load past a wait it has finished. Cheap when no load is in flight, and it runs one
+	// phase of the load and returns, its card I/O going through the channels, so it holds no SD resource itself.
 	addRepeatingTask([]() { loadSongUI.loadRoutine(); }, p++, 0.001, 0.005, 0.02, "song load", RESOURCE_NONE);
 
 	// A staged document save builds itself on this tier and then stores it in one operation. Like the
@@ -516,7 +516,7 @@ void registerTasks() {
 	addRepeatingTask([]() { deluge::storage::startupSongRoutine(); }, p++, 0.001, 0.005, 0.02, "startup failsafe",
 	                 RESOURCE_NONE);
 
-	// Same shape for stem export: each pass queues one step onto the storage owner and returns, so the
+	// Same shape for stem export: each pass runs one phase of the export and returns, so the
 	// UI keeps running for the whole export - which is what makes cancelling it possible at all.
 	addRepeatingTask([]() { stemExport.exportRoutine(); }, p++, 0.001, 0.005, 0.02, "stem export", RESOURCE_NONE);
 

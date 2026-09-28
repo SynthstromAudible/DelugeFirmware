@@ -108,7 +108,7 @@ struct InstrumentLoadDecision {
 	std::string clonedName;          ///< A clone's name.
 };
 
-/// @brief What an acquisition's walk found, copied off the browser's list on the storage owner.
+/// @brief What an acquisition's walk found, copied off the walk's own listing on the interaction tier.
 struct AcquireSnapshot {
 	Error error = Error::NONE;
 	std::string path;    ///< The preset's full path.
@@ -126,7 +126,7 @@ struct AcquireSnapshot {
 ///   the browser's prologue decides; the document is staged through the byte channel and parsed on this tier; the
 ///   samples load through one AsyncSampleLoad over the new Instrument (or drum); the browser swaps it in, in one pass.
 /// - **Acquire** (a change-type or navigate gesture outside the browser): the gesture's card-free prologue runs as the
-///   request starts; one operation on the storage owner walks the instrument folder, as today's walkers do, and
+///   request starts; a walk ticked on this tier reads the instrument folder into a listing of its own, and
 ///   copies out what it found; a preset from the card is staged, parsed and has its samples loaded as above, a
 ///   hibernating Instrument has its samples loaded, and an active one is taken as it is; the gesture's follow-up is
 ///   then handed the Instrument, and applies it.
@@ -199,7 +199,7 @@ private:
 	enum class Phase : uint8_t {
 		Idle,    ///< No load.
 		Decide,  ///< Browse: the browser's card-free prologue.
-		Walk,    ///< Acquire: the gesture's prologue, then its walk on the storage owner.
+		Walk,    ///< Acquire: the gesture's prologue, then its walk, ticked on this tier.
 		Stage,   ///< Staging the preset document, a tick at a time.
 		Parse,   ///< Reading the staged document into a new Instrument or drum.
 		Samples, ///< Ticking the new Instrument's (or drum's) sample load.

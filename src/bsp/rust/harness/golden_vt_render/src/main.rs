@@ -675,9 +675,7 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     unsafe { deluge_scenario_run_recorder_roundtrip() };
 
     // The CASES, driven from HERE -- one step per tick with a yield between, so the storage driver can
-    // answer. They once ran inside a storage-owner dispatch, in a 200000-iteration loop that never
-    // yielded, which only worked because the (since retired) worker fiber blocked and resumed. On the
-    // channel arm, a caller that does not return cannot be answered.
+    // answer. On the channel arm, a caller that does not return cannot be answered.
     let case_deadline = Instant::now() + Duration::from_secs(300);
     loop {
         // SAFETY: as above.
@@ -734,7 +732,7 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         );
         hard_exit(1);
     }
-    // The off-owner cases (named for the retired storage owner). Driven from HERE, as the device drives a
+    // The `offowner_` cases. Driven from HERE, as the device drives a
     // recorder: the cluster write goes through the channel. They cover the async write path and the
     // blocking ticks from where the device drives them.
     // SAFETY: same C-ABI contract as the calls above; called only from this task.
@@ -835,7 +833,7 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         }
     }
 
-    // Over every off-owner case: a synchronous card operation is a violation whichever case made it.
+    // Over every `offowner_` case: a synchronous card operation is a violation whichever case made it.
     // SAFETY: same C-ABI contract as above.
     unsafe { deluge_scenario_offowner_report() };
     if give_up_failed {

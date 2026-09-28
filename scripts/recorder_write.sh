@@ -10,22 +10,21 @@
 #                 and broke the recording on the way. It earned its keep here: a recycled stream
 #                 handle collecting a previous recorder's answer showed up as exactly this, and
 #                 nothing else in the run noticed.
-#   RW-CHANNEL    that the async arm was EXECUTED by the off-owner recordings: they must serve writes
+#   RW-CHANNEL    that the async arm was EXECUTED by the `offowner_` recordings: they must serve writes
 #                 beyond the ones the oracle's cases served (RW-SUMMARY's count, taken before they run).
-#   RW-OFFOWNER   that the drain ran OFF the storage owner. This is the gate's real subject. Without
-#                 it RW-CHANNEL can be non-zero while every write was still served on the owner.
-#   RW-OFFOWNER-CREATE  that CREATING the recording's file ran off the storage owner.
-#   RW-OFFOWNER-FINALIZE  that FINISHING a recording ran off the storage owner. A served count says
-#                 operations went through the channel, not where the caller stood.
+#   RW-OFFOWNER   that the recorder drain ran after boot, its writes on the write channel. This is the
+#                 gate's real subject: RW-CHANNEL alone says writes were served, not which drain issued them.
+#   RW-OFFOWNER-CREATE  that CREATING the recording's file ran through the create machine.
+#   RW-OFFOWNER-FINALIZE  that FINISHING a recording ran through the finalize machine. A served count says
+#                 operations went through the channel, not which machine issued them.
 #   RW-LEAK       that an aborted recording gives its clusters back. It does NOT currently catch a
 #                 premature unlink -- single-flight sends that unlink down its synchronous arm anyway
 #                 -- but it does catch a cleanup that fails to delete at all.
-#   RW-OFFOWNER-CASE  that each off-owner case -- a recording, the alteration branch, an abort --
-#                 ran (there is no storage owner left to run on) and reads back byte-for-byte, its cluster writes
-#                 through the channel.
-#   RW-TIER       how many synchronous card operations the recorder began off the storage owner after
-#                 boot, over every off-owner case, and how many of its channel requests were refused.
-#                 Required 0: off the owner every recorder operation goes through a channel.
+#   RW-OFFOWNER-CASE  that each `offowner_` case -- a recording, the alteration branch, an abort --
+#                 ran and reads back byte-for-byte, its cluster writes through the channel.
+#   RW-TIER       how many synchronous card operations the recorder began on the interaction tier after
+#                 boot, over every `offowner_` case, and how many of its channel requests were refused.
+#                 Required 0: after boot every recorder operation goes through a channel.
 #   RW-BUSY       that a recording made while another write-channel operation keeps taking the channel
 #                 is refused, asks again, never writes synchronously, and still reads back exactly.
 #   RW-STALL      that a cluster write held past the recorder's bound fails the take while the write is
@@ -37,11 +36,13 @@
 #                 card routine in a bounded loop expecting each call to COMPLETE a write.
 #
 #   NOT covered: the stem-export folder search. Its machine is exercised only by the offline golden
-#                render, which runs ON the owner, so only its SYNCHRONOUS arm is verified. An
-#                off-owner case was attempted and abandoned: routing a harness recording down the
-#                stem path needs more engine state than `processStarted` +
-#                `currentStemExportType` + `lastFolderNameForStemExport`, and a case that silently
-#                records to RESAMPLE while calling itself a stem case is worse than none.
+#                render RW-DRAIN runs, which starts the export after boot, so the search takes its
+#                CHANNEL arm there; no check reads its outcome beyond the render terminating, and its
+#                inline arm is not exercised at all. There is no stem case among the `offowner_`
+#                cases: routing a harness recording down the stem path needs more engine state
+#                than `processStarted` + `currentStemExportType` + `lastFolderNameForStemExport`,
+#                and a case that silently records to RESAMPLE while calling itself a stem case
+#                is worse than none.
 #
 # One leg plus the offline drain: the write channel has no feature switch, so there is no build
 # without it to compare against.
@@ -117,7 +118,7 @@ if ! grep -q '^RW-RESULT failures=0' "$OUT/run.txt"; then
 	fail=1
 fi
 
-# The off-owner cases run AFTER the oracle has printed RW-SUMMARY, so their evidence is their own
+# The `offowner_` cases run AFTER the oracle has printed RW-SUMMARY, so their evidence is their own
 # lines. There are three, and each covers a shape the oracle's eight cases do not take.
 #
 # The alteration case exists because nothing else sets allowFileAlterationAfter, so without it
@@ -137,8 +138,8 @@ if [ "$oo_count" -lt 2 ] || [ "$oo_ok_count" -ne "$oo_count" ]; then
 	fail=1
 fi
 
-# RW-OFFOWNER-FINALIZE: restoring tickNeedsOwner's claim over finalize drops this straight to zero
-# while everything else stays green.
+# RW-OFFOWNER-FINALIZE: a recording finished without the finalize machine reads zero here while
+# everything else stays green.
 oo_fin=$(grep '^OO-RESULT ' "$OUT/run.txt" | sed -n 's/.*offOwnerFinalizeTicks=\([0-9]*\).*/\1/p' | sort -n | tail -1)
 [ -n "$oo_fin" ] || oo_fin=0
 if [ "$oo_fin" -eq 0 ]; then
@@ -185,8 +186,8 @@ for check in RW-BUSY RW-STALL RW-DIR-STALL; do
 	fi
 done
 
-# RW-OFFOWNER-CREATE: creating the file was the LAST thing this recorder dispatched to the owner, so
-# this reading zero means the recorder is back to blocking there.
+# RW-OFFOWNER-CREATE: this reading zero means the recorder created its file without the create
+# machine, blocking on the card instead.
 oo_create=$(grep '^OO-RESULT ' "$OUT/run.txt" | sed -n 's/.*offOwnerCreateTicks=\([0-9]*\).*/\1/p' | sort -n | tail -1)
 [ -n "$oo_create" ] || oo_create=0
 if [ "$oo_create" -eq 0 ]; then

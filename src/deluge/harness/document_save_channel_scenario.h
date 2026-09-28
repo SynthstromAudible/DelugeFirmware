@@ -19,8 +19,8 @@
 
 /// @file
 /// @brief Host-only C ABI for the document-save channel gate: save a preset through the REAL ENTER
-///        gesture, require the written file to be whole, and report whether the storage channel
-///        served the write off the owner.
+///        gesture, require the written file to be whole, and report whether the write channel
+///        served the write after boot.
 ///
 /// ## Why this gate exists
 ///

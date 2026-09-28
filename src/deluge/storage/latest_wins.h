@@ -27,7 +27,7 @@ namespace deluge::storage {
 /// desired target; at most one dispatch runs at a time, and when it completes the
 /// *latest* requested target (if it changed meanwhile) is dispatched next — so the
 /// result converges on where the user actually landed, never a stale intermediate.
-/// Contrast a single-flight coalescer (the retired storage `Coalescer`), which drops new
+/// Contrast a plain single-flight coalescer, which drops new
 /// requests while one is in flight (correct for demand-collapsing, wrong for "show the newest").
 ///
 /// Not thread-safe: all calls are expected from the single executor-thread context
@@ -67,9 +67,9 @@ public:
 
 	/// @brief Force back to idle, discarding any queued target.
 	///
-	/// For when a dispatch the caller believed it had issued never actually ran (e.g. the owner
-	/// queue was full, so the op that would have called complete() will never fire) — without this
-	/// the single-flight guard would wedge forever. The dropped target is simply lost; the next
+	/// For when a dispatch the caller believed it had issued never actually ran, so the op that
+	/// would have called complete() will never fire — without this the single-flight guard would
+	/// wedge forever. The dropped target is simply lost; the next
 	/// request() supersedes it.
 	void reset() {
 		in_flight_ = false;

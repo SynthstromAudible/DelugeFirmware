@@ -53,7 +53,7 @@ int32_t deluge_scenario_recorder_rest_tick();
 /// @return The oracle's failure count so far (0 = all passed); final once the tail has returned 1.
 int32_t deluge_scenario_recorder_roundtrip_failures();
 
-/// @brief Set up the off-owner recording case.
+/// @brief Set up one `offowner_` recording case.
 ///
 /// The cases above ride whichever arm their recorder picks; this one is driven entirely by the caller's ticks,
 /// the shape the device uses, so the async cluster write and the recorder's blocking ticks are
@@ -70,15 +70,14 @@ int32_t deluge_scenario_recorder_roundtrip_failures();
 ///               synchronous write. Prints `RW-STALL`.
 void deluge_scenario_offowner_begin(int32_t mode);
 
-/// @brief Advance the off-owner case by one tick. Call from the same context as the begin.
+/// @brief Advance the `offowner_` case by one tick. Call from the same context as the begin.
 ///
-/// Tick-driven on purpose: the pump must return so the storage owner can run the ticks this case
-/// hands it and the Rust write task can make progress.
+/// Tick-driven on purpose: the pump must return so the Rust write task can make progress.
 /// @return 0 while running, 1 when it passed, 2 when it failed.
 int32_t deluge_scenario_offowner_tick(void);
 
-/// @brief Print `RW-TIER`: how many synchronous card operations the recorder began off the storage owner
-///        after boot, and how many of its channel requests were refused, over every off-owner case.
+/// @brief Print `RW-TIER`: how many synchronous card operations the recorder began on the interaction tier
+///        after boot, and how many of its channel requests were refused, over every `offowner_` case.
 ///
 /// Process-wide on purpose: a synchronous operation is a violation whichever case made it. Call once,
 /// after the last case.

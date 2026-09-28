@@ -1264,8 +1264,7 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 
 	// The attempt opens files and binds a read stream, and the ejection stage renames a file and remounts the
 	// volume: card I/O that runs from any context. It runs when the runner next asks whether the step is done --
-	// one virtual millisecond after this dispatch, where the retired storage-owner queue ran it; the stages are
-	// paced to that.
+	// one virtual millisecond after this dispatch; the stages are paced to that.
 	g_stepDone = false;
 	g_cardStepPending = true;
 }

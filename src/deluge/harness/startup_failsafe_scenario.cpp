@@ -42,8 +42,8 @@ constexpr const char* kDefaultSong = "SONGS/DEFAULT.XML";
 
 /// Every stage has a `*Check` successor that runs one tick later.
 ///
-/// Not decoration. The fail-safe's operations become owner-dispatched and channel-backed, and in both
-/// shapes the work is only ENQUEUED when the entry point runs -- it executes on a later worker poll.
+/// Not decoration. After boot the fail-safe's operations are channel-backed, so the work is only
+/// ENQUEUED when the entry point runs -- it executes when the channel's task next runs.
 /// Reading the result in the same tick reads the state from before the operation and reports success
 /// for something that has not happened.
 enum class Stage : uint8_t {
@@ -204,9 +204,9 @@ void runTick() {
 	}
 
 	case Stage::GiveUpArm:
-		// The channel accepts the machine's first request and then sits on it far past the stall bound. After boot,
-		// off the owner, there is nowhere legal to redo it, so the machine must give up: presence Unusable, no canary
-		// written, and the machine finished.
+		// The channel accepts the machine's first request and then sits on it far past the stall bound. After boot
+		// there is nowhere legal to redo it, so the machine must give up: presence Unusable, no canary written, and
+		// the machine finished.
 #ifdef DELUGE_HOST
 		// This scenario is compiled into every app build, but the knob exists only on the host.
 		deluge_file_bytes_set_latency_ms(kGiveUpLatencyMs);

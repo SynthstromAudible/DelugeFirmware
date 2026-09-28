@@ -40,9 +40,9 @@
 /// A count proves only that an op was queued -- this gate exists to prove the save actually
 /// happened and the prompt actually appeared.
 ///
-/// @note Runs as a STEP MACHINE, because saving is dispatched onto the storage owner: an op is only
-///       ENQUEUED when it is dispatched and runs on a later worker poll, so every check reads its
-///       result on a LATER tick than the gesture that caused it.
+/// @note Runs as a STEP MACHINE, because saving is staged across ticks: the gesture only STARTS
+///       the save, whose card steps go through the channels and complete on later ticks, so every
+///       check reads its result on a LATER tick than the gesture that caused it.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
 ///       app's sources). Inert unless called.

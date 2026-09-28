@@ -17,11 +17,11 @@
 
 #pragma once
 
-/// @brief Host-only C ABI for the clear-song/undo gate: Create New Song and, later, undo and redo -- the two
-///        operations that run off the storage owner.
+/// @brief Host-only C ABI for the clear-song/undo gate: Create New Song and, later, undo and redo -- two operations
+///        that run on the interaction tier, the clear inside the press and a reversion across the ticks after it.
 ///
-/// @note Runs as a step machine: each `dispatch_step()` does one stage and queues a marker op on the storage owner,
-///       and the platform driver waits for `step_done()` before dispatching again.
+/// @note Runs as a step machine: each `dispatch_step()` runs one stage inline on the calling tick, and the platform
+///       driver waits for `step_done()` before dispatching again.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 #ifdef DELUGE_HOST
@@ -34,9 +34,9 @@ extern "C" {
 void deluge_scenario_clear_song_undo_begin(void);
 /// @brief Whether the summary line has been printed: the run is over.
 bool deluge_scenario_clear_song_undo_complete(void);
-/// @brief Run one stage, and queue the marker op the driver waits on.
+/// @brief Run one stage inline, on the calling tick.
 void deluge_scenario_clear_song_undo_dispatch_step(void);
-/// @brief Whether the marker op behind the last stage has run.
+/// @brief Whether the last stage has returned.
 bool deluge_scenario_clear_song_undo_step_done(void);
 /// @brief How many checks failed.
 int32_t deluge_scenario_clear_song_undo_failures(void);

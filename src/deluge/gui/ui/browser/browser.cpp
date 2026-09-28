@@ -479,8 +479,8 @@ Error Browser::readFileItemsForFolder(FileListing& into, const std::string& dirT
 
 	AudioEngine::logAction("readFileItemsForFolder");
 
-	// initSD() MOUNTS, and mounting is real card I/O. On the synchronous arm this runs on the storage
-	// owner and that is where it belongs; with the channel active this runs on the interaction tier,
+	// initSD() MOUNTS, and mounting is real card I/O. On the synchronous arm this runs before boot
+	// finishes, where mounting inline is legal; with the channel active this runs on the interaction tier,
 	// so the mount moves to the channel's driver instead -- it mounts lazily when an open reports no
 	// filesystem, on the storage tier, and bumps the generation the C++ side watches.
 	//
@@ -497,9 +497,9 @@ Error Browser::readFileItemsForFolder(FileListing& into, const std::string& dirT
 	// Every open a LISTING or a PREDICTION makes is counted, across resumptions, so a gate can check that a suspended
 	// machine resumed at the open it was waiting for instead of redoing the ones before it. Counted here rather than at
 	// the call sites because this is the ONLY place the browser opens a directory. Every other caller that reaches this
-	// function runs on the storage owner -- `LoadInstrumentPresetUI`'s readers and
-	// `InstrumentClipMinder::createNewInstrument()`'s Browser::getUnusedSlot() read -- and has its own dispatch-count
-	// instrumentation (presetAcquisitionsRun()) rather than this counter.
+	// function is one of `InstrumentLoad`'s walks -- PresetWalk, ConfirmPreset, PresetNavigation and SlotNameScan, each
+	// ticked on the interaction tier into a listing of its own -- and has its own instrumentation
+	// (presetAcquisitionsRun() and InstrumentLoad's walk counts) rather than this counter.
 	//
 	// Whichever converted caller is active. Only one can be: a listing runs from the pump, a prediction from a
 	// keystroke, and neither nests inside the other.
@@ -684,7 +684,7 @@ Error Browser::readFolder(FileListing& into, ListingRead& read) {
 			read.createIfMissing = true;
 			continue;
 		}
-		// On the storage owner, or before it has started. Blocking is legal here, and the synchronous open this loop
+		// Before boot finishes (the inline arm). Blocking is legal here, and the synchronous open this loop
 		// makes next ignores `createIfMissing`, so the folder has to be made now or it is never made.
 		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
 		(void)deluge::io::mkdir(read.defaultDirToAlsoTry);

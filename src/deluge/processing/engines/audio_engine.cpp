@@ -1971,20 +1971,17 @@ void doRecorderCardRoutines() {
 }
 
 namespace {
-/// How many recorder drains ran OFF the storage owner. Without this a gate cannot tell a channel
-/// that served writes from a channel that served them while everything still ran on the owner --
-/// and only the off-owner count shows the drain moved.
+/// How many recorder drains ran after boot, when the drain's card writes go through the write
+/// channel. A served count says writes were served; only this one says the drain itself ran on that
+/// path.
 int32_t g_recorderDrainTicks = 0;
 
-/// Finalize ticks that ran OFF the storage owner. Separate from the drain counter above because they
-/// answer different questions: that one says the DRAIN moved, this one says the FINALIZE did. A
-/// served count establishes neither -- writes can be served while every one of them runs on the
-/// owner.
+/// Finalize ticks. Separate from the drain counter above because they answer different questions:
+/// that one says the DRAIN ran, this one says the FINALIZE did. A served count establishes neither.
 int32_t g_finalizeTicks = 0;
 
-/// Create ticks that ran OFF the storage owner. The third of these counters, and they answer three
-/// different questions: the drain moved, the finalize moved, the CREATE moved. A served count
-/// answers none of them.
+/// Create ticks. The third of these counters, and they answer three different questions: the drain
+/// ran, the finalize ran, the CREATE ran. A served count answers none of them.
 int32_t g_createTicks = 0;
 int32_t g_songStageTicks = 0;
 } // namespace

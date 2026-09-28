@@ -46,7 +46,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 	case 0: // Collect media
 		saveSongUI.collectingSamples = true;
 		// collectingSamples is set immediately above, so it is live state: snapshot it rather than
-		// letting the op read it back on the owner. Returns "accepted"; the completion closes.
+		// letting the save read it back on a later tick. Returns "accepted"; the completion closes.
 		return saveSongUI.dispatchSave({
 		    .consumer = deluge::storage::SaveConsumer::SaveSongOrInstrumentAccept,
 		    .mayOverwrite = false,

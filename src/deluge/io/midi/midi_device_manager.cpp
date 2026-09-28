@@ -609,11 +609,8 @@ void parseDevicesBytes(void* /*ctx*/, char* bytes, uint32_t len) {
 
 void readDevicesInline() {
 	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
-	// Owner-audit exemption: this runs once at boot, before the storage-owner worker pump is
-	// reliably driving, and reads the card when nothing else does (so it is not a FatFS-reentrancy
-	// hazard). Left inline deliberately — dispatching onto the owner here could queue an op nothing
-	// pumps yet. The "FatFS entered only on the owner" audit assert must whitelist this site.
-	// See docs/superpowers/specs/2026-07-17-async-sd-rung4-ui-sync-design.md §7.
+	// Blocks on the card, so legal only before boot finishes. Nothing calls this: readDevicesFromFile()
+	// has no blocking arm.
 	if (successfullyReadDevicesFromFile) {
 		return; // Yup, we only want to do this once
 	}

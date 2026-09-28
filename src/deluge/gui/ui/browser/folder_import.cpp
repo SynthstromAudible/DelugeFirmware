@@ -288,8 +288,7 @@ bool FolderImport::stepAwaitList() {
 			listError_ = Error::SD_CARD;
 			break;
 		case deluge::io::DirOpen::Ready:
-			// FS-free from here: the whole snapshot is drained in this tick, exactly as the owner
-			// arm drained it.
+			// FS-free from here: the whole snapshot is drained in this tick.
 			drainListing(*dir);
 			break;
 		}

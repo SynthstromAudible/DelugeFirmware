@@ -7,9 +7,8 @@
 #
 # ## Why this gate exists
 #
-# The song save was the last document write still held open across the storage owner for its whole
-# length. Converting it means building the document in memory first and then placing it -- and the
-# channel that carries it is NOT the one the rest of this flow uses. The byte channel copies into a
+# The song save builds its document in memory first and then places it -- and the channel that
+# carries it is NOT the one the rest of this flow uses. The byte channel copies into a
 # fixed staging buffer and refuses anything over 8 KiB; no song has ever fitted that, the smallest
 # measured being 11.5 KB and the largest 1.10 MB. The write channel passes the pointer instead. A
 # build that sent a song down the copying channel failed every time and simply produced no file.
@@ -37,9 +36,9 @@
 #                 from the streaming save, which made the same two calls in the same order, and this
 #                 conversion preserves it rather than widening or closing it.
 #   SS-CHANNEL    the steps were SERVED by the channels, and the document write by the WRITE channel.
-#   SS-ACCOUNTED  the channels account for every card step, and nothing was sent to the owner. Neither
+#   SS-ACCOUNTED  the channels account for every card step, and none took the inline arm. Neither
 #                 SS-CHANNEL nor SS-SAVED can see WHICH arm carried which step.
-#   SS-OFFOWNER   the steps ran OFF the storage owner. The rung's actual claim.
+#   SS-OFFOWNER   the steps went through the channels after boot. The gate's actual claim.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
@@ -128,7 +127,7 @@ if [ -z "${write:-}" ] || [ "$write" -eq 0 ]; then
 	fail=1
 fi
 
-# SS-ACCOUNTED. The channels must account for EVERY card step, and none may have gone to the owner.
+# SS-ACCOUNTED. The channels must account for EVERY card step, and none may have taken the inline arm.
 if [ -z "${steps:-}" ] || [ "${steps:-0}" -eq 0 ]; then
 	echo "FAIL SS-ACCOUNTED — the save reported no card steps at all"
 	fail=1
@@ -142,8 +141,8 @@ if [ "${served:-0}" -ne "${steps:-0}" ]; then
 	fail=1
 fi
 
-# SS-OFFOWNER. The rung's actual claim. This counts ONLY ticks that took a channel arm while genuinely
-# off the owner.
+# SS-OFFOWNER. The gate's actual claim. This counts ONLY ticks on which a document step went through a
+# channel after boot.
 if [ -z "${offowner:-}" ] || [ "$offowner" -eq 0 ]; then
 	echo "FAIL SS-OFFOWNER — no document step ever ran off the storage owner"
 	fail=1

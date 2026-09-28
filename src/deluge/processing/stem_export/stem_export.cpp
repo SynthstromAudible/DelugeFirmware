@@ -987,8 +987,8 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 		}
 
 		// How many calls one candidate's channel operation may go unanswered before the search gives up. After boot
-		// there is no owner to redo the operation on, so a channel that stopped answering ends the search -- as
-		// Failed, the refusal every other unanswerable question here already gets.
+		// there is nowhere legal to redo the operation inline, so a channel that stopped answering ends the search --
+		// as Failed, the refusal every other unanswerable question here already gets.
 		constexpr int32_t kMaxStemSearchStallTicks = 600;
 
 		const bool mayUseChannel = deluge::boot::finished() && deluge_file_bytes_async_active();

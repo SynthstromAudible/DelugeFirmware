@@ -53,7 +53,7 @@ private:
 	int32_t servedOps_{0};
 };
 
-/// @brief The same checks, blocking, by reopening the file. Legal ONLY on the storage owner.
+/// @brief The same checks, blocking, by reopening the file. Legal ONLY before boot finishes (the inline arm).
 /// @param path   The written file.
 /// @param expect What it must match.
 /// @return true when the length, head and (if any) tail all match.

@@ -112,14 +112,14 @@ public:
 	/// @brief Serialise this save's document into @p into.
 	///
 	/// Runs on the INTERACTION tier and must touch no storage whatsoever -- building a document is
-	/// pure computation, and that is the asymmetry that lets a save leave the owner without the
-	/// segmentation a load needs.
+	/// pure computation, and that is the asymmetry that lets a save store its document in one
+	/// operation without the segmentation a load needs.
 	virtual bool serializeForSave(XMLSerializer& into) { return false; }
 
 	/// @brief Whether this UI's save is a document that can be built in memory first.
 	///
 	/// False for SaveSongUI, whose save copies samples around the card and is not a document write.
-	/// It keeps the owner-side path unchanged, which is what keeps it out of this conversion.
+	/// It takes the unstaged path instead: beginUnstagedSave() and SaveSongUI's own machines.
 	[[nodiscard]] virtual bool savesStagedDocument() const { return false; }
 
 	/// @brief The closing bytes this save's document must end with, or nullptr for no read-back.
@@ -152,7 +152,7 @@ public:
 	[[nodiscard]] static int32_t stagedSavesCompleted() { return stagedSavesCompleted_; }
 	/// @brief Staged saves whose written document passed the read-back.
 	[[nodiscard]] static int32_t stagedSavesVerified() { return stagedSavesVerified_; }
-	/// @brief Read-back operations the byte CHANNEL served, and read-backs the storage OWNER ran.
+	/// @brief Read-back operations the byte CHANNEL served, and read-backs the INLINE arm ran before boot finished.
 	[[nodiscard]] static int32_t verifyChannelServedOps() { return verifyChannelServedOps_; }
 	[[nodiscard]] static int32_t verifyOwnerServedOps() { return verifyOwnerServedOps_; }
 
@@ -162,7 +162,7 @@ public:
 	/// @brief Whether a staged save is mid-flight. For gates; NOT the same as the UI being open.
 	[[nodiscard]] static bool saveInFlight() { return saveInFlight_; }
 
-	/// @brief Whole-document writes the CHANNEL has served, and staged steps that ran off the owner.
+	/// @brief Whole-document writes the CHANNEL has served, and ticks a staged step went through a channel.
 	[[nodiscard]] static int32_t writeChannelServedOps() { return writeChannelServedOps_; }
 	[[nodiscard]] static int32_t offOwnerSaveTicks() { return offOwnerSaveTicks_; }
 	/// @brief Where the in-flight staged save writes its document, or the last one wrote it: the target, or its
@@ -176,7 +176,7 @@ private:
 	enum class SavePhase : uint8_t {
 		NONE,      ///< No staged save in flight.
 		SERIALIZE, ///< Building the document in memory, on the interaction tier.
-		WRITE,     ///< One whole-document write: through the channel, or inline on the owner.
+		WRITE,     ///< One whole-document write: through the channel, or inline before boot finishes.
 		VERIFY,    ///< Reading the written document back: length, head and tail.
 		SWAP,      ///< Replacing the target with the verified temp file: delete it, then rename. Overwrites only.
 		FINISH,    ///< Running the caller's completion.
@@ -193,7 +193,7 @@ private:
 	void finishStagedDocument();
 	/// @brief Turn one write's outcome into a prompt, an error, or a success.
 	void handleWriteOutcome(bool alreadyExists, bool ok);
-	/// @brief Store the staged document with a blocking write. Legal ONLY on the storage owner.
+	/// @brief Store the staged document with a blocking write. Legal ONLY before boot finishes (the inline arm).
 	void writeStagedSynchronously(bool& alreadyExists, bool& ok);
 	/// @brief Drive the read-back of the written document. Named apart from SaveSongUI's own verify.
 	void runStagedVerifyPhase();

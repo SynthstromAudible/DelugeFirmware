@@ -77,8 +77,8 @@ constexpr const char* kUndoSampleGone = "SAMPLES/CS/CSGONE.WAV";
 
 constexpr int32_t kMaxSettleTicks = 400;
 constexpr int32_t kMaxClearTicks = 2000;
-/// How long a reversion is given to land before the leg reads its result. A dispatched one needs the owner's queue to
-/// turn over; one that runs here needs nothing.
+/// How long a reversion is given to land before the leg reads its result. One that loads samples finishes on later
+/// ticks, as the reversion task runs; one with no sample in it lands in the press and needs nothing.
 constexpr int32_t kUndoSettleTicks = 40;
 
 /// Which undo leg is running. They share one set-sample fixture and differ in what they ask of the reversion.
@@ -274,8 +274,8 @@ void checkUndoLeg() {
 	case UnLeg::Sample:
 		// A pin, not a tier claim: the sample comes back either way, and no counter distinguishes WHERE it was read
 		// (IoTier::SampleLoad is a tripwire for an unreachable case, not a general count). UN-PLAIN carries the tier
-		// claim instead -- a reversion dispatched onto the owner cannot land inside the press, and one on the
-		// caller's tier does.
+		// claim instead -- a reversion runs on the caller's tier, so one with no sample in it lands inside the
+		// press.
 		printf("UN-SAMPLE bound=%s file=%d preloads=%d ticks=%d\n", bound.c_str(), g_unBoundToFile ? 1 : 0,
 		       g_unPreloads, g_unTicks);
 		// The pre-load clause arrives with the machine: before it there was nothing to count, and no leg could tell
@@ -447,8 +447,8 @@ void runTick() {
 		break;
 	}
 	case Stage::UnWait:
-		// A dispatched reversion needs the owner's queue to turn over before its result can be read; one that runs
-		// on this tier is already done. The same bounded wait covers both, so neither is read too early.
+		// A reversion that loads samples finishes on later ticks, as the reversion task runs; one with none is already
+		// done. The same bounded wait covers both, so neither is read too early.
 		if (++g_unTicks < kUndoSettleTicks) {
 			break;
 		}

@@ -49,13 +49,13 @@ public:
 
 	/// @brief Starts loading the highlighted song and returns without waiting for it to finish.
 	///
-	/// The load runs as three stretches of storage work on the storage owner, separated by the two points
-	/// it has to wait at: the sample loader settling, and the user arming the song swap. Rather than
-	/// blocking across those, each stretch ends by parking the load in a phase; @ref loadRoutine observes
-	/// the phase from the run loop and dispatches the next stretch once the wait is over.
+	/// The load is a phase machine on the interaction tier: the song is staged and its samples loaded a tick at
+	/// a time, with two points it has to wait at: the sample loader settling, and the user arming the song swap.
+	/// Rather than blocking across any of those, each step parks the load in a phase; @ref loadRoutine observes
+	/// the phase from the run loop and advances it once it can move.
 	///
 	/// @param onComplete Run once the load has finished, whether it succeeded, failed, or never started.
-	///                   Runs on the storage owner. Null for callers with no follow-up work. Must outlive
+	///                   Runs on the interaction tier. Null for callers with no follow-up work. Must outlive
 	///                   the load, so pass a free function or a captureless lambda.
 	void beginLoad(void (*onComplete)() = nullptr);
 
@@ -107,9 +107,9 @@ private:
 
 	/// @brief Ask for the highlighted song's saved pad layout, and draw it if it is already to hand.
 	///
-	/// Off the storage owner after boot it never blocks and never reads the card on the calling tier: the
+	/// After boot it never blocks and never reads the card on the calling tier: the
 	/// bytes are asked for through the prefix channel and collected by @ref graphicsRoutine on a later
-	/// tick, so the render lands later than this call. On the owner, or before it starts, the file is
+	/// tick, so the render lands later than this call. Before boot finishes, the file is
 	/// read inline instead.
 	///
 	/// @param toStore true to render into PadLEDs::imageStore (behind a scroll), false for the live image.
@@ -152,8 +152,8 @@ private:
 	/// @return true if the bytes are not here yet and the target must be asked for again.
 	[[nodiscard]] bool collectPreview(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt);
 
-	/// @brief The inline arm's render: read @p target's file, blocking, and draw it. Only on the storage
-	///        owner, or before it starts.
+	/// @brief The inline arm's render: read @p target's file, blocking, and draw it. Only before boot
+	///        finishes.
 	void renderPreviewFromFile(const PreviewTarget& target);
 
 	/// @brief Turn a finished decode into what the user sees, and record it. Both backings end here.
@@ -242,12 +242,12 @@ private:
 
 	/// @brief Where an in-flight load is parked between run-loop passes.
 	///
-	/// Only the two waits can span passes; the storage work itself runs straight through inside whichever
-	/// stretch is on the owner. RUNNING covers a stretch that is queued or executing, and keeps
-	/// @ref loadRoutine from dispatching a second one on top of it.
+	/// @ref loadRoutine advances whichever phase is current, once per run-loop pass. STAGE, ESSENTIAL and FINISH
+	/// advance a tick at a time. SETTLE and AWAIT_ARM are the two waits; AWAIT_ARM also loads the rest of the
+	/// samples, a tick at a time, while the user decides.
 	enum class LoadPhase : uint8_t {
 		NONE,      ///< No load in flight.
-		STAGE,     ///< Reading the song into memory, OFF the owner, before any of it is parsed.
+		STAGE,     ///< Reading the song into memory, on the interaction tier, before any of it is parsed.
 		BEGIN,     ///< Parsing the staged song and claiming samples from RAM, on the interaction tier.
 		ESSENTIAL, ///< Loading the samples the swap needs to sound, a tick at a time.
 		ARM,       ///< Arming the swap, or taking it outright when nothing is playing.
@@ -315,25 +315,25 @@ private:
 	/// @brief Completion handed to @ref beginLoad, cleared as it runs.
 	void (*loadOnComplete_)(){nullptr};
 
-	/// @name The three stretches of storage work, split at the two waits. Owner-only.
+	/// @name The load's steps, split at the two waits. Each runs on the interaction tier.
 	/// @{
 	/// @brief Parse the staged song and claim its samples from RAM, then park in ESSENTIAL.
 	///
 	/// Runs where its caller stands: the parse is over `songStaging_`'s bytes and the claim pass never reads the
-	/// card, so nothing here needs the storage owner.
+	/// card, so nothing here waits on storage.
 	void runBeginSegment();
 
 	/// @brief Advance @ref essentialLoad_ one walk. Ends the phase, and the load's first stretch, when it ends.
 	void tickEssential();
 	/// @}
 
-	/// @brief Fill @ref songStaging_ off the owner, a tick at a time. See its definition.
+	/// @brief Fill @ref songStaging_ on the interaction tier, a tick at a time. See its definition.
 	void runStageSegment();
 
 	/// @brief Free @ref songStaging_'s bytes. Safe to call twice.
 	void releaseSongStaging();
 
-	/// @name Owner-only, continued
+	/// @name The load's steps, continued
 	/// @{
 	/// @brief Name the song, capture the outgoing one, and arm the swap -- or take it now, if nothing is playing.
 	///

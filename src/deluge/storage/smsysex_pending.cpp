@@ -33,9 +33,9 @@ namespace {
 /// flight refuses this one. Retrying is right -- the handler is re-entered every tick anyway -- but
 /// an unbounded retry would let a busy channel stall the SysEx queue behind one request.
 ///
-/// As many as the stall bound below. After boot, off the owner, there is no owner to fall back to,
-/// so giving up on a channel that is merely busy would answer the host with an error for a request
-/// that would have succeeded a few ticks later.
+/// As many as the stall bound below. After boot the synchronous arm refuses to run, so giving up on
+/// a channel that is merely busy would answer the host with an error for a request that would have
+/// succeeded a few ticks later.
 constexpr int32_t kMaxRefusals = 600;
 
 /// How many ticks one operation may sit PENDING before this gives up on the channel.

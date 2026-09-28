@@ -68,7 +68,7 @@ bool DeleteFile::acceptCurrentOption() {
 			pending_ = true;
 			return true;
 		}
-		// The path does not fit the channel. After boot, off the owner, there is no legal place to remove it inline.
+		// The path does not fit the channel. After boot there is no legal place to remove it inline.
 		applyOutcome(Outcome::Failed);
 		return true;
 	}

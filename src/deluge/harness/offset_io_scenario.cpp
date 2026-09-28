@@ -498,9 +498,9 @@ void runTick() {
 	}
 
 	case Stage::GiveUp:
-		// A copy whose channel operation is held far past the handler's stall bound. After boot, off the owner,
-		// there is nowhere legal to redo it, so the handler must give up and say so -- not copy on the owner, and not
-		// leave the host waiting for a reply that never comes.
+		// A copy whose channel operation is held far past the handler's stall bound. After boot the channels are the
+		// only place card I/O may start, so there is nowhere legal to redo it: the handler must give up and say so --
+		// not copy inline, and not leave the host waiting for a reply that never comes.
 #ifdef DELUGE_HOST
 		// This scenario is compiled into every app build, but the knob exists only on the host.
 		deluge_file_bytes_set_latency_ms(kGiveUpLatencyMs);

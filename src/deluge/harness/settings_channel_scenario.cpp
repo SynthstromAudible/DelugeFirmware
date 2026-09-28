@@ -308,8 +308,8 @@ void runTick() {
 			printf("SC-BURST FAIL the last write of the burst did not land (read %u, wanted %u)\n", value, kBurstThird);
 			g_failures++;
 		}
-		// Channel leg: exactly two card writes, all through the channel. Off leg: none through the channel, and
-		// each of the three writes went to the owner.
+		// Channel leg: exactly two card writes, all through the channel. A leg without the channel: none through
+		// it.
 		if (channel && g_burstServed != 2) {
 			printf("SC-BURST FAIL the channel carried %d writes for a burst that should collapse to 2\n",
 			       g_burstServed);
@@ -407,8 +407,8 @@ void runTick() {
 	}
 
 	case Stage::UnlinkWrite:
-		// Back to nothing worth keeping, and a save: the table must remove its file -- through the channel, not the
-		// owner. `sendClock = true` is the default, and the head stage left nothing else worth writing.
+		// Back to nothing worth keeping, and a save: the table must remove its file -- through the channel, not
+		// inline. `sendClock = true` is the default, and the head stage left nothing else worth writing.
 		MIDIDeviceManager::dinMIDIPorts.sendClock = true;
 		// Upstream USB cable 2 is constructed with MPE zones on, and a port with zones is worth writing -- so on a
 		// default device the table is never empty. Turn them off, as a user clearing them would.
@@ -513,8 +513,8 @@ void runTick() {
 	}
 
 	case Stage::OversizeWrite:
-		// A settings document over the channel's bound, through the real entry point. After boot, off the owner, it
-		// has no legal place to be written, so it must be refused: counted, not written, not dispatched.
+		// A settings document over the channel's bound, through the real entry point. After boot it has no legal
+		// place to be written, so it must be refused: counted, not written, not dispatched.
 		g_oversizeHadFile = readWholeFile("SETTINGS/CommunityFeatures.XML", g_oversizeBefore);
 		g_unknownBefore = SettingsChannelProbe::unknownSettingCount();
 		for (int32_t i = 0; i < kOversizeEntries; i++) {

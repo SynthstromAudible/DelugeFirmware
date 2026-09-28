@@ -1572,8 +1572,8 @@ void AudioFileManager::slowRoutine() {
 	}
 
 	// If we know the card's been ejected, re-init it HERE. The re-check this arms walks one resident
-	// per tick through the byte channel (deluge::storage::CardReinsert), so there is no blocking pass
-	// left to hand to the storage owner.
+	// per tick through the byte channel (deluge::storage::CardReinsert), so re-initialising here does
+	// not walk the residents itself.
 	if (cardEjected && !isSDRoutineActive() && !deluge_in_interrupt()) {
 		card_init_fill(nullptr);
 	}

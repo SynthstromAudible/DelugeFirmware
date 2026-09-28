@@ -117,9 +117,9 @@ int32_t g_saveTicks = 0;
 /// Whether the fixture's sample bound before the save. A song saved without it proves nothing on the way back.
 bool g_fixtureBound = false;
 
-/// The load is staged across ticks and then runs on the owner; 200000 ticks is far past any real
-/// completion and exists only so a wedge ends as a FAILURE with output rather than as a silent
-/// timeout with none.
+/// The load is staged across ticks and then parsed and swapped in phases on this tier; 200000 ticks
+/// is far past any real completion and exists only so a wedge ends as a FAILURE with output rather
+/// than as a silent timeout with none.
 constexpr int32_t kMaxLoadTicks = 200000;
 /// Ticks to wait for the save's file to appear before calling it absent.
 constexpr int32_t kMaxSaveTicks = 20000;

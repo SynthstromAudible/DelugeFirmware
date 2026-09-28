@@ -282,8 +282,8 @@ protected:
 		bool includeSongInstruments{true};
 		/// Create the directory before opening it — the missing-folder fallback's `mkdir`, moved onto
 		/// the storage tier by riding the channel's request instead of running inline. Set only on the
-		/// async arm; the synchronous arm runs on the storage owner already, where an inline mkdir is
-		/// where it belongs.
+		/// async arm; the synchronous arm runs only before boot finishes, where an inline mkdir is
+		/// legal.
 		bool createIfMissing{};
 		/// @brief Whether this read has already created the default folder.
 		///
@@ -459,14 +459,14 @@ protected:
 	/// @return Always true: a listing can no longer be dropped. Kept for the callers that test it.
 	bool beginListing(ListingRequest req);
 	/// @brief Whether a directory open made here goes through the directory channel rather than opening directly.
-	/// @return True off the storage owner once it has started. False on the owner and before it starts (boot, and
-	///         every C++-only build, whose owner never starts), where a direct open is legal.
+	/// @return True once boot has finished. False before it (boot, and every C++-only build, which never finishes
+	///         booting), where a direct open is legal.
 	[[nodiscard]] static bool usingDirectoryChannel();
 	/// @brief Obtain `path` as an open Directory: through the directory channel when @ref usingDirectoryChannel says
 	///        so, and by a direct open otherwise.
 	/// @param path NUL-terminated directory path.
 	/// @param createIfMissing Create `path` before opening it. Only the channel honours this; a direct open ignores
-	///        it, so a caller on the owner creates the folder itself.
+	///        it, so a caller on the inline arm creates the folder itself.
 	/// @return The open Directory, or the Error that stopped it — which may be
 	///         @ref Error::LISTING_DEFERRED, meaning "not a failure; the attempt will be re-run", or
 	///         Error::SD_CARD once the channel has left one open unanswered for 600 consecutive ticks.

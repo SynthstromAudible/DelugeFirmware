@@ -2,7 +2,7 @@
 # song_load_channel.sh — the song-load channel gate.
 #
 # Saves a song carrying a distinctive value, loads it back through the REAL LoadSongUI, and requires
-# both that the value returns and that the read went through the storage channel, off the owner.
+# both that the value returns and that the read went through the storage channel.
 #
 # ## Why this gate exists
 #
@@ -19,7 +19,7 @@
 #   SL-LOADED     the song came back off the card. A value stamped into it before saving and
 #                 deliberately overwritten in memory afterwards.
 #   SL-CHANNEL    the staging read was SERVED by the channel -- the async arm ran.
-#   SL-OFFOWNER   the staging ran OFF the storage owner. The rung's actual claim.
+#   SL-OFFOWNER   the staging ran through the channels after boot. The gate's actual claim.
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
 set -euo pipefail
@@ -93,7 +93,7 @@ if [ -z "${served:-}" ] || [ "$served" -eq 0 ]; then
 	fail=1
 fi
 
-# SL-OFFOWNER. The rung's actual claim.
+# SL-OFFOWNER. The gate's actual claim: `offOwnerTicks` counts staging attempts after boot, through the channels.
 if [ -z "${offowner:-}" ] || [ "$offowner" -eq 0 ]; then
 	echo "FAIL SL-OFFOWNER — the staging read never ran off the storage owner"
 	fail=1

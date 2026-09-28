@@ -1723,9 +1723,9 @@ void InstrumentClipView::doubleClipLengthAction() {
 	display->consoleText("Clip multiplied");
 }
 
-// The acquisition reads the card (InstrumentClipMinder::createNewInstrument() -> Browser::
-// getUnusedSlot()), so it runs on the storage owner; the follow-up runs in completeNewInstrument()
-// instead -- see this function's declaration for why the return is always false.
+// The acquisition reads the card (InstrumentLoad's walk finds an unused slot name), so InstrumentLoad
+// runs it; the follow-up runs in completeNewInstrument() instead -- see this function's declaration
+// for why the return is always false.
 bool InstrumentClipView::createNewInstrument(OutputType newOutputType, bool is_dx,
                                              deluge::storage::PresetConsumer consumer) {
 	InstrumentClipMinder::beginNewInstrumentAcquisition(newOutputType, is_dx, consumer);

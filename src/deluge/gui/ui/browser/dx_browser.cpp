@@ -35,7 +35,7 @@ namespace {
 //
 // A cartridge's bytes come through the file prefix channel, collected on the browser's tick, and are
 // parsed with DxCartridge::tryLoadFromBuffer(); whether it parsed decides whether we enter the cartridge
-// submenu. On the storage owner, or before it starts, DxCartridge::tryLoad() reads and parses the file
+// submenu. Before boot finishes, DxCartridge::tryLoad() reads and parses the file
 // inline instead. Single caller (DxSyxBrowser::enterKeyPress, below): a file-static path buffer and
 // single-flight guard are enough.
 
@@ -104,9 +104,9 @@ bool DxSyxBrowser::opened() {
 	fileIndexSelected = 0;
 
 	// No inline initSD() pre-flight — see the comment in SlotBrowser::beginSlotSession(). This runs on
-	// the interaction tier, where an off-owner initSD() reports Error::SD_CARD for "ask me from the
-	// owner", failing the browser on a healthy card. The dispatched listing checks the card on the
-	// owner and reports real failures via Browser::onListingFailed().
+	// the interaction tier, where mounting is card I/O it may not do. The listing checks the card
+	// itself -- inline before boot, through the directory channel after it -- and reports real
+	// failures via Browser::onListingFailed().
 
 	currentDir = "DX7";
 
@@ -145,8 +145,8 @@ void DxSyxBrowser::enterKeyPress() {
 		        .c_str(); // Extremely weirdly, if we try to just put this inside the parentheses in the next line,
 		                  // it returns an empty string (&nothing). Surely this is a compiler error??
 
-		// goIntoFolder() now dispatches onto the storage owner; failure is handled by the base
-		// Browser::onListingFailed() (displayError + close()) once the listing completes.
+		// goIntoFolder() begins a listing that graphicsRoutine() runs over later ticks; failure is handled by
+		// the base Browser::onListingFailed() (displayError + close()) once the listing completes.
 		goIntoFolder(filenameChars);
 	}
 	else {

@@ -17,7 +17,7 @@
 # repeat any invocation and the numbers reproduce exactly. This script just automates
 # running `lens1-vt-sim` several times as
 # separate PROCESSES (not an in-process loop): the C++ app's static/global state
-# (`currentSong`, the storage owner, ...) is never designed to be reset and re-driven twice
+# (`currentSong`, ...) is never designed to be reset and re-driven twice
 # in one process lifetime, so a fresh process per data point is the safe, simple shape —
 # matching every other point in this harness (main.rs's own `hard_exit` skips C++ static
 # destructors on the assumption the process exits once).

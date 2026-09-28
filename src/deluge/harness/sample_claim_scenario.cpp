@@ -327,8 +327,8 @@ std::string g_randomizeRowPaths[kRandomizeDrumCount];
 /// Whether the gate leg's select-encoder turn moved the browser's selection while its claim was in flight.
 bool g_gateMoved = false;
 
-/// Whether the supersede leg has moved the cursor on, which it does the moment the first auto-load claim's pitch
-/// detection is out on the storage owner.
+/// Whether the supersede leg has moved the cursor on, which it does the moment the first auto-load claim is waiting
+/// on its pitch detection.
 bool g_supersedeFired = false;
 
 /// The claim's counts when a leg acted.
@@ -408,7 +408,7 @@ void buildFixture(void (*fn)()) {
 	g_pendingFixtures.push_back(fn);
 }
 
-/// Run the next build this step queued, if any: one per call, as the owner queue ran one job per poll.
+/// Run the next build this step queued, if any: one per call, so each build gets a poll of its own.
 /// @return Whether a build ran -- the step is not done on a call that ran one.
 bool runPendingFixture() {
 	if (g_pendingFixtures.empty()) {
@@ -1186,7 +1186,7 @@ void tickRandomizeGate() {
 	}
 	using namespace deluge::hid::button;
 	// Requests that reached the randomizer: what the gate stops. (A scan count cannot tell -- a second walk would not
-	// have scanned yet in this window -- and the owner-scan count this once read was zero whatever happened.)
+	// have scanned yet in this window.)
 	const int32_t requestsBefore = deluge::gui::randomizeDrums.requestsReceived();
 	(void)Buttons::buttonAction(LOAD, true, false);
 	(void)instrumentClipView.padAction(15, 2, 1);
@@ -1215,7 +1215,7 @@ void tickImportGate() {
 	using namespace deluge::hid::button;
 	auto& menu = deluge::gui::context_menu::sample_browser::kit;
 	// Requests that reached the import: what the gate stops. (A listing count cannot tell -- a second import would not
-	// have listed yet in this window -- and the owner-listing count this once read was zero whatever happened.)
+	// have listed yet in this window.)
 	const int32_t requestsBefore = deluge::gui::folderImport.requestsReceived();
 	(void)getCurrentUI()->buttonAction(BACK, true, false);
 	(void)getCurrentUI()->buttonAction(BACK, false, false);

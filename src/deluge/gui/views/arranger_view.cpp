@@ -837,8 +837,8 @@ Instrument* ArrangerView::createNewInstrument(bool* instrumentAlreadyInSong,
 	return newInstrument;
 }
 
-// See the header doc. The acquisition reads the card, so it runs on the storage owner. Snapshot
-// yPressedEffective here -- the op must not read it back.
+// See the header doc. The acquisition reads the card, so InstrumentLoad runs it and hands its result
+// to completeNewInstrument(). Snapshot yPressedEffective here -- the completion must not read it back.
 void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed, UI* ui) {
 
 	int32_t minY = -currentSong->arrangementYScroll - 1;
@@ -861,8 +861,8 @@ void ArrangerView::beginNewInstrumentAcquisition(int32_t yPressed, UI* ui) {
 	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
-// Runs on the storage owner, dispatched by the new-instrument pad gesture. createNewInstrument()
-// blocks here, which is legal on this tier.
+// The new-instrument pad gesture's follow-up, run by InstrumentLoad on the interaction tier once the
+// acquisition has landed. createNewInstrument() only takes what the acquisition found; it reads no card.
 void ArrangerView::completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui,
                                          const deluge::storage::AcquireResult& acquired) {
 	if (ui == nullptr) {
@@ -2661,8 +2661,8 @@ void ArrangerView::navigateThroughPresets(int32_t offset) {
 	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
-// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for
-// the tier split.
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed, with `acquired` set;
+// MIDI/CV are called inline with it null.
 void ArrangerView::completeNavigateThroughPresets(int32_t offset, Output* output, int32_t yPressed,
                                                   const deluge::storage::AcquireResult* acquired) {
 	output = (acquired != nullptr)
@@ -2679,7 +2679,7 @@ void ArrangerView::completeNavigateThroughPresets(int32_t offset, Output* output
 	// already run endAudition() and cleared currentUIMode -- nothing will ever end a note started
 	// here. Same if a later press moved the audition to a different row: currentUIMode matches again,
 	// but this snapshot's row is stale. Both are re-checked here, not at dispatch, because either can
-	// change during the op's yield.
+	// change while the acquisition is out.
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective == yPressed) {
 		beginAudition(output);
 	}
@@ -2720,8 +2720,8 @@ void ArrangerView::changeOutputType(OutputType newOutputType) {
 	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
-// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. Song::changeOutputType() does its
-// own branch on output type.
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed, with `acquired` set;
+// MIDI/CV are called inline with it null, and Song::changeOutputType() does its own branch on output type.
 void ArrangerView::completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed,
                                             const deluge::storage::AcquireResult* acquired) {
 	Instrument* newInstrument = (acquired != nullptr) ? currentSong->applyChangeOutputType(oldInstrument, *acquired)

@@ -272,8 +272,8 @@ pub trait DirOps {
 pub async fn dir_io_once<O: DirOps>(ops: &O, path: &str, create: bool) -> DirOutcome {
     if create {
         // On the storage tier, where a card WRITE belongs. This is the browser's missing-folder
-        // fallback, run here rather than inline at the call site: inline `mkdir` is fine on the
-        // storage owner but not on the interaction tier the listing runs on once this channel backs it.
+        // fallback, run here rather than inline at the call site: inline `mkdir` would block the
+        // interaction tier the listing runs on once this channel backs it.
         ops.create_dir(path).await;
     }
     match ops.open_dir(path).await {

@@ -2254,8 +2254,8 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
-// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for
-// the tier split.
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed, with `acquired` set;
+// MIDI/CV are called inline with it null.
 void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink,
                                                            const deluge::storage::AcquireResult* acquired) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2491,7 +2491,7 @@ gotAnInstrument:
 	// Or if we're on a Kit or Synth...
 	else {
 
-		// Acquired by InstrumentLoad: walked on the owner, loaded on this tier.
+		// Acquired by InstrumentLoad: walked and loaded on this tier.
 		if (acquired == nullptr) {
 			return;
 		}
@@ -2629,14 +2629,14 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 	    .oldInstrument = (Instrument*)clip->output,
 	    .clip = clip,
 	};
-	// The acquisition may still fail on the owner; the gesture itself was accepted, so report
+	// The acquisition may still fail once it runs; the gesture itself was accepted, so report
 	// success here and let the completion surface any error, exactly as goIntoFolder() does.
 	return loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 }
 
-// Runs on the storage owner for Synth/Kit, inline for MIDI/CV. InstrumentClip::changeOutputType()
-// does its own branch on output type. Core swap + View-level redraw only -- no caller-specific
-// tail; see completeChangeOutputTypeFor() for those.
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed; MIDI/CV inline.
+// InstrumentClip::changeOutputType() does its own branch on output type. Core swap + View-level redraw
+// only -- no caller-specific tail; see completeChangeOutputTypeFor() for those.
 bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
                                     const deluge::storage::AcquireResult* acquired) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];

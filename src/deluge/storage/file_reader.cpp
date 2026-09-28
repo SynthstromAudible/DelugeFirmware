@@ -253,10 +253,9 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
                                                               char const* altTagName, StagingState* state) {
 	AudioEngine::logAction("openDocumentStaged");
 
-	// An async request issued from a context that will not YIELD can never complete: the driver only
-	// runs when this caller returns to its executor. During boot we therefore fill synchronously,
-	// which is legal then. After it both channels are always there: the byte channel's stat sizes the
-	// buffer and the write channel's whole-file read fills it.
+	// During boot the buffer is filled synchronously, which is legal then and needs no channel task
+	// to answer. After it both channels are always there: the byte channel's stat sizes the buffer
+	// and the write channel's whole-file read fills it.
 	const bool booting = !deluge::boot::finished();
 
 	if (!booting) {

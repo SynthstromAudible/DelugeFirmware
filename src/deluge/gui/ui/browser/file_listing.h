@@ -64,11 +64,9 @@ struct Collation {
 ///
 /// ## Why this is a type and not seven statics
 ///
-/// It was seven statics, and a walk that borrowed them could leave the browser's list half-walked
-/// between ticks. The recursive preset walk got away with it by being ATOMIC -- one storage-owner
-/// operation, start to finish -- and nothing recorded that its atomicity was load-bearing. The
-/// first machine to span ticks over the same buffer emptied the list under an open browser and a
-/// delete's completion callback indexed off the end of it.
+/// Every walk and listing that spans ticks reads into a FileListing of its own. Shared statics would
+/// let a walk leave the browser's list half-walked between ticks: emptied under an open browser,
+/// with a delete's completion callback indexing off the end of it.
 ///
 /// ## The invariants
 ///

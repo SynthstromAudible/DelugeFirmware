@@ -367,8 +367,8 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
-		// goIntoFolder() now dispatches onto the storage owner; failure is handled by the base
-		// Browser::onListingFailed() (displayError + close()) once the listing completes.
+		// goIntoFolder() begins a listing that graphicsRoutine() runs over later ticks; failure is handled by
+		// the base Browser::onListingFailed() (displayError + close()) once the listing completes.
 		goIntoFolder(currentFileItem->filename.c_str());
 	}
 
@@ -776,7 +776,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		outputTypeToLoad = newOutputType;
 
 		std::string searchFilename = setupForOutputType();
-		// Route this listing through the owner too, the same way opened() does. changingOutputType_
+		// Run this as a listing too, the same way opened() does. changingOutputType_
 		// tells the shared onBrowserOpened()/onListingFailed() hooks apart from opened()'s Open
 		// listing so they can run this path's own follow-up/revert once the listing actually
 		// completes (see onBrowserOpened() and onListingFailed()). buttonAction()'s
@@ -788,7 +788,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		                                .filenameToStartAt = searchFilename,
 		                                .defaultDir = getInstrumentFolder(outputTypeToLoad)});
 		if (!dispatched) {
-			// Owner queue was full - the listing never ran, so onBrowserOpened()/onListingFailed()
+			// Refused - the listing never ran, so onBrowserOpened()/onListingFailed()
 			// won't fire to reconcile the state set above. Revert it here so the UI is left
 			// consistent (retryable via the same button - outputTypeToLoad no longer equals
 			// newOutputType - and the next listing that does complete won't get misrouted by a

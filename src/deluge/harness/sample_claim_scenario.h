@@ -20,8 +20,9 @@
 /// @brief Host-only C ABI for the sample-claim gate: claim files from the real sample browser into a synth, a kit drum
 ///        and an audio clip, and slice a kit, and report what each claim bound and on which tier its load ran.
 ///
-/// @note Runs as a step machine: each `dispatch_step()` does one stage and queues a marker op on the storage owner,
-///       and the platform driver waits for `step_done()` before dispatching again.
+/// @note Runs as a step machine: each `dispatch_step()` runs one stage inline on the calling tick, and the platform
+///       driver waits for `step_done()` -- which first runs any fixture builds the stage queued -- before dispatching
+///       again.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the app's sources).
 #ifdef DELUGE_HOST
@@ -36,10 +37,11 @@ void deluge_scenario_sample_claim_begin(void);
 /// @brief True once the report has been printed.
 bool deluge_scenario_sample_claim_complete(void);
 
-/// @brief Run one stage, and queue a marker op behind whatever it queued on the storage owner.
+/// @brief Run one stage inline, on the calling tick.
 void deluge_scenario_sample_claim_dispatch_step(void);
 
-/// @brief True once the marker op queued by the last dispatch_step() has run.
+/// @brief True once the last dispatch_step()'s stage has returned and every fixture build it queued has run, one per
+///        call.
 bool deluge_scenario_sample_claim_step_done(void);
 
 /// @brief Number of in-process assertion failures. 0 = the run passed.

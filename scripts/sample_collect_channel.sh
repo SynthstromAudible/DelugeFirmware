@@ -3,17 +3,15 @@
 #
 # Saves a song with collect-media on and requires that every sample the song references arrived in
 # the song's own folder byte-identical to its source, that the audio-file list survived the process
-# intact, and that the copying ran off the storage owner.
+# intact, and that the copying went through the byte channel after boot.
 #
 # ## Why this gate exists
 #
 # Collecting media is the one save path that walks a container the audio engine and the UI both
-# read, mutating a key the container is SORTED BY as it goes. The old code got away with that
-# because the whole walk was one uninterrupted call on the storage owner; the moment the copying
-# leaves the owner, the walk can be observed half-done. The rung answers that by deciding every
-# path first, transferring with nothing shared held, and applying the decisions in one owner pass --
-# and SC-ORDERED is what says the answer works. It guards an invariant the old code was
-# ACCIDENTALLY safe from, which is exactly the kind that breaks silently when the accident goes away.
+# read, mutating a key the container is SORTED BY as it goes. The copying spans ticks, so the walk
+# can be observed half-done. The collection answers that by deciding every path first, transferring
+# with nothing shared held, and applying the decisions in one pass -- and SC-ORDERED is what says the
+# answer works.
 #
 # Running this gate for the first time found three defects, none of which any other gate could see:
 # transfers had no owner arm at all, the collected path was built by appending to an empty string
@@ -37,8 +35,8 @@
 #                 apply pass tidies it away before the end. A path mutated during the planning walk
 #                 passes SC-ORDERED and fails this.
 #   SC-CHANNEL    the transfers were SERVED by the byte channel -- the async arm ran.
-#   SC-ACCOUNTED  the channel served every collected file and the owner served none.
-#   SC-OFFOWNER   the transfers ran OFF the storage owner.
+#   SC-ACCOUNTED  the channel served every collected file and the inline arm served none.
+#   SC-OFFOWNER   the transfers went through the channel after boot (`offOwnerTicks`).
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
@@ -117,7 +115,7 @@ owner="$(sed -n 's/^SC-SUMMARY .*ownerServed=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
 offowner="$(sed -n 's/^SC-SUMMARY .*offOwnerTicks=\([0-9]*\).*/\1/p' "$OUT/run.txt")"
 copies="$(grep -c '^SC-COPIED to=' "$OUT/run.txt" || true)"
 
-# SC-CHANNEL, SC-ACCOUNTED and SC-OFFOWNER: no file may go to the owner, and the channel must have
+# SC-CHANNEL, SC-ACCOUNTED and SC-OFFOWNER: no file may take the inline arm, and the channel must have
 # served exactly the files that arrived.
 if [ -z "${served:-}" ] || [ "$served" -eq 0 ]; then
 	echo "FAIL SC-CHANNEL — the collection served ${served:-no} transfer(s); the async arm never ran"

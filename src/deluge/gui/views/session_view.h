@@ -91,41 +91,41 @@ public:
 	void noteRowChanged(InstrumentClip* clip, NoteRow* noteRow) override;
 	void setLedStates();
 	/// @brief The Rows-layout output-type button's follow-up, reached via
-	///        View::completeChangeOutputTypeFor()'s `SessionRowsChangeType` arm -- on the storage owner
-	///        for Synth/Kit, inline for MIDI/CV. Runs the redraw at the row the gesture was made on,
-	///        once the swap (possibly deferred) has actually happened.
+	///        View::completeChangeOutputTypeFor()'s `SessionRowsChangeType` arm -- from InstrumentLoad
+	///        once the acquisition has landed for Synth/Kit, inline for MIDI/CV. Runs the redraw at the
+	///        row the gesture was made on, once the swap (possibly deferred) has actually happened.
 	/// @param newOutputType The type that was switched to.
-	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param clip The clip the gesture was made on (Song-owned; safe while the acquisition is out).
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	/// @return Whether the swap actually succeeded.
 	bool completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
 	                                  const deluge::storage::AcquireResult* acquired = nullptr);
 
-	/// @brief The Grid-layout output-type button's follow-up -- on the storage owner for Synth/Kit,
-	///        inline for MIDI/CV.
+	/// @brief The Grid-layout output-type button's follow-up -- from InstrumentLoad once the
+	///        acquisition has landed for Synth/Kit, inline for MIDI/CV.
 	///
 	/// Runs buttonAction()'s Grid-arm tail: the name/mod-controllable update, and the row redraw,
 	/// once the swap (possibly deferred) has actually happened.
 	/// @param newOutputType The type being switched to.
-	/// @param oldInstrument The Instrument being replaced. Song-owned, so it survives the op's yields,
-	///                      and re-checked for liveness before the follow-up runs.
+	/// @param oldInstrument The Instrument being replaced. Song-owned, so it survives while the
+	///                      acquisition is out, and re-checked for liveness before the follow-up runs.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument,
 	                              const deluge::storage::AcquireResult* acquired = nullptr);
 
-	/// @brief The Grid-layout preset-navigation gesture's follow-up -- on the storage owner for
-	///        Synth/Kit, inline for MIDI/CV.
+	/// @brief The Grid-layout preset-navigation gesture's follow-up -- from InstrumentLoad once the
+	///        acquisition has landed for Synth/Kit, inline for MIDI/CV.
 	/// @param offset    Scroll direction, as commandChangeClipPreset() received it.
-	/// @param oldOutput The Output being navigated away from. Song-owned, so it survives the op's
-	///                  yields.
+	/// @param oldOutput The Output being navigated away from. Song-owned, so it survives while
+	///                  the acquisition is out.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	void completeNavigate(int32_t offset, Output* oldOutput, const deluge::storage::AcquireResult* acquired = nullptr);
 
-	/// @brief The empty-pad "create a clip here" gesture's follow-up (Rows layout), on the storage
-	///        owner.
+	/// @brief The empty-pad "create a clip here" gesture's follow-up (Rows layout): from InstrumentLoad
+	///        once the acquisition has landed for Synth/Kit, inline for MIDI.
 	///
-	/// Runs createNewInstrumentClip() (still blocking, which is legal here) and then padAction()'s
+	/// Runs createNewInstrumentClip() (which reads no card: it takes what was acquired) and then padAction()'s
 	/// own tail for that branch, including entering the held-clip UI mode via beginHoldingClipPress().
 	/// @param type      The clip type the gesture decided to create.
 	/// @param xDisplay  The pad column the gesture was made on.
@@ -138,7 +138,7 @@ public:
 	void completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex, bool shiftHeld,
 	                      const deluge::storage::AcquireResult* acquired = nullptr);
 
-	/// @brief The grid new-track gesture's ENTER follow-up, on the storage owner.
+	/// @brief The grid new-track gesture's ENTER follow-up: from InstrumentLoad for Synth/Kit, inline otherwise.
 	/// @param type            The clip type chosen in the picker.
 	/// @param packedXY        The press coordinates, `y << 16 | x`.
 	/// @param padStillPressed Whether the starting pad was still down when the gesture dispatched.
@@ -148,7 +148,7 @@ public:
 	void completeNewTrackGridEnter(OutputType type, uint32_t packedXY, bool padStillPressed,
 	                               const deluge::storage::AcquireResult* acquired = nullptr);
 
-	/// @brief The grid new-track gesture's SELECT follow-up, on the storage owner.
+	/// @brief The grid new-track gesture's SELECT follow-up: from InstrumentLoad for Synth/Kit, inline otherwise.
 	///
 	/// Deliberately separate from completeNewTrackGridEnter(): the two share the create-and-place
 	/// half, but their post-create tails (gridNewTrackClipEntered() vs gridNewTrackClipSelected())
@@ -160,10 +160,10 @@ public:
 	void completeNewTrackGridSelect(OutputType type, uint32_t packedXY, bool padStillPressed,
 	                                const deluge::storage::AcquireResult* acquired = nullptr);
 
-	/// @brief gridClonePad()'s follow-up when the copy lands in an EMPTY track column, on the storage
-	///        owner.
+	/// @brief gridClonePad()'s follow-up when the copy lands in an EMPTY track column, run by
+	///        InstrumentLoad once the acquisition has landed.
 	/// @param targetSection The section the copy is dropped into.
-	/// @param sourceClip    The clip being copied. Song-owned, so it survives the op's yields.
+	/// @param sourceClip    The clip being copied. Song-owned, so it survives while the acquisition is out.
 	/// @param acquired What InstrumentLoad acquired for the new track.
 	void completeNewTrackClone(uint32_t targetSection, Clip* sourceClip,
 	                           const deluge::storage::AcquireResult* acquired);
@@ -421,7 +421,7 @@ private:
 
 	/// @brief Creates and places a grid new-track clip, or nullptr if it could not be created
 	///
-	/// The head shared by both continuations, run on the storage owner. Only this create-and-place
+	/// The head shared by both continuations, run where they run. Only this create-and-place
 	/// half is shared; the two tails stay separate functions.
 	/// @param type     The clip type chosen in the picker.
 	/// @param packedXY The press coordinates, `y << 16 | x`.

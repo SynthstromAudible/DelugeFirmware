@@ -135,9 +135,9 @@ bool SampleBrowser::opened() {
 	}
 
 	// No inline initSD() pre-flight — see the comment in SlotBrowser::beginSlotSession(). This runs on
-	// the interaction tier, where an off-owner initSD() reports Error::SD_CARD for "ask me from the
-	// owner", failing the browser on a healthy card. The dispatched listing checks the card on the
-	// owner and reports real failures via Browser::onListingFailed().
+	// the interaction tier, where mounting is card I/O it may not do. The listing checks the card
+	// itself -- inline before boot, through the directory channel after it -- and reports real
+	// failures via Browser::onListingFailed().
 
 	std::string currentPath;
 	currentPath = soundEditor.getCurrentAudioFileHolder()->filePath;
@@ -404,8 +404,8 @@ void SampleBrowser::enterKeyPress() {
 
 		// Otherwise, load it normally
 		else {
-			// The claim runs on this tier, as SampleClaim's phases; only its card-reading steps go to the storage
-			// owner.
+			// The claim runs on this tier, as SampleClaim's phases; its card reads go through the async sample
+			// load.
 			requestClaim(1, 1, 1);
 		}
 	}

@@ -29,8 +29,8 @@ extern "C" {
 ///
 /// Cooperative/C-host BSPs: always false (filesystem work runs inline on the caller, so no other context
 /// can hold the filesystem). Embassy: true while the efatfs FS mutex is held by a storage task.
-/// @note Safe to call from ANY context and never blocks — off-owner callers querying "may I start
-///       filesystem work now?" are the primary consumer.
+/// @note Safe to call from ANY context and never blocks — interaction-tier callers querying "may I
+///       start filesystem work now?" are the primary consumer.
 /// @return true iff a filesystem operation is currently in flight.
 bool deluge_storage_fs_busy(void);
 

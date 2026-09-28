@@ -500,8 +500,8 @@ enum class Error {
 	///        not opened yet.
 	///
 	/// The caller got no listing *this* time and should let the browser's per-tick surface run
-	/// the attempt again. Only produced off the storage owner after boot, where every directory
-	/// open goes through libdeluge/file_directory.h; the synchronous path never returns it.
+	/// the attempt again. Only produced after boot, where every directory open goes through
+	/// libdeluge/file_directory.h; the synchronous path never returns it.
 	///
 	/// Deliberately NOT LOAD_IN_PROGRESS, even though the contract is word for word the same:
 	/// `addInstrumentsToFileItems` runs INSIDE a listing and can itself reach the sample loader,

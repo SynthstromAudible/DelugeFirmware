@@ -7,10 +7,9 @@
 #
 # ## Why this gate exists
 #
-# Clear-song dispatched its whole body onto the storage owner because two things inside it read the card. Phase 4b
-# took both away: ensureAtLeastOneSessionClip() builds its clip on the built-in default synth and asks InstrumentLoad
-# for a preset afterwards, and the loadAllSamples() that followed it can only ever load nothing. What is left is model
-# and UI work that belongs on the interaction tier — and nothing measured that, until this gate.
+# Clear-song reads no card of its own: ensureAtLeastOneSessionClip() builds its clip on the built-in default synth and
+# asks InstrumentLoad for a preset afterwards, and a loadAllSamples() after it could only ever load nothing. What it
+# does is model and UI work that belongs on the interaction tier, and this gate is what measures that it stays there.
 #
 # What the checks cover (src/deluge/harness/clear_song_undo_scenario.cpp writes the lines):
 #   CS-PROBE   per stage: the fixture written, the boot song settled, and what the clear was seen to do.

@@ -44,8 +44,8 @@
 ///
 /// ## Stepped, not one blocking call
 ///
-/// Settings operations become owner-dispatched or channel-backed, and in both shapes the work is
-/// only ENQUEUED when the entry point runs. A same-tick read would prove nothing, so each stage has
+/// After boot settings operations are channel-backed, so the work is only ENQUEUED when the entry
+/// point runs. A same-tick read would prove nothing, so each stage has
 /// a `*Check` successor a tick later.
 extern "C" {
 

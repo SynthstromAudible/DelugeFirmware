@@ -121,7 +121,7 @@ public:
 	/// Whether a preview deferred and is waiting to be asked for again.
 	static bool pending() { return loadSongUI.previewLoad_.pending(); }
 
-	/// Whether an op is dispatched and has not reported back (the synchronous backing's owner op).
+	/// Whether an op is dispatched and has not reported back.
 	static bool inFlight() { return loadSongUI.previewLoad_.in_flight(); }
 
 	/// What the last finished render produced. The half of the comparison no image can carry.
@@ -207,8 +207,8 @@ public:
 	/// "the listing finished the same way" means.
 	static int32_t selectedIndex() { return Browser::fileIndexSelected; }
 	/// Drives ArrangerView's REAL new-instrument pad gesture, rather than restating its callee
-	/// (createNewInstrument) directly. Dispatches onto the storage owner; see
-	/// runAcquireTick()'s *Check states for why the result isn't readable until a later tick.
+	/// (createNewInstrument) directly. Starts an InstrumentLoad acquisition, which runs on the interaction tier
+	/// over later ticks; see runAcquireTick()'s *Check states for why the result isn't readable until then.
 	static void beginNewInstrumentAcquisition(int32_t yPressed) {
 		arrangerView.beginNewInstrumentAcquisition(yPressed);
 	}
@@ -683,8 +683,8 @@ void printCaseLine(const char* tag, const char* label, const char* path, uint32_
 
 // ── The in-process reference ────────────────────────────────────────────────
 //
-// What every song the browser previews must match: the same file decoded the synchronous way, on the storage owner,
-// into an image of its own. `decodeSongPreviewFromFile` walks the whole document and holds no card-derived state, so it
+// What every song the browser previews must match: the same file decoded synchronously, inline on this tier, into
+// an image of its own. `decodeSongPreviewFromFile` walks the whole document and holds no card-derived state, so it
 // is the reference the prefix channel is held to -- the comparison this gate's second build makes, made in one process.
 
 /// The reference decode of one song.
@@ -693,7 +693,7 @@ struct Reference {
 	SongPreviewOutcome outcome = SongPreviewOutcome::NoPreview;
 	Error error = Error::NONE;
 	uint32_t crc = 0;
-	/// Set on the storage owner once the decode has run.
+	/// Set once the decode has run.
 	bool done = false;
 };
 Reference g_reference;
@@ -702,7 +702,7 @@ bool g_referenceDispatched = false;
 /// `beginPreviewRender` clears the browser's.
 RGB g_referenceImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 
-/// Decode `g_reference.path` from the card. Runs on the STORAGE OWNER, the one place this blocking read is allowed.
+/// Decode `g_reference.path` from the card: a blocking read, inline on the calling tier.
 void runReferenceDecode(void*) {
 	std::memset(g_referenceImage, 0, kImageBytes);
 	Error error = Error::NONE;
@@ -913,12 +913,10 @@ std::string corpusFilename(size_t index) {
 	return name;
 }
 
-/// Read `kCorpusCountPath` into @ref g_corpusExpected. Runs on the STORAGE OWNER.
+/// Read `kCorpusCountPath` into @ref g_corpusExpected: a blocking read, inline on the calling tier.
 ///
-/// On the owner rather than inline, and that is not ceremony here of all places: a blocking card
-/// read on the interaction tier is the exact thing the channel under test exists to remove, and a
-/// gate that did it in its own setup would be asserting a discipline it breaks. It is also the only
-/// card read this scenario performs of its own accord -- everything else goes through the browser.
+/// It is the only card read this scenario performs of its own accord -- everything else goes through
+/// the browser -- and it is fixture setup, not a browser operation, so `SP-TIER` does not count it.
 void readCorpusCount(void*) {
 	auto opened = deluge::io::File::open(kCorpusCountPath, DELUGE_FILE_READ);
 	if (!opened.has_value()) {
@@ -975,7 +973,7 @@ void runCorpusCountTick() {
 		readCorpusCount(nullptr);
 		return;
 	}
-	// The marker op behind the dispatch has run by now (the owner queue is FIFO), so the count is in.
+	// The read ran inline on the previous tick, so the count is in.
 	printf("SP-CORPUS expected=%zu\n", g_corpusExpected);
 	g_stage = g_corpusCountFailed ? Stage::Swap : Stage::Corpus;
 }
@@ -1047,7 +1045,7 @@ bool performCardSwap() {
 	return true;
 }
 
-/// The eject/re-insert pair, on the storage owner: it renames a file and remounts the volume.
+/// The eject/re-insert pair, run inline: it renames a file and remounts the volume.
 void runSwapEject(void*) {
 	// The ejection, through the production entry point. This is the call the flush lives in, and it
 	// must run BEFORE the new file appears -- flushing on re-insertion instead would leave the window
@@ -1610,8 +1608,8 @@ void finishRun() {
 			       got.dir.c_str(), joinNames(got).c_str(), kBigDir);
 			g_failures++;
 		}
-		// Now the same fallback against a default directory that does NOT exist, so it has to be created. Off the
-		// storage owner the creation rides the channel's request, on the storage tier, with the open.
+		// Now the same fallback against a default directory that does NOT exist, so it has to be created. After boot
+		// the creation rides the channel's request, on the storage tier, with the open.
 		(void)deluge::io::unlink(kMakeDir);
 		if (deluge::io::Directory::open(kMakeDir).has_value()) {
 			printf("SP-LISTING FAIL fixture: %s still exists, the create case would test nothing\n", kMakeDir);
@@ -1977,7 +1975,7 @@ void dispatchAcquisitionGesture() {
 }
 
 /// Whether @p step reads a dispatched gesture's outcome, and so must wait for its acquisition to end: a change-type
-/// or navigate is walked on the storage owner and loaded on the interaction tier over several ticks.
+/// or navigate is walked and loaded by InstrumentLoad on the interaction tier over several ticks.
 bool readsAcquisitionOutcome(AcquireStep step) {
 	switch (step) {
 	case AcquireStep::ReferenceCheck:
@@ -2124,7 +2122,7 @@ void runAcquireTick() {
 		break;
 	}
 	case AcquireStep::Coalesce: {
-		// Three gestures with no owner tick between them: presetCoalescer_ (a LatestWins) is
+		// Three gestures with no tick between them: InstrumentLoad's coalescer_ (a LatestWins) is
 		// single-flight, so the second and third `request()`s land while the first op is still
 		// in-flight and only update its latest-wins slot rather than dispatching a NEW op --
 		// coalescing them onto (at most) one actual run. "loads" is read from the production
@@ -3465,7 +3463,7 @@ void printSummary() {
 	}
 	printf("SP-ACQUIRE-SUMMARY loads=%d dispatches=%d\n", g_acqLoads, acqDispatches());
 
-	// No synchronous browser directory operation may begin off the storage owner after boot. Every listing above went
+	// No synchronous browser directory operation may begin on the interaction tier after boot. Every listing above went
 	// through the channel; a count here means one of them did not. (In an alpha or beta build the first one freezes
 	// the run instead, which fails it just as surely.)
 	const int32_t tier = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);

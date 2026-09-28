@@ -72,7 +72,7 @@ private:
 /// @brief Collapse an open attempt into an existence answer.
 /// @param opened The result of `File::open()` (only its success/error is read; the File is untouched).
 /// @return `true` present · `false` **known absent** (`Status::NOT_FOUND`) · an error when existence
-///         could not be determined (e.g. `Status::BUSY` when the filesystem refuses off-owner callers).
+///         could not be determined (e.g. `Status::BUSY` when the filesystem refuses to answer).
 /// @note Callers must never treat the error case as absence.
 std::expected<bool, Status> presence_from_open(const std::expected<File, Status>& opened);
 
@@ -149,7 +149,7 @@ enum class DirOpen : uint8_t {
 /// @param opened The result of `Directory::open()` (only its success/error is read; the Directory is
 ///        untouched).
 /// @return `true` present · `false` **known absent** (`Status::NOT_FOUND`) · an error when existence
-///         could not be determined (e.g. `Status::BUSY` when the filesystem refuses off-owner callers).
+///         could not be determined (e.g. `Status::BUSY` when the filesystem refuses to answer).
 /// @note Callers must never treat the error case as absence.
 std::expected<bool, Status> presence_from_open(const std::expected<Directory, Status>& opened);
 

@@ -2,9 +2,9 @@
 # song_preview_ab.sh — the song-preview gate: the prefix channel against the file read.
 #
 # Builds the Embassy host harness once, draws the fixture card's song artwork through the REAL
-# `LoadSongUI` over the prefix channel, and holds every song to the same file decoded the synchronous
-# way on the storage owner, in the same process. The channel has no switch, so there is no second
-# build to compare against: the reference decode is what that build used to provide.
+# `LoadSongUI` over the prefix channel, and holds every song to the same file decoded synchronously,
+# inline, in the same process. The channel has no switch, so there is no second build to compare
+# against: the reference decode stands in for one.
 #
 # What the run checks (src/deluge/harness/song_preview_ab_scenario.cpp writes the lines):
 #   SP-CASE   one per song: the decode's `SongPreviewOutcome`, the `Error` it put on screen, and a
@@ -25,7 +25,7 @@
 #             channel runs out of bytes and reports Truncated, drawing blank WITHOUT claiming the song has
 #             no artwork. Both halves are asserted absolutely.
 #   SP-REFERENCE
-#             one per song, beside its SP-CASE: the same file decoded the synchronous way on the storage owner.
+#             one per song, beside its SP-CASE: the same file decoded synchronously, inline.
 #             The run requires the browser's outcome, error and image CRC to equal it; for the read-window
 #             song the reference must render the late artwork instead. Not diffed.
 #   SP-DEFER / SP-SUMMARY / SP-SWAP-SUMMARY
@@ -36,7 +36,7 @@
 #             opens, each driven through the directory channel as steps of the scenario's tick machine and
 #             checked in-process against what its fixture implies, with exactly one channel request per open (a
 #             listing that restarted would ask again). SP-TIER
-#             requires no synchronous browser directory operation off the storage owner.
+#             requires no synchronous browser directory operation on the interaction tier after boot.
 #   SP-LISTING-STALL
 #             a listing whose directory open is held far past the browser's 600-tick bound gives up with the
 #             card error: begun inside the open browser, it leaves the browser open on what it had; opening

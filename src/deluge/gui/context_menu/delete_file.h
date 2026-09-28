@@ -28,7 +28,7 @@ class Browser;
 namespace deluge::gui::context_menu {
 /// @brief The browser's "Delete?" menu: removes the selected file from the card.
 ///
-/// After boot, off the storage owner, the removal goes through the byte channel, and the menu stays open, refusing
+/// After boot the removal goes through the byte channel, and the menu stays open, refusing
 /// input, until the channel answers. Where blocking on the card is legal it removes the file inline. Both arms apply
 /// their outcome -- removed, already missing, or failed -- through one function.
 class DeleteFile final : public ContextMenuForSaving {

@@ -457,8 +457,8 @@ struct StagingState {
 
 /// @brief Read the whole of @p path into a freshly allocated buffer, blocking until it is there.
 ///
-/// The OWNER arm of openDocumentStaged(). It runs only where blocking is legal: on the storage owner, or
-/// before the owner has started. Nothing chooses it because staging failed.
+/// The inline arm of openDocumentStaged(), which takes it only before boot finishes; openDocumentSynchronously()
+/// fills through it too. Nothing chooses it because staging failed.
 ///
 /// @param path NUL-terminated path.
 /// @param out  Receives the buffer and its size on success; untouched on failure.
@@ -470,9 +470,9 @@ Error readWholeFileSynchronously(char const* path, StagingState* out);
 
 /// @brief Stage @p path in memory and open it for parsing, from whichever arm this context allows.
 ///
-/// The one entry point for reading a Deluge document. Off the storage owner it drives the byte
-/// channel and the whole-file read, returning StagedOpen::Deferred until the bytes arrive; on the
-/// owner it fills synchronously and returns a terminal answer at once.
+/// The one entry point for reading a Deluge document. After boot it drives the byte channel and the
+/// whole-file read, returning StagedOpen::Deferred until the bytes arrive; before boot finishes it
+/// fills synchronously and returns a terminal answer at once.
 ///
 /// @param path         NUL-terminated path. Its extension picks the parser, exactly as the file-backed
 ///                     opener did: a name containing ".Json" parses as JSON, anything else as XML.

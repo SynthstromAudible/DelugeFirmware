@@ -78,7 +78,7 @@ private:
 	int32_t servedOps_{0};
 };
 
-/// @brief The same swap, blocking. Legal ONLY on the storage owner.
+/// @brief The same swap, blocking. Legal ONLY before boot finishes (the inline arm).
 /// @param target The file being replaced.
 /// @param temp   The verified temp file that replaces it.
 /// @return true when the temp file now holds the target's name.

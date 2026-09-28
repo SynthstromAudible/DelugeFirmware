@@ -40,10 +40,11 @@ void deluge_scenario_card_reinsert_begin(void);
 /// @brief True once the report has been printed.
 bool deluge_scenario_card_reinsert_complete(void);
 
-/// @brief Run one stage, and queue a marker op behind whatever it queued on the storage owner.
+/// @brief Run one stage inline, on the calling tick.
 void deluge_scenario_card_reinsert_dispatch_step(void);
 
-/// @brief True once the marker op queued by the last dispatch_step() has run.
+/// @brief True once the last dispatch_step()'s stage has returned and every fixture build it queued has run, one per
+///        call.
 bool deluge_scenario_card_reinsert_step_done(void);
 
 /// @brief Number of in-process assertion failures. 0 = the run passed.

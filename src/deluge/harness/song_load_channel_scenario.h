@@ -20,7 +20,7 @@
 /// @file
 /// @brief Host-only C ABI for the song-load channel gate: save a song carrying a distinctive value,
 ///        load it back through the REAL `LoadSongUI`, and require both that the value returns and
-///        that the read went through the storage channel, off the owner.
+///        that the read went through the storage channel.
 ///
 /// ## Why this gate exists at all
 ///
@@ -41,8 +41,9 @@
 /// stamps a DIFFERENT value over it after saving and before loading: without that, the value could be
 /// correct merely because nothing ever changed it.
 ///
-/// @note Runs as a STEP MACHINE: the load is dispatched onto the storage owner and staged across
-///       ticks, so every check reads its result on a LATER tick than the gesture that caused it.
+/// @note Runs as a STEP MACHINE: the gesture only starts the load, which `loadRoutine()` then
+///       advances across ticks, so every check reads its result on a LATER tick than the gesture
+///       that caused it.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
 ///       app's sources). Inert unless called.

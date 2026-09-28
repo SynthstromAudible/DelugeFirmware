@@ -89,21 +89,21 @@ public:
 	/// @brief Move `modelStack`'s clip's instrument to the next/previous preset in its folder.
 	/// @param offset Scroll direction/amount to move through the folder's presets.
 	/// @param modelStack The caller's stack-local model stack; NOT carried past this call -- the
-	///        Synth/Kit arm rebuilds its own from `clip` once the op actually runs.
+	///        Synth/Kit arm rebuilds its own from `clip` once the acquisition lands.
 	/// @param doBlink Whether the redrawn output name should blink.
 	void navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWithTimelineCounter* modelStack,
 	                                             bool doBlink = false);
-	/// @brief navigateThroughPresetsForInstrumentClip()'s follow-up: on the storage owner for
-	///        Synth/Kit, inline for MIDI/CV. See completeChangeOutputType() for the tier split.
+	/// @brief navigateThroughPresetsForInstrumentClip()'s follow-up: from InstrumentLoad once the
+	///        acquisition has landed for Synth/Kit, inline for MIDI/CV.
 	/// @param offset Scroll direction/amount, carried from the dispatching call.
-	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param clip The clip the gesture was made on (Song-owned; safe while the acquisition is out).
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	void completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink,
 	                                                     const deluge::storage::AcquireResult* acquired = nullptr);
 	void navigateThroughAudioOutputsForAudioClip(int32_t offset, AudioClip* clip, bool doBlink = false);
-	/// @brief Change `modelStack`'s clip to a new output type, on the storage owner for Synth/Kit and
-	///        inline for MIDI/CV.
+	/// @brief Change `modelStack`'s clip to a new output type: through an InstrumentLoad acquisition
+	///        for Synth/Kit, inline for MIDI/CV.
 	/// @param newOutputType The type to switch to.
 	/// @param modelStack The caller's stack-local model stack; NOT carried past this call -- see
 	///        navigateThroughPresetsForInstrumentClip()'s doc for why.
@@ -117,11 +117,11 @@ public:
 	///         for its completion to run, exactly as the arranger's own changeOutputType() works.
 	bool changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink = false,
 	                      deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewChangeType);
-	/// @brief changeOutputType()'s follow-up: on the storage owner for Synth/Kit, inline for MIDI/CV.
+	/// @brief changeOutputType()'s follow-up: from InstrumentLoad for Synth/Kit, inline for MIDI/CV.
 	///        Does the core swap and the View-level redraw only -- no caller-specific tail. Callers
 	///        that need one route through completeChangeOutputTypeFor() instead, which this backs.
 	/// @param newOutputType The type that was switched to.
-	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param clip The clip the gesture was made on (Song-owned; safe while the acquisition is out).
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	/// @return Whether the swap actually succeeded (the real outcome, not a dispatch acknowledgement).
@@ -133,7 +133,7 @@ public:
 	///        -- never both, and never before the swap in completeChangeOutputType() above has run.
 	/// @param consumer Which caller dispatched the original changeOutputType() call.
 	/// @param newOutputType The type that was switched to.
-	/// @param clip The clip the gesture was made on (Song-owned; safe across the op's yields).
+	/// @param clip The clip the gesture was made on (Song-owned; safe while the acquisition is out).
 	/// @param doBlink Whether the redrawn output name should blink.
 	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
 	/// @return Whether the swap actually succeeded.

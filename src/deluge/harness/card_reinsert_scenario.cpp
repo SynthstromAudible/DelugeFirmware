@@ -123,8 +123,8 @@ AudioFileHolder* firstHolder(Source& source) {
 }
 
 /// Fixture builds a tick asked for, run when the runner next asks whether the step is done: one virtual
-/// millisecond after the tick, which is where the retired storage-owner queue ran them. The gates are paced to that
-/// order, so builds are queued here rather than run inside the tick.
+/// millisecond after the tick, matching the pacing the gates are already tuned to. Builds are queued here
+/// rather than run inside the tick, to keep that order.
 std::vector<void (*)()> g_pendingFixtures{};
 
 /// Queue a fixture build for the end of this step. See g_pendingFixtures.
@@ -132,7 +132,7 @@ void buildFixture(void (*fn)()) {
 	g_pendingFixtures.push_back(fn);
 }
 
-/// Run the next build this step queued, if any: one per call, as the owner queue ran one job per poll.
+/// Run the next build this step queued, if any: one per call, so each build gets a poll of its own.
 /// @return Whether a build ran -- the step is not done on a call that ran one.
 bool runPendingFixture() {
 	if (g_pendingFixtures.empty()) {

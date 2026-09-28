@@ -28,9 +28,9 @@
 /// the point — it is what catches a conversion that moved the I/O and broke the protocol.
 ///
 /// `PO-TIER` is the browser half's evidence: folder creation begun on the interaction tier, non-zero
-/// before the conversion and zero after. **`smsysex` has no equivalent**, because it is already
-/// owner-dispatched, so its tier count reads zero on both sides and `PO-CHANNEL served=` is the whole
-/// of its proof.
+/// before the conversion and zero after. **`smsysex` has no equivalent**: it never begins a blocking
+/// operation after boot, so its tier count reads zero on both sides and `PO-CHANNEL served=` is the
+/// whole of its proof.
 ///
 /// ## Replies are captured, not inferred
 ///

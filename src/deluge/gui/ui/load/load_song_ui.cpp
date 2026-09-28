@@ -219,14 +219,14 @@ void LoadSongUI::enterKeyPress() {
 		// replacement until the listing completes -- so without this, a preview landing in between
 		// paints the departed folder's song over the new one's first entry. Same shape as Back.
 		cancelPreview();
-		// goIntoFolder() dispatches onto the storage owner; failure is handled by the base
-		// Browser::onListingFailed() (displayError + exitAction) once the listing completes.
+		// goIntoFolder() begins a listing that graphicsRoutine() runs over later ticks; failure is handled by
+		// the base Browser::onListingFailed() (displayError + exitAction) once the listing completes.
 		goIntoFolder(currentFileItem->filename.c_str());
 	}
 
 	else {
-		// Start the load and return: it owns its own dispatch onto the storage owner, and parks in the
-		// run loop at each point it has to wait, so this handler never blocks. The post-load settings
+		// Start the load and return: loadRoutine() advances it from the run loop, and it parks at each
+		// point it has to wait, so this handler never blocks. The post-load settings
 		// write travels with it as the completion.
 		beginLoad([]() {
 			if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
@@ -419,23 +419,22 @@ void LoadSongUI::beginLoad(void (*onComplete)()) {
 
 	// The browser is on its way out and the pads now belong to the load: the greyout, the loading
 	// animation, and finally the new song's view. Nothing here asks for a replacement preview, so an
-	// artwork read still outstanding would paint over all of that. It also frees the storage owner
-	// from a preview op the synchronous backing may still have queued ahead of the load.
+	// artwork read still outstanding would paint over all of that.
 	cancelPreview();
 
 	loadOnComplete_ = onComplete;
 	performingLoad = true;
 
-	// The song is read into memory FIRST, on this tier, before any owner work starts. Staging here
-	// rather than inside the owner stretch is what lets the read happen off the owner at all: the Rust
-	// driver only makes progress once we return to the run loop, so a request issued from inside the
-	// owner stretch -- which does not yield -- could never be answered.
+	// The song is read into memory FIRST, on this tier, before any of it is parsed. Staging it a tick at
+	// a time is what lets the read go through the channel at all: the Rust driver only makes progress
+	// once we return to the run loop, so a request issued from inside one pass that does not yield could
+	// never be answered.
 	//
 	// It also surfaces an unreadable-file failure before startLoad() deletes the outgoing song: after that
 	// point, an unreadable file leaves the messy recovery its `fail:` block exists to perform. Staging first
 	// stops the load before anything has been destroyed.
 	// Raised here, not in startLoad(), because the waiting starts here: a large song stages for
-	// many ticks before the owner stretch is even dispatched, and would otherwise do it in silence.
+	// many ticks before its parse even begins, and would otherwise do it in silence.
 	display->displayLoadingAnimationText("Loading");
 
 	loadPhase_ = LoadPhase::STAGE;
@@ -446,7 +445,7 @@ void LoadSongUI::beginLoad(void (*onComplete)()) {
 	runStageSegment();
 }
 
-/// @brief Fill @ref songStaging_ from the card, a tick at a time, then hand the load to the owner.
+/// @brief Fill @ref songStaging_ from the card, a tick at a time, then move the load on to BEGIN.
 ///
 /// Runs on the interaction tier, which is the whole point: returning to the run loop between attempts
 /// is what lets the Rust driver run at all. Nothing here touches the outgoing song, so abandoning the
@@ -557,8 +556,8 @@ void LoadSongUI::runBeginSegment() {
 	}
 
 	// Open over songStaging_'s bytes: STAGE read them on the interaction tier before this phase began, and
-	// the parse below runs over memory with `activeDeserializer` pointing at the memory reader. There is no
-	// owner to fall back to and re-open the document here, so bytes that never arrived end the load the way
+	// the parse below runs over memory with `activeDeserializer` pointing at the memory reader. Nothing
+	// re-opens the document here, so bytes that never arrived end the load the way
 	// a corrupt file does (checked below).
 	//
 	// stagingPrevious_ is what that global gets put back to at every exit. Not hygiene: the memory
@@ -715,7 +714,7 @@ void LoadSongUI::tickEssential() {
 	essentialLoad_.reset();
 
 	// The new song's essential clusters still have to finish arriving before the swap. Park here and let
-	// loadRoutine() watch for it: the fill task that does the arriving cannot run while we hold the owner.
+	// loadRoutine() watch for it: the fill task that does the arriving only runs once we return to the run loop.
 	settleDeadline_ = getSystemTime() + kLoadSettleTimeoutSeconds;
 	loadPhase_ = LoadPhase::SETTLE;
 }
@@ -899,7 +898,7 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 		                                     // loaded
 
 		// The scroll-in reads imageStore, so it may only start once the preview has actually filled it.
-		// Off the owner this render lands on a later tick, so starting the scroll here would copy two columns
+		// After boot this render lands on a later tick, so starting the scroll here would copy two columns
 		// (setupScroll ticks once itself, plus the explicit renderScroll) out of an unfilled store --
 		// which is what left every entry's first two columns showing the previous song.
 		if (drawSongPreview()) {
@@ -1070,7 +1069,7 @@ void LoadSongUI::drivePreview() {
 	}
 
 	// The prefix channel never touches the card on this side, so the collect runs inline on whatever
-	// tier called us -- no dispatch, no owner. The loop is for latest-wins hand-off: complete() returns
+	// tier called us -- nothing is dispatched. The loop is for latest-wins hand-off: complete() returns
 	// a target only if a newer one queued while this one ran, and nothing reachable from a collect asks
 	// for a preview, so in practice it runs once.
 	for (;;) {

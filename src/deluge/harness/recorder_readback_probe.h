@@ -66,8 +66,8 @@ uint8_t deluge_harness_recorder_probe_acquire();
 uint8_t deluge_harness_recorder_probe_poll();
 
 /// @brief Abort the probe's recorder and close its cursor. Tick @ref deluge_harness_recorder_probe_settle_tick until
-///        it returns 1, then call @ref deluge_harness_recorder_probe_end: off the storage owner a request can still be
-///        in flight, and the recorder must not be deleted under it.
+///        it returns 1, then call @ref deluge_harness_recorder_probe_end: after boot a write-channel request can still
+///        be in flight, and the recorder must not be deleted under it.
 void deluge_harness_recorder_probe_abort();
 
 /// @brief One cardRoutine() of the aborted probe's recorder. @return 1 once it has settled (or there is none), else 0.

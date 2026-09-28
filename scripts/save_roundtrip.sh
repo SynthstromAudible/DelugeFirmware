@@ -16,8 +16,8 @@
 #                 would pass a length check.
 #   SL-NOSTREAM   that no streaming document reader has come back. A SOURCE check, and unusually so:
 #                 a gate cannot observe a path that is not compiled, so noticing the deletion being
-#                 undone is the only way to keep it deleted. A runtime path that can block the
-#                 storage owner is a reason the owner can never be removed, however rarely it runs.
+#                 undone is the only way to keep it deleted. A reader that streams a document off the
+#                 card blocks the parsing tier for the whole parse, however rarely it runs.
 #   SL-EVICT      that the round trip still produces the SAME bytes when the song has to be staged
 #                 into an SDRAM heap too small to hold it without evicting. Loading a song now gives
 #                 up cached sample chunks it never used to; that was a decision, so it gets measured.

@@ -138,7 +138,7 @@ int32_t countOf(const std::string& haystack, const char* needle) {
 ///
 /// **This is a source-text pin, and that is a deliberate trade rather than laziness.** The
 /// behavioural version needs the whole `LoadSongUI` translation unit compiled against a mocked
-/// browser, display, PadLEDs and storage owner -- an order of magnitude more mock surface than
+/// browser, display, PadLEDs and storage channels -- an order of magnitude more mock surface than
 /// `slicer_env_mock.cpp`, for a property that is structural rather than dynamic. What is pinned is
 /// exactly the structure the invariant rests on:
 ///

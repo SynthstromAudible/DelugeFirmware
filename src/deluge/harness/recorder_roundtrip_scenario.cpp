@@ -183,9 +183,9 @@ bool pumpOnce(SampleRecorder& rec) {
 	return true;
 }
 
-/// Byte-exact verification of a finished recording, factored out of runCase() so the off-owner case
-/// below checks the SAME things rather than a weaker copy of them. A recording driven off the
-/// storage owner must be indistinguishable from one driven on it -- that is the whole claim.
+/// Byte-exact verification of a finished recording, factored out of runCase() so the `offowner_` cases
+/// below check the SAME things rather than a weaker copy of them. A recording in one of their shapes
+/// must be indistinguishable from one in the matrix -- that is the whole claim.
 bool verifyRecordedFile(const std::string& path, uint8_t channels, uint32_t frames, bool extraMargins) {
 	const Case c{/*name=*/"", channels, extraMargins, frames};
 	std::vector<std::byte> bytes;
@@ -364,13 +364,12 @@ bool stepCase() {
 
 namespace {
 
-/// The off-owner recording cases: a real `SampleRecorder` driven ENTIRELY by the caller's ticks,
+/// The `offowner_` recording cases: a real `SampleRecorder` driven ENTIRELY by the caller's ticks,
 /// the shape the device actually uses, with the shapes the eight cases above do not take -- the
 /// alteration branch, an abort, a busy channel, a stalled write -- each with its own evidence line.
 ///
 /// Tick-driven rather than a loop, because that is the point: the pump must return to its caller so
-/// the storage owner can run the ticks this case hands it, and so the Rust write task can make
-/// progress on the clusters it has been given.
+/// the Rust write task can make progress on the clusters it has been given.
 struct OffOwnerCase {
 	std::unique_ptr<SampleRecorder> rec;
 	/// Whether this run records stereo with a silent right channel and permits alteration, so
@@ -414,7 +413,7 @@ constexpr uint32_t kOffOwnerFrames = 33153;
 /// `SampleRecorder::AbortPhase::Done`, as the diagnostic accessor reports it.
 constexpr uint8_t kAbortPhaseDone = 3;
 
-/// Synchronous card operations the recorder has begun off the storage owner after boot, process-wide.
+/// Synchronous card operations the recorder has begun on the interaction tier after boot, process-wide.
 int32_t recorderTier() {
 	return deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Recorder);
 }
@@ -650,7 +649,7 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 		const bool ok = verifyRecordedFile(path, /*channels=*/1, kOffOwnerFrames, /*extraMargins=*/false);
 		// The evidence for THIS case, taken here rather than from RW-SUMMARY: that line is printed by
 		// the oracle, which has already returned by the time this case runs, so it cannot
-		// see anything the off-owner recording did.
+		// see anything the `offowner_` recording did.
 		printf("OO-RESULT ok=%d served=%d offOwnerTicks=%d offOwnerFinalizeTicks=%d offOwnerCreateTicks=%d ticks=%d\n",
 		       (int)ok, (int)SampleRecorder::writeChannelServedOps(), (int)AudioEngine::recorderDrainTicks(),
 		       (int)AudioEngine::finalizeTicks(), (int)AudioEngine::createTicks(), g_offOwner.ticks);
@@ -664,8 +663,8 @@ extern "C" int32_t deluge_scenario_offowner_tick() {
 		return 2;
 	}
 
-	// The real caller's decision, not a direct call: off the owner with the channel live this runs
-	// here, and the blocking ticks inside dispatch themselves back to the owner.
+	// The real caller's entry, not a direct call into the write path: cardRoutine() runs here, and after
+	// boot every card operation it starts goes through a channel.
 	Error e = rec.cardRoutine();
 	if (e != Error::NONE && e != Error::MAX_FILE_SIZE_REACHED) {
 		fprintf(stderr, "  FAIL: off-owner cardRoutine() returned error %d\n", static_cast<int>(e));
@@ -838,9 +837,9 @@ void reportFinalizedAndSummary() {
 	}
 	printf("  %s\n", regressionOk ? "PASS" : "FAIL");
 
-	// The evidence this gate exists to show. `served` says the async arm executed; `offOwnerTicks` says
-	// the drain actually left the storage owner. Served alone can be non-zero while every write was
-	// still handled on the owner, which would be a rename rather than a relocation.
+	// The evidence this gate exists to show. `served` says the async arm executed; `offOwnerTicks`
+	// (AudioEngine::recorderDrainTicks()) says the drain ran after boot, with its writes on the write
+	// channel. Served alone says writes were served, not which drain issued them.
 	printf("RW-SUMMARY served=%d offOwnerTicks=%d\n", (int)SampleRecorder::writeChannelServedOps(),
 	       (int)AudioEngine::recorderDrainTicks());
 	// A terminator, so a run that aborted part-way is a gate FAILURE rather than a silently

@@ -123,7 +123,8 @@ void InstrumentLoad::routine() {
 	tickWalkHere();
 	if (phase_ == Phase::Idle && currentSong != nullptr && currentSong->blankPresetPending) {
 		// A blank song asks for its first preset here, on this tier: its builder runs before any tier exists (boot) or
-		// inside an owner operation (clear-song), so neither can ask. Cleared first: request() runs a pass of its own.
+		// before the song it builds is current (clear-song), so neither can ask. Cleared first: request() runs a pass
+		// of its own.
 		currentSong->blankPresetPending = false;
 		(void)request({.kind = Kind::Acquire,
 		               .preset = {.consumer = deluge::storage::PresetConsumer::BlankSongPreset,
@@ -233,7 +234,7 @@ bool InstrumentLoad::stepWalk() {
 		walkOut_ = walk_;
 		// Every kind runs here now, on the interaction tier, a folder at a time into a listing of its own: the
 		// Unlaunched search through PresetWalk, the slot name through SlotNameScan, the preset scroll through
-		// PresetNavigation, and the change-type through ConfirmPreset. Nothing is dispatched to the storage owner.
+		// PresetNavigation, and the change-type through ConfirmPreset. Nothing is dispatched.
 		walkRunning_ = true;
 		walkStarted_ = true;
 		beginWalkHere();

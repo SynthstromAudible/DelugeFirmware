@@ -18,7 +18,7 @@
 #                error: exactly one refused operation, and nothing copied.
 #   OI-DIR-STALL that a directory listing whose open is held far past the handler's stall bound is answered with
 #                the timeout (15) and no entries, instead of holding the SysEx queue for good.
-#   OI-TIER      that SMSysex opened no directory synchronously off the storage owner. Required 0.
+#   OI-TIER      that SMSysex opened no directory synchronously on the interaction tier after boot. Required 0.
 #
 # Note: OI-TRANSFER re-reads the card file directly, never the bytes a channel block read returned; the
 # block-read copy is covered by song-save-channel's and document-save-channel's read-back checks.

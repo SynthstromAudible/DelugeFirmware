@@ -398,10 +398,9 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 
 /// @brief How many settings operations the CHANNEL has carried to completion.
 ///
-/// The check that the async arm is executed at all. When every consumer could still fall back to the
-/// storage owner, a channel that never worked left every gate passing and every file intact, which is
-/// exactly how a previous livelock survived review. This number is the difference between the channel
-/// being used and the channel merely being compiled.
+/// The check that the async arm is executed at all. Wherever a consumer can still take its blocking arm, a
+/// channel that never works leaves every gate passing and every file intact. This number is the difference
+/// between the channel being used and the channel merely being compiled.
 ///
 /// Counted at the COLLECT wrappers, not in the submit machine, because not every consumer uses that
 /// machine: the startup fail-safe drives request/collect itself, and a counter that only saw the

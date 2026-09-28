@@ -80,8 +80,8 @@ void SaveUI::enterKeyPress() {
 
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
-		// goIntoFolder() dispatches onto the storage owner; failure is handled by the base
-		// Browser::onListingFailed() (displayError + close()) once the listing completes.
+		// goIntoFolder() begins a listing that graphicsRoutine() runs over later ticks; failure is handled by
+		// the base Browser::onListingFailed() (displayError + close()) once the listing completes.
 		goIntoFolder(currentFileItem->filename.c_str());
 	}
 
@@ -187,17 +187,17 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 	// Single-flight by REFUSAL, not by superseding (see dispatchSave()'s doc), and across EVERY save. A song save
 	// releases saveInFlight_ once its name is known to be free, and its collection and document machines run on
 	// for many ticks after that: a preset save started then would serialise into the shared serialiser under the
-	// song's staged document. The caller treats false exactly as it treats a full owner queue: nothing was
-	// written, and nothing was promised.
+	// song's staged document. The caller treats false as a refusal: nothing was written, and nothing was
+	// promised.
 	if (anySaveInFlight()) {
 		return false;
 	}
 	saveInFlight_ = true;
 	inFlightRequest_ = request;
 
-	// A document save builds itself in memory first and then stores it in one operation, so it does
-	// not go to the owner to begin with. Everything else -- the song save, whose save copies samples
-	// around the card -- keeps the path it has always had.
+	// A document save builds itself in memory first and then stores it in one operation, through the
+	// staged phases saveRoutine() drives. Everything else -- the song save, whose save copies samples
+	// around the card -- takes the unstaged path below.
 	if (savesStagedDocument()) {
 		if (!beforeStagedWrite(request)) {
 			// Refused before anything was built or written, exactly as an unstaged save refused at its start is
@@ -224,7 +224,7 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 	}
 
 	// Every save that is not a staged document -- the song save -- starts here, on the interaction
-	// tier, and resolves over later ticks. None of it waits on the storage owner.
+	// tier, and resolves over later ticks. None of it blocks this tier after boot.
 	if (!beginUnstagedSave(request)) {
 		endUnstagedDispatch(request, false);
 	}
@@ -288,7 +288,7 @@ bool SaveUI::deferStagedSave() {
 }
 
 void SaveUI::runSerializePhase() {
-	// No card contact at all. This is the half of a save that never needed the owner.
+	// No card contact at all. This is the half of a save that needs no storage.
 	smSerializer.reset();
 	smSerializer.setMemoryBased();
 	// The prolog: createXMLFile() writes this automatically when it opens a file on the card. Building
@@ -344,7 +344,7 @@ void SaveUI::runWritePhase() {
 	}
 
 	// Past this point the write goes through the channel, from the interaction tier. This counter is
-	// what a gate reads to confirm the write ran off the storage owner.
+	// what a gate reads to confirm the write went through the channel.
 	++offOwnerSaveTicks_;
 
 	if (!writeIssued_) {
@@ -456,8 +456,8 @@ void SaveUI::finishStagedVerify(bool passed) {
 
 void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
 	if (alreadyExists) {
-		// The name is taken and the user did not ask to replace it. Ask them, exactly as the
-		// owner-side path did -- and report the save as "dealt with", which is what a prompt means.
+		// The name is taken and the user did not ask to replace it. Ask them -- and report the save
+		// as "dealt with", which is what a prompt means.
 		deluge::gui::context_menu::overwriteFile.currentSaveUI = this;
 		if (!deluge::gui::context_menu::overwriteFile.setupAndCheckAvailability()) {
 			endStagedSave(false);
@@ -590,9 +590,8 @@ void SaveUI::endUnstagedDispatch(const deluge::storage::SaveRequest& request, bo
 	runSaveCompletion(ended, succeeded);
 }
 
-// Runs the follow-up for whichever caller dispatched this save. Every arm runs ON THE OWNER, which
-// matches the established pattern: runScrollLoadOp() calls displayError() and runCommitOp() calls
-// close(), both on the owner.
+// Runs the follow-up for whichever caller dispatched this save. Every arm runs on the interaction
+// tier, from dispatchSave() or saveRoutine(), where closing a context menu is legal.
 void SaveUI::runSaveCompletion(const deluge::storage::SaveRequest& request, bool succeeded) {
 	using deluge::storage::SaveConsumer;
 	switch (request.consumer) {

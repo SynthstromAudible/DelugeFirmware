@@ -439,8 +439,8 @@ bool Song::ensureAtLeastOneSessionClip() {
 	ParamManager newParamManager; // Deliberate don't set up.
 
 	// The built-in default synth, with no card read at all. The first SYNTHS preset replaces it once the interaction
-	// tier is running: this runs before that tier exists (boot) and inside an owner operation (clear-song), so
-	// blankPresetPending is how it asks. See InstrumentLoad::routine() and completeBlankPreset().
+	// tier is running: this runs before that tier exists (boot), and in clear-song on a Song that is not yet current,
+	// so blankPresetPending is how it asks. See InstrumentLoad::routine() and completeBlankPreset().
 	Instrument* newInstrument = StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
 
 	// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
