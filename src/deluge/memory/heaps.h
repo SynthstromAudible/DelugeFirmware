@@ -70,6 +70,14 @@ std::size_t sdram_size();
 uint32_t audioTierAllocations();
 /// Host-only: mark the calling thread as inside a render block (deluge_app_render does), for audioTierAllocations().
 void noteRenderBlock(bool entering);
+#ifdef DELUGE_HOST
+/// Host-only test seam: the next GeneralMemoryAllocator::alloc of exactly @p size bytes fails, once.
+void failNextAllocationOfSize(std::size_t size);
+/// Host-only: consume a failure pending for @p size. [task] [audio]
+bool injectedAllocationFailure(std::size_t size);
+/// Host-only: whether a failure set by failNextAllocationOfSize has not yet been consumed.
+bool allocationFailurePending();
+#endif
 void* alloc_fast(std::size_t size, std::size_t align = 16);
 /// General SDRAM (== the old allocLowSpeed / allocExternal).
 void* alloc_sdram(std::size_t size, std::size_t align = 16);

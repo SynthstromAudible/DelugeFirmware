@@ -216,6 +216,19 @@ uint32_t audioTierAllocations() {
 void noteRenderBlock(bool entering) {
 	g_renderBlockDepth += entering ? 1 : -1;
 }
+namespace {
+std::atomic<std::size_t> g_failNextSize{0};
+} // namespace
+void failNextAllocationOfSize(std::size_t size) {
+	g_failNextSize.store(size, std::memory_order_relaxed);
+}
+bool injectedAllocationFailure(std::size_t size) {
+	std::size_t expected = size;
+	return size != 0 && g_failNextSize.compare_exchange_strong(expected, 0, std::memory_order_relaxed);
+}
+bool allocationFailurePending() {
+	return g_failNextSize.load(std::memory_order_relaxed) != 0;
+}
 #else
 void noteRenderBlock(bool) {
 }

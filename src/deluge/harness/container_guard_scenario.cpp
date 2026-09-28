@@ -120,6 +120,7 @@ enum class Leg : uint8_t {
 	VoiceFail,
 	Heap,
 	Slab,
+	ModFxOom,
 	Done,
 };
 
@@ -198,6 +199,8 @@ const char* legName(Leg leg) {
 		return "HEAP";
 	case Leg::Slab:
 		return "SLAB";
+	case Leg::ModFxOom:
+		return "MODFXOOM";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -720,6 +723,29 @@ void editLeg() {
 		}
 		deluge_slab_touch(slab, slot);
 		GeneralMemoryAllocator::get().freeSdram(slot); // releases through the slab
+		break;
+	}
+	case Leg::ModFxOom: {
+		g_step = "render";
+		// The song master's chorus sets its buffer up inside the render. Make that allocation fail once: the block must
+		// pass the signal through, and the next block's retry must bring the effect back.
+		auto& fx = currentSong->globalEffectable;
+		currentSong->paramManager.getUnpatchedParamSet()
+		    ->params[deluge::modulation::params::UNPATCHED_MOD_FX_DEPTH]
+		    .setCurrentValueBasicForSetup(0);
+		// Which mod FX parameter gates the effect on: the song's default names feedback, which sits at its minimum.
+		const ModFXParam paramBefore = fx.currentModFXParam;
+		fx.currentModFXParam = ModFXParam::DEPTH;
+		fx.setModFXType(ModFXType::CHORUS);
+		deluge::memory::failNextAllocationOfSize(kModFXBufferSize * sizeof(StereoSample));
+		renderBlocks(4);
+		const bool injected = !deluge::memory::allocationFailurePending();
+		const bool recovered = fx.modfx.modFXBuffer != nullptr;
+		fx.setModFXType(ModFXType::NONE);
+		fx.currentModFXParam = paramBefore;
+		renderBlocks(1);
+		printf("CG-MODFXOOM injected=%d recovered=%d\n", injected ? 1 : 0, recovered ? 1 : 0);
+		fflush(stdout);
 		break;
 	}
 	case Leg::Done:

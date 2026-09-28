@@ -150,6 +150,12 @@ void ModFXProcessor::processModFXBuffer(std::span<StereoSample> buffer, int32_t 
 		return;
 	}
 
+	if (modFXBuffer == nullptr) {
+		// The buffer could not be allocated this block (the caller retries every block): pass the signal through, as
+		// with the effect off.
+		return;
+	}
+
 	for (StereoSample& sample : buffer) {
 		auto [lfo1, lfo2] = processModLFOs<modFXType>(modFXRate, modFXLFOWaveType);
 		sample = stereo ? processOneModFXSample<modFXType, true>(sample, modFXDelayOffset, thisModFXDelayDepth,

@@ -42,6 +42,9 @@
 #                            heap step (crates/deluge_alloc/src/section.rs) must run inside a section
 #   CG-SLAB                  a cluster-slab slot claimed, touched and released from the interaction tier while the
 #                            render plays: each slot's claim or clear must run inside a section
+#   CG-MODFXOOM              the song master's chorus with its buffer's allocation made to fail once: that block
+#                            passes the signal through and the next brings the effect back
+#                            (CG-MODFXOOM injected=1 recovered=1 required)
 #   CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
 #   CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
 #                            wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
@@ -116,9 +119,9 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL HEAP SLAB"
+LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL HEAP SLAB MODFXOOM"
 # The legs whose edits must all be made while the render is excluded.
-REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL HEAP SLAB"
+REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL HEAP SLAB MODFXOOM"
 
 for leg in $LEGS; do
 	if ! grep -qE "^CG-$leg unguarded=[0-9]+ " "$OUT/run.txt"; then
@@ -141,6 +144,12 @@ fi
 # A note-on whose voice cannot start returns it to the pool; it never reaches the Sound's voices.
 if ! grep -qE '^CG-VOICEFAIL poolFreeDelta=0 voicesDelta=0 lastNoteSet=1$' "$OUT/run.txt"; then
 	echo "FAIL — $(grep -E '^CG-VOICEFAIL poolFreeDelta' "$OUT/run.txt" || echo 'no CG-VOICEFAIL line'): a failed note-on leaked or published its voice, or did not run to its end"
+	exit 1
+fi
+
+# A mod FX buffer that could not be allocated passes the signal through; the effect comes back the next block.
+if ! grep -qE '^CG-MODFXOOM injected=1 recovered=1$' "$OUT/run.txt"; then
+	echo "FAIL — $(grep -E '^CG-MODFXOOM injected' "$OUT/run.txt" || echo 'no CG-MODFXOOM line'): a mod FX buffer that could not be allocated did not pass the signal through, or the effect did not come back"
 	exit 1
 fi
 
