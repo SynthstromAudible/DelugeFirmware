@@ -1,6 +1,6 @@
 # One way to render a song on the host
 
-Status: draft 2026-09-28, for Kate's review.
+Status: steps 1 and 2 built 2026-09-28 (§11); steps 3 to 5 not started.
 - Branch `feat/rung3-browser-listing`.
 - Follows the lens1 investigation of the same day (conversation; findings recorded in memory, `streaming-underrun-harness`).
 - Relates to the test layout spec (`2026-09-28-test-layout-and-runner-design.md`), whose §9 brings in the synth golden masters.
@@ -172,9 +172,27 @@ stderr, and the golden runner should fail a run that printed it.
 
 ## 11. Steps
 
-1. `render_song` with the committed generated song: per-scenario real-time rendering, the capture sink, the voice
-   counter, the outcome checks; `render-song` at the PR tier.
-2. The corpus: `render-song-corpus`, and a `requires` key for the corpus on the three entries that need it.
+1. **Done** (32cfa891b, 48a2a0b4f). `render_song` with the committed generated song: per-scenario real-time
+   rendering, the capture sink, the voice counter, the outcome checks; `render-song` at the PR tier, about 8 s.
+   - The generated song renders 12,246 sample-voice renders on the audio tier, with 62 card reads while playing,
+     no underruns and no audio-tier synchronous card call. Two runs from freshly generated trees render
+     byte-identical output.
+   - Controls, each seen to fail: a song that does not exist (the browser loads the nearest file instead, and
+     `RS-LOADED` fails), a card with no songs (the load gives up; `RS-LOADED` fails), a song whose clips hold no
+     notes (`RS-VOICES` fails), and a tampered record (`RS-PCM` fails).
+   - `RS-STREAM reads` is a card-read count, added so a song whose samples were already resident cannot pass as
+     streaming.
+   - What the song format turned out to need, found by the checks:
+     - A synth's parameters go in each clip as `soundParams`, not in the sound: without them the load freezes
+       with E412.
+     - Notes use `noteDataWithSplitProb` for a `c1.3.0` song: `noteDataWithLift` is read only from older
+       versions, and the clip loads empty.
+     - `inArrangementView` is read by its presence, whatever its value, so `inArrangementView="0"` puts the song
+       in the arranger, and a song with no arrangement stops on its first tick.
+2. **Done** (70cc680cd). `render-song-corpus` plays Cordae from the golden fixture card (manual tier): loaded in the
+   arranger with 8 outputs, 10,012 sample-voice renders on the audio tier, 627 card reads while playing, no
+   underruns. `golden-vt-render`, `stem-export` and `render-song-corpus` require `song-corpus`, whose probe also
+   accepts fixtures already rebuilt in the golden cache.
 3. The run-time latency switch, the progress hook moved over, the scheduling-delay model; `streaming-margin` with
    its controls; the sweep as a manual entry.
 4. lens1 deleted.
@@ -184,11 +202,10 @@ Each step: `./dbt test` green, and a capture identical to the one before it on e
 
 ## 12. Open questions
 
-- **Culling in virtual time.** The synth goldens found 128-frame blocks pegged `cpuDireness` and culled voices every
-  block; the C-host now renders 32-frame blocks for that reason. Direness here comes from the audio task's measured
-  run time, and under the virtual clock that may read as zero. Check what it reads before any hash is recorded, or a
-  fixture can capture a degraded render.
-- **Kits on x86_64.** The host harness is 64-bit, and an earlier note says a kit with drums truncated through a
-  32-bit-keyed container. Check that a kit song renders correctly before the committed song includes a kit.
-- **Session or arrangement.** Cordae's saved view is the arranger. Which the committed song uses decides which
-  playback code the PR gate covers; both should, eventually.
+- **Culling in virtual time: answered.** `direness_max` reads 0 for both songs: under the virtual clock the audio
+  task's measured run time is zero, so voices are never culled. The render does not capture the degraded path the
+  synth goldens once did, but it also never exercises culling, which a real-time-paced render would.
+- **Kits on x86_64: answered for Cordae.** Its eight kits render on the 64-bit host.
+- **Session or arrangement: both covered.** The PR song plays in session view, Cordae in the arranger.
+- **The device image grew 400 bytes** with the tier meter's audio-tier counting (45ccb9044): the counting runs on
+  the device too, where an audio-tier synchronous call is equally a violation.
