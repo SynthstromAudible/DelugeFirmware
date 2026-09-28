@@ -1,6 +1,6 @@
 # One test tree, one registry, one runner
 
-Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 and 2 done.
+Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 to 3 done.
 - Branch `feat/rung3-browser-listing`. Follows the testing audit of the same day (conversation) and the fixes it led to
   (`1d32a55a8` … `7bc73c7bf`).
 - Lands after this branch merges into `next`, and before `feat/synth-golden-masters` is merged onto it, so the golden
@@ -295,10 +295,24 @@ Each step is one or more commits, and ends with:
    - Not moved: `crates/target` and `crates/target-tests-sim`, which the unit tree's CMake drives cargo into (a
      `rust-sim-lib` product would have to take that over from CMake); `build-embassy-hostapp-tsan`, which
      `preemptive_race_tsan/run.sh` builds with its own sanitizer flags; the C-host trees, which are step 5's.
-3. **Scenario table and one driver.**
-   - [ ] `scenario_table.h` and `deluge_scenario_find`; each scenario registers itself.
-   - [ ] The generic Rust driver replaces the stepped tasks.
-   - [ ] The registry's `markers`/`result` replace the scripts' marker loops; the remaining logic moves to `checks/`.
+3. **Scenario table and one driver.** Done 2026-09-28.
+   - [x] `src/deluge/harness/scenario_table.{h,cpp}`: 22 stepped scenarios in one `constexpr` table, found by
+         `deluge_scenario_find(name)`, with an optional `onAppInit` hook (clip_lifetime's CL-EPOCH0, which `boot_task`
+         called by name). The five per-scenario functions keep C linkage: the table holds pointers to them across the
+         C ABI. The recorder round-trip and stem-render arms are not stepped and keep their own tasks.
+   - [x] One generic `run_stepped_scenario` task replaces the 22 per-scenario tasks, their 111 declarations and the
+         mode flags; the card image a scenario needs is one `match` on its name. `main.rs`: 3,214 lines to 1,804.
+         The four lifetime scenarios' early `hard_exit(0)` goes: `main` exits the same way once `DONE` is set.
+   - [x] `runner = "scenario"` entries carry `scenario`, `markers`, `result` and an optional `check`;
+         `scripts/tasks/scenario_gate.py` runs the binary and makes the standard checks, and removes the card images
+         and `deluge-<gate>-card` dir a gate's runs leave in the temp dir. 25 gates run natively; 21 have a check
+         module in `tests/integration/checks/` (placed at its final location ahead of step 4). The 24 gate scripts are
+         deleted; `golden_mixdown.sh` and `golden_embassy_diff.sh` remain as `script` entries.
+   - How the ports were proven equivalent: each gate's real runs were recorded once, then replayed through a fake
+     binary under every mutation generated from the recording (exit code, each marker tag dropped, each integer field
+     zeroed and bumped) through both the old script and the new check; all 23 ports agreed on every mutation
+     (about 2,750 in all). Paths the replay cannot reach (clip_lifetime's rerun loop, save_roundtrip's second run
+     alone, stem_export's hash) were checked by hand against both.
 4. **Layout.**
    - [ ] The moves in §3, one directory per commit; `support/cmake` replaces the copied pins, and ETL is pinned once.
    - [ ] §8: scenarios out of the firmware build.
