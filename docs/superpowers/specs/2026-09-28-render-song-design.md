@@ -1,6 +1,6 @@
 # One way to render a song on the host
 
-Status: steps 1 and 2 built 2026-09-28 (§11); steps 3 to 5 not started.
+Status: all five steps built 2026-09-28 (§11).
 - Branch `feat/rung3-browser-listing`.
 - Follows the lens1 investigation of the same day (conversation; findings recorded in memory, `streaming-underrun-harness`).
 - Relates to the test layout spec (`2026-09-28-test-layout-and-runner-design.md`), whose §9 brings in the synth golden masters.
@@ -193,10 +193,25 @@ stderr, and the golden runner should fail a run that printed it.
    arranger with 8 outputs, 10,012 sample-voice renders on the audio tier, 627 card reads while playing, no
    underruns. `golden-vt-render`, `stem-export` and `render-song-corpus` require `song-corpus`, whose probe also
    accepts fixtures already rebuilt in the golden cache.
-3. The run-time latency switch, the progress hook moved over, the scheduling-delay model; `streaming-margin` with
-   its controls; the sweep as a manual entry.
-4. lens1 deleted.
-5. The weak-fallback report.
+3. **Done** (ad6532497, a3742b4c8), smaller than planned: **no run-time latency switch and no progress hook.** The
+   fill task already had a host knob for its wait before each pass (`deluge_streaming_set_fill_latency_ms`), and a
+   per-chunk read delay went in beside it (`deluge_streaming_set_fill_read_latency_us`). Both wait in the async fill
+   task, where waiting costs nothing: `sim_latency` and lens1's progress hook exist to delay SYNCHRONOUS transfers,
+   boot's included, which the margin does not need. `render_song` applies the model while playing (`RS-MODEL`).
+   - Building the gate found that the committed `render-song` song had never streamed: without the tick attributes
+     the firmware writes for a new song, its clock ran so fast that every note retriggered within a fraction of a
+     second and only the start of each sample played. Its "streaming" reads were the load's background reads. The
+     song now carries a tempo (226 reads while playing), and `RS-SWELL` checks that the output's level moves
+     (1.62 when playback advances, 1.02 when it is stuck).
+   - `streaming-margin` (nightly): the device's steady figures, 16 ms wait and 5.8 ms per 32 KB read, stream with no
+     underrun; a 500 ms wait drops both voices (the detection control); a 260 ms burst for half a second drops both
+     voices, as the device does, and is reported. `streaming-margin-sweep` (manual) prints the curve: no underrun up
+     to a 125 ms wait, the first dropped voice at 150 ms. A cluster holds 186 ms of this song's audio.
+4. **Done** (6e2d0e547). lens1 deleted; nothing of it was carried over (step 3). Comments that pointed at it now say
+   what they meant.
+5. **Done** (44926e8bf). Every weak fallback in the six channel files reports its first call after boot on stderr,
+   counted; golden_vt_render exits 4 when any was called. Proven by hiding the directory driver's collect: a listing
+   gate reports 1,603 calls.
 
 Each step: `./dbt test` green, and a capture identical to the one before it on every existing marker.
 
