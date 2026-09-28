@@ -10,8 +10,8 @@
 # snapshot_primitive_stress.cpp for why.
 #
 # Usage:
-#   harness/cpp/tsan/run.sh          # build once, run 10 times (default)
-#   harness/cpp/tsan/run.sh 20       # build once, run 20 times
+#   tests/component/stress/run.sh          # build once, run 10 times (default)
+#   tests/component/stress/run.sh 20       # build once, run 20 times
 #
 # CXX defaults to clang++ (required: TSan needs clang or a TSan-capable GCC).
 #

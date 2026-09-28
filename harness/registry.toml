@@ -202,7 +202,7 @@ runtime = "~30m"
 
 [[harness]]
 name = "snapshot-primitive-tsan"
-path = "harness/cpp/tsan"
+path = "tests/component/stress"
 level = "component"
 runner = "script"
 kind = "sanitizer"
@@ -216,7 +216,7 @@ runtime = "~3m"
 
 [[harness]]
 name = "dsp-diff"
-path = "harness/cpp/dsp_diff"
+path = "tests/component/dsp-diff"
 level = "component"
 runner = "script"
 kind = "differential"
@@ -288,14 +288,14 @@ runtime = "unbounded"
 # for deletion.
 [[harness]]
 name = "memmove-fuzz"
-path = "tests/fuzz"
+path = "tests/component/fuzz"
 level = "component"
 runner = "script"
 kind = "fuzz"
 status = "unavailable"
 gates = "the hand-written memmove must match libc semantics on arbitrary overlapping ranges -- UNRUNNABLE as it stands: this is a standalone CMake project (its own top-level CMakeLists.txt, no ctest/enable_testing wiring at all, so the brief's `ctest -R memmove_fuzz` draft could never have worked). It hard-codes ARM/NEON flags (-mfpu=neon -mfloat-abi=hard) plus -fsanitize=fuzzer, so the default host GCC toolchain rejects all three flags outright; switching to clang with an arm-linux-gnueabihf sysroot compiles but fails to LINK -- libclang_rt.fuzzer.a and friends are not present for the arm-unknown-linux-gnueabihf target on this machine. No requires key in the closed vocabulary covers a libFuzzer-capable ARM clang + compiler-rt; needs a toolchain this repo does not otherwise depend on."
 build = []
-run = ["cmake", "-S", ".", "-B", "build-memmove-fuzz"]
+run = ["cmake", "-S", ".", "-B", "../../../build/memmove-fuzz"]
 requires = []
 tier = "manual"
 runtime = "n/a — does not link"

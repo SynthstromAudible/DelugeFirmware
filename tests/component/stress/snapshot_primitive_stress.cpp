@@ -16,7 +16,7 @@
 // N times and checks TSan is actually linked in):
 //
 //   clang++ -std=c++23 -fsanitize=thread -O1 -g \
-//       -I src -pthread harness/cpp/tsan/snapshot_primitive_stress.cpp \
+//       -I src -pthread tests/component/stress/snapshot_primitive_stress.cpp \
 //       -o /tmp/snap_stress
 //   TSAN_OPTIONS="halt_on_error=1" /tmp/snap_stress
 //

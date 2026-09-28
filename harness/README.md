@@ -93,7 +93,7 @@ Placement follows coupling to the BSP source tree, not language or purpose.
   file from its formatting run (the two crates are on different editions and
   disagree about import order). Both are recorded here so the next person sees
   the exception rather than rediscovering it.
-- **`harness/cpp/`** — standalone C++ rigs with their own `run.sh`, deliberately
+- **`tests/component/stress/`, `tests/component/dsp-diff/`** — standalone C++ rigs with their own `run.sh`, deliberately
   not ctest-driven.
 - **`src/bsp/rust/harness/`** — harnesses that `#[path]`-include BSP source, so
   a change to a shared file is picked up by both the firmware and the harness.
