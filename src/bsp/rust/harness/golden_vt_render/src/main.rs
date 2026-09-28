@@ -275,6 +275,8 @@ unsafe extern "C" {
     fn deluge_scenario_ticked_report();
 
     fn deluge_unguarded_structural_edits_total() -> u32;
+    /// Storage-channel fallbacks called after boot (storage/fallback_report.h): a channel with no driver.
+    fn deluge_storage_fallback_calls() -> u32;
     fn deluge_scenario_find(name: *const c_char) -> *const Scenario;
 }
 
@@ -1751,6 +1753,17 @@ fn hard_exit(mut code: i32) -> ! {
         println!("GUARD-UNGUARDED total={unguarded}");
         if code == 0 {
             code = 3;
+        }
+    }
+    // A storage channel answered by its no-BSP fallback after boot: this build links no driver for it, and every
+    // caller of that channel stalled or took its synchronous arm. Fails an otherwise passing run (exit 4); nothing is
+    // printed on a clean run.
+    // SAFETY: a C-ABI getter reading a relaxed atomic; safe at any point after the app is linked.
+    let fallbacks = unsafe { deluge_storage_fallback_calls() };
+    if fallbacks != 0 {
+        println!("FALLBACK-CALLED total={fallbacks}");
+        if code == 0 {
+            code = 4;
         }
     }
     let _ = std::io::stdout().flush();

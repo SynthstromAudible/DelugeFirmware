@@ -32,6 +32,7 @@
 /// carries a `catch (...)`; the marker is what keeps that true if a body is ever added.
 
 #include "libdeluge/file_bytes.h"
+#include "storage/fallback_report.h"
 
 #include "libdeluge/audio_load.h"     // the status values this header's must equal
 #include "libdeluge/file_directory.h" // ... and the two sibling channels'
@@ -91,6 +92,7 @@ static_assert(DELUGE_FILE_BYTES_FAILED != DELUGE_AUDIO_LOAD_READY);
 static_assert(DELUGE_FILE_BYTES_FAILED != DELUGE_AUDIO_LOAD_UNKNOWN);
 
 extern "C" __attribute__((weak)) bool deluge_file_bytes_request_unlink(const char* /*path*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_unlink");
 	// REFUSED. Reporting the refusal honestly matters: a caller told `true` for a deletion that will
 	// never happen waits for a collect that never turns terminal.
 	return false;
@@ -98,16 +100,19 @@ extern "C" __attribute__((weak)) bool deluge_file_bytes_request_unlink(const cha
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_unlink(const char* /*path*/,
                                                                           DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_unlink");
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
 extern "C" __attribute__((weak)) void deluge_file_bytes_request_exists(const char* /*path*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_exists");
 	// No byte channel on this BSP/config; the caller never reaches here because
 	// deluge_file_bytes_async_active() is false.
 }
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_exists(const char* /*path*/, bool* /*out_present*/,
                                                                           DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_exists");
 	// UNKNOWN, not FAILED. FAILED is terminal and would be read as `StartupPresence::Unusable`, which
 	// would make a build without the channel skip the startup song forever rather than take its
 	// synchronous arm. This distinction is load-bearing -- do not "simplify" it.
@@ -115,17 +120,20 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_exists(const 
 }
 
 extern "C" __attribute__((weak)) void deluge_file_bytes_request_dir_exists(const char* /*path*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_dir_exists");
 	// No byte channel on this BSP/config; see deluge_file_bytes_request_exists.
 }
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_dir_exists(const char* /*path*/,
                                                                               bool* /*out_present*/,
                                                                               DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_dir_exists");
 	// UNKNOWN, not FAILED, for the reason deluge_file_bytes_collect_exists gives.
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
 extern "C" __attribute__((weak)) bool deluge_file_bytes_request_mkdir_all(const char* /*path*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_mkdir_all");
 	// REFUSED. Reporting the refusal honestly matters: a caller told `true` for a creation that will
 	// never happen waits for a collect that never turns terminal.
 	return false;
@@ -133,33 +141,39 @@ extern "C" __attribute__((weak)) bool deluge_file_bytes_request_mkdir_all(const 
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_mkdir_all(const char* /*path*/,
                                                                              DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_mkdir_all");
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
 extern "C" __attribute__((weak)) bool deluge_file_bytes_request_set_time(const char* /*path*/,
                                                                          DelugeTimestamp /*timestamp*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_set_time");
 	return false;
 }
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_set_time(const char* /*path*/,
                                                                             DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_set_time");
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
 extern "C" __attribute__((weak)) bool deluge_file_bytes_request_read_at(const char* /*path*/, uint32_t /*offset*/,
                                                                         uint32_t /*len*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_read_at");
 	return false;
 }
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_read_at(const char* /*path*/, uint8_t* /*out_buf*/,
                                                                            uint32_t /*buf_cap*/, uint32_t* /*out_len*/,
                                                                            DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_read_at");
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
 extern "C" __attribute__((weak)) bool deluge_file_bytes_request_write_at(const char* /*path*/, uint32_t /*offset*/,
                                                                          const uint8_t* /*bytes*/,
                                                                          uint32_t /*len*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_write_at");
 	// REFUSED. Reporting the refusal honestly matters: a caller told `true` for a write that will
 	// never happen waits for a collect that never turns terminal.
 	return false;
@@ -168,16 +182,19 @@ extern "C" __attribute__((weak)) bool deluge_file_bytes_request_write_at(const c
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_write_at(const char* /*path*/,
                                                                             uint32_t* /*out_written*/,
                                                                             DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_write_at");
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
 extern "C" __attribute__((weak)) void deluge_file_bytes_request_stat(const char* /*path*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_stat");
 	// No byte channel on this BSP/config; the caller never reaches here because
 	// deluge_file_bytes_async_active() is false.
 }
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_stat(const char* /*path*/, uint32_t* /*out_size*/,
                                                                         DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_stat");
 	// UNKNOWN, not FAILED, for the reason `collect_exists`'s fallback gives: FAILED is terminal, and a
 	// caller reading it as a real answer would act on a size it never obtained.
 	return DELUGE_FILE_BYTES_UNKNOWN;
@@ -185,25 +202,30 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_stat(const ch
 
 extern "C" __attribute__((weak)) bool deluge_file_bytes_request_copy(const char* /*from*/,
                                                                      const char* /*to*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_copy");
 	return false;
 }
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_copy(const char* /*to*/,
                                                                         DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_copy");
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
 extern "C" __attribute__((weak)) bool deluge_file_bytes_async_active() noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_async_active");
 	return false;
 }
 
 #ifdef DELUGE_HOST
 extern "C" __attribute__((weak)) void deluge_file_bytes_set_latency_ms(uint32_t /*ms*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_set_latency_ms");
 	// A host build without the Rust byte channel has no operations to delay.
 }
 #endif
 
 extern "C" __attribute__((weak)) void deluge_file_bytes_request_read(const char* /*path*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_read");
 	// No byte channel on this BSP/config; the caller never reaches here because
 	// deluge_file_bytes_async_active() is false. Dropping the request (rather than pretending to have
 	// accepted it) is what the collect below already reports.
@@ -212,6 +234,7 @@ extern "C" __attribute__((weak)) void deluge_file_bytes_request_read(const char*
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_read(const char* /*path*/, uint8_t* /*out_buf*/,
                                                                         uint32_t /*buf_cap*/, uint32_t* /*out_len*/,
                                                                         DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_read");
 	// UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever -- and a caller that
 	// kept asking would never read the file, because on this build nothing is going to. No output is
 	// touched, which is exactly what the header promises for any status but READY/FAILED.
@@ -220,6 +243,7 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_read(const ch
 
 extern "C" __attribute__((weak)) bool deluge_file_bytes_request_write(const char* /*path*/, const uint8_t* /*bytes*/,
                                                                       uint32_t /*len*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_write");
 	// REFUSED, and reporting the refusal honestly matters more here than in the read above: a caller
 	// told `true` for a write that will never happen waits for a collect that never turns terminal.
 	return false;
@@ -227,15 +251,18 @@ extern "C" __attribute__((weak)) bool deluge_file_bytes_request_write(const char
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_write(const char* /*path*/,
                                                                          DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_write");
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
 extern "C" __attribute__((weak)) bool deluge_file_bytes_request_rename(const char* /*from*/,
                                                                        const char* /*to*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_rename");
 	return false;
 }
 
 extern "C" __attribute__((weak)) uint8_t deluge_file_bytes_collect_rename(const char* /*to*/,
                                                                           DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_bytes_collect_rename");
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }

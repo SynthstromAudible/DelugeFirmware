@@ -33,6 +33,7 @@
 /// own nested try/catch so a second exception can't escape either.
 
 #include "libdeluge/audio_load.h"
+#include "storage/fallback_report.h"
 
 #include "definitions_cxx.hpp" // kFilenameBufferSize
 #include "model/sample/sample.h"
@@ -551,11 +552,13 @@ extern "C" void deluge_audio_load_abandon(DelugeSampleBuild* build) noexcept {
 // Weak fallbacks: BSPs without the Rust loader (legacy/host-cooperative sim, rza1) resolve these and
 // always take the synchronous path. The Rust Embassy BSP overrides them in audio_loader.rs.
 extern "C" __attribute__((weak)) bool deluge_audio_load_async_active() noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_audio_load_async_active");
 	return false;
 }
 
 extern "C" __attribute__((weak)) bool deluge_audio_load_request(const char* /*file_path*/, const char* /*candidates*/,
                                                                 uint32_t /*num_candidates*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_audio_load_request");
 	// No async loader on this BSP/config; the caller never reaches here because
 	// deluge_audio_load_async_active() is false. Refusing (rather than pretending to accept) keeps
 	// a caller that ignores async_active() from waiting for a result nothing will ever produce.
@@ -564,12 +567,14 @@ extern "C" __attribute__((weak)) bool deluge_audio_load_request(const char* /*fi
 
 extern "C" __attribute__((weak)) uint8_t deluge_audio_load_collect(const char* /*file_path*/,
                                                                    DelugeAudioLoadResult* /*out*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_audio_load_collect");
 	// Same as above. UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever.
 	return DELUGE_AUDIO_LOAD_UNKNOWN;
 }
 
 #ifdef DELUGE_HOST
 extern "C" __attribute__((weak)) void deluge_audio_load_set_latency_ms(uint32_t /*ms*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_audio_load_set_latency_ms");
 	// A host build without the Rust loader has no loads to delay.
 }
 #endif

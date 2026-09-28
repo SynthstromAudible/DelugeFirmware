@@ -34,6 +34,7 @@
 /// added, exactly as card_abi.cpp's weak fallback does it.
 
 #include "libdeluge/file_prefix.h"
+#include "storage/fallback_report.h"
 
 #include "libdeluge/audio_load.h" // the status values this header's must equal
 #include "storage/song_preview.h" // kSongPreviewWindow
@@ -78,11 +79,13 @@ static_assert(DELUGE_FILE_PREFIX_FAILED != DELUGE_AUDIO_LOAD_UNKNOWN);
 // synchronous path. The Rust Embassy BSP overrides them in file_prefix.rs.
 
 extern "C" __attribute__((weak)) bool deluge_file_prefix_async_active() noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_prefix_async_active");
 	return false;
 }
 
 extern "C" __attribute__((weak)) void deluge_file_prefix_request(const char* /*file_path*/,
                                                                  uint32_t /*max_bytes*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_prefix_request");
 	// No prefix channel on this BSP/config; the caller never reaches here because
 	// deluge_file_prefix_async_active() is false. Dropping the request (rather than pretending to
 	// have accepted it) is what the collect below already reports.
@@ -91,6 +94,7 @@ extern "C" __attribute__((weak)) void deluge_file_prefix_request(const char* /*f
 extern "C" __attribute__((weak)) uint8_t deluge_file_prefix_collect(const char* /*file_path*/, uint8_t* /*out_buf*/,
                                                                     uint32_t /*out_cap*/,
                                                                     uint32_t* /*out_len*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_prefix_collect");
 	// UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever. Neither output is
 	// touched, which is exactly what the header promises for any status but READY.
 	return DELUGE_FILE_PREFIX_UNKNOWN;
@@ -98,6 +102,7 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_prefix_collect(const char* 
 
 #ifdef DELUGE_HOST
 extern "C" __attribute__((weak)) void deluge_file_prefix_set_latency_ms(uint32_t /*ms*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_prefix_set_latency_ms");
 	// A host build without the Rust prefix channel has no reads to delay.
 }
 #endif

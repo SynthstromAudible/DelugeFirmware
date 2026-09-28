@@ -31,6 +31,7 @@
 /// carries a `catch (...)`; the marker is what keeps that true if a body is ever added.
 
 #include "libdeluge/file_directory.h"
+#include "storage/fallback_report.h"
 
 #include "libdeluge/audio_load.h"  // the status values this header's must equal
 #include "libdeluge/file_prefix.h" // ... and the sibling channel's, which share a caller
@@ -75,11 +76,13 @@ static_assert(DELUGE_FILE_DIRECTORY_FAILED != DELUGE_AUDIO_LOAD_READY);
 static_assert(DELUGE_FILE_DIRECTORY_FAILED != DELUGE_AUDIO_LOAD_UNKNOWN);
 
 extern "C" __attribute__((weak)) bool deluge_file_directory_async_active() noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_directory_async_active");
 	return false;
 }
 
 extern "C" __attribute__((weak)) void deluge_file_directory_request(const char* /*dir_path*/,
                                                                     bool /*create_if_missing*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_directory_request");
 	// No directory channel on this BSP/config. No caller reaches here: every caller selects the channel only once
 	// boot has finished, which a build linking this fallback never reports. Dropping the request
 	// (rather than pretending to have accepted it) is what the collect below already reports.
@@ -88,6 +91,7 @@ extern "C" __attribute__((weak)) void deluge_file_directory_request(const char* 
 extern "C" __attribute__((weak)) uint8_t deluge_file_directory_collect(const char* /*dir_path*/,
                                                                        uint32_t* /*out_handle*/,
                                                                        DelugeStatus* /*out_status*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_directory_collect");
 	// UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever -- and a caller that
 	// kept asking would never open the folder, because on this build nothing is going to. Neither
 	// output is touched, which is exactly what the header promises for any status but READY/FAILED.
@@ -96,6 +100,7 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_directory_collect(const cha
 
 #ifdef DELUGE_HOST
 extern "C" __attribute__((weak)) void deluge_file_directory_set_latency_ms(uint32_t /*ms*/) noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_file_directory_set_latency_ms");
 	// A host build without the Rust directory channel has no opens to delay.
 }
 #endif

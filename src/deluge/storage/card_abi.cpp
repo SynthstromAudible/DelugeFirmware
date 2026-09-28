@@ -34,10 +34,12 @@
 /// true if one is ever added.
 
 #include "libdeluge/card.h"
+#include "storage/fallback_report.h"
 
 // Weak fallback: BSPs without the Rust loaders resolve this and do nothing. The Rust Embassy BSP
 // overrides it in card.rs.
 extern "C" __attribute__((weak)) void deluge_card_flush() noexcept {
+	DELUGE_FALLBACK_CALLED("deluge_card_flush");
 	// No card-derived caches on this BSP/config, so nothing was ever queued, parsed or published and
 	// there is nothing a card swap could make stale. Unconditionally callable is the point: the
 	// ejection path calls this without first asking any loader's "am I active?" selector, because a
