@@ -2108,19 +2108,14 @@ errorAfterAllocation:
 // time. That's a double free, and it surfaces as M123 from the allocator, a long way from here - so rather than
 // leaving the rule as a comment for each caller to honour, enforce it.
 //
-// Diagnostic only, not a hard invariant (see docs/dev/sd_busy_audit.md, audio_engine.cpp): this used
-// to FREEZE_WITH_ERROR("E251") here. On Embassy isSDRoutineActive() is hardwired false
-// (scheduler.rs), so before sd_busy() was backed for real, this check never fired at all -- it was
-// exactly as dead as save_song_ui.cpp's E316, not "half-live". sd_busy() is now real, but it answers "is
-// ANY FS operation in flight anywhere", not "is THIS recorder's own cardRoutine() suspended mid-transfer"
-// -- the two can differ, since FatFS work is serialized but not per-caller-attributed. The precise
-// invariant this comment actually wants was tracked per-op by the retired worker fiber (SD_ROUTINE_HELD),
-// and went with it; nothing on the BSP tracks it now. Treat a busy signal at this call site as informative, not as
-// proof this recorder is the one suspended -- log it rather than freeze a beta build on what may be an unrelated FS
-// operation.
+// Diagnostic only, not a hard invariant: sd_busy() answers "is ANY filesystem operation in flight anywhere", not "is
+// THIS recorder's own cardRoutine() suspended mid-transfer" -- the two differ, since filesystem work is serialised but
+// not attributed to a caller, and nothing on the BSP tracks the second. A busy signal here is informative, not proof
+// this recorder is the one suspended, so log it rather than freeze a beta build on what may be an unrelated
+// operation. (isSDRoutineActive() is always false on Embassy; see scheduler.rs.)
 void discardRecorder(SampleRecorder* recorder) {
 	if (ALPHA_OR_BETA_VERSION && (isSDRoutineActive() || deluge::sync::sd_busy())) {
-		D_PRINTLN("discardRecorder: isSDRoutineActive()/sd_busy() was true on entry (see sd_busy_audit.md)");
+		D_PRINTLN("discardRecorder: isSDRoutineActive()/sd_busy() was true on entry");
 	}
 
 	int32_t count = 0;
