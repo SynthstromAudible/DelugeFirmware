@@ -378,6 +378,19 @@ private:
 	// we're constantly cycling between a minimum and maximum number of voices.
 	deluge::fast_vector<ActiveVoice> voices_{};
 
+	// Every structural edit of voices_ goes through these: the render walks every Sound's voices, so each edit reports
+	// to the structural-edit probe (util/structural_edit_probe.h).
+	using ActiveVoiceIterator = deluge::fast_vector<ActiveVoice>::iterator;
+	void publishVoice(ActiveVoice voice);
+	template <class Pred>
+	void eraseVoicesIf(Pred pred) {
+		noteVoicesEdit();
+		std::erase_if(voices_, pred);
+	}
+	ActiveVoiceIterator eraseVoiceAt(ActiveVoiceIterator it);
+	void clearVoices();
+	static void noteVoicesEdit();
+
 	/// @brief Acquire a voice for use by a note
 	/// Internally this will either acquire a new voice or steal an existing one
 	/// @return The acquired voice

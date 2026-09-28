@@ -45,6 +45,7 @@
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "processing/source.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
 #include "util/structural_edit_probe.h"
@@ -109,6 +110,10 @@ enum class Leg : uint8_t {
 	RenderSet,
 	RenderAlloc,
 	Choke,
+	VoicePoly,
+	VoiceMono,
+	VoiceKill,
+	VoiceMultiRange,
 	Done,
 };
 
@@ -173,6 +178,14 @@ const char* legName(Leg leg) {
 		return "RENDERALLOC";
 	case Leg::Choke:
 		return "CHOKE";
+	case Leg::VoicePoly:
+		return "VOICEPOLY";
+	case Leg::VoiceMono:
+		return "VOICEMONO";
+	case Leg::VoiceKill:
+		return "VOICEKILL";
+	case Leg::VoiceMultiRange:
+		return "VOICEMULTIRANGE";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -191,6 +204,8 @@ const char* kindName(StructuralContainer kind) {
 		return "drums";
 	case StructuralContainer::RENDERING_DRUMS:
 		return "renderdrums";
+	case StructuralContainer::VOICES:
+		return "voices";
 	case StructuralContainer::COUNT_:
 		break;
 	}
@@ -298,6 +313,15 @@ NoteRow* rowFor(int32_t note, int32_t* index) {
 	return row->getNoteRowAllowNull();
 }
 
+/// Audition @p note on g_clip's synth from the interaction tier, the shape a pad audition takes (no note row).
+void auditionSynth(int32_t note) {
+	auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+	synth->Sound::noteOn(ms, &synth->arpeggiator, note, zeroMPEValues);
+}
+
 /// Add a note to g_row through the note-add entry point the pad press uses.
 void addNote(int32_t pos, Action* action) {
 	char memory[MODEL_STACK_MAX_SIZE];
@@ -368,6 +392,23 @@ bool setupLeg() {
 		static_cast<SoundDrum*>(g_kit->firstDrum)->polyphonic = PolyphonyMode::CHOKE;
 		second->polyphonic = PolyphonyMode::CHOKE;
 		g_drum = second;
+		return true;
+	}
+	case Leg::VoiceMono:
+		// MONO: a second note re-triggers the voice the render is already playing.
+		static_cast<SoundInstrument*>(g_clip->output)->polyphonic = PolyphonyMode::MONO;
+		auditionSynth(kRowNote);
+		return true;
+	case Leg::VoiceKill:
+		auditionSynth(kRowNote);
+		return true;
+	case Leg::VoiceMultiRange: {
+		// Two ranges on source 0, so one can be deleted.
+		Source& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
+		if (source.getOrCreateFirstRange() == nullptr || source.ranges.insertMultiRange(1) == nullptr) {
+			return fail("no memory for two multi-ranges");
+		}
+		auditionSynth(kRowNote);
 		return true;
 	}
 	case Leg::Quantize:
@@ -579,6 +620,31 @@ void editLeg() {
 		}
 		break;
 	}
+	case Leg::VoicePoly: {
+		g_step = "noteOn";
+		// More notes than the synth's voice limit: the limit is enforced as each one is published.
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		for (int32_t n = 0; n < synth->maxVoiceCount + 2; n++) {
+			auditionSynth(kRowNote + n);
+		}
+		break;
+	}
+	case Leg::VoiceMono:
+		g_step = "noteOn";
+		auditionSynth(kRowNote + 2);
+		break;
+	case Leg::VoiceKill: {
+		g_step = "killAllVoices";
+		// The oscillator-type menu's shape (gui/menu_item/osc/type.h): end the voices, then change the type.
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		synth->killAllVoices();
+		synth->sources[0].setOscType(OscType::SQUARE);
+		break;
+	}
+	case Leg::VoiceMultiRange:
+		g_step = "deleteMultiRange";
+		static_cast<SoundInstrument*>(g_clip->output)->deleteMultiRange(0, 1);
+		break;
 	case Leg::RenderAlloc: {
 		g_step = "render";
 		const uint32_t before = deluge::memory::audioTierAllocations();

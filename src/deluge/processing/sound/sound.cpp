@@ -61,6 +61,7 @@
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include "util/structural_edit_probe.h"
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -1666,7 +1667,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				if (voiceToReuse != nullptr) {
 					// already found a voice we can reuse, discard the rest
 					this->freeActiveVoice(voice, modelStack, false);
-					it = voices_.erase(it);
+					it = eraseVoiceAt(it);
 					continue; // `it` increment happened on the line above, immediately continue the loop
 				}
 				voice->unassignStuff(false);
@@ -2190,7 +2191,7 @@ void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSo
 		}
 		this->checkVoiceExists(voice, "E200");
 		this->freeActiveVoice(voice, modelStack, false);
-		it = voices_.erase(it);
+		it = eraseVoiceAt(it);
 	}
 }
 
@@ -2572,7 +2573,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			}
 			++it;
 		}
-		std::erase_if(voices_, [](const ActiveVoice& voice) { return voice->shouldBeDeleted(); });
+		eraseVoicesIf([](const ActiveVoice& voice) { return voice->shouldBeDeleted(); });
 
 		// We know that nothing's patched to pan, so can read it in this very basic way.
 		int32_t pan = paramManager->getPatchedParamSet()->getValue(params::LOCAL_PAN) >> 1;
@@ -4722,7 +4723,7 @@ void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 		if (!stillGoing) {
 			this->checkVoiceExists(voice, "E212");
 			this->freeActiveVoice(voice, modelStack, false); // Accepts NULL
-			it = voices_.erase(it);
+			it = eraseVoiceAt(it);
 		}
 		else {
 			it++;
@@ -4890,7 +4891,7 @@ const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
 
 	const ActiveVoice* voice = nullptr;
 	try {
-		voices_.push_back(AudioEngine::VoicePool::get().acquire(*this));
+		publishVoice(AudioEngine::VoicePool::get().acquire(*this));
 		voice = &voices_.back();
 	} catch (deluge::exception e) { // Out-of-memory exception
 		if (voices_.empty()) {
@@ -4928,7 +4929,7 @@ void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* 
 	Voice* const target = voice.get();
 	voice->setAsUnassigned(modelStack);
 	if (erase) {
-		std::erase_if(voices_, [target](const ActiveVoice& v) { return v.get() == target; });
+		eraseVoicesIf([target](const ActiveVoice& v) { return v.get() == target; });
 	}
 }
 
@@ -4939,7 +4940,7 @@ void Sound::killAllVoices() {
 	for (const ActiveVoice& voice : voices_) {
 		voice->setAsUnassigned(nullptr);
 	}
-	voices_.clear();
+	clearVoices();
 }
 
 const Sound::ActiveVoice& Sound::getLowestPriorityVoice() const {
@@ -5040,3 +5041,22 @@ void Sound::checkVoiceExists(const ActiveVoice& voice, const char* error) const 
 }
 
 #pragma GCC diagnostic pop
+
+void Sound::noteVoicesEdit() {
+	deluge::noteStructuralEdit(deluge::StructuralContainer::VOICES);
+}
+
+void Sound::publishVoice(ActiveVoice voice) {
+	noteVoicesEdit();
+	voices_.push_back(std::move(voice));
+}
+
+Sound::ActiveVoiceIterator Sound::eraseVoiceAt(ActiveVoiceIterator it) {
+	noteVoicesEdit();
+	return voices_.erase(it);
+}
+
+void Sound::clearVoices() {
+	noteVoicesEdit();
+	voices_.clear();
+}
