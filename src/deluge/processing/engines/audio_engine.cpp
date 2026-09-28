@@ -885,6 +885,11 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 	// the device's guarantee: an interaction-tier structural edit to a container the render walks (each runs in its
 	// own section) and a render block never overlap.
 	AudioExcludedSection renderBlock;
+	// Marks this thread as rendering, for the host's count of the render's heap allocations (it must make none).
+	struct RenderBlockMark {
+		RenderBlockMark() { deluge::memory::noteRenderBlock(true); }
+		~RenderBlockMark() { deluge::memory::noteRenderBlock(false); }
+	} renderBlockMark;
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
 	if (current_time - last_call_time > 0.003) {

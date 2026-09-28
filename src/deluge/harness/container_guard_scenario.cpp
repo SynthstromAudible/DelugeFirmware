@@ -27,6 +27,7 @@
 #include "libdeluge/app.h"
 #include "libdeluge/types.h"
 #include "memory/fast_allocator.h"
+#include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
@@ -84,6 +85,8 @@ constexpr int32_t kNoteLength = 24;
 constexpr int32_t kVelocity = 100;
 /// BIGROW's clip has this many note rows before its edit inserts one more at the bottom, which moves every row.
 constexpr int32_t kBigRowCount = 128;
+/// RENDERALLOC renders this many blocks with its drum starting and stopping, counting the render's heap allocations.
+constexpr int32_t kRenderAllocBlocks = 1500;
 
 enum class Leg : uint8_t {
 	NoteAdd,
@@ -103,6 +106,8 @@ enum class Leg : uint8_t {
 	ClipMove,
 	OutputMove,
 	Quantize,
+	RenderSet,
+	RenderAlloc,
 	Done,
 };
 
@@ -161,6 +166,10 @@ const char* legName(Leg leg) {
 		return "OUTPUTMOVE";
 	case Leg::Quantize:
 		return "QUANTIZE";
+	case Leg::RenderSet:
+		return "RENDERSET";
+	case Leg::RenderAlloc:
+		return "RENDERALLOC";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -177,6 +186,8 @@ const char* kindName(StructuralContainer kind) {
 		return "outputs";
 	case StructuralContainer::DRUM_LIST:
 		return "drums";
+	case StructuralContainer::RENDERING_DRUMS:
+		return "renderdrums";
 	case StructuralContainer::COUNT_:
 		break;
 	}
@@ -313,7 +324,9 @@ bool setupLeg() {
 		return true;
 	}
 	// A note row is deleted only from a kit clip (InstrumentClip::deleteNoteRow() treats the output as a Kit).
-	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel) ? makeKitClip() : makeSynthClip();
+	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel || g_leg == Leg::RenderSet || g_leg == Leg::RenderAlloc)
+	             ? makeKitClip()
+	             : makeSynthClip();
 	if (g_clip == nullptr) {
 		return false;
 	}
@@ -324,6 +337,24 @@ bool setupLeg() {
 		        && g_clip->noteRows.insertNoteRowAtY(kRowNote + 2) != nullptr)
 		           ? true
 		           : fail("no memory for two note rows");
+	case Leg::RenderAlloc: {
+		// Notes on the drum's row every 24 ticks, so the drum starts and stops sounding on the render.
+		Drum* drum = g_kit->firstDrum;
+		g_row = (drum != nullptr) ? g_clip->getNoteRowForDrum(drum, &g_rowIndex) : nullptr;
+		if (g_row == nullptr) {
+			return fail("the kit clip has no note row for its drum");
+		}
+		// Four short notes spread over the loop: the drum falls silent between them, so each one re-enters the set.
+		for (int32_t n = 0; n < 4; n++) {
+			char memory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
+			ModelStackWithNoteRow* rowStack = ms->addNoteRow(g_rowIndex, g_row);
+			(void)g_row->attemptNoteAdd(n * (g_clip->loopLength / 4), 1, kVelocity, g_row->getDefaultProbability(),
+			                            g_row->getDefaultIterance(), g_row->getDefaultFill(rowStack), rowStack,
+			                            nullptr);
+		}
+		return true;
+	}
 	case Leg::Quantize:
 		g_row = rowFor(kRowNote, &g_rowIndex);
 		if (g_row == nullptr) {
@@ -495,6 +526,31 @@ void editLeg() {
 		ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(rowMemory, currentSong, g_clip);
 		ModelStackWithNoteRow* rowStack = ms->addNoteRow(g_rowIndex, g_row);
 		(void)g_row->quantize(rowStack, kNoteLength, 10);
+		break;
+	}
+	case Leg::RenderSet: {
+		g_step = "noteOn";
+		// An audition's note-on, from the interaction tier: the drum starts rendering (its kit's rendering set gains
+		// it) while the render may be walking that set.
+		auto* drum = static_cast<SoundDrum*>(g_kit->firstDrum);
+		NoteRow* row = g_clip->getNoteRowForDrum(drum);
+		if (drum == nullptr || row == nullptr) {
+			fail("the kit clip has no drum with a note row");
+			break;
+		}
+		char drumMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* ms =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(drumMemory, currentSong, drum, g_clip, &row->paramManager);
+		drum->Sound::noteOn(ms, &drum->arpeggiator, kRowNote, zeroMPEValues);
+		break;
+	}
+	case Leg::RenderAlloc: {
+		g_step = "render";
+		const uint32_t before = deluge::memory::audioTierAllocations();
+		renderBlocks(kRenderAllocBlocks);
+		printf("CG-RENDERALLOC renderAllocs=%u\n",
+		       static_cast<unsigned>(deluge::memory::audioTierAllocations() - before));
+		fflush(stdout);
 		break;
 	}
 	case Leg::Done:

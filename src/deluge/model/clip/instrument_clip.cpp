@@ -54,6 +54,7 @@
 #include "util/const_functions.h"
 #include "util/firmware_version.h"
 #include "util/string.h"
+#include "util/structural_edit_probe.h"
 #include "util/try.h"
 #include <array>
 #include <cmath>
@@ -3271,12 +3272,14 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 						// it out before removing it, as InstrumentClipView::deleteDrum and
 						// LoadInstrumentPresetUI::swapKitRow do. Its voices are ended by the render when it lets go
 						// of the retired drum, below.
+						deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 						kit->drumsWithRenderingActive.erase(soundDrum);
 						kit->removeDrum(soundDrum);
 						// Out of the kit for good: the render's let-go of the drum must not write back into the
 						// kit's drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering
 						// skips a null kit). Erase again first: a sequencer note-on between the first erase and here
 						// re-inserts the drum, and after this nothing can name it.
+						deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 						kit->drumsWithRenderingActive.erase(soundDrum);
 						soundDrum->kit = nullptr;
 						AudioEngine::retire(soundDrum);

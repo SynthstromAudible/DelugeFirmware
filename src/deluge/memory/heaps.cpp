@@ -18,7 +18,9 @@
 #include "memory/heaps.h"
 #include "libdeluge/alloc.h"
 #include "libdeluge/memory.h"
+#include "libdeluge/tier.h"
 #include "memory/alloc_metadata.h" // mem_guard leak/corruption side-table (self-guards on MEM_GUARD)
+#include <atomic>
 #include <cstdint>
 #include <cstdlib> // DELUGE_SIM_SDRAM_MB (sim/golden eviction testing)
 #include <cstring>
@@ -154,8 +156,8 @@ namespace {
 }
 
 // MEM_GUARD leak/corruption side-table hook. Recording happens here, at the single allocation surface every C++ path
-// funnels through (operator new, the std allocators, delugeAlloc/GMA::alloc all reach alloc_*), so dealloc() below is the
-// matching single removal point — the table stays symmetric by construction. `callsite` is captured in the alloc_*
+// funnels through (operator new, the std allocators, delugeAlloc/GMA::alloc all reach alloc_*), so dealloc() below is
+// the matching single removal point — the table stays symmetric by construction. `callsite` is captured in the alloc_*
 // frame (the caller of the primitive), so it identifies the allocating call site. Compiles away when MEM_GUARD is off
 // (firmware release / sanitizer builds). recordAlloc uses its own static storage, so it never re-enters the allocator.
 [[gnu::always_inline]] inline void* track_alloc([[maybe_unused]] void* p, [[maybe_unused]] std::size_t size,
@@ -169,7 +171,39 @@ namespace {
 }
 } // namespace
 
+#ifdef DELUGE_HOST
+namespace {
+std::atomic<uint32_t> g_audioTierAllocations{0};
+/// Render blocks the calling thread is inside (deluge_app_render marks its own). A host harness may call the render
+/// from a thread whose tier tag is not the audio tier, so the block itself is marked too.
+thread_local int32_t g_renderBlockDepth = 0;
+/// Count an allocation made by the render: it must not allocate (it shares the heap with every other tier, unlocked).
+void countIfAudioTier() {
+	if (g_renderBlockDepth > 0 || deluge_tier_current() == DELUGE_TIER_AUDIO) {
+		g_audioTierAllocations.fetch_add(1, std::memory_order_relaxed);
+	}
+}
+} // namespace
+uint32_t audioTierAllocations() {
+	return g_audioTierAllocations.load(std::memory_order_relaxed);
+}
+void noteRenderBlock(bool entering) {
+	g_renderBlockDepth += entering ? 1 : -1;
+}
+#else
+void noteRenderBlock(bool) {
+}
+namespace {
+inline void countIfAudioTier() {
+}
+} // namespace
+uint32_t audioTierAllocations() {
+	return 0;
+}
+#endif
+
 void* alloc_fast(std::size_t size, std::size_t align) {
+	countIfAudioTier();
 	init_heaps();
 	void* p = nullptr;
 	if (size < kInternalSwitchSize) {
@@ -184,10 +218,12 @@ void* alloc_fast(std::size_t size, std::size_t align) {
 	return track_alloc(finalize(p, size), size, __builtin_return_address(0));
 }
 void* alloc_sdram(std::size_t size, std::size_t align) {
+	countIfAudioTier();
 	init_heaps();
 	return track_alloc(finalize(deluge_alloc(g_sdram, size, align), size), size, __builtin_return_address(0));
 }
 void* alloc_external(std::size_t size, std::size_t align) {
+	countIfAudioTier();
 	init_heaps();
 	// external collapsed into the one SDRAM heap
 	return track_alloc(finalize(deluge_alloc(g_sdram, size, align), size), size, __builtin_return_address(0));

@@ -29,6 +29,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
+#include "util/structural_edit_probe.h"
 #include <new>
 
 bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
@@ -167,9 +168,11 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 void SoundDrum::setSkippingRendering(bool newSkipping) {
 	if (kit != nullptr && newSkipping != skippingRendering) {
 		if (newSkipping) {
+			deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 			kit->drumsWithRenderingActive.erase(this);
 		}
 		else {
+			deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 			kit->drumsWithRenderingActive.insert(this);
 		}
 	}

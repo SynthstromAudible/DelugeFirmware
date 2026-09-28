@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 // The application's allocator heaps, built over the BSP's memory regions
 // (deluge_memory_region) and backed by the Rust deluge_alloc core. These free
@@ -64,6 +65,11 @@ std::size_t sdram_size();
 
 /// SRAM-preferred (small allocs to the frunk heap) with SDRAM fallback (== the old
 /// allocMaxSpeed).
+/// Host-only diagnostic: heap allocations made on the audio tier since boot (0 on the device). The render must not
+/// allocate: it shares the heap with every other tier.
+uint32_t audioTierAllocations();
+/// Host-only: mark the calling thread as inside a render block (deluge_app_render does), for audioTierAllocations().
+void noteRenderBlock(bool entering);
 void* alloc_fast(std::size_t size, std::size_t align = 16);
 /// General SDRAM (== the old allocLowSpeed / allocExternal).
 void* alloc_sdram(std::size_t size, std::size_t align = 16);

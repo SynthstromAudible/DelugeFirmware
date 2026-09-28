@@ -239,12 +239,14 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 						// in this kit's drumsWithRenderingActive: take it out before removing it, as
 						// InstrumentClipView::deleteDrum and LoadInstrumentPresetUI::swapKitRow do. Its voices are
 						// ended by the render when it lets go of the retired drum, below.
+						deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 						drumsWithRenderingActive.erase(soundDrum);
 						removeDrum(soundDrum);
 						// Out of the kit for good: the render's let-go of the drum must not write back into
 						// drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering
 						// skips a null kit). Erase again first: a sequencer note-on between the first erase and here
 						// re-inserts the drum, and after this nothing can name it.
+						deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 						drumsWithRenderingActive.erase(soundDrum);
 						soundDrum->kit = nullptr;
 						AudioEngine::retire(soundDrum);

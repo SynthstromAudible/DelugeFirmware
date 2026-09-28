@@ -94,6 +94,7 @@
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/structural_edit_probe.h"
 #include "util/try.h"
 #include <new>
 #include <string.h>
@@ -5462,6 +5463,7 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 	if (noteRow) {
 		noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
 	}
+	deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 	kit->drumsWithRenderingActive.erase(drum);
 
 	kit->removeDrum(drum);
@@ -5488,6 +5490,7 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 	// drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit). Erase
 	// again first: a sequencer note-on between the first erase and the note row's reassignment re-inserts the drum,
 	// and after this nothing can name it. The render will own this set in later work.
+	deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 	kit->drumsWithRenderingActive.erase(drum);
 	drum->kit = nullptr;
 	AudioEngine::retire(drum);

@@ -46,6 +46,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/string.h"
+#include "util/structural_edit_probe.h"
 #include "util/try.h"
 
 using namespace deluge;
@@ -1246,6 +1247,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	// make sure the drum isn't currently in use
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+	deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 	kitToLoadFor->drumsWithRenderingActive.erase(soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
@@ -1257,6 +1259,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 		// drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit).
 		// Erase again first: a sequencer note-on between the first erase and here re-inserts the drum. The render
 		// will own this set in later work.
+		deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
 		kitToLoadFor->drumsWithRenderingActive.erase(soundDrumToReplace);
 		soundDrumToReplace->kit = nullptr;
 		AudioEngine::retire(soundDrumToReplace);

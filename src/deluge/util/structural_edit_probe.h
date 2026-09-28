@@ -17,6 +17,7 @@ enum class StructuralContainer : uint8_t {
 	CLIP_ARRAY,         ///< a song's session and arrangement-only clips
 	OUTPUT_LIST,        ///< a song's output list and hibernating-instrument list
 	DRUM_LIST,          ///< a kit's drum list
+	RENDERING_DRUMS,    ///< a kit's drums rendering now (Kit's rendering-drums set)
 	COUNT_,
 };
 
