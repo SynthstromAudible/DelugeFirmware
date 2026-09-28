@@ -3370,6 +3370,13 @@
               "code": "BATT",
               "children": [],
               "tag": "c1.3"
+            },
+            {
+              "varName": "menuShortcutOverlay",
+              "token": "STRING_FOR_COMMUNITY_FEATURE_SHORTCUT_OVERLAY",
+              "oled": "Shortcut Overlay",
+              "code": "OVER",
+              "children": []
             }
           ],
           "tag": "c1.0"
@@ -30323,5 +30330,5 @@
     "noteRowEditorMenu": "noteRowEditorRootMenu",
     "songClipSettingsMenu": "songClipSettingsMenu"
   },
-  "generatedAt": "2026-08-26T00:26:56.931Z"
+  "generatedAt": "2026-09-15T04:25:04.035Z"
 }

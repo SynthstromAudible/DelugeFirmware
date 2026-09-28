@@ -530,7 +530,7 @@ void JsonDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 	// matching closing character. This can involve counting open and close characters until
 	// we get a match.
 	D_PRINTLN("Unread value detected");
-	readState == JsonState::ValueRead; // declare victory prematurely.
+	readState = JsonState::ValueRead; // declare victory prematurely.
 	skipWhiteSpace();
 	char leadingChar, trailingChar, currentChar, balanceCtr = 1;
 	readChar(&leadingChar);

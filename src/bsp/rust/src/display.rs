@@ -121,6 +121,9 @@ pub extern "C" fn deluge_display_timer_event() {}
 pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
     /// PIC byte for a select-knob press — the resume gesture, matching the legacy BSP.
     const PIC_SELECT_KNOB_PRESS: u8 = 175;
+    /// PIC prefix byte marking the following button code as a release, not a press.
+    #[cfg_attr(not(target_os = "none"), allow(dead_code))]
+    const PIC_NEXT_PAD_OFF: u8 = 252;
 
     let mut fb = oled::FrameBuffer::new();
     // SAFETY: the fault handler passes a full-framebuffer pointer.
@@ -134,16 +137,28 @@ pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
     // Hold here until the user acknowledges. The PIC's receive DMA is hardware and keeps
     // filling its ring with no interrupt or task needed, so polling it works even from a
     // fault context.
+    //
+    // The PIC reports press and release with the same button code, prefixing releases with
+    // PIC_NEXT_PAD_OFF. Ignoring those means a freeze triggered from a select press isn't
+    // dismissed by that same press's release.
     #[cfg(target_os = "none")]
-    loop {
-        // SAFETY: reads the PIC channel's DMA receive ring; `uart::init_dma_rx` ran at
-        // boot, and a read is side-effect-free beyond consuming the byte.
-        if let Some(byte) = unsafe { rza1l_hal::uart::try_read_dma(deluge_bsp::uart::PIC_CH) } {
-            if byte == PIC_SELECT_KNOB_PRESS {
-                return;
+    {
+        let mut next_is_release = false;
+        loop {
+            // SAFETY: reads the PIC channel's DMA receive ring; `uart::init_dma_rx` ran at
+            // boot, and a read is side-effect-free beyond consuming the byte.
+            if let Some(byte) = unsafe { rza1l_hal::uart::try_read_dma(deluge_bsp::uart::PIC_CH) } {
+                if byte == PIC_NEXT_PAD_OFF {
+                    next_is_release = true;
+                    continue;
+                }
+                if byte == PIC_SELECT_KNOB_PRESS && !next_is_release {
+                    return;
+                }
+                next_is_release = false;
             }
+            core::hint::spin_loop();
         }
-        core::hint::spin_loop();
     }
 
     // Host builds (the golden renderer, the Embassy host harness) have no PIC and no user, so

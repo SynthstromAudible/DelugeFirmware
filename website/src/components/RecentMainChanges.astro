@@ -1,0 +1,135 @@
+---
+import { Badge } from "@astrojs/starlight/components"
+import data from "../data/generated/recent-changes.json"
+
+const generatedDate = new Intl.DateTimeFormat("en", {
+  dateStyle: "medium",
+}).format(new Date(data.generatedAt))
+---
+
+<section class="recent-changes" aria-labelledby="recent-main-changes">
+  <header class="recent-changes__header">
+    <div>
+      <h2 id="recent-main-changes">
+        Recently merged into <code>{data.branch}</code>
+        <Badge
+          text={`${data.categories.reduce((total, group) => total + group.commits.length, 0)} changes`}
+          variant="note"
+        />
+      </h2>
+      <p class="recent-changes__meta">
+        Generated from the first-parent history at <a
+          href={`https://github.com/SynthstromAudible/DelugeFirmware/commit/${data.head}`}
+          >{data.head.slice(0, 8)}</a
+        > on {generatedDate}.
+        {
+          data.detectedRevertCount > 0 &&
+            ` Excludes ${data.detectedRevertCount} detected reverted ${data.detectedRevertCount === 1 ? "change" : "changes"}.`
+        }
+        Manual or partial reversals may not be detected.
+      </p>
+    </div>
+  </header>
+
+  <p class="recent-changes__summary">{data.summary}</p>
+
+  <div class="recent-changes__groups">
+    {
+      data.categories.map((group) => (
+        <div class="recent-changes__group">
+          <h3>{group.name}</h3>
+          <ul>
+            {group.commits.map((commit) => (
+              <li>
+                <a href={commit.url}>{commit.title}</a>
+                <span class="recent-changes__reference">
+                  {commit.pullRequest
+                    ? `#${commit.pullRequest}`
+                    : commit.shortHash}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .recent-changes {
+    margin-block: 1.5rem 2.5rem;
+    padding: clamp(1rem, 3vw, 1.5rem);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.75rem;
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--sl-color-accent-low) 55%, transparent),
+      transparent 60%
+    );
+  }
+
+  .recent-changes__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .recent-changes__header h2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0.1rem 0 0;
+    font-size: clamp(1.25rem, 3vw, 1.65rem);
+  }
+
+  .recent-changes__summary {
+    margin-block: 0.8rem 1rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  .recent-changes__groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: 0.9rem;
+  }
+
+  .recent-changes__groups > .recent-changes__group {
+    margin-block: 0 !important;
+    align-self: stretch;
+    padding: 0.85rem 1rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+  }
+
+  .recent-changes__group h3 {
+    margin: 0 0 0.55rem;
+    font-size: 0.95rem;
+  }
+
+  .recent-changes__group ul {
+    margin: 0;
+    padding-inline-start: 1.1rem;
+  }
+
+  .recent-changes__group li + li {
+    margin-top: 0.35rem;
+  }
+
+  .recent-changes__reference {
+    margin-inline-start: 0.35rem;
+    color: var(--sl-color-gray-3);
+    font-family: var(--__sl-font-mono);
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .recent-changes__meta {
+    margin: 0.45rem 0 0;
+    color: var(--sl-color-gray-3);
+    font-size: 0.78rem;
+  }
+</style>

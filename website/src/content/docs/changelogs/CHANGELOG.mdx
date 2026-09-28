@@ -3,6 +3,7 @@ title: Deluge Community Firmware Change Log
 ---
 
 import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
+import RecentMainChanges from "../../../components/RecentMainChanges.astro"
 
 [//]: # "TODO: Split this into one page per version"
 
@@ -24,6 +25,10 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
   A new shortcuts page is available, check the [Deluge
   Companion](/reference/deluge_companion)!
 </Aside>
+
+## Recent Changes
+
+<RecentMainChanges />
 
 ## c1.3.0 Derbyshire <Badge text="Upcoming" variant="tip" />
 
@@ -80,6 +85,10 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
   - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
 
 ### Sound Engine
+
+#### <ins>General</ins>
+
+- Master transpose menu has been updated to support decimal editing of the transpose "cents" for finer tuning. UI is the same as with Oscillator and Modulate transpose menus.
 
 #### <ins>Mod FX</ins>
 
