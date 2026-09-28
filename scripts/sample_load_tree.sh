@@ -38,8 +38,6 @@
 # Usage: scripts/sample_load_tree.sh
 #
 # Environment:
-#   BUILD_DIR               the build-embassy-hostapp C++ object-closure build dir (default: build-embassy-hostapp)
-#   NO_BUILD=1              skip the ninja/cargo rebuild steps
 #   SAMPLE_LOAD_TREE_TRACE  if set, a file to write the run's LT lines to
 #   SAMPLE_LOAD_TREE_CRUCIAL_TRACE  if set, a file to write the run's LTC lines to
 #
@@ -48,24 +46,12 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-BUILD_DIR="${BUILD_DIR:-build-embassy-hostapp}"
 CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
 TARGET_DIR="${CARGO_TARGET_DIR:-$REPO_ROOT/$CRATE_DIR/target}"
 
-if [ "${NO_BUILD:-0}" != "1" ]; then
-	[ -d "$BUILD_DIR" ] || {
-		echo "ERROR: '$BUILD_DIR' does not exist — configure build-embassy-hostapp from sim/ first"
-		exit 2
-	}
-	# Cargo does not track the C++ sources the harness links against, so force the object closure first.
-	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
-		deluge_foundation deluge_midi
-	(cd "$CRATE_DIR" && cargo build --release --target-dir "$TARGET_DIR")
-fi
-
 BIN="$TARGET_DIR/release/golden_vt_render"
 [ -x "$BIN" ] || {
-	echo "ERROR: '$BIN' not built (see NO_BUILD)"
+	echo "ERROR: '$BIN' is not built -- run this gate through ./dbt test, which builds it first"
 	exit 2
 }
 

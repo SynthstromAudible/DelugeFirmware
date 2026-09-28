@@ -47,9 +47,6 @@
 # Usage: scripts/audio_load_ab.sh
 #
 # Environment:
-#   BUILD_DIR   the build-embassy-hostapp C++ object-closure build dir
-#               (default: <repo>/build-embassy-hostapp)
-#   NO_BUILD=1  skip the ninja/cargo rebuild steps
 #   AUDIO_LOAD_AB_LINES
 #               if set, a file to write the run's AB-CASE, AB-EJECT and AB-REF lines to. The log shows
 #               only the summaries; a change to how loads resolve is compared case by case against these.
@@ -57,28 +54,14 @@
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${BUILD_DIR:-$REPO/build-embassy-hostapp}"
 CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
 
-# Honours CARGO_TARGET_DIR the way golden_embassy_diff.sh does: `dbt test` points every rig at a
-# shared target tree, and this one lives under it rather than beside it.
+# Where the harness binary is: `dbt test` builds it once, before any gate runs, into CARGO_TARGET_DIR.
 TARGET="${CARGO_TARGET_DIR:-$CRATE_DIR/target}"
-
-if [ "${NO_BUILD:-0}" != 1 ]; then
-	[ -d "$BUILD_DIR" ] || {
-		echo "ERROR: '$BUILD_DIR' does not exist — configure build-embassy-hostapp from sim/ first"
-		exit 2
-	}
-	# Cargo does not track the C++ sources the harness links against (the A/B scenario itself is one
-	# of them), so force the object closure first — same reason golden_embassy_diff.sh does.
-	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
-		deluge_foundation deluge_midi
-	(cd "$CRATE_DIR" && cargo build --release --target-dir "$TARGET")
-fi
 
 BIN="$TARGET/release/golden_vt_render"
 [ -x "$BIN" ] || {
-	echo "ERROR: '$BIN' not built (see NO_BUILD)"
+	echo "ERROR: '$BIN' is not built -- run this gate through ./dbt test, which builds it first"
 	exit 2
 }
 

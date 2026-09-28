@@ -78,11 +78,6 @@ jobs:
         with:
           ref: next
       - uses: ./.github/actions/test-prerequisites
-      - name: Build the host-app object closure
-        # -DDELUGE_SIM_X64=ON is REQUIRED, not optional: the sim defaults to a
-        # -m32 configuration, which link-fails against the Rust harnesses'
-        # 64-bit host target on a bare x86 Linux box — including this runner.
-        run: cmake -B build-embassy-hostapp -S sim -G Ninja -DDELUGE_SIM_X64=ON && cmake --build build-embassy-hostapp
       - name: Run ${{ matrix.test }}
         run: |
           case "${{ matrix.test }}" in

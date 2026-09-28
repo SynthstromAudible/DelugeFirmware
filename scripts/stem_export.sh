@@ -20,29 +20,14 @@ cd "$REPO_ROOT"
 
 FIXTURE="${GOLDEN_FIXTURE:-cordae}"
 BASELINE="harness/stem-export-$FIXTURE.sha256"
-BUILD_DIR="${BUILD_DIR:-build-embassy-hostapp}"
 CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
-# One build tree for the harness binary: `dbt test` sets CARGO_TARGET_DIR, and every gate builds the
-# same crate -- the scenario is chosen at run time. Resolved once, here, because a relative fallback is
-# relative to the repo root while the cargo build below runs in the crate directory.
+# Where the harness binary is: `dbt test` builds it once, before any gate runs, into CARGO_TARGET_DIR. Every
+# scenario gate runs the same binary; GOLDEN_SCENARIO picks the scenario at run time.
 TARGET_DIR="${TARGET_DIR:-${CARGO_TARGET_DIR:-$CRATE_DIR/target}}"
 case "$TARGET_DIR" in /*) ;; *) TARGET_DIR="$REPO_ROOT/$TARGET_DIR" ;; esac
 
-if [ "${NO_BUILD:-0}" != "1" ]; then
-	[ -d "$BUILD_DIR" ] || {
-		echo "ERROR: '$BUILD_DIR' does not exist — configure build-embassy-hostapp from sim/ first"
-		exit 2
-	}
-	# ⚠️ Cargo does not track the C++ sources the harness links against (see build.rs's rerun-if-changed
-	# inputs), so an edited scenario silently links a STALE object and its marker lines never appear.
-	# Force the object closure first -- same reason song_load_channel.sh and recorder_write.sh do.
-	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
-		deluge_foundation deluge_midi
-	(cd "$CRATE_DIR" && cargo build --release --target-dir "$TARGET_DIR")
-fi
-
 BIN="$TARGET_DIR/release/golden_vt_render"
-[ -x "$BIN" ] || { echo "ERROR: '$BIN' not built (see NO_BUILD)"; exit 2; }
+[ -x "$BIN" ] || { echo "ERROR: '$BIN' is not built -- run this gate through ./dbt test, which builds it first"; exit 2; }
 
 OUT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/stem_export.$FIXTURE.XXXXXX")"
 cleanup() { rm -rf "$OUT_ROOT"; }

@@ -113,18 +113,26 @@ workspace, and they are worth knowing before adding a tenth:
 3. Feature unification makes a shared workspace build a hazard even where the
    symbols do not collide.
 
-## Build artifacts
+## Build products and trees
 
-`./dbt test` points every cargo-built test at one shared
-`target/harness/` directory. Cargo namespaces artifacts by fingerprint, so
-packages with different `[patch]` sections coexist there safely — but cargo
-takes an exclusive lock per target directory, so two harness runs at once will
-serialize rather than run in parallel.
+A test declares the build products it needs in `builds`; `./dbt test` builds the union of a selection's products
+once, dependencies first, before running any test (`scripts/tasks/test_builds.py`). No test builds a product
+itself, so none can run against a stale one.
 
-Running `cargo` by hand inside a harness directory bypasses this and creates a
-local `target/`, and one per harness directory adds up to tens of gigabytes of
-duplicate build trees. Prefer `./dbt test <name>`; `./dbt test --clean` drops the
-shared tree.
+| Product | Tree | What it is |
+| --- | --- | --- |
+| `host-app` | `build/host-app` | the C++ app's object files for x86-64, from `sim/` with `DELUGE_SIM_X64=ON`; nothing links here |
+| `golden-vt-render` | `build/cargo-harness` | the Embassy host harness binary every scenario gate runs; its `build.rs` archives `build/host-app`'s objects |
+
+A ctest entry's own tree (`build/test-unit`, `build/test-unit-arm`) is configured and built by its runner.
+
+Every cargo-built test and product shares `build/cargo-harness`. Cargo namespaces artifacts by fingerprint, so
+packages with different `[patch]` sections coexist there safely, but cargo takes an exclusive lock per target
+directory, so two runs at once serialize rather than run in parallel.
+
+Running `cargo` by hand inside a harness directory bypasses this and creates a local `target/`, and one per
+harness directory adds up to tens of gigabytes of duplicate build trees. Prefer `./dbt test <name>`;
+`./dbt test --clean` drops every tree the runner builds.
 
 ## Adding a harness
 

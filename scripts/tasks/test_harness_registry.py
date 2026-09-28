@@ -15,6 +15,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).parent))
 
 import harness_registry as hr
+import test_builds as tb
 
 MINIMAL = """
 [[harness]]
@@ -194,6 +195,49 @@ class LoadRegistryTest(unittest.TestCase):
         with self.assertRaises(ValueError) as cm:
             hr.load_registry(self._root_with(MINIMAL + MINIMAL))
         self.assertIn("alpha", str(cm.exception))
+
+
+class BuildsTest(unittest.TestCase):
+    def _root_with(self, text):
+        root = Path(tempfile.mkdtemp())
+        (root / "harness").mkdir()
+        (root / "harness" / "registry.toml").write_text(text)
+        return root
+
+    def test_known_product_loads(self):
+        text = MINIMAL.replace(
+            'requires = ["cargo"]',
+            'builds = ["golden-vt-render"]\nrequires = ["cargo"]',
+        )
+        self.assertEqual(
+            hr.load_registry(self._root_with(text))[0].builds, ["golden-vt-render"]
+        )
+
+    def test_unknown_product_is_rejected(self):
+        text = MINIMAL.replace(
+            'requires = ["cargo"]', 'builds = ["a-pony"]\nrequires = ["cargo"]'
+        )
+        with self.assertRaises(ValueError) as cm:
+            hr.load_registry(self._root_with(text))
+        self.assertIn("a-pony", str(cm.exception))
+
+    def test_order_puts_dependencies_first_and_each_once(self):
+        known = tb.products(Path("/repo"))
+        self.assertEqual(
+            tb.order(["golden-vt-render", "host-app", "golden-vt-render"], known),
+            ["host-app", "golden-vt-render"],
+        )
+
+    def test_order_rejects_a_cycle(self):
+        a = tb.Product("a", ["b"], [], {})
+        b = tb.Product("b", ["a"], [], {})
+        with self.assertRaises(ValueError):
+            tb.order(["a"], {"a": a, "b": b})
+
+    def test_golden_vt_render_links_the_host_app_tree(self):
+        known = tb.products(Path("/repo"))
+        (step,) = known["golden-vt-render"].steps(Path("/repo"))
+        self.assertEqual(step.env["DELUGE_HOSTAPP_BUILD_DIR"], "/repo/build/host-app")
 
 
 class ProbeTest(unittest.TestCase):

@@ -58,37 +58,21 @@
 # Usage: scripts/song_preview_ab.sh
 #
 # Environment:
-#   BUILD_DIR           the build-embassy-hostapp C++ object-closure build dir
-#                       (default: <repo>/build-embassy-hostapp)
 #   DELUGE_SONG_CORPUS  a directory of real .XML songs. Optional: with it set, the fixture also
 #                       stages up to 16 of them as extra cases, which is the only part of this gate
 #                       that sees documents nobody here wrote. Without it the synthetic cases still
 #                       run and the gate still gates.
-#   NO_BUILD=1          skip the ninja/cargo rebuild steps
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${BUILD_DIR:-$REPO/build-embassy-hostapp}"
 CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
 
-# Its own target dir, so this gate's build never replaces another gate's binary.
+# Where the harness binary is: `dbt test` builds it once, before any gate runs, into CARGO_TARGET_DIR.
 TARGET="${CARGO_TARGET_DIR:-$CRATE_DIR/target}"
-
-if [ "${NO_BUILD:-0}" != 1 ]; then
-	[ -d "$BUILD_DIR" ] || {
-		echo "ERROR: '$BUILD_DIR' does not exist — configure build-embassy-hostapp from sim/ first"
-		exit 2
-	}
-	# Cargo does not track the C++ sources the harness links against (the scenario itself is one of
-	# them), so force the object closure first — same reason audio_load_ab.sh does.
-	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
-		deluge_foundation deluge_midi
-	(cd "$CRATE_DIR" && cargo build --release --target-dir "$TARGET")
-fi
 
 BIN="$TARGET/release/golden_vt_render"
 [ -x "$BIN" ] || {
-	echo "ERROR: '$BIN' not built (see NO_BUILD)"
+	echo "ERROR: '$BIN' is not built -- run this gate through ./dbt test, which builds it first"
 	exit 2
 }
 

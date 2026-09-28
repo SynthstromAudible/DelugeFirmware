@@ -42,9 +42,19 @@ fn main() {
     }
 
     println!("cargo:rerun-if-env-changed=DELUGE_HOSTAPP_BUILD_DIR");
+    // `dbt test` sets DELUGE_HOSTAPP_BUILD_DIR. Without it: the tree `dbt test` builds, or the older
+    // `build-embassy-hostapp` where only that one has been built.
     let build_dir = env::var("DELUGE_HOSTAPP_BUILD_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| repo_root.join("build-embassy-hostapp"));
+        .unwrap_or_else(|_| {
+            let current = repo_root.join("build/host-app");
+            let older = repo_root.join("build-embassy-hostapp");
+            if !current.is_dir() && older.is_dir() {
+                older
+            } else {
+                current
+            }
+        });
     let app_objs_dir = build_dir.join("app/CMakeFiles/deluge_app.dir");
     if !app_objs_dir.is_dir() {
         panic!(
@@ -278,8 +288,8 @@ fn collect_objs(
 /// `CMakeCache.txt` — the CMake source root that configured this build tree —
 /// and compares it (canonicalized) against `<repo_root>/sim`: this repo's host
 /// C++ app is CMake-rooted at `sim/`, not at the repo root itself (confirmed
-/// directly: `sim/CMakeLists.txt` exists, `<repo_root>/build-embassy-hostapp`'s
-/// own cache reports `CMAKE_HOME_DIRECTORY:INTERNAL=<repo_root>/sim`).
+/// directly: `sim/CMakeLists.txt` exists, and a host-app tree's own cache reports
+/// `CMAKE_HOME_DIRECTORY:INTERNAL=<repo_root>/sim`).
 fn assert_build_dir_matches_repo_root(build_dir: &std::path::Path, repo_root: &std::path::Path) {
     let cache_path = build_dir.join("CMakeCache.txt");
     let cache = fs::read_to_string(&cache_path)

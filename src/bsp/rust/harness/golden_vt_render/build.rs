@@ -65,9 +65,19 @@ fn main() {
     }
 
     println!("cargo:rerun-if-env-changed=DELUGE_HOSTAPP_BUILD_DIR");
+    // `dbt test` sets DELUGE_HOSTAPP_BUILD_DIR. Without it: the tree `dbt test` builds, or the older
+    // `build-embassy-hostapp` where only that one has been built.
     let build_dir = env::var("DELUGE_HOSTAPP_BUILD_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| repo_root.join("build-embassy-hostapp"));
+        .unwrap_or_else(|_| {
+            let current = repo_root.join("build/host-app");
+            let older = repo_root.join("build-embassy-hostapp");
+            if !current.is_dir() && older.is_dir() {
+                older
+            } else {
+                current
+            }
+        });
     let app_objs_dir = build_dir.join("app/CMakeFiles/deluge_app.dir");
     if !app_objs_dir.is_dir() {
         panic!(

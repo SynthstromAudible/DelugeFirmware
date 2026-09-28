@@ -324,7 +324,7 @@ fn warn_if_heap_hack_active(manifest_dir: &Path) {
 
 /// `host_app` feature: bindgen the host ABI (x86-64; every libdeluge enum is
 /// pinned to an explicit fixed-width underlying type in its header, so this
-/// matches build-embassy-hostapp's CMake config byte-for-byte regardless of
+/// matches the host-app tree's CMake config byte-for-byte regardless of
 /// `-fshort-enums`, which neither build passes) into the real `mod sys`, then
 /// archive the host-built C++ `deluge_app` object closure and emit link
 /// directives so the crate reaches the linker against real provider-symbol
@@ -344,8 +344,9 @@ fn run_host_app(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     println!("cargo:rerun-if-changed={}", app_objs_dir.display());
 }
 
-/// Resolves the CMake host tree, defaulting to `build-embassy-hostapp`
-/// (`cmake -S sim -B build-embassy-hostapp -DDELUGE_HOST_EMBASSY=…`).
+/// Resolves the CMake host tree, defaulting to `build/host-app` (the tree
+/// `./dbt test` builds), or to the older `build-embassy-hostapp` where only
+/// that one has been built.
 ///
 /// Overridable via `DELUGE_HOSTAPP_BUILD_DIR` so CI and the sanitizer
 /// harnesses can point at a differently-named tree (e.g. a clang+TSan
@@ -357,7 +358,15 @@ fn resolve_host_build_dir(repo_root: &Path) -> PathBuf {
     println!("cargo:rerun-if-env-changed=DELUGE_HOSTAPP_BUILD_DIR");
     env::var("DELUGE_HOSTAPP_BUILD_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| repo_root.join("build-embassy-hostapp"))
+        .unwrap_or_else(|_| {
+            let current = repo_root.join("build/host-app");
+            let older = repo_root.join("build-embassy-hostapp");
+            if !current.is_dir() && older.is_dir() {
+                older
+            } else {
+                current
+            }
+        })
 }
 
 /// The host tree's object directory. Its generator is single-config Ninja,

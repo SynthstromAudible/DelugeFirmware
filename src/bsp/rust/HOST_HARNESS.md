@@ -289,8 +289,8 @@ section summarizes.
 ### 1. Build the C++ app with clang + TSan (separate build dir)
 
 A **separate CMake tree**, so it never touches or shares cache with the
-default `build-embassy-hostapp/` (the plain, uninstrumented tree the rest of
-this doc uses):
+default `build/host-app/` (the plain, uninstrumented tree `./dbt test` builds and
+the rest of this doc uses):
 
 ```sh
 # From the repo root:
@@ -307,7 +307,7 @@ No `-fshort-enums` here, TSan or not (see `run_bindgen`'s comment in
 `build.rs`): every libdeluge FFI enum now pins its underlying type explicitly
 in its header (e.g. `DelugeInputEventKind : uint8_t`, `DelugeStatus :
 int8_t`, `DelugeRegionState : uint8_t`), so both the plain, uninstrumented
-`build-embassy-hostapp` tree and bindgen's host-ABI `mod sys` agree on each
+`build/host-app` tree and bindgen's host-ABI `mod sys` agree on each
 enum's width regardless of `-fshort-enums` — the flag is irrelevant to
 sizing now, on either side. Passing `-fshort-enums` to only this TSan tree
 would still be pointless (and confusing): the explicit widths win either way.
@@ -362,7 +362,7 @@ deliberate here: this run wants to see the *whole* set of races TSan can find
 in one pass, not stop at the first one.
 
 To go back to the plain, uninstrumented `deluge_app`, just drop
-`DELUGE_HOSTAPP_BUILD_DIR` (or point it back at `build-embassy-hostapp`) and
+`DELUGE_HOSTAPP_BUILD_DIR` (or point it back at `build/host-app`) and
 rebuild — see "Staleness: switching build dirs always relinks" below for why
 this is safe to do repeatedly with no manual cleanup.
 

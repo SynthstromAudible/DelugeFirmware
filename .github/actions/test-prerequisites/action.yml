@@ -46,4 +46,4 @@ runs:
 
     - uses: Swatinem/rust-cache@v2
       with:
-        workspaces: ". -> target/harness"
+        workspaces: ". -> build/cargo-harness"

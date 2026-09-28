@@ -1,5 +1,5 @@
 # Compile through ccache when it is installed, for every CMake tree that builds the app: the device build, the host
-# trees (sim/: the simulator, build-embassy-hostapp and its TSan variant, the loadcheck build) and the unit tests. The
+# trees (sim/: the simulator, build/host-app and its TSan variant, the loadcheck build) and the unit tests. The
 # same sources are compiled in each tree, and harness work rebuilds them often -- a neutering and its restore rebuild
 # the same objects twice -- so a hit saves the whole compile. Set DELUGE_NO_CCACHE=ON to build without it.
 option(DELUGE_NO_CCACHE "Do not compile through ccache even when it is installed" OFF)

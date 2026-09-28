@@ -28,10 +28,9 @@ import util
 sys.path.insert(0, str(Path(__file__).parent))
 
 import harness_registry as hr
+import test_builds as tb
 
-# One shared cargo target dir for every cargo-built test. Cargo namespaces artifacts by fingerprint, so packages with
-# divergent [patch] sections coexist safely; the cost is that concurrent runs serialize on cargo's target-dir lock.
-SHARED_TARGET_SUBDIR = Path("target") / "harness"
+SHARED_TARGET_SUBDIR = tb.SHARED_TARGET_SUBDIR
 
 # A marker line: an upper-case tag followed by a space, '=', ':' or a further '-TAG'. What a capture records.
 MARKER = re.compile(r"^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*([ =:]|$)")
@@ -71,7 +70,9 @@ def argparser() -> argparse.ArgumentParser:
         "--doctor", action="store_true", help="Report missing prerequisites"
     )
     parser.add_argument(
-        "--clean", action="store_true", help="Remove the shared cargo target dir"
+        "--clean",
+        action="store_true",
+        help="Remove every tree the runner builds (build/test-*, build/host-app, build/cargo-harness)",
     )
     parser.add_argument(
         "--ci-matrix",
@@ -121,11 +122,79 @@ def _load(root: Path) -> list[hr.Harness]:
         raise SystemExit(1) from exc
 
 
-def _environment(root: Path, h: hr.Harness) -> dict[str, str]:
-    env = dict(h.env_default, **os.environ)
-    env.update(h.env)
+def _base_environment(root: Path) -> dict[str, str]:
+    env = dict(os.environ)
     env.setdefault("CARGO_TARGET_DIR", str(root / SHARED_TARGET_SUBDIR))
     return env
+
+
+def _environment(
+    root: Path, h: hr.Harness, products: dict[str, tb.Product]
+) -> dict[str, str]:
+    env = dict(h.env_default, **_base_environment(root))
+    for name in tb.order(h.builds, products):
+        env.update(products[name].test_env)
+    env.update(h.env)
+    return env
+
+
+def _missing(root: Path, h: hr.Harness, products: dict[str, tb.Product]) -> list[str]:
+    """`h`'s prerequisites and its build products', where this machine lacks them."""
+    needed = list(h.requires)
+    for name in tb.order(h.builds, products):
+        needed += [r for r in products[name].requires if r not in needed]
+    return [r for r in needed if not hr.probe(r, root)]
+
+
+class Builds:
+    """The build products a selection needs, each built once, dependencies first."""
+
+    def __init__(self, root: Path, selection: list[hr.Harness], log=None):
+        self.root = root
+        self.known = tb.products(root)
+        self.log = log
+        # Product name -> why it is unusable. Absent: built.
+        self.broken: dict[str, str] = {}
+        wanted = [name for h in selection for name in h.builds]
+        for name in tb.order(wanted, self.known):
+            self._build(name)
+
+    def _build(self, name: str) -> None:
+        product = self.known[name]
+        for dep in product.deps:
+            if dep in self.broken:
+                self.broken[name] = f"needs {dep}, which {self.broken[dep]}"
+                return
+        missing = [r for r in product.requires if not hr.probe(r, self.root)]
+        if missing:
+            self.broken[name] = f"could not be built here: needs {', '.join(missing)}"
+            return
+        env = _base_environment(self.root)
+        for step in product.steps(self.root):
+            print(f"==> build {name}: {step.what}: {' '.join(step.argv)}", flush=True)
+            result = subprocess.run(
+                step.argv,
+                cwd=step.cwd,
+                env=dict(env, **step.env),
+                check=False,
+                stdout=self.log,
+                stderr=subprocess.STDOUT if self.log is not None else None,
+            )
+            if result.returncode != 0:
+                self.broken[name] = (
+                    f"failed to build ({step.what}, exit {result.returncode})"
+                )
+                print(
+                    f"test: build product '{name}' {self.broken[name]}", file=sys.stderr
+                )
+                return
+
+    def blocker(self, h: hr.Harness) -> str | None:
+        """Why `h` cannot run for want of a product, or None."""
+        for name in tb.order(h.builds, self.known):
+            if name in self.broken:
+                return f"build product {name} {self.broken[name]}"
+        return None
 
 
 def _steps(
@@ -168,8 +237,9 @@ def _run_one(
     build_only: bool,
     junit_dir: Path | None,
     log,
+    products: dict[str, tb.Product],
 ) -> bool:
-    env = _environment(root, h)
+    env = _environment(root, h, products)
     workdir = root / h.path
     for phase, argv in _steps(root, h, passthrough, junit_dir):
         if build_only and phase == "run":
@@ -209,14 +279,20 @@ def cmd_run(
     if junit_dir is not None:
         junit_dir.mkdir(parents=True, exist_ok=True)
 
+    builds = Builds(root, selection)
     outcomes: list[Outcome] = []
     for h in selection:
         if h.status == "unavailable":
             print(f"warning: '{h.name}' is marked unavailable -- {h.gates}\n")
-        missing = [r for r in h.requires if not hr.probe(r, root)]
+        missing = _missing(root, h, builds.known)
         if missing and not args.skip_checks:
             outcomes.append(Outcome(h.name, "SKIP", f"needs {', '.join(missing)}"))
             print(f"--- {h.name}: skipped, needs {', '.join(missing)}", flush=True)
+            continue
+        blocker = builds.blocker(h)
+        if blocker is not None:
+            outcomes.append(Outcome(h.name, "FAIL", blocker))
+            print(f"--- {h.name}: not run, {blocker}", flush=True)
             continue
         ok = _run_one(
             root,
@@ -225,6 +301,7 @@ def cmd_run(
             args.build_only,
             junit_dir,
             None,
+            builds.known,
         )
         outcomes.append(Outcome(h.name, "PASS" if ok else "FAIL"))
 
@@ -263,17 +340,25 @@ def cmd_capture(root: Path, entries: list[hr.Harness], label: str, tier: str) ->
     markers_path.write_text("")
     summary_path.write_text("")
 
+    # The products' own output goes to one log of its own: none of it is a gate's.
+    with (out / "builds.log").open("w") as build_log:
+        builds = Builds(root, selection, build_log)
+
     passed = 0
     for h in selection:
         print(f"== {h.name}", flush=True)
         log_path = out / f"{h.name}.log"
-        missing = [r for r in h.requires if not hr.probe(r, root)]
+        missing = _missing(root, h, builds.known)
+        blocker = builds.blocker(h)
         with log_path.open("w") as log:
             if missing:
                 log.write(f"skipped: needs {', '.join(missing)}\n")
                 rc = 2
+            elif blocker is not None:
+                log.write(f"not run: {blocker}\n")
+                rc = 1
             else:
-                rc = 0 if _run_one(root, h, [], False, None, log) else 1
+                rc = 0 if _run_one(root, h, [], False, None, log, builds.known) else 1
         passed += rc == 0
         with summary_path.open("a") as summary:
             summary.write(f"{h.name} rc={rc}\n")
@@ -296,9 +381,10 @@ def cmd_list(
     if markdown:
         print(hr.markdown_table(entries), end="")
         return 0
+    known = tb.products(root)
     width = max(len(h.name) for h in selection) if selection else 0
     for h in selection:
-        missing = [r for r in h.requires if not hr.probe(r, root)]
+        missing = _missing(root, h, known)
         mark = "OK " if not missing else "-- "
         note = "" if not missing else f"  (needs: {', '.join(missing)})"
         print(
@@ -309,14 +395,19 @@ def cmd_list(
 
 
 def cmd_doctor(root: Path, entries: list[hr.Harness]) -> int:
-    needed = {r for h in entries for r in h.requires}
-    missing = sorted(r for r in needed if not hr.probe(r, root))
+    known = tb.products(root)
+    needs = {
+        h.name: set(h.requires)
+        | {r for p in tb.order(h.builds, known) for r in known[p].requires}
+        for h in entries
+    }
+    missing = sorted(r for r in set().union(*needs.values()) if not hr.probe(r, root))
     if not missing:
         print("All test prerequisites satisfied.")
         return 0
     print("Missing prerequisites:\n")
     for req in missing:
-        blocked = [h.name for h in entries if req in h.requires]
+        blocked = [h.name for h in entries if req in needs[h.name]]
         print(f"  {req}")
         print(f"    fix:     {hr.PROBES[req]}")
         print(f"    blocks:  {', '.join(blocked)}\n")
@@ -324,12 +415,19 @@ def cmd_doctor(root: Path, entries: list[hr.Harness]) -> int:
 
 
 def cmd_clean(root: Path) -> int:
-    target = root / SHARED_TARGET_SUBDIR
-    if target.is_dir():
-        shutil.rmtree(target)
-        print(f"removed {target}")
-    else:
-        print(f"nothing to remove at {target}")
+    """Remove every tree the runner builds: the ctest trees, the host-app objects and the shared cargo dir."""
+    trees = sorted((root / "build").glob("test-*")) + [
+        root / tb.HOST_APP_TREE,
+        root / SHARED_TARGET_SUBDIR,
+    ]
+    removed = False
+    for tree in trees:
+        if tree.is_dir():
+            shutil.rmtree(tree)
+            print(f"removed {tree}")
+            removed = True
+    if not removed:
+        print("nothing to remove")
     return 0
 
 

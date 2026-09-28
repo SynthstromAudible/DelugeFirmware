@@ -34,21 +34,17 @@
 #                             (default: ~/.cache/deluge-golden)
 #   DELUGE_BACKUP             the "Deluge Backup" root, used to reconstruct a fixture's
 #                             project tree the first time (default: ~/Deluge Backup)
-#   BUILD_DIR                 the build-embassy-hostapp C++ object-closure build dir
-#                             (default: <repo>/build-embassy-hostapp)
 #   GOLDEN_VIRTUAL_BUDGET_MS  virtual-time wedge-detection budget passed through to
 #                             golden_vt_render (default: 1800000 = 30 simulated minutes;
 #                             cheap to over-provision — the discrete-event driver jumps
 #                             straight to the next due deadline, so a large budget costs
 #                             no extra wall time unless the render actually needs it)
-#   NO_BUILD=1                skip the ninja/cargo rebuild steps
 #   PADS                      pad sizes for `padsweep`          (default: "16 64 256 4096")
 #   PAD                       one-off DELUGE_SIM_HEAP_PAD for check/update  (default: 0)
 #
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${BUILD_DIR:-$REPO/build-embassy-hostapp}"
 GOLDEN_DIR="${DELUGE_GOLDEN_DIR:-$HOME/.cache/deluge-golden}"
 CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
 
@@ -81,22 +77,9 @@ if [ "$VERB" = check ]; then
 	GOLDEN_SHA="$(cut -c1-64 "$GOLDEN_SHA_FILE")"
 fi
 
-if [ "${NO_BUILD:-0}" != 1 ]; then
-	[ -d "$BUILD_DIR" ] || {
-		echo "ERROR: '$BUILD_DIR' does not exist — configure build-embassy-hostapp from sim/ first"
-		exit 2
-	}
-	# Cargo does not track the C++ sources golden_vt_render links against — force a
-	# rebuild of the host object closure first.
-	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
-		deluge_foundation deluge_midi
-	(cd "$CRATE_DIR" && cargo build --release)
-fi
-
-# Honour CARGO_TARGET_DIR: `dbt test` points every rig at the shared target/harness/ tree,
-# so the crate-local target/ is empty there and a hard-coded path fails after a SUCCESSFUL build.
+# Where the harness binary is: `dbt test` builds it once, before any gate runs, into CARGO_TARGET_DIR.
 BIN="${CARGO_TARGET_DIR:-$CRATE_DIR/target}/release/golden_vt_render"
-[ -x "$BIN" ] || { echo "ERROR: '$BIN' not built (see NO_BUILD)"; exit 2; }
+[ -x "$BIN" ] || { echo "ERROR: '$BIN' is not built -- run this gate through ./dbt test, which builds it first"; exit 2; }
 
 OUT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/golden_embassy_diff.${FIXTURE}.XXXXXX")"
 cleanup() { rm -rf "$OUT_ROOT"; }

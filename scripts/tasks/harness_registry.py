@@ -11,6 +11,7 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import test_builds
 import tomllib
 
 STATUSES = ("gate", "investigative", "unavailable")
@@ -30,10 +31,6 @@ PROBES = {
     "mtools": "apt install mtools -- fs_differential's fixtures are built with mformat",
     "qemu-arm": "apt install qemu-user",
     "arm-linux-gnueabihf-gcc": "apt install g++-arm-linux-gnueabihf",
-    "build-embassy-hostapp": (
-        "cmake -B build-embassy-hostapp -S sim -G Ninja -DDELUGE_SIM_X64=ON && "
-        "cmake --build build-embassy-hostapp"
-    ),
     "song-corpus": "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs",
     "deluge-sdk-sibling": (
         "clone https://github.com/FirestormAudio/deluge-embassy as a sibling "
@@ -68,6 +65,8 @@ class Harness:
     ctest_args: list[str] = field(default_factory=list)
     # A JUnit file the run leaves behind, relative to the repo root; `${CARGO_TARGET_DIR}` is expanded.
     junit: str = ""
+    # Build products (test_builds.py) the runner makes before this test runs.
+    builds: list[str] = field(default_factory=list)
 
 
 def load_registry(root: Path) -> list[Harness]:
@@ -114,6 +113,13 @@ def load_registry(root: Path) -> list[Harness]:
         elif not item.get("run"):
             raise ValueError(f"{where}: missing required field 'run'")
 
+        known_products = test_builds.products(root)
+        for product in item.get("builds", []):
+            if product not in known_products:
+                raise ValueError(
+                    f"{where}: unknown build product '{product}'; add it to test_builds.py"
+                )
+
         for req in item.get("requires", []):
             if req not in PROBES:
                 raise ValueError(
@@ -145,6 +151,7 @@ def load_registry(root: Path) -> list[Harness]:
                 configure=item.get("configure", []),
                 ctest_args=item.get("ctest_args", []),
                 junit=item.get("junit", ""),
+                builds=item.get("builds", []),
             )
         )
 
@@ -204,8 +211,6 @@ def probe(requirement: str, root: Path) -> bool:
                 shutil.which(cxx) is not None
                 or shutil.which("arm-linux-gnueabihf-g++") is not None
             )
-        case "build-embassy-hostapp":
-            return (root / "build-embassy-hostapp").is_dir()
         case "deluge-sdk-sibling":
             # A checkout of another repository beside this one, not a path
             # inside it -- hence `root.parent`.
