@@ -23,12 +23,12 @@ RESIDENTS = re.compile(r"^CR-RESIDENTS samples=([0-9-]*) ")
 OK = re.compile(r"^[A-Z-]* ok=([0-9-]*)")
 
 
-def _count(value: str) -> int:
-    """A count as the check reads it; one that is not a number is not taken for an empty walk."""
+def _count(value: str) -> int | None:
+    """A count, or None when the line does not carry a number."""
     try:
         return int(value)
     except ValueError:
-        return 1
+        return None
 
 
 def run(gate):
@@ -60,7 +60,7 @@ def run(gate):
             "CR-RESIDENTS — no CR-RESIDENTS line; the scenario never reached the snapshot"
         )
         failed = True
-    elif _count(residents[-1]) <= 0:
+    elif (count := _count(residents[-1])) is None or count <= 0:
         gate.fail(
             f"CR-RESIDENTS — the walk had {residents[-1]} resident sample(s): every other leg here would pass for free"
         )
@@ -77,7 +77,7 @@ def run(gate):
             gate.fail(f"{leg} — {line}")
             failed = True
 
-    if not result.has("CR-RESULT failures=0"):
+    if not result.has_line("CR-RESULT failures=0"):
         gate.fail("\n".join(result.starting("CR-RESULT")) or "no CR-RESULT line")
         failed = True
 

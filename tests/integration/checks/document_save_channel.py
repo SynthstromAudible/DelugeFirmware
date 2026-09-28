@@ -99,7 +99,7 @@ def check(gate, run):
     )
 
     # DS-VERIFY-ARM. The read-back rides the channel, and none runs on the inline arm (`verifyInline`).
-    if (vserved or "0") == "0" or (vinline or "1") != "0":
+    if int(vserved or 0) == 0 or int(vinline or 1) != 0:
         gate.fail(
             "DS-VERIFY-ARM — the read-back did not run through the channel "
             f"(verifyServed={vserved or 'none'} verifyInline={vinline or 'none'})"

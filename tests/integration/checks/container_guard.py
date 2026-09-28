@@ -46,8 +46,8 @@ kinds=<kind=n,...>`:
     CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
                              wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
 
-REQUIRED_LEGS lists the legs whose count must be 0; every other leg in LEGS is reported only. A leg whose edit ends the
-process is reported with aborted=1 and fails the run, and so does a missing leg line. The registry entry requires the
+Every leg's count must be 0. A leg whose edit ends the process is reported with aborted=1 and fails the run, and so
+does a missing leg line. The registry entry requires the
 result line.
 """
 
@@ -84,7 +84,6 @@ LEGS = [
     "MODFXOOM",
 ]
 # The legs whose edits must all be made while the render is excluded.
-REQUIRED_LEGS = LEGS
 
 
 def _grep(result, pattern: str, otherwise: str) -> str:
@@ -131,18 +130,16 @@ def _check(gate, result) -> None:
         )
         return
 
-    failed = [leg for leg in REQUIRED_LEGS if not _guarded(result, leg)]
+    failed = [leg for leg in LEGS if not _guarded(result, leg)]
     if failed:
         gate.fail(
-            "required legs made structural edits while the render could preempt them:"
+            "legs made structural edits while the render could preempt them:"
             + "".join(" " + leg for leg in failed)
         )
         return
 
-    red = [leg for leg in LEGS if not _guarded(result, leg)]
     gate.say(
-        "PASS — required legs clean; unguarded legs:"
-        + ("".join(" " + leg for leg in red) or " none")
+        "PASS — every leg's structural edits were made while the render was excluded"
     )
 
 

@@ -78,7 +78,7 @@ def _check_roundtrip(gate, run) -> tuple[int, int, int, int, int, int] | None:
         gate.fail("RW-ROUNDTRIP — a recording did not read back correctly")
         for line in [line for line in run.lines if re.search(r"^CASE|FAIL", line)][:20]:
             gate.say(line)
-    if not run.has("RW-RESULT failures=0"):
+    if not run.has_line("RW-RESULT failures=0"):
         gate.fail("\n".join(run.starting("RW-RESULT")))
 
     # The `ticked_` cases run AFTER the oracle has printed RW-SUMMARY, so their evidence is their own lines.

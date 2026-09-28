@@ -183,9 +183,9 @@ STOPPED_SONG_LEGS = ["EPOCH0", "SONGCLEAR", "SONGLOAD", "BURSTSONG"]
 # set and usable once the clear or load has returned.
 AFTER_LEGS = ["SONGCLEAR", "SONGLOAD", "BURSTSONG"]
 
-ABORTED = re.compile(r"^CL-([A-Z]+) .* aborted=1 ")
+ABORTED = re.compile(r"^CL-([A-Z0-9]+) .* aborted=1( |$)")
 RECLAIM = re.compile(r"^CL-RECLAIM pending=[0-9]+$")
-LEG_LINE = re.compile(r"^CL-[A-Z]+ (restored=[01] )?clipsReferenced=")
+LEG_LINE = re.compile(r"^CL-[A-Z0-9]+ (restored=[01] )?clipsReferenced=")
 
 
 def _next_leg(leg: str) -> str:
@@ -313,6 +313,9 @@ def _check(gate, lines: list[str]) -> None:
         gate.say(line)
 
     results = [line for line in lines if line.startswith("CL-RESULT ")]
+    if not results:
+        gate.fail("no CL-RESULT line: the scenario never reached its summary")
+        return
     if any(line != "CL-RESULT failures=0" for line in results):
         found = "".join(f"{line} " for line in lines if line.startswith("CL-RESULT"))
         gate.fail(f"a fixture could not be built or its clock never ran: {found}")
@@ -334,7 +337,7 @@ def _check(gate, lines: list[str]) -> None:
 
     red_legs = sorted(
         {
-            re.sub(r"^CL-([A-Z]+) .*", r"\1", line)
+            re.sub(r"^CL-([A-Z0-9]+) .*", r"\1", line)
             for line in lines
             if LEG_LINE.match(line)
             and re.search(
