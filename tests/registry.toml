@@ -655,6 +655,23 @@ tier = "nightly"
 runtime = "~1m"
 
 [[harness]]
+name = "render-song"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a song must play as the device plays it: loaded through the real load browser (RS-LOADED, which fails if the load gave up and left the previous song playing), played in real time for the whole length without stopping (RS-RENDER), with its sample voices rendered on the audio tier (RS-VOICES), streamed from the card while playing (RS-STREAM), without an underrun (RS-UNDERRUN) and without the render ever making a synchronous card call (RS-TIER-SYNC-AUDIO). The rendered output is compared with its record in tests/integration/golden/songs.json. The song is generated for each run (tests/integration/golden/songs/make_render_song.py), so the check needs nothing outside the repository. No other gate renders sample playback in real time on the audio tier."
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
 name = "recorder-write"
 path = "."
 level = "integration"
