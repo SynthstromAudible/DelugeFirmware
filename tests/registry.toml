@@ -690,6 +690,41 @@ tier = "manual"
 runtime = "~30s"
 
 [[harness]]
+name = "streaming-margin"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "sample playback must keep up when storage is as slow as the device's: the render-song song, played with the fill task waiting 16 ms to be scheduled and each chunk taking 5.8 ms to read (the device's steady figures), must stream without an underrun (SM-STEADY). A 500 ms wait must drop voices (SM-STARVED), which is what shows the gate can see an underrun at all. A 260 ms wait for half a second, as a song load imposes on the device, is reported and not gated (SM-BURST): the device drops voices there too."
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/streaming_margin.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~30s"
+
+[[harness]]
+name = "streaming-margin-sweep"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "simulation"
+status = "investigative"
+gates = "prints the margin curve: underruns at each fill-task wait in MARGIN_SWEEP, with the device's 5.8 ms chunk read. Checks nothing."
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/streaming_margin.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { MARGIN_SWEEP = "0,50,100,125,150,200,300,500" }
+tier = "manual"
+runtime = "~1m"
+
+[[harness]]
 name = "recorder-write"
 path = "."
 level = "integration"

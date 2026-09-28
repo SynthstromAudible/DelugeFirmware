@@ -318,6 +318,13 @@ pub async fn fill_once<O: FillOps>(ops: &O) {
         // double's `begin` hands back its own owned backing storage).
         let buf =
             unsafe { core::slice::from_raw_parts_mut(d.dest, (d.num_sectors as usize) * 512) };
+        #[cfg(feature = "host_app")]
+        {
+            let us = FILL_READ_LATENCY_US.load(core::sync::atomic::Ordering::Relaxed);
+            if us > 0 {
+                embassy_time::Timer::after_micros(u64::from(us)).await;
+            }
+        }
         let read_ok = ops.read(&d, buf).await;
 
         if read_ok {
@@ -483,6 +490,23 @@ static FILL_LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::Atom
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_streaming_set_fill_latency_ms(ms: u32) {
     FILL_LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
+}
+
+/// Microseconds each chunk's read takes, on top of the card's own time. Host harness only; see
+/// [`deluge_streaming_set_fill_read_latency_us`].
+#[cfg(feature = "host_app")]
+static FILL_READ_LATENCY_US: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make every chunk's read take `us` microseconds longer, in the fill task and so without holding
+/// anything else up. The harness's card answers at once, so this is how a gate models the device card's time to read a
+/// chunk; [`deluge_streaming_set_fill_latency_ms`] models the fill task's wait to be scheduled. 0, the default, adds
+/// nothing.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_set_fill_read_latency_us(us: u32) {
+    FILL_READ_LATENCY_US.store(us, core::sync::atomic::Ordering::Relaxed);
 }
 
 /// The fill task: wakes on [`FILL_WAKE`], drains the loader queue via the real

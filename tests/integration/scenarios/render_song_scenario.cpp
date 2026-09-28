@@ -47,6 +47,9 @@ void deluge_host_capture_start(void);
 uint64_t deluge_host_capture_stop(void);
 uint64_t deluge_host_render_count(void);
 uint64_t deluge_sim_card_reads(void);
+// The fill task's modelled latencies (streaming_loader.rs).
+void deluge_streaming_set_fill_latency_ms(uint32_t ms);
+void deluge_streaming_set_fill_read_latency_us(uint32_t us);
 }
 
 namespace {
@@ -62,6 +65,37 @@ int32_t g_ticks = 0;
 
 std::string g_songPath;
 uint64_t g_blocksWanted = 3000;
+
+/// The storage model while playing (RENDER_FILL_DELAY_MS, RENDER_FILL_READ_US, RENDER_FILL_BURST): the fill task's
+/// wait to be scheduled, each chunk's read time, and a window of blocks, counted from playback's start, in which the
+/// wait is the burst's instead. All zero by default: a card that answers at once, and a fill task that runs at once.
+struct StorageModel {
+	uint32_t delayMs = 0;
+	uint32_t readUs = 0;
+	uint64_t burstStart = 0;
+	uint64_t burstBlocks = 0;
+	uint32_t burstMs = 0;
+};
+StorageModel g_model;
+bool g_inBurst = false;
+
+uint32_t envU32(const char* name) {
+	const char* value = std::getenv(name);
+	return value != nullptr ? static_cast<uint32_t>(std::strtoul(value, nullptr, 10)) : 0;
+}
+
+/// RENDER_FILL_BURST is `<start block>:<blocks>:<ms>`; anything else leaves no burst.
+void readBurst(StorageModel& model) {
+	const char* burst = std::getenv("RENDER_FILL_BURST");
+	unsigned long long start = 0;
+	unsigned long long blocks = 0;
+	unsigned ms = 0;
+	if (burst != nullptr && std::sscanf(burst, "%llu:%llu:%u", &start, &blocks, &ms) == 3) {
+		model.burstStart = start;
+		model.burstBlocks = blocks;
+		model.burstMs = ms;
+	}
+}
 
 uint64_t g_renderBase = 0;
 uint64_t g_voiceBase[3] = {};
@@ -173,6 +207,9 @@ void stepPlay() {
 	g_unassignBase = deluge_sim_underrun_unassign_count();
 	g_audioSyncBase = deluge_tier_sync_audio_total();
 	g_readsBase = deluge_sim_card_reads();
+	deluge_streaming_set_fill_latency_ms(g_model.delayMs);
+	deluge_streaming_set_fill_read_latency_us(g_model.readUs);
+	g_inBurst = false;
 	deluge_host_capture_start();
 	playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 	g_wasPlaying = false;
@@ -191,6 +228,12 @@ void stepPlaying() {
 	g_direnessMax = std::max(g_direnessMax, static_cast<int32_t>(AudioEngine::cpuDireness));
 	g_voicesMax = std::max(g_voicesMax, static_cast<int32_t>(AudioEngine::getNumVoices()));
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
+	const bool burst = g_model.burstBlocks != 0 && g_blocksRendered >= g_model.burstStart
+	                   && g_blocksRendered < g_model.burstStart + g_model.burstBlocks;
+	if (burst != g_inBurst) {
+		deluge_streaming_set_fill_latency_ms(burst ? g_model.burstMs : g_model.delayMs);
+		g_inBurst = burst;
+	}
 	if (g_blocksRendered >= g_blocksWanted) {
 		g_reads = deluge_sim_card_reads() - g_readsBase;
 		g_captured = deluge_host_capture_stop();
@@ -209,6 +252,11 @@ void stepPlaying() {
 }
 
 void report() {
+	deluge_streaming_set_fill_latency_ms(0);
+	deluge_streaming_set_fill_read_latency_us(0);
+	printf("RS-MODEL fill_delay_ms=%u fill_read_us=%u burst=%llu:%llu:%u\n", g_model.delayMs, g_model.readUs,
+	       static_cast<unsigned long long>(g_model.burstStart), static_cast<unsigned long long>(g_model.burstBlocks),
+	       g_model.burstMs);
 	printf("RS-RENDER blocks=%llu stops=%d first_stop=%lld voices_max=%d direness_max=%d\n",
 	       static_cast<unsigned long long>(g_blocksRendered), g_stops, static_cast<long long>(g_firstStop), g_voicesMax,
 	       g_direnessMax);
@@ -254,6 +302,10 @@ void deluge_scenario_render_song_begin(void) {
 	g_captured = 0;
 	const char* song = std::getenv("RENDER_SONG");
 	g_songPath = song != nullptr ? song : "";
+	g_model = StorageModel{};
+	g_model.delayMs = envU32("RENDER_FILL_DELAY_MS");
+	g_model.readUs = envU32("RENDER_FILL_READ_US");
+	readBurst(g_model);
 	if (const char* blocks = std::getenv("RENDER_BLOCKS")) {
 		g_blocksWanted = std::strtoull(blocks, nullptr, 10);
 	}
