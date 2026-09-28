@@ -1,26 +1,5 @@
 FetchContent_MakeAvailable(etl)
 
-# argon + SIMDe, for the one firmware UI translation unit this binary compiles.
-#
-# slicer_preview_tests.cpp drives the REAL gui/ui/slicer.cpp rather than a restatement of it, and
-# that file reaches <argon.hpp> transitively (model/song/song.h -> dsp/reverb). The block mirrors
-# tests/unit/dsp/CMakeLists.txt.
-FetchContent_MakeAvailable(argon)
-
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
-    set(UNIT_TESTS_NEON_NATIVE ON)
-endif ()
-
-if (NOT UNIT_TESTS_NEON_NATIVE)
-    FetchContent_MakeAvailable(simde)
-    set(UNIT_TESTS_SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
-    # Parent builds this tree at -m32 on plain Linux, where SIMDe's native path drags in AVX512/FMA
-    # headers that don't parse in 32-bit mode.
-    if (UNIX AND NOT APPLE)
-        add_compile_definitions(SIMDE_NO_NATIVE)
-    endif ()
-endif ()
-
 # Set this to ON if you want to have the CppUTest's internal tests in your
 # project as well.
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
@@ -169,15 +148,9 @@ target_include_directories(UnitTests PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
 )
 
-# The NEON backend gui/ui/slicer.cpp reaches through dsp/reverb.
-target_link_libraries(UnitTests argon)
-if (NOT UNIT_TESTS_NEON_NATIVE)
-    target_include_directories(UnitTests PRIVATE
-            ${CMAKE_CURRENT_LIST_DIR}/../../../sim/compat # <arm_neon.h> shim
-            ${UNIT_TESTS_SIMDE_INCLUDE_DIR}            # <simde/arm/neon.h>
-            ${UNIT_TESTS_SIMDE_INCLUDE_DIR}/simde      # argon's bare <arm/neon.h>
-    )
-endif ()
+# argon's NEON backend: slicer_preview_tests.cpp drives the REAL gui/ui/slicer.cpp rather than a restatement of it,
+# and that file reaches <argon.hpp> transitively (model/song/song.h -> dsp/reverb).
+deluge_test_neon(UnitTests)
 
 # libstdc++'s parallel STL backend is oneTBB, whose headers pull in the full <immintrin.h> and
 # collide with SIMDe's NEON alias macros. The firmware has no TBB; mirror the sim and take the
@@ -193,7 +166,7 @@ set_target_properties(UnitTests
         CXX_EXTENSIONS ON
 )
 
-target_link_libraries(UnitTests CppUTestExt etl::etl)
+target_link_libraries(UnitTests PRIVATE CppUTestExt etl::etl)
 
 # strchr is seemingly different in x86
 target_compile_options(UnitTests PUBLIC

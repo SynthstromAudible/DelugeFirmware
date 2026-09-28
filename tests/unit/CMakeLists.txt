@@ -49,7 +49,11 @@ if (UNIX AND NOT APPLE)
     # matches the ARM target's VFP behaviour, making host float results a better proxy for the firmware's.
     add_compile_options(-m32 -mfpmath=sse -msse2 -Og -ggdb3)
     add_link_options(-m32)
+endif ()
 
+include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
+
+if (UNIX AND NOT APPLE)
     # Build the deluge_rust umbrella staticlib (i686) ONCE and share it across the
     # conformance specs (it re-exports both the deluge_alloc and deluge_resource C
     # ABIs). Defining the build here avoids two subdirs emitting colliding rules for
