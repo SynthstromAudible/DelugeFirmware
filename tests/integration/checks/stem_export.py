@@ -17,7 +17,6 @@ ST-RENDER goes red, that is a finding to investigate -- never a re-baseline.
 
 import hashlib
 import re
-from pathlib import Path
 
 
 def run(gate):
@@ -25,12 +24,6 @@ def run(gate):
     baseline = (gate.root / f"harness/stem-export-{fixture}.sha256").read_text().split()
     want_hash, want_bytes = baseline[0], baseline[1]
     render = gate.tmp / "render"
-
-    # The card image is cached and SHARED between gates, and reused-and-mutated across runs. Start cold.
-    for image in Path(gate.env.get("TMPDIR") or "/tmp").glob(
-        "deluge-streaming-scenario-*.img"
-    ):
-        image.unlink(missing_ok=True)
 
     result = gate.run(
         env={

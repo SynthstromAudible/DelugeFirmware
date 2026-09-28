@@ -28,6 +28,12 @@ use std::process::Command;
 /// Panics with a clear message on failure (missing local backup corpus, missing `mtools`,
 /// etc.) — this is one-time harness setup, not something to silently degrade under.
 pub fn pack_golden_fixture(repo_root: &Path, fixture: &str) -> PathBuf {
+    pack_image(&golden_fixture_tree(repo_root, fixture))
+}
+
+/// The project tree for corpus fixture `fixture` (`<DELUGE_GOLDEN_DIR>/<fixture>_proj`), reconstructed from the song
+/// corpus by `scripts/golden_mixdown.sh reconstruct` when it is not there yet.
+pub fn golden_fixture_tree(repo_root: &Path, fixture: &str) -> PathBuf {
     let golden_dir = std::env::var("DELUGE_GOLDEN_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| {
@@ -60,7 +66,7 @@ pub fn pack_golden_fixture(repo_root: &Path, fixture: &str) -> PathBuf {
         );
     }
 
-    pack_image(&proj)
+    proj
 }
 
 /// Packs `project_dir` into a fresh sparse FAT32 image via mtools. Mirrors

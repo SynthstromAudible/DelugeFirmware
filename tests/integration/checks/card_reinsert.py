@@ -11,13 +11,11 @@ CR-RESIDENTS is not ceremony. `audio-load-ab` drives these same edges and reache
 residents=0 -- the edges fire and the loop body never runs. A gate for a walk must fail when the walk is empty, so
 CR-RESIDENTS is checked first and hardest.
 
-The card image is cached and shared between gates, and reused and mutated across runs, so this module runs the
-scenario itself, starting cold: every cached scenario image is removed first. Every leg is checked and every failing
+This module runs the scenario itself. Every leg is checked and every failing
 one reported.
 """
 
 import re
-from pathlib import Path
 
 RESIDENTS = re.compile(r"^CR-RESIDENTS samples=([0-9-]*) ")
 OK = re.compile(r"^[A-Z-]* ok=([0-9-]*)")
@@ -32,10 +30,6 @@ def _count(value: str) -> int | None:
 
 
 def run(gate):
-    tmp = Path(gate.env.get("TMPDIR") or "/tmp")
-    for image in tmp.glob("deluge-streaming-scenario-*.img"):
-        image.unlink(missing_ok=True)
-
     result = gate.run(
         env={
             "GOLDEN_VIRTUAL_BUDGET_MS": gate.env.get(

@@ -109,7 +109,7 @@ status = "gate"
 gates = "the SampleRecorder record-then-read-back round trip must be byte-exact on the Embassy host BSP"
 scenario = "recorder_roundtrip"
 builds = ["golden-vt-render"]
-requires = ["mtools"]
+requires = []
 tier = "nightly"
 runtime = "~5m"
 
@@ -119,8 +119,8 @@ runtime = "~5m"
 # `run` is a script rather than a cargo invocation because the harness's C++ object closure has to be
 # rebuilt first, which cargo does not track. The script builds the harness once and runs the fixture
 # card through it: every sample loads twice in process, synchronously as the reference and then
-# through the loader, and the two must agree. It needs no song corpus — it generates its own WAVs and packs them with
-# mtools — so unlike the sibling golden_vt_render gates it can run anywhere.
+# through the loader, and the two must agree. It needs no song corpus — it generates its own WAVs — so unlike the
+# sibling golden_vt_render gates it can run anywhere.
 [[harness]]
 name = "audio-load-ab"
 path = "."
@@ -134,7 +134,7 @@ markers = ["AB-RESULT", "AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVI
 result = "AB-RESULT failures=0"
 check = "tests/integration/checks/audio_load_ab.py"
 builds = ["golden-vt-render"]
-requires = ["mtools"]
+requires = []
 tier = "nightly"
 runtime = "~5m"
 
@@ -161,7 +161,7 @@ markers = ["SP-RESULT", "SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMM
 result = "SP-RESULT failures=0"
 check = "tests/integration/checks/song_preview_ab.py"
 builds = ["golden-vt-render"]
-requires = ["mtools"]
+requires = []
 tier = "nightly"
 runtime = "~5m"
 

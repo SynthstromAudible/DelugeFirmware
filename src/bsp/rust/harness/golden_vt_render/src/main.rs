@@ -88,6 +88,7 @@ use embassy_time::{Duration, Instant, Timer};
 use embassy_time_driver::Driver as _;
 
 mod clock;
+mod memory_card;
 
 // Link-only: the host-built C++ `deluge_app` object closure (build.rs) calls the
 // deluge_resource_* residency C ABI and the deluge_{alloc,slab_*,heap_*}
@@ -199,6 +200,8 @@ mod host_link_stubs;
 mod scheduler;
 #[path = "../../../src/sd.rs"]
 mod sd;
+// Only `golden_fixture_tree` is used here: the card is a memory disk (memory_card.rs), not an mtools-packed file.
+#[allow(dead_code)]
 #[path = "../../../src/sd_image.rs"]
 mod sd_image;
 /// `sd_image`'s content-addressed image naming/reuse policy (same module the parent crate
@@ -877,14 +880,14 @@ fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: 
 /// The fixture that matters is not on the card. It is the SONG, which the scenario inflates in
 /// memory until its document outgrows the staging buffer -- a card full of files would not change
 /// what this gate measures.
-fn pack_song_save_image() -> std::path::PathBuf {
+fn fill_song_save_card() {
     let root = std::env::temp_dir().join("deluge-song-save-card");
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("SONGS")).expect("creating the fixture SONGS directory");
-    sd_image::pack_image(&root)
+    memory_card::install(Some(&root));
 }
 
-fn pack_sample_collect_image() -> std::path::PathBuf {
+fn fill_sample_collect_card() {
     let root = std::env::temp_dir().join("deluge-sample-collect-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES");
@@ -895,7 +898,7 @@ fn pack_sample_collect_image() -> std::path::PathBuf {
     write_test_wav(&samples.join("COLL2.WAV"), 2, 16, 1024, 0x42);
     write_test_wav(&recordings.join("REC12345.WAV"), 1, 16, 768, 0x43);
     write_test_wav(&recordings.join("REC123450.WAV"), 1, 16, 640, 0x44);
-    sd_image::pack_image(&root)
+    memory_card::install(Some(&root));
 }
 
 /// Stage the sample-load tree scenario's card and pack it into a FAT image.
@@ -915,7 +918,7 @@ fn pack_sample_collect_image() -> std::path::PathBuf {
 /// `CRLOST.WAV` is REMOVED by the scenario between the ejection and the re-insertion, which is what
 /// its resident Sample must then be marked unloadable for. The other two are never touched on the
 /// card; their fates are decided by whether a project still holds them.
-fn pack_card_reinsert_image() -> std::path::PathBuf {
+fn fill_card_reinsert_card() {
     let root = std::env::temp_dir().join("deluge-card-reinsert-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES");
@@ -925,10 +928,10 @@ fn pack_card_reinsert_image() -> std::path::PathBuf {
     write_test_wav(&samples.join("CRSURV.WAV"), 1, 16, 4096, 0x71);
     write_test_wav(&samples.join("CRLOST.WAV"), 1, 16, 3072, 0x72);
     write_test_wav(&samples.join("CREVICT.WAV"), 1, 16, 2048, 0x73);
-    sd_image::pack_image(&root)
+    memory_card::install(Some(&root));
 }
 
-fn pack_sample_load_tree_image() -> std::path::PathBuf {
+fn fill_sample_load_tree_card() {
     let root = std::env::temp_dir().join("deluge-sample-load-tree-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES");
@@ -949,7 +952,7 @@ fn pack_sample_load_tree_image() -> std::path::PathBuf {
     write_test_wav(&synth_folder.join("SLTPSYN.WAV"), 1, 16, 2048, 0x55);
     write_test_wav(&kit_folder.join("SLTPKA.WAV"), 1, 16, 2048, 0x56);
     write_test_wav(&kit_folder.join("SLTPKB.WAV"), 1, 16, 2048, 0x57);
-    sd_image::pack_image(&root)
+    memory_card::install(Some(&root));
 }
 
 /// Stage the A/B scenario's card and pack it into a FAT image.
@@ -996,7 +999,7 @@ fn pack_sample_load_tree_image() -> std::path::PathBuf {
 /// `./dbt test` removes it afterwards (scenario_gate.py) — an accumulation of those under
 /// `/tmp/deluge-streaming-scenario-*.img` is a known way to wedge an unrelated stem export on this
 /// project.
-fn pack_audio_load_ab_image() -> std::path::PathBuf {
+fn fill_audio_load_ab_card() {
     let root = std::env::temp_dir().join("deluge-audio-load-ab-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES");
@@ -1061,13 +1064,12 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     std::fs::write(samples.join("EMPTY.WAV"), Vec::<u8>::new())
         .expect("writing the A/B fixture's zero-length file");
 
-    let img = sd_image::pack_image(&root);
-    // The staging tree has served its purpose once the image exists, and leaving it in the system
+    memory_card::install(Some(&root));
+    // The staging tree has served its purpose once the card holds it, and leaving it in the system
     // temp dir is the same kind of litter as leaving the images themselves (see
     // `./dbt test`'s cleanup): this harness runs on machines where a full /tmp is a
     // known way to wedge an unrelated stem export.
     let _ = std::fs::remove_dir_all(&root);
-    img
 }
 
 // ── The song-preview A/B fixture ────────────────────────────────────────────
@@ -1144,7 +1146,7 @@ fn uniform_preview_song(value: u8) -> String {
 ///   carry no absolute expectation -- their artwork is whatever their author made -- and what they
 ///   add is real documents: real attribute orders, real firmware versions, real preview offsets.
 ///   Contiguous from zero, because the C++ side probes for them by index and stops at the first gap.
-fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf {
+fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
     let root = std::env::temp_dir().join("deluge-song-preview-ab-card");
     let _ = std::fs::remove_dir_all(&root);
     let songs = root.join("SONGS");
@@ -1268,11 +1270,9 @@ fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf
         "golden_vt_render: song-preview fixture staged {copied} corpus song(s) (corpus named: {corpus_was_named})"
     );
 
-    let img = sd_image::pack_image(&root);
-    // The staging tree has served its purpose once the image exists; leaving it in the system temp
-    // dir is the same litter as leaving the images themselves.
+    memory_card::install(Some(&root));
+    // The staging tree has served its purpose once the card holds it.
     let _ = std::fs::remove_dir_all(&root);
-    img
 }
 
 /// How many corpus songs the fixture stages, hand-duplicated with `kMaxCorpusCases` in
@@ -1357,7 +1357,7 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 /// - `SYNTHS/`: empty; the multisample import leg writes its blank synth preset there.
 /// - `SAMPLES/IMM/IMM_A2.WAV`, `IMM_A3.WAV` and `IMM_A4.WAV`: the multisample folder import's folder, one-second sines
 ///   at 110, 220 and 440 Hz.
-fn pack_sample_claim_image() -> std::path::PathBuf {
+fn fill_sample_claim_card() {
     let root = std::env::temp_dir().join("deluge-sample-claim-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES");
@@ -1429,7 +1429,7 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     write_sine_wav(&import_stall.join("IMS_A.WAV"), 1, 44_100, 110.0);
     write_sine_wav(&import_stall.join("IMS_B.WAV"), 1, 44_100, 220.0);
     write_sine_wav(&import_stall.join("IMS_C.WAV"), 1, 44_100, 440.0);
-    sd_image::pack_image(&root)
+    memory_card::install(Some(&root));
 }
 
 /// Stage the preset-load scenario's card and pack it into a FAT image.
@@ -1445,7 +1445,7 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
 /// - `SAMPLES/PLG/PLGATE.WAV` and `SAMPLES/PLS/PLSTALL.WAV`: the gate and stall legs' held samples.
 /// - `SAMPLES/AQ/AQSA.WAV`, `AQKA..AQKD.WAV` and `AQKL.WAV`: the acquisition legs' synth, navigated kits and light kit;
 ///   `SAMPLES/AQH/AQHA..AQHC.WAV` their heavy kit, and `SAMPLES/AQS/PLSTB.WAV` the acquisition stall leg's held sample.
-fn pack_preset_load_image() -> std::path::PathBuf {
+fn fill_preset_load_card() {
     let root = std::env::temp_dir().join("deluge-preset-load-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES").join("PL");
@@ -1508,12 +1508,12 @@ fn pack_preset_load_image() -> std::path::PathBuf {
     write_test_wav(&aq_heavy.join("AQHB.WAV"), 1, 16, 8192, 0xA7);
     write_test_wav(&aq_heavy.join("AQHC.WAV"), 1, 16, 8192, 0xA8);
     write_sine_wav(&aq_stall.join("PLSTB.WAV"), 1, 22_050, 990.0);
-    sd_image::pack_image(&root)
+    memory_card::install(Some(&root));
 }
 
 /// The card the `GOLDEN_SCENARIO=clear_song_undo` scenario runs on: the sample its preset binds, and the empty
 /// SYNTHS folder the scenario writes that preset into through the firmware.
-fn pack_clear_song_undo_image() -> std::path::PathBuf {
+fn fill_clear_song_undo_card() {
     let root = std::env::temp_dir().join("deluge-clear-song-undo-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES").join("CS");
@@ -1530,13 +1530,13 @@ fn pack_clear_song_undo_image() -> std::path::PathBuf {
     write_sine_wav(&samples.join("CSUNA.WAV"), 1, 22_050, 330.0);
     write_sine_wav(&samples.join("CSUNB.WAV"), 1, 22_050, 550.0);
     write_sine_wav(&samples.join("CSGONE.WAV"), 1, 22_050, 660.0);
-    sd_image::pack_image(&root)
+    memory_card::install(Some(&root));
 }
 
 /// The card the song-load gate boots on: somewhere to save, and the one sample its song carries. It packs an
 /// image of its own rather than the golden fixture because the gate saves and loads a song it writes itself, and
 /// the fixture corpus has no sample this gate can name.
-fn pack_song_load_channel_image() -> std::path::PathBuf {
+fn fill_song_load_channel_card() {
     let root = std::env::temp_dir().join("deluge-song-load-channel-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES").join("SL");
@@ -1549,7 +1549,7 @@ fn pack_song_load_channel_image() -> std::path::PathBuf {
         std::fs::create_dir_all(dir).expect("creating the song-load-channel fixture directories");
     }
     write_sine_wav(&samples.join("SLSONG.WAV"), 1, 22_050, 440.0);
-    sd_image::pack_image(&root)
+    memory_card::install(Some(&root));
 }
 
 /// Our own pender: no thread, no parking — just a flag the driver loop polls
@@ -1606,27 +1606,25 @@ fn main() {
         .nth(5)
         .expect("CARGO_MANIFEST_DIR (src/bsp/rust/harness/golden_vt_render) has a repo root 5 levels up")
         .to_path_buf();
+    // The card: a memory disk filled with the scenario's fixture tree (memory_card.rs), unless DELUGE_SD_IMAGE names a
+    // file to use instead.
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
-        // Recorder mode records into a fresh EMPTY image (it only ever writes new files); the
-        // stem-export golden packs the fixture's corpus song + samples.
-        let img = match scenario.as_str() {
+        match scenario.as_str() {
             "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard" => {
-                sd_image::format_empty_image()
+                memory_card::install(None)
             }
-            "audio_load_ab" => pack_audio_load_ab_image(),
-            "song_preview_ab" => pack_song_preview_ab_image(&repo_root),
-            "song_save_channel" => pack_song_save_image(),
-            "sample_collect" => pack_sample_collect_image(),
-            "card_reinsert" => pack_card_reinsert_image(),
-            "sample_load_tree" => pack_sample_load_tree_image(),
-            "sample_claim" => pack_sample_claim_image(),
-            "preset_load" => pack_preset_load_image(),
-            "clear_song_undo" => pack_clear_song_undo_image(),
-            "song_load_channel" => pack_song_load_channel_image(),
-            _ => sd_image::pack_golden_fixture(&repo_root, &fixture),
-        };
-        // SAFETY: single-threaded at this point (before any task/executor exists).
-        unsafe { std::env::set_var("DELUGE_SD_IMAGE", &img) };
+            "audio_load_ab" => fill_audio_load_ab_card(),
+            "song_preview_ab" => fill_song_preview_ab_card(&repo_root),
+            "song_save_channel" => fill_song_save_card(),
+            "sample_collect" => fill_sample_collect_card(),
+            "card_reinsert" => fill_card_reinsert_card(),
+            "sample_load_tree" => fill_sample_load_tree_card(),
+            "sample_claim" => fill_sample_claim_card(),
+            "preset_load" => fill_preset_load_card(),
+            "clear_song_undo" => fill_clear_song_undo_card(),
+            "song_load_channel" => fill_song_load_channel_card(),
+            _ => memory_card::install(Some(&sd_image::golden_fixture_tree(&repo_root, &fixture))),
+        }
     }
     // Same flag `host_render_main.cpp`'s `main()` sets before its own
     // `deluge_main()` — `audio_host.rs`'s `deluge_audio_drive` reads it to trim
@@ -1763,6 +1761,7 @@ fn main() {
 /// discarded.
 fn hard_exit(mut code: i32) -> ! {
     use std::io::Write as _;
+    memory_card::dump_if_asked();
     // The synchronous-call inventory, on every exit: a failing run's numbers matter as much as a passing one's.
     tier_meter::print_report();
     // Structural edits to the render's containers made while the render could have preempted them

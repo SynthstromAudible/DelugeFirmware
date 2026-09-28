@@ -8,8 +8,8 @@ that gate. It defines one of:
     def check(gate, run):   # after the standard run and its standard checks
     def run(gate):          # instead of them, when the gate runs the binary more than once or not at all like the rest
 
-and reports through `gate.fail(message)`. A gate passes when nothing failed. Pass or fail, the card images a gate's
-runs packed into the temp dir, and its `deluge-<gate>-card` fixture dir, are removed after it.
+and reports through `gate.fail(message)`. A gate passes when nothing failed. Pass or fail, the `deluge-<gate>-card`
+fixture tree a gate's runs staged in the temp dir is removed after it.
 """
 
 import importlib.util
@@ -170,15 +170,8 @@ def _load_check(path: Path):
     return module
 
 
-def _card_images() -> set[Path]:
-    """The packed card images golden_vt_render caches in the temp dir, each a sparse 2.5 GB file."""
-    return set(Path(tempfile.gettempdir()).glob("deluge-streaming-scenario-*.img"))
-
-
-def _clean_up_cards(entry, images_before: set[Path]) -> None:
-    """Remove what a gate's runs left in the temp dir: the images they packed, and the gate's fixture card dir."""
-    for image in _card_images() - images_before:
-        image.unlink(missing_ok=True)
+def _clean_up_fixture(entry) -> None:
+    """Remove the fixture tree a gate's runs staged in the temp dir to fill the card from."""
     shutil.rmtree(
         Path(tempfile.gettempdir()) / f"deluge-{entry.name}-card", ignore_errors=True
     )
@@ -190,7 +183,6 @@ def run_gate(root: Path, entry, env: dict[str, str], binary: Path, log) -> bool:
         print(f"test: '{entry.name}': {binary} is not built", file=log)
         return False
     gate = Gate(entry.name, root, binary, env, entry, log)
-    images_before = _card_images()
     try:
         module = _load_check(root / entry.check) if entry.check else None
         if module is not None and hasattr(module, "run"):
@@ -206,7 +198,7 @@ def run_gate(root: Path, entry, env: dict[str, str], binary: Path, log) -> bool:
         return passed
     finally:
         gate.cleanup()
-        _clean_up_cards(entry, images_before)
+        _clean_up_fixture(entry)
 
 
 __all__ = ["MARKER", "Gate", "Run", "field", "int_field", "run_gate"]
