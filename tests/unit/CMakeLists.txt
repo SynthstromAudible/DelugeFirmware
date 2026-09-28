@@ -128,6 +128,9 @@ file(GLOB_RECURSE deluge_SOURCES
         # For the DX cartridge window spec: the REAL sysex parser, so the spec measures what
         # DX7Cartridge::load actually does with a truncated bank rather than restating arithmetic.
         ../../src/deluge/storage/DX7Cartridge.cpp
+        # For the MEM_GUARD side-table spec: the REAL table, and the structural-edit probe its edits report to.
+        ../../src/deluge/memory/alloc_metadata.cpp
+        ../../src/deluge/util/structural_edit_probe.cpp
 )
 
 # util/firmware_version.h is generated from a template at firmware-build time, and the deserializers
@@ -142,6 +145,7 @@ configure_file(../../src/deluge/util/firmware_version.h.in
 
 add_executable(UnitTests
         RunAllTests.cpp
+        mem_guard_tests.cpp
         audio_pacing_tests.cpp
         scheduler_tests.cpp
         lfo_tests.cpp

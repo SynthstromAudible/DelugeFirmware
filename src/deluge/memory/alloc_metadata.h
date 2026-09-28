@@ -50,6 +50,12 @@ bool removeAlloc(void* address);
 // No-op if `oldAddress` was not tracked.
 void updateAllocKey(void* oldAddress, void* newAddress, uint32_t newRequestedSize);
 
+// Diagnostics: the table's capacity, and how many of its buckets are empty (hold neither a live entry nor a leftover of
+// a removed one). Every edit of the table runs with the render held off (AudioExcludedSection), so its probe chains
+// must stay short: removal leaves no leftovers, and emptyBuckets() == tableCapacity() - liveAllocations().
+uint32_t tableCapacity();
+uint32_t emptyBuckets();
+
 // ---- Leak hunting --------------------------------------------------------------------------------------------------
 //
 // The table above already knows every live allocation. These turn that into a leak report. The intended workflow is a

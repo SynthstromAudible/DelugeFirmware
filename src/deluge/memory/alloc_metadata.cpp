@@ -33,7 +33,7 @@ namespace {
 constexpr uint32_t kCapacity = 1u << 15;
 constexpr uint32_t kMask = kCapacity - 1;
 constexpr uintptr_t kEmpty = 0u;     // address sentinel: free bucket (0 is never a valid heap address)
-constexpr uintptr_t kTombstone = 1u; // address sentinel: deleted bucket (1 is never a valid heap address)
+constexpr uintptr_t kTombstone = 1u; // reserved: never a key (1 is never a valid heap address); removal leaves none
 
 struct Slot {
 	uintptr_t address;
@@ -68,7 +68,6 @@ void recordAllocWithEpoch(uintptr_t key, uint32_t requestedSize, uintptr_t calls
 		return;
 	}
 	uint32_t b = hashAddress(key);
-	int32_t firstTomb = -1;
 	for (uint32_t probes = 0; probes < kCapacity; probes++) {
 		uintptr_t slotAddr = slots[b].address;
 		if (slotAddr == key) { // already present - overwrite (e.g. memory reused at the same address)
@@ -78,29 +77,17 @@ void recordAllocWithEpoch(uintptr_t key, uint32_t requestedSize, uintptr_t calls
 			return;
 		}
 		if (slotAddr == kEmpty) {
-			uint32_t dest = (firstTomb >= 0) ? (uint32_t)firstTomb : b;
-			slots[dest].address = key;
-			slots[dest].callsite = callsite;
-			slots[dest].requestedSize = requestedSize;
-			slots[dest].epoch = epoch;
+			slots[b].address = key;
+			slots[b].callsite = callsite;
+			slots[b].requestedSize = requestedSize;
+			slots[b].epoch = epoch;
 			liveCount++;
 			return;
 		}
-		if (slotAddr == kTombstone && firstTomb < 0) {
-			firstTomb = (int32_t)b;
-		}
 		b = (b + 1) & kMask;
 	}
-	// Probed every slot without finding an empty bucket. Reuse a tombstone if we passed one, otherwise the table is
-	// genuinely full: degrade gracefully (this allocation just won't be attributed) rather than freezing.
-	if (firstTomb >= 0) {
-		slots[firstTomb].address = key;
-		slots[firstTomb].callsite = callsite;
-		slots[firstTomb].requestedSize = requestedSize;
-		slots[firstTomb].epoch = epoch;
-		liveCount++;
-		return;
-	}
+	// Probed every slot without finding an empty bucket: the table is genuinely full. Degrade gracefully (this
+	// allocation just won't be attributed) rather than freezing.
 	if (!warnedFull) {
 		warnedFull = true;
 		D_PRINTLN("MEM_GUARD alloc metadata table full (%d live) - attribution degraded", liveCount);
@@ -172,7 +159,18 @@ bool removeAlloc(void* address) {
 			return false;
 		}
 		if (slotAddr == key) {
-			slots[b].address = kTombstone;
+			// Backward-shift deletion: pull each later entry of this probe run back into the hole if the hole lies
+			// between its home bucket and where it sits, so the run stays unbroken and no tombstone is left for later
+			// lookups to probe past. The run ends at the first empty bucket.
+			uint32_t hole = b;
+			for (uint32_t j = (b + 1) & kMask; slots[j].address != kEmpty; j = (j + 1) & kMask) {
+				const uint32_t home = hashAddress(slots[j].address);
+				if (((j - home) & kMask) >= ((j - hole) & kMask)) {
+					slots[hole] = slots[j];
+					hole = j;
+				}
+			}
+			slots[hole].address = kEmpty;
 			liveCount--;
 			return true;
 		}
@@ -206,6 +204,18 @@ Snapshot snapshot() {
 
 uint32_t liveAllocations() {
 	return liveCount;
+}
+
+uint32_t tableCapacity() {
+	return kCapacity;
+}
+
+uint32_t emptyBuckets() {
+	uint32_t n = 0;
+	for (const Slot& slot : slots) {
+		n += (slot.address == kEmpty) ? 1 : 0;
+	}
+	return n;
 }
 
 void reportOutstanding(Snapshot since) {
