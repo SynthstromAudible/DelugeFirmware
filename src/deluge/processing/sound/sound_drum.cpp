@@ -47,6 +47,7 @@ bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 }
 
 void SoundDrum::resetTimeEnteredState() {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
 	for (const ActiveVoice& voice : this->voices()) {
 		voice->envelopes[0].resetTimeEntered();
@@ -72,6 +73,7 @@ void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloc
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...

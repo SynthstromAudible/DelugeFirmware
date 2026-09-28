@@ -1726,33 +1726,44 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 		try {
 			built.emplace(AudioEngine::VoicePool::get().acquire(*this));
 		} catch (deluge::exception e) {
-			// No memory for another voice: take one of this Sound's own, in place, as a re-trigger.
+			// No memory for another voice: start this note on one of this Sound's own voices instead, as a new note
+			// (what the voice limit's steal has always done). That voice is in voices_ and the render plays it, so
+			// all of it runs with the render excluded.
 			AudioExcludedSection section;
 			if (voices_.empty()) {
 				return; // nothing to take: the note cannot play
 			}
-			retriggerVoice(this->stealOneActiveVoice(), modelStack, noteCodePreArp, noteCodePostArp, velocity,
-			               mpeValues, sampleSyncLength, ticksLate, samplesLate, fromMIDIChannel);
-			lastNoteCode = noteCodePostArp;
-			return;
+			const ActiveVoice& voice = this->stealOneActiveVoice();
+			reassessRenderSkippingStatus(modelStack);
+			voice->randomizeOscPhases(*this);
+			if (sideChainSendLevel != 0) [[unlikely]] {
+				AudioEngine::registerSideChainHit(sideChainSendLevel);
+			}
+			if (!voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength, ticksLate,
+			                   samplesLate, true, fromMIDIChannel, mpeValues)) {
+				this->freeActiveVoice(voice, modelStack);
+			}
 		}
-		ActiveVoice& voice = *built;
-		voice->randomizeOscPhases(*this);
-		if (sideChainSendLevel != 0) [[unlikely]] {
-			AudioEngine::registerSideChainHit(sideChainSendLevel);
+		if (built.has_value()) {
+			ActiveVoice& voice = *built;
+			voice->randomizeOscPhases(*this);
+			if (sideChainSendLevel != 0) [[unlikely]] {
+				AudioEngine::registerSideChainHit(sideChainSendLevel);
+			}
+			if (voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength, ticksLate,
+			                  samplesLate, true, fromMIDIChannel, mpeValues)) {
+				// Publish: the voice limit, the push and the skipping status in one step the render cannot split.
+				AudioExcludedSection section;
+				auto countsTowardLimit = [](const ActiveVoice& v) { return !v->isCullFading(); };
+				if (std::ranges::count_if(voices_, countsTowardLimit) >= maxVoiceCount) {
+					this->terminateOneActiveVoice();
+				}
+				publishVoice(std::move(voice));
+				reassessRenderSkippingStatus(modelStack);
+			}
+			// A voice whose note-on failed goes back to the pool when `built` goes out of scope; the render never saw
+			// it. The note-on still runs to its end below (portamento's last note, MIDI out), as it always did.
 		}
-		if (!voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength, ticksLate,
-		                   samplesLate, true, fromMIDIChannel, mpeValues)) {
-			return; // `voice` goes back to the pool; the render never saw it
-		}
-		// Publish: the voice limit, the push and the skipping status in one step the render cannot split.
-		AudioExcludedSection section;
-		auto countsTowardLimit = [](const ActiveVoice& v) { return !v->isCullFading(); };
-		if (std::ranges::count_if(voices_, countsTowardLimit) >= maxVoiceCount) {
-			this->terminateOneActiveVoice();
-		}
-		publishVoice(std::move(voice));
-		reassessRenderSkippingStatus(modelStack);
 	}
 
 	lastNoteCode = noteCodePostArp; // Store for porta. We store that at both note-on and note-off.
@@ -1843,6 +1854,7 @@ void Sound::allNotesOff(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBa
 
 // noteCode = ALL_NOTES_OFF (default) means stop *any* voice, regardless of noteCode
 void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCode) {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	// Send midi note offs out for specific notes,
 	// but only if the type of sound allows note tails (if not, note off was already sent right after its note on)
 	if (outputMidiChannel != MIDI_CHANNEL_NONE && allowNoteTails(modelStack, true)) {
@@ -3154,6 +3166,7 @@ void Sound::recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* 
 
 // Can handle NULL modelStack, which you'd only want to do if no Voices active
 void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 
 	if (voices_.empty() || modelStack == nullptr) {
 		return; // These two "should" always be false in tandem...
@@ -4809,6 +4822,7 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 
 // This function has to give the same outcome as Source::renderInStereo()
 bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 
 	// audioDriver deciding we're rendering in mono overrides everything
 	if (!AudioEngine::renderInStereo) {
@@ -4983,6 +4997,7 @@ const Sound::ActiveVoice& Sound::stealOneActiveVoice() {
 
 /// Force a voice to release very quickly - will be almost instant but not click
 void Sound::terminateOneActiveVoice() {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	if (voices_.empty()) {
 		return;
 	}
@@ -5017,6 +5032,7 @@ void Sound::terminateOneActiveVoice() {
 }
 
 void Sound::forceReleaseOneActiveVoice() {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	if (voices_.empty()) {
 		return;
 	}

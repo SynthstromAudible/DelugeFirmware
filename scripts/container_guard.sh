@@ -35,8 +35,9 @@
 #   CG-VOICEMONO             a MONO synth re-triggered while its voice plays
 #   CG-VOICEKILL             the oscillator-type menu's killAllVoices on a sounding synth
 #   CG-VOICEMULTIRANGE       a multi-range deleted from a sounding synth (Sound::deleteMultiRange)
-#   CG-VOICEFAIL             a note-on on a sample oscillator with no sample: its voice goes back to the pool
-#                            (CG-VOICEFAIL poolFreeDelta=0 voicesDelta=0 required)
+#   CG-VOICEFAIL             a ring-mod note-on whose voice fails to start (a sample source with no sample): the
+#                            voice goes back to the pool unpublished and the note-on still runs to its end
+#                            (CG-VOICEFAIL poolFreeDelta=0 voicesDelta=0 lastNoteSet=1 required)
 #   CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
 #   CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
 #                            wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
@@ -134,8 +135,8 @@ if ! grep -qE '^CG-RENDERALLOC renderAllocs=0$' "$OUT/run.txt"; then
 fi
 
 # A note-on whose voice cannot start returns it to the pool; it never reaches the Sound's voices.
-if ! grep -qE '^CG-VOICEFAIL poolFreeDelta=0 voicesDelta=0$' "$OUT/run.txt"; then
-	echo "FAIL — $(grep -E '^CG-VOICEFAIL poolFreeDelta' "$OUT/run.txt" || echo 'no CG-VOICEFAIL line'): a failed note-on leaked a voice"
+if ! grep -qE '^CG-VOICEFAIL poolFreeDelta=0 voicesDelta=0 lastNoteSet=1$' "$OUT/run.txt"; then
+	echo "FAIL — $(grep -E '^CG-VOICEFAIL poolFreeDelta' "$OUT/run.txt" || echo 'no CG-VOICEFAIL line'): a failed note-on leaked or published its voice, or did not run to its end"
 	exit 1
 fi
 

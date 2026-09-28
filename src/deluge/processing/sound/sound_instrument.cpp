@@ -319,6 +319,7 @@ void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expres
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 	for (const auto& voice : this->voices()) {
 		if (voice->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
@@ -458,6 +459,7 @@ ArpeggiatorBase* SoundInstrument::getArp() {
 }
 
 bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 

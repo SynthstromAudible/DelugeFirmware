@@ -406,10 +406,14 @@ bool setupLeg() {
 	case Leg::VoiceKill:
 		auditionSynth(kRowNote);
 		return true;
-	case Leg::VoiceFail:
-		// A sample oscillator with no sample: a note-on's voice cannot start.
-		static_cast<SoundInstrument*>(g_clip->output)->sources[0].setOscType(OscType::SAMPLE);
+	case Leg::VoiceFail: {
+		// Ring-mod with a sample source that has no sample: Sound::noteOn lets a ring-mod note through, and the voice's
+		// own note-on fails on the inactive source (Voice::noteOn returns false only in ring-mod).
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		synth->setSynthMode(SynthMode::RINGMOD, currentSong);
+		synth->sources[0].setOscType(OscType::SAMPLE);
 		return true;
+	}
 	case Leg::VoiceMultiRange: {
 		// Two ranges on source 0, so one can be deleted.
 		Source& source = static_cast<SoundInstrument*>(g_clip->output)->sources[0];
@@ -656,9 +660,12 @@ void editLeg() {
 		const size_t freeBefore = AudioEngine::VoicePool::get().size();
 		const size_t voicesBefore = synth->voices().size();
 		auditionSynth(kRowNote);
-		printf("CG-VOICEFAIL poolFreeDelta=%d voicesDelta=%d\n",
+		// voicesDelta=0: the voice was never published, so its note-on failed. lastNoteSet=1: the note-on still ran to
+		// its end (portamento's last note, MIDI out), as it did before a failed voice returned early.
+		printf("CG-VOICEFAIL poolFreeDelta=%d voicesDelta=%d lastNoteSet=%d\n",
 		       static_cast<int>(AudioEngine::VoicePool::get().size()) - static_cast<int>(freeBefore),
-		       static_cast<int>(synth->voices().size()) - static_cast<int>(voicesBefore));
+		       static_cast<int>(synth->voices().size()) - static_cast<int>(voicesBefore),
+		       synth->lastNoteCode == kRowNote ? 1 : 0);
 		fflush(stdout);
 		break;
 	}
