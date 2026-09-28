@@ -1,6 +1,7 @@
 # One test tree, one registry, one runner
 
-Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 to 3 done.
+Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 to 3 done; step 3½ (§8a) added
+2026-09-28, at Kate's request.
 - Branch `feat/rung3-browser-listing`. Follows the testing audit of the same day (conversation) and the fixes it led to
   (`1d32a55a8` … `7bc73c7bf`).
 - Lands after this branch merges into `next`, and before `feat/synth-golden-masters` is merged onto it, so the golden
@@ -237,6 +238,51 @@ The FAIL and PASS lines the checks print keep their current text, so estate capt
 Verification: the RelWithDebInfo image's symbol table has no `deluge_scenario_*`, and its `.text` shrinks by the
 scenarios' size.
 
+## 8a. Card images in memory
+
+The Embassy host harness mounts the same vendored `embedded-fatfs` the device mounts, over a block device that
+mirrors the device's (the `SD_BUS` lock, the `sim_latency` queue), so its gates exercise the real storage stack:
+free-cluster accounting (`TK-LEAK`, `RW-LEAK`), the recorder's deferred directory entry and cluster chains, card
+re-insert and `sector_of()`, cluster-indexed streaming reads. A host directory in place of the card (the C-host's
+`DELUGE_SD_ROOT`) would bypass exactly that, so the gates keep a FAT volume. What changes is where it lives and how
+it is made.
+
+**Today.** The backend is `deluge-sdk`'s `crates/deluge-bsp/src/sd.rs` `host` module: a file named by
+`DELUGE_SD_IMAGE`, read and written with seek/read/write. golden_vt_render packs each fixture into a 2.5 GB sparse
+file in the temp dir (FAT32 needs 65,525 clusters at the device's 32 KB cluster size) with mtools (`mformat`,
+`mcopy`), after `scripts/golden_mixdown.sh reconstruct` for corpus songs, and caches it by a fingerprint of the
+fixture tree. Consequences:
+- 2.5 GB files in `/tmp`, which the runner has to clean up after each gate (`scenario_gate.py`).
+- mtools as a prerequisite.
+- State that leaks between runs: a cached image keeps what earlier runs wrote to it, which is why some served and
+  `TIER-SYNC` counts differ between captures, and why a stray file from one gate's red runs changed another gate's
+  listing counts.
+- Integration gates cannot run in parallel: they share cached images.
+
+**Change.**
+1. **A sparse in-memory disk** in `deluge-sdk`'s host backend, selected by the embedding binary (an API
+   golden_vt_render calls before boot, e.g. `deluge_bsp::sd::host::use_memory_disk(sectors)`, rather than another
+   environment variable): a map from sector to 512 bytes, holding only sectors written, reading zeroes elsewhere.
+   The volume keeps its 2.5 GB, 32 KB-cluster geometry; the process holds only what the run wrote (tens of MB).
+2. **Images built in-process.** golden_vt_render formats the memory disk with `embedded-fatfs` and copies the
+   fixture tree in, instead of packing a file with mtools. The fixture trees themselves are unchanged. Corpus songs
+   still come from `golden_mixdown.sh reconstruct` until step 5 replaces that script.
+3. **The file backend stays** for debugging and for the corpus gates: `DELUGE_SD_IMAGE` still names a file to use,
+   and a new `GOLDEN_SD_DUMP=<path>` writes the memory disk out at exit, for inspecting what a run left on the card.
+4. **The runner runs integration gates in parallel,** now that no run shares a disk with another (`--jobs N`,
+   defaulting to the machine's cores for `--capture` and the nightly tier). Captures stay in registry order.
+
+**Cross-repo.** Item 1 is a `deluge-sdk` change: commit it there, move `src/bsp/rust/Cargo.lock`'s pinned
+revision, and update the nightly/PR prerequisite action's checkout (it reads the revision from the lock, so that
+follows). The device build is unaffected: the memory disk is inside the `#[cfg(not(target_os = "none"))]` host
+module.
+
+**Verification.** A capture before and after must pass the same 32 gates. Marker values that today depend on what
+a cached image held will change once, to what a fresh card gives; the step records that diff and each gate's new
+values must then hold across two consecutive captures (which today they do not). `/tmp` must hold no
+`deluge-streaming-scenario-*.img` after a full run, and mtools leaves the prerequisites of every gate but the
+corpus ones.
+
 ## 9. The golden masters
 
 `feat/synth-golden-masters` arrives as:
@@ -313,6 +359,14 @@ Each step is one or more commits, and ends with:
      zeroed and bumped) through both the old script and the new check; all 23 ports agreed on every mutation
      (about 2,750 in all). Paths the replay cannot reach (clip_lifetime's rerun loop, save_roundtrip's second run
      alone, stem_export's hash) were checked by hand against both.
+3½. **Card images in memory** (§8a).
+   - [ ] `deluge-sdk`: a sparse in-memory disk in `deluge-bsp`'s host `sd` module, chosen by an API call; the file
+         backend unchanged. Pin the new revision in `src/bsp/rust/Cargo.lock`.
+   - [ ] golden_vt_render: format the memory disk and copy each fixture tree in with `embedded-fatfs`; drop
+         `sd_image.rs`'s mtools packing and fingerprint cache; add `GOLDEN_SD_DUMP`.
+   - [ ] `scenario_gate.py`: drop the temp-dir image cleanup; the runner gains `--jobs`. mtools leaves `requires` of
+         every entry that no longer needs it.
+   - [ ] Two consecutive captures agree on every marker value (after the one-time diff from fresh cards).
 4. **Layout.**
    - [ ] The moves in §3, one directory per commit; `support/cmake` replaces the copied pins, and ETL is pinned once.
    - [ ] §8: scenarios out of the firmware build.
