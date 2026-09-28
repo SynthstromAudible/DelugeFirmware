@@ -1,6 +1,6 @@
 # One test tree, one registry, one runner
 
-Status: draft for review, 2026-09-28.
+Status: approved 2026-09-28, with the §11 proposals taken as decided. Step 1 in progress.
 - Branch `feat/rung3-browser-listing`. Follows the testing audit of the same day (conversation) and the fixes it led to
   (`1d32a55a8` … `7bc73c7bf`).
 - Lands after this branch merges into `next`, and before `feat/synth-golden-masters` is merged onto it, so the golden
@@ -259,14 +259,25 @@ Each step is one or more commits, and ends with:
 - an estate capture diffed against the one taken before the step: identical apart from what the step names;
 - the RelWithDebInfo image building and linking.
 
-1. **Registry schema and runner.**
-   - [ ] Rename `ci` to `tier`; add `level`, `runner`, `builds`, `markers`, `result` and `check`, and fill them in
-         for all 38 entries.
-   - [ ] Register the ctest tree, the qemu tree, nextest, the BSP host tests, the standalone crates and the
-         unregistered fuzz target.
-   - [ ] `./dbt test` implements §5. `dbt harness` becomes an alias. `estate_capture.sh` becomes `--capture`.
-   - [ ] CI: one PR matrix from `--ci-matrix --tier pr --strict`, on `main`, `next` and `release/**`; the nightly
-         cron uncommented.
+1. **Registry schema and runner.** Done 2026-09-28.
+   - [x] `ci` renamed `tier` (`never` became `manual`); `level` and `runner` on all 38 entries. `builds`, `markers`,
+         `result` and `check` are added by the steps that consume them (2 and 3), so no field sits unread and
+         unvalidated. ctest entries carry `source`, `tree`, `configure` and `ctest_args` instead of `build`/`run`;
+         `env_default` sets a variable only where the caller has not.
+   - [x] Registered: `unit` (the ctest tree), `unit-arm` (the qemu tree, run through `CMAKE_CROSSCOMPILING_EMULATOR`
+         so it needs no binfmt registration), `crates` (nextest), `bsp-host` (`cargo test --locked`, which also
+         guards the lock's deluge-alloc pin), `sample-convert`, `embedded-fatfs`, `block-device-adapters`,
+         `block-device-driver`, `registry-selftest`, and `audio-format-fuzz` (manual). 48 entries.
+   - [x] `./dbt test` implements §5. Tiers are cumulative: `--tier nightly` runs pr too. Named tests run whatever
+         their tier, and a named test that skips fails. ctest runs with `--no-tests=error`, so a `-R` that matches
+         nothing fails. `dbt harness` is an alias that prints the new spelling. `estate_capture.sh` wraps
+         `--capture`, whose selection (gates above unit level, below manual) is exactly the old estate.
+   - [x] CI: `tests.yml` is one matrix over `--ci-matrix --tier pr`, each job `--strict --junit`, on `main`, `next`
+         and `release/**`; the prerequisites are one composite action (`.github/actions/test-prerequisites`) that
+         also checks out deluge-sdk at the revision the lock pins. `rust.yml` keeps lint and the table check, and now
+         also runs on PRs to `next`. `nightly-build.yml`'s cron is on, and its test jobs check out `next` (they
+         checked out the default branch) and run the cumulative nightly selection. `test-results.yml` listens to
+         `tests.yml` alone.
 2. **Declared builds.**
    - [ ] `test_builds.py` with the §6 products; the runner builds the union once.
    - [ ] Trees move under `build/`, with the old paths honoured for one release.
@@ -282,7 +293,7 @@ Each step is one or more commits, and ends with:
 
 Steps 1 and 2 give most of the day-to-day benefit and could stop there if the rest has to wait.
 
-## 11. Open questions
+## 11. Decisions (were open questions; Kate took each proposal)
 
 - **ctest granularity in the registry.** One entry for the whole unit tree keeps the registry short; one entry per
   suite makes `./dbt test mem_guard_tests` work. Proposal: one entry for the tree, and pass-through
