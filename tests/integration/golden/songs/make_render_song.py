@@ -18,7 +18,9 @@ from pathlib import Path
 SONG = "SONGS/RS_STREAM.XML"
 RATE = 44100
 SAMPLE_SECONDS = 6
-CLIP_TICKS = 3072
+# Four bars at the song's 120 BPM (a bar is 384 ticks), about 8 s: each sample plays through once, and the clip
+# loops, retriggering both, just inside the default 3,000-block render.
+CLIP_TICKS = 1536
 
 # The synth sound each clip plays: the synth goldens' sample-oscillator preset (sample/linear), with the oscillator
 # pointed at a long one-shot sample instead of a short loop. A song keeps a synth's parameters in each clip that plays
@@ -105,7 +107,10 @@ def song_xml(voices: list[tuple[str, str, int]]) -> str:
     )
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<song firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha">\n'
+        # The tempo, as the firmware writes it for a new song. Without it the song's clock runs so fast that every
+        # note retriggers within a fraction of a second, and only the start of each sample ever plays.
+        '<song firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" timePerTimerTick="229" '
+        'timerTickFraction="-1342177280" inputTickMagnitude="2">\n'
         f"\t<instruments>\n{sounds}\t</instruments>\n"
         f"\t<sessionClips>\n{clips}\t</sessionClips>\n"
         "</song>\n"

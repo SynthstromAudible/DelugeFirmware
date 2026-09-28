@@ -8,6 +8,10 @@ adds what depends on the song, and why each check is here:
                       nothing, and every other check would pass on silence.
     RS-STREAM reads   card reads while playing. None means the samples were already resident, so nothing streamed.
     RS-UNDERRUN       none. The harness's card answers at once, so an underrun here is a loader fault, not a slow card.
+    RS-SWELL          the generated song only: its samples swell and fade twice in their six seconds, so the output's
+                      level must move. Playback stuck at the start of each sample renders a steady level, streams
+                      nothing past the first cluster, and passes every other check here -- the card reads it counts
+                      are the load's own background reads.
     RS-PCM            the rendered output, against its record in tests/integration/golden/songs.json: the same
                       record the synth golden masters keep (sha256, frames, peak, rms_db).
 
@@ -67,6 +71,19 @@ def _generate(gate) -> dict[str, str] | None:
     return {"RENDER_TREE": str(tree), "RENDER_SONG": GENERATED_SONG}
 
 
+def _level_swing(pcm: bytes) -> float:
+    """The ratio of the loudest to the quietest quarter second over the first 5.5 s of the left channel."""
+    count = len(pcm) // 4
+    left = struct.unpack(f"<{count}i", pcm[: count * 4])[0::2]
+    window = 44100 // 4
+    levels = [
+        math.sqrt(sum(x * x for x in left[i : i + window]) / window)
+        for i in range(0, min(len(left), 44100 * 11 // 2) - window + 1, window)
+    ]
+    quietest = min(levels, default=0.0)
+    return max(levels, default=0.0) / quietest if quietest > 0 else math.inf
+
+
 def run(gate):
     pcm_path = gate.tmp / "out.pcm"
     song = gate.env.get("RENDER_SONG")
@@ -94,7 +111,17 @@ def run(gate):
             f"RS-UNDERRUN — playback missed sample data at a card that answers at once ({underrun})"
         )
 
-    record = _pcm_record(pcm_path.read_bytes())
+    pcm = pcm_path.read_bytes()
+    if not song:
+        swing = _level_swing(pcm)
+        gate.say(f"RS-SWELL ratio={swing:.2f}")
+        # 1.62 when playback advances; 1.02 when it is stuck at the samples' start.
+        if swing < 1.25:
+            gate.fail(
+                f"RS-SWELL — the output's level barely moves (ratio {swing:.2f}): playback is not advancing through the samples"
+            )
+
+    record = _pcm_record(pcm)
     gate.say(
         f"RS-PCM sha256={record['sha256']} frames={record['frames']} peak={record['peak']} rms_db={record['rms_db']}"
     )
