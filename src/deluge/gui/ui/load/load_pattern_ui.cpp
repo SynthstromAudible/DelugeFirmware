@@ -204,7 +204,8 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	else if (b == PLAY) {
 		// Need to use special preview mode for this as on constant playing, big Midi files can lead to stucked notes
 		FileItem* currentFileItem = getCurrentFileItem();
-		if (!currentFileItem->isFolder) {
+		// No item while a listing is in flight.
+		if (currentFileItem != nullptr && !currentFileItem->isFolder) {
 			if (on) {
 				previewOnly = true;
 
@@ -273,13 +274,78 @@ Error LoadPatternUI::performLoad() {
 	fileName.append(enteredText.c_str());
 	fileName.append(".XML");
 
-	Error error = StorageManager::loadPatternFile(fileName.c_str(), &fileName, overwriteExisting, noScaling,
-	                                              previewOnly, selectedDrumOnly);
+	requestRead({.path = std::move(fileName),
+	             .previewOnly = previewOnly,
+	             .overwriteExisting = overwriteExisting,
+	             .noScaling = noScaling,
+	             .selectedDrumOnly = selectedDrumOnly,
+	             .survivesClose = !previewOnly,
+	             .discard = false});
+	return Error::NONE;
+}
 
+void LoadPatternUI::requestRead(PatternRead read) {
+	// The newest request wins over anything not yet started, and over the active read.
+	queued_.reset();
+	discardActive();
+	if (active_.has_value()) {
+		queued_ = std::move(read);
+		return;
+	}
+	active_ = std::move(read);
+	// Before boot the read is inline and lands here; after it, this issues the first channel request.
+	loadRoutine();
+}
+
+void LoadPatternUI::discardActive() {
+	if (!active_.has_value()) {
+		return;
+	}
+	if (staging_.issued) {
+		active_->discard = true;
+		return;
+	}
+	StorageManager::releaseStaging(&staging_);
+	active_ = std::exchange(queued_, std::nullopt);
+}
+
+void LoadPatternUI::loadRoutine() {
+	if (!active_.has_value()) {
+		return;
+	}
+	// The staged open points activeDeserializer at the staged bytes, which are freed below.
+	FileDeserializer* const previous = activeDeserializer;
+	const StorageManager::StagedOpen opened =
+	    StorageManager::openDocumentStaged(active_->path.c_str(), "pattern", "", &staging_);
+	if (opened == StorageManager::StagedOpen::Deferred) {
+		return;
+	}
+	const PatternRead read = *active_;
+	Error error = Error::FILE_NOT_FOUND;
+	if (opened == StorageManager::StagedOpen::Opened && !read.discard) {
+		error = StorageManager::parsePatternDocument(read.overwriteExisting, read.noScaling, read.previewOnly,
+		                                             read.selectedDrumOnly);
+	}
+	activeDeserializer = previous;
+	StorageManager::releaseStaging(&staging_);
+	active_ = std::exchange(queued_, std::nullopt);
+
+	if (read.discard) {
+		return;
+	}
 	if (error != Error::NONE) {
 		display->displayError(currentLabelLoadError);
-		return error;
+		return;
 	}
+	renderingNeededRegardlessOfUI();
+}
 
-	return Error::NONE;
+void LoadPatternUI::close() {
+	if (queued_.has_value() && !queued_->survivesClose) {
+		queued_.reset();
+	}
+	if (active_.has_value() && !active_->survivesClose) {
+		discardActive();
+	}
+	LoadUI::close();
 }

@@ -24,6 +24,7 @@
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/reversion.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
@@ -496,8 +497,14 @@ void registerTasks() {
 	// The preset browser's own loads are the same kind of machine; the clone menu can be on top while one is out.
 	// Undo and redo are the same kind of machine: the reversion's samples are loaded here before it runs.
 	addRepeatingTask([]() { deluge::gui::reversion.routine(); }, p++, 0.015, 0.015, 0.03, "reversion", RESOURCE_NONE);
-	addRepeatingTask([]() { deluge::gui::instrumentLoad.routine(); }, p++, 0.015, 0.015, 0.03, "instrument load",
-	                 RESOURCE_NONE);
+	// The pattern browser's reads are the same kind of machine, and a load from Enter lands after the browser has
+	// closed. They share this task rather than taking a slot of their own: the task table is full.
+	addRepeatingTask(
+	    []() {
+		    deluge::gui::instrumentLoad.routine();
+		    loadPatternUI.loadRoutine();
+	    },
+	    p++, 0.015, 0.015, 0.03, "instrument load", RESOURCE_NONE);
 	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
 	// the same reason: both are request/collect state machines whose caller returned long ago, and
 	// neither has a UI tick of its own to resume from.

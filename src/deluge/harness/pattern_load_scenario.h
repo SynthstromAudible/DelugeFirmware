@@ -23,10 +23,10 @@
 /// @brief The pattern-load gate: a pattern file loaded through the real pattern browser, after boot.
 ///
 /// The boot song's synth clip is given notes, written to a pattern file with the firmware's own pattern writer, and
-/// cleared. The pattern browser is then opened the way the clip view's LOAD gesture opens it, and the file is loaded
-/// twice: once with Enter, and once previewed with PLAY. Each leg must put back exactly the notes that were written,
-/// and neither may make a synchronous card call on the interaction tier: every byte of the pattern has to arrive
-/// through the channels.
+/// cleared. The pattern browser is then opened the way the clip view's LOAD gesture opens it, once per leg: Enter,
+/// a PLAY preview, a preview discarded by BACK, and Enter pressed over a preview still in flight. Each leg must leave
+/// exactly the notes it should, and none may make a synchronous card call on the interaction tier: every byte of the
+/// pattern has to arrive through the channels.
 extern "C" {
 
 /// @brief Reset the scenario's state and prepare stdout for a piped run.

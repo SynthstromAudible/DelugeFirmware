@@ -2,14 +2,17 @@
 # pattern_load.sh — the pattern-load gate.
 #
 # Writes a pattern file from notes on the boot song's synth clip, clears the notes, and loads the file back through
-# the real pattern browser: once with Enter, once previewed with PLAY.
+# the real pattern browser, once per leg below, from a cleared clip each time.
 #
 # What the checks below cover, and why each is separate:
 #   PT-SETUP     that the fixture wrote the notes it meant to and then cleared them. Without the clear, a load that
 #                did nothing would find the notes already there.
 #   PT-LISTED    that each leg's listing selected the fixture, so the leg below loads that file and no other.
-#   PT-LOAD      that Enter put back exactly the notes that were written.
-#   PT-PREVIEW   that a PLAY preview did the same, from a cleared clip.
+#   PT-LOAD      that Enter put back exactly the notes that were written, landing after the browser closed.
+#   PT-PREVIEW   that a PLAY preview did the same, from a cleared clip, with the browser still open.
+#   PT-DISCARD   that a preview followed at once by BACK pastes nothing, and its read is still seen out: the channel
+#                writes into the read's buffer, so it cannot be freed before the read has an answer.
+#   PT-SUPERSEDE that Enter pressed over a preview still in flight lands Enter's load, not nothing.
 #   PT-TIER      that neither leg made a synchronous card call on the interaction tier after boot. Required 0:
 #                the pattern's bytes must arrive through the channels. PT-TIER-AT names each entry point the meter
 #                counted; dir_read and dir_close are listed with card=0 and not required, since they walk the
@@ -72,7 +75,7 @@ if ! grep -q '^PT-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in PT-SETUP PT-LISTED PT-LOAD PT-PREVIEW PT-TIER; do
+for marker in PT-SETUP PT-LISTED PT-LOAD PT-PREVIEW PT-DISCARD PT-SUPERSEDE PT-TIER; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^PT-' "$OUT/run.txt"

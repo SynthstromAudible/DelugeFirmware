@@ -489,16 +489,13 @@ void releaseStaging(StagingState* state);
 
 /// @brief Stage a document synchronously in a shared slot and open it for parsing.
 ///
-/// For the single-shot openers below, whose callers run a whole load start-to-finish inside one
-/// call and so cannot act on a StagedOpen::Deferred: the pattern, favourite, MIDI-definition and
-/// synth-to-drum loads all have that one-call shape.
+/// Blocks on the card for the whole read, so it belongs to the inline arms that run before boot finishes: the
+/// settings, MIDI-device, MIDI-follow and performance-view readers, the favourites bank, and the song browser's
+/// preview. After boot each of those reads through a channel instead, and a document read that has to span ticks
+/// uses openDocumentStaged().
 ///
-/// These callers block for the load's full duration, exactly as any synchronous document load does.
-/// Only the parse mechanism differs: it runs over memory rather than a streaming reader.
-///
-/// The shared slot is safe because these openers are never in flight at once -- each is driven by a
-/// single load* wrapper on one call stack. The wrapper MUST call releaseDocumentStaging() once its
-/// deserializer is finished.
+/// The shared slot is safe because these callers are never in flight at once -- each runs start to finish on one
+/// call stack. The caller MUST call releaseDocumentStaging() once its deserializer is finished.
 ///
 /// @return Error::NONE, Error::FILE_NOT_FOUND if it could not be staged, or Error::FILE_CORRUPTED.
 Error openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName = "");
@@ -586,9 +583,14 @@ Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int
 /// @return Error::NONE, or why the definition could not be read.
 Error parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName, bool updateFileName);
 
-Error openPatternFile(char const* path);
-Error loadPatternFile(char const* path, std::string* fileName, bool overwriteExisting, bool noScaling, bool previewOnly,
-                      bool selectedDrumOnly);
+/// @brief Paste the pattern the document `activeDeserializer` has open into the current clip, and close it. The parse
+///        half of a staged pattern read; it opens nothing and frees no staging.
+/// @param overwriteExisting Whether the pasted notes replace the ones already under them.
+/// @param noScaling         Whether the notes keep the pattern's own scale instead of the clip's.
+/// @param previewOnly       Whether this is a PLAY preview rather than a load.
+/// @param selectedDrumOnly  Whether only the selected drum's row is pasted.
+/// @return Error::NONE, or why the pattern could not be read.
+Error parsePatternDocument(bool overwriteExisting, bool noScaling, bool previewOnly, bool selectedDrumOnly);
 
 Error openFavouriteFile(char const* path);
 

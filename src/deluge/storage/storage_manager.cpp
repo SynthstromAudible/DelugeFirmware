@@ -400,16 +400,6 @@ Error StorageManager::parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInst
 	return Error::NONE;
 }
 
-Error StorageManager::openPatternFile(char const* path) {
-
-	AudioEngine::logAction("openPatternFile");
-	char const* firstTagName = "pattern";
-	char const* altTagName = "";
-
-	Error error = openDocumentSynchronously(path, firstTagName, altTagName);
-	return error;
-}
-
 Error StorageManager::openFavouriteFile(char const* path) {
 
 	AudioEngine::logAction("openFavouriteFile");
@@ -420,24 +410,14 @@ Error StorageManager::openFavouriteFile(char const* path) {
 	return error;
 }
 
-// Returns error status
-Error StorageManager::loadPatternFile(char const* path, std::string* fileName, bool overwriteExisting, bool noScaling,
-                                      bool previewOnly, bool selectedDrumOnly) {
-
-	AudioEngine::logAction("loadPatternFile");
-
-	Error error = openPatternFile(path);
-	if (error != Error::NONE) {
-		return error;
-	}
-
+Error StorageManager::parsePatternDocument(bool overwriteExisting, bool noScaling, bool previewOnly,
+                                           bool selectedDrumOnly) {
 	AudioEngine::logAction("readPatternFile");
 
-	error = instrumentClipView.pasteNotesFromFile(*activeDeserializer, overwriteExisting, noScaling, previewOnly,
-	                                              selectedDrumOnly);
+	Error error = instrumentClipView.pasteNotesFromFile(*activeDeserializer, overwriteExisting, noScaling, previewOnly,
+	                                                    selectedDrumOnly);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
-	releaseDocumentStaging();
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || !fileSuccess) {

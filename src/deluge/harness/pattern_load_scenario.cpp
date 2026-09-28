@@ -60,23 +60,29 @@ constexpr int32_t kVelocity = 100;
 /// far past that, and short enough that a load which never lands fails in seconds.
 constexpr int32_t kLegTicks = 4000;
 
+/// The legs, in order. Each starts from a cleared clip and a freshly opened browser.
+enum class Leg : uint8_t {
+	Load,      ///< Enter: the browser closes at once, and the notes land after it.
+	Preview,   ///< PLAY: the notes land with the browser still open.
+	Discard,   ///< PLAY, then BACK at once: the preview is discarded and lands nothing.
+	Supersede, ///< PLAY, then Enter at once: Enter's load replaces the preview and lands after the browser closes.
+	Count,
+};
+
 enum class Stage : uint8_t {
 	Setup,
-	OpenForLoad,
-	ListForLoad,
-	PressEnter,
-	AwaitLoad,
-	ClearForPreview,
-	OpenForPreview,
-	ListForPreview,
-	PressPlay,
-	AwaitPreview,
-	CloseBrowser,
+	Clear,
+	Open,
+	List,
+	Act,
+	Hold,
+	Await,
 	Report,
 	Done,
 };
 
 Stage g_stage = Stage::Setup;
+Leg g_leg = Leg::Load;
 bool g_stepDone = false;
 bool g_summaryPrinted = false;
 int32_t g_failures = 0;
@@ -188,22 +194,100 @@ bool fixtureSelected(const char* leg) {
 	return selected || fail("the listing did not select the fixture");
 }
 
-/// Tick whatever the open UI ticks, and say whether the clip's notes are the fixture's.
-bool legLanded() {
+const char* legName(Leg leg) {
+	switch (leg) {
+	case Leg::Load:
+		return "load";
+	case Leg::Preview:
+		return "preview";
+	case Leg::Discard:
+		return "discard";
+	case Leg::Supersede:
+		return "supersede";
+	default:
+		return "?";
+	}
+}
+
+/// Tick what the device ticks: the browser's graphics routine while it is open, and the pattern read's repeating task.
+void tickLoad() {
 	if (getCurrentUI() == &loadPatternUI) {
 		loadPatternUI.graphicsRoutine();
 	}
-	return notesOf(g_clip) == g_expected;
+	loadPatternUI.loadRoutine();
 }
 
-void reportLeg(const char* marker, bool landed) {
+/// Whether the leg has finished: its read, and any it replaced, seen out.
+bool legSettled() {
+	return !loadPatternUI.loadInFlight();
+}
+
+void reportLeg() {
 	const std::vector<std::string> notes = notesOf(g_clip);
-	printf("%s ok=%d notes=%d want=%d ticks=%d browserOnTop=%d\n", marker, landed ? 1 : 0,
-	       static_cast<int>(notes.size()), static_cast<int>(g_expected.size()), g_ticks,
-	       getCurrentUI() == &loadPatternUI ? 1 : 0);
-	if (!landed) {
-		fail(std::strcmp(marker, "PT-LOAD") == 0 ? "Enter did not load the pattern's notes"
-		                                         : "PLAY did not preview the pattern's notes");
+	const bool wantNotes = (g_leg != Leg::Discard);
+	const bool landed = wantNotes ? (notes == g_expected) : notes.empty();
+	const bool browserOnTop = getCurrentUI() == &loadPatternUI;
+	// Enter closes the browser; a preview leaves it open.
+	const bool browserRight = browserOnTop == (g_leg == Leg::Preview);
+	const bool ok = landed && legSettled() && browserRight;
+	printf("PT-%s ok=%d notes=%d want=%d ticks=%d browserOnTop=%d inFlight=%d\n",
+	       g_leg == Leg::Load      ? "LOAD"
+	       : g_leg == Leg::Preview ? "PREVIEW"
+	       : g_leg == Leg::Discard ? "DISCARD"
+	                               : "SUPERSEDE",
+	       ok ? 1 : 0, static_cast<int>(notes.size()), wantNotes ? static_cast<int>(g_expected.size()) : 0, g_ticks,
+	       browserOnTop ? 1 : 0, loadPatternUI.loadInFlight() ? 1 : 0);
+	if (!ok) {
+		switch (g_leg) {
+		case Leg::Load:
+			fail("Enter did not load the pattern's notes after closing the browser");
+			break;
+		case Leg::Preview:
+			fail("PLAY did not preview the pattern's notes");
+			break;
+		case Leg::Discard:
+			fail("a preview discarded by BACK still pasted, or its read was never seen out");
+			break;
+		default:
+			fail("Enter over a preview in flight did not land its own load");
+			break;
+		}
+	}
+}
+
+/// The press that lands on a preview whose read the channel holds: BACK discards it, Enter replaces it.
+void actOverHeldRead() {
+	using namespace deluge::hid::button;
+	if (g_leg == Leg::Discard) {
+		(void)loadPatternUI.buttonAction(BACK, true, false);
+	}
+	else {
+		(void)loadPatternUI.buttonAction(SELECT_ENC, true, false);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, false, false);
+	}
+}
+
+/// Press the leg's buttons, as a user would, against the listing's selection.
+void act() {
+	using namespace deluge::hid::button;
+	switch (g_leg) {
+	case Leg::Load:
+		(void)loadPatternUI.buttonAction(SELECT_ENC, true, false);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, false, false);
+		break;
+	case Leg::Preview:
+		// Press and release: the press previews, and each edge toggles playback, so the pair leaves it stopped.
+		(void)loadPatternUI.buttonAction(PLAY, true, false);
+		(void)loadPatternUI.buttonAction(PLAY, false, false);
+		break;
+	case Leg::Discard:
+	case Leg::Supersede:
+		// The preview first; the second press waits in Stage::Hold until the channel holds the preview's buffer.
+		(void)loadPatternUI.buttonAction(PLAY, true, false);
+		(void)loadPatternUI.buttonAction(PLAY, false, false);
+		break;
+	default:
+		break;
 	}
 }
 
@@ -234,7 +318,6 @@ void report() {
 }
 
 void runTick() {
-	using namespace deluge::hid::button;
 	switch (g_stage) {
 	case Stage::Setup: {
 		Clip* first = (std::ssize(currentSong->sessionClips) > 0) ? currentSong->sessionClips[0] : nullptr;
@@ -262,87 +345,75 @@ void runTick() {
 			break;
 		}
 		snapshotTier();
-		g_stage = Stage::OpenForLoad;
+		g_leg = Leg::Load;
+		g_stage = Stage::Open;
 		break;
 	}
 
-	case Stage::OpenForLoad:
-		g_stage = openBrowser("load") ? Stage::ListForLoad : Stage::Report;
-		break;
-
-	case Stage::ListForLoad:
-		if (listingFinished()) {
-			g_stage = fixtureSelected("load") ? Stage::PressEnter : Stage::Report;
-		}
-		break;
-
-	case Stage::PressEnter:
-		(void)loadPatternUI.buttonAction(SELECT_ENC, true, false);
-		(void)loadPatternUI.buttonAction(SELECT_ENC, false, false);
-		g_ticks = 0;
-		g_stage = Stage::AwaitLoad;
-		break;
-
-	case Stage::AwaitLoad: {
-		const bool landed = legLanded();
-		if (landed || ++g_ticks >= kLegTicks) {
-			reportLeg("PT-LOAD", landed);
-			g_stage = Stage::ClearForPreview;
-		}
-		break;
-	}
-
-	case Stage::ClearForPreview:
-		if (getCurrentUI() == &loadPatternUI) {
-			loadPatternUI.close();
-		}
-		clearNotes();
-		if (!notesOf(g_clip).empty()) {
-			fail("the notes could not be cleared before the preview leg");
-			g_stage = Stage::Report;
-			break;
-		}
-		g_stage = Stage::OpenForPreview;
-		break;
-
-	case Stage::OpenForPreview:
-		g_stage = openBrowser("preview") ? Stage::ListForPreview : Stage::Report;
-		break;
-
-	case Stage::ListForPreview:
-		if (listingFinished()) {
-			g_stage = fixtureSelected("preview") ? Stage::PressPlay : Stage::Report;
-		}
-		break;
-
-	case Stage::PressPlay:
-		// Press and release: the press previews, and each edge toggles playback, so the pair leaves it stopped.
-		(void)loadPatternUI.buttonAction(PLAY, true, false);
-		(void)loadPatternUI.buttonAction(PLAY, false, false);
-		g_ticks = 0;
-		g_stage = Stage::AwaitPreview;
-		break;
-
-	case Stage::AwaitPreview: {
-		const bool landed = legLanded();
-		if (landed || ++g_ticks >= kLegTicks) {
-			reportLeg("PT-PREVIEW", landed);
-			g_stage = Stage::CloseBrowser;
-		}
-		break;
-	}
-
-	case Stage::CloseBrowser:
+	case Stage::Clear:
 		if (playbackHandler.playbackState) {
 			playbackHandler.endPlayback();
 		}
 		if (getCurrentUI() == &loadPatternUI) {
 			loadPatternUI.close();
 		}
-		g_stage = Stage::Report;
+		clearNotes();
+		if (!notesOf(g_clip).empty()) {
+			fail("the notes could not be cleared between legs");
+			g_stage = Stage::Report;
+			break;
+		}
+		g_stage = Stage::Open;
+		break;
+
+	case Stage::Open:
+		g_stage = openBrowser(legName(g_leg)) ? Stage::List : Stage::Report;
+		break;
+
+	case Stage::List:
+		if (listingFinished()) {
+			g_stage = fixtureSelected(legName(g_leg)) ? Stage::Act : Stage::Report;
+		}
+		break;
+
+	case Stage::Act:
+		act();
+		g_ticks = 0;
+		g_stage = (g_leg == Leg::Discard || g_leg == Leg::Supersede) ? Stage::Hold : Stage::Await;
+		break;
+
+	case Stage::Hold:
+		// Ticked until the preview's read is issued, so the second press has to wait a held buffer out rather than
+		// drop a read the channel has not started.
+		tickLoad();
+		if (loadPatternUI.readIssued()) {
+			printf("PT-HELD leg=%s ticks=%d\n", legName(g_leg), g_ticks);
+			actOverHeldRead();
+			g_ticks = 0;
+			g_stage = Stage::Await;
+		}
+		else if (++g_ticks >= kLegTicks || !loadPatternUI.loadInFlight()) {
+			fail("the preview's read was never held by the channel");
+			g_stage = Stage::Report;
+		}
+		break;
+
+	case Stage::Await:
+		tickLoad();
+		if (legSettled() || ++g_ticks >= kLegTicks) {
+			reportLeg();
+			g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
+			g_stage = (g_leg == Leg::Count) ? Stage::Report : Stage::Clear;
+		}
 		break;
 
 	case Stage::Report:
+		if (playbackHandler.playbackState) {
+			playbackHandler.endPlayback();
+		}
+		if (getCurrentUI() == &loadPatternUI) {
+			loadPatternUI.close();
+		}
 		report();
 		g_stage = Stage::Done;
 		break;
@@ -359,6 +430,7 @@ extern "C" {
 void deluge_scenario_pattern_load_begin(void) {
 	setvbuf(stdout, nullptr, _IOLBF, 0);
 	g_stage = Stage::Setup;
+	g_leg = Leg::Load;
 	g_stepDone = false;
 	g_summaryPrinted = false;
 	g_failures = 0;
