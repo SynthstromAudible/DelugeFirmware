@@ -1,7 +1,7 @@
 # One test tree, one registry, one runner
 
-Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 to 4 done, except 3½'s pin move, which
-waits on the deluge-sdk change reaching its remote. Step 5 waits on the synth-golden-masters merge.
+Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 to 4 done. Step 5 waits on the
+synth-golden-masters merge.
 - Branch `feat/rung3-browser-listing`. Follows the testing audit of the same day (conversation) and the fixes it led to
   (`1d32a55a8` … `7bc73c7bf`).
 - Lands after this branch merges into `next`, and before `feat/synth-golden-masters` is merged onto it, so the golden
@@ -363,9 +363,8 @@ Each step is one or more commits, and ends with:
    - [x] `deluge-sdk`: a sparse in-memory disk in `deluge-bsp`'s host `sd` module, chosen by `use_memory_disk`
          before the disk opens, written out by `dump_memory_disk`; the file backend unchanged (deluge-sdk a58edba,
          branch `feat/host-memory-disk`).
-   - [ ] Pin that change in `src/bsp/rust/Cargo.toml` and `Cargo.lock` once it is on the remote. Local builds do not
-         need it (golden_vt_render path-depends on the deluge-sdk working tree), but CI checks deluge-sdk out at the
-         lock's revision, so golden-vt-render's gates fail in CI until then.
+   - [x] Pinned at a58edba in `src/bsp/rust/Cargo.toml` and `Cargo.lock` (e583a6725), once it reached deluge-sdk's
+         `main`.
    - [x] golden_vt_render (`memory_card.rs`): formats the memory disk FAT32 and copies each fixture tree in with
          `embedded-fatfs`, in name order; `GOLDEN_SD_DUMP` added. `sd_image.rs`'s mtools packing stays for the
          entries that still pack a file image (fs-differential, lens1-vt-sim, preemptive-race-tsan,
