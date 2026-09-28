@@ -1,7 +1,7 @@
 # One test tree, one registry, one runner
 
-Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 to 3 done; step 3½ (§8a) added
-2026-09-28, at Kate's request.
+Status: approved 2026-09-28, with the §11 proposals taken as decided. Steps 1 to 3½ done, except 3½'s pin move,
+which waits on the deluge-sdk change reaching its remote.
 - Branch `feat/rung3-browser-listing`. Follows the testing audit of the same day (conversation) and the fixes it led to
   (`1d32a55a8` … `7bc73c7bf`).
 - Lands after this branch merges into `next`, and before `feat/synth-golden-masters` is merged onto it, so the golden
@@ -360,13 +360,22 @@ Each step is one or more commits, and ends with:
      (about 2,750 in all). Paths the replay cannot reach (clip_lifetime's rerun loop, save_roundtrip's second run
      alone, stem_export's hash) were checked by hand against both.
 3½. **Card images in memory** (§8a).
-   - [ ] `deluge-sdk`: a sparse in-memory disk in `deluge-bsp`'s host `sd` module, chosen by an API call; the file
-         backend unchanged. Pin the new revision in `src/bsp/rust/Cargo.lock`.
-   - [ ] golden_vt_render: format the memory disk and copy each fixture tree in with `embedded-fatfs`; drop
-         `sd_image.rs`'s mtools packing and fingerprint cache; add `GOLDEN_SD_DUMP`.
-   - [ ] `scenario_gate.py`: drop the temp-dir image cleanup; the runner gains `--jobs`. mtools leaves `requires` of
-         every entry that no longer needs it.
-   - [ ] Two consecutive captures agree on every marker value (after the one-time diff from fresh cards).
+   - [x] `deluge-sdk`: a sparse in-memory disk in `deluge-bsp`'s host `sd` module, chosen by `use_memory_disk`
+         before the disk opens, written out by `dump_memory_disk`; the file backend unchanged (deluge-sdk a58edba,
+         branch `feat/host-memory-disk`).
+   - [ ] Pin that change in `src/bsp/rust/Cargo.toml` and `Cargo.lock` once it is on the remote. Local builds do not
+         need it (golden_vt_render path-depends on the deluge-sdk working tree), but CI checks deluge-sdk out at the
+         lock's revision, so golden-vt-render's gates fail in CI until then.
+   - [x] golden_vt_render (`memory_card.rs`): formats the memory disk FAT32 and copies each fixture tree in with
+         `embedded-fatfs`, in name order; `GOLDEN_SD_DUMP` added. `sd_image.rs`'s mtools packing stays for the
+         entries that still pack a file image (fs-differential, lens1-vt-sim, preemptive-race-tsan,
+         golden-embassy-diff); golden_vt_render only uses its fixture-tree lookup.
+   - [x] `scenario_gate.py` removes only a gate's own scratch dir. The runner gains `-j/--jobs`; `--capture` defaults
+         to one job per CPU, other runs to one. mtools left `requires` of golden-vt-render, audio-load-ab and
+         song-preview-ab.
+   - [x] Two consecutive serial captures agree on every marker value except the wall-clock `*Micros=` fields, and a
+         parallel capture agrees with them to the same extent (32/32, 1:22). The one-time diff from the mtools cards
+         is sample-claim's randomizer picking RD3 for RD1: the directory order is now name order.
 4. **Layout.**
    - [ ] The moves in §3, one directory per commit; `support/cmake` replaces the copied pins, and ETL is pinned once.
    - [ ] §8: scenarios out of the firmware build.
