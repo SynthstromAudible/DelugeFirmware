@@ -35,6 +35,8 @@
 #   CG-VOICEMONO             a MONO synth re-triggered while its voice plays
 #   CG-VOICEKILL             the oscillator-type menu's killAllVoices on a sounding synth
 #   CG-VOICEMULTIRANGE       a multi-range deleted from a sounding synth (Sound::deleteMultiRange)
+#   CG-VOICEFAIL             a note-on on a sample oscillator with no sample: its voice goes back to the pool
+#                            (CG-VOICEFAIL poolFreeDelta=0 voicesDelta=0 required)
 #   CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
 #   CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
 #                            wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
@@ -109,9 +111,9 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE"
+LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL"
 # The legs whose edits must all be made while the render is excluded.
-REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE"
+REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE VOICEPOLY VOICEMONO VOICEKILL VOICEMULTIRANGE VOICEFAIL"
 
 for leg in $LEGS; do
 	if ! grep -qE "^CG-$leg unguarded=[0-9]+ " "$OUT/run.txt"; then
@@ -128,6 +130,12 @@ fi
 # The render must not allocate: a kit's drums start and stop rendering without touching the heap.
 if ! grep -qE '^CG-RENDERALLOC renderAllocs=0$' "$OUT/run.txt"; then
 	echo "FAIL — $(grep -E '^CG-RENDERALLOC renderAllocs=' "$OUT/run.txt" || echo 'no CG-RENDERALLOC renderAllocs= line'): the render allocated"
+	exit 1
+fi
+
+# A note-on whose voice cannot start returns it to the pool; it never reaches the Sound's voices.
+if ! grep -qE '^CG-VOICEFAIL poolFreeDelta=0 voicesDelta=0$' "$OUT/run.txt"; then
+	echo "FAIL — $(grep -E '^CG-VOICEFAIL poolFreeDelta' "$OUT/run.txt" || echo 'no CG-VOICEFAIL line'): a failed note-on leaked a voice"
 	exit 1
 fi
 

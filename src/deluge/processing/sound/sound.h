@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "libdeluge/system.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/voiced.h"
@@ -313,7 +314,10 @@ public:
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
 	/// @brief Does this sound have any active voices?
-	[[nodiscard]] bool hasActiveVoices() const override { return !voices_.empty(); }
+	[[nodiscard]] bool hasActiveVoices() const override {
+		AudioExcludedSection section; // the render adds and removes voices
+		return !voices_.empty();
+	}
 
 	/// @brief Get the number of active voices
 	[[nodiscard]] size_t numActiveVoices() const { return voices_.size(); }
@@ -378,12 +382,14 @@ private:
 	// we're constantly cycling between a minimum and maximum number of voices.
 	deluge::fast_vector<ActiveVoice> voices_{};
 
-	// Every structural edit of voices_ goes through these: the render walks every Sound's voices, so each edit reports
-	// to the structural-edit probe (util/structural_edit_probe.h).
+	// Every structural edit of voices_ goes through these: the render walks every Sound's voices, so each edit runs
+	// inside an AudioExcludedSection (free on the audio tier) and reports to the structural-edit probe
+	// (util/structural_edit_probe.h).
 	using ActiveVoiceIterator = deluge::fast_vector<ActiveVoice>::iterator;
 	void publishVoice(ActiveVoice voice);
 	template <class Pred>
 	void eraseVoicesIf(Pred pred) {
+		AudioExcludedSection section; // the render walks every Sound's voices
 		noteVoicesEdit();
 		std::erase_if(voices_, pred);
 	}
@@ -391,10 +397,11 @@ private:
 	void clearVoices();
 	static void noteVoicesEdit();
 
-	/// @brief Acquire a voice for use by a note
-	/// Internally this will either acquire a new voice or steal an existing one
-	/// @return The acquired voice
-	const ActiveVoice& acquireVoice() noexcept(false); // throws an exception if no memory is available
+	/// @brief Re-trigger a voice already in voices_ (a MONO/LEGATO reuse, or a stolen voice). The caller excludes the
+	/// render.
+	void retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
+	                    int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
+	                    int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel);
 
 	/// @brief Check if a voice exists in the list of active voices
 	void checkVoiceExists(const ActiveVoice& voice, const char* error) const;

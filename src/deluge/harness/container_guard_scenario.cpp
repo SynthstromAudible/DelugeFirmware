@@ -37,6 +37,7 @@
 #include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "model/voice/voice.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -114,6 +115,7 @@ enum class Leg : uint8_t {
 	VoiceMono,
 	VoiceKill,
 	VoiceMultiRange,
+	VoiceFail,
 	Done,
 };
 
@@ -186,6 +188,8 @@ const char* legName(Leg leg) {
 		return "VOICEKILL";
 	case Leg::VoiceMultiRange:
 		return "VOICEMULTIRANGE";
+	case Leg::VoiceFail:
+		return "VOICEFAIL";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -401,6 +405,10 @@ bool setupLeg() {
 		return true;
 	case Leg::VoiceKill:
 		auditionSynth(kRowNote);
+		return true;
+	case Leg::VoiceFail:
+		// A sample oscillator with no sample: a note-on's voice cannot start.
+		static_cast<SoundInstrument*>(g_clip->output)->sources[0].setOscType(OscType::SAMPLE);
 		return true;
 	case Leg::VoiceMultiRange: {
 		// Two ranges on source 0, so one can be deleted.
@@ -641,6 +649,19 @@ void editLeg() {
 		synth->sources[0].setOscType(OscType::SQUARE);
 		break;
 	}
+	case Leg::VoiceFail: {
+		g_step = "noteOn";
+		// The failed note-on's voice goes back to the pool and was never in voices_.
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		const size_t freeBefore = AudioEngine::VoicePool::get().size();
+		const size_t voicesBefore = synth->voices().size();
+		auditionSynth(kRowNote);
+		printf("CG-VOICEFAIL poolFreeDelta=%d voicesDelta=%d\n",
+		       static_cast<int>(AudioEngine::VoicePool::get().size()) - static_cast<int>(freeBefore),
+		       static_cast<int>(synth->voices().size()) - static_cast<int>(voicesBefore));
+		fflush(stdout);
+		break;
+	}
 	case Leg::VoiceMultiRange:
 		g_step = "deleteMultiRange";
 		static_cast<SoundInstrument*>(g_clip->output)->deleteMultiRange(0, 1);
@@ -753,6 +774,11 @@ void runTick() {
 		editLeg();
 		const auto editMicros =
 		    std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - editStart).count();
+		if (g_leg == Leg::VoiceMono) {
+			// The MONO re-trigger runs wholly inside one section: its host wall time bounds that section.
+			printf("CG-MASK leg=VOICEMONO maskMicros=%lld\n", static_cast<long long>(editMicros));
+			fflush(stdout);
+		}
 		if (g_leg == Leg::BigRow) {
 			// The whole edit's host wall time: an upper bound on the section it holds -- the row vector's insert,
 			// which moves every row -- against a render block of 128 frames, some 2900 us.
