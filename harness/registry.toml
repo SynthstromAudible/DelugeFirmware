@@ -17,7 +17,7 @@
 
 [[harness]]
 name = "fs-differential"
-path = "harness/rust/fs_differential"
+path = "tests/component/differential/fs_differential"
 level = "component"
 runner = "cargo"
 kind = "differential"
@@ -59,7 +59,7 @@ runtime = "~5m"
 
 [[harness]]
 name = "region-fill-differential"
-path = "harness/rust/region_fill_differential"
+path = "tests/component/differential/region_fill_differential"
 level = "component"
 runner = "cargo"
 kind = "differential"
@@ -73,7 +73,7 @@ runtime = "~1m"
 
 [[harness]]
 name = "region-read-differential"
-path = "harness/rust/region_read_differential"
+path = "tests/component/differential/region_read_differential"
 level = "component"
 runner = "cargo"
 kind = "differential"
@@ -87,7 +87,7 @@ runtime = "~1m"
 
 [[harness]]
 name = "region-source-differential"
-path = "harness/rust/region_source_differential"
+path = "tests/component/differential/region_source_differential"
 level = "component"
 runner = "cargo"
 kind = "differential"

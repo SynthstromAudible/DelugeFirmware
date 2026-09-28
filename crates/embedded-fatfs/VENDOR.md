@@ -73,7 +73,7 @@ hardening commits in this owned copy.
   destination traversal now starts at `dst_dir` and `rename_internal` is called with the traversed
   `e_dst`, not the raw `dst_dir` parameter. The harness workaround was removed — `EFatFs::rename` now
   calls `Dir::rename` directly — and `write_diff_fat32`/`write_diff_fat16`
-  (`harness/rust/fs_differential/tests/differential.rs`) are the regression proof, driving the real fix
+  (`tests/component/differential/fs_differential/tests/differential.rs`) are the regression proof, driving the real fix
   through a multi-component rename destination.
 - **BUG-B — FAT32 `..`-cluster-zero** (upstream `rafalh/rust-fatfs` commit `c4bb769`, "Fix .. cluster
   number for first-level dirs"; found via Task 6's `fat32_dotdot_cluster_probe`, 2026-07-20; fixed Task

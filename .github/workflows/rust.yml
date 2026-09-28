@@ -45,7 +45,7 @@ jobs:
 
       - name: rustfmt (harness)
         run: |
-          for m in harness/rust/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do
+          for m in tests/component/differential/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do
             cargo fmt --manifest-path "$m" --check
           done
 
@@ -72,7 +72,7 @@ jobs:
         run: cargo clippy --manifest-path crates/deluge_sample_convert/Cargo.toml --all-targets -- -D warnings
 
   clippy-harness:
-    name: clippy (harness/rust, host)
+    name: clippy (tests/component/differential, host)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -80,10 +80,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            harness/rust/fs_differential
-            harness/rust/region_fill_differential
-            harness/rust/region_read_differential
-            harness/rust/region_source_differential
+            tests/component/differential/fs_differential
+            tests/component/differential/region_fill_differential
+            tests/component/differential/region_read_differential
+            tests/component/differential/region_source_differential
       # Host target only. The BSP and its two Embassy harnesses
       # (src/bsp/rust/harness/{golden_vt_render,lens1_vt_sim}) are deliberately
       # excluded here: they need the sibling deluge-sdk checkout and a C++
@@ -92,7 +92,7 @@ jobs:
       # TODO at the bottom of this file.
       - name: clippy (harness packages)
         run: |
-          for m in harness/rust/*/Cargo.toml; do
+          for m in tests/component/differential/*/Cargo.toml; do
             echo "== $m"
             cargo clippy --manifest-path "$m" --all-targets -- -D warnings
           done

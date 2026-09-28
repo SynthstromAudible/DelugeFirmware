@@ -51,9 +51,9 @@ use std::path::PathBuf;
 
 fn main() {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    // harness/rust/region_fill_differential -> repo root is three levels up.
+    // tests/component/differential/region_fill_differential -> repo root is four levels up.
     let repo = manifest
-        .join("../../..")
+        .join("../../../..")
         .canonicalize()
         .expect("resolve repo root");
 
@@ -68,7 +68,7 @@ fn main() {
 
     // Reused from deluge_sample_convert's own fetch (see the module doc above) — NOT fetched again here.
     let sample_convert_dir = manifest
-        .join("../../../crates/deluge_sample_convert")
+        .join("../../../../crates/deluge_sample_convert")
         .canonicalize()
         .expect("resolve deluge_sample_convert dir");
     let argon_inc = sample_convert_dir.join("third_party/argon/include");

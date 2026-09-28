@@ -76,7 +76,7 @@ a skip fail the run.
 
 Placement follows coupling to the BSP source tree, not language or purpose.
 
-- **`harness/rust/`** — harnesses whose subject is a `crates/` library or
+- **`tests/component/differential/`** — harnesses whose subject is a `crates/` library or
   `cc`-compiled application C++, rather than the BSP itself.
 
   One of these, `fs_differential`, does reach into the BSP: its

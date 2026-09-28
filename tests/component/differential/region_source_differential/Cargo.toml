@@ -30,16 +30,16 @@ license = "GPL-3.0-or-later"
 
 [dev-dependencies]
 # The cursor under test.
-deluge_sample_source = { path = "../../../crates/deluge_sample_source" }
+deluge_sample_source = { path = "../../../../crates/deluge_sample_source" }
 # Builds the real `deluge_resource` manager + asset `ManagerResidency` sits on top
 # of, and the test heap it lives in.
-deluge_resource = { path = "../../../crates/deluge_resource" }
-fs_alloc = { package = "deluge_alloc", path = "../../../crates/deluge_alloc" }
+deluge_resource = { path = "../../../../crates/deluge_resource" }
+fs_alloc = { package = "deluge_alloc", path = "../../../../crates/deluge_alloc" }
 # The real streamed-chunk construct + payload accessor + payload-offset C-ABI
 # (`deluge_sample_fill::chunk`, U4d) -- no `native_fill` feature needed, this
 # gate never drives `native_begin`/`native_finish`, only chunk construction
 # and payload resolution.
-deluge_sample_fill = { path = "../../../crates/deluge_sample_fill" }
+deluge_sample_fill = { path = "../../../../crates/deluge_sample_fill" }
 # `deluge_resource::sync::Masked` (used by both `deluge_resource` and
 # `deluge_sample_source`'s cursor) calls out to three `extern "C"`
 # critical-section primitives; this crate links both as plain non-test rlibs,
