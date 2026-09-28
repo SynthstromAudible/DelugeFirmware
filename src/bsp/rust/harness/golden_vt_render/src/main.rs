@@ -255,6 +255,30 @@ unsafe extern "C" {
 // harness (`scenario.rs`'s own copy of these same declarations) — this scenario
 // needs its own since it does NOT `#[path]`-
 // include `scenario.rs` (see the module doc). Without loading a real song
+/// A stepped scenario, as `src/deluge/harness/scenario_table.h` declares it: found by name, then driven by
+/// [`run_stepped_scenario`] -- `begin` once, then `dispatch_step` and `step_done` until `complete`.
+#[repr(C)]
+struct Scenario {
+    name: *const c_char,
+    on_app_init: Option<unsafe extern "C" fn()>,
+    begin: unsafe extern "C" fn(),
+    complete: unsafe extern "C" fn() -> bool,
+    dispatch_step: unsafe extern "C" fn(),
+    step_done: unsafe extern "C" fn() -> bool,
+    failures: unsafe extern "C" fn() -> i32,
+}
+
+// SAFETY: a row of a C++ `constexpr` table: immutable for the life of the process.
+unsafe impl Sync for Scenario {}
+
+/// The stepped scenario `GOLDEN_SCENARIO` names, if it names one.
+fn stepped_scenario(name: &str) -> Option<&'static Scenario> {
+    let name = std::ffi::CString::new(name).ok()?;
+    // SAFETY: DELUGE_HOST harness C-ABI; `name` is NUL-terminated and outlives the call, and the table the answer
+    // points into is static.
+    unsafe { deluge_scenario_find(name.as_ptr()).as_ref() }
+}
+
 // first, `currentSong` is still the blank boot-time song `deluge_boot()`
 // leaves in place, and StemExport has nothing to export.
 unsafe extern "C" {
@@ -277,124 +301,9 @@ unsafe extern "C" {
     fn deluge_scenario_ticked_begin(mode: i32);
     fn deluge_scenario_ticked_tick() -> i32;
     fn deluge_scenario_ticked_report();
-    fn deluge_scenario_audio_load_ab_begin();
-    fn deluge_scenario_audio_load_ab_complete() -> bool;
-    fn deluge_scenario_audio_load_ab_dispatch_step();
-    fn deluge_scenario_audio_load_ab_step_done() -> bool;
-    fn deluge_scenario_audio_load_ab_failures() -> i32;
 
-    fn deluge_scenario_song_save_channel_begin();
-    fn deluge_scenario_song_save_channel_complete() -> bool;
-    fn deluge_scenario_song_save_channel_dispatch_step();
-    fn deluge_scenario_song_save_channel_step_done() -> bool;
-    fn deluge_scenario_song_save_channel_failures() -> i32;
-    fn deluge_scenario_sample_collect_begin();
-    fn deluge_scenario_sample_collect_complete() -> bool;
-    fn deluge_scenario_sample_collect_dispatch_step();
-    fn deluge_scenario_sample_collect_step_done() -> bool;
-    fn deluge_scenario_sample_collect_failures() -> i32;
-    fn deluge_scenario_document_save_channel_begin();
-    fn deluge_scenario_document_save_channel_complete() -> bool;
-    fn deluge_scenario_document_save_channel_dispatch_step();
-    fn deluge_scenario_document_save_channel_step_done() -> bool;
-    fn deluge_scenario_document_save_channel_failures() -> i32;
-    fn deluge_scenario_song_load_channel_begin();
-    fn deluge_scenario_song_load_channel_complete() -> bool;
-    fn deluge_scenario_song_load_channel_dispatch_step();
-    fn deluge_scenario_song_load_channel_step_done() -> bool;
-    fn deluge_scenario_song_load_channel_failures() -> i32;
-    fn deluge_scenario_save_roundtrip_begin();
-    fn deluge_scenario_save_roundtrip_complete() -> bool;
-    fn deluge_scenario_save_roundtrip_dispatch_step();
-    fn deluge_scenario_save_roundtrip_step_done() -> bool;
-    fn deluge_scenario_save_roundtrip_failures() -> i32;
-
-    fn deluge_scenario_settings_channel_begin();
-    fn deluge_scenario_settings_channel_complete() -> bool;
-    fn deluge_scenario_settings_channel_dispatch_step();
-    fn deluge_scenario_settings_channel_step_done() -> bool;
-    fn deluge_scenario_settings_channel_failures() -> i32;
-
-    fn deluge_scenario_favourites_channel_begin();
-    fn deluge_scenario_favourites_channel_complete() -> bool;
-    fn deluge_scenario_favourites_channel_dispatch_step();
-    fn deluge_scenario_favourites_channel_step_done() -> bool;
-    fn deluge_scenario_favourites_channel_failures() -> i32;
-
-    fn deluge_scenario_startup_failsafe_begin();
-    fn deluge_scenario_startup_failsafe_complete() -> bool;
-    fn deluge_scenario_startup_failsafe_dispatch_step();
-    fn deluge_scenario_startup_failsafe_step_done() -> bool;
-    fn deluge_scenario_startup_failsafe_failures() -> i32;
-
-    fn deluge_scenario_path_operations_begin();
-    fn deluge_scenario_path_operations_complete() -> bool;
-    fn deluge_scenario_path_operations_dispatch_step();
-    fn deluge_scenario_path_operations_step_done() -> bool;
-    fn deluge_scenario_path_operations_failures() -> i32;
-
-    fn deluge_scenario_offset_io_begin();
-    fn deluge_scenario_offset_io_complete() -> bool;
-    fn deluge_scenario_offset_io_dispatch_step();
-    fn deluge_scenario_offset_io_step_done() -> bool;
-    fn deluge_scenario_offset_io_failures() -> i32;
-    fn deluge_scenario_pattern_load_begin();
-    fn deluge_scenario_pattern_load_complete() -> bool;
-    fn deluge_scenario_pattern_load_dispatch_step();
-    fn deluge_scenario_pattern_load_step_done() -> bool;
-    fn deluge_scenario_pattern_load_failures() -> i32;
-    fn deluge_scenario_staging_release_begin();
-    fn deluge_scenario_staging_release_complete() -> bool;
-    fn deluge_scenario_staging_release_dispatch_step();
-    fn deluge_scenario_staging_release_step_done() -> bool;
-    fn deluge_scenario_staging_release_failures() -> i32;
-    fn deluge_scenario_card_reinsert_begin();
-    fn deluge_scenario_card_reinsert_complete() -> bool;
-    fn deluge_scenario_card_reinsert_dispatch_step();
-    fn deluge_scenario_card_reinsert_step_done() -> bool;
-    fn deluge_scenario_card_reinsert_failures() -> i32;
-    fn deluge_scenario_sample_load_tree_begin();
-    fn deluge_scenario_sample_load_tree_complete() -> bool;
-    fn deluge_scenario_sample_load_tree_dispatch_step();
-    fn deluge_scenario_sample_load_tree_step_done() -> bool;
-    fn deluge_scenario_sample_load_tree_failures() -> i32;
-    fn deluge_scenario_sample_claim_begin();
-    fn deluge_scenario_sample_claim_complete() -> bool;
-    fn deluge_scenario_sample_claim_dispatch_step();
-    fn deluge_scenario_sample_claim_step_done() -> bool;
-    fn deluge_scenario_sample_claim_failures() -> i32;
-    fn deluge_scenario_clear_song_undo_begin();
-    fn deluge_scenario_clear_song_undo_complete() -> bool;
-    fn deluge_scenario_clear_song_undo_dispatch_step();
-    fn deluge_scenario_clear_song_undo_step_done() -> bool;
-    fn deluge_scenario_clear_song_undo_failures() -> i32;
-    fn deluge_scenario_sound_lifetime_begin();
-    fn deluge_scenario_sound_lifetime_complete() -> bool;
-    fn deluge_scenario_sound_lifetime_dispatch_step();
-    fn deluge_scenario_sound_lifetime_step_done() -> bool;
-    fn deluge_scenario_sound_lifetime_failures() -> i32;
-    fn deluge_scenario_clip_lifetime_boot();
-    fn deluge_scenario_clip_lifetime_begin();
-    fn deluge_scenario_clip_lifetime_complete() -> bool;
-    fn deluge_scenario_clip_lifetime_dispatch_step();
-    fn deluge_scenario_clip_lifetime_step_done() -> bool;
-    fn deluge_scenario_clip_lifetime_failures() -> i32;
-    fn deluge_scenario_container_guard_begin();
-    fn deluge_scenario_container_guard_complete() -> bool;
-    fn deluge_scenario_container_guard_dispatch_step();
-    fn deluge_scenario_container_guard_step_done() -> bool;
-    fn deluge_scenario_container_guard_failures() -> i32;
     fn deluge_unguarded_structural_edits_total() -> u32;
-    fn deluge_scenario_preset_load_begin();
-    fn deluge_scenario_preset_load_complete() -> bool;
-    fn deluge_scenario_preset_load_dispatch_step();
-    fn deluge_scenario_preset_load_step_done() -> bool;
-    fn deluge_scenario_preset_load_failures() -> i32;
-    fn deluge_scenario_song_preview_ab_begin();
-    fn deluge_scenario_song_preview_ab_complete() -> bool;
-    fn deluge_scenario_song_preview_ab_dispatch_step();
-    fn deluge_scenario_song_preview_ab_step_done() -> bool;
-    fn deluge_scenario_song_preview_ab_failures() -> i32;
+    fn deluge_scenario_find(name: *const c_char) -> *const Scenario;
 }
 
 /// Set once [`boot_task`] has run the efatfs mount, `deluge_app_init` (which
@@ -444,11 +353,14 @@ async fn boot_task() {
     // SAFETY: called once, after `scheduler::set_spawner` (main, below) and
     // before anything else touches `currentSong`/scheduler state.
     unsafe { deluge_app_init(board::deluge_board()) };
-    if std::env::var("GOLDEN_SCENARIO").unwrap_or_default() == "clip_lifetime" {
-        // CL-EPOCH0: clear the song before the render has run a block. Nothing has been polled since
-        // deluge_app_init spawned the task runners, so the render has not run yet.
-        // SAFETY: DELUGE_HOST harness C-ABI; deluge_app_init has run.
-        unsafe { deluge_scenario_clip_lifetime_boot() };
+    // A stepped scenario's hook for this moment: nothing has been polled since deluge_app_init spawned the task
+    // runners, so the render has not run yet.
+    if let Some(on_app_init) =
+        stepped_scenario(&std::env::var("GOLDEN_SCENARIO").unwrap_or_default())
+            .and_then(|scenario| scenario.on_app_init)
+    {
+        // SAFETY: DELUGE_HOST harness C-ABI through the scenario's table row; deluge_app_init has run.
+        unsafe { on_app_init() };
     }
     boot::mark_finished();
     BOOT_MOUNTED.store(true, Ordering::Release);
@@ -495,6 +407,62 @@ fn stem_export_mode() -> i32 {
         "MIXDOWN" => 3,
         _ => 1, // TRACK
     }
+}
+
+/// Drive a stepped scenario (`scenario_table.h`): wait for boot and mount, `begin` it, then one `dispatch_step` per
+/// virtual millisecond, each waited out until `step_done`, until it is `complete`. Exits 1 on in-process failures, 2 on
+/// a wedge.
+#[embassy_executor::task]
+async fn run_stepped_scenario(
+    scenario: &'static Scenario,
+    name: &'static str,
+    done: &'static AtomicBool,
+) {
+    log::info!("golden_vt_render: {name}: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY (every call below): DELUGE_HOST harness C-ABI through the scenario's table row; boot (confirmed above)
+    // has run `deluge_app_init`.
+    unsafe { (scenario.begin)() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        if unsafe { (scenario.complete)() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!("golden_vt_render: {name} did not complete within 600s — wedged");
+            hard_exit(2);
+        }
+        unsafe { (scenario.dispatch_step)() };
+        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races are
+        // paced in these milliseconds.
+        Timer::after_millis(1).await;
+        while !unsafe { (scenario.step_done)() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    let failures = unsafe { (scenario.failures)() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: {name} FAILED ({failures} in-process failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: {name} completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
 }
 
 /// The render scenario: waits for [`boot_task`] to finish booting + mounting,
@@ -1025,7 +993,7 @@ fn pack_sample_load_tree_image() -> std::path::PathBuf {
 ///
 /// The fixture is rewritten on every process start: `sd_image_path::fingerprint_dir` hashes
 /// path/length/mtime, not bytes, so every run packs its own 2.5 GB sparse image.
-/// `scripts/audio_load_ab.sh` removes it afterwards — an accumulation of those under
+/// `./dbt test` removes it afterwards (scenario_gate.py) — an accumulation of those under
 /// `/tmp/deluge-streaming-scenario-*.img` is a known way to wedge an unrelated stem export on this
 /// project.
 fn pack_audio_load_ab_image() -> std::path::PathBuf {
@@ -1096,7 +1064,7 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     let img = sd_image::pack_image(&root);
     // The staging tree has served its purpose once the image exists, and leaving it in the system
     // temp dir is the same kind of litter as leaving the images themselves (see
-    // scripts/audio_load_ab.sh's cleanup): this harness runs on machines where a full /tmp is a
+    // `./dbt test`'s cleanup): this harness runs on machines where a full /tmp is a
     // known way to wedge an unrelated stem export.
     let _ = std::fs::remove_dir_all(&root);
     img
@@ -1317,539 +1285,6 @@ fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf
 const MAX_CORPUS_CASES: usize = 16;
 const _: () = assert!(MAX_CORPUS_CASES == 16);
 
-/// The `GOLDEN_SCENARIO=offset_io` scenario: drive a real multi-block SysEx file transfer and a
-/// whole-file copy, and require the bytes on the card to be the ones that were written.
-///
-/// Stepped rather than one blocking call for the same reason its neighbours are: the SysEx handlers
-/// are resumable, so replies arrive on later ticks.
-#[embassy_executor::task]
-async fn run_offset_io_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_offset_io_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_offset_io_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_offset_io_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the offset io gate did not complete within the 600s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_offset_io_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_offset_io_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_offset_io_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the offset io gate FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: offset io gate completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=pattern_load` scenario: load a pattern file through the real pattern browser, with Enter and
-/// with a PLAY preview, and require the notes it holds to land with no synchronous card call on the interaction tier.
-///
-/// Stepped: the browser's listing and the pattern read both finish over later ticks.
-#[embassy_executor::task]
-async fn run_pattern_load_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_pattern_load_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_pattern_load_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_pattern_load_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the pattern load gate did not complete within the 600s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_pattern_load_dispatch_step() };
-        // One virtual millisecond per step, the pacing every stepped gate uses.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_pattern_load_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_pattern_load_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the pattern load gate FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: pattern load gate completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=staging_release` scenario: release a staged document while the write channel is still reading
-/// into it, reallocate the memory, and require the abandoned read not to write into what was handed out again.
-///
-/// Stepped: the read is held in flight across ticks by the write channel's latency knob.
-#[embassy_executor::task]
-async fn run_staging_release_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_staging_release_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_staging_release_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_staging_release_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the staging release gate did not complete within the 600s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_staging_release_dispatch_step() };
-        // One virtual millisecond per step, the pacing every stepped gate uses.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_staging_release_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_staging_release_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the staging release gate FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: staging release gate completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=path_operations` scenario: drive real SysEx path requests and the browser's
-/// folder creation, and require that the protocol still replies and that no folder creation begins on
-/// the interaction tier.
-///
-/// Stepped rather than one blocking call for the same reason the two gates beside it are: the
-/// operations are only ENQUEUED when the entry point runs, and the SysEx handler becomes resumable,
-/// so replies arrive on later ticks.
-#[embassy_executor::task]
-async fn run_path_operations_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_path_operations_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_path_operations_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_path_operations_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the path operations gate did not complete within the 600s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_path_operations_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_path_operations_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_path_operations_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the path operations gate FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: path operations gate completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=startup_failsafe` scenario: drive the REAL startup fail-safe and require
-/// that none of its file I/O begins on the interaction tier.
-///
-/// Stepped rather than one blocking call for the same reason the settings gate is: the fail-safe's
-/// operations are only ENQUEUED when the entry point runs, so the tier count must be read on a later
-/// tick.
-#[embassy_executor::task]
-async fn run_startup_failsafe_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_startup_failsafe_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_startup_failsafe_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_startup_failsafe_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the startup fail-safe gate did not complete within the 600s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_startup_failsafe_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_startup_failsafe_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_startup_failsafe_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the startup fail-safe gate FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: startup fail-safe gate completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=settings_channel` scenario: write a settings file through the real consumer
-/// entry point, read it back, and require the value to survive -- while counting every settings
-/// operation that began on the interaction tier.
-///
-/// Stepped rather than one blocking call for the same reason the save round-trip is: the operation
-/// is only ENQUEUED when the entry point runs, so each check must read its result on a later tick.
-#[embassy_executor::task]
-async fn run_settings_channel_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_settings_channel_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_settings_channel_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_settings_channel_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the settings channel gate did not complete within the 600s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_settings_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_settings_channel_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_settings_channel_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the settings channel gate FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: settings channel gate completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=favourites_channel` scenario: drive the favourites bank through its real
-/// entry points and require that no bank is ever written with less than it held -- while counting
-/// every favourites card operation that began on the interaction tier.
-///
-/// Stepped for the same reason as the settings gate: a bank operation is only QUEUED when its entry
-/// point runs, so each check must read its result on a later tick.
-#[embassy_executor::task]
-async fn run_favourites_channel_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_favourites_channel_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_favourites_channel_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_favourites_channel_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the favourites channel gate did not complete within the 600s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_favourites_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_favourites_channel_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_favourites_channel_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the favourites channel gate FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: favourites channel gate completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=song_save_channel` scenario: inflate the song until its document outgrows
-/// the staging buffer, save it through the real ENTER gesture, and require that what landed loads
-/// back as a song and that overwriting it leaves a song behind either way.
-#[embassy_executor::task]
-async fn run_song_save_channel_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_song_save_channel_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_song_save_channel_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_song_save_channel_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the song-save run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_song_save_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_song_save_channel_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_song_save_channel_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the song-save run FAILED ({failures} in-process failure(s))"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: song-save run completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=sample_collect` scenario: save a song that references audio files with
-/// collect-media on, and report whether the samples arrived, whether the audio-file list survived,
-/// and which arm performed the transfers.
-#[embassy_executor::task]
-async fn run_sample_collect_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_sample_collect_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_sample_collect_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_sample_collect_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the sample-collect run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_sample_collect_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_sample_collect_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_sample_collect_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the sample-collect run FAILED ({failures} in-process failure(s))"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: sample-collect run completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
 /// Write a 16-bit PCM WAV of a sine at `freq_hz`, `frames` frames long, the same on every channel.
 ///
 /// The claim's pitch detection needs a periodic signal to name a note; a constant fill names none.
@@ -1997,61 +1432,6 @@ fn pack_sample_claim_image() -> std::path::PathBuf {
     sd_image::pack_image(&root)
 }
 
-/// The `GOLDEN_SCENARIO=sample_claim` scenario: claim files from the real sample browser and report what each claim
-/// bound.
-#[embassy_executor::task]
-async fn run_sample_claim_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_sample_claim_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_sample_claim_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_sample_claim_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the sample-claim run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_sample_claim_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_sample_claim_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_sample_claim_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the sample-claim run FAILED ({failures} in-process failure(s))"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: sample-claim run completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
 /// Stage the preset-load scenario's card and pack it into a FAT image.
 ///
 /// Every sample a preset names sits in `SAMPLES/PL/`; the scenario writes the presets themselves into `SYNTHS/` and
@@ -2153,465 +1533,6 @@ fn pack_clear_song_undo_image() -> std::path::PathBuf {
     sd_image::pack_image(&root)
 }
 
-/// The `GOLDEN_SCENARIO=clear_song_undo` scenario: clear the song the way the context menu does, and report where the
-/// work ran and what the new song landed on.
-#[embassy_executor::task]
-async fn run_clear_song_undo_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_clear_song_undo_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_clear_song_undo_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_clear_song_undo_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the clear-song-undo run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_clear_song_undo_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_clear_song_undo_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_clear_song_undo_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the clear-song-undo run FAILED ({failures} in-process failure(s))"
-        );
-        done.store(true, Ordering::Release);
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: the clear-song-undo run passed");
-    done.store(true, Ordering::Release);
-    hard_exit(0);
-}
-
-/// The `GOLDEN_SCENARIO=sound_lifetime` scenario: delete a sounding synth and a sounding kit through each real
-/// deletion path, and report how many Sounds each path destroyed while they still had live voices.
-#[embassy_executor::task]
-async fn run_sound_lifetime_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_sound_lifetime_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_sound_lifetime_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_sound_lifetime_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the sound-lifetime run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_sound_lifetime_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_sound_lifetime_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_sound_lifetime_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the sound-lifetime run FAILED ({failures} in-process failure(s))"
-        );
-        done.store(true, Ordering::Release);
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: the sound-lifetime run passed");
-    done.store(true, Ordering::Release);
-    hard_exit(0);
-}
-
-/// The `GOLDEN_SCENARIO=clip_lifetime` scenario: delete a playing clip, a drum and the whole song through each real
-/// deletion path, and report how many Clips, Songs and Sounds each path destroyed while the render could still reach
-/// them. The counts themselves are judged by `scripts/clip_lifetime.sh`, which requires them clean; this task exits 1
-/// only on an in-process failure (a fixture that could not be built, a clock that never ran).
-/// `CLIP_LIFETIME_FROM=<LEG>` starts the run at that leg.
-#[embassy_executor::task]
-async fn run_clip_lifetime_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_clip_lifetime_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_clip_lifetime_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_clip_lifetime_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the clip-lifetime run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_clip_lifetime_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_clip_lifetime_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_clip_lifetime_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the clip-lifetime run FAILED ({failures} in-process failure(s))"
-        );
-        done.store(true, Ordering::Release);
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: the clip-lifetime run passed");
-    done.store(true, Ordering::Release);
-    hard_exit(0);
-}
-
-/// The `GOLDEN_SCENARIO=container_guard` scenario: with playback running, make one structural edit to each kind of
-/// container the render walks, through the model's own entry points, and report how many structural edits were made
-/// while the render could have preempted them. The counts are judged by `scripts/container_guard.sh`; this task exits
-/// 1 only on an in-process failure (a fixture that could not be built, a clock that never ran).
-#[embassy_executor::task]
-async fn run_container_guard_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_container_guard_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_container_guard_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_container_guard_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the container-guard run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_container_guard_dispatch_step() };
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_container_guard_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_container_guard_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the container-guard run FAILED ({failures} in-process failure(s))"
-        );
-        done.store(true, Ordering::Release);
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: the container-guard run passed");
-    done.store(true, Ordering::Release);
-    hard_exit(0);
-}
-
-/// The `GOLDEN_SCENARIO=preset_load` scenario: load synth and kit presets through the real preset browser and report
-/// what each load bound.
-#[embassy_executor::task]
-async fn run_preset_load_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_preset_load_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_preset_load_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_preset_load_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the preset-load run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_preset_load_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_preset_load_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_preset_load_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the preset-load run FAILED ({failures} in-process failure(s))"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: preset-load run completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=card_reinsert` scenario: load samples, eject the card, remove one of their
-/// files, re-insert, and report what `cardReinserted()`'s walk did to each resident.
-#[embassy_executor::task]
-async fn run_card_reinsert_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_card_reinsert_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_card_reinsert_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_card_reinsert_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the card-reinsert run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_card_reinsert_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_card_reinsert_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_card_reinsert_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the card-reinsert run FAILED ({failures} in-process failure(s))"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: card-reinsert run completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=sample_load_tree` scenario: build a song, save it with collected media and load it back, then
-/// load a synth preset and a kit preset, and report where every holder's file came from.
-#[embassy_executor::task]
-async fn run_sample_load_tree_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_sample_load_tree_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!("golden_vt_render: boot+mount did not complete within 30s — wedged");
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_sample_load_tree_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_sample_load_tree_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the sample-load tree run did not complete within 600s — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_sample_load_tree_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_sample_load_tree_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_sample_load_tree_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the sample-load tree run FAILED ({failures} in-process failure(s))"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: sample-load tree run completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=document_save_channel` scenario: save a preset through the real ENTER
-/// gesture, require the written document to be whole, and report whether the storage channel served
-/// the write.
-///
-/// One leg: the write channel has no feature switch. No other harness builds `write_file`, and a
-/// feature no gate builds is code that has never run.
-#[embassy_executor::task]
-async fn run_document_save_channel_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_document_save_channel_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_document_save_channel_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_document_save_channel_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the document-save channel run did not complete within the 600s \
-                 wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_document_save_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_document_save_channel_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_document_save_channel_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the document-save channel run FAILED ({failures} in-process \
-             failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: document-save channel run completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
 /// The card the song-load gate boots on: somewhere to save, and the one sample its song carries. It packs an
 /// image of its own rather than the golden fixture because the gate saves and loads a song it writes itself, and
 /// the fixture corpus has no sample this gate can name.
@@ -2629,267 +1550,6 @@ fn pack_song_load_channel_image() -> std::path::PathBuf {
     }
     write_sine_wav(&samples.join("SLSONG.WAV"), 1, 22_050, 440.0);
     sd_image::pack_image(&root)
-}
-
-/// The `GOLDEN_SCENARIO=song_load_channel` scenario: save a song carrying a distinctive value, load
-/// it back through the real `LoadSongUI`, and report both whether the value returned and whether the
-/// storage channel served the read.
-///
-/// Until this gate existed, `recorder_write.sh` was the only script that built the write channel, so
-/// the whole-file staging read had never executed under any harness at all.
-#[embassy_executor::task]
-async fn run_song_load_channel_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_song_load_channel_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_song_load_channel_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_song_load_channel_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the song-load channel run did not complete within the 600s wait \
-                 budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_song_load_channel_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_song_load_channel_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_song_load_channel_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the song-load channel run FAILED ({failures} in-process failure(s) — \
-             see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: song-load channel run completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// Drives the save round-trip gate: save a song through the real SaveSongUI gesture, load it back,
-/// overwrite it, and require the two written files to be identical.
-///
-/// Stepped rather than one blocking call for the same reason the song-preview A/B is: saving goes
-/// through the channels, so an op is only REQUESTED when the gesture runs and each check must read
-/// its result on a later tick.
-#[embassy_executor::task]
-async fn run_save_roundtrip_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_save_roundtrip_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_save_roundtrip_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_save_roundtrip_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the save round-trip did not complete within the 600s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // SAFETY: as above.
-        unsafe { deluge_scenario_save_roundtrip_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_save_roundtrip_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_save_roundtrip_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the save round-trip FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: save round-trip completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=song_preview_ab` scenario: draw every fixture song's artwork through the
-/// real `LoadSongUI`, printing each one's image fingerprint and decode outcome as a diffable
-/// `SP-CASE` line.
-///
-/// The previews go through the prefix channel, with `file_prefix_task` spawned in `main` below, and
-/// the scenario holds each one to the same file decoded the synchronous way.
-/// `scripts/song_preview_ab.sh` builds and runs it once.
-///
-/// The step machine is not ceremony: a preview whose prefix has not arrived is answered on a later
-/// tick, and on this single-executor substrate a C++-side retry spin would starve the reader task it
-/// is waiting for.
-#[embassy_executor::task]
-async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_song_preview_ab_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_song_preview_ab_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(600);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_song_preview_ab_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the song-preview A/B did not complete within the 600s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // One tick on the UI tier...
-        // SAFETY: as above.
-        unsafe { deluge_scenario_song_preview_ab_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // ...then wait for it to come back, letting the executor poll `file_prefix_task` in between.
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_song_preview_ab_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_song_preview_ab_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the song-preview A/B leg FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: song-preview A/B leg completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
-}
-
-/// The `GOLDEN_SCENARIO=audio_load_ab` scenario: run one whole song-shaped load of the fixture's
-/// sample list through `AudioFileManager::getAudioFileFromFilename`, printing each file's resolved
-/// identity and geometry as a diffable `AB-CASE` line.
-///
-/// One build, one run: every case loads twice in process, first through the synchronous card path as
-/// the reference and then through the Rust `audio_load_task` spawned in `main` below, and the scenario
-/// requires the two to agree. `scripts/audio_load_ab.sh` checks its markers.
-///
-/// The step machine is not ceremony. A deferred load answers `Error::LOAD_IN_PROGRESS` and its
-/// caller must RETURN to its own loop; on this single-executor substrate a C++-side retry spin would
-/// starve the very task it is waiting for. One attempt per dispatch, with an `await` in between, is what gives
-/// `audio_load_task` the polls it needs to make progress.
-#[embassy_executor::task]
-async fn run_audio_load_ab_scenario(done: &'static AtomicBool) {
-    log::info!("golden_vt_render: run_audio_load_ab_scenario: awaiting boot+mount");
-    let deadline = Instant::now() + Duration::from_secs(30);
-    loop {
-        if BOOT_MOUNTED.load(Ordering::Acquire) {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        Timer::after_millis(5).await;
-    }
-
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
-    unsafe { deluge_scenario_audio_load_ab_begin() };
-
-    let deadline = Instant::now() + Duration::from_secs(300);
-    loop {
-        // SAFETY: as above.
-        if unsafe { deluge_scenario_audio_load_ab_complete() } {
-            break;
-        }
-        if Instant::now() >= deadline {
-            log::error!(
-                "golden_vt_render: the audio-load A/B did not complete within the 300s wait budget — wedged"
-            );
-            hard_exit(2);
-        }
-        // One attempt...
-        // SAFETY: as above.
-        unsafe { deluge_scenario_audio_load_ab_dispatch_step() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races
-        // are paced in these milliseconds.
-        Timer::after_millis(1).await;
-        // ...then wait for it to come back, letting the executor poll `audio_load_task` in between.
-        // SAFETY: as above.
-        while !unsafe { deluge_scenario_audio_load_ab_step_done() } {
-            Timer::after_millis(1).await;
-        }
-        Timer::after_millis(1).await;
-    }
-
-    let failures = unsafe { deluge_scenario_audio_load_ab_failures() };
-    if failures != 0 {
-        log::error!(
-            "golden_vt_render: the audio-load A/B leg FAILED ({failures} in-process failure(s) — see the log above)"
-        );
-        hard_exit(1);
-    }
-    log::info!("golden_vt_render: audio-load A/B leg completed (0 in-process failures)");
-    done.store(true, Ordering::Release);
 }
 
 /// Our own pender: no thread, no parking — just a flag the driver loop polls
@@ -2926,32 +1586,14 @@ fn main() {
     // records into it rather than loading a corpus song.
     let scenario = std::env::var("GOLDEN_SCENARIO").unwrap_or_default();
     let recorder_mode = scenario == "recorder_roundtrip";
-    let audio_load_ab_mode = scenario == "audio_load_ab";
-    let song_preview_ab_mode = scenario == "song_preview_ab";
-    let save_roundtrip_mode = scenario == "save_roundtrip";
-    let song_load_channel_mode = scenario == "song_load_channel";
-    let document_save_channel_mode = scenario == "document_save_channel";
-    let sample_collect_mode = scenario == "sample_collect";
-    let song_save_mode = scenario == "song_save_channel";
-    let settings_channel_mode = scenario == "settings_channel";
-    let favourites_channel_mode = scenario == "favourites_channel";
-    let startup_failsafe_mode = scenario == "startup_failsafe";
-    let path_operations_mode = scenario == "path_operations";
-    let offset_io_mode = scenario == "offset_io";
-    let pattern_load_mode = scenario == "pattern_load";
-    let staging_release_mode = scenario == "staging_release";
-    let card_reinsert_mode = scenario == "card_reinsert";
-    let sample_load_tree_mode = scenario == "sample_load_tree";
-    let sample_claim_mode = scenario == "sample_claim";
-    let preset_load_mode = scenario == "preset_load";
-    let clear_song_undo_mode = scenario == "clear_song_undo";
-    let sound_lifetime_mode = scenario == "sound_lifetime";
-    let clip_lifetime_mode = scenario == "clip_lifetime";
-    let container_guard_mode = scenario == "container_guard";
-
+    let stepped = stepped_scenario(&scenario);
     log::info!(
-        "golden_vt_render: fixture={fixture} budget_ms={budget_ms} recorder_mode={recorder_mode} \
-         audio_load_ab_mode={audio_load_ab_mode} song_preview_ab_mode={song_preview_ab_mode}"
+        "golden_vt_render: fixture={fixture} budget_ms={budget_ms} scenario={}",
+        if scenario.is_empty() {
+            "stem_export"
+        } else {
+            scenario.as_str()
+        }
     );
 
     // Pack (or reuse) a real FAT SD image from the golden corpus — same
@@ -2967,32 +1609,21 @@ fn main() {
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         // Recorder mode records into a fresh EMPTY image (it only ever writes new files); the
         // stem-export golden packs the fixture's corpus song + samples.
-        let img = if recorder_mode {
-            sd_image::format_empty_image()
-        } else if audio_load_ab_mode {
-            pack_audio_load_ab_image()
-        } else if song_preview_ab_mode {
-            pack_song_preview_ab_image(&repo_root)
-        } else if song_save_mode {
-            pack_song_save_image()
-        } else if sample_collect_mode {
-            pack_sample_collect_image()
-        } else if card_reinsert_mode {
-            pack_card_reinsert_image()
-        } else if sample_load_tree_mode {
-            pack_sample_load_tree_image()
-        } else if sample_claim_mode {
-            pack_sample_claim_image()
-        } else if preset_load_mode {
-            pack_preset_load_image()
-        } else if clear_song_undo_mode {
-            pack_clear_song_undo_image()
-        } else if sound_lifetime_mode || clip_lifetime_mode || container_guard_mode {
-            sd_image::format_empty_image()
-        } else if song_load_channel_mode {
-            pack_song_load_channel_image()
-        } else {
-            sd_image::pack_golden_fixture(&repo_root, &fixture)
+        let img = match scenario.as_str() {
+            "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard" => {
+                sd_image::format_empty_image()
+            }
+            "audio_load_ab" => pack_audio_load_ab_image(),
+            "song_preview_ab" => pack_song_preview_ab_image(&repo_root),
+            "song_save_channel" => pack_song_save_image(),
+            "sample_collect" => pack_sample_collect_image(),
+            "card_reinsert" => pack_card_reinsert_image(),
+            "sample_load_tree" => pack_sample_load_tree_image(),
+            "sample_claim" => pack_sample_claim_image(),
+            "preset_load" => pack_preset_load_image(),
+            "clear_song_undo" => pack_clear_song_undo_image(),
+            "song_load_channel" => pack_song_load_channel_image(),
+            _ => sd_image::pack_golden_fixture(&repo_root, &fixture),
         };
         // SAFETY: single-threaded at this point (before any task/executor exists).
         unsafe { std::env::set_var("DELUGE_SD_IMAGE", &img) };
@@ -3051,50 +1682,9 @@ fn main() {
     spawner.spawn(file_write::file_write_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
-    if audio_load_ab_mode {
-        spawner.spawn(run_audio_load_ab_scenario(&DONE).unwrap());
-    } else if song_preview_ab_mode {
-        spawner.spawn(run_song_preview_ab_scenario(&DONE).unwrap());
-    } else if save_roundtrip_mode {
-        spawner.spawn(run_save_roundtrip_scenario(&DONE).unwrap());
-    } else if song_load_channel_mode {
-        spawner.spawn(run_song_load_channel_scenario(&DONE).unwrap());
-    } else if document_save_channel_mode {
-        spawner.spawn(run_document_save_channel_scenario(&DONE).unwrap());
-    } else if song_save_mode {
-        spawner.spawn(run_song_save_channel_scenario(&DONE).unwrap());
-    } else if sample_collect_mode {
-        spawner.spawn(run_sample_collect_scenario(&DONE).unwrap());
-    } else if settings_channel_mode {
-        spawner.spawn(run_settings_channel_scenario(&DONE).unwrap());
-    } else if favourites_channel_mode {
-        spawner.spawn(run_favourites_channel_scenario(&DONE).unwrap());
-    } else if startup_failsafe_mode {
-        spawner.spawn(run_startup_failsafe_scenario(&DONE).unwrap());
-    } else if path_operations_mode {
-        spawner.spawn(run_path_operations_scenario(&DONE).unwrap());
-    } else if offset_io_mode {
-        spawner.spawn(run_offset_io_scenario(&DONE).unwrap());
-    } else if pattern_load_mode {
-        spawner.spawn(run_pattern_load_scenario(&DONE).unwrap());
-    } else if staging_release_mode {
-        spawner.spawn(run_staging_release_scenario(&DONE).unwrap());
-    } else if card_reinsert_mode {
-        spawner.spawn(run_card_reinsert_scenario(&DONE).unwrap());
-    } else if sample_load_tree_mode {
-        spawner.spawn(run_sample_load_tree_scenario(&DONE).unwrap());
-    } else if sample_claim_mode {
-        spawner.spawn(run_sample_claim_scenario(&DONE).unwrap());
-    } else if preset_load_mode {
-        spawner.spawn(run_preset_load_scenario(&DONE).unwrap());
-    } else if clear_song_undo_mode {
-        spawner.spawn(run_clear_song_undo_scenario(&DONE).unwrap());
-    } else if sound_lifetime_mode {
-        spawner.spawn(run_sound_lifetime_scenario(&DONE).unwrap());
-    } else if clip_lifetime_mode {
-        spawner.spawn(run_clip_lifetime_scenario(&DONE).unwrap());
-    } else if container_guard_mode {
-        spawner.spawn(run_container_guard_scenario(&DONE).unwrap());
+    if let Some(stepped) = stepped {
+        let name: &'static str = Box::leak(scenario.clone().into_boxed_str());
+        spawner.spawn(run_stepped_scenario(stepped, name, &DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {
