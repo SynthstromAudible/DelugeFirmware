@@ -40,7 +40,7 @@ namespace deluge::storage::bytes {
 ///
 /// The C ABI's four statuses, in the type the C++ side switches on. Deliberately a scoped enum with
 /// no `default:` at its use sites, so `-Werror=switch` catches an unhandled value -- though note that
-/// guard protects the FIRMWARE build only: `tests/CMakeLists.txt` is a separate `project(DelugeTests)`
+/// guard protects the FIRMWARE build only: `tests/unit/CMakeLists.txt` is a separate `project(DelugeTests)`
 /// which does not inherit `DELUGE_COMMON_COMPILE_OPTIONS`.
 enum class ByteIo : uint8_t {
 	/// Requested, or running right now. Ask again on a later tick; do NOT re-request.

@@ -30,8 +30,8 @@ struct SliceItem {
 	int32_t transpose;
 };
 
-/// Spec-only driver for the audition path (tests/unit/slicer_preview_tests.cpp). Declared here so the specs can reach
-/// `auditionLoad_` and `cancelPreview()` without those becoming public API.
+/// Spec-only driver for the audition path (tests/unit/cpputest/slicer_preview_tests.cpp). Declared here so the specs
+/// can reach `auditionLoad_` and `cancelPreview()` without those becoming public API.
 class SlicerPreviewProbe;
 
 class Slicer final : public UI {

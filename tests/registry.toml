@@ -673,13 +673,13 @@ runtime = "~10m"
 
 [[harness]]
 name = "unit"
-path = "tests"
+path = "tests/unit"
 level = "unit"
 runner = "ctest"
 kind = "unit"
 status = "gate"
-gates = "every CppUTest and CppSpec suite under tests/: policies, parsers, storage state machines, the UI's pure steps, DSP kernels against scalar references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R stitch_spec`; the CppUTest suites are one ctest test, UnitTests."
-source = "tests"
+gates = "every CppUTest and CppSpec suite under tests/unit/: policies, parsers, storage state machines, the UI's pure steps, DSP kernels against scalar references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R stitch_spec`; the CppUTest suites are one ctest test, UnitTests."
+source = "tests/unit"
 tree = "build/test-unit"
 configure = ["-G", "Ninja Multi-Config"]
 ctest_args = ["-C", "Debug"]

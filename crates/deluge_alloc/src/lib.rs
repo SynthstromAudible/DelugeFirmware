@@ -2,7 +2,7 @@
 //! ABI (libdeluge/alloc.h).
 //!
 //! - TLSF backbone (`tlsf`): O(1) general allocator, 16-byte-aligned by
-//!   construction, validated by the C++ conformance suite (tests/spec_alloc, the
+//!   construction, validated by the C++ conformance suite (tests/unit/alloc, the
 //!   same AllocatorUnderTest suite the legacy MemoryRegion passes) plus host
 //!   unit/proptest/fuzz tests.
 //! - Slab cache pool (`slab`): the "stealables" pager — uniform slots, LRU,

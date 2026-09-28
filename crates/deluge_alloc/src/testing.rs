@@ -1,6 +1,6 @@
 //! Host-only randomized invariant harness for the allocator, shared by the unit
 //! tests (`tests/`) and the fuzz targets (`fuzz/`). Mirrors the C++ conformance
-//! suite (tests/spec_alloc) so the Rust and C++ sides check the same invariants:
+//! suite (tests/unit/alloc) so the Rust and C++ sides check the same invariants:
 //! 16-byte (and requested) alignment, non-overlapping live blocks, per-block data
 //! integrity across churn, realloc fidelity, and full reclamation after a drain.
 //!

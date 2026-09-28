@@ -7,7 +7,7 @@
 // `stitch_boundaries` -- which bytes get converted (`payload()`, not the trailing slack), which
 // neighbour edges get built from where (a neighbour's OWN trailing-slack tail/head), and in what order
 // (convert self, THEN stitch) -- not a re-derivation of either algorithm, which
-// `tests/spec_audio_stream/{convert,stitch,convert_cluster}_spec.cpp` and `sample_convert`'s own suite
+// `tests/unit/audio_stream/{convert,stitch,convert_cluster}_spec.cpp` and `sample_convert`'s own suite
 // already prove byte-identical against SIMDe. `prev_payload`/`next_payload` being null means
 // "absent or not loaded" -- mirrors `prevCluster && prevCluster->loaded` / `nextCluster &&
 // nextCluster->loaded` (async_fill.cpp:116-157); the caller (the Rust test driver) decides that, same

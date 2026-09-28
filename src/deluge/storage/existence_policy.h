@@ -65,7 +65,7 @@ SaveAction save_action(const std::expected<bool, deluge::io::Status>& present, b
 ///
 /// @warning Switch on this enum exhaustively, with no `default:` label, for the same reason given on
 ///          `Presence` above — though note that guard protects the FIRMWARE build only:
-///          `tests/CMakeLists.txt` is a separate `project(DelugeTests)` which does not inherit
+///          `tests/unit/CMakeLists.txt` is a separate `project(DelugeTests)` which does not inherit
 ///          `DELUGE_COMMON_COMPILE_OPTIONS`.
 enum class StartupPresence : uint8_t {
 	Confirmed, ///< the path is there

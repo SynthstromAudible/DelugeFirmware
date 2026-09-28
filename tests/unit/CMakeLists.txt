@@ -1,225 +1,161 @@
-# CppUTest
+cmake_minimum_required(VERSION 3.24)
+project(DelugeTests)
+include(${CMAKE_CURRENT_LIST_DIR}/../../cmake/ccache.cmake)
+
+if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Gcc")
+    # CPPUTEST_PLATFORM defaults to Gcc, which causes the test binaries to
+    # segfault on Windows/Clang builds, since they use the stdlib from MSVC.
+    set(CPPUTEST_PLATFORM VisualCpp)
+endif ()
+
+set(DELUGE_C_STANDARD 23)
+set(DELUGE_CXX_STANDARD 26)
+
+# Opt-in dynamic analysis for the host test binaries. Enable with -DDELUGE_TEST_SANITIZERS=ON.
+#
+# AddressSanitizer (heap/stack overflow, use-after-free, double-free) and UndefinedBehaviorSanitizer both work in the
+# -m32 host build (the i386 libasan/libubsan runtimes are required - on Arch that's `lib32-gcc-libs`). NOTE: LeakSanitizer
+# (ASan's leak-at-exit detector) is x86-64 only and silently does nothing under -m32, which is why host leak checking is
+# done explicitly via the TrackingAllocator's outstanding-allocation set (see tests/unit/spec/tracking_allocator_spec.cpp)
+# rather than via LSan.
+option(DELUGE_TEST_SANITIZERS "Build host tests with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
+
+# Apply the sanitizers to a single test target only. We deliberately do NOT instrument globally: the CppUTest / CppSpec /
+# etl dependencies are pulled in via FetchContent and have their own benign UB (e.g. CppUTest's millis*1000 timing
+# overflow) that would otherwise halt every run. ASan's runtime intercepts malloc/free process-wide regardless, so the
+# uninstrumented framework objects are still covered for heap errors.
+function(deluge_apply_test_sanitizers target)
+    if (DELUGE_TEST_SANITIZERS AND UNIX AND NOT APPLE)
+        target_compile_options(${target} PRIVATE
+            -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all)
+        target_link_options(${target} PRIVATE -fsanitize=address,undefined)
+    endif ()
+endfunction()
+
+enable_testing()
+
+# ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
+# so make it available to every test target (spec, unit).
 include(FetchContent)
-FetchContent_Declare(
-        CppUTest
-        GIT_REPOSITORY https://github.com/cpputest/cpputest.git
-        GIT_TAG eccbc2190c672e598c1dd2bf5e4295f5ba27aad1
-)
 FetchContent_Declare(
         etl
         GIT_REPOSITORY https://github.com/ETLCPP/etl
         GIT_TAG 20.39.4
 )
-
 FetchContent_MakeAvailable(etl)
+link_libraries(etl::etl)
 
-# argon + SIMDe, for the one firmware UI translation unit this binary compiles.
-#
-# slicer_preview_tests.cpp drives the REAL gui/ui/slicer.cpp rather than a restatement of it, and
-# that file reaches <argon.hpp> transitively (model/song/song.h -> dsp/reverb). The block mirrors
-# tests/spec_dsp/CMakeLists.txt; keep the pins in sync with lib/CMakeLists.txt and that sibling.
-FetchContent_Declare(argon
-        GIT_REPOSITORY https://github.com/stellar-aria/argon
-        GIT_TAG 5897db725c1cdee452b5f288614796364468f2ea
-)
-FetchContent_MakeAvailable(argon)
+add_compile_options(-Wno-unknown-warning-option)
+#needs to support -m32 since the allocator conformance assumes a 32 bit architecture
+if (UNIX AND NOT APPLE)
+    # -mfpmath=sse -msse2: do double math in SSE (64-bit IEEE) rather than the x87 stack (80-bit). x87 excess precision
+    # makes exact float comparisons depend on when intermediates spill to memory, which sanitizer instrumentation
+    # perturbs (it caused a spurious failure in the Time double-conversion test). SSE has no excess precision and so also
+    # matches the ARM target's VFP behaviour, making host float results a better proxy for the firmware's.
+    add_compile_options(-m32 -mfpmath=sse -msse2 -Og -ggdb3)
+    add_link_options(-m32)
 
-if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
-    set(UNIT_TESTS_NEON_NATIVE ON)
+    # Build the deluge_rust umbrella staticlib (i686) ONCE and share it across the
+    # conformance specs (it re-exports both the deluge_alloc and deluge_resource C
+    # ABIs). Defining the build here avoids two subdirs emitting colliding rules for
+    # the same output.
+    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../crates)
+    set(RUST_TARGET i686-unknown-linux-gnu)
+    set(RUST_LIB ${RUST_WS}/target/${RUST_TARGET}/release/libdeluge_rust.a)
+    file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
+        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
+        ${RUST_WS}/deluge_audio_format/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+    add_custom_command(
+        OUTPUT ${RUST_LIB}
+        COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET}
+        WORKING_DIRECTORY ${RUST_WS}
+        DEPENDS ${RUST_SOURCES}
+            ${RUST_WS}/Cargo.lock
+            ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
+            ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
+            ${RUST_WS}/deluge_audio_format/Cargo.toml
+        COMMENT "Building Rust deluge_rust staticlib (${RUST_TARGET})"
+        VERBATIM)
+    add_custom_target(deluge_rust_rs_build DEPENDS ${RUST_LIB})
+    add_library(deluge_rust_rs STATIC IMPORTED GLOBAL)
+    set_target_properties(deluge_rust_rs PROPERTIES IMPORTED_LOCATION ${RUST_LIB})
+    add_dependencies(deluge_rust_rs deluge_rust_rs_build)
+
+    # Rust core conformance: the umbrella staticlib linked into -m32 CppSpec drivers.
+    # (The legacy C++ MemoryRegion + its MemoryManagerTests / memory_specs targets were
+    # retired with the allocator; the shared conformance headers live in memory/,
+    # and the reusable mocks in support/mocks/ are pulled in directly by spec/.)
+    add_subdirectory(alloc)
+    add_subdirectory(resource)
+
+    # A SEPARATE umbrella build, with the `sim` feature on, exclusively for
+    # sample_reader: `deluge_sample_reader`'s `deluge_sample_reader_*` /
+    # `deluge_sample_read` C-ABI symbols are only emitted (`#[unsafe(no_mangle)]`) under
+    # `target_os = "none"` or the `host_app`/`sim` feature gates (see that crate's abi.rs) --
+    # plain `deluge_rust_rs` above builds with none of those, so it never exports them. Uses
+    # its own `--target-dir` (not the plain `deluge_rust_rs` build's) so the two feature sets
+    # never fight over the same output path.
+    set(RUST_LIB_SIM ${RUST_WS}/target-tests-sim/${RUST_TARGET}/release/libdeluge_rust.a)
+    # Own glob (not layered on RUST_SOURCES -- GLOB_RECURSE patterns are wildcards, not a list of
+    # already-resolved paths to re-glob), mirroring sim/CMakeLists.txt's own SIM_RUST_SOURCES.
+    file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
+        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
+        ${RUST_WS}/deluge_audio_format/src/*.rs
+        ${RUST_WS}/deluge_sample_reader/src/*.rs ${RUST_WS}/deluge_sample_fill/src/*.rs
+        ${RUST_WS}/deluge_sample_source/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+    add_custom_command(
+        OUTPUT ${RUST_LIB_SIM}
+        COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET} --features sim
+            --target-dir ${RUST_WS}/target-tests-sim
+        WORKING_DIRECTORY ${RUST_WS}
+        DEPENDS ${RUST_SOURCES_SIM}
+            ${RUST_WS}/Cargo.lock
+            ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
+            ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
+            ${RUST_WS}/deluge_audio_format/Cargo.toml
+            ${RUST_WS}/deluge_sample_reader/Cargo.toml ${RUST_WS}/deluge_sample_fill/Cargo.toml
+            ${RUST_WS}/deluge_sample_source/Cargo.toml
+        COMMENT "Building Rust deluge_rust staticlib with the sim feature (${RUST_TARGET})"
+        VERBATIM)
+    add_custom_target(deluge_rust_rs_sim_build DEPENDS ${RUST_LIB_SIM})
+    add_library(deluge_rust_rs_sim STATIC IMPORTED GLOBAL)
+    set_target_properties(deluge_rust_rs_sim PROPERTIES IMPORTED_LOCATION ${RUST_LIB_SIM})
+    add_dependencies(deluge_rust_rs_sim deluge_rust_rs_sim_build)
+
+    add_subdirectory(sample_reader)
+elseif (APPLE)
+    # macOS gets the umbrella staticlib too, because tests/unit/spec needs it: audio_file_format.cpp's
+    # header parse IS the Rust decoder (crates/deluge_audio_format). Built for the DEFAULT host
+    # target rather than i686 -- the specs are 64-bit native here (no -m32 above), and letting cargo
+    # pick the host beats guessing an apple-darwin triple. The alloc/resource conformance specs stay
+    # Linux-only; this branch defines nothing but the shared archive.
+    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../../crates)
+    set(RUST_LIB ${RUST_WS}/target/release/libdeluge_rust.a)
+    file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
+        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
+        ${RUST_WS}/deluge_audio_format/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+    add_custom_command(
+        OUTPUT ${RUST_LIB}
+        COMMAND cargo build -p deluge_rust --release
+        WORKING_DIRECTORY ${RUST_WS}
+        DEPENDS ${RUST_SOURCES}
+            ${RUST_WS}/Cargo.lock
+            ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
+            ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
+            ${RUST_WS}/deluge_audio_format/Cargo.toml
+        COMMENT "Building Rust deluge_rust staticlib (host)"
+        VERBATIM)
+    add_custom_target(deluge_rust_rs_build DEPENDS ${RUST_LIB})
+    add_library(deluge_rust_rs STATIC IMPORTED GLOBAL)
+    set_target_properties(deluge_rust_rs PROPERTIES IMPORTED_LOCATION ${RUST_LIB})
+    add_dependencies(deluge_rust_rs deluge_rust_rs_build)
 endif ()
+add_subdirectory(spec)
+add_subdirectory(io)
+add_subdirectory(host_passthrough)
+add_subdirectory(storage)
+add_subdirectory(audio_stream)
+add_subdirectory(dsp)
+add_subdirectory(sync)
+add_subdirectory(cpputest)
 
-if (NOT UNIT_TESTS_NEON_NATIVE)
-    FetchContent_Declare(simde
-            GIT_REPOSITORY https://github.com/simd-everywhere/simde
-            GIT_TAG v0.8.2
-            GIT_SHALLOW TRUE
-    )
-    FetchContent_MakeAvailable(simde)
-    set(UNIT_TESTS_SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
-    # Parent builds this tree at -m32 on plain Linux, where SIMDe's native path drags in AVX512/FMA
-    # headers that don't parse in 32-bit mode.
-    if (UNIX AND NOT APPLE)
-        add_compile_definitions(SIMDE_NO_NATIVE)
-    endif ()
-endif ()
-
-# Set this to ON if you want to have the CppUTest's internal tests in your
-# project as well.
-set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
-if (WIN32)
-    # Memory leak detection is off by default on Windows, setting
-    # it here will cause a massive spam of redefinition warning during
-    # build.
-    #
-    # We use things like strncat, which Windows wants to warn about: silence those.
-    add_compile_definitions(
-            IN_UNIT_TESTS=1
-            _CRT_SECURE_NO_WARNINGS=1
-    )
-else ()
-    add_compile_definitions(
-            CPPUTEST_MEM_LEAK_DETECTION_DISABLED
-            IN_UNIT_TESTS=1
-    )
-endif ()
-
-FetchContent_MakeAvailable(CppUTest)
-
-file(GLOB_RECURSE deluge_SOURCES
-        # Mock implementations
-        mocks/*
-        # For LFO
-        ../../src/deluge/util/c_string.cpp
-        ../../src/deluge/util/lookuptables.cpp
-        ../../src/deluge/util/waves.cpp
-        ../../src/deluge/modulation/lfo.cpp
-        # For value scaling
-        ../../src/deluge/gui/menu_item/value_scaling.cpp
-        # For scale tests
-        ../../src/deluge/model/scale/musical_key.cpp
-        ../../src/deluge/model/scale/note_set.cpp
-        ../../src/deluge/model/scale/preset_scales.cpp
-        ../../src/deluge/model/scale/utils.cpp
-        ../../src/deluge/model/scale/preset_scales.cpp
-        ../../src/deluge/model/scale/scale_change.cpp
-        ../../src/deluge/model/scale/scale_mapper.cpp
-        # For clip iterator tests
-        ../../src/deluge/model/song/clip_iterators.cpp
-        # For sync tests
-        ../../src/deluge/model/sync.cpp
-        # For chord tests
-        ../../src/deluge/gui/ui/keyboard/chords.cpp
-        # For clock output scheduler tests
-        ../../src/deluge/playback/clock_output_scheduler.cpp
-        # For name comparison / default naming tests
-        ../../src/deluge/util/name_compare.cpp
-        ../../src/deluge/gui/ui/browser/default_name.cpp
-        ../../src/deluge/gui/ui/load/navigation_step.cpp
-        ../../src/deluge/gui/ui/load/confirm_step.cpp
-        # For sample transpose tests
-        ../../src/deluge/model/sample/sample_transpose.cpp
-        # For waveform peak math tests
-        ../../src/deluge/gui/waveform/waveform_peak_math.cpp
-        # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
-        # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
-        # reader used to live, reaches the whole instrument model to build what it loads.
-        # mock_file_io.cpp (borrowed from tests/spec_io) backs deluge::io::File with an in-memory card.
-        ../../src/deluge/storage/song_preview.cpp
-        ../../src/deluge/storage/file_reader.cpp
-        # The REAL weak fallbacks, not a hand-written stand-in: this is exactly what a BSP without
-        # the Rust channels resolves, and linking them means the host cannot drift from them.
-        ../../src/deluge/storage/file_write_abi.cpp
-        ../../src/deluge/storage/file_bytes_abi.cpp
-        # The weak no-BSP fallbacks for the directory channel, which io/file.cpp's
-        # collectOrRequestDir calls. Without it the link fails on
-        # deluge_file_directory_collect/_request.
-        ../../src/deluge/storage/file_directory_abi.cpp
-        ../../src/deluge/storage/Deserializer.cpp
-        ../../src/deluge/storage/JsonDeserializer.cpp
-        ../../src/deluge/io/file.cpp
-        ../../src/deluge/util/c_string.cpp
-        ../../src/deluge/util/firmware_version.cpp
-        ../../src/deluge/util/semver.cpp
-        ../spec_io/mock_file_io.cpp
-        # For the slicer audition specs: the REAL UI translation unit, so the specs drive the
-        # shipped preview()/graphicsRoutine() instead of a restatement of them. Its world is
-        # mocks/slicer_env_mock.cpp (globbed above).
-        ../../src/deluge/gui/ui/slicer.cpp
-        # For the DX cartridge window spec: the REAL sysex parser, so the spec measures what
-        # DX7Cartridge::load actually does with a truncated bank rather than restating arithmetic.
-        ../../src/deluge/storage/DX7Cartridge.cpp
-        # For the MEM_GUARD side-table spec: the REAL table, and the structural-edit probe its edits report to.
-        ../../src/deluge/memory/alloc_metadata.cpp
-        ../../src/deluge/util/structural_edit_probe.cpp
-)
-
-# util/firmware_version.h is generated from a template at firmware-build time, and the deserializers
-# the song-preview tests link include it. Configure the REAL template here rather than adding another
-# hand-written stub: a stub would drift, and the firmware version this reports is what the parser
-# compares a song's earliestCompatibleFirmware against.
-set(PROJECT_VERSION_MAJOR 0)
-set(PROJECT_VERSION_MINOR 0)
-set(PROJECT_VERSION_PATCH 0)
-configure_file(../../src/deluge/util/firmware_version.h.in
-        ${CMAKE_CURRENT_BINARY_DIR}/generated/util/firmware_version.h @ONLY)
-
-add_executable(UnitTests
-        RunAllTests.cpp
-        mem_guard_tests.cpp
-        audio_pacing_tests.cpp
-        scheduler_tests.cpp
-        lfo_tests.cpp
-        scale_tests.cpp
-        value_scaling_tests.cpp
-        clip_iterator_tests.cpp
-        function_tests.cpp
-        sync_tests.cpp
-        chord_tests.cpp
-        time_tests.cpp
-        clock_output_scheduler_tests.cpp
-        name_compare_tests.cpp
-        default_name_tests.cpp
-        navigation_step_tests.cpp
-        confirm_step_tests.cpp
-        sample_transpose_tests.cpp
-        rgb_tests.cpp
-        notes_state_tests.cpp
-        waveform_peak_math_tests.cpp
-        waveform_overview_cache_tests.cpp
-        song_preview_window_tests.cpp
-        song_preview_decode_tests.cpp
-        song_preview_deferral_tests.cpp
-        slicer_preview_tests.cpp
-        dx_cartridge_window_tests.cpp
-)
-# WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
-# the repo root (tests/support/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so
-# the binary needs to run from the same place a developer invoking it by hand would, not ctest's
-# default (the build tree).
-add_test(NAME UnitTests
-        COMMAND UnitTests
-        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../..)
-target_sources(UnitTests PRIVATE ${deluge_SOURCES})
-target_include_directories(UnitTests PRIVATE
-        # include the non test project source
-        mocks
-        ../../include
-        ../../src
-        ../../src/deluge
-        ../../src/OSLikeStuff        # scheduler_api.h, reached via libdeluge/scheduler.h
-        ../spec_io                   # mock_file_io.h, the in-memory card behind deluge::io::File
-        ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
-)
-
-# The NEON backend gui/ui/slicer.cpp reaches through dsp/reverb.
-target_link_libraries(UnitTests argon)
-if (NOT UNIT_TESTS_NEON_NATIVE)
-    target_include_directories(UnitTests PRIVATE
-            ${CMAKE_CURRENT_LIST_DIR}/../../sim/compat # <arm_neon.h> shim
-            ${UNIT_TESTS_SIMDE_INCLUDE_DIR}            # <simde/arm/neon.h>
-            ${UNIT_TESTS_SIMDE_INCLUDE_DIR}/simde      # argon's bare <arm/neon.h>
-    )
-endif ()
-
-# libstdc++'s parallel STL backend is oneTBB, whose headers pull in the full <immintrin.h> and
-# collide with SIMDe's NEON alias macros. The firmware has no TBB; mirror the sim and take the
-# serial backend.
-target_compile_definitions(UnitTests PRIVATE _GLIBCXX_USE_TBB_PAR_BACKEND=0)
-
-set_target_properties(UnitTests
-        PROPERTIES
-        C_STANDARD 23
-        C_STANDARD_REQUIRED ON
-        CXX_STANDARD 26
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS ON
-)
-
-target_link_libraries(UnitTests CppUTestExt etl::etl)
-
-# strchr is seemingly different in x86
-target_compile_options(UnitTests PUBLIC
-        $<$<COMPILE_LANGUAGE:CXX>:-fpermissive>
-)
-
-deluge_apply_test_sanitizers(UnitTests)
