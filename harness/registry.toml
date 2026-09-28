@@ -689,13 +689,13 @@ runtime = "~2m first build, ~5s after"
 
 [[harness]]
 name = "unit-arm"
-path = "tests/qemu"
+path = "tests/unit-arm"
 level = "unit"
 runner = "ctest"
 kind = "unit"
 status = "gate"
 gates = "the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu: the NEON conversion kernels must match their scalar references bit for bit"
-source = "tests/qemu"
+source = "tests/unit-arm"
 tree = "build/test-unit-arm"
 configure = ["-G", "Ninja", "-DCMAKE_CROSSCOMPILING_EMULATOR=qemu-arm;-L;/usr/arm-linux-gnueabihf"]
 env_default = { CC = "arm-linux-gnueabihf-gcc", CXX = "arm-linux-gnueabihf-g++" }

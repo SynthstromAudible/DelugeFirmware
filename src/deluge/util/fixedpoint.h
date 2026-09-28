@@ -311,7 +311,7 @@ public:
 	// (no VFP) and during constant evaluation we must reproduce them *bit-exactly*, or the host-sim
 	// diverges from the firmware. The hardware behaviour is: scale by exactly 2^fractional_bits,
 	// round toward zero, saturate to the int32 range, and map NaN to 0. Verified lane-for-lane
-	// against qemu-arm in tests/qemu/spec/fixedpoint_vfp_spec.cpp.
+	// against qemu-arm in tests/unit-arm/spec/fixedpoint_vfp_spec.cpp.
 	//
 	// Note the scale is 2^fractional_bits, NOT one() — one() is INT32_MAX (not 2^31) when
 	// fractional_bits == 31, whereas VFP always uses the power of two. 2^fractional_bits is exact
