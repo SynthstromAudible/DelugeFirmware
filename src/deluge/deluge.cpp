@@ -514,6 +514,8 @@ void registerTasks() {
 		    // The favourites bank rides the same channel and applies what an operation produced on THIS tier, so
 		    // it runs straight after the channel has been driven.
 		    favouritesManager.serviceRoutine();
+		    // A staged document released mid-read is parked until the write channel lets go of it; free it then.
+		    StorageManager::reapOrphanedStaging();
 	    },
 	    p++, 0.001, 0.005, 0.02, "settings io", RESOURCE_NONE);
 

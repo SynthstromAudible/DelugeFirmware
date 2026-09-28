@@ -37,6 +37,8 @@
 #include "storage/storage_manager.h"
 #include "util/boot.h"
 
+#include <algorithm>
+#include <array>
 #include <cstring>
 
 FileReader::FileReader() {
@@ -215,18 +217,61 @@ Error StorageManager::readWholeFileSynchronously(char const* path, StagingState*
 	return Error::NONE;
 }
 
+namespace {
+/// A released buffer the write channel was still reading into when its consumer let it go.
+struct OrphanedStaging {
+	uint8_t* buffer = nullptr;
+	uint32_t size = 0;
+};
+/// The channel runs one operation and queues one more, so at most two buffers can be held at once.
+constexpr size_t kMaxOrphanedStaging = 4;
+std::array<OrphanedStaging, kMaxOrphanedStaging> orphanedStaging{};
+
+void freeStagingBuffer(uint8_t* buffer, uint32_t size) {
+#ifdef DELUGE_DETERMINISTIC_ALLOC
+	// Sim/golden only, and the mirror of the allocator's zero-on-hand-out: scrub the document on
+	// the way OUT so that reading it after this point resolves to defined zeroes rather than to
+	// bytes that merely happen to still be there. Freeing a staged document before its
+	// deserializer has finished is the mistake this whole design is arranged to prevent.
+	// Firmware leaves it off: the memset would cost a megabyte per song load to catch nothing at
+	// runtime.
+	memset(buffer, 0, size);
+#endif
+	deluge::memory::dealloc(buffer);
+}
+} // namespace
+
+void StorageManager::reapOrphanedStaging() {
+	for (OrphanedStaging& orphan : orphanedStaging) {
+		if (orphan.buffer != nullptr && !deluge_file_write_holds(orphan.buffer)) {
+			freeStagingBuffer(orphan.buffer, orphan.size);
+			orphan = {};
+		}
+	}
+}
+
+int32_t StorageManager::orphanedStagingCount() {
+	return static_cast<int32_t>(
+	    std::ranges::count_if(orphanedStaging, [](const OrphanedStaging& orphan) { return orphan.buffer != nullptr; }));
+}
+
 void StorageManager::releaseStaging(StagingState* state) {
 	if (state->buffer != nullptr) {
-#ifdef DELUGE_DETERMINISTIC_ALLOC
-		// Sim/golden only, and the mirror of the allocator's zero-on-hand-out: scrub the document on
-		// the way OUT so that reading it after this point resolves to defined zeroes rather than to
-		// bytes that merely happen to still be there. Freeing a staged document before its
-		// deserializer has finished is the mistake this whole design is arranged to prevent.
-		// Firmware leaves it off: the memset would cost a megabyte per song load to catch nothing at
-		// runtime.
-		memset(state->buffer, 0, state->size);
-#endif
-		deluge::memory::dealloc(state->buffer);
+		// The whole-file read writes into this buffer from the storage tier and cannot be cancelled. A consumer that
+		// gives up on a read the channel still holds would otherwise free memory the read is about to write.
+		if (deluge_file_write_holds(state->buffer)) {
+			reapOrphanedStaging();
+			auto slot = std::ranges::find_if(orphanedStaging,
+			                                 [](const OrphanedStaging& orphan) { return orphan.buffer == nullptr; });
+			// No free slot cannot happen with at most two held buffers; if it did, keeping the buffer for good is
+			// the safe failure.
+			if (slot != orphanedStaging.end()) {
+				*slot = {.buffer = state->buffer, .size = state->size};
+			}
+		}
+		else {
+			freeStagingBuffer(state->buffer, state->size);
+		}
 	}
 	*state = {};
 }
@@ -252,6 +297,7 @@ StorageManager::StagedOpen deferStaging(StorageManager::StagingState* state) {
 StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, char const* firstTagName,
                                                               char const* altTagName, StagingState* state) {
 	AudioEngine::logAction("openDocumentStaged");
+	reapOrphanedStaging();
 
 	// During boot the buffer is filled synchronously, which is legal then and needs no channel task
 	// to answer. After it both channels are always there: the byte channel's stat sizes the buffer

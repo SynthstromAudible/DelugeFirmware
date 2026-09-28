@@ -187,6 +187,14 @@ uint8_t deluge_file_write_collect_stats(uint32_t* out_free_clusters) DELUGE_NOEX
 /// @return false when the request was refused; the caller must retry.
 bool deluge_file_write_request_read_file(const char* path, uint8_t* dst, uint32_t cap) DELUGE_NOEXCEPT;
 
+/// @brief Whether a queued or running operation reads or writes through @p buffer.
+///
+/// The operations above take caller-owned buffers by pointer and cannot be cancelled, so a caller that gives up on one
+/// must not free or reuse its buffer while this is true. Answers true when it cannot tell.
+///
+/// @param buffer The buffer handed to a request, as passed (its start address).
+bool deluge_file_write_holds(const void* buffer) DELUGE_NOEXCEPT;
+
 /// @brief Collect the whole-file read.
 ///
 /// @param path       The path passed to @ref deluge_file_write_request_read_file.

@@ -27,6 +27,8 @@
 /// not have that buffer freed under the read. The scenario holds a staged read in flight, releases its staging as an
 /// abandoning consumer does, allocates the same size again and fills it with a sentinel, and lets the read finish. The
 /// sentinel must survive: memory handed to someone else may not be written by a read its previous owner gave up on.
+/// The released buffer must then still be freed once the read has finished, or the release has only traded the
+/// corruption for a leak.
 extern "C" {
 
 /// @brief Reset the scenario's state and prepare stdout for a piped run.

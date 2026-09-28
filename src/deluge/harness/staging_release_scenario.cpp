@@ -51,6 +51,7 @@ enum class Stage : uint8_t {
 	Issue,
 	Release,
 	AwaitRead,
+	Reap,
 	Report,
 	Done,
 };
@@ -97,7 +98,9 @@ void runTick() {
 			g_stage = Stage::Report;
 			break;
 		}
+#ifdef DELUGE_HOST
 		deluge_file_write_set_latency_ms(kLatencyMs);
+#endif
 		g_ticks = 0;
 		g_stage = Stage::Issue;
 		break;
@@ -159,12 +162,28 @@ void runTick() {
 		}
 		deluge::memory::dealloc(g_reused);
 		g_reused = nullptr;
-		g_stage = Stage::Report;
+		g_ticks = 0;
+		g_stage = Stage::Reap;
 		break;
 	}
 
+	case Stage::Reap:
+		// The channels' service task, which frees a parked buffer once the channel has let go of it.
+		StorageManager::reapOrphanedStaging();
+		if (StorageManager::orphanedStagingCount() == 0 || ++g_ticks >= kStageTicks) {
+			printf("SR-REAPED orphans=%d ticks=%d\n", static_cast<int>(StorageManager::orphanedStagingCount()),
+			       g_ticks);
+			if (StorageManager::orphanedStagingCount() != 0) {
+				fail("the released buffer was never freed after its read finished");
+			}
+			g_stage = Stage::Report;
+		}
+		break;
+
 	case Stage::Report:
+#ifdef DELUGE_HOST
 		deluge_file_write_set_latency_ms(0);
+#endif
 		printf("SR-RESULT failures=%d\n", static_cast<int>(g_failures));
 		g_summaryPrinted = true;
 		g_stage = Stage::Done;

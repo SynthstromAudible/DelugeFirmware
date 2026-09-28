@@ -114,6 +114,10 @@ __attribute__((weak)) uint8_t deluge_file_write_collect_read_file(const char*, u
 	return DELUGE_FILE_WRITE_UNKNOWN;
 }
 
+__attribute__((weak)) bool deluge_file_write_holds(const void*) noexcept {
+	return false;
+}
+
 __attribute__((weak)) bool deluge_file_write_request_write_file(const char*, const uint8_t*, uint32_t, bool) noexcept {
 	return false;
 }

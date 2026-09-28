@@ -137,6 +137,37 @@ static REQUEST: Mutex<CriticalSectionRawMutex, Option<(StreamOp, WritePath)>> = 
 /// forever for an answer to a request nothing accepted.
 static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<(OpKind, u32)>> = Mutex::new(None);
 static RESULT: Mutex<CriticalSectionRawMutex, Option<Answer>> = Mutex::new(None);
+/// The caller-owned buffer the running operation reads or writes, as an address; 0 when nothing is running or the
+/// operation has no buffer. Set under the REQUEST lock the operation is taken from, and cleared once the operation has
+/// finished with the buffer, so [`deluge_file_write_holds`] never sees a gap between queued and running.
+static RUNNING_BUFFER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+
+/// The caller-owned buffer `op` reads from or writes into, as an address; 0 for an operation without one.
+fn op_buffer(op: &StreamOp) -> usize {
+    match op {
+        StreamOp::ReadAt { dst, .. } | StreamOp::ReadFile { dst, .. } => *dst,
+        StreamOp::WriteAt { src, .. } | StreamOp::WriteFile { src, .. } => *src,
+        _ => 0,
+    }
+}
+
+/// C-ABI: whether a queued or running operation reads or writes through `buffer`.
+///
+/// A caller must not free or reuse a buffer it handed to this channel while this answers true: the operation cannot
+/// be cancelled, and it touches the buffer whenever it runs. Answers true when it cannot tell, so the caller keeps the
+/// buffer a little longer rather than freeing it early.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_write_holds(buffer: *const core::ffi::c_void) -> bool {
+    let addr = buffer as usize;
+    if addr == 0 {
+        return false;
+    }
+    let queued = match REQUEST.try_lock() {
+        Ok(req) => req.as_ref().is_some_and(|(op, _)| op_buffer(op) == addr),
+        Err(_) => true,
+    };
+    queued || RUNNING_BUFFER.load(core::sync::atomic::Ordering::Acquire) == addr
+}
 static WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
 fn op_key(op: &StreamOp) -> (OpKind, u32) {
@@ -549,7 +580,14 @@ async fn file_write_task_body() {
     loop {
         WAKE.wait().await;
         loop {
-            let Some((op, path)) = REQUEST.lock().await.take() else {
+            let Some((op, path)) = ({
+                let mut req = REQUEST.lock().await;
+                let taken = req.take();
+                if let Some((op, _)) = taken.as_ref() {
+                    RUNNING_BUFFER.store(op_buffer(op), core::sync::atomic::Ordering::Release);
+                }
+                taken
+            }) else {
                 break;
             };
             let (kind, handle) = op_key(&op);
@@ -694,6 +732,7 @@ async fn file_write_task_body() {
                 }
             };
             *IN_FLIGHT.lock().await = None;
+            RUNNING_BUFFER.store(0, core::sync::atomic::Ordering::Release);
             *RESULT.lock().await = Some(Answer {
                 kind,
                 handle,

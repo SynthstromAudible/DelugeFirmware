@@ -485,7 +485,18 @@ Error readWholeFileSynchronously(char const* path, StagingState* out);
 StagedOpen openDocumentStaged(char const* path, char const* firstTagName, char const* altTagName, StagingState* state);
 
 /// @brief Free a staged buffer and clear its state. Safe on a state that holds nothing.
+///
+/// Safe mid-read, too: a buffer the write channel is still reading into is parked instead of freed, and
+/// reapOrphanedStaging() frees it once the channel lets go. So a consumer that abandons a staged read on any path
+/// needs no special handling.
 void releaseStaging(StagingState* state);
+
+/// @brief Free the parked buffers the write channel no longer holds. Called from the channels' service task, and from
+///        each staging call, so a parked buffer is freed within a tick of its read finishing.
+void reapOrphanedStaging();
+
+/// @brief How many released buffers are parked waiting for the write channel to let go. For gates.
+[[nodiscard]] int32_t orphanedStagingCount();
 
 /// @brief Stage a document synchronously in a shared slot and open it for parsing.
 ///

@@ -10,6 +10,7 @@
 #   SR-RELEASE   the release and the reallocation. sameAddress says whether the allocator handed the released block
 #                straight back; it is reported, not required.
 #   SR-INTACT    that the abandoned read wrote nothing into the reallocated memory. Required 0.
+#   SR-REAPED    that the released buffer was freed once the read finished: parked, not leaked.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.
@@ -68,7 +69,7 @@ if ! grep -q '^SR-RESULT ' "$OUT/run.txt"; then
 	exit 1
 fi
 
-for marker in SR-ISSUED SR-RELEASE SR-INTACT; do
+for marker in SR-ISSUED SR-RELEASE SR-INTACT SR-REAPED; do
 	if ! grep -q "^$marker " "$OUT/run.txt"; then
 		echo "FAIL — no $marker line; that stage did not run"
 		grep -E '^SR-' "$OUT/run.txt"
