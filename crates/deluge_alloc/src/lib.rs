@@ -558,6 +558,65 @@ mod tests {
             ["enter", "heap", "exit", "enter", "heap", "exit", "enter", "heap", "exit"]
         );
     }
+
+    #[test]
+    fn two_contexts_keep_one_heap_consistent() {
+        use crate::section::test_hooks::{self, Mode, MODE};
+        test_hooks::install();
+        let (buf, h) = aligned_arena(1 << 20);
+        let hp = h as usize;
+
+        // One context's alloc/free churn: patterned blocks, checked before each free. The render-shaped context holds
+        // the host section for its whole block, as deluge_app_render does; the other masks per step.
+        fn churn(hp: usize, seed: u64, rounds: usize, block: bool) {
+            let h = hp as *mut DelugeHeap;
+            let mut rng = Rng(seed);
+            let mut live: Vec<(usize, usize, u8)> = Vec::new();
+            for _ in 0..rounds {
+                if block {
+                    test_hooks::lock();
+                }
+                for _ in 0..32 {
+                    if live.len() < 64 && (rng.next() & 1 == 0 || live.is_empty()) {
+                        let size = 16 + (rng.next() % 2048) as usize;
+                        let p = unsafe { deluge_alloc(h, size, 16) };
+                        if !p.is_null() {
+                            let tag = (rng.next() & 0xff) as u8;
+                            unsafe { core::ptr::write_bytes(p, tag, size) };
+                            live.push((p as usize, size, tag));
+                        }
+                    } else {
+                        let i = (rng.next() as usize) % live.len();
+                        let (p, size, tag) = live.swap_remove(i);
+                        let p = p as *mut u8;
+                        for k in 0..size {
+                            assert_eq!(unsafe { *p.add(k) }, tag, "a live block was overwritten");
+                        }
+                        unsafe { deluge_free(h, p) };
+                    }
+                }
+                if block {
+                    test_hooks::unlock();
+                }
+            }
+            for (p, _, _) in live {
+                unsafe { deluge_free(h, p as *mut u8) };
+            }
+        }
+
+        let render = std::thread::spawn(move || {
+            MODE.with(|m| m.set(Mode::StressRender));
+            churn(hp, 0x9e37_79b9, 4000, true);
+        });
+        let interaction = std::thread::spawn(move || {
+            MODE.with(|m| m.set(Mode::StressInteraction));
+            churn(hp, 0x85eb_ca6b, 4000, false);
+        });
+        render.join().unwrap();
+        interaction.join().unwrap();
+        assert!(unsafe { deluge_heap_check(hp as *mut DelugeHeap) });
+        drop(buf);
+    }
 }
 
 #[cfg(test)]
