@@ -278,35 +278,22 @@ Error LoadPatternUI::performLoad() {
 	             .previewOnly = previewOnly,
 	             .overwriteExisting = overwriteExisting,
 	             .noScaling = noScaling,
-	             .selectedDrumOnly = selectedDrumOnly,
-	             .survivesClose = !previewOnly,
-	             .discard = false});
+	             .selectedDrumOnly = selectedDrumOnly});
 	return Error::NONE;
 }
 
 void LoadPatternUI::requestRead(PatternRead read) {
-	// The newest request wins over anything not yet started, and over the active read.
-	queued_.reset();
-	discardActive();
-	if (active_.has_value()) {
-		queued_ = std::move(read);
-		return;
-	}
+	// The newest request wins.
+	dropRead();
 	active_ = std::move(read);
 	// Before boot the read is inline and lands here; after it, this issues the first channel request.
 	loadRoutine();
 }
 
-void LoadPatternUI::discardActive() {
-	if (!active_.has_value()) {
-		return;
-	}
-	if (staging_.issued) {
-		active_->discard = true;
-		return;
-	}
+void LoadPatternUI::dropRead() {
+	// Safe mid-read: releaseStaging() keeps a buffer the channel is still reading into until the read has finished.
 	StorageManager::releaseStaging(&staging_);
-	active_ = std::exchange(queued_, std::nullopt);
+	active_.reset();
 }
 
 void LoadPatternUI::loadRoutine() {
@@ -322,17 +309,13 @@ void LoadPatternUI::loadRoutine() {
 	}
 	const PatternRead read = *active_;
 	Error error = Error::FILE_NOT_FOUND;
-	if (opened == StorageManager::StagedOpen::Opened && !read.discard) {
+	if (opened == StorageManager::StagedOpen::Opened) {
 		error = StorageManager::parsePatternDocument(read.overwriteExisting, read.noScaling, read.previewOnly,
 		                                             read.selectedDrumOnly);
 	}
 	activeDeserializer = previous;
-	StorageManager::releaseStaging(&staging_);
-	active_ = std::exchange(queued_, std::nullopt);
+	dropRead();
 
-	if (read.discard) {
-		return;
-	}
 	if (error != Error::NONE) {
 		display->displayError(currentLabelLoadError);
 		return;
@@ -341,11 +324,9 @@ void LoadPatternUI::loadRoutine() {
 }
 
 void LoadPatternUI::close() {
-	if (queued_.has_value() && !queued_->survivesClose) {
-		queued_.reset();
-	}
-	if (active_.has_value() && !active_->survivesClose) {
-		discardActive();
+	// A load from Enter lands after the browser closes; a preview does not.
+	if (active_.has_value() && active_->previewOnly) {
+		dropRead();
 	}
 	LoadUI::close();
 }

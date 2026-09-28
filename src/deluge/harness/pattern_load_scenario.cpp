@@ -217,7 +217,7 @@ void tickLoad() {
 	loadPatternUI.loadRoutine();
 }
 
-/// Whether the leg has finished: its read, and any it replaced, seen out.
+/// Whether the leg has finished: no pattern read left in flight.
 bool legSettled() {
 	return !loadPatternUI.loadInFlight();
 }
@@ -246,7 +246,7 @@ void reportLeg() {
 			fail("PLAY did not preview the pattern's notes");
 			break;
 		case Leg::Discard:
-			fail("a preview discarded by BACK still pasted, or its read was never seen out");
+			fail("a preview discarded by BACK still pasted");
 			break;
 		default:
 			fail("Enter over a preview in flight did not land its own load");

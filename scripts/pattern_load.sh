@@ -10,10 +10,9 @@
 #   PT-LISTED    that each leg's listing selected the fixture, so the leg below loads that file and no other.
 #   PT-LOAD      that Enter put back exactly the notes that were written, landing after the browser closed.
 #   PT-PREVIEW   that a PLAY preview did the same, from a cleared clip, with the browser still open.
-#   PT-DISCARD   that a preview followed at once by BACK pastes nothing, and its read is still seen out: the channel
-#                writes into the read's buffer, so it cannot be freed before the read has an answer.
-#   PT-SUPERSEDE that Enter pressed over a preview still in flight lands Enter's load, not nothing.
-#   PT-TIER      that neither leg made a synchronous card call on the interaction tier after boot. Required 0:
+#   PT-DISCARD   that a preview followed by BACK, pressed while the channel holds the preview's read, pastes nothing.
+#   PT-SUPERSEDE that Enter pressed while the channel holds a preview's read lands Enter's load, not nothing.
+#   PT-TIER      that no leg made a synchronous card call on the interaction tier after boot. Required 0:
 #                the pattern's bytes must arrive through the channels. PT-TIER-AT names each entry point the meter
 #                counted; dir_read and dir_close are listed with card=0 and not required, since they walk the
 #                snapshot the directory channel's open already took.

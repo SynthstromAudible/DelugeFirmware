@@ -57,11 +57,11 @@ public:
 	///        browser that asked for it: Enter closes the browser at once and the pattern lands after.
 	void loadRoutine();
 
-	/// @brief Whether a pattern read is in flight, discarded ones included.
+	/// @brief Whether a pattern read is in flight.
 	[[nodiscard]] bool loadInFlight() const { return active_.has_value(); }
 
-	/// @brief Whether the channel holds the active read's buffer. For gates: the state a discard or a newer request
-	///        has to wait out.
+	/// @brief Whether the channel holds the active read's buffer. For gates: the moment a discard or a newer request
+	///        lands on a read the channel cannot cancel.
 	[[nodiscard]] bool readIssued() const { return active_.has_value() && staging_.issued; }
 
 	void setupLoadPatternUI(bool overwriteOnLoad = true, bool noScaling = false);
@@ -91,29 +91,21 @@ private:
 	/// One pattern read: the file, and what to do with it once it lands.
 	struct PatternRead {
 		std::string path;
+		/// A PLAY preview, dropped if the browser closes first. A load from Enter lands after it closes.
 		bool previewOnly;
 		/// The paste's settings as they were when it was asked for.
 		bool overwriteExisting;
 		bool noScaling;
 		bool selectedDrumOnly;
-		/// A load from Enter, which lands after the browser closes. A preview does not.
-		bool survivesClose;
-		/// Read to the end and dropped: once the channel holds the staging buffer it has to see the read out, so a
-		/// superseded or discarded read finishes and pastes nothing.
-		bool discard;
 	};
 	/// The read @ref loadRoutine is advancing.
 	std::optional<PatternRead> active_;
-	/// The read to start once the active one has been seen out.
-	std::optional<PatternRead> queued_;
-	/// The active read's bytes. The channel writes into this buffer while a read is issued, so it is released only
-	/// once that read has a terminal answer.
+	/// The active read's bytes.
 	StorageManager::StagingState staging_{};
 
 	void requestRead(PatternRead read);
-	/// Drop the active read and promote the queued one if the channel does not hold the active read's buffer;
-	/// otherwise mark it discarded, to be seen out by @ref loadRoutine.
-	void discardActive();
+	/// Stop the active read and free its staging.
+	void dropRead();
 };
 
 extern LoadPatternUI loadPatternUI;
