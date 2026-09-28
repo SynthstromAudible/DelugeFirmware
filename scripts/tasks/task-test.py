@@ -218,7 +218,7 @@ def _steps(
 
     tree = root / h.tree
     steps = []
-    if not (tree / "CMakeCache.txt").exists():
+    if tb.needs_configure(tree, root / h.source):
         steps.append(
             (
                 "configure",

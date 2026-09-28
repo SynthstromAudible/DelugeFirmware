@@ -7,6 +7,8 @@ its ninja step, which is a no-op when nothing changed, before anything links its
 A ctest entry's own tree is not a product here: its runner configures and builds it.
 """
 
+import re
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -17,6 +19,28 @@ SHARED_TARGET_SUBDIR = Path("build") / "cargo-harness"
 # The C++ app's object closure for the Embassy host harnesses: the app, its libraries and the host BSP's C side,
 # compiled for x86-64. Nothing links here; golden_vt_render's build.rs archives these objects.
 HOST_APP_TREE = Path("build") / "host-app"
+
+
+def needs_configure(tree: Path, source: Path) -> bool:
+    """Whether the CMake tree at `tree` must be configured from `source`.
+
+    A tree configured from another source directory (the source moved) cannot be reused -- CMake refuses it -- so it
+    is removed first; it holds only build products.
+    """
+    cache = tree / "CMakeCache.txt"
+    if not cache.exists():
+        return True
+    home = re.search(
+        r"^CMAKE_HOME_DIRECTORY:INTERNAL=(.*)$",
+        cache.read_text(errors="replace"),
+        re.MULTILINE,
+    )
+    if home is not None and Path(home.group(1)).resolve() == source.resolve():
+        return False
+    shutil.rmtree(tree)
+    return True
+
+
 HOST_APP_TARGETS = [
     "deluge_app",
     "NE10",
@@ -52,7 +76,7 @@ class HostApp(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_TREE
         steps = []
-        if not (tree / "CMakeCache.txt").exists():
+        if needs_configure(tree, root / "sim"):
             # -DDELUGE_SIM_X64=ON is required: the sim defaults to a -m32 configuration, which cannot link against
             # the harnesses' 64-bit host Rust.
             steps.append(
