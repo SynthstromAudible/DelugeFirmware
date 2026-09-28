@@ -682,4 +682,94 @@ mod tests {
         assert_eq!(fill(h), before);
         let _ = &buf;
     }
+
+    #[test]
+    fn two_contexts_keep_one_slab_consistent() {
+        use crate::section::test_hooks::{self, Mode, MODE};
+        test_hooks::install();
+        let bytes = 4 << 20;
+        let mut buf = vec![0u128; bytes / 16];
+        let h = unsafe { deluge_heap_create(buf.as_mut_ptr() as *mut u8, bytes) };
+        let capacity = 1024;
+        let slab = unsafe { deluge_slab_create_unmanaged(h, 4096, capacity) };
+        let hp = h as usize;
+        let sp = slab as usize;
+
+        // One context's churn on the slab: each slot it holds carries its own tag, checked before it is released, so a
+        // slot handed to both contexts, or an entry lost from the table, fails the test. The render-shaped context holds
+        // the host section for its whole block; the other masks per step.
+        fn churn(sp: usize, seed: u32, tag: u64, rounds: usize, block: bool) {
+            let slab = sp as *mut DelugeSlab;
+            let mut x = seed;
+            let mut next = move || {
+                x ^= x << 13;
+                x ^= x >> 17;
+                x ^= x << 5;
+                x
+            };
+            let mut held: Vec<(usize, u64)> = Vec::new();
+            let mut seq = 0u64;
+            for _ in 0..rounds {
+                if block {
+                    test_hooks::lock();
+                }
+                for _ in 0..16 {
+                    if held.len() < 48 && (next() & 1 == 0 || held.is_empty()) {
+                        let p = unsafe { deluge_slab_acquire(slab, ptr::null_mut()) };
+                        if !p.is_null() {
+                            seq += 1;
+                            let v = (tag << 48) | seq;
+                            unsafe { (p as *mut u64).write(v) };
+                            held.push((p as usize, v));
+                        }
+                    } else {
+                        let i = next() as usize % held.len();
+                        let (p, v) = held.swap_remove(i);
+                        let p = p as *mut u8;
+                        assert_eq!(
+                            unsafe { (p as *const u64).read() },
+                            v,
+                            "a slot held here was handed out again"
+                        );
+                        unsafe {
+                            deluge_slab_touch(slab, p);
+                            deluge_slab_pin(slab, p);
+                            deluge_slab_unpin(slab, p);
+                        }
+                        assert!(
+                            unsafe { deluge_slab_release(slab, p) },
+                            "a held slot's table entry was lost"
+                        );
+                    }
+                }
+                if block {
+                    test_hooks::unlock();
+                }
+            }
+            if block {
+                test_hooks::lock();
+            }
+            for (p, _) in held {
+                assert!(unsafe { deluge_slab_release(slab, p as *mut u8) });
+            }
+            if block {
+                test_hooks::unlock();
+            }
+        }
+
+        let render = std::thread::spawn(move || {
+            MODE.with(|m| m.set(Mode::StressRender));
+            churn(sp, 0x9e37_79b9, 1, 3000, true);
+        });
+        let interaction = std::thread::spawn(move || {
+            MODE.with(|m| m.set(Mode::StressInteraction));
+            churn(sp, 0x85eb_ca6b, 2, 3000, false);
+        });
+        render.join().unwrap();
+        interaction.join().unwrap();
+        let this = sp as *mut SlabPool;
+        assert!((0..capacity).all(|i| unsafe { SlabPool::backing(this, i) }.is_null()));
+        assert!(unsafe { crate::deluge_heap_check(hp as *mut DelugeHeap) });
+        let _ = &buf;
+    }
 }

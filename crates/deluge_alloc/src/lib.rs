@@ -141,6 +141,9 @@ pub unsafe extern "C" fn deluge_heap_register_reclaim(
     if h.is_null() {
         return;
     }
+    // One step: registration happens at runtime (the resource manager is created lazily), and a render allocation
+    // that fails must never find the callback stored without its context.
+    let _s = Section::enter(STEP_HEAP);
     heap(h).set_reclaim(cb, ctx);
 }
 
@@ -599,8 +602,14 @@ mod tests {
                     test_hooks::unlock();
                 }
             }
+            if block {
+                test_hooks::lock();
+            }
             for (p, _, _) in live {
                 unsafe { deluge_free(h, p as *mut u8) };
+            }
+            if block {
+                test_hooks::unlock();
             }
         }
 
@@ -616,6 +625,21 @@ mod tests {
         interaction.join().unwrap();
         assert!(unsafe { deluge_heap_check(hp as *mut DelugeHeap) });
         drop(buf);
+    }
+
+    extern "C" fn reclaim_nothing(_ctx: *mut core::ffi::c_void, _bytes: usize) -> bool {
+        false
+    }
+
+    #[test]
+    fn reclaim_registration_is_one_heap_step() {
+        // The resource manager registers its hook lazily, at runtime: a render allocation that fails must never see a
+        // hook half-stored (the callback without its context).
+        test_hooks::install();
+        let (_buf, h) = aligned_arena(16 * 1024);
+        test_hooks::take_events();
+        unsafe { deluge_heap_register_reclaim(h, reclaim_nothing, core::ptr::null_mut()) };
+        assert_eq!(test_hooks::take_events(), ["enter", "heap", "exit"]);
     }
 }
 

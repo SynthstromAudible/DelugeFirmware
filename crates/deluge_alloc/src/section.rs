@@ -139,7 +139,16 @@ pub(crate) mod test_hooks {
         }
     }
     unsafe extern "C" fn note(kind: u8) {
-        if MODE.with(Cell::get) == Mode::Record {
+        let m = MODE.with(Cell::get);
+        // The stress model's own rule: a stress thread takes no heap step unless the lock is held (the render-shaped
+        // thread holds it for its whole block). A step outside it would make the stress prove nothing.
+        if (m == Mode::StressRender || m == Mode::StressInteraction)
+            && !LOCK.load(Ordering::Relaxed)
+        {
+            eprintln!("stress model broken: a heap step (kind {kind}) outside the lock");
+            std::process::abort();
+        }
+        if m == Mode::Record {
             EVENTS.with(|e| {
                 e.borrow_mut()
                     .push(if kind == STEP_HEAP { "heap" } else { "slab" })
