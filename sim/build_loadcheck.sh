@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Configures (if needed) and builds the deluge_loadcheck target into sim/build.
 #
-# Exists so the "audio-loadcheck" harness entry (harness/registry.toml) is self-sufficient on a
-# clean checkout: CI's pr-tier harness job (.github/workflows/rust.yml, job `harness`) checks out,
-# installs mtools+clang, and runs `./dbt harness run <name>` directly -- it does not configure any
-# sim/ CMake project itself. `sim/build` is gitignored and not restored by any cache step, so without
+# Exists so the "audio-loadcheck" entry (harness/registry.toml) is self-sufficient on a clean
+# checkout: CI's pr-tier test job (.github/workflows/tests.yml, job `test`) checks out, installs the
+# prerequisites, and runs `./dbt test <name>` directly -- it does not configure any sim/ CMake project
+# itself. `sim/build` is gitignored and not restored by any cache step, so without
 # this script the harness's own probe/build has to reconstruct it from nothing every time.
 #
 # -DDELUGE_SIM_X64=ON is REQUIRED, not optional, on a bare x86 Linux runner: the sim defaults to a

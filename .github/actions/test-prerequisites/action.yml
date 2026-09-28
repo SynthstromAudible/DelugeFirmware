@@ -1,0 +1,49 @@
+name: Test prerequisites
+description: >
+  Everything `./dbt test --doctor` probes for, installed once: the host and cross compilers, qemu, mtools, clang,
+  cmake and ninja, cargo-nextest, and the sibling deluge-sdk checkout the Rust BSP builds against. One action for
+  every test job, so a test never skips in CI for want of a tool another job installs.
+
+runs:
+  using: composite
+  steps:
+    - name: Install system packages
+      shell: bash
+      run: |
+        sudo debconf-communicate <<< "set man-db/auto-update false" > /dev/null
+        sudo dpkg-reconfigure man-db
+        sudo apt-get update
+        sudo apt-get install -y gcc-14 g++-14 gcc-14-multilib g++-14-multilib \
+          gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user \
+          ninja-build mtools clang jq
+
+    - name: Install CMake
+      uses: lukka/get-cmake@latest
+
+    - name: Install cargo-nextest
+      uses: taiki-e/install-action@nextest
+
+    # The Rust BSP reaches deluge-sdk as a SIBLING of the repo root, at the revision its lock pins.
+    - name: Find the deluge-sdk revision the lock pins
+      id: sdk
+      shell: bash
+      run: |
+        rev=$(sed -n 's|^source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=\([0-9a-f]*\)#.*|\1|p' \
+          src/bsp/rust/Cargo.lock | head -1)
+        [ -n "$rev" ] || { echo "src/bsp/rust/Cargo.lock pins no deluge-embassy revision"; exit 1; }
+        echo "rev=$rev" >> "$GITHUB_OUTPUT"
+
+    - name: Check out deluge-sdk
+      uses: actions/checkout@v7
+      with:
+        repository: FirestormAudio/deluge-embassy
+        ref: ${{ steps.sdk.outputs.rev }}
+        path: deluge-sdk-checkout
+
+    - name: Place it beside the workspace
+      shell: bash
+      run: mv deluge-sdk-checkout ../deluge-sdk
+
+    - uses: Swatinem/rust-cache@v2
+      with:
+        workspaces: ". -> target/harness"
