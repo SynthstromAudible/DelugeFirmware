@@ -108,7 +108,7 @@ ls -1 $IMG_GLOB 2>/dev/null | sort >"$IMGS_BEFORE" || true
 
 cleanup() {
 	if [ -f "$IMGS_BEFORE" ]; then
-		ls -1 $IMG_GLOB 2>/dev/null | sort | comm -13 "$IMGS_BEFORE" - | while read -r img; do
+		{ ls -1 $IMG_GLOB 2>/dev/null || true; } | sort | comm -13 "$IMGS_BEFORE" - | while read -r img; do
 			rm -f "$img"
 		done
 	fi
