@@ -246,9 +246,9 @@ unsafe extern "C" {
     fn deluge_startup_skip_settings_prelude();
 }
 
-// Host-only C-ABI bridge (src/deluge/harness/streaming_scenario.{h,cpp},
-// `DELUGE_HOST`-guarded — compiled into the linked host_app `deluge_app` object
-// closure, never into the ARM device firmware). Manually declared (not through
+// Host-only C-ABI bridge (tests/integration/scenarios/streaming_scenario.{h,cpp},
+// compiled into the host tree's `deluge_scenarios` objects, which build.rs archives
+// with the app's; the device firmware never contains it). Manually declared (not through
 // the bindgen `sys` module, same pattern `scenario.rs` uses for the identical
 // bridge): these are harness-only entry points the app exposes to the platform,
 // not part of the libdeluge C-ABI the app CONSUMES.
@@ -258,7 +258,7 @@ unsafe extern "C" {
 // harness (`scenario.rs`'s own copy of these same declarations) — this scenario
 // needs its own since it does NOT `#[path]`-
 // include `scenario.rs` (see the module doc). Without loading a real song
-/// A stepped scenario, as `src/deluge/harness/scenario_table.h` declares it: found by name, then driven by
+/// A stepped scenario, as `tests/integration/scenarios/scenario_table.h` declares it: found by name, then driven by
 /// [`run_stepped_scenario`] -- `begin` once, then `dispatch_step` and `step_done` until `complete`.
 #[repr(C)]
 struct Scenario {
@@ -277,7 +277,7 @@ unsafe impl Sync for Scenario {}
 /// The stepped scenario `GOLDEN_SCENARIO` names, if it names one.
 fn stepped_scenario(name: &str) -> Option<&'static Scenario> {
     let name = std::ffi::CString::new(name).ok()?;
-    // SAFETY: DELUGE_HOST harness C-ABI; `name` is NUL-terminated and outlives the call, and the table the answer
+    // SAFETY: host scenario C-ABI; `name` is NUL-terminated and outlives the call, and the table the answer
     // points into is static.
     unsafe { deluge_scenario_find(name.as_ptr()).as_ref() }
 }
@@ -1074,7 +1074,7 @@ fn fill_audio_load_ab_card() {
 
 // ── The song-preview A/B fixture ────────────────────────────────────────────
 //
-// `src/deluge/harness/song_preview_ab_scenario.cpp` names every file written below, and asserts the
+// `tests/integration/scenarios/song_preview_ab_scenario.cpp` names every file written below, and asserts the
 // artwork each one must produce against these very constants. The two must be read together.
 
 /// Uniform preview channel value per synthetic song, mirroring the C++ scenario's constants of the
@@ -1276,7 +1276,7 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
 }
 
 /// How many corpus songs the fixture stages, hand-duplicated with `kMaxCorpusCases` in
-/// `src/deluge/harness/song_preview_ab_scenario.cpp`.
+/// `tests/integration/scenarios/song_preview_ab_scenario.cpp`.
 ///
 /// Asserted against its own literal, which makes a change take two deliberate edits, one on each
 /// side -- the same pinning `DELUGE_FILE_PREFIX_CAPACITY` gets at both ends of that boundary. What

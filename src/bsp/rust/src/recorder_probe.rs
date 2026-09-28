@@ -5,7 +5,7 @@
 //! via `efatfs_fs::read_at(handle=0, ...)` — and a recording's `efatfs_handle == 0`, so a
 //! still-recording sample resolves LOADING (re-queued, never READY) uniformly on every target, sim
 //! included. This module turns that into a measurement: it drives
-//! `harness/recorder_readback_probe.h`'s C-ABI (a real `SampleRecorder`, fed real audio, never
+//! `scenarios/recorder_readback_probe.h`'s C-ABI (a real `SampleRecorder`, fed real audio, never
 //! finalized) through the SAME region-port entry point (`deluge_sample_region_acquire_ex`) real
 //! playback uses, on THIS target, and reports what actually comes back.
 //!
@@ -19,9 +19,9 @@ use std::sync::Mutex;
 
 use embassy_time::{Duration, Instant, Timer};
 
-// Host-only C-ABI bridge (src/deluge/harness/recorder_readback_probe.{h,cpp}, `DELUGE_HOST`-guarded
-// — compiled into the linked host_app `deluge_app` object closure, never into the ARM device
-// firmware). Manually declared here, same pattern as `scenario.rs`'s bridge: harness-only entry
+// Host-only C-ABI bridge (tests/integration/scenarios/recorder_readback_probe.{h,cpp}, compiled
+// into the host tree's `deluge_scenarios` objects that build.rs archives; the device firmware
+// never contains it). Manually declared here, same pattern as `scenario.rs`'s bridge: harness-only entry
 // points the app exposes to the platform, not part of the libdeluge C-ABI the app CONSUMES.
 unsafe extern "C" {
     fn deluge_harness_recorder_probe(num_channels: u8, num_frames: u32) -> u8;

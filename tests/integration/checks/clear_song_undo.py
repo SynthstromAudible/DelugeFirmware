@@ -8,7 +8,7 @@ Clear-song reads no card of its own: ensureAtLeastOneSessionClip() builds its cl
 asks InstrumentLoad for a preset afterwards, and a loadAllSamples() after it could only ever load nothing. What it does
 is model and UI work that belongs on the interaction tier, and this gate is what measures that it stays there.
 
-What the checks cover (src/deluge/harness/clear_song_undo_scenario.cpp writes the lines):
+What the checks cover (tests/integration/scenarios/clear_song_undo_scenario.cpp writes the lines):
     CS-PROBE   per stage: the fixture written, the boot song settled, and what the clear was seen to do.
     CS-TIER    the clear ran to completion before acceptCurrentOption() returned -- a dispatched body has not run yet
                -- and read no document and loaded no sample of its own, on either tier.

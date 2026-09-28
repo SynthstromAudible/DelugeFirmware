@@ -13,7 +13,7 @@
 //! plain poll loop, which every embassy executor variant supports identically. The caller
 //! is responsible for having already booted the real C++ app (`deluge_app_init` returned)
 //! on whatever executor is driving it; this module just issues the same C-ABI calls a
-//! LOAD/PLAY/RECORD button press would (`harness/streaming_scenario.h`/`.cpp` on the C++
+//! LOAD/PLAY/RECORD button press would (`scenarios/streaming_scenario.h`/`.cpp` on the C++
 //! side) and polls the same observable state a UI would (`LoadSongUI::isLoadingSong()`,
 //! `PlaybackHandler::isEitherClockActive()`).
 //!
@@ -30,9 +30,9 @@ use std::sync::Mutex;
 
 use embassy_time::{Duration, Instant, Timer};
 
-// Host-only C-ABI bridge (src/deluge/harness/streaming_scenario.{h,cpp}, `DELUGE_HOST`-
-// guarded — compiled into the linked host_app `deluge_app` object closure, never into the
-// ARM device firmware). Manually declared here (not through the bindgen `sys` module, same
+// Host-only C-ABI bridge (tests/integration/scenarios/streaming_scenario.{h,cpp}, compiled
+// into the host tree's `deluge_scenarios` objects that build.rs archives; the device firmware
+// never contains it). Manually declared here (not through the bindgen `sys` module, same
 // pattern as `deluge_app_init` in `main.rs`) since these are harness-only entry points the
 // app exposes to the platform, not part of the libdeluge C-ABI the app CONSUMES.
 unsafe extern "C" {

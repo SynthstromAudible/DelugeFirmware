@@ -336,7 +336,8 @@ fn run_host_app(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     emit_host_forced_link_roots();
 
     let app_objs_dir = host_app_objs_dir(&build_dir);
-    let objs = archive_host_app_objects(&app_objs_dir, out_dir);
+    let objs =
+        archive_host_app_objects(&app_objs_dir, &host_scenario_objs_dir(&build_dir), out_dir);
     emit_host_staleness_hash(&app_objs_dir, &objs, out_dir);
     link_host_app_closure(&build_dir, &out_dir.join("libdeluge_app_objs.a"));
     emit_host_runtime_link_args();
@@ -376,6 +377,12 @@ fn host_app_objs_dir(build_dir: &Path) -> PathBuf {
     build_dir.join("app/CMakeFiles/deluge_app.dir")
 }
 
+/// The host-only integration scenarios and probes, an object library of their own
+/// (tests/integration/scenarios) that the host Rust calls into.
+fn host_scenario_objs_dir(build_dir: &Path) -> PathBuf {
+    build_dir.join("scenarios/CMakeFiles/deluge_scenarios.dir")
+}
+
 /// Forces the host link roots, and lifts lld's error cap.
 ///
 /// The cap is lifted because this link is expected to fail on undefined
@@ -402,11 +409,15 @@ fn emit_host_forced_link_roots() {
 /// Registers `rerun-if-changed` per object path for the same reason the device
 /// path does: a directory-level watch only fires on add/remove, so editing a
 /// `.cpp` and rebuilding in place would otherwise leave a stale link.
-fn archive_host_app_objects(app_objs_dir: &Path, out_dir: &Path) -> Vec<PathBuf> {
-    if !app_objs_dir.is_dir() {
+fn archive_host_app_objects(
+    app_objs_dir: &Path,
+    scenario_objs_dir: &Path,
+    out_dir: &Path,
+) -> Vec<PathBuf> {
+    if !app_objs_dir.is_dir() || !scenario_objs_dir.is_dir() {
         panic!(
             "host C++ app objects not found at {}. Build them first:\n  \
-             ninja -C <host tree> deluge_app NE10 eyalroz_printf deluge_dsp \
+             ninja -C <host tree> deluge_app deluge_scenarios NE10 eyalroz_printf deluge_dsp \
              deluge_scheduler deluge_foundation deluge_midi",
             app_objs_dir.display(),
         );
@@ -414,6 +425,7 @@ fn archive_host_app_objects(app_objs_dir: &Path, out_dir: &Path) -> Vec<PathBuf>
 
     let mut objs = Vec::new();
     collect_objs(app_objs_dir, &mut objs);
+    collect_objs(scenario_objs_dir, &mut objs);
     objs.sort();
     for o in &objs {
         println!("cargo:rerun-if-changed={}", o.display());

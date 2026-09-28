@@ -11,7 +11,7 @@
 //! `cluster_construct`/`cluster_materialize` (`sample_stream.cpp`) before the backing structure
 //! had grown to match.
 //!
-//! This module drives `harness/recorder_readback_probe.h`'s finalized-multicluster C-ABI (a real
+//! This module drives `scenarios/recorder_readback_probe.h`'s finalized-multicluster C-ABI (a real
 //! `SampleRecorder`, fed real audio, driven all the way to `RecorderStatus::COMPLETE` so
 //! `finalizeRecordedFile()` genuinely runs) through the SAME region-port entry point
 //! (`deluge_sample_region_acquire_ex`) real playback uses, on THIS target, and reports the
@@ -25,9 +25,9 @@ use std::sync::Mutex;
 
 use embassy_time::{Duration, Instant, Timer};
 
-// Host-only C-ABI bridge (src/deluge/harness/recorder_readback_probe.{h,cpp}, `DELUGE_HOST`-guarded
-// — compiled into the linked host_app `deluge_app` object closure, never into the ARM device
-// firmware). Manually declared here, same pattern as `recorder_probe.rs`'s bridge.
+// Host-only C-ABI bridge (tests/integration/scenarios/recorder_readback_probe.{h,cpp}, compiled
+// into the host tree's `deluge_scenarios` objects that build.rs archives; the device firmware
+// never contains it). Manually declared here, same pattern as `recorder_probe.rs`'s bridge.
 unsafe extern "C" {
     fn deluge_harness_recorder_finalized_multicluster_probe(
         num_channels: u8,

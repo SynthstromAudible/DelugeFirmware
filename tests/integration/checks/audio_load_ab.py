@@ -4,7 +4,7 @@ The Rust audio loader is always on, and the scenario holds it to an in-process r
 through the synchronous C++ card path (`mayLoadAsync=false`) and then through the loader, and the two must agree on
 every field.
 
-What the checks cover (src/deluge/harness/audio_load_ab_scenario.cpp writes the lines):
+What the checks cover (tests/integration/scenarios/audio_load_ab_scenario.cpp writes the lines):
   AB-CASE   one per sample: the Error, the file actually chosen (`file`/`alt`/`asked`), the whole parsed geometry, and a
             CRC of the bytes read back through the Sample's own stream. The scenario compares it with the synchronous
             reference in process, and prints AB-REF with a FAIL on any difference.

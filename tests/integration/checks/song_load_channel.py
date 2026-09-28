@@ -7,7 +7,7 @@ back would stay green with that read broken in any way that still produced the s
 One leg: neither the byte channel nor the write channel has a feature switch, so there is no build without them to
 compare against.
 
-What the checks cover (src/deluge/harness/song_load_channel_scenario.cpp writes the lines):
+What the checks cover (tests/integration/scenarios/song_load_channel_scenario.cpp writes the lines):
     SL-LOADED    the song came back off the card: a value stamped into it before saving and deliberately overwritten in
                  memory afterwards.
     SL-CHANNEL   the staging read was served by the channel -- the async arm ran.

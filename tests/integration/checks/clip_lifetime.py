@@ -17,7 +17,7 @@ the render (AudioEngine::retire(Song*)), which lets go of every Sound of its out
 stopped-clock load or clear waits (AudioEngine::awaitRetired()) for the old song to be freed before it builds the new
 one. All of these legs are required clean (see "Required legs" below).
 
-What the lines cover (src/deluge/harness/clip_lifetime_scenario.cpp writes them). Every leg plays its clip on the
+What the lines cover (tests/integration/scenarios/clip_lifetime_scenario.cpp writes them). Every leg plays its clip on the
 internal clock, holding a note on the clip's blank synth, and the scenario renders 8 blocks before the deletion and 8
 after it:
     CL-PROBE        per leg, before the deletion: whether the clip is playing, how many ticks the render actioned, the

@@ -5,7 +5,7 @@ an audio clip), saves it with collected media, and loads it back through the loa
 and a kit preset through the firmware serialiser and loads each. Every fixture document is written by the firmware;
 none is hand-written.
 
-What the checks cover (src/deluge/harness/sample_load_tree_scenario.cpp writes the lines):
+What the checks cover (tests/integration/scenarios/sample_load_tree_scenario.cpp writes the lines):
     SLT-HOLDER  per holder: its resolved path, whether a file is bound, and where the file was loaded from.
                 - The song's samples resolve to their collected copies in the song's folder, because their originals
                   were removed from the card before the load.

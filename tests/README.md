@@ -144,10 +144,11 @@ declares it throwaway survives indefinitely when nothing records that fact anywh
 
 A scenario gate is a stepped scenario the Embassy host harness runs (`runner = "scenario"`). Adding one:
 
-1. **The scenario:** `src/deluge/harness/<name>_scenario.{h,cpp}`, exporting `begin`, `complete`, `dispatch_step`,
-   `step_done` and `failures`, and a row in `src/deluge/harness/scenario_table.cpp`. golden_vt_render's one stepped
-   driver runs any row by name; nothing on the Rust side changes, unless the scenario needs its own card image
-   (`main.rs`, the `match` on the scenario name).
+1. **The scenario:** `integration/scenarios/<name>_scenario.{h,cpp}`, exporting `begin`, `complete`,
+   `dispatch_step`, `step_done` and `failures`, and a row in `integration/scenarios/scenario_table.cpp`. Only the host
+   tree compiles that directory, so it needs no `DELUGE_HOST` guard, and includes are `"scenarios/<name>.h"`.
+   golden_vt_render's one stepped driver runs any row by name; nothing on the Rust side changes, unless the scenario
+   needs its own card (`main.rs`, the `match` on the scenario name).
 2. **The registry entry:** `scenario = "<name>"`, `builds = ["golden-vt-render"]`, the `markers` each run must print
    and the `result` line that says it passed. `./dbt test` checks those, and the exit status, itself.
 3. **A check, only if the gate needs more:** `tests/integration/checks/<name>.py`, named by the entry's `check`,

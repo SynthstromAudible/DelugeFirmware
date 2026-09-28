@@ -1,0 +1,791 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "scenarios/path_operations_scenario.h"
+
+#include "gui/context_menu/delete_file.h"
+#include "gui/ui/browser/browser.h"
+#include "gui/ui/save/save_song_ui.h"
+#include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
+#include "hid/button.h"
+#include "io/file.hpp"
+#include "io/midi/midi_device.h"
+#include "libdeluge/file_bytes.h"
+#include "libdeluge/tier.h"
+#include "model/song/song.h"
+#include "storage/byte_channel.h"
+#include "storage/smsysex.h"
+#include "util/string.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <string>
+
+// The headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`.
+// That implementation emits through `putchar_`, which only the C host BSP defines -- this harness
+// links the Rust BSP and has no provider, so the alias turns every line this file writes into an
+// undefined symbol at link time. Every one of those lines IS the gate's output.
+#ifdef printf
+#undef printf
+#endif
+
+/// Reaches `Browser`'s protected state for the delete stages. Declared a friend by `Browser`.
+class PathOperationsBrowserProbe {
+public:
+	static std::string currentDir() { return Browser::currentDir; }
+
+	/// @name The delete stages
+	/// @{
+	/// Put the save browser on the UI stack over a root UI, listing `dir`. The delete menu's close pops the stack, so
+	/// the browser has to actually be on it, and this harness boots without a root UI. A save browser lists the song's
+	/// own folder, so the song is pointed at `dir` first. A by-path listing cannot stand in for that: a save browser
+	/// that finds the exact file swaps in a new name and leaves nothing selected.
+	static bool openSaveBrowserOn(const char* dir) {
+		changeRootUI(&arrangerView);
+		currentSong->dirPath = dir;
+		return openUI(&saveSongUI);
+	}
+	/// Tick the browser while its listing runs, and say whether it still is. Nothing else in the headless harness ticks
+	/// a browser, and the listing runs on the browser's tick.
+	static bool listingInProgress() {
+		if (Browser::isListingInProgress()) {
+			getCurrentUI()->graphicsRoutine();
+		}
+		return Browser::isListingInProgress();
+	}
+	/// Whether a file named `name` is in the listing.
+	static bool listed(const char* name) {
+		for (const FileItem& item : Browser::listing.items()) {
+			if (deluge::string::caselessEquals(item.displayName(), name)) {
+				return true;
+			}
+		}
+		return false;
+	}
+	/// Select the listed file named `name`, as scrolling to it does. False when it is not listed.
+	static bool select(const char* name) {
+		for (int32_t i = 0; i < Browser::listing.size(); i++) {
+			if (deluge::string::caselessEquals(Browser::listing.items()[i].displayName(), name)) {
+				Browser::fileIndexSelected = i;
+				(void)saveSongUI.setEnteredTextFromCurrentFilename();
+				return true;
+			}
+		}
+		return false;
+	}
+	/// Open the real delete menu on the selected file, through the gesture's own entry.
+	static bool openDeleteMenu() {
+		saveSongUI.goIntoDeleteFileContextMenu();
+		return getCurrentUI() == &deluge::gui::context_menu::deleteFile;
+	}
+	/// Accept the delete menu, as the select button does.
+	static void acceptDelete() { (void)getCurrentUI()->buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
+	/// A BACK press and release, a pad press and release, and a select-encoder turn: each would otherwise close the
+	/// menu or move it. Stops as soon as the menu is no longer on top, so nothing reaches the browser underneath.
+	static void pokeDeleteMenu() {
+		using namespace deluge::hid::button;
+		UI* menu = &deluge::gui::context_menu::deleteFile;
+		if (getCurrentUI() == menu) {
+			(void)menu->buttonAction(BACK, true, false);
+		}
+		if (getCurrentUI() == menu) {
+			(void)menu->buttonAction(BACK, false, false);
+		}
+		if (getCurrentUI() == menu) {
+			(void)menu->padAction(0, 0, 64);
+		}
+		if (getCurrentUI() == menu) {
+			(void)menu->padAction(0, 0, 0);
+		}
+		if (getCurrentUI() == menu) {
+			menu->selectEncoderAction(1);
+		}
+	}
+	/// Whether the delete menu is anywhere on the UI stack.
+	static bool deleteMenuOpen() { return isUIOpen(&deluge::gui::context_menu::deleteFile); }
+	/// @}
+};
+
+namespace {
+
+/// The meter's count for the entry named @p name, or UINT32_MAX when no entry has that name.
+uint32_t tierSyncCount(const char* name) {
+	for (uint8_t e = 0; e < deluge_tier_sync_entries(); ++e) {
+		if (std::strcmp(deluge_tier_sync_name(e), name) == 0) {
+			return deluge_tier_sync_count(e);
+		}
+	}
+	return UINT32_MAX;
+}
+
+/// A `MIDICable` that keeps what was sent to it instead of putting it on a wire.
+///
+/// `sendSysex` is pure virtual, which is what makes this possible at all. The other five pure
+/// virtuals get minimal bodies -- except `sendBufferSpace`, whose return value matters: a zero would
+/// have the SysEx path decline to send and the gate would read "no reply" for a reply that was never
+/// attempted.
+class LoopbackCable final : public MIDICable {
+public:
+	void writeToFlash(uint8_t* /*memory*/) override {}
+	char const* getDisplayName() override { return "PO-LOOPBACK"; }
+	void sendMessage(MIDIMessage /*message*/) override {}
+
+	void sendSysex(const uint8_t* data, int32_t len) override {
+		lastReply.assign(reinterpret_cast<const char*>(data), static_cast<size_t>(len));
+		replies++;
+	}
+
+	/// Nonzero deliberately -- see the class doc.
+	[[nodiscard]] size_t sendBufferSpace() const override { return 1024; }
+	void writeReferenceAttributesToFile(Serializer& /*writer*/) override {}
+
+	std::string lastReply;
+	int32_t replies = 0;
+};
+
+LoopbackCable g_cable;
+
+/// The four verbs this gate drives, with the request each sends and the reply tag it must get back.
+///
+/// Real requests through `smSysex::sysexReceived`, not calls to the handlers underneath: the subject
+/// is whether the PROTOCOL still answers, and a gate that reached past the dispatcher would keep
+/// testing something else.
+struct VerbCase {
+	const char* name;
+	const char* json;
+	const char* replyTag;
+	/// Whether the reply's `err` must be zero. **This is what makes the reply's STATUS testable**, not
+	/// merely its arrival: a handler that replied before collecting would report success it has not
+	/// obtained, which only a case expected to FAIL can distinguish.
+	bool expectOk;
+};
+
+constexpr VerbCase kVerbs[] = {
+    {"delete", R"({"delete":{"path":"PO_TEST/gone.txt"}})", "^delete", true},
+    {"mkdir", R"({"mkdir":{"path":"PO_TEST/MADE","date":0,"time":0}})", "^mkdir", true},
+    {"rename", R"({"rename":{"from":"PO_TEST/a.txt","to":"PO_TEST/b.txt"}})", "^rename", true},
+    {"utime", R"({"utime":{"path":"PO_TEST/MADE","date":0,"time":0}})", "^utime", false},
+    // Deliberately doomed: the path is not there. Its reply must carry a NON-zero err, which a reply
+    // sent before its operation completed cannot do -- that one reports the success it assumed.
+    {"delete-missing", R"({"delete":{"path":"PO_TEST/never-existed.txt"}})", "^delete", false},
+};
+constexpr int32_t kVerbCount = static_cast<int32_t>(sizeof(kVerbs) / sizeof(kVerbs[0]));
+
+/// How many ticks one verb gets to produce its reply before the gate calls it wedged.
+///
+/// Comfortably above the handler's own worst case once it is resumable and its channel arm has a
+/// stall bound. A cap below that would report a legitimate slow fallback as a wedge.
+constexpr int32_t kMaxVerbTicks = 5000;
+
+/// The nested path the mkdir_all stage creates. None of its three segments exists at the start, which
+/// is what makes it a test of the WALK rather than of one mkdir.
+constexpr const char* kNestedPath = "PO_TEST/A/B";
+
+/// How long the nested creation gets to land before the gate calls it missing. Above the seam's own
+/// stall bound, so a fallback that does eventually happen is not reported as a failure to happen.
+constexpr int32_t kMaxNestedTicks = 900;
+
+/// The delete stages: the folder they list and the file each deletes. `.XML` because the save browser lists nothing
+/// else, and `SlotBrowser::getCurrentFilePath()` puts that extension back on the selected name.
+constexpr const char* kDeleteDir = "PO_TEST/DELETE";
+constexpr const char* kDeleteA = "DELA.XML";
+constexpr const char* kDeleteB = "DELB.XML";
+constexpr const char* kDeleteC = "DELC.XML";
+constexpr const char* kDeleteAPath = "PO_TEST/DELETE/DELA.XML";
+constexpr const char* kDeleteBPath = "PO_TEST/DELETE/DELB.XML";
+constexpr const char* kDeleteCPath = "PO_TEST/DELETE/DELC.XML";
+constexpr const char* kDeletePaths[] = {kDeleteAPath, kDeleteBPath, kDeleteCPath};
+
+/// How long the byte channel holds PO-DELETE's removal, so the delete is seen pending and input is sent while it is.
+/// Measured in this harness's virtual time: a hold of H ms stays pending for about H/2 steps, and holds up to 1600 ms
+/// all finished as removals, so 100 ms is about 50 steps pending and a sixteenth of the longest hold that did not
+/// stall.
+constexpr uint32_t kPendingHoldMs = 100;
+
+/// How long PO-DELETE-STALL's removal is held: far past the stall bound, as startup-failsafe holds its first request.
+constexpr uint32_t kStallHoldMs = 30000;
+
+/// How long a delete stage waits for a listing or an answer before calling it wedged.
+constexpr int32_t kMaxDeleteTicks = 5000;
+
+/// How long PO-DELETE-STALL waits for the delete to give up. Measured: the channel gave up on a 30 s hold after 1797
+/// steps (3.6 s virtual), so this is about 2.8 times that, and 10 s of the run's 60 s virtual budget.
+constexpr int32_t kMaxStallTicks = 5000;
+
+enum class Stage : uint8_t {
+	Fixture,
+	FixtureCheck,
+	Verb,
+	VerbCheck,
+	Nested,
+	NestedCheck,
+	DeleteOpen,
+	DeleteList,
+	DeleteListWait,
+	DeleteAccept,
+	DeleteRefuse,
+	DeleteWait,
+	DeleteCheck,
+	AbsentRemove,
+	AbsentRemoveWait,
+	AbsentAccept,
+	AbsentWait,
+	AbsentCheck,
+	StallAccept,
+	StallWait,
+	StallCheck,
+	DeleteClose,
+	Report,
+	Summary,
+	Done,
+};
+
+Stage g_stage = Stage::Fixture;
+bool g_stepDone = false;
+bool g_summaryPrinted = false;
+int32_t g_failures = 0;
+int32_t g_verbIndex = 0;
+int32_t g_verbTicks = 0;
+int32_t g_repliesBefore = 0;
+int32_t g_nestedTicks = 0;
+int32_t g_nestedCreated = -1;
+int32_t g_nestedIdempotent = -1;
+
+using deluge::gui::context_menu::DeleteFile;
+
+/// What a delete stage reads, taken before it starts so each stage sees only its own delete.
+struct DeleteCounts {
+	int32_t removed;
+	int32_t missing;
+	int32_t failed;
+	int32_t served;
+};
+
+DeleteCounts deleteCountsNow() {
+	return {DeleteFile::deletesRemoved(), DeleteFile::deletesMissing(), DeleteFile::deletesFailed(),
+	        deluge::storage::bytes::channelServedOps()};
+}
+
+DeleteCounts deleteCountsSince(const DeleteCounts& before) {
+	const DeleteCounts now = deleteCountsNow();
+	return {now.removed - before.removed, now.missing - before.missing, now.failed - before.failed,
+	        now.served - before.served};
+}
+
+int32_t g_deleteTicks = 0;
+DeleteCounts g_deleteBefore{};
+bool g_sawPending = false;
+bool g_openWhilePending = false;
+bool g_listedWhilePending = false;
+/// The song's folder before the delete stages pointed it at theirs; put back when they end.
+std::string g_songDirBefore;
+
+/// Pull the `err` attribute out of a captured reply, or -1 if it has none.
+///
+/// The reply is JSON with an `"err":N` member. Scanned rather than parsed because the scenario needs
+/// one number out of it and a deserializer here would be more machinery than the check is worth.
+int32_t replyErr(const std::string& reply) {
+	const size_t at = reply.find("\"err\"");
+	if (at == std::string::npos) {
+		return -1;
+	}
+	const size_t colon = reply.find(':', at);
+	if (colon == std::string::npos) {
+		return -1;
+	}
+	return static_cast<int32_t>(strtol(reply.c_str() + colon + 1, nullptr, 10));
+}
+
+/// Whether `path` names a directory that is there.
+bool directoryExists(const char* path) {
+	auto dir = deluge::io::Directory::open(path);
+	return dir.has_value();
+}
+
+/// Feed one verb's request in as a real SysEx message.
+///
+/// `data[1]` is the message sequence number the reply is addressed with, and the JSON starts at
+/// `data[2]` -- see `smSysex::sysexReceived` and `processFrontSysEx`.
+void sendVerb(const VerbCase& verb) {
+	uint8_t buffer[512];
+	const size_t jsonLen = strlen(verb.json);
+	buffer[0] = 0;
+	buffer[1] = static_cast<uint8_t>(1 + g_verbIndex); // a distinct sequence number per verb
+	memcpy(buffer + 2, verb.json, jsonLen);
+	smSysex::sysexReceived(g_cable, buffer, static_cast<int32_t>(jsonLen + 2));
+}
+
+/// Whether `path` names a file that is there. The gate's own check, made with the synchronous API.
+bool fileOnCard(const char* path) {
+	auto file = deluge::io::File::open(path, DELUGE_FILE_READ);
+	if (!file.has_value()) {
+		return false;
+	}
+	(void)file->close();
+	return true;
+}
+
+/// Hold every byte-channel operation for `ms` before it reaches the card. The knob exists only on the host.
+void setChannelHold(uint32_t ms) {
+	deluge_file_bytes_set_latency_ms(ms);
+}
+
+/// Select `name`, open the real delete menu on it, hold the channel for `holdMs`, and accept the menu. The counts are
+/// taken first. False, with the stage's failure printed, when the menu could not be reached.
+bool startDelete(const char* marker, const char* name, uint32_t holdMs) {
+	g_deleteBefore = deleteCountsNow();
+	g_deleteTicks = 0;
+	if (!PathOperationsBrowserProbe::select(name)) {
+		printf("%s FAIL fixture: %s is not listed\n", marker, name);
+		g_failures++;
+		return false;
+	}
+	if (!PathOperationsBrowserProbe::openDeleteMenu()) {
+		printf("%s FAIL the delete menu did not open on %s\n", marker, name);
+		g_failures++;
+		return false;
+	}
+	setChannelHold(holdMs);
+	PathOperationsBrowserProbe::acceptDelete();
+	return true;
+}
+
+void runTick() {
+	switch (g_stage) {
+	case Stage::Fixture: {
+		// The delete and rename verbs need something to act on, and the mkdir_all stage needs its
+		// nested path absent. Built with the synchronous API deliberately: this is the gate's own
+		// setup, not the code under test.
+		(void)deluge::io::mkdir("PO_TEST");
+		auto seed = deluge::io::File::open("PO_TEST/gone.txt", DELUGE_FILE_WRITE_CREATE);
+		if (seed.has_value()) {
+			(void)seed->close();
+		}
+		auto seed2 = deluge::io::File::open("PO_TEST/a.txt", DELUGE_FILE_WRITE_CREATE);
+		if (seed2.has_value()) {
+			(void)seed2->close();
+		}
+		(void)deluge::io::unlink("PO_TEST/b.txt");
+		(void)deluge::io::unlink(kNestedPath);
+		(void)deluge::io::unlink("PO_TEST/A");
+		// One file per delete stage.
+		(void)deluge::io::mkdir(kDeleteDir);
+		for (const char* path : kDeletePaths) {
+			auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE);
+			if (file.has_value()) {
+				(void)file->close();
+			}
+		}
+		g_stage = Stage::FixtureCheck;
+		break;
+	}
+
+	case Stage::FixtureCheck:
+		g_stage = Stage::Verb;
+		break;
+
+	case Stage::Verb:
+		g_repliesBefore = g_cable.replies;
+		g_verbTicks = 0;
+		sendVerb(kVerbs[g_verbIndex]);
+		g_stage = Stage::VerbCheck;
+		break;
+
+	case Stage::VerbCheck: {
+		// The handler becomes resumable, so one tick is not enough: wait for the reply, bounded so a
+		// wedged handler fails the gate rather than hanging it.
+		if (g_cable.replies == g_repliesBefore && ++g_verbTicks < kMaxVerbTicks) {
+			break;
+		}
+		const VerbCase& verb = kVerbs[g_verbIndex];
+		const bool replied = g_cable.replies > g_repliesBefore;
+		const bool tagged = replied && g_cable.lastReply.find(verb.replyTag) != std::string::npos;
+		const int32_t err = replied ? replyErr(g_cable.lastReply) : -1;
+		const bool okAsExpected = verb.expectOk ? (err == 0) : (err > 0);
+		printf("PO-SYSEX verb=%s replied=%d tagged=%d err=%d\n", verb.name, replied ? 1 : 0, tagged ? 1 : 0, err);
+		if (!replied) {
+			printf("PO-SYSEX FAIL %s produced no reply within %d ticks\n", verb.name, kMaxVerbTicks);
+			g_failures++;
+		}
+		else if (!tagged) {
+			printf("PO-SYSEX FAIL %s replied without its %s tag\n", verb.name, verb.replyTag);
+			g_failures++;
+		}
+		else if (!okAsExpected) {
+			// The status the reply CARRIES, not merely that one arrived. A handler that replied before
+			// its operation finished reports a status it never obtained, and this is what sees it.
+			printf("PO-SYSEX FAIL %s err=%d, expected %s\n", verb.name, err, verb.expectOk ? "zero" : "non-zero");
+			g_failures++;
+		}
+		g_verbIndex++;
+		g_stage = (g_verbIndex < kVerbCount) ? Stage::Verb : Stage::Nested;
+		break;
+	}
+
+	case Stage::Nested:
+		// Through the REAL entry point. Its three segments are all absent, so this exercises the walk.
+		// `saveSongUI` is used only because the method needs a `Browser` instance and this one already
+		// exists -- the folder creation is the same code whichever browser calls it.
+		(void)saveSongUI.createFoldersRecursiveIfNotExists(kNestedPath);
+		g_stage = Stage::NestedCheck;
+		break;
+
+	case Stage::NestedCheck:
+		// Wait for it, bounded. After boot the creation lands on a later tick through the channel, so
+		// checking one tick later would report "not created" for a folder that does arrive. A channel
+		// that accepts and never answers is given up on only after the seam's stall bound, and creates
+		// nothing; the wait outlasts that bound, so a dead channel is reported here as well as on
+		// PO-CHANNEL, which is the precise signal.
+		if (!directoryExists(kNestedPath) && ++g_nestedTicks < kMaxNestedTicks) {
+			break;
+		}
+		g_nestedCreated = directoryExists(kNestedPath) ? 1 : 0;
+		// Called a second time on a path that now exists: "make sure this is there" must be success,
+		// not EXISTS. Every caller of this relies on that, since the folders usually already exist.
+		(void)saveSongUI.createFoldersRecursiveIfNotExists(kNestedPath);
+		g_nestedIdempotent = directoryExists(kNestedPath) ? 1 : 0;
+		g_stage = Stage::DeleteOpen;
+		break;
+
+	case Stage::DeleteOpen:
+		g_deleteTicks = 0;
+		g_songDirBefore = currentSong->dirPath;
+		if (!PathOperationsBrowserProbe::openSaveBrowserOn(kDeleteDir)) {
+			printf("PO-DELETE FAIL fixture: the save browser did not open\n");
+			g_failures++;
+			g_stage = Stage::DeleteClose;
+			break;
+		}
+		g_stage = Stage::DeleteList;
+		break;
+
+	case Stage::DeleteList:
+		// The browser lists the song's folder, which DeleteOpen pointed at the delete folder.
+		if (PathOperationsBrowserProbe::listingInProgress() && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		g_deleteTicks = 0;
+		g_stage = Stage::DeleteListWait;
+		break;
+
+	case Stage::DeleteListWait:
+		// The channel idle too: an operation an earlier stage left in flight would otherwise be collected inside the
+		// delete's window and counted as the delete's.
+		if ((PathOperationsBrowserProbe::listingInProgress() || !deluge::storage::bytes::idle())
+		    && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		if (!deluge::storage::bytes::idle()) {
+			printf("PO-DELETE FAIL fixture: the byte channel never went idle, so the delete's counts would include an "
+			       "earlier stage's operation\n");
+			g_failures++;
+			g_stage = Stage::DeleteClose;
+			break;
+		}
+		if (!PathOperationsBrowserProbe::listed(kDeleteA) || !PathOperationsBrowserProbe::listed(kDeleteB)
+		    || !PathOperationsBrowserProbe::listed(kDeleteC)) {
+			printf("PO-DELETE FAIL fixture: the listing of %s lacks a delete file (listing %s)\n", kDeleteDir,
+			       PathOperationsBrowserProbe::currentDir().c_str());
+			g_failures++;
+			g_stage = Stage::DeleteClose;
+			break;
+		}
+		g_stage = Stage::DeleteAccept;
+		break;
+
+	case Stage::DeleteAccept:
+		// PO-DELETE. The channel holds the removal long enough to see it pending, and well short of its stall bound.
+		g_stage = startDelete("PO-DELETE", kDeleteA, kPendingHoldMs) ? Stage::DeleteRefuse : Stage::AbsentRemove;
+		break;
+
+	case Stage::DeleteRefuse:
+		// A step after the accept, the removal is still held. The delete must be pending, and the menu must stay open,
+		// with DELA still listed, through input that would otherwise close it.
+		g_sawPending = DeleteFile::deletePending();
+		if (g_sawPending) {
+			PathOperationsBrowserProbe::pokeDeleteMenu();
+		}
+		g_openWhilePending = PathOperationsBrowserProbe::deleteMenuOpen();
+		g_listedWhilePending = PathOperationsBrowserProbe::listed(kDeleteA);
+		g_deleteTicks = 0;
+		g_stage = Stage::DeleteWait;
+		break;
+
+	case Stage::DeleteWait:
+		if (DeleteFile::deletePending() && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		setChannelHold(0);
+		g_stage = Stage::DeleteCheck;
+		break;
+
+	case Stage::DeleteCheck: {
+		const DeleteCounts d = deleteCountsSince(g_deleteBefore);
+		const bool onCard = fileOnCard(kDeleteAPath);
+		const bool listed = PathOperationsBrowserProbe::listed(kDeleteA);
+		const bool open = PathOperationsBrowserProbe::deleteMenuOpen();
+		printf("PO-DELETE pending=%d openWhilePending=%d listedWhilePending=%d removed=%d missing=%d failed=%d "
+		       "onCard=%d listed=%d open=%d served=%d holdMs=%u\n",
+		       g_sawPending ? 1 : 0, g_openWhilePending ? 1 : 0, g_listedWhilePending ? 1 : 0, d.removed, d.missing,
+		       d.failed, onCard ? 1 : 0, listed ? 1 : 0, open ? 1 : 0, d.served, kPendingHoldMs);
+		if (!g_sawPending) {
+			printf("PO-DELETE FAIL the delete was never pending: nothing was handed to the byte channel\n");
+			g_failures++;
+		}
+		else if (!g_openWhilePending || !g_listedWhilePending) {
+			printf("PO-DELETE FAIL input closed the menu, or the list changed, while the delete was pending\n");
+			g_failures++;
+		}
+		if (d.removed != 1 || d.missing != 0 || d.failed != 0) {
+			printf("PO-DELETE FAIL the delete did not end as removed\n");
+			g_failures++;
+		}
+		if (onCard || listed || open) {
+			printf("PO-DELETE FAIL after the delete, DELA is still on the card or listed, or the menu is still open\n");
+			g_failures++;
+		}
+		if (d.served < 1) {
+			printf("PO-DELETE FAIL the byte channel served nothing for the delete\n");
+			g_failures++;
+		}
+		g_stage = Stage::AbsentRemove;
+		break;
+	}
+
+	case Stage::AbsentRemove:
+		// PO-DELETE-ABSENT. Remove DELB behind the listing's back, through the channel with no callback, as the MIDI
+		// device table removes its file.
+		g_deleteTicks = 0;
+		if (!deluge::storage::bytes::submitUnlink(kDeleteBPath)) {
+			printf("PO-DELETE-ABSENT FAIL fixture: the byte channel refused DELB's removal\n");
+			g_failures++;
+			g_stage = Stage::StallAccept;
+			break;
+		}
+		g_stage = Stage::AbsentRemoveWait;
+		break;
+
+	case Stage::AbsentRemoveWait:
+		if (!deluge::storage::bytes::idle() && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		if (fileOnCard(kDeleteBPath)) {
+			printf("PO-DELETE-ABSENT FAIL fixture: DELB is still on the card after its removal\n");
+			g_failures++;
+			g_stage = Stage::StallAccept;
+			break;
+		}
+		g_stage = Stage::AbsentAccept;
+		break;
+
+	case Stage::AbsentAccept:
+		// DELB is still in the listing, which was read before it went: the delete finds nothing to remove.
+		g_stage = startDelete("PO-DELETE-ABSENT", kDeleteB, 0) ? Stage::AbsentWait : Stage::StallAccept;
+		break;
+
+	case Stage::AbsentWait:
+		if (DeleteFile::deletePending() && ++g_deleteTicks < kMaxDeleteTicks) {
+			break;
+		}
+		g_stage = Stage::AbsentCheck;
+		break;
+
+	case Stage::AbsentCheck: {
+		const DeleteCounts d = deleteCountsSince(g_deleteBefore);
+		const bool listed = PathOperationsBrowserProbe::listed(kDeleteB);
+		const bool open = PathOperationsBrowserProbe::deleteMenuOpen();
+		printf("PO-DELETE-ABSENT removed=%d missing=%d failed=%d listed=%d open=%d served=%d\n", d.removed, d.missing,
+		       d.failed, listed ? 1 : 0, open ? 1 : 0, d.served);
+		if (d.missing != 1 || d.removed != 0 || d.failed != 0) {
+			printf("PO-DELETE-ABSENT FAIL a delete of a file already gone did not end as missing\n");
+			g_failures++;
+		}
+		if (!listed) {
+			printf("PO-DELETE-ABSENT FAIL DELB left the list: a plain file already gone stays listed\n");
+			g_failures++;
+		}
+		if (open) {
+			printf("PO-DELETE-ABSENT FAIL the menu is still open after the delete ended\n");
+			g_failures++;
+		}
+		g_stage = Stage::StallAccept;
+		break;
+	}
+
+	case Stage::StallAccept:
+		// PO-DELETE-STALL. The channel sits on the removal far past its stall bound.
+		g_stage = startDelete("PO-DELETE-STALL", kDeleteC, kStallHoldMs) ? Stage::StallWait : Stage::DeleteClose;
+		break;
+
+	case Stage::StallWait:
+		if (DeleteFile::deletePending() && ++g_deleteTicks < kMaxStallTicks) {
+			break;
+		}
+		setChannelHold(0);
+		g_stage = Stage::StallCheck;
+		break;
+
+	case Stage::StallCheck: {
+		const DeleteCounts d = deleteCountsSince(g_deleteBefore);
+		const bool pending = DeleteFile::deletePending();
+		const bool listed = PathOperationsBrowserProbe::listed(kDeleteC);
+		const bool open = PathOperationsBrowserProbe::deleteMenuOpen();
+		printf("PO-DELETE-STALL ticks=%d pending=%d removed=%d missing=%d failed=%d listed=%d open=%d holdMs=%u\n",
+		       g_deleteTicks, pending ? 1 : 0, d.removed, d.missing, d.failed, listed ? 1 : 0, open ? 1 : 0,
+		       kStallHoldMs);
+		if (pending) {
+			printf("PO-DELETE-STALL FAIL still pending after %d ticks: the delete never gave up\n", g_deleteTicks);
+			g_failures++;
+		}
+		if (d.failed != 1 || d.removed != 0 || d.missing != 0) {
+			printf("PO-DELETE-STALL FAIL a delete the channel never answered did not end as failed\n");
+			g_failures++;
+		}
+		if (!listed) {
+			printf("PO-DELETE-STALL FAIL DELC left the list after a delete that failed\n");
+			g_failures++;
+		}
+		if (open) {
+			printf("PO-DELETE-STALL FAIL the menu is still open after the delete gave up\n");
+			g_failures++;
+		}
+		g_stage = Stage::DeleteClose;
+		break;
+	}
+
+	case Stage::DeleteClose:
+		// Leave the UI stack as the delete stages found it. A failed stage may have left the menu over the browser.
+		if (getCurrentUI() == &deluge::gui::context_menu::deleteFile) {
+			deluge::gui::context_menu::deleteFile.close();
+		}
+		if (getCurrentUI() == &saveSongUI) {
+			saveSongUI.close();
+		}
+		currentSong->dirPath = g_songDirBefore;
+		g_stage = Stage::Report;
+		break;
+
+	case Stage::Report: {
+		printf("PO-MKDIRALL created=%d idempotent=%d\n", g_nestedCreated, g_nestedIdempotent);
+		if (g_nestedCreated != 1) {
+			printf("PO-MKDIRALL FAIL the nested path was not created\n");
+			g_failures++;
+		}
+		if (g_nestedIdempotent != 1) {
+			printf("PO-MKDIRALL FAIL a second creation of an existing path did not succeed\n");
+			g_failures++;
+		}
+
+		// Reported, never asserted here: a build without the channel honestly answers zero, and failing
+		// on it would fail that build for doing exactly what it is supposed to do.
+		// `tests/integration/checks/path_operations.py` is what requires this to be non-zero.
+		printf("PO-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
+
+		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Browser);
+		printf("PO-TIER violations=%d\n", violations);
+		if (violations != 0) {
+			// Browser folder creation and deletion run off the interaction tier; a non-zero count is a
+			// regression.
+			printf("PO-TIER FAIL a browser folder creation or delete ran on the interaction tier\n");
+			g_failures++;
+		}
+
+		const int32_t illegal = deluge::storage::bytes::illegalInline();
+		printf("PO-ILLEGAL illegal=%d\n", illegal);
+		if (illegal != 0) {
+			printf("PO-ILLEGAL FAIL a folder creation or delete was refused for want of a legal place to run\n");
+			g_failures++;
+		}
+
+		// The synchronous-call meter's positive control: one deliberate synchronous open, after boot, on the
+		// interaction tier (this scenario's own tick). Whether the file exists does not matter -- the open is counted
+		// on entry. Reported, not failed here: tests/integration/checks/path_operations.py requires n=1.
+		const uint32_t before = tierSyncCount("file_open");
+		(void)deluge::io::File::open("PO_TEST/TIER_SYNC_PROBE.TXT", DELUGE_FILE_READ);
+		printf("TIER-SYNC-PROBE n=%u\n", static_cast<unsigned>(tierSyncCount("file_open") - before));
+		g_stage = Stage::Summary;
+		break;
+	}
+
+	case Stage::Summary:
+		printf("PO-RESULT failures=%d\n", g_failures);
+		// Piped into a script stdout is block-buffered and the harness exits without flushing C
+		// stdio, so without this the entire gate output vanishes while the run reports success.
+		fflush(stdout);
+		g_summaryPrinted = true;
+		g_stage = Stage::Done;
+		break;
+
+	case Stage::Done:
+		break;
+	}
+}
+
+} // namespace
+
+extern "C" {
+
+void deluge_scenario_path_operations_begin(void) {
+	// Line-buffer stdout: piped into a script it is block-buffered by default. See the flush above.
+	setvbuf(stdout, nullptr, _IOLBF, 0);
+	g_stage = Stage::Fixture;
+	g_stepDone = false;
+	g_summaryPrinted = false;
+	g_failures = 0;
+	g_verbIndex = 0;
+	g_verbTicks = 0;
+	g_repliesBefore = 0;
+	g_nestedTicks = 0;
+	g_nestedCreated = -1;
+	g_nestedIdempotent = -1;
+	g_deleteTicks = 0;
+	g_deleteBefore = {};
+	g_sawPending = false;
+	g_openWhilePending = false;
+	g_listedWhilePending = false;
+	g_cable.replies = 0;
+	g_cable.lastReply.clear();
+}
+
+bool deluge_scenario_path_operations_complete(void) {
+	return g_summaryPrinted;
+}
+
+void deluge_scenario_path_operations_dispatch_step(void) {
+	if (g_summaryPrinted) {
+		return;
+	}
+	g_stepDone = false;
+	// The SysEx pump. In the firmware this is a repeating task registered in `deluge.cpp`; here the
+	// scenario owns the tick, so without this call a queued request would never be processed.
+	smSysex::handleNextSysEx();
+	runTick();
+	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
+	g_stepDone = true;
+}
+
+bool deluge_scenario_path_operations_step_done(void) {
+	return g_stepDone;
+}
+
+int32_t deluge_scenario_path_operations_failures(void) {
+	return g_failures;
+}
+
+} // extern "C"

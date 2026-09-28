@@ -32,12 +32,12 @@
 // directly. The reproduction *drivers* (kit-copy, song-load) are env-gated and always compiled, so they're useful with
 // either detector.
 
-#include "definitions_cxx.hpp"             // OutputType
-#include "gui/ui/load/load_song_ui.h"      // loadSongUI
-#include "gui/ui/ui.h"                     // openUI
-#include "gui/views/session_view.h"        // sessionView
-#include "harness/preset_fixture_loader.h" // deluge::harness::createNewInstrumentClip
-#include "memory/alloc_metadata.h"         // mem_guard (self-guards on MEM_GUARD)
+#include "definitions_cxx.hpp"               // OutputType
+#include "gui/ui/load/load_song_ui.h"        // loadSongUI
+#include "gui/ui/ui.h"                       // openUI
+#include "gui/views/session_view.h"          // sessionView
+#include "memory/alloc_metadata.h"           // mem_guard (self-guards on MEM_GUARD)
+#include "scenarios/preset_fixture_loader.h" // deluge::harness::createNewInstrumentClip
 
 #include <csignal>
 #include <cstdio>

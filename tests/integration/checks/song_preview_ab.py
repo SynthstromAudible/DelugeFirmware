@@ -4,7 +4,7 @@ Draws the fixture card's song artwork through the REAL `LoadSongUI` over the pre
 same file decoded synchronously, inline, in the same process. The channel has no switch, so there is no second build to
 compare against: the reference decode stands in for one.
 
-What the run checks (src/deluge/harness/song_preview_ab_scenario.cpp writes the lines):
+What the run checks (tests/integration/scenarios/song_preview_ab_scenario.cpp writes the lines):
   SP-CASE   one per song: the decode's `SongPreviewOutcome`, the `Error` it put on screen, and a CRC of the rendered pad
             image. Held to SP-REFERENCE and to its absolute expectation.
 

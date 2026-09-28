@@ -4,7 +4,7 @@ Claims files from the real sample browser into the boot song's synth, a kit drum
 through the gestures a user makes: the sound editor's file selector opens the browser, a by-path listing selects the
 file, and the Select encoder claims it.
 
-What the checks cover (src/deluge/harness/sample_claim_scenario.cpp writes the lines):
+What the checks cover (tests/integration/scenarios/sample_claim_scenario.cpp writes the lines):
     SC-SETUP   per leg: whether the sound editor could be set up and the sample browser opened on it.
     SC-SELECT  per leg: the file the by-path listing selected.
     SC-SYNTH   the synth claim: the file bound, the oscillator type, the repeat mode and the transpose.

@@ -16,7 +16,7 @@
  */
 
 /// deluge_audio_header_dump — headless C++ oracle for the `deluge_audio_format` corpus differential
-/// (see `harness/audio_header_dump.h`).
+/// (see `scenarios/audio_header_dump.h`).
 ///
 /// Reads host filesystem paths, one per line, from stdin until EOF; for each, prints one JSON line to
 /// stdout describing `parseSampleHeader`'s and `parseWaveTableHeader`'s (both `insist` settings)
@@ -30,7 +30,7 @@
 /// Usage: deluge_audio_header_dump < paths.txt > dump.jsonl
 /// Deterministic. Reads only stdin/argv; touches no SD-card state.
 
-#include "harness/audio_header_dump.h"
+#include "scenarios/audio_header_dump.h"
 
 #include "OSLikeStuff/scheduler_api.h" // TaskHandle
 #include "libdeluge/system.h"          // deluge_platform_init

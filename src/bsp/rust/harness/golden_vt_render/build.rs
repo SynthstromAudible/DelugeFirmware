@@ -82,7 +82,7 @@ fn main() {
     if !app_objs_dir.is_dir() {
         panic!(
             "host C++ app objects not found at {}. Build them first:\n  \
-             ninja -C {} deluge_app NE10 eyalroz_printf deluge_dsp \
+             ninja -C {} deluge_app deluge_scenarios NE10 eyalroz_printf deluge_dsp \
              deluge_scheduler deluge_foundation deluge_midi",
             app_objs_dir.display(),
             build_dir.display()
@@ -105,7 +105,23 @@ fn main() {
     collect_objs(
         &app_objs_dir,
         &app_objs_dir,
-        &repo_root,
+        &repo_root.join("src/deluge"),
+        &mut objs,
+        &mut skipped,
+    );
+    // The integration scenarios and probes are their own host-only object library.
+    let scenario_objs_dir = build_dir.join("scenarios/CMakeFiles/deluge_scenarios.dir");
+    if !scenario_objs_dir.is_dir() {
+        panic!(
+            "host scenario objects not found at {}. Build them first:\n  ninja -C {} deluge_scenarios",
+            scenario_objs_dir.display(),
+            build_dir.display()
+        );
+    }
+    collect_objs(
+        &scenario_objs_dir,
+        &scenario_objs_dir,
+        &repo_root.join("tests/integration/scenarios"),
         &mut objs,
         &mut skipped,
     );
@@ -198,6 +214,7 @@ fn main() {
     println!("cargo:rustc-link-arg=-Wl,--end-group");
 
     println!("cargo:rerun-if-changed={}", app_objs_dir.display());
+    println!("cargo:rerun-if-changed={}", scenario_objs_dir.display());
 }
 
 /// Bindgen the libdeluge headers for whichever host target this crate is being
@@ -248,37 +265,35 @@ fn hash_objs_content(objs: &[PathBuf]) -> u64 {
     hasher.finish()
 }
 
-/// Walks `dir` (recursively) collecting every `.o`/`.obj` under `base` (the `deluge_app.dir`
+/// Walks `dir` (recursively) collecting every `.o`/`.obj` under `base` (a target's `<name>.dir`
 /// root, constant across the recursion — needed to compute each object's path relative to it).
 /// Skips orphans: `ninja` never removes a `.o` left behind by a `.cpp` that was since deleted
 /// or relocated, and archiving a stale object drags in references to symbols that no longer
-/// exist anywhere in the tree. Each object's source lives under `<repo_root>/src/deluge/` at the
-/// same relative subpath with the trailing `.o`/`.obj` stripped; if that source file is gone,
-/// the object is an orphan: it is skipped (with a `cargo:warning=` naming it, and pushed onto
-/// `skipped` for the caller's sanity-floor check) instead of being archived.
+/// exist anywhere in the tree. Each object's source lives under `src_root` (the target's source
+/// directory) at the same relative subpath with the trailing `.o`/`.obj` stripped; if that source
+/// file is gone, the object is an orphan: it is skipped (with a `cargo:warning=` naming it, and
+/// pushed onto `skipped` for the caller's sanity-floor check) instead of being archived.
 ///
 /// Kept signature-identical to the copy in `../lens1_vt_sim/build.rs` so the two stay diffable.
 ///
-/// Known blind spot, not fixed here: if CMake ever compiles a source from OUTSIDE this target's
-/// own directory tree, it mangles the object's relative path with a `__/` per parent-escape,
-/// which then resolves against `src/deluge` to a path that never exists — the object reads as an
-/// orphan and is skipped even though its source is alive. No such object exists in this tree
-/// today, so the `src/deluge`-only derivation is sufficient; the caller's floor check is the
-/// backstop if that ever changes.
+/// Known blind spot, not fixed here: a source from OUTSIDE its target's own directory gets a
+/// `__/` per parent-escape in its object path, which resolves against `src_root` to a path that
+/// never exists, so the object reads as an orphan even though its source is alive. Neither
+/// target compiles such a source; the caller's floor check is the backstop if one ever does.
 fn collect_objs(
     base: &std::path::Path,
     dir: &std::path::Path,
-    repo_root: &std::path::Path,
+    src_root: &std::path::Path,
     out: &mut Vec<PathBuf>,
     skipped: &mut Vec<PathBuf>,
 ) {
     for entry in fs::read_dir(dir).unwrap() {
         let p = entry.unwrap().path();
         if p.is_dir() {
-            collect_objs(base, &p, repo_root, out, skipped);
+            collect_objs(base, &p, src_root, out, skipped);
         } else if p.extension().is_some_and(|e| e == "obj" || e == "o") {
             let rel = p.strip_prefix(base).unwrap();
-            let src_path = repo_root.join("src/deluge").join(rel.with_extension(""));
+            let src_path = src_root.join(rel.with_extension(""));
             if !src_path.is_file() {
                 println!(
                     "cargo:warning=golden_vt_render: skipping orphan object {} (source {} no longer exists)",

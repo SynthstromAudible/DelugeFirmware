@@ -3,7 +3,7 @@
 The clip view's LOAD gesture opens the browser, a by-path listing selects the preset, and Select loads it into the
 clip, a kit row, or -- from the long-press menu -- a clone.
 
-What the checks cover (src/deluge/harness/preset_load_scenario.cpp writes the lines):
+What the checks cover (tests/integration/scenarios/preset_load_scenario.cpp writes the lines):
     PL-SETUP   per leg: whether the preset browser opened on the leg's clip, and how many outputs the song had.
     PL-SELECT  per leg: the preset the by-path listing selected.
     PL-SYNTH   a synth preset loaded into the boot song's synth clip: the loaded synth, named after the preset, its

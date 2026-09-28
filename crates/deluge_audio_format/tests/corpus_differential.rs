@@ -43,7 +43,7 @@
 //! passing with zero files checked.
 //!
 //! The C++ side of the comparison is `deluge_audio_header_dump` (`src/bsp/host/
-//! host_audio_header_dump_main.cpp`, driving `harness/audio_header_dump.h`), a host-only CLI that
+//! host_audio_header_dump_main.cpp`, driving `scenarios/audio_header_dump.h`), a host-only CLI that
 //! reads file paths on stdin and prints one JSON line per file. Build it first:
 //!
 //! ```text
@@ -68,7 +68,7 @@ use std::process::{Command, Stdio};
 
 // ============================================================================================
 // Minimal schema-specific JSON parsing. Not a general JSON library: `deluge_audio_header_dump`'s
-// output is a fixed, flat shape (see `harness/audio_header_dump.cpp`), and adding a real JSON crate
+// output is a fixed, flat shape (see `scenarios/audio_header_dump.cpp`), and adding a real JSON crate
 // as a dependency for one test file's fixed schema isn't worth it in a workspace that otherwise
 // depends on nothing.
 // ============================================================================================
@@ -456,7 +456,7 @@ fn cmp_bool(
 
 /// `container` isn't carried by either C++ output struct (`SampleHeader`/`WaveTableHeader` — see
 /// `audio_file_format.h`; it's consumed internally by `detectContainer()` and never surfaced), so the
-/// dumper (`harness/audio_header_dump.cpp`'s `detectContainerTag()`) reports it independently, straight
+/// dumper (`scenarios/audio_header_dump.cpp`'s `detectContainerTag()`) reports it independently, straight
 /// off the file's own 12-byte magic, as a top-level `"container"` field ("wav"/"aiff"/"unknown").
 /// Compared here so every `AudioHeader` field genuinely has a differential check, not just the ones
 /// nested under `sample`/`wavetable_insist_*`.

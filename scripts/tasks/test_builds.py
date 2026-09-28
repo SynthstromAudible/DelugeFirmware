@@ -43,6 +43,7 @@ def needs_configure(tree: Path, source: Path) -> bool:
 
 HOST_APP_TARGETS = [
     "deluge_app",
+    "deluge_scenarios",
     "NE10",
     "eyalroz_printf",
     "deluge_dsp",

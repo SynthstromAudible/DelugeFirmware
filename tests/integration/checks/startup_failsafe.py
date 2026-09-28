@@ -1,6 +1,6 @@
 """The startup fail-safe gate: none of the fail-safe's file I/O begins on the interaction tier.
 
-Drives the real startup fail-safe. What the checks cover (src/deluge/harness/startup_failsafe_scenario.cpp writes the
+Drives the real startup fail-safe. What the checks cover (tests/integration/scenarios/startup_failsafe_scenario.cpp writes the
 lines), and why each is separate:
     SF-ORDER    the machine never advances past the canary write without a terminal answer, and the canary is on the
                 card before the load is allowed to proceed.

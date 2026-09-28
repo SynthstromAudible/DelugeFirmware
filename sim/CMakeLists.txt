@@ -305,6 +305,7 @@ add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # d
 add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
+add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
 
 # --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource,
 # + the region cursor (deluge_sample_source) under its `sim` feature, SR3a Task 1) -
@@ -412,7 +413,7 @@ add_executable(deluge_host
 # host_debug.cpp reaches into the app's reason_check (memory/reason_check.h) for the host-sim leak triggers - allowed
 # (the boundary check only forbids the app depending on the BSP, not the reverse), so put src/deluge on the path.
 target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+target_link_libraries(deluge_host PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_host PRIVATE ${RT_LIB})
 endif()
@@ -437,13 +438,13 @@ add_executable(deluge_loadcheck
 # host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) + reaches the app's reason_check;
 # src/deluge on the path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
 target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
 endif()
 
 # deluge_audio_header_dump: headless C++ oracle for the `deluge_audio_format` (crates/deluge_audio_format)
-# corpus differential (see harness/audio_header_dump.h). Same app + host BSP boot as deluge_loadcheck, but
+# corpus differential (see tests/integration/scenarios/audio_header_dump.h). Same app + host BSP boot as deluge_loadcheck, but
 # its own main()/driver (host_audio_header_dump_main.cpp) reads host filesystem paths from stdin and, for
 # each, dumps parseSampleHeader's/parseWaveTableHeader's (both makeWaveTableWorkAtAllCosts settings)
 # outcome as one JSON line to stdout — driven straight off an in-memory AudioByteSource, so unlike
@@ -461,7 +462,7 @@ add_executable(deluge_audio_header_dump
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
 )
 target_include_directories(deluge_audio_header_dump PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_audio_header_dump PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+target_link_libraries(deluge_audio_header_dump PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_audio_header_dump PRIVATE ${RT_LIB})
 endif()

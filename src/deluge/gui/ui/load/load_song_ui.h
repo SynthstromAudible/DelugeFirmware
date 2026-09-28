@@ -185,7 +185,7 @@ private:
 	/// @}
 
 	/// The host song-preview gate, which drives the real drawSongPreview()/graphicsRoutine() pair and holds
-	/// the two members above to a reference decode. See src/deluge/harness/song_preview_ab_scenario.cpp.
+	/// the two members above to a reference decode. See tests/integration/scenarios/song_preview_ab_scenario.cpp.
 	friend class SongPreviewAbProbe;
 
 	/// A row-major pad image of the shape both preview decoders write into.

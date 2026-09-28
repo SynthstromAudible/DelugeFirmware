@@ -10,7 +10,7 @@ reassessRenderSkippingStatus calls getArpSettings(), pure virtual in Sound by th
 which of them can do that; this measures it. Every deletion path must end a Sound's voices before any part of it is
 destroyed.
 
-What the lines cover (src/deluge/harness/sound_lifetime_scenario.cpp writes them):
+What the lines cover (tests/integration/scenarios/sound_lifetime_scenario.cpp writes them):
   SL-PROBE     per leg: how many voices were live at the deletion, whether the output is in the song (the render
                reaches only those voices), and how far the render's clock moved with the note held.
   SL-SYNTH     a synth in the song, deleted through Song::deleteOutputThatIsInMainList().

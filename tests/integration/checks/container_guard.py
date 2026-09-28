@@ -10,7 +10,7 @@ song's clip arrays, an output's clip instances, the song's output list, a kit's 
 halfway by a render that walks it. Every such edit must run inside an AudioExcludedSection (libdeluge/system.h). The
 containers report each structural edit to the probe, which counts those made outside a section.
 
-What the lines cover (src/deluge/harness/container_guard_scenario.cpp writes them), each `CG-<LEG> unguarded=<n>
+What the lines cover (tests/integration/scenarios/container_guard_scenario.cpp writes them), each `CG-<LEG> unguarded=<n>
 kinds=<kind=n,...>`:
     CG-NOTEADD / CG-NOTEDEL  a note added / deleted through NoteRow::attemptNoteAdd() / deleteNoteByPos()
     CG-ROWADD / CG-ROWDEL    a note row made (getOrCreateNoteRowForYNote()) / deleted (InstrumentClip::deleteNoteRow())
