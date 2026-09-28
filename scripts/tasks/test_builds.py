@@ -1,4 +1,4 @@
-"""The build products tests declare in harness/registry.toml's `builds`, and how to make them.
+"""The build products tests declare in tests/registry.toml's `builds`, and how to make them.
 
 A test names what it needs; the runner builds the union of a selection's products once, in dependency order, before
 running any of them. No test builds a product itself, so none can run against a stale one: `host-app` always runs

@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Run the tests declared in harness/registry.toml.
+"""Run the tests declared in tests/registry.toml.
 
 ./dbt test                                   # the pr tier: what a pull request runs
 ./dbt test --level unit                      # one level (repeatable)
@@ -42,7 +42,7 @@ MARKER = re.compile(r"^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*([ =:]|$)")
 def argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="test",
-        description="Run the tests declared in harness/registry.toml (default: the pr tier)",
+        description="Run the tests declared in tests/registry.toml (default: the pr tier)",
     )
     parser.group = "Development"
     parser.add_argument(

@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-"""Parse harness/registry.toml and probe each test's prerequisites.
+"""Parse tests/registry.toml and probe each test's prerequisites.
 
 Split from task-test.py so the parsing, selection and probing logic is
 unit-testable without invoking dbt or spawning a build. See
@@ -76,8 +76,8 @@ class Harness:
 
 
 def load_registry(root: Path) -> list[Harness]:
-    """Parse and validate harness/registry.toml under `root`."""
-    raw = tomllib.loads((root / "harness" / "registry.toml").read_text())
+    """Parse and validate tests/registry.toml under `root`."""
+    raw = tomllib.loads((root / "tests" / "registry.toml").read_text())
     entries: list[Harness] = []
     seen: set[str] = set()
 
@@ -247,7 +247,7 @@ def probe(requirement: str, root: Path) -> bool:
 
 
 def markdown_table(harnesses: list[Harness]) -> str:
-    """The generated table for harness/README.md."""
+    """The generated table for tests/README.md."""
     lines = [
         "| Test | Level | Runner | Kind | Status | Gates | Tier | Runtime |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",

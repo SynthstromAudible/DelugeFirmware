@@ -113,8 +113,8 @@ class SelectTest(unittest.TestCase):
 class LoadRegistryTest(unittest.TestCase):
     def _root_with(self, text):
         root = Path(tempfile.mkdtemp())
-        (root / "harness").mkdir()
-        (root / "harness" / "registry.toml").write_text(text)
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
         return root
 
     def test_loads_all_fields(self):
@@ -217,8 +217,8 @@ tier = "nightly"
 
     def _root_with(self, text):
         root = Path(tempfile.mkdtemp())
-        (root / "harness").mkdir()
-        (root / "harness" / "registry.toml").write_text(text)
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
         return root
 
     def test_loads(self):
@@ -246,8 +246,8 @@ tier = "nightly"
 class BuildsTest(unittest.TestCase):
     def _root_with(self, text):
         root = Path(tempfile.mkdtemp())
-        (root / "harness").mkdir()
-        (root / "harness" / "registry.toml").write_text(text)
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(text)
         return root
 
     def test_known_product_loads(self):
@@ -414,17 +414,17 @@ class MarkdownTableTest(unittest.TestCase):
 
     def _root(self):
         root = Path(tempfile.mkdtemp())
-        (root / "harness").mkdir()
-        (root / "harness" / "registry.toml").write_text(MINIMAL)
+        (root / "tests").mkdir()
+        (root / "tests" / "registry.toml").write_text(MINIMAL)
         return root
 
     def _root_with_pipe(self):
         root = Path(tempfile.mkdtemp())
-        (root / "harness").mkdir()
+        (root / "tests").mkdir()
         toml_with_pipe = MINIMAL.replace(
             'gates = "alpha must equal beta"', 'gates = "alpha|beta must equal charlie"'
         )
-        (root / "harness" / "registry.toml").write_text(toml_with_pipe)
+        (root / "tests" / "registry.toml").write_text(toml_with_pipe)
         return root
 
 

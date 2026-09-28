@@ -105,10 +105,10 @@ jobs:
       - name: Regenerate the table and diff
         run: |
           DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --list --markdown > /tmp/table.md
-          sed -n '/BEGIN GENERATED TABLE/,/END GENERATED TABLE/p' harness/README.md \
+          sed -n '/BEGIN GENERATED TABLE/,/END GENERATED TABLE/p' tests/README.md \
             | sed '1d;$d' > /tmp/committed.md
           diff -u /tmp/committed.md /tmp/table.md || {
-            echo "harness/README.md's table is stale -- regenerate it (see the README)."
+            echo "tests/README.md's table is stale -- regenerate it (see the README)."
             exit 1
           }
 

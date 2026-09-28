@@ -5,7 +5,7 @@ export -- the default, scenario-less arm of golden_vt_render -- and checks:
 
   ST-BYTES    the export actually wrote audio, at the size recorded beside the hash (field 2 of the baseline). Checked
               before the hash so a zero-byte export reports what actually happened rather than an unhelpful mismatch.
-  ST-RENDER   the exported WAV's sha256 matches harness/stem-export-<fixture>.sha256 (field 1).
+  ST-RENDER   the exported WAV's sha256 matches stem-export-<fixture>.sha256, beside this module (field 1).
 
 THIS IS NOT golden-embassy-diff, AND ITS BASELINE IS NOT THAT GATE'S GOLDEN. That gate compares against a golden kept
 outside the repo in DELUGE_GOLDEN_DIR, reconstructed from the song corpus. This one compares the Embassy render against
@@ -17,11 +17,14 @@ ST-RENDER goes red, that is a finding to investigate -- never a re-baseline.
 
 import hashlib
 import re
+from pathlib import Path
 
 
 def run(gate):
     fixture = gate.env.get("GOLDEN_FIXTURE") or "cordae"
-    baseline = (gate.root / f"harness/stem-export-{fixture}.sha256").read_text().split()
+    baseline = (
+        Path(__file__).with_name(f"stem-export-{fixture}.sha256").read_text().split()
+    )
     want_hash, want_bytes = baseline[0], baseline[1]
     render = gate.tmp / "render"
 

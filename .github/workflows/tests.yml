@@ -1,6 +1,6 @@
 name: Run tests
 
-# Every test in harness/registry.toml at the pr tier, one job each. The registry is the list: a test added there is
+# Every test in tests/registry.toml at the pr tier, one job each. The registry is the list: a test added there is
 # run here without editing this file.
 on:
   pull_request:

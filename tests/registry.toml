@@ -1,4 +1,4 @@
-# Every test in the repository. `dbt test` reads this; harness/README.md's table is
+# Every test in the repository. `dbt test` reads this; tests/README.md's table is
 # generated from it. Every entry must state what it gates -- a test that
 # cannot say what regression it catches is one nobody can decide to delete.
 #
@@ -512,7 +512,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "an offline stem export must render byte-identical audio and write it. This is NOT golden-embassy-diff and its baseline is NOT that gate's golden: that one compares against a golden kept outside the repo in DELUGE_GOLDEN_DIR, reconstructed from the song corpus. This one compares the Embassy render against ITSELF, recorded in harness/stem-export-cordae.sha256, so it needs no corpus. ST-RENDER is the regression claim. ST-BYTES is not redundant with it: an export can complete, report success and write a ZERO-BYTE file -- the recorder takes its write-channel arm and the bytes never land -- and that failure must be reported as \"the export wrote nothing\" rather than as a hash mismatch. WARNING: this baseline is NOT expected to move. A walk's cadence is an implementation detail, rendered audio is not -- a red ST-RENDER is a finding to bisect, never a re-baseline."
+gates = "an offline stem export must render byte-identical audio and write it. This is NOT golden-embassy-diff and its baseline is NOT that gate's golden: that one compares against a golden kept outside the repo in DELUGE_GOLDEN_DIR, reconstructed from the song corpus. This one compares the Embassy render against ITSELF, recorded in tests/integration/checks/stem-export-cordae.sha256, so it needs no corpus. ST-RENDER is the regression claim. ST-BYTES is not redundant with it: an export can complete, report success and write a ZERO-BYTE file -- the recorder takes its write-channel arm and the bytes never land -- and that failure must be reported as \"the export wrote nothing\" rather than as a hash mismatch. WARNING: this baseline is NOT expected to move. A walk's cadence is an implementation detail, rendered audio is not -- a red ST-RENDER is a finding to bisect, never a re-baseline."
 scenario = ""
 check = "tests/integration/checks/stem_export.py"
 builds = ["golden-vt-render"]

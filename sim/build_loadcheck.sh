@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Configures (if needed) and builds the deluge_loadcheck target into sim/build.
 #
-# Exists so the "audio-loadcheck" entry (harness/registry.toml) is self-sufficient on a clean
+# Exists so the "audio-loadcheck" entry (tests/registry.toml) is self-sufficient on a clean
 # checkout: CI's pr-tier test job (.github/workflows/tests.yml, job `test`) checks out, installs the
 # prerequisites, and runs `./dbt test <name>` directly -- it does not configure any sim/ CMake project
 # itself. `sim/build` is gitignored and not restored by any cache step, so without

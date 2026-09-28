@@ -35,7 +35,7 @@
 /// deluge_platform_init() or deluge_main(), so there is no app boot, no card fixture, and --project is
 /// ignored (each check self-initializes the allocator/resource-manager it touches, and the collector
 /// check serves itself a temp directory as its card and removes it again). This is
-/// what the harness registry entry for this binary runs as a standing gate (harness/registry.toml);
+/// what the harness registry entry for this binary runs as a standing gate (tests/registry.toml);
 /// running it with zero arguments from any directory, including the repo root, leaves the tree
 /// untouched.
 ///
