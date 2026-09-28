@@ -1,6 +1,7 @@
 #include "display.h"
 #include "gui/l10n/l10n.h"
 #include "io/debug/log.h" // D_PRINTLN — freezeWithError logs the code before it stops the world
+#include <cstdio>
 
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
@@ -94,6 +95,12 @@ extern "C" void freezeWithError(char const* error) {
 	// Cheap, and it makes an RTT capture self-describing instead of needing someone to read the
 	// screen. Deliberately first: `display->freezeWithError` does not return.
 	D_PRINTLN("FREEZE_WITH_ERROR: %s", error);
+#ifdef DELUGE_HOST
+	// On host D_PRINTLN is compiled out of release builds and the display logs nothing either (deluge-rust's display
+	// freeze aborts with a fixed message), so a harness run that freezes would not say which code fired.
+	std::fprintf(stderr, "FREEZE_WITH_ERROR: %s\n", error);
+	std::fflush(stderr);
+#endif
 	display->freezeWithError(error);
 }
 

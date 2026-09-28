@@ -78,6 +78,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <execution>
 #include <iterator>
@@ -140,7 +141,20 @@ uint64_t retireSequencePushed = 0;
 std::atomic<uint64_t> retireSequenceLetGo{0};
 /// How long AudioEngine::awaitRetired() waits, in getSystemTime() seconds, before it freezes (E459). A song of many
 /// outputs is let go of in one block and freed two blocks later -- a few milliseconds; this is far past that.
+#if defined(__SANITIZE_THREAD__)
+#define DELUGE_UNDER_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define DELUGE_UNDER_TSAN 1
+#endif
+#endif
+#if defined(DELUGE_UNDER_TSAN)
+// Under ThreadSanitizer a render block runs many times slower, and 250 ms was measured to run out on a genuine,
+// completing wait (2 of 40 preemptive-race-tsan runs). The block bound below still catches a render that stops.
+constexpr double kAwaitRetiredTimeoutSeconds = 5.0;
+#else
 constexpr double kAwaitRetiredTimeoutSeconds = 0.25;
+#endif
 /// How many render blocks AudioEngine::awaitRetired() waits for before it freezes (E459), whatever the clock says.
 /// A retired object is let go of at the next block and freed two blocks after its stamp, so 2-3 blocks is normal.
 /// Needed where getSystemTime() does not move inside a synchronous wait (the virtual-time host harnesses, which run
@@ -2239,10 +2253,24 @@ void awaitRetired() {
 	// The render is the higher tier: waiting on it here is allowed, and runs no other interaction task, so whatever
 	// the caller left in between (currentSong null during a stopped-clock load) is never seen by one.
 	const double start = getSystemTime();
+	const uint64_t epochAtStart = renderDomain_.audio_epoch();
 	int32_t blocks = 0;
 	reclaimRetired();
 	while (retiredPending() != 0) {
 		if (getSystemTime() - start > kAwaitRetiredTimeoutSeconds || ++blocks > kAwaitRetiredMaxBlocks) {
+#ifdef DELUGE_HOST
+			// What the wait saw, so a harness freeze says whether the render stopped (the epoch never moved), the
+			// render ran but never let go (sequence stuck), or it was only slow.
+			std::fprintf(stderr,
+			             "awaitRetired: gave up after %.1f ms, %d blocks awaited, epochs advanced %llu, pending %zu, "
+			             "sequence pushed %llu let go %llu, overflow %zu\n",
+			             (getSystemTime() - start) * 1000.0, blocks,
+			             static_cast<unsigned long long>(renderDomain_.audio_epoch() - epochAtStart), retiredPending(),
+			             static_cast<unsigned long long>(retireSequencePushed),
+			             static_cast<unsigned long long>(retireSequenceLetGo.load(std::memory_order_acquire)),
+			             retireOverflow.size());
+			std::fflush(stderr);
+#endif
 			FREEZE_WITH_ERROR("E459");
 		}
 		deluge_audio_await_block();
