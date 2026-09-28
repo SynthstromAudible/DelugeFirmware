@@ -107,6 +107,7 @@ open	src/deluge/memory/alloc_metadata.cpp	^mem_guard::\(anonymous namespace\)::r
 open	src/deluge/playback/playback_handler.cpp	^PlaybackHandler::setupPlaybackUsingInternalClock\(int, bool, bool, bool\)$	audio×interaction	state: global 'playbackHandler' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::routine_task\(\)$	audio×interaction	state: global 'AudioEngine::audioRoutineLocked' (first seen after the sound retirement, 2026-09-27)
 open	src/deluge/hid/led/pad_leds.cpp	^PadLEDs::reassessGreyout\(bool\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (first seen after the host render block became one excluded section, 2026-09-27)
+open	src/deluge/model/global_effectable/global_effectable_for_clip.cpp	^GlobalEffectableForClip::renderOutput\(ModelStackWithTimelineCounter\*, ParamManager\*, std::span<StereoSample, [0-9]+ul>, int\*, int, int, bool, bool, OutputType, SampleRecorder\*\)$	audio×interaction	state: global 'playbackHandler' (ticksLeftInCountIn; first seen after the rendering-drums list, 2026-09-27)
 # Index by shared state (state → entries). The second invariant's to-do list.
 #   Sound::voices_ (C2b): the getNumVoices lambda, terminateOneVoice. (AudioEngine::sounds itself: fixed by C2a,
 #     AudioOwnedList — its getNumVoices() entry removed.)
@@ -137,5 +138,5 @@ open	src/deluge/hid/led/pad_leds.cpp	^PadLEDs::reassessGreyout\(bool\)$	audio×i
 #     scheduleNextTimerTick, isExternalClockActive, actionSwungTick, isEitherClockActive, Arrangement::doTickForward,
 #     getPosAtWhichClipWillCut, Clip/InstrumentClip/NoteRow::processCurrentPos, Song::isClipActive, Kit::getArpSettings,
 #     AudioEngine::tickSongFinalizeWindows, getActualSwungTickCount, getNumSwungTicksInSinceLast*, Arrangement::setupPlayback,
-#     Arrangement::getLivePos, Kit::renderGlobalEffectableForClip
+#     Arrangement::getLivePos, Kit::renderGlobalEffectableForClip, GlobalEffectableForClip::renderOutput
 
