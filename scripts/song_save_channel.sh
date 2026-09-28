@@ -39,8 +39,8 @@
 #                 SS-CHANNEL nor SS-SAVED can see WHICH arm carried which step.
 #   SS-TICKED   the steps went through the channels after boot. The gate's actual claim.
 #   SS-HELD       a save whose write the channel holds far past the stall bound still completes, and its file is
-#                 the same document the first save wrote: a running write cannot be cancelled, so giving up on it
-#                 only releases the serialiser it is still copying from.
+#                 byte-identical to an unheld save of the same song made just before: a running write cannot be
+#                 cancelled, so giving up on it only releases the serialiser it is still copying from.
 #
 # A missing marker fails the run: a stage that never ran asserts nothing, and the failure count
 # cannot show that, because it counts only assertions that DID run.

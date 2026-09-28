@@ -817,9 +817,8 @@ void SaveSongUI::runWritePhase() {
 	uint8_t exists = 0;
 	const uint8_t collected = deluge_file_write_collect_write_file(docWritePath_.c_str(), &writtenLen, &exists);
 	if (collected == DELUGE_FILE_WRITE_PENDING) {
-		if (!deferDocument()) {
-			abandonDocument(Error::WRITE_FAIL);
-		}
+		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
+		// from the staged document and cannot be cancelled, so giving up would only release the serialiser under it.
 		return;
 	}
 	if (collected == DELUGE_FILE_WRITE_UNKNOWN) {

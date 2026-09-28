@@ -368,7 +368,8 @@ std::optional<bool> collectTemplateWrite() {
 		uint8_t existed = 0;
 		switch (deluge_file_write_collect_write_file(kDefaultSongFullPath, &written, &existed)) {
 		case DELUGE_FILE_WRITE_PENDING:
-			(void)stillWaiting();
+			// Waited out, and not counted against the bound: the write is copying from the staged template and
+			// cannot be cancelled, so falling back would re-serialise into its buffer and write the file twice.
 			return std::nullopt;
 		case DELUGE_FILE_WRITE_UNKNOWN:
 			// Displaced before we took it. Re-staging writes the same document again, which is safe.

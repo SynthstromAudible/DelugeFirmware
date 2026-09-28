@@ -84,7 +84,10 @@ namespace {
 constexpr const char* kSaveDir = "SONGS";
 constexpr const char* kSaveName = "SSTEST01";
 constexpr const char* kSavePath = "SONGS/SSTEST01.XML";
-/// The held leg's save: a new name, so it takes the direct path and its file is the whole of what it wrote.
+/// The held leg's saves, both to new names so each takes the direct path and its file is the whole of what it wrote:
+/// the reference, saved without a hold, and the held save of the same song, which must write the same bytes.
+constexpr const char* kReferenceName = "SSTEST03";
+constexpr const char* kReferencePath = "SONGS/SSTEST03.XML";
 constexpr const char* kHeldName = "SSTEST02";
 constexpr const char* kHeldPath = "SONGS/SSTEST02.XML";
 /// How long the write channel holds each operation in the held leg, in virtual milliseconds: far past the save's
@@ -114,6 +117,10 @@ enum class Stage : uint8_t {
 	ConfirmCheck,
 	IntactWait,
 	IntactCheck,
+	ReferenceOpen,
+	ReferenceSave,
+	ReferenceWait,
+	ReferenceCheck,
 	HeldOpen,
 	HeldSave,
 	HeldWait,
@@ -131,6 +138,8 @@ int32_t g_notesAdded = 0;
 uint32_t g_crcFirst = 0;
 size_t g_bytesFirst = 0;
 int32_t g_heldCompletedBefore = 0;
+uint32_t g_crcReference = 0;
+size_t g_bytesReference = 0;
 /// Whether the load a wait stage is driving has started, or is still waiting on the load browser's own listing.
 bool g_loadBegun = false;
 
@@ -499,6 +508,42 @@ void runTick() {
 	}
 	case Stage::IntactCheck: {
 		printf("SS-INTACT bytes=%zu\n", g_bytesFirst);
+		g_stage = Stage::ReferenceOpen;
+		break;
+	}
+	case Stage::ReferenceOpen: {
+		// SS-HELD's reference: the song as it stands now, saved without a hold. The earlier legs load songs back,
+		// so the first save's bytes are not this song's.
+		(void)deluge::io::unlink(kReferencePath);
+		changeRootUI(&arrangerView);
+		(void)SongSaveChannelProbe::openOn(kSaveDir);
+		g_stage = Stage::ReferenceSave;
+		break;
+	}
+	case Stage::ReferenceSave: {
+		SongSaveChannelProbe::typeName(kReferenceName);
+		SongSaveChannelProbe::pressEnter();
+		g_waitTicks = 0;
+		g_stage = Stage::ReferenceWait;
+		break;
+	}
+	case Stage::ReferenceWait: {
+		if (saveMachineryIdle() || ++g_waitTicks > kMaxWaitTicks) {
+			g_stage = Stage::ReferenceCheck;
+		}
+		break;
+	}
+	case Stage::ReferenceCheck: {
+		std::vector<uint8_t> bytes;
+		if (!readWholeFile(kReferencePath, bytes)) {
+			printf("SS-HELD FAIL the unheld reference save wrote no file\n");
+			g_failures++;
+			g_stage = Stage::Report;
+			break;
+		}
+		g_crcReference = crc32(bytes.data(), bytes.size());
+		g_bytesReference = bytes.size();
+		(void)deluge::io::unlink(kReferencePath);
 		g_stage = Stage::HeldOpen;
 		break;
 	}
@@ -542,8 +587,10 @@ void runTick() {
 			printf("SS-HELD FAIL a save whose write the channel held past the stall bound gave up\n");
 			g_failures++;
 		}
-		else if (!present || bytes.size() != g_bytesFirst || crc != g_crcFirst) {
-			printf("SS-HELD FAIL the held save's file is not the document the first save wrote\n");
+		else if (!present || bytes.size() != g_bytesReference || crc != g_crcReference) {
+			printf("SS-HELD FAIL the held save's file is not the document an unheld save of the same song writes "
+			       "(%zu bytes, %08X)\n",
+			       g_bytesReference, g_crcReference);
 			g_failures++;
 		}
 		(void)deluge::io::unlink(kHeldPath);
@@ -584,6 +631,8 @@ void deluge_scenario_song_save_channel_begin(void) {
 	g_crcFirst = 0;
 	g_bytesFirst = 0;
 	g_heldCompletedBefore = 0;
+	g_crcReference = 0;
+	g_bytesReference = 0;
 }
 
 bool deluge_scenario_song_save_channel_complete(void) {

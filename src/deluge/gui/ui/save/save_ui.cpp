@@ -364,9 +364,9 @@ void SaveUI::runWritePhase() {
 	uint8_t exists = 0;
 	const uint8_t collected = deluge_file_write_collect_write_file(path, &writtenLen, &exists);
 	if (collected == DELUGE_FILE_WRITE_PENDING) {
-		if (!deferStagedSave()) {
-			endStagedSave(false);
-		}
+		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
+		// from the staged document and cannot be cancelled, so giving up would release the serialiser under it and
+		// remove a temp file it still has open.
 		return;
 	}
 	if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
