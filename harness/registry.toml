@@ -490,6 +490,18 @@ ci = "nightly"
 runtime = "~4m"
 
 [[harness]]
+name = "pattern-load"
+path = "."
+kind = "property"
+status = "gate"
+gates = "a pattern file, written from notes on the boot song's synth clip by the firmware's own pattern writer, must load back through the real pattern browser both with Enter (PT-LOAD) and as a PLAY preview (PT-PREVIEW), each putting back exactly the notes that were written onto a cleared clip, and neither may make a synchronous card call on the interaction tier after boot (PT-TIER): the pattern's bytes must arrive through the channels."
+build = []
+run = ["scripts/pattern_load.sh"]
+requires = ["cargo", "build-embassy-hostapp"]
+ci = "nightly"
+runtime = "~1m"
+
+[[harness]]
 name = "recorder-write"
 path = "."
 kind = "property"

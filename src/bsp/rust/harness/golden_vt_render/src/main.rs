@@ -339,6 +339,11 @@ unsafe extern "C" {
     fn deluge_scenario_offset_io_dispatch_step();
     fn deluge_scenario_offset_io_step_done() -> bool;
     fn deluge_scenario_offset_io_failures() -> i32;
+    fn deluge_scenario_pattern_load_begin();
+    fn deluge_scenario_pattern_load_complete() -> bool;
+    fn deluge_scenario_pattern_load_dispatch_step();
+    fn deluge_scenario_pattern_load_step_done() -> bool;
+    fn deluge_scenario_pattern_load_failures() -> i32;
     fn deluge_scenario_card_reinsert_begin();
     fn deluge_scenario_card_reinsert_complete() -> bool;
     fn deluge_scenario_card_reinsert_dispatch_step();
@@ -1358,6 +1363,64 @@ async fn run_offset_io_scenario(done: &'static AtomicBool) {
         hard_exit(1);
     }
     log::info!("golden_vt_render: offset io gate completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
+/// The `GOLDEN_SCENARIO=pattern_load` scenario: load a pattern file through the real pattern browser, with Enter and
+/// with a PLAY preview, and require the notes it holds to land with no synchronous card call on the interaction tier.
+///
+/// Stepped: the browser's listing, and the load once it is converted, finish over later ticks.
+#[embassy_executor::task]
+async fn run_pattern_load_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_pattern_load_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_pattern_load_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_pattern_load_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the pattern load gate did not complete within the 600s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        // SAFETY: as above.
+        unsafe { deluge_scenario_pattern_load_dispatch_step() };
+        // One virtual millisecond per step, the pacing every stepped gate uses.
+        Timer::after_millis(1).await;
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_pattern_load_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    let failures = unsafe { deluge_scenario_pattern_load_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the pattern load gate FAILED ({failures} in-process failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: pattern load gate completed (0 in-process failures)");
     done.store(true, Ordering::Release);
 }
 
@@ -2808,6 +2871,7 @@ fn main() {
     let startup_failsafe_mode = scenario == "startup_failsafe";
     let path_operations_mode = scenario == "path_operations";
     let offset_io_mode = scenario == "offset_io";
+    let pattern_load_mode = scenario == "pattern_load";
     let card_reinsert_mode = scenario == "card_reinsert";
     let sample_load_tree_mode = scenario == "sample_load_tree";
     let sample_claim_mode = scenario == "sample_claim";
@@ -2943,6 +3007,8 @@ fn main() {
         spawner.spawn(run_path_operations_scenario(&DONE).unwrap());
     } else if offset_io_mode {
         spawner.spawn(run_offset_io_scenario(&DONE).unwrap());
+    } else if pattern_load_mode {
+        spawner.spawn(run_pattern_load_scenario(&DONE).unwrap());
     } else if card_reinsert_mode {
         spawner.spawn(run_card_reinsert_scenario(&DONE).unwrap());
     } else if sample_load_tree_mode {
