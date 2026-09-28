@@ -14,7 +14,7 @@
 //! synchronous `deluge_block_read`/`deluge_block_write` C-ABI — see below for
 //! why that path is unsound here.
 //!
-//! ### Why the sync `deluge_block_read` path was WRONG (the Lens 1 deadlock)
+//! ### Why the sync `deluge_block_read` path is WRONG (a single-threaded sim's deadlock)
 //!
 //! `deluge_block_read`/`_write` are *synchronous* C-ABI functions: at the time
 //! they drove the transfer with `block_on_fiber` (on the since-retired worker fiber)
@@ -25,7 +25,7 @@
 //! the fiber had suspended mid-transfer holding `SD_BUS` (`block_on_fiber`
 //! yields the fiber but keeps the guard), the fill task's `block_on(SD_BUS
 //! .lock())` could never acquire it AND never returned control to the executor
-//! — so the write's fiber could never resume to release `SD_BUS`. On Lens 1's
+//! — so the write's fiber could never resume to release `SD_BUS`. On a
 //! single-threaded discrete-event driver that is a hard deadlock inside
 //! `executor.poll()` (100% CPU, virtual clock frozen); Lens 2 dodged it only by
 //! having a second OS thread. The device `SdBlockDevice` never had the bug
@@ -33,8 +33,7 @@
 //! does the same (and still does, with the fiber gone): on the fill task the read genuinely suspends, letting the
 //! executor advance the clock, fire the `sim_latency` pump `Timer`, resume the
 //! fiber, finish the write, and release `SD_BUS`. Modeled latency now applies
-//! to efatfs streaming reads exactly as it does to the C-FatFS path, so Lens 1
-//! measures a real margin for this read path.
+//! to efatfs streaming reads exactly as it does to the C-FatFS path.
 //!
 //! ## Host vs. device differences from `efatfs_fs.rs`
 //!
@@ -55,12 +54,12 @@
 //!   `on_fiber()` dispatch — exactly matching `efatfs_fs.rs`.
 //!   The symmetry is the point: `efatfs_fs.rs` is `#![cfg(target_os = "none")]`, so no host
 //!   build compiles a line of it, and a mirror that diverged would leave every host gate
-//!   (Lens 1's wedge detector, Lens 2 TSan, the goldens) exercising a shape the
+//!   (Lens 2 TSan, the goldens) exercising a shape the
 //!   device does not run.
 //!
 //!   Falling back to a HOOKLESS spin (`embassy_futures::block_on`) would be unsafe once the
 //!   block device awaits modeled latency. `sim_block::block_on` is not that: on host it invokes
-//!   a registered progress hook on every `Pending`, which in `lens1_vt_sim` pumps the higher-priority
+//!   a registered progress hook on every `Pending`, which in a latency-modeled single-threaded sim pumps the higher-priority
 //!   executor (where `sim_latency::pump` lives) and advances the virtual clock. That is the
 //!   whole reason `sim_block` exists, and the case is proven, not assumed —
 //!   `--selftest-block-nested` drives exactly this shape (a spin inside a task with MAIN's
@@ -129,7 +128,7 @@ impl BlockDevice<512> for HostSdBlockDevice {
         // AWAIT the SD_BUS-guarded async helper, exactly like the device
         // `fat_block_device::SdBlockDevice::read` — NOT the synchronous
         // `deluge_block_read` C-ABI. See this module's doc for why the sync
-        // path deadlocks Lens 1's single-threaded virtual clock.
+        // path deadlocks a single-threaded virtual clock.
         //
         // SAFETY: `Aligned<A4, [u8; 512]>` is `#[repr(C)]` over the inner
         // `[u8; 512]` plus a zero-sized alignment marker, so a

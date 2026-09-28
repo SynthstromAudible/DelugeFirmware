@@ -109,8 +109,8 @@ pub struct ScenarioConfig {
     ///
     /// "Roughly `n` blocks" — NOT `n` [`crate::audio_host::drive_count`] deltas, unlike
     /// `target_blocks` above: see the call site's comment for why (that counter is a
-    /// permanently-flat "sim constant" in `lens1_vt_sim`, the one harness this knob is
-    /// wired to, making literal block-count gating fire zero listings there). Measured
+    /// permanently-flat "sim constant" on a single-executor harness that skips post-boot
+    /// renders, making literal block-count gating fire zero listings there). Measured
     /// instead as `n` nominal audio-block periods of elapsed virtual time.
     ///
     /// `n == 0` is treated as "fire as fast as possible" (never as "never fire") — see the
@@ -289,12 +289,11 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
             // rather than silently: the brief's own wording gates firing on
             // `audio_host::drive_count()` deltas ("rendered" blocks) — the SAME signal
             // `target_blocks` itself uses just above. Empirically, that counter is a
-            // permanently-flat "sim constant" in THIS harness specifically
-            // (`lens1_vt_sim`, the one consumer this knob is wired to): `audio_host.rs`'s
+            // permanently-flat "sim constant" on a single-executor harness: `audio_host.rs`'s
             // own module doc says host_app's SEPARATE "deluge-audio" OS thread is what
             // `scheduler::set_audio_spawner` needs for `should_skip_render()` to stop
-            // discarding renders, and `lens1_vt_sim` never calls that (confirmed by
-            // grep — see the report) — every render after boot finishes is
+            // discarding renders, and a single-executor harness never calls that -- every
+            // render after boot finishes is
             // silently discarded (returns 0, no `DRIVE_COUNT` increment). Verified live:
             // across every configuration tried, `drive_count()` reaches exactly 1 (the
             // one pre-registration render `audio_host.rs:235-241` logs) and never
@@ -302,9 +301,7 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
             // make this knob fire ZERO listings, unconditionally, under the only harness
             // wired to turn it on — dead on arrival for the very sweep this exists to
             // feed. So "N blocks" is instead measured as N nominal Deluge audio block
-            // periods (128 frames @ 44.1kHz ~= 2902us — the same constant
-            // `lens1_vt_sim::DEFAULT_AUDIO_BLOCK_PERIOD_US` uses, inlined here since
-            // `scenario.rs` doesn't otherwise depend on that binary's constants) of
+            // periods (128 frames @ 44.1kHz ~= 2902us) of
             // ELAPSED VIRTUAL TIME since this wait began — preserving the "every N
             // blocks' worth of streaming time" cadence intent without depending on a
             // counter that's dead in this harness. `target_blocks` itself (the loop's
@@ -329,7 +326,7 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
             // dispatches before the 16th indexes the array out of bounds and the WHOLE
             // PROCESS aborts (`std::array::operator[]`'s bounds assertion) — verified live:
             // every configuration tried that fired > 15 listings crashed mid-run, producing
-            // NO `LENS1_RESULT` line at all (worse than an honest short-of-target report).
+            // no result line at all (worse than an honest short-of-target report).
             // Capped well under that ceiling (not at 15) so a stray extra push from
             // elsewhere in the UI stack still can't tip it over.
             const MAX_SAFE_LISTINGS: u64 = 10;

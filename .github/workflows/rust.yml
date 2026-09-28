@@ -84,8 +84,8 @@ jobs:
             tests/component/differential/region_fill_differential
             tests/component/differential/region_read_differential
             tests/component/differential/region_source_differential
-      # Host target only. The BSP and its two Embassy harnesses
-      # (src/bsp/rust/harness/{golden_vt_render,lens1_vt_sim}) are deliberately
+      # Host target only. The BSP and its Embassy harness
+      # (src/bsp/rust/harness/golden_vt_render) are deliberately
       # excluded here: they need the sibling deluge-sdk checkout and a C++
       # object closure that this job doesn't build. The device target also
       # needs -Zbuild-std plus the deluge-sdk setup and stays the separate

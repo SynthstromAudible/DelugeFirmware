@@ -173,7 +173,7 @@ mod display;
 /// Storage-generic, host-testable core of the efatfs read path
 /// (`HandleTable` + `FileContext` detach/reattach + generation guard + fill
 /// loop). `efatfs_fs` wraps it with the device statics/mutexes/FFI; host tests
-/// and `lens1_vt_sim` drive it directly. Also reachable under `host_app`
+/// drive it directly. Also reachable under `host_app`
 /// (any target, independent of `efatfs_streaming`) so `efatfs_host_shim` — the
 /// host counterpart of `efatfs_fs` — can reuse it unchanged; see that module's
 /// doc.
@@ -768,7 +768,7 @@ async fn host_app_task() {
     // shim's module doc), and in any case `sim_latency::pump` runs on the
     // dedicated audio OS thread (spawned above in `main`, before this task),
     // so this task's `block_on` busy-spin never starves it (see Appendix A of
-    // the R0 design doc for why Lens 1's single-threaded shape is different).
+    // the R0 design doc for why a single-threaded sim's shape is different).
     #[cfg(feature = "efatfs_streaming")]
     match crate::efatfs_host_shim::mount().await {
         Ok(()) => log::info!("efatfs: mounted (host)"),
@@ -1014,10 +1014,7 @@ fn main() {
                     step_timeout: embassy_time::Duration::from_secs(step_timeout_secs),
                     post_load_sim_latency,
                     // R5a Phase 0 Task 4's contention knob — not wired to an env var here.
-                    // This binary's manual `cargo run` scenario path isn't the sweep
-                    // instrument Task 5 automates (that's `lens1_vt_sim`, which DOES wire
-                    // it — see its `LENS1_CONCURRENT_LISTING_EVERY_BLOCKS`); `None` keeps
-                    // this call site's existing behaviour exactly as it was.
+                    // No overlapping listings on this manual `cargo run` scenario path.
                     concurrent_listing_every_blocks: None,
                 }
             });

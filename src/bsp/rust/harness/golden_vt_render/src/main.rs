@@ -1,81 +1,52 @@
-//! `golden_vt_render`: an Embassy-host-BSP golden renderer. Boots the real C++
-//! `deluge_app` on this repo's Rust/Embassy host substrate (the same
-//! `raw::Executor` + `PeekableMockDriver` + no-thread pender shape
-//! `../lens1_vt_sim/` pioneered for the streaming-underrun harness), mounts a
-//! fixture SD-card image, starts a real offline `StemExport` run, copies the
-//! produced stem WAV(s) out of the
-//! image, and exits cleanly. Sample cluster fills drain through the real async
-//! Embassy `streaming_fill_task` during the offline render (the reader/overview
-//! and voice-playback paths route their fills onto that drain under
-//! `async_active`), so a sample-backed fixture renders real audio, not silence.
+//! `golden_vt_render`: the Embassy host BSP's harness. Boots the real C++ `deluge_app` on this repo's Rust/Embassy
+//! host substrate under a virtual clock, fills the SD card with a fixture tree, and runs one scenario: by default a
+//! real offline `StemExport` of the fixture song, whose stem WAVs it copies out; otherwise the stepped scenario
+//! `GOLDEN_SCENARIO` names (`tests/integration/scenarios/scenario_table.cpp`). Sample cluster fills drain through the
+//! real async Embassy `streaming_fill_task` (the reader/overview and voice-playback paths route their fills onto that
+//! drain under `async_active`), so a sample-backed fixture renders real audio, not silence.
 //!
-//! # Why a sibling package, not a `lens1_vt_sim` `[[bin]]`
+//! # Why a separate package
 //!
-//! `embassy-time`'s `std` feature (`deluge-bsp-rust`'s own host target) and a
-//! custom/`mock-driver`-shaped time driver both define `#[no_mangle]
-//! _embassy_time_now`/`_embassy_time_schedule_wake` — a hard duplicate-symbol
-//! compile error if both land in one package's dependency graph (Cargo unifies
-//! a dependency's features across every target in one Cargo.toml; there is no
-//! per-`[[bin]]` override). See `Cargo.toml`'s header comment for the full
-//! rationale — identical to `../lens1_vt_sim/Cargo.toml`'s.
+//! `embassy-time`'s `std` feature (`deluge-bsp-rust`'s own host target) and a custom/`mock-driver`-shaped time driver
+//! both define `#[no_mangle] _embassy_time_now`/`_embassy_time_schedule_wake` -- a hard duplicate-symbol compile error
+//! if both land in one package's dependency graph (Cargo unifies a dependency's features across every target in one
+//! Cargo.toml; there is no per-`[[bin]]` override). See `Cargo.toml`'s header comment.
 //!
 //! # Executor + clock
 //!
-//! `embassy_executor::raw::Executor` + a custom `AtomicBool` `__pender` + a
-//! `PeekableMockDriver` ([`clock`] — the same discrete-event shape
-//! `../lens1_vt_sim/` uses). The driver loop:
-//! poll the executor to quiescence, peek the next due deadline, jump the
-//! virtual clock to exactly that deadline, repeat. No `platform-std`/
-//! `executor-thread` embassy-executor feature is enabled (see `Cargo.toml`),
-//! so there is exactly one `__pender` in this binary and it is ours.
+//! `embassy_executor::raw::Executor` + a custom `AtomicBool` `__pender` + a `PeekableMockDriver` ([`clock`]). The driver
+//! loop: poll the executor to quiescence, peek the next due deadline, jump the virtual clock to exactly that deadline,
+//! repeat. No `platform-std`/`executor-thread` embassy-executor feature is enabled (see `Cargo.toml`), so there is
+//! exactly one `__pender` in this binary and it is ours.
 //!
-//! # The boot livelock (see `../lens1_vt_sim/src/main.rs`'s module-doc section
-//! for the full mechanism and its history)
+//! # The boot livelock
 //!
-//! `deluge_app_init` calls the boot-time FatFS mount SYNCHRONOUSLY, via
-//! `embassy_futures::block_on` — a tight busy-spin poll loop
-//! that never returns control to anything else on this one OS thread. Under
-//! `sim_latency`, that polled future's completion depends on a separately
-//! spawned `pump()` task's `Timer::after(latency).await` being POLLED by the
-//! executor — but the executor's own `poll()` call is already on the stack, so
-//! nothing else can be polled until that whole call stack unwinds.
-//! This package sidesteps the whole question by not enabling `sim_latency` at all (see
-//! `Cargo.toml`: a golden renderer wants bit-exact output, not latency realism), so its host SD
-//! reads resolve synchronously and there is no modeled `Timer` to wait on. In `lens1_vt_sim`,
-//! which does model latency, the answer is the `sim_block::block_on` progress hook.
+//! `deluge_app_init` calls the boot-time FatFS mount SYNCHRONOUSLY, via `embassy_futures::block_on` -- a tight
+//! busy-spin poll loop that never returns control to anything else on this one OS thread. Under `sim_latency`, that
+//! polled future's completion depends on a separately spawned `pump()` task's `Timer::after(latency).await` being
+//! POLLED by the executor -- but the executor's own `poll()` call is already on the stack, so nothing else can be
+//! polled until that whole call stack unwinds. This package sidesteps the question by not enabling `sim_latency` (see
+//! `Cargo.toml`: a golden renderer wants bit-exact output, not latency realism), so its host SD reads resolve
+//! synchronously and there is no modeled `Timer` to wait on. Storage time, where a gate needs it, is modeled in the
+//! async fill task instead (`deluge_streaming_set_fill_*`), which a synchronous spin never waits on.
 //!
-//! # SD-image packing happens BEFORE any task is spawned
+//! # The card is chosen BEFORE any task is spawned
 //!
-//! `sd_image::pack_golden_fixture` + setting `DELUGE_SD_IMAGE` run
-//! synchronously in `main`, before the executor exists or any task is
-//! spawned — deliberately NOT inside [`run_stem_export_scenario`] itself,
-//! even though that task is conceptually "the one that packs the fixture".
-//! `deluge-bsp`'s host `sd.rs` resolves `DELUGE_SD_IMAGE` lazily, exactly
-//! once, behind a `OnceLock` (`disk()`) the first time anything touches the
-//! backing file — and [`scenario::run`]'s own doc comment already documents
-//! the relevant hazard: "embassy doesn't guarantee poll order across tasks
-//! spawned in the same batch". If packing+env-var-set instead lived inside
-//! [`run_stem_export_scenario`]'s task body, a poll order that reaches
-//! [`boot_task`]'s `sd::init()` first would lock the `OnceLock` onto the
-//! WRONG (default) backing path before the real fixture image is ready —
-//! silently, not a crash. Doing it in `main` (single-threaded, before the
-//! executor exists at all) has no such race, matching `../lens1_vt_sim/src/main.rs`'s
-//! own proven-safe placement of the identical call.
+//! `memory_card::install` runs synchronously in `main`, before the executor exists or any task is spawned. `deluge-bsp`'s
+//! host `sd.rs` opens its disk lazily, exactly once, the first time anything touches it, and a memory disk must be
+//! chosen before that, and embassy does not guarantee poll order across tasks spawned in the same batch. Installed from
+//! a task instead, a poll order that reaches
+//! [`boot_task`]'s `sd::init()` first would open the WRONG backing -- silently, not a crash. In `main`
+//! (single-threaded, before the executor exists at all) there is no such race.
 //!
 //! # Reused shared substrate
 //!
-//! `#[path]`-includes the SAME source files `deluge-bsp-rust`'s own `host_app`
-//! build (and `../lens1_vt_sim/`) compiles (`boot.rs`, `scheduler.rs`, `sd.rs`,
-//! `board.rs`, `control.rs`, `display.rs`, `ffi.rs`, `ffi_extra.rs`, `flash.rs`,
-//! `services.rs`, `audio_host.rs`, `sd_image.rs`, `streaming_loader.rs`,
-//! `efatfs_core.rs`, `efatfs_host_shim.rs`) — a second, independently
-//! configured COMPILATION of the same source (this package's own `mod
-//! sys`/Cargo features), not a fork: a change to any of these files is picked
-//! up by every package that path-includes it. Deliberately does NOT
-//! `#[path]`-include `scenario.rs` (unlike `../lens1_vt_sim/`): nothing this
-//! package boots reaches into it, and this package's own scenario
-//! ([`run_stem_export_scenario`]) is a `StemExport` drive, not the
-//! streaming-underrun harness's play/record scenario that file wraps.
+//! `#[path]`-includes the SAME source files `deluge-bsp-rust`'s own `host_app` build compiles (`boot.rs`,
+//! `scheduler.rs`, `sd.rs`, `board.rs`, `control.rs`, `display.rs`, `ffi.rs`, `ffi_extra.rs`, `flash.rs`,
+//! `services.rs`, `audio_host.rs`, `sd_image.rs`, `streaming_loader.rs`, `efatfs_core.rs`, `efatfs_host_shim.rs`) -- a
+//! second, independently configured COMPILATION of the same source (this package's own `mod sys`/Cargo features), not
+//! a fork: a change to any of these files is picked up by every package that path-includes it. Deliberately does NOT
+//! `#[path]`-include `scenario.rs`: its stepped scenarios live in the C++ scenario table instead.
 #![feature(impl_trait_in_assoc_type)]
 #![recursion_limit = "512"]
 
@@ -93,9 +64,7 @@ mod memory_card;
 // Link-only: the host-built C++ `deluge_app` object closure (build.rs) calls the
 // deluge_resource_* residency C ABI and the deluge_{alloc,slab_*,heap_*}
 // allocator C ABI. `extern crate` forces the rlib onto the link line so those
-// `#[no_mangle]` symbols resolve; nothing here references them from Rust
-// (mirrors `../lens1_vt_sim/src/main.rs`'s identical `host_app`-gated
-// declaration).
+// `#[no_mangle]` symbols resolve; nothing here references them from Rust.
 extern crate deluge_resource;
 // Link-only, same reasoning as `deluge_resource` above: the archived `deluge_app` object closure's
 // `audio_file_format.cpp` calls straight into this crate's `deluge_audio_header_*` `#[no_mangle]`
@@ -129,7 +98,7 @@ mod sys {
 }
 
 // Reuse deluge-bsp-rust's own source files verbatim via `#[path]` — the same
-// pattern `../lens1_vt_sim/`/`tests/*.rs` already use (see `HOST_HARNESS.md`).
+// pattern `tests/*.rs` already use (see `HOST_HARNESS.md`).
 #[path = "../../../src/audio_host.rs"]
 mod audio_host;
 /// The async audio-file load task and its request/collect C ABI: the AWAITED file I/O of a
@@ -316,10 +285,8 @@ unsafe extern "C" {
 static BOOT_MOUNTED: AtomicBool = AtomicBool::new(false);
 
 /// Boot task: mirrors `deluge-bsp-rust`'s `host_app_task` exactly (PIC-ready
-/// wait, SD bring-up, efatfs mount, `deluge_app_init`, boot marked finished)
-/// — see `../lens1_vt_sim/src/main.rs`'s `boot_task` doc comment for the full
-/// rationale behind each step; this is the same ~15-line reimplementation (not
-/// `#[path]`-included for the same reason: `host_app_task` lives inside
+/// wait, SD bring-up, efatfs mount, `deluge_app_init`, boot marked finished),
+/// reimplemented here rather than `#[path]`-included because `host_app_task` lives inside
 /// `../src/main.rs` itself, which carries a conflicting `#![no_std]`/device
 /// `fn main`/`EXECUTOR` static).
 #[embassy_executor::task]
@@ -1562,8 +1529,7 @@ fn pender(_context: *mut ()) {
 }
 
 fn main() {
-    // See `../lens1_vt_sim/src/main.rs`'s identical NOTE: a `--release` build
-    // of this package also compiles every `log::*!` call to a no-op
+    // A `--release` build of this package compiles every `log::*!` call to a no-op
     // (`deluge-bsp`/`rza1l-hal` request `log`'s `release_max_level_off`
     // feature for the DEVICE build's benefit, and Cargo unifies that feature
     // across this whole binary's dependency graph). Use a debug build (`cargo
@@ -1596,11 +1562,9 @@ fn main() {
         }
     );
 
-    // Pack (or reuse) a real FAT SD image from the golden corpus — same
-    // tooling `../lens1_vt_sim/`'s scenario driver uses. Must run before
-    // anything below touches SD, and MUST run here (single-threaded, before
-    // any task is spawned) rather than inside a task — see the module doc's
-    // "SD-image packing happens BEFORE any task is spawned" section.
+    // Fill the card for the scenario. Must run before anything below touches SD, and MUST run here
+    // (single-threaded, before any task is spawned) rather than inside a task -- see the module doc's
+    // "The card is chosen BEFORE any task is spawned" section.
     let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(5)
@@ -1642,8 +1606,8 @@ fn main() {
     // Same flag `host_render_main.cpp`'s `main()` sets before its own
     // `deluge_main()` — `audio_host.rs`'s `deluge_audio_drive` reads it to trim
     // redundant per-block diagnostic bookkeeping during the offline export (see
-    // its `render_mode()` doc comment). `host_app`/`lens1_vt_sim` never set this,
-    // so this is inert everywhere but this binary.
+    // its `render_mode()` doc comment). `host_app` never sets this, so this is
+    // inert everywhere but this binary.
     // SAFETY: single-threaded at this point (before any task/executor exists).
     unsafe { std::env::set_var("DELUGE_RENDER", "1") };
 
@@ -1655,8 +1619,8 @@ fn main() {
     let spawner = executor.spawner();
     scheduler::set_spawner(spawner);
 
-    // Same BSP task set `deluge-bsp-rust`'s host_app boot block /
-    // `../lens1_vt_sim/` spawns (minus the audio-thread split — with
+    // Same BSP task set `deluge-bsp-rust`'s host_app boot block spawns (minus
+    // the audio-thread split — with
     // `scheduler::set_audio_spawner` never called, the priority-0 audio task
     // falls back to this single spawner automatically, the documented
     // fallback path in `scheduler.rs`'s `claim`).
@@ -1704,8 +1668,7 @@ fn main() {
     }
 
     // --- Discrete-event driver loop -----------------------------------------
-    // Same shape as `../lens1_vt_sim/src/main.rs`'s driver loop: poll to
-    // quiescence, then jump the virtual clock straight to the next due
+    // Poll to quiescence, then jump the virtual clock straight to the next due
     // deadline (rather than stepping tick-by-tick) until the scenario signals
     // done or the virtual-time budget/wedge detection trips.
     let driver = clock::PeekableMockDriver::get();
@@ -1758,8 +1721,7 @@ fn main() {
 }
 
 /// Immediate, unconditional process termination — skips libc's atexit-run C++
-/// static destructors. Same rationale (and same raw `exit_group` shape) as
-/// `../lens1_vt_sim/src/main.rs`'s `hard_exit`: the real C++ app links objects
+/// static destructors: the real C++ app links objects
 /// with static storage duration (`AudioEngine`, `playbackHandler`, …) that
 /// register `__cxa_atexit` destructors at process start. A normal
 /// `std::process::exit` still runs those destructors — observed elsewhere as a

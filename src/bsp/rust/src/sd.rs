@@ -252,9 +252,8 @@ async fn acquire_bus()
 /// [`sim_latency::modeled_read`] instead of the raw (instant)
 /// `sd::read_sectors`, so the streaming task's reads pend on the same modeled
 /// SD latency the `deluge_block_read` (`sim_latency` variant, below)
-/// already uses — otherwise Lens-1's fill-margin measurement would be
-/// meaningless (task reads completing instantly instead of at the modeled SD
-/// throughput). `modeled_read` does NOT itself touch [`SD_BUS`] (it only
+/// already uses — otherwise a latency-modeled run would have its task reads
+/// completing instantly instead of at the modeled SD throughput. `modeled_read` does NOT itself touch [`SD_BUS`] (it only
 /// awaits [`sim_latency::delay`] then calls the raw `sd::read_sectors`), so
 /// this stays a single `SD_BUS` acquisition — no nested/double lock. This is
 /// also a distinct code path from the `sim_latency` `deluge_block_read`
@@ -277,7 +276,7 @@ pub async fn locked_read_sectors(lba: u32, count: u32, buf: &mut [u8]) -> Result
         // progress hook pumps the executor hosting `pump` and advances the virtual clock on
         // every `Pending`, so `modeled_read`'s `Timer` always completes — no escape hatch is
         // needed to dodge a livelock. Consequently task-context reads get modeled latency
-        // too, so Lens 1 sees them.
+        // too.
         sim_latency::modeled_read(lba, count, buf).await
     }
     #[cfg(not(all(not(target_os = "none"), feature = "sim_latency")))]
@@ -504,7 +503,7 @@ pub extern "C" fn deluge_block_write(
 }
 
 /// Host-only instrumentation (streaming-underrun harness): counts every SD block read and write. `scenario.rs` reports
-/// them as `cluster_reads`/`recorder_writes`, and `lens1_vt_sim` as `card_reads`/`card_writes`. Compiled for every host
+/// them as `cluster_reads`/`recorder_writes`, and `render_song` reads them through `deluge_sim_card_reads`. Compiled for every host
 /// build (not gated on `host_app`/`sim_latency`); the counters sit idle unless something reads them.
 ///
 /// The `note_read`/`note_write` call sites live at [`locked_read_sectors`]/

@@ -273,8 +273,8 @@ pub fn has_audio_executor() -> bool {
     audio_spawner().is_some()
 }
 
-/// Lens-1-only (deterministic virtual-time streaming-underrun harness)
-/// override for the priority-0 (audio) task's schedule. `AudioEngine::routine_task`'s
+/// Single-executor-harness override for the priority-0 (audio) task's schedule,
+/// set by golden_vt_render's `render_song`. `AudioEngine::routine_task`'s
 /// registered period (`deluge.cpp`: `8 / 44100.` seconds) is a scheduler poll/backoff
 /// hint tuned for the DEVICE's real DMA-paced render throttling
 /// (`AudioEngine::routine` decides internally whether a new block is actually due,
@@ -282,9 +282,9 @@ pub fn has_audio_executor() -> bool {
 /// (`audio_host.rs`'s `deluge_audio_drive`) has no such throttling and renders
 /// exactly one block every call, so on host the REGISTERED period does not
 /// correspond to "one real-time block period" at all (it fires ~1.6ms apart, vs.
-/// the true 128/44100s ≈ 2.9ms block period). Lens 1's virtual-time race needs the
-/// audio consumer to advance in a KNOWN, exact per-block virtual-time increment to
-/// make the SD-latency race meaningful, so it overrides the audio slot's
+/// the true 128/44100s ≈ 2.9ms block period). A harness that races playback against
+/// modeled storage time needs the audio consumer to advance in a KNOWN, exact
+/// per-block virtual-time increment for that race to mean anything, so it overrides the audio slot's
 /// `period_us`/`backoff_us` at spawn time via this knob. `None` (unset, the
 /// default) preserves today's behavior for every other consumer (device, Lens 2,
 /// manual host_app runs) — see [`claim`]'s use of this below. Host-only: the whole
@@ -319,10 +319,10 @@ fn claim(
     enabled: bool,
     on_audio: bool,
 ) -> TaskID {
-    // Lens 1 only: substitute the virtual-time block-period override for the
+    // Single-executor harnesses only: substitute the virtual-time block-period override for the
     // audio task's registered schedule — see `AUDIO_PERIOD_OVERRIDE_US`'s doc
     // comment. A no-op (`period_us`/`backoff_us` pass through unchanged) unless
-    // `set_audio_period_override_us` was called, which only Lens 1 ever does.
+    // `set_audio_period_override_us` was called, which only golden_vt_render's `render_song` does.
     #[cfg(not(target_os = "none"))]
     let (period_us, backoff_us) = if on_audio && AUDIO_OVERRIDE_SET.load(Ordering::Relaxed) {
         (

@@ -103,7 +103,7 @@ pub fn audio_thread_render_seen() -> bool {
 }
 
 /// Render-mode gate: mirrors `host_audio.c`'s own `DELUGE_RENDER` env-var check
-/// (cached once, same shape). `host_app`/`lens1_vt_sim` never set this variable,
+/// (cached once, same shape). `host_app` never sets this variable,
 /// so this reads `false` and changes nothing for them.
 ///
 /// Purely a diagnostic trim: when set, skips the per-call bookkeeping below (a
@@ -126,7 +126,7 @@ fn render_mode() -> bool {
 ///
 /// `deluge_audio_drive` is reached from two fundamentally different callers
 /// that share this one function, and only one of them is safe to render from
-/// on a single-executor host harness (`golden_vt_render`/`lens1_vt_sim`, which
+/// on a single-executor host harness (`golden_vt_render`, which
 /// — per this repo's "deterministic single-threaded executor ONLY" constraint —
 /// never call [`crate::scheduler::set_audio_spawner`], so the priority-0 audio
 /// task falls back to running on the SAME executor as everything else, not a
@@ -247,7 +247,7 @@ pub fn drive_count() -> u64 {
 /// - **host_app** (`scheduler::set_audio_spawner` called): the render runs on its own `"deluge-audio"` thread, the
 ///   device's preemptive audio executor's stand-in. Rendering here would run a second render alongside it, so sleep
 ///   briefly and let that thread render.
-/// - **A single-executor harness** (golden, Lens 1): the audio task is a cooperative task on the caller's own
+/// - **A single-executor harness** (golden_vt_render): the audio task is a cooperative task on the caller's own
 ///   executor, and cannot run while the caller waits. Run its step inline: [`deluge_audio_drive`] enters the audio
 ///   tier itself, and after boot it runs the block-start step of the render it skips
 ///   (`deluge_app_render_skipped`), which is what lets go of what was handed over.

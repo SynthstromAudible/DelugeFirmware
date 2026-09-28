@@ -74,7 +74,7 @@ pub fn set_spin_budget(polls: u32) {
 /// The trade is deliberate and worth knowing: because this hook always reports
 /// [`Progress::Advanced`], it does **not** detect a genuinely unsatisfiable spin. That is
 /// acceptable here — wedge detection on a threaded host belongs to the wall-clock timeouts and
-/// TSan, while `lens1_vt_sim` keeps the strict budget-based detector its charter assigns it.
+/// TSan, while a single-threaded virtual-time sim keeps the strict budget-based detector.
 /// **Do not install this hook in a single-threaded sim:** it would silently disarm the
 /// detector there, which is the one place the detector is load-bearing.
 #[cfg(not(target_os = "none"))]

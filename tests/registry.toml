@@ -169,24 +169,6 @@ runtime = "~5m"
 # machine that cannot be committed or fixtured. Runs locally via
 # `dbt test`; revisit if a synthetic corpus fixture is ever built.
 [[harness]]
-name = "lens1-vt-sim"
-path = "src/bsp/rust/harness/lens1_vt_sim"
-level = "integration"
-runner = "script"
-kind = "simulation"
-status = "investigative"
-gates = "measures streaming-underrun margin against modeled SD latency; deterministic virtual time"
-build = []
-run = ["./sweep.sh"]
-builds = ["host-app"]
-requires = ["cargo", "deluge-sdk-sibling", "mtools", "song-corpus"]
-tier = "manual"
-runtime = "~25m"
-
-# tier = "manual": needs song-corpus, a directory of real songs on the maintainer's
-# machine that cannot be committed or fixtured. Runs locally via
-# `dbt test`; revisit if a synthetic corpus fixture is ever built.
-[[harness]]
 name = "preemptive-race-tsan"
 path = "src/bsp/rust/harness/preemptive_race_tsan"
 level = "integration"

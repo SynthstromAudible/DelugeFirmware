@@ -8,7 +8,7 @@
 //! # Why content-addressed
 //!
 //! A per-PID name (`deluge-streaming-scenario-<pid>.img`) mints a new file on every invocation,
-//! and nothing unlinks them, so `/tmp` grows without bound (see `lens1_vt_sim/sweep.sh`).
+//! and nothing unlinks them, so `/tmp` grows without bound.
 //!
 //! The obvious fix — an RAII guard that unlinks on drop — is *wrong here*, because
 //! `preemptive_race_tsan/run.sh` documents that packing an image and consuming it as the SD
@@ -25,7 +25,7 @@
 //! This mirrors what `sweep.sh`'s `pack_selftest_image` already does for its own image.
 
 #![cfg(not(target_os = "none"))]
-// Shared by `#[path]` inclusion into the harness crates (golden_vt_render, lens1_vt_sim) as
+// Shared by `#[path]` inclusion into the harness crate (golden_vt_render) as
 // well as the parent bin, and exercised by tests/sd_image_path_host.rs. Any single one of
 // those consumers uses only part of the surface — `recorder_image_path` for instance is
 // reached only from `format_empty_image`, which the bin itself never calls — so per-crate

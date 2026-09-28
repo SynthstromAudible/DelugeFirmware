@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"; tree="$here/tree"; out="${1:-$here}"
-# A deterministic multi-cluster file (1 MiB) so the Lens-1 transfer-overhead
+# A deterministic multi-cluster file (1 MiB) so the streaming-margin transfer-overhead
 # proxy (tests/efatfs_core.rs) exercises a real cluster chain — the small tree
 # fixtures are all <= 1 cluster. Content is a fixed byte (0x55); only its
 # length/cluster-count matters. Generated (not committed) to keep the repo lean.

@@ -1,22 +1,18 @@
 # golden_vt_render: an Embassy-host-BSP golden renderer — boots the real C++
 # `deluge_app`, mounts a fixture SD-card image, and (this rung's scope only)
-# exits cleanly. A sibling of `../lens1_vt_sim/` (the streaming-underrun
-# harness), cloned from it rather than extended: same executor/clock/link
-# shape, different scenario. See `src/main.rs`'s module doc for the boot
-# sequence and why this stays its own package rather than a `lens1_vt_sim`
-# `[[bin]]`.
+# exits cleanly. See `src/main.rs`'s module doc for the boot sequence.
 #
 # Deliberately a fully separate Cargo package from `deluge-bsp-rust`
-# (`../Cargo.toml`) and from `lens1_vt_sim`: `embassy-time`'s `std` feature
+# (`../Cargo.toml`): `embassy-time`'s `std` feature
 # (deluge-bsp-rust's own host target) and a custom/`mock-driver`-shaped time
 # driver both define `#[no_mangle] _embassy_time_now`/
 # `_embassy_time_schedule_wake` — a hard duplicate-symbol compile error if
 # both land in one package's dependency graph (Cargo unifies a dependency's
 # features across every target in one Cargo.toml; there is no per-`[[bin]]`
-# override). Same shape as `../lens1_vt_sim/`.
+# override).
 #
 # Reuses deluge-bsp-rust's own source files via `#[path]` (see src/main.rs) —
-# the same pattern `lens1_vt_sim`/`tests/*.rs` already use — so this is a
+# the same pattern `tests/*.rs` already use — so this is a
 # second, independently-configured COMPILATION of the same source, not a
 # fork/copy: a change to the shared files is picked up by every package that
 # path-includes it.
@@ -32,15 +28,14 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
-# No `platform-*` feature (see src/main.rs's driver, same shape as
-# `lens1_vt_sim`): keeps the crate from
+# No `platform-*` feature (see src/main.rs's driver): keeps the crate from
 # defining its own `__pender`, so we supply one ourselves and drive a
 # poll-to-quiescence/advance-to-next-deadline loop instead of a
 # thread-parking executor.
 embassy-executor = { version = "0.10.0", default-features = false, features = ["nightly"] }
 # No `std`/`mock-driver` feature: keeps embassy-time from registering its own
-# time driver, so the hand-rolled `PeekableMockDriver` (src/clock.rs, same
-# shape as `lens1_vt_sim`/the sibling spike's) can be the sole one.
+# time driver, so the hand-rolled `PeekableMockDriver` (src/clock.rs) can be
+# the sole one.
 embassy-time = { version = "0.5.1", default-features = false }
 embassy-time-driver = { version = "0.2.2", features = ["tick-hz-1_000_000"] }
 embassy-time-queue-utils = "0.3.2"
@@ -55,8 +50,7 @@ env_logger = "0.11"
 
 # Sibling deluge-sdk BSP: `sd.rs` calls `deluge_bsp::sd::*` uniformly (dual-target,
 # see that file's module doc). Host-only relevant surface (block_device.h's backing
-# store) does not itself depend on embassy-time/-executor (checked against
-# `lens1_vt_sim/Cargo.toml`'s identical comment), so this path dep does not
+# store) does not itself depend on embassy-time/-executor, so this path dep does not
 # reintroduce the std/mock-driver conflict this package exists to avoid.
 deluge-bsp = { path = "../../../../../../deluge-sdk/crates/deluge-bsp", features = ["flash"] }
 
@@ -81,7 +75,7 @@ deluge_card_generation = { path = "../../../../../crates/deluge_card_generation"
 # `#[path]`-included `streaming_loader.rs` (see src/main.rs) sources
 # `StreamingFillDescriptor` and `ProdOps::begin`/`finish`'s `native_begin`/`native_finish`
 # straight from this crate (the manager-reaching sync fill core) — so this
-# package needs the same dependency `deluge-bsp-rust`/`lens1_vt_sim` do,
+# package needs the same dependency `deluge-bsp-rust` does,
 # with `native_fill` on (this package recompiles `ProdOps`, which calls both).
 deluge_sample_fill = { path = "../../../../../crates/deluge_sample_fill", features = ["native_fill"] }
 
@@ -90,11 +84,8 @@ deluge_sample_fill = { path = "../../../../../crates/deluge_sample_fill", featur
 # symbols now that the C++ side calls through to them unconditionally (`sample_source.cpp`/
 # `sample_reader_bridge.cpp` in the archived `deluge_app` object closure reference
 # `deluge_sample_reserve_*`/`deluge_sample_peek`/`deluge_sample_read`/`deluge_sample_invalidate`/
-# `deluge_sample_reader_*` directly; there is no more C++ weak fallback). NOT present in
-# `../lens1_vt_sim/Cargo.toml` (that package predates the C++ side's switch to calling these
-# unconditionally and currently fails to link on this branch for the identical reason — verified
-# by trying `cargo build` there directly); added here so `golden_vt_render` links against the
-# CURRENT `deluge_app` object closure. `host_app` feature widens each crate's own `abi.rs`
+# `deluge_sample_reader_*` directly; there is no more C++ weak fallback), so `golden_vt_render`
+# needs them to link against the `deluge_app` object closure. `host_app` feature widens each crate's own `abi.rs`
 # cfg_attr gate to export these symbols on host (mirrors `deluge-bsp-rust`'s own `host_app`
 # feature list in `../Cargo.toml`).
 deluge_sample_source = { path = "../../../../../crates/deluge_sample_source", features = ["host_app"] }
@@ -124,24 +115,22 @@ embedded-fatfs = { path = "../../../../../crates/embedded-fatfs", default-featur
 embedded-io-async = "0.7.0"
 # `efatfs_core.rs`'s `DirEntryInfo::name` is a `heapless::String<256>`, so the
 # path-included module needs the same dep — and the same version pin — the
-# main crate and `lens1_vt_sim`/`fs_differential` carry. Without it this
+# main crate and `fs_differential` carry. Without it this
 # package fails to build with `unresolved import heapless`.
 heapless = { version = "0.8", default-features = false }
 
 [features]
 # `host_app` always on for this package (it exists ONLY to run the real C++
-# app on this host-BSP substrate), same as `lens1_vt_sim`. `sim_latency` is
-# deliberately NOT in this package's default set — unlike `lens1_vt_sim`
-# (which legitimately models SD latency for its underrun-margin work), this
-# package wants bit-exact GOLDEN output, not latency realism. A
+# app on this host-BSP substrate). `sim_latency` is deliberately NOT in this
+# package's default set: this package wants bit-exact GOLDEN output, not latency
+# realism, and the streaming-margin gate models storage time in the fill task
+# instead (`deluge_streaming_set_fill_*`). A
 # characterization spike measured `sim_latency`'s off-fiber `block_on`
 # busy-spin against the `SD_BUS` mutex starving the render to ~0.01x
 # realtime (cordae's full 8-stem TRACK export: ~3.7hr -> ~37s / ~58x
 # realtime with it dropped, clean valid WAVs).
-# `async_streaming_loader` + `efatfs_streaming` are ALSO on by default here
-# (unlike `lens1_vt_sim`, where both are opt-in — see that Cargo.toml's
-# `efatfs_streaming` comment for the reproducible hang it found under its own
-# discrete-event driver): this package's whole point is to boot the app with
+# `async_streaming_loader` + `efatfs_streaming` are ALSO on by default here:
+# this package's whole point is to boot the app with
 # `deluge_streaming_async_active()` TRUE (the Rust async cluster-fill task
 # owning the loader queue, reading through the embedded-fatfs shim) — a
 # plain/legacy-C++-fill boot would defeat the purpose of standing this
@@ -156,12 +145,10 @@ sim_latency = []
 # Mount the host efatfs shim in `boot_task` (before `deluge_app_init`) and
 # drive the embedded-fatfs streaming READ path instead of C FatFS — see
 # `../Cargo.toml`'s `efatfs_streaming` feature doc for the device-side
-# equivalent, and `lens1_vt_sim/Cargo.toml`'s identically-named feature for
-# the (unrelated, driver-specific) hang that keeps it opt-in over there.
+# equivalent.
 #
-# Composes `async_streaming_loader`: NOT optional, structurally required —
-# see `lens1_vt_sim/Cargo.toml`'s identical comment for why (only the async
-# fill path ever consults `StreamingFillDescriptor.handle`).
+# Composes `async_streaming_loader`: NOT optional, structurally required, because
+# only the async fill path ever consults `StreamingFillDescriptor.handle`.
 efatfs_streaming = ["async_streaming_loader"]
 # Not enabled — exists only so the shared `#[cfg(feature = "rtt")]` conditionals in
 # `services.rs` don't trip rustc's unknown-cfg lint in this package (it is a real

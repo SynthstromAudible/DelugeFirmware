@@ -3,7 +3,7 @@
 //! file-handle table, the `FileContext` detach/reattach, the generation guard,
 //! and the fill loop — with NO device dependencies: it is generic over the
 //! embedded-fatfs `FileSystem`'s IO type, uses no `static`s, no fibers, and no
-//! `SdBlockDevice`, so a host test (and the `lens1_vt_sim` margin harness) can
+//! `SdBlockDevice`, so a host test can
 //! drive the exact same code over a host/sim block device.
 //!
 //! `efatfs_fs.rs` (device-only) wraps this: it owns the mounted `FileSystem`
@@ -165,8 +165,7 @@ impl<const N: usize> HandleTable<N> {
     }
 
     /// Single-threaded convenience: checkout → [`read_context`] → commit under
-    /// one exclusive `&mut self` borrow. For host tests and the `lens1_vt_sim`
-    /// margin harness ONLY — the device path must compose the split primitives
+    /// one exclusive `&mut self` borrow. For host tests ONLY — the device path must compose the split primitives
     /// under its two mutexes instead (see the module doc's lock-discipline
     /// note), never this, or it would hold the table across the FS await and
     /// deadlock against `open`'s FS→table order.

@@ -9,11 +9,6 @@
 //! straight to the next due timer instead of stepping tick-by-tick needs
 //! that peek, hence [`PeekableMockDriver`] — an independent implementation
 //! of the same `embassy_time_driver::Driver` trait with the peek added.
-//!
-//! Kept as a copy rather than shared as a library: this file is kept in sync
-//! by hand with the near-identical copy in the sibling harness package
-//! (`lens1_vt_sim`) -- the two differ only in this comment, which names each
-//! file's own sibling -- duplicated so each package stays self-contained.
 use core::cell::RefCell;
 use core::task::Waker;
 

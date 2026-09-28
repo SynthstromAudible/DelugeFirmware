@@ -7,10 +7,9 @@
 //! ~150 lines of straight-line archiving/linking logic is far lower risk here than
 //! inventing a new shared build-script crate for a single (harness-only) consumer.
 //!
-//! The object-archiving half mirrors **`../lens1_vt_sim/build.rs`**, not `../build.rs`:
-//! same `DELUGE_HOSTAPP_BUILD_DIR` archiving and `-Wl,-u,deluge_app_init` GC root, plus its
-//! orphan filter, build-dir provenance guard and surviving-object floor. Only the log-message
-//! crate label differs, deliberately, so the two copies stay diffable.
+//! The object-archiving half adds what `../build.rs` does not have: an orphan filter, a build-dir provenance guard
+//! and a surviving-object floor, around the same `DELUGE_HOSTAPP_BUILD_DIR` archiving and `-Wl,-u,deluge_app_init` GC
+//! root.
 //!
 //! Why the filter matters *here*: this harness is the before/after byte-identity gate for the
 //! storage work, and `ninja` never removes a `.o` whose `.cpp` was deleted or relocated. Without
@@ -273,8 +272,6 @@ fn hash_objs_content(objs: &[PathBuf]) -> u64 {
 /// directory) at the same relative subpath with the trailing `.o`/`.obj` stripped; if that source
 /// file is gone, the object is an orphan: it is skipped (with a `cargo:warning=` naming it, and
 /// pushed onto `skipped` for the caller's sanity-floor check) instead of being archived.
-///
-/// Kept signature-identical to the copy in `../lens1_vt_sim/build.rs` so the two stay diffable.
 ///
 /// Known blind spot, not fixed here: a source from OUTSIDE its target's own directory gets a
 /// `__/` per parent-escape in its object path, which resolves against `src_root` to a path that

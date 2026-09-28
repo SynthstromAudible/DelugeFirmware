@@ -190,13 +190,13 @@ fn efatfs_core_generation_guard_rejects_stale_commit() {
     });
 }
 
-// --- Lens-1 margin proxy: SD-transfer overhead of an efatfs cluster read -----
+// --- Streaming-margin proxy: SD-transfer overhead of an efatfs cluster read --
 //
-// The Lens-1 concern is that embedded-fatfs's per-read cost (FAT-chain walk +
+// The streaming-margin concern is that embedded-fatfs's per-read cost (FAT-chain walk +
 // single-block `BufStream`) is heavier than the raw cluster→sector-map read the
 // C-FatFS path does (one contiguous DMA of the cluster's data sectors). The
-// fully-integrated modeled-latency margin (the real C++ streaming scenario in
-// `lens1_vt_sim`) is deferred; this is the lightweight direct proxy: count the
+// fully-integrated margin is the `streaming-margin` gate, which models each chunk's read time
+// rather than counting its block reads; this is the lightweight direct proxy: count the
 // 512-byte block reads embedded-fatfs issues to sequentially read a multi-
 // cluster file, and compare against the ideal (one data read per data sector,
 // no FAT-walk/re-read overhead). A pathological O(n) chain re-walk on every
@@ -289,7 +289,7 @@ fn efatfs_core_sequential_read_transfer_overhead() {
     let blocks = BLOCKS_READ.load(Ordering::Relaxed);
     let overhead = blocks as f64 / data_sectors as f64;
     println!(
-        "lens1-proxy: file={file_len}B clusters={clusters} data_sectors={data_sectors} \
+        "margin-proxy: file={file_len}B clusters={clusters} data_sectors={data_sectors} \
          efatfs_block_reads={blocks} overhead={overhead:.2}x (ideal 1.00x = raw-map data-only)"
     );
 
@@ -365,7 +365,7 @@ fn efatfs_core_looping_playback_transfer_overhead() {
     let blocks = BLOCKS_READ.load(Ordering::Relaxed);
     let overhead = blocks as f64 / data_sectors as f64;
     println!(
-        "lens1-loop-proxy: clusters={clusters} loop_start={loop_start} passes={PASSES} \
+        "margin-loop-proxy: clusters={clusters} loop_start={loop_start} passes={PASSES} \
          reads={reads} data_sectors={data_sectors} efatfs_block_reads={blocks} \
          overhead={overhead:.2}x (ideal 1.00x = raw-map data-only)"
     );
@@ -456,7 +456,7 @@ fn efatfs_core_adversarial_seek_transfer_overhead() {
         let reads = clusters as u64;
         let overhead = blocks as f64 / data_sectors as f64;
         println!(
-            "lens1-adversarial-seek-proxy[{name}]: clusters={clusters} reads={reads} \
+            "margin-adversarial-seek-proxy[{name}]: clusters={clusters} reads={reads} \
              data_sectors={data_sectors} efatfs_block_reads={blocks} overhead={overhead:.2}x \
              (ideal 1.00x = raw-map data-only)"
         );

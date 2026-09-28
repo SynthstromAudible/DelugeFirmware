@@ -3,7 +3,7 @@
 # firmware image never contains them.
 #
 # An OBJECT library, like deluge_app, so its objects sit in one directory the host harnesses' build scripts archive
-# alongside the app's (golden_vt_render, lens1_vt_sim, deluge-bsp-rust's host_app build).
+# alongside the app's (golden_vt_render, deluge-bsp-rust's host_app build).
 file(GLOB deluge_scenarios_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*.cpp)
 add_library(deluge_scenarios OBJECT ${deluge_scenarios_SOURCES})
 
