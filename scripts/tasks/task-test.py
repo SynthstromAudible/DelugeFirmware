@@ -14,12 +14,14 @@
 """
 
 import argparse
+import concurrent.futures
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -98,6 +100,14 @@ def argparser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--junit", metavar="DIR", help="Collect each test's JUnit XML into DIR"
+    )
+    parser.add_argument(
+        "-j",
+        "--jobs",
+        type=int,
+        default=0,
+        help="Run up to N tests at once (default 1; --capture defaults to one per CPU). Each run's card is its "
+        "own memory disk, so runs share nothing",
     )
     parser.add_argument(
         "--capture",
@@ -246,6 +256,7 @@ def _run_one(
             return True
         print(
             f"==> {h.name}: run: GOLDEN_SCENARIO={h.scenario or '(stem render)'}",
+            file=log if log is not None else sys.stdout,
             flush=True,
         )
         binary = Path(env["CARGO_TARGET_DIR"]) / "release" / "golden_vt_render"
@@ -259,7 +270,11 @@ def _run_one(
     for phase, argv in _steps(root, h, passthrough, junit_dir):
         if build_only and phase == "run":
             break
-        print(f"==> {h.name}: {phase}: {' '.join(argv)}", flush=True)
+        print(
+            f"==> {h.name}: {phase}: {' '.join(argv)}",
+            file=log if log is not None else sys.stdout,
+            flush=True,
+        )
         if log is None:
             result = subprocess.run(argv, cwd=workdir, env=env, check=False)
         else:
@@ -295,32 +310,51 @@ def cmd_run(
         junit_dir.mkdir(parents=True, exist_ok=True)
 
     builds = Builds(root, selection)
-    outcomes: list[Outcome] = []
+    outcomes: dict[str, Outcome] = {}
+    runnable: list[hr.Harness] = []
     for h in selection:
         if h.status == "unavailable":
             print(f"warning: '{h.name}' is marked unavailable -- {h.gates}\n")
         missing = _missing(root, h, builds.known)
         if missing and not args.skip_checks:
-            outcomes.append(Outcome(h.name, "SKIP", f"needs {', '.join(missing)}"))
+            outcomes[h.name] = Outcome(h.name, "SKIP", f"needs {', '.join(missing)}")
             print(f"--- {h.name}: skipped, needs {', '.join(missing)}", flush=True)
             continue
         blocker = builds.blocker(h)
         if blocker is not None:
-            outcomes.append(Outcome(h.name, "FAIL", blocker))
+            outcomes[h.name] = Outcome(h.name, "FAIL", blocker)
             print(f"--- {h.name}: not run, {blocker}", flush=True)
             continue
-        ok = _run_one(
-            root,
-            h,
-            passthrough if h.runner == "ctest" else [],
-            args.build_only,
-            junit_dir,
-            None,
-            builds.known,
-        )
-        outcomes.append(Outcome(h.name, "PASS" if ok else "FAIL"))
+        runnable.append(h)
 
-    return _summarise(outcomes, strict=args.strict or named)
+    def one(h: hr.Harness, log) -> bool:
+        ctest_args = passthrough if h.runner == "ctest" else []
+        return _run_one(
+            root, h, ctest_args, args.build_only, junit_dir, log, builds.known
+        )
+
+    if args.jobs <= 1:
+        for h in runnable:
+            outcomes[h.name] = Outcome(h.name, "PASS" if one(h, None) else "FAIL")
+    else:
+        # Each test's output is held and printed whole when it finishes, so parallel runs do not interleave.
+        def buffered(h: hr.Harness) -> tuple[bool, str]:
+            with tempfile.TemporaryFile("w+", errors="replace") as log:
+                ok = one(h, log)
+                log.seek(0)
+                return ok, log.read()
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=args.jobs) as pool:
+            futures = {pool.submit(buffered, h): h for h in runnable}
+            for future in concurrent.futures.as_completed(futures):
+                h = futures[future]
+                ok, text = future.result()
+                print(text, end="", flush=True)
+                outcomes[h.name] = Outcome(h.name, "PASS" if ok else "FAIL")
+
+    return _summarise(
+        [outcomes[h.name] for h in selection], strict=args.strict or named
+    )
 
 
 def _summarise(outcomes: list[Outcome], strict: bool) -> int:
@@ -341,8 +375,13 @@ def _summarise(outcomes: list[Outcome], strict: bool) -> int:
     return 1 if failed or (skipped and strict) else 0
 
 
-def cmd_capture(root: Path, entries: list[hr.Harness], label: str, tier: str) -> int:
-    """Run every gate above unit level and record what each printed, for comparing two trees."""
+def cmd_capture(
+    root: Path, entries: list[hr.Harness], label: str, tier: str, jobs: int
+) -> int:
+    """Run every gate above unit level and record what each printed, for comparing two trees.
+
+    Gates run `jobs` at a time; the capture's files are written in registry order whatever order they finish in.
+    """
     out = root / ".superpowers" / "estate" / label
     out.mkdir(parents=True, exist_ok=True)
     selection = [
@@ -350,43 +389,45 @@ def cmd_capture(root: Path, entries: list[hr.Harness], label: str, tier: str) ->
         for h in hr.select(entries, [], ["component", "integration"], tier)
         if h.status == "gate" and h.tier != "manual"
     ]
-    markers_path = out / "markers.txt"
-    summary_path = out / "summary.txt"
-    markers_path.write_text("")
-    summary_path.write_text("")
 
     # The products' own output goes to one log of its own: none of it is a gate's.
     with (out / "builds.log").open("w") as build_log:
         builds = Builds(root, selection, build_log)
 
-    passed = 0
-    for h in selection:
-        print(f"== {h.name}", flush=True)
-        log_path = out / f"{h.name}.log"
+    def capture(h: hr.Harness) -> int:
         missing = _missing(root, h, builds.known)
         blocker = builds.blocker(h)
-        with log_path.open("w") as log:
+        with (out / f"{h.name}.log").open("w") as log:
             if missing:
                 log.write(f"skipped: needs {', '.join(missing)}\n")
-                rc = 2
-            elif blocker is not None:
+                return 2
+            if blocker is not None:
                 log.write(f"not run: {blocker}\n")
-                rc = 1
-            else:
-                rc = 0 if _run_one(root, h, [], False, None, log, builds.known) else 1
-        passed += rc == 0
-        with summary_path.open("a") as summary:
-            summary.write(f"{h.name} rc={rc}\n")
-        with markers_path.open("a") as markers:
-            for line in log_path.read_text(errors="replace").splitlines():
+                return 1
+            return 0 if _run_one(root, h, [], False, None, log, builds.known) else 1
+
+    codes: dict[str, int] = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(jobs, 1)) as pool:
+        futures = {pool.submit(capture, h): h for h in selection}
+        for future in concurrent.futures.as_completed(futures):
+            h = futures[future]
+            codes[h.name] = future.result()
+            print(f"== {h.name} rc={codes[h.name]}", flush=True)
+
+    passed = sum(1 for h in selection if codes[h.name] == 0)
+    with (out / "summary.txt").open("w") as summary:
+        for h in selection:
+            summary.write(f"{h.name} rc={codes[h.name]}\n")
+        summary.write(f"passed {passed}/{len(selection)}\n")
+    with (out / "markers.txt").open("w") as markers:
+        for h in selection:
+            for line in (
+                (out / f"{h.name}.log").read_text(errors="replace").splitlines()
+            ):
                 if MARKER.match(line):
                     markers.write(f"{h.name}: {line}\n")
-            markers.write(f"{h.name}: rc={rc}\n")
-
-    line = f"passed {passed}/{len(selection)}"
-    print(line)
-    with summary_path.open("a") as summary:
-        summary.write(line + "\n")
+            markers.write(f"{h.name}: rc={codes[h.name]}\n")
+    print(f"passed {passed}/{len(selection)}")
     return 0 if passed == len(selection) else 1
 
 
@@ -462,7 +503,11 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_doctor(root, entries)
     if args.capture:
         return cmd_capture(
-            root, entries, args.capture, "nightly" if args.tier == "pr" else args.tier
+            root,
+            entries,
+            args.capture,
+            "nightly" if args.tier == "pr" else args.tier,
+            args.jobs or os.cpu_count() or 1,
         )
 
     try:
