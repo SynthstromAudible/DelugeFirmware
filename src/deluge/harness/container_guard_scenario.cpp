@@ -108,6 +108,7 @@ enum class Leg : uint8_t {
 	Quantize,
 	RenderSet,
 	RenderAlloc,
+	Choke,
 	Done,
 };
 
@@ -170,6 +171,8 @@ const char* legName(Leg leg) {
 		return "RENDERSET";
 	case Leg::RenderAlloc:
 		return "RENDERALLOC";
+	case Leg::Choke:
+		return "CHOKE";
 	case Leg::Done:
 		return "DONE";
 	}
@@ -324,7 +327,8 @@ bool setupLeg() {
 		return true;
 	}
 	// A note row is deleted only from a kit clip (InstrumentClip::deleteNoteRow() treats the output as a Kit).
-	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel || g_leg == Leg::RenderSet || g_leg == Leg::RenderAlloc)
+	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel || g_leg == Leg::RenderSet || g_leg == Leg::RenderAlloc
+	          || g_leg == Leg::Choke)
 	             ? makeKitClip()
 	             : makeSynthClip();
 	if (g_clip == nullptr) {
@@ -353,6 +357,17 @@ bool setupLeg() {
 			                            g_row->getDefaultIterance(), g_row->getDefaultFill(rowStack), rowStack,
 			                            nullptr);
 		}
+		return true;
+	}
+	case Leg::Choke: {
+		// A second drum, and both in choke mode: sounding one fast-releases the other.
+		SoundDrum* second = makeDrum(g_kit);
+		if (second == nullptr) {
+			return false;
+		}
+		static_cast<SoundDrum*>(g_kit->firstDrum)->polyphonic = PolyphonyMode::CHOKE;
+		second->polyphonic = PolyphonyMode::CHOKE;
+		g_drum = second;
 		return true;
 	}
 	case Leg::Quantize:
@@ -463,7 +478,7 @@ void editLeg() {
 		if (g_drum != nullptr) {
 			g_step = "removeDrum";
 			// Never sounded and in no note row: out of the kit, then handed to the render, as a drum delete does.
-			g_kit->drumsWithRenderingActive.erase(g_drum);
+			g_kit->renderingDrums.remove(g_drum);
 			g_kit->removeDrum(g_drum);
 			g_drum->kit = nullptr;
 			AudioEngine::retire(g_drum);
@@ -542,6 +557,26 @@ void editLeg() {
 		ModelStackWithThreeMainThings* ms =
 		    setupModelStackWithThreeMainThingsButNoNoteRow(drumMemory, currentSong, drum, g_clip, &row->paramManager);
 		drum->Sound::noteOn(ms, &drum->arpeggiator, kRowNote, zeroMPEValues);
+		break;
+	}
+	case Leg::Choke: {
+		g_step = "choke";
+		// The two drums sound in turn from the interaction tier, each choking the other, while the render walks the
+		// kit's rendering drums as they start and stop.
+		auto* first = static_cast<SoundDrum*>(g_kit->firstDrum);
+		NoteRow* row = g_clip->getNoteRowForDrum(first);
+		if (row == nullptr) {
+			fail("the kit clip has no note row for its first drum");
+			break;
+		}
+		for (int32_t n = 0; n < 40; n++) {
+			SoundDrum* drum = (n % 2 == 0) ? first : g_drum;
+			char drumMemory[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* ms = setupModelStackWithThreeMainThingsButNoNoteRow(
+			    drumMemory, currentSong, drum, g_clip, &row->paramManager);
+			drum->noteOn(ms, kVelocity, zeroMPEValues);
+			renderBlocks(10);
+		}
 		break;
 	}
 	case Leg::RenderAlloc: {

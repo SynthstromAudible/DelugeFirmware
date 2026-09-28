@@ -659,7 +659,7 @@ bool soundLeg() {
 		return soundDrum(g_drum, static_cast<InstrumentClip*>(g_victim), orphanParamManager());
 	case Leg::WontSound:
 		// Left silent (see deleteLeg()'s Leg::WontSound case for why): a real noteOn/off here would clear itself out
-		// of drumsWithRenderingActive at the very moment skippingRendering flips back true
+		// of renderingDrums at the very moment skippingRendering flips back true
 		// (SoundDrum::setSkippingRendering()), leaving nothing for the delete branch below to actually exercise.
 		return true;
 	default:
@@ -791,8 +791,7 @@ void deleteLeg() {
 		// gone by now -- but the drum stays in the set the render walks. Said before the save, which may end the
 		// process.
 		printf("CL-SAVE leg=SAVEKIT voicesAtSave=%d renderingActive=%d\n",
-		       static_cast<int32_t>(g_drum->numActiveVoices()),
-		       g_kit->drumsWithRenderingActive.contains(g_drum) ? 1 : 0);
+		       static_cast<int32_t>(g_drum->numActiveVoices()), g_kit->renderingDrums.contains(g_drum) ? 1 : 0);
 		fflush(stdout);
 		const int32_t bytes = serializeSong();
 		printf("CL-SAVE leg=SAVEKIT bytes=%d\n", bytes);
@@ -820,10 +819,10 @@ void deleteLeg() {
 		break;
 	case Leg::WontSound:
 		// The drum's note row has no notes, so it will not sound again -- but a real note would clear itself out of
-		// drumsWithRenderingActive at the same moment skippingRendering flips back true
+		// renderingDrums at the same moment skippingRendering flips back true
 		// (SoundDrum::setSkippingRendering() is the only writer of the flag), so a genuinely-played drum would
 		// already be out of the set by the time it gets here. Put the drum back in the set by hand instead: skipping
-		// rendering, yet still in drumsWithRenderingActive, is a state no natural note-on/off path reaches at this
+		// rendering, yet still in renderingDrums, is a state no natural note-on/off path reaches at this
 		// call site, so this does not reproduce a real precondition -- it proves only that
 		// deleteSoundsWhichWontSound() hands a SoundDrum over through AudioEngine::retire() correctly (no E321, the
 		// drum actually gone, reclaimed by the end of the run). The site's real safety value is on release builds:
@@ -831,7 +830,7 @@ void deleteLeg() {
 		// voices unconditionally before it is freed, whichever build this runs on. No render block runs between the
 		// insert and the call that reaches it: Kit::renderGlobalEffectableForClip's E254 freezes a set member that
 		// still reads skippingRendering.
-		g_kit->drumsWithRenderingActive.insert(g_drum);
+		g_kit->renderingDrums.add(g_drum);
 		g_step = "songSwapAboutToHappen";
 		AudioEngine::songSwapAboutToHappen();
 		break;
@@ -848,7 +847,7 @@ void printDrumDangling() {
 		inKit = inKit || drum == g_drum;
 	}
 	printf("CL-DANGLING leg=%s inKit=%d renderingActive=%d\n", legName(g_leg), inKit ? 1 : 0,
-	       g_kit->drumsWithRenderingActive.contains(g_drum) ? 1 : 0);
+	       g_kit->renderingDrums.contains(g_drum) ? 1 : 0);
 }
 
 /// Which of the render's references still hold the deleted clip's address, just after its deletion. Compared by
@@ -1088,7 +1087,7 @@ void runTick() {
 		}
 		else if (g_kit != nullptr) {
 			printf("CL-PROBE leg=%s playing=%d ticks=%d voices=%d renderingActive=%d\n", legName(g_leg),
-			       playing ? 1 : 0, ticks, voices, g_kit->drumsWithRenderingActive.contains(g_drum) ? 1 : 0);
+			       playing ? 1 : 0, ticks, voices, g_kit->renderingDrums.contains(g_drum) ? 1 : 0);
 		}
 		else {
 			// view=1: the view's active timeline counter is the old song's synth clip, which the armed swap leaves in

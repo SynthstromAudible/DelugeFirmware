@@ -98,7 +98,7 @@ std::terminate_handler g_previousTerminate = nullptr;
 void (*g_previousAbort)(int) = SIG_DFL;
 /// Set by the terminate handler, so the abort report can tell a std::terminate from a firmware freeze.
 volatile bool g_terminated = false;
-/// DELETEDRUM: whether the drum was in its kit's drumsWithRenderingActive when the deletion began. Kit::drumRemoved()
+/// DELETEDRUM: whether the drum was in its kit's renderingDrums when the deletion began. Kit::drumRemoved()
 /// freezes with E321 on exactly that, on an ALPHA_OR_BETA_VERSION build (the host's).
 bool g_renderingActiveAtDelete = false;
 
@@ -292,7 +292,7 @@ void reportAbortedDeletion(int /*signal*/) {
 	const char* step = (g_step != nullptr) ? g_step : "?";
 	const char* why = g_terminated ? "std::terminate (a pure virtual call) inside the deletion"
 	                  : (g_step != nullptr && g_renderingActiveAtDelete && std::string_view{g_step} == "removeDrum")
-	                      ? "a freeze in Kit::removeDrum with the drum still in drumsWithRenderingActive (E321)"
+	                      ? "a freeze in Kit::removeDrum with the drum still in renderingDrums (E321)"
 	                      : "an abort inside the deletion";
 	char line[512];
 	int n = snprintf(line, sizeof(line),
@@ -331,14 +331,14 @@ void deleteLeg() {
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, g_clip);
 
 		// Sampled before the erase, so a deleteDrum that stopped erasing (and froze in removeDrum) is named E321.
-		g_renderingActiveAtDelete = g_kit->drumsWithRenderingActive.contains(g_drum);
+		g_renderingActiveAtDelete = g_kit->renderingDrums.contains(g_drum);
 		g_step = "stopNote";
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    (noteRow != nullptr) ? modelStack->addNoteRow(noteRowIndex, noteRow) : nullptr;
 		if (noteRow != nullptr) {
 			noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
 		}
-		g_kit->drumsWithRenderingActive.erase(g_drum);
+		g_kit->renderingDrums.remove(g_drum);
 
 		g_step = "removeDrum";
 		g_kit->removeDrum(g_drum);
@@ -356,7 +356,7 @@ void deleteLeg() {
 
 		g_step = "retire";
 		currentSong->deleteBackedUpParamManagersForModControllable(g_drum);
-		g_kit->drumsWithRenderingActive.erase(g_drum);
+		g_kit->renderingDrums.remove(g_drum);
 		g_drum->kit = nullptr;
 		AudioEngine::retire(g_drum);
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;

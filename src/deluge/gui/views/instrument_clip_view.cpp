@@ -94,7 +94,6 @@
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
-#include "util/structural_edit_probe.h"
 #include "util/try.h"
 #include <new>
 #include <string.h>
@@ -5453,18 +5452,17 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// The drum may still be sounding (an audition pad held through LOAD/KIT and back), and the kit's render only
-	// ever reaches a drum in its drumsWithRenderingActive: end its note and take it out of that set before removing
+	// ever reaches a drum in its renderingDrums: end its note and take it out of that set before removing
 	// it, as the preset-replace path (LoadInstrumentPresetUI::swapKitRow) does. Its voices are ended by the render
 	// when it lets go of the retired drum, below.
-	// TODO: drumsWithRenderingActive is the render's set, written here from the interaction tier (swapKitRow does
+	// TODO: renderingDrums is the render's set, written here from the interaction tier (swapKitRow does
 	// the same). A pre-existing cross-tier write, left for the interaction-side voice/render-set commands.
 	ModelStackWithNoteRow* modelStackWithNoteRow =
 	    (noteRow != nullptr) ? modelStack->addNoteRow(noteRowIndex, noteRow) : nullptr;
 	if (noteRow) {
 		noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
 	}
-	deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
-	kit->drumsWithRenderingActive.erase(drum);
+	kit->renderingDrums.remove(drum);
 
 	kit->removeDrum(drum);
 
@@ -5487,11 +5485,10 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 	// Delete the Drum we came here to delete: the render ends its voices and lets go of it before it is freed
 	currentSong->deleteBackedUpParamManagersForModControllable(drum);
 	// Out of the kit for good: the render's let-go of the drum must not write back into the kit's
-	// drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit). Erase
+	// renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit). Erase
 	// again first: a sequencer note-on between the first erase and the note row's reassignment re-inserts the drum,
 	// and after this nothing can name it. The render will own this set in later work.
-	deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
-	kit->drumsWithRenderingActive.erase(drum);
+	kit->renderingDrums.remove(drum);
 	drum->kit = nullptr;
 	AudioEngine::retire(drum);
 

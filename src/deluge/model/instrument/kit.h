@@ -21,6 +21,7 @@
 #include "dsp/stereo_sample.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
+#include "model/instrument/rendering_drums.h"
 #include "modulation/arpeggiator.h"
 #include "util/containers.h"
 class InstrumentClip;
@@ -149,7 +150,7 @@ public:
 	Drum* firstDrum;
 	Drum* selectedDrum;
 
-	deluge::fast_set<Drum*> drumsWithRenderingActive{};
+	RenderingDrums renderingDrums; ///< the drums rendering now: the render walks them every block
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

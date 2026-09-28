@@ -66,6 +66,12 @@ Kit::Kit() : Instrument(OutputType::KIT), arpeggiator(), defaultArpSettings() {
 }
 
 Kit::~Kit() {
+#if ALPHA_OR_BETA_VERSION
+	// A drum still in the rendering list here would be walked by the render after it is destroyed below.
+	if (!renderingDrums.empty()) {
+		FREEZE_WITH_ERROR("E462");
+	}
+#endif
 	// Reset arpeggiator
 	arpeggiator.reset();
 
@@ -236,23 +242,21 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 						song->deleteBackedUpParamManagersForModControllable(soundDrum);
 
 						// No NoteRow has this drum, so there is no note to stop. The render only ever reaches a drum
-						// in this kit's drumsWithRenderingActive: take it out before removing it, as
+						// in this kit's renderingDrums: take it out before removing it, as
 						// InstrumentClipView::deleteDrum and LoadInstrumentPresetUI::swapKitRow do. Its voices are
 						// ended by the render when it lets go of the retired drum, below.
-						deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
-						drumsWithRenderingActive.erase(soundDrum);
+						renderingDrums.remove(soundDrum);
 						removeDrum(soundDrum);
 						// Out of the kit for good: the render's let-go of the drum must not write back into
-						// drumsWithRenderingActive, which may be freed by then (SoundDrum::setSkippingRendering
+						// renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering
 						// skips a null kit). Erase again first: a sequencer note-on between the first erase and here
 						// re-inserts the drum, and after this nothing can name it.
-						deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
-						drumsWithRenderingActive.erase(soundDrum);
+						renderingDrums.remove(soundDrum);
 						soundDrum->kit = nullptr;
 						AudioEngine::retire(soundDrum);
 					}
 					else {
-						// MIDI and gate drums have no voices and are never in drumsWithRenderingActive: there is
+						// MIDI and gate drums have no voices and are never in renderingDrums: there is
 						// nothing for the render to let go of, so destroy them directly.
 						drumRemoved(thisDrum);
 
@@ -475,7 +479,7 @@ void Kit::drumRemoved(Drum* drum) {
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if (drumsWithRenderingActive.contains(drum)) {
+	if (drum->type == DrumType::SOUND && renderingDrums.contains(static_cast<SoundDrum*>(drum))) {
 		FREEZE_WITH_ERROR("E321");
 	}
 #endif
@@ -552,17 +556,14 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
                                         bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                         int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
-	// Render Drums. Advance the iterator before rendering, in case the drum stops rendering (removing itself from
-	// the set) as we render it.
-	for (auto it = drumsWithRenderingActive.begin(); it != drumsWithRenderingActive.end();) {
-		Drum* thisDrum = *it;
-		++it;
+	// Render Drums. The walk copes with a drum that stops rendering (leaves the list) as it renders, and with one whose
+	// render removes the next (see RenderingDrums::walk).
+	renderingDrums.walk([&](SoundDrum* soundDrum) {
+		Drum* thisDrum = soundDrum;
 
 		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DrumType::SOUND) {
 			FREEZE_WITH_ERROR("E253");
 		}
-
-		SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
 		if (ALPHA_OR_BETA_VERSION && soundDrum->skippingRendering) {
 			FREEZE_WITH_ERROR("E254");
@@ -580,7 +581,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 			// This used to be E255
 			if (!thisNoteRow) {
 				soundDrum->killAllVoices();
-				continue;
+				return;
 			}
 			drumParamManager = &thisNoteRow->paramManager;
 		}
@@ -596,7 +597,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
-	}
+	});
 
 	// Tick ParamManagers
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {

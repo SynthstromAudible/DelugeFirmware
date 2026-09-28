@@ -29,7 +29,6 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
-#include "util/structural_edit_probe.h"
 #include <new>
 
 bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
@@ -165,15 +164,23 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
+SoundDrum::~SoundDrum() {
+#if ALPHA_OR_BETA_VERSION
+	// Still in its kit's rendering list: the render would walk into freed memory. Whatever destroys a drum takes it out
+	// first (the render's let-go of a retired drum does, by ending its voices).
+	if (static_cast<RenderingDrumsLink*>(this)->is_linked()) {
+		FREEZE_WITH_ERROR("E461");
+	}
+#endif
+}
+
 void SoundDrum::setSkippingRendering(bool newSkipping) {
 	if (kit != nullptr && newSkipping != skippingRendering) {
 		if (newSkipping) {
-			deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
-			kit->drumsWithRenderingActive.erase(this);
+			kit->renderingDrums.remove(this);
 		}
 		else {
-			deluge::noteStructuralEdit(deluge::StructuralContainer::RENDERING_DRUMS);
-			kit->drumsWithRenderingActive.insert(this);
+			kit->renderingDrums.add(this);
 		}
 	}
 

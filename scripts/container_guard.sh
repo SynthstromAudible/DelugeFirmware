@@ -30,7 +30,8 @@
 #   CG-QUANTIZE              a row quantized (NoteRow::quantize(), which rotates its notes in place)
 #   CG-RENDERSET             a kit drum sounded from the interaction tier (an audition): its kit's rendering set gains it
 #   CG-RENDERALLOC           a kit clip playing for 200 blocks; CG-RENDERALLOC renderAllocs= counts heap allocations the
-#                            render made (host only) -- reported
+#                            render made (host only) -- required 0
+#   CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
 #   CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
 #                            wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
 #
@@ -104,9 +105,9 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
-LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC"
+LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE"
 # The legs whose edits must all be made while the render is excluded.
-REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET"
+REQUIRED_LEGS="NOTEADD NOTEDEL ROWADD ROWDEL CLIPNEW CLIPDEL CLIPDUP ARRANGE AUTOMATE DRUM REPLACE UNDO BIGROW ROWDRAG CLIPMOVE OUTPUTMOVE QUANTIZE RENDERSET RENDERALLOC CHOKE"
 
 for leg in $LEGS; do
 	if ! grep -qE "^CG-$leg unguarded=[0-9]+ " "$OUT/run.txt"; then
@@ -120,8 +121,9 @@ if ! grep -q '^CG-RESULT failures=0$' "$OUT/run.txt"; then
 	exit 1
 fi
 
-if ! grep -qE '^CG-RENDERALLOC renderAllocs=[0-9]+$' "$OUT/run.txt"; then
-	echo "FAIL — no CG-RENDERALLOC renderAllocs= line"
+# The render must not allocate: a kit's drums start and stop rendering without touching the heap.
+if ! grep -qE '^CG-RENDERALLOC renderAllocs=0$' "$OUT/run.txt"; then
+	echo "FAIL — $(grep -E '^CG-RENDERALLOC renderAllocs=' "$OUT/run.txt" || echo 'no CG-RENDERALLOC renderAllocs= line'): the render allocated"
 	exit 1
 fi
 
