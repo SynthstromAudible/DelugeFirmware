@@ -1,8 +1,9 @@
 #! /usr/bin/env python3
-"""Parse harness/registry.toml and probe each harness's prerequisites.
+"""Parse harness/registry.toml and probe each test's prerequisites.
 
-Split from task-harness.py so the parsing and probing logic is unit-testable
-without invoking dbt or spawning a build. See test_harness_registry.py.
+Split from task-test.py so the parsing, selection and probing logic is
+unit-testable without invoking dbt or spawning a build. See
+test_harness_registry.py.
 """
 
 import os
@@ -13,12 +14,18 @@ from pathlib import Path
 import tomllib
 
 STATUSES = ("gate", "investigative", "unavailable")
-CI_TIERS = ("pr", "nightly", "never")
+LEVELS = ("unit", "component", "integration")
+RUNNERS = ("ctest", "cargo", "scenario", "script")
+# Cumulative, in this order: selecting a tier selects every tier before it too.
+TIERS = ("pr", "nightly", "manual")
 
 # Requirement key -> how to satisfy it. Every key a registry entry may name must
-# appear here; `dbt harness doctor` prints the value when the probe fails.
+# appear here; `dbt test --doctor` prints the value when the probe fails.
 PROBES = {
     "cargo": "install a Rust toolchain (rustup); rust-toolchain.toml pins the channel",
+    "cargo-nextest": "cargo install cargo-nextest (or taiki-e/install-action@nextest in CI)",
+    "cargo-fuzz": "cargo install cargo-fuzz, and a nightly toolchain",
+    "cmake": "install cmake and ninja",
     "clang-tsan": "install clang (ThreadSanitizer needs clang or a TSan-capable GCC)",
     "mtools": "apt install mtools -- fs_differential's fixtures are built with mformat",
     "qemu-arm": "apt install qemu-user",
@@ -30,7 +37,7 @@ PROBES = {
     "song-corpus": "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs",
     "deluge-sdk-sibling": (
         "clone https://github.com/FirestormAudio/deluge-embassy as a sibling "
-        "checkout at ../deluge-sdk -- lens1_vt_sim and golden_vt_render carry a "
+        "checkout at ../deluge-sdk -- the Rust BSP and its harnesses carry a "
         "path dependency on it"
     ),
 }
@@ -40,15 +47,27 @@ PROBES = {
 class Harness:
     name: str
     path: str
+    level: str
+    runner: str
     kind: str
     status: str
     gates: str
+    tier: str
     build: list[str]
     run: list[str]
     requires: list[str]
-    ci: str
     runtime: str
+    # Set over the caller's environment.
     env: dict[str, str] = field(default_factory=dict)
+    # Set only where the caller's environment does not already say.
+    env_default: dict[str, str] = field(default_factory=dict)
+    # runner = "ctest": the CMake source and build trees, extra configure arguments, extra ctest arguments.
+    source: str = ""
+    tree: str = ""
+    configure: list[str] = field(default_factory=list)
+    ctest_args: list[str] = field(default_factory=list)
+    # A JUnit file the run leaves behind, relative to the repo root; `${CARGO_TARGET_DIR}` is expanded.
+    junit: str = ""
 
 
 def load_registry(root: Path) -> list[Harness]:
@@ -60,16 +79,40 @@ def load_registry(root: Path) -> list[Harness]:
     for i, item in enumerate(raw.get("harness", [])):
         where = item.get("name", f"entry #{i}")
 
-        for required in ("name", "path", "kind", "status", "gates", "ci"):
+        for required in (
+            "name",
+            "path",
+            "level",
+            "runner",
+            "kind",
+            "status",
+            "gates",
+            "tier",
+        ):
             if not item.get(required):
                 raise ValueError(f"{where}: missing required field '{required}'")
 
-        if item["status"] not in STATUSES:
-            raise ValueError(
-                f"{where}: status '{item['status']}' must be one of {STATUSES}"
-            )
-        if item["ci"] not in CI_TIERS:
-            raise ValueError(f"{where}: ci '{item['ci']}' must be one of {CI_TIERS}")
+        for key, allowed in (
+            ("status", STATUSES),
+            ("level", LEVELS),
+            ("runner", RUNNERS),
+            ("tier", TIERS),
+        ):
+            if item[key] not in allowed:
+                raise ValueError(
+                    f"{where}: {key} '{item[key]}' must be one of {allowed}"
+                )
+
+        if item["runner"] == "ctest":
+            for required in ("source", "tree"):
+                if not item.get(required):
+                    raise ValueError(f"{where}: a ctest test needs '{required}'")
+            if item.get("build") or item.get("run"):
+                raise ValueError(
+                    f"{where}: a ctest test is built and run from 'source' and 'tree', not 'build'/'run'"
+                )
+        elif not item.get("run"):
+            raise ValueError(f"{where}: missing required field 'run'")
 
         for req in item.get("requires", []):
             if req not in PROBES:
@@ -78,26 +121,62 @@ def load_registry(root: Path) -> list[Harness]:
                 )
 
         if item["name"] in seen:
-            raise ValueError(f"duplicate harness name '{item['name']}'")
+            raise ValueError(f"duplicate test name '{item['name']}'")
         seen.add(item["name"])
 
         entries.append(
             Harness(
                 name=item["name"],
                 path=item["path"],
+                level=item["level"],
+                runner=item["runner"],
                 kind=item["kind"],
                 status=item["status"],
                 gates=item["gates"],
+                tier=item["tier"],
                 build=item.get("build", []),
                 run=item.get("run", []),
                 requires=item.get("requires", []),
-                ci=item["ci"],
                 runtime=item.get("runtime", "?"),
                 env=item.get("env", {}),
+                env_default=item.get("env_default", {}),
+                source=item.get("source", ""),
+                tree=item.get("tree", ""),
+                configure=item.get("configure", []),
+                ctest_args=item.get("ctest_args", []),
+                junit=item.get("junit", ""),
             )
         )
 
     return entries
+
+
+def select(
+    entries: list[Harness],
+    names: list[str],
+    levels: list[str],
+    tier: str,
+) -> list[Harness]:
+    """The entries a run covers.
+
+    Named entries are taken as asked for, whatever their tier or status. Otherwise every entry at `tier` or an
+    earlier one, at one of `levels` (all levels when empty), that is not marked unavailable.
+    """
+    if names:
+        by_name = {h.name: h for h in entries}
+        unknown = [n for n in names if n not in by_name]
+        if unknown:
+            raise ValueError(f"unknown test(s): {', '.join(unknown)}")
+        return [by_name[n] for n in names]
+
+    within = TIERS[: TIERS.index(tier) + 1]
+    return [
+        h
+        for h in entries
+        if h.tier in within
+        and (not levels or h.level in levels)
+        and h.status != "unavailable"
+    ]
 
 
 def probe(requirement: str, root: Path) -> bool:
@@ -105,6 +184,14 @@ def probe(requirement: str, root: Path) -> bool:
     match requirement:
         case "cargo":
             return shutil.which("cargo") is not None
+        case "cargo-nextest":
+            return shutil.which("cargo-nextest") is not None
+        case "cargo-fuzz":
+            return shutil.which("cargo-fuzz") is not None
+        case "cmake":
+            return (
+                shutil.which("cmake") is not None and shutil.which("ninja") is not None
+            )
         case "clang-tsan":
             return shutil.which("clang++") is not None
         case "mtools":
@@ -112,7 +199,11 @@ def probe(requirement: str, root: Path) -> bool:
         case "qemu-arm":
             return shutil.which("qemu-arm") is not None
         case "arm-linux-gnueabihf-gcc":
-            return shutil.which("arm-linux-gnueabihf-g++") is not None
+            cxx = os.environ.get("CXX", "arm-linux-gnueabihf-g++")
+            return (
+                shutil.which(cxx) is not None
+                or shutil.which("arm-linux-gnueabihf-g++") is not None
+            )
         case "build-embassy-hostapp":
             return (root / "build-embassy-hostapp").is_dir()
         case "deluge-sdk-sibling":
@@ -132,17 +223,28 @@ def probe(requirement: str, root: Path) -> bool:
 def markdown_table(harnesses: list[Harness]) -> str:
     """The generated table for harness/README.md."""
     lines = [
-        "| Harness | Kind | Status | Gates | CI | Runtime |",
-        "| --- | --- | --- | --- | --- | --- |",
+        "| Test | Level | Runner | Kind | Status | Gates | Tier | Runtime |",
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
     for h in harnesses:
         # Escape pipes in fields to preserve table structure
         escaped_gates = h.gates.replace("|", "\\|")
         escaped_runtime = h.runtime.replace("|", "\\|")
         lines.append(
-            f"| {h.name} | {h.kind} | {h.status} | {escaped_gates} | {h.ci} | {escaped_runtime} |"
+            f"| {h.name} | {h.level} | {h.runner} | {h.kind} | {h.status} | {escaped_gates} | {h.tier} "
+            f"| {escaped_runtime} |"
         )
     return "\n".join(lines) + "\n"
 
 
-__all__ = ["PROBES", "Harness", "load_registry", "markdown_table", "probe"]
+__all__ = [
+    "LEVELS",
+    "PROBES",
+    "RUNNERS",
+    "TIERS",
+    "Harness",
+    "load_registry",
+    "markdown_table",
+    "probe",
+    "select",
+]

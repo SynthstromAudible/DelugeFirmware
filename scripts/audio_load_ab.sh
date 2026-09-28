@@ -60,7 +60,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BUILD_DIR="${BUILD_DIR:-$REPO/build-embassy-hostapp}"
 CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
 
-# Honours CARGO_TARGET_DIR the way golden_embassy_diff.sh does: `dbt harness run` points every rig at a
+# Honours CARGO_TARGET_DIR the way golden_embassy_diff.sh does: `dbt test` points every rig at a
 # shared target tree, and this one lives under it rather than beside it.
 TARGET="${CARGO_TARGET_DIR:-$CRATE_DIR/target}"
 

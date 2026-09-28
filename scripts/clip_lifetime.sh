@@ -146,7 +146,7 @@ cd "$REPO_ROOT"
 
 BUILD_DIR="${BUILD_DIR:-build-embassy-hostapp}"
 CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
-# One build tree for the harness binary: `dbt harness run` sets CARGO_TARGET_DIR, and every gate builds the
+# One build tree for the harness binary: `dbt test` sets CARGO_TARGET_DIR, and every gate builds the
 # same crate with the same features -- the scenario is chosen at run time by GOLDEN_SCENARIO.
 TARGET_DIR="${TARGET_DIR:-${CARGO_TARGET_DIR:-$CRATE_DIR/target}}"
 case "$TARGET_DIR" in /*) ;; *) TARGET_DIR="$REPO_ROOT/$TARGET_DIR" ;; esac

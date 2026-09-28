@@ -59,7 +59,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUST_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"       # src/bsp/rust
-# Honour CARGO_TARGET_DIR rather than assuming the crate-local `target/`. `dbt harness run`
+# Honour CARGO_TARGET_DIR rather than assuming the crate-local `target/`. `dbt test`
 # sets it (task-harness.py points every harness at one shared `target/harness` root), so a
 # hard-coded path looks in the wrong place: the run dies with "missing … — build failed?"
 # immediately after cargo reports success. Same defect `golden_embassy_diff.sh` had.

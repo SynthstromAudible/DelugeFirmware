@@ -17,7 +17,7 @@ explicitly.
 
 ## Reproducing
 
-`./dbt harness run preemptive-race-tsan` (or `./run.sh` in `src/bsp/rust/harness/preemptive_race_tsan/`; its header
+`./dbt test preemptive-race-tsan` (or `./run.sh` in `src/bsp/rust/harness/preemptive_race_tsan/`; its header
 lists the prerequisites and knobs such as `NUM_RUNS`, `BLOCKS`, `DELUGE_SD_IMAGE`). It runs the real `deluge_app`
 under ThreadSanitizer with audio, storage and interaction on separate OS threads, playing a song while recording.
 Every race site it sees must have an entry in `races.txt`; an uncatalogued site fails the run. `triage.sh LOG...`

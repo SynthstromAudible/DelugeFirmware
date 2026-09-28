@@ -22,7 +22,7 @@ FIXTURE="${GOLDEN_FIXTURE:-cordae}"
 BASELINE="harness/stem-export-$FIXTURE.sha256"
 BUILD_DIR="${BUILD_DIR:-build-embassy-hostapp}"
 CRATE_DIR="src/bsp/rust/harness/golden_vt_render"
-# One build tree for the harness binary: `dbt harness run` sets CARGO_TARGET_DIR, and every gate builds the
+# One build tree for the harness binary: `dbt test` sets CARGO_TARGET_DIR, and every gate builds the
 # same crate -- the scenario is chosen at run time. Resolved once, here, because a relative fallback is
 # relative to the repo root while the cargo build below runs in the crate directory.
 TARGET_DIR="${TARGET_DIR:-${CARGO_TARGET_DIR:-$CRATE_DIR/target}}"
