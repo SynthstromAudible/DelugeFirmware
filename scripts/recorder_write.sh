@@ -20,6 +20,9 @@
 #   RW-LEAK       that an aborted recording gives its clusters back. It does NOT currently catch a
 #                 premature unlink -- single-flight sends that unlink down its synchronous arm anyway
 #                 -- but it does catch a cleanup that fails to delete at all.
+#   RW-ABORT-OPEN  that an abort landing while the channel is opening the file -- for the create, or for
+#                 finalize's reopen to alter it -- leaves no file behind and no stream-write slot taken: the open
+#                 cannot be cancelled, so the abort has to wait it out and close what it opened.
 #   RW-TICKED-CASE  that each `ticked_` case -- a recording, the alteration branch, an abort --
 #                 ran and reads back byte-for-byte, its cluster writes through the channel.
 #   RW-TIER       how many synchronous card operations the recorder began on the interaction tier after
@@ -156,6 +159,18 @@ elif ! grep -q '^TK-LEAK .*ok=1' "$OUT/run.txt"; then
 	echo "FAIL RW-LEAK — $tk_leak; an aborted recording did not give its clusters back"
 	fail=1
 fi
+
+# RW-ABORT-OPEN: both abort-during-open cases ran, and each left no file and every slot free.
+for c in abortcreate abortalter; do
+	line=$(grep "^TK-ABORT-OPEN case=$c " "$OUT/run.txt" || true)
+	if [ -z "$line" ]; then
+		echo "FAIL RW-ABORT-OPEN — no line for the $c case; it did not finish"
+		fail=1
+	elif ! printf '%s\n' "$line" | grep -q ' ok=1$'; then
+		echo "FAIL RW-ABORT-OPEN — $line"
+		fail=1
+	fi
+done
 
 # RW-TIER: reported, and required to be zero.
 tier_line=$(grep '^RW-TIER ' "$OUT/run.txt" || true)

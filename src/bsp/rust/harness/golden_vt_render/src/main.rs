@@ -813,7 +813,15 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     // the recorder's bound. Each prints its own line, and a failure stops neither the other case nor the
     // tier report, so the script sees all three.
     let mut give_up_failed = false;
-    for (mode, name) in [(3, "busy"), (4, "stall"), (5, "dirstall")] {
+    // dirstall runs last: its held directory open is still in flight when it reports, and a case after it would
+    // find its own folder scan waiting behind that open.
+    for (mode, name) in [
+        (3, "busy"),
+        (4, "stall"),
+        (6, "abortcreate"),
+        (7, "abortalter"),
+        (5, "dirstall"),
+    ] {
         // SAFETY: same C-ABI contract as above.
         unsafe { deluge_scenario_ticked_begin(mode) };
         let deadline = Instant::now() + Duration::from_secs(300);

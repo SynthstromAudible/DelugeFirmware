@@ -24,6 +24,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "io/file.hpp"
+#include "io/stream.hpp"
 #include "libdeluge/sample_source.h" // DELUGE_REGION_LOADING
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
@@ -400,6 +401,12 @@ struct TickedCase {
 	/// Free clusters before the recording started. An abort that unlinks before its close completes
 	/// leaks the chain, which no byte comparison can see -- the file is gone either way.
 	uint32_t freeBefore = 0;
+	/// The abort-during-open cases: abort while the channel is opening the file -- for the create, or for
+	/// finalize's reopen to alter it.
+	bool abortOpen = false;
+	bool abortSent = false;
+	/// Ticks since the abort finished, given to an operation the abort left behind to land.
+	int32_t settleTicks = 0;
 	std::string path;
 	int32_t ticks = 0;
 	bool started = false;
@@ -419,7 +426,39 @@ int32_t recorderTier() {
 }
 
 /// Each case's name, indexed by the `mode` passed to deluge_scenario_ticked_begin.
-constexpr const char* kModeNames[] = {"recording", "alterfile", "abort", "busy", "stall", "dirstall"};
+constexpr const char* kModeNames[] = {"recording", "alterfile", "abort",       "busy",
+                                      "stall",     "dirstall",  "abortcreate", "abortalter"};
+
+/// The write channel's latency in the abort-during-open cases: long enough that the abort lands while the open is
+/// still waiting to run.
+constexpr uint32_t kAbortOpenLatencyMs = 50;
+/// Ticks given, after an abort-during-open case's cleanup finishes, for anything it left in flight to land -- far
+/// past kAbortOpenLatencyMs, so a late open is on the card before the checks look.
+constexpr int32_t kAbortOpenSettleTicks = 500;
+/// The recorder's stream-write slots: a leaked handle leaves one fewer free.
+constexpr int32_t kStreamWriteSlots = 8;
+
+/// How many of the recorder's stream-write slots are free, found by opening streams until one is refused. Every probe
+/// stream is closed and its file removed before this returns.
+int32_t freeStreamWriteSlots() {
+	std::vector<deluge::io::Stream> held;
+	std::vector<std::string> paths;
+	for (int32_t i = 0; i < kStreamWriteSlots; i++) {
+		std::string probePath = "RWSLOT" + std::to_string(i) + ".TMP";
+		auto opened = deluge::io::Stream::open(probePath, DELUGE_STREAM_WRITE_CREATE);
+		if (!opened) {
+			break;
+		}
+		held.push_back(std::move(opened.value()));
+		paths.push_back(std::move(probePath));
+	}
+	const auto free = static_cast<int32_t>(held.size());
+	held.clear();
+	for (const std::string& probePath : paths) {
+		(void)deluge::io::unlink(probePath);
+	}
+	return free;
+}
 
 /// The write channel's latency in the busy case: long enough that the recorder asks while the competing
 /// operation is still in flight, and far inside the recorder's bound, so a refusal is asked again rather
@@ -519,8 +558,11 @@ extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
 	g_ticked.ticks = 0;
 	g_ticked.path.clear();
 	g_ticked.started = false;
-	g_ticked.alter = (mode == 1);
+	g_ticked.alter = (mode == 1 || mode == 7);
 	g_ticked.abortRun = (mode == 2);
+	g_ticked.abortOpen = (mode == 6 || mode == 7);
+	g_ticked.abortSent = false;
+	g_ticked.settleTicks = 0;
 	g_ticked.busy = (mode == 3);
 	g_ticked.stall = (mode == 4);
 	g_ticked.dirStall = (mode == 5);
@@ -530,7 +572,7 @@ extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
 	g_ticked.servedBefore = SampleRecorder::writeChannelServedOps();
 	g_ticked.refusalsBefore = SampleRecorder::channelRefusals();
 	g_ticked.tierBefore = recorderTier();
-	deluge_file_write_set_latency_ms(g_ticked.busy ? kBusyLatencyMs : 0);
+	deluge_file_write_set_latency_ms(g_ticked.busy ? kBusyLatencyMs : g_ticked.abortOpen ? kAbortOpenLatencyMs : 0);
 	if (g_ticked.dirStall) {
 		// The scan an earlier case already made is cached; force it again, and hold its open past the bound.
 		audioFileManager.highestUsedAudioRecordingNumberNeedsReChecking.set(
@@ -546,7 +588,7 @@ extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
 	// stderr as well as stdout: this case runs AFTER the scenario's own fflush(nullptr), so a
 	// stdout-only line can be lost at exit -- and a case whose output vanishes is a case nobody can
 	// tell from one that never ran.
-	const char* modeName = (mode >= 0 && mode <= 5) ? kModeNames[mode] : "unknown";
+	const char* modeName = (mode >= 0 && mode <= 7) ? kModeNames[mode] : "unknown";
 	printf("CASE ticked_%s (channels=%d frames=%u)\n", modeName, g_ticked.alter ? 2 : 1, kTickedFrames);
 	fflush(nullptr);
 
@@ -570,7 +612,8 @@ extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
 		input[i].r = 0;
 	}
 	g_ticked.rec->feedAudio(std::span<StereoSample>(input));
-	if (!g_ticked.abortRun) {
+	// The abort runs, and the create's open, end nothing here: they abort a recording still capturing.
+	if (!g_ticked.abortRun && !(g_ticked.abortOpen && !g_ticked.alter)) {
 		g_ticked.rec->endSyncedRecording(0);
 	}
 	// The abort run does NOT end the recording here. It lets a few ticks pass first so the file is
@@ -584,6 +627,61 @@ extern "C" int32_t deluge_scenario_ticked_tick() {
 		return 2; // failed to start
 	}
 	SampleRecorder& rec = *g_ticked.rec;
+
+	if (g_ticked.abortOpen) {
+		const char* name = g_ticked.alter ? "abortalter" : "abortcreate";
+		if (!g_ticked.abortSent) {
+			if (rec.openInFlightForDiag()) {
+				printf("TK-OPEN-HELD case=%s ticks=%d\n", name, g_ticked.ticks);
+				fflush(nullptr);
+				rec.abort();
+				g_ticked.abortSent = true;
+				g_ticked.ticks = 0;
+			}
+			else if (++g_ticked.ticks > 20000) {
+				fprintf(stderr, "  FAIL: %s never saw the channel opening the file\n", name);
+				g_ticked.rec.reset();
+				return 2;
+			}
+			(void)rec.cardRoutine();
+			return 0;
+		}
+		const bool cleanupDone = rec.status.load(std::memory_order_acquire) == RecorderStatus::ABORTED
+		                         && rec.abortPhaseForDiag() == kAbortPhaseDone;
+		if (!cleanupDone) {
+			if (++g_ticked.ticks > 20000) {
+				fprintf(stderr, "  FAIL: %s cleanup never finished (phase=%d)\n", name, (int)rec.abortPhaseForDiag());
+				g_ticked.rec.reset();
+				return 2;
+			}
+			(void)rec.cardRoutine();
+			return 0;
+		}
+		if (g_ticked.path.empty()) {
+			g_ticked.path = rec.filePathCreated;
+		}
+		if (++g_ticked.settleTicks < kAbortOpenSettleTicks) {
+			return 0;
+		}
+		deluge_file_write_set_latency_ms(0);
+		g_ticked.rec.reset();
+		// Both checks read what the abort left once everything it issued has had time to land: an open it did not
+		// wait out creates or reopens the file AFTER the unlink, and keeps a stream-write slot nobody will close.
+		std::vector<std::byte> leftover;
+		const bool gone = g_ticked.path.empty() || !readWholeFile(g_ticked.path, leftover);
+		const int32_t freeSlots = freeStreamWriteSlots();
+		const bool ok = gone && freeSlots == kStreamWriteSlots;
+		printf("TK-ABORT-OPEN case=%s gone=%d freeSlots=%d of=%d ok=%d\n", name, (int)gone, freeSlots,
+		       kStreamWriteSlots, (int)ok);
+		fflush(nullptr);
+		if (!gone) {
+			fprintf(stderr, "  FAIL: %s left its file behind\n", name);
+		}
+		if (freeSlots != kStreamWriteSlots) {
+			fprintf(stderr, "  FAIL: %s leaked a stream-write handle\n", name);
+		}
+		return ok ? 1 : 2;
+	}
 
 	if (g_ticked.abortRun) {
 		if (rec.status.load(std::memory_order_acquire) == RecorderStatus::CAPTURING_DATA && g_ticked.ticks >= 8) {
