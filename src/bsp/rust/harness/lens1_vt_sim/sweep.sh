@@ -36,7 +36,7 @@
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BIN="$HERE/target/release/lens1-vt-sim"
+BIN="${CARGO_TARGET_DIR:-$HERE/target}/release/lens1-vt-sim"
 
 FIXTURE="${FIXTURE:-cordae}"
 BLOCKS="${BLOCKS:-20000}"
