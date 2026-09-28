@@ -1764,6 +1764,9 @@ fn hard_exit(mut code: i32) -> ! {
     memory_card::dump_if_asked();
     // The synchronous-call inventory, on every exit: a failing run's numbers matter as much as a passing one's.
     tier_meter::print_report();
+    if audio_host::render_after_boot() {
+        println!("AUDIO-RENDER blocks={}", audio_host::drive_count());
+    }
     // Structural edits to the render's containers made while the render could have preempted them
     // (util/structural_edit_probe.h). Any fails an otherwise passing run (exit 3), so every golden gate checks that
     // no such edit was made; the line says how many. Nothing is printed on a clean run, so its markers do not change.

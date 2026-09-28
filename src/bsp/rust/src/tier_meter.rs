@@ -1,4 +1,5 @@
-//! Counts the synchronous card calls made after boot on the INTERACTION tier, per bridge entry point.
+//! Counts the synchronous card calls made after boot on the INTERACTION tier, per bridge entry point, and
+//! separately any made on the AUDIO tier.
 //!
 //! Every synchronous bridge function (the `deluge_efatfs_*` C ABI in `efatfs_fs.rs` and its host mirror, and
 //! `sd.rs`'s `deluge_block_read`/`deluge_block_write`) calls [`note`] as its first statement. Blocking on the
@@ -63,6 +64,9 @@ entries! {
 
 const N: usize = NAMES.len();
 static COUNTS: [AtomicU32; N] = [const { AtomicU32::new(0) }; N];
+/// The audio tier must never block, so each of these is a violation; they are counted rather than refused so a
+/// harness can inventory them.
+static AUDIO_COUNTS: [AtomicU32; N] = [const { AtomicU32::new(0) }; N];
 
 impl Entry {
     /// The entry's short name (`file_open`, `block_read`, ...).
@@ -72,16 +76,21 @@ impl Entry {
     }
 }
 
-/// Count one synchronous call through `e`, if boot has finished and the caller is on the interaction tier.
+/// Count one synchronous call through `e`, if boot has finished and the caller is on the interaction or audio tier.
 pub fn note(e: Entry) {
-    if !crate::boot::finished() || tier::current() != Tier::Interaction {
+    if !crate::boot::finished() {
         return;
     }
-    let n = COUNTS[e as usize].fetch_add(1, Ordering::Relaxed) + 1;
+    let (counts, tag) = match tier::current() {
+        Tier::Interaction => (&COUNTS, "TIER-SYNC-SITE"),
+        Tier::Audio => (&AUDIO_COUNTS, "TIER-SYNC-AUDIO-SITE"),
+        _ => return,
+    };
+    let n = counts[e as usize].fetch_add(1, Ordering::Relaxed) + 1;
     #[cfg(not(target_os = "none"))]
-    sample_site(e, n);
+    sample_site(tag, e, n);
     #[cfg(target_os = "none")]
-    let _ = n;
+    let _ = (n, tag);
 }
 
 /// How many counted calls of each entry log their backtrace.
@@ -89,11 +98,11 @@ pub fn note(e: Entry) {
 const SITES_PER_ENTRY: u32 = 4;
 
 #[cfg(not(target_os = "none"))]
-fn sample_site(e: Entry, n: u32) {
+fn sample_site(tag: &str, e: Entry, n: u32) {
     let all = std::env::var_os("DELUGE_TIER_SYNC_TRACE").is_some_and(|v| v == "all");
     if n <= SITES_PER_ENTRY || all {
         log::warn!(
-            "TIER-SYNC-SITE entry={} n={n}\n{}",
+            "{tag} entry={} n={n}\n{}",
             e.name(),
             std::backtrace::Backtrace::force_capture()
         );
@@ -111,15 +120,26 @@ pub fn total() -> u32 {
 }
 
 /// Print `TIER-SYNC total=<N>`, then one `TIER-SYNC-AT entry=<name> n=<k>` per non-zero entry, in entry order.
-/// The golden runner calls this at exit; each gate script echoes the lines.
+/// Audio-tier calls follow as `TIER-SYNC-AUDIO total=<N>` and `TIER-SYNC-AUDIO-AT ...`, printed only when there
+/// are any, so a run without them prints what it always has. The golden runner calls this at exit.
 #[cfg(not(target_os = "none"))]
 pub fn print_report() {
     println!("TIER-SYNC total={}", total());
-    for (i, c) in COUNTS.iter().enumerate() {
+    print_entries("TIER-SYNC-AT", &COUNTS);
+    let audio: u32 = AUDIO_COUNTS.iter().map(|c| c.load(Ordering::Relaxed)).sum();
+    if audio != 0 {
+        println!("TIER-SYNC-AUDIO total={audio}");
+        print_entries("TIER-SYNC-AUDIO-AT", &AUDIO_COUNTS);
+    }
+}
+
+#[cfg(not(target_os = "none"))]
+fn print_entries(tag: &str, counts: &[AtomicU32; N]) {
+    for (i, c) in counts.iter().enumerate() {
         let n = c.load(Ordering::Relaxed);
         if n != 0 {
             let name = NAMES[i];
-            println!("TIER-SYNC-AT entry={} n={n}", &name[..name.len() - 1]);
+            println!("{tag} entry={} n={n}", &name[..name.len() - 1]);
         }
     }
 }

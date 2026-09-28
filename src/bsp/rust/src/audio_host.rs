@@ -149,13 +149,21 @@ fn render_mode() -> bool {
 ///   exactly this call chain). Skipping it is safe: the render this call would
 ///   have produced is discarded anyway (a null sink).
 fn should_skip_render() -> bool {
-    if !crate::boot::finished() {
+    if !crate::boot::finished() || render_after_boot() {
         return false;
     }
     // After boot: skip UNLESS this is host_app's real separate audio OS thread,
     // where this is the legitimate, load-bearing render path.
     let thread_name = std::thread::current().name().unwrap_or("").to_string();
     thread_name != "deluge-audio"
+}
+
+/// `DELUGE_RENDER_AFTER_BOOT=1`: never skip, so a single-executor harness renders every block after boot as
+/// well. Any synchronous card call a render makes is then counted as an audio-tier call (`tier_meter`), which is
+/// how the calls the skip exists to avoid are found.
+pub fn render_after_boot() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("DELUGE_RENDER_AFTER_BOOT").is_some_and(|v| v == "1"))
 }
 
 /// Total `deluge_audio_drive` calls observed so far (monotonic). Polled by
