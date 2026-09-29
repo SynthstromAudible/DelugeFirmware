@@ -92,7 +92,7 @@ def host_triple():
     # which has no such file, so name the channel explicitly. Both in-tree tomls
     # pin nightly, so +nightly stays consistent.
     out = subprocess.run(
-        ["rustc", "+nightly", "-vV"], capture_output=True, text=True
+        ["rustc", "+nightly", "-vV"], capture_output=True, text=True, check=False
     ).stdout
     for line in out.splitlines():
         if line.startswith("host:"):
@@ -105,19 +105,58 @@ def sim_install_root():
     return Path(SIM_BUILD_DIR) / "sim-tools"
 
 
+# The compilers deluge_host is built with: clang, as the firmware is. CC/CXX in the environment override them.
+HOST_CC = os.environ.get("CC", "clang")
+HOST_CXX = os.environ.get("CXX", "clang++")
+
+
+def configured_compiler(build_dir):
+    """The C++ compiler build_dir's CMake cache names, or None when it has not been configured."""
+    cache = Path(build_dir, "CMakeCache.txt")
+    if not cache.is_file():
+        return None
+    for line in cache.read_text(errors="replace").splitlines():
+        if line.startswith("CMAKE_CXX_COMPILER:"):
+            return Path(line.split("=", 1)[1]).name
+    return None
+
+
 def build_host(no_build, build_dir, cmake_defs=()):
     """Configure (if needed) and build deluge_host in build_dir with the given -D defines."""
     if no_build:
         return 0
-    if not Path(build_dir, "build.ninja").is_file():
+    configured = configured_compiler(build_dir)
+    if configured is not None and configured != Path(HOST_CXX).name:
+        # CMake keeps the compiler a tree was first configured with, so forget the configuration. Only CMake's own
+        # state goes: build_dir also holds the installed simulator GUI (sim-tools).
+        print(
+            f"deluge_host was configured with {configured}; reconfiguring with {HOST_CXX}"
+        )
+        Path(build_dir, "CMakeCache.txt").unlink()
+        shutil.rmtree(Path(build_dir, "CMakeFiles"), ignore_errors=True)
+    if not Path(build_dir, "CMakeCache.txt").is_file():
         rc = subprocess.run(
-            ["cmake", "-B", build_dir, "-S", "sim", "-G", "Ninja", *cmake_defs],
+            [
+                "cmake",
+                "-B",
+                build_dir,
+                "-S",
+                "sim",
+                "-G",
+                "Ninja",
+                f"-DCMAKE_C_COMPILER={HOST_CC}",
+                f"-DCMAKE_CXX_COMPILER={HOST_CXX}",
+                *cmake_defs,
+            ],
             env=os.environ,
+            check=False,
         ).returncode
         if rc != 0:
             return rc
     return subprocess.run(
-        ["cmake", "--build", build_dir, "--target", "deluge_host"], env=os.environ
+        ["cmake", "--build", build_dir, "--target", "deluge_host"],
+        env=os.environ,
+        check=False,
     ).returncode
 
 
@@ -149,7 +188,7 @@ def build_sim(triple, release, no_build):
     ]
     if not release:
         cmd += ["--debug"]
-    return subprocess.run(cmd, env=os.environ).returncode
+    return subprocess.run(cmd, env=os.environ, check=False).returncode
 
 
 def sim_binary():
@@ -227,24 +266,24 @@ def main():
         print("Starting deluge-simulator (panel) — close the window to stop.")
         # The GUI's wgpu/winit chatter is noise; keep deluge_host's logs (audio/MIDI/link) on the
         # terminal but send the panel's stdout/stderr to a logfile.
-        sim_log = open(
+        with open(
             os.path.join(util.get_git_root(), SIM_BUILD_DIR, "deluge-simulator.log"),
             "w",
-        )
-        sim_proc = subprocess.Popen(
-            [str(sim_bin), "--connect", args.socket],
-            stdout=sim_log,
-            stderr=subprocess.STDOUT,
-        )
+        ) as sim_log:
+            sim_proc = subprocess.Popen(
+                [str(sim_bin), "--connect", args.socket],
+                stdout=sim_log,
+                stderr=subprocess.STDOUT,
+            )
 
-        # Wait for either to exit, then tear the other down.
-        while True:
-            if sim_proc.poll() is not None:
-                break
-            if host_proc.poll() is not None:
-                util.note(f"deluge_host exited (code {host_proc.returncode}).")
-                break
-            time.sleep(0.1)
+            # Wait for either to exit, then tear the other down.
+            while True:
+                if sim_proc.poll() is not None:
+                    break
+                if host_proc.poll() is not None:
+                    util.note(f"deluge_host exited (code {host_proc.returncode}).")
+                    break
+                time.sleep(0.1)
     except KeyboardInterrupt:
         print("\nStopping emulator ...")
     finally:
