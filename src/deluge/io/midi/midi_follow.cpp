@@ -1927,10 +1927,9 @@ void MidiFollow::readDefaultsInline() {
 void MidiFollow::resetToDefaults() {
 	init();
 
-	// Default MIDI-follow input: channel 1 on any device. This makes incoming MIDI play the active
-	// instrument out of the box even with no SD card / no MIDIFollow.XML (otherwise the follow
-	// channels start unlearned and nothing routes). A user's MIDIFollow.XML, when present, overrides
-	// channel A when the settings below are read.
+	// Default MIDI-follow input: channel 1 on any device, as MidiEngine starts with, so incoming MIDI plays the
+	// active instrument when there is no MIDIFollow.XML. A user's MIDIFollow.XML, when present, overrides channel A
+	// when the settings below are read.
 	LearnedMIDI& a = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)];
 	a.clear();
 	a.channelOrZone = 0; // MIDI channel 1; cable left null = match any input device (omni)
