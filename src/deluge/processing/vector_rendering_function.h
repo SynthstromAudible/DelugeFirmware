@@ -17,6 +17,8 @@
 #pragma once
 #include "util/misc.h"
 #include <argon.hpp>
+#include <cstddef>
+#include <cstring>
 #include <limits>
 #include <utility>
 
@@ -33,8 +35,17 @@ waveRenderingFunctionGeneral(uint32_t phase, int32_t phaseIncrement, uint32_t _p
 		strength2[i] = rshifted;
 
 		uint32_t whichValue = phase >> (32 - tableSizeMagnitude);
-		uint32_t* readAddress = (uint32_t*)((uintptr_t)table + (whichValue << 1));
-		readValue[i].Load(readAddress);
+		// Read the two adjacent samples straddled by `whichValue` as a single 32-bit word; the
+		// interpolation below unpacks them again as value1/value2.
+		//
+		// `whichValue` is phase-driven, so it is odd half the time and the word is then 2 (mod 4).
+		// A `uint32_t*` would promise a 4-byte alignment we do not have, and the compiler is free to
+		// satisfy that promise with an instruction that enforces it — on ARM, an alignment-qualified
+		// NEON lane load (`vld1.32 {d0[0]}, [r0 :32]`) faults on the unaligned half regardless of
+		// SCTLR.A. Copying the bytes states the true alignment and still loads in one instruction.
+		uint32_t packedPair;
+		std::memcpy(&packedPair, reinterpret_cast<const std::byte*>(table) + (whichValue << 1), sizeof(packedPair));
+		readValue[i] = packedPair;
 	});
 
 	strength2 = strength2 >> 1;

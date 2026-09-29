@@ -27,11 +27,11 @@ namespace deluge::storage {
 /// desired target; at most one dispatch runs at a time, and when it completes the
 /// *latest* requested target (if it changed meanwhile) is dispatched next — so the
 /// result converges on where the user actually landed, never a stale intermediate.
-/// Contrast `Coalescer`, which drops new requests while one is in flight (correct for
-/// demand-collapsing, wrong for "show the newest").
+/// Contrast a plain single-flight coalescer, which drops new
+/// requests while one is in flight (correct for demand-collapsing, wrong for "show the newest").
 ///
 /// Not thread-safe: all calls are expected from the single executor-thread context
-/// that also runs the dispatched op (same contract as `Coalescer`).
+/// that also runs the dispatched op.
 template <typename T>
 class LatestWins {
 public:
@@ -67,17 +67,34 @@ public:
 
 	/// @brief Force back to idle, discarding any queued target.
 	///
-	/// For when a dispatch the caller believed it had issued never actually ran (e.g. the owner
-	/// queue was full, so the op that would have called complete() will never fire) — without this
-	/// the single-flight guard would wedge forever. The dropped target is simply lost; the next
+	/// For when a dispatch the caller believed it had issued never actually ran, so the op that
+	/// would have called complete() will never fire — without this the single-flight guard would
+	/// wedge forever. The dropped target is simply lost; the next
 	/// request() supersedes it.
 	void reset() {
 		in_flight_ = false;
 		queued_.reset();
 	}
 
+	/// @brief Discard the queued target, KEEPING the single-flight guard.
+	///
+	/// The half of reset() that applies when the dispatched op is still genuinely out there and will
+	/// still report back, but what was queued behind it is no longer wanted. Releasing the guard as
+	/// well would let a second op dispatch alongside the running one. Nothing is queued unless an op
+	/// is in flight, so on an idle instance this does nothing.
+	void clear_queued() { queued_.reset(); }
+
 	[[nodiscard]] bool in_flight() const { return in_flight_; }
 	[[nodiscard]] const T& current() const { return current_; }
+
+	/// @brief The target a further request() would OVERWRITE, if any.
+	///
+	/// Latest-wins supersession is only correct while every target names the same kind of thing (a
+	/// destination to converge on). A caller whose targets are not all of that kind can look here
+	/// first and decline the new request instead, keeping what is queued -- which is what
+	/// `LoadInstrumentPresetUI::dispatchPresetAcquisition()` does for creation gestures.
+	/// @return The queued target, or nullopt when nothing is queued (always so while idle).
+	[[nodiscard]] const std::optional<T>& queued() const { return queued_; }
 
 private:
 	bool in_flight_ = false;

@@ -51,7 +51,7 @@ public:
 
 	// midi device definition file
 	/// reading
-	Error readDeviceDefinitionFile(Deserializer& reader, bool readFromPresetOrSong);
+	Error readDeviceDefinitionFile(Deserializer& reader);
 	void readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& reader);
 	Error readCCLabelsFromFile(Deserializer& reader);
 	Error readHideUnlabeledCCFromFile(Deserializer& reader);
@@ -64,7 +64,6 @@ public:
 	void setNameForCC(int32_t cc, std::string_view name);
 	/// definition file
 	std::string deviceDefinitionFileName{};
-	bool loadDeviceDefinitionFile = false;
 	bool hideUnlabeledCC = false;
 
 	void sendMIDIPGM() override;

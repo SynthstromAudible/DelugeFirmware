@@ -75,7 +75,6 @@
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
-#include "storage/owner.h" // deluge::storage::Owner::run — run the yielding new-track clip create on the worker fiber
 #include "storage/storage_manager.h"
 #include "sync/storage_op.h"
 #include "util/c_string.h"
@@ -578,6 +577,7 @@ changeOutputType:
 				// Don't allow converting audio clip to instrument clip
 				if (clip->type == ClipType::AUDIO) {
 					display->displayPopup(l10n::get(l10n::String::STRING_FOR_CANT_CONVERT_TYPE));
+					requestRendering(this, 1 << selectedClipYDisplay, 0);
 				}
 				else {
 
@@ -606,6 +606,12 @@ changeOutputType:
 
 						loadInstrumentPresetUI.setupLoadInstrument(newOutputType, instrument, nullptr);
 						openUI(&loadInstrumentPresetUI);
+						// No requestRendering() here, deliberately: openUI() hands the screen to
+						// loadInstrumentPresetUI, which masks this view's rows while it's up, and
+						// selectedClipYDisplay was JUST set to 255 above -- the old unconditional
+						// requestRendering(this, 1 << selectedClipYDisplay, 0) after this whole if/else
+						// would have shifted by 255, undefined behaviour on a 32-bit value, so this
+						// branch never usefully redrew anything through that call either.
 					}
 
 					// Otherwise, just change the instrument type
@@ -618,17 +624,37 @@ doActualSimpleChange:
 							ModelStackWithTimelineCounter* modelStack =
 							    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClip);
 
-							view.changeOutputType(newOutputType, modelStack, true);
+							// The redraw cannot run right here: for Synth/Kit, dispatchPresetAcquisition()
+							// only just enqueued the swap, so redrawing now would show the OLD instrument.
+							// completeChangeOutputTypeRows() runs it instead, once the swap (if any) has
+							// actually happened.
+							view.changeOutputType(newOutputType, modelStack, true,
+							                      deluge::storage::PresetConsumer::SessionRowsChangeType);
 							break;
 						}
 						case SessionLayoutType::SessionLayoutTypeGrid: {
-							// Mostly taken from ArrangerView::changeOutputType
-							if (instrument->type != newOutputType) {
-								Instrument* newInstrument = currentSong->changeOutputType(instrument, newOutputType);
-								if (newInstrument) {
-									view.displayOutputName(newInstrument);
-									view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
-								}
+							if (instrument->type == newOutputType) {
+								// Nothing to swap, so nothing to defer, but the row still needs redrawing here.
+								requestRendering(this, 1 << selectedClipYDisplay, 0);
+							}
+							// MIDI and CV allocate a non-audio instrument and read no card, so they stay
+							// synchronous -- dispatching them would defer this gesture behind a storage
+							// round-trip for nothing. Only Synth/Kit reaches the directory.
+							else if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
+								completeChangeOutputType(newOutputType, instrument);
+							}
+							else {
+								deluge::storage::PresetRequest request{
+								    .consumer = deluge::storage::PresetConsumer::SessionChangeType,
+								    .outputType = newOutputType,
+								    .availability = Availability::INSTRUMENT_UNUSED,
+								    .dirPath = getInstrumentFolder(newOutputType),
+								    .oldInstrument = instrument,
+								};
+								// A dropped gesture leaves the clip on its existing Instrument and the row
+								// showing it; the next button press dispatches again. See
+								// dispatchPresetAcquisition()'s doc.
+								(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 							}
 							break;
 						}
@@ -637,8 +663,6 @@ doActualSimpleChange:
 						}
 					}
 				}
-
-				requestRendering(this, 1 << selectedClipYDisplay, 0);
 			}
 		}
 	}
@@ -676,6 +700,29 @@ notDealtWith:
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+bool SessionView::completeChangeOutputTypeRows(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
+                                               const deluge::storage::AcquireResult* acquired) {
+	bool success = view.completeChangeOutputType(newOutputType, clip, doBlink, acquired);
+	// selectedClipYDisplay is read live, not carried from dispatch time: it names WHICH ROW to
+	// invalidate, not anything the acquisition itself depends on, so redrawing wherever the clip
+	// actually is now is more correct than redrawing wherever it was when the gesture was made.
+	requestRendering(this, 1 << selectedClipYDisplay, 0);
+	return success;
+}
+
+void SessionView::completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument,
+                                           const deluge::storage::AcquireResult* acquired) {
+	Instrument* newInstrument = (acquired != nullptr) ? currentSong->applyChangeOutputType(oldInstrument, *acquired)
+	                                                  : currentSong->changeOutputType(oldInstrument, newOutputType);
+	if (newInstrument) {
+		view.displayOutputName(newInstrument);
+		view.setActiveModControllableTimelineCounter(newInstrument->getActiveClip());
+	}
+	// Read live rather than snapshotted, for the same reason completeChangeOutputTypeRows() does:
+	// this only names WHICH ROW to invalidate.
+	requestRendering(this, 1 << selectedClipYDisplay, 0);
 }
 
 void SessionView::goToArrangementEditor() {
@@ -814,16 +861,7 @@ removePendingOverdub:
 						selectedClipYDisplay = yDisplay;
 						// This is only interresting for changing colour
 						clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
-startHoldingDown:
-						selectedClipPressYDisplay = yDisplay;
-						// we've either created or selected a clip, so set it to be current
-						currentSong->setCurrentClip(clip);
-						currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
-						selectedClipPressXDisplay = xDisplay;
-						performActionOnPadRelease = true;
-						selectedClipTimePressed = AudioEngine::audioSampleTimer;
-						view.setActiveModControllableTimelineCounter(clip);
-						view.displayOutputName(clip->output, true, clip);
+						beginHoldingClipPress(clip, xDisplay, yDisplay);
 					}
 				}
 
@@ -854,30 +892,40 @@ startHoldingDown:
 					if (toCreate == OutputType::NONE || toCreate == OutputType::CV || toCreate == OutputType::AUDIO) {
 						toCreate = OutputType::SYNTH;
 					}
-					clip = createNewInstrumentClip(toCreate, yDisplay);
-					if (!clip) {
+
+					// Synth/Kit need a preset off the card (what setPresetOrNextUnlaunchedOne() takes), so
+					// InstrumentLoad acquires it and completeNewTrack() runs the whole create-and-hold
+					// sequence once it lands. MIDI allocates a non-audio instrument and reads no card, so
+					// it stays synchronous.
+					// The dispatch itself carries no answer, so this returns ActionResult::DEALT_WITH
+					// regardless.
+					//
+					// The pad is down right now on BOTH paths, so the held marker is set for both: the
+					// synchronous one cannot see a release in between, so it always finds it true and
+					// enters the held mode.
+					newTrackPressHeld_ = true;
+					if (toCreate == OutputType::SYNTH || toCreate == OutputType::KIT) {
+						deluge::storage::PresetRequest request{
+						    .consumer = deluge::storage::PresetConsumer::SessionNewTrack,
+						    .outputType = toCreate,
+						    .availability = Availability::INSTRUMENT_UNUSED,
+						    .yPressed = yDisplay,
+						    .xPressed = xDisplay,
+						    .clipIndex = clipIndex,
+						    // Snapshotted here rather than read live in the completion, which runs
+						    // after a card read.
+						    .shiftHeld = Buttons::isShiftButtonPressed(),
+						    .dirPath = getInstrumentFolder(toCreate),
+						};
+						// A dropped gesture creates nothing, which is what the pad already showed. The held
+						// marker outliving it is harmless: only completeNewTrack() reads it, and the next
+						// new-track press sets it afresh before dispatching. See
+						// dispatchPresetAcquisition()'s doc.
+						(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 						return ActionResult::DEALT_WITH;
 					}
-
-					lastTypeCreated = clip->output->type;
-					createClip = true;
-
-					int32_t numClips = std::ssize(currentSong->sessionClips);
-					if (clipIndex < 0) {
-						clipIndex = 0;
-					}
-					else if (clipIndex >= numClips) {
-						clipIndex = numClips - 1;
-					}
-
-					// This is only interresting for changing colour
-					clipWasSelectedWithShift = Buttons::isShiftButtonPressed();
-					selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
-					requestRendering(this, 0, 1 << selectedClipYDisplay);
-
-					if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-						goto startHoldingDown;
-					}
+					completeNewTrack(toCreate, xDisplay, yDisplay, clipIndex, Buttons::isShiftButtonPressed());
+					return ActionResult::DEALT_WITH;
 				}
 			}
 
@@ -1004,6 +1052,19 @@ justEndClipPress:
 				if (isSDRoutineActive()) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
+				// Only NOW is this release actually being consumed. The pad that may have started a
+				// deferred new-track acquisition is up, so completeNewTrack() must not enter the
+				// held-clip mode when it eventually runs -- nothing would ever leave it (see
+				// newTrackPressHeld_'s doc). Deliberately BELOW the reminder above: while the card is
+				// busy -- which is exactly the acquisition's own window -- padAction() is re-delivered
+				// once it finishes, by which time the completion has entered the held mode and the
+				// quick-tap "enter the clip" shortcut still works. Clearing before that check would
+				// throw the shortcut away for nothing.
+				//
+				// Not cleared in the two branches above either: reaching them means either the
+				// completion has already run (it clears the marker itself on every path) or another
+				// gesture owns the UI mode.
+				newTrackPressHeld_ = false;
 			}
 		}
 	}
@@ -1294,11 +1355,24 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 		}
 		case SessionLayoutType::SessionLayoutTypeGrid: {
 			Output* oldOutput = clip->output;
-			Output* newOutput = currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
-			if (oldOutput != newOutput) {
-				view.setActiveModControllableTimelineCounter(newOutput->getActiveClip());
-				requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
+			// Song::navigateThroughPresetsForInstrument() branches internally: MIDI/CV just re-channels
+			// the existing Instrument and reads no card, so it stays synchronous.
+			if (oldOutput->type == OutputType::MIDI_OUT || oldOutput->type == OutputType::CV) {
+				completeNavigate(offset, oldOutput);
+				break;
 			}
+			deluge::storage::PresetRequest request{
+			    .consumer = deluge::storage::PresetConsumer::SessionNavigate,
+			    .outputType = oldOutput->type,
+			    .availability = Availability::INSTRUMENT_UNUSED,
+			    .offset = offset,
+			    .doBlink = true,
+			    .dirPath = ((Instrument*)oldOutput)->dirPath,
+			    .oldInstrument = (Instrument*)oldOutput,
+			};
+			// A dropped gesture leaves the clip on the preset it already had; nothing to undo, and the
+			// next encoder tick dispatches again. See dispatchPresetAcquisition()'s doc.
+			(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
 			break;
 		}
 		// explicit fallthrough cases
@@ -1308,6 +1382,16 @@ void SessionView::commandChangeClipPreset(int8_t offset) {
 	else {
 		auto ao = (AudioOutput*)clip->output;
 		ao->scrollAudioOutputMode(offset);
+	}
+}
+
+void SessionView::completeNavigate(int32_t offset, Output* oldOutput, const deluge::storage::AcquireResult* acquired) {
+	Output* newOutput = (acquired != nullptr)
+	                        ? currentSong->applyNavigateThroughPresets(static_cast<Instrument*>(oldOutput), *acquired)
+	                        : currentSong->navigateThroughPresetsForInstrument(oldOutput, offset);
+	if (oldOutput != newOutput) {
+		view.setActiveModControllableTimelineCounter(newOutput->getActiveClip());
+		requestRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 }
 
@@ -1465,7 +1549,7 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 		actionLogger.deleteAllLogs();
 
 		int32_t newIndex = oldIndex + direction;
-		std::swap(currentSong->sessionClips[newIndex], currentSong->sessionClips[oldIndex]);
+		currentSong->sessionClips.swapClips(newIndex, oldIndex);
 	}
 
 	currentSong->songViewYScroll += direction;
@@ -1542,50 +1626,28 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	}
 }
 
-// Will now look in subfolders too if need be.
+// @p acquired is what InstrumentLoad acquired for this gesture, or what a scenario's own fixture loader did: this
+// reads no card of its own.
 Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, bool* instrumentAlreadyInSong,
-                                   bool copyDrumsFromClip = true) {
-	Browser::currentDir = getInstrumentFolder(outputType);
-
-	FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-	                                     currentSong, outputType, Availability::INSTRUMENT_UNUSED),
-	                                 error, { return error; });
-
-	Instrument* newInstrument = fileItem->instrument;
-	bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-	*instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
-
-	Error error = Error::NONE;
-	if (!newInstrument) {
-		std::string newPresetName = fileItem->getFilenameWithoutExtension();
-		std::string filePath = Browser::currentDir + "/" + fileItem->getFilenameWithExtension();
-		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
-		                                               filePath.c_str(), &newPresetName, &Browser::currentDir);
+                                   bool copyDrumsFromClip, const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		return acquired.error;
 	}
-
-	Browser::emptyFileItems();
-
-	if (error != Error::NONE) {
-		return error;
-	}
-
+	Instrument* newInstrument = acquired.instrument;
+	const bool isHibernating = acquired.wasHibernating;
+	*instrumentAlreadyInSong = acquired.alreadyInSong;
 	if (isHibernating) {
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
-	deluge::hid::display::OLED::displayWorkingAnimation("Loading");
-
-	newInstrument->loadAllAudioFiles(true);
-
-	display->removeWorkingAnimation();
-
 	if (copyDrumsFromClip) {
-		error = clip->setAudioInstrument(newInstrument, currentSong, true, nullptr); // Does a setupPatching()
+		Error error = clip->setAudioInstrument(newInstrument, currentSong, true, nullptr); // Does a setupPatching()
 		if (error != Error::NONE) {
 			// setAudioInstrument failed (most likely INSUFFICIENT_RAM while loading the kit's samples). Release the
 			// Instrument we just brought in so it doesn't leak - delete it, or return it to the hibernation list if
-			// it's been edited. One that was already an active Output in the song is left untouched.
-			if (!*instrumentAlreadyInSong) {
+			// it's been edited. One that was already an active Output in the song is left untouched, and a preset
+			// InstrumentLoad parsed is released by its delivery.
+			if (!*instrumentAlreadyInSong && !acquired.loadedFromFile) {
 				currentSong->deleteOrAddToHibernationListOutput(newInstrument);
 			}
 			return error;
@@ -1620,7 +1682,8 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 constexpr float colourStep = 22.5882352941;
 static float lastColour = 192 - colourStep + 1;
 
-Clip* SessionView::createNewClip(OutputType outputType, int32_t yDisplay) {
+Clip* SessionView::createNewClip(OutputType outputType, int32_t yDisplay,
+                                 const deluge::storage::AcquireResult* acquired) {
 	Clip* clip = nullptr;
 	switch (outputType) {
 	case OutputType::AUDIO:
@@ -1633,10 +1696,10 @@ Clip* SessionView::createNewClip(OutputType outputType, int32_t yDisplay) {
 		break;
 	default:
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-			clip = gridCreateInstrumentClipWithNewTrack(outputType);
+			clip = gridCreateInstrumentClipWithNewTrack(outputType, acquired);
 		}
 		else {
-			clip = createNewInstrumentClip(outputType, yDisplay);
+			clip = createNewInstrumentClip(outputType, yDisplay, acquired);
 		}
 		break;
 	}
@@ -1679,7 +1742,64 @@ Clip* SessionView::createNewAudioClip(int32_t yDisplay) {
 	return newClip;
 }
 
-Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDisplay) {
+void SessionView::beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yDisplay) {
+	selectedClipPressYDisplay = yDisplay;
+	// we've either created or selected a clip, so set it to be current
+	currentSong->setCurrentClip(clip);
+	currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+	selectedClipPressXDisplay = xDisplay;
+	performActionOnPadRelease = true;
+	selectedClipTimePressed = AudioEngine::audioSampleTimer;
+	view.setActiveModControllableTimelineCounter(clip);
+	view.displayOutputName(clip->output, true, clip);
+}
+
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed, with `acquired` set; MIDI
+// is called inline. createNewInstrumentClip() takes what was acquired and reads no card of its own.
+void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex,
+                                   bool shiftHeld, const deluge::storage::AcquireResult* acquired) {
+	Clip* clip = createNewInstrumentClip(type, yDisplay, acquired);
+	if (!clip) {
+		// The gesture is over: nothing was created, so nothing will be held.
+		newTrackPressHeld_ = false;
+		return;
+	}
+
+	lastTypeCreated = clip->output->type;
+	createClip = true;
+
+	int32_t numClips = std::ssize(currentSong->sessionClips);
+	if (clipIndex < 0) {
+		clipIndex = 0;
+	}
+	else if (clipIndex >= numClips) {
+		clipIndex = numClips - 1;
+	}
+
+	// This is only interresting for changing colour. Taken from the dispatch-time snapshot, not read
+	// live: the synchronous path read it a few instructions after the press, and the dispatched one
+	// gets here a whole card read later, by which time SHIFT may have been pressed or released.
+	clipWasSelectedWithShift = shiftHeld;
+	selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
+	requestRendering(this, 0, 1 << selectedClipYDisplay);
+
+	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
+		// Only enter the held mode if the pad is still down. On the dispatched path the release can
+		// already have been consumed while the acquisition was in flight, and nothing would ever leave
+		// a held mode entered after it (see newTrackPressHeld_'s doc). The synchronous path always
+		// finds it set, so it always enters the held mode too.
+		if (newTrackPressHeld_) {
+			newTrackPressHeld_ = false;
+			beginHoldingClipPress(clip, xDisplay, yDisplay);
+		}
+	}
+	else {
+		newTrackPressHeld_ = false;
+	}
+}
+
+Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDisplay,
+                                           const deluge::storage::AcquireResult* acquired) {
 	actionLogger.deleteAllLogs();
 
 	// Allocate memory for instrument clip
@@ -1693,7 +1813,7 @@ Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDispl
 	InstrumentClip* newClip = new (clipMemory) InstrumentClip(currentSong);
 
 	// suss output
-	if (!createNewTrackForInstrumentClip(outputType, newClip, true)) {
+	if (!createNewTrackForInstrumentClip(outputType, newClip, true, acquired)) {
 		newClip->~InstrumentClip();
 		delugeDealloc(clipMemory);
 		return nullptr;
@@ -3369,10 +3489,16 @@ bool SessionView::createNewTrackForAudioClip(AudioClip* newClip) {
 	return true;
 }
 
-bool SessionView::createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip) {
+bool SessionView::createNewTrackForInstrumentClip(OutputType type, InstrumentClip* clip, bool copyDrumsFromClip,
+                                                  const deluge::storage::AcquireResult* acquired) {
 	bool instrumentAlreadyInSong = false;
 	if (type == OutputType::SYNTH || type == OutputType::KIT) {
-		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip);
+		if (acquired == nullptr) {
+			// A Synth or Kit track is made from a preset something else acquired: InstrumentLoad for a gesture, the
+			// fixture loader for a scenario. Nothing walks the card from here.
+			return false;
+		}
+		Error error = setPresetOrNextUnlaunchedOne(clip, type, &instrumentAlreadyInSong, copyDrumsFromClip, *acquired);
 		if (error != Error::NONE || instrumentAlreadyInSong) {
 			if (error != Error::NONE) {
 				display->displayError(error);
@@ -3435,7 +3561,8 @@ AudioClip* SessionView::gridCreateAudioClipWithNewTrack() {
 	return newClip;
 }
 
-InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType type) {
+InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType type,
+                                                                  const deluge::storage::AcquireResult* acquired) {
 	// Allocate new clip
 	void* memory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	if (!memory) {
@@ -3444,7 +3571,7 @@ InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType typ
 	}
 
 	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
-	if (!createNewTrackForInstrumentClip(type, newClip, true)) {
+	if (!createNewTrackForInstrumentClip(type, newClip, true, acquired)) {
 		newClip->~InstrumentClip();
 		delugeDealloc(memory);
 		return nullptr;
@@ -3535,7 +3662,8 @@ void SessionView::copyClipName(Clip* source, Clip* target, Output* targetOutput)
 }
 #pragma GCC diagnostic pop
 
-Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
+Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, Clip* sourceClip,
+                                  const deluge::storage::AcquireResult* acquired) {
 	actionLogger.deleteAllLogs();
 
 	Clip* newClip = nullptr;
@@ -3566,36 +3694,19 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		newClip = gridCreateClipInTrack(targetOutput);
 	}
 
-	// Create new clip in new track
+	// Create new clip in new track -- not reachable here. That path has to wait for the user to pick a
+	// clip type, which is a later tick, so it is split across beginGridNewTrackClip() and
+	// finishGridNewTrackClip() instead. Callers go to the former; this function only ever completes the
+	// paths that can finish synchronously.
 	else {
-		// only create track and clip if you're pressing in an empty track column immediately to
-		// to the right of another not-empty track column
-		auto maxTrack = gridTrackCount();
-		if ((gridFirstPressedX > 0) && (gridTrackFromX(gridFirstPressedX - 1, maxTrack))) {
-			// This is the right position to add immediate type creation
-			setupTrackCreation();
-			createClip = true;
-
-			// wait until you've chosen a type, by pressing a type button or releasing the pad
-			yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
-			if (createClip) {
-				OutputType toCreate = context_menu::clip_settings::newClipType.toCreate;
-				newClip = createNewClip(toCreate, -1);
-				if (newClip == nullptr) {
-					clipPressEnded();
-				}
-				// if we made a clip, update last type created
-				else {
-					lastTypeCreated = toCreate;
-				}
-				createClip = false;
-			}
-		}
-		else {
-			clipPressEnded();
-		}
+		return nullptr;
 	}
 
+	return gridPlaceNewClip(newClip, targetSection, targetOutput, sourceClip, acquired);
+}
+
+Clip* SessionView::gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Output* targetOutput, Clip* sourceClip,
+                                    const deluge::storage::AcquireResult* acquired) {
 	if (newClip == nullptr) {
 		return nullptr;
 	}
@@ -3624,7 +3735,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 			InstrumentClip* newInstrumentClip = (InstrumentClip*)newClip;
 			// Create a new track for the clip
 			if (targetOutput == nullptr) {
-				if (!createNewTrackForInstrumentClip(sourceClip->output->type, newInstrumentClip, false)) {
+				if (!createNewTrackForInstrumentClip(sourceClip->output->type, newInstrumentClip, false, acquired)) {
 					currentSong->sessionClips.erase(currentSong->sessionClips.begin() + 0);
 					newClip->~Clip();
 					delugeDealloc(newClip);
@@ -3699,28 +3810,164 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 		return;
 	}
 
-	gridCreateClip(gridSectionFromY(targetY), gridTrackFromX(targetX, gridTrackCount()), sourceClip);
+	Output* targetOutput = gridTrackFromX(targetX, gridTrackCount());
+	const uint32_t targetSection = gridSectionFromY(targetY);
+
+	// Copying into an EMPTY track column is the one arm that has to acquire an instrument for the new
+	// track (gridPlaceNewClip() -> createNewTrackForInstrumentClip()), so it goes through an
+	// InstrumentLoad acquisition, which reads the card. Every other copy re-uses an existing Output and
+	// stays synchronous (spec section 2c). The "COPIED" popup is this gesture's tail and goes with it,
+	// rather than firing before the copy it is announcing.
+	if (targetOutput == nullptr && sourceClip->type == ClipType::INSTRUMENT
+	    && (sourceClip->output->type == OutputType::SYNTH || sourceClip->output->type == OutputType::KIT)) {
+		deluge::storage::PresetRequest request{
+		    .consumer = deluge::storage::PresetConsumer::SessionNewTrackClone,
+		    .outputType = sourceClip->output->type,
+		    .availability = Availability::INSTRUMENT_UNUSED,
+		    .targetSection = targetSection,
+		    .dirPath = getInstrumentFolder(sourceClip->output->type),
+		    // Set purely so `sourceClip` gets a liveness re-check: runAcquisitionFollowUp() gates every
+		    // follow-up on isRequestInstrumentStillLive(oldInstrument), and without this the completion
+		    // could dereference a source clip deleted while the acquisition was in flight. The type test
+		    // above already established this Output is a SYNTH or KIT Instrument.
+		    .oldInstrument = (Instrument*)sourceClip->output,
+		    .sourceClip = sourceClip,
+		};
+		// A dropped gesture copies nothing and shows no "COPIED" -- the target column stays empty, which
+		// is what it already showed. See dispatchPresetAcquisition()'s doc.
+		(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+		return;
+	}
+
+	gridCreateClip(targetSection, targetOutput, sourceClip);
 	display->popupTextTemporary("COPIED");
 }
 
-// Worker-fiber jobs for the new-track grid gesture. gridCreateClip() opens the
-// clip-type picker and yields until the user chooses; on the decomposed BSP that
-// yield runs cooperatively only on the worker fiber, so these run there (dispatched
-// from the pad handlers via deluge::storage::Owner::run). Each mirrors its call site's
-// post-create logic; press x/y are unpacked from the packed arg (y<<16 | x).
+// Run by InstrumentLoad once the acquisition has landed. targetOutput is null by construction: this
+// consumer exists only for the empty-track-column arm above.
+void SessionView::completeNewTrackClone(uint32_t targetSection, Clip* sourceClip,
+                                        const deluge::storage::AcquireResult* acquired) {
+	gridCreateClip(targetSection, nullptr, sourceClip, acquired);
+	display->popupTextTemporary("COPIED");
+}
 
-void SessionView::gridNewTrackClipAndEnter(uint32_t packedXY) {
-	int32_t x = static_cast<int32_t>(packedXY & 0xFFFF);
-	int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
-	Clip* clip = gridCreateClip(gridSectionFromY(y), nullptr, nullptr); // yields for the picker
+// The new-track grid gesture, split in two because it has to wait for the user to choose a clip type.
+//
+// beginGridNewTrackClip() opens the picker and returns; the pad handler goes back to its loop. When the
+// choice arrives, exitTrackCreation() calls finishGridNewTrackClip(), which creates the clip and hands it
+// to whichever of the two post-create halves below the gesture asked for. Press x/y are unpacked from the
+// packed arg (y<<16 | x), which is carried across the wait rather than a stack.
+
+void SessionView::beginGridNewTrackClip(PendingGridClip which, uint32_t packedXY) {
+	// only create track and clip if you're pressing in an empty track column immediately to
+	// to the right of another not-empty track column
+	auto maxTrack = gridTrackCount();
+	if (!((gridFirstPressedX > 0) && (gridTrackFromX(gridFirstPressedX - 1, maxTrack)))) {
+		clipPressEnded();
+		return;
+	}
+	pendingGridClip = which;
+	pendingGridClipXY = packedXY;
+	setupTrackCreation();
+	createClip = true;
+}
+
+void SessionView::finishGridNewTrackClip() {
+	if (pendingGridClip == PendingGridClip::NONE) {
+		return;
+	}
+	const PendingGridClip which = pendingGridClip;
+	const uint32_t packedXY = pendingGridClipXY;
+	pendingGridClip = PendingGridClip::NONE;
+
+	// createClip is the accept/cancel signal: backing out of the picker clears it.
+	if (!createClip) {
+		return;
+	}
+	createClip = false;
+
+	const OutputType toCreate = context_menu::clip_settings::newClipType.toCreate;
+
+	// Read HERE, not in the continuation: both callers of exitTrackCreation() run clipPressEnded() ->
+	// gridResetPresses() the instant it returns (session_view.cpp, the first-finger-up and empty-pad
+	// release paths), which sets gridFirstPressedX/Y to -1. The synchronous version compared against
+	// them at this point, while the press was still live; a completion comparing against them later
+	// would always conclude "released" and take the other branch -- for ENTER, transitioning into the
+	// clip instead of holding it. So the answer is snapshotted, exactly like every other piece of
+	// state that crosses a dispatch.
+	const int32_t pressX = static_cast<int32_t>(packedXY & 0xFFFF);
+	const int32_t pressY = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
+	const bool padStillPressed = (pressX == gridFirstPressedX && pressY == gridFirstPressedY);
+
+	// Synth/Kit need a preset off the card for createNewClip(), so InstrumentLoad acquires it and the
+	// create-and-place half plus this continuation's own tail run once it lands. Audio, MIDI and CV read
+	// no card and stay synchronous. Each continuation gets its own consumer: their tails
+	// (gridNewTrackClipEntered() vs gridNewTrackClipSelected()) are different functions.
+	if (toCreate == OutputType::SYNTH || toCreate == OutputType::KIT) {
+		deluge::storage::PresetRequest request{
+		    .consumer = (which == PendingGridClip::ENTER) ? deluge::storage::PresetConsumer::SessionNewTrackEnter
+		                                                  : deluge::storage::PresetConsumer::SessionNewTrackSelect,
+		    .outputType = toCreate,
+		    .availability = Availability::INSTRUMENT_UNUSED,
+		    .packedXY = packedXY,
+		    .padStillPressed = padStillPressed,
+		    .dirPath = getInstrumentFolder(toCreate),
+		};
+		// A dropped gesture creates nothing; the picker is already closed and the press already ended,
+		// so there is nothing left half-applied. See dispatchPresetAcquisition()'s doc.
+		(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+		return;
+	}
+
+	if (which == PendingGridClip::ENTER) {
+		completeNewTrackGridEnter(toCreate, packedXY, padStillPressed);
+	}
+	else {
+		completeNewTrackGridSelect(toCreate, packedXY, padStillPressed);
+	}
+}
+
+Clip* SessionView::createGridNewTrackClip(OutputType type, uint32_t packedXY,
+                                          const deluge::storage::AcquireResult* acquired) {
+	Clip* newClip = createNewClip(type, -1, acquired);
+	if (newClip == nullptr) {
+		clipPressEnded();
+		return nullptr;
+	}
+	// if we made a clip, update last type created
+	lastTypeCreated = type;
+
+	const int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
+	return gridPlaceNewClip(newClip, gridSectionFromY(y), nullptr, nullptr);
+}
+
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed; Audio/MIDI/CV inline.
+void SessionView::completeNewTrackGridEnter(OutputType type, uint32_t packedXY, bool padStillPressed,
+                                            const deluge::storage::AcquireResult* acquired) {
+	Clip* clip = createGridNewTrackClip(type, packedXY, acquired);
 	if (clip == nullptr) {
 		return;
 	}
+	gridNewTrackClipEntered(clip, padStillPressed);
+}
+
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed; Audio/MIDI/CV inline.
+void SessionView::completeNewTrackGridSelect(OutputType type, uint32_t packedXY, bool padStillPressed,
+                                             const deluge::storage::AcquireResult* acquired) {
+	Clip* clip = createGridNewTrackClip(type, packedXY, acquired);
+	if (clip == nullptr) {
+		return;
+	}
+	gridNewTrackClipSelected(clip, padStillPressed);
+}
+
+void SessionView::gridNewTrackClipEntered(Clip* clip, bool padStillPressed) {
 	// New track: start it playing immediately.
 	gridToggleClipPlay(clip, true);
-	// If the pad was released during selection (press coords no longer current), just
-	// select + transition; otherwise treat it as a held clip press.
-	if (x != gridFirstPressedX || y != gridFirstPressedY) {
+	// If the pad was released during selection, just select + transition; otherwise treat it as a held
+	// clip press. `padStillPressed` is the caller's snapshot of that comparison, not a live read of
+	// gridFirstPressedX/Y -- see finishGridNewTrackClip() for why re-reading them here is wrong.
+	if (!padStillPressed) {
 		gridSelectClipForPulsing(*clip);
 		currentSong->setCurrentClip(clip);
 		transitionToViewForClip(clip);
@@ -3736,13 +3983,7 @@ void SessionView::gridNewTrackClipAndEnter(uint32_t packedXY) {
 	view.setActiveModControllableTimelineCounter(clip);
 }
 
-void SessionView::gridNewTrackClipAndSelect(uint32_t packedXY) {
-	int32_t x = static_cast<int32_t>(packedXY & 0xFFFF);
-	int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
-	Clip* clip = gridCreateClip(gridSectionFromY(y), nullptr, nullptr); // yields for the picker
-	if (clip == nullptr) {
-		return;
-	}
+void SessionView::gridNewTrackClipSelected(Clip* clip, bool padStillPressed) {
 	// If playing and Rec enabled, an empty-pad create can start it playing.
 	if (playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL
 	    && FlashStorage::gridEmptyPadsCreateRec) {
@@ -3750,8 +3991,9 @@ void SessionView::gridNewTrackClipAndSelect(uint32_t packedXY) {
 	}
 	gridSelectClipForPulsing(*clip);
 	currentSong->setCurrentClip(clip);
-	// Allow clip control (selection) if still holding the original pad.
-	if (x == gridFirstPressedX && y == gridFirstPressedY) {
+	// Allow clip control (selection) if still holding the original pad -- the caller's snapshot, for
+	// the same reason gridNewTrackClipEntered() takes one.
+	if (padStillPressed) {
 		currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 		view.displayOutputName(clip->output, true, clip);
 		display->cancelPopup();
@@ -3926,18 +4168,11 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 				if ((x + currentSong->songGridScrollX) <= trackCount) {
 					Output* track = gridTrackFromX(x, trackCount);
 					if (track == nullptr) {
-						// New track: gridCreateClip() opens the clip-type picker and yields
-						// until the user chooses (type button / pad release). A synchronous
-						// yield can't run on this BSP, so run the create + this site's
-						// post-logic on the worker fiber (gridNewTrackClipAndEnter) and
-						// return a provisional result; the work finishes after the choice.
-						deluge::storage::Owner::run(
-						    [](void* p) {
-							    sessionView.gridNewTrackClipAndEnter(
-							        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p)));
-						    },
-						    reinterpret_cast<void*>(static_cast<uintptr_t>((static_cast<uint32_t>(y) << 16)
-						                                                   | (static_cast<uint32_t>(x) & 0xFFFF))));
+						// New track: opening the clip-type picker cannot finish here, since it
+						// waits on the user. Start the gesture and return a provisional result;
+						// finishGridNewTrackClip() completes it once the choice arrives.
+						beginGridNewTrackClip(PendingGridClip::ENTER,
+						                      (static_cast<uint32_t>(y) << 16) | (static_cast<uint32_t>(x) & 0xFFFF));
 						return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 					}
 					// Existing track: gridCreateClip() does not yield here.
@@ -4043,6 +4278,8 @@ void SessionView::exitTrackCreation() {
 	indicator_leds::setLedState(IndicatorLED::CV, false, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false, false);
 	exitUIMode(UI_MODE_CREATING_CLIP);
+	// The single funnel out of the picker, so it is where the deferred gesture resumes.
+	finishGridNewTrackClip();
 }
 
 ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip) {
@@ -4141,16 +4378,10 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				gridFirstPressedX = x;
 				gridFirstPressedY = y;
 				if (track == nullptr) {
-					// New track: gridCreateClip() yields for the clip-type picker — run the
-					// create + this site's post-logic on the worker fiber (see gridHandlePads),
-					// returning a provisional result; it finishes after the choice.
-					deluge::storage::Owner::run(
-					    [](void* p) {
-						    sessionView.gridNewTrackClipAndSelect(
-						        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p)));
-					    },
-					    reinterpret_cast<void*>(static_cast<uintptr_t>((static_cast<uint32_t>(y) << 16)
-					                                                   | (static_cast<uint32_t>(x) & 0xFFFF))));
+					// New track: the clip-type picker waits on the user, so start the gesture and
+					// return a provisional result (see gridHandlePads).
+					beginGridNewTrackClip(PendingGridClip::SELECT,
+					                      (static_cast<uint32_t>(y) << 16) | (static_cast<uint32_t>(x) & 0xFFFF));
 					return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 				}
 				// Existing track: gridCreateClip() does not yield here.

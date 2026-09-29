@@ -595,27 +595,23 @@ bool SampleLowLevelReader::fillInterpolationBufferForward(SamplePlaybackGuide* g
 
 	if (!hasCurrentRegion()) {
 		// zero and exit fast
-		for (int32_t i = numSpacesToFill - 1; i >= 0; i--) {
-			interpolator_.buffer_l[i] = 0;
-			interpolator_.buffer_r[i] = 0;
-			currentPlayPos++;
-			if ((uintptr_t)currentPlayPos >= interpolationBufferSize) {
-				return false;
-			}
-		}
-		return true;
+		return fillInterpolationBufferWithSilence(numSpacesToFill - 1, interpolationBufferSize);
 	}
 
 	// otherwise...
 	for (int32_t i = numSpacesToFill - 1; i >= 0; i--) {
 		bool stillGoing = changeClusterIfNecessary(guide, sample, loopingAtLowLevel, priorityRating);
 		if (!stillGoing) {
-			interpolator_.buffer_l[i] = 0;
-			interpolator_.buffer_r[i] = 0;
-			currentPlayPos++;
-			if ((uintptr_t)currentPlayPos >= interpolationBufferSize) {
-				return false;
-			}
+			// There is no more audio, so the rest of the buffer is silence - and we must not read
+			// through currentPlayPos, which changeClusterIfNecessary() sets to null on its
+			// not-looping exit. Reading it as a play position dereferenced address 3, because the
+			// silence path increments it as a counter from null.
+			//
+			// Nor can we simply skip the read and go round again: currentPlayPos is a small count by
+			// then, so changeClusterIfNecessary() would compute a hugely negative overshoot against
+			// the reassessment pointer, report that we are still inside the cluster, and let the next
+			// iteration do the read we just avoided.
+			return fillInterpolationBufferWithSilence(i, interpolationBufferSize);
 		}
 
 		interpolator_.buffer_l[i] = *(int16_t*)(currentPlayPos + 2);
@@ -627,6 +623,18 @@ bool SampleLowLevelReader::fillInterpolationBufferForward(SamplePlaybackGuide* g
 		currentPlayPos += sample->numChannels * sample->byteDepth * guide->playDirection;
 	}
 
+	return true;
+}
+
+bool SampleLowLevelReader::fillInterpolationBufferWithSilence(int32_t fromIndex, int32_t interpolationBufferSize) {
+	for (int32_t i = fromIndex; i >= 0; i--) {
+		interpolator_.buffer_l[i] = 0;
+		interpolator_.buffer_r[i] = 0;
+		currentPlayPos++;
+		if ((uintptr_t)currentPlayPos >= interpolationBufferSize) {
+			return false;
+		}
+	}
 	return true;
 }
 

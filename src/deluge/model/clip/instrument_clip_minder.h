@@ -22,6 +22,7 @@
 #include "hid/display/oled_canvas/canvas.h"
 #include "model/clip/clip_minder.h"
 #include "model/scale/preset_scales.h"
+#include "storage/preset_acquisition.h"
 
 #include <cstdint>
 
@@ -36,7 +37,52 @@ class InstrumentClipMinder : public ClipMinder {
 public:
 	InstrumentClipMinder();
 	virtual void displayOrLanguageChanged();
-	bool createNewInstrument(OutputType newOutputType, bool is_dx = false);
+	/// @brief The card-free half of new-instrument creation, run once the acquisition has found a slot
+	///        name -- see beginNewInstrumentAcquisition()'s doc for why every caller goes through that
+	///        instead of this directly.
+	///
+	/// Acts on `clip`, the snapshot beginNewInstrumentAcquisition() took at dispatch time -- never
+	/// getCurrentInstrumentClip() -- because the clip current when this actually runs may not be the
+	/// clip the gesture was made on (see beginNewInstrumentAcquisition()'s doc). `clip->output->type`
+	/// is read fresh here for the old-output-type check below, which is safe: it's a read THROUGH the
+	/// snapshot, not a re-fetch of a different clip, the same way InstrumentClip::changeOutputType()'s
+	/// leaf reads its own `output->type` fresh.
+	/// @param clip The clip to create the instrument on/for. Song-owned; caller-snapshotted.
+	/// @param newOutputType SYNTH or KIT (never MIDI/CV -- those never reach this function at all).
+	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
+	/// @param acquired The unused slot name InstrumentLoad's walk found, or why there is none.
+	/// @return Whether an instrument was actually created.
+	bool createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+	                         const deluge::storage::AcquireResult& acquired);
+	/// @brief Ask InstrumentLoad for new-instrument creation. Non-virtual, matching
+	///        changeOutputType()'s shape and for the same reason: an unqualified call from a derived
+	///        class's own scope resolves to THIS version, which is exactly why `consumer` defaults to
+	///        the base tail (`MinderNewInstrument`) rather than InstrumentClipView's fuller one;
+	///        InstrumentClipView::createNewInstrument() passes `ViewNewInstrument`/`KeyboardNewInstrument`
+	///        explicitly instead.
+	///
+	/// Reads getCurrentInstrumentClip() exactly ONCE, here, at dispatch time -- the one legitimate live
+	/// read, matching InstrumentClipMinder::changeOutputType()'s identical `setupModelStackWithCurrentClip()`
+	/// call. The result is snapshotted into `request.clip`/`request.oldInstrument` so the completion
+	/// acts on THIS clip, not on whatever is current when it actually runs; `isRequestInstrumentStillLive()`
+	/// then guards the completion the same way it does for every other clip-bearing consumer.
+	/// @param newOutputType SYNTH or KIT.
+	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
+	/// @param consumer Which completion runs once createNewInstrument() actually runs; see
+	///        `PresetConsumer`.
+	/// @return Whether the gesture was accepted (dispatched, not yet complete) -- false only for the
+	///         clip-not-empty guard, which runs before any card access.
+	bool beginNewInstrumentAcquisition(
+	    OutputType newOutputType, bool is_dx = false,
+	    deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::MinderNewInstrument);
+	/// @brief The MinderNewInstrument completion: runs createNewInstrument() once the acquisition lands.
+	///        No extra tail: createNewInstrument()'s bool is deliberately discarded.
+	/// @param clip The snapshot beginNewInstrumentAcquisition() took; forwarded to createNewInstrument().
+	/// @param newOutputType SYNTH or KIT.
+	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
+	/// @param acquired Forwarded to createNewInstrument().
+	void completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+	                           const deluge::storage::AcquireResult& acquired);
 	void setLedStates();
 	virtual void focusRegained();
 	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
@@ -49,7 +95,19 @@ public:
 	void selectEncoderAction(int32_t offset);
 	static void drawMIDIControlNumber(int32_t controlNumber, bool automationExists);
 	static bool makeCurrentClipActiveOnInstrumentIfPossible(ModelStack* modelStack);
-	bool changeOutputType(OutputType newOutputType);
+	/// @brief Change the current clip's output type. Non-virtual: an unqualified call from a derived
+	///        class's own scope (e.g. KeyboardScreen's MIDI/CV buttons, which do not override this)
+	///        resolves to THIS version, not a derived override -- which is exactly why `consumer`
+	///        defaults to the base tail (`ViewChangeTypeMinder`) rather than InstrumentClipView's fuller
+	///        one; InstrumentClipView::changeOutputType() passes `ViewChangeType` explicitly instead.
+	/// @param newOutputType The type to switch to.
+	/// @param consumer Which completion runs once the swap (if any) actually happens; see
+	///        `PresetConsumer`.
+	/// @return Whether the gesture was accepted -- for Synth/Kit this means dispatched, not yet
+	///         complete; see View::changeOutputType()'s doc.
+	bool
+	changeOutputType(OutputType newOutputType,
+	                 deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewChangeTypeMinder);
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas);
 

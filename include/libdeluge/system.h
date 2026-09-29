@@ -51,6 +51,17 @@ void deluge_log(const char* text);
 /// [task] [isr]
 bool deluge_in_interrupt(void);
 
+/// @brief True iff the caller is executing in the audio render context.
+///
+/// The one context that preempts every other context touching shared audio/resource state, and
+/// therefore the one context permitted to skip a mask that exists to exclude it. Distinct from
+/// deluge_in_interrupt(): a lower-priority interrupt (the streaming fill executor) is not the audio
+/// context, and must still mask. On the Rust BSP, deluge_in_interrupt() cannot see either handler:
+/// the shared IRQ entry switches to SYS mode before dispatching.
+/// [task] [isr]
+/// @return true iff currently executing in the audio render context.
+bool deluge_in_audio_context(void);
+
 /// Enter a critical section: mask interrupts so the following code runs without
 /// preemption. Nestable — each ENTER must be paired with one EXIT, and only the
 /// outermost pair actually toggles interrupts (a shared depth counter tracks the
@@ -72,6 +83,52 @@ void EXIT_CRITICAL_SECTION();
 struct CriticalSectionGuard {
 	CriticalSectionGuard() { ENTER_CRITICAL_SECTION(); }
 	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
+};
+
+/// @brief Nesting depth of AudioExcludedSections that actually exclude the render (that masked, or on host took the
+///        lock) in the calling context.
+///
+/// Sections nest; the count is per thread on host (each thread's sections are its own) and a plain global on the
+/// device. The audio render's own section never counts: on the device it does not mask, so an interrupt that
+/// preempts the render (the storage handler) still sees the depth of the code it interrupted.
+#ifdef DELUGE_HOST
+inline thread_local int32_t g_delugeAudioExcludedDepth = 0;
+#else
+inline int32_t g_delugeAudioExcludedDepth = 0;
+#endif
+
+/// @brief How many AudioExcludedSections the calling context is inside. [task] [isr]
+/// @return The current nesting depth.
+inline int32_t deluge_audio_excluded_depth() {
+	return g_delugeAudioExcludedDepth;
+}
+
+/// @brief RAII asymmetric critical section: enters iff the caller is NOT the audio render
+/// (`!deluge_in_audio_context()`).
+///
+/// The C++ twin of the resource manager's `deluge_resource::sync::Masked`. Guard every change to a structure the
+/// audio render walks, and every walk. On the device the audio render skips the mask: it preempts every other
+/// context, so nothing can change the structure mid-walk; every other context masks for its window. On host,
+/// deluge_in_audio_context() is always false, so every thread takes the one global lock, which is what excludes the
+/// audio thread's walks from another thread's changes. Its depth is deluge_audio_excluded_depth().
+struct AudioExcludedSection {
+	AudioExcludedSection() : entered_(!deluge_in_audio_context()) {
+		if (entered_) {
+			ENTER_CRITICAL_SECTION();
+			g_delugeAudioExcludedDepth++;
+		}
+	}
+	~AudioExcludedSection() {
+		if (entered_) {
+			g_delugeAudioExcludedDepth--;
+			EXIT_CRITICAL_SECTION();
+		}
+	}
+	AudioExcludedSection(const AudioExcludedSection&) = delete;
+	AudioExcludedSection& operator=(const AudioExcludedSection&) = delete;
+
+private:
+	bool entered_;
 };
 #endif
 

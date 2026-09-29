@@ -53,21 +53,11 @@ bool SavePatternUI::opened() {
 		return false;
 	}
 
-	Error error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
+	// Fire-and-forget: these only ensure the default folders exist, and the listing reports a card
+	// failure if one persists. See Browser::createFoldersRecursiveIfNotExists.
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
 
 	Instrument* currentInstrument = getCurrentInstrument();
 	// Must set this before calling SaveUI::opened(), which uses this to work out folder name
@@ -121,7 +111,7 @@ void SavePatternUI::onBrowserOpened() {
 	focusRegained();
 }
 
-ActionResult SavePatternUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SavePatternUI::saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Load button
@@ -136,54 +126,17 @@ ActionResult SavePatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 				return ActionResult::DEALT_WITH;
 			}
 		}
-		return SaveUI::buttonAction(b, on, inCardRoutine);
+		return SaveUI::saveScreenButtonAction(b, on, inCardRoutine);
 	}
 }
 
-bool SavePatternUI::performSave(bool mayOverwrite) {
-	std::string filePath = getCurrentFilePath();
-	Error error = Error::NONE;
-	if (error != Error::NONE) {
-fail:
-		display->displayError(error);
-		return false;
-	}
-
-	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
-
-	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
-
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
-
-		if (available) { // Will always be true.
-			openUI(&gui::context_menu::overwriteFile);
-			return true;
-		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto fail;
-		}
-	}
-
-	else if (error != Error::NONE) {
-		goto fail;
-	}
-
-	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-
-	Serializer& writer = GetSerializer();
-
-	instrumentClipView.copyNotesToFile(writer, selectedDrumOnly);
-
-	writer.closeFileAfterWriting();
-
+void SavePatternUI::afterStagedSave(const deluge::storage::SaveRequest& /*request*/) {
 	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
-		goto fail;
-	}
-
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PATTERN_SAVED));
 	close();
+}
+
+bool SavePatternUI::serializeForSave(XMLSerializer& into) {
+	instrumentClipView.copyNotesToFile(into, selectedDrumOnly);
 	return true;
 }

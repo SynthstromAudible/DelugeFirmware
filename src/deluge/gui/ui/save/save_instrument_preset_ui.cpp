@@ -143,96 +143,6 @@ void SaveInstrumentPresetUI::onBrowserOpened() {
 	}
 }
 
-bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
-	Instrument* instrumentToSave = getCurrentInstrument();
-
-	bool isDifferentSlot = !deluge::string::caselessEquals(enteredText, instrumentToSave->name);
-
-	// If saving into a new, different slot than the Instrument previously had...
-	if (isDifferentSlot) {
-
-		// We can't save into this slot if another Instrument in this Song already uses it
-		if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.c_str(), currentDir.c_str(),
-		                                             false)) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
-			display->removeWorkingAnimation();
-			return false;
-		}
-
-		// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking
-		// in memory with that slot, which we need to just delete
-		currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.c_str());
-	}
-
-	std::string filePath = getCurrentFilePath();
-	Error error = Error::NONE;
-	if (error != Error::NONE) {
-fail:
-		display->displayError(error);
-		return false;
-	}
-
-	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
-
-	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
-
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
-
-		if (available) { // Will always be true.
-			openUI(&gui::context_menu::overwriteFile);
-			return true;
-		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto fail;
-		}
-	}
-
-	else if (error != Error::NONE) {
-		goto fail;
-	}
-
-	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-
-	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
-
-	char const* endString;
-	switch (outputTypeToLoad) {
-	case OutputType::SYNTH:
-		endString = "\n</sound>\n";
-		break;
-	case OutputType::KIT:
-		endString = "\n</kit>\n";
-		break;
-	case OutputType::MIDI_OUT:
-		endString = "\n</midi>\n";
-	// explicit fallthrough cases
-	case OutputType::AUDIO:
-	case OutputType::CV:
-	case OutputType::NONE:;
-	}
-
-	error = GetSerializer().closeFileAfterWriting(filePath.c_str(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-	                                              endString);
-	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
-		goto fail;
-	}
-
-	// Give the Instrument in memory its new slot
-	instrumentToSave->name = enteredText;
-	instrumentToSave->dirPath = currentDir;
-	instrumentToSave->mightExistOnCard = true;
-
-	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
-	// user to select such a slot
-
-	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PRESET_SAVED));
-	close();
-	return true;
-}
-
 /*
 void SaveInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 
@@ -309,3 +219,65 @@ doNormalThing:
     displayText(false);
 }
 */
+
+bool SaveInstrumentPresetUI::serializeForSave(XMLSerializer& into) {
+	// `into` IS the shared serialiser: writeToFile takes none and reaches GetSerializer() itself.
+	(void)into;
+	Instrument* instrumentToSave = getCurrentInstrument();
+	if (instrumentToSave == nullptr) {
+		return false;
+	}
+	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
+	return true;
+}
+
+bool SaveInstrumentPresetUI::beforeStagedWrite(const deluge::storage::SaveRequest& request) {
+	Instrument* instrumentToSave = getCurrentInstrument();
+	if (instrumentToSave == nullptr) {
+		return false;
+	}
+	// If saving into a new, different slot than the Instrument previously had...
+	if (!deluge::string::caselessEquals(request.enteredText, instrumentToSave->name)) {
+		// We can't save into this slot if another Instrument in this Song already uses it
+		if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, request.enteredText.c_str(),
+		                                             request.dirPath.c_str(), false)) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
+			display->removeWorkingAnimation();
+			return false;
+		}
+		// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking
+		// in memory with that slot, which we need to just delete
+		currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, request.enteredText.c_str());
+	}
+	return true;
+}
+
+void SaveInstrumentPresetUI::afterStagedSave(const deluge::storage::SaveRequest& request) {
+	display->removeWorkingAnimation();
+	// Give the Instrument in memory its new slot
+	if (Instrument* instrumentToSave = getCurrentInstrument(); instrumentToSave != nullptr) {
+		instrumentToSave->name = request.enteredText;
+		instrumentToSave->dirPath = request.dirPath;
+		instrumentToSave->mightExistOnCard = true;
+	}
+	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
+	// user to select such a slot
+	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PRESET_SAVED));
+	close();
+}
+
+const char* SaveInstrumentPresetUI::verifyTailForSave() const {
+	switch (outputTypeToLoad) {
+	case OutputType::SYNTH:
+		return "\n</sound>\n";
+	case OutputType::KIT:
+		return "\n</kit>\n";
+	case OutputType::MIDI_OUT:
+		return "\n</midi>\n";
+	case OutputType::AUDIO:
+	case OutputType::CV:
+	case OutputType::NONE:
+		return nullptr;
+	}
+	return nullptr;
+}

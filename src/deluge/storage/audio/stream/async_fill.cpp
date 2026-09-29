@@ -108,23 +108,25 @@ __attribute__((weak)) void deluge_streaming_signal_fill(void) {
 	// No async task to wake on this BSP/config.
 }
 
-// Weak fallback for the reader range-fill's async-BSP blocking-fill routine. The Rust Embassy BSP
-// provides the real definition (streaming_loader.rs) whenever it links that crate; every other
-// BSP/config resolves this instead. Unreachable on the hot path there: those BSPs report
-// deluge_streaming_async_active() false, so the reader takes its synchronous `fill_now` branch and
-// never calls this. Returns false so any stray call degrades to a not-ready read rather than
-// silently claiming success.
-__attribute__((weak)) bool deluge_streaming_fill_chunk_blocking(void* /*chunk_backing*/) {
+// Weak fallbacks for the non-blocking request/poll pairs:
+// the Rust Embassy BSP provides the real definitions (streaming_loader.rs), every other BSP/config
+// resolves these. The request halves are no-ops. The two poll halves answer differently, and
+// deliberately: chunk_ready reports NOT ready, degrading a stray call to a not-ready read rather than
+// silently claiming a fill succeeded (unreachable anyway -- these BSPs report async_active false, so the
+// reader takes its synchronous fill_now branch). queue_drained reports drained, because there is no queue on
+// such a BSP and answering otherwise would loop a poller forever.
+__attribute__((weak)) void deluge_streaming_request_chunk(void* /*chunk_backing*/) {
+}
+
+__attribute__((weak)) bool deluge_streaming_chunk_ready(void* /*chunk_backing*/) {
 	return false;
 }
 
-// Weak fallback for the offline stem-export drain-all-queued routine. The Rust Embassy BSP provides
-// the real definition (streaming_loader.rs) whenever it links that crate; every other BSP/config
-// resolves this instead. StemExport::renderWait (the only caller) runs only on BSPs that do offline
-// export, which are exactly the ones that link the real definition — so this fallback just returns
-// false (nothing drained) for a stray call and is never reached on the hot path.
-__attribute__((weak)) bool deluge_streaming_drain_queue_blocking(void) {
-	return false;
+__attribute__((weak)) void deluge_streaming_request_drain(void) {
+}
+
+__attribute__((weak)) bool deluge_streaming_queue_drained(void) {
+	return true;
 }
 
 // Weak fallbacks for the embedded-fatfs streaming READ symbols. The Rust Embassy BSP provides the

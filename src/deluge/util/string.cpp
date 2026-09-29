@@ -128,4 +128,67 @@ void removeSpaces(etl::istring& s) {
 	s.resize(write);
 }
 
+bool isValidUtf8(std::string_view text) {
+	const auto* bytes = reinterpret_cast<const unsigned char*>(text.data());
+	const size_t size = text.size();
+
+	size_t i = 0;
+	while (i < size) {
+		const unsigned char lead = bytes[i];
+
+		// The lead byte fixes the sequence length AND, in four cases, narrows the range its FIRST
+		// trailing byte may take. That narrowing is what rejects an overlong encoding (0xE0, 0xF0), a
+		// surrogate (0xED) and a code point past U+10FFFF (0xF4) without decoding anything. Every
+		// remaining trailing byte is just 10xxxxxx.
+		size_t length = 0;
+		unsigned char firstTrailingLow = 0x80U;
+		unsigned char firstTrailingHigh = 0xBFU;
+		if (lead < 0x80U) {
+			length = 1; // ASCII
+		}
+		else if (lead >= 0xC2U && lead <= 0xDFU) {
+			length = 2; // 0xC0/0xC1 are excluded: they could only encode an overlong ASCII byte
+		}
+		else if (lead == 0xE0U) {
+			length = 3;
+			firstTrailingLow = 0xA0U; // no overlong
+		}
+		else if (lead == 0xEDU) {
+			length = 3;
+			firstTrailingHigh = 0x9FU; // no surrogate (U+D800..U+DFFF)
+		}
+		else if (lead >= 0xE1U && lead <= 0xEFU) {
+			length = 3;
+		}
+		else if (lead == 0xF0U) {
+			length = 4;
+			firstTrailingLow = 0x90U; // no overlong
+		}
+		else if (lead == 0xF4U) {
+			length = 4;
+			firstTrailingHigh = 0x8FU; // nothing past U+10FFFF
+		}
+		else if (lead >= 0xF1U && lead <= 0xF3U) {
+			length = 4;
+		}
+		else {
+			return false; // a stray continuation byte, or a lead byte no sequence can start with
+		}
+
+		if (i + length > size) {
+			return false; // truncated
+		}
+		if (length > 1 && (bytes[i + 1] < firstTrailingLow || bytes[i + 1] > firstTrailingHigh)) {
+			return false;
+		}
+		for (size_t trailing = 2; trailing < length; trailing++) {
+			if ((bytes[i + trailing] & 0xC0U) != 0x80U) {
+				return false;
+			}
+		}
+		i += length;
+	}
+	return true;
+}
+
 } // namespace deluge::string

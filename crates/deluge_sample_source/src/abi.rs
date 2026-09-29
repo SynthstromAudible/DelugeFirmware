@@ -271,8 +271,10 @@ unsafe fn source_ref(
     cell.as_ref()
 }
 
-/// Total cluster count for `geo` (`ceil(audio_data_length_bytes /
-/// cluster_size_bytes)`), used only to size `ManagerResidency`'s
+/// Total FILE cluster count for `geo` (`ceil((audio_data_start_bytes +
+/// audio_data_length_bytes) / cluster_size_bytes)`): a region index is a file
+/// cluster index, as `resident_bytes_for` counts it, so a header that pushes the
+/// audio's tail past a boundary adds a cluster. Used only to size `ManagerResidency`'s
 /// `num_clusters` range guard at `open()` time -- NOT the per-cluster
 /// short-last-cluster byte accounting, which stays exclusively
 /// `geometry::resident_bytes_for`'s job (this function does not re-derive
@@ -289,7 +291,7 @@ fn num_clusters_for(geo: &Geometry) -> u32 {
     if geo.audio_data_length_bytes == 0 || geo.audio_data_length_bytes == UNKNOWN_LENGTH_SENTINEL {
         return u32::MAX;
     }
-    geo.audio_data_length_bytes
+    (geo.audio_data_start_bytes as u64 + geo.audio_data_length_bytes)
         .div_ceil(geo.cluster_size_bytes as u64)
         .min(u32::MAX as u64) as u32
 }
@@ -676,6 +678,33 @@ mod tests {
         unsafe { deluge_resource::deluge_resource_mark_ready(h, ptr) };
         // SAFETY: `h`/`ptr` are live/valid.
         unsafe { deluge_resource::deluge_resource_release(h, ptr) };
+    }
+
+    /// The range guard counts FILE clusters, as `resident_bytes_for` and the region index do: a header that
+    /// pushes the audio's tail past a cluster boundary adds one. A header of a quarter cluster before exactly two
+    /// clusters of audio spans three, and the third holds the last quarter cluster -- a WAV's 44-byte header before
+    /// 64 KiB of audio, at the device's 32 KiB clusters.
+    #[test]
+    fn num_clusters_counts_the_header_offset() {
+        let geo = Geometry {
+            audio_data_start_bytes: (CLUSTER_SIZE / 4) as u32,
+            audio_data_length_bytes: 2 * CLUSTER_SIZE as u64,
+            cluster_size_bytes: CLUSTER_SIZE as u32,
+            byte_depth: 2,
+            num_channels: 1,
+            raw_data_format: 0,
+        };
+        assert_eq!(num_clusters_for(&geo), 3);
+        assert_eq!(
+            crate::geometry::resident_bytes_for(2, &geo),
+            (CLUSTER_SIZE / 4) as u32
+        );
+        // No offset: exactly the audio's own clusters.
+        let flush = Geometry {
+            audio_data_start_bytes: 0,
+            ..geo
+        };
+        assert_eq!(num_clusters_for(&flush), 2);
     }
 
     fn test_geo(num_clusters: u32) -> Geometry {

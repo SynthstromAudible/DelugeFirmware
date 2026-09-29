@@ -19,9 +19,14 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/folder_import.h"
+#include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/reversion.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -58,6 +63,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/favourite/favourite_manager.h"
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -66,10 +72,13 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
 #include "storage/smsysex.h"
+#include "storage/startup_song.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include "util/pack.h"
@@ -397,118 +406,25 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
-/// Can only happen after settings, which includes default settings, have been read
-void setupStartupSong() {
+// Which conditional task fires once the SD card is ready. Normally the settings prelude, which
+// reads the three settings files through the channel and THEN arms the startup-song loader above;
+// headless hosts override this before deluge_main() runs (see deluge_startup_skip_settings_prelude()).
+// A plain firmware or interactive-host build never touches it, so behaviour is unchanged on-device.
+TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
 
-	auto startupSongMode = FlashStorage::defaultStartupSongMode;
-	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
-	auto filename =
-	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
-	std::string failSafePath;
-	failSafePath.append("SONGS/__STARTUP_OFF_CHECK_");
-	auto size = strlen(filename) + 1;
-	// The messages we show to the user are mostly plain language, but
-	// for non-user facing errors we use codes. All messages are < 20 chars.
-	if (size > 2048) {
-		display->consoleText("Startup path too long");
-		return;
-	}
-
-	char replaced[sizeof(char) * strlen(filename) + 1]; // +1 for NULL terminator
-	replace_char(replaced, filename, '/', '_');
-	failSafePath.append(replaced);
-
-	// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
-	// gives this site its real ruling.
-	if (StorageManager::fileExists(failSafePath.c_str()).value_or(false)) {
-		// canary exists, previous boot failed?
-		display->consoleText("Startup fault F1");
-		return; // no cleanup, keep canary!
-	}
-	switch (startupSongMode) {
-	case StartupSongMode::TEMPLATE: {
-		// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
-		// gives this site its real ruling.
-		if (!StorageManager::fileExists(defaultSongFullPath).value_or(false)) {
-			display->consoleText("Creating template");
-			currentSong->writeTemplateSong(defaultSongFullPath);
-		}
-	}
-		[[fallthrough]];
-	case StartupSongMode::LASTOPENED:
-		[[fallthrough]];
-	case StartupSongMode::LASTSAVED: {
-		// Create canary
-		deluge_file_invalidate_cache();
-		{
-			auto canary = deluge::io::File::open(failSafePath, DELUGE_FILE_WRITE_CREATE);
-			if (canary.has_value()) {
-				(void)canary->close(); // RAII would close anyway; explicit for parity with the old f_close
-			}
-			else {
-				// Could not create canary, not a user-facing error so code is fine.
-				// We're going to skip the startup song to avoid any issues.
-				display->consoleText("Startup fault F2");
-				return; // no canary, no cleanup
-			}
-		}
-		// Handle missing song
-		// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
-		// gives this site its real ruling.
-		if (!StorageManager::fileExists(filename).value_or(false)) {
-			if (startupSongMode == StartupSongMode::TEMPLATE) {
-				// we tried to create it earlier, but didn't happen?
-				display->consoleText("Startup fault F3");
-				// cleanup, this wasn't a crash
-				deluge_file_invalidate_cache();
-				(void)deluge::io::unlink(failSafePath);
-				return;
-			}
-			display->consoleText("Song missing");
-			// user didn't ask for the template, but if it exists let's use it instead
-			// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
-			// gives this site its real ruling.
-			if (StorageManager::fileExists(defaultSongFullPath).value_or(false)) {
-				display->consoleText("Using template");
-				filename = defaultSongFullPath;
-				startupSongMode = StartupSongMode::TEMPLATE;
-			}
-			else {
-				// cleanup, this wasn't a crash
-				deluge_file_invalidate_cache();
-				(void)deluge::io::unlink(failSafePath);
-				return;
-			}
-		}
-		// Load song, if we got this far!
-		currentSong->setSongFullPath(filename);
-		if (openUI(&loadSongUI)) {
-			loadSongUI.performLoad();
-			if (startupSongMode == StartupSongMode::TEMPLATE) {
-				// Wipe the name so the Save action asks you for a new song
-				currentSong->name.clear();
-			}
-		}
-		else {
-			// what just failed??
-			display->consoleText("Startup fault F4");
-		}
-		// ...but we got this far, cleanup
-		deluge_file_invalidate_cache();
-		(void)deluge::io::unlink(failSafePath);
-	} break;
-	case StartupSongMode::BLANK:
-		[[fallthrough]];
-	default:
-		return;
-	}
+/// @brief Opt a non-Deluge host out of the boot-settings prelude, leaving only the startup song.
+///
+/// A host that drives its own scenario and never services the byte channel cannot complete work
+/// submitted to it: the prelude's reads (and, when MIDI_FOLLOW.XML is absent, the write its
+/// `onAbsent` performs) sit in the single-slot channel forever and wedge whatever else needs it.
+/// Measured: the offline stem drain hung for 900s against a cold card image, and finished in 37s
+/// with nothing submitted.
+///
+/// `host_loadcheck_main.cpp` and `host_audio_header_dump_main.cpp` override @ref startupConditionalTask
+/// for the same reason; this gives the render arm the same override.
+extern "C" void deluge_startup_skip_settings_prelude() {
+	startupConditionalTask = deluge::storage::armStartupSong;
 }
-
-// Which conditional task fires once the SD card is ready. Normally the startup-song
-// loader above; the headless stem-render utility (src/bsp/host/host_render_main.cpp)
-// overrides this with its own driver before deluge_main() runs. A plain firmware or
-// interactive-host build never touches it, so behaviour is unchanged on-device.
-TaskHandle startupConditionalTask = setupStartupSong;
 
 extern "C" void usb_pstd_pcd_task(void);
 extern "C" void usb_cstd_usb_task(void);
@@ -551,6 +467,8 @@ void registerTasks() {
 	// handles sd card recorders
 	// named "slow" but isn't actually, it handles audio recording setup
 	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow", RESOURCE_NONE);
+	// frees what deleted outputs and drums handed to the render, once it has run two blocks past them
+	addRepeatingTask([]() { AudioEngine::reclaimRetired(); }, p++, 0.005, 0.01, 0.05, "reclaim retired", RESOURCE_NONE);
 	addRepeatingTask(&(readButtonsAndPadsOnce), p++, 0.005, 0.005, 0.01, "buttons and pads", RESOURCE_NONE);
 
 	// 11-19: Medium priority (20 for dyn tasks)
@@ -558,6 +476,58 @@ void registerTasks() {
 
 	// 30 Hz update desired?
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
+
+	// Advances a song load past a wait it has finished. Cheap when no load is in flight, and it runs one
+	// phase of the load and returns, its card I/O going through the channels, so it holds no SD resource itself.
+	addRepeatingTask([]() { loadSongUI.loadRoutine(); }, p++, 0.001, 0.005, 0.02, "song load", RESOURCE_NONE);
+
+	// A staged document save builds itself on this tier and then stores it in one operation. Like the
+	// song load above, it parks between steps and needs something to bring it back -- and returning to
+	// the run loop is the only reason the storage driver can make progress at all.
+	addRepeatingTask([]() { SaveUI::saveRoutine(); }, p++, 0.001, 0.005, 0.02, "document save", RESOURCE_NONE);
+	// The sample browser's claim is a phase machine on this tier, and like the save above it waits between steps and
+	// needs something to bring it back, whichever UI is on top. At the graphics routine's 15 ms, so the stall bound on
+	// its load keeps its length.
+	addRepeatingTask([]() { deluge::gui::sampleClaim.routine(); }, p++, 0.015, 0.015, 0.03, "sample claim",
+	                 RESOURCE_NONE);
+	// The browser's folder import is the same kind of machine, and its context menu is on top while it runs, so it has
+	// no graphics routine of its own to be ticked from either.
+	addRepeatingTask([]() { deluge::gui::folderImport.routine(); }, p++, 0.015, 0.015, 0.03, "folder import",
+	                 RESOURCE_NONE);
+	// The preset browser's own loads are the same kind of machine; the clone menu can be on top while one is out.
+	// Undo and redo are the same kind of machine: the reversion's samples are loaded here before it runs.
+	addRepeatingTask([]() { deluge::gui::reversion.routine(); }, p++, 0.015, 0.015, 0.03, "reversion", RESOURCE_NONE);
+	// The pattern browser's reads are the same kind of machine, and a load from Enter lands after the browser has
+	// closed. They share this task rather than taking a slot of their own: the task table is full.
+	addRepeatingTask(
+	    []() {
+		    deluge::gui::instrumentLoad.routine();
+		    loadPatternUI.loadRoutine();
+	    },
+	    p++, 0.015, 0.015, 0.03, "instrument load", RESOURCE_NONE);
+	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
+	// the same reason: both are request/collect state machines whose caller returned long ago, and
+	// neither has a UI tick of its own to resume from.
+	addRepeatingTask(
+	    []() {
+		    deluge::storage::bytes::serviceRoutine();
+		    // The favourites bank rides the same channel and applies what an operation produced on THIS tier, so
+		    // it runs straight after the channel has been driven.
+		    favouritesManager.serviceRoutine();
+		    // A staged document released mid-read is parked until the write channel lets go of it; free it then.
+		    StorageManager::reapOrphanedStaging();
+	    },
+	    p++, 0.001, 0.005, 0.02, "settings io", RESOURCE_NONE);
+
+	// Advances the startup fail-safe's phases. Beside the two above for the same reason: it is a
+	// request/collect state machine whose caller returned long ago, and it has no UI tick of its own
+	// to resume from. Cheap and reentrant once the machine reaches Done.
+	addRepeatingTask([]() { deluge::storage::startupSongRoutine(); }, p++, 0.001, 0.005, 0.02, "startup failsafe",
+	                 RESOURCE_NONE);
+
+	// Same shape for stem export: each pass runs one phase of the export and returns, so the
+	// UI keeps running for the whole export - which is what makes cancelling it possible at all.
+	addRepeatingTask([]() { stemExport.exportRoutine(); }, p++, 0.001, 0.005, 0.02, "stem export", RESOURCE_NONE);
 
 	// Check for and handle queued SysEx traffic
 	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.",
@@ -736,12 +706,11 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	usbLock = 0;
 
-	// Hopefully we can read these files now
-	runtimeFeatureSettings.readSettingsFromFile();
-	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled =
-	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
-	MIDIDeviceManager::readDevicesFromFile();
-	midiFollow.readDefaultsFromFile();
+	// The three settings files are NOT read here. They are read by the settings prelude
+	// (storage/startup_song.h) behind the same card-ready trigger as the startup song, through the
+	// byte channel. Boot therefore touches the card not at all, and the UI starts without waiting
+	// for it -- which is what lets the reads' blocking arms be deleted, and with them the boot
+	// window that `deluge::boot::finished()` names.
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
 	addConditionalTask(startupConditionalTask, 100, isCardReady, "startup/render", RESOURCE_SD | RESOURCE_SD_ROUTINE);
@@ -828,16 +797,18 @@ void deleteOldSongBeforeLoadingNew() {
 
 	currentSong->stopAllAuditioning();
 
-	AudioEngine::killAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
-	                                  // Instruments detached and everything on delete
+	// Kept although the render's let-go of the song below ends its Sounds' voices: this also cuts the sound of the
+	// song's audio outputs (AudioOutput::cutAllSound()), which that let-go does not touch.
+	AudioEngine::killAllVoices(true);
 
 	view.activeModControllableModelStack.modControllable = nullptr;
 	view.activeModControllableModelStack.setTimelineCounter(nullptr);
 	view.activeModControllableModelStack.paramManager = nullptr;
 
+	// Hand the old song to the render, then wait -- bounded, on the render -- until it has been freed, so the new song
+	// is built in the memory it gave back. The wait runs no other interaction task, so none sees currentSong null.
 	Song* toDelete = currentSong;
 	currentSong = nullptr;
-	void* toDealloc = dynamic_cast<void*>(toDelete);
-	toDelete->~Song();
-	delugeDealloc(toDelete);
+	AudioEngine::retire(toDelete);
+	AudioEngine::awaitRetired();
 }

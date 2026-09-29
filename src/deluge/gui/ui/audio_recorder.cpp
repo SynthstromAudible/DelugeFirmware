@@ -168,9 +168,10 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 void AudioRecorder::slowRoutine() {
 	// finishRecording() frees the SampleRecorder, which discardRecorder() forbids doing from inside the SD card
 	// routine - the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves
-	// that cardRoutine() running on freed memory (then freeing it a second time). As a scheduler task we're already
-	// held off by our RESOURCE_SD | RESOURCE_SD_ROUTINE registration; this guard covers the one call site that
-	// bypasses the scheduler, the legacy non-USE_TASK_MANAGER mainLoop.
+	// that cardRoutine() running on freed memory (then freeing it a second time). On the legacy scheduler our
+	// RESOURCE_SD | RESOURCE_SD_ROUTINE registration held us off; the Embassy scheduler has no such hold, but there
+	// cardRoutine() runs inline and to completion, so it is never suspended part-way. This guard covers the rest,
+	// including the legacy non-USE_TASK_MANAGER mainLoop that bypasses the scheduler.
 	if (isSDRoutineActive() || deluge::sync::sd_busy()) {
 		return;
 	}
@@ -183,7 +184,8 @@ void AudioRecorder::slowRoutine() {
 			FREEZE_WITH_ERROR("E250");
 			return;
 		}
-		if (recorder->status >= RecorderStatus::COMPLETE) {
+		// Settled, not merely terminal: an aborted recorder may still be closing its file.
+		if (recorder->settled()) {
 			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RecordingMode::NORMAL));
 			finishRecording();
 		}
@@ -203,8 +205,15 @@ void AudioRecorder::process() {
 
 		AudioEngine::slowRoutine();
 
+		// A card error ends the take. Stop capturing, then wait for the recorder to close its file and for the
+		// driver to answer anything it was given: freeing it any earlier frees memory the driver may still be
+		// writing from.
+		if (recorder->hadCardError) {
+			endRecordingSoon(kInternalButtonPressLatency);
+		}
+
 		// If recording has finished...
-		if (recorder->status >= RecorderStatus::COMPLETE || recorder->hadCardError) {
+		if (recorder->settled()) {
 
 			if (recorder->status == RecorderStatus::ABORTED || recorder->hadCardError) {}
 

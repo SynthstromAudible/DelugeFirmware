@@ -44,8 +44,7 @@ void deluge_fault_ranges(DelugeFaultRanges* out) {
 	out->code_end = (uintptr_t)&program_code_end;
 	out->stack_start = (uintptr_t)&program_stack_start;
 	out->stack_end = (uintptr_t)&program_stack_end;
-	// No second stack on this BSP: everything runs on the program stack (the worker fiber is
-	// Rust-BSP-only). Zeroed, which the reporter reads as "absent".
+	// No second stack on this BSP: everything runs on the program stack. Zeroed, which the reporter reads as "absent".
 	out->alt_stack_start = 0;
 	out->alt_stack_end = 0;
 }

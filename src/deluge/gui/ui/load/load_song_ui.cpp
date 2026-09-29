@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/load/load_song_ui.h"
+#include "board_config.h" // PLACE_SDRAM_BSS
 #include "definitions_cxx.hpp"
 #include "deluge_resource.h" // deluge_resource_loader_has_lowest
 #include "extern.h"
@@ -31,9 +32,9 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "libdeluge/file_prefix.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
-#include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
@@ -43,11 +44,18 @@
 #include "processing/engines/audio_engine.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/audio/load_trace.h"
+#include "storage/byte_channel.h" // noteIoTier, for the inline preview read
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
-#include "storage/owner.h" // deluge::storage::Owner::run — run the load on the worker fiber
+#include "storage/song_preview.h"
 #include "storage/storage_manager.h"
+#include "util/boot.h"
 #include "util/try.h"
+
+#include <array>
+#include <cstdint>
+#include <span>
 #include <string.h>
 
 LoadSongUI loadSongUI{};
@@ -59,6 +67,55 @@ extern void setupBlankSong();
 using namespace deluge::gui;
 namespace encoders = deluge::hid::encoders;
 
+/// How long a load waits for the sample loader to settle before swapping anyway: a backstop so a card
+/// that never settles still lets the song through.
+constexpr double kLoadSettleTimeoutSeconds = 5.;
+
+namespace {
+
+/// @brief Where a collected song prefix lands on its way to the decoder.
+///
+/// File-scope rather than a local, and that is load-bearing rather than a size preference. While
+/// `decodeSongPreview()` runs, the global `activeDeserializer` points at a reader whose cluster buffer
+/// IS this array; the decode puts that global back before it returns, but the buffer must outlive
+/// every read through it, and nothing about a 4 KiB automatic in a UI callback would make that
+/// clearer. One is enough by construction: there is exactly one LoadSongUI and `previewLoad_` is
+/// single-flight, so a second collect can never be in progress alongside the first.
+///
+/// PLACE_SDRAM_BSS because 4 KiB of on-chip RAM is far too dear for a buffer touched once per preview
+/// and never by the audio path -- and because the reader that reads THROUGH it (smJsonBufferDeserializer
+/// / smBufferDeserializer, storage_manager.cpp) already lives there, so this merely stops the two
+/// halves of one decode straddling two memories. A plain byte array needs no zeroing, so unlike the
+/// std::optionals next to it this does not lean on resetprg.c's emptySection() boot memset.
+// Sized by the CHANNEL's capacity, not by kSongPreviewWindow, even though only kSongPreviewWindow
+// bytes of it are ever requested. deluge_file_prefix_collect() requires out_cap >=
+// DELUGE_FILE_PREFIX_CAPACITY whatever the caller asked for: a shorter buffer is a caller bug that
+// trips a debug_assert in a dev build and silently yields blank artwork in release, rather than
+// serving truncated bytes. The two constants were equal until the DX7 cartridge became a second
+// consumer and the slot grew to suit it, so spelling the buffer with the window would now under-size
+// it by half and lose every song's artwork on a release build.
+PLACE_SDRAM_BSS std::array<uint8_t, DELUGE_FILE_PREFIX_CAPACITY> songPreviewPrefix;
+
+// Spelled through the object rather than repeating the macro, so re-sizing the array above is what
+// these check -- not a second copy of the same literal agreeing with itself.
+using SongPreviewPrefixBuffer = decltype(songPreviewPrefix);
+static_assert(std::tuple_size_v<SongPreviewPrefixBuffer> >= DELUGE_FILE_PREFIX_CAPACITY,
+              "the preview buffer must be able to take the largest prefix the channel can hold");
+static_assert(deluge::storage::kSongPreviewWindow <= std::tuple_size_v<SongPreviewPrefixBuffer>,
+              "the preview cannot request more than its own buffer holds");
+
+/// @brief Whether a song path names a JSON document.
+///
+/// A buffer has no filename for the reader to infer the format from, so the caller has to say.
+/// Delegates rather than restating the rule: two copies of "what counts as JSON" is exactly the pair
+/// that drifts, and getting it wrong routes an XML song to the JSON parser, where the failure reads
+/// as a corrupt file.
+bool isJsonSongPath(const std::string& path) {
+	return StorageManager::documentIsJson(path.c_str());
+}
+
+} // namespace
+
 LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
@@ -68,6 +125,11 @@ LoadSongUI::LoadSongUI() {
 }
 
 bool LoadSongUI::opened() {
+
+	// Nothing carried over from a previous visit: a preview still being read when the browser closed
+	// names a song in whatever folder was open then, and graphicsRoutine() starts running again the
+	// moment this UI is current -- before folderContentsReady() has picked the entry for THIS visit.
+	cancelPreview();
 
 	qwertyAlwaysVisible = false;
 	qwertyCurrentlyDrawnOnscreen = false;
@@ -138,8 +200,9 @@ void LoadSongUI::onBrowserOpened() {
 
 void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 
-	// Return deliberately ignored: nothing here scrolls out of imageStore, so a dispatched render is
-	// harmless -- previewTrampoline's renderingNeededRegardlessOfUI() repaints once it lands.
+	// Return deliberately ignored: nothing here scrolls out of imageStore, so a preview that has not
+	// landed yet is harmless -- finishPreviewRender()'s renderingNeededRegardlessOfUI() repaints once
+	// it does.
 	(void)drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
 	PadLEDs::sendOutMainPadColours();
@@ -152,25 +215,24 @@ void LoadSongUI::enterKeyPress() {
 
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
-		// goIntoFolder() dispatches onto the storage owner; failure is handled by the base
-		// Browser::onListingFailed() (displayError + exitAction) once the listing completes.
+		// The song this was hovering is not in the folder we are entering, and nothing asks for a
+		// replacement until the listing completes -- so without this, a preview landing in between
+		// paints the departed folder's song over the new one's first entry. Same shape as Back.
+		cancelPreview();
+		// goIntoFolder() begins a listing that graphicsRoutine() runs over later ticks; failure is handled by
+		// the base Browser::onListingFailed() (displayError + exitAction) once the listing completes.
 		goIntoFolder(currentFileItem->filename.c_str());
 	}
 
 	else {
-		// Run the load on the worker fiber: performLoad() yields mid-load (waiting for
-		// clusters, or for the LOAD-button release while playing), and that must suspend
-		// the *operation*, not this button handler — otherwise the executor (and PIC
-		// input) freezes and the load hangs. Post-load work goes in the job too, since
-		// this handler returns immediately.
-		deluge::storage::Owner::run(
-		    [](void*) {
-			    loadSongUI.performLoad(); // May fail
-			    if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-				    runtimeFeatureSettings.writeSettingsToFile();
-			    }
-		    },
-		    nullptr);
+		// Start the load and return: loadRoutine() advances it from the run loop, and it parks at each
+		// point it has to wait, so this handler never blocks. The post-load settings
+		// write travels with it as the completion.
+		beginLoad([]() {
+			if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+				runtimeFeatureSettings.writeSettingsToFile();
+			}
+		});
 	}
 }
 
@@ -275,9 +337,9 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	do {
 		fileIndexSelected = fileIndexSelected + offset;
 		if (fileIndexSelected < 0) {
-			fileIndexSelected = static_cast<int32_t>(fileItems.size()) - 1;
+			fileIndexSelected = listing.size() - 1;
 		}
-		else if (fileIndexSelected >= static_cast<int32_t>(fileItems.size())) {
+		else if (fileIndexSelected >= listing.size()) {
 			fileIndexSelected = 0;
 		}
 		Browser::setEnteredTextFromCurrentFilename();
@@ -294,18 +356,15 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 			else {
 				// if is a file, select it
 				songFound = true;
-				AudioEngine::logAction("performLoad");
-				// Run the load on the worker fiber (see enterKeyPress); the job owns the
-				// post-load settings write AND the UI-mode reset below, so return now.
-				deluge::storage::Owner::run(
-				    [](void*) {
-					    loadSongUI.performLoad();
-					    if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-						    runtimeFeatureSettings.writeSettingsToFile();
-					    }
-					    currentUIMode = UI_MODE_NONE;
-				    },
-				    nullptr);
+				AudioEngine::logAction("beginLoad");
+				// See enterKeyPress. The completion owns the post-load settings write AND the
+				// UI-mode reset, so there is nothing left to do here.
+				beginLoad([]() {
+					if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+						runtimeFeatureSettings.writeSettingsToFile();
+					}
+					currentUIMode = UI_MODE_NONE;
+				});
 				return;
 			}
 		}
@@ -316,32 +375,208 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	currentUIMode = UI_MODE_NONE;
 }
 
-// Before calling this, you must set loadButtonReleased.
-void LoadSongUI::performLoad() {
-	performingLoad = true;
-	FileItem* currentFileItem = getCurrentFileItem();
+namespace {
+/// How many consecutive ticks STAGE waits for the browser's listing before giving up. A bound, not a
+/// timeout: a listing settles in a handful of ticks when it settles at all, and an empty folder must
+/// end the load with an error rather than spinning forever.
+constexpr int32_t kMaxStagingWaitTicks = 2000;
+} // namespace
 
-	if (!currentFileItem) {
-		display->displayError(Error::FILE_NOT_FOUND);
-		performingLoad = false;
+void LoadSongUI::endLoad() {
+	essentialLoad_.reset();
+	restLoad_.reset();
+	loadPhase_ = LoadPhase::NONE;
+	loadToDelete_ = nullptr;
+	performingLoad = false;
+
+	// The backstop for the staged song: every way a load can end passes through here, so a buffer that
+	// survived an early return is freed exactly once and the next load starts from a clear path.
+	releaseSongStaging();
+	stagingPath_.clear();
+	stagingPrevious_ = nullptr;
+	stagingWaitTicks_ = 0;
+
+	// Cleared before the call so a completion that starts another load doesn't inherit this one's.
+	void (*onComplete)() = loadOnComplete_;
+	loadOnComplete_ = nullptr;
+	if (onComplete != nullptr) {
+		onComplete();
+	}
+}
+
+// Before calling this, you must set loadButtonReleased.
+void LoadSongUI::beginLoad(void (*onComplete)()) {
+	// The browser stays live and interactive for the whole of STAGE, which for a large song is many
+	// ticks. enterKeyPress() calls straight in here, and only queueLoadNextSongIfAvailable() checks
+	// this flag on the way. A second ENTER would re-enter, find stagingPath_ already pinned, and carry
+	// on staging the FIRST song while the user believes they chose the second -- with a channel
+	// request possibly already in flight against the old buffer.
+	//
+	// The window spans many ticks for a large song, so this guard is real, not decorative.
+	if (performingLoad) {
 		return;
 	}
 
+	// The browser is on its way out and the pads now belong to the load: the greyout, the loading
+	// animation, and finally the new song's view. Nothing here asks for a replacement preview, so an
+	// artwork read still outstanding would paint over all of that.
+	cancelPreview();
+
+	loadOnComplete_ = onComplete;
+	performingLoad = true;
+
+	// The song is read into memory FIRST, on this tier, before any of it is parsed. Staging it a tick at
+	// a time is what lets the read go through the channel at all: the Rust driver only makes progress
+	// once we return to the run loop, so a request issued from inside one pass that does not yield could
+	// never be answered.
+	//
+	// It also surfaces an unreadable-file failure before startLoad() deletes the outgoing song: after that
+	// point, an unreadable file leaves the messy recovery its `fail:` block exists to perform. Staging first
+	// stops the load before anything has been destroyed.
+	// Raised here, not in startLoad(), because the waiting starts here: a large song stages for
+	// many ticks before its parse even begins, and would otherwise do it in silence.
+	display->displayLoadingAnimationText("Loading");
+
+	loadPhase_ = LoadPhase::STAGE;
+
+	// Attempt it once here rather than waiting for the next loadRoutine() pass. Boot loads the startup
+	// song before the repeating tasks are running, so a beginLoad() that only parked would never be
+	// picked up and the device would sit at the splash screen forever.
+	runStageSegment();
+}
+
+/// @brief Fill @ref songStaging_ from the card, a tick at a time, then move the load on to BEGIN.
+///
+/// Runs on the interaction tier, which is the whole point: returning to the run loop between attempts
+/// is what lets the Rust driver run at all. Nothing here touches the outgoing song, so abandoning the
+/// load from this phase costs only the buffer.
+void LoadSongUI::runStageSegment() {
+	if (stagingPath_.empty()) {
+		// Wait for the browser's listing on TWO conditions, and both are needed.
+		// isListingInProgress() alone is NOT sufficient: its contract is "false once it has completed
+		// OR NONE WAS STARTED", so at the instant beginLoad() runs -- before any listing has begun --
+		// it already reads false, and we would sail straight into a null cursor. The null-cursor test
+		// is what actually waits; isListingInProgress() is what stops us reading a list mid-rebuild.
+		FileItem* item = getCurrentFileItem();
+		if (Browser::isListingInProgress() || item == nullptr) {
+			if (++stagingWaitTicks_ > kMaxStagingWaitTicks) {
+				display->displayError(Error::FILE_NOT_FOUND);
+				endLoad();
+			}
+			return;
+		}
+		// The folder the item was LISTED from, not where the browser happens to point now.
+		stagingPath_ = listing.dir() + "/" + item->getFilenameWithExtension();
+		stagingPrevious_ = activeDeserializer;
+	}
+
+	switch (StorageManager::openDocumentStaged(stagingPath_.c_str(), "song", "", &songStaging_)) {
+	case StorageManager::StagedOpen::Deferred:
+		return; // Ask again next pass.
+
+	case StorageManager::StagedOpen::Failed:
+		// Nothing has been destroyed yet, so there is nothing to recover -- say so and stop, leaving
+		// the browser open so the user can pick another song.
+		activeDeserializer = stagingPrevious_;
+		releaseSongStaging();
+		display->displayError(Error::FILE_CORRUPTED);
+		endLoad();
+		return;
+
+	case StorageManager::StagedOpen::Opened:
+		loadPhase_ = LoadPhase::BEGIN;
+		return;
+	}
+}
+
+/// @brief Free the staged song's bytes.
+///
+/// Called as soon as the deserializer is finished with them, and again from endLoad() as a backstop so
+/// no path that abandons a load can leak a megabyte. `stagingPath_` deliberately OUTLIVES this --
+/// startLoad() still needs the name of the song it just read -- and endLoad() clears it.
+void LoadSongUI::releaseSongStaging() {
+	StorageManager::releaseStaging(&songStaging_);
+}
+
+void LoadSongUI::loadRoutine() {
+	switch (loadPhase_) {
+	case LoadPhase::NONE:
+		return;
+
+	case LoadPhase::STAGE:
+		runStageSegment();
+		return;
+
+	case LoadPhase::BEGIN:
+		runBeginSegment();
+		return;
+
+	case LoadPhase::ESSENTIAL:
+		tickEssential();
+		return;
+
+	case LoadPhase::SETTLE:
+		// The loader queue holding no lowest-priority (failed-and-requeued) items means the async fill
+		// task has settled. Observing that from here, rather than waiting on it, is the point: the fill
+		// task only makes progress once we return to the run loop.
+		if (deluge_resource_loader_has_lowest(GeneralMemoryAllocator::get().resourceManager())
+		    && getSystemTime() < settleDeadline_) {
+			return;
+		}
+		runArmSegment();
+		return;
+
+	case LoadPhase::ARM:
+		// Only reachable if runArmSegment() parked here, which it does not; kept so the switch is total.
+		runArmSegment();
+		return;
+
+	case LoadPhase::AWAIT_ARM:
+		// The rest of the samples arrive WHILE the user decides, ticked here a walk at a time rather than run
+		// to completion up front.
+		tickRest();
+		if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
+		    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
+			return;
+		}
+		runFinishSegment();
+		return;
+
+	case LoadPhase::FINISH:
+		tickFinish();
+		return;
+	}
+}
+
+void LoadSongUI::runBeginSegment() {
 	actionLogger.deleteAllLogs();
 
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
-	Error error;
 
-	std::string filePath = currentDir + "/" + currentFileItem->getFilenameWithExtension();
-	error = StorageManager::openDelugeFile(filePath.c_str(), "song");
+	// Open over songStaging_'s bytes: STAGE read them on the interaction tier before this phase began, and
+	// the parse below runs over memory with `activeDeserializer` pointing at the memory reader. Nothing
+	// re-opens the document here, so bytes that never arrived end the load the way
+	// a corrupt file does (checked below).
+	//
+	// stagingPrevious_ is what that global gets put back to at every exit. Not hygiene: the memory
+	// reader's fileClusterBuffer IS the staged buffer, and code downstream writes through the global
+	// without opening a document of its own (SaveSongUI's sample collection reads Cluster::size,
+	// 32 KiB, into it), so leaving it pointing at released bytes is heap corruption, not a stale read.
+	Error error = Error::NONE;
+	if (songStaging_.buffer == nullptr) {
+		activeDeserializer = stagingPrevious_;
+		releaseSongStaging();
+		display->displayError(Error::FILE_CORRUPTED);
+		endLoad();
+		return;
+	}
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
-	display->displayLoadingAnimationText("Loading");
 	nullifyUIs();
 
 	deletedPartsOfOldSong = true;
@@ -370,6 +605,8 @@ ramError:
 someError:
 		display->displayError(error);
 		activeDeserializer->closeWriter();
+		releaseSongStaging();
+		activeDeserializer = stagingPrevious_;
 fail:
 		// We couldn't load the requested song. Recover to a usable state and stop.
 		//
@@ -392,34 +629,9 @@ fail:
 			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 		}
 
-		preLoadedSong->dirPath = currentDir;
-
-		std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
-
-		error = audioFileManager.setupAlternateAudioFileDir(
-		    audioFileManager.alternateAudioFileLoadPath, currentDir.c_str(), currentFilenameWithoutExtension.c_str());
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
-		audioFileManager.thingBeginningLoading(ThingType::SONG);
-
-		// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
-		// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that
-		// we might actually want
-		preLoadedSong->loadAllSamples(false);
-
-		// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
-		if (playbackHandler.isEitherClockActive()) {
-			preLoadedSong->loadCrucialSamplesOnly();
-		}
-
-		else {
-			displayText(false);
-		}
-		currentUIMode = UI_MODE_NONE;
 		display->removeWorkingAnimation();
 		currentUIMode = UI_MODE_NONE;
-		performingLoad = false;
+		endLoad();
 		return;
 	}
 
@@ -447,44 +659,70 @@ gotErrorAfterCreatingSong:
 	AudioEngine::logAction("read new song from file");
 
 	bool success = activeDeserializer->closeWriter();
+	// Nothing reads the staged bytes once the reader is closed, and the global must not be left
+	// pointing into them.
+	releaseSongStaging();
+	activeDeserializer = stagingPrevious_;
 	if (!success) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_LOADING_SONG));
 		goto fail;
 	}
 
-	preLoadedSong->dirPath = currentDir;
+	preLoadedSong->dirPath = listing.dir();
 
-	std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
+	// Taken from the path that was actually STAGED rather than from the browser's cursor. The cursor
+	// is rebuilt by other tiers and may since have moved to a different song, or off the list
+	// entirely -- and the song now in memory is the one this name has to describe.
+	const std::string_view stagedPath{stagingPath_};
+	const auto lastSlash = stagedPath.rfind('/');
+	const std::string_view leaf = (lastSlash == std::string_view::npos) ? stagedPath : stagedPath.substr(lastSlash + 1);
+	const auto lastDot = leaf.rfind('.');
+	std::string currentFilenameWithoutExtension{(lastDot == std::string_view::npos) ? leaf : leaf.substr(0, lastDot)};
 
-	error = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, currentDir.c_str(),
-	                                                    currentFilenameWithoutExtension.c_str());
-	if (error != Error::NONE) {
-		goto gotErrorAfterCreatingSong;
-	}
-
-	audioFileManager.thingBeginningLoading(ThingType::SONG);
+	sampleLoadContext_ =
+	    deluge::storage::AudioLoadContext::forSong(listing.dir().c_str(), currentFilenameWithoutExtension.c_str());
 
 	// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
 	// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that we
 	// might actually want
-	preLoadedSong->loadAllSamples(false);
+	preLoadedSong->loadAllSamples(false, &sampleLoadContext_);
 
-	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
-	if (playbackHandler.isEitherClockActive()) {
-		preLoadedSong->loadCrucialSamplesOnly();
+	// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds). This pass
+	// reads the card, walking a tick at a time on this tier, through the loader every other consumer uses.
+	essentialIsCrucial_ = playbackHandler.isEitherClockActive();
+	if (essentialIsCrucial_) {
+		// Traced on the host only, so a gate can see exactly what this pass bound before any later pass binds more.
+		DELUGE_LOAD_TRACE("crucial begin");
+		essentialLoad_.emplace(deluge::storage::AsyncSampleLoad::forCrucialSong(*preLoadedSong, &sampleLoadContext_));
 	}
 	else {
-		preLoadedSong->loadAllSamples(true);
+		essentialLoad_.emplace(deluge::storage::AsyncSampleLoad::forSong(*preLoadedSong, &sampleLoadContext_));
 	}
+	loadPhase_ = LoadPhase::ESSENTIAL;
+}
 
-	// Ensure all AudioFile Clusters needed for new song are loaded: wait until the loader queue holds
-	// no lowest-priority (failed-and-requeued) items, i.e. the async fill task has settled.
-	yieldWithTimeout(
-	    []() { return !deluge_resource_loader_has_lowest(GeneralMemoryAllocator::get().resourceManager()); }, 5);
+void LoadSongUI::tickEssential() {
+	// An end is an end, whatever its reason: whatever this pass does not bind is left for finishLoad()'s
+	// mop-up pass. A Failed end displays nothing here -- the per-demand errors have already been shown, by
+	// the same code that shows them elsewhere.
+	if (essentialLoad_->tick().state == deluge::storage::AsyncSampleLoad::State::Loading) {
+		return;
+	}
+	if (essentialIsCrucial_) {
+		DELUGE_LOAD_TRACE("crucial end");
+	}
+	essentialLoad_.reset();
 
+	// The new song's essential clusters still have to finish arriving before the swap. Park here and let
+	// loadRoutine() watch for it: the fill task that does the arriving only runs once we return to the run loop.
+	settleDeadline_ = getSystemTime() + kLoadSettleTimeoutSeconds;
+	loadPhase_ = LoadPhase::SETTLE;
+}
+
+void LoadSongUI::runArmSegment() {
 	preLoadedSong->name = enteredText;
 
-	Song* toDelete = currentSong;
+	loadToDelete_ = currentSong;
 
 	if (playbackHandler.isEitherClockActive()) {
 
@@ -495,7 +733,8 @@ gotErrorAfterCreatingSong:
 			// If arming couldn't really be done, e.g. because current song had no Clips currently playing, swap has
 			// already occurred
 			if (!result) {
-				goto swapDone;
+				runFinishSegment();
+				return;
 			}
 
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
@@ -513,20 +752,26 @@ gotErrorAfterCreatingSong:
 		// rest of the samples which weren't needed right away. (though we might run out of RAM cos we haven't discarded
 		// all the old samples yet)
 		AudioEngine::logAction("asking for samples");
-		preLoadedSong->loadAllSamples(true);
-		AudioEngine::logAction("waiting for samples");
-		// make sure we don't get stuck
-		yield([]() {
-			return currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
-			       && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
-		});
+		restLoad_.emplace(deluge::storage::AsyncSampleLoad::forSong(*preLoadedSong, &sampleLoadContext_));
+		// Park until currentUIMode leaves the two loading modes - the arming, or the swap the arming
+		// launches, is what moves it. The rest pass walks on while we wait, ticked from loadRoutine().
+		loadPhase_ = LoadPhase::AWAIT_ARM;
+		return;
 	}
 
-	else {
-		playbackHandler.doSongSwap();
-	}
+	playbackHandler.doSongSwap();
+	runFinishSegment();
+}
 
-swapDone:
+void LoadSongUI::tickRest() {
+	if (restLoad_.has_value() && restLoad_->tick().state != deluge::storage::AsyncSampleLoad::State::Loading) {
+		// An end is an end, whatever its reason: see tickEssential(). What did not arrive is what
+		// FINISH's pass has always been for.
+		restLoad_.reset();
+	}
+}
+
+void LoadSongUI::runFinishSegment() {
 	// To override our popup if we did one. (Still necessary?)
 	deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 	// The swap's been done and the first tick of the new song has been done; any samples wanting data
@@ -534,20 +779,34 @@ swapDone:
 
 	// Delete the old song
 	AudioEngine::logAction("deleting old song");
-	if (toDelete) {
-		void* toDealloc = dynamic_cast<void*>(toDelete);
-		toDelete->~Song();
-		delugeDealloc(toDealloc);
+	if (loadToDelete_ != nullptr) {
+		// Handed to the render, which lets go of it before it is freed.
+		AudioEngine::retire(loadToDelete_);
+		// Wait until it is freed: the retry below loads samples into the RAM the old song gives back.
+		AudioEngine::awaitRetired();
+		loadToDelete_ = nullptr;
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 
-	// Try one more time to load all AudioFiles - there might be more RAM free now
-	currentSong->loadAllSamples();
+	// Try one more time to load all AudioFiles - there might be more RAM free now. The pass the arm wait started
+	// is ADOPTED rather than replaced: it is already walking this same song, and starting a second walk over it
+	// would ask the card for what is on its way. A load that never armed has none, and gets one here.
+	if (!restLoad_.has_value()) {
+		restLoad_.emplace(deluge::storage::AsyncSampleLoad::forSong(*currentSong, &sampleLoadContext_));
+	}
+	loadPhase_ = LoadPhase::FINISH;
+}
+
+void LoadSongUI::tickFinish() {
+	tickRest();
+	if (restLoad_.has_value()) {
+		return; // still walking
+	}
 	AudioEngine::logAction("done loading new song");
 	currentSong->markAllInstrumentsAsEdited();
 
-	audioFileManager.thingFinishedLoading();
+	sampleLoadContext_ = {};
 
 	PadLEDs::doGreyoutInstantly(); // This will get faded out of just below
 	setUIForLoadedSong(currentSong);
@@ -555,25 +814,7 @@ swapDone:
 
 	display->removeWorkingAnimation();
 
-	// for the song we just loaded, let's check if there's any midi labels we should load
-	for (Output* thisOutput = currentSong->firstOutput; thisOutput; thisOutput = thisOutput->next) {
-		if (thisOutput && thisOutput->type == OutputType::MIDI_OUT) {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)thisOutput;
-			if (midiInstrument->loadDeviceDefinitionFile) {
-				// TODO(conflation-batch-4): unknown is being treated as absent here; the
-				// load/browse/favourites batch gives this site its real ruling.
-				bool fileExists =
-				    StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.c_str()).value_or(false);
-				if (fileExists) {
-					StorageManager::loadMidiDeviceDefinitionFile(midiInstrument,
-					                                             midiInstrument->deviceDefinitionFileName.c_str(),
-					                                             &midiInstrument->deviceDefinitionFileName, false);
-				}
-			}
-		}
-	}
-
-	performingLoad = false;
+	endLoad();
 }
 
 ActionResult LoadSongUI::timerCallback() {
@@ -657,7 +898,7 @@ void LoadSongUI::currentFileChanged(int32_t movementDirection) {
 		                                     // loaded
 
 		// The scroll-in reads imageStore, so it may only start once the preview has actually filled it.
-		// Off the owner this render is DISPATCHED, so starting the scroll here would copy two columns
+		// After boot this render lands on a later tick, so starting the scroll here would copy two columns
 		// (setupScroll ticks once itself, plus the explicit renderScroll) out of an unfilled store --
 		// which is what left every entry's first two columns showing the previous song.
 		if (drawSongPreview()) {
@@ -761,6 +1002,12 @@ void LoadSongUI::exitAction() {
 		return;
 	}
 
+	// We are leaving. Cancelled only past the refusal above, since that path stays in the browser with
+	// the same entry selected and the preview it is waiting for is still the one it wants. From here
+	// the scroll-out overwrites imageStore immediately, and no replacement preview is asked for, so a
+	// result landing afterwards would paint the departing song over the view being scrolled back in.
+	cancelPreview();
+
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
 	PadLEDs::vertical::setupScroll(-1, false);
 	getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
@@ -769,130 +1016,202 @@ void LoadSongUI::exitAction() {
 	timerCallback();
 }
 
-void LoadSongUI::previewTrampoline(void* self) {
-	auto* ui = static_cast<LoadSongUI*>(self);
-	ui->previewPending_ = false;
-	ui->drawSongPreviewImpl(ui->previewToStore_);
+ActionResult LoadSongUI::backButtonAction() {
+	// Back either leaves the browser or goes up a directory. Either way the song this was hovering is
+	// no longer the selection, and neither outcome asks for a replacement preview to supersede one
+	// already being read -- the same shape as the folder branch in drawSongPreview(). Going up
+	// re-selects through folderContentsReady(), which asks afresh.
+	cancelPreview();
 
-	// imageStore is filled now, so a scroll-in owed by currentFileChanged can finally start. Consume the
-	// direction before starting, so a scroll begun here cannot be started twice if the render re-runs.
-	if (ui->pendingScrollDirection_ != 0) {
-		int32_t direction = ui->pendingScrollDirection_;
-		ui->pendingScrollDirection_ = 0;
-		ui->beginPreviewScrollIn(direction);
-	}
-	// We rendered from the owner, outside the normal UI render pass, so ask for a repaint - otherwise
-	// the pads keep whatever was on them until something else happens to trigger one.
-	renderingNeededRegardlessOfUI();
-
-	if (ui->previewPending_) {
-		// The selection moved again while we were reading, and Coalescer::request() DROPS requests made
-		// while one is in flight ("a dispatch is already in flight - it covers this demand", which only
-		// holds if the in-flight fill has not yet read the state). Without this catch-up, scrolling faster
-		// than one preview round-trip leaves the pads showing an older song with nothing to correct it.
-		// Dispatched directly rather than through the coalescer, whose in-flight guard is still held here;
-		// a dropped enqueue is harmless because the next detent requests again.
-		deluge::storage::Owner::run(&LoadSongUI::previewTrampoline, ui);
-	}
+	return Browser::backButtonAction();
 }
 
 bool LoadSongUI::drawSongPreview(bool toStore) {
-	// The preview reads the song file, which only the storage owner may do: this is called from the
-	// scroll path on the interaction tier, where the Rust BSP refuses the open outright (and
-	// openXMLFile() reports that refusal as Error::FILE_NOT_FOUND -- which is how every scrolled entry
-	// came to claim "FILE NOT FOUND" for songs that load fine). Dispatch and let the owner render.
-	if (!deluge::storage::Owner::on_owner()) {
-		previewToStore_ = toStore;
-		previewPending_ = true;
-		previewCoalescer_.request(&LoadSongUI::previewTrampoline, this);
-		return false; // imageStore is NOT filled yet -- the caller must not scroll from it
-	}
-	drawSongPreviewImpl(toStore);
-	return true;
-}
-
-void LoadSongUI::drawSongPreviewImpl(bool toStore) {
-
-	if (qwertyAlwaysVisible) {
-		return;
-	}
-
-	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
-	if (toStore) {
-		imageStore = PadLEDs::imageStore;
-	}
-	else {
-		imageStore = PadLEDs::image;
-	}
-
-	memset(imageStore, 0, kDisplayHeight * (kDisplayWidth + kSideBarWidth) * sizeof(RGB));
-
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (!currentFileItem || currentFileItem->isFolder) {
-		return;
+	// Nothing to preview. Whatever is being read is no longer what the user is on, and this branch
+	// asks for no replacement to supersede it, so it has to be cancelled outright -- or it lands a
+	// song's artwork over a folder. There is also nothing to wait for, so the image is blanked and
+	// released to the caller's scroll right here.
+	if (currentFileItem == nullptr || currentFileItem->isFolder) {
+		// The direction parked for the preview being abandoned goes with it (cancelPreview clears it),
+		// so it cannot fire later on top of the scroll the caller is about to start.
+		cancelPreview();
+		(void)beginPreviewRender(toStore);
+		return true; // blank, but FILLED: a scroll may start from it now
 	}
 
-	Error error;
-	Deserializer* reader;
-	char const* tagName;
-	std::string filePath = currentDir + "/" + currentFileItem->getFilenameWithExtension();
-	// We are on the owner (drawSongPreview() guarantees it), so a failure here is a real one about this
-	// file, not the storage tier declining to answer -- worth showing.
-	error = StorageManager::openDelugeFile(filePath.c_str(), "song");
-	if (error != Error::NONE) {
+	dispatchPreview(PreviewTarget{listing.dir() + "/" + currentFileItem->getFilenameWithExtension(), toStore});
+	return false; // imageStore is NOT filled yet -- the caller must not scroll from it
+}
+
+void LoadSongUI::dispatchPreview(const PreviewTarget& target) {
+	if (!previewLoad_.request(target)) {
+		return; // work is already out on an older target; it picks this one up on completion
+	}
+	drivePreview();
+}
+
+void LoadSongUI::drivePreview() {
+	if (!deluge::boot::finished()) {
+		// Read the file inline. During boot -- which on a C++-only build, with no Rust prefix channel, is always --
+		// nothing would ever answer a request. After boot this arm would hold the interaction tier for the whole read
+		// (the efatfs entry points do not yield), which is why it is noted as a tier violation, and why it is
+		// unreachable there.
+		for (;;) {
+			const auto attempt = previewLoad_.attempt();
+			deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Browser);
+			renderPreviewFromFile(attempt.target);
+			if (!previewLoad_.complete(attempt, /*deferred=*/false).has_value()) {
+				return;
+			}
+		}
+	}
+
+	// The prefix channel never touches the card on this side, so the collect runs inline on whatever
+	// tier called us -- nothing is dispatched. The loop is for latest-wins hand-off: complete() returns
+	// a target only if a newer one queued while this one ran, and nothing reachable from a collect asks
+	// for a preview, so in practice it runs once.
+	for (;;) {
+		// No is_current() guard: there is no gap here for a cancellation to land in. request() (or the
+		// previous complete()) made this target current on the line above, and the collect runs to
+		// completion before anything else can execute. (Slicer::drivePreview()'s matching inline arm keeps
+		// the guard as an invariant restatement with the same unreachable false branch -- the same
+		// judgement written from the other end.) What refuses a cancelled attempt is complete()'s
+		// `deferred && is_current(a)`, below.
+		const auto attempt = previewLoad_.attempt();
+		const bool deferred = collectPreview(attempt);
+		if (!previewLoad_.complete(attempt, deferred).has_value()) {
+			return;
+		}
+	}
+}
+
+bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt) {
+	if (attempt.generation != previewWaitGeneration_ || attempt.target.path != previewWaitPath_) {
+		// A different attempt: its wait starts from nothing.
+		previewWaitGeneration_ = attempt.generation;
+		previewWaitPath_ = attempt.target.path;
+		previewWaitTicks_ = 0;
+	}
+
+	uint32_t length = 0;
+	const uint8_t status = deluge_file_prefix_collect(attempt.target.path.c_str(), songPreviewPrefix.data(),
+	                                                  static_cast<uint32_t>(songPreviewPrefix.size()), &length);
+
+	if (status == DELUGE_FILE_PREFIX_PENDING || status == DELUGE_FILE_PREFIX_UNKNOWN) {
+		if (++previewWaitTicks_ < kMaxPreviewWaitTicks) {
+			if (status == DELUGE_FILE_PREFIX_UNKNOWN) {
+				// "The caller should request it (again)" -- the documented meaning, and never a failure to
+				// report. This is also where the FIRST request for a target is issued: drawSongPreview() names
+				// a song the channel has not been told about, so its opening drive lands here.
+				deluge_file_prefix_request(attempt.target.path.c_str(), deluge::storage::kSongPreviewWindow);
+			}
+			return true; // requested or being read: ask again next tick
+		}
+		// The channel has left this read unanswered for the whole bound. Give up as a read that could not reach the
+		// card: blank, with the card error, and the scroll-in the cursor move owed released rather than left parked.
+		// Nothing to clean up: the channel copied the path, and a late answer is displaced by the next publish. The
+		// next visit to this song asks again.
+		previewWaitTicks_ = 0;
+		PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
+		if (imageStore != nullptr) {
+			reportPreviewOutcome(deluge::storage::SongPreviewOutcome::Error, Error::SD_CARD);
+		}
+		finishPreviewRender();
+		return false;
+	}
+
+	previewWaitTicks_ = 0; // answered: READY or FAILED
+	PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
+
+	if (status == DELUGE_FILE_PREFIX_FAILED) {
+		// The read did not happen: the file would not open, could not be sized, or the read failed.
+		// Terminal, so this is NOT re-requested -- and reported, because the file backing reports the
+		// same thing for the same song and the two must not disagree about whether the user hears
+		// about it.
+		//
+		// Error::FILE_NOT_FOUND specifically, which is what the file backing's own open reports for
+		// EVERY failed open (the staged opener maps busy and unreadable onto it too). The
+		// channel does not say which failure it was; neither does the path this stands in for, so the
+		// two arms conflate identically rather than differently.
+		if (imageStore != nullptr) {
+			reportPreviewOutcome(deluge::storage::SongPreviewOutcome::Error, Error::FILE_NOT_FOUND);
+		}
+		finishPreviewRender();
+		return false;
+	}
+
+	// READY, the only status left, and the only one that writes the buffer.
+	//
+	// A length of 0 is not a failure: a failed read comes back as FAILED above, so zero bytes mean an
+	// EMPTY FILE, which is not a song and which the decode below reports as Error -- exactly what the
+	// file backing makes of the same file.
+	if (imageStore != nullptr) {
+		Error error = Error::NONE;
+		const auto outcome =
+		    deluge::storage::decodeSongPreview(std::span<uint8_t>{songPreviewPrefix.data(), length},
+		                                       isJsonSongPath(attempt.target.path), imageStore, &error);
+		reportPreviewOutcome(outcome, error);
+	}
+	finishPreviewRender();
+	return false;
+}
+
+void LoadSongUI::renderPreviewFromFile(const PreviewTarget& target) {
+	PreviewImage imageStore = beginPreviewRender(target.toStore);
+	if (imageStore != nullptr) {
+		// A blocking read that failed is a real failure about this file, not the storage tier declining
+		// to answer -- worth showing.
+		Error error = Error::NONE;
+		const auto outcome = deluge::storage::decodeSongPreviewFromFile(target.path.c_str(), imageStore, &error);
+		reportPreviewOutcome(outcome, error);
+	}
+	finishPreviewRender();
+}
+
+void LoadSongUI::reportPreviewOutcome(deluge::storage::SongPreviewOutcome outcome, Error error) {
+	lastPreviewOutcome_ = outcome;
+	lastPreviewError_ = (outcome == deluge::storage::SongPreviewOutcome::Error) ? error : Error::NONE;
+	if (outcome == deluge::storage::SongPreviewOutcome::Error) {
 		display->displayError(error);
-		return;
 	}
-	reader = activeDeserializer;
-	if (activeDeserializer == &smJsonDeserializer) {
-		activeDeserializer->match('{');
+}
+
+LoadSongUI::PreviewImage LoadSongUI::beginPreviewRender(bool toStore) {
+	if (qwertyAlwaysVisible) {
+		return nullptr; // the keyboard owns the pads, so nothing may be drawn over it
 	}
 
-	int32_t previewNumPads = 40;
-	while (*(tagName = reader->readNextTagOrAttributeName())) {
+	PreviewImage imageStore = toStore ? PadLEDs::imageStore : PadLEDs::image;
+	memset(imageStore, 0, kDisplayHeight * (kDisplayWidth + kSideBarWidth) * sizeof(RGB));
+	return imageStore;
+}
 
-		if (!strcmp(tagName, "previewNumPads")) {
-			previewNumPads = reader->readTagOrAttributeValueInt();
-			reader->exitTag("previewNumPads");
-		}
-		else if (!strcmp(tagName, "preview")) {
-			int32_t skipNumCharsAfterRow = 0;
-
-			int32_t startX = 0;
-			int32_t startY = 0;
-			int32_t endX = kDisplayWidth + kSideBarWidth;
-			int32_t endY = kDisplayHeight;
-
-			int32_t width = endX - startX;
-			int32_t numCharsToRead = width * 3 * 2;
-
-			if (!reader->prepareToReadTagOrAttributeValueOneCharAtATime()) {
-				goto stopLoadingPreview;
-			}
-
-			for (int32_t y = startY; y < endY; y++) {
-				char const* hexChars = reader->readNextCharsOfTagOrAttributeValue(numCharsToRead);
-				if (!hexChars) {
-					goto stopLoadingPreview;
-				}
-
-				for (int32_t x = startX; x < endX; x++) {
-					for (int32_t colour = 0; colour < 3; colour++) {
-						imageStore[y][x][colour] = hexToByte(hexChars);
-						hexChars += 2;
-					}
-					imageStore[y][x] = imageStore[y][x].greyOut(6500000);
-				}
-			}
-			goto stopLoadingPreview;
-		}
-		else {
-			reader->exitTag(tagName);
-		}
+void LoadSongUI::finishPreviewRender() {
+	// imageStore is filled now, so a scroll-in owed by currentFileChanged can finally start. Consume the
+	// direction before starting, so a scroll begun here cannot be started twice if the render re-runs.
+	if (pendingScrollDirection_ != 0) {
+		const int32_t direction = pendingScrollDirection_;
+		pendingScrollDirection_ = 0;
+		beginPreviewScrollIn(direction);
 	}
-stopLoadingPreview:
-	activeDeserializer->closeWriter();
+	// We rendered outside the normal UI render pass, so ask for a repaint - otherwise the pads keep
+	// whatever was on them until something else happens to trigger one.
+	renderingNeededRegardlessOfUI();
+}
+
+void LoadSongUI::browserGraphicsRoutine() {
+	// Re-ask for a preview whose bytes have not arrived.
+	//
+	// take_pending() takes the target OUT before dispatching, not after: the drive runs INLINE from
+	// here (a collect touches no card), so it completes before dispatchPreview() returns and may arm a
+	// SECOND deferral -- which clearing afterwards would wipe, leaving the preview to never finish.
+	if (auto target = previewLoad_.take_pending(); target.has_value()) {
+		dispatchPreview(*target);
+	}
+	// No UI::graphicsRoutine() tail: Browser::graphicsRoutine() makes that call, once, after this
+	// returns. Repeating it here would run the base tick twice per frame.
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {

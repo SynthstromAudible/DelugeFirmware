@@ -89,6 +89,13 @@ bool deluge_in_interrupt(void) {
 	return false;
 }
 
+// The C-host sim has no interrupt context at all, so there is no audio context to be in
+// either — always false, exactly as deluge_in_interrupt is. Consequence worth knowing: the
+// resource manager therefore always masks here, which is the safe direction.
+bool deluge_in_audio_context(void) {
+	return false;
+}
+
 // ===========================================================================
 // clock.h — a real monotonic clock so app timing behaves.
 // ===========================================================================

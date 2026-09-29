@@ -190,6 +190,14 @@ void closeUI(UI* uiToClose) {
 		}
 	}
 
+	// Not on the stack -- already closed, never opened, or the root. The loop above then ends at u == 0,
+	// or below it with nothing open, and the lines below would read uiNavigationHierarchy[-1] and call
+	// focusRegained() through whatever is there. clear_song.cpp documents the same failure worked around
+	// locally; this closes it for every caller.
+	if (u < 1) {
+		return;
+	}
+
 	UI* newUI = uiNavigationHierarchy[u - 1];
 	numUIsOpen = u;
 

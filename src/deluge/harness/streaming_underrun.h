@@ -62,6 +62,12 @@ void noteUnderrunWait();
 ///     wholly uninstrumented path.
 void noteUnderrunUnassign();
 
+/// @brief Count one sample-voice render (`VoiceSample::render`), by the tier running it.
+///
+/// Evidence that a render really played samples, and where: the device renders sample voices on the audio tier,
+/// an offline export on the interaction tier.
+void noteVoiceRender();
+
 } // namespace deluge::harness
 
 extern "C" {
@@ -70,7 +76,7 @@ extern "C" {
 /// deluge::harness::noteUnderrunWait.
 ///
 /// Monotonic — callers baseline-subtract across a window, same pattern as `sd.rs`'s
-/// `on_fiber_reads`/`on_fiber_writes`.
+/// `stats::reads()`/`stats::writes()`.
 /// @return Cumulative WAIT-class miss count.
 uint64_t deluge_sim_underrun_wait_count();
 
@@ -78,6 +84,10 @@ uint64_t deluge_sim_underrun_wait_count();
 /// deluge::harness::noteUnderrunUnassign.
 /// @return Cumulative UNASSIGN-class miss count.
 uint64_t deluge_sim_underrun_unassign_count();
+
+/// @brief Sample-voice renders since boot on tier @p tier (a `DELUGE_TIER_*` value); see
+/// deluge::harness::noteVoiceRender. Zero for a tier out of range.
+uint64_t deluge_sim_voice_render_count(uint8_t tier);
 
 } // extern "C"
 

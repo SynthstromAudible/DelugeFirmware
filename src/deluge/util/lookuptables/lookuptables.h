@@ -22,6 +22,16 @@
 #include <array>
 #include <cstdint>
 
+// ALIGNMENT: every table DEFINITION below carries `alignas(16)` (see the .cpp files). The
+// oscillator render path reads these through NEON/argon lane loads, which require aligned memory,
+// but a plain `const int16_t[]` is only 2-byte-aligned by default. Because the tables are an odd
+// number of samples long, consecutive tables land at alternating alignments and roughly half end
+// up 2 (mod 4) — an unaligned lane load can fault on device, and even when it doesn't, unaligned
+// NEON loads cost extra cycles on Cortex-A9 and can straddle a cache line.
+//
+// The specifier lives on the definitions only, deliberately. [dcl.align] permits a non-defining
+// declaration to carry no alignment-specifier, so these externs need no annotation and cannot
+// drift out of agreement with the definitions.
 extern const uint16_t centAdjustTableSmall[];
 extern const uint16_t decayTableSmall4[];
 extern const uint16_t decayTableSmall8[];

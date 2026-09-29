@@ -88,6 +88,7 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include "util/functions.h"
 #include <iterator>
 
 namespace params = deluge::modulation::params;
@@ -2224,8 +2225,6 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		return;
 	}
 
-	int32_t oldSubMode = currentUIMode; // We may have been holding down a clip in Session View
-
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -2233,6 +2232,36 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 	OutputType outputType = clip->output->type;
 
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E057", "H057");
+
+	// MIDI/CV read no card -- run them inline so this stays fully synchronous for
+	// those types. Only Synth/Kit reaches the directory.
+	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
+		completeNavigateThroughPresetsForInstrumentClip(offset, clip, doBlink);
+		return;
+	}
+
+	deluge::storage::PresetRequest request{
+	    .consumer = deluge::storage::PresetConsumer::ViewNavigateClipPreset,
+	    .outputType = outputType,
+	    .offset = offset,
+	    .doBlink = doBlink,
+	    .dirPath = ((Instrument*)clip->output)->dirPath,
+	    .oldInstrument = (Instrument*)clip->output,
+	    .clip = clip,
+	};
+	// A dropped gesture leaves the clip on the preset it already had; nothing to undo, and the next
+	// encoder tick dispatches again. See dispatchPresetAcquisition()'s doc.
+	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed, with `acquired` set;
+// MIDI/CV are called inline with it null.
+void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink,
+                                                           const deluge::storage::AcquireResult* acquired) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+
+	OutputType outputType = clip->output->type;
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
 	Availability availabilityRequirement;
@@ -2462,21 +2491,25 @@ gotAnInstrument:
 	// Or if we're on a Kit or Synth...
 	else {
 
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
-		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
+		// Acquired by InstrumentLoad: walked and loaded on this tier.
+		if (acquired == nullptr) {
+			return;
+		}
+		if (acquired->error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
 			return;
 		}
-		if (results.error != Error::NONE) {
-			display->displayError(results.error);
+		if (acquired->error != Error::NONE) {
+			display->displayError(acquired->error);
 			goto getOut;
 		}
 
-		newInstrument = results.fileItem->instrument;
-		bool instrumentAlreadyInSong = results.fileItem->instrumentAlreadyInSong;
-		Browser::emptyFileItems();
+		newInstrument = acquired->instrument;
+		bool instrumentAlreadyInSong = acquired->alreadyInSong;
+		if (acquired->wasHibernating) {
+			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
+		}
 
 		// For Kits, ensure that every SoundDrum has a ParamManager somewhere
 #if ALPHA_OR_BETA_VERSION
@@ -2490,7 +2523,7 @@ getOut:
 						if (!modelStack->song->findParamManagerForDrum(
 						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 
-							if (results.loadedFromFile) {
+							if (acquired->loadedFromFile) {
 								FREEZE_WITH_ERROR("E103");
 							}
 							else if (instrumentAlreadyInSong) {
@@ -2561,7 +2594,8 @@ getOut:
 }
 
 // Returns whether success
-bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink) {
+bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink,
+                            deluge::storage::PresetConsumer consumer) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -2577,7 +2611,40 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 		return false;
 	}
 
-	Instrument* newInstrument = clip->changeOutputType(modelStack, newOutputType);
+	// MIDI/CV read no card -- run them inline so the gesture's bool is still a
+	// real answer for those types. Only Synth/Kit reaches the directory. Routed through the SAME
+	// per-consumer completion the dispatched arm below uses, so a caller's redraw/LED tail runs from
+	// exactly one place regardless of which arm actually ran -- never from here directly, or it would
+	// run a second time when a future caller's completion also runs it (see completeChangeOutputTypeFor()).
+	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
+		return completeChangeOutputTypeFor(consumer, newOutputType, clip, doBlink);
+	}
+
+	deluge::storage::PresetRequest request{
+	    .consumer = consumer,
+	    .outputType = newOutputType,
+	    .availability = Availability::ANY,
+	    .doBlink = doBlink,
+	    .dirPath = getInstrumentFolder(newOutputType),
+	    .oldInstrument = (Instrument*)clip->output,
+	    .clip = clip,
+	};
+	// The acquisition may still fail once it runs; the gesture itself was accepted, so report
+	// success here and let the completion surface any error, exactly as goIntoFolder() does.
+	return loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed; MIDI/CV inline.
+// InstrumentClip::changeOutputType() does its own branch on output type. Core swap + View-level redraw
+// only -- no caller-specific tail; see completeChangeOutputTypeFor() for those.
+bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
+                                    const deluge::storage::AcquireResult* acquired) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+
+	Instrument* newInstrument = (acquired != nullptr)
+	                                ? clip->applyChangeOutputType(modelStack, newOutputType, *acquired)
+	                                : clip->changeOutputType(modelStack, newOutputType);
 	if (!newInstrument) {
 		return false;
 	}
@@ -2587,6 +2654,89 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 	displayOutputName(newInstrument, doBlink, clip);
 
 	return true;
+}
+
+// The router changeOutputType() uses for BOTH its arms (see the doc above the MIDI/CV branch): each
+// consumer's completion runs completeChangeOutputType() as its first step, then whatever redraw/LED
+// tail its own caller needs. changeOutputType()'s bool return is not safe to gate that tail on: the
+// Synth/Kit arm can return `true` for a DISPATCHED (not yet complete) acquisition. Distinct
+// consumers, distinct completions, on purpose: guessing a single shared "refresh" from whatever UI
+// happens to be current at completion time is exactly how this class of regression happens (three
+// different callers, three different tails).
+bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer, OutputType newOutputType,
+                                       InstrumentClip* clip, bool doBlink,
+                                       const deluge::storage::AcquireResult* acquired) {
+	using deluge::storage::PresetConsumer;
+	// Exhaustive, deliberately no `default:` -- a `default:` here would silently route any consumer a
+	// future task adds into InstrumentClipView's tail instead of failing to build, which is precisely
+	// the failure this switch exists to prevent.
+	switch (consumer) {
+	case PresetConsumer::ViewChangeType:
+		// InstrumentClipView::changeOutputType() -- the KIT/SYNTH buttons on InstrumentClipView,
+		// AutomationView and KeyboardScreen, plus InstrumentClipView's own MIDI/CV buttons. Runs the
+		// full tail: InstrumentClipMinder's LEDs, plus recolour + repaint.
+		return instrumentClipView.completeChangeOutputType(newOutputType, clip, doBlink, acquired);
+	case PresetConsumer::ViewChangeTypeMinder: {
+		// InstrumentClipMinder::changeOutputType() reached DIRECTLY, bypassing InstrumentClipView --
+		// today only KeyboardScreen's own MIDI/CV buttons (keyboard_screen.cpp:525,533 call the
+		// unqualified, non-virtual changeOutputType(), which resolves to InstrumentClipMinder's own
+		// version since KeyboardScreen never overrides it). InstrumentClipView was never in that call
+		// chain, so its recolour/repaint never ran for this path either -- only the LEDs did.
+		bool success = completeChangeOutputType(newOutputType, clip, doBlink, acquired);
+		if (success) {
+			// InstrumentClipMinder::setLedStates() reads only global state (getCurrentOutputType(),
+			// getCurrentInstrumentClip(), getCurrentUI()) -- it never touches `this` -- so which
+			// InstrumentClipMinder-derived instance runs it is interchangeable. instrumentClipView is
+			// used here only because it is already referenced nearby, NOT because this path runs
+			// through it; the explicit `InstrumentClipMinder::` qualifier is load-bearing the same way
+			// it is in InstrumentClipView::completeChangeOutputType() -- an unqualified call would
+			// resolve to instrumentClipView's own (different) setLedStates() override.
+			instrumentClipView.InstrumentClipMinder::setLedStates();
+		}
+		return success;
+	}
+	case PresetConsumer::KeyboardChangeType: {
+		// KeyboardScreen's own KIT/SYNTH buttons with neither shift nor FM held. Identical to
+		// ViewChangeType -- the call chain really does go through InstrumentClipView -- PLUS the
+		// keyboard layout refresh. Its own consumer rather than a flag on ViewChangeType, because
+		// every other caller of that arm has no keyboard layout to refresh and must not get one.
+		bool success = instrumentClipView.completeChangeOutputType(newOutputType, clip, doBlink, acquired);
+		// Gated on the clip still being current, exactly as the KeyboardNewInstrument arm is: unlike
+		// the LED/redraw tail beside it, selectLayout() both READS and WRITES per-clip model state
+		// (keyboardState.currentLayout) through getCurrentInstrumentClip(). `clip` already survived
+		// runAcquisitionFollowUp()'s liveness guard; comparing it against what is current NOW is what
+		// makes the write land on the clip the gesture was made on, rather than on whichever clip the
+		// user moved to while the swap was in flight.
+		if (success && getCurrentInstrumentClip() == clip) {
+			keyboardScreen.completeLayoutRefresh();
+		}
+		return success;
+	}
+	case PresetConsumer::SessionRowsChangeType:
+		return sessionView.completeChangeOutputTypeRows(newOutputType, clip, doBlink, acquired);
+	case PresetConsumer::ArrangerNewInstrument:
+	case PresetConsumer::ArrangerChangeType:
+	case PresetConsumer::ArrangerNavigate:
+	case PresetConsumer::SessionChangeType:
+	case PresetConsumer::SessionNavigate:
+	case PresetConsumer::SessionNewTrack:
+	case PresetConsumer::SessionNewTrackEnter:
+	case PresetConsumer::SessionNewTrackSelect:
+	case PresetConsumer::SessionNewTrackClone:
+	case PresetConsumer::ViewNavigateClipPreset:
+	case PresetConsumer::BlankSongPreset:
+	case PresetConsumer::MinderNewInstrument:
+	case PresetConsumer::ViewNewInstrument:
+	case PresetConsumer::KeyboardNewInstrument:
+		// Not a changeOutputType() consumer -- listed explicitly, never folded into a `default:`, so
+		// -Werror=switch keeps flagging every PresetConsumer this router does not yet know how to
+		// route. changeOutputType() itself never passes any of these; reached only if a future caller
+		// misuses the `consumer` parameter, in which case falling back to the core swap with no extra
+		// tail is the safe choice.
+		return completeChangeOutputType(newOutputType, clip, doBlink, acquired);
+	}
+	FREEZE_WITH_ERROR("VCTC"); // Unreachable: the switch above is exhaustive over PresetConsumer.
+	return false;
 }
 
 void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument) {

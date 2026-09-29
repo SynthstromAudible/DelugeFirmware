@@ -1,0 +1,28 @@
+# deluge_card_generation — the one card generation counter, shared by every loader that caches
+# something read from the SD card.
+#
+# A crate rather than a module of `deluge-bsp-rust` for a mechanical reason: the loaders that read
+# this counter (`src/bsp/rust/src/audio_loader.rs` and its siblings) are also `#[path]`-included as
+# TOP-LEVEL modules into their own integration tests (`src/bsp/rust/tests/*.rs`), where `crate::`
+# means the test binary, not the BSP binary. An `extern crate` path (`deluge_card_generation::`)
+# resolves identically in both builds; a `crate::card_generation::` path resolves in neither
+# consistently. See lib.rs for what the counter is for.
+#
+# A plain `no_std` rlib with no `#[panic_handler]` of its own (the final artifact — `deluge_rust`'s
+# umbrella / `deluge-bsp-rust`'s bin — provides one), exactly like `deluge_sample_stream` and
+# `deluge_sample_reader` beside it.
+[package]
+name = "deluge_card_generation"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+name = "deluge_card_generation"
+crate-type = ["rlib"]
+
+# No dependencies, and deliberately none: this is one `AtomicU32`. Nothing here needs a mutex, an
+# executor, or a critical section, which is also why it links into every tier (device `no_std`, the
+# `host_app` closure, and a plain `cargo test` host build) with no feature selector at all.
+[dependencies]

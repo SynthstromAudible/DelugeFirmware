@@ -16,8 +16,10 @@
  */
 
 #include "model/note/note_row_vector.h"
+#include "libdeluge/system.h"
 #include <cstring>
 #include <new>
+#include <utility>
 
 NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
 	if (!insertAt(index)) {
@@ -28,6 +30,14 @@ NoteRow* NoteRowVector::insertNoteRowAtIndex(int32_t index) {
 
 void NoteRowVector::deleteNoteRowAtIndex(int32_t startIndex, int32_t numToDelete) {
 	erase(begin() + startIndex, begin() + startIndex + numToDelete); // Runs the NoteRows' destructors
+}
+
+void NoteRowVector::swapRows(int32_t a, int32_t b) {
+	// One section for the whole swap: each row's move-assign is its own section, but between them one row would be
+	// in both places and the other in neither.
+	AudioExcludedSection section;
+	noteEdit();
+	std::swap((*this)[a], (*this)[b]);
 }
 
 NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {

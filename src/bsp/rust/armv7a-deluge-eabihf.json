@@ -2,10 +2,11 @@
   "abi": "eabihf",
   "arch": "arm",
   "c-enum-min-bits": 8,
+  "cpu": "cortex-a9",
   "crt-objects-fallback": "false",
   "data-layout": "e-m:e-p:32:32-Fi8-i64:64-v128:64:128-a:0:32-n32-S64",
   "emit-debug-gdb-scripts": false,
-  "features": "+armv7-a,+d32,+dsp,+fp64,+neon,+read-tp-tpidruro,+thumb-mode,+vfp2,+vfp2sp,+vfp3,+vfp3d16,+vfp3d16sp,+vfp3sp",
+  "features": "+armv7-a,+d32,+dsp,+fp64,+neon,+read-tp-tpidruro,+strict-align,+thumb-mode,+vfp2,+vfp2sp,+vfp3,+vfp3d16,+vfp3d16sp,+vfp3sp",
   "frame-pointer": "always",
   "has-thumb-interworking": true,
   "linker": "rust-lld",
@@ -21,6 +22,5 @@
   },
   "panic-strategy": "abort",
   "relocation-model": "static",
-  "target-pointer-width": 32,
-  "cpu": "cortex-a9"
+  "target-pointer-width": 32
 }

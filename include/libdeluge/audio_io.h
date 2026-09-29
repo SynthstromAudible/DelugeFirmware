@@ -61,6 +61,22 @@ uint32_t deluge_audio_output_latency_frames(void);
 /// unprompted. [task]
 uint32_t deluge_audio_drive(void);
 
+/// @brief Wait for, or run, roughly one render block.
+///
+/// For a caller that must block on the render (a higher tier) until it has let go of something; such
+/// a caller re-checks its own condition after each call and keeps its own deadline, because what this
+/// guarantees differs by platform:
+///  - the device (preemptive audio executor): returns once the render has
+///    begun another block, or after 20 ms without one;
+///  - the host app (the render on its own audio thread): sleeps 1 ms and
+///    checks nothing;
+///  - the single-executor host harnesses (the render cooperative on the
+///    caller's own executor): runs one block's worth of the render's work
+///    inline, on the audio tier.
+///
+/// Never call from the render. [task]
+void deluge_audio_await_block(void);
+
 /// Re-align the input stream's latency window after a glitch or at start-up
 /// (the input ring is deeper than the output ring; if an entire output-ring
 /// cycle was missed, input latency grows by a lap until corrected). Cheap;

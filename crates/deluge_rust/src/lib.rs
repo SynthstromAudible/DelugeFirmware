@@ -3,8 +3,9 @@
 //! Links into the firmware / sim / conformance tests and re-exports the member
 //! libraries' C ABIs so their `#[no_mangle]` symbols land in the final
 //! `libdeluge_rust.a`:
-//!   - `deluge_alloc`    — TLSF + slab allocator (`libdeluge/alloc.h`)
-//!   - `deluge_resource` — cached-asset / resource manager (`deluge_resource.h`)
+//!   - `deluge_alloc`        — TLSF + slab allocator (`libdeluge/alloc.h`)
+//!   - `deluge_resource`     — cached-asset / resource manager (`deluge_resource.h`)
+//!   - `deluge_audio_format` — WAV/AIFF header decoding (`libdeluge/audio_format.h`)
 //!
 //! It also provides the single bare-metal `#[panic_handler]` for the whole no_std
 //! dependency graph (the member crates are plain rlibs with none of their own).
@@ -16,6 +17,7 @@
 // Re-export the members so their public items (incl. the `#[no_mangle] extern "C"`
 // entry points) are reachable from this staticlib's root and thus retained.
 pub use deluge_alloc::*;
+pub use deluge_audio_format::abi::*;
 pub use deluge_resource::*;
 
 // Link-only force-link for the sim's `sim` feature (see Cargo.toml), mirroring

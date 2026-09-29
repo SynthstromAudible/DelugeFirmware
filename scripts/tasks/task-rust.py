@@ -22,7 +22,7 @@ cmake build can link an out-of-date object.
 Pass `--host` to instead build the platform-std host image (`cargo build`,
 no `--target`) for host-side testing — no ARM C++ compile, no `build-gcc`.
 See `src/bsp/rust/HOST_HARNESS.md` for how the host binary gets its C++
-objects (`DELUGE_HOSTAPP_BUILD_DIR` / `build-embassy-hostapp`).
+objects (`DELUGE_HOSTAPP_BUILD_DIR` / `build/host-app`).
 """
 
 import argparse
@@ -102,12 +102,12 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     if args.host:
         # Host (platform-std) image: build.rs's host branch reads
-        # DELUGE_HOSTAPP_BUILD_DIR (default build-embassy-hostapp/), not the
+        # DELUGE_HOSTAPP_BUILD_DIR (default build/host-app/), not the
         # ARM CPP_TARGETS below — so skip build-gcc entirely, it would be
         # pure waste. See src/bsp/rust/HOST_HARNESS.md.
         print(
             "Building the HOST image (--host): C++ objects come from "
-            "build-embassy-hostapp (DELUGE_HOSTAPP_BUILD_DIR), not build-gcc. "
+            "build/host-app (DELUGE_HOSTAPP_BUILD_DIR; `./dbt test --build-only golden-vt-render` builds it), not build-gcc. "
             "See src/bsp/rust/HOST_HARNESS.md if build.rs panics on missing objects."
         )
         cargo_args = ["cargo", "build"]

@@ -1,7 +1,6 @@
 //! The Rust async cluster-fill task and its BSP wiring: drains the resource
-//! manager's loader queue (`deluge_resource_loader_next`) on the same
-//! thread-mode Embassy executor the fiber pump and the C++ enqueue path run on,
-//! awaiting the actual SD read instead of running it synchronously inline.
+//! manager's loader queue (`deluge_resource_loader_next`), awaiting the actual
+//! SD read instead of running it synchronously inline.
 //!
 //! ## Two compilation tiers
 //!
@@ -45,17 +44,32 @@
 //! ## Concurrency
 //!
 //! The manager (`DelugeResource*`) is `!Send`/`!Sync` by design — single-executor
-//! only. [`streaming_fill_task`] and the C++ enqueue path (the CLUSTER_ENQUEUE
-//! sites in `sample_stream.cpp`) both run on the one thread-mode Embassy
-//! executor the whole app runs on, so the raw
-//! pointer never needs to (and must never) cross threads.
+//! only, and [`streaming_fill_task`] is the only place this module touches it.
+//!
+//! That task does NOT run on the thread-mode executor. On device it runs on
+//! `STREAM_EXEC`, a preemptive `InterruptExecutor` at SGI priority 24 (spawned
+//! via `main.rs`'s `stream_bootstrap`); on host it owns the `"deluge-stream"`
+//! thread. That placement is load-bearing rather than incidental: this task
+//! holds the single `efatfs` FS mutex across its SD await, while the C++
+//! storage FFI (`deluge_efatfs_*`) bridges to these same futures through
+//! `sim_block::block_on`, a NON-yielding spin on device. A spin on the
+//! thread-mode executor therefore cannot let a thread-mode task run — see the
+//! FFI-bridge note in `efatfs_fs.rs`, "thread-mode tasks (PIC pump, OLED, UI)
+//! do not run during one. Streaming is unaffected — it lives on its own
+//! interrupt executor." Were the fill task thread-mode, that spin would wait
+//! forever on a mutex only the task it is starving can release.
+//!
+//! Cross-tier safety for the `!Send` manager pointer comes from
+//! `deluge_resource::sync`'s critical-section serialization, not from sharing an
+//! executor with the C++ enqueue path (the CLUSTER_ENQUEUE sites in
+//! `sample_stream.cpp`), which it does not.
 use core::ffi::c_void;
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 
 /// Raised to wake [`streaming_fill_task`] out of its idle wait — e.g. when a
-/// cluster is newly enqueued. Same shape as `fiber::WORKER_WAKE`. Always
+/// cluster is newly enqueued. Always
 /// compiled (see the module doc's "Two compilation tiers") — with the feature
 /// off, or before the task is spawned, nobody ever awaits it; signalling it is
 /// just a harmless flag set.
@@ -84,23 +98,16 @@ pub extern "C" fn deluge_streaming_signal_fill() {
     FILL_WAKE.signal(());
 }
 
-// ── Always-compiled C ABI: reader range-fill blocking-fill routing ──────────
-// See `include/libdeluge/streaming_fill.h`'s `deluge_streaming_fill_chunk_blocking` doc for the
-// C-side contract. Always compiled (like the selector above) so the reader crate's call site links
+// ── Always-compiled C ABI: the non-blocking request/poll pairs ──────────────
+// See `include/libdeluge/streaming_fill.h` for the C-side contract. Always compiled (like the
+// selector above) so the reader crate's call site links
 // on any Rust/Embassy BSP regardless of the `async_streaming_loader` feature; a non-async build
 // never reaches it at runtime because the reader gates on `deluge_streaming_async_active()`.
 
 /// Most-urgent loader priority (lower = more urgent), the opposite end of `kLowestLoaderPriority`
-/// (the passive-lookahead prefetch value `0xFFFF_FFFF`) — used to enqueue a chunk a caller is
-/// synchronously BLOCKING on so the drain lands it ahead of any queued prefetch.
+/// (the passive-lookahead prefetch value `0xFFFF_FFFF`) — used to enqueue a chunk a caller has
+/// asked for and is waiting on, so the drain lands it ahead of any queued prefetch.
 const BLOCKING_FILL_PRIORITY: u32 = 0;
-
-/// Bound on the number of yield/re-poll cycles the on-fiber wait spins before giving up (a read
-/// that repeatedly fails while the chunk stays leased — e.g. the card was pulled — would otherwise
-/// never flip `loaded`). Far more than a successful single-cluster fill ever needs (that lands in
-/// one drain cycle), finite so a permanent fault degrades to a not-ready result instead of wedging
-/// the fiber.
-const BLOCKING_FILL_MAX_CYCLES: u32 = 4096;
 
 unsafe extern "C" {
     /// The process-wide resource-manager singleton (see the `prod` module's own copy of this
@@ -112,154 +119,87 @@ unsafe extern "C" {
     /// the requester dropping its own (`deluge_resource.h`).
     fn deluge_resource_loader_enqueue_owned(mgr: *mut c_void, slot: u32, priority: u32);
     /// Non-destructive "loader queue non-empty" predicate (`deluge_resource.h`): true while any
-    /// queued+leased chunk remains — the condition the drain-all-queued wait below polls to empty.
+    /// queued+leased chunk remains — what [`queue_is_drained`] below negates.
     fn deluge_resource_loader_has_any(mgr: *mut c_void) -> bool;
 }
 
-/// Poll-until-`loaded` future the on-fiber wait in [`deluge_streaming_fill_chunk_blocking`] drives
-/// through `block_on_fiber`. Each `Pending` suspends the fiber (via `block_on_fiber`'s own
-/// `yield_now`), letting the executor run [`streaming_fill_task`] to drain the queue; the fiber is
-/// re-polled by `worker_poll` and re-checks the flag. `remaining` bounds the spin so a chunk that
-/// never lands (a persistently failing read) reports not-ready rather than wedging the fiber.
-struct WaitChunkLoaded {
-    chunk: *mut c_void,
-    remaining: u32,
+/// True once `chunk_backing`'s fill has landed.
+///
+/// The single definition of chunk readiness, used by the non-blocking [`deluge_streaming_chunk_ready`].
+fn chunk_is_loaded(chunk_backing: *mut c_void) -> bool {
+    // SAFETY: the caller holds a lease on `chunk_backing` for the duration, so it stays resident
+    // while we read its `loaded` flag.
+    unsafe { deluge_sample_fill::chunk::loaded(chunk_backing) }
 }
 
-impl core::future::Future for WaitChunkLoaded {
-    type Output = bool;
-
-    fn poll(
-        mut self: core::pin::Pin<&mut Self>,
-        _cx: &mut core::task::Context<'_>,
-    ) -> core::task::Poll<bool> {
-        // SAFETY: `chunk` is the leased backing the caller passed and holds a lease on for this
-        // whole call, so it stays resident while we poll its `loaded` flag.
-        if unsafe { deluge_sample_fill::chunk::loaded(self.chunk) } {
-            return core::task::Poll::Ready(true);
-        }
-        if self.remaining == 0 {
-            return core::task::Poll::Ready(false); // Gave up: repeated drains never landed it.
-        }
-        self.remaining -= 1;
-        // Re-wake the drain in case it idled after a failed attempt re-queued this chunk at lowest
-        // priority; the executor runs `streaming_fill_task` while this fiber is suspended.
-        FILL_WAKE.signal(());
-        core::task::Poll::Pending
-    }
+/// True when the loader queue holds nothing outstanding.
+///
+/// The single definition of drained-ness, used by the non-blocking [`deluge_streaming_queue_drained`].
+fn queue_is_drained(mgr: *mut c_void) -> bool {
+    // SAFETY: `mgr` is the boot-singleton manager; the predicate only reads per-slot queue state,
+    // popping and mutating nothing.
+    !unsafe { deluge_resource_loader_has_any(mgr) }
 }
 
-/// Fill a reserved chunk through the async drain, blocking on the worker fiber — the reader
-/// range-fill's async-BSP path. See `streaming_fill.h`'s `deluge_streaming_fill_chunk_blocking` doc
-/// for the full contract; in brief: enqueue + wake the drain, then on-fiber yield-wait until the
-/// chunk's `loaded` flag flips (byte-equivalent to the synchronous fill, same `native_finish`
-/// tail), off-fiber return false immediately (degrade-to-eventual — no stack to suspend, and a
-/// non-yielding `block_on` here is the very livelock this replaces).
+/// Enqueues `chunk_backing` for the fill task under a queue-owned lease and wakes the drain.
 ///
-/// # Why the enqueue takes a queue-owned lease
-///
+/// The owned enqueue is what lets a fire-and-forget request survive the requester walking away:
 /// `deluge_resource_loader_next` only serves a chunk with a live lease, and *silently de-queues* any
-/// other. The off-fiber degrade returns false, whereupon the reader drops the lease it was holding
-/// (`Reader::acquire_and_fill`'s `if !filled` arm) — so the entry this call had just enqueued was
-/// discarded on the drain's very next poll, and the chunk never loaded. That is why the display-only
-/// overview pre-scan never converged on device: every `slowRoutine` tick re-requested the same
-/// cluster, re-enqueued it at the most-urgent priority against the live streaming queue, and threw
-/// its own progress away. Enqueueing through `deluge_resource_loader_enqueue_owned` gives the queue
-/// the lease it requires, so a fire-and-forget fill survives the requester walking away: the drain
-/// lands it, `native_finish` marks it ready, and the scan's next tick takes a cache hit.
-///
-/// Both branches use the owned enqueue, so the drain has one protocol to honour rather than two.
-/// On-fiber that is redundant but harmless (the suspended reader holds its own lease throughout).
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_streaming_fill_chunk_blocking(chunk_backing: *mut c_void) -> bool {
-    if chunk_backing.is_null() {
-        return false;
-    }
-    // SAFETY: `chunk_backing` is a resident, still-leased `StreamedChunk*` the caller just
-    // `request`ed (it holds the lease across this call); `deluge_streaming_resource_manager` returns
-    // the boot-singleton manager. Enqueue the chunk + wake the drain.
+/// other, so an un-owned entry whose requester dropped its lease (the reader's `if !filled` arm) was
+/// discarded on the drain's next poll -- which is why the display-only overview pre-scan once never
+/// converged on device.
+fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
+    // SAFETY: `deluge_streaming_resource_manager` returns the boot-singleton manager;
+    // `chunk_backing` is a resident, leased `StreamedChunk*`.
     let mgr = unsafe { deluge_streaming_resource_manager() };
     if !mgr.is_null() {
         let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing) };
         unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, BLOCKING_FILL_PRIORITY) };
     }
     FILL_WAKE.signal(());
-
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(WaitChunkLoaded {
-            chunk: chunk_backing,
-            remaining: BLOCKING_FILL_MAX_CYCLES,
-        })
-    } else {
-        // Off the worker fiber (the display-only overview pre-scan): no stack to suspend. The chunk
-        // is enqueued under a queue-owned lease (see above), so it loads without us; return
-        // not-ready and the consumer's next tick finds it resident.
-        false
-    }
 }
 
-/// Poll-until-queue-empty future the offline drain in [`deluge_streaming_drain_queue_blocking`]
-/// drives through `block_on_fiber`. Each `Pending` suspends the fiber (via `block_on_fiber`'s own
-/// `yield_now`), letting the executor run [`streaming_fill_task`] to drain the queue; the fiber is
-/// re-polled by `worker_poll` and re-checks. Same shape as [`WaitChunkLoaded`], but the readiness
-/// predicate is "the loader queue is empty" (`deluge_resource_loader_has_any` false) rather than one
-/// named chunk's `loaded` flag. `remaining` bounds the spin so a cluster whose read keeps failing
-/// (and re-queuing itself) reports drained-with-cap rather than wedging the fiber.
-struct WaitQueueDrained {
-    mgr: *mut c_void,
-    remaining: u32,
-}
-
-impl core::future::Future for WaitQueueDrained {
-    type Output = bool;
-
-    fn poll(
-        mut self: core::pin::Pin<&mut Self>,
-        _cx: &mut core::task::Context<'_>,
-    ) -> core::task::Poll<bool> {
-        // SAFETY: `mgr` is the process-wide resource-manager singleton captured at construction; the
-        // predicate only reads per-slot queue state, popping/mutating nothing.
-        if !unsafe { deluge_resource_loader_has_any(self.mgr) } {
-            return core::task::Poll::Ready(true); // Queue drained — nothing left to load.
-        }
-        if self.remaining == 0 {
-            return core::task::Poll::Ready(false); // Gave up: a read kept failing and re-queuing.
-        }
-        self.remaining -= 1;
-        // Wake the drain: the executor runs `streaming_fill_task` while this fiber is suspended.
-        FILL_WAKE.signal(());
-        core::task::Poll::Pending
-    }
-}
-
-/// Drain the WHOLE loader queue through the async fill task, blocking on the worker fiber — the
-/// offline stem-export drain (`StemExport::renderWait`'s async-BSP branch). See `streaming_fill.h`'s
-/// `deluge_streaming_drain_queue_blocking` doc for the C-side contract; in brief: unlike
-/// [`deluge_streaming_fill_chunk_blocking`] (which blocks on ONE named chunk), this wakes
-/// `streaming_fill_task` and yield-waits until the loader queue is empty
-/// (`deluge_resource_loader_has_any` false) — draining everything the preceding
-/// `AudioEngine::routine()` enqueued. On-fiber it yields until
-/// drained, bounded by [`BLOCKING_FILL_MAX_CYCLES`]; off-fiber it returns false immediately (no stack
-/// to suspend — renderWait is always on-fiber, so this is only a safety net).
+/// Enqueues `chunk_backing` for filling and returns immediately.
+///
+/// Pair with [`deluge_streaming_chunk_ready`]. The chunk is enqueued under a queue-owned lease, so
+/// the fill survives the requester returning to its loop.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_streaming_drain_queue_blocking() -> bool {
-    // SAFETY: `deluge_streaming_resource_manager` returns the boot-singleton manager.
-    let mgr = unsafe { deluge_streaming_resource_manager() };
-    if mgr.is_null() {
+pub extern "C" fn deluge_streaming_request_chunk(chunk_backing: *mut c_void) {
+    if chunk_backing.is_null() {
+        return;
+    }
+    enqueue_chunk_for_fill(chunk_backing);
+}
+
+/// True once a chunk requested via [`deluge_streaming_request_chunk`] has landed. Never waits.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_chunk_ready(chunk_backing: *mut c_void) -> bool {
+    if chunk_backing.is_null() {
         return false;
     }
-    FILL_WAKE.signal(());
+    chunk_is_loaded(chunk_backing)
+}
 
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(WaitQueueDrained {
-            mgr,
-            remaining: BLOCKING_FILL_MAX_CYCLES,
-        })
-    } else {
-        // Off the worker fiber: no stack to suspend. renderWait always runs on-fiber; this branch is
-        // a safety net only.
-        false
+/// Wakes the fill task so it drains the loader queue, and returns immediately.
+///
+/// Pair with [`deluge_streaming_queue_drained`].
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_request_drain() {
+    FILL_WAKE.signal(());
+}
+
+/// True when the loader queue holds nothing outstanding. Never waits.
+///
+/// A null manager reports drained: there is no queue, so there is nothing for a caller to wait on,
+/// and reporting otherwise would loop a poller forever.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_queue_drained() -> bool {
+    // SAFETY: returns the boot-singleton manager.
+    let mgr = unsafe { deluge_streaming_resource_manager() };
+    if mgr.is_null() {
+        return true;
     }
+    queue_is_drained(mgr)
 }
 
 // ── Always-compiled C ABI: per-asset fill-context table ─────────────────────
@@ -378,6 +318,13 @@ pub async fn fill_once<O: FillOps>(ops: &O) {
         // double's `begin` hands back its own owned backing storage).
         let buf =
             unsafe { core::slice::from_raw_parts_mut(d.dest, (d.num_sectors as usize) * 512) };
+        #[cfg(feature = "host_app")]
+        {
+            let us = FILL_READ_LATENCY_US.load(core::sync::atomic::Ordering::Relaxed);
+            if us > 0 {
+                embassy_time::Timer::after_micros(u64::from(us)).await;
+            }
+        }
         let read_ok = ops.read(&d, buf).await;
 
         if read_ok {
@@ -530,19 +477,92 @@ mod prod {
 ))]
 pub use prod::ProdOps;
 
+/// Milliseconds the fill task waits before each drain pass. Host harness only; see
+/// [`deluge_streaming_set_fill_latency_ms`].
+#[cfg(feature = "host_app")]
+static FILL_LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make the streaming fill task wait `ms` milliseconds before each drain pass, so a gate can hold
+/// cluster fills while a consumer keeps ticking. 0, the default, means no wait.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_set_fill_latency_ms(ms: u32) {
+    FILL_LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
+}
+
+/// Microseconds each chunk's read takes, on top of the card's own time. Host harness only; see
+/// [`deluge_streaming_set_fill_read_latency_us`].
+#[cfg(feature = "host_app")]
+static FILL_READ_LATENCY_US: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make every chunk's read take `us` microseconds longer, in the fill task and so without holding
+/// anything else up. The harness's card answers at once, so this is how a gate models the device card's time to read a
+/// chunk; [`deluge_streaming_set_fill_latency_ms`] models the fill task's wait to be scheduled. 0, the default, adds
+/// nothing.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_set_fill_read_latency_us(us: u32) {
+    FILL_READ_LATENCY_US.store(us, core::sync::atomic::Ordering::Relaxed);
+}
+
 /// The fill task: wakes on [`FILL_WAKE`], drains the loader queue via the real
 /// [`ProdOps`], then goes back to sleep. Spawned in `main.rs` (device `main` +
 /// host `host_app`) under `async_streaming_loader`; the C++ enqueue path
 /// (`sample_stream.cpp`) wakes it via `deluge_streaming_signal_fill`.
+///
+/// # Why `ProdOps` is constructed AFTER the first wake, never before
+///
+/// [`ProdOps::new`] reaches into the C++ resource manager, and
+/// `GeneralMemoryAllocator::ensureClusterSystem()` on that path READS the global
+/// `Cluster::size` — which `deluge_app_init` writes during boot
+/// (`AudioFileManager::init()` -> `Cluster::set_size`). This task no longer shares an
+/// execution context with `deluge_app_init`: on device it runs on `STREAM_EXEC`, whose SGI is
+/// enabled before the thread executor ever reaches `app_task`, and on host it owns the
+/// `"deluge-stream"` thread. Constructing at the top of the task therefore raced that boot
+/// write — caught by TSan as `Cluster::set_size` vs `ProdOps::new` across two threads — and on
+/// device could have built the cluster system from the 32768 default instead of the card's real
+/// cluster size, silently wrong on any non-32KB card.
+///
+/// Waiting first is a complete fix rather than a narrowing, because nothing can signal
+/// [`FILL_WAKE`] until the C++ enqueue path runs, which is necessarily after init. `FILL_WAKE`
+/// is a latching `Signal`, so a wake that arrives before this task is first polled is stored
+/// and returned immediately — no wake is lost by waiting.
 #[cfg(all(
     feature = "async_streaming_loader",
     any(target_os = "none", feature = "host_app")
 ))]
 #[embassy_executor::task]
 pub async fn streaming_fill_task() {
+    // The device derives the tier from the storage handler's own mark (`tier::storage_isr`); this line is the
+    // evidence on RTT that the derivation sees it. Expected: `Storage`.
+    #[cfg(target_os = "none")]
+    log::info!(
+        "tier: the streaming fill task runs on {:?}",
+        crate::tier::current()
+    );
+    crate::tier::scoped(crate::tier::Tier::Storage, streaming_fill_task_body()).await
+}
+
+#[cfg(all(
+    feature = "async_streaming_loader",
+    any(target_os = "none", feature = "host_app")
+))]
+async fn streaming_fill_task_body() {
+    FILL_WAKE.wait().await;
     let ops = ProdOps::new();
     loop {
-        FILL_WAKE.wait().await;
+        #[cfg(feature = "host_app")]
+        {
+            let ms = FILL_LATENCY_MS.load(core::sync::atomic::Ordering::Relaxed);
+            if ms > 0 {
+                embassy_time::Timer::after_millis(u64::from(ms)).await;
+            }
+        }
         fill_once(&ops).await;
+        FILL_WAKE.wait().await;
     }
 }

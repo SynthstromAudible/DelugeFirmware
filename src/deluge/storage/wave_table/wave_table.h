@@ -74,8 +74,9 @@ public:
 	                bool doOscSync, uint32_t resetterPhase, uint32_t resetterPhaseIncrement,
 	                int32_t resetterDivideByPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndex,
 	                int32_t waveIndexIncrement);
-	// Build this WaveTable from an already-in-memory Sample (the Sample→WaveTable conversion). Reads the
-	// Sample's cluster data; takes its cycle size / channels / byte depth from the Sample.
+	/// @brief Build this WaveTable from a resident Sample's cluster data (the Sample→WaveTable conversion); takes its
+	///        cycle size, channels and byte depth from the Sample.
+	/// @pre Every audio cluster of @p sample is resident and pinned: the reads must not miss.
 	Error setupFromSample(Sample& sample);
 	/// @brief Build this WaveTable by reading audio data from a file, via a FileByteSource.
 	///

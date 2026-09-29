@@ -1,0 +1,863 @@
+# Every test in the repository. `dbt test` reads this; tests/README.md's table is
+# generated from it. Every entry must state what it gates -- a test that
+# cannot say what regression it catches is one nobody can decide to delete.
+#
+# level:  unit        -- one function or module, against mocks or none
+#         component   -- one component against a reference, a stress load or a fuzzer
+#         integration -- the whole app, booted, driven end to end
+# runner: ctest    -- configured, built and run from `source` into `tree`
+#         cargo    -- a cargo test suite, run from `path`
+#         scenario -- a golden_vt_render scenario, driven by its script
+#         script   -- anything else, run from `path`
+# status: gate          -- a standing regression gate; breakage is a real signal
+#         investigative -- a rig for answering a question, run on demand
+#         unavailable   -- cannot run here; NOT scheduled for deletion -- see
+#                          this entry's comment for why and what would change it
+# tier:   pr | nightly | manual -- cumulative: `dbt test --tier nightly` runs pr too
+
+[[harness]]
+name = "fs-differential"
+path = "tests/component/differential/fs_differential"
+level = "component"
+runner = "cargo"
+kind = "differential"
+status = "gate"
+gates = "embedded-fatfs must agree with the reference FAT implementation on every filesystem operation"
+build = ["fixtures/mk_fixture.sh"]
+run = ["cargo", "test"]
+env = { SP0_FAT32 = "fixtures/fat32.img", SP0_FAT16 = "fixtures/fat16.img" }
+requires = ["cargo", "mtools"]
+tier = "pr"
+runtime = "~1m"
+
+# Runs with zero args (main() short-circuits before any app boot when no --file/--wavetable is
+# given -- see host_loadcheck_main.cpp), so it exercises checkProposeLoadCandidates()'s I/O-free
+# policy checks and checkAudioLoadAbiAbandon()'s libdeluge/audio_load.h ownership check -- no card
+# fixture, no --project, no SD-root side effects (both self-initialize the allocator/resource-manager
+# they touch). The deluge_loadcheck binary also supports --project <dir> --file PATH... for the fuller
+# construction-path regression net (Tier 2 for the file-loading redesign); that mode is exploratory,
+# run locally against a real project directory, not wired into this gate.
+#
+# `build` runs sim/build_loadcheck.sh, which configures AND builds sim/build itself -- this entry must
+# be self-sufficient on a clean checkout, since CI's pr-tier harness job (.github/workflows/rust.yml,
+# job `harness`) never runs any sim/ cmake configure step of its own, and sim/build is gitignored (not
+# restored by any cache). No `requires` probe covers sim/build: the build step makes it, so there is
+# nothing to precondition on.
+[[harness]]
+name = "audio-loadcheck"
+path = "sim"
+level = "integration"
+runner = "script"
+kind = "regression"
+status = "gate"
+gates = "AudioFileManager::proposeLoadCandidates's candidate order/count (the alternate-dir-vs-regular-path policy a real load and the async loader share) and the load invariants (no half-built cache entry, no leaked AudioFile reason) must hold -- this is what caught the dropped-bare-name-candidate regression this entry exists to pin. Also gates the libdeluge/audio_load.h C ABI's build-ownership contract: deluge_audio_load_abandon() must actually release the adopted resource-manager chunk, not just free its wrapper, or repeated begin/abandon churn (as a browser cursor move that never lands would produce) exhausts the chunk table. And, in the collector, two recoveries that must not be confused: an alternate-dir hit is decided by candidate SLOT (so a file whose own directory IS the alternate dir still records loadedFromAlternatePath, which the collect-media copy-back depends on), and a full efatfs handle table reclaims unleased residents and asks again rather than probing the alternate dir like a candidate miss."
+build = ["./build_loadcheck.sh"]
+run = ["./build/deluge_loadcheck"]
+requires = []
+tier = "pr"
+runtime = "~5m"
+
+[[harness]]
+name = "region-fill-differential"
+path = "tests/component/differential/region_fill_differential"
+level = "component"
+runner = "cargo"
+kind = "differential"
+status = "gate"
+gates = "the Rust cluster fill must stay byte-identical to the C++ convert/stitch reference"
+build = ["cargo", "build", "--tests"]
+run = ["cargo", "test"]
+requires = ["cargo"]
+tier = "pr"
+runtime = "~1m"
+
+[[harness]]
+name = "region-read-differential"
+path = "tests/component/differential/region_read_differential"
+level = "component"
+runner = "cargo"
+kind = "differential"
+status = "gate"
+gates = "the sample range-reader must resolve the same frames as the chunk-payload oracle"
+build = ["cargo", "build", "--tests"]
+run = ["cargo", "test"]
+requires = ["cargo"]
+tier = "pr"
+runtime = "~1m"
+
+[[harness]]
+name = "region-source-differential"
+path = "tests/component/differential/region_source_differential"
+level = "component"
+runner = "cargo"
+kind = "differential"
+status = "gate"
+gates = "the region cursor must resolve a chunk's payload, not its header, over real streamed backing"
+build = ["cargo", "build", "--tests"]
+run = ["cargo", "test"]
+requires = ["cargo"]
+tier = "pr"
+runtime = "~1m"
+
+[[harness]]
+name = "golden-vt-render"
+path = "src/bsp/rust/harness/golden_vt_render"
+level = "integration"
+runner = "scenario"
+kind = "simulation"
+status = "gate"
+gates = "the SampleRecorder record-then-read-back round trip must be byte-exact on the Embassy host BSP"
+scenario = "recorder_roundtrip"
+builds = ["golden-vt-render"]
+requires = ["song-corpus"]
+tier = "nightly"
+runtime = "~5m"
+
+# The ONLY rig that runs the real Rust audio loader against the real C++ collector over real
+# files. Everything else that touches the async load path drives a stub.
+#
+# `run` is a script rather than a cargo invocation because the harness's C++ object closure has to be
+# rebuilt first, which cargo does not track. The script builds the harness once and runs the fixture
+# card through it: every sample loads twice in process, synchronously as the reference and then
+# through the loader, and the two must agree. It needs no song corpus — it generates its own WAVs — so unlike the
+# sibling golden_vt_render gates it can run anywhere.
+[[harness]]
+name = "audio-load-ab"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "differential"
+status = "gate"
+gates = "the async Rust audio loader must load every file the SAME way the synchronous C++ card path does, loaded in the same process as the reference -- identical chosen path (regular vs alternate dir, including the case where the alternate dir IS the file's own directory and the two candidates stringify identically), identical byteDepth/numChannels/audioDataStartPosBytes/audioDataLengthBytes and the rest of the parsed geometry, identical bytes read back through the Sample's own stream, and the identical Error identity on a failure. Also pins that no load leaves a half-built zero-geometry object or a leaked reason behind, and that every case genuinely went through the collector (deferred at least once) rather than being answered synchronously. Finally, drives a real CALLER: SampleBrowser is asked to preview one file once and then driven only by its per-tick surface, and must eventually draw -- the one check here that fails if a caller stops re-asking for a deferred load, since every other check drives the loader through the harness's own retry loop. AB-PREVIEW-STALL holds a preview's load far past its load's 600-walk stall bound and requires it to give up once: nothing pending, nothing drawn, and nothing pending again once the hold is lifted. AB-PREVIEW-TIER requires, for each of those three stages, that no preview sample was read from the card on the interaction tier."
+scenario = "audio_load_ab"
+markers = ["AB-RESULT", "AB-PREVIEW", "AB-CANCEL", "AB-PREVIEW-STALL", "AB-PREVIEW-TIER", "AB-PREVIEW-DRAW", "AB-PREVIEW-DRAW-STALL", "AB-PREVIEW-DRAW-RELEASE", "AB-EJECT", "AB-EJECT-SUMMARY", "AB-DEFER", "AB-SUMMARY"]
+result = "AB-RESULT failures=0"
+check = "tests/integration/checks/audio_load_ab.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~5m"
+
+# The rig that runs the real Rust prefix channel against the real C++ song browser over real files.
+#
+# `run` is a script rather than a cargo invocation because the harness's C++ object closure has to be
+# rebuilt first, which cargo does not track. The script builds the harness once, draws the fixture
+# card's artwork through the prefix channel, and holds every song to an in-process reference decode of
+# the same file.
+#
+# Runs without a song corpus (the fixture writes its own songs). With DELUGE_SONG_CORPUS set it also
+# stages up to 16 real songs as extra cases, which is the only part of it that sees documents nobody
+# here wrote -- worth passing locally, not required.
+[[harness]]
+name = "song-preview-ab"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "differential"
+status = "gate"
+gates = "the Rust prefix channel must draw the SAME song artwork, and report the SAME decode outcome and error, as the same file decoded synchronously, inline (SP-REFERENCE, in the same process) -- which is not the same requirement, because an unreadable song, a song with no artwork and a preview past the read window all draw an identical blank screen, and the two backings once disagreed about exactly that in silence (the file path called displayError, the prefix path published a failed read as an empty prefix it could not tell from an empty file). Also pins that the run genuinely went through the channel (SP-SUMMARY asyncActive=1); that the browser's own per-tick surface is what finishes a deferred preview, since the scenario calls drawSongPreview() once per song and then drives only graphicsRoutine(); that a preview read from one card is refused after an ejection, with the post-swap artwork asserted absolutely against the known second image and against a reference decode of the swapped file; and that a song whose preview falls past kSongPreviewWindow reports Truncated rather than claiming the song has no artwork, while its reference renders it. The run also drives the browser through the always-on directory channel, every run a step of the scenario's own tick machine, and check each against what its fixture implies: the listing window and selection (SONG000-008 from a 25-song folder, a window a lost cull trim once left holed), a typing prediction and its retraction, a brand-new slot name, getUnusedSlot's one-sided read, the missing-folder fallback and its creation, a listing across a remount, and a by-path open that must select a present file, and refuse an absent one with the browser still open on the listing it had. Every run must make exactly one channel request per open, since a listing that restarted would ask again, and SP-TIER requires no synchronous browser directory operation on the interaction tier after boot. SP-LISTING-STALL holds a listing's directory open far past the browser's 600-tick bound and requires it to give up with the card error: a listing begun inside the open browser leaves it open on the listing it had, and one that opens the browser closes it. SP-DX loads one DX7 bank through the prefix channel and requires it to parse to 32 patches and the fixture's first patch name, with the load finished and the browser still open. SP-PREVIEW-STALL holds a preview's prefix read far past its 600-tick bound and requires the card error, a blank image and the owed scroll-in released. SP-DX-STALL holds the bank's read the same way and requires Enter to give up once, with the load's flag cleared and the browser still open."
+scenario = "song_preview_ab"
+markers = ["SP-RESULT", "SP-WINDOW", "SP-SWAP-BEFORE", "SP-EJECT", "SP-SWAP-SUMMARY", "SP-LISTING-SUMMARY", "SP-PREDICT-SUMMARY", "SP-NEWNAME", "SP-SLOT", "SP-ACQUIRE-SUMMARY", "SP-BYPATH", "SP-LISTING-STALL", "SP-RELOAD", "SP-RELOAD-STALL", "SP-PREVIEW-STALL", "SP-DX", "SP-DX-STALL", "SP-REFERENCE", "SP-TIER"]
+result = "SP-RESULT failures=0"
+check = "tests/integration/checks/song_preview_ab.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~5m"
+
+# tier = "manual": needs song-corpus, a directory of real songs on the maintainer's
+# machine that cannot be committed or fixtured. Runs locally via
+# `dbt test`; revisit if a synthetic corpus fixture is ever built.
+[[harness]]
+name = "preemptive-race-tsan"
+path = "src/bsp/rust/harness/preemptive_race_tsan"
+level = "integration"
+runner = "script"
+kind = "sanitizer"
+status = "gate"
+gates = "every cross-tier race site seen during sustained playback-while-record under ThreadSanitizer must have an entry in races.txt (the second invariant's inventory); an uncatalogued site fails"
+build = []
+run = ["./run.sh"]
+requires = ["cargo", "clang-tsan", "mtools", "song-corpus"]
+tier = "manual"
+runtime = "~30m"
+
+[[harness]]
+name = "snapshot-primitive-tsan"
+path = "tests/component/stress"
+level = "component"
+runner = "script"
+kind = "sanitizer"
+status = "gate"
+gates = "Published<T> and SpscRing<E,N> must be race-free under concurrent stress"
+build = []
+run = ["./run.sh", "10"]
+requires = ["clang-tsan"]
+tier = "pr"
+runtime = "~3m"
+
+[[harness]]
+name = "dsp-diff"
+path = "tests/component/dsp-diff"
+level = "component"
+runner = "script"
+kind = "differential"
+status = "gate"
+gates = "the ARM/NEON DSP fast paths must be byte-identical to the portable host fallback"
+build = []
+run = ["./run.sh"]
+requires = ["arm-linux-gnueabihf-gcc", "qemu-arm"]
+tier = "nightly"
+runtime = "~5m"
+
+# unavailable on THIS branch only -- not obsolete. This branch's sim/CMakeLists.txt
+# has no C-host deluge_render target for this script's check/update/padsweep
+# verbs to drive: the sample-streaming golden runs on the async Embassy
+# renderer here. On feat/synth-golden-masters, deluge_render (sim/CMakeLists.txt)
+# and the tests/golden/ harness it belongs to are current. Do not delete
+# scripts/golden_mixdown.sh -- that branch depends on it.
+[[harness]]
+name = "golden-mixdown"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "unavailable"
+gates = "unavailable on this branch only, not obsolete: this script's `check`/`update`/`padsweep` verbs drive the C-host `deluge_render` CMake target, which this branch's sim/CMakeLists.txt does not have, because the sample-streaming golden runs on the async Embassy renderer here (see golden-embassy-diff); running `check`/`update`/`padsweep` now fails at the cmake build step (no such target), and only `reconstruct` -- a fixture-prep helper the Rust harnesses call internally, not a standalone gate -- still works here. The rig remains current on `feat/synth-golden-masters`, where `deluge_render` (sim/CMakeLists.txt) and the `tests/golden/` harness it belongs to still live. Do not delete `scripts/golden_mixdown.sh`: another branch depends on it."
+build = []
+run = ["scripts/golden_mixdown.sh", "check"]
+requires = ["song-corpus"]
+tier = "manual"
+runtime = "n/a — does not build"
+
+# tier = "manual": needs song-corpus, a directory of real songs on the maintainer's
+# machine that cannot be committed or fixtured. Runs locally via
+# `dbt test`; revisit if a synthetic corpus fixture is ever built.
+[[harness]]
+name = "golden-embassy-diff"
+path = "."
+level = "integration"
+runner = "script"
+kind = "differential"
+status = "gate"
+gates = "the Embassy host BSP's mixdown must match the C-host golden renderer's for the same fixture"
+build = []
+run = ["scripts/golden_embassy_diff.sh", "cordae"]
+builds = ["golden-vt-render"]
+requires = ["song-corpus", "mtools"]
+tier = "manual"
+runtime = "~20m"
+
+# unavailable: cargo cannot build or run this package at all (nested-workspace
+# error, see gates for root cause) -- unwired-but-valuable, not scheduled for
+# deletion. The fix is known and deliberately unapplied; see gates.
+[[harness]]
+name = "alloc-fuzz"
+path = "crates/deluge_alloc/fuzz"
+level = "component"
+runner = "script"
+kind = "fuzz"
+status = "unavailable"
+gates = "the TLSF allocator must not corrupt its free lists under arbitrary alloc/free sequences -- UNRUNNABLE as it stands: `cargo build`/`cargo fuzz run` on this package fails with cargo error \"current package believes it's in a workspace when it's not\", reproduced on stable, 1.85, and nightly cargo. This is NOT the `exclude` in crates/Cargo.toml failing to take effect -- `cargo metadata --manifest-path crates/Cargo.toml` exits 0 and does not list this package, so the exclude works. The real cause is that `deluge_alloc/fuzz` is nested inside `deluge_alloc/`, a real workspace member; cargo's directory walk finds that ancestor and attributes the fuzz package to the crates/ workspace regardless of the exclude, then errors because it isn't a member. The standard cargo-fuzz remedy is an empty `[workspace]` table in crates/deluge_alloc/fuzz/Cargo.toml, which this registry deliberately has NOT applied -- `cargo metadata` succeeding is not evidence the fuzzer builds or runs, and this registry exists to stop us recording things as working that we have not run. Next step for whoever picks this up: add the empty `[workspace]` table, then actually run `cargo +nightly fuzz run ops` (or `slab`) before flipping status off `unavailable`. The brief's `run` target name (\"alloc\") was also wrong -- the real targets, per fuzz_targets/, are \"ops\" and \"slab\"."
+build = []
+run = ["cargo", "+nightly", "fuzz", "run", "ops"]
+requires = ["cargo"]
+tier = "manual"
+runtime = "unbounded"
+
+# unavailable: no libFuzzer-capable ARM clang + compiler-rt toolchain exists on
+# this machine to link it (see gates) -- unwired-but-valuable, not scheduled
+# for deletion.
+[[harness]]
+name = "memmove-fuzz"
+path = "tests/component/fuzz"
+level = "component"
+runner = "script"
+kind = "fuzz"
+status = "unavailable"
+gates = "the hand-written memmove must match libc semantics on arbitrary overlapping ranges -- UNRUNNABLE as it stands: this is a standalone CMake project (its own top-level CMakeLists.txt, no ctest/enable_testing wiring at all, so the brief's `ctest -R memmove_fuzz` draft could never have worked). It hard-codes ARM/NEON flags (-mfpu=neon -mfloat-abi=hard) plus -fsanitize=fuzzer, so the default host GCC toolchain rejects all three flags outright; switching to clang with an arm-linux-gnueabihf sysroot compiles but fails to LINK -- libclang_rt.fuzzer.a and friends are not present for the arm-unknown-linux-gnueabihf target on this machine. No requires key in the closed vocabulary covers a libFuzzer-capable ARM clang + compiler-rt; needs a toolchain this repo does not otherwise depend on."
+build = []
+run = ["cmake", "-S", ".", "-B", "../../../build/memmove-fuzz"]
+requires = []
+tier = "manual"
+runtime = "n/a — does not link"
+
+[[harness]]
+name = "save-roundtrip"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a song saved through the real SaveSongUI ENTER gesture must round-trip byte-identically (save, load it back, overwrite, compare a CRC of both writes -- a length check would miss a truncation or a reorder), and the overwrite seam must prompt exactly when the target name is taken and not otherwise and must close on confirmation. Two further checks guard parsing from memory. SL-NOSTREAM is a SOURCE check, deliberately: none of the three StorageManager openers that would parse a document while streaming it off the card may exist, and a gate cannot observe a path that is not compiled, so a grep is the only way to notice one appearing -- a reader that streams a document off the card blocks the parsing tier for the whole parse, however rarely it runs. SL-EVICT re-runs the whole round trip with DELUGE_SIM_SDRAM_MB clamped low enough that staging a song cannot happen without the resource manager evicting cached chunks first, and requires the identical CRC: staging a song can give up cached sample chunks, which is a decision and so gets measured rather than assumed harmless. Single-leg and self-checking: unlike the A/B gates beside it there is no second backing to diff against, because the subject is a C++ structural change rather than a Rust backing chosen by a feature -- so there is no baseline here that anyone can re-baseline into passing. The second save deliberately overwrites the SAME name: the save records the name it was dispatched with as the song's name, so a different name would produce legitimately different bytes and the comparison would fail for a reason that is not a defect."
+scenario = "save_roundtrip"
+markers = ["SR-RESULT", "SR-SEAM", "SR-ROUNDTRIP"]
+result = "SR-RESULT failures=0"
+check = "tests/integration/checks/save_roundtrip.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~5m"
+
+[[harness]]
+name = "document-save-channel"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a preset saved through the real ENTER gesture must be written WHOLE, read back through the channel (DS-VERIFIED, DS-VERIFY-ARM), and stored through the write channel after boot (DS-TICKED). One leg: the write channel has no feature switch, so there is no second arm to run. DS-OCCUPIED saves onto a name that is already taken and requires both that the user is asked and that the existing document is left alone: silently replacing somebody's preset is the worst thing this code could do. This gate exists because no other harness builds write_file, and a feature no gate builds is code that has never run. DS-BACKMIDSAVE and DS-EXITMIDSAVE press BACK and fire the long-press exit while the save is still running, and require the save screen to stay open: a save spans ticks with the UI live, and leaving its screen mid-save would let the save's own close() read below the bottom of the UI stack. Both first require that the save really is still in flight, so a save that finished early fails the check instead of passing it for free. DS-GUARD-SONG dispatches a preset save while a song save's collection or document machine is still running with the save guard already released, and requires the dispatch refused and the song document whole: the shared serialiser holds the song's staged document for that whole window. DS-ACCOUNTED removes a preset's file between its write landing and its read-back's first answer, and requires the one answer the channel gave -- NOT_FOUND, which fails the save -- to be counted as served: counting only the ticks that advanced would undercount every failed read-back. DS-OVERWRITE saves onto the preset's own name again, confirms the prompt, and requires the document written to <target>.tmp, verified there and swapped into place, with no temp file left. DS-OVERWRITE-FAIL does the same and truncates that temp file between its write landing and its read-back, and requires the save failed, the document it was replacing byte-for-byte intact, and the temp file removed: rewriting the target in place would let a failed write or read-back destroy the document it replaces. Both run last, because DS-GUARD and DS-KITROW count staged saves absolutely. DS-HELD does the same for a preset save, which must complete and verify: giving up would also remove a temp file the write still has open."
+scenario = "document_save_channel"
+markers = ["DS-BACKMIDSAVE", "DS-EXITMIDSAVE", "DS-SAVED", "DS-FINISHED", "DS-OCCUPIED", "DS-GUARD", "DS-KITROW", "DS-KITFINISHED", "DS-GUARD-SONG", "DS-ACCOUNTED", "DS-OVERWRITE", "DS-OVERWRITE-FAIL", "DS-HELD", "DS-VERIFIED", "DS-SUMMARY", "DS-RESULT"]
+check = "tests/integration/checks/document_save_channel.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~10m"
+
+[[harness]]
+name = "sample-collect-channel"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a song saved with collect-media on must land every sample it references in its own folder, byte-identical to the source, and must leave the audio-file list sorted and every resident file still findable. One leg: every transfer rides the byte channel, and the save around it stages its document through the write channel; neither channel has a feature switch. SC-ORDERED is the reason this gate is worth its runtime -- the collection walks a container the audio engine and the UI both read, mutating the very key it is SORTED BY, while the copying spans ticks, so the walk can be observed half-done. A green SC-ORDERED proves nothing by itself, though: what proves the snapshot is load-bearing is the neutering that mutates filePath during the PLAN walk instead of the APPLY pass, which must turn SC-ORDERED red."
+scenario = "sample_collect"
+markers = ["SC-SETUP", "SC-COPIED", "SC-RENAMED", "SC-ATOMIC", "SC-ORDERED", "SC-SUMMARY", "SC-RESULT"]
+check = "tests/integration/checks/sample_collect_channel.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~10m"
+
+# The one rig that loads a whole song, and presets, through the model tree's sample loads and checks where every
+# holder's file came from. Its fixture documents are written by the firmware inside the scenario, never by hand.
+# It also prints a trace of every call into the load path's leaf functions (LT lines), which the script writes to
+# $SAMPLE_LOAD_TREE_TRACE when set, so a restructuring of the load path can be compared call for call.
+[[harness]]
+name = "sample-load-tree"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a song with a sample synth, a wavetable, a sample kit drum and an audio clip, saved with collected media, must load back with each holder bound to its collected copy in the song's folder once the originals are gone, and with the audio clip's still-resident sample claimed from memory and the clip named after it. A synth preset and a kit preset whose samples exist only in the preset's own folder must load with each holder's path rewritten to that folder. An abort raised after the kit preset's first drum binds must stop the load with ABORTED_BY_USER and leave the second drum empty. A song loaded while playback runs must take the crucial-only pass, binding a sound only when its track's active clip is playing, a kit drum only when its row is unmuted and has notes, and every audio clip that is its track's active clip, and must then finish after its armed swap with every holder bound to its collected copy. Each load's routineWithClusterLoading count is reported. The crucial load, the full song, the synth preset and the kit preset with its abort must then each load again through AsyncSampleLoad, ticked from the interaction tier with every file it binds dropped from memory first, and end as the blocking load did: the same holders bound to the same files, the kit's load stopped by its abort, and no sample read from the card or folder probed on the interaction tier. The song must also load when the folder's exists probe is held until every sample request has come back, and when the card is ejected while the probe is out the load must end on the unusable card, with a second load on the same context binding everything once the card is back. A synth preset load held past the stall bound must end Failed/Stalled on the bound's walk with nothing bound, and a second load must bind the sample once the hold is lifted. A load of only the song's wavetable, on a context whose folder probe a dropped load left out, must bind the wavetable to its collected copy."
+scenario = "sample_load_tree"
+markers = ["SLT-ARM", "SLT-SETUP", "SLT-HOLDER", "SLT-CLIP", "SLT-SONG", "SLT-SYNTH", "SLT-KIT", "SLT-CRUCIAL", "SLT-CRUCIAL-SUMMARY", "SLT-ASYNC", "SLT-SUMMARY", "SLT-RESULT"]
+result = "SLT-RESULT failures=0"
+check = "tests/integration/checks/sample_load_tree.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~5m"
+
+# The sample browser's claim, from the browser a user opens: what each claim binds, and where its load runs.
+[[harness]]
+name = "sample-claim"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "files claimed from the real sample browser, opened through the sound editor's file selector and selected by a by-path listing, must be bound by the Select encoder's claim: into the boot song's synth (a single-cycle file as a wavetable from the context menu, and a stereo file offered to a wavetable oscillator as a sample instead), into a kit drum (named after the file, a kick sent to side-chain), and into an audio clip (its loop length set from the sample). A one-drum kit sliced into four regions from the slicer must end with four drums bound to the one sample, each with a NoteRow; a second, sliced into three in manual mode with the live slice points changed straight after Select, must end with three such drums painted from the points as they were when Select was pressed. The Drum Randomizer (LOAD held, pad 15,2) on a kit whose drums name files in a folder of their own must land the selected drum, and with affect-entire held every unmuted row that has notes, on a file from that folder named after it, leaving the muted and empty rows alone; RD-TIER requires a randomizer scan to have run and no sample read from the card on the interaction tier; RD-GATE requires, while a walk whose load the loader holds is out, no second walk and an edit pad refused, and once it ends the gate released and the same pad taken; RD-STALL requires a walk whose second row's load is held past the stall bound to end with the first row kept on its file, the second unbound, the third untouched, and the gate released. The kit context menu's Load All option over a folder of its own must end with one drum per file in filename order, named after its file without the shared prefix, bound, with a NoteRow; the synth context menu's Multisamples option over three sines an octave apart must end with one range per file in pitch order, each bound to its file; IM-TIER requires a folder listing to have run and no sample read from the card on the interaction tier; IM-GATE requires BACK and a second Select on the menu refused while a kit import whose loads the loader holds is out, and once it ends the gate released and the kit holding its drums; IM-STALL requires a multisample import whose second file is held past the stall bound to abort with the ranges and the loaded files' reasons as they were, just the menu closed, the browser open, and the gate released. SC-TIER requires, for every claim and the slice, that no sample was read from the card on the interaction tier; SC-GATE requires the browser to refuse its select encoder while an explicit claim's load is held, and the gate released once the claim ends; SC-STALL requires an explicit claim whose load is held past the stall bound to give up, leaving the holder unbound, the browser open and the gate released; SC-SUPERSEDE requires an auto-load claim the cursor leaves while its pitch detection is out, for a next preview that lands at once and for one still loading, to be cancelled once and drain before the next claim starts, with only the next file's claim finishing."
+scenario = "sample_claim"
+markers = ["SC-SETUP", "SC-SELECT", "SC-SYNTH", "SC-WAVETABLE", "SC-WAVETABLE-RESIDENT", "SC-WAVETABLE-CONVERTED", "SC-FALLBACK", "SC-GATE", "SC-STALL", "SC-SUPERSEDE", "SC-PITCH", "SC-PITCH-STALL", "SC-TIER", "SC-KIT", "SC-AUDIOCLIP", "SC-SLICE", "SC-SLICE-MANUAL", "RD-ONE", "RD-ALL", "RD-TIER", "RD-GATE", "RD-STALL", "RD-CANCELSCAN", "IM-KIT", "IM-MULTI", "IM-TIER", "IM-GATE", "IM-STALL"]
+result = "SC-RESULT failures=0"
+check = "tests/integration/checks/sample_claim.py"
+env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~3m"
+
+# The preset browser's own loads, from the browser a user opens: what each load binds, and where its card work runs.
+[[harness]]
+name = "preset-load"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "synth and kit presets written through the firmware's serialisers, each naming samples of its own, must load through the real preset browser -- opened by the clip view's LOAD gesture, selected by a by-path listing, loaded by Select -- as a user's load binds them: a synth preset into the boot song's synth clip (the synth named after the preset, its sample bound, the browser closed), a kit preset into a kit clip (three drums named and bound to their samples, each with a NoteRow), a synth preset into a kit row (the row's drum named after the preset, its sample bound), and a clone from the long-press menu (a new synth under a variation of the preset's name, its sample bound, edited, the browser closed). PL-TIER requires, for every load, that its documents were read and its samples loaded, and no sample read from the card on the interaction tier. PL-RACE requires a clone made straight after the selection, without waiting for its scroll-load, to survive it. PL-SUPERSEDE requires, with the loader holding every sample load, a scroll onto a heavy kit and on to a light one before the heavy kit's samples land to leave the light kit loaded, the heavy kit never swapped in and nothing of it left in the song, not even its param managers. PL-GATE requires an output-type button and an encoder turn refused while a commit whose sample the loader holds is out, and once it ends the gate released, the preset loaded and the browser closed. PL-STALL requires a commit whose sample load is held past the stall bound to swap its synth in with that holder empty, the gate released and the browser closed. The AQ legs pick presets without the browser, by real gestures: AQ-NEW requires an empty session pad to make a synth track on the first unused synth preset with its sample bound, and shift+SYNTH to give that clip a new blank synth under an unused slot name; AQ-CHANGE requires the clip view's KIT button to land the empty clip on the first unused kit preset with its drum bound; AQ-NAVIGATE requires a select-encoder turn from the clip view, a held grid pad and an auditioned arranger row each to land on the next unused kit preset with its drum bound; AQ-SUPERSEDE requires, with the loader holding every sample load, a turn made once a heavy kit's sample load has begun to cancel it: the light kit loaded, the heavy kit never swapped in, nothing of it left, a supersession counted; AQ-REFUSE requires three new-track presses in one tick (synth, kit, synth) to keep the in-flight and the queued one and refuse the third; AQ-CLONE requires a new-track press and a grid clone into an empty column in one tick both to make their track; AQ-STALL requires a turn whose sample load is held past the stall bound to deliver its synth with that holder empty and one give-up counted; AQ-TIER requires every acquisition leg to read documents and load samples, with no sample read from the card on the interaction tier. The RV legs back out of the browser, which puts the clip's original preset back: RV-CARD requires an original that left memory to come back off the card, bound, with the browser closed on the exit tick and the gate closed while it loaded; RV-MEMORY requires an edited original, which hibernates instead of leaving, to come back with no document read at all; RV-STALL requires an original whose sample load is held past the stall bound to come back with that holder empty and the gate released. MD-BROWSER requires a MIDI device definition, written through the firmware and loaded through its own browser, to leave the file's CC label on the instrument with the browser closed and the document staged once by InstrumentLoad on later ticks rather than read inside the Select. BS-BOOT requires the boot song to start on the default synth having asked for a preset exactly once, BS-CLEAR requires a cleared song to land on a SYNTHS preset staged by InstrumentLoad, and BS-EDITED requires a default synth edited while that request is out to keep its clip with nothing of the preset left behind."
+scenario = "preset_load"
+markers = ["PL-SETUP", "PL-LISTING-EDGE", "PL-SELECT", "PL-SYNTH", "PL-KIT", "PL-ROW", "PL-CLONE", "PL-TIER", "PL-RACE", "PL-SUPERSEDE", "PL-GATE", "PL-STALL", "AQ-NEW", "AQ-CHANGE", "AQ-CHANGE-TIER", "AQ-CHANGE-NAMED", "AQ-CHANGE-NEXT", "AQ-CHANGE-MISSING", "AQ-CHANGE-STALL", "AQ-NAVIGATE", "AQ-NAV-TIER", "AQ-NAV-WRAP", "AQ-NAV-STALL", "AQ-SUPERSEDE", "AQ-REFUSE", "AQ-CLONE", "AQ-STALL", "AQ-SLOT", "AQ-SLOT-STALL", "AQ-EXT", "AQ-TIER", "RV-CARD", "RV-MEMORY", "RV-STALL", "MD-BROWSER", "BS-BOOT", "BS-CLEAR", "BS-EDITED", "PW-WALK-FOUND", "PW-WALK-DEPTH", "PW-WALK-PAGED", "PW-WALK-EXHAUST", "PW-WALK-TIER", "PL-RESULT"]
+result = "PL-RESULT failures=0"
+check = "tests/integration/checks/preset_load.py"
+env = { GOLDEN_VIRTUAL_BUDGET_MS = "180000" }
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~3m"
+
+[[harness]]
+name = "song-save-channel"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a song save must build its whole document in memory and place it on the card through the write channel, then read it back and check its length, head and tail. One leg: neither channel has a feature switch, so the document write rides the write channel and every other step the byte channel, with nothing on the inline arm (SS-ACCOUNTED). The document write uses a DIFFERENT channel from the rest of the flow, and that is the whole difficulty: the byte channel copies into a fixed staging buffer and refuses anything over 8 KiB, and no song has ever fitted it -- the smallest measured is 11.5 KB and the largest 1.10 MB. SS-GREW is what keeps the rest honest, because the default harness song is about 11.5 KB against a 32 KB initial buffer and a save of it never grows the buffer at all; the fixture is inflated to 100 KB and SS-GREW fails if it stops being big enough. SS-PARSES loads the result back as a song, because bytes of the right length are not the claim. SS-INTACT requires that overwriting an existing song leaves a song behind whichever way the save went, which is the property that justifies writing to a temp name and renaming. SS-BACKMIDSAVE and SS-EXITMIDSAVE press BACK and fire the long-press exit while the save is still running, and require the save screen to stay open: leaving it mid-save would let the save's own close() read below the bottom of the UI stack. Both first require that the save really is still in flight, so a save that finished early fails the check instead of passing it for free. SS-HELD holds the write channel far past the save's stall bound and requires the save to complete anyway, with the same bytes an unheld save of the same song writes: a running write cannot be cancelled, so giving up on it only releases the serialiser it is still copying from."
+scenario = "song_save_channel"
+markers = ["SS-BACKMIDSAVE", "SS-EXITMIDSAVE", "SS-GREW", "SS-SAVED", "SS-VERIFIED", "SS-PARSES", "SS-INTACT", "SS-HELD", "SS-SUMMARY", "SS-RESULT"]
+result = "SS-RESULT failures=0"
+check = "tests/integration/checks/song_save_channel.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~12m"
+
+[[harness]]
+name = "clear-song-undo"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "Create New Song must run to completion on the tier its caller stands on, reading no card of its own. CS-TIER requires the clear to be finished when clearSong.acceptCurrentOption() returns -- a body deferred to a later tick has not run yet when it does -- and requires no document read and no sample load attributable to the clear itself, on either tier. CS-SONG requires the cleared song to hold one clip whose preset came from SYNTHS through exactly one InstrumentLoad acquisition, with its sample bound: that is what proves the clear needs no loadAllSamples() call: there is nothing for one to load. CS-GATE requires the UI-mode gate the clear closes around the song swap to be released again, because nullifyUIs() drops numUIsOpen to zero for that window and a press arriving inside it would index the UI stack out of bounds. The undo legs cover the other half. UN-PLAIN requires an undo with no sample in it to land INSIDE the press that asked for it, which a reversion deferred to a later tick cannot do; UN-REFUSE requires a redo pressed while an undo is still out to be refused rather than queued, because undo and redo are steps and dropping either loses an edit. UN-SAMPLE, UN-REDO and UN-MISSING pin what must not change: the sample comes back with a file behind it, redo puts the second one back, and a file deleted from the card still leaves the revert done with the holder empty."
+scenario = "clear_song_undo"
+markers = ["CS-PROBE", "CS-TIER", "CS-SONG", "CS-GATE", "UN-PROBE", "UN-SAMPLE", "UN-REDO", "UN-PLAIN", "UN-REFUSE", "UN-MISSING"]
+result = "CS-RESULT failures=0"
+check = "tests/integration/checks/clear_song_undo.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~1m"
+
+[[harness]]
+name = "sound-lifetime"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "Every deletion path must end a Sound's voices before any part of it is destroyed. A Sound destroyed with live voices crashes itself, with no render involved: after ~Sound's body, its own voices_ member destructor recycles each voice, and ~Voice -> Voice::setAsUnassigned -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls getArpSettings(), pure virtual in Sound by then. The probe holds a note on a blank synth and on a kit's synth drum, renders a few blocks, then deletes it through each real path -- SL-SYNTH (a synth in the song, Song::deleteOutputThatIsInMainList), SL-UNEDITED (an un-edited synth in no list, Song::deleteOrAddToHibernationListOutput), SL-KIT (a kit in the song, deleteOutputThatIsInMainList) and SL-DELETEDRUM (InstrumentClipView::deleteDrum's steps: the note row's note stopped and the drum taken out of drumsWithRenderingActive, Kit::removeDrum, the note row's reassignment, then AudioEngine::retire; the only drum-delete site that can reach a sounding drum, since the preset-replace site kills the voices first and the folder-import, slicer and instrument-load sites only drop drums that never sounded) -- and requires Sound::soundsDestroyedWithLiveVoices() to be 0 for every path. Every deletion retires: the render ends the voices and deregisters the Sounds at the top of its next block and the memory is freed by the first reclaim after that once two blocks have begun, so each count is read after settle blocks, a leg whose objects are still waiting then fails, and SL-RECLAIM requires nothing retired to be left waiting at the end. SL-OPPORTUNISTIC requires a retire to free an older, already let-go object on its own (pending=1, with no reclaim-task tick in the step); SL-BURST retires 80 blank drums (past the 64-slot ring, into the overflow, drained 16 per block) and requires violations=0 (no drum destroyed while still in the Sound registry) and pending=0. The run also fails when a leg's fixture could not be built or never sounded, a line is missing, or a deletion (or its deferred destruction) ends the process -- a firmware freeze (E321 from Kit::removeDrum on a drum still in drumsWithRenderingActive) or a std::terminate -- in which case the leg still prints its count with aborted=1 and the step it died in."
+scenario = "sound_lifetime"
+markers = ["SL-SYNTH", "SL-UNEDITED", "SL-KIT", "SL-DELETEDRUM", "SL-OPPORTUNISTIC", "SL-BURST", "SL-RECLAIM", "SL-RESULT"]
+result = "SL-RESULT failures=0"
+check = "tests/integration/checks/sound_lifetime.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~1m"
+
+[[harness]]
+name = "clip-lifetime"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "Which clip deletions free a clip the render still points at. The render holds clip pointers across blocks -- the current song's currentClip and syncScalingClip, every clip's beingRecordedFromClip, view.activeModControllableModelStack's timeline counter and each output's activeClip. A deleted clip is handed to the render (AudioEngine::retire(Clip*), from Song::deleteClipObject() and from an undo log's ConsequenceClipExistence discard), which clears the ones the interaction tier writes (currentClip, syncScalingClip, the view's stack) at once and has the render null the rest at its next block before the clip is freed; CL-WINDOW (SESSIONDELETE, ARRANGERNOUNDO) says, before any block, whether currentClip or the view still names the retired clip, and is required 0. ~Clip counts a destruction that finds any of them still pointing at it (Clip::clipsDestroyedWhileReferenced()), and ~Song one that finds itself still currentSong or a Sound of its outputs still in the Sound registry (Song::songsDestroyedWhileReachable()). Each leg plays a clip on the internal clock with a note held on its blank synth, renders 8 blocks, deletes it through a real path, renders 8 more, then renders a few and reclaims so the clip is freed inside the leg (CL-FREED pending=), and reports how far the two counters and Sound::soundsDestroyedWithLiveVoices() moved: CL-SESSIONDELETE (the selected current clip, SessionView::removeClip -> Song::removeSessionClip), CL-ARRANGERDELETE (an arrangement-only current clip, the arranger's delete gesture step for step with a real logged action, destroyed when the logs are discarded), CL-SWAPTYPE (the selected clip changed to audio, Song::swapClips), CL-UNDODELETE (the same logged arranger delete, undone with restored=, redone, then destroyed by discarding the logs), CL-ARRANGERNOUNDO (the same arranger delete with the null action the gesture passes when the action logger has none to give, so the clip is deleted at once with the song's currentClip still on it), CL-RECORDSOURCE (the clip another clip's beingRecordedFromClip names) and CL-SYNCSCALE (the sync-scaling clip, through removeSessionClip). CL-DANGLING says which references still hold the deleted clip's address just after the deletion. Two drum legs also hand their SoundDrum to the render (AudioEngine::retire(SoundDrum*)) instead of destroying it on the spot, and are REQUIRED soundsLive=0 with no abort: CL-SAVEKIT (a second drum on the kit that no NoteRow has, naturally left with voicesAtSave=0 renderingActive=1 by Kit::writeDataToFile's own deletion trigger, which has no skippingRendering guard -- a real, unforced precondition) and CL-WONTSOUND (a drum with an empty note row, put back into drumsWithRenderingActive by hand -- skipping rendering, yet still in that set, a state no natural note-on/off path reaches, since SoundDrum::setSkippingRendering is the only writer of the flag and erases from the set in the same call that sets it true; this leg proves only that InstrumentClip::deleteSoundsWhichWontSound's retire hand-off is wired correctly, not a reachable precondition -- its real safety value is that the hasActiveVoices() check beside it is ALPHA_OR_BETA_VERSION-only, so on a release build only AudioEngine::retire()'s unconditional voice-kill on let-go stands between a genuinely-sounding drum and a stale free). CL-RECLAIM (AudioEngine::retiredPending() after reclaimRetired()) is printed once after the seven clip legs and SAVEKIT, and again after WONTSOUND; the final one is REQUIRED pending=0. REQUIRED: the seven clip legs above must read clipsReferenced=0 with no abort and CL-FREED pending=0, and CL-UNDODELETE restored=1. The song legs are REQUIRED too: a replaced song is handed to the render (AudioEngine::retire(Song*)), which ends the voices of and deregisters every Sound of its outputs before ~Song runs, and a stopped-clock load or clear waits for it to be freed (AudioEngine::awaitRetired(), a bounded wait on the render through deluge_audio_await_block()) before it builds the new song. CL-EPOCH0 (Create New Song at boot, before the scheduler has run the render task; epoch=0 or 1, returned=1), CL-SONGCLEAR, CL-SONGLOAD, CL-SONGSWAP (the armed swap), CL-BURSTSONG (10 synths and 10 kits of 32 drums with two clips each, cleared while stopped; CL-LETGO reports the host wall time of the render block that lets go of it) and CL-CLEARPLAYING (Create New Song while following an external clock, with an audio clip holding a temp-recorded Sample, which the clear frees right after handing the old song over: pendingAtFree=0 is required, so the old song is gone first) must read clipsReferenced=0 songsReachable=0 soundsLive=0 violations=0 with no abort; the stopped-clock ones also pendingAtBuild=0 (retired objects still waiting when the new Song was constructed) and pending=0, and SONGCLEAR, SONGLOAD and BURSTSONG their CL-AFTER line (a UI timer and a DIN MIDI note-in right after the clear or load returns -- a regression guard that currentSong is set afterwards, not evidence about the wait inside the operation, whose null-currentSong window no interaction task can see by construction). A leg whose deletion or the blocks after it end the process is reported with aborted=1 and the step, and the script starts a new run at the next leg. The run also fails on a missing leg line, a fixture that could not be built or a clock that never ran, or a process end that no leg reported."
+scenario = "clip_lifetime"
+check = "tests/integration/checks/clip_lifetime.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~1m"
+
+[[harness]]
+name = "container-guard"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "Which structural edits to the containers the audio render walks are made while the render could preempt them. On the device the render preempts thread mode at any instruction, so an insert, erase, reorder, relink or reallocation of a clip's note rows, a row's notes, an automation node list, the song's clip arrays, an output's clip instances, the song's output list or a kit's drum list must run inside an AudioExcludedSection (libdeluge/system.h). Each such container reports every structural edit to a probe (src/deluge/util/structural_edit_probe.h) that counts those made outside a section. With playback on the internal clock, each leg makes one edit through the model's own entry point and reports CG-<LEG> unguarded=<n> kinds=<kind=n,...>: NOTEADD, NOTEDEL, ROWADD, ROWDEL, CLIPNEW, CLIPDEL, CLIPDUP, ARRANGE, AUTOMATE, DRUM, REPLACE, UNDO, BIGROW (a row inserted below 128 others, with CG-MASK its host wall time), ROWDRAG (the clip view's note-row drag), CLIPMOVE (the session view's clip drag), OUTPUTMOVE (the arranger's output drag) and QUANTIZE (a row's notes rotated in place). What the probe can see: edits made through the containers' mutators and the song and kit list splices that report to it. An edit that bypasses them -- a raw element swap, a reorder through operator[], a splice in some other file -- is invisible to it; the reorders that would (the three drags and quantize's rotation) go through reporting, sectioned mutators, and a grep of std::swap/rotate/sort and ->next/firstOutput/firstDrum writes found no other. All legs are required to read unguarded=0; the others are reported. The run fails on a missing leg line, a fixture that could not be built or a clock that never ran, or an edit that ends the process. Every golden run also prints GUARD-UNGUARDED total=<n> at exit when any unguarded edit was made."
+scenario = "container_guard"
+result = "CG-RESULT failures=0"
+check = "tests/integration/checks/container_guard.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~1m"
+
+[[harness]]
+name = "card-reinsert"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "what a card swap does to the samples still in memory. Drives a real ejection and re-insertion (setCardEjected -> reinitEjectedCard -> deluge_efatfs_remount -> cardReinserted) with three residents present, one per fate that walk distinguishes: a referenced sample whose file is intact must stay loadable, a referenced sample whose file was removed must be marked unloadable, and a resident nothing references must be pruned. CR-RESIDENTS is the leg that makes the rest mean anything: audio-load-ab drives these same edges, but measured, it reaches cardReinserted() twice with residents=0 -- the edges fire and the loop body never runs -- so without this gate the walk has NO coverage at all. A gate whose subject never runs stays green; a gate for a walk must fail when the walk is empty. The swap is a file change at a path rather than a block-device exchange, for the reason audio_load_ab_scenario.cpp documents at length: the host BSP opens one backing file for the process lifetime behind a OnceLock with is_inserted() hard-coded true. The cluster-size branches (cardDisabled + reboot popup; killAllVoices + unplayable) are a KNOWN GAP -- they need a card image with different geometry, which that stand-in cannot provide."
+scenario = "card_reinsert"
+check = "tests/integration/checks/card_reinsert.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~6s"
+
+[[harness]]
+name = "stem-export"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "an offline stem export must render byte-identical audio and write it. This is NOT golden-embassy-diff and its baseline is NOT that gate's golden: that one compares against a golden kept outside the repo in DELUGE_GOLDEN_DIR, reconstructed from the song corpus. This one compares the Embassy render against ITSELF, recorded in tests/integration/checks/stem-export-cordae.sha256, so it needs no corpus. ST-RENDER is the regression claim. ST-BYTES is not redundant with it: an export can complete, report success and write a ZERO-BYTE file -- the recorder takes its write-channel arm and the bytes never land -- and that failure must be reported as \"the export wrote nothing\" rather than as a hash mismatch. WARNING: this baseline is NOT expected to move. A walk's cadence is an implementation detail, rendered audio is not -- a red ST-RENDER is a finding to bisect, never a re-baseline."
+scenario = ""
+check = "tests/integration/checks/stem_export.py"
+builds = ["golden-vt-render"]
+requires = ["song-corpus"]
+tier = "nightly"
+runtime = "~12s"
+
+[[harness]]
+name = "song-load-channel"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the song load must read its bytes through the storage channel. One leg: the write channel has no feature switch. SL-LOADED requires a value stamped into the song before saving -- and deliberately overwritten in memory afterwards -- to come back, because nothing cheaper distinguishes a real load: the song's NAME is written by the save from what the user typed, so it matches whether or not the load happened, and its object IDENTITY is unchanged across a load that did happen. SL-CHANNEL requires a staging read to have been SERVED and SL-TICKED requires the staging to have run through the channels after boot. This gate exists because a load that brings back the right song says nothing about how its bytes arrived, so a gate that only checks what came back would stay green with the staging read broken. The read sizes its buffer with the byte channel's stat and fills it with the write channel's read, and both are always on. SL-ORDER requires the sample the song carries to be bound by the time the load ends. The song is given that sample before the save: measured, the boot song is one instrument clip with no audio clips, so a sample-pass leg without it would pass by having nothing asked of it."
+scenario = "song_load_channel"
+markers = ["SL-SETUP", "SL-LOADED", "SL-ORDER", "SL-SUMMARY", "SL-RESULT"]
+check = "tests/integration/checks/song_load_channel.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~10m"
+
+[[harness]]
+name = "settings-channel"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a settings value written through the real consumer entry point must survive a read back, and no settings file operation may begin on the interaction tier. Two halves on purpose: the round trip catches a change that moved the I/O and broke the settings on the way, while SC-TIER, required zero, is the only check that shows where the I/O ran -- a round trip passes the same whichever tier did the I/O, so a gate with only a round trip would report success with every settings operation still on the interaction tier. The count is taken inside the consumer's own I/O path rather than at the point of dispatch, so it cannot report success for an operation that dispatched and then ran inline anyway."
+scenario = "settings_channel"
+markers = ["SC-ROUNDTRIP", "SC-BURST", "SC-ORDER", "SC-HEAD", "SC-FITS", "SC-UNLINK", "SC-PERF", "SC-OVERSIZE", "SC-FALLBACK", "SC-TIER", "SC-CHANNEL"]
+result = "SC-RESULT failures=0"
+check = "tests/integration/checks/settings_channel.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~4m"
+
+
+[[harness]]
+name = "favourites-channel"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the favourites bank must never be written with less than it held, and none of its card I/O may begin on the interaction tier. Every browser visit, favourite pad and bank pad reaches this bank, and before this gate existed a failed existence check read as absent and wrote an EMPTY bank over the real one, and an edit on a bank that never loaded saved one favourite over the other fifteen. FV-ABSENT requires opening a bank with no file to leave no file; FV-REFUSE requires an edit made while the bank is loading to change and write nothing; FV-ORDER requires a save made just before switching away and back to land before the bank is read again; FV-STALE requires an answer that arrives after another bank was selected never to be applied, and first requires that answer to have been issued at all, or it proves nothing. One leg: the byte channel has no feature switch, and FV-CHANNEL requires the bank's operations to have gone through it. Every wait is on the bank going idle, never on a file appearing."
+scenario = "favourites_channel"
+markers = ["FV-SEED", "FV-ABSENT", "FV-REFUSE", "FV-ROUNDTRIP", "FV-ORDER", "FV-STALE", "FV-TIER", "FV-CHANNEL", "FV-ACCOUNTED", "FV-ILLEGAL"]
+result = "FV-RESULT failures=0"
+check = "tests/integration/checks/favourites_channel.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~5m"
+
+[[harness]]
+name = "startup-failsafe"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "no file operation in the startup song fail-safe may begin on the interaction tier. SF-TIER is the evidence, required zero: it is the only check that shows which tier the fail-safe's I/O ran on. SF-CHANNEL is required non-zero, because a channel that is compiled but never runs would otherwise leave this gate green. The fail-safe's happy path ends in openUI and this harness has no UI stack, so the scenario drives the song-missing path: the canary creation, the existence checks and the cleanup unlink, then a return before the UI. Which tier those run on does not depend on which branch reached them."
+scenario = "startup_failsafe"
+markers = ["SF-ORDER", "SF-CHANNEL", "SF-TIER", "SF-ILLEGAL", "SF-INLINE", "SF-GIVEUP"]
+result = "SF-RESULT failures=0"
+check = "tests/integration/checks/startup_failsafe.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~4m"
+
+[[harness]]
+name = "path-operations"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "real SysEx path requests must still get their ^verb replies, a nested path with every segment missing must be created by one request and a second creation of an existing path must succeed, no browser folder creation or delete may begin on the interaction tier, and a file deleted from a browser must go through the byte channel. Replies are captured from a loopback MIDICable rather than inferred from the filesystem: asserting the effect alone would pass for a request path that stopped replying, which is exactly what deferring a reply risks. PO-CHANNEL carries more weight here than on any other gate -- PO-TIER counts only browser operations, so for the SysEx requests the served count is the whole of their evidence. The delete stages drive the real delete menu in a save browser listing PO_TEST/DELETE: PO-DELETE requires the removal pending on the byte channel, with BACK, a pad and the select encoder refused meanwhile, and then the file gone from the card and the list; PO-DELETE-ABSENT requires a listed file already gone to end as missing and stay listed; PO-DELETE-STALL requires a removal the channel never answers to end as failed with the file listed and the menu closed."
+scenario = "path_operations"
+markers = ["PO-SYSEX", "PO-MKDIRALL", "PO-DELETE", "PO-DELETE-ABSENT", "PO-DELETE-STALL", "PO-CHANNEL", "PO-TIER", "PO-ILLEGAL"]
+result = "PO-RESULT failures=0"
+check = "tests/integration/checks/path_operations.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~4m"
+
+[[harness]]
+name = "offset-io"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "three blocks written at ascending offsets through the real SysEx transfer verbs must all still be on the card, a copy must reproduce its source byte-for-byte, and copying a missing source must report an error. THREE blocks and not one is the whole point: efatfs_core::create_context truncates unconditionally, so a write_at that re-opened that way would leave only the last block, and a single-block round trip would pass against exactly that bug. The missing-source case is load-bearing for the same class of reason -- without a case whose expected answer is an error, a handler replying before its operation completed reports the same err=0 a correct one does. OI-CHANNEL going non-zero is the evidence that the SysEx operations took the channel. OI-DIR-STALL holds a directory listing's open far past the handler's 600-tick bound and requires a timeout reply (15) with no entries, and OI-TIER requires that SMSysex opened no directory synchronously on the interaction tier after boot."
+scenario = "offset_io"
+markers = ["OI-TRANSFER", "OI-COPY", "OI-DIR", "OI-CHANNEL", "OI-ILLEGAL", "OI-GIVEUP", "OI-DIR-STALL", "OI-TIER"]
+result = "OI-RESULT failures=0"
+check = "tests/integration/checks/offset_io.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~4m"
+
+[[harness]]
+name = "pattern-load"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a pattern file, written from notes on the boot song's synth clip by the firmware's own pattern writer, must load back through the real pattern browser with Enter, landing after the browser closes (PT-LOAD), and as a PLAY preview (PT-PREVIEW), each putting back exactly the notes that were written onto a cleared clip. A preview followed by BACK, pressed while the channel holds the preview's read, must paste nothing (PT-DISCARD), and Enter pressed at that moment must land its own load (PT-SUPERSEDE). No leg may make a synchronous card call on the interaction tier after boot (PT-TIER): the pattern's bytes must arrive through the channels."
+scenario = "pattern_load"
+markers = ["PT-SETUP", "PT-LISTED", "PT-LOAD", "PT-PREVIEW", "PT-DISCARD", "PT-SUPERSEDE", "PT-TIER"]
+result = "PT-RESULT failures=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~1m"
+
+[[harness]]
+name = "staging-release"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a staged document read that its consumer abandons while the write channel holds its buffer must not write into that memory once it has been freed and handed out again: the scenario releases the staging mid-read, reallocates the same size filled with a sentinel, lets the read finish, and requires the sentinel intact (SR-INTACT). SR-ISSUED requires the read to have been held when the staging was released, and SR-REAPED requires the released buffer to be freed once the read has finished, so the release trades the corruption for nothing, not for a leak."
+scenario = "staging_release"
+markers = ["SR-ISSUED", "SR-RELEASE", "SR-INTACT", "SR-REAPED"]
+result = "SR-RESULT failures=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~1m"
+
+[[harness]]
+name = "render-song"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a song must play as the device plays it: loaded through the real load browser (RS-LOADED, which fails if the load gave up and left the previous song playing), played in real time for the whole length without stopping (RS-RENDER), with its sample voices rendered on the audio tier (RS-VOICES), streamed from the card while playing (RS-STREAM), without an underrun (RS-UNDERRUN) and without the render ever making a synchronous card call (RS-TIER-SYNC-AUDIO). The rendered output is compared with its record in tests/integration/golden/songs.json. The song is generated for each run (tests/integration/golden/songs/make_render_song.py), so the check needs nothing outside the repository. No other gate renders sample playback in real time on the audio tier."
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "render-song-corpus"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the render-song checks, on a real song from the maintainer's card backup (Cordae: eight kits of sampled drums, played in the arranger). The committed render-song song is two synths; this is the one that exercises kits, the arrangement and a real song's sample set, and it is what the streaming-margin work is measured against. Needs the backup, so it is manual."
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+env = { RENDER_SONG = "SONGS/Cordae.XML", GOLDEN_FIXTURE = "cordae" }
+builds = ["golden-vt-render"]
+requires = ["song-corpus"]
+tier = "manual"
+runtime = "~30s"
+
+[[harness]]
+name = "streaming-margin"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "sample playback must keep up when storage is as slow as the device's: the render-song song, played with the fill task waiting 16 ms to be scheduled and each chunk taking 5.8 ms to read (the device's steady figures), must stream without an underrun (SM-STEADY). A 500 ms wait must drop voices (SM-STARVED), which is what shows the gate can see an underrun at all. A 260 ms wait for half a second, as a song load imposes on the device, is reported and not gated (SM-BURST): the device drops voices there too."
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/streaming_margin.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~30s"
+
+[[harness]]
+name = "streaming-margin-sweep"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "simulation"
+status = "investigative"
+gates = "prints the margin curve: underruns at each fill-task wait in MARGIN_SWEEP, with the device's 5.8 ms chunk read. Checks nothing."
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/streaming_margin.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { MARGIN_SWEEP = "0,50,100,125,150,200,300,500" }
+tier = "manual"
+runtime = "~1m"
+
+[[harness]]
+name = "recorder-write"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a real recording must still read back byte-correctly -- mid-recording, finalized multi-cluster, and through the alteration transform -- while its per-cluster write is served asynchronously and all THREE of its card steps run from the caller's ticks through their own machines: the drain, the finish, and the file creation. Three counters, because they answer three separate questions and none can be inferred from the served count, which says operations went through the channel but not which machine issued them. Each reads zero the moment its own step stops running through its machine. RW-ROUNDTRIP is not ceremony either -- a recycled stream handle collecting a previous recorder's answer reported a cluster as written when nothing had been, and only the byte-level readback noticed. The ticked_ cases exist because the oracle's eight cases do not take these shapes: none of them aborts, meets a busy or stalled channel, or sets allowFileAlterationAfter -- so the ticked_ alteration case is the batch machine's only coverage. TWO GAPS ARE KNOWN AND DELIBERATE. RW-LEAK checks an aborted recording gives its clusters back but does NOT catch a premature unlink, because single-flight sends that unlink down its synchronous arm regardless, so that ordering holds by construction rather than by observation. And the stem-export folder search is exercised only by the offline drain render, which starts the export after boot, so only its CHANNEL arm runs and nothing checks its result beyond the render terminating. There is no stem case among the ticked_ cases: routing a harness recording down the stem path needs more engine state than processStarted plus currentStemExportType plus lastFolderNameForStemExport, and a case that silently records to RESAMPLE while calling itself a stem case is worse than none. RW-DIR-STALL holds the recording-folder scan's directory open past the recorder's bound and requires the create to fail with a card error, with no file made and no synchronous open. RW-ABORT-OPEN aborts while the channel is opening the file, once for the create and once for finalize's reopen to alter it, and requires no file left behind and every stream-write slot free afterwards: the open cannot be cancelled, so an abort that does not wait it out leaks the handle it returns."
+
+
+scenario = "recorder_roundtrip"
+check = "tests/integration/checks/recorder_write.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~10m"
+
+[[harness]]
+name = "unit"
+path = "tests/unit"
+level = "unit"
+runner = "ctest"
+kind = "unit"
+status = "gate"
+gates = "every CppUTest and CppSpec suite under tests/unit/: policies, parsers, storage state machines, the UI's pure steps, DSP kernels against scalar references. Pass extra ctest arguments after --, e.g. `dbt test unit -- -R stitch_spec`; the CppUTest suites are one ctest test, UnitTests."
+source = "tests/unit"
+tree = "build/test-unit"
+configure = ["-G", "Ninja Multi-Config"]
+ctest_args = ["-C", "Debug"]
+requires = ["cmake"]
+tier = "pr"
+runtime = "~2m first build, ~5s after"
+
+[[harness]]
+name = "unit-arm"
+path = "tests/unit-arm"
+level = "unit"
+runner = "ctest"
+kind = "unit"
+status = "gate"
+gates = "the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu: the NEON conversion kernels must match their scalar references bit for bit"
+source = "tests/unit-arm"
+tree = "build/test-unit-arm"
+configure = ["-G", "Ninja", "-DCMAKE_CROSSCOMPILING_EMULATOR=qemu-arm;-L;/usr/arm-linux-gnueabihf"]
+env_default = { CC = "arm-linux-gnueabihf-gcc", CXX = "arm-linux-gnueabihf-g++" }
+requires = ["cmake", "arm-linux-gnueabihf-gcc", "qemu-arm"]
+tier = "pr"
+runtime = "~1m first build, ~5s after"
+
+[[harness]]
+name = "crates"
+path = "crates"
+level = "unit"
+runner = "cargo"
+kind = "unit"
+status = "gate"
+gates = "every #[test] in the crates/ workspace: the allocator, the resource manager, the audio-format parser and its corpus differential, the sample fill/reader/source/stream crates"
+run = ["cargo", "nextest", "run", "--profile", "ci"]
+junit = "${CARGO_TARGET_DIR}/nextest/ci/junit.xml"
+requires = ["cargo", "cargo-nextest"]
+tier = "pr"
+runtime = "~3m first build, ~20s after"
+
+[[harness]]
+name = "bsp-host"
+path = "src/bsp/rust"
+level = "unit"
+runner = "cargo"
+kind = "unit"
+status = "gate"
+gates = "the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix channels, the SD image path, the SD bus card init, the audio loader. --locked, so a lock that has lost its deluge-alloc pin fails here instead of being rewritten."
+run = ["cargo", "test", "--locked"]
+requires = ["cargo", "deluge-sdk-sibling"]
+tier = "pr"
+runtime = "~4m first build, ~30s after"
+
+[[harness]]
+name = "sample-convert"
+path = "crates/deluge_sample_convert"
+level = "unit"
+runner = "cargo"
+kind = "unit"
+status = "gate"
+gates = "deluge_sample_convert's tests: the sample format conversions, against the app C++ its build.rs compiles"
+run = ["cargo", "test"]
+requires = ["cargo"]
+tier = "pr"
+runtime = "~1m"
+
+# --lib --tests: the crate's doc example copies resources/fat16.img into a tmp/ directory that exists only in the
+# upstream repository, so it fails here for want of the directory, not for anything it tests.
+[[harness]]
+name = "embedded-fatfs"
+path = "crates/embedded-fatfs"
+level = "unit"
+runner = "cargo"
+kind = "unit"
+status = "gate"
+gates = "the vendored embedded-fatfs's own tests: directory, file and allocation operations on FAT12/16/32 images"
+run = ["cargo", "test", "--lib", "--tests"]
+requires = ["cargo"]
+tier = "pr"
+runtime = "~1m"
+
+[[harness]]
+name = "block-device-adapters"
+path = "crates/block-device-adapters"
+level = "unit"
+runner = "cargo"
+kind = "unit"
+status = "gate"
+gates = "the block-device adapters: buffered and stream views over a block device must read and write the bytes the device holds"
+run = ["cargo", "test"]
+requires = ["cargo"]
+tier = "pr"
+runtime = "~30s"
+
+[[harness]]
+name = "block-device-driver"
+path = "crates/block-device-driver"
+level = "unit"
+runner = "cargo"
+kind = "unit"
+status = "gate"
+gates = "the block-device driver trait's tests"
+run = ["cargo", "test"]
+requires = ["cargo"]
+tier = "pr"
+runtime = "~30s"
+
+[[harness]]
+name = "registry-selftest"
+path = "scripts/tasks"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "this registry's loader, validation, selection and probes, and the SDRAM annotation tool's tests"
+run = ["python3", "-m", "unittest", "test_harness_registry", "test_annotate_sdram"]
+tier = "pr"
+runtime = "~1s"
+
+# tier = "manual": a fuzzer has no natural end; this bounds one run to a minute, for when the parser changes.
+[[harness]]
+name = "audio-format-fuzz"
+path = "crates/deluge_audio_format/fuzz"
+level = "component"
+runner = "script"
+kind = "fuzz"
+status = "gate"
+gates = "the audio-format header parser must not panic, overrun or loop on arbitrary input"
+run = ["cargo", "+nightly", "fuzz", "run", "parse", "--", "-max_total_time=60"]
+requires = ["cargo-fuzz"]
+tier = "manual"
+runtime = "~2m"

@@ -88,6 +88,13 @@ mod host_critical_section_stubs {
     extern "C" fn deluge_in_interrupt() -> bool {
         false
     }
+
+    // Same reasoning as `deluge_in_interrupt` above: never the audio context here, so
+    // `deluge_resource`'s mask is always taken under this crate's tests.
+    #[unsafe(no_mangle)]
+    extern "C" fn deluge_in_audio_context() -> bool {
+        false
+    }
 }
 
 // `reader.rs`'s `fill_now`/`window()` reach the synchronous card read through an
@@ -192,11 +199,9 @@ pub(crate) mod host_streaming_stubs {
 
     /// Never reached in the host test binary (`deluge_streaming_async_active` returns false, so
     /// `acquire_and_fill` takes the `fill_now` branch), but declared as an `extern` there, so it
-    /// must exist for the binary to link. Returns false.
+    /// must exist for the binary to link.
     #[unsafe(no_mangle)]
-    extern "C" fn deluge_streaming_fill_chunk_blocking(_chunk_backing: *mut c_void) -> bool {
-        false
-    }
+    extern "C" fn deluge_streaming_request_chunk(_chunk_backing: *mut c_void) {}
 
     /// Synthetic card read: deterministic content keyed on the ABSOLUTE file byte offset
     /// (`dst[i] = (byte_offset + i) as u8`), so a test can compute a cluster's expected

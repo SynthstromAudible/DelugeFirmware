@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/drum/drum.h"
+#include "model/instrument/rendering_drums_link.h"
 #include "modulation/arpeggiator.h"
 #include "processing/sound/sound.h"
 #include "util/c_string.h"
@@ -26,12 +27,13 @@
 
 class ModelStackWithTimelineCounter;
 
-class SoundDrum final : public Sound, public Drum {
+class SoundDrum final : public Sound, public Drum, public RenderingDrumsLink {
 public:
 	std::string path{};
 	bool nameIsDiscardable = false;
 
 	SoundDrum() : Drum(DrumType::SOUND) {}
+	~SoundDrum() override;
 
 	using Sound::allowNoteTails;
 	using Sound::anyNoteIsOn;
@@ -47,7 +49,7 @@ public:
 
 	void setupPatchingForAllParamManagers(Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
-	Error loadAllSamples(bool mayActuallyReadFiles) override;
+	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) override;
 	void writeToFileAsInstrument(bool savingSong, ParamManager* paramManager);
 	std::string getDrumName() override;

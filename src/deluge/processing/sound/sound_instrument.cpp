@@ -199,24 +199,13 @@ yesTickParamManagerForClip:
 	}
 }
 
-Error SoundInstrument::loadAllAudioFiles(bool mayActuallyReadFiles) {
+deluge::storage::Walk SoundInstrument::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	// A synth read on its own also looks for its samples in its own folder. Within a song's load, in the song's.
+	visitor.beginInstrumentScope(dirPath, name, ThingType::SYNTH, deluge::storage::ScopeRule::WhenReading);
+	const deluge::storage::Walk walk = walkSourceDemands(visitor);
+	visitor.endInstrumentScope();
 
-	bool doingAlternatePath =
-	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
-	if (doingAlternatePath) {
-		Error error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
-			return error;
-		}
-	}
-
-	Error error = Sound::loadAllAudioFiles(mayActuallyReadFiles);
-
-	if (doingAlternatePath) {
-		audioFileManager.thingFinishedLoading();
-	}
-
-	return error;
+	return walk;
 }
 
 void SoundInstrument::resyncLFOs() {
@@ -330,6 +319,7 @@ void SoundInstrument::monophonicExpressionEvent(int32_t newValue, int32_t expres
 void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue, int32_t expressionDimension,
                                                                int32_t channelOrNoteNumber,
                                                                MIDICharacteristic whichCharacteristic) {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 	for (const auto& voice : this->voices()) {
 		if (voice->inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
@@ -398,8 +388,8 @@ void SoundInstrument::compensateInstrumentVolumeForResonance(ModelStackWithThree
 	Sound::compensateVolumeForResonance(modelStack);
 }
 
-void SoundInstrument::loadCrucialAudioFilesOnly() {
-	loadAllAudioFiles(true);
+deluge::storage::Walk SoundInstrument::walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	return walkSampleDemands(visitor);
 }
 
 // Any time it gets edited, we want to grab the default arp settings from the activeClip
@@ -469,6 +459,7 @@ ArpeggiatorBase* SoundInstrument::getArp() {
 }
 
 bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 

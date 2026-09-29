@@ -27,6 +27,31 @@ public:
 	bool opened() override;
 	void enterKeyPress() override;
 	std::string getCurrentFilePath() override;
+
+	/// @brief Collect a cartridge read that is in flight on the file prefix channel.
+	///
+	/// Overrides the subclass hook, never `graphicsRoutine()` — which is `final` on `Browser` so that
+	/// the listing pump cannot be skipped. Inert while no load is in flight: the inline arm, before
+	/// boot finishes, reads and parses in enterKeyPress() itself.
+	void browserGraphicsRoutine() override;
+
+	/// @brief Cancel an in-flight cartridge read as the browser goes away.
+	///
+	/// The browser stays up while the read runs, so the read can outlive it. See the
+	/// definition for what a stale in-flight flag does.
+	void close() override;
+
+	/// @brief Whether a cartridge load is waiting on the file prefix channel.
+	///
+	/// For the song-preview A/B harness, which cannot reach the flag: it lives in `dx_browser.cpp`'s anonymous
+	/// namespace.
+	static bool cartridgeLoadInFlight();
+
+	/// @brief How many cartridge loads gave up because the channel left their read unanswered for 600 ticks.
+	///
+	/// For the song-preview gate, like @ref cartridgeLoadInFlight.
+	static int32_t cartridgeGiveUps();
+
 	// ui
 	UIType getUIType() override { return UIType::DX_BROWSER; }
 };

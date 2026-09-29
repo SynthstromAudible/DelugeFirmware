@@ -168,6 +168,11 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 
 // requiredSize 0 means get biggest allocation available.
 void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam) {
+#ifdef DELUGE_HOST
+	if (deluge::memory::injectedAllocationFailure(requiredSize)) {
+		return nullptr; // host-only test seam (memory/heaps.h)
+	}
+#endif
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in the reclaim hook, which mostly would only be bad cos they

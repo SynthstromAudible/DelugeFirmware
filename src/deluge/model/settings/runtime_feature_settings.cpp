@@ -20,6 +20,7 @@
 #include "hid/display/display.h"
 #include "io/file.hpp"
 #include "model/song/song.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
@@ -28,6 +29,9 @@
 
 #define SETTINGS_FOLDER "SETTINGS"
 #define RUNTIME_FEATURE_SETTINGS_FILE "SETTINGS/CommunityFeatures.XML"
+/// Where the file lived before c1.3, at the card root. Migrated into the path above on a read that
+/// finds nothing there.
+#define LEGACY_RUNTIME_FEATURE_SETTINGS_FILE "CommunityFeatures.XML"
 #define TAG_RUNTIME_FEATURE_SETTINGS "runtimeFeatureSettings"
 #define TAG_RUNTIME_FEATURE_SETTING "setting"
 #define TAG_RUNTIME_FEATURE_SETTING_ATTR_NAME "name"
@@ -190,7 +194,39 @@ void RuntimeFeatureSettings::factoryReset(bool showPopup) {
 	readSettingsFromFile();
 }
 
-void RuntimeFeatureSettings::readSettingsFromFile() {
+bool RuntimeFeatureSettings::readSettingsFromFile(deluge::storage::bytes::DoneFn onDone) {
+	// The channel first: it does the read in Rust, so nothing blocks anywhere. A false means the channel is
+	// not the place for this read here (boot, or a build without it) -- a busy channel queues it
+	// instead -- and the inline arm below does the same work where blocking is legal.
+	if (deluge::storage::bytes::submitRead(RUNTIME_FEATURE_SETTINGS_FILE, LEGACY_RUNTIME_FEATURE_SETTINGS_FILE,
+	                                       &RuntimeFeatureSettings::parseSettingsBytes,
+	                                       /*onAbsent=*/nullptr, this, onDone)) {
+		return true;
+	}
+	// No blocking arm: boot does not call this, so a refusal means the channel is switched off or
+	// the path does not fit -- and either way the settings in memory stand, which is exactly what a
+	// refusal has always meant here. The settings prelude sees the refusal as a read it must not
+	// wait for.
+	return false;
+}
+
+void RuntimeFeatureSettings::parseSettingsBytes(void* ctx, char* bytes, uint32_t len) {
+	// `activeDeserializer` goes back on EVERY path, the failed open included: `openDelugeBuffer`
+	// points it at the memory reader before it knows whether the document opened, and code downstream
+	// WRITES through that global without opening anything of its own. Left pointing here it would
+	// write into `bytes`, which is the channel's own staging buffer. Copied from
+	// `deluge::storage::decodeSongPreview()`, which says it at length.
+	FileDeserializer* previous = activeDeserializer;
+	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false,
+	                                     TAG_RUNTIME_FEATURE_SETTINGS)
+	    == Error::NONE) {
+		static_cast<RuntimeFeatureSettings*>(ctx)->parseSettings(*activeDeserializer);
+	}
+	activeDeserializer = previous;
+}
+
+void RuntimeFeatureSettings::readSettingsInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// CommunityFeatures.XML
 	switch (deluge::storage::bootstrap_action(StorageManager::fileExists(RUNTIME_FEATURE_SETTINGS_FILE))) {
 	case deluge::storage::Bootstrap::Load:
@@ -202,7 +238,7 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		// let's move it to the new SETTINGS folder (but first make sure folder exists).
 		auto result = deluge::io::mkdir(SETTINGS_FOLDER);
 		if (result.has_value() || result.error() == deluge::io::Status::EXISTS) {
-			auto renamed = deluge::io::rename("CommunityFeatures.XML", RUNTIME_FEATURE_SETTINGS_FILE);
+			auto renamed = deluge::io::rename(LEGACY_RUNTIME_FEATURE_SETTINGS_FILE, RUNTIME_FEATURE_SETTINGS_FILE);
 			if (renamed.has_value()) {
 				// this means we moved it; confirm the migration actually landed before trusting
 				// the new path.
@@ -221,11 +257,16 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 	}
 
 	Error error =
-	    StorageManager::openXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smDeserializer, TAG_RUNTIME_FEATURE_SETTINGS);
+	    StorageManager::openDocumentSynchronously(RUNTIME_FEATURE_SETTINGS_FILE, TAG_RUNTIME_FEATURE_SETTINGS);
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = *activeDeserializer;
+	parseSettings(*activeDeserializer);
+	activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
+}
+
+void RuntimeFeatureSettings::parseSettings(Deserializer& reader) {
 	std::string currentName;
 	int32_t currentValue = 0;
 	char const* currentTag = nullptr;
@@ -274,17 +315,40 @@ void RuntimeFeatureSettings::readSettingsFromFile() {
 		}
 		reader.exitTag(currentTag);
 	}
-	smDeserializer.closeWriter();
 }
 
 void RuntimeFeatureSettings::writeSettingsToFile() {
+	if (deluge::storage::bytes::usingByteChannel()) {
+		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
+		// dies at the end of this scope, which is safe because `submitWrite` copies.
+		XMLSerializer writer;
+		writer.setMemoryBased();
+		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
+		serialiseSettings(writer);
+		if (deluge::storage::bytes::submitWrite(RUNTIME_FEATURE_SETTINGS_FILE, writer.getBufferPtr(),
+		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
+			return;
+		}
+		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
+		// blocking is legal; after boot it is refused and nothing is written.
+	}
+	(void)deluge::storage::bytes::runDuringBoot(
+	    [](void* ctx) { static_cast<RuntimeFeatureSettings*>(ctx)->writeSettingsInline(); }, this);
+}
+
+void RuntimeFeatureSettings::writeSettingsInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	deluge::io::unlink(RUNTIME_FEATURE_SETTINGS_FILE); // May give error, but no real consequence from that.
 
 	Error error = StorageManager::createXMLFile(RUNTIME_FEATURE_SETTINGS_FILE, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = GetSerializer();
+	serialiseSettings(GetSerializer());
+	GetSerializer().closeFileAfterWriting();
+}
+
+void RuntimeFeatureSettings::serialiseSettings(Serializer& writer) {
 	writer.writeOpeningTagBeginning(TAG_RUNTIME_FEATURE_SETTINGS);
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.1.3");
@@ -309,5 +373,4 @@ void RuntimeFeatureSettings::writeSettingsToFile() {
 	}
 
 	writer.writeClosingTag(TAG_RUNTIME_FEATURE_SETTINGS);
-	writer.closeFileAfterWriting();
 }

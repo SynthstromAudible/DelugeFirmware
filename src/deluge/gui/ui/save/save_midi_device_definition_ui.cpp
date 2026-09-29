@@ -47,11 +47,9 @@ bool SaveMidiDeviceDefinitionUI::opened() {
 		return false;
 	}
 
-	Error error = createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
+	// Fire-and-forget: these only ensure the default folders exist, and the listing reports a card
+	// failure if one persists. See Browser::createFoldersRecursiveIfNotExists.
+	(void)createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 
 	bool success = SaveUI::opened();
 	if (!success) { // In this case, an error will have already displayed.
@@ -130,60 +128,18 @@ void SaveMidiDeviceDefinitionUI::onBrowserOpened() {
 	focusRegained();
 }
 
-bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
-	MIDIInstrument* midiInstrumentToSave = (MIDIInstrument*)getCurrentInstrument();
-
-	std::string filePath = getCurrentFilePath();
-	Error error = Error::NONE;
-	if (error != Error::NONE) {
-fail:
-		display->displayError(error);
-		return false;
-	}
-
-	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
-
-	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
-
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
-
-		if (available) { // Will always be true.
-			openUI(&gui::context_menu::overwriteFile);
-			return true;
-		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto fail;
-		}
-	}
-
-	else if (error != Error::NONE) {
-		goto fail;
-	}
-
-	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-
-	Serializer& writer = GetSerializer();
-
-	midiInstrumentToSave->writeDeviceDefinitionFile(writer, false);
-
-	writer.closeFileAfterWriting();
-
+void SaveMidiDeviceDefinitionUI::afterStagedSave(const deluge::storage::SaveRequest& request) {
 	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
-		goto fail;
-	}
-
 	// Link the instrument with the definition file saved
-	midiInstrumentToSave->deviceDefinitionFileName = filePath.c_str();
-
+	if (auto* midiInstrumentToSave = static_cast<MIDIInstrument*>(getCurrentInstrument());
+	    midiInstrumentToSave != nullptr) {
+		midiInstrumentToSave->deviceDefinitionFileName = request.filePath.c_str();
+	}
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_SAVED));
 	close();
-	return true;
 }
 
-ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SaveMidiDeviceDefinitionUI::saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
 	// Load button
@@ -200,6 +156,16 @@ ActionResult SaveMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 			}
 		}
 
-		return SaveUI::buttonAction(b, on, inCardRoutine);
+		return SaveUI::saveScreenButtonAction(b, on, inCardRoutine);
 	}
+}
+
+bool SaveMidiDeviceDefinitionUI::serializeForSave(XMLSerializer& into) {
+	// Derived the same way the save derives it: this UI holds no member for it.
+	auto* midiInstrumentToSave = static_cast<MIDIInstrument*>(getCurrentInstrument());
+	if (midiInstrumentToSave == nullptr) {
+		return false;
+	}
+	midiInstrumentToSave->writeDeviceDefinitionFile(into, false);
+	return true;
 }

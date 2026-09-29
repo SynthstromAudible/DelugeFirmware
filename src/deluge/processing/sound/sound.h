@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "libdeluge/system.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/voiced.h"
@@ -73,7 +74,24 @@ public:
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;
 
 	Sound();
-	~Sound() override { std::erase(AudioEngine::sounds, this); }
+	~Sound() override {
+		if (!voices_.empty()) {
+			noteDestroyedWithLiveVoices();
+		}
+		AudioEngine::sounds.remove(this);
+	}
+
+	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
+	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
+	///       member's destructor recycles each voice, and ~Voice unassigns it back into this Sound, whose
+	///       reassessRenderSkippingStatus() then calls the pure virtual getArpSettings(). The count is taken first.
+	/// @return The running count of such destructions since boot.
+	static int32_t soundsDestroyedWithLiveVoices();
+
+	/// @brief [render] Set by the render when it lets go of the retired song this Sound belongs to, just before it
+	///        takes every Sound so marked out of AudioEngine::sounds in one pass. Never cleared: the Sound is
+	///        destroyed when the song is.
+	bool letGoWithSong = false;
 
 	Patcher patcher;
 
@@ -234,7 +252,10 @@ public:
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
 	void set_cents(int8_t new_cents);
-	Error loadAllAudioFiles(bool mayActuallyReadFiles);
+	/// @brief Report the files of every sample or wavetable source to @p visitor, in source order. Loads nothing.
+	/// @param visitor Receives a demand for each source's audio file and a checkpoint before each one.
+	/// @return Walk::Stop if a checkpoint stopped the walk.
+	deluge::storage::Walk walkSourceDemands(deluge::storage::SampleLoadVisitor& visitor);
 	bool envelopeHasSustainCurrently(int32_t e, ParamManagerForTimeline* paramManager);
 	bool envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramManager);
 	bool renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager);
@@ -298,7 +319,10 @@ public:
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 
 	/// @brief Does this sound have any active voices?
-	[[nodiscard]] bool hasActiveVoices() const override { return !voices_.empty(); }
+	[[nodiscard]] bool hasActiveVoices() const override {
+		AudioExcludedSection section; // the render adds and removes voices
+		return !voices_.empty();
+	}
 
 	/// @brief Get the number of active voices
 	[[nodiscard]] size_t numActiveVoices() const { return voices_.size(); }
@@ -329,6 +353,9 @@ public:
 	virtual const char* getName() { return nullptr; }
 
 private:
+	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
+	static void noteDestroyedWithLiveVoices();
+
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
 	void recalculateFineTuner();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
@@ -361,10 +388,27 @@ private:
 	// we're constantly cycling between a minimum and maximum number of voices.
 	deluge::fast_vector<ActiveVoice> voices_{};
 
-	/// @brief Acquire a voice for use by a note
-	/// Internally this will either acquire a new voice or steal an existing one
-	/// @return The acquired voice
-	const ActiveVoice& acquireVoice() noexcept(false); // throws an exception if no memory is available
+	// Every structural edit of voices_ goes through these: the render walks every Sound's voices, so each edit runs
+	// inside an AudioExcludedSection (free on the audio tier) and reports to the structural-edit probe
+	// (util/structural_edit_probe.h).
+	using ActiveVoiceIterator = deluge::fast_vector<ActiveVoice>::iterator;
+	void publishVoice(ActiveVoice voice);
+	template <class Pred>
+	void eraseVoicesIf(Pred pred) {
+		AudioExcludedSection section; // the render walks every Sound's voices
+		noteVoicesEdit();
+		std::erase_if(voices_, pred);
+	}
+	ActiveVoiceIterator eraseVoiceAt(ActiveVoiceIterator it);
+	void clearVoices();
+	static void noteVoicesEdit();
+
+	/// @brief Re-trigger a voice already in voices_ (a MONO/LEGATO reuse, or a stolen voice), which may still be
+	///        sounding: its envelopes resume from where they are. The caller excludes the render (or is the render
+	///        itself).
+	void retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp,
+	                    int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
+	                    int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel);
 
 	/// @brief Check if a voice exists in the list of active voices
 	void checkVoiceExists(const ActiveVoice& voice, const char* error) const;

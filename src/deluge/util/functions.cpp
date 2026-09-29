@@ -27,6 +27,7 @@
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
+#include "storage/audio/load_trace.h"
 #include "storage/flash_storage.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h"
@@ -627,35 +628,6 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel) {
 	default:
 		return "None";
 	}
-}
-
-void byteToHex(uint8_t number, char* buffer) {
-	buffer[0] = halfByteToHexChar(number >> 4);
-	buffer[1] = halfByteToHexChar(number & 15);
-	buffer[2] = 0;
-}
-
-uint8_t hexToByte(char const* firstChar) {
-	uint8_t value = 0;
-
-	if (*firstChar >= 48 && *firstChar < 58) {
-		value += *firstChar - 48;
-	}
-	else {
-		value += *firstChar - 55;
-	}
-
-	*firstChar++;
-	value <<= 4;
-
-	if (*firstChar >= 48 && *firstChar < 58) {
-		value += *firstChar - 48;
-	}
-	else {
-		value += *firstChar - 55;
-	}
-
-	return value;
 }
 
 // May give wrong result for -2147483648
@@ -1796,8 +1768,10 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 }
 
 bool shouldAbortLoading() {
-	return (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
-	        && (encoders::select.pending() || QwertyUI::predictionInterrupted));
+	const bool abort = (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
+	                    && (encoders::select.pending() || QwertyUI::predictionInterrupted));
+	DELUGE_LOAD_TRACE("abort=%d", abort ? 1 : 0);
+	return abort;
 }
 
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {

@@ -171,6 +171,9 @@ public:
 	virtual bool canDisplayFavourites() { return false; }
 	virtual bool isFavouritesVisible() { return false; }
 	virtual bool isBanksVisible() { return false; }
+	/// @brief The favourites bank on screen has finished loading (or failed to). Screens that show favourites
+	///        redraw them; the rest ignore it.
+	virtual void favouritesBankApplied() {}
 
 #if ENABLE_MATRIX_DEBUG
 	const char* getUIName();

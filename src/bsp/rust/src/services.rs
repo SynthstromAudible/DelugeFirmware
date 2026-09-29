@@ -43,7 +43,7 @@ static CS_DEPTH: AtomicU32 = AtomicU32::new(0);
 // Host per-thread critical-section nesting depth. Each thread independently
 // acquires the global `critical-section` mutex on its OUTERMOST enter and
 // nests within itself, so two real OS threads (the `"deluge-audio"` executor
-// and the fiber/executor thread in the preemptive harness) are mutually
+// and the main executor thread in the preemptive harness) are mutually
 // excluded — unlike a process-global depth, which would let a second thread
 // enter while the first still holds the lock. Device uses the CPU IRQ mask
 // (`CS_DEPTH` below), which is genuinely single-context per core.
@@ -121,6 +121,51 @@ pub extern "C" fn deluge_in_interrupt() -> bool {
     false
 }
 
+/// Nesting depth of the audio render context: non-zero while the audio SGI handler is on the
+/// stack. Not an `AtomicBool`, because audio can nest on top of the lower-priority streaming
+/// SGI handler — on exit the marker must revert to the *enclosing* context rather than clear
+/// unconditionally.
+#[cfg(target_os = "none")]
+static AUDIO_CONTEXT: AtomicU32 = AtomicU32::new(0);
+
+/// Mark entry into the audio render context. Returns the previous marker state, so a call
+/// site reads as a balanced pair with [`audio_context_exit`]. Call ONLY from the audio SGI
+/// handler. [isr]
+#[cfg(target_os = "none")]
+pub fn audio_context_enter() -> bool {
+    AUDIO_CONTEXT.fetch_add(1, Ordering::Relaxed) != 0
+}
+
+/// Undo one [`audio_context_enter`]. `_prev` is accepted and ignored — the counter itself
+/// carries the nesting; the parameter exists so the pairing is visible at the call site. [isr]
+#[cfg(target_os = "none")]
+pub fn audio_context_exit(_prev: bool) {
+    AUDIO_CONTEXT.fetch_sub(1, Ordering::Relaxed);
+}
+
+/// True iff the audio SGI handler is on the stack — the one context permitted to skip the
+/// resource manager's mask, because it preempts every other context that touches it. See
+/// `libdeluge/system.h` and `deluge_resource::sync`'s module doc.
+///
+/// Deliberately NOT `deluge_in_interrupt()`: that is a CPSR mode test, and the shared IRQ entry
+/// switches to SYS mode before dispatching, so it is false inside every handler, audio's
+/// included. The streaming fill executor's handler, which audio preempts, must keep masking.
+#[cfg(target_os = "none")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_in_audio_context() -> bool {
+    AUDIO_CONTEXT.load(Ordering::Relaxed) != 0
+}
+
+/// Host stand-in: host runs audio on a real OS thread with no interrupt context, and the
+/// asymmetric mask skip is deliberately NOT taken there — every thread masks, so the global
+/// critical-section mutex serializes them (see `deluge_resource::sync`'s module doc).
+/// [task] [isr]
+#[cfg(not(target_os = "none"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_in_audio_context() -> bool {
+    false
+}
+
 /// Platform is already brought up by the Rust `main` before the app runs, so
 /// this is a no-op that just reports success. [task]
 #[unsafe(no_mangle)]
@@ -156,9 +201,9 @@ pub extern "C" fn deluge_system_reset() -> ! {
 
 /// Busy-wait `us` microseconds via the OSTM-backed embassy-time driver. [task]
 ///
-/// NOTE: kept as `block_for`, NOT a fiber-yield. A delay can be
-/// called mid-operation (incl. inside SD/FatFS sequences); yielding the fiber there
-/// would let other tasks re-enter non-reentrant state. See sd.rs.
+/// NOTE: a busy-wait (`block_for`), NOT a yield. A delay can be
+/// called mid-operation (incl. inside SD/FatFS sequences); yielding there
+/// would let other tasks re-enter non-reentrant state.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_clock_delay_us(us: u32) {
     embassy_time::block_for(embassy_time::Duration::from_micros(us as u64));

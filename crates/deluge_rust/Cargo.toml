@@ -20,6 +20,11 @@ crate-type = ["staticlib", "rlib"]
 [dependencies]
 deluge_alloc = { path = "../deluge_alloc" }
 deluge_resource = { path = "../deluge_resource" }
+# The WAV/AIFF header decoder behind `libdeluge/audio_format.h`. Unconditional (not
+# feature-gated like the members below): the C++ app's parseSampleHeader/parseWaveTableHeader
+# call straight into it, so every artifact that links the app -- firmware, sim, specs -- needs
+# its symbols, and there is no weak C++ fallback to fall back to.
+deluge_audio_format = { path = "../deluge_audio_format" }
 # SR3a Task 1: optional -- only pulled into the umbrella build via the `sim` feature below.
 # Provides the Rust region-port cursor (`deluge_sample_source_*`/`deluge_sample_region_*`,
 # SR2d-5); the C-host sim's reader already calls these, and once this crate's strong

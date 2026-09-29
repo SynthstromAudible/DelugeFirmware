@@ -20,7 +20,10 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 #include "hid/button.h"
-#include "storage/latest_wins.h"
+#include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
+#include "storage/audio/latest_sample_load.h"
+#include <cstdint>
+#include <optional>
 #include <string>
 
 class SoundDrum;
@@ -31,6 +34,10 @@ class MenuItem;
 namespace deluge::gui::menu_item {
 class HorizontalMenu;
 }
+
+namespace deluge::gui {
+enum class FolderImportKind : uint8_t;
+} // namespace deluge::gui
 
 class SampleBrowser final : public Browser {
 public:
@@ -43,17 +50,94 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool canSeeViewUnderneath() override;
-	Error claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCosts = false);
-	Error claimAudioFileForAudioClip();
 	void scrollFinished() override;
-	bool importFolderAsKit();
-	bool importFolderAsMultisamples();
 	ActionResult timerCallback() override;
-	bool claimCurrentFile(int32_t mayDoPitchDetection = 1, int32_t mayDoSingleCycle = 1, int32_t mayDoWaveTable = 1,
-	                      bool loadWithoutExiting = false); // 0 means no. 1 means auto. 2 means yes definitely
+	/// @brief Ask the sample claim for the file the browser is on, as Enter and the synth context menu do.
+	/// @param mayDoPitchDetection For each of these three: 0 means no, 1 means auto, 2 means definitely.
+	/// @param mayDoSingleCycle    As above.
+	/// @param mayDoWaveTable      As above.
+	/// @param completion          Told how the claim ended; a cancelled claim tells it nothing.
+	void requestClaim(int32_t mayDoPitchDetection, int32_t mayDoSingleCycle, int32_t mayDoWaveTable,
+	                  void (*completion)(bool success) = nullptr);
+	/// @brief Ask the folder import for the folder the browser is on (its item if a folder, else the item's folder), as
+	///        the kit menu's Load All and the synth menu's Multisamples do.
+	/// @param kind       Whether the files become a kit's drums or a synth's multisample ranges.
+	/// @param completion Told how the import ended; a cancelled import tells it nothing.
+	void requestFolderImport(deluge::gui::FolderImportKind kind, void (*completion)(bool success));
+	/// @brief Reset the current source's oscillator volume, if it is not automated and was at 0: after a file is set.
+	void audioFileIsNowSet();
+	/// @brief Send @p drum to side-chain when its file, named @p fileName, looks like a kick and plays once.
+	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 	void exitAndNeverDeleteDrum();
+	/// @brief Per-tick surface (every ~15 ms while this UI is up): ticks the preview, then chains to the base.
+	///
+	/// This is the ONLY thing that loads a preview. previewIfPossible() is reached from exactly two places -- entering
+	/// the browser and moving the cursor -- and only records the file; its load starts, is ticked and ends here. See
+	/// tickPreview().
+	void browserGraphicsRoutine() override;
+
+	/// @brief Preview the file at @p path: record it, for the next tick to start its load.
+	///
+	/// The path-based half of previewIfPossible(), which resolves the current selection to a path and
+	/// calls this. Split out so a caller that already knows the path (the load A/B gate, which has no
+	/// browser file list) drives the same production code the browser does, tick included.
+	///
+	/// @param path              The file to preview.
+	/// @param movementDirection Scroll direction driving the teardown/entry animation; 0 for none.
+	void previewFile(std::string path, int32_t movementDirection);
+
+	/// @brief Abandon any preview in progress: nothing wanted, loading or waiting to be shown is wanted any more.
+	///
+	/// For the moves that leave nothing to preview at all: onto a folder or an empty selection
+	/// (previewIfPossible), up a directory or out of the browser (backButtonAction, exitAction,
+	/// exitAndNeverDeleteDrum), and into a fresh visit (opened). None of those asks for a replacement, so nothing
+	/// supersedes the preview; without this, a load started for the file the cursor has LEFT ends, and then sounds and
+	/// draws that file over whatever the user actually moved to -- or, on the exit paths, after the browser is gone.
+	///
+	/// Clears the wanted file, drops the load, and moves the generation so that a redraw still pending for the preview
+	/// being left does nothing. Cancelling strands nothing: a dropped load's request stays with the loader,
+	/// where a later lookup of the same path collects it, and a result nobody collects is evicted.
+	///
+	/// Public because the A/B gate has to be able to drive it: that harness calls previewFile()
+	/// directly and never populates a file list, so it can never reach the folder branch that calls
+	/// this in the real UI.
+	void cancelPreview();
+
+	/// @brief Put the browser in the state opened() leaves it in for drawing: the keyboard hidden, so a preview draws
+	///        its waveform. The A/B gate never opens the browser, and with the keyboard up a preview draws no waveform.
+	void hideKeyboardForHarness() {
+		qwertyVisible = false;
+		qwertyAlwaysVisible = false;
+		qwertyCurrentlyDrawnOnscreen = false;
+	}
+
+	/// @brief Whether a preview is wanted and not yet started, or its load has not ended.
+	///
+	/// Exposed so a gate can tell "the preview settled" apart from "the preview was dropped and
+	/// nothing will ever finish it" -- from outside, the two look identical.
+	[[nodiscard]] bool previewLoadPending() const { return previewWanted_.has_value() || previewLoad_.pending(); }
+
+	/// @brief How many previews gave up on a load that stopped moving.
+	///
+	/// A preview whose load ends stalled (AsyncSampleLoad::kMaxStalledTicks walks in a row with nothing settled) gives
+	/// up with the card error; see finishPreviewLoad(). Exposed for the A/B gate, which holds a load far past the
+	/// bound.
+	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
+	/// @name Counts for the A/B gate's preview-draw legs.
+	/// @{
+	/// @brief Preview draws made (showPreview calls).
+	[[nodiscard]] int32_t previewDraws() const { return previewDraws_; }
+	/// @brief Redraws of a preview a render left incomplete.
+	[[nodiscard]] int32_t previewRedraws() const { return previewRedraws_; }
+	/// @brief Preview renders that came back complete, first draw or redraw.
+	[[nodiscard]] int32_t previewDrawsComplete() const { return previewDrawsComplete_; }
+	/// @brief Redrawing given up: the bound passed with no new column resolved.
+	[[nodiscard]] int32_t previewDrawGiveUps() const { return previewDrawGiveUps_; }
+	/// @brief Whether an incomplete preview is waiting to be redrawn.
+	[[nodiscard]] bool previewRedrawPending() const { return previewRedrawPending_; }
+	/// @}
 
 	std::string lastFilePathLoaded{};
 
@@ -78,53 +162,86 @@ private:
 
 	/// @brief Snapshot of the file to preview, captured at trigger time.
 	///
-	/// Lets the dispatched op load the file the user pointed at even if the selection moves on
-	/// before it runs (fast cursor-scroll under async dispatch).
+	/// Lets the preview's tick load the file the user pointed at, and its show animate in the direction the cursor
+	/// moved, even if the selection moves on before either runs.
 	struct PreviewTarget {
 		std::string path;
 		int32_t movementDirection;
 	};
 
-	/// @brief Snapshot the current file and dispatch its preview load+render onto the storage
-	///        owner (coalesced latest-wins).
-	///
-	/// A folder or empty selection just clears the preview.
+	/// @brief Ask for the current file's preview. A folder or empty selection cancels any preview and clears it.
 	/// @param movementDirection Scroll direction driving the preview's teardown/entry animation.
 	void previewIfPossible(int32_t movementDirection = 1);
-	/// @brief The dispatched op: load and render the coalescer's current target, then re-dispatch
-	///        if a newer target arrived while it ran.
+
+	/// @brief What the show operation is for: the direction to animate in, and the generation its load ended in.
+	struct PreviewShow {
+		int32_t movementDirection = 0;
+		uint32_t generation = 0;
+	};
+
+	/// @brief One tick of the preview: start the wanted file's load, tick the load in hand, and act on its end.
 	///
-	/// Runs on the storage owner (inline on legacy/host).
-	/// @param self The SampleBrowser instance.
-	static void runPreviewOp(void* self);
-	/// @brief Load @p target's sample and render its waveform.
+	/// Runs on the interaction tier, from browserGraphicsRoutine(). No sample is read from the card here: the load
+	/// finds its file through the async loader.
+	void tickPreview();
+	/// @brief Start @p target's load, replacing any load in hand.
 	///
-	/// Clears the preview display if nothing loaded.
-	/// @param target The file to preview, snapshotted by previewIfPossible().
-	void renderPreviewForTarget(const PreviewTarget& target);
+	/// Records the path as the last one loaded, stops the preview sounding (which also unbinds its holder), and asks
+	/// for the file in the preview drum's first range. Moves the generation, so a show dispatched for an earlier file
+	/// does nothing and the display stays as it is until this one lands.
+	/// @param target The file to preview.
+	void startPreviewLoad(PreviewTarget target);
+	/// @brief Act on the end of a preview's load.
+	///
+	/// A load that found its file, or settled without one, shows any lookup error, sounds the preview if the browser
+	/// should, and draws the preview. A load that stalled, or found the card unusable, gives up with the
+	/// card error and leaves the display as it is; nothing is asked for again until the next move onto the file.
+	/// @param outcome How the load ended, with the target it was started for.
+	void finishPreviewLoad(deluge::storage::LatestSampleLoad<PreviewTarget>::Outcome outcome);
+	/// @brief Draw the preview drum's sample, or clear the preview display
+	///        when the drum holds none.
+	/// @param show The show to draw.
+	void showPreview(const PreviewShow& show);
 	/// @brief Tear down any on-screen sample preview.
 	///
-	/// Shared by the no-file path and a failed load.
+	/// Shared by the no-file path and a show with no sample to draw.
 	/// @param movementDirection Scroll direction driving the teardown animation.
 	void clearPreviewDisplay(int32_t movementDirection);
+	/// @brief Redraw a preview a render left incomplete, once no scroll animation or QWERTY covers the pads. Gives up
+	///        after kMaxUnproductiveUs with no new column resolved. Called from browserGraphicsRoutine().
+	void tickPreviewRedraw();
+	/// @brief How many of the preview view's columns the renderer has resolved (investigated, or found past the
+	///        waveform's end).
+	[[nodiscard]] int32_t previewResolvedColumns() const;
 
-	deluge::storage::LatestWins<PreviewTarget> previewCoalescer_{};
+	/// @brief The file a cursor move asked to preview, until the next tick starts its load.
+	std::optional<PreviewTarget> previewWanted_{};
+	/// @brief The preview's load, ticked by tickPreview(). Holds the target it was started for.
+	deluge::storage::LatestSampleLoad<PreviewTarget> previewLoad_{};
+	/// @brief Moves each time a preview's load starts or the preview is cancelled. A show from an earlier generation
+	///        does nothing.
+	uint32_t previewGeneration_{0};
 
-	/// @brief The dispatched op for the direct pad-tap load (enterKeyPress).
-	///
-	/// Runs claimCurrentFile() with its default args on the storage owner. The result is
-	/// discarded (as it always was inline) — claimCurrentFile() already handles its own
-	/// loading-animation/close-on-success internally. Its unnamed `void*` parameter is the
-	/// storage-owner op signature; unused here.
-	static void runClaimCurrentFileOp(void*);
+	/// @brief Previews that gave up on a stalled load. See previewGiveUps().
+	int32_t previewGiveUps_{0};
+	int32_t previewDraws_{0};
+	int32_t previewRedraws_{0};
+	int32_t previewDrawsComplete_{0};
+	int32_t previewDrawGiveUps_{0};
+	/// Set by a draw that renderFullScreen left incomplete; see tickPreviewRedraw().
+	bool previewRedrawPending_{false};
+	/// The generation the pending redraw belongs to: a newer preview's start or a cancel moves previewGeneration_,
+	/// and a redraw for an older one is dropped.
+	uint32_t previewRedrawGeneration_{0};
+	/// Columns of the view resolved at the last attempt: progress is more of them than this.
+	int32_t previewResolvedCols_{0};
+	/// How long redraws have gone without progress. Elapsed time, never ticks.
+	deluge::storage::UnproductiveSpan previewRedrawSpan_{};
 
-	void audioFileIsNowSet();
 	bool canImportWholeKit();
-	bool loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamples, Sample*** getSortArea,
-	                            bool* getDoingSingleCycle = nullptr, int32_t* getNumCharsInPrefix = nullptr);
+
 	std::string getCurrentFilePath() override;
 	void drawKeysOverWaveform();
-	void autoDetectSideChainSending(SoundDrum* drum, Source* source, char const* fileName);
 	void possiblySetUpBlinking();
 
 	bool autoLoadEnabled{};

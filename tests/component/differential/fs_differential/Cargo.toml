@@ -1,0 +1,29 @@
+[package]
+name = "fs-differential"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0-or-later"
+
+[dependencies]
+# embedded-fatfs is never published to crates.io; vendored in-tree as an owned
+# copy (see crates/embedded-fatfs/VENDOR.md) rather than a git dependency.
+embedded-fatfs = { path = "../../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
+embedded-io-async = "0.7"
+# Trivial single-thread executor to drive embedded-fatfs's async API from this
+# harness's synchronous test/CLI surface (MemIo never actually pends, so this
+# never really "blocks" -- it's just a driver loop). Same crate already used
+# elsewhere in this repo's Rust BSP; not tokio.
+embassy-futures = "0.1.2"
+# Host `BlockDevice` bridge (SP1 Task 2): re-points EFatFs's storage from the
+# byte-granular `MemIo` shortcut onto the real device-driver/adapter stack
+# (`crates/block-device-driver`, `crates/block-device-adapters`) so the SP0
+# differential exercises the same adapters + #68/#62 the on-device SD path
+# will use.
+block-device-driver = { path = "../../../../crates/block-device-driver" }
+block-device-adapters = { path = "../../../../crates/block-device-adapters" }
+aligned = "0.4"
+# R2 Task 3: the `#[path]`-included `efatfs_core.rs` (tests/efatfs_core.rs)
+# uses `heapless::String<256>` for `DirEntryInfo::name` -- same version pin as
+# `deluge-bsp-rust`'s Cargo.toml.
+heapless = { version = "0.8", default-features = false }

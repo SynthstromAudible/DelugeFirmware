@@ -18,6 +18,7 @@
 #include "gui/ui/load/load_midi_device_definition_ui.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
@@ -47,13 +48,11 @@ bool LoadMidiDeviceDefinitionUI::opened() {
 		return false;
 	}
 
-	Error error = createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
+	// Fire-and-forget: these only ensure the default folders exist, and the listing reports a card
+	// failure if one persists. See Browser::createFoldersRecursiveIfNotExists.
+	(void)createFoldersRecursiveIfNotExists(MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER);
 
-	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	Error error = beginSlotSession(); // Requires currentDir to be set.
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
@@ -127,8 +126,6 @@ std::string LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 #pragma GCC diagnostic pop
 
 void LoadMidiDeviceDefinitionUI::onBrowserOpened() {
-	currentLabelLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
-
 	drawKeys();
 
 	// Runs here so it happens after the listing actually completes, matching the Save* browsers'
@@ -137,6 +134,15 @@ void LoadMidiDeviceDefinitionUI::onBrowserOpened() {
 }
 
 void LoadMidiDeviceDefinitionUI::folderContentsReady(int32_t entryDirection) {
+}
+
+void LoadMidiDeviceDefinitionUI::definitionLoaded(Error error) {
+	if (error != Error::NONE) {
+		display->displayError(error);
+		return;
+	}
+	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_LOADED));
+	loadMidiDeviceDefinitionUI.close();
 }
 
 void LoadMidiDeviceDefinitionUI::enterKeyPress() {
@@ -148,27 +154,31 @@ void LoadMidiDeviceDefinitionUI::enterKeyPress() {
 
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
-		// goIntoFolder() dispatches onto the storage owner; failure is handled by the base
-		// Browser::onListingFailed() (displayError + close()) once the listing completes.
+		// goIntoFolder() begins a listing that graphicsRoutine() runs over later ticks; failure is handled by
+		// the base Browser::onListingFailed() (displayError + close()) once the listing completes.
 		goIntoFolder(currentFileItem->filename.c_str());
+		return;
 	}
 
-	else {
+	std::string fileName = currentDir.c_str();
+	fileName.append("/");
+	fileName.append(enteredText.c_str());
+	fileName.append(".XML");
 
-		currentLabelLoadError = performLoad();
-		if (currentLabelLoadError != Error::NONE) {
-			display->displayError(currentLabelLoadError);
-			return;
-		}
-
-		display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_LOADED));
-
-		close();
-	}
+	// On the interaction tier: the browser stays open, refusing input, until definitionLoaded() is told how it ended.
+	(void)deluge::gui::instrumentLoad.request(
+	    {.commit = true,
+	     .completion = definitionLoaded,
+	     .kind = deluge::gui::InstrumentLoadRequest::Kind::MidiDefinition,
+	     .definition = {.path = fileName, .instrument = (MIDIInstrument*)getCurrentOutput()}});
 }
 
 ActionResult LoadMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
+	// Refused while a definition is in flight: InstrumentLoad closes the browser's gate until it ends.
+	if (deluge::gui::instrumentLoad.commitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	// Load button
 	if (b == LOAD) {
@@ -189,6 +199,10 @@ ActionResult LoadMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 }
 
 ActionResult LoadMidiDeviceDefinitionUI::padAction(int32_t x, int32_t y, int32_t on) {
+	// Refused while a definition is in flight: InstrumentLoad closes the browser's gate until it ends.
+	if (deluge::gui::instrumentLoad.commitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
 	if (x < kDisplayWidth) {
 		return LoadUI::padAction(x, y, on);
 	}
@@ -196,33 +210,4 @@ ActionResult LoadMidiDeviceDefinitionUI::padAction(int32_t x, int32_t y, int32_t
 		LoadUI::exitAction();
 		return ActionResult::DEALT_WITH;
 	}
-}
-
-Error LoadMidiDeviceDefinitionUI::performLoad(bool doClone) {
-
-	FileItem* currentFileItem = getCurrentFileItem();
-	if (currentFileItem == nullptr) {
-		// Make it say "NONE" on numeric Deluge, for
-		// consistency with old times.
-		return Error::FILE_NOT_FOUND;
-	}
-
-	if (currentFileItem->isFolder) {
-		return Error::NONE;
-	}
-
-	std::string fileName;
-	fileName = currentDir.c_str();
-	fileName.append("/");
-	fileName.append(enteredText.c_str());
-	fileName.append(".XML");
-
-	Error error =
-	    StorageManager::loadMidiDeviceDefinitionFile((MIDIInstrument*)getCurrentOutput(), fileName.c_str(), &fileName);
-
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	return Error::NONE;
 }

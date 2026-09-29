@@ -27,6 +27,7 @@
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
 
 Output::Output(OutputType newType) : type(newType) {
@@ -588,3 +589,8 @@ Clip* Output::getActiveClip() const {
 for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
     ClipInstance* thisInstance = &clipInstances[i];
 */
+
+Error Output::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
+	return deluge::storage::BlockingSampleLoad::errorFor(walkSampleDemands(load));
+}

@@ -17,6 +17,7 @@
 
 #include "processing/stem_export/stem_export.h"
 #include "definitions_cxx.hpp"
+#include "deluge_resource.h"
 #include "extern.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/context_menu/stem_export/done_stem_export.h"
@@ -28,8 +29,10 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "io/file.hpp"
+#include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
-#include "libdeluge/streaming_fill.h" // deluge_streaming_drain_queue_blocking
+#include "libdeluge/file_write.h"
+#include "libdeluge/streaming_fill.h" // deluge_streaming_request_drain
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -41,8 +44,9 @@
 #include "processing/engines/audio_engine.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
-#include "storage/owner.h" // deluge::storage::Owner::run — run the export on the worker fiber
+#include "util/boot.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/string.h"
@@ -54,6 +58,15 @@ using namespace deluge;
 using namespace gui;
 
 StemExport stemExport{};
+
+/// How many audio blocks one offline pass renders before returning to the run loop.
+///
+/// Offline export has no scheduler driving the audio routine, so the pass drives it directly - routing
+/// each block back through the scheduler instead would cap a headless render at about realtime.
+/// Batching keeps that direct-drive throughput while still letting go often enough for the fill task,
+/// the UI, and a cancellation to get a look in. A pass also stops early the moment the loader queue has
+/// work, so this bound only matters while nothing needs filling.
+constexpr int32_t kOfflineBlocksPerPass = 2048;
 
 StemExport::StemExport() {
 	currentStemExportType = StemExportType::CLIP;
@@ -68,6 +81,8 @@ StemExport::StemExport() {
 
 	loopLengthToStopStemExport = 0;
 	loopEndPointInSamplesForAudioFile = 0;
+	drumExportTotalNumClips = 0;
+	exportAwaitingDrain = false;
 
 	allowNormalization = false;
 	allowNormalizationForDrums = true;
@@ -81,22 +96,14 @@ StemExport::StemExport() {
 	timeThereWasLastSomeActivity = 0xFFFFFFFF;
 
 	lastFolderNameForStemExport.clear();
+	lastExportFolderPath.clear();
 }
 
-/// starts stem export process which includes setting up UI mode, timer, and preparing
-/// instruments / clips / kit rows for exporting
+/// Starts the stem export process: sets up UI mode and timer, prepares instruments/clips/kit rows for
+/// exporting, and returns immediately. Everything after this runs a step at a time from
+/// exportRoutine(), so the launching menu handler is free the moment this returns - and, more to the
+/// point, the UI keeps running for the whole export, which is what lets the user cancel it.
 void StemExport::startStemExportProcess(StemExportType stemExportType) {
-	// The export runs for a long time and yields per element (waiting for each
-	// stem's recording to finish). On the decomposed Embassy BSP a synchronous
-	// yield can't hand the CPU back, so run the whole export on the worker fiber;
-	// the launching menu/button handler returns immediately. The export type is
-	// carried in the ctx word (no capture needed).
-	deluge::storage::Owner::run(
-	    [](void* p) { stemExport.runStemExportProcess(static_cast<StemExportType>(reinterpret_cast<uintptr_t>(p))); },
-	    reinterpret_cast<void*>(static_cast<uintptr_t>(stemExportType)));
-}
-
-void StemExport::runStemExportProcess(StemExportType stemExportType) {
 	// in case playback is active when you start stem export, stop it.
 	stopPlayback();
 
@@ -116,31 +123,124 @@ void StemExport::runStemExportProcess(StemExportType stemExportType) {
 	enterUIMode(UI_MODE_STEM_EXPORT);
 	indicator_leds::blinkLed(IndicatorLED::BACK);
 
-	// so that we can reset vertical scroll position
-	int32_t elementsProcessed = 0;
+	exportTotal = prepareElements();
 
-	// export stems
-	if (stemExportType == StemExportType::CLIP) {
-		elementsProcessed = exportClipStems(stemExportType);
+	// MIXDOWN records every unmuted output together, so it walks a single element however many outputs
+	// prepareElements() counted - but that count is still what the teardown restores.
+	int32_t elementCount = (currentStemExportType == StemExportType::MIXDOWN) ? 1 : exportTotal;
+	exportIndex = (exportTotal != 0 && totalNumStemsToExport != 0) ? elementCount - 1 : -1;
+
+	exportPhase = ExportPhase::NEXT_ELEMENT;
+}
+
+void StemExport::exportRoutine() {
+	switch (exportPhase) {
+	case ExportPhase::NONE:
+		return;
+
+	case ExportPhase::NEXT_ELEMENT:
+		startNextElement();
+		return;
+
+	case ExportPhase::AWAIT_ELEMENT:
+		driveElement();
+		return;
+
+	case ExportPhase::FINISH:
+		finishExport();
+		return;
 	}
-	else if (stemExportType == StemExportType::TRACK) {
-		elementsProcessed = exportInstrumentStems(stemExportType);
+}
+
+void StemExport::startNextElement() {
+	// Cancelled, or nothing left to walk.
+	if (exportIndex < 0 || !isUIModeActive(UI_MODE_STEM_EXPORT)) {
+		exportPhase = ExportPhase::FINISH;
+		return;
 	}
-	else if (stemExportType == StemExportType::DRUM) {
-		elementsProcessed = exportDrumStems(stemExportType);
+
+	if (fetchElement(exportIndex, exportElement) && startElement(exportIndex, exportElement)) {
+		exportAwaitingDrain = false;
+		exportPhase = ExportPhase::AWAIT_ELEMENT;
+		return;
 	}
-	else if (stemExportType == StemExportType::MIXDOWN) {
-		elementsProcessed = exportMixdownStem(stemExportType);
+
+	// Empty slot, or a stem that is skipped (or the export was aborted while starting it - the phase
+	// above catches that on the next pass, from the UI mode).
+	exportIndex--;
+	exportPhase = ExportPhase::NEXT_ELEMENT;
+}
+
+/// One pass of the wait an element's recording needs.
+///
+/// Live, there is nothing to do but look: the scheduler is already running the audio routine, playback
+/// and the recorder. Offline there is no scheduler driving them, so this drives them itself - but in a
+/// BOUNDED batch, returning to the run loop either when the batch is spent or as soon as the loader
+/// queue has work, since the fill task that serves it only runs once we let go.
+void StemExport::driveElement() {
+	// elementFinished() is NOT a pure predicate - it drives stopOutputRecording(), which is what
+	// eventually ends the recording. It must be evaluated exactly once per render iteration: asking a
+	// second time to decide whether the element is done cost the render one 32-frame block, which is
+	// 192 bytes of a fixture's WAV and a failed golden.
+	bool finished = false;
+
+	if (renderOffline) {
+		for (int32_t i = 0; i < kOfflineBlocksPerPass; i++) {
+			if (!exportAwaitingDrain) {
+				finished = elementFinished();
+				if (finished) {
+					break;
+				}
+				AudioEngine::routine();
+				exportAwaitingDrain = true;
+			}
+
+			// The drain point: ask whether the loader queue has emptied and, if not, return, resuming at
+			// this same point next pass. Keeping it between the audio routine and the slow routines is
+			// not cosmetic - it is what makes the render come out bit-identical.
+			if (!deluge_streaming_queue_drained()) {
+				deluge_streaming_request_drain();
+				break;
+			}
+			exportAwaitingDrain = false;
+
+			AudioEngine::slowRoutine();
+			audioRecorder.slowRoutine();
+		}
 	}
+	else {
+		// Live: the scheduler is already running the audio routine, playback and the recorder, so all
+		// this pass does is take that one look.
+		finished = elementFinished();
+	}
+
+	if (finished) {
+		finishElement(exportElement);
+		exportIndex--;
+		exportPhase = ExportPhase::NEXT_ELEMENT;
+		return;
+	}
+
+	// Cancelled mid-element: stop walking and tear down.
+	if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+		exportPhase = ExportPhase::FINISH;
+		return;
+	}
+
+	exportPhase = ExportPhase::AWAIT_ELEMENT;
+}
+
+void StemExport::finishExport() {
+	restoreElements(exportTotal);
 
 	// if process wasn't cancelled, then we got here because we finished
 	// exporting all the stems, so let's finish up
 	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
-		finishStemExportProcess(stemExportType, elementsProcessed);
+		finishStemExportProcess(currentStemExportType, exportTotal);
 	}
 	else {
 		processStarted = false;
-		updateScrollPosition(stemExportType, elementsProcessed);
+		updateScrollPosition(currentStemExportType, exportTotal);
 	}
 
 	// turn off recording if it's still on
@@ -152,6 +252,8 @@ void StemExport::runStemExportProcess(StemExportType stemExportType) {
 	// re-render UI because view scroll positions and mute statuses will have been updated
 	uiNeedsRendering(getCurrentUI());
 	renderUIsForOled();
+
+	exportPhase = ExportPhase::NONE;
 }
 
 /// Stop stem export process
@@ -193,41 +295,6 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
 			stopRecording = true;
 		}
-	}
-}
-
-/// Wait until `until()` is satisfied while the export keeps rendering.
-///
-/// On-device export goes through the cooperative scheduler (yield) so the UI, MIDI,
-/// encoders, etc. keep running. An offline (faster-than-realtime) render has nothing
-/// else to service, and routing each audio block back through the scheduler makes
-/// chooseBestTask's busy-wait the dominant cost (it caps throughput at ~realtime). So
-/// offline we drive the audio routine directly: AudioEngine::routine()'s offline branch
-/// already does the whole per-block job (sequencer tick via tickSongFinalizeWindows,
-/// render, output drive, recorder drain, cluster load), so this is behaviour-identical
-/// to the scheduler running that same task — just without the per-block scheduling cost.
-///
-/// The scheduler also normally runs the recorder's card + finalize routines, so the bypass
-/// must drive those too or the per-stem WAV never finishes writing (the recorder reaches
-/// COMPLETE only via doRecorderCardRoutines, and recordingSource is cleared back to NONE —
-/// the `until` condition — only by audioRecorder.slowRoutine()'s finishRecording()).
-void StemExport::renderWait(RunCondition until) {
-	if (renderOffline) {
-		while (!until()) {
-			AudioEngine::routine();
-			// Drain the cluster loader HERE, between audio routines: the offline AudioEngine::routine()
-			// holds audioRoutineLocked for its whole body, and renderWait's offline loop has no other
-			// yield point, so the streamed clusters a headless render needs would otherwise never load
-			// (streaming starvation). Yield the worker fiber and drain the whole loader queue via the
-			// async streaming_fill_task. On-device the scheduler runs this between audio routines for
-			// the same reason.
-			deluge_streaming_drain_queue_blocking();
-			AudioEngine::slowRoutine();
-			audioRecorder.slowRoutine();
-		}
-	}
-	else {
-		yield(until);
 	}
 }
 
@@ -377,95 +444,6 @@ void StemExport::restoreAllInstrumentMutes(int32_t totalNumOutputs) {
 	}
 }
 
-/// iterates through all instruments, arming one instrument at a time for recording
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the arrangement
-int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
-	// prepare all the instruments for stem export
-	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
-
-	if (totalNumOutputs != 0 && totalNumStemsToExport != 0) {
-		// now we're going to iterate through all instruments to find the ones that should be exported
-		for (int32_t idxOutput = totalNumOutputs - 1; idxOutput >= 0; --idxOutput) {
-			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output != nullptr) {
-				bool started = startCurrentStemExport(stemExportType, output, output->mutedInArrangementMode, idxOutput,
-				                                      output->exportStem);
-
-				if (!started) {
-					// the export may have been aborted rather than this stem simply being skipped
-					if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-						break;
-					}
-					// skip this stem and move to the next one
-					continue;
-				}
-
-				// wait until recording is done and playback is turned off
-				renderWait([]() {
-					if (stemExport.stopRecording) {
-						stemExport.stopOutputRecording();
-					}
-					return !(playbackHandler.recording != RecordingMode::OFF
-					         || audioRecorder.recordingSource > AudioInputChannel::NONE
-					         || playbackHandler.isEitherClockActive());
-				});
-
-				finishCurrentStemExport(stemExportType, output->mutedInArrangementMode);
-			}
-			// in the event that stem exporting is cancelled while iterating through clips
-			// break out of the loop
-			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-				break;
-			}
-		}
-	}
-
-	// set instrument mutes back to their previous state (before exporting stems)
-	restoreAllInstrumentMutes(totalNumOutputs);
-
-	return totalNumOutputs;
-}
-
-/// iterates through all instruments, checking if there's any that should be exported (unmuted)
-/// then exports them all as a single stem
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the arrangement
-int32_t StemExport::exportMixdownStem(StemExportType stemExportType) {
-	// prepare all the instruments for stem export
-	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
-
-	if (totalNumOutputs != 0 && totalNumStemsToExport != 0) {
-		// set wav file name for stem to be exported
-		if (!setWavFileNameForStemExport(stemExportType, nullptr, 0)) {
-			abortStemExportProcess(deluge::l10n::String::STRING_FOR_STEM_NAME_TOO_LONG);
-			return totalNumOutputs;
-		}
-
-		// start resampling which ends when end of arrangement is reached and audio is silent
-		startOutputRecordingUntilLoopEndAndSilence();
-
-		// we haven't exported the arrangement yet
-		// so display progress
-		displayStemExportProgress(stemExportType);
-
-		// wait until recording is done and playback is turned off
-		renderWait([]() {
-			if (stemExport.stopRecording) {
-				stemExport.stopOutputRecording();
-			}
-			return !(playbackHandler.recording != RecordingMode::OFF
-			         || audioRecorder.recordingSource > AudioInputChannel::NONE
-			         || playbackHandler.isEitherClockActive());
-		});
-
-		// update number of stems exported
-		numStemsExported++;
-	}
-
-	return totalNumOutputs;
-}
-
 /// disarms and prepares all the clips so that they can be exported
 int32_t StemExport::disarmAllClipsForStemExport() {
 	// when we begin stem export, we haven't exported any clips yet, so initialize these variables
@@ -554,61 +532,6 @@ bool StemExport::writeLoopEndPos() {
 	return false;
 }
 
-/// iterates through all clips, arming one clip at a time for recording
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the clip's loop length
-int32_t StemExport::exportClipStems(StemExportType stemExportType) {
-	// prepare all the clips for stem export
-	int32_t totalNumClips = disarmAllClipsForStemExport();
-
-	if (totalNumClips != 0 && totalNumStemsToExport != 0) {
-		// now we're going to iterate through all clips to find the ones that should be exported
-		for (int32_t idxClip = totalNumClips - 1; idxClip >= 0; --idxClip) {
-			Clip* clip = currentSong->sessionClips[idxClip];
-			if (clip != nullptr) {
-				getLoopLengthOfLongestNotEmptyNoteRow(clip);
-				getLoopEndPointInSamplesForAudioFile(clip->loopLength);
-
-				bool started = startCurrentStemExport(stemExportType, clip->output, clip->activeIfNoSolo, idxClip,
-				                                      clip->exportStem);
-
-				if (!started) {
-					// the export may have been aborted rather than this stem simply being skipped
-					if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-						break;
-					}
-					// skip this stem and move to the next one
-					continue;
-				}
-
-				// wait until recording is done and playback is turned off
-				renderWait([]() {
-					// if you haven't found silence yet and playback has stopped
-					// check for silence so you can stop recording
-					if (stemExport.stopRecording) {
-						stemExport.stopOutputRecording();
-					}
-					return !(playbackHandler.recording != RecordingMode::OFF
-					         || audioRecorder.recordingSource > AudioInputChannel::NONE
-					         || playbackHandler.isEitherClockActive());
-				});
-
-				finishCurrentStemExport(stemExportType, clip->activeIfNoSolo);
-			}
-			// in the event that stem exporting is cancelled while iterating through clips
-			// break out of the loop
-			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-				break;
-			}
-		}
-	}
-
-	// set clip mutes back to their previous state (before exporting stems)
-	restoreAllClipMutes(totalNumClips);
-
-	return totalNumClips;
-}
-
 /// disarms and prepares all the drums so that they can be exported
 int32_t StemExport::disarmAllDrumsForStemExport() {
 	// when we begin stem export, we haven't exported any drums yet, so initialize these variables
@@ -663,77 +586,126 @@ void StemExport::restoreAllDrumMutes(int32_t totalNumNoteRows) {
 	}
 }
 
-/// iterates through all drums, arming one drum at a time for recording
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the arrangement
-int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
-	// need to disarm all the other clips so that we can export just this kit clip
-	int32_t totalNumClips = disarmAllClipsForStemExport();
-	// prepare all the drums for stem export
-	int32_t totalNumNoteRows = disarmAllDrumsForStemExport();
-
-	if (totalNumNoteRows != 0) {
-		// now we're going to iterate through all drums to find the ones that should be exported
-		InstrumentClip* clip = getCurrentInstrumentClip();
-		Output* output = clip->output;
-		OutputType outputType = output->type;
-		for (int32_t idxNoteRow = totalNumNoteRows - 1; idxNoteRow >= 0; --idxNoteRow) {
-			NoteRow* thisNoteRow = clip->noteRows.tryGet(idxNoteRow);
-			if (thisNoteRow != nullptr) {
-				clip->activeIfNoSolo = true; // unmute clip
-
-				// set the loop length that the drum stem export should be stopped at
-				if (thisNoteRow->loopLengthIfIndependent != 0) {
-					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent;
-				}
-				else {
-					loopLengthToStopStemExport = clip->loopLength;
-				}
-				getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
-
-				bool started = startCurrentStemExport(stemExportType, output, thisNoteRow->muted, idxNoteRow,
-				                                      thisNoteRow->exportStem, (SoundDrum*)thisNoteRow->drum);
-
-				if (!started) {
-					// the export may have been aborted rather than this stem simply being skipped
-					if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-						break;
-					}
-					// skip this stem and move to the next one
-					continue;
-				}
-
-				// wait until recording is done and playback is turned off
-				renderWait([]() {
-					// if you haven't found silence yet and playback has stopped
-					// check for silence so you can stop recording
-					if (stemExport.stopRecording) {
-						stemExport.stopOutputRecording();
-					}
-					return !(playbackHandler.recording != RecordingMode::OFF
-					         || audioRecorder.recordingSource > AudioInputChannel::NONE
-					         || playbackHandler.isEitherClockActive());
-				});
-
-				finishCurrentStemExport(stemExportType, thisNoteRow->muted);
-			}
-			// in the event that stem exporting is cancelled while iterating through drums
-			// break out of the loop
-			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-				break;
-			}
-		}
+// stopRecording is set once the recording has something to stop for; the element is done when nothing
+// is recording, no source is armed, and playback has stopped.
+bool StemExport::elementFinished() {
+	if (stemExport.stopRecording) {
+		stemExport.stopOutputRecording();
 	}
-
-	// set drum mutes back to their previous state (before exporting stems)
-	restoreAllDrumMutes(totalNumNoteRows);
-	// set clip mutes back to their previous state (before exporting stems)
-	restoreAllClipMutes(totalNumClips);
-
-	return totalNumNoteRows;
+	return !(playbackHandler.recording != RecordingMode::OFF || audioRecorder.recordingSource > AudioInputChannel::NONE
+	         || playbackHandler.isEitherClockActive());
 }
 
-bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState,
+int32_t StemExport::prepareElements() {
+	switch (currentStemExportType) {
+	case StemExportType::CLIP:
+		return disarmAllClipsForStemExport();
+
+	case StemExportType::DRUM:
+		// A drum export records one kit clip's rows, so every OTHER clip has to be disarmed first. Its
+		// count is kept for restoreElements(), which has two sets of mutes to undo rather than one.
+		drumExportTotalNumClips = disarmAllClipsForStemExport();
+		return disarmAllDrumsForStemExport();
+
+	case StemExportType::TRACK:
+	case StemExportType::MIXDOWN:
+	default:
+		return disarmAllInstrumentsForStemExport(currentStemExportType);
+	}
+}
+
+void StemExport::restoreElements(int32_t total) {
+	switch (currentStemExportType) {
+	case StemExportType::CLIP:
+		restoreAllClipMutes(total);
+		return;
+
+	case StemExportType::DRUM:
+		restoreAllDrumMutes(total);
+		restoreAllClipMutes(drumExportTotalNumClips);
+		return;
+
+	case StemExportType::TRACK:
+		restoreAllInstrumentMutes(total);
+		return;
+
+	case StemExportType::MIXDOWN:
+	default:
+		// Nothing to restore: a MIXDOWN records every unmuted output together, so its own disarm
+		// deliberately leaves mutedInArrangementMode alone (see disarmAllInstrumentsForStemExport).
+		return;
+	}
+}
+
+bool StemExport::fetchElement(int32_t index, StemElement& element) {
+	switch (currentStemExportType) {
+	case StemExportType::CLIP: {
+		Clip* clip = currentSong->sessionClips[index];
+		if (clip == nullptr) {
+			return false;
+		}
+		getLoopLengthOfLongestNotEmptyNoteRow(clip);
+		getLoopEndPointInSamplesForAudioFile(clip->loopLength);
+		element = {clip->output, &clip->activeIfNoSolo, clip->exportStem, nullptr};
+		return true;
+	}
+
+	case StemExportType::DRUM: {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		NoteRow* noteRow = clip->noteRows.tryGet(index);
+		if (noteRow == nullptr) {
+			return false;
+		}
+		clip->activeIfNoSolo = true; // unmute clip
+
+		// set the loop length that the drum stem export should be stopped at
+		loopLengthToStopStemExport =
+		    (noteRow->loopLengthIfIndependent != 0) ? noteRow->loopLengthIfIndependent : clip->loopLength;
+		getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
+
+		element = {clip->output, &noteRow->muted, noteRow->exportStem, (SoundDrum*)noteRow->drum};
+		return true;
+	}
+
+	case StemExportType::MIXDOWN:
+		// The single element stands for every unmuted output at once, so it names no output and owns
+		// no mute of its own.
+		element = {nullptr, nullptr, true, nullptr};
+		return true;
+
+	case StemExportType::TRACK:
+	default: {
+		Output* output = currentSong->getOutputFromIndex(index);
+		if (output == nullptr) {
+			return false;
+		}
+		element = {output, &output->mutedInArrangementMode, output->exportStem, nullptr};
+		return true;
+	}
+	}
+}
+
+bool StemExport::startElement(int32_t index, const StemElement& element) {
+	if (currentStemExportType == StemExportType::MIXDOWN) {
+		// No per-element scroll or mute to update, and one file rather than one per element.
+		if (!setWavFileNameForStemExport(currentStemExportType, nullptr, 0)) {
+			abortStemExportProcess(deluge::l10n::String::STRING_FOR_STEM_NAME_TOO_LONG);
+			return false;
+		}
+		// start resampling which ends when end of arrangement is reached and audio is silent
+		startOutputRecordingUntilLoopEndAndSilence();
+		displayStemExportProgress(currentStemExportType);
+		return true;
+	}
+	return startCurrentStemExport(currentStemExportType, element.output, element.muteState, index, element.exportStem,
+	                              element.drum);
+}
+
+void StemExport::finishElement(const StemElement& element) {
+	finishCurrentStemExport(currentStemExportType, element.muteState);
+}
+
+bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool* muteState,
                                         int32_t indexNumber, bool exportStem, SoundDrum* drum) {
 	updateScrollPosition(stemExportType, indexNumber + 1);
 
@@ -744,11 +716,11 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 
 	if (stemExportType == StemExportType::CLIP) {
 		// unmute clip for recording
-		muteState = true; // clip->activeIfNoSolo
+		*muteState = true; // clip->activeIfNoSolo
 	}
 	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::DRUM) {
 		// unmute output / drum for recording
-		muteState = false; // output->mutedInArrangementMode or noteRow->muted
+		*muteState = false; // output->mutedInArrangementMode or noteRow->muted
 	}
 
 	// re-render song view since we scrolled and updated mutes
@@ -773,14 +745,14 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 /// mute clip or output after recording it so that it's not recorded next time
 /// update recording mode if it needs to be updated
 /// increment number of stems exported so progress can be displayed
-void StemExport::finishCurrentStemExport(StemExportType stemExportType, bool& muteState) {
+void StemExport::finishCurrentStemExport(StemExportType stemExportType, bool* muteState) {
 	if (stemExportType == StemExportType::CLIP) {
 		// mute clip for recording
-		muteState = false; // clip->activeIfNoSolo
+		*muteState = false; // clip->activeIfNoSolo
 	}
 	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::DRUM) {
 		// mute output / drum for recording
-		muteState = true; // output->mutedInArrangementMode or noteRow->muted
+		*muteState = true; // output->mutedInArrangementMode or noteRow->muted
 	}
 
 	// update number of stems exported
@@ -998,53 +970,123 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 
 		// here we loop until we are able to successfully create a folder, or give up because
 		// existence could not be determined for some candidate (searchAborted)
+		// The candidate search, as phases. Each tick issues at most one operation and returns, so a
+		// search over many candidates never holds the card for more than one tick at a time.
+		//
+		// PROBE-THEN-CREATE is deliberate: efatfs mkdir is idempotent and succeeds on a directory that
+		// already exists, so creating first and reading the result would quietly adopt somebody's
+		// finished export. Only a candidate proven Absent is taken.
 		bool searchAborted = false;
-		while (true) {
-			// efatfs mkdir is idempotent (succeeds on an existing dir), so a successful mkdir does
-			// not imply the folder was new. Only accept a folder that does not already exist, so we
-			// never reuse an occupied stem-export folder (old C-FatFS f_mkdir returned FR_EXIST here).
-			deluge_file_invalidate_cache();
-			bool created = false;
-			switch (deluge::storage::presence_of(
-			    deluge::io::presence_from_open(deluge::io::Directory::open(tempPathForSearch.c_str())))) {
-			case deluge::storage::Presence::Absent:
-				// Genuinely absent: safe to create.
-				created = deluge::io::mkdir(tempPathForSearch.c_str()).has_value();
-				break;
-			case deluge::storage::Presence::Undeterminable:
-				// Could not tell whether this folder is occupied -- do not risk reusing it, and a
-				// persistent BUSY must not spin forever.
-				searchAborted = true;
-				break;
-			case deluge::storage::Presence::Present:
-				break; // occupied: advance to the next candidate
-			}
-			if (created) {
-				// successful, exit out of loop
-				break;
-			}
-			if (searchAborted) {
-				break;
-			}
-			// not successful — an existing folder is how we find a free number; try the next
-			// increment folder number so we can append it to the folder name
-			highestUsedStemFolderNumber++;
-
-			// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS
-			tempPathForSearch = tempPath.c_str();
-
-			// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS-
-			tempPathForSearch.append("-");
-
-			// tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/TRACKS-##
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CLIPS-##
-			// or tempPathForSearch =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS-##
-			tempPathForSearch.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
+		if (!stemSearchActive_) {
+			stemSearchActive_ = true;
+			stemSearchPhase_ = deluge::storage::StemSearchPhase::ProbeCandidate;
+			stemSearchIssued_ = false;
+			stemSearchCandidatesTried_ = 0;
+			stemSearchStallTicks_ = 0;
+			stemSearchCandidatePath_ = tempPathForSearch;
 		}
+
+		// How many calls one candidate's channel operation may go unanswered before the search gives up. After boot
+		// there is nowhere legal to redo the operation inline, so a channel that stopped answering ends the search --
+		// as Failed, the refusal every other unanswerable question here already gets.
+		constexpr int32_t kMaxStemSearchStallTicks = 600;
+
+		const bool mayUseChannel = deluge::boot::finished() && deluge_file_bytes_async_active();
+
+		while (stemSearchPhase_ != deluge::storage::StemSearchPhase::Done
+		       && stemSearchPhase_ != deluge::storage::StemSearchPhase::Failed) {
+			uint8_t collected = DELUGE_FILE_WRITE_READY;
+			deluge::storage::Presence candidate = deluge::storage::Presence::Absent;
+
+			switch (stemSearchPhase_) {
+			case deluge::storage::StemSearchPhase::ProbeCandidate: {
+				deluge_file_invalidate_cache();
+				if (mayUseChannel) {
+					DelugeStatus outStatus = DELUGE_OK;
+					bool present = false;
+					const deluge::storage::bytes::ByteIo io =
+					    deluge::storage::bytes::collectExists(stemSearchCandidatePath_.c_str(), &present, &outStatus);
+					if (io == deluge::storage::bytes::ByteIo::Unknown
+					    || io == deluge::storage::bytes::ByteIo::Pending) {
+						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
+							if (io == deluge::storage::bytes::ByteIo::Unknown) {
+								(void)deluge::storage::bytes::requestExists(stemSearchCandidatePath_.c_str());
+							}
+							return Error::LISTING_DEFERRED;
+						}
+						// Stalled: could not tell, which the policy refuses rather than reuse a folder.
+						candidate = deluge::storage::Presence::Undeterminable;
+						break;
+					}
+					candidate = (io == deluge::storage::bytes::ByteIo::Ready)
+					                ? (present ? deluge::storage::Presence::Present : deluge::storage::Presence::Absent)
+					                : deluge::storage::Presence::Undeterminable;
+				}
+				else {
+					candidate = deluge::storage::presence_of(
+					    deluge::io::presence_from_open(deluge::io::Directory::open(stemSearchCandidatePath_.c_str())));
+				}
+				break;
+			}
+
+			case deluge::storage::StemSearchPhase::MkdirCandidate: {
+				deluge_file_invalidate_cache();
+				if (mayUseChannel) {
+					DelugeStatus outStatus = DELUGE_OK;
+					const deluge::storage::bytes::ByteIo io =
+					    deluge::storage::bytes::collectMkdirAll(stemSearchCandidatePath_.c_str(), &outStatus);
+					if (io == deluge::storage::bytes::ByteIo::Unknown
+					    || io == deluge::storage::bytes::ByteIo::Pending) {
+						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
+							if (io == deluge::storage::bytes::ByteIo::Unknown) {
+								(void)deluge::storage::bytes::requestMkdirAll(stemSearchCandidatePath_.c_str());
+							}
+							return Error::LISTING_DEFERRED;
+						}
+						// Stalled: a folder that could not be made, which ends the search.
+						collected = DELUGE_FILE_WRITE_FAILED;
+						break;
+					}
+					collected = (io == deluge::storage::bytes::ByteIo::Ready) ? DELUGE_FILE_WRITE_READY
+					                                                          : DELUGE_FILE_WRITE_FAILED;
+				}
+				else {
+					collected = deluge::io::mkdir(stemSearchCandidatePath_.c_str()).has_value()
+					                ? DELUGE_FILE_WRITE_READY
+					                : DELUGE_FILE_WRITE_FAILED;
+				}
+				break;
+			}
+
+			default:
+				break;
+			}
+
+			const deluge::storage::StemSearchPhase next =
+			    deluge::storage::nextStemSearchPhase(deluge::storage::StemSearchInputs{
+			        stemSearchPhase_,
+			        collected,
+			        candidate,
+			        stemSearchCandidatesTried_,
+			    });
+
+			// Occupied: advance to the next candidate name. Every naming decision stays here.
+			if (next == deluge::storage::StemSearchPhase::ProbeCandidate
+			    && stemSearchPhase_ == deluge::storage::StemSearchPhase::ProbeCandidate) {
+				stemSearchCandidatesTried_++;
+				highestUsedStemFolderNumber++;
+				stemSearchCandidatePath_ = tempPath.c_str();
+				stemSearchCandidatePath_.append("-");
+				stemSearchCandidatePath_.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
+			}
+			stemSearchStallTicks_ = 0;
+			stemSearchPhase_ = next;
+		}
+
+		tempPathForSearch = stemSearchCandidatePath_;
+		searchAborted = (stemSearchPhase_ == deluge::storage::StemSearchPhase::Failed);
+		stemSearchActive_ = false;
+		stemSearchPhase_ = deluge::storage::StemSearchPhase::MkdirBase;
 
 		if (searchAborted) {
 			// Existence couldn't be determined for some candidate folder -- refuse rather than
@@ -1054,6 +1096,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 
 		// copy folder path created above into the filePath so it can be used by the caller
 		(*filePath) = tempPathForSearch.c_str();
+		lastExportFolderPath = *filePath;
 	}
 	else {
 		// if folder number is -1, it means this is the first time we're running the stem export
@@ -1075,6 +1118,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 
 		// copy folder path created above into the filePath so it can be used by the caller
 		(*filePath) = tempPath.c_str();
+		lastExportFolderPath = *filePath;
 	}
 
 	// save current folder name as last folder name exported

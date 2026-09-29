@@ -125,7 +125,7 @@ public:
 	///         disengaged and the failure reason is distinguished: `Error::TOO_MANY_OPEN_STREAMS` if
 	///         the streaming-registry's slot table (or the underlying efatfs handle table) has no free
 	///         slot (a real file being silently dropped, not a missing one), `Error::FILE_NOT_FOUND` for
-	///         every other open failure (bad path, unmounted FS, off-fiber call).
+	///         every other open failure (bad path, unmounted FS).
 	Error open_read_stream(std::string_view path);
 
 	/// @brief Build this sample's read source.

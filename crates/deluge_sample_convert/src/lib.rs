@@ -6,7 +6,7 @@
 //!     also exposed for the scalar single-word core), with a no-op cooperative `Yield`.
 //!   * [`stitch_boundaries`] — in-place boundary stitching of a cluster against its loaded neighbours.
 //!
-//! The behaviour is pinned by `tests/spec_audio_stream/{convert,stitch,convert_cluster}_spec.cpp`; the
+//! The behaviour is pinned by `tests/unit/audio_stream/{convert,stitch,convert_cluster}_spec.cpp`; the
 //! `#[test]`s below round-trip the cc-built x86-SIMDe objects against the same assertions, and assert the
 //! armv7a-NEON compile/verify check (stamped by build.rs) succeeded.
 

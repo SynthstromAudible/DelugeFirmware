@@ -25,6 +25,12 @@ public:
 	NoteRow* insertNoteRowAtIndex(int32_t index);
 	NoteRow* insertNoteRowAtY(int32_t y, int32_t* getIndex = nullptr);
 	void deleteNoteRowAtIndex(int32_t index, int32_t numToDelete = 1);
+	/// @brief Swap two rows in place (a note-row drag).
+	///
+	/// @note A structural edit: the render walks the rows.
+	/// @param a Index of the first row.
+	/// @param b Index of the second row.
+	void swapRows(int32_t a, int32_t b);
 
 	/// Legacy clone idiom (shadows the base implementation): fills this vector with *byte-copies* of the other
 	/// vector's rows. The copies alias the source rows' notes/automation until NoteRow::beenCloned() is called

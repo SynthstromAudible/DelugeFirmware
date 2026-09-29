@@ -1,7 +1,7 @@
 // extern "C" shims over the app's convert.cpp / stitch.cpp, so this crate's SAFE Rust wrappers can call
 // the two pure functions the SR2 region backing's fill path needs — `convert_cluster_data` (concretized
 // with a no-op Yield) and `stitch_boundaries` — across the FFI boundary. The behaviour these expose is
-// pinned by tests/spec_audio_stream/{convert,stitch,convert_cluster}_spec.cpp; src/lib.rs's #[test]s
+// pinned by tests/unit/audio_stream/{convert,stitch,convert_cluster}_spec.cpp; src/lib.rs's #[test]s
 // round-trip the cc-built objects against the same assertions.
 //
 // Two shim subtleties:

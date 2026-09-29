@@ -962,7 +962,13 @@ void InstrumentClip::toggleNoteRowMute(ModelStackWithNoteRow* modelStack) {
 ModelStackWithNoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, ModelStackWithTimelineCounter* modelStack) {
 	int32_t noteRowIndex;
 	NoteRow* noteRow = getNoteRowOnScreen(yDisplay, modelStack->song, &noteRowIndex);
-	int32_t noteRowId;
+	// Initialised, not left indeterminate. `ModelStackWithNoteRow::noteRowId` is documented
+	// "valid and mandatory, iff noteRow is set" (model_stack.h), so on the null path below no
+	// conforming consumer reads this value — but passing an uninitialised local is still UB, and
+	// UB is exactly what a codegen change converts from "harmless garbage nobody looked at" into
+	// an observable fault. 0 is arbitrary and deliberately so: any defined value satisfies the
+	// contract, and picking one costs nothing.
+	int32_t noteRowId = 0;
 	if (noteRow) {
 		noteRowId = getNoteRowId(noteRow, noteRowIndex);
 	}
@@ -994,7 +1000,11 @@ NoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_
 ModelStackWithNoteRow* InstrumentClip::getNoteRowForYNote(int32_t yNote, ModelStackWithTimelineCounter* modelStack) {
 	int32_t noteRowIndex;
 	NoteRow* noteRow = getNoteRowForYNote(yNote, &noteRowIndex);
-	int32_t noteRowId;
+	// Initialised, not left indeterminate — same reasoning as `getNoteRowOnScreen`'s sibling fix:
+	// this function's own comment advertises a null `noteRow`, `ModelStackWithNoteRow::noteRowId` is
+	// documented "valid and mandatory, iff noteRow is set", and passing an uninitialised local is UB
+	// regardless of whether a conforming consumer reads it.
+	int32_t noteRowId = 0;
 	if (noteRow) {
 		noteRowId = getNoteRowId(noteRow, noteRowIndex);
 	}
@@ -3237,17 +3247,43 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 				// its NoteRow?
 				if (clipIsActive && noteRow->drum) {
 
+					// This check is ALPHA_OR_BETA_VERSION-only, so it compiles out on a release build: a drum with
+					// genuinely active voices could still reach the SoundDrum branch below on release. What actually
+					// guards that build is AudioEngine::retire()'s let-go, which kills a drum's voices
+					// unconditionally before it is ever destroyed.
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
 					    && static_cast<SoundDrum*>(noteRow->drum)->hasActiveVoices()) {
 						FREEZE_WITH_ERROR("E176");
 					}
 
 					Drum* drum = noteRow->drum;
-					kit->removeDrum(drum);
 
-					void* toDealloc = dynamic_cast<void*>(drum);
-					drum->~Drum();
-					delugeDealloc(toDealloc);
+					if (drum->type == DrumType::SOUND) {
+						auto* soundDrum = static_cast<SoundDrum*>(drum);
+						// We're about to delete this NoteRow, so there is no note to stop -- and no killAllVoices
+						// either: the render only ever reaches a drum in the kit's renderingDrums, so take
+						// it out before removing it, as InstrumentClipView::deleteDrum and
+						// LoadInstrumentPresetUI::swapKitRow do. Its voices are ended by the render when it lets go
+						// of the retired drum, below.
+						kit->renderingDrums.remove(soundDrum);
+						kit->removeDrum(soundDrum);
+						// Out of the kit for good: the render's let-go of the drum must not write back into the
+						// kit's renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering
+						// skips a null kit). Erase again first: a sequencer note-on between the first erase and here
+						// re-inserts the drum, and after this nothing can name it.
+						kit->renderingDrums.remove(soundDrum);
+						soundDrum->kit = nullptr;
+						AudioEngine::retire(soundDrum);
+					}
+					else {
+						// MIDI and gate drums have no voices and are never in renderingDrums: there is
+						// nothing for the render to let go of, so destroy them directly.
+						kit->removeDrum(drum);
+
+						void* toDealloc = dynamic_cast<void*>(drum);
+						drum->~Drum();
+						delugeDealloc(toDealloc);
+					}
 				}
 
 				noteRows.deleteNoteRowAtIndex(i);
@@ -3737,8 +3773,6 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	Availability availabilityRequirement;
 	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this, &availabilityRequirement);
 
-	bool shouldReplaceWholeInstrument;
-
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E061", "H061");
 
 	backupPresetSlot();
@@ -3761,53 +3795,60 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		}
 	}
 
-	// Synth / Kit
+	// Synth / Kit: acquired by InstrumentLoad, see beginChangeOutputType() and applyChangeOutputType().
 	else {
-		std::string newName;
-		Error error;
-
-		newName = backedUpInstrumentName[newOutputTypeAsIdx];
-		Browser::currentDir = backedUpInstrumentDirPath[newOutputTypeAsIdx];
-
-		if (Browser::currentDir.empty()) {
-			Browser::currentDir = getInstrumentFolder(newOutputType);
-		}
-
-		FileItem* fileItem = D_TRY_CATCH(
-		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement),
-		    error, {
-			    display->displayError(error);
-			    return nullptr;
-		    });
-
-		newInstrument = fileItem->instrument;
-		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-		instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
-
-		if (!newInstrument) {
-			std::string newPresetName = fileItem->getFilenameWithoutExtension();
-			std::string filePath = Browser::currentDir + "/" + fileItem->getFilenameWithExtension();
-			error =
-			    StorageManager::loadInstrumentFromFile(modelStack->song, nullptr, newOutputType, false, &newInstrument,
-			                                           filePath.c_str(), &newPresetName, &Browser::currentDir);
-		}
-
-		Browser::emptyFileItems();
-
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return nullptr;
-		}
-
-		if (isHibernating) {
-			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
-		}
-
-		display->displayLoadingAnimationText("Loading");
-		newInstrument->loadAllAudioFiles(true);
+		return nullptr;
 	}
 
-	shouldReplaceWholeInstrument = (canReplaceWholeInstrument && !instrumentAlreadyInSong);
+	return finishChangeOutputType(modelStack, newOutputType, newInstrument, instrumentAlreadyInSong,
+	                              canReplaceWholeInstrument);
+}
+
+bool InstrumentClip::beginChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+                                           deluge::storage::AcquireWalkSpec* walk) {
+	if (output->type == newOutputType) {
+		return false;
+	}
+
+	actionLogger.deleteAllLogs(); // Can't undo past this!
+
+	Availability availabilityRequirement;
+	(void)modelStack->song->shouldOldOutputBeReplaced(this, &availabilityRequirement);
+
+	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E061", "H061");
+
+	backupPresetSlot();
+
+	const size_t newOutputTypeAsIdx = static_cast<size_t>(newOutputType);
+	*walk = {.walk = deluge::storage::AcquireWalk::Confirm,
+	         .outputType = newOutputType,
+	         .availability = availabilityRequirement,
+	         .dirPath = backedUpInstrumentDirPath[newOutputTypeAsIdx],
+	         .name = backedUpInstrumentName[newOutputTypeAsIdx]};
+	if (walk->dirPath.empty()) {
+		walk->dirPath = getInstrumentFolder(newOutputType);
+	}
+	return true;
+}
+
+Instrument* InstrumentClip::applyChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+                                                  const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		display->displayError(acquired.error);
+		return nullptr;
+	}
+	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this);
+	if (acquired.wasHibernating) {
+		modelStack->song->removeInstrumentFromHibernationList(acquired.instrument);
+	}
+	return finishChangeOutputType(modelStack, newOutputType, acquired.instrument, acquired.alreadyInSong,
+	                              canReplaceWholeInstrument);
+}
+
+Instrument* InstrumentClip::finishChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+                                                   Instrument* newInstrument, bool instrumentAlreadyInSong,
+                                                   bool canReplaceWholeInstrument) {
+	bool shouldReplaceWholeInstrument = (canReplaceWholeInstrument && !instrumentAlreadyInSong);
 
 	// If replacing whole Instrument
 	if (shouldReplaceWholeInstrument) {

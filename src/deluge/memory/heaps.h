@@ -18,6 +18,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 
 // The application's allocator heaps, built over the BSP's memory regions
 // (deluge_memory_region) and backed by the Rust deluge_alloc core. These free
@@ -61,6 +62,31 @@ std::size_t sdram_size();
 // the deluge_alloc heaps above; `align` is honored (default 16, the SIMD floor).
 // Return nullptr on OOM. Under DELUGE_DETERMINISTIC_ALLOC (sim/golden only) the
 // block is zeroed before return, matching the old GMA alloc path.
+
+/// @brief [audio] Heap allocations made on the audio tier since boot (host-only diagnostic; always 0 on device).
+///
+/// @note The render must not allocate: it shares the heap with every other tier.
+/// @return Allocation count since boot.
+uint32_t audioTierAllocations();
+
+/// @brief Mark the calling thread as inside (or leaving) a render block, for audioTierAllocations() (host-only).
+/// @param entering True when entering the render block, false when leaving it.
+void noteRenderBlock(bool entering);
+
+#ifdef DELUGE_HOST
+/// @brief Host-only test seam: make the next allocation of exactly @p size bytes fail, once.
+/// @param size Allocation size (bytes) to fail on its next occurrence.
+void failNextAllocationOfSize(std::size_t size);
+
+/// @brief [task] [audio] Consume a failure previously armed for @p size (host-only).
+/// @param size Allocation size to check/consume.
+/// @return True if a matching failure was pending (and is now consumed).
+bool injectedAllocationFailure(std::size_t size);
+
+/// @brief Whether a failure armed by failNextAllocationOfSize() has not yet been consumed (host-only).
+/// @return True if a pending failure remains unconsumed.
+bool allocationFailurePending();
+#endif
 
 /// SRAM-preferred (small allocs to the frunk heap) with SDRAM fallback (== the old
 /// allocMaxSpeed).

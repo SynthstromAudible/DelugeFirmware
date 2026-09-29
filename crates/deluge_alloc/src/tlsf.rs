@@ -393,7 +393,26 @@ impl Tlsf {
             return;
         }
         let block = mem as *mut BlockHeader;
-        let block_size = (size - pool_overhead) & SIZE_MASK;
+        // Round DOWN to ALIGN, not merely to the flag granularity.
+        //
+        // `SIZE_MASK` is `!FLAG_MASK` (`!3`), so it only guarantees a multiple of 4 — but every
+        // block payload in this allocator must be ALIGN(16)-aligned, and `check()` enforces exactly
+        // that ("payloads are 16-aligned by construction"). The sentinel sits at
+        // `block + HEADER_SIZE + block_size`, so a `block_size` that is 4 (mod 16) puts the
+        // sentinel — and its header writes below — on a misaligned address. That is undefined
+        // behaviour, and on a freshly built pool it made the heap fail its own integrity walk
+        // immediately.
+        //
+        // It only bites a pool whose SIZE is not a multiple of ALIGN. `deluge_heap_create` aligns
+        // the base but derives the size from the region's end, so a region whose end is unaligned
+        // produces exactly that. The firmware's "frunk" heap is one: its bounds are the linker
+        // symbols `__frunk_bss_end`/`__frunk_slack_end`, which carry no 16-byte guarantee, and were
+        // observed at `0x200a8b84 .. 0x200b0b84` — both 4 (mod 16). Every previous test passed a
+        // `words * 16` size, which is why this went unseen.
+        //
+        // Rounding down only ever discards up to ALIGN-1 bytes at the very top of the pool, which
+        // were unusable anyway: a block must be ALIGN-aligned to be handed out.
+        let block_size = (size - pool_overhead) & !(ALIGN - 1);
         (*block).prev_phys = Self::null();
         (*block).size_and_flags = block_size;
         (*block).set_free();
@@ -580,13 +599,32 @@ impl Tlsf {
         self.free_block(tail); // marks free, coalesces with the following block, inserts
     }
 
+    /// Shrink `payload`'s block in place if `new_size` fits and the alignment already holds. Returns whether it did,
+    /// and the block's current payload size (what a moving realloc must copy).
+    pub unsafe fn try_shrink_in_place(
+        &mut self,
+        payload: *mut u8,
+        new_size: usize,
+        align: usize,
+    ) -> (bool, usize) {
+        let block = block_of(payload);
+        let cur = (*block).size();
+        let want = Self::adjust_size(new_size);
+        let aligned_ok = (payload as usize) & (align.max(ALIGN) - 1) == 0;
+        if aligned_ok && want <= cur {
+            self.shrink_in_place(block, want);
+            return (true, cur);
+        }
+        (false, cur)
+    }
+
     /// Resize, preserving the leading min(old, new) bytes. A **shrink** is done in
     /// place (split the tail, pointer-stable, no copy — and no worse for
     /// fragmentation than moving, since the freed tail still coalesces with any
-    /// following free block). This covers the only remaining in-place-resize
+    /// following free block). This covers the in-place-resize
     /// callers (wave_table / patch_cable_set trims), which all shrink. A **grow**
-    /// has no in-place consumer (ResizeableArray, the lone `extend` user, is gone),
-    /// so it just moves (alloc + copy + free) — correct, only unoptimized.
+    /// has no in-place consumer, so it just moves (alloc + copy + free) — correct, only
+    /// unoptimized.
     pub unsafe fn realloc(&mut self, payload: *mut u8, new_size: usize, align: usize) -> *mut u8 {
         if payload.is_null() {
             return self.malloc(new_size, align);
@@ -595,15 +633,9 @@ impl Tlsf {
             self.free(payload);
             return ptr::null_mut();
         }
-        let block = block_of(payload);
-        let cur = (*block).size();
-        let want = Self::adjust_size(new_size);
-        let need_align = align.max(ALIGN);
-        let aligned_ok = (payload as usize) & (need_align - 1) == 0;
-
         // Shrink in place (pointer-stable). Growth falls through to a move.
-        if aligned_ok && want <= cur {
-            self.shrink_in_place(block, want);
+        let (shrunk, cur) = self.try_shrink_in_place(payload, new_size, align);
+        if shrunk {
             return payload;
         }
         let np = self.malloc(new_size, align);

@@ -23,7 +23,7 @@ namespace deluge::sync {
 ///
 /// The app-level reentrancy checkers (MIDI / SysEx / playback) query this to defer their
 /// own SD/FatFS work rather than re-enter a non-reentrant FatFS mid-operation. Backed by
-/// `deluge_storage_fs_busy()`, which each BSP provides: false where `Owner::run` executes
+/// `deluge_storage_fs_busy()`, which each BSP provides: false where filesystem work runs
 /// inline on the caller (cooperative/C-host), the FS-mutex-held state on Embassy.
 bool sd_busy();
 

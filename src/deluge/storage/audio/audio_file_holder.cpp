@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/audio/load_trace.h"
 
 AudioFileHolder::AudioFileHolder() {
 	audioFile = nullptr;
@@ -27,39 +28,50 @@ AudioFileHolder::AudioFileHolder() {
 AudioFileHolder::~AudioFileHolder() {
 }
 
+AudioFile* AudioFileHolder::acquire(bool mayActuallyReadFile, Error* error, bool makeWaveTableWorkAtAllCosts,
+                                    deluge::storage::AsyncLoadMode asyncMode,
+                                    deluge::storage::AudioLoadContext* context) {
+	*error = Error::NONE;
+
+	// See if this AudioFile object already all loaded up
+	if (audioFile != nullptr) {
+		return nullptr;
+	}
+
+	if (filePath.empty()) {
+		return nullptr; // This could happen if the filename tag wasn't present in the file
+	}
+
+	return audioFileManager.getAudioFileFromFilename(filePath, mayActuallyReadFile, error, audioFileType,
+	                                                 makeWaveTableWorkAtAllCosts, asyncMode, context);
+}
+
 // Loads file from filePath, which would already be set.
 // Returns error, but Error::NONE doesn't necessarily mean there's now a file loaded - it might be that filePath was
 // NULL, but that's not a problem. Or that the SD card would need to be accessed but we didn't have permission for that
 // (!mayActuallyReadFile).
+// asyncMode is forwarded as-is to getAudioFileFromFilename (see its own doc comment and this
+// function's declaration in the header): a caller that passes anything but Blocking must be prepared to see
+// Error::LOAD_IN_PROGRESS come back out of this function and treat it as "ask again later", not a
+// failure.
 Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-                                int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts) {
-
-	// See if this AudioFile object already all loaded up
-	if (audioFile != nullptr) {
-		return Error::NONE;
+                                int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts,
+                                deluge::storage::AsyncLoadMode asyncMode, deluge::storage::AudioLoadContext* context) {
+	Error error = Error::NONE;
+	// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of
+	// the audio routine trying to sound it before it's all set up.
+	if (AudioFile* file = acquire(mayActuallyReadFile, &error, makeWaveTableWorkAtAllCosts, asyncMode, context)) {
+		setAudioFile(file, reversed, manuallySelected, clusterLoadInstruction);
 	}
-
-	if (filePath.empty()) {
-		return Error::NONE; // This could happen if the filename tag wasn't present in the file
-	}
-
-	Error error;
-	AudioFile* maybeNewAudioFile = audioFileManager.getAudioFileFromFilename(
-	    filePath, mayActuallyReadFile, &error, audioFileType, makeWaveTableWorkAtAllCosts);
-	// If we found it...
-	if (maybeNewAudioFile != nullptr) {
-
-		// We only actually set it after already setting it up, processing the wavetable, etc. - so there's no risk of
-		// the audio routine trying to sound it before it's all set up.
-		setAudioFile(maybeNewAudioFile, reversed, manuallySelected, clusterLoadInstruction);
-	}
-
 	return error;
 }
 
 // For if we've already got a pointer to the AudioFile in memory.
 void AudioFileHolder::setAudioFile(AudioFile* newAudioFile, bool reversed, bool manuallySelected,
                                    int32_t clusterLoadInstruction) {
+	DELUGE_LOAD_TRACE("bind path=%s file=%d reversed=%d manual=%d cluster=%d", filePath.c_str(),
+	                  newAudioFile != nullptr ? 1 : 0, reversed ? 1 : 0, manuallySelected ? 1 : 0,
+	                  static_cast<int>(clusterLoadInstruction));
 	if (audioFile) {
 		unassignAllClusterReasons();
 #if ALPHA_OR_BETA_VERSION

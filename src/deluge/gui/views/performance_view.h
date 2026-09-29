@@ -21,6 +21,7 @@
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
 #include "modulation/params/param.h"
+#include "storage/byte_channel.h"
 #include "storage/storage_manager.h"
 
 class Editor;
@@ -56,6 +57,9 @@ struct ParamsForPerformance {
 };
 
 class PerformanceView final : public ClipNavigationTimelineView {
+	/// @brief The settings-channel gate's view into the defaults-read state; see `settings_channel_scenario.cpp`.
+	friend struct SettingsChannelProbe;
+
 public:
 	PerformanceView();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
@@ -157,6 +161,12 @@ private:
 
 	/// write/load default values
 	void writeDefaultsToFile();
+	/// @brief writeDefaultsToFile's body, run where blocking on the card is legal.
+	void writeDefaultsInline();
+	/// @brief Write the performance defaults into an already-opened serialiser, file- or
+	///        memory-backed.
+	/// @param writer The already-opened serialiser to write into.
+	void serialiseDefaults(Serializer& writer);
 	void writeDefaultFXValuesToFile(Serializer& writer);
 	void writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay);
 	void writeDefaultFXRowValuesToFile(Serializer& writer, int32_t xDisplay);
@@ -164,6 +174,20 @@ private:
 	void loadDefaultLayout();
 	void readDefaultsFromBackedUpFile();
 	void readDefaultsFromFile();
+	/// @brief readDefaultsFromFile's body, run where blocking on the card is legal.
+	void readDefaultsInline();
+	/// @brief `deluge::storage::bytes::ParseFn` for the defaults, over channel-delivered bytes.
+	/// @param ctx   The `PerformanceView` instance, passed through unexamined by the channel.
+	/// @param bytes The file's contents. Valid only for the duration of the call.
+	/// @param len   Byte count.
+	static void parseDefaultsBytes(void* ctx, char* bytes, uint32_t len);
+	/// @brief `deluge::storage::bytes::AbsentFn`: the defaults file is absent in both locations.
+	/// @param ctx The `PerformanceView` instance, passed through unexamined by the channel.
+	static void defaultsAbsent(void* ctx);
+	/// @brief `deluge::storage::bytes::DoneFn` for the defaults read: an unreadable card uses the default layout.
+	/// @param ctx     The `PerformanceView` instance, passed through unexamined by the channel.
+	/// @param outcome How the read ended.
+	static void defaultsReadDone(void* ctx, deluge::storage::bytes::SettingsOutcome outcome);
 	void readDefaultFXValuesFromFile();
 	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
 	void readDefaultFXParamFromFile(int32_t xDisplay);

@@ -9,7 +9,7 @@
 # has a std test harness that links the cc-built C++ objects, and its own pinned
 # C++ deps — so it stays isolated from the panic=abort/no_std workspace profiles.
 # Mirrors the proven layout of the SR2b de-risk spike (since retired, which this
-# productionizes) and harness/rust/fs_differential.
+# productionizes) and tests/component/differential/fs_differential.
 #
 # Dep ownership: build.rs fetches argon + SIMDe pinned to the SAME SHAs the CMake
 # FetchContent uses, into a gitignored third_party/ cache. The crate owns its deps;

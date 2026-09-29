@@ -482,7 +482,7 @@ bool MIDIInstrument::readTagFromFile(Deserializer& reader, char const* tagName) 
 		channelSuffix = reader.readTagOrAttributeValueInt();
 	}
 	else if (!strcmp(tagName, "midiDevice")) {
-		readDeviceDefinitionFile(reader, true);
+		readDeviceDefinitionFile(reader);
 	}
 	else if (NonAudioInstrument::readTagFromFile(reader, tagName)) {
 		return true;
@@ -526,31 +526,22 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(int32_t readAutomationUpToP
 	return Error::NONE;
 }
 
-Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader, bool readFromPresetOrSong) {
+Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader) {
 	Error error = Error::FILE_UNREADABLE;
-	loadDeviceDefinitionFile = false;
 
 	char const* tagName;
 
 	// step into any subtags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "definitionFile")) {
+			// The file a preset or song names: the definition browser opens on it, and nothing reads it from here.
 			readDeviceDefinitionFileNameFromPresetOrSong(reader);
-			// only flag definition file for loading if we aren't reading from preset or song
-			// and definition file name isn't blank
-			if (!deviceDefinitionFileName.empty() && !readFromPresetOrSong) {
-				loadDeviceDefinitionFile = true;
-			}
 		}
-		// if we aren't reading from device definition file later, then try to read
-		// device info now
-		else if (!loadDeviceDefinitionFile) {
-			if (!strcmp(tagName, "ccLabels")) {
-				error = readCCLabelsFromFile(reader);
-			}
-			else if (!strcmp(tagName, "hideUnlabeledCC")) {
-				error = readHideUnlabeledCCFromFile(reader);
-			}
+		else if (!strcmp(tagName, "ccLabels")) {
+			error = readCCLabelsFromFile(reader);
+		}
+		else if (!strcmp(tagName, "hideUnlabeledCC")) {
+			error = readHideUnlabeledCCFromFile(reader);
 		}
 		reader.exitTag();
 	}

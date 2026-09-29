@@ -44,6 +44,7 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
@@ -1658,12 +1659,43 @@ void PerformanceView::savePerformanceViewLayout() {
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
 void PerformanceView::writeDefaultsToFile() {
+	if (deluge::storage::bytes::usingByteChannel()) {
+		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
+		// dies at the end of this scope, which is safe because `submitWrite` copies.
+		XMLSerializer writer;
+		writer.setMemoryBased();
+		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
+		serialiseDefaults(writer);
+		if (deluge::storage::bytes::submitWrite(PERFORM_DEFAULTS_XML, writer.getBufferPtr(),
+		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
+			// Cleared here rather than on the collect: this flag means "the layout in memory matches
+			// what we last asked to be stored", and the ask has happened. Waiting for the collect
+			// would leave a second, identical write to be made by whatever checks this next.
+			anyChangesToSave = false;
+			return;
+		}
+		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
+		// blocking is legal; after boot it is refused and nothing is written.
+	}
+	// A refusal leaves `anyChangesToSave` set, so the layout still reads as unsaved.
+	(void)deluge::storage::bytes::runDuringBoot(
+	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->writeDefaultsInline(); }, this);
+}
+
+void PerformanceView::writeDefaultsInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// PerformanceView.xml
 	Error error = StorageManager::createXMLFile(PERFORM_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = GetSerializer();
+	serialiseDefaults(GetSerializer());
+	GetSerializer().closeFileAfterWriting();
+
+	anyChangesToSave = false;
+}
+
+void PerformanceView::serialiseDefaults(Serializer& writer) {
 	//<defaults>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
@@ -1677,10 +1709,6 @@ void PerformanceView::writeDefaultsToFile() {
 	writer.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
 
 	writer.writeClosingTag(PERFORM_DEFAULTS_TAG);
-
-	writer.closeFileAfterWriting();
-
-	anyChangesToSave = false;
 }
 
 /// creates "FX1 - FX16 tags"
@@ -1803,6 +1831,64 @@ void PerformanceView::readDefaultsFromBackedUpFile() {
 
 /// read defaults from XML
 void PerformanceView::readDefaultsFromFile() {
+	// The channel first. The view reads its defaults when it is opened -- after boot -- so the layout
+	// lands a few ticks after the view opens either way.
+	if (deluge::storage::bytes::usingByteChannel()) {
+		if (successfullyReadDefaultsFromFile) {
+			return;
+		}
+		// The pre-1.3 file at the card root is migrated by the channel, as the inline arm renames it.
+		if (deluge::storage::bytes::submitRead(PERFORM_DEFAULTS_XML, "PerformanceView.XML",
+		                                       &PerformanceView::parseDefaultsBytes, &PerformanceView::defaultsAbsent,
+		                                       this, &PerformanceView::defaultsReadDone)) {
+			return;
+		}
+	}
+	// The body where blocking is legal. The document is staged whole and walked over memory through
+	// `activeDeserializer`, so nothing here holds the card open across a parse.
+	(void)deluge::storage::bytes::runDuringBoot(
+	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->readDefaultsInline(); }, this);
+}
+
+void PerformanceView::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
+	// `activeDeserializer` goes back on EVERY path, the failed open included -- see
+	// `RuntimeFeatureSettings::parseSettingsBytes`, which carries the full reasoning.
+	auto* self = static_cast<PerformanceView*>(ctx);
+	FileDeserializer* previous = activeDeserializer;
+	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false, PERFORM_DEFAULTS_TAG)
+	    != Error::NONE) {
+		// A document that will not open lands on the default layout, as the inline arm's failed open does.
+		activeDeserializer = previous;
+		self->loadDefaultLayout();
+		return;
+	}
+	Deserializer& reader = *activeDeserializer;
+	char const* tagName;
+	// step into the <defaultFXValues> tag
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
+			self->readDefaultFXValuesFromFile();
+		}
+		reader.exitTag();
+	}
+	activeDeserializer = previous;
+	self->successfullyReadDefaultsFromFile = true;
+}
+
+void PerformanceView::defaultsAbsent(void* ctx) {
+	// Absent in both locations: the inline arm's `WriteDefaults` case, which ends on the default layout.
+	static_cast<PerformanceView*>(ctx)->loadDefaultLayout();
+}
+
+void PerformanceView::defaultsReadDone(void* ctx, deluge::storage::bytes::SettingsOutcome outcome) {
+	// An unreadable card is the inline arm's `UseInMemoryOnly`: the default layout for this session, nothing written.
+	if (outcome == deluge::storage::bytes::SettingsOutcome::Unreadable) {
+		static_cast<PerformanceView*>(ctx)->loadDefaultLayout();
+	}
+}
+
+void PerformanceView::readDefaultsInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
@@ -1840,12 +1926,12 @@ void PerformanceView::readDefaultsFromFile() {
 	}
 
 	//<defaults>
-	Error error = StorageManager::openXMLFile(PERFORM_DEFAULTS_XML, smDeserializer, PERFORM_DEFAULTS_TAG);
+	Error error = StorageManager::openDocumentSynchronously(PERFORM_DEFAULTS_XML, PERFORM_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		loadDefaultLayout();
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	// step into the <defaultFXValues> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1854,7 +1940,8 @@ void PerformanceView::readDefaultsFromFile() {
 		}
 		reader.exitTag();
 	}
-	smDeserializer.closeWriter();
+	activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
 
 	successfullyReadDefaultsFromFile = true;
 }
@@ -1883,7 +1970,7 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 	tagNameFX[0] = 'F';
 	tagNameFX[1] = 'X';
 
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	// loop through all FX number tags
 	//<FX#>
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1902,7 +1989,7 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 
 void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
@@ -1925,7 +2012,7 @@ void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 /// rowColour, rowTailColour)
 void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName = reader.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
@@ -1944,7 +2031,7 @@ void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	// loop through all row <#> number tags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// find the row number that the tag corresponds to
@@ -1977,7 +2064,7 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<status>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {

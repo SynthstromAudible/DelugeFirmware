@@ -37,6 +37,7 @@
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
 #include "util/fixedpoint.h"
 #include <new>
@@ -1240,12 +1241,18 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 	return Error::NONE;
 }
 
-void AudioClip::loadSample(bool mayActuallyReadFile) {
-	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile);
-	name = sampleHolder.filePath.c_str();
-	if (error != Error::NONE) {
-		display->displayError(error);
-	}
+void AudioClip::loadSample(bool mayActuallyReadFile, deluge::storage::AudioLoadContext* context) {
+	deluge::storage::BlockingSampleLoad load{mayActuallyReadFile, context};
+	(void)walkSampleDemands(load);
+}
+
+deluge::storage::Walk AudioClip::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	visitor.demand({.holder = &sampleHolder,
+	                .reversed = sampleControls.isCurrentlyReversed(),
+	                .clusterLoadInstruction = CLUSTER_ENQUEUE,
+	                .makeWaveTableWorkAtAllCosts = false,
+	                .clipToName = this});
+	return deluge::storage::Walk::Continue;
 }
 
 // Keeps same ParamManager

@@ -1,0 +1,63 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include <cstdint>
+
+/// @file
+/// The world `gui/ui/slicer.cpp` is compiled against in the unit-test binary.
+///
+/// The point of this mock is that the REAL `Slicer` translation unit links and runs: the audition
+/// specs drive `Slicer::preview()` and `Slicer::graphicsRoutine()` themselves, not a
+/// re-statement of what they are believed to do. A spec that only re-states the caller cannot catch
+/// a caller that stops re-asking.
+///
+/// Only the collaborators the audition path actually touches behave; everything else `slicer.cpp`
+/// references is defined just far enough to satisfy the linker.
+///
+/// FAILURE MODES, for whoever extends this. A collaborator `slicer.cpp` gains that is not stubbed
+/// is an undefined-symbol LINK error -- loud, and the reason compiling a firmware UI translation
+/// unit into the test binary is affordable. The failure that is NOT loud is a value-returning
+/// function stubbed as if it returned void, whose caller then reads garbage; `DELUGE_STUB_RET` in
+/// the .cpp exists to prevent that, and every value-returning symbol goes through it. A stub that
+/// returns a plausible-but-inert value (`nullptr`, `Error::NONE`) is still only inert: a spec that
+/// drives a path THROUGH one has to give it real behaviour, exactly as the collaborators above
+/// were given theirs.
+namespace deluge::test {
+
+/// How a tick of the async sample load answers.
+enum class LoadAnswer : uint8_t {
+	Loading, ///< Still loading: the holder stays unbound.
+	Loaded,  ///< Loaded: the holder is bound to the mock sample.
+	Stalled, ///< Failed, `AsyncSampleLoad::Reason::Stalled`: nothing more will arrive.
+};
+
+/// How every `AsyncSampleLoad::tick()` answers, until a spec changes it. The only seam between the audition and the
+/// card: the slicer's `LatestSampleLoad` ticks a load of one holder, and this decides what that tick finds.
+extern LoadAnswer loadAnswer;
+
+/// How many times `InstrumentClipView::sendAuditionNote()` has been called.
+extern int32_t auditionNoteCount;
+
+/// The `on` argument of the most recent `sendAuditionNote()` call (1 = note-on, 0 = note-off).
+extern int32_t lastAuditionOn;
+
+/// Rebuild the fake kit/drum/sample world and zero the counters. Call at the top of every spec.
+void resetSlicerEnv();
+
+} // namespace deluge::test

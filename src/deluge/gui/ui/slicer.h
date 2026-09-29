@@ -19,7 +19,7 @@
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
-#include "storage/latest_wins.h"
+#include "storage/audio/latest_sample_load.h"
 
 #define SLICER_MODE_REGION 0
 #define SLICER_MODE_MANUAL 1
@@ -30,7 +30,13 @@ struct SliceItem {
 	int32_t transpose;
 };
 
+/// Spec-only driver for the audition path (tests/unit/cpputest/slicer_preview_tests.cpp). Declared here so the specs
+/// can reach `auditionLoad_` and `cancelPreview()` without those becoming public API.
+class SlicerPreviewProbe;
+
 class Slicer final : public UI {
+	friend class SlicerPreviewProbe;
+
 public:
 	Slicer() { oledShowsUIUnderneath = true; }
 
@@ -47,17 +53,21 @@ public:
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 
 	void stopAnyPreviewing();
-	/// @brief Trigger a pad-hold/tap audition: snapshot the slice/on-off request and dispatch it
-	///        (coalesced latest-wins) onto the storage owner.
+	/// @brief Audition a slice while its pad is held, or silence it when the pad is lifted.
 	///
-	/// The load (when the underlying sample isn't already resident) and the audition note both
-	/// happen inside the dispatched op, never here.
+	/// A press names the first drum "1", plays it once, and points it at the sample being sliced. With that sample
+	/// bound, the slice's params and the note-on happen at once. Without it, the press holds the sample's load and the
+	/// params and the note wait for graphicsRoutine() to see it land; a newer press replaces the held load. A release
+	/// cancels any held load and sends the note-off at once, so a note-on whose load never landed never sounds.
 	/// @param startPoint Sample-frame position where the audition slice starts.
-	/// @param endPoint   Sample-frame position where the audition slice ends; -1 leaves the
-	///                   current end position unchanged.
+	/// @param endPoint   Sample-frame position where the audition slice ends; -1 leaves the current end position
+	///                   unchanged.
 	/// @param transpose  Transpose to apply to the audition note.
-	/// @param on         Nonzero to start/continue the audition, zero to silence it.
+	/// @param on         Nonzero to start the audition, zero to silence it.
 	void preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on);
+
+	/// @brief How many auditions gave up on a load that stopped moving (AsyncSampleLoad's stall bound).
+	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }
 
 	int32_t numManualSlice{};
 	int32_t currentSlice{};
@@ -75,21 +85,20 @@ private:
 	// 7SEG Only
 	void redraw();
 
-	/// @brief Create the sliced drums/clips, loading the underlying sample if it isn't already
-	///        resident.
+	/// @brief The slice, once its sample is bound to the first drum: the other drums, their NoteRows, and the browser's
+	///        exit.
 	///
-	/// @param sliceCount How many slices/drums to create — `numClips` (REGION) or
-	///                   `numManualSlice` (MANUAL) at commit time, passed explicitly (not read off
-	///                   `this->numClips`) so a concurrent encoder turn during the dispatched op's
-	///                   SD-yield can't desync the slice math from `commitSlice`'s paint loop. See
-	///                   `SliceCommitTarget`.
-	void doSlice(int32_t sliceCount);
+	/// @param sliceCount How many slices/drums to create -- the commit's snapshot, not the live `numClips` or
+	///                   `numManualSlice`, so an encoder turn while the slice's load was out can't desync the slice
+	///                   math from the paint loop. See `SliceCommitTarget`.
+	/// @return Error::NONE, or why a drum could not be made.
+	Error doSlice(int32_t sliceCount);
 
 	/// @brief A pad-hold/tap audition request, snapshotted at trigger time.
 	///
-	/// All fields are plain values (no pointers into live UI state) — `startPoint`/`endPoint`/
-	/// `transpose` are already read out of `manualSlicePoints[]` by `padAction` before this is
-	/// built, and `on` is the press/release flag for this event.
+	/// All fields are plain values (no pointers into live UI state): `startPoint`/`endPoint`/`transpose` are already
+	/// read out of `manualSlicePoints[]` by `padAction` before this is built, and `on` is the press/release flag for
+	/// this event.
 	struct PreviewTarget {
 		int64_t startPoint;
 		int64_t endPoint;
@@ -97,51 +106,49 @@ private:
 		int32_t on;
 	};
 
-	/// @brief The dispatched op: loads the sliced sample if it isn't already resident and
-	///        sounds/silences the audition note for the coalescer's current target.
-	///
-	/// Re-dispatches itself if a newer target arrived while it ran. Runs on the storage owner
-	/// (inline on legacy/host).
-	/// @param self The `Slicer` this op is running for.
-	static void runPreviewOp(void* self);
-	/// @brief The load-then-audition body for a single preview target.
-	/// @param target The audition request to act on.
-	void previewForTarget(const PreviewTarget& target);
+	/// @brief Set the audition's slice params on the first drum when @p target is a note-on, then send its note.
+	/// @param target The audition request.
+	void soundAudition(const PreviewTarget& target);
 
-	deluge::storage::LatestWins<PreviewTarget> previewCoalescer_{};
+	/// @brief Tick the held audition load: a load that lands sounds its target, and one that stopped moving gives up.
+	void tickAudition();
 
-	/// @brief Snapshot of the SELECT_ENC "commit slice" gesture, captured in `buttonAction()` at
-	///        dispatch time.
+	/// @brief Abandon a held audition load, for the paths that leave the slicer or change what it is slicing.
 	///
-	/// Captured before the dispatched op's storage-owner yield inside `doSlice()`'s `loadFile()`
-	/// calls. `sliceCount` is `numClips` (REGION mode) or `numManualSlice` (MANUAL mode) at press
-	/// time; `isManual`/`manualPoints` are what `commitSlice()`'s MANUAL-mode per-drum
-	/// start/end/transpose paint loop needs. All plain data — no pointers into
-	/// `manualSlicePoints[]`/`numManualSlice`/`numClips` survive past dispatch, so a concurrent
-	/// encoder turn or pad press during the op's yield can't desync what gets sliced from what
-	/// gets painted onto the drums `doSlice()` creates.
+	/// Not a supersession: those paths ask for no replacement, so nothing else would ever drop the held load.
+	void cancelPreview() { auditionLoad_.cancel(); }
+
+	/// @brief The audition's held load, with the target it sounds when the load lands.
+	deluge::storage::LatestSampleLoad<PreviewTarget> auditionLoad_{};
+
+	/// @brief Auditions that gave up on a load that stopped moving. See previewGiveUps().
+	int32_t previewGiveUps_{0};
+
+	/// @brief Snapshot of the Select "commit slice" gesture, taken as it is pressed.
+	///
+	/// `sliceCount` is `numClips` (REGION mode) or `numManualSlice` (MANUAL mode) at press time; `isManual` and
+	/// `manualPoints` are what the MANUAL-mode per-drum start/end/transpose paint loop needs. All plain data, so an
+	/// encoder turn or pad press while the slice's load is out can't desync what gets sliced from what gets painted.
 	struct SliceCommitTarget {
 		bool isManual;
 		int32_t sliceCount;
 		SliceItem manualPoints[MAX_MANUAL_SLICES];
 	};
 
-	/// @brief The dispatched op for `buttonAction()`'s SELECT_ENC "commit slice" gesture.
-	///
-	/// Runs `doSlice()` (which loads the sliced sample(s) if not already resident, off the
-	/// executor) and, for MANUAL mode, the per-drum paint loop. The two run together because the
-	/// loop indexes drums `doSlice()` creates, so it must run after `doSlice()` completes, and
-	/// `doSlice()`'s own load can yield partway through. Reads only `self->pendingSliceTarget_`
-	/// (the dispatch-time snapshot), never live UI members.
-	/// @param self The `Slicer` this op is running for.
-	static void runDoSliceOp(void* self);
-	/// @brief The commit body for `buttonAction()`'s SELECT_ENC case.
-	///
-	/// Resets `currentUIMode` back to `UI_MODE_NONE` on every exit path (success or `doSlice()`'s
-	/// internal load-failure branch) to release the gate `buttonAction()` closes before dispatch.
-	/// @param target The dispatch-time snapshot of the commit-slice gesture.
-	void commitSlice(const SliceCommitTarget& target);
+	/// @brief Where the slice is.
+	enum class SlicePhase : uint8_t {
+		Idle,    ///< No slice.
+		Loading, ///< The sliced sample's load is out; graphicsRoutine() ticks it.
+	};
 
+	/// @brief Tick the slice's load, and end the slice once the load has ended: slice and paint if it landed, show
+	///        the error if not, and release the gate either way.
+	void tickSlice();
+
+	/// @brief The slice's load of the sliced sample into the first drum. Its payload is unused.
+	deluge::storage::LatestSampleLoad<uint32_t> sliceLoad_{};
+	SlicePhase slicePhase_{SlicePhase::Idle};
+	/// @brief The gesture the slice in progress was committed with.
 	SliceCommitTarget pendingSliceTarget_{};
 };
 

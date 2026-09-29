@@ -21,6 +21,7 @@
 #include "dsp/stereo_sample.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/instrument/instrument.h"
+#include "model/instrument/rendering_drums.h"
 #include "modulation/arpeggiator.h"
 #include "util/containers.h"
 class InstrumentClip;
@@ -50,7 +51,7 @@ public:
 	Drum* getDrumFromIndex(int32_t index);
 	Drum* getDrumFromIndexAllowNull(int32_t index);
 
-	Error loadAllAudioFiles(bool mayActuallyReadFiles) override;
+	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	void cutAllSound() override;
 	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
@@ -118,7 +119,7 @@ public:
 	void deleteBackedUpParamManagers(Song* song) override;
 	void prepareForHibernationOrDeletion() override;
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;
-	void loadCrucialAudioFilesOnly() override;
+	deluge::storage::Walk walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) override;
 	GateDrum* getGateDrumForChannel(int32_t gateChannel);
 	void resetDrumTempValues();
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
@@ -149,7 +150,7 @@ public:
 	Drum* firstDrum;
 	Drum* selectedDrum;
 
-	deluge::fast_set<Drum*> drumsWithRenderingActive{};
+	RenderingDrums renderingDrums; ///< the drums rendering now: the render walks them every block
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

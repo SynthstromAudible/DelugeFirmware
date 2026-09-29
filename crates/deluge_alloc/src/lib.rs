@@ -2,7 +2,7 @@
 //! ABI (libdeluge/alloc.h).
 //!
 //! - TLSF backbone (`tlsf`): O(1) general allocator, 16-byte-aligned by
-//!   construction, validated by the C++ conformance suite (tests/spec_alloc, the
+//!   construction, validated by the C++ conformance suite (tests/unit/alloc, the
 //!   same AllocatorUnderTest suite the legacy MemoryRegion passes) plus host
 //!   unit/proptest/fuzz tests.
 //! - Slab cache pool (`slab`): the "stealables" pager — uniform slots, LRU,
@@ -20,10 +20,12 @@
 #![cfg_attr(target_os = "none", no_std)]
 #![allow(clippy::missing_safety_doc)]
 
+pub mod section;
 pub mod slab;
 mod tlsf;
 
 use core::ptr;
+use section::{Section, STEP_HEAP};
 pub use tlsf::Tlsf;
 use tlsf::ALIGN;
 
@@ -83,29 +85,46 @@ pub unsafe extern "C" fn deluge_alloc(h: *mut DelugeHeap, size: usize, align: us
     if h.is_null() {
         return ptr::null_mut();
     }
-    let p = heap(h).malloc(size, align);
+    let p = {
+        let _s = Section::enter(STEP_HEAP);
+        heap(h).malloc(size, align)
+    };
     if !p.is_null() {
         return p;
     }
-    // Out of space: drive the reclaim hook (the slab cache pool) and retry. The
-    // retry loop lives here, NOT inside Tlsf::malloc, so no &mut Tlsf borrow is
-    // held across the callback — the hook re-enters via deluge_free (a separate
-    // borrow). A depth-1 `reclaiming` guard makes a nested reclaim fail fast
-    // instead of recursing (no MMU guard page on the device).
+    // Out of space: drive the reclaim hook (the slab cache pool / resource manager's eviction) and retry. The hook
+    // runs OUTSIDE any section: it re-enters via deluge_free (each free masks itself) and may take a while. The retry
+    // loop lives here, NOT inside Tlsf::malloc, so no &mut Tlsf borrow is held across the callback. The depth-1
+    // `reclaiming` guard is claimed and released in single steps, so a nested or concurrent reclaim fails fast
+    // instead of recursing (no MMU guard page on the device) or spinning.
     loop {
-        if heap(h).is_reclaiming() {
-            return ptr::null_mut();
-        }
-        let Some((cb, ctx)) = heap(h).reclaim_hook() else {
+        let hook = {
+            let _s = Section::enter(STEP_HEAP);
+            if heap(h).is_reclaiming() {
+                None
+            } else {
+                let hook = heap(h).reclaim_hook();
+                if hook.is_some() {
+                    heap(h).set_reclaiming(true);
+                }
+                hook
+            }
+        };
+        let Some((cb, ctx)) = hook else {
             return ptr::null_mut();
         };
-        heap(h).set_reclaiming(true);
         let freed = cb(ctx, size);
-        heap(h).set_reclaiming(false);
+        {
+            let _s = Section::enter(STEP_HEAP);
+            heap(h).set_reclaiming(false);
+        }
         if !freed {
             return ptr::null_mut();
         }
-        let p = heap(h).malloc(size, align);
+        let p = {
+            let _s = Section::enter(STEP_HEAP);
+            heap(h).malloc(size, align)
+        };
         if !p.is_null() {
             return p;
         }
@@ -122,17 +141,23 @@ pub unsafe extern "C" fn deluge_heap_register_reclaim(
     if h.is_null() {
         return;
     }
+    // One step: registration happens at runtime (the resource manager is created lazily), and a render allocation
+    // that fails must never find the callback stored without its context.
+    let _s = Section::enter(STEP_HEAP);
     heap(h).set_reclaim(cb, ctx);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn deluge_free(h: *mut DelugeHeap, p: *mut u8) {
-    if h.is_null() {
+    if h.is_null() || p.is_null() {
         return;
     }
+    let _s = Section::enter(STEP_HEAP);
     heap(h).free(p);
 }
 
+/// Resize. Shrinking stays in place under one step; growth is a new block, a copy made outside any section, and a
+/// free of the old block.
 #[no_mangle]
 pub unsafe extern "C" fn deluge_realloc(
     h: *mut DelugeHeap,
@@ -143,7 +168,27 @@ pub unsafe extern "C" fn deluge_realloc(
     if h.is_null() {
         return ptr::null_mut();
     }
-    heap(h).realloc(p, new_size, align)
+    if p.is_null() {
+        return deluge_alloc(h, new_size, align);
+    }
+    if new_size == 0 {
+        deluge_free(h, p);
+        return ptr::null_mut();
+    }
+    let (shrunk, cur) = {
+        let _s = Section::enter(STEP_HEAP);
+        heap(h).try_shrink_in_place(p, new_size, align)
+    };
+    if shrunk {
+        return p;
+    }
+    let np = deluge_alloc(h, new_size, align);
+    if np.is_null() {
+        return ptr::null_mut(); // original left intact
+    }
+    ptr::copy_nonoverlapping(p, np, cur.min(new_size));
+    deluge_free(h, p);
+    np
 }
 
 /// Bytes guaranteed usable at `p` (the block's payload size, >= the requested size).
@@ -152,12 +197,14 @@ pub unsafe extern "C" fn deluge_usable_size(h: *mut DelugeHeap, p: *mut u8) -> u
     if h.is_null() {
         return 0;
     }
+    let _s = Section::enter(STEP_HEAP);
     heap(h).usable_size(p)
 }
 
 /// Read-only heap-integrity walk for the MEM_GUARD periodic check. Returns true if
 /// the physical block chain's boundary tags are intact. Never allocates; reads only
-/// block headers (ASan-safe). A null handle is vacuously ok.
+/// block headers (ASan-safe). A null handle is vacuously ok. Takes no section: its one caller, MEM_GUARD's periodic
+/// walk, runs on the audio render (AudioEngine::routine), which nothing that touches a heap preempts.
 #[no_mangle]
 pub unsafe extern "C" fn deluge_heap_check(h: *mut DelugeHeap) -> bool {
     if h.is_null() {
@@ -237,6 +284,60 @@ mod tests {
         let mut buf = vec![0u128; words];
         let h = unsafe { deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
         (buf, h)
+    }
+
+    /// A heap must pass its own integrity check the instant it is created, even when the region's
+    /// end is not ALIGN-aligned.
+    ///
+    /// This reproduces the firmware's "frunk" heap, whose bounds come from linker symbols
+    /// (`__frunk_bss_end` / `__frunk_slack_end`) with no 16-byte guarantee — observed on device at
+    /// `0x200a8b84 .. 0x200b0b84`, i.e. base and end both ≡ 4 (mod 16). `deluge_heap_create`
+    /// aligns the BASE up, so the pool start is fine, but the pool SIZE inherits the unaligned
+    /// end. `add_pool` then rounded the first block's size with `SIZE_MASK` (`!3`, a multiple of
+    /// 4) rather than `ALIGN` (16), so the trailing sentinel landed misaligned and `check()`'s
+    /// "payloads are 16-aligned by construction" rule rejected the freshly built heap.
+    ///
+    /// On device that surfaced as `FREEZE_WITH_ERROR: periodic walk` — the periodic heap walk
+    /// reporting corruption that had never happened, before the app had allocated anything.
+    ///
+    /// Every pre-existing test passed a `words * 16` size, which is why this went unnoticed.
+    #[test]
+    fn a_heap_whose_region_end_is_unaligned_still_passes_its_own_check() {
+        // Keep the arena itself 16-aligned (see `aligned_arena`'s note on miri), then offset the
+        // base by 4 so both base and end sit at 4 (mod 16), exactly like the device's frunk region.
+        let mut buf = vec![0u128; 4096];
+        let base = unsafe { (buf.as_mut_ptr() as *mut u8).add(4) };
+        let size = 32768usize; // multiple of 16, so an unaligned base gives an unaligned end
+        assert_eq!(
+            base as usize % 16,
+            4,
+            "test must reproduce the unaligned-base case"
+        );
+        assert_eq!(
+            (base as usize + size) % 16,
+            4,
+            "and the unaligned END, which is the bug"
+        );
+
+        let h = unsafe { deluge_heap_create(base, size) };
+        assert!(!h.is_null(), "creation itself must succeed");
+        assert!(
+            unsafe { deluge_heap_check(h) },
+            "a freshly created heap must pass its own integrity walk"
+        );
+
+        // And it must actually work, not merely validate.
+        let p = unsafe { deluge_alloc(h, 100, 16) };
+        assert!(
+            !p.is_null(),
+            "allocation from the unaligned-end heap failed"
+        );
+        unsafe { deluge_free(h, p) };
+        assert!(
+            unsafe { deluge_heap_check(h) },
+            "check must still pass after alloc/free"
+        );
+        drop(buf);
     }
 
     #[test]
@@ -390,6 +491,155 @@ mod tests {
             crate::testing::run_slab_bytes(&bytes)
                 .unwrap_or_else(|e| panic!("slab fuzz seed {seed}: {e}"));
         }
+    }
+
+    use crate::section::test_hooks;
+
+    #[test]
+    fn each_heap_step_is_noted_inside_its_section() {
+        test_hooks::install();
+        let (_buf, h) = aligned_arena(64 * 1024);
+        let p = unsafe { deluge_alloc(h, 100, 16) };
+        assert!(!p.is_null());
+        let _ = unsafe { deluge_usable_size(h, p) };
+        unsafe { deluge_free(h, p) };
+        assert_eq!(
+            test_hooks::take_events(),
+            ["enter", "heap", "exit", "enter", "heap", "exit", "enter", "heap", "exit"]
+        );
+    }
+
+    #[test]
+    fn global_alloc_steps_are_noted() {
+        use core::alloc::{GlobalAlloc, Layout};
+        test_hooks::install();
+        let (_buf, h) = aligned_arena(64 * 1024);
+        let ga = DelugeGlobalAlloc::new();
+        ga.init(h);
+        let layout = Layout::from_size_align(48, 8).unwrap();
+        let p = unsafe { ga.alloc(layout) };
+        unsafe { ga.dealloc(p, layout) };
+        let events = test_hooks::take_events();
+        assert_eq!(events.iter().filter(|e| **e == "heap").count(), 2);
+    }
+
+    thread_local! {
+        static DEPTH_IN_HOOK: core::cell::Cell<u32> = const { core::cell::Cell::new(u32::MAX) };
+    }
+    extern "C" fn reclaim_recording_depth(_ctx: *mut core::ffi::c_void, _bytes: usize) -> bool {
+        DEPTH_IN_HOOK.with(|d| d.set(test_hooks::DEPTH.with(|x| x.get())));
+        false
+    }
+
+    #[test]
+    fn reclaim_hook_runs_outside_the_section() {
+        test_hooks::install();
+        let (_buf, h) = aligned_arena(16 * 1024);
+        unsafe { deluge_heap_register_reclaim(h, reclaim_recording_depth, core::ptr::null_mut()) };
+        let p = unsafe { deluge_alloc(h, 1 << 20, 16) }; // cannot fit: runs the hook
+        assert!(p.is_null());
+        assert_eq!(DEPTH_IN_HOOK.with(|d| d.get()), 0);
+    }
+
+    #[test]
+    fn realloc_growth_copies_outside_the_section() {
+        test_hooks::install();
+        let (_buf, h) = aligned_arena(64 * 1024);
+        let p = unsafe { deluge_alloc(h, 64, 16) };
+        for i in 0..64u8 {
+            unsafe { *p.add(i as usize) = i };
+        }
+        test_hooks::take_events();
+        let q = unsafe { deluge_realloc(h, p, 4096, 16) };
+        assert!(!q.is_null());
+        for i in 0..64u8 {
+            assert_eq!(unsafe { *q.add(i as usize) }, i);
+        }
+        // The shrink attempt, the new block, the old block's free: three separate sections.
+        assert_eq!(
+            test_hooks::take_events(),
+            ["enter", "heap", "exit", "enter", "heap", "exit", "enter", "heap", "exit"]
+        );
+    }
+
+    #[test]
+    fn two_contexts_keep_one_heap_consistent() {
+        use crate::section::test_hooks::{self, Mode, MODE};
+        test_hooks::install();
+        let (buf, h) = aligned_arena(1 << 20);
+        let hp = h as usize;
+
+        // One context's alloc/free churn: patterned blocks, checked before each free. The render-shaped context holds
+        // the host section for its whole block, as deluge_app_render does; the other masks per step.
+        fn churn(hp: usize, seed: u64, rounds: usize, block: bool) {
+            let h = hp as *mut DelugeHeap;
+            let mut rng = Rng(seed);
+            let mut live: Vec<(usize, usize, u8)> = Vec::new();
+            for _ in 0..rounds {
+                if block {
+                    test_hooks::lock();
+                }
+                for _ in 0..32 {
+                    if live.len() < 64 && (rng.next() & 1 == 0 || live.is_empty()) {
+                        let size = 16 + (rng.next() % 2048) as usize;
+                        let p = unsafe { deluge_alloc(h, size, 16) };
+                        if !p.is_null() {
+                            let tag = (rng.next() & 0xff) as u8;
+                            unsafe { core::ptr::write_bytes(p, tag, size) };
+                            live.push((p as usize, size, tag));
+                        }
+                    } else {
+                        let i = (rng.next() as usize) % live.len();
+                        let (p, size, tag) = live.swap_remove(i);
+                        let p = p as *mut u8;
+                        for k in 0..size {
+                            assert_eq!(unsafe { *p.add(k) }, tag, "a live block was overwritten");
+                        }
+                        unsafe { deluge_free(h, p) };
+                    }
+                }
+                if block {
+                    test_hooks::unlock();
+                }
+            }
+            if block {
+                test_hooks::lock();
+            }
+            for (p, _, _) in live {
+                unsafe { deluge_free(h, p as *mut u8) };
+            }
+            if block {
+                test_hooks::unlock();
+            }
+        }
+
+        let render = std::thread::spawn(move || {
+            MODE.with(|m| m.set(Mode::StressRender));
+            churn(hp, 0x9e37_79b9, 4000, true);
+        });
+        let interaction = std::thread::spawn(move || {
+            MODE.with(|m| m.set(Mode::StressInteraction));
+            churn(hp, 0x85eb_ca6b, 4000, false);
+        });
+        render.join().unwrap();
+        interaction.join().unwrap();
+        assert!(unsafe { deluge_heap_check(hp as *mut DelugeHeap) });
+        drop(buf);
+    }
+
+    extern "C" fn reclaim_nothing(_ctx: *mut core::ffi::c_void, _bytes: usize) -> bool {
+        false
+    }
+
+    #[test]
+    fn reclaim_registration_is_one_heap_step() {
+        // The resource manager registers its hook lazily, at runtime: a render allocation that fails must never see a
+        // hook half-stored (the callback without its context).
+        test_hooks::install();
+        let (_buf, h) = aligned_arena(16 * 1024);
+        test_hooks::take_events();
+        unsafe { deluge_heap_register_reclaim(h, reclaim_nothing, core::ptr::null_mut()) };
+        assert_eq!(test_hooks::take_events(), ["enter", "heap", "exit"]);
     }
 }
 

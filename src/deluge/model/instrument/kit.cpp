@@ -27,6 +27,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -45,9 +46,18 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "util/structural_edit_probe.h"
 #include <cstring>
 
 namespace params = deluge::modulation::params;
+
+namespace {
+// Report a splice of a kit's drum list to the structural-edit probe (util/structural_edit_probe.h). Every splice runs
+// inside an AudioExcludedSection, so nothing the render reaches through the list sees it half-relinked.
+void noteDrumListEdit() {
+	deluge::noteStructuralEdit(deluge::StructuralContainer::DRUM_LIST);
+}
+} // namespace
 
 Kit::Kit() : Instrument(OutputType::KIT), arpeggiator(), defaultArpSettings() {
 	defaultArpSettings.numOctaves = 1;
@@ -56,13 +66,17 @@ Kit::Kit() : Instrument(OutputType::KIT), arpeggiator(), defaultArpSettings() {
 }
 
 Kit::~Kit() {
+#if ALPHA_OR_BETA_VERSION
+	// A drum still in the rendering list here would be walked by the render after it is destroyed below.
+	if (!renderingDrums.empty()) {
+		FREEZE_WITH_ERROR("E462");
+	}
+#endif
 	// Reset arpeggiator
 	arpeggiator.reset();
 
 	// Delete all Drums
 	while (firstDrum) {
-		AudioEngine::logAction("~Kit");
-		AudioEngine::routineWithClusterLoading();
 		Drum* toDelete = firstDrum;
 		firstDrum = firstDrum->next;
 
@@ -161,8 +175,12 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 				                &selectedDrumIndex, &drumIndex, song);
 
 				removeDrumFromLinkedList(drum);
-				drum->next = nullptr;
-				*newLastDrum = drum;
+				{
+					AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
+					noteDrumListEdit();
+					drum->next = nullptr;
+					*newLastDrum = drum;
+				}
 				newLastDrum = &drum->next;
 			}
 		}
@@ -213,17 +231,39 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 				// doesn't affect drumIndexes!
 				if (!song->findNoteRowForDrum(this, thisDrum)) {
 
-					*prevPointer = thisDrum->next;
-
-					if (thisDrum->type == DrumType::SOUND) {
-						song->deleteBackedUpParamManagersForModControllable((SoundDrum*)thisDrum);
+					{
+						AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
+						noteDrumListEdit();
+						*prevPointer = thisDrum->next;
 					}
 
-					drumRemoved(thisDrum);
+					if (thisDrum->type == DrumType::SOUND) {
+						auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+						song->deleteBackedUpParamManagersForModControllable(soundDrum);
 
-					void* toDealloc = dynamic_cast<void*>(thisDrum);
-					thisDrum->~Drum();
-					delugeDealloc(toDealloc);
+						// No NoteRow has this drum, so there is no note to stop. The render only ever reaches a drum
+						// in this kit's renderingDrums: take it out before removing it, as
+						// InstrumentClipView::deleteDrum and LoadInstrumentPresetUI::swapKitRow do. Its voices are
+						// ended by the render when it lets go of the retired drum, below.
+						renderingDrums.remove(soundDrum);
+						removeDrum(soundDrum);
+						// Out of the kit for good: the render's let-go of the drum must not write back into
+						// renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering
+						// skips a null kit). Erase again first: a sequencer note-on between the first erase and here
+						// re-inserts the drum, and after this nothing can name it.
+						renderingDrums.remove(soundDrum);
+						soundDrum->kit = nullptr;
+						AudioEngine::retire(soundDrum);
+					}
+					else {
+						// MIDI and gate drums have no voices and are never in renderingDrums: there is
+						// nothing for the render to let go of, so destroy them directly.
+						drumRemoved(thisDrum);
+
+						void* toDealloc = dynamic_cast<void*>(thisDrum);
+						thisDrum->~Drum();
+						delugeDealloc(toDealloc);
+					}
 
 					continue;
 				}
@@ -239,8 +279,12 @@ moveOn:
 
 	writer.writeArrayEnding("soundSources");
 
-	*newLastDrum = firstDrum;
-	firstDrum = newFirstDrum;
+	{
+		AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
+		noteDrumListEdit();
+		*newLastDrum = firstDrum;
+		firstDrum = newFirstDrum;
+	}
 
 	if (selectedDrumIndex != -1) {
 		writer.writeTag((char*)"selectedDrumIndex", selectedDrumIndex);
@@ -361,62 +405,36 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 	return Error::NONE;
 }
 
-// Returns true if more loading needed later
-Error Kit::loadAllAudioFiles(bool mayActuallyReadFiles) {
-
-	Error error = Error::NONE;
-
-	bool doingAlternatePath =
-	    mayActuallyReadFiles && (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
-	if (doingAlternatePath) {
-		error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
-			return error;
-		}
-	}
-
+deluge::storage::Walk Kit::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	// A kit read on its own also looks for its samples in its own folder. Within a song's load, in the song's.
+	visitor.beginInstrumentScope(dirPath, name, ThingType::KIT, deluge::storage::ScopeRule::WhenReading);
 	AudioEngine::logAction("Kit::loadAllSamples");
+	deluge::storage::Walk walk = deluge::storage::Walk::Continue;
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		if (mayActuallyReadFiles && shouldAbortLoading()) {
-			error = Error::ABORTED_BY_USER;
-			goto getOut;
-		}
-		error = thisDrum->loadAllSamples(mayActuallyReadFiles);
-		if (error != Error::NONE) {
-			goto getOut;
+		if (visitor.drumCheckpoint() == deluge::storage::Walk::Stop
+		    || thisDrum->walkSampleDemands(visitor) == deluge::storage::Walk::Stop) {
+			walk = deluge::storage::Walk::Stop;
+			break;
 		}
 	}
+	visitor.endInstrumentScope();
 
-getOut:
-	if (doingAlternatePath) {
-		audioFileManager.thingFinishedLoading();
-	}
-
-	return error;
+	return walk;
 }
 
 // Caller must check that there is an activeClip.
-void Kit::loadCrucialAudioFilesOnly() {
-
-	bool doingAlternatePath = (audioFileManager.alternateLoadDirStatus == AlternateLoadDirStatus::NONE_SET);
-	if (doingAlternatePath) {
-		Error error = setupDefaultAudioFileDir();
-		if (error != Error::NONE) {
-			return;
-		}
-	}
-
+deluge::storage::Walk Kit::walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	visitor.beginInstrumentScope(dirPath, name, ThingType::KIT, deluge::storage::ScopeRule::Always);
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
 	for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
 		NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
 		if (!thisNoteRow->muted && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
-			thisNoteRow->drum->loadAllSamples(true); // Why don't we deal with the error?
+			(void)thisNoteRow->drum->walkSampleDemands(visitor); // Why don't we deal with the error?
 		}
 	}
+	visitor.endInstrumentScope();
 
-	if (doingAlternatePath) {
-		audioFileManager.thingFinishedLoading();
-	}
+	return deluge::storage::Walk::Continue;
 }
 
 void Kit::addDrum(Drum* newDrum) {
@@ -424,7 +442,11 @@ void Kit::addDrum(Drum* newDrum) {
 	while (*prevPointer != nullptr) {
 		prevPointer = &((*prevPointer)->next);
 	}
-	*prevPointer = newDrum;
+	{
+		AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
+		noteDrumListEdit();
+		*prevPointer = newDrum;
+	}
 
 	newDrum->kit = this;
 }
@@ -442,6 +464,8 @@ void Kit::removeDrumFromLinkedList(Drum* drum) {
 	Drum** prevPointer = &firstDrum;
 	while (*prevPointer) {
 		if (*prevPointer == drum) {
+			AudioExcludedSection section; // the render reaches this kit's drums: see noteDrumListEdit()
+			noteDrumListEdit();
 			*prevPointer = drum->next;
 			return;
 		}
@@ -455,7 +479,7 @@ void Kit::drumRemoved(Drum* drum) {
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if (drumsWithRenderingActive.contains(drum)) {
+	if (drum->type == DrumType::SOUND && renderingDrums.contains(static_cast<SoundDrum*>(drum))) {
 		FREEZE_WITH_ERROR("E321");
 	}
 #endif
@@ -532,17 +556,14 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
                                         bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
                                         int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
-	// Render Drums. Advance the iterator before rendering, in case the drum stops rendering (removing itself from
-	// the set) as we render it.
-	for (auto it = drumsWithRenderingActive.begin(); it != drumsWithRenderingActive.end();) {
-		Drum* thisDrum = *it;
-		++it;
+	// Render Drums. The walk copes with a drum that stops rendering (leaves the list) as it renders, and with one whose
+	// render removes the next (see RenderingDrums::walk).
+	renderingDrums.walk([&](SoundDrum* soundDrum) {
+		Drum* thisDrum = soundDrum;
 
 		if (ALPHA_OR_BETA_VERSION && thisDrum->type != DrumType::SOUND) {
 			FREEZE_WITH_ERROR("E253");
 		}
-
-		SoundDrum* soundDrum = (SoundDrum*)thisDrum;
 
 		if (ALPHA_OR_BETA_VERSION && soundDrum->skippingRendering) {
 			FREEZE_WITH_ERROR("E254");
@@ -560,7 +581,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 			// This used to be E255
 			if (!thisNoteRow) {
 				soundDrum->killAllVoices();
-				continue;
+				return;
 			}
 			drumParamManager = &thisNoteRow->paramManager;
 		}
@@ -576,7 +597,7 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
-	}
+	});
 
 	// Tick ParamManagers
 	if (playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn && isClipActive) {

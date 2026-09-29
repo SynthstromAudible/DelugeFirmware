@@ -129,7 +129,7 @@ unsafe fn chunk_ref<'a>(backing: *mut c_void) -> &'a StreamedChunk {
 /// polled from the BSP drain — a genuine producer/consumer pair on different tasks, not "the single
 /// fill task / cursor". The access is a plain, non-atomic read/write race by that description, but
 /// it is the SAME race the prior C++ `StreamedChunk::loaded` field access already had (a bare `bool`
-/// field, set by the fill fiber and polled by the cursor with no lock or atomic) — not a hazard
+/// field, set by the fill context and polled by the cursor with no lock or atomic) — not a hazard
 /// introduced by this relocation, just carried forward unchanged. Each write-accessor below holds
 /// its `&mut` only for the duration of its own single field write, so no two writers alias it
 /// concurrently; a concurrent reader observing a torn or stale value is the pre-existing behaviour.

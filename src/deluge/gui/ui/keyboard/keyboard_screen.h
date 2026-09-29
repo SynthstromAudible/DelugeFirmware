@@ -65,6 +65,14 @@ public:
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 	void checkNewInstrument(Instrument* newInstrument);
 
+	/// @brief The layout-refresh tail shared by KeyboardScreen's two acquisition consumers.
+	///
+	/// selectLayout() itself is private; this is the seam LoadInstrumentPresetUI's completions call
+	/// through, on the interaction tier, once the instrument has actually been created
+	/// (PresetConsumer::KeyboardNewInstrument) or swapped (PresetConsumer::KeyboardChangeType). Each of
+	/// those has its own completion and its own currency guard -- this is only the leaf they share.
+	void completeLayoutRefresh() { selectLayout(0); }
+
 private:
 	bool opened() override;
 	void focusRegained() override;

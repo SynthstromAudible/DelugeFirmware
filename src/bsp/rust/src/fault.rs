@@ -70,13 +70,9 @@ pub extern "C" fn deluge_fault_ranges(out: *mut DelugeFaultRanges) {
         (*out).code_end = core::ptr::addr_of!(__sram_heap_start) as usize;
         (*out).stack_start = core::ptr::addr_of!(program_stack_start) as usize;
         (*out).stack_end = core::ptr::addr_of!(program_stack_end) as usize;
-        // The storage worker fiber runs application code on its own stack, in a different region.
-        // Declare it too, or a fault raised there reports only the link register: the reporter walks
-        // a stack solely if the faulting SP falls inside a stack it knows about. Storage,
-        // sample-preview and browser operations all run on the fiber.
-        let (alt_start, alt_end) = crate::fiber::worker_stack_bounds();
-        (*out).alt_stack_start = alt_start;
-        (*out).alt_stack_end = alt_end;
+        // No alternate stack: application code runs only on the program stack.
+        (*out).alt_stack_start = 0;
+        (*out).alt_stack_end = 0;
     }
 }
 

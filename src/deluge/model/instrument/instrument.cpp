@@ -184,16 +184,3 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 
 	return newInstrumentClip;
 }
-
-Error Instrument::setupDefaultAudioFileDir() {
-	char const* dirPathChars = dirPath.c_str();
-	auto result = audioFileManager.setupAlternateAudioFileDir(audioFileManager.alternateAudioFileLoadPath, dirPathChars,
-	                                                          name.c_str());
-	if (result != Error::NONE) {
-		return result;
-	}
-
-	// TODO: (Kate) Why is OutputType getting converted to ThingType here???
-	audioFileManager.thingBeginningLoading(static_cast<ThingType>(type));
-	return Error::NONE;
-}

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
 #include "modulation/params/param.h"
+#include "storage/byte_channel.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"
 #include <array>
@@ -42,7 +43,26 @@ public:
 	MidiFollow();
 	void factoryReset(bool showPopup = true);
 	void writeDefaultsToFile();
-	void readDefaultsFromFile();
+	/// @brief writeDefaultsToFile's body, run where blocking on the card is legal.
+	void writeDefaultsInline();
+	/// @brief Read the follow defaults, preferring the channel.
+	/// @param onDone Told how the channel operation ended, when the channel took it.
+	/// @return Whether the CHANNEL accepted the read -- i.e. whether @p onDone will be called.
+	bool readDefaultsFromFile(deluge::storage::bytes::DoneFn onDone = nullptr);
+	/// @brief readDefaultsFromFile's body, run where blocking on the card is legal.
+	void readDefaultsInline();
+	/// @brief Put the in-memory follow settings into their out-of-the-box state.
+	///
+	/// What must be true whether the file turns up or not, so both arms do it before reading.
+	void resetToDefaults();
+	/// @brief Walk an already-opened document into the in-memory follow settings.
+	void parseDefaults(Deserializer& reader);
+	/// @brief Write the follow settings into an already-opened serialiser, file- or memory-backed.
+	void serialiseDefaults(Serializer& writer);
+	/// @brief `deluge::storage::bytes::ParseFn` for @ref parseDefaults.
+	static void parseDefaultsBytes(void* ctx, char* bytes, uint32_t len);
+	/// @brief `deluge::storage::bytes::AbsentFn`: no MIDIFollow.XML, so write one.
+	static void writeDefaultsAbsent(void* ctx);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t soundParamId, int32_t globalParamId,

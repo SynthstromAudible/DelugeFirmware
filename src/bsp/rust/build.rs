@@ -324,7 +324,7 @@ fn warn_if_heap_hack_active(manifest_dir: &Path) {
 
 /// `host_app` feature: bindgen the host ABI (x86-64; every libdeluge enum is
 /// pinned to an explicit fixed-width underlying type in its header, so this
-/// matches build-embassy-hostapp's CMake config byte-for-byte regardless of
+/// matches the host-app tree's CMake config byte-for-byte regardless of
 /// `-fshort-enums`, which neither build passes) into the real `mod sys`, then
 /// archive the host-built C++ `deluge_app` object closure and emit link
 /// directives so the crate reaches the linker against real provider-symbol
@@ -336,7 +336,8 @@ fn run_host_app(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     emit_host_forced_link_roots();
 
     let app_objs_dir = host_app_objs_dir(&build_dir);
-    let objs = archive_host_app_objects(&app_objs_dir, out_dir);
+    let objs =
+        archive_host_app_objects(&app_objs_dir, &host_scenario_objs_dir(&build_dir), out_dir);
     emit_host_staleness_hash(&app_objs_dir, &objs, out_dir);
     link_host_app_closure(&build_dir, &out_dir.join("libdeluge_app_objs.a"));
     emit_host_runtime_link_args();
@@ -344,8 +345,9 @@ fn run_host_app(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     println!("cargo:rerun-if-changed={}", app_objs_dir.display());
 }
 
-/// Resolves the CMake host tree, defaulting to `build-embassy-hostapp`
-/// (`cmake -S sim -B build-embassy-hostapp -DDELUGE_HOST_EMBASSY=…`).
+/// Resolves the CMake host tree, defaulting to `build/host-app` (the tree
+/// `./dbt test` builds), or to the older `build-embassy-hostapp` where only
+/// that one has been built.
 ///
 /// Overridable via `DELUGE_HOSTAPP_BUILD_DIR` so CI and the sanitizer
 /// harnesses can point at a differently-named tree (e.g. a clang+TSan
@@ -357,7 +359,15 @@ fn resolve_host_build_dir(repo_root: &Path) -> PathBuf {
     println!("cargo:rerun-if-env-changed=DELUGE_HOSTAPP_BUILD_DIR");
     env::var("DELUGE_HOSTAPP_BUILD_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| repo_root.join("build-embassy-hostapp"))
+        .unwrap_or_else(|_| {
+            let current = repo_root.join("build/host-app");
+            let older = repo_root.join("build-embassy-hostapp");
+            if !current.is_dir() && older.is_dir() {
+                older
+            } else {
+                current
+            }
+        })
 }
 
 /// The host tree's object directory. Its generator is single-config Ninja,
@@ -365,6 +375,12 @@ fn resolve_host_build_dir(repo_root: &Path) -> PathBuf {
 /// directly under `deluge_app.dir` with no Debug/Release subdir.
 fn host_app_objs_dir(build_dir: &Path) -> PathBuf {
     build_dir.join("app/CMakeFiles/deluge_app.dir")
+}
+
+/// The host-only integration scenarios and probes, an object library of their own
+/// (tests/integration/scenarios) that the host Rust calls into.
+fn host_scenario_objs_dir(build_dir: &Path) -> PathBuf {
+    build_dir.join("scenarios/CMakeFiles/deluge_scenarios.dir")
 }
 
 /// Forces the host link roots, and lifts lld's error cap.
@@ -393,11 +409,15 @@ fn emit_host_forced_link_roots() {
 /// Registers `rerun-if-changed` per object path for the same reason the device
 /// path does: a directory-level watch only fires on add/remove, so editing a
 /// `.cpp` and rebuilding in place would otherwise leave a stale link.
-fn archive_host_app_objects(app_objs_dir: &Path, out_dir: &Path) -> Vec<PathBuf> {
-    if !app_objs_dir.is_dir() {
+fn archive_host_app_objects(
+    app_objs_dir: &Path,
+    scenario_objs_dir: &Path,
+    out_dir: &Path,
+) -> Vec<PathBuf> {
+    if !app_objs_dir.is_dir() || !scenario_objs_dir.is_dir() {
         panic!(
             "host C++ app objects not found at {}. Build them first:\n  \
-             ninja -C <host tree> deluge_app NE10 eyalroz_printf deluge_dsp \
+             ninja -C <host tree> deluge_app deluge_scenarios NE10 eyalroz_printf deluge_dsp \
              deluge_scheduler deluge_foundation deluge_midi",
             app_objs_dir.display(),
         );
@@ -405,6 +425,7 @@ fn archive_host_app_objects(app_objs_dir: &Path, out_dir: &Path) -> Vec<PathBuf>
 
     let mut objs = Vec::new();
     collect_objs(app_objs_dir, &mut objs);
+    collect_objs(scenario_objs_dir, &mut objs);
     objs.sort();
     for o in &objs {
         println!("cargo:rerun-if-changed={}", o.display());

@@ -34,6 +34,8 @@
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include <atomic>
+#include <initializer_list>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -74,12 +76,69 @@ Clip::Clip(ClipType newType) : type(newType) {
 	sequenceDirectionMode = SequenceDirection::FORWARD;
 }
 
-Clip::~Clip() {
-	// currentSong is null while the old song is being torn down in deleteOldSongBeforeLoadingNew() (it's nulled before
-	// the delete), so guard against it - getCurrentClip() dereferences currentSong.
-	if (currentSong && getCurrentClip() == this) {
-		currentSong->setCurrentClip(nullptr);
+namespace {
+/// Clips destroyed while a reference the render reads between blocks still pointed at them. Always on; relaxed,
+/// because it is evidence, not synchronisation: a Clip may be destroyed on one tier while the count is read on another.
+std::atomic<int32_t> g_clipsDestroyedWhileReferenced{0};
+
+/// Whether @p output is in @p song's main or hibernating list. Compares pointers only, so an output already freed is
+/// never dereferenced.
+bool outputIsInSong(Song const& song, Output const* output) {
+	for (Output const* o = song.firstOutput; o != nullptr; o = o->next) {
+		if (o == output) {
+			return true;
+		}
 	}
+	for (Output const* o = song.firstHibernatingInstrument; o != nullptr; o = o->next) {
+		if (o == output) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// Whether anything the render reads between blocks still points at @p clip: the current song's currentClip or
+/// syncScalingClip, another of its clips' beingRecordedFromClip, the view's active ModControllable timeline counter,
+/// or the activeClip of an output the current song still holds. Only the current song is looked at: the render reaches
+/// clips through currentSong alone.
+bool renderStillReferences(Clip* clip) {
+	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == static_cast<TimelineCounter*>(clip)) {
+		return true;
+	}
+	if (currentSong == nullptr) {
+		return false;
+	}
+	if (currentSong->getCurrentClip() == clip || currentSong->syncScalingClip == clip) {
+		return true;
+	}
+	for (ClipArray const* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
+		for (Clip const* other : *array) {
+			if (other != clip && other->beingRecordedFromClip == clip) {
+				return true;
+			}
+		}
+	}
+	return clip->output != nullptr && outputIsInSong(*currentSong, clip->output)
+	       && clip->output->getActiveClip() == clip;
+}
+} // namespace
+
+int32_t Clip::clipsDestroyedWhileReferenced() {
+	return g_clipsDestroyedWhileReferenced.load(std::memory_order_relaxed);
+}
+
+Clip::~Clip() {
+	// A deleted clip reaches here through AudioEngine::retire(), after the render let go of everything it held of it,
+	// or from ~Song(), once the whole song is unreachable (currentSong is null or already another song). Either way
+	// nothing the render reads may still point here.
+	if (renderStillReferences(this)) {
+		g_clipsDestroyedWhileReferenced.fetch_add(1, std::memory_order_relaxed);
+	}
+#if ALPHA_OR_BETA_VERSION
+	if (currentSong != nullptr && currentSong->getCurrentClip() == this) {
+		FREEZE_WITH_ERROR("E457");
+	}
+#endif
 }
 
 // This is more exhaustive than copyBasicsFrom(), and is designed to be used *between* different Clip types, just for
@@ -524,6 +583,11 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 		int32_t maxLength = arrangementRecordPos - clipInstance->pos;
 
 		if (maxLength <= 0) { // Shouldn't normally go below 0...
+			// This can run on the render (arrangement recording's ticks). There, deletingClipInstanceForClip() would
+			// freeze with E455: with no action it discards the undo logs and deletes the clip at once, and both hand
+			// clips to AudioEngine::retire(), which only the interaction tier may call. Believed unreachable: it needs
+			// the output's last instance to start at or after the record position, and arrangement recording clears
+			// the instances from that position on before it begins a new one.
 			song->deletingClipInstanceForClip(output, clipInstance->clip, nullptr, false); // Calls audio routine...
 			clipInstanceI--;
 			goto setupClipInstance;

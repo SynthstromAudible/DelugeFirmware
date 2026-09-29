@@ -32,11 +32,12 @@
 // directly. The reproduction *drivers* (kit-copy, song-load) are env-gated and always compiled, so they're useful with
 // either detector.
 
-#include "definitions_cxx.hpp"        // OutputType
-#include "gui/ui/load/load_song_ui.h" // loadSongUI
-#include "gui/ui/ui.h"                // openUI
-#include "gui/views/session_view.h"   // sessionView, reproCreateNewInstrumentClip
-#include "memory/alloc_metadata.h"    // mem_guard (self-guards on MEM_GUARD)
+#include "definitions_cxx.hpp"               // OutputType
+#include "gui/ui/load/load_song_ui.h"        // loadSongUI
+#include "gui/ui/ui.h"                       // openUI
+#include "gui/views/session_view.h"          // sessionView
+#include "memory/alloc_metadata.h"           // mem_guard (self-guards on MEM_GUARD)
+#include "scenarios/preset_fixture_loader.h" // deluge::harness::createNewInstrumentClip
 
 #include <csignal>
 #include <cstdio>
@@ -87,12 +88,14 @@ void onSignal(int sig) {
 	g_request = (sig == SIGUSR1) ? 1 : 2;
 }
 
-// Kit-copy reproduction harness. With DELUGE_HOST_KIT_COPY_REPS=N, once the app has booted, create N new KIT tracks -
-// each calls the path from the bug report (createNewTrackForInstrumentClip -> setPresetOrNextUnlaunchedOne, which loads
-// the *next* unlaunched kit preset from KITS/ plus all its samples). The first loads 000 TR-808, then 001, 002 SDS-5,
-// ... exactly as the device log showed. We snapshot the allocation table around it; the FULL-internal pressure shows in
-// the D_PRINTLN log, and anything leaked on the INSUFFICIENT_RAM error path shows in the closing leakReport().
+// Kit-copy reproduction harness. With DELUGE_HOST_KIT_COPY_REPS=N and DELUGE_HOST_KIT_COPY_PRESET=<path> (e.g.
+// "KITS/000 TR-808.XML"), once the app has booted, create N new KIT tracks, each loading that preset plus all its
+// samples into a fresh Instrument, as the new-track gesture does. There's no automatic "next unlaunched preset"
+// selection, so the preset must always be named explicitly. We snapshot the allocation table around it; the
+// FULL-internal pressure shows in the D_PRINTLN log, and anything leaked on the INSUFFICIENT_RAM error path shows in
+// the closing leakReport().
 int g_kitCopyReps = -1; // -1 = not yet read, 0 = disabled
+const char* g_kitCopyPreset = nullptr;
 uint32_t g_pollCount = 0;
 bool g_kitCopyDone = false;
 
@@ -100,6 +103,12 @@ void runKitCopyHarnessIfDue() {
 	if (g_kitCopyReps < 0) {
 		const char* env = std::getenv("DELUGE_HOST_KIT_COPY_REPS");
 		g_kitCopyReps = env ? std::atoi(env) : 0;
+		g_kitCopyPreset = std::getenv("DELUGE_HOST_KIT_COPY_PRESET");
+		if (g_kitCopyReps > 0 && g_kitCopyPreset == nullptr) {
+			printf("[kit-copy] DELUGE_HOST_KIT_COPY_PRESET is not set; nothing to load\n");
+			std::fflush(stdout);
+			g_kitCopyReps = 0;
+		}
 	}
 	if (g_kitCopyReps <= 0 || g_kitCopyDone) {
 		return;
@@ -110,12 +119,12 @@ void runKitCopyHarnessIfDue() {
 	}
 	g_kitCopyDone = true;
 
-	printf("[kit-copy] creating %d new KIT tracks (each loads the next kit preset + its samples)\n", g_kitCopyReps);
+	printf("[kit-copy] creating %d new KIT tracks (each loads %s + its samples)\n", g_kitCopyReps, g_kitCopyPreset);
 	std::fflush(stdout);
 	uint32_t snap = leakSnapshot();
 
 	for (int i = 0; i < g_kitCopyReps; i++) {
-		Clip* clip = sessionView.reproCreateNewInstrumentClip(OutputType::KIT, 0);
+		Clip* clip = deluge::harness::createNewInstrumentClip(OutputType::KIT, 0, g_kitCopyPreset);
 		printf("[kit-copy] rep %d: clip=%p, live allocations now %u\n", i, (void*)clip, (unsigned)leakLiveCount());
 		std::fflush(stdout);
 		if (clip == nullptr) {
@@ -149,6 +158,15 @@ int g_numSongPaths = 0;
 int g_songLoadReps = -1; // -1 = not yet read, 0 = disabled
 uint32_t g_songPollCount = 0;
 bool g_songLoadDone = false;
+
+// The walk's cursor: a load completes asynchronously from the run loop, so this walk cannot block
+// waiting for each one to finish. It resumes here between songs, picking up where it left off.
+bool g_songWalkStarted = false;
+int g_songRep = 0;
+int g_songIdx = 0;
+int g_songTotalLoads = 0;
+int g_songMaxLoads = 0;
+uint32_t g_songLeakSnapshot = 0;
 
 // `dir` is SD-relative (e.g. "SONGS/problem_songs"), matching the convention host_efatfs_passthrough.cpp's
 // resolve_root_relative() expects. The card is a plain host directory now (DELUGE_SD_ROOT), so walk it with
@@ -192,7 +210,9 @@ void collectXmlPaths(const char* dir, int depth) {
 	closedir(dp);
 }
 
-void loadOneSong(const char* fullPath) {
+/// Starts one song loading. Returns false if the browser would not accept it, in which case no load
+/// is in flight and the caller should move straight on to the next song.
+bool beginOneSong(const char* fullPath) {
 #if defined(__SANITIZE_ADDRESS__)
 	if (currentSong && __asan_address_is_poisoned((void*)currentSong)) {
 		printf("[song-load] BEFORE load: currentSong %p is POISONED (dangling freed Song)\n", (void*)currentSong);
@@ -200,16 +220,17 @@ void loadOneSong(const char* fullPath) {
 	}
 #endif
 	// Drive the same path the boot loader / enter-key uses: make loadSongUI the active UI (so the session view doesn't
-	// try to render - and dereference the transiently-null currentSong - during performLoad's yields), point the
-	// browser at this song, then perform the full load (read -> swap in -> delete the old song).
+	// try to render - and dereference the transiently-null currentSong - mid-load), point the browser at this song,
+	// then perform the full load (read -> swap in -> delete the old song).
 	openUI(&loadSongUI);
 	Error e = loadSongUI.setFileByFullPath(OutputType::NONE, fullPath);
 	if (e != Error::NONE) {
 		printf("  [song-load] setFileByFullPath failed (%d) for %s\n", (int)e, fullPath);
 		std::fflush(stdout);
-		return;
+		return false;
 	}
-	loadSongUI.performLoad();
+	loadSongUI.beginLoad();
+	return true;
 }
 
 void runSongLoadHarnessIfDue() {
@@ -220,35 +241,56 @@ void runSongLoadHarnessIfDue() {
 	if (g_songLoadReps <= 0 || g_songLoadDone) {
 		return;
 	}
-	if (++g_songPollCount < 200) { // let the app finish booting
+	if (!g_songWalkStarted && ++g_songPollCount < 200) { // let the app finish booting
 		return;
 	}
-	g_songLoadDone = true;
+	// One song per poll, resuming where the last one left off. A load completes from the run loop, so
+	// this can't be a nested loop: blocking here would stop the very pump it is waiting on.
+	if (!g_songWalkStarted) {
+		g_songWalkStarted = true;
 
-	const char* dir = std::getenv("DELUGE_HOST_SONG_LOAD_DIR");
-	collectXmlPaths(dir, 0);
-	printf("[song-load] found %d .XML files under %s; loading each x%d\n", g_numSongPaths, dir, g_songLoadReps);
-	std::fflush(stdout);
+		const char* dir = std::getenv("DELUGE_HOST_SONG_LOAD_DIR");
+		collectXmlPaths(dir, 0);
+		printf("[song-load] found %d .XML files under %s; loading each x%d\n", g_numSongPaths, dir, g_songLoadReps);
+		std::fflush(stdout);
 
-	// Optional cap on total loads, so we can stop short of memory exhaustion and get a clean LeakSanitizer report.
-	const char* maxEnv = std::getenv("DELUGE_HOST_SONG_LOAD_MAX");
-	int maxLoads = maxEnv ? std::atoi(maxEnv) : 0;
-	int totalLoads = 0;
+		// Optional cap on total loads, so we can stop short of memory exhaustion and get a clean
+		// LeakSanitizer report.
+		const char* maxEnv = std::getenv("DELUGE_HOST_SONG_LOAD_MAX");
+		g_songMaxLoads = maxEnv ? std::atoi(maxEnv) : 0;
+		g_songLeakSnapshot = leakSnapshot();
+	}
 
-	uint32_t snap = leakSnapshot();
-	for (int rep = 0; rep < g_songLoadReps; rep++) {
-		for (int i = 0; i < g_numSongPaths; i++) {
-			if (maxLoads > 0 && totalLoads >= maxLoads) {
-				goto doneLoading;
-			}
-			loadOneSong(g_songPaths[i]);
-			totalLoads++;
-			printf("[song-load] rep %d song %d/%d: %s | live allocations now %u\n", rep, i + 1, g_numSongPaths,
-			       g_songPaths[i], (unsigned)leakLiveCount());
-			std::fflush(stdout);
+	// A load is still running: let it.
+	if (loadSongUI.isLoadInFlight()) {
+		return;
+	}
+
+	// Walk to the next song that actually starts loading, then come back for it.
+	while (g_songRep < g_songLoadReps) {
+		if (g_songMaxLoads > 0 && g_songTotalLoads >= g_songMaxLoads) {
+			break;
+		}
+		if (g_songIdx >= g_numSongPaths) {
+			g_songIdx = 0;
+			g_songRep++;
+			continue;
+		}
+		const char* path = g_songPaths[g_songIdx];
+		int rep = g_songRep;
+		int idx = g_songIdx;
+		g_songIdx++;
+		g_songTotalLoads++;
+		printf("[song-load] rep %d song %d/%d: %s | live allocations now %u\n", rep, idx + 1, g_numSongPaths, path,
+		       (unsigned)leakLiveCount());
+		std::fflush(stdout);
+		if (beginOneSong(path)) {
+			return; // in flight; the next poll picks it up
 		}
 	}
-doneLoading:;
+
+	g_songLoadDone = true;
+	uint32_t snap = g_songLeakSnapshot;
 
 	printf("[song-load] done - allocations still outstanding across the run (leaks):\n");
 	std::fflush(stdout);

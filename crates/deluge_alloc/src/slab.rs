@@ -11,18 +11,23 @@
 //!
 //! Pinning (`numReasonsToBeLoaded` in C++) protects a slot a voice is mid-read of.
 
+use crate::section::{Section, STEP_SLAB};
 use crate::tlsf::ALIGN;
 use crate::{deluge_alloc, deluge_free, deluge_heap_register_reclaim, DelugeHeap};
 use core::ffi::c_void;
 use core::ptr;
+use core::sync::atomic::{AtomicPtr, Ordering};
 
 /// Eviction notification: a slot the owner holds is being reclaimed (the owner
 /// must drop its reference and reload from backing store later). Analogue of
 /// `Stealable::steal()`.
 pub type EvictFn = unsafe extern "C" fn(owner: *mut c_void);
 
+/// A table entry. `backing` is atomic because the table is scanned outside any section while another context may
+/// claim or clear an entry inside one (see crate::section); every other field is read and written only inside a
+/// section.
 struct Slot {
-    backing: *mut u8, // null => free table entry
+    backing: AtomicPtr<u8>, // null => free table entry
     owner: *mut c_void,
     pinned: u32,
     lru: u64,
@@ -65,111 +70,136 @@ impl SlabPool {
         }
     }
 
+    #[inline]
+    unsafe fn backing(this: *mut SlabPool, i: usize) -> *mut u8 {
+        (*Self::slot(this, i)).backing.load(Ordering::Relaxed)
+    }
+
+    /// First free entry, scanned outside any section: only a hint until re-checked inside one.
     unsafe fn find_free(this: *mut SlabPool) -> Option<usize> {
-        (0..(*this).capacity).find(|&i| (*Self::slot(this, i)).backing.is_null())
+        (0..(*this).capacity).find(|&i| Self::backing(this, i).is_null())
     }
 
+    /// The entry holding `p`, scanned outside any section. A slot has one owner, so while its owner is the caller the
+    /// entry cannot change under it; callers still re-check inside the section they act in.
     unsafe fn find_by_ptr(this: *mut SlabPool, p: *mut u8) -> Option<usize> {
-        (0..(*this).capacity).find(|&i| (*Self::slot(this, i)).backing == p)
+        (0..(*this).capacity).find(|&i| Self::backing(this, i) == p)
     }
 
-    /// Evict the coldest occupied **unpinned** slot: notify the owner, return its
-    /// backing to the heap, and free the table entry. Returns false if nothing is
-    /// evictable (everything pinned/empty). Used both as the heap reclaim hook and
-    /// to make room in a full table.
+    /// Evict the coldest occupied **unpinned** slot: notify its owner, return its backing to the heap, and free the
+    /// table entry. Returns false if nothing is evictable (everything pinned/empty). Used both as the heap reclaim
+    /// hook and to make room in a full table. The scan runs outside any section; the entry is re-checked and cleared
+    /// inside one (rescanning if another context changed it), and the callback and the free run after it.
     unsafe fn evict_coldest(this: *mut SlabPool) -> bool {
-        let mut best: Option<usize> = None;
-        let mut best_lru = u64::MAX;
-        for i in 0..(*this).capacity {
-            let s = Self::slot(this, i);
-            if !(*s).backing.is_null() && (*s).pinned == 0 && (*s).lru < best_lru {
-                best_lru = (*s).lru;
-                best = Some(i);
+        loop {
+            let mut best: Option<(usize, *mut u8)> = None;
+            let mut best_lru = u64::MAX;
+            for i in 0..(*this).capacity {
+                let s = Self::slot(this, i);
+                let backing = (*s).backing.load(Ordering::Relaxed);
+                if !backing.is_null() && (*s).pinned == 0 && (*s).lru < best_lru {
+                    best_lru = (*s).lru;
+                    best = Some((i, backing));
+                }
             }
+            let Some((i, backing)) = best else {
+                return false;
+            };
+            let owner = {
+                let _s = Section::enter(STEP_SLAB);
+                let s = Self::slot(this, i);
+                if (*s).backing.load(Ordering::Relaxed) != backing || (*s).pinned != 0 {
+                    continue; // another context took or pinned it: rescan
+                }
+                // Clear the entry *before* the callbacks so a reentrant acquire/free sees a consistent table
+                // (sequenced steal, redesign §2).
+                let owner = (*s).owner;
+                (*s).backing.store(ptr::null_mut(), Ordering::Relaxed);
+                (*s).owner = ptr::null_mut();
+                (*s).pinned = 0;
+                owner
+            };
+            if let Some(cb) = (*this).on_evict {
+                cb(owner);
+            }
+            deluge_free((*this).heap, backing);
+            return true;
         }
-        let Some(i) = best else { return false };
-        let s = Self::slot(this, i);
-        let backing = (*s).backing;
-        let owner = (*s).owner;
-        // Clear the entry *before* the callbacks so a reentrant acquire/free sees
-        // a consistent table (sequenced steal, redesign §2).
-        (*s).backing = ptr::null_mut();
-        (*s).owner = ptr::null_mut();
-        (*s).pinned = 0;
-        if let Some(cb) = (*this).on_evict {
-            cb(owner);
-        }
-        deluge_free((*this).heap, backing);
-        true
     }
 
-    /// Populate table entry `idx` for a freshly allocated backing block.
+    /// Populate table entry `idx` for a freshly allocated backing block. Called inside a section.
     unsafe fn populate(this: *mut SlabPool, idx: usize, p: *mut u8, owner: *mut c_void) {
         let lru = Self::bump(this);
         let s = Self::slot(this, idx);
-        (*s).backing = p;
         (*s).owner = owner;
         (*s).pinned = 0;
         (*s).lru = lru;
+        (*s).backing.store(p, Ordering::Relaxed);
     }
 
-    /// Acquire a slot for `owner`. Returns the backing payload, or null if the
-    /// heap is exhausted and nothing can be evicted.
+    /// Claim a free table entry for `p` in one step. Scans outside any section; claims inside one after re-checking
+    /// the entry is still free, rescanning if another context took it. False if the table is full.
+    unsafe fn claim(this: *mut SlabPool, p: *mut u8, owner: *mut c_void) -> bool {
+        loop {
+            let Some(idx) = Self::find_free(this) else {
+                return false;
+            };
+            let _s = Section::enter(STEP_SLAB);
+            if Self::backing(this, idx).is_null() {
+                Self::populate(this, idx, p, owner);
+                return true;
+            }
+        }
+    }
+
+    /// Allocate a slot's backing, zeroing it if asked. The heap's reclaim hook may evict *other* slots meanwhile.
+    unsafe fn alloc_backing(this: *mut SlabPool) -> *mut u8 {
+        let p = deluge_alloc((*this).heap, (*this).slot_size, ALIGN);
+        if !p.is_null() && (*this).zero_on_acquire {
+            ptr::write_bytes(p, 0, (*this).slot_size);
+        }
+        p
+    }
+
+    /// Acquire a slot for `owner`. Returns the backing payload, or null if the heap is exhausted and nothing can be
+    /// evicted.
     unsafe fn acquire(this: *mut SlabPool, owner: *mut c_void) -> *mut u8 {
         if !(*this).self_reclaim {
             return Self::acquire_unmanaged(this, owner);
         }
-        // 1. Ensure a free table entry (evicting the coldest to reuse one).
-        let idx = match Self::find_free(this) {
-            Some(i) => i,
-            None => {
-                if !Self::evict_coldest(this) {
-                    return ptr::null_mut(); // table full and all pinned
-                }
-                Self::find_free(this).expect("entry freed by eviction")
-            }
-        };
-        // 2. Allocate backing. This may reentrantly evict *other* slots via the
-        //    heap reclaim hook to free space; entry `idx` is empty so it is safe.
-        let p = deluge_alloc((*this).heap, (*this).slot_size, ALIGN);
+        // 1. Make sure a free table entry exists (evicting the coldest to free one).
+        if Self::find_free(this).is_none() && !Self::evict_coldest(this) {
+            return ptr::null_mut(); // table full and all pinned
+        }
+        // 2. Allocate backing. This may reentrantly evict other slots via the heap reclaim hook.
+        let p = Self::alloc_backing(this);
         if p.is_null() {
             return ptr::null_mut();
         }
-        if (*this).zero_on_acquire {
-            ptr::write_bytes(p, 0, (*this).slot_size);
+        // 3. Claim an entry (not a reserved index: another context may have taken it meanwhile).
+        if !Self::claim(this, p, owner) {
+            deluge_free((*this).heap, p);
+            return ptr::null_mut();
         }
-        // 3. Populate the reserved entry.
-        Self::populate(this, idx, p, owner);
         p
     }
 
-    /// Unmanaged acquire: an external coordinator owns eviction via the heap's
-    /// reclaim hook, which (for the cluster pool) frees *both* heap space and table
-    /// entries through `deluge_slab_release`. So we allocate **first** — letting that
-    /// hook fire and recycle entries — and only then claim a table slot, which the
-    /// generous capacity (>= max slots that can physically fit) guarantees is free.
-    /// No table entry is reserved across the alloc, so a reentrant release during it
-    /// is harmless (sequenced steal).
+    /// Unmanaged acquire: an external coordinator owns eviction via the heap's reclaim hook, which (for the cluster
+    /// pool) frees *both* heap space and table entries through `deluge_slab_release`. So we allocate **first** --
+    /// letting that hook fire and recycle entries -- and only then claim a table slot, which the generous capacity
+    /// (>= max slots that can physically fit) guarantees is free. No table entry is reserved across the alloc, so a
+    /// reentrant release during it is harmless (sequenced steal).
     unsafe fn acquire_unmanaged(this: *mut SlabPool, owner: *mut c_void) -> *mut u8 {
-        let p = deluge_alloc((*this).heap, (*this).slot_size, ALIGN);
+        let p = Self::alloc_backing(this);
         if p.is_null() {
             return ptr::null_mut();
         }
-        if (*this).zero_on_acquire {
-            ptr::write_bytes(p, 0, (*this).slot_size);
+        if !Self::claim(this, p, owner) {
+            // Capacity is sized so this can't happen (a successful alloc implies room for another slot); be safe.
+            deluge_free((*this).heap, p);
+            return ptr::null_mut();
         }
-        match Self::find_free(this) {
-            Some(idx) => {
-                Self::populate(this, idx, p, owner);
-                p
-            }
-            // Capacity is sized so this can't happen (a successful alloc implies room
-            // for another slot, i.e. fewer than `capacity` are live); be safe anyway.
-            None => {
-                deluge_free((*this).heap, p);
-                ptr::null_mut()
-            }
-        }
+        p
     }
 }
 
@@ -229,7 +259,7 @@ unsafe fn create_pool(
         ptr::write(
             slots.add(i),
             Slot {
-                backing: ptr::null_mut(),
+                backing: AtomicPtr::new(ptr::null_mut()),
                 owner: ptr::null_mut(),
                 pinned: 0,
                 lru: 0,
@@ -297,7 +327,11 @@ pub unsafe extern "C" fn deluge_slab_pin(slab: *mut DelugeSlab, p: *mut u8) {
     }
     let this = slab as *mut SlabPool;
     if let Some(i) = SlabPool::find_by_ptr(this, p) {
-        (*SlabPool::slot(this, i)).pinned += 1;
+        let _s = Section::enter(STEP_SLAB);
+        let s = SlabPool::slot(this, i);
+        if (*s).backing.load(Ordering::Relaxed) == p {
+            (*s).pinned += 1;
+        }
     }
 }
 
@@ -308,8 +342,9 @@ pub unsafe extern "C" fn deluge_slab_unpin(slab: *mut DelugeSlab, p: *mut u8) {
     }
     let this = slab as *mut SlabPool;
     if let Some(i) = SlabPool::find_by_ptr(this, p) {
+        let _s = Section::enter(STEP_SLAB);
         let s = SlabPool::slot(this, i);
-        if (*s).pinned > 0 {
+        if (*s).backing.load(Ordering::Relaxed) == p && (*s).pinned > 0 {
             (*s).pinned -= 1;
         }
     }
@@ -323,8 +358,11 @@ pub unsafe extern "C" fn deluge_slab_touch(slab: *mut DelugeSlab, p: *mut u8) {
     }
     let this = slab as *mut SlabPool;
     if let Some(i) = SlabPool::find_by_ptr(this, p) {
-        let lru = SlabPool::bump(this);
-        (*SlabPool::slot(this, i)).lru = lru;
+        let _s = Section::enter(STEP_SLAB);
+        let s = SlabPool::slot(this, i);
+        if (*s).backing.load(Ordering::Relaxed) == p {
+            (*s).lru = SlabPool::bump(this);
+        }
     }
 }
 
@@ -338,15 +376,25 @@ pub unsafe extern "C" fn deluge_slab_release(slab: *mut DelugeSlab, p: *mut u8) 
         return false;
     }
     let this = slab as *mut SlabPool;
-    if let Some(i) = SlabPool::find_by_ptr(this, p) {
+    let Some(i) = SlabPool::find_by_ptr(this, p) else {
+        return false;
+    };
+    let cleared = {
+        let _s = Section::enter(STEP_SLAB);
         let s = SlabPool::slot(this, i);
-        (*s).backing = ptr::null_mut();
-        (*s).owner = ptr::null_mut();
-        (*s).pinned = 0;
+        if (*s).backing.load(Ordering::Relaxed) == p {
+            (*s).backing.store(ptr::null_mut(), Ordering::Relaxed);
+            (*s).owner = ptr::null_mut();
+            (*s).pinned = 0;
+            true
+        } else {
+            false
+        }
+    };
+    if cleared {
         deluge_free((*this).heap, p);
-        return true;
     }
-    false
+    cleared
 }
 
 #[cfg(test)]
@@ -578,6 +626,150 @@ mod tests {
         let big = unsafe { deluge_alloc(h, 128 * 1024, 16) };
         assert!(big.is_null(), "must not evict pinned slots");
         assert_eq!(evicts(), 0);
+        let _ = &buf;
+    }
+
+    use crate::section::test_hooks;
+
+    #[test]
+    fn slab_slot_claims_and_clears_are_noted_inside_their_sections() {
+        test_hooks::install();
+        let bytes = 256 * 1024;
+        let mut buf = vec![0u8; bytes];
+        let h = unsafe { deluge_heap_create(buf.as_mut_ptr(), bytes) };
+        let slab = unsafe { deluge_slab_create_unmanaged(h, 1024, 256) };
+        test_hooks::take_events();
+        let p = unsafe { deluge_slab_acquire(slab, ptr::null_mut()) };
+        assert!(!p.is_null());
+        unsafe { deluge_slab_touch(slab, p) };
+        assert!(unsafe { deluge_slab_release(slab, p) });
+        let events = test_hooks::take_events();
+        assert_eq!(events.iter().filter(|e| **e == "slab").count(), 3); // claim, touch, clear
+        assert_eq!(
+            events.iter().filter(|e| **e == "enter").count(),
+            events.iter().filter(|e| **e == "exit").count()
+        );
+        let _ = &buf;
+    }
+
+    #[test]
+    fn unmanaged_acquire_on_a_full_table_frees_its_backing() {
+        let bytes = 256 * 1024;
+        let mut buf = vec![0u8; bytes];
+        let h = unsafe { deluge_heap_create(buf.as_mut_ptr(), bytes) };
+        // How many 1 KB blocks the heap can hand out right now (all freed again afterwards).
+        let fill = |h: *mut DelugeHeap| -> usize {
+            let mut held = Vec::new();
+            loop {
+                let p = unsafe { deluge_alloc(h, 1024, 16) };
+                if p.is_null() {
+                    break;
+                }
+                held.push(p);
+            }
+            let n = held.len();
+            for p in held {
+                unsafe { crate::deluge_free(h, p) };
+            }
+            n
+        };
+        let slab = unsafe { deluge_slab_create_unmanaged(h, 1024, 1) }; // one entry
+        let a = unsafe { deluge_slab_acquire(slab, ptr::null_mut()) };
+        assert!(!a.is_null());
+        let before = fill(h);
+        let b = unsafe { deluge_slab_acquire(slab, ptr::null_mut()) }; // table full: its backing must go back
+        assert!(b.is_null());
+        assert_eq!(fill(h), before);
+        let _ = &buf;
+    }
+
+    #[test]
+    fn two_contexts_keep_one_slab_consistent() {
+        use crate::section::test_hooks::{self, Mode, MODE};
+        test_hooks::install();
+        let bytes = 4 << 20;
+        let mut buf = vec![0u128; bytes / 16];
+        let h = unsafe { deluge_heap_create(buf.as_mut_ptr() as *mut u8, bytes) };
+        let capacity = 1024;
+        let slab = unsafe { deluge_slab_create_unmanaged(h, 4096, capacity) };
+        let hp = h as usize;
+        let sp = slab as usize;
+
+        // One context's churn on the slab: each slot it holds carries its own tag, checked before it is released, so a
+        // slot handed to both contexts, or an entry lost from the table, fails the test. The render-shaped context holds
+        // the host section for its whole block; the other masks per step.
+        fn churn(sp: usize, seed: u32, tag: u64, rounds: usize, block: bool) {
+            let slab = sp as *mut DelugeSlab;
+            let mut x = seed;
+            let mut next = move || {
+                x ^= x << 13;
+                x ^= x >> 17;
+                x ^= x << 5;
+                x
+            };
+            let mut held: Vec<(usize, u64)> = Vec::new();
+            let mut seq = 0u64;
+            for _ in 0..rounds {
+                if block {
+                    test_hooks::lock();
+                }
+                for _ in 0..16 {
+                    if held.len() < 48 && (next() & 1 == 0 || held.is_empty()) {
+                        let p = unsafe { deluge_slab_acquire(slab, ptr::null_mut()) };
+                        if !p.is_null() {
+                            seq += 1;
+                            let v = (tag << 48) | seq;
+                            unsafe { (p as *mut u64).write(v) };
+                            held.push((p as usize, v));
+                        }
+                    } else {
+                        let i = next() as usize % held.len();
+                        let (p, v) = held.swap_remove(i);
+                        let p = p as *mut u8;
+                        assert_eq!(
+                            unsafe { (p as *const u64).read() },
+                            v,
+                            "a slot held here was handed out again"
+                        );
+                        unsafe {
+                            deluge_slab_touch(slab, p);
+                            deluge_slab_pin(slab, p);
+                            deluge_slab_unpin(slab, p);
+                        }
+                        assert!(
+                            unsafe { deluge_slab_release(slab, p) },
+                            "a held slot's table entry was lost"
+                        );
+                    }
+                }
+                if block {
+                    test_hooks::unlock();
+                }
+            }
+            if block {
+                test_hooks::lock();
+            }
+            for (p, _) in held {
+                assert!(unsafe { deluge_slab_release(slab, p as *mut u8) });
+            }
+            if block {
+                test_hooks::unlock();
+            }
+        }
+
+        let render = std::thread::spawn(move || {
+            MODE.with(|m| m.set(Mode::StressRender));
+            churn(sp, 0x9e37_79b9, 1, 3000, true);
+        });
+        let interaction = std::thread::spawn(move || {
+            MODE.with(|m| m.set(Mode::StressInteraction));
+            churn(sp, 0x85eb_ca6b, 2, 3000, false);
+        });
+        render.join().unwrap();
+        interaction.join().unwrap();
+        let this = sp as *mut SlabPool;
+        assert!((0..capacity).all(|i| unsafe { SlabPool::backing(this, i) }.is_null()));
+        assert!(unsafe { crate::deluge_heap_check(hp as *mut DelugeHeap) });
         let _ = &buf;
     }
 }

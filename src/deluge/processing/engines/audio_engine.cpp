@@ -40,13 +40,15 @@
 #include "io/midi/midi_engine.h"
 #include "libdeluge/app.h"
 #include "libdeluge/audio_io.h"
+#include "libdeluge/file_write.h"
 #include "libdeluge/signals.h"
-#include "libdeluge/storage_owner.h"  // deluge_storage_on_owner
 #include "libdeluge/streaming_fill.h" // deluge_streaming_resource_manager()
 #include "libdeluge/system.h"
-#include "libdeluge/worker.h"
+#include "libdeluge/tier.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/stack_guard.h"
+#include "model/clip/audio_clip.h"
+#include "model/clip/clip.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -64,21 +66,31 @@
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
 #include "scheduler_api.h"
+#include "storage/audio/load_trace.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
-#include "storage/owner.h" // deluge::storage::Coalescer (SD-routine dispatch)
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
+#include "util/boot.h"
 #include "util/functions.h"
 #include "util/misc.h"
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <execution>
 #include <iterator>
 #include <new>
 #include <numeric>
 #include <ranges>
+
+// Last, after every other header: these declare namespace deluge::util, which would shadow the global ::util for
+// the headers above that name util:: from inside namespace deluge.
+#include "deluge/util/retire_list.h"
+#include "deluge/util/spsc_ring.h"
+#include "processing/engines/render_domain.h"
 
 namespace params = deluge::modulation::params;
 
@@ -102,6 +114,293 @@ extern "C" uint32_t getAudioSampleTimerMS() {
 }
 // Pitch, Y, Pressure
 int16_t zeroMPEValues[kNumExpressionDimensions] = {0, 0, 0};
+
+// Retirement: how the interaction tier hands the render an object it has stopped using (a deleted output, drum, clip or
+// whole song), so that the render lets go of it before its memory is freed. See AudioEngine::retire().
+namespace {
+deluge::util::SnapshotDomain renderDomain_;
+deluge::RetireList retireList{renderDomain_};
+
+/// What the render must let go of before a retired object may be destroyed.
+struct RetireRequest {
+	Output* output = nullptr;  ///< a retired output (a SoundInstrument is a Sound; a Kit owns SoundDrums)
+	SoundDrum* drum = nullptr; ///< a retired drum
+	Clip* clip = nullptr;      ///< a retired clip
+	Song* song = nullptr;      ///< a retired song, no longer currentSong
+	uint64_t sequence = 0;     ///< its place in the order requests reach the render (see retireSequenceLetGo)
+};
+deluge::util::SpscRing<RetireRequest, 64> retireRing;
+std::vector<RetireRequest> retireOverflow; ///< [interaction] requests the ring had no room for, re-pushed at reclaim
+/// [interaction] The sequence of the last request handed over. Requests reach the render in this order (the overflow
+/// list is only ever appended to while it is non-empty, and re-pushed from its front), so "every request up to N has
+/// been let go of" is one number.
+uint64_t retireSequencePushed = 0;
+/// [render] -> [interaction] The highest sequence the render has let go of. Release-stored by the render after its
+/// drain, acquire-loaded by reclaim: an entry whose sequence is at or below it has been let go of, and every effect of
+/// that let-go is visible. An entry is freed once this covers it AND two blocks have begun since its stamp.
+std::atomic<uint64_t> retireSequenceLetGo{0};
+/// How long AudioEngine::awaitRetired() waits, in getSystemTime() seconds, before it freezes (E459). A song of many
+/// outputs is let go of in one block and freed two blocks later -- a few milliseconds; this is far past that.
+#if defined(__SANITIZE_THREAD__)
+#define DELUGE_UNDER_TSAN 1
+#elif defined(__has_feature)
+#if __has_feature(thread_sanitizer)
+#define DELUGE_UNDER_TSAN 1
+#endif
+#endif
+#if defined(DELUGE_UNDER_TSAN)
+// Under ThreadSanitizer a render block runs many times slower, and 250 ms was measured to run out on a genuine,
+// completing wait (2 of 40 preemptive-race-tsan runs). The block bound below still catches a render that stops.
+constexpr double kAwaitRetiredTimeoutSeconds = 5.0;
+#else
+constexpr double kAwaitRetiredTimeoutSeconds = 0.25;
+#endif
+/// How many render blocks AudioEngine::awaitRetired() waits for before it freezes (E459), whatever the clock says.
+/// A retired object is let go of at the next block and freed two blocks after its stamp, so 2-3 blocks is normal.
+/// Needed where getSystemTime() does not move inside a synchronous wait (the virtual-time host harnesses, which run
+/// the render inline). 1000 is over 300x the normal count; on the device, where a block is ~2.9 ms, it is ~2.9 s, so
+/// the 250 ms time bound always fires first there.
+constexpr int32_t kAwaitRetiredMaxBlocks = 1000;
+
+/// [render] End a Sound's voices and take it out of the registry: after this no walk can reach it.
+void letGoOfSound(Sound& sound) {
+	sound.killAllVoices();
+	AudioEngine::sounds.remove(&sound);
+}
+
+/// Point the view's active ModControllable model stack at nothing.
+void clearViewModelStack() {
+	view.activeModControllableModelStack.modControllable = nullptr;
+	view.activeModControllableModelStack.setTimelineCounter(nullptr);
+	view.activeModControllableModelStack.paramManager = nullptr;
+}
+
+/// [interaction] or [render] Stop the view's active ModControllable model stack naming @p clip. Compares only.
+void clearViewIfClip(Clip const* clip) {
+	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
+		clearViewModelStack();
+	}
+}
+
+/// Whether the view's active ModControllable model stack names anything @p song owns: the song itself, one of its
+/// clips, or one of its outputs as the ModControllable. Walks only what the song owns -- its clip arrays and output
+/// lists -- and compares; it follows none of the song's per-clip reference fields (currentClip, syncScalingClip,
+/// beingRecordedFromClip), which may name clips already freed.
+bool viewNamesSong(Song* song) {
+	ModelStackWithThreeMainThings& stack = view.activeModControllableModelStack;
+	TimelineCounter const* counter = stack.getTimelineCounterAllowNull();
+	if (counter == song || stack.modControllable == &song->globalEffectable) {
+		return true;
+	}
+	for (ClipArray const* array : {&song->sessionClips, &song->arrangementOnlyClips}) {
+		for (Clip const* clip : *array) {
+			if (counter == clip) {
+				return true;
+			}
+		}
+	}
+	if (stack.modControllable != nullptr) {
+		for (Output* first : {song->firstOutput, static_cast<Output*>(song->firstHibernatingInstrument)}) {
+			for (Output* output = first; output != nullptr; output = output->next) {
+				if (stack.modControllable == output->toModControllable()) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
+/// [render] Drop every reference the render keeps from block to block to a retired clip. The caller already unlinked
+/// it from its song's arrays, clip instances and output (Clip::prepareForDestruction()), and AudioEngine::retire(Clip*)
+/// already cleared the ones the interaction tier writes (currentClip, syncScalingClip, the view's active stack). This
+/// is the catch for what the render itself may have written between the retire and this let-go: another clip's
+/// beingRecordedFromClip and syncScalingClip (the recording ticks), and currentClip (session.cpp's new-recording
+/// hand-over). Only the current song is looked at: the render reaches clips through currentSong alone, and a song that
+/// is no longer current takes its references with it.
+void letGoOfClip(Clip* clip) {
+	if (currentSong != nullptr) {
+		if (currentSong->getCurrentClip() == clip) {
+			currentSong->setCurrentClip(nullptr);
+		}
+		if (currentSong->syncScalingClip == clip) {
+			currentSong->syncScalingClip = nullptr;
+		}
+		for (ClipArray* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
+			for (Clip* other : *array) {
+				if (other->beingRecordedFromClip == clip) {
+					other->beingRecordedFromClip = nullptr;
+				}
+			}
+		}
+	}
+	clearViewIfClip(clip);
+}
+
+/// [render] Let go of a retired song: end the voices of, and deregister, every Sound of every output it owns (its
+/// main and hibernating lists, as Song::deleteAllOutputs() walks them), then drop the view's reference to it or to
+/// anything it owns. AudioEngine::retire(Song*) already dropped that reference on the interaction tier; this is the
+/// catch. The song is no longer current, so the render reaches none of its clips through currentSong; its own
+/// currentClip, syncScalingClip and beingRecordedFromClip fields are left alone -- they may name clips already freed.
+void letGoOfSong(Song* song) {
+	// A song can hold hundreds of Sounds (every drum of every kit), and this runs inside one block. Taking each out of
+	// the registry on its own would scan the registry once per Sound; mark them instead, then take every marked one
+	// out in a single pass.
+	bool anyMarked = false;
+	auto mark = [&anyMarked](Sound& sound) {
+		sound.killAllVoices();
+		sound.letGoWithSong = true;
+		anyMarked = true;
+	};
+	for (Output* first : {song->firstOutput, static_cast<Output*>(song->firstHibernatingInstrument)}) {
+		for (Output* output = first; output != nullptr; output = output->next) {
+			if (output->type == OutputType::SYNTH) {
+				mark(*static_cast<SoundInstrument*>(output));
+			}
+			else if (output->type == OutputType::KIT) {
+				auto* kit = static_cast<Kit*>(output);
+				for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
+					if (d->type == DrumType::SOUND) {
+						mark(*static_cast<SoundDrum*>(d));
+						// Out of the kit's rendering list too: ending the voices does not take it out (a drum leaves
+						// the list only when its render finds it silent), and ~Kit destroys it at reclaim.
+						kit->renderingDrums.remove(static_cast<SoundDrum*>(d));
+					}
+				}
+			}
+		}
+	}
+	if (anyMarked) {
+		AudioEngine::sounds.remove_if([](Sound const* sound) { return sound->letGoWithSong; });
+	}
+	if (viewNamesSong(song)) {
+		clearViewModelStack();
+	}
+}
+
+/// [render] Let go of everything a retired object owns that the render can reach.
+void letGo(const RetireRequest& r) {
+	if (r.song != nullptr) {
+		letGoOfSong(r.song);
+	}
+	if (r.clip != nullptr) {
+		letGoOfClip(r.clip);
+	}
+	if (r.drum != nullptr) {
+		letGoOfSound(*r.drum);
+	}
+	if (r.output != nullptr) {
+		if (r.output->type == OutputType::SYNTH) {
+			letGoOfSound(*static_cast<SoundInstrument*>(r.output));
+		}
+		else if (r.output->type == OutputType::KIT) {
+			auto* kit = static_cast<Kit*>(r.output);
+			for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
+				if (d->type == DrumType::SOUND) {
+					letGoOfSound(*static_cast<SoundDrum*>(d));
+					// As for a song's kits in letGoOfSong(): out of the rendering list before ~Kit destroys it.
+					kit->renderingDrums.remove(static_cast<SoundDrum*>(d));
+				}
+			}
+		}
+	}
+}
+
+/// [interaction] Retired objects destroyed while the render could still reach them: a Sound still in the registry
+/// when its destroy ran, i.e. before the render let go of it. Must stay 0; see AudioEngine::retireViolations().
+std::size_t retireViolations_ = 0;
+
+/// [interaction] Whether the render can still reach @p sound through the Sound registry.
+bool stillRegistered(Sound* sound) {
+	return AudioEngine::sounds.walk([sound](const auto& all) { return std::ranges::find(all, sound) != all.end(); });
+}
+
+/// [interaction] Count a destroy that runs before the render let go of what it destroys.
+void checkLetGoBeforeDestroy(Output* output, SoundDrum* drum) {
+	bool reachable = false;
+	if (drum != nullptr) {
+		reachable = stillRegistered(drum);
+	}
+	else if (output->type == OutputType::SYNTH) {
+		reachable = stillRegistered(static_cast<SoundInstrument*>(output));
+	}
+	else if (output->type == OutputType::KIT) {
+		for (Drum* d = static_cast<Kit*>(output)->firstDrum; d != nullptr && !reachable; d = d->next) {
+			reachable = d->type == DrumType::SOUND && stillRegistered(static_cast<SoundDrum*>(d));
+		}
+	}
+	if (reachable) {
+		retireViolations_++;
+	}
+}
+
+void pushOrOverflow(const RetireRequest& r) {
+	// Behind anything already waiting in the overflow, so requests reach the render in sequence order.
+	if (!retireOverflow.empty() || !retireRing.try_push(r)) {
+		retireOverflow.push_back(r);
+	}
+}
+
+/// Hand a retired object over: the render lets go of it (ends voices, deregisters Sounds), then it is destroyed by the
+/// first reclaim after that let-go once two blocks have begun since the handover. Two cases, decided once from a single
+/// epoch read:
+///  - the render has never run (epoch 0, boot): nothing can reach it; let go inline and destroy now;
+///  - otherwise: the render lets go at the top of its next block (the ring); destroy later.
+///
+/// Only the interaction tier may retire (E455 otherwise). The ring is single-producer, and the retire list, the
+/// overflow list and reclaimRetired() are single-threaded on the interaction side. A retire from the render itself
+/// (the song swap, if it ever runs there) would need its own render-to-interaction handover of the destroy; that is
+/// left to the Song/Clip deletion work, and until then it freezes rather than corrupt the list.
+void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
+	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
+		FREEZE_WITH_ERROR("E455");
+	}
+	const bool renderHasRun = renderDomain_.audio_epoch() != 0;
+	if (!renderHasRun) {
+		letGo(r);
+		destroy(object);
+		return;
+	}
+	r.sequence = ++retireSequencePushed;
+	pushOrOverflow(r);
+	retireList.retire(object, destroy, r.sequence);
+}
+
+/// [render] The render's block-start lifetime step: advance the epoch, then let go of everything retired since the
+/// last block -- before any walk of this block can reach it, and publish how far it got. The epoch's and the let-go
+/// sequence's release stores are what let reclaim free an object. Run by every block the render starts, and by a block
+/// a host harness skips rendering (deluge_app_render_skipped), so retirement completes whether or not audio is
+/// produced.
+#ifdef DELUGE_HOST
+/// [render] -> [interaction] The longest block-top let-go (the drain below) since the last reset, in host wall-clock
+/// microseconds. A host-only measurement; see AudioEngine::retireDrainMicrosMax().
+std::atomic<uint32_t> retireDrainMicrosMax_{0};
+#endif
+
+void renderRetirementStep() {
+	renderDomain_.advance_epoch();
+#ifdef DELUGE_HOST
+	const auto drainStart = std::chrono::steady_clock::now();
+#endif
+	uint64_t lastLetGo = 0;
+	const std::size_t drained = retireRing.drain(
+	    [&lastLetGo](RetireRequest&& r) {
+		    letGo(r);
+		    lastLetGo = r.sequence;
+	    },
+	    16);
+	if (drained != 0) {
+		retireSequenceLetGo.store(lastLetGo, std::memory_order_release);
+	}
+#ifdef DELUGE_HOST
+	const auto micros = static_cast<uint32_t>(
+	    std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - drainStart).count());
+	if (micros > retireDrainMicrosMax_.load(std::memory_order_relaxed)) {
+		retireDrainMicrosMax_.store(micros, std::memory_order_relaxed);
+	}
+#endif
+}
+} // namespace
 
 namespace AudioEngine {
 
@@ -219,7 +518,7 @@ int32_t masterVolumeAdjustmentR;
 bool doMonitoring;
 MonitoringAction monitoringAction;
 
-deluge::fast_vector<Sound*> sounds;
+deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
 TaskID routine_task_id = -1;
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
@@ -251,9 +550,11 @@ void init() {
 }
 
 void killAllVoices(bool deletingSong) {
-	for (Sound* sound : sounds) {
-		sound->killAllVoices();
-	}
+	sounds.walk([](const auto& all) {
+		for (Sound* sound : all) {
+			sound->killAllVoices();
+		}
+	});
 
 	// Because we unfortunately don't have a master list of VoiceSamples or actively sounding AudioClips,
 	// we have to unassign all of those by going through all AudioOutputs.
@@ -295,106 +596,111 @@ int32_t numAudioLogItems = 0;
 /// same render. Will stop an audio clip if there are no voices to  kill
 void killOneVoice(size_t num_samples) {
 	logAction("kill");
-	auto lowest_priority_voices = sounds //<
-	                              | std::views::filter(&Sound::hasActiveVoices)
-	                              | std::views::transform(&Sound::getLowestPriorityVoice);
-	auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
-		return a->getPriorityRating() < b->getPriorityRating();
-	});
-	if (it == lowest_priority_voices.end()) {
-		if (currentSong) {
-			currentSong->cullAudioClipVoice();
+	sounds.walk([&](const auto& sounds) {
+		auto lowest_priority_voices = sounds //<
+		                              | std::views::filter(&Sound::hasActiveVoices)
+		                              | std::views::transform(&Sound::getLowestPriorityVoice);
+		auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
+			return a->getPriorityRating() < b->getPriorityRating();
+		});
+		if (it == lowest_priority_voices.end()) {
+			if (currentSong) {
+				currentSong->cullAudioClipVoice();
+			}
 		}
-	}
 
-	const Sound::ActiveVoice& voice = *it;
+		const Sound::ActiveVoice& voice = *it;
 
-	bool still_rendering = voice->doImmediateRelease();
-	if (!still_rendering) {
-		voice->sound.freeActiveVoice(voice);
-	}
+		bool still_rendering = voice->doImmediateRelease();
+		if (!still_rendering) {
+			voice->sound.freeActiveVoice(voice);
+		}
 
-	D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples, getNumVoices(),
-	          getNumAudio());
+		D_PRINTLN("killed 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+		          getNumVoices(), getNumAudio());
+	});
 }
 
 /// Force a voice to release very quickly - will be almost instant but not click
 void terminateOneVoice(size_t numSamples) {
 	logAction("terminate");
+	sounds.walk([&](const auto& sounds) {
+		auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
 
-	auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
-
-	if (all_voices.empty()) {
-		return;
-	}
-
-	// The skip filter must apply to the first voice too (see Sound::terminateOneActiveVoice / issue #4721):
-	// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
-	const Sound::ActiveVoice* best = nullptr;
-	for (const auto& voice : all_voices) {
-		if (voice->isCullFading()) {
-			continue;
+		if (all_voices.empty()) {
+			return;
 		}
-		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
-			best = &voice;
+
+		// The skip filter must apply to the first voice too (see Sound::terminateOneActiveVoice / issue #4721):
+		// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
+		const Sound::ActiveVoice* best = nullptr;
+		for (const auto& voice : all_voices) {
+			if (voice->isCullFading()) {
+				continue;
+			}
+			if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+				best = &voice;
+			}
 		}
-	}
 
-	if (best == nullptr) {
-		return;
-	}
+		if (best == nullptr) {
+			return;
+		}
 
-	const Sound::ActiveVoice& voice = *best;
-	bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
-	if (!still_rendering) {
-		voice->sound.freeActiveVoice(voice);
-	}
+		const Sound::ActiveVoice& voice = *best;
+		bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
+		if (!still_rendering) {
+			voice->sound.freeActiveVoice(voice);
+		}
 
-	D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples, getNumVoices(),
-	          getNumAudio());
+		D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
+		          getNumVoices(), getNumAudio());
+	});
 }
 
 /// Force a voice to release, or speed up its release if the oldest voice is already releasing
 void forceReleaseOneVoice(size_t num_samples) {
 	logAction("force release");
-	auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
-	if (all_voices.empty()) {
-		return;
-	}
-
-	// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has a
-	// high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
-	// musical-release tails keep stacking up.
-	const Sound::ActiveVoice* best = nullptr;
-	for (const auto& voice : all_voices) {
-		if (voice->isCullFading()) {
-			continue;
+	sounds.walk([&](const auto& sounds) {
+		auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
+		if (all_voices.empty()) {
+			return;
 		}
-		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
-			best = &voice;
+
+		// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has
+		// a high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
+		// musical-release tails keep stacking up.
+		const Sound::ActiveVoice* best = nullptr;
+		for (const auto& voice : all_voices) {
+			if (voice->isCullFading()) {
+				continue;
+			}
+			if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+				best = &voice;
+			}
 		}
-	}
 
-	if (best == nullptr) {
-		return;
-	}
+		if (best == nullptr) {
+			return;
+		}
 
-	const Sound::ActiveVoice& voice = *best;
+		const Sound::ActiveVoice& voice = *best;
 
-	auto stage = voice->envelopes[0].state;
-	if (stage < EnvelopeStage::FAST_RELEASE) {
-		D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getNumAudio());
-	}
-	else {
-		D_PRINTLN("sped up release for 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
-		          getNumVoices(), getNumAudio());
-	}
+		auto stage = voice->envelopes[0].state;
+		if (stage < EnvelopeStage::FAST_RELEASE) {
+			D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+			          getNumVoices(), getNumAudio());
+		}
+		else {
+			D_PRINTLN("sped up release for 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d",
+			          num_samples, getNumVoices(), getNumAudio());
+		}
 
-	bool still_rendering = voice->speedUpRelease();
-	if (!still_rendering) {
-		voice->sound.freeActiveVoice(voice);
-	}
+		bool still_rendering = voice->speedUpRelease();
+		if (!still_rendering) {
+			voice->sound.freeActiveVoice(voice);
+		}
+	});
 }
 
 int32_t getNumAudio() {
@@ -402,12 +708,15 @@ int32_t getNumAudio() {
 }
 
 int32_t getNumVoices() {
-	return std::transform_reduce(sounds.cbegin(), sounds.cend(), 0, std::plus{},
-	                             [](auto sound) { return sound->voices().size(); });
+	return sounds.walk([](const auto& all) {
+		return std::transform_reduce(all.cbegin(), all.cend(), 0, std::plus{},
+		                             [](auto sound) { return sound->voices().size(); });
+	});
 }
 
 void routineWithClusterLoading() {
 	logAction("AudioDriver::routineWithClusterLoading");
+	DELUGE_LOAD_TRACE("routine");
 
 	routineBeenCalled = false;
 
@@ -583,7 +892,25 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 /// windows still end exactly on sequencer events; `in` holds the `frames` input
 /// samples aligned with `out`. The window-length policy (how `frames` is
 /// chosen) is the board's: on RZ/A1L it stays the DMA-polled variable window.
+/// See <libdeluge/app.h>: a block the board chose not to render still runs the render's block-start lifetime step, so
+/// objects handed to the render are let go of and freed on schedule.
+extern "C" void deluge_app_render_skipped(void) {
+	// The render's own work, excluded like a rendered block (see deluge_app_render()).
+	AudioExcludedSection renderBlock;
+	renderRetirementStep();
+}
+
 extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) {
+	// The whole block is one AudioExcludedSection. On the device this is free: the render runs on the audio tier, which
+	// nothing preempts, so it never masks. On host the render is a thread like any other, and this is what gives it
+	// the device's guarantee: an interaction-tier structural edit to a container the render walks (each runs in its
+	// own section) and a render block never overlap.
+	AudioExcludedSection renderBlock;
+	// Marks this thread as rendering, for the host's count of the render's heap allocations (it must make none).
+	struct RenderBlockMark {
+		RenderBlockMark() { deluge::memory::noteRenderBlock(true); }
+		~RenderBlockMark() { deluge::memory::noteRenderBlock(false); }
+	} renderBlockMark;
 	static double last_call_time = getSystemTime();
 	double current_time = getSystemTime();
 	if (current_time - last_call_time > 0.003) {
@@ -618,6 +945,10 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 	checkStack("AudioDriver::routine");
 
 	fillInputRing(in, frames);
+
+	// A new block: advance the lifetime epoch, then let go of everything retired since the last one -- before any
+	// walk below can reach it.
+	renderRetirementStep();
 
 	bool offline = stemExport.processStarted && stemExport.renderOffline;
 
@@ -1123,6 +1454,16 @@ void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWh
 }
 
 void routine_task() {
+	// An offline export owns the rendering: it drives routine() itself, as fast as it can, and the
+	// block count per call is what decides how rendering interleaves with the cluster loader and the
+	// recorder's write-out. A second, scheduler-paced caller rendering into the same recorder changes
+	// that interleaving and so changes the exported audio. There is also nothing for this task to do -
+	// an offline render is by definition not paced by the real-time clock.
+	if (stemExport.renderingOffline()) {
+		ignoreForStats();
+		return;
+	}
+
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
 		ignoreForStats();
@@ -1484,48 +1825,25 @@ void registerSideChainHit(int32_t strength) {
 	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
 }
 
-void previewSample(std::string_view path, bool shouldActuallySound) {
-	stopAnyPreviewing();
-	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
-	if (!range) {
-		return;
-	}
-	range->sampleHolder.filePath.assign(path);
-	// CLUSTER_ENQUEUE, not CLUSTER_LOAD_IMMEDIATELY: the immediate mode reads the covered clusters from
-	// the card SYNCHRONOUSLY, measured at 38.2-40.1 ms on device. That stalls the audio path (a 9.8 ms
-	// late render, plus four more in the same second), which inflates the engine's measured render time,
-	// which makes it declare an overload and force-cull a voice -- the very preview voice the fill was
-	// warming. That is the preview-truncation bug; see the 2026-08-15 async-note-on-residency design
-	// doc, section 4b.
+void soundPreview() {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
+	    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
+	// Set BEFORE the note-on, not after. Needed - Dec 2021 - because SampleBrowser::selectEncoderAction()
+	// may have gone a while without an audio routine call, so the first render after this sees a huge
+	// apparent load and culls.
 	//
-	// Enqueueing never blocks. The note-on then sees LOADING and defers (VoiceUnisonPartSource), so the
-	// preview starts a few ms late instead of either stalling audio or dropping the voice.
-	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE);
-
-	if (error != Error::NONE) {
-		display->displayError(error); // Rare, shouldn't cause later problems.
-	}
-
-	if (shouldActuallySound) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
-		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);
-		// Set BEFORE the note-on, not after. Needed - Dec 2021 - because SampleBrowser::selectEncoderAction()
-		// may have gone a while without an audio routine call, so the first render after this sees a huge
-		// apparent load and culls.
-		//
-		// The ordering matters for a second reason: previewSample runs on the worker fiber while the audio
-		// render preempts it on the InterruptExecutor. With the assignment after the call, the preview voice
-		// was cull-eligible for the whole duration of its own note-on -- and cullVoices -> terminateOneVoice
-		// -> freeActiveVoice() erases it from Sound::voices_ while Sound::noteOn still holds a reference to
-		// that element, which is what made the E199 assertion fire on a voice something else had removed.
-		//
-		// This narrows the window; it does not close the underlying cross-tier race on voices_ (bypassCulling
-		// is cleared every render, and the race is reachable from any note-on, not just this one). See
-		// docs/superpowers/specs/2026-08-16-voices-cross-tier-race.md.
-		bypassCulling = true;
-		sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
-	}
+	// The ordering matters for a second reason: this runs off the audio tier, and the audio render preempts it on
+	// the InterruptExecutor. With the assignment after the call, the preview voice was cull-eligible for the
+	// whole duration of its own note-on -- and cullVoices -> terminateOneVoice -> freeActiveVoice() erases it
+	// from Sound::voices_ while Sound::noteOn still holds a reference to that element, which is what made the
+	// E199 assertion fire on a voice something else had removed.
+	//
+	// This narrows the window; it does not close the underlying cross-tier race on voices_ (bypassCulling
+	// is cleared every render, and the race is reachable from any note-on, not just this one); see the
+	// containment note in Sound::Sound().
+	bypassCulling = true;
+	sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
 }
 
 void stopAnyPreviewing() {
@@ -1551,6 +1869,12 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 bool allowedToStartVoice() {
+	// The budget spreads voice starts across render windows so a burst of note-ons cannot blow a real-time deadline. An
+	// offline render has no deadline, and its loop has no window to reset the budget in: every note starts when it is
+	// played.
+	if (stemExport.renderingOffline()) {
+		return true;
+	}
 	auto threshold = cpuDireness > 12 ? 1 : 4;
 	if (voices_started_this_render < threshold) {
 		voices_started_this_render += 1;
@@ -1586,7 +1910,7 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 
 // TODO: delete unused ones
 LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
-	const auto idx = util::to_underlying(inputType) - util::to_underlying(OscType::INPUT_L);
+	const auto idx = ::util::to_underlying(inputType) - ::util::to_underlying(OscType::INPUT_L);
 	if (!liveInputBuffers[idx]) {
 		if (!mayCreate) {
 			return nullptr;
@@ -1653,31 +1977,61 @@ void doRecorderCardRoutines() {
 }
 
 namespace {
-// Coalesced SD-routine dispatch of the recorder card-write drain onto the storage
-// owner (the worker fiber on Embassy). SD-routine-class: while a drain is in flight
-// the RESOURCE_SD_ROUTINE gate holds off audioRecorder.slowRoutine (discardRecorder),
-// so the recorder can't be freed mid-drain. Only ever touched on the main executor.
-deluge::storage::Coalescer g_recorder_coalescer{/*sd_routine=*/true};
+/// How many recorder drains ran after boot, when the drain's card writes go through the write
+/// channel. A served count says writes were served; only this one says the drain itself ran on that
+/// path.
+int32_t g_recorderDrainTicks = 0;
 
-void recorder_card_routines_fill(void*) {
-	doRecorderCardRoutines();
-}
+/// Finalize ticks. Separate from the drain counter above because they answer different questions:
+/// that one says the DRAIN ran, this one says the FINALIZE did. A served count establishes neither.
+int32_t g_finalizeTicks = 0;
+
+/// Create ticks. The third of these counters, and they answer three different questions: the drain
+/// ran, the finalize ran, the CREATE ran. A served count answers none of them.
+int32_t g_createTicks = 0;
+int32_t g_songStageTicks = 0;
 } // namespace
 
+int32_t recorderDrainTicks() {
+	return g_recorderDrainTicks;
+}
+
+int32_t finalizeTicks() {
+	return g_finalizeTicks;
+}
+
+void noteFinalizeTick() {
+	g_finalizeTicks++;
+}
+
+int32_t createTicks() {
+	return g_createTicks;
+}
+
+int32_t songStageTicks() {
+	return g_songStageTicks;
+}
+
+void noteSongStageTick() {
+	g_songStageTicks++;
+}
+
+void noteCreateTick() {
+	g_createTicks++;
+}
+
 void requestRecorderCardRoutines() {
-	// Never from an ISR / the audio interrupt-executor: deluge_storage_on_owner() is false there
-	// and we'd race the coalescer's main-executor-only state. The recorder drain is never driven
-	// from an ISR.
+	// Never from an ISR / the audio interrupt-executor: the recorder drain is never driven from an ISR.
 	if (deluge_in_interrupt()) {
 		return;
 	}
-	// Already on the owner (fiber on Embassy; always on legacy/host) — run inline, so a
-	// fiber-context caller doesn't re-dispatch onto the fiber it already runs on.
-	if (deluge_storage_on_owner()) {
-		doRecorderCardRoutines();
-		return;
+	// Inline, always: cardRoutine()'s card operations go through the write channel after boot, and before boot
+	// blocking is legal (and no recorder exists yet). Counted after boot only -- the gates' evidence that the drain
+	// runs off the storage tier.
+	if (deluge::boot::finished()) {
+		g_recorderDrainTicks++;
 	}
-	g_recorder_coalescer.request(recorder_card_routines_fill, nullptr);
+	doRecorderCardRoutines();
 }
 
 void slowRoutine() {
@@ -1704,8 +2058,7 @@ void slowRoutine() {
 
 	createdNewRecorder = false;
 
-	// Go through all SampleRecorders, getting them to write etc — via the storage
-	// owner (SD-routine-class; inline on legacy/host, coalesced on the fiber on Embassy).
+	// Go through all SampleRecorders, getting them to write etc (inline, on every BSP).
 	requestRecorderCardRoutines();
 }
 
@@ -1761,20 +2114,14 @@ errorAfterAllocation:
 // time. That's a double free, and it surfaces as M123 from the allocator, a long way from here - so rather than
 // leaving the rule as a comment for each caller to honour, enforce it.
 //
-// Diagnostic only, not a hard invariant (see docs/dev/sd_busy_audit.md, audio_engine.cpp): this used
-// to FREEZE_WITH_ERROR("E251") here. On Embassy isSDRoutineActive() is hardwired false
-// (scheduler.rs:658), so before sd_busy() was backed for real, this check never fired at all -- it was
-// exactly as dead as save_song_ui.cpp's E316, not "half-live". sd_busy() is now real, but it answers "is
-// ANY FS operation in flight anywhere", not "is THIS recorder's own cardRoutine() suspended mid-transfer"
-// -- the two can differ, since FatFS work is serialized but not per-caller-attributed. The precise
-// invariant this comment actually wants is tracked per-op on the BSP (fiber.rs's SD_ROUTINE_HELD /
-// sd_routine_held(), consumed by the RESOURCE_SD_ROUTINE scheduler gate) but is not yet exported through
-// the libdeluge C-ABI -- exporting it is the correct future fix, not a new export sneaked in here. Until
-// then, treat a busy signal at this call site as informative, not as proof this recorder is the one
-// suspended -- log it rather than freeze a beta build on what may be an unrelated FS operation.
+// Diagnostic only, not a hard invariant: sd_busy() answers "is ANY filesystem operation in flight anywhere", not "is
+// THIS recorder's own cardRoutine() suspended mid-transfer" -- the two differ, since filesystem work is serialised but
+// not attributed to a caller, and nothing on the BSP tracks the second. A busy signal here is informative, not proof
+// this recorder is the one suspended, so log it rather than freeze a beta build on what may be an unrelated
+// operation. (isSDRoutineActive() is always false on Embassy; see scheduler.rs.)
 void discardRecorder(SampleRecorder* recorder) {
 	if (ALPHA_OR_BETA_VERSION && (isSDRoutineActive() || deluge::sync::sd_busy())) {
-		D_PRINTLN("discardRecorder: isSDRoutineActive()/sd_busy() was true on entry (see sd_busy_audit.md)");
+		D_PRINTLN("discardRecorder: isSDRoutineActive()/sd_busy() was true on entry");
 	}
 
 	int32_t count = 0;
@@ -1805,6 +2152,156 @@ bool isAnyInternalRecordingHappening() {
 	}
 
 	return false;
+}
+
+deluge::util::SnapshotDomain& renderDomain() {
+	return renderDomain_;
+}
+
+void retire(SoundDrum* drum) {
+	// First, so a stream of retires frees what earlier ones handed over.
+	reclaimRetired();
+	handOver(RetireRequest{.drum = drum}, drum, [](void* p) {
+		auto* d = static_cast<SoundDrum*>(p);
+		checkLetGoBeforeDestroy(nullptr, d);
+		void* memory = dynamic_cast<void*>(d);
+		d->~SoundDrum();
+		delugeDealloc(memory);
+	});
+}
+
+void retire(Output* output) {
+	// First, so a stream of retires frees what earlier ones handed over.
+	reclaimRetired();
+	handOver(RetireRequest{.output = output}, output, [](void* p) {
+		auto* o = static_cast<Output*>(p);
+		checkLetGoBeforeDestroy(o, nullptr);
+		void* memory = dynamic_cast<void*>(o);
+		o->~Output();
+		delugeDealloc(memory);
+	});
+}
+
+void retire(Clip* clip) {
+	// First, so a stream of retires frees what earlier ones handed over.
+	reclaimRetired();
+#if ALPHA_OR_BETA_VERSION
+	if (clip->type == ClipType::AUDIO && static_cast<AudioClip*>(clip)->recorder != nullptr) {
+		FREEZE_WITH_ERROR("i001"); // Trying to diversify Qui's E278
+	}
+#endif
+	// The references the interaction tier itself reads and writes are cleared here, at once, as ~Clip() used to: no
+	// handler that runs before the render's next block may see the retired (detached, possibly output-less) clip as
+	// the current clip or the view's active one, nor copy it somewhere nothing clears. letGoOfClip() is the catch for
+	// what the render writes itself before it lets go.
+	if (currentSong != nullptr) {
+		if (currentSong->getCurrentClip() == clip) {
+			currentSong->setCurrentClip(nullptr);
+		}
+		if (currentSong->syncScalingClip == clip) {
+			currentSong->syncScalingClip = nullptr;
+		}
+	}
+	clearViewIfClip(clip);
+	handOver(RetireRequest{.clip = clip}, clip, [](void* p) {
+		auto* c = static_cast<Clip*>(p);
+		void* memory = dynamic_cast<void*>(c);
+		c->~Clip();
+		delugeDealloc(memory);
+	});
+}
+
+void retire(Song* song) {
+	if (song == currentSong) {
+		FREEZE_WITH_ERROR("E458");
+	}
+	// First, so a stream of retires frees what earlier ones handed over.
+	reclaimRetired();
+	// As retire(Clip*): the view's active model stack is the one reference the interaction tier's own handlers read
+	// that may still name the old song or something it owns (an armed swap leaves it on the old song's clip). Drop it
+	// now, so no handler running before the render's next block reaches the old song through it. letGoOfSong() is the
+	// catch.
+	if (viewNamesSong(song)) {
+		clearViewModelStack();
+	}
+	handOver(RetireRequest{.song = song}, song, [](void* p) {
+		auto* s = static_cast<Song*>(p);
+		for (Output* first : {s->firstOutput, static_cast<Output*>(s->firstHibernatingInstrument)}) {
+			for (Output* output = first; output != nullptr; output = output->next) {
+				checkLetGoBeforeDestroy(output, nullptr);
+			}
+		}
+		void* memory = dynamic_cast<void*>(s);
+		s->~Song();
+		delugeDealloc(memory);
+	});
+}
+
+void awaitRetired() {
+	// Only the interaction tier may wait here: from the render, a single-executor host's inline drive would re-enter
+	// the render. The same code as a retire from the wrong tier.
+	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
+		FREEZE_WITH_ERROR("E455");
+	}
+	// Inside an AudioExcludedSection the render cannot run a block (on host it waits for the section's lock; on the
+	// device the section masks its interrupt), so waiting for it would never end.
+	if (deluge_audio_excluded_depth() != 0) {
+		FREEZE_WITH_ERROR("E460");
+	}
+	// The render is the higher tier: waiting on it here is allowed, and runs no other interaction task, so whatever
+	// the caller left in between (currentSong null during a stopped-clock load) is never seen by one.
+	const double start = getSystemTime();
+	const uint64_t epochAtStart = renderDomain_.audio_epoch();
+	int32_t blocks = 0;
+	reclaimRetired();
+	while (retiredPending() != 0) {
+		if (getSystemTime() - start > kAwaitRetiredTimeoutSeconds || ++blocks > kAwaitRetiredMaxBlocks) {
+#ifdef DELUGE_HOST
+			// What the wait saw, so a harness freeze says whether the render stopped (the epoch never moved), the
+			// render ran but never let go (sequence stuck), or it was only slow.
+			std::fprintf(stderr,
+			             "awaitRetired: gave up after %.1f ms, %d blocks awaited, epochs advanced %llu, pending %zu, "
+			             "sequence pushed %llu let go %llu, overflow %zu\n",
+			             (getSystemTime() - start) * 1000.0, blocks,
+			             static_cast<unsigned long long>(renderDomain_.audio_epoch() - epochAtStart), retiredPending(),
+			             static_cast<unsigned long long>(retireSequencePushed),
+			             static_cast<unsigned long long>(retireSequenceLetGo.load(std::memory_order_acquire)),
+			             retireOverflow.size());
+			std::fflush(stderr);
+#endif
+			FREEZE_WITH_ERROR("E459");
+		}
+		deluge_audio_await_block();
+		reclaimRetired();
+	}
+}
+
+void reclaimRetired() {
+	while (!retireOverflow.empty() && retireRing.try_push(retireOverflow.front())) {
+		retireOverflow.erase(retireOverflow.begin());
+	}
+	// A request still in the ring or the overflow names an object the render has not let go of yet: it is still in
+	// the Sound registry, so a walk can still reach it, whatever its stamp says. Free an entry only once the render
+	// has let go of its request (its sequence is covered) and two blocks have begun since its stamp. One undrained
+	// request holds back only itself and later ones, never an older entry.
+	const uint64_t letGoUpTo = retireSequenceLetGo.load(std::memory_order_acquire);
+	retireList.reclaim([letGoUpTo](uint64_t sequence) { return sequence <= letGoUpTo; });
+}
+
+std::size_t retireViolations() {
+	return retireViolations_;
+}
+
+#ifdef DELUGE_HOST
+uint32_t retireDrainMicrosMax(bool reset) {
+	return reset ? retireDrainMicrosMax_.exchange(0, std::memory_order_relaxed)
+	             : retireDrainMicrosMax_.load(std::memory_order_relaxed);
+}
+#endif
+
+std::size_t retiredPending() {
+	// Every retired object not yet destroyed is in the list, whether or not its request has reached the render.
+	return retireList.size();
 }
 
 } // namespace AudioEngine

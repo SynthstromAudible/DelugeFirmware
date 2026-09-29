@@ -1,0 +1,40 @@
+[package]
+name = "region-fill-differential"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "GPL-3.0-or-later"
+
+# SR2d-4 Task 6: the rung's gate. Standalone harness crate (NOT a workspace member — mirrors
+# `sample_convert`): it `cc`-compiles a slice of the app's C++ into its own test
+# binary and must not perturb the firmware/BSP Cargo graph.
+#
+# `edition = "2024"`: this crate's test files use `unsafe extern "C"` blocks (matching the shared
+# `deluge_sample_fill`/`deluge_resource` crates they depend on, both `edition = "2024"` too).
+
+[dependencies]
+# `fill_logic::finish_convert_stitch` (used by the test files via `deluge_sample_fill::fill_logic`)
+# calls `deluge_sample_convert::{convert_cluster,stitch_boundaries}` unqualified. Also supplies the
+# already-`cc`-compiled `convert_word`/`stitch_boundaries` object code the C++ reference slice
+# (`cpp/harness_shim.cpp`) links against — see build.rs's doc for why this crate deliberately does
+# NOT recompile convert.cpp/stitch.cpp itself.
+deluge_sample_convert = { path = "../../../../crates/deluge_sample_convert" }
+
+[dev-dependencies]
+# Host end-to-end test only: a real `deluge_resource` manager over a test heap, and the heap it's
+# built over.
+deluge_resource = { path = "../../../../crates/deluge_resource" }
+fs_alloc = { package = "deluge_alloc", path = "../../../../crates/deluge_alloc" }
+# `tests/differential.rs`/`host_end_to_end.rs` use `deluge_sample_fill::fill_logic`; `native_finish_glue.rs`
+# drives `deluge_sample_fill::native_begin`/`native_finish` directly (C2a Task 3 -- the manager-reaching
+# sync fill core moved out of `deluge-bsp-rust`'s `streaming_loader.rs::prod` into this shared crate).
+# `native_fill` gates that core (fill_logic itself is always compiled).
+deluge_sample_fill = { path = "../../../../crates/deluge_sample_fill", features = ["native_fill"] }
+# `deluge_sample_fill`'s `FILL_CONTEXTS` static (used by `native_finish_glue.rs`'s
+# `deluge_streaming_set_fill_context` call) is an `embassy_sync` blocking `Mutex<CriticalSectionRawMutex,
+# _>`, which needs a registered `critical-section` IMPLEMENTATION at final link time -- same std-backed
+# impl `deluge_sample_fill`'s own `cargo test` and `deluge-bsp-rust`'s host build already use.
+critical-section = { version = "1", features = ["std"] }
+
+[build-dependencies]
+cc = "1"

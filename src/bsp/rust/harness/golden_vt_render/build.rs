@@ -6,9 +6,17 @@
 //! `[[bin]]`-only build script with no library surface to import, and duplicating
 //! ~150 lines of straight-line archiving/linking logic is far lower risk here than
 //! inventing a new shared build-script crate for a single (harness-only) consumer.
-//! Mirrors `../lens1_vt_sim/build.rs` (same `DELUGE_HOSTAPP_BUILD_DIR`
-//! object archiving + `-Wl,-u,deluge_app_init` GC root) — only the log-message
-//! crate label below differs.
+//!
+//! The object-archiving half adds what `../build.rs` does not have: an orphan filter, a build-dir provenance guard
+//! and a surviving-object floor, around the same `DELUGE_HOSTAPP_BUILD_DIR` archiving and `-Wl,-u,deluge_app_init` GC
+//! root.
+//!
+//! Why the filter matters *here*: this harness is the before/after byte-identity gate for the
+//! storage work, and `ninja` never removes a `.o` whose `.cpp` was deleted or relocated. Without
+//! the filter a stale object is archived silently and can win the link — so the gate would be
+//! measuring a tree that no longer exists. Confirmed empirically: a planted zero-byte orphan
+//! was archived with no build-script warning at all, surfacing only as
+//! `rust-lld: … is neither ET_REL nor LLVM bitcode`.
 use std::env;
 use std::fs;
 use std::path::PathBuf;
@@ -56,25 +64,100 @@ fn main() {
     }
 
     println!("cargo:rerun-if-env-changed=DELUGE_HOSTAPP_BUILD_DIR");
+    // `dbt test` sets DELUGE_HOSTAPP_BUILD_DIR. Without it: the tree `dbt test` builds, or the older
+    // `build-embassy-hostapp` where only that one has been built.
     let build_dir = env::var("DELUGE_HOSTAPP_BUILD_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| repo_root.join("build-embassy-hostapp"));
+        .unwrap_or_else(|_| {
+            let current = repo_root.join("build/host-app");
+            let older = repo_root.join("build-embassy-hostapp");
+            if !current.is_dir() && older.is_dir() {
+                older
+            } else {
+                current
+            }
+        });
     let app_objs_dir = build_dir.join("app/CMakeFiles/deluge_app.dir");
     if !app_objs_dir.is_dir() {
         panic!(
             "host C++ app objects not found at {}. Build them first:\n  \
-             ninja -C {} deluge_app NE10 eyalroz_printf deluge_dsp \
+             ninja -C {} deluge_app deluge_scenarios NE10 eyalroz_printf deluge_dsp \
              deluge_scheduler deluge_foundation deluge_midi",
             app_objs_dir.display(),
             build_dir.display()
         );
     }
 
+    // `collect_objs`'s orphan filter resolves every object's source against
+    // `<repo_root>/sim` (see `assert_build_dir_matches_repo_root`'s doc comment for why
+    // `sim/`, not `<repo_root>` itself) — but ONLY if `build_dir` was actually configured
+    // from THIS checkout. If `DELUGE_HOSTAPP_BUILD_DIR` instead points at a tree
+    // CMake-configured from a different checkout (a stale absolute path, a different
+    // worktree, a CI artifact copied over), every object's derived source path is simply
+    // wrong, the filter treats the entire closure as orphaned, and the result is hundreds of
+    // undefined symbols — i.e. the filter added to fix exactly that failure shape instead
+    // silently causing it again. Catch the mismatch here, loudly.
+    assert_build_dir_matches_repo_root(&build_dir, &repo_root);
+
     let mut objs = Vec::new();
-    collect_objs(&app_objs_dir, &mut objs);
+    let mut skipped = Vec::new();
+    collect_objs(
+        &app_objs_dir,
+        &app_objs_dir,
+        &repo_root.join("src/deluge"),
+        &mut objs,
+        &mut skipped,
+    );
+    // The integration scenarios and probes are their own host-only object library.
+    let scenario_objs_dir = build_dir.join("scenarios/CMakeFiles/deluge_scenarios.dir");
+    if !scenario_objs_dir.is_dir() {
+        panic!(
+            "host scenario objects not found at {}. Build them first:\n  ninja -C {} deluge_scenarios",
+            scenario_objs_dir.display(),
+            build_dir.display()
+        );
+    }
+    collect_objs(
+        &scenario_objs_dir,
+        &scenario_objs_dir,
+        &repo_root.join("tests/integration/scenarios"),
+        &mut objs,
+        &mut skipped,
+    );
     objs.sort();
     for o in &objs {
         println!("cargo:rerun-if-changed={}", o.display());
+    }
+    // A `cargo:warning=` alone (emitted per-skip inside `collect_objs`) scrolls past in normal
+    // build output and is not re-emitted on a build where `build.rs` doesn't rerun — too quiet
+    // for what a mass-skip actually costs. A handful of skips from genuinely deleted sources
+    // (this filter's purpose) is expected and fine; a skip count large enough to push survivors
+    // below this floor means something is systemically wrong with path resolution rather than a
+    // few stale objects, and must fail the build instead of silently archiving an incomplete
+    // closure.
+    //
+    // Unconditional — NOT gated on `!skipped.is_empty()`. An interrupted/truncated `ninja` can
+    // leave a tree with a handful of valid objects and ZERO orphans (the missing objects were
+    // never written, so `collect_objs` never sees a path to reject), which would otherwise sail
+    // through and produce the very undefined-symbol wall this guard exists to explain.
+    const MIN_SURVIVING_OBJECTS: usize = 300;
+    if objs.len() < MIN_SURVIVING_OBJECTS {
+        panic!(
+            "golden_vt_render: only {} of {} objects under {} survived the orphan-object filter \
+             — below the sanity floor of {MIN_SURVIVING_OBJECTS}. This means one of two things: \
+             (1) {} objects were skipped as orphans, which almost certainly means \
+             DELUGE_HOSTAPP_BUILD_DIR points at a build tree that doesn't match this checkout, or \
+             the filter's src/deluge-relative path derivation is wrong for this tree's layout; or \
+             (2) few/no objects were skipped but the build tree itself is truncated or incomplete \
+             (e.g. an interrupted `ninja`), so most objects were never produced in the first \
+             place. Either way this is NOT a case of that many sources being legitimately \
+             deleted. Skipped objects: {:#?}",
+            objs.len(),
+            objs.len() + skipped.len(),
+            app_objs_dir.display(),
+            skipped.len(),
+            skipped,
+        );
     }
     let app_objs_archive = out_dir.join("libdeluge_app_objs.a");
     let _ = fs::remove_file(&app_objs_archive);
@@ -130,6 +213,7 @@ fn main() {
     println!("cargo:rustc-link-arg=-Wl,--end-group");
 
     println!("cargo:rerun-if-changed={}", app_objs_dir.display());
+    println!("cargo:rerun-if-changed={}", scenario_objs_dir.display());
 }
 
 /// Bindgen the libdeluge headers for whichever host target this crate is being
@@ -180,13 +264,90 @@ fn hash_objs_content(objs: &[PathBuf]) -> u64 {
     hasher.finish()
 }
 
-fn collect_objs(dir: &std::path::Path, out: &mut Vec<PathBuf>) {
+/// Walks `dir` (recursively) collecting every `.o`/`.obj` under `base` (a target's `<name>.dir`
+/// root, constant across the recursion — needed to compute each object's path relative to it).
+/// Skips orphans: `ninja` never removes a `.o` left behind by a `.cpp` that was since deleted
+/// or relocated, and archiving a stale object drags in references to symbols that no longer
+/// exist anywhere in the tree. Each object's source lives under `src_root` (the target's source
+/// directory) at the same relative subpath with the trailing `.o`/`.obj` stripped; if that source
+/// file is gone, the object is an orphan: it is skipped (with a `cargo:warning=` naming it, and
+/// pushed onto `skipped` for the caller's sanity-floor check) instead of being archived.
+///
+/// Known blind spot, not fixed here: a source from OUTSIDE its target's own directory gets a
+/// `__/` per parent-escape in its object path, which resolves against `src_root` to a path that
+/// never exists, so the object reads as an orphan even though its source is alive. Neither
+/// target compiles such a source; the caller's floor check is the backstop if one ever does.
+fn collect_objs(
+    base: &std::path::Path,
+    dir: &std::path::Path,
+    src_root: &std::path::Path,
+    out: &mut Vec<PathBuf>,
+    skipped: &mut Vec<PathBuf>,
+) {
     for entry in fs::read_dir(dir).unwrap() {
         let p = entry.unwrap().path();
         if p.is_dir() {
-            collect_objs(&p, out);
+            collect_objs(base, &p, src_root, out, skipped);
         } else if p.extension().is_some_and(|e| e == "obj" || e == "o") {
+            let rel = p.strip_prefix(base).unwrap();
+            let src_path = src_root.join(rel.with_extension(""));
+            if !src_path.is_file() {
+                println!(
+                    "cargo:warning=golden_vt_render: skipping orphan object {} (source {} no longer exists)",
+                    p.display(),
+                    src_path.display()
+                );
+                skipped.push(p);
+                continue;
+            }
             out.push(p);
         }
+    }
+}
+
+/// Verifies `build_dir` was actually CMake-configured from `repo_root`, not from some other
+/// checkout (a stale `DELUGE_HOSTAPP_BUILD_DIR`, a different worktree, a copied CI artifact).
+/// Without this check, [`collect_objs`]'s orphan filter would resolve every object's derived
+/// source path against the WRONG tree, treat the entire object closure as orphaned, and silently
+/// archive nothing — surfacing later as a wall of undefined symbols with no obvious cause.
+///
+/// Reads `CMAKE_HOME_DIRECTORY:INTERNAL=<path>` out of `build_dir`'s `CMakeCache.txt` — the
+/// CMake source root that configured this build tree — and compares it (canonicalized) against
+/// `<repo_root>/sim`: this repo's host C++ app is CMake-rooted at `sim/`, not at the repo root.
+fn assert_build_dir_matches_repo_root(build_dir: &std::path::Path, repo_root: &std::path::Path) {
+    let cache_path = build_dir.join("CMakeCache.txt");
+    let cache = fs::read_to_string(&cache_path)
+        .unwrap_or_else(|e| panic!("failed to read {}: {e}", cache_path.display()));
+    let home_dir = cache
+        .lines()
+        .find_map(|l| l.strip_prefix("CMAKE_HOME_DIRECTORY:INTERNAL="))
+        .unwrap_or_else(|| {
+            panic!(
+                "no CMAKE_HOME_DIRECTORY:INTERNAL= line in {} — not a CMake build tree?",
+                cache_path.display()
+            )
+        });
+    let home_dir = PathBuf::from(home_dir).canonicalize().unwrap_or_else(|e| {
+        panic!(
+            "{}'s CMAKE_HOME_DIRECTORY ({home_dir}) does not exist: {e}",
+            cache_path.display()
+        )
+    });
+    let expected = repo_root.join("sim").canonicalize().unwrap_or_else(|e| {
+        panic!(
+            "expected CMake source root {}/sim missing: {e}",
+            repo_root.display()
+        )
+    });
+    if home_dir != expected {
+        panic!(
+            "golden_vt_render: {} was configured from {} (CMAKE_HOME_DIRECTORY), not this \
+             checkout's {} — DELUGE_HOSTAPP_BUILD_DIR points at the wrong build tree. Using it \
+             would resolve every object's source path against the wrong repo and (via the orphan \
+             filter) drop the entire object closure as orphaned.",
+            build_dir.display(),
+            home_dir.display(),
+            expected.display(),
+        );
     }
 }

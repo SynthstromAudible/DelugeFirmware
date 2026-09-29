@@ -6,7 +6,7 @@
 //!
 //!   1. HOST (`cargo test`/a plain `cargo build` of this crate, or as a dependency of a host/`host_app`
 //!      build): x86 via `cc::Build` + SIMDe — LINKED into the test binary so the #[test] FFI round-trips
-//!      can prove the objects behave correctly (mirroring tests/spec_audio_stream/*_spec.cpp) — PLUS the
+//!      can prove the objects behave correctly (mirroring tests/unit/audio_stream/*_spec.cpp) — PLUS the
 //!      armv7a-NEON compile-and-verify check (no QEMU): the produced objects must be ARM ELF, and
 //!      convert's object must contain real NEON codegen (`vcvt.s32.f32`, the FLOAT->Q31 path). The
 //!      result is stamped to OUT_DIR/arm_compile_result.txt and asserted by a #[test].
@@ -29,7 +29,7 @@
 //! works from a clean checkout (with network) without any CMake build having run first. The DEVICE path
 //! only needs argon (no SIMDe — the real target never uses the portable fallback).
 //!
-//! Recipe (flags/defines/include dirs) mirrors tests/spec_audio_stream/CMakeLists.txt,
+//! Recipe (flags/defines/include dirs) mirrors tests/unit/audio_stream/CMakeLists.txt,
 //! sim/CMakeLists.txt, and scripts/cmake/CMakeToolchainDeluge.cmake.
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -50,7 +50,7 @@ const ARM_ARCH_FLAGS: [&str; 7] = [
     "-funsafe-math-optimizations",
 ];
 
-// Pins — MUST match the CMake FetchContent tags (tests/spec_audio_stream/CMakeLists.txt, sim/CMakeLists.txt).
+// Pins — MUST match the CMake FetchContent tags (cmake/deps.cmake).
 const ARGON_URL: &str = "https://github.com/stellar-aria/argon";
 const ARGON_SHA: &str = "5897db725c1cdee452b5f288614796364468f2ea";
 const SIMDE_URL: &str = "https://github.com/simd-everywhere/simde";
@@ -162,7 +162,7 @@ fn main() {
         .file(&stitch_cpp)
         .file(&helpers_cpp)
         .file(&shim_cpp)
-        // App include roots (mirror tests/spec_audio_stream/CMakeLists.txt + sim HOST_INCLUDE_DIRS).
+        // App include roots (mirror tests/unit/audio_stream/CMakeLists.txt + sim HOST_INCLUDE_DIRS).
         .include(&src) // definitions_cxx.hpp (SHARED_INCLUDE)
         .include(&src_deluge) // storage/..., util/...
         .include(&include) // libdeluge/types.h

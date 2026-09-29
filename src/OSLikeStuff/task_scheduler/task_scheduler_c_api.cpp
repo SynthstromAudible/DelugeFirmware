@@ -17,10 +17,11 @@
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "OSLikeStuff/task_scheduler/task_scheduler.h"
-#include "libdeluge/storage_owner.h" // deluge_storage_on_owner — cooperative default (Embassy BSP overrides)
+#include "libdeluge/boot.h"
+#include "libdeluge/storage_busy.h" // deluge_storage_fs_busy — cooperative default
 #include "libdeluge/storage_wait.h"
 #include "libdeluge/system.h" // deluge_in_interrupt — the ISR guard, via the boundary
-#include "libdeluge/worker.h" // deluge_worker_run — cooperative default (Embassy BSP overrides)
+#include "libdeluge/tier.h"
 #include "resource_checker.h"
 
 extern TaskManager taskManager;
@@ -93,40 +94,33 @@ bool yieldToIdle(RunCondition until) {
 	return taskManager.yield(until, 0, true);
 }
 
-// libdeluge/worker.h — cooperative default. On the non-Embassy BSPs there is no
-// worker fiber: the operation runs inline on the caller's stack, and its internal
-// yield()s drive the cooperative task manager exactly as before. The Embassy BSP
-// supplies its own deluge_worker_run (Rust, runs the op on a stackful fiber); that
-// definition wins at link time and this object is not pulled from the archive.
-bool deluge_worker_run(void (*fn)(void*), void* ctx) {
-	fn(ctx);
-	return true; // ran inline — never dropped on the cooperative BSPs
-}
-
-// SD-routine-class dispatch. On the cooperative BSPs the op runs inline (same as
-// deluge_worker_run) and the SD-routine hold is a no-op: run-to-completion means
-// discardRecorder can't interleave a mid-flight cardRoutine, and the writes set
-// sdRoutineActive via the storage-wait hooks as they always have. The hold is an
-// Embassy-only construct (see src/bsp/rust/src/fiber.rs).
-bool deluge_worker_run_sd_routine(void (*fn)(void*), void* ctx) {
-	fn(ctx);
-	return true;
-}
-
-// Cooperative/host default: run is inline, so the caller is never "on a separate
-// worker" — always false. The Embassy BSP supplies its own definition (fiber.rs)
-// that reports whether we are on the worker fiber; that wins at link time.
-bool deluge_worker_on_worker(void) {
+// libdeluge/boot.h -- C++-only default: the BSP owns the boot latch; a build without one never finishes booting.
+bool deluge_boot_finished(void) {
 	return false;
 }
 
-// libdeluge/storage_owner.h — cooperative/host default: FatFS runs inline on the
-// caller, so the caller is always the owner. Embassy overrides (fiber-only).
-bool deluge_storage_on_owner(void) {
-	return true;
+// libdeluge/tier.h -- C++-only defaults: the BSP owns tier tagging and the synchronous-call meter; a build without
+// one runs everything on the interaction tier and counts nothing.
+uint8_t deluge_tier_current(void) {
+	return DELUGE_TIER_INTERACTION;
+}
+uint8_t deluge_tier_sync_entries(void) {
+	return 0;
+}
+uint32_t deluge_tier_sync_count(uint8_t) {
+	return 0;
+}
+uint32_t deluge_tier_sync_total(void) {
+	return 0;
+}
+uint32_t deluge_tier_sync_audio_total(void) {
+	return 0;
+}
+const char* deluge_tier_sync_name(uint8_t) {
+	return "";
 }
 
-// libdeluge/storage_owner.h — cooperative/C-host default: FatFS runs inline on the
+// libdeluge/storage_busy.h — cooperative/C-host default: FatFS runs inline on the
 // caller, so no other context can be holding the filesystem. Embassy overrides
 // (true while the efatfs FS mutex is held). Always false in production — see
 // fsBusyTestOverride above for the one exception, which only a unit test can reach.

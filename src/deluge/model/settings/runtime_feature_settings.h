@@ -18,6 +18,7 @@
 #pragma once
 
 #include "gui/l10n/strings.h"
+#include "storage/byte_channel.h"
 #include "util/containers.h"
 #include <array>
 #include <cstdint>
@@ -110,8 +111,25 @@ public:
 	inline const char* getStartupSong() { return startupSong.c_str(); }
 	void init();
 	void factoryReset(bool showPopup = true);
-	void readSettingsFromFile();
+	/// @brief Read the settings, preferring the channel.
+	/// @param onDone Told how the channel operation ended, when the channel took it.
+	/// @return Whether the CHANNEL accepted the read -- i.e. whether @p onDone will be called.
+	bool readSettingsFromFile(deluge::storage::bytes::DoneFn onDone = nullptr);
+	/// @brief readSettingsFromFile's body, run where blocking on the card is legal.
+	void readSettingsInline();
 	void writeSettingsToFile();
+	/// @brief writeSettingsToFile's body, run where blocking on the card is legal.
+	void writeSettingsInline();
+	/// @brief Walk an already-opened document into the in-memory settings.
+	///
+	/// Shared by both arms: the inline arm's reader is a file, the channel arm's is the bytes the
+	/// channel delivered, and neither difference reaches here.
+	void parseSettings(Deserializer& reader);
+	/// @brief Write the settings into an already-opened serialiser, file-backed or memory-backed.
+	void serialiseSettings(Serializer& writer);
+	/// @brief `deluge::storage::bytes::ParseFn` for @ref parseSettings, over channel-delivered
+	///        bytes.
+	static void parseSettingsBytes(void* ctx, char* bytes, uint32_t len);
 
 protected:
 	std::array<RuntimeFeatureSetting, RuntimeFeatureSettingType::MaxElement> settings = {};
@@ -124,6 +142,8 @@ public:
 	friend class deluge::gui::menu_item::runtime_feature::Setting;
 	friend class deluge::gui::menu_item::runtime_feature::Settings;
 	friend class deluge::gui::menu_item::runtime_feature::DevSysexSetting;
+	/// The settings-channel gate's view into the unknown settings; see `settings_channel_scenario.cpp`.
+	friend struct SettingsChannelProbe;
 };
 
 /// Static instance for external access

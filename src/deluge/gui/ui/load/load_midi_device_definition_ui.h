@@ -41,8 +41,6 @@ public:
 		return true;
 	}
 
-	Error performLoad(bool doClone = false);
-
 	// ui
 	UIType getUIType() override { return UIType::LOAD_MIDI_DEVICE_DEFINITION; }
 
@@ -53,7 +51,8 @@ protected:
 
 private:
 	std::string setupForLoadingMidiDeviceDefinition();
-	Error currentLabelLoadError = Error::NONE;
+	/// @brief The Select's end: the browser closes when the definition was read, and stays open on a card error.
+	static void definitionLoaded(Error error);
 };
 
 extern LoadMidiDeviceDefinitionUI loadMidiDeviceDefinitionUI;

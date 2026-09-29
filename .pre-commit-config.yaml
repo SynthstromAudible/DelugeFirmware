@@ -51,10 +51,10 @@ repos:
         pass_filenames: false
       - id: cargo-fmt-harness
         name: rustfmt (harness)
-        entry: bash -c 'for m in harness/rust/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do cargo fmt --manifest-path "$m" --check -- || exit 1; done'
+        entry: bash -c 'for m in tests/component/differential/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do cargo fmt --manifest-path "$m" --check -- || exit 1; done'
         language: system
         types: [rust]
-        files: ^(harness/rust/|src/bsp/rust/harness/).*\.rs$
+        files: ^(tests/component/differential/|src/bsp/rust/harness/).*\.rs$
         pass_filenames: false
       - id: libdeluge-boundary
         name: libdeluge platform boundary

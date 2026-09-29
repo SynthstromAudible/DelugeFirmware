@@ -26,6 +26,7 @@
 #define LIBDELUGE_ALLOC_H
 
 #include <stddef.h>
+#include <stdint.h>
 #ifndef __cplusplus
 #include <stdbool.h>
 #endif
@@ -79,6 +80,22 @@ bool deluge_heap_check(DelugeHeap* heap);
 /// (the alloc is retried). One hook per heap.
 typedef bool (*DelugeReclaimFn)(void* ctx, size_t bytes_needed);
 void deluge_heap_register_reclaim(DelugeHeap* heap, DelugeReclaimFn cb, void* ctx);
+
+/// @brief One heap step's critical section (crates/deluge_alloc/src/section.rs).
+///
+/// `enter` masks unless the caller is the audio render, and returns whether it did; `exit` unmasks;
+/// `note` reports each step (kind 0 = heap, 1 = slab) to the app's probe. Register once at boot,
+/// before any other context touches a heap.
+typedef bool (*DelugeHeapSectionEnterFn)(void);
+typedef void (*DelugeHeapSectionExitFn)(void);
+typedef void (*DelugeHeapStepNoteFn)(uint8_t kind);
+
+/// @brief Register the heap-step critical-section hooks used by every DelugeHeap.
+/// @param enter Called before a heap step; masks unless the caller is the audio render. May be NULL.
+/// @param exit  Called after a heap step, undoing what `enter` did. May be NULL.
+/// @param note  Called to report each step's kind (0 = heap, 1 = slab) to the app's probe. May be NULL.
+void deluge_heap_set_section_hooks(DelugeHeapSectionEnterFn enter, DelugeHeapSectionExitFn exit,
+                                   DelugeHeapStepNoteFn note);
 
 /// Opaque slab handle.
 typedef struct DelugeSlab DelugeSlab;

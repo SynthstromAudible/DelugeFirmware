@@ -23,7 +23,7 @@
 namespace deluge::gui::browser {
 
 /// Read-only view over the browser's file list, so name derivation can be tested without a card, a display, or the
-/// browser's static state. Implemented over Browser::fileItems in the firmware, and over a vector in tests.
+/// browser's static state. Implemented over Browser::listing in the firmware, and over a vector in tests.
 class FileListView {
 public:
 	virtual ~FileListView() = default;
@@ -62,5 +62,13 @@ char const* numberPartOf(char const* name, char const* filePrefix);
 ///
 /// Returns `currentName` unchanged when no free variation exists (letters exhausted past Z).
 std::string nextDefaultName(std::string_view currentName, std::string_view slotPrefix, FileListView const& files);
+
+/// @brief The slot name after @p lastName -- "SYNT7" after "SYNT6" -- as Browser::getUnusedSlot names a new
+///        instrument.
+/// @param lastName The highest-sorting entry's filename without extension, or empty when the folder has none.
+/// @param thingName The slot prefix, e.g. "SYNT" or "KIT".
+/// @return @p thingName and the number after the digits that follow it in @p lastName, padded to as many digits as
+///         @p lastName had; @p thingName + "1" when there is no entry or it has no digits there.
+[[nodiscard]] std::string nextSlotName(std::string_view lastName, std::string_view thingName);
 
 } // namespace deluge::gui::browser

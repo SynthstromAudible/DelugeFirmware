@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "processing/stem_export/stem_search_policy.h"
+
 #include "definitions_cxx.hpp"
 #include "gui/l10n/strings.h"
 #include "processing/sound/sound_drum.h"
@@ -34,20 +36,21 @@ public:
 
 	// start & stop process
 	void startStemExportProcess(StemExportType stemExportType);
-	// The actual export work, run on the worker fiber (it yields per element). Public
-	// only so the worker dispatch lambda in startStemExportProcess can reach it.
-	void runStemExportProcess(StemExportType stemExportType);
 	void stopStemExportProcess();
 	void abortStemExportProcess(deluge::l10n::String reason);
 	void startOutputRecordingUntilLoopEndAndSilence();
 	void stopPlayback();
 	void stopOutputRecording();
-	// Wait until `until` is satisfied while the export renders. On-device this is a
-	// cooperative scheduler yield() (UI/MIDI/etc must keep running); for an offline
-	// (faster-than-realtime) render it drives AudioEngine::routine() directly in a tight
-	// loop, bypassing the scheduler — whose chooseBestTask busy-wait otherwise caps the
-	// headless export at ~realtime. `until` matches yield()'s RunCondition (bool(*)()).
-	void renderWait(bool (*until)());
+
+	/// @brief Advances an in-flight export. Cheap no-op when none is running.
+	///
+	/// Registered as a repeating task by registerTasks(). Each step returns here rather than blocking
+	/// per element, so the UI can keep servicing a cancellation and the fill task the render depends on
+	/// can keep running while an export is in flight.
+	void exportRoutine();
+
+	/// @brief True from @ref startStemExportProcess until the export has torn down.
+	[[nodiscard]] bool isExportInFlight() const { return exportPhase != ExportPhase::NONE; }
 	bool checkForLoopEnd();
 	bool checkForSilence();
 	bool processStarted;
@@ -65,15 +68,93 @@ public:
 	bool renderOffline;
 	bool exportMixdown;
 
+	/// @brief One element of an in-flight export: whichever of output, clip or note row the current
+	///        export type walks.
+	///
+	/// Produced by @ref fetchElement from an index rather than held across the element's recording,
+	/// because the export suspends there and a pointer taken beforehand would have to be revalidated.
+	struct StemElement {
+		Output* output = nullptr;
+		/// @brief The element's own mute flag, written by @ref startElement and @ref finishElement.
+		///
+		/// Which flag it is depends on the export type: the arranger mute, the clip's active state, or
+		/// the note row's mute. Null for MIXDOWN, which records everything together and mutes nothing.
+		bool* muteState = nullptr;
+		bool exportStem = false;
+		SoundDrum* drum = nullptr;
+	};
+
+	/// @brief Counts the elements this export type walks and disarms them for recording.
+	/// @return The element count, as @ref restoreElements and the caller both expect it.
+	int32_t prepareElements();
+
+	/// @brief Fetches element `index`, applying whatever per-type setup it needs (loop lengths, unmutes).
+	/// @param index   The element's position, as counted by @ref prepareElements.
+	/// @param element Filled in on success; left untouched otherwise.
+	/// @return false if that slot is empty, in which case the element is skipped.
+	bool fetchElement(int32_t index, StemElement& element);
+
+	/// @brief Starts recording one element.
+	/// @param index   The element's position, as counted by @ref prepareElements.
+	/// @param element The element fetched by @ref fetchElement.
+	/// @return false if the element is skipped, or if the export was aborted while starting it - the
+	///         two are told apart by whether UI_MODE_STEM_EXPORT is still active.
+	bool startElement(int32_t index, const StemElement& element);
+
+	/// @brief Mutes the element again and counts it. Runs once its recording has finished.
+	/// @param element The element that just finished recording.
+	void finishElement(const StemElement& element);
+
+	/// @brief The wait every export type shares: true once this element's recording has finished and
+	///        playback has stopped.
+	/// @return true when the element's wait is over.
+	static bool elementFinished();
+
+	/// @brief Restores whatever mutes @ref prepareElements changed.
+	/// @param total The element count @ref prepareElements returned.
+	void restoreElements(int32_t total);
+
+	/// @brief Where an in-flight export is parked between run-loop passes.
+	///
+	/// Each phase runs one step per @ref exportRoutine pass, on the tier its caller stands on. Only the
+	/// per-element wait spans passes.
+	enum class ExportPhase : uint8_t {
+		NONE,          ///< No export in flight.
+		NEXT_ELEMENT,  ///< Ready to start the next element.
+		AWAIT_ELEMENT, ///< The current element is recording; waiting for it to finish.
+		FINISH,        ///< Every element done, or the user cancelled: tear down.
+	};
+	ExportPhase exportPhase{ExportPhase::NONE};
+
+	/// @name The export's cursor: these fields carry state across the per-element wait, so they cannot
+	/// be locals of a single call.
+	/// @{
+	int32_t exportTotal;       ///< Element count from prepareElements(); what the teardown restores.
+	int32_t exportIndex;       ///< The element being walked, counting down.
+	StemElement exportElement; ///< The element @ref exportIndex resolved to.
+
+	/// @brief Parked at the offline render's drain point, between the audio routine and the slow
+	///        routines.
+	///
+	/// The rendered audio depends on that ordering: the drain decides cluster eviction and underrun
+	/// behaviour, so moving it even one call earlier or later changes the output bit-for-bit (see
+	/// AudioEngine::routine()'s offline batch comment). Resuming mid-iteration is what keeps it put.
+	bool exportAwaitingDrain;
+	/// @}
+
+	/// @name The export's steps, each one pass of the routine. Run where the caller stands.
+	/// @{
+	void startNextElement(); ///< Fetch and start the next element, or fall through to the teardown.
+	void driveElement();     ///< One bounded slice of an offline render, then re-check for the finish.
+	void finishExport();     ///< Restore, run the completion UI, and clear the export.
+	/// @}
+
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport(StemExportType stemExportType);
-	int32_t exportInstrumentStems(StemExportType stemExportType);
-	int32_t exportMixdownStem(StemExportType stemExportType);
 	void restoreAllInstrumentMutes(int32_t totalNumOutputs);
 
 	// export clips
 	int32_t disarmAllClipsForStemExport();
-	int32_t exportClipStems(StemExportType stemExportType);
 	void restoreAllClipMutes(int32_t totalNumClips);
 	void getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip);
 	void getLoopEndPointInSamplesForAudioFile(int32_t loopLength);
@@ -83,15 +164,18 @@ public:
 
 	// export drums
 	int32_t disarmAllDrumsForStemExport();
-	int32_t exportDrumStems(StemExportType stemExportType);
 	void restoreAllDrumMutes(int32_t totalNumNoteRows);
 
+	/// @brief Clip count captured by a DRUM export's own clip disarm, so @ref restoreElements can undo
+	///        it as well as the note-row mutes.
+	int32_t drumExportTotalNumClips;
+
 	// start exporting
-	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState, int32_t fileNumber,
+	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool* muteState, int32_t fileNumber,
 	                            bool exportStem, SoundDrum* drum = nullptr);
 
 	// finish exporting
-	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
+	void finishCurrentStemExport(StemExportType stemExportType, bool* muteState);
 	void finishStemExportProcess(StemExportType stemExportType, int32_t elementsProcessed);
 	void updateScrollPosition(StemExportType stemExportType, int32_t indexNumber);
 
@@ -104,7 +188,27 @@ public:
 	Error getUnusedStemRecordingFilePath(std::string* filePath, AudioRecordingFolder folder);
 	Error getUnusedStemRecordingFolderPath(std::string* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
+
+	/// @name Folder-search machine state
+	/// Cross-tick state for the free-folder search, which issues one filesystem operation per tick and
+	/// returns rather than blocking until the search is done.
+	/// @{
+	deluge::storage::StemSearchPhase stemSearchPhase_ = deluge::storage::StemSearchPhase::MkdirBase;
+	bool stemSearchIssued_ = false;
+	bool stemSearchActive_ = false;
+	std::string stemSearchBasePath_{};
+	std::string stemSearchCandidatePath_{};
+	int32_t stemSearchCandidatesTried_ = 0;
+	/// Consecutive calls the current candidate's channel operation has gone unanswered.
+	int32_t stemSearchStallTicks_ = 0;
+	/// @}
 	std::string lastFolderNameForStemExport{};
+	/// @brief The folder the most recent export wrote into: `.../TRACKS`, or `.../TRACKS-NN` once that song has
+	///        been exported before.
+	///
+	/// Not `lastFolderNameForStemExport`, which is only the base name the folder search compares against to
+	/// tell a repeat export of the same song from a new one, and never carries the number.
+	std::string lastExportFolderPath{};
 	/// returns false if no valid file name could be built (e.g. the output / drum names are too long
 	/// for the file system), in which case the stem must not be exported
 	[[nodiscard]] bool setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,

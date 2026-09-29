@@ -22,6 +22,7 @@
 #include "gui/views/view.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_device.h"
+#include "libdeluge/system.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/clip/instrument_clip.h"
@@ -42,6 +43,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/structural_edit_probe.h"
 #include <new>
 #include <string.h>
 
@@ -1692,6 +1694,12 @@ Error NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, in
 		// We make a memory-speed tradeoff here and only rotate by 1 note at a time. It would be more CPU-efficient to
 		// have a buffer of rotateAmount notes and cycle the notes through there, but creating such a buffer requires
 		// allocation which makes it not worthwhile in the common case of only rotating by 1 or 2 notes.
+		// The rotation reorders the notes in place, one swap at a time: one section for all of it, so the render never
+		// walks them half-rotated (out of order).
+		AudioExcludedSection section;
+		if (rotateAmount >= 0) {
+			deluge::noteStructuralEdit(deluge::StructuralContainer::ORDERED_POS_VECTOR);
+		}
 		while (rotateAmount >= 0) {
 			// Swap the notes to the right, so the note with a negative position ends up at the end.
 			int32_t lastNoteIdx = finalNumElements - 1;
@@ -1713,6 +1721,10 @@ Error NoteRow::quantize(ModelStackWithNoteRow* modelStack, int32_t increment, in
 		}
 
 		// See comment in the left rotation about why we rotate one note at a time
+		AudioExcludedSection section; // as for the left rotation
+		if (rotateAmount > 0) {
+			deluge::noteStructuralEdit(deluge::StructuralContainer::ORDERED_POS_VECTOR);
+		}
 		while (rotateAmount > 0) {
 			// Swap the notes to the left, so the note with a too-large position ends up at the start
 			for (auto i = finalNumElements - 1; i > 0; i--) {

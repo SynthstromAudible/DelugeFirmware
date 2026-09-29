@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <expected>
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -35,6 +36,63 @@ public:
 
 	[[nodiscard]] static std::expected<Stream, Status> open(std::string_view path, DelugeStreamMode mode);
 	std::expected<uint32_t, Status> write_at(uint32_t byte_offset, std::span<const std::byte> buffer);
+
+	/// @brief Ask for @p buffer to be written at @p byte_offset, without blocking.
+	///
+	/// @param byte_offset Absolute offset within the file.
+	/// @param buffer      Caller-owned. Must stay alive and unmodified until @ref collect_write_at
+	///                    returns a terminal status. NOT copied -- the pointer crosses the boundary,
+	///                    the bytes do not.
+	/// @return false when the request was refused (a write is already in flight for this stream, or
+	///         the channel is not running). The caller must take its synchronous arm.
+	[[nodiscard]] bool request_write_at(uint32_t byte_offset, std::span<const std::byte> buffer);
+
+	/// @brief Collect the in-flight write, if it has finished.
+	/// @param out_written Written only on `DELUGE_FILE_WRITE_READY`, with the true byte count.
+	/// @return a `DELUGE_FILE_WRITE_*` value.
+	[[nodiscard]] uint8_t collect_write_at(uint32_t* out_written);
+
+	/// @brief Ask for @p path to be opened, without blocking.
+	///
+	/// Static because there is no Stream yet: @ref collect_open constructs one on success.
+	/// @return false when refused (another operation is in flight, or the channel is not running).
+	[[nodiscard]] static bool request_open(std::string_view path, DelugeStreamMode mode);
+
+	/// @brief Collect the open, constructing the Stream in @p out on success.
+	/// @param out Engaged ONLY on `DELUGE_FILE_WRITE_READY`. An optional rather than a `Stream*`
+	///            because Stream has no valid empty state -- there is nothing to overwrite until the
+	///            handle actually exists.
+	/// @return a `DELUGE_FILE_WRITE_*` value.
+	[[nodiscard]] static uint8_t collect_open(std::optional<Stream>* out);
+
+	/// @brief Ask for @p dst.size() bytes at @p byte_offset to be read, without blocking.
+	///
+	/// Reads through this stream's OWN write context, bounded by its live (not yet flushed) size --
+	/// the async counterpart of @ref read_at_via.
+	/// @param dst Caller-owned. Must stay alive and unmodified until @ref collect_read_at returns a
+	///            terminal status. NOT copied.
+	[[nodiscard]] bool request_read_at(uint32_t byte_offset, std::span<std::byte> dst);
+
+	/// @brief Collect the read.
+	/// @param out_read Written only on READY, with the true count, which may be short at EOF.
+	[[nodiscard]] uint8_t collect_read_at(uint32_t* out_read);
+
+	/// @brief Ask for this stream's file to be truncated to @p new_size, without blocking.
+	[[nodiscard]] bool request_truncate(uint32_t new_size);
+
+	/// @brief Collect the truncate.
+	[[nodiscard]] uint8_t collect_truncate();
+
+	/// @brief Ask for this stream to be closed, without blocking.
+	///
+	/// A caller that will DELETE this file must wait for @ref collect_close to report a TERMINAL
+	/// status before unlinking: closing is what flushes the directory entry deferred for the whole
+	/// recording, and unlinking first leaks the cluster chain.
+	[[nodiscard]] bool request_close();
+
+	/// @brief Collect the close. Disengages this Stream on a terminal status, so the destructor
+	///        cannot close it a second time.
+	[[nodiscard]] uint8_t collect_close();
 	/// @brief Read up to @p dst.size() bytes at absolute @p byte_offset back through this stream's
 	///        OWN open write context, bounded by its live (not yet flushed to disk) size.
 	///
@@ -49,7 +107,6 @@ public:
 	std::expected<uint32_t, Status> read_at_via(uint32_t byte_offset, std::span<std::byte> dst);
 	std::expected<void, Status> truncate(uint32_t new_size);
 	std::expected<uint32_t, Status> size();
-	std::expected<uint32_t, Status> sector_of(uint32_t cluster_index);
 	std::expected<void, Status> close();
 
 private:

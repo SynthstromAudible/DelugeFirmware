@@ -96,7 +96,7 @@ public:
 				//
 				// @warning This reallocates `segments_` unless the caller pre-reserved (see
 				//          `reserve`). Growth CONCURRENT with a reader (the recorder's audio
-				//          thread growing while the fiber reads via `operator[]`) MUST
+				//          thread growing while the card routine reads via `operator[]`) MUST
 				//          `reserve` to the final capacity first, single-threaded.
 				Segment* seg = alloc_segment();
 				try {
@@ -119,7 +119,7 @@ public:
 	///
 	/// After `reserve(N)`, growth up to N elements will not reallocate the internal segment-pointer
 	/// array. Growing this container CONCURRENTLY with readers (e.g. the recorder's audio-thread growth
-	/// via `resize` vs the fiber's `operator[]`/`chunk_at`) REQUIRES reserving to the final capacity
+	/// via `resize` vs the card routine's `operator[]`/`chunk_at`) REQUIRES reserving to the final capacity
 	/// first, single-threaded; single-threaded growth is unrestricted.
 	void reserve(std::size_t n) { segments_.reserve((n + SegmentSize - 1) / SegmentSize); }
 

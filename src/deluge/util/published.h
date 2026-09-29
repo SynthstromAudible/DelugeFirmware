@@ -59,6 +59,15 @@ public:
 		// operation that must carry release semantics (see class comment).
 		const std::uint64_t next = epoch_.load(std::memory_order_relaxed) + 1;
 		epoch_.store(next, std::memory_order_release);
+		// Store-buffering fix, paired with the seq_cst fence in `RetireList::retire()` right before its
+		// `audio_epoch()` read: acquire/release alone only orders accesses to epoch_ itself, not this store
+		// against an independent atomic on the other thread (the retired object's unlink). That leaves the SB
+		// litmus open -- [audio]'s release store here and [task]'s unlink-then-acquire-load in `retire()` can
+		// each observe the other's write as not-yet-happened, so `retire()` at epoch 0 could free an object
+		// this render block has already loaded. This seq_cst fence, together with the matching one in
+		// `retire()`, forces a single total order between "epoch is now visible" and "object is now unlinked",
+		// closing that window.
+		std::atomic_thread_fence(std::memory_order_seq_cst);
 	}
 
 	/// @brief [task] Observe the current audio-block epoch. Acquire ordering:

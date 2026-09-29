@@ -510,9 +510,10 @@ void MidiEngine::checkIncomingUsbMidi() {
 		// i.e. close to 1kHz -- and ENABLE_TEXT_OUTPUT is on for Debug/RelWithDebInfo (CMakeLists.txt),
 		// the config that actually gets flashed. Restoring this line, even briefly, emitted on the order
 		// of 1-2k formatted UART lines/sec during a song load or streaming burst, and the resulting UART
-		// backpressure stalled the very routine this branch exists to defer -- exactly what the
-		// duty-cycle caveat in docs/dev/sd_busy_audit.md predicts. Re-add it only rate-limited (e.g. on a
-		// false->true transition, or the first N occurrences) if this needs to come back.
+		// backpressure stalled the very routine this branch exists to defer. sd_busy() is true for one
+		// filesystem operation at a time, but a load issues them back to back, so it reads true on most
+		// ticks across the whole load. Re-add it only rate-limited (e.g. on a false->true transition, or the
+		// first N occurrences) if this needs to come back.
 		return;
 	}
 	check_incoming_usb();

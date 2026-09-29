@@ -56,6 +56,8 @@ endif()
 # VERSION mirrors the firmware top-level (project(Deluge VERSION ...)) so the
 # generated util/firmware_version.h gets non-empty PROJECT_VERSION_* components.
 project(DelugeHostSim VERSION 1.3.0 LANGUAGES C CXX)
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/ccache.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/deps.cmake)
 
 set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/..)
 
@@ -187,16 +189,9 @@ endif()
 # resolve to <simde/arm/neon.h>. Native-NEON hosts (the arm-linux cross, Apple Silicon, arm64
 # Linux) have a real <arm_neon.h> and skip all of this.
 if(NOT DELUGE_SIM_NEON_NATIVE)
-    # SIMDe provides the NEON intrinsics on non-ARM hosts — argon's <arm/neon.h> and the compat
-    # <arm_neon.h> shim resolve into it. Fetch it (pinned) rather than depending on a system package,
-    # so the host-sim builds anywhere without a distro simde install. v0.8.2 matches the version this
-    # was developed against, so the portable-NEON emulation (and thus the golden captures) is unchanged.
-    include(FetchContent)
-    FetchContent_Declare(simde
-        GIT_REPOSITORY https://github.com/simd-everywhere/simde
-        GIT_TAG v0.8.2
-        GIT_SHALLOW TRUE
-    )
+    # SIMDe provides the NEON intrinsics on non-ARM hosts. It is fetched at the pinned revision (cmake/deps.cmake)
+    # rather than taken from a system package, so the portable-NEON emulation, and with it the golden captures, is
+    # the same on every host.
     FetchContent_MakeAvailable(simde)
     # Repo layout is ${simde_SOURCE_DIR}/simde/{arm,x86,...}: the root resolves <simde/arm/neon.h>
     # (the compat shim), the simde/ subdir resolves argon's bare <arm/neon.h>. Both are added below.
@@ -310,6 +305,7 @@ add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # d
 add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
+add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
 
 # --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource,
 # + the region cursor (deluge_sample_source) under its `sim` feature, SR3a Task 1) -
@@ -335,6 +331,7 @@ set(SIM_RUST_LIB ${SIM_RUST_WS}/target/${SIM_RUST_TARGET}/release/libdeluge_rust
 file(GLOB_RECURSE SIM_RUST_SOURCES CONFIGURE_DEPENDS
     ${SIM_RUST_WS}/deluge_alloc/src/*.rs
     ${SIM_RUST_WS}/deluge_resource/src/*.rs
+    ${SIM_RUST_WS}/deluge_audio_format/src/*.rs
     ${SIM_RUST_WS}/deluge_sample_source/src/*.rs
     ${SIM_RUST_WS}/deluge_sample_fill/src/*.rs
     ${SIM_RUST_WS}/deluge_sample_reader/src/*.rs
@@ -355,12 +352,16 @@ if(DELUGE_SIM_SANITIZE)
 endif()
 add_custom_command(
     OUTPUT ${SIM_RUST_LIB}
-    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET} ${SIM_RUST_FEATURES}
+    # --target-dir pins the output to SIM_RUST_LIB's directory: a CARGO_TARGET_DIR in the environment (the harness
+    # runner sets one) would otherwise build the staticlib elsewhere and leave this link on a stale copy.
+    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET} --target-dir ${SIM_RUST_WS}/target
+            ${SIM_RUST_FEATURES}
     WORKING_DIRECTORY ${SIM_RUST_WS}
     DEPENDS ${SIM_RUST_SOURCES}
         ${SIM_RUST_WS}/Cargo.lock
         ${SIM_RUST_WS}/Cargo.toml ${SIM_RUST_WS}/deluge_alloc/Cargo.toml
         ${SIM_RUST_WS}/deluge_resource/Cargo.toml ${SIM_RUST_WS}/deluge_rust/Cargo.toml
+        ${SIM_RUST_WS}/deluge_audio_format/Cargo.toml
         ${SIM_RUST_WS}/deluge_sample_source/Cargo.toml
         ${SIM_RUST_WS}/deluge_sample_fill/Cargo.toml
         ${SIM_RUST_WS}/deluge_sample_reader/Cargo.toml
@@ -412,7 +413,7 @@ add_executable(deluge_host
 # host_debug.cpp reaches into the app's reason_check (memory/reason_check.h) for the host-sim leak triggers - allowed
 # (the boundary check only forbids the app depending on the BSP, not the reverse), so put src/deluge on the path.
 target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+target_link_libraries(deluge_host PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_host PRIVATE ${RT_LIB})
 endif()
@@ -437,9 +438,33 @@ add_executable(deluge_loadcheck
 # host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) + reaches the app's reason_check;
 # src/deluge on the path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
 target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
+endif()
+
+# deluge_audio_header_dump: headless C++ oracle for the `deluge_audio_format` (crates/deluge_audio_format)
+# corpus differential (see tests/integration/scenarios/audio_header_dump.h). Same app + host BSP boot as deluge_loadcheck, but
+# its own main()/driver (host_audio_header_dump_main.cpp) reads host filesystem paths from stdin and, for
+# each, dumps parseSampleHeader's/parseWaveTableHeader's (both makeWaveTableWorkAtAllCosts settings)
+# outcome as one JSON line to stdout — driven straight off an in-memory AudioByteSource, so unlike
+# deluge_loadcheck it needs no DELUGE_SD_ROOT/efatfs passthrough at all.
+add_executable(deluge_audio_header_dump
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_ws.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_audio_header_dump_main.cpp
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
+)
+target_include_directories(deluge_audio_header_dump PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(deluge_audio_header_dump PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(deluge_audio_header_dump PRIVATE ${RT_LIB})
 endif()
 
 # NOTE: the C-host `deluge_render` / `deluge_recorder_roundtrip` renderers and their CTests

@@ -20,9 +20,11 @@
 #include "extern.h"
 #include "gui/context_menu/load_instrument_preset.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/root_ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -39,6 +41,7 @@
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
@@ -201,7 +204,7 @@ std::string LoadInstrumentPresetUI::setupForOutputType() {
 	std::string searchFilename;
 
 	// I don't have this calling arrivedInNewFolder(), because as you can see below, we want to either just display the
-	// existing preset, or call confirmPresetOrNextUnlaunchedOne() to skip any which aren't "available".
+	// existing preset, or skip any which aren't "available" (what ConfirmPreset does for the change-type).
 
 	// If same Instrument type as we already had...
 	if (instrumentToReplace && instrumentToReplace->type == outputTypeToLoad) {
@@ -288,7 +291,8 @@ void LoadInstrumentPresetUI::onBrowserOpened() {
 		// follow-up now that the listing has actually completed (see changeOutputType()'s comment).
 		changingOutputType_ = false;
 		renderUIsForOled();
-		performLoad();
+		// The new type's folder is listed: load its first file, as a scroll onto it would.
+		currentFileChanged(0);
 	}
 	else {
 		// opened()'s post-listing tail: focusRegained() runs here, after the listing actually
@@ -299,12 +303,21 @@ void LoadInstrumentPresetUI::onBrowserOpened() {
 
 void LoadInstrumentPresetUI::onListingFailed(Error error) {
 	if (changingOutputType_) {
-		// changeOutputType()'s original synchronous path silently reverted outputTypeToLoad on failure
-		// and left the browser open - no displayError(), no close(). Preserve that instead of falling
-		// through to the base Browser::onListingFailed() (displayError + close()).
 		changingOutputType_ = false;
 		outputTypeToLoad = outputTypeBeforeChange_;
-		return;
+		if (!listingRestored_) {
+			// No copy of what the change replaced, for want of memory: outputTypeToLoad is simply reverted, and the
+			// browser stays open.
+			return;
+		}
+		// The failed listing put back the previous type's folder, list and entered text. setupForOutputType() puts
+		// back that type's title, icon, lights and file prefix, which the change replaced, but it also picks a folder
+		// and entered text of its own: keep the restored ones. The base then shows the error and stays open.
+		std::string dir = std::move(currentDir);
+		std::string text = std::move(enteredText);
+		(void)setupForOutputType();
+		currentDir = std::move(dir);
+		enteredText = std::move(text);
 	}
 	Browser::onListingFailed(error);
 }
@@ -313,19 +326,9 @@ void LoadInstrumentPresetUI::folderContentsReady(int32_t entryDirection) {
 	currentFileChanged(0);
 }
 
-// Coalesces the scroll-triggered load onto the storage worker instead of running it synchronously:
-// this fires on every non-reload encoder tick while scrolling Load Synth/Kit, and a synchronous load
-// would block the executor for the whole load. LatestWins collapses a fast scroll onto the settled
-// preset - see runScrollLoadOp().
-//
-// The LoadTarget snapshot is built here, at dispatch time, from live Browser state - the ONLY point
-// where it's safe to read enteredText/currentDir/getCurrentFileItem() directly, because nothing else
-// runs between this tick and the snapshot being taken. Once dispatched, runScrollLoadOp()/performLoad()
-// must never go back to that live state (see LoadTarget's doc): doing so would race a scroll on the UI
-// task against the op's own SD-yield points, freeing state the op still holds a raw pointer to.
-void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
+deluge::gui::InstrumentLoadTarget LoadInstrumentPresetUI::snapshotTarget(int32_t movementDirection) {
 	FileItem* currentFileItem = getCurrentFileItem();
-	LoadTarget target{
+	return {
 	    .loadingSynthToKitRow = loadingSynthToKitRow,
 	    .movementDirection = movementDirection,
 	    .hasFile = currentFileItem != nullptr,
@@ -336,34 +339,22 @@ void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
 	    .name = enteredText,
 	    .dirPath = currentDir,
 	};
-	if (loadCoalescer_.request(target)) {
-		if (!deluge::storage::Owner::run(&LoadInstrumentPresetUI::runScrollLoadOp, this)) {
-			// Owner queue was full - the op never ran, so release the guard or the coalescer
-			// would wedge single-flight forever (see LatestWins::reset()'s doc).
-			loadCoalescer_.reset();
-		}
-	}
 }
 
-void LoadInstrumentPresetUI::runScrollLoadOp(void* self) {
-	auto* ui = static_cast<LoadInstrumentPresetUI*>(self);
-	const LoadTarget& target = ui->loadCoalescer_.current();
+bool LoadInstrumentPresetUI::scrollLoadInFlight() const {
+	return deluge::gui::instrumentLoad.inFlight();
+}
 
-	// Pass the snapshot through explicitly - performLoad()/performLoadSynthToKit() must act ONLY on
-	// `target` (and op-local copies derived from it) for anything that crosses their internal SD-yield
-	// points, never on live Browser members, since a scroll on the UI task can run and mutate/free
-	// those while this op is yielded (see LoadTarget's doc).
-	ui->currentInstrumentLoadError =
-	    target.loadingSynthToKitRow ? ui->performLoadSynthToKit(&target) : ui->performLoad(false, &target);
-	if (ui->currentInstrumentLoadError != Error::NONE) {
-		display->displayError(ui->currentInstrumentLoadError);
-	}
+// Every non-reload encoder tick asks for the file the cursor lands on. The machine coalesces latest-wins, so a fast
+// scroll cancels each load it leaves and only loads where the user settles.
+void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
+	deluge::gui::instrumentLoad.request({.target = snapshotTarget(movementDirection), .completion = &onScrollLoaded});
+}
 
-	// If a newer scroll arrived while this ran, dispatch it (latest-wins).
-	if (auto next = ui->loadCoalescer_.complete(); next.has_value()) {
-		if (!deluge::storage::Owner::run(&LoadInstrumentPresetUI::runScrollLoadOp, self)) {
-			ui->loadCoalescer_.reset(); // re-dispatch dropped - release (see currentFileChanged())
-		}
+void LoadInstrumentPresetUI::onScrollLoaded(Error error) {
+	loadInstrumentPresetUI.currentInstrumentLoadError = error;
+	if (error != Error::NONE) {
+		display->displayError(error);
 	}
 }
 
@@ -376,40 +367,255 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
-		// goIntoFolder() now dispatches onto the storage owner; failure is handled by the base
-		// Browser::onListingFailed() (displayError + close()) once the listing completes.
+		// goIntoFolder() begins a listing that graphicsRoutine() runs over later ticks; failure is handled by
+		// the base Browser::onListingFailed() (displayError + close()) once the listing completes.
 		goIntoFolder(currentFileItem->filename.c_str());
 	}
 
 	else {
-		// Dispatch the commit onto the storage worker: it does its OWN authoritative
-		// performLoad()/performLoadSynthToKit() rather than trusting currentInstrumentLoadError,
-		// because under coalescing a scroll-load may still be in flight when SELECT_ENC arrives.
-		// (A cache hit - getAudioFileFromFilename - if the scroll already warmed it; a fresh load
-		// otherwise.) See runCommitOp() for the commit tail.
-		deluge::storage::Owner::run_or_inline(&LoadInstrumentPresetUI::runCommitOp, this);
+		// The commit does its own authoritative load of the file, rather than trusting currentInstrumentLoadError: a
+		// scroll-load of it may still be out, in which case the machine promotes that load to the commit.
+		deluge::gui::instrumentLoad.request(
+		    {.target = snapshotTarget(0), .commit = true, .completion = &onCommitLoaded});
 	}
 }
 
-void LoadInstrumentPresetUI::runCommitOp(void* self) {
-	auto* ui = static_cast<LoadInstrumentPresetUI*>(self);
-
-	ui->currentInstrumentLoadError = ui->loadingSynthToKitRow ? ui->performLoadSynthToKit() : ui->performLoad();
-	if (ui->currentInstrumentLoadError != Error::NONE) {
-		display->displayError(ui->currentInstrumentLoadError);
+void LoadInstrumentPresetUI::onCommitLoaded(Error error) {
+	loadInstrumentPresetUI.currentInstrumentLoadError = error;
+	if (error != Error::NONE) {
+		display->displayError(error);
 		return;
 	}
 
-	if (ui->outputTypeToLoad == OutputType::KIT && ui->showingAuditionPads()) {
+	if (loadInstrumentPresetUI.outputTypeToLoad == OutputType::KIT && loadInstrumentPresetUI.showingAuditionPads()) {
 		// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 		instrumentClipView.recalculateColours();
 	}
 
-	ui->close();
+	loadInstrumentPresetUI.close();
+}
+
+void LoadInstrumentPresetUI::requestClone(void (*completion)(Error error)) {
+	deluge::gui::instrumentLoad.request(
+	    {.target = snapshotTarget(0), .clone = true, .commit = true, .completion = completion});
+}
+
+void LoadInstrumentPresetUI::selectEncoderAction(int8_t offset) {
+	// Refused while a commit is in flight: InstrumentLoad closes the browser's gate until it ends.
+	if (deluge::gui::instrumentLoad.commitInFlight()) {
+		return;
+	}
+	LoadUI::selectEncoderAction(offset);
+}
+
+void LoadInstrumentPresetUI::close() {
+	deluge::gui::instrumentLoad.cancel();
+	LoadUI::close();
+}
+
+bool LoadInstrumentPresetUI::dispatchPresetAcquisition(const deluge::storage::PresetRequest& request) {
+	return deluge::gui::instrumentLoad.request(
+	    {.kind = deluge::gui::InstrumentLoadRequest::Kind::Acquire, .preset = request});
+}
+
+bool LoadInstrumentPresetUI::presetAcquisitionInFlight() const {
+	return deluge::gui::instrumentLoad.acquisitionInFlight();
+}
+
+bool LoadInstrumentPresetUI::beginAcquisition(const deluge::storage::PresetRequest& request,
+                                              deluge::storage::AcquireWalkSpec* walk) {
+	using deluge::storage::AcquireWalk;
+	using deluge::storage::PresetConsumer;
+	if (request.oldInstrument != nullptr && !isRequestInstrumentStillLive(request.oldInstrument)) {
+		return false;
+	}
+	switch (request.consumer) {
+	case PresetConsumer::ArrangerChangeType:
+	case PresetConsumer::SessionChangeType:
+		// Song::changeOutputType()'s Synth/Kit arm: the first preset of the type nobody in the song uses.
+		*walk = {.walk = AcquireWalk::Unlaunched,
+		         .outputType = request.outputType,
+		         .availability = Availability::INSTRUMENT_UNUSED,
+		         .dirPath = getInstrumentFolder(request.outputType)};
+		return true;
+	case PresetConsumer::ViewChangeType:
+	case PresetConsumer::ViewChangeTypeMinder:
+	case PresetConsumer::SessionRowsChangeType:
+	case PresetConsumer::KeyboardChangeType: {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* modelStack =
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, request.clip);
+		return request.clip->beginChangeOutputType(modelStack, request.outputType, walk);
+	}
+	case PresetConsumer::ArrangerNavigate:
+	case PresetConsumer::SessionNavigate:
+		// Song::navigateThroughPresetsForInstrument()'s prologue.
+		actionLogger.deleteAllLogs();
+		currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E063", "H063");
+		*walk = {.walk = AcquireWalk::Navigate,
+		         .outputType = request.oldInstrument->type,
+		         .availability = Availability::INSTRUMENT_UNUSED,
+		         .dirPath = request.oldInstrument->dirPath,
+		         .name = request.oldInstrument->name,
+		         .offset = request.offset,
+		         .oldInstrument = request.oldInstrument,
+		         .blink = true};
+		return true;
+	case PresetConsumer::ViewNavigateClipPreset: {
+		Availability availabilityRequirement;
+		(void)currentSong->shouldOldOutputBeReplaced(request.clip, &availabilityRequirement);
+		*walk = {.walk = AcquireWalk::Navigate,
+		         .outputType = request.oldInstrument->type,
+		         .availability = availabilityRequirement,
+		         .dirPath = request.oldInstrument->dirPath,
+		         .name = request.oldInstrument->name,
+		         .offset = request.offset,
+		         .oldInstrument = request.oldInstrument,
+		         .blink = false};
+		return true;
+	}
+	case PresetConsumer::BlankSongPreset:
+		// The blank song's first preset: the first SYNTHS preset there is, with the song's own default synth left out
+		// of the walk -- it is named "0", so a walk that counted it would land on it.
+		*walk = {.walk = AcquireWalk::Unlaunched,
+		         .outputType = OutputType::SYNTH,
+		         .availability = Availability::ANY,
+		         .includeSong = false,
+		         .dirPath = getInstrumentFolder(OutputType::SYNTH)};
+		return true;
+	case PresetConsumer::ArrangerNewInstrument:
+		// ArrangerView::createNewInstrument(): the first synth preset nobody in the song uses.
+		*walk = {.walk = AcquireWalk::Unlaunched,
+		         .outputType = OutputType::SYNTH,
+		         .availability = Availability::INSTRUMENT_UNUSED,
+		         .dirPath = getInstrumentFolder(OutputType::SYNTH)};
+		return true;
+	case PresetConsumer::SessionNewTrack:
+	case PresetConsumer::SessionNewTrackEnter:
+	case PresetConsumer::SessionNewTrackSelect:
+	case PresetConsumer::SessionNewTrackClone:
+		// setPresetOrNextUnlaunchedOne(): the first preset of the type nobody in the song uses. A clone's type is its
+		// source clip's.
+		*walk = {.walk = AcquireWalk::Unlaunched,
+		         .outputType = request.outputType,
+		         .availability = Availability::INSTRUMENT_UNUSED,
+		         .dirPath = getInstrumentFolder(request.outputType)};
+		return true;
+	case PresetConsumer::MinderNewInstrument:
+	case PresetConsumer::ViewNewInstrument:
+	case PresetConsumer::KeyboardNewInstrument:
+		// InstrumentClipMinder::createNewInstrument(): a new blank Instrument, under a slot name no preset has.
+		*walk = {.walk = AcquireWalk::UnusedSlot,
+		         .outputType = request.outputType,
+		         .dirPath = getInstrumentFolder(request.outputType)};
+		return true;
+	}
+	return false;
+}
+
+void LoadInstrumentPresetUI::deliverAcquisition(const deluge::storage::PresetRequest& request,
+                                                const deluge::storage::AcquireResult& acquired) {
+	runAcquisitionFollowUp(request, acquired);
+	if (acquired.loadedFromFile && acquired.instrument != nullptr
+	    && !isInstrumentInList(acquired.instrument, currentSong->firstOutput)
+	    && !isInstrumentInList(acquired.instrument, currentSong->firstHibernatingInstrument)) {
+		currentSong->deleteOutput(acquired.instrument); // parsed for this gesture, never taken into the song
+	}
+}
+
+void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::PresetRequest& request,
+                                                    const deluge::storage::AcquireResult& acquired) {
+	using deluge::storage::PresetConsumer;
+	// A coalesced request can carry a stale `oldInstrument` -- see isRequestInstrumentStillLive()'s
+	// doc. Consumers that never set it (ArrangerNewInstrument) leave it null, so the `!= nullptr`
+	// guard skips this check for them rather than abandoning every follow-up that doesn't use it.
+	if (request.oldInstrument != nullptr && !isRequestInstrumentStillLive(request.oldInstrument)) {
+		return;
+	}
+	switch (request.consumer) {
+	case PresetConsumer::BlankSongPreset:
+		currentSong->completeBlankPreset(acquired);
+		break;
+	case PresetConsumer::ArrangerNewInstrument:
+		arrangerView.completeNewInstrument(request.yPressed, request.yPressedRaw, request.renderUi, acquired);
+		break;
+	case PresetConsumer::ArrangerChangeType:
+		arrangerView.completeChangeOutputType(request.outputType, request.oldInstrument, request.yPressed, &acquired);
+		break;
+	case PresetConsumer::ArrangerNavigate:
+		arrangerView.completeNavigateThroughPresets(request.offset, request.oldInstrument, request.yPressed, &acquired);
+		break;
+	case PresetConsumer::ViewChangeType:
+	case PresetConsumer::ViewChangeTypeMinder:
+	case PresetConsumer::SessionRowsChangeType:
+	case PresetConsumer::KeyboardChangeType:
+		// All four route through the same per-consumer completion changeOutputType()'s synchronous
+		// MIDI/CV arm also uses, so each caller's redraw/LED tail runs from exactly one place either
+		// way -- see View::completeChangeOutputTypeFor()'s doc.
+		(void)view.completeChangeOutputTypeFor(request.consumer, request.outputType, request.clip, request.doBlink,
+		                                       &acquired);
+		break;
+	case PresetConsumer::ViewNavigateClipPreset:
+		view.completeNavigateThroughPresetsForInstrumentClip(request.offset, request.clip, request.doBlink, &acquired);
+		break;
+	case PresetConsumer::SessionChangeType:
+		sessionView.completeChangeOutputType(request.outputType, request.oldInstrument, &acquired);
+		break;
+	case PresetConsumer::SessionNavigate:
+		sessionView.completeNavigate(request.offset, request.oldInstrument, &acquired);
+		break;
+	case PresetConsumer::SessionNewTrack:
+		sessionView.completeNewTrack(request.outputType, request.xPressed, request.yPressed, request.clipIndex,
+		                             request.shiftHeld, &acquired);
+		break;
+	case PresetConsumer::SessionNewTrackEnter:
+		sessionView.completeNewTrackGridEnter(request.outputType, request.packedXY, request.padStillPressed, &acquired);
+		break;
+	case PresetConsumer::SessionNewTrackSelect:
+		sessionView.completeNewTrackGridSelect(request.outputType, request.packedXY, request.padStillPressed,
+		                                       &acquired);
+		break;
+	case PresetConsumer::SessionNewTrackClone:
+		sessionView.completeNewTrackClone(request.targetSection, request.sourceClip, &acquired);
+		break;
+	case PresetConsumer::MinderNewInstrument:
+		// InstrumentClipMinder::completeNewInstrument() (the leaf underneath) reads only its `clip`
+		// parameter and global Song state, never `this` -- so which InstrumentClipMinder-derived
+		// instance runs it is interchangeable; instrumentClipView is used here only because it is
+		// already referenced nearby, the same idiom completeChangeOutputTypeFor()'s ViewChangeTypeMinder
+		// arm uses for setLedStates().
+		instrumentClipView.InstrumentClipMinder::completeNewInstrument(request.clip, request.outputType, request.isDx,
+		                                                               acquired);
+		break;
+	case PresetConsumer::ViewNewInstrument:
+		instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx, acquired);
+		break;
+	case PresetConsumer::KeyboardNewInstrument:
+		// Same tail as ViewNewInstrument, plus the layout refresh keyboard_screen.cpp needs -- see
+		// PresetConsumer::KeyboardNewInstrument's doc. Gated on the same "did it actually create" bool
+		// completeNewInstrument() already returns, so a failed acquisition (no unused slot, OOM) does
+		// not refresh the layout for nothing.
+		//
+		// ALSO gated on request.clip still being current: unlike the LED tail beside it (setLedStates(),
+		// a pure "show the truth" read), selectLayout() both reads AND WRITES per-clip model state
+		// (keyboardState.currentLayout) -- if the current clip changed between dispatch and this
+		// completion running, writing through getCurrentInstrumentClip() would set the layout on the
+		// WRONG clip. request.clip already survived the liveness guard above; comparing it against
+		// what's current now is what makes the write itself safe, not just the pointer.
+		if (instrumentClipView.completeNewInstrument(request.clip, request.outputType, request.isDx, acquired)
+		    && getCurrentInstrumentClip() == request.clip) {
+			keyboardScreen.completeLayoutRefresh();
+		}
+		break;
+	}
 }
 
 ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
+	// Refused while a commit is in flight: InstrumentLoad closes the browser's gate until it ends.
+	if (deluge::gui::instrumentLoad.commitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	OutputType newOutputType;
 
@@ -459,6 +665,10 @@ doChangeOutputType:
 }
 
 ActionResult LoadInstrumentPresetUI::timerCallback() {
+	// Refused while a commit is in flight: InstrumentLoad closes the browser's gate until it ends.
+	if (deluge::gui::instrumentLoad.commitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
 
 		if (isSDRoutineActive()) {
@@ -476,12 +686,16 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		// We want to open the context menu to choose to reload the original file for the currently selected
 		// preset in some way. So first up, make sure there is a file at that path.
-		std::string filePath = getCurrentFilePath();
-
-		// TODO(conflation-batch-4): unknown is being treated as absent here; the load/browse/favourites
-		// batch gives this site its real ruling.
-		bool fileExists = StorageManager::fileExists(filePath.c_str()).value_or(false);
-		if (!fileExists) {
+		//
+		// The listing already answered this. `maybeExistsOnCard` is false only for an item built from an
+		// unsaved in-memory instrument, which is exactly the case below -- so asking the card again would tell
+		// us nothing the browser doesn't already know, and it would ask by BLOCKING: this runs from
+		// uiTimerManager -> timerCallback() on the interaction tier, where a card wait is what this
+		// ladder exists to stop.
+		//
+		// The same swap as `delete_file.cpp`'s, and as this file's own kit-row check below: `maybeExistsOnCard`
+		// is a definite in-memory fact, not a "could not tell" guess.
+		if (!currentFileItem->maybeExistsOnCard) {
 			// An unsaved (in-memory only) synth preset cannot be loaded / cloned because
 			// the XML is read from disk to create the instrument. If the preset hasn't
 			// been saved yet, there is no file on the SD card to read from.
@@ -555,11 +769,14 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 
 	// Or, for normal synths, kits and midi
 	else {
+		// Copied before setupForOutputType() changes the folder and entered text, so a failed listing puts back the
+		// previous type's, not a mixture of the two. beginListing() below keeps this copy.
+		captureListingRestore();
 		OutputType oldOutputType = outputTypeToLoad;
 		outputTypeToLoad = newOutputType;
 
 		std::string searchFilename = setupForOutputType();
-		// Route this listing through the owner too, the same way opened() does. changingOutputType_
+		// Run this as a listing too, the same way opened() does. changingOutputType_
 		// tells the shared onBrowserOpened()/onListingFailed() hooks apart from opened()'s Open
 		// listing so they can run this path's own follow-up/revert once the listing actually
 		// completes (see onBrowserOpened() and onListingFailed()). buttonAction()'s
@@ -571,7 +788,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		                                .filenameToStartAt = searchFilename,
 		                                .defaultDir = getInstrumentFolder(outputTypeToLoad)});
 		if (!dispatched) {
-			// Owner queue was full - the listing never ran, so onBrowserOpened()/onListingFailed()
+			// Refused - the listing never ran, so onBrowserOpened()/onListingFailed()
 			// won't fire to reconcile the state set above. Revert it here so the UI is left
 			// consistent (retryable via the same button - outputTypeToLoad no longer equals
 			// newOutputType - and the next listing that does complete won't get misrouted by a
@@ -683,19 +900,28 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 				// Try getting from file
 				std::string filePath = getCurrentFilePath();
 
-				// TODO(conflation-batch-4): unknown is being treated as absent here; the
-				// load/browse/favourites batch gives this site its real ruling.
-				bool success = StorageManager::fileExists(filePath.c_str()).value_or(false);
-				if (!success) {
-					return;
-				}
+				// No fileExists() pre-flight: it would be a BLOCKING card open on a path the Revert below reads
+				// anyway, and this runs from padAction() -> exitAction() on the interaction tier, where a card
+				// wait is what this ladder exists to stop.
+				//
+				// It would not be load-bearing in any case: the file can vanish between the check and the load,
+				// so InstrumentLoad has always had to handle a Revert whose file is gone. Asking first would only
+				// make that handling look unnecessary.
 
-				Error error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor,
-				                                                     initialOutputType, false, &initialInstrument,
-				                                                     filePath.c_str(), &initialName, &initialDirPath);
-				if (error != Error::NONE) {
-					return;
-				}
+				// Off the card, on the interaction tier: the browser closes now, and swapRevert() puts the original
+				// back when InstrumentLoad has it. The gate stays closed until then, and closing the browser does not
+				// cancel it.
+				(void)deluge::gui::instrumentLoad.request({.commit = true,
+				                                           .kind = deluge::gui::InstrumentLoadRequest::Kind::Revert,
+				                                           .revert = {.path = filePath,
+				                                                      .name = initialName,
+				                                                      .dirPath = initialDirPath,
+				                                                      .outputType = initialOutputType,
+				                                                      .clip = instrumentClipToLoadFor,
+				                                                      .instrumentToReplace = instrumentToReplace,
+				                                                      .replaceWhole = replacedWholeInstrument,
+				                                                      .needToAdd = true}});
+				return;
 			}
 
 			initialInstrument->loadAllAudioFiles(true);
@@ -703,12 +929,24 @@ void LoadInstrumentPresetUI::revertToInitialPreset() {
 	}
 
 gotAnInstrument:
+	swapRevert({.outputType = initialOutputType,
+	            .clip = instrumentClipToLoadFor,
+	            .instrumentToReplace = instrumentToReplace,
+	            .replaceWhole = replacedWholeInstrument,
+	            .needToAdd = needToAddInstrumentToSong},
+	           initialInstrument);
+}
+
+void LoadInstrumentPresetUI::swapRevert(const deluge::gui::RevertTarget& target, Instrument* initialInstrument) {
+	if (initialInstrument == nullptr) {
+		return;
+	}
 
 	// If swapping whole Instrument...
-	if (replacedWholeInstrument) {
+	if (target.replaceWhole) {
 
 		// We know the Instrument hasn't been added to the Song, and this call will do it
-		currentSong->replaceInstrument(instrumentToReplace, initialInstrument);
+		currentSong->replaceInstrument(target.instrumentToReplace, initialInstrument);
 
 		replacedWholeInstrument = true;
 	}
@@ -717,19 +955,19 @@ gotAnInstrument:
 	else {
 
 		// If that Instrument wasn't already in use in the Song, copy default velocity over
-		initialInstrument->defaultVelocity = instrumentToReplace->defaultVelocity;
+		initialInstrument->defaultVelocity = target.instrumentToReplace->defaultVelocity;
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
-		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
+		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, target.clip);
 
-		Error error = instrumentClipToLoadFor->changeInstrument(modelStack, initialInstrument, nullptr,
-		                                                        InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
+		Error error = target.clip->changeInstrument(modelStack, initialInstrument, nullptr,
+		                                            InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
 		// TODO: deal with errors!
 
-		if (needToAddInstrumentToSong) {
+		if (target.needToAdd) {
 			currentSong->addOutput(initialInstrument);
 		}
 
@@ -745,6 +983,11 @@ bool LoadInstrumentPresetUI::isInstrumentInList(Instrument* searchInstrument, Ou
 		list = list->next;
 	}
 	return false;
+}
+
+// See the header doc for why this exists: a currency check, not a lifetime one.
+bool LoadInstrumentPresetUI::isRequestInstrumentStillLive(Instrument* instrument) {
+	return isInstrumentInList(instrument, currentSong->firstOutput);
 }
 
 // Returns whether it was in fact an unused one that it was able to return
@@ -792,12 +1035,12 @@ addNumber:
 			(*newName).append(deluge::string::fromInt(oldNumber + 1));
 			char const* newNameChars = newName->c_str();
 
-			int32_t i = searchFileItems(newNameChars);
-			if (i >= static_cast<int32_t>(fileItems.size())) {
+			int32_t i = listing.search(newNameChars).index;
+			if (i >= listing.size()) {
 				break;
 			}
 
-			FileItem* fileItem = &fileItems[i];
+			FileItem* fileItem = &listing.item(i);
 			char const* fileItemNameChars = fileItem->filename.c_str();
 			int32_t newNameLength = strlen(newNameChars);
 			if (!memcasecmp(newNameChars, fileItemNameChars, newNameLength)) {
@@ -818,57 +1061,42 @@ addNumber:
 
 // I thiiink you're supposed to check currentFileExists before calling this?
 //
-// `snapshot`, when non-null, is a LoadTarget recorded at dispatch time (see currentFileChanged()):
-// every read below that would otherwise touch live Browser state (getCurrentFileItem(), enteredText,
-// currentDir) instead comes from op-local copies taken from `snapshot`, so nothing here aliases
-// Browser::fileItems or a live member across loadInstrumentFromFile()'s internal SD-yield points.
-// `snapshot` is null on the live-state call sites: onBrowserOpened()'s changeOutputType() tail,
-// runCommitOp(), and the clone context-menu action.
-Error LoadInstrumentPresetUI::performLoad(bool doClone, const LoadTarget* snapshot) {
+// The card-free prologue of every browser load: nothing to load, an existing or hibernating Instrument to reuse, or
+// a preset to read from the card. It reads the request's snapshot, never the browser's live list, and
+// instrumentToReplace live, as the load before it left it.
+deluge::gui::InstrumentLoadDecision
+LoadInstrumentPresetUI::decideLoad(const deluge::gui::InstrumentLoadRequest& request) {
+	const deluge::gui::InstrumentLoadTarget& target = request.target;
+	deluge::gui::InstrumentLoadDecision decision{};
 
-	// currentFileItem is only ever touched here, before the yielding load call below - never held
-	// across it (see LoadTarget's doc for why that matters).
-	FileItem* currentFileItem = snapshot != nullptr ? nullptr : getCurrentFileItem();
-	bool hasFile;
-	bool fileIsFolder;
-	Instrument* fileExistingInstrument;
-	std::string filePath;
-	std::string fileName;
-	std::string fileDirPath;
-
-	if (snapshot != nullptr) {
-		hasFile = snapshot->hasFile;
-		fileIsFolder = snapshot->isFolder;
-		fileExistingInstrument = snapshot->existingInstrument;
-		filePath = snapshot->path;
-		fileName = snapshot->name;
-		fileDirPath = snapshot->dirPath;
+	if (!target.hasFile) {
+		// Make it say "NONE" on numeric Deluge, for consistency with old times.
+		decision.error = Error::FILE_NOT_FOUND;
+		decision.done = true;
+		return decision;
 	}
-	else {
-		hasFile = currentFileItem != nullptr;
-		if (hasFile) {
-			fileIsFolder = currentFileItem->isFolder;
-			fileExistingInstrument = currentFileItem->instrument;
-			filePath = getCurrentFilePath();
+
+	if (target.isFolder) {
+		decision.done = true;
+		return decision;
+	}
+
+	if (target.loadingSynthToKitRow) {
+		// An unsaved (in-memory only) synth preset cannot be loaded into a kit row because the drum is read from the
+		// preset's XML on the card. If the preset hasn't been saved yet, there is no file to read.
+		if (!target.maybeExistsOnCard) {
+			decision.error = Error::FILE_NOT_SAVED;
+			decision.done = true;
 		}
-		fileName = enteredText;
-		fileDirPath = currentDir;
+		return decision;
 	}
 
-	if (!hasFile) {
-		// Make it say "NONE" on numeric Deluge, for
-		// consistency with old times.
-		return Error::FILE_NOT_FOUND;
+	if (target.existingInstrument == instrumentToReplace && !request.clone) {
+		// Happens if navigate over a folder's name (Instrument stays the same), then back onto that neighbouring
+		// Instrument - you'd incorrectly get a "USED" error without this.
+		decision.done = true;
+		return decision;
 	}
-
-	if (fileIsFolder) {
-		return Error::NONE;
-	}
-	if (fileExistingInstrument == instrumentToReplace && !doClone) {
-		return Error::NONE; // Happens if navigate over a folder's name (Instrument stays the same),
-	}
-
-	// then back onto that neighbouring Instrument - you'd incorrectly get a "USED" error without this line.
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
 	Availability availabilityRequirement;
@@ -877,95 +1105,60 @@ Error LoadInstrumentPresetUI::performLoad(bool doClone, const LoadTarget* snapsh
 		oldInstrumentShouldBeReplaced =
 		    currentSong->shouldOldOutputBeReplaced(instrumentClipToLoadFor, &availabilityRequirement);
 	}
-
 	else {
 		oldInstrumentShouldBeReplaced = true;
 		availabilityRequirement = Availability::INSTRUMENT_UNUSED;
 	}
 
-	bool shouldReplaceWholeInstrument;
-	bool needToAddInstrumentToSong;
-	bool loadedFromFile = false;
-
-	Instrument* newInstrument = fileExistingInstrument;
-
-	bool newInstrumentWasHibernating = false;
-
 	// If we found an already existing Instrument object...
-	if (!doClone && newInstrument) {
-
-		newInstrumentWasHibernating = isInstrumentInList(newInstrument, currentSong->firstHibernatingInstrument);
+	if (!request.clone && target.existingInstrument != nullptr) {
+		const bool wasHibernating =
+		    isInstrumentInList(target.existingInstrument, currentSong->firstHibernatingInstrument);
 
 		if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-			if (!newInstrumentWasHibernating) {
-giveUsedError:
-				return Error::PRESET_IN_USE;
+			if (!wasHibernating) {
+				decision.error = Error::PRESET_IN_USE;
+				decision.done = true;
+				return decision;
 			}
 		}
-
 		else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-			if (!newInstrumentWasHibernating && currentSong->doesOutputHaveActiveClipInSession(newInstrument)) {
-				goto giveUsedError;
+			if (!wasHibernating && currentSong->doesOutputHaveActiveClipInSession(target.existingInstrument)) {
+				decision.error = Error::PRESET_IN_USE;
+				decision.done = true;
+				return decision;
 			}
 		}
 
-		// Ok, we can have it!
-		// this can only happen when changing a clip that is the only instance of its instrument to another instrument
-		// that has an inactive clip already
-		shouldReplaceWholeInstrument = (oldInstrumentShouldBeReplaced && newInstrumentWasHibernating);
-		needToAddInstrumentToSong = newInstrumentWasHibernating;
+		// Ok, we can have it! This can only happen when changing a clip that is the only instance of its instrument to
+		// another instrument that has an inactive clip already.
+		decision.reuse = target.existingInstrument;
+		decision.wasHibernating = wasHibernating;
+		decision.shouldReplaceWhole = oldInstrumentShouldBeReplaced && wasHibernating;
+		decision.needToAdd = wasHibernating;
+		return decision;
 	}
 
 	// Or, if we need to load from file - perhaps forcibly because the user manually chose to clone...
-	else {
-
-		std::string clonedName;
-
-		if (doClone) {
-			bool success = findUnusedSlotVariation(&fileName, &clonedName);
-			if (!success) {
-				return Error::UNSPECIFIED;
-			}
-		}
-		Error error;
-		// check if the file pointer matches the current file item
-		// Browser::checkFP();
-
-		// synth or kit - fileName/fileDirPath are op-local copies (see top of function), so the
-		// yielding call below can't have its output params raced by a concurrent scroll mutating
-		// enteredText/currentDir.
-		error = StorageManager::loadInstrumentFromFile(currentSong, instrumentClipToLoadFor, outputTypeToLoad, false,
-		                                               &newInstrument, filePath.c_str(), &fileName, &fileDirPath);
-
-		if (error != Error::NONE) {
-			return error;
-		}
-
-		shouldReplaceWholeInstrument = oldInstrumentShouldBeReplaced;
-		needToAddInstrumentToSong = true;
-		loadedFromFile = true;
-
-		if (doClone) {
-			newInstrument->name = clonedName;
-			newInstrument->editedByUser = true;
+	if (request.clone) {
+		std::string fileName = target.name;
+		if (!findUnusedSlotVariation(&fileName, &decision.clonedName)) {
+			decision.error = Error::UNSPECIFIED;
+			decision.done = true;
+			return decision;
 		}
 	}
-	display->displayLoadingAnimationText("Loading", false, true);
-	Error error = newInstrument->loadAllAudioFiles(true);
+	decision.shouldReplaceWhole = oldInstrumentShouldBeReplaced;
+	decision.needToAdd = true;
+	return decision;
+}
 
-	display->removeLoadingAnimation();
-
-	// If error, most likely because user interrupted sample loading process...
-	if (error != Error::NONE) {
-		// Probably need to do some cleaning up of the new Instrument
-		if (loadedFromFile) {
-			currentSong->deleteOutput(newInstrument);
-		}
-
-		return error;
-	}
-
-	if (newInstrumentWasHibernating) {
+// The tail of every browser load of a synth, kit or MIDI preset, in one pass, once the new Instrument has its
+// samples.
+Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRequest& request,
+                                             const deluge::gui::InstrumentLoadDecision& decision,
+                                             Instrument* newInstrument) {
+	if (decision.wasHibernating) {
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
@@ -974,7 +1167,7 @@ giveUsedError:
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
 	// If swapping whole Instrument...
-	if (shouldReplaceWholeInstrument) {
+	if (decision.shouldReplaceWhole) {
 
 		// We know the Instrument hasn't been added to the Song, and this call will do it
 		currentSong->replaceInstrument(instrumentToReplace, newInstrument);
@@ -994,7 +1187,7 @@ giveUsedError:
 		    modelStack, newInstrument, nullptr, InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED, nullptr, true);
 		// TODO: deal with errors!
 
-		if (needToAddInstrumentToSong) {
+		if (decision.needToAdd) {
 			currentSong->addOutput(newInstrument);
 		}
 
@@ -1004,8 +1197,8 @@ giveUsedError:
 	// Check if old Instrument has been deleted, in which case need to update the appropriate FileItem.
 	if (!isInstrumentInList(instrumentToReplace, currentSong->firstOutput)
 	    && !isInstrumentInList(instrumentToReplace, currentSong->firstHibernatingInstrument)) {
-		for (int32_t f = static_cast<int32_t>(fileItems.size()) - 1; f >= 0; f--) {
-			FileItem* fileItem = &fileItems[f];
+		for (int32_t f = listing.size() - 1; f >= 0; f--) {
+			FileItem* fileItem = &listing.item(f);
 			if (fileItem->instrument == instrumentToReplace) {
 				fileItem->instrument = nullptr;
 				break;
@@ -1013,17 +1206,9 @@ giveUsedError:
 		}
 	}
 
-	// Cache the loaded Instrument on its FileItem so navigating back to it is a cache hit instead of
-	// a reload. currentFileItem is only non-null on the live (non-snapshot) path, where it was taken
-	// at the very top of this call, before the yielding load above, so this write can't race a
-	// listing rebuild. On the snapshot path there is deliberately no live FileItem* to write through
-	// here (that pointer is exactly what could have been freed by a scroll-triggered listing rebuild
-	// during the yield) - this is a perf-only cache warm, so skipping it is safe: a future re-list
-	// re-associates this Instrument with its FileItem via the normal Song-instrument scan, and the
-	// commit op (runCommitOp) always does its own authoritative load regardless.
-	if (currentFileItem != nullptr) {
-		currentFileItem->instrument = newInstrument;
-	}
+	// The FileItem cache of the loaded Instrument is not written: the listing may have been rebuilt since the load was
+	// asked for, so no FileItem pointer is held across it. A later listing re-associates the Instrument with its file
+	// through the song's own scan.
 	currentInstrument = newInstrument;
 
 	if (instrumentClipToLoadFor) {
@@ -1041,73 +1226,13 @@ giveUsedError:
 
 	instrumentToReplace = newInstrument;
 	display->removeWorkingAnimation();
-
-	// for the instrument we just loaded, let's check if there's any midi labels we should load
-	if (newInstrument->type == OutputType::MIDI_OUT) {
-		MIDIInstrument* midiInstrument = (MIDIInstrument*)newInstrument;
-		if (midiInstrument->loadDeviceDefinitionFile) {
-			// TODO(conflation-batch-4): unknown is being treated as absent here; the
-			// load/browse/favourites batch gives this site its real ruling.
-			bool fileExists =
-			    StorageManager::fileExists(midiInstrument->deviceDefinitionFileName.c_str()).value_or(false);
-			if (fileExists) {
-				StorageManager::loadMidiDeviceDefinitionFile(midiInstrument,
-				                                             midiInstrument->deviceDefinitionFileName.c_str(),
-				                                             &midiInstrument->deviceDefinitionFileName, false);
-			}
-		}
-	}
-
 	return Error::NONE;
 }
 
-// `snapshot`, when non-null, is a LoadTarget recorded at dispatch time (see currentFileChanged()) -
-// see performLoad()'s doc comment for why every live-state read below is instead taken from op-local
-// copies derived from it when present.
-Error LoadInstrumentPresetUI::performLoadSynthToKit(const LoadTarget* snapshot) {
+// The tail of a synth preset loaded into a kit row, in one pass, around the drum's load: the old drum is taken out
+// only once the new one is ready.
+Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadRequest& request, SoundDrum* newDrum) {
 	Kit* kitToLoadFor = static_cast<Kit*>(instrumentToReplace);
-	bool hasFile;
-	bool fileIsFolder;
-	bool fileMaybeExistsOnCard;
-	std::string filePath;
-	std::string fileName;
-	std::string fileDirPath;
-
-	if (snapshot != nullptr) {
-		hasFile = snapshot->hasFile;
-		fileIsFolder = snapshot->isFolder;
-		fileMaybeExistsOnCard = snapshot->maybeExistsOnCard;
-		filePath = snapshot->path;
-		fileName = snapshot->name;
-		fileDirPath = snapshot->dirPath;
-	}
-	else {
-		FileItem* currentFileItem = getCurrentFileItem();
-		hasFile = currentFileItem != nullptr;
-		if (hasFile) {
-			fileIsFolder = currentFileItem->isFolder;
-			fileMaybeExistsOnCard = currentFileItem->maybeExistsOnCard;
-			filePath = getCurrentFilePath();
-		}
-		fileName = enteredText;
-		fileDirPath = currentDir;
-	}
-
-	if (!hasFile) {
-		// Make it say "NONE" on numeric Deluge, for consistency with old times.
-		return Error::FILE_NOT_FOUND;
-	}
-
-	if (fileIsFolder) {
-		return Error::NONE;
-	}
-
-	// An unsaved (in-memory only) synth preset cannot be loaded into a kit row because
-	// loadSynthToDrum() reads XML from disk to create a SoundDrum. If the preset hasn't
-	// been saved yet, there is no file on the SD card to read from.
-	if (!fileMaybeExistsOnCard) {
-		return Error::FILE_NOT_SAVED;
-	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
@@ -1115,27 +1240,28 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit(const LoadTarget* snapshot) 
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
 	// make sure the drum isn't currently in use
 	noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
-	kitToLoadFor->drumsWithRenderingActive.erase(soundDrumToReplace);
+	kitToLoadFor->renderingDrums.remove(soundDrumToReplace);
 	kitToLoadFor->removeDrum(soundDrumToReplace);
 
-	// swaps out the drum pointed to by soundDrumToReplace. fileName/fileDirPath are op-local copies
-	// (see above) - loadSynthToDrum() doesn't actually read them (they're dead params below the SD
-	// yield in there today), but pass the snapshot copies regardless so this call never aliases a
-	// live Browser member across the yield, matching performLoad().
-	Error error = StorageManager::loadSynthToDrum(currentSong, instrumentClipToLoadFor, false, &soundDrumToReplace,
-	                                              filePath.c_str(), &fileName, &fileDirPath);
-	if (error != Error::NONE) {
-		return error;
+	// these have to get cleared, otherwise we keep creating drums that aren't attached to note rows
+	if (soundDrumToReplace != nullptr) {
+		currentSong->deleteBackedUpParamManagersForModControllable(soundDrumToReplace);
+		soundDrumToReplace->wontBeRenderedForAWhile();
+		// Out of the kit for good: the render's let-go of the drum must not write back into the kit's
+		// renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit).
+		// Erase again first: a sequencer note-on between the first erase and here re-inserts the drum. The render
+		// will own this set in later work.
+		kitToLoadFor->renderingDrums.remove(soundDrumToReplace);
+		soundDrumToReplace->kit = nullptr;
+		AudioEngine::retire(soundDrumToReplace);
 	}
-	// kitToLoadFor->addDrum(soundDrumToReplace);
-	display->displayLoadingAnimationText("Loading", false, true);
-	soundDrumToReplace->loadAllSamples(true);
+	soundDrumToReplace = newDrum;
 
-	// fileName is the real on-card name now (display-agnostic), so it needs no reassembling. Taken
-	// from the snapshot when running as the scroll-load op, so this can't pick up whatever the user
-	// has since scrolled onto.
-	soundDrumToReplace->drumName = fileName;
-	soundDrumToReplace->path = fileDirPath.c_str();
+	// The name is the real on-card name (display-agnostic), taken from the snapshot, so it can't pick up whatever the
+	// user has since scrolled onto.
+	soundDrumToReplace->drumName = request.target.name;
+	soundDrumToReplace->path = request.target.dirPath.c_str();
+	Error error = Error::NONE;
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
@@ -1150,17 +1276,22 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit(const LoadTarget* snapshot) 
 	else {
 		error = Error::FILE_CORRUPTED;
 	}
-
-	display->removeLoadingAnimation();
 	return error;
 }
+
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
+	// A load still out would swap in behind the revert.
+	deluge::gui::instrumentLoad.cancel();
 	revertToInitialPreset();
 	LoadUI::exitAction();
 }
 
 ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on) {
+	// Refused while a commit is in flight: InstrumentLoad closes the browser's gate until it ends.
+	if (deluge::gui::instrumentLoad.commitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	// Audition pad
 	if (x == kDisplayWidth + 1) {
@@ -1196,6 +1327,10 @@ potentiallyExit:
 }
 
 ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+	// Refused while a commit is in flight: InstrumentLoad closes the browser's gate until it ends.
+	if (deluge::gui::instrumentLoad.commitInFlight()) {
+		return ActionResult::DEALT_WITH;
+	}
 	if (Buttons::isShiftButtonPressed()) {
 		LoadUI::verticalEncoderAction(offset, false);
 	}
@@ -1230,438 +1365,4 @@ bool LoadInstrumentPresetUI::renderSidebar(uint32_t whichRows, RGB image[][kDisp
 
 bool LoadInstrumentPresetUI::showingAuditionPads() {
 	return getRootUI()->toClipMinder();
-}
-
-void LoadInstrumentPresetUI::instrumentEdited(Instrument* instrument) {
-	if (instrument == currentInstrument && currentInstrumentLoadError == Error::NONE && enteredText.empty()) {
-		enteredText = instrument->name;
-		// TODO: update the FileItem too?
-		displayText(false);
-	}
-}
-
-// Caller must set currentDir before calling this.
-// Caller must call emptyFileItems() at some point after calling this function.
-// song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when
-// the currentSong is not set up.
-std::expected<FileItem*, Error>
-LoadInstrumentPresetUI::findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
-                                                                        Availability availabilityRequirement) {
-
-	AudioEngine::logAction("findAnUnlaunchedPresetIncludingWithinSubfolders");
-	allowedFileExtensions = allowedFileExtensionsXML;
-
-	int32_t initialDirLength = currentDir.size();
-
-	int32_t folderIndex = -1;
-	bool doingSubfolders = false;
-	std::string searchNameLocalCopy;
-
-goAgain:
-
-	Error error = readFileItemsFromFolderAndMemory(song, outputType, getThingName(outputType),
-	                                               searchNameLocalCopy.c_str(), nullptr, true);
-	if (error != Error::NONE) {
-		emptyFileItems();
-		return std::unexpected{error};
-	}
-
-	sortFileItems();
-
-	// If that folder-read gave us no files, that's gotta mean we got to the end of the folder.
-	if (!static_cast<int32_t>(fileItems.size())) {
-
-		// If we weren't yet looking at subfolders, do that now, going back to the start of this folder's contents.
-		if (!doingSubfolders) {
-startDoingFolders:
-			doingSubfolders = true;
-			searchNameLocalCopy.clear();
-			goto goAgain;
-		}
-
-		// Or if we already were looking at subfolders, we're all outta options now.
-		else {
-			return std::unexpected{Error::NO_FURTHER_FILES_THIS_DIRECTION};
-		}
-	}
-
-	// Store rightmost display name before filtering, for later.
-	std::string lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = &fileItems[fileItems.size() - 1];
-	lastFileItemDisplayNameBeforeFiltering = rightmostFileItemBeforeFiltering->displayName();
-
-	deleteFolderAndDuplicateItems(availabilityRequirement);
-
-	// If we're still looking for preset / XML files, and not subfolders yet...
-	if (!doingSubfolders) {
-
-		// Look through our list of FileItems, for a preset.
-		for (int32_t i = 0; i < static_cast<int32_t>(fileItems.size()); i++) {
-			auto* fileItem = &fileItems[i];
-			if (!fileItem->isFolder) {
-				return fileItem; // We found a preset / file.
-			}
-		}
-
-		// Ok, we found none. Should we do some more reading of the folder contents, to get more files, or are there no
-		// more?
-		if (numFileItemsDeletedAtEnd) {
-			searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering; // Can't fail.
-			goto goAgain;
-		}
-
-		// Ok, we've looked at every file, and none were presets we could use. So now we want to look in subfolders. Do
-		// we still have the "start" of our folder's contents in memory?
-		if (numFileItemsDeletedAtStart) {
-			goto startDoingFolders;
-		}
-
-		doingSubfolders = true;
-	}
-
-	// Ok, do folders now.
-	int32_t i;
-	FileItem* fileItem;
-	for (i = 0; i < static_cast<int32_t>(fileItems.size()); i++) {
-		fileItem = &fileItems[i];
-		if (fileItem->isFolder) {
-			goto doThisFolder;
-		}
-	}
-	if (numFileItemsDeletedAtEnd) {
-		searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering;
-		goto goAgain;
-	}
-	else {
-		return std::unexpected{Error::NO_FURTHER_FILES_THIS_DIRECTION};
-	}
-
-	if (false) {
-doThisFolder:
-		bool anyMoreForLater = numFileItemsDeletedAtEnd || (i < (static_cast<int32_t>(fileItems.size()) - 1));
-		searchNameLocalCopy = fileItem->displayName();
-
-		currentDir.append("/");
-		currentDir.append(fileItem->filename);
-
-		// Call self
-		return D_TRY_CATCH(findAnUnlaunchedPresetIncludingWithinSubfolders(song, outputType, availabilityRequirement),
-		                   error, {
-			                   if (error == Error::NO_FURTHER_FILES_THIS_DIRECTION) {
-				                   if (anyMoreForLater) {
-					                   currentDir.resize(initialDirLength);
-					                   goto goAgain;
-				                   }
-				                   return result;
-			                   }
-			                   emptyFileItems();
-			                   return result;
-		                   });
-	}
-}
-
-// Caller must call emptyFileItems() at some point after calling this function.
-// And, set currentDir, before this is called.
-std::expected<FileItem*, Error>
-LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne(OutputType outputType, std::string* searchName,
-                                                         Availability availabilityRequirement) {
-	std::string searchNameLocalCopy;
-	searchNameLocalCopy = *searchName; // Can't fail.
-	bool shouldJustGrabLeftmost = false;
-
-	// This does *not* favour the currentDir, so you should exhaust all avenues before calling this.
-	auto justGetAnyPreset = [&]() -> std::expected<FileItem*, Error> {
-		currentDir = getInstrumentFolder(outputType);
-		return findAnUnlaunchedPresetIncludingWithinSubfolders(currentSong, outputType, availabilityRequirement);
-	};
-
-doReadFiles:
-	Error error =
-	    readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), searchNameLocalCopy.c_str(),
-	                                     nullptr, false, availabilityRequirement);
-
-	AudioEngine::logAction("confirmPresetOrNextUnlaunchedOne");
-
-	if (error == Error::FOLDER_DOESNT_EXIST) {
-		justGetAnyPreset();
-	}
-	else if (error != Error::NONE) {
-		return std::unexpected{error};
-	}
-
-	sortFileItems();
-	if (!static_cast<int32_t>(fileItems.size())) {
-		if (shouldJustGrabLeftmost) {
-			return justGetAnyPreset();
-		}
-
-		if (numFileItemsDeletedAtStart) {
-needToGrabLeftmostButHaveToReadFirst:
-			searchNameLocalCopy.clear();
-			shouldJustGrabLeftmost = true;
-			goto doReadFiles;
-		}
-		else {
-			return justGetAnyPreset();
-		}
-	}
-
-	// Store rightmost display name before filtering, for later.
-	std::string lastFileItemDisplayNameBeforeFiltering;
-	auto* rightmostFileItemBeforeFiltering = &fileItems[fileItems.size() - 1];
-	lastFileItemDisplayNameBeforeFiltering = rightmostFileItemBeforeFiltering->displayName();
-
-	deleteFolderAndDuplicateItems(availabilityRequirement);
-
-	// If we've shot off the end of the list, that means our searched-for preset didn't exist or wasn't available, and
-	// any subsequent ones which at first made it onto the (possibly truncated) list also weren't available.
-	if (!static_cast<int32_t>(fileItems.size())) {
-		if (numFileItemsDeletedAtEnd) { // Probably couldn'g happen anymore...
-			// We have to read more FileItems, further to the right.
-			searchNameLocalCopy = lastFileItemDisplayNameBeforeFiltering; // Can't fail.
-			goto doReadFiles;
-		}
-		else {
-			// If we've already been trying to grab just any preset within this folder, well that's failed.
-			if (shouldJustGrabLeftmost) {
-				return justGetAnyPreset();
-			}
-
-			// Otherwise, let's do that now:
-			// We might have to go back and read FileItems again from the start...
-			else if (numFileItemsDeletedAtStart) {
-				goto needToGrabLeftmostButHaveToReadFirst;
-			}
-
-			// Or, if we've actually managed to fit the whole folder contents into our fileItems...
-			else {
-				// Well, if there's still nothing in that, then we really need to give up.
-				if (!static_cast<int32_t>(fileItems.size())) {
-					return justGetAnyPreset();
-				}
-				// Otherwise, everything's fine and we can just take the first element.
-			}
-		}
-	}
-	return &fileItems[0];
-}
-
-/// Caller must call emptyFileItems() at some point after calling this function - unless an error is returned
-/// Caller must remove OLED working animation after calling this too.
-PresetNavigationResult LoadInstrumentPresetUI::doPresetNavigation(int32_t offset, Instrument* oldInstrument,
-                                                                  Availability availabilityRequirement, bool doBlink) {
-
-	AudioEngine::logAction("doPresetNavigation");
-
-	currentDir = oldInstrument->dirPath;
-	OutputType outputType = oldInstrument->type;
-
-	PresetNavigationResult toReturn{};
-
-	std::string oldNameString; // We only might use this later for temporary storage
-	std::string newName;
-
-	oldNameString = oldInstrument->name;
-	oldNameString.append(".XML");
-	toReturn.error = Error::NONE;
-	if (toReturn.error != Error::NONE) {
-		return toReturn;
-	}
-
-readAgain:
-	int32_t newCatalogSearchDirection = (offset >= 0) ? CATALOG_SEARCH_RIGHT : CATALOG_SEARCH_LEFT;
-readAgainWithSameOffset:
-	toReturn.error =
-	    readFileItemsForFolder(getThingName(outputType), false, allowedFileExtensionsXML, oldNameString.c_str(),
-	                           FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION, newCatalogSearchDirection);
-
-	if (toReturn.error != Error::NONE) {
-		return toReturn;
-	}
-
-	AudioEngine::logAction("doPresetNavigation2");
-
-	toReturn.error = currentSong->addInstrumentsToFileItems(outputType);
-	if (toReturn.error != Error::NONE) {
-emptyFileItemsAndReturn:
-		emptyFileItems();
-		return toReturn;
-	}
-	AudioEngine::logAction("doPresetNavigation3");
-
-	sortFileItems();
-	AudioEngine::logAction("doPresetNavigation4");
-
-	deleteFolderAndDuplicateItems(Availability::INSTRUMENT_AVAILABLE_IN_SESSION);
-	AudioEngine::logAction("doPresetNavigation5");
-
-	// Now that we've deleted duplicates etc...
-	if (!static_cast<int32_t>(fileItems.size())) {
-reachedEnd:
-		// If we've reached one end, try going again from the far other end.
-		if (!oldNameString.empty()) {
-			oldNameString.clear();
-			goto readAgainWithSameOffset;
-		}
-		else {
-noErrorButGetOut:
-			toReturn.error = Error::NO_ERROR_BUT_GET_OUT;
-			emptyFileItems();
-			return toReturn;
-		}
-	}
-	else if (static_cast<int32_t>(fileItems.size()) == 1 && (&fileItems[0])->instrument == oldInstrument) {
-		goto reachedEnd;
-	}
-
-	int32_t i = (offset >= 0) ? 0 : (static_cast<int32_t>(fileItems.size()) - 1);
-	/*
-	if (i >= static_cast<int32_t>(fileItems.size())) { // If not found *and* we'd be past the end of the list...
-	    if (offset >= 0) i = 0;
-	    else i = static_cast<int32_t>(fileItems.size()) - 1;
-	    goto doneMoving;
-	}
-	else {
-	    int32_t oldNameLength = strlen(oldNameChars);
-	    FileItem* searchResultItem = &fileItems[i];
-	    if (memcasecmp(oldNameChars, searchResultItem->displayName(), oldNameLength)) {
-notFound:	if (offset < 0) {
-	            i--;
-	            if (i < 0) i += static_cast<int32_t>(fileItems.size());
-	        }
-	        goto doneMoving;
-	    }
-	    if (searchResultItem->filenameIncludesExtension) {
-	        if (strrchr(searchResultItem->displayName(), '.') != &searchResultItem->displayName()[oldNameLength]) goto
-notFound;
-	    }
-	    else {
-	        if (searchResultItem->displayName()[oldNameLength] != 0) goto notFound;
-	    }
-	}
-*/
-	int32_t wrapped = 0;
-	if (false) {
-moveAgain:
-		// Move along list
-		i += offset;
-	}
-
-	// If moved left off the start of the list...
-	if (i < 0) {
-		if (numFileItemsDeletedAtStart) {
-			goto readAgain;
-		}
-		else { // Wrap to end
-			wrapped += 1;
-			if (numFileItemsDeletedAtEnd) {
-searchFromOneEnd:
-				oldNameString.clear();
-				D_PRINTLN("reloading and wrap");
-				goto readAgain;
-			}
-			else {
-				i = static_cast<int32_t>(fileItems.size()) - 1;
-			}
-		}
-	}
-
-	// Or if moved right off the end of the list...
-	else if (i >= static_cast<int32_t>(fileItems.size())) {
-		if (numFileItemsDeletedAtEnd) {
-			goto readAgain;
-		}
-		else { // Wrap to start
-			wrapped += 1;
-			if (numFileItemsDeletedAtStart) {
-				goto searchFromOneEnd;
-			}
-			else {
-				i = 0;
-			}
-		}
-	}
-
-doneMoving:
-	toReturn.fileItem = &fileItems[i];
-
-	bool isAlreadyInSong = toReturn.fileItem->instrument && toReturn.fileItem->instrumentAlreadyInSong;
-	// wrapped is here to prevent an infinite loop
-	if (availabilityRequirement == Availability::INSTRUMENT_UNUSED && isAlreadyInSong && wrapped < 2) {
-		goto moveAgain;
-	}
-
-	toReturn.loadedFromFile = false;
-	bool isHibernating = toReturn.fileItem->instrument && !toReturn.fileItem->instrumentAlreadyInSong;
-
-	if (toReturn.fileItem->instrument) {
-		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
-	}
-	else {
-		newName = toReturn.fileItem->getFilenameWithoutExtension();
-		oldNameString = toReturn.fileItem->displayName();
-		toReturn.error = Error::NONE;
-		if (toReturn.error != Error::NONE) {
-			emptyFileItems();
-			return toReturn;
-		}
-		view.drawOutputNameFromDetails(outputType, 0, 0, newName.c_str(), newName.empty(), false, doBlink);
-	}
-
-	deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
-
-	if (encoders::select.pending()) {
-		D_PRINTLN("go again 1 --------------------------");
-
-doPendingPresetNavigation:
-		offset = encoders::select.take();
-
-		if (toReturn.loadedFromFile) {
-			currentSong->deleteOutput(toReturn.fileItem->instrument);
-			toReturn.fileItem->instrument = nullptr;
-		}
-		goto moveAgain;
-	}
-
-	// Unlike in ClipMinder, there's no need to check whether we came back to the same Instrument, cos we've specified
-	// that we were looking for "unused" ones only
-	// TODO: This isn't true, it's an argument so that must have changed at some point. This logic will create a clone
-	// if anything other than unused is passed in
-	if (!toReturn.fileItem->instrument) {
-		std::string filePath = Browser::currentDir + "/" + toReturn.fileItem->getFilenameWithExtension();
-		toReturn.error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false,
-		                                                        &toReturn.fileItem->instrument, filePath.c_str(),
-		                                                        &newName, &Browser::currentDir);
-		if (toReturn.error != Error::NONE) {
-			emptyFileItems();
-			return toReturn;
-		}
-
-		toReturn.loadedFromFile = true;
-
-		if (encoders::select.pending()) {
-			D_PRINTLN("go again 2 --------------------------");
-			goto doPendingPresetNavigation;
-		}
-	}
-
-	// view.displayOutputName(toReturn.fileItem->instrument);
-
-	display->displayLoadingAnimationText("Loading", false, true);
-	int32_t oldUIMode = currentUIMode;
-	currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-	toReturn.fileItem->instrument->loadAllAudioFiles(true);
-	currentUIMode = oldUIMode;
-
-	// If user wants to move on...
-	if (encoders::select.pending()) {
-		D_PRINTLN("go again 3 --------------------------");
-		goto doPendingPresetNavigation;
-	}
-
-	if (isHibernating) {
-		currentSong->removeInstrumentFromHibernationList(toReturn.fileItem->instrument);
-	}
-
-	return toReturn;
 }

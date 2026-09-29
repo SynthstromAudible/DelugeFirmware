@@ -284,6 +284,14 @@ uint32_t deluge_audio_drive(void) {
 	return 1;
 }
 
+// The render runs on this BSP's one thread, driven by the app's own audio routine: to wait for it, run a block of it
+// here. A drive that renders nothing (the capture is over) still runs the render's block-start step.
+void deluge_audio_await_block(void) {
+	if (deluge_audio_drive() == 0) {
+		deluge_app_render_skipped();
+	}
+}
+
 void deluge_audio_input_resync(void) {
 }
 

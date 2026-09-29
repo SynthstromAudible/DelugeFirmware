@@ -79,7 +79,7 @@ extern void songLoaded(Song* song);
 Error StorageManager::checkSpaceOnCard() {
 	uint32_t freeClusters = 0;
 	uint32_t totalClusters = 0;
-	// Best-effort: if the query can't run (unmounted, off-fiber, or a non-efatfs BSP whose weak stub
+	// Best-effort: if the query can't run (unmounted, or a non-efatfs BSP whose weak stub
 	// returns false), don't spuriously report the card full — treat it as space available.
 	if (!deluge_efatfs_stats(&freeClusters, &totalClusters)) {
 		return Error::NONE;
@@ -178,7 +178,7 @@ Error StorageManager::createXMLFile(char const* filePath, XMLSerializer& writer,
 	writer.file = std::move(created.value());
 	writer.reset();
 	if (!writeJsonFlag) {
-		writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
+		writer.write(kXmlDocumentHead);
 	}
 	return Error::NONE;
 }
@@ -223,19 +223,49 @@ Error StorageManager::initSD() {
 		return Error::SD_CARD_NOT_PRESENT;
 	}
 
-	// Query mounted state BEFORE mounting so we can tell a fresh mount transition apart from the
-	// already-mounted fast path (deluge_efatfs_mount is idempotent, so its return alone can't
-	// distinguish them). firstCardRead()->cardReinserted() walks every audioFile in memory, which
-	// is too heavy to re-run on every initSD call (this runs before every FS access) - it must only
-	// fire once per actual (re)mount.
-	bool wasMounted = deluge_efatfs_is_mounted();
 	if (!deluge_efatfs_mount()) {
 		return Error::SD_CARD;
 	}
-	if (!wasMounted) {
-		audioFileManager.firstCardRead(); // tell the audio file manager that we have a new card
-	}
+	// The transition is decided by the shared counter, not by watching our own call: sampling a local
+	// `wasMounted` around this call alone would only find the edge while this is the ONLY thing that
+	// mounts, and the directory channel's driver mounts too, on the storage tier, because mounting is
+	// card I/O and its caller is on the interaction tier. Every caller of initSD() is somewhere the
+	// work can run, hence true.
+	noticeCardMount();
 	return Error::NONE;
+}
+
+namespace {
+/// How many mount edges have been acted on. See StorageManager::cardMountNotices().
+uint32_t g_cardMountNotices = 0;
+} // namespace
+
+uint32_t StorageManager::cardMountNotices() {
+	return g_cardMountNotices;
+}
+
+void StorageManager::noticeCardMount() {
+	// Static rather than a member: the counter is a property of the one filesystem, and every caller
+	// is asking the same question about it.
+	static uint32_t lastSeenMountGeneration = 0;
+	// Seeded from the current value the first time, so a device that boots with the card already
+	// mounted does not fire a spurious "the card changed" on its first listing.
+	static bool seeded = false;
+	const uint32_t generation = deluge_efatfs_mount_generation();
+	if (!seeded) {
+		seeded = true;
+		lastSeenMountGeneration = generation;
+		return;
+	}
+	if (generation == lastSeenMountGeneration) {
+		return;
+	}
+	// Taken BEFORE the work, so a second caller arriving while it is queued does not queue it twice.
+	lastSeenMountGeneration = generation;
+	g_cardMountNotices++;
+	// Runs wherever the caller stands: firstCardRead() -> cardReinserted() now ARMS a walk that checks
+	// one resident per tick through the byte channel, so there is no blocking pass to hand anywhere.
+	audioFileManager.firstCardRead();
 }
 
 bool StorageManager::checkSDPresent() {
@@ -247,52 +277,33 @@ bool StorageManager::checkSDInitialized() {
 	return deluge_block_ready(deluge_block_sd_unit());
 }
 
-Error StorageManager::openInstrumentFile(OutputType outputType, char const* path) {
-
-	AudioEngine::logAction("openInstrumentFile");
-	char const* firstTagName;
-	char const* altTagName = "";
-
+void StorageManager::instrumentDocumentTags(OutputType outputType, char const** firstTagName, char const** altTagName) {
+	*altTagName = "";
 	if (outputType == OutputType::SYNTH) {
-		firstTagName = "sound";
-		altTagName = "synth"; // Compatibility with old xml files
+		*firstTagName = "sound";
+		*altTagName = "synth"; // Compatibility with old xml files
 	}
 	else if (outputType == OutputType::MIDI_OUT) {
-		firstTagName = "midi";
+		*firstTagName = "midi";
 	}
 	else {
-		firstTagName = "kit";
+		*firstTagName = "kit";
 	}
-
-	Error error = openXMLFile(path, smDeserializer, firstTagName, altTagName);
-	return error;
 }
 
-// Returns error status
-// clip may be NULL
-Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType,
-                                             bool mayReadSamplesFromFiles, Instrument** getInstrument, char const* path,
-                                             std::string* name, std::string* dirPath) {
-
-	AudioEngine::logAction("loadInstrumentFromFile");
-	D_PRINTLN("opening instrument file -  %s %s  from path  %s", dirPath->c_str(), name->c_str(), path);
-
-	Error error = openInstrumentFile(outputType, path);
-	if (error != Error::NONE) {
-		D_PRINTLN("opening instrument file failed -  %s", name->c_str());
-		return error;
-	}
-
+Error StorageManager::parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outputType,
+                                              bool mayReadSamplesFromFiles, Instrument** getInstrument,
+                                              std::string* name, std::string* dirPath) {
 	AudioEngine::logAction("loadInstrumentFromFile");
 	Instrument* newInstrument = createNewInstrument(outputType);
 
 	if (!newInstrument) {
-		smDeserializer.closeWriter();
+		activeDeserializer->closeWriter();
 		D_PRINTLN("Allocating instrument file failed -  %d", name->c_str());
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
+	Error error = newInstrument->readFromFile(*activeDeserializer, song, clip, 0);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
 
@@ -365,33 +376,11 @@ paramManagersMissing:
 	return Error::NONE;
 }
 
-Error StorageManager::openMidiDeviceDefinitionFile(char const* path) {
-
-	AudioEngine::logAction("openMidiDeviceDefinitionFile");
-	char const* firstTagName = "midiDevice";
-	char const* altTagName = "";
-
-	Error error = openXMLFile(path, smDeserializer, firstTagName, altTagName);
-	return error;
-}
-
-// Returns error status
-Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, char const* path,
-                                                   std::string* fileName, bool updateFileName) {
-	midiInstrument->loadDeviceDefinitionFile = false;
-
-	AudioEngine::logAction("loadMidiDeviceDefinitionFile");
-	D_PRINTLN("opening midi device definition file -  %s  from path  %s", fileName->c_str(), path);
-
-	Error error = openMidiDeviceDefinitionFile(path);
-	if (error != Error::NONE) {
-		D_PRINTLN("opening midi device definition file failed -  %s", fileName->c_str());
-		return error;
-	}
-
+Error StorageManager::parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName,
+                                                        bool updateFileName) {
 	AudioEngine::logAction("readMidiDeviceDefinitionFile");
 
-	error = midiInstrument->readDeviceDefinitionFile(smDeserializer, false);
+	Error error = midiInstrument->readDeviceDefinitionFile(*activeDeserializer);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
 
@@ -411,41 +400,22 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 	return Error::NONE;
 }
 
-Error StorageManager::openPatternFile(char const* path) {
-
-	AudioEngine::logAction("openPatternFile");
-	char const* firstTagName = "pattern";
-	char const* altTagName = "";
-
-	Error error = openXMLFile(path, smDeserializer, firstTagName, altTagName);
-	return error;
-}
-
 Error StorageManager::openFavouriteFile(char const* path) {
 
 	AudioEngine::logAction("openFavouriteFile");
 	char const* firstTagName = "favourites";
 	char const* altTagName = "";
 
-	Error error = openXMLFile(path, smDeserializer, firstTagName, altTagName);
+	Error error = openDocumentSynchronously(path, firstTagName, altTagName);
 	return error;
 }
 
-// Returns error status
-Error StorageManager::loadPatternFile(char const* path, std::string* fileName, bool overwriteExisting, bool noScaling,
-                                      bool previewOnly, bool selectedDrumOnly) {
-
-	AudioEngine::logAction("loadPatternFile");
-
-	Error error = openPatternFile(path);
-	if (error != Error::NONE) {
-		return error;
-	}
-
+Error StorageManager::parsePatternDocument(bool overwriteExisting, bool noScaling, bool previewOnly,
+                                           bool selectedDrumOnly) {
 	AudioEngine::logAction("readPatternFile");
 
-	error = instrumentClipView.pasteNotesFromFile(smDeserializer, overwriteExisting, noScaling, previewOnly,
-	                                              selectedDrumOnly);
+	Error error = instrumentClipView.pasteNotesFromFile(*activeDeserializer, overwriteExisting, noScaling, previewOnly,
+	                                                    selectedDrumOnly);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
 
@@ -462,55 +432,19 @@ Error StorageManager::loadPatternFile(char const* path, std::string* fileName, b
 }
 
 // Returns error status
-Error StorageManager::loadFavouriteFile(char const* path, std::string* fileName) {
-
-	AudioEngine::logAction("loadFavouriteFile");
-
-	Error error = openFavouriteFile(path);
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	AudioEngine::logAction("readFavouriteFile");
-
-	error = favouritesManager.loadFavouritesFromFile(smDeserializer);
-
-	bool fileSuccess = activeDeserializer->closeWriter();
-
-	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
-		if (fileSuccess) {
-			error = Error::SD_CARD;
-		}
-
-		return error;
-	}
-
-	return Error::NONE;
-}
-
 /**
  * Special function to read a synth preset into a sound drum
  */
-Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles,
-                                      SoundDrum** getInstrument, char const* path, std::string* name,
-                                      std::string* dirPath) {
-	OutputType outputType = OutputType::SYNTH;
+Error StorageManager::parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument) {
 	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
 	if (!newDrum) {
+		activeDeserializer->closeWriter();
 		return Error::INSUFFICIENT_RAM;
-	}
-
-	AudioEngine::logAction("loadSynthDrumFromFile");
-
-	Error error = openInstrumentFile(outputType, path);
-	if (error != Error::NONE) {
-		return error;
 	}
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
-	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
+	Error error = newDrum->readFromFile(*activeDeserializer, song, clip, 0);
 
 	bool fileSuccess = activeDeserializer->closeWriter();
 
@@ -540,7 +474,6 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 	return error;
 }
 
-// After calling this, you must make sure you set dirPath of Instrument.
 Instrument* StorageManager::createNewInstrument(OutputType newOutputType, ParamManager* paramManager) {
 
 	uint32_t instrumentSize;
@@ -651,57 +584,6 @@ Drum* StorageManager::createNewDrum(DrumType drumType) {
 	return newDrum;
 }
 
-Error StorageManager::openXMLFile(char const* path, XMLDeserializer& reader, char const* firstTagName,
-                                  char const* altTagName, bool ignoreIncorrectFirmware) {
-
-	AudioEngine::logAction("openXMLFile");
-	reader.reset();
-	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
-	if (!opened) {
-		return Error::FILE_NOT_FOUND;
-	}
-	reader.file = std::move(opened.value());
-	Error err = reader.openXMLFile(firstTagName, altTagName, ignoreIncorrectFirmware);
-	activeDeserializer = &reader;
-	if (err == Error::NONE)
-		return Error::NONE;
-	reader.closeWriter();
-
-	return Error::FILE_CORRUPTED;
-}
-
-Error StorageManager::openJsonFile(char const* path, JsonDeserializer& reader, char const* firstTagName,
-                                   char const* altTagName, bool ignoreIncorrectFirmware) {
-
-	AudioEngine::logAction("openJsonFile");
-	reader.reset();
-	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
-	if (!opened) {
-		return Error::FILE_NOT_FOUND;
-	}
-	reader.file = std::move(opened.value());
-	Error err = reader.openJsonFile(firstTagName, altTagName, ignoreIncorrectFirmware);
-	activeDeserializer = &reader;
-	if (err == Error::NONE)
-		return Error::NONE;
-	reader.closeWriter();
-
-	return Error::FILE_CORRUPTED;
-}
-
-Error StorageManager::openDelugeFile(char const* path, char const* firstTagName, char const* altTagName,
-                                     bool ignoreIncorrectFirmware) {
-	Error error;
-	if (strstr(path, ".Json") != nullptr) {
-		error =
-		    StorageManager::openJsonFile(path, smJsonDeserializer, firstTagName, altTagName, ignoreIncorrectFirmware);
-	}
-	else {
-		error = StorageManager::openXMLFile(path, smDeserializer, firstTagName, altTagName, ignoreIncorrectFirmware);
-	}
-	return error;
-}
-
 bool StorageManager::buildPathToFile(const char* fileName) {
 
 	etl::string<255> s_container;
@@ -734,147 +616,10 @@ bool StorageManager::buildPathToFile(const char* fileName) {
 	return false;
 }
 
-FileReader::FileReader() {
-	void* temp = deluge::memory::alloc_sdram(32768 + CACHE_LINE_SIZE * 2);
-	fileClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
-}
-
-// Used to read an in-memory file stream.
-// Caller 'owns' the memBuffer.
-FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
-	fileClusterBuffer = memBuffer;
-	currentReadBufferEndPos = bufLen;
-	memoryBased = true;
-	callRoutines = false;
-	fileReadBufferCurrentPos = 0;
-}
-
-FileReader::~FileReader() {
-	if (!memoryBased)
-		deluge::memory::dealloc(fileClusterBuffer);
-}
-
-void FileReader::resetReader() {
-	if (!memoryBased) {
-		fileReadBufferCurrentPos = Cluster::size;
-		currentReadBufferEndPos = Cluster::size;
-	}
-	else {
-		fileReadBufferCurrentPos = 0;
-	}
-	readCount = 0;
-	reachedBufferEnd = false;
-}
-
-// Returns whether successful loading took place
-// return true "if still going".
-bool FileReader::readFileClusterIfNecessary() {
-	if (memoryBased) {
-		if (fileReadBufferCurrentPos >= currentReadBufferEndPos) {
-			reachedBufferEnd = true;
-		}
-		return !reachedBufferEnd;
-	}
-	// Load next Cluster if necessary
-	if (fileReadBufferCurrentPos >= Cluster::size) {
-		readCount = 0;
-		bool result = readFileCluster();
-		if (!result) {
-			reachedBufferEnd = true;
-		}
-		return result;
-	}
-
-	// Watch out for end of file
-	if (fileReadBufferCurrentPos >= currentReadBufferEndPos) {
-		reachedBufferEnd = true;
-	}
-
-	return false;
-}
-
-bool FileReader::readFileCluster() {
-
-	AudioEngine::logAction("readFileCluster");
-	if (memoryBased) {
-		return true;
-	}
-
-	auto result = file->read(std::span<std::byte>(reinterpret_cast<std::byte*>(fileClusterBuffer), Cluster::size));
-	if (!result) {
-		return false;
-	}
-	currentReadBufferEndPos = static_cast<uint32_t>(result->size());
-
-	// If error or we reached end of file
-	if (!currentReadBufferEndPos) {
-		return false;
-	}
-
-	fileReadBufferCurrentPos = 0;
-
-	return true;
-}
-
-// Similar to readChar, but it does not advance the fileReadBufferCurrentPos.
-// If you later want that to happen, you can call readChar then.
-bool FileReader::peekChar(char* thisChar) {
-
-	bool stillGoing = readFileClusterIfNecessary();
-	if (reachedBufferEnd) {
-		return false;
-	}
-
-	*thisChar = fileClusterBuffer[fileReadBufferCurrentPos];
-
-	return true;
-}
-
-bool FileReader::readChar(char* thisChar) {
-
-	bool stillGoing = readFileClusterIfNecessary();
-	if (reachedBufferEnd) {
-		return false;
-	}
-
-	*thisChar = fileClusterBuffer[fileReadBufferCurrentPos];
-
-	fileReadBufferCurrentPos++;
-
-	return true;
-}
-
-// Call various routines 1 out of N times, where N = 64 at present.
-void FileReader::readDone() {
-	readCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
-
-	if (!callRoutines) {
-		return;
-	}
-
-	if (!(readCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
-		AudioEngine::routineWithClusterLoading();
-
-		uiTimerManager.routine();
-
-		deluge_display_service();
-		deluge_control_flush();
-	}
-}
-
-bool FileReader::closeWriter() {
-	if (memoryBased) {
-		return true;
-	}
-	auto result = file->close();
-	file.reset();
-	return result.has_value();
-}
-
 FileWriter::FileWriter() {
 	bufferSize = 32768;
-	void* temp = deluge::memory::alloc_sdram(bufferSize + CACHE_LINE_SIZE * 2);
-	writeClusterBuffer = (char*)temp + CACHE_LINE_SIZE;
+	writeClusterBufferBase = static_cast<char*>(deluge::memory::alloc_sdram(bufferSize + CACHE_LINE_SIZE * 2));
+	writeClusterBuffer = writeClusterBufferBase + CACHE_LINE_SIZE;
 }
 
 FileWriter::FileWriter(bool inMem) : FileWriter() {
@@ -882,7 +627,28 @@ FileWriter::FileWriter(bool inMem) : FileWriter() {
 }
 
 FileWriter::~FileWriter() {
-	deluge::memory::dealloc(writeClusterBuffer);
+	// The BASE, not the buffer. They differ by CACHE_LINE_SIZE, and handing back the offset pointer
+	// gives the allocator an address it never issued -- the host's own storage_mocks.cpp records libc
+	// rejecting exactly that shape ("free(): invalid size") for this class's reader twin.
+	deluge::memory::dealloc(writeClusterBufferBase);
+}
+
+bool FileWriter::growWriteBuffer() {
+	// Doubling, because a document's size is not known until it has been written. Counting it first
+	// would do the whole serialisation twice to learn what the buffer can simply discover.
+	const uint32_t grown = bufferSize * 2;
+	auto* next = static_cast<char*>(deluge::memory::alloc_sdram(grown + CACHE_LINE_SIZE * 2));
+	if (next == nullptr) {
+		// alloc_sdram EVICTS before it fails, so this means eviction ran and still could not find a
+		// contiguous block. The caller turns it into a failed save -- never a short one.
+		return false;
+	}
+	memcpy(next + CACHE_LINE_SIZE, writeClusterBuffer, fileWriteBufferCurrentPos);
+	deluge::memory::dealloc(writeClusterBufferBase);
+	writeClusterBufferBase = next;
+	writeClusterBuffer = next + CACHE_LINE_SIZE;
+	bufferSize = grown;
+	return true;
 }
 
 int32_t FileWriter::bytesWritten() {
@@ -919,29 +685,34 @@ void FileWriter::writeBlock(uint8_t* block, uint32_t size) {
 void FileWriter::writeByte(int8_t b) {
 
 	if (fileWriteBufferCurrentPos == bufferSize) {
-		if (!memoryBased && !fileAccessFailedDuringWrite) {
-			Error error = writeBufferToFile();
-			if (error != Error::NONE) {
+		if (memoryBased) {
+			// GROW rather than refuse. A memory-backed document has nowhere to flush to, so the buffer
+			// IS the document -- and a kit outgrows the size this one starts at.
+			//
+			// Failing to grow is still a FAILURE and never a short document: a truncated preset parses
+			// as a smaller one, which is the quiet corruption this whole class exists to avoid.
+			if (!growWriteBuffer()) {
 				fileAccessFailedDuringWrite = true;
 				return;
 			}
+			// Fall through and store the byte: the position is unchanged and now sits inside the
+			// grown buffer. Returning here instead would drop one byte in every bufferSize, which is
+			// precisely the silent truncation the paragraph above refuses to allow.
 		}
-		if (memoryBased) {
-			fileAccessFailedDuringWrite = true;
-			return;
+		else {
+			if (!fileAccessFailedDuringWrite) {
+				Error error = writeBufferToFile();
+				if (error != Error::NONE) {
+					fileAccessFailedDuringWrite = true;
+					return;
+				}
+			}
+			fileWriteBufferCurrentPos = 0;
 		}
-		fileWriteBufferCurrentPos = 0;
 	}
 
 	writeClusterBuffer[fileWriteBufferCurrentPos] = b;
 	fileWriteBufferCurrentPos++;
-
-	// Ensure we do some of the audio routine once in a while: let the scheduler run a
-	// slice of registered audio/UI work while we fill the write buffer (pure-CPU work
-	// with no SD wait to yield at otherwise).
-	if (callRoutines && !(fileWriteBufferCurrentPos & 0b11111111)) {
-		yieldToIdle([]() { return true; });
-	}
 }
 void FileWriter::writeChars(char const* output) {
 	while (*output) {

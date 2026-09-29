@@ -5,7 +5,7 @@
 //! via `efatfs_fs::read_at(handle=0, ...)` — and a recording's `efatfs_handle == 0`, so a
 //! still-recording sample resolves LOADING (re-queued, never READY) uniformly on every target, sim
 //! included. This module turns that into a measurement: it drives
-//! `harness/recorder_readback_probe.h`'s C-ABI (a real `SampleRecorder`, fed real audio, never
+//! `scenarios/recorder_readback_probe.h`'s C-ABI (a real `SampleRecorder`, fed real audio, never
 //! finalized) through the SAME region-port entry point (`deluge_sample_region_acquire_ex`) real
 //! playback uses, on THIS target, and reports what actually comes back.
 //!
@@ -19,17 +19,17 @@ use std::sync::Mutex;
 
 use embassy_time::{Duration, Instant, Timer};
 
-// Host-only C-ABI bridge (src/deluge/harness/recorder_readback_probe.{h,cpp}, `DELUGE_HOST`-guarded
-// — compiled into the linked host_app `deluge_app` object closure, never into the ARM device
-// firmware). Manually declared here, same pattern as `scenario.rs`'s bridge: harness-only entry
+// Host-only C-ABI bridge (tests/integration/scenarios/recorder_readback_probe.{h,cpp}, compiled
+// into the host tree's `deluge_scenarios` objects that build.rs archives; the device firmware
+// never contains it). Manually declared here, same pattern as `scenario.rs`'s bridge: harness-only entry
 // points the app exposes to the platform, not part of the libdeluge C-ABI the app CONSUMES.
 unsafe extern "C" {
-    fn deluge_harness_recorder_probe(
-        num_channels: u8,
-        num_frames: u32,
-        pump_drain_ticks: u32,
-    ) -> u8;
+    fn deluge_harness_recorder_probe(num_channels: u8, num_frames: u32) -> u8;
+    fn deluge_harness_recorder_probe_drain_tick();
+    fn deluge_harness_recorder_probe_acquire() -> u8;
     fn deluge_harness_recorder_probe_poll() -> u8;
+    fn deluge_harness_recorder_probe_abort();
+    fn deluge_harness_recorder_probe_settle_tick() -> u8;
     fn deluge_harness_recorder_probe_end();
 }
 
@@ -53,9 +53,8 @@ pub struct RecorderProbeResult {
     /// `registerTasks()` claimed a scheduler slot within `step_timeout` (same boot-readiness
     /// signal `scenario::ScenarioResult::boot_ready` uses).
     pub boot_ready: bool,
-    /// The state `deluge_harness_recorder_probe()`'s own bounded C++-side retry loop settled on
-    /// (see that function's doc: with `RecordingReadSource` deleted this is expected to read
-    /// LOADING uniformly, on sim as well as `host_app`).
+    /// The first acquire's state, after the drain ticks (with `RecordingReadSource` deleted this is
+    /// expected to read LOADING uniformly, on sim as well as `host_app`).
     pub initial_state: u8,
     /// The state after this task's own poll loop (which lets the REAL async fill task run between
     /// checks, via `Timer::after` yields — the mechanism that actually owns the drain on
@@ -101,7 +100,22 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
     // 50 frames * 3 bytes = 150 bytes) so probing cluster index 0 is meaningful, and a handful of
     // C++-side drain ticks to get it flushed to the SD file before probing (mirrors the sim
     // round-trip harness's own pump pattern).
-    result.initial_state = unsafe { deluge_harness_recorder_probe(1, 50, 4) };
+    // Set up and feed; the loop below drains, with a yield between ticks, which is the whole point.
+    let setup = unsafe { deluge_harness_recorder_probe(1, 50) };
+    if setup == STATE_HARNESS_ERROR {
+        result.initial_state = STATE_HARNESS_ERROR;
+        return result;
+    }
+
+    // The drain, one tick per YIELD: the channel arm needs the storage driver to run between
+    // ticks to answer the request, so awaiting here (rather than looping tightly) is what lets
+    // the op complete.
+    for _ in 0..4 {
+        unsafe { deluge_harness_recorder_probe_drain_tick() };
+        Timer::after_millis(1).await;
+    }
+
+    result.initial_state = unsafe { deluge_harness_recorder_probe_acquire() };
 
     let mut state = result.initial_state;
     let deadline = Instant::now() + poll_window;
@@ -113,6 +127,11 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
     result.final_state = state;
     result.resolved_ready = state == STATE_READY;
 
+    // Settle before deleting: a request can still be in flight.
+    unsafe { deluge_harness_recorder_probe_abort() };
+    while unsafe { deluge_harness_recorder_probe_settle_tick() } == 0 {
+        Timer::after_millis(1).await;
+    }
     unsafe { deluge_harness_recorder_probe_end() };
     result
 }
@@ -121,7 +140,7 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
 static RESULT: Mutex<Option<RecorderProbeResult>> = Mutex::new(None);
 
 /// `host_app` boot-path convenience wrapper (NOT part of a reusable driver — same shape as
-/// `scenario::scenario_task`). Spawn on the SAME executor `host_app_task`'s worker-fiber pump loop
+/// `scenario::scenario_task`). Spawn on the SAME executor `host_app_task`
 /// and the async streaming-fill task run on, then poll [`take_result`] from the OS thread.
 /// Embassy task args must be `Copy`; durations are passed as plain millis.
 #[embassy_executor::task]

@@ -57,21 +57,11 @@ bool LoadPatternUI::opened() {
 		return false;
 	}
 
-	Error error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
+	// Fire-and-forget: these only ensure the default folders exist, and the listing reports a card
+	// failure if one persists. See Browser::createFoldersRecursiveIfNotExists.
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
 
 	actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	overwriteExisting = true;
@@ -100,7 +90,7 @@ bool LoadPatternUI::opened() {
 	favouritesChanged();
 	currentDir = defaultDir.c_str();
 
-	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	Error error = beginSlotSession(); // Requires currentDir to be set.
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
@@ -191,8 +181,8 @@ void LoadPatternUI::enterKeyPress() {
 
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
-		// goIntoFolder() dispatches onto the storage owner; failure is handled by the base
-		// Browser::onListingFailed() (displayError + close()) once the listing completes.
+		// goIntoFolder() begins a listing that graphicsRoutine() runs over later ticks; failure is handled by
+		// the base Browser::onListingFailed() (displayError + close()) once the listing completes.
 		goIntoFolder(currentFileItem->filename.c_str());
 	}
 
@@ -214,7 +204,8 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	else if (b == PLAY) {
 		// Need to use special preview mode for this as on constant playing, big Midi files can lead to stucked notes
 		FileItem* currentFileItem = getCurrentFileItem();
-		if (!currentFileItem->isFolder) {
+		// No item while a listing is in flight.
+		if (currentFileItem != nullptr && !currentFileItem->isFolder) {
 			if (on) {
 				previewOnly = true;
 
@@ -283,13 +274,59 @@ Error LoadPatternUI::performLoad() {
 	fileName.append(enteredText.c_str());
 	fileName.append(".XML");
 
-	Error error = StorageManager::loadPatternFile(fileName.c_str(), &fileName, overwriteExisting, noScaling,
-	                                              previewOnly, selectedDrumOnly);
+	requestRead({.path = std::move(fileName),
+	             .previewOnly = previewOnly,
+	             .overwriteExisting = overwriteExisting,
+	             .noScaling = noScaling,
+	             .selectedDrumOnly = selectedDrumOnly});
+	return Error::NONE;
+}
+
+void LoadPatternUI::requestRead(PatternRead read) {
+	// The newest request wins.
+	dropRead();
+	active_ = std::move(read);
+	// Before boot the read is inline and lands here; after it, this issues the first channel request.
+	loadRoutine();
+}
+
+void LoadPatternUI::dropRead() {
+	// Safe mid-read: releaseStaging() keeps a buffer the channel is still reading into until the read has finished.
+	StorageManager::releaseStaging(&staging_);
+	active_.reset();
+}
+
+void LoadPatternUI::loadRoutine() {
+	if (!active_.has_value()) {
+		return;
+	}
+	// The staged open points activeDeserializer at the staged bytes, which are freed below.
+	FileDeserializer* const previous = activeDeserializer;
+	const StorageManager::StagedOpen opened =
+	    StorageManager::openDocumentStaged(active_->path.c_str(), "pattern", "", &staging_);
+	if (opened == StorageManager::StagedOpen::Deferred) {
+		return;
+	}
+	const PatternRead read = *active_;
+	Error error = Error::FILE_NOT_FOUND;
+	if (opened == StorageManager::StagedOpen::Opened) {
+		error = StorageManager::parsePatternDocument(read.overwriteExisting, read.noScaling, read.previewOnly,
+		                                             read.selectedDrumOnly);
+	}
+	activeDeserializer = previous;
+	dropRead();
 
 	if (error != Error::NONE) {
 		display->displayError(currentLabelLoadError);
-		return error;
+		return;
 	}
+	renderingNeededRegardlessOfUI();
+}
 
-	return Error::NONE;
+void LoadPatternUI::close() {
+	// A load from Enter lands after the browser closes; a preview does not.
+	if (active_.has_value() && active_->previewOnly) {
+		dropRead();
+	}
+	LoadUI::close();
 }

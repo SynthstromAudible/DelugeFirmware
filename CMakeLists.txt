@@ -15,6 +15,7 @@ project(Deluge
 )
 include(FetchContent)
 include(ProcessorCount)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/ccache.cmake)
 ProcessorCount(HOST_NUM_CORES)
 
 # Create our version string

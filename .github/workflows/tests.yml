@@ -1,100 +1,57 @@
 name: Run tests
 
+# Every test in tests/registry.toml at the pr tier, one job each. The registry is the list: a test added there is
+# run here without editing this file.
 on:
   pull_request:
     branches:
       - "release/**"
       - "main"
+      - "next"
   merge_group:
   workflow_dispatch:
 
 jobs:
-  test-build-x86:
-    name: Run tests (x86)
+  matrix:
+    name: test matrix (pr)
     runs-on: ubuntu-latest
+    outputs:
+      test: ${{ steps.emit.outputs.test }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-      - name: Install GCC multilib
+      - uses: actions/checkout@v7
+      - id: emit
+        run: echo "test=$(DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test --ci-matrix --tier pr | jq -c .test)" >> "$GITHUB_OUTPUT"
+
+  test:
+    name: ${{ matrix.test }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ${{ fromJSON(needs.matrix.outputs.test) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/test-prerequisites
+
+      # --strict: a test skipped for a missing prerequisite fails the job, so a gap in the prerequisites action
+      # shows up here rather than as a quiet green.
+      - name: Run ${{ matrix.test }}
         run: |
-          sudo apt-get update
-          sudo apt-get install gcc-14 gcc-14-multilib g++-14-multilib
-          echo "CC=gcc-14" >> $GITHUB_ENV
-          echo "CXX=g++-14" >> $GITHUB_ENV
-
-      - name: Install CMake
-        uses: lukka/get-cmake@latest
-
-      - name: Configure
-        run: cmake -B build -S tests -G Ninja
-
-      - name: Run build
-        run: cmake --build build
-
-      - name: Run CTest
-        run: ctest --test-dir build --output-on-failure --output-junit results/ctest_results.xml
-
-      - name: Make results directory
-        run: mkdir -p build/results
-
-      - name: Run 32 bit CppUTest
-        run: |
-          cd build/results
-          ../32bit_unit_tests/SmallPointerTests -ojunit
-          ../32bit_unit_tests/MemoryManagerTests -ojunit
-      - name: Run main CppUTest
-        run: |
-          cd build/results
-          ../unit/UnitTests -ojunit
+          case "${{ matrix.test }}" in
+            unit-arm) export CC=arm-linux-gnueabihf-gcc-14 CXX=arm-linux-gnueabihf-g++-14 ;;
+            unit) export CC=gcc-14 CXX=g++-14 ;;
+          esac
+          DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test "${{ matrix.test }}" --strict --junit build/results
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: Test Results x86
-          path: |
-            build/results/**/*.xml
-            build/spec/results/**/*.xml
-            build/spec/results/*.xml
-
-  test-build-qemu:
-    name: Run tests for ARMv7 via QEMU
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Install CMake
-        uses: lukka/get-cmake@latest
-
-      - name: Install cross-compilation toolchain and QEMU
-        run: |
-          sudo debconf-communicate <<< "set man-db/auto-update false"
-          sudo dpkg-reconfigure man-db        
-          sudo apt-get update
-          sudo apt-get install -y gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user binfmt-support qemu-user-static qemu-system-arm
-          echo "CC=arm-linux-gnueabihf-gcc-14" >> $GITHUB_ENV
-          echo "CXX=arm-linux-gnueabihf-g++-14" >> $GITHUB_ENV
-          echo "LD_LIBRARY_PATH=/usr/arm-linux-gnueabihf/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
-
-      - name: Symlink ld-linux
-        run: sudo ln -s /usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3 /lib/ld-linux-armhf.so.3
-
-      - name: Configure
-        run: cmake -B build -S tests/qemu -G Ninja
-
-      - name: Run build
-        run: cmake --build build
-
-      - name: Run CTest
-        run: ctest --output-on-failure --test-dir build
-
-      - name: Upload Test Results
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: Test Results ARMv7
-          path: build/spec/results/**/*.xml
+          name: Test Results ${{ matrix.test }}
+          path: build/results/*.xml
+          if-no-files-found: ignore
 
   event_file:
     name: "Event File"

@@ -23,8 +23,8 @@
 #                        the pad=0 render. The layout-invariance guard: proves the render
 #                        depends on NO allocation address. Golden-INDEPENDENT (compares
 #                        renders to each other), so it catches layout fragility even when
-#                        the golden matches one fixed layout. Reimplements golden_mixdown.sh's
-#                        retired C-host `padsweep` on the Embassy renderer.
+#                        the golden matches one fixed layout. The Embassy renderer's counterpart
+#                        to golden_mixdown.sh's C-host `padsweep`, which this branch cannot build.
 #
 # Exit: 0 = PASS (byte-identical to the stored golden) / update wrote the baseline,
 # 1 = mismatch or a render crash/wedge, 2 = setup error (no baseline yet, no corpus, etc.)
@@ -34,21 +34,17 @@
 #                             (default: ~/.cache/deluge-golden)
 #   DELUGE_BACKUP             the "Deluge Backup" root, used to reconstruct a fixture's
 #                             project tree the first time (default: ~/Deluge Backup)
-#   BUILD_DIR                 the build-embassy-hostapp C++ object-closure build dir
-#                             (default: <repo>/build-embassy-hostapp)
 #   GOLDEN_VIRTUAL_BUDGET_MS  virtual-time wedge-detection budget passed through to
 #                             golden_vt_render (default: 1800000 = 30 simulated minutes;
 #                             cheap to over-provision — the discrete-event driver jumps
 #                             straight to the next due deadline, so a large budget costs
 #                             no extra wall time unless the render actually needs it)
-#   NO_BUILD=1                skip the ninja/cargo rebuild steps
 #   PADS                      pad sizes for `padsweep`          (default: "16 64 256 4096")
 #   PAD                       one-off DELUGE_SIM_HEAP_PAD for check/update  (default: 0)
 #
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-BUILD_DIR="${BUILD_DIR:-$REPO/build-embassy-hostapp}"
 GOLDEN_DIR="${DELUGE_GOLDEN_DIR:-$HOME/.cache/deluge-golden}"
 CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
 
@@ -81,22 +77,9 @@ if [ "$VERB" = check ]; then
 	GOLDEN_SHA="$(cut -c1-64 "$GOLDEN_SHA_FILE")"
 fi
 
-if [ "${NO_BUILD:-0}" != 1 ]; then
-	[ -d "$BUILD_DIR" ] || {
-		echo "ERROR: '$BUILD_DIR' does not exist — configure build-embassy-hostapp from sim/ first"
-		exit 2
-	}
-	# Cargo does not track the C++ sources golden_vt_render links against — force a
-	# rebuild of the host object closure exactly like the plan's build reference does.
-	ninja -C "$BUILD_DIR" deluge_app NE10 eyalroz_printf deluge_dsp deluge_scheduler \
-		deluge_foundation deluge_midi
-	(cd "$CRATE_DIR" && cargo build --release)
-fi
-
-# Honour CARGO_TARGET_DIR: `dbt harness run` points every rig at the shared target/harness/ tree,
-# so the crate-local target/ is empty there and a hard-coded path fails after a SUCCESSFUL build.
+# Where the harness binary is: `dbt test` builds it once, before any gate runs, into CARGO_TARGET_DIR.
 BIN="${CARGO_TARGET_DIR:-$CRATE_DIR/target}/release/golden_vt_render"
-[ -x "$BIN" ] || { echo "ERROR: '$BIN' not built (see NO_BUILD)"; exit 2; }
+[ -x "$BIN" ] || { echo "ERROR: '$BIN' is not built -- run this gate through ./dbt test, which builds it first"; exit 2; }
 
 OUT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/golden_embassy_diff.${FIXTURE}.XXXXXX")"
 cleanup() { rm -rf "$OUT_ROOT"; }
@@ -127,6 +110,14 @@ render_pad() {
 	w="$(find "$out" -iname '*.wav' | sort | head -1)"
 	if [ -z "$w" ]; then
 		echo "  render (pad=$pad) produced no WAV — log: $out.log" >&2
+		return
+	fi
+	# A MIXDOWN export writes exactly one WAV. Anything else came from a folder this render did not write -- an
+	# earlier export left on the shared card image -- and hashing it would measure that file, not this render.
+	local n
+	n="$(find "$out" -iname '*.wav' | wc -l)"
+	if [ "$n" -ne 1 ] || ! basename "$w" | grep -qi '^MIXDOWN_'; then
+		echo "  render (pad=$pad) copied $n WAV(s), first $(basename "$w"), not this render's one MIXDOWN — the stems were read from the wrong folder — log: $out.log" >&2
 		return
 	fi
 	echo "$w"
@@ -166,7 +157,7 @@ fi
 # check / update: a single render at pad=0 (or a one-off PAD override).
 wav="$(render_pad "${PAD:-0}" render)"
 if [ -z "$wav" ]; then
-	echo "FAIL — golden_vt_render produced no WAV for fixture=$FIXTURE"
+	echo "FAIL — golden_vt_render produced no usable MIXDOWN WAV for fixture=$FIXTURE (see the line above)"
 	trap - EXIT
 	exit 1
 fi

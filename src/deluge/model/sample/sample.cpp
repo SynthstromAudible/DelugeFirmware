@@ -23,6 +23,7 @@
 #include "io/debug/log.h"
 #include "libdeluge/sample_reader.h"
 #include "memory/general_memory_allocator.h"
+#include "model/sample/pitch_scan.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_perc_cache_zone.h"
 #include "model/sample/sample_reader_bridge.h"
@@ -1127,37 +1128,26 @@ int32_t Sample::getFirstClusterIndexWithNoAudioData() {
 	return static_cast<int32_t>(geometricClusterCount());
 }
 
-void Sample::workOutMIDINote(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest) {
-	if (midiNote == MIDI_NOTE_UNSET || midiNote == MIDI_NOTE_ERROR) {
-
-		float freq;
-
-		// If doing single-cycle, easy!
-		if (doingSingleCycle) {
-			freq = (float)sampleRate / lengthInSamples;
-			goto calculateMIDINote;
-		}
-
-		// Next up, see if note read from file...
-		else if (midiNoteFromFile != -1) {
-			midiNote = midiNoteFromFile;
-		}
-
-		// And finally, detect the pitch the hard way
-		else {
-			freq = determinePitch(doingSingleCycle, minFreqHz, maxFreqHz, doPrimeTest);
-
-			if (freq == 0) { // Error
-				midiNote = MIDI_NOTE_ERROR;
-			}
-
-			else {
-calculateMIDINote:
-				midiNote = 69 + log2f(freq / 440) * 12;
-			}
-		}
+bool Sample::midiNoteWithoutScan(bool doingSingleCycle) {
+	if (midiNote != MIDI_NOTE_UNSET && midiNote != MIDI_NOTE_ERROR) {
+		return true;
 	}
+	// If doing single-cycle, easy!
+	if (doingSingleCycle) {
+		const float freq = (float)sampleRate / lengthInSamples;
+		midiNote = 69 + log2f(freq / 440) * 12;
+		return true;
+	}
+	// Next up, see if note read from file...
+	if (midiNoteFromFile != -1) {
+		midiNote = midiNoteFromFile;
+		return true;
+	}
+	return false;
+}
 
+void Sample::setMidiNoteFromFrequency(float hz) {
+	midiNote = (hz == 0) ? MIDI_NOTE_ERROR : 69 + log2f(hz / 440) * 12;
 	D_PRINTLN("midiNote:  %d", midiNote);
 }
 
@@ -1369,217 +1359,29 @@ examineHarmonic:
 	return (uint64_t)(total * powf(fundamentalIndexToReturn, 0.25));
 }
 
-// In Hz I think? Could even go +2 here and even a 54Hz sound is ok
-constexpr int32_t kMinAccurateFrequency = (1638400 >> (kPitchDetectWindowSizeMagnitude));
-constexpr int32_t kMaxLengthDoublings = (16 - kPitchDetectWindowSizeMagnitude);
-
 // We want a fairly small window. Any bigger, and it'll fail to find the tones in short, percussive yet tonal sounds.
 // Or if we were to go much smaller than this, we might incorrectly see low frequencies.
 // Already, this is too small to very accurately pick up low frequencies, so when one is detected, a second pass is done
 // on downsampled (squished in) audio data, to pick it up more accurately
 
-// Returns 0 if error
-float Sample::determinePitch(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest) {
+size_t Sample::pitchBufferBytes() {
+	const int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
+	const int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
+	const int32_t floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
+	return fftInputSize + fftOutputSize + floatIndexTableSize;
+}
 
-#if PITCH_DETECT_DEBUG_LEVEL
-	delayMS(200);
-	D_PRINTLN("");
-	D_PRINTLN("det. pitch --");
-	D_PRINTLN(filePath.get());
-#endif
-
+Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthDoublings,
+                                                int32_t defaultLengthDoublings, float minFreqHz, float maxFreqHz,
+                                                bool doPrimeTest) {
 	// Get the FFT config we'll need
 	ne10_fft_r2c_cfg_int32_t fftCFG = FFTConfigManager::getConfig(kPitchDetectWindowSizeMagnitude);
-
-	// Allocate space for both the real and imaginary number buffers - the imaginary one is tacked on the end
-	int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
-	int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
-	int32_t floatIndexTableSize = (kPitchDetectWindowSize >> 2) * sizeof(float);
-	int32_t* fftInput = (int32_t*)deluge::memory::alloc_fast(fftInputSize + fftOutputSize + floatIndexTableSize);
-	if (!fftInput) {
-		return 0;
-	}
-
+	int32_t* fftInput = buffer;
+	const int32_t fftInputSize = kPitchDetectWindowSize * sizeof(int32_t);
+	const int32_t fftOutputSize = ((kPitchDetectWindowSize >> 1) + 1) * sizeof(ne10_fft_cpx_int32_t);
 	ne10_fft_cpx_int32_t* fftOutput = (ne10_fft_cpx_int32_t*)((char*)fftInput + fftInputSize);
 	int32_t* fftHeights = fftInput; // We'll overwrite the original input with this data
-
 	float* floatIndexTable = (float*)((char*)fftInput + fftInputSize + fftOutputSize);
-
-	int32_t defaultLengthDoublings = 0;
-
-	// If high sample rate, downsample by default
-	if (sampleRate >= 88200) {
-		defaultLengthDoublings++;
-	}
-
-	int32_t lengthDoublings = defaultLengthDoublings;
-
-	// If enforced max freq too low, increase doublings
-	float maxFreqHere = maxFreqHz;
-	while (maxFreqHere < kMinAccurateFrequency) {
-		lengthDoublings++;
-		if (lengthDoublings >= 10) {
-			return 0; // Keep things sane / from overflowing, which I saw happen when lengthDoublings got to 15.
-			          // Happened when another error led to maxFreq being insanely low like almost 0
-		}
-		maxFreqHere *= 2;
-	}
-
-	bool doingSecondPassWithReducedThreshold = false;
-	int32_t startValueThreshold = 1 << (31 - 4);
-	if (!beginningOffsetForPitchDetection) {
-		beginningOffsetForPitchDetection = audioDataStartPosBytes;
-	}
-
-	const uint32_t sourceId = deluge::sample::source_id_for(*this);
-
-	// One sample-period across all channels, matching the reader's own frame geometry (see
-	// SampleFrameReader) - the frame count a window reports is always a whole number of these.
-	const uint32_t frameSizeBytes = static_cast<uint32_t>(numChannels) * byteDepth;
-
-startAgain:
-
-#if PITCH_DETECT_DEBUG_LEVEL
-	D_PRINTLN("");
-	D_PRINTLN("doublings:  %d", lengthDoublings);
-#endif
-
-	// Load the sample into memory
-	int32_t currentOffset = beginningOffsetForPitchDetection;
-	int32_t writeIndex = 0;
-
-	uint32_t audioByteOffset = static_cast<uint32_t>(currentOffset) - audioDataStartPosBytes;
-	deluge::sample::SampleFrameReader reader{sourceId, audioByteOffset / frameSizeBytes, 1, DELUGE_READ_SCAN};
-	DelugeFrameWindow window = reader.window();
-	uint32_t bufPos = audioByteOffset % frameSizeBytes;
-	if (!reader.ok() || window.frame_count == 0) {
-		D_PRINTLN("failed to load first");
-getOut:
-		delugeDealloc(fftInput);
-		return 0;
-	}
-
-	int32_t biggestValueFound = 0;
-
-	int32_t count = 0;
-
-	// If stereo sample, we want to blend left and right together, and the easiest way is to use our existing
-	// "averaging" system
-	int32_t lengthDoublingsNow = lengthDoublings;
-	if (numChannels == 2) {
-		lengthDoublingsNow++;
-	}
-
-	while (true) {
-continueWhileLoop:
-		int32_t thisValue = 0;
-
-		// We may want to average several samples into just one - crudely downsampling, but the aliasing shouldn't hurt
-		// us
-		for (int32_t i = 0; i < (1 << lengthDoublingsNow); i++) {
-
-			if (!(count & 255)) {
-				AudioEngine::routineWithClusterLoading();
-			}
-			count++;
-
-			// Pull the next window once this one's exhausted - the reader stitches cluster boundaries
-			// internally, so this is the only "load more" the loop ever needs.
-			if (bufPos >= window.frame_count * frameSizeBytes) {
-				reader.advance(window.frame_count);
-				window = reader.window();
-				bufPos = 0;
-				if (!reader.ok() || window.frame_count == 0) {
-					D_PRINTLN("failed to load next");
-					goto getOut;
-				}
-			}
-
-			// Left-justify this byteDepth-byte little-endian sample into the top of a 32-bit word (the
-			// same placement frame_read_origin's overlapping 4-byte read used to produce), leaving the
-			// low bits zero rather than reading them out of bounds.
-			int32_t individualSampleValue = 0;
-			std::memcpy(reinterpret_cast<std::byte*>(&individualSampleValue) + (4 - byteDepth),
-			            static_cast<const std::byte*>(window.frames) + bufPos, byteDepth);
-			individualSampleValue &= bitMask;
-			thisValue += (individualSampleValue >> lengthDoublingsNow);
-
-			currentOffset += byteDepth;
-			bufPos += byteDepth;
-
-			// If reached end of file
-			if (currentOffset >= audioDataLengthBytes + audioDataStartPosBytes) {
-				goto doneReading;
-			}
-
-			// Rudimentary audio start-detection. We need this, because detecting the tone of percussive sounds relies
-			// on having our window at just the moment when they hit
-			if (!beginningOffsetForPitchDetectionFound) {
-				int32_t absoluteValue = (individualSampleValue < 0) ? -individualSampleValue : individualSampleValue;
-
-				if (absoluteValue > biggestValueFound) {
-					biggestValueFound = absoluteValue;
-				}
-
-				if (absoluteValue < startValueThreshold) {
-					goto continueWhileLoop;
-				}
-				beginningOffsetForPitchDetectionFound = true;
-
-				// Start grabbing audio from a quarter of a second after here
-				beginningOffsetForPitchDetection =
-				    currentOffset + (sampleRate >> 2) * numChannels * byteDepth; // Save it for next time
-
-				// If our grabbed window would end beyond the end of the audio file, shift it left
-				beginningOffsetForPitchDetection =
-				    std::min(beginningOffsetForPitchDetection,
-				             (int32_t)(audioDataStartPosBytes + audioDataLengthBytes
-				                       - (kPitchDetectWindowSize << lengthDoublings) * numChannels * byteDepth));
-
-				// TODO: it's not quite perfect doing that and storing the result, because lengthDoublings will
-				// sometimes be different
-
-				// And now make sure that hasn't pushed it further back left than where we are right now
-				beginningOffsetForPitchDetection = std::max(beginningOffsetForPitchDetection, currentOffset);
-			}
-			if (currentOffset < beginningOffsetForPitchDetection) {
-				goto continueWhileLoop;
-			}
-		}
-
-		// Do hanning window
-		int32_t hanningValue = interpolateTableSigned(writeIndex, kPitchDetectWindowSizeMagnitude, hanningWindow, 8);
-
-		fftInput[writeIndex] = multiply_32x32_rshift32_rounded(thisValue, hanningValue) >> 12;
-
-		writeIndex++;
-
-		if (writeIndex >= kPitchDetectWindowSize) {
-			break;
-		}
-	}
-
-doneReading:
-	// If we didn't find any sound...
-	if (!beginningOffsetForPitchDetectionFound) {
-
-		// If we haven't done so yet, see if we can just go again, with a reduced threshold derived from the actual
-		// volume of the sound
-		if (!doingSecondPassWithReducedThreshold && biggestValueFound >= (1 << (31 - 9))) {
-			doingSecondPassWithReducedThreshold = true;
-			startValueThreshold = biggestValueFound >> 4;
-			goto startAgain;
-		}
-
-		D_PRINTLN("no sound found");
-		goto getOut;
-	}
-
-	// If there was any space left...
-	while (writeIndex < kPitchDetectWindowSize) {
-		fftInput[writeIndex] = 0;
-		writeIndex++;
-	}
 
 	AudioEngine::routineWithClusterLoading();
 
@@ -1752,7 +1554,7 @@ doneReading:
 			D_PRINT(", ");
 		}
 #endif
-		goto getOut;
+		return {PitchVerdict::Kind::Failed, 0};
 	}
 
 	float fundamentalPeriod = (float)kPitchDetectWindowSize / bestFundamentalIndex;
@@ -1762,26 +1564,20 @@ doneReading:
 	int32_t lengthDoublingsLastTime = lengthDoublings;
 
 	// If frequency too low, go again, taking a longer length into account, for better accuracy
-	if (freqBeforeAdjustment < kMinAccurateFrequency
-	    && lengthDoublings < defaultLengthDoublings + kMaxLengthDoublings) {
+	if (freqBeforeAdjustment < deluge::sample::kMinAccurateFrequency
+	    && lengthDoublings < defaultLengthDoublings + deluge::sample::kMaxLengthDoublings) {
 
 #if PITCH_DETECT_DEBUG_LEVEL
 		float freq = freqBeforeAdjustment / (1 << lengthDoublings);
 		D_PRINTLN("proposed freq: ");
 #endif
 		// Only do one doubling at a time - this can help to correct an incorrect reading
-		freqBeforeAdjustment *= 2;
-		lengthDoublings++;
-
-		goto startAgain;
+		return {PitchVerdict::Kind::LongerLength, 0};
 	}
-
-	delugeDealloc(fftInput);
 
 	float freq = freqBeforeAdjustment / (1 << lengthDoublings);
 	D_PRINTLN("freq: %.2f", freq);
-
-	return freq;
+	return {PitchVerdict::Kind::Found, freq};
 }
 
 int32_t Sample::getMaxPeakFromZero() {

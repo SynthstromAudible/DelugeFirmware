@@ -41,6 +41,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
@@ -1623,13 +1624,36 @@ bool MidiFollow::isFeedbackEnabled() {
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
 void MidiFollow::writeDefaultsToFile() {
+	if (deluge::storage::bytes::usingByteChannel()) {
+		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
+		// dies at the end of this scope, which is safe because `submitWrite` copies.
+		XMLSerializer writer;
+		writer.setMemoryBased();
+		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
+		serialiseDefaults(writer);
+		if (deluge::storage::bytes::submitWrite(MIDI_FOLLOW_XML, writer.getBufferPtr(),
+		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
+			return;
+		}
+		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
+		// blocking is legal; after boot it is refused and nothing is written.
+	}
+	(void)deluge::storage::bytes::runDuringBoot([](void* ctx) { static_cast<MidiFollow*>(ctx)->writeDefaultsInline(); },
+	                                            this);
+}
+
+void MidiFollow::writeDefaultsInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// MidiFollow.xml
 	Error error = StorageManager::createXMLFile(MIDI_FOLLOW_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = GetSerializer();
+	serialiseDefaults(GetSerializer());
+	GetSerializer().closeFileAfterWriting();
+}
 
+void MidiFollow::serialiseDefaults(Serializer& writer) {
 	//<defaults>
 	writer.writeOpeningTagBeginning(MIDI_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
@@ -1647,8 +1671,6 @@ void MidiFollow::writeDefaultsToFile() {
 	writer.writeClosingTag(MIDI_DEFAULTS_SETTINGS_TAG);
 
 	writer.writeClosingTag(MIDI_DEFAULTS_TAG);
-
-	writer.closeFileAfterWriting();
 }
 
 /// convert paramID to a paramName to write to XML
@@ -1791,23 +1813,74 @@ void MidiFollow::writeDisplayParamSettingToFile(Serializer& writer) {
 }
 
 /// read defaults from XML
-void MidiFollow::readDefaultsFromFile() {
+bool MidiFollow::readDefaultsFromFile(deluge::storage::bytes::DoneFn onDone) {
+	if (deluge::storage::bytes::usingByteChannel()) {
+		// The early-out and the in-memory defaults happen HERE, before anything is submitted, because
+		// they are exactly what must be true whether the file turns up or not -- the inline arm sets
+		// them up before its own read for the same reason.
+		if (successfullyReadDefaultsFromFile) {
+			return false; // nothing submitted, so nothing will report
+		}
+		resetToDefaults();
+		if (deluge::storage::bytes::submitRead(MIDI_FOLLOW_XML, /*legacyPath=*/nullptr, &MidiFollow::parseDefaultsBytes,
+		                                       &MidiFollow::writeDefaultsAbsent, this, onDone)) {
+			return true;
+		}
+		// Not taken (a busy channel queues instead): the body below runs only where blocking is legal, which
+		// here is nowhere, so the defaults set up above stand.
+	}
+	// No blocking arm -- see readSettingsFromFile for why. The defaults set up above stand.
+	return false;
+}
+
+void MidiFollow::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
+	// `activeDeserializer` goes back on EVERY path, the failed open included -- see
+	// `RuntimeFeatureSettings::parseSettingsBytes`, which carries the full reasoning.
+	auto* self = static_cast<MidiFollow*>(ctx);
+	FileDeserializer* previous = activeDeserializer;
+	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false, MIDI_DEFAULTS_TAG)
+	    == Error::NONE) {
+		self->parseDefaults(*activeDeserializer);
+		self->successfullyReadDefaultsFromFile = true;
+	}
+	else {
+		// A document that will not open is treated exactly as the inline arm treats a failed
+		// `openXMLFile`: write the defaults over it. Not a silent give-up -- that path is
+		// pre-existing behaviour, preserved.
+		activeDeserializer = previous;
+		self->writeDefaultsToFile();
+		self->successfullyReadDefaultsFromFile = true;
+		return;
+	}
+	activeDeserializer = previous;
+}
+
+void MidiFollow::writeDefaultsAbsent(void* ctx) {
+	// Only a genuinely absent file reaches here, never an unreadable card -- see
+	// `deluge::storage::bytes::AbsentFn`.
+	//
+	// ⚠️ This does not write; the name is kept only because it is the `AbsentFn` the read
+	// registers. **A read must not mutate.** Writing the defaults file from a read's completion made
+	// the next run see a different card: save-roundtrip's SL-EVICT compares a clamped-heap run
+	// against an unclamped one byte-for-byte, and on a cold card the first run created the file
+	// while the second parsed it -- different channel traffic, different eviction, different bytes.
+	// Deferring the write was tried and does not help: the asymmetry is the file's EXISTENCE, not
+	// the write's timing.
+	//
+	// Nothing is lost. The defaults in memory are already the configuration, and the file is written
+	// by the path that should write it -- `sound_editor.cpp` when the user edits a setting.
+	auto* self = static_cast<MidiFollow*>(ctx);
+	self->successfullyReadDefaultsFromFile = true;
+}
+
+void MidiFollow::readDefaultsInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
 	}
 
-	init();
-
-	// Default MIDI-follow input: channel 1 on any device. This makes incoming MIDI play the active
-	// instrument out of the box even with no SD card / no MIDIFollow.XML (otherwise the follow
-	// channels start unlearned and nothing routes). A user's MIDIFollow.XML, when present, overrides
-	// channel A when the settings below are read.
-	{
-		LearnedMIDI& a = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)];
-		a.clear();
-		a.channelOrZone = 0; // MIDI channel 1; cable left null = match any input device (omni)
-	}
+	resetToDefaults();
 
 	// MIDIFollow.XML
 	switch (deluge::storage::bootstrap_action(StorageManager::fileExists(MIDI_FOLLOW_XML))) {
@@ -1838,17 +1911,35 @@ void MidiFollow::readDefaultsFromFile() {
 	}
 
 	//<defaults>
-	Error error = StorageManager::openXMLFile(MIDI_FOLLOW_XML, smDeserializer, MIDI_DEFAULTS_TAG);
+	Error error = StorageManager::openDocumentSynchronously(MIDI_FOLLOW_XML, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		writeDefaultsToFile();
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
 
+	parseDefaults(*activeDeserializer);
+	activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
+	successfullyReadDefaultsFromFile = true;
+}
+
+void MidiFollow::resetToDefaults() {
+	init();
+
+	// Default MIDI-follow input: channel 1 on any device. This makes incoming MIDI play the active
+	// instrument out of the box even with no SD card / no MIDIFollow.XML (otherwise the follow
+	// channels start unlearned and nothing routes). A user's MIDIFollow.XML, when present, overrides
+	// channel A when the settings below are read.
+	LearnedMIDI& a = midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)];
+	a.clear();
+	a.channelOrZone = 0; // MIDI channel 1; cable left null = match any input device (omni)
+}
+
+void MidiFollow::parseDefaults(Deserializer& reader) {
 	// Clear mappings before reading the settings from the file
 	clearMappings();
 
-	Deserializer& reader = *activeDeserializer;
 	char const* tag_name;
 	while (*(tag_name = reader.readNextTagOrAttributeName())) {
 		// step into the <cc_mappings> tag
@@ -1861,8 +1952,6 @@ void MidiFollow::readDefaultsFromFile() {
 		}
 		reader.exitTag();
 	}
-	activeDeserializer->closeWriter();
-	successfullyReadDefaultsFromFile = true;
 }
 
 /// compares param name tag to the list of params available are midi controllable

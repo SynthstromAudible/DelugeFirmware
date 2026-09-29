@@ -26,7 +26,7 @@ crate-type = ["rlib"]
 # own `FILL_CONTEXTS` table (see its lib.rs doc): this crate reaches the resource manager only
 # through late-bound `unsafe extern "C"` symbols (never a direct `deluge_resource` dependency), so
 # it has no access to that crate's own `Masked` critical section either. Neither `open`/`close`
-# (main/load thread) nor `read_at` (the worker fiber's synchronous fill) ever run on the audio
+# (main/load thread) nor `read_at` (the synchronous fill) ever run on the audio
 # render ISR, so this plain blocking primitive is enough. Blocking primitive only — no
 # embassy-executor.
 embassy-sync = "0.8.0"

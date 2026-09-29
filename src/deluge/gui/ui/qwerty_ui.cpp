@@ -352,8 +352,12 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 						enteredTextEditPos++;
 
-						bool success =
-						    predictExtendedText(); // This may get cut short if user interrupts by pressing another pad
+						// The one call site that undoes the typed character on failure, so the one that
+						// passes an undo position: a prediction can now finish on a later tick, long
+						// after this returns, and the undo has to travel with the request.
+						bool success = predictExtendedText(
+						    enteredTextEditPos
+						    - 1); // This may get cut short if user interrupts by pressing another pad
 						if (!success) {
 							enteredTextEditPos--;
 						}

@@ -33,12 +33,10 @@ use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Instant, Timer};
 
-// `RunCondition` is a bindgen type (`crate::sys`, device-only — no C++ ABI is
-// linked on host). On host, reuse the identical host stand-in `fiber.rs`
-// already defines for the same C typedef (`storage_wait.h`), keeping the
-// scheduler's logic (this file) untouched — only the type's source differs.
+/// Host stand-in for the bindgen `RunCondition` typedef (`typedef bool (*RunCondition)();`): `mod sys` (the bindgen
+/// output) is device-only, so mirror the C type's shape here.
 #[cfg(not(target_os = "none"))]
-use crate::fiber::RunCondition;
+pub type RunCondition = Option<unsafe extern "C" fn() -> bool>;
 #[cfg(target_os = "none")]
 use crate::sys::RunCondition;
 
@@ -58,14 +56,12 @@ type TaskID = i8;
 type ResourceID = u32;
 
 const RESOURCE_NONE: ResourceID = 0;
-/// Slow-storage (SD/MMC, SPI flash) — `scheduler_api.h` RESOURCE_SD.
-const RESOURCE_SD: ResourceID = 1;
+// No `RESOURCE_SD` constant (`scheduler_api.h` value 1): this side never gates on it, and that
+// absence is deliberate rather than an omission — see `claim`'s doc below, which records that the
+// serialization RESOURCE_SD would have provided comes from the FS mutex instead. Declaring an
+// unused ABI mirror only produced a `-Wunused` warning.
 /// USB transport — `scheduler_api.h` RESOURCE_USB.
 const RESOURCE_USB: ResourceID = 2;
-/// "Must not run inside an SD routine" — `scheduler_api.h` RESOURCE_SD_ROUTINE.
-/// Approximated here by gating on the SD mutex (held across any SD task's handle),
-/// which is the only SD_ROUTINE user (the one-shot startup-song task) needs.
-const RESOURCE_SD_ROUTINE: ResourceID = 4;
 
 // ABI guard: these must match scheduler_api.h's `typedef`s exactly, or the C++
 // side reads/writes ids and resources at the wrong width across the boundary.
@@ -225,12 +221,9 @@ static CURRENT: AtomicI8 = AtomicI8::new(-1);
 /// can't run concurrently. Audio (RESOURCE_NONE) never touches this, so the
 /// audio interrupt-executor never blocks on it.
 ///
-/// There is no equivalent RESOURCE_SD gate: that serialization is provided by the
-/// single-owner storage discipline (the storage owner IS the worker fiber; see
-/// `deluge_storage_on_owner` in sd.rs and the `storage-owner-audit` feature) plus
-/// the `block_on_fiber` flip in sd.rs, which yields the fiber mid-transfer instead
-/// of parking the executor. `RESOURCE_SD_ROUTINE` tasks still get a hold-off, but
-/// via `fiber::sd_routine_held()` below, not a gate.
+/// There is no equivalent RESOURCE_SD gate: storage serializes itself (the efatfs
+/// FS mutex and `sd.rs`'s `SD_BUS`). `RESOURCE_SD_ROUTINE` needs no hold-off here
+/// either: nothing runs SD-routine work across a yield.
 static USB_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
 // ---------------------------------------------------------------------------
@@ -272,8 +265,16 @@ fn audio_spawner() -> Option<SendSpawner> {
     unsafe { *core::ptr::addr_of!(AUDIO_SPAWNER) }
 }
 
-/// Lens-1-only (deterministic virtual-time streaming-underrun harness)
-/// override for the priority-0 (audio) task's schedule. `AudioEngine::routine_task`'s
+/// Whether the priority-0 (audio) task runs on an executor of its own -- the device's preemptive SGI executor, or
+/// host_app's `"deluge-audio"` thread -- rather than on the cooperative thread executor with everything else (the
+/// single-executor host harnesses). Decided once at startup, by [`set_audio_spawner`].
+#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+pub fn has_audio_executor() -> bool {
+    audio_spawner().is_some()
+}
+
+/// Single-executor-harness override for the priority-0 (audio) task's schedule,
+/// set by golden_vt_render's `render_song`. `AudioEngine::routine_task`'s
 /// registered period (`deluge.cpp`: `8 / 44100.` seconds) is a scheduler poll/backoff
 /// hint tuned for the DEVICE's real DMA-paced render throttling
 /// (`AudioEngine::routine` decides internally whether a new block is actually due,
@@ -281,9 +282,9 @@ fn audio_spawner() -> Option<SendSpawner> {
 /// (`audio_host.rs`'s `deluge_audio_drive`) has no such throttling and renders
 /// exactly one block every call, so on host the REGISTERED period does not
 /// correspond to "one real-time block period" at all (it fires ~1.6ms apart, vs.
-/// the true 128/44100s ≈ 2.9ms block period). Lens 1's virtual-time race needs the
-/// audio consumer to advance in a KNOWN, exact per-block virtual-time increment to
-/// make the SD-latency race meaningful, so it overrides the audio slot's
+/// the true 128/44100s ≈ 2.9ms block period). A harness that races playback against
+/// modeled storage time needs the audio consumer to advance in a KNOWN, exact
+/// per-block virtual-time increment for that race to mean anything, so it overrides the audio slot's
 /// `period_us`/`backoff_us` at spawn time via this knob. `None` (unset, the
 /// default) preserves today's behavior for every other consumer (device, Lens 2,
 /// manual host_app runs) — see [`claim`]'s use of this below. Host-only: the whole
@@ -318,10 +319,10 @@ fn claim(
     enabled: bool,
     on_audio: bool,
 ) -> TaskID {
-    // Lens 1 only: substitute the virtual-time block-period override for the
+    // Single-executor harnesses only: substitute the virtual-time block-period override for the
     // audio task's registered schedule — see `AUDIO_PERIOD_OVERRIDE_US`'s doc
     // comment. A no-op (`period_us`/`backoff_us` pass through unchanged) unless
-    // `set_audio_period_override_us` was called, which only Lens 1 ever does.
+    // `set_audio_period_override_us` was called, which only golden_vt_render's `render_song` does.
     #[cfg(not(target_os = "none"))]
     let (period_us, backoff_us) = if on_audio && AUDIO_OVERRIDE_SET.load(Ordering::Relaxed) {
         (
@@ -451,17 +452,6 @@ async fn task_runner(slot: &'static TaskSlot) {
 
         let resource = slot.resource.load(Ordering::Relaxed) as ResourceID;
 
-        // Hold off RESOURCE_SD_ROUTINE tasks while an SD-routine op is in flight on
-        // the worker (fiber.rs SD_ROUTINE_HELD). Mirrors the cooperative BSP's
-        // isSDRoutineActive() gate: a task that would free an object such an op is
-        // mid-way through (discardRecorder freeing the recorder) must not run. The
-        // counter lingers across the whole in-flight window (sd.rs `block_on_fiber`
-        // makes SD transfers actually yield), not just a synchronous
-        // run-to-completion instant, so this is the real hold-off.
-        if resource & RESOURCE_SD_ROUTINE != 0 && crate::fiber::sd_routine_held() {
-            continue;
-        }
-
         // Acquire the resource gate(s) the schedule asks for, held across the
         // (synchronous) handle so same-resource tasks can't overlap. (RESOURCE_SD
         // has no gate here — see the comment on `USB_GATE` above.)
@@ -486,11 +476,6 @@ async fn task_runner(slot: &'static TaskSlot) {
             // _usb gate released here, before the once-check and back-off.
         };
         slot.record(run_us);
-
-        // This task just made progress; if a worker-fiber op is suspended on a
-        // predicate that depends on it (cluster drain, button release, playback
-        // stop, ...), wake the pump to re-check. No-op when the worker is idle.
-        crate::fiber::wake_if_busy();
 
         if slot.once.load(Ordering::Relaxed) {
             break;
@@ -673,47 +658,33 @@ pub extern "C" fn startTaskManager() {}
 // ---------------------------------------------------------------------------
 // Cooperative yield (scheduler_api.h yield / yieldWithTimeout / yieldToIdle).
 //
-// The yielding operations (song load, stem export, grid clip create) run on the
-// worker fiber (see fiber.rs), so `yield()` suspends the fiber and the executor
-// runs everything else until the predicate holds. There is no off-fiber yield on
-// this BSP — all yielding ops are dispatched to the worker via deluge_worker_run —
-// so the off-fiber path is a defensive no-wait (it never busy-waits and never
-// hangs). The legacy `storage_wait.h` hooks (yieldingRoutine*ForSD) are gone here:
+// Nothing on this BSP suspends: the yielding operations (song load, stem export,
+// grid clip create) are stepped synchronously by their callers, so `yield*`
+// here is a defensive no-wait (it never busy-waits and never hangs). The legacy
+// `storage_wait.h` hooks (yieldingRoutine*ForSD) are gone here:
 // their only callers live in the legacy C HAL (src/RZA1 / src/bsp/rza1), which the
 // Embassy BSP does not link — SD goes through the async driver (sd.rs).
 // ---------------------------------------------------------------------------
 
-/// Defensive fallback when a `yield*` is somehow reached off the worker fiber
-/// (shouldn't happen — every yielding op is dispatched to the worker). Evaluates
-/// the predicate once and returns it; never waits, never hangs.
-fn off_fiber_yield(until: RunCondition) -> bool {
+/// The whole of `yield*` on this BSP: evaluates the predicate once and returns it;
+/// never waits, never hangs.
+fn poll_once(until: RunCondition) -> bool {
     // SAFETY: `until` is the C++ caller's predicate; calling it is benign polling.
     until.map_or(true, |p| unsafe { p() })
 }
 
 #[unsafe(export_name = "yield")]
 pub extern "C" fn r#yield(until: RunCondition) {
-    if crate::fiber::on_fiber() {
-        crate::fiber::yield_until(until, None);
-    } else {
-        off_fiber_yield(until);
-    }
+    poll_once(until);
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn yieldWithTimeout(until: RunCondition, timeout: f64) -> bool {
-    if crate::fiber::on_fiber() {
-        crate::fiber::yield_until(until, Some(secs_to_us(timeout)))
-    } else {
-        off_fiber_yield(until)
-    }
+    let _ = timeout;
+    poll_once(until)
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn yieldToIdle(until: RunCondition) -> bool {
-    if crate::fiber::on_fiber() {
-        crate::fiber::yield_until(until, None)
-    } else {
-        off_fiber_yield(until)
-    }
+    poll_once(until)
 }

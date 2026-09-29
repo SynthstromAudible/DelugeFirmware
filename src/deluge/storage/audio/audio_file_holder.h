@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "definitions_cxx.hpp"
+#include "storage/audio/audio_load_context.h"
 #include "util/c_string.h"
 
 class Sample;
@@ -45,8 +46,39 @@ public:
 	AudioFileHolder& operator=(AudioFileHolder const&) = delete;
 	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
 	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
+	/// @brief Acquisition: find the file at `filePath` (already set by the caller), in memory or on the card,
+	///        without binding it.
+	///
+	/// @param mayActuallyReadFile         false confines the lookup to files already resident in memory.
+	/// @param error                       Set to Error::NONE, then to the lookup's failure if it fails.
+	/// @param makeWaveTableWorkAtAllCosts Interpret the file as a wavetable even without its usual markers.
+	/// @param asyncMode                   As for loadFile().
+	/// @param context                     As for loadFile().
+	/// @return The file, not yet bound; or nullptr: this holder already has a file or names none, the file is not
+	///         in memory and the card may not be read, or the lookup failed (see @p error).
+	AudioFile* acquire(bool mayActuallyReadFile, Error* error, bool makeWaveTableWorkAtAllCosts = false,
+	                   deluge::storage::AsyncLoadMode asyncMode = deluge::storage::AsyncLoadMode::Blocking,
+	                   deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief Load the file at `filePath` (already set by the caller): acquire() it, then bind it with
+	///        setAudioFile() if one was found.
+	///
+	/// @param mayActuallyReadFile false confines the lookup to files already resident in memory -- see
+	///                            getAudioFileFromFilename's `mayReadCard`.
+	/// @param asyncMode           Whether a card miss may go to AudioFileManager::getAudioFileFromFilename's
+	///                            async loader instead of the blocking load. Forwarded straight through, same
+	///                            contract: only honoured for a Sample. A caller passing anything but Blocking
+	///                            MUST handle Error::LOAD_IN_PROGRESS -- returning to its own loop and asking
+	///                            again on a later tick, without re-requesting or reporting a failure.
+	///                            Defaulted to Blocking.
+	/// @param context             The load this file belongs to, as AudioFileManager::getAudioFileFromFilename
+	///                            takes it. Null for a file loaded on its own.
+	/// @return Error::NONE does not necessarily mean a file is now loaded -- see the two silent-miss
+	///         cases in the .cpp. Otherwise the failure, or Error::LOAD_IN_PROGRESS (not a failure --
+	///         see asyncMode).
 	Error loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-	               int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, bool makeWaveTableWorkAtAllCosts = false);
+	               int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, bool makeWaveTableWorkAtAllCosts = false,
+	               deluge::storage::AsyncLoadMode asyncMode = deluge::storage::AsyncLoadMode::Blocking,
+	               deluge::storage::AudioLoadContext* context = nullptr);
 	virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
 	std::string filePath{};

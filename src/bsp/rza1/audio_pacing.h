@@ -24,7 +24,7 @@
 /// size, and round to a multiple of 4 so the NEON render paths run full lanes.
 ///
 /// Pure and header-only so the host unit tests can exercise it bit-exactly
-/// (tests/unit/audio_pacing_tests.cpp); the BSP render driver (audio_io.cpp)
+/// (tests/unit/cpputest/audio_pacing_tests.cpp); the BSP render driver (audio_io.cpp)
 /// is its only firmware consumer.
 #ifndef BSP_RZA1_AUDIO_PACING_H
 #define BSP_RZA1_AUDIO_PACING_H
