@@ -310,6 +310,7 @@ pub fn set_audio_period_override_us(period_us: u64, backoff_us: u64) {
 /// Claim a free slot, populate it, and spawn its runner. Returns the slot index as
 /// the `TaskID`, or -1 if the table is full or the spawner is unavailable.
 fn claim(
+    name: *const core::ffi::c_char,
     handle: TaskHandle,
     condition: RunCondition,
     period_us: u64,
@@ -338,6 +339,10 @@ fn claim(
     // the cooperative thread executor.
     let use_audio = on_audio && audio_spawner().is_some();
     if !use_audio && spawner().is_none() {
+        log::error!(
+            "scheduler: task {:?} registered before the executor runs; it will never run",
+            task_name(name)
+        );
         return -1;
     }
     for (i, slot) in SLOTS.iter().enumerate() {
@@ -359,6 +364,10 @@ fn claim(
             // `Err` means the pool (== MAX_TASKS) is exhausted.
             let Ok(token) = task_runner(slot) else {
                 slot.used.store(false, Ordering::Release);
+                log::error!(
+                    "scheduler: no runner left for task {:?}; it will never run",
+                    task_name(name)
+                );
                 return -1;
             };
             if use_audio {
@@ -370,7 +379,24 @@ fn claim(
             return i as TaskID;
         }
     }
+    // A caller that ignores the -1 loses the task without a trace, and a missing task shows up only as whatever it
+    // drives going quiet: say which one, loudly.
+    log::error!(
+        "scheduler: the task table is full ({MAX_TASKS} slots); task {:?} will never run",
+        task_name(name)
+    );
     -1
+}
+
+/// A task's registered name, for the scheduler's errors.
+fn task_name(name: *const core::ffi::c_char) -> &'static str {
+    if name.is_null() {
+        return "<unnamed>";
+    }
+    // SAFETY: the app registers every task with a NUL-terminated string literal.
+    unsafe { core::ffi::CStr::from_ptr(name) }
+        .to_str()
+        .unwrap_or("<not UTF-8>")
 }
 
 fn slot_of(id: TaskID) -> Option<&'static TaskSlot> {
@@ -519,7 +545,7 @@ pub extern "C" fn addRepeatingTask(
     backOffTime: f64,
     targetTimeBetweenCalls: f64,
     _maxTimeBetweenCalls: f64,
-    _name: *const core::ffi::c_char,
+    name: *const core::ffi::c_char,
     resource: ResourceID,
 ) -> TaskID {
     // Priority 0 is the audio routine: route it to the preemptive audio
@@ -527,6 +553,7 @@ pub extern "C" fn addRepeatingTask(
     // can't starve it. All other priorities run cooperatively in thread mode.
     let on_audio = priority == 0;
     claim(
+        name,
         task,
         None,
         secs_to_us(targetTimeBetweenCalls),
@@ -543,10 +570,11 @@ pub extern "C" fn addOnceTask(
     task: TaskHandle,
     _priority: u8,
     timeToWait: f64,
-    _name: *const core::ffi::c_char,
+    name: *const core::ffi::c_char,
     resource: ResourceID,
 ) -> TaskID {
     claim(
+        name,
         task,
         None,
         secs_to_us(timeToWait),
@@ -563,10 +591,10 @@ pub extern "C" fn addConditionalTask(
     task: TaskHandle,
     _priority: u8,
     condition: RunCondition,
-    _name: *const core::ffi::c_char,
+    name: *const core::ffi::c_char,
     resource: ResourceID,
 ) -> TaskID {
-    claim(task, condition, 0, 0, resource, true, true, false)
+    claim(name, task, condition, 0, 0, resource, true, true, false)
 }
 
 #[unsafe(no_mangle)]

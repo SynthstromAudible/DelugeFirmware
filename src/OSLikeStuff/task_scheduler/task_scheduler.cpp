@@ -130,9 +130,16 @@ TaskID TaskManager::insertTaskToList(Task task) {
 	return index;
 };
 
+/// A caller that ignores the -1 loses the task without a trace, and a missing task shows up only as whatever it drives
+/// going quiet: say which one.
+static void reportTableFull(const char* name) {
+	D_PRINTLN("scheduler: the task table is full (%d slots); task %s will never run", kMaxTasks, name);
+}
+
 TaskID TaskManager::addRepeatingTask(TaskHandle task, TaskSchedule schedule, const char* name,
                                      ResourceChecker resources) {
 	if (numRegisteredTasks >= (kMaxTasks)) {
+		reportTableFull(name);
 		return -1;
 	}
 
@@ -145,6 +152,7 @@ TaskID TaskManager::addRepeatingTask(TaskHandle task, TaskSchedule schedule, con
 TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, Time timeToWait, const char* name,
                                 ResourceChecker resources) {
 	if (numRegisteredTasks >= (kMaxTasks)) {
+		reportTableFull(name);
 		return -1;
 	}
 	Time timeToStart = running ? getSecondsFromStart() : Time(0);
@@ -157,6 +165,7 @@ TaskID TaskManager::addOnceTask(TaskHandle task, uint8_t priority, Time timeToWa
 TaskID TaskManager::addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
                                        ResourceChecker resources) {
 	if (numRegisteredTasks >= (kMaxTasks)) {
+		reportTableFull(name);
 		return -1;
 	}
 	TaskID index = insertTaskToList(Task{task, priority, condition, name, resources});
