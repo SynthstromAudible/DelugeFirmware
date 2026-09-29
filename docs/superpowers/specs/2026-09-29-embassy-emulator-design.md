@@ -3,7 +3,8 @@
 Status: proposed 2026-09-29.
 - Moves `dbt sim` off the C host BSP (`src/bsp/host`) onto the Rust BSP's threaded host build (`deluge-bsp-rust`
   with `host_app`), the one the device ships and every Embassy gate runs.
-- Spans two repositories: the panel bridge belongs in deluge-sdk's `deluge_bsp`, and the rest in this one.
+- Spans two repositories. The simulator itself (window, panel bridge, audio pacing, runtime, card) goes in
+  deluge-sdk, for every project on the Deluge's hardware; this firmware keeps its glue (§4, Where it lives).
 
 ## 1. Why
 
@@ -63,6 +64,26 @@ Non-goals:
   golden_vt_render fills a memory disk from a directory (`memory_card.rs`); nothing writes it back.
 
 ## 4. Design
+
+### Where it lives
+
+A host-native simulator is useful to every project on the Deluge's hardware, not only this firmware. The firmware
+builds on `deluge_bsp` directly, beneath deluge-sdk's capability layer, which is why deluge-sdk's own simulator
+backend (`plat/sim.rs`) cannot serve it. Moving that backend down to `deluge_bsp` serves both. Everything general
+therefore goes in deluge-sdk, and the firmware keeps only its glue:
+
+| Piece | Repository |
+|---|---|
+| The window (`deluge-simulator`) and the panel/audio contract (`deluge-sim-link`) | deluge-sdk (exists) |
+| The panel bridge in `deluge_bsp`'s host arms, behind `sim-link` | deluge-sdk; `plat/sim.rs` calls it |
+| Audio pacing: render a block when the output ring has room, converting samples | deluge-sdk: `deluge_bsp::sim`, taking a render callback |
+| The runtime: panel and rings set up, the app's boot on worker threads, the GUI on the main thread | deluge-sdk: `__rt::host::run`, generalised to take a BSP-level project's boot |
+| The card: an image file, or a directory loaded into a memory disk and written back on exit | deluge-sdk: `deluge_bsp::sd` (golden_vt_render's loader moves there) |
+| MIDI queues | deluge-sdk (`deluge-sim-link`) |
+| The firmware's boot on the threaded host, its libdeluge C-ABI providers mapped onto the SDK's callbacks (`audio_host.rs` feeding `deluge_app_render`, the DIN MIDI port) | DelugeFirmware |
+| `dbt sim` | DelugeFirmware |
+
+The sections below describe each piece where it lives.
 
 ### The binary
 
@@ -131,13 +152,16 @@ for the new shape.
 
 ## 5. Steps
 
-1. **Panel out.** Add `deluge_bsp`'s `sim-link` feature with the display and outbound PIC helpers writing the panel,
-   and `deluge-bsp-rust`'s `sim` feature opening the window. The app boots, and the OLED and pads show its screens.
+1. **Panel out.** In deluge-sdk: add `deluge_bsp`'s `sim-link` feature with the display and outbound PIC helpers
+   writing the panel, and generalise `__rt::host::run` to take a BSP-level boot. `plat/sim.rs` moves onto both, and
+   deluge-sdk's own simulator apps must still run. In this repository: `deluge-bsp-rust`'s `sim` feature hands the
+   firmware's boot to the runtime. The app boots, and the OLED and pads show its screens.
 2. **Input.** PIC input bytes from panel events, and encoder deltas. Buttons, pads and encoders drive the UI.
 3. **Audio.** The real-time sink, with output and input. A song plays through the speakers.
 4. **MIDI.** The DIN providers on the panel's queues. A keyboard on the virtual port plays a synth.
-5. **Card.** `--card` with an image and with a directory (memory disk plus write-back). A song saved in the emulator
-   appears in the directory.
+5. **Card.** In deluge-sdk: `deluge_bsp::sd` loads a directory into the memory disk and writes it back, with
+   golden_vt_render's loader moved there. Here: `--card` with an image and with a directory. A song saved in the
+   emulator appears in the directory.
 6. **`dbt sim`.** Switch the task and retire its C-host path, and rewrite the doc.
 
 Each step is checked by running it. A host test covers what can be tested headlessly: panel input reaching
