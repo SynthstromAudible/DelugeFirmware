@@ -47,13 +47,6 @@ pub extern "C" fn _sbrk(incr: isize) -> *mut core::ffi::c_void {
 // --- BSP globals the app reads ---
 #[unsafe(no_mangle)]
 pub static mut anythingInitiallyAttachedAsUSBHost: u8 = 0;
-#[unsafe(no_mangle)]
-pub static mut triggerClockRisingEdgesReceived: u32 = 0;
-#[unsafe(no_mangle)]
-pub static mut triggerClockRisingEdgesProcessed: u32 = 0;
-/// uint32_t triggerClockRisingEdgeTimes[TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED].
-#[unsafe(no_mangle)]
-pub static mut triggerClockRisingEdgeTimes: [u32; 16] = [0; 16];
 
 // --- USB host/peripheral control (BSP) ---
 #[unsafe(no_mangle)]

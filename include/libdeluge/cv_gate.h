@@ -65,6 +65,12 @@ typedef void (*DelugeTriggerClockHandler)(uint64_t timestamp);
 /// Register (or clear, with NULL) the trigger-clock-in handler. [task]
 void deluge_trigger_clock_set_handler(DelugeTriggerClockHandler handler);
 
+#ifdef DELUGE_HOST
+/// Host harness only: deliver one trigger-clock rising edge, stamped @p stamp, to the installed handler.
+/// Defined only by the Rust BSP's `host_app` build; never in a device image.
+void deluge_trigger_clock_host_edge(uint64_t stamp);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

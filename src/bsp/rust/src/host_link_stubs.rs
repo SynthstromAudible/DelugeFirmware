@@ -87,6 +87,29 @@ pub extern "C" fn deluge_gate_set(channel: u8, on: bool) {
     stub_log!("deluge_gate_set");
 }
 
+/// The app's trigger-clock handler (0 = none), as `cv_gate.rs` keeps it on the device.
+static TRIGGER_HANDLER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_trigger_clock_set_handler(handler: crate::sys::DelugeTriggerClockHandler) {
+    TRIGGER_HANDLER.store(
+        handler.map_or(0, |f| f as usize),
+        core::sync::atomic::Ordering::Relaxed,
+    );
+}
+
+/// Host harness only: deliver one rising edge to the installed handler, as the device's trigger-clock task does.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_trigger_clock_host_edge(stamp: u64) {
+    let h = TRIGGER_HANDLER.load(core::sync::atomic::Ordering::Relaxed);
+    if h != 0 {
+        // SAFETY: h was stored from a valid DelugeTriggerClockHandler by the setter above.
+        let f: unsafe extern "C" fn(u64) = unsafe { core::mem::transmute(h) };
+        // SAFETY: the app's handler takes any stamp.
+        unsafe { f(stamp) };
+    }
+}
+
 // ── midi_io.h (+ signals.h's deluge_midi_gate_timer_pending) ────────────────
 
 #[unsafe(no_mangle)]

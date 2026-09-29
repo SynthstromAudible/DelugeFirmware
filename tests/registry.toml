@@ -627,6 +627,22 @@ tier = "nightly"
 runtime = "~1m"
 
 [[harness]]
+name = "clock-input"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "trigger-clock edges delivered through the BSP's handler, with analog auto-start on, must start playback (TC-INPUT), with none dropped when they arrive slower than PlaybackHandler::routine() runs. The input was dead while nothing installed the handler: the app polled globals that nothing wrote."
+scenario = "clock_input"
+markers = ["TC-INPUT"]
+result = "TC-RESULT failures=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~1m"
+
+[[harness]]
 name = "render-song"
 path = "."
 level = "integration"

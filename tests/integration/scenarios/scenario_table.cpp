@@ -24,6 +24,7 @@
 #include "scenarios/card_reinsert_scenario.h"
 #include "scenarios/clear_song_undo_scenario.h"
 #include "scenarios/clip_lifetime_scenario.h"
+#include "scenarios/clock_input_scenario.h"
 #include "scenarios/container_guard_scenario.h"
 #include "scenarios/document_save_channel_scenario.h"
 #include "scenarios/favourites_channel_scenario.h"
@@ -67,6 +68,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"clip_lifetime", &deluge_scenario_clip_lifetime_boot, &deluge_scenario_clip_lifetime_begin,
      &deluge_scenario_clip_lifetime_complete, &deluge_scenario_clip_lifetime_dispatch_step,
      &deluge_scenario_clip_lifetime_step_done, &deluge_scenario_clip_lifetime_failures},
+    {"clock_input", nullptr, &deluge_scenario_clock_input_begin, &deluge_scenario_clock_input_complete,
+     &deluge_scenario_clock_input_dispatch_step, &deluge_scenario_clock_input_step_done,
+     &deluge_scenario_clock_input_failures},
     {"container_guard", nullptr, &deluge_scenario_container_guard_begin, &deluge_scenario_container_guard_complete,
      &deluge_scenario_container_guard_dispatch_step, &deluge_scenario_container_guard_step_done,
      &deluge_scenario_container_guard_failures},

@@ -65,6 +65,7 @@
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/trigger_clock_input.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -119,10 +120,6 @@ PlaybackHandler::PlaybackHandler() {
 	skipMidiClocks = 0;
 }
 
-extern "C" uint32_t triggerClockRisingEdgeTimes[];
-extern "C" uint32_t triggerClockRisingEdgesReceived;
-extern "C" uint32_t triggerClockRisingEdgesProcessed;
-
 void PlaybackHandler::midiRoutine() {
 	if ((stemExport.processStarted && stemExport.renderOffline)) [[unlikely]] {
 		//  todo - should add the ability to block the task in the task manager instead but whatever
@@ -144,11 +141,8 @@ void PlaybackHandler::routine() {
 		return;
 	}
 	// Check analog clock input
-	if (triggerClockRisingEdgesProcessed != triggerClockRisingEdgesReceived) {
-		uint32_t time =
-		    triggerClockRisingEdgeTimes[triggerClockRisingEdgesProcessed & (TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED - 1)];
-		triggerClockRisingEdgesProcessed++;
-		analogClockRisingEdge(time);
+	if (const auto stamp = deluge::playback::triggerClockEdges.pop()) {
+		analogClockRisingEdge(*stamp);
 	}
 
 	// If we're playing synced to analog clock input, auto-start mode, and there hasn't been a rising edge for a while,
@@ -1912,7 +1906,10 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 
 		uint32_t thisTimePerInternalTick = timeLastInputTickTook * inputTicksPer / internalTicksPer;
 
-		veryCurrentTimePerInternalTickInverse = 2147483647 / ((thisTimePerInternalTick * 3) >> 1);
+		// Zero when two input ticks land before audioSampleTimer has advanced at all between them; clamped to
+		// avoid dividing by zero below.
+		const uint32_t divisor = std::max<uint32_t>((thisTimePerInternalTick * 3) >> 1, 1);
+		veryCurrentTimePerInternalTickInverse = 2147483647 / divisor;
 
 		// Lowpass
 		int32_t distanceToGo = thisTimePerInternalTick - lowpassedTimePerInternalTick;

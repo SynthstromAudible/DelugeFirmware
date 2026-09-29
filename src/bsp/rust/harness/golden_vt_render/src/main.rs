@@ -1597,10 +1597,18 @@ fn main() {
     // The card: a memory disk filled with the scenario's fixture tree (memory_card.rs), unless DELUGE_SD_IMAGE names a
     // file to use instead.
     // render_song and render_preset play as the device does: every block rendered on the audio tier after boot, one
-    // 128-frame block per 2,902 virtual microseconds. Both must be set before deluge_app_init registers the audio task.
+    // 128-frame block per 2,902 virtual microseconds, so their golden timing checks compare against the device's
+    // own audio period. Both must be set before deluge_app_init registers the audio task.
     if scenario == "render_song" || scenario == "render_preset" {
         audio_host::set_realtime_render(true);
         scheduler::set_audio_period_override_us(2902, 0);
+    }
+    // clock_input drives PlaybackHandler's analog-clock transport, whose input-tick arithmetic divides by the
+    // audio time elapsed since the previous edge (AudioEngine::audioSampleTimer): without real rendering that
+    // timer never advances between edges, and the division is by zero. Not the period override above -- this
+    // scenario has no golden timing to match, just needs the clock to move.
+    if scenario == "clock_input" {
+        audio_host::set_realtime_render(true);
     }
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {

@@ -27,6 +27,7 @@
 #include <string.h>
 // #include <algorithm>
 #include "playback/playback_handler.h"
+#include "playback/trigger_clock_input.h"
 
 CVEngine cvEngine{};
 
@@ -45,6 +46,7 @@ void CVEngine::init() {
 	// correctly).
 	deluge_cv_init(true);
 	deluge_gate_init();
+	deluge::playback::installTriggerClockInput();
 
 	// Switch all gate "off" to begin with - whatever "off" means
 	updateGateOutputs();
