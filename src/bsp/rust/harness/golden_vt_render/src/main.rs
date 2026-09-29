@@ -1574,9 +1574,9 @@ fn main() {
         .to_path_buf();
     // The card: a memory disk filled with the scenario's fixture tree (memory_card.rs), unless DELUGE_SD_IMAGE names a
     // file to use instead.
-    // render_song plays a song as the device does: every block rendered on the audio tier after boot, one 128-frame
-    // block per 2,902 virtual microseconds. Both must be set before deluge_app_init registers the audio task.
-    if scenario == "render_song" {
+    // render_song and render_preset play as the device does: every block rendered on the audio tier after boot, one
+    // 128-frame block per 2,902 virtual microseconds. Both must be set before deluge_app_init registers the audio task.
+    if scenario == "render_song" || scenario == "render_preset" {
         audio_host::set_realtime_render(true);
         scheduler::set_audio_period_override_us(2902, 0);
     }
@@ -1602,6 +1602,10 @@ fn main() {
                     std::path::PathBuf::from,
                 )))
             }
+            // The card tree run.py stages for one preset case; there is no fixture to fall back on.
+            "render_preset" => memory_card::install(Some(&std::path::PathBuf::from(
+                std::env::var_os("RENDER_TREE").expect("render_preset needs RENDER_TREE"),
+            ))),
             _ => memory_card::install(Some(&sd_image::golden_fixture_tree(&repo_root, &fixture))),
         }
     }

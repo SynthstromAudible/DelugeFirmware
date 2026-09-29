@@ -22,6 +22,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/oled.h"
 #include "model/note/note.h"
+#include "util/lookuptables/preset_tables.h"
 
 extern gui::menu_item::Submenu noteCustomIteranceRootMenu;
 

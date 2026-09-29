@@ -122,6 +122,10 @@ if (UNIX AND NOT APPLE)
     add_dependencies(deluge_rust_rs_sim deluge_rust_rs_sim_build)
 
     add_subdirectory(sample_reader)
+
+    # The synth library's specs (tests/dsp), shared with the ARM unit tree. Linux only: they assume the -m32 host build
+    # above, as the host sim does.
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../dsp dsp-next)
 elseif (APPLE)
     # macOS gets the umbrella staticlib too, because tests/unit/spec needs it: audio_file_format.cpp's
     # header parse IS the Rust decoder (crates/deluge_audio_format). Built for the DEFAULT host
@@ -154,7 +158,6 @@ add_subdirectory(io)
 add_subdirectory(host_passthrough)
 add_subdirectory(storage)
 add_subdirectory(audio_stream)
-add_subdirectory(dsp)
 add_subdirectory(sync)
 add_subdirectory(cpputest)
 

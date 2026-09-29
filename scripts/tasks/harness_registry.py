@@ -27,10 +27,13 @@ PROBES = {
     "cargo-nextest": "cargo install cargo-nextest (or taiki-e/install-action@nextest in CI)",
     "cargo-fuzz": "cargo install cargo-fuzz, and a nightly toolchain",
     "cmake": "install cmake and ninja",
+    "clang": "install clang -- the host app is built with it, as the firmware is",
     "clang-tsan": "install clang (ThreadSanitizer needs clang or a TSan-capable GCC)",
     "mtools": "apt install mtools -- fs_differential's fixtures are built with mformat",
     "qemu-arm": "apt install qemu-user",
-    "arm-linux-gnueabihf-gcc": "apt install g++-arm-linux-gnueabihf",
+    "arm-linux-gnueabihf-gcc": (
+        "apt install g++-arm-linux-gnueabihf -- clang builds for arm-linux against its sysroot, /usr/arm-linux-gnueabihf"
+    ),
     "song-corpus": (
         "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs, "
         "or have the golden fixtures already rebuilt in DELUGE_GOLDEN_DIR (default ~/.cache/deluge-golden)"
@@ -124,9 +127,12 @@ def load_registry(root: Path) -> list[Harness]:
                 raise ValueError(
                     f"{where}: a scenario gate is run from 'scenario', not 'build'/'run'"
                 )
-            if "golden-vt-render" not in item.get("builds", []):
+            if not {"golden-vt-render", "golden-vt-render-arm"} & set(
+                item.get("builds", [])
+            ):
                 raise ValueError(
-                    f"{where}: a scenario gate runs golden_vt_render, so builds must name golden-vt-render"
+                    f"{where}: a scenario gate runs golden_vt_render, so builds must name golden-vt-render "
+                    "(or golden-vt-render-arm)"
                 )
         elif not item.get("run"):
             raise ValueError(f"{where}: missing required field 'run'")
@@ -223,18 +229,15 @@ def probe(requirement: str, root: Path) -> bool:
             return (
                 shutil.which("cmake") is not None and shutil.which("ninja") is not None
             )
-        case "clang-tsan":
+        case "clang" | "clang-tsan":
             return shutil.which("clang++") is not None
         case "mtools":
             return shutil.which("mformat") is not None
         case "qemu-arm":
             return shutil.which("qemu-arm") is not None
         case "arm-linux-gnueabihf-gcc":
-            cxx = os.environ.get("CXX", "arm-linux-gnueabihf-g++")
-            return (
-                shutil.which(cxx) is not None
-                or shutil.which("arm-linux-gnueabihf-g++") is not None
-            )
+            # What the arm-linux builds use of it: the sysroot's C library and libstdc++, which clang links against.
+            return (Path("/usr/arm-linux-gnueabihf/include/stdio.h")).is_file()
         case "deluge-sdk-sibling":
             # A checkout of another repository beside this one, not a path
             # inside it -- hence `root.parent`.

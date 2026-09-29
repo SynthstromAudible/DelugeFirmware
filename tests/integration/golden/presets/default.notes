@@ -1,0 +1,4 @@
+# Default note script: hold C4 for ~1.1s, release, capture the tail.
+# Format: <frame> <hex MIDI bytes>; frames are offline-render sample offsets.
+4608 90 3C 64
+52000 80 3C 40

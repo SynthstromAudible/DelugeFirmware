@@ -25,11 +25,10 @@ FetchContent_MakeAvailable(CppUTest)
 file(GLOB_RECURSE deluge_SOURCES
         # Mock implementations
         mocks/*
-        # For LFO
+        # Shared string helper used across several unit tests
         ../../../src/deluge/util/c_string.cpp
         ../../../src/deluge/util/lookuptables.cpp
         ../../../src/deluge/util/waves.cpp
-        ../../../src/deluge/modulation/lfo.cpp
         # For value scaling
         ../../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests
@@ -43,7 +42,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # For clip iterator tests
         ../../../src/deluge/model/song/clip_iterators.cpp
         # For sync tests
-        ../../../src/deluge/model/sync.cpp
+        ../../../src/deluge/modulation/sync.cpp
         # For chord tests
         ../../../src/deluge/gui/ui/keyboard/chords.cpp
         # For clock output scheduler tests
@@ -105,7 +104,6 @@ add_executable(UnitTests
         mem_guard_tests.cpp
         audio_pacing_tests.cpp
         scheduler_tests.cpp
-        lfo_tests.cpp
         scale_tests.cpp
         value_scaling_tests.cpp
         clip_iterator_tests.cpp

@@ -55,11 +55,9 @@
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
-#include "modulation/envelope.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
-#include "processing/live/live_input_buffer.h"
 #include "processing/metronome/metronome.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -71,6 +69,8 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
+#include "synth/envelope.h"
+#include "synth/source/live/live_input_buffer.h"
 #include "util/boot.h"
 #include "util/functions.h"
 #include "util/misc.h"
@@ -95,6 +95,7 @@
 namespace params = deluge::modulation::params;
 
 using namespace deluge;
+using deluge::synth::LiveInputBuffer;
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
@@ -537,7 +538,8 @@ void init() {
 	        ->addParamCollectionSummary(paramManagerForSamplePreview->getPatchCableSetSummary());
 
 	((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
-	sampleForPreview->patcher.performInitialPatching(*sampleForPreview, *paramManagerForSamplePreview);
+	sampleForPreview->patcher.performInitialPatching(
+	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview));
 
 	sampleForPreview->sideChainSendLevel = 2147483647;
 
@@ -686,8 +688,8 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 		const Sound::ActiveVoice& voice = *best;
 
-		auto stage = voice->envelopes[0].state;
-		if (stage < EnvelopeStage::FAST_RELEASE) {
+		auto stage = voice->envelopes[0].stage();
+		if (stage < Envelope::Stage::FAST_RELEASE) {
 			D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
 			          getNumVoices(), getNumAudio());
 		}
@@ -1909,7 +1911,7 @@ void timeStretcherUnassigned(TimeStretcher* timeStretcher) {
 }
 
 // TODO: delete unused ones
-LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
+deluge::synth::LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate) {
 	const auto idx = ::util::to_underlying(inputType) - ::util::to_underlying(OscType::INPUT_L);
 	if (!liveInputBuffers[idx]) {
 		if (!mayCreate) {

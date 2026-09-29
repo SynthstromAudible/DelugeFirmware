@@ -61,8 +61,8 @@ const ZERO: DelugeStereoSample = DelugeStereoSample { l: 0, r: 0 };
 
 // Null-sink render scratch. Plain host statics (no SDRAM section on host —
 // that's a device linker-script concept); the app renders into RENDER_BLOCK
-// and reads INPUT_BLOCK (silence), and both are discarded/left as-is —
-// nothing downstream ever reads them.
+// reads INPUT_BLOCK: silence, unless a scenario arms the test input signal
+// (`deluge_host_test_input`). The render output is discarded unless captured.
 static mut RENDER_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
 static mut INPUT_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
 
@@ -235,6 +235,175 @@ pub fn render_after_boot() -> bool {
     *ON.get_or_init(|| std::env::var_os("DELUGE_RENDER_AFTER_BOOT").is_some_and(|v| v == "1"))
 }
 
+/// Frame the test input signal counts from, while it is armed; `u64::MAX` while it is not.
+static TEST_INPUT_ORIGIN: AtomicU64 = AtomicU64::new(u64::MAX);
+
+/// Arm (or disarm) the test input signal, with frame 0 at the current render position. C ABI for the scenario.
+///
+/// The signal feeds the INPUT_L/R/STEREO sources something to render: a sawtooth 128 frames long on the left and
+/// one 256 frames long on the right, both at full q31 scale and a pure function of the frame, so every run and
+/// architecture feeds the same samples. The channels differ so a render can tell them apart.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_test_input(on: bool) {
+    let origin = if on {
+        CURSOR.load(Ordering::Relaxed)
+    } else {
+        u64::MAX
+    };
+    TEST_INPUT_ORIGIN.store(origin, Ordering::Relaxed);
+}
+
+/// Fill INPUT_BLOCK for the block starting at `block_start`: the test signal while armed, else silence.
+fn fill_input_block(block_start: u64) {
+    let origin = TEST_INPUT_ORIGIN.load(Ordering::Relaxed);
+    // SAFETY: the render that reads INPUT_BLOCK has not started, and nothing else writes it (see the module doc).
+    let block = unsafe { &mut *addr_of_mut!(INPUT_BLOCK) };
+    for (i, s) in block.iter_mut().enumerate() {
+        *s = if origin == u64::MAX {
+            ZERO
+        } else {
+            let n = (block_start - origin + i as u64) as u32;
+            DelugeStereoSample {
+                l: n.wrapping_mul(0x0200_0000) as i32,
+                r: n.wrapping_mul(0x0100_0000) as i32,
+            }
+        };
+    }
+}
+
+/// A DIN MIDI note script: each event's bytes reach the app once the render has passed the event's frame, counted
+/// from the frame the script was armed at. What the synth golden masters play (`render_preset`).
+struct DinScript {
+    /// `(frame, bytes)`, in nondecreasing frame order.
+    events: Vec<(u64, Vec<u8>)>,
+    origin: u64,
+    next: usize,
+    byte: usize,
+}
+
+static DIN_SCRIPT: std::sync::Mutex<Option<DinScript>> = std::sync::Mutex::new(None);
+
+/// Parse a note script: one event per line, `<frame> <hex byte>...`, with `#` starting a comment. Frames must not
+/// decrease.
+fn parse_din_script(text: &str) -> Result<Vec<(u64, Vec<u8>)>, String> {
+    let mut events: Vec<(u64, Vec<u8>)> = Vec::new();
+    for (n, line) in text.lines().enumerate() {
+        let line = line.split('#').next().unwrap_or("");
+        let mut tokens = line.split_whitespace();
+        let Some(frame) = tokens.next() else {
+            continue;
+        };
+        let frame: u64 = frame
+            .parse()
+            .map_err(|_| format!("line {}: frame {frame:?} is not a number", n + 1))?;
+        let bytes = tokens
+            .map(|t| {
+                u8::from_str_radix(t, 16)
+                    .map_err(|_| format!("line {}: {t:?} is not a hex byte", n + 1))
+            })
+            .collect::<Result<Vec<u8>, String>>()?;
+        if bytes.is_empty() {
+            return Err(format!("line {}: an event with no bytes", n + 1));
+        }
+        if events.last().is_some_and(|(last, _)| frame < *last) {
+            return Err(format!(
+                "line {}: frame {frame} is before the event above it",
+                n + 1
+            ));
+        }
+        events.push((frame, bytes));
+    }
+    Ok(events)
+}
+
+/// Arm the note script at `path`, with frame 0 at the current render position. Returns the number of events, or -1
+/// when the script cannot be read or parsed (the reason is logged). C ABI for the scenario.
+///
+/// # Safety
+/// `path` is a NUL-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_host_midi_script_start(path: *const core::ffi::c_char) -> i32 {
+    // SAFETY: the caller passes a NUL-terminated path.
+    let path = unsafe { core::ffi::CStr::from_ptr(path) }
+        .to_string_lossy()
+        .into_owned();
+    let events = match std::fs::read_to_string(&path)
+        .map_err(|e| e.to_string())
+        .and_then(|text| parse_din_script(&text))
+    {
+        Ok(events) => events,
+        Err(e) => {
+            log::error!("note script {path}: {e}");
+            return -1;
+        }
+    };
+    let count = events.len() as i32;
+    *DIN_SCRIPT.lock().unwrap() = Some(DinScript {
+        events,
+        origin: CURSOR.load(Ordering::Relaxed),
+        next: 0,
+        byte: 0,
+    });
+    count
+}
+
+/// Events the app has read the whole of.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_midi_script_released() -> u32 {
+    DIN_SCRIPT
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map_or(0, |script| script.next as u32)
+}
+
+unsafe extern "C" {
+    /// The synth's random stream (util/waves.h): oscillator phases, noise and random modulation all draw from it.
+    static mut jcong: u32;
+}
+
+/// `jcong`'s value at boot (util/waves.cpp).
+const JCONG_BOOT_SEED: u32 = 380_116_160;
+
+/// The seed the script's first byte restarts the random stream from: `RENDER_RANDOM_SEED`, or the boot seed.
+/// Another seed measures how much a render depends on its random draws, as a re-baseline needs to know.
+fn script_random_seed() -> u32 {
+    static SEED: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *SEED.get_or_init(|| {
+        std::env::var("RENDER_RANDOM_SEED")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(JCONG_BOOT_SEED)
+    })
+}
+
+/// The next scripted DIN byte whose frame the render has passed, if any. What the host's
+/// `deluge_midi_din_read_timed` returns.
+///
+/// Handing over the script's first byte restarts the synth's random stream from its boot seed (or
+/// `RENDER_RANDOM_SEED`), so what a note's randomness sounds like depends on the script alone, not on how many
+/// random numbers boot and loading drew first.
+pub fn din_script_read() -> Option<u8> {
+    let mut guard = DIN_SCRIPT.lock().unwrap();
+    let script = guard.as_mut()?;
+    let (frame, bytes) = script.events.get(script.next)?;
+    if CURSOR.load(Ordering::Relaxed) - script.origin < *frame {
+        return None;
+    }
+    if script.next == 0 && script.byte == 0 {
+        // SAFETY: a plain store to an app global; the app reads it only on the tiers that run MIDI and the render,
+        // and this runs on the MIDI tier, before the byte that starts the first note is handed over.
+        unsafe { jcong = script_random_seed() };
+    }
+    let b = bytes[script.byte];
+    script.byte += 1;
+    if script.byte == bytes.len() {
+        script.byte = 0;
+        script.next += 1;
+    }
+    Some(b)
+}
+
 /// Total `deluge_audio_drive` calls observed so far (monotonic). Polled by
 /// `main.rs`'s `host_app` boot path to bound the post-boot concurrency soak by
 /// render-cycle count as well as wall-clock time.
@@ -294,6 +463,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
 
     let block_start = CURSOR.load(Ordering::Relaxed);
     BLOCK_START.store(block_start, Ordering::Relaxed);
+    fill_input_block(block_start);
 
     // SAFETY: single-threaded (see module doc) — no other task or ISR touches
     // RENDER_BLOCK/INPUT_BLOCK. Pointers cover exactly APP_BLOCK_FRAMES

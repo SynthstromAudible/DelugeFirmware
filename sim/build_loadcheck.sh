@@ -19,6 +19,13 @@
 # pr-tier harness job does not install.
 set -euo pipefail
 cd "$(dirname "$0")"
-cmake -S . -B build -DDELUGE_SIM_X64=ON
+# clang, as the firmware is built with (CC/CXX, which ./dbt test defaults to clang). A tree configured with another
+# compiler is rebuilt: CMake keeps the compiler a tree was first configured with.
+cc="${CC:-clang}"
+cxx="${CXX:-clang++}"
+if [[ -f build/CMakeCache.txt ]] && ! grep -q "^CMAKE_CXX_COMPILER:[A-Z]*=.*/$(basename "$cxx")\$" build/CMakeCache.txt; then
+	rm -rf build
+fi
+cmake -S . -B build -DDELUGE_SIM_X64=ON -DCMAKE_C_COMPILER="$cc" -DCMAKE_CXX_COMPILER="$cxx"
 # One job per core: the default Makefiles generator otherwise compiles one file at a time.
 cmake --build build --target deluge_loadcheck --parallel "$(nproc)"

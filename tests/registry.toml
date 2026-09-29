@@ -53,7 +53,7 @@ status = "gate"
 gates = "AudioFileManager::proposeLoadCandidates's candidate order/count (the alternate-dir-vs-regular-path policy a real load and the async loader share) and the load invariants (no half-built cache entry, no leaked AudioFile reason) must hold -- this is what caught the dropped-bare-name-candidate regression this entry exists to pin. Also gates the libdeluge/audio_load.h C ABI's build-ownership contract: deluge_audio_load_abandon() must actually release the adopted resource-manager chunk, not just free its wrapper, or repeated begin/abandon churn (as a browser cursor move that never lands would produce) exhausts the chunk table. And, in the collector, two recoveries that must not be confused: an alternate-dir hit is decided by candidate SLOT (so a file whose own directory IS the alternate dir still records loadedFromAlternatePath, which the collect-media copy-back depends on), and a full efatfs handle table reclaims unleased residents and asks again rather than probing the alternate dir like a candidate miss."
 build = ["./build_loadcheck.sh"]
 run = ["./build/deluge_loadcheck"]
-requires = []
+requires = ["clang"]
 tier = "pr"
 runtime = "~5m"
 
@@ -67,7 +67,7 @@ status = "gate"
 gates = "the Rust cluster fill must stay byte-identical to the C++ convert/stitch reference"
 build = ["cargo", "build", "--tests"]
 run = ["cargo", "test"]
-requires = ["cargo"]
+requires = ["cargo", "clang"]
 tier = "pr"
 runtime = "~1m"
 
@@ -206,7 +206,7 @@ status = "gate"
 gates = "the ARM/NEON DSP fast paths must be byte-identical to the portable host fallback"
 build = []
 run = ["./run.sh"]
-requires = ["arm-linux-gnueabihf-gcc", "qemu-arm"]
+requires = ["clang", "arm-linux-gnueabihf-gcc", "qemu-arm"]
 tier = "nightly"
 runtime = "~5m"
 
@@ -672,6 +672,40 @@ tier = "manual"
 runtime = "~30s"
 
 [[harness]]
+name = "golden-synth"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "differential"
+status = "gate"
+gates = "every synth golden master must render as recorded: each of the 336 corpus presets (tests/integration/golden/presets: synthesized cases for each oscillator, filter, envelope and modulation path, the factory and community preset packs, sample and wavetable playback, and live input) is loaded by the blank boot song, played by a DIN note script and rendered in real time on the audio tier, and its output is compared with its record in tests/integration/golden/presets.json (RP-PCM). A case fails if its preset did not replace the default synth (RP-LOADED), if the app did not read every scripted event (RP-MIDI), if CPU direness rose and the render took reduced-quality paths (RP-RENDER), if the render made a synchronous card call (RP-TIER-SYNC-AUDIO), or if it rendered silence (RP-SILENT). RENDER_PRESET_FILTER runs a subset; RENDER_PRESET_UPDATE=1 records instead of comparing."
+scenario = "render_preset"
+markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
+result = "RP-RESULT failures=0"
+check = "tests/integration/checks/render_preset.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~20s"
+
+[[harness]]
+name = "golden-synth-arm"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "differential"
+status = "gate"
+gates = "the synth golden masters on 32-bit ARM: every golden-synth case, rendered by golden_vt_render cross-built for armv7 Linux (the host app compiled by clang for a Cortex-A9 with NEON, as the firmware is) and run under qemu, must match the same records in tests/integration/golden/presets.json as the x86 build. x86 renders NEON code through SIMDe and ARM through the real instructions, so a difference is a vectorised kernel that does not compute what its portable form does, or code that depends on the word size."
+scenario = "render_preset"
+markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
+result = "RP-RESULT failures=0"
+check = "tests/integration/checks/render_preset.py"
+builds = ["golden-vt-render-arm"]
+requires = []
+tier = "nightly"
+runtime = "~1m"
+
+[[harness]]
 name = "streaming-margin"
 path = "."
 level = "integration"
@@ -735,7 +769,7 @@ source = "tests/unit"
 tree = "build/test-unit"
 configure = ["-G", "Ninja Multi-Config"]
 ctest_args = ["-C", "Debug"]
-requires = ["cmake"]
+requires = ["cmake", "clang"]
 tier = "pr"
 runtime = "~2m first build, ~5s after"
 
@@ -749,9 +783,8 @@ status = "gate"
 gates = "the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu: the NEON conversion kernels must match their scalar references bit for bit"
 source = "tests/unit-arm"
 tree = "build/test-unit-arm"
-configure = ["-G", "Ninja", "-DCMAKE_CROSSCOMPILING_EMULATOR=qemu-arm;-L;/usr/arm-linux-gnueabihf"]
-env_default = { CC = "arm-linux-gnueabihf-gcc", CXX = "arm-linux-gnueabihf-g++" }
-requires = ["cmake", "arm-linux-gnueabihf-gcc", "qemu-arm"]
+configure = ["-G", "Ninja"]
+requires = ["cmake", "clang", "arm-linux-gnueabihf-gcc", "qemu-arm"]
 tier = "pr"
 runtime = "~1m first build, ~5s after"
 
@@ -791,7 +824,7 @@ kind = "unit"
 status = "gate"
 gates = "deluge_sample_convert's tests: the sample format conversions, against the app C++ its build.rs compiles"
 run = ["cargo", "test"]
-requires = ["cargo"]
+requires = ["cargo", "clang"]
 tier = "pr"
 runtime = "~1m"
 

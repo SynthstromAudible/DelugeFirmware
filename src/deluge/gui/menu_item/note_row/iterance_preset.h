@@ -25,6 +25,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "util/lookuptables/preset_tables.h"
 
 extern gui::menu_item::Submenu noteRowCustomIteranceRootMenu;
 

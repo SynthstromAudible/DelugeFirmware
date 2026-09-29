@@ -133,8 +133,13 @@ def _load(root: Path) -> list[hr.Harness]:
         raise SystemExit(1) from exc
 
 
-def _base_environment(root: Path) -> dict[str, str]:
-    env = dict(os.environ)
+# The C and C++ compilers every test builds with unless its entry or the caller's environment names others: clang, as
+# the firmware is built with.
+COMPILER_DEFAULTS = {"CC": "clang", "CXX": "clang++"}
+
+
+def _base_environment(root: Path, compilers: bool = True) -> dict[str, str]:
+    env = {**(COMPILER_DEFAULTS if compilers else {}), **os.environ}
     env.setdefault("CARGO_TARGET_DIR", str(root / SHARED_TARGET_SUBDIR))
     return env
 
@@ -142,7 +147,12 @@ def _base_environment(root: Path) -> dict[str, str]:
 def _environment(
     root: Path, h: hr.Harness, products: dict[str, tb.Product]
 ) -> dict[str, str]:
-    env = dict(h.env_default, **_base_environment(root))
+    # The caller's environment wins over the entry's defaults, which win over the compiler defaults.
+    env = {
+        **COMPILER_DEFAULTS,
+        **h.env_default,
+        **_base_environment(root, compilers=False),
+    }
     for name in tb.order(h.builds, products):
         env.update(products[name].test_env)
     env.update(h.env)
@@ -218,7 +228,9 @@ def _steps(
 
     tree = root / h.tree
     steps = []
-    if tb.needs_configure(tree, root / h.source):
+    # The C++ compiler this tree is configured with, resolved as its environment is (see _environment).
+    cxx = os.environ.get("CXX") or h.env_default.get("CXX") or COMPILER_DEFAULTS["CXX"]
+    if tb.needs_configure(tree, root / h.source, Path(cxx).name):
         steps.append(
             (
                 "configure",
@@ -259,7 +271,13 @@ def _run_one(
             file=log if log is not None else sys.stdout,
             flush=True,
         )
-        binary = Path(env["CARGO_TARGET_DIR"]) / "release" / "golden_vt_render"
+        # A cross-built harness sits under its target triple (golden-vt-render-arm sets it).
+        binary = (
+            Path(env["CARGO_TARGET_DIR"])
+            / env.get("GOLDEN_VT_RENDER_TARGET", "")
+            / "release"
+            / "golden_vt_render"
+        )
         passed = scenario_gate.run_gate(
             root, h, env, binary, log if log is not None else sys.stdout
         )

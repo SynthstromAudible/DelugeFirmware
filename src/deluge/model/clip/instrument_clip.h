@@ -35,7 +35,10 @@ struct AcquireResult;
 struct AcquireWalkSpec;
 } // namespace deluge::storage
 class Drum;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class ParamManagerForTimeline;
 class Sound;
 class Note;

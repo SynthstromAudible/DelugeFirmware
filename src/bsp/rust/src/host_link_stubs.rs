@@ -5,8 +5,8 @@
 //! symbols that the real (device-only) `audio`/`cv_gate`/`midi`/`signals`
 //! modules provide on-target. Boot-and-idle never drives real peripheral I/O on
 //! host (no SSI/DMA rings, no PIC-shared RSPI0, no USB stack), so inert defaults
-//! are correct here; real host-side behaviour (virtual MIDI, WAV capture, …) is
-//! not yet implemented.
+//! are correct here. The exceptions are DIN input, which reads the note script a
+//! scenario arms (`audio_host.rs`), and audio capture, which `audio_host.rs` owns.
 //!
 //! Return values are chosen to match `src/bsp/host/host_bsp.c` / `host_audio.c`
 //! (the existing C host-stub BSP) wherever the boot path might actually read
@@ -135,8 +135,18 @@ pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_ticks: *mut u32) -> bool {
-    stub_log!("deluge_midi_din_read_timed");
-    false
+    // DIN input is a note script a scenario arms (audio_host.rs); nothing arrives without one.
+    let Some(b) = crate::audio_host::din_script_read() else {
+        return false;
+    };
+    // SAFETY: the app passes valid out-pointers (arrival_ticks may be null), as for the device's midi.rs.
+    unsafe {
+        *byte = b;
+        if !arrival_ticks.is_null() {
+            *arrival_ticks = embassy_time::Instant::now().as_ticks() as u32;
+        }
+    }
+    true
 }
 
 #[unsafe(no_mangle)]

@@ -21,7 +21,7 @@
 #include "extern.h"
 #include "io/file.hpp"
 #include "libdeluge/scheduler.h" // isSDRoutineActive()
-#include "model/sync.h"
+#include "modulation/sync.h"
 #include "util/firmware_version.h"
 
 #include <cstdint>

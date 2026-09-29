@@ -20,7 +20,7 @@
 #include "arm_neon_shim.h"
 
 #include "definitions_cxx.hpp"
-#include "dsp/interpolate/interpolate.h"
+#include "dsp-next/fixed/interpolation/interpolator.h"
 #include "libdeluge/sample_source.h"
 #include <array>
 #include <cstdint>
@@ -170,7 +170,7 @@ public:
 	uint8_t reassessmentAction{};
 	int8_t interpolationBufferSizeLastTime{}; // 0 if was previously switched off
 
-	deluge::dsp::Interpolator interpolator_{};
+	deluge::dsp::fixed::Interpolator interpolator_{};
 
 protected:
 	/// @name Residency cursor and its retained region

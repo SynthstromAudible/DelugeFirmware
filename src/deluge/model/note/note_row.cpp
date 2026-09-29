@@ -43,6 +43,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/lookuptables/preset_tables.h"
 #include "util/structural_edit_probe.h"
 #include <new>
 #include <string.h>
@@ -3854,7 +3855,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		}
 
 		if (clip->isActiveOnOutput()) {
-			soundDrum->patcher.performInitialPatching(*soundDrum, paramManager);
+			soundDrum->patcher.performInitialPatching(soundDrum->patchControlBlock(paramManager));
 		}
 	}
 

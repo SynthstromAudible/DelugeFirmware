@@ -1,0 +1,9 @@
+---
+# dsp-next uses snake_case for free functions — matching util/fixedpoint.h's
+# multiply_32x32_* convention and the STL — rather than the camelBack used for
+# class methods elsewhere in the tree. Class methods keep camelBack via the
+# inherited ClassMethodCase.
+InheritParentConfig: true
+CheckOptions:
+  - { key: readability-identifier-naming.FunctionCase, value: lower_case }
+---

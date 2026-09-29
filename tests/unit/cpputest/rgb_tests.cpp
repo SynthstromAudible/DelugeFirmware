@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "gui/colour/rgb.h"
+#include "hid/led/draw_square.h"
 #include "util/functions.h"
 
 namespace {
@@ -56,7 +57,7 @@ TEST_GROUP(DrawSquareTests){};
 
 TEST(DrawSquareTests, drawingOntoAnEmptySquareGivesTheColour) {
 	uint8_t occupancy = 0;
-	CHECK_RGB_NEAR(kRed, drawSquare(kRed, 65535, kBlack, &occupancy, 64), 1);
+	CHECK_RGB_NEAR(kRed, drawSquare(kRed, 65535, kBlack, &occupancy), 1);
 	CHECK_EQUAL(64, occupancy);
 }
 
@@ -64,15 +65,15 @@ TEST(DrawSquareTests, drawingAtZeroIntensityLeavesTheSquareAlone) {
 	// A source row landing exactly on a pad boundary contributes zero intensity to the neighbouring pad. That must
 	// leave the pad as it was; it used to wipe it to black.
 	uint8_t occupancy = 64;
-	CHECK_RGB_NEAR(kRed, drawSquare(kGreen, 0, kRed, &occupancy, 64), 1);
+	CHECK_RGB_NEAR(kRed, drawSquare(kGreen, 0, kRed, &occupancy), 1);
 }
 
 TEST(DrawSquareTests, overlappingContributionsAccumulate) {
 	// Two half-intensity sources landing on one pad must both show up. Discarding what was already there would
 	// leave only the last writer (pure green), which is what made animations drop colour mid-flight.
 	uint8_t occupancy = 0;
-	RGB square = drawSquare(kRed, 32768, kBlack, &occupancy, 64);
-	square = drawSquare(kGreen, 32768, square, &occupancy, 64);
+	RGB square = drawSquare(kRed, 32768, kBlack, &occupancy);
+	square = drawSquare(kGreen, 32768, square, &occupancy);
 
 	CHECK_RGB_NEAR(RGB(128, 128, 0), square, 1);
 	CHECK_EQUAL(64, occupancy);
@@ -82,7 +83,7 @@ TEST(DrawSquareTests, occupancySaturatesRatherThanWrapping) {
 	uint8_t occupancy = 0;
 	RGB square = kBlack;
 	for (int32_t i = 0; i < 8; i++) {
-		square = drawSquare(kRed, 65535, square, &occupancy, 64);
+		square = drawSquare(kRed, 65535, square, &occupancy);
 	}
 	CHECK_EQUAL(64, occupancy);
 	CHECK_RGB_NEAR(kRed, square, 1);

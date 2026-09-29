@@ -17,14 +17,20 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
-#include "model/action/action.h"
+#include "modulation/action/action_type.h" // ActionType (used as a default-argument value below)
 #include "modulation/params/param_node_vector.h"
-#include "storage/storage_manager.h"
 #include <cstdint>
 
+// model/action/action.h and storage/storage_manager.h are deliberately NOT included here: ActionType comes
+// from the leaf modulation/action/action_type.h, while Action / Serializer / Deserializer appear only as
+// method-parameter types below, so forward declarations suffice and the heavy includes live in
+// auto_param.cpp. This keeps AutoParam (and the synth core, which reaches it via ParamSet) off model/ and
+// storage/.
 class InstrumentClip;
 class ParamNode;
 class Action;
+class Serializer;
+class Deserializer;
 class ParamCollection;
 class Sound;
 class CopiedParamAutomation;
