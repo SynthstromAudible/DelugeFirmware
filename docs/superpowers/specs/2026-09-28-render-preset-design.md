@@ -1,6 +1,6 @@
 # The synth golden masters on the Embassy host
 
-Status: proposed 2026-09-28; steps 1 to 3 built the same day, step 4 on 2026-09-29 (§9).
+Status: built. Steps 1 to 3 on 2026-09-28, steps 4 and 5 on 2026-09-29 (§9).
 - Branch `merge/synth-golden-masters`, after the merge of `feat/synth-golden-masters` (8c0e55180).
 - Carries out §9 of the test layout spec (`2026-09-28-test-layout-and-runner-design.md`), with one change: the golden
   masters move to golden_vt_render instead of staying on the C-host sim.
@@ -225,6 +225,18 @@ unit tree (`unit-arm`, real NEON under qemu) stays the only ARM coverage of the 
          small;
        - the old code rendered `wavetable/sync` silent at 128-frame blocks.
 5. **ARM** (§8).
+   - [x] Built. `golden-synth-arm` (nightly) cross-builds golden_vt_render for `armv7-unknown-linux-gnueabihf` and
+         runs it under qemu. It links against `build/host-app-arm`, configured through
+         `sim/arm-linux-toolchain.cmake`.
+     - All 336 cases and `RP-LEARN` match the x86 records byte for byte. The gate takes about a minute from a clean
+       tree, and it fails when the renders change.
+     - Every host tree is built with clang now, the compiler the firmware ships with: the ARM toolchain file and the
+       x86 `build/host-app` both. The records and every other recorded output were unchanged by the switch.
+     - Getting there took three fixes:
+       - clang rejects three narrowing initializers in the voice code, which GCC only warns about;
+       - `FREEZE_WITH_ERROR` reached the device-only pad-grid reporter on any `__arm__` build;
+       - the device `build.rs` archived objects whose sources had moved, so the synth branch's relocated modulation
+         core linked twice. The shipping RelWithDebInfo image links again.
 
 ## 10. Open questions
 
