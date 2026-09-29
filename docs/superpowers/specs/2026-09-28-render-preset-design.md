@@ -77,7 +77,11 @@ Stages, each printing its evidence:
    preset came from `SYNTHS/PRESET.XML`, and not the default synth a failed load leaves behind. The C host could not
    report this: a failed load showed up only as a silent render.
 2. **Render.** Turn on real-time rendering, start capture and start the note script at the same frame, then render
-   until `RENDER_SECONDS` of frames are captured. `RP-RENDER blocks=<n>`, `RP-CAPTURE frames=<n>`.
+   until `RENDER_SECONDS` of frames are captured. `RP-RENDER blocks=<n> direness_max=<d>`, `RP-CAPTURE frames=<n>`.
+   `direness_max` must be 0. The fixtures are meant to capture full-quality paths, and the C host's first offline
+   driver did not: its 128-frame blocks pinned `cpuDireness` at 14 and culled voices every block, which is why it
+   moved to 32-frame blocks. golden_vt_render also renders 128-frame blocks, but at the device's cadence in virtual
+   time, and render_song reports `direness_max=0` there. This check keeps it that way.
 3. **Report.** `RP-MIDI released=<n> of=<m>`: every scripted event must have been read by the app before capture
    ends. `RP-TIER-SYNC-AUDIO total=<n>` must be 0. `RP-RESULT failures=<n>`.
 
