@@ -413,7 +413,15 @@ void Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
 		// The user got to the clip first. The delivery's cleanup deletes the preset, which was never added here.
 		return;
 	}
+	// replaceInstrument() hands the replaced Instrument's MIDI input to its replacement, which keeps a clip's input
+	// when the user changes its preset. The default synth has an input only if the user learned one before the preset
+	// arrived; otherwise the preset keeps the input it was saved with.
+	const bool defaultSynthHasInput = blankPresetInstrument->midiInput.containsSomething();
+	const LearnedMIDI presetInput = acquired.instrument->midiInput;
 	replaceInstrument(blankPresetInstrument, acquired.instrument);
+	if (!defaultSynthHasInput) {
+		acquired.instrument->midiInput = presetInput;
+	}
 	blankPresetInstrument = nullptr;
 	blankPresetClip = nullptr;
 }
