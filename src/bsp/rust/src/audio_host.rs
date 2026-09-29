@@ -61,8 +61,8 @@ const ZERO: DelugeStereoSample = DelugeStereoSample { l: 0, r: 0 };
 
 // Null-sink render scratch. Plain host statics (no SDRAM section on host —
 // that's a device linker-script concept); the app renders into RENDER_BLOCK
-// and reads INPUT_BLOCK (silence), and both are discarded/left as-is —
-// nothing downstream ever reads them.
+// reads INPUT_BLOCK: silence, unless a scenario arms the test input signal
+// (`deluge_host_test_input`). The render output is discarded unless captured.
 static mut RENDER_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
 static mut INPUT_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
 
@@ -235,6 +235,42 @@ pub fn render_after_boot() -> bool {
     *ON.get_or_init(|| std::env::var_os("DELUGE_RENDER_AFTER_BOOT").is_some_and(|v| v == "1"))
 }
 
+/// Frame the test input signal counts from, while it is armed; `u64::MAX` while it is not.
+static TEST_INPUT_ORIGIN: AtomicU64 = AtomicU64::new(u64::MAX);
+
+/// Arm (or disarm) the test input signal, with frame 0 at the current render position. C ABI for the scenario.
+///
+/// The signal feeds the INPUT_L/R/STEREO sources something to render: a sawtooth 128 frames long on the left and
+/// one 256 frames long on the right, both at full q31 scale and a pure function of the frame, so every run and
+/// architecture feeds the same samples. The channels differ so a render can tell them apart.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_test_input(on: bool) {
+    let origin = if on {
+        CURSOR.load(Ordering::Relaxed)
+    } else {
+        u64::MAX
+    };
+    TEST_INPUT_ORIGIN.store(origin, Ordering::Relaxed);
+}
+
+/// Fill INPUT_BLOCK for the block starting at `block_start`: the test signal while armed, else silence.
+fn fill_input_block(block_start: u64) {
+    let origin = TEST_INPUT_ORIGIN.load(Ordering::Relaxed);
+    // SAFETY: the render that reads INPUT_BLOCK has not started, and nothing else writes it (see the module doc).
+    let block = unsafe { &mut *addr_of_mut!(INPUT_BLOCK) };
+    for (i, s) in block.iter_mut().enumerate() {
+        *s = if origin == u64::MAX {
+            ZERO
+        } else {
+            let n = (block_start - origin + i as u64) as u32;
+            DelugeStereoSample {
+                l: n.wrapping_mul(0x0200_0000) as i32,
+                r: n.wrapping_mul(0x0100_0000) as i32,
+            }
+        };
+    }
+}
+
 /// A DIN MIDI note script: each event's bytes reach the app once the render has passed the event's frame, counted
 /// from the frame the script was armed at. What the synth golden masters play (`render_preset`).
 struct DinScript {
@@ -398,6 +434,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
 
     let block_start = CURSOR.load(Ordering::Relaxed);
     BLOCK_START.store(block_start, Ordering::Relaxed);
+    fill_input_block(block_start);
 
     // SAFETY: single-threaded (see module doc) — no other task or ISR touches
     // RENDER_BLOCK/INPUT_BLOCK. Pointers cover exactly APP_BLOCK_FRAMES

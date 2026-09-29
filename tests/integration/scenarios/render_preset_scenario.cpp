@@ -28,6 +28,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <string>
 
 // The app's printf.h aliases printf to an implementation that writes through putchar_, which only the C host BSP
@@ -42,6 +43,7 @@ void deluge_host_capture_start(void);
 uint64_t deluge_host_capture_stop(void);
 uint64_t deluge_host_render_count(void);
 int32_t deluge_host_midi_script_start(const char* path);
+void deluge_host_test_input(bool on);
 uint32_t deluge_host_midi_script_released(void);
 }
 
@@ -59,6 +61,7 @@ int32_t g_failures = 0;
 int32_t g_ticks = 0;
 
 std::string g_midiPath;
+bool g_testInput = false;
 uint64_t g_blocksWanted = 0;
 int32_t g_midiEvents = 0;
 
@@ -106,6 +109,7 @@ void stepStart() {
 			return;
 		}
 	}
+	deluge_host_test_input(g_testInput);
 	g_renderBase = deluge_host_render_count();
 	g_audioSyncBase = deluge_tier_sync_audio_total();
 	deluge_host_capture_start();
@@ -119,6 +123,7 @@ void stepCapturing() {
 	g_blocksRendered = deluge_host_render_count() - g_renderBase;
 	if (g_blocksRendered >= g_blocksWanted) {
 		g_captured = deluge_host_capture_stop();
+		deluge_host_test_input(false);
 		g_stage = Stage::Report;
 		return;
 	}
@@ -126,6 +131,7 @@ void stepCapturing() {
 	if (++g_ticks > static_cast<int64_t>(g_blocksWanted) * 2 + 1000) {
 		fail("RP-RENDER", "the render stopped short of the blocks asked for");
 		g_captured = deluge_host_capture_stop();
+		deluge_host_test_input(false);
 		g_stage = Stage::Report;
 	}
 }
@@ -146,7 +152,7 @@ void report() {
 	if (audioSync != 0) {
 		fail("RP-TIER-SYNC-AUDIO", "the render made a synchronous card call");
 	}
-	printf("RP-CAPTURE frames=%llu\n", static_cast<unsigned long long>(g_captured));
+	printf("RP-CAPTURE frames=%llu input=%d\n", static_cast<unsigned long long>(g_captured), g_testInput ? 1 : 0);
 	printf("RP-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;
 }
@@ -164,6 +170,8 @@ void deluge_scenario_render_preset_begin(void) {
 	g_direnessMax = 0;
 	g_voicesMax = 0;
 	g_captured = 0;
+	const char* input = std::getenv("RENDER_INPUT");
+	g_testInput = input != nullptr && std::strcmp(input, "1") == 0;
 	const char* midi = std::getenv("RENDER_MIDI");
 	g_midiPath = midi != nullptr ? midi : "";
 	const char* seconds = std::getenv("RENDER_SECONDS");

@@ -29,6 +29,8 @@
 ///   - `RENDER_MIDI`: the note script, `<frame> <hex bytes>` per line, frames counted from the start of capture.
 ///   - `RENDER_SECONDS`: how long to capture (default 2). Whole 128-frame blocks are captured, so the capture can run
 ///     up to a block past it.
+///   - `RENDER_INPUT`: `1` feeds the audio input the harness's test signal from the start of capture (see
+///     `audio_host.rs`), for presets whose sources read the input. Silence otherwise.
 ///   - `RENDER_PCM_OUT`: where the harness writes the captured output (see `audio_host.rs`).
 ///
 /// Lines:
@@ -41,7 +43,7 @@
 ///     sounding at once, and the highest CPU direness seen. A failure if direness rose at all: direness culls voices
 ///     and lowers quality, and the golden masters record full-quality renders.
 ///   - `RP-TIER-SYNC-AUDIO total=<n>`: synchronous card calls the render made; the audio tier must make none.
-///   - `RP-CAPTURE frames=<n>`: frames captured.
+///   - `RP-CAPTURE frames=<n> input=<0|1>`: frames captured, and whether the test input signal was fed.
 ///   - `RP-RESULT failures=<n>`.
 extern "C" {
 

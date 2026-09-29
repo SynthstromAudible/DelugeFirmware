@@ -1,6 +1,6 @@
 # The synth golden masters on the Embassy host
 
-Status: proposed 2026-09-28; step 1 built the same day (§9).
+Status: proposed 2026-09-28; steps 1 and 2 built the same day (§9).
 - Branch `merge/synth-golden-masters`, after the merge of `feat/synth-golden-masters` (8c0e55180).
 - Carries out §9 of the test layout spec (`2026-09-28-test-layout-and-runner-design.md`), with one change: the golden
   masters move to golden_vt_render instead of staying on the C-host sim.
@@ -178,6 +178,10 @@ unit tree (`unit-arm`, real NEON under qemu) stays the only ARM coverage of the 
        2644 in 16-bit terms, against the record's 4771. Step 4 finds out why.
 2. **Input.** Add the test input signal. Show that the three `input_*` cases render non-silent and differ from
    silence-in.
+   - [x] Built (`deluge_host_test_input`, armed on capture's first frame when `RENDER_INPUT=1`).
+     - With the signal, the three cases render at -23.14, -24.72 and -23.15 dB, three distinct renders. Without
+       it they fall to -141 dB.
+     - Each RMS level is within 0.02 dB of its C-host record (-23.12, -24.72, -23.13).
 3. **The gate.** Move the corpus, add `render_preset.py` and the registry entries, and retire run.py. Record the
    provisional hashes, which the next step either confirms or replaces.
 4. **Evidence and re-record** (§7).
