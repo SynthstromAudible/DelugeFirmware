@@ -211,6 +211,8 @@ block-device-adapters = { path = "../../../crates/block-device-adapters", option
 aligned = { version = "0.4", optional = true }
 embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"], optional = true }
 embedded-io-async = { version = "0.7.0", optional = true }
+# The desktop simulator window, for `sim` (`dbt sim`): the firmware runs as its brain, in the same process.
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "a58edba01a7608d08b28d6f0dd0e77a8f35b3661", optional = true }
 
 [features]
 default = ["rtt", "async_streaming_loader", "efatfs_streaming"]
@@ -237,6 +239,11 @@ host_app = [
     "dep:embedded-fatfs",
     "dep:embedded-io-async",
 ]
+
+## The emulator (`dbt sim`): the threaded host app runs as the brain of deluge-sdk's desktop simulator, in one
+## process, and `deluge_bsp`'s host arms drive the simulator's panel. See
+## docs/superpowers/specs/2026-09-29-embassy-emulator-design.md.
+sim = ["host_app", "dep:deluge-simulator", "deluge-bsp/sim-link"]
 
 ## SP1a: build the single-owner `embedded-fatfs` mount (`efatfs_fs.rs`) — one
 ## `FileSystem` behind an async `Mutex`. Off by default; nothing calls

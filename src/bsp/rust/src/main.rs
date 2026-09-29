@@ -873,6 +873,21 @@ fn main() {
         log::info!("deluge-bsp-rust: sd round-trip OK (sector {TEST_SECTOR}, 512 bytes)");
     }
 
+    // --- The emulator (`sim`) ---------------------------------------------
+    // The threaded host app as the brain of deluge-sdk's desktop simulator, in this process. The simulator makes
+    // the panel and the audio bridge and owns the main thread; the brain hands them to deluge_bsp, whose host arms
+    // then drive the panel exactly where the device's drive the PIC and the OLED, and starts the same three
+    // executor threads the boot smoke below starts. When the window closes the app is still running, so the
+    // process ends through `hard_exit` for the reason it does below.
+    #[cfg(feature = "sim")]
+    {
+        deluge_simulator::run_brain(|panel, audio| {
+            deluge_bsp::sim::install(panel, audio);
+            start_threaded_host(|_| {});
+        });
+        hard_exit(0);
+    }
+
     // --- Whole-BSP host boot smoke (no C++ app; `host_app` OFF) ------------
     // Bring up a host Embassy executor (platform-std) and spawn the four
     // control/display tasks — the same ones main.rs spawns on device (minus the
@@ -932,10 +947,8 @@ fn main() {
     // slot claimed" is the strongest cheap, real-app-driven signal that boot
     // reached the scheduler (not just BSP init); `oled_render`'s captured first
     // frame (same signal the whole-BSP smoke above uses) is the fallback.
-    #[cfg(feature = "host_app")]
+    #[cfg(all(feature = "host_app", not(feature = "sim")))]
     {
-        use embassy_executor::{Executor, Spawner};
-        use std::sync::{Arc, Barrier};
         use std::time::{Duration, Instant};
 
         // --- Streaming-underrun harness: opt-in scenario mode --------------
@@ -1057,184 +1070,35 @@ fn main() {
                 .and_then(|s| s.parse().ok())
                 .unwrap_or(5_000);
 
-        // --- Second host executor thread for the audio task ----------------
-        // Device routes the priority-0 (audio) task onto `AUDIO_EXEC`, a
-        // preemptive GIC-SGI interrupt-executor (see `main`, above), so it runs
-        // concurrently with — and can preempt — the main thread executor. Host
-        // has no interrupt context to stand in for that, so a dedicated
-        // `std::thread` running its own platform-std `Executor` is the host
-        // analogue: real OS-thread preemption instead of an SGI, but the same
-        // "audio is not cooperatively scheduled alongside everything else"
-        // property (races enumerated under TSan — this task only needs a
-        // functional two-thread boot).
-        //
-        // Ordering barrier: exactly like the device (`set_audio_spawner` is
-        // called *before* the main executor's closure spawns `app_task`, which
-        // reaches `registerTasks()`), the main thread here must not let
-        // `host_app_task` call `deluge_app_init` until `scheduler::AUDIO_SPAWNER`
-        // is `Some` — otherwise `scheduler::claim`'s `use_audio` check races
-        // `registerTasks()`'s `addRepeatingTask(priority 0)` and the audio task
-        // silently falls back to the cooperative main-thread spawner instead of
-        // routing to this thread. A two-party `Barrier` makes the rendezvous
-        // synchronous: the audio thread reaches its side immediately after
-        // `set_audio_spawner`, the main thread reaches its side immediately
-        // before spawning the host-app executor thread below.
-        // This host runs audio, streaming and the app on three real OS threads, so a `Pending`
-        // storage future here is satisfied by ANOTHER THREAD rather than by nothing —
-        // `streaming_fill_task` holds the FS mutex across its SD await on its own thread, so
-        // cross-thread contention is the normal case. Install the yielding hook before any
-        // thread can issue a transfer, or `sim_block::block_on`'s default no-hook verdict would
-        // call a normally-contended read a wedge (its budget is under a millisecond of
-        // spinning). See `sim_block::use_threaded_host_hook` for the trade this accepts.
-        crate::sim_block::use_threaded_host_hook();
-
-        let audio_spawner_ready = Arc::new(Barrier::new(2));
-        let audio_thread_barrier = Arc::clone(&audio_spawner_ready);
-        std::thread::Builder::new()
-            .name("deluge-audio".into())
-            .spawn(move || {
-                let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
-                executor.run(|spawner: Spawner| {
-                    // sim_latency harness only: spawned HERE — on this separate OS
-                    // thread's executor, not the host-app executor's — deliberately.
-                    // `deluge_app_init` (called synchronously from
-                    // `host_app_task` below) can itself issue a `sim_latency`-modeled
-                    // transfer (e.g. the boot-time FatFS mount read) via a plain
-                    // `block_on`, which hijacks its OS thread with a busy poll loop
-                    // and never yields back to that thread's executor — so a `pump`
-                    // spawned on the SAME (host-app) executor would never get polled
-                    // and the transfer would spin forever. `pump` only touches
-                    // cross-thread-safe primitives (`Signal`/`AtomicWaker` over
-                    // `CriticalSectionRawMutex`, `embassy_time::Timer` off the shared
-                    // std time driver — see sd.rs's module doc), so running it on this
-                    // independent thread lets it keep making progress while the
-                    // host-app thread is busy-spinning.
-                    #[cfg(feature = "sim_latency")]
-                    spawner.spawn(crate::sd::sim_latency::pump().unwrap());
-                    crate::scheduler::set_audio_spawner(spawner.make_send());
-                    log::info!(
-                        "deluge-bsp-rust: host audio executor up on thread {:?} — set_audio_spawner done",
-                        std::thread::current().name()
-                    );
-                    // Release the main thread, which was waiting on this before
-                    // proceeding to deluge_app_init. `Executor::run`'s closure
-                    // then returns and the executor blocks polling forever —
-                    // once `registerTasks()` spawns the priority-0 task onto the
-                    // stashed `SendSpawner` it runs right here, on this thread.
-                    audio_thread_barrier.wait();
-                });
-            })
-            .expect("spawning the host audio executor thread");
-
-        // Do not proceed to spawn the host-app executor (whose `host_app_task`
-        // calls `deluge_app_init`) until the audio thread has stashed its
-        // spawner.
-        audio_spawner_ready.wait();
-
-        // --- Third host executor thread for the streaming fill task ------------
-        // Device runs the fill task on `STREAM_EXEC`, a preemptive interrupt executor at a
-        // priority between audio and thread mode. Host has no interrupt context, so a
-        // dedicated `std::thread` with its own executor is the analogue — real OS-thread
-        // preemption instead of an SGI, with the property that matters preserved: a
-        // non-yielding storage spin on the app thread cannot starve the fill task, which
-        // holds the FS mutex across its SD await.
-        //
-        // Mutual exclusion needs nothing new. `deluge_in_audio_context()` is always false on
-        // host, so every thread — this one included — masks, and the global
-        // critical-section mutex serializes all three (see `deluge_resource::sync`'s module
-        // doc).
-        //
-        // Same barrier rationale as the audio thread above: the loader queue must have an
-        // owner before `host_app_task` reaches `deluge_app_init`, or the enqueues its boot
-        // performs sit undrained until some later `FILL_WAKE` happens to arrive.
-        //
-        // "Owner exists" is all the barrier buys, and all it should: the fill task's first act
-        // is to wait on `FILL_WAKE`, deliberately BEFORE constructing `ProdOps`, because that
-        // constructor reads app state `deluge_app_init` is still writing. See
-        // `streaming_fill_task`'s doc — constructing it any earlier races `Cluster::set_size`
-        // exactly that way, and TSan reports it.
-        //
-        // The audio-file load task shares this thread for the same reason it shares
-        // `STREAM_EXEC` on device: it too holds the FS mutex across an SD await, so it must not
-        // live where a non-yielding storage spin could starve it. See `audio_loader`'s module
-        // doc.
-        {
-            let stream_ready = Arc::new(Barrier::new(2));
-            let stream_barrier = Arc::clone(&stream_ready);
-            std::thread::Builder::new()
-                .name("deluge-stream".into())
-                .spawn(move || {
-                    let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
-                    executor.run(|spawner: Spawner| {
-                        #[cfg(feature = "async_streaming_loader")]
-                        spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
-                        spawner.spawn(audio_loader::audio_load_task().unwrap());
-                        spawner.spawn(file_prefix::file_prefix_task().unwrap());
-                        spawner.spawn(file_directory::file_directory_task().unwrap());
-                        spawner.spawn(file_bytes::file_bytes_task().unwrap());
-                        spawner.spawn(file_write::file_write_task().unwrap());
-                        log::info!(
-                            "deluge-bsp-rust: host streaming executor up on thread {:?}",
-                            std::thread::current().name()
-                        );
-                        stream_barrier.wait();
-                    });
-                })
-                .expect("spawning the host streaming executor thread");
-            stream_ready.wait();
-        }
-
-        std::thread::Builder::new()
-            .name("deluge-bsp-host-app".into())
-            .spawn(move || {
-                let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
-                executor.run(|spawner: Spawner| {
-                    crate::scheduler::set_spawner(spawner);
-                    spawner.spawn(control::pic_pump().unwrap());
-                    spawner.spawn(control::pad_render().unwrap());
-                    spawner.spawn(control::encoder_wake_pump().unwrap());
-                    spawner.spawn(display::oled_render().unwrap());
-                    // NOTE: `sim_latency::pump` is deliberately NOT spawned on this
-                    // executor — see the audio-thread executor closure above for why
-                    // (this thread's `host_app_task` calls `deluge_app_init`
-                    // synchronously, which can itself busy-spin a
-                    // `block_on`'d sim_latency transfer and would starve a
-                    // same-thread `pump`).
-                    spawner.spawn(host_app_task().unwrap());
-                    // The async cluster-fill task is not spawned here: it owns the
-                    // `"deluge-stream"` thread above, mirroring the device's STREAM_EXEC. A
-                    // non-yielding storage spin on THIS thread — the one `host_app_task` and
-                    // the C++ enqueue path run on — must not be able to starve it.
-                    // Streaming-underrun harness: spawned on THIS executor —
-                    // the same one `host_app_task` runs on —
-                    // so `scenario::run`'s C-ABI calls interleave cooperatively with
-                    // the real app's own task graph, exactly like a real HID event
-                    // handler would (see scenario.rs's module doc: it never spawns a
-                    // thread itself).
-                    if let Some(cfg) = scenario_cfg {
-                        spawner.spawn(crate::scenario::scenario_task(cfg).unwrap());
-                    }
-                    if recorder_probe_requested {
-                        spawner.spawn(
-                            crate::recorder_probe::recorder_probe_task(
-                                recorder_probe_step_timeout_ms,
-                                recorder_probe_poll_window_ms,
-                            )
-                            .unwrap(),
-                        );
-                    }
-                    if recorder_finalize_probe_requested {
-                        spawner.spawn(
-                            crate::recorder_finalize_probe::recorder_finalize_probe_task(
-                                recorder_finalize_probe_step_timeout_ms,
-                                recorder_finalize_probe_poll_window_ms,
-                            )
-                            .unwrap(),
-                        );
-                    }
-                });
-            })
-            .expect("spawning the host app executor thread");
+        start_threaded_host(move |spawner| {
+            // Streaming-underrun harness: spawned on THIS executor —
+            // the same one `host_app_task` runs on —
+            // so `scenario::run`'s C-ABI calls interleave cooperatively with
+            // the real app's own task graph, exactly like a real HID event
+            // handler would (see scenario.rs's module doc: it never spawns a
+            // thread itself).
+            if let Some(cfg) = scenario_cfg {
+                spawner.spawn(crate::scenario::scenario_task(cfg).unwrap());
+            }
+            if recorder_probe_requested {
+                spawner.spawn(
+                    crate::recorder_probe::recorder_probe_task(
+                        recorder_probe_step_timeout_ms,
+                        recorder_probe_poll_window_ms,
+                    )
+                    .unwrap(),
+                );
+            }
+            if recorder_finalize_probe_requested {
+                spawner.spawn(
+                    crate::recorder_finalize_probe::recorder_finalize_probe_task(
+                        recorder_finalize_probe_step_timeout_ms,
+                        recorder_finalize_probe_poll_window_ms,
+                    )
+                    .unwrap(),
+                );
+            }
+        });
 
         // Bounded watchdog: boot must never hang forever. ~20s is generous for
         // a host process (no real hardware waits), but the real app's boot
@@ -1534,6 +1398,170 @@ fn main() {
 
     #[cfg(not(feature = "host_app"))]
     log::info!("deluge-bsp-rust: HOST harness OK");
+}
+
+/// Start the threaded host app: the audio, streaming and app executors, each on its own OS thread, brought up in
+/// the order the device brings up its executors (each thread's comment says why its order matters). The app
+/// executor spawns the control and display tasks and `host_app_task`, which boots the C++ app, then runs `extra`
+/// for the caller's own tasks. Returns once all three threads are running.
+#[cfg(feature = "host_app")]
+fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 'static) {
+    use embassy_executor::{Executor, Spawner};
+    use std::sync::{Arc, Barrier};
+
+    // --- Second host executor thread for the audio task ----------------
+    // Device routes the priority-0 (audio) task onto `AUDIO_EXEC`, a
+    // preemptive GIC-SGI interrupt-executor (see `main`, above), so it runs
+    // concurrently with — and can preempt — the main thread executor. Host
+    // has no interrupt context to stand in for that, so a dedicated
+    // `std::thread` running its own platform-std `Executor` is the host
+    // analogue: real OS-thread preemption instead of an SGI, but the same
+    // "audio is not cooperatively scheduled alongside everything else"
+    // property (races enumerated under TSan — this task only needs a
+    // functional two-thread boot).
+    //
+    // Ordering barrier: exactly like the device (`set_audio_spawner` is
+    // called *before* the main executor's closure spawns `app_task`, which
+    // reaches `registerTasks()`), the main thread here must not let
+    // `host_app_task` call `deluge_app_init` until `scheduler::AUDIO_SPAWNER`
+    // is `Some` — otherwise `scheduler::claim`'s `use_audio` check races
+    // `registerTasks()`'s `addRepeatingTask(priority 0)` and the audio task
+    // silently falls back to the cooperative main-thread spawner instead of
+    // routing to this thread. A two-party `Barrier` makes the rendezvous
+    // synchronous: the audio thread reaches its side immediately after
+    // `set_audio_spawner`, the main thread reaches its side immediately
+    // before spawning the host-app executor thread below.
+    // This host runs audio, streaming and the app on three real OS threads, so a `Pending`
+    // storage future here is satisfied by ANOTHER THREAD rather than by nothing —
+    // `streaming_fill_task` holds the FS mutex across its SD await on its own thread, so
+    // cross-thread contention is the normal case. Install the yielding hook before any
+    // thread can issue a transfer, or `sim_block::block_on`'s default no-hook verdict would
+    // call a normally-contended read a wedge (its budget is under a millisecond of
+    // spinning). See `sim_block::use_threaded_host_hook` for the trade this accepts.
+    crate::sim_block::use_threaded_host_hook();
+
+    let audio_spawner_ready = Arc::new(Barrier::new(2));
+    let audio_thread_barrier = Arc::clone(&audio_spawner_ready);
+    std::thread::Builder::new()
+        .name("deluge-audio".into())
+        .spawn(move || {
+            let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
+            executor.run(|spawner: Spawner| {
+                // sim_latency harness only: spawned HERE — on this separate OS
+                // thread's executor, not the host-app executor's — deliberately.
+                // `deluge_app_init` (called synchronously from
+                // `host_app_task` below) can itself issue a `sim_latency`-modeled
+                // transfer (e.g. the boot-time FatFS mount read) via a plain
+                // `block_on`, which hijacks its OS thread with a busy poll loop
+                // and never yields back to that thread's executor — so a `pump`
+                // spawned on the SAME (host-app) executor would never get polled
+                // and the transfer would spin forever. `pump` only touches
+                // cross-thread-safe primitives (`Signal`/`AtomicWaker` over
+                // `CriticalSectionRawMutex`, `embassy_time::Timer` off the shared
+                // std time driver — see sd.rs's module doc), so running it on this
+                // independent thread lets it keep making progress while the
+                // host-app thread is busy-spinning.
+                #[cfg(feature = "sim_latency")]
+                spawner.spawn(crate::sd::sim_latency::pump().unwrap());
+                crate::scheduler::set_audio_spawner(spawner.make_send());
+                log::info!(
+                    "deluge-bsp-rust: host audio executor up on thread {:?} — set_audio_spawner done",
+                    std::thread::current().name()
+                );
+                // Release the main thread, which was waiting on this before
+                // proceeding to deluge_app_init. `Executor::run`'s closure
+                // then returns and the executor blocks polling forever —
+                // once `registerTasks()` spawns the priority-0 task onto the
+                // stashed `SendSpawner` it runs right here, on this thread.
+                audio_thread_barrier.wait();
+            });
+        })
+        .expect("spawning the host audio executor thread");
+
+    // Do not proceed to spawn the host-app executor (whose `host_app_task`
+    // calls `deluge_app_init`) until the audio thread has stashed its
+    // spawner.
+    audio_spawner_ready.wait();
+
+    // --- Third host executor thread for the streaming fill task ------------
+    // Device runs the fill task on `STREAM_EXEC`, a preemptive interrupt executor at a
+    // priority between audio and thread mode. Host has no interrupt context, so a
+    // dedicated `std::thread` with its own executor is the analogue — real OS-thread
+    // preemption instead of an SGI, with the property that matters preserved: a
+    // non-yielding storage spin on the app thread cannot starve the fill task, which
+    // holds the FS mutex across its SD await.
+    //
+    // Mutual exclusion needs nothing new. `deluge_in_audio_context()` is always false on
+    // host, so every thread — this one included — masks, and the global
+    // critical-section mutex serializes all three (see `deluge_resource::sync`'s module
+    // doc).
+    //
+    // Same barrier rationale as the audio thread above: the loader queue must have an
+    // owner before `host_app_task` reaches `deluge_app_init`, or the enqueues its boot
+    // performs sit undrained until some later `FILL_WAKE` happens to arrive.
+    //
+    // "Owner exists" is all the barrier buys, and all it should: the fill task's first act
+    // is to wait on `FILL_WAKE`, deliberately BEFORE constructing `ProdOps`, because that
+    // constructor reads app state `deluge_app_init` is still writing. See
+    // `streaming_fill_task`'s doc — constructing it any earlier races `Cluster::set_size`
+    // exactly that way, and TSan reports it.
+    //
+    // The audio-file load task shares this thread for the same reason it shares
+    // `STREAM_EXEC` on device: it too holds the FS mutex across an SD await, so it must not
+    // live where a non-yielding storage spin could starve it. See `audio_loader`'s module
+    // doc.
+    {
+        let stream_ready = Arc::new(Barrier::new(2));
+        let stream_barrier = Arc::clone(&stream_ready);
+        std::thread::Builder::new()
+            .name("deluge-stream".into())
+            .spawn(move || {
+                let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
+                executor.run(|spawner: Spawner| {
+                    #[cfg(feature = "async_streaming_loader")]
+                    spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
+                    spawner.spawn(audio_loader::audio_load_task().unwrap());
+                    spawner.spawn(file_prefix::file_prefix_task().unwrap());
+                    spawner.spawn(file_directory::file_directory_task().unwrap());
+                    spawner.spawn(file_bytes::file_bytes_task().unwrap());
+                    spawner.spawn(file_write::file_write_task().unwrap());
+                    log::info!(
+                        "deluge-bsp-rust: host streaming executor up on thread {:?}",
+                        std::thread::current().name()
+                    );
+                    stream_barrier.wait();
+                });
+            })
+            .expect("spawning the host streaming executor thread");
+        stream_ready.wait();
+    }
+
+    std::thread::Builder::new()
+        .name("deluge-bsp-host-app".into())
+        .spawn(move || {
+            let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
+            executor.run(move |spawner: Spawner| {
+                crate::scheduler::set_spawner(spawner);
+                spawner.spawn(control::pic_pump().unwrap());
+                spawner.spawn(control::pad_render().unwrap());
+                spawner.spawn(control::encoder_wake_pump().unwrap());
+                spawner.spawn(display::oled_render().unwrap());
+                // NOTE: `sim_latency::pump` is deliberately NOT spawned on this
+                // executor — see the audio-thread executor closure above for why
+                // (this thread's `host_app_task` calls `deluge_app_init`
+                // synchronously, which can itself busy-spin a
+                // `block_on`'d sim_latency transfer and would starve a
+                // same-thread `pump`).
+                spawner.spawn(host_app_task().unwrap());
+                // The async cluster-fill task is not spawned here: it owns the
+                // `"deluge-stream"` thread above, mirroring the device's STREAM_EXEC. A
+                // non-yielding storage spin on THIS thread — the one `host_app_task` and
+                // the C++ enqueue path run on — must not be able to starve it.
+                // The caller's own tasks (a scenario, a probe), on this executor beside the app's.
+                extra(spawner);
+            });
+        })
+        .expect("spawning the host app executor thread");
 }
 
 /// Immediate, unconditional process termination for the `host_app` boot smoke
