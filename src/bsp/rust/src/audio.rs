@@ -164,27 +164,6 @@ pub extern "C" fn deluge_audio_start() -> DelugeStatus {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_stop() {
-    // The free-running ring keeps the codec alive; nothing to do on this board.
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_max_block_frames() -> u32 {
-    APP_BLOCK_FRAMES as u32
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_sample_rate() -> u32 {
-    SAMPLE_RATE_HZ
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_output_latency_frames() -> u32 {
-    // The app renders up to one TX ring ahead of the play head.
-    TX_FRAMES as u32
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_drive() -> u32 {
     let mut renders = 0u32;
     unsafe {

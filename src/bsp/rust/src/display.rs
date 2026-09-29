@@ -25,7 +25,7 @@ use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK};
 static mut FRAME: [u8; oled::FRAME_BYTES] = [0; oled::FRAME_BYTES];
 /// Set once the app has blitted at least one frame (else render a blank panel).
 static FRAME_VALID: AtomicBool = AtomicBool::new(false);
-/// True while a frame transfer is in flight (`deluge_display_busy`).
+/// True while a frame transfer is in flight.
 static BUSY: AtomicBool = AtomicBool::new(false);
 
 /// OLED render task: the sole owner of the panel. Waits for the PIC handshake,
@@ -78,12 +78,6 @@ pub extern "C" fn deluge_display_blit_oled(
     FRAME_VALID.store(true, Ordering::Release);
     oled::notify_redraw();
     DELUGE_OK
-}
-
-/// True while a previous transfer is still in flight.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_busy() -> bool {
-    BUSY.load(Ordering::Acquire)
 }
 
 /// One-time display bring-up. The render task owns the SSD1309 init sequence

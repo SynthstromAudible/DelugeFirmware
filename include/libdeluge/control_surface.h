@@ -78,9 +78,6 @@ void deluge_control_read_boot_info(DelugeBootInfo* out);
 /// (Push delivery is also available via `deluge_app_on_event`.) [task]
 bool deluge_control_poll_event(DelugeInputEvent* out);
 
-/// Set the colour of one main-grid pad. [task]
-void deluge_control_set_pad(uint8_t x, uint8_t y, DelugeColour colour);
-
 /// Set an indicator LED (by board-defined index) on or off. [task]
 void deluge_control_set_led(uint8_t led, bool on);
 

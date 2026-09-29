@@ -14,12 +14,3 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include <cstdint>
-extern "C" {
-// The monotonic clock (libdeluge/clock.h), in deluge ticks. Advanced by a tick on every read, so time keeps moving
-// for code that polls it.
-uint64_t deluge_clock_monotonic(void) {
-	static uint64_t ticks = 0;
-	return ++ticks;
-}
-}

@@ -25,13 +25,6 @@
 #include "libdeluge/memory.h"
 #include "libdeluge/system.h"
 
-uintptr_t deluge_memory_external_end(void) {
-	return 0;
-}
-uintptr_t deluge_memory_internal_begin(void) {
-	return 0;
-}
-
 // No board regions in the host unit tests: the allocator's global regions are
 // degenerate (the tests drive MemoryRegion against their own buffers), so the
 // region enumeration the GeneralMemoryAllocator constructor walks is empty.

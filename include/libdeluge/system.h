@@ -17,8 +17,7 @@
 
 /// libdeluge/system.h — platform lifecycle and low-level services.
 ///
-/// The platform calls `deluge_platform_init` before any other service and before
-/// `deluge_app_init`.
+/// The platform is up before `deluge_app_init` runs.
 #ifndef LIBDELUGE_SYSTEM_H
 #define LIBDELUGE_SYSTEM_H
 
@@ -27,11 +26,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// Bring up the SoC and board to the point where all other libdeluge services
-/// are usable (clocks, MMU/cache, interrupt controller, peripherals). Must be
-/// called exactly once, first. [task]
-DelugeStatus deluge_platform_init(void);
 
 /// Reset the device. Does not return. [task]
 void deluge_system_reset(void) __attribute__((noreturn));

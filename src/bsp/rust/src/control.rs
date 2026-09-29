@@ -290,14 +290,6 @@ fn enqueue(cmd: PicOut) {
     OUTPUT_DIRTY.store(true, Ordering::Relaxed);
 }
 
-/// Set the colour of one main-grid pad. `host_app`-only: the app's real pad
-/// rendering path batches whole columns (see [`deluge_control_set_pad_columns`],
-/// implemented for both device and host above), so this single-pad entry point
-/// is unreached in practice. A no-op keeps host-linked boot-and-idle working.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_set_pad(_x: u8, _y: u8, _colour: DelugeColour) {}
-
 /// Set the colours of a main-grid column pair. `colours` holds `count` RGB
 /// entries (one per LED in the pair; the Deluge sends 16). The app pre-packs the
 /// PIC wire layout, so we forward the bytes as-is.

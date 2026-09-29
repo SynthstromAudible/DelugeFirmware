@@ -3,7 +3,7 @@
  * the C++ .init_array, and define the boundary symbols the app's
  * GeneralMemoryAllocator reads (general_memory_allocator.cpp):
  *
- *   stealable    = [__sdram_bss_end, deluge_memory_external_end())   -- SDRAM
+ *   stealable    = [__sdram_bss_end, RUST_SDRAM_BASE)                -- SDRAM
  *   internal     = [__heap_start,    program_stack_start)            -- SRAM
  *   internal_sml = [__frunk_bss_end, __frunk_slack_end)              -- SRAM (frunk)
  *

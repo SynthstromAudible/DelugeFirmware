@@ -63,7 +63,7 @@ typedef struct DelugeBoard {
 	uint8_t audio_out_channels;    ///< usually 2 (stereo)
 } DelugeBoard;
 
-/// Return the board this BSP targets. Valid after `deluge_platform_init`.
+/// Return the board this BSP targets. Valid from `deluge_app_init` on.
 /// [task]
 const DelugeBoard* deluge_board(void);
 

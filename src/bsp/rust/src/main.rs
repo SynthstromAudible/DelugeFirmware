@@ -535,7 +535,7 @@ pub extern "C" fn main() -> ! {
     unsafe { boot_mem::init_sdram_memory() };
 
     // Rust SDRAM allocator gets the reserved top slice; the app owns the rest
-    // (its heap runs __heap_start .. deluge_memory_external_end()).
+    // (its heap runs __heap_start .. boot_mem::RUST_SDRAM_BASE).
     unsafe {
         allocator::SDRAM.init(
             boot_mem::RUST_SDRAM_BASE as *mut u8,
