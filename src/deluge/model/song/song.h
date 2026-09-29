@@ -124,7 +124,8 @@ public:
 	///
 	/// Does nothing unless the clip still holds that synth, untouched: anything else means the user got there first,
 	/// and the delivery's own cleanup deletes the preset nobody took.
-	void completeBlankPreset(const deluge::storage::AcquireResult& acquired);
+	/// Returns whether the preset replaced the default synth, which is then freed.
+	bool completeBlankPreset(const deluge::storage::AcquireResult& acquired);
 
 	/// @name The blank song's first preset
 	/// @{
