@@ -203,6 +203,12 @@ for the new shape.
      - Headless, a song saved in the emulator appears in the directory with its note, and the other files stay as
        they were; the same save into an image file lands in the image. The removal path is not yet exercised.
 6. **`dbt sim`.** Switch the task and retire its C-host path, and rewrite the doc.
+   - [x] Built. `dbt sim` builds the `host-app` product (`test_builds`, shared with the gates) and the `sim` binary,
+         and runs it with `--card`, `--audio-in`/`--audio-out`, `--hardware` and `--headless`/`--out`. The
+         `deluge_host` path, the socket, `--x64` and the simulator's `cargo install` are gone from the task; the
+         C host sources stay, since `build/host-app` is built from the same `sim/` CMake project.
+     - `docs/dev/host_emulator.md` is rewritten for this shape.
+     - Headless through `dbt sim`, a saved song lands in the card directory; the window opens and runs.
 
 Each step is checked by running it. A host test covers what can be tested headlessly: panel input reaching
 `deluge_control_poll_event`, and write-back reproducing a saved file.

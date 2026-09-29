@@ -79,18 +79,10 @@ real targets named above.
 
 ## Running the emulator (`dbt sim`)
 
-`dbt sim` builds `deluge_host` (via the CMake above) **and** the `deluge-simulator` front-panel
-GUI (a Rust/wgpu crate fetched from the deluge-sdk repo; wgpu uses Metal on macOS), then launches
-both wired over a Unix socket. On Apple Silicon:
-
-- **Audio just works** — `host_pcm.c` has a native CoreAudio (AudioQueue) backend that is the
-  default on macOS (no PipeWire/`pw-cat`, no `--audio` flag, no extra install). `-framework
-  AudioToolbox` is linked automatically.
-- **MIDI** — the serial-MIDI auto-bridge looks for an ALSA `snd-virmidi` device, which macOS
-  doesn't have; the auto-detect returns NULL and the bridge simply no-ops (not fatal). A CoreMIDI
-  virtual-source bridge would be the macOS equivalent — not yet implemented.
-- The `deluge-simulator` GUI build from deluge-sdk is untested on macOS but is a standard
-  wgpu/winit app (Metal backend), so it should build.
+`dbt sim` runs the firmware on the Embassy host in deluge-sdk's desktop simulator (see
+[host_emulator.md](host_emulator.md)); it does not use the `deluge_host` build above. It has not been run on macOS:
+the simulator window is a wgpu/winit app (Metal there), its audio is cpal (CoreAudio) and its MIDI ports are
+midir's virtual ports (CoreMIDI), so each has a macOS backend, but none is tested.
 
 ## Verify (once it builds)
 
