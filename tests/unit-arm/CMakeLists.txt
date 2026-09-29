@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
+# This tree only ever cross-builds for ARM Linux, run under qemu: with clang, as the firmware is built.
+if(NOT CMAKE_TOOLCHAIN_FILE)
+  set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/../../cmake/arm-linux-clang.cmake)
+endif()
 project(DelugeTestsArm)
 
 set(CPU_OPTIONS

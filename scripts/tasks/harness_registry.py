@@ -31,7 +31,9 @@ PROBES = {
     "clang-tsan": "install clang (ThreadSanitizer needs clang or a TSan-capable GCC)",
     "mtools": "apt install mtools -- fs_differential's fixtures are built with mformat",
     "qemu-arm": "apt install qemu-user",
-    "arm-linux-gnueabihf-gcc": "apt install g++-arm-linux-gnueabihf",
+    "arm-linux-gnueabihf-gcc": (
+        "apt install g++-arm-linux-gnueabihf -- clang builds for arm-linux against its sysroot, /usr/arm-linux-gnueabihf"
+    ),
     "song-corpus": (
         "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs, "
         "or have the golden fixtures already rebuilt in DELUGE_GOLDEN_DIR (default ~/.cache/deluge-golden)"
@@ -234,11 +236,8 @@ def probe(requirement: str, root: Path) -> bool:
         case "qemu-arm":
             return shutil.which("qemu-arm") is not None
         case "arm-linux-gnueabihf-gcc":
-            cxx = os.environ.get("CXX", "arm-linux-gnueabihf-g++")
-            return (
-                shutil.which(cxx) is not None
-                or shutil.which("arm-linux-gnueabihf-g++") is not None
-            )
+            # What the arm-linux builds use of it: the sysroot's C library and libstdc++, which clang links against.
+            return (Path("/usr/arm-linux-gnueabihf/include/stdio.h")).is_file()
         case "deluge-sdk-sibling":
             # A checkout of another repository beside this one, not a path
             # inside it -- hence `root.parent`.

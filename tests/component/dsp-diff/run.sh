@@ -5,7 +5,7 @@
 # `#else` portable branch the host-sim/SIMDe build uses) — and diff the outputs. They must be
 # byte-identical; any difference is a host-portability bug.
 #
-# Requires: arm-linux-gnueabihf-g++ + qemu-arm (+ /usr/arm-linux-gnueabihf sysroot).
+# Requires: clang, arm-linux-gnueabihf-g++ (for its /usr/arm-linux-gnueabihf sysroot) and qemu-arm.
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,8 +36,14 @@ if [[ -d /usr/include/simde/arm ]]; then
 	host_flags+=(-DSIMDE_NO_NATIVE -I /usr/include/simde -I "$root/sim/compat")
 fi
 
-host_cxx="${HOST_CXX:-g++}"
-arm_cxx="${ARM_CXX:-arm-linux-gnueabihf-g++}"
+# clang, as the firmware is built with. The ARM build targets Linux, so it takes the C library and libstdc++ from the
+# GCC cross toolchain's sysroot (as cmake/arm-linux-clang.cmake does). An ARM_CXX of your own takes no extra flags.
+host_cxx="${HOST_CXX:-clang++}"
+if [[ -n "${ARM_CXX:-}" ]]; then
+	arm_cxx=("$ARM_CXX")
+else
+	arm_cxx=(clang++ --target=arm-linux-gnueabihf --sysroot=/usr/arm-linux-gnueabihf --gcc-toolchain=/usr)
+fi
 qemu="${QEMU:-qemu-arm}"
 qemu_args=(-L /usr/arm-linux-gnueabihf -cpu cortex-a9)
 
@@ -50,7 +56,7 @@ for opt in -O0 -O2; do
 
 	# ARM Cortex-A9 with NEON — uses the #if defined(__arm__) asm. Dynamic link; qemu's -L
 	# sysroot resolves the arm libstdc++/libc at run time.
-	"$arm_cxx" -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard "$opt" "${common[@]}" "$src" "${extra_srcs[@]}" -o "$out/arm"
+	"${arm_cxx[@]}" -mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard "$opt" "${common[@]}" "$src" "${extra_srcs[@]}" -o "$out/arm"
 
 	"$out/host" >"$out/host.txt"
 	"$qemu" "${qemu_args[@]}" "$out/arm" >"$out/arm.txt"

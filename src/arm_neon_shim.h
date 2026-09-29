@@ -35,13 +35,17 @@
 // collide with the typedefs below (211 redefinitions) — so route that through the
 // real header too.
 //
+// A host build that reaches NEON through SIMDe without being the host-sim (the unit
+// tree's specs, via deluge_test_neon) has SIMDe on its include path, and the compat
+// <arm_neon.h> resolves to it: route that through the header as well.
+//
 // What is left is tooling parsing a translation unit WITHOUT those flags: clangd
 // falling back to a guessed command line for a file with no compile_commands.json
 // entry, which lands on the host target and so leaves __ARM_NEON undefined. The
 // manual typedefs exist for that case alone. Note this branch is NOT what clangd
 // takes for a file the database does cover — there it sees --target and reads the
 // real header, same as the compiler.
-#if !defined(__clang__) || defined(DELUGE_HOST) || defined(__ARM_NEON)
+#if !defined(__clang__) || defined(DELUGE_HOST) || defined(__ARM_NEON) || __has_include(<simde/arm/neon.h>)
 #include "arm_neon.h" // IWYU pragma: export
 #else
 

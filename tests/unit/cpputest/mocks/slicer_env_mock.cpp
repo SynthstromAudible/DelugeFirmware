@@ -295,6 +295,10 @@ DELUGE_STUB_FN(stub_sampleHolderSetAudioFile, "_ZN12SampleHolder12setAudioFileEP
 DELUGE_STUB_FN(stub_sampleBrowserExitAndNeverDeleteDrum, "_ZN13SampleBrowser22exitAndNeverDeleteDrumEv")
 
 DELUGE_STUB_RET(stub_sampleBrowserPadAction, "_ZN13SampleBrowser9padActionEiii", ActionResult, ActionResult::DEALT_WITH)
+// Reached directly: clang devirtualizes slicer.cpp's call through the Browser base, since sampleBrowser's type is
+// known.
+DELUGE_STUB_RET(stub_sampleBrowserGetCurrentFilePath, "_ZN13SampleBrowser18getCurrentFilePathB5cxx11Ev", std::string,
+                std::string{})
 DELUGE_STUB_FN(stub_instrumentClipAssignDrums,
                "_ZN14InstrumentClip21assignDrumsToNoteRowsEP29ModelStackWithTimelineCounterbi")
 DELUGE_STUB_RET(stub_waveformRendererRenderFullScreen,

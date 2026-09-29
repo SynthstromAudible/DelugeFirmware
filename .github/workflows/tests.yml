@@ -39,10 +39,6 @@ jobs:
       # shows up here rather than as a quiet green.
       - name: Run ${{ matrix.test }}
         run: |
-          case "${{ matrix.test }}" in
-            unit-arm) export CC=arm-linux-gnueabihf-gcc-14 CXX=arm-linux-gnueabihf-g++-14 ;;
-            unit) export CC=gcc-14 CXX=g++-14 ;;
-          esac
           DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test "${{ matrix.test }}" --strict --junit build/results
 
       - name: Upload Test Results
