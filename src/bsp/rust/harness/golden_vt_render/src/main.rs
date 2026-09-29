@@ -1415,6 +1415,16 @@ fn fill_sample_claim_card() {
 /// - `SAMPLES/PLG/PLGATE.WAV` and `SAMPLES/PLS/PLSTALL.WAV`: the gate and stall legs' held samples.
 /// - `SAMPLES/AQ/AQSA.WAV`, `AQKA..AQKD.WAV` and `AQKL.WAV`: the acquisition legs' synth, navigated kits and light kit;
 ///   `SAMPLES/AQH/AQHA..AQHC.WAV` their heavy kit, and `SAMPLES/AQS/PLSTB.WAV` the acquisition stall leg's held sample.
+/// `load_policy`'s card: the one sample its `LP-DEFAULT` loads ask for.
+fn fill_load_policy_card() {
+    let root = std::env::temp_dir().join("deluge-load-policy-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES");
+    std::fs::create_dir_all(&samples).expect("load_policy card: creating SAMPLES");
+    write_test_wav(&samples.join("DEFAULT.WAV"), 1, 16, 2000, 0x42);
+    memory_card::install(Some(&root));
+}
+
 fn fill_preset_load_card() {
     let root = std::env::temp_dir().join("deluge-preset-load-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1593,6 +1603,7 @@ fn main() {
             "sample_load_tree" => fill_sample_load_tree_card(),
             "sample_claim" => fill_sample_claim_card(),
             "preset_load" => fill_preset_load_card(),
+            "load_policy" => fill_load_policy_card(),
             "clear_song_undo" => fill_clear_song_undo_card(),
             "song_load_channel" => fill_song_load_channel_card(),
             // The card tree to play from: RENDER_TREE, or the GOLDEN_FIXTURE corpus fixture's.
