@@ -17,9 +17,8 @@
 
 /// libdeluge/system.h — platform lifecycle and low-level services.
 ///
-/// Replaces the boot/reset/fault wiring currently in `main.c`, `resetprg.c`,
-/// `fault_handler`, and `RZA1/intc`. The platform calls `deluge_platform_init`
-/// before any other service and before `deluge_app_init`.
+/// The platform calls `deluge_platform_init` before any other service and before
+/// `deluge_app_init`.
 #ifndef LIBDELUGE_SYSTEM_H
 #define LIBDELUGE_SYSTEM_H
 

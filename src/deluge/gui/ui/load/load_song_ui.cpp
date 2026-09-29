@@ -86,7 +86,7 @@ namespace {
 /// and never by the audio path -- and because the reader that reads THROUGH it (smJsonBufferDeserializer
 /// / smBufferDeserializer, storage_manager.cpp) already lives there, so this merely stops the two
 /// halves of one decode straddling two memories. A plain byte array needs no zeroing, so unlike the
-/// std::optionals next to it this does not lean on resetprg.c's emptySection() boot memset.
+/// std::optionals next to it this does not lean on the boot's .sdram_bss zeroing (boot_mem.rs).
 // Sized by the CHANNEL's capacity, not by kSongPreviewWindow, even though only kSongPreviewWindow
 // bytes of it are ever requested. deluge_file_prefix_collect() requires out_cap >=
 // DELUGE_FILE_PREFIX_CAPACITY whatever the caller asked for: a shorter buffer is a caller bug that
