@@ -45,9 +45,6 @@
 
 #include "OSLikeStuff/scheduler_api.h" // unblockTask — wake the encoder task on inbound rotation
 
-#include "host_link.h" // emulator transport (display/LED out, input in)
-#include "host_midi.h" // serial (DIN) MIDI bridge
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,10 +56,6 @@
 // ===========================================================================
 
 DelugeStatus deluge_platform_init(void) {
-	// Bring up the emulator transport. When DELUGE_HOST_LINK is set this blocks until the
-	// spark GUI attaches; when unset it is a no-op and the build runs headless (offline
-	// WAV-capture harness). Either way the app boots identically.
-	host_link_init();
 	return DELUGE_OK;
 }
 
@@ -335,13 +328,9 @@ DelugeCardEvent deluge_block_poll_card_event(uint8_t unit) {
 // ===========================================================================
 
 DelugeStatus deluge_display_blit_oled(const uint8_t* pixels, uint16_t width, uint16_t height) {
-	// The firmware hands us oledCurrentImage: already the SSD1309 page-major hardware
-	// buffer ((height/8) pages × width bytes, bit b of byte[page*width+col] = panel row
-	// page*8+b) — exactly what spark's update_display_from_buffer expects. Emit it verbatim.
-	if (host_link_active()) {
-		uint16_t bytes = (uint16_t)((height >> 3) * width); // 48/8 × 128 = 768
-		host_link_send(HOST_LINK_MSG_UPDATE_DISPLAY, pixels, bytes);
-	}
+	(void)pixels;
+	(void)width;
+	(void)height;
 	return DELUGE_OK;
 }
 bool deluge_display_busy(void) {
@@ -374,106 +363,7 @@ void deluge_control_read_boot_info(DelugeBootInfo* out) {
 		memset(out, 0, sizeof(*out));
 	}
 }
-// --- Live input bridge (spark GUI → firmware) ------------------------------------
-//
-// Inbound frames from the GUI are pumped here and split into two destinations:
-//  - pad/button presses become DelugeInputEvents drained by deluge_control_poll_event()
-//  - encoder rotations accumulate into per-encoder edge counts taken by
-//    deluge_encoder_take_edges()
-// matching the two distinct paths the firmware reads input through.
-
-// Pad/button event ring. Power-of-two size; one producer (pump) one consumer (poll).
-#define HOST_EVENT_QUEUE_CAP 256u
-static DelugeInputEvent ev_queue[HOST_EVENT_QUEUE_CAP];
-static uint32_t ev_head; // next write
-static uint32_t ev_tail; // next read
-
-static void ev_push(DelugeInputEventKind kind, uint8_t x, uint8_t y, int16_t value) {
-	uint32_t next = (ev_head + 1u) & (HOST_EVENT_QUEUE_CAP - 1u);
-	if (next == ev_tail) {
-		return; // full — drop (UI back-pressure; should never happen at human rates)
-	}
-	ev_queue[ev_head].kind = kind;
-	ev_queue[ev_head].x = x;
-	ev_queue[ev_head].y = y;
-	ev_queue[ev_head].value = value;
-	ev_head = next;
-}
-
-// Accumulated encoder edges, indexed by the firmware's deluge_encoder_take_edges() index
-// (0=scrollY, 1=scrollX, 2=tempo, 3=select, 4=mod1, 5=mod0 — see encoder_input.cpp).
-static int8_t encoder_edges[6];
-
-// spark encoder id (0=SCROLL_X,1=TEMPO,2=MOD_0,3=MOD_1,4=SCROLL_Y,5=SELECT) → firmware index.
-static const uint8_t kSparkEncoderToFwIndex[6] = {1, 2, 5, 4, 0, 3};
-
-// The scheduler task that interprets encoder motion. On hardware the encoder ISR unblocks it
-// (see src/bsp/rza1/encoder_io.c); the task blocks itself after each run (interpretEncodersTask),
-// so without a wake it runs exactly once and all further rotations are ignored. We record the id
-// in deluge_encoder_io_init() and unblock it whenever an inbound rotation arrives.
-static TaskID encoder_wake_task = -1;
-
-// Drain all currently-available inbound frames. Cheap to call every poll.
-static void host_input_pump(void) {
-	if (!host_link_active()) {
-		return;
-	}
-	uint8_t type;
-	uint8_t data[8];
-	uint16_t len;
-	for (;;) {
-		len = sizeof(data);
-		if (!host_link_recv(&type, data, &len)) {
-			break;
-		}
-		switch (type) {
-		case HOST_LINK_MSG_PAD_PRESSED: // [col][row]
-			if (len >= 2) {
-				ev_push(DELUGE_EVENT_PAD, data[0], data[1], 255);
-			}
-			break;
-		case HOST_LINK_MSG_PAD_RELEASED: // [col][row]
-			if (len >= 2) {
-				ev_push(DELUGE_EVENT_PAD, data[0], data[1], 0);
-			}
-			break;
-		case HOST_LINK_MSG_BUTTON_PRESSED:  // [button_id], id = 9*(y+16)+x
-		case HOST_LINK_MSG_BUTTON_RELEASED: // (encoder pushes are buttons too — decode uniformly)
-			if (len >= 1 && data[0] >= 144) {
-				uint8_t k = (uint8_t)(data[0] - 144);
-				uint8_t x = (uint8_t)(k % 9);
-				uint8_t y = (uint8_t)(k / 9);
-				int16_t value = (type == HOST_LINK_MSG_BUTTON_PRESSED) ? 255 : 0;
-				ev_push(DELUGE_EVENT_BUTTON, x, y, value);
-			}
-			break;
-		case HOST_LINK_MSG_ENCODER_ROTATED: // [encoder_id][delta:i8]
-			if (len >= 2 && data[0] < 6) {
-				int8_t* slot = &encoder_edges[kSparkEncoderToFwIndex[data[0]]];
-				// The wire delta is one *detent* (one GUI scroll tick); the firmware's encoder
-				// model wants quadrature *edges*, and on hardware every detent is 2 edges (the
-				// DetentedEncoder divides edges by 2 per click; the gold ContinuousEncoders take
-				// edges raw, matching 2 units/detent on hardware). So scale detents → edges by 2.
-				int32_t acc = (int32_t)*slot + 2 * (int8_t)data[1];
-				if (acc > 127) {
-					acc = 127;
-				}
-				else if (acc < -128) {
-					acc = -128;
-				}
-				*slot = (int8_t)acc;
-				// Wake the (self-blocked) encoder task so it actually drains these edges; on
-				// hardware the encoder ISR does this. Without it, rotations are silently dropped.
-				unblockTask(encoder_wake_task);
-			}
-			break;
-		default:
-			break; // ignore unknown / response types
-		}
-	}
-}
-
-// Pad press injection (offline harness, used only when no GUI link is active).
+// Pad press injection (offline harness).
 // DELUGE_HOST_PAD="x,y" presses+holds a grid pad. To audition the active synth in a clip, press the
 // rightmost (audition) column: x = kDisplayWidth+kSideBarWidth-1 = 17, y = 0..7. Fired once the audio
 // clock (host_rendered_frames) passes a frame threshold — keying off rendered frames rather than
@@ -513,18 +403,6 @@ static void host_pad_init(void) {
 }
 
 bool deluge_control_poll_event(DelugeInputEvent* out) {
-	// Live GUI link: drain decoded events from the wire.
-	if (host_link_active()) {
-		host_input_pump();
-		if (ev_tail != ev_head) {
-			*out = ev_queue[ev_tail];
-			ev_tail = (ev_tail + 1u) & (HOST_EVENT_QUEUE_CAP - 1u);
-			return true;
-		}
-		return false;
-	}
-
-	// Headless fallback: the scripted offline pad injection.
 	if (!host_pad_inited) {
 		host_pad_init();
 	}
@@ -552,26 +430,18 @@ bool deluge_control_poll_event(DelugeInputEvent* out) {
 	return false;
 }
 void deluge_control_set_pad(uint8_t x, uint8_t y, DelugeColour colour) {
-	if (host_link_active()) {
-		uint8_t d[5] = {x, y, colour.r, colour.g, colour.b};
-		host_link_send(HOST_LINK_MSG_SET_PAD_RGB, d, sizeof(d));
-	}
+	(void)x;
+	(void)y;
+	(void)colour;
 }
 void deluge_control_set_led(uint8_t led, bool on) {
-	if (host_link_active()) {
-		uint8_t d[2] = {led, (uint8_t)(on ? 1 : 0)};
-		host_link_send(HOST_LINK_MSG_SET_LED, d, sizeof(d));
-	}
+	(void)led;
+	(void)on;
 }
 void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t count) {
-	// spark's SetKnobIndicator carries exactly 4 segment levels; pad/truncate to match.
-	if (host_link_active()) {
-		uint8_t d[5] = {which, 0, 0, 0, 0};
-		for (uint8_t i = 0; i < count && i < 4; i++) {
-			d[1 + i] = levels[i];
-		}
-		host_link_send(HOST_LINK_MSG_SET_KNOB_INDICATOR, d, sizeof(d));
-	}
+	(void)which;
+	(void)levels;
+	(void)count;
 }
 void deluge_control_flush(void) {
 }
@@ -588,24 +458,15 @@ bool deluge_control_poll_resume(void) {
 }
 uint32_t deluge_control_pad_output_space(void) {
 	// On hardware this is the free space in the PIC's bulk pad-output UART buffer; the
-	// app gates UI redraws on it (doAnyPendingUIRendering bails when it's low). The host
-	// link has no such bottleneck, so always report ample room — otherwise a too-small
+	// app gates UI redraws on it (doAnyPendingUIRendering bails when it's low). There is
+	// no such bottleneck here, so always report ample room — otherwise a too-small
 	// value permanently suppresses *all* UI rendering (pads and OLED alike).
 	return 65535;
 }
 void deluge_control_set_pad_columns(uint8_t idx, const DelugeColour* colours, uint8_t count) {
-	// The surface drives main pads as 16-LED column pairs: colours[0..7] = column idx*2
-	// rows 0..7, colours[8..15] = column idx*2+1 rows 0..7 (see pad_leds.cpp sortLedsForCol).
-	// Fan out to per-pad SetPadRGB frames the GUI renders directly.
-	if (!host_link_active()) {
-		return;
-	}
-	for (uint8_t i = 0; i < count; i++) {
-		uint8_t col = (uint8_t)(idx * 2u + (i >> 3)); // first 8 → idx*2, next 8 → idx*2+1
-		uint8_t row = (uint8_t)(i & 7u);
-		uint8_t d[5] = {col, row, colours[i].r, colours[i].g, colours[i].b};
-		host_link_send(HOST_LINK_MSG_SET_PAD_RGB, d, sizeof(d));
-	}
+	(void)idx;
+	(void)colours;
+	(void)count;
 }
 void deluge_control_flash_pad(uint8_t idx) {
 	(void)idx;
@@ -664,18 +525,11 @@ void deluge_trigger_clock_set_handler(DelugeTriggerClockHandler handler) {
 // ===========================================================================
 
 void deluge_encoder_io_init(int8_t wake_task) {
-	// Remember the task to wake when inbound encoder rotations arrive (see host_input_pump).
-	encoder_wake_task = wake_task;
+	(void)wake_task;
 }
 int8_t deluge_encoder_take_edges(uint8_t encoder) {
-	// `encoder` is the firmware's own index (0=scrollY … 5=mod0). Return and clear the
-	// edges the input pump accumulated from inbound EncoderRotated frames.
-	if (encoder >= 6) {
-		return 0;
-	}
-	int8_t edges = encoder_edges[encoder];
-	encoder_edges[encoder] = 0;
-	return edges;
+	(void)encoder;
+	return 0;
 }
 
 // ===========================================================================
@@ -725,7 +579,6 @@ void deluge_midi_gate_timer_arm(uint32_t samples_from_now) {
 // ===========================================================================
 
 void deluge_midi_init(void) {
-	host_midi_open();
 }
 uint8_t deluge_midi_port_count(void) {
 	return 1; // DIN only on the host stub
@@ -753,11 +606,9 @@ uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max,
 	return 0;
 }
 uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len) {
-	// The host stub exposes one port (DIN); route its output to the host MIDI bridge.
-	if (deluge_midi_port_kind(port) == DELUGE_MIDI_DIN) {
-		host_midi_write(src, len);
-	}
-	return len; // always "accept" — anything not bridged is dropped
+	(void)port;
+	(void)src;
+	return len; // always "accept": the output goes nowhere
 }
 uint32_t deluge_midi_write_space(DelugeMidiPort port) {
 	(void)port;
@@ -868,22 +719,7 @@ static void host_din_init(void) {
 }
 
 bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_ticks) {
-	// Live host MIDI bridge (snd-virmidi / FIFO / PTY) takes priority — a real DIN input.
-	if (host_midi_have_input()) {
-		uint8_t b;
-		if (host_midi_read_byte(&b)) {
-			if (byte) {
-				*byte = b;
-			}
-			if (arrival_ticks) {
-				*arrival_ticks = (uint32_t)deluge_clock_monotonic();
-			}
-			return true;
-		}
-		return false;
-	}
-
-	// Headless fallback: the scripted single note-on (offline harness).
+	// The scripted DIN input (offline harness).
 	if (!host_din_inited) {
 		host_din_init();
 	}

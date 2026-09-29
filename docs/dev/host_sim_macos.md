@@ -34,7 +34,7 @@ argon, etl, SIMDe (Intel only), CppSpec and the Rust crates are fetched automati
 
 ```sh
 cmake -B build-sim-mac -S sim -G Ninja
-cmake --build build-sim-mac --target deluge_host deluge_render deluge_loadcheck
+cmake --build build-sim-mac --target deluge_loadcheck deluge_audio_header_dump
 ```
 
 The auto-detection selects, on Apple Silicon:
@@ -46,9 +46,6 @@ The auto-detection selects, on Apple Silicon:
   `validateParams()` `static_assert`, and its libc++ on the link rpath),
 - Rust target `aarch64-apple-darwin`.
 
-Do **not** build the `deluge_host_boundary` target — it is a stale Stage-1 smoke target that
-fails to link (`undefined deluge_main`) on every platform, Linux included. Build the three
-real targets named above.
 
 ## Already handled
 
@@ -80,31 +77,13 @@ real targets named above.
 ## Running the emulator (`dbt sim`)
 
 `dbt sim` runs the firmware on the Embassy host in deluge-sdk's desktop simulator (see
-[host_emulator.md](host_emulator.md)); it does not use the `deluge_host` build above. It has not been run on macOS:
+[host_emulator.md](host_emulator.md)); it does not use the build above. It has not been run on macOS:
 the simulator window is a wgpu/winit app (Metal there), its audio is cpal (CoreAudio) and its MIDI ports are
 midir's virtual ports (CoreMIDI), so each has a macOS backend, but none is tested.
 
 ## Verify (once it builds)
 
 ```sh
-./build-sim-mac/deluge_render          # prints usage → links + runs
-file build-sim-mac/deluge_render       # → arm64 (Apple Silicon)
+./build-sim-mac/deluge_loadcheck       # runs its I/O-free checks, then exits 0
+file build-sim-mac/deluge_loadcheck    # → arm64 (Apple Silicon)
 ```
-
-Then, with a Deluge Backup + the golden cache present (same as on Linux):
-
-```sh
-export BUILD_DIR=$PWD/build-sim-mac DELUGE_BACKUP=~/"Deluge Backup"
-FIXTURE=cordae     NO_BUILD=1 scripts/golden_mixdown.sh padsweep   # 64-bit layout invariance
-FIXTURE=cordae     NO_BUILD=1 scripts/golden_mixdown.sh check      # vs stored golden
-```
-
-Expected, consistent with the Phase 1 (x86-64) findings:
-
-- **padsweep PASS** on every fixture (the port has no address dependence).
-- **cordae** (cache-free) should be a strong candidate to match the **x86-64 render**
-  byte-for-byte (both are 64-bit; native aarch64 NEON vs SIMDe should be bit-identical for the
-  ops used) — a good cross-arch sanity check. Copy an x86-64 `cordae` render over and `cmp`.
-- **cache-heavy songs** (highsiderr, icoustic) will differ from the 32-bit golden — expected,
-  because 64-bit pointer width enlarges cache-metadata structs and shifts eviction timing.
-  That is why `-m32` stays the golden/CI reference (coexist), not this build.

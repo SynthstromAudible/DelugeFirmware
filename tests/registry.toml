@@ -206,6 +206,7 @@ status = "gate"
 gates = "the ARM/NEON DSP fast paths must be byte-identical to the portable host fallback"
 build = []
 run = ["./run.sh"]
+builds = ["host-app"]
 requires = ["clang", "arm-linux-gnueabihf-gcc", "qemu-arm"]
 tier = "nightly"
 runtime = "~5m"

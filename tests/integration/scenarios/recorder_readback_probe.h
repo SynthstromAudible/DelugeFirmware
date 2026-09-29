@@ -32,7 +32,7 @@
 /// outright -- the acquire is expected to settle on LOADING, uniformly, on every target.
 ///
 /// `DELUGE_HOST`-only, same reach as `harness/streaming_scenario.h` (compiled into
-/// deluge_host/deluge_render/deluge_loadcheck AND the Rust Embassy `host_app` build, never the ARM
+/// deluge_loadcheck AND the Rust Embassy `host_app` build, never the ARM
 /// device firmware). Leaks the `SampleRecorder`/`Sample` for the process's life — a one-shot
 /// diagnostic run, not a long-lived service; acceptable here.
 

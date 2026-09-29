@@ -7,10 +7,9 @@
 //!      reconstruct`, the exact script the golden-master harness uses to rebuild its
 //!      fixture from the developer's local `~/Deluge Backup` corpus (see this repo's
 //!      song-corpus-location note).
-//!   2. the FAT image itself — mtools (`mformat`+`mcopy`), the same approach
-//!      `src/bsp/host/host_render_main.cpp`'s `pack_image()` uses for `deluge_render`/
-//!      `deluge_host` (32 KB clusters, >= 2.5 GB floor — FAT32 needs >= 65525 clusters at
-//!      that cluster size, matching real Deluge SD card geometry).
+//!   2. the FAT image itself — mtools (`mformat`+`mcopy`), with 32 KB clusters and a
+//!      >= 2.5 GB floor (FAT32 needs >= 65525 clusters at that cluster size), matching real
+//!      Deluge SD card geometry.
 //!
 //! Host-only (`host_app`); never compiled for device.
 #![cfg(all(not(target_os = "none"), feature = "host_app"))]

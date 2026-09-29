@@ -34,7 +34,7 @@
 /// to compare field-by-field against the new Rust parser.
 ///
 /// `DELUGE_HOST`-only, same reach as `harness/recorder_readback_probe.h`: compiled into
-/// deluge_host/deluge_loadcheck/deluge_audio_header_dump, never the ARM device firmware.
+/// deluge_loadcheck/deluge_audio_header_dump, never the ARM device firmware.
 
 #include <string>
 

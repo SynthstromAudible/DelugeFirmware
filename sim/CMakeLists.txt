@@ -1,14 +1,12 @@
 # Host-sim build for the portable Deluge application.
 #
 # A NATIVE build (x86-64 / ARM64), separate from the arm-none-eabi firmware build.
-# It assembles the SAME deluge_app library + the portable libs against the host BSP
-# (src/bsp/host), so it is both the definitive proof the app has no transitive HAL
-# dependency (no RZA1/ on the include path) and the substrate for host CI + the
-# audio WAV-diff harness.
-#
-#   cmake -B build-sim -S sim -G Ninja && cmake --build build-sim
-#   ./build-sim/deluge_host_boundary    # BSP-boundary smoke target
-#   ./build-sim/deluge_host             # the full application (in progress)
+# It assembles the SAME deluge_app library + the portable libs for the host, so it
+# is both the definitive proof the app has no transitive HAL dependency (no RZA1/
+# on the include path) and what the Embassy host harnesses and `dbt sim` link
+# (tests/: the `host-app` build product, built -DDELUGE_SIM_X64=ON into
+# build/host-app). Two tools also link the C host BSP (src/bsp/host):
+# deluge_loadcheck and deluge_audio_header_dump.
 
 cmake_minimum_required(VERSION 3.24)
 
@@ -265,21 +263,10 @@ else()
     )
 endif()
 
-# ===========================================================================
-# Stage 1: boundary smoke target (host BSP + a main that exercises it).
-# ===========================================================================
-add_executable(deluge_host_boundary
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_main.c
-)
-target_include_directories(deluge_host_boundary PRIVATE ${HOST_INCLUDE_DIRS})
 find_library(RT_LIB rt)
-if(RT_LIB)
-    target_link_libraries(deluge_host_boundary PRIVATE ${RT_LIB})
-endif()
 
 # ===========================================================================
-# Stage 2: the full application.
+# The application.
 # ===========================================================================
 
 # NE10 (int32 FFT) — native, via SIMDe. deluge_app links the target name `NE10`,
@@ -395,34 +382,6 @@ add_dependencies(deluge_rust_sim sim_deluge_rust_build)
 # deleted that mirror, so the symbols are genuinely undefined here and the workaround is no longer
 # needed (verified: `nm deluge_render` shows all 7 as `T`, golden byte-identical, without it).
 set(SIM_ALLOC_LINK deluge_rust_sim pthread dl m)
-if(APPLE)
-    # host_pcm.c's native CoreAudio (AudioQueue) audio backend.
-    list(APPEND SIM_ALLOC_LINK "-framework AudioToolbox")
-endif()
-
-# The host executable: the portable app + the host BSP + the scheduler. deluge_app
-# is an OBJECT lib (its objects embed here); deluge_scheduler is STATIC (resolves
-# against them). host_main drives the boundary for now; it becomes the host runtime
-# loop (deluge_app_init/render/tick) as the app is brought up.
-add_executable(deluge_host
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_ws.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_main.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
-)
-# host_debug.cpp reaches into the app's reason_check (memory/reason_check.h) for the host-sim leak triggers - allowed
-# (the boundary check only forbids the app depending on the BSP, not the reverse), so put src/deluge on the path.
-target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_host PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(deluge_host PRIVATE ${RT_LIB})
-endif()
 
 # deluge_loadcheck: headless "load these audio files, print their parsed descriptors" utility — the Tier-2
 # regression net for the file-loading redesign. Same app + host BSP as deluge_render, with its own
@@ -433,10 +392,6 @@ add_executable(deluge_loadcheck
     ${REPO_ROOT}/src/bsp/host/host_bsp.c
     ${REPO_ROOT}/src/bsp/host/host_platform.c
     ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_ws.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/src/bsp/host/host_loadcheck_main.cpp
     ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
@@ -459,10 +414,6 @@ add_executable(deluge_audio_header_dump
     ${REPO_ROOT}/src/bsp/host/host_bsp.c
     ${REPO_ROOT}/src/bsp/host/host_platform.c
     ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_ws.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/src/bsp/host/host_audio_header_dump_main.cpp
     ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp

@@ -70,9 +70,6 @@ int main() {
 	if (getenv("DELUGE_HOST_DETERMINISTIC") == nullptr) {
 		setenv("DELUGE_HOST_DETERMINISTIC", "1", 1);
 	}
-	if (getenv("DELUGE_HOST_AUDIO") == nullptr) {
-		setenv("DELUGE_HOST_AUDIO", "off", 1);
-	}
 	// deluge.cpp's startup task is gated on isCardReady(), which (host_platform.c) is just "does
 	// DELUGE_SD_ROOT name an existing directory" -- this dumper never reads through that path (it
 	// reads raw file bytes straight off the host filesystem via std::fopen/fread), but the task still

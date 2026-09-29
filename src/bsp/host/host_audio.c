@@ -32,9 +32,6 @@
 #include "libdeluge/audio_io.h" // the boundary we implement
 #include "libdeluge/types.h"    // DelugeStereoSample
 
-#include "host_link.h" // live-mode detection (emulator vs offline harness)
-#include "host_pcm.h"  // live audio output (forked player, device-paced)
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -164,66 +161,6 @@ uint32_t deluge_audio_output_latency_frames(void) {
 	return HOST_AUDIO_BLOCK_FRAMES;
 }
 
-// ---- live (emulator) render driver ----------------------------------------
-//
-// When the GUI link is up we render in real time instead of capturing to WAV: one
-// block per call, paced against the monotonic clock so the cooperative scheduler
-// runs at 1× (on hardware the audio DMA paces the whole loop the same way). Audio
-// output itself is muted for now — we only render so the engine's audio
-// clock, sequencer, and UI advance at a faithful rate.
-
-static uint64_t now_ns(void) {
-	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
-}
-
-static uint64_t live_anchor_ns; // wall-clock origin of the live audio timeline
-static uint32_t live_frames;    // frames rendered since the anchor
-
-static int audio_opened; // 0 = not yet tried; opened lazily on first live drive
-
-static uint32_t host_audio_drive_live(void) {
-	if (!audio_opened) {
-		audio_opened = 1;
-		host_pcm_open(HOST_AUDIO_SAMPLE_RATE);
-	}
-
-	uint32_t frames = HOST_AUDIO_BLOCK_FRAMES;
-	deluge_app_render(host_input_block, host_render_block, frames);
-	host_rendered_frames += frames;
-	live_frames += frames;
-
-	// Output to the audio player — NON-BLOCKING. On hardware the SSI/DMA play head paces the
-	// engine asynchronously: deluge_audio_drive() returns immediately after rendering and the
-	// scheduler measures only that render time. If we blocked here on the player's backpressure
-	// instead, that wait would be counted as audio-task run time, spiking AudioEngine's
-	// cpuDireness → voice culling → silence. So we hand the block off without waiting (the
-	// player's own buffer absorbs jitter) and pace the loop with the monotonic clock below.
-	if (host_pcm_active()) {
-		int16_t pcm[HOST_AUDIO_BLOCK_FRAMES * 2];
-		for (uint32_t i = 0; i < frames; i++) {
-			pcm[2 * i] = (int16_t)(host_render_block[i].l >> 16);
-			pcm[2 * i + 1] = (int16_t)(host_render_block[i].r >> 16);
-		}
-		host_pcm_write_s16(pcm, frames);
-	}
-
-	// Pace the cooperative loop to 1× against the monotonic clock (drives the UI/sequencer at a
-	// faithful rate, and the player consumes at the same nominal rate so its buffer stays fed).
-	if (live_anchor_ns == 0) {
-		live_anchor_ns = now_ns();
-	}
-	uint64_t target = live_anchor_ns + (uint64_t)live_frames * 1000000000ull / HOST_AUDIO_SAMPLE_RATE;
-	uint64_t t = now_ns();
-	if (target > t) {
-		uint64_t diff = target - t;
-		struct timespec req = {(time_t)(diff / 1000000000ull), (long)(diff % 1000000000ull)};
-		nanosleep(&req, NULL);
-	}
-	return 1;
-}
-
 // Deterministic stereo test input — a pure integer function of the absolute frame index, so the captured output
 // is reproducible and identical across the x86 and arm-linux builds. Distinct L/R sawtooths (different periods,
 // full q31 scale via uint32 wrap) so fixtures exercise channel routing + the INPUT_STEREO condense, not an L==R
@@ -244,10 +181,6 @@ extern void deluge_host_debug_poll(void); // reason-leak signal triggers (host_d
 uint32_t deluge_audio_drive(void) {
 	// Service any pending reason-leak signal (SIGUSR1/2) here, on the app thread, between renders.
 	deluge_host_debug_poll();
-
-	if (host_link_active()) {
-		return host_audio_drive_live();
-	}
 
 	// Render mode (deluge_render): the stem-export engine writes the real per-stem
 	// WAVs via SampleRecorder; the master output here is only the 0/1 keep-alive.

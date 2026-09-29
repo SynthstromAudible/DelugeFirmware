@@ -1967,9 +1967,6 @@ int main(int argc, char** argv) {
 	if (getenv("DELUGE_HOST_DETERMINISTIC") == nullptr) {
 		setenv("DELUGE_HOST_DETERMINISTIC", "1", 1);
 	}
-	if (getenv("DELUGE_HOST_AUDIO") == nullptr) {
-		setenv("DELUGE_HOST_AUDIO", "off", 1);
-	}
 
 	startupConditionalTask = deluge_loadcheck_driver; // override before deluge_main registers it
 
