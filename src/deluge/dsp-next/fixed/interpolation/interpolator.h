@@ -18,11 +18,34 @@
 
 #include "definitions_cxx.hpp"           // kInterpolationMaxNumSamples
 #include "dsp-next/core/stereo_sample.h" // deluge::dsp::StereoSample
+#include <argon.hpp>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
+
+namespace detail {
+/// Shift a 16-tap window held as two 8-lane halves toward older indices by @p N (1 ... 15): the value at i ends up at
+/// i + N and the oldest fall off. `vext` takes its offset as an immediate, hence the template. The @p N vacated head
+/// slots come out holding unspecified values, which the caller overwrites.
+template <int N>
+[[gnu::always_inline]] inline void shift_window_by(Argon<int16_t>& low, Argon<int16_t>& high) {
+	static_assert(N > 0 && N < 16);
+	if constexpr (N < 8) {
+		// The top half takes the upper end of the bottom half, the bottom half moves up within itself
+		high = low.Extract<8 - N>(high);
+		low = low.Extract<8 - N>(low);
+	}
+	else if constexpr (N == 8) {
+		high = low;
+	}
+	else {
+		// Only the top half keeps anything, taken from the bottom half
+		high = low.Extract<16 - N>(low);
+	}
+}
+} // namespace detail
 
 /// @brief A stereo windowed-sinc / linear sample interpolator over a sliding tap window (q31 backend).
 ///
@@ -72,11 +95,71 @@ struct [[gnu::hot]] Interpolator {
 
 private:
 	/// Shift @p window toward older indices by @p n samples, vacating the @p n head slots (the discarded tail falls
-	/// off the end). Shared by @ref pushL / @ref pushR / @ref jumpForward.
+	/// off the end; the vacated slots hold unspecified values until the caller fills them). Shared by @ref pushL /
+	/// @ref pushR / @ref jumpForward. Two NEON `vext`s per window instead of up to 15 halfword copies, which neither
+	/// GCC nor Clang vectorises for n < 8 (the loop reads slots it has just written).
 	[[gnu::always_inline]] static constexpr void shiftWindow(Window& window, std::size_t n) {
-#pragma unroll
-		for (int32_t i = kInterpolationMaxNumSamples - 1; i >= static_cast<int32_t>(n); i--) {
-			window[i] = window[i - static_cast<int32_t>(n)];
+		if consteval {
+			for (int32_t i = kInterpolationMaxNumSamples - 1; i >= static_cast<int32_t>(n); i--) {
+				window[i] = window[i - static_cast<int32_t>(n)];
+			}
+		}
+		else {
+			static_assert(kInterpolationMaxNumSamples == 2 * Argon<int16_t>::lanes);
+			if (n == 0 || n >= kInterpolationMaxNumSamples) {
+				return; // 0: nothing moves. 16 and more: nothing stays, the caller refills every slot
+			}
+			auto low = Argon<int16_t>::Load(window.data());
+			auto high = Argon<int16_t>::Load(window.data() + Argon<int16_t>::lanes);
+			switch (n) {
+			case 1:
+				detail::shift_window_by<1>(low, high);
+				break;
+			case 2:
+				detail::shift_window_by<2>(low, high);
+				break;
+			case 3:
+				detail::shift_window_by<3>(low, high);
+				break;
+			case 4:
+				detail::shift_window_by<4>(low, high);
+				break;
+			case 5:
+				detail::shift_window_by<5>(low, high);
+				break;
+			case 6:
+				detail::shift_window_by<6>(low, high);
+				break;
+			case 7:
+				detail::shift_window_by<7>(low, high);
+				break;
+			case 8:
+				detail::shift_window_by<8>(low, high);
+				break;
+			case 9:
+				detail::shift_window_by<9>(low, high);
+				break;
+			case 10:
+				detail::shift_window_by<10>(low, high);
+				break;
+			case 11:
+				detail::shift_window_by<11>(low, high);
+				break;
+			case 12:
+				detail::shift_window_by<12>(low, high);
+				break;
+			case 13:
+				detail::shift_window_by<13>(low, high);
+				break;
+			case 14:
+				detail::shift_window_by<14>(low, high);
+				break;
+			case 15:
+				detail::shift_window_by<15>(low, high);
+				break;
+			}
+			low.StoreTo(window.data());
+			high.StoreTo(window.data() + Argon<int16_t>::lanes);
 		}
 	}
 };
