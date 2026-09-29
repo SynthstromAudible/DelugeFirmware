@@ -121,15 +121,6 @@ unsafe extern "C" {
     fn deluge_resource_loader_has_any(mgr: *mut c_void) -> bool;
 }
 
-/// True once `chunk_backing`'s fill has landed.
-///
-/// The single definition of chunk readiness, used by the non-blocking [`deluge_streaming_chunk_ready`].
-fn chunk_is_loaded(chunk_backing: *mut c_void) -> bool {
-    // SAFETY: the caller holds a lease on `chunk_backing` for the duration, so it stays resident
-    // while we read its `loaded` flag.
-    unsafe { deluge_sample_fill::chunk::loaded(chunk_backing) }
-}
-
 /// True when the loader queue holds nothing outstanding.
 ///
 /// The single definition of drained-ness, used by the non-blocking [`deluge_streaming_queue_drained`].
@@ -159,23 +150,14 @@ fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
 
 /// Enqueues `chunk_backing` for filling and returns immediately.
 ///
-/// Pair with [`deluge_streaming_chunk_ready`]. The chunk is enqueued under a queue-owned lease, so
-/// the fill survives the requester returning to its loop.
+/// The chunk is enqueued under a queue-owned lease, so the fill survives the requester returning to
+/// its loop.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_streaming_request_chunk(chunk_backing: *mut c_void) {
     if chunk_backing.is_null() {
         return;
     }
     enqueue_chunk_for_fill(chunk_backing);
-}
-
-/// True once a chunk requested via [`deluge_streaming_request_chunk`] has landed. Never waits.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_streaming_chunk_ready(chunk_backing: *mut c_void) -> bool {
-    if chunk_backing.is_null() {
-        return false;
-    }
-    chunk_is_loaded(chunk_backing)
 }
 
 /// Wakes the fill task so it drains the loader queue, and returns immediately.

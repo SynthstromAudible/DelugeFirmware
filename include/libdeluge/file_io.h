@@ -94,19 +94,6 @@ typedef struct DelugeDirEntry {
 /// @return `DELUGE_OK` on success.
 DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, uint32_t* out_handle);
 
-/// @brief Fill-semantics read at the handle's current position: on success
-///        `*out_read == count` always (a short tail at real EOF is zero-padded,
-///        matching the streaming read path's tolerance for a sector-rounded
-///        last-cluster request) -- NOT what `deluge::io::File::read` wants; see
-///        deluge_efatfs_file_read_exact.
-///
-/// @param handle   Handle from deluge_efatfs_file_open.
-/// @param dst      Destination buffer, at least `count` bytes.
-/// @param count    Number of bytes to read.
-/// @param out_read Set to `count` on success.
-/// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_file_read(uint32_t handle, void* dst, uint32_t count, uint32_t* out_read);
-
 /// @brief EOF-honest read at the handle's current position -- the efatfs
 ///        backend for `deluge::io::File::read`.
 ///
@@ -154,20 +141,14 @@ bool deluge_efatfs_stats(uint32_t* out_free_clusters, uint32_t* out_total_cluste
 /// @return true if mounted (or already was); false on mount failure.
 bool deluge_efatfs_mount(void);
 
-/// @brief Query whether the storage volume is currently mounted. Pure state check, no I/O — lets a
-///        caller distinguish a fresh `deluge_efatfs_mount` transition from the already-mounted case
-///        (`deluge_efatfs_mount`'s own return can't tell them apart, since it's idempotent).
-/// @return true if mounted; false if unmounted.
-bool deluge_efatfs_is_mounted(void);
-
 /// @brief How many times the filesystem has become mounted, as a monotonic counter.
 ///
-/// Read this to notice an unmounted→mounted EDGE. Sampling @ref deluge_efatfs_is_mounted either side
-/// of your own @ref deluge_efatfs_mount only finds the edge while you are the ONLY thing that ever
-/// mounts, and that stopped being true when the directory channel's driver began mounting on the
-/// storage tier — mounting is card I/O and its caller is on the interaction tier. A driver that
-/// mounts silently leaves `is_mounted()` reading true, and an edge detector built on it then sees
-/// "already mounted" and skips forever.
+/// Read this to notice an unmounted→mounted EDGE. Sampling this either side of your own
+/// @ref deluge_efatfs_mount only finds the edge while you are the ONLY thing that ever mounts, and
+/// that stopped being true when the directory channel's driver began mounting on the storage tier —
+/// mounting is card I/O and its caller is on the interaction tier. A driver that mounts silently
+/// leaves the mounted state true and an edge detector built on sampling it then sees "already
+/// mounted" and skips forever.
 ///
 /// A counter rather than a flag, so no reader consumes the edge out from under another.
 /// @return A value that changes on every mount. Only changes are meaningful; the absolute value is
@@ -193,14 +174,6 @@ void deluge_efatfs_unmount(void);
 /// @return true on success; false if no volume is mounted or a query error
 ///         occurs — in which case `*out_bytes` is left untouched.
 bool deluge_efatfs_cluster_size(uint32_t* out_bytes);
-
-/// @brief Truncate the file behind `handle` to `new_len` bytes. The handle's
-///        cursor position is left unchanged (matches POSIX `ftruncate`).
-///
-/// @param handle  Handle from deluge_efatfs_file_open.
-/// @param new_len New file length, in bytes.
-/// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_file_truncate(uint32_t handle, uint32_t new_len);
 
 /// @brief Close a task-context file handle opened via deluge_efatfs_file_open.
 ///

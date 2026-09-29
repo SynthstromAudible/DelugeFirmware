@@ -164,12 +164,6 @@ pub extern "C" fn deluge_tier_sync_count(entry: u8) -> u32 {
         .map_or(0, |c| c.load(Ordering::Relaxed))
 }
 
-/// C ABI (`libdeluge/tier.h`): counted calls over every entry.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_tier_sync_total() -> u32 {
-    total()
-}
-
 /// C ABI (`libdeluge/tier.h`): entry index `entry`'s short name, or "" out of range. Static storage.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_tier_sync_name(entry: u8) -> *const c_char {

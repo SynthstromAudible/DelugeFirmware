@@ -389,8 +389,8 @@ typedef struct DelugeAudioLoadResult {
 /// @brief Queue @p file_path for the async loader and wake it. Returns immediately; never waits.
 ///
 /// Pair with @ref deluge_audio_load_collect: request, return to your own loop, and ask for the
-/// result on a later tick. This is the same non-blocking shape
-/// `deluge_streaming_request_chunk`/`deluge_streaming_chunk_ready` (streaming_fill.h) already uses.
+/// result on a later tick. This is the same non-blocking shape `deluge_streaming_request_chunk`
+/// (streaming_fill.h) already uses.
 ///
 /// The candidates are supplied rather than resolved by the loader -- see this section's header
 /// comment for why. Call `deluge_audio_load_resolve_alternate_dir` and then

@@ -53,7 +53,6 @@ fn note_counts_only_post_boot_interaction() {
         })
         .expect("file_open is an entry");
     assert_eq!(tier_meter::deluge_tier_sync_count(idx), 1);
-    assert_eq!(tier_meter::deluge_tier_sync_total(), 2);
     assert_eq!(
         unsafe { core::ffi::CStr::from_ptr(tier_meter::deluge_tier_sync_name(n)) }.to_bytes(),
         b""

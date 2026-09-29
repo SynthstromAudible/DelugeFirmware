@@ -223,46 +223,6 @@ DelugeSampleReservation* deluge_sample_reserve_open(uint32_t source_id, uint64_t
 void deluge_sample_reserve_move(DelugeSampleReservation* res, uint32_t source_id, uint64_t marker_frame,
                                 int8_t direction, DelugeLoadMode load_mode);
 
-/// @brief The Asset id @p res was OPENED for.
-///
-/// NOT re-derived on deluge_sample_reserve_move: a reservation is bound to one Asset for its whole
-/// life, and re-anchoring only slides the window WITHIN that Asset. A caller that reuses one
-/// reservation handle across a change of sample must therefore close and reopen it -- moving it
-/// would pin the OLD sample's clusters at the new sample's marker.
-/// @param res The reservation to query; `nullptr` reports UINT32_MAX.
-/// @return The Asset id this reservation is bound to.
-uint32_t deluge_sample_reserve_asset(const DelugeSampleReservation* res);
-
-/// @brief How many clusters @p res covers — every in-range cluster in its walk window.
-///
-/// Counts coverage, NOT residency: a cluster is covered as soon as it is in range, before any
-/// attempt to load it. Compare against deluge_sample_reserve_leased_count to detect a failed load.
-/// @param res The reservation to query; `nullptr` reports 0.
-/// @return The number of covered clusters.
-uint32_t deluge_sample_reserve_covered_count(const DelugeSampleReservation* res);
-
-/// @brief How many of @p res's covered clusters it actually holds a lease on.
-///
-/// Less than deluge_sample_reserve_covered_count exactly when a load failed — a DELUGE_LOAD_NOW
-/// whose synchronous fill returned false, or a reservation the manager could not satisfy. Those
-/// failures are otherwise INVISIBLE: deluge_sample_reserve_open returns a valid handle either way,
-/// so a caller that asked for DELUGE_LOAD_NOW cannot otherwise tell whether anything was
-/// materialized. Zero leased against non-zero covered means nothing was loaded at all.
-/// @param res The reservation to query; `nullptr` reports 0.
-/// @return The number of covered clusters this reservation holds a lease on.
-uint32_t deluge_sample_reserve_leased_count(const DelugeSampleReservation* res);
-
-/// @brief The cluster index @p res covers at walk position @p slot.
-///
-/// Coverage is reported in walk order from the head cluster, so slot 0 is the cluster the marker
-/// frame resolved to. Lets a caller confirm that a reservation pinned the clusters it MEANT to —
-/// the counts alone cannot, since a reservation anchored on the wrong cluster still reports full
-/// coverage.
-/// @param res  The reservation to query; `nullptr` reports UINT32_MAX.
-/// @param slot Walk position, 0-based.
-/// @return The covered cluster index, or UINT32_MAX if @p slot is past this reservation's coverage.
-uint32_t deluge_sample_reserve_covered_index(const DelugeSampleReservation* res, uint32_t slot);
-
 /// @brief Release `res` and every lease it still holds.
 /// @param res The reservation to close.
 void deluge_sample_reserve_close(DelugeSampleReservation* res);
