@@ -181,8 +181,10 @@ for the new shape.
      - Headless runs are paced by an audio clock that drains the output at 44.1 kHz of wall time, records it under
        `DELUGE_SIM_AUDIO_OUT`, and reports frames the app delivered late.
      - Headless, a clip of four notes plays back every 0.5 s at 120 BPM, with no late frames.
-     - Input reaches the render as the simulator captures it, but headless feeds silence, so only the window's
-       input device or `--audio-in` exercises it.
+     - Input: headless runs feed `--audio-in` (deluge-sdk 935958e). With the `input_mono` preset on the card
+       and a 1 kHz sine on the left input, a held note plays a clean 1 kHz sine with no phase jumps over 1.7 s;
+       the same sine on the right input alone is silent. The input is full-scale q31, as the device's codec words
+       are.
 4. **MIDI.** The DIN providers on the panel's queues. A keyboard on the virtual port plays a synth.
    - [x] Built (e3d8b1fd3; deluge-sdk 17dd2db adds headless `midi <hex bytes>` steps and lists the app's MIDI
          output in each snapshot).
