@@ -23,7 +23,10 @@
 
 class ParamManagerForTimeline;
 class ParamManager;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 
 struct StutterConfig {
 	bool useSongStutter = true;

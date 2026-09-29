@@ -47,6 +47,8 @@ HOST_APP_TARGETS = [
     "NE10",
     "eyalroz_printf",
     "deluge_dsp",
+    "deluge_dsp_fixed",
+    "deluge_dsp_float",
     "deluge_scheduler",
     "deluge_foundation",
     "deluge_midi",

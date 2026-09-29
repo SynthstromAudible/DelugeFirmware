@@ -21,7 +21,7 @@
 #include "gui/ui/ui.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
-#include "modulation/envelope.h"
+#include "synth/envelope.h"
 #include "util/container/enum_to_string_map.hpp"
 
 class ModelStackWithTimelineCounter;

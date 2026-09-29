@@ -1,0 +1,32 @@
+name: Synth Core Boundary
+
+# Boundary guardrail for the synth untangling (Phase 2): the decoupled synth core
+# (src/deluge/synth) must not reach upward into the application (model/, processing/,
+# gui/, storage/, ...), the legacy dsp/ library, or the HAL/BSP. It MAY use util/,
+# dsp-next/, and its sibling modulation/ headers. Governed by a shrink-only allowlist.
+# See docs/dev/synth_phase2_data_plane.md and scripts/check_synth_boundary.py.
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+  merge_group:
+  workflow_dispatch:
+
+jobs:
+  synth-boundary-check:
+    name: synth core boundary check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the synth core stays within its boundary
+        run: python3 scripts/check_synth_boundary.py

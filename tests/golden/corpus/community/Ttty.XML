@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sound
+	firmwareVersion="c1.2.0"
+	earliestCompatibleFirmware="4.1.0-alpha"
+	polyphonic="poly"
+	voicePriority="2"
+	mode="subtractive"
+	modFXType="chorus"
+	lpfMode="24dB"
+	hpfMode="HPLadder"
+	filterRoute="H2L"
+	maxVoices="8">
+	<osc1
+		type="sine"
+		transpose="-24"
+		cents="0"
+		retrigPhase="465288096" />
+	<osc2
+		type="sine"
+		transpose="8"
+		cents="0"
+		retrigPhase="1193046400" />
+	<lfo1 type="sine" syncLevel="0" syncType="0" />
+	<lfo2 type="square" syncLevel="0" syncType="0" />
+	<unison num="1" detune="5" spread="0" />
+	<defaultParams
+		arpeggiatorGate="0x00000000"
+		portamento="0x82000000"
+		compressorShape="0x99999995"
+		oscAVolume="0x3851EB64"
+		oscAPulseWidth="0x00000000"
+		oscAWavetablePosition="0x00000000"
+		oscBVolume="0x7FFFFFFF"
+		oscBPulseWidth="0x00000000"
+		oscBWavetablePosition="0x00000000"
+		noiseVolume="0x80000000"
+		volume="0x4CCCCCA8"
+		pan="0x00000000"
+		lpfFrequency="0x64000000"
+		lpfResonance="0xDE000000"
+		hpfFrequency="0x80000000"
+		hpfResonance="0x80000000"
+		lfo1Rate="0x80000000"
+		lfo2Rate="0x1999997E"
+		modulator1Amount="0x92000000"
+		modulator1Feedback="0x80000000"
+		modulator2Amount="0xAE000000"
+		modulator2Feedback="0xB333332A"
+		carrier1Feedback="0xC7AE146E"
+		carrier2Feedback="0xAE147AD9"
+		modFXRate="0x00000000"
+		modFXDepth="0x3851EB64"
+		delayRate="0x00000000"
+		delayFeedback="0xCC000000"
+		reverbAmount="0xBC000000"
+		arpeggiatorRate="0x00000000"
+		stutterRate="0x0C000000"
+		sampleRateReduction="0xF0000000"
+		bitCrush="0x80000000"
+		modFXOffset="0x00000000"
+		modFXFeedback="0x00000000"
+		compressorThreshold="0x00000000"
+		lpfMorph="0x80000000"
+		hpfMorph="0x80000000"
+		waveFold="0x80000000"
+		ratchetProbability="0x80000000"
+		ratchetAmount="0x80000000"
+		sequenceLength="0x80000000"
+		rhythm="0x80000000">
+		<envelope1
+			attack="0xFFFFFFE9"
+			decay="0x1999997E"
+			sustain="0xAE147AD9"
+			release="0xC0000000" />
+		<envelope2
+			attack="0xE6666654"
+			decay="0xE6666654"
+			sustain="0xFFFFFFE9"
+			release="0xE6666654" />
+		<patchCables>
+			<patchCable
+				source="velocity"
+				destination="volume"
+				amount="0x3FFFFFE8" />
+			<patchCable
+				source="aftertouch"
+				destination="volume"
+				amount="0x2A3D7094" />
+			<patchCable
+				source="lfo2"
+				destination="oscAPitch"
+				amount="0x1FFFFFF4" />
+			<patchCable
+				source="lfo1"
+				destination="pitch"
+				amount="0xFF800000" />
+			<patchCable
+				source="lfo1"
+				destination="modulator2Volume"
+				amount="0x0E147ADC" />
+			<patchCable
+				source="y"
+				destination="modulator1Volume"
+				amount="0x1333332C" />
+		</patchCables>
+		<equalizer
+			bass="0x2E147AC2"
+			treble="0xAE147AD9"
+			bassFrequency="0x00000000"
+			trebleFrequency="0x00000000" />
+	</defaultParams>
+	<arpeggiator
+		mode="off"
+		numOctaves="2"
+		syncLevel="7"
+		syncType="0"
+		arpMode="off"
+		noteMode="up"
+		octaveMode="up"
+		mpeVelocity="off" />
+	<modKnobs>
+		<modKnob controlsParam="pan" />
+		<modKnob controlsParam="volumePostFX" />
+		<modKnob controlsParam="lpfResonance" />
+		<modKnob controlsParam="lpfFrequency" />
+		<modKnob controlsParam="env1Release" />
+		<modKnob controlsParam="env1Attack" />
+		<modKnob controlsParam="delayFeedback" />
+		<modKnob controlsParam="delayRate" />
+		<modKnob controlsParam="reverbAmount" />
+		<modKnob controlsParam="volumePostReverbSend" patchAmountFromSource="compressor" />
+		<modKnob controlsParam="pitch" patchAmountFromSource="lfo1" />
+		<modKnob controlsParam="lfo1Rate" />
+		<modKnob controlsParam="portamento" />
+		<modKnob controlsParam="stutterRate" />
+		<modKnob controlsParam="bitcrushAmount" />
+		<modKnob controlsParam="sampleRateReduction" />
+	</modKnobs>
+	<delay
+		pingPong="1"
+		analog="0"
+		syncLevel="8"
+		syncType="0" />
+	<sidechain
+		attack="327244"
+		release="936"
+		syncLevel="7"
+		syncType="0" />
+	<audioCompressor
+		attack="83886080"
+		release="83886080"
+		thresh="0"
+		ratio="1073741824"
+		compHPF="0"
+		compBlend="2147483647" />
+</sound>

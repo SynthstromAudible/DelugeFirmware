@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <cstdint> // intptr_t
 #include <stddef.h>
 
 template <typename T, size_t size, size_t alignment = 16>

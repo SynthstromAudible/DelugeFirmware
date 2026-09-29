@@ -19,10 +19,12 @@
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
 #include "memory/memory_allocator_interface.h"
-#include "modulation/lfo.h"
+#include "synth/lfo.h"
 #include "util/containers.h"
 #include <cstdint>
 #include <span>
+
+class UnpatchedParamSet; // used only as a pointer below (was previously seen transitively via lfo.h's LUTs)
 
 class ModFXProcessor {
 

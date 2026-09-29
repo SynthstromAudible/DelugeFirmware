@@ -1,6 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "display_mock.h"
-#include "model/sync.h"
+#include "modulation/sync.h"
 #include "song_mock.h"
 
 TEST_GROUP(SyncTests){};

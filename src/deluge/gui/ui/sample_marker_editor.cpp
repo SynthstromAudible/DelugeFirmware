@@ -1013,7 +1013,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 				VoiceUnisonPartSource* part = &assigned_voice->unisonParts[soundEditor.currentSound->numUnison >> 1]
 				                                   .sources[soundEditor.currentSourceIndex];
 				if (part != nullptr && part->active) {
-					voiceSample = part->voiceSample;
+					voiceSample = part->sampleVoiceAdapter.voiceSample();
 					guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
 				}
 			}

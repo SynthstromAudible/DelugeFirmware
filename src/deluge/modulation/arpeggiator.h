@@ -19,7 +19,7 @@
 
 #include "algorithm"
 #include "definitions_cxx.hpp"
-#include "model/sync.h"
+#include "modulation/sync.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"
 #include <algorithm>

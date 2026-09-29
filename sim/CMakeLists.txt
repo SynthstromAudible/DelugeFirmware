@@ -238,6 +238,12 @@ add_compile_definitions(DELUGE_HOST)
 # reason_check reports — is visible when reproducing issues on the sim.
 add_compile_definitions(ENABLE_TEXT_OUTPUT=1)
 
+# Both sim references take the scalar DX7 operator kernel: the firmware's NEON asm
+# kernel (neon_fm_kernel.s) computes sine by polynomial approximation — legitimately
+# different output from the scalar LUT path — so the arm-linux reference must not
+# use it or x86 and ARM golden renders of DX7 presets could never match.
+add_compile_definitions(DELUGE_DX_SCALAR)
+
 if(DELUGE_SIM_NEON_NATIVE)
     # Real NEON (arm-linux cross or an arm64 host): the toolchain provides <arm_neon.h>; argon's
     # <arm/neon.h> and the SIMDe compat shim are unused.

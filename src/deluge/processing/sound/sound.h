@@ -24,20 +24,24 @@
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
-#include "modulation/lfo.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
-#include "modulation/patch/patcher.h"
 #include "modulation/sidechain/sidechain.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
+#include "synth/lfo.h"
+#include "synth/param_plane.h"
+#include "synth/patcher.h"
 #include "util/misc.h"
 #include <bitset>
 #include <memory>
 
 struct CableGroup;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class Voice;
 class Kit;
 class ParamManagerForTimeline;
@@ -99,11 +103,9 @@ public:
 
 	Source sources[kNumSources];
 
-	// This is for the *global* params only, and begins with FIRST_GLOBAL_PARAM, so subtract that from your p value
-	// before accessing this array!
-	std::array<int32_t, deluge::modulation::params::kNumParams - deluge::modulation::params::FIRST_GLOBAL>
-	    paramFinalValues{};
-	std::array<int32_t, util::to_underlying(kFirstLocalSource)> globalSourceValues{};
+	// The per-sound *global* modulation data plane. params.paramFinalValues begins with FIRST_GLOBAL, so
+	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.
+	GlobalParams params;
 
 	uint32_t sourcesChanged{}; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
 
@@ -113,20 +115,13 @@ public:
 
 	bool invertReversed{}; // Used by the arpeggiator to invert the reverse flag just for the current voice
 
-	// December 3, 2024
-	// @todo
-	// Commit 6534979986d465a0acf01018e066e1d7ca1d170e
-	// From PR #2004 (LFO: cleanups in preparation for LFO2 sync support)
-	// (https://github.com/SynthstromAudible/DelugeFirmware/pull/2004)
-	// Removed four uint8_t lfo variables from this section and replaced them with the LFOConfig
-	// definition above. This unknowingly introduced a "release" bug which changed the sound of the
-	// Deluge synth engine compared to 1.1 as reported in issue #2660:
-	// (https://github.com/SynthstromAudible/DelugeFirmware/issues/2660)
-	// As a solution modKnobs is aligned to 8 bytes. I don't know why this fixes the problem but it seems to work even
-	// with other changes to the class. We think the issue relates to the use of "offsetof" in the
-	// param and patcher system (related to the paramFinalValues / globalSourceValues definitions above)
-
-	alignas(8) ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
+	// modKnobs was historically force-aligned (alignas(8), and before that a 0xDEADBEEF padding word) to mask
+	// issue #2660 — a "release" bug from PR #2004, when four uint8_t LFO fields became LFOConfig and shifted
+	// Sound's layout. The cause was the offsetof-indexed param/patcher plumbing, since replaced by std::span
+	// over the ParamPlane POD (no offsetof; no layout-sensitive param access). The band-aid is therefore
+	// vestigial — removed here, gated on the golden masters not moving (x86 + ARM) + a #2660-repro hardware
+	// ear-check. https://github.com/SynthstromAudible/DelugeFirmware/issues/2660
+	ModKnob modKnobs[kNumModButtons][kNumPhysicalModKnobs];
 
 	int32_t sideChainSendLevel = 0;
 
@@ -297,6 +292,12 @@ public:
 			return paramLPF.currentValue;
 		}
 		return paramManager.getPatchedParamSet()->getValue(p);
+	}
+
+	// Snapshot the per-block inputs the Patcher reads from ParamManager-world into a ControlBlock, so the
+	// patcher needs no Sound&/ParamManager&. presetValue() on the result mirrors getSmoothedPatchedParamValue.
+	ControlBlock patchControlBlock(ParamManager& paramManager) const {
+		return {paramManager.getPatchedParamSet(), paramManager.getPatchCableSet(), paramLPF.p, paramLPF.currentValue};
 	}
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,

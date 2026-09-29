@@ -1,0 +1,4 @@
+# Time-stretch (pitch/speed independent): hold C5 (+12 from the C4 root) so the
+# played pitch differs from the playback speed and live_pitch_shifter engages.
+4608 90 48 64
+80000 80 48 40

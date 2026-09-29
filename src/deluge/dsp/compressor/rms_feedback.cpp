@@ -17,6 +17,7 @@
 
 #include "dsp/compressor/rms_feedback.h"
 #include "util/fixedpoint.h"
+#include <algorithm> // std::clamp
 std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> dryBuffer;
 
 RMSFeedbackCompressor::RMSFeedbackCompressor() {

@@ -22,7 +22,10 @@
 // path below (it computes the same operator output). kHaveNeon gates the runtime `neon` flag so the
 // host never reaches the (absent) kernel. __ARM_NEON is also defined when the *host* CPU is ARM
 // (e.g. an Apple-Silicon sim build), so exclude DELUGE_HOST — the kernel only exists in firmware.
-#if defined(__ARM_NEON) && !defined(DELUGE_HOST)
+// DELUGE_DX_SCALAR forces the scalar path too: the asm kernel computes sine by polynomial
+// approximation while the scalar path uses the LUT, so they are NOT bit-identical, and the
+// golden-master references must take the same path on every host.
+#if defined(__ARM_NEON) && !defined(DELUGE_HOST) && !defined(DELUGE_DX_SCALAR)
 #define HAVE_NEON
 #endif
 

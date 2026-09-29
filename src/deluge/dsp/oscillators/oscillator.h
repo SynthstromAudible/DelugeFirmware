@@ -16,20 +16,21 @@
  */
 #pragma once
 
-#include "storage/wave_table/wave_table.h"
+#include "definitions_cxx.hpp"      // OscType
+#include "synth/source/va_shapes.h" // va_shape::Wave
+#include <cstdint>
 namespace deluge::dsp {
 
-class Oscillator {
-	static void maybeStorePhase(const OscType& type, uint32_t* startPhase, uint32_t phase, bool doPulseWave);
-	static void applyAmplitudeVectorToBuffer(int32_t amplitude, int32_t numSamples, int32_t amplitudeIncrement,
-	                                         int32_t* outputBufferPos, int32_t* inputBuferPos);
+/// Shared osc-sync / hard-sync scratch buffer (defined in oscillator.cpp). Reused as the per-source engines'
+/// per-block scratch when Voice drives them directly.
+extern int32_t oscSyncRenderingBuffer[];
 
-public:
-	static void renderOsc(OscType type, int32_t amplitude, int32_t* bufferStart, int32_t* bufferEnd, int32_t numSamples,
-	                      uint32_t phaseIncrement, uint32_t pulseWidth, uint32_t* startPhase, bool applyAmplitude,
-	                      int32_t amplitudeIncrement, bool doOscSync, uint32_t resetterPhase,
-	                      uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t waveIndexIncrement,
-	                      int sourceWaveIndexLastTime, WaveTable* waveTable);
-};
+/// Whether @p type is one of the six virtual-analog waves rendered by @ref synth::VirtualAnalogSource (the first
+/// OscType entries, up to ANALOG_SAW_2). WAVETABLE/SAMPLE/DX7/INPUT_* are not. This is the app-side boundary
+/// predicate that decides whether a source's phase lives in the engine or in @c oscPos.
+[[nodiscard]] bool isVirtualAnalog(OscType type);
+
+/// The app's open OscType → the VA engine's closed wave set. Only valid when @ref isVirtualAnalog (else SINE).
+[[nodiscard]] synth::va_shape::Wave vaWaveFor(OscType type);
 
 } // namespace deluge::dsp

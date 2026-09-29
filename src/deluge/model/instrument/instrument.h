@@ -23,7 +23,10 @@
 #include "model/output.h"
 #include "storage/flash_storage.h"
 
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class ModControllable;
 class InstrumentClip;
 class ParamManagerForTimeline;

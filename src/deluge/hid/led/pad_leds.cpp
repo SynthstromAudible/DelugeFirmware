@@ -17,6 +17,8 @@
 
 #include "hid/led/pad_leds.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "dsp-next/fixed/osc/sine_table.h"
 #include "gui/colour/colour.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -32,14 +34,19 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/draw_square.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
+
+using deluge::dsp::fixed::linear_table_interpolator;
+using deluge::dsp::fixed::sine_table;
 
 #include "libdeluge/control_surface.h"
 
@@ -440,7 +447,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			int32_t sessionMuteIntensity = 65535 - muteBlendProgress;
 			PadLEDs::image[animatedRowGoingTo[0]][col] =
 			    drawSquare(clipMuteSquareColour, sessionMuteIntensity, PadLEDs::image[animatedRowGoingTo[0]][col],
-			               &occupancyMask[animatedRowGoingTo[0]][col], 64);
+			               &occupancyMask[animatedRowGoingTo[0]][col]);
 		}
 
 		for (int32_t i = 0; i < numAnimatedRows; i++) {
@@ -504,13 +511,13 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			if (newRowPosition1Array[i] >= 0 && newRowPosition1Array[i] < kDisplayHeight) {
 				PadLEDs::image[newRowPosition1Array[i]][col] =
 				    drawSquare(squareColours, intensity1, PadLEDs::image[newRowPosition1Array[i]][col],
-				               &occupancyMask[newRowPosition1Array[i]][col], occupancyMaskStore[i][col]);
+				               &occupancyMask[newRowPosition1Array[i]][col]);
 			}
 
 			if (newRowPosition1Array[i] >= -1 && newRowPosition1Array[i] < kDisplayHeight - 1) {
 				PadLEDs::image[newRowPosition1Array[i] + 1][col] =
 				    drawSquare(squareColours, intensity2, PadLEDs::image[newRowPosition1Array[i] + 1][col],
-				               &occupancyMask[newRowPosition1Array[i] + 1][col], occupancyMaskStore[i][col]);
+				               &occupancyMask[newRowPosition1Array[i] + 1][col]);
 			}
 		}
 	}
@@ -715,9 +722,8 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 						}
 
 						uint32_t intensityNow = (yIntensity[yOffset] * xIntensityArray[xSource][xOffset]) >> 16;
-						PadLEDs::image[yNow][xNow] =
-						    drawSquare(imageStore[ySource + 1][xSource], intensityNow, PadLEDs::image[yNow][xNow],
-						               &occupancyMask[yNow][xNow], occupancyMaskStore[ySource + 1][xSource]);
+						PadLEDs::image[yNow][xNow] = drawSquare(imageStore[ySource + 1][xSource], intensityNow,
+						                                        PadLEDs::image[yNow][xNow], &occupancyMask[yNow][xNow]);
 					}
 				}
 			}
@@ -1185,7 +1191,7 @@ void renderZoom() {
 		transitionProgress = 65536 - transitionProgress;
 	}
 
-	uint32_t sineValue = (getSine((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
+	uint32_t sineValue = (sine_table.value((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
 
 	// The commented line is equivalent to the other lines just below
 	// int32_t negativeFactorProgress = pow(zoomFactor, transitionProgress - 1) * 134217728; // Sorry, the purpose of
@@ -1201,7 +1207,7 @@ void renderZoom() {
 	// "0.5" (32768). And so on.
 
 	uint32_t inImageTimesBiggerThanNormal =
-	    interpolateTable(fine, 10, expTableSmall); // This could be changed to run on a bigger number of bits in input
+	    linear_table_interpolator.interpolate(fine, 10, expTableSmall); // could run on more input bits
 	inImageTimesBiggerThanNormal = increaseMagnitude(inImageTimesBiggerThanNormal, coarse - 14);
 
 	renderZoomWithProgress(inImageTimesBiggerThanNormal, sineValue, &imageStore[0][0][0],

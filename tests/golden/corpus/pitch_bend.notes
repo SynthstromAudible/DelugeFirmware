@@ -1,0 +1,8 @@
+# Held note with a stepped pitch-bend excursion and return.
+4608 90 3C 64
+20000 E0 00 50
+28000 E0 00 60
+36000 E0 00 70
+44000 E0 7F 7F
+60000 E0 00 40
+70000 80 3C 40

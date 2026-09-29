@@ -33,7 +33,10 @@ class Clip;
 class ParamManagerForTimeline;
 class Kit;
 class Sound;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class TimelineCounter;
 class ModControllable;
 class GlobalEffectableForClip;

@@ -17,10 +17,12 @@
 
 #pragma once
 
-#include "gui/l10n/strings.h"
-#include "model/iterance/iterance.h"
 #include <array>
 #include <cstdint>
+
+// NOTE: the preset *name* / iterance tables (presetReverbNames, chordNames, iterancePresets) that need
+// gui/l10n + model/iterance live in util/lookuptables/preset_tables.h, so this header stays a leaf of
+// numeric DSP tables (no gui/ or model/ reach). Include preset_tables.h if you need those.
 
 // ALIGNMENT: every table DEFINITION below carries `alignas(16)` (see the .cpp files). The
 // oscillator render path reads these through NEON/argon lane loads, which require aligned memory,
@@ -42,87 +44,10 @@ extern const int16_t hanningWindow[];
 
 extern const int16_t sineWaveSmall[];
 
-extern const int16_t triangleWaveAntiAliasing1[];
-extern const int16_t triangleWaveAntiAliasing3[];
-extern const int16_t triangleWaveAntiAliasing5[];
-extern const int16_t triangleWaveAntiAliasing7[];
-extern const int16_t triangleWaveAntiAliasing9[];
-extern const int16_t triangleWaveAntiAliasing15[];
-extern const int16_t triangleWaveAntiAliasing21[];
-extern const int16_t triangleWaveAntiAliasing31[];
-
-extern const int16_t sawWave1[];
-extern const int16_t sawWave3[];
-extern const int16_t sawWave5[];
-extern const int16_t sawWave7[];
-extern const int16_t sawWave9[];
-extern const int16_t sawWave13[];
-extern const int16_t sawWave19[];
-extern const int16_t sawWave27[];
-extern const int16_t sawWave39[];
-extern const int16_t sawWave53[];
-extern const int16_t sawWave76[];
-extern const int16_t sawWave109[];
-extern const int16_t sawWave153[];
-extern const int16_t sawWave215[];
-
-extern const int16_t squareWave1[];
-extern const int16_t squareWave3[];
-extern const int16_t squareWave5[];
-extern const int16_t squareWave7[];
-extern const int16_t squareWave9[];
-extern const int16_t squareWave13[];
-extern const int16_t squareWave19[];
-extern const int16_t squareWave27[];
-extern const int16_t squareWave39[];
-extern const int16_t squareWave53[];
-extern const int16_t squareWave76[];
-extern const int16_t squareWave109[];
-extern const int16_t squareWave153[];
-extern const int16_t squareWave215[];
-
-extern const int16_t mysterySynthASaw_153[];
-extern const int16_t mysterySynthASaw_215[];
-extern const int16_t mysterySynthASaw_305[];
-extern const int16_t mysterySynthASaw_431[];
-extern const int16_t mysterySynthASaw_609[];
-extern const int16_t mysterySynthASaw_861[];
-extern const int16_t mysterySynthASaw_1217[];
-extern const int16_t mysterySynthASaw_1722[];
-
-extern const int16_t mysterySynthBSaw_1[];
-extern const int16_t mysterySynthBSaw_3[];
-extern const int16_t mysterySynthBSaw_5[];
-extern const int16_t mysterySynthBSaw_7[];
-extern const int16_t mysterySynthBSaw_9[];
-extern const int16_t mysterySynthBSaw_13[];
-extern const int16_t mysterySynthBSaw_19[];
-extern const int16_t mysterySynthBSaw_27[];
-extern const int16_t mysterySynthBSaw_39[];
-extern const int16_t mysterySynthBSaw_53[];
-extern const int16_t mysterySynthBSaw_76[];
-extern const int16_t mysterySynthBSaw_109[];
-
-extern const int16_t analogSquare_1[];
-extern const int16_t analogSquare_3[];
-extern const int16_t analogSquare_5[];
-extern const int16_t analogSquare_7[];
-extern const int16_t analogSquare_9[];
-extern const int16_t analogSquare_13[];
-extern const int16_t analogSquare_19[];
-extern const int16_t analogSquare_27[];
-extern const int16_t analogSquare_39[];
-extern const int16_t analogSquare_53[];
-extern const int16_t analogSquare_76[];
-extern const int16_t analogSquare_109[];
-extern const int16_t analogSquare_153[];
-extern const int16_t analogSquare_215[];
-extern const int16_t analogSquare_305[];
-extern const int16_t analogSquare_431[];
-extern const int16_t analogSquare_609[];
-extern const int16_t analogSquare_861[];
-extern const int16_t analogSquare_1217[];
-extern const int16_t analogSquare_1722[];
+// The band-limited oscillator wave LUTs (triangle AA, saw, square, analog saw/square) moved
+// into their dsp-next kernels (dsp-next/fixed/{saw,square,triangle,analog_saw,analog_square}.cpp),
+// which own them internally. sineWaveSmall stays here (read by the dsp-next sine_table evaluator + the
+// wavetable engine).
 
 // Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible
 // without going over 22.05kHz (2147483648), even when shifted up a semitone (via osc-cents and unison combined)
@@ -138,16 +63,16 @@ extern const int16_t oldResonanceCompensation[];
 #define NUM_PRESET_REVERBS 3
 const uint8_t presetReverbRoomSize[NUM_PRESET_REVERBS] = {16, 30, 44};
 const uint8_t presetReverbDamping[NUM_PRESET_REVERBS] = {29, 36, 45};
-extern deluge::l10n::String presetReverbNames[NUM_PRESET_REVERBS];
+// presetReverbNames -> util/lookuptables/preset_tables.h (needs l10n::String)
 
 extern const uint8_t noteCodeToNoteLetter[];
 extern const uint8_t noteCodeToNoteLetterFlats[];
 extern const bool noteCodeIsSharp[];
 
-extern const std::array<Iterance, kNumIterancePresets> iterancePresets;
+// iterancePresets -> util/lookuptables/preset_tables.h (needs Iterance)
 
 #define MAX_CHORD_TYPES 9
 #define MAX_CHORD_NOTES 4
 extern uint8_t chordTypeSemitoneOffsets[MAX_CHORD_TYPES][MAX_CHORD_NOTES];
 extern uint8_t chordTypeNoteCount[MAX_CHORD_TYPES];
-extern const std::array<deluge::l10n::String, MAX_CHORD_TYPES> chordNames;
+// chordNames -> util/lookuptables/preset_tables.h (needs l10n::String)

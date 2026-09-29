@@ -89,6 +89,7 @@
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
+#include "util/lookuptables/preset_tables.h"
 #include <iterator>
 
 namespace params = deluge::modulation::params;

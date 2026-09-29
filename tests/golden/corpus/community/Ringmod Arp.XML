@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sound
+	firmwareVersion="c1.2.0"
+	earliestCompatibleFirmware="4.1.0-alpha"
+	polyphonic="legato"
+	voicePriority="1"
+	mode="ringmod"
+	modFXType="none"
+	lpfMode="SVF_Band"
+	hpfMode="HPLadder"
+	filterRoute="H2L"
+	maxVoices="8">
+	<osc1
+		type="sine"
+		transpose="0"
+		cents="-3"
+		retrigPhase="0" />
+	<osc2
+		type="square"
+		transpose="9"
+		cents="-19"
+		retrigPhase="0" />
+	<lfo1 type="triangle" syncLevel="0" syncType="0" />
+	<lfo2 type="triangle" syncLevel="0" syncType="0" />
+	<unison num="1" detune="8" spread="0" />
+	<defaultParams
+		arpeggiatorGate="0x1EB851CF"
+		portamento="0x80000000"
+		compressorShape="0xDC28F5B2"
+		oscAVolume="0x7FFFFFFF"
+		oscAPulseWidth="0x00000000"
+		oscAWavetablePosition="0x00000000"
+		oscBVolume="0x80000000"
+		oscBPulseWidth="0x00000000"
+		oscBWavetablePosition="0x00000000"
+		noiseVolume="0x80000000"
+		volume="0x7FFFFFFF"
+		pan="0x00000000"
+		lpfFrequency="0xC2000000"
+		lpfResonance="0xD0000000"
+		hpfFrequency="0xC0000000"
+		hpfResonance="0xFE000000"
+		lfo1Rate="0x1999997E"
+		lfo2Rate="0x00000000"
+		modulator1Amount="0x80000000"
+		modulator1Feedback="0x80000000"
+		modulator2Amount="0x80000000"
+		modulator2Feedback="0x80000000"
+		carrier1Feedback="0x80000000"
+		carrier2Feedback="0x80000000"
+		modFXRate="0x00000000"
+		modFXDepth="0x00000000"
+		delayRate="0x00000000"
+		delayFeedback="0xB6000000"
+		reverbAmount="0xC4000000"
+		arpeggiatorRate="0x00000000"
+		stutterRate="0x00000000"
+		sampleRateReduction="0x80000000"
+		bitCrush="0x80000000"
+		modFXOffset="0x00000000"
+		modFXFeedback="0x00000000"
+		compressorThreshold="0x00000000"
+		lpfMorph="0xE28856F4"
+		hpfMorph="0x80000000"
+		waveFold="0x80000000"
+		ratchetProbability="0x99999995"
+		ratchetAmount="0x9EB851E6"
+		sequenceLength="0xA8F5C288"
+		rhythm="0x8A3D70A2">
+		<envelope1
+			attack="0x99999995"
+			decay="0xE6666654"
+			sustain="0x7FFFFFFF"
+			release="0x8F5C28F3" />
+		<envelope2
+			attack="0x92000000"
+			decay="0xE6666654"
+			sustain="0xFFFFFFE9"
+			release="0xE6666654" />
+		<patchCables>
+			<patchCable
+				source="velocity"
+				destination="volume"
+				amount="0x3FFFFFE8" />
+			<patchCable
+				source="aftertouch"
+				destination="volume"
+				amount="0x2A3D7094" />
+			<patchCable
+				source="y"
+				destination="lpfFrequency"
+				amount="0x19999990" />
+			<patchCable
+				source="envelope2"
+				destination="lpfFrequency"
+				amount="0x10A3D70A" />
+			<patchCable
+				source="compressor"
+				destination="volumePostReverbSend"
+				amount="0x14000000" />
+		</patchCables>
+		<equalizer
+			bass="0x00000000"
+			treble="0x00000000"
+			bassFrequency="0x00000000"
+			trebleFrequency="0x00000000" />
+	</defaultParams>
+	<arpeggiator
+		mode="up"
+		numOctaves="2"
+		syncLevel="7"
+		syncType="0"
+		arpMode="arp"
+		noteMode="up"
+		octaveMode="down"
+		mpeVelocity="off" />
+	<modKnobs>
+		<modKnob controlsParam="pan" />
+		<modKnob controlsParam="volumePostFX" />
+		<modKnob controlsParam="lpfResonance" />
+		<modKnob controlsParam="lpfFrequency" />
+		<modKnob controlsParam="env1Release" />
+		<modKnob controlsParam="env1Attack" />
+		<modKnob controlsParam="delayFeedback" />
+		<modKnob controlsParam="delayRate" />
+		<modKnob controlsParam="reverbAmount" />
+		<modKnob controlsParam="volumePostReverbSend" patchAmountFromSource="compressor" />
+		<modKnob controlsParam="pitch" patchAmountFromSource="lfo1" />
+		<modKnob controlsParam="lfo1Rate" />
+		<modKnob controlsParam="portamento" />
+		<modKnob controlsParam="stutterRate" />
+		<modKnob controlsParam="bitcrushAmount" />
+		<modKnob controlsParam="sampleRateReduction" />
+	</modKnobs>
+	<delay
+		pingPong="1"
+		analog="0"
+		syncLevel="7"
+		syncType="0" />
+	<midiKnobs>
+		<midiKnob channel="0" ccNumber="23"
+			relative="0"
+			controlsParam="carrier1Feedback">
+			<device
+				name="Launchkey Mini MK3"
+				vendorId="0x1235"
+				productId="0x0102" />
+		</midiKnob>
+		<midiKnob channel="0" ccNumber="21"
+			relative="0"
+			controlsParam="modulator1Volume">
+			<device
+				name="Launchkey Mini MK3"
+				vendorId="0x1235"
+				productId="0x0102" />
+		</midiKnob>
+		<midiKnob channel="0" ccNumber="22"
+			relative="0"
+			controlsParam="modulator2Volume">
+			<device
+				name="Launchkey Mini MK3"
+				vendorId="0x1235"
+				productId="0x0102" />
+		</midiKnob>
+		<midiKnob channel="0" ccNumber="24"
+			relative="0"
+			controlsParam="modulator2Volume"
+			patchAmountFromSource="envelope2">
+			<device
+				name="Launchkey Mini MK3"
+				vendorId="0x1235"
+				productId="0x0102" />
+		</midiKnob>
+		<midiKnob channel="0" ccNumber="25"
+			relative="0"
+			controlsParam="carrier1Feedback"
+			patchAmountFromSource="lfo1">
+			<device
+				name="Launchkey Mini MK3"
+				vendorId="0x1235"
+				productId="0x0102" />
+		</midiKnob>
+		<midiKnob channel="0" ccNumber="27"
+			relative="0"
+			controlsParam="lfo1Rate">
+			<device
+				name="Launchkey Mini MK3"
+				vendorId="0x1235"
+				productId="0x0102" />
+		</midiKnob>
+	</midiKnobs>
+	<sidechain
+		attack="327244"
+		release="936"
+		syncLevel="6"
+		syncType="0" />
+	<audioCompressor
+		attack="83886080"
+		release="2147483647"
+		thresh="0"
+		ratio="1073741824"
+		compHPF="0"
+		compBlend="2147483647" />
+</sound>

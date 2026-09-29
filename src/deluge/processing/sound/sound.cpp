@@ -43,12 +43,10 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/arpeggiator.h"
-#include "modulation/envelope.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "modulation/patch/patcher.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
@@ -57,6 +55,8 @@
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
+#include "synth/envelope.h"
+#include "synth/patcher.h"
 #include "util/comparison.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
@@ -72,6 +72,10 @@
 #include <ranges>
 
 namespace params = deluge::modulation::params;
+
+// Defined in voice.cpp; the per-render scratch shared engine-wide. Injected into Voice::render (the kernel no
+// longer reaches it as a global).
+extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 constexpr Patcher::Config kPatcherConfigForSound = {
     .firstParam = params::FIRST_GLOBAL,
@@ -96,7 +100,7 @@ int32_t Sound::soundsDestroyedWithLiveVoices() {
 	return g_soundsDestroyedWithLiveVoices.load(std::memory_order_relaxed);
 }
 
-Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalValues) {
+Sound::Sound() : patcher(kPatcherConfigForSound, params.sourceValues, params.paramFinalValues) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
@@ -421,14 +425,14 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* param
 
 	// Whether global...
 	if (p >= params::FIRST_GLOBAL) {
-		patcher.recalculateFinalValueForParamWithNoCables(p, *this, *paramManager);
+		patcher.recalculateFinalValueForParamWithNoCables(p, patchControlBlock(*paramManager));
 		return;
 	}
 
 	// Or local (do to each voice)...
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	for (ActiveVoice& voice : voices_) {
-		voice->patcher.recalculateFinalValueForParamWithNoCables(p, *this, *paramManager);
+		voice->patcher.recalculateFinalValueForParamWithNoCables(p, patchControlBlock(*paramManager));
 	}
 }
 
@@ -1645,7 +1649,7 @@ void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* m
                            int32_t fromMIDIChannel) {
 	int32_t envelopePositions[kNumEnvelopes];
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
-		envelopePositions[e] = voice->envelopes[e].lastValue;
+		envelopePositions[e] = voice->envelopes[e].outputLevel();
 	}
 	if (sideChainSendLevel != 0) [[unlikely]] {
 		AudioEngine::registerSideChainHit(sideChainSendLevel);
@@ -1683,7 +1687,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			ActiveVoice& voice = *it;
 			// if it's not MONO, and the envelope is not in release and we're allowing note tails, this is a legato
 			// voice
-			if (polyphonic != PolyphonyMode::MONO && voice->envelopes[0].state < EnvelopeStage::RELEASE
+			if (polyphonic != PolyphonyMode::MONO && voice->envelopes[0].stage() < Envelope::Stage::RELEASE
 			    && allowNoteTails(modelStack, true)) {
 				voiceForLegato = &voice;
 				break;
@@ -1697,7 +1701,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                           return isSourceActiveCurrently(s, paramManager)
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
-			    || (voice->envelopes[0].state != EnvelopeStage::FAST_RELEASE
+			    || (voice->envelopes[0].stage() != Envelope::Stage::FAST_RELEASE
 			        && !voice->doFastRelease(SOFT_CULL_INCREMENT));
 
 			if (needs_unassign) {
@@ -1953,7 +1957,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 	for (const ActiveVoice& voice : voices_) {
 		if ((voice->noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
-		    && voice->envelopes[0].state < EnvelopeStage::RELEASE) { // Don't bother if it's already "releasing"
+		    && voice->envelopes[0].stage() < Envelope::Stage::RELEASE) { // Don't bother if it's already "releasing"
 
 			// If we have actual arpeggiation, just switch off.
 			if ((arpSettings != nullptr) && arpSettings->mode != ArpMode::OFF) {
@@ -1997,7 +2001,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 
 			else {
 justSwitchOff:
-				voice->noteOff(modelStack);
+				voice->noteOff((ParamManagerForTimeline*)modelStack->paramManager, allowNoteTails(modelStack, true));
 			}
 		}
 	}
@@ -2476,27 +2480,27 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_1)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_1);
 
-		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
+		int32_t old = params.sourceValues[patchSourceLFOGlobalUnderlying];
 		// TODO: We don't really need to recompute phase increment unless rate, sync, or
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		globalSourceValues[patchSourceLFOGlobalUnderlying] = globalLFO1.render(
+		params.sourceValues[patchSourceLFOGlobalUnderlying] = globalLFO1.render(
 		    output.size(), lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
+		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_2)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_2);
 
-		int32_t old = globalSourceValues[patchSourceLFOGlobalUnderlying];
+		int32_t old = params.sourceValues[patchSourceLFOGlobalUnderlying];
 		// TODO: We don't really need to recompute phase increment unless rate, sync, or
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		globalSourceValues[patchSourceLFOGlobalUnderlying] = globalLFO3.render(
+		params.sourceValues[patchSourceLFOGlobalUnderlying] = globalLFO3.render(
 		    output.size(), lfoConfig[LFO3_ID], getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceLFOGlobalUnderlying]);
+		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 
@@ -2514,22 +2518,22 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		const auto patchSourceSidechainUnderlying = util::to_underlying(PatchSource::SIDECHAIN);
 
-		int32_t old = globalSourceValues[patchSourceSidechainUnderlying];
-		globalSourceValues[patchSourceSidechainUnderlying] = sidechain.render(
+		int32_t old = params.sourceValues[patchSourceSidechainUnderlying];
+		params.sourceValues[patchSourceSidechainUnderlying] = sidechain.render(
 		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE));
-		uint32_t anyChange = (old != globalSourceValues[patchSourceSidechainUnderlying]);
+		uint32_t anyChange = (old != params.sourceValues[patchSourceSidechainUnderlying]);
 		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
 	}
 
 	// Perform the actual patching
 	if (sourcesChanged) {
-		patcher.performPatching(sourcesChanged, *this, *paramManager);
+		patcher.performPatching(sourcesChanged, patchControlBlock(*paramManager));
 	}
 
 	// Setup some reverb-related stuff
 	int32_t reverbSendAmount =
 	    multiply_32x32_rshift32_rounded(reverbAmountAdjust,
-	                                    paramFinalValues[params::GLOBAL_REVERB_AMOUNT - params::FIRST_GLOBAL])
+	                                    params.paramFinalValues[params::GLOBAL_REVERB_AMOUNT - params::FIRST_GLOBAL])
 	    << 5;
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
@@ -2547,7 +2551,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
-		    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+		    arpSettings->getPhaseIncrement(params.paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 	}
@@ -2576,12 +2580,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// Setup delay
 	Delay::State delayWorkingState{};
-	delayWorkingState.delayFeedbackAmount = paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
+	delayWorkingState.delayFeedbackAmount =
+	    params.paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (q31_t)(1 << 30) - (1 << 26));
 	}
-	delayWorkingState.userDelayRate = paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
+	delayWorkingState.userDelayRate = params.paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	delay.setupWorkingState(delayWorkingState, timePerTickInverse, !voices_.empty());
 	delayWorkingState.analog_saturation = 8;
@@ -2618,12 +2623,74 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    thisHasFilters
 		    && (paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_HPF_FREQ)
 		        || (hpfFreq != std::numeric_limits<q31_t>::min()) || (hpfMorph > std::numeric_limits<q31_t>::min()));
+		// Snapshot the per-sound render config the voice kernel consumes (Phase 4 — the adapter edge that
+		// feeds Voice::render its Sound config instead of it reaching back into `sound`).
+		std::array<OscType, kNumSources> oscTypes;
+		std::array<SampleRepeatMode, kNumSources> repeatModes;
+		std::array<InterpolationMode, kNumSources> interpolationModes;
+		std::array<bool, kNumSources> dxPatchChangeds;
+		std::array<bool, kNumSources> sourceEverActives;
+		std::array<bool, kNumSources> sourceActiveCurrentlys;
+		for (int32_t s = 0; s < kNumSources; s++) {
+			oscTypes[s] = sources[s].oscType;
+			repeatModes[s] = sources[s].repeatMode;
+			interpolationModes[s] = sources[s].sampleControls.interpolationMode;
+			dxPatchChangeds[s] = sources[s].dxPatchChanged;
+			sourceEverActives[s] = modelStackWithSoundFlags->checkSourceEverActive(s);
+			sourceActiveCurrentlys[s] = isSourceActiveCurrently(s, paramManager);
+		}
+		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
+		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
+		const VoiceConfig voiceConfig{
+		    .lpfMode = lpfMode,
+		    .hpfMode = hpfMode,
+		    .filterRoute = filterRoute,
+		    .volumeNeutralValueForUnison = volumeNeutralValueForUnison,
+		    .synthMode = getSynthMode(),
+		    .lfo2Config = lfoConfig[LFO2_ID],
+		    .lfo4Config = lfoConfig[LFO4_ID],
+		    .lfo2SyncedPhaseIncrement =
+		        (lfoConfig[LFO2_ID].syncLevel == SYNC_LEVEL_NONE) ? 0 : getSyncedLFOPhaseIncrement(lfoConfig[LFO2_ID]),
+		    .lfo4SyncedPhaseIncrement =
+		        (lfoConfig[LFO4_ID].syncLevel == SYNC_LEVEL_NONE) ? 0 : getSyncedLFOPhaseIncrement(lfoConfig[LFO4_ID]),
+		    .hasFilters = thisHasFilters,
+		    .expressionSourcesChangedAtSynthLevel = expressionSourcesChangedAtSynthLevel,
+		    .monophonicExpressionValues = monophonicExpressionValues,
+		    .clippingAmount = clippingAmount,
+		    .doingOscSync = renderingOscillatorSyncCurrently(paramManager),
+		    .engineRenderingInStereo = AudioEngine::renderInStereo,
+		    .numUnison = numUnison,
+		    .unisonStereoSpread = unisonStereoSpread,
+		    .unisonPan = std::to_array(unisonPan),
+		    .oscRetriggerPhase = oscRetriggerPhase,
+		    .oscType = oscTypes,
+		    .repeatMode = repeatModes,
+		    .interpolationMode = interpolationModes,
+		    .dxPatchChanged = dxPatchChangeds,
+		    .globalSourceValues = params.sourceValues,
+		    .noteTailsAllowed = allowNoteTails(modelStackWithSoundFlags, true),
+		    .sourceEverActive = sourceEverActives,
+		    .noiseVolumeContainsSomething =
+		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648),
+		    .localSourcesPatchedToAnything =
+		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
+		    .bendRanges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
+		    .portamento = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO),
+		    .modulator1ToModulator0 = modulator1ToModulator0,
+		    .sourceActiveCurrently = sourceActiveCurrentlys,
+		};
+
+		// The patcher's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
+		// paramLPF is only mutated after the loop), so build it once here rather than per voice.
+		const ControlBlock controlBlock = patchControlBlock(*paramManager);
+
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
 
-			bool stillGoing =
-			    voice->render(modelStackWithSoundFlags, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
-			                  applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust);
+			bool stillGoing = voice->render(
+			    paramManager, controlBlock, sound_mono.data(), sound_mono.size(), voice_rendered_in_stereo,
+			    applyingPanAtVoiceLevel, sourcesChanged, doLPF, doHPF, pitchAdjust, voiceConfig,
+			    {spareRenderingBuffer[0], spareRenderingBuffer[1], spareRenderingBuffer[2], spareRenderingBuffer[3]});
 			if (!stillGoing) {
 				this->checkVoiceExists(voice, "E201");
 				this->freeActiveVoice(voice, modelStackWithSoundFlags, false);
@@ -2676,15 +2743,15 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		}
 	}
 
-	int32_t postFXVolume = paramFinalValues[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL];
-	int32_t postReverbVolume = paramFinalValues[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL];
+	int32_t postFXVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL];
+	int32_t postReverbVolume = params.paramFinalValues[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL];
 
 	if (postReverbVolumeLastTime == -1) {
 		postReverbVolumeLastTime = postReverbVolume;
 	}
 
-	int32_t modFXDepth = paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
-	int32_t modFXRate = paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
+	int32_t modFXDepth = params.paramFinalValues[params::GLOBAL_MOD_FX_DEPTH - params::FIRST_GLOBAL];
+	int32_t modFXRate = params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
 	processSRRAndBitcrushing(sound_stereo, &postFXVolume, paramManager);
 	processFX(sound_stereo, modFXType_, modFXRate, modFXDepth, delayWorkingState, &postFXVolume, paramManager,
@@ -2738,8 +2805,8 @@ void Sound::startSkippingRendering(ModelStackWithSoundFlags* modelStack) {
 	timeStartedSkippingRenderingModFX = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingLFO = AudioEngine::audioSampleTimer;
 	timeStartedSkippingRenderingArp = AudioEngine::audioSampleTimer;
-	// compressor.status = EnvelopeStage::OFF; // Was this doing anything? Have removed, to make all of this completely
-	// reversible without doing anything
+	// compressor.status = Envelope::Stage::OFF; // Was this doing anything? Have removed, to make all of this
+	// completely reversible without doing anything
 
 	setSkippingRendering(true);
 	if (grainFX) { // grainFX is null unless GRAIN mod-FX has been used — guard like every other access
@@ -2765,7 +2832,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 			                getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
 
 			// Do Mod FX
-			modfx.tickLFO(modFXTimeOff, paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
+			modfx.tickLFO(modFXTimeOff, params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
@@ -2792,7 +2859,7 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 	if (skippingRendering) {
 		if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 			uint32_t phaseIncrement =
-			    arpSettings->getPhaseIncrement(paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+			    arpSettings->getPhaseIncrement(params.paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 			getArp()->gatePos +=
 			    (phaseIncrement >> 8) * (AudioEngine::audioSampleTimer - timeStartedSkippingRenderingArp);
 
@@ -2804,7 +2871,7 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 uint32_t Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param) {
 	LFOConfig& config = lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return paramFinalValues[param - params::FIRST_GLOBAL];
+		return params.paramFinalValues[param - params::FIRST_GLOBAL];
 	}
 	return getSyncedLFOPhaseIncrement(config);
 }
@@ -2864,7 +2931,7 @@ void Sound::resyncGlobalLFOs() {
 				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
 				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
-				globalLFO1.phase += (uint32_t)((float)offsetTime / timePerPeriod * 4294967296);
+				globalLFO1.advancePhase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
 			}
 		}
 	}
@@ -2901,7 +2968,7 @@ void Sound::resyncGlobalLFOs() {
 				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
 				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
-				globalLFO3.phase += (uint32_t)((float)offsetTime / timePerPeriod * 4294967296);
+				globalLFO3.advancePhase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
 			}
 		}
 	}
@@ -3230,22 +3297,12 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 							newPart->phaseIncrementStoredValue = oldPart->phaseIncrementStoredValue;
 							newPart->carrierFeedback = oldPart->carrierFeedback;
 
-							newPart->voiceSample = AudioEngine::solicitVoiceSample();
-							if (newPart->voiceSample == nullptr) {
+							if (!newPart->sampleVoiceAdapter.cloneVoiceSampleFrom(oldPart->sampleVoiceAdapter)) {
 								newPart->active = false;
 								continue;
 							}
 
-							VoiceSample& newVoiceSample = *newPart->voiceSample;
-							VoiceSample& oldVoiceSample = *oldPart->voiceSample;
-
-							// Just clones the SampleLowLevelReader stuff - assign through the base subobject so this
-							// can't slice via the implicit VoiceSample(SampleLowLevelReader&&) conversion and clobber
-							// the derived members (timeStretcher/cache). See the matching guard in
-							// TimeStretcher::hopEnd.
-							static_cast<SampleLowLevelReader&>(newVoiceSample) = SampleLowLevelReader(oldVoiceSample);
-							newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
-							newVoiceSample.doneFirstRenderYet = true;
+							VoiceSample& newVoiceSample = *newPart->sampleVoiceAdapter.voiceSample();
 
 							// Don't do any caching for new part. Old parts will stop using their cache anyway
 							// because their pitch will have changed
@@ -4818,7 +4875,7 @@ void Sound::wontBeRenderedForAWhile() {
 	                 // Instrumentclip::detachFromInstrument()
 
 	getArp()->reset(); // Surely this shouldn't be quite necessary?
-	sidechain.status = EnvelopeStage::OFF;
+	sidechain.status = Envelope::Stage::OFF;
 
 	// Tell it to just cut the MODFX tail - we needa change status urgently!
 	reassessRenderSkippingStatus(nullptr, true);

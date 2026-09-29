@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
-#include "model/iterance/iterance.h"
+#include "sequence/iterance.h"
 #include <cstdint>
 
 class Note;

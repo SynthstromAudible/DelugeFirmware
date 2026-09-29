@@ -17,6 +17,7 @@
 
 #include "chord.h"
 #include "gui/ui/keyboard/layout/column_controls.h"
+#include "util/lookuptables/preset_tables.h"
 
 using namespace deluge::gui::ui::keyboard::layout;
 
