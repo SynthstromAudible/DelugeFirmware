@@ -21,6 +21,8 @@
 
 #include "libdeluge/file_bytes.h"
 
+#include <cstddef>
+
 #include "libdeluge/audio_load.h"     // the status values this header's must equal
 #include "libdeluge/file_directory.h" // ... and the two sibling channels'
 #include "libdeluge/file_prefix.h"
@@ -39,6 +41,12 @@ static_assert(DELUGE_FILE_BYTES_MAX_BYTES == 8192u);
 // The block bound, hand-duplicated on the Rust side as `BLOCK_BYTES`. Pinned here because the C++
 // consumer's own `blockBufferMax` must agree with it, and nothing else checks that they do.
 static_assert(DELUGE_FILE_BYTES_BLOCK == 1024u);
+
+// The Rust byte channel's FileTimestamp mirrors this layout and asserts the same numbers.
+static_assert(sizeof(DelugeTimestamp) == 8);
+static_assert(alignof(DelugeTimestamp) == 2);
+static_assert(offsetof(DelugeTimestamp, month) == 2);
+static_assert(offsetof(DelugeTimestamp, second) == 6);
 
 // The two STATUSES the Rust module hand-duplicates because its driver produces them itself rather
 // than carrying them through: NO_FILESYSTEM is what tells the driver to mount, NO_MEMORY is what it

@@ -87,10 +87,9 @@ pub const MAX_BYTES: usize = 8192;
 /// `audio_loader::LoadPath`, which says it at length.
 pub type BytesPath = heapless::String<MAX_PATH_CHARS>;
 
-/// `DelugeTimestamp`, hand-mirrored.
-///
-/// Spelled here for the reason every status in this module is: it compiles in carriers with no
-/// bindgen bindings at all. Pinned from the other side by `file_bytes_abi.cpp`.
+/// `DelugeTimestamp` (types.h), hand-mirrored so this module compiles in carriers with no bindgen output. Passed
+/// by value across the ABI, so it is `repr(C)`, and the asserts below pin it to the C layout.
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct FileTimestamp {
     pub year: u16,
@@ -100,6 +99,18 @@ pub struct FileTimestamp {
     pub minute: u8,
     pub second: u8,
 }
+
+// `DelugeTimestamp`'s layout (types.h), which the C caller passes by value.
+const _: () = {
+    assert!(core::mem::size_of::<FileTimestamp>() == 8);
+    assert!(core::mem::align_of::<FileTimestamp>() == 2);
+    assert!(core::mem::offset_of!(FileTimestamp, year) == 0);
+    assert!(core::mem::offset_of!(FileTimestamp, month) == 2);
+    assert!(core::mem::offset_of!(FileTimestamp, day) == 3);
+    assert!(core::mem::offset_of!(FileTimestamp, hour) == 4);
+    assert!(core::mem::offset_of!(FileTimestamp, minute) == 5);
+    assert!(core::mem::offset_of!(FileTimestamp, second) == 6);
+};
 
 /// The largest single offset-addressed transfer, in bytes. See `DELUGE_FILE_BYTES_BLOCK`.
 ///
