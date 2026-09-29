@@ -71,10 +71,10 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # live SDK co-development, `src/bsp/rust/local-sdk.toml` (gitignored) patches
 # these back to a sibling ../deluge-sdk checkout; `dbt build` and `dbt rust`
 # pass it via `cargo --config` when it exists.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "a58edba01a7608d08b28d6f0dd0e77a8f35b3661", features = [
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", features = [
     "flash",
 ] }
-rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "a58edba01a7608d08b28d6f0dd0e77a8f35b3661" }
+rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
 
 # ── Device (the Deluge, armv7a-none-eabihf) ──────────────────────────────────
 # `deluge-alloc` (the general-purpose Rust heap) has no host meaning — the host
@@ -85,7 +85,7 @@ rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev 
 # by embassy-executor's `check_at_most_one!`, so they must live in disjoint
 # `[target...]` sections rather than both landing in `[dependencies]`.
 [target.'cfg(target_os = "none")'.dependencies]
-deluge-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "a58edba01a7608d08b28d6f0dd0e77a8f35b3661" }
+deluge-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
 
 # SP1: the device `BlockDevice`/`BufStream`/`embedded-fatfs` storage stack
 # (`fat_block_device.rs`) — same vendored crates `fs_differential`'s host
@@ -211,6 +211,8 @@ block-device-adapters = { path = "../../../crates/block-device-adapters", option
 aligned = { version = "0.4", optional = true }
 embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"], optional = true }
 embedded-io-async = { version = "0.7.0", optional = true }
+# The desktop simulator window, for `sim` (`dbt sim`): the firmware runs as its brain, in the same process.
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", optional = true }
 
 [features]
 default = ["rtt", "async_streaming_loader", "efatfs_streaming"]
@@ -237,6 +239,11 @@ host_app = [
     "dep:embedded-fatfs",
     "dep:embedded-io-async",
 ]
+
+## The emulator (`dbt sim`): the threaded host app runs as the brain of deluge-sdk's desktop simulator, in one
+## process, and `deluge_bsp`'s host arms drive the simulator's panel. See
+## docs/superpowers/specs/2026-09-29-embassy-emulator-design.md.
+sim = ["host_app", "dep:deluge-simulator", "deluge-bsp/sim-link"]
 
 ## SP1a: build the single-owner `embedded-fatfs` mount (`efatfs_fs.rs`) — one
 ## `FileSystem` behind an async `Mutex`. Off by default; nothing calls
@@ -283,27 +290,6 @@ bindgen = "0.70"
 embassy-executor = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
 embassy-executor-timer-queue = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
 embassy-time-queue-utils = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
-
-# LOCAL-ONLY OVERRIDE — not for merge as-is.
-#
-# `control.rs`'s pad-scroll drain calls `pic::setup_horizontal_scroll`/`send_scroll_row`/
-# `vertical_scroll`, which live in the sibling deluge-sdk checkout but NOT in the
-# `deluge-bsp` git rev pinned above — that rev is an ancestor of the commit adding them. So a
-# clean resolve cannot build the device image at all, which blocks every device-link gate.
-#
-# This redirects `deluge-bsp` to the side-by-side working clone so the device target links
-# against the live SDK branch. It deliberately undoes what the git pin was introduced for
-# ("so any checkout can build"), and only works on a machine that has the sibling clone at
-# ../../../../deluge-sdk — so it must be resolved properly (a reachable rev to repin to)
-# before this lands anywhere shared.
-# `rza1l-hal` is patched alongside `deluge-bsp`, not left on the git rev: the sibling
-# `deluge-bsp` depends on it by PATH (`../rza1l-hal`), so patching only `deluge-bsp` puts two
-# distinct `rza1l-hal` crates in the graph — one path, one git — and both define
-# `_embassy_time_now`/`_embassy_time_schedule_wake`, giving "symbol multiply defined" at the
-# LTO link. One source for both keeps a single time driver.
-[patch.'https://github.com/FirestormAudio/deluge-embassy.git']
-deluge-bsp = { path = "../../../../deluge-sdk/crates/deluge-bsp" }
-rza1l-hal = { path = "../../../../deluge-sdk/crates/rza1l-hal" }
 
 [profile.release]
 opt-level = "s"

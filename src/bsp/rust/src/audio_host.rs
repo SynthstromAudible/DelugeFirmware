@@ -1,4 +1,5 @@
-//! `audio_io.h` — host null-sink render pump for the `host_app` feature.
+//! `audio_io.h` — host render pump for the `host_app` feature: a null sink, or with `sim` the desktop simulator's
+//! audio device (`deluge_bsp::sim::render_block`), which plays the output and paces the render in real time.
 //!
 //! On device (`audio.rs`) `deluge_audio_drive` trickles the app's render into
 //! the SSI TX DMA ring, paced by the free-running play head. There is no DMA
@@ -253,14 +254,19 @@ pub extern "C" fn deluge_host_test_input(on: bool) {
     TEST_INPUT_ORIGIN.store(origin, Ordering::Relaxed);
 }
 
-/// Fill INPUT_BLOCK for the block starting at `block_start`: the test signal while armed, else silence.
-fn fill_input_block(block_start: u64) {
+/// Fill INPUT_BLOCK for the block starting at `block_start`: the test signal while armed, else `live` (the
+/// simulator's captured input, as `[-1, 1]` frames), else silence.
+fn fill_input_block(block_start: u64, live: Option<&[[f32; 2]]>) {
     let origin = TEST_INPUT_ORIGIN.load(Ordering::Relaxed);
     // SAFETY: the render that reads INPUT_BLOCK has not started, and nothing else writes it (see the module doc).
     let block = unsafe { &mut *addr_of_mut!(INPUT_BLOCK) };
     for (i, s) in block.iter_mut().enumerate() {
         *s = if origin == u64::MAX {
-            ZERO
+            live.and_then(|frames| frames.get(i))
+                .map_or(ZERO, |f| DelugeStereoSample {
+                    l: f32_to_q31(f[0]),
+                    r: f32_to_q31(f[1]),
+                })
         } else {
             let n = (block_start - origin + i as u64) as u32;
             DelugeStereoSample {
@@ -439,14 +445,14 @@ pub extern "C" fn deluge_audio_sample_rate() -> u32 {
     44_100
 }
 
-/// Render one block via the real app render path and discard the output (null
-/// sink). Called directly by the priority-0 C++ task (`AudioEngine::routine_task`)
+/// Render via the real app render path: into the simulator's audio device while it has room (`sim`), else one block
+/// into the null sink. Called directly by the priority-0 C++ task (`AudioEngine::routine_task`)
 /// — see this module's doc comment; there is no separate pump task here.
 ///
 /// Per the `audio_io.h` contract, the return value is the number of times
 /// `deluge_app_render` was invoked this call (0 = no new audio needed), NOT a
 /// frame count — mirrors device `audio.rs` and the C host backend
-/// `host_audio.c`. This null-sink pump renders exactly one block per call and
+/// `host_audio.c`. The null sink renders exactly one block per call and
 /// returns 1, UNLESS [`should_skip_render`] says this specific call must skip
 /// `deluge_app_render` entirely, in which case it returns 0 (a normal,
 /// contract-valid "no new audio needed" outcome).
@@ -461,9 +467,50 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
         return 0;
     }
 
+    #[cfg(feature = "sim")]
+    if deluge_bsp::sim::panel().is_some() {
+        return drive_simulator();
+    }
+
+    render_block(None);
+    1
+}
+
+/// The simulator's audio device is the clock, as the DMA play head is on the device: render while its output has
+/// room, and at most two blocks a call, as the device's drive does.
+#[cfg(feature = "sim")]
+fn drive_simulator() -> u32 {
+    let mut renders = 0;
+    while renders < 2
+        && deluge_bsp::sim::render_block(|frames| {
+            render_block(Some(frames));
+            // SAFETY: single-threaded (see module doc): the render that wrote RENDER_BLOCK has returned.
+            let out = unsafe { &*addr_of!(RENDER_BLOCK) };
+            for (frame, s) in frames.iter_mut().zip(out) {
+                *frame = [q31_to_f32(s.l), q31_to_f32(s.r)];
+            }
+        })
+    {
+        renders += 1;
+    }
+    renders
+}
+
+#[cfg(feature = "sim")]
+fn q31_to_f32(s: i32) -> f32 {
+    s as f32 / 2_147_483_648.0
+}
+
+fn f32_to_q31(s: f32) -> i32 {
+    // `as` saturates, so full scale lands on i32::MAX rather than wrapping.
+    (s * 2_147_483_648.0) as i32
+}
+
+/// Render one block from the cursor into RENDER_BLOCK, reading `live` as its input (see [`fill_input_block`]).
+fn render_block(live: Option<&[[f32; 2]]>) {
     let block_start = CURSOR.load(Ordering::Relaxed);
     BLOCK_START.store(block_start, Ordering::Relaxed);
-    fill_input_block(block_start);
+    fill_input_block(block_start, live);
 
     // SAFETY: single-threaded (see module doc) — no other task or ISR touches
     // RENDER_BLOCK/INPUT_BLOCK. Pointers cover exactly APP_BLOCK_FRAMES
@@ -476,7 +523,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
             APP_BLOCK_FRAMES as u32,
         );
     }
-    // Output intentionally discarded: this is a null sink (no DAC/DMA on host).
+    // Discarded unless captured or the simulator plays it: there is no DAC on the host.
 
     CURSOR.store(block_start + APP_BLOCK_FRAMES as u64, Ordering::Relaxed);
     capture_block();
@@ -485,7 +532,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
     if render_mode() {
         // See render_mode()'s doc: skip the diagnostic bookkeeping only — the
         // render above already happened unconditionally.
-        return 1;
+        return;
     }
     let thread_name = std::thread::current()
         .name()
@@ -508,8 +555,6 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
     if n == 1 || n.is_multiple_of(LOG_EVERY) {
         log::info!("audio: rendered {n} blocks (last on thread {thread_name:?})");
     }
-
-    1
 }
 
 #[unsafe(no_mangle)]

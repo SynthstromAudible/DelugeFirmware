@@ -533,9 +533,18 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		return;
 	}
 	switch (request.consumer) {
-	case PresetConsumer::BlankSongPreset:
-		currentSong->completeBlankPreset(acquired);
+	case PresetConsumer::BlankSongPreset: {
+		// The swap frees the default synth, and the view still points at it if its clip was the one on screen: the
+		// knob indicators and automation display would read freed memory.
+		const ModControllable* defaultSynth = currentSong->blankPresetInstrument != nullptr
+		                                          ? currentSong->blankPresetInstrument->toModControllable()
+		                                          : nullptr;
+		if (currentSong->completeBlankPreset(acquired)
+		    && view.activeModControllableModelStack.modControllable == defaultSynth) {
+			view.setActiveModControllableTimelineCounter(acquired.instrument->getActiveClip());
+		}
 		break;
+	}
 	case PresetConsumer::ArrangerNewInstrument:
 		arrangerView.completeNewInstrument(request.yPressed, request.yPressedRaw, request.renderUi, acquired);
 		break;

@@ -59,6 +59,9 @@ MidiEngine::MidiEngine() {
 	for (auto& midiChannelType : midiFollowChannelType) {
 		midiChannelType.clear();
 	}
+	// Channel 1 on any device follows the active instrument out of the box: the startup settings, which read a
+	// user's MIDIFollow.XML over it, run only once a card is ready, and without a card incoming MIDI must still play.
+	midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone = 0;
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = false;
 	midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::NONE;

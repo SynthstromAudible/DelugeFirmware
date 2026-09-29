@@ -398,20 +398,20 @@ void Song::deleteAllBackedUpParamManagersWithClips() {
 	}
 }
 
-void Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
+bool Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
 	if (acquired.instrument == nullptr || blankPresetClip == nullptr || blankPresetInstrument == nullptr) {
 		// Nothing on the card to take: the default synth stays, and the walk's error is not shown.
-		return;
+		return false;
 	}
 	if (acquired.alreadyInSong || acquired.instrument == blankPresetInstrument) {
 		// The walk landed on an Instrument the song already holds: there is nothing to swap, and replaceInstrument()
 		// freezes (i009) on an Instrument already in its output list.
-		return;
+		return false;
 	}
 	if (blankPresetClip->output != blankPresetInstrument || blankPresetInstrument->editedByUser
 	    || sessionClips.getIndexForClip(blankPresetClip) < 0) {
 		// The user got to the clip first. The delivery's cleanup deletes the preset, which was never added here.
-		return;
+		return false;
 	}
 	// replaceInstrument() hands the replaced Instrument's MIDI input to its replacement, which keeps a clip's input
 	// when the user changes its preset. The default synth has an input only if the user learned one before the preset
@@ -424,6 +424,7 @@ void Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
 	}
 	blankPresetInstrument = nullptr;
 	blankPresetClip = nullptr;
+	return true;
 }
 
 bool Song::mayDoubleTempo() {

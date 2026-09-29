@@ -1,306 +1,155 @@
 #! /usr/bin/env python3
-"""dbt sim — run the host emulator: the native firmware (deluge_host) driven by the
-deluge-simulator front-panel GUI, wired over the host_link Unix socket.
+"""dbt sim — run the emulator: the firmware on the Embassy host, as the brain of deluge-sdk's desktop simulator.
 
-deluge_host is the *brain* (real firmware compiled native via the host BSP); the simulator
-(a Rust crate in the deluge-sdk repo, fetched straight from git) is the panel (OLED,
-pads, encoders, buttons). Audio comes out of deluge_host directly (a forked pw-cat by
-default); serial MIDI auto-bridges to any snd-virmidi device. See docs/dev/host_emulator.md.
+One process: the threaded host app (the C++ app on the Rust BSP's host executors) drives the simulator window's
+OLED, pads and LEDs, reads its buttons, pads and encoders, plays through its audio device, and carries DIN MIDI over
+its virtual ports. The card is an image file, a directory (written back when the window closes), or an empty
+formatted card. See docs/dev/host_emulator.md.
 """
 
 import argparse
+import importlib
 import os
-import shutil
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 import util
 
-SIM_BUILD_DIR = "build-sim"
-SOCKET_DEFAULT = "/tmp/deluge_emu.sock"
+test_builds = importlib.import_module("test_builds")
 
-# The simulator GUI is a Rust crate in the deluge-sdk repo. We build+install it directly
-# from git — no local checkout required. It is built with `--no-default-features` so the
-# top-panel "rack" strip (CV/gate meters + audio scopes) is compiled out: over the host_link
-# protocol the panel carries no audio, so that strip would be dead. The result is the
-# faceplate-only ("no-panel") simulator.
-SIM_GIT_URL = "https://github.com/FirestormAudio/deluge-sdk.git"
-SIM_GIT_BRANCH = "main"
-SIM_PACKAGE = "deluge-simulator"
+RUST_BSP_DIR = Path("src/bsp/rust")
+BINARY = RUST_BSP_DIR / "target" / "release" / "deluge-rust"
 
 
 def argparser():
     parser = argparse.ArgumentParser(
         prog="sim",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description="Run the native firmware under the desktop front-panel simulator (the host emulator).",
-        epilog="""\nusage example: dbt sim
-                  Build deluge_host + the simulator GUI and launch the combo. Close the
-                  window (or Ctrl-C) to stop both. Add --no-audio to run muted, or
-                  --midi <dev> to bridge serial MIDI to a specific device.""",
+        description="Run the firmware in the desktop front-panel simulator (the emulator).",
+        epilog="""\nusage examples:
+  dbt sim                          an empty card
+  dbt sim --card ~/Deluge/card     a card directory, written back when the window closes
+  dbt sim --card card.img          a FAT image, used in place
+  dbt sim --headless script.txt --out snapshots/   scripted, without a window""",
     )
     parser.group = "Development"
     parser.add_argument(
         "--no-build",
         action="store_true",
-        help="Run the existing binaries; don't (re)build.",
+        help="Run the existing binary; don't (re)build.",
     )
     parser.add_argument(
-        "--release",
-        action="store_true",
-        help="Build/run the simulator GUI in release (faster window; slower first build).",
+        "--card",
+        metavar="PATH",
+        help="The SD card: a FAT image file, or a directory loaded at boot and written back on exit.",
     )
     parser.add_argument(
-        "--no-audio", action="store_true", help="Run muted (DELUGE_HOST_AUDIO=off)."
+        "--audio-in",
+        metavar="WAV",
+        help="Feed this WAV (looped) as the audio input instead of the input device.",
     )
     parser.add_argument(
-        "--audio",
-        metavar="CMD",
-        help="Custom audio player command (reads raw S16 stereo on stdin).",
+        "--audio-out",
+        metavar="WAV",
+        help="Record the audio output to this WAV.",
     )
     parser.add_argument(
-        "--midi",
-        metavar="DEV",
-        help="Bridge serial MIDI to this device/FIFO (e.g. a snd-virmidi /dev/snd/midiCxDy). "
-        "Default: auto-detect snd-virmidi.",
+        "--hardware",
+        nargs="?",
+        const="auto",
+        metavar="PORT",
+        help="Mirror the panel onto a Deluge connected over USB (auto-detected, or PORT).",
     )
     parser.add_argument(
-        "--no-midi", action="store_true", help="Disable the serial MIDI bridge."
+        "--headless",
+        metavar="SCRIPT",
+        help="Run without a window, replaying SCRIPT (timed input, MIDI and snapshot steps).",
     )
     parser.add_argument(
-        "--64bit",
-        "--x64",
-        dest="x64",
-        action="store_true",
-        help="Build/run the 64-bit host (DELUGE_SIM_X64) in build-sim-x64 instead of the 32-bit default.",
-    )
-    parser.add_argument(
-        "--socket",
-        default=SOCKET_DEFAULT,
-        help=f"host_link Unix socket path (default: {SOCKET_DEFAULT}).",
+        "--out",
+        metavar="DIR",
+        help="Where --headless writes its snapshots (default: the current directory).",
     )
     return parser
 
 
-def host_triple():
-    """The Rust host target triple (the simulator GUI must be built for it — the SDK's
-    default target is armv7a, so we always pass --target)."""
-    # dbt routes cargo/rustc through the bundled rustup, which has no default
-    # toolchain (rust-toolchain.toml is the selector). We run from the git root,
-    # which has no such file, so name the channel explicitly. Both in-tree tomls
-    # pin nightly, so +nightly stays consistent.
-    out = subprocess.run(
-        ["rustc", "+nightly", "-vV"], capture_output=True, text=True, check=False
-    ).stdout
-    for line in out.splitlines():
-        if line.startswith("host:"):
-            return line.split(":", 1)[1].strip()
-    return "x86_64-unknown-linux-gnu"
+def sdk_config_args(root: Path) -> list[str]:
+    """`cargo --config local-sdk.toml` when the local deluge-sdk override exists (see task-rust.py)."""
+    return (
+        ["--config", "local-sdk.toml"]
+        if (root / RUST_BSP_DIR / "local-sdk.toml").is_file()
+        else []
+    )
 
 
-def sim_install_root():
-    """Where `cargo install` drops the simulator (binary lands in <root>/bin)."""
-    return Path(SIM_BUILD_DIR) / "sim-tools"
-
-
-# The compilers deluge_host is built with: clang, as the firmware is. CC/CXX in the environment override them.
-HOST_CC = os.environ.get("CC", "clang")
-HOST_CXX = os.environ.get("CXX", "clang++")
-
-
-def configured_compiler(build_dir):
-    """The C++ compiler build_dir's CMake cache names, or None when it has not been configured."""
-    cache = Path(build_dir, "CMakeCache.txt")
-    if not cache.is_file():
-        return None
-    for line in cache.read_text(errors="replace").splitlines():
-        if line.startswith("CMAKE_CXX_COMPILER:"):
-            return Path(line.split("=", 1)[1]).name
-    return None
-
-
-def build_host(no_build, build_dir, cmake_defs=()):
-    """Configure (if needed) and build deluge_host in build_dir with the given -D defines."""
-    if no_build:
-        return 0
-    configured = configured_compiler(build_dir)
-    if configured is not None and configured != Path(HOST_CXX).name:
-        # CMake keeps the compiler a tree was first configured with, so forget the configuration. Only CMake's own
-        # state goes: build_dir also holds the installed simulator GUI (sim-tools).
-        print(
-            f"deluge_host was configured with {configured}; reconfiguring with {HOST_CXX}"
-        )
-        Path(build_dir, "CMakeCache.txt").unlink()
-        shutil.rmtree(Path(build_dir, "CMakeFiles"), ignore_errors=True)
-    if not Path(build_dir, "CMakeCache.txt").is_file():
+def build(root: Path) -> int:
+    """Build the C++ app's host tree, as the gates build it, then the emulator binary on top of it."""
+    host_app = test_builds.products(root)["host-app"]
+    for step in host_app.steps(root):
+        print(f"==> sim: host app: {step.what}", flush=True)
         rc = subprocess.run(
-            [
-                "cmake",
-                "-B",
-                build_dir,
-                "-S",
-                "sim",
-                "-G",
-                "Ninja",
-                f"-DCMAKE_C_COMPILER={HOST_CC}",
-                f"-DCMAKE_CXX_COMPILER={HOST_CXX}",
-                *cmake_defs,
-            ],
-            env=os.environ,
-            check=False,
+            step.argv, cwd=step.cwd, env=dict(os.environ, **step.env), check=False
         ).returncode
         if rc != 0:
             return rc
-    return subprocess.run(
-        ["cmake", "--build", build_dir, "--target", "deluge_host"],
-        env=os.environ,
-        check=False,
-    ).returncode
 
-
-def build_sim(triple, release, no_build):
-    """Build+install the faceplate-only simulator GUI straight from git.
-
-    `cargo install` no-ops fast when the pinned branch hasn't moved, so this is cheap on
-    repeat runs; it rebuilds automatically when upstream advances.
-    """
-    if no_build:
-        return 0
-    cmd = [
-        "cargo",
-        # See host_triple(): the bundled rustup has no default toolchain and the
-        # git root carries no rust-toolchain.toml, so pin the channel explicitly.
-        "+nightly",
-        "install",
-        "--git",
-        SIM_GIT_URL,
-        "--branch",
-        SIM_GIT_BRANCH,
-        SIM_PACKAGE,
-        "--no-default-features",
-        "--locked",
-        "--target",
-        triple,
-        "--root",
-        str(sim_install_root()),
-    ]
-    if not release:
-        cmd += ["--debug"]
-    return subprocess.run(cmd, env=os.environ, check=False).returncode
-
-
-def sim_binary():
-    return sim_install_root() / "bin" / "deluge-simulator"
+    config = sdk_config_args(root)
+    lock = root / RUST_BSP_DIR / "Cargo.lock"
+    # A build through local-sdk.toml rewrites the lockfile's deluge-sdk pins to local paths; put it back as it was.
+    held = lock.read_bytes() if config else None
+    print("==> sim: emulator", flush=True)
+    try:
+        # cargo does not see C++ changes: touching build.rs makes it archive the freshly built objects again.
+        (root / RUST_BSP_DIR / "build.rs").touch()
+        return subprocess.run(
+            ["cargo", "build", "--release", "--features", "sim", *config],
+            cwd=root / RUST_BSP_DIR,
+            env=dict(
+                os.environ,
+                DELUGE_HOSTAPP_BUILD_DIR=str(root / test_builds.HOST_APP_TREE),
+            ),
+            check=False,
+        ).returncode
+    finally:
+        if held is not None:
+            lock.write_bytes(held)
 
 
 def main():
     args = argparser().parse_args()
-    os.chdir(util.get_git_root())
+    root = Path(util.get_git_root()).absolute()
 
-    triple = host_triple()
-
-    if not shutil.which("cargo"):
-        util.note(
-            "ERROR: cargo not found — the simulator GUI is a Rust crate. Install Rust."
-        )
+    if not args.no_build:
+        rc = build(root)
+        if rc != 0:
+            return rc
+    binary = root / BINARY
+    if not binary.is_file():
+        util.note(f"ERROR: the emulator is not built at {binary}. Drop --no-build.")
         return 1
 
-    # The 64-bit host lives in its own build dir so it never clashes with the 32-bit default.
-    host_build_dir = "build-sim-x64" if args.x64 else SIM_BUILD_DIR
-    cmake_defs = ["-DDELUGE_SIM_X64=ON"] if args.x64 else []
-
-    # Build both halves. (The GUI panel is a native host binary — same regardless of the
-    # firmware's 32/64-bit word size — so it always installs under the default build-sim.)
-    rc = build_host(args.no_build, host_build_dir, cmake_defs)
-    if rc != 0:
-        return rc
-    rc = build_sim(triple, args.release, args.no_build)
-    if rc != 0:
-        return rc
-
-    host_bin = Path(host_build_dir) / "deluge_host"
-    sim_bin = sim_binary()
-    for label, path in (("deluge_host", host_bin), ("deluge-simulator", sim_bin)):
-        if not path.is_file():
-            util.note(
-                f"ERROR: {label} binary not found at {path}. Build it (drop --no-build)."
-            )
-            return 1
-
-    # Environment for the firmware brain.
     env = dict(os.environ)
-    env["DELUGE_HOST_LINK"] = args.socket
-    if args.no_audio:
-        env["DELUGE_HOST_AUDIO"] = "off"
-    elif args.audio:
-        env["DELUGE_HOST_AUDIO"] = args.audio
-    if args.no_midi:
-        env["DELUGE_HOST_MIDI"] = "off"
-    elif args.midi:
-        env["DELUGE_HOST_MIDI"] = args.midi
 
-    # deluge_host is the socket *server*: it binds + blocks on accept until the panel connects,
-    # so start it first and wait for the socket to appear.
-    if os.path.exists(args.socket):
-        os.unlink(args.socket)
-    print(f"Starting deluge_host (brain) on {args.socket} ...")
-    host_proc = subprocess.Popen([str(host_bin)], env=env)
+    def absolute(path: str) -> str:
+        return str(Path(path).expanduser().absolute())
 
-    try:
-        for _ in range(200):  # up to ~10s
-            if os.path.exists(args.socket):
-                break
-            if host_proc.poll() is not None:
-                util.note(
-                    f"ERROR: deluge_host exited early (code {host_proc.returncode})."
-                )
-                return host_proc.returncode or 1
-            time.sleep(0.05)
-        else:
-            util.note("ERROR: deluge_host never created the link socket.")
-            host_proc.terminate()
-            return 1
-
-        print("Starting deluge-simulator (panel) — close the window to stop.")
-        # The GUI's wgpu/winit chatter is noise; keep deluge_host's logs (audio/MIDI/link) on the
-        # terminal but send the panel's stdout/stderr to a logfile.
-        with open(
-            os.path.join(util.get_git_root(), SIM_BUILD_DIR, "deluge-simulator.log"),
-            "w",
-        ) as sim_log:
-            sim_proc = subprocess.Popen(
-                [str(sim_bin), "--connect", args.socket],
-                stdout=sim_log,
-                stderr=subprocess.STDOUT,
-            )
-
-            # Wait for either to exit, then tear the other down.
-            while True:
-                if sim_proc.poll() is not None:
-                    break
-                if host_proc.poll() is not None:
-                    util.note(f"deluge_host exited (code {host_proc.returncode}).")
-                    break
-                time.sleep(0.1)
-    except KeyboardInterrupt:
-        print("\nStopping emulator ...")
-    finally:
-        for proc in ("sim_proc", "host_proc"):
-            p = locals().get(proc)
-            if p and p.poll() is None:
-                p.terminate()
-                try:
-                    p.wait(timeout=3)
-                except subprocess.TimeoutExpired:
-                    p.kill()
-        if os.path.exists(args.socket):
-            try:
-                os.unlink(args.socket)
-            except OSError:
-                pass
-    return 0
+    if args.card:
+        env["DELUGE_SIM_CARD"] = absolute(args.card)
+    if args.audio_in:
+        env["DELUGE_SIM_AUDIO_IN"] = absolute(args.audio_in)
+    if args.audio_out:
+        env["DELUGE_SIM_AUDIO_OUT"] = absolute(args.audio_out)
+    if args.hardware:
+        env["DELUGE_SIM_HARDWARE"] = "" if args.hardware == "auto" else args.hardware
+    if args.headless:
+        env["DELUGE_HEADLESS"] = "1"
+        env["DELUGE_SIM_SCRIPT"] = absolute(args.headless)
+        if args.out:
+            env["DELUGE_SIM_OUT"] = absolute(args.out)
+    # The emulator replaces this process, so Ctrl-C and its exit status are its own.
+    sys.stdout.flush()
+    os.execve(binary, [str(binary)], env)
 
 
 if __name__ == "__main__":

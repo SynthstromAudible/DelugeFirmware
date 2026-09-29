@@ -15,7 +15,7 @@ struct SortedTask {
 	bool operator<(const SortedTask& another) const { return priority > another.priority; }
 };
 // currently 14 are in use
-constexpr int kMaxTasks = 25;
+constexpr int kMaxTasks = 32;
 /// internal only to the task scheduler, hence all public. External interaction to use the api
 struct TaskManager {
 

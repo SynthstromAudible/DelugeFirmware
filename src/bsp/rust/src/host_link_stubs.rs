@@ -6,7 +6,9 @@
 //! modules provide on-target. Boot-and-idle never drives real peripheral I/O on
 //! host (no SSI/DMA rings, no PIC-shared RSPI0, no USB stack), so inert defaults
 //! are correct here. The exceptions are DIN input, which reads the note script a
-//! scenario arms (`audio_host.rs`), and audio capture, which `audio_host.rs` owns.
+//! scenario arms (`audio_host.rs`), DIN MIDI in and out, which the desktop
+//! simulator's MIDI queues carry under `sim`, and audio capture, which
+//! `audio_host.rs` owns.
 //!
 //! Return values are chosen to match `src/bsp/host/host_bsp.c` / `host_audio.c`
 //! (the existing C host-stub BSP) wherever the boot path might actually read
@@ -20,6 +22,10 @@ use crate::sys::{
     DelugeMidiPort, DelugeSignal, DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK,
     DelugeUsbHostEvent, DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,
 };
+
+/// midi_io.h's `DELUGE_MIDI_DIN`: the port the app writes DIN MIDI to.
+#[cfg(feature = "sim")]
+const DIN_PORT: DelugeMidiPort = 0;
 
 macro_rules! stub_log {
     ($n:literal) => {{
@@ -114,6 +120,12 @@ pub extern "C" fn deluge_midi_read_timed(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u32) -> u32 {
+    #[cfg(feature = "sim")]
+    if let (DIN_PORT, Some(panel)) = (port, deluge_bsp::sim::panel()) {
+        // SAFETY: the app passes `len` valid bytes.
+        panel.push_midi_out(unsafe { core::slice::from_raw_parts(src, len as usize) });
+        return len;
+    }
     stub_log!("deluge_midi_write");
     // Mirrors host_bsp.c: always "accept" (silently dropped) rather than
     // reporting 0 accepted, so a caller retrying on partial acceptance can't
@@ -135,8 +147,12 @@ pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_ticks: *mut u32) -> bool {
-    // DIN input is a note script a scenario arms (audio_host.rs); nothing arrives without one.
-    let Some(b) = crate::audio_host::din_script_read() else {
+    // DIN input is a note script a scenario arms (audio_host.rs), else the simulator's MIDI input (`sim`); nothing
+    // arrives without either.
+    let script = crate::audio_host::din_script_read();
+    #[cfg(feature = "sim")]
+    let script = script.or_else(|| deluge_bsp::sim::panel().and_then(|panel| panel.pop_midi_in()));
+    let Some(b) = script else {
         return false;
     };
     // SAFETY: the app passes valid out-pointers (arrival_ticks may be null), as for the device's midi.rs.

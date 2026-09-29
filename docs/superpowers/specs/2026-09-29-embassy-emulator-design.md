@@ -77,7 +77,7 @@ therefore goes in deluge-sdk, and the firmware keeps only its glue:
 | The window (`deluge-simulator`) and the panel/audio contract (`deluge-sim-link`) | deluge-sdk (exists) |
 | The panel bridge in `deluge_bsp`'s host arms, behind `sim-link` | deluge-sdk; `plat/sim.rs` calls it |
 | Audio pacing: render a block when the output ring has room, converting samples | deluge-sdk: `deluge_bsp::sim`, taking a render callback |
-| The runtime: panel and rings set up, the app's boot on worker threads, the GUI on the main thread | deluge-sdk: `__rt::host::run`, generalised to take a BSP-level project's boot |
+| The runtime: panel and rings set up, the program on a worker thread, the GUI on the main thread | deluge-sdk: `deluge_simulator::run_brain`, which the SDK's own host runtime now calls too |
 | The card: an image file, or a directory loaded into a memory disk and written back on exit | deluge-sdk: `deluge_bsp::sd` (golden_vt_render's loader moves there) |
 | MIDI queues | deluge-sdk (`deluge-sim-link`) |
 | The firmware's boot on the threaded host, its libdeluge C-ABI providers mapped onto the SDK's callbacks (`audio_host.rs` feeding `deluge_app_render`, the DIN MIDI port) | DelugeFirmware |
@@ -98,12 +98,14 @@ A `sim` feature of `deluge-bsp-rust`, on top of `host_app`:
 ### The panel bridge, in `deluge_bsp`
 
 A `sim-link` feature of `deluge_bsp` gives its host arms a `SharedPanel`, installed once at start
-(`deluge_bsp::sim::install(panel, audio_ends)`). It takes over the arms from `deluge-sdk`'s `plat/sim.rs`, which
-then calls it rather than keeping its own copy. With it:
+(`deluge_bsp::sim::install(panel, audio_ends)`). The SDK keeps its panel there as well, so the SDK and programs on
+the BSP share one copy. With it:
 
-- **Outbound PIC commands** write the panel: the host arm of each outbound helper (pad colours and columns, LED
-  on/off, knob indicators, refresh and dimmer settings). This is not done in the byte-level `tx`, so no outbound
-  command needs decoding.
+- **Outbound PIC commands** are applied as the PIC applies them, in `pic::tx`'s host arm. Every outbound helper
+  funnels through `tx` with exactly one whole command, so a match on its first byte covers them all, future ones
+  included, and each helper keeps a single device-identical body. `deluge_bsp::sim` keeps the PIC's pad framebuffer:
+  column-pair writes update it, `DONE_SENDING_ROWS` publishes it, and the scroll commands shift it exactly as the
+  app's own image is shifted (`pad_leds.cpp`). LEDs and gold-knob indicators go straight to the panel.
 - **Inbound:** `pic::read_byte` pops the panel's input events, encoded as the PIC bytes the device's PIC sends
   (pad and button press/release codes). The firmware's `pic_pump` and `Parser` handle them as on the device.
 - **OLED:** `oled::send_frame`'s host arm writes the frame to the panel as well as the capture surface.
@@ -156,21 +158,68 @@ for the new shape.
    writing the panel, and generalise `__rt::host::run` to take a BSP-level boot. `plat/sim.rs` moves onto both, and
    deluge-sdk's own simulator apps must still run. In this repository: `deluge-bsp-rust`'s `sim` feature hands the
    firmware's boot to the runtime. The app boots, and the OLED and pads show its screens.
+   - [x] Built. deluge-sdk `feat/bsp-sim-link` (d8b987f and later): `deluge_bsp::sim`, the `pic::tx` and OLED host
+         arms, and `deluge_simulator::run_brain`. The SDK's runtime runs through it; `oled_hello` headless renders
+         byte-identically to `main`.
+     - Here, `sim` runs `start_threaded_host` (the boot smoke's three executor threads, now a function both use) as
+       `run_brain`'s brain.
+     - Headless, the firmware boots to its own screen (`SYNTH 0 / SECTION 1`), with the LEDs and sidebar pads lit
+       through the PIC path.
+     - The boot smoke is unchanged: boot, audio routing and the soak pass.
+     - The `sim` build needs deluge-sdk's branch through `local-sdk.toml` until the pin moves.
 2. **Input.** PIC input bytes from panel events, and encoder deltas. Buttons, pads and encoders drive the UI.
+   - [x] Built. deluge-sdk 3dbd3b6: pad and button events become the PIC's input bytes, and encoder turns land
+         on `ENCODER_DELTAS` as two edges a detent.
+     - Headless, a pad places a note, the tempo encoder shows its popup, and the session button reaches session
+       view.
+     - The session button exposed that no UI timer fired: the task table dropped "ui routine" (6c4ab8cfc, now 32
+       slots), and firing them exposed a freed view pointer in the blank song's preset swap (fde3b3ea1).
 3. **Audio.** The real-time sink, with output and input. A song plays through the speakers.
+   - [x] Built. `deluge_bsp::sim::render_block` renders a block when the simulator's output has room; the SDK's
+         `audio_run` waits around it, and here `deluge_audio_drive` calls it, at most two blocks a call as on the
+         device.
+     - Headless runs are paced by an audio clock that drains the output at 44.1 kHz of wall time, records it under
+       `DELUGE_SIM_AUDIO_OUT`, and reports frames the app delivered late.
+     - Headless, a clip of four notes plays back every 0.5 s at 120 BPM, with no late frames.
+     - Input: headless runs feed `--audio-in` (deluge-sdk 935958e). With the `input_mono` preset on the card
+       and a 1 kHz sine on the left input, a held note plays a clean 1 kHz sine with no phase jumps over 1.7 s;
+       the same sine on the right input alone is silent. The input is full-scale q31, as the device's codec words
+       are.
 4. **MIDI.** The DIN providers on the panel's queues. A keyboard on the virtual port plays a synth.
+   - [x] Built (e3d8b1fd3; deluge-sdk 17dd2db adds headless `midi <hex bytes>` steps and lists the app's MIDI
+         output in each snapshot).
+     - Headless, a note on channel 1 plays the default synth for as long as it is held, and PLAY sends Start and 24
+       clocks a beat.
+     - A note played nothing at first: MIDI follow's channel-1 default was set only by the startup settings, which
+       wait for a card (6d7f63710 sets it at construction, which a card-less device needed too).
 5. **Card.** In deluge-sdk: `deluge_bsp::sd` loads a directory into the memory disk and writes it back, with
    golden_vt_render's loader moved there. Here: `--card` with an image and with a directory. A song saved in the
    emulator appears in the directory.
+   - [x] Built, with one change from the design: the loader and write-back stay in this repository, in
+         `src/bsp/rust/src/memory_card.rs`, which golden_vt_render now includes from there. They are built on our
+         own fork of `embedded-fatfs` and the block-device crates (`crates/`), which deluge-sdk does not have;
+         `deluge_bsp::sd` keeps the memory disk underneath. Moving them means moving the fork.
+     - `DELUGE_SIM_CARD` names the card: an image file, a directory, or unset for an empty formatted card.
+     - Write-back mirrors every file that is new or changed on the card, and removes a loaded file deleted on the
+       card unless the directory's copy changed meanwhile. It prints each change.
+     - Headless, a song saved in the emulator appears in the directory with its note, and the other files stay as
+       they were; the same save into an image file lands in the image. The removal path is not yet exercised.
 6. **`dbt sim`.** Switch the task and retire its C-host path, and rewrite the doc.
+   - [x] Built. `dbt sim` builds the `host-app` product (`test_builds`, shared with the gates) and the `sim` binary,
+         and runs it with `--card`, `--audio-in`/`--audio-out`, `--hardware` and `--headless`/`--out`. The
+         `deluge_host` path, the socket, `--x64` and the simulator's `cargo install` are gone from the task; the
+         C host sources stay, since `build/host-app` is built from the same `sim/` CMake project.
+     - `docs/dev/host_emulator.md` is rewritten for this shape.
+     - Headless through `dbt sim`, a saved song lands in the card directory; the window opens and runs.
 
 Each step is checked by running it. A host test covers what can be tested headlessly: panel input reaching
 `deluge_control_poll_event`, and write-back reproducing a saved file.
 
 ## 6. Open questions
 
-- **The deluge-sdk pin.** Step 1 changes deluge-sdk, so the firmware's pin moves with it. The pin moves after Kate
-  pushes deluge-sdk.
+- **The deluge-sdk pin.** Resolved: deluge-sdk merged the work into `main` (fc74570), the firmware pins that, and
+  the permanent `[patch]` to the sibling checkout is gone, so a plain checkout builds `sim` and the device image
+  from the pin. `local-sdk.toml` remains for live SDK work.
 - **Real-time audio and the tiers.** On the device, the audio interrupt preempts everything. Here the `deluge-audio`
   thread competes with the app thread for the host CPU. An underrun on a loaded host would show the tiers' timing,
   not a bug, but the emulator should report underruns (the counters exist) rather than hide them.
