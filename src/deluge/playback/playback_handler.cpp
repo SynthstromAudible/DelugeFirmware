@@ -1939,7 +1939,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			slowpassedTimePerInternalTick = lowpassedTimePerInternalTick << slowpassedTimePerInternalTickSlowness;
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick;
 
-			stickyCurrentTimePerInternalTickInverse = 2147483647 / ((stickyTimePerInternalTick * 3) >> 1);
+			stickyCurrentTimePerInternalTickInverse =
+			    2147483647 / std::max<uint32_t>((stickyTimePerInternalTick * 3) >> 1, 1);
 		}
 		else if ((slowpassedTimePerInternalTick >> (slowpassedTimePerInternalTickSlowness + 2))
 		             > multiply_32x32_rshift32(1084479242, stickyTimePerInternalTick)
@@ -1949,7 +1950,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick =
 			    slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness;
 
-			stickyCurrentTimePerInternalTickInverse = 2147483647 / ((stickyTimePerInternalTick * 3) >> 1);
+			stickyCurrentTimePerInternalTickInverse =
+			    2147483647 / std::max<uint32_t>((stickyTimePerInternalTick * 3) >> 1, 1);
 		}
 	}
 
