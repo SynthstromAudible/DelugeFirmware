@@ -34,7 +34,7 @@ struct UsbTransport {
 	/// @brief Elements one queued channel-CC message occupies. One packed event holds a whole message.
 	static constexpr uint16_t cc_span = 1;
 
-	/// @brief True when this element is a channel CC and therefore a coalescing/scheduling candidate.
+	/// @brief True when this element is a channel CC.
 	static bool is_channel_cc(Element const* e) {
 		uint8_t status = static_cast<uint8_t>((e[0] >> 8) & 0xFF);
 		return MIDIQueueManager::is_channel_cc_status_byte(status);
@@ -58,7 +58,7 @@ struct DinTransport {
 	/// @brief Elements one queued channel-CC message occupies: status, CC number, value.
 	static constexpr uint16_t cc_span = MIDIQueueManager::k_channel_cc_message_length;
 
-	/// @brief True when this element is a channel CC and therefore a coalescing/scheduling candidate.
+	/// @brief True when this element is a channel CC.
 	static bool is_channel_cc(Element const* e) { return MIDIQueueManager::is_channel_cc_status_byte(e[0]); }
 	/// @brief MIDI status byte (type and channel) of a channel-CC element.
 	static uint8_t status(Element const* e) { return e[0]; }

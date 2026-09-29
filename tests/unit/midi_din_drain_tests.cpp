@@ -38,9 +38,7 @@ TEST(MIDIDinDrain, ClockOvertakesQueuedCC) {
 }
 
 TEST(MIDIDinDrain, EventCCsKeepTheirOrderAndTheirDuplicateValues) {
-	// The RPN case end to end: five CCs, two of which repeat a CC number with a different value. If
-	// coalescing reached these, the terminator would overwrite the selection and MPE configuration
-	// would silently never apply.
+	// The RPN case end to end: five CCs, two of which repeat a CC number with a different value.
 	uint8_t const ccs[][2] = {{100, 6}, {101, 0}, {6, 4}, {100, 127}, {101, 127}};
 	for (auto const& c : ccs) {
 		queue.enqueue_message(MIDIMessage::cc(0, c[0], c[1])); // default Event intent
@@ -55,24 +53,6 @@ TEST(MIDIDinDrain, EventCCsKeepTheirOrderAndTheirDuplicateValues) {
 		CHECK_EQUAL(ccs[i][0], sent[i * 3 + 1]);
 		CHECK_EQUAL(ccs[i][1], sent[i * 3 + 2]);
 	}
-}
-
-TEST(MIDIDinDrain, ContinuousCCsAreCoalescedToTheLatestValue) {
-	// The counterpart: automation output declares itself Continuous, so repeated values for one CC
-	// collapse instead of flooding the link.
-	for (uint8_t v = 0; v < 32; v++) {
-		MIDIMessage cc = MIDIMessage::cc(0, 20, v);
-		cc.intent = MIDIIntent::Continuous;
-		queue.enqueue_message(cc);
-	}
-
-	drain(16);
-
-	auto const& sent = MidiTransportMock::sent_bytes();
-	CHECK_EQUAL(3, sent.size()); // one message, not thirty-two
-	CHECK_EQUAL(0xB0, sent[0]);
-	CHECK_EQUAL(20, sent[1]);
-	CHECK_EQUAL(31, sent[2]); // the newest value
 }
 
 TEST(MIDIDinDrain, SysExIsNotInterleaved) {

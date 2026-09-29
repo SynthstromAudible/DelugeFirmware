@@ -174,12 +174,7 @@ bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 		return true;
 	}
 
-	// CC messages may be coalesced into an existing queued entry instead of appended. The policy is
-	// shared with DIN; UsbTransport supplies everything about this transport's storage format.
-	bool queued_ok = cc_lane_.enqueue_with_cc_policy(
-	    queue_storage_.lanes[static_cast<uint8_t>(QUEUE_PRIORITY_CC)], cc_policy_, priority == QUEUE_PRIORITY_CC,
-	    is_packed_channel_cc(full_message), status_byte(full_message), data_1(full_message), data_2(full_message),
-	    [this, priority, full_message] { return enqueue_priority_message(priority, full_message); });
+	bool queued_ok = enqueue_priority_message(priority, full_message);
 
 	// Signal that at least one USB message is waiting so flush logic can schedule transmission.
 	if (queued_ok) {
@@ -244,29 +239,6 @@ bool MIDIQueueManagerUSB::consume_queued_messages(uint8_t* data_sending_now, uin
 				continue;
 			}
 
-			if (priority == QUEUE_PRIORITY_CC) {
-				auto cc_result = handle_cc_lane(priority, context);
-				if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::Popped) {
-					// The CC scheduler selected and removed a CC from somewhere in the lane.
-					popped = true;
-					break;
-				}
-				if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::Abort) {
-					// Unreachable on USB: handle_cc_lane() below returns only Popped / PopLane / SkipLane,
-					// because a USB entry is a whole event with nothing to decode or size-check. Kept so
-					// this loop reads the same way as the DIN one, which does produce Abort.
-					break;
-				}
-				if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::SkipLane) {
-					// Leave CC untouched for this transfer slot and continue traversal.
-					continue;
-				}
-				if (cc_result != MIDIQueueManager::PriorityLaneTraversalResult::PopLane) {
-					// Unknown traversal result: do not pop this lane.
-					continue;
-				}
-			}
-
 			bool lane_popped =
 			    priority == QUEUE_PRIORITY_SYSEX ? pop_sysex_message(context) : pop_lane(priority, context);
 			if (lane_popped) {
@@ -315,31 +287,6 @@ bool MIDIQueueManagerUSB::enqueue_priority_message(QueuePriority priority, uint3
 	return queue_storage_.push(static_cast<uint8_t>(priority), queued_message);
 }
 
-MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerUSB::handle_cc_lane(QueuePriority priority,
-                                                                                  USBSendContext& context) {
-	// Decide whether the CC lane head needs scheduler handling.
-	uint32_t head_message = queue_storage_.head(static_cast<uint8_t>(priority));
-	auto pop_scheduled_cc = [this](uint32_t& message_out) {
-		// The shared policy owns selection order and the guarded removal; USB adds nothing here.
-		return cc_lane_.pop_scheduled(queue_storage_.lanes[static_cast<uint8_t>(QUEUE_PRIORITY_CC)], cc_policy_,
-		                              &message_out);
-	};
-	auto cc_result = MIDIQueueManager::try_pop_scheduled_cc(is_packed_channel_cc(head_message),
-	                                                        context.cc_allowance_messages_remaining > 0,
-	                                                        pop_scheduled_cc, context.message_out);
-	if (cc_result == MIDIQueueManager::CCScheduledPopResult::Popped) {
-		// Count only scheduled CC pops against the per-transfer CC allowance.
-		context.cc_allowance_messages_remaining--;
-		return MIDIQueueManager::PriorityLaneTraversalResult::Popped;
-	}
-	if (cc_result == MIDIQueueManager::CCScheduledPopResult::NotCC) {
-		// A non-CC message in the CC lane can use normal head popping.
-		return MIDIQueueManager::PriorityLaneTraversalResult::PopLane;
-	}
-	// Allowance exhaustion or pop failure means this lane should not emit now.
-	return MIDIQueueManager::PriorityLaneTraversalResult::SkipLane;
-}
-
 // Resets serial pacing state so the next flush starts from a known baseline.
 void MIDIQueueManagerDIN::reset_serial_state(uint32_t now_sample_timer) {
 	// Start allowance accrual from the caller's current audio sample timestamp.
@@ -360,14 +307,10 @@ size_t MIDIQueueManagerDIN::send_buffer_space() const {
 
 // Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
 void MIDIQueueManagerDIN::enqueue_message(MIDIMessage message) {
-	// Classify once, then let the enqueue policy decide whether to coalesce or append. The policy is
+	// Classify once, then let the enqueue policy decide how to handle it. The policy is
 	// shared with USB; DinTransport supplies everything about this transport's storage format.
 	QueuePriority priority = MIDIQueueManager::classify_message(message);
-	uint8_t status = static_cast<uint8_t>(message.channel | (message.statusType << 4));
-	(void)cc_lane_.enqueue_with_cc_policy(
-	    queue_storage_.lanes[static_cast<uint8_t>(QUEUE_PRIORITY_CC)], cc_policy_, priority == QUEUE_PRIORITY_CC,
-	    MIDIQueueManager::is_channel_cc_status_type(message.statusType), status, message.data1, message.data2,
-	    [this, priority, message] { return enqueue_priority_message(priority, message); });
+	(void)enqueue_priority_message(priority, message);
 }
 
 // Queues one complete SysEx byte stream into the lowest-priority DIN lane.
@@ -474,30 +417,6 @@ void MIDIQueueManagerDIN::consume_queued_messages(uint32_t now_sample_timer) {
 					continue;
 				}
 
-				if (priority == QUEUE_PRIORITY_CC) {
-					auto cc_result = handle_cc_lane(priority, context);
-					if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::Popped) {
-						// The CC scheduler selected and removed a complete CC message.
-						popped = true;
-						break;
-					}
-					if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::Abort) {
-						// The CC lane head cannot safely provide bytes: either it does not decode, or it
-						// is well-formed but does not fit the current allowance/UART limits. Both end the
-						// pass here, so a CC head that is merely too large for the remaining space also
-						// stops lower-priority lanes from sending this time round.
-						break;
-					}
-					if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::SkipLane) {
-						// Skip CC for this pass and continue traversal.
-						continue;
-					}
-					if (cc_result != MIDIQueueManager::PriorityLaneTraversalResult::PopLane) {
-						// Unknown traversal result: do not pop this lane.
-						continue;
-					}
-				}
-
 				bool lane_popped =
 				    priority == QUEUE_PRIORITY_SYSEX ? pop_sysex_byte(context) : pop_lane(priority, context);
 				if (lane_popped) {
@@ -543,12 +462,6 @@ void MIDIQueueManagerDIN::consume_queued_messages(uint32_t now_sample_timer) {
 			// still use queue ordering plus available UART space, but are not blocked by CC-only
 			// occupancy accounting.
 			cc_uart_allowance -= bytes_popped;
-		}
-		// Only commit scheduling state when a full 3-byte channel-CC frame with a
-		// valid CC number has actually been emitted to UART.
-		if (is_cc_message && MIDIQueueManager::is_three_byte_channel_cc(bytes_to_send[0], bytes_popped)
-		    && bytes_to_send[1] <= kMaxMIDIValue) {
-			cc_policy_.clear_cc_debt(bytes_to_send[1]);
 		}
 		uart_space -= bytes_popped;
 		send_allowance_bytes -= bytes_popped;
@@ -638,60 +551,4 @@ bool MIDIQueueManagerDIN::enqueue_priority_message(QueuePriority priority, MIDIM
 		}
 	}
 	return true;
-}
-
-// Check whether the CC lane head can be considered, then tell the caller whether to pop, skip, or abort.
-MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerDIN::handle_cc_lane(QueuePriority priority,
-                                                                                  DINSendContext& context) {
-	// DIN must validate the complete message at the CC-lane head before deciding
-	// whether it should be scheduled or popped normally.
-	uint8_t status = queue_storage_.head(static_cast<uint8_t>(priority));
-	int32_t message_len = 0;
-	auto head_check = MIDIQueueManager::validate_head_message_pop(
-	    status, queue_storage_.queue_count(static_cast<uint8_t>(priority)), context.allowance_bytes, context.uart_space,
-	    context.max_len, message_len);
-	if (head_check != MIDIQueueManager::HeadMessageCheckResult::Ready) {
-		// Invalid or incomplete head data blocks the CC lane for this pass.
-		return MIDIQueueManager::PriorityLaneTraversalResult::Abort;
-	}
-
-	bool head_is_cc = MIDIQueueManager::is_three_byte_channel_cc(status, message_len);
-	auto pop_scheduled_cc = [this](uint8_t* out_bytes, int32_t allowance_bytes, int32_t uart_space, int32_t max_len,
-	                               QueuePriority& popped_priority) {
-		if (allowance_bytes < MIDIQueueManager::k_channel_cc_message_length
-		    || uart_space < MIDIQueueManager::k_channel_cc_message_length
-		    || max_len < MIDIQueueManager::k_channel_cc_message_length) {
-			// A DIN CC is three bytes; all caller limits must fit the complete message. This gate is
-			// DIN's, not the policy's: USB pops whole events and has nothing to check here.
-			return false;
-		}
-		// The shared policy owns selection order and the guarded removal, and its own scan refuses a lane
-		// holding fewer bytes than one complete message.
-		if (!cc_lane_.pop_scheduled(queue_storage_.lanes[static_cast<uint8_t>(QUEUE_PRIORITY_CC)], cc_policy_,
-		                            out_bytes)) {
-			return false;
-		}
-		// Tell the drain loop these bytes came from the CC lane.
-		popped_priority = QUEUE_PRIORITY_CC;
-		return true;
-	};
-	auto cc_result = MIDIQueueManager::try_pop_scheduled_cc(
-	    head_is_cc, context.cc_uart_allowance >= MIDIQueueManager::k_channel_cc_message_length, pop_scheduled_cc,
-	    context.out_bytes, context.allowance_bytes, context.uart_space, context.max_len, context.popped_priority);
-	if (cc_result == MIDIQueueManager::CCScheduledPopResult::Popped) {
-		// A scheduled CC has already been copied into the send buffer.
-		return MIDIQueueManager::PriorityLaneTraversalResult::Popped;
-	}
-	if (cc_result == MIDIQueueManager::CCScheduledPopResult::NotCC) {
-		// Non-CC messages in this lane can be emitted in normal head order.
-		return MIDIQueueManager::PriorityLaneTraversalResult::PopLane;
-	}
-
-	if (cc_result == MIDIQueueManager::CCScheduledPopResult::AllowanceBlocked) {
-		// Blocked by the CC send allowance, not by bad data. Fall through to lower-priority lanes, as
-		// USB does for the same condition, instead of halting the whole pass.
-		return MIDIQueueManager::PriorityLaneTraversalResult::SkipLane;
-	}
-	// A scheduled pop that failed on a head this transport could not decode cannot be retried safely.
-	return MIDIQueueManager::PriorityLaneTraversalResult::Abort;
 }

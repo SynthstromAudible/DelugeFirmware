@@ -52,9 +52,9 @@ class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
-	/// @brief Classify, optionally coalesce, and enqueue one outgoing MIDI message into USB priority lanes.
+	/// @brief Classify and enqueue one outgoing MIDI message into USB priority lanes.
 	/// @param fullMessage Packed MIDI message word to send.
-	/// @param intent      Classification hint used to select the queue lane and coalescing behavior.
+	/// @param intent      Classification hint used to select the queue lane.
 	/// @return True when the caller should flush USB output.
 	[[nodiscard]] bool enqueue_message(uint32_t fullMessage, MIDIIntent intent);
 	void setup();
@@ -126,7 +126,7 @@ public:
 	/// @brief Remaining DIN queue capacity for raw SysEx bytes.
 	/// @return Free space, in bytes.
 	[[nodiscard]] size_t send_buffer_space() const;
-	/// @brief Classify, optionally coalesce, and enqueue one outgoing MIDI message into DIN priority lanes.
+	/// @brief Classify and enqueue one outgoing MIDI message into DIN priority lanes.
 	/// @param message MIDI message to send.
 	void enqueue_message(MIDIMessage message);
 	/// @brief Queue one complete SysEx byte stream into DIN priority lanes.

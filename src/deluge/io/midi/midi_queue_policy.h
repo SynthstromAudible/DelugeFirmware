@@ -76,30 +76,6 @@ public:
 		Invalid,
 	};
 
-	/// @brief Outcome of adapting a scan step for CC coalescing.
-	enum class CoalesceScanResult : uint8_t {
-		/// Scan reached the end of the lane.
-		NoMore,
-		/// A valid message was seen, but it is not a coalescing candidate.
-		Skip,
-		/// A candidate with identity (status + CC number) usable for matching was found.
-		Matchable,
-		/// The lane contents could not be reliably matched.
-		Invalid,
-	};
-
-	/// @brief Outcome of MIDIQueueManager::try_pop_scheduled_cc.
-	enum class CCScheduledPopResult : uint8_t {
-		/// The lane head is not a CC message; use normal lane-order popping.
-		NotCC,
-		/// The head is CC, but the caller's scheduling allowance is exhausted.
-		AllowanceBlocked,
-		/// The head is CC and allowance permits scheduling, but no candidate could be popped.
-		PopFailed,
-		/// A scheduled CC candidate was found and removed.
-		Popped,
-	};
-
 	/// @brief Outcome of one priority-lane traversal step in a transport's dequeue loop.
 	enum class PriorityLaneTraversalResult {
 		/// Pop the current lane using normal lane-order popping.
@@ -144,10 +120,8 @@ public:
 	///
 	/// Defined inline rather than in the .cpp so it can be unit tested without the UART and USB layers.
 	///
-	/// @note Message intent is consumed here and nowhere else. Routing Event CCs away from the CC lane
-	///       leaves that lane holding only Continuous entries, which is what lets the dequeue path
-	///       coalesce and reorder it unconditionally without needing to know any entry's intent -
-	///       there is nowhere to store intent per queue entry (a USB entry is a fully packed uint32,
+	/// @note Message intent is consumed here and nowhere else.
+	///       There is nowhere to store intent per queue entry (a USB entry is a fully packed uint32,
 	///       a DIN entry is a raw byte).
 	/// @param message Outgoing MIDI message to classify.
 	/// @return The priority lane this message belongs in.
@@ -181,48 +155,17 @@ public:
 				return QUEUE_PRIORITY_EXPRESSION;
 			}
 			if (message.intent == MIDIIntent::Continuous) {
-				// Only continuous parameter updates may be merged and reordered, so only they belong in
-				// the scheduled CC lane.
+				// Continuous parameter updates belong to the scheduled CC lane.
+				// Second to lowest priority, before the sysex lane.
 				return QUEUE_PRIORITY_CC;
 			}
-			// Discrete CC events keep their order and their duplicate values. The expression lane is
-			// strictly FIFO and never coalesced, which is exactly the behaviour they need.
+			// Discrete CC events are higher priority than continuous CCs.
 			return QUEUE_PRIORITY_EXPRESSION;
 
 		default:
-			// Program change and unknown channel messages are discrete events that follow a prefix.
+			// Program change and unknown channel messages are discrete events.
 			return QUEUE_PRIORITY_EXPRESSION;
 		}
-	}
-
-	/// @brief Shared CC gate helper: if the lane head is CC and allowance permits, attempt a scheduled pop.
-	///
-	/// A transport asks this before popping the CC lane head. Non-CC messages fall through to normal
-	/// lane-order popping. CC messages only use the scheduler when the caller's per-transfer/per-UART
-	/// allowance still permits it.
-	///
-	/// @param head_is_cc       True if the lane head is a CC message.
-	/// @param allowance_ok     True if the caller's scheduling allowance still permits a scheduled pop.
-	/// @param pop_scheduled_fn Transport callback that attempts to pop the scheduled CC candidate.
-	/// @param args             Arguments forwarded to @p pop_scheduled_fn.
-	/// @return Whether normal popping should run, and if not, whether the scheduled pop succeeded.
-	template <typename PopFn, typename... Args>
-	static CCScheduledPopResult try_pop_scheduled_cc(bool head_is_cc, bool allowance_ok, PopFn pop_scheduled_fn,
-	                                                 Args&&... args) {
-		if (!head_is_cc) {
-			// The lane head is not a CC, so normal lane-order popping should handle it.
-			return CCScheduledPopResult::NotCC;
-		}
-		if (!allowance_ok) {
-			// CC scheduling is intentionally capped per transfer/flush.
-			return CCScheduledPopResult::AllowanceBlocked;
-		}
-		if (pop_scheduled_fn(std::forward<Args>(args)...)) {
-			// The transport found and removed the scheduled CC candidate.
-			return CCScheduledPopResult::Popped;
-		}
-		// The head was CC and allowance was available, but the transport could not pop one.
-		return CCScheduledPopResult::PopFailed;
 	}
 
 	/// @brief Shared parser+fit gate for queued non-realtime MIDI messages.

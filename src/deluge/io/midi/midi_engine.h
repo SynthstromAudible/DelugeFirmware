@@ -73,11 +73,9 @@ public:
 	/// @param cc Controller number.
 	/// @param value Controller value, saturated into 0-127.
 	/// @param filter Output filter (e.g. MPE member/master restriction).
-	/// @param intent What kind of message this is, which decides whether the output scheduler may
-	///        coalesce or reorder it. `Event` (the default) is queued verbatim and kept in order;
+	/// @param intent What kind of message this is, `Event` (the default) is queued verbatim and kept in order;
 	///        use it for anything whose exact sequence or duplicate values matter. `Continuous`
-	///        marks the current value of a parameter, where a later value supersedes an earlier
-	///        one, so it may be coalesced and reordered relative to other Continuous messages.
+	///        marks the current value of a parameter.
 	///        `NoteBound` must stay ordered with the note stream.
 	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter,
 	            MIDIIntent intent = MIDIIntent::Event);
@@ -121,11 +119,9 @@ public:
 	/// @param channel MIDI channel to send on.
 	/// @param bend Bend amount. Only the lower 14 bits are used.
 	/// @param filter Output filter (e.g. MPE member/master restriction).
-	/// @param intent What kind of message this is, which decides whether the output scheduler may
-	///        coalesce or reorder it. `Event` (the default) is queued verbatim and kept in order;
+	/// @param intent What kind of message this is. `Event` (the default) is queued verbatim and kept in order;
 	///        use it for anything whose exact sequence or duplicate values matter. `Continuous`
-	///        marks the current value of a parameter, where a later value supersedes an earlier
-	///        one, so it may be coalesced and reordered relative to other Continuous messages.
+	///        marks the current value of a parameter.
 	///        `NoteBound` must stay ordered with the note stream.
 	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter,
 	                   MIDIIntent intent = MIDIIntent::Event);
@@ -135,11 +131,9 @@ public:
 	/// @param channel MIDI channel to send on.
 	/// @param value Pressure amount. Saturated into 0-127.
 	/// @param filter Output filter (e.g. MPE member/master restriction).
-	/// @param intent What kind of message this is, which decides whether the output scheduler may
-	///        coalesce or reorder it. `Event` (the default) is queued verbatim and kept in order;
+	/// @param intent What kind of message this is. `Event` (the default) is queued verbatim and kept in order;
 	///        use it for anything whose exact sequence or duplicate values matter. `Continuous`
-	///        marks the current value of a parameter, where a later value supersedes an earlier
-	///        one, so it may be coalesced and reordered relative to other Continuous messages.
+	///        marks the current value of a parameter.
 	///        `NoteBound` must stay ordered with the note stream.
 	void sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter,
 	                           MIDIIntent intent = MIDIIntent::Event);

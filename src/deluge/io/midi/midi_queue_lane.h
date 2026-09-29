@@ -258,8 +258,7 @@ public:
 
 	/// @brief Empties every lane.
 	///
-	/// @note Storage only. Policy state layered above the lanes (CC debt, scheduling bookkeeping) is
-	///       owned elsewhere and must be reset by its owner.
+	/// @note Storage only.
 	void clear() {
 		for (auto& queue_lane : lanes) {
 			// Drop queued transport data from every priority lane.

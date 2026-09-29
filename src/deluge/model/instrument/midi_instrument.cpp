@@ -1279,8 +1279,7 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 			mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[0] = value7;
 			// Ongoing per-note expression during a sounding note, so Continuous is the honest annotation.
 			// It is inert for the default CC here, though: classify_message() routes mod wheel and MPE Y
-			// to the expression lane by CC number alone, before it ever looks at intent, so this is never
-			// coalesced or reordered as long as outputMPEY == CC_EXTERNAL_MPE_Y.
+			// to the expression lane by CC number alone, as long as outputMPEY == CC_EXTERNAL_MPE_Y.
 			//
 			// But outputMPEY is loaded unvalidated from a song's "yCC" attribute, so a song naming some
 			// other CC for MPE Y sends it out under that CC instead, where classify_message() no longer

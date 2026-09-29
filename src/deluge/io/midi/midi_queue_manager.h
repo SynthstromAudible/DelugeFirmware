@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "io/midi/midi_cc_policy.h"
 #include "io/midi/midi_queue_definitions.h"
 #include "io/midi/midi_queue_lane.h"
 #include "io/midi/midi_queue_transports.h"
@@ -37,8 +36,6 @@ public:
 	void reset_queue_storage() {
 		// Drop queued transport data from every priority lane.
 		queue_storage_.clear();
-		// Reset scheduler state so stale debt/scan data does not survive a device reset.
-		cc_policy_.reset();
 		sysex_drain_active_ = false;
 	}
 	/// @brief Returns whether any USB priority lane has data waiting to send.
@@ -79,10 +76,6 @@ private:
 	/// Each lane is a ring of packed USB-MIDI events; consume_queued_messages() drains them into
 	/// dataSendingNow in priority order.
 	MIDIQueueStorage<uint32_t, QUEUE_PRIORITY_COUNT, k_usb_lane_capacity> queue_storage_{};
-	/// @brief Per-device CC coalescing/scheduling bookkeeping layered on top of the queue storage.
-	MIDICCQueuePolicy cc_policy_{};
-	/// @brief The CC-lane policy, shared with DIN and specialised only by the USB transport traits.
-	MIDICCLanePolicy<UsbTransport> cc_lane_{};
 
 	/// @brief Classifies a packed outgoing USB-MIDI message into a priority lane.
 	/// @param packed Packed USB-MIDI event.
@@ -100,12 +93,6 @@ private:
 	/// @param queued_message Packed USB-MIDI event to enqueue.
 	/// @return True if the event was stored; false if that lane is full.
 	[[nodiscard]] bool enqueue_priority_message(QueuePriority priority, uint32_t queued_message);
-	/// @brief Decides how to advance CC lane traversal during a USB dequeue pass.
-	/// @param priority Priority lane under consideration.
-	/// @param context  Output destination and CC scheduling allowance for this pop.
-	/// @return How the caller should proceed for this lane.
-	[[nodiscard]] MIDIQueueManager::PriorityLaneTraversalResult handle_cc_lane(QueuePriority priority,
-	                                                                           USBSendContext& context);
 	/// @brief Pops one queued SysEx event and keeps USB drain locked to SysEx until the ending event is sent.
 	/// @param context Output destination and CC scheduling allowance for this pop.
 	/// @return True if a SysEx event was popped.
@@ -133,8 +120,6 @@ public:
 	void reset_queue_storage() {
 		// Drop queued transport data from every priority lane.
 		queue_storage_.clear();
-		// Reset scheduler state so stale debt/scan data does not survive a device reset.
-		cc_policy_.reset();
 		sysex_drain_active_ = false;
 	}
 	/// @brief Resets serial queue pacing state to a known baseline.
@@ -183,10 +168,6 @@ private:
 	/// larger than MIDI_TX_BUFFER_SIZE so a full 1024-byte stream fits despite the one-unused-slot
 	/// invariant.
 	MIDIQueueStorage<uint8_t, k_serial_priority_count, k_din_lane_capacity> queue_storage_{};
-	/// @brief Per-device CC coalescing/scheduling bookkeeping layered on top of the queue storage.
-	MIDICCQueuePolicy cc_policy_{};
-	/// @brief The CC-lane policy, shared with USB and specialised only by the DIN transport traits.
-	MIDICCLanePolicy<DinTransport> cc_lane_{};
 	/// @brief Last sample-timer tick used to accrue DIN send allowance.
 	uint32_t serial_allowance_last_update_{0};
 	/// @brief Accumulated DIN send allowance in Q8 bytes (8 fractional bits).
@@ -209,10 +190,4 @@ private:
 	/// @param queued_message Message to enqueue.
 	/// @return True if the message was stored; false if that lane is full.
 	[[nodiscard]] bool enqueue_priority_message(QueuePriority priority, MIDIMessage queued_message);
-	/// @brief Decides how to advance CC lane traversal during a DIN dequeue pass.
-	/// @param priority Priority lane under consideration.
-	/// @param context  Output destination, pacing allowances, and popped-lane result.
-	/// @return How the caller should proceed for this lane.
-	[[nodiscard]] MIDIQueueManager::PriorityLaneTraversalResult handle_cc_lane(QueuePriority priority,
-	                                                                           DINSendContext& context);
 };

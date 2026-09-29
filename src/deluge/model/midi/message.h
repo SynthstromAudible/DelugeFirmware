@@ -35,18 +35,17 @@ enum class MIDIStatusType : uint8_t {
 	System = 0x0F,
 };
 
-/// @brief What kind of MIDI message this is, which decides whether the output scheduler may coalesce
-///        or reorder it.
+/// @brief What kind of MIDI message this is
 ///
 /// @note The default (Event) is deliberately conservative: a sender that says nothing gets verbatim,
 ///       in-order delivery. Only a sender that knows its messages are redundant opts into merging, so a
 ///       missed annotation costs latency, never correctness.
 enum class MIDIIntent : uint8_t {
-	/// A discrete event. Queued verbatim and kept in order relative to other events; never coalesced or
-	/// reordered. RPN sequences, bank selects, program changes and momentary CCs all depend on this.
+	/// A discrete event. Queued verbatim and kept in order relative to other events;
+	/// RPN sequences, bank selects, program changes and momentary CCs all depend on this.
 	Event,
-	/// The current value of a continuous parameter, where a later value supersedes an earlier one.
-	/// Eligible for coalescing and debt-based reordering. Automation and knob feedback use this.
+	/// The current value of a continuous parameter.
+	/// Automation and knob feedback use this.
 	Continuous,
 	/// Must stay ordered with the note stream: MPE expression that initialises a note and must not be
 	/// overtaken by it, or All Notes Off, which notes queued after it must not overtake.
