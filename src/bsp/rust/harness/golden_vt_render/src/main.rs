@@ -944,6 +944,9 @@ fn fill_sample_load_tree_card() {
 /// - `SAMPLES/ONLYREG.WAV` and `SAMPLES/STEREO24.WAV` come after that promotion, so they are the
 ///   cases that see the changed try order — and `STEREO24.WAV`'s geometry (2 channels, 24-bit)
 ///   differs in both fields the comparison names first.
+/// - `SAMPLES/BADREG.WAV` is garbage at the regular path with a good copy in `SAMPLES/ALT`, asked for while the
+///   alternate dir is still unprobed. A parse verdict is not a miss: the load must fail as `FILE_UNSUPPORTED`
+///   without probing or loading from the alternate dir.
 /// - `SAMPLES/GARBAGE.WAV` opens and then fails to parse; `SAMPLES/MISSING.WAV` is never written.
 ///   Between them they pin that the two backings fail with the SAME `Error` identity, not merely
 ///   that they both fail.
@@ -1028,6 +1031,9 @@ fn fill_audio_load_ab_card() {
     write_test_wav(&samples.join("SWAPB.WAV"), 2, 24, 6144, 0xE2);
     write_test_wav(&samples.join("WITNESS.WAV"), 1, 16, 1536, 0xE3);
 
+    std::fs::write(samples.join("BADREG.WAV"), vec![0x7Eu8; 512])
+        .expect("writing the A/B fixture's garbage-at-the-regular-path file");
+    write_test_wav(&alt.join("BADREG.WAV"), 1, 16, 2048, 0xBB);
     std::fs::write(samples.join("GARBAGE.WAV"), vec![0x7Eu8; 512])
         .expect("writing the A/B fixture's unparseable file");
     // A third failure shape: the file opens and there is nothing in it.

@@ -151,7 +151,7 @@ result = "AB-RESULT failures=0"
 check = "tests/integration/checks/audio_load_ab.py"
 builds = ["golden-vt-render"]
 requires = []
-tier = "nightly"
+tier = "pr"
 runtime = "~5m"
 
 # The rig that runs the real Rust prefix channel against the real C++ song browser over real files.

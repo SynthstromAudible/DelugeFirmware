@@ -65,6 +65,10 @@ struct Case {
 ///
 /// - `both` exists in the regular directory AND the alternate one, and is asked for FIRST — while
 ///   the context's alternate-dir status is still MIGHT_EXIST, so only the regular path is even proposed.
+/// - `bad_reg` is garbage at the regular path with a good copy in the alternate directory, asked for while the
+///   status is still MIGHT_EXIST. A parse verdict is not a miss, so it must fail as FILE_UNSUPPORTED and leave the
+///   status unpromoted, never retrying in the alternate directory. Both backings share that rule, so the check is
+///   absolute (see g_badRegError).
 /// - `only_alt` exists only in the alternate directory. Its regular-path miss is what probes that
 ///   directory and promotes the status for everything after it.
 /// - `both2` is the same two-locations shape as `both`, but asked for AFTER that promotion, so its
@@ -95,8 +99,9 @@ struct Case {
 ///   all) are three DIFFERENT ways to fail, and they are here as three cases rather than one because
 ///   what has to match is the `Error` IDENTITY, not the mere fact of failure. A backing that
 ///   collapsed two of these onto one code would still "fail" on both.
-constexpr std::array<Case, 10> kCases{{
+constexpr std::array<Case, 11> kCases{{
     {"both", "SAMPLES/BOTH.WAV"},
+    {"bad_reg", "SAMPLES/BADREG.WAV"},
     {"only_alt", "SAMPLES/ONLYALT.WAV"},
     {"both2", "SAMPLES/BOTH2.WAV"},
     {"selfdir", "SAMPLES/ALT/SELFDIR.WAV"},
@@ -135,8 +140,23 @@ int32_t g_deferralsTotal = 0;
 /// tighten the admission rule so `both2` declines and the candidate-ORDER property disappears from
 /// the gate silently. Per-case counts are what make that visible.
 std::array<int32_t, kCases.size()> g_deferralsByCase{};
+/// `both` and `bad_reg`: asked for before the alternate dir is probed, and checked absolutely below for leaving it
+/// unprobed. Tied to their paths like kSelfdirIndex.
+constexpr size_t kBothIndex = 0;
+constexpr size_t kBadRegIndex = 1;
+static_assert(std::string_view{kCases[kBothIndex].path} == "SAMPLES/BOTH.WAV", "kBothIndex no longer names `both`");
+static_assert(std::string_view{kCases[kBadRegIndex].path} == "SAMPLES/BADREG.WAV",
+              "kBadRegIndex no longer names `bad_reg`");
+/// The alternate-dir status each left behind, and `bad_reg`'s Error and recorded alternate path. A regular-path hit
+/// and a parse verdict are both final: neither may probe the alternate dir, so the status must still be MIGHT_EXIST,
+/// and `bad_reg` must fail as FILE_UNSUPPORTED rather than load its good copy from there. The AB-CASE comparison
+/// cannot see this, since the synchronous reference shares the rule.
+AlternateLoadDirStatus g_bothStatusAfter = AlternateLoadDirStatus::MIGHT_EXIST;
+AlternateLoadDirStatus g_badRegStatusAfter = AlternateLoadDirStatus::MIGHT_EXIST;
+Error g_badRegError = Error::NONE;
+bool g_badRegLoaded = false;
 /// The index of `selfdir` in kCases, whose one property is checked absolutely below.
-constexpr size_t kSelfdirIndex = 3;
+constexpr size_t kSelfdirIndex = 4;
 /// Where `selfdir` must be recorded as having been loaded from.
 ///
 /// The SAME string as its nominal path, which is the entire reason this case exists: only a
@@ -556,6 +576,20 @@ void printSummary() {
 		       kSelfdirAlternate.data());
 		g_failures++;
 	}
+	if (g_bothStatusAfter != AlternateLoadDirStatus::MIGHT_EXIST) {
+		printf("FAIL [audioLoadAB/%s]: a hit on the regular path changed the alternate-dir status to %d; it must "
+		       "leave it unprobed (MIGHT_EXIST)\n",
+		       kCases[kBothIndex].label, static_cast<int>(g_bothStatusAfter));
+		g_failures++;
+	}
+	if (g_badRegLoaded || g_badRegError != Error::FILE_UNSUPPORTED
+	    || g_badRegStatusAfter != AlternateLoadDirStatus::MIGHT_EXIST) {
+		printf("FAIL [audioLoadAB/%s]: garbage at the regular path loaded=%d error=%d status=%d; a parse verdict must "
+		       "fail as FILE_UNSUPPORTED without retrying in the alternate dir, which must stay unprobed\n",
+		       kCases[kBadRegIndex].label, g_badRegLoaded ? 1 : 0, static_cast<int>(g_badRegError),
+		       static_cast<int>(g_badRegStatusAfter));
+		g_failures++;
+	}
 	if (!active) {
 		printf("FAIL [audioLoadAB]: the async loader is not active, so no load in this run went through it\n");
 		g_failures++;
@@ -611,6 +645,14 @@ void runOneStep() {
 
 	if (g_caseIndex == kSelfdirIndex && file != nullptr) {
 		g_selfdirAlternatePath = static_cast<Sample&>(*file).loadedFromAlternatePath;
+	}
+	if (g_caseIndex == kBothIndex) {
+		g_bothStatusAfter = g_loadContext.alternateDirStatus;
+	}
+	if (g_caseIndex == kBadRegIndex) {
+		g_badRegStatusAfter = g_loadContext.alternateDirStatus;
+		g_badRegError = error;
+		g_badRegLoaded = file != nullptr;
 	}
 
 	if (!checkLoadInvariants(c.label)) {
@@ -1184,6 +1226,10 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_ejectRequestDeferrals = 0;
 	g_ejectSwapFailed = false;
 	g_selfdirAlternatePath.clear();
+	g_bothStatusAfter = AlternateLoadDirStatus::MIGHT_EXIST;
+	g_badRegStatusAfter = AlternateLoadDirStatus::MIGHT_EXIST;
+	g_badRegError = Error::NONE;
+	g_badRegLoaded = false;
 	g_referenceLine.clear();
 	g_referenceTaken = false;
 	g_ejectReferenceLine.clear();
