@@ -16,21 +16,11 @@
  */
 
 /// @file
-/// @brief Weak, synchronous-backing definitions for `libdeluge/file_directory.h`.
-///
-/// The Rust BSP overrides all of them in `file_directory.rs`; the unit tests, which link no BSP, resolve these. No
-/// caller reaches them: every caller selects the channel only once boot has finished, which a unit test never
-/// reports, and takes its synchronous arm instead.
-///
-/// Every function here is `noexcept`, like every function in `audio_load_abi.cpp`: the repo's allocators throw
-/// `deluge::exception::BAD_ALLOC` (operators.cpp), and letting anything unwind out of an
-/// `extern "C"` frame into a Rust caller is undefined behaviour -- on this target it presents as
-/// `std::terminate()` aborting silently, i.e. an unexplained device death with no error message.
-/// None of these bodies can throw (they neither allocate nor call anything that does), so none
-/// carries a `catch (...)`; the marker is what keeps that true if a body is ever added.
+/// @brief Compile-time pins on `libdeluge/file_directory.h`: the constants the Rust side
+/// (`src/bsp/rust/src/file_directory.rs`)
+///        hand-duplicates, and the status values it shares with the other channels.
 
 #include "libdeluge/file_directory.h"
-#include "storage/fallback_report.h"
 
 #include "libdeluge/audio_load.h"  // the status values this header's must equal
 #include "libdeluge/file_prefix.h" // ... and the sibling channel's, which share a caller
@@ -73,21 +63,3 @@ static_assert(DELUGE_FILE_DIRECTORY_FAILED == DELUGE_FILE_PREFIX_FAILED);
 static_assert(DELUGE_FILE_DIRECTORY_FAILED != DELUGE_AUDIO_LOAD_PENDING);
 static_assert(DELUGE_FILE_DIRECTORY_FAILED != DELUGE_AUDIO_LOAD_READY);
 static_assert(DELUGE_FILE_DIRECTORY_FAILED != DELUGE_AUDIO_LOAD_UNKNOWN);
-
-extern "C" __attribute__((weak)) void deluge_file_directory_request(const char* /*dir_path*/,
-                                                                    bool /*create_if_missing*/) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_directory_request");
-	// No directory channel on this BSP/config. No caller reaches here: every caller selects the channel only once
-	// boot has finished, which a build linking this fallback never reports. Dropping the request
-	// (rather than pretending to have accepted it) is what the collect below already reports.
-}
-
-extern "C" __attribute__((weak)) uint8_t deluge_file_directory_collect(const char* /*dir_path*/,
-                                                                       uint32_t* /*out_handle*/,
-                                                                       DelugeStatus* /*out_status*/) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_directory_collect");
-	// UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever -- and a caller that
-	// kept asking would never open the folder, because on this build nothing is going to. Neither
-	// output is touched, which is exactly what the header promises for any status but READY/FAILED.
-	return DELUGE_FILE_DIRECTORY_UNKNOWN;
-}

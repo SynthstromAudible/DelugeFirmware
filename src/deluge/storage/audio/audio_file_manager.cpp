@@ -1536,8 +1536,7 @@ void AudioFileManager::setCardEjected() {
 	cardEjected = true;
 	// Card-scoped, not loader-scoped: one call invalidates everything every loader read from the
 	// card that just left. Unconditional -- deliberately not gated on any loader's "am I active?"
-	// selector. A flush skipped on the wrong build is a silent wrong-file load; one that runs where
-	// there is no loader costs a call into a no-op weak fallback. See card.h for the whole contract,
+	// selector: a flush skipped on the wrong build is a silent wrong-file load. See card.h for the whole contract,
 	// and this function's declaration for why the ejection is the hook rather than the re-insertion.
 	deluge_card_flush();
 }

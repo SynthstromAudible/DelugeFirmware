@@ -69,9 +69,7 @@ typedef struct DelugeDirEntry {
 
 /// The embedded-fatfs (Rust `efatfs_streaming`) task-context file/directory
 /// C-ABI. `deluge::io::File`/`Directory` (file.cpp) route to these
-/// unconditionally; every non-efatfs BSP/config links the
-/// `__attribute__((weak))` fallback in `async_fill.cpp` (always false/no-op),
-/// so these symbols always link regardless of backend. Implemented in
+/// unconditionally. Implemented in
 /// `efatfs_fs.rs` (device) / `efatfs_host_shim.rs` (host), both composing the
 /// storage-generic `efatfs_core` primitives -- see those files' doc comments
 /// for the handle-table/locking discipline. Every handle-taking function's

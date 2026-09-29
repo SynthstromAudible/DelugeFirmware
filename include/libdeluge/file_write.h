@@ -239,8 +239,7 @@ uint8_t deluge_file_write_collect_write_file(const char* path, uint32_t* out_wri
 
 /// @brief Whether the Rust driver is running and this channel may be used at all.
 ///
-/// The whole of what a caller consults before choosing an arm. False on every BSP that resolves the
-/// weak fallbacks in `file_write_abi.cpp`.
+/// The whole of what a caller consults before choosing an arm.
 bool deluge_file_write_async_active(void) DELUGE_NOEXCEPT;
 
 #ifdef DELUGE_HOST

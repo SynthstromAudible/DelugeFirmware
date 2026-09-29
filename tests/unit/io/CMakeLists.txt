@@ -9,8 +9,8 @@ deluge_specs_driver(io_specs
   SOURCES
     mock_file_io.cpp
     ../../../src/deluge/io/file.cpp
-    # The weak no-BSP fallbacks for the directory channel that io/file.cpp's collectOrRequestDir calls.
-    ../../../src/deluge/storage/file_directory_abi.cpp
+    # The storage channels' C ABI as "no channel here", for io/file.cpp's collectOrRequestDir.
+    ../../support/mocks/storage_channel_mocks.cpp
     ../../../src/deluge/storage/existence_policy.cpp
     ../../../src/deluge/storage/readback_policy.cpp
     ../../../src/deluge/model/favourite/favourites_policy.cpp

@@ -16,21 +16,10 @@
  */
 
 /// @file
-/// @brief Weak, do-nothing definitions for `libdeluge/file_write.h`, plus the constants that pin the
-///        boundary.
-///
-/// The Rust BSP overrides every one of them in `file_write.rs`; the unit tests, which link no BSP, resolve these, and
-/// never finish booting, so every caller takes its synchronous arm.
-///
-/// Every function here is `noexcept`, like every function in `file_bytes_abi.cpp`: the repo's
-/// allocators throw `deluge::exception::BAD_ALLOC` (operators.cpp), and letting anything unwind out
-/// of an `extern "C"` frame into a Rust caller is undefined behaviour -- on this target it presents
-/// as `std::terminate()` aborting silently, i.e. an unexplained device death with no error message.
-/// None of these bodies can throw, so none carries a `catch (...)`; the marker is what keeps that
-/// true if a body is ever added.
+/// @brief Compile-time pins on `libdeluge/file_write.h`: the constants the Rust side (`src/bsp/rust/src/file_write.rs`)
+///        hand-duplicates, and the status values it shares with the other channels.
 
 #include "libdeluge/file_write.h"
-#include "storage/fallback_report.h"
 
 #include "libdeluge/audio_load.h" // the status values this header's must equal
 #include "libdeluge/file_bytes.h"
@@ -45,102 +34,3 @@ static_assert(DELUGE_FILE_WRITE_UNKNOWN == DELUGE_FILE_BYTES_UNKNOWN);
 static_assert(DELUGE_FILE_WRITE_FAILED == DELUGE_FILE_BYTES_FAILED);
 static_assert(DELUGE_FILE_WRITE_PENDING == DELUGE_AUDIO_LOAD_PENDING);
 static_assert(DELUGE_FILE_WRITE_READY == DELUGE_AUDIO_LOAD_READY);
-
-extern "C" {
-
-__attribute__((weak)) bool deluge_file_write_request_write_at(uint32_t, uint32_t, const uint8_t*, uint32_t) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_request_write_at");
-	// Refused, so the caller takes its synchronous arm. Silently accepting and never answering is
-	// the failure this project has hit three times (the startup fail-safe's boot wedge,
-	// smsysex_pending, and the settings submit machine): a channel that accepts and never answers
-	// strands its caller forever.
-	return false;
-}
-
-__attribute__((weak)) uint8_t deluge_file_write_collect_write_at(uint32_t, uint32_t*) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_collect_write_at");
-	// UNKNOWN, not PENDING: "there is nothing in flight, ask again if you want one". PENDING would
-	// tell a caller to keep waiting for an answer that can never come.
-	return DELUGE_FILE_WRITE_UNKNOWN;
-}
-
-// The other seven operations, same two rules throughout: a request is REFUSED so the caller takes its
-// synchronous arm, and a collect answers UNKNOWN -- "nothing is in flight, ask again if you want
-// one" -- never PENDING, which would tell a caller to keep waiting for an answer that can never come.
-
-__attribute__((weak)) bool deluge_file_write_request_open(const char*, uint8_t) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_request_open");
-	return false;
-}
-
-__attribute__((weak)) uint8_t deluge_file_write_collect_open(uint32_t*) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_collect_open");
-	return DELUGE_FILE_WRITE_UNKNOWN;
-}
-
-__attribute__((weak)) bool deluge_file_write_request_read_at(uint32_t, uint32_t, uint8_t*, uint32_t) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_request_read_at");
-	return false;
-}
-
-__attribute__((weak)) uint8_t deluge_file_write_collect_read_at(uint32_t, uint32_t*) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_collect_read_at");
-	return DELUGE_FILE_WRITE_UNKNOWN;
-}
-
-__attribute__((weak)) bool deluge_file_write_request_truncate(uint32_t, uint32_t) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_request_truncate");
-	return false;
-}
-
-__attribute__((weak)) uint8_t deluge_file_write_collect_truncate(uint32_t) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_collect_truncate");
-	return DELUGE_FILE_WRITE_UNKNOWN;
-}
-
-__attribute__((weak)) bool deluge_file_write_request_close(uint32_t) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_request_close");
-	return false;
-}
-
-__attribute__((weak)) uint8_t deluge_file_write_collect_close(uint32_t) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_collect_close");
-	return DELUGE_FILE_WRITE_UNKNOWN;
-}
-
-__attribute__((weak)) bool deluge_file_write_request_stats(void) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_request_stats");
-	return false;
-}
-
-__attribute__((weak)) uint8_t deluge_file_write_collect_stats(uint32_t*) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_collect_stats");
-	return DELUGE_FILE_WRITE_UNKNOWN;
-}
-
-__attribute__((weak)) bool deluge_file_write_request_read_file(const char*, uint8_t*, uint32_t) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_request_read_file");
-	return false;
-}
-
-__attribute__((weak)) uint8_t deluge_file_write_collect_read_file(const char*, uint32_t*, uint32_t*) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_collect_read_file");
-	return DELUGE_FILE_WRITE_UNKNOWN;
-}
-
-__attribute__((weak)) bool deluge_file_write_holds(const void*) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_holds");
-	return false;
-}
-
-__attribute__((weak)) bool deluge_file_write_request_write_file(const char*, const uint8_t*, uint32_t, bool) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_request_write_file");
-	return false;
-}
-
-__attribute__((weak)) uint8_t deluge_file_write_collect_write_file(const char*, uint32_t*, uint8_t*) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_collect_write_file");
-	return DELUGE_FILE_WRITE_UNKNOWN;
-}
-
-} // extern "C"

@@ -131,9 +131,7 @@ uint8_t deluge_file_directory_collect(const char* dir_path, uint32_t* out_handle
                                       DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Whether the Rust async directory channel backs this header on this BSP/config.
-/// @return true on the Rust BSP, always: the channel has no feature switch. false only where this header's weak
-///         fallback is linked, a C++-only build, in which @ref deluge_file_directory_request does nothing and
-///         @ref deluge_file_directory_collect always reports UNKNOWN.
+/// @return true on the Rust BSP, always: the channel has no feature switch.
 /// @note Callers select on `deluge::boot::finished()` rather than on this. A finished boot means the Rust BSP and
 ///       so a running driver; a C++-only build never finishes booting, and its callers open synchronously.
 bool deluge_file_directory_async_active(void) DELUGE_NOEXCEPT;

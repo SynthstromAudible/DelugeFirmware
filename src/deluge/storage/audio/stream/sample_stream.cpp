@@ -176,11 +176,8 @@ std::unique_ptr<ReadSource> SampleStream::make_read_source() {
 extern "C" {
 
 // The region-port open() bridge's stream-backing -> resource-asset accessor (declared in
-// libdeluge/streaming_fill.h alongside its sibling deluge_streaming_resource_manager). The real
-// body: SampleStream is always available wherever this TU compiles, so this just forwards to the
-// asset-definition entry point (chunk_residency.cpp). The `__attribute__((weak))` no-op fallback
-// for build configs without a real SampleStream lives in async_fill.cpp, mirroring that file's
-// other weak fallbacks.
+// libdeluge/streaming_fill.h alongside its sibling deluge_streaming_resource_manager): forwards to the
+// asset-definition entry point (chunk_residency.cpp).
 uint32_t deluge_sample_stream_asset_id(void* stream_backing) {
 	auto* stream = reinterpret_cast<deluge::audio::stream::SampleStream*>(stream_backing);
 	return deluge_streaming_define_asset(&stream->sample());
