@@ -1239,7 +1239,7 @@ dependencies = [
 [[package]]
 name = "deluge-alloc"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=a58edba01a7608d08b28d6f0dd0e77a8f35b3661#a58edba01a7608d08b28d6f0dd0e77a8f35b3661"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de#fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de"
 dependencies = [
  "critical-section",
  "rlsf",
@@ -1248,10 +1248,11 @@ dependencies = [
 [[package]]
 name = "deluge-bsp"
 version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de#fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de"
 dependencies = [
  "cortex-ar",
  "critical-section",
- "deluge-sim-link 0.1.0",
+ "deluge-sim-link",
  "embassy-executor",
  "embassy-futures",
  "embassy-sync",
@@ -1303,19 +1304,12 @@ dependencies = [
 [[package]]
 name = "deluge-protocol"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=a58edba01a7608d08b28d6f0dd0e77a8f35b3661#a58edba01a7608d08b28d6f0dd0e77a8f35b3661"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de#fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de"
 
 [[package]]
 name = "deluge-sim-link"
 version = "0.1.0"
-dependencies = [
- "ringbuf",
-]
-
-[[package]]
-name = "deluge-sim-link"
-version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=a58edba01a7608d08b28d6f0dd0e77a8f35b3661#a58edba01a7608d08b28d6f0dd0e77a8f35b3661"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de#fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de"
 dependencies = [
  "ringbuf",
 ]
@@ -1323,12 +1317,12 @@ dependencies = [
 [[package]]
 name = "deluge-simulator"
 version = "0.1.0"
-source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=a58edba01a7608d08b28d6f0dd0e77a8f35b3661#a58edba01a7608d08b28d6f0dd0e77a8f35b3661"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de#fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de"
 dependencies = [
  "clap",
  "cpal",
  "deluge-protocol",
- "deluge-sim-link 0.1.0 (git+https://github.com/FirestormAudio/deluge-embassy.git?rev=a58edba01a7608d08b28d6f0dd0e77a8f35b3661)",
+ "deluge-sim-link",
  "embedded-graphics",
  "env_logger",
  "hound",
@@ -4602,6 +4596,7 @@ dependencies = [
 [[package]]
 name = "rza1l-hal"
 version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de#fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de"
 dependencies = [
  "cortex-ar",
  "critical-section",

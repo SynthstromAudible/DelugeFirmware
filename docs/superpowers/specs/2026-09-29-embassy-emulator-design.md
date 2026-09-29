@@ -217,8 +217,9 @@ Each step is checked by running it. A host test covers what can be tested headle
 
 ## 6. Open questions
 
-- **The deluge-sdk pin.** Step 1 changes deluge-sdk, so the firmware's pin moves with it. The pin moves after Kate
-  pushes deluge-sdk.
+- **The deluge-sdk pin.** Resolved: deluge-sdk merged the work into `main` (fc74570), the firmware pins that, and
+  the permanent `[patch]` to the sibling checkout is gone, so a plain checkout builds `sim` and the device image
+  from the pin. `local-sdk.toml` remains for live SDK work.
 - **Real-time audio and the tiers.** On the device, the audio interrupt preempts everything. Here the `deluge-audio`
   thread competes with the app thread for the host CPU. An underrun on a loaded host would show the tiers' timing,
   not a bug, but the emulator should report underruns (the counters exist) rather than hide them.
