@@ -26,10 +26,6 @@ namespace Debug {
 
 void sysexReceived(MIDICable& cable, uint8_t* data, int32_t len);
 void sysexDebugPrint(MIDICable& cable, const char* msg, bool nl);
-#ifdef ENABLE_SYSEX_LOAD
-void loadPacketReceived(uint8_t* data, int32_t len);
-void loadCheckAndRun(uint8_t* data, int32_t len);
-#endif
 
 } // namespace Debug
 

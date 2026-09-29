@@ -190,7 +190,7 @@ def stage_artifacts(root: Path, config: str) -> int:
     """Copy the cargo-linked ELF into build/<config>/ and derive .bin/.hex/.nmdump.
 
     cargo owns the real output path (target/<triple>/<profile>/deluge-rust), but
-    dbt loadfw, dbt sizediff and the VS Code launch configs all expect the
+    dbt sizediff and the VS Code launch configs expect the
     build/<Config>/deluge.* layout. Staging keeps that contract without
     teaching every consumer about cargo's directory scheme.
     """

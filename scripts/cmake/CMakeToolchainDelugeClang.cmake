@@ -61,9 +61,8 @@ find_program(DELUGE_CLANGXX NAMES clang++ REQUIRED)
 set(CMAKE_C_COMPILER   ${DELUGE_CLANG}   CACHE FILEPATH "Path to C Compiler.")
 set(CMAKE_CXX_COMPILER ${DELUGE_CLANGXX} CACHE FILEPATH "Path to C++ Compiler.")
 
-# Assembly stays with GCC. The .S sources use GNU as directives clang's
-# integrated assembler does not implement (.func/.endfunc, in chainload.S and
-# the RZA1 asm) — debug-info aids with no effect on codegen. Handing them to
+# Assembly stays with GCC: the assembly sources are written for GNU as, whose
+# directives clang's integrated assembler does not all implement. Handing them to
 # arm-none-eabi-gcc keeps those sources working unchanged for both toolchains.
 # (-fno-integrated-as is NOT the fix: clang then reaches for the host
 # /usr/bin/as, which promptly rejects -EL.)

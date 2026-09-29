@@ -25,7 +25,6 @@
 #include "io/midi/midi_engine.h"
 #include "memory/alloc_metadata.h"
 #include "storage/flash_storage.h"
-#include "util/chainload.h"
 
 #include "util/pack.h"
 
@@ -51,18 +50,6 @@ void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 		else if (data[2] == 0) {
 			midiDebugCable = nullptr;
 		}
-		break;
-
-	case 1:
-#ifdef ENABLE_SYSEX_LOAD
-		loadPacketReceived(data, len);
-#endif
-		break;
-
-	case 2:
-#ifdef ENABLE_SYSEX_LOAD
-		loadCheckAndRun(data, len);
-#endif
 		break;
 
 	case 3:
@@ -123,125 +110,3 @@ void Debug::sysexDebugPrint(MIDICable& cable, const char* msg, bool nl) {
 	//	device->sendSysex(reply, len + 6);
 	cable.sendSysex(reply, len + sizeof(reply_hdr) + 1);
 }
-#ifdef ENABLE_SYSEX_LOAD
-#include "gui/l10n/l10n.h"
-#include "hid/display/oled.h"
-#include "hid/led/pad_leds.h"
-#include "memory/general_memory_allocator.h"
-#include "model/settings/runtime_feature_settings.h"
-
-static uint8_t* load_buf;
-static size_t load_bufsize;
-static size_t load_codesize;
-
-static void firstPacket(uint8_t* data, int32_t len) {
-	uint8_t tmpbuf[0x40] __attribute__((aligned(CACHE_LINE_SIZE)));
-
-	unpack_7bit_to_8bit(tmpbuf, 0x40, data + 9, 0x4a);
-	uint32_t user_code_start = *(uint32_t*)(tmpbuf + OFF_USER_CODE_START);
-	uint32_t user_code_end = *(uint32_t*)(tmpbuf + OFF_USER_CODE_END);
-	load_codesize = (int32_t)(user_code_end - user_code_start);
-	if (load_bufsize < load_codesize) {
-		if (load_buf != nullptr) {
-			delugeDealloc(load_buf);
-		}
-		load_bufsize = load_codesize + (511 - ((load_codesize - 1) & 511));
-
-		load_buf = (uint8_t*)deluge::memory::alloc_fast(load_bufsize);
-		if (load_buf == nullptr) {
-			// fail :(
-			return;
-		}
-	}
-
-	// Pad LED Progress Bar Init
-	PadLEDs::clearAllPadsWithoutSending();
-	PadLEDs::sendOutMainPadColours();
-	PadLEDs::sendOutSidebarColours();
-	deluge::hid::display::OLED::clearMainImage();
-	deluge::hid::display::OLED::sendMainImage();
-
-	// Show the configured screensaver while the firmware payload is streaming in.
-	if (FlashStorage::screensaverMode != ScreensaverMode::OFF) {
-		deluge::hid::display::Screensaver::timerEvent();
-	}
-
-	boostTask(midiEngine.routine_task_id);
-}
-
-void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
-	uint32_t handshake = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
-	if (handshake == 0) {
-		return; // not allowed
-	}
-
-	const int size = 512;
-	const int packed_size = 586; // ceil(512+512/7)
-	if (len < packed_size + 10) {
-		return;
-	}
-
-	uint32_t handshake_received;
-	unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 2, 5);
-	if (handshake != handshake_received) {
-		FREEZE_WITH_ERROR("E997");
-		return;
-	}
-
-	int pos = 512 * (data[7] + 0x80 * data[8]);
-
-	if (pos == 0) {
-		firstPacket(data, len);
-	}
-
-	if (load_buf == nullptr || pos + 512 > load_bufsize) {
-		FREEZE_WITH_ERROR("E999");
-		return;
-	}
-
-	unpack_7bit_to_8bit(load_buf + pos, size, data + 9, packed_size);
-
-	// Pad LED Progress Bar Step
-	uint32_t pad = (18 * 8 * pos) / (load_bufsize - 0xffff);
-	uint8_t col = pad % 18;
-	uint8_t row = pad / 18;
-	PadLEDs::image[row][col] = RGB((255 / 7) * row, 0, 255 - (255 / 7) * row);
-	if ((pos / 512) % 16 == 0) {
-		PadLEDs::sendOutMainPadColours();
-		PadLEDs::sendOutSidebarColours();
-	}
-}
-
-void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
-	uint32_t handshake = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
-	if (handshake == 0) {
-		FREEZE_WITH_ERROR("E996");
-		return; // not allowed
-	}
-
-	if (len < 17 || load_buf == nullptr) {
-		FREEZE_WITH_ERROR("E995");
-		return; // cannot do that
-	}
-
-	uint32_t fields[3];
-
-	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 2, 14);
-
-	if (handshake != fields[0]) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BAD_KEY));
-		return;
-	}
-
-	uint32_t code_file_size = fields[1];
-
-	uint32_t checksum = get_crc(load_buf, code_file_size);
-
-	if (checksum != fields[2]) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHECKSUM_FAIL));
-		return;
-	}
-
-	chainload_from_buf(load_buf, load_codesize);
-}
-#endif

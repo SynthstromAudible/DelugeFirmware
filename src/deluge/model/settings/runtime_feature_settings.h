@@ -29,7 +29,6 @@
 namespace deluge::gui::menu_item::runtime_feature {
 class Setting;
 class Settings;
-class DevSysexSetting;
 
 } // namespace deluge::gui::menu_item::runtime_feature
 
@@ -47,7 +46,6 @@ enum RuntimeFeatureSettingType : uint32_t {
 	CatchNotes,
 	DeleteUnusedKitRows,
 	AltGoldenKnobDelayParams,
-	DevSysexAllowed,
 	SyncScalingAction,
 	HighlightIncomingNotes,
 	DisplayNornsLayout,
@@ -141,7 +139,6 @@ private:
 public:
 	friend class deluge::gui::menu_item::runtime_feature::Setting;
 	friend class deluge::gui::menu_item::runtime_feature::Settings;
-	friend class deluge::gui::menu_item::runtime_feature::DevSysexSetting;
 	/// The settings-channel gate's view into the unknown settings; see `settings_channel_scenario.cpp`.
 	friend struct SettingsChannelProbe;
 };

@@ -75,7 +75,6 @@ endif(ENABLE_VERSIONED_OUTPUT)
 set(DELUGE_DEBUG_OPT_LEVEL "-Og" CACHE STRING "Optimization flag for the Debug config (e.g. -Og, -O2)")
 
 # SYSEX Load option
-option(ENABLE_SYSEX_LOAD "Enable loading firmware over midi sysex" OFF)
 
 # MATRIX DRIVER pad logging
 option(ENABLE_MATRIX_DEBUG "Enable logging of pad events" OFF)

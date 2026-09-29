@@ -36,10 +36,6 @@ DelugeStatus deluge_platform_init(void);
 /// Reset the device. Does not return. [task]
 void deluge_system_reset(void) __attribute__((noreturn));
 
-/// Stop all hardware timers/peripherals in preparation for handing control away
-/// (e.g. chainloading new firmware). Call with interrupts already disabled. [task]
-void deluge_system_quiesce(void);
-
 /// Emit debug/log text to the board's debug channel (RTT/UART), with no implicit
 /// newline — the caller owns formatting. Best-effort, may be dropped. [task] [isr]
 void deluge_log(const char* text);

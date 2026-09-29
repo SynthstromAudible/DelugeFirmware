@@ -16,7 +16,6 @@
  */
 
 #include "settings.h"
-#include "devSysexSetting.h"
 #include "hid/display/oled_canvas/canvas.h"
 #include "setting.h"
 #include "shift_is_sticky.h"
@@ -46,7 +45,6 @@ SettingToggle menuCatchNotes(RuntimeFeatureSettingType::CatchNotes);
 SettingToggle menuDeleteUnusedKitRows(RuntimeFeatureSettingType::DeleteUnusedKitRows);
 SettingToggle menuAltGoldenKnobDelayParams(RuntimeFeatureSettingType::AltGoldenKnobDelayParams);
 Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
-DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 SettingToggle menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
 SettingToggle menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
 ShiftIsSticky menuShiftIsSticky{};
@@ -71,7 +69,6 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuCatchNotes,
     &menuDeleteUnusedKitRows,
     &menuAltGoldenKnobDelayParams,
-    &menuDevSysexAllowed,
     &menuSyncScalingAction,
     &menuHighlightIncomingNotes,
     &menuDisplayNornsLayout,

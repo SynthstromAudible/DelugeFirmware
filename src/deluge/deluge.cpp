@@ -81,7 +81,6 @@
 #include "storage/startup_song.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
-#include "util/pack.h"
 #include <stdlib.h>
 
 namespace encoders = deluge::hid::encoders;
@@ -600,8 +599,6 @@ static void deluge_boot(const DelugeBoard* board) {
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
 #endif
-
-	init_crc_table();
 
 	// Setup for gate output
 	cvEngine.init();
