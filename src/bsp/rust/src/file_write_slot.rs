@@ -5,8 +5,10 @@
 //! - a take that finds its own answer stamped for an earlier card removes it and reports nothing.
 //!
 //! One rule is this channel's own. An `Open` answer carries a live stream handle, and the stream table has 8 slots.
-//! Every successful `Open` answer that leaves the slot without being collected is kept as an orphan, and the
-//! channel's task closes it.
+//! Every successful `Open` answer that leaves the slot without being collected is kept as an orphan, stamped with
+//! its card generation, and the channel's task closes it only while that card is still current. A remount already
+//! resets the stream table on ejection and reuses freed indices, so a stale orphan's handle may by then name a
+//! different, live stream on the new card; closing it would close that stream instead.
 
 /// Same bound as every other channel's path: 256 bytes with the NUL.
 pub const MAX_PATH_CHARS: usize = 255;
@@ -69,9 +71,15 @@ struct Answer {
     generation: u32,
 }
 
+/// A stream handle an uncollected `Open` answer opened, stamped with the card generation it was opened under.
+struct Orphan {
+    handle: u32,
+    generation: u32,
+}
+
 pub struct AnswerSlot {
     answer: Option<Answer>,
-    orphans: heapless::Vec<u32, MAX_ORPHANS>,
+    orphans: heapless::Vec<Orphan, MAX_ORPHANS>,
 }
 
 impl AnswerSlot {
@@ -128,18 +136,31 @@ impl AnswerSlot {
         }
     }
 
-    /// A handle an uncollected `Open` answer opened, for the task to close.
-    pub fn take_orphan(&mut self) -> Option<u32> {
-        self.orphans.pop()
+    /// A handle an uncollected `Open` answer opened, for the task to close — but only when it is still stamped
+    /// for `generation`. An orphan stamped for an earlier card is dropped without being returned: a remount
+    /// already reset that card's stream table and may have reused its index for a different, live stream, so
+    /// closing it now would close the wrong file.
+    pub fn take_orphan(&mut self, generation: u32) -> Option<u32> {
+        while let Some(orphan) = self.orphans.pop() {
+            if orphan.generation == generation {
+                return Some(orphan.handle);
+            }
+        }
+        None
     }
 
+    /// Whether any orphan is queued, current or stale. Stale orphans still need a caller to drain them (they are
+    /// dropped, not returned, by [`Self::take_orphan`]), so this does not filter by generation.
     pub fn has_orphans(&self) -> bool {
         !self.orphans.is_empty()
     }
 
     fn retire(&mut self, answer: Answer) {
         if let (OpKind::Open, Ok(handle)) = (answer.key.kind, answer.result) {
-            let kept = self.orphans.push(handle);
+            let kept = self.orphans.push(Orphan {
+                handle,
+                generation: answer.generation,
+            });
             debug_assert!(
                 kept.is_ok(),
                 "more orphans than the stream table has handles"

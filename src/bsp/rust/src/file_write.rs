@@ -25,6 +25,8 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 
+use super::file_write_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath};
+
 /// Hand-duplicated from `libdeluge/file_write.h`; pinned against it by `static_assert` in
 /// `file_write_abi.cpp`, because bindgen's allowlist covers types and not macros.
 pub const DELUGE_FILE_WRITE_PENDING: u8 = 0;
@@ -95,8 +97,6 @@ enum StreamOp {
         may_overwrite: bool,
     },
 }
-
-use super::file_write_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath};
 
 /// A request waiting for the task.
 struct Queued {
@@ -597,7 +597,10 @@ pub async fn file_write_task() {
 ))]
 async fn close_orphans() {
     loop {
-        let orphan = RESULT.lock().await.take_orphan();
+        let orphan = RESULT
+            .lock()
+            .await
+            .take_orphan(deluge_card_generation::current());
         let Some(handle) = orphan else { break };
         backing::stream_close(handle).await;
     }

@@ -4,6 +4,7 @@
 //! `deluge-bsp-rust` is bin-only, so this recompiles `src/file_write_slot.rs` into the test binary via `#[path]`.
 #![cfg(not(target_os = "none"))]
 
+#[allow(dead_code)]
 #[path = "../src/file_write_slot.rs"]
 mod file_write_slot;
 
@@ -72,8 +73,8 @@ fn a_discarded_open_answer_is_orphaned_for_closing() {
     slot.publish(open.clone(), Ok(5), CARD);
     slot.discard(&open);
     assert!(slot.is_empty());
-    assert_eq!(slot.take_orphan(), Some(5));
-    assert_eq!(slot.take_orphan(), None);
+    assert_eq!(slot.take_orphan(CARD), Some(5));
+    assert_eq!(slot.take_orphan(CARD), None);
 }
 
 #[test]
@@ -90,16 +91,7 @@ fn a_displaced_open_answer_is_orphaned() {
     let mut slot = AnswerSlot::new();
     slot.publish(key(OpKind::Open, 0, ""), Ok(6), CARD);
     slot.publish(key(OpKind::Stats, 0, ""), Ok(1000), CARD);
-    assert_eq!(slot.take_orphan(), Some(6));
-}
-
-#[test]
-fn a_stale_open_answer_is_orphaned() {
-    let mut slot = AnswerSlot::new();
-    let open = key(OpKind::Open, 0, "");
-    slot.publish(open.clone(), Ok(7), CARD);
-    assert_eq!(slot.take(&open, CARD + 1), Take::Absent);
-    assert_eq!(slot.take_orphan(), Some(7));
+    assert_eq!(slot.take_orphan(CARD), Some(6));
 }
 
 #[test]
@@ -108,7 +100,31 @@ fn a_flushed_open_answer_is_orphaned() {
     slot.publish(key(OpKind::Open, 0, ""), Ok(1), CARD);
     slot.drain();
     assert!(slot.is_empty());
-    assert_eq!(slot.take_orphan(), Some(1));
+    assert_eq!(slot.take_orphan(CARD), Some(1));
+}
+
+#[test]
+fn a_stale_orphan_is_not_returned_for_closing() {
+    let mut slot = AnswerSlot::new();
+    let open = key(OpKind::Open, 0, "");
+    slot.publish(open.clone(), Ok(7), CARD);
+    // The take is on the NEW card: the answer is stale, so it retires as an orphan stamped with the OLD
+    // generation (CARD), not the one just asked for.
+    assert_eq!(slot.take(&open, CARD + 1), Take::Absent);
+    // A remount already reset the old card's stream table and may have reused handle 7 for a live stream on the
+    // new card, so closing it now would close someone else's file. Asking for orphans AT THE CURRENT generation
+    // must not hand it back.
+    assert_eq!(slot.take_orphan(CARD + 1), None);
+    assert!(!slot.has_orphans());
+}
+
+#[test]
+fn a_current_orphan_is_returned() {
+    let mut slot = AnswerSlot::new();
+    let open = key(OpKind::Open, 0, "");
+    slot.publish(open.clone(), Ok(5), CARD);
+    slot.discard(&open);
+    assert_eq!(slot.take_orphan(CARD), Some(5));
 }
 
 #[test]

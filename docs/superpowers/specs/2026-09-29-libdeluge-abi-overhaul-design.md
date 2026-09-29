@@ -185,7 +185,9 @@ defined:
    - The card flush drops queued requests and waiting answers, but never the running operation: its buffer is
      still in use, and `holds()` must keep saying so.
    - Every successful `Open` answer that is dropped without being collected (displaced, discarded, stale or
-     flushed) queues its handle for the task to close.
+     flushed) queues its handle, stamped with its card generation; the task closes it only while that card is
+     still the current one, because a remount's table reset frees the old card's handles and reuses their
+     indices.
 4. **Delete before binding.** P2 removes the dead surface before P3 binds everything, so nothing dead gets a pin.
 5. **Bindgen is the contract.**
    - `wrapper.h` includes all 35 headers.
