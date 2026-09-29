@@ -1869,6 +1869,12 @@ void getReverbParamsFromSong(Song* song) {
 }
 
 bool allowedToStartVoice() {
+	// The budget spreads voice starts across render windows so a burst of note-ons cannot blow a real-time deadline. An
+	// offline render has no deadline, and its loop has no window to reset the budget in: every note starts when it is
+	// played.
+	if (stemExport.renderingOffline()) {
+		return true;
+	}
 	auto threshold = cpuDireness > 12 ? 1 : 4;
 	if (voices_started_this_render < threshold) {
 		voices_started_this_render += 1;
