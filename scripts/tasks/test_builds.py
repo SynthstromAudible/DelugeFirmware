@@ -21,21 +21,24 @@ SHARED_TARGET_SUBDIR = Path("build") / "cargo-harness"
 HOST_APP_TREE = Path("build") / "host-app"
 
 
-def needs_configure(tree: Path, source: Path) -> bool:
-    """Whether the CMake tree at `tree` must be configured from `source`.
+def needs_configure(tree: Path, source: Path, cxx: str | None = None) -> bool:
+    """Whether the CMake tree at `tree` must be configured from `source` (with the C++ compiler `cxx`, if given).
 
-    A tree configured from another source directory (the source moved) cannot be reused -- CMake refuses it -- so it
-    is removed first; it holds only build products.
+    A tree configured from another source directory (the source moved), or with another compiler, cannot be reused --
+    CMake refuses the first and keeps the old compiler for the second -- so it is removed first; it holds only build
+    products.
     """
     cache = tree / "CMakeCache.txt"
     if not cache.exists():
         return True
-    home = re.search(
-        r"^CMAKE_HOME_DIRECTORY:INTERNAL=(.*)$",
-        cache.read_text(errors="replace"),
-        re.MULTILINE,
+    text = cache.read_text(errors="replace")
+    home = re.search(r"^CMAKE_HOME_DIRECTORY:INTERNAL=(.*)$", text, re.MULTILINE)
+    compiler = re.search(r"^CMAKE_CXX_COMPILER:[A-Z]+=(.*)$", text, re.MULTILINE)
+    same_source = home is not None and Path(home.group(1)).resolve() == source.resolve()
+    same_compiler = cxx is None or (
+        compiler is not None and Path(compiler.group(1)).name == cxx
     )
-    if home is not None and Path(home.group(1)).resolve() == source.resolve():
+    if same_source and same_compiler:
         return False
     shutil.rmtree(tree)
     return True
@@ -79,9 +82,10 @@ class HostApp(Product):
     def steps(self, root: Path) -> list[Step]:
         tree = root / HOST_APP_TREE
         steps = []
-        if needs_configure(tree, root / "sim"):
+        if needs_configure(tree, root / "sim", "clang++"):
             # -DDELUGE_SIM_X64=ON is required: the sim defaults to a -m32 configuration, which cannot link against
-            # the harnesses' 64-bit host Rust.
+            # the harnesses' 64-bit host Rust. clang, because the firmware ships built with it: the host renders the
+            # golden masters record must take the same code generation.
             steps.append(
                 Step(
                     "configure",
@@ -94,6 +98,8 @@ class HostApp(Product):
                         "-G",
                         "Ninja",
                         "-DDELUGE_SIM_X64=ON",
+                        "-DCMAKE_C_COMPILER=clang",
+                        "-DCMAKE_CXX_COMPILER=clang++",
                     ],
                     root,
                 )

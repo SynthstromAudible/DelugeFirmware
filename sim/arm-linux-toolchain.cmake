@@ -7,18 +7,23 @@
 # WAV-diff harness). It is NOT the firmware build (that is bare-metal arm-none-eabi);
 # it is a Linux/qemu stand-in just for differential DSP testing.
 #
-#   cmake -B build-sim-arm -S sim -G Ninja \
+# Compiled with clang, as the firmware is: the reference must take the code generation that ships. clang uses the GCC
+# cross toolchain's sysroot for the C library and libstdc++, so arm-linux-gnueabihf-gcc must still be installed.
+#
+#   cmake -B build/host-app-arm -S sim -G Ninja \
 #         -DCMAKE_TOOLCHAIN_FILE=sim/arm-linux-toolchain.cmake
-#   cmake --build build-sim-arm --target deluge_host
-#   qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9 build-sim-arm/deluge_host
+#   ninja -C build/host-app-arm <targets>
 
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR arm)
 
-set(CMAKE_C_COMPILER arm-linux-gnueabihf-gcc)
-set(CMAKE_CXX_COMPILER arm-linux-gnueabihf-g++)
+set(CMAKE_C_COMPILER clang)
+set(CMAKE_CXX_COMPILER clang++)
+set(CMAKE_C_COMPILER_TARGET arm-linux-gnueabihf)
+set(CMAKE_CXX_COMPILER_TARGET arm-linux-gnueabihf)
+set(CMAKE_SYSROOT /usr/arm-linux-gnueabihf)
 
-set(_armflags "-mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard")
+set(_armflags "-mcpu=cortex-a9 -mfpu=neon -mfloat-abi=hard --gcc-toolchain=/usr")
 set(CMAKE_C_FLAGS_INIT "${_armflags}")
 set(CMAKE_CXX_FLAGS_INIT "${_armflags}")
 
