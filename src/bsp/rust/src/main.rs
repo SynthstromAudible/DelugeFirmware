@@ -1,11 +1,10 @@
 //! Rust/Embassy firmware image for the Synthstrom Deluge (RZ/A1L).
 //!
-//! The Deluge's BSP alongside the legacy `src/bsp/rza1` (on-device C), and on the host
-//! the one the harnesses and `dbt sim` run. Unlike `rza1`, this one OWNS reset, `main`/`_start`
-//! and the Embassy executor: the HAL startup (`rza1l_hal` `_start` →
-//! `_reset_handler` → `bl main`) lands in [`main`] here, which brings up the
-//! platform on the deluge-sdk HAL+BSP and runs the portable C++ application's
-//! `deluge_main()` superloop inside a single Embassy task (Stage 1).
+//! The Deluge's BSP, on the device and on the host (the harnesses and `dbt sim`). It
+//! OWNS reset, `main`/`_start` and the Embassy executor: the HAL startup
+//! (`rza1l_hal` `_start` → `_reset_handler` → `bl main`) lands in [`main`] here,
+//! which brings up the platform on the deluge-sdk HAL+BSP and calls the portable
+//! C++ application's `deluge_app_init()`, whose registered tasks the executor runs.
 //!
 //! The C++ application is compiled by CMake into `libdeluge_app.a` and linked in
 //! by `build.rs`; this crate implements the `<libdeluge/...>` C-ABI services it
@@ -320,7 +319,7 @@ unsafe extern "C" {
     /// One-time C++ application bring-up (deluge.cpp / app.h). On this BSP it also
     /// runs `registerTasks()`, which spawns one Embassy task per registered Deluge
     /// task through the `scheduler_api.h` C ABI in [`scheduler`]. After this returns
-    /// the spawned runners drive the app — there is no `deluge_app_tick` loop.
+    /// the spawned runners drive the app.
     fn deluge_app_init(board: *const sys::DelugeBoard);
 }
 // `host_app` feature: host-side sibling of the device import above. The
@@ -657,8 +656,7 @@ pub extern "C" fn main() -> ! {
 /// BSP also calls `registerTasks()` → spawns one Embassy task per registered
 /// Deluge task via the [`scheduler`] C ABI. Those runners (plus the BSP's async
 /// I/O tasks) then drive everything cooperatively, so this task has nothing left
-/// to do and parks forever. The decomposed scheduler replaces the old yielding
-/// `deluge_app_tick` superloop.
+/// to do and parks forever.
 #[cfg(target_os = "none")]
 #[embassy_executor::task]
 async fn app_task() {

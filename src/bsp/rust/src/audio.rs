@@ -1,15 +1,15 @@
 //! audio_io.h — duplex block audio over the free-running SSI0 DMA rings.
 //!
-//! Direct port of `src/bsp/rza1/audio_io.cpp`. The SSI TX/RX DMA rings free-run
+//! The SSI TX/RX DMA rings free-run
 //! from board audio bring-up (`deluge_bsp::audio::init` → `ssi::init`, which
 //! starts both DMA channels and enables TX+RX). This module owns only the
 //! read/write cursors and the trickle pacing: the app renders i32 stereo via
 //! `deluge_app_render(in, out, frames)`, and we write those samples *directly*
 //! into the uncached TX ring (no f32 round-trip — the app is i32-native).
 //!
-//! All state is touched only from the app's single task (deluge_audio_drive runs
-//! inside deluge_app_tick; the timing queries from the same app context), and no
-//! ISR touches it, so the `static mut` access is single-threaded. The one
+//! All state is touched only from the app's tasks (deluge_audio_drive and the
+//! timing queries), and no ISR touches it, so the `static mut` access is
+//! single-threaded. The one
 //! exception is [`RENDER_BLOCKS`], an atomic the render bumps and thread mode
 //! reads in [`deluge_audio_await_block`].
 #![allow(non_upper_case_globals)]

@@ -24,8 +24,8 @@ namespace deluge::boot {
 /// @brief Whether boot has finished: the app's run loop has started, and storage calls go through the channels.
 ///
 /// Before it, card I/O runs inline on the caller -- nothing is running yet to answer a channel request. After it,
-/// the channels are the only place card I/O may start from. A C++-only build (cooperative scheduler, C-host
-/// tools, host unit tests) never finishes booting in this sense, so it always takes the inline arm.
+/// the channels are the only place card I/O may start from. The unit tests, which link no BSP, never finish booting
+/// in this sense, so they always take the inline arm.
 ///
 /// Monotonic: false, then true for the rest of the process. Backed by the BSP's boot latch
 /// (`deluge_boot_mark_finished`).

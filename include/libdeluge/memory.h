@@ -19,9 +19,7 @@
 ///
 /// The application's allocator asks the BSP where the usable RAM regions are
 /// instead of hard-coding `EXTERNAL_MEMORY_END` etc. The BSP also exposes the
-/// cache clean/invalidate operations needed for DMA coherency, replacing inline
-/// `RZA1/cache` calls and the `PLACE_SDRAM_*` linker-section knowledge in
-/// `definitions.h`.
+/// cache clean/invalidate operations needed for DMA coherency.
 #ifndef LIBDELUGE_MEMORY_H
 #define LIBDELUGE_MEMORY_H
 

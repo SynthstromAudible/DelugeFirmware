@@ -451,8 +451,7 @@ pub extern "C" fn deluge_audio_sample_rate() -> u32 {
 ///
 /// Per the `audio_io.h` contract, the return value is the number of times
 /// `deluge_app_render` was invoked this call (0 = no new audio needed), NOT a
-/// frame count — mirrors device `audio.rs` and the C host backend
-/// `host_audio.c`. The null sink renders exactly one block per call and
+/// frame count — mirrors device `audio.rs`. The null sink renders exactly one block per call and
 /// returns 1, UNLESS [`should_skip_render`] says this specific call must skip
 /// `deluge_app_render` entirely, in which case it returns 0 (a normal,
 /// contract-valid "no new audio needed" outcome).

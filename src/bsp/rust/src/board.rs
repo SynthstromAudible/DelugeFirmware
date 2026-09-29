@@ -1,6 +1,5 @@
 //! board.h — capability descriptor + ordered one-time board bring-up, over the
-//! deluge-sdk HAL/BSP. Mirrors the hardware steps in the C reference BSP
-//! (src/bsp/rza1/board.c): GPIO direction/mux for LEDs/codec/detects, the CV DAC
+//! deluge-sdk HAL/BSP: GPIO direction/mux for LEDs/codec/detects, the CV DAC
 //! SPI, the audio SSI, etc. All pin/port numbers stay BSP-internal here.
 //!
 //! `deluge_board_probe_oled` currently hard-codes `true` (this hardware always
@@ -21,7 +20,7 @@ use rza1l_hal::gpio;
 
 use crate::sys::{DelugeBoard, DelugeDisplayKind_DELUGE_DISPLAY_OLED};
 
-// Pin map (mirrors src/bsp/rza1/board.c / definitions_cxx.hpp):
+// Pin map (as definitions_cxx.hpp names them):
 //   BATTERY_LED {1,1}  SYNCED_LED {6,7}  CODEC {6,12}  SPEAKER_ENABLE {4,1}
 //   HEADPHONE_DETECT {6,5}  LINE_IN_DETECT {6,6}  MIC_DETECT {7,9}
 //   LINE_OUT_DETECT_L {6,3}  LINE_OUT_DETECT_R {6,4}

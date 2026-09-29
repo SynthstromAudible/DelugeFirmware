@@ -17,8 +17,7 @@
 
 /// libdeluge/clock.h — monotonic high-resolution time.
 ///
-/// One free-running tick counter at a board-defined rate. Replaces direct use of
-/// the RZ/A1L MTU/OSTM timers (`drivers/mtu`, `RZA1/ostm`). The application's
+/// One free-running tick counter at a board-defined rate. The application's
 /// `Time`/`DELUGE_CLOCKS_PER` helpers can be expressed on top of this.
 #ifndef LIBDELUGE_CLOCK_H
 #define LIBDELUGE_CLOCK_H

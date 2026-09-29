@@ -1,7 +1,7 @@
 //! signals.h — board GPIO signals, battery sense, and the MIDI/gate timer.
 //!
-//! `deluge_signal_write`/`read` map `DelugeSignal` to the board's GPIO pins
-//! (mirrors src/bsp/rza1/signals.c); the pins are configured in board init.
+//! `deluge_signal_write`/`read` map `DelugeSignal` to the board's GPIO pins; the
+//! pins are configured in board init.
 //! SPEAKER_ENABLE / CODEC_ENABLE gate the audio output path (the app turns the
 //! speaker amp on here, so this is what makes rendered audio audible).
 //!
@@ -82,10 +82,9 @@ pub extern "C" fn deluge_battery_start_conversion() {
 // `midi_gate` module owns the same channel for pure-Rust firmwares, but its ISR
 // de-asserts a gate GPIO directly; here the C++ app's `midiAndGateTimerGoneOff()`
 // owns the action (MIDI + gate emission), and deluge-bsp must not reference app
-// symbols, so we drive mtu2 directly and call the app from our ISR — matching
-// rza1 (src/bsp/rza1/signals.c), where the handler is also ISR-driven.
+// symbols, so we drive mtu2 directly and call the app from our ISR.
 
-/// MTU2 channel for the MIDI/gate one-shot (rza1 TIMER_MIDI_GATE_OUTPUT = 2).
+/// MTU2 channel for the MIDI/gate one-shot (TIMER_MIDI_GATE_OUTPUT = 2).
 const GATE_TIMER_CH: u8 = 2;
 /// Prescaler P0/64 ≈ 520 kHz; 1 tick ≈ 1.92 µs, max one-shot ≈ 126 ms.
 const GATE_TIMER_PRESCALER: u16 = 64;
@@ -141,10 +140,8 @@ pub extern "C" fn deluge_midi_gate_timer_pending() -> bool {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_gate_timer_arm(samples_from_now: u32) {
-    // samples → MTU2 ticks, mirroring rza1 (src/bsp/rza1/signals.c:99):
-    // ticks = samples * 766245 / 2^16  (≈ samples * 515616 / 44100). u64 math
-    // avoids the u32 overflow rza1 would hit past ~5600 samples; results match
-    // for the small offsets the app uses. TGRA is 16-bit, so it saturates at the
+    // samples → MTU2 ticks: ticks = samples * 766245 / 2^16 (≈ samples * 515616 /
+    // 44100), in u64 so it cannot overflow past ~5600 samples as u32 math would. TGRA is 16-bit, so it saturates at the
     // ~126 ms one-shot ceiling.
     let ticks = (((samples_from_now as u64) * 766245) >> 16).min(u16::MAX as u64) as u16;
     GATE_TIMER_PENDING.store(true, Ordering::Release);

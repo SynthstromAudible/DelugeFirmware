@@ -19,19 +19,16 @@ list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp-next/.*)
 
 # ---------------------------------------------------------------------------
-# deluge_app: the PORTABLE application as a static library. It links only the
-# portable libraries and the <libdeluge/...> boundary headers — NO HAL (RZA1)
-# and NO BSP. The boundary's deluge_* functions are undefined symbols here,
-# resolved when a platform executable links its BSP (bsp_rza1 for the firmware,
-# the host BSP for the sim, an Embassy shim later). That deluge_app compiles
-# with no RZA1/ on its include path is the build-enforced proof that the app has
-# no transitive HAL dependency. See sim/CMakeLists.txt for the host consumer.
+# deluge_app: the PORTABLE application. It links only the portable libraries and
+# the <libdeluge/...> boundary headers — no HAL and no BSP. The boundary's
+# deluge_* functions are undefined symbols here, resolved when the Rust BSP links
+# the app (src/bsp/rust/build.rs, on the device and on the host).
+# scripts/check_platform_boundary.py keeps HAL and BSP includes out of the app.
 # ---------------------------------------------------------------------------
 # An OBJECT library (not STATIC): its object files embed directly into whichever
-# executable links it — exactly as the pre-refactor target_sources(deluge ...) did.
-# That keeps the app objects always-present, so the mutual references between the
-# app, deluge_dsp (wavetables / allocator) and bsp_rza1 (the boundary) resolve
-# without static-archive scan-order games.
+# executable links it. That keeps the app objects always-present, so the mutual
+# references between the app, deluge_dsp (wavetables / allocator) and the BSP (the
+# boundary) resolve without static-archive scan-order games.
 add_library(deluge_app OBJECT
   ${deluge_SOURCES}
   # Strings-sources are generated build artefacts, so list them explicitly: a
@@ -78,8 +75,7 @@ if(ENABLE_MATRIX_DEBUG)
     target_compile_definitions(deluge_app PUBLIC ENABLE_MATRIX_DEBUG=1)
 endif(ENABLE_MATRIX_DEBUG)
 
-# NB: deluge_app deliberately does NOT reference the firmware `deluge` executable
-# — it is a self-contained, platform-agnostic app library that both the firmware
-# (src/CMakeLists.txt) and the host-sim (sim/CMakeLists.txt) assemble against
-# their own BSP + entry point.
+# NB: deluge_app deliberately references no executable — it is a self-contained,
+# platform-agnostic app library that the Rust BSP links, on the device (from
+# src/CMakeLists.txt's tree) and on the host (from sim/CMakeLists.txt's).
 

@@ -35,8 +35,8 @@
 #include <cstdlib>
 #include <string>
 
-// The app's printf.h aliases printf to an implementation that writes through putchar_, which only the C host BSP
-// defines; this harness links the Rust BSP, so the alias would leave every line below an undefined symbol.
+// The app's printf.h aliases printf to an implementation that writes through putchar_, which the Rust BSP builds do not
+// define; this harness links the Rust BSP, so the alias would leave every line below an undefined symbol.
 #ifdef printf
 #undef printf
 #endif

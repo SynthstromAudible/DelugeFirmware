@@ -23,8 +23,8 @@
 
 extern uint32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 #if defined(__arm__)
-// Declared here rather than included from <RZA1/cache/cache.h>: this is application code, which compiles with
-// no HAL on its include path. The platform supplies the symbol at link time.
+// Declared here rather than included from a HAL header, which application code may not include. The platform
+// supplies the symbol at link time.
 extern "C" void invalidate_range_all_caches(uintptr_t start, uintptr_t end);
 #endif
 

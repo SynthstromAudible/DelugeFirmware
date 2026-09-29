@@ -597,8 +597,8 @@ where
 /// `embedded-fatfs`' `create_dir` requires the immediate parent to already exist
 /// (it returns `NotFound` otherwise) but is idempotent on an already-existing
 /// directory, so we build the path one ancestor prefix at a time. This matches the
-/// portable folder-creation contract callers rely on: the FatFS/C-host `mkdir` path
-/// returns `NOT_FOUND` for a missing parent so incremental callers (e.g.
+/// portable folder-creation contract callers rely on: a `mkdir` that reports
+/// `NOT_FOUND` for a missing parent so incremental callers (e.g.
 /// `SampleRecorder`, creating a nested `SAMPLES/RESAMPLE` recording folder on a
 /// fresh card) can create it — but the efatfs C-ABI reports only success/failure
 /// as a bool, losing that distinction. Making mkdir recursive here restores the

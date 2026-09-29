@@ -1,11 +1,10 @@
 # Host-sim build for the portable Deluge application.
 #
 # A NATIVE build (x86-64 / ARM64), separate from the arm-none-eabi firmware build.
-# It assembles the SAME deluge_app library + the portable libs for the host, so it
-# is both the definitive proof the app has no transitive HAL dependency (no RZA1/
-# on the include path) and what the Embassy host harnesses and `dbt sim` link
-# (tests/: the `host-app` build product, built into build/host-app). Nothing
-# links here: the harnesses' build scripts archive these objects.
+# It builds the SAME deluge_app library + the portable libs for the host, which
+# the Embassy host harnesses and `dbt sim` link (tests/: the `host-app` build
+# product, built into build/host-app). Nothing links here: the harnesses' build
+# scripts archive these objects.
 
 cmake_minimum_required(VERSION 3.24)
 

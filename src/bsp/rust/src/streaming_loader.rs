@@ -17,10 +17,8 @@
 //!   (`deluge_streaming_async_active`, `deluge_streaming_signal_fill`), and the
 //!   per-asset fill-context table (`deluge_streaming_set_fill_context`,
 //!   [`fill_context_for`]) — asset definition, which registers it, happens on
-//!   every BSP at sample-load, not just the ones with the async fill task
-//!   built in. Every other BSP/config (legacy/host-cooperative sim, rza1)
-//!   never links this crate at all; the `__attribute__((weak))` C++ fallbacks
-//!   in `async_fill.cpp` resolve there instead.
+//!   every build at sample-load, not just the ones with the async fill task
+//!   built in. There is no C++ fallback: these are the only definitions.
 //! - Feature-gated behind `async_streaming_loader`: the actual drain machinery
 //!   ([`FillOps`], [`fill_once`], [`ProdOps`], [`streaming_fill_task`]). Spawned
 //!   in `main.rs` (device `main` + host `host_app`) only under that feature.

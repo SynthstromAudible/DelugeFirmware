@@ -15,8 +15,7 @@
 using deluge::hid::display::Starfield;
 
 // Mirrors OLED_MAIN_WIDTH_PIXELS / OLED_MAIN_HEIGHT_PIXELS / OLED_MAIN_TOPMOST_PIXEL from
-// src/RZA1/cpu_specific.h (128 / 48 / 5). Hardcoded rather than included, because that header
-// lives under the target-only RZA1 tree and isn't on the host build's include path.
+// src/board_config.h (128 / 48 / 5).
 constexpr int32_t kWidth = 128;
 constexpr int32_t kHeight = 48;
 constexpr int32_t kTopmost = 5;

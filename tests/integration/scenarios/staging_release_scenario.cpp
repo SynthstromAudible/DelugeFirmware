@@ -27,8 +27,8 @@
 #include <span>
 
 // The headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`. That
-// implementation emits through `putchar_`, which only the C host BSP defines -- this harness links the Rust BSP and has
-// no provider, so the alias would turn every line this file writes into an undefined symbol at link time.
+// implementation emits through `putchar_`, which the Rust BSP builds do not define -- this harness links the Rust BSP
+// and has no provider, so the alias would turn every line this file writes into an undefined symbol at link time.
 #ifdef printf
 #undef printf
 #endif

@@ -27,8 +27,7 @@ extern "C" {
 /// @brief True when a filesystem operation is in flight — i.e. touching the filesystem now would
 ///        block until it completes.
 ///
-/// Cooperative/C-host BSPs: always false (filesystem work runs inline on the caller, so no other context
-/// can hold the filesystem). Embassy: true while the efatfs FS mutex is held by a storage task.
+/// True while the efatfs FS mutex is held by a storage task.
 /// @note Safe to call from ANY context and never blocks — interaction-tier callers querying "may I
 ///       start filesystem work now?" are the primary consumer.
 /// @return true iff a filesystem operation is currently in flight.

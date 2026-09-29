@@ -112,7 +112,7 @@ def write_allowlist(paths: list[str]) -> None:
         "# <libdeluge/...> boundary. This list may only SHRINK. Adding a new entry\n"
         "# should be rejected in review; removing one is the unit of progress.\n"
         "#\n"
-        "# See docs/dev/libdeluge_separation_plan.md and\n"
+        "# See include/libdeluge/README.md and\n"
         "#     scripts/check_platform_boundary.py\n"
         "# Regenerate the *current* offender set (for comparison) with:\n"
         "#   scripts/check_platform_boundary.py --list\n"

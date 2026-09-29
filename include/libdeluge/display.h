@@ -18,9 +18,8 @@
 /// libdeluge/display.h — main display output (OLED framebuffer or 7-segment).
 ///
 /// The application renders into its own framebuffer and hands it to the BSP to
-/// blit; the BSP owns the SPI/DMA transfer (today `drivers/oled` + `RZA1/oled`;
-/// `deluge-bsp::oled` on the Rust side). Use `deluge_board()->display_kind` to
-/// pick the right path.
+/// blit; the BSP owns the SPI/DMA transfer (deluge-sdk's `deluge_bsp::oled`).
+/// Use `deluge_board()->display_kind` to pick the right path.
 #ifndef LIBDELUGE_DISPLAY_H
 #define LIBDELUGE_DISPLAY_H
 
