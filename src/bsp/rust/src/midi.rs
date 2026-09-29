@@ -107,7 +107,9 @@ pub extern "C" fn deluge_midi_read_timed(
     }
     if written > 0 && !arrival_ticks.is_null() {
         // SAFETY: caller passes a valid out-pointer when non-null.
-        unsafe { *arrival_ticks = embassy_time::Instant::now().as_ticks() as u32 };
+        unsafe {
+            *arrival_ticks = crate::capture_stamp::now_for(embassy_time::Instant::now().as_ticks())
+        };
     }
     written as u32
 }

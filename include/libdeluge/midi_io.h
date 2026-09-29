@@ -73,10 +73,9 @@ DelugeMidiPort deluge_midi_usb_port(uint8_t controller, uint8_t device);
 /// re-arm or poll at this boundary. [task] [isr]
 uint32_t deluge_midi_read(DelugeMidiPort port, uint8_t* dst, uint32_t max);
 
-/// Like deluge_midi_read(), but when it returns > 0 also fills `*arrival_ticks` with the raw monotonic tick
-/// count at the drained batch's arrival — the board's foundation tick units, not a capture stamp (unlike
-/// deluge_midi_din_read_timed()'s `arrival_stamp`, this is not convertible with
-/// deluge_audio_stamp_to_render_offset()). [task]
+/// Like deluge_midi_read(), but when it returns > 0 also fills `*arrival_ticks` with the capture stamp of the
+/// drained batch's arrival (see `deluge_audio_stamp_to_render_offset`), as deluge_midi_din_read_timed() does
+/// per byte. Every message in the batch shares that one stamp. [task]
 uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max, uint32_t* arrival_ticks);
 
 /// Queue `len` bytes for transmission on `port`. Returns the number of bytes
