@@ -73,7 +73,7 @@ fn main() {
     emit_forced_link_roots();
 
     let (build_dir, cfg, ar) = resolve_build_dir(&repo_root);
-    let app_objs_archive = archive_app_objects(&build_dir, &cfg, &ar, &out_dir);
+    let app_objs_archive = archive_app_objects(&repo_root, &build_dir, &cfg, &ar, &out_dir);
     link_app_closure(&build_dir, &cfg, &app_objs_archive);
     emit_runtime_link_args();
 
@@ -226,7 +226,13 @@ fn resolve_build_dir(repo_root: &Path) -> (PathBuf, String, PathBuf) {
 /// so editing a `.cpp` and rebuilding `deluge_app` in place wouldn't
 /// otherwise trigger a re-archive, leaving a stale link. The directory
 /// itself is also watched, to catch objects being added or removed.
-fn archive_app_objects(build_dir: &Path, cfg: &str, ar: &Path, out_dir: &Path) -> PathBuf {
+fn archive_app_objects(
+    repo_root: &Path,
+    build_dir: &Path,
+    cfg: &str,
+    ar: &Path,
+    out_dir: &Path,
+) -> PathBuf {
     let app_objs_dir = build_dir.join(format!("src/deluge/CMakeFiles/deluge_app.dir/{cfg}"));
     if !app_objs_dir.is_dir() {
         panic!(
@@ -239,7 +245,12 @@ fn archive_app_objects(build_dir: &Path, cfg: &str, ar: &Path, out_dir: &Path) -
     }
 
     let mut objs = Vec::new();
-    collect_objs(&app_objs_dir, &mut objs);
+    collect_objs(
+        &app_objs_dir,
+        &app_objs_dir,
+        &repo_root.join("src/deluge"),
+        &mut objs,
+    );
     objs.sort();
     for o in &objs {
         println!("cargo:rerun-if-changed={}", o.display());
@@ -338,8 +349,12 @@ fn run_host_app(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     emit_host_forced_link_roots();
 
     let app_objs_dir = host_app_objs_dir(&build_dir);
-    let objs =
-        archive_host_app_objects(&app_objs_dir, &host_scenario_objs_dir(&build_dir), out_dir);
+    let objs = archive_host_app_objects(
+        repo_root,
+        &app_objs_dir,
+        &host_scenario_objs_dir(&build_dir),
+        out_dir,
+    );
     emit_host_staleness_hash(&app_objs_dir, &objs, out_dir);
     link_host_app_closure(&build_dir, &out_dir.join("libdeluge_app_objs.a"));
     emit_host_runtime_link_args();
@@ -412,6 +427,7 @@ fn emit_host_forced_link_roots() {
 /// path does: a directory-level watch only fires on add/remove, so editing a
 /// `.cpp` and rebuilding in place would otherwise leave a stale link.
 fn archive_host_app_objects(
+    repo_root: &Path,
     app_objs_dir: &Path,
     scenario_objs_dir: &Path,
     out_dir: &Path,
@@ -426,8 +442,18 @@ fn archive_host_app_objects(
     }
 
     let mut objs = Vec::new();
-    collect_objs(app_objs_dir, &mut objs);
-    collect_objs(scenario_objs_dir, &mut objs);
+    collect_objs(
+        app_objs_dir,
+        app_objs_dir,
+        &repo_root.join("src/deluge"),
+        &mut objs,
+    );
+    collect_objs(
+        scenario_objs_dir,
+        scenario_objs_dir,
+        &repo_root.join("tests/integration/scenarios"),
+        &mut objs,
+    );
     objs.sort();
     for o in &objs {
         println!("cargo:rerun-if-changed={}", o.display());
@@ -538,12 +564,24 @@ fn hash_objs_content(objs: &[PathBuf]) -> u64 {
     hasher.finish()
 }
 
-fn collect_objs(dir: &Path, out: &mut Vec<PathBuf>) {
+/// Every object under `dir` whose source still exists. An object directory keeps the objects of sources that
+/// have since moved or been deleted, and archiving them links a second definition of everything the moved source
+/// defines. `base` is the object directory, whose layout mirrors `src_root`'s.
+fn collect_objs(base: &Path, dir: &Path, src_root: &Path, out: &mut Vec<PathBuf>) {
     for entry in fs::read_dir(dir).unwrap() {
         let p = entry.unwrap().path();
         if p.is_dir() {
-            collect_objs(&p, out);
+            collect_objs(base, &p, src_root, out);
         } else if p.extension().is_some_and(|e| e == "obj" || e == "o") {
+            let source = src_root.join(p.strip_prefix(base).unwrap().with_extension(""));
+            if !source.is_file() {
+                println!(
+                    "cargo:warning=skipping {}: its source {} no longer exists",
+                    p.display(),
+                    source.display()
+                );
+                continue;
+            }
             out.push(p);
         }
     }
