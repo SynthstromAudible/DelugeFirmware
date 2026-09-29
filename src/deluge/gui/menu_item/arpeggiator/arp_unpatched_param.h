@@ -26,7 +26,7 @@ public:
 	ArpUnpatchedParam(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
 	    : UnpatchedParam(newName, title, newP), style_(style) {}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
 

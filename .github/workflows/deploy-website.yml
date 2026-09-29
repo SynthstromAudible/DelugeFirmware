@@ -33,6 +33,10 @@ jobs:
         working-directory: website
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The recent-changes panel needs enough main-branch history to pair
+          # revert commits with the changes they undo.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
         with:
           version: 10.24.0
@@ -62,6 +66,7 @@ jobs:
       - name: Build website
         run: pnpm run build
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
           SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
 

@@ -509,9 +509,8 @@ bool SampleClaim::stepFinish() {
 			}
 
 			sampleBrowser.parentMenuHeadingTo->focusChild(sampleBrowser.menuItemHeadingTo);
-			soundEditor.menuItemNavigationRecord[0] = sampleBrowser.parentMenuHeadingTo;
-			soundEditor.navigationDepth = 0;
-			openUI(&soundEditor);
+			soundEditor.setup(getCurrentClip(), sampleBrowser.parentMenuHeadingTo);
+			soundEditor.enterOrUpdateSoundEditor(true);
 
 			sampleBrowser.parentMenuHeadingTo = nullptr;
 			sampleBrowser.menuItemHeadingTo = nullptr;

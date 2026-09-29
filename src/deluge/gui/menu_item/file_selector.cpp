@@ -51,7 +51,7 @@ MenuItem* FileSelector::selectButtonPress() {
 	return NO_NAVIGATION;
 }
 
-bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return true;
 	}
@@ -96,12 +96,16 @@ void FileSelector::getColumnLabel(etl::istring& label) {
 			deluge::string::append(label, getLastFolderFromPath(audioFile->filePath));
 			return;
 		}
-		return MenuItem::getColumnLabel(label);
+		MenuItem::getColumnLabel(label);
+		return;
 	}
-
+	if (!soundEditor.currentSound) {
+		return;
+	}
 	auto& source = soundEditor.currentSound->sources[sourceId_];
 	if (!source.hasAtLeastOneAudioFileLoaded()) {
-		return MenuItem::getColumnLabel(label);
+		MenuItem::getColumnLabel(label);
+		return;
 	}
 
 	if (std::ssize(source.ranges) > 1) {

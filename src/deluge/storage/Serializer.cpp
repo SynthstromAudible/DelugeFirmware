@@ -61,6 +61,8 @@ XMLSerializer::XMLSerializer() {
 
 void XMLSerializer::reset() {
 	resetWriter();
+	// FileWriter's counter is separate from this serializer's private counter.
+	indentAmount = 0;
 }
 
 void XMLSerializer::write(char const* output) {
@@ -68,7 +70,7 @@ void XMLSerializer::write(char const* output) {
 }
 
 void XMLSerializer::writeTag(char const* tag, int32_t number, bool box) {
-	char* buffer = shortStringBuffer;
+	char buffer[12];
 	intToString(number, buffer);
 	writeTag(tag, buffer, box);
 }

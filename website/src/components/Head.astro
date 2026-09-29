@@ -53,11 +53,14 @@ import Default from "@astrojs/starlight/components/Head.astro"
 
 <script>
   import { enhanceMenuHierarchyLabels } from "../logic/menuHierarchyDisplayLabels"
+  import { revealPageSearchTarget } from "../logic/searchResultTarget"
 
   document.addEventListener("astro:page-load", () => {
     enhanceMenuHierarchyLabels()
+    revealPageSearchTarget()
   })
   enhanceMenuHierarchyLabels()
+  revealPageSearchTarget()
 
   let mermaidInitialized = false
   let mermaidModulePromise:

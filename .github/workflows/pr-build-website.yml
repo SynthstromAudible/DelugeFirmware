@@ -22,6 +22,10 @@ jobs:
         working-directory: website
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Recent-change generation scans main history and inspects each
+          # commit's changed paths, so a shallow checkout is insufficient.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
         with:
           version: 10.24.0
@@ -54,6 +58,7 @@ jobs:
       - name: Build website
         run: pnpm run build
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SITE_URL: ${{ steps.setup_pages.outputs.base_url }}
           SITE_BASE_PATH: ${{ steps.setup_pages.outputs.base_path }}
 

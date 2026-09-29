@@ -134,6 +134,8 @@ public:
 	uint8_t maxVoiceCount = 8;
 
 	int16_t transpose = 0;
+	int8_t cents = 0;
+	PhaseIncrementFineTuner fineTuner;
 
 	uint8_t numUnison = 1;
 	int8_t unisonDetune = 8;
@@ -249,6 +251,7 @@ public:
 	virtual bool isDrum() { return false; }
 	void setupAsSample(ParamManagerForTimeline* paramManager);
 	void recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelStack);
+	void set_cents(int8_t new_cents);
 	/// @brief Report the files of every sample or wavetable source to @p visitor, in source order. Loads nothing.
 	/// @param visitor Receives a demand for each source's audio file and a checkpoint before each one.
 	/// @return Walk::Stop if a checkpoint stopped the walk.
@@ -354,6 +357,7 @@ private:
 	static void noteDestroyedWithLiveVoices();
 
 	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
+	void recalculateFineTuner();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);
 	void setupUnisonStereoSpread();

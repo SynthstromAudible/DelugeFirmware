@@ -94,18 +94,27 @@ void deluge_display_freeze(const uint8_t* pixels) {
 	DMACn(OLED_SPI_DMA_CHANNEL).CHCTRL_n |=
 	    DMAC_CHCTRL_0S_CLRTC | DMAC_CHCTRL_0S_SETEN; // ---- Enable DMA Transfer and clear TC bit ----
 
-	while (1) {
+	// Block until the select knob is newly pressed. The PIC reports press and release with the same button code,
+	// prefixing releases with NEXT_PAD_OFF. Ignoring those means a freeze triggered from a select press isn't
+	// dismissed by that same press's release.
+	constexpr uint8_t kSelectKnobPress = 175;
+	bool next_is_release = false;
+	while (true) {
 		PIC::flush();
 		uartFlushIfNotSending(UART_ITEM_MIDI);
 
 		uint8_t value;
-		bool anything = uartGetChar(UART_ITEM_PIC, (char*)&value);
-		if (anything) {
-			if (value == 175) {
-				break;
-			}
-			else if (value == 249) {}
+		if (!uartGetChar(UART_ITEM_PIC, (char*)&value)) {
+			continue;
 		}
+		if (value == static_cast<uint8_t>(PIC::Response::NEXT_PAD_OFF)) {
+			next_is_release = true;
+			continue;
+		}
+		if (value == kSelectKnobPress && !next_is_release) {
+			break;
+		}
+		next_is_release = false;
 	}
 	oledWaitingForMessage = 256;
 	spiBusCurrentlySending = false;

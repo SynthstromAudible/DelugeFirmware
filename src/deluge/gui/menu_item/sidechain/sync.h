@@ -63,7 +63,7 @@ public:
 
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !is_reverb_sidechain_ || AudioEngine::reverbSidechainVolume >= 0;
 	}
 

@@ -53,6 +53,8 @@ JsonSerializer::JsonSerializer() {
 
 void JsonSerializer::reset() {
 	resetWriter();
+	// Reset formatting as well as comma state when reusing a writer.
+	indentAmount = 0;
 	firstItemHasBeenWritten = false;
 }
 
@@ -62,7 +64,7 @@ void JsonSerializer::write(char const* output) {
 }
 
 void JsonSerializer::writeTag(char const* tag, int32_t number, bool box) {
-	char* buffer = shortStringBuffer;
+	char buffer[12];
 	intToString(number, buffer);
 	writeTag(tag, buffer, box, false);
 }
