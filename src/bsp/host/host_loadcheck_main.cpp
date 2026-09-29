@@ -1046,7 +1046,9 @@ bool checkAsyncCollector() {
 	// UTF-8, which a FAT long filename is free to be. The sample exists only in that directory, so a
 	// load that stops at the refused re-request loses a file the synchronous path finds.
 	{
-		const std::string oddAltDir = samplesDir + "/\xFFALT";
+		const std::string oddAltDir = samplesDir
+		                              + "/\xFF"
+		                                "ALT";
 		const std::string oddSample = oddAltDir + "/ODD.WAV";
 		mkdir(oddAltDir.c_str(), 0755);
 		if (!writeTestWav(oddSample, 1200, 0x77)) {
@@ -1059,7 +1061,8 @@ bool checkAsyncCollector() {
 			g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
 			// "Nothing opened" -- which is what earns the alternate-dir probe and the re-request.
 			g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::FILE_UNREADABLE), "");
-			AudioLoadContext context{.alternateDir = "SAMPLES/\xFFALT",
+			AudioLoadContext context{.alternateDir = "SAMPLES/\xFF"
+			                                         "ALT",
 			                         .alternateDirStatus = AlternateLoadDirStatus::MIGHT_EXIST,
 			                         .thing = ThingType::SONG};
 
@@ -1074,7 +1077,9 @@ bool checkAsyncCollector() {
 				       static_cast<void*>(file), static_cast<int>(error));
 				ok = false;
 			}
-			else if (static_cast<Sample&>(*file).loadedFromAlternatePath != "SAMPLES/\xFFALT/ODD.WAV") {
+			else if (static_cast<Sample&>(*file).loadedFromAlternatePath
+			         != "SAMPLES/\xFF"
+			            "ALT/ODD.WAV") {
 				printf("FAIL [asyncCollector]: the fallen-through load did not come from the alternate dir "
 				       "(alt=\"%s\")\n",
 				       static_cast<Sample&>(*file).loadedFromAlternatePath.c_str());
