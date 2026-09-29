@@ -160,6 +160,7 @@ mod boot;
 #[cfg(target_os = "none")]
 mod boot_mem;
 /// Capture stamps: where on the TX play timeline an input event happened. See its module doc.
+#[cfg_attr(not(any(target_os = "none", feature = "host_app")), allow(dead_code))]
 mod capture_stamp;
 /// card.h — `deluge_card_flush`, the one ejection hook every loader on this BSP is
 /// invalidated through. Gated identically to `audio_loader` above, which it calls into: the

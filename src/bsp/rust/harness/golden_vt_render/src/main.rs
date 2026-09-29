@@ -115,6 +115,10 @@ mod board;
 #[path = "../../../src/boot.rs"]
 mod boot;
 /// Capture stamps: where on the TX play timeline an input event happened. See its module doc.
+// `deluge_audio_stamp_to_render_offset` (the only caller of `stamp_at`/`render_offset`) lives in
+// `audio.rs`, which this host package doesn't compile; only `now_for` (via `host_link_stubs.rs`) is
+// exercised here.
+#[allow(dead_code)]
 #[path = "../../../src/capture_stamp.rs"]
 mod capture_stamp;
 /// `deluge_card_flush` — the ejection hook that bumps the shared card generation and then clears

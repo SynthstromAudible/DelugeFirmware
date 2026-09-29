@@ -73,10 +73,10 @@ DelugeMidiPort deluge_midi_usb_port(uint8_t controller, uint8_t device);
 /// re-arm or poll at this boundary. [task] [isr]
 uint32_t deluge_midi_read(DelugeMidiPort port, uint8_t* dst, uint32_t max);
 
-/// Like deluge_midi_read(), but when it returns > 0 also fills `*arrival_ticks`
-/// with the hardware timestamp of the drained batch's arrival, in the board's
-/// foundation tick units — the same source as deluge_midi_din_read_timed(), so
-/// MIDI-clock-in timing is preserved across transports. [task]
+/// Like deluge_midi_read(), but when it returns > 0 also fills `*arrival_ticks` with the raw monotonic tick
+/// count at the drained batch's arrival — the board's foundation tick units, not a capture stamp (unlike
+/// deluge_midi_din_read_timed()'s `arrival_stamp`, this is not convertible with
+/// deluge_audio_stamp_to_render_offset()). [task]
 uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max, uint32_t* arrival_ticks);
 
 /// Queue `len` bytes for transmission on `port`. Returns the number of bytes

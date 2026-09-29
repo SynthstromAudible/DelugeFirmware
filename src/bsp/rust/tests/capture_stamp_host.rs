@@ -4,6 +4,9 @@
 //! the convention the other `*_host.rs` tests use.
 #![cfg(not(target_os = "none"))]
 
+// `now_for`'s host arm is exercised through `host_link_stubs.rs`/`cv_gate.rs`'s own callers, not from here;
+// this suite is `stamp_at`/`render_offset` only.
+#[allow(dead_code)]
 #[path = "../src/capture_stamp.rs"]
 mod capture_stamp;
 
