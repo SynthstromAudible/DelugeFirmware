@@ -19,9 +19,8 @@
 /// @brief Weak, do-nothing definitions for `libdeluge/file_write.h`, plus the constants that pin the
 ///        boundary.
 ///
-/// A BSP without the Rust write channel resolves these, `deluge_file_write_async_active()` returns
-/// false, and `SampleRecorder` takes its synchronous arm -- which is the behaviour that shipped
-/// before this channel existed. The Rust Embassy BSP overrides all three in `file_write.rs`.
+/// The Rust BSP overrides every one of them in `file_write.rs`; the unit tests, which link no BSP, resolve these, and
+/// never finish booting, so every caller takes its synchronous arm.
 ///
 /// Every function here is `noexcept`, like every function in `file_bytes_abi.cpp`: the repo's
 /// allocators throw `deluge::exception::BAD_ALLOC` (operators.cpp), and letting anything unwind out
@@ -143,17 +142,5 @@ __attribute__((weak)) uint8_t deluge_file_write_collect_write_file(const char*, 
 	DELUGE_FALLBACK_CALLED("deluge_file_write_collect_write_file");
 	return DELUGE_FILE_WRITE_UNKNOWN;
 }
-
-__attribute__((weak)) bool deluge_file_write_async_active(void) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_async_active");
-	return false;
-}
-
-#ifdef DELUGE_HOST
-__attribute__((weak)) void deluge_file_write_set_latency_ms(uint32_t /*ms*/) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_write_set_latency_ms");
-	// A host build without the Rust write channel has no operations to delay.
-}
-#endif
 
 } // extern "C"

@@ -67,15 +67,6 @@ typedef struct DelugeDirEntry {
 	bool is_archive;
 } DelugeDirEntry;
 
-/// Invalidates any internal caching this boundary maintains for directory
-/// contents. Call this after performing a filesystem write through some
-/// mechanism OTHER than this boundary's own write functions (mkdir/unlink/
-/// rename/write-create open, which already invalidate internally) -- e.g.
-/// legacy code that still calls the underlying filesystem library directly.
-/// Cannot fail. New code should prefer this boundary's own write functions,
-/// which need no separate call. [task]
-void deluge_file_invalidate_cache(void);
-
 /// The embedded-fatfs (Rust `efatfs_streaming`) task-context file/directory
 /// C-ABI. `deluge::io::File`/`Directory` (file.cpp) route to these
 /// unconditionally; every non-efatfs BSP/config links the

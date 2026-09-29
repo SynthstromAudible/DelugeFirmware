@@ -408,7 +408,7 @@ void setupBlankSong() {
 
 // Which conditional task fires once the SD card is ready. Normally the settings prelude, which
 // reads the three settings files through the channel and THEN arms the startup-song loader above;
-// headless hosts override this before deluge_main() runs (see deluge_startup_skip_settings_prelude()).
+// headless hosts override this before deluge_app_init() runs (see deluge_startup_skip_settings_prelude()).
 // A plain firmware or interactive-host build never touches it, so behaviour is unchanged on-device.
 TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
 
@@ -555,53 +555,7 @@ void registerTasks() {
 	// addRepeatingTask([]() { AudioEngine::routineWithClusterLoading(); }, 0, 1 / 44100., 16 / 44100., 32 / 44100.,
 	// true); addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
 }
-// One cooperative slice of the run loop. The libdeluge platform calls this
-// repeatedly (app.h: deluge_app_tick) — under Embassy it runs inside a task that
-// yields between ticks, so the BSP's async tasks can run. mainLoop() below is the
-// equivalent bare-metal superloop (host / task-manager-free builds).
-extern "C" void deluge_app_tick(void) {
-	uiTimerManager.routine();
-
-	// Flush stuff - we just have to do this, regularly
-	deluge_display_service();
-	deluge_control_flush();
-
-	AudioEngine::routineWithClusterLoading();
-
-	int32_t count = 0;
-	while (readButtonsAndPads() && count < 16) {
-		if (!(count & 3)) {
-			AudioEngine::routineWithClusterLoading();
-		}
-		count++;
-	}
-
-	bool anything = encoders::interpretEncoders();
-	if (anything) {
-		AudioEngine::routineWithClusterLoading();
-	}
-
-	doAnyPendingUIRendering();
-
-	AudioEngine::routineWithClusterLoading();
-
-	// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
-	// called in card routine
-	audioFileManager.slowRoutine();
-	AudioEngine::slowRoutine();
-
-	audioRecorder.slowRoutine();
-}
-
-void mainLoop() {
-	while (1) {
-		deluge_app_tick();
-	}
-}
-// Shared one-time bring-up: everything up to (but not including) starting the
-// run loop / task manager. Factored out so both the bare-metal entry
-// (deluge_main, below) and the libdeluge cooperative entry (deluge_app_init)
-// reuse it without duplicating boot or reordering encoder init.
+// One-time bring-up: everything up to (but not including) registering the tasks.
 static void deluge_boot(const DelugeBoard* board) {
 	(void)board;
 
@@ -740,12 +694,10 @@ static void deluge_boot(const DelugeBoard* board) {
 	// (The SD-routine reentrancy flag is scheduler-owned and starts clear; no reset needed here.)
 }
 
-// libdeluge cooperative entry (app.h), Embassy BSP only (host / bare-metal use
-// deluge_main below). The platform calls deluge_app_init() once at startup; on
-// the Embassy BSP the scheduler_api.h C ABI is backed by the Embassy executor
-// (one task per registered task — see src/bsp/rust/src/scheduler.rs), so we
-// registerTasks() here and the runners drive the app. There is no inline
-// deluge_app_tick() loop: addRepeatingTask spawns an Embassy task immediately.
+// libdeluge entry (app.h). The platform calls deluge_app_init() once at startup; the
+// scheduler_api.h C ABI is backed by the Embassy executor (one task per registered
+// task — see src/bsp/rust/src/scheduler.rs), so we registerTasks() here and the
+// runners drive the app: addRepeatingTask spawns an Embassy task immediately.
 // registerTasks() must precede encoders::init() — the encoder edge source needs
 // the (now-assigned) encoder task id to wake the self-blocking encoder task.
 extern "C" void deluge_app_init(const DelugeBoard* board) {
@@ -753,29 +705,6 @@ extern "C" void deluge_app_init(const DelugeBoard* board) {
 	registerTasks();
 	encoders::init();
 }
-
-// Bare-metal / host entry: boot once, then run forever — either under the
-// OSLikeStuff task manager or the inline superloop. (The Embassy BSP uses
-// deluge_app_init()/deluge_app_tick() above instead of this.)
-extern "C" int32_t deluge_main(void) {
-	deluge_boot(deluge_board());
-#ifdef USE_TASK_MANAGER
-	registerTasks();
-	encoders::init(); // after registerTasks(): the encoder edge source needs the (now-assigned) encoder task id to wake
-	startTaskManager();
-#else
-	encoders::init(); // mainLoop() reads encoders inline, so the wake id is unused, but the IO still needs init
-	mainLoop();
-#endif
-	return 0;
-}
-
-// The storage-wait hooks (yieldingRoutineForSD / yieldingRoutineWithTimeoutForSD) and the
-// old conditionless routineForSD() pump have all moved down into the scheduler foundation
-// (OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp) or been retired: they are pure
-// concurrency logic and named no app code beyond the manual audio/UI pump, which the task
-// manager makes redundant (audio/UI run as registered tasks). The HAL now yields *down* to
-// the scheduler during storage busy-waits rather than calling *up* into the application.
 
 // Card-detect is now pull-based: AudioFileManager::slowRoutine() polls
 // deluge_block_poll_card_event() instead of the BSP calling up into the app.

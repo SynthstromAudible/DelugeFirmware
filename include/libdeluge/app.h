@@ -21,12 +21,9 @@
 /// platform/BSP**. The platform owns `main` and the runtime; the application
 /// never assumes it owns either (so an Embassy executor can own them later).
 ///
-/// Today (C/C++ BSP): a tiny `main()` calls `deluge_platform_init()`, then
-/// `deluge_app_init()`, then loops on `deluge_app_tick()`; the audio path calls
-/// `deluge_app_render()`.
-/// Endgame (Rust/Embassy BSP): the Rust `main` brings up Embassy, runs
-/// `deluge_app_init()` + `deluge_app_tick()` inside one task, and the BSP audio
-/// task calls `deluge_app_render()`. The application code is identical.
+/// The Rust/Embassy BSP's `main` brings up Embassy and calls `deluge_app_init()`,
+/// which registers the application's tasks with the BSP's scheduler; the BSP's
+/// audio task calls `deluge_app_render()`.
 #ifndef LIBDELUGE_APP_H
 #define LIBDELUGE_APP_H
 
@@ -39,7 +36,7 @@ extern "C" {
 #endif
 
 /// One-time application setup. Called once after the platform and all BSP
-/// services are initialised, before audio starts and before the first tick.
+/// services are initialised, before audio starts.
 /// [task]
 void deluge_app_init(const DelugeBoard* board);
 
@@ -60,12 +57,6 @@ void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, ui
 /// on the render tier, in place of `deluge_app_render`, for that block.
 /// [audio]
 void deluge_app_render_skipped(void);
-
-/// Cooperative work slice. Called repeatedly by the platform's run loop / task.
-/// Runs the application's own scheduler and UI/housekeeping. Should return
-/// promptly so the platform can service other work.
-/// [task]
-void deluge_app_tick(void);
 
 /// Optional push delivery of an input event (pad/button/encoder/MIDI-in). May be
 /// left unimplemented by applications that instead poll via control_surface.h /

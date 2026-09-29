@@ -162,8 +162,7 @@ mod boot;
 mod boot_mem;
 /// card.h — `deluge_card_flush`, the one ejection hook every loader on this BSP is
 /// invalidated through. Gated identically to `audio_loader` above, which it calls into: the
-/// symbol has to exist wherever a loader's tables do, and nowhere else (the weak fallback in
-/// `card_abi.cpp` covers every other BSP).
+/// symbol has to exist wherever a loader's tables do.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod card;
 /// control_surface.h — pads/buttons/encoders + LEDs (M2b WIP).

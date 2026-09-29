@@ -18,12 +18,11 @@
 /// @file
 /// @brief Weak, synchronous-backing definitions for `libdeluge/file_directory.h`.
 ///
-/// A BSP without the Rust directory channel resolves these. No caller reaches them: every caller selects the
-/// channel only once boot has finished, which such a build never reports, and takes its synchronous arm
-/// instead. The Rust Embassy BSP overrides all of them in `file_directory.rs`.
+/// The Rust BSP overrides all of them in `file_directory.rs`; the unit tests, which link no BSP, resolve these. No
+/// caller reaches them: every caller selects the channel only once boot has finished, which a unit test never
+/// reports, and takes its synchronous arm instead.
 ///
-/// Every function here is `noexcept`, like every function in `file_prefix_abi.cpp`,
-/// `audio_load_abi.cpp` and `card_abi.cpp`: the repo's allocators throw
+/// Every function here is `noexcept`, like every function in `audio_load_abi.cpp`: the repo's allocators throw
 /// `deluge::exception::BAD_ALLOC` (operators.cpp), and letting anything unwind out of an
 /// `extern "C"` frame into a Rust caller is undefined behaviour -- on this target it presents as
 /// `std::terminate()` aborting silently, i.e. an unexplained device death with no error message.
@@ -75,11 +74,6 @@ static_assert(DELUGE_FILE_DIRECTORY_FAILED != DELUGE_AUDIO_LOAD_PENDING);
 static_assert(DELUGE_FILE_DIRECTORY_FAILED != DELUGE_AUDIO_LOAD_READY);
 static_assert(DELUGE_FILE_DIRECTORY_FAILED != DELUGE_AUDIO_LOAD_UNKNOWN);
 
-extern "C" __attribute__((weak)) bool deluge_file_directory_async_active() noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_directory_async_active");
-	return false;
-}
-
 extern "C" __attribute__((weak)) void deluge_file_directory_request(const char* /*dir_path*/,
                                                                     bool /*create_if_missing*/) noexcept {
 	DELUGE_FALLBACK_CALLED("deluge_file_directory_request");
@@ -97,10 +91,3 @@ extern "C" __attribute__((weak)) uint8_t deluge_file_directory_collect(const cha
 	// output is touched, which is exactly what the header promises for any status but READY/FAILED.
 	return DELUGE_FILE_DIRECTORY_UNKNOWN;
 }
-
-#ifdef DELUGE_HOST
-extern "C" __attribute__((weak)) void deluge_file_directory_set_latency_ms(uint32_t /*ms*/) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_directory_set_latency_ms");
-	// A host build without the Rust directory channel has no opens to delay.
-}
-#endif

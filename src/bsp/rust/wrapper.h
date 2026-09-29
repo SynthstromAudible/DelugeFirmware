@@ -10,4 +10,3 @@
 #include <libdeluge/fault.h>
 #include <libdeluge/flash.h>
 #include <libdeluge/signals.h>
-#include <libdeluge/storage_wait.h>

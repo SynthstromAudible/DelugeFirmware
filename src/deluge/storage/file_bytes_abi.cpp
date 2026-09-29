@@ -19,12 +19,12 @@
 /// @brief Weak, do-nothing definitions for `libdeluge/file_bytes.h`, plus the constants that pin the
 ///        boundary.
 ///
-/// A BSP without the Rust byte channel resolves these, and every caller then takes its own
-/// synchronous arm -- `deluge_file_bytes_async_active()` returns false, which is the whole of what a
-/// caller consults. The Rust Embassy BSP overrides all seven in `file_bytes.rs`.
+/// The Rust BSP overrides all of them in `file_bytes.rs`; the unit tests, which link no BSP, resolve these, and every
+/// caller then takes its own synchronous arm -- `deluge_file_bytes_async_active()` returns false, which is the whole
+/// of what a caller consults.
 ///
-/// Every function here is `noexcept`, like every function in `file_directory_abi.cpp`,
-/// `file_prefix_abi.cpp`, `audio_load_abi.cpp` and `card_abi.cpp`: the repo's allocators throw
+/// Every function here is `noexcept`, like every function in `file_directory_abi.cpp` and `audio_load_abi.cpp`: the
+/// repo's allocators throw
 /// `deluge::exception::BAD_ALLOC` (operators.cpp), and letting anything unwind out of an
 /// `extern "C"` frame into a Rust caller is undefined behaviour -- on this target it presents as
 /// `std::terminate()` aborting silently, i.e. an unexplained device death with no error message.
@@ -216,13 +216,6 @@ extern "C" __attribute__((weak)) bool deluge_file_bytes_async_active() noexcept 
 	DELUGE_FALLBACK_CALLED("deluge_file_bytes_async_active");
 	return false;
 }
-
-#ifdef DELUGE_HOST
-extern "C" __attribute__((weak)) void deluge_file_bytes_set_latency_ms(uint32_t /*ms*/) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_bytes_set_latency_ms");
-	// A host build without the Rust byte channel has no operations to delay.
-}
-#endif
 
 extern "C" __attribute__((weak)) void deluge_file_bytes_request_read(const char* /*path*/) noexcept {
 	DELUGE_FALLBACK_CALLED("deluge_file_bytes_request_read");

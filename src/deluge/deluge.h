@@ -23,7 +23,6 @@
 extern "C" {
 #endif
 extern int main(void);
-extern int32_t deluge_main(void);
 
 extern void midiAndGateTimerGoneOff(void);
 
@@ -32,14 +31,9 @@ extern void routineWithClusterLoading(void);
 extern void logAudioAction(char const* string);
 
 extern void consoleTextIfAllBootedUp(char const* text);
-// The SD-wait yield hooks below are the runtime side of a libdeluge boundary
-// service — their canonical contract is <libdeluge/storage_wait.h>, which the BSP
-// consumes. These mirror declarations stay here because deluge.h is included very
-// widely (incl. vendored libs) and must not depend on the boundary headers; they
-// are kept signature-identical and are removed once deluge.h is slimmed down.
+// scheduler_api.h's predicate type, repeated because deluge.h is included very widely (incl. vendored libs) and must
+// not depend on the boundary headers.
 typedef bool (*RunCondition)();
-bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds);
-void yieldingRoutineForSD(RunCondition until);
 
 extern void setTimeUSBInitializationEnds(int32_t timeFromNow);
 

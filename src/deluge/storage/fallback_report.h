@@ -22,13 +22,13 @@
 /// @file
 /// @brief Report a storage channel's no-BSP fallback being called after boot.
 ///
-/// Each channel's C ABI (`storage/*_abi.cpp`) has a weak fallback for builds with no driver behind it: the C-host sim
-/// and the unit tests, neither of which ever finishes booting. A fallback that answers after boot therefore means a
-/// build that boots but links no driver for that channel, and the fallback answers quietly: a collect that says
-/// "unknown" forever stalls its caller until its tick bound runs out, and one that does the work inline takes the
-/// synchronous arm the channel exists to avoid. On the host, the first call of each fallback after boot says so on
-/// stderr and every call is counted, so a harness can fail the run (golden_vt_render exits 4). The device image links a
-/// driver for every channel, so its fallbacks never run.
+/// Some channels' C ABI (`storage/*_abi.cpp`) keeps a weak fallback for builds with no driver behind it: the unit
+/// tests, which never finish booting. A fallback that answers after boot therefore means a build that boots but links
+/// no driver for that channel, and the fallback answers quietly: a collect that says "unknown" forever stalls its
+/// caller until its tick bound runs out, and one that does the work inline takes the synchronous arm the channel exists
+/// to avoid. On the host, the first call of each fallback after boot says so on stderr and every call is counted, so a
+/// harness can fail the run (golden_vt_render exits 4). The device image links a driver for every channel, so its
+/// fallbacks never run.
 
 #ifdef DELUGE_HOST
 namespace deluge::storage {

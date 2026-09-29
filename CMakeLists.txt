@@ -252,7 +252,6 @@ add_compile_options(
         $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:Clang>,$<COMPILE_LANGUAGE:C,CXX>>:-flto=thin>
     -ffunction-sections
     -fdata-sections
-    -DUSE_TASK_MANAGER
 
     # C++ stuff
     $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>

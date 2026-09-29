@@ -9,4 +9,3 @@
 #include <libdeluge/encoder_io.h>
 #include <libdeluge/flash.h>
 #include <libdeluge/signals.h>
-#include <libdeluge/storage_wait.h>

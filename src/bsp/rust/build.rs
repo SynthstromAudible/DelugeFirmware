@@ -110,7 +110,6 @@ fn run_bindgen(repo_root: &Path, manifest_dir: &Path, out_dir: &Path, clang_targ
         .header(wrapper.to_str().unwrap())
         .clang_arg(format!("-I{}", include_dir.display()))
         .allowlist_type("Deluge.*")
-        .allowlist_type("RunCondition")
         .use_core()
         .clang_arg(format!("--target={clang_target}"))
         // Layouts match the app being linked on every target (explicit

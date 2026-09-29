@@ -171,12 +171,6 @@ endif()
 # by selecting libstdc++'s serial parallel backend (std::execution::par runs serially — fine here).
 add_compile_definitions(_GLIBCXX_USE_TBB_PAR_BACKEND=0)
 
-# Use the cooperative task scheduler (registerTasks + startTaskManager), exactly as the
-# firmware does — the `#else mainLoop()` path in deluge_main is legacy/dead on real hardware
-# and doesn't pump the scheduler (so MIDI/playback/UI tasks never run). Matching the firmware
-# execution model is both more faithful and what makes input (e.g. MIDI) reach the engine.
-add_compile_definitions(USE_TASK_MANAGER)
-
 # Zero every block at allocation / pool-reuse / operator new (see memory/general_memory_allocator.cpp,
 # object_pool.h, operators.cpp). On the SoC, SDRAM is never cleared, so the firmware's many
 # read-before-write paths resolve to whatever the previous occupant left — values that vary with the

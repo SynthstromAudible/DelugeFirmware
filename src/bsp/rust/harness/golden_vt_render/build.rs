@@ -237,7 +237,6 @@ fn run_bindgen(
         .header(wrapper.to_str().unwrap())
         .clang_arg(format!("-I{}", include_dir.display()))
         .allowlist_type("Deluge.*")
-        .allowlist_type("RunCondition")
         .use_core()
         // See ../build.rs: NO `-fshort-enums` — every libdeluge enum pins its
         // underlying type explicitly in its header, so both sides already
