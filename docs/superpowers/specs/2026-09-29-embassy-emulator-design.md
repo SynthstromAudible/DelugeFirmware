@@ -168,7 +168,21 @@ for the new shape.
      - The boot smoke is unchanged: boot, audio routing and the soak pass.
      - The `sim` build needs deluge-sdk's branch through `local-sdk.toml` until the pin moves.
 2. **Input.** PIC input bytes from panel events, and encoder deltas. Buttons, pads and encoders drive the UI.
+   - [x] Built. deluge-sdk 3dbd3b6: pad and button events become the PIC's input bytes, and encoder turns land
+         on `ENCODER_DELTAS` as two edges a detent.
+     - Headless, a pad places a note, the tempo encoder shows its popup, and the session button reaches session
+       view.
+     - The session button exposed that no UI timer fired: the task table dropped "ui routine" (6c4ab8cfc, now 32
+       slots), and firing them exposed a freed view pointer in the blank song's preset swap (fde3b3ea1).
 3. **Audio.** The real-time sink, with output and input. A song plays through the speakers.
+   - [x] Built. `deluge_bsp::sim::render_block` renders a block when the simulator's output has room; the SDK's
+         `audio_run` waits around it, and here `deluge_audio_drive` calls it, at most two blocks a call as on the
+         device.
+     - Headless runs are paced by an audio clock that drains the output at 44.1 kHz of wall time, records it under
+       `DELUGE_SIM_AUDIO_OUT`, and reports frames the app delivered late.
+     - Headless, a clip of four notes plays back every 0.5 s at 120 BPM, with no late frames.
+     - Input reaches the render as the simulator captures it, but headless feeds silence, so only the window's
+       input device or `--audio-in` exercises it.
 4. **MIDI.** The DIN providers on the panel's queues. A keyboard on the virtual port plays a synth.
 5. **Card.** In deluge-sdk: `deluge_bsp::sd` loads a directory into the memory disk and writes it back, with
    golden_vt_render's loader moved there. Here: `--card` with an image and with a directory. A song saved in the
