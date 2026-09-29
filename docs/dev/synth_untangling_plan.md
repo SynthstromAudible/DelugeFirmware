@@ -321,7 +321,8 @@ phase, small bisectable commits, green golden-masters as the merge gate.
 
 ### Phase 0 — Lock the sound (golden masters) — **DONE**
 
-Landed as `tests/golden/` (see its README): a corpus of **319** presets — 23
+Landed as `tests/golden/`, and now the `golden-synth` gate over `tests/integration/golden/presets/` (see its
+README), rendered on the Embassy host: a corpus of **319** presets — 23
 hand-written feature cases plus the sample-free synth presets imported from
 the Deluge OLED V4.1.0 factory card (168, legacy tag-based XML) and the
 Community Preset Pack 1.2 (128, modern attribute XML incl. DX7) — each

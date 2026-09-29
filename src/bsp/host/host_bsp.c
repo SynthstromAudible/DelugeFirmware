@@ -779,8 +779,8 @@ uint32_t deluge_midi_write_pending(DelugeMidiPort port) {
 //                                      e.g. `0 90 3C 64` / `44100 80 3C 40`.
 //
 // Lines must be in nondecreasing frame order (rejected otherwise — keeps the
-// release logic trivially deterministic). This is the note-event source for the
-// golden-master audio harness (tests/golden/).
+// release logic trivially deterministic). The Embassy host's equivalent, which the
+// synth golden masters use, is audio_host.rs's note script.
 #define HOST_DIN_MAX_EVENTS 512
 #define HOST_DIN_MAX_BYTES 4096
 

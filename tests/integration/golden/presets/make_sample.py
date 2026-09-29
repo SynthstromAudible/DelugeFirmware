@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the deterministic source samples for the sample-playback golden cases.
 
-Writes corpus/sample/_tone.wav (stereo) and _tone_mono.wav (mono): a seamlessly
+Writes sample/_tone.wav (stereo) and _tone_mono.wav (mono): a seamlessly
 loopable, harmonically rich tone with an embedded `smpl` chunk pinning the root
 note to C4 (MIDI 60). Rich harmonics make the windowed-sinc anti-aliasing audible
 (so a kernel regression shows up in the hash); the perfect loop (every partial is
@@ -17,7 +17,7 @@ import pathlib
 import struct
 
 HERE = pathlib.Path(__file__).parent
-OUT = HERE / "corpus" / "sample"
+OUT = HERE / "sample"
 
 SAMPLE_RATE = 44100
 LENGTH = 4096  # one fundamental period == the whole buffer, so it loops seamlessly
@@ -37,7 +37,7 @@ def render_channel(harmonics):
         out.append(acc)
     peak = max(abs(s) for s in out)
     scale = 0.8 * 32767 / peak
-    return [int(round(s * scale)) for s in out]
+    return [round(s * scale) for s in out]
 
 
 def smpl_chunk():

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Authoring tool for the golden-master corpus: emits the preset XMLs in corpus/.
+"""Authoring tool for the golden-master corpus: emits the synthesized preset XMLs beside it.
 
-The committed XMLs are the source of truth (run.py reads only those); this
+The committed XMLs are the source of truth (the render-preset gate reads only those); this
 script exists so the family of presets stays consistent when extending the
 corpus. Re-run it after editing and commit the changed XMLs:
 
-    python3 tests/golden/make_corpus.py
+    python3 tests/integration/golden/presets/make_corpus.py
 
 Preset values are q31 hex strings as serialized by Sound::writeParamsToFile.
 Key reference points: 0x7FFFFFFF = max, 0x80000000 = min/off, 0x00000000 =
@@ -14,7 +14,7 @@ center/neutral, 0x4CCCCCA8 = the default synth volume.
 
 import pathlib
 
-CORPUS = pathlib.Path(__file__).parent / "corpus"
+CORPUS = pathlib.Path(__file__).parent
 
 # Attributes of <sound>. inputMidiChannel="0" (MIDI channel 1) is what binds the
 # loaded preset to the harness's scripted DIN input — every case needs it.
@@ -66,8 +66,18 @@ BASE_PARAMS = {
     "waveFold": "0x00000000",
 }
 
-BASE_ENV1 = {"attack": "0x80000000", "decay": "0xE6666654", "sustain": "0x7FFFFFFF", "release": "0x80000000"}
-BASE_ENV2 = {"attack": "0xE6666654", "decay": "0xE6666654", "sustain": "0xFFFFFFE9", "release": "0xE6666654"}
+BASE_ENV1 = {
+    "attack": "0x80000000",
+    "decay": "0xE6666654",
+    "sustain": "0x7FFFFFFF",
+    "release": "0x80000000",
+}
+BASE_ENV2 = {
+    "attack": "0xE6666654",
+    "decay": "0xE6666654",
+    "sustain": "0xFFFFFFE9",
+    "release": "0xE6666654",
+}
 BASE_CABLES = [("velocity", "volume", "0x3FFFFFE8")]
 
 BASE_OSC1 = {"type": "saw", "transpose": "0", "cents": "0", "retrigPhase": "-1"}
@@ -103,7 +113,9 @@ def case(
     lines.append('\t<lfo2 type="triangle" />')
     if modulators is not None:
         mod1, mod2 = modulators
-        lines.append(f"\t<modulator1 {attrs(merged({'transpose': '0', 'cents': '0', 'retrigPhase': '-1'}, mod1))} />")
+        lines.append(
+            f"\t<modulator1 {attrs(merged({'transpose': '0', 'cents': '0', 'retrigPhase': '-1'}, mod1))} />"
+        )
         lines.append(
             f"\t<modulator2 {attrs(merged({'transpose': '0', 'cents': '0', 'retrigPhase': '-1', 'toModulator1': '0'}, mod2))} />"
         )
@@ -113,8 +125,10 @@ def case(
     lines.append(f"\t\t<envelope1 {attrs(merged(BASE_ENV1, env1))} />")
     lines.append(f"\t\t<envelope2 {attrs(merged(BASE_ENV2, env2))} />")
     lines.append("\t\t<patchCables>")
-    for source, destination, amount in (cables if cables is not None else BASE_CABLES):
-        lines.append(f'\t\t\t<patchCable source="{source}" destination="{destination}" amount="{amount}" />')
+    for source, destination, amount in cables if cables is not None else BASE_CABLES:
+        lines.append(
+            f'\t\t\t<patchCable source="{source}" destination="{destination}" amount="{amount}" />'
+        )
     lines.append("\t\t</patchCables>")
     lines.append(
         '\t\t<equalizer bass="0x00000000" treble="0x00000000" bassFrequency="0x00000000" trebleFrequency="0x00000000" />'
@@ -133,7 +147,12 @@ case("square_pw", osc1={"type": "square"}, params={"oscAPulseWidth": "0x30000000
 # low pitch reaches the band-limited table pulse path (waveRenderingFunctionPulse)
 # rather than the analytic square; has its own .notes at C1
 case("square_pw_low", osc1={"type": "square"}, params={"oscAPulseWidth": "0x30000000"})
-case("analog_osc", osc1={"type": "analogSaw"}, osc2={"type": "analogSquare"}, params={"oscBVolume": "0x7FFFFFFF"})
+case(
+    "analog_osc",
+    osc1={"type": "analogSaw"},
+    osc2={"type": "analogSquare"},
+    params={"oscBVolume": "0x7FFFFFFF"},
+)
 case("wavefold_sine", osc1={"type": "sine"}, params={"waveFold": "0x40000000"})
 
 # --- source combinations -----------------------------------------------------
@@ -143,7 +162,12 @@ case(
     params={"oscBVolume": "0x7FFFFFFF"},
 )
 case("noise_only", params={"oscAVolume": "0x80000000", "noiseVolume": "0x7FFFFFFF"})
-case("ringmod", sound={"mode": "ringmod"}, osc1={"type": "sine"}, osc2={"type": "square", "transpose": "7"})
+case(
+    "ringmod",
+    sound={"mode": "ringmod"},
+    osc1={"type": "sine"},
+    osc2={"type": "square", "transpose": "7"},
+)
 case("unison_spread", unison={"num": "4", "detune": "30", "spread": "20"})
 
 # --- FM ----------------------------------------------------------------------
@@ -171,12 +195,22 @@ case(
 # --- envelopes / filters / modulation ----------------------------------------
 case(
     "env_shape",
-    env1={"attack": "0x20000000", "decay": "0x30000000", "sustain": "0x20000000", "release": "0x10000000"},
+    env1={
+        "attack": "0x20000000",
+        "decay": "0x30000000",
+        "sustain": "0x20000000",
+        "release": "0x10000000",
+    },
 )
 case(
     "lpf_24db_env2",
     params={"lpfFrequency": "0x10000000", "lpfResonance": "0x30000000"},
-    env2={"attack": "0x18000000", "decay": "0x28000000", "sustain": "0x80000000", "release": "0x28000000"},
+    env2={
+        "attack": "0x18000000",
+        "decay": "0x28000000",
+        "sustain": "0x80000000",
+        "release": "0x28000000",
+    },
     cables=BASE_CABLES + [("envelope2", "lpfFrequency", "0x30000000")],
 )
 case(

@@ -1,6 +1,6 @@
 # The synth golden masters on the Embassy host
 
-Status: proposed 2026-09-28; steps 1 and 2 built the same day (§9).
+Status: proposed 2026-09-28; steps 1 to 3 built the same day (§9).
 - Branch `merge/synth-golden-masters`, after the merge of `feat/synth-golden-masters` (8c0e55180).
 - Carries out §9 of the test layout spec (`2026-09-28-test-layout-and-runner-design.md`), with one change: the golden
   masters move to golden_vt_render instead of staying on the C-host sim.
@@ -184,6 +184,21 @@ unit tree (`unit-arm`, real NEON under qemu) stays the only ARM coverage of the 
      - Each RMS level is within 0.02 dB of its C-host record (-23.12, -24.72, -23.13).
 3. **The gate.** Move the corpus, add `render_preset.py` and the registry entries, and retire run.py. Record the
    provisional hashes, which the next step either confirms or replaces.
+   - [x] Built. The corpus, `make_corpus.py` and `make_sample.py` are in `tests/integration/golden/presets/`, and
+         `make_corpus.py` still reproduces the committed XMLs byte for byte. `golden-synth` (pr) runs all 336 cases in
+         parallel: about 16 s including the build, and the records reproduce across runs.
+     - Every case loads, reads every scripted event, keeps direness at 0 and renders sound.
+     - Measured against the old C-host records' RMS levels:
+
+       | Change in RMS level | Cases |
+       |---|---|
+       | within 0.1 dB | 136 |
+       | within 0.5 dB | 228 |
+       | within 3 dB | 315 |
+       | more than 3 dB | 21 |
+
+       The largest is `community/Cornwall`, up 18.6 dB. A cluster near -6 dB also halves its peak, which looks like
+       a factor of 2 in amplitude. Step 4 explains these before the records stop being provisional.
 4. **Evidence and re-record** (§7).
 5. **ARM** (§8).
 
