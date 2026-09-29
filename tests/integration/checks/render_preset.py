@@ -1,19 +1,27 @@
 """The synth golden masters: every corpus preset, played and rendered as the device renders it, against its record.
 
 Each case is one `render_preset` run (tests/integration/scenarios/render_preset_scenario.h). The card holds the preset
-at SYNTHS/PRESET.XML, where the blank boot song picks it up, plus the case's samples. A DIN note script plays it, and
-the output is captured from the audio tier. This module stages each case, runs them in parallel, and checks per case:
+at SYNTHS/PRESET.XML, where the blank boot song picks it up, plus the case's samples. A DIN note script on MIDI channel 1
+plays it through MIDI follow, which sends that channel to the instrument in front of the user, and the output is
+captured from the audio tier. This module stages each case, runs them in parallel, and checks per case:
     the scenario's own lines and result, as every scenario gate does;
-    RP-SILENT   the render is not silence. A preset that failed to load, or never heard its notes, renders silence,
-                and would otherwise record a hash like any other;
+    RP-SILENT   the render is not silence. A preset that never heard its notes renders silence, and would otherwise
+                record a hash like any other (a preset that failed to load is the scenario's RP-LOADED failure);
     RP-PCM      the output against its record in tests/integration/golden/presets.json: sha256, frames, peak and
                 RMS level, the record render-song keeps.
+And once per run:
+    RP-LEARN    a preset's own MIDI learn reaches it: the blank boot song must keep the input a preset was saved with
+                when it replaces its default synth. It is the one path the corpus cases do not play through.
 
 The corpus is tests/integration/golden/presets/: `<case>.xml` (or `.XML`), optionally `<case>.notes` (default.notes
 otherwise), `<case>.wav` and `<case>.2.wav` (staged as SAMPLES/WT.WAV and WT2.WAV, which the preset names). A case is
 named by its path under the corpus without the extension, e.g. `factory/000 Rich Saw Bass`.
 
 RENDER_PRESET_FILTER takes a comma-separated list of substrings, and runs the cases whose name holds any of them.
+RENDER_PRESET_KEEP=<dir> keeps each case's output there, as `<case>.pcm` (interleaved little-endian i32, the case's
+length exactly), for tests/integration/golden/compare_renders.py.
+RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
+much a case depends on its random draws (audio_host.rs).
 RENDER_PRESET_UPDATE=1 records the cases run instead of comparing them; a changed hash is a finding to explain in the
 commit that records the new one.
 """
@@ -22,6 +30,7 @@ import concurrent.futures
 import importlib.util
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 
@@ -66,22 +75,19 @@ def _preset(corpus: Path, name: str) -> Path:
     raise FileNotFoundError(name)
 
 
-def _staged_preset_text(preset: Path) -> str:
-    """The preset as the card holds it: bound to MIDI channel 1, which the note scripts play on.
+# A preset's saved MIDI learn, in the attribute format and the old tag format.
+LEARNED_INPUT = re.compile(
+    r'\s*inputMidiChannel="[^"]*"|\s*<inputMidiChannel>[^<]*</inputMidiChannel>'
+)
 
-    The synthesized cases carry inputMidiChannel="0" themselves. The factory and community presets are committed as
-    published, so the binding goes in as a child tag, which the deserializer reads like an attribute in both the old
-    tag-based format and the attribute-based one.
+
+def _staged_preset_text(preset: Path) -> str:
+    """The preset as the card holds it: without any MIDI learn it was saved with.
+
+    The note scripts reach the preset through MIDI follow. A learn on the same channel would deliver every note a second
+    time, starting a second voice for it, so a case's sound would depend on whether the preset happens to be learned.
     """
-    text = preset.read_text()
-    if "inputMidiChannel" not in text:
-        open_tag_end = text.index(">", text.index("<sound")) + 1
-        text = (
-            text[:open_tag_end]
-            + "\n\t<inputMidiChannel>0</inputMidiChannel>"
-            + text[open_tag_end:]
-        )
-    return text
+    return LEARNED_INPUT.sub("", preset.read_text())
 
 
 def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
@@ -117,10 +123,40 @@ def _wanted_frames(name: str) -> int:
     return round(SECONDS.get(name, DEFAULT_SECONDS) * FRAMES_PER_SECOND)
 
 
+def _check_learn(gate, corpus: Path, pcm_record) -> None:
+    """RP-LEARN: a preset learned to MIDI channel 2 must sound when played on channel 2, where MIDI follow does not
+    listen, so only the preset's own learn can reach it."""
+    where = gate.tmp / "learn"
+    env = _stage(corpus, "sine_basic", where)
+    preset = where / "card" / "SYNTHS" / "PRESET.XML"
+    preset.write_text(
+        preset.read_text().replace("<sound", '<sound inputMidiChannel="1"', 1)
+    )
+    notes = where / "channel2.notes"
+    notes.write_text("4608 91 3C 64\n52000 81 3C 40\n")
+    env["RENDER_MIDI"] = str(notes)
+    result = gate.run(env=env, timeout=RUN_TIMEOUT)
+    if not gate.require_standard(result):
+        gate.fail("RP-LEARN: the run failed")
+        return
+    peak = pcm_record((where / "out.pcm").read_bytes())["peak"]
+    gate.say(f"RP-LEARN peak={peak}")
+    if peak < SILENCE_PEAK:
+        gate.fail(
+            "RP-LEARN — a preset learned to MIDI channel 2 is silent on channel 2: the blank boot song dropped the "
+            "preset's MIDI learn"
+        )
+
+
 def run(gate):
     corpus = gate.root / "tests/integration/golden/presets"
     records_path = gate.root / "tests/integration/golden/presets.json"
     update = os.environ.get("RENDER_PRESET_UPDATE") == "1"
+    keep = (
+        Path(gate.env["RENDER_PRESET_KEEP"])
+        if gate.env.get("RENDER_PRESET_KEEP")
+        else None
+    )
     pcm_record = _render_song()._pcm_record
 
     selected = cases(corpus)
@@ -159,6 +195,10 @@ def run(gate):
             continue
         # Whole blocks are captured; the record covers exactly the case's length.
         record = pcm_record(pcm[: wanted * 8])
+        if keep is not None:
+            kept = keep / f"{name}.pcm"
+            kept.parent.mkdir(parents=True, exist_ok=True)
+            kept.write_bytes(pcm[: wanted * 8])
         if record["peak"] < SILENCE_PEAK:
             gate.fail(f"RP-SILENT {name}: the render is silent (peak {record['peak']})")
         elif update:
@@ -173,6 +213,8 @@ def run(gate):
             )
         if len(gate.failures) != before:
             failed += 1
+
+    _check_learn(gate, corpus, pcm_record)
 
     if update:
         records_path.write_text(json.dumps(records, indent=1, sort_keys=True) + "\n")

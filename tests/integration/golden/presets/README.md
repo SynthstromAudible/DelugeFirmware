@@ -11,9 +11,12 @@ Each case is one run of golden_vt_render's `render_preset` scenario
 
 - The card holds the preset at `SYNTHS/PRESET.XML`. The blank boot song replaces its built-in default synth with the
   first preset in `SYNTHS/`, through the real deserialization path, so a case needs no loading code of its own.
-- A DIN note script plays it. Every case is bound to MIDI channel 1: the synthesized presets carry
-  `inputMidiChannel="0"`, and for the imported ones the check module injects `<inputMidiChannel>0</inputMidiChannel>`
-  into the copy it stages. The committed files stay as published.
+- A DIN note script plays it on MIDI channel 1, which MIDI follow sends to the instrument in front of the user. The
+  check module strips any MIDI learn from the copy it stages: a learn on the same channel would deliver every note a
+  second time. The committed files stay as published. The gate's `RP-LEARN` check covers the learn path separately.
+- The synth's random stream (random oscillator phases, noise, random modulation) restarts from a fixed seed when the
+  first note arrives, so a case sounds the same however much randomness boot and loading used.
+  `RENDER_RANDOM_SEED` picks another seed, to measure how much a case depends on it.
 - The render runs in real time on the audio tier, 128 frames a block, and the output is captured from the start of the
   note script. CPU direness must stay 0, so every case renders on its full-quality paths.
 
@@ -31,8 +34,8 @@ A case takes a fraction of a second of wall time (the harness runs in virtual ti
 
 A changed record means the sound changed. When the change is meant, record it with `RENDER_PRESET_UPDATE=1` and
 explain it in the commit, case by case. Never record a silent render: the check fails any render whose peak is below
-16 in 16-bit terms, because silence almost always means the preset failed to load (the default synth that remains is
-not bound to the note script's channel).
+16 in 16-bit terms, because silence means the preset never heard its notes. A preset that fails to load is caught
+earlier, by `RP-LOADED`: the default synth left in its place would play the notes.
 
 ## The corpus
 

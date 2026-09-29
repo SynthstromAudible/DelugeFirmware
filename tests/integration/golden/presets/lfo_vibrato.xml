@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<sound firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" polyphonic="poly" inputMidiChannel="0" voicePriority="1" mode="subtractive" lpfMode="24dB" modFXType="none">
+<sound firmwareVersion="c1.3.0" earliestCompatibleFirmware="4.1.0-alpha" polyphonic="poly" voicePriority="1" mode="subtractive" lpfMode="24dB" modFXType="none">
 	<osc1 type="saw" transpose="0" cents="0" retrigPhase="-1" />
 	<osc2 type="square" transpose="0" cents="0" retrigPhase="-1" />
 	<lfo1 type="sine" syncLevel="0" />

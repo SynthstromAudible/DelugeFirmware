@@ -16,13 +16,12 @@ import pathlib
 
 CORPUS = pathlib.Path(__file__).parent
 
-# Attributes of <sound>. inputMidiChannel="0" (MIDI channel 1) is what binds the
-# loaded preset to the harness's scripted DIN input — every case needs it.
+# Attributes of <sound>. No inputMidiChannel: the note scripts reach a case through MIDI follow, and a learned input
+# on the same channel would deliver every note twice.
 BASE_SOUND_ATTRS = {
     "firmwareVersion": "c1.3.0",
     "earliestCompatibleFirmware": "4.1.0-alpha",
     "polyphonic": "poly",
-    "inputMidiChannel": "0",
     "voicePriority": "1",
     "mode": "subtractive",
     "lpfMode": "24dB",

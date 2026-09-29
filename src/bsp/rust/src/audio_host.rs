@@ -357,14 +357,43 @@ pub extern "C" fn deluge_host_midi_script_released() -> u32 {
         .map_or(0, |script| script.next as u32)
 }
 
+unsafe extern "C" {
+    /// The synth's random stream (util/waves.h): oscillator phases, noise and random modulation all draw from it.
+    static mut jcong: u32;
+}
+
+/// `jcong`'s value at boot (util/waves.cpp).
+const JCONG_BOOT_SEED: u32 = 380_116_160;
+
+/// The seed the script's first byte restarts the random stream from: `RENDER_RANDOM_SEED`, or the boot seed.
+/// Another seed measures how much a render depends on its random draws, as a re-baseline needs to know.
+fn script_random_seed() -> u32 {
+    static SEED: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
+    *SEED.get_or_init(|| {
+        std::env::var("RENDER_RANDOM_SEED")
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(JCONG_BOOT_SEED)
+    })
+}
+
 /// The next scripted DIN byte whose frame the render has passed, if any. What the host's
 /// `deluge_midi_din_read_timed` returns.
+///
+/// Handing over the script's first byte restarts the synth's random stream from its boot seed (or
+/// `RENDER_RANDOM_SEED`), so what a note's randomness sounds like depends on the script alone, not on how many
+/// random numbers boot and loading drew first.
 pub fn din_script_read() -> Option<u8> {
     let mut guard = DIN_SCRIPT.lock().unwrap();
     let script = guard.as_mut()?;
     let (frame, bytes) = script.events.get(script.next)?;
     if CURSOR.load(Ordering::Relaxed) - script.origin < *frame {
         return None;
+    }
+    if script.next == 0 && script.byte == 0 {
+        // SAFETY: a plain store to an app global; the app reads it only on the tiers that run MIDI and the render,
+        // and this runs on the MIDI tier, before the byte that starts the first note is handed over.
+        unsafe { jcong = script_random_seed() };
     }
     let b = bytes[script.byte];
     script.byte += 1;

@@ -1,6 +1,6 @@
 # The synth golden masters on the Embassy host
 
-Status: proposed 2026-09-28; steps 1 to 3 built the same day (§9).
+Status: proposed 2026-09-28; steps 1 to 3 built the same day, step 4 on 2026-09-29 (§9).
 - Branch `merge/synth-golden-masters`, after the merge of `feat/synth-golden-masters` (8c0e55180).
 - Carries out §9 of the test layout spec (`2026-09-28-test-layout-and-runner-design.md`), with one change: the golden
   masters move to golden_vt_render instead of staying on the C-host sim.
@@ -60,7 +60,9 @@ Non-goals:
 A stepped scenario in `tests/integration/scenarios/render_preset_scenario.{h,cpp}`, registered in
 `scenario_table.cpp`, with the same shape as `render_song`. It needs no song: the preset loads the way the fixtures
 were designed to load it. The blank boot song takes the first preset in `SYNTHS/` (`PRESET.XML`), through the real
-deserialization path, and run.py's `inputMidiChannel="0"` injection learns it to MIDI channel 1.
+deserialization path. The note script plays on MIDI channel 1, which MIDI follow sends to the active instrument. Any
+MIDI learn the preset carries is stripped when it is staged, because a learn on the same channel delivers every note a
+second time (step 4 found the C-host records doubled that way).
 
 Inputs:
 
@@ -200,6 +202,28 @@ unit tree (`unit-arm`, real NEON under qemu) stays the only ARM coverage of the 
        The largest is `community/Cornwall`, up 18.6 dB. A cluster near -6 dB also halves its peak, which looks like
        a factor of 2 in amplitude. Step 4 explains these before the records stop being provisional.
 4. **Evidence and re-record** (§7).
+   - [x] Done. The report is `docs/superpowers/baselines/2026-09-29-synth-golden-masters-rebaseline.md`. Every case
+         is either the same sound or explained by a demonstrated cause:
+
+         | Class | Cases |
+         |---|---|
+         | same as the old code | 147 |
+         | within its note-timing / random-draw tolerance | 150 |
+         | `next`'s reverb fixes #4936 and #4856 | 18 |
+         | same, judged at the old code's own 32-frame blocks | 10 |
+         | wavetable morph steps once per block | 7 |
+         | just outside tolerance, and timing-sensitive | 4 |
+
+     - The old C-host harness delivered every note twice (the MIDI learn run.py injected, plus MIDI follow), which
+       doubled 19 of its records. The gate now strips MIDI learn and plays through follow.
+     - The synth's random stream now restarts at the first note (`RENDER_RANDOM_SEED` picks the seed), so a record no
+       longer depends on how much randomness boot drew.
+     - A regression on `next` turned up and is fixed: the blank boot song dropped its first preset's saved MIDI learn.
+       `RP-LEARN` checks it.
+     - Two things to look at separately:
+       - the C host's 32-frame blocks swell each note's first cycle up to 1.8x, and the device's DMA windows are just as
+         small;
+       - the old code rendered `wavetable/sync` silent at 128-frame blocks.
 5. **ARM** (§8).
 
 ## 10. Open questions
