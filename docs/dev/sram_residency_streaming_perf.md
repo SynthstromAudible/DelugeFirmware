@@ -33,8 +33,10 @@ samples and the *heads of active voices* live in SRAM; large streamed tails stay
 
 ## 1. Hardware root cause (the discovery)
 
-Numbers are the **register configuration the firmware programs** in `src/RZA1/bsc/bsc_userdef.c`
-(`userdef_bsc_cs2_init`) — ground truth, since the SDRAM works so the config must match the fitted part:
+Numbers are the **register configuration the firmware programs**, in deluge-sdk's
+`crates/deluge-bsp/src/sdram.rs` (`init`, called from `system.rs` at bring-up) — a port of the retired C HAL's
+`src/RZA1/bsc/bsc_userdef.c` (`userdef_bsc_cs2_init`) with the same values. Ground truth for the part, since the
+SDRAM works so the config must match it:
 
 - **External SDRAM — confirmed part: Alliance Memory `AS4C32M16SM-7TCN`** (from Synthstrom, not the repo).
   512 Mbit = **64 MB**, **32M × 16** (16-bit bus), **4 banks × 8M × 16**, **13 row / 10 column** bits, `-7`
@@ -42,21 +44,22 @@ Numbers are the **register configuration the firmware programs** in `src/RZA1/bs
   auto-precharge, **burst length 1**, auto-refresh ~7.64 µs / 128 cycles. One device, one BSC channel
   (SDRAM on CS2/CS3).
   - Every figure above is corroborated by the BSC register config the firmware programs
-    (`src/RZA1/bsc/bsc_userdef.c`, `userdef_bsc_cs2_init`): 16-bit (`CS2BCR/CS3BCR = 0x00004C00`), 64 MB /
+    (deluge-sdk `crates/deluge-bsp/src/sdram.rs`): 16-bit (`CS2BCR/CS3BCR = 0x00004C00`), 64 MB /
     13-row-10-col (`SDCR = 0x00110912`), CAS 2, burst 1 (`SDRAM_MODE = 0`), refresh 128 cyc (`RTCOR = 0x80`).
     The register geometry matches the datasheet exactly — the "4 banks" this analysis rests on is confirmed.
   - The part is a **JEDEC-standard 512 Mbit ×16 SDRAM**, pin-compatible (54-TSOP-II) with the drop-in
-    equivalents named in the file's *inherited RSK+ sample-code comments* — Micron `MT48LC16M16A2P-75` (a
+    equivalents named in the C HAL's *inherited RSK+ sample-code comments* (and in `sdram.rs`'s) — Micron `MT48LC16M16A2P-75` (a
     32 MB part; wrong size) and ISSI `IS42S16320B-75` (64 MB). Those comments do **not** identify the fitted
     silicon; the Alliance part above is the real one. The same BSC config drives any of these interchangeably.
-  - Synthstrom **already tuned** BSC timing here: a code comment notes "WTRCD made quite a big difference /
+  - Synthstrom **already tuned** BSC timing: a comment in the C HAL's `bsc_userdef.c` noted "WTRCD made quite a big difference /
     AC3L can't be reduced" — i.e. the CAS-related floor is already hit (see §5b.4).
-- **Memory map** (`src/RZA1/cpu_specific.h`): `EXTERNAL_MEMORY_BEGIN 0x0C000000`, `EXTERNAL_MEMORY_END
+- **Memory map** (the C HAL's `src/RZA1/cpu_specific.h`; the Rust HAL's `memmap.rs` agrees): `EXTERNAL_MEMORY_BEGIN 0x0C000000`, `EXTERNAL_MEMORY_END
   0x10000000` (64 MB SDRAM); `INTERNAL_MEMORY_BEGIN 0x20000000` (~3 MB on-chip SRAM, multi-ported,
   refresh-free); `UNCACHED_MIRROR_OFFSET 0x40000000` (an uncached alias exists but is unused by the
   streaming path).
-- **Cache mapping** (`src/RZA1/compiler/asm/ttb_init.S`): SDRAM (`setting_area1`) is mapped
-  `TTB_PARA_NORMAL_CACHE` — cacheable, write-back, write-allocate. Unchanged on `next`.
+- **Cache mapping**: SDRAM (area 1) is mapped normal-cacheable — write-back, write-allocate — as the C HAL's
+  `ttb_init.S` (`setting_area1`, `TTB_PARA_NORMAL_CACHE`) had it and the Rust HAL's `mmu.rs` (`PARA_NORMAL_CACHE`,
+  with the 0x4C00_0000 mirror uncached) has it now.
 
 ### Why simultaneous streams collapse (4 stacking mechanisms)
 
@@ -261,8 +264,8 @@ Levers, ranked by leverage × tractability:
    sequential SDRAM write bursts + fewer SD seeks. But consecutive clusters usually *aren't* contiguous
    (the whole reason the design is cluster-based, `audio_file_manager.h`), so the win is **opportunistic**;
    needs bigger/variable slab slots or a scatter target. Moderate effort, conditional payoff.
-4. **BSC timing-register tuning (CAS / refresh / burst)** in `src/RZA1/bsc/bsc_userdef.c` — **largely already
-   exhausted, low priority.** Synthstrom already tuned it (in-file comment: "WTRCD made quite a big difference
+4. **BSC timing-register tuning (CAS / refresh / burst)**, in deluge-sdk's `sdram.rs` — **largely already
+   exhausted, low priority.** Synthstrom already tuned it (the C HAL's `bsc_userdef.c` noted: "WTRCD made quite a big difference
    / AC3L can't be reduced" — the CAS floor is hit). Row-thrash is a *pattern* problem, not a per-access-
    latency one, so little left here. One *untried* idea: **burst length** is set to 1 (`SDRAM_MODE = 0`) — a
    longer burst could improve cache-line-fill efficiency, but interacts with the A9 linefill/AXI behaviour and
@@ -323,9 +326,9 @@ refresh stalls, bus serialization, cache behavior) is a **hardware-timing phenom
 | Memory heap API | `src/deluge/memory/heaps.h` |
 | Resource manager C ABI | `crates/deluge_resource/include/deluge_resource.h` |
 | Slab pager | `crates/deluge_alloc/src/slab.rs`; manager `crates/deluge_resource/src/manager.rs` |
-| Hardware: SDRAM part/config | Alliance `AS4C32M16SM-7TCN` (512 Mbit, 32M×16, 4-bank, CL2); config in `src/RZA1/bsc/bsc_userdef.c` (`userdef_bsc_cs2_init`) — see §1 |
-| Hardware: memory map + uncached mirror | `src/RZA1/cpu_specific.h:122-126` |
-| Hardware: cache mapping | `src/RZA1/compiler/asm/ttb_init.S` (`setting_area1`, `NORMAL_CACHE`) |
+| Hardware: SDRAM part/config | Alliance `AS4C32M16SM-7TCN` (512 Mbit, 32M×16, 4-bank, CL2); config in deluge-sdk `crates/deluge-bsp/src/sdram.rs` — see §1 |
+| Hardware: memory map + uncached mirror | deluge-sdk `crates/rza1l-hal/src/memmap.rs` |
+| Hardware: cache mapping | deluge-sdk `crates/rza1l-hal/src/mmu.rs` (`PARA_NORMAL_CACHE`) |
 | Prior allocator design docs | `allocator_sdram_strangle.md`, `allocator_redesign.md` (on `deepclone` et al., removed from `next`) |
 
 ---
