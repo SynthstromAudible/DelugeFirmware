@@ -1,11 +1,10 @@
-//! block_device.h + FatFS diskio — SD card over `deluge_bsp::sd`, uniformly on
-//! both device and host.
+//! block_device.h — SD card over `deluge_bsp::sd`, uniformly on both device
+//! and host.
 //!
-//! The app's FatFS layer (its `disk_read`/`disk_write` shims live in
-//! audio_file_manager.cpp) calls the BSP-provided `deluge_block_read`/
-//! `deluge_block_write` (block_device.h), plus
-//! `disk_initialize`/`disk_status`/`disk_ioctl`/`get_fattime`. Both targets back
-//! those with `deluge_bsp::sd`'s async `Result<_, SdError>` API
+//! The app's storage stack (efatfs_fs.rs's `HostSdBlockDevice` on host, the
+//! device SDHI driver on device) calls the BSP-provided `deluge_block_read`/
+//! `deluge_block_write` (block_device.h). Both targets back those with
+//! `deluge_bsp::sd`'s async `Result<_, SdError>` API
 //! (`init`/`read_sectors`/`write_sectors`/`is_ready`/`is_inserted`/
 //! `is_write_protected`/`total_sectors`) via `block_on` — no `#[cfg]` needed at
 //! the `deluge_bsp::sd` call sites themselves, since deluge-sdk provides `sd`
@@ -15,20 +14,17 @@
 //!   `deluge_block_write`) drive the transfer with `block_on`. See the hazard
 //!   note above `deluge_block_read`.
 //! - Host (`target_os` != `"none"`): a small file-backed disk image (no SDHI
-//!   hardware exists), so the FatFS-shaped C ABI can still be exercised (and
+//!   hardware exists), so the block C ABI can still be exercised (and
 //!   round-tripped) off-target. `deluge_bsp::sd`'s host `init`/`read_sectors`/
 //!   `write_sectors` never suspend (there's nothing to await), so `block_on`
 //!   is safe here too, and the host sites always use it.
 //!
-//! Per target, the FatFS diskio C-ABI entry points below still need two
+//! Per target, `deluge_block_read`/`deluge_block_write` still need two
 //! `#[unsafe(no_mangle)]` definitions (one `#[cfg(target_os = "none")]`, one
 //! not) purely because only one symbol of a given name may be linked into a
 //! given binary — but each calls the *same* `deluge_bsp::sd` functions, so
 //! there is no bespoke per-target storage backend left in this file (that's
-//! `deluge_bsp::sd`'s job). No C++ app is currently linked on host, so the
-//! FatFS `disk_*` entry points are otherwise unused there; they're still given
-//! working host bodies (rather than gated out) since a future host FatFS
-//! exercise will call them.
+//! `deluge_bsp::sd`'s job).
 
 #![allow(non_upper_case_globals)]
 
@@ -87,32 +83,21 @@ const CARD_INSERTED: DelugeCardEvent = 1;
 #[cfg(not(target_os = "none"))]
 const CARD_EJECTED: DelugeCardEvent = 2;
 
-// FatFs diskio status/result codes (ChaN's FatFs `diskio.h` convention; no longer
-// vendored in this tree, but these numeric values are the de-facto standard).
-// Only the codes these shims actually return are declared — `RES_ERROR` (1) and
-// `RES_WRPRT` (2) were carried over with the set and never used, and with C-FatFS deleted
-// nothing is going to start using them, so they are gone rather than `#[allow]`ed.
+// DSTATUS bits `status_bits()` composes internally (ChaN's FatFs `diskio.h`
+// convention; no longer vendored in this tree, but the numeric values are the
+// de-facto standard `deluge_block_ready` reports against).
 const STA_NOINIT: u8 = 0x01;
 const STA_NODISK: u8 = 0x02;
 const STA_PROTECT: u8 = 0x04;
-const RES_OK: i32 = 0;
-const RES_NOTRDY: i32 = 3;
-const RES_PARERR: i32 = 4;
-const CTRL_SYNC: u8 = 0;
-const GET_SECTOR_COUNT: u8 = 1;
-const GET_SECTOR_SIZE: u8 = 2;
-const GET_BLOCK_SIZE: u8 = 3;
+/// Bytes per sector — the transfer unit `deluge_block_read`/`deluge_block_write` size their buffers to.
 const SECTOR_SIZE: usize = 512;
 
-/// Set once `disk_initialize` has driven `sd::init()` at least once. Until then,
+/// Set once [`boot_init`] has driven `sd::init()` at least once. Until then,
 /// the controller has never muxed `SD_CD` (P7_0 → SDHI fn 3) or started `SD_CLK`,
 /// so `sd::is_inserted()` reads a meaningless card-detect line. We must NOT report
-/// `STA_NODISK` from that pre-init read: FatFS skips `disk_initialize` whenever the
-/// disk looks absent, and `disk_initialize` is the only path that brings the detect
-/// circuit to life — detection would be gated on init, and init on detection
-/// (deadlock). Report "not initialized, presence unknown" instead so FatFS attempts
-/// the init that makes card-detect valid. Device-only: `deluge_bsp::sd`'s host
-/// stand-in has no controller bring-up step.
+/// `STA_NODISK` from that pre-init read, so `status_bits()` reports "not
+/// initialized, presence unknown" instead until this flips. Device-only:
+/// `deluge_bsp::sd`'s host stand-in has no controller bring-up step.
 #[cfg(target_os = "none")]
 static CONTROLLER_UP: AtomicBool = AtomicBool::new(false);
 
@@ -121,11 +106,12 @@ static CONTROLLER_UP: AtomicBool = AtomicBool::new(false);
 /// `sd::init()` sequences card power-up with `embassy_time::Timer` delays. This BSP
 /// uses the *integrated* (intrusive) timer queue, so a `Timer` only resolves when
 /// polled by a real Embassy task — `embassy_futures::block_on`'s synthetic waker
-/// makes `Timer` panic (`from_embassy_waker`). The sync FatFS `disk_initialize`
-/// path can therefore never run `init()`. Instead we init here, from `app_task`,
-/// before `deluge_app_init` drives the first C++ storage access: afterwards the card
-/// reports ready, FatFS skips `disk_initialize`, and reads/writes stay on `block_on`
-/// (pure SDHI/DMA-IRQ futures — no timers). Re-runnable for card-swap from async.
+/// makes `Timer` panic (`from_embassy_waker`). The synchronous `deluge_block_read`/
+/// `deluge_block_write` entry points, which drive their transfers with `block_on`,
+/// can therefore never run `init()` themselves. Instead we init here, from
+/// `app_task`, before `deluge_app_init` drives the first C++ storage access:
+/// afterwards the card reports ready and reads/writes stay on `block_on` (pure
+/// SDHI/DMA-IRQ futures — no timers). Re-runnable for card-swap from async.
 /// Device-only: `app_task` (this fn's sole caller) is itself device-only.
 #[cfg(target_os = "none")]
 pub async fn boot_init() {
@@ -157,7 +143,7 @@ static CARD_INIT_REQ: embassy_sync::signal::Signal<CriticalSectionRawMutex, ()> 
 /// *integrated* (intrusive) timer queue, where a `Timer` only resolves for a
 /// genuine Embassy task waker — under `embassy_futures::block_on` it panics instead. So the card re-init cannot happen
 /// inside the C-ABI storage entry points, which block on their transfers where a `Timer` is unavailable. The same
-/// constraint is why `boot_init` runs from `app_task` rather than from the sync `disk_initialize` path.
+/// constraint is why `boot_init` runs from `app_task` rather than from one of those synchronous entry points.
 ///
 /// Nothing waits on this task. It publishes its result through the card's own
 /// ready state: `sd::init()` sets `CARD_READY`, so `deluge_block_ready()` —
@@ -199,14 +185,12 @@ pub async fn card_service() {
 
 /// `host_app` sibling of the device [`boot_init`] above: called from the host
 /// `app_task` (`main.rs`) before `deluge_app_init`, purely to mirror the device
-/// boot sequencing exactly. Not strictly required on host — unlike the device
-/// (whose integrated timer queue makes `sd::init()`'s `Timer` delays unusable
-/// under `disk_initialize`'s synchronous `block_on`, see the host
-/// `disk_initialize` doc comment below), `deluge_bsp::sd`'s host `init()` never
-/// suspends, so `disk_initialize` already drives it lazily via `block_on` on
-/// first FatFS access with no separate async bring-up step needed. Calling it
-/// here too is harmless (idempotent) and keeps the host and device `app_task`
-/// bodies textually identical.
+/// boot sequencing exactly. Not strictly required on host — unlike the device,
+/// `deluge_bsp::sd`'s host `init()` never suspends, and its `read_sectors`/
+/// `write_sectors` lazily open/size the backing file on first access with no
+/// separate async bring-up step needed (see the host `deluge_block_read`'s doc
+/// comment below). Calling it here too is harmless (idempotent) and keeps the
+/// host and device `app_task` bodies textually identical.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 pub async fn boot_init() {
     let r = sd::init().await;
@@ -331,63 +315,11 @@ fn status_bits() -> u8 {
     }
 }
 
-#[cfg(target_os = "none")]
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_initialize(pdrv: u8) -> u8 {
-    if pdrv != 0 {
-        return STA_NOINIT;
-    }
-    // sd::init() can't run here: its embassy-time Timers panic under `block_on`
-    // (integrated timer queue — see `boot_init`). It runs eagerly from `app_task`
-    // (boot_init) after the PIC baud handshake (pic::wait_ready) and before
-    // deluge_app_init — waiting for the PIC first avoids the handshake race that
-    // corrupted the pads. So the card is ready by the time the app first calls this;
-    // if somehow not, just report status (never block_on(init) here).
-    if !sd::is_ready() {
-        log::warn!("sd: disk_initialize before async init done");
-    }
-    status_bits()
-}
-
-#[cfg(target_os = "none")]
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_status(pdrv: u8) -> u8 {
-    if pdrv != 0 {
-        return STA_NOINIT;
-    }
-    status_bits()
-}
-
-/// Host: no controller bring-up or card-detect exists — `deluge_bsp::sd`'s
-/// file-backed disk image is ready as soon as it can be opened/sized.
-/// `sd::init()` never suspends on host (there's no hardware to await), so
-/// unlike the device path (see [`boot_init`]) it's safe to drive to completion
-/// with `block_on` right here rather than needing a separate async bring-up
-/// step. Both FatFS DSTATUS entry points then just report "ready" for unit 0.
-#[cfg(not(target_os = "none"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_initialize(pdrv: u8) -> u8 {
-    if pdrv != 0 {
-        return STA_NOINIT;
-    }
-    let _ = block_on(sd::init());
-    0
-}
-
-#[cfg(not(target_os = "none"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_status(pdrv: u8) -> u8 {
-    if pdrv != 0 {
-        return STA_NOINIT;
-    }
-    0
-}
-
 /// block_device.h — true if the card is present and initialised. A safe
-/// superset of the app's old `!(disk_status(unit) & STA_NODISK)` card-detect
-/// check: this also folds in `STA_NOINIT`, which is fine because the app's
-/// `initSD` immediately requires full readiness for the mount that follows
-/// anyway (see `storage_manager.cpp`'s `initSD`/`checkSDInitialized`).
+/// superset of a plain card-detect check: this also folds in `STA_NOINIT`,
+/// which is fine because the app's `initSD` immediately requires full
+/// readiness for the mount that follows anyway (see `storage_manager.cpp`'s
+/// `initSD`/`checkSDInitialized`).
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_block_ready(unit: u8) -> bool {
@@ -397,49 +329,12 @@ pub extern "C" fn deluge_block_ready(unit: u8) -> bool {
     status_bits() & (STA_NOINIT | STA_NODISK) == 0
 }
 
-/// Host: mirrors `disk_status` above — the file-backed disk image is always
-/// ready once openable, no controller bring-up or card-detect to model.
+/// Host: the file-backed disk image is always ready once openable, no
+/// controller bring-up or card-detect to model.
 #[cfg(not(target_os = "none"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_block_ready(unit: u8) -> bool {
     unit == 0
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) -> i32 {
-    if pdrv != 0 {
-        return RES_NOTRDY;
-    }
-    match cmd {
-        // Writes complete synchronously (block_on / a direct host file write), so
-        // nothing is ever pending.
-        CTRL_SYNC => RES_OK,
-        GET_SECTOR_COUNT => {
-            if buff.is_null() {
-                return RES_PARERR;
-            }
-            // No `#[cfg]` needed here: `sd::total_sectors()` resolves to the
-            // device SDHI driver or the host file-backed image internally.
-            let sectors = sd::total_sectors();
-            unsafe { *(buff as *mut u32) = sectors };
-            RES_OK
-        }
-        GET_SECTOR_SIZE => {
-            if buff.is_null() {
-                return RES_PARERR;
-            }
-            unsafe { *(buff as *mut u16) = SECTOR_SIZE as u16 };
-            RES_OK
-        }
-        GET_BLOCK_SIZE => {
-            if buff.is_null() {
-                return RES_PARERR;
-            }
-            unsafe { *(buff as *mut u32) = 1 };
-            RES_OK
-        }
-        _ => RES_PARERR,
-    }
 }
 
 // FatFS is not re-entrant. The app's SD-reentrancy guard is
@@ -556,7 +451,7 @@ pub(crate) mod stats {
 /// usable as soon as `deluge_bsp::sd` lazily opens/sizes its backing file on
 /// first access, with no async bring-up step required first, and the host
 /// harness's round-trip check (see `main.rs`) exercises this ABI directly
-/// without calling `disk_initialize`/`sd::init()` beforehand.
+/// without any async bring-up step run beforehand.
 ///
 /// `sim_latency`-off only: with that feature on, [`sim_latency`]'s sibling
 /// below (same signature) takes over — see its doc comment.
@@ -854,17 +749,6 @@ pub mod sim_latency {
         delay(count as usize * SECTOR_SIZE).await;
         sd::write_sectors(lba, count, buf).await
     }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn disk_timerproc() {
-    // SD is fully event-driven (SDHI/DMA IRQs); no periodic timer work needed.
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn get_fattime() -> u32 {
-    // 2024-01-01 00:00:00, FAT-packed. No RTC on this BSP yet.
-    ((2024u32 - 1980) << 25) | (1 << 21) | (1 << 16)
 }
 
 // ── block_device.h: SD unit + card-detect ─────────────────────────────────────
