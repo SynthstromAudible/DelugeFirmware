@@ -689,6 +689,23 @@ tier = "pr"
 runtime = "~20s"
 
 [[harness]]
+name = "golden-synth-arm"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "differential"
+status = "gate"
+gates = "the synth golden masters on 32-bit ARM: every golden-synth case, rendered by golden_vt_render cross-built for armv7 Linux (the host app compiled by clang for a Cortex-A9 with NEON, as the firmware is) and run under qemu, must match the same records in tests/integration/golden/presets.json as the x86 build. x86 renders NEON code through SIMDe and ARM through the real instructions, so a difference is a vectorised kernel that does not compute what its portable form does, or code that depends on the word size."
+scenario = "render_preset"
+markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
+result = "RP-RESULT failures=0"
+check = "tests/integration/checks/render_preset.py"
+builds = ["golden-vt-render-arm"]
+requires = []
+tier = "nightly"
+runtime = "~1m"
+
+[[harness]]
 name = "streaming-margin"
 path = "."
 level = "integration"

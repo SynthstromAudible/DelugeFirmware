@@ -14,6 +14,7 @@ fixture tree a gate's runs staged in the temp dir is removed after it.
 
 import importlib.util
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -109,9 +110,11 @@ class Gate:
         full = dict(self.env)
         full["GOLDEN_SCENARIO"] = self.entry.scenario if scenario is None else scenario
         full.update(env or {})
+        # A cross-built binary runs under an emulator (golden-vt-render-arm's qemu).
+        wrapper = shlex.split(full.get("GOLDEN_VT_RENDER_WRAPPER", ""))
         try:
             result = subprocess.run(
-                [str(self.binary)],
+                [*wrapper, str(self.binary)],
                 cwd=self.root,
                 env=full,
                 capture_output=True,

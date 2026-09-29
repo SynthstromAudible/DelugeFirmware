@@ -259,7 +259,13 @@ def _run_one(
             file=log if log is not None else sys.stdout,
             flush=True,
         )
-        binary = Path(env["CARGO_TARGET_DIR"]) / "release" / "golden_vt_render"
+        # A cross-built harness sits under its target triple (golden-vt-render-arm sets it).
+        binary = (
+            Path(env["CARGO_TARGET_DIR"])
+            / env.get("GOLDEN_VT_RENDER_TARGET", "")
+            / "release"
+            / "golden_vt_render"
+        )
         passed = scenario_gate.run_gate(
             root, h, env, binary, log if log is not None else sys.stdout
         )

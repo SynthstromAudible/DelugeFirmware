@@ -19,6 +19,9 @@ SHARED_TARGET_SUBDIR = Path("build") / "cargo-harness"
 # The C++ app's object closure for the Embassy host harnesses: the app, its libraries and the host BSP's C side,
 # compiled for x86-64. Nothing links here; golden_vt_render's build.rs archives these objects.
 HOST_APP_TREE = Path("build") / "host-app"
+HOST_APP_ARM_TREE = Path("build") / "host-app-arm"
+# The Rust target the ARM golden_vt_render is built for: 32-bit ARM Linux, hard float, run under qemu.
+ARM_TARGET = "armv7-unknown-linux-gnueabihf"
 
 
 def needs_configure(tree: Path, source: Path, cxx: str | None = None) -> bool:
@@ -108,6 +111,51 @@ class HostApp(Product):
         return steps
 
 
+class HostAppArm(Product):
+    """The host app cross-built for arm-linux (Cortex-A9, NEON) with clang, for the ARM golden_vt_render."""
+
+    def steps(self, root: Path) -> list[Step]:
+        tree = root / HOST_APP_ARM_TREE
+        steps = []
+        if needs_configure(tree, root / "sim", "clang++"):
+            steps.append(
+                Step(
+                    "configure",
+                    [
+                        "cmake",
+                        "-S",
+                        "sim",
+                        "-B",
+                        str(tree),
+                        "-G",
+                        "Ninja",
+                        f"-DCMAKE_TOOLCHAIN_FILE={root / 'sim/arm-linux-toolchain.cmake'}",
+                    ],
+                    root,
+                )
+            )
+        steps.append(Step("build", ["ninja", "-C", str(tree), *HOST_APP_TARGETS], root))
+        return steps
+
+
+class GoldenVtRenderArm(Product):
+    """golden_vt_render for armv7 Linux, linked against the arm-linux host app, run under qemu."""
+
+    def steps(self, root: Path) -> list[Step]:
+        return [
+            Step(
+                "build",
+                ["cargo", "build", "--release", "--target", ARM_TARGET],
+                root / "src/bsp/rust/harness/golden_vt_render",
+                {
+                    "DELUGE_HOSTAPP_BUILD_DIR": str(root / HOST_APP_ARM_TREE),
+                    # The GCC cross driver only links: the objects are clang's.
+                    "CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER": "arm-linux-gnueabihf-gcc",
+                },
+            )
+        ]
+
+
 class GoldenVtRender(Product):
     def steps(self, root: Path) -> list[Step]:
         return [
@@ -127,7 +175,19 @@ def products(root: Path) -> dict[str, Product]:
         "BUILD_DIR": str(root / HOST_APP_TREE),
     }
     return {
-        "host-app": HostApp("host-app", [], ["cmake"], host_app_env),
+        "host-app": HostApp("host-app", [], ["cmake", "clang"], host_app_env),
+        "host-app-arm": HostAppArm(
+            "host-app-arm", [], ["cmake", "clang", "arm-linux-gnueabihf-gcc"], {}
+        ),
+        "golden-vt-render-arm": GoldenVtRenderArm(
+            "golden-vt-render-arm",
+            ["host-app-arm"],
+            ["cargo", "deluge-sdk-sibling", "qemu-arm"],
+            {
+                "GOLDEN_VT_RENDER_TARGET": ARM_TARGET,
+                "GOLDEN_VT_RENDER_WRAPPER": "qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9",
+            },
+        ),
         "golden-vt-render": GoldenVtRender(
             "golden-vt-render",
             ["host-app"],
