@@ -81,9 +81,9 @@ const _: () = {
 /// table and the Embassy task pool below match the C++ scheduler's capacity.
 /// NOTE: kept in lock-step with the `task_runner` `pool_size` literal (the task
 /// macro wants a literal); the const-assert below guards against drift.
-const MAX_TASKS: usize = 25;
+const MAX_TASKS: usize = 32;
 const _: () = assert!(
-    MAX_TASKS == 25,
+    MAX_TASKS == 32,
     "task_runner pool_size literal must equal MAX_TASKS"
 );
 
@@ -403,7 +403,7 @@ pub fn registered_task_count() -> usize {
 /// One Embassy task per Deluge task. Pool sized to [`MAX_TASKS`] so every slot can
 /// be live at once. Waits per the slot's schedule (or condition), runs the C++
 /// handle to completion, and loops until removed or (for once tasks) it has run.
-#[embassy_executor::task(pool_size = 25)]
+#[embassy_executor::task(pool_size = 32)]
 async fn task_runner(slot: &'static TaskSlot) {
     // Acquire-pair with `claim`'s store of `used`/handle so we observe them.
     while !slot.used.load(Ordering::Acquire) {
