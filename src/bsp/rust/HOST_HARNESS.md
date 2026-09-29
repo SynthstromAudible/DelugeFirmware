@@ -295,7 +295,6 @@ the rest of this doc uses):
 ```sh
 # From the repo root:
 cmake -B build-embassy-hostapp-tsan -S sim -G Ninja \
-  -DDELUGE_SIM_X64=ON \
   -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
   -DCMAKE_C_FLAGS="-fsanitize=thread" \
   -DCMAKE_CXX_FLAGS="-fsanitize=thread"

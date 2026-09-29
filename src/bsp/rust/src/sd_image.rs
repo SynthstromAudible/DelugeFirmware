@@ -7,10 +7,9 @@
 //!      reconstruct`, the exact script the golden-master harness uses to rebuild its
 //!      fixture from the developer's local `~/Deluge Backup` corpus (see this repo's
 //!      song-corpus-location note).
-//!   2. the FAT image itself — mtools (`mformat`+`mcopy`), the same approach
-//!      `src/bsp/host/host_render_main.cpp`'s `pack_image()` uses for `deluge_render`/
-//!      `deluge_host` (32 KB clusters, >= 2.5 GB floor — FAT32 needs >= 65525 clusters at
-//!      that cluster size, matching real Deluge SD card geometry).
+//!   2. the FAT image itself — mtools (`mformat`+`mcopy`), with 32 KB clusters and a
+//!      >= 2.5 GB floor (FAT32 needs >= 65525 clusters at that cluster size), matching real
+//!      Deluge SD card geometry.
 //!
 //! Host-only (`host_app`); never compiled for device.
 #![cfg(all(not(target_os = "none"), feature = "host_app"))]
@@ -147,8 +146,7 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
 
 /// Creates a fresh EMPTY FAT32 image (no project tree) for the recorder-roundtrip scenario,
 /// which only ever WRITES new files (it records, finalizes, then reads back what it wrote).
-/// Same geometry as [`pack_image`] — 2.5 GB sparse, 32 KB clusters via `mformat -c 64` —
-/// mirroring `src/bsp/host/host_recorder_roundtrip_main.cpp`'s `format_empty_image()`. Returns
+/// Same geometry as [`pack_image`] — 2.5 GB sparse, 32 KB clusters via `mformat -c 64`. Returns
 /// the image path; the caller points `DELUGE_SD_IMAGE` at it before any SD access. Panics with a
 /// clear message on failure (one-time harness setup, not something to silently degrade under).
 pub fn format_empty_image() -> PathBuf {

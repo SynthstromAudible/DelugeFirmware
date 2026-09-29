@@ -1,7 +1,7 @@
 //! Rust/Embassy firmware image for the Synthstrom Deluge (RZ/A1L).
 //!
-//! The third BSP for the Deluge, alongside `src/bsp/rza1` (on-device C) and
-//! `src/bsp/host` (simulator). Unlike those, this one OWNS reset, `main`/`_start`
+//! The Deluge's BSP alongside the legacy `src/bsp/rza1` (on-device C), and on the host
+//! the one the harnesses and `dbt sim` run. Unlike `rza1`, this one OWNS reset, `main`/`_start`
 //! and the Embassy executor: the HAL startup (`rza1l_hal` `_start` →
 //! `_reset_handler` → `bl main`) lands in [`main`] here, which brings up the
 //! platform on the deluge-sdk HAL+BSP and runs the portable C++ application's

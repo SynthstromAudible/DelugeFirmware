@@ -86,9 +86,8 @@ class HostApp(Product):
         tree = root / HOST_APP_TREE
         steps = []
         if needs_configure(tree, root / "sim", "clang++"):
-            # -DDELUGE_SIM_X64=ON is required: the sim defaults to a -m32 configuration, which cannot link against
-            # the harnesses' 64-bit host Rust. clang, because the firmware ships built with it: the host renders the
-            # golden masters record must take the same code generation.
+            # clang, because the firmware ships built with it: the host renders the golden masters record must take
+            # the same code generation.
             steps.append(
                 Step(
                     "configure",
@@ -100,7 +99,6 @@ class HostApp(Product):
                         str(tree),
                         "-G",
                         "Ninja",
-                        "-DDELUGE_SIM_X64=ON",
                         "-DCMAKE_C_COMPILER=clang",
                         "-DCMAKE_CXX_COMPILER=clang++",
                     ],

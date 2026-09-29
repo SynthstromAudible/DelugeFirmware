@@ -17,16 +17,9 @@
 
 #pragma once
 
-/// @brief The two invariants an audio-file load must preserve, in one place both host gates can
-///        reach.
-///
-/// ONE definition, deliberately. Two host binaries check this — the C-host `deluge_loadcheck`
-/// (src/bsp/host/host_loadcheck_main.cpp) and the Embassy host BSP's sync-vs-async A/B
-/// (audio_load_ab_scenario.cpp) — and they are different executables with different
-/// `main()`s. What makes a shared definition possible anyway is that `deluge_loadcheck` links
-/// `deluge_scenarios`, which puts this directory on its include path. So this header is reachable from both, and a
-/// change to what "half-built" means lands in both at once rather than needing two hand-synced
-/// edits.
+/// @brief The two invariants an audio-file load must preserve, in one place every load scenario can
+///        reach (audio_load_ab, load_policy), so a change to what "half-built" means lands in all of
+///        them at once.
 
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
@@ -35,11 +28,10 @@
 #include <cstdio>
 
 // `src/lib/printf.h` soft-aliases `printf` to the embedded `printf_`, which emits through
-// `putchar_` -- a symbol only the C host BSP defines (src/bsp/host/host_platform.c). This header is
-// also included by the Embassy-BSP A/B gate, which has no such provider, so whether the alias is in
-// scope here depends on nothing more than which OTHER header a consumer happened to include first:
-// with it, this inline fails to LINK in one of its two consumers. Pin the standard function, since
-// what this prints is gate output that has to reach real stdout either way.
+// `putchar_` -- a symbol the host harnesses do not provide. Whether the alias is in scope here depends
+// on nothing more than which OTHER header a consumer happened to include first, and with it this
+// inline fails to LINK. Pin the standard function, since what this prints is gate output that has to
+// reach real stdout either way.
 #ifdef printf
 #undef printf
 #endif

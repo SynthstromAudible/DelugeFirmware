@@ -46,7 +46,7 @@ from pathlib import Path
 # A floor on the case count, so a future edit that shrinks `kCases` cannot keep printing PASS over a comparison that no
 # longer covers the properties this gate was built for. Bump it deliberately when cases are added; never lower it to
 # make a run go green.
-MIN_CASES = 10
+MIN_CASES = 11
 
 SHOWN = re.compile(
     r"^(AB-SUMMARY|AB-DEFER|AB-PREVIEW|AB-CANCEL|AB-PREVIEW-STALL|AB-PREVIEW-TIER|AB-PREVIEW-DRAW"

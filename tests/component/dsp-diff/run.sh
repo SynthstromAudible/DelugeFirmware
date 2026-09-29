@@ -22,10 +22,11 @@ trap 'rm -rf "$out"' EXIT
 # optimisation-dependent divergence, e.g. UB the optimiser exploits differently).
 common=(-std=gnu++23 -fsigned-char -I "$root/src/deluge" -I "$root/src")
 
-# argon (vendored via the sim build's FetchContent) for tests touching the
-# vectorised DSP. On x86 its <arm/neon.h> backend maps to SIMDe portable mode,
-# mirroring sim/CMakeLists.txt; the ARM build uses the real <arm_neon.h>.
-argon_inc="$root/build-sim/_deps/argon-src/include"
+# argon (vendored via the host-app build's FetchContent, the `host-app` product this
+# entry declares) for tests touching the vectorised DSP. On x86 its <arm/neon.h>
+# backend maps to SIMDe portable mode, mirroring sim/CMakeLists.txt; the ARM build
+# uses the real <arm_neon.h>.
+argon_inc="$root/build/host-app/_deps/argon-src/include"
 if [[ -d $argon_inc ]]; then
 	common+=(-I "$argon_inc")
 fi

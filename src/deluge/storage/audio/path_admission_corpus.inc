@@ -22,9 +22,9 @@
  * would refuse permanently never becomes a request that is retried forever. Rust
  * (cstr_to_path/decode_candidates, audio_loader.rs) applies it when the request arrives. A LOOSER
  * C++ rule is that forever-retry coming back; a stricter one silently costs synchronous loads. So
- * neither side owns a private copy of the corpus: src/bsp/host/host_loadcheck_main.cpp #includes
- * this file, and src/bsp/rust/tests/audio_loader_host.rs include_str!()s and parses it, and either
- * side drifting fails a test.
+ * neither side owns a private copy of the corpus: tests/integration/scenarios/load_policy_scenario.cpp
+ * #includes this file, and src/bsp/rust/tests/audio_loader_host.rs include_str!()s and parses it, and
+ * either side drifting fails a test.
  *
  * Each line is one case:
  *

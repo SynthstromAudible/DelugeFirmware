@@ -314,16 +314,13 @@ pub extern "C" fn deluge_memory_scratch() -> *mut core::ffi::c_void {
 // build.rs), so its `GeneralMemoryAllocator` needs *real* backing memory
 // (process `static` byte arrays), not the no-op stand-ins above (which are
 // `target_os = "none"`-only and reference device linker-boundary symbols that
-// don't exist on host). Mirrors `src/bsp/host/host_bsp.c` exactly: same two
-// regions, same `HOST_SDRAM_BYTES`/`HOST_INTERNAL_BYTES` sizes, no DMA on host
-// so cache maintenance is a no-op.
+// don't exist on host): two regions, `HOST_SDRAM_BYTES` and
+// `HOST_INTERNAL_BYTES`, and no DMA on host, so cache maintenance is a no-op.
 
-/// 64 MiB — holds stealable + external + external_small (host_bsp.c's
-/// `HOST_SDRAM_BYTES`).
+/// 64 MiB — holds stealable + external + external_small.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 const HOST_SDRAM_BYTES: usize = 67_108_864;
-/// 2 MiB on-chip-SRAM-equivalent internal heap region (host_bsp.c's
-/// `HOST_INTERNAL_BYTES`).
+/// 2 MiB on-chip-SRAM-equivalent internal heap region.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 const HOST_INTERNAL_BYTES: usize = 2_097_152;
 
@@ -332,10 +329,8 @@ const HOST_INTERNAL_BYTES: usize = 2_097_152;
 /// aligned (`tlsf::ALIGN`) and dereferences a `BlockHeader` through it
 /// unconditionally, so an unaligned region faults immediately on the first
 /// allocation (found running the host_app boot smoke: "misaligned pointer
-/// dereference ... must be a multiple of 0x10" inside `add_pool`). C's
-/// `host_bsp.c` gets away with an unaligned `uint8_t[]` because nothing there
-/// enforces the alignment at the type level; Rust's raw-pointer-dereference
-/// check does. Force it explicitly rather than relying on the allocator's
+/// dereference ... must be a multiple of 0x10" inside `add_pool`). Rust's
+/// raw-pointer-dereference check enforces the alignment. Force it explicitly rather than relying on the allocator's
 /// internal 16-byte carve-out to happen to land aligned.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 #[repr(C, align(16))]
@@ -415,12 +410,12 @@ pub extern "C" fn deluge_cache_line_size() -> u32 {
     64
 }
 
-/// No DMA on host → cache maintenance is a no-op (host_bsp.c parity). [task] [isr]
+/// No DMA on host → cache maintenance is a no-op. [task] [isr]
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_cache_clean(_addr: *const core::ffi::c_void, _size: u32) {}
 
-/// No DMA on host → cache maintenance is a no-op (host_bsp.c parity). [task] [isr]
+/// No DMA on host → cache maintenance is a no-op. [task] [isr]
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_cache_invalidate(_addr: *const core::ffi::c_void, _size: u32) {}

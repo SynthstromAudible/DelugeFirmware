@@ -599,8 +599,8 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
 /// `deluge_scenario_run_recorder_roundtrip` harness scenario) on THIS Embassy substrate. Waits for boot+mount, sets the oracle up inline, then ticks its cases, the finalized
 /// probe's pump and the tail, one step per await, and exits with its result. Unlike the stem-export
 /// scenario, no song load and no fixture image: `main`
-/// formats an EMPTY FAT image (the recorder only ever writes new files) and leaves
-/// `DELUGE_SD_ROOT` unset so the finalized probe reads efatfs on the same image it wrote.
+/// formats an EMPTY FAT image (the recorder only ever writes new files), and the finalized probe
+/// reads efatfs on the same image it wrote.
 #[embassy_executor::task]
 async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: run_recorder_roundtrip_scenario: awaiting boot+mount");
@@ -944,6 +944,9 @@ fn fill_sample_load_tree_card() {
 /// - `SAMPLES/ONLYREG.WAV` and `SAMPLES/STEREO24.WAV` come after that promotion, so they are the
 ///   cases that see the changed try order — and `STEREO24.WAV`'s geometry (2 channels, 24-bit)
 ///   differs in both fields the comparison names first.
+/// - `SAMPLES/BADREG.WAV` is garbage at the regular path with a good copy in `SAMPLES/ALT`, asked for while the
+///   alternate dir is still unprobed. A parse verdict is not a miss: the load must fail as `FILE_UNSUPPORTED`
+///   without probing or loading from the alternate dir.
 /// - `SAMPLES/GARBAGE.WAV` opens and then fails to parse; `SAMPLES/MISSING.WAV` is never written.
 ///   Between them they pin that the two backings fail with the SAME `Error` identity, not merely
 ///   that they both fail.
@@ -1028,6 +1031,9 @@ fn fill_audio_load_ab_card() {
     write_test_wav(&samples.join("SWAPB.WAV"), 2, 24, 6144, 0xE2);
     write_test_wav(&samples.join("WITNESS.WAV"), 1, 16, 1536, 0xE3);
 
+    std::fs::write(samples.join("BADREG.WAV"), vec![0x7Eu8; 512])
+        .expect("writing the A/B fixture's garbage-at-the-regular-path file");
+    write_test_wav(&alt.join("BADREG.WAV"), 1, 16, 2048, 0xBB);
     std::fs::write(samples.join("GARBAGE.WAV"), vec![0x7Eu8; 512])
         .expect("writing the A/B fixture's unparseable file");
     // A third failure shape: the file opens and there is nothing in it.
@@ -1415,6 +1421,16 @@ fn fill_sample_claim_card() {
 /// - `SAMPLES/PLG/PLGATE.WAV` and `SAMPLES/PLS/PLSTALL.WAV`: the gate and stall legs' held samples.
 /// - `SAMPLES/AQ/AQSA.WAV`, `AQKA..AQKD.WAV` and `AQKL.WAV`: the acquisition legs' synth, navigated kits and light kit;
 ///   `SAMPLES/AQH/AQHA..AQHC.WAV` their heavy kit, and `SAMPLES/AQS/PLSTB.WAV` the acquisition stall leg's held sample.
+/// `load_policy`'s card: the one sample its `LP-DEFAULT` loads ask for.
+fn fill_load_policy_card() {
+    let root = std::env::temp_dir().join("deluge-load-policy-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES");
+    std::fs::create_dir_all(&samples).expect("load_policy card: creating SAMPLES");
+    write_test_wav(&samples.join("DEFAULT.WAV"), 1, 16, 2000, 0x42);
+    memory_card::install(Some(&root));
+}
+
 fn fill_preset_load_card() {
     let root = std::env::temp_dir().join("deluge-preset-load-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1583,9 +1599,8 @@ fn main() {
     }
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {
-            "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard" => {
-                memory_card::install(None)
-            }
+            "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard"
+            | "audio_header_dump" => memory_card::install(None),
             "audio_load_ab" => fill_audio_load_ab_card(),
             "song_preview_ab" => fill_song_preview_ab_card(&repo_root),
             "song_save_channel" => fill_song_save_card(),
@@ -1594,6 +1609,7 @@ fn main() {
             "sample_load_tree" => fill_sample_load_tree_card(),
             "sample_claim" => fill_sample_claim_card(),
             "preset_load" => fill_preset_load_card(),
+            "load_policy" => fill_load_policy_card(),
             "clear_song_undo" => fill_clear_song_undo_card(),
             "song_load_channel" => fill_song_load_channel_card(),
             // The card tree to play from: RENDER_TREE, or the GOLDEN_FIXTURE corpus fixture's.

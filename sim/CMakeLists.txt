@@ -1,14 +1,11 @@
 # Host-sim build for the portable Deluge application.
 #
 # A NATIVE build (x86-64 / ARM64), separate from the arm-none-eabi firmware build.
-# It assembles the SAME deluge_app library + the portable libs against the host BSP
-# (src/bsp/host), so it is both the definitive proof the app has no transitive HAL
-# dependency (no RZA1/ on the include path) and the substrate for host CI + the
-# audio WAV-diff harness.
-#
-#   cmake -B build-sim -S sim -G Ninja && cmake --build build-sim
-#   ./build-sim/deluge_host_boundary    # BSP-boundary smoke target
-#   ./build-sim/deluge_host             # the full application (in progress)
+# It assembles the SAME deluge_app library + the portable libs for the host, so it
+# is both the definitive proof the app has no transitive HAL dependency (no RZA1/
+# on the include path) and what the Embassy host harnesses and `dbt sim` link
+# (tests/: the `host-app` build product, built into build/host-app). Nothing
+# links here: the harnesses' build scripts archive these objects.
 
 cmake_minimum_required(VERSION 3.24)
 
@@ -81,16 +78,11 @@ set(CMAKE_CXX_EXTENSIONS ON)
 cmake_path(SET SHARED_INCLUDE ${REPO_ROOT}/src)
 
 # ---------------------------------------------------------------------------
-# Target matrix. Rather than enumerate modes, derive two orthogonal facts:
-#   DELUGE_SIM_M32          build 32-bit x86 — the firmware's pointer model, and the golden
-#                           reference. Only the plain Linux-x86 host; never on macOS (no 32-bit
-#                           runtime), an arm64 host, or the explicit 64-bit modes.
-#   DELUGE_SIM_NEON_NATIVE  the SIMD backend is real NEON (<arm_neon.h> exists) rather than
-#                           SIMDe's x86 emulation — true on the arm-linux cross and on any
-#                           arm64/aarch64 host (e.g. Apple Silicon).
+# Target matrix. DELUGE_SIM_NEON_NATIVE: the SIMD backend is real NEON (<arm_neon.h> exists)
+# rather than SIMDe's x86 emulation — true on the arm-linux cross and on any arm64/aarch64 host
+# (e.g. Apple Silicon).
 # Host configurations:
-#   default (Linux x86)     -m32, SIMDe portable-C fallbacks. Bit-matches the firmware.
-#   DELUGE_SIM_X64=ON       x86-64 Linux, SIMDe on real SSE/AVX. 64-bit-pointer-clean.
+#   default (Linux x86-64)  SIMDe on real SSE/AVX.
 #   DELUGE_SIM_ARM=ON       arm-linux/NEON cross (32-bit armv7), run under qemu.
 #   macOS (auto)            native 64-bit; Apple Silicon uses native NEON, Intel Macs use SIMDe.
 # ---------------------------------------------------------------------------
@@ -98,25 +90,8 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
     set(DELUGE_SIM_ARM64_HOST ON) # native 64-bit ARM host (Apple Silicon, arm64 Linux)
 endif()
 
-if(NOT DELUGE_SIM_ARM AND NOT DELUGE_SIM_X64 AND NOT APPLE AND NOT DELUGE_SIM_ARM64_HOST)
-    set(DELUGE_SIM_M32 ON)
-endif()
-
 if(DELUGE_SIM_ARM OR DELUGE_SIM_ARM64_HOST)
     set(DELUGE_SIM_NEON_NATIVE ON) # real <arm_neon.h>, no SIMDe
-endif()
-
-if(DELUGE_SIM_M32)
-    add_compile_options(-m32)
-    add_link_options(-m32)
-
-    # Use SSE for float math instead of the 32-bit x87 default. x87 evaluates float
-    # intermediates at 80-bit extended precision, which silently diverges from the
-    # firmware's strict IEEE-754 single-precision VFP — enough to perturb marginally
-    # stable float feedback loops (e.g. the Mutable reverb) away from the device's
-    # behaviour. -mfpmath=sse keeps host float arithmetic bit-comparable to the target.
-    # (64-bit hosts already default to SSE / use NEON, so this only applies to the -m32 build.)
-    add_compile_options(-msse2 -mfpmath=sse)
 endif()
 
 # Char signedness matches the firmware (ARM default is unsigned; be explicit).
@@ -130,15 +105,6 @@ add_compile_options(-g)
 # Clang-specific host-sim adjustments (default host toolchain is GCC; Clang/AppleClang are
 # supported alternatives — note macOS reports "AppleClang", hence MATCHES not STREQUAL).
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    if(DELUGE_SIM_M32)
-        # The -m32 sim links against GCC's runtime, but a multilib system may ship no 32-bit
-        # libgcc_s.so link stub (only libgcc_s.so.1). GCC resolves -lgcc_s via collect2; Clang
-        # does not, and the link fails with "cannot find -lgcc_s". Link libgcc statically to drop
-        # the shared -lgcc_s dependency at link time (only meaningful on the 32-bit x86 path; macOS
-        # clang has no libgcc at all).
-        add_link_options(-static-libgcc)
-    endif()
-
     # validateParams() (modulation/params/param.cpp) does O(N^2) constexpr string matching in
     # a static_assert. That exceeds Clang's default -fconstexpr-steps budget; GCC's equivalent
     # -fconstexpr-ops-limit default is far higher, so it compiles there. Raise the ceiling.
@@ -197,15 +163,6 @@ if(NOT DELUGE_SIM_NEON_NATIVE)
     # (the compat shim), the simde/ subdir resolves argon's bare <arm/neon.h>. Both are added below.
     set(SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
 
-    if(DELUGE_SIM_M32)
-        # Force SIMDe to its portable-C fallbacks instead of native x86 intrinsics. Under -m32 SIMDe's
-        # native path drags in GCC's AVX512/FMA <immintrin.h> sub-headers, which don't parse in 32-bit
-        # mode. The portable path is bit-accurate to NEON (the whole point of SIMDe) and deterministic —
-        # exactly what we want for host CI + the audio WAV-diff reference; the speed hit is irrelevant here.
-        # Must be global: argon includes <simde/arm/neon.h> directly, not via our compat shim.
-        # On x86-64 we drop this and let SIMDe lower to real SSE/AVX.
-        add_compile_definitions(SIMDE_NO_NATIVE)
-    endif()
 endif()
 
 # The app includes <execution>. On host glibc libstdc++ the parallel STL backend is oneTBB,
@@ -248,7 +205,6 @@ if(DELUGE_SIM_NEON_NATIVE)
     # Real NEON (arm-linux cross or an arm64 host): the toolchain provides <arm_neon.h>; argon's
     # <arm/neon.h> and the SIMDe compat shim are unused.
     include_directories(BEFORE ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include)
-    set(HOST_INCLUDE_DIRS ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include ${REPO_ROOT}/src)
 else()
     include_directories(BEFORE
         ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
@@ -257,29 +213,10 @@ else()
         ${SIMDE_INCLUDE_DIR}               # compat shim's <simde/arm/neon.h> -> SIMDe
         ${SIMDE_INCLUDE_DIR}/simde         # argon's bare <arm/neon.h> -> SIMDe
     )
-    set(HOST_INCLUDE_DIRS
-        ${CMAKE_CURRENT_LIST_DIR}/compat # arm_neon.h -> SIMDe shim
-        ${REPO_ROOT}/include             # <libdeluge/...> boundary
-        ${REPO_ROOT}/crates/deluge_resource/include # deluge_resource.h (Rust resource manager C ABI)
-        ${REPO_ROOT}/src                 # SHARED_INCLUDE
-    )
 endif()
 
 # ===========================================================================
-# Stage 1: boundary smoke target (host BSP + a main that exercises it).
-# ===========================================================================
-add_executable(deluge_host_boundary
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_main.c
-)
-target_include_directories(deluge_host_boundary PRIVATE ${HOST_INCLUDE_DIRS})
-find_library(RT_LIB rt)
-if(RT_LIB)
-    target_link_libraries(deluge_host_boundary PRIVATE ${RT_LIB})
-endif()
-
-# ===========================================================================
-# Stage 2: the full application.
+# The application.
 # ===========================================================================
 
 # NE10 (int32 FFT) — native, via SIMDe. deluge_app links the target name `NE10`,
@@ -313,170 +250,3 @@ add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # d
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
 
-# --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource,
-# + the region cursor (deluge_sample_source) under its `sim` feature, SR3a Task 1) -
-# Build the umbrella as a host staticlib matching the sim's word size and link it
-# into the sim executables. The deluge_app allocator (heaps + the GMA coordinator)
-# is unconditionally backed by it; the legacy C++ MemoryRegion path has been retired.
-# Pick the Rust std target triple to match the C++ host ABI (word size + platform).
-if(APPLE AND DELUGE_SIM_ARM64_HOST)
-    set(SIM_RUST_TARGET aarch64-apple-darwin) # Apple Silicon
-elseif(APPLE)
-    set(SIM_RUST_TARGET x86_64-apple-darwin) # Intel Mac
-elseif(DELUGE_SIM_ARM64_HOST)
-    set(SIM_RUST_TARGET aarch64-unknown-linux-gnu) # arm64 Linux
-elseif(DELUGE_SIM_ARM)
-    set(SIM_RUST_TARGET armv7-unknown-linux-gnueabihf) # 32-bit armv7 hardfloat cross, run under qemu
-elseif(DELUGE_SIM_X64)
-    set(SIM_RUST_TARGET x86_64-unknown-linux-gnu)
-else()
-    set(SIM_RUST_TARGET i686-unknown-linux-gnu) # the default -m32 sim
-endif()
-set(SIM_RUST_WS ${REPO_ROOT}/crates)
-set(SIM_RUST_LIB ${SIM_RUST_WS}/target/${SIM_RUST_TARGET}/release/libdeluge_rust.a)
-file(GLOB_RECURSE SIM_RUST_SOURCES CONFIGURE_DEPENDS
-    ${SIM_RUST_WS}/deluge_alloc/src/*.rs
-    ${SIM_RUST_WS}/deluge_resource/src/*.rs
-    ${SIM_RUST_WS}/deluge_audio_format/src/*.rs
-    ${SIM_RUST_WS}/deluge_sample_source/src/*.rs
-    ${SIM_RUST_WS}/deluge_sample_fill/src/*.rs
-    ${SIM_RUST_WS}/deluge_sample_reader/src/*.rs
-    ${SIM_RUST_WS}/deluge_sample_stream/src/*.rs
-    ${SIM_RUST_WS}/deluge_rust/src/*.rs)
-# Always build the Rust region cursor (deluge_sample_source, SR2d-5) into the umbrella so the sim
-# resolves the SAME strong `deluge_sample_source_*`/`deluge_sample_region_*` cursor as
-# device/host_app. Since SR3f deleted the C++ weak fallback (sample_source.cpp), the Rust cursor is
-# the sole definition of those symbols here (proved via nm on the sim binary; golden byte-identical).
-# `deluge_rust/sim` forwards to `deluge_sample_source`'s own `sim` feature, which widens abi.rs's cfg
-# gate to actually emit the symbols (see that crate's Cargo.toml).
-# Under the ASan sim build, also turn on the allocator's poison hooks so use-after-free within a
-# heap is caught (the __asan_*_memory_region calls resolve from libasan at the final C++ link).
-# That feature is a no-op in the crate otherwise.
-set(SIM_RUST_FEATURES --features deluge_rust/sim)
-if(DELUGE_SIM_SANITIZE)
-    list(APPEND SIM_RUST_FEATURES --features deluge_rust/asan)
-endif()
-add_custom_command(
-    OUTPUT ${SIM_RUST_LIB}
-    # --target-dir pins the output to SIM_RUST_LIB's directory: a CARGO_TARGET_DIR in the environment (the harness
-    # runner sets one) would otherwise build the staticlib elsewhere and leave this link on a stale copy.
-    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET} --target-dir ${SIM_RUST_WS}/target
-            ${SIM_RUST_FEATURES}
-    WORKING_DIRECTORY ${SIM_RUST_WS}
-    DEPENDS ${SIM_RUST_SOURCES}
-        ${SIM_RUST_WS}/Cargo.lock
-        ${SIM_RUST_WS}/Cargo.toml ${SIM_RUST_WS}/deluge_alloc/Cargo.toml
-        ${SIM_RUST_WS}/deluge_resource/Cargo.toml ${SIM_RUST_WS}/deluge_rust/Cargo.toml
-        ${SIM_RUST_WS}/deluge_audio_format/Cargo.toml
-        ${SIM_RUST_WS}/deluge_sample_source/Cargo.toml
-        ${SIM_RUST_WS}/deluge_sample_fill/Cargo.toml
-        ${SIM_RUST_WS}/deluge_sample_reader/Cargo.toml
-        ${SIM_RUST_WS}/deluge_sample_stream/Cargo.toml
-    COMMENT "Building Rust deluge_rust staticlib (${SIM_RUST_TARGET})"
-    VERBATIM
-)
-add_custom_target(sim_deluge_rust_build DEPENDS ${SIM_RUST_LIB})
-add_library(deluge_rust_sim STATIC IMPORTED GLOBAL)
-set_target_properties(deluge_rust_sim PROPERTIES IMPORTED_LOCATION ${SIM_RUST_LIB})
-add_dependencies(deluge_rust_sim sim_deluge_rust_build)
-# Libs the host Rust std staticlib references; linked into the sim executables below.
-#
-# Plain (lazily-extracted) static archive linkage: every `deluge_sample_source_*`/`deluge_resource_*`
-# symbol the Rust umbrella exports is referenced as an *undefined* symbol by deluge_app's C++ (the
-# region-port bridge in sample_low_level_reader.cpp, the resource-manager callers), so ordinary
-# archive-member extraction pulls the Rust definitions from libdeluge_rust.a normally.
-#
-# Historical note (SR3a..SR3f): this link used to need `$<LINK_LIBRARY:WHOLE_ARCHIVE,...>` because
-# the now-deleted C++ mirror storage/audio/stream/sample_source.cpp contributed `__attribute__((weak))`
-# `deluge_sample_source_*` bodies via deluge_app (an OBJECT library, always included) BEFORE this
-# archive -- so those symbols were already (weakly) defined by the time ld reached the archive, and
-# plain extraction never pulled the strong Rust override (empirically all 7 showed as `W` in `nm`).
-# WHOLE_ARCHIVE force-extracted the whole umbrella so strong/weak resolution could pick Rust. SR3f
-# deleted that mirror, so the symbols are genuinely undefined here and the workaround is no longer
-# needed (verified: `nm deluge_render` shows all 7 as `T`, golden byte-identical, without it).
-set(SIM_ALLOC_LINK deluge_rust_sim pthread dl m)
-if(APPLE)
-    # host_pcm.c's native CoreAudio (AudioQueue) audio backend.
-    list(APPEND SIM_ALLOC_LINK "-framework AudioToolbox")
-endif()
-
-# The host executable: the portable app + the host BSP + the scheduler. deluge_app
-# is an OBJECT lib (its objects embed here); deluge_scheduler is STATIC (resolves
-# against them). host_main drives the boundary for now; it becomes the host runtime
-# loop (deluge_app_init/render/tick) as the app is brought up.
-add_executable(deluge_host
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_ws.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_main.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
-)
-# host_debug.cpp reaches into the app's reason_check (memory/reason_check.h) for the host-sim leak triggers - allowed
-# (the boundary check only forbids the app depending on the BSP, not the reverse), so put src/deluge on the path.
-target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_host PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(deluge_host PRIVATE ${RT_LIB})
-endif()
-
-# deluge_loadcheck: headless "load these audio files, print their parsed descriptors" utility — the Tier-2
-# regression net for the file-loading redesign. Same app + host BSP as deluge_render, with its own
-# main()/driver (host_loadcheck_main.cpp) that drives AudioFileManager::getAudioFileFromFilename (and so
-# ClusterByteSource + the parser) against a project directory served by host_efatfs_passthrough.cpp
-# (DELUGE_SD_ROOT). No external tools required.
-add_executable(deluge_loadcheck
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_ws.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_loadcheck_main.cpp
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
-)
-# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) + reaches the app's reason_check;
-# src/deluge on the path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
-target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
-endif()
-
-# deluge_audio_header_dump: headless C++ oracle for the `deluge_audio_format` (crates/deluge_audio_format)
-# corpus differential (see tests/integration/scenarios/audio_header_dump.h). Same app + host BSP boot as deluge_loadcheck, but
-# its own main()/driver (host_audio_header_dump_main.cpp) reads host filesystem paths from stdin and, for
-# each, dumps parseSampleHeader's/parseWaveTableHeader's (both makeWaveTableWorkAtAllCosts settings)
-# outcome as one JSON line to stdout — driven straight off an in-memory AudioByteSource, so unlike
-# deluge_loadcheck it needs no DELUGE_SD_ROOT/efatfs passthrough at all.
-add_executable(deluge_audio_header_dump
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_ws.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_audio_header_dump_main.cpp
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
-)
-target_include_directories(deluge_audio_header_dump PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_audio_header_dump PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(deluge_audio_header_dump PRIVATE ${RT_LIB})
-endif()
-
-# NOTE: the C-host `deluge_render` / `deluge_recorder_roundtrip` renderers and their CTests
-# (the padsweep layout-invariance guard + the SampleRecorder round-trip oracle) were retired
-# when the sample-streaming golden moved onto the async Embassy renderer: `deluge_render` is
-# superseded by `src/bsp/rust/harness/golden_vt_render` (`scripts/golden_embassy_diff.sh`), and the
-# recorder round-trip oracle now runs there too (`GOLDEN_SCENARIO=recorder_roundtrip`). The
-# padsweep layout-invariance guard has no Embassy replacement yet — a tracked follow-up.
-# `deluge_loadcheck` (parse-only, no sample streaming) stays.

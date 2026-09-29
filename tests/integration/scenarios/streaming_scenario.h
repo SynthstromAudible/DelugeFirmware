@@ -27,10 +27,8 @@
 /// existing production code.
 ///
 /// @note `DELUGE_HOST`-only (see sim/CMakeLists.txt's `add_compile_definitions(DELUGE_HOST)`):
-///       compiled into every x86 build off this tree (deluge_host/deluge_render/deluge_loadcheck,
-///       and the Rust Embassy `host_app`), never into the ARM device firmware. Unreachable —
-///       and so behaviourally inert — from deluge_host/deluge_render/deluge_loadcheck's own
-///       drivers; only the Rust harness calls these.
+///       compiled into every x86 build off this tree (the Rust Embassy `host_app` and its
+///       harnesses), never into the ARM device firmware. Only the Rust harness calls these.
 ///
 /// ## Why two-phase song load
 /// On the Embassy BSP, `Browser::beginListing` (which `openUI(&loadSongUI)` triggers) reads the

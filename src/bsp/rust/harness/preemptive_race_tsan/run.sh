@@ -238,7 +238,6 @@ mkdir -p "$LOG_DIR"
 if [[ -z "${SKIP_BUILD:-}" ]]; then
     echo "== [1/3] Building TSan deluge_app tree ($TSAN_BUILD_DIR) =="
     cmake -B "$TSAN_BUILD_DIR" -S "$REPO_ROOT/sim" -G Ninja \
-        -DDELUGE_SIM_X64=ON \
         -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
         -DCMAKE_C_FLAGS="-fsanitize=thread" \
         -DCMAKE_CXX_FLAGS="-fsanitize=thread" >/dev/null

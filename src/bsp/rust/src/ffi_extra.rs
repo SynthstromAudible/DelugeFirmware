@@ -114,16 +114,13 @@ ne10_stub!(
 // On device these four `extern uint32_t` symbols (memory/stack_guard.cpp,
 // memory/heaps.cpp) come from the `rza1l.x` linker script's PROVIDE()'d
 // boundary marks; the app only ever takes their *address* (`&symbol`), never
-// reads/writes through them. `src/bsp/host/host_bsp.c` reproduces this on
-// host by `.set`-aliasing the symbol names onto the edges of two real
-// `static` byte arrays (an inline-asm block, since Rust statics have no
-// linker-level alias mechanism); mirrored here with `global_asm!` + `.set` +
-// `sym` operands, so no separate storage is allocated purely to be pointed at
-// — same zero-cost-marker shape as the C.
+// reads/writes through them. On host they are `.set`-aliased onto the edges
+// of real `static` byte arrays with `global_asm!` + `.set` + `sym` operands
+// (Rust statics have no linker-level alias mechanism), so no separate storage
+// is allocated purely to be pointed at.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod boundary_markers {
-    /// 256 KiB "frunk" (small-internal) slack region — matches host_bsp.c's
-    /// `HOST_FRUNK_BYTES`. Real backing storage: `deluge::memory::init_heaps()`
+    /// 256 KiB "frunk" (small-internal) slack region. Real backing storage: `deluge::memory::init_heaps()`
     /// builds an actual `DelugeHeap` over `[__frunk_bss_end, __frunk_slack_end)`
     /// and the app allocates/writes into it.
     const HOST_FRUNK_BYTES: usize = 262_144;
@@ -138,7 +135,7 @@ mod boundary_markers {
     static mut HOST_FRUNK: HeapRegion<HOST_FRUNK_BYTES> = HeapRegion([0; HOST_FRUNK_BYTES]);
 
     /// Backing address for `program_stack_start`/`program_stack_end`, aliased
-    /// to the SAME address below (mirroring host_bsp.c) — never dereferenced,
+    /// to the SAME address below — never dereferenced,
     /// only compared. `stack_guard.cpp`'s `checkStack` reads this as "no known
     /// SoC-stack region" and returns immediately, matching its own comment:
     /// "the host sim, which runs on the OS-managed native stack".
