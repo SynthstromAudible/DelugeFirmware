@@ -299,7 +299,7 @@ cmake -B build-embassy-hostapp-tsan -S sim -G Ninja \
   -DCMAKE_C_FLAGS="-fsanitize=thread" \
   -DCMAKE_CXX_FLAGS="-fsanitize=thread"
 ninja -C build-embassy-hostapp-tsan deluge_app fatfs NE10 eyalroz_printf \
-  deluge_dsp deluge_scheduler deluge_foundation deluge_midi
+  deluge_dsp deluge_foundation deluge_midi
 ```
 
 No `-fshort-enums` here, TSan or not (see `run_bindgen`'s comment in

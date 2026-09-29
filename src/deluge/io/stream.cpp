@@ -149,12 +149,8 @@ std::expected<uint32_t, Status> Stream::size() {
 std::expected<void, Status> Stream::close() {
 	// NOTE: an in-flight async write must already be finished by the time anyone closes this stream.
 	// The channel holds a raw pointer into the caller's buffer, and every caller frees that buffer
-	// after close() returns. Draining HERE is not an option: every wait primitive available to the
-	// app lives in `task_scheduler_c_api.cpp`, and referencing one pulls that whole translation unit
-	// out of libdeluge_scheduler.a -- whose 24 other symbols the Rust BSP's `scheduler.rs` already
-	// defines, so the link fails on duplicate symbols. The obligation therefore sits with the state
-	// machine that owns the buffer: see `SampleRecorder::cardRoutine`, which never reaches a terminal
-	// status with a write outstanding.
+	// after close() returns. The obligation sits with the state machine that owns the buffer: see
+	// `SampleRecorder::cardRoutine`, which never reaches a terminal status with a write outstanding.
 	bool ok = deluge_efatfs_stream_close(unbox_stream_handle(handle_));
 	handle_ = nullptr; // matters even on error: don't let the destructor double-close
 	if (!ok) {

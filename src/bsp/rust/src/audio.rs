@@ -21,6 +21,7 @@ use core::sync::atomic::{AtomicU32, Ordering};
 
 use rza1l_hal::ssi;
 
+use crate::audio_pacing::pace_window;
 use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK, DelugeStereoSample};
 
 unsafe extern "C" {
@@ -139,27 +140,6 @@ unsafe fn prepare_input_block(frames: usize) {
         };
     }
     RX_READ = (RX_READ + frames) & RX_MASK;
-}
-
-/// Round/expand a raw free-frame count into a render window (audio_pacing.h):
-/// double the amount over a small threshold (smoother under light load), cap at
-/// the ring, then round up to a multiple of 4 for the NEON kernels.
-fn pace_window(raw: usize, ring: usize) -> usize {
-    const THRESHOLD: i32 = 6;
-    let mut n = raw as i32;
-    if (n as usize) < ring {
-        let over = n - THRESHOLD;
-        if over > 0 {
-            n = THRESHOLD + (over << 1);
-        }
-    }
-    if (n as usize) > ring {
-        n = ring as i32;
-    }
-    if n >= 3 {
-        n = (n + 2) & !3;
-    }
-    n as usize
 }
 
 #[unsafe(no_mangle)]

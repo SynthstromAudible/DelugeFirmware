@@ -147,6 +147,9 @@ mod audio_host;
 /// doc's "Always on".
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod audio_loader;
+/// The drive's render-window pacing, which `audio` runs.
+#[cfg(target_os = "none")]
+mod audio_pacing;
 /// board.h — capability descriptor + GPIO/audio/CV bring-up. Compiled on host
 /// too under `host_app` (the descriptor/probe are pure data/logic; the GPIO/CV
 /// bring-up bodies get host no-op siblings — see board.rs).

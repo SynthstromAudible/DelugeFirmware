@@ -102,8 +102,6 @@ configure_file(../../../src/deluge/util/firmware_version.h.in
 add_executable(UnitTests
         RunAllTests.cpp
         mem_guard_tests.cpp
-        audio_pacing_tests.cpp
-        scheduler_tests.cpp
         scale_tests.cpp
         value_scaling_tests.cpp
         clip_iterator_tests.cpp

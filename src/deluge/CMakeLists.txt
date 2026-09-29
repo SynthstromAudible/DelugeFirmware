@@ -54,7 +54,7 @@ target_link_libraries(deluge_app PUBLIC
     eyalroz_printf
     deluge_dsp
     deluge_dsp_next # the clean L0 library primitives migrate into (synth untangling Phase 1)
-    deluge_scheduler # the cooperative task scheduler (provides scheduler_api.h on its path)
+    deluge_scheduler # the scheduler API headers (scheduler_api.h on its path)
     argon
     etl::etl
     deluge_foundation
