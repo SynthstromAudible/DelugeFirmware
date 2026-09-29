@@ -568,7 +568,6 @@ bool SaveSongUI::transferOneSynchronously() {
 	if (entry.renameTemp) {
 		// A failed move is NOT fatal: the recording stays where it is and the copy reads from there.
 		StorageManager::buildPathToFile(entry.renameTo.c_str());
-		deluge_file_invalidate_cache();
 		const auto renamed = deluge::io::rename(entry.renameFrom, entry.renameTo);
 		renameSucceeded_ = renamed.has_value();
 		if (!renameSucceeded_) {
@@ -1030,7 +1029,6 @@ bool SaveSongUI::docStepSynchronously() {
 		return true;
 	}
 	case DocPhase::UNLINK: {
-		deluge_file_invalidate_cache();
 		if (!deluge::io::unlink(pendingFilePath_).has_value()) {
 			return false;
 		}
@@ -1038,7 +1036,6 @@ bool SaveSongUI::docStepSynchronously() {
 		return true;
 	}
 	case DocPhase::RENAME: {
-		deluge_file_invalidate_cache();
 		if (!deluge::io::rename(docWritePath_, pendingFilePath_).has_value()) {
 			return false;
 		}

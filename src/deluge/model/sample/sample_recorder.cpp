@@ -867,7 +867,6 @@ bool SampleRecorder::advanceAbort() {
 		bool unlinked = false;
 		using deluge::storage::bytes::ByteIo;
 		if (!abortIssued_) {
-			deluge_file_invalidate_cache();
 			if (mayUseChannel) {
 				const ByteIo io = deluge::storage::bytes::requestUnlink(filePathCreated.c_str());
 				if (io == ByteIo::Pending) {
@@ -1097,11 +1096,6 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 		}
 
 		case CreatePhase::Open: {
-			// Bypasses the Tier 2 locator cache -- must invalidate it, or a stale cached locator for
-			// this exact path (from an earlier directory listing) could survive a mayOverwrite
-			// create-always reopen and feed a later cache-hit read the pre-overwrite file's stale
-			// sclust/objsize.
-			deluge_file_invalidate_cache();
 			createOpenNotFound_ = false;
 			if (mayUseChannel) {
 				// Refused: nothing was queued, so ask again next tick, until the bound. Opening here instead would

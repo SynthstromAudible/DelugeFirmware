@@ -897,7 +897,6 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 	tempPath = audioRecordingFolderNames[folderID];
 
 	// try to create the STEMS folder if it doesn't exist
-	deluge_file_invalidate_cache();
 	// if we couldn't create folder and it doesn't exist, return error
 	if (auto made = deluge::io::mkdir(tempPath.c_str());
 	    !made.has_value() && made.error() != deluge::io::Status::EXISTS) {
@@ -921,7 +920,6 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 	}
 
 	// try to create folder
-	deluge_file_invalidate_cache();
 	// if we couldn't create folder and it doesn't exist, return error
 	if (auto made = deluge::io::mkdir(tempPath.c_str());
 	    !made.has_value() && made.error() != deluge::io::Status::EXISTS) {
@@ -1000,7 +998,6 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 
 			switch (stemSearchPhase_) {
 			case deluge::storage::StemSearchPhase::ProbeCandidate: {
-				deluge_file_invalidate_cache();
 				if (mayUseChannel) {
 					DelugeStatus outStatus = DELUGE_OK;
 					bool present = false;
@@ -1030,7 +1027,6 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 			}
 
 			case deluge::storage::StemSearchPhase::MkdirCandidate: {
-				deluge_file_invalidate_cache();
 				if (mayUseChannel) {
 					DelugeStatus outStatus = DELUGE_OK;
 					const deluge::storage::bytes::ByteIo io =

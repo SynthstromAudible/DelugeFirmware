@@ -44,7 +44,7 @@ pub extern "C" fn _sbrk(incr: isize) -> *mut core::ffi::c_void {
     (base + old) as *mut core::ffi::c_void
 }
 
-// --- BSP globals the app reads (cf. src/bsp/{host,rza1}) ---
+// --- BSP globals the app reads ---
 #[unsafe(no_mangle)]
 pub static mut anythingInitiallyAttachedAsUSBHost: u8 = 0;
 #[unsafe(no_mangle)]

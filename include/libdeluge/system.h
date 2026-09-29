@@ -17,9 +17,8 @@
 
 /// libdeluge/system.h — platform lifecycle and low-level services.
 ///
-/// Replaces the boot/reset/fault wiring currently in `main.c`, `resetprg.c`,
-/// `fault_handler`, and `RZA1/intc`. The platform calls `deluge_platform_init`
-/// before any other service and before `deluge_app_init`.
+/// The platform calls `deluge_platform_init` before any other service and before
+/// `deluge_app_init`.
 #ifndef LIBDELUGE_SYSTEM_H
 #define LIBDELUGE_SYSTEM_H
 
@@ -36,10 +35,6 @@ DelugeStatus deluge_platform_init(void);
 
 /// Reset the device. Does not return. [task]
 void deluge_system_reset(void) __attribute__((noreturn));
-
-/// Stop all hardware timers/peripherals in preparation for handing control away
-/// (e.g. chainloading new firmware). Call with interrupts already disabled. [task]
-void deluge_system_quiesce(void);
 
 /// Emit debug/log text to the board's debug channel (RTT/UART), with no implicit
 /// newline — the caller owns formatting. Best-effort, may be dropped. [task] [isr]

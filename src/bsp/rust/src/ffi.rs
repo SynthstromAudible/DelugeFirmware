@@ -105,11 +105,6 @@ pub extern "C" fn deluge_display_consume_transfer_ack() -> bool {
 // usb_is_host/usb_peripheral_connected/poll_usb_host_event) is implemented in
 // `midi` (DIN over deluge_bsp::uart; USB-MIDI deferred/disconnected).
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_system_quiesce() {
-    stub_log!("deluge_system_quiesce");
-}
-
 // deluge_encoder_take_edges is implemented in `control` (ISR edge counters).
 
 // deluge_flash_read/erase/program are implemented in `flash` (SPI settings flash).

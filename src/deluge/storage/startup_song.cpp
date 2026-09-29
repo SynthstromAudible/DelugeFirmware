@@ -258,7 +258,6 @@ std::optional<StartupPresence> collectExists(const char* path) {
 /// Issue the canary write on whichever arm is in force. A zero-byte file: only its EXISTENCE means
 /// anything.
 void issueCanaryWrite() {
-	deluge_file_invalidate_cache();
 	if (viaChannel()) {
 		if (deluge::storage::bytes::requestWrite(g_canaryPath.c_str(), "", 0)
 		    == deluge::storage::bytes::ByteIo::Pending) {
@@ -313,7 +312,6 @@ bool stageTemplateDocument(const uint8_t** outBytes, uint32_t* outLen) {
 
 /// Issue the template write on whichever arm is in force.
 void issueTemplateWrite() {
-	deluge_file_invalidate_cache();
 	const uint8_t* bytes = nullptr;
 	uint32_t len = 0;
 	const bool staged = stageTemplateDocument(&bytes, &len);
@@ -426,7 +424,6 @@ std::optional<bool> collectCanaryWrite() {
 /// ticks costs nothing, and one never removed costs a single skipped startup song next boot, which is
 /// the fail-safe being conservative rather than failing.
 void issueUnlink(const std::string& path) {
-	deluge_file_invalidate_cache();
 	if (viaChannel()) {
 		if (deluge::storage::bytes::requestUnlink(path.c_str()) == deluge::storage::bytes::ByteIo::Pending) {
 			g_requested = true;
@@ -727,7 +724,6 @@ void finishStartupSong() {
 	// ...but we got this far, cleanup. Requested and not collected: this runs from the load's
 	// completion, which has nowhere to poll from, and an uncollected answer costs nothing -- see
 	// `issueUnlink`.
-	deluge_file_invalidate_cache();
 	if (deluge::storage::bytes::usingByteChannel()) {
 		if (deluge::storage::bytes::requestUnlink(g_startupFailSafePath.c_str())
 		    == deluge::storage::bytes::ByteIo::Pending) {

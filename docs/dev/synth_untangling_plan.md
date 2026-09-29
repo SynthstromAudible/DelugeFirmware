@@ -18,7 +18,7 @@ portable, and *testable* library (`libdeluge-synth`), structured so that:
   feasibility) and export of the Deluge synth itself as a desktop plugin.
 
 This is a sibling effort to the libdeluge/BSP separation
-([libdeluge_separation_plan.md](libdeluge_separation_plan.md)): that effort
+([include/libdeluge/README.md](../../include/libdeluge/README.md)): that effort
 cut the *platform* boundary below the app; this one cuts the *synthesis*
 boundary inside it.
 

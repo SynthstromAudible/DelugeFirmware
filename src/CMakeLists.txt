@@ -11,6 +11,6 @@ add_subdirectory(lib)
 # No firmware executable is assembled here. The device image is linked by cargo
 # from src/bsp/rust: it archives deluge_app's objects plus the static-library
 # closure above and links them against the Rust BSP (see scripts/tasks/task-build.py
-# and src/bsp/rust/build.rs). The host-sim assembles the same deluge_app against
-# its own BSP in sim/CMakeLists.txt.
+# and src/bsp/rust/build.rs). sim/CMakeLists.txt builds the same libraries for the
+# host, which the Rust BSP's host builds link.
 # ---------------------------------------------------------------------------

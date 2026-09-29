@@ -439,13 +439,15 @@ void StorageManager::releaseDocumentStaging() {
 // copyable nor movable -- emplace() runs the memory constructor in place, which is the only way to
 // re-point one of these at a new buffer without duplicating that constructor's initialisation here.
 // Both start disengaged, so they are constant-initialised: no static constructor, no allocation. They
-// do still GROW .sdram_bss by their own size, and src/bsp/rza1/memory.c derives the device's external
-// heap base from &__sdram_bss_end -- so the device heap base shifts down and the heap shrinks by that
-// much. Harmless at this size, and invisible to the goldens, which run on the Embassy host, where
+// do still GROW .sdram_bss by their own size, and the Rust BSP derives the device's external heap base
+// from &__sdram_bss_end (services.rs, deluge_memory_region) -- so the device heap base shifts down and
+// the heap shrinks by that much. Harmless at this size, and invisible to the goldens, which run on the Embassy host,
+// where
 // __sdram_bss_end is `.set` to a fixed host array the linker never moves.
 //
 // These are the first std::optionals in .sdram_bss, and being disengaged at boot is a fact they INHERIT
-// from resetprg.c's emptySection(&__sdram_bss_start, &__sdram_bss_end) -- nothing else zeroes them. If
+// from the boot's zeroing of [__sdram_bss_start, __sdram_bss_end) (src/bsp/rust/src/boot_mem.rs,
+// init_sdram_memory) -- nothing else zeroes them. If
 // that memset is ever dropped again (it has been deleted once before), the first emplace() here would
 // see a garbage-engaged optional, destroy a garbage XMLDeserializer, and hand its garbage
 // fileClusterBuffer to dealloc(). Do not move these out from under that memset.

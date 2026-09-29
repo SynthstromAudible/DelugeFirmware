@@ -105,10 +105,8 @@
 //! request/collect C ABI ([`deluge_audio_load_request`],
 //! [`deluge_audio_load_collect`], [`deluge_audio_load_async_active`]), the
 //! queue/result tables behind it, the parse driver ([`LoadOps`], [`load_io_once`])
-//! and, where a backing is linked, `ProdOps` and [`audio_load_task`]. These override
-//! the `__attribute__((weak))` C++ fallbacks in `audio_load_abi.cpp`; every other
-//! BSP (legacy/cooperative sim, rza1) never links this crate, resolves those
-//! fallbacks, and always takes the synchronous path.
+//! and, where a backing is linked, `ProdOps` and [`audio_load_task`]. They are the
+//! only definitions: there is no C++ fallback.
 //!
 //! There is no switch. The tables and the task's pool live in `.bss`, which is
 //! on-chip SRAM shared with the C++ allocator's `FAST_INTERNAL` heap: about 17 KB

@@ -82,7 +82,7 @@ fn main() {
         panic!(
             "host C++ app objects not found at {}. Build them first:\n  \
              ninja -C {} deluge_app deluge_scenarios NE10 eyalroz_printf deluge_dsp deluge_dsp_fixed deluge_dsp_float \
-             deluge_scheduler deluge_foundation deluge_midi",
+             deluge_foundation deluge_midi",
             app_objs_dir.display(),
             build_dir.display()
         );
@@ -188,13 +188,12 @@ fn main() {
     fs::write(&hash_stamp, &hash_str).expect("write host_app_objs_hash.txt");
     println!("cargo:rustc-env=DELUGE_APP_OBJS_HASH={hash_str}");
 
-    let deps: [(&str, &str); 8] = [
+    let deps: [(&str, &str); 7] = [
         (".", "libNE10.a"),
         ("printf", "libeyalroz_printf.a"),
         ("app/dsp", "libdeluge_dsp.a"),
         ("app/dsp-next", "libdeluge-dsp-fixed.a"),
         ("app/dsp-next", "libdeluge-dsp-float.a"),
-        ("scheduler", "libdeluge_scheduler.a"),
         ("foundation", "libdeluge_foundation.a"),
         ("midi", "libdeluge_midi.a"),
     ];
@@ -238,7 +237,6 @@ fn run_bindgen(
         .header(wrapper.to_str().unwrap())
         .clang_arg(format!("-I{}", include_dir.display()))
         .allowlist_type("Deluge.*")
-        .allowlist_type("RunCondition")
         .use_core()
         // See ../build.rs: NO `-fshort-enums` — every libdeluge enum pins its
         // underlying type explicitly in its header, so both sides already

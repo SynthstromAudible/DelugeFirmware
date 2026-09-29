@@ -62,11 +62,9 @@ DelugeResource* deluge_streaming_resource_manager(void);
 /// first open (e.g. a sample that has never been through `SampleStream::get_cluster()`), and this
 /// is the one entry point that defines it on demand.
 /// @param stream_backing Opaque `SampleStream*` backing pointer, as passed to
-///                        deluge_sample_source_open. The real definition (`sample_stream.cpp`)
-///                        requires this to be a live `SampleStream*`; the `__attribute__((weak))`
-///                        no-op fallback (`async_fill.cpp`, for build configs without a real
-///                        `SampleStream`) ignores it.
-/// @return The Asset id, or DELUGE_RESOURCE_NO_ASSET on the weak fallback.
+///                        deluge_sample_source_open. The definition (`sample_stream.cpp`)
+///                        requires this to be a live `SampleStream*`.
+/// @return The Asset id.
 uint32_t deluge_sample_stream_asset_id(void* stream_backing);
 
 /// @brief The byte offset a streamed chunk's payload sits at within its slab slot. The C++
@@ -79,9 +77,8 @@ uint32_t deluge_streamed_chunk_payload_offset(void);
 ///
 /// A runtime getter rather than a compile-time `#define`: the C++ `deluge_app` is built once by
 /// CMake and linked into whichever BSP, so a Rust cargo feature can't reach a C++ preprocessor
-/// define. True only on the Rust/Embassy BSP with `async_streaming_loader` enabled (the real
-/// implementation lives in `streaming_loader.rs`); every other BSP/config links the
-/// `__attribute__((weak))` fallback in `async_fill.cpp`, which always returns false. When true, the
+/// define. True only with the Rust BSP's `async_streaming_loader` feature enabled (the
+/// implementation lives in `streaming_loader.rs`). When true, the
 /// async task owns and drains the (streaming-only) loader queue itself; there is no C++-side pump
 /// anymore (the old `loader::pump()`/`request_pump()` were deleted with `loader.cpp`).
 /// @return true if the async task owns the loader queue on this build/BSP.
@@ -90,9 +87,8 @@ bool deluge_streaming_async_active(void);
 /// @brief Wake the async streaming-fill task out of its idle wait.
 ///
 /// Called unconditionally at every streaming CLUSTER_ENQUEUE site (`sample_stream.cpp`), after
-/// `deluge_resource_loader_enqueue()`. Harmless when the async backing isn't active: on the
-/// Embassy BSP with the feature off it signals a `Signal` nobody awaits; on every other BSP it
-/// hits the weak no-op fallback in `async_fill.cpp`.
+/// `deluge_resource_loader_enqueue()`. Harmless when the async backing isn't active: with the
+/// feature off it signals a `Signal` nobody awaits.
 void deluge_streaming_signal_fill(void);
 
 /// @brief Enqueue a chunk for filling, and return immediately.
@@ -133,15 +129,13 @@ bool deluge_streaming_queue_drained(void);
 ///                       the caller maps a `true` value to a dedicated `Error::TOO_MANY_OPEN_STREAMS`
 ///                       rather than the misleading `Error::FILE_NOT_FOUND`. Always `false` when
 ///                       @p out_handle was written.
-/// @return true if the file was opened and @p out_handle written; false (caller falls back to the
-///         C-FatFS sector path) if the path/pointer is invalid, the FS is
-///         unmounted, or the open failed. Every non-efatfs BSP/config links the weak no-op fallback
-///         in `async_fill.cpp`, which always returns false and writes `*out_table_full = false`.
+/// @return true if the file was opened and @p out_handle written; false if the path/pointer is
+///         invalid, the FS is unmounted, or the open failed.
 bool deluge_efatfs_open(const char* path, uint32_t* out_handle, bool* out_table_full);
 
 /// @brief Close a streaming file handle previously returned by deluge_efatfs_open.
 ///
-/// @param handle The handle to close. A no-op on every non-efatfs BSP/config (weak fallback).
+/// @param handle The handle to close.
 void deluge_efatfs_close(uint32_t handle);
 
 /// @brief Synchronously read @p count bytes at absolute @p byte_offset of the file behind @p handle.
@@ -157,7 +151,7 @@ void deluge_efatfs_close(uint32_t handle);
 /// @param out_read   Receives the bytes read on success (== @p count); untouched on failure.
 /// @return true iff the full @p count bytes were read. false (unmounted, bad handle, or a
 ///         short/failed read) leaves @p dst partially written and @p out_read untouched — the caller
-///         must treat it as a read error. Every non-efatfs BSP/config links the weak no-op fallback.
+///         must treat it as a read error.
 bool deluge_efatfs_read_at(uint32_t handle, uint32_t byte_offset, void* dst, uint32_t count, uint32_t* out_read);
 
 /// @brief Per-asset geometry the native Rust fill task reads directly.
@@ -183,10 +177,9 @@ typedef struct DelugeStreamingFillContext {
 ///
 /// Called unconditionally from `SampleStream::ensure_resource_asset()` once the asset is defined
 /// (and again from `open_read_stream()` if the efatfs handle becomes known afterwards) —
-/// see `sample_stream.cpp`. Always compiled on the Rust/Embassy BSP regardless of the
-/// `async_streaming_loader` cargo feature (asset definition happens on every BSP, not just the ones
-/// with the native fill task built in); every other BSP/config links the `__attribute__((weak))`
-/// no-op fallback in `async_fill.cpp`.
+/// see `sample_stream.cpp`. Always compiled in the Rust BSP, regardless of the
+/// `async_streaming_loader` cargo feature (asset definition happens on every build, not just the
+/// ones with the native fill task built in).
 /// @param mgr   The resource manager instance (see deluge_streaming_resource_manager). Unused by the
 ///              Rust implementation today (there is exactly one process-wide manager); kept in the
 ///              signature for parity with the rest of the manager-scoped C ABI.

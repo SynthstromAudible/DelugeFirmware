@@ -111,15 +111,13 @@ pub extern "C" fn deluge_display_timer_event() {}
 /// was placed there to prevent. Observed doing precisely that: an E199
 /// ("voice being freed is not in this Sound's list") drew its error screen and then ran
 /// on into `freeActiveVoice` for that stale voice, ending in a wild branch to 0x20.
-/// The legacy BSP's implementation blocks the same way (`display_freeze.cpp`), so this
-/// restores the shared contract rather than inventing one.
 ///
 /// Polls the PIC receive path directly rather than awaiting [`crate::control`]'s queue:
 /// callers are mid-assertion with the world deliberately stopped, and on the fault-vector
 /// path there is no executor left to service an `async` read.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
-    /// PIC byte for a select-knob press — the resume gesture, matching the legacy BSP.
+    /// PIC byte for a select-knob press — the resume gesture.
     const PIC_SELECT_KNOB_PRESS: u8 = 175;
     /// PIC prefix byte marking the following button code as a release, not a press.
     #[cfg_attr(not(target_os = "none"), allow(dead_code))]

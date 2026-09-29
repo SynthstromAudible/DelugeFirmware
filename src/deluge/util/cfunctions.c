@@ -19,7 +19,7 @@
 #include "libdeluge/clock.h"
 
 // Busy-wait delays are a board concern: they route through the libdeluge clock
-// boundary (the RZ/A1L timer code lives in bsp/rza1/clock.c). The pure number
+// boundary. The pure number
 // formatting and board timer-count helpers that used to live here moved to the
 // foundation tier (foundation/string_format.* and foundation/timer_count.*).
 void delayMS(uint32_t ms) {

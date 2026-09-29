@@ -1,15 +1,15 @@
 //! audio_io.h — duplex block audio over the free-running SSI0 DMA rings.
 //!
-//! Direct port of `src/bsp/rza1/audio_io.cpp`. The SSI TX/RX DMA rings free-run
+//! The SSI TX/RX DMA rings free-run
 //! from board audio bring-up (`deluge_bsp::audio::init` → `ssi::init`, which
 //! starts both DMA channels and enables TX+RX). This module owns only the
 //! read/write cursors and the trickle pacing: the app renders i32 stereo via
 //! `deluge_app_render(in, out, frames)`, and we write those samples *directly*
 //! into the uncached TX ring (no f32 round-trip — the app is i32-native).
 //!
-//! All state is touched only from the app's single task (deluge_audio_drive runs
-//! inside deluge_app_tick; the timing queries from the same app context), and no
-//! ISR touches it, so the `static mut` access is single-threaded. The one
+//! All state is touched only from the app's tasks (deluge_audio_drive and the
+//! timing queries), and no ISR touches it, so the `static mut` access is
+//! single-threaded. The one
 //! exception is [`RENDER_BLOCKS`], an atomic the render bumps and thread mode
 //! reads in [`deluge_audio_await_block`].
 #![allow(non_upper_case_globals)]
@@ -21,6 +21,7 @@ use core::sync::atomic::{AtomicU32, Ordering};
 
 use rza1l_hal::ssi;
 
+use crate::audio_pacing::pace_window;
 use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK, DelugeStereoSample};
 
 unsafe extern "C" {
@@ -139,27 +140,6 @@ unsafe fn prepare_input_block(frames: usize) {
         };
     }
     RX_READ = (RX_READ + frames) & RX_MASK;
-}
-
-/// Round/expand a raw free-frame count into a render window (audio_pacing.h):
-/// double the amount over a small threshold (smoother under light load), cap at
-/// the ring, then round up to a multiple of 4 for the NEON kernels.
-fn pace_window(raw: usize, ring: usize) -> usize {
-    const THRESHOLD: i32 = 6;
-    let mut n = raw as i32;
-    if (n as usize) < ring {
-        let over = n - THRESHOLD;
-        if over > 0 {
-            n = THRESHOLD + (over << 1);
-        }
-    }
-    if (n as usize) > ring {
-        n = ring as i32;
-    }
-    if n >= 3 {
-        n = (n + 2) & !3;
-    }
-    n as usize
 }
 
 #[unsafe(no_mangle)]

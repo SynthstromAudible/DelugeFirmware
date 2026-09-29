@@ -20,13 +20,11 @@
 /// "What the board *is*": pad/CV/gate counts, button and LED grid, display
 /// geometry, channel layout, UI cadence. These are portable configuration the
 /// application legitimately depends on, so they live here — a HAL-free header —
-/// rather than in the RZ/A1L HAL. A different board replaces this file.
+/// rather than in the BSP. A different board replaces this file.
 ///
 /// This header deliberately contains NO hardware-implementation detail (no DMA
 /// channels, bus/port indices, register values or memory-map addresses). Those
-/// live in the HAL (RZA1/cpu_specific.h); application code that still references
-/// them is, by definition, not yet portable and is flagged by the platform-
-/// boundary check until it moves behind a <libdeluge/...> port.
+/// belong to the BSP, behind a <libdeluge/...> port.
 #ifndef DELUGE_BOARD_CONFIG_H
 #define DELUGE_BOARD_CONFIG_H
 
@@ -69,7 +67,7 @@
 // buffer sizes, memory placement, clock). The values are board-set; the concepts apply to
 // any board, so the application may use them. A different board (or a host build) supplies
 // its own values here. This is NOT a place for raw peripheral/DMA/register indices — those
-// live in the HAL (RZA1/cpu_specific.h).
+// belong to the BSP.
 
 // --- DMA-buffer alignment ---------------------------------------------------
 #define CACHE_LINE_SIZE 32

@@ -1,7 +1,6 @@
 //! control_surface.h + encoder_io.h — pads/buttons (PIC) and encoders.
 //!
-//! Because the app now yields between ticks (deluge_app_tick), deluge-bsp's async
-//! PIC pump task runs concurrently: it decodes the PIC byte stream into events and
+//! deluge-bsp's async PIC pump task runs alongside the app's tasks: it decodes the PIC byte stream into events and
 //! buffers them in [`EVENTS`]. The synchronous boundary functions are thin shims —
 //! [`deluge_control_poll_event`] drains the buffer; [`deluge_encoder_take_edges`]
 //! reads the ISR-accumulated quadrature edge counters. The one-time UART (SCIF1
@@ -115,8 +114,8 @@ pub async fn pic_pump() {
     }
 }
 
-/// PIC pad id → grid (x,y). Matches `deluge_bsp::pic::pad_coords` and
-/// src/bsp/rza1/control_surface.cpp (`Pad(uint8_t)` in the app's pad.cpp).
+/// PIC pad id → grid (x,y). Matches `deluge_bsp::pic::pad_coords` and `Pad(uint8_t)` in
+/// the app's pad.cpp.
 fn pad_event(id: u8, value: i16) -> DelugeInputEvent {
     let (x, y) = pic::pad_coords(id);
     DelugeInputEvent {
@@ -183,8 +182,8 @@ pub extern "C" fn deluge_control_poll_event(out: *mut DelugeInputEvent) -> bool 
 
 /// Map the app's encoder ordinal (hid::encoders::EncoderName: SCROLL_Y, SCROLL_X,
 /// TEMPO, SELECT, MOD_1, MOD_0) to deluge_bsp::encoder's ENCODER_DELTAS index
-/// (a different physical/pin order). Derived by matching pins between
-/// src/bsp/rza1/encoder_io.c (app order) and deluge_bsp encoder::irq_init SETUP:
+/// (a different physical/pin order). Derived by matching each app encoder's pins
+/// (below, in app order) against deluge_bsp encoder::irq_init SETUP:
 ///   app 0 SCROLL_Y(8/10)→4, 1 SCROLL_X(11/12)→0, 2 TEMPO(6/7)→1,
 ///   3 SELECT(3/2)→5, 4 MOD_1(5/4)→3, 5 MOD_0(0/15)→2. Invert flags line up.
 const ENC_REMAP: [usize; encoder::NUM_ENCODERS] = [4, 0, 1, 5, 3, 2];
@@ -427,11 +426,9 @@ static ENCODER_WAKE_TASK: AtomicI8 = AtomicI8::new(-1);
 /// `wake_task` id so [`encoder_wake_pump`] can wake the app's encoder task.
 ///
 /// The app's `interpretEncodersTask` self-blocks (`blockTask`) after each run and
-/// relies on the board to `unblockTask` it when an encoder moves (the original
-/// rza1 TaskManager contract). Without that wake the task runs once and parks
-/// forever — i.e. the encoders go dead. (On the legacy `deluge_app_tick` superloop
-/// this was masked by a per-tick `interpretEncoders()` call; the decomposed
-/// scheduler has no such loop, so the wake must be delivered here.)
+/// relies on the board to `unblockTask` it when an encoder moves. Without that wake
+/// the task runs once and parks forever — i.e. the encoders go dead — so the wake
+/// must be delivered here.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_encoder_io_init(wake_task: i8) {
     ENCODER_WAKE_TASK.store(wake_task, Ordering::Relaxed);

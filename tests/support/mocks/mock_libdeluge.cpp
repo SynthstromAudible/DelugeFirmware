@@ -16,7 +16,7 @@
  */
 
 // Host stubs for the libdeluge boundary functions referenced by the unit-tested
-// firmware source (the memory allocator, string/util helpers, chainload). The
+// firmware source (the memory allocator, string/util helpers). The
 // memory tests exercise MemoryRegion against their own buffers — the global
 // allocator's regions are degenerate here, matching the zeroed linker symbols in
 // mock_defines.h — so these only need to satisfy the linker.
@@ -48,7 +48,4 @@ uint64_t deluge_clock_now(void) {
 void deluge_clock_delay_ms(uint32_t /*ms*/) {
 }
 void deluge_clock_delay_us(uint32_t /*us*/) {
-}
-
-void deluge_system_quiesce(void) {
 }

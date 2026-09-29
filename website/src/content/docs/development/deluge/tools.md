@@ -78,8 +78,8 @@ Using the previously mentionned sysex debugging, the following option can be tog
 
 ```shell
 ./dbt configure -DENABLE_MATRIX_DEBUG=YES
-./dbt build debug
-# copy build/Release/deluge.bin to an SD card and flash it
+./dbt build relwithdebinfo
+# copy build/RelWithDebInfo/deluge.bin to an SD card and flash it
 ```
 
 This is a sample of the output:

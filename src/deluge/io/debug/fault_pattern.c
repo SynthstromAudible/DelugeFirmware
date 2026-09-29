@@ -53,10 +53,7 @@
 
 // The pad-grid crash pattern. Portable: every board-specific act — getting a byte to
 // the pad driver, and knowing which addresses are code or stack — goes through
-// <libdeluge/fault.h>. This used to live in src/bsp/rza1 and poke that board's PIC
-// UART buffer and DMA channel directly, which meant the Rust/Embassy BSP had no crash
-// pattern at all: a hardware fault there produced a register dump over the debug
-// probe and nothing on the panel, so a crash with no probe attached was invisible.
+// <libdeluge/fault.h>, so a crash with no probe attached still shows on the panel.
 // Sharing the renderer keeps the encoding provably identical between boards, which is
 // the whole point — the pattern is only useful if a photo of it decodes the same way
 // whoever built the firmware.

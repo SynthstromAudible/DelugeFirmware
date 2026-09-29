@@ -52,8 +52,7 @@
 ///       the caller must return to its own loop for the Embassy reader task to be polled at all.
 ///
 /// @note `DELUGE_HOST`-only, compiled into `deluge_app` (the harness directory is globbed into the
-///       app's sources), so the Embassy host binary -- which links `deluge_app`, not any of the
-///       C-host `main()`s -- can reach it. Inert unless called.
+///       app's sources), so the Embassy host binary, which links `deluge_app`, can reach it. Inert unless called.
 
 #include <cstdint>
 

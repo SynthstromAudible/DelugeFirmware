@@ -1,11 +1,10 @@
 # Host-sim build for the portable Deluge application.
 #
 # A NATIVE build (x86-64 / ARM64), separate from the arm-none-eabi firmware build.
-# It assembles the SAME deluge_app library + the portable libs for the host, so it
-# is both the definitive proof the app has no transitive HAL dependency (no RZA1/
-# on the include path) and what the Embassy host harnesses and `dbt sim` link
-# (tests/: the `host-app` build product, built into build/host-app). Nothing
-# links here: the harnesses' build scripts archive these objects.
+# It builds the SAME deluge_app library + the portable libs for the host, which
+# the Embassy host harnesses and `dbt sim` link (tests/: the `host-app` build
+# product, built into build/host-app). Nothing links here: the harnesses' build
+# scripts archive these objects.
 
 cmake_minimum_required(VERSION 3.24)
 
@@ -170,12 +169,6 @@ endif()
 # (real _mm_* functions vs SIMDe's _mm_* #defines). The firmware target has no TBB; mirror that
 # by selecting libstdc++'s serial parallel backend (std::execution::par runs serially — fine here).
 add_compile_definitions(_GLIBCXX_USE_TBB_PAR_BACKEND=0)
-
-# Use the cooperative task scheduler (registerTasks + startTaskManager), exactly as the
-# firmware does — the `#else mainLoop()` path in deluge_main is legacy/dead on real hardware
-# and doesn't pump the scheduler (so MIDI/playback/UI tasks never run). Matching the firmware
-# execution model is both more faithful and what makes input (e.g. MIDI) reach the engine.
-add_compile_definitions(USE_TASK_MANAGER)
 
 # Zero every block at allocation / pool-reuse / operator new (see memory/general_memory_allocator.cpp,
 # object_pool.h, operators.cpp). On the SoC, SDRAM is never cleared, so the firmware's many

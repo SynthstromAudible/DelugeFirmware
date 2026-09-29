@@ -17,9 +17,8 @@
 
 /// libdeluge/board.h — capability descriptor.
 ///
-/// Replaces the compile-time hardware knowledge currently baked into
-/// `RZA1/cpu_specific.h` (`DELUGE_MODEL_*`, NUM_* grid sizes, CV/gate counts).
-/// The BSP fills this in and hands it to `deluge_app_init`; the application
+/// The board's hardware knowledge (`DELUGE_MODEL_*`, NUM_* grid sizes, CV/gate
+/// counts) as data. The BSP fills this in and hands it to `deluge_app_init`; the application
 /// queries capabilities instead of `#if DELUGE_MODEL ...`.
 #ifndef LIBDELUGE_BOARD_H
 #define LIBDELUGE_BOARD_H

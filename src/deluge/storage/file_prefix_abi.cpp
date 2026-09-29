@@ -16,25 +16,10 @@
  */
 
 /// @file
-/// @brief Weak definitions for `libdeluge/file_prefix.h`, plus the two constants that pin the
-///        boundary.
-///
-/// The real implementation is the Rust Embassy BSP's `file_prefix.rs`, which reads the file on the
-/// storage tier and publishes the bytes into a single card-generation-stamped slot. This file exists
-/// so BSPs without that channel (legacy/host-cooperative sim, rza1) still resolve the symbols and
-/// can call them unconditionally -- and so every caller can be written against one header rather
-/// than against a `#if`.
-///
-/// Every function here is `noexcept`, like every function in audio_load_abi.cpp and card_abi.cpp:
-/// the repo's allocators throw `deluge::exception::BAD_ALLOC` (operators.cpp), and letting anything
-/// unwind out of an `extern "C"` frame into a Rust caller is undefined behaviour -- on this target
-/// it presents as `std::terminate()` aborting silently, i.e. an unexplained device death with no
-/// error message. None of these bodies can throw (they neither allocate nor call anything that
-/// does), so none carries a `catch (...)`; the marker is what keeps that true if a body is ever
-/// added, exactly as card_abi.cpp's weak fallback does it.
+/// @brief Compile-time pins on `libdeluge/file_prefix.h`: the constants the Rust side
+///        (`src/bsp/rust/src/file_prefix.rs`) hand-duplicates, and the status values it shares with the audio loader.
 
 #include "libdeluge/file_prefix.h"
-#include "storage/fallback_report.h"
 
 #include "libdeluge/audio_load.h" // the status values this header's must equal
 #include "storage/song_preview.h" // kSongPreviewWindow
@@ -74,35 +59,3 @@ static_assert(DELUGE_FILE_PREFIX_UNKNOWN == DELUGE_AUDIO_LOAD_UNKNOWN);
 static_assert(DELUGE_FILE_PREFIX_FAILED != DELUGE_AUDIO_LOAD_PENDING);
 static_assert(DELUGE_FILE_PREFIX_FAILED != DELUGE_AUDIO_LOAD_READY);
 static_assert(DELUGE_FILE_PREFIX_FAILED != DELUGE_AUDIO_LOAD_UNKNOWN);
-
-// Weak fallbacks: BSPs without the Rust prefix channel resolve these and always take the
-// synchronous path. The Rust Embassy BSP overrides them in file_prefix.rs.
-
-extern "C" __attribute__((weak)) bool deluge_file_prefix_async_active() noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_prefix_async_active");
-	return false;
-}
-
-extern "C" __attribute__((weak)) void deluge_file_prefix_request(const char* /*file_path*/,
-                                                                 uint32_t /*max_bytes*/) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_prefix_request");
-	// No prefix channel on this BSP/config; the caller never reaches here because
-	// deluge_file_prefix_async_active() is false. Dropping the request (rather than pretending to
-	// have accepted it) is what the collect below already reports.
-}
-
-extern "C" __attribute__((weak)) uint8_t deluge_file_prefix_collect(const char* /*file_path*/, uint8_t* /*out_buf*/,
-                                                                    uint32_t /*out_cap*/,
-                                                                    uint32_t* /*out_len*/) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_prefix_collect");
-	// UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever. Neither output is
-	// touched, which is exactly what the header promises for any status but READY.
-	return DELUGE_FILE_PREFIX_UNKNOWN;
-}
-
-#ifdef DELUGE_HOST
-extern "C" __attribute__((weak)) void deluge_file_prefix_set_latency_ms(uint32_t /*ms*/) noexcept {
-	DELUGE_FALLBACK_CALLED("deluge_file_prefix_set_latency_ms");
-	// A host build without the Rust prefix channel has no reads to delay.
-}
-#endif

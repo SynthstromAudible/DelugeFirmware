@@ -63,21 +63,17 @@ DBT must always be run from the _root directory_ of the repository. The remainde
 
 ### DBT Build Targets
 
-These live under the `dbt build` subcommand. The general format is `dbt build {configuration}`, with configuration being optional (building both debug and release by default).
+These live under the `dbt build` subcommand. The general format is `dbt build {configuration}`, with configuration being optional (`release` by default). It builds the C++ application with CMake and links it with the Rust BSP (`src/bsp/rust`) through cargo.
 
-Built files output to subdirectories named after the configuration (e.g. `build/Release`).
+The image is staged in a subdirectory named after the configuration (e.g. `build/Release/deluge.elf`, with `.bin` and `.hex` beside it).
 
 #### Build configurations:
 
-- `debug` - build selected target with debugging support (including debugging symbols and different optimizations)
-- `release` - build selected target with optimizations for release.
+- `release` - the shipping image, optimised, with no debug logging.
+- `relwithdebinfo` - the same optimisation plus debug logging; the image to develop and debug with.
+- `debug` - `-Og` plus debug logging. It compiles, but does not currently link a device image (it does not fit in RAM), so use it as a compile check.
 
 #### Build arguments:
 
-- `-S` or `--no-status` - this disables the `ninja` status line while building. Output from compilation commands (such as warnings and errors) will still be printed.
 - `-v` or `--verbose` - this prints greater level of detail to the console (i.e. exactly the compiler/linker commands called)
-- `-c` or `--clean-first` - clean before building
-
-#### CMake custom arguments
-
-Any additional arguments to CMake may be transparently passed via `dbt build`. Primarily this means `-j <jobs>` for limiting or defining the amount of parallelization. Most other relevant options are exposed via `dbt build`.
+- `-c` or `--clean-first` - clean the C++ app objects before building

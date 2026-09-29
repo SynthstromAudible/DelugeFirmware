@@ -1,8 +1,8 @@
 //! `libdeluge/fault.h` — what the portable crash reporter needs from this board.
 //!
-//! The pad-grid pattern itself is the app's (`src/deluge/io/debug/fault_pattern.c`),
-//! shared with the legacy BSP so a photographed panel decodes identically on either.
-//! Only the two board-specific acts live here: getting a byte to the PIC, and saying
+//! The pad-grid pattern itself is the app's (`src/deluge/io/debug/fault_pattern.c`), so a
+//! photographed panel decodes the same whichever board drew it. Only the two
+//! board-specific acts live here: getting a byte to the PIC, and saying
 //! which addresses are code or stack.
 //!
 //! Everything in this file runs from a CPU fault vector. The Embassy executor is not

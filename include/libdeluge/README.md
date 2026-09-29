@@ -1,10 +1,7 @@
 # `libdeluge` — the hardware boundary
 
 These headers are the **API boundary** between the portable Deluge application
-and the hardware support library (BSP). See the design rationale in
-[`docs/dev/libdeluge_bsp_design.md`](../../docs/dev/libdeluge_bsp_design.md) and
-the migration plan in
-[`docs/dev/libdeluge_separation_plan.md`](../../docs/dev/libdeluge_separation_plan.md).
+and the hardware support library (BSP).
 
 ## Rules
 
@@ -21,8 +18,8 @@ the migration plan in
 
 3. **Two halves:**
    - `app.h` — callbacks the **application implements** and the platform calls
-     (`deluge_app_init`, `deluge_app_render`, `deluge_app_tick`, …). The platform
-     owns `main`; the app does not assume it does (so Embassy can own it later).
+     (`deluge_app_init`, `deluge_app_render`, …). The platform owns `main`; the
+     app does not assume it does.
    - everything else — services the **BSP implements** and the app calls
      (audio, MIDI, control surface, display, CV/gate, storage, clock, memory).
 
@@ -34,7 +31,5 @@ the migration plan in
 
 ## Status
 
-First-draft contract. Signatures are grounded in the current RZ/A1L firmware and
-the Rust `deluge-bsp` module set, but are expected to be refined as the first BSP
-(`bsp-rza1-legacy`, a thin wrapper over `src/deluge/drivers` + `src/RZA1`) is
-implemented against them.
+Implemented by the Rust BSP (`src/bsp/rust`, on deluge-sdk's `deluge-bsp`), on the
+device and on the host.

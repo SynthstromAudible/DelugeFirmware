@@ -17,9 +17,8 @@
 
 /// libdeluge/block_device.h — sector-addressed storage for FatFs.
 ///
-/// Mirrors the FatFs `diskio` contract so the existing FAT layer binds with a
-/// thin shim. Backed by `drivers/sd` + `RZA1/sdhi` today; `deluge-bsp::sd` /
-/// `::fat` (embedded-sdmmc) on the Rust side. A "unit" is a logical drive index.
+/// Mirrors the FatFs `diskio` contract. The Rust BSP implements it over
+/// deluge-sdk's `deluge_bsp::sd`. A "unit" is a logical drive index.
 #ifndef LIBDELUGE_BLOCK_DEVICE_H
 #define LIBDELUGE_BLOCK_DEVICE_H
 

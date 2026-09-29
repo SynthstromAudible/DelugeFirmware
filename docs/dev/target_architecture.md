@@ -1,8 +1,7 @@
 # Deluge target architecture — modular library decomposition
 
-> Companion to [`libdeluge_separation_plan.md`](libdeluge_separation_plan.md) and
-> [`libdeluge_bsp_design.md`](libdeluge_bsp_design.md). Those docs put a C-ABI
-> hardware boundary (`libdeluge`) *under* the application. This doc designs the
+> Companion to the `libdeluge` boundary ([`include/libdeluge/README.md`](../../include/libdeluge/README.md)),
+> which puts a C-ABI hardware boundary *under* the application. This doc designs the
 > decomposition of everything *above* that boundary: the long-term target where
 > the application is a set of portable, individually testable libraries with
 > enforced dependency rules — plus the runtime model (execution contexts,

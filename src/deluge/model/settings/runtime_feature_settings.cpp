@@ -100,9 +100,6 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::AltGoldenKnobDelayParams],
 	                  STRING_FOR_COMMUNITY_FEATURE_ALT_DELAY_PARAMS, "altGoldenKnobDelayParams",
 	                  RuntimeFeatureStateToggle::Off);
-	// devSysexAllowed
-	SetupOnOffSetting(settings[RuntimeFeatureSettingType::DevSysexAllowed], STRING_FOR_COMMUNITY_FEATURE_DEV_SYSEX,
-	                  "devSysexAllowed", RuntimeFeatureStateToggle::Off);
 	// SyncScalingAction
 	SetupSyncScalingActionSetting(settings[RuntimeFeatureSettingType::SyncScalingAction],
 	                              STRING_FOR_COMMUNITY_FEATURE_SYNC_SCALING_ACTION, "syncScalingAction",

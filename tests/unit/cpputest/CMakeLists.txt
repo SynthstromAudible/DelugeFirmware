@@ -62,14 +62,8 @@ file(GLOB_RECURSE deluge_SOURCES
         # mock_file_io.cpp (borrowed from tests/unit/io) backs deluge::io::File with an in-memory card.
         ../../../src/deluge/storage/song_preview.cpp
         ../../../src/deluge/storage/file_reader.cpp
-        # The REAL weak fallbacks, not a hand-written stand-in: this is exactly what a BSP without
-        # the Rust channels resolves, and linking them means the host cannot drift from them.
-        ../../../src/deluge/storage/file_write_abi.cpp
-        ../../../src/deluge/storage/file_bytes_abi.cpp
-        # The weak no-BSP fallbacks for the directory channel, which io/file.cpp's
-        # collectOrRequestDir calls. Without it the link fails on
-        # deluge_file_directory_collect/_request.
-        ../../../src/deluge/storage/file_directory_abi.cpp
+        # The storage channels' C ABI as "no channel here": the Rust BSP defines them everywhere else.
+        ../../support/mocks/storage_channel_mocks.cpp
         ../../../src/deluge/storage/Deserializer.cpp
         ../../../src/deluge/storage/JsonDeserializer.cpp
         ../../../src/deluge/io/file.cpp
@@ -102,8 +96,6 @@ configure_file(../../../src/deluge/util/firmware_version.h.in
 add_executable(UnitTests
         RunAllTests.cpp
         mem_guard_tests.cpp
-        audio_pacing_tests.cpp
-        scheduler_tests.cpp
         scale_tests.cpp
         value_scaling_tests.cpp
         clip_iterator_tests.cpp
