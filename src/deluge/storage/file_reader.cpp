@@ -441,8 +441,8 @@ void StorageManager::releaseDocumentStaging() {
 // Both start disengaged, so they are constant-initialised: no static constructor, no allocation. They
 // do still GROW .sdram_bss by their own size, and src/bsp/rza1/memory.c derives the device's external
 // heap base from &__sdram_bss_end -- so the device heap base shifts down and the heap shrinks by that
-// much. Harmless at this size, and invisible to the goldens, which run on the host BSP, where
-// src/bsp/host/host_bsp.c `.set`s __sdram_bss_end to a fixed host_sdram array the linker never moves.
+// much. Harmless at this size, and invisible to the goldens, which run on the Embassy host, where
+// __sdram_bss_end is `.set` to a fixed host array the linker never moves.
 //
 // These are the first std::optionals in .sdram_bss, and being disengaged at boot is a fact they INHERIT
 // from resetprg.c's emptySection(&__sdram_bss_start, &__sdram_bss_end) -- nothing else zeroes them. If

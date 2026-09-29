@@ -294,9 +294,7 @@ fn enqueue(cmd: PicOut) {
 /// Set the colour of one main-grid pad. `host_app`-only: the app's real pad
 /// rendering path batches whole columns (see [`deluge_control_set_pad_columns`],
 /// implemented for both device and host above), so this single-pad entry point
-/// is unreached in practice — same as `host_bsp.c`'s host-link forwarder, which
-/// is likewise a best-effort side channel. A no-op keeps host-linked boot-and-idle
-/// working without a GUI socket to forward to.
+/// is unreached in practice. A no-op keeps host-linked boot-and-idle working.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_set_pad(_x: u8, _y: u8, _colour: DelugeColour) {}

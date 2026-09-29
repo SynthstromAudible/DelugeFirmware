@@ -25,7 +25,7 @@
 /// `corpus_differential.rs`'s module doc for what that still catches).
 ///
 /// `dumpAudioHeaderAsJson()` reads one WAV/AIFF file straight off the host filesystem (no efatfs, no
-/// `DELUGE_SD_ROOT` — this is deliberately independent of the SD-card abstraction the rest of the app
+/// card — this is deliberately independent of the SD-card abstraction the rest of the app
 /// uses, since all it needs is `AudioByteSource`'s four-call surface over an in-memory buffer), then
 /// runs `parseSampleHeader()` and `parseWaveTableHeader()` (at both `makeWaveTableWorkAtAllCosts`
 /// settings) against it, and renders every field plus the error/reject outcome of each as one JSON
@@ -34,7 +34,7 @@
 /// to compare field-by-field against the new Rust parser.
 ///
 /// `DELUGE_HOST`-only, same reach as `harness/recorder_readback_probe.h`: compiled into
-/// the host harnesses and deluge_loadcheck, never the ARM device firmware.
+/// the host harnesses, never the ARM device firmware.
 
 #include <string>
 

@@ -599,8 +599,8 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
 /// `deluge_scenario_run_recorder_roundtrip` harness scenario) on THIS Embassy substrate. Waits for boot+mount, sets the oracle up inline, then ticks its cases, the finalized
 /// probe's pump and the tail, one step per await, and exits with its result. Unlike the stem-export
 /// scenario, no song load and no fixture image: `main`
-/// formats an EMPTY FAT image (the recorder only ever writes new files) and leaves
-/// `DELUGE_SD_ROOT` unset so the finalized probe reads efatfs on the same image it wrote.
+/// formats an EMPTY FAT image (the recorder only ever writes new files), and the finalized probe
+/// reads efatfs on the same image it wrote.
 #[embassy_executor::task]
 async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: run_recorder_roundtrip_scenario: awaiting boot+mount");

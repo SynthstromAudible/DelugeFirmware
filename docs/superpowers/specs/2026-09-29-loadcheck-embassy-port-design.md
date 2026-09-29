@@ -1,6 +1,6 @@
 # Retiring `audio-loadcheck`
 
-Status: agreed 2026-09-29. Part 3 of retiring the C host (`src/bsp/host`); parts 1 and 2 are on
+Status: done 2026-09-29 (load_policy 4866e9f04, audio_load_ab 1abeeb433, retirement after them). Part 3 of retiring the C host (`src/bsp/host`); parts 1 and 2 are on
 `chore/retire-c-host` (5b26d0762, 0712ba0c5).
 
 ## 1. Why

@@ -24,7 +24,7 @@
 #include "io/file.hpp"                             // the card swap's unlink + rename
 #include "libdeluge/audio_load.h"                  // deluge_audio_load_async_active, _set_latency_ms
 #include "model/sample/sample.h"
-#include "scenarios/load_invariants.h" // checkLoadInvariants -- shared with deluge_loadcheck
+#include "scenarios/load_invariants.h" // checkLoadInvariants -- shared with load_policy
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
 
@@ -37,9 +37,8 @@
 #include <string_view>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
-// `printf_`. That implementation emits through `putchar_`, which only the C host BSP defines
-// (`src/bsp/host/host_platform.c`) -- this harness links the Rust BSP and has no provider, so the
-// alias turns every line this file writes into an undefined symbol at link time. Every one of those
+// `printf_`. That implementation emits through `putchar_`, which this harness does not provide, so
+// the alias turns every line this file writes into an undefined symbol at link time. Every one of those
 // lines IS the gate's output (the script reads them), so they must go to real stdout regardless of
 // which headers a future edit pulls in.
 #ifdef printf
@@ -429,7 +428,7 @@ void checkTier(const char* stage, const TierMark& before) {
 }
 
 /// Plain CRC32 (IEEE 802.3, reflected) — a stable fingerprint of the bytes read back through the
-/// Sample's own stream. Same routine host_loadcheck_main.cpp uses for band data.
+/// Sample's own stream.
 uint32_t crc32(const void* data, size_t len) {
 	const auto* p = static_cast<const uint8_t*>(data);
 	uint32_t crc = 0xFFFFFFFFu;

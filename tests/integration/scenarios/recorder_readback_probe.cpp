@@ -19,7 +19,6 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
-#include "io/file.hpp"
 #include "libdeluge/sample_source.h"
 #include "libdeluge/streaming_fill.h" // deluge_streaming_request_drain
 #include "model/sample/sample.h"
@@ -27,10 +26,7 @@
 #include "storage/cluster/cluster.h"
 
 #include <cstdio>
-#include <cstdlib>
 #include <cstring>
-#include <filesystem>
-#include <fstream>
 #include <vector>
 
 namespace {
@@ -53,48 +49,6 @@ void requestFillDrain() {
 
 int32_t rampSample(uint32_t frameIndex, uint32_t channel) {
 	return expected24(frameIndex, channel) << 8;
-}
-
-// Host-sim-only wrinkle: a DELUGE_HOST binary may back the
-// STREAMING read path (open_read_stream()/EfatfsReadSource, via host_efatfs_passthrough.cpp) with
-// a plain POSIX directory tree named by DELUGE_SD_ROOT -- separate from the mounted FAT image
-// (DELUGE_SD_IMAGE) a SampleRecorder actually writes into via deluge::io::Stream/File. Mirror the
-// just-finalized file's raw bytes into that directory (creating parent dirs as needed) so a probe
-// on such a target can still open a genuine streaming-read cursor on it. A no-op wherever
-// DELUGE_SD_ROOT isn't set: host_app / real hardware read the SAME storage the recorder wrote to,
-// so no mirroring is needed there, and this function is simply never called in that case.
-bool mirrorFinalizedFileToSdRoot(const std::string& delugePath, const char* sdRoot) {
-	auto opened = deluge::io::File::open(delugePath, DELUGE_FILE_READ);
-	if (!opened) {
-		return false;
-	}
-	deluge::io::File file = std::move(opened.value());
-	auto sizeResult = file.size();
-	if (!sizeResult) {
-		return false;
-	}
-	std::vector<std::byte> bytes(*sizeResult);
-	size_t totalRead = 0;
-	while (totalRead < bytes.size()) {
-		auto chunk = file.read(std::span<std::byte>(bytes.data() + totalRead, bytes.size() - totalRead));
-		if (!chunk || chunk->empty()) {
-			break;
-		}
-		totalRead += chunk->size();
-	}
-	if (totalRead != bytes.size()) {
-		return false;
-	}
-
-	std::filesystem::path outPath = std::filesystem::path(sdRoot) / delugePath;
-	std::error_code ec;
-	std::filesystem::create_directories(outPath.parent_path(), ec);
-	std::ofstream out(outPath, std::ios::binary | std::ios::trunc);
-	if (!out) {
-		return false;
-	}
-	out.write(reinterpret_cast<const char*>(bytes.data()), static_cast<std::streamsize>(bytes.size()));
-	return static_cast<bool>(out);
 }
 
 void teardown() {
@@ -339,16 +293,6 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t reg
 	    sample->audioDataStartPosBytes + static_cast<uint32_t>(sample->audioDataLengthBytes);
 	g_finalizedExpectedClusters = ((idealFileSizeAfterAction - 1) >> Cluster::size_magnitude) + 1;
 	g_finalizedTableClusters = static_cast<uint32_t>(sample->overviewCacheSize());
-
-	// Host-sim wrinkle (see mirrorFinalizedFileToSdRoot()'s doc): if this binary's streaming read
-	// path is backed by a POSIX DELUGE_SD_ROOT separate from the FAT image the recorder wrote into,
-	// mirror the finalized file there first. A no-op (and harmless) everywhere else.
-	if (const char* sdRoot = std::getenv("DELUGE_SD_ROOT"); sdRoot != nullptr && sdRoot[0] != '\0') {
-		if (!mirrorFinalizedFileToSdRoot(sample->filePath, sdRoot)) {
-			finalizedTeardown();
-			return 0;
-		}
-	}
 
 	// Open a FRESH read handle on the finalized file -- the recorder's own write context is already
 	// closed by now (finalizeRecordedFile() closed it), and this Sample never went through

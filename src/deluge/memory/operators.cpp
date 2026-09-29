@@ -16,8 +16,8 @@
 // CoreAudio AudioQueue. Route the operators to the system allocator on macOS so every pointer foreign
 // code receives is system-free-able. GMA is still used directly (via its own API) for sample/cluster
 // memory; operator delete below still returns a stray GMA pointer to GMA. The macOS host is not the
-// golden reference (that's the Linux -m32 build, which keeps the GMA path unchanged), so routing
-// object `new` through the system heap here costs some GMA fidelity but nothing that's compared.
+// golden reference (the Linux host is, and keeps the GMA path unchanged), so routing object `new`
+// through the system heap here costs some GMA fidelity but nothing that's compared.
 void* operator new(std::size_t n) noexcept(false) {
 	void* address = std::malloc(n != 0 ? n : 1);
 	if (address == nullptr) [[unlikely]] {

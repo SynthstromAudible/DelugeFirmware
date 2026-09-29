@@ -41,7 +41,7 @@ So it is **inaudible for real (band-limited) audio**, but a full-spectrum probe 
    golden masters (`golden-synth`, `tests/integration/golden/presets/`); treat it as its own firmware-audio task.
 
 ### Reproduction
-The host-sim live-input injection harness (`DELUGE_HOST_INPUT=1`, `src/bsp/host/host_audio.c`) feeds a
-deterministic probe into the input ring; reconstruct the expected signal in Python and cross-correlate against the
+The Embassy host's test input (`deluge_host_test_input` in `src/bsp/rust/src/audio_host.rs`, armed by
+`render_preset` for its live-input cases) feeds a deterministic probe into the input block; reconstruct the expected signal in Python and cross-correlate against the
 rendered WAV. An impulse train reveals the 2-tap impulse response directly; a band-limited probe (corr ~0.9997)
 vs a white probe (corr ~0.60) is the signature.

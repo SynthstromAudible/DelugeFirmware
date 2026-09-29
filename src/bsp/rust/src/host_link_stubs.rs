@@ -10,13 +10,12 @@
 //! simulator's MIDI queues carry under `sim`, and audio capture, which
 //! `audio_host.rs` owns.
 //!
-//! Return values are chosen to match `src/bsp/host/host_bsp.c` / `host_audio.c`
-//! (the existing C host-stub BSP) wherever the boot path might actually read
-//! one, so a "wrong zero" can't silently wedge boot — e.g. `deluge_audio_drive`
-//! returning 0 (no renders needed) is the documented idle case, not a failure.
-//! `deluge_midi_port_count` returns 0 (not host_bsp.c's 1): with zero ports the
-//! app's `0..port_count` loops never touch MIDI I/O at all, the most inert
-//! option, and nothing on the boot-and-idle path depends on a DIN port existing.
+//! Return values are chosen wherever the boot path might actually read one, so a
+//! "wrong zero" can't silently wedge boot — e.g. `deluge_audio_drive` returning 0
+//! (no renders needed) is the documented idle case, not a failure.
+//! `deluge_midi_port_count` returns 0: with zero ports the app's `0..port_count`
+//! loops never touch MIDI I/O at all, the most inert option, and nothing on the
+//! boot-and-idle path depends on a DIN port existing.
 #![allow(unused_variables, non_snake_case)]
 use crate::sys::{
     DelugeMidiPort, DelugeSignal, DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK,
@@ -127,7 +126,7 @@ pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u
         return len;
     }
     stub_log!("deluge_midi_write");
-    // Mirrors host_bsp.c: always "accept" (silently dropped) rather than
+    // Always "accept" (silently dropped) rather than
     // reporting 0 accepted, so a caller retrying on partial acceptance can't
     // spin forever against a port that will never drain.
     len
@@ -202,7 +201,7 @@ pub extern "C" fn deluge_midi_gate_timer_pending() -> bool {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_gate_timer_arm(samples_from_now: u32) {
     stub_log!("deluge_midi_gate_timer_arm");
-    // No MTU2 (or any) one-shot timer on host; matches host_bsp.c's inert stub.
+    // No MTU2 (or any) one-shot timer on host.
     // Reachable via `deluge_audio_drive`'s (audio_host.rs) render path, which
     // can hit AudioEngine::scheduleMidiGateOutISR and arm the gate timer.
 }

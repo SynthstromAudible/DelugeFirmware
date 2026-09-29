@@ -146,8 +146,7 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
 
 /// Creates a fresh EMPTY FAT32 image (no project tree) for the recorder-roundtrip scenario,
 /// which only ever WRITES new files (it records, finalizes, then reads back what it wrote).
-/// Same geometry as [`pack_image`] — 2.5 GB sparse, 32 KB clusters via `mformat -c 64` —
-/// mirroring `src/bsp/host/host_recorder_roundtrip_main.cpp`'s `format_empty_image()`. Returns
+/// Same geometry as [`pack_image`] — 2.5 GB sparse, 32 KB clusters via `mformat -c 64`. Returns
 /// the image path; the caller points `DELUGE_SD_IMAGE` at it before any SD access. Panics with a
 /// clear message on failure (one-time harness setup, not something to silently degrade under).
 pub fn format_empty_image() -> PathBuf {

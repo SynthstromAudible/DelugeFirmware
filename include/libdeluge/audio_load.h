@@ -61,8 +61,8 @@
 #include <stdint.h>
 
 /* Not currently parsed as C: neither wrapper.h nor the libdeluge.h umbrella
- * includes this header (src/bsp/rust/build.rs), so only the two C++ translation units that include
- * it directly (audio_load_abi.cpp, host_loadcheck_main.cpp) ever see it. This macro is forward-
+ * includes this header (src/bsp/rust/build.rs), so only the C++ translation units that include
+ * it directly (audio_load_abi.cpp, the load scenarios) ever see it. This macro is forward-
  * looking hardening, not a fix for an active failure: it matches the C-parseable convention the
  * sibling libdeluge headers (audio_format.h, file_io.h) already follow, for whenever a Rust consumer
  * of this ABI is wired in and this header joins wrapper.h. `noexcept` is
