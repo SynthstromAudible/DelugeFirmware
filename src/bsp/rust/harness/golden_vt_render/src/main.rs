@@ -114,6 +114,9 @@ mod audio_loader;
 mod board;
 #[path = "../../../src/boot.rs"]
 mod boot;
+/// Capture stamps: where on the TX play timeline an input event happened. See its module doc.
+#[path = "../../../src/capture_stamp.rs"]
+mod capture_stamp;
 /// `deluge_card_flush` — the ejection hook that bumps the shared card generation and then clears
 /// every loader's tables. Compiled unconditionally, like the loaders it clears.
 #[path = "../../../src/card.rs"]

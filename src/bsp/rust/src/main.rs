@@ -159,6 +159,8 @@ mod boot;
 /// C++ memory-model bring-up (SDRAM bss/data, global ctors).
 #[cfg(target_os = "none")]
 mod boot_mem;
+/// Capture stamps: where on the TX play timeline an input event happened. See its module doc.
+mod capture_stamp;
 /// card.h — `deluge_card_flush`, the one ejection hook every loader on this BSP is
 /// invalidated through. Gated identically to `audio_loader` above, which it calls into: the
 /// symbol has to exist wherever a loader's tables do.

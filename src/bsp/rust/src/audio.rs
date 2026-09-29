@@ -38,8 +38,11 @@ unsafe extern "C" {
 const TX_FRAMES: usize = ssi::TX_FRAMES; // 1024
 /// RX ring length in stereo frames.
 const RX_FRAMES: usize = ssi::RX_FRAMES; // 2048
-const TX_MASK: usize = TX_FRAMES - 1;
+pub(crate) const TX_MASK: usize = TX_FRAMES - 1;
 const RX_MASK: usize = RX_FRAMES - 1;
+
+/// The codec rate, in frames per second.
+pub(crate) const SAMPLE_RATE_HZ: u32 = 44_100;
 
 /// Initial RX read latency: keep the read cursor ~one TX-ring + a margin behind
 /// the RX DMA write head (mirrors rza1 audio_io.cpp's start anchor).
@@ -85,7 +88,7 @@ const AWAIT_BLOCK_BOUND_MS: u64 = 20;
 
 /// DMA TX play head as a frame index into the ring.
 #[inline]
-fn tx_play_frame() -> usize {
+pub(crate) fn tx_play_frame() -> usize {
     // SAFETY: both pointers are into the same TX ring (uncached alias).
     let slots = unsafe { ssi::tx_current_ptr().offset_from(ssi::tx_buf_start()) } as usize;
     (slots / 2) & TX_MASK
@@ -168,7 +171,7 @@ pub extern "C" fn deluge_audio_max_block_frames() -> u32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_sample_rate() -> u32 {
-    44_100
+    SAMPLE_RATE_HZ
 }
 
 #[unsafe(no_mangle)]
@@ -264,9 +267,10 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
     }
 }
 
+/// The frame, within the block being rendered, at which the event stamped `stamp` lands. See `capture_stamp`.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
-    // `stamp` is a board capture tick → frame offset on the render timeline.
-    // MIDI/gate timing will refine this; the masked delta is a placeholder.
-    unsafe { ((stamp as usize).wrapping_sub(TX_WRITE) & TX_MASK) as u32 }
+    // SAFETY: BLOCK_START_PLAY is written only by the audio tier's render, which is where this is called from.
+    let block_start = unsafe { BLOCK_START_PLAY } as u32;
+    crate::capture_stamp::render_offset(stamp, block_start, TX_MASK as u32)
 }

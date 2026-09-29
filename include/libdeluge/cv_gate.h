@@ -59,7 +59,7 @@ void deluge_gate_init(void);
 void deluge_gate_set(uint8_t channel, bool on);
 
 /// Callback invoked on each rising edge of the external trigger-clock input.
-/// `timestamp` is in the units of clock.h's sample/tick counter. [isr]
+/// `timestamp` is the edge's capture stamp (see `deluge_audio_stamp_to_render_offset`), widened to 64 bits. [isr]
 typedef void (*DelugeTriggerClockHandler)(uint64_t timestamp);
 
 /// Register (or clear, with NULL) the trigger-clock-in handler. [task]

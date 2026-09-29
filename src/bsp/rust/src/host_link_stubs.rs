@@ -145,7 +145,7 @@ pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_ticks: *mut u32) -> bool {
+pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_stamp: *mut u32) -> bool {
     // DIN input is a note script a scenario arms (audio_host.rs), else the simulator's MIDI input (`sim`); nothing
     // arrives without either.
     let script = crate::audio_host::din_script_read();
@@ -154,11 +154,11 @@ pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_ticks: *mut 
     let Some(b) = script else {
         return false;
     };
-    // SAFETY: the app passes valid out-pointers (arrival_ticks may be null), as for the device's midi.rs.
+    // SAFETY: the app passes valid out-pointers (arrival_stamp may be null), as for the device's midi.rs.
     unsafe {
         *byte = b;
-        if !arrival_ticks.is_null() {
-            *arrival_ticks = embassy_time::Instant::now().as_ticks() as u32;
+        if !arrival_stamp.is_null() {
+            *arrival_stamp = crate::capture_stamp::now_for(0);
         }
     }
     true
