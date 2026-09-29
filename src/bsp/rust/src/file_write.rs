@@ -625,6 +625,13 @@ async fn file_write_task_body() {
             }) else {
                 break;
             };
+            // A request from before the card changed that survived the flush (its `try_lock` lost the race) names
+            // the old card: running it would touch the new card. Its answer could never be collected, so none is
+            // published.
+            if queued.generation != deluge_card_generation::current() {
+                RUNNING_BUFFER.store(0, core::sync::atomic::Ordering::Release);
+                continue;
+            }
             *IN_FLIGHT.lock().await = Some(queued.key.clone());
             // After marking it in flight, so a collect during the wait answers PENDING, exactly as it would while
             // a slow card was working.
