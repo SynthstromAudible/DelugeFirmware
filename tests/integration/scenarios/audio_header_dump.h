@@ -29,12 +29,12 @@
 /// uses, since all it needs is `AudioByteSource`'s four-call surface over an in-memory buffer), then
 /// runs `parseSampleHeader()` and `parseWaveTableHeader()` (at both `makeWaveTableWorkAtAllCosts`
 /// settings) against it, and renders every field plus the error/reject outcome of each as one JSON
-/// line. `crates/deluge_audio_format/tests/corpus_differential.rs` runs the `deluge_audio_header_dump`
-/// binary (see `src/bsp/host/host_audio_header_dump_main.cpp`) as a subprocess and parses this output
+/// line. `crates/deluge_audio_format/tests/corpus_differential.rs` runs golden_vt_render's
+/// `audio_header_dump` scenario (audio_header_dump_scenario.h) as a subprocess and parses this output
 /// to compare field-by-field against the new Rust parser.
 ///
 /// `DELUGE_HOST`-only, same reach as `harness/recorder_readback_probe.h`: compiled into
-/// deluge_loadcheck/deluge_audio_header_dump, never the ARM device firmware.
+/// the host harnesses and deluge_loadcheck, never the ARM device firmware.
 
 #include <string>
 

@@ -19,6 +19,7 @@
 
 // Every scenario below is host-only: several compile to nothing on the device.
 
+#include "scenarios/audio_header_dump_scenario.h"
 #include "scenarios/audio_load_ab_scenario.h"
 #include "scenarios/card_reinsert_scenario.h"
 #include "scenarios/clear_song_undo_scenario.h"
@@ -50,6 +51,9 @@ namespace {
 
 // Alphabetical. clip_lifetime's onAppInit clears the song before the render has run a block (CL-EPOCH0).
 constexpr DelugeScenario kScenarios[] = {
+    {"audio_header_dump", nullptr, &deluge_scenario_audio_header_dump_begin,
+     &deluge_scenario_audio_header_dump_complete, &deluge_scenario_audio_header_dump_dispatch_step,
+     &deluge_scenario_audio_header_dump_step_done, &deluge_scenario_audio_header_dump_failures},
     {"audio_load_ab", nullptr, &deluge_scenario_audio_load_ab_begin, &deluge_scenario_audio_load_ab_complete,
      &deluge_scenario_audio_load_ab_dispatch_step, &deluge_scenario_audio_load_ab_step_done,
      &deluge_scenario_audio_load_ab_failures},

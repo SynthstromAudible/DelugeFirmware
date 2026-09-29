@@ -42,15 +42,11 @@
 //! misspelled root fails the test loudly (`no audio files found under ...`) rather than silently
 //! passing with zero files checked.
 //!
-//! The C++ side of the comparison is `deluge_audio_header_dump` (`src/bsp/host/
-//! host_audio_header_dump_main.cpp`, driving `scenarios/audio_header_dump.h`), a host-only CLI that
-//! reads file paths on stdin and prints one JSON line per file. Build it first:
-//!
-//! ```text
-//! cmake --build sim/build --target deluge_audio_header_dump
-//! ```
-//!
-//! This test finds it at `<repo root>/sim/build/deluge_audio_header_dump` (or `DELUGE_AUDIO_HEADER_DUMP_BIN`).
+//! The C++ side of the comparison is golden_vt_render's `audio_header_dump` scenario
+//! (`tests/integration/scenarios/audio_header_dump_scenario.cpp`, driving `scenarios/audio_header_dump.h`),
+//! which reads file paths on stdin and prints one `AUDIO-HEADER <json>` line per file. `./dbt test` builds
+//! golden_vt_render as the `golden-vt-render` product; this test finds it at
+//! `<repo root>/build/cargo-harness/release/golden_vt_render` (or `GOLDEN_VT_RENDER_BIN`).
 //!
 //! Known limitation, not reachable from the corpus: the hand-rolled JSON number parser below doesn't
 //! handle `nan`/`inf` tokens, so a `midi_note` that happened to render as one of those (impossible
@@ -67,7 +63,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 // ============================================================================================
-// Minimal schema-specific JSON parsing. Not a general JSON library: `deluge_audio_header_dump`'s
+// Minimal schema-specific JSON parsing. Not a general JSON library: the `audio_header_dump` scenario's
 // output is a fixed, flat shape (see `scenarios/audio_header_dump.cpp`), and adding a real JSON crate
 // as a dependency for one test file's fixed schema isn't worth it in a workspace that otherwise
 // depends on nothing.
@@ -315,32 +311,37 @@ fn walk_audio_files(root: &str) -> Vec<PathBuf> {
 // The C++ dumper subprocess.
 // ============================================================================================
 
+/// What the scenario puts before each file's JSON, to tell its lines from the harness's own.
+const DUMP_PREFIX: &str = "AUDIO-HEADER ";
+
 fn cpp_dumper_binary() -> PathBuf {
-    if let Ok(p) = std::env::var("DELUGE_AUDIO_HEADER_DUMP_BIN") {
+    if let Ok(p) = std::env::var("GOLDEN_VT_RENDER_BIN") {
         return PathBuf::from(p);
     }
     // CARGO_MANIFEST_DIR is crates/deluge_audio_format; the repo root is two levels up.
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let bin = "../../build/cargo-harness/release/golden_vt_render";
     manifest_dir
-        .join("../../sim/build/deluge_audio_header_dump")
+        .join(bin)
         .canonicalize()
-        .unwrap_or_else(|_| manifest_dir.join("../../sim/build/deluge_audio_header_dump"))
+        .unwrap_or_else(|_| manifest_dir.join(bin))
 }
 
 /// Run the C++ dumper once over every path in `paths` and return each file's parsed JSON, keyed by
-/// its position in `paths` (the dumper emits exactly one line per stdin line, in order — see
-/// `deluge_audio_header_dump_driver()` in `host_audio_header_dump_main.cpp`). One subprocess for the
-/// WHOLE corpus rather than one per file: `deluge_audio_header_dump` boots the app once (~ms), so
-/// batching keeps a 2000+ file run to a couple of seconds instead of paying that boot cost per file.
+/// its position in `paths` (the scenario emits exactly one `AUDIO-HEADER` line per stdin line, in order —
+/// see `audio_header_dump_scenario.cpp`). One subprocess for the WHOLE corpus rather than one per file:
+/// golden_vt_render boots the app once, so batching keeps a 2000+ file run to a couple of seconds
+/// instead of paying that boot cost per file.
 fn run_cpp_dumper(paths: &[PathBuf]) -> Vec<Json> {
     let bin = cpp_dumper_binary();
     assert!(
         bin.exists(),
-        "C++ dumper not found at {bin:?} (or $DELUGE_AUDIO_HEADER_DUMP_BIN) — build it first:\n  \
-         cmake --build sim/build --target deluge_audio_header_dump"
+        "golden_vt_render not found at {bin:?} (or $GOLDEN_VT_RENDER_BIN) — build it first:\n  \
+         ./dbt test golden-synth (or any test that builds the golden-vt-render product)"
     );
 
     let mut child = Command::new(&bin)
+        .env("GOLDEN_SCENARIO", "audio_header_dump")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
@@ -362,7 +363,10 @@ fn run_cpp_dumper(paths: &[PathBuf]) -> Vec<Json> {
     let stdout = child.stdout.take().expect("piped stdout");
     let mut lines = Vec::with_capacity(paths.len());
     for line in BufReader::new(stdout).lines() {
-        lines.push(line.expect("read dumper stdout"));
+        let line = line.expect("read dumper stdout");
+        if let Some(json) = line.strip_prefix(DUMP_PREFIX) {
+            lines.push(json.to_string());
+        }
     }
 
     writer.join().expect("dumper stdin writer thread panicked");

@@ -27,7 +27,7 @@
 /// Why this exists: `SampleStream::open_read_stream` (sample_stream.cpp) is efatfs-only — there
 /// is no C-FatFS fallback for the streaming-read path at all, on any BSP. `deluge::io`'s
 /// task-context surface (file.cpp/stream.cpp) calls the efatfs C-ABI unconditionally too, so this
-/// passthrough is what backs it on the C-host. The host-sim tools (`deluge_loadcheck`, `deluge_audio_header_dump`) link
+/// passthrough is what backs it on the C-host. The host-sim `deluge_loadcheck` links
 /// no Rust efatfs provider (that only exists on the Rust/Embassy BSP), so without this file every
 /// streamed sample would fail to open and every task-context file operation would no-op. This
 /// gives the host sim a real backend for both over plain POSIX file I/O against a project directory

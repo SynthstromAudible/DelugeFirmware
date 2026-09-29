@@ -420,7 +420,7 @@ TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
 /// Measured: the offline stem drain hung for 900s against a cold card image, and finished in 37s
 /// with nothing submitted.
 ///
-/// `host_loadcheck_main.cpp` and `host_audio_header_dump_main.cpp` override @ref startupConditionalTask
+/// `host_loadcheck_main.cpp` overrides @ref startupConditionalTask
 /// for the same reason; this gives the render arm the same override.
 extern "C" void deluge_startup_skip_settings_prelude() {
 	startupConditionalTask = deluge::storage::armStartupSong;

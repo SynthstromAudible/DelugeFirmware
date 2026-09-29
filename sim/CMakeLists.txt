@@ -5,8 +5,8 @@
 # is both the definitive proof the app has no transitive HAL dependency (no RZA1/
 # on the include path) and what the Embassy host harnesses and `dbt sim` link
 # (tests/: the `host-app` build product, built -DDELUGE_SIM_X64=ON into
-# build/host-app). Two tools also link the C host BSP (src/bsp/host):
-# deluge_loadcheck and deluge_audio_header_dump.
+# build/host-app). One tool also links the C host BSP (src/bsp/host):
+# deluge_loadcheck.
 
 cmake_minimum_required(VERSION 3.24)
 
@@ -402,26 +402,6 @@ target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_
 target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
-endif()
-
-# deluge_audio_header_dump: headless C++ oracle for the `deluge_audio_format` (crates/deluge_audio_format)
-# corpus differential (see tests/integration/scenarios/audio_header_dump.h). Same app + host BSP boot as deluge_loadcheck, but
-# its own main()/driver (host_audio_header_dump_main.cpp) reads host filesystem paths from stdin and, for
-# each, dumps parseSampleHeader's/parseWaveTableHeader's (both makeWaveTableWorkAtAllCosts settings)
-# outcome as one JSON line to stdout — driven straight off an in-memory AudioByteSource, so unlike
-# deluge_loadcheck it needs no DELUGE_SD_ROOT/efatfs passthrough at all.
-add_executable(deluge_audio_header_dump
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_audio_header_dump_main.cpp
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
-)
-target_include_directories(deluge_audio_header_dump PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_audio_header_dump PRIVATE deluge_app deluge_scenarios deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(deluge_audio_header_dump PRIVATE ${RT_LIB})
 endif()
 
 # NOTE: the C-host `deluge_render` / `deluge_recorder_roundtrip` renderers and their CTests

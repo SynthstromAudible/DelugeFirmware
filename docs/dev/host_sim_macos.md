@@ -34,7 +34,7 @@ argon, etl, SIMDe (Intel only), CppSpec and the Rust crates are fetched automati
 
 ```sh
 cmake -B build-sim-mac -S sim -G Ninja
-cmake --build build-sim-mac --target deluge_loadcheck deluge_audio_header_dump
+cmake --build build-sim-mac --target deluge_loadcheck
 ```
 
 The auto-detection selects, on Apple Silicon:

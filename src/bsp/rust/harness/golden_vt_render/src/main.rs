@@ -1583,9 +1583,8 @@ fn main() {
     }
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {
-            "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard" => {
-                memory_card::install(None)
-            }
+            "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard"
+            | "audio_header_dump" => memory_card::install(None),
             "audio_load_ab" => fill_audio_load_ab_card(),
             "song_preview_ab" => fill_song_preview_ab_card(&repo_root),
             "song_save_channel" => fill_song_save_card(),
