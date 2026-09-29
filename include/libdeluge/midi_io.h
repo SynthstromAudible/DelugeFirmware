@@ -73,10 +73,9 @@ DelugeMidiPort deluge_midi_usb_port(uint8_t controller, uint8_t device);
 /// re-arm or poll at this boundary. [task] [isr]
 uint32_t deluge_midi_read(DelugeMidiPort port, uint8_t* dst, uint32_t max);
 
-/// Like deluge_midi_read(), but when it returns > 0 also fills `*arrival_ticks`
-/// with the hardware timestamp of the drained batch's arrival, in the board's
-/// foundation tick units — the same source as deluge_midi_din_read_timed(), so
-/// MIDI-clock-in timing is preserved across transports. [task]
+/// Like deluge_midi_read(), but when it returns > 0 also fills `*arrival_ticks` with the capture stamp of the
+/// drained batch's arrival (see `deluge_audio_stamp_to_render_offset`), as deluge_midi_din_read_timed() does
+/// per byte. Every message in the batch shares that one stamp. [task]
 uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max, uint32_t* arrival_ticks);
 
 /// Queue `len` bytes for transmission on `port`. Returns the number of bytes
@@ -90,13 +89,12 @@ uint32_t deluge_midi_write_space(DelugeMidiPort port);
 /// The app uses this to tell whether output is still pending. [task]
 uint32_t deluge_midi_write_pending(DelugeMidiPort port);
 
-/// Read the next received DIN/serial MIDI byte together with the hardware
-/// timestamp of its arrival. Returns true and fills `*byte` and `*arrival_ticks`
-/// when a byte was available; false (leaving the outputs untouched) when the RX
-/// buffer is empty. The timestamp is in the board's foundation tick units — the
-/// same source the app already uses to time incoming MIDI clock — so clock-in
-/// jitter is preserved. Non-blocking. [task] [isr]
-bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_ticks);
+/// Read the next received DIN/serial MIDI byte together with its capture stamp.
+/// Returns true and fills `*byte` and `*arrival_stamp` when a byte was
+/// available; false (leaving the outputs untouched) when the RX buffer is
+/// empty. `*arrival_stamp` is the event's capture stamp; see
+/// `deluge_audio_stamp_to_render_offset`. Non-blocking. [task] [isr]
+bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_stamp);
 
 /// Push any buffered TX bytes toward the wire if idle. USB-MIDI ports on one
 /// controller share the wire, so flushing any of them pumps that controller's

@@ -9,15 +9,16 @@
 //!
 //! All state is touched only from the app's tasks (deluge_audio_drive and the
 //! timing queries), and no ISR touches it, so the `static mut` access is
-//! single-threaded. The one
-//! exception is [`RENDER_BLOCKS`], an atomic the render bumps and thread mode
-//! reads in [`deluge_audio_await_block`].
+//! single-threaded. The exceptions are [`RENDER_BLOCKS`], an atomic the render
+//! bumps and thread mode reads in [`deluge_audio_await_block`], and
+//! [`BLOCK_START_PLAY`], an atomic the render (the preemptive audio tier)
+//! writes and the task tier reads to place capture stamps.
 #![allow(non_upper_case_globals)]
 // This module is a single-threaded port (state touched only from the app task,
 // no ISR); the unsafe ops inside the unsafe fns are documented per-site.
 #![allow(unsafe_op_in_unsafe_fn)]
 
-use core::sync::atomic::{AtomicU32, Ordering};
+use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
 use rza1l_hal::ssi;
 
@@ -38,8 +39,11 @@ unsafe extern "C" {
 const TX_FRAMES: usize = ssi::TX_FRAMES; // 1024
 /// RX ring length in stereo frames.
 const RX_FRAMES: usize = ssi::RX_FRAMES; // 2048
-const TX_MASK: usize = TX_FRAMES - 1;
+pub(crate) const TX_MASK: usize = TX_FRAMES - 1;
 const RX_MASK: usize = RX_FRAMES - 1;
+
+/// The codec rate, in frames per second.
+pub(crate) const SAMPLE_RATE_HZ: u32 = 44_100;
 
 /// Initial RX read latency: keep the read cursor ~one TX-ring + a margin behind
 /// the RX DMA write head (mirrors rza1 audio_io.cpp's start anchor).
@@ -73,7 +77,10 @@ static mut PENDING_POS: usize = 0; // [PENDING_POS, PENDING_END) = rendered, not
 static mut PENDING_END: usize = 0;
 // Anchors of the current render block, for sample-accurate gate/MIDI timing.
 static mut BLOCK_START_WRITE: usize = 0;
-static mut BLOCK_START_PLAY: usize = 0;
+/// The play frame the most recently begun render block started at. Written by the audio tier's render
+/// (`deluge_audio_drive`), read by the task tier (`deluge_audio_frames_until_block_offset`,
+/// `deluge_audio_stamp_to_render_offset`) — cross-tier, so atomic rather than `static mut`.
+static BLOCK_START_PLAY: AtomicUsize = AtomicUsize::new(0);
 
 /// [audio] -> [task] How many render blocks have begun: bumped just before each `deluge_app_render` call, read by
 /// [`deluge_audio_await_block`]. Wraps; only a change is ever looked for.
@@ -85,7 +92,7 @@ const AWAIT_BLOCK_BOUND_MS: u64 = 20;
 
 /// DMA TX play head as a frame index into the ring.
 #[inline]
-fn tx_play_frame() -> usize {
+pub(crate) fn tx_play_frame() -> usize {
     // SAFETY: both pointers are into the same TX ring (uncached alias).
     let slots = unsafe { ssi::tx_current_ptr().offset_from(ssi::tx_buf_start()) } as usize;
     (slots / 2) & TX_MASK
@@ -168,7 +175,7 @@ pub extern "C" fn deluge_audio_max_block_frames() -> u32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_sample_rate() -> u32 {
-    44_100
+    SAMPLE_RATE_HZ
 }
 
 #[unsafe(no_mangle)]
@@ -193,7 +200,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
             // Cap at the app's render-buffer size (NOT the TX ring) — see APP_BLOCK_FRAMES.
             let frames = pace_window(raw, APP_BLOCK_FRAMES);
             BLOCK_START_WRITE = TX_WRITE;
-            BLOCK_START_PLAY = PLAY_CACHED;
+            BLOCK_START_PLAY.store(PLAY_CACHED, Ordering::Relaxed);
             prepare_input_block(frames);
             RENDER_BLOCKS.fetch_add(1, Ordering::Release);
             deluge_app_render(
@@ -255,7 +262,8 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
     let play_now = tx_play_frame();
     unsafe {
         if !elapsed_frames_out.is_null() {
-            *elapsed_frames_out = (play_now.wrapping_sub(BLOCK_START_PLAY) & TX_MASK) as u32;
+            let block_start_play = BLOCK_START_PLAY.load(Ordering::Relaxed);
+            *elapsed_frames_out = (play_now.wrapping_sub(block_start_play) & TX_MASK) as u32;
         }
         (BLOCK_START_WRITE
             .wrapping_add(offset_frames as usize)
@@ -264,9 +272,10 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
     }
 }
 
+/// How far past the start of the most recently begun render block the event stamped `stamp` fell. See
+/// `capture_stamp`. [task]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
-    // `stamp` is a board capture tick → frame offset on the render timeline.
-    // MIDI/gate timing will refine this; the masked delta is a placeholder.
-    unsafe { ((stamp as usize).wrapping_sub(TX_WRITE) & TX_MASK) as u32 }
+    let block_start = BLOCK_START_PLAY.load(Ordering::Relaxed) as u32;
+    crate::capture_stamp::render_offset(stamp, block_start, TX_MASK as u32)
 }

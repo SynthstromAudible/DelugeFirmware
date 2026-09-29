@@ -159,6 +159,9 @@ mod boot;
 /// C++ memory-model bring-up (SDRAM bss/data, global ctors).
 #[cfg(target_os = "none")]
 mod boot_mem;
+/// Capture stamps: where on the TX play timeline an input event happened. See its module doc.
+#[cfg_attr(not(any(target_os = "none", feature = "host_app")), allow(dead_code))]
+mod capture_stamp;
 /// card.h — `deluge_card_flush`, the one ejection hook every loader on this BSP is
 /// invalidated through. Gated identically to `audio_loader` above, which it calls into: the
 /// symbol has to exist wherever a loader's tables do.
@@ -248,6 +251,9 @@ mod file_prefix;
 /// The write channel: request/collect over the recorder's stream-write handles and the whole-file
 /// write and read. Compiled unconditionally; the channel has no feature switch.
 mod file_write;
+/// The write channel's answer slot: pure, so it is host-tested without a card. Compiled unconditionally,
+/// beside `file_write` above, which it is the storage for.
+mod file_write_slot;
 /// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.
 mod flash;
 /// Host-only no-op stubs for the peripheral (MIDI/audio/CV-gate/signals) C ABI

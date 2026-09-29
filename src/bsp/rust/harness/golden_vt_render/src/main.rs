@@ -114,6 +114,13 @@ mod audio_loader;
 mod board;
 #[path = "../../../src/boot.rs"]
 mod boot;
+/// Capture stamps: where on the TX play timeline an input event happened. See its module doc.
+// `deluge_audio_stamp_to_render_offset` (the only caller of `stamp_at`/`render_offset`) lives in
+// `audio.rs`, which this host package doesn't compile; only `now_for` (via `host_link_stubs.rs`) is
+// exercised here.
+#[allow(dead_code)]
+#[path = "../../../src/capture_stamp.rs"]
+mod capture_stamp;
 /// `deluge_card_flush` — the ejection hook that bumps the shared card generation and then clears
 /// every loader's tables. Compiled unconditionally, like the loaders it clears.
 #[path = "../../../src/card.rs"]
@@ -162,6 +169,11 @@ mod file_prefix;
 /// settings channel first shipped a green run reporting nothing served.
 #[path = "../../../src/file_write.rs"]
 mod file_write;
+/// The write channel's answer slot, storage for `file_write` above. Included here for the same reason every
+/// module in this list is: a module missing resolves `file_write`'s `use super::file_write_slot::...` against
+/// nothing, and this binary would fail to build rather than silently drop the channel.
+#[path = "../../../src/file_write_slot.rs"]
+mod file_write_slot;
 #[path = "../../../src/flash.rs"]
 mod flash;
 #[path = "../../../src/host_link_stubs.rs"]
@@ -1590,10 +1602,17 @@ fn main() {
     // The card: a memory disk filled with the scenario's fixture tree (memory_card.rs), unless DELUGE_SD_IMAGE names a
     // file to use instead.
     // render_song and render_preset play as the device does: every block rendered on the audio tier after boot, one
-    // 128-frame block per 2,902 virtual microseconds. Both must be set before deluge_app_init registers the audio task.
+    // 128-frame block per 2,902 virtual microseconds, so their golden timing checks compare against the device's
+    // own audio period. Both must be set before deluge_app_init registers the audio task.
     if scenario == "render_song" || scenario == "render_preset" {
         audio_host::set_realtime_render(true);
         scheduler::set_audio_period_override_us(2902, 0);
+    }
+    // clock_input drives PlaybackHandler's analog-clock transport, which times its input ticks by
+    // AudioEngine::audioSampleTimer and so needs that timer to advance between edges; only real rendering moves it.
+    // Not the period override above -- this scenario has no golden timing to match, just needs the clock to move.
+    if scenario == "clock_input" {
+        audio_host::set_realtime_render(true);
     }
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {

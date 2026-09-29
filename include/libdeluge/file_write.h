@@ -53,6 +53,9 @@
 ///
 /// **Fixed-width, never a native enum.** `arm-none-eabi` defaults to short enums, so a native enum
 /// layout must never be relied on across this boundary.
+///
+/// **Answers are stamped with the card generation their request was made under.** After an ejection, an answer to
+/// a request from before it is never collected, and its collect answers @ref DELUGE_FILE_WRITE_UNKNOWN.
 #ifndef LIBDELUGE_FILE_WRITE_H
 #define LIBDELUGE_FILE_WRITE_H
 
@@ -197,7 +200,8 @@ bool deluge_file_write_holds(const void* buffer) DELUGE_NOEXCEPT;
 
 /// @brief Collect the whole-file read.
 ///
-/// @param path       The path passed to @ref deluge_file_write_request_read_file.
+/// @param path       The path the request named. It selects the answer: a collect with another path
+///                   answers @ref DELUGE_FILE_WRITE_UNKNOWN.
 /// @param out_len    Written ONLY on @ref DELUGE_FILE_WRITE_READY: the file's size, now in `dst`.
 /// @param out_needed Written on @ref DELUGE_FILE_WRITE_FAILED when the file did not FIT: the size
 ///                   required. ZERO on a genuine I/O failure, which is how the caller tells a
@@ -225,7 +229,8 @@ bool deluge_file_write_request_write_file(const char* path, const uint8_t* src, 
 
 /// @brief Collect the whole-document write.
 ///
-/// @param path        The path passed to @ref deluge_file_write_request_write_file.
+/// @param path        The path the request named. It selects the answer: a collect with another path
+///                    answers @ref DELUGE_FILE_WRITE_UNKNOWN.
 /// @param out_written Written ONLY on @ref DELUGE_FILE_WRITE_READY, with the byte count. A count
 ///                    below `len` is a short write; the caller treats it as a card error.
 /// @param out_exists  Written on @ref DELUGE_FILE_WRITE_FAILED: 1 when the file was already there and

@@ -98,7 +98,9 @@ pub async fn trigger_clock_task() {
         .await;
 
         let now = trigger_clock::EDGE_COUNT.load(Ordering::Relaxed);
-        let ts = trigger_clock::LAST_EDGE_TICKS.load(Ordering::Relaxed);
+        let ts = u64::from(crate::capture_stamp::now_for(
+            trigger_clock::LAST_EDGE_TICKS.load(Ordering::Relaxed),
+        ));
         let h = TRIGGER_HANDLER.load(Ordering::Relaxed);
         while last != now {
             last = last.wrapping_add(1);

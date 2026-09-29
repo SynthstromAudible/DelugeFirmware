@@ -107,7 +107,9 @@ pub extern "C" fn deluge_midi_read_timed(
     }
     if written > 0 && !arrival_ticks.is_null() {
         // SAFETY: caller passes a valid out-pointer when non-null.
-        unsafe { *arrival_ticks = embassy_time::Instant::now().as_ticks() as u32 };
+        unsafe {
+            *arrival_ticks = crate::capture_stamp::now_for(embassy_time::Instant::now().as_ticks())
+        };
     }
     written as u32
 }
@@ -151,14 +153,15 @@ pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_ticks: *mut u32) -> bool {
+pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_stamp: *mut u32) -> bool {
     match uart::try_read_midi() {
         Some(b) => {
-            // SAFETY: the app passes valid out-pointers (arrival_ticks may be null).
+            // SAFETY: the app passes valid out-pointers (arrival_stamp may be null).
             unsafe {
                 *byte = b;
-                if !arrival_ticks.is_null() {
-                    *arrival_ticks = embassy_time::Instant::now().as_ticks() as u32;
+                if !arrival_stamp.is_null() {
+                    *arrival_stamp =
+                        crate::capture_stamp::now_for(embassy_time::Instant::now().as_ticks());
                 }
             }
             true

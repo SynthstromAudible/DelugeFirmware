@@ -85,8 +85,6 @@
 
 #define MAX_NUM_USB_MIDI_DEVICES 6
 
-#define TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED 4
-
 // --- Clock ------------------------------------------------------------------
 #if DELUGE_MODEL >= DELUGE_MODEL_144_G
 #define XTAL_SPEED_MHZ 13007402 // 1.65% lower, for SSCG

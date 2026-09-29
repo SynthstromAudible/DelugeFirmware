@@ -87,6 +87,29 @@ pub extern "C" fn deluge_gate_set(channel: u8, on: bool) {
     stub_log!("deluge_gate_set");
 }
 
+/// The app's trigger-clock handler (0 = none), as `cv_gate.rs` keeps it on the device.
+static TRIGGER_HANDLER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_trigger_clock_set_handler(handler: crate::sys::DelugeTriggerClockHandler) {
+    TRIGGER_HANDLER.store(
+        handler.map_or(0, |f| f as usize),
+        core::sync::atomic::Ordering::Relaxed,
+    );
+}
+
+/// Host harness only: deliver one rising edge to the installed handler, as the device's trigger-clock task does.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_trigger_clock_host_edge(stamp: u64) {
+    let h = TRIGGER_HANDLER.load(core::sync::atomic::Ordering::Relaxed);
+    if h != 0 {
+        // SAFETY: h was stored from a valid DelugeTriggerClockHandler by the setter above.
+        let f: unsafe extern "C" fn(u64) = unsafe { core::mem::transmute(h) };
+        // SAFETY: the app's handler takes any stamp.
+        unsafe { f(stamp) };
+    }
+}
+
 // ── midi_io.h (+ signals.h's deluge_midi_gate_timer_pending) ────────────────
 
 #[unsafe(no_mangle)]
@@ -145,7 +168,7 @@ pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_ticks: *mut u32) -> bool {
+pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_stamp: *mut u32) -> bool {
     // DIN input is a note script a scenario arms (audio_host.rs), else the simulator's MIDI input (`sim`); nothing
     // arrives without either.
     let script = crate::audio_host::din_script_read();
@@ -154,11 +177,11 @@ pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_ticks: *mut 
     let Some(b) = script else {
         return false;
     };
-    // SAFETY: the app passes valid out-pointers (arrival_ticks may be null), as for the device's midi.rs.
+    // SAFETY: the app passes valid out-pointers (arrival_stamp may be null), as for the device's midi.rs.
     unsafe {
         *byte = b;
-        if !arrival_ticks.is_null() {
-            *arrival_ticks = embassy_time::Instant::now().as_ticks() as u32;
+        if !arrival_stamp.is_null() {
+            *arrival_stamp = crate::capture_stamp::now_for(0);
         }
     }
     true
