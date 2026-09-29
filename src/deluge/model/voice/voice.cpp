@@ -1500,7 +1500,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	        makeBlockControls(sourceAmplitude, amplitudeIncrement, pulseWidth, /*applyAmplitude=*/true, doOscSync,
 	                          oscSyncPosThisUnison, oscSyncPhaseIncrementsThisUnison, oscRetriggerPhase),
 	    .waveTableData = (waveTable != nullptr) ? waveTable->view() : deluge::dsp::fixed::WaveTableData{},
-	    .waveIndexLast = sourceWaveIndexesLastTime[s],
+	    .waveIndexLast = static_cast<int32_t>(sourceWaveIndexesLastTime[s]),
 	    .waveIndexIncrement = waveIndexIncrement,
 	    .stereoScratch = spareBuffers_[2],
 	    .stereoScratchClearSamples = SSI_TX_BUFFER_NUM_SAMPLES,
@@ -1511,7 +1511,7 @@ Voice::renderSourceComponent(int32_t u, int32_t s, ParamManagerForTimeline* para
 	    .interpolationBufferSize =
 	        SampleControls::getInterpolationBufferSize(cfg.interpolationMode[s], phaseIncrement), // live input
 	    .portaEnvelopePos = portaEnvelopePos,                                                     // sample
-	    .priorityRating = getPriorityRating(),                                         // sample (snapshot once)
+	    .priorityRating = static_cast<int32_t>(getPriorityRating()),                   // sample (snapshot once)
 	    .phaseIncrementStoredValue = voiceUnisonPartSource->phaseIncrementStoredValue, // sample late-start
 	    .pitchModDisallowsCache = pitchModDisallowsCache,                              // sample caching policy
 	};
