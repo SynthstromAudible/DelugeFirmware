@@ -40,7 +40,7 @@ TEST(TriggerClockEdges, AFullRingDropsTheNewestAndCountsIt) {
 	CHECK_FALSE(edges.pop().has_value());
 }
 
-TEST(TriggerClockEdges, TheRingKeepsWorkingPastCounterWrap) {
+TEST(TriggerClockEdges, TheRingKeepsWorkingPastIndexWrap) {
 	TriggerClockEdges edges;
 	for (uint32_t i = 0; i < 1000; i++) {
 		edges.push(i);
