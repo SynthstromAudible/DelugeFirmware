@@ -1608,10 +1608,9 @@ fn main() {
         audio_host::set_realtime_render(true);
         scheduler::set_audio_period_override_us(2902, 0);
     }
-    // clock_input drives PlaybackHandler's analog-clock transport, whose input-tick arithmetic divides by the
-    // audio time elapsed since the previous edge (AudioEngine::audioSampleTimer): without real rendering that
-    // timer never advances between edges, and the division is by zero. Not the period override above -- this
-    // scenario has no golden timing to match, just needs the clock to move.
+    // clock_input drives PlaybackHandler's analog-clock transport, which times its input ticks by
+    // AudioEngine::audioSampleTimer and so needs that timer to advance between edges; only real rendering moves it.
+    // Not the period override above -- this scenario has no golden timing to match, just needs the clock to move.
     if scenario == "clock_input" {
         audio_host::set_realtime_render(true);
     }
