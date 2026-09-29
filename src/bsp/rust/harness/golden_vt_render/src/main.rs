@@ -169,6 +169,11 @@ mod file_prefix;
 /// settings channel first shipped a green run reporting nothing served.
 #[path = "../../../src/file_write.rs"]
 mod file_write;
+/// The write channel's answer slot, storage for `file_write` above. Included here for the same reason every
+/// module in this list is: a module missing resolves `file_write`'s `use super::file_write_slot::...` against
+/// nothing, and this binary would fail to build rather than silently drop the channel.
+#[path = "../../../src/file_write_slot.rs"]
+mod file_write_slot;
 #[path = "../../../src/flash.rs"]
 mod flash;
 #[path = "../../../src/host_link_stubs.rs"]

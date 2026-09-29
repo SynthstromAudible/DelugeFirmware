@@ -562,6 +562,16 @@ mod file_directory;
 #[path = "../src/file_bytes.rs"]
 mod file_bytes;
 
+/// The fifth sibling `card.rs` names: the write channel's flush.
+#[allow(dead_code)]
+#[path = "../src/file_write.rs"]
+mod file_write;
+
+/// Storage for `file_write` above.
+#[allow(dead_code)]
+#[path = "../src/file_write_slot.rs"]
+mod file_write_slot;
+
 mod live_pipeline {
     use super::file_prefix::{
         DELUGE_FILE_PREFIX_FAILED, DELUGE_FILE_PREFIX_PENDING, DELUGE_FILE_PREFIX_READY,

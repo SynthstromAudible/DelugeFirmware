@@ -251,6 +251,9 @@ mod file_prefix;
 /// The write channel: request/collect over the recorder's stream-write handles and the whole-file
 /// write and read. Compiled unconditionally; the channel has no feature switch.
 mod file_write;
+/// The write channel's answer slot: pure, so it is host-tested without a card. Compiled unconditionally,
+/// beside `file_write` above, which it is the storage for.
+mod file_write_slot;
 /// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.
 mod flash;
 /// Host-only no-op stubs for the peripheral (MIDI/audio/CV-gate/signals) C ABI

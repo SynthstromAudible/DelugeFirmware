@@ -96,47 +96,38 @@ enum StreamOp {
     },
 }
 
-/// What a collect matches against. Keyed by KIND as well as handle, so a read answer can never be
-/// mistaken for a write answer on the same file -- the discipline `file_bytes.rs` applies with its
-/// `(ByteOp, path)` key.
-#[derive(Clone, Copy, PartialEq, Eq)]
-enum OpKind {
-    Open,
-    ReadAt,
-    WriteAt,
-    Truncate,
-    Close,
-    Stats,
-    ReadFile,
-    WriteFile,
+use super::file_write_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath};
+
+/// A request waiting for the task.
+struct Queued {
+    op: StreamOp,
+    key: OpKey,
+    /// The file an `Open`, `ReadFile` or `WriteFile` names; empty for the others.
+    path: WritePath,
+    /// The card generation the request was made under. Its answer is stamped with it, so an answer that finishes
+    /// after an ejection is never collected as the new card's.
+    generation: u32,
 }
 
-/// The answer to one operation. The `Ok` payload is the handle for `Open`, the byte count for
-/// `ReadAt`/`WriteAt`/`ReadFile`, the free-cluster count for `Stats`, and 0 for `Truncate`/`Close`.
-///
-/// The `Err` payload exists for `ReadFile` alone: the size the caller's buffer needed, when the file
-/// did not fit. Every other failure carries 0, which is how a caller distinguishes "too small" from
-/// "the card is broken" -- a distinction the unit error this once carried could not express.
-#[derive(Clone, Copy)]
-struct Answer {
-    kind: OpKind,
-    handle: u32,
-    result: Result<u32, u32>,
+/// `op`'s key. `None` when a path-keyed operation's path does not fit.
+fn op_key(op: &StreamOp, path: &str) -> Option<OpKey> {
+    match *op {
+        StreamOp::Open { .. } => OpKey::new(OpKind::Open, 0, ""),
+        StreamOp::ReadAt { handle, .. } => OpKey::new(OpKind::ReadAt, handle, ""),
+        StreamOp::WriteAt { handle, .. } => OpKey::new(OpKind::WriteAt, handle, ""),
+        StreamOp::Truncate { handle, .. } => OpKey::new(OpKind::Truncate, handle, ""),
+        StreamOp::Close { handle } => OpKey::new(OpKind::Close, handle, ""),
+        StreamOp::Stats => OpKey::new(OpKind::Stats, 0, ""),
+        StreamOp::ReadFile { .. } => OpKey::new(OpKind::ReadFile, 0, path),
+        StreamOp::WriteFile { .. } => OpKey::new(OpKind::WriteFile, 0, path),
+    }
 }
 
-/// Path storage for the one path-keyed operation. Declared here rather than borrowed from
-/// `file_bytes`: that module is behind its own cargo feature, and a build that carries this driver
-/// without it must still compile. Same bound as every other channel's, for the reason
-/// `file_bytes.h` gives -- a path one channel can name but another cannot would be a trap.
-const MAX_PATH_CHARS: usize = 255;
-type WritePath = heapless::String<MAX_PATH_CHARS>;
-
-static REQUEST: Mutex<CriticalSectionRawMutex, Option<(StreamOp, WritePath)>> = Mutex::new(None);
-/// The operation the task is running right now. Kept separate from [`REQUEST`] so a collect can tell
-/// "still running" (PENDING) from "never asked" (UNKNOWN) -- conflating those makes a caller wait
-/// forever for an answer to a request nothing accepted.
-static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<(OpKind, u32)>> = Mutex::new(None);
-static RESULT: Mutex<CriticalSectionRawMutex, Option<Answer>> = Mutex::new(None);
+static REQUEST: Mutex<CriticalSectionRawMutex, Option<Queued>> = Mutex::new(None);
+/// The operation the task is running. Kept apart from [`REQUEST`] so a collect can tell "still running" (PENDING)
+/// from "never asked" (UNKNOWN).
+static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<OpKey>> = Mutex::new(None);
+static RESULT: Mutex<CriticalSectionRawMutex, AnswerSlot> = Mutex::new(AnswerSlot::new());
 /// The caller-owned buffer the running operation reads or writes, as an address; 0 when nothing is running or the
 /// operation has no buffer. Set under the REQUEST lock the operation is taken from, and cleared once the operation has
 /// finished with the buffer, so [`deluge_file_write_holds`] never sees a gap between queued and running.
@@ -163,103 +154,106 @@ pub extern "C" fn deluge_file_write_holds(buffer: *const core::ffi::c_void) -> b
         return false;
     }
     let queued = match REQUEST.try_lock() {
-        Ok(req) => req.as_ref().is_some_and(|(op, _)| op_buffer(op) == addr),
+        Ok(req) => req.as_ref().is_some_and(|q| op_buffer(&q.op) == addr),
         Err(_) => true,
     };
     queued || RUNNING_BUFFER.load(core::sync::atomic::Ordering::Acquire) == addr
 }
 static WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
-fn op_key(op: &StreamOp) -> (OpKind, u32) {
-    match *op {
-        StreamOp::Open { .. } => (OpKind::Open, 0),
-        StreamOp::ReadAt { handle, .. } => (OpKind::ReadAt, handle),
-        StreamOp::WriteAt { handle, .. } => (OpKind::WriteAt, handle),
-        StreamOp::Truncate { handle, .. } => (OpKind::Truncate, handle),
-        StreamOp::Close { handle } => (OpKind::Close, handle),
-        StreamOp::Stats => (OpKind::Stats, 0),
-        // Path-keyed, like Open: the handle slot is unused and the KIND is what distinguishes it.
-        StreamOp::ReadFile { .. } => (OpKind::ReadFile, 0),
-        StreamOp::WriteFile { .. } => (OpKind::WriteFile, 0),
-    }
-}
-
 /// Accept an operation if nothing is in flight.
 ///
-/// Drops any uncollected answer with the SAME key first. `STREAM_WRITE_CTX` recycles slot indices,
-/// so without this a second recorder that inherits slot N collects the first recorder's stale answer
-/// and reports its own work as done -- a bug this channel has already shipped once, caught only by a
-/// byte-level readback.
+/// Drops an uncollected answer with the SAME key first. `STREAM_WRITE_CTX` recycles slot indices, so without
+/// this, a recorder that inherits slot N would collect the previous recorder's answer as its own.
 fn accept(op: StreamOp, path: &str) -> bool {
     let (Ok(mut req), Ok(in_flight), Ok(mut result)) =
         (REQUEST.try_lock(), IN_FLIGHT.try_lock(), RESULT.try_lock())
     else {
         return false;
     };
-    // Single-flight. A second request while one is outstanding is REFUSED, never replaced: for the
-    // recorder a dropped write is lost audio, so the caller must see the refusal.
+    // Single-flight. A second request while one is outstanding is REFUSED, never replaced: for the recorder a
+    // dropped write is lost audio, so the caller must see the refusal.
     if req.is_some() || in_flight.is_some() {
         return false;
     }
-    let (kind, handle) = op_key(&op);
-    if result.is_some_and(|a| a.kind == kind && a.handle == handle) {
-        *result = None;
-    }
-    let mut p = WritePath::new();
-    if p.push_str(path).is_err() {
+    let (Some(key), Ok(stored)) = (op_key(&op, path), WritePath::try_from(path)) else {
         return false;
-    }
-    *req = Some((op, p));
+    };
+    result.discard(&key);
+    *req = Some(Queued {
+        op,
+        key,
+        path: stored,
+        generation: deluge_card_generation::current(),
+    });
     WAKE.signal(());
     true
 }
 
-/// Collect the answer for `(kind, handle)`. `out` receives the `Ok` payload on READY, `out_needed`
-/// the `Err` payload on FAILED.
+/// Collect `(kind, handle, path)`'s answer. `out` receives the `Ok` payload on READY, `out_needed` the `Err`
+/// payload on FAILED.
 ///
 /// # Safety
 /// Either out-pointer may be null; when one is not, it must point at a writable `u32`.
-unsafe fn collect(kind: OpKind, handle: u32, out: *mut u32, out_needed: *mut u32) -> u8 {
+unsafe fn collect(
+    kind: OpKind,
+    handle: u32,
+    path: &str,
+    out: *mut u32,
+    out_needed: *mut u32,
+) -> u8 {
+    let Some(key) = OpKey::new(kind, handle, path) else {
+        return DELUGE_FILE_WRITE_UNKNOWN;
+    };
     if let Ok(mut result) = RESULT.try_lock() {
-        if let Some(a) = *result {
-            if a.kind == kind && a.handle == handle {
-                *result = None;
-                return match a.result {
-                    Ok(v) => {
-                        if !out.is_null() {
-                            // SAFETY: non-null, and the caller guarantees it is writable.
-                            unsafe { *out = v };
-                        }
-                        DELUGE_FILE_WRITE_READY
-                    }
-                    Err(needed) => {
-                        if !out_needed.is_null() {
-                            // SAFETY: non-null, and the caller guarantees it is writable.
-                            unsafe { *out_needed = needed };
-                        }
-                        DELUGE_FILE_WRITE_FAILED
-                    }
-                };
+        let taken = result.take(&key, deluge_card_generation::current());
+        if result.has_orphans() {
+            WAKE.signal(());
+        }
+        match taken {
+            Take::Ready(value) => {
+                if !out.is_null() {
+                    // SAFETY: non-null, and the caller guarantees it is writable.
+                    unsafe { *out = value };
+                }
+                return DELUGE_FILE_WRITE_READY;
             }
+            Take::Failed(payload) => {
+                if !out_needed.is_null() {
+                    // SAFETY: non-null, and the caller guarantees it is writable.
+                    unsafe { *out_needed = payload };
+                }
+                return DELUGE_FILE_WRITE_FAILED;
+            }
+            Take::Absent => {}
         }
     }
     let queued = REQUEST
         .try_lock()
-        .map(|r| {
-            r.as_ref()
-                .is_some_and(|(op, _)| op_key(op) == (kind, handle))
-        })
+        .map(|r| r.as_ref().is_some_and(|q| q.key == key))
         .unwrap_or(false);
     let running = IN_FLIGHT
         .try_lock()
-        .map(|f| *f == Some((kind, handle)))
+        .map(|f| f.as_ref() == Some(&key))
         .unwrap_or(false);
     if queued || running {
         DELUGE_FILE_WRITE_PENDING
     } else {
-        // Nothing queued, nothing running, no answer waiting: ask again.
+        // Nothing queued, nothing running, no answer for this card: ask again.
         DELUGE_FILE_WRITE_UNKNOWN
     }
+}
+
+/// A C path as `&str`; `None` for null or non-UTF-8.
+///
+/// # Safety
+/// A non-null `path` must be NUL-terminated.
+unsafe fn path_arg<'a>(path: *const c_char) -> Option<&'a str> {
+    if path.is_null() {
+        return None;
+    }
+    // SAFETY: caller guarantees NUL-termination.
+    unsafe { CStr::from_ptr(path) }.to_str().ok()
 }
 
 /// C-ABI: ask for a whole file to be read.
@@ -291,19 +285,23 @@ pub unsafe extern "C" fn deluge_file_write_request_read_file(
 
 /// C-ABI: collect the whole-file read.
 ///
-/// `_path` is unused: like `Open`, this operation is single-flight and distinguished by its KIND
-/// alone. It stays in the signature so the C side reads symmetrically with the request.
+/// `path` selects the answer: a collect with another file's path answers UNKNOWN and leaves this
+/// one's answer for its owner.
 ///
 /// # Safety
 /// Either out-pointer may be null; when one is not, it must point at a writable `u32`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_write_collect_read_file(
-    _path: *const c_char,
+    path: *const c_char,
     out_len: *mut u32,
     out_needed: *mut u32,
 ) -> u8 {
     // SAFETY: forwarded contract.
-    unsafe { collect(OpKind::ReadFile, 0, out_len, out_needed) }
+    let Some(path) = (unsafe { path_arg(path) }) else {
+        return DELUGE_FILE_WRITE_UNKNOWN;
+    };
+    // SAFETY: forwarded contract.
+    unsafe { collect(OpKind::ReadFile, 0, path, out_len, out_needed) }
 }
 
 /// C-ABI: ask for a whole document to be written.
@@ -337,23 +335,26 @@ pub unsafe extern "C" fn deluge_file_write_request_write_file(
 
 /// C-ABI: collect the whole-document write.
 ///
-/// `_path` is unused: like `Open` and `ReadFile`, this operation is single-flight and distinguished
-/// by its KIND alone. It stays in the signature so the C side reads symmetrically with the request.
+/// `path` selects the answer: a collect with another path answers UNKNOWN and leaves this one's
+/// answer for its owner.
 ///
 /// # Safety
 /// Either out-pointer may be null; when non-null they must point at writable storage.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_write_collect_write_file(
-    _path: *const c_char,
+    path: *const c_char,
     out_written: *mut u32,
     out_exists: *mut u8,
 ) -> u8 {
+    // SAFETY: forwarded contract.
+    let Some(path) = (unsafe { path_arg(path) }) else {
+        return DELUGE_FILE_WRITE_UNKNOWN;
+    };
     let mut reason: u32 = 0;
     // SAFETY: forwarded contract.
-    let status = unsafe { collect(OpKind::WriteFile, 0, out_written, &raw mut reason) };
+    let status = unsafe { collect(OpKind::WriteFile, 0, path, out_written, &raw mut reason) };
     if status == DELUGE_FILE_WRITE_FAILED && !out_exists.is_null() {
-        // The error arm carries 1 for "the name was taken" and 0 for everything else, the way
-        // ReadFile's carries the size it needed.
+        // The error arm carries 1 for "the name was taken" and 0 for everything else.
         // SAFETY: non-null, and the caller guarantees it is writable.
         unsafe { *out_exists = u8::from(reason == 1) };
     }
@@ -420,7 +421,15 @@ pub unsafe extern "C" fn deluge_file_write_collect_write_at(
     out_written: *mut u32,
 ) -> u8 {
     // SAFETY: forwarded contract.
-    unsafe { collect(OpKind::WriteAt, handle, out_written, core::ptr::null_mut()) }
+    unsafe {
+        collect(
+            OpKind::WriteAt,
+            handle,
+            "",
+            out_written,
+            core::ptr::null_mut(),
+        )
+    }
 }
 
 /// C-ABI: ask for an open.
@@ -446,7 +455,7 @@ pub unsafe extern "C" fn deluge_file_write_request_open(path: *const c_char, mod
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_write_collect_open(out_handle: *mut u32) -> u8 {
     // SAFETY: forwarded contract.
-    unsafe { collect(OpKind::Open, 0, out_handle, core::ptr::null_mut()) }
+    unsafe { collect(OpKind::Open, 0, "", out_handle, core::ptr::null_mut()) }
 }
 
 /// C-ABI: ask for a positional read.
@@ -481,7 +490,7 @@ pub unsafe extern "C" fn deluge_file_write_request_read_at(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_write_collect_read_at(handle: u32, out_read: *mut u32) -> u8 {
     // SAFETY: forwarded contract.
-    unsafe { collect(OpKind::ReadAt, handle, out_read, core::ptr::null_mut()) }
+    unsafe { collect(OpKind::ReadAt, handle, "", out_read, core::ptr::null_mut()) }
 }
 
 /// C-ABI: ask for a truncate.
@@ -498,6 +507,7 @@ pub extern "C" fn deluge_file_write_collect_truncate(handle: u32) -> u8 {
         collect(
             OpKind::Truncate,
             handle,
+            "",
             core::ptr::null_mut(),
             core::ptr::null_mut(),
         )
@@ -518,6 +528,7 @@ pub extern "C" fn deluge_file_write_collect_close(handle: u32) -> u8 {
         collect(
             OpKind::Close,
             handle,
+            "",
             core::ptr::null_mut(),
             core::ptr::null_mut(),
         )
@@ -537,7 +548,15 @@ pub extern "C" fn deluge_file_write_request_stats() -> bool {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_write_collect_stats(out_free_clusters: *mut u32) -> u8 {
     // SAFETY: forwarded contract.
-    unsafe { collect(OpKind::Stats, 0, out_free_clusters, core::ptr::null_mut()) }
+    unsafe {
+        collect(
+            OpKind::Stats,
+            0,
+            "",
+            out_free_clusters,
+            core::ptr::null_mut(),
+        )
+    }
 }
 
 /// Open `path`, mounting the card first if it turns out not to be mounted.
@@ -576,22 +595,34 @@ pub async fn file_write_task() {
     all(target_os = "none", feature = "efatfs_streaming"),
     feature = "host_app"
 ))]
+async fn close_orphans() {
+    loop {
+        let orphan = RESULT.lock().await.take_orphan();
+        let Some(handle) = orphan else { break };
+        backing::stream_close(handle).await;
+    }
+}
+
+#[cfg(any(
+    all(target_os = "none", feature = "efatfs_streaming"),
+    feature = "host_app"
+))]
 async fn file_write_task_body() {
     loop {
         WAKE.wait().await;
         loop {
-            let Some((op, path)) = ({
+            close_orphans().await;
+            let Some(queued) = ({
                 let mut req = REQUEST.lock().await;
                 let taken = req.take();
-                if let Some((op, _)) = taken.as_ref() {
-                    RUNNING_BUFFER.store(op_buffer(op), core::sync::atomic::Ordering::Release);
+                if let Some(q) = taken.as_ref() {
+                    RUNNING_BUFFER.store(op_buffer(&q.op), core::sync::atomic::Ordering::Release);
                 }
                 taken
             }) else {
                 break;
             };
-            let (kind, handle) = op_key(&op);
-            *IN_FLIGHT.lock().await = Some((kind, handle));
+            *IN_FLIGHT.lock().await = Some(queued.key.clone());
             // After marking it in flight, so a collect during the wait answers PENDING, exactly as it would while
             // a slow card was working.
             #[cfg(feature = "host_app")]
@@ -601,8 +632,9 @@ async fn file_write_task_body() {
                     embassy_time::Timer::after_millis(u64::from(ms)).await;
                 }
             }
-            let result = match op {
-                StreamOp::Open { mode } => open_mounted(path.as_str(), mode).await.ok_or(0),
+            let path = queued.path.as_str();
+            let result = match queued.op {
+                StreamOp::Open { mode } => open_mounted(path, mode).await.ok_or(0),
                 StreamOp::ReadAt {
                     handle,
                     offset,
@@ -655,7 +687,7 @@ async fn file_write_task_body() {
                     // Mode 0 is READ. `open_mounted` mounts first if nobody has -- a card inserted
                     // after boot may not be mounted, and this is the same lazy shape the byte
                     // channel uses.
-                    match open_mounted(path.as_str(), 0).await {
+                    match open_mounted(path, 0).await {
                         None => Err(0),
                         Some(h) => {
                             let size = backing::stream_size(h).await.unwrap_or(0);
@@ -694,7 +726,7 @@ async fn file_write_task_body() {
                     // the OPEN carry the policy is what keeps the check atomic -- a caller that
                     // looked first would leave a gap in which the file could appear.
                     let mode = if may_overwrite { 1 } else { 2 };
-                    match open_mounted(path.as_str(), mode).await {
+                    match open_mounted(path, mode).await {
                         None => {
                             // stream_open collapses its status through `.ok()`, so the refusal does
                             // not say WHY. Ask separately, and only to CLASSIFY: the write did not
@@ -703,7 +735,7 @@ async fn file_write_task_body() {
                             let exists = if may_overwrite {
                                 false
                             } else {
-                                match open_mounted(path.as_str(), 0).await {
+                                match open_mounted(path, 0).await {
                                     Some(h) => {
                                         backing::stream_close(h).await;
                                         true
@@ -731,13 +763,28 @@ async fn file_write_task_body() {
                     }
                 }
             };
+            RESULT
+                .lock()
+                .await
+                .publish(queued.key, result, queued.generation);
             *IN_FLIGHT.lock().await = None;
             RUNNING_BUFFER.store(0, core::sync::atomic::Ordering::Release);
-            *RESULT.lock().await = Some(Answer {
-                kind,
-                handle,
-                result,
-            });
         }
     }
+}
+
+/// Forget everything asked of the card that is gone. Called by `deluge_card_flush`.
+///
+/// Drops a queued request (its buffer was never touched, so `deluge_file_write_holds` rightly stops naming it)
+/// and a waiting answer. Leaves the running operation alone: it is still using its buffer, and its answer arrives
+/// stamped for the old card, so no collect takes it. Each clear is `try_lock`ed and may not land; the generation
+/// stamp is what makes that safe.
+pub(crate) fn flush_tables() {
+    if let Ok(mut request) = REQUEST.try_lock() {
+        *request = None;
+    }
+    if let Ok(mut result) = RESULT.try_lock() {
+        result.drain();
+    }
+    WAKE.signal(());
 }
