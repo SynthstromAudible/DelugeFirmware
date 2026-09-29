@@ -1385,10 +1385,12 @@ goAgain:
 
 	// Or if it has happened...
 	else {
-		if (timeSinceLastInputTick >= timePerInputTickMovingAverage) {
-			timeSinceLastInputTick = timePerInputTickMovingAverage - 1;
+		// Zero until the first input tick sets the moving average; clamped so the division below stays finite.
+		const uint32_t timePerInputTick = std::max<uint32_t>(timePerInputTickMovingAverage, 1);
+		if (timeSinceLastInputTick >= timePerInputTick) {
+			timeSinceLastInputTick = timePerInputTick - 1;
 		}
-		currentInputTick = (float)timeSinceLastInputTick / timePerInputTickMovingAverage + lastInputTickReceived;
+		currentInputTick = (float)timeSinceLastInputTick / timePerInputTick + lastInputTickReceived;
 	}
 
 gotCurrentInputTick:
@@ -1954,8 +1956,11 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 	// Calculating time per input tick for the purpose of scheduling internal ticks. TODO: this code largely mirrors
 	// what the tempo magnitude matching code above does - could be combined. Or not?
 	if (numInputTickTimesCounted) {
-		timePerInputTickMovingAverage =
-		    (uint32_t)(timeThisInputTick - timeLastInputTicks[numInputTickTimesCounted - 1]) / numInputTickTimesCounted;
+		// Zero when the counted input ticks span less time than their count, as two ticks sharing one stamp do
+		// right after playback starts; clamped because the tick position divides by it.
+		timePerInputTickMovingAverage = std::max<uint32_t>(
+		    (uint32_t)(timeThisInputTick - timeLastInputTicks[numInputTickTimesCounted - 1]) / numInputTickTimesCounted,
+		    1);
 		resetTimePerInternalTickMovingAverage();
 	}
 
