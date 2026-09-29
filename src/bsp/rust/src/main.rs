@@ -254,6 +254,9 @@ mod flash;
 /// the real `audio`/`cv_gate`/`midi`/`signals` modules below stay device-only.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod host_link_stubs;
+/// The emulator's card as a directory: a memory disk filled from it, written back when the emulator closes.
+#[cfg(feature = "sim")]
+mod memory_card;
 /// midi_io.h — DIN MIDI over deluge_bsp::uart (+ USB-MIDI peripheral, see usb).
 #[cfg(target_os = "none")]
 mod midi;
@@ -881,10 +884,14 @@ fn main() {
     // process ends through `hard_exit` for the reason it does below.
     #[cfg(feature = "sim")]
     {
+        let card = insert_sim_card();
         deluge_simulator::run_brain(|panel, audio| {
             deluge_bsp::sim::install(panel, audio);
             start_threaded_host(|_| {});
         });
+        if card.is_some_and(|path| path.is_dir()) {
+            memory_card::write_back();
+        }
         hard_exit(0);
     }
 
@@ -1398,6 +1405,30 @@ fn main() {
 
     #[cfg(not(feature = "host_app"))]
     log::info!("deluge-bsp-rust: HOST harness OK");
+}
+
+/// The emulator's card, from `DELUGE_SIM_CARD`: an image file, read and written in place, or a directory, loaded
+/// into a memory disk that [`memory_card::write_back`] mirrors back to it when the emulator closes. Unset, the card is
+/// an empty formatted memory disk. Returns the path given. Runs before boot, while nothing has opened the card.
+#[cfg(feature = "sim")]
+fn insert_sim_card() -> Option<std::path::PathBuf> {
+    let card = std::env::var_os("DELUGE_SIM_CARD").map(std::path::PathBuf::from);
+    match &card {
+        Some(path) if path.is_dir() => memory_card::install(Some(path)),
+        Some(path) if path.is_file() => {
+            // SAFETY: before boot, on the only thread: nothing reads the environment concurrently.
+            unsafe { std::env::set_var("DELUGE_SD_IMAGE", path) };
+        }
+        Some(path) => {
+            eprintln!(
+                "DELUGE_SIM_CARD {}: no such file or directory",
+                path.display()
+            );
+            std::process::exit(2);
+        }
+        None => memory_card::install(None),
+    }
+    card
 }
 
 /// Start the threaded host app: the audio, streaming and app executors, each on its own OS thread, brought up in

@@ -1,4 +1,6 @@
-//! The harness's SD card: a sparse in-memory disk, formatted FAT32 and filled with a fixture tree in-process.
+//! A host SD card: a sparse in-memory disk, formatted FAT32 and filled from a directory in-process. golden_vt_render
+//! fills it with each gate's fixture tree, and the emulator (`sim`) with the user's card directory, which
+//! [`write_back`] updates from the card when the emulator closes.
 //!
 //! The gates exercise the real storage stack -- `embedded-fatfs` over a block device that mirrors the device's -- so
 //! the card stays a FAT volume with a real card's geometry: 32 KB clusters, and at least 2.5 GB (FAT32 needs 65,525
@@ -9,13 +11,16 @@
 //! Everything here runs before boot, from `main`, before any executor exists: the block device below reads and
 //! writes the disk directly, without the `SD_BUS` lock or the latency model the booted stack goes through.
 
-use std::path::Path;
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use std::time::SystemTime;
 
 use aligned::{A4, Aligned};
 use block_device_adapters::BufStream;
 use block_device_driver::BlockDevice;
 use embedded_fatfs::{FatType, FileSystem, FormatVolumeOptions, FsOptions, format_volume};
-use embedded_io_async::Write as _;
+use embedded_io_async::{Read as _, Write as _};
 
 const SECTOR_BYTES: u64 = 512;
 const CLUSTER_BYTES: u32 = 32 * 1024;
@@ -109,21 +114,40 @@ pub fn install(tree: Option<&Path>) {
             let fs = FileSystem::new(BufStream::<Disk, 512>::new(Disk), FsOptions::new())
                 .await
                 .expect("memory card: mounting the fresh volume");
-            copy_dir(&fs.root_dir(), tree).await;
+            let mut loaded = HashMap::new();
+            copy_dir(&fs.root_dir(), tree, Path::new(""), &mut loaded).await;
+            *LOADED.lock().unwrap() = Some(Loaded {
+                tree: tree.to_path_buf(),
+                files: loaded,
+            });
             fs.unmount()
                 .await
                 .expect("memory card: unmounting after the copy");
         }
     });
     log::info!(
-        "golden_vt_render: memory card, {sectors} sectors, filled from {}",
+        "memory card: {sectors} sectors, filled from {}",
         tree.map_or("nothing".into(), |t| t.display().to_string())
     );
 }
 
-/// Copy `from`'s entries into `into`, in name order so the card's directory order is the same on every run.
-async fn copy_dir<IO, TP, OCC>(into: &embedded_fatfs::Dir<'_, IO, TP, OCC>, from: &Path)
-where
+/// What [`install`] copied onto the card: the directory, and each file's path under it with its modification time
+/// then.
+struct Loaded {
+    tree: PathBuf,
+    files: HashMap<PathBuf, Option<SystemTime>>,
+}
+
+static LOADED: Mutex<Option<Loaded>> = Mutex::new(None);
+
+/// Copy `from`'s entries into `into`, in name order so the card's directory order is the same on every run, and
+/// record each file copied in `loaded` under its path `at` the card's root.
+async fn copy_dir<IO, TP, OCC>(
+    into: &embedded_fatfs::Dir<'_, IO, TP, OCC>,
+    from: &Path,
+    at: &Path,
+    loaded: &mut HashMap<PathBuf, Option<SystemTime>>,
+) where
     IO: embedded_fatfs::ReadWriteSeek,
     TP: embedded_fatfs::TimeProvider,
     OCC: embedded_fatfs::OemCpConverter,
@@ -147,7 +171,7 @@ where
                 .create_dir(&name)
                 .await
                 .unwrap_or_else(|e| panic!("memory card: creating {name}: {e:?}"));
-            Box::pin(copy_dir(&dir, &entry.path())).await;
+            Box::pin(copy_dir(&dir, &entry.path(), &at.join(&name), loaded)).await;
         } else {
             let bytes = std::fs::read(entry.path())
                 .unwrap_or_else(|e| panic!("memory card: reading {name}: {e}"));
@@ -167,20 +191,118 @@ where
             file.close()
                 .await
                 .unwrap_or_else(|e| panic!("memory card: closing {name}: {e:?}"));
+            loaded.insert(at.join(&name), modified(&entry.path()));
         }
     }
 }
 
+fn modified(path: &Path) -> Option<SystemTime> {
+    std::fs::metadata(path).and_then(|m| m.modified()).ok()
+}
+
+#[cfg_attr(not(feature = "sim"), allow(dead_code))]
+/// Update the directory [`install`] filled the card from with what is on the card now, and say what changed:
+/// - a file on the card that is new, or whose bytes differ from the directory's, is written to the directory;
+/// - a file that was loaded and is gone from the card is removed from the directory, unless the directory's copy
+///   changed while the card was in use, which is kept and reported.
+///
+/// The card is read as it stands: call this once the program has stopped writing it.
+pub fn write_back() {
+    let Some(loaded) = LOADED.lock().unwrap().take() else {
+        return;
+    };
+    let on_card = embassy_futures::block_on(async {
+        let fs = FileSystem::new(BufStream::<Disk, 512>::new(Disk), FsOptions::new())
+            .await
+            .expect("memory card: mounting the card to write it back");
+        let mut on_card = Vec::new();
+        read_dir(&fs.root_dir(), Path::new(""), &mut on_card).await;
+        on_card
+    });
+
+    let mut changed = 0;
+    for (path, bytes) in &on_card {
+        let host = loaded.tree.join(path);
+        if std::fs::read(&host).is_ok_and(|held| held == *bytes) {
+            continue;
+        }
+        if let Some(parent) = host.parent() {
+            std::fs::create_dir_all(parent)
+                .unwrap_or_else(|e| panic!("memory card: creating {}: {e}", parent.display()));
+        }
+        std::fs::write(&host, bytes)
+            .unwrap_or_else(|e| panic!("memory card: writing {}: {e}", host.display()));
+        eprintln!("card: wrote {}", host.display());
+        changed += 1;
+    }
+    let kept: std::collections::HashSet<&PathBuf> = on_card.iter().map(|(path, _)| path).collect();
+    for (path, when) in &loaded.files {
+        if kept.contains(path) {
+            continue;
+        }
+        let host = loaded.tree.join(path);
+        if !host.exists() {
+            continue;
+        }
+        if modified(&host) != *when {
+            eprintln!(
+                "card: kept {}: deleted on the card, but changed in the directory meanwhile",
+                host.display()
+            );
+            continue;
+        }
+        std::fs::remove_file(&host)
+            .unwrap_or_else(|e| panic!("memory card: removing {}: {e}", host.display()));
+        eprintln!("card: removed {}", host.display());
+        changed += 1;
+    }
+    eprintln!(
+        "card: {changed} change(s) written back to {}",
+        loaded.tree.display()
+    );
+}
+
+#[cfg_attr(not(feature = "sim"), allow(dead_code))]
+/// Every file under `dir`, as its path `at` the card's root and its bytes.
+async fn read_dir<IO, TP, OCC>(
+    dir: &embedded_fatfs::Dir<'_, IO, TP, OCC>,
+    at: &Path,
+    files: &mut Vec<(PathBuf, Vec<u8>)>,
+) where
+    IO: embedded_fatfs::ReadWriteSeek,
+    TP: embedded_fatfs::TimeProvider,
+    OCC: embedded_fatfs::OemCpConverter,
+{
+    let mut entries = dir.iter();
+    while let Some(entry) = entries.next().await {
+        let entry =
+            entry.unwrap_or_else(|e| panic!("memory card: listing {}: {e:?}", at.display()));
+        let name = entry.file_name();
+        if name == "." || name == ".." {
+            continue;
+        }
+        let path = at.join(&name);
+        if entry.is_dir() {
+            Box::pin(read_dir(&entry.to_dir(), &path, files)).await;
+        } else {
+            let mut file = entry.to_file();
+            let mut bytes = vec![0; entry.len() as usize];
+            file.read_exact(&mut bytes)
+                .await
+                .unwrap_or_else(|e| panic!("memory card: reading {}: {e:?}", path.display()));
+            files.push((path, bytes));
+        }
+    }
+}
+
+#[cfg_attr(feature = "sim", allow(dead_code))]
 /// Write the memory disk to `GOLDEN_SD_DUMP` when that names a path. Called on exit.
 pub fn dump_if_asked() {
     let Some(path) = std::env::var_os("GOLDEN_SD_DUMP") else {
         return;
     };
     match deluge_bsp::sd::dump_memory_disk(Path::new(&path)) {
-        Ok(()) => log::info!(
-            "golden_vt_render: memory card written to {}",
-            Path::new(&path).display()
-        ),
-        Err(e) => log::error!("golden_vt_render: GOLDEN_SD_DUMP: {e}"),
+        Ok(()) => log::info!("memory card: written to {}", Path::new(&path).display()),
+        Err(e) => log::error!("memory card: GOLDEN_SD_DUMP: {e}"),
     }
 }

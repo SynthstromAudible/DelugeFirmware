@@ -184,9 +184,24 @@ for the new shape.
      - Input reaches the render as the simulator captures it, but headless feeds silence, so only the window's
        input device or `--audio-in` exercises it.
 4. **MIDI.** The DIN providers on the panel's queues. A keyboard on the virtual port plays a synth.
+   - [x] Built (e3d8b1fd3; deluge-sdk 17dd2db adds headless `midi <hex bytes>` steps and lists the app's MIDI
+         output in each snapshot).
+     - Headless, a note on channel 1 plays the default synth for as long as it is held, and PLAY sends Start and 24
+       clocks a beat.
+     - A note played nothing at first: MIDI follow's channel-1 default was set only by the startup settings, which
+       wait for a card (6d7f63710 sets it at construction, which a card-less device needed too).
 5. **Card.** In deluge-sdk: `deluge_bsp::sd` loads a directory into the memory disk and writes it back, with
    golden_vt_render's loader moved there. Here: `--card` with an image and with a directory. A song saved in the
    emulator appears in the directory.
+   - [x] Built, with one change from the design: the loader and write-back stay in this repository, in
+         `src/bsp/rust/src/memory_card.rs`, which golden_vt_render now includes from there. They are built on our
+         own fork of `embedded-fatfs` and the block-device crates (`crates/`), which deluge-sdk does not have;
+         `deluge_bsp::sd` keeps the memory disk underneath. Moving them means moving the fork.
+     - `DELUGE_SIM_CARD` names the card: an image file, a directory, or unset for an empty formatted card.
+     - Write-back mirrors every file that is new or changed on the card, and removes a loaded file deleted on the
+       card unless the directory's copy changed meanwhile. It prints each change.
+     - Headless, a song saved in the emulator appears in the directory with its note, and the other files stay as
+       they were; the same save into an image file lands in the image. The removal path is not yet exercised.
 6. **`dbt sim`.** Switch the task and retire its C-host path, and rewrite the doc.
 
 Each step is checked by running it. A host test covers what can be tested headlessly: panel input reaching

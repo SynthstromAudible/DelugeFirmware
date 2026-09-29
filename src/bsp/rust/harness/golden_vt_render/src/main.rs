@@ -59,6 +59,7 @@ use embassy_time::{Duration, Instant, Timer};
 use embassy_time_driver::Driver as _;
 
 mod clock;
+#[path = "../../../src/memory_card.rs"]
 mod memory_card;
 
 // Link-only: the host-built C++ `deluge_app` object closure (build.rs) calls the
