@@ -235,6 +235,110 @@ pub fn render_after_boot() -> bool {
     *ON.get_or_init(|| std::env::var_os("DELUGE_RENDER_AFTER_BOOT").is_some_and(|v| v == "1"))
 }
 
+/// A DIN MIDI note script: each event's bytes reach the app once the render has passed the event's frame, counted
+/// from the frame the script was armed at. What the synth golden masters play (`render_preset`).
+struct DinScript {
+    /// `(frame, bytes)`, in nondecreasing frame order.
+    events: Vec<(u64, Vec<u8>)>,
+    origin: u64,
+    next: usize,
+    byte: usize,
+}
+
+static DIN_SCRIPT: std::sync::Mutex<Option<DinScript>> = std::sync::Mutex::new(None);
+
+/// Parse a note script: one event per line, `<frame> <hex byte>...`, with `#` starting a comment. Frames must not
+/// decrease.
+fn parse_din_script(text: &str) -> Result<Vec<(u64, Vec<u8>)>, String> {
+    let mut events: Vec<(u64, Vec<u8>)> = Vec::new();
+    for (n, line) in text.lines().enumerate() {
+        let line = line.split('#').next().unwrap_or("");
+        let mut tokens = line.split_whitespace();
+        let Some(frame) = tokens.next() else {
+            continue;
+        };
+        let frame: u64 = frame
+            .parse()
+            .map_err(|_| format!("line {}: frame {frame:?} is not a number", n + 1))?;
+        let bytes = tokens
+            .map(|t| {
+                u8::from_str_radix(t, 16)
+                    .map_err(|_| format!("line {}: {t:?} is not a hex byte", n + 1))
+            })
+            .collect::<Result<Vec<u8>, String>>()?;
+        if bytes.is_empty() {
+            return Err(format!("line {}: an event with no bytes", n + 1));
+        }
+        if events.last().is_some_and(|(last, _)| frame < *last) {
+            return Err(format!(
+                "line {}: frame {frame} is before the event above it",
+                n + 1
+            ));
+        }
+        events.push((frame, bytes));
+    }
+    Ok(events)
+}
+
+/// Arm the note script at `path`, with frame 0 at the current render position. Returns the number of events, or -1
+/// when the script cannot be read or parsed (the reason is logged). C ABI for the scenario.
+///
+/// # Safety
+/// `path` is a NUL-terminated string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_host_midi_script_start(path: *const core::ffi::c_char) -> i32 {
+    // SAFETY: the caller passes a NUL-terminated path.
+    let path = unsafe { core::ffi::CStr::from_ptr(path) }
+        .to_string_lossy()
+        .into_owned();
+    let events = match std::fs::read_to_string(&path)
+        .map_err(|e| e.to_string())
+        .and_then(|text| parse_din_script(&text))
+    {
+        Ok(events) => events,
+        Err(e) => {
+            log::error!("note script {path}: {e}");
+            return -1;
+        }
+    };
+    let count = events.len() as i32;
+    *DIN_SCRIPT.lock().unwrap() = Some(DinScript {
+        events,
+        origin: CURSOR.load(Ordering::Relaxed),
+        next: 0,
+        byte: 0,
+    });
+    count
+}
+
+/// Events the app has read the whole of.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_host_midi_script_released() -> u32 {
+    DIN_SCRIPT
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map_or(0, |script| script.next as u32)
+}
+
+/// The next scripted DIN byte whose frame the render has passed, if any. What the host's
+/// `deluge_midi_din_read_timed` returns.
+pub fn din_script_read() -> Option<u8> {
+    let mut guard = DIN_SCRIPT.lock().unwrap();
+    let script = guard.as_mut()?;
+    let (frame, bytes) = script.events.get(script.next)?;
+    if CURSOR.load(Ordering::Relaxed) - script.origin < *frame {
+        return None;
+    }
+    let b = bytes[script.byte];
+    script.byte += 1;
+    if script.byte == bytes.len() {
+        script.byte = 0;
+        script.next += 1;
+    }
+    Some(b)
+}
+
 /// Total `deluge_audio_drive` calls observed so far (monotonic). Polled by
 /// `main.rs`'s `host_app` boot path to bound the post-boot concurrency soak by
 /// render-cycle count as well as wall-clock time.

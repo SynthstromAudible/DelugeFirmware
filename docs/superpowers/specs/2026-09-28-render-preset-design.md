@@ -1,6 +1,6 @@
 # The synth golden masters on the Embassy host
 
-Status: proposed 2026-09-28.
+Status: proposed 2026-09-28; step 1 built the same day (§9).
 - Branch `merge/synth-golden-masters`, after the merge of `feat/synth-golden-masters` (8c0e55180).
 - Carries out §9 of the test layout spec (`2026-09-28-test-layout-and-runner-design.md`), with one change: the golden
   masters move to golden_vt_render instead of staying on the C-host sim.
@@ -119,12 +119,11 @@ The check module computes the PCM record and a silence check, as `render_song.py
 
   | Entry | Tier | Cases |
   |---|---|---|
-  | `golden-synth` | pr | the 40 synthesized, sample and wavetable cases |
-  | `golden-synth-corpus` | nightly | all 336 |
+  | `golden-synth` | pr | all 336 |
   | `golden-synth-arm` | manual | §8 |
 
-  The tier split is provisional. Step 1 measures a case's wall time. If all 336 fit comfortably in the PR tier's
-  budget, `golden-synth` takes them all and `golden-synth-corpus` is dropped.
+  Step 1 measured a case at about 0.04 s of wall time (boot and 690 blocks, all in virtual time), so all 336 take
+  seconds. `golden-synth` therefore runs every case in the PR tier, and there is no `golden-synth-corpus`.
 - **Retired** with the move: `tests/golden/run.py`, `tests/golden/fixtures.json`, and the README's C-host
   instructions. The README moves to `tests/integration/golden/` and is rewritten for the new gate.
 
@@ -170,6 +169,13 @@ unit tree (`unit-arm`, real NEON under qemu) stays the only ARM coverage of the 
 1. **One preset.** Add the `render_preset` scenario with the card fill and the load check, plus the render and
    capture without MIDI. Show that `sine_basic` loads (`RP-LOADED`), and add the DIN source with `default.notes`
    until it sounds. Measure a case's wall time.
+   - [x] Built. `sine_basic` loads (`RP-LOADED name=PRESET swapped=1`) and both script events are read. Direness
+         stays 0, and there are no audio-tier card calls.
+     - The note sounds from frame 4736, one block after its scripted 4608, and falls silent after the note-off at
+       52000.
+     - Two runs are byte-identical, and a case takes about 0.04 s of wall time.
+     - Over the 2 s the C host recorded, the RMS level matches its record exactly (-26.48 dB). The peak does not:
+       2644 in 16-bit terms, against the record's 4771. Step 4 finds out why.
 2. **Input.** Add the test input signal. Show that the three `input_*` cases render non-silent and differ from
    silence-in.
 3. **The gate.** Move the corpus, add `render_preset.py` and the registry entries, and retire run.py. Record the
@@ -179,9 +185,8 @@ unit tree (`unit-arm`, real NEON under qemu) stays the only ARM coverage of the 
 
 ## 10. Open questions
 
-- **Onset quantization.** On the Rust host a scripted event reaches the app when the MIDI task next polls, not at a
-  fixed point in the block. If two runs of one case ever differ, the script source needs to hand events over at a
-  block boundary, and step 1 would show it.
+- **Onset quantization.** Settled for step 1: an event reaches the app during the block after the one its frame falls
+  in, and runs are byte-identical. Every onset moves by the same one block, which §7's alignment absorbs.
 - **Voice-start budget.** On the Rust host the render runs in real time on the audio tier, so a preset heavy enough
   to hit `allowedToStartVoice`'s budget could drop notes. The C host did the same. §7's comparison would surface it
   as a missing onset.
