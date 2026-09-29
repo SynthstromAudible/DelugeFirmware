@@ -335,12 +335,10 @@ bool SoundEditor::editingKitAffectEntire() const {
 	return getCurrentOutputType() == OutputType::KIT && setupKitGlobalFXMenu;
 }
 
-bool SoundEditor::shouldEditKitAffectEntire()
-{
-	auto kit = (getCurrentOutputType() == OutputType::KIT);
-	auto affectEntire = (getCurrentInstrumentClip()->affectEntire);
-	D_PRINTLN("checking kit? %b Affect entire? %b",  kit, affectEntire);
-	return  kit and affectEntire ;
+bool SoundEditor::shouldEditKitAffectEntire() {
+	// Null when the current clip is an audio clip, which the sample browser reaches this with after loading a file.
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	return getCurrentOutputType() == OutputType::KIT && clip != nullptr && clip->affectEntire;
 }
 
 bool SoundEditor::editingKitRow() {
