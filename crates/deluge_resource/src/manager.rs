@@ -713,8 +713,8 @@ impl Manager {
         let mut best: Option<usize> = None;
         let mut best_pri = u32::MAX;
         let mut depth = 0u64; // queued+leased candidates this poll (Stats::loader_depth_*)
-        for i in 0..self.chunks.len() {
-            let s = m_get(&self.chunks[i]);
+        for (i, slot) in self.chunks.iter().enumerate() {
+            let s = m_get(slot);
             if !s.queued || s.backing.is_null() || s.leases == 0 {
                 continue;
             }
@@ -1317,11 +1317,11 @@ impl Manager {
     }
 
     fn define_asset(&self, owner: *mut c_void, source: Source) -> u32 {
-        for i in 0..self.assets.len() {
-            if m_get(&self.assets[i]).in_use {
+        for (i, slot) in self.assets.iter().enumerate() {
+            if m_get(slot).in_use {
                 continue;
             }
-            let claimed = m_rmw(&self.assets[i], |a| {
+            let claimed = m_rmw(slot, |a| {
                 if a.in_use {
                     return false; // lost the race for this slot
                 }
@@ -1379,8 +1379,8 @@ impl Manager {
                 drop_chunk(i);
             }
         } else {
-            for i in 0..self.chunks.len() {
-                let s = self.chunks[i].get();
+            for (i, slot) in self.chunks.iter().enumerate() {
+                let s = slot.get();
                 if !s.backing.is_null() && s.asset == asset {
                     drop_chunk(i);
                 }
