@@ -75,7 +75,7 @@ def argparser():
 
 
 def sdk_config_args(root: Path) -> list[str]:
-    """`cargo --config local-sdk.toml` when the local deluge-sdk override exists (see task-rust.py)."""
+    """`cargo --config local-sdk.toml` when the local deluge-sdk override exists (see task-build.py)."""
     return (
         ["--config", "local-sdk.toml"]
         if (root / RUST_BSP_DIR / "local-sdk.toml").is_file()

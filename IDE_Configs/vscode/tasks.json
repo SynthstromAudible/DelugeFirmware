@@ -103,65 +103,6 @@
 			}
 		},
 		{
-			// The Rust/Embassy image links the C++ app's object closure, but
-			// cargo does NOT track src/deluge/**.cpp — editing a .cpp and
-			// rebuilding only via cargo silently links STALE objects. So the
-			// Rust BSP build tasks below always run this first. `./dbt rust`
-			// is the two-step flow itself: it builds the C++ app objects in
-			// the GCC fallback tree (build-gcc/, Debug — Release compiles
-			// with -flto=auto, whose slim-LTO objects rust's linker can't
-			// read) AND links the ARM device Rust firmware, so it already
-			// produces the same result as the "Build Rust BSP (device,
-			// debug)" task below. NOTE: `fatfs` has not been a CMake target
-			// since C-FatFS was deleted; `./dbt rust` names its own targets
-			// and does not have that problem.
-			"type": "process",
-			"label": "Build C++ app objects (for Rust BSP)",
-			"command": "./dbt",
-			"windows": {
-				"command": "./dbt.cmd",
-			},
-			"args": [
-				"rust"
-			],
-			"problemMatcher": {
-				"base": "$gcc",
-				"fileLocation": "absolute"
-			},
-			"group": "build"
-		},
-		{
-			// Device firmware: the C++ Deluge app on the Rust HAL/BSP.
-			// `cargo device` is the crate's own alias for
-			// `build --target armv7a-none-eabihf -Zbuild-std=core,alloc`
-			// (src/bsp/rust/.cargo/config.toml) — plain `cargo build` here
-			// builds the HOST harness instead, not the firmware.
-			"type": "shell",
-			"label": "Build Rust BSP (device, debug)",
-			"command": "cargo device",
-			"options": {
-				"cwd": "${workspaceFolder}/src/bsp/rust"
-			},
-			"dependsOn": "Build C++ app objects (for Rust BSP)",
-			"problemMatcher": [
-				"$rustc"
-			],
-			"group": "build"
-		},
-		{
-			"type": "shell",
-			"label": "Build Rust BSP (device, release)",
-			"command": "cargo device --release",
-			"options": {
-				"cwd": "${workspaceFolder}/src/bsp/rust"
-			},
-			"dependsOn": "Build C++ app objects (for Rust BSP)",
-			"problemMatcher": [
-				"$rustc"
-			],
-			"group": "build"
-		},
-		{
 			// Upload without a debug session: probe-rs flashes, resets, and
 			// streams RTT to the terminal. tools/deluge_run.py adds the
 			// wall-clock timeout + clean teardown probe-rs itself lacks
@@ -171,31 +112,16 @@
 			// path on this RZ/A1L — the cortex-debug + JLink launch config is
 			// the reliable RTT capture (see tools/deluge_run.py's header).
 			"type": "shell",
-			"label": "Flash + run Rust BSP (RTT)",
-			"command": "tools/deluge_run.py src/bsp/rust/target/armv7a-none-eabihf/debug/deluge-rust --timeout 300 --fail-on 'panicked at'",
+			"label": "Flash + run firmware (RTT)",
+			"command": "tools/deluge_run.py build/RelWithDebInfo/deluge.elf --timeout 300 --fail-on 'panicked at'",
 			"options": {
 				"cwd": "${workspaceFolder}"
 			},
-			"dependsOn": "Build Rust BSP (device, debug)",
+			"dependsOn": "Build RelWithDebInfo",
 			"problemMatcher": [],
 			"presentation": {
 				"reveal": "always",
 				"panel": "dedicated"
-			}
-		},
-		{
-			"type": "shell",
-			"label": "Build Rust BSP (bench_fs)",
-			"command": "cargo build --release --target armv7a-none-eabihf -Zbuild-std=core,alloc --features bench_fs",
-			"options": {
-				"cwd": "${workspaceFolder}/src/bsp/rust"
-			},
-			"problemMatcher": [
-				"$rustc"
-			],
-			"group": {
-				"kind": "build",
-				"isDefault": false
 			}
 		},
 		{

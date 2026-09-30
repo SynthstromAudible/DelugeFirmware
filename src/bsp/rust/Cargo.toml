@@ -29,7 +29,7 @@ heapless = { version = "0.8", default-features = false }
 deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
 deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = ["native_fill"] }
 
-# deluge-sdk, pinned by revision. `dbt build`/`dbt rust` pass `src/bsp/rust/local-sdk.toml`
+# deluge-sdk, pinned by revision. `dbt build` and `dbt sim` pass `src/bsp/rust/local-sdk.toml`
 # (gitignored) via `cargo --config` when it exists, to build against a sibling checkout instead.
 # The `flash` feature enables `deluge_bsp::flash`, which the settings sector reads need.
 deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", features = [

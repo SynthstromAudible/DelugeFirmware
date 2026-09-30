@@ -7,15 +7,15 @@
       // startup (deluge-sdk's rza1l-hal), so it needs the SDK's J-Link recipe —
       // JLinkScript + cp15 (MMU/cache off via SCTLR=0x00C50078, VBAR=0x20000000)
       // + SVC/IRQ-FIQ-masked CPSR=0x1DF — NOT the C++ image's plain reset/load.
-      // Build is the preLaunchTask ("Build Rust BSP (device, debug)"), which
-      // itself rebuilds the C++ app objects first — cargo can't see .cpp edits.
+      // Build is the preLaunchTask ("Build RelWithDebInfo": `dbt build relwithdebinfo`, which builds
+      // the C++ app objects before cargo links them — cargo can't see .cpp edits).
       // The JLinkScript comes from the sibling deluge-sdk clone (~/GitHub/deluge-sdk).
-      "name": "deluge-rust (Rust BSP, debug)",
+      "name": "deluge firmware (RelWithDebInfo)",
       "type": "cortex-debug",
       "request": "launch",
-      "preLaunchTask": "Build Rust BSP (device, debug)",
+      "preLaunchTask": "Build RelWithDebInfo",
       "cwd": "${workspaceRoot}",
-      "executable": "${workspaceRoot}/src/bsp/rust/target/armv7a-none-eabihf/debug/deluge-rust",
+      "executable": "${workspaceRoot}/build/RelWithDebInfo/deluge.elf",
       "windows": {
         "serverpath": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe",
       },
@@ -65,85 +65,6 @@
         ]
       },
     },
-    {
-      // SP1 on-device benchmark: identical Rust-BSP J-Link recipe as the config
-      // above, but the RELEASE build with the `bench_fs` feature — the
-      // embedded-fatfs-vs-C-FatFS read-throughput benchmark that runs once at
-      // boot (right after SD init, before the C++ app starts). Insert an SD card
-      // with a sizable sample under SAMPLES/ (or the root) first.
-      //
-      // Press F5, then Continue. Watch the "RTT Ch:0" terminal (also tee'd to
-      // rtt-bench.log):
-      //   * "deluge-rust: boot …"  — a plain log::info! line. If you SEE it, the
-      //     Rust log→RTT capture works (so the earlier probe-rs miss was a
-      //     capture issue, not the image). If you DON'T, it's the logger/image.
-      //   * "SP1_BENCH efatfs read=… MB/s ; cfatfs read=… MB/s" — the result
-      //     (emitted via rtt_target::rprintln!, the same path the C++ debug
-      //     bridge uses, so it lands regardless of the log-facade question).
-      //
-      // Build is the preLaunchTask ("Build Rust BSP (bench_fs)").
-      "name": "deluge-rust bench_fs (RTT)",
-      "type": "cortex-debug",
-      "request": "launch",
-      "cwd": "${workspaceRoot}",
-      "preLaunchTask": "Build Rust BSP (bench_fs)",
-      "executable": "${workspaceRoot}/src/bsp/rust/target/armv7a-none-eabihf/release/deluge-rust",
-      "windows": {
-        "serverpath": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe",
-      },
-      "linux": {
-        "serverpath": "/usr/bin/JLinkGDBServerCLExe",
-      },
-      "servertype": "jlink",
-      "device": "R7S721020",
-      "interface": "swd",
-      "svdFile": "${workspaceRoot}/contrib/rza1.svd",
-      "serverArgs": [
-        "-jlinkscriptfile",
-        "${workspaceFolder}/../deluge-sdk/rza1_debug.JLinkScript"
-      ],
-      "overrideLaunchCommands": [
-        "monitor reset",
-        "monitor cp15 1, 0, 0, 0 = 0x00C50078",
-        "monitor cp15 12, 0, 0, 0 = 0x20000000",
-        "load",
-        "set $cpsr = 0x1DF"
-      ],
-      "overrideResetCommands": [
-        "monitor reset",
-        "monitor cp15 1, 0, 0, 0 = 0x00C50078",
-        "monitor cp15 12, 0, 0, 0 = 0x20000000",
-        "load",
-        "set $cpsr = 0x1DF"
-      ],
-      "overrideRestartCommands": [
-        "monitor reset",
-        "monitor cp15 1, 0, 0, 0 = 0x00C50078",
-        "monitor cp15 12, 0, 0, 0 = 0x20000000",
-        "load",
-        "set $cpsr = 0x1DF"
-      ],
-      "runToEntryPoint": "main",
-      "rttConfig": {
-        "enabled": true,
-        "address": "auto",
-        "decoders": [
-          {
-            "port": 0,
-            "timestamp": true,
-            "type": "console",
-            "logfile": "${workspaceFolder}/rtt-bench.log"
-          }
-        ]
-      },
-    },
-    
-
-
-
-
-
-
     {
       // NOTE: Do not try `load`ing the program using this config
       "name": "LLDB Attach Debug",

@@ -1,6 +1,6 @@
 # The BSP on the host
 
-`deluge-bsp-rust` builds for the device (`cargo device`, or `./dbt build`) and for the host (plain
+`deluge-bsp-rust` builds for the device (`./dbt build`) and for the host (plain
 `cargo build`/`cargo test`). The host builds:
 
 | Build | Features | What it is |

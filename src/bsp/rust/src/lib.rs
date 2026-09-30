@@ -47,7 +47,7 @@ compile_error!("`host_app` (and `sim`, which enables it) is host-only");
 #[cfg(all(target_os = "none", feature = "host-runtime"))]
 compile_error!(
     "`host-runtime` is the host binary's executor; build the device with \
-     `--no-default-features --features rtt` (`cargo device` and `dbt build` do)"
+     `--no-default-features --features rtt` (`dbt build` does)"
 );
 
 // Link-only: the C++ app calls these crates' `#[no_mangle]` C ABI (residency and allocator, audio
