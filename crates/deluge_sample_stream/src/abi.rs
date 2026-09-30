@@ -5,7 +5,7 @@
 
 use core::ffi::c_char;
 
-use deluge_sample_fill::{DelugeStatus, DELUGE_OK};
+use deluge_sample_fill::{DelugeHandle, DelugeStatus, DELUGE_OK};
 
 use crate::registry;
 use crate::DelugeSampleStreamGeometry;
@@ -24,7 +24,7 @@ use crate::DelugeSampleStreamGeometry;
 pub unsafe extern "C" fn deluge_sample_stream_open(
     path: *const c_char,
     out_table_full: *mut bool,
-) -> u32 {
+) -> DelugeHandle {
     registry::open(path, out_table_full)
 }
 
@@ -34,7 +34,7 @@ pub unsafe extern "C" fn deluge_sample_stream_open(
     any(target_os = "none", feature = "host_app", feature = "sim"),
     unsafe(no_mangle)
 )]
-pub extern "C" fn deluge_sample_stream_close(handle: u32) {
+pub extern "C" fn deluge_sample_stream_close(handle: DelugeHandle) {
     registry::close(handle);
 }
 
@@ -44,7 +44,10 @@ pub extern "C" fn deluge_sample_stream_close(handle: u32) {
     any(target_os = "none", feature = "host_app", feature = "sim"),
     unsafe(no_mangle)
 )]
-pub extern "C" fn deluge_sample_stream_set_geometry(handle: u32, geo: DelugeSampleStreamGeometry) {
+pub extern "C" fn deluge_sample_stream_set_geometry(
+    handle: DelugeHandle,
+    geo: DelugeSampleStreamGeometry,
+) {
     registry::set_geometry(handle, geo);
 }
 
@@ -61,7 +64,7 @@ pub extern "C" fn deluge_sample_stream_set_geometry(handle: u32, geo: DelugeSamp
     any(target_os = "none", feature = "host_app", feature = "sim"),
     unsafe(no_mangle)
 )]
-pub extern "C" fn deluge_sample_stream_get_asset_id(handle: u32) -> u32 {
+pub extern "C" fn deluge_sample_stream_get_asset_id(handle: DelugeHandle) -> u32 {
     registry::asset_id(handle)
 }
 
@@ -71,7 +74,7 @@ pub extern "C" fn deluge_sample_stream_get_asset_id(handle: u32) -> u32 {
     any(target_os = "none", feature = "host_app", feature = "sim"),
     unsafe(no_mangle)
 )]
-pub extern "C" fn deluge_sample_stream_set_asset_id(handle: u32, id: u32) {
+pub extern "C" fn deluge_sample_stream_set_asset_id(handle: DelugeHandle, id: u32) {
     registry::set_asset_id(handle, id);
 }
 
@@ -90,7 +93,7 @@ pub extern "C" fn deluge_sample_stream_set_asset_id(handle: u32, id: u32) {
     unsafe(no_mangle)
 )]
 pub unsafe extern "C" fn deluge_sample_stream_read_at(
-    handle: u32,
+    handle: DelugeHandle,
     byte_offset: u32,
     buf: *mut u8,
     len: u32,

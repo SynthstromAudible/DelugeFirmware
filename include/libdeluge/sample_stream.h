@@ -24,8 +24,9 @@
 /// each pairing an efatfs read handle with the resource-manager asset id + geometry a caller
 /// supplies once known, registering the asset's `DelugeStreamingFillContext`
 /// (`streaming_fill.h`) with the resource manager itself the moment both are present. Handles are
-/// opaque `uint32_t`s (`0` = invalid/fail), NOT a pointer — the registry owns a fixed slot table
-/// rather than heap-boxing per-stream state.
+/// `DelugeHandle`s, numbered like every table handle (`types.h`: @ref DELUGE_HANDLE_NONE is none, and a
+/// slot crosses as slot + 1), NOT a pointer — the registry owns a fixed slot table rather than
+/// heap-boxing per-stream state.
 ///
 /// This registry is the eventual home for `SampleStream`'s own held efatfs handle + geometry
 /// (`sample_stream.cpp`'s `register_fill_context`); moving them here lets the C++ side stop
@@ -94,15 +95,15 @@ typedef struct DelugeSampleStreamGeometry {
 ///                        registry's own exhaustion to a dedicated error rather than a misleading
 ///                        "file not found". On the registry's-own-table-full case, the
 ///                        underlying efatfs handle that was just opened is closed, never leaked.
-/// @return A non-zero slot handle on success; 0 on failure.
-uint32_t deluge_sample_stream_open(const char* path, bool* out_table_full) DELUGE_NOEXCEPT;
+/// @return The slot's handle on success; @ref DELUGE_HANDLE_NONE on failure.
+DelugeHandle deluge_sample_stream_open(const char* path, bool* out_table_full) DELUGE_NOEXCEPT;
 
 /// @brief Release @p handle's slot: close its efatfs handle (if any) and release its
 ///        resource-manager asset (if one was ever assigned). [task]
 ///
-/// Idempotent — a no-op on 0 or an already-closed handle.
-/// @param handle A handle previously returned by deluge_sample_stream_open, or 0.
-void deluge_sample_stream_close(uint32_t handle) DELUGE_NOEXCEPT;
+/// Idempotent — a no-op on @ref DELUGE_HANDLE_NONE or an already-closed handle.
+/// @param handle A handle previously returned by deluge_sample_stream_open, or @ref DELUGE_HANDLE_NONE.
+void deluge_sample_stream_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 /// @brief Store @p geo on @p handle's slot, registering its streaming fill-context with the
 ///        resource manager once both a geometry and a real asset id are present. [task]
@@ -110,7 +111,7 @@ void deluge_sample_stream_close(uint32_t handle) DELUGE_NOEXCEPT;
 /// No-op on an invalid/out-of-range/already-closed @p handle.
 /// @param handle A handle previously returned by deluge_sample_stream_open.
 /// @param geo    The geometry to store.
-void deluge_sample_stream_set_geometry(uint32_t handle, DelugeSampleStreamGeometry geo) DELUGE_NOEXCEPT;
+void deluge_sample_stream_set_geometry(DelugeHandle handle, DelugeSampleStreamGeometry geo) DELUGE_NOEXCEPT;
 
 /// @brief @p handle's currently assigned resource-manager asset id. Nothing in the app or BSP calls it. [task]
 ///
@@ -123,7 +124,7 @@ void deluge_sample_stream_set_geometry(uint32_t handle, DelugeSampleStreamGeomet
 /// @param handle A handle previously returned by deluge_sample_stream_open.
 /// @return The asset id, or DELUGE_RESOURCE_NO_ASSET (0xFFFFFFFF) on an invalid handle or one
 ///         with no asset id assigned yet.
-uint32_t deluge_sample_stream_get_asset_id(uint32_t handle) DELUGE_NOEXCEPT;
+uint32_t deluge_sample_stream_get_asset_id(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 /// @brief Assign @p id as @p handle's resource-manager asset, registering its streaming
 ///        fill-context once both an asset id and a geometry are present. [task]
@@ -131,7 +132,7 @@ uint32_t deluge_sample_stream_get_asset_id(uint32_t handle) DELUGE_NOEXCEPT;
 /// No-op on an invalid/out-of-range/already-closed @p handle.
 /// @param handle A handle previously returned by deluge_sample_stream_open.
 /// @param id     The resource-manager asset id to assign.
-void deluge_sample_stream_set_asset_id(uint32_t handle, uint32_t id) DELUGE_NOEXCEPT;
+void deluge_sample_stream_set_asset_id(DelugeHandle handle, uint32_t id) DELUGE_NOEXCEPT;
 
 /// @brief Read @p len bytes at absolute @p byte_offset of @p handle's open file into @p buf. [task]
 ///
@@ -145,7 +146,7 @@ void deluge_sample_stream_set_asset_id(uint32_t handle, uint32_t id) DELUGE_NOEX
 /// @return `DELUGE_OK` with @p out_read written. On a failure @p out_read is left untouched:
 ///         `DELUGE_ERR_PARAM` for an invalid/out-of-range/already-closed @p handle, otherwise
 ///         @ref deluge_efatfs_read_at's own status.
-DelugeStatus deluge_sample_stream_read_at(uint32_t handle, uint32_t byte_offset, uint8_t* buf, uint32_t len,
+DelugeStatus deluge_sample_stream_read_at(DelugeHandle handle, uint32_t byte_offset, uint8_t* buf, uint32_t len,
                                           uint32_t* out_read) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus

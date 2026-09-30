@@ -132,9 +132,9 @@ public:
 	/// @brief Build this sample's read source.
 	///
 	/// The single point a cluster read is issued from; no caller branches on it.
-	/// @return A `SampleStreamReadSource` over the registry handle (0 if none is open yet -- e.g. a
-	///         still-recording sample, which has no reader at all; see the .cpp for why a handle-0
-	///         read is safe and simply fails).
+	/// @return A `SampleStreamReadSource` over the registry handle (DELUGE_HANDLE_NONE if none is open
+	///         yet -- e.g. a still-recording sample, which has no reader at all; see the .cpp for why a
+	///         read on DELUGE_HANDLE_NONE is safe and simply fails).
 	[[nodiscard]] std::unique_ptr<ReadSource> make_read_source();
 
 	/// @}
@@ -169,10 +169,10 @@ private:
 	/// `sample.h`.
 	uint32_t resource_asset_id_ = 0xFFFFFFFFu;
 
-	/// This stream's `deluge_sample_stream` registry slot handle (0 = none open). Defaults to 0 so a
+	/// This stream's `deluge_sample_stream` registry slot handle. Defaults to DELUGE_HANDLE_NONE so a
 	/// still-recording Sample (no handle opened until recording finishes) is unaffected;
 	/// open_read_stream() sets it via deluge_sample_stream_open() and release_asset() clears it.
-	uint32_t stream_handle_ = 0;
+	DelugeHandle stream_handle_ = DELUGE_HANDLE_NONE;
 };
 
 /// @brief The C ABI's name for @p stream: the `stream_backing` a region-port cursor opens over.

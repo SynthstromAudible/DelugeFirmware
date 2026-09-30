@@ -55,14 +55,14 @@ class SampleStreamReadSource final : public ReadSource {
 public:
 	/// @param stream_handle          The `deluge_sample_stream` registry handle.
 	/// @param cluster_size_magnitude log2(cluster size) -- cluster size expressed as a shift amount.
-	SampleStreamReadSource(uint32_t stream_handle, uint8_t cluster_size_magnitude)
+	SampleStreamReadSource(DelugeHandle stream_handle, uint8_t cluster_size_magnitude)
 	    : stream_handle_{stream_handle}, cluster_size_magnitude_{cluster_size_magnitude} {}
 
 	/// @copydoc ReadSource::read
 	std::expected<uint32_t, DelugeStatus> read(uint32_t cluster_index, std::span<std::byte> dst) override;
 
 private:
-	uint32_t stream_handle_;
+	DelugeHandle stream_handle_;
 	uint8_t cluster_size_magnitude_;
 };
 
