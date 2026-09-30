@@ -4,7 +4,6 @@ use core::char;
 use core::cmp;
 use core::fmt::Debug;
 use core::marker::PhantomData;
-use core::u32;
 
 #[cfg(feature = "alloc")]
 use alloc::string::String;
