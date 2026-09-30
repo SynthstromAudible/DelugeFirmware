@@ -24,7 +24,8 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/sample_build.h"
 
-#include "deluge_resource.h" // DelugeResourceStats, deluge_resource_stats(_reset)
+#include "deluge_resource.h"   // DelugeResourceStats, deluge_resource_stats(_reset)
+#include "libdeluge/channel.h" // DELUGE_PATH_MAX
 
 #include <array>
 #include <cstddef>
@@ -318,6 +319,38 @@ bool checkPathAdmissionCorpus() {
 
 /// The sample every `LP-DEFAULT` load asks for; the card holds it (golden_vt_render's `fill_load_policy_card`).
 constexpr const char* kDefaultPath = "SAMPLES/DEFAULT.WAV";
+
+/// Pin that a Sample's read stream opens exactly the path it is given: a path the ABI cannot carry whole is refused
+/// with the open's own failure, never cut short to a different file. `SAMPLES/DEFAULT.WAV` followed by a NUL and more
+/// names no file, though the card holds the file its first 19 bytes name; a path of `DELUGE_PATH_MAX` bytes has no
+/// room for its terminator.
+bool checkReadStreamPath() {
+	namespace sample_build = deluge::storage::sample_build;
+	bool ok = true;
+	Error error = Error::NONE;
+	sample_build::SampleBuild* build = sample_build::begin("TEST/open_path.wav", "", 4096, &error);
+	if (build == nullptr) {
+		printf("FAIL [readStreamPath]: begin() returned null (error=%d)\n", static_cast<int>(error));
+		return false;
+	}
+	constexpr std::string_view kEmbeddedNul{"SAMPLES/DEFAULT.WAV\0.bak", 24};
+	const Error embedded = sample_build::bindReadStream(build, kEmbeddedNul);
+	if (embedded != Error::FILE_NOT_FOUND) {
+		printf("FAIL [readStreamPath]: a path with an embedded NUL answered error=%d, not FILE_NOT_FOUND -- it opened "
+		       "the file named by the bytes before the NUL\n",
+		       static_cast<int>(embedded));
+		ok = false;
+	}
+	const std::string overLong(DELUGE_PATH_MAX, 'A');
+	const Error tooLong = sample_build::bindReadStream(build, overLong);
+	if (tooLong != Error::FILE_NOT_FOUND) {
+		printf("FAIL [readStreamPath]: a path of DELUGE_PATH_MAX bytes answered error=%d, not FILE_NOT_FOUND\n",
+		       static_cast<int>(tooLong));
+		ok = false;
+	}
+	sample_build::abandon(build);
+	return ok;
+}
 /// Ticks an explicit async load may stay `LOAD_IN_PROGRESS` before it counts as wedged.
 constexpr int kMaxDeferrals = 2000;
 
@@ -446,6 +479,7 @@ void runOneCardStep() {
 		report("LP-ABANDON", checkSampleBuildAbandon());
 		report("LP-CANDIDATES", checkProposeLoadCandidates());
 		report("LP-ADMISSION", checkPathAdmissionCorpus());
+		report("LP-OPEN-PATH", checkReadStreamPath());
 		g_stage = Stage::HolderDefault;
 		break;
 	case Stage::HolderDefault:

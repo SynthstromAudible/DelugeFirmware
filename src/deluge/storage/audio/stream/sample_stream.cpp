@@ -17,6 +17,7 @@
 
 #include "storage/audio/stream/sample_stream.h"
 #include "definitions_cxx.hpp"
+#include "io/c_path.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -27,7 +28,6 @@
 #include <memory>
 #include <new>
 #include <span>
-#include <string>
 #include <utility>
 
 #include "deluge_resource.h"         // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
@@ -131,9 +131,13 @@ Error SampleStream::open_read_stream(std::string_view path) {
 	// the underlying efatfs file handle itself); a failure to open is a stream-open failure
 	// propagated to the caller (the sample won't load). A still-recording sample has no read handle
 	// at all (see make_read_source()) until this same path reopens one once recording finishes.
-	std::string cpath{path}; // NUL-terminate for the C-ABI (path is a non-terminated string_view)
+	// A path the ABI cannot carry whole names no file this can open.
+	const auto cpath = deluge::io::CPath::from(path);
+	if (!cpath) {
+		return Error::FILE_NOT_FOUND;
+	}
 	bool table_full = false;
-	uint32_t handle = deluge_sample_stream_open(cpath.c_str(), &table_full);
+	uint32_t handle = deluge_sample_stream_open(cpath->c_str(), &table_full);
 	if (handle == 0 && table_full) {
 		// The handle table is a scarce resource with no eviction policy of its own. A
 		// resident Sample pins a handle for its whole residency, and residency normally ends
@@ -147,7 +151,7 @@ Error SampleStream::open_read_stream(std::string_view path) {
 		// more. If it still fails, the streams really are all in use and the error is honest.
 		if (audioFileManager.releaseUnleasedAudioFiles() > 0) {
 			table_full = false;
-			handle = deluge_sample_stream_open(cpath.c_str(), &table_full);
+			handle = deluge_sample_stream_open(cpath->c_str(), &table_full);
 		}
 	}
 	if (handle == 0) {

@@ -31,6 +31,9 @@
 ///   `applyGeometry` refuses an invalid raw data format, and 20,000 begin/abandon rounds release every chunk they
 ///   adopt, so a browser cursor that never lands on a file cannot exhaust the chunk table. Runs before anything
 ///   else loads, so its eviction count is its own.
+/// - `LP-OPEN-PATH`: a Sample's read stream (`SampleStream::open_read_stream`) opens exactly the path it is given. A
+///   path with an embedded NUL, or with no room for its terminator, answers `FILE_NOT_FOUND` rather than opening
+///   the file a shortened path names.
 /// - `LP-DEFAULT layer=holder|manager`: `AudioFileHolder::loadFile` and `AudioFileManager::getAudioFileFromFilename`
 ///   default to the synchronous backing. Against the real loader, which is always active here, a call with the
 ///   mode omitted loads at once, and the same call made explicitly `AsyncOrBlocking` first reports
