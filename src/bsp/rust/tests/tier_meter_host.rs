@@ -45,7 +45,7 @@ fn note_counts_only_post_boot_interaction() {
 
     // The C ABI agrees with the Rust accessors.
     let n = tier_meter::deluge_tier_sync_entries();
-    assert_eq!(n as usize, 33);
+    assert_eq!(n as usize, 29);
     let idx = (0..n)
         .find(|&i| {
             let p = tier_meter::deluge_tier_sync_name(i);
