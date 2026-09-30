@@ -14,12 +14,6 @@ pub fn finished() -> bool {
     FINISHED.load(Ordering::Acquire)
 }
 
-/// C-ABI twin of [`mark_finished`] (`include/libdeluge/boot.h`).
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_boot_mark_finished() {
-    mark_finished();
-}
-
 /// C-ABI twin of [`finished`] (`include/libdeluge/boot.h`).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_boot_finished() -> bool {

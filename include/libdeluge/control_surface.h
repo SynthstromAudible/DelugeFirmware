@@ -74,8 +74,7 @@ typedef struct DelugeBootInfo {
 void deluge_control_read_boot_info(DelugeBootInfo* out);
 
 /// Poll one decoded input event into `out`. Returns true if an event was
-/// dequeued, false if the queue is empty. The application drains this each tick.
-/// (Push delivery is also available via `deluge_app_on_event`.) [task]
+/// dequeued, false if the queue is empty. The application drains this each tick. [task]
 bool deluge_control_poll_event(DelugeInputEvent* out);
 
 /// Set an indicator LED (by board-defined index) on or off. [task]

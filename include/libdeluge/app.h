@@ -28,7 +28,6 @@
 #define LIBDELUGE_APP_H
 
 #include "board.h"
-#include "control_surface.h"
 #include "types.h"
 
 #ifdef __cplusplus
@@ -57,12 +56,6 @@ void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, ui
 /// on the render tier, in place of `deluge_app_render`, for that block.
 /// [audio]
 void deluge_app_render_skipped(void);
-
-/// Optional push delivery of an input event (pad/button/encoder/MIDI-in). May be
-/// left unimplemented by applications that instead poll via control_surface.h /
-/// midi_io.h; the BSP discovers support at link time or via a capability flag.
-/// [task]
-void deluge_app_on_event(const DelugeInputEvent* event);
 
 #ifdef __cplusplus
 }

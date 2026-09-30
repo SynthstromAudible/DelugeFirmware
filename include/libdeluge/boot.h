@@ -27,10 +27,6 @@
 extern "C" {
 #endif
 
-/// @brief Mark boot finished: the app's run loop has started, and storage calls go through the channels. Called
-///        once by the BSP, right after `deluge_app_init` returns. Monotonic.
-void deluge_boot_mark_finished(void);
-
 /// @brief Whether boot has finished. False, then true for the rest of the process. The unit tests, which link no BSP,
 ///        never mark it, so it is always false there.
 bool deluge_boot_finished(void);
