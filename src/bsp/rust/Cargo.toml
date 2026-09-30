@@ -88,13 +88,14 @@ deluge_sample_source = { path = "../../../crates/deluge_sample_source", optional
 deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", optional = true }
 deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", optional = true }
 
-# The storage stack for `storage::efatfs::portable`, which every build compiles. A std host has a
-# default allocator, so no `fs_alloc` is needed.
-block-device-driver = { path = "../../../crates/block-device-driver" }
-block-device-adapters = { path = "../../../crates/block-device-adapters" }
-aligned = "0.4"
+# `storage::efatfs::portable`, which every build compiles, needs the filesystem; the host mount
+# (`host_app`) adds the block-device stack under it. A std host has a default allocator, so no
+# `fs_alloc` is needed.
 embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
 embedded-io-async = "0.7.0"
+block-device-driver = { path = "../../../crates/block-device-driver", optional = true }
+block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
+aligned = { version = "0.4", optional = true }
 # The desktop simulator window for `sim`.
 deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", optional = true }
 
@@ -123,6 +124,9 @@ host_app = [
     "deluge_sample_reader/c_abi",
     "dep:deluge_sample_stream",
     "deluge_sample_stream/c_abi",
+    "dep:block-device-driver",
+    "dep:block-device-adapters",
+    "dep:aligned",
 ]
 
 ## The emulator (`dbt sim`): the host app runs as the brain of deluge-sdk's desktop simulator, in
