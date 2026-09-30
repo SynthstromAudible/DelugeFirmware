@@ -20,7 +20,8 @@
 #define LIBDELUGE_ABI_H
 
 /// Marks a declaration `noexcept` when the header is read as C++, and nothing when it is read as C. No function
-/// behind this ABI throws or unwinds: the Rust side aborts on panic, and C++ callbacks catch at the boundary.
+/// behind this ABI may throw or unwind: the Rust side aborts on panic, and the ABI requires a C++ callback to catch
+/// at the boundary (not every declaration carries this macro yet, so the compiler does not hold all of them to it).
 #ifdef __cplusplus
 #define DELUGE_NOEXCEPT noexcept
 #else

@@ -8,17 +8,19 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
 
 1. **C, and only C, crosses.** Every declaration is inside `extern "C"`. Only fixed-width integers, `bool`, and
    POD structs and enums with an explicit underlying type cross. No STL, no exceptions, no allocation across the
-   boundary. No function behind the ABI throws or unwinds: the Rust side aborts on panic, and C++ callbacks catch
-   at the boundary. `DELUGE_NOEXCEPT` (`abi.h`) marks this on the declarations that already carry it.
+   boundary. No function behind the ABI may throw or unwind: the Rust side aborts on panic, and the ABI requires a
+   C++ callback to catch at the boundary. `DELUGE_NOEXCEPT` (`abi.h`) marks this on the declarations that already
+   carry it; the rest are not yet held to it by the compiler.
 2. **The header is the contract.** bindgen reads every header (`src/bsp/rust/wrapper.h` and
    `src/bsp/rust/harness/golden_vt_render/wrapper.h`, both just `#include <libdeluge/libdeluge.h>`), and every
-   Rust export is pinned to its generated declaration by `abi_pin!` — most beside the definition they pin, and
-   the rest (another crate's own exports and imports, via its `in path:` form, plus rename forms) collected in
-   `src/bsp/rust/src/abi_pins.rs`, which also holds every `abi_layout!` and `abi_const!` check. A crate-defined
+   Rust export is pinned to its generated declaration by `abi_pin!` — beside the definition it pins (including the
+   one rename form, `abi_pin!(yield_ => r#yield)` in `scheduler.rs`), and for another crate's own exports and
+   imports, via its `in path:` form, in `src/bsp/rust/src/abi_pins.rs`. That file also holds the `abi_layout!`
+   and `abi_const!` checks, except for `sys_host.rs`'s, which sit at the bottom of that file. A crate-defined
    type that crosses the boundary is re-exported into `sys` under the header's name and checked exhaustively,
    field-for-field or variant-for-variant, by `abi_layout!`. A copied constant is pinned by `abi_const!`. The
    pre-commit hook `python3 scripts/check_abi_surface.py --check --pins` fails when a declared function has no
-   definition or no pin. Change a signature in the header, and the build tells you every place that disagrees.
+   definition, or when a Rust definition or `extern "C"` import of one has no pin that reaches it. Change a signature in the header, and the build tells you every place that disagrees.
 3. **Direction is one-way.** The app includes `<libdeluge/…>`. The platform implements it. `app.h` is the other
    direction: callbacks the app implements and the platform calls. `scripts/check_platform_boundary.py` keeps the
    app from including platform headers.
