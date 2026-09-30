@@ -23,18 +23,18 @@
 #include "gui/ui/browser/dx_browser.h"                    // dxBrowser, driven by the DX stage
 #include "gui/ui/load/load_instrument_preset_ui.h"        // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/save/save_song_ui.h" // the real caller, driven end to end below
-#include "gui/ui/ui.h"                // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
-#include "gui/views/arranger_view.h"  // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
-#include "gui/views/session_view.h"   // the `sessionView` global driving SessionView's three gestures
-#include "gui/views/view.h"           // the `view` global driving View's two acquisition gestures
-#include "hid/button.h"               // the SYNTH/CV buttons the Grid output-type gesture is pressed with
-#include "hid/led/pad_leds.h"         // the image both backings render into
-#include "hid/matrix/matrix_driver.h" // padStates, which the audition-pad completion asks about
-#include "io/file.hpp"                // the card swap's unlink + rename
-#include "libdeluge/file_directory.h" // deluge_file_directory_set_latency_ms
-#include "libdeluge/file_prefix.h"
-#include "model/clip/instrument_clip.h"                    // the boot song's session clip, driven by the View gestures
+#include "gui/ui/save/save_song_ui.h"   // the real caller, driven end to end below
+#include "gui/ui/ui.h"                  // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
+#include "gui/views/arranger_view.h"    // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
+#include "gui/views/session_view.h"     // the `sessionView` global driving SessionView's three gestures
+#include "gui/views/view.h"             // the `view` global driving View's two acquisition gestures
+#include "hid/button.h"                 // the SYNTH/CV buttons the Grid output-type gesture is pressed with
+#include "hid/led/pad_leds.h"           // the image both backings render into
+#include "hid/matrix/matrix_driver.h"   // padStates, which the audition-pad completion asks about
+#include "io/file.hpp"                  // the card swap's unlink + rename
+#include "libdeluge/file_directory.h"   // deluge_file_directory_set_latency_ms
+#include "libdeluge/file_prefix.h"      // deluge_file_prefix_set_latency_ms
+#include "model/clip/instrument_clip.h" // the boot song's session clip, driven by the View gestures
 #include "model/mod_controllable/mod_controllable_audio.h" // the cast writeToFile's backed-up-paramManager lookup needs
 #include "model/model_stack.h"                             // setupModelStackWithTimelineCounter
 #include "model/output.h"                                  // Output::name, read by the acquire stage

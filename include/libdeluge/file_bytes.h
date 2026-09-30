@@ -18,7 +18,7 @@
 /// @file
 /// @brief A WHOLE small file, read or written over the C ABI, without holding the caller.
 ///
-/// Request/collect, the same non-blocking shape @ref audio_load.h, `streaming_fill.h`,
+/// Request/collect, the same non-blocking shape the channels in @ref audio_load.h,
 /// @ref file_prefix.h and @ref file_directory.h already use. It exists for the settings family --
 /// runtime feature settings, the MIDI device table, MIDI follow's defaults, performance view -- whose
 /// reads and writes today run synchronously on whichever tier touched a menu, and the interaction

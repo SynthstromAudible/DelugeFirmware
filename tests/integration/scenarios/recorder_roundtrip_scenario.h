@@ -33,7 +33,7 @@
 
 extern "C" {
 
-/// @brief Set the round-trip up: print RW-ACTIVE and the cluster size, and build the case list. Blocks on
+/// @brief Set the round-trip up: print the cluster size, and build the case list. Blocks on
 ///        nothing; call inline, then tick `deluge_scenario_recorder_cases_tick()`.
 /// @return 0.
 int32_t deluge_scenario_run_recorder_roundtrip();

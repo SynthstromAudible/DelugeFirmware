@@ -18,8 +18,8 @@
 /// @file
 /// @brief The first N bytes of a file, over the C ABI, without holding the caller.
 ///
-/// Request/collect, the same non-blocking shape @ref audio_load.h and `streaming_fill.h` already
-/// use: ask for a prefix, return to your own loop, and collect it on a later tick. It exists for
+/// Request/collect, the same non-blocking shape the channels in @ref audio_load.h already use: ask
+/// for a prefix, return to your own loop, and collect it on a later tick. It exists for
 /// callers that need to look at the START of a file from a tier that is not allowed to wait on the
 /// card -- a browser drawing song artwork being the case it was built for, where the alternative is
 /// a blocking read on the interaction tier.

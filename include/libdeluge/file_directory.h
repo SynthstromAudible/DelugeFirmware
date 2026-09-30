@@ -18,7 +18,7 @@
 /// @file
 /// @brief An OPEN directory, over the C ABI, without holding the caller.
 ///
-/// Request/collect, the same non-blocking shape @ref audio_load.h, `streaming_fill.h` and
+/// Request/collect, the same non-blocking shape the channels in @ref audio_load.h and
 /// @ref file_prefix.h already use: ask for a directory, return to your own loop, and collect its
 /// handle on a later tick. It exists because opening a directory is the last blocking call in the
 /// browser's listing path -- `deluge_efatfs_dir_open` bridges to the real open through a spin, and
