@@ -67,9 +67,8 @@ typedef enum DelugeStreamMode : uint8_t {
 /// doc). Every handle is a @ref DelugeHandle: 0 is none, and a call given it
 /// fails as it fails any handle that names no open stream.
 ///
-/// These are `bool` (not `DelugeStatus`): the Rust side has no notion of
-/// `DelugeStatus`'s finer-grained error codes, only success/failure.
-/// `stream.cpp` maps `false` to `Status::ERR`.
+/// These answer `bool`: true on success, false on any failure, without saying
+/// which. `stream.cpp` maps `false` to `Status::ERR`.
 
 /// @brief Open a persistent stream-write handle. `mode` matches `DelugeStreamMode`'s
 ///        declaration-order values (0=READ, 1=WRITE_CREATE, 2=WRITE_CREATE_NEW, 3=WRITE_APPEND).

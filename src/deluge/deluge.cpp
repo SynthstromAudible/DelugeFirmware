@@ -668,7 +668,8 @@ extern "C" void deluge_app_init(const DelugeBoard* board) noexcept {
 		registerTasks();
 		encoders::init();
 	} catch (...) {
-		// A boot that ran out of memory cannot go on; freeze with a code rather than terminate silently.
+		// A boot that ran out of memory cannot go on; freeze with a code rather than terminate silently. The throw may
+		// come before the display exists, which freezeWithError() handles.
 		FREEZE_WITH_ERROR("BOOT");
 	}
 }

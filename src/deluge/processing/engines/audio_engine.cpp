@@ -1061,8 +1061,10 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 		renderAppBlock(in, out, frames);
 	} catch (...) {
 		// The render must not throw (it must not even allocate); if it does, this block is silence rather than an
-		// unwind out of the BSP's render driver.
-		memset(out, 0, frames * sizeof(DelugeStereoSample));
+		// unwind out of the BSP's render driver. `out` may be NULL (app.h), and then there is no block to silence.
+		if (out != nullptr) {
+			memset(out, 0, frames * sizeof(DelugeStereoSample));
+		}
 	}
 }
 
