@@ -79,18 +79,23 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 		}
 	}
 
-	if (loopStartPlaybackAtSample) {
-		int32_t loopStartPlaybackAtByte =
-		    ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
-		claimClusterReasonsForMarker(clustersForLoopStart_, loopStartPlaybackAtByte, playDirection,
+	Sample* sample = (Sample*)audioFile;
+	uint64_t durationClusters =
+	    static_cast<uint64_t>(getDurationInSamples()) * bytesPerSample >> Cluster::size_magnitude;
+	int64_t nextClusterStartByte = static_cast<int64_t>(startPlaybackAtByte_) + playDirection * 2 * Cluster::size;
+	bool nextClustersInSample =
+	    sample->isLengthKnown() && nextClusterStartByte >= static_cast<int64_t>(sample->audioDataStartPosBytes)
+	    && static_cast<uint64_t>(nextClusterStartByte) < sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
+
+	// A short sample can stay entirely cached: pin the clusters following the start marker's window.
+	if (durationClusters <= kMaxNumClustersLoadedAhead + kNumClustersLoadedAhead && nextClustersInSample) {
+		claimClusterReasonsForMarker(clustersForLoopStart_, nextClusterStartByte, playDirection,
 		                             clusterLoadInstruction);
 	}
 
-	else if (static_cast<int32_t>(((Sample*)audioFile)->num_clusters()) <= 4) {
-		// claim the next few reasons for the sample instead since we can keep it all cached
-		int32_t nextClusterStartByte = (((Sample*)audioFile)->audioDataStartPosBytes + Cluster::size_magnitude) << 1;
-
-		claimClusterReasonsForMarker(clustersForLoopStart_, nextClusterStartByte, playDirection,
+	else if (loopStartPlaybackAtSample) {
+		int32_t loopStartPlaybackAtByte = sample->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
+		claimClusterReasonsForMarker(clustersForLoopStart_, loopStartPlaybackAtByte, playDirection,
 		                             clusterLoadInstruction);
 	}
 

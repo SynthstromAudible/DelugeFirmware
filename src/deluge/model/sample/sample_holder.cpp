@@ -185,9 +185,9 @@ void SampleHolder::claimClusterReasons(bool reversed, int32_t clusterLoadInstruc
 		}
 	}
 
-	int32_t startPlaybackAtByte = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
+	startPlaybackAtByte_ = ((Sample*)audioFile)->audioDataStartPosBytes + startPlaybackAtSample * bytesPerSample;
 
-	claimClusterReasonsForMarker(clustersForStart_, startPlaybackAtByte, playDirection, clusterLoadInstruction);
+	claimClusterReasonsForMarker(clustersForStart_, startPlaybackAtByte_, playDirection, clusterLoadInstruction);
 }
 
 void SampleHolder::claimClusterReasonsForMarker(DelugeSampleReservation*& reservation, uint32_t startPlaybackAtByte,

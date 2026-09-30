@@ -73,6 +73,9 @@ public:
 	DelugeSampleReservation* clustersForStart_ = nullptr;
 
 protected:
+	/// Byte offset of the start marker within the sample file, as last claimed by claimClusterReasons().
+	uint32_t startPlaybackAtByte_ = 0;
+
 	/// @brief Open or re-anchor a passive lookahead reservation at a playback marker.
 	///
 	/// If @p reservation is null, opens a new one; otherwise re-anchors the existing one to the new
