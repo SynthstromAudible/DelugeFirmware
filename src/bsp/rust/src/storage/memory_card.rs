@@ -9,7 +9,7 @@
 //! when set, names a file to use instead; `GOLDEN_SD_DUMP=<path>` writes the disk out on exit.
 //!
 //! Everything here runs from `main` before any executor exists, so the block device below uses the
-//! disk directly, without [`SD_BUS`](crate::storage::sd::SD_BUS) or the latency model.
+//! disk directly, without [`SD_BUS`](crate::storage::sd::SD_BUS).
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

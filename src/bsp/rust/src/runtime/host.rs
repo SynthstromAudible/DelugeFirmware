@@ -6,7 +6,7 @@ use crate::audio::host as audio_host;
 use crate::peripherals::{control, display};
 #[cfg(feature = "sim")]
 use crate::storage::memory_card;
-#[cfg(not(any(feature = "sim_latency", feature = "host_app")))]
+#[cfg(not(feature = "host_app"))]
 use crate::storage::sd;
 #[cfg(feature = "host_app")]
 use crate::{
@@ -67,22 +67,12 @@ pub fn main() {
     log::info!("deluge-bsp-rust: HOST harness");
 
     // Round-trips sector 1 through `deluge_block_write`/`deluge_block_read`, synchronously, before
-    // any executor exists. Skipped under `sim_latency`, where a modeled transfer waits on
-    // `sim_latency::pump` and no executor exists yet to run it (tests/sim_latency_host.rs covers
-    // it there). Skipped under `host_app`, where `DELUGE_SD_IMAGE` may name a real FAT image: the
-    // pattern would land on FAT32's FSInfo sector, which embedded-fatfs then refuses to mount.
-    #[cfg(any(feature = "sim_latency", feature = "host_app"))]
-    log::info!(
-        "deluge-bsp-rust: sd round-trip SKIPPED ({})",
-        if cfg!(feature = "host_app") {
-            "host_app is on — this write is destructive and DELUGE_SD_IMAGE may name a \
-             real caller-supplied FAT image; the app's own boot exercises the same ABI"
-        } else {
-            "sim_latency has no executor/pump yet at this bootstrap point — see \
-             tests/sim_latency_host.rs for the covered equivalent"
-        }
-    );
-    #[cfg(not(any(feature = "sim_latency", feature = "host_app")))]
+    // any executor exists. Skipped under `host_app`, where `DELUGE_SD_IMAGE` may name a real FAT
+    // image: the pattern would land on FAT32's FSInfo sector, which embedded-fatfs then refuses to
+    // mount. The app's own boot exercises the same ABI there.
+    #[cfg(feature = "host_app")]
+    log::info!("deluge-bsp-rust: sd round-trip skipped under host_app");
+    #[cfg(not(feature = "host_app"))]
     {
         const TEST_SECTOR: u32 = 1;
         let mut pattern = [0u8; 512];
@@ -198,36 +188,10 @@ pub fn main() {
                     .ok()
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(20u64);
-                // An `sd::sim_latency` setting applied once the song has loaded, so a manual run
-                // can slow the card enough to provoke underruns without a rebuild.
-                #[cfg(feature = "sim_latency")]
-                let post_load_sim_latency = {
-                    let bps = std::env::var("DELUGE_SIM_LATENCY_THROUGHPUT_BPS")
-                        .ok()
-                        .and_then(|s| s.parse::<u32>().ok());
-                    let us = std::env::var("DELUGE_SIM_LATENCY_OVERHEAD_US")
-                        .ok()
-                        .and_then(|s| s.parse::<u32>().ok());
-                    match (bps, us) {
-                        (None, None) => None,
-                        (b, u) => {
-                            // `sd::sim_latency`'s defaults (20 MB/s, 500 µs), for the unset one.
-                            let bps = b.unwrap_or(20_000_000);
-                            let us = u.unwrap_or(500);
-                            log::info!(
-                                "deluge-bsp-rust: post-load sim_latency override = {bps} bytes/sec, {us} us overhead"
-                            );
-                            Some((bps, us))
-                        }
-                    }
-                };
-                #[cfg(not(feature = "sim_latency"))]
-                let post_load_sim_latency = None;
                 scenario::ScenarioConfig {
                     song_full_path: Box::leak(song.into_boxed_str()),
                     target_blocks,
                     step_timeout: embassy_time::Duration::from_secs(step_timeout_secs),
-                    post_load_sim_latency,
                 }
             });
 
@@ -587,10 +551,6 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
         .spawn(move || {
             let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
             executor.run(|spawner: Spawner| {
-                // Not on the app executor: `deluge_app_init` can `block_on` a modeled transfer
-                // there, spinning that thread, and a `pump` beside it would never be polled.
-                #[cfg(feature = "sim_latency")]
-                spawner.spawn(crate::storage::sd::sim_latency::pump().unwrap());
                 crate::scheduler::set_audio_spawner(spawner.make_send());
                 log::info!(
                     "deluge-bsp-rust: host audio executor up on thread {:?} — set_audio_spawner done",

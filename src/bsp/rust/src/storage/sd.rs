@@ -7,8 +7,7 @@
 //! The app's filesystem does not use `deluge_block_read`/`deluge_block_write`: the device and host
 //! block devices (`storage::sd_block_device`, `storage::efatfs::host`) await
 //! [`locked_read_sectors`]/[`locked_write_sectors`] directly. The C-ABI transfer pair is called
-//! only by the plain-host bootstrap round-trip in `runtime::host` and by
-//! `tests/sim_latency_host.rs`. The app does call `deluge_block_ready` (`storage_manager.cpp`'s
+//! only by the plain-host bootstrap round-trip in `runtime::host`. The app does call `deluge_block_ready` (`storage_manager.cpp`'s
 //! card-present checks).
 //!
 //! Each C-ABI symbol has one definition per target configuration, selected by `cfg`.
@@ -18,7 +17,6 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use deluge_bsp::sd;
-#[cfg(any(target_os = "none", not(feature = "sim_latency")))]
 use embassy_futures::block_on;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
@@ -176,9 +174,7 @@ async fn acquire_bus()
 
 /// Reads `count` sectors from `lba` into `buf`, holding [`SD_BUS`].
 ///
-/// The transfer chokepoint for the filesystem block devices and the streaming loader. Under
-/// `sim_latency` the read goes through `sim_latency::modeled_read`, which does not take the bus
-/// itself.
+/// The transfer chokepoint for the filesystem block devices and the streaming loader.
 ///
 /// # Errors
 ///
@@ -186,21 +182,9 @@ async fn acquire_bus()
 /// `acquire_bus`), or the driver's error.
 pub async fn locked_read_sectors(lba: u32, count: u32, buf: &mut [u8]) -> Result<(), sd::SdError> {
     let _guard = acquire_bus().await?;
-    // Counted here, once per transfer; the `sim_latency` `deluge_block_read` bypasses this function
-    // and counts its own.
     #[cfg(not(target_os = "none"))]
     stats::note_read();
-    #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
-    {
-        // Every transfer is modeled: blocking callers spin through `sim_block::block_on`, whose
-        // progress hook pumps `pump`'s executor and advances the virtual clock, so the modeled
-        // delay always completes.
-        sim_latency::modeled_read(lba, count, buf).await
-    }
-    #[cfg(not(all(not(target_os = "none"), feature = "sim_latency")))]
-    {
-        sd::read_sectors(lba, count, buf).await
-    }
+    sd::read_sectors(lba, count, buf).await
 }
 
 /// Writes `count` sectors from `buf` to `lba`, holding [`SD_BUS`]; the write counterpart of
@@ -213,14 +197,7 @@ pub async fn locked_write_sectors(lba: u32, count: u32, buf: &[u8]) -> Result<()
     let _guard = acquire_bus().await?;
     #[cfg(not(target_os = "none"))]
     stats::note_write();
-    #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
-    {
-        sim_latency::modeled_write(lba, count, buf).await
-    }
-    #[cfg(not(all(not(target_os = "none"), feature = "sim_latency")))]
-    {
-        sd::write_sectors(lba, count, buf).await
-    }
+    sd::write_sectors(lba, count, buf).await
 }
 
 /// DSTATUS bits for the current card state.
@@ -335,8 +312,7 @@ pub unsafe extern "C" fn deluge_block_write(
 
 /// Host counters of SD block reads and writes, for the streaming harnesses.
 ///
-/// Each transfer is counted exactly once: in [`locked_read_sectors`]/[`locked_write_sectors`], or
-/// in the `sim_latency` `deluge_block_*` variants, which bypass them.
+/// Each transfer is counted once, in [`locked_read_sectors`]/[`locked_write_sectors`].
 #[cfg(not(target_os = "none"))]
 pub(crate) mod stats {
     use core::sync::atomic::{AtomicU64, Ordering};
@@ -378,7 +354,7 @@ pub(crate) mod stats {
 /// # Safety
 ///
 /// `dst` must be valid for writes of `count * 512` bytes.
-#[cfg(all(not(target_os = "none"), not(feature = "sim_latency")))]
+#[cfg(not(target_os = "none"))]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_block_read(
     unit: u8,
@@ -407,7 +383,7 @@ pub unsafe extern "C" fn deluge_block_read(
 /// # Safety
 ///
 /// `src` must be valid for reads of `count * 512` bytes.
-#[cfg(all(not(target_os = "none"), not(feature = "sim_latency")))]
+#[cfg(not(target_os = "none"))]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_block_write(
     unit: u8,
@@ -431,201 +407,6 @@ pub unsafe extern "C" fn deluge_block_write(
             log::warn!("deluge_block_write(host) err {e:?} (sector={sector} count={count})");
             DELUGE_ERR_IO
         }
-    }
-}
-
-/// Reads `count` sectors starting at `sector` into `dst` from the host disk image, after the
-/// modeled SD latency.
-///
-/// Blocks through [`crate::storage::sim_block::block_on`], whose progress hook lets
-/// [`sim_latency::pump`] complete the modeled delay.
-///
-/// # Safety
-///
-/// `dst` must be valid for writes of `count * 512` bytes.
-#[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn deluge_block_read(
-    unit: u8,
-    dst: *mut u8,
-    sector: u32,
-    count: u32,
-) -> DelugeStatus {
-    crate::tier_meter::note(crate::tier_meter::Entry::BlockRead);
-    if unit != 0 {
-        return DELUGE_ERR_NODEV;
-    }
-    stats::note_read();
-    let len = count as usize * SECTOR_SIZE;
-    // SAFETY: caller guarantees `dst` holds `count` sectors.
-    let out = unsafe { core::slice::from_raw_parts_mut(dst, len) };
-    // Takes SD_BUS itself rather than going through `locked_read_sectors`, so the transfer is
-    // counted and modeled exactly once.
-    let result = crate::storage::sim_block::block_on(async {
-        let _guard = SD_BUS.lock().await;
-        sim_latency::modeled_read(sector, count, out).await
-    });
-    match result {
-        Ok(()) => DELUGE_OK,
-        Err(e) => {
-            log::warn!(
-                "deluge_block_read(host, sim_latency) err {e:?} (sector={sector} count={count})"
-            );
-            DELUGE_ERR_IO
-        }
-    }
-}
-
-/// Writes `count` sectors from `src` starting at `sector` to the host disk image, after the
-/// modeled SD latency.
-///
-/// # Safety
-///
-/// `src` must be valid for reads of `count * 512` bytes.
-#[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn deluge_block_write(
-    unit: u8,
-    src: *const u8,
-    sector: u32,
-    count: u32,
-) -> DelugeStatus {
-    crate::tier_meter::note(crate::tier_meter::Entry::BlockWrite);
-    if unit != 0 {
-        return DELUGE_ERR_NODEV;
-    }
-    if sd::is_write_protected() {
-        return DELUGE_ERR_WRITE_PROTECTED;
-    }
-    stats::note_write();
-    let len = count as usize * SECTOR_SIZE;
-    // SAFETY: caller guarantees `src` holds `count` sectors.
-    let data = unsafe { core::slice::from_raw_parts(src, len) };
-    // As in `deluge_block_read`: takes SD_BUS itself so the transfer is counted and modeled once.
-    let result = crate::storage::sim_block::block_on(async {
-        let _guard = SD_BUS.lock().await;
-        sim_latency::modeled_write(sector, count, data).await
-    });
-    match result {
-        Ok(()) => DELUGE_OK,
-        Err(e) => {
-            log::warn!(
-                "deluge_block_write(host, sim_latency) err {e:?} (sector={sector} count={count})"
-            );
-            DELUGE_ERR_IO
-        }
-    }
-}
-
-/// Modeled SD latency for host transfers (`sim_latency` feature, harnesses only).
-///
-/// The delay cannot be a `Timer` awaited inside the transfer future: transfers are driven by a
-/// `block_on`, whose synthetic waker makes the integrated timer queue panic. Instead
-/// [`pump`](sim_latency::pump), a spawned Embassy task, awaits the `Timer`; `delay` hands it the
-/// duration over a `Signal` and waits on an `AtomicWaker`, which any waker may poll.
-///
-/// Every modeled transfer holds [`SD_BUS`], so at most one is in flight and a single
-/// request/completion slot suffices.
-#[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
-pub mod sim_latency {
-    use core::future::Future;
-    use core::pin::Pin;
-    use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
-    use core::task::{Context, Poll};
-
-    use deluge_bsp::sd;
-    use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-    use embassy_sync::signal::Signal;
-    use embassy_sync::waitqueue::AtomicWaker;
-    use embassy_time::{Duration, Timer};
-
-    use super::SECTOR_SIZE;
-
-    /// Modeled sustained throughput, bytes per second; set at runtime by harness sweeps.
-    static THROUGHPUT_BYTES_PER_SEC: AtomicU32 = AtomicU32::new(20_000_000);
-    /// Modeled fixed per-command overhead, microseconds.
-    static COMMAND_OVERHEAD_US: AtomicU32 = AtomicU32::new(500);
-
-    /// Sets the modeled throughput in bytes per second, clamped to at least 1.
-    pub fn set_throughput_bytes_per_sec(bytes_per_sec: u32) {
-        THROUGHPUT_BYTES_PER_SEC.store(bytes_per_sec.max(1), Ordering::Relaxed);
-    }
-
-    /// Sets the modeled per-command overhead in microseconds.
-    pub fn set_command_overhead_us(us: u32) {
-        COMMAND_OVERHEAD_US.store(us, Ordering::Relaxed);
-    }
-
-    /// Returns the modeled latency of a `bytes`-byte transfer: command overhead plus
-    /// `bytes / throughput`.
-    pub fn latency_for(bytes: usize) -> Duration {
-        let throughput_bps = THROUGHPUT_BYTES_PER_SEC.load(Ordering::Relaxed) as u64;
-        let overhead_us = COMMAND_OVERHEAD_US.load(Ordering::Relaxed) as u64;
-        let transfer_us = (bytes as u64 * 1_000_000) / throughput_bps;
-        Duration::from_micros(overhead_us + transfer_us)
-    }
-
-    /// The in-flight transfer's delay, handed to [`pump`].
-    static REQUEST: Signal<CriticalSectionRawMutex, Duration> = Signal::new();
-    /// Set by [`pump`] when the current delay has elapsed; consumed by [`DelayFuture`].
-    static DONE: AtomicBool = AtomicBool::new(false);
-    /// Woken by [`pump`] on completion; registered by [`DelayFuture`].
-    static WAKER: AtomicWaker = AtomicWaker::new();
-
-    /// Serves modeled delays one at a time; the only place this module awaits a `Timer`.
-    ///
-    /// Must be spawned once, before the first `sim_latency` transfer.
-    #[embassy_executor::task]
-    pub async fn pump() {
-        loop {
-            let dur = REQUEST.wait().await;
-            Timer::after(dur).await;
-            DONE.store(true, Ordering::SeqCst);
-            WAKER.wake();
-        }
-    }
-
-    /// Completion of the current delay; safe to poll from any waker.
-    ///
-    /// Registers with [`WAKER`] before checking [`DONE`], so a completion between the two is not
-    /// lost.
-    struct DelayFuture;
-    impl Future for DelayFuture {
-        type Output = ();
-        fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
-            WAKER.register(cx.waker());
-            if DONE.swap(false, Ordering::SeqCst) {
-                Poll::Ready(())
-            } else {
-                Poll::Pending
-            }
-        }
-    }
-
-    /// Waits out the modeled latency of a `bytes`-byte transfer.
-    async fn delay(bytes: usize) {
-        REQUEST.signal(latency_for(bytes));
-        DelayFuture.await;
-    }
-
-    /// Reads from the host disk image after the modeled delay; only the timing is modeled.
-    ///
-    /// # Errors
-    ///
-    /// Returns the driver's error.
-    pub async fn modeled_read(lba: u32, count: u32, buf: &mut [u8]) -> Result<(), sd::SdError> {
-        delay(count as usize * SECTOR_SIZE).await;
-        sd::read_sectors(lba, count, buf).await
-    }
-
-    /// Writes to the host disk image after the modeled delay.
-    ///
-    /// # Errors
-    ///
-    /// Returns the driver's error.
-    pub async fn modeled_write(lba: u32, count: u32, buf: &[u8]) -> Result<(), sd::SdError> {
-        delay(count as usize * SECTOR_SIZE).await;
-        sd::write_sectors(lba, count, buf).await
     }
 }
 

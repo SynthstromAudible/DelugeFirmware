@@ -7,7 +7,7 @@
 # fresh reference, the actual `<fixture>_MIXDOWN.golden.wav.sha256` in
 # `DELUGE_GOLDEN_DIR`. This is the reusable convergence gate for the
 # golden-on-Embassy work: run it after any change that could perturb the Embassy
-# renderer's output (sim_latency/config changes, streaming-fill relocations, etc.)
+# renderer's output (config changes, streaming-fill relocations, etc.)
 # to prove the Rust/Embassy BSP still produces bit-exact golden output.
 #
 # Usage:

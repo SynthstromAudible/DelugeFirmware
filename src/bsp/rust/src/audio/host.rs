@@ -79,10 +79,7 @@ fn render_mode() -> bool {
 /// - when [`render_after_boot`] or [`REALTIME_RENDER`] asks for every block.
 ///
 /// Otherwise — after boot on a single-executor harness, where the priority-0 task runs on the
-/// same executor as everything else — the call is skipped. Such a render can reach a synchronous
-/// card read that, under `sim_latency`, waits on a `Timer` another task must fire; a
-/// non-yielding `block_on` never lets that task run, and the process livelocks. The skipped block
-/// would have been discarded anyway.
+/// same executor as everything else — the call is skipped: nothing consumes that block's output.
 fn should_skip_render() -> bool {
     if !crate::boot::finished() || render_after_boot() || REALTIME_RENDER.load(Ordering::Relaxed) {
         return false;

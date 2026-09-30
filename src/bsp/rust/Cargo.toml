@@ -133,10 +133,6 @@ host_app = [
 ## one process. See docs/superpowers/specs/2026-09-29-embassy-emulator-design.md.
 sim = ["host_app", "dep:deluge-simulator", "deluge-bsp/sim-link"]
 
-## Host only: give each SD transfer a modeled latency in virtual time instead of completing
-## instantly. Data is unchanged.
-sim_latency = []
-
 [build-dependencies]
 # Generates the Rust side of the libdeluge headers, so the boundary cannot drift.
 bindgen = "0.70"

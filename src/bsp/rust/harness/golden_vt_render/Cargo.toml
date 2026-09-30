@@ -28,11 +28,6 @@ critical-section = { version = "1", features = ["std"] }
 log = "0.4"
 env_logger = "0.11"
 
-[features]
-## Model SD transfer latency. Off: a golden render must be bit-exact, and the streaming-margin gate
-## models storage time in the fill task instead (`deluge_streaming_set_fill_*`).
-sim_latency = ["deluge-bsp-rust/sim_latency"]
-
 [profile.dev]
 opt-level = 1
 debug = true

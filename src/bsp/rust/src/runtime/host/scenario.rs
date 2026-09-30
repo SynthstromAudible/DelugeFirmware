@@ -42,11 +42,6 @@ pub struct ScenarioConfig {
     pub target_blocks: u64,
     /// The bound on each wait, so a wedged app fails the scenario rather than hanging it.
     pub step_timeout: Duration,
-    /// `(throughput_bytes_per_sec, command_overhead_us)` for `sd::sim_latency`, applied once the
-    /// song has loaded, so it slows only the real-time streaming, not the load. Read only with
-    /// the `sim_latency` feature.
-    #[cfg_attr(not(feature = "sim_latency"), allow(dead_code))]
-    pub post_load_sim_latency: Option<(u32, u32)>,
 }
 
 /// The outcome of [`run`].
@@ -142,12 +137,6 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
     .await;
     if !result.load_completed {
         return result;
-    }
-
-    #[cfg(feature = "sim_latency")]
-    if let Some((throughput_bps, overhead_us)) = cfg.post_load_sim_latency {
-        crate::storage::sd::sim_latency::set_throughput_bytes_per_sec(throughput_bps);
-        crate::storage::sd::sim_latency::set_command_overhead_us(overhead_us);
     }
 
     // Baseline after the load, so the counts cover only streaming and recording.

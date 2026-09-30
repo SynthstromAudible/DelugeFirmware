@@ -3,8 +3,8 @@
 //! On device this is `embassy_futures::block_on`: transfers complete by SDHI/DMA interrupt, so a
 //! plain spin suffices.
 //!
-//! On host a pending transfer becomes ready only when another context runs (the
-//! `sim_latency::pump` task, or the virtual clock). The host spin therefore calls a progress hook,
+//! On host a pending transfer becomes ready only when another context runs (another thread's
+//! executor, or the virtual clock). The host spin therefore calls a progress hook,
 //! registered by the harness, that pumps the higher-priority executor and advances virtual time —
 //! standing in for the device's interrupt preemption in a single-threaded, deterministic sim.
 

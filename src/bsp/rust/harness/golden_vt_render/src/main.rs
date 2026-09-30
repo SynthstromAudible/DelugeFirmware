@@ -19,13 +19,8 @@
 //! in `main` polls the executor to quiescence, jumps the clock to the next due deadline, and
 //! repeats.
 //!
-//! # `sim_latency` is off
-//!
-//! A synchronous card call spins in `block_on` on this one thread. Under `sim_latency` its
-//! transfer waits on a `Timer` that the `sim_latency::pump` task must fire, and that task cannot be
-//! polled while the spin holds the thread, so the process livelocks. A golden render wants
-//! bit-exact output anyway; where a gate needs storage time, the async fill task models it
-//! (`deluge_streaming_set_fill_*`).
+//! Card transfers complete synchronously here. Where a gate needs storage time, the async fill
+//! task models it (`deluge_streaming_set_fill_*`).
 //!
 //! # The card is chosen before any task is spawned
 //!
@@ -1395,9 +1390,6 @@ fn main() {
     spawner.spawn(control::pad_render().unwrap());
     spawner.spawn(control::encoder_wake_pump().unwrap());
     spawner.spawn(display::oled_render().unwrap());
-    // Only under `sim_latency`, which has a modeled-latency queue to pump.
-    #[cfg(feature = "sim_latency")]
-    spawner.spawn(sd::sim_latency::pump().unwrap());
     spawner.spawn(boot_task().unwrap());
     // The async cluster-fill task, which owns the loader queue.
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
