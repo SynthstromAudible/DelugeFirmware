@@ -20,6 +20,7 @@ Usage:
     scripts/check_abi_surface.py              # the table
     scripts/check_abi_surface.py --dead       # declared functions nothing calls
     scripts/check_abi_surface.py --check      # exit 1 if a declared function has no definition
+    scripts/check_abi_surface.py --pins       # exit 1 if a Rust-defined declared function has no abi_pin!
     scripts/check_abi_surface.py NAME...      # the rows for these functions
 """
 
@@ -107,6 +108,30 @@ def rust_definition(name: str) -> re.Pattern[str]:
     )
 
 
+ABI_PIN = re.compile(r"abi_pin!\s*\(\s*(?:in\s+[\w:]+\s*:)?([^)]*)\)", re.DOTALL)
+# The rename arm, `abi_pin!(sys_name => local_name)`: the two sides are the bindgen name and the item that
+# defines it, which differ only when the C name isn't a legal Rust identifier (a keyword). `local_name` then
+# spells the C name as a raw identifier (`r#yield`), so stripping the `r#` recovers it.
+ABI_PIN_RENAME = re.compile(r"^(\w+)\s*=>\s*(?:r#)?(\w+)$")
+
+
+def pinned() -> set[str]:
+    """Every C name pinned by an `abi_pin!` invocation in `src/bsp/rust/src` (this includes `abi_pins.rs`,
+    which pins the crates' exports and the BSP's own imports of them)."""
+    names: set[str] = set()
+    for path in RUST:
+        if "src/bsp/rust/src" not in path.as_posix():
+            continue
+        for match in ABI_PIN.finditer(strip_comments(path.read_text(errors="replace"))):
+            body = match.group(1)
+            rename = ABI_PIN_RENAME.match(body.strip())
+            if rename:
+                names.add(rename.group(2))
+                continue
+            names.update(n.strip() for n in body.split(",") if n.strip())
+    return names
+
+
 def scan(name: str) -> dict[str, int]:
     word = re.compile(r"\b" + re.escape(name) + r"\b")
     row = {"rust_def": 0, "cxx_def": 0, "mock": 0, "app": 0, "tests": 0, "rust": 0}
@@ -140,6 +165,7 @@ def main() -> int:
     parser.add_argument("names", nargs="*")
     parser.add_argument("--dead", action="store_true")
     parser.add_argument("--check", action="store_true")
+    parser.add_argument("--pins", action="store_true")
     args = parser.parse_args()
 
     decls = declared()
@@ -160,8 +186,17 @@ def main() -> int:
         print(
             f"{name:48} {header:22} {defined:3} {row['mock']:4} {row['app']:4} {row['tests']:5} {row['rust']:4}"
         )
-    if args.check and undefined:
-        print(f"{len(undefined)} declared function(s) with no definition")
+    unpinned = []
+    if args.pins:
+        pins = pinned()
+        unpinned = [n for n in names if scan(n)["rust_def"] and n not in pins]
+        for name in unpinned:
+            print(f"unpinned: {name}")
+    if (args.check and undefined) or unpinned:
+        if undefined and args.check:
+            print(f"{len(undefined)} declared function(s) with no definition")
+        if unpinned:
+            print(f"{len(unpinned)} Rust-defined function(s) with no abi_pin!")
         return 1
     return 0
 
