@@ -375,13 +375,6 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	currentUIMode = UI_MODE_NONE;
 }
 
-namespace {
-/// How many consecutive ticks STAGE waits for the browser's listing before giving up. A bound, not a
-/// timeout: a listing settles in a handful of ticks when it settles at all, and an empty folder must
-/// end the load with an error rather than spinning forever.
-constexpr int32_t kMaxStagingWaitTicks = 2000;
-} // namespace
-
 void LoadSongUI::endLoad() {
 	essentialLoad_.reset();
 	restLoad_.reset();
@@ -394,7 +387,7 @@ void LoadSongUI::endLoad() {
 	releaseSongStaging();
 	stagingPath_.clear();
 	stagingPrevious_ = nullptr;
-	stagingWaitTicks_ = 0;
+	stagingWait_.reset();
 
 	// Cleared before the call so a completion that starts another load doesn't inherit this one's.
 	void (*onComplete)() = loadOnComplete_;
@@ -459,7 +452,7 @@ void LoadSongUI::runStageSegment() {
 		// is what actually waits; isListingInProgress() is what stops us reading a list mid-rebuild.
 		FileItem* item = getCurrentFileItem();
 		if (Browser::isListingInProgress() || item == nullptr) {
-			if (++stagingWaitTicks_ > kMaxStagingWaitTicks) {
+			if (stagingWait_.tick()) {
 				display->displayError(Error::FILE_NOT_FOUND);
 				endLoad();
 			}
@@ -1093,7 +1086,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 		// A different attempt: its wait starts from nothing.
 		previewWaitGeneration_ = attempt.generation;
 		previewWaitPath_ = attempt.target.path;
-		previewWaitTicks_ = 0;
+		previewWait_.reset();
 	}
 
 	uint32_t length = 0;
@@ -1101,7 +1094,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 	                                                  static_cast<uint32_t>(songPreviewPrefix.size()), &length);
 
 	if (status == DELUGE_FILE_PREFIX_PENDING || status == DELUGE_FILE_PREFIX_UNKNOWN) {
-		if (++previewWaitTicks_ < kMaxPreviewWaitTicks) {
+		if (!previewWait_.tick()) {
 			if (status == DELUGE_FILE_PREFIX_UNKNOWN) {
 				// "The caller should request it (again)" -- the documented meaning, and never a failure to
 				// report. This is also where the FIRST request for a target is issued: drawSongPreview() names
@@ -1114,7 +1107,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 		// card: blank, with the card error, and the scroll-in the cursor move owed released rather than left parked.
 		// Nothing to clean up: the channel copied the path, and a late answer is displaced by the next publish. The
 		// next visit to this song asks again.
-		previewWaitTicks_ = 0;
+		previewWait_.reset();
 		PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
 		if (imageStore != nullptr) {
 			reportPreviewOutcome(deluge::storage::SongPreviewOutcome::Error, Error::SD_CARD);
@@ -1123,7 +1116,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 		return false;
 	}
 
-	previewWaitTicks_ = 0; // answered: READY or FAILED
+	previewWait_.reset(); // answered: READY or FAILED
 	PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
 
 	if (status == DELUGE_FILE_PREFIX_FAILED) {

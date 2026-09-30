@@ -17,6 +17,7 @@
 
 #include "storage/smsysex_pending.h"
 
+#include "io/stall_bound.h"
 #include "libdeluge/file_bytes.h"
 #include "storage/byte_channel.h"
 
@@ -38,15 +39,6 @@ namespace {
 /// succeeded a few ticks later.
 constexpr int32_t kMaxRefusals = 600;
 
-/// How many ticks one operation may sit PENDING before this gives up on the channel.
-///
-/// A separate, far larger bound, because it guards a different failure. A refusal is instant and
-/// means "busy"; PENDING means "working", and a real card operation is legitimately allowed to take
-/// a while. But a channel whose driver is not running answers PENDING **forever** -- the request sits
-/// in its slot with nothing to take it -- and that is neither a refusal nor an answer, so the bound
-/// above never sees it. Left unbounded, it would wedge the SysEx queue instead of boot.
-constexpr int32_t kMaxPendingTicks = 600;
-
 PathOp g_op = PathOp::None;
 std::string g_pathA;
 std::string g_pathB;
@@ -66,7 +58,10 @@ uint32_t g_resultValue = 0;
 /// Whether the request has been issued (as opposed to started but still refused).
 bool g_issued = false;
 int32_t g_refusals = 0;
-int32_t g_pendingTicks = 0;
+/// How long the operation in flight has sat PENDING. A separate bound from @ref kMaxRefusals, because it guards a
+/// different failure: a refusal is instant and means "busy", but a channel whose driver is not running answers
+/// PENDING forever, which is neither a refusal nor an answer.
+deluge::io::StallBound g_pendingBound;
 
 /// The synchronous arm's answer, read on the tick after the one that ran (or refused) it.
 bool g_inlineDone = false;
@@ -74,7 +69,7 @@ deluge::io::Status g_inlineStatus = deluge::io::Status::OK;
 
 /// Whether the channel should carry this operation, or the synchronous arm should.
 bool viaChannel() {
-	return deluge::storage::bytes::usingByteChannel() && g_refusals < kMaxRefusals && g_pendingTicks < kMaxPendingTicks;
+	return deluge::storage::bytes::usingByteChannel() && g_refusals < kMaxRefusals && !g_pendingBound.expired();
 }
 
 /// Copy `from` to `to` synchronously, block by block.
@@ -296,7 +291,7 @@ bool pathOpStart(PathOp op, const char* a, const char* b, DelugeTimestamp stamp)
 	g_stamp = stamp;
 	g_issued = false;
 	g_refusals = 0;
-	g_pendingTicks = 0;
+	g_pendingBound.reset();
 	g_inlineDone = false;
 	issue();
 	if (!g_issued) {
@@ -324,7 +319,7 @@ bool pathOpStartBlock(PathOp op, const char* path, uint32_t offset, const uint8_
 	}
 	g_issued = false;
 	g_refusals = 0;
-	g_pendingTicks = 0;
+	g_pendingBound.reset();
 	g_inlineDone = false;
 	issue();
 	return g_issued;
@@ -404,7 +399,7 @@ std::optional<deluge::io::Status> pathOpCollect() {
 	case ByteIo::Failed:
 		return deluge::io::to_status(status);
 	case ByteIo::Pending:
-		if (++g_pendingTicks >= kMaxPendingTicks) {
+		if (g_pendingBound.tick()) {
 			// The channel accepted and never answered. Re-issue on the synchronous arm, which
 			// `viaChannel` now refuses to bypass.
 			g_issued = false;
@@ -428,7 +423,7 @@ void pathOpClear() {
 	g_resultValue = 0;
 	g_issued = false;
 	g_refusals = 0;
-	g_pendingTicks = 0;
+	g_pendingBound.reset();
 	g_inlineDone = false;
 }
 

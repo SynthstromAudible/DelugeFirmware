@@ -237,7 +237,7 @@ private:
 	bool copyIssued_{};
 	/// Whether the CURRENT entry's rename succeeded, which decides where its copy reads from.
 	bool renameSucceeded_{true};
-	int32_t collectStallTicks_{};
+	deluge::io::StallBound collectStallBound_{};
 
 	/// @brief The staged song document, pointing into the shared serialiser's buffer.
 	///
@@ -251,7 +251,7 @@ private:
 	deluge::storage::ReadBackCheck docReadBack_;
 	std::string docWritePath_; ///< Where the bytes actually go: the temp name, or the target.
 	int32_t docTempNumber_{};
-	int32_t docStallTicks_{};
+	deluge::io::StallBound docStallBound_{};
 	bool docWriteIssued_{};
 
 	/// The bytes the head and tail must match, copied verbatim from the strings the streaming writer

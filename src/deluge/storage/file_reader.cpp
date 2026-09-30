@@ -25,6 +25,7 @@
 
 #include "gui/ui_timer_manager.h"
 #include "io/file.hpp"
+#include "io/stall_bound.h"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
 #include "libdeluge/file_bytes.h"
@@ -281,14 +282,11 @@ namespace {
 /// Completed whole-file staging reads served by the channel. See stagingChannelServedOps().
 int32_t stagingServedOps = 0;
 
-/// How many consecutive deferrals one staging tolerates before giving up. A bound, not a timeout: the
-/// channel answers within a tick or two when it is running at all, so anything approaching this means
-/// it is not going to.
-constexpr uint16_t kMaxStalledTicks = 600;
-
-/// Defer one more tick, or give up if this staging has stopped making progress.
+/// Defer one more tick, or give up if this staging has stopped making progress. A bound, not a
+/// timeout: the channel answers within a tick or two when it is running at all, so anything
+/// approaching this means it is not going to.
 StorageManager::StagedOpen deferStaging(StorageManager::StagingState* state) {
-	if (++state->stalledTicks > kMaxStalledTicks) {
+	if (state->stalledTicks.tick()) {
 		return StorageManager::StagedOpen::Failed;
 	}
 	return StorageManager::StagedOpen::Deferred;
@@ -332,7 +330,7 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		case deluge::storage::bytes::ByteIo::Failed:
 			return StagedOpen::Failed;
 		case deluge::storage::bytes::ByteIo::Ready:
-			state->stalledTicks = 0;
+			state->stalledTicks.reset();
 			break;
 		}
 		if (size == 0) {
@@ -350,7 +348,7 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 			return deferStaging(state);
 		}
 		state->issued = true;
-		state->stalledTicks = 0;
+		state->stalledTicks.reset();
 		return StagedOpen::Deferred;
 	}
 	else {

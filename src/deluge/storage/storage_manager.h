@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "io/file.hpp"
+#include "io/stall_bound.h"
 #include "libdeluge/scheduler.h" // isSDRoutineActive()
 #include "modulation/sync.h"
 #include "util/firmware_version.h"
@@ -452,7 +453,7 @@ struct StagingState {
 	/// Consecutive ticks this staging has been deferred without progress. Bounded, because a channel
 	/// that is never going to answer must END the wait rather than defer forever -- an unbounded retry
 	/// is not patience, it is a wedge that presents as the device having hung.
-	uint16_t stalledTicks = 0;
+	deluge::io::StallBound stalledTicks{};
 };
 
 /// @brief Read the whole of @p path into a freshly allocated buffer, blocking until it is there.

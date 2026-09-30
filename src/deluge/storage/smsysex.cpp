@@ -10,6 +10,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/sysex.h"
+#include "io/stall_bound.h"
 #include "libdeluge/file_directory.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
@@ -34,10 +35,7 @@ uint32_t dirOffsetCounter;
 JsonSerializer jWriter;
 std::string activeDirName;
 /// Consecutive ticks the directory open for the front `dir` request has gone unanswered. See smSysex::getDirEntries().
-int32_t dirOpenWaitTicks = 0;
-/// How many unanswered ticks that open is given before the request is answered with a timeout: the bound every channel
-/// consumer on this ladder uses.
-constexpr int32_t kMaxDirOpenWaitTicks = 600;
+deluge::io::StallBound dirOpenWait;
 const size_t blockBufferMax = 1024;
 const size_t sysexBufferMax = blockBufferMax + 256;
 uint8_t* writeBlockBuffer = nullptr;
@@ -564,18 +562,18 @@ bool smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 			if (errCode == FsWireStatus::Ok) {
 				// Still opening, so this request stays at the front and is re-entered next tick -- but not for good. An
 				// open the channel never answers would leave it, and every request queued behind it, unanswered.
-				if (++dirOpenWaitTicks < kMaxDirOpenWaitTicks) {
+				if (!dirOpenWait.tick()) {
 					return false;
 				}
 				errCode = FsWireStatus::Timeout;
 			}
-			dirOpenWaitTicks = 0;
+			dirOpenWait.reset();
 			// The reply carries no entries: nothing of an earlier listing may go back as this request's contents.
 			sxDir.reset();
 			activeDirName.clear();
 			goto errorFound;
 		}
-		dirOpenWaitTicks = 0;
+		dirOpenWait.reset();
 		sxDir = std::move(*opened);
 		dirOffsetCounter = 0;
 		activeDirName = path;

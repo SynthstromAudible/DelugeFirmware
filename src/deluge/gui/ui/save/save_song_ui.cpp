@@ -276,7 +276,7 @@ bool SaveSongUI::beginUnstagedSave(const deluge::storage::SaveRequest& request) 
 	// the new song's folder BEFORE the document is written, so learning at the write that the name was
 	// taken would be too late.
 	existsRequest_ = request;
-	collectStallTicks_ = 0;
+	collectStallBound_.reset();
 	collectPhase_ = CollectPhase::EXISTS;
 	return true;
 }
@@ -340,7 +340,7 @@ void SaveSongUI::abandonExists() {
 }
 
 void SaveSongUI::resolveExists(const std::expected<bool, deluge::io::Status>& presence) {
-	collectStallTicks_ = 0;
+	collectStallBound_.reset();
 	// By value: the dispatch ends below, and ending it may start another save that reuses the member.
 	const deluge::storage::SaveRequest request = existsRequest_;
 
@@ -406,12 +406,6 @@ void SaveSongUI::resolveExists(const std::expected<bool, deluge::io::Status>& pr
 	endUnstagedDispatch(request, true);
 }
 
-namespace {
-/// How many consecutive deferrals one collection tolerates without progress. A bound, not a timeout:
-/// an unbounded retry is not patience, it is a wedge that presents as the device having hung.
-constexpr int32_t kMaxCollectStallTicks = 600;
-} // namespace
-
 void SaveSongUI::collectRoutine() {
 	switch (collectPhase_) {
 	case CollectPhase::NONE:
@@ -425,7 +419,7 @@ void SaveSongUI::collectRoutine() {
 	case CollectPhase::APPLY:
 		applyTransfers();
 		transfers_.clear();
-		collectStallTicks_ = 0;
+		collectStallBound_.reset();
 		collectPhase_ = CollectPhase::FINISH;
 		return;
 	case CollectPhase::FINISH:
@@ -438,10 +432,7 @@ void SaveSongUI::collectRoutine() {
 }
 
 bool SaveSongUI::deferCollection() {
-	if (++collectStallTicks_ > kMaxCollectStallTicks) {
-		return false;
-	}
-	return true;
+	return !collectStallBound_.tick();
 }
 
 void SaveSongUI::abandonCollection() {
@@ -477,7 +468,7 @@ void SaveSongUI::runTransferPhase() {
 		renameIssued_ = false;
 		copyIssued_ = false;
 		renameSucceeded_ = true;
-		collectStallTicks_ = 0;
+		collectStallBound_.reset();
 		return;
 	}
 
@@ -516,12 +507,12 @@ void SaveSongUI::runTransferPhase() {
 			renameIssued_ = true;
 			renameSucceeded_ = false;
 			anyErrorMovingTempFiles_ = true;
-			collectStallTicks_ = 0;
+			collectStallBound_.reset();
 			return;
 		case ByteIo::Ready:
 			renameIssued_ = true;
 			renameSucceeded_ = true;
-			collectStallTicks_ = 0;
+			collectStallBound_.reset();
 			return;
 		}
 	}
@@ -559,7 +550,7 @@ void SaveSongUI::runTransferPhase() {
 	renameIssued_ = false;
 	copyIssued_ = false;
 	renameSucceeded_ = true;
-	collectStallTicks_ = 0;
+	collectStallBound_.reset();
 }
 
 bool SaveSongUI::transferOneSynchronously() {
@@ -651,9 +642,6 @@ void SaveSongUI::applyTransfers() {
 }
 
 namespace {
-/// How many consecutive deferrals one document step tolerates without progress. A bound, not a
-/// timeout: an unbounded retry is not patience, it is a wedge that presents as the device hanging.
-constexpr int32_t kMaxDocStallTicks = 600;
 /// The TEMP + four-digit name space. Exhausting it fails the save; it does not keep asking.
 constexpr int32_t kMaxTempNameAttempts = 10000;
 } // namespace
@@ -663,7 +651,7 @@ bool SaveSongUI::docInline() {
 }
 
 bool SaveSongUI::deferDocument() {
-	return ++docStallTicks_ <= kMaxDocStallTicks;
+	return !docStallBound_.tick();
 }
 
 void SaveSongUI::abandonDocument(Error error) {
@@ -719,7 +707,7 @@ void SaveSongUI::runSerializePhase() {
 	}
 
 	docTempNumber_ = 0;
-	docStallTicks_ = 0;
+	docStallBound_.reset();
 	if (pendingFileAlreadyExisted_) {
 		docPhase_ = DocPhase::TEMPNAME;
 	}
@@ -773,7 +761,7 @@ void SaveSongUI::runTempNamePhase() {
 	case ByteIo::Ready:
 		++documentChannelServedOps_;
 		++documentSteps_;
-		docStallTicks_ = 0;
+		docStallBound_.reset();
 		if (present) {
 			docTempNumber_++; // Taken; try the next one on the next tick.
 			return;
@@ -808,7 +796,7 @@ void SaveSongUI::runWritePhase() {
 			return;
 		}
 		docWriteIssued_ = true;
-		docStallTicks_ = 0;
+		docStallBound_.reset();
 		return;
 	}
 
@@ -837,7 +825,7 @@ void SaveSongUI::runWritePhase() {
 	++documentChannelServedOps_;
 	++documentWriteChannelServedOps_;
 	++documentSteps_;
-	docStallTicks_ = 0;
+	docStallBound_.reset();
 	docPhase_ = DocPhase::VERIFY;
 	docReadBack_.begin(songReadBackExpectation());
 }
@@ -868,10 +856,10 @@ void SaveSongUI::runVerifyPhase() {
 		abandonDocument(Error::WRITE_FAIL);
 		return;
 	case ReadBackTick::Advanced:
-		docStallTicks_ = 0;
+		docStallBound_.reset();
 		return;
 	case ReadBackTick::Passed:
-		docStallTicks_ = 0;
+		docStallBound_.reset();
 		docPhase_ = pendingFileAlreadyExisted_ ? DocPhase::UNLINK : DocPhase::FINISH;
 		return;
 	}
@@ -907,7 +895,7 @@ void SaveSongUI::runUnlinkPhase() {
 	case ByteIo::Ready:
 		++documentChannelServedOps_;
 		++documentSteps_;
-		docStallTicks_ = 0;
+		docStallBound_.reset();
 		docPhase_ = DocPhase::RENAME;
 		return;
 	}
@@ -943,7 +931,7 @@ void SaveSongUI::runRenamePhase() {
 	case ByteIo::Ready:
 		++documentChannelServedOps_;
 		++documentSteps_;
-		docStallTicks_ = 0;
+		docStallBound_.reset();
 		docPhase_ = DocPhase::FINISH;
 		return;
 	}
@@ -1104,6 +1092,6 @@ bool SaveSongUI::finishSaveAfterCollection() {
 	// The card work runs inside the document machine, whose steps each choose their own arm; what
 	// is left here is bookkeeping, which runs legally wherever it is called from.
 	docPhase_ = DocPhase::SERIALIZE;
-	docStallTicks_ = 0;
+	docStallBound_.reset();
 	return true;
 }

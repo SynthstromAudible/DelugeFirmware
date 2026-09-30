@@ -215,7 +215,7 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 		savePhase_ = SavePhase::SERIALIZE;
 		writeIssued_ = false;
 		stagedSucceeded_ = false;
-		stallTicks_ = 0;
+		stallBound_.reset();
 		// Attempt it once here rather than waiting for the next saveRoutine() pass, for the reason
 		// beginLoad() does: work dispatched during boot must not sit waiting for a repeating task
 		// that is not running yet.
@@ -240,12 +240,6 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 ///
 /// The borrow is why every exit calls releaseStagedWriter(): left in memory mode, the shared
 /// serialiser silently stops reaching the card for everyone after this save.
-namespace {
-/// How many consecutive ticks one staged save tolerates without progress. A bound, not a timeout: an
-/// unbounded retry is not patience, it is a wedge that presents as the device having hung.
-constexpr int32_t kMaxSaveStallTicks = 600;
-} // namespace
-
 void SaveUI::saveRoutine() {
 	// The song save's sample collection runs on its own machine, for the reason its enum is separate:
 	// its flow is not a staged document write and sharing one would make both harder to follow.
@@ -281,10 +275,7 @@ void SaveUI::saveRoutine() {
 }
 
 bool SaveUI::deferStagedSave() {
-	if (++stallTicks_ > kMaxSaveStallTicks) {
-		return false;
-	}
-	return true;
+	return !stallBound_.tick();
 }
 
 void SaveUI::runSerializePhase() {
@@ -314,7 +305,7 @@ void SaveUI::runSerializePhase() {
 		return;
 	}
 	savePhase_ = SavePhase::WRITE;
-	stallTicks_ = 0;
+	stallBound_.reset();
 }
 
 void SaveUI::releaseStagedWriter() {
@@ -356,7 +347,7 @@ void SaveUI::runWritePhase() {
 			return;
 		}
 		writeIssued_ = true;
-		stallTicks_ = 0;
+		stallBound_.reset();
 		return;
 	}
 
@@ -433,10 +424,10 @@ void SaveUI::runStagedVerifyPhase() {
 		finishStagedVerify(false);
 		return;
 	case ReadBackTick::Advanced:
-		stallTicks_ = 0;
+		stallBound_.reset();
 		return;
 	case ReadBackTick::Passed:
-		stallTicks_ = 0;
+		stallBound_.reset();
 		finishStagedVerify(true);
 		return;
 	}
@@ -477,7 +468,7 @@ void SaveUI::handleWriteOutcome(bool alreadyExists, bool ok) {
 		// Before endStagedSave(), which releases the shared serialiser and with it the staged bytes this
 		// check compares against.
 		stagedReadBack_.begin(stagedReadBackExpectation());
-		stallTicks_ = 0;
+		stallBound_.reset();
 		savePhase_ = SavePhase::VERIFY;
 		return;
 	}
@@ -493,7 +484,7 @@ void SaveUI::completeStagedWrite() {
 	}
 	// The temp file is written and, where this save checks, verified. Only now is the target touched.
 	stagedSwap_.begin(inFlightRequest_.filePath, stagedWritePath_);
-	stallTicks_ = 0;
+	stallBound_.reset();
 	savePhase_ = SavePhase::SWAP;
 }
 
@@ -530,10 +521,10 @@ void SaveUI::runSwapPhase() {
 		}
 		return;
 	case SwapTick::Advanced:
-		stallTicks_ = 0;
+		stallBound_.reset();
 		return;
 	case SwapTick::Done:
-		stallTicks_ = 0;
+		stallBound_.reset();
 		finishStagedDocument();
 		return;
 	case SwapTick::Failed:
@@ -575,7 +566,7 @@ void SaveUI::endStagedSave(bool succeeded) {
 	// passes through this function, and leaving it borrowed breaks the next save that wants a file.
 	releaseStagedWriter();
 	writeIssued_ = false;
-	stallTicks_ = 0;
+	stallBound_.reset();
 	stagedSucceeded_ = succeeded;
 	savePhase_ = SavePhase::FINISH;
 	runFinishPhase();

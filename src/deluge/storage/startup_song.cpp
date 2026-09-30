@@ -26,6 +26,7 @@
 #include "io/file.hpp"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "io/stall_bound.h"
 #include "libdeluge/clock.h" // deluge_clock_now
 #include "libdeluge/file_write.h"
 #include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
@@ -68,20 +69,6 @@ constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 /// loaded a few ticks later: only a channel that has made no progress for as long as a stalled one is
 /// given up on.
 constexpr int32_t kMaxAttemptsWithoutProgress = 600;
-
-/// How many ticks one channel operation may sit PENDING before the machine gives up on the channel.
-///
-/// A separate, far larger bound than the one above, because it is guarding a different failure. A
-/// refusal is instant and means "busy"; PENDING means "working", and a real card operation is
-/// legitimately allowed to take a while. But a channel whose driver is not running answers PENDING
-/// **forever** -- the request sits in its slot with nothing to take it -- and that is neither a
-/// refusal nor an answer, so the bound above never sees it. Without this one the machine re-asks
-/// until the end of time and boot never completes.
-///
-/// That is not hypothetical: leaving the Rust worker unspawned produces exactly this livelock. Six
-/// hundred ticks is several seconds at this routine's rate -- far beyond any real operation, far
-/// short of forever.
-constexpr int32_t kMaxPendingTicks = 600;
 
 /// @name The settings prelude
 ///
@@ -136,8 +123,10 @@ bool g_requested = false;
 /// Consecutive attempts at the current request that produced neither an answer nor progress.
 /// See @ref kMaxAttemptsWithoutProgress.
 int32_t g_attemptsWithoutProgress = 0;
-/// Consecutive ticks the current request has spent PENDING. See @ref kMaxPendingTicks.
-int32_t g_pendingTicks = 0;
+/// Consecutive ticks the current request has spent PENDING. A separate bound from @ref
+/// kMaxAttemptsWithoutProgress, because it guards a different failure: a refusal is instant and means "busy", but a
+/// channel whose driver is not running answers PENDING forever, which is neither a refusal nor an answer.
+deluge::io::StallBound g_pendingBound;
 /// @}
 
 /// @name The synchronous arm's answers
@@ -168,7 +157,7 @@ void enter(StartupPhase phase) {
 	g_phase = phase;
 	g_requested = false;
 	g_attemptsWithoutProgress = 0;
-	g_pendingTicks = 0;
+	g_pendingBound.reset();
 	g_inlineDone = false;
 }
 
@@ -178,7 +167,7 @@ void enter(StartupPhase phase) {
 /// been seen for the current phase -- see that constant.
 bool viaChannel() {
 	return deluge::storage::bytes::usingByteChannel() && g_attemptsWithoutProgress < kMaxAttemptsWithoutProgress
-	       && g_pendingTicks < kMaxPendingTicks;
+	       && !g_pendingBound.expired();
 }
 
 /// Note one more tick spent waiting, and abandon the channel for this phase once that has gone on too
@@ -187,7 +176,7 @@ bool viaChannel() {
 /// The re-request on giving up is what makes the fallback take effect: `viaChannel()` is consulted
 /// again at the next issue, and by then it answers false.
 bool stillWaiting() {
-	if (++g_pendingTicks < kMaxPendingTicks) {
+	if (!g_pendingBound.tick()) {
 		return true;
 	}
 	g_requested = false; // re-issue, on the synchronous arm this time

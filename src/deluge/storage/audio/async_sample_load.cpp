@@ -109,7 +109,14 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	const int32_t settled = progress_.bound + progress_.emptyHolders;
 	const bool madeProgress = (settled > settledBefore_);
 	settledBefore_ = settled;
-	progress_.stalledTicks = (progress_.inFlight > 0 && !madeProgress) ? progress_.stalledTicks + 1 : 0;
+	bool stalled = false;
+	if (progress_.inFlight > 0 && !madeProgress) {
+		stalled = stalledBound_.tick();
+	}
+	else {
+		stalledBound_.reset();
+	}
+	progress_.stalledTicks = stalledBound_.ticks();
 	if (aborted_) {
 		progress_.state = State::Failed;
 		progress_.reason = Reason::Aborted;
@@ -117,7 +124,7 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	else if (progress_.inFlight == 0) {
 		progress_.state = State::Loaded;
 	}
-	else if (progress_.stalledTicks >= kMaxStalledTicks) {
+	else if (stalled) {
 		progress_.state = State::Failed;
 		progress_.reason = Reason::Stalled;
 	}

@@ -19,6 +19,7 @@
 
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
+#include "io/stall_bound.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/audio/audio_load_context.h"
 #include "storage/deferred_load.h"
@@ -226,16 +227,13 @@ private:
 	/// @brief Consecutive collects that found the current preview's read unanswered (UNKNOWN or PENDING), and the
 	///        attempt they were counted for.
 	///
-	/// At @ref kMaxPreviewWaitTicks the preview gives up with the card error: the pads cannot stay scrolled out for
-	/// as long as a card takes not to answer. A different attempt, or an answered read, starts the count again.
+	/// At the bound the preview gives up with the card error: the pads cannot stay scrolled out for as long as a
+	/// card takes not to answer. A different attempt, or an answered read, starts the count again.
 	/// @{
-	int32_t previewWaitTicks_{0};
+	deluge::io::StallBound previewWait_;
 	uint32_t previewWaitGeneration_{0};
 	std::string previewWaitPath_;
 	/// @}
-
-	/// @brief How many unanswered collects a preview is given: the bound every channel consumer on this ladder uses.
-	static constexpr int32_t kMaxPreviewWaitTicks = 600;
 
 	/// @brief Set up and start the scroll-in from `imageStore`. Call only once it is filled.
 	void beginPreviewScrollIn(int32_t movementDirection);
@@ -309,8 +307,13 @@ private:
 	/// document of its own.
 	FileDeserializer* stagingPrevious_{nullptr};
 
+	/// @brief How many consecutive ticks STAGE waits for the browser's listing before giving up. A bound, not a
+	///        timeout: a listing settles in a handful of ticks when it settles at all, and an empty folder must end
+	///        the load with an error rather than spinning forever.
+	static constexpr int32_t kMaxStagingWaitTicks = 2000;
+
 	/// @brief Consecutive ticks STAGE has waited for the browser's listing. Bounded.
-	int32_t stagingWaitTicks_{};
+	deluge::io::StallBound stagingWait_{kMaxStagingWaitTicks};
 
 	/// @brief Completion handed to @ref beginLoad, cleared as it runs.
 	void (*loadOnComplete_)(){nullptr};

@@ -980,14 +980,9 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 			stemSearchPhase_ = deluge::storage::StemSearchPhase::ProbeCandidate;
 			stemSearchIssued_ = false;
 			stemSearchCandidatesTried_ = 0;
-			stemSearchStallTicks_ = 0;
+			stemSearchStall_.reset();
 			stemSearchCandidatePath_ = tempPathForSearch;
 		}
-
-		// How many calls one candidate's channel operation may go unanswered before the search gives up. After boot
-		// there is nowhere legal to redo the operation inline, so a channel that stopped answering ends the search --
-		// as Failed, the refusal every other unanswerable question here already gets.
-		constexpr int32_t kMaxStemSearchStallTicks = 600;
 
 		const bool mayUseChannel = deluge::boot::finished();
 
@@ -1005,7 +1000,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectExists(stemSearchCandidatePath_.c_str(), &present, &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
+						if (!stemSearchStall_.tick()) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestExists(stemSearchCandidatePath_.c_str());
 							}
@@ -1033,7 +1028,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectMkdirAll(stemSearchCandidatePath_.c_str(), &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
+						if (!stemSearchStall_.tick()) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestMkdirAll(stemSearchCandidatePath_.c_str());
 							}
@@ -1075,7 +1070,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 				stemSearchCandidatePath_.append("-");
 				stemSearchCandidatePath_.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
 			}
-			stemSearchStallTicks_ = 0;
+			stemSearchStall_.reset();
 			stemSearchPhase_ = next;
 		}
 
