@@ -165,8 +165,18 @@ rgb get_colours(cpu_fault_type type) {
 	return (rgb){255, 255, 255}; // white, unknown fault type
 }
 
-#define MIN(a, b) ((a) > (b) ? (b) : (a))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define MAX_POINTER_COUNT 4
+
+void wait_for_flush(void) {
+	uartFlushIfNotSending(UART_ITEM_PIC);
+	// make sure interrupts are actually on or this will wait forever
+	__enable_irq();
+
+	// Wait for flush to finish
+	while (!(DMACn(PIC_TX_DMA_CHANNEL).CHSTAT_n & (1 << 6))) {}
+}
+
 [[gnu::always_inline]] inline void printPointers(uint32_t exception_lr, cpu_fault_type exception_type, uint32_t sys_lr,
                                                  uint32_t sys_sp) {
 	// Search for stack pointers
@@ -175,7 +185,7 @@ rgb get_colours(cpu_fault_type type) {
 		stackPointer = sys_sp;
 	}
 
-	uint8_t stackPointerCount = 0;
+	int8_t stackPointerCount = 0;
 	uint32_t stackPointers[MAX_POINTER_COUNT] = {0};
 
 	// Search for stack pointers before any printing
@@ -185,17 +195,18 @@ rgb get_colours(cpu_fault_type type) {
 			uint32_t stackValue = *((uint32_t*)stackPointer);
 
 			// Print any pointer that is pointing to code, different from the LRs and not the same as before
-			if (isCodePointer(stackValue) && stackValue != stackPointers[MIN(0, stackPointerCount - 1)]
+			if (isCodePointer(stackValue) && stackValue != stackPointers[MAX(0, stackPointerCount - 1)]
 			    && stackValue != sys_lr && stackValue != exception_lr) {
 				stackPointers[stackPointerCount] = stackValue;
 				++stackPointerCount;
-
 				if (stackPointerCount >= MAX_POINTER_COUNT) {
 					break;
 				}
+				stackPointer += 12; // seems like a reasonable min size between stored lr values, avoids garbage
 			}
-
-			stackPointer += 4;
+			else {
+				stackPointer += 4;
+			}
 		}
 	}
 
@@ -203,12 +214,14 @@ rgb get_colours(cpu_fault_type type) {
 
 	// Print LR from exception mode if it is valid (will usually be valid for data faults, invalid for code faults)
 	if (isCodePointer(exception_lr)) {
+		// this value is corrected by the fault handler already
 		currentColumnPairIndex = drawPointer(currentColumnPairIndex, exception_lr, 255, 0, 255);
 	}
 
 	// Print LR from SYS mode if it is valid and different from exception mode
 	if (isCodePointer(sys_lr) && exception_lr != sys_lr) {
-		currentColumnPairIndex = drawPointer(currentColumnPairIndex, sys_lr, 0, 0, 255);
+		// subtract 2 so it lands in the previous instruction to the actual return. 4 overshoots in thumb mode
+		currentColumnPairIndex = drawPointer(currentColumnPairIndex, sys_lr - 2, 0, 0, 255);
 	}
 
 	// Print all pointers
@@ -216,8 +229,9 @@ rgb get_colours(cpu_fault_type type) {
 		uint8_t currentPointerIndex = 0;
 		uint8_t currentBlueValue = 0;
 		while (currentPointerIndex < MAX_POINTER_COUNT) {
+			// subtract 2 so it lands in the previous instruction to the actual return. 4 overshoots in thumb mode
 			currentColumnPairIndex =
-			    drawPointer(currentColumnPairIndex, stackPointers[currentPointerIndex], 0, 255, currentBlueValue);
+			    drawPointer(currentColumnPairIndex, stackPointers[currentPointerIndex] - 2, 0, 255, currentBlueValue);
 
 			// Stop after filling all columns
 			if (currentColumnPairIndex >= 8) {
@@ -260,13 +274,11 @@ rgb get_colours(cpu_fault_type type) {
 	SEGGER_RTT_printf(0, "COMMIT: %s\n", kCommitShort);
 #endif
 
-	uartFlushIfNotSending(UART_ITEM_PIC);
-
-	// Wait for flush to finish
-	while (!(DMACn(PIC_TX_DMA_CHANNEL).CHSTAT_n & (1 << 6))) {}
+	wait_for_flush();
 }
 
 extern void fault_handler_print_freeze_pointers(uint32_t addrUSRLR, uint32_t addrUSRSP) {
+	wait_for_flush();
 	__disable_irq();
 	printPointers(0, SOFT_FAULT, addrUSRLR, addrUSRSP);
 	clearTxBuffer();
@@ -278,6 +290,8 @@ extern void fault_handler_print_freeze_pointers(uint32_t addrUSRLR, uint32_t add
 // sys_lr/sp: the LR/SP of the interrupted SYS-mode
 // code - i.e. the call site that made the faulty branch
 extern void handle_cpu_fault(uint32_t exception_lr, cpu_fault_type exception_type, uint32_t sys_lr, uint32_t sys_sp) {
+	wait_for_flush();
+	__disable_irq();
 	printPointers(exception_lr, exception_type, sys_lr, sys_sp);
 	clearTxBuffer();
 	__enable_irq();

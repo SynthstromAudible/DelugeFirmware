@@ -262,6 +262,7 @@ reserved_handler:
     MOV r5, #3
 common_fault_handler:
     CPSID   i                   /* Disable interrupt handling to preserve stack */
+    ISB
     MOV     r4, LR              /* Save faulting address (e.g. nullptr)      */
 /* ========================================================================= */
 /* The banked LR/SP of the exception mode (UND/ABT/SVC) only tell us the PC  */
