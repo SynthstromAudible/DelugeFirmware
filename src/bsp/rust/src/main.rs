@@ -98,8 +98,10 @@ extern crate deluge_sample_stream;
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 extern crate deluge_sample_stream;
 
-/// libdeluge POD types generated from include/libdeluge/*.h (types only; the
-/// service functions are defined in [`ffi`]). No C++ app is linked on host
+/// The libdeluge C ABI generated from include/libdeluge/*.h: POD types,
+/// `DELUGE_*` constants, and a declaration of every header function (the
+/// crate's own definitions of the service functions live in [`ffi`] and the
+/// modules beside it). No C++ app is linked on host
 /// unless `host_app` is enabled (see build.rs), so there is no bindgen output
 /// to include.
 #[cfg(target_os = "none")]

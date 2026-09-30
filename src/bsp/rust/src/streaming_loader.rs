@@ -80,10 +80,26 @@ pub extern "C" fn deluge_streaming_signal_fill() {
 /// asked for and is waiting on, so the drain lands it ahead of any queued prefetch.
 const BLOCKING_FILL_PRIORITY: u32 = 0;
 
+/// The process-wide resource-manager singleton, as the untyped pointer the loader-queue C ABI takes.
+///
+/// Where the libdeluge bindings exist this calls their `streaming_fill.h` declaration; the plain host
+/// carrier, which has only the `sys_host.rs` stand-ins, declares the same symbol itself.
+fn resource_manager() -> *mut c_void {
+    #[cfg(any(target_os = "none", feature = "host_app"))]
+    // SAFETY: no preconditions; returns the boot-singleton manager or null.
+    let mgr = unsafe { crate::sys::deluge_streaming_resource_manager() }.cast::<c_void>();
+    #[cfg(not(any(target_os = "none", feature = "host_app")))]
+    // SAFETY: as above.
+    let mgr = unsafe { deluge_streaming_resource_manager() };
+    mgr
+}
+
+#[cfg(not(any(target_os = "none", feature = "host_app")))]
 unsafe extern "C" {
-    /// The process-wide resource-manager singleton (see the `prod` module's own copy of this
-    /// prototype; a foreign-fn prototype may be declared in more than one module without conflict).
     fn deluge_streaming_resource_manager() -> *mut c_void;
+}
+
+unsafe extern "C" {
     /// The chunk-table slot backing `ptr` (`deluge_resource.h`), for the loader-queue enqueue below.
     fn deluge_resource_slot_of(mgr: *mut c_void, ptr: *mut c_void) -> u32;
     /// Enqueue the chunk at `slot` at `priority` AND take a queue-owned lease, so the entry survives
@@ -111,9 +127,8 @@ fn queue_is_drained(mgr: *mut c_void) -> bool {
 /// discarded on the drain's next poll -- which is why the display-only overview pre-scan once never
 /// converged on device.
 fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
-    // SAFETY: `deluge_streaming_resource_manager` returns the boot-singleton manager;
     // `chunk_backing` is a resident, leased `StreamedChunk*`.
-    let mgr = unsafe { deluge_streaming_resource_manager() };
+    let mgr = resource_manager();
     if !mgr.is_null() {
         let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing) };
         unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, BLOCKING_FILL_PRIORITY) };
@@ -147,8 +162,7 @@ pub extern "C" fn deluge_streaming_request_drain() {
 /// and reporting otherwise would loop a poller forever.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_streaming_queue_drained() -> bool {
-    // SAFETY: returns the boot-singleton manager.
-    let mgr = unsafe { deluge_streaming_resource_manager() };
+    let mgr = resource_manager();
     if mgr.is_null() {
         return true;
     }
@@ -316,7 +330,6 @@ mod prod {
     use deluge_sample_fill::StreamingFillDescriptor;
 
     unsafe extern "C" {
-        fn deluge_streaming_resource_manager() -> *mut c_void;
         fn deluge_resource_loader_next(mgr: *mut c_void) -> *mut c_void;
         fn deluge_resource_loader_enqueue(mgr: *mut c_void, slot: u32, priority: u32);
         fn deluge_resource_slot_of(mgr: *mut c_void, ptr: *mut c_void) -> u32;
@@ -338,10 +351,9 @@ mod prod {
         /// executor the whole app (and the C++ enqueue path) runs on — see the
         /// module doc's Concurrency section.
         pub fn new() -> Self {
-            // SAFETY: returns the one process-wide GeneralMemoryAllocator
-            // resource manager; no aliasing/ownership concern, it's a stable
-            // singleton pointer.
-            let mgr = unsafe { deluge_streaming_resource_manager() };
+            // The one process-wide GeneralMemoryAllocator resource manager;
+            // no aliasing/ownership concern, it's a stable singleton pointer.
+            let mgr = super::resource_manager();
 
             // No startup capacity guard here: convert-state lives directly on
             // each `StreamedChunk` via `deluge_sample_fill::chunk::convert_state`/

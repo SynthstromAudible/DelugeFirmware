@@ -231,12 +231,22 @@ fn run_bindgen(
     out_dir: &std::path::Path,
 ) {
     let include_dir = repo_root.join("include");
+    let scheduler_dir = repo_root.join("src/OSLikeStuff");
     let wrapper = manifest_dir.join("wrapper.h");
     let clang_target = env::var("TARGET").expect("cargo sets TARGET for build scripts");
     let bindings = bindgen::Builder::default()
         .header(wrapper.to_str().unwrap())
         .clang_arg(format!("-I{}", include_dir.display()))
+        .clang_arg(format!("-I{}", scheduler_dir.display()))
+        // The host app is compiled with DELUGE_HOST, so its host-only declarations are part of this ABI.
+        .clang_arg("-DDELUGE_HOST")
         .allowlist_type("Deluge.*")
+        .allowlist_function("deluge_.*")
+        // scheduler_api.h's functions; `yield_` is bindgen's Rust name for `yield`, which is what the allowlist matches.
+        .allowlist_function(
+            "addRepeatingTask|addConditionalTask|ignoreForStats|getAverageRunTimeForTask|getSystemTime|runTask|yield_|blockTask|unblockTask|isSDRoutineActive",
+        )
+        .allowlist_var("DELUGE_.*")
         .use_core()
         // See ../build.rs: NO `-fshort-enums` — every libdeluge enum pins its
         // underlying type explicitly in its header, so both sides already
@@ -245,11 +255,20 @@ fn run_bindgen(
         .layout_tests(false)
         .generate()
         .expect("bindgen failed on libdeluge headers");
-    bindings
-        .write_to_file(out_dir.join("libdeluge_sys.rs"))
-        .expect("write libdeluge_sys.rs");
+    fs::write(
+        out_dir.join("libdeluge_sys.rs"),
+        edition_2024_externs(&bindings.to_string()),
+    )
+    .expect("write libdeluge_sys.rs");
     println!("cargo:rerun-if-changed={}", wrapper.display());
     println!("cargo:rerun-if-changed={}", include_dir.display());
+    println!("cargo:rerun-if-changed={}", scheduler_dir.display());
+}
+
+/// Marks each generated `extern "C"` block `unsafe`, as edition 2024 requires.
+/// bindgen 0.70 predates `unsafe extern` and emits the bare form.
+fn edition_2024_externs(bindings: &str) -> String {
+    bindings.replace("\nextern \"C\" {", "\nunsafe extern \"C\" {")
 }
 
 fn hash_objs_content(objs: &[PathBuf]) -> u64 {
