@@ -4,8 +4,8 @@ name: Rust
 # harnesses: rustfmt and clippy, plus a check that the test registry's generated
 # table is current. The tests themselves -- nextest over crates/, the BSP's host
 # tests, every harness -- run from the registry in tests.yml. The bare-metal BSP
-# clippy/build (armv7a-none-eabihf, needs build-std + the deluge-sdk setup) is
-# left as a TODO below; wire it in once the device build is reproducible in CI.
+# clippy/build (the armv7a-deluge-eabihf target, which needs build-std and the clang C++ tree
+# `dbt build` configures) is left as a TODO below; wire it in once that build is reproducible in CI.
 
 on:
   push:
@@ -135,9 +135,9 @@ jobs:
             cargo doc --manifest-path "$m" --workspace --no-deps --document-private-items
           done
 
-  # TODO: BSP clippy/build for armv7a-none-eabihf. Needs nightly -Z build-std
-  # (rust-src is already pinned in src/bsp/rust/rust-toolchain.toml) and the
-  # deluge-sdk toolchain setup. Add once the device build runs cleanly in CI:
+  # TODO: BSP clippy for the device. Needs nightly -Z build-std (rust-src is pinned in
+  # src/bsp/rust/rust-toolchain.toml) and the clang C++ tree, whose objects the build script
+  # archives. Add once `dbt build` runs in CI:
   #
   # bsp:
   #   name: clippy (bsp)
@@ -146,4 +146,5 @@ jobs:
   #     - uses: actions/checkout@v7
   #     - run: rustup component add clippy rust-src
   #     - run: cargo clippy --manifest-path src/bsp/rust/Cargo.toml
-  #             --target armv7a-none-eabihf -Z build-std=core,alloc -- -D warnings
+  #             --target src/bsp/rust/armv7a-deluge-eabihf.json -Zjson-target-spec
+  #             -Z build-std=core,alloc --no-default-features --features rtt -- -D warnings

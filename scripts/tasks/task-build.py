@@ -1,29 +1,22 @@
 #! /usr/bin/env python3
 """Build the firmware: C++ app under clang/ThinLTO, linked by the Rust BSP via lld.
 
-Two steps, same shape as `dbt rust`, different toolchain:
+Two steps:
 
-  1. cmake builds the C++ app objects with clang. Under Release these are LLVM
+  1. cmake builds the C++ app objects with clang, in `build/`. Under Release these are LLVM
      bitcode, not ELF.
-  2. cargo archives them and links the Rust firmware with lld, running LTO
-     across the Rust/C++ boundary.
+  2. cargo archives them and links the Rust firmware with lld, running LTO across the Rust/C++
+     boundary.
 
-Why this is a separate tree from `dbt rust`'s `build-gcc/`: that one is GCC,
-and the two are NOT interchangeable. arm-none-eabi GCC mangles int32_t as
-`long` where clang mangles it as `int`, so a GCC-built object's references do
-not resolve against a clang-built one. Mixing is all-or-nothing across any
-C++ interface using the fixed-width integer types, hence `build/` (this,
-shipping) alongside `build-gcc/` (fallback).
+cargo does not track the C++ sources, so step 1 runs every time; editing a .cpp and running only
+cargo would link stale objects.
 
-`dbt rust` remains the GCC path, and builds the ARM device image by default.
-Its C++ objects cannot use LTO — the Rust link cannot read GCC's slim-LTO
-objects — so it builds Debug objects at -O2 (see DELUGE_DEBUG_OPT_LEVEL in
-the root CMakeLists). This task has no such restriction, which is most of
-the point: measured on Release, the clang image is ~315 KB smaller and
-leaves 537 KB of SRAM free against 222 KB.
+The GCC tree (`dbt configure --toolchain gcc`, `build-gcc/`) cannot feed this link: GCC mangles
+`int32_t` as `long` where clang mangles it as `int`, so a GCC object's references do not resolve
+against clang ones.
 
-NOTE: CMake produces only library targets — there is no standalone C++-only
-`deluge` executable target to build against.
+NOTE: CMake produces only library targets — there is no standalone C++-only `deluge` executable
+target to build against.
 """
 
 import argparse
@@ -243,8 +236,8 @@ def stage_artifacts(root: Path, config: str) -> int:
 def check_tree_is_clang(build_dir: str) -> int:
     """Fail loudly if an existing build_dir was configured with a non-clang compiler.
 
-    A checkout that ran `dbt configure`/`dbt build` before build/ and build-gcc/
-    swapped trees may still have a GCC-configured build/ on disk. Reusing it
+    A build/ configured with GCC (by hand, or by an older checkout) cannot feed the
+    clang link. Reusing it
     would archive GCC-mangled objects into what this task treats as the clang
     tree -- and because Debug objects are plain ELF, the link SUCCEEDS with a
     corrupt ABI instead of failing here, surfacing later as baffling

@@ -1,8 +1,4 @@
-//! Links the device image: the linker scripts, and the CMake-built C++ app for the device target.
-//!
-//! The two device CMake trees are ABI-incompatible: GCC mangles `int32_t` as `long`, clang as
-//! `int`. Their Debug objects are plain ELF, so mixing them links successfully with a corrupt ABI
-//! instead of failing — see [`resolve_build_dir`] for how the tree is chosen.
+//! Links the device image: the linker scripts, and the C++ app from the clang CMake tree.
 
 use std::env;
 use std::fs;
@@ -63,26 +59,17 @@ fn emit_forced_link_roots() {
 /// by its `DELUGE_*` environment variable (each with a `rerun-if-env-changed`, or repointing one
 /// would relink the last archive).
 ///
-/// The build dir defaults by target: `build/` (clang) for `armv7a-deluge-eabihf`, `build-gcc/`
-/// otherwise, so `cargo device` never archives clang objects into a GCC link. (Cargo sets `TARGET`
-/// to a custom target's JSON file stem.)
+/// The build dir defaults to `build/`, the tree `dbt build` configures.
 ///
 /// The archiver defaults to `arm-none-eabi-ar`, right for Debug's plain ELF objects. LTO builds
-/// must pass an LTO-aware one (`gcc-ar`, `llvm-ar`): GNU `ar` cannot index bitcode, and the linker
-/// then silently pulls in nothing.
+/// must pass an LTO-aware one (`llvm-ar`, which `dbt build` sets): GNU `ar` cannot index bitcode,
+/// and the linker then silently pulls in nothing.
 fn resolve_build_dir(repo_root: &Path) -> (PathBuf, String, PathBuf) {
     println!("cargo:rerun-if-env-changed=DELUGE_BUILD_DIR");
     println!("cargo:rerun-if-env-changed=DELUGE_BUILD_CONFIG");
     let build_dir = env::var("DELUGE_BUILD_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| {
-            let default_tree = if env::var("TARGET").as_deref() == Ok("armv7a-deluge-eabihf") {
-                "build"
-            } else {
-                "build-gcc"
-            };
-            repo_root.join(default_tree)
-        });
+        .unwrap_or_else(|_| repo_root.join("build"));
     let cfg = env::var("DELUGE_BUILD_CONFIG").unwrap_or_else(|_| "Debug".into());
     // `toolchain/current` links to the active toolchain version.
     println!("cargo:rerun-if-env-changed=DELUGE_DEVICE_AR");

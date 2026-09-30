@@ -177,14 +177,8 @@ add_compile_options(
 
     # Optimization level.
     #
-    # DELUGE_DEBUG_OPT_LEVEL exists for the Rust/Embassy device build. Its build script (src/bsp/rust/build/)
-    # links the C++ app from pre-built object files, and it cannot read Release/RelWithDebInfo's slim-LTO
-    # objects, so the device firmware is forced to consume DEBUG objects. Set this to -O2 to get an optimized,
-    # non-LTO app the Rust link can still consume:
-    #
-    #   cmake -B build-gcc -DDELUGE_DEBUG_OPT_LEVEL=-O2 && ./dbt rust --release
-    #
-    # The default stays -Og so ordinary Debug builds remain debuggable.
+    # DELUGE_DEBUG_OPT_LEVEL sets the Debug config's optimisation level. The default stays -Og so Debug builds
+    # remain debuggable; -O2 gives an optimized image without LTO.
     #
     # This comment used to assert that -Og (plus the unconditional -fno-inline-functions below) is "far
     # too slow for real-time audio on the RZ/A1L", citing 15-19 ms routine latencies and continuous voice
@@ -230,10 +224,9 @@ add_compile_options(
 
     # Link time optimizations
     #
-    # Split by compiler. GCC's slim-LTO objects are what the Rust device link
-    # cannot consume (see DELUGE_DEBUG_OPT_LEVEL above), which is why that path
-    # is pinned to Debug objects. Clang emits ThinLTO bitcode, which lld reads
-    # directly — so the clang build can use real LTO in Release. -flto=auto,
+    # Split by compiler. Clang emits ThinLTO bitcode, which the Rust device link
+    # (lld) reads directly, so the device build uses real LTO in Release. GCC's
+    # slim-LTO objects are for the GCC tree's own compile only; nothing links them. -flto=auto,
     # -fuse-linker-plugin, -flto-partition and -fdevirtualize-at-ltrans are all
     # GCC spellings clang rejects.
     $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-flto=auto>

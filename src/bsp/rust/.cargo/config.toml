@@ -1,32 +1,10 @@
-# This crate is not a deluge-sdk workspace member, so the device target, Cortex-A9/NEON flags,
-# build-std and the embassy USB interface budget are set here. No default [build] target: a plain
-# `cargo build` builds the host binary; `cargo device` builds the ARM firmware.
-[alias]
-# `core,alloc`, not just `core`: `embedded-fatfs` needs `alloc`, and a prebuilt `alloc` against a
-# rebuilt `core` fails with "duplicate lang item in crate `core`".
-device = "build --target armv7a-none-eabihf -Zbuild-std=core,alloc --no-default-features --features rtt"
+# This crate is not a deluge-sdk workspace member, so its device target settings and the embassy
+# USB interface budget are set here. There is no default [build] target: a plain `cargo build`
+# builds the host binary, and `./dbt build` builds the device firmware.
 
-[target.armv7a-none-eabihf]
-# The bundled arm-none-eabi-g++ drives the link so libdeluge_app.a and its C++ runtime resolve.
-# `-nostartfiles`: the entry is rza1l-hal's `_start`, not gcc's crt0. The path is relative to
-# src/bsp/rust; `dbt rust` overrides it via CARGO_TARGET_ARMV7A_NONE_EABIHF_LINKER.
-linker = "../../../toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++"
-rustflags = [
-  "-C", "target-cpu=cortex-a9",
-  "-C", "target-feature=+neon",
-  "-C", "linker-flavor=gcc",
-  "-C", "link-arg=-nostartfiles",
-  # Float ABI for the link, not just codegen: without these, g++ picks its default soft-float
-  # multilib for libm/libstdc++/libgcc, and every out-of-line libm call (e.g. `lround`) silently
-  # returns garbage from the wrong register. Selects the thumb/v7-a+simd/hard multilib.
-  "-C", "link-arg=-mcpu=cortex-a9",
-  "-C", "link-arg=-mfpu=neon",
-  "-C", "link-arg=-mfloat-abi=hard",
-]
-
-# The shipping clang/lld cross-language LTO target (armv7a-deluge-eabihf.json). Its feature set
-# matches clang's (stock armv7a-none-eabihf adds +strict-align, which blocks every cross-language
-# inline). Build it with `./dbt build`, which exports CARGO_TARGET_ARMV7A_DELUGE_EABIHF_LINKER and
+# The device target (armv7a-deluge-eabihf.json), linked by clang/lld with cross-language LTO. Its
+# feature set matches clang's (stock armv7a-none-eabihf adds +strict-align, which blocks every
+# cross-language inline). Build it with `./dbt build`, which exports CARGO_TARGET_ARMV7A_DELUGE_EABIHF_LINKER and
 # _RUSTFLAGS from the discovered toolchain (device_cxx_env() in scripts/tasks/task-build.py).
 [target.armv7a-deluge-eabihf]
 # No `rustflags` here: the per-target RUSTFLAGS env var replaces this array rather than merging, so
