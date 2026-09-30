@@ -7,7 +7,7 @@
 //!
 //! Everything in this file runs from a CPU fault vector. The Embassy executor is not
 //! running, the heap may be wrecked, and interrupts are masked — so the transport here
-//! is a bare FIFO poll. It cannot use [`crate::control`]'s queue or `deluge_bsp::pic`'s
+//! is a bare FIFO poll. It cannot use [`crate::peripherals::control`]'s queue or `deluge_bsp::pic`'s
 //! async senders, both of which need a live executor to make progress: reaching for
 //! them from a fault would simply hang, which is how a crash ends up invisible.
 

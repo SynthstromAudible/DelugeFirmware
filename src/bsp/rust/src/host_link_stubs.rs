@@ -171,7 +171,7 @@ pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
 pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_stamp: *mut u32) -> bool {
     // DIN input is a note script a scenario arms (audio_host.rs), else the simulator's MIDI input (`sim`); nothing
     // arrives without either.
-    let script = crate::audio_host::din_script_read();
+    let script = crate::audio::host::din_script_read();
     #[cfg(feature = "sim")]
     let script = script.or_else(|| deluge_bsp::sim::panel().and_then(|panel| panel.pop_midi_in()));
     let Some(b) = script else {
@@ -181,7 +181,7 @@ pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_stamp: *mut 
     unsafe {
         *byte = b;
         if !arrival_stamp.is_null() {
-            *arrival_stamp = crate::capture_stamp::now_for(0);
+            *arrival_stamp = crate::audio::capture_stamp::now_for(0);
         }
     }
     true

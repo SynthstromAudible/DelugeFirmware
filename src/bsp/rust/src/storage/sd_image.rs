@@ -14,7 +14,7 @@
 //! Host-only (`host_app`); never compiled for device.
 #![cfg(all(not(target_os = "none"), feature = "host_app"))]
 
-use crate::sd_image_path::Plan;
+use crate::storage::sd_image_path::Plan;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -75,9 +75,9 @@ pub fn golden_fixture_tree(repo_root: &Path, fixture: &str) -> PathBuf {
 /// makes the firmware stream in far smaller clusters than on-device), then `mcopy -s` the
 /// whole project tree onto the image root.
 pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
-    let fingerprint = crate::sd_image_path::fingerprint_dir(project_dir);
+    let fingerprint = crate::storage::sd_image_path::fingerprint_dir(project_dir);
     let (staging, img) =
-        match crate::sd_image_path::scenario_plan(&std::env::temp_dir(), &fingerprint) {
+        match crate::storage::sd_image_path::scenario_plan(&std::env::temp_dir(), &fingerprint) {
             Plan::Reuse(img) => {
                 log::info!(
                     "streaming-scenario: reusing cached image for '{}' -> {}",
@@ -150,7 +150,7 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
 /// the image path; the caller points `DELUGE_SD_IMAGE` at it before any SD access. Panics with a
 /// clear message on failure (one-time harness setup, not something to silently degrade under).
 pub fn format_empty_image() -> PathBuf {
-    let img = crate::sd_image_path::recorder_image_path(&std::env::temp_dir());
+    let img = crate::storage::sd_image_path::recorder_image_path(&std::env::temp_dir());
     let bytes = 2560u64 << 20; // 2.5 GB -> comfortably >= 65525 32 KB clusters (valid FAT32)
     let script = format!(
         "set -e; truncate -s {bytes} '{img}'; mformat -i '{img}' -F -c 64 ::",

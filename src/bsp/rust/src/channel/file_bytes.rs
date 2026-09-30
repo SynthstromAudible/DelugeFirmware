@@ -71,7 +71,7 @@
 use core::ffi::{CStr, c_char};
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use super::channel::{
+use crate::channel::{
     DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
     DELUGE_PATH_MAX, DelugeChannelStatus,
 };
@@ -330,18 +330,18 @@ impl PartialEq<(ByteOp, &str)> for ByteKey {
     }
 }
 
-/// No byte outcome carries a handle, so `super::channel::Answer`'s default `orphan` -- always `None`
+/// No byte outcome carries a handle, so `crate::channel::Answer`'s default `orphan` -- always `None`
 /// -- is exactly right.
-impl super::channel::Answer for ByteOutcome {}
+impl crate::channel::Answer for ByteOutcome {}
 
-/// The one answer this channel holds, if it holds one. See `super::channel::AnswerSlot` for the slot
+/// The one answer this channel holds, if it holds one. See `crate::channel::AnswerSlot` for the slot
 /// rules this wraps; this type just names the key and value the byte channel uses.
 ///
 /// Passed to [`publish_into`]/[`take_from`]/[`drain`] by reference rather than reached for as a
 /// static, so the slot logic is compiled and unit-tested on every build -- including the ones where
 /// the live [`RESULT`] does not exist.
 pub struct BytesSlot {
-    inner: super::channel::AnswerSlot<ByteKey, ByteOutcome>,
+    inner: crate::channel::AnswerSlot<ByteKey, ByteOutcome>,
     /// Requests the answer held has refused. See [`PROTECTED_ANSWER_REFUSALS`].
     refusals: u32,
 }
@@ -349,7 +349,7 @@ pub struct BytesSlot {
 impl BytesSlot {
     pub const fn new() -> Self {
         Self {
-            inner: super::channel::AnswerSlot::new(),
+            inner: crate::channel::AnswerSlot::new(),
             refusals: 0,
         }
     }
@@ -475,8 +475,8 @@ pub enum ByteTake {
 /// belongs to may be about to collect it.
 pub fn take_from(slot: &mut BytesSlot, op: ByteOp, path: &str, generation: u32) -> ByteTake {
     match slot.inner.take(&(op, path), generation) {
-        super::channel::Take::Ready(outcome) => ByteTake::Ready(outcome),
-        super::channel::Take::Absent { .. } => ByteTake::Absent,
+        crate::channel::Take::Ready(outcome) => ByteTake::Ready(outcome),
+        crate::channel::Take::Absent { .. } => ByteTake::Absent,
     }
 }
 
@@ -489,7 +489,7 @@ pub fn drain(slot: &mut BytesSlot) {
 // ── The driver ──────────────────────────────────────────────────────────────
 
 /// The filesystem operations this channel needs, behind a trait so the module compiles and is
-/// tested in carriers that have no `crate::efatfs_fs`.
+/// tested in carriers that have no `crate::storage::efatfs::device`.
 pub trait ByteOps {
     /// Read the whole of `path` into the front of `into`, returning its length, or the status that
     /// stopped it. A file longer than [`MAX_BYTES`] must report `NO_MEMORY` and NOT a truncated
@@ -1272,7 +1272,7 @@ fn enqueue_request(request: ByteRequest, payload: &[u8]) -> bool {
     if !accepts(queued, request.key().0) || !in_flight_idle() {
         return false;
     }
-    let generation = super::card::generation();
+    let generation = crate::storage::card::generation();
     // Held by an uncollected answer whose rerun would not be harmless, or contended: refused, and retried.
     let admitted = RESULT
         .try_lock()
@@ -1841,7 +1841,7 @@ fn probe_with<R>(
     // The card generation is read HERE, at the take, not sampled earlier: it is the collector's own
     // view of which card is in the slot right now, and deciding from it is what makes an answer's
     // fate independent of whether the flush that invalidated it managed to take this lock.
-    match take_from(&mut result, op, path, super::card::generation()) {
+    match take_from(&mut result, op, path, crate::storage::card::generation()) {
         // `ready` runs with the guard still held, so the bytes it reads are the ones published with
         // this entry: no publish can land between the take and the copy.
         ByteTake::Ready(outcome) => Probe::Ready(ready(outcome, result_bytes(&mut result))),
@@ -1909,14 +1909,14 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod backing {
     #[cfg(target_os = "none")]
-    pub(super) use crate::efatfs_fs::{
+    pub(super) use crate::storage::efatfs::device::{
         mount, stream_close, stream_read_at_via, stream_size, stream_write_at, task_dir_close,
         task_dir_open, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
         task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
         task_set_time, task_unlink,
     };
     #[cfg(not(target_os = "none"))]
-    pub(super) use crate::efatfs_host_shim::{
+    pub(super) use crate::storage::efatfs::host::{
         mount, stream_close, stream_read_at_via, stream_size, stream_write_at, task_dir_close,
         task_dir_open, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
         task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
@@ -2253,7 +2253,7 @@ impl ByteOps for ProdByteOps {
     }
 
     async fn read_into(&self, path: &str, into: &mut [u8]) -> Result<u32, (i8, u32)> {
-        let handle = match crate::file_stream::open_mounted(path, STREAM_READ).await {
+        let handle = match crate::channel::file_stream::open_mounted(path, STREAM_READ).await {
             Ok(handle) => handle,
             // NO_MEMORY with a size is this operation's "the file did not fit", and its caller resizes on it, so an
             // open that failed for want of memory is reported as a card error rather than as a file of size 0.
@@ -2293,7 +2293,7 @@ impl ByteOps for ProdByteOps {
         };
         // The open's own status on failure: EXISTS when an exclusive create finds the file there, and whatever else
         // the card said -- NOT_FOUND, a refused name -- otherwise.
-        let handle = crate::file_stream::open_mounted(path, mode).await?;
+        let handle = crate::channel::file_stream::open_mounted(path, mode).await?;
         let written = backing::stream_write_at(handle, 0, bytes).await;
         backing::stream_close(handle).await;
         match written {
@@ -2398,7 +2398,8 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteReq
     } = slot.take()?;
     // A request from before the card changed that survived the flush (its `try_lock` lost the race): see
     // `admit_at_take`.
-    let Some(buffer) = admit_at_take(&request, asked_under, super::card::generation()) else {
+    let Some(buffer) = admit_at_take(&request, asked_under, crate::storage::card::generation())
+    else {
         return Some(None);
     };
     RUNNING_BUFFER.store(buffer, Ordering::Release);
@@ -2409,7 +2410,7 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteReq
         let len = (len as usize).min(MAX_BYTES);
         work[..len].copy_from_slice(&request_bytes(&mut slot)[..len]);
     }
-    let generation = super::card::generation();
+    let generation = crate::storage::card::generation();
     mark_in_flight(Some(request.key_owned())).await;
     Some(Some((request, generation)))
 }
@@ -2448,7 +2449,7 @@ pub async fn publish_result(
     work: &[u8; MAX_BYTES],
 ) {
     let mut result = RESULT.lock().await;
-    if generation != super::card::generation() {
+    if generation != crate::storage::card::generation() {
         // The card this ran against is gone. A FAILED answer is dropped here too, and must be: the
         // failure belongs to the card that has gone, and reporting it as terminal against the card
         // now in the slot would put an error on screen for a file nobody has touched yet.

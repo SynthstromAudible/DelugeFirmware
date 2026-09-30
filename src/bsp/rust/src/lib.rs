@@ -94,20 +94,9 @@ extern crate deluge_sample_stream;
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 extern crate deluge_sample_stream;
 
-/// `abi_pin!`/`abi_const!`/`abi_layout!`: the checking variants where `sys` is the bindgen output, the no-ops where
-/// it is `sys_host.rs`. See `abi_pin_macros.rs`.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+/// The C ABI's plumbing and its build-time checks. First, because its macros are textually scoped.
 #[macro_use]
-#[path = "abi_pin_macros.rs"]
-mod abi_pin_macros;
-#[cfg(not(any(target_os = "none", feature = "host_app")))]
-#[macro_use]
-#[path = "abi_pin_noop.rs"]
-mod abi_pin_macros;
-
-/// The ABI's handle rule: 0 is none, and a table slot crosses as `slot + 1`. Compiled unconditionally; every
-/// module that hands a table handle across the ABI converts through it.
-pub mod abi_handle;
+pub mod abi;
 
 /// The libdeluge C ABI generated from include/libdeluge/*.h: POD types,
 /// `DELUGE_*` constants, and a declaration of every header function (the
@@ -126,7 +115,7 @@ pub mod sys {
 /// unless `host_app` is enabled, in which case the real bindgen output below
 /// takes over.
 #[cfg(all(not(target_os = "none"), not(feature = "host_app")))]
-#[path = "sys_host.rs"]
+#[path = "abi/sys_host.rs"]
 pub mod sys;
 /// `host_app` feature: the real host-ABI bindgen output (see build.rs), for
 /// when the host-built C++ `deluge_app` object closure is linked in too.
@@ -145,7 +134,7 @@ pub mod sys {
 /// `sys_host.rs` compiled again beside the real `sys`, so its pins check the plain host build's stand-ins against
 /// the headers.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
-#[path = "sys_host.rs"]
+#[path = "abi/sys_host.rs"]
 mod sys_host_check;
 
 /// The header's own definitions of the types `sys` binds to an in-tree crate's types (see `build_crate_types.rs`),
@@ -161,85 +150,11 @@ mod sys_layout {
     include!(concat!(env!("OUT_DIR"), "/libdeluge_layout.rs"));
 }
 
-/// Signature and value pins for what this crate's modules do not define themselves: the in-tree crates' exports,
-/// the Rust side's own declarations of header functions, and the constants copied by hand.
-#[cfg(any(target_os = "none", feature = "host_app"))]
-mod abi_pins;
-
-/// audio_io.h — duplex block audio over the SSI0 DMA rings.
-#[cfg(target_os = "none")]
-mod audio;
-/// audio_io.h — host null-sink render pump: the priority-0 task actually
-/// calls `deluge_app_render` and discards the output, instead of the no-op
-/// stub in `host_link_stubs.rs`.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-pub mod audio_host;
-/// The async audio-file load task and its request/collect C ABI: owns the AWAITED
-/// file I/O of a card sample's load — open a candidate, size it, walk its header
-/// — and publishes a plain result the C++ side collects on its own tier. It calls
-/// no C++ itself; see its module doc for the two constraints that force that. Compiled
-/// on the Embassy BSP unconditionally (device, or host under `host_app`) so
-/// `deluge_audio_load_request`/`_collect` are always defined --
-/// the app declares no fallback for them, so omitting this module would leave them
-/// undefined at link time. The loader has no switch -- see its module doc's "Always on".
-pub mod audio_loader;
-/// The drive's render-window pacing, which `audio` runs.
-pub mod audio_pacing;
-/// board.h — capability descriptor + GPIO/audio/CV bring-up. Compiled on host
-/// too under `host_app` (the descriptor/probe are pure data/logic; the GPIO/CV
-/// bring-up bodies get host no-op siblings — see board.rs).
-#[cfg(any(target_os = "none", feature = "host_app"))]
-pub mod board;
 /// The boot latch (`libdeluge/boot.h`): set once, right after `deluge_app_init` returns.
 pub mod boot;
 /// C++ memory-model bring-up (SDRAM bss/data, global ctors).
 #[cfg(target_os = "none")]
 mod boot_mem;
-/// Capture stamps: where on the TX play timeline an input event happened. See its module doc.
-pub mod capture_stamp;
-/// card.h — `deluge_card_flush`, the one ejection hook every loader on this BSP is
-/// invalidated through. Gated identically to `audio_loader` above, which it calls into: the
-/// symbol has to exist wherever a loader's tables do.
-pub mod card;
-/// The answer slot every single-flight storage channel keeps.
-pub mod channel;
-/// control_surface.h — pads/buttons/encoders + LEDs (M2b WIP).
-pub mod control;
-/// cv_gate.h — CV/gate outputs + external trigger clock.
-#[cfg(target_os = "none")]
-mod cv_gate;
-/// display.h — main OLED output over deluge_bsp::oled.
-pub mod display;
-/// Storage-generic, host-testable core of the efatfs read path
-/// (`HandleTable` + `FileContext` detach/reattach + generation guard + fill
-/// loop). `efatfs_fs` wraps it with the device statics/mutexes/FFI; host tests
-/// drive it directly. Also reachable under `host_app`
-/// (any target) so `efatfs_host_shim` — the
-/// host counterpart of `efatfs_fs` — can reuse it unchanged; see that module's
-/// doc.
-#[cfg(any(target_os = "none", feature = "host_app"))]
-mod efatfs_core;
-/// The single-owner `embedded-fatfs` mount — one `FileSystem` behind an
-/// async `Mutex`, the only way live code touches the vendored FS.
-/// `mount()`/`with_fs()` are invoked from this crate's boot path and the
-/// streaming read path.
-#[cfg(target_os = "none")]
-mod efatfs_fs;
-/// Host counterpart of `efatfs_fs` — mounts `embedded-fatfs` over a
-/// block device backed by the SD_BUS-guarded async helpers (see that
-/// module's doc) so a host harness can measure the real efatfs read path.
-/// Test infrastructure only; no device path touched.
-#[cfg(feature = "host_app")]
-pub mod efatfs_host_shim;
-/// `block_device_driver::BlockDevice<512>` over the real SD driver
-/// (`deluge_bsp::sd`), feeding the `BufStream`/`embedded-fatfs` stack —
-/// device-only counterpart of `fs_differential`'s host `FileBlockDevice`.
-#[cfg(target_os = "none")]
-mod fat_block_device;
-/// `libdeluge/fault.h`: the board half of the portable pad-grid crash reporter — the
-/// blocking PIC transport and the code/stack ranges, both usable from a fault vector.
-#[cfg(target_os = "none")]
-mod fault;
 /// The libdeluge C-ABI service implementations the C++ app calls (stubs).
 /// Compiled on host too under `host_app` (bodies are already host-safe).
 #[cfg(any(target_os = "none", feature = "host_app"))]
@@ -251,91 +166,31 @@ mod ffi;
 /// linker script).
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod ffi_extra;
-/// file_bytes.h — the whole-file byte channel: read, write or rename a small settings file on the
-/// storage tier and hand the BYTES to a caller that must not wait on the card. Gated identically to
-/// `file_directory` above, and to `card` — which reaches this module's `flush_tables` and so must
-/// never be compiled without it. The four settings consumers (runtime feature settings, the MIDI
-/// device table, MIDI follow's defaults, performance view) always enter this channel after boot: it
-/// has no feature switch.
-///
-/// Unlike `file_prefix` it borrows nothing from `audio_loader`: reading a whole file and writing one
-/// back are not `LoadOps`'s four operations, so it declares its own three-operation trait.
-pub mod file_bytes;
-/// file_directory.h — the single-slot directory channel: open a directory on the storage tier and
-/// hand the ready handle to a caller that must not wait on the card. Gated identically to
-/// `file_prefix` below, and to `card` — which reaches this module's `flush_tables` and so must
-/// never be compiled without it. It has no feature switch: after boot, every browser listing, SysEx directory
-/// request and recording-folder scan opens its directory through it.
-///
-/// Unlike `file_prefix` it borrows nothing from `audio_loader`: a directory open is not one of
-/// `LoadOps`'s four file operations, so it declares its own two-operation trait.
-pub mod file_directory;
-/// file_prefix.h — the single-slot prefix channel: read the first N bytes of a file on the
-/// storage tier and hand them to a caller that must not wait on the card. Gated identically to
-/// `audio_loader` above, whose `LoadOps`/`ProdOps` its driver reuses, and to `card` — which
-/// reaches this module's `flush_tables` and so must never be compiled without it. Its callers are
-/// `LoadSongUI`'s song-artwork preview and `DxSyxBrowser`'s cartridge load. The channel has no
-/// feature switch.
-pub mod file_prefix;
-/// The stream channel: request/collect over the recorder's stream-write handles. Compiled
-/// unconditionally; the channel has no feature switch.
-pub mod file_stream;
-/// The stream channel's answer slot: pure, so it is host-tested without a card. Compiled unconditionally,
-/// beside `file_stream` above, which it is the storage for.
-pub mod file_stream_slot;
-/// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.
-mod flash;
 /// Host-only no-op stubs for the peripheral (MIDI/audio/CV-gate/signals) C ABI
 /// under `host_app`. Boot-and-idle never exercises real peripheral I/O on host;
 /// the real `audio`/`cv_gate`/`midi`/`signals` modules below stay device-only.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod host_link_stubs;
-/// The emulator's card as a directory: a memory disk filled from it, written back when the emulator closes.
-#[cfg(feature = "host_app")]
-pub mod memory_card;
-/// midi_io.h — DIN MIDI over deluge_bsp::uart (+ USB-MIDI peripheral, see usb).
-#[cfg(target_os = "none")]
-mod midi;
 /// libdeluge/scheduler.h — the cooperative task scheduler, implemented on the
 /// Embassy executor (one task per registered Deluge task).
 pub mod scheduler;
-/// block_device.h — the C-ABI SD-card entry points (`deluge_block_ready`/
-/// `deluge_block_read`/`deluge_block_write`) and the shared `SD_BUS`/async
-/// helpers over `deluge_bsp::sd`. The app's real transfers go through
-/// `fat_block_device::SdBlockDevice` (device) and
-/// `efatfs_host_shim::HostSdBlockDevice` (host) instead — see `sd.rs`'s
-/// module doc.
-pub mod sd;
-/// Streaming-underrun harness: packs a real FAT SD image from the golden
-/// harness's song/sample corpus for [`scenario`] to load. `host_app`-only.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-pub mod sd_image;
-/// Content-addressed naming/reuse policy for [`sd_image`]'s temp FAT images. Split out so it
-/// stays plain-host testable without the `host_app` CMake build (tests/sd_image_path_host.rs).
-#[cfg(not(target_os = "none"))]
-pub mod sd_image_path;
 /// Real impls of the simplest services (system.h, clock.h, memory.h).
 mod services;
-/// signals.h — board GPIO signals, battery, MIDI/gate timer.
-#[cfg(target_os = "none")]
-mod signals;
-/// The blocking-I/O seam: a plain non-yielding block on device, and on host a spin driven
-/// by a harness-registered progress hook. See the module doc for why host needs the hook.
-pub mod sim_block;
-/// The async cluster-fill task and its wakeup C ABI: drains the resource
-/// manager's loader queue on this executor, awaiting the SD read instead of
-/// running it inline. Compiled on the Embassy BSP unconditionally (device, or
-/// host under `host_app`).
-pub mod streaming_loader;
 /// Which execution tier is running the caller (`libdeluge/tier.h`).
 pub mod tier;
 /// Counts synchronous card calls made after boot on the interaction tier (`libdeluge/tier.h`).
 pub mod tier_meter;
-/// USB device bring-up — USB-MIDI 1.0 peripheral (Deluge → computer).
-#[cfg(target_os = "none")]
-mod usb;
 
 /// Platform bring-up and the executors: the device entry and the host harness entry.
+/// Audio I/O.
+pub mod audio;
+/// The single-flight storage channels and the loaders that answer through them.
+pub mod channel;
+/// The board's peripherals.
+pub mod peripherals;
+/// The SD card and its filesystem.
+pub mod storage;
+
 pub mod runtime;
 
 /// The deluge-sdk board support crate, for harnesses that drive the board directly.

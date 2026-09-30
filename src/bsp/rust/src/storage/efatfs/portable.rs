@@ -57,7 +57,7 @@ use crate::sys::{
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM,
 };
 
-/// Max concurrent streamed-READ files (the [`HANDLES`](crate::efatfs_fs)
+/// Max concurrent streamed-READ files (the [`HANDLES`](crate::storage::efatfs::device)
 /// table). One resident [`Sample`](crate) holds one of these for its whole
 /// lifetime (see `SampleStream::open_read_stream`), so this bounds how many
 /// samples can be simultaneously resident in a song — 128 gives real

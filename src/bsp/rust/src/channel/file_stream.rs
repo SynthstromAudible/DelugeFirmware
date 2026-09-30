@@ -23,13 +23,13 @@
 //!
 //! Everything behind the exports works in `STREAM_WRITE_CTX` slots: the queued operation, its
 //! [`OpKey`], the published `Open` answer and the orphans the task closes. The exports alone convert,
-//! through [`crate::abi_handle`]: a handle a caller passes becomes its slot before any key is built
+//! through [`crate::abi::handle`]: a handle a caller passes becomes its slot before any key is built
 //! from it, and the slot an `Open` answers becomes a handle only as the collect writes it out. So a
 //! request's key and its collect's key are always built from the same slot.
 
 use core::ffi::{CStr, c_char};
 
-use super::channel::{
+use crate::channel::{
     DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
     DelugeChannelStatus,
 };
@@ -37,8 +37,8 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 
-use super::abi_handle::{DelugeHandle, from_abi, to_abi};
-use super::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath, still_coming};
+use crate::abi::handle::{DelugeHandle, from_abi, to_abi};
+use crate::channel::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath, still_coming};
 
 /// The efatfs backend this driver writes through: the device module on the target, the host shim
 /// under `host_app`. One alias rather than a `#[cfg]` at every call site -- the same shape
@@ -46,12 +46,12 @@ use super::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath, still_
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod backing {
     #[cfg(target_os = "none")]
-    pub(super) use crate::efatfs_fs::{
+    pub(super) use crate::storage::efatfs::device::{
         fs_stats_free, mount, stream_close, stream_open, stream_read_at_via, stream_truncate,
         stream_write_at,
     };
     #[cfg(not(target_os = "none"))]
-    pub(super) use crate::efatfs_host_shim::{
+    pub(super) use crate::storage::efatfs::host::{
         fs_stats_free, mount, stream_close, stream_open, stream_read_at_via, stream_truncate,
         stream_write_at,
     };
@@ -171,7 +171,7 @@ fn accept(op: StreamOp, path: &str) -> bool {
         op,
         key,
         path: stored,
-        generation: super::card::generation(),
+        generation: crate::storage::card::generation(),
     });
     WAKE.signal(());
     true
@@ -205,7 +205,7 @@ unsafe fn collect(kind: OpKind, handle: u32, path: &str, out: *mut u32, out_erro
     let Ok(mut result) = RESULT.try_lock() else {
         return DELUGE_CHANNEL_PENDING;
     };
-    let taken = result.take(&key, super::card::generation());
+    let taken = result.take(&key, crate::storage::card::generation());
     if result.has_orphans() {
         WAKE.signal(());
     }
@@ -509,7 +509,7 @@ pub unsafe extern "C" fn deluge_file_stream_collect_stats(
 /// with `file_bytes`, whose whole-file reads and writes open streams too.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 pub(crate) async fn open_mounted(path: &str, mode: u8) -> Result<u32, i8> {
-    use crate::file_bytes::NO_FILESYSTEM;
+    use crate::channel::file_bytes::NO_FILESYSTEM;
     match backing::stream_open(path, mode).await {
         Err(NO_FILESYSTEM) => {
             backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
@@ -529,7 +529,10 @@ pub async fn file_stream_task() {
 #[cfg(any(target_os = "none", feature = "host_app"))]
 async fn close_orphans() {
     loop {
-        let orphan = RESULT.lock().await.take_orphan(super::card::generation());
+        let orphan = RESULT
+            .lock()
+            .await
+            .take_orphan(crate::storage::card::generation());
         let Some(handle) = orphan else { break };
         backing::stream_close(handle).await;
     }
@@ -548,7 +551,7 @@ async fn file_stream_task_body() {
                     // A request from before the card changed that survived the flush (its `try_lock` lost the race)
                     // names the old card: running it would touch the new card. Its answer could never be collected, so
                     // none is published, and its buffer is never named as running.
-                    Some(q) if q.generation != super::card::generation() => Some(None),
+                    Some(q) if q.generation != crate::storage::card::generation() => Some(None),
                     Some(q) => {
                         RUNNING_BUFFER
                             .store(op_buffer(&q.op), core::sync::atomic::Ordering::Release);

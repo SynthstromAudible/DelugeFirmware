@@ -1,8 +1,21 @@
 //! The host entry: a boot smoke without the C++ app, the threaded host app under `host_app`, and
 //! the emulator under `sim`.
 
+#[cfg(all(feature = "host_app", not(feature = "sim")))]
+use crate::audio::host as audio_host;
+use crate::peripherals::{control, display};
 #[cfg(feature = "sim")]
-use crate::memory_card;
+use crate::storage::memory_card;
+#[cfg(not(any(feature = "sim_latency", feature = "host_app")))]
+use crate::storage::sd;
+#[cfg(feature = "host_app")]
+use crate::{
+    boot,
+    channel::{audio_loader, file_bytes, file_directory, file_prefix, file_stream},
+    peripherals::board,
+    storage::streaming_loader,
+    sys,
+};
 
 // The harness modes of the threaded host app, each opted into by an environment variable.
 #[cfg(all(feature = "host_app", not(feature = "sim")))]
@@ -11,16 +24,6 @@ mod recorder_finalize_probe;
 mod recorder_probe;
 #[cfg(all(feature = "host_app", not(feature = "sim")))]
 mod scenario;
-#[cfg(all(feature = "host_app", not(feature = "sim")))]
-use crate::audio_host;
-#[cfg(not(any(feature = "sim_latency", feature = "host_app")))]
-use crate::sd;
-#[cfg(feature = "host_app")]
-use crate::{
-    audio_loader, board, boot, file_bytes, file_directory, file_prefix, file_stream,
-    streaming_loader, sys,
-};
-use crate::{control, display};
 
 /// `host_app` feature: host sibling of [`app_task`] above — the real C++ app's
 /// one-time bring-up, run on the host executor spawned by `fn main`'s
@@ -36,7 +39,7 @@ async fn host_app_task() {
     // Mirrors the device `app_task`: wait for the PIC's (host: synthetic)
     // ready handshake, then bring SD up, before the app's first storage access.
     deluge_bsp::pic::wait_ready().await;
-    crate::sd::boot_init().await;
+    crate::storage::sd::boot_init().await;
 
     // Host counterpart of `app_task`'s efatfs mount (see its comment) —
     // mount the shim's embedded-fatfs `FileSystem` BEFORE `deluge_app_init` so
@@ -51,7 +54,7 @@ async fn host_app_task() {
     // dedicated audio OS thread (spawned above in `main`, before this task),
     // so this task's `block_on` busy-spin never starves it (see Appendix A of
     // the R0 design doc for why a single-threaded sim's shape is different).
-    match crate::efatfs_host_shim::mount().await {
+    match crate::storage::efatfs::host::mount().await {
         Ok(()) => log::info!("efatfs: mounted (host)"),
         Err(status) => {
             log::warn!("efatfs: host mount failed ({status}) — streamed samples will not load")
@@ -257,7 +260,7 @@ pub fn main() {
                         .nth(3)
                         .expect("CARGO_MANIFEST_DIR (src/bsp/rust) has a repo root 3 levels up")
                         .to_path_buf();
-                    let img = crate::sd_image::pack_golden_fixture(&repo_root, &fixture);
+                    let img = crate::storage::sd_image::pack_golden_fixture(&repo_root, &fixture);
                     // SAFETY: called before any thread below is spawned (no concurrent
                     // env access yet) — same precondition tests/sim_latency_host.rs
                     // documents for its own DELUGE_SD_IMAGE set_var.
@@ -744,7 +747,7 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
     // thread can issue a transfer, or `sim_block::block_on`'s default no-hook verdict would
     // call a normally-contended read a wedge (its budget is under a millisecond of
     // spinning). See `sim_block::use_threaded_host_hook` for the trade this accepts.
-    crate::sim_block::use_threaded_host_hook();
+    crate::storage::sim_block::use_threaded_host_hook();
 
     let audio_spawner_ready = Arc::new(Barrier::new(2));
     let audio_thread_barrier = Arc::clone(&audio_spawner_ready);
@@ -768,7 +771,7 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
                 // independent thread lets it keep making progress while the
                 // host-app thread is busy-spinning.
                 #[cfg(feature = "sim_latency")]
-                spawner.spawn(crate::sd::sim_latency::pump().unwrap());
+                spawner.spawn(crate::storage::sd::sim_latency::pump().unwrap());
                 crate::scheduler::set_audio_spawner(spawner.make_send());
                 log::info!(
                     "deluge-bsp-rust: host audio executor up on thread {:?} — set_audio_spawner done",

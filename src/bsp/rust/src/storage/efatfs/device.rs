@@ -24,9 +24,9 @@ use block_device_driver::BlockDevice;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embedded_fatfs::{DefaultTimeProvider, FileSystem, FsOptions, LossyOemCpConverter};
 
-use crate::abi_handle::{from_abi, to_abi};
-use crate::efatfs_core::{self, DirHandleTable, HandleTable, OpenOutcome, TaskFileTable};
-use crate::fat_block_device::SdBlockDevice;
+use super::portable::{self, DirHandleTable, HandleTable, OpenOutcome, TaskFileTable};
+use crate::abi::handle::{from_abi, to_abi};
+use crate::storage::sd_block_device::SdBlockDevice;
 // `DELUGE_ERR_BUSY` is never produced here: any context may do I/O. The C++ side still maps it
 // (`io/file.cpp:66`), and `existence_policy.h` / `smsysex.cpp:77` branch on `Status::BUSY`; those
 // branches are unreachable from this path by design.
@@ -106,7 +106,7 @@ pub async fn mount() -> Result<(), DelugeStatus> {
     .map_err(|_| DELUGE_ERR_IO)?;
     let fs = FileSystem::new(slice, FsOptions::new())
         .await
-        .map_err(|e| efatfs_core::error_to_status(&e))?;
+        .map_err(|e| portable::error_to_status(&e))?;
     *FS.lock().await = Some(fs);
     // Bumped only on the transition, with the FS installed: a reader that sees the new value can
     // rely on the filesystem being usable.
@@ -188,12 +188,12 @@ where
 /// `FileContext` is plain data (`DirEntryEditor` is `data`/`pos`/`dirty`, no
 /// `Rc`/`RefCell`), so [`HandleTable`] is `Send` and this static compiles.
 ///
-/// Sized at [`efatfs_core::MAX_HANDLES`] (128) — a resident [`Sample`] holds
+/// Sized at [`portable::MAX_HANDLES`] (128) — a resident [`Sample`] holds
 /// one of these for its whole lifetime (see `SampleStream::open_read_stream`),
 /// so this is the ceiling on simultaneously-resident streamed samples in a
 /// song. The persistent stream-*write* table below ([`STREAM_WRITE_CTX`])
 /// deliberately does NOT share this capacity — see its own doc.
-static HANDLES: Mutex<CriticalSectionRawMutex, HandleTable<{ efatfs_core::MAX_HANDLES }>> =
+static HANDLES: Mutex<CriticalSectionRawMutex, HandleTable<{ portable::MAX_HANDLES }>> =
     Mutex::new(HandleTable::new());
 
 /// Open `path`, detach it to a [`FileContext`], and stash it in a free slot.
@@ -203,7 +203,7 @@ static HANDLES: Mutex<CriticalSectionRawMutex, HandleTable<{ efatfs_core::MAX_HA
 pub async fn open(path: &str) -> OpenOutcome {
     // Open + detach under the FS mutex only; never touch HANDLES here (keeps the
     // FS→HANDLES order that pairs deadlock-free with read_at's HANDLES→FS).
-    let ctx = match with_fs(async |fs| efatfs_core::open_context(fs, path).await).await {
+    let ctx = match with_fs(async |fs| portable::open_context(fs, path).await).await {
         Some(Ok(ctx)) => ctx,
         Some(Err(status)) => return OpenOutcome::Failed(status),
         None => return OpenOutcome::Failed(DELUGE_ERR_NO_FILESYSTEM),
@@ -223,8 +223,7 @@ pub async fn read_at(handle: u32, byte_offset: u32, dst: &mut [u8]) -> bool {
         return false;
     };
 
-    let result =
-        with_fs(async |fs| efatfs_core::read_context(fs, ctx, byte_offset, dst).await).await;
+    let result = with_fs(async |fs| portable::read_context(fs, ctx, byte_offset, dst).await).await;
 
     match result {
         Some(Some((newctx, filled))) => {
@@ -254,7 +253,7 @@ pub async fn read_at(handle: u32, byte_offset: u32, dst: &mut [u8]) -> bool {
 pub async fn size_of_handle(handle: u32) -> Option<u32> {
     let (generation, ctx) = HANDLES.lock().await.checkout(handle)?;
 
-    let result = with_fs(async |fs| efatfs_core::size_context(fs, ctx).await).await;
+    let result = with_fs(async |fs| portable::size_context(fs, ctx).await).await;
 
     match result {
         Some(Some((newctx, size))) => {
@@ -278,7 +277,7 @@ pub async fn close(handle: u32) {
 // --- FFI bridge --------------------------------------------------------------
 //
 // C++ calls these synchronously at sample-load (`open_read_stream`), but
-// [`open`]/[`close`] above are async. Bridge via `crate::sim_block::block_on` — on device a
+// [`open`]/[`close`] above are async. Bridge via `crate::storage::sim_block::block_on` — on device a
 // plain non-yielding spin, whose awaited transfer completes by SDHI/DMA interrupt, so nothing
 // else has to run for the future to become ready.
 //
@@ -311,7 +310,7 @@ pub extern "C" fn deluge_efatfs_open(
     let Ok(path) = unsafe { CStr::from_ptr(path) }.to_str() else {
         return DELUGE_ERR_PARAM;
     };
-    let (status, table_full) = match crate::sim_block::block_on(open(path)) {
+    let (status, table_full) = match crate::storage::sim_block::block_on(open(path)) {
         OpenOutcome::Handle(h) => {
             // SAFETY: `out_handle` is non-null (checked above) and points at memory the caller
             // owns for the duration of this synchronous call.
@@ -337,7 +336,7 @@ pub extern "C" fn deluge_efatfs_close(handle: DelugeHandle) {
     let Some(handle) = from_abi(handle) else {
         return;
     };
-    crate::sim_block::block_on(close(handle));
+    crate::storage::sim_block::block_on(close(handle));
 }
 
 /// C-ABI: synchronously read `count` bytes at `byte_offset` of the file behind `handle`, bridging
@@ -362,7 +361,7 @@ pub extern "C" fn deluge_efatfs_read_at(
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for the duration of this
     // synchronous call (the chunk's cluster payload buffer, from the reader's `fill_now`).
     let buf = unsafe { core::slice::from_raw_parts_mut(dst.cast::<u8>(), count as usize) };
-    if !crate::sim_block::block_on(read_at(handle, byte_offset, buf)) {
+    if !crate::storage::sim_block::block_on(read_at(handle, byte_offset, buf)) {
         return DELUGE_ERR_IO;
     }
     // SAFETY: `out_read` is non-null (checked above), a `u32` the caller owns.
@@ -372,7 +371,7 @@ pub extern "C" fn deluge_efatfs_read_at(
 
 // --- Task-context file/dir tables --------------------------------------------
 //
-// Separate from [`HANDLES`] above -- see `efatfs_core::TaskFileTable`'s doc for
+// Separate from [`HANDLES`] above -- see `portable::TaskFileTable`'s doc for
 // why task-context file I/O (explicit `seek()` + position-implicit `read`/
 // `write`, `file_io.h`'s contract) needs its own position-carrying table rather
 // than reusing the streaming path's `Slot`. [`DIR_HANDLES`] backs
@@ -389,9 +388,9 @@ static DIR_HANDLES: Mutex<CriticalSectionRawMutex, DirHandleTable> =
 /// table, otherwise the granular open/create error from `efatfs_core`.
 pub(crate) async fn task_file_open(path: &str, mode: u8) -> Result<u32, DelugeStatus> {
     let ctx = with_fs(async |fs| match mode {
-        0 => efatfs_core::open_context(fs, path).await,
-        1 => efatfs_core::create_context(fs, path, false).await,
-        2 => efatfs_core::create_context(fs, path, true).await,
+        0 => portable::open_context(fs, path).await,
+        1 => portable::create_context(fs, path, false).await,
+        2 => portable::create_context(fs, path, true).await,
         _ => Err(DELUGE_ERR_PARAM),
     })
     .await
@@ -412,7 +411,7 @@ pub(crate) async fn task_file_read_exact(
         .await
         .checkout(handle)
         .ok_or(DELUGE_ERR_PARAM)?;
-    let (newctx, n) = with_fs(async |fs| efatfs_core::read_context_exact(fs, ctx, pos, dst).await)
+    let (newctx, n) = with_fs(async |fs| portable::read_context_exact(fs, ctx, pos, dst).await)
         .await
         .ok_or(DELUGE_ERR_NO_FILESYSTEM)?
         .ok_or(DELUGE_ERR_IO)?;
@@ -431,7 +430,7 @@ pub(crate) async fn task_file_write(handle: u32, src: &[u8]) -> Result<usize, De
         .await
         .checkout(handle)
         .ok_or(DELUGE_ERR_PARAM)?;
-    let (newctx, n) = with_fs(async |fs| efatfs_core::write_context(fs, ctx, pos, src).await)
+    let (newctx, n) = with_fs(async |fs| portable::write_context(fs, ctx, pos, src).await)
         .await
         .ok_or(DELUGE_ERR_NO_FILESYSTEM)?
         .ok_or(DELUGE_ERR_IO)?;
@@ -462,7 +461,7 @@ pub(crate) async fn task_file_size(handle: u32) -> Result<u32, DelugeStatus> {
         .await
         .checkout(handle)
         .ok_or(DELUGE_ERR_PARAM)?;
-    let (newctx, size) = with_fs(async |fs| efatfs_core::size_context(fs, ctx).await)
+    let (newctx, size) = with_fs(async |fs| portable::size_context(fs, ctx).await)
         .await
         .ok_or(DELUGE_ERR_NO_FILESYSTEM)?
         .ok_or(DELUGE_ERR_IO)?;
@@ -480,7 +479,7 @@ pub(crate) async fn task_file_truncate(handle: u32, new_len: u32) -> Result<(), 
     let Some((generation, ctx, pos)) = TASK_FILES.lock().await.checkout(handle) else {
         return Err(DELUGE_ERR_PARAM);
     };
-    let result = with_fs(async |fs| efatfs_core::truncate_context(fs, ctx, new_len).await).await;
+    let result = with_fs(async |fs| portable::truncate_context(fs, ctx, new_len).await).await;
     match result {
         Some(Some((newctx, ()))) => {
             TASK_FILES
@@ -505,7 +504,7 @@ pub(crate) async fn task_file_close(handle: u32) {
 /// `deluge_efatfs_dir_open` reaches the same future through `sim_block::block_on` and spins its
 /// caller until it completes.
 pub(crate) async fn task_dir_open(path: &str) -> Result<u32, DelugeStatus> {
-    let cursor = with_fs(async |fs| efatfs_core::readdir_open(fs, path).await)
+    let cursor = with_fs(async |fs| portable::readdir_open(fs, path).await)
         .await
         .ok_or(DELUGE_ERR_NO_FILESYSTEM)??;
     DIR_HANDLES.lock().await.insert(cursor).ok_or(DELUGE_ERR_IO) // table full
@@ -516,13 +515,13 @@ pub(crate) async fn task_dir_open(path: &str) -> Result<u32, DelugeStatus> {
 /// fitting entry or end-of-directory.
 enum NextFit {
     Eof,
-    Found(efatfs_core::DirEntryInfo),
+    Found(portable::DirEntryInfo),
 }
 
 /// Advance `handle`'s cursor to the next entry whose name fits in
 /// `max_name_bytes` (the C caller's buffer, minus room for the NUL --
 /// see `deluge_efatfs_dir_read`), skipping any that don't -- belt-and-suspenders
-/// with `efatfs_core::readdir_open`, which already keeps ONE
+/// with `portable::readdir_open`, which already keeps ONE
 /// oversized name from failing the whole snapshot: this additionally guards the
 /// narrower "fits the 256-byte `heapless::String` but not the caller's
 /// NUL-terminated buffer" edge (a name of exactly 256 UTF-8 bytes fits the
@@ -534,7 +533,7 @@ enum NextFit {
 async fn task_dir_read(
     handle: u32,
     max_name_bytes: usize,
-) -> Result<Option<efatfs_core::DirEntryInfo>, DelugeStatus> {
+) -> Result<Option<portable::DirEntryInfo>, DelugeStatus> {
     let mut dir_table = DIR_HANDLES.lock().await;
     let cursor = dir_table.get_mut(handle).ok_or(DELUGE_ERR_PARAM)?;
     // `readdir_next` is FS-free (it only walks the in-memory snapshot
@@ -545,7 +544,7 @@ async fn task_dir_read(
     let next = loop {
         // `readdir_next`'s outer `None` cannot occur for a snapshot cursor today (see its
         // doc) -- IO is the generic fallback if a future non-snapshot cursor ever hits it.
-        match efatfs_core::readdir_next(cursor).ok_or(DELUGE_ERR_IO)? {
+        match portable::readdir_next(cursor).ok_or(DELUGE_ERR_IO)? {
             None => break NextFit::Eof,
             Some(info) => {
                 if info.name.len() >= max_name_bytes {
@@ -609,7 +608,7 @@ pub extern "C" fn deluge_efatfs_file_open(
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    match crate::sim_block::block_on(task_file_open(path, mode)) {
+    match crate::storage::sim_block::block_on(task_file_open(path, mode)) {
         Ok(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
             unsafe {
@@ -639,7 +638,7 @@ pub extern "C" fn deluge_efatfs_file_read_exact(
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts_mut(dst.cast::<u8>(), count as usize) };
-    match crate::sim_block::block_on(task_file_read_exact(handle, buf)) {
+    match crate::storage::sim_block::block_on(task_file_read_exact(handle, buf)) {
         Ok(n) => {
             // SAFETY: `out_read` is non-null (checked above).
             unsafe {
@@ -669,7 +668,7 @@ pub extern "C" fn deluge_efatfs_file_write(
     }
     // SAFETY: `src` points at `count` readable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts(src.cast::<u8>(), count as usize) };
-    match crate::sim_block::block_on(task_file_write(handle, buf)) {
+    match crate::storage::sim_block::block_on(task_file_write(handle, buf)) {
         Ok(n) => {
             // SAFETY: `out_written` is non-null (checked above).
             unsafe {
@@ -688,7 +687,7 @@ pub extern "C" fn deluge_efatfs_file_seek(handle: DelugeHandle, offset: u32) -> 
     let Some(handle) = from_abi(handle) else {
         return DELUGE_ERR_PARAM;
     };
-    match crate::sim_block::block_on(task_file_seek(handle, offset)) {
+    match crate::storage::sim_block::block_on(task_file_seek(handle, offset)) {
         Ok(()) => DELUGE_OK,
         Err(st) => st,
     }
@@ -707,7 +706,7 @@ pub extern "C" fn deluge_efatfs_file_size(
     if out_size.is_null() {
         return DELUGE_ERR_PARAM;
     }
-    match crate::sim_block::block_on(task_file_size(handle)) {
+    match crate::storage::sim_block::block_on(task_file_size(handle)) {
         Ok(sz) => {
             // SAFETY: `out_size` is non-null (checked above).
             unsafe {
@@ -727,7 +726,7 @@ pub extern "C" fn deluge_efatfs_file_close(handle: DelugeHandle) {
     let Some(handle) = from_abi(handle) else {
         return;
     };
-    crate::sim_block::block_on(task_file_close(handle));
+    crate::storage::sim_block::block_on(task_file_close(handle));
 }
 
 /// C-ABI: open `path` as a directory for iteration.
@@ -745,7 +744,7 @@ pub extern "C" fn deluge_efatfs_dir_open(
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    match crate::sim_block::block_on(task_dir_open(path)) {
+    match crate::storage::sim_block::block_on(task_dir_open(path)) {
         Ok(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
             unsafe {
@@ -787,7 +786,7 @@ pub extern "C" fn deluge_efatfs_dir_read(
     {
         return DELUGE_ERR_PARAM;
     }
-    match crate::sim_block::block_on(task_dir_read(handle, out_name_cap as usize)) {
+    match crate::storage::sim_block::block_on(task_dir_read(handle, out_name_cap as usize)) {
         Ok(None) => {
             // SAFETY: `out_has` is non-null (checked above).
             unsafe {
@@ -826,7 +825,7 @@ pub extern "C" fn deluge_efatfs_dir_close(handle: DelugeHandle) {
     let Some(handle) = from_abi(handle) else {
         return;
     };
-    crate::sim_block::block_on(task_dir_close(handle));
+    crate::storage::sim_block::block_on(task_dir_close(handle));
 }
 
 /// C-ABI: free + total cluster counts of the mounted volume.
@@ -839,8 +838,8 @@ pub extern "C" fn deluge_efatfs_stats(
     if out_free_clusters.is_null() || out_total_clusters.is_null() {
         return DELUGE_ERR_PARAM;
     }
-    let fut = with_fs(async |fs| efatfs_core::fs_stats(fs).await);
-    match crate::sim_block::block_on(fut) {
+    let fut = with_fs(async |fs| portable::fs_stats(fs).await);
+    match crate::storage::sim_block::block_on(fut) {
         Some(Ok((free, total))) => {
             // SAFETY: both out-params non-null (checked above), owned by the caller for this call.
             unsafe {
@@ -859,7 +858,7 @@ pub extern "C" fn deluge_efatfs_stats(
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_mount() -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::Mount);
-    crate::sim_block::block_on(mount())
+    crate::storage::sim_block::block_on(mount())
         .err()
         .unwrap_or(DELUGE_OK)
 }
@@ -894,7 +893,7 @@ pub extern "C" fn deluge_storage_fs_busy() -> bool {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_unmount() {
     crate::tier_meter::note(crate::tier_meter::Entry::Unmount);
-    crate::sim_block::block_on(unmount());
+    crate::storage::sim_block::block_on(unmount());
 }
 
 /// C-ABI: drop the mounted FS + reset the four handle tables + re-mount fresh
@@ -903,7 +902,7 @@ pub extern "C" fn deluge_efatfs_unmount() {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_remount() -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::Remount);
-    crate::sim_block::block_on(remount())
+    crate::storage::sim_block::block_on(remount())
         .err()
         .unwrap_or(DELUGE_OK)
 }
@@ -915,8 +914,8 @@ pub extern "C" fn deluge_efatfs_cluster_size(out_bytes: *mut u32) -> DelugeStatu
     if out_bytes.is_null() {
         return DELUGE_ERR_PARAM;
     }
-    let fut = with_fs(async |fs| efatfs_core::fs_cluster_size(fs).await);
-    match crate::sim_block::block_on(fut) {
+    let fut = with_fs(async |fs| portable::fs_cluster_size(fs).await);
+    match crate::storage::sim_block::block_on(fut) {
         Some(Ok(bytes)) => {
             // SAFETY: `out_bytes` is non-null (checked above), owned by the caller for this call.
             unsafe { *out_bytes = bytes };
@@ -933,7 +932,7 @@ pub extern "C" fn deluge_efatfs_cluster_size(out_bytes: *mut u32) -> DelugeStatu
 /// future through `sim_block::block_on`, which spins its caller, and the browser's fallback reaches
 /// that from the interaction tier where waiting on the card is not allowed.
 pub(crate) async fn task_mkdir(path: &str) -> Result<(), DelugeStatus> {
-    with_fs(async |fs| efatfs_core::mkdir(fs, path).await)
+    with_fs(async |fs| portable::mkdir(fs, path).await)
         .await
         .ok_or(DELUGE_ERR_NO_FILESYSTEM)?
 }
@@ -949,7 +948,7 @@ pub extern "C" fn deluge_efatfs_mkdir(path: *const c_char) -> DelugeStatus {
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    match crate::sim_block::block_on(task_mkdir(path)) {
+    match crate::storage::sim_block::block_on(task_mkdir(path)) {
         Ok(()) => DELUGE_OK,
         Err(st) => st,
     }
@@ -961,7 +960,7 @@ pub extern "C" fn deluge_efatfs_mkdir(path: *const c_char) -> DelugeStatus {
 /// through `sim_block::block_on`, which spins its caller, and the startup fail-safe reaches that from
 /// a scheduler task where waiting on the card is not allowed.
 pub(crate) async fn task_unlink(path: &str) -> Result<(), DelugeStatus> {
-    match with_fs(async |fs| efatfs_core::unlink(fs, path).await).await {
+    match with_fs(async |fs| portable::unlink(fs, path).await).await {
         Some(result) => result,
         None => Err(DELUGE_ERR_NO_FILESYSTEM),
     }
@@ -978,7 +977,7 @@ pub extern "C" fn deluge_efatfs_unlink(path: *const c_char) -> DelugeStatus {
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    match crate::sim_block::block_on(task_unlink(path)) {
+    match crate::storage::sim_block::block_on(task_unlink(path)) {
         Ok(()) => DELUGE_OK,
         Err(st) => st,
     }
@@ -990,7 +989,7 @@ pub extern "C" fn deluge_efatfs_unlink(path: *const c_char) -> DelugeStatus {
 /// through `sim_block::block_on`, which spins its caller, and the settings family's legacy-path
 /// migration reaches that from the interaction tier where waiting on the card is not allowed.
 pub(crate) async fn task_rename(old: &str, new: &str) -> Result<(), DelugeStatus> {
-    match with_fs(async |fs| efatfs_core::rename(fs, old, new).await).await {
+    match with_fs(async |fs| portable::rename(fs, old, new).await).await {
         Some(result) => result,
         None => Err(DELUGE_ERR_NO_FILESYSTEM),
     }
@@ -1014,7 +1013,7 @@ pub extern "C" fn deluge_efatfs_rename(
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    match crate::sim_block::block_on(task_rename(old, new)) {
+    match crate::storage::sim_block::block_on(task_rename(old, new)) {
         Ok(()) => DELUGE_OK,
         Err(st) => st,
     }
@@ -1037,15 +1036,15 @@ pub(crate) async fn task_set_time(
     minute: u8,
     second: u8,
 ) -> Result<(), DelugeStatus> {
-    let packed = efatfs_core::pack_timestamp(year, month, day, hour, minute, second);
-    match with_fs(async |fs| efatfs_core::set_time(fs, path, packed).await).await {
+    let packed = portable::pack_timestamp(year, month, day, hour, minute, second);
+    match with_fs(async |fs| portable::set_time(fs, path, packed).await).await {
         Some(result) => result,
         None => Err(DELUGE_ERR_NO_FILESYSTEM),
     }
 }
 
 /// C-ABI: set a file or directory's last-modified timestamp (decomposed
-/// fields, packed here via `efatfs_core::pack_timestamp` before reaching the
+/// fields, packed here via `portable::pack_timestamp` before reaching the
 /// FAT DOS date/time `set_time` primitive).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_set_time(
@@ -1065,7 +1064,9 @@ pub extern "C" fn deluge_efatfs_set_time(
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    match crate::sim_block::block_on(task_set_time(path, year, month, day, hour, minute, second)) {
+    match crate::storage::sim_block::block_on(task_set_time(
+        path, year, month, day, hour, minute, second,
+    )) {
         Ok(()) => DELUGE_OK,
         Err(st) => st,
     }
@@ -1075,7 +1076,7 @@ pub extern "C" fn deluge_efatfs_set_time(
 //
 // Backs the sample recorder's efatfs write path (`include/libdeluge/stream_io.h`'s
 // `deluge_efatfs_stream_*`). Unlike [`HANDLES`]/[`TASK_FILES`] above, a slot here holds ONE
-// `FileContext` across an ENTIRE recording: `stream_write_at` composes `efatfs_core::
+// `FileContext` across an ENTIRE recording: `stream_write_at` composes `portable::
 // write_context_noflush` (advances the in-memory size/mtime but does NOT touch the on-disk
 // directory entry -- see that primitive's doc), so a long recording pays a directory-entry flush
 // only at `stream_flush`/`stream_close`, not on every chunk. Reuses [`HandleTable`] (generation-
@@ -1085,22 +1086,22 @@ pub extern "C" fn deluge_efatfs_set_time(
 // Same lock discipline as every other table in this module: [`STREAM_WRITE_CTX`] is never held
 // across a [`with_fs`] await -- checkout (release the table lock) -> FS work under `with_fs` ->
 // commit (re-lock, generation-gated).
-/// Sized at [`efatfs_core::MAX_STREAM_WRITE_HANDLES`] (8), deliberately much
+/// Sized at [`portable::MAX_STREAM_WRITE_HANDLES`] (8), deliberately much
 /// smaller than [`HANDLES`]'s 128: the recorder opens one write handle per
 /// in-progress recording, and this device supports at most a handful of
 /// concurrent recordings — there's no reason to pay 128 slots' worth of
 /// static memory for a table that only ever needs a few.
 static STREAM_WRITE_CTX: Mutex<
     CriticalSectionRawMutex,
-    HandleTable<{ efatfs_core::MAX_STREAM_WRITE_HANDLES }>,
+    HandleTable<{ portable::MAX_STREAM_WRITE_HANDLES }>,
 > = Mutex::new(HandleTable::new());
 
 /// Free-cluster count: the async half of what `deluge_efatfs_stats` blocks on.
 ///
 /// Exists so the stream channel can answer a space query without holding its caller. Returns only
-/// the free count; `efatfs_core::fs_stats` yields `(free, total)` and no caller here needs the total.
+/// the free count; `portable::fs_stats` yields `(free, total)` and no caller here needs the total.
 pub(crate) async fn fs_stats_free() -> Option<u32> {
-    with_fs(async |fs| efatfs_core::fs_stats(fs).await)
+    with_fs(async |fs| portable::fs_stats(fs).await)
         .await?
         .ok()
         .map(|(free, _total)| free)
@@ -1112,10 +1113,10 @@ pub(crate) async fn fs_stats_free() -> Option<u32> {
 /// the create modes make a missing parent folder themselves), or `IO` when the table is full.
 pub(crate) async fn stream_open(path: &str, mode: u8) -> Result<u32, DelugeStatus> {
     let ctx = with_fs(async |fs| match mode {
-        0 => efatfs_core::open_context(fs, path).await,
-        1 => efatfs_core::create_context(fs, path, false).await,
-        2 => efatfs_core::create_context(fs, path, true).await,
-        3 => efatfs_core::open_context(fs, path).await, // append: open existing, no truncation
+        0 => portable::open_context(fs, path).await,
+        1 => portable::create_context(fs, path, false).await,
+        2 => portable::create_context(fs, path, true).await,
+        3 => portable::open_context(fs, path).await, // append: open existing, no truncation
         _ => Err(DELUGE_ERR_PARAM),
     })
     .await
@@ -1128,12 +1129,12 @@ pub(crate) async fn stream_open(path: &str, mode: u8) -> Result<u32, DelugeStatu
 }
 
 /// Write `src` at absolute `byte_offset`, advancing the handle's persisted context WITHOUT
-/// flushing the size/mtime edit to disk (`efatfs_core::write_context_noflush`). Returns the true
+/// flushing the size/mtime edit to disk (`portable::write_context_noflush`). Returns the true
 /// byte count written, or `None` on a bad handle or FS error.
 pub(crate) async fn stream_write_at(handle: u32, byte_offset: u32, src: &[u8]) -> Option<usize> {
     let (generation, ctx) = STREAM_WRITE_CTX.lock().await.checkout(handle)?;
     let (newctx, n) =
-        with_fs(async |fs| efatfs_core::write_context_noflush(fs, ctx, byte_offset, src).await)
+        with_fs(async |fs| portable::write_context_noflush(fs, ctx, byte_offset, src).await)
             .await??;
     STREAM_WRITE_CTX
         .lock()
@@ -1143,7 +1144,7 @@ pub(crate) async fn stream_write_at(handle: u32, byte_offset: u32, src: &[u8]) -
 }
 
 /// EOF-honest read at absolute `byte_offset`, bounded by the handle's IN-MEMORY size
-/// (`efatfs_core::read_at_via_context`) -- can read back data written earlier in the same
+/// (`portable::read_at_via_context`) -- can read back data written earlier in the same
 /// unflushed session. Returns the true byte count read, or `None` on a bad handle or FS error.
 pub(crate) async fn stream_read_at_via(
     handle: u32,
@@ -1152,7 +1153,7 @@ pub(crate) async fn stream_read_at_via(
 ) -> Option<usize> {
     let (generation, ctx) = STREAM_WRITE_CTX.lock().await.checkout(handle)?;
     let (newctx, n) =
-        with_fs(async |fs| efatfs_core::read_at_via_context(fs, ctx, byte_offset, dst).await)
+        with_fs(async |fs| portable::read_at_via_context(fs, ctx, byte_offset, dst).await)
             .await??;
     STREAM_WRITE_CTX
         .lock()
@@ -1162,13 +1163,13 @@ pub(crate) async fn stream_read_at_via(
 }
 
 /// Persist the handle's accumulated in-memory size/mtime edit to the on-disk directory entry
-/// (`efatfs_core::flush_context`). Leaves the slot occupied -- callers may keep writing after a
+/// (`portable::flush_context`). Leaves the slot occupied -- callers may keep writing after a
 /// flush (e.g. a periodic mid-recording flush).
 async fn stream_flush(handle: u32) -> bool {
     let Some((generation, ctx)) = STREAM_WRITE_CTX.lock().await.checkout(handle) else {
         return false;
     };
-    let result = with_fs(async |fs| efatfs_core::flush_context(fs, ctx).await).await;
+    let result = with_fs(async |fs| portable::flush_context(fs, ctx).await).await;
     match result {
         Some(Some(newctx)) => {
             STREAM_WRITE_CTX
@@ -1186,7 +1187,7 @@ pub(crate) async fn stream_truncate(handle: u32, new_len: u32) -> bool {
     let Some((generation, ctx)) = STREAM_WRITE_CTX.lock().await.checkout(handle) else {
         return false;
     };
-    let result = with_fs(async |fs| efatfs_core::truncate_context(fs, ctx, new_len).await).await;
+    let result = with_fs(async |fs| portable::truncate_context(fs, ctx, new_len).await).await;
     match result {
         Some(Some((newctx, ()))) => {
             STREAM_WRITE_CTX
@@ -1202,7 +1203,7 @@ pub(crate) async fn stream_truncate(handle: u32, new_len: u32) -> bool {
 /// File length in bytes.
 pub(crate) async fn stream_size(handle: u32) -> Option<u32> {
     let (generation, ctx) = STREAM_WRITE_CTX.lock().await.checkout(handle)?;
-    let (newctx, size) = with_fs(async |fs| efatfs_core::size_context(fs, ctx).await).await??;
+    let (newctx, size) = with_fs(async |fs| portable::size_context(fs, ctx).await).await??;
     STREAM_WRITE_CTX
         .lock()
         .await
@@ -1240,7 +1241,7 @@ pub extern "C" fn deluge_efatfs_stream_open(
     let Ok(path) = unsafe { CStr::from_ptr(path) }.to_str() else {
         return DELUGE_ERR_PARAM;
     };
-    match crate::sim_block::block_on(stream_open(path, mode)) {
+    match crate::storage::sim_block::block_on(stream_open(path, mode)) {
         Ok(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
             unsafe { *out_handle = to_abi(h) };
@@ -1269,7 +1270,8 @@ pub extern "C" fn deluge_efatfs_stream_write_at(
     }
     // SAFETY: `src` points at `count` readable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts(src.cast::<u8>(), count as usize) };
-    let Some(n) = crate::sim_block::block_on(stream_write_at(handle, byte_offset, buf)) else {
+    let Some(n) = crate::storage::sim_block::block_on(stream_write_at(handle, byte_offset, buf))
+    else {
         return DELUGE_ERR_IO;
     };
     // SAFETY: `out_written` is non-null (checked above).
@@ -1296,7 +1298,8 @@ pub extern "C" fn deluge_efatfs_stream_read_at_via(
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts_mut(dst.cast::<u8>(), count as usize) };
-    let Some(n) = crate::sim_block::block_on(stream_read_at_via(handle, byte_offset, buf)) else {
+    let Some(n) = crate::storage::sim_block::block_on(stream_read_at_via(handle, byte_offset, buf))
+    else {
         return DELUGE_ERR_IO;
     };
     // SAFETY: `out_read` is non-null (checked above).
@@ -1314,7 +1317,7 @@ pub extern "C" fn deluge_efatfs_stream_truncate(
     let Some(handle) = from_abi(handle) else {
         return DELUGE_ERR_PARAM;
     };
-    if crate::sim_block::block_on(stream_truncate(handle, new_len)) {
+    if crate::storage::sim_block::block_on(stream_truncate(handle, new_len)) {
         DELUGE_OK
     } else {
         DELUGE_ERR_IO
@@ -1334,7 +1337,7 @@ pub extern "C" fn deluge_efatfs_stream_size(
     if out_size.is_null() {
         return DELUGE_ERR_PARAM;
     }
-    let Some(size) = crate::sim_block::block_on(stream_size(handle)) else {
+    let Some(size) = crate::storage::sim_block::block_on(stream_size(handle)) else {
         return DELUGE_ERR_IO;
     };
     // SAFETY: `out_size` is non-null (checked above).
@@ -1349,7 +1352,7 @@ pub extern "C" fn deluge_efatfs_stream_close(handle: DelugeHandle) -> DelugeStat
     let Some(handle) = from_abi(handle) else {
         return DELUGE_ERR_PARAM;
     };
-    if crate::sim_block::block_on(stream_close(handle)) {
+    if crate::storage::sim_block::block_on(stream_close(handle)) {
         DELUGE_OK
     } else {
         DELUGE_ERR_IO

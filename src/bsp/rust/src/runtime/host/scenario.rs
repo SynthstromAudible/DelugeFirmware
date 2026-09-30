@@ -5,7 +5,7 @@
 //! check.
 //!
 //! [`run`] is deliberately THREAD-AGNOSTIC: it never spawns an OS thread, never touches
-//! [`crate::sd::sim_latency::pump`] (that mechanism needs to spawn an escape-hatch OS
+//! [`crate::storage::sd::sim_latency::pump`] (that mechanism needs to spawn an escape-hatch OS
 //! thread, which isn't available to a single-threaded custom executor — the shape the
 //! deterministic virtual-time simulation runs on), and makes no assumption about which
 //! embassy executor is driving it (`platform-std`, a future single-threaded custom
@@ -107,7 +107,7 @@ pub struct ScenarioConfig {
     /// read, which under `sim_latency` can livelock its caller (see `streaming_scenario.h`'s doc comment on
     /// `deluge_scenario_start_song_load`).
     ///
-    /// "Roughly `n` blocks" — NOT `n` [`crate::audio_host::drive_count`] deltas, unlike
+    /// "Roughly `n` blocks" — NOT `n` [`crate::audio::host::drive_count`] deltas, unlike
     /// `target_blocks` above: see the call site's comment for why (that counter is a
     /// permanently-flat "sim constant" on a single-executor harness that skips post-boot
     /// renders, making literal block-count gating fire zero listings there). Measured
@@ -145,14 +145,14 @@ pub struct ScenarioResult {
     /// `AudioRecorder::beginOutputRecording` returned true.
     pub recording_started: bool,
     /// Audio blocks rendered from just before playback started to when the target was
-    /// reached (or the timeout gave up) — see `crate::audio_host::drive_count()`.
+    /// reached (or the timeout gave up) — see `crate::audio::host::drive_count()`.
     pub blocks_rendered: u64,
-    /// ALL SD block reads observed over the same window (`crate::sd::stats::reads()`):
+    /// ALL SD block reads observed over the same window (`crate::storage::sd::stats::reads()`):
     /// mostly the async fill task's cluster reads for this song's samples, plus anything
     /// else that read the card meanwhile (e.g. the `concurrent_listing_every_blocks`
     /// browses).
     pub cluster_reads: u64,
-    /// ALL SD block writes observed over the same window (`crate::sd::stats::writes()`),
+    /// ALL SD block writes observed over the same window (`crate::storage::sd::stats::writes()`),
     /// mostly the recorder's card writes.
     pub recorder_writes: u64,
     /// WAIT-class underrun misses over the same window: the audio thread found a
@@ -239,16 +239,16 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
     // doc comment).
     #[cfg(feature = "sim_latency")]
     if let Some((throughput_bps, overhead_us)) = cfg.post_load_sim_latency {
-        crate::sd::sim_latency::set_throughput_bytes_per_sec(throughput_bps);
-        crate::sd::sim_latency::set_command_overhead_us(overhead_us);
+        crate::storage::sd::sim_latency::set_throughput_bytes_per_sec(throughput_bps);
+        crate::storage::sd::sim_latency::set_command_overhead_us(overhead_us);
     }
 
     // Baseline right before starting playback/recording — everything counted from here on
     // is genuinely attributable to THIS run's streaming/recording, not the song load
     // itself (which also issues SD reads for its essential-sample clusters).
-    let blocks_before = crate::audio_host::drive_count();
-    let reads_before = crate::sd::stats::reads();
-    let writes_before = crate::sd::stats::writes();
+    let blocks_before = crate::audio::host::drive_count();
+    let reads_before = crate::storage::sd::stats::reads();
+    let writes_before = crate::storage::sd::stats::writes();
     let underrun_wait_before = unsafe { deluge_sim_underrun_wait_count() };
     let underrun_unassign_before = unsafe { deluge_sim_underrun_unassign_count() };
 
@@ -276,7 +276,7 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
     match cfg.concurrent_listing_every_blocks {
         None => {
             wait_for(cfg.step_timeout, || {
-                crate::audio_host::drive_count().saturating_sub(blocks_before) >= cfg.target_blocks
+                crate::audio::host::drive_count().saturating_sub(blocks_before) >= cfg.target_blocks
             })
             .await;
         }
@@ -333,7 +333,7 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
             let mut cap_logged = false;
 
             loop {
-                let rendered = crate::audio_host::drive_count().saturating_sub(blocks_before);
+                let rendered = crate::audio::host::drive_count().saturating_sub(blocks_before);
                 if rendered >= cfg.target_blocks {
                     break;
                 }
@@ -386,9 +386,9 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
         }
     }
 
-    result.blocks_rendered = crate::audio_host::drive_count().saturating_sub(blocks_before);
-    result.cluster_reads = crate::sd::stats::reads().saturating_sub(reads_before);
-    result.recorder_writes = crate::sd::stats::writes().saturating_sub(writes_before);
+    result.blocks_rendered = crate::audio::host::drive_count().saturating_sub(blocks_before);
+    result.cluster_reads = crate::storage::sd::stats::reads().saturating_sub(reads_before);
+    result.recorder_writes = crate::storage::sd::stats::writes().saturating_sub(writes_before);
     result.underrun_wait =
         unsafe { deluge_sim_underrun_wait_count() }.saturating_sub(underrun_wait_before);
     result.underrun_unassign =

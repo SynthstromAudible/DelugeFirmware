@@ -20,11 +20,11 @@ pub fn generation() -> u32 {
 /// Every channel that keeps answers read from the card. Each clears its queued requests and waiting answers; none
 /// may block, because the ejection path runs this with the card already gone.
 const FLUSHES: [fn(); 5] = [
-    super::audio_loader::flush_tables,
-    super::file_prefix::flush_tables,
-    super::file_directory::flush_tables,
-    super::file_bytes::flush_tables,
-    super::file_stream::flush_tables,
+    crate::channel::audio_loader::flush_tables,
+    crate::channel::file_prefix::flush_tables,
+    crate::channel::file_directory::flush_tables,
+    crate::channel::file_bytes::flush_tables,
+    crate::channel::file_stream::flush_tables,
 ];
 
 /// Discard everything every loader read from the card that has just been removed. See `card.h`.
@@ -36,10 +36,10 @@ const FLUSHES: [fn(); 5] = [
 ///
 /// No correctness rests on a clear landing — the stamp, compared at take, is the safety property,
 /// and it holds no matter which locks were taken or which contexts the two sides ran in (see
-/// [`super::audio_loader::take_from`], [`super::file_prefix::take_from`] and
-/// [`super::file_directory::take_from`]). The byte and stream channels stamp their queued REQUESTS
+/// [`crate::channel::audio_loader::take_from`], [`crate::channel::file_prefix::take_from`] and
+/// [`crate::channel::file_directory::take_from`]). The byte and stream channels stamp their queued REQUESTS
 /// too, and their tasks drop one asked under a card that has gone unrun (see
-/// [`super::file_bytes::admit_at_take`]), so a request a clear missed never reaches the new card.
+/// [`crate::channel::file_bytes::admit_at_take`]), so a request a clear missed never reaches the new card.
 ///
 /// The directory channel's clear is the one that costs a RESOURCE when it is skipped rather than
 /// merely leaving a dead entry: it holds one of eight efatfs directory handles. See that module's

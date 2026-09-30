@@ -10,7 +10,7 @@ use core::sync::atomic::{AtomicU32, Ordering};
 use core::task::{Context, Poll};
 use std::sync::Mutex;
 
-use deluge_bsp_rust::sim_block;
+use deluge_bsp_rust::storage::sim_block;
 
 use sim_block::Progress;
 

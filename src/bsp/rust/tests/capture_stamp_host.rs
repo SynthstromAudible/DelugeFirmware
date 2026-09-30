@@ -1,7 +1,7 @@
 //! Capture stamps: where on the TX play timeline an input event happened.
 #![cfg(not(target_os = "none"))]
 
-use deluge_bsp_rust::capture_stamp;
+use deluge_bsp_rust::audio::capture_stamp;
 
 use capture_stamp::{render_offset, stamp_at};
 

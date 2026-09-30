@@ -56,12 +56,15 @@ use embassy_time_driver::Driver as _;
 
 mod clock;
 
-use deluge_bsp_rust::deluge_bsp;
-use deluge_bsp_rust::{
-    audio_host, audio_loader, board, boot, control, display, efatfs_host_shim, file_bytes,
-    file_directory, file_prefix, file_stream, memory_card, scheduler, sd, sd_image,
-    streaming_loader, sys, tier_meter,
+use deluge_bsp_rust::audio::host as audio_host;
+use deluge_bsp_rust::channel::{
+    audio_loader, file_bytes, file_directory, file_prefix, file_stream,
 };
+use deluge_bsp_rust::deluge_bsp;
+use deluge_bsp_rust::peripherals::{board, control, display};
+use deluge_bsp_rust::storage::efatfs::host as efatfs_host;
+use deluge_bsp_rust::storage::{memory_card, sd, sd_image, streaming_loader};
+use deluge_bsp_rust::{boot, scheduler, sys, tier_meter};
 
 // Host-only C-ABI bridge (tests/integration/scenarios/streaming_scenario.{h,cpp},
 // compiled into the host tree's `deluge_scenarios` objects, which build.rs archives
@@ -146,7 +149,7 @@ async fn boot_task() {
     // runs synchronously; with `sim_latency` off for this package its transfers are plain
     // synchronous reads, so there is no modeled delay to get stuck on.
     // A failed mount must NOT abort boot — see the device/host_app_task comments this mirrors.
-    match efatfs_host_shim::mount().await {
+    match efatfs_host::mount().await {
         Ok(()) => log::info!("golden_vt_render: efatfs mounted"),
         Err(status) => {
             log::warn!(

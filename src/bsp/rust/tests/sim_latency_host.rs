@@ -10,8 +10,8 @@
 #![feature(impl_trait_in_assoc_type)]
 
 use deluge_bsp_rust::boot;
-use deluge_bsp_rust::sd;
-use deluge_bsp_rust::sim_block;
+use deluge_bsp_rust::storage::sd;
+use deluge_bsp_rust::storage::sim_block;
 use deluge_bsp_rust::tier;
 use deluge_bsp_rust::tier_meter;
 

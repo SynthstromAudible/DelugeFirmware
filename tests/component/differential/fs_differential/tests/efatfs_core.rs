@@ -16,7 +16,7 @@
 // Recompile the real core into this test binary (same `#[path]` convention the
 // BSP host tests use). efatfs_core depends only on embedded_fatfs +
 // embedded_io_async, both of which are fs_differential deps.
-#[path = "../../../../../src/bsp/rust/src/efatfs_core.rs"]
+#[path = "../../../../../src/bsp/rust/src/storage/efatfs/portable.rs"]
 mod efatfs_core;
 
 // `efatfs_core.rs`'s `use crate::sys::{DelugeStatus, ...}` expects the real

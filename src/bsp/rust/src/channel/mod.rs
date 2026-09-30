@@ -135,3 +135,45 @@ impl<K, V: Answer> AnswerSlot<K, V> {
         })
     }
 }
+
+/// The async audio-file load task and its request/collect C ABI: owns the AWAITED
+/// file I/O of a card sample's load — open a candidate, size it, walk its header
+/// — and publishes a plain result the C++ side collects on its own tier. It calls
+/// no C++ itself; see its module doc for the two constraints that force that. Compiled
+/// on the Embassy BSP unconditionally (device, or host under `host_app`) so
+/// `deluge_audio_load_request`/`_collect` are always defined --
+/// the app declares no fallback for them, so omitting this module would leave them
+/// undefined at link time. The loader has no switch -- see its module doc's "Always on".
+pub mod audio_loader;
+/// file_bytes.h — the whole-file byte channel: read, write or rename a small settings file on the
+/// storage tier and hand the BYTES to a caller that must not wait on the card. Gated identically to
+/// `file_directory` above, and to `card` — which reaches this module's `flush_tables` and so must
+/// never be compiled without it. The four settings consumers (runtime feature settings, the MIDI
+/// device table, MIDI follow's defaults, performance view) always enter this channel after boot: it
+/// has no feature switch.
+///
+/// Unlike `file_prefix` it borrows nothing from `audio_loader`: reading a whole file and writing one
+/// back are not `LoadOps`'s four operations, so it declares its own three-operation trait.
+pub mod file_bytes;
+/// file_directory.h — the single-slot directory channel: open a directory on the storage tier and
+/// hand the ready handle to a caller that must not wait on the card. Gated identically to
+/// `file_prefix` below, and to `card` — which reaches this module's `flush_tables` and so must
+/// never be compiled without it. It has no feature switch: after boot, every browser listing, SysEx directory
+/// request and recording-folder scan opens its directory through it.
+///
+/// Unlike `file_prefix` it borrows nothing from `audio_loader`: a directory open is not one of
+/// `LoadOps`'s four file operations, so it declares its own two-operation trait.
+pub mod file_directory;
+/// file_prefix.h — the single-slot prefix channel: read the first N bytes of a file on the
+/// storage tier and hand them to a caller that must not wait on the card. Gated identically to
+/// `audio_loader` above, whose `LoadOps`/`ProdOps` its driver reuses, and to `card` — which
+/// reaches this module's `flush_tables` and so must never be compiled without it. Its callers are
+/// `LoadSongUI`'s song-artwork preview and `DxSyxBrowser`'s cartridge load. The channel has no
+/// feature switch.
+pub mod file_prefix;
+/// The stream channel: request/collect over the recorder's stream-write handles. Compiled
+/// unconditionally; the channel has no feature switch.
+pub mod file_stream;
+/// The stream channel's answer slot: pure, so it is host-tested without a card. Compiled unconditionally,
+/// beside `file_stream` above, which it is the storage for.
+pub mod file_stream_slot;

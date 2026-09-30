@@ -4,9 +4,9 @@
 
 use std::cell::{Cell, RefCell};
 
-use deluge_bsp_rust::audio_loader;
+use deluge_bsp_rust::channel::audio_loader;
 
-use deluge_bsp_rust::file_prefix;
+use deluge_bsp_rust::channel::file_prefix;
 
 use audio_loader::{LoadOps, OpenVerdict};
 use file_prefix::{
@@ -527,7 +527,7 @@ fn a_failure_after_the_open_still_closes_the_handle() {
 // The C ABI over the process-wide statics. Only exists where its storage does, so the whole module
 // is gated on the switch — with it off there is no REQUEST, no IN_FLIGHT and no RESULT to drive.
 
-use deluge_bsp_rust::card;
+use deluge_bsp_rust::storage::card;
 
 mod live_pipeline {
     use super::file_prefix::{
@@ -598,7 +598,7 @@ mod live_pipeline {
         block_on(publish_result(
             path,
             Some(bytes),
-            deluge_bsp_rust::card::generation(),
+            deluge_bsp_rust::storage::card::generation(),
         ));
     }
 
@@ -607,7 +607,7 @@ mod live_pipeline {
         block_on(publish_result(
             path,
             None,
-            deluge_bsp_rust::card::generation(),
+            deluge_bsp_rust::storage::card::generation(),
         ));
     }
 
@@ -766,7 +766,7 @@ mod live_pipeline {
     #[test]
     fn a_read_in_flight_across_an_ejection_publishes_uncollectably() {
         let _guard = reset();
-        let began_under = deluge_bsp_rust::card::generation();
+        let began_under = deluge_bsp_rust::storage::card::generation();
         card::deluge_card_flush(); // the card goes while the read is running
         block_on(publish_result(
             "SONGS/INFLIGHT.XML",

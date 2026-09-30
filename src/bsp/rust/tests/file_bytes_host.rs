@@ -2,7 +2,7 @@
 //! is a slot, not a table: no depth, no eviction, no ordering.
 #![cfg(not(target_os = "none"))]
 
-use deluge_bsp_rust::file_bytes;
+use deluge_bsp_rust::channel::file_bytes;
 
 use file_bytes::{
     ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, ClaimOnce, CopyOut,

@@ -17,9 +17,9 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::CString;
 
-use deluge_bsp_rust::audio_loader;
+use deluge_bsp_rust::channel::audio_loader;
 
-use deluge_bsp_rust::card;
+use deluge_bsp_rust::storage::card;
 
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
@@ -33,10 +33,10 @@ use audio_loader::{
     deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
 };
 use card::deluge_card_flush;
-use deluge_bsp_rust::card::generation as current_generation;
 use deluge_bsp_rust::channel::{
     DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
 };
+use deluge_bsp_rust::storage::card::generation as current_generation;
 
 /// One call `FakeOps` observed, in order.
 #[derive(Debug, PartialEq, Eq, Clone)]

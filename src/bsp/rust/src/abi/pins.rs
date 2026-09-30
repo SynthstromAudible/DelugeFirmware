@@ -54,7 +54,7 @@ abi_pin!(in deluge_sample_stream: deluge_efatfs_open, deluge_efatfs_close, delug
 
 // --- The copies of header typedefs ---
 
-abi_layout!(type crate::abi_handle::DelugeHandle => sys DelugeHandle);
+abi_layout!(type crate::abi::handle::DelugeHandle => sys DelugeHandle);
 abi_layout!(type deluge_sample_fill::DelugeHandle => sys DelugeHandle);
 abi_layout!(type deluge_sample_fill::DelugeStatus => sys DelugeStatus);
 abi_layout!(type deluge_audio_format::abi::DelugeStatus => sys DelugeStatus);
@@ -134,68 +134,68 @@ abi_const!(
 );
 
 // `LoadResult` embeds this, and `audio_loader.rs` checks `LoadResult`'s own offsets against `sys` beside it.
-abi_layout!(crate::audio_loader::LoadGeometry => sys DelugeAudioLoadGeometry { sample_rate,
+abi_layout!(crate::channel::audio_loader::LoadGeometry => sys DelugeAudioLoadGeometry { sample_rate,
     audio_data_start_pos_bytes, audio_data_length_bytes, file_loop_start_samples, file_loop_end_samples,
     wavetable_cycle_size, midi_note_value, num_channels, byte_depth, raw_data_format, midi_note_present,
     wavetable_explicitly_specifies_self });
 
 abi_const!(
-    crate::audio_loader::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
-    crate::audio_loader::DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED => DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED,
+    crate::channel::audio_loader::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
+    crate::channel::audio_loader::DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED => DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED,
 );
 
 // The channels' shared vocabulary (channel.h), which every channel module takes from [`crate::channel`].
-abi_layout!(type super::channel::DelugeChannelStatus => sys DelugeChannelStatus);
+abi_layout!(type crate::channel::DelugeChannelStatus => sys DelugeChannelStatus);
 abi_const!(
-    super::channel::DELUGE_CHANNEL_PENDING => DELUGE_CHANNEL_PENDING,
-    super::channel::DELUGE_CHANNEL_READY => DELUGE_CHANNEL_READY,
-    super::channel::DELUGE_CHANNEL_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    super::channel::DELUGE_CHANNEL_FAILED => DELUGE_CHANNEL_FAILED,
-    super::channel::DELUGE_PATH_MAX => DELUGE_PATH_MAX,
+    crate::channel::DELUGE_CHANNEL_PENDING => DELUGE_CHANNEL_PENDING,
+    crate::channel::DELUGE_CHANNEL_READY => DELUGE_CHANNEL_READY,
+    crate::channel::DELUGE_CHANNEL_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
+    crate::channel::DELUGE_CHANNEL_FAILED => DELUGE_CHANNEL_FAILED,
+    crate::channel::DELUGE_PATH_MAX => DELUGE_PATH_MAX,
 );
 
 // `DelugeTimestamp` (types.h) is not one of the crate-defined header types in `build_crate_types.rs`, so there is no
 // `sys_layout` entry for it: `file_bytes`'s copy is checked against `sys`'s own binding instead.
-abi_layout!(crate::file_bytes::FileTimestamp => sys DelugeTimestamp { year, month, day, hour, minute, second });
+abi_layout!(crate::channel::file_bytes::FileTimestamp => sys DelugeTimestamp { year, month, day, hour, minute, second });
 
 abi_const!(
-    crate::file_bytes::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
-    crate::file_bytes::MAX_BYTES => DELUGE_FILE_BYTES_MAX_BYTES,
-    crate::file_bytes::BLOCK_BYTES => DELUGE_FILE_BYTES_BLOCK,
-    crate::file_bytes::NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
-    crate::file_bytes::NO_MEMORY => DelugeStatus_DELUGE_ERR_NO_MEMORY,
-    crate::file_bytes::ERR_IO => DelugeStatus_DELUGE_ERR_IO,
-    crate::file_bytes::NOT_FOUND => DelugeStatus_DELUGE_ERR_NOT_FOUND,
-    crate::file_bytes::EXISTS => DelugeStatus_DELUGE_ERR_EXISTS,
-    crate::file_bytes::OPEN_READ => DelugeFileOpenMode_DELUGE_FILE_READ,
-    crate::file_bytes::OPEN_WRITE_CREATE => DelugeFileOpenMode_DELUGE_FILE_WRITE_CREATE,
-    crate::file_bytes::STREAM_READ => DelugeStreamMode_DELUGE_STREAM_READ,
-    crate::file_bytes::STREAM_CREATE => DelugeStreamMode_DELUGE_STREAM_WRITE_CREATE,
-    crate::file_bytes::STREAM_CREATE_NEW => DelugeStreamMode_DELUGE_STREAM_WRITE_CREATE_NEW,
+    crate::channel::file_bytes::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
+    crate::channel::file_bytes::MAX_BYTES => DELUGE_FILE_BYTES_MAX_BYTES,
+    crate::channel::file_bytes::BLOCK_BYTES => DELUGE_FILE_BYTES_BLOCK,
+    crate::channel::file_bytes::NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
+    crate::channel::file_bytes::NO_MEMORY => DelugeStatus_DELUGE_ERR_NO_MEMORY,
+    crate::channel::file_bytes::ERR_IO => DelugeStatus_DELUGE_ERR_IO,
+    crate::channel::file_bytes::NOT_FOUND => DelugeStatus_DELUGE_ERR_NOT_FOUND,
+    crate::channel::file_bytes::EXISTS => DelugeStatus_DELUGE_ERR_EXISTS,
+    crate::channel::file_bytes::OPEN_READ => DelugeFileOpenMode_DELUGE_FILE_READ,
+    crate::channel::file_bytes::OPEN_WRITE_CREATE => DelugeFileOpenMode_DELUGE_FILE_WRITE_CREATE,
+    crate::channel::file_bytes::STREAM_READ => DelugeStreamMode_DELUGE_STREAM_READ,
+    crate::channel::file_bytes::STREAM_CREATE => DelugeStreamMode_DELUGE_STREAM_WRITE_CREATE,
+    crate::channel::file_bytes::STREAM_CREATE_NEW => DelugeStreamMode_DELUGE_STREAM_WRITE_CREATE_NEW,
 );
 
 abi_const!(
-    crate::file_directory::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
-    crate::file_directory::NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
+    crate::channel::file_directory::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
+    crate::channel::file_directory::NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
 );
 
 abi_const!(
-    crate::file_prefix::PREFIX_CAPACITY => DELUGE_FILE_PREFIX_CAPACITY,
-    crate::file_prefix::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
+    crate::channel::file_prefix::PREFIX_CAPACITY => DELUGE_FILE_PREFIX_CAPACITY,
+    crate::channel::file_prefix::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
 );
 
 abi_const!(
-    crate::file_stream_slot::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
+    crate::channel::file_stream_slot::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
 );
 
 // The host `sd.rs` spells what the device build takes from `deluge-sdk`.
 #[cfg(not(target_os = "none"))]
 abi_const!(
-    crate::sd::DELUGE_OK => DelugeStatus_DELUGE_OK,
-    crate::sd::DELUGE_ERR_IO => DelugeStatus_DELUGE_ERR_IO,
-    crate::sd::DELUGE_ERR_NODEV => DelugeStatus_DELUGE_ERR_NODEV,
-    crate::sd::DELUGE_ERR_WRITE_PROTECTED => DelugeStatus_DELUGE_ERR_WRITE_PROTECTED,
-    crate::sd::CARD_NONE => DelugeCardEvent_DELUGE_CARD_EVENT_NONE,
-    crate::sd::CARD_INSERTED => DelugeCardEvent_DELUGE_CARD_EVENT_INSERTED,
-    crate::sd::CARD_EJECTED => DelugeCardEvent_DELUGE_CARD_EVENT_EJECTED,
+    crate::storage::sd::DELUGE_OK => DelugeStatus_DELUGE_OK,
+    crate::storage::sd::DELUGE_ERR_IO => DelugeStatus_DELUGE_ERR_IO,
+    crate::storage::sd::DELUGE_ERR_NODEV => DelugeStatus_DELUGE_ERR_NODEV,
+    crate::storage::sd::DELUGE_ERR_WRITE_PROTECTED => DelugeStatus_DELUGE_ERR_WRITE_PROTECTED,
+    crate::storage::sd::CARD_NONE => DelugeCardEvent_DELUGE_CARD_EVENT_NONE,
+    crate::storage::sd::CARD_INSERTED => DelugeCardEvent_DELUGE_CARD_EVENT_INSERTED,
+    crate::storage::sd::CARD_EJECTED => DelugeCardEvent_DELUGE_CARD_EVENT_EJECTED,
 );

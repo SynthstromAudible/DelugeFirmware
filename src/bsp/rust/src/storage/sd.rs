@@ -4,7 +4,7 @@
 //! The app's real storage stack does NOT call `deluge_block_read`/
 //! `deluge_block_write` (block_device.h): the device path goes through
 //! `fat_block_device::SdBlockDevice`, and the host path goes through
-//! `efatfs_host_shim::HostSdBlockDevice` — both `.await` `crate::sd::
+//! `efatfs_host_shim::HostSdBlockDevice` — both `.await` `crate::storage::sd::
 //! locked_read_sectors`/`locked_write_sectors` directly, bypassing this
 //! file's C-ABI entry points entirely (see those modules' docs). The only
 //! callers of `deluge_block_read`/`deluge_block_write` are the plain-host
@@ -270,7 +270,7 @@ pub async fn locked_read_sectors(lba: u32, count: u32, buf: &mut [u8]) -> Result
     stats::note_read();
     #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
     {
-        // Model EVERY transfer: storage spins through `crate::sim_block::block_on`, whose
+        // Model EVERY transfer: storage spins through `crate::storage::sim_block::block_on`, whose
         // progress hook pumps the executor hosting `pump` and advances the virtual clock on
         // every `Pending`, so `modeled_read`'s `Timer` always completes — no escape hatch is
         // needed to dodge a livelock. Consequently task-context reads get modeled latency
@@ -570,7 +570,7 @@ pub extern "C" fn deluge_block_read(
     // — this path calls `sim_latency::modeled_read`, not `sd::read_sectors`, so it
     // can't reuse that helper). Locked once per branch, at the same single level
     // as every other entry point — never nested.
-    let result = crate::sim_block::block_on(async {
+    let result = crate::storage::sim_block::block_on(async {
         let _guard = SD_BUS.lock().await;
         sim_latency::modeled_read(sector, count, out).await
     });
@@ -609,7 +609,7 @@ pub extern "C" fn deluge_block_write(
     // See the read sibling's identical comment above: SD_BUS locked inline per
     // branch (this path calls `sim_latency::modeled_write`, not
     // `sd::write_sectors`, so it can't reuse `locked_write_sectors`).
-    let result = crate::sim_block::block_on(async {
+    let result = crate::storage::sim_block::block_on(async {
         let _guard = SD_BUS.lock().await;
         sim_latency::modeled_write(sector, count, data).await
     });

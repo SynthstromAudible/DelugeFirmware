@@ -1,6 +1,6 @@
 //! Content-addressed naming for the harness's temporary FAT32 SD images.
 //!
-//! Split out of [`crate::sd_image`] (which shells out to mtools and is therefore
+//! Split out of [`crate::storage::sd_image`] (which shells out to mtools and is therefore
 //! `host_app`-gated) so this policy — the part that decides *where* an image lives and
 //! *whether* one must be built at all — stays plain-host testable with no CMake C++ build.
 //! See `tests/sd_image_path_host.rs`.

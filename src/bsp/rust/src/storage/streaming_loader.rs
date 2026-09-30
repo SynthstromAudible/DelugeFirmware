@@ -20,7 +20,7 @@
 //! ([`fill_once`]) takes its four operations — `next`/`begin`/`read`/`finish` (plus
 //! the failure-path re-enqueue) — through the [`FillOps`] trait instead of calling
 //! the `extern "C"` functions directly. [`ProdOps`] below wires that trait to the
-//! real C ABI + the efatfs streaming read (`crate::efatfs_fs`/`crate::efatfs_host_shim`); the
+//! real C ABI + the efatfs streaming read (`crate::storage::efatfs::device`/`crate::storage::efatfs::host`); the
 //! host unit test
 //! (`tests/streaming_fill_host.rs`) wires it to an in-memory fake queue instead.
 //! This is the whole reason [`fill_once`] is independently testable — the real
@@ -328,7 +328,7 @@ mod prod {
 
     /// The real [`FillOps`], wired to `libdeluge/streaming_fill.h` +
     /// `deluge_resource.h`'s loader-queue C ABI and the efatfs streaming read
-    /// (`crate::efatfs_fs`/`crate::efatfs_host_shim`). `!Send`/`!Sync` (a raw
+    /// (`crate::storage::efatfs::device`/`crate::storage::efatfs::host`). `!Send`/`!Sync` (a raw
     /// `DelugeResource*`) by construction — must only ever run on the single
     /// thread-mode executor the C++ enqueue path also runs on.
     pub struct ProdOps {
@@ -371,13 +371,13 @@ mod prod {
         async fn read(&self, d: &StreamingFillDescriptor, buf: &mut [u8]) -> bool {
             // `d.handle` is the fill context's `efatfs_handle`, which crossed the ABI: NONE (a sample
             // still recording, or not yet opened) names no slot, and its read fails cleanly.
-            let Some(slot) = crate::abi_handle::from_abi(d.handle) else {
+            let Some(slot) = crate::abi::handle::from_abi(d.handle) else {
                 return false;
             };
             #[cfg(target_os = "none")]
-            return crate::efatfs_fs::read_at(slot, d.byte_offset, buf).await;
+            return crate::storage::efatfs::device::read_at(slot, d.byte_offset, buf).await;
             #[cfg(feature = "host_app")]
-            return crate::efatfs_host_shim::read_at(slot, d.byte_offset, buf).await;
+            return crate::storage::efatfs::host::read_at(slot, d.byte_offset, buf).await;
         }
 
         fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {

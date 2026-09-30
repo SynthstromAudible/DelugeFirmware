@@ -2,7 +2,7 @@
 //! generation it was asked under.
 #![cfg(not(target_os = "none"))]
 
-use deluge_bsp_rust::file_stream_slot;
+use deluge_bsp_rust::channel::file_stream_slot;
 
 use file_stream_slot::{AnswerSlot, MAX_PATH_CHARS, OpKey, OpKind, Take};
 

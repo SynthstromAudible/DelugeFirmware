@@ -4,8 +4,8 @@
 //! on its own executor, must keep waiting and then succeed on the re-identified card.
 #![cfg(not(target_os = "none"))]
 
-use deluge_bsp_rust::sd;
-use deluge_bsp_rust::sim_block;
+use deluge_bsp_rust::storage::sd;
+use deluge_bsp_rust::storage::sim_block;
 use deluge_bsp_rust::tier;
 
 use core::future::Future;

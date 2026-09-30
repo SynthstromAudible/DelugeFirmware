@@ -15,7 +15,7 @@
 //! arrangement:
 //!
 //! 1. **This task cannot run on the thread-mode executor.** It holds the single
-//!    `efatfs` FS mutex across an SD await ([`crate::efatfs_fs::with_fs`] holds
+//!    `efatfs` FS mutex across an SD await ([`crate::storage::efatfs::device::with_fs`] holds
 //!    `FS.lock()` for the whole closure, awaits included), while the C++
 //!    `deluge_efatfs_*` entry points bridge to those same futures through
 //!    `sim_block::block_on` — a NON-yielding spin on device. As that module's own
@@ -82,7 +82,7 @@
 //! stamp on the way in as well; that is an early drop that saves a slot, not the
 //! guarantee — see its doc.)
 //!
-//! The counter itself is not this module's. It is [the card generation](super::card::generation),
+//! The counter itself is not this module's. It is [the card generation](crate::storage::card::generation),
 //! shared with every other loader that caches something read from the card,
 //! because a card swap invalidates all of them at once and a second hand-rolled
 //! counter is a second chance to reintroduce the bug this belt closed.
@@ -117,13 +117,13 @@
 //! Same constraint as `streaming_loader`: `host_app` (which links the host-built
 //! C++ app closure) and this crate's integration tests do not co-compile, so the
 //! orchestration takes its filesystem operations through a trait. `ProdOps` wires
-//! that to `crate::efatfs_fs` / `crate::efatfs_host_shim`, and
+//! that to `crate::storage::efatfs::device` / `crate::storage::efatfs::host`, and
 //! `tests/audio_loader_host.rs` wires it to an in-memory double.
 
 use core::ffi::{CStr, c_char};
 use core::mem::MaybeUninit;
 
-use super::channel::{
+use crate::channel::{
     DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
     DelugeChannelStatus,
 };
@@ -353,7 +353,7 @@ pub struct LoadRequest {
 pub struct PendingResult {
     key: LoadPath,
     result: LoadResult,
-    /// The [the card generation](super::card::generation) value the load was started under. Carried
+    /// The [the card generation](crate::storage::card::generation) value the load was started under. Carried
     /// on the RESIDENT entry, not merely checked on the way in, so that whether a
     /// result is honoured is decided by the taker rather than by which locks a
     /// flush managed to take. See [`take_from`].
@@ -659,7 +659,7 @@ fn probe(path: &str, out: &mut MaybeUninit<LoadResult>) -> Probe {
     // the collector's own view of which card is in the slot right now, and
     // deciding from it is what makes a result's fate independent of whether the
     // flush that invalidated it managed to take this lock. See [`take_from`].
-    match take_from(&mut results, path, super::card::generation()) {
+    match take_from(&mut results, path, crate::storage::card::generation()) {
         Some(result) => {
             out.write(result);
             Probe::Ready
@@ -734,7 +734,7 @@ fn remove_at(
 /// the oldest if the table is full. See [`RESULTS`].
 ///
 /// The generation arrives as a PARAMETER rather than being read from
-/// [the card generation](super::card::generation) here, for the same reason the table is passed by
+/// [the card generation](crate::storage::card::generation) here, for the same reason the table is passed by
 /// reference: the stamp that belongs on the entry is the one the load BEGAN under,
 /// which only the caller knows, and a test must be able to publish and take under
 /// generations it chooses. Do not reach for the live counter inside this function.
@@ -794,7 +794,7 @@ pub fn take_from(table: &mut ResultTable, path: &str, generation: u32) -> Option
 /// Publish into the live [`RESULTS`] table, stamped with the card generation the
 /// load began under, and skip the insert entirely if that card is already gone.
 ///
-/// `generation` is the value [`generation`](super::card::generation) returned when the
+/// `generation` is the value [`generation`](crate::storage::card::generation) returned when the
 /// load STARTED — see [`take_next_request`], which samples it, and the module doc
 /// for why sampling it here instead would defeat the whole mechanism.
 ///
@@ -806,7 +806,7 @@ pub fn take_from(table: &mut ResultTable, path: &str, generation: u32) -> Option
 /// the stamp this call records against the taker's own current generation.
 ///
 /// That distinction is load-bearing rather than pedantic. There is no
-/// happens-before edge from [`deluge_card_flush`](super::card::deluge_card_flush)'s `fetch_add` to
+/// happens-before edge from [`deluge_card_flush`](crate::storage::card::deluge_card_flush)'s `fetch_add` to
 /// this `load` when this task wins the `RESULTS` lock (the two synchronise only
 /// through the lock, in the other direction), so this check can legitimately read
 /// the pre-flush generation, pass, and insert. The entry it inserts still carries
@@ -817,7 +817,7 @@ pub fn take_from(table: &mut ResultTable, path: &str, generation: u32) -> Option
 /// that it is at least ordered against a flush that DID take the lock.
 pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) {
     let mut table = RESULTS.lock().await;
-    if generation != super::card::generation() {
+    if generation != crate::storage::card::generation() {
         // The card this was read from is gone. Dropping costs the I/O that
         // produced it and nothing else (`LoadResult` owns nothing), and the
         // collector reads the resulting `UNKNOWN` as "request it again" -- which
@@ -1126,9 +1126,9 @@ mod prod {
     /// device, the host shim under `host_app`. One alias rather than a `#[cfg]` at
     /// every call site.
     #[cfg(target_os = "none")]
-    use crate::efatfs_fs as backing;
+    use crate::storage::efatfs::device as backing;
     #[cfg(not(target_os = "none"))]
-    use crate::efatfs_host_shim as backing;
+    use crate::storage::efatfs::host as backing;
 
     /// The real [`LoadOps`], wired to the efatfs streaming handle table. Holds no
     /// state: every operation is keyed by handle.
@@ -1145,20 +1145,22 @@ mod prod {
         async fn open(&self, path: &str) -> super::driver::OpenVerdict {
             use super::driver::OpenVerdict;
             match backing::open(path).await {
-                crate::efatfs_core::OpenOutcome::Handle(handle) => OpenVerdict::Opened(handle),
+                crate::storage::efatfs::portable::OpenOutcome::Handle(handle) => {
+                    OpenVerdict::Opened(handle)
+                }
                 // A candidate verdict: nothing to read at this path, so try the
                 // next. Every open failure -- missing, unmounted, any granular
                 // status -- counts as missing here, which is the same conflation
                 // `resolveFileSize`'s tryOpenCandidate makes (see the TODO at its
                 // unknown-as-absent branch).
-                crate::efatfs_core::OpenOutcome::Failed(_) => OpenVerdict::Missing,
+                crate::storage::efatfs::portable::OpenOutcome::Failed(_) => OpenVerdict::Missing,
                 // NOT a candidate verdict. The loader opens through the same 128-slot
                 // `HANDLES` table `open_read_stream` uses, and `sample_stream.cpp`
                 // documents that table filling up by construction under browser
                 // preview -- the loader's own workload. Kept distinct all the way to
                 // the collector so it reaches the reclaim rather than the
                 // alternate-directory probe.
-                crate::efatfs_core::OpenOutcome::TableFull => OpenVerdict::TableFull,
+                crate::storage::efatfs::portable::OpenOutcome::TableFull => OpenVerdict::TableFull,
             }
         }
 
@@ -1240,7 +1242,7 @@ async fn audio_load_task_body() {
 async fn take_next_request() -> Option<(LoadRequest, u32)> {
     let mut queue = QUEUE.lock().await;
     let request = queue.pop_front()?;
-    let generation = super::card::generation();
+    let generation = crate::storage::card::generation();
     mark_in_flight(Some(request.path.clone())).await;
     Some((request, generation))
 }

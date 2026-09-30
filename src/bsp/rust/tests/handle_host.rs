@@ -1,8 +1,8 @@
 #![cfg(not(target_os = "none"))]
 
-use deluge_bsp_rust::abi_handle;
+use deluge_bsp_rust::abi::handle;
 
-use abi_handle::{from_abi, to_abi};
+use handle::{from_abi, to_abi};
 
 #[test]
 fn slot_zero_is_handle_one() {

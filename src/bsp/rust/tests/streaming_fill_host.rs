@@ -12,7 +12,7 @@
 use core::ffi::c_void;
 use std::cell::{Cell, RefCell};
 
-use deluge_bsp_rust::streaming_loader;
+use deluge_bsp_rust::storage::streaming_loader;
 
 use streaming_loader::{FillOps, StreamingFillDescriptor, fill_once};
 

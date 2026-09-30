@@ -34,12 +34,12 @@ pub fn render_offset(stamp: u32, block_start_play: u32, mask: u32) -> u32 {
 #[cfg(target_os = "none")]
 pub fn now_for(event_ticks: u64) -> u32 {
     stamp_at(
-        crate::audio::tx_play_frame() as u32,
+        crate::audio::device::tx_play_frame() as u32,
         embassy_time::Instant::now().as_ticks(),
         event_ticks,
         embassy_time::TICK_HZ,
-        crate::audio::SAMPLE_RATE_HZ,
-        crate::audio::TX_MASK as u32,
+        crate::audio::device::SAMPLE_RATE_HZ,
+        crate::audio::device::TX_MASK as u32,
     )
 }
 

@@ -6,10 +6,10 @@ use core::panic::PanicInfo;
 use deluge_alloc as allocator;
 use embassy_executor::{Executor, InterruptExecutor, Spawner};
 
-use crate::{
-    audio_loader, board, boot, boot_mem, control, cv_gate, display, file_bytes, file_directory,
-    file_prefix, file_stream, scheduler, sd, signals, streaming_loader, sys, usb,
-};
+use crate::channel::{audio_loader, file_bytes, file_directory, file_prefix, file_stream};
+use crate::peripherals::{board, control, cv_gate, display, signals, usb};
+use crate::storage::{sd, streaming_loader};
+use crate::{boot, boot_mem, scheduler, sys};
 
 /// `#[global_allocator]` binding for `extern crate alloc` — required as
 /// soon as any dependency needs it, which `fat_block_device.rs`'s
@@ -334,7 +334,7 @@ async fn app_task() {
     // nothing to race. Must be async — sd::init's embassy-time Timers can't run under
     // block_on (integrated timer queue).
     deluge_bsp::pic::wait_ready().await;
-    crate::sd::boot_init().await;
+    crate::storage::sd::boot_init().await;
 
     // Give the FS allocator a real backing arena, then mount the single-owner
     // embedded-fatfs `FileSystem` — BEFORE `deluge_app_init` so the FS is ready
@@ -373,7 +373,7 @@ async fn app_task() {
             EFATFS_ARENA_SIZE / 1024
         );
 
-        match crate::efatfs_fs::mount().await {
+        match crate::storage::efatfs::device::mount().await {
             Ok(()) => log::info!("efatfs: mounted"),
             Err(status) => {
                 log::warn!("efatfs: mount failed ({status}) — streamed samples will not load")

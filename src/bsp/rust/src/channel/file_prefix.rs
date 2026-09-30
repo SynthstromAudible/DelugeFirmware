@@ -23,7 +23,7 @@
 //! way round, and could preempt thread-mode mid-mutation). See `audio_loader.rs`'s module doc for
 //! the full argument.
 //!
-//! That is why the filesystem operations arrive as [`super::audio_loader::LoadOps`] rather than as
+//! That is why the filesystem operations arrive as [`crate::channel::audio_loader::LoadOps`] rather than as
 //! a second trait declared here: one trait means one place where "all async, no route into C++"
 //! has to hold, and `ProdOps` — the efatfs wiring behind it — is already written and already
 //! type-checked against both the device mount and the host shim.
@@ -33,7 +33,7 @@
 //! Identical hazard to the loader's, and closed the same way. The slot is keyed by the nominal
 //! path, so a prefix read from card A would be served for card B's file at the same path after a
 //! swap — artwork from the wrong song, drawn with no error. Each read is STAMPED with the card
-//! generation it began under ([the card generation](super::card::generation), shared with every other loader), and
+//! generation it began under ([the card generation](crate::storage::card::generation), shared with every other loader), and
 //! [`take_from`] serves an entry only when its stamp equals the generation the taker is asking
 //! under, dropping it otherwise.
 //!
@@ -62,7 +62,7 @@
 
 use core::ffi::{CStr, c_char};
 
-use super::channel::{
+use crate::channel::{
     DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
     DELUGE_PATH_MAX, DelugeChannelStatus,
 };
@@ -70,7 +70,7 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::{Mutex, MutexGuard};
 use embassy_sync::signal::Signal;
 
-use super::audio_loader::{LoadOps, OpenVerdict};
+use crate::channel::audio_loader::{LoadOps, OpenVerdict};
 
 /// How many bytes one prefix request may ask for. Sized from the channel's LARGEST consumer, which
 /// is the DX7 cartridge read (`min(filesize, 8192)`, `gui/menu_item/dx/cartridge.cpp`), not from the
@@ -99,7 +99,7 @@ pub type PrefixPath = heapless::String<MAX_PATH_CHARS>;
 /// How many bytes of the store are the prefix, or `None` when the READ FAILED.
 ///
 /// The value [`PrefixSlot`] publishes: a prefix carries no handle, so unlike the directory
-/// channel's `DirOutcome` this never orphans anything and `super::channel::Answer::orphan`'s
+/// channel's `DirOutcome` this never orphans anything and `crate::channel::Answer::orphan`'s
 /// default (always `None`) is exactly right.
 ///
 /// A failure is an entry rather than an absence for the same reason a successful read is: the
@@ -110,7 +110,7 @@ pub type PrefixPath = heapless::String<MAX_PATH_CHARS>;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PrefixLen(pub Option<usize>);
 
-impl super::channel::Answer for PrefixLen {}
+impl crate::channel::Answer for PrefixLen {}
 
 /// What [`take_from`] found in the slot for the path it was asked about.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -123,7 +123,7 @@ pub enum PrefixTake {
     Failed,
 }
 
-/// The one prefix this channel holds, if it holds one. See `super::channel::AnswerSlot` for the
+/// The one prefix this channel holds, if it holds one. See `crate::channel::AnswerSlot` for the
 /// slot rules; this type just names the key and value the prefix channel uses.
 ///
 /// Passed to [`publish_into`]/[`take_from`] by reference rather than reached for as a static, so
@@ -134,7 +134,7 @@ pub enum PrefixTake {
 /// [`RESULT_BYTES`], in SDRAM -- because an 8 KiB array inside the `Mutex` would sit in on-chip
 /// SRAM, and an empty `Option` is not all-zero bytes, so the slot itself cannot go to `.sdram_bss`.
 pub struct PrefixSlot {
-    inner: super::channel::AnswerSlot<PrefixPath, PrefixLen>,
+    inner: crate::channel::AnswerSlot<PrefixPath, PrefixLen>,
 }
 
 impl PrefixSlot {
@@ -142,7 +142,7 @@ impl PrefixSlot {
     /// the same thing everywhere else; this exists only because `Default::default` is not `const`.
     pub const fn new() -> Self {
         Self {
-            inner: super::channel::AnswerSlot::new(),
+            inner: crate::channel::AnswerSlot::new(),
         }
     }
 
@@ -219,7 +219,7 @@ fn new_entry(slot: &mut PrefixSlot, key: &str, generation: u32, len: Option<usiz
 /// Take `path`'s entry if the slot holds one stamped `generation` AND `out` is big enough, copying its
 /// bytes out of `store` -- the store [`publish_into`] wrote them to.
 ///
-/// The key match and the generation stamp are `super::channel::AnswerSlot::take`'s rule: a
+/// The key match and the generation stamp are `crate::channel::AnswerSlot::take`'s rule: a
 /// mismatched key is left alone, a stale stamp is removed and reported as absent. `None` reaches
 /// the collector as `UNKNOWN`, whose documented meaning is already "request it (again)".
 ///
@@ -251,12 +251,12 @@ pub fn take_from(
     out: &mut [u8],
 ) -> Option<PrefixTake> {
     let len = match slot.inner.take(path, generation) {
-        // Key mismatch or a stale stamp -- `super::channel::AnswerSlot::take` already removed a
+        // Key mismatch or a stale stamp -- `crate::channel::AnswerSlot::take` already removed a
         // stale entry (and left a mismatched one alone); there is nothing left here to close.
-        super::channel::Take::Absent { .. } => return None,
+        crate::channel::Take::Absent { .. } => return None,
         // A published failure. Removed like any other answer; `out` is untouched.
-        super::channel::Take::Ready(PrefixLen(None)) => return Some(PrefixTake::Failed),
-        super::channel::Take::Ready(PrefixLen(Some(len))) => len,
+        crate::channel::Take::Ready(PrefixLen(None)) => return Some(PrefixTake::Failed),
+        crate::channel::Take::Ready(PrefixLen(Some(len))) => len,
     };
     if out.len() < len {
         // Caller bug, and terminal: the entry is already consumed above, so this reports an empty
@@ -334,7 +334,8 @@ static mut WORK_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
 
 /// Grants [`WORK_BYTES`] once.
 #[cfg(any(target_os = "none", feature = "host_app"))]
-static WORK_CLAIM: super::file_bytes::ClaimOnce = super::file_bytes::ClaimOnce::new();
+static WORK_CLAIM: crate::channel::file_bytes::ClaimOnce =
+    crate::channel::file_bytes::ClaimOnce::new();
 
 /// The work buffer, to the first caller only. [`file_prefix_task`] claims it once, at start.
 #[cfg(any(target_os = "none", feature = "host_app"))]
@@ -520,7 +521,7 @@ fn probe(path: &str, out: &mut [u8]) -> Probe {
     // fate independent of whether the flush that invalidated it managed to take this lock. See
     // [`take_from`].
     let (slot, store) = result_parts(&mut result);
-    match take_from(slot, store, path, super::card::generation(), out) {
+    match take_from(slot, store, path, crate::storage::card::generation(), out) {
         Some(PrefixTake::Bytes(len)) => Probe::Ready(len),
         Some(PrefixTake::Failed) => Probe::Failed,
         None => Probe::Unknown,
@@ -652,7 +653,7 @@ async fn read_prefix<O: LoadOps>(
 // ── The task ────────────────────────────────────────────────────────────────
 
 /// The prefix reader: wakes on [`PREFIX_WAKE`], serves the outstanding request through the audio
-/// loader's [`ProdOps`](super::audio_loader::ProdOps), publishes the bytes, then goes back to sleep.
+/// loader's [`ProdOps`](crate::channel::audio_loader::ProdOps), publishes the bytes, then goes back to sleep.
 ///
 /// [`IN_FLIGHT`] is set before the I/O and cleared only after the prefix is published, so
 /// [`deluge_file_prefix_collect`] never sees a gap in which a running read looks unknown.
@@ -678,7 +679,7 @@ pub async fn file_prefix_task() {
 #[cfg(any(target_os = "none", feature = "host_app"))]
 async fn file_prefix_task_body() {
     PREFIX_WAKE.wait().await;
-    let ops = super::audio_loader::ProdOps::new();
+    let ops = crate::channel::audio_loader::ProdOps::new();
     // One buffer for the life of the task, and not in the task: an 8 KiB array held across the awaits
     // below would sit in this task's pool, in on-chip SRAM. See `WORK_BYTES`.
     let Some(work) = claim_work_bytes() else {
@@ -729,7 +730,7 @@ async fn file_prefix_task_body() {
 async fn take_next_request() -> Option<(PrefixRequest, u32)> {
     let mut request = REQUEST.lock().await;
     let request = request.take()?;
-    let generation = super::card::generation();
+    let generation = crate::storage::card::generation();
     mark_in_flight(Some(request.path.clone())).await;
     Some((request, generation))
 }
@@ -759,7 +760,7 @@ pub async fn mark_in_flight(path: Option<PrefixPath>) {
 /// ordered against a flush that DID take the lock.
 pub async fn publish_result(key: &str, bytes: Option<&[u8]>, generation: u32) {
     let mut result = RESULT.lock().await;
-    if generation != super::card::generation() {
+    if generation != crate::storage::card::generation() {
         // The card this was read from is gone. Dropping costs the I/O that produced it and nothing
         // else, and the collector reads the resulting `UNKNOWN` as "request it again" -- which it
         // then does, against the card that is actually in the slot.

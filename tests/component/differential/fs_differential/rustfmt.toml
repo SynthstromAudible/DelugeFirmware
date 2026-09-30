@@ -7,4 +7,4 @@
 # this crate's rust-toolchain.toml already pins nightly) excludes it from THIS crate's
 # formatting run without touching the BSP-owned file or either crate's edition.
 unstable_features = true
-ignore = ["**/bsp/rust/src/efatfs_core.rs"]
+ignore = ["**/bsp/rust/src/storage/efatfs/portable.rs"]

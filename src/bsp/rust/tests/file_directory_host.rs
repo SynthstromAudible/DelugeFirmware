@@ -3,7 +3,7 @@
 //! ordering.
 #![cfg(not(target_os = "none"))]
 
-use deluge_bsp_rust::file_directory;
+use deluge_bsp_rust::channel::file_directory;
 
 use file_directory::{DirOutcome, DirTake, DirectorySlot, drain, publish_into, take_from};
 

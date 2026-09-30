@@ -45,7 +45,7 @@ pub extern "C" fn _sbrk(incr: isize) -> *mut core::ffi::c_void {
 // `fault_handler_print_freeze_pointers` (the app's FREEZE_WITH_ERROR reporter) used to
 // be an empty stub here, so a FREEZE_WITH_ERROR on this BSP silently reported nothing.
 // The real pad-grid renderer is now portable (src/deluge/io/debug/fault_pattern.c) and
-// links into this image, with [`crate::fault`] supplying its board half — so the stub
+// links into this image, with [`crate::peripherals::fault`] supplying its board half — so the stub
 // is gone rather than shadowing it.
 
 // --- C runtime shim: with -nostartfiles there's no crtn _fini. ---

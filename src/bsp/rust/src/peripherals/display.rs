@@ -102,7 +102,7 @@ pub extern "C" fn deluge_display_timer_event() {}
 /// ("voice being freed is not in this Sound's list") drew its error screen and then ran
 /// on into `freeActiveVoice` for that stale voice, ending in a wild branch to 0x20.
 ///
-/// Polls the PIC receive path directly rather than awaiting [`crate::control`]'s queue:
+/// Polls the PIC receive path directly rather than awaiting [`crate::peripherals::control`]'s queue:
 /// callers are mid-assertion with the world deliberately stopped, and on the fault-vector
 /// path there is no executor left to service an `async` read.
 #[unsafe(no_mangle)]

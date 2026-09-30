@@ -4,9 +4,9 @@
 //!   cargo test --test audio_pacing_host
 #![cfg(not(target_os = "none"))]
 
-use deluge_bsp_rust::audio_pacing;
+use deluge_bsp_rust::audio::pacing;
 
-use audio_pacing::pace_window;
+use pacing::pace_window;
 
 /// The ring the device's drive paces against (`audio.rs`'s `APP_BLOCK_FRAMES`).
 const RING: usize = 128;

@@ -36,7 +36,7 @@ const BLOCK_SIZE: usize = 512;
 pub struct SdBlockDevice;
 
 // B7 REGRESSION GUARD: every transfer in this impl MUST go through
-// `crate::sd::locked_*`, never `deluge_bsp::sd::read_sectors`/`write_sectors`
+// `crate::storage::sd::locked_*`, never `deluge_bsp::sd::read_sectors`/`write_sectors`
 // directly. The raw calls bypass SD_BUS, which is what keeps a transfer off the single SDHI
 // controller while `sd::card_service` is re-identifying the card (see `read`'s comment below).
 impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
@@ -73,7 +73,7 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
         //
         // Lock order: this is reached under the efatfs FS mutex, so the order is
         // FS -> SD_BUS. Nothing takes SD_BUS and then FS, so there is no inversion.
-        crate::sd::locked_read_sectors(block_address, count, flat).await
+        crate::storage::sd::locked_read_sectors(block_address, count, flat).await
     }
 
     async fn write(
@@ -88,7 +88,7 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
             core::slice::from_raw_parts(data.as_ptr().cast::<u8>(), data.len() * BLOCK_SIZE)
         };
         // B7: SD_BUS-guarded, for the same reason as `read` above.
-        crate::sd::locked_write_sectors(block_address, count, flat).await
+        crate::storage::sd::locked_write_sectors(block_address, count, flat).await
     }
 
     async fn size(&mut self) -> Result<u64, SdError> {
