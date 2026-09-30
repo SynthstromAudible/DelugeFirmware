@@ -4,15 +4,17 @@
 //! the pacing. The app renders i32 stereo via `deluge_app_render`, written directly into the
 //! uncached TX ring.
 //!
-//! No ISR touches this state, and the `static mut` cursors assume one accessor at a time. The
+//! No ISR touches this state. The `static mut` cursors belong to the render (the preemptive audio
+//! tier) alone, apart from `deluge_audio_start`, which anchors them before the render starts. The
 //! cross-tier exceptions are atomics: [`RENDER_BLOCKS`], bumped by the render and read by
-//! [`deluge_audio_await_block`] in thread mode, and [`BLOCK_START_PLAY`], written by the render
-//! (the preemptive audio tier) and read by the task tier to place capture stamps.
+//! [`deluge_audio_await_block`] in thread mode; [`BLOCK_START_PLAY`], written by the render and read
+//! by the task tier to place capture stamps; and [`RX_RESYNC_REQUESTED`], which the task tier sets
+//! for the render to act on.
 #![allow(non_upper_case_globals)]
 // The unsafe ops inside the unsafe fns are justified per site.
 #![allow(unsafe_op_in_unsafe_fn)]
 
-use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
 
 use rza1l_hal::ssi;
 
@@ -141,10 +143,35 @@ pub extern "C" fn deluge_audio_start() -> DelugeStatus {
     DELUGE_OK
 }
 
+/// Set by [`deluge_audio_input_resync`] on the task tier; the render performs the resync, since
+/// the read cursor is the render's.
+static RX_RESYNC_REQUESTED: AtomicBool = AtomicBool::new(false);
+
+/// Pulls the RX read cursor forward until input latency is in `[TX_FRAMES, 2 * TX_FRAMES)`. The RX
+/// ring is deeper than the TX ring, and a glitch or startup can leave latency a full TX ring too
+/// high.
+///
+/// # Safety
+///
+/// Only the render may call this: it writes `RX_READ`.
+unsafe fn resync_rx() {
+    let rx_write = rx_write_frame();
+    loop {
+        let lat = rx_write.wrapping_sub(RX_READ).wrapping_sub(TX_FRAMES) & RX_MASK;
+        if lat < TX_FRAMES {
+            break;
+        }
+        RX_READ = (RX_READ + TX_FRAMES) & RX_MASK;
+    }
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_drive() -> u32 {
     let mut renders = 0u32;
     unsafe {
+        if RX_RESYNC_REQUESTED.swap(false, Ordering::Acquire) {
+            resync_rx();
+        }
         while flush_pending() && renders < 2 {
             PLAY_CACHED = tx_play_frame();
             // Frames the play head is ahead of the write cursor = free space.
@@ -193,20 +220,11 @@ pub extern "C" fn deluge_audio_await_block() {
     }
 }
 
+/// Asks the render to resync the input read cursor at its next drive (see `resync_rx`). The caller
+/// is on the task tier and the cursor is the render's, so this only sets a request.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_input_resync() {
-    // The RX ring is deeper than the TX ring, and a glitch or startup can leave RX latency a full
-    // TX ring too high. Pull the read cursor forward until latency is in [TX_FRAMES, 2*TX_FRAMES).
-    unsafe {
-        let rx_write = rx_write_frame();
-        loop {
-            let lat = rx_write.wrapping_sub(RX_READ).wrapping_sub(TX_FRAMES) & RX_MASK;
-            if lat < TX_FRAMES {
-                break;
-            }
-            RX_READ = (RX_READ + TX_FRAMES) & RX_MASK;
-        }
-    }
+    RX_RESYNC_REQUESTED.store(true, Ordering::Release);
 }
 
 #[unsafe(no_mangle)]

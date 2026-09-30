@@ -65,8 +65,10 @@ void deluge_audio_await_block(void) DELUGE_NOEXCEPT;
 
 /// Re-align the input stream's latency window after a glitch or at start-up
 /// (the input ring is deeper than the output ring; if an entire output-ring
-/// cycle was missed, input latency grows by a lap until corrected). Cheap;
-/// call periodically from a housekeeping task, never from the render. [task]
+/// cycle was missed, input latency grows by a lap until corrected). Only
+/// requests it: the render, which owns the read cursor, re-aligns at its next
+/// block. Cheap; call periodically from a housekeeping task, never from the
+/// render. [task]
 void deluge_audio_input_resync(void) DELUGE_NOEXCEPT;
 
 /// During/after a `deluge_app_render()` call: how many frames from now until
