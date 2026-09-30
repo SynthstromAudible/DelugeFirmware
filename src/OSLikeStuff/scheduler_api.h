@@ -61,31 +61,19 @@ typedef uint32_t ResourceID;
 int8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
                         double maxTimeBetweenCalls, const char* name, ResourceID resource);
 
-/// Add a task to run once, aiming to run at current time + timeToWait and worst case run at timeToWait*10
-int8_t addOnceTask(TaskHandle task, uint8_t priority, double timeToWait, const char* name, ResourceID resources);
-
 /// add a task that runs only after the condition returns true. Condition checks should be very fast or they could
 /// interfere with scheduling
 int8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
                           ResourceID resources);
 void ignoreForStats();
 double getAverageRunTimeForTask(TaskID id);
-double getAverageRunTimeforCurrentTask();
 double getSystemTime();
-void setNextRunTimeforCurrentTask(double seconds);
-void removeTask(TaskID id);
-void boostTask(TaskID id);
 void runTask(TaskID id);
 void yield(RunCondition until);
 
 /// set the current task to blocked
 void blockTask(TaskID id);
 void unblockTask(TaskID id);
-/// timeout in seconds, returns whether the condition was met
-bool yieldWithTimeout(RunCondition until, double timeout);
-/// yield until the condition is met, but return immediately if the scheduler is idle
-/// use if you're yielding in a loop such as the sd routine
-bool yieldToIdle(RunCondition until);
 
 /// True while a slow-storage (SD / SPI-flash / USB) busy-wait is yielding to the scheduler.
 /// The application reads it to gate user actions that must not run re-entrantly inside a
