@@ -130,8 +130,8 @@ async fn reset_all_handle_tables() {
 
 /// Drop the filesystem, leaving it unmounted.
 ///
-/// The symmetric counterpart of [`mount`], which until now had none: [`remount`] drops and re-mounts
-/// in one step, so nothing could put the filesystem into the unmounted state and leave it there.
+/// The counterpart of [`mount`]: [`remount`] drops and re-mounts in one step, and this is the one
+/// call that puts the filesystem into the unmounted state and leaves it there.
 /// That is the state the directory channel's driver mounts OUT of, so without this it could not be
 /// exercised at all.
 pub async fn unmount() {

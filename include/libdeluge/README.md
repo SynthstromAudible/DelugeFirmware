@@ -21,8 +21,9 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    and `abi_const!` checks, except for `sys_host.rs`'s, which sit at the bottom of that file. A crate-defined
    type that crosses the boundary is re-exported into `sys` under the header's name and checked exhaustively,
    field-for-field or variant-for-variant, by `abi_layout!`. A copied constant is pinned by `abi_const!`. The
-   pre-commit hook `python3 scripts/check_abi_surface.py --check --pins --tags` fails when a declared function has no
-   definition, or when a Rust definition or `extern "C"` import of one has no pin that reaches it. Change a signature in the header, and the build tells you every place that disagrees.
+   pre-commit hook `python3 scripts/check_abi_surface.py --check --pins --tags --noexcept` fails when a declared
+   function has no definition, when a Rust definition or `extern "C"` import of one has no pin that reaches it, or
+   when a declaration lacks `DELUGE_NOEXCEPT`. Change a signature in the header, and the build tells you every place that disagrees.
 3. **Direction is one-way.** The app includes `<libdeluge/…>`. The platform implements it. `app.h` is the other
    direction: callbacks the app implements and the platform calls. `scripts/check_platform_boundary.py` keeps the
    app from including platform headers.
@@ -47,6 +48,19 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    (`deluge_audio_frames_until_block_offset` and `deluge_midi_gate_timer_arm`, reached only when MIDI or gate output
    is pending, and `deluge_sample_region_state`, reached only by a playing sample voice) need a song that boot has
    not loaded.
+
+## Handles
+
+Every table handle that crosses the ABI (an open file, directory or stream) is a `DelugeHandle` (`types.h`, a
+`uint32_t`), and `DELUGE_HANDLE_NONE` (0) is none: no call hands it out, and a caller tests a stored handle against
+it. The tables behind the handles index their slots from 0, so a slot crosses as `slot + 1`; the Rust exports
+convert with `src/bsp/rust/src/abi_handle.rs`'s `to_abi`/`from_abi`, at the exports only, and nothing inside the
+BSP sees a `DelugeHandle`. `sample_stream.h`'s registry numbers its handles the same way.
+
+A call passed `DELUGE_HANDLE_NONE` does nothing and gives its bad-argument answer: a status-returning call answers
+`DELUGE_ERR_PARAM`, a close does nothing, a channel request answers false and a channel collect answers
+`DELUGE_CHANNEL_UNKNOWN`. A non-zero handle that names no open row gets each call's own answer, which is not always
+the same one (the streaming `deluge_efatfs_read_at` and `deluge_efatfs_stream_*` answer `DELUGE_ERR_IO`).
 
 ## Channels
 

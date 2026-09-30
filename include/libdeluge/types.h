@@ -50,8 +50,11 @@ typedef enum DelugeStatus : int8_t {
 /// A handle to a row of one of the BSP's tables: an open file, directory or stream.
 ///
 /// 0 is none (@ref DELUGE_HANDLE_NONE), and no call ever hands it out. A caller stores the number as it came and
-/// tests it against @ref DELUGE_HANDLE_NONE; a call that takes a handle refuses @ref DELUGE_HANDLE_NONE the way it
-/// refuses any handle that names no open row.
+/// tests it against @ref DELUGE_HANDLE_NONE. A call that takes a handle and is passed @ref DELUGE_HANDLE_NONE does
+/// nothing and answers its bad-argument result: a status-returning call answers @ref DELUGE_ERR_PARAM, a close does
+/// nothing, a channel request answers false and a channel collect answers `DELUGE_CHANNEL_UNKNOWN`. A non-zero handle
+/// that names no open row is refused by each call's own rule, which is not always the same answer (the streaming
+/// `deluge_efatfs_read_at` and `deluge_efatfs_stream_*` calls answer @ref DELUGE_ERR_IO for it).
 typedef uint32_t DelugeHandle;
 
 /// The handle that names nothing. See @ref DelugeHandle.

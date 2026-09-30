@@ -134,7 +134,10 @@ DelugeStatus deluge_efatfs_stats(uint32_t* out_free_clusters, uint32_t* out_tota
 /// @brief Mount the storage volume if it isn't already mounted. Idempotent: a call while already
 ///        mounted is a no-op success. [task]
 /// @return `DELUGE_OK` if mounted (or already was); `DELUGE_ERR_NO_FILESYSTEM` if the card holds no
-///         FAT volume it can read; `DELUGE_ERR_IO` if the card could not be read.
+///         FAT volume it can read; `DELUGE_ERR_IO` if the card could not be read. A failure the
+///         filesystem reports some other way is mapped by the BSP's `error_to_status`, so it may also
+///         be `DELUGE_ERR_PARAM`, `DELUGE_ERR_NOT_FOUND`, `DELUGE_ERR_EXISTS`, `DELUGE_ERR_NOT_EMPTY` or
+///         `DELUGE_ERR_NO_SPACE`.
 DelugeStatus deluge_efatfs_mount(void) DELUGE_NOEXCEPT;
 
 /// @brief How many times the filesystem has become mounted, as a monotonic counter. [task]
@@ -160,10 +163,9 @@ DelugeStatus deluge_efatfs_remount(void) DELUGE_NOEXCEPT;
 
 /// @brief Drop the filesystem, leaving it UNMOUNTED. [task]
 ///
-/// The symmetric counterpart of @ref deluge_efatfs_mount, which until now had none —
-/// @ref deluge_efatfs_remount drops and re-mounts in one step, so nothing could leave the filesystem
-/// unmounted. That is the state a lazily-mounting caller has to be able to start from, so without
-/// this it could not be exercised.
+/// The counterpart of @ref deluge_efatfs_mount: @ref deluge_efatfs_remount drops and re-mounts in
+/// one step, and this is the one call that leaves the filesystem unmounted, the state a
+/// lazily-mounting caller has to be able to start from.
 void deluge_efatfs_unmount(void) DELUGE_NOEXCEPT;
 
 /// @brief The mounted volume's cluster (allocation-unit) size, in bytes. [task]
@@ -258,9 +260,10 @@ DelugeStatus deluge_efatfs_set_time(const char* path, uint16_t year, uint8_t mon
 /// async open.
 /// @param path           NUL-terminated absolute file path.
 /// @param out_handle     Receives the handle on success; untouched on failure.
-/// @param out_table_full Written on every call that gets past the null checks: true iff the open
-///                       failed specifically because the streaming-read handle table has no free
-///                       slot (as opposed to the file genuinely not existing, or the FS being
+/// @param out_table_full Written on every call that gets past the null checks and the path's UTF-8
+///                       check (a non-UTF-8 path answers `DELUGE_ERR_PARAM` before writing it): true
+///                       iff the open failed specifically because the streaming-read handle table has
+///                       no free slot (as opposed to the file genuinely not existing, or the FS being
 ///                       unmounted) -- the caller maps a `true` value to a dedicated
 ///                       `Error::TOO_MANY_OPEN_STREAMS` rather than the misleading
 ///                       `Error::FILE_NOT_FOUND`. Always `false` when @p out_handle was written.
