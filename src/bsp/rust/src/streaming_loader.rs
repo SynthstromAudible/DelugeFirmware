@@ -81,22 +81,9 @@ pub extern "C" fn deluge_streaming_signal_fill() {
 const BLOCKING_FILL_PRIORITY: u32 = 0;
 
 /// The process-wide resource-manager singleton, as the untyped pointer the loader-queue C ABI takes.
-///
-/// Where the libdeluge bindings exist this calls their `streaming_fill.h` declaration; the plain host
-/// carrier, which has only the `sys_host.rs` stand-ins, declares the same symbol itself.
 fn resource_manager() -> *mut c_void {
-    #[cfg(any(target_os = "none", feature = "host_app"))]
     // SAFETY: no preconditions; returns the boot-singleton manager or null.
-    let mgr = unsafe { crate::sys::deluge_streaming_resource_manager() }.cast::<c_void>();
-    #[cfg(not(any(target_os = "none", feature = "host_app")))]
-    // SAFETY: as above.
-    let mgr = unsafe { deluge_streaming_resource_manager() };
-    mgr
-}
-
-#[cfg(not(any(target_os = "none", feature = "host_app")))]
-unsafe extern "C" {
-    fn deluge_streaming_resource_manager() -> *mut c_void;
+    unsafe { crate::sys::deluge_streaming_resource_manager() }.cast::<c_void>()
 }
 
 unsafe extern "C" {

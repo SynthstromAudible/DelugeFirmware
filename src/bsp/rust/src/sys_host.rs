@@ -62,6 +62,13 @@ pub struct DelugeBootInfo {
     pub factory_reset_requested: bool,
 }
 
+unsafe extern "C" {
+    /// `include/libdeluge/streaming_fill.h`: the resource-manager singleton
+    /// (`DelugeResource` is opaque, so `sys` binds it as `c_void`).
+    pub fn deluge_streaming_resource_manager() -> *mut core::ffi::c_void;
+}
+
+abi_pin!(deluge_streaming_resource_manager);
 abi_layout!(type self::DelugeStatus => sys DelugeStatus);
 abi_layout!(type self::DelugeInputEventKind => sys DelugeInputEventKind);
 abi_layout!(self::DelugeInputEvent => sys DelugeInputEvent { kind, x, y, value });

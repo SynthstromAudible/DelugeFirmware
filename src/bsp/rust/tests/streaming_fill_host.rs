@@ -22,6 +22,10 @@ use std::cell::{Cell, RefCell};
 #[path = "support/abi_pin_noop.rs"]
 mod abi_pin_noop;
 
+/// The plain host `sys`, which declares the resource-manager accessor `streaming_loader.rs` calls.
+#[path = "../src/sys_host.rs"]
+mod sys;
+
 #[path = "../src/streaming_loader.rs"]
 mod streaming_loader;
 
