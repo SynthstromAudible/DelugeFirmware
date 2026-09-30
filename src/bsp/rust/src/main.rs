@@ -142,6 +142,11 @@ mod sys {
     )]
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
+/// `sys_host.rs` compiled again beside the real `sys`, so its pins check the plain host build's stand-ins against
+/// the headers.
+#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[path = "sys_host.rs"]
+mod sys_host_check;
 
 /// The header's own definitions of the types `sys` binds to an in-tree crate's types (see `build_crate_types.rs`),
 /// which `abi_layout!` checks the crates' definitions against.
