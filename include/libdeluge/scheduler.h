@@ -82,9 +82,9 @@ int8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, d
 int8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
                           ResourceID resources) DELUGE_NOEXCEPT;
 
-/// Exclude the current task invocation's run time from its scheduling average (e.g. this call did
-/// no real work, so it should not count toward how long the task is expected to take). Called both
-/// from plain tasks and from the audio render's own driving task. [task] [audio]
+/// Exclude the current run of the calling task from its running-average run time (this run did no
+/// real work, so it should not count toward how long the task takes). The exclusion covers this run
+/// only. Called both from plain tasks and from the audio render's own driving task. [task] [audio]
 void ignoreForStats() DELUGE_NOEXCEPT;
 
 /// Running average of how long `id`'s task takes to run per call, in seconds. Only ever read for the

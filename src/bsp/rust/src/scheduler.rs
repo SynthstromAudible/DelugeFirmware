@@ -384,6 +384,8 @@ async fn task_runner(slot: &'static TaskSlot) {
             // mid-body and must leave the preempted task's id intact.
             let idx = SLOTS.iter().position(|s| core::ptr::eq(s, slot)).unwrap() as TaskID;
             let prev = CURRENT.swap(idx, Ordering::Relaxed);
+            // `ignoreForStats` excludes one run, so every run starts counted.
+            slot.count_stats.store(true, Ordering::Relaxed);
             let t0 = Instant::now();
             // SAFETY: a task body the C++ app registered, which takes no arguments and may run on
             // this tier.
