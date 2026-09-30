@@ -100,15 +100,15 @@ struct TaskSlot {
     handle: AtomicUsize,
     /// `RunCondition` as a `usize`, or 0 for none (repeating/once tasks).
     condition: AtomicUsize,
-    /// Target time between calls, microseconds (repeating); or the one-shot delay
-    /// (once). Conditional tasks ignore this and poll `condition` instead.
+    /// Target time between calls, microseconds (repeating); or the delay before the
+    /// single run (once). Conditional tasks ignore this and poll `condition` instead.
     period_us: AtomicU64,
     /// Minimum time from completion to the next call, microseconds.
     backoff_us: AtomicU64,
     /// Resource bitmask gating the run (these will map onto embassy-sync
     /// mutexes; today the gate is a no-op).
     resource: AtomicU64,
-    /// Run once then free (once / conditional tasks).
+    /// Run once then free. Set only by conditional tasks.
     once: AtomicBool,
     /// `blockTask`/`unblockTask`: when false the runner parks on `wake`.
     enabled: AtomicBool,
@@ -401,7 +401,7 @@ pub fn registered_task_count() -> usize {
 
 /// One Embassy task per Deluge task. Pool sized to [`MAX_TASKS`] so every slot can
 /// be live at once. Waits per the slot's schedule (or condition), runs the C++
-/// handle to completion, and loops (for once tasks, until it has run).
+/// handle to completion, and loops; a once task exits after its first run.
 #[embassy_executor::task(pool_size = 32)]
 async fn task_runner(slot: &'static TaskSlot) {
     // Acquire-pair with `claim`'s store of `used`/handle so we observe them.
@@ -451,8 +451,8 @@ async fn task_runner(slot: &'static TaskSlot) {
                 None
             };
 
-            // Set CURRENT for the *ForCurrentTask C-ABI calls, saving/restoring the
-            // previous value: the audio interrupt-executor can preempt a thread-mode
+            // Set CURRENT so `ignoreForStats` can find the running task, saving/restoring
+            // the previous value: the audio interrupt-executor can preempt a thread-mode
             // task_runner mid-handle, and must leave CURRENT as it found it so the
             // preempted task's id is intact when it resumes.
             let idx = SLOTS.iter().position(|s| core::ptr::eq(s, slot)).unwrap() as TaskID;

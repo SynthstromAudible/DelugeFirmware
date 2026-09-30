@@ -15,11 +15,11 @@ use core::sync::atomic::{AtomicU32, Ordering};
 use crate::tier::{self, Tier};
 
 macro_rules! entries {
-    ($($variant:ident => $name:literal),* $(,)?) => {
+    ($($(#[$attr:meta])* $variant:ident => $name:literal),* $(,)?) => {
         /// A synchronous bridge entry point.
         #[repr(u8)]
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-        pub enum Entry { $($variant),* }
+        pub enum Entry { $($(#[$attr])* $variant),* }
 
         /// Each entry's short name, NUL-terminated for the C ABI.
         const NAMES: &[&str] = &[$(concat!($name, "\0")),*];
@@ -31,11 +31,16 @@ entries! {
     Close => "close",
     ReadAt => "read_at",
     FileOpen => "file_open",
+    // Never constructed, but each variant's discriminant is a stable positional index into NAMES/COUNTS
+    // (tests assert 33 entries), so it stays to hold its slot.
+    #[allow(dead_code)]
     FileRead => "file_read",
     FileReadExact => "file_read_exact",
     FileWrite => "file_write",
     FileSeek => "file_seek",
     FileSize => "file_size",
+    // Never constructed -- see FileRead's comment above.
+    #[allow(dead_code)]
     FileTruncate => "file_truncate",
     FileClose => "file_close",
     DirOpen => "dir_open",
@@ -43,6 +48,8 @@ entries! {
     DirClose => "dir_close",
     Stats => "stats",
     Mount => "mount",
+    // Never constructed -- see FileRead's comment above.
+    #[allow(dead_code)]
     IsMounted => "is_mounted",
     Unmount => "unmount",
     Remount => "remount",
@@ -54,6 +61,8 @@ entries! {
     StreamOpen => "stream_open",
     StreamWriteAt => "stream_write_at",
     StreamReadAtVia => "stream_read_at_via",
+    // Never constructed -- see FileRead's comment above.
+    #[allow(dead_code)]
     StreamFlush => "stream_flush",
     StreamTruncate => "stream_truncate",
     StreamSize => "stream_size",

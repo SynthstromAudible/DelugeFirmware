@@ -143,12 +143,12 @@ bool deluge_efatfs_mount(void);
 
 /// @brief How many times the filesystem has become mounted, as a monotonic counter.
 ///
-/// Read this to notice an unmounted→mounted EDGE. Sampling this either side of your own
-/// @ref deluge_efatfs_mount only finds the edge while you are the ONLY thing that ever mounts, and
-/// that stopped being true when the directory channel's driver began mounting on the storage tier —
-/// mounting is card I/O and its caller is on the interaction tier. A driver that mounts silently
-/// leaves the mounted state true and an edge detector built on sampling it then sees "already
-/// mounted" and skips forever.
+/// Read this to notice an unmounted→mounted EDGE. A one-off before/after sample taken around your
+/// own @ref deluge_efatfs_mount call only finds the edge while you are the ONLY thing that ever
+/// mounts, and that stopped being true when the directory channel's driver began mounting on the
+/// storage tier — mounting is card I/O and its caller is on the interaction tier. Persisting the
+/// last-seen generation across calls, instead of re-sampling fresh each time, catches the edge no
+/// matter which caller mounted.
 ///
 /// A counter rather than a flag, so no reader consumes the edge out from under another.
 /// @return A value that changes on every mount. Only changes are meaningful; the absolute value is

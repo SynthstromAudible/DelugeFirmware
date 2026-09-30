@@ -1,11 +1,11 @@
-//! Stubs for app/BSP symbols that live OUTSIDE the libdeluge C-ABI headers:
-//! NE10 DSP entry points (see note) and a couple of C-runtime/linker shims.
+//! Stubs for app/BSP symbols that live OUTSIDE the libdeluge C-ABI headers: the
+//! C-runtime shims `_sbrk`/`_fini`, and the host-only linker-boundary
+//! stand-ins.
 //!
-//! Compiled on host too under the `host_app` feature (see main.rs). Most of
-//! this module is already host-portable as-is (the NE10 stubs); `_sbrk`/
+//! Compiled on host too under the `host_app` feature (see main.rs). `_sbrk`/
 //! `_fini` stay device-only (host glibc/crt already provide them — see
-//! below), and the `program_stack_*`/`__frunk_*` linker-boundary stand-ins
-//! near the bottom are host-only (device gets the real symbols from the
+//! below); the `program_stack_*`/`__frunk_*` linker-boundary stand-ins near
+//! the bottom are host-only (device gets the real symbols from the
 //! `rza1l.x` linker script).
 #![allow(non_upper_case_globals, unused_variables)]
 

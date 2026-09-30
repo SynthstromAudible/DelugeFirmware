@@ -178,12 +178,11 @@ static FS: Mutex<CriticalSectionRawMutex, Option<Fs>> = Mutex::new(None);
 ///
 /// The C++ side reads this to notice an unmounted->mounted EDGE, which is what drives
 /// `AudioFileManager::firstCardRead()` (and through it `cardReinserted()`, which re-checks every
-/// resident sample against the new card). Sampling the mount state either side of a
+/// resident sample against the new card). A one-off before/after sample of the mount state around a
 /// `deluge_efatfs_mount()` call only works while C++ is the only thing that ever mounts; the
 /// directory channel's driver also mounts, on the storage tier, because mounting is real card I/O
-/// and its caller is on the interaction tier. A driver that mounted silently would leave the mount
-/// state true with the notification never fired, and every later check would see "already mounted"
-/// and skip it forever.
+/// and its caller is on the interaction tier. Persisting the last-seen generation across calls,
+/// instead of re-sampling fresh each time, catches the edge no matter which caller mounted.
 ///
 /// A counter rather than a flag so no reader can consume the edge out from under another.
 static MOUNT_GENERATION: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
@@ -466,26 +465,6 @@ pub(crate) async fn task_file_open(path: &str, mode: u8) -> Result<u32, DelugeSt
     .await
     .ok_or(DELUGE_ERR_NO_FILESYSTEM)??;
     TASK_FILES.lock().await.insert(ctx).ok_or(DELUGE_ERR_IO) // table full
-}
-
-/// Fill-semantics read (zero-pads a short tail at EOF, like [`read_at`]) at the
-/// handle's current position, advancing it by `dst.len()` on success.
-async fn task_file_read(handle: u32, dst: &mut [u8]) -> Result<(), DelugeStatus> {
-    let Some((generation, ctx, pos)) = TASK_FILES.lock().await.checkout(handle) else {
-        return Err(DELUGE_ERR_PARAM);
-    };
-    let result = with_fs(async |fs| efatfs_core::read_context(fs, ctx, pos, dst).await).await;
-    match result {
-        Some(Some((newctx, filled))) => {
-            TASK_FILES
-                .lock()
-                .await
-                .commit(handle, generation, newctx, pos + dst.len() as u32);
-            if filled { Ok(()) } else { Err(DELUGE_ERR_IO) }
-        }
-        Some(None) => Err(DELUGE_ERR_IO),
-        None => Err(DELUGE_ERR_NO_FILESYSTEM),
-    }
 }
 
 /// EOF-honest read at the handle's current position -- the default for the
