@@ -447,8 +447,8 @@ pub extern "C" fn deluge_streaming_set_fill_read_latency_us(us: u32) {
 
 /// The fill task: wakes on [`FILL_WAKE`], drains the loader queue via the real
 /// [`ProdOps`], then goes back to sleep. Spawned in `main.rs` (device `main` +
-/// host `host_app`); the C++ enqueue path
-/// (`sample_stream.cpp`) wakes it via `deluge_streaming_signal_fill`.
+/// host `host_app`); whoever enqueues a chunk (`deluge_sample_reader`'s reservation and
+/// `deluge_sample_source`'s manager residency) wakes it via `deluge_streaming_signal_fill`.
 ///
 /// # Why `ProdOps` is constructed AFTER the first wake, never before
 ///

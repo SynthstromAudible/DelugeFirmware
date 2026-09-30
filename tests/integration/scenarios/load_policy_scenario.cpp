@@ -183,7 +183,7 @@ bool checkSampleBuildAbandon() {
 		// alone does not prove abandon() actually released the adopted chunk -- see the loop below for
 		// that.
 		if (audioFileManager.audioFiles.size() != before) {
-			printf("FAIL [audioLoadAbiAbandon]: audioFiles.size() changed across abandon (%zu -> %zu)\n", before,
+			printf("FAIL [sampleBuildAbandon]: audioFiles.size() changed across abandon (%zu -> %zu)\n", before,
 			       audioFileManager.audioFiles.size());
 			ok = false;
 		}

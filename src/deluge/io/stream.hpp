@@ -50,7 +50,7 @@ public:
 
 	/// @brief Collect the in-flight write, if it has finished.
 	/// @param out_written Written only on `DELUGE_CHANNEL_READY`, with the true byte count.
-	/// @return a `DELUGE_FILE_STREAM_*` value.
+	/// @return a `DELUGE_CHANNEL_*` value.
 	[[nodiscard]] DelugeChannelStatus collect_write_at(uint32_t* out_written);
 
 	/// @brief Ask for @p path to be opened, without blocking.
@@ -65,7 +65,7 @@ public:
 	///              because Stream has no valid empty state -- there is nothing to overwrite until the
 	///              handle actually exists.
 	/// @param error Written ONLY on `DELUGE_CHANNEL_FAILED`, with the status the open failed with. May be null.
-	/// @return a `DELUGE_FILE_STREAM_*` value.
+	/// @return a `DELUGE_CHANNEL_*` value.
 	[[nodiscard]] static DelugeChannelStatus collect_open(std::string_view path, std::optional<Stream>* out,
 	                                                      DelugeStatus* error = nullptr);
 
