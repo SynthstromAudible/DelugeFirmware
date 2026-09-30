@@ -47,7 +47,9 @@ void ClipView::focusRegained() {
 ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	/* Sean: disabling rendering while in clip view for now
 	maybeStartShortcutOverview(b, on);
+	*/
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently
 	// accessible
@@ -147,7 +149,9 @@ Action* ClipView::shortenClip(int32_t newLength) {
 
 ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
+	/* Sean: not required for now cause we disabled rendering shortcut overlay while in clip view
 	stopShortcutOverview();
+	*/
 	// Shift button pressed - edit length
 	if (isNoUIModeActive() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)
 	    && Buttons::isShiftButtonPressed()) {
