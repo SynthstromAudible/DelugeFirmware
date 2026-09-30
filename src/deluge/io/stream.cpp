@@ -12,7 +12,7 @@ std::expected<Stream, Status> Stream::open(std::string_view path, DelugeStreamMo
 	// write_at/read_at_via/close on this Stream reuses it; no per-call reopen.
 	const auto cpath = CPath::from(path);
 	if (!cpath) {
-		return std::unexpected(Status::ERR);
+		return std::unexpected(Status::PARAM);
 	}
 	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	const DelugeStatus status = deluge_efatfs_stream_open(cpath->c_str(), static_cast<uint8_t>(mode), &handle);

@@ -8,7 +8,9 @@
 deluge_specs_driver(io_specs
   SOURCES
     mock_file_io.cpp
+    mock_stream_io.cpp
     ../../../src/deluge/io/file.cpp
+    ../../../src/deluge/io/stream.cpp
     # The storage channels' C ABI as "no channel here", for io/file.cpp's collectOrRequestDir.
     ../../support/mocks/storage_channel_mocks.cpp
     ../../../src/deluge/storage/existence_policy.cpp
