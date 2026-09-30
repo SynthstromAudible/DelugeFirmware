@@ -4,8 +4,7 @@ A load that brings back the right song says nothing about how its bytes arrived.
 read the song load depends on: it must be served by the channels, after boot, and a gate that only checks what came
 back would stay green with that read broken in any way that still produced the song.
 
-One leg: neither the byte channel nor the write channel has a feature switch, so there is no build without them to
-compare against.
+One leg: the byte channel has no feature switch, so there is no build without it to compare against.
 
 What the checks cover (tests/integration/scenarios/song_load_channel_scenario.cpp writes the lines):
     SL-LOADED    the song came back off the card: a value stamped into it before saving and deliberately overwritten in

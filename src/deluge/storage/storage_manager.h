@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "io/file.hpp"
+#include "io/stall_bound.h"
 #include "libdeluge/scheduler.h" // isSDRoutineActive()
 #include "modulation/sync.h"
 #include "util/firmware_version.h"
@@ -452,7 +453,7 @@ struct StagingState {
 	/// Consecutive ticks this staging has been deferred without progress. Bounded, because a channel
 	/// that is never going to answer must END the wait rather than defer forever -- an unbounded retry
 	/// is not patience, it is a wedge that presents as the device having hung.
-	uint16_t stalledTicks = 0;
+	deluge::io::StallBound stalledTicks{};
 };
 
 /// @brief Read the whole of @p path into a freshly allocated buffer, blocking until it is there.
@@ -486,16 +487,16 @@ StagedOpen openDocumentStaged(char const* path, char const* firstTagName, char c
 
 /// @brief Free a staged buffer and clear its state. Safe on a state that holds nothing.
 ///
-/// Safe mid-read, too: a buffer the write channel is still reading into is parked instead of freed, and
+/// Safe mid-read, too: a buffer the byte channel is still reading into is parked instead of freed, and
 /// reapOrphanedStaging() frees it once the channel lets go. So a consumer that abandons a staged read on any path
 /// needs no special handling.
 void releaseStaging(StagingState* state);
 
-/// @brief Free the parked buffers the write channel no longer holds. Called from the channels' service task, and from
+/// @brief Free the parked buffers the byte channel no longer holds. Called from the channels' service task, and from
 ///        each staging call, so a parked buffer is freed within a tick of its read finishing.
 void reapOrphanedStaging();
 
-/// @brief How many released buffers are parked waiting for the write channel to let go. For gates.
+/// @brief How many released buffers are parked waiting for the byte channel to let go. For gates.
 [[nodiscard]] int32_t orphanedStagingCount();
 
 /// @brief Stage a document synchronously in a shared slot and open it for parsing.

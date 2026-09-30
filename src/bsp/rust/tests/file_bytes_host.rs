@@ -494,3 +494,216 @@ fn a_write_request_carries_its_length_not_its_bytes() {
         "a read owns none of the request buffer"
     );
 }
+
+#[test]
+fn a_caller_buffer_request_is_refused_while_another_is_queued() {
+    assert!(file_bytes::accepts(None, ByteOp::WriteFrom));
+    assert!(!file_bytes::accepts(Some(ByteOp::Read), ByteOp::WriteFrom));
+    assert!(!file_bytes::accepts(
+        Some(ByteOp::WriteFrom),
+        ByteOp::ReadInto
+    ));
+}
+
+#[test]
+fn a_second_write_from_is_refused_not_replaced() {
+    assert!(!file_bytes::accepts(
+        Some(ByteOp::WriteFrom),
+        ByteOp::WriteFrom
+    ));
+}
+
+/// `enqueue_request` refuses every request while another is queued, a read over a read included: the request
+/// that was already queued is kept, and the new one's collect reads UNKNOWN until it asks again.
+#[test]
+fn the_existing_read_rule_is_unchanged() {
+    assert_eq!(
+        file_bytes::accepts(Some(ByteOp::Read), ByteOp::Read),
+        file_bytes::READ_REPLACES_READ
+    );
+    assert!(!file_bytes::READ_REPLACES_READ);
+}
+
+fn path(text: &str) -> BytesPath {
+    BytesPath::try_from(text).expect("fits")
+}
+
+/// A rename, an unlink and a caller-buffer write do something a second run would not: the rename's source is
+/// gone, the unlinked file is gone, the exclusive write finds its own file. Everything else reaches the same state
+/// run twice.
+#[test]
+fn only_renames_unlinks_and_caller_buffer_writes_are_not_idempotent() {
+    for op in [ByteOp::Rename, ByteOp::Unlink, ByteOp::WriteFrom] {
+        assert!(file_bytes::non_idempotent(op), "{op:?}");
+    }
+    for op in [
+        ByteOp::Read,
+        ByteOp::Write,
+        ByteOp::Exists,
+        ByteOp::DirExists,
+        ByteOp::MkdirAll,
+        ByteOp::SetTime,
+        ByteOp::ReadAt,
+        ByteOp::WriteAt,
+        ByteOp::Stat,
+        ByteOp::Copy,
+        ByteOp::ReadInto,
+    ] {
+        assert!(!file_bytes::non_idempotent(op), "{op:?}");
+    }
+}
+
+#[test]
+fn an_uncollected_rename_answer_refuses_a_new_request() {
+    let mut slot = BytesSlot::new();
+    publish_into(&mut slot, ByteOp::Rename, SETTINGS, ByteOutcome::Done, CARD);
+    assert!(!slot.admits_new_request(CARD));
+}
+
+#[test]
+fn a_collected_answer_no_longer_refuses() {
+    let mut slot = BytesSlot::new();
+    publish_into(
+        &mut slot,
+        ByteOp::WriteFrom,
+        SETTINGS,
+        ByteOutcome::Wrote(5),
+        CARD,
+    );
+    assert!(!slot.admits_new_request(CARD));
+    assert_eq!(
+        take_from(&mut slot, ByteOp::WriteFrom, SETTINGS, CARD),
+        ByteTake::Ready(ByteOutcome::Wrote(5))
+    );
+    assert!(slot.admits_new_request(CARD));
+}
+
+#[test]
+fn an_abandoned_answer_ages_out_after_its_bound() {
+    let mut slot = BytesSlot::new();
+    publish_into(&mut slot, ByteOp::Unlink, SETTINGS, ByteOutcome::Done, CARD);
+    for _ in 0..file_bytes::PROTECTED_ANSWER_REFUSALS {
+        assert!(!slot.admits_new_request(CARD));
+    }
+    assert!(slot.admits_new_request(CARD));
+}
+
+#[test]
+fn an_idempotent_answer_is_still_displaceable() {
+    let mut slot = BytesSlot::new();
+    publish_into(
+        &mut slot,
+        ByteOp::Stat,
+        SETTINGS,
+        ByteOutcome::Size(9),
+        CARD,
+    );
+    assert!(slot.admits_new_request(CARD));
+}
+
+#[test]
+fn an_answer_from_a_departed_card_does_not_refuse() {
+    let mut slot = BytesSlot::new();
+    publish_into(&mut slot, ByteOp::Rename, SETTINGS, ByteOutcome::Done, CARD);
+    assert!(slot.admits_new_request(CARD + 1));
+}
+
+#[test]
+fn a_republish_restarts_the_age_bound() {
+    let mut slot = BytesSlot::new();
+    publish_into(&mut slot, ByteOp::Unlink, SETTINGS, ByteOutcome::Done, CARD);
+    for _ in 0..file_bytes::PROTECTED_ANSWER_REFUSALS {
+        assert!(!slot.admits_new_request(CARD));
+    }
+    publish_into(&mut slot, ByteOp::Rename, SETTINGS, ByteOutcome::Done, CARD);
+    assert!(!slot.admits_new_request(CARD));
+}
+
+/// A caller-buffer request asked under a card that has gone is dropped unrun, so its buffer is never named as
+/// running; one asked under the current card runs and names its buffer.
+#[test]
+fn a_stale_caller_buffer_request_is_dropped_at_take_and_never_marks_its_buffer() {
+    let read_into = ByteRequest::ReadInto {
+        path: path(SETTINGS),
+        dst: 0x1000,
+        cap: 64,
+    };
+    assert_eq!(file_bytes::admit_at_take(&read_into, CARD, CARD + 1), None);
+    assert_eq!(
+        file_bytes::admit_at_take(&read_into, CARD, CARD),
+        Some(0x1000)
+    );
+
+    let write_from = ByteRequest::WriteFrom {
+        path: path(SETTINGS),
+        src: 0x2000,
+        len: 64,
+        may_overwrite: false,
+    };
+    assert_eq!(file_bytes::admit_at_take(&write_from, CARD, CARD + 1), None);
+    assert_eq!(
+        file_bytes::admit_at_take(&write_from, CARD, CARD),
+        Some(0x2000)
+    );
+}
+
+/// Every kind asked under a card that has gone is dropped unrun: a rename, unlink or write queued for the old card
+/// and taken after a flush whose clear lost its race would otherwise run against the new one. Asked under the current
+/// card, each runs, naming no buffer.
+#[test]
+fn a_stale_request_of_every_kind_is_dropped_at_take() {
+    let p = path(SETTINGS);
+    let requests = [
+        ByteRequest::Read { path: p.clone() },
+        ByteRequest::Write {
+            path: p.clone(),
+            len: 4,
+        },
+        ByteRequest::Rename {
+            from: path("SETTINGS/old.XML"),
+            to: p.clone(),
+        },
+        ByteRequest::Unlink { path: p.clone() },
+        ByteRequest::Exists { path: p.clone() },
+        ByteRequest::DirExists { path: p.clone() },
+        ByteRequest::MkdirAll { path: p.clone() },
+        ByteRequest::SetTime {
+            path: p.clone(),
+            timestamp: FileTimestamp {
+                year: 2026,
+                month: 9,
+                day: 30,
+                hour: 0,
+                minute: 0,
+                second: 0,
+            },
+        },
+        ByteRequest::ReadAt {
+            path: p.clone(),
+            offset: 0,
+            len: 4,
+        },
+        ByteRequest::WriteAt {
+            path: p.clone(),
+            offset: 0,
+            len: 4,
+        },
+        ByteRequest::Stat { path: p.clone() },
+        ByteRequest::Copy {
+            from: path("SETTINGS/src.XML"),
+            to: p.clone(),
+        },
+    ];
+    for request in &requests {
+        assert_eq!(
+            file_bytes::admit_at_take(request, CARD, CARD + 1),
+            None,
+            "{request:?}"
+        );
+        assert_eq!(
+            file_bytes::admit_at_take(request, CARD, CARD),
+            Some(0),
+            "{request:?}"
+        );
+    }
+}

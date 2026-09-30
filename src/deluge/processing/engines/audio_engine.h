@@ -174,7 +174,7 @@ void doRecorderCardRoutines();
 ///        the gates' evidence that the drain runs off the storage tier.
 void requestRecorderCardRoutines();
 
-/// @brief How many recorder drains ran after boot, when their card writes go through the write channel.
+/// @brief How many recorder drains ran after boot, when their card writes go through the stream channel.
 ///
 /// The evidence that the drain itself ran on that path. A served count alone says writes were served,
 /// not which drain issued them.
@@ -191,7 +191,7 @@ void requestRecorderCardRoutines();
 /// The evidence that creating a recording's file ran through the create machine at all.
 [[nodiscard]] int32_t createTicks();
 
-/// @brief How many document-staging attempts ran after boot, through the byte and write channels.
+/// @brief How many document-staging attempts ran after boot, through the byte channel.
 ///
 /// The evidence that the song load's card read goes through the channels. Reading zero after a song
 /// load means the load took its bytes some other way, which is the whole thing this is here to disprove.

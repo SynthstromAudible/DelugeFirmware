@@ -1,14 +1,14 @@
-//! The write channel's answer slot: one answer at a time, keyed by kind, handle and path, stamped with the card
+//! The stream channel's answer slot: one answer at a time, keyed by kind, handle and path, stamped with the card
 //! generation it was asked under.
 //!
-//! `deluge-bsp-rust` is bin-only, so this recompiles `src/file_write_slot.rs` into the test binary via `#[path]`.
+//! `deluge-bsp-rust` is bin-only, so this recompiles `src/file_stream_slot.rs` into the test binary via `#[path]`.
 #![cfg(not(target_os = "none"))]
 
 #[allow(dead_code)]
-#[path = "../src/file_write_slot.rs"]
-mod file_write_slot;
+#[path = "../src/file_stream_slot.rs"]
+mod file_stream_slot;
 
-use file_write_slot::{AnswerSlot, MAX_PATH_CHARS, OpKey, OpKind, Take};
+use file_stream_slot::{AnswerSlot, MAX_PATH_CHARS, OpKey, OpKind, Take};
 
 /// Nonzero on purpose: a publish that dropped its stamp would leave 0, and a slot tested at 0 would not notice.
 const CARD: u32 = 3;
@@ -27,20 +27,20 @@ fn a_published_answer_is_taken_exactly_once() {
 }
 
 #[test]
-fn a_failure_carries_its_payload() {
+fn a_failure_is_taken_as_failed() {
     let mut slot = AnswerSlot::new();
-    let k = key(OpKind::ReadFile, 0, "SONGS/A.XML");
-    slot.publish(k.clone(), Err(40_000), CARD);
-    assert_eq!(slot.take(&k, CARD), Take::Failed(40_000));
+    let k = key(OpKind::Open, 0, "SONGS/A.XML");
+    slot.publish(k.clone(), Err(0), CARD);
+    assert_eq!(slot.take(&k, CARD), Take::Failed(0));
 }
 
 #[test]
 fn a_wrong_path_leaves_the_answer() {
     let mut slot = AnswerSlot::new();
-    let mine = key(OpKind::ReadFile, 0, "SONGS/A.XML");
+    let mine = key(OpKind::Open, 0, "SONGS/A.XML");
     slot.publish(mine.clone(), Ok(100), CARD);
     assert_eq!(
-        slot.take(&key(OpKind::ReadFile, 0, "SONGS/B.XML"), CARD),
+        slot.take(&key(OpKind::Open, 0, "SONGS/B.XML"), CARD),
         Take::Absent
     );
     assert_eq!(slot.take(&mine, CARD), Take::Ready(100));
@@ -59,7 +59,7 @@ fn a_wrong_kind_or_handle_leaves_the_answer() {
 #[test]
 fn an_answer_from_an_earlier_card_is_removed_not_returned() {
     let mut slot = AnswerSlot::new();
-    let k = key(OpKind::WriteFile, 0, "SYNTHS/P.XML");
+    let k = key(OpKind::WriteAt, 1, "");
     slot.publish(k.clone(), Ok(900), CARD);
     assert_eq!(slot.take(&k, CARD + 1), Take::Absent);
     assert!(slot.is_empty());
@@ -139,15 +139,58 @@ fn a_collected_open_answer_is_not_orphaned() {
 #[test]
 fn discarding_another_key_leaves_the_answer() {
     let mut slot = AnswerSlot::new();
-    let mine = key(OpKind::ReadFile, 0, "A");
+    let mine = key(OpKind::Open, 0, "A");
     slot.publish(mine.clone(), Ok(3), CARD);
-    slot.discard(&key(OpKind::ReadFile, 0, "B"));
+    slot.discard(&key(OpKind::Open, 0, "B"));
     assert_eq!(slot.take(&mine, CARD), Take::Ready(3));
 }
 
 #[test]
 fn a_path_longer_than_the_bound_has_no_key() {
     let long = "x".repeat(MAX_PATH_CHARS + 1);
-    assert!(OpKey::new(OpKind::ReadFile, 0, &long).is_none());
-    assert!(OpKey::new(OpKind::ReadFile, 0, &long[..MAX_PATH_CHARS]).is_some());
+    assert!(OpKey::new(OpKind::Open, 0, &long).is_none());
+    assert!(OpKey::new(OpKind::Open, 0, &long[..MAX_PATH_CHARS]).is_some());
+}
+
+#[test]
+fn an_open_collected_with_another_path_leaves_the_answer() {
+    let mut slot = AnswerSlot::new();
+    let mine = key(OpKind::Open, 0, "SAMPLES/RECORD/REC001.WAV");
+    slot.publish(mine.clone(), Ok(3), CARD);
+    assert_eq!(
+        slot.take(&key(OpKind::Open, 0, "SAMPLES/RECORD/REC002.WAV"), CARD),
+        Take::Absent
+    );
+    assert_eq!(slot.take(&mine, CARD), Take::Ready(3));
+}
+
+#[test]
+fn a_failed_open_is_taken_with_its_status() {
+    let mut slot = AnswerSlot::new();
+    let open = key(OpKind::Open, 0, "SAMPLES/RECORD/REC001.WAV");
+    // DELUGE_ERR_NOT_FOUND (-8), carried as its byte.
+    let not_found = u32::from((-8i8) as u8);
+    slot.publish(open.clone(), Err(not_found), CARD);
+    assert_eq!(slot.take(&open, CARD), Take::Failed(not_found));
+}
+
+/// A collect that finds no answer asks the request and in-flight slots whether one is coming. A slot whose lock is
+/// contended is mid-handoff, so it counts as coming: reporting "not there" would send the caller to ask again for an
+/// operation already under way -- for a CREATE_NEW open, one that then finds its own file and fails with EXISTS.
+#[test]
+fn a_contended_slot_is_still_coming() {
+    assert!(file_stream_slot::still_coming(None, Some(false)));
+    assert!(file_stream_slot::still_coming(Some(false), None));
+    assert!(file_stream_slot::still_coming(None, None));
+}
+
+#[test]
+fn a_queued_or_running_operation_is_still_coming() {
+    assert!(file_stream_slot::still_coming(Some(true), Some(false)));
+    assert!(file_stream_slot::still_coming(Some(false), Some(true)));
+}
+
+#[test]
+fn an_operation_in_neither_slot_is_not_coming() {
+    assert!(!file_stream_slot::still_coming(Some(false), Some(false)));
 }

@@ -109,19 +109,21 @@ pub const DELUGE_FILE_PREFIX_UNKNOWN: u8 = 2;
 /// failure (which failure, on which layer) stays outside the boundary; see `file_prefix.h`.
 pub const DELUGE_FILE_PREFIX_FAILED: u8 = 3;
 
-/// One finished prefix read, stamped with the card generation the read BEGAN under.
-struct PrefixEntry {
-    key: PrefixPath,
-    generation: u32,
-    /// How many bytes of the store are the prefix, or `None` when the READ FAILED.
-    ///
-    /// A failure is an entry rather than an absence for the same reason a successful read is: the
-    /// slot's only two answers to a taker are "here it is" and "never heard of it", and the second
-    /// means "request it (again)". A failed read that published nothing would be re-requested and
-    /// re-read on every tick. It is terminal, and it is DISTINCT from `Some(0)` — an empty file —
-    /// because the caller shows the user an error for one and blank artwork for the other.
-    len: Option<usize>,
-}
+/// How many bytes of the store are the prefix, or `None` when the READ FAILED.
+///
+/// The value [`PrefixSlot`] publishes: a prefix carries no handle, so unlike the directory
+/// channel's `DirOutcome` this never orphans anything and `deluge_channel::Answer::orphan`'s
+/// default (always `None`) is exactly right.
+///
+/// A failure is an entry rather than an absence for the same reason a successful read is: the
+/// slot's only two answers to a taker are "here it is" and "never heard of it", and the second
+/// means "request it (again)". A failed read that published nothing would be re-requested and
+/// re-read on every tick. It is terminal, and it is DISTINCT from `Some(0)` — an empty file —
+/// because the caller shows the user an error for one and blank artwork for the other.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct PrefixLen(pub Option<usize>);
+
+impl deluge_channel::Answer for PrefixLen {}
 
 /// What [`take_from`] found in the slot for the path it was asked about.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -134,7 +136,8 @@ pub enum PrefixTake {
     Failed,
 }
 
-/// The one prefix this channel holds, if it holds one.
+/// The one prefix this channel holds, if it holds one. See `deluge_channel::AnswerSlot` for the
+/// slot rules; this type just names the key and value the prefix channel uses.
 ///
 /// Passed to [`publish_into`]/[`take_from`] by reference rather than reached for as a static, so
 /// the slot logic is compiled and unit-tested on every build — including the ones where [`RESULT`]
@@ -143,22 +146,29 @@ pub enum PrefixTake {
 /// It holds the entry and nothing else. The bytes live in a store passed beside it -- on the device
 /// [`RESULT_BYTES`], in SDRAM -- because an 8 KiB array inside the `Mutex` would sit in on-chip
 /// SRAM, and an empty `Option` is not all-zero bytes, so the slot itself cannot go to `.sdram_bss`.
-#[derive(Default)]
 pub struct PrefixSlot {
-    entry: Option<PrefixEntry>,
+    inner: deluge_channel::AnswerSlot<PrefixPath, PrefixLen>,
 }
 
 impl PrefixSlot {
     /// An empty slot, in a `const` context — what [`RESULT`] is initialised with. [`Default`] does
     /// the same thing everywhere else; this exists only because `Default::default` is not `const`.
     pub const fn new() -> Self {
-        Self { entry: None }
+        Self {
+            inner: deluge_channel::AnswerSlot::new(),
+        }
     }
 
     /// Whether the slot holds nothing. The belt tests assert this after a stale take: a stamp that
     /// was refused must also have been REMOVED.
     pub fn is_empty(&self) -> bool {
-        self.entry.is_none()
+        self.inner.is_empty()
+    }
+}
+
+impl Default for PrefixSlot {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -212,36 +222,19 @@ pub fn publish_failure_into(slot: &mut PrefixSlot, key: &str, generation: u32) {
 /// neighbour resident in its place is strictly worse than an empty slot.
 fn new_entry(slot: &mut PrefixSlot, key: &str, generation: u32, len: Option<usize>) -> bool {
     let Ok(key) = PrefixPath::try_from(key) else {
-        slot.entry = None;
+        slot.inner.drain(); // no orphan possible -- see `PrefixLen`'s doc
         return false;
     };
-    slot.entry = Some(PrefixEntry {
-        key,
-        generation,
-        len,
-    });
+    slot.inner.publish(key, PrefixLen(len), generation);
     true
 }
 
 /// Take `path`'s entry if the slot holds one stamped `generation` AND `out` is big enough, copying its
 /// bytes out of `store` -- the store [`publish_into`] wrote them to.
 ///
-/// Removing on success is the point: a second collect must report `UNKNOWN`, or a caller could act
-/// on the same bytes twice. A published FAILURE ([`PrefixTake::Failed`]) is removed on exactly the
-/// same terms — it is an answer, not a state, and a caller that read it once has been told.
-///
-/// # The generation check, and why it lives HERE
-///
-/// A key match with a stale stamp is REMOVED and `None` returned — removed as well as withheld,
-/// because leaving it resident would let a later take at some future generation find it again, and
-/// returning it is the wrong-file bug the flush exists to prevent. `None` reaches the collector as
-/// `UNKNOWN`, whose documented meaning is already "request it (again)".
-///
-/// **This is the safety property, and the only one.** `deluge_card_flush` cannot provide it: its
-/// generation bump is unconditional, but [`flush_tables`]'s clears are `try_lock`ed and a contended
-/// slot stays populated, so an entry can outlive a flush. Deciding at TAKE, from the caller's own
-/// current generation, is what makes the outcome independent of which locks the flush managed to
-/// take and of which context either side runs in.
+/// The key match and the generation stamp are `deluge_channel::AnswerSlot::take`'s rule: a
+/// mismatched key is left alone, a stale stamp is removed and reported as absent. `None` reaches
+/// the collector as `UNKNOWN`, whose documented meaning is already "request it (again)".
 ///
 /// # An undersized `out` is TERMINAL, not a retry
 ///
@@ -270,28 +263,21 @@ pub fn take_from(
     generation: u32,
     out: &mut [u8],
 ) -> Option<PrefixTake> {
-    let entry = slot.entry.as_ref()?;
-    if entry.key != path {
-        return None;
-    }
-    if entry.generation != generation {
-        slot.entry = None; // removed, not merely withheld
-        return None;
-    }
-    let Some(len) = entry.len else {
+    let len = match slot.inner.take(path, generation) {
+        // Key mismatch or a stale stamp -- `deluge_channel::AnswerSlot::take` already removed a
+        // stale entry (and left a mismatched one alone); there is nothing left here to close.
+        deluge_channel::Take::Absent { .. } => return None,
         // A published failure. Removed like any other answer; `out` is untouched.
-        slot.entry = None;
-        return Some(PrefixTake::Failed);
+        deluge_channel::Take::Ready(PrefixLen(None)) => return Some(PrefixTake::Failed),
+        deluge_channel::Take::Ready(PrefixLen(Some(len))) => len,
     };
     if out.len() < len {
-        // Caller bug, and terminal: consume the entry and report an empty prefix rather than
-        // leaving one the caller would re-request, and re-read from the card, every tick. See this
-        // function's doc.
-        slot.entry = None;
+        // Caller bug, and terminal: the entry is already consumed above, so this reports an empty
+        // prefix rather than leaving one the caller would re-request, and re-read from the card,
+        // every tick. See this function's doc.
         return Some(PrefixTake::Bytes(0));
     }
     out[..len].copy_from_slice(&store[..len]);
-    slot.entry = None;
     Some(PrefixTake::Bytes(len))
 }
 
@@ -392,7 +378,7 @@ pub(crate) fn flush_tables() {
         *in_flight = None;
     }
     if let Ok(mut result) = RESULT.try_lock() {
-        result.entry = None;
+        result.inner.drain(); // no orphan possible -- see `PrefixLen`'s doc
     }
 }
 

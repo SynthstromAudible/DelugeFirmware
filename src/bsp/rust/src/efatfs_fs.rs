@@ -1090,11 +1090,10 @@ pub(crate) async fn fs_stats_free() -> Option<u32> {
 }
 
 /// Open `path` as a stream. `mode` is a `DelugeStreamMode` (declaration order: 0 = READ,
-/// 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW, 3 = WRITE_APPEND). Returns the handle, or `None`.
-pub(crate) async fn stream_open(path: &str, mode: u8) -> Option<u32> {
-    // `open_context`/`create_context` now report a granular `DelugeStatus`, but
-    // this persistent stream-write bridge's contract (`stream_io.h`) is still
-    // bare success/failure, so `.ok()` collapses it back to `Option` here.
+/// 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW, 3 = WRITE_APPEND). A failure answers its `DelugeStatus`:
+/// `NO_FILESYSTEM` when nothing is mounted, the open's own status (`NOT_FOUND` for a missing file or folder;
+/// the create modes make a missing parent folder themselves), or `IO` when the table is full.
+pub(crate) async fn stream_open(path: &str, mode: u8) -> Result<u32, DelugeStatus> {
     let ctx = with_fs(async |fs| match mode {
         0 => efatfs_core::open_context(fs, path).await,
         1 => efatfs_core::create_context(fs, path, false).await,
@@ -1102,9 +1101,13 @@ pub(crate) async fn stream_open(path: &str, mode: u8) -> Option<u32> {
         3 => efatfs_core::open_context(fs, path).await, // append: open existing, no truncation
         _ => Err(DELUGE_ERR_PARAM),
     })
-    .await?
-    .ok()?;
-    STREAM_WRITE_CTX.lock().await.insert(ctx)
+    .await
+    .ok_or(DELUGE_ERR_NO_FILESYSTEM)??;
+    STREAM_WRITE_CTX
+        .lock()
+        .await
+        .insert(ctx)
+        .ok_or(DELUGE_ERR_IO) // table full
 }
 
 /// Write `src` at absolute `byte_offset`, advancing the handle's persisted context WITHOUT
@@ -1222,14 +1225,14 @@ pub extern "C" fn deluge_efatfs_stream_open(
         Err(_) => return false,
     };
     match crate::sim_block::block_on(stream_open(path, mode)) {
-        Some(h) => {
+        Ok(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
             unsafe {
                 *out_handle = h;
             }
             true
         }
-        None => false,
+        Err(_) => false,
     }
 }
 

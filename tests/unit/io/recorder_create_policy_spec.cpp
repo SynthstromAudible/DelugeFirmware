@@ -2,7 +2,7 @@
 #include "model/sample/recorder_create_policy.h"
 #include "model/sample/recorder_write_policy.h"
 
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 
 #include "cppspec.hpp"
 
@@ -13,11 +13,11 @@ using deluge::storage::nextCreatePhase;
 
 namespace {
 CreateInputs at(CreatePhase p) {
-	return CreateInputs{p, DELUGE_FILE_WRITE_UNKNOWN, false, false, false, false, 0, false};
+	return CreateInputs{p, DELUGE_FILE_STREAM_UNKNOWN, false, false, false, false, 0, false};
 }
 CreateInputs ready(CreatePhase p) {
 	CreateInputs in = at(p);
-	in.collected = DELUGE_FILE_WRITE_READY;
+	in.collected = DELUGE_FILE_STREAM_READY;
 	return in;
 }
 } // namespace
@@ -27,7 +27,7 @@ describe recorder_create_policy("creating a recording's file advances only on an
 
 	it("stays put while an operation is pending", _ {
 		CreateInputs in = at(CreatePhase::Open);
-		in.collected = DELUGE_FILE_WRITE_PENDING;
+		in.collected = DELUGE_FILE_STREAM_PENDING;
 		expect(nextCreatePhase(in) == CreatePhase::Open).to_equal(true);
 	});
 
@@ -67,7 +67,7 @@ describe recorder_create_policy("creating a recording's file advances only on an
 	// worth acting on EXACTLY ONCE.
 	it("creates the parent folder once on NOT_FOUND, and only once", _ {
 		CreateInputs in = at(CreatePhase::Open);
-		in.collected = DELUGE_FILE_WRITE_FAILED;
+		in.collected = DELUGE_FILE_STREAM_FAILED;
 		in.openNotFound = true;
 		in.triedMakeFolder = false;
 		expect(nextCreatePhase(in) == CreatePhase::MakeFolder).to_equal(true);
@@ -79,7 +79,7 @@ describe recorder_create_policy("creating a recording's file advances only on an
 	// Any OTHER open failure is terminal at once: creating a folder would not have helped.
 	it("does not try a folder for an open failure that is not NOT_FOUND", _ {
 		CreateInputs in = at(CreatePhase::Open);
-		in.collected = DELUGE_FILE_WRITE_FAILED;
+		in.collected = DELUGE_FILE_STREAM_FAILED;
 		in.openNotFound = false;
 		expect(nextCreatePhase(in) == CreatePhase::Failed).to_equal(true);
 	});
@@ -91,7 +91,7 @@ describe recorder_create_policy("creating a recording's file advances only on an
 	// A folder that cannot be made is the end of it -- there is nothing else to try.
 	it("fails when the folder cannot be made", _ {
 		CreateInputs in = at(CreatePhase::MakeFolder);
-		in.collected = DELUGE_FILE_WRITE_FAILED;
+		in.collected = DELUGE_FILE_STREAM_FAILED;
 		expect(nextCreatePhase(in) == CreatePhase::Failed).to_equal(true);
 	});
 
@@ -111,7 +111,7 @@ describe recorder_create_policy("creating a recording's file advances only on an
 	// A pending open may yet hand back a stream, so the machine waits for it however long it takes.
 	it("waits for a pending answer even past the bound", _ {
 		CreateInputs in = at(CreatePhase::Open);
-		in.collected = DELUGE_FILE_WRITE_PENDING;
+		in.collected = DELUGE_FILE_STREAM_PENDING;
 		in.unproductiveUs = kMaxUnproductiveUs + 100;
 		in.failing = true;
 		expect(nextCreatePhase(in) == CreatePhase::Open).to_equal(true);
@@ -124,7 +124,7 @@ describe recorder_create_policy("creating a recording's file advances only on an
 		opened.failing = true;
 		expect(nextCreatePhase(opened) == CreatePhase::Failed).to_equal(true);
 		CreateInputs missing = at(CreatePhase::Open);
-		missing.collected = DELUGE_FILE_WRITE_FAILED;
+		missing.collected = DELUGE_FILE_STREAM_FAILED;
 		missing.openNotFound = true;
 		missing.failing = true;
 		expect(nextCreatePhase(missing) == CreatePhase::Failed).to_equal(true);

@@ -7,8 +7,8 @@ the byte channel after boot.
 Collecting media is the one save path that walks a container the audio engine and the UI both read, mutating a key the
 container is SORTED BY as it goes. The copying spans ticks, so the walk can be observed half-done. The collection
 answers that by deciding every path first, transferring with nothing shared held, and applying the decisions in one
-pass -- and SC-ORDERED is what says the answer works. The transfers ride the byte channel and the save around them the
-write channel, and neither has a feature switch, so there is one leg.
+pass -- and SC-ORDERED is what says the answer works. The transfers and the save around them ride the byte channel,
+which has no feature switch, so there is one leg.
 
 What the checks cover:
   SC-COPIED     every referenced sample is AT its collected destination, byte-identical to the source.

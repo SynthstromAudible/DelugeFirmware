@@ -101,6 +101,10 @@ public:
 	/// @brief Whether a staged document write is in flight. NOT the same as the UI being open.
 	[[nodiscard]] bool docInFlight() const { return docPhase_ != DocPhase::NONE; }
 
+	/// @brief Whether the save has reached its document write and not yet asked the channel for it: the next document
+	///        step requests the write. Lets a gate hold that write alone, and not the steps before it.
+	[[nodiscard]] bool docWriteAboutToIssue() const { return docPhase_ == DocPhase::WRITE && !docWriteIssued_; }
+
 	/// @brief Document steps the CHANNEL served, and the ones the INLINE arm served before boot finished.
 	///
 	/// Reported together and held to account for each other by the gate: on a build where half the
@@ -108,10 +112,10 @@ public:
 	[[nodiscard]] static int32_t documentChannelServedOps() { return documentChannelServedOps_; }
 	[[nodiscard]] static int32_t documentInlineServedOps() { return documentInlineServedOps_; }
 
-	/// @brief Document steps the WRITE channel served: the document write itself, and nothing else.
+	/// @brief Document steps the whole-document write served: the write from the staged buffer, and nothing else.
 	///
-	/// Every other document step rides the byte channel. The song-save gate requires this above zero: the
-	/// document write went through the write channel.
+	/// Every other document step rides the byte channel's copying operations. The song-save gate requires this above
+	/// zero: the document write went through the channel from the staged buffer.
 	[[nodiscard]] static int32_t documentWriteChannelServedOps() { return documentWriteChannelServedOps_; }
 
 	/// @brief Card steps the staged document write took, whichever arm carried them.
@@ -125,6 +129,11 @@ public:
 
 	/// @brief Ticks on which a document step went through a channel, after boot.
 	[[nodiscard]] static int32_t channelDocumentTicks() { return channelDocumentTicks_; }
+
+	/// @brief The document machine's stall bound, in caller ticks of that machine (`deluge::io::kChannelStallTicks`).
+	///
+	/// Read-only, for a gate that must hold a document step past it to prove the save does not give up.
+	[[nodiscard]] int32_t documentStallLimit() const { return docStallBound_.limit(); }
 
 	/// @brief How many times the staging buffer doubled for the last staged document.
 	///
@@ -237,7 +246,7 @@ private:
 	bool copyIssued_{};
 	/// Whether the CURRENT entry's rename succeeded, which decides where its copy reads from.
 	bool renameSucceeded_{true};
-	int32_t collectStallTicks_{};
+	deluge::io::StallBound collectStallBound_{};
 
 	/// @brief The staged song document, pointing into the shared serialiser's buffer.
 	///
@@ -251,7 +260,7 @@ private:
 	deluge::storage::ReadBackCheck docReadBack_;
 	std::string docWritePath_; ///< Where the bytes actually go: the temp name, or the target.
 	int32_t docTempNumber_{};
-	int32_t docStallTicks_{};
+	deluge::io::StallBound docStallBound_{};
 	bool docWriteIssued_{};
 
 	/// The bytes the head and tail must match, copied verbatim from the strings the streaming writer

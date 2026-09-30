@@ -27,7 +27,8 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
 #include "io/file.hpp"
-#include "libdeluge/file_write.h"
+#include "libdeluge/clock.h"
+#include "libdeluge/file_bytes.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -88,8 +89,11 @@ constexpr const char* kReferenceName = "SSTEST03";
 constexpr const char* kReferencePath = "SONGS/SSTEST03.XML";
 constexpr const char* kHeldName = "SSTEST02";
 constexpr const char* kHeldPath = "SONGS/SSTEST02.XML";
-/// How long the write channel holds each operation in the held leg, in virtual milliseconds: far past the save's
-/// 600-tick stall bound however fast the save is ticked.
+/// How long the byte channel holds the document write in the held leg, in virtual milliseconds. The save's own stall
+/// bound is `SaveSongUI::documentStallLimit()` caller ticks of the "document save" task (600, at 1 to 20 ms a tick);
+/// the check counts the ticks the save actually spent on the held write and requires more than that, rather than
+/// assuming a tick rate. Lifted once the write lands, so the read-back, unlink and rename that follow run at the
+/// card's own pace.
 constexpr uint32_t kHeldLatencyMs = 10000;
 
 /// Notes per row. Sized so the document clears 65536 bytes -- two doublings of the 32768-byte
@@ -136,6 +140,15 @@ int32_t g_notesAdded = 0;
 uint32_t g_crcFirst = 0;
 size_t g_bytesFirst = 0;
 int32_t g_heldCompletedBefore = 0;
+/// The held leg's evidence that its write really was held: the document writes the byte channel had served before
+/// the save, when the hold began (0 until the save reached its write), and how long after that the write landed (0
+/// until it has).
+int32_t g_heldWriteServedBefore = 0;
+uint64_t g_heldStartUs = 0;
+uint64_t g_heldWriteUs = 0;
+/// The save's document-step ticks when the hold began, and how many it spent before the held write landed.
+int32_t g_heldTicksBefore = 0;
+int32_t g_heldTicks = 0;
 uint32_t g_crcReference = 0;
 size_t g_bytesReference = 0;
 /// Whether the load a wait stage is driving has started, or is still waiting on the load browser's own listing.
@@ -556,7 +569,9 @@ void runTick() {
 	}
 	case Stage::HeldSave: {
 		g_heldCompletedBefore = SaveSongUI::documentSavesCompleted();
-		deluge_file_write_set_latency_ms(kHeldLatencyMs);
+		g_heldWriteServedBefore = SaveSongUI::documentWriteChannelServedOps();
+		g_heldWriteUs = 0;
+		g_heldStartUs = 0;
 		SongSaveChannelProbe::typeName(kHeldName);
 		SongSaveChannelProbe::pressEnter();
 		g_waitTicks = 0;
@@ -564,8 +579,20 @@ void runTick() {
 		break;
 	}
 	case Stage::HeldWait: {
+		// Only the document write is held: the steps before it may be given up on past the stall bound, and would be.
+		if (g_heldStartUs == 0 && saveSongUI.docWriteAboutToIssue()) {
+			g_heldStartUs = deluge_clock_now();
+			g_heldTicksBefore = SaveSongUI::channelDocumentTicks();
+			deluge_file_bytes_set_latency_ms(kHeldLatencyMs);
+		}
+		if (g_heldStartUs != 0 && g_heldWriteUs == 0
+		    && SaveSongUI::documentWriteChannelServedOps() > g_heldWriteServedBefore) {
+			g_heldWriteUs = deluge_clock_now() - g_heldStartUs;
+			g_heldTicks = SaveSongUI::channelDocumentTicks() - g_heldTicksBefore;
+			deluge_file_bytes_set_latency_ms(0);
+		}
 		if (saveMachineryIdle() || ++g_waitTicks > kMaxWaitTicks) {
-			deluge_file_write_set_latency_ms(0);
+			deluge_file_bytes_set_latency_ms(0);
 			g_stage = Stage::HeldCheck;
 		}
 		break;
@@ -575,9 +602,16 @@ void runTick() {
 		std::vector<uint8_t> bytes;
 		const bool present = readWholeFile(kHeldPath, bytes);
 		const uint32_t crc = present ? crc32(bytes.data(), bytes.size()) : 0;
-		printf("SS-HELD completed=%d present=%d bytes=%zu crc=%08X ticks=%d\n", (int)completed, (int)present,
-		       bytes.size(), crc, g_waitTicks);
-		if (completed != 1) {
+		const auto heldUs = static_cast<long long>(g_heldWriteUs);
+		const int32_t bound = saveSongUI.documentStallLimit();
+		printf("SS-HELD completed=%d present=%d bytes=%zu crc=%08X heldUs=%lld heldTicks=%d bound=%d ticks=%d\n",
+		       (int)completed, (int)present, bytes.size(), crc, heldUs, (int)g_heldTicks, (int)bound, g_waitTicks);
+		if (g_heldTicks <= bound) {
+			printf("SS-HELD FAIL the document write landed within the stall bound; nothing was held past it, so this "
+			       "proves nothing\n");
+			g_failures++;
+		}
+		else if (completed != 1) {
 			printf("SS-HELD FAIL a save whose write the channel held past the stall bound gave up\n");
 			g_failures++;
 		}
@@ -625,6 +659,11 @@ void deluge_scenario_song_save_channel_begin(void) {
 	g_crcFirst = 0;
 	g_bytesFirst = 0;
 	g_heldCompletedBefore = 0;
+	g_heldWriteServedBefore = 0;
+	g_heldStartUs = 0;
+	g_heldWriteUs = 0;
+	g_heldTicksBefore = 0;
+	g_heldTicks = 0;
 	g_crcReference = 0;
 	g_bytesReference = 0;
 }

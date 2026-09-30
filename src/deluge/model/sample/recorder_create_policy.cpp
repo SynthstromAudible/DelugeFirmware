@@ -18,7 +18,7 @@
 #include "model/sample/recorder_create_policy.h"
 #include "model/sample/recorder_write_policy.h"
 
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 
 namespace deluge::storage {
 
@@ -26,12 +26,12 @@ CreatePhase nextCreatePhase(CreateInputs in) {
 	if (in.phase == CreatePhase::Done || in.phase == CreatePhase::Failed) {
 		return in.phase;
 	}
-	if (in.collected == DELUGE_FILE_WRITE_PENDING) {
+	if (in.collected == DELUGE_FILE_STREAM_PENDING) {
 		// The answer is coming, even past the bound: the driver may still be using what it was given, so the
 		// machine waits for it, and `failing` fails it then.
 		return in.phase;
 	}
-	if (in.collected == DELUGE_FILE_WRITE_UNKNOWN) {
+	if (in.collected == DELUGE_FILE_STREAM_UNKNOWN) {
 		// Never asked, refused, or displaced: the caller asks again, until the bound. Nothing is outstanding.
 		return in.unproductiveUs >= kMaxUnproductiveUs ? CreatePhase::Failed : in.phase;
 	}
@@ -40,7 +40,7 @@ CreatePhase nextCreatePhase(CreateInputs in) {
 		// only ends the wait.
 		return CreatePhase::Failed;
 	}
-	if (in.collected == DELUGE_FILE_WRITE_FAILED) {
+	if (in.collected == DELUGE_FILE_STREAM_FAILED) {
 		// A missing parent folder is the one failure worth acting on, and exactly once. Every other
 		// failure is terminal here: making a folder would not have helped.
 		if (in.phase == CreatePhase::Open && in.openNotFound && !in.triedMakeFolder) {

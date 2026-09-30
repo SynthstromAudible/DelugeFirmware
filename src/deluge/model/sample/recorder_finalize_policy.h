@@ -60,8 +60,8 @@ enum class FinalizePhase : uint8_t {
 /// @brief Everything `nextFinalizePhase` is allowed to look at.
 struct FinalizeInputs {
 	FinalizePhase phase;
-	/// The `DELUGE_FILE_WRITE_*` value from the operation this phase issued, or
-	/// `DELUGE_FILE_WRITE_UNKNOWN` when nothing is in flight.
+	/// The `DELUGE_FILE_STREAM_*` value from the operation this phase issued, or
+	/// `DELUGE_FILE_STREAM_UNKNOWN` when nothing is in flight.
 	uint8_t collected;
 	bool clustersRemain;
 	bool havePartialBuffer;

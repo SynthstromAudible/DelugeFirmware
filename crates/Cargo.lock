@@ -75,6 +75,7 @@ dependencies = [
  "critical-section",
  "deluge_audio_format",
  "deluge_card_generation",
+ "deluge_channel",
  "embassy-futures",
  "embassy-sync",
  "heapless 0.8.0",
@@ -82,6 +83,10 @@ dependencies = [
 
 [[package]]
 name = "deluge_card_generation"
+version = "0.1.0"
+
+[[package]]
+name = "deluge_channel"
 version = "0.1.0"
 
 [[package]]

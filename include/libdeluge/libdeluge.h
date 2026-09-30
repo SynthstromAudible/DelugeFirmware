@@ -44,7 +44,7 @@
 #include "file_directory.h"
 #include "file_io.h"
 #include "file_prefix.h"
-#include "file_write.h"
+#include "file_stream.h"
 #include "flash.h"
 #include "memory.h"
 #include "midi_io.h"

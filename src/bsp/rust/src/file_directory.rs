@@ -108,15 +108,20 @@ impl DirOutcome {
     }
 }
 
-/// What [`take_from`] found for the path it was asked about.
+impl deluge_channel::Answer for DirOutcome {
+    fn orphan(&self) -> Option<u32> {
+        self.handle()
+    }
+}
+
+/// What [`take_from`] found for the path it was asked about. See `deluge_channel::Take` for the
+/// key/generation rule this mirrors.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DirTake {
     /// This path's outcome, stamped with the taker's own generation. An `Opened` handle is now the
     /// taker's to close.
     Ready(DirOutcome),
-    /// Nothing here for this path. Either the slot holds another path's answer (untouched), or it
-    /// held this path's answer stamped for a card that has gone -- in which case the entry has been
-    /// REMOVED and `orphan` names the handle that removal left open.
+    /// Nothing here for this path.
     Absent {
         /// A handle the slot was holding for a card that is gone. Nobody will ask for it again and
         /// it still occupies one of `MAX_DIR_HANDLES` slots, so the taker must close it.
@@ -124,14 +129,8 @@ pub enum DirTake {
     },
 }
 
-/// One finished open, stamped with the card generation the open BEGAN under.
-struct DirEntry {
-    key: DirPath,
-    generation: u32,
-    outcome: DirOutcome,
-}
-
-/// The one answer this channel holds, if it holds one.
+/// The one answer this channel holds, if it holds one. See `deluge_channel::AnswerSlot` for the
+/// slot rules; this type just names the key and value the browser's directory channel uses.
 ///
 /// Passed to [`publish_into`]/[`take_from`]/[`drain`] by reference rather than reached for as a
 /// static, so the slot logic is compiled and unit-tested on every build -- including the ones where
@@ -140,17 +139,24 @@ struct DirEntry {
 /// Named `DirectorySlot` rather than `DirSlot` because `efatfs_core::DirSlot` already exists and
 /// means something else (one row of the handle table). Two types with one name, one holding the
 /// other's handles, would be a needless trap.
-#[derive(Default)]
 pub struct DirectorySlot {
-    entry: Option<DirEntry>,
+    inner: deluge_channel::AnswerSlot<DirPath, DirOutcome>,
 }
 
 impl DirectorySlot {
     pub const fn new() -> Self {
-        Self { entry: None }
+        Self {
+            inner: deluge_channel::AnswerSlot::new(),
+        }
     }
     pub fn is_empty(&self) -> bool {
-        self.entry.is_none()
+        self.inner.is_empty()
+    }
+}
+
+impl Default for DirectorySlot {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -170,56 +176,35 @@ pub fn publish_into(
     outcome: DirOutcome,
     generation: u32,
 ) -> Option<u32> {
-    let displaced = slot.entry.take().and_then(|entry| entry.outcome.handle());
     let Ok(key) = DirPath::try_from(key) else {
-        // The slot is already cleared by the `take()` above. `outcome`'s own handle is orphaned
-        // too, but only one can be reported; prefer the one the caller did not just produce, since
-        // the caller still holds `outcome` and can close it itself.
+        // The slot is cleared either way. `outcome`'s own handle is orphaned too, but only one can
+        // be reported; prefer the one the caller did not just produce, since the caller still holds
+        // `outcome` and can close it itself.
         debug_assert!(false, "an over-long key cannot reach a publish");
+        let displaced = slot.inner.drain().map(|orphan| orphan.handle);
         return displaced.or_else(|| outcome.handle());
     };
-    slot.entry = Some(DirEntry {
-        key,
-        generation,
-        outcome,
-    });
-    displaced
+    slot.inner
+        .publish(key, outcome, generation)
+        .map(|orphan| orphan.handle)
 }
 
-/// Take `path`'s outcome if the slot holds one stamped `generation`.
-///
-/// A key match with a stale stamp is REMOVED and its handle reported as an orphan -- removed as
-/// well as withheld, because leaving it resident would let a later take at some future generation
-/// find it again, and returning it is the wrong-card bug the flush exists to prevent.
-///
-/// **This is the safety property, and the only one:** `flush_tables`'s clear is `try_lock`ed and
-/// may not land, so nothing upstream of here can be relied on to have removed a stale entry.
-///
-/// A key MISMATCH leaves the slot alone and reports no orphan. It is not this take's answer to
-/// discard: the path it belongs to may be about to collect it.
+/// Take `path`'s outcome if the slot holds one stamped `generation`. See
+/// `deluge_channel::AnswerSlot::take` for the rule; `orphan` here is that take's `Orphan` handle
+/// alone, since this channel has no other use for the generation it carried.
 pub fn take_from(slot: &mut DirectorySlot, path: &str, generation: u32) -> DirTake {
-    let Some(entry) = slot.entry.as_ref() else {
-        return DirTake::Absent { orphan: None };
-    };
-    if entry.key != path {
-        return DirTake::Absent { orphan: None };
-    }
-    let outcome = entry.outcome;
-    let stamped = entry.generation;
-    slot.entry = None;
-    if stamped == generation {
-        DirTake::Ready(outcome)
-    } else {
-        DirTake::Absent {
-            orphan: outcome.handle(),
-        }
+    match slot.inner.take(path, generation) {
+        deluge_channel::Take::Ready(outcome) => DirTake::Ready(outcome),
+        deluge_channel::Take::Absent { orphan } => DirTake::Absent {
+            orphan: orphan.map(|orphan| orphan.handle),
+        },
     }
 }
 
 /// Empty the slot and hand back whatever handle it was holding. What `flush_tables` uses, so an
 /// ejection does not strand one of the eight.
 pub fn drain(slot: &mut DirectorySlot) -> Option<u32> {
-    slot.entry.take().and_then(|entry| entry.outcome.handle())
+    slot.inner.drain().map(|orphan| orphan.handle)
 }
 
 // ── The open driver ─────────────────────────────────────────────────────────

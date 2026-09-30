@@ -17,6 +17,7 @@
 
 #include "storage/smsysex_pending.h"
 
+#include "io/stall_bound.h"
 #include "libdeluge/file_bytes.h"
 #include "storage/byte_channel.h"
 
@@ -27,25 +28,18 @@ namespace deluge::storage {
 
 namespace {
 
-/// How many consecutive refusals before this stops asking the channel.
+/// How many consecutive refusals, on caller ticks on which the channel finished nothing, before this stops asking
+/// the channel.
 ///
 /// The channel is single-flight across all operation kinds, so another consumer's operation in
 /// flight refuses this one. Retrying is right -- the handler is re-entered every tick anyway -- but
-/// an unbounded retry would let a busy channel stall the SysEx queue behind one request.
+/// an unbounded retry would let a wedged channel stall the SysEx queue behind one request. A channel that keeps
+/// finishing work is busy, not wedged, so its refusals do not count.
 ///
 /// As many as the stall bound below. After boot the synchronous arm refuses to run, so giving up on
 /// a channel that is merely busy would answer the host with an error for a request that would have
 /// succeeded a few ticks later.
 constexpr int32_t kMaxRefusals = 600;
-
-/// How many ticks one operation may sit PENDING before this gives up on the channel.
-///
-/// A separate, far larger bound, because it guards a different failure. A refusal is instant and
-/// means "busy"; PENDING means "working", and a real card operation is legitimately allowed to take
-/// a while. But a channel whose driver is not running answers PENDING **forever** -- the request sits
-/// in its slot with nothing to take it -- and that is neither a refusal nor an answer, so the bound
-/// above never sees it. Left unbounded, it would wedge the SysEx queue instead of boot.
-constexpr int32_t kMaxPendingTicks = 600;
 
 PathOp g_op = PathOp::None;
 std::string g_pathA;
@@ -65,8 +59,12 @@ uint32_t g_resultValue = 0;
 
 /// Whether the request has been issued (as opposed to started but still refused).
 bool g_issued = false;
-int32_t g_refusals = 0;
-int32_t g_pendingTicks = 0;
+/// Refusals and re-asks of the current request, counted only on caller ticks on which the channel finished nothing.
+deluge::io::StallBound g_refusalBound{kMaxRefusals};
+/// How long the operation in flight has sat PENDING. A separate bound from @ref kMaxRefusals, because it guards a
+/// different failure: a refusal is instant and means "busy", but a channel whose driver is not running answers
+/// PENDING forever, which is neither a refusal nor an answer.
+deluge::io::StallBound g_pendingBound;
 
 /// The synchronous arm's answer, read on the tick after the one that ran (or refused) it.
 bool g_inlineDone = false;
@@ -74,7 +72,7 @@ deluge::io::Status g_inlineStatus = deluge::io::Status::OK;
 
 /// Whether the channel should carry this operation, or the synchronous arm should.
 bool viaChannel() {
-	return deluge::storage::bytes::usingByteChannel() && g_refusals < kMaxRefusals && g_pendingTicks < kMaxPendingTicks;
+	return deluge::storage::bytes::usingByteChannel() && !g_refusalBound.expired() && !g_pendingBound.expired();
 }
 
 /// Copy `from` to `to` synchronously, block by block.
@@ -269,7 +267,7 @@ void issue() {
 			g_issued = true;
 		}
 		else {
-			g_refusals++;
+			(void)g_refusalBound.tick(deluge_file_bytes_progress());
 		}
 		return;
 	}
@@ -295,8 +293,8 @@ bool pathOpStart(PathOp op, const char* a, const char* b, DelugeTimestamp stamp)
 	g_pathB = (b != nullptr) ? b : "";
 	g_stamp = stamp;
 	g_issued = false;
-	g_refusals = 0;
-	g_pendingTicks = 0;
+	g_refusalBound.reset();
+	g_pendingBound.reset();
 	g_inlineDone = false;
 	issue();
 	if (!g_issued) {
@@ -323,8 +321,8 @@ bool pathOpStartBlock(PathOp op, const char* path, uint32_t offset, const uint8_
 		memcpy(g_block, bytes, len);
 	}
 	g_issued = false;
-	g_refusals = 0;
-	g_pendingTicks = 0;
+	g_refusalBound.reset();
+	g_pendingBound.reset();
 	g_inlineDone = false;
 	issue();
 	return g_issued;
@@ -404,17 +402,19 @@ std::optional<deluge::io::Status> pathOpCollect() {
 	case ByteIo::Failed:
 		return deluge::io::to_status(status);
 	case ByteIo::Pending:
-		if (++g_pendingTicks >= kMaxPendingTicks) {
+		if (g_pendingBound.tick(deluge_file_bytes_progress())) {
 			// The channel accepted and never answered. Re-issue on the synchronous arm, which
 			// `viaChannel` now refuses to bypass.
 			g_issued = false;
 		}
 		return std::nullopt;
 	case ByteIo::Unknown:
-		// Displaced before we took it, or dropped. Ask again -- every operation here is idempotent
-		// in the sense that matters: doing it twice reaches the same state.
+		// Dropped, or displaced before we took it. Ask again. An unlink or rename answer is protected from
+		// displacement while this polls, up to the byte channel's age bound, so a rerun of either happens only
+		// after a card change dropped it unrun, or past that bound; the other operations here reach the same
+		// state run twice.
 		g_issued = false;
-		g_refusals++;
+		(void)g_refusalBound.tick(deluge_file_bytes_progress());
 		return std::nullopt;
 	}
 	return std::nullopt;
@@ -427,8 +427,8 @@ void pathOpClear() {
 	g_blockLen = 0;
 	g_resultValue = 0;
 	g_issued = false;
-	g_refusals = 0;
-	g_pendingTicks = 0;
+	g_refusalBound.reset();
+	g_pendingBound.reset();
 	g_inlineDone = false;
 }
 

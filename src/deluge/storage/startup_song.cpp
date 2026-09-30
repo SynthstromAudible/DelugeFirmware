@@ -26,8 +26,9 @@
 #include "io/file.hpp"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "io/stall_bound.h"
 #include "libdeluge/clock.h" // deluge_clock_now
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_bytes.h"
 #include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -49,7 +50,8 @@ namespace {
 /// The template song, and the fallback when the recorded startup song has gone.
 constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 
-/// How many consecutive unproductive attempts before the machine stops asking the channel.
+/// How many consecutive unproductive attempts, on caller ticks on which the channel finished nothing, before the
+/// machine stops asking the channel.
 ///
 /// The channel is single-flight across all operation kinds, so a settings write in flight refuses
 /// this machine's request. Retrying is right -- the machine is already ticking -- but an unbounded
@@ -68,20 +70,6 @@ constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 /// loaded a few ticks later: only a channel that has made no progress for as long as a stalled one is
 /// given up on.
 constexpr int32_t kMaxAttemptsWithoutProgress = 600;
-
-/// How many ticks one channel operation may sit PENDING before the machine gives up on the channel.
-///
-/// A separate, far larger bound than the one above, because it is guarding a different failure. A
-/// refusal is instant and means "busy"; PENDING means "working", and a real card operation is
-/// legitimately allowed to take a while. But a channel whose driver is not running answers PENDING
-/// **forever** -- the request sits in its slot with nothing to take it -- and that is neither a
-/// refusal nor an answer, so the bound above never sees it. Without this one the machine re-asks
-/// until the end of time and boot never completes.
-///
-/// That is not hypothetical: leaving the Rust worker unspawned produces exactly this livelock. Six
-/// hundred ticks is several seconds at this routine's rate -- far beyond any real operation, far
-/// short of forever.
-constexpr int32_t kMaxPendingTicks = 600;
 
 /// @name The settings prelude
 ///
@@ -133,11 +121,13 @@ std::string g_canaryPath;
 std::string g_songPath;
 /// Whether the current phase has issued its request yet.
 bool g_requested = false;
-/// Consecutive attempts at the current request that produced neither an answer nor progress.
-/// See @ref kMaxAttemptsWithoutProgress.
-int32_t g_attemptsWithoutProgress = 0;
-/// Consecutive ticks the current request has spent PENDING. See @ref kMaxPendingTicks.
-int32_t g_pendingTicks = 0;
+/// Consecutive attempts at the current request that produced no answer, counted only on caller ticks on which the
+/// channel finished nothing. See @ref kMaxAttemptsWithoutProgress.
+deluge::io::StallBound g_attemptBound{kMaxAttemptsWithoutProgress};
+/// Consecutive ticks the current request has spent PENDING. A separate bound from @ref
+/// kMaxAttemptsWithoutProgress, because it guards a different failure: a refusal is instant and means "busy", but a
+/// channel whose driver is not running answers PENDING forever, which is neither a refusal nor an answer.
+deluge::io::StallBound g_pendingBound;
 /// @}
 
 /// @name The synchronous arm's answers
@@ -167,8 +157,8 @@ std::string g_startupFailSafePath;
 void enter(StartupPhase phase) {
 	g_phase = phase;
 	g_requested = false;
-	g_attemptsWithoutProgress = 0;
-	g_pendingTicks = 0;
+	g_attemptBound.reset();
+	g_pendingBound.reset();
 	g_inlineDone = false;
 }
 
@@ -177,8 +167,7 @@ void enter(StartupPhase phase) {
 /// Falls back permanently once `kMaxAttemptsWithoutProgress` consecutive unproductive attempts have
 /// been seen for the current phase -- see that constant.
 bool viaChannel() {
-	return deluge::storage::bytes::usingByteChannel() && g_attemptsWithoutProgress < kMaxAttemptsWithoutProgress
-	       && g_pendingTicks < kMaxPendingTicks;
+	return deluge::storage::bytes::usingByteChannel() && !g_attemptBound.expired() && !g_pendingBound.expired();
 }
 
 /// Note one more tick spent waiting, and abandon the channel for this phase once that has gone on too
@@ -187,7 +176,7 @@ bool viaChannel() {
 /// The re-request on giving up is what makes the fallback take effect: `viaChannel()` is consulted
 /// again at the next issue, and by then it answers false.
 bool stillWaiting() {
-	if (++g_pendingTicks < kMaxPendingTicks) {
+	if (!g_pendingBound.tick(deluge_file_bytes_progress())) {
 		return true;
 	}
 	g_requested = false; // re-issue, on the synchronous arm this time
@@ -201,7 +190,7 @@ void issueExists(const char* path) {
 			g_requested = true;
 		}
 		else {
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 		}
 		return;
 	}
@@ -238,7 +227,7 @@ std::optional<StartupPresence> collectExists(const char* path) {
 			// "Ask again" -- the documented meaning. Counted, because a channel that accepts and never
 			// answers looks exactly like this, forever.
 			g_requested = false;
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 			return std::nullopt;
 		case deluge::storage::bytes::ByteIo::Ready:
 			// A real answer, either way. `startup_action` is what keeps "known absent" apart from
@@ -264,7 +253,7 @@ void issueCanaryWrite() {
 			g_requested = true;
 		}
 		else {
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 		}
 		return;
 	}
@@ -323,14 +312,14 @@ void issueTemplateWrite() {
 		return;
 	}
 	if (viaChannel()) {
-		// The WRITE channel, not the byte channel: a song document runs to some 11 KB, and the byte
-		// channel refuses anything past DELUGE_FILE_BYTES_MAX_BYTES (8192) -- it would answer Failed
-		// forever. This is the same channel SaveSongUI puts a song document on, for the same reason.
-		if (deluge_file_write_request_write_file(kDefaultSongFullPath, bytes, len, /*may_overwrite=*/false)) {
+		// Write-from, not the copying write: a song document runs to some 11 KB, and the copying write
+		// refuses anything past DELUGE_FILE_BYTES_MAX_BYTES (8192) -- it would answer Failed forever.
+		// This is the operation SaveSongUI puts a song document on, for the same reason.
+		if (deluge_file_bytes_request_write_from(kDefaultSongFullPath, bytes, len, /*may_overwrite=*/false)) {
 			g_requested = true;
 		}
 		else {
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 		}
 		return;
 	}
@@ -363,18 +352,20 @@ void issueTemplateWrite() {
 std::optional<bool> collectTemplateWrite() {
 	if (viaChannel()) {
 		uint32_t written = 0;
-		uint8_t existed = 0;
-		switch (deluge_file_write_collect_write_file(kDefaultSongFullPath, &written, &existed)) {
-		case DELUGE_FILE_WRITE_PENDING:
+		switch (deluge_file_bytes_collect_write_from(kDefaultSongFullPath, &written, nullptr)) {
+		case DELUGE_CHANNEL_PENDING:
 			// Waited out, and not counted against the bound: the write is copying from the staged template and
 			// cannot be cancelled, so falling back would re-serialise into its buffer and write the file twice.
 			return std::nullopt;
-		case DELUGE_FILE_WRITE_UNKNOWN:
-			// Displaced before we took it. Re-staging writes the same document again, which is safe.
+		case DELUGE_CHANNEL_UNKNOWN:
+			// Nothing queued, running or answered: the request was dropped unrun by a card change, or its answer
+			// was displaced. A write-from's answer is protected from displacement only up to the byte channel's
+			// age bound (PROTECTED_ANSWER_REFUSALS refused requests); past it, re-staging can meet the file this
+			// write made, and the exclusive create then fails rather than overwriting it.
 			g_requested = false;
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 			return std::nullopt;
-		case DELUGE_FILE_WRITE_READY:
+		case DELUGE_CHANNEL_READY:
 			// A short write is a card error, not a success: the template would be half a document.
 			return written == g_templateLength;
 		default:
@@ -403,7 +394,7 @@ std::optional<bool> collectCanaryWrite() {
 			// Displaced before we took it; writing the same bytes twice is safe. Counted for the same
 			// reason as the existence collect's.
 			g_requested = false;
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 			return std::nullopt;
 		case deluge::storage::bytes::ByteIo::Ready:
 			g_canaryConfirmed = true;
@@ -420,16 +411,16 @@ std::optional<bool> collectCanaryWrite() {
 	return g_inlineOk;
 }
 
-/// Issue the canary removal. Fire-and-forget in spirit: a canary that outlives its attempt by a few
-/// ticks costs nothing, and one never removed costs a single skipped startup song next boot, which is
-/// the fail-safe being conservative rather than failing.
+/// Issue the canary removal. The machine collects it (`unlinkFinished`). A canary that outlives its attempt by a
+/// few ticks costs nothing, and one never removed costs a single skipped startup song next boot, which is the
+/// fail-safe being conservative rather than failing.
 void issueUnlink(const std::string& path) {
 	if (viaChannel()) {
 		if (deluge::storage::bytes::requestUnlink(path.c_str()) == deluge::storage::bytes::ByteIo::Pending) {
 			g_requested = true;
 		}
 		else {
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 		}
 		return;
 	}
@@ -461,7 +452,7 @@ bool unlinkFinished(const std::string& path) {
 			return false;
 		case deluge::storage::bytes::ByteIo::Unknown:
 			g_requested = false;
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 			return false;
 		case deluge::storage::bytes::ByteIo::Ready:
 		case deluge::storage::bytes::ByteIo::Failed:
@@ -676,8 +667,11 @@ void startupSongRoutine() {
 			// it goes in the completion instead.
 			g_startupSongWasTemplate = g_usingTemplate;
 			g_startupFailSafePath = g_canaryPath;
-			loadSongUI.beginLoad(&finishStartupSong);
+			// Done BEFORE beginLoad(), not after: beginLoad() runs the load's first stage at once, and a load
+			// that ends there calls finishStartupSong() before returning, which moves this machine on to
+			// removing the canary. Entering Done afterwards would undo that and leave the canary on the card.
 			enter(StartupPhase::Done);
+			loadSongUI.beginLoad(&finishStartupSong);
 			return;
 		}
 		// what just failed??
@@ -721,18 +715,10 @@ void finishStartupSong() {
 		// Wipe the name so the Save action asks you for a new song
 		currentSong->name.clear();
 	}
-	// ...but we got this far, cleanup. Requested and not collected: this runs from the load's
-	// completion, which has nowhere to poll from, and an uncollected answer costs nothing -- see
-	// `issueUnlink`.
+	// ...but we got this far, cleanup. Handed to the machine's own unlink phase, which requests and COLLECTS it: an
+	// unlink's answer holds the byte channel until it is taken (a displaced unlink would rerun and report
+	// NOT_FOUND), so leaving it uncollected would refuse every other request until the channel gave up on it.
 	if (deluge::storage::bytes::usingByteChannel()) {
-		if (deluge::storage::bytes::requestUnlink(g_startupFailSafePath.c_str())
-		    == deluge::storage::bytes::ByteIo::Pending) {
-			g_startupFailSafePath.clear();
-			return;
-		}
-		// Refused because the channel is busy. Hand the cleanup to the machine's own unlink phase, which
-		// keeps asking within its bounds: dropping it here would leave a canary that skips the startup song
-		// on the next boot.
 		g_canaryPath = g_startupFailSafePath;
 		g_startupFailSafePath.clear();
 		enter(StartupPhase::UnlinkCanary);

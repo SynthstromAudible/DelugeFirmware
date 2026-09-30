@@ -30,6 +30,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "io/file.hpp"
+#include "io/stall_bound.h"
 #include "libdeluge/file_directory.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
@@ -69,10 +70,7 @@ int32_t g_totalDirectoryOpens = 0;
 int32_t g_directoryRequests = 0;
 /// Consecutive ticks the directory open in hand has gone unanswered by the channel. See
 /// Browser::openDirectoryForListing().
-int32_t g_directoryWaitTicks = 0;
-/// How many unanswered ticks an open is given before the browser gives up on it: the bound every channel consumer on
-/// this ladder uses.
-constexpr int32_t kMaxDirectoryWaitTicks = 600;
+deluge::io::StallBound g_directoryWait;
 
 /// Count one unanswered tick of the open in hand.
 ///
@@ -80,10 +78,10 @@ constexpr int32_t kMaxDirectoryWaitTicks = 600;
 /// directory handle only until the next publish displaces it and the driver closes it.
 /// @return Whether the open has now gone unanswered for the whole bound, in which case the count starts again.
 bool waitedPastBound() {
-	if (++g_directoryWaitTicks < kMaxDirectoryWaitTicks) {
+	if (!g_directoryWait.tick()) {
 		return false;
 	}
-	g_directoryWaitTicks = 0;
+	g_directoryWait.reset();
 	return true;
 }
 /// See Browser::listingFailures().
@@ -151,7 +149,7 @@ Browser::Browser() {
 bool Browser::beginListing(ListingRequest req) {
 	// A new listing's opens start their wait from nothing: an earlier listing abandoned mid-wait does not count
 	// against them.
-	g_directoryWaitTicks = 0;
+	g_directoryWait.reset();
 	pendingListing_ = std::move(req);
 	listingRestored_ = false;
 	if (!listingRestoreTaken_) {
@@ -224,7 +222,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 	DelugeStatus status = DELUGE_OK;
 	switch (deluge_file_directory_collect(path, &handle, &status)) {
 	case DELUGE_FILE_DIRECTORY_READY:
-		g_directoryWaitTicks = 0;
+		g_directoryWait.reset();
 		return deluge::io::Directory::adopt(handle);
 	case DELUGE_FILE_DIRECTORY_UNKNOWN:
 		// "Request it (again)" — the documented meaning, and never a failure to report. This is also
@@ -251,7 +249,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		// Terminal: the channel will not retry and neither may we, or a folder that cannot be opened
 		// would be re-requested on every tick for as long as the browser sits on it. Mapped exactly as
 		// the synchronous arm maps it, so the fallback fires on both.
-		g_directoryWaitTicks = 0;
+		g_directoryWait.reset();
 		return std::unexpected(directoryOpenError(status));
 	default:
 		// Not reachable through this header, and NOT folded into the FAILED arm above. `out_status`
@@ -438,7 +436,7 @@ bool Browser::opened() {
 }
 
 void Browser::close() {
-	g_directoryWaitTicks = 0; // an open abandoned by closing does not count against the next browser's
+	g_directoryWait.reset(); // an open abandoned by closing does not count against the next browser's
 	// Cancel any attempt still in flight: a listing can span several ticks, so it can outlive the
 	// browser that asked for it, and committing into a closed browser would put one folder's contents
 	// behind another's name. Cancelling HERE rather than testing getCurrentUI() in the pump because
@@ -1290,7 +1288,7 @@ Error Browser::reloadImpl(int32_t direction) {
 }
 
 bool Browser::predictExtendedText(std::optional<int32_t> editPosOnFailure) {
-	g_directoryWaitTicks = 0; // a new prediction's reads start their wait from nothing
+	g_directoryWait.reset(); // a new prediction's reads start their wait from nothing
 	arrivedAtFileByTyping = true;
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;

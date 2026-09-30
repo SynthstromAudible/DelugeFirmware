@@ -21,6 +21,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/strings.h"
+#include "io/stall_bound.h"
 #include "processing/sound/sound_drum.h"
 #include "util/c_string.h"
 #include <cstdint>
@@ -199,8 +200,10 @@ public:
 	std::string stemSearchBasePath_{};
 	std::string stemSearchCandidatePath_{};
 	int32_t stemSearchCandidatesTried_ = 0;
-	/// Consecutive calls the current candidate's channel operation has gone unanswered.
-	int32_t stemSearchStallTicks_ = 0;
+	/// Consecutive calls the current candidate's channel operation has gone unanswered. After boot there is
+	/// nowhere legal to redo the operation inline, so a channel that stopped answering ends the search as Failed --
+	/// the refusal every other unanswerable question here already gets.
+	deluge::io::StallBound stemSearchStall_{};
 	/// @}
 	std::string lastFolderNameForStemExport{};
 	/// @brief The folder the most recent export wrote into: `.../TRACKS`, or `.../TRACKS-NN` once that song has

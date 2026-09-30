@@ -201,6 +201,8 @@ public:
 	[[nodiscard]] bool finalizeIssuedForDiag() const { return finalizeIssued_; }
 	[[nodiscard]] uint8_t abortPhaseForDiag() const { return static_cast<uint8_t>(abortPhase_); }
 	[[nodiscard]] bool openInFlightForDiag() const { return openInFlight(); }
+	/// @brief The status the create's last channel open failed with, or DELUGE_OK when it has not failed.
+	[[nodiscard]] DelugeStatus createOpenErrorForDiag() const { return createOpenError_; }
 
 	/// @brief How many cluster writes have gone through the channel, process-wide.
 	///
@@ -263,8 +265,14 @@ private:
 		return (createIssued_ && createPhase_ == deluge::storage::CreatePhase::Open)
 		       || (finalizeIssued_ && finalizePhase_ == deluge::storage::FinalizePhase::OpenForAlter);
 	}
+	/// The path of the open this recorder last asked the channel for: the create's, or finalize's reopen. The channel
+	/// keys an open's answer by its path, and the abort, which drains whichever open is in flight, knows it only by
+	/// this.
+	std::string openPath_;
 	bool createTriedMakeFolder_ = false;
 	bool createOpenNotFound_ = false;
+	/// The status the create's last channel open failed with; DELUGE_OK until one fails.
+	DelugeStatus createOpenError_ = DELUGE_OK;
 	/// How long this phase's request has been unproductive. See deluge::storage::kMaxUnproductiveUs.
 	deluge::storage::UnproductiveSpan createSpan_;
 	/// This phase's request was still pending past the bound: the create fails on its answer.

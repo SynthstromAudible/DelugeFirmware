@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "io/stall_bound.h"
 #include "storage/audio/audio_load_context.h"
 #include "storage/audio/sample_load_walk.h"
 
@@ -160,6 +161,9 @@ private:
 	bool aborted_{false};
 	/// How many demands had settled, bound or empty, after the previous walk.
 	int32_t settledBefore_{0};
+	/// Counts the walks in a row that leave something in flight and settle nothing new; expires at kMaxStalledTicks of
+	/// them. See @ref Reason::Stalled.
+	deluge::io::StallBound stalledBound_{kMaxStalledTicks};
 	Progress progress_{};
 };
 

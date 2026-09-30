@@ -17,12 +17,12 @@
 
 #include "model/sample/recorder_write_policy.h"
 
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 
 namespace deluge::storage {
 
 bool stalledPastBound(uint8_t collected, int32_t unproductiveUs) {
-	return collected == DELUGE_FILE_WRITE_PENDING && unproductiveUs >= kMaxUnproductiveUs;
+	return collected == DELUGE_FILE_STREAM_PENDING && unproductiveUs >= kMaxUnproductiveUs;
 }
 
 WriteStep nextWriteStep(bool channelUsable, bool issued, uint8_t collected, int32_t unproductiveUs) {
@@ -37,11 +37,11 @@ WriteStep nextWriteStep(bool channelUsable, bool issued, uint8_t collected, int3
 	// Terminal answers are checked BEFORE the bound. A READY past it still means the bytes are on the card,
 	// and the answer is what makes the buffer safe to release.
 	switch (collected) {
-	case DELUGE_FILE_WRITE_READY:
+	case DELUGE_FILE_STREAM_READY:
 		return WriteStep::Complete;
-	case DELUGE_FILE_WRITE_FAILED:
+	case DELUGE_FILE_STREAM_FAILED:
 		return WriteStep::Failed;
-	case DELUGE_FILE_WRITE_UNKNOWN:
+	case DELUGE_FILE_STREAM_UNKNOWN:
 		// "Request again", NOT "keep waiting" -- the request is not queued or running. At the bound nothing is
 		// outstanding, so it fails.
 		return exhausted ? WriteStep::Failed : WriteStep::Issue;

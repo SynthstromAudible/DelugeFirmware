@@ -22,7 +22,7 @@
 /// @file
 /// @brief The staging-release gate: releasing a staged document while the channel is still reading into it.
 ///
-/// The write channel's whole-file read writes into the caller's buffer from the storage tier and cannot be cancelled,
+/// The byte channel's whole-file read writes into the caller's buffer from the storage tier and cannot be cancelled,
 /// so a consumer that abandons a staged read -- a preset load superseded by a newer one, a song load given up -- must
 /// not have that buffer freed under the read. The scenario holds a staged read in flight, releases its staging as an
 /// abandoning consumer does, allocates the same size again and fills it with a sentinel, and lets the read finish. The

@@ -1,6 +1,6 @@
-//! The write channel's answer slot.
+//! The stream channel's answer slot.
 //!
-//! Pure, so `tests/file_write_host.rs` tests it without a card. The rules are `file_bytes`'s:
+//! Pure, so `tests/file_stream_host.rs` tests it without a card. The rules are `file_bytes`'s:
 //! - a take with another operation's key leaves the answer for its owner;
 //! - a take that finds its own answer stamped for an earlier card removes it and reports nothing.
 //!
@@ -25,14 +25,12 @@ pub enum OpKind {
     Truncate,
     Close,
     Stats,
-    ReadFile,
-    WriteFile,
 }
 
 /// Which operation an answer belongs to.
 /// - Handle operations carry their handle and an empty path.
-/// - `ReadFile` and `WriteFile` carry their path and handle 0.
-/// - `Open` and `Stats` carry neither: the channel is single-flight, and their collects name no file.
+/// - `Open` carries the path it opens, so an answer is collected only by the caller that asked for that file.
+/// - `Stats` carries neither: the channel is single-flight, and its collect names no file.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OpKey {
     pub kind: OpKind,
@@ -53,86 +51,107 @@ impl OpKey {
     }
 }
 
+/// Whether an operation a collect found no answer for is still coming, from what the request and in-flight slots
+/// showed: `Some(true)` the operation's key is there, `Some(false)` it is not, `None` the slot's lock was contended.
+///
+/// Contended counts as coming. The task hands a request from the request slot to the in-flight slot, and an answer
+/// from the in-flight slot to the result slot, while holding locks; a collect that meets one of those locks is
+/// looking at a handoff, not at an absence. Reporting "not there" would send the caller to ask again for an operation
+/// already under way -- and a CREATE_NEW open asked again finds its own file and fails with EXISTS.
+pub fn still_coming(queued: Option<bool>, running: Option<bool>) -> bool {
+    queued != Some(false) || running != Some(false)
+}
+
 /// What a take found.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Take {
     /// This operation's answer: the handle, byte count or free-cluster count.
     Ready(u32),
-    /// This operation failed. The payload is the size a whole-file read needed, or 1 when a whole-file write found
-    /// the name taken; 0 otherwise.
+    /// This operation failed. The payload is the `Err` it was published with: for an `Open`, the `DelugeStatus` it
+    /// failed with, as its byte; 0 for the others.
     Failed(u32),
     /// No answer for this key and this card.
     Absent,
 }
 
-struct Answer {
-    key: OpKey,
+/// A stream answer: the `Ok` payload is a handle, byte count or free-cluster count. Only a successful `Open` carries a
+/// handle to release.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct StreamAnswer {
+    kind: OpKind,
     result: Result<u32, u32>,
-    generation: u32,
 }
 
-/// A stream handle an uncollected `Open` answer opened, stamped with the card generation it was opened under.
-struct Orphan {
-    handle: u32,
-    generation: u32,
+impl deluge_channel::Answer for StreamAnswer {
+    fn orphan(&self) -> Option<u32> {
+        match (self.kind, self.result) {
+            (OpKind::Open, Ok(handle)) => Some(handle),
+            _ => None,
+        }
+    }
 }
 
 pub struct AnswerSlot {
-    answer: Option<Answer>,
-    orphans: heapless::Vec<Orphan, MAX_ORPHANS>,
+    inner: deluge_channel::AnswerSlot<OpKey, StreamAnswer>,
+    /// Orphans this slot has retired, each stamped with the card generation its `Open` was answered under. See
+    /// `deluge_channel::Orphan`.
+    orphans: heapless::Vec<deluge_channel::Orphan, MAX_ORPHANS>,
 }
 
 impl AnswerSlot {
     pub const fn new() -> Self {
         Self {
-            answer: None,
+            inner: deluge_channel::AnswerSlot::new(),
             orphans: heapless::Vec::new(),
         }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.answer.is_none()
+        self.inner.is_empty()
     }
 
     /// Hold `key`'s answer, stamped with the card generation its request was made under. Whatever the slot held
-    /// before is dropped.
+    /// before is dropped, and orphaned if it was a live `Open`.
     pub fn publish(&mut self, key: OpKey, result: Result<u32, u32>, generation: u32) {
-        self.drain();
-        self.answer = Some(Answer {
-            key,
-            result,
-            generation,
-        });
+        let kind = key.kind;
+        if let Some(orphan) = self
+            .inner
+            .publish(key, StreamAnswer { kind, result }, generation)
+        {
+            self.push_orphan(orphan);
+        }
     }
 
     /// Take `key`'s answer if it is stamped `generation`. An answer for another key is left alone. An answer for
-    /// this key stamped for another card is removed.
+    /// this key stamped for another card is removed and orphaned if it was a live `Open`.
     pub fn take(&mut self, key: &OpKey, generation: u32) -> Take {
-        if !self.answer.as_ref().is_some_and(|a| a.key == *key) {
-            return Take::Absent;
-        }
-        let answer = self.answer.take().expect("checked just above");
-        if answer.generation != generation {
-            self.retire(answer);
-            return Take::Absent;
-        }
-        match answer.result {
-            Ok(value) => Take::Ready(value),
-            Err(payload) => Take::Failed(payload),
+        match self.inner.take(key, generation) {
+            deluge_channel::Take::Ready(StreamAnswer {
+                result: Ok(value), ..
+            }) => Take::Ready(value),
+            deluge_channel::Take::Ready(StreamAnswer {
+                result: Err(error), ..
+            }) => Take::Failed(error),
+            deluge_channel::Take::Absent { orphan } => {
+                if let Some(orphan) = orphan {
+                    self.push_orphan(orphan);
+                }
+                Take::Absent
+            }
         }
     }
 
     /// Drop the answer if it is `key`'s.
     pub fn discard(&mut self, key: &OpKey) {
-        if self.answer.as_ref().is_some_and(|a| a.key == *key) {
-            self.drain();
+        if let Some(orphan) = self.inner.discard(key) {
+            self.push_orphan(orphan);
         }
     }
 
     /// Empty the slot.
     pub fn drain(&mut self) {
-        if let Some(answer) = self.answer.take() {
-            self.retire(answer);
+        if let Some(orphan) = self.inner.drain() {
+            self.push_orphan(orphan);
         }
     }
 
@@ -155,16 +174,11 @@ impl AnswerSlot {
         !self.orphans.is_empty()
     }
 
-    fn retire(&mut self, answer: Answer) {
-        if let (OpKind::Open, Ok(handle)) = (answer.key.kind, answer.result) {
-            let kept = self.orphans.push(Orphan {
-                handle,
-                generation: answer.generation,
-            });
-            debug_assert!(
-                kept.is_ok(),
-                "more orphans than the stream table has handles"
-            );
-        }
+    fn push_orphan(&mut self, orphan: deluge_channel::Orphan) {
+        let kept = self.orphans.push(orphan);
+        debug_assert!(
+            kept.is_ok(),
+            "more orphans than the stream table has handles"
+        );
     }
 }

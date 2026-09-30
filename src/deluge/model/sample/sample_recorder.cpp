@@ -26,7 +26,7 @@
 #include "libdeluge/clock.h"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/file_io.h"
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 #include "libdeluge/stream_io.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -808,11 +808,11 @@ bool SampleRecorder::advanceAbort() {
 		// first would leave that handle open for good, and a create landing after the unlink would put the file back.
 		if (openInFlight()) {
 			std::optional<deluge::io::Stream> opened;
-			const uint8_t collected = deluge::io::Stream::collect_open(&opened);
-			if (collected == DELUGE_FILE_WRITE_PENDING) {
+			const uint8_t collected = deluge::io::Stream::collect_open(openPath_, &opened);
+			if (collected == DELUGE_FILE_STREAM_PENDING) {
 				return true;
 			}
-			if (collected == DELUGE_FILE_WRITE_READY && opened.has_value()) {
+			if (collected == DELUGE_FILE_STREAM_READY && opened.has_value()) {
 				file = std::move(opened);
 			}
 			createIssued_ = false;
@@ -849,10 +849,10 @@ bool SampleRecorder::advanceAbort() {
 			return abortPhase_ != AbortPhase::Done;
 		}
 		const uint8_t collected = file->collect_close();
-		if (collected == DELUGE_FILE_WRITE_PENDING) {
+		if (collected == DELUGE_FILE_STREAM_PENDING) {
 			return true; // NOT terminal yet -- the unlink must not go out.
 		}
-		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+		if (collected == DELUGE_FILE_STREAM_UNKNOWN) {
 			// Never keyed, or its answer was displaced: the handle is still open, so ask again.
 			abortIssued_ = false;
 			return true;
@@ -953,11 +953,11 @@ bool SampleRecorder::closeFailedTake() {
 		return false;
 	}
 	const uint8_t collected = file->collect_close();
-	if (collected == DELUGE_FILE_WRITE_PENDING) {
+	if (collected == DELUGE_FILE_STREAM_PENDING) {
 		return true;
 	}
 	failedCloseIssued_ = false;
-	if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+	if (collected == DELUGE_FILE_STREAM_UNKNOWN) {
 		return true; // Never keyed, or displaced: the handle is still open, so ask again.
 	}
 	file.reset();
@@ -1006,7 +1006,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 
 	AudioEngine::noteCreateTick();
 
-	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
+	uint8_t collected = DELUGE_FILE_STREAM_UNKNOWN;
 	bool spaceExhausted = false;
 	bool pathReady = false;
 
@@ -1014,7 +1014,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 		switch (createPhase_) {
 
 		case CreatePhase::Stats: {
-			// initSD stays, and only on this arm. The channel arm mounts lazily (file_write.rs's
+			// initSD stays, and only on this arm. The channel arm mounts lazily (file_stream.rs's
 			// open_mounted); the inline arm reaches efatfs directly through deluge_efatfs_stream_open
 			// and needs the card already mounted. Deleting it would leave the rig green -- it mounts
 			// at boot -- and break a card inserted afterwards. Running it on the channel arm would
@@ -1034,7 +1034,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 				}
 				break;
 			}
-			if (deluge_file_write_request_stats()) {
+			if (deluge_file_stream_request_stats()) {
 				return createAccepted();
 			}
 			g_channelRefusals++;
@@ -1076,7 +1076,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 				// a refused request, so a folder scan whose open the channel never answers fails the create at the
 				// bound.
 				createSpan_.note(deluge_clock_now());
-				return createTransition(DELUGE_FILE_WRITE_UNKNOWN);
+				return createTransition(DELUGE_FILE_STREAM_UNKNOWN);
 			}
 			if (error != Error::NONE) {
 				return CreateStep::Failed;
@@ -1097,10 +1097,12 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 
 		case CreatePhase::Open: {
 			createOpenNotFound_ = false;
+			createOpenError_ = DELUGE_OK;
 			if (mayUseChannel) {
 				// Refused: nothing was queued, so ask again next tick, until the bound. Opening here instead would
 				// block this tier on the card.
-				const bool accepted = deluge::io::Stream::request_open(filePathCreated, createStreamMode_);
+				openPath_ = filePathCreated;
+				const bool accepted = deluge::io::Stream::request_open(openPath_, createStreamMode_);
 				return accepted ? createAccepted() : createRefused();
 			}
 			noteRecorderIo();
@@ -1114,7 +1116,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 			// or a per-song recording subfolder under RECORD/RESAMPLE). That is the one open failure
 			// worth acting on.
 			createOpenNotFound_ = (openedStream.error() == deluge::io::Status::NOT_FOUND);
-			collected = DELUGE_FILE_WRITE_FAILED;
+			collected = DELUGE_FILE_STREAM_FAILED;
 			break;
 		}
 
@@ -1150,35 +1152,35 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 		case CreatePhase::Failed:
 			return CreateStep::Failed;
 		}
-		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
-			collected = DELUGE_FILE_WRITE_READY;
+		if (collected == DELUGE_FILE_STREAM_UNKNOWN) {
+			collected = DELUGE_FILE_STREAM_READY;
 		}
 	}
 	else {
 		uint32_t got = 0;
 		switch (createPhase_) {
 		case CreatePhase::Stats:
-			collected = deluge_file_write_collect_stats(&got);
-			if (collected == DELUGE_FILE_WRITE_READY && got == 0) {
+			collected = deluge_file_stream_collect_stats(&got);
+			if (collected == DELUGE_FILE_STREAM_READY && got == 0) {
 				spaceExhausted = true;
 			}
-			else if (collected == DELUGE_FILE_WRITE_FAILED) {
+			else if (collected == DELUGE_FILE_STREAM_FAILED) {
 				// A query that could not run is not a full card -- carry on, as the synchronous arm
 				// always has.
-				collected = DELUGE_FILE_WRITE_READY;
+				collected = DELUGE_FILE_STREAM_READY;
 			}
 			break;
 		case CreatePhase::Open: {
 			std::optional<deluge::io::Stream> opened;
-			collected = deluge::io::Stream::collect_open(&opened);
-			if (collected == DELUGE_FILE_WRITE_READY && opened.has_value()) {
+			DelugeStatus openError = DELUGE_OK;
+			collected = deluge::io::Stream::collect_open(filePathCreated, &opened, &openError);
+			if (collected == DELUGE_FILE_STREAM_READY && opened.has_value()) {
 				file = std::move(opened);
 			}
-			else if (collected == DELUGE_FILE_WRITE_FAILED) {
-				// The channel cannot say NOT_FOUND apart from any other failure, so give the folder
-				// retry its one chance rather than failing a recording whose only problem is a
-				// missing parent.
-				createOpenNotFound_ = !createTriedMakeFolder_;
+			else if (collected == DELUGE_FILE_STREAM_FAILED) {
+				// Only a missing folder is worth the retry: any other failure fails the recording.
+				createOpenError_ = openError;
+				createOpenNotFound_ = (openError == DELUGE_ERR_NOT_FOUND);
 			}
 			break;
 		}
@@ -1186,17 +1188,17 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 			DelugeStatus outStatus = DELUGE_OK;
 			const deluge::storage::bytes::ByteIo io =
 			    deluge::storage::bytes::collectMkdirAll(createFolderPath_.c_str(), &outStatus);
-			collected = (io == deluge::storage::bytes::ByteIo::Pending)   ? DELUGE_FILE_WRITE_PENDING
-			            : (io == deluge::storage::bytes::ByteIo::Ready)   ? DELUGE_FILE_WRITE_READY
-			            : (io == deluge::storage::bytes::ByteIo::Unknown) ? DELUGE_FILE_WRITE_UNKNOWN
-			                                                              : DELUGE_FILE_WRITE_FAILED;
+			collected = (io == deluge::storage::bytes::ByteIo::Pending)   ? DELUGE_FILE_STREAM_PENDING
+			            : (io == deluge::storage::bytes::ByteIo::Ready)   ? DELUGE_FILE_STREAM_READY
+			            : (io == deluge::storage::bytes::ByteIo::Unknown) ? DELUGE_FILE_STREAM_UNKNOWN
+			                                                              : DELUGE_FILE_STREAM_FAILED;
 			break;
 		}
 		default:
-			collected = DELUGE_FILE_WRITE_READY;
+			collected = DELUGE_FILE_STREAM_READY;
 			break;
 		}
-		if (collected == DELUGE_FILE_WRITE_PENDING) {
+		if (collected == DELUGE_FILE_STREAM_PENDING) {
 			// Still in flight, even past the bound: an open may yet hand back a stream, so wait for the answer,
 			// and fail on it if this went past the bound.
 			createSpan_.note(deluge_clock_now());
@@ -1205,7 +1207,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 			}
 			return CreateStep::Pending;
 		}
-		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+		if (collected == DELUGE_FILE_STREAM_UNKNOWN) {
 			// Never keyed, or its answer was displaced: ask again next tick, until the bound.
 			createIssued_ = false;
 			createSpan_.note(deluge_clock_now());
@@ -1228,7 +1230,7 @@ SampleRecorder::CreateStep SampleRecorder::createAccepted() {
 SampleRecorder::CreateStep SampleRecorder::createRefused() {
 	g_channelRefusals++;
 	createSpan_.note(deluge_clock_now());
-	return createTransition(DELUGE_FILE_WRITE_UNKNOWN);
+	return createTransition(DELUGE_FILE_STREAM_UNKNOWN);
 }
 
 SampleRecorder::CreateStep SampleRecorder::createTransition(uint8_t collected, bool spaceExhausted, bool pathReady) {
@@ -1275,7 +1277,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 
 	AudioEngine::noteFinalizeTick();
 
-	uint8_t collected = DELUGE_FILE_WRITE_UNKNOWN;
+	uint8_t collected = DELUGE_FILE_STREAM_UNKNOWN;
 
 	// Issue this phase's operation, if it has one and has not issued it yet.
 	if (!finalizeIssued_) {
@@ -1404,7 +1406,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 
 		case FinalizePhase::OpenForAlter: {
 			if (finalizeMayUseChannel) {
-				const bool accepted = deluge::io::Stream::request_open(sample->filePath, DELUGE_STREAM_WRITE_APPEND);
+				openPath_ = sample->filePath;
+				const bool accepted = deluge::io::Stream::request_open(openPath_, DELUGE_STREAM_WRITE_APPEND);
 				return accepted ? finalizeAccepted() : finalizeRefused();
 			}
 			noteRecorderIo();
@@ -1467,18 +1470,18 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 		case FinalizePhase::Failed:
 			return FinalizeStep::Failed;
 		}
-		collected = DELUGE_FILE_WRITE_READY; // A phase with nothing to wait for advances immediately.
+		collected = DELUGE_FILE_STREAM_READY; // A phase with nothing to wait for advances immediately.
 	}
 	else {
 		// Collect the answer this phase issued last tick.
 		uint32_t got = 0;
 		switch (finalizePhase_) {
 		case FinalizePhase::Truncate:
-			collected = file ? file->collect_truncate() : DELUGE_FILE_WRITE_FAILED;
+			collected = file ? file->collect_truncate() : DELUGE_FILE_STREAM_FAILED;
 			break;
 		case FinalizePhase::HeaderRead:
-			collected = file ? file->collect_read_at(&got) : DELUGE_FILE_WRITE_FAILED;
-			if (collected == DELUGE_FILE_WRITE_READY) {
+			collected = file ? file->collect_read_at(&got) : DELUGE_FILE_STREAM_FAILED;
+			if (collected == DELUGE_FILE_STREAM_READY) {
 				if (got == 0) {
 					// Nothing came back at all: there is no header to patch, so leave it alone rather
 					// than treat it as an error.
@@ -1488,25 +1491,25 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			}
 			break;
 		case FinalizePhase::HeaderWrite:
-			collected = file ? file->collect_write_at(&got) : DELUGE_FILE_WRITE_FAILED;
+			collected = file ? file->collect_write_at(&got) : DELUGE_FILE_STREAM_FAILED;
 			break;
 		case FinalizePhase::CloseBeforeAlter:
-			collected = file ? file->collect_close() : DELUGE_FILE_WRITE_FAILED;
-			if (collected == DELUGE_FILE_WRITE_READY || collected == DELUGE_FILE_WRITE_FAILED) {
+			collected = file ? file->collect_close() : DELUGE_FILE_STREAM_FAILED;
+			if (collected == DELUGE_FILE_STREAM_READY || collected == DELUGE_FILE_STREAM_FAILED) {
 				file.reset();
 			}
 			break;
 		case FinalizePhase::OpenForAlter: {
 			std::optional<deluge::io::Stream> opened;
-			collected = deluge::io::Stream::collect_open(&opened);
-			if (collected == DELUGE_FILE_WRITE_READY && opened.has_value()) {
+			collected = deluge::io::Stream::collect_open(sample->filePath, &opened);
+			if (collected == DELUGE_FILE_STREAM_READY && opened.has_value()) {
 				file = std::move(opened);
 			}
 			break;
 		}
 		case FinalizePhase::BatchRead:
-			collected = file ? file->collect_read_at(&got) : DELUGE_FILE_WRITE_FAILED;
-			if (collected == DELUGE_FILE_WRITE_READY) {
+			collected = file ? file->collect_read_at(&got) : DELUGE_FILE_STREAM_FAILED;
+			if (collected == DELUGE_FILE_STREAM_READY) {
 				if (got != alterBatchFrames() * alterInputFrameBytes_) {
 					return FinalizeStep::Failed; // Short read mid-transform.
 				}
@@ -1514,8 +1517,8 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			}
 			break;
 		case FinalizePhase::BatchWrite:
-			collected = file ? file->collect_write_at(&got) : DELUGE_FILE_WRITE_FAILED;
-			if (collected == DELUGE_FILE_WRITE_READY) {
+			collected = file ? file->collect_write_at(&got) : DELUGE_FILE_STREAM_FAILED;
+			if (collected == DELUGE_FILE_STREAM_READY) {
 				const uint32_t batchFrames = alterBatchFrames();
 				alterReadCursor_ += batchFrames * alterInputFrameBytes_;
 				alterWriteCursor_ += batchFrames * 3;
@@ -1523,16 +1526,16 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			}
 			break;
 		case FinalizePhase::Close:
-			collected = file ? file->collect_close() : DELUGE_FILE_WRITE_FAILED;
-			if (collected == DELUGE_FILE_WRITE_READY || collected == DELUGE_FILE_WRITE_FAILED) {
+			collected = file ? file->collect_close() : DELUGE_FILE_STREAM_FAILED;
+			if (collected == DELUGE_FILE_STREAM_READY || collected == DELUGE_FILE_STREAM_FAILED) {
 				file.reset();
 			}
 			break;
 		default:
-			collected = DELUGE_FILE_WRITE_READY;
+			collected = DELUGE_FILE_STREAM_READY;
 			break;
 		}
-		if (collected == DELUGE_FILE_WRITE_PENDING) {
+		if (collected == DELUGE_FILE_STREAM_PENDING) {
 			// Still in flight, even past the bound: the driver may be using this recorder's header or batch
 			// buffer, so wait for the answer, and fail on it if this went past the bound.
 			finalizeSpan_.note(deluge_clock_now());
@@ -1541,7 +1544,7 @@ SampleRecorder::FinalizeStep SampleRecorder::advanceFinalize() {
 			}
 			return FinalizeStep::Pending;
 		}
-		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+		if (collected == DELUGE_FILE_STREAM_UNKNOWN) {
 			// Never keyed, or its answer was displaced: ask again next tick, until the bound.
 			finalizeIssued_ = false;
 			finalizeSpan_.note(deluge_clock_now());
@@ -1561,7 +1564,7 @@ SampleRecorder::FinalizeStep SampleRecorder::finalizeAccepted() {
 SampleRecorder::FinalizeStep SampleRecorder::finalizeRefused() {
 	g_channelRefusals++;
 	finalizeSpan_.note(deluge_clock_now());
-	return finalizeTransition(DELUGE_FILE_WRITE_UNKNOWN);
+	return finalizeTransition(DELUGE_FILE_STREAM_UNKNOWN);
 }
 
 SampleRecorder::FinalizeStep SampleRecorder::finalizeTransition(uint8_t collected) {
@@ -1661,7 +1664,7 @@ bool SampleRecorder::pumpInFlightWrite() {
 
 	const int32_t index = inFlightClusterIndex_;
 	uint32_t written = 0;
-	const uint8_t collected = inFlightIssued_ ? file->collect_write_at(&written) : DELUGE_FILE_WRITE_UNKNOWN;
+	const uint8_t collected = inFlightIssued_ ? file->collect_write_at(&written) : DELUGE_FILE_STREAM_UNKNOWN;
 
 	const WriteStep step =
 	    deluge::storage::nextWriteStep(/*channelUsable=*/true, inFlightIssued_, collected, writeSpan_.elapsedUs);

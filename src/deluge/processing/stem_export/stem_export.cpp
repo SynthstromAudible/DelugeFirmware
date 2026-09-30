@@ -31,7 +31,7 @@
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 #include "libdeluge/streaming_fill.h" // deluge_streaming_request_drain
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
@@ -980,20 +980,15 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 			stemSearchPhase_ = deluge::storage::StemSearchPhase::ProbeCandidate;
 			stemSearchIssued_ = false;
 			stemSearchCandidatesTried_ = 0;
-			stemSearchStallTicks_ = 0;
+			stemSearchStall_.reset();
 			stemSearchCandidatePath_ = tempPathForSearch;
 		}
-
-		// How many calls one candidate's channel operation may go unanswered before the search gives up. After boot
-		// there is nowhere legal to redo the operation inline, so a channel that stopped answering ends the search --
-		// as Failed, the refusal every other unanswerable question here already gets.
-		constexpr int32_t kMaxStemSearchStallTicks = 600;
 
 		const bool mayUseChannel = deluge::boot::finished();
 
 		while (stemSearchPhase_ != deluge::storage::StemSearchPhase::Done
 		       && stemSearchPhase_ != deluge::storage::StemSearchPhase::Failed) {
-			uint8_t collected = DELUGE_FILE_WRITE_READY;
+			uint8_t collected = DELUGE_FILE_STREAM_READY;
 			deluge::storage::Presence candidate = deluge::storage::Presence::Absent;
 
 			switch (stemSearchPhase_) {
@@ -1005,7 +1000,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectExists(stemSearchCandidatePath_.c_str(), &present, &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
+						if (!stemSearchStall_.tick()) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestExists(stemSearchCandidatePath_.c_str());
 							}
@@ -1033,23 +1028,23 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectMkdirAll(stemSearchCandidatePath_.c_str(), &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						if (++stemSearchStallTicks_ <= kMaxStemSearchStallTicks) {
+						if (!stemSearchStall_.tick()) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestMkdirAll(stemSearchCandidatePath_.c_str());
 							}
 							return Error::LISTING_DEFERRED;
 						}
 						// Stalled: a folder that could not be made, which ends the search.
-						collected = DELUGE_FILE_WRITE_FAILED;
+						collected = DELUGE_FILE_STREAM_FAILED;
 						break;
 					}
-					collected = (io == deluge::storage::bytes::ByteIo::Ready) ? DELUGE_FILE_WRITE_READY
-					                                                          : DELUGE_FILE_WRITE_FAILED;
+					collected = (io == deluge::storage::bytes::ByteIo::Ready) ? DELUGE_FILE_STREAM_READY
+					                                                          : DELUGE_FILE_STREAM_FAILED;
 				}
 				else {
 					collected = deluge::io::mkdir(stemSearchCandidatePath_.c_str()).has_value()
-					                ? DELUGE_FILE_WRITE_READY
-					                : DELUGE_FILE_WRITE_FAILED;
+					                ? DELUGE_FILE_STREAM_READY
+					                : DELUGE_FILE_STREAM_FAILED;
 				}
 				break;
 			}
@@ -1075,7 +1070,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 				stemSearchCandidatePath_.append("-");
 				stemSearchCandidatePath_.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
 			}
-			stemSearchStallTicks_ = 0;
+			stemSearchStall_.reset();
 			stemSearchPhase_ = next;
 		}
 

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/slot_browser.h"
 #include "hid/button.h"
+#include "io/stall_bound.h"
 #include "storage/readback_check.h"
 #include "storage/save_dispatch.h"
 #include "storage/temp_swap.h"
@@ -205,7 +206,7 @@ private:
 	void endStagedSave(bool succeeded);
 	/// @brief Hand the shared serialiser back to file-backed use.
 	static void releaseStagedWriter();
-	/// @brief Defer one more tick, or give up if this save has stopped making progress.
+	/// @brief Defer one more caller tick, or give up once the byte channel has finished nothing for the stall bound.
 	static bool deferStagedSave();
 
 	static inline int32_t writeChannelServedOps_{};
@@ -233,7 +234,7 @@ private:
 	/// The prolog runSerializePhase() writes, and so the head every staged document must start with.
 	static constexpr const char* kStagedDocumentHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 	static inline bool stagedSucceeded_{};
-	static inline int32_t stallTicks_{};
+	static inline deluge::io::StallBound stallBound_{};
 	/// The in-flight save, if any. Single-flight by refusal: see dispatchSave().
 	static inline bool saveInFlight_{};
 	static inline deluge::storage::SaveRequest inFlightRequest_{};

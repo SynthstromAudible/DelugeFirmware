@@ -184,15 +184,15 @@ mod file_directory;
 #[path = "../../../src/file_prefix.rs"]
 mod file_prefix;
 /// The recorder's async stream-write driver. Included here for the same reason every module above
-/// is: this binary is a separate package, and there is no C++ fallback for the write channel's
+/// is: this binary is a separate package, and there is no C++ fallback for the stream channel's
 /// request/collect symbols, so a module missing from this list fails the link.
-#[path = "../../../src/file_write.rs"]
-mod file_write;
-/// The write channel's answer slot, storage for `file_write` above. Included here for the same reason every
-/// module in this list is: a module missing resolves `file_write`'s `use super::file_write_slot::...` against
+#[path = "../../../src/file_stream.rs"]
+mod file_stream;
+/// The stream channel's answer slot, storage for `file_stream` above. Included here for the same reason every
+/// module in this list is: a module missing resolves `file_stream`'s `use super::file_stream_slot::...` against
 /// nothing, and this binary would fail to build rather than silently drop the channel.
-#[path = "../../../src/file_write_slot.rs"]
-mod file_write_slot;
+#[path = "../../../src/file_stream_slot.rs"]
+mod file_stream_slot;
 #[path = "../../../src/flash.rs"]
 mod flash;
 #[path = "../../../src/host_link_stubs.rs"]
@@ -776,6 +776,7 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         (4, "stall"),
         (6, "abortcreate"),
         (7, "abortalter"),
+        (8, "openioerr"),
         (5, "dirstall"),
     ] {
         // SAFETY: same C-ABI contract as above.
@@ -1695,8 +1696,8 @@ fn main() {
     // The whole-file worker, always. Without this the channel's collects answer UNKNOWN forever and
     // every settings operation would stall -- `SC-CHANNEL served=` is what tells the difference.
     spawner.spawn(file_bytes::file_bytes_task().unwrap());
-    // And the write channel's worker, always: without this spawn its collects answer UNKNOWN forever.
-    spawner.spawn(file_write::file_write_task().unwrap());
+    // And the stream channel's worker, always: without this spawn its collects answer UNKNOWN forever.
+    spawner.spawn(file_stream::file_stream_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
     if let Some(stepped) = stepped {

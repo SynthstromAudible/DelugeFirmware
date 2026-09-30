@@ -282,12 +282,12 @@ mod file_directory;
 /// feature switch.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod file_prefix;
-/// The write channel: request/collect over the recorder's stream-write handles and the whole-file
-/// write and read. Compiled unconditionally; the channel has no feature switch.
-mod file_write;
-/// The write channel's answer slot: pure, so it is host-tested without a card. Compiled unconditionally,
-/// beside `file_write` above, which it is the storage for.
-mod file_write_slot;
+/// The stream channel: request/collect over the recorder's stream-write handles. Compiled
+/// unconditionally; the channel has no feature switch.
+mod file_stream;
+/// The stream channel's answer slot: pure, so it is host-tested without a card. Compiled unconditionally,
+/// beside `file_stream` above, which it is the storage for.
+mod file_stream_slot;
 /// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.
 mod flash;
 /// Host-only no-op stubs for the peripheral (MIDI/audio/CV-gate/signals) C ABI
@@ -507,7 +507,7 @@ async fn stream_bootstrap() {
     spawner.spawn(file_bytes::file_bytes_task().unwrap());
     // The recorder's cluster write. Same reason as its neighbours: `stream_write_at` goes through
     // `with_fs`, so this task holds the FS mutex across an SD await.
-    spawner.spawn(file_write::file_write_task().unwrap());
+    spawner.spawn(file_stream::file_stream_task().unwrap());
 }
 
 /// Firmware entry. The HAL reset handler (`_reset_handler` in rza1l-hal) ends in
@@ -1558,7 +1558,7 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
                     spawner.spawn(file_prefix::file_prefix_task().unwrap());
                     spawner.spawn(file_directory::file_directory_task().unwrap());
                     spawner.spawn(file_bytes::file_bytes_task().unwrap());
-                    spawner.spawn(file_write::file_write_task().unwrap());
+                    spawner.spawn(file_stream::file_stream_task().unwrap());
                     log::info!(
                         "deluge-bsp-rust: host streaming executor up on thread {:?}",
                         std::thread::current().name()

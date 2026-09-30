@@ -25,10 +25,10 @@
 
 #include "gui/ui_timer_manager.h"
 #include "io/file.hpp"
+#include "io/stall_bound.h"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
 #include "libdeluge/file_bytes.h"
-#include "libdeluge/file_write.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "processing/engines/audio_engine.h"
@@ -218,7 +218,7 @@ Error StorageManager::readWholeFileSynchronously(char const* path, StagingState*
 }
 
 namespace {
-/// A released buffer the write channel was still reading into when its consumer let it go.
+/// A released buffer the byte channel was still reading into when its consumer let it go.
 struct OrphanedStaging {
 	uint8_t* buffer = nullptr;
 	uint32_t size = 0;
@@ -244,7 +244,7 @@ void freeStagingBuffer(uint8_t* buffer, uint32_t size) {
 
 void StorageManager::reapOrphanedStaging() {
 	for (OrphanedStaging& orphan : orphanedStaging) {
-		if (orphan.buffer != nullptr && !deluge_file_write_holds(orphan.buffer)) {
+		if (orphan.buffer != nullptr && !deluge_file_bytes_holds(orphan.buffer)) {
 			freeStagingBuffer(orphan.buffer, orphan.size);
 			orphan = {};
 		}
@@ -260,7 +260,7 @@ void StorageManager::releaseStaging(StagingState* state) {
 	if (state->buffer != nullptr) {
 		// The whole-file read writes into this buffer from the storage tier and cannot be cancelled. A consumer that
 		// gives up on a read the channel still holds would otherwise free memory the read is about to write.
-		if (deluge_file_write_holds(state->buffer)) {
+		if (deluge_file_bytes_holds(state->buffer)) {
 			reapOrphanedStaging();
 			auto slot = std::ranges::find_if(orphanedStaging,
 			                                 [](const OrphanedStaging& orphan) { return orphan.buffer == nullptr; });
@@ -281,14 +281,11 @@ namespace {
 /// Completed whole-file staging reads served by the channel. See stagingChannelServedOps().
 int32_t stagingServedOps = 0;
 
-/// How many consecutive deferrals one staging tolerates before giving up. A bound, not a timeout: the
-/// channel answers within a tick or two when it is running at all, so anything approaching this means
-/// it is not going to.
-constexpr uint16_t kMaxStalledTicks = 600;
-
-/// Defer one more tick, or give up if this staging has stopped making progress.
+/// Defer one more caller tick, or give up once the byte channel has finished nothing for the whole stall bound. A
+/// bound, not a timeout: a refusal behind someone else's long operation, or a wait on this read, keeps waiting for
+/// as long as the channel keeps finishing work, and only a channel that has stopped fails the load.
 StorageManager::StagedOpen deferStaging(StorageManager::StagingState* state) {
-	if (++state->stalledTicks > kMaxStalledTicks) {
+	if (state->stalledTicks.tick(deluge_file_bytes_progress())) {
 		return StorageManager::StagedOpen::Failed;
 	}
 	return StorageManager::StagedOpen::Deferred;
@@ -301,8 +298,8 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 	reapOrphanedStaging();
 
 	// During boot the buffer is filled synchronously, which is legal then and needs no channel task
-	// to answer. After it both channels are always there: the byte channel's stat sizes the buffer
-	// and the write channel's whole-file read fills it.
+	// to answer. After it the byte channel is always there: its stat sizes the buffer and its read-into
+	// fills it.
 	const bool booting = !deluge::boot::finished();
 
 	if (!booting) {
@@ -315,62 +312,65 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		}
 	}
 	else if (!state->issued) {
-		// Size first, so the buffer can be allocated exactly. `out_needed` on the collect below is
-		// what catches the file changing between this stat and the read.
-		uint32_t size = 0;
-		DelugeStatus statStatus = DELUGE_OK;
-		switch (deluge::storage::bytes::collectStat(path, &size, &statStatus)) {
-		case deluge::storage::bytes::ByteIo::Unknown:
-			// Ask -- and HONOUR the answer: requestStat reports Failed for a path it cannot key at
-			// all, and discarding that leaves this asking a channel that will never reply.
-			if (deluge::storage::bytes::requestStat(path) == deluge::storage::bytes::ByteIo::Failed) {
+		// Size first, so the buffer can be allocated exactly. DELUGE_ERR_NO_MEMORY on the collect below
+		// is what catches the file growing between this stat and the read. A buffer already sized -- by
+		// this stat, or by that retry -- is not sized again: a read refused while the channel is busy is
+		// retried on its own, or every refusal would send this back to a fresh stat.
+		if (state->buffer == nullptr) {
+			uint32_t size = 0;
+			DelugeStatus statStatus = DELUGE_OK;
+			switch (deluge::storage::bytes::collectStat(path, &size, &statStatus)) {
+			case deluge::storage::bytes::ByteIo::Unknown:
+				// Ask -- and HONOUR the answer: requestStat reports Failed for a path it cannot key at
+				// all, and discarding that leaves this asking a channel that will never reply.
+				if (deluge::storage::bytes::requestStat(path) == deluge::storage::bytes::ByteIo::Failed) {
+					return StagedOpen::Failed;
+				}
+				return deferStaging(state);
+			case deluge::storage::bytes::ByteIo::Pending:
+				return deferStaging(state);
+			case deluge::storage::bytes::ByteIo::Failed:
+				return StagedOpen::Failed;
+			case deluge::storage::bytes::ByteIo::Ready:
+				state->stalledTicks.reset();
+				break;
+			}
+			if (size == 0) {
 				return StagedOpen::Failed;
 			}
-			return deferStaging(state);
-		case deluge::storage::bytes::ByteIo::Pending:
-			return deferStaging(state);
-		case deluge::storage::bytes::ByteIo::Failed:
-			return StagedOpen::Failed;
-		case deluge::storage::bytes::ByteIo::Ready:
-			state->stalledTicks = 0;
-			break;
-		}
-		if (size == 0) {
-			return StagedOpen::Failed;
-		}
-		if (state->buffer == nullptr) {
 			state->buffer = static_cast<uint8_t*>(deluge::memory::alloc_sdram(size));
 			if (state->buffer == nullptr) {
 				return StagedOpen::Failed;
 			}
 			state->size = size;
 		}
-		if (!deluge_file_write_request_read_file(path, state->buffer, state->size)) {
+		if (!deluge_file_bytes_request_read_into(path, state->buffer, state->size)) {
 			// Refused, not failed: nothing was queued, so ask again next tick.
 			return deferStaging(state);
 		}
 		state->issued = true;
-		state->stalledTicks = 0;
+		state->stalledTicks.reset();
 		return StagedOpen::Deferred;
 	}
 	else {
 		uint32_t got = 0;
+		DelugeStatus error = DELUGE_OK;
 		uint32_t needed = 0;
-		const uint8_t collected = deluge_file_write_collect_read_file(path, &got, &needed);
-		if (collected == DELUGE_FILE_WRITE_PENDING) {
+		const DelugeChannelStatus collected = deluge_file_bytes_collect_read_into(path, &got, &error, &needed);
+		if (collected == DELUGE_CHANNEL_PENDING) {
 			return deferStaging(state);
 		}
-		if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+		if (collected == DELUGE_CHANNEL_UNKNOWN) {
 			// Never keyed, so nothing is coming. Re-issue next tick rather than wait forever.
 			state->issued = false;
 			return deferStaging(state);
 		}
-		if (collected == DELUGE_FILE_WRITE_FAILED) {
+		if (collected == DELUGE_CHANNEL_FAILED) {
 			state->issued = false;
-			if (needed != 0) {
+			if (error == DELUGE_ERR_NO_MEMORY) {
 				// The file grew between the stat and the read. Resize and try once more; the retry
-				// is bounded because a second FAILED with a needed size re-enters here with a buffer
-				// already that large, and the read then either fits or reports a genuine failure.
+				// is bounded because a second NO_MEMORY re-enters here with a buffer already that
+				// large, and the read then either fits or reports a genuine failure.
 				releaseStaging(state);
 				state->buffer = static_cast<uint8_t*>(deluge::memory::alloc_sdram(needed));
 				if (state->buffer == nullptr) {

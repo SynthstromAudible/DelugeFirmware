@@ -16,21 +16,21 @@
  */
 
 /// @file
-/// @brief The storage channels' C ABI for the unit tests, which link no BSP: `libdeluge/file_write.h`,
+/// @brief The storage channels' C ABI for the unit tests, which link no BSP: `libdeluge/file_stream.h`,
 ///        `file_bytes.h` and `file_directory.h`, answered as "no channel here".
 ///
-/// The Rust BSP defines every one of these in `file_write.rs`, `file_bytes.rs` and `file_directory.rs`. The code under
-/// test reaches them only past a boot the unit tests never finish, apart from `deluge_file_write_holds`, which answers
+/// The Rust BSP defines every one of these in `file_stream.rs`, `file_bytes.rs` and `file_directory.rs`. The code under
+/// test reaches them only past a boot the unit tests never finish, apart from the two `holds` calls, which answer
 /// that no read holds a buffer. A request is refused so the caller takes its synchronous arm; a collect answers
 /// UNKNOWN, never PENDING, which would keep a caller waiting for an answer that can never come.
 
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_directory.h"
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 
 extern "C" {
 
-bool deluge_file_write_request_write_at(uint32_t, uint32_t, const uint8_t*, uint32_t) noexcept {
+bool deluge_file_stream_request_write_at(uint32_t, uint32_t, const uint8_t*, uint32_t) noexcept {
 	// Refused, so the caller takes its synchronous arm. Silently accepting and never answering is
 	// the failure this project has hit three times (the startup fail-safe's boot wedge,
 	// smsysex_pending, and the settings submit machine): a channel that accepts and never answers
@@ -38,74 +38,83 @@ bool deluge_file_write_request_write_at(uint32_t, uint32_t, const uint8_t*, uint
 	return false;
 }
 
-uint8_t deluge_file_write_collect_write_at(uint32_t, uint32_t*) noexcept {
+uint8_t deluge_file_stream_collect_write_at(uint32_t, uint32_t*) noexcept {
 	// UNKNOWN, not PENDING: "there is nothing in flight, ask again if you want one". PENDING would
 	// tell a caller to keep waiting for an answer that can never come.
-	return DELUGE_FILE_WRITE_UNKNOWN;
+	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
-// The other seven operations, same two rules throughout: a request is REFUSED so the caller takes its
+// The other operations, same two rules throughout: a request is REFUSED so the caller takes its
 // synchronous arm, and a collect answers UNKNOWN -- "nothing is in flight, ask again if you want
 // one" -- never PENDING, which would tell a caller to keep waiting for an answer that can never come.
 
-bool deluge_file_write_request_open(const char*, uint8_t) noexcept {
+bool deluge_file_stream_request_open(const char*, uint8_t) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_write_collect_open(uint32_t*) noexcept {
-	return DELUGE_FILE_WRITE_UNKNOWN;
+DelugeChannelStatus deluge_file_stream_collect_open(const char*, uint32_t*, DelugeStatus*) noexcept {
+	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
-bool deluge_file_write_request_read_at(uint32_t, uint32_t, uint8_t*, uint32_t) noexcept {
+bool deluge_file_stream_request_read_at(uint32_t, uint32_t, uint8_t*, uint32_t) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_write_collect_read_at(uint32_t, uint32_t*) noexcept {
-	return DELUGE_FILE_WRITE_UNKNOWN;
+uint8_t deluge_file_stream_collect_read_at(uint32_t, uint32_t*) noexcept {
+	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
-bool deluge_file_write_request_truncate(uint32_t, uint32_t) noexcept {
+bool deluge_file_stream_request_truncate(uint32_t, uint32_t) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_write_collect_truncate(uint32_t) noexcept {
-	return DELUGE_FILE_WRITE_UNKNOWN;
+uint8_t deluge_file_stream_collect_truncate(uint32_t) noexcept {
+	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
-bool deluge_file_write_request_close(uint32_t) noexcept {
+bool deluge_file_stream_request_close(uint32_t) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_write_collect_close(uint32_t) noexcept {
-	return DELUGE_FILE_WRITE_UNKNOWN;
+uint8_t deluge_file_stream_collect_close(uint32_t) noexcept {
+	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
-bool deluge_file_write_request_stats(void) noexcept {
+bool deluge_file_stream_request_stats(void) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_write_collect_stats(uint32_t*) noexcept {
-	return DELUGE_FILE_WRITE_UNKNOWN;
+uint8_t deluge_file_stream_collect_stats(uint32_t*) noexcept {
+	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
-bool deluge_file_write_request_read_file(const char*, uint8_t*, uint32_t) noexcept {
+bool deluge_file_stream_holds(const void*) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_write_collect_read_file(const char*, uint32_t*, uint32_t*) noexcept {
-	return DELUGE_FILE_WRITE_UNKNOWN;
-}
-
-bool deluge_file_write_holds(const void*) noexcept {
+bool deluge_file_bytes_request_read_into(const char*, void*, uint32_t) noexcept {
 	return false;
 }
 
-bool deluge_file_write_request_write_file(const char*, const uint8_t*, uint32_t, bool) noexcept {
+DelugeChannelStatus deluge_file_bytes_collect_read_into(const char*, uint32_t*, DelugeStatus*, uint32_t*) noexcept {
+	return DELUGE_CHANNEL_UNKNOWN;
+}
+
+bool deluge_file_bytes_holds(const void*) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_write_collect_write_file(const char*, uint32_t*, uint8_t*) noexcept {
-	return DELUGE_FILE_WRITE_UNKNOWN;
+bool deluge_file_bytes_request_write_from(const char*, const void*, uint32_t, bool) noexcept {
+	return false;
+}
+
+DelugeChannelStatus deluge_file_bytes_collect_write_from(const char*, uint32_t*, DelugeStatus*) noexcept {
+	return DELUGE_CHANNEL_UNKNOWN;
+}
+
+uint32_t deluge_file_bytes_progress() noexcept {
+	// No channel, so no work ever finishes: every waiting tick counts.
+	return 0;
 }
 
 } // extern "C"

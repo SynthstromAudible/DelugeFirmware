@@ -17,7 +17,7 @@
 
 #include "scenarios/recorder_roundtrip_scenario.h"
 #include "libdeluge/file_directory.h"
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 
 #include "definitions_cxx.hpp"
 #include "dsp/stereo_sample.h"
@@ -378,13 +378,21 @@ struct TickedCase {
 	/// Whether this run aborts mid-recording instead of finishing, so the abort machine runs and its
 	/// close-before-unlink ordering is exercised.
 	bool abortRun = false;
-	/// Whether a competing write-channel operation keeps taking the channel for the whole run. See
+	/// Whether a competing stream-channel operation keeps taking the channel for the whole run. See
 	/// driveNeighbour().
 	bool busy = false;
 	/// Whether a cluster write is held in flight past the recorder's bound. See driveStall().
 	bool stall = false;
 	/// Whether the recording-folder scan's directory open is held past the recorder's bound. See the dirstall case.
 	bool dirStall = false;
+	/// Whether the create's open fails with a status other than NOT_FOUND. See the openioerr case.
+	bool openIoErr = false;
+	/// Whether the openioerr case has unmounted the card under the held open.
+	bool unmounted = false;
+	/// Whether the openioerr case's recording folder existed before it started. The case proves nothing if it did.
+	bool folderBefore = false;
+	/// The status the openioerr case's create open failed with, read before the recorder is freed.
+	DelugeStatus openError = DELUGE_OK;
 	/// Whether the busy case's competing operation is in flight.
 	bool neighbourHeld = false;
 	/// Whether the stall case has slowed the channel down yet.
@@ -424,17 +432,29 @@ int32_t recorderTier() {
 }
 
 /// Each case's name, indexed by the `mode` passed to deluge_scenario_ticked_begin.
-constexpr const char* kModeNames[] = {"recording", "alterfile", "abort",       "busy",
-                                      "stall",     "dirstall",  "abortcreate", "abortalter"};
+constexpr const char* kModeNames[] = {"recording", "alterfile",   "abort",      "busy",     "stall",
+                                      "dirstall",  "abortcreate", "abortalter", "openioerr"};
+/// The openioerr case's recording folder: one no earlier case records into, so it is absent when the case starts.
+constexpr const char* kOpenIoErrFolder = "SAMPLES/RECORD";
 
-/// The write channel's latency in the abort-during-open cases: long enough that the abort lands while the open is
-/// still waiting to run.
+/// The stream channel's latency in the abort-during-open cases and the openioerr case: long enough that the abort, or
+/// the unmount, lands while the open is still waiting to run.
 constexpr uint32_t kAbortOpenLatencyMs = 50;
 /// Ticks given, after an abort-during-open case's cleanup finishes, for anything it left in flight to land -- far
 /// past kAbortOpenLatencyMs, so a late open is on the card before the checks look.
 constexpr int32_t kAbortOpenSettleTicks = 500;
 /// The recorder's stream-write slots: a leaked handle leaves one fewer free.
 constexpr int32_t kStreamWriteSlots = 8;
+
+/// Whether @p path names a directory on the card. Synchronous: the scenario's own check, not the recorder's.
+bool folderExists(const char* path) {
+	uint32_t handle = 0;
+	if (deluge_efatfs_dir_open(path, &handle) != DELUGE_OK) {
+		return false;
+	}
+	deluge_efatfs_dir_close(handle);
+	return true;
+}
 
 /// How many of the recorder's stream-write slots are free, found by opening streams until one is refused. Every probe
 /// stream is closed and its file removed before this returns.
@@ -458,12 +478,12 @@ int32_t freeStreamWriteSlots() {
 	return free;
 }
 
-/// The write channel's latency in the busy case: long enough that the recorder asks while the competing
+/// The stream channel's latency in the busy case: long enough that the recorder asks while the competing
 /// operation is still in flight, and far inside the recorder's bound, so a refusal is asked again rather
 /// than given up on.
 constexpr uint32_t kBusyLatencyMs = 20;
 
-/// The write channel's latency once the stall case has had a cluster served: well past the recorder's bound
+/// The stream channel's latency once the stall case has had a cluster served: well past the recorder's bound
 /// of 600 ticks at one scenario tick per virtual millisecond.
 constexpr uint32_t kStallLatencyMs = 3000;
 
@@ -477,13 +497,13 @@ constexpr uint32_t kDirStallLatencyMs = 3000;
 void driveNeighbour() {
 	if (g_ticked.neighbourHeld) {
 		uint32_t freeClusters = 0;
-		if (deluge_file_write_collect_stats(&freeClusters) == DELUGE_FILE_WRITE_PENDING) {
+		if (deluge_file_stream_collect_stats(&freeClusters) == DELUGE_FILE_STREAM_PENDING) {
 			return;
 		}
 		g_ticked.neighbourHeld = false;
 		return; // Leave this tick's channel to the recorder.
 	}
-	g_ticked.neighbourHeld = deluge_file_write_request_stats();
+	g_ticked.neighbourHeld = deluge_file_stream_request_stats();
 }
 
 /// The stall case: slow the channel down once a cluster has been served, so the next cluster write is still
@@ -491,14 +511,14 @@ void driveNeighbour() {
 /// write keeps its 3000 ms after this puts the latency back.
 void driveStall(const SampleRecorder& rec) {
 	if (!g_ticked.stallArmed && SampleRecorder::writeChannelServedOps() > g_ticked.servedBefore) {
-		deluge_file_write_set_latency_ms(kStallLatencyMs);
+		deluge_file_stream_set_latency_ms(kStallLatencyMs);
 		g_ticked.stallArmed = true;
 	}
 	if (rec.hadCardError) {
 		if (rec.writePending()) {
 			g_ticked.failedWhilePending = true;
 		}
-		deluge_file_write_set_latency_ms(0);
+		deluge_file_stream_set_latency_ms(0);
 	}
 }
 
@@ -507,15 +527,16 @@ void driveStall(const SampleRecorder& rec) {
 int32_t finishGiveUpCase(SampleRecorder& rec) {
 	if (g_ticked.neighbourHeld) {
 		uint32_t freeClusters = 0;
-		if (deluge_file_write_collect_stats(&freeClusters) == DELUGE_FILE_WRITE_PENDING) {
+		if (deluge_file_stream_collect_stats(&freeClusters) == DELUGE_FILE_STREAM_PENDING) {
 			return 0; // Let the competing operation finish, so the next case starts on an idle channel.
 		}
 		g_ticked.neighbourHeld = false;
 	}
-	deluge_file_write_set_latency_ms(0);
+	deluge_file_stream_set_latency_ms(0);
 	const bool cardError = rec.hadCardError;
 	const bool pendingAtEnd = rec.writePending();
 	const bool fileOpen = rec.file.has_value();
+	g_ticked.openError = rec.createOpenErrorForDiag();
 	const std::string path = rec.filePathCreated;
 	// Freed BEFORE the tier is read: a destructor left with a file to close is itself a violation.
 	g_ticked.rec.reset();
@@ -528,6 +549,21 @@ int32_t finishGiveUpCase(SampleRecorder& rec) {
 		const bool ok = readBack && refusals > 0 && tier == 0;
 		printf("RW-BUSY ok=%d readBack=%d refusals=%d served=%d tier=%d ticks=%d\n", (int)ok, (int)readBack,
 		       (int)refusals, (int)served, (int)tier, g_ticked.ticks);
+		fflush(nullptr);
+		return ok ? 1 : 2;
+	}
+	if (g_ticked.openIoErr) {
+		deluge_file_stream_set_mount_refused(false);
+		(void)deluge_efatfs_mount();
+		// A failed open is not worth a folder: only NOT_FOUND is. A retry on any failure makes the folder, then opens
+		// on the card the byte channel mounted for it, and the recording succeeds.
+		const bool folderAfter = folderExists(kOpenIoErrFolder);
+		const bool ok = g_ticked.unmounted && !g_ticked.folderBefore && g_ticked.openError == DELUGE_ERR_NO_FILESYSTEM
+		                && cardError && !folderAfter && !fileOpen && tier == 0;
+		printf("RW-OPEN-IOERR ok=%d unmounted=%d folderBefore=%d openStatus=%d cardError=%d folderAfter=%d fileOpen=%d "
+		       "tier=%d ticks=%d\n",
+		       (int)ok, (int)g_ticked.unmounted, (int)g_ticked.folderBefore, (int)g_ticked.openError, (int)cardError,
+		       (int)folderAfter, (int)fileOpen, (int)tier, g_ticked.ticks);
 		fflush(nullptr);
 		return ok ? 1 : 2;
 	}
@@ -564,13 +600,19 @@ extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
 	g_ticked.busy = (mode == 3);
 	g_ticked.stall = (mode == 4);
 	g_ticked.dirStall = (mode == 5);
+	g_ticked.openIoErr = (mode == 8);
+	g_ticked.unmounted = false;
+	g_ticked.openError = DELUGE_OK;
+	g_ticked.folderBefore = g_ticked.openIoErr && folderExists(kOpenIoErrFolder);
 	g_ticked.neighbourHeld = false;
 	g_ticked.stallArmed = false;
 	g_ticked.failedWhilePending = false;
 	g_ticked.servedBefore = SampleRecorder::writeChannelServedOps();
 	g_ticked.refusalsBefore = SampleRecorder::channelRefusals();
 	g_ticked.tierBefore = recorderTier();
-	deluge_file_write_set_latency_ms(g_ticked.busy ? kBusyLatencyMs : g_ticked.abortOpen ? kAbortOpenLatencyMs : 0);
+	deluge_file_stream_set_latency_ms(g_ticked.busy                                ? kBusyLatencyMs
+	                                  : (g_ticked.abortOpen || g_ticked.openIoErr) ? kAbortOpenLatencyMs
+	                                                                               : 0);
 	if (g_ticked.dirStall) {
 		// The scan an earlier case already made is cached; force it again, and hold its open past the bound.
 		audioFileManager.highestUsedAudioRecordingNumberNeedsReChecking.set(
@@ -586,12 +628,13 @@ extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
 	// stderr as well as stdout: this case runs AFTER the scenario's own fflush(nullptr), so a
 	// stdout-only line can be lost at exit -- and a case whose output vanishes is a case nobody can
 	// tell from one that never ran.
-	const char* modeName = (mode >= 0 && mode <= 7) ? kModeNames[mode] : "unknown";
+	const char* modeName = (mode >= 0 && mode <= 8) ? kModeNames[mode] : "unknown";
 	printf("CASE ticked_%s (channels=%d frames=%u)\n", modeName, g_ticked.alter ? 2 : 1, kTickedFrames);
 	fflush(nullptr);
 
 	Error err = g_ticked.rec->setup(g_ticked.alter ? 2 : 1, AudioInputChannel::MIX, /*newKeepingReasons=*/false,
-	                                /*shouldRecordExtraMargins=*/false, AudioRecordingFolder::RESAMPLE,
+	                                /*shouldRecordExtraMargins=*/false,
+	                                g_ticked.openIoErr ? AudioRecordingFolder::RECORD : AudioRecordingFolder::RESAMPLE,
 	                                /*buttonPressLatency=*/0, /*outputRecordingFrom=*/nullptr);
 	if (err != Error::NONE) {
 		fprintf(stderr, "  FAIL: setup() returned error %d\n", static_cast<int>(err));
@@ -661,7 +704,7 @@ extern "C" int32_t deluge_scenario_ticked_tick() {
 		if (++g_ticked.settleTicks < kAbortOpenSettleTicks) {
 			return 0;
 		}
-		deluge_file_write_set_latency_ms(0);
+		deluge_file_stream_set_latency_ms(0);
 		g_ticked.rec.reset();
 		// Both checks read what the abort left once everything it issued has had time to land: an open it did not
 		// wait out creates or reopens the file AFTER the unlink, and keeps a stream-write slot nobody will close.
@@ -724,6 +767,13 @@ extern "C" int32_t deluge_scenario_ticked_tick() {
 		return (gone && noLeak) ? 1 : 2;
 	}
 
+	// The create's open is held by the channel's latency: unmount under it, and refuse the channel the mount, so the
+	// open fails with NO_FILESYSTEM rather than NOT_FOUND.
+	if (g_ticked.openIoErr && !g_ticked.unmounted && rec.openInFlightForDiag()) {
+		deluge_file_stream_set_mount_refused(true);
+		deluge_efatfs_unmount();
+		g_ticked.unmounted = true;
+	}
 	// Before the recorder's own tick, so the neighbour asks first and the recorder is the one refused.
 	if (g_ticked.busy) {
 		driveNeighbour();
@@ -733,7 +783,7 @@ extern "C" int32_t deluge_scenario_ticked_tick() {
 	}
 
 	if (rec.status.load(std::memory_order_acquire) == RecorderStatus::COMPLETE) {
-		if (g_ticked.busy || g_ticked.stall || g_ticked.dirStall) {
+		if (g_ticked.busy || g_ticked.stall || g_ticked.dirStall || g_ticked.openIoErr) {
 			return finishGiveUpCase(rec);
 		}
 		const std::string path = rec.filePathCreated;
