@@ -52,43 +52,41 @@ abi_pin!(in deluge_sample_source::manager_residency: deluge_streaming_signal_fil
 abi_pin!(in deluge_sample_stream: deluge_efatfs_open, deluge_efatfs_close, deluge_efatfs_read_at,
     deluge_streaming_resource_manager, deluge_streaming_set_fill_context);
 
-// --- The crate-defined header types (see `build_crate_types.rs`) ---
+// --- The crate-defined header types (see `build_crate_types.rs`): every field, every variant ---
 
-abi_layout!(deluge_audio_format::abi::DelugeOptionalF32 => DelugeOptionalF32: has, value);
-abi_layout!(deluge_audio_format::abi::DelugeAudioHeader => DelugeAudioHeader: container, num_channels, byte_depth,
+abi_layout!(deluge_audio_format::abi::DelugeOptionalF32 => DelugeOptionalF32 { has, value });
+abi_layout!(deluge_audio_format::abi::DelugeAudioHeader => DelugeAudioHeader { container, num_channels, byte_depth,
     raw_data_format, sample_rate, audio_data_start_pos_bytes, audio_data_length_bytes, file_loop_start_samples,
-    file_loop_end_samples, midi_note, wavetable_cycle_size, wavetable_explicitly_specifies_self);
-abi_layout!(deluge_audio_format::abi::DelugeAudioWindow => DelugeAudioWindow: start, len);
-// Opaque storage on both sides: the size and alignment are the contract.
-abi_layout!(deluge_audio_format::abi::DelugeAudioHeaderParser => DelugeAudioHeaderParser);
+    file_loop_end_samples, midi_note as DelugeOptionalF32, wavetable_cycle_size,
+    wavetable_explicitly_specifies_self });
+abi_layout!(deluge_audio_format::abi::DelugeAudioWindow => DelugeAudioWindow { start, len });
+abi_layout!(deluge_audio_format::abi::DelugeAudioHeaderParser => DelugeAudioHeaderParser opaque);
 
-abi_layout!(deluge_sample_fill::FillContext => DelugeStreamingFillContext: efatfs_handle, audio_data_start_pos_bytes,
+abi_layout!(deluge_sample_fill::FillContext => DelugeStreamingFillContext { efatfs_handle, audio_data_start_pos_bytes,
     audio_data_length_bytes, first_cluster_index_with_no_audio_data, cluster_size, cluster_size_magnitude,
-    raw_data_format, byte_depth, num_channels);
-abi_layout!(deluge_sample_fill::StreamingFillDescriptor => StreamingFillDescriptor: dest, num_sectors, ok, handle,
-    byte_offset);
+    raw_data_format, byte_depth, num_channels });
+abi_layout!(deluge_sample_fill::StreamingFillDescriptor => StreamingFillDescriptor { dest, num_sectors, ok, handle,
+    byte_offset });
 
-abi_layout!(deluge_sample_reader::abi::DelugeFrameWindow => DelugeFrameWindow: frames, frame_count);
-abi_layout!(enum deluge_sample_reader::reader::ReadHint => DelugeReadHint:
-    Cached = DelugeReadHint_DELUGE_READ_CACHED, Scan = DelugeReadHint_DELUGE_READ_SCAN);
-abi_layout!(enum deluge_sample_reader::reservation::LoadMode => DelugeLoadMode:
-    Enqueue = DelugeLoadMode_DELUGE_LOAD_ENQUEUE, Now = DelugeLoadMode_DELUGE_LOAD_NOW,
-    NowOrEnqueue = DelugeLoadMode_DELUGE_LOAD_NOW_OR_ENQUEUE);
+abi_layout!(deluge_sample_reader::abi::DelugeFrameWindow => DelugeFrameWindow { frames, frame_count });
+abi_layout!(enum deluge_sample_reader::reader::ReadHint => DelugeReadHint {
+    Cached = DELUGE_READ_CACHED, Scan = DELUGE_READ_SCAN });
+abi_layout!(enum deluge_sample_reader::reservation::LoadMode => DelugeLoadMode {
+    Enqueue = DELUGE_LOAD_ENQUEUE, Now = DELUGE_LOAD_NOW, NowOrEnqueue = DELUGE_LOAD_NOW_OR_ENQUEUE });
 // The reader's own copy, beside the source's below.
-abi_layout!(deluge_sample_reader::reader::Geometry => DelugeSampleGeometry: audio_data_start_bytes,
-    audio_data_length_bytes, cluster_size_bytes, byte_depth, num_channels, raw_data_format);
+abi_layout!(deluge_sample_reader::reader::Geometry => DelugeSampleGeometry { audio_data_start_bytes,
+    audio_data_length_bytes, cluster_size_bytes, byte_depth, num_channels, raw_data_format });
 
-abi_layout!(deluge_sample_source::geometry::Geometry => DelugeSampleGeometry: audio_data_start_bytes,
-    audio_data_length_bytes, cluster_size_bytes, byte_depth, num_channels, raw_data_format);
-abi_layout!(enum deluge_sample_source::abi::DelugeRegionState => DelugeRegionState:
-    Ready = DelugeRegionState_DELUGE_REGION_READY, Loading = DelugeRegionState_DELUGE_REGION_LOADING,
-    Unavailable = DelugeRegionState_DELUGE_REGION_UNAVAILABLE);
-abi_layout!(deluge_sample_source::abi::DelugeSampleRegion => DelugeSampleRegion: payload_base, region_index,
-    resident_bytes, lease);
+abi_layout!(deluge_sample_source::geometry::Geometry => DelugeSampleGeometry { audio_data_start_bytes,
+    audio_data_length_bytes, cluster_size_bytes, byte_depth, num_channels, raw_data_format });
+abi_layout!(enum deluge_sample_source::abi::DelugeRegionState => DelugeRegionState {
+    Ready = DELUGE_REGION_READY, Loading = DELUGE_REGION_LOADING, Unavailable = DELUGE_REGION_UNAVAILABLE });
+abi_layout!(deluge_sample_source::abi::DelugeSampleRegion => DelugeSampleRegion { payload_base, region_index,
+    resident_bytes, lease });
 
-abi_layout!(deluge_sample_stream::DelugeSampleStreamGeometry => DelugeSampleStreamGeometry: audio_data_start_pos_bytes,
-    audio_data_length_bytes, first_cluster_index_with_no_audio_data, cluster_size, cluster_size_magnitude,
-    raw_data_format, byte_depth, num_channels);
+abi_layout!(deluge_sample_stream::DelugeSampleStreamGeometry => DelugeSampleStreamGeometry {
+    audio_data_start_pos_bytes, audio_data_length_bytes, first_cluster_index_with_no_audio_data, cluster_size,
+    cluster_size_magnitude, raw_data_format, byte_depth, num_channels });
 
 // --- Header values copied by hand ---
 

@@ -22,6 +22,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+#[path = "../../build_allowlist.rs"]
+mod build_allowlist;
 #[path = "../../build_crate_types.rs"]
 mod build_crate_types;
 
@@ -254,13 +256,9 @@ fn run_bindgen(
     let builder = base()
         .allowlist_type("Deluge.*")
         .allowlist_function("deluge_.*")
-        // scheduler_api.h's functions; `yield_` is bindgen's Rust name for `yield`, which is what the allowlist matches.
-        .allowlist_function(
-            "addRepeatingTask|addConditionalTask|ignoreForStats|getAverageRunTimeForTask|getSystemTime|runTask|yield_|blockTask|unblockTask|isSDRoutineActive",
-        )
-        // The other declared functions without the `deluge_` prefix: system.h's critical-section pair, and
-        // signals.h's MIDI/gate timer callback.
-        .allowlist_function("ENTER_CRITICAL_SECTION|EXIT_CRITICAL_SECTION|midiAndGateTimerGoneOff")
+        // The same allowlist as ../../build.rs: see ../../build_allowlist.rs.
+        .allowlist_function(build_allowlist::SCHEDULER_API_FUNCTIONS)
+        .allowlist_function(build_allowlist::UNPREFIXED_FUNCTIONS)
         .allowlist_var("DELUGE_.*");
     // The crate-defined header types: see ../../build_crate_types.rs. This package never builds for the device.
     let bindings = build_crate_types::bind_crate_types(builder, false)
@@ -279,6 +277,7 @@ fn run_bindgen(
     println!("cargo:rerun-if-changed={}", wrapper.display());
     println!("cargo:rerun-if-changed={}", include_dir.display());
     println!("cargo:rerun-if-changed={}", scheduler_dir.display());
+    println!("cargo:rerun-if-changed=../../build_allowlist.rs");
     println!("cargo:rerun-if-changed=../../build_crate_types.rs");
 }
 

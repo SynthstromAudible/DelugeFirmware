@@ -8,9 +8,9 @@
 
 use bindgen::Builder;
 
-/// Structs and enums: (header name, the Rust type `sys` binds it to). `sys_layout` keeps each one.
+/// Structs: (header name, the Rust type `sys` binds it to). `sys_layout` keeps each one.
 #[rustfmt::skip]
-const WITH_LAYOUT: &[(&str, &str)] = &[
+const STRUCTS: &[(&str, &str)] = &[
     ("DelugeOptionalF32", "deluge_audio_format::abi::DelugeOptionalF32"),
     ("DelugeAudioHeader", "deluge_audio_format::abi::DelugeAudioHeader"),
     ("DelugeAudioWindow", "deluge_audio_format::abi::DelugeAudioWindow"),
@@ -18,12 +18,17 @@ const WITH_LAYOUT: &[(&str, &str)] = &[
     ("DelugeStreamingFillContext", "deluge_sample_fill::FillContext"),
     ("StreamingFillDescriptor", "deluge_sample_fill::StreamingFillDescriptor"),
     ("DelugeFrameWindow", "deluge_sample_reader::abi::DelugeFrameWindow"),
-    ("DelugeReadHint", "deluge_sample_reader::reader::ReadHint"),
-    ("DelugeLoadMode", "deluge_sample_reader::reservation::LoadMode"),
     ("DelugeSampleGeometry", "deluge_sample_source::geometry::Geometry"),
-    ("DelugeRegionState", "deluge_sample_source::abi::DelugeRegionState"),
     ("DelugeSampleRegion", "deluge_sample_source::abi::DelugeSampleRegion"),
     ("DelugeSampleStreamGeometry", "deluge_sample_stream::DelugeSampleStreamGeometry"),
+];
+
+/// Enums, likewise. `sys_layout` generates each as a Rust enum, so `abi_layout!` can match on its variants.
+#[rustfmt::skip]
+const ENUMS: &[(&str, &str)] = &[
+    ("DelugeReadHint", "deluge_sample_reader::reader::ReadHint"),
+    ("DelugeLoadMode", "deluge_sample_reader::reservation::LoadMode"),
+    ("DelugeRegionState", "deluge_sample_source::abi::DelugeRegionState"),
 ];
 
 /// Opaque handles, which have no layout to keep.
@@ -47,7 +52,7 @@ const DEVICE_OPAQUE: &[(&str, &str)] = &[
 /// bindgen types them as the enum, which is now a Rust enum, and `sys_layout` keeps their values.
 pub fn bind_crate_types(mut builder: Builder, device: bool) -> Builder {
     let device_only: &[(&str, &str)] = if device { DEVICE_OPAQUE } else { &[] };
-    for (header, rust) in WITH_LAYOUT.iter().chain(OPAQUE).chain(device_only) {
+    for (header, rust) in STRUCTS.iter().chain(ENUMS).chain(OPAQUE).chain(device_only) {
         builder = builder
             .blocklist_type(header)
             .blocklist_item(format!("{header}_.*"))
@@ -61,8 +66,11 @@ pub fn bind_crate_types(mut builder: Builder, device: bool) -> Builder {
 /// Restricts a builder to the header's own definitions of the crate-defined structs and enums, for
 /// `sys_layout`.
 pub fn crate_type_layouts(mut builder: Builder) -> Builder {
-    for (header, _) in WITH_LAYOUT {
+    for (header, _) in STRUCTS {
         builder = builder.allowlist_type(header);
+    }
+    for (header, _) in ENUMS {
+        builder = builder.allowlist_type(header).rustified_enum(header);
     }
     builder
 }

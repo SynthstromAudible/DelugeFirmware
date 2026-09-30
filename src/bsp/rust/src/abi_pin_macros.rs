@@ -37,40 +37,59 @@ macro_rules! abi_const {
     )+ };
 }
 
-/// Fails the build unless a crate's definition of a header type has the header's layout (`sys_layout`, see
-/// `build_crate_types.rs`).
+/// Fails the build unless a crate's definition of a header type is the header's (`sys_layout`, see
+/// `build_crate_types.rs`), field for field or variant for variant.
 ///
-/// - `abi_layout!(Ours => Theirs: a, b)` checks size, alignment, and the offset of each named field.
-/// - `abi_layout!(enum Ours => Theirs: A = CONST_A, B = CONST_B)` checks size, and each variant's value against the
-///   header's constant.
+/// - `abi_layout!(Ours => Theirs { a, b })` names every field. It checks size, alignment and each offset, and
+///   builds the header's struct from ours in a closure that is never called: a header field the list does not
+///   name fails E0063, and a field whose type differs from ours by so much as signedness fails E0308. A field
+///   whose type is itself a crate-defined header type is written `a as Name`: ours must be `sys`'s binding of
+///   `Name` and the header's must be `Name`, and `Name` has its own `abi_layout!`.
+/// - `abi_layout!(Ours => Theirs opaque)` is for storage the header declares only to size it: size and alignment.
+/// - `abi_layout!(enum Ours => Theirs { A = HEADER_A, B = HEADER_B })` checks size, each value, and that the two
+///   enums have the same variants: a variant added to either side fails an exhaustive match (E0004).
 macro_rules! abi_layout {
-    ($ours:ty => $theirs:ident $(: $($field:ident),+)? $(,)?) => {
+    (@field $o:ident . $field:ident) => { $o.$field };
+    (@field $o:ident . $field:ident as $nested:ident) => {{
+        let ours: crate::sys::$nested = $o.$field;
+        // SAFETY: never runs; `$nested`'s own `abi_layout!` makes the two the same layout.
+        unsafe { core::mem::transmute::<crate::sys::$nested, crate::sys_layout::$nested>(ours) }
+    }};
+    ($ours:ty => $theirs:ident { $($field:ident $(as $nested:ident)?),+ $(,)? }) => {
+        const _: () = {
+            use core::mem::{align_of, offset_of, size_of};
+            type Ours = $ours;
+            type Theirs = crate::sys_layout::$theirs;
+            assert!(size_of::<Ours>() == size_of::<Theirs>(), concat!(stringify!($theirs), ": size"));
+            assert!(align_of::<Ours>() == align_of::<Theirs>(), concat!(stringify!($theirs), ": alignment"));
+            $(
+                assert!(
+                    offset_of!(Ours, $field) == offset_of!(Theirs, $field),
+                    concat!(stringify!($theirs), ".", stringify!($field)),
+                );
+            )+
+            let _: fn(&Ours) -> Theirs = |o| Theirs { $($field: abi_layout!(@field o.$field $(as $nested)?)),+ };
+        };
+    };
+    ($ours:ty => $theirs:ident opaque) => {
         const _: () = {
             use core::mem::{align_of, size_of};
             type Theirs = crate::sys_layout::$theirs;
             assert!(size_of::<$ours>() == size_of::<Theirs>(), concat!(stringify!($theirs), ": size"));
             assert!(align_of::<$ours>() == align_of::<Theirs>(), concat!(stringify!($theirs), ": alignment"));
-            $($(
-                assert!(
-                    core::mem::offset_of!($ours, $field) == core::mem::offset_of!(Theirs, $field),
-                    concat!(stringify!($theirs), ".", stringify!($field)),
-                );
-            )+)?
         };
     };
-    (enum $ours:ty => $theirs:ident : $($variant:ident = $value:ident),+ $(,)?) => {
+    (enum $ours:ty => $theirs:ident { $($variant:ident = $value:ident),+ $(,)? }) => {
         const _: () = {
             use core::mem::size_of;
-            assert!(
-                size_of::<$ours>() == size_of::<crate::sys_layout::$theirs>(),
-                concat!(stringify!($theirs), ": size"),
-            );
+            type Ours = $ours;
+            type Theirs = crate::sys_layout::$theirs;
+            assert!(size_of::<Ours>() == size_of::<Theirs>(), concat!(stringify!($theirs), ": size"));
             $(
-                assert!(
-                    <$ours>::$variant as i64 == crate::sys_layout::$value as i64,
-                    stringify!($value),
-                );
+                assert!(Ours::$variant as i64 == Theirs::$value as i64, stringify!($value));
             )+
+            let _: fn(Ours) -> Theirs = |v| match v { $(Ours::$variant => Theirs::$value),+ };
+            let _: fn(Theirs) -> Ours = |v| match v { $(Theirs::$value => Ours::$variant),+ };
         };
     };
 }

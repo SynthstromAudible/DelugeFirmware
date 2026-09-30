@@ -17,6 +17,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[path = "build_allowlist.rs"]
+mod build_allowlist;
 #[path = "build_crate_types.rs"]
 mod build_crate_types;
 
@@ -43,17 +45,6 @@ const EFATFS_ROOTS: [&str; 3] = [
     "deluge_efatfs_remount",
     "deluge_efatfs_cluster_size",
 ];
-
-/// The functions `scheduler_api.h` declares, which do not share the `deluge_`
-/// prefix (`scripts/check_abi_surface.py` lists the same set). bindgen matches
-/// the allowlist against the Rust name, and `yield` is a Rust keyword it
-/// renames `yield_`.
-const SCHEDULER_API_FUNCTIONS: &str = "addRepeatingTask|addConditionalTask|ignoreForStats|getAverageRunTimeForTask|getSystemTime|runTask|yield_|blockTask|unblockTask|isSDRoutineActive";
-
-/// The other declared functions without the `deluge_` prefix: `system.h`'s critical-section pair, and the MIDI/gate
-/// timer callback `signals.h` declares for the app to implement.
-const UNPREFIXED_FUNCTIONS: &str =
-    "ENTER_CRITICAL_SECTION|EXIT_CRITICAL_SECTION|midiAndGateTimerGoneOff";
 
 /// Emits `-Wl,-u,SYM` for each symbol, forcing it as a link root.
 fn force_link_roots(syms: &[&str]) {
@@ -164,8 +155,8 @@ fn run_bindgen(
         .allowlist_type("Deluge.*")
         // Every function and constant too: `abi_pin!` and `abi_const!` check the Rust side against these.
         .allowlist_function("deluge_.*")
-        .allowlist_function(SCHEDULER_API_FUNCTIONS)
-        .allowlist_function(UNPREFIXED_FUNCTIONS)
+        .allowlist_function(build_allowlist::SCHEDULER_API_FUNCTIONS)
+        .allowlist_function(build_allowlist::UNPREFIXED_FUNCTIONS)
         .allowlist_var("DELUGE_.*");
     let bindings = build_crate_types::bind_crate_types(builder, !deluge_host)
         .generate()
@@ -183,6 +174,7 @@ fn run_bindgen(
     println!("cargo:rerun-if-changed={}", wrapper.display());
     println!("cargo:rerun-if-changed={}", include_dir.display());
     println!("cargo:rerun-if-changed={}", scheduler_dir.display());
+    println!("cargo:rerun-if-changed=build_allowlist.rs");
     println!("cargo:rerun-if-changed=build_crate_types.rs");
 }
 
