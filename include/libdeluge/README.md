@@ -8,15 +8,17 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
 
 1. **C, and only C, crosses.** Every declaration is inside `extern "C"`. Only fixed-width integers, `bool`, and
    POD structs and enums with an explicit underlying type cross. No STL, no exceptions, no allocation across the
-   boundary, and no unwinding: every function is `DELUGE_NOEXCEPT`.
+   boundary. No function behind the ABI throws or unwinds: the Rust side aborts on panic, and C++ callbacks catch
+   at the boundary. `DELUGE_NOEXCEPT` (`abi.h`) marks this on the declarations that already carry it.
 2. **The header is the contract.** bindgen reads every header (`src/bsp/rust/wrapper.h` and
    `src/bsp/rust/harness/golden_vt_render/wrapper.h`, both just `#include <libdeluge/libdeluge.h>`), and every
-   Rust export is pinned to its generated declaration by `abi_pin!` (`src/bsp/rust/src/abi_pins.rs`), including
-   its `in path:` and rename forms. A crate-defined type that crosses the boundary is re-exported into `sys`
-   under the header's name and checked field-for-field, or variant-for-variant, by `abi_layout!`. A copied
-   constant is pinned by `abi_const!`. The pre-commit hook `python3 scripts/check_abi_surface.py --check --pins`
-   fails when a declared function has no definition or no pin. Change a signature in the header, and the build
-   tells you every place that disagrees.
+   Rust export is pinned to its generated declaration by `abi_pin!` — most beside the definition they pin, and
+   the rest (another crate's own exports and imports, via its `in path:` form, plus rename forms) collected in
+   `src/bsp/rust/src/abi_pins.rs`, which also holds every `abi_layout!` and `abi_const!` check. A crate-defined
+   type that crosses the boundary is re-exported into `sys` under the header's name and checked exhaustively,
+   field-for-field or variant-for-variant, by `abi_layout!`. A copied constant is pinned by `abi_const!`. The
+   pre-commit hook `python3 scripts/check_abi_surface.py --check --pins` fails when a declared function has no
+   definition or no pin. Change a signature in the header, and the build tells you every place that disagrees.
 3. **Direction is one-way.** The app includes `<libdeluge/…>`. The platform implements it. `app.h` is the other
    direction: callbacks the app implements and the platform calls. `scripts/check_platform_boundary.py` keeps the
    app from including platform headers.
@@ -30,11 +32,18 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
 Storage is reached through request/collect channels: a request returns at once, and a collect is polled once per
 tick for the answer (`channel.h`'s `DelugeChannelStatus`). Every channel follows the same rules:
 - answers are keyed, and a collect with another key answers UNKNOWN and leaves the answer for its owner;
-- answers are stamped with the card generation, so after an ejection an old answer is never collected;
-- a request whose buffer the platform may still touch is reported by the channel's `holds()`.
+- answers are stamped with the card generation (`card.h`'s `deluge_card_flush` bumps it for every channel at
+  once), so after an ejection an old answer is never collected.
 
-`file_prefix.h`, `file_directory.h`, `file_bytes.h`, `file_write.h`, `audio_load.h` and `streaming_fill.h` are
-the channels. Before boot finishes (`deluge::boot::finished()`), the app uses blocking calls instead.
+`file_write.h` also holds a caller-owned buffer across ticks, and its `deluge_file_write_holds()` reports
+whether the platform may still touch it; the other channels hand bytes back synchronously at the collect that
+reports READY, so they need no such call.
+
+`file_prefix.h`, `file_directory.h`, `file_bytes.h`, `file_write.h` and `audio_load.h` are the channels. Before
+boot finishes (`deluge::boot::finished()`), the app uses blocking calls instead.
+
+`streaming_fill.h` is not one of these: it is the sample-streaming fill queue (enqueue/drain of the loader
+queue, plus synchronous efatfs handle calls and fill-context registration), not a keyed request/collect channel.
 
 ## Host-only declarations
 
