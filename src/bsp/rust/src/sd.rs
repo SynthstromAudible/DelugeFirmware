@@ -1,10 +1,19 @@
 //! block_device.h — SD card over `deluge_bsp::sd`, uniformly on both device
 //! and host.
 //!
-//! The app's storage stack (efatfs_fs.rs's `HostSdBlockDevice` on host, the
-//! device SDHI driver on device) calls the BSP-provided `deluge_block_read`/
-//! `deluge_block_write` (block_device.h). Both targets back those with
-//! `deluge_bsp::sd`'s async `Result<_, SdError>` API
+//! The app's real storage stack does NOT call `deluge_block_read`/
+//! `deluge_block_write` (block_device.h): the device path goes through
+//! `fat_block_device::SdBlockDevice`, and the host path goes through
+//! `efatfs_host_shim::HostSdBlockDevice` — both `.await` `crate::sd::
+//! locked_read_sectors`/`locked_write_sectors` directly, bypassing this
+//! file's C-ABI entry points entirely (see those modules' docs). The only
+//! callers of `deluge_block_read`/`deluge_block_write` are the plain-host
+//! bootstrap round-trip in `main.rs` and `tests/sim_latency_host.rs`. The app
+//! DOES call `deluge_block_ready` (`storage_manager.cpp`'s `initSD`/
+//! `checkSDInitialized`/card-present checks), which is why it stays a real
+//! per-target implementation below.
+//!
+//! Both targets back `deluge_bsp::sd`'s async `Result<_, SdError>` API
 //! (`init`/`read_sectors`/`write_sectors`/`is_ready`/`is_inserted`/
 //! `is_write_protected`/`total_sectors`) via `block_on` — no `#[cfg]` needed at
 //! the `deluge_bsp::sd` call sites themselves, since deluge-sdk provides `sd`
@@ -337,16 +346,17 @@ pub extern "C" fn deluge_block_ready(unit: u8) -> bool {
     unit == 0
 }
 
-// FatFS is not re-entrant. The app's SD-reentrancy guard is
-// `deluge_storage_fs_busy()`, which this BSP backs with the efatfs FS-mutex
-// state (see `efatfs_fs.rs`), so it now genuinely reflects whether a FatFS
-// transfer is in flight rather than being a dead always-0 flag. But that
-// guard only lets callers *detect* an in-flight transfer and back off — it
-// does nothing to prevent two tasks from entering FatFS concurrently in the
-// first place. Yielding mid-transfer unconditionally would still let other
-// tasks re-enter FatFS concurrently and corrupt it (manifests as "NO MORE
-// PRESETS FOUND" on track create, and would also break song/sample loads).
-// These transfer sites therefore park via `block_on`: nothing else enters FatFS while one runs.
+// The app's device storage path does not call this pair (see this module's
+// doc): the device transfer site is `fat_block_device::SdBlockDevice`, which
+// `.await`s `locked_read_sectors`/`locked_write_sectors` directly. These two
+// functions exist for ABI symmetry with block_device.h and the host-cfg
+// siblings below (the only callers of the C-ABI entry points, exercised by
+// `main.rs`'s bootstrap round-trip and `tests/sim_latency_host.rs`). Were
+// anything ever to call them on device, they would still serialize on
+// `SD_BUS` against a concurrent `SdBlockDevice` transfer, since both route
+// through the same `locked_*_sectors` helpers; they park via `block_on`
+// rather than `.await` because a C-ABI entry point has no async context of
+// its own to suspend into.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_block_read(

@@ -284,7 +284,12 @@ mod scenario;
 /// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
 /// implemented on the Embassy executor (one task per registered Deluge task).
 mod scheduler;
-/// block_device.h + FatFS diskio — SD card over deluge_bsp::sd.
+/// block_device.h — the C-ABI SD-card entry points (`deluge_block_ready`/
+/// `deluge_block_read`/`deluge_block_write`) and the shared `SD_BUS`/async
+/// helpers over `deluge_bsp::sd`. The app's real transfers go through
+/// `fat_block_device::SdBlockDevice` (device) and
+/// `efatfs_host_shim::HostSdBlockDevice` (host) instead — see `sd.rs`'s
+/// module doc.
 mod sd;
 /// Streaming-underrun harness: packs a real FAT SD image from the golden
 /// harness's song/sample corpus for [`scenario`] to load. `host_app`-only.

@@ -46,7 +46,8 @@ const RX_MASK: usize = RX_FRAMES - 1;
 pub(crate) const SAMPLE_RATE_HZ: u32 = 44_100;
 
 /// Initial RX read latency: keep the read cursor ~one TX-ring + a margin behind
-/// the RX DMA write head (mirrors rza1 audio_io.cpp's start anchor).
+/// the RX DMA write head, so a render never reads ahead of what the RX DMA has
+/// actually captured.
 const RX_LATENCY_FRAMES: usize = RX_FRAMES - TX_FRAMES - 16;
 
 /// Maximum frames per `deluge_app_render` call. This MUST NOT exceed the app's

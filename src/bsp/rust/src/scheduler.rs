@@ -98,10 +98,11 @@ struct TaskSlot {
     used: AtomicBool,
     /// `TaskHandle` as a `usize` (transmuted on call). 0 only before first use.
     handle: AtomicUsize,
-    /// `RunCondition` as a `usize`, or 0 for none (repeating/once tasks).
+    /// `RunCondition` as a `usize`, or 0 for a repeating task (every conditional
+    /// task carries one).
     condition: AtomicUsize,
-    /// Target time between calls, microseconds (repeating); or the delay before the
-    /// single run (once). Conditional tasks ignore this and poll `condition` instead.
+    /// Target time between calls, microseconds. Conditional tasks (which is
+    /// where `once` comes from) ignore this and poll `condition` instead.
     period_us: AtomicU64,
     /// Minimum time from completion to the next call, microseconds.
     backoff_us: AtomicU64,
@@ -144,7 +145,7 @@ impl TaskSlot {
         unsafe { core::mem::transmute::<usize, TaskHandle>(self.handle.load(Ordering::Relaxed)) }
     }
 
-    /// The stored predicate, or `None` for repeating/once tasks. `RunCondition` is
+    /// The stored predicate, or `None` for a repeating task. `RunCondition` is
     /// itself `Option<fn>`, so a 0 (unset) word transmutes straight to `None`.
     fn condition_fn(&self) -> RunCondition {
         // SAFETY: written only by `claim` from a real `RunCondition` (or 0 = None).
