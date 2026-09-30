@@ -56,6 +56,9 @@ abi_pin!(in deluge_sample_stream: deluge_efatfs_open, deluge_efatfs_close, delug
 
 abi_layout!(type crate::abi_handle::DelugeHandle => sys DelugeHandle);
 abi_layout!(type deluge_sample_fill::DelugeHandle => sys DelugeHandle);
+abi_layout!(type deluge_sample_fill::DelugeStatus => sys DelugeStatus);
+abi_layout!(type deluge_audio_format::abi::DelugeAudioParseStatus => sys DelugeAudioParseStatus);
+abi_layout!(type deluge_audio_format::abi::DelugeWavetableAccept => sys DelugeWavetableAccept);
 
 // --- The crate-defined header types (see `build_crate_types.rs`): every field, every variant ---
 
@@ -99,6 +102,11 @@ abi_layout!(deluge_sample_stream::DelugeSampleStreamGeometry => DelugeSampleStre
     cluster_size_magnitude, raw_data_format, byte_depth, num_channels });
 
 // --- Header values copied by hand ---
+
+abi_const!(
+    deluge_sample_fill::DELUGE_OK => DelugeStatus_DELUGE_OK,
+    deluge_sample_fill::DELUGE_ERR_PARAM => DelugeStatus_DELUGE_ERR_PARAM,
+);
 
 abi_const!(
     deluge_audio_format::abi::DELUGE_AUDIO_PARSE_NEED => DelugeAudioParseStatus_DELUGE_AUDIO_PARSE_NEED,

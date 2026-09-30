@@ -39,6 +39,14 @@ const FILL_CONTEXT_CAP: usize = 4096;
 /// cannot see the bindgen output, so the BSP's `abi_pins.rs` pins the copy.
 pub type DelugeHandle = u32;
 
+/// `include/libdeluge/types.h`'s `DelugeStatus`, for the efatfs calls the sibling crates import. Pinned by the
+/// BSP's `abi_pins.rs`, like [`DelugeHandle`].
+pub type DelugeStatus = i8;
+/// `DelugeStatus`'s success value.
+pub const DELUGE_OK: DelugeStatus = 0;
+/// `DelugeStatus`'s invalid-argument value.
+pub const DELUGE_ERR_PARAM: DelugeStatus = -2;
+
 /// Mirrors `include/libdeluge/streaming_fill.h`'s `DelugeStreamingFillContext` exactly (verbatim
 /// field order/types) — the per-asset geometry `deluge_streaming_set_fill_context` registers at
 /// sample-load and the native fill task reads via [`fill_context_for`]. See that header's doc for

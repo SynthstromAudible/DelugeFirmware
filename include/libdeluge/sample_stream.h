@@ -142,11 +142,11 @@ void deluge_sample_stream_set_asset_id(uint32_t handle, uint32_t id) DELUGE_NOEX
 /// @param buf         Destination buffer; up to @p len bytes are written.
 /// @param len         Number of bytes to read.
 /// @param out_read    On success, receives the bytes actually read (0 is a valid read at/after EOF).
-/// @return true on success (@p out_read written); false on a failed read (invalid/out-of-range/
-///         already-closed @p handle, or the underlying efatfs read failing), leaving @p out_read
-///         untouched.
-bool deluge_sample_stream_read_at(uint32_t handle, uint32_t byte_offset, uint8_t* buf, uint32_t len,
-                                  uint32_t* out_read) DELUGE_NOEXCEPT;
+/// @return `DELUGE_OK` with @p out_read written. On a failure @p out_read is left untouched:
+///         `DELUGE_ERR_PARAM` for an invalid/out-of-range/already-closed @p handle, otherwise
+///         @ref deluge_efatfs_read_at's own status.
+DelugeStatus deluge_sample_stream_read_at(uint32_t handle, uint32_t byte_offset, uint8_t* buf, uint32_t len,
+                                          uint32_t* out_read) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

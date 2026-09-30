@@ -16,6 +16,8 @@ use core::ffi::{c_char, c_void};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::blocking_mutex::Mutex;
 
+use deluge_sample_fill::{DelugeStatus, DELUGE_ERR_PARAM, DELUGE_OK};
+
 use crate::{DelugeSampleStreamGeometry, DelugeStreamingFillContext, DELUGE_RESOURCE_NO_ASSET};
 
 /// Fixed slot-table capacity. Set to 256 to match the sibling `deluge_sample_source` crate's own
@@ -86,7 +88,7 @@ pub fn open(path: *const c_char, out_table_full: *mut bool) -> u32 {
     // interprets it, so `path`'s validity is exactly that extern's own contract, forwarded from
     // this fn's own caller; `&mut handle`/`&mut efatfs_table_full` are valid local out-params.
     let opened = unsafe { crate::deluge_efatfs_open(path, &mut handle, &mut efatfs_table_full) };
-    if !opened {
+    if opened != DELUGE_OK {
         // SAFETY: `out_table_full`'s validity is this fn's own caller-supplied contract.
         unsafe { write_out(out_table_full, efatfs_table_full) };
         return 0;
@@ -192,23 +194,31 @@ pub fn set_asset_id(handle: u32, id: u32) {
     try_register_fill_context(index);
 }
 
-/// Read up to `len` bytes at `byte_offset` of `handle`'s open file into `buf`. Returns `Some(n)`
-/// with the bytes actually read -- `Some(0)` is a legitimate read at/after EOF, NOT a failure -- or
-/// `None` if the read failed: an invalid/out-of-range/freed `handle`, or `deluge_efatfs_read_at`
-/// itself reporting failure. Mirroring `deluge_efatfs_read_at`'s own success/byte-count split keeps
-/// the C++ `SampleStreamReadSource` a faithful forward of `EfatfsReadSource` (EOF -> `Ok(0)`,
-/// failure -> `Err`) rather than collapsing the two into a bare `0`.
+/// Read up to `len` bytes at `byte_offset` of `handle`'s open file into `buf`. Returns `Ok(n)`
+/// with the bytes actually read -- `Ok(0)` is a legitimate read at/after EOF, NOT a failure -- or
+/// the failure's `DelugeStatus`: `DELUGE_ERR_PARAM` for an invalid/out-of-range/freed `handle`,
+/// otherwise `deluge_efatfs_read_at`'s own. Mirroring `deluge_efatfs_read_at`'s own
+/// success/byte-count split keeps the C++ `SampleStreamReadSource` a faithful forward of
+/// `EfatfsReadSource` (EOF -> `Ok(0)`, failure -> `Err`) rather than collapsing the two into a
+/// bare `0`.
 ///
 /// # Safety
 /// `buf`, if `len > 0`, must be valid for at least `len` writable bytes.
-pub unsafe fn read_at(handle: u32, byte_offset: u32, buf: *mut u8, len: u32) -> Option<u32> {
-    let index = slot_index(handle)?;
+pub unsafe fn read_at(
+    handle: u32,
+    byte_offset: u32,
+    buf: *mut u8,
+    len: u32,
+) -> Result<u32, DelugeStatus> {
+    let index = slot_index(handle).ok_or(DELUGE_ERR_PARAM)?;
     // `None` => freed slot.
-    let efatfs_handle = REGISTRY.lock(|table| {
-        table.borrow()[index]
-            .as_ref()
-            .map(|slot| slot.efatfs_handle)
-    })?;
+    let efatfs_handle = REGISTRY
+        .lock(|table| {
+            table.borrow()[index]
+                .as_ref()
+                .map(|slot| slot.efatfs_handle)
+        })
+        .ok_or(DELUGE_ERR_PARAM)?;
     // No "still recording" short-circuit here. A registry slot is created only AFTER a successful
     // `deluge_efatfs_open` (see `open`), so its handle is always a real, readable one. A
     // still-recording sample never opens a registry slot at all (it registers its handle-less
@@ -216,7 +226,7 @@ pub unsafe fn read_at(handle: u32, byte_offset: u32, buf: *mut u8, len: u32) -> 
     let mut out_read: u32 = 0;
     // SAFETY: `buf` valid for `len` bytes per this fn's own contract; `out_read` is a valid local
     // out-param.
-    let ok = unsafe {
+    let status = unsafe {
         crate::deluge_efatfs_read_at(
             efatfs_handle,
             byte_offset,
@@ -225,7 +235,11 @@ pub unsafe fn read_at(handle: u32, byte_offset: u32, buf: *mut u8, len: u32) -> 
             &mut out_read,
         )
     };
-    ok.then_some(out_read)
+    if status == DELUGE_OK {
+        Ok(out_read)
+    } else {
+        Err(status)
+    }
 }
 
 /// Register `index`'s slot's fill-context with the resource manager, once BOTH a real asset id
@@ -398,7 +412,7 @@ mod tests {
         let mut buf = [0u8; 16];
         // SAFETY: `buf` is a valid 16-byte local buffer.
         let n = unsafe { read_at(h, 1234, buf.as_mut_ptr(), buf.len() as u32) };
-        assert_eq!(n, Some(10));
+        assert_eq!(n, Ok(10));
         assert_eq!(mock_backing::last_read_call(), Some((55, 1234, 16)));
 
         close(h);
@@ -460,7 +474,8 @@ mod tests {
         // SAFETY: `buf` is a valid 4-byte local buffer.
         let n = unsafe { read_at(0, 0, buf.as_mut_ptr(), buf.len() as u32) };
         assert_eq!(
-            n, None,
+            n,
+            Err(DELUGE_ERR_PARAM),
             "an invalid handle is a failed read, not a 0-byte success"
         );
 

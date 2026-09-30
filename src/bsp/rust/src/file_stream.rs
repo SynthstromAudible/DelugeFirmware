@@ -512,7 +512,7 @@ pub(crate) async fn open_mounted(path: &str, mode: u8) -> Result<u32, i8> {
     use crate::file_bytes::NO_FILESYSTEM;
     match backing::stream_open(path, mode).await {
         Err(NO_FILESYSTEM) => {
-            backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
+            backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
             backing::stream_open(path, mode).await
         }
         other => other,

@@ -131,7 +131,7 @@ void AudioFileManager::init() {
 		uint32_t clusterBytes = 0;
 		// Shouldn't fail right after a successful mount, but never let a 0 cluster size through -
 		// Cluster::set_size(0) would make every file read request 0 bytes.
-		if (!deluge_efatfs_cluster_size(&clusterBytes)) {
+		if (deluge_efatfs_cluster_size(&clusterBytes) != DELUGE_OK) {
 			clusterBytes = Cluster::kSizeFAT16Max;
 		}
 		Cluster::set_size(clusterBytes);
@@ -165,7 +165,7 @@ void AudioFileManager::cardReinserted() {
 	// unavailable query fall through to the "stayed the same" branch below - never a spurious
 	// increased/decreased trip.
 	uint32_t newClusterSize = Cluster::size;
-	deluge_efatfs_cluster_size(&newClusterSize);
+	(void)deluge_efatfs_cluster_size(&newClusterSize);
 
 	// If cluster size has increased, we're in trouble
 	if (newClusterSize > Cluster::size) {
@@ -1561,7 +1561,7 @@ void AudioFileManager::reinitEjectedCard() {
 	// drop-and-remount a card swap needs -- and with no remount, the mount-generation counter
 	// StorageManager tracks (noticeCardMount()) never sees an edge either, so firstCardRead()
 	// would never fire.
-	if (!deluge_efatfs_remount()) {
+	if (deluge_efatfs_remount() != DELUGE_OK) {
 		return; // Remount failed (e.g. unreadable card) - stay ejected, retry next tick.
 	}
 	cardEjected = false;

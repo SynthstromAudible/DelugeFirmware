@@ -57,7 +57,7 @@ unsafe extern "C" {
         dst: *mut c_void,
         count: u32,
         out_read: *mut u32,
-    ) -> bool;
+    ) -> deluge_sample_fill::DelugeStatus;
     /// Wake the async loader (`include/libdeluge/streaming_fill.h`) after enqueueing a chunk
     /// via `Resource::loader_enqueue` — see [`enqueue_unfilled`]'s own doc for the recipe this
     /// mirrors (the C++ `CLUSTER_ENQUEUE` path).
@@ -88,7 +88,7 @@ pub(crate) fn fill_now(chunk_backing: *mut c_void) -> bool {
             count,
             &mut out_read,
         )
-    };
+    } == deluge_sample_fill::DELUGE_OK;
     deluge_sample_fill::native_finish(chunk_backing, read_ok)
 }
 

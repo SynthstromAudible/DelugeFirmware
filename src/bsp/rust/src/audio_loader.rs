@@ -1147,11 +1147,11 @@ mod prod {
             match backing::open(path).await {
                 crate::efatfs_core::OpenOutcome::Handle(handle) => OpenVerdict::Opened(handle),
                 // A candidate verdict: nothing to read at this path, so try the
-                // next. `efatfs_fs::open` collapses every open failure -- missing,
-                // unmounted, any granular status -- onto NotFound, which is the
-                // same conflation `resolveFileSize`'s tryOpenCandidate makes (see
-                // the TODO at its unknown-as-absent branch).
-                crate::efatfs_core::OpenOutcome::NotFound => OpenVerdict::Missing,
+                // next. Every open failure -- missing, unmounted, any granular
+                // status -- counts as missing here, which is the same conflation
+                // `resolveFileSize`'s tryOpenCandidate makes (see the TODO at its
+                // unknown-as-absent branch).
+                crate::efatfs_core::OpenOutcome::Failed(_) => OpenVerdict::Missing,
                 // NOT a candidate verdict. The loader opens through the same 128-slot
                 // `HANDLES` table `open_read_stream` uses, and `sample_stream.cpp`
                 // documents that table filling up by construction under browser

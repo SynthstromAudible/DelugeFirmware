@@ -15,8 +15,9 @@ std::expected<Stream, Status> Stream::open(std::string_view path, DelugeStreamMo
 		return std::unexpected(Status::ERR);
 	}
 	DelugeHandle handle = DELUGE_HANDLE_NONE;
-	if (!deluge_efatfs_stream_open(cpath->c_str(), static_cast<uint8_t>(mode), &handle)) {
-		return std::unexpected(Status::ERR);
+	const DelugeStatus status = deluge_efatfs_stream_open(cpath->c_str(), static_cast<uint8_t>(mode), &handle);
+	if (status != DELUGE_OK) {
+		return std::unexpected(to_status(status));
 	}
 	return Stream(handle);
 }
@@ -26,9 +27,10 @@ std::expected<uint32_t, Status> Stream::write_at(uint32_t byte_offset, std::span
 	// No-flush write -- see stream_io.h's `deluge_efatfs_stream_write_at` doc. The persisted
 	// size/mtime edit is flushed to disk on `close()` (or an explicit mid-recording flush, not
 	// exercised by this port).
-	if (!deluge_efatfs_stream_write_at(handle_, byte_offset, buffer.data(), static_cast<uint32_t>(buffer.size()),
-	                                   &out_written)) {
-		return std::unexpected(Status::ERR);
+	const DelugeStatus status = deluge_efatfs_stream_write_at(handle_, byte_offset, buffer.data(),
+	                                                          static_cast<uint32_t>(buffer.size()), &out_written);
+	if (status != DELUGE_OK) {
+		return std::unexpected(to_status(status));
 	}
 	return out_written;
 }
@@ -123,24 +125,27 @@ DelugeChannelStatus Stream::collect_close() {
 
 std::expected<uint32_t, Status> Stream::read_at_via(uint32_t byte_offset, std::span<std::byte> dst) {
 	uint32_t out_read = 0;
-	if (!deluge_efatfs_stream_read_at_via(handle_, byte_offset, dst.data(), static_cast<uint32_t>(dst.size()),
-	                                      &out_read)) {
-		return std::unexpected(Status::ERR);
+	const DelugeStatus status = deluge_efatfs_stream_read_at_via(handle_, byte_offset, dst.data(),
+	                                                             static_cast<uint32_t>(dst.size()), &out_read);
+	if (status != DELUGE_OK) {
+		return std::unexpected(to_status(status));
 	}
 	return out_read;
 }
 
 std::expected<void, Status> Stream::truncate(uint32_t new_size) {
-	if (!deluge_efatfs_stream_truncate(handle_, new_size)) {
-		return std::unexpected(Status::ERR);
+	const DelugeStatus status = deluge_efatfs_stream_truncate(handle_, new_size);
+	if (status != DELUGE_OK) {
+		return std::unexpected(to_status(status));
 	}
 	return {};
 }
 
 std::expected<uint32_t, Status> Stream::size() {
 	uint32_t out_size = 0;
-	if (!deluge_efatfs_stream_size(handle_, &out_size)) {
-		return std::unexpected(Status::ERR);
+	const DelugeStatus status = deluge_efatfs_stream_size(handle_, &out_size);
+	if (status != DELUGE_OK) {
+		return std::unexpected(to_status(status));
 	}
 	return out_size;
 }
@@ -150,10 +155,10 @@ std::expected<void, Status> Stream::close() {
 	// The channel holds a raw pointer into the caller's buffer, and every caller frees that buffer
 	// after close() returns. The obligation sits with the state machine that owns the buffer: see
 	// `SampleRecorder::cardRoutine`, which never reaches a terminal status with a write outstanding.
-	bool ok = deluge_efatfs_stream_close(handle_);
+	const DelugeStatus status = deluge_efatfs_stream_close(handle_);
 	handle_ = DELUGE_HANDLE_NONE; // matters even on error: don't let the destructor double-close
-	if (!ok) {
-		return std::unexpected(Status::ERR);
+	if (status != DELUGE_OK) {
+		return std::unexpected(to_status(status));
 	}
 	return {};
 }

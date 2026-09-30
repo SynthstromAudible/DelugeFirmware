@@ -1945,7 +1945,7 @@ impl ProdByteOps {
     async fn open_mounted(path: &str, mode: u8) -> Result<u32, i8> {
         match backing::task_file_open(path, mode).await {
             Err(NO_FILESYSTEM) => {
-                backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
+                backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
                 backing::task_file_open(path, mode)
                     .await
                     .map_err(|status| status as i8)
@@ -1959,7 +1959,7 @@ impl ProdByteOps {
     async fn open_dir_mounted(path: &str) -> Result<u32, i8> {
         match backing::task_dir_open(path).await {
             Err(NO_FILESYSTEM) => {
-                backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
+                backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
                 backing::task_dir_open(path)
                     .await
                     .map_err(|status| status as i8)
@@ -1981,7 +1981,7 @@ impl ProdByteOps {
                 // Not mounted. MOUNTING IS REAL CARD I/O, which is exactly why it happens here rather
                 // than in the caller -- the same reason every other operation in this module mounts
                 // lazily.
-                backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
+                backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
                 match backing::task_mkdir(path).await {
                     Ok(()) => Ok(()),
                     Err(EXISTS) => Ok(()),

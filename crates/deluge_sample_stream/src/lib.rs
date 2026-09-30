@@ -56,7 +56,7 @@ unsafe extern "C" {
         path: *const c_char,
         out_handle: *mut deluge_sample_fill::DelugeHandle,
         out_table_full: *mut bool,
-    ) -> bool;
+    ) -> deluge_sample_fill::DelugeStatus;
     /// `include/libdeluge/file_io.h`. Close a streaming file handle.
     pub fn deluge_efatfs_close(handle: deluge_sample_fill::DelugeHandle);
     /// `include/libdeluge/file_io.h`. Synchronous card read at an absolute byte offset.
@@ -66,7 +66,7 @@ unsafe extern "C" {
         dst: *mut c_void,
         count: u32,
         out_read: *mut u32,
-    ) -> bool;
+    ) -> deluge_sample_fill::DelugeStatus;
     /// `include/libdeluge/sample_stream.h`. The single process-wide resource-manager singleton.
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// `include/libdeluge/streaming_fill.h`. Register (or replace) an asset's fill-context.
@@ -155,9 +155,9 @@ pub(crate) mod mock_backing {
     }
 
     /// Configure how many bytes the next (and every subsequent, until reset) `deluge_efatfs_read_at`
-    /// call reports read — the call still always "succeeds" (returns `true`); a registry-level
-    /// failed-read case has no test in this rung (mirrors the header's own "false only on a real
-    /// I/O failure" contract, which this mock has no need to model beyond the count it hands back).
+    /// call reports read — the call still always succeeds (returns `DELUGE_OK`); a registry-level
+    /// failed-read case has no test here (the header's failure statuses are real I/O failures, which
+    /// this mock has no need to model beyond the count it hands back).
     pub(crate) fn set_read_result(bytes: u32) {
         READ_RESULT_BYTES.with(|c| *c.borrow_mut() = bytes);
     }
@@ -193,7 +193,7 @@ pub(crate) mod mock_backing {
         path: *const c_char,
         out_handle: *mut u32,
         out_table_full: *mut bool,
-    ) -> bool {
+    ) -> deluge_sample_fill::DelugeStatus {
         // SAFETY: `path` is a live, NUL-terminated C string for the duration of this call (every
         // caller in this crate's own tests passes a `c"..."` literal or an equivalent static).
         let s = unsafe { CStr::from_ptr(path) }
@@ -210,7 +210,13 @@ pub(crate) mod mock_backing {
             // SAFETY: non-null per the check above.
             unsafe { *out_table_full = table_full };
         }
-        ok
+        // `DELUGE_ERR_NOT_FOUND`: what a real open of a missing file answers.
+        const DELUGE_ERR_NOT_FOUND: deluge_sample_fill::DelugeStatus = -8;
+        if ok {
+            deluge_sample_fill::DELUGE_OK
+        } else {
+            DELUGE_ERR_NOT_FOUND
+        }
     }
 
     #[unsafe(no_mangle)]
@@ -225,7 +231,7 @@ pub(crate) mod mock_backing {
         dst: *mut c_void,
         count: u32,
         out_read: *mut u32,
-    ) -> bool {
+    ) -> deluge_sample_fill::DelugeStatus {
         LAST_READ_CALL.with(|c| *c.borrow_mut() = Some((handle, byte_offset, count)));
         let bytes = READ_RESULT_BYTES.with(|c| *c.borrow()).min(count);
         // SAFETY: `dst` is the caller's destination buffer, valid for at least `count` bytes
@@ -238,7 +244,7 @@ pub(crate) mod mock_backing {
             }
             *out_read = bytes;
         }
-        true
+        deluge_sample_fill::DELUGE_OK
     }
 
     #[unsafe(no_mangle)]

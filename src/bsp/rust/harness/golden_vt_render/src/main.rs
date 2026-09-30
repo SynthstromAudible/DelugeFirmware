@@ -323,8 +323,10 @@ async fn boot_task() {
     // A failed mount must NOT abort boot — see the device/host_app_task comments this mirrors.
     match crate::efatfs_host_shim::mount().await {
         Ok(()) => log::info!("golden_vt_render: efatfs mounted"),
-        Err(()) => {
-            log::warn!("golden_vt_render: efatfs mount failed — streamed samples will not load");
+        Err(status) => {
+            log::warn!(
+                "golden_vt_render: efatfs mount failed ({status}) — streamed samples will not load"
+            );
         }
     }
 

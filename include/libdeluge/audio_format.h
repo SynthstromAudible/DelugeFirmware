@@ -221,10 +221,11 @@ bool deluge_audio_header_parser_pending(const DelugeAudioHeaderParser* parser, D
 /// @param window_len   How many bytes @p window holds.
 /// @param window_start The absolute file offset @p window begins at.
 /// @param header_out   Written only on DELUGE_AUDIO_PARSE_DONE.
-/// @return A DelugeAudioParseStatus. DELUGE_AUDIO_PARSE_NEED means "ask `pending` again"; every other
+/// @return DELUGE_AUDIO_PARSE_NEED means "ask `pending` again"; every other
 ///         value is terminal.
-uint8_t deluge_audio_header_parser_feed(DelugeAudioHeaderParser* parser, const uint8_t* window, uint32_t window_len,
-                                        uint32_t window_start, DelugeAudioHeader* header_out) DELUGE_NOEXCEPT;
+DelugeAudioParseStatus deluge_audio_header_parser_feed(DelugeAudioHeaderParser* parser, const uint8_t* window,
+                                                       uint32_t window_len, uint32_t window_start,
+                                                       DelugeAudioHeader* header_out) DELUGE_NOEXCEPT;
 
 /// @brief Whether the walk has located the audio data.
 ///
@@ -261,9 +262,9 @@ bool deluge_audio_header_parser_container(const DelugeAudioHeaderParser* parser,
 ///
 /// @param parser     An initialised parser.
 /// @param header_out Written only on DELUGE_AUDIO_PARSE_DONE.
-/// @return A DelugeAudioParseStatus; never DELUGE_AUDIO_PARSE_NEED — this call always terminates.
-uint8_t deluge_audio_header_parser_finish_here(DelugeAudioHeaderParser* parser,
-                                               DelugeAudioHeader* header_out) DELUGE_NOEXCEPT;
+/// @return Never DELUGE_AUDIO_PARSE_NEED — this call always terminates.
+DelugeAudioParseStatus deluge_audio_header_parser_finish_here(DelugeAudioHeaderParser* parser,
+                                                              DelugeAudioHeader* header_out) DELUGE_NOEXCEPT;
 
 /// @brief Decide whether a decoded header may be used as a wavetable.
 ///
@@ -271,9 +272,9 @@ uint8_t deluge_audio_header_parser_finish_here(DelugeAudioHeaderParser* parser,
 /// @param insist         Mirrors `makeWaveTableWorkAtAllCosts`: waives the `clm `/length-shape check and
 ///                       the AIFF rejection, but never the mono requirement.
 /// @param cycle_size_out Written only on DELUGE_WAVETABLE_ACCEPTED.
-/// @return A DelugeWavetableAccept.
-uint8_t deluge_audio_header_accept_as_wavetable(const DelugeAudioHeader* header, bool insist,
-                                                uint32_t* cycle_size_out) DELUGE_NOEXCEPT;
+/// @return DELUGE_WAVETABLE_ACCEPTED, or why the header was rejected.
+DelugeWavetableAccept deluge_audio_header_accept_as_wavetable(const DelugeAudioHeader* header, bool insist,
+                                                              uint32_t* cycle_size_out) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

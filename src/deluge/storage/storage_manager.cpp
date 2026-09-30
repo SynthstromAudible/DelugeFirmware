@@ -79,9 +79,9 @@ extern void songLoaded(Song* song);
 Error StorageManager::checkSpaceOnCard() {
 	uint32_t freeClusters = 0;
 	uint32_t totalClusters = 0;
-	// Best-effort: if the query can't run (unmounted, or a non-efatfs BSP whose weak stub
-	// returns false), don't spuriously report the card full — treat it as space available.
-	if (!deluge_efatfs_stats(&freeClusters, &totalClusters)) {
+	// Best-effort: if the query can't run (unmounted, or any other failure status), don't
+	// spuriously report the card full — treat it as space available.
+	if (deluge_efatfs_stats(&freeClusters, &totalClusters) != DELUGE_OK) {
 		return Error::NONE;
 	}
 	D_PRINTLN("free clusters:  %d", freeClusters);
@@ -223,7 +223,7 @@ Error StorageManager::initSD() {
 		return Error::SD_CARD_NOT_PRESENT;
 	}
 
-	if (!deluge_efatfs_mount()) {
+	if (deluge_efatfs_mount() != DELUGE_OK) {
 		return Error::SD_CARD;
 	}
 	// The transition is decided by the shared counter, not by watching our own call: sampling a local

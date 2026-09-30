@@ -5,6 +5,8 @@
 
 use core::ffi::c_char;
 
+use deluge_sample_fill::{DelugeStatus, DELUGE_OK};
+
 use crate::registry;
 use crate::DelugeSampleStreamGeometry;
 
@@ -74,10 +76,11 @@ pub extern "C" fn deluge_sample_stream_set_asset_id(handle: u32, id: u32) {
 }
 
 /// Read up to `len` bytes at `byte_offset` of `handle`'s open file into `buf`. On success writes the
-/// bytes actually read to `*out_read` (0 is a legitimate read at/after EOF) and returns `true`;
-/// returns `false` on a failed read (an invalid/out-of-range/freed handle, or the underlying efatfs
-/// read reporting failure), leaving `*out_read` untouched. Mirrors `deluge_efatfs_read_at`'s
-/// success/byte-count split. See [`registry::read_at`] for the full contract.
+/// bytes actually read to `*out_read` (0 is a legitimate read at/after EOF) and returns `DELUGE_OK`;
+/// on a failed read returns `DELUGE_ERR_PARAM` for an invalid/out-of-range/freed handle, or the
+/// underlying efatfs read's own status, leaving `*out_read` untouched. Mirrors
+/// `deluge_efatfs_read_at`'s success/byte-count split. See [`registry::read_at`] for the full
+/// contract.
 ///
 /// # Safety
 /// `buf`, if `len > 0`, must be valid for at least `len` writable bytes; `out_read` must be a valid
@@ -92,17 +95,17 @@ pub unsafe extern "C" fn deluge_sample_stream_read_at(
     buf: *mut u8,
     len: u32,
     out_read: *mut u32,
-) -> bool {
+) -> DelugeStatus {
     // SAFETY: forwarded from this fn's own contract.
     match unsafe { registry::read_at(handle, byte_offset, buf, len) } {
-        Some(n) => {
+        Ok(n) => {
             if !out_read.is_null() {
                 // SAFETY: `out_read` non-null and writable per this fn's own contract.
                 unsafe { *out_read = n };
             }
-            true
+            DELUGE_OK
         }
-        None => false,
+        Err(status) => status,
     }
 }
 
@@ -153,10 +156,10 @@ mod tests {
         let mut buf = [0u8; 4];
         let mut got: u32 = 0;
         // SAFETY: `buf` is a valid 4-byte local buffer; `got` is a valid out-param.
-        let ok = unsafe {
+        let status = unsafe {
             deluge_sample_stream_read_at(h, 0, buf.as_mut_ptr(), buf.len() as u32, &mut got)
         };
-        assert!(ok);
+        assert_eq!(status, deluge_sample_fill::DELUGE_OK);
         assert_eq!(got, 4);
 
         deluge_sample_stream_close(h);

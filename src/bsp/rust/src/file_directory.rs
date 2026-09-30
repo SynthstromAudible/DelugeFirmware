@@ -545,7 +545,7 @@ impl DirOps for ProdDirOps {
                 //
                 // `mount()` bumps `deluge_efatfs_mount_generation`, which is how the C++ side still
                 // learns to run `firstCardRead()`.
-                backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
+                backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
                 backing::task_dir_open(path)
                     .await
                     .map_err(|status| status as i8)

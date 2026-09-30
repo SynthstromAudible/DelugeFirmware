@@ -738,7 +738,9 @@ async fn app_task() {
 
         match crate::efatfs_fs::mount().await {
             Ok(()) => log::info!("efatfs: mounted"),
-            Err(()) => log::warn!("efatfs: mount failed — streamed samples will not load"),
+            Err(status) => {
+                log::warn!("efatfs: mount failed ({status}) — streamed samples will not load")
+            }
         }
     }
 
@@ -785,7 +787,9 @@ async fn host_app_task() {
     // the R0 design doc for why a single-threaded sim's shape is different).
     match crate::efatfs_host_shim::mount().await {
         Ok(()) => log::info!("efatfs: mounted (host)"),
-        Err(()) => log::warn!("efatfs: host mount failed — streamed samples will not load"),
+        Err(status) => {
+            log::warn!("efatfs: host mount failed ({status}) — streamed samples will not load")
+        }
     }
 
     log::info!("deluge-bsp-rust: host deluge_app_init() (registers + spawns task runners)");

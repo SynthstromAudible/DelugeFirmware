@@ -30,7 +30,7 @@ void deluge_streaming_request_chunk(DelugeChunkBacking* /*chunk_backing*/) noexc
 void deluge_streaming_signal_fill() noexcept {
 }
 
-bool deluge_efatfs_read_at(DelugeHandle /*handle*/, uint32_t /*byte_offset*/, void* /*dst*/, uint32_t /*count*/,
-                           uint32_t* /*out_read*/) noexcept {
-	return false;
+DelugeStatus deluge_efatfs_read_at(DelugeHandle /*handle*/, uint32_t /*byte_offset*/, void* /*dst*/, uint32_t /*count*/,
+                                   uint32_t* /*out_read*/) noexcept {
+	return DELUGE_ERR_IO;
 }

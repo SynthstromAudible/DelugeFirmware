@@ -44,22 +44,30 @@ use crate::{
 // Status codes
 // ---------------------------------------------------------------------------
 
+/// `libdeluge/audio_format.h`'s `DelugeAudioParseStatus`: what `feed` and
+/// `finish_here` answer. The header fixes its width at `uint8_t`.
+pub type DelugeAudioParseStatus = u8;
+
+/// `libdeluge/audio_format.h`'s `DelugeWavetableAccept`: what
+/// `accept_as_wavetable` answers. The header fixes its width at `uint8_t`.
+pub type DelugeWavetableAccept = u8;
+
 /// The parser wants the window `pending` reports.
-pub const DELUGE_AUDIO_PARSE_NEED: u8 = 0;
+pub const DELUGE_AUDIO_PARSE_NEED: DelugeAudioParseStatus = 0;
 /// The header is decoded and has been written to the caller's out-parameter.
-pub const DELUGE_AUDIO_PARSE_DONE: u8 = 1;
+pub const DELUGE_AUDIO_PARSE_DONE: DelugeAudioParseStatus = 1;
 /// No container we recognise — not an audio file at all.
-pub const DELUGE_AUDIO_PARSE_NOT_AUDIO: u8 = 2;
+pub const DELUGE_AUDIO_PARSE_NOT_AUDIO: DelugeAudioParseStatus = 2;
 /// The file contradicts itself (no `fmt `/`COMM`, no `data`/`SSND`).
-pub const DELUGE_AUDIO_PARSE_MALFORMED: u8 = 3;
+pub const DELUGE_AUDIO_PARSE_MALFORMED: DelugeAudioParseStatus = 3;
 /// Valid, but says something we cannot play (bit depth, format tag, channel
 /// count, sample rate).
-pub const DELUGE_AUDIO_PARSE_UNSUPPORTED: u8 = 4;
+pub const DELUGE_AUDIO_PARSE_UNSUPPORTED: DelugeAudioParseStatus = 4;
 /// The file ends before the header does. Not a request for more bytes.
-pub const DELUGE_AUDIO_PARSE_TRUNCATED: u8 = 5;
+pub const DELUGE_AUDIO_PARSE_TRUNCATED: DelugeAudioParseStatus = 5;
 /// The call itself was malformed — a null pointer, or storage too small for the
 /// parser. A programming error on the C side, never a property of a file.
-pub const DELUGE_AUDIO_PARSE_BAD_CALL: u8 = 6;
+pub const DELUGE_AUDIO_PARSE_BAD_CALL: DelugeAudioParseStatus = 6;
 
 /// Read everything the header says. What a Sample load wants.
 pub const DELUGE_AUDIO_WALK_WHOLE_HEADER: u8 = 0;
@@ -69,17 +77,17 @@ pub const DELUGE_AUDIO_WALK_WHOLE_HEADER: u8 = 0;
 pub const DELUGE_AUDIO_WALK_AUDIO_ONLY: u8 = 1;
 
 /// The header may be used as a wavetable; the cycle size has been written out.
-pub const DELUGE_WAVETABLE_ACCEPTED: u8 = 0;
+pub const DELUGE_WAVETABLE_ACCEPTED: DelugeWavetableAccept = 0;
 /// More than one channel. Rejected even when the caller insists.
-pub const DELUGE_WAVETABLE_REJECT_STEREO: u8 = 1;
+pub const DELUGE_WAVETABLE_REJECT_STEREO: DelugeWavetableAccept = 1;
 /// Bit depth unknown, so the length-in-samples check can't be made.
-pub const DELUGE_WAVETABLE_REJECT_UNKNOWN_BIT_DEPTH: u8 = 2;
+pub const DELUGE_WAVETABLE_REJECT_UNKNOWN_BIT_DEPTH: DelugeWavetableAccept = 2;
 /// No `clm ` tag and a length that isn't a whole number of 2048-sample cycles.
-pub const DELUGE_WAVETABLE_REJECT_NOT_A_WAVETABLE: u8 = 3;
+pub const DELUGE_WAVETABLE_REJECT_NOT_A_WAVETABLE: DelugeWavetableAccept = 3;
 /// An AIFF container, which is only ever a wavetable if the caller insists.
-pub const DELUGE_WAVETABLE_REJECT_AIFF: u8 = 4;
+pub const DELUGE_WAVETABLE_REJECT_AIFF: DelugeWavetableAccept = 4;
 /// A null pointer was passed. A programming error, not a file's fault.
-pub const DELUGE_WAVETABLE_BAD_CALL: u8 = 5;
+pub const DELUGE_WAVETABLE_BAD_CALL: DelugeWavetableAccept = 5;
 
 /// Mirror of `DELUGE_AUDIO_MAX_WINDOW_BYTES` in `libdeluge/audio_format.h`: the
 /// largest window a caller can ever be asked for, and so the smallest buffer it
@@ -373,7 +381,7 @@ pub unsafe extern "C" fn deluge_audio_header_parser_feed(
     window_len: u32,
     window_start: u32,
     header_out: *mut DelugeAudioHeader,
-) -> u8 {
+) -> DelugeAudioParseStatus {
     if parser.is_null() || header_out.is_null() || (window.is_null() && window_len != 0) {
         return DELUGE_AUDIO_PARSE_BAD_CALL;
     }
@@ -465,7 +473,7 @@ pub unsafe extern "C" fn deluge_audio_header_parser_container(
 pub unsafe extern "C" fn deluge_audio_header_parser_finish_here(
     parser: *mut DelugeAudioHeaderParser,
     header_out: *mut DelugeAudioHeader,
-) -> u8 {
+) -> DelugeAudioParseStatus {
     if parser.is_null() || header_out.is_null() {
         return DELUGE_AUDIO_PARSE_BAD_CALL;
     }
@@ -495,7 +503,7 @@ pub unsafe extern "C" fn deluge_audio_header_accept_as_wavetable(
     header: *const DelugeAudioHeader,
     insist: bool,
     cycle_size_out: *mut u32,
-) -> u8 {
+) -> DelugeWavetableAccept {
     if header.is_null() || cycle_size_out.is_null() {
         return DELUGE_WAVETABLE_BAD_CALL;
     }
@@ -517,7 +525,7 @@ pub unsafe extern "C" fn deluge_audio_header_accept_as_wavetable(
 /// The `Reason` a decode failed for is deliberately not carried across: the C++
 /// caller has exactly two error values to map onto (corrupt vs unsupported), so
 /// a finer split would cross the boundary only to be discarded.
-fn error_code(error: HeaderError) -> u8 {
+fn error_code(error: HeaderError) -> DelugeAudioParseStatus {
     match error {
         HeaderError::NotAudio => DELUGE_AUDIO_PARSE_NOT_AUDIO,
         HeaderError::Malformed(_) => DELUGE_AUDIO_PARSE_MALFORMED,
@@ -533,7 +541,10 @@ mod tests {
 
     /// Drive the ABI exactly as a C caller must: ask, read, feed, repeat —
     /// including feeding zero-length windows rather than skipping them.
-    fn parse_through_abi(file: &[u8], stop_at_audio_data: bool) -> Result<DelugeAudioHeader, u8> {
+    fn parse_through_abi(
+        file: &[u8],
+        stop_at_audio_data: bool,
+    ) -> Result<DelugeAudioHeader, DelugeAudioParseStatus> {
         let mut storage = DelugeAudioHeaderParser {
             _storage: [0; DELUGE_AUDIO_HEADER_PARSER_WORDS],
         };

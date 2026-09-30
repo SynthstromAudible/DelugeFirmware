@@ -100,8 +100,9 @@ extern "C" fn deluge_efatfs_read_at(
     _dst: *mut c_void,
     _count: u32,
     _out_read: *mut u32,
-) -> bool {
-    false
+) -> deluge_sample_fill::DelugeStatus {
+    // `DELUGE_ERR_IO`: a failed card read.
+    -5
 }
 
 /// No async streaming-fill task in this differential harness: a requested fill never lands, so a

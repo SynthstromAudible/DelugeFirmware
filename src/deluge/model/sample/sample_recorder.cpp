@@ -1029,7 +1029,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 				uint32_t totalClusters = 0;
 				// Best-effort, exactly as checkSpaceOnCard has always been: a query that cannot run
 				// is not a full card.
-				if (deluge_efatfs_stats(&freeClusters, &totalClusters) && freeClusters == 0) {
+				if (deluge_efatfs_stats(&freeClusters, &totalClusters) == DELUGE_OK && freeClusters == 0) {
 					spaceExhausted = true;
 				}
 				break;
