@@ -34,7 +34,6 @@ use deluge_audio_format::{
     parse, wavetable, AudioHeader, Container, FeedResult, HeaderError, HeaderParser, ParseError,
     WalkGoal,
 };
-use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -364,9 +363,6 @@ struct Disagreement {
     field: &'static str,
     ours: String,
     theirs: String,
-    /// `Some(reason)` marks a known, adjudicated disagreement: reported but not a failure. `None`
-    /// fails the test.
-    adjudicated: Option<&'static str>,
 }
 
 /// Buckets a [`ParseError`] the way the C++ side's `Error` values do, since the [`Reason`] does not
@@ -406,7 +402,6 @@ fn cmp_u32(
             field,
             ours: ours.to_string(),
             theirs: format!("{theirs:?}"),
-            adjudicated: None,
         });
     }
 }
@@ -424,7 +419,6 @@ fn cmp_bool(
             field,
             ours: ours.to_string(),
             theirs: format!("{theirs:?}"),
-            adjudicated: None,
         });
     }
 }
@@ -442,7 +436,6 @@ fn cmp_container(out: &mut Vec<Disagreement>, path: &Path, ours: Container, thei
             field: "container",
             ours: ours_tag.to_string(),
             theirs: format!("{:?}", theirs.get("container")),
-            adjudicated: None,
         });
     }
 }
@@ -465,7 +458,6 @@ fn cmp_midi_note(out: &mut Vec<Disagreement>, path: &Path, ours: Option<f32>, th
                     field: "sample.midi_note",
                     ours: format!("{v}"),
                     theirs: format!("{t}"),
-                    adjudicated: None,
                 });
             }
         }
@@ -474,144 +466,30 @@ fn cmp_midi_note(out: &mut Vec<Disagreement>, path: &Path, ours: Option<f32>, th
             field: "sample.midi_note",
             ours: format!("{ours:?}"),
             theirs: format!("{theirs:?}"),
-            adjudicated: None,
         }),
     }
 }
 
-/// Adjudication for AIFF loop points where a side skips `MARK` pstrings with
-/// `(stringLength + 1) & ~1` (rounding only the name) instead of padding the whole pstring to even,
-/// `((1 + stringLength + 1) & ~1) - 1`. The former misreads every marker after the first. This
-/// crate uses the latter; the former is a bug, never to be matched. With both sides decoding
-/// through this crate the exemption is not expected to fire.
-const AIFF_LOOP_MARKER_CPP_BUG: &str = "aiff_loop_marker_cpp_pstring_off_by_one (design doc §6)";
-
-/// Independently resolves an AIFF file's `INST` sustain loop through `MARK`, with either pstring
-/// skip (`buggy_pstring_skip` selects `(stringLength + 1) & ~1`), straight from the file's bytes.
-///
-/// Lets `cmp_loop_points` exempt a disagreement only when each side's value matches its formula's
-/// prediction. Test-only and simple: no marker clamp, and an out-of-bounds read just stops the
-/// walk. Returns `None` for a non-AIFF file, one without an `INST` sustain loop, or one too short
-/// to walk.
-fn aiff_marker_walk(bytes: &[u8], buggy_pstring_skip: bool) -> Option<(u32, u32)> {
-    if bytes.len() < 12 || &bytes[0..4] != b"FORM" || &bytes[8..12] != b"AIFF" {
-        return None;
-    }
-
-    let mut markers: Vec<(i16, u32)> = Vec::new();
-    let mut sustain_begin_id: Option<i16> = None;
-    let mut sustain_end_id: Option<i16> = None;
-
-    let mut pos = 12usize;
-    while pos + 8 <= bytes.len() {
-        let tag = &bytes[pos..pos + 4];
-        let size = u32::from_be_bytes(bytes[pos + 4..pos + 8].try_into().unwrap());
-        let data_start = pos + 8;
-
-        if tag == b"MARK" {
-            let chunk_end = data_start.saturating_add(size as usize).min(bytes.len());
-            if data_start + 2 <= chunk_end {
-                let num_markers =
-                    u16::from_be_bytes(bytes[data_start..data_start + 2].try_into().unwrap());
-                let mut cursor = data_start + 2;
-                for _ in 0..num_markers {
-                    if cursor + 6 > chunk_end {
-                        break;
-                    }
-                    let id = i16::from_be_bytes(bytes[cursor..cursor + 2].try_into().unwrap());
-                    let position =
-                        u32::from_be_bytes(bytes[cursor + 2..cursor + 6].try_into().unwrap());
-                    cursor += 6;
-                    markers.push((id, position));
-
-                    if cursor >= chunk_end {
-                        break;
-                    }
-                    let str_len = bytes[cursor] as usize;
-                    cursor += 1;
-                    let skip = if buggy_pstring_skip {
-                        (str_len + 1) & !1
-                    } else {
-                        ((1 + str_len + 1) & !1) - 1
-                    };
-                    cursor = cursor.saturating_add(skip).min(chunk_end);
-                }
-            }
-        } else if tag == b"INST" && data_start + 14 <= bytes.len() {
-            sustain_begin_id = Some(i16::from_be_bytes(
-                bytes[data_start + 10..data_start + 12].try_into().unwrap(),
-            ));
-            sustain_end_id = Some(i16::from_be_bytes(
-                bytes[data_start + 12..data_start + 14].try_into().unwrap(),
-            ));
-        }
-
-        let padded = size.saturating_add(size & 1);
-        pos = data_start.saturating_add(padded as usize);
-    }
-
-    let begin_id = sustain_begin_id?;
-    let end_id = sustain_end_id?;
-    if end_id == -1 {
-        return None; // matches lib.rs's "no INST sustain loop seen" sentinel gate.
-    }
-    let start = markers
-        .iter()
-        .find(|(id, _)| *id == begin_id)
-        .map(|(_, p)| *p)
-        .unwrap_or(0);
-    let end = markers
-        .iter()
-        .find(|(id, _)| *id == end_id)
-        .map(|(_, p)| *p)
-        .unwrap_or(0);
-    Some((start, end))
-}
-
-fn cmp_loop_points(
-    out: &mut Vec<Disagreement>,
-    path: &Path,
-    ours: &AudioHeader,
-    bytes: &[u8],
-    theirs: &Json,
-) {
-    let is_aiff = ours.container == Container::Aiff;
-    // What each pstring-skip formula predicts for this file.
-    let spec_walk = is_aiff.then(|| aiff_marker_walk(bytes, false)).flatten();
-    let buggy_walk = is_aiff.then(|| aiff_marker_walk(bytes, true)).flatten();
-
-    for (field, ours_v, key, spec_predicted, buggy_predicted) in [
+fn cmp_loop_points(out: &mut Vec<Disagreement>, path: &Path, ours: &AudioHeader, theirs: &Json) {
+    for (field, ours_v, key) in [
         (
             "sample.file_loop_start_samples",
             ours.file_loop_start_samples,
             "file_loop_start_samples",
-            spec_walk.map(|(s, _)| s),
-            buggy_walk.map(|(s, _)| s),
         ),
         (
             "sample.file_loop_end_samples",
             ours.file_loop_end_samples,
             "file_loop_end_samples",
-            spec_walk.map(|(_, e)| e),
-            buggy_walk.map(|(_, e)| e),
         ),
     ] {
         let theirs_v = theirs.get(key).as_u32();
         if theirs_v != Some(ours_v) {
-            // Exempt only when the C++ value matches the buggy prediction and ours matches the
-            // correct one; any other regression fails the test.
-            let adjudicated =
-                if is_aiff && spec_predicted == Some(ours_v) && buggy_predicted == theirs_v {
-                    Some(AIFF_LOOP_MARKER_CPP_BUG)
-                } else {
-                    None
-                };
             out.push(Disagreement {
                 path: path.to_path_buf(),
                 field,
                 ours: ours_v.to_string(),
                 theirs: format!("{theirs_v:?}"),
-                adjudicated,
             });
         }
     }
@@ -620,7 +498,6 @@ fn cmp_loop_points(
 fn compare_sample(
     path: &Path,
     ours: &Result<AudioHeader, ParseError>,
-    bytes: &[u8],
     theirs: &Json,
     out: &mut Vec<Disagreement>,
 ) {
@@ -671,7 +548,7 @@ fn compare_sample(
                 h.audio_data_length_bytes,
                 sample.get("audio_data_length_bytes"),
             );
-            cmp_loop_points(out, path, h, bytes, sample);
+            cmp_loop_points(out, path, h, sample);
             cmp_midi_note(out, path, h.midi_note, sample.get("midi_note"));
             // Serum/Deluge convention with no spec: any mismatch is a defect.
             cmp_u32(
@@ -699,7 +576,6 @@ fn compare_sample(
                     field: "sample.outcome_category",
                     ours: format!("{e:?} ({ours_cat})"),
                     theirs: format!("error={theirs_code} ({theirs_cat})"),
-                    adjudicated: None,
                 });
             }
         }
@@ -708,14 +584,12 @@ fn compare_sample(
             field: "sample.outcome",
             ours: format!("Ok({h:?})"),
             theirs: format!("err={:?}", sample.get("error")),
-            adjudicated: None,
         }),
         (Err(e), true) => out.push(Disagreement {
             path: path.to_path_buf(),
             field: "sample.outcome",
             ours: format!("Err({e:?})"),
             theirs: "ok".to_string(),
-            adjudicated: None,
         }),
     }
 }
@@ -813,7 +687,6 @@ fn compare_wavetable(
                     field: "wavetable.outcome",
                     ours: format!("insist={insist} {ours_result:?}"),
                     theirs: format!("ok={theirs_ok}"),
-                    adjudicated: None,
                 }),
             }
         }
@@ -824,7 +697,6 @@ fn compare_wavetable(
                     field: "wavetable.outcome",
                     ours: format!("insist={insist} the walk failed: {e:?}"),
                     theirs: "ok".to_string(),
-                    adjudicated: None,
                 });
             }
             // Both rejecting is agreement enough: the reason does not cross the C ABI.
@@ -840,7 +712,7 @@ fn compare_one_file(
     theirs: &Json,
 ) -> Vec<Disagreement> {
     let mut out = Vec::new();
-    compare_sample(path, ours, bytes, theirs, &mut out);
+    compare_sample(path, ours, theirs, &mut out);
     // Each entry point against the walk it runs: Sample against `parse`, WaveTable against an
     // audio-only walk.
     let ours_wavetable = decode_as_wavetable_walk(bytes);
@@ -977,9 +849,7 @@ fn matches_the_cpp_parser_over_the_corpus() {
     let dumps = run_cpp_dumper(&paths);
 
     let mut checked = 0usize;
-    let mut expected_counts: HashMap<&'static str, usize> = HashMap::new();
-    let mut expected_examples: HashMap<&'static str, Vec<String>> = HashMap::new();
-    let mut unexpected: Vec<Disagreement> = Vec::new();
+    let mut disagreements: Vec<Disagreement> = Vec::new();
 
     for (path, theirs) in paths.iter().zip(dumps.iter()) {
         checked += 1;
@@ -991,44 +861,31 @@ fn matches_the_cpp_parser_over_the_corpus() {
         let bytes = std::fs::read(path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
         let ours = parse(&bytes);
 
-        for d in compare_one_file(path, &ours, &bytes, theirs) {
-            match d.adjudicated {
-                Some(reason) => {
-                    *expected_counts.entry(reason).or_insert(0) += 1;
-                    let examples = expected_examples.entry(reason).or_default();
-                    if examples.len() < 5 {
-                        // Uses `d.path` rather than `path` so the field counts as read for the
-                        // dead-code lint (reads through a derived `Debug` do not).
-                        examples.push(format!(
-                            "{} [{}]: ours={} theirs={}",
-                            d.path.display(),
-                            d.field,
-                            d.ours,
-                            d.theirs
-                        ));
-                    }
-                }
-                None => unexpected.push(d),
-            }
-        }
+        disagreements.extend(compare_one_file(path, &ours, &bytes, theirs));
     }
 
     eprintln!("checked {checked} files");
-    eprintln!("adjudicated (expected) disagreement categories:");
-    for (reason, count) in &expected_counts {
-        eprintln!("  {count:5} x {reason}");
-        for ex in &expected_examples[reason] {
-            eprintln!("        e.g. {ex}");
-        }
-    }
 
     assert!(
         checked > 20,
         "expected a real corpus, walked only {checked} files"
     );
+    let report: Vec<String> = disagreements
+        .iter()
+        .map(|d| {
+            format!(
+                "{} [{}]: ours={} theirs={}",
+                d.path.display(),
+                d.field,
+                d.ours,
+                d.theirs
+            )
+        })
+        .collect();
     assert!(
-        unexpected.is_empty(),
-        "{} unadjudicated disagreements:\n{unexpected:#?}",
-        unexpected.len()
+        report.is_empty(),
+        "{} disagreements:\n{}",
+        report.len(),
+        report.join("\n")
     );
 }
