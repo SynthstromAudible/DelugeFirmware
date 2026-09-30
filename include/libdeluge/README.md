@@ -37,10 +37,10 @@ tick for the answer (`channel.h`'s `DelugeChannelStatus`). Every channel follows
 - answers are stamped with the card generation (`card.h`'s `deluge_card_flush` bumps it for every channel at
   once), so after an ejection an old answer is never collected.
 
-`file_bytes.h`'s read-into and write-from operations hold a caller-owned buffer across ticks, and its
-`deluge_file_bytes_holds()` reports whether the platform may still touch it. `file_write.h`'s offset read and write
-hold one too, and `deluge::io::Stream` drains them before it lets a buffer go. Every other operation copies its bytes
-at the request or hands them back at the collect that reports READY, so it needs no such call.
+Two channels hold a caller-owned buffer across ticks, and each says whether the platform may still touch it:
+`file_bytes.h`'s read-into and write-from answer `deluge_file_bytes_holds()`, and `file_write.h`'s offset read and
+write answer `deluge_file_write_holds()`. Every other operation copies its bytes at the request or hands them back at
+the collect that reports READY, so it needs no such call.
 
 `file_prefix.h`, `file_directory.h`, `file_bytes.h`, `file_write.h` and `audio_load.h` are the channels. Before
 boot finishes (`deluge::boot::finished()`), the app uses blocking calls instead.

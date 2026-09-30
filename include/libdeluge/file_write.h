@@ -171,6 +171,14 @@ bool deluge_file_write_request_stats(void) DELUGE_NOEXCEPT;
 /// @param out_free_clusters Written ONLY on @ref DELUGE_FILE_WRITE_READY.
 uint8_t deluge_file_write_collect_stats(uint32_t* out_free_clusters) DELUGE_NOEXCEPT;
 
+/// @brief Whether a queued or running operation reads or writes through @p buffer. [task]
+///
+/// The offset read and write take caller-owned buffers by pointer and cannot be cancelled, so a caller that gives up
+/// on one must not free or reuse its buffer while this is true. Answers true when it cannot tell.
+///
+/// @param buffer The buffer handed to a request, as passed (its start address).
+bool deluge_file_write_holds(const void* buffer) DELUGE_NOEXCEPT;
+
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every write-channel operation wait @p ms milliseconds before it touches the card.
 ///

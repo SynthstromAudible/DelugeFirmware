@@ -20,7 +20,7 @@
 ///        `file_bytes.h` and `file_directory.h`, answered as "no channel here".
 ///
 /// The Rust BSP defines every one of these in `file_write.rs`, `file_bytes.rs` and `file_directory.rs`. The code under
-/// test reaches them only past a boot the unit tests never finish, apart from `deluge_file_bytes_holds`, which answers
+/// test reaches them only past a boot the unit tests never finish, apart from the two `holds` calls, which answer
 /// that no read holds a buffer. A request is refused so the caller takes its synchronous arm; a collect answers
 /// UNKNOWN, never PENDING, which would keep a caller waiting for an answer that can never come.
 
@@ -86,6 +86,10 @@ bool deluge_file_write_request_stats(void) noexcept {
 
 uint8_t deluge_file_write_collect_stats(uint32_t*) noexcept {
 	return DELUGE_FILE_WRITE_UNKNOWN;
+}
+
+bool deluge_file_write_holds(const void*) noexcept {
+	return false;
 }
 
 bool deluge_file_bytes_request_read_into(const char*, void*, uint32_t) noexcept {

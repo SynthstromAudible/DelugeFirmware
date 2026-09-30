@@ -111,6 +111,37 @@ static REQUEST: Mutex<CriticalSectionRawMutex, Option<Queued>> = Mutex::new(None
 /// from "never asked" (UNKNOWN).
 static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<OpKey>> = Mutex::new(None);
 static RESULT: Mutex<CriticalSectionRawMutex, AnswerSlot> = Mutex::new(AnswerSlot::new());
+/// The caller-owned buffer the running operation reads or writes, as an address; 0 when nothing is running or the
+/// operation has no buffer. Set under the REQUEST lock the operation is taken from, and cleared once the operation has
+/// finished with the buffer, so [`deluge_file_write_holds`] never sees a gap between queued and running.
+static RUNNING_BUFFER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
+
+/// The caller-owned buffer `op` reads from or writes into, as an address; 0 for an operation without one.
+fn op_buffer(op: &StreamOp) -> usize {
+    match op {
+        StreamOp::ReadAt { dst, .. } => *dst,
+        StreamOp::WriteAt { src, .. } => *src,
+        _ => 0,
+    }
+}
+
+/// C-ABI: whether a queued or running operation reads or writes through `buffer`.
+///
+/// A caller must not free or reuse a buffer it handed to this channel while this answers true: the operation cannot
+/// be cancelled, and it touches the buffer whenever it runs. Answers true when it cannot tell, so the caller keeps the
+/// buffer a little longer rather than freeing it early.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_write_holds(buffer: *const core::ffi::c_void) -> bool {
+    let addr = buffer as usize;
+    if addr == 0 {
+        return false;
+    }
+    let queued = match REQUEST.try_lock() {
+        Ok(req) => req.as_ref().is_some_and(|q| op_buffer(&q.op) == addr),
+        Err(_) => true,
+    };
+    queued || RUNNING_BUFFER.load(core::sync::atomic::Ordering::Acquire) == addr
+}
 static WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
 /// Accept an operation if nothing is in flight.
@@ -387,13 +418,21 @@ async fn file_write_task_body() {
         WAKE.wait().await;
         loop {
             close_orphans().await;
-            let Some(queued) = REQUEST.lock().await.take() else {
+            let Some(queued) = ({
+                let mut req = REQUEST.lock().await;
+                let taken = req.take();
+                if let Some(q) = taken.as_ref() {
+                    RUNNING_BUFFER.store(op_buffer(&q.op), core::sync::atomic::Ordering::Release);
+                }
+                taken
+            }) else {
                 break;
             };
             // A request from before the card changed that survived the flush (its `try_lock` lost the race) names
             // the old card: running it would touch the new card. Its answer could never be collected, so none is
             // published.
             if queued.generation != deluge_card_generation::current() {
+                RUNNING_BUFFER.store(0, core::sync::atomic::Ordering::Release);
                 continue;
             }
             *IN_FLIGHT.lock().await = Some(queued.key.clone());
@@ -463,13 +502,15 @@ async fn file_write_task_body() {
                 .await
                 .publish(queued.key, result, queued.generation);
             *IN_FLIGHT.lock().await = None;
+            RUNNING_BUFFER.store(0, core::sync::atomic::Ordering::Release);
         }
     }
 }
 
 /// Forget everything asked of the card that is gone. Called by `deluge_card_flush`.
 ///
-/// Drops a queued request (its buffer was never touched) and a waiting answer. Leaves the running operation alone: it is still using its buffer, and its answer arrives
+/// Drops a queued request (its buffer was never touched, so `deluge_file_write_holds` rightly stops naming it)
+/// and a waiting answer. Leaves the running operation alone: it is still using its buffer, and its answer arrives
 /// stamped for the old card, so no collect takes it. Each clear is `try_lock`ed and may not land; the generation
 /// stamp is what makes that safe.
 pub(crate) fn flush_tables() {
@@ -489,6 +530,7 @@ abi_pin!(
     deluge_file_write_collect_stats,
     deluge_file_write_collect_truncate,
     deluge_file_write_collect_write_at,
+    deluge_file_write_holds,
     deluge_file_write_request_close,
     deluge_file_write_request_open,
     deluge_file_write_request_read_at,
