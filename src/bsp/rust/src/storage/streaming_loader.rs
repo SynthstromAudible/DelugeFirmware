@@ -260,8 +260,8 @@ mod prod {
         }
 
         fn begin(&self, chunk: *mut c_void) -> StreamingFillDescriptor {
-            // `chunk` was just returned by `next()` (a queued, still-leased `StreamedChunk*`).
-            deluge_sample_fill::native_begin(chunk)
+            // SAFETY: `chunk` was just returned by `next()`: queued, resident and still leased.
+            unsafe { deluge_sample_fill::native_begin(chunk) }
         }
 
         async fn read(&self, d: &StreamingFillDescriptor, buf: &mut [u8]) -> bool {
@@ -276,7 +276,8 @@ mod prod {
         }
 
         fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {
-            deluge_sample_fill::native_finish(chunk, read_ok)
+            // SAFETY: the same leased chunk `begin` was given.
+            unsafe { deluge_sample_fill::native_finish(chunk, read_ok) }
         }
 
         fn external_lease_count(&self, chunk: *mut c_void) -> u32 {

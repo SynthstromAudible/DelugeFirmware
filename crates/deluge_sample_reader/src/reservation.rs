@@ -51,8 +51,13 @@ unsafe extern "C" {
 ///
 /// The BSP's async fill task composes the same two primitives around an awaited read. Returns
 /// `false` on a geometry failure, a failed or short read, or a failed convert/stitch/publish.
-pub(crate) fn fill_now(chunk_backing: *mut c_void) -> bool {
-    let d = deluge_sample_fill::native_begin(chunk_backing);
+///
+/// # Safety
+///
+/// `chunk_backing` must be a resident chunk the caller holds a lease on.
+pub(crate) unsafe fn fill_now(chunk_backing: *mut c_void) -> bool {
+    // SAFETY: the caller's contract.
+    let d = unsafe { deluge_sample_fill::native_begin(chunk_backing) };
     if !d.ok {
         return false;
     }
@@ -69,7 +74,8 @@ pub(crate) fn fill_now(chunk_backing: *mut c_void) -> bool {
             &mut out_read,
         )
     } == deluge_sample_fill::DELUGE_OK;
-    deluge_sample_fill::native_finish(chunk_backing, read_ok)
+    // SAFETY: the caller's contract.
+    unsafe { deluge_sample_fill::native_finish(chunk_backing, read_ok) }
 }
 
 /// A lookahead reservation over one sample's residency: the state behind `DelugeSampleReservation`.
@@ -314,7 +320,8 @@ fn load_cluster(
         }
         LoadMode::Now | LoadMode::NowOrEnqueue => {
             let backing = lease.chunk().as_ptr() as *mut c_void;
-            if fill_now(backing) {
+            // SAFETY: `backing` is the chunk `lease` holds.
+            if unsafe { fill_now(backing) } {
                 resource.mark_ready(lease.chunk());
                 Some(lease)
             } else if load_mode == LoadMode::NowOrEnqueue {

@@ -67,10 +67,12 @@ unsafe fn write_out(out: *mut bool, value: bool) {
 /// `out_table_full`, if non-null, is always written: `true` when the failure was a full handle
 /// table, either this registry's or efatfs's own, so the caller can report exhaustion rather than
 /// "file not found". A just-opened efatfs handle that finds no free slot is closed, not leaked.
-// A safe fn that dereferences caller pointers: `path` and `out_table_full` must be valid as for
-// `deluge_sample_stream_open`.
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub fn open(path: *const c_char, out_table_full: *mut bool) -> u32 {
+///
+/// # Safety
+///
+/// `path` must be a valid, NUL-terminated C string. `out_table_full`, if non-null, must be valid
+/// for one write.
+pub unsafe fn open(path: *const c_char, out_table_full: *mut bool) -> u32 {
     let mut handle: u32 = 0;
     let mut efatfs_table_full = false;
     // SAFETY: `path` is passed through untouched under the caller's contract; the out-params are
@@ -281,7 +283,8 @@ mod tests {
             /*handle=*/ 42, /*ok=*/ true, /*table_full=*/ false,
         );
         let mut tf = false;
-        let h = crate::registry::open(c"SAMPLES/X.WAV".as_ptr(), &mut tf);
+        // SAFETY: a C string literal and a local.
+        let h = unsafe { crate::registry::open(c"SAMPLES/X.WAV".as_ptr(), &mut tf) };
         assert_ne!(h, 0);
         assert_eq!(mock_backing::last_opened_path(), "SAMPLES/X.WAV");
         crate::registry::close(h);
@@ -297,7 +300,8 @@ mod tests {
         mock_backing::reset();
         mock_backing::set_open_result(7, true, false);
         let mut tf = false;
-        let h = open(c"SAMPLES/Y.WAV".as_ptr(), &mut tf);
+        // SAFETY: a C string literal and a local.
+        let h = unsafe { open(c"SAMPLES/Y.WAV".as_ptr(), &mut tf) };
         assert_ne!(h, 0);
 
         let geo = sample_geometry();
@@ -346,14 +350,16 @@ mod tests {
         let mut handles = std::vec::Vec::new();
         for _ in 0..CAP {
             let mut tf = false;
-            let h = open(c"S.WAV".as_ptr(), &mut tf);
+            // SAFETY: a C string literal and a local.
+            let h = unsafe { open(c"S.WAV".as_ptr(), &mut tf) };
             assert_ne!(h, 0, "the first CAP opens must all succeed");
             assert!(!tf);
             handles.push(h);
         }
 
         let mut tf = false;
-        let h = open(c"S.WAV".as_ptr(), &mut tf);
+        // SAFETY: a C string literal and a local.
+        let h = unsafe { open(c"S.WAV".as_ptr(), &mut tf) };
         assert_eq!(h, 0, "the CAP+1'th open must fail");
         assert!(tf, "and report table-full");
         assert_eq!(
@@ -373,7 +379,8 @@ mod tests {
         mock_backing::reset();
         mock_backing::set_open_result(55, true, false);
         let mut tf = false;
-        let h = open(c"S.WAV".as_ptr(), &mut tf);
+        // SAFETY: a C string literal and a local.
+        let h = unsafe { open(c"S.WAV".as_ptr(), &mut tf) };
         assert_ne!(h, 0);
         mock_backing::set_read_result(10);
 
@@ -394,7 +401,8 @@ mod tests {
 
         // Slot with an assigned asset id: close must release it.
         let mut tf = false;
-        let with_asset = open(c"ASSIGNED.WAV".as_ptr(), &mut tf);
+        // SAFETY: a C string literal and a local.
+        let with_asset = unsafe { open(c"ASSIGNED.WAV".as_ptr(), &mut tf) };
         assert_ne!(with_asset, 0);
         set_asset_id(with_asset, 77);
         close(with_asset);
@@ -406,7 +414,8 @@ mod tests {
 
         // Slot with no asset id ever assigned: close must not call release at all.
         let mut tf2 = false;
-        let without_asset = open(c"UNASSIGNED.WAV".as_ptr(), &mut tf2);
+        // SAFETY: a C string literal and a local.
+        let without_asset = unsafe { open(c"UNASSIGNED.WAV".as_ptr(), &mut tf2) };
         assert_ne!(without_asset, 0);
         close(without_asset);
         assert_eq!(
@@ -422,7 +431,8 @@ mod tests {
         mock_backing::reset();
         mock_backing::set_open_result(0, false, true);
         let mut tf = false;
-        let h = open(c"MISSING.WAV".as_ptr(), &mut tf);
+        // SAFETY: a C string literal and a local.
+        let h = unsafe { open(c"MISSING.WAV".as_ptr(), &mut tf) };
         assert_eq!(h, 0);
         assert!(tf);
     }

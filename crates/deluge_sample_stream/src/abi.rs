@@ -20,7 +20,8 @@ pub unsafe extern "C" fn deluge_sample_stream_open(
     path: *const c_char,
     out_table_full: *mut bool,
 ) -> DelugeHandle {
-    registry::open(path, out_table_full)
+    // SAFETY: this function's own contract is `registry::open`'s.
+    unsafe { registry::open(path, out_table_full) }
 }
 
 /// Closes `handle`'s efatfs handle and releases its asset, if one was assigned. A no-op on `0` or

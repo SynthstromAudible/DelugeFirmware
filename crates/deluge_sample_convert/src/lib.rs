@@ -156,9 +156,12 @@ pub fn convert_cluster(
 
 /// Stitches one cluster's boundary bytes against its loaded neighbours, in place.
 ///
-/// Mutates `self_data`, which needs `cluster_size + 7` usable bytes, the neighbour edges, and the
-/// boundary flags. A `None` neighbour is absent or not loaded. See `stitch_boundaries` in
-/// `stitch.h`.
+/// Mutates `self_data`, the neighbour edges, and the boundary flags. A `None` neighbour is absent
+/// or not loaded. See `stitch_boundaries` in `stitch.h`.
+///
+/// # Panics
+///
+/// Panics if `self_data` is shorter than `cluster_size + 7` bytes, the span the C++ writes.
 #[allow(clippy::too_many_arguments)]
 pub fn stitch_boundaries(
     self_data: &mut [u8],
@@ -172,6 +175,11 @@ pub fn stitch_boundaries(
     next: Option<NextEdge<'_>>,
 ) {
     let self_len = self_data.len();
+    assert!(
+        self_len >= cluster_size + 7,
+        "stitch_boundaries: {self_len}-byte cluster buffer, needs cluster_size + 7 = {}",
+        cluster_size + 7
+    );
 
     // Decompose the edges into raw parts; keep the borrows alive for the whole call.
     let (prev_ptr, prev_len, prev_flag) = match prev {

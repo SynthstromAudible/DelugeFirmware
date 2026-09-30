@@ -225,8 +225,9 @@ impl ChunkHarness {
         // Finish in index order: the real stitch publishes each cluster's head into its (already
         // ready) predecessor's trailing slack.
         for (index, &backing) in backings.iter().enumerate() {
+            // SAFETY: `backing` is a resident chunk the harness holds.
             assert!(
-                deluge_sample_fill::native_finish(backing as *mut c_void, true),
+                unsafe { deluge_sample_fill::native_finish(backing as *mut c_void, true) },
                 "native_finish failed for cluster {index}"
             );
         }

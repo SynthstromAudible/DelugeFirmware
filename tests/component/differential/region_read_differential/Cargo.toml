@@ -8,11 +8,9 @@ edition = "2024"
 publish = false
 license = "GPL-3.0-or-later"
 
-[dependencies]
+[dev-dependencies]
 # The reader under test.
 deluge_sample_reader = { path = "../../../../crates/deluge_sample_reader" }
-
-[dev-dependencies]
 # A real resource manager over a real heap.
 deluge_resource = { path = "../../../../crates/deluge_resource" }
 # `native_finish` runs the real convert/stitch/publish tail, so the chunks' trailing-slack bytes

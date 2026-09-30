@@ -87,9 +87,11 @@ fn to_fill_geometry(ctx: &FillContext) -> crate::fill_logic::FillGeometry {
 /// Uses the process-wide resource manager, so the async fill task and the reader's synchronous
 /// fill call it with just the chunk. `chunk_backing` must be a resident chunk the caller holds a
 /// lease on; see [`native_finish`] for the context rules.
-// A safe `fn` despite dereferencing `chunk_backing`: callers uphold the lease precondition above.
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub fn native_begin(chunk_backing: *mut c_void) -> StreamingFillDescriptor {
+///
+/// # Safety
+///
+/// `chunk_backing` must be a resident chunk the caller holds a lease on.
+pub unsafe fn native_begin(chunk_backing: *mut c_void) -> StreamingFillDescriptor {
     // SAFETY: no preconditions; returns the process-wide resource manager.
     let mgr = unsafe { deluge_streaming_resource_manager() };
     let Some((_asset, index, ctx)) = resolve(mgr, chunk_backing) else {
@@ -120,9 +122,11 @@ pub fn native_begin(chunk_backing: *mut c_void) -> StreamingFillDescriptor {
 /// Callable from any context that holds a lease on `chunk_backing`: the manager calls
 /// (`try_acquire`, `release`, `mark_ready`) take the manager's own critical section, and the
 /// unsynchronized chunk-field accesses touch only chunks this call holds leases on.
-// A safe `fn` despite dereferencing `chunk_backing`: callers uphold the lease precondition above.
-#[allow(clippy::not_unsafe_ptr_arg_deref)]
-pub fn native_finish(chunk_backing: *mut c_void, read_ok: bool) -> bool {
+///
+/// # Safety
+///
+/// `chunk_backing` must be a resident chunk the caller holds a lease on.
+pub unsafe fn native_finish(chunk_backing: *mut c_void, read_ok: bool) -> bool {
     if !read_ok {
         // The reader's synchronous fill passes a failed read through.
         return false;

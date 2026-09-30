@@ -89,13 +89,15 @@ pub fn main() {
         for (i, b) in pattern.iter_mut().enumerate() {
             *b = (i as u8).wrapping_mul(31).wrapping_add(7);
         }
-        let status = sd::deluge_block_write(0, pattern.as_ptr(), TEST_SECTOR, 1);
+        // SAFETY: `pattern` holds one 512-byte sector.
+        let status = unsafe { sd::deluge_block_write(0, pattern.as_ptr(), TEST_SECTOR, 1) };
         assert_eq!(
             status, 0,
             "sd round-trip: deluge_block_write failed (status={status})"
         );
         let mut readback = [0u8; 512];
-        let status = sd::deluge_block_read(0, readback.as_mut_ptr(), TEST_SECTOR, 1);
+        // SAFETY: `readback` holds one 512-byte sector.
+        let status = unsafe { sd::deluge_block_read(0, readback.as_mut_ptr(), TEST_SECTOR, 1) };
         assert_eq!(
             status, 0,
             "sd round-trip: deluge_block_read failed (status={status})"

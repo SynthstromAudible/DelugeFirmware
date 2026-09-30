@@ -142,7 +142,8 @@ pub(crate) mod host_streaming_stubs {
     extern "C" fn deluge_streaming_request_chunk(
         chunk_backing: *mut deluge_sample_fill::chunk::DelugeChunkBacking,
     ) {
-        let _ = crate::reservation::fill_now(chunk_backing.cast());
+        // SAFETY: the reader requests fills only for chunks it holds a lease on.
+        let _ = unsafe { crate::reservation::fill_now(chunk_backing.cast()) };
     }
 
     /// Synthetic card read: `dst[i] = (byte_offset + i) as u8`, so a test can compute a cluster's

@@ -266,18 +266,12 @@ fn cross_path_finish_matches_cpp_reference_over_real_streamed_chunks() {
     let next = seed(&h, 2, 2000);
 
     // prev and next first, each with no ready neighbour, then self with both ready.
-    assert!(deluge_sample_fill::native_finish(
-        prev.backing as *mut c_void,
-        true
-    ));
-    assert!(deluge_sample_fill::native_finish(
-        next.backing as *mut c_void,
-        true
-    ));
-    assert!(deluge_sample_fill::native_finish(
-        self_c.backing as *mut c_void,
-        true
-    ));
+    // SAFETY: `prev` is a resident chunk the harness holds.
+    assert!(unsafe { deluge_sample_fill::native_finish(prev.backing as *mut c_void, true) });
+    // SAFETY: `next` is a resident chunk the harness holds.
+    assert!(unsafe { deluge_sample_fill::native_finish(next.backing as *mut c_void, true) });
+    // SAFETY: `self_c` is a resident chunk the harness holds.
+    assert!(unsafe { deluge_sample_fill::native_finish(self_c.backing as *mut c_void, true) });
 
     // SAFETY: all three backings are still resident.
     let self_payload_after = unsafe { h.payload_of(self_c.backing) }.to_vec();
@@ -364,10 +358,8 @@ fn cross_path_finish_matches_cpp_reference_over_real_streamed_chunks() {
             prev_reload_tag,
             CLUSTER_SIZE as usize + 7,
         ));
-        assert!(deluge_sample_fill::native_finish(
-            prev.backing as *mut c_void,
-            true
-        ));
+        // SAFETY: `prev` is a resident chunk the harness holds.
+        assert!(unsafe { deluge_sample_fill::native_finish(prev.backing as *mut c_void, true) });
         // SAFETY: `prev.backing` is still resident.
         let prev_reloaded_after = unsafe { h.payload_of(prev.backing) }.to_vec();
 

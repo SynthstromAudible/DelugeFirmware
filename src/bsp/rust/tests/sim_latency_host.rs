@@ -77,7 +77,8 @@ fn modeled_write_then_read_round_trips_and_takes_the_modeled_time() {
 fn round_trip() {
     let pat = pattern();
     let write_start = Instant::now();
-    let status = sd::deluge_block_write(0, pat.as_ptr(), TEST_SECTOR, 1);
+    // SAFETY: `pat` holds one 512-byte sector.
+    let status = unsafe { sd::deluge_block_write(0, pat.as_ptr(), TEST_SECTOR, 1) };
     let write_elapsed = write_start.elapsed();
     assert_eq!(status, 0, "deluge_block_write failed: status={status}");
     assert!(
@@ -87,7 +88,8 @@ fn round_trip() {
 
     let mut buf = [0u8; PATTERN_LEN];
     let read_start = Instant::now();
-    let status = sd::deluge_block_read(0, buf.as_mut_ptr(), TEST_SECTOR, 1);
+    // SAFETY: `buf` holds one 512-byte sector.
+    let status = unsafe { sd::deluge_block_read(0, buf.as_mut_ptr(), TEST_SECTOR, 1) };
     let read_elapsed = read_start.elapsed();
     assert_eq!(status, 0, "deluge_block_read failed: status={status}");
     assert!(

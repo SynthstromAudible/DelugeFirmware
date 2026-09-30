@@ -280,7 +280,7 @@ pub extern "C" fn deluge_block_ready(unit: u8) -> bool {
 /// `dst` must be valid for writes of `count * 512` bytes.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_block_read(
+pub unsafe extern "C" fn deluge_block_read(
     unit: u8,
     dst: *mut u8,
     sector: u32,
@@ -307,7 +307,7 @@ pub extern "C" fn deluge_block_read(
 /// `src` must be valid for reads of `count * 512` bytes.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_block_write(
+pub unsafe extern "C" fn deluge_block_write(
     unit: u8,
     src: *const u8,
     sector: u32,
@@ -380,7 +380,7 @@ pub(crate) mod stats {
 /// `dst` must be valid for writes of `count * 512` bytes.
 #[cfg(all(not(target_os = "none"), not(feature = "sim_latency")))]
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_block_read(
+pub unsafe extern "C" fn deluge_block_read(
     unit: u8,
     dst: *mut u8,
     sector: u32,
@@ -409,7 +409,7 @@ pub extern "C" fn deluge_block_read(
 /// `src` must be valid for reads of `count * 512` bytes.
 #[cfg(all(not(target_os = "none"), not(feature = "sim_latency")))]
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_block_write(
+pub unsafe extern "C" fn deluge_block_write(
     unit: u8,
     src: *const u8,
     sector: u32,
@@ -445,7 +445,7 @@ pub extern "C" fn deluge_block_write(
 /// `dst` must be valid for writes of `count * 512` bytes.
 #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_block_read(
+pub unsafe extern "C" fn deluge_block_read(
     unit: u8,
     dst: *mut u8,
     sector: u32,
@@ -484,7 +484,7 @@ pub extern "C" fn deluge_block_read(
 /// `src` must be valid for reads of `count * 512` bytes.
 #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_block_write(
+pub unsafe extern "C" fn deluge_block_write(
     unit: u8,
     src: *const u8,
     sector: u32,
