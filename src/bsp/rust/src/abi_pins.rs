@@ -126,55 +126,9 @@ abi_const!(
     crate::audio_loader::DELUGE_AUDIO_LOAD_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
 );
 
-// `DelugeTimestamp` (types.h) is not one of the crate-defined header types in `build_crate_types.rs`, so
-// `sys::DelugeTimestamp` is bindgen's own struct for it directly, not a re-export of `FileTimestamp` -- there is no
-// `sys_layout` entry to check against instead. Exhaustive against that struct, in `abi_layout!`'s style: a header
-// field this list omits fails E0063, and a field whose type differs fails E0308.
-const _: () = {
-    use core::mem::{align_of, offset_of, size_of};
-    type Ours = crate::file_bytes::FileTimestamp;
-    type Theirs = crate::sys::DelugeTimestamp;
-    assert!(
-        size_of::<Ours>() == size_of::<Theirs>(),
-        "DelugeTimestamp: size"
-    );
-    assert!(
-        align_of::<Ours>() == align_of::<Theirs>(),
-        "DelugeTimestamp: alignment"
-    );
-    assert!(
-        offset_of!(Ours, year) == offset_of!(Theirs, year),
-        "DelugeTimestamp.year"
-    );
-    assert!(
-        offset_of!(Ours, month) == offset_of!(Theirs, month),
-        "DelugeTimestamp.month"
-    );
-    assert!(
-        offset_of!(Ours, day) == offset_of!(Theirs, day),
-        "DelugeTimestamp.day"
-    );
-    assert!(
-        offset_of!(Ours, hour) == offset_of!(Theirs, hour),
-        "DelugeTimestamp.hour"
-    );
-    assert!(
-        offset_of!(Ours, minute) == offset_of!(Theirs, minute),
-        "DelugeTimestamp.minute"
-    );
-    assert!(
-        offset_of!(Ours, second) == offset_of!(Theirs, second),
-        "DelugeTimestamp.second"
-    );
-    let _: fn(&Ours) -> Theirs = |o| Theirs {
-        year: o.year,
-        month: o.month,
-        day: o.day,
-        hour: o.hour,
-        minute: o.minute,
-        second: o.second,
-    };
-};
+// `DelugeTimestamp` (types.h) is not one of the crate-defined header types in `build_crate_types.rs`, so there is no
+// `sys_layout` entry for it: `file_bytes`'s copy is checked against `sys`'s own binding instead.
+abi_layout!(crate::file_bytes::FileTimestamp => sys DelugeTimestamp { year, month, day, hour, minute, second });
 
 abi_const!(
     crate::file_bytes::MAX_PATH_CHARS + 1 => DELUGE_FILE_BYTES_MAX_PATH,

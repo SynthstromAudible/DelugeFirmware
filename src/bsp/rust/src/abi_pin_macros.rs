@@ -42,9 +42,15 @@ macro_rules! abi_const {
 ///
 /// - `abi_layout!(Ours => Theirs { a, b })` names every field. It checks size, alignment and each offset, and
 ///   builds the header's struct from ours in a closure that is never called: a header field the list does not
-///   name fails E0063, and a field whose type differs from ours by so much as signedness fails E0308. A field
-///   whose type is itself a crate-defined header type is written `a as Name`: ours must be `sys`'s binding of
-///   `Name` and the header's must be `Name`, and `Name` has its own `abi_layout!`.
+///   name fails E0063, and a field whose type differs from ours by so much as signedness fails E0308. A second
+///   closure destructures ours by the same list, so a field ours has and the header lacks fails even where it
+///   fits in the header's padding (macro hygiene makes rustc word it "pattern requires `..` due to inaccessible
+///   fields"). A field whose type is itself a crate-defined header type is written
+///   `a as Name`: ours must be `sys`'s binding of `Name` and the header's must be `Name`, and `Name` has its own
+///   `abi_layout!`.
+/// - `abi_layout!(Ours => sys Theirs { a, b })` is the same check against `sys`'s own binding of a header struct,
+///   for a Rust copy of a header type that is not crate-defined (so `sys_layout` has no entry for it).
+/// - `abi_layout!(type Ours => sys Theirs)` checks that a Rust copy of a header typedef is `sys`'s type.
 /// - `abi_layout!(Ours => Theirs opaque)` is for storage the header declares only to size it: size and alignment.
 /// - `abi_layout!(enum Ours => Theirs { A = HEADER_A, B = HEADER_B })` checks size, each value, and that the two
 ///   enums have the same variants: a variant added to either side fails an exhaustive match (E0004).
@@ -55,11 +61,11 @@ macro_rules! abi_layout {
         // SAFETY: never runs; `$nested`'s own `abi_layout!` makes the two the same layout.
         unsafe { core::mem::transmute::<crate::sys::$nested, crate::sys_layout::$nested>(ours) }
     }};
-    ($ours:ty => $theirs:ident { $($field:ident $(as $nested:ident)?),+ $(,)? }) => {
+    (@struct $ours:ty => $theirs_path:path, $theirs:ident { $($field:ident $(as $nested:ident)?),+ }) => {
         const _: () = {
             use core::mem::{align_of, offset_of, size_of};
             type Ours = $ours;
-            type Theirs = crate::sys_layout::$theirs;
+            type Theirs = $theirs_path;
             assert!(size_of::<Ours>() == size_of::<Theirs>(), concat!(stringify!($theirs), ": size"));
             assert!(align_of::<Ours>() == align_of::<Theirs>(), concat!(stringify!($theirs), ": alignment"));
             $(
@@ -69,7 +75,19 @@ macro_rules! abi_layout {
                 );
             )+
             let _: fn(&Ours) -> Theirs = |o| Theirs { $($field: abi_layout!(@field o.$field $(as $nested)?)),+ };
+            let _: fn(&Ours) = |o| {
+                let Ours { $($field: _),+ } = o;
+            };
         };
+    };
+    (type $ours:ty => sys $theirs:ident) => {
+        const _: fn($ours) -> crate::sys::$theirs = |v| v;
+    };
+    ($ours:ty => sys $theirs:ident { $($field:ident),+ $(,)? }) => {
+        abi_layout!(@struct $ours => crate::sys::$theirs, $theirs { $($field),+ });
+    };
+    ($ours:ty => $theirs:ident { $($field:ident $(as $nested:ident)?),+ $(,)? }) => {
+        abi_layout!(@struct $ours => crate::sys_layout::$theirs, $theirs { $($field $(as $nested)?),+ });
     };
     ($ours:ty => $theirs:ident opaque) => {
         const _: () = {
