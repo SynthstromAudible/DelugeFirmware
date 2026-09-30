@@ -130,6 +130,11 @@ public:
 	/// @brief Ticks on which a document step went through a channel, after boot.
 	[[nodiscard]] static int32_t channelDocumentTicks() { return channelDocumentTicks_; }
 
+	/// @brief The document machine's stall bound, in caller ticks of that machine (`deluge::io::kChannelStallTicks`).
+	///
+	/// Read-only, for a gate that must hold a document step past it to prove the save does not give up.
+	[[nodiscard]] int32_t documentStallLimit() const { return docStallBound_.limit(); }
+
 	/// @brief How many times the staging buffer doubled for the last staged document.
 	///
 	/// Reported because a fixture whose song never exceeds the buffer's initial 32768 bytes leaves
