@@ -63,6 +63,11 @@ impl<K, V: Answer> AnswerSlot<K, V> {
         self.entry.as_ref().map(|e| &e.key)
     }
 
+    /// The card generation the answer held is stamped with, if any.
+    pub fn generation(&self) -> Option<u32> {
+        self.entry.as_ref().map(|e| e.generation)
+    }
+
     /// Hold `key`'s answer, stamped `generation`. Returns the orphan of the answer it replaces.
     pub fn publish(&mut self, key: K, value: V, generation: u32) -> Option<Orphan> {
         let orphan = self.drain();

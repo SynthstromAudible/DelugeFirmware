@@ -231,6 +231,56 @@ fn caller_buffer(op: ByteOp) -> bool {
     matches!(op, ByteOp::ReadInto | ByteOp::WriteFrom)
 }
 
+/// Whether running `op` a second time does something the first run did not.
+///
+/// A rename's source is gone after the first run, so a second reports NOT_FOUND for a rename that happened. An
+/// unlink's second run reports NOT_FOUND for a file it removed. A caller-buffer write's second run either finds its
+/// own file (`may_overwrite` false: EXISTS, so a save offers to overwrite the file it just wrote) or writes up to a
+/// megabyte again. Every other kind reaches the same state run twice: a read or a stat reads again, a write or a
+/// block write writes the same bytes, a copy truncates and copies again, `mkdir_all` takes EXISTS as success, and a
+/// timestamp is set to the same value.
+pub fn non_idempotent(op: ByteOp) -> bool {
+    matches!(op, ByteOp::Rename | ByteOp::Unlink | ByteOp::WriteFrom)
+}
+
+/// How many new requests an uncollected answer of a [`non_idempotent`] kind refuses before the channel gives up on
+/// its owner and lets a new request displace it.
+///
+/// Counted in refused requests, which are other callers' ticks: each channel caller asks at most once per tick of its
+/// own and counts every refusal against its own stall bound, `kChannelStallTicks` (600 caller ticks). Half of that
+/// frees the channel well before any caller it holds off gives up. An owner that is still polling takes its answer on
+/// its next tick, and the answer is there to take, so its own stall bound is not running against it: an answer that
+/// ages out belongs to an owner that has already given up or stopped polling.
+pub const PROTECTED_ANSWER_REFUSALS: u32 = 300;
+
+/// Whether an answer of kind `held`, stamped `stamp`, holds the channel against a new request asked under
+/// `generation`, after it has already refused `refusals` requests.
+pub fn answer_blocks(
+    held: Option<ByteOp>,
+    stamp: Option<u32>,
+    generation: u32,
+    refusals: u32,
+) -> bool {
+    match (held, stamp) {
+        (Some(op), Some(stamp)) => {
+            non_idempotent(op) && stamp == generation && refusals < PROTECTED_ANSWER_REFUSALS
+        }
+        _ => false,
+    }
+}
+
+/// What the driver does with a request it takes: `None` drops it unrun, `Some(buffer)` runs it with `buffer`
+/// named as running (0 for a kind with no caller buffer).
+///
+/// A caller-buffer request asked under a card that has gone is dropped: it names a file on the old card, running it
+/// would read or write the new one, and its answer could never be collected. Its buffer is never named as running.
+pub fn admit_at_take(request: &ByteRequest, asked_under: u32, current: u32) -> Option<usize> {
+    if caller_buffer(request.key().0) && asked_under != current {
+        return None;
+    }
+    Some(request.caller_buffer())
+}
+
 /// What one operation produced.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ByteOutcome {
@@ -294,16 +344,30 @@ impl deluge_channel::Answer for ByteOutcome {}
 /// the live [`RESULT`] does not exist.
 pub struct BytesSlot {
     inner: deluge_channel::AnswerSlot<ByteKey, ByteOutcome>,
+    /// Requests the answer held has refused. See [`PROTECTED_ANSWER_REFUSALS`].
+    refusals: u32,
 }
 
 impl BytesSlot {
     pub const fn new() -> Self {
         Self {
             inner: deluge_channel::AnswerSlot::new(),
+            refusals: 0,
         }
     }
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
+    }
+
+    /// Whether a new request asked under `generation` may enter the channel, as far as the answer held goes. A
+    /// refusal is counted against the answer's age bound.
+    pub fn admits_new_request(&mut self, generation: u32) -> bool {
+        let held = self.inner.key().map(|k| k.op);
+        if answer_blocks(held, self.inner.generation(), generation, self.refusals) {
+            self.refusals += 1;
+            return false;
+        }
+        true
     }
 }
 
@@ -378,6 +442,7 @@ pub fn publish_into(
     generation: u32,
 ) {
     slot.inner.drain();
+    slot.refusals = 0;
     let Ok(path) = BytesPath::try_from(key) else {
         debug_assert!(false, "an over-long key cannot reach a publish");
         return;
@@ -418,6 +483,7 @@ pub fn take_from(slot: &mut BytesSlot, op: ByteOp, path: &str, generation: u32) 
 /// Empty the slot. What `flush_tables` uses on an ejection.
 pub fn drain(slot: &mut BytesSlot) {
     slot.inner.drain();
+    slot.refusals = 0;
 }
 
 // ── The driver ──────────────────────────────────────────────────────────────
@@ -1142,18 +1208,19 @@ pub extern "C" fn deluge_file_bytes_holds(buffer: *const core::ffi::c_void) -> b
 /// a caller told `false` retries, whereas a caller told `true` for a request that was dropped waits
 /// forever.
 ///
-/// The occupancy test spans REQUEST *and* IN_FLIGHT — but deliberately **not** RESULT.
+/// The occupancy test spans REQUEST *and* IN_FLIGHT, and RESULT only for an answer whose rerun is not harmless.
 ///
-/// An operation picked up but not yet published still owns the channel, so it blocks. An answer
-/// nobody has collected does not, and must not: a caller that gives up mid-poll would otherwise
-/// leave its answer sitting in the slot with nothing on the system able to remove it, and every
-/// subsequent request from every consumer would be refused forever. That is a wedged channel, which
-/// is the failure this ladder has already shipped once and had to catch with a neutering test.
+/// An operation picked up but not yet published still owns the channel, so it blocks. An answer nobody has
+/// collected mostly does not, and must not: a caller that gives up mid-poll would otherwise leave its answer sitting
+/// in the slot with nothing able to remove it, and every later request from every consumer would be refused
+/// forever. That is a wedged channel, which this ladder has shipped once and had to catch with a neutering test.
 ///
-/// So a publish DISPLACES an uncollected answer, and the displaced caller reads `UNKNOWN` and asks
-/// again. That is safe here only because all three operations are idempotent — reading a file twice
-/// and writing the same bytes twice both reach the same state. **If a non-idempotent operation is
-/// ever added to this channel, this is the decision that has to change**, not the caller.
+/// So a publish DISPLACES an uncollected answer, and the displaced caller reads `UNKNOWN` and asks again. That is
+/// safe for an operation whose second run reaches the same state as its first -- a read, a stat, a write of the same
+/// bytes. It is not safe for a [`non_idempotent`] one: a displaced rename's rerun reports NOT_FOUND for a rename that
+/// happened, and a displaced exclusive write's rerun finds its own file. While such an answer is uncollected and
+/// stamped for this card, new requests are refused, up to [`PROTECTED_ANSWER_REFUSALS`] of them; past that its
+/// owner is taken to have gone, and the channel is displaceable again, so an abandoned answer cannot wedge it.
 ///
 /// `payload` is the request's bytes, empty for every kind but the two writes. It is copied into the
 /// request buffer in the same lock hold that stores the request, so the task can never take a
@@ -1166,13 +1233,21 @@ fn enqueue_request(request: ByteRequest, payload: &[u8]) -> bool {
     if !accepts(queued, request.key().0) || !in_flight_idle() {
         return false;
     }
+    let generation = deluge_card_generation::current();
+    // Held by an uncollected answer whose rerun would not be harmless, or contended: refused, and retried.
+    let admitted = RESULT
+        .try_lock()
+        .is_ok_and(|mut result| result.admits_new_request(generation));
+    if !admitted {
+        return false;
+    }
     let Some(into) = request_bytes(&mut slot).get_mut(..payload.len()) else {
         return false; // Cannot happen: every submit bounds its payload by MAX_BYTES.
     };
     into.copy_from_slice(payload);
     *slot = Some(Queued {
         request,
-        generation: deluge_card_generation::current(),
+        generation,
     });
     drop(slot);
     BYTES_WAKE.signal(());
@@ -2289,13 +2364,13 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteReq
         request,
         generation: asked_under,
     } = slot.take()?;
-    // A caller-buffer request from before the card changed that survived the flush (its `try_lock` lost the race)
-    // names a file on the old card: running it would read or write the new one. Its answer could never be
-    // collected, so it is dropped unrun, and its buffer was never touched.
-    if caller_buffer(request.key().0) && asked_under != deluge_card_generation::current() {
+    // A caller-buffer request from before the card changed that survived the flush (its `try_lock` lost the race):
+    // see `admit_at_take`.
+    let Some(buffer) = admit_at_take(&request, asked_under, deluge_card_generation::current())
+    else {
         return Some(None);
-    }
-    RUNNING_BUFFER.store(request.caller_buffer(), Ordering::Release);
+    };
+    RUNNING_BUFFER.store(buffer, Ordering::Release);
     if let Some(len) = request.payload_len() {
         // Copied in the same lock hold as the take. Once this lock is released an eject may clear
         // the running mark and admit a new write into the request buffer, and this operation must

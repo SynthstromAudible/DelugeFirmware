@@ -358,7 +358,8 @@ std::optional<bool> collectTemplateWrite() {
 			// cannot be cancelled, so falling back would re-serialise into its buffer and write the file twice.
 			return std::nullopt;
 		case DELUGE_CHANNEL_UNKNOWN:
-			// Displaced before we took it. Re-staging writes the same document again, which is safe.
+			// Nothing queued, running or answered: the request was dropped unrun by a card change. A write-from's
+			// answer is not displaced while this polls for it, so re-staging never meets the file this write made.
 			g_requested = false;
 			g_attemptsWithoutProgress++;
 			return std::nullopt;
@@ -408,9 +409,9 @@ std::optional<bool> collectCanaryWrite() {
 	return g_inlineOk;
 }
 
-/// Issue the canary removal. Fire-and-forget in spirit: a canary that outlives its attempt by a few
-/// ticks costs nothing, and one never removed costs a single skipped startup song next boot, which is
-/// the fail-safe being conservative rather than failing.
+/// Issue the canary removal. The machine collects it (`unlinkFinished`). A canary that outlives its attempt by a
+/// few ticks costs nothing, and one never removed costs a single skipped startup song next boot, which is the
+/// fail-safe being conservative rather than failing.
 void issueUnlink(const std::string& path) {
 	if (viaChannel()) {
 		if (deluge::storage::bytes::requestUnlink(path.c_str()) == deluge::storage::bytes::ByteIo::Pending) {
@@ -709,18 +710,10 @@ void finishStartupSong() {
 		// Wipe the name so the Save action asks you for a new song
 		currentSong->name.clear();
 	}
-	// ...but we got this far, cleanup. Requested and not collected: this runs from the load's
-	// completion, which has nowhere to poll from, and an uncollected answer costs nothing -- see
-	// `issueUnlink`.
+	// ...but we got this far, cleanup. Handed to the machine's own unlink phase, which requests and COLLECTS it: an
+	// unlink's answer holds the byte channel until it is taken (a displaced unlink would rerun and report
+	// NOT_FOUND), so leaving it uncollected would refuse every other request until the channel gave up on it.
 	if (deluge::storage::bytes::usingByteChannel()) {
-		if (deluge::storage::bytes::requestUnlink(g_startupFailSafePath.c_str())
-		    == deluge::storage::bytes::ByteIo::Pending) {
-			g_startupFailSafePath.clear();
-			return;
-		}
-		// Refused because the channel is busy. Hand the cleanup to the machine's own unlink phase, which
-		// keeps asking within its bounds: dropping it here would leave a canary that skips the startup song
-		// on the next boot.
 		g_canaryPath = g_startupFailSafePath;
 		g_startupFailSafePath.clear();
 		enter(StartupPhase::UnlinkCanary);
