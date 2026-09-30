@@ -235,16 +235,45 @@ Finished:
 /* ========================================================================= */
 .global abort
 abort:
+/* ========================================================================= */
+/* Each exception type stores a different value in LR relative to the        */
+/* address of the instruction that actually caused the exception             */
+/* (see https://support.arm.com/documentation/ddi0406/b/System-Level-Architecture/The-System-Level-Programmers--Model/Exceptions/Exception-entry). */
+/* Adjust LR at the vector's own entry point then fall through to common     */
+/* so that the address we report/print is the actual faulting address.       */
+/* ========================================================================= */
 undefined_handler:
-svc_handler:
-abort_handler:
+    SUB  LR, LR, #4              /* LR = addr. of undefined instruction + 4  */
+    MOV r5, #0
+    B    common_fault_handler
+svc_handler: /*technically not a fault but we don't use syscalls, so use address of syscall instead of syscall return */
+    SUB  LR, LR, #4              /* LR = addr. of instruction after SVC      */
+    MOV r5, #0xF
+    B    common_fault_handler
 prefetch_handler:
+    SUB  LR, LR, #4              /* LR = addr. of aborted instruction + 4    */
+    MOV r5, #1
+    B    common_fault_handler
+abort_handler:
+    SUB  LR, LR, #8              /* LR = addr. of aborted instruction + 8    */
+    MOV r5, #2
+    B    common_fault_handler
 reserved_handler:
+    MOV r5, #3
+common_fault_handler:
     CPSID   i                   /* Disable interrupt handling to preserve stack */
-    MOV     r0, LR              /* Store SYS LR value as first function parameter */
-    MOV     r1, SP              /* Store SYS SP value as second function parameter */
-    MOV     r2, #0              /* USR LR - 0 since we don't currently use user mode */
-    MOV     r3, #0              /* USR SP - 0 since we don't use user mode */
+    MOV     r4, LR              /* Save faulting address (e.g. nullptr)      */
+/* ========================================================================= */
+/* The banked LR/SP of the exception mode (UND/ABT/SVC) only tell us the PC  */
+/* when the fault occurred (e.g. a near-0 address from a null vtable)        */
+/* To find the call site that made that branch we switch to sys mode         */
+/* which will have the previous return address                               */
+/* ========================================================================= */
+    CPS  #SYS_MODE
+    MOV     r0, r4              /* exception_lr - PC at time of fault         */
+    MOV     r1, r5              /* fault type                                */
+    MOV     r2, LR              /* sys_lr - caller's return address (fault address for null function call)      */
+    MOV     r3, SP              /* sys_sp - caller's stack pointer (SYS SP)  */
     LDR  r12,=handle_cpu_fault  /* Load address of handle_cpu_fault */
-    BX   r12                    /* Jump to handle_cpu_fault without link */
+    BX   r12                   /* no return possible but this makes the debugger happier */
 .end

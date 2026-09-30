@@ -140,17 +140,39 @@ extern uint32_t program_code_end;
 	return result;
 }
 
+typedef struct {
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+} rgb;
+
+rgb get_colours(cpu_fault_type type) {
+	switch (type) {
+	case UNDEFINED:
+		return (rgb){.r = 0, .g = 255, .b = 0}; // green
+	case PREFETCH:
+		return (rgb){.r = 0, .g = 0, .b = 255}; // blue
+	case ABORT:
+		return (rgb){.r = 255, .g = 0, .b = 0}; // red
+	case RESERVED:
+		return (rgb){.r = 255, .g = 0, .b = 255}; // magenta
+	case SOFT_FAULT:
+		return (rgb){.r = 255, .g = 255, .b = 0}; // yellow
+	case SVC:
+		return (rgb){.r = 0, .g = 255, .b = 255}; // cyan
+	}
+
+	return (rgb){255, 255, 255}; // white, unknown fault type
+}
+
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 #define MAX_POINTER_COUNT 4
-[[gnu::always_inline]] inline void printPointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
-                                                 uint32_t addrUSRSP, bool hardFault) {
+[[gnu::always_inline]] inline void printPointers(uint32_t exception_lr, cpu_fault_type exception_type, uint32_t sys_lr,
+                                                 uint32_t sys_sp) {
 	// Search for stack pointers
 	uint32_t stackPointer = 0;
-	if (isStackPointer(addrUSRSP)) {
-		stackPointer = addrUSRSP;
-	}
-	else if (isStackPointer(addrSYSSP)) {
-		stackPointer = addrSYSSP;
+	if (isStackPointer(sys_sp)) {
+		stackPointer = sys_sp;
 	}
 
 	uint8_t stackPointerCount = 0;
@@ -164,7 +186,7 @@ extern uint32_t program_code_end;
 
 			// Print any pointer that is pointing to code, different from the LRs and not the same as before
 			if (isCodePointer(stackValue) && stackValue != stackPointers[MIN(0, stackPointerCount - 1)]
-			    && stackValue != addrUSRLR && stackValue != addrSYSLR) {
+			    && stackValue != sys_lr && stackValue != exception_lr) {
 				stackPointers[stackPointerCount] = stackValue;
 				++stackPointerCount;
 
@@ -179,14 +201,14 @@ extern uint32_t program_code_end;
 
 	uint32_t currentColumnPairIndex = 0;
 
-	// Print LR from USR mode if it is valid
-	if (isCodePointer(addrUSRLR)) {
-		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrUSRLR, 255, 0, 255);
+	// Print LR from exception mode if it is valid (will usually be valid for data faults, invalid for code faults)
+	if (isCodePointer(exception_lr)) {
+		currentColumnPairIndex = drawPointer(currentColumnPairIndex, exception_lr, 255, 0, 255);
 	}
 
-	// Print LR from SYS mode if it is valid and different from USR mode
-	if (isCodePointer(addrSYSLR) && addrSYSLR != addrUSRLR) {
-		currentColumnPairIndex = drawPointer(currentColumnPairIndex, addrSYSLR, 0, 0, 255);
+	// Print LR from SYS mode if it is valid and different from exception mode
+	if (isCodePointer(sys_lr) && exception_lr != sys_lr) {
+		currentColumnPairIndex = drawPointer(currentColumnPairIndex, sys_lr, 0, 0, 255);
 	}
 
 	// Print all pointers
@@ -227,10 +249,12 @@ extern uint32_t program_code_end;
 	sendToPIC(1 + currentColumnPairIndex);
 	char const* commitShort = kCommitShort;
 
+	auto colours = get_colours(exception_type);
+
 	uint8_t firstByte = (getHexCharValue(commitShort[0]) << 4) | getHexCharValue(commitShort[1]);
-	drawByte(firstByte, 255, (hardFault ? 0 : 255), 0);
+	drawByte(firstByte, colours.r, colours.b, colours.g);
 	uint8_t secondByte = (getHexCharValue(commitShort[2]) << 4) | getHexCharValue(commitShort[3]);
-	drawByte(secondByte, 255, (hardFault ? 0 : 255), 0);
+	drawByte(secondByte, colours.r, colours.b, colours.g);
 
 #if ENABLE_TEXT_OUTPUT
 	SEGGER_RTT_printf(0, "COMMIT: %s\n", kCommitShort);
@@ -242,21 +266,21 @@ extern uint32_t program_code_end;
 	while (!(DMACn(PIC_TX_DMA_CHANNEL).CHSTAT_n & (1 << 6))) {}
 }
 
-//@TODO: Pointers seem to be wrong right now and we will need to filter out the SP call to
-// fault_handler_print_freeze_pointers (we can't inline, otherwise that would be huge)
-extern void fault_handler_print_freeze_pointers(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR,
-                                                uint32_t addrUSRSP) {
+extern void fault_handler_print_freeze_pointers(uint32_t addrUSRLR, uint32_t addrUSRSP) {
 	__disable_irq();
-	printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, false);
+	printPointers(0, SOFT_FAULT, addrUSRLR, addrUSRSP);
 	clearTxBuffer();
 	__enable_irq();
 }
 
-extern void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR, uint32_t addrUSRSP) {
-	printPointers(addrSYSLR, addrSYSSP, addrUSRLR, addrUSRSP, true);
+// exception_lr: the actual faulting instruction address. (near zero if calling a function from null vtable)
+// exception_type: undefined (0), prefetch (1), abort (2), reserved (3), svc (0xDEADBEEF)
+// sys_lr/sp: the LR/SP of the interrupted SYS-mode
+// code - i.e. the call site that made the faulty branch
+extern void handle_cpu_fault(uint32_t exception_lr, cpu_fault_type exception_type, uint32_t sys_lr, uint32_t sys_sp) {
+	printPointers(exception_lr, exception_type, sys_lr, sys_sp);
 	clearTxBuffer();
-	// if we start using user mode then we'd want to do this to get an accurate call stack. We don't so just don't
-	//__asm__("CPS  0x10"); // Go to USR mode
+	__enable_irq();
 
 	while (1) {
 		__asm__("nop");
