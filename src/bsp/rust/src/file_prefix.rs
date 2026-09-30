@@ -74,7 +74,7 @@ use super::audio_loader::{LoadOps, OpenVerdict};
 ///
 /// Deliberately larger than `deluge::storage::kSongPreviewWindow`: the two answer different
 /// questions -- "how much of a song holds the artwork" (4096) versus "how
-/// big is the slot every consumer's result has to land in" (8192). `file_prefix_abi.cpp`
+/// big is the slot every consumer's result has to land in" (8192). `load_song_ui.cpp`
 /// asserts the surviving relation, that a request never exceeds the slot. Pinned against
 /// `DELUGE_FILE_PREFIX_CAPACITY` by `abi_pins.rs`.
 ///

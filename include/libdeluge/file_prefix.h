@@ -62,7 +62,7 @@ extern "C" {
 /// Sized from the channel's LARGEST consumer -- the DX7 cartridge's `min(filesize, 8192)` read --
 /// not from any one caller's window. It is deliberately NOT equal to
 /// `deluge::storage::kSongPreviewWindow` (4096): that is a request size, this is the slot every
-/// request's result lands in. `file_prefix_abi.cpp` `static_assert`s the relation that survives
+/// request's result lands in. `load_song_ui.cpp` `static_assert`s the relation that survives
 /// them being different, namely that a request can never exceed the slot.
 ///
 /// @note A collect's `out_cap` must be at least this, not merely as large as the caller's own
