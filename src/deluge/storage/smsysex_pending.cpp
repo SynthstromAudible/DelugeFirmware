@@ -406,8 +406,10 @@ std::optional<deluge::io::Status> pathOpCollect() {
 		}
 		return std::nullopt;
 	case ByteIo::Unknown:
-		// Displaced before we took it, or dropped. Ask again -- every operation here is idempotent
-		// in the sense that matters: doing it twice reaches the same state.
+		// Dropped, or displaced before we took it. Ask again. An unlink or rename answer is protected from
+		// displacement while this polls, up to the byte channel's age bound, so a rerun of either happens only
+		// after a card change dropped it unrun, or past that bound; the other operations here reach the same
+		// state run twice.
 		g_issued = false;
 		g_refusals++;
 		return std::nullopt;

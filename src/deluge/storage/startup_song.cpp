@@ -358,8 +358,10 @@ std::optional<bool> collectTemplateWrite() {
 			// cannot be cancelled, so falling back would re-serialise into its buffer and write the file twice.
 			return std::nullopt;
 		case DELUGE_CHANNEL_UNKNOWN:
-			// Nothing queued, running or answered: the request was dropped unrun by a card change. A write-from's
-			// answer is not displaced while this polls for it, so re-staging never meets the file this write made.
+			// Nothing queued, running or answered: the request was dropped unrun by a card change, or its answer
+			// was displaced. A write-from's answer is protected from displacement only up to the byte channel's
+			// age bound (PROTECTED_ANSWER_REFUSALS refused requests); past it, re-staging can meet the file this
+			// write made, and the exclusive create then fails rather than overwriting it.
 			g_requested = false;
 			g_attemptsWithoutProgress++;
 			return std::nullopt;
@@ -665,8 +667,11 @@ void startupSongRoutine() {
 			// it goes in the completion instead.
 			g_startupSongWasTemplate = g_usingTemplate;
 			g_startupFailSafePath = g_canaryPath;
-			loadSongUI.beginLoad(&finishStartupSong);
+			// Done BEFORE beginLoad(), not after: beginLoad() runs the load's first stage at once, and a load
+			// that ends there calls finishStartupSong() before returning, which moves this machine on to
+			// removing the canary. Entering Done afterwards would undo that and leave the canary on the card.
 			enter(StartupPhase::Done);
+			loadSongUI.beginLoad(&finishStartupSong);
 			return;
 		}
 		// what just failed??
