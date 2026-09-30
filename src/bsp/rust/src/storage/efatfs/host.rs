@@ -27,10 +27,8 @@
 // compile and define every efatfs C-ABI symbol twice, which surfaces as an opaque E0428.
 #[cfg(all(target_os = "none", feature = "host_app"))]
 compile_error!(
-    "efatfs_fs.rs (device) and efatfs_host_shim.rs (host) both define the efatfs C-ABI, \
-     including deluge_storage_fs_busy -- a device build (target_os = \"none\") must never also \
-     enable the `host_app` feature, or both modules compile into the same binary and duplicate \
-     every efatfs_* C-ABI symbol."
+    "storage::efatfs::device and storage::efatfs::host both define the efatfs C ABI; a device \
+     build (target_os = \"none\") must not enable the `host_app` feature"
 );
 
 use aligned::{A4, Aligned};

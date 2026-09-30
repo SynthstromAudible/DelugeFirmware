@@ -81,6 +81,8 @@ pub mod abi;
 /// header's name (see `build/crate_types.rs`).
 #[cfg(target_os = "none")]
 #[allow(non_camel_case_types, non_upper_case_globals, dead_code)]
+// The headers' comments are Doxygen, which rustdoc misreads.
+#[allow(rustdoc::all)]
 pub mod sys {
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
@@ -97,6 +99,8 @@ pub mod sys {
         non_snake_case,
         dead_code
     )]
+    // The headers' comments are Doxygen, which rustdoc misreads.
+    #![allow(rustdoc::all)]
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
 // `sys_host.rs` again beside the real `sys`, so its pins check the stand-ins against the headers.
