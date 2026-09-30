@@ -21,15 +21,32 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    and `abi_const!` checks, except for `sys_host.rs`'s, which sit at the bottom of that file. A crate-defined
    type that crosses the boundary is re-exported into `sys` under the header's name and checked exhaustively,
    field-for-field or variant-for-variant, by `abi_layout!`. A copied constant is pinned by `abi_const!`. The
-   pre-commit hook `python3 scripts/check_abi_surface.py --check --pins` fails when a declared function has no
+   pre-commit hook `python3 scripts/check_abi_surface.py --check --pins --tags` fails when a declared function has no
    definition, or when a Rust definition or `extern "C"` import of one has no pin that reaches it. Change a signature in the header, and the build tells you every place that disagrees.
 3. **Direction is one-way.** The app includes `<libdeluge/…>`. The platform implements it. `app.h` is the other
    direction: callbacks the app implements and the platform calls. `scripts/check_platform_boundary.py` keeps the
    app from including platform headers.
-4. **Call context is documented per function**, as one of:
-   - `[isr]`: may be called from interrupt context.
-   - `[audio]`: may be called from the audio tier. It must not block, allocate or lock.
-   - `[task]`: called from task context only.
+4. **Call context is documented per function.** Each declaration's doc carries the tags of every context it may
+   be called from; a function with several tags may be called from each of them. `scripts/check_abi_surface.py
+   --tags` (in the pre-commit hook) fails any declaration without one.
+   - `[audio]`: may be called from the audio tier, `AudioEngine::routine_task`'s call graph on the preemptive
+     audio executor. That graph is more than the voices: it runs the sequencer's ticks, so sequenced note-ons,
+     MIDI, CV and gate output happen there too. The goal for an `[audio]` function is that it never blocks,
+     allocates or locks. Today some do: the mod-FX buffer is set up and released inside the render through
+     `deluge_alloc`/`deluge_free`, a region acquire can take and release slab slots
+     (`deluge_slab_acquire`/`deluge_slab_release`), the render takes `ENTER_CRITICAL_SECTION`, and a freeze in the
+     render blocks in `deluge_fault_pad_flush`. The tags record these hazards; they do not fix them.
+   - `[task]`: may be called from the non-audio tiers: the interaction tier (the cooperative executor's tasks, boot
+     and the UI) and the storage tier. On the device the storage tier runs on `STREAM_EXEC`, an interrupt executor
+     (IRQ mode), so `[task]` does not mean thread mode.
+   - `[isr]`: may be called from an interrupt handler or a fault path.
+
+   Before `registerTasks()`, the boot's song-less render runs `routine()` once on the task executor, so the
+   functions `routine()` reaches directly (`deluge_audio_drive`, `deluge_app_render`, `deluge_app_render_skipped`,
+   `deluge_heap_check`) also carry `[task]`. The render's deeper callees do not: the three `[audio]`-only ones
+   (`deluge_audio_frames_until_block_offset` and `deluge_midi_gate_timer_arm`, reached only when MIDI or gate output
+   is pending, and `deluge_sample_region_state`, reached only by a playing sample voice) need a song that boot has
+   not loaded.
 
 ## Channels
 

@@ -30,7 +30,7 @@ extern "C" {
 
 /// The tiers code runs on.
 typedef enum DelugeTier : uint8_t {
-	DELUGE_TIER_INTERACTION = 0, ///< thread mode: the UI, the sequencer, the app's tasks
+	DELUGE_TIER_INTERACTION = 0, ///< thread mode: the UI and the app's cooperative tasks
 	DELUGE_TIER_STORAGE = 1,     ///< the storage tasks
 	DELUGE_TIER_AUDIO = 2,       ///< the audio render
 } DelugeTier;

@@ -50,8 +50,11 @@ DECLARATION = re.compile(
     + r"\s*)*;"
 )
 NOT_A_RETURN_TYPE = {"typedef", "return", "if", "while", "sizeof", "define"}
-# A calling-context tag: the tiers a function may be called from.
-TAG = re.compile(r"\[(task|audio|isr)\]")
+# A calling-context tag: a context a function may be called from. Not part of a longer bracketed expression
+# (`arr[isr]`, `x[0][task]`), so an index in a code example is not read as a tag.
+TAG = re.compile(r"(?<![\w\]])\[(task|audio|isr)\]")
+# The lines a doc block is made of: `///`, `/**` and the ` *` continuation lines of a `/** */` block.
+DOC_LINE = re.compile(r"^\s*(?:///|/\*\*|\*)")
 
 
 def strip_comments(text: str) -> str:
@@ -68,36 +71,43 @@ def declared() -> dict[str, Path]:
     return names
 
 
-def untagged() -> list[str]:
-    """Declared functions whose doc comment (the comment lines directly above the declaration) and declaration
-    line carry no context tag."""
+def blank_comments(text: str) -> str:
+    """`text` with every comment's characters replaced by spaces, newlines kept, so offsets and line numbers still
+    match `text`."""
+
+    def blank(match: re.Match[str]) -> str:
+        return re.sub(r"[^\n]", " ", match.group())
+
+    return LINE_COMMENT.sub(blank, BLOCK_COMMENT.sub(blank, text))
+
+
+def untagged(headers: list[Path] = HEADERS) -> list[str]:
+    """Declared functions with no context tag in their doc block or in a `///<` comment on the declaration.
+
+    Each declaration is located by its match in the comment-blanked header, not by searching for its name. Its doc
+    block is the `///`, `/**` or ` *` lines directly above it; any other line, such as a `//` banner, ends it."""
     missing = []
-    for header in HEADERS:
-        lines = header.read_text().splitlines()
-        for match in DECLARATION.finditer(strip_comments("\n".join(lines))):
+    for header in headers:
+        text = header.read_text()
+        lines = text.splitlines()
+        for match in DECLARATION.finditer(blank_comments(text)):
             words = match.group(1).split()
             if not words or words[0] in NOT_A_RETURN_TYPE:
                 continue
-            name = match.group(2)
-            call = re.compile(r"\b" + re.escape(name) + r"\s*\(")
-            index = next(
-                (
-                    i
-                    for i, line in enumerate(lines)
-                    if call.search(line)
-                    and not line.lstrip().startswith(("//", "*", "/*"))
-                ),
-                None,
-            )
-            if index is None:
-                continue
+            first = text.count("\n", 0, match.start(2))
+            last = text.count("\n", 0, match.end())
             doc = []
-            i = index - 1
-            while i >= 0 and lines[i].lstrip().startswith(("///", "//", "*", "/*")):
+            i = first - 1
+            while i >= 0 and DOC_LINE.match(lines[i]):
                 doc.append(lines[i])
                 i -= 1
-            if not TAG.search("\n".join(doc)) and not TAG.search(lines[index]):
-                missing.append(name)
+            trailing = [
+                line[line.index("///<") :]
+                for line in lines[first : last + 1]
+                if "///<" in line
+            ]
+            if not TAG.search("\n".join(doc + trailing)):
+                missing.append(match.group(2))
     return missing
 
 
