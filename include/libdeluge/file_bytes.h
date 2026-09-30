@@ -44,6 +44,12 @@
 /// refused write, and this is the one place this channel deliberately differs from
 /// @ref file_directory.h.
 ///
+/// **Two operations borrow the caller's buffer instead of copying.**
+/// @ref deluge_file_bytes_request_read_into and @ref deluge_file_bytes_request_write_from carry a whole document,
+/// which may run to a megabyte, so the pointer crosses rather than the bytes. The caller keeps the buffer until the
+/// collect is terminal and @ref deluge_file_bytes_holds says the channel has let go. Neither replaces a queued
+/// request or is replaced by one: while another request is queued, each is refused.
+///
 /// **A write creates its parent directory.** That is why there is no `mkdir` operation here: every
 /// settings caller's `mkdir SETTINGS_FOLDER` existed only to make its own write succeed, and a card
 /// WRITE is no more allowed on the interaction tier than a read is.
@@ -408,6 +414,66 @@ bool deluge_file_bytes_request_copy(const char* from, const char* to) DELUGE_NOE
 /// @param to         NUL-terminated destination, matched exactly against the one requested.
 /// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED.
 uint8_t deluge_file_bytes_collect_copy(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+
+/// @brief Ask for the whole of `path` to be read into `dst`.
+///
+/// `dst` is the caller's, kept alive and untouched until the collect is terminal (see deluge_file_bytes_holds).
+/// Refused (false) while another byte request is queued. [task]
+///
+/// Not bounded by @ref DELUGE_FILE_BYTES_MAX_BYTES: the bytes are not copied, so a song of a megabyte reads straight
+/// into its staging buffer. A file larger than `cap` is refused, never truncated.
+/// @param path NUL-terminated path. Copied out before this returns.
+/// @param dst  The caller's buffer, `cap` bytes.
+/// @param cap  Its capacity.
+/// @return true if accepted. false if REFUSED; the caller must retry.
+bool deluge_file_bytes_request_read_into(const char* path, void* dst, uint32_t cap) DELUGE_NOEXCEPT;
+
+/// @brief Collect the read into the caller's buffer.
+///
+/// READY: `*out_len` bytes are in `dst`. FAILED: `*out_error` says why; DELUGE_ERR_NO_MEMORY means the file did not
+/// fit, and `*out_needed` is its size. Any out-pointer may be null. [task]
+/// @param path       NUL-terminated path, matched exactly against the one requested.
+/// @param out_len    Written **only** on @ref DELUGE_CHANNEL_READY.
+/// @param out_error  Written **only** on @ref DELUGE_CHANNEL_FAILED.
+/// @param out_needed Written **only** on @ref DELUGE_CHANNEL_FAILED: the file's size when it did not fit, else 0.
+DelugeChannelStatus deluge_file_bytes_collect_read_into(const char* path, uint32_t* out_len, DelugeStatus* out_error,
+                                                        uint32_t* out_needed) DELUGE_NOEXCEPT;
+
+/// @brief Ask for the caller's bytes to be written as the whole of `path`.
+///
+/// With `may_overwrite` false, the file must not exist; that check and the create are one atomic open. `src` is the
+/// caller's until the collect is terminal. Refused (false) while another byte request is queued. [task]
+///
+/// Not bounded by @ref DELUGE_FILE_BYTES_MAX_BYTES: the bytes are not copied. `path`'s parent directory must exist.
+/// @param path          NUL-terminated path. Copied out before this returns.
+/// @param src           The caller's bytes.
+/// @param len           Byte count.
+/// @param may_overwrite true to replace an existing file, false to refuse one.
+/// @return true if accepted. false if REFUSED; the caller must retry.
+bool deluge_file_bytes_request_write_from(const char* path, const void* src, uint32_t len,
+                                          bool may_overwrite) DELUGE_NOEXCEPT;
+
+/// @brief Collect the write from the caller's buffer.
+///
+/// READY: all `*out_written` bytes are on the card. FAILED: `*out_error` says why; DELUGE_ERR_EXISTS means the name
+/// was taken and the existing file is untouched. [task]
+///
+/// "The name is taken" asks the user a question; "the card failed" tells them something is wrong, so the two stay
+/// apart.
+/// @param path        NUL-terminated path, matched exactly against the one requested.
+/// @param out_written Written **only** on @ref DELUGE_CHANNEL_READY. May be null.
+/// @param out_error   Written **only** on @ref DELUGE_CHANNEL_FAILED. May be null.
+DelugeChannelStatus deluge_file_bytes_collect_write_from(const char* path, uint32_t* out_written,
+                                                         DelugeStatus* out_error) DELUGE_NOEXCEPT;
+
+/// @brief Whether a queued or running byte request reads or writes through `buffer`.
+///
+/// True when it cannot tell. [task]
+///
+/// The read-into and write-from operations cannot be cancelled, so a caller that gives up on one must not free or
+/// reuse its buffer while this is true.
+/// @param buffer The buffer handed to a request, as passed (its start address).
+bool deluge_file_bytes_holds(const void* buffer) DELUGE_NOEXCEPT;
 
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every byte-channel operation wait @p ms milliseconds before it touches the card.

@@ -20,7 +20,7 @@
 ///        `file_bytes.h` and `file_directory.h`, answered as "no channel here".
 ///
 /// The Rust BSP defines every one of these in `file_write.rs`, `file_bytes.rs` and `file_directory.rs`. The code under
-/// test reaches them only past a boot the unit tests never finish, apart from `deluge_file_write_holds`, which answers
+/// test reaches them only past a boot the unit tests never finish, apart from `deluge_file_bytes_holds`, which answers
 /// that no read holds a buffer. A request is refused so the caller takes its synchronous arm; a collect answers
 /// UNKNOWN, never PENDING, which would keep a caller waiting for an answer that can never come.
 
@@ -44,7 +44,7 @@ uint8_t deluge_file_write_collect_write_at(uint32_t, uint32_t*) noexcept {
 	return DELUGE_FILE_WRITE_UNKNOWN;
 }
 
-// The other seven operations, same two rules throughout: a request is REFUSED so the caller takes its
+// The other operations, same two rules throughout: a request is REFUSED so the caller takes its
 // synchronous arm, and a collect answers UNKNOWN -- "nothing is in flight, ask again if you want
 // one" -- never PENDING, which would tell a caller to keep waiting for an answer that can never come.
 
@@ -88,24 +88,24 @@ uint8_t deluge_file_write_collect_stats(uint32_t*) noexcept {
 	return DELUGE_FILE_WRITE_UNKNOWN;
 }
 
-bool deluge_file_write_request_read_file(const char*, uint8_t*, uint32_t) noexcept {
+bool deluge_file_bytes_request_read_into(const char*, void*, uint32_t) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_write_collect_read_file(const char*, uint32_t*, uint32_t*) noexcept {
-	return DELUGE_FILE_WRITE_UNKNOWN;
+DelugeChannelStatus deluge_file_bytes_collect_read_into(const char*, uint32_t*, DelugeStatus*, uint32_t*) noexcept {
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
-bool deluge_file_write_holds(const void*) noexcept {
+bool deluge_file_bytes_holds(const void*) noexcept {
 	return false;
 }
 
-bool deluge_file_write_request_write_file(const char*, const uint8_t*, uint32_t, bool) noexcept {
+bool deluge_file_bytes_request_write_from(const char*, const void*, uint32_t, bool) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_write_collect_write_file(const char*, uint32_t*, uint8_t*) noexcept {
-	return DELUGE_FILE_WRITE_UNKNOWN;
+DelugeChannelStatus deluge_file_bytes_collect_write_from(const char*, uint32_t*, DelugeStatus*) noexcept {
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 } // extern "C"

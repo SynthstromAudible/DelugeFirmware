@@ -44,12 +44,9 @@
 /// REFUSED (returns false) rather than queued or replaced: a dropped cluster write is lost audio,
 /// so the caller must see the refusal and retry.
 ///
-/// **Eight operations, six keyed by handle and two by path.** The offset write serves the recorder's
-/// drain; open, read, truncate, close and stats serve its finalize and create, which after boot go
-/// through this channel too. @ref deluge_file_write_request_read_file and
-/// @ref deluge_file_write_request_write_file are the two odd ones out: they are keyed by PATH because
-/// each does its own open/transfer/close, for a caller that has a whole file to read or to store and
-/// wants nothing else.
+/// **Six operations, keyed by handle.** The offset write serves the recorder's drain; open, read, truncate,
+/// close and stats serve its finalize and create, which after boot go through this channel too. A whole file read
+/// or written in one operation belongs to @ref file_bytes.h's read-into and write-from.
 ///
 /// **Fixed-width, never a native enum.** `arm-none-eabi` defaults to short enums, so a native enum
 /// layout must never be relied on across this boundary.
@@ -173,71 +170,6 @@ bool deluge_file_write_request_stats(void) DELUGE_NOEXCEPT;
 /// @brief Collect the free-cluster count.
 /// @param out_free_clusters Written ONLY on @ref DELUGE_FILE_WRITE_READY.
 uint8_t deluge_file_write_collect_stats(uint32_t* out_free_clusters) DELUGE_NOEXCEPT;
-
-/// @brief Read the whole of `path` into the caller's buffer.
-///
-/// PATH-keyed, unlike the handle operations above, because it does its own open/read/close
-/// internally -- one request instead of four, for a caller that wants a whole file and nothing else.
-///
-/// @param path NUL-terminated path.
-/// @param dst  Caller-owned destination. Must stay alive and unmodified until the collect is
-///             terminal. NOT copied: the pointer crosses the boundary, the bytes do not.
-/// @param cap  Capacity of `dst`. A file larger than this is REFUSED, never truncated -- a truncated
-///             document handed to a parser is worse than a failure.
-/// @return false when the request was refused; the caller must retry.
-bool deluge_file_write_request_read_file(const char* path, uint8_t* dst, uint32_t cap) DELUGE_NOEXCEPT;
-
-/// @brief Whether a queued or running operation reads or writes through @p buffer.
-///
-/// The operations above take caller-owned buffers by pointer and cannot be cancelled, so a caller that gives up on one
-/// must not free or reuse its buffer while this is true. Answers true when it cannot tell.
-///
-/// @param buffer The buffer handed to a request, as passed (its start address).
-bool deluge_file_write_holds(const void* buffer) DELUGE_NOEXCEPT;
-
-/// @brief Collect the whole-file read.
-///
-/// @param path       The path the request named. It selects the answer: a collect with another path
-///                   answers @ref DELUGE_FILE_WRITE_UNKNOWN.
-/// @param out_len    Written ONLY on @ref DELUGE_FILE_WRITE_READY: the file's size, now in `dst`.
-/// @param out_needed Written on @ref DELUGE_FILE_WRITE_FAILED when the file did not FIT: the size
-///                   required. ZERO on a genuine I/O failure, which is how the caller tells a
-///                   too-small buffer from a broken card. Sizing with a stat first does not make
-///                   this redundant -- it is what catches the file changing in between.
-uint8_t deluge_file_write_collect_read_file(const char* path, uint32_t* out_len, uint32_t* out_needed) DELUGE_NOEXCEPT;
-
-/// @brief Write a whole document to `path` in one operation.
-///
-/// PATH-keyed like @ref deluge_file_write_request_read_file, and its mirror: it does its own
-/// open/write/close, so a caller holding a finished document needs one request rather than four.
-///
-/// @param path          NUL-terminated path. Its parent directory must exist.
-/// @param src           The bytes. Caller-owned, and NOT copied -- the pointer crosses this boundary,
-///                      not the bytes, which is what lets a 97 KB kit through where
-///                      @ref file_bytes.h's 8 KiB copying channel cannot. Must stay alive and
-///                      unmodified until the collect is terminal.
-/// @param len           Byte count.
-/// @param may_overwrite false to REFUSE an existing file, true to replace it. Carried here rather
-///                      than answered by a separate look beforehand: a look leaves a gap in which the
-///                      file can appear, and the open cannot be raced.
-/// @return false when the request was refused; the caller must retry.
-bool deluge_file_write_request_write_file(const char* path, const uint8_t* src, uint32_t len,
-                                          bool may_overwrite) DELUGE_NOEXCEPT;
-
-/// @brief Collect the whole-document write.
-///
-/// @param path        The path the request named. It selects the answer: a collect with another path
-///                    answers @ref DELUGE_FILE_WRITE_UNKNOWN.
-/// @param out_written Written ONLY on @ref DELUGE_FILE_WRITE_READY, with the byte count. A count
-///                    below `len` is a short write; the caller treats it as a card error.
-/// @param out_exists  Written on @ref DELUGE_FILE_WRITE_FAILED: 1 when the file was already there and
-///                    `may_overwrite` was false, 0 for any other failure.
-///
-///                    That distinction is the point. "The name is taken" asks the user a question;
-///                    "the card failed" tells them something is wrong. Collapsing the two would put
-///                    an overwrite prompt in front of somebody whose card is dying.
-uint8_t deluge_file_write_collect_write_file(const char* path, uint32_t* out_written,
-                                             uint8_t* out_exists) DELUGE_NOEXCEPT;
 
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every write-channel operation wait @p ms milliseconds before it touches the card.

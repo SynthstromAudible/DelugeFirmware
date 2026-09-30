@@ -18,7 +18,7 @@
 #include "scenarios/staging_release_scenario.h"
 
 #include "io/file.hpp"
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_bytes.h"
 #include "memory/heaps.h"
 #include "storage/storage_manager.h"
 
@@ -39,7 +39,7 @@ constexpr const char* kFolder = "SR_TEST";
 constexpr const char* kPath = "SR_TEST/DOC.XML";
 /// Big enough that the read is plainly more than a header, small enough to stage in one buffer.
 constexpr uint32_t kDocBytes = 32 * 1024;
-/// How long the write channel holds each operation before it touches the card. Long enough that the release and the
+/// How long the byte channel holds each operation before it touches the card. Long enough that the release and the
 /// reallocation below both happen while the read is still waiting to run.
 constexpr uint32_t kLatencyMs = 50;
 constexpr uint8_t kSentinel = 0xA5;
@@ -98,7 +98,7 @@ void runTick() {
 			g_stage = Stage::Report;
 			break;
 		}
-		deluge_file_write_set_latency_ms(kLatencyMs);
+		deluge_file_bytes_set_latency_ms(kLatencyMs);
 		g_ticks = 0;
 		g_stage = Stage::Issue;
 		break;
@@ -144,9 +144,8 @@ void runTick() {
 	case Stage::AwaitRead: {
 		// Let the held read run to its answer. Nobody else collects it: the consumer that issued it has gone.
 		uint32_t got = 0;
-		uint32_t needed = 0;
-		const uint8_t collected = deluge_file_write_collect_read_file(kPath, &got, &needed);
-		if (collected == DELUGE_FILE_WRITE_PENDING && ++g_ticks < kStageTicks) {
+		const DelugeChannelStatus collected = deluge_file_bytes_collect_read_into(kPath, &got, nullptr, nullptr);
+		if (collected == DELUGE_CHANNEL_PENDING && ++g_ticks < kStageTicks) {
 			break;
 		}
 		uint32_t overwritten = 0;
@@ -179,7 +178,7 @@ void runTick() {
 		break;
 
 	case Stage::Report:
-		deluge_file_write_set_latency_ms(0);
+		deluge_file_bytes_set_latency_ms(0);
 		printf("SR-RESULT failures=%d\n", static_cast<int>(g_failures));
 		g_summaryPrinted = true;
 		g_stage = Stage::Done;

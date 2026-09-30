@@ -494,3 +494,32 @@ fn a_write_request_carries_its_length_not_its_bytes() {
         "a read owns none of the request buffer"
     );
 }
+
+#[test]
+fn a_caller_buffer_request_is_refused_while_another_is_queued() {
+    assert!(file_bytes::accepts(None, ByteOp::WriteFrom));
+    assert!(!file_bytes::accepts(Some(ByteOp::Read), ByteOp::WriteFrom));
+    assert!(!file_bytes::accepts(
+        Some(ByteOp::WriteFrom),
+        ByteOp::ReadInto
+    ));
+}
+
+#[test]
+fn a_second_write_from_is_refused_not_replaced() {
+    assert!(!file_bytes::accepts(
+        Some(ByteOp::WriteFrom),
+        ByteOp::WriteFrom
+    ));
+}
+
+/// `enqueue_request` refuses every request while another is queued, a read over a read included: the request
+/// that was already queued is kept, and the new one's collect reads UNKNOWN until it asks again.
+#[test]
+fn the_existing_read_rule_is_unchanged() {
+    assert_eq!(
+        file_bytes::accepts(Some(ByteOp::Read), ByteOp::Read),
+        file_bytes::READ_REPLACES_READ
+    );
+    assert!(!file_bytes::READ_REPLACES_READ);
+}

@@ -26,7 +26,6 @@
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
-#include "libdeluge/file_write.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -777,18 +776,17 @@ void SaveSongUI::runWritePhase() {
 		return;
 	}
 
-	// The WRITE channel, not the byte channel every other phase here uses. The byte channel copies
-	// into a fixed staging buffer and refuses anything over 8 KiB; this one passes the pointer
-	// across. No song has ever fitted the first: the smallest measured is 11.5 KB and the largest
-	// 1.10 MB. The staged buffer must stay alive and unmodified until the collect is terminal, which
-	// is why nothing releases the serialiser before FINISH.
+	// The byte channel's write-from, not the copying write every other phase here uses. The copying write stages
+	// into a fixed buffer and refuses anything over 8 KiB; write-from passes the pointer across. No song has ever
+	// fitted the first: the smallest measured is 11.5 KB and the largest 1.10 MB. The staged buffer must stay alive
+	// and unmodified until the collect is terminal, which is why nothing releases the serialiser before FINISH.
 	++channelDocumentTicks_;
 
 	if (!docWriteIssued_) {
 		// may_overwrite is false in both cases: on the overwrite path this is a temp name just found
 		// free, and on the direct path the target name was free or we would be on the temp path. A
 		// refusal is safer than a race either way.
-		if (!deluge_file_write_request_write_file(docWritePath_.c_str(), stagedDocument_, stagedLength_, false)) {
+		if (!deluge_file_bytes_request_write_from(docWritePath_.c_str(), stagedDocument_, stagedLength_, false)) {
 			// Refused, not failed: nothing was queued, so ask again next tick.
 			if (!deferDocument()) {
 				abandonDocument(Error::WRITE_FAIL);
@@ -801,14 +799,15 @@ void SaveSongUI::runWritePhase() {
 	}
 
 	uint32_t writtenLen = 0;
-	uint8_t exists = 0;
-	const uint8_t collected = deluge_file_write_collect_write_file(docWritePath_.c_str(), &writtenLen, &exists);
-	if (collected == DELUGE_FILE_WRITE_PENDING) {
+	DelugeStatus error = DELUGE_OK;
+	const DelugeChannelStatus collected =
+	    deluge_file_bytes_collect_write_from(docWritePath_.c_str(), &writtenLen, &error);
+	if (collected == DELUGE_CHANNEL_PENDING) {
 		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
 		// from the staged document and cannot be cancelled, so giving up would only release the serialiser under it.
 		return;
 	}
-	if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+	if (collected == DELUGE_CHANNEL_UNKNOWN) {
 		// Never keyed, so nothing is coming. Re-issue rather than wait forever.
 		docWriteIssued_ = false;
 		if (!deferDocument()) {
@@ -817,7 +816,7 @@ void SaveSongUI::runWritePhase() {
 		return;
 	}
 	docWriteIssued_ = false;
-	if (collected == DELUGE_FILE_WRITE_FAILED || writtenLen != stagedLength_) {
+	if (collected == DELUGE_CHANNEL_FAILED || writtenLen != stagedLength_) {
 		// A short write is a card error, never a smaller document.
 		abandonDocument(Error::WRITE_FAIL);
 		return;

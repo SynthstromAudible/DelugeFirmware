@@ -108,10 +108,10 @@ public:
 	[[nodiscard]] static int32_t documentChannelServedOps() { return documentChannelServedOps_; }
 	[[nodiscard]] static int32_t documentInlineServedOps() { return documentInlineServedOps_; }
 
-	/// @brief Document steps the WRITE channel served: the document write itself, and nothing else.
+	/// @brief Document steps the whole-document write served: the write from the staged buffer, and nothing else.
 	///
-	/// Every other document step rides the byte channel. The song-save gate requires this above zero: the
-	/// document write went through the write channel.
+	/// Every other document step rides the byte channel's copying operations. The song-save gate requires this above
+	/// zero: the document write went through the channel from the staged buffer.
 	[[nodiscard]] static int32_t documentWriteChannelServedOps() { return documentWriteChannelServedOps_; }
 
 	/// @brief Card steps the staged document write took, whichever arm carried them.

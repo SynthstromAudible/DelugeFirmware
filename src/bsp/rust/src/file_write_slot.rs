@@ -25,13 +25,10 @@ pub enum OpKind {
     Truncate,
     Close,
     Stats,
-    ReadFile,
-    WriteFile,
 }
 
 /// Which operation an answer belongs to.
 /// - Handle operations carry their handle and an empty path.
-/// - `ReadFile` and `WriteFile` carry their path and handle 0.
 /// - `Open` and `Stats` carry neither: the channel is single-flight, and their collects name no file.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OpKey {
@@ -58,15 +55,14 @@ impl OpKey {
 pub enum Take {
     /// This operation's answer: the handle, byte count or free-cluster count.
     Ready(u32),
-    /// This operation failed. The payload is the size a whole-file read needed, or 1 when a whole-file write found
-    /// the name taken; 0 otherwise.
-    Failed(u32),
+    /// This operation failed.
+    Failed,
     /// No answer for this key and this card.
     Absent,
 }
 
-/// A stream answer: the `Ok` payload is a handle, byte count or free-cluster count; the `Err` payload is what the
-/// failure carries. Only a successful `Open` carries a handle to release.
+/// A stream answer: the `Ok` payload is a handle, byte count or free-cluster count. Only a successful `Open` carries a
+/// handle to release.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StreamAnswer {
     kind: OpKind,
@@ -120,10 +116,7 @@ impl AnswerSlot {
             deluge_channel::Take::Ready(StreamAnswer {
                 result: Ok(value), ..
             }) => Take::Ready(value),
-            deluge_channel::Take::Ready(StreamAnswer {
-                result: Err(payload),
-                ..
-            }) => Take::Failed(payload),
+            deluge_channel::Take::Ready(StreamAnswer { result: Err(_), .. }) => Take::Failed,
             deluge_channel::Take::Absent { orphan } => {
                 if let Some(orphan) = orphan {
                     self.push_orphan(orphan);

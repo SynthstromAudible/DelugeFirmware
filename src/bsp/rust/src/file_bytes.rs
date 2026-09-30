@@ -40,6 +40,18 @@
 //! of a setting are two distinct intents and superseding the first loses a settings change that the
 //! user watched themselves make. A caller told `false` still holds its intent and retries.
 //!
+//! # Caller-buffer operations
+//!
+//! [`ByteOp::ReadInto`] and [`ByteOp::WriteFrom`] move a whole document -- a song, a kit, a preset -- far past
+//! [`MAX_BYTES`], so they do not copy: the request carries a POINTER into the C++ caller's buffer, and the task
+//! reads into it or writes from it directly. The caller keeps the buffer alive and untouched until the collect is
+//! terminal, and [`deluge_file_bytes_holds`] tells it when the task has let go. The pointer travels as a `usize` so
+//! the request is `Send`, and is turned back into a slice only inside the task, for the one operation.
+//!
+//! Neither replaces a queued request nor is replaced by one: see [`accepts`]. And a caller-buffer request is
+//! stamped with the card generation it was made under, and the task drops it unrun if that card has gone: it
+//! would read or write a file on a card its caller never asked about.
+//!
 //! # A write creates its parent directory
 //!
 //! Which is why there is no `mkdir` operation here. Every settings caller's `mkdir SETTINGS_FOLDER`
@@ -156,6 +168,13 @@ pub(crate) const OPEN_READ: u8 = 0;
 /// `DelugeFileOpenMode::WRITE_CREATE`: create, or open and keep an existing file's bytes. The write
 /// path truncates explicitly afterwards rather than relying on a create mode to do it.
 pub(crate) const OPEN_WRITE_CREATE: u8 = 1;
+/// `DelugeStreamMode` (stream_io.h), the modes the caller-buffer operations open with: read an existing file,
+/// create one (truncating what is there), or create one only if the name is free.
+pub(crate) const STREAM_READ: u8 = 0;
+/// See [`STREAM_READ`].
+pub(crate) const STREAM_CREATE: u8 = 1;
+/// See [`STREAM_READ`].
+pub(crate) const STREAM_CREATE_NEW: u8 = 2;
 
 /// `deluge_file_bytes_collect_*`: requested or in flight; ask again, do not re-request.
 pub const DELUGE_FILE_BYTES_PENDING: u8 = 0;
@@ -184,6 +203,32 @@ pub enum ByteOp {
     WriteAt,
     Stat,
     Copy,
+    /// A whole file read into the caller's buffer. See the module doc's "Caller-buffer operations".
+    ReadInto,
+    /// A whole file written from the caller's buffer. See the module doc's "Caller-buffer operations".
+    WriteFrom,
+}
+
+/// Whether a new read may replace a queued one. `false`: every request is refused while another is queued, a read
+/// over a read included, and the refused read's collect reads UNKNOWN until it asks again.
+pub const READ_REPLACES_READ: bool = false;
+
+/// Whether a new request of kind `new` may enter the request slot while `queued` is in it.
+///
+/// A request that hands over a caller's buffer is never replaced and never replaces. Its caller must see a refusal,
+/// because replacing a queued document write loses a save, and replacing another request with one would drop that
+/// request silently.
+pub fn accepts(queued: Option<ByteOp>, new: ByteOp) -> bool {
+    match queued {
+        None => true,
+        Some(q) if caller_buffer(q) || caller_buffer(new) => false,
+        Some(_) => READ_REPLACES_READ,
+    }
+}
+
+/// Whether `op` reads into or writes from a buffer its caller owns.
+fn caller_buffer(op: ByteOp) -> bool {
+    matches!(op, ByteOp::ReadInto | ByteOp::WriteFrom)
 }
 
 /// What one operation produced.
@@ -205,9 +250,14 @@ pub enum ByteOutcome {
     Block(u32),
     /// A `stat`'s answer.
     Size(u32),
-    /// A `write_at`'s byte count. Its own variant rather than `Done` because a short write is
-    /// reported honestly and the caller decides what it means.
+    /// A `write_at`'s byte count, or a `WriteFrom`'s. Its own variant rather than `Done` because a short
+    /// `write_at` is reported honestly and the caller decides what it means.
     Wrote(u32),
+    /// A `ReadInto`'s length: that many bytes are in the caller's buffer.
+    Filled(u32),
+    /// A caller-buffer operation that did not happen. `needed` is the file's size when a `ReadInto` found it
+    /// larger than the buffer (`status` is then `NO_MEMORY`), and 0 otherwise.
+    Refused { status: i8, needed: u32 },
     /// The operation failed, carrying the status rather than collapsing it. The callers distinguish
     /// "no such file" (write the defaults) from "the card is unreadable" (write nothing, or the
     /// user's real settings are replaced by defaults), which is the distinction
@@ -411,6 +461,12 @@ pub trait ByteOps {
     async fn stat(&self, path: &str) -> Result<u32, i8>;
     /// Copy `from` to `to`, whole, moving up to [`BLOCK_BYTES`] at a time through `scratch`.
     async fn copy_file(&self, from: &str, to: &str, scratch: &mut [u8]) -> Result<(), i8>;
+    /// Read the whole of `path` into `into`. A file larger than `into` is refused with `NO_MEMORY` and its size;
+    /// nothing is read. A short read of a whole file is `IO`: the caller would parse a truncated document.
+    async fn read_into(&self, path: &str, into: &mut [u8]) -> Result<u32, (i8, u32)>;
+    /// Write `bytes` as the whole of `path`. With `exclusive`, the create fails with `EXISTS` if the file is there,
+    /// in the same open, so no other writer can slip in between a check and the create. A short write is `IO`.
+    async fn write_new(&self, path: &str, bytes: &[u8], exclusive: bool) -> Result<u32, i8>;
 }
 
 /// One request, as the driver receives it.
@@ -465,6 +521,19 @@ pub enum ByteRequest {
         from: BytesPath,
         to: BytesPath,
     },
+    /// `dst` is the address of the caller's `cap`-byte buffer. See the module doc's "Caller-buffer operations".
+    ReadInto {
+        path: BytesPath,
+        dst: usize,
+        cap: u32,
+    },
+    /// `src` is the address of the caller's `len` bytes. See the module doc's "Caller-buffer operations".
+    WriteFrom {
+        path: BytesPath,
+        src: usize,
+        len: u32,
+        may_overwrite: bool,
+    },
 }
 
 impl ByteRequest {
@@ -484,6 +553,8 @@ impl ByteRequest {
             Self::WriteAt { path, .. } => (ByteOp::WriteAt, path.as_str()),
             Self::Stat { path } => (ByteOp::Stat, path.as_str()),
             Self::Copy { to, .. } => (ByteOp::Copy, to.as_str()),
+            Self::ReadInto { path, .. } => (ByteOp::ReadInto, path.as_str()),
+            Self::WriteFrom { path, .. } => (ByteOp::WriteFrom, path.as_str()),
         }
     }
 
@@ -504,6 +575,8 @@ impl ByteRequest {
             Self::WriteAt { path, .. } => (ByteOp::WriteAt, path.clone()),
             Self::Stat { path } => (ByteOp::Stat, path.clone()),
             Self::Copy { to, .. } => (ByteOp::Copy, to.clone()),
+            Self::ReadInto { path, .. } => (ByteOp::ReadInto, path.clone()),
+            Self::WriteFrom { path, .. } => (ByteOp::WriteFrom, path.clone()),
         }
     }
 
@@ -513,6 +586,15 @@ impl ByteRequest {
         match self {
             Self::Write { len, .. } | Self::WriteAt { len, .. } => Some(*len),
             _ => None,
+        }
+    }
+
+    /// The address of the caller's buffer this request reads into or writes from; 0 for every kind that has none.
+    pub fn caller_buffer(&self) -> usize {
+        match self {
+            Self::ReadInto { dst, .. } => *dst,
+            Self::WriteFrom { src, .. } => *src,
+            _ => 0,
         }
     }
 }
@@ -571,6 +653,29 @@ pub async fn bytes_io_once<O: ByteOps>(
             Ok(present) => return ByteOutcome::Exists(present),
             Err(status) => Err(status),
         },
+        ByteRequest::ReadInto { path, dst, cap } => {
+            // SAFETY: the caller's contract (file_bytes.h): `dst` points at `cap` writable bytes that stay alive and
+            // untouched until its collect is terminal, and `deluge_file_bytes_holds` names them until this returns.
+            let into = unsafe { core::slice::from_raw_parts_mut(*dst as *mut u8, *cap as usize) };
+            return match ops.read_into(path, into).await {
+                Ok(len) => ByteOutcome::Filled(len),
+                Err((status, needed)) => ByteOutcome::Refused { status, needed },
+            };
+        }
+        ByteRequest::WriteFrom {
+            path,
+            src,
+            len,
+            may_overwrite,
+        } => {
+            // SAFETY: as for `ReadInto`: `src` points at `len` readable bytes the caller leaves alone until its
+            // collect is terminal.
+            let bytes = unsafe { core::slice::from_raw_parts(*src as *const u8, *len as usize) };
+            return match ops.write_new(path, bytes, !*may_overwrite).await {
+                Ok(written) => ByteOutcome::Wrote(written),
+                Err(status) => ByteOutcome::Refused { status, needed: 0 },
+            };
+        }
     };
     match result {
         Ok(()) => ByteOutcome::Done,
@@ -588,7 +693,19 @@ pub static BYTES_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 ///
 /// A single slot rather than a queue, and unlike `file_directory`'s a newer request never REPLACES
 /// an older one: see the module doc on why a dropped write is not a dropped listing.
-static REQUEST: Mutex<CriticalSectionRawMutex, Option<ByteRequest>> = Mutex::new(None);
+static REQUEST: Mutex<CriticalSectionRawMutex, Option<Queued>> = Mutex::new(None);
+
+/// A request waiting for the task, with the card generation it was made under.
+struct Queued {
+    request: ByteRequest,
+    generation: u32,
+}
+
+/// The caller-owned buffer the running operation reads or writes, as an address; 0 when nothing is running or the
+/// operation has none. Set under the [`REQUEST`] lock the operation is taken from, and cleared once the operation
+/// has finished with the buffer, so [`deluge_file_bytes_holds`] never sees a gap between queued and running. Not
+/// cleared by a flush: the running operation still uses its buffer.
+static RUNNING_BUFFER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
 
 /// The `(kind, key)` running right now, if any. Exists so the collects can answer `PENDING` rather
 /// than `UNKNOWN` in the window between a request leaving [`REQUEST`] and its answer reaching
@@ -628,11 +745,11 @@ static mut RESULT_BYTES: [u8; MAX_BYTES] = [0; MAX_BYTES];
 /// Taking the `REQUEST` guard by `&mut` is the point: the borrow checker then proves the lock is held
 /// for every use of the bytes, and that no two references to them are live at once.
 fn request_bytes<'g>(
-    _guard: &'g mut MutexGuard<'_, CriticalSectionRawMutex, Option<ByteRequest>>,
+    _guard: &'g mut MutexGuard<'_, CriticalSectionRawMutex, Option<Queued>>,
 ) -> &'g mut [u8; MAX_BYTES] {
     // SAFETY: nothing else names REQUEST_BYTES, and a reference is handed out only while an
     // exclusive borrow of the REQUEST guard is held -- and REQUEST is the only lock guarding a
-    // `Option<ByteRequest>` in this module -- so this is the only live reference.
+    // `Option<Queued>` in this module -- so this is the only live reference.
     unsafe { &mut *core::ptr::addr_of_mut!(REQUEST_BYTES) }
 }
 
@@ -935,6 +1052,89 @@ pub unsafe extern "C" fn deluge_file_bytes_request_copy(
     enqueue_request(ByteRequest::Copy { from, to }, &[])
 }
 
+/// Request the whole of `path` be read into the caller's `cap`-byte buffer at `dst`, and wake the driver. See
+/// `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string; it is copied out before this returns. `dst` must point at `cap`
+/// writable bytes that stay alive and untouched until the matching collect is terminal and
+/// [`deluge_file_bytes_holds`] no longer names them.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_read_into(
+    path: *const c_char,
+    dst: *mut core::ffi::c_void,
+    cap: u32,
+) -> bool {
+    if dst.is_null() || cap == 0 {
+        return false;
+    }
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return false;
+    };
+    enqueue_request(
+        ByteRequest::ReadInto {
+            path,
+            dst: dst as usize,
+            cap,
+        },
+        &[],
+    )
+}
+
+/// Request `len` bytes at `src` be written as the whole of `path`, and wake the driver. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string; it is copied out before this returns. `src` must point at `len`
+/// readable bytes that stay alive and unmodified until the matching collect is terminal and
+/// [`deluge_file_bytes_holds`] no longer names them.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_request_write_from(
+    path: *const c_char,
+    src: *const core::ffi::c_void,
+    len: u32,
+    may_overwrite: bool,
+) -> bool {
+    if src.is_null() || len == 0 {
+        return false;
+    }
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return false;
+    };
+    enqueue_request(
+        ByteRequest::WriteFrom {
+            path,
+            src: src as usize,
+            len,
+            may_overwrite,
+        },
+        &[],
+    )
+}
+
+/// Whether a queued or running byte request reads or writes through `buffer`. See `file_bytes.h`.
+///
+/// A caller must not free or reuse a buffer it handed to this channel while this answers true: the operation cannot
+/// be cancelled, and it touches the buffer whenever it runs. Answers true when it cannot tell, so the caller keeps
+/// the buffer a little longer rather than freeing it early.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_bytes_holds(buffer: *const core::ffi::c_void) -> bool {
+    let addr = buffer as usize;
+    if addr == 0 {
+        return false;
+    }
+    let queued = match REQUEST.try_lock() {
+        Ok(request) => request
+            .as_ref()
+            .is_some_and(|q| q.request.caller_buffer() == addr),
+        Err(_) => true,
+    };
+    queued || RUNNING_BUFFER.load(Ordering::Acquire) == addr
+}
+
 /// Install the request and wake the driver, REFUSING if the channel is already busy.
 ///
 /// `try_lock` rather than a block: this is called synchronously from C++ in whatever context the app
@@ -962,14 +1162,18 @@ fn enqueue_request(request: ByteRequest, payload: &[u8]) -> bool {
     let Ok(mut slot) = REQUEST.try_lock() else {
         return false; // Contended; the caller retries.
     };
-    if slot.is_some() || !in_flight_idle() {
+    let queued = slot.as_ref().map(|q| q.request.key().0);
+    if !accepts(queued, request.key().0) || !in_flight_idle() {
         return false;
     }
     let Some(into) = request_bytes(&mut slot).get_mut(..payload.len()) else {
         return false; // Cannot happen: every submit bounds its payload by MAX_BYTES.
     };
     into.copy_from_slice(payload);
-    *slot = Some(request);
+    *slot = Some(Queued {
+        request,
+        generation: deluge_card_generation::current(),
+    });
     drop(slot);
     BYTES_WAKE.signal(());
     true
@@ -1047,7 +1251,9 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
         | Probe::Ready((ByteOutcome::Exists(_), _))
         | Probe::Ready((ByteOutcome::Block(_), _))
         | Probe::Ready((ByteOutcome::Size(_), _))
-        | Probe::Ready((ByteOutcome::Wrote(_), _)) => DELUGE_FILE_BYTES_UNKNOWN,
+        | Probe::Ready((ByteOutcome::Wrote(_), _))
+        | Probe::Ready((ByteOutcome::Filled(_), _))
+        | Probe::Ready((ByteOutcome::Refused { .. }, _)) => DELUGE_FILE_BYTES_UNKNOWN,
         Probe::Ready((ByteOutcome::Failed(status), _)) => {
             // SAFETY: as above, and written only on FAILED.
             unsafe { *out_status = status };
@@ -1175,7 +1381,9 @@ unsafe fn collect_presence(
         | Probe::Ready(ByteOutcome::Done)
         | Probe::Ready(ByteOutcome::Block(_))
         | Probe::Ready(ByteOutcome::Size(_))
-        | Probe::Ready(ByteOutcome::Wrote(_)) => DELUGE_FILE_BYTES_UNKNOWN,
+        | Probe::Ready(ByteOutcome::Wrote(_))
+        | Probe::Ready(ByteOutcome::Filled(_))
+        | Probe::Ready(ByteOutcome::Refused { .. }) => DELUGE_FILE_BYTES_UNKNOWN,
         Probe::Pending => DELUGE_FILE_BYTES_PENDING,
         Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
     }
@@ -1351,6 +1559,92 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_copy(
     unsafe { collect_completion(ByteOp::Copy, to, out_status) }
 }
 
+/// Collect the whole-file read into the caller's buffer for `path`, if it has finished. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. Each out-pointer may be null; one that is not must point at a
+/// writable object of its type. `out_len` is written only on [`DELUGE_FILE_BYTES_READY`], `out_error` and
+/// `out_needed` only on [`DELUGE_FILE_BYTES_FAILED`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_read_into(
+    path: *const c_char,
+    out_len: *mut u32,
+    out_error: *mut i8,
+    out_needed: *mut u32,
+) -> u8 {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    };
+    match probe(ByteOp::ReadInto, &path) {
+        Probe::Ready(ByteOutcome::Filled(len)) => {
+            // SAFETY: the caller's contract, above.
+            unsafe { write_out(out_len, len) };
+            DELUGE_FILE_BYTES_READY
+        }
+        Probe::Ready(ByteOutcome::Refused { status, needed }) => {
+            // SAFETY: the caller's contract, above.
+            unsafe {
+                write_out(out_error, status);
+                write_out(out_needed, needed);
+            }
+            DELUGE_FILE_BYTES_FAILED
+        }
+        // Nothing else can be filed under ReadInto: `bytes_io_once` produces `Filled` or `Refused` for it.
+        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
+        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+    }
+}
+
+/// Collect the whole-file write from the caller's buffer to `path`, if it has finished. See `file_bytes.h`.
+///
+/// # Safety
+///
+/// `path` must be a valid NUL-terminated C string. Each out-pointer may be null; one that is not must point at a
+/// writable object of its type. `out_written` is written only on [`DELUGE_FILE_BYTES_READY`], `out_error` only on
+/// [`DELUGE_FILE_BYTES_FAILED`].
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_file_bytes_collect_write_from(
+    path: *const c_char,
+    out_written: *mut u32,
+    out_error: *mut i8,
+) -> u8 {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(path) }) else {
+        return DELUGE_FILE_BYTES_UNKNOWN;
+    };
+    match probe(ByteOp::WriteFrom, &path) {
+        Probe::Ready(ByteOutcome::Wrote(written)) => {
+            // SAFETY: the caller's contract, above.
+            unsafe { write_out(out_written, written) };
+            DELUGE_FILE_BYTES_READY
+        }
+        Probe::Ready(ByteOutcome::Refused { status, .. }) => {
+            // SAFETY: the caller's contract, above.
+            unsafe { write_out(out_error, status) };
+            DELUGE_FILE_BYTES_FAILED
+        }
+        // Nothing else can be filed under WriteFrom: `bytes_io_once` produces `Wrote` or `Refused` for it.
+        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
+        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+    }
+}
+
+/// Store `value` through `out` unless it is null.
+///
+/// # Safety
+///
+/// A non-null `out` must point at a writable `T`.
+unsafe fn write_out<T>(out: *mut T, value: T) {
+    if !out.is_null() {
+        // SAFETY: non-null, and the caller guarantees it is writable.
+        unsafe { *out = value };
+    }
+}
+
 /// The shared body of the two completion collects, which differ only in the [`ByteOp`] they key on.
 ///
 /// # Safety
@@ -1378,7 +1672,9 @@ unsafe fn collect_completion(op: ByteOp, path: *const c_char, out_status: *mut i
         | Probe::Ready(ByteOutcome::Exists(_))
         | Probe::Ready(ByteOutcome::Block(_))
         | Probe::Ready(ByteOutcome::Size(_))
-        | Probe::Ready(ByteOutcome::Wrote(_)) => DELUGE_FILE_BYTES_UNKNOWN,
+        | Probe::Ready(ByteOutcome::Wrote(_))
+        | Probe::Ready(ByteOutcome::Filled(_))
+        | Probe::Ready(ByteOutcome::Refused { .. }) => DELUGE_FILE_BYTES_UNKNOWN,
         Probe::Pending => DELUGE_FILE_BYTES_PENDING,
         Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
     }
@@ -1452,7 +1748,9 @@ fn probe(op: ByteOp, path: &str) -> Probe<ByteOutcome> {
 /// exactly the bug the probe order exists to prevent. Do not "simplify" this branch.
 fn is_requested(op: ByteOp, path: &str) -> bool {
     match REQUEST.try_lock() {
-        Ok(request) => request.as_ref().is_some_and(|r| r.key() == (op, path)),
+        Ok(request) => request
+            .as_ref()
+            .is_some_and(|q| q.request.key() == (op, path)),
         Err(_) => true,
     }
 }
@@ -1498,15 +1796,17 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
-        mount, task_dir_close, task_dir_open, task_file_close, task_file_open,
-        task_file_read_exact, task_file_seek, task_file_size, task_file_truncate, task_file_write,
-        task_mkdir, task_rename, task_set_time, task_unlink,
+        mount, stream_close, stream_open, stream_read_at_via, stream_size, stream_write_at,
+        task_dir_close, task_dir_open, task_file_close, task_file_open, task_file_read_exact,
+        task_file_seek, task_file_size, task_file_truncate, task_file_write, task_mkdir,
+        task_rename, task_set_time, task_unlink,
     };
     #[cfg(not(target_os = "none"))]
     pub(super) use crate::efatfs_host_shim::{
-        mount, task_dir_close, task_dir_open, task_file_close, task_file_open,
-        task_file_read_exact, task_file_seek, task_file_size, task_file_truncate, task_file_write,
-        task_mkdir, task_rename, task_set_time, task_unlink,
+        mount, stream_close, stream_open, stream_read_at_via, stream_size, stream_write_at,
+        task_dir_close, task_dir_open, task_file_close, task_file_open, task_file_read_exact,
+        task_file_seek, task_file_size, task_file_truncate, task_file_write, task_mkdir,
+        task_rename, task_set_time, task_unlink,
     };
 }
 
@@ -1576,6 +1876,19 @@ impl ProdByteOps {
             }
             Err(status) => Err(status as i8),
         }
+    }
+
+    /// Open `path` on the stream table, mounting the card first if it turns out not to be mounted.
+    ///
+    /// `stream_open` collapses "no filesystem" and a real failure into one `None`, so this retries once on any
+    /// failure. `mount()` is idempotent, so a retry after a genuine error costs one wasted call and still reports the
+    /// error.
+    async fn stream_open_mounted(path: &str, mode: u8) -> Option<u32> {
+        if let Some(handle) = backing::stream_open(path, mode).await {
+            return Some(handle);
+        }
+        backing::mount().await.ok()?;
+        backing::stream_open(path, mode).await
     }
 
     /// The parent directory of `path`, or `None` when it names something at the card root.
@@ -1830,6 +2143,62 @@ impl ByteOps for ProdByteOps {
         result
     }
 
+    async fn read_into(&self, path: &str, into: &mut [u8]) -> Result<u32, (i8, u32)> {
+        let Some(handle) = Self::stream_open_mounted(path, STREAM_READ).await else {
+            return Err((ERR_IO, 0));
+        };
+        let size = backing::stream_size(handle).await.unwrap_or(0);
+        if size == 0 || size as usize > into.len() {
+            // Refuse rather than truncate, and say what was needed. Close first: the handle is ours, and leaking one
+            // would starve the stream table's eight slots.
+            backing::stream_close(handle).await;
+            return Err(if size == 0 {
+                (ERR_IO, 0)
+            } else {
+                (NO_MEMORY, size)
+            });
+        }
+        let read = backing::stream_read_at_via(handle, 0, &mut into[..size as usize]).await;
+        backing::stream_close(handle).await;
+        match read {
+            // A SHORT read of a WHOLE file is a failure, not a small success: the parser would be handed a
+            // truncated document.
+            Some(n) if n as u32 == size => Ok(size),
+            _ => Err((ERR_IO, 0)),
+        }
+    }
+
+    async fn write_new(&self, path: &str, bytes: &[u8], exclusive: bool) -> Result<u32, i8> {
+        // STREAM_CREATE truncates an existing file; STREAM_CREATE_NEW fails if the file is already there. Letting the
+        // OPEN carry the policy is what keeps the check atomic: a caller that looked first would leave a gap in which
+        // the file could appear.
+        let mode = if exclusive {
+            STREAM_CREATE_NEW
+        } else {
+            STREAM_CREATE
+        };
+        let Some(handle) = Self::stream_open_mounted(path, mode).await else {
+            // stream_open collapses its status, so the refusal does not say WHY. Ask separately, and only to
+            // CLASSIFY: the write did not happen either way, so nothing races on it -- the worst case is calling a
+            // file that vanished in between a card error, which is harmless.
+            if exclusive {
+                if let Some(existing) = Self::stream_open_mounted(path, STREAM_READ).await {
+                    backing::stream_close(existing).await;
+                    return Err(EXISTS);
+                }
+            }
+            return Err(ERR_IO);
+        };
+        let written = backing::stream_write_at(handle, 0, bytes).await;
+        backing::stream_close(handle).await;
+        match written {
+            // A SHORT write of a whole document is a failure, not a small success: a truncated preset on the card
+            // is worse than no preset.
+            Some(n) if n == bytes.len() => Ok(n as u32),
+            _ => Err(ERR_IO),
+        }
+    }
+
     async fn rename(&self, from: &str, to: &str) -> Result<(), i8> {
         if let Some(parent) = Self::parent_of(to) {
             let _ = backing::task_mkdir(parent).await;
@@ -1870,7 +2239,10 @@ async fn file_bytes_task_body() {
     BYTES_WAKE.wait().await;
     let ops = ProdByteOps::new();
     loop {
-        while let Some((request, generation)) = take_next_request(work).await {
+        while let Some(taken) = take_next_request(work).await {
+            let Some((request, generation)) = taken else {
+                continue;
+            };
             // After the take, so the operation is already marked in flight: a collect during the wait answers
             // PENDING, exactly as it would while a slow card was working.
             #[cfg(feature = "host_app")]
@@ -1881,6 +2253,8 @@ async fn file_bytes_task_body() {
                 }
             }
             let outcome = bytes_io_once(&ops, &request, work).await;
+            // The operation has finished with the caller's buffer, if it had one.
+            RUNNING_BUFFER.store(0, Ordering::Release);
             // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly in both tables,
             // which is harmless, whereas the reverse leaves a window in which it is in neither and a
             // collect would report `UNKNOWN` for an operation that just succeeded -- prompting the
@@ -1897,7 +2271,8 @@ async fn file_bytes_task_body() {
 }
 
 /// Take the outstanding request and mark it in flight, atomically with respect to the collects, and
-/// report the card generation the operation begins under.
+/// report the card generation the operation begins under. `None` when nothing is queued; `Some(None)` when the
+/// request taken was a stale caller-buffer request, dropped unrun.
 ///
 /// The mark happens while the [`REQUEST`] lock is still held, so there is no instant at which the
 /// request has left the slot but not yet appeared as in-flight. A collect racing this either sees it
@@ -1908,9 +2283,19 @@ async fn file_bytes_task_body() {
 /// it later -- at publish time -- reads the value a flush has already installed and defeats the
 /// check entirely.
 #[cfg(any(target_os = "none", feature = "host_app"))]
-async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<(ByteRequest, u32)> {
+async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteRequest, u32)>> {
     let mut slot = REQUEST.lock().await;
-    let request = slot.take()?;
+    let Queued {
+        request,
+        generation: asked_under,
+    } = slot.take()?;
+    // A caller-buffer request from before the card changed that survived the flush (its `try_lock` lost the race)
+    // names a file on the old card: running it would read or write the new one. Its answer could never be
+    // collected, so it is dropped unrun, and its buffer was never touched.
+    if caller_buffer(request.key().0) && asked_under != deluge_card_generation::current() {
+        return Some(None);
+    }
+    RUNNING_BUFFER.store(request.caller_buffer(), Ordering::Release);
     if let Some(len) = request.payload_len() {
         // Copied in the same lock hold as the take. Once this lock is released an eject may clear
         // the running mark and admit a new write into the request buffer, and this operation must
@@ -1920,7 +2305,7 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<(ByteRequest, u
     }
     let generation = deluge_card_generation::current();
     mark_in_flight(Some(request.key_owned())).await;
-    Some((request, generation))
+    Some(Some((request, generation)))
 }
 
 /// Record (or clear) the operation running right now. Called by [`file_bytes_task`] while it still
@@ -1995,6 +2380,11 @@ abi_pin!(
     deluge_file_bytes_request_unlink,
     deluge_file_bytes_request_write,
     deluge_file_bytes_request_write_at,
+    deluge_file_bytes_request_read_into,
+    deluge_file_bytes_collect_read_into,
+    deluge_file_bytes_request_write_from,
+    deluge_file_bytes_collect_write_from,
+    deluge_file_bytes_holds,
 );
 #[cfg(feature = "host_app")]
 abi_pin!(deluge_file_bytes_set_latency_ms);

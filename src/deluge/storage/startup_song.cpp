@@ -28,7 +28,7 @@
 #include "io/midi/midi_follow.h"
 #include "io/stall_bound.h"
 #include "libdeluge/clock.h" // deluge_clock_now
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_bytes.h"
 #include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -312,10 +312,10 @@ void issueTemplateWrite() {
 		return;
 	}
 	if (viaChannel()) {
-		// The WRITE channel, not the byte channel: a song document runs to some 11 KB, and the byte
-		// channel refuses anything past DELUGE_FILE_BYTES_MAX_BYTES (8192) -- it would answer Failed
-		// forever. This is the same channel SaveSongUI puts a song document on, for the same reason.
-		if (deluge_file_write_request_write_file(kDefaultSongFullPath, bytes, len, /*may_overwrite=*/false)) {
+		// Write-from, not the copying write: a song document runs to some 11 KB, and the copying write
+		// refuses anything past DELUGE_FILE_BYTES_MAX_BYTES (8192) -- it would answer Failed forever.
+		// This is the operation SaveSongUI puts a song document on, for the same reason.
+		if (deluge_file_bytes_request_write_from(kDefaultSongFullPath, bytes, len, /*may_overwrite=*/false)) {
 			g_requested = true;
 		}
 		else {
@@ -352,18 +352,17 @@ void issueTemplateWrite() {
 std::optional<bool> collectTemplateWrite() {
 	if (viaChannel()) {
 		uint32_t written = 0;
-		uint8_t existed = 0;
-		switch (deluge_file_write_collect_write_file(kDefaultSongFullPath, &written, &existed)) {
-		case DELUGE_FILE_WRITE_PENDING:
+		switch (deluge_file_bytes_collect_write_from(kDefaultSongFullPath, &written, nullptr)) {
+		case DELUGE_CHANNEL_PENDING:
 			// Waited out, and not counted against the bound: the write is copying from the staged template and
 			// cannot be cancelled, so falling back would re-serialise into its buffer and write the file twice.
 			return std::nullopt;
-		case DELUGE_FILE_WRITE_UNKNOWN:
+		case DELUGE_CHANNEL_UNKNOWN:
 			// Displaced before we took it. Re-staging writes the same document again, which is safe.
 			g_requested = false;
 			g_attemptsWithoutProgress++;
 			return std::nullopt;
-		case DELUGE_FILE_WRITE_READY:
+		case DELUGE_CHANNEL_READY:
 			// A short write is a card error, not a success: the template would be half a document.
 			return written == g_templateLength;
 		default:

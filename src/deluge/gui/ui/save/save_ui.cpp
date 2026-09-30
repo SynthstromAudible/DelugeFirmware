@@ -26,7 +26,6 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/file_bytes.h"
-#include "libdeluge/file_write.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "storage/temp_swap.h"
@@ -339,7 +338,7 @@ void SaveUI::runWritePhase() {
 	++channelSaveTicks_;
 
 	if (!writeIssued_) {
-		if (!deluge_file_write_request_write_file(path, bytes, len, mayOverwrite)) {
+		if (!deluge_file_bytes_request_write_from(path, bytes, len, mayOverwrite)) {
 			// Refused, not failed: nothing was queued, so ask again next tick.
 			if (!deferStagedSave()) {
 				endStagedSave(false);
@@ -352,15 +351,15 @@ void SaveUI::runWritePhase() {
 	}
 
 	uint32_t writtenLen = 0;
-	uint8_t exists = 0;
-	const uint8_t collected = deluge_file_write_collect_write_file(path, &writtenLen, &exists);
-	if (collected == DELUGE_FILE_WRITE_PENDING) {
+	DelugeStatus error = DELUGE_OK;
+	const DelugeChannelStatus collected = deluge_file_bytes_collect_write_from(path, &writtenLen, &error);
+	if (collected == DELUGE_CHANNEL_PENDING) {
 		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
 		// from the staged document and cannot be cancelled, so giving up would release the serialiser under it and
 		// remove a temp file it still has open.
 		return;
 	}
-	if (collected == DELUGE_FILE_WRITE_UNKNOWN) {
+	if (collected == DELUGE_CHANNEL_UNKNOWN) {
 		// Never keyed, so nothing is coming. Re-issue rather than wait forever.
 		writeIssued_ = false;
 		if (!deferStagedSave()) {
@@ -369,8 +368,8 @@ void SaveUI::runWritePhase() {
 		return;
 	}
 	writeIssued_ = false;
-	if (collected == DELUGE_FILE_WRITE_FAILED) {
-		handleWriteOutcome(exists == 1, false);
+	if (collected == DELUGE_CHANNEL_FAILED) {
+		handleWriteOutcome(error == DELUGE_ERR_EXISTS, false);
 		return;
 	}
 	++writeChannelServedOps_;

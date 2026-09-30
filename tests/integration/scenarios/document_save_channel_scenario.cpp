@@ -125,8 +125,9 @@ constexpr uint32_t kSongGuardLatencyMs = 20;
 constexpr const char* kAccountName = "DSACCT01";
 /// DS-HELD's preset: a new name, so the save takes the direct path.
 constexpr const char* kHeldName = "DSHELD01";
-/// How long the write channel holds each operation in DS-HELD, in virtual milliseconds: far past the save's 600-tick
-/// stall bound however fast the save is ticked.
+/// How long the byte channel holds the document write in DS-HELD, in virtual milliseconds: far past the save's
+/// 600-tick stall bound however fast the save is ticked. Lifted once the write lands, so the read-back that follows
+/// is not held too.
 constexpr uint32_t kHeldLatencyMs = 10000;
 /// Byte-channel latency while the accounting save verifies: long enough to remove the file between the write
 /// landing and the read-back's first answer.
@@ -202,6 +203,7 @@ std::string g_path;
 std::string g_kitPath;
 std::string g_heldPath;
 int32_t g_heldCompletedBefore = 0;
+int32_t g_heldWriteServedBefore = 0;
 int32_t g_heldVerifiedBefore = 0;
 /// The instrument's name before the preset save. If it already equals the name being saved, the
 /// rename check could pass without the save renaming anything, so the check has to know.
@@ -1009,15 +1011,21 @@ void runTick() {
 		(void)deluge::io::unlink(g_heldPath.c_str());
 		g_heldCompletedBefore = SaveUI::stagedSavesCompleted();
 		g_heldVerifiedBefore = SaveUI::stagedSavesVerified();
-		deluge_file_write_set_latency_ms(kHeldLatencyMs);
+		g_heldWriteServedBefore = SaveUI::writeChannelServedOps();
+		deluge_file_bytes_set_latency_ms(kHeldLatencyMs);
 		DocumentSaveChannelProbe::pressEnter();
 		g_waitTicks = 0;
 		g_stage = Stage::HeldWait;
 		break;
 	}
 	case Stage::HeldWait: {
+		if (SaveUI::writeChannelServedOps() > g_heldWriteServedBefore) {
+			// The held write has landed. Its read-back counts waiting against the stall bound, as it should, so it
+			// runs at the card's own pace.
+			deluge_file_bytes_set_latency_ms(0);
+		}
 		if (!SaveUI::saveInFlight() || ++g_waitTicks > kMaxWaitTicks) {
-			deluge_file_write_set_latency_ms(0);
+			deluge_file_bytes_set_latency_ms(0);
 			g_stage = Stage::HeldCheck;
 		}
 		break;
@@ -1088,6 +1096,7 @@ void deluge_scenario_document_save_channel_begin(void) {
 	g_kitPath.clear();
 	g_heldPath.clear();
 	g_heldCompletedBefore = 0;
+	g_heldWriteServedBefore = 0;
 	g_heldVerifiedBefore = 0;
 	g_kitDrum = nullptr;
 	g_nameBefore.clear();

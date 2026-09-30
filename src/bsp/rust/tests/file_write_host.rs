@@ -27,20 +27,20 @@ fn a_published_answer_is_taken_exactly_once() {
 }
 
 #[test]
-fn a_failure_carries_its_payload() {
+fn a_failure_is_taken_as_failed() {
     let mut slot = AnswerSlot::new();
-    let k = key(OpKind::ReadFile, 0, "SONGS/A.XML");
-    slot.publish(k.clone(), Err(40_000), CARD);
-    assert_eq!(slot.take(&k, CARD), Take::Failed(40_000));
+    let k = key(OpKind::Open, 0, "SONGS/A.XML");
+    slot.publish(k.clone(), Err(0), CARD);
+    assert_eq!(slot.take(&k, CARD), Take::Failed);
 }
 
 #[test]
 fn a_wrong_path_leaves_the_answer() {
     let mut slot = AnswerSlot::new();
-    let mine = key(OpKind::ReadFile, 0, "SONGS/A.XML");
+    let mine = key(OpKind::Open, 0, "SONGS/A.XML");
     slot.publish(mine.clone(), Ok(100), CARD);
     assert_eq!(
-        slot.take(&key(OpKind::ReadFile, 0, "SONGS/B.XML"), CARD),
+        slot.take(&key(OpKind::Open, 0, "SONGS/B.XML"), CARD),
         Take::Absent
     );
     assert_eq!(slot.take(&mine, CARD), Take::Ready(100));
@@ -59,7 +59,7 @@ fn a_wrong_kind_or_handle_leaves_the_answer() {
 #[test]
 fn an_answer_from_an_earlier_card_is_removed_not_returned() {
     let mut slot = AnswerSlot::new();
-    let k = key(OpKind::WriteFile, 0, "SYNTHS/P.XML");
+    let k = key(OpKind::WriteAt, 1, "");
     slot.publish(k.clone(), Ok(900), CARD);
     assert_eq!(slot.take(&k, CARD + 1), Take::Absent);
     assert!(slot.is_empty());
@@ -139,15 +139,15 @@ fn a_collected_open_answer_is_not_orphaned() {
 #[test]
 fn discarding_another_key_leaves_the_answer() {
     let mut slot = AnswerSlot::new();
-    let mine = key(OpKind::ReadFile, 0, "A");
+    let mine = key(OpKind::Open, 0, "A");
     slot.publish(mine.clone(), Ok(3), CARD);
-    slot.discard(&key(OpKind::ReadFile, 0, "B"));
+    slot.discard(&key(OpKind::Open, 0, "B"));
     assert_eq!(slot.take(&mine, CARD), Take::Ready(3));
 }
 
 #[test]
 fn a_path_longer_than_the_bound_has_no_key() {
     let long = "x".repeat(MAX_PATH_CHARS + 1);
-    assert!(OpKey::new(OpKind::ReadFile, 0, &long).is_none());
-    assert!(OpKey::new(OpKind::ReadFile, 0, &long[..MAX_PATH_CHARS]).is_some());
+    assert!(OpKey::new(OpKind::Open, 0, &long).is_none());
+    assert!(OpKey::new(OpKind::Open, 0, &long[..MAX_PATH_CHARS]).is_some());
 }
