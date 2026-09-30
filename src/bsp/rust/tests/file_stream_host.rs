@@ -1,12 +1,12 @@
-//! The stream channel's answer slot: one answer at a time, keyed by kind, handle and path, stamped with the card
-//! generation it was asked under.
+//! Host tests for the stream channel's answer slot: keying by kind, handle and path,
+//! card-generation stamps, orphaned `Open` handles, and `still_coming`.
 #![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::channel::file_stream_slot;
 
 use file_stream_slot::{AnswerSlot, MAX_PATH_CHARS, OpKey, OpKind, Take};
 
-/// Nonzero on purpose: a publish that dropped its stamp would leave 0, and a slot tested at 0 would not notice.
+/// Nonzero: a publish that dropped its stamp would leave 0.
 const CARD: u32 = 3;
 
 fn key(kind: OpKind, handle: u32, path: &str) -> OpKey {
@@ -104,12 +104,10 @@ fn a_stale_orphan_is_not_returned_for_closing() {
     let mut slot = AnswerSlot::new();
     let open = key(OpKind::Open, 0, "");
     slot.publish(open.clone(), Ok(7), CARD);
-    // The take is on the NEW card: the answer is stale, so it retires as an orphan stamped with the OLD
-    // generation (CARD), not the one just asked for.
+    // Taken on the new card: the stale answer retires as an orphan stamped with the old generation.
     assert_eq!(slot.take(&open, CARD + 1), Take::Absent);
-    // A remount already reset the old card's stream table and may have reused handle 7 for a live stream on the
-    // new card, so closing it now would close someone else's file. Asking for orphans AT THE CURRENT generation
-    // must not hand it back.
+    // Handle 7 may now name a live stream on the new card, so it must not be handed back for
+    // closing.
     assert_eq!(slot.take_orphan(CARD + 1), None);
     assert!(!slot.has_orphans());
 }
@@ -170,9 +168,8 @@ fn a_failed_open_is_taken_with_its_status() {
     assert_eq!(slot.take(&open, CARD), Take::Failed(not_found));
 }
 
-/// A collect that finds no answer asks the request and in-flight slots whether one is coming. A slot whose lock is
-/// contended is mid-handoff, so it counts as coming: reporting "not there" would send the caller to ask again for an
-/// operation already under way -- for a CREATE_NEW open, one that then finds its own file and fails with EXISTS.
+/// A contended slot is mid-handoff and counts as coming: "not there" would make the caller re-ask,
+/// and a re-asked `CREATE_NEW` open finds its own file and fails with `EXISTS`.
 #[test]
 fn a_contended_slot_is_still_coming() {
     assert!(file_stream_slot::still_coming(None, Some(false)));

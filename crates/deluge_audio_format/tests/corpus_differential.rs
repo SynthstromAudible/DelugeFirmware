@@ -1,57 +1,34 @@
-//! Corpus differential: `deluge_audio_format::parse` + `wavetable::accept_as_wavetable` against
-//! `parseSampleHeader`/`parseWaveTableHeader`, run over real WAV/AIFF files.
+//! Corpus differential: this crate decoding directly against the C++ entry points
+//! (`parseSampleHeader`/`parseWaveTableHeader`) over real WAV/AIFF files.
 //!
-//! **What the two sides are has changed, and so has what this proves.** It was written against the
-//! hand-rolled C++ chunk walk, as the gate that made the rewrite trustworthy — the C++ treated as a
-//! REFERENCE, not an oracle, with the RIFF/AIFF spec deciding who was right on a disagreement. Since
-//! the C++ entry points were re-pointed at this crate, both sides are the SAME decoder, so it can no
-//! longer catch a decode defect. What it still catches is everything BETWEEN them, and the two entry
-//! points are compared against the walk each one actually runs:
+//! Both sides use this crate's decoder, so the test catches defects between them rather than in
+//! the decode itself. Each entry point is compared against the walk it runs:
 //!
-//! * **Sample**: `parse` — whole file in one slice, prefix mode, `WalkGoal::WholeHeader` — against
-//!   the C++'s size-aware windowed walk of the same goal. The delta under test is the protocol
-//!   itself: the adapter's window buffering and short-tail handling, and the fixed-width marshalling
-//!   back across the C ABI.
-//! * **WaveTable**: a `WalkGoal::AudioOnly` walk driven straight off the byte slice, against the same
-//!   goal driven through the C ABI. Both sides stop at the audio data chunk and skip the same chunks;
-//!   the delta is who reads the bytes. The goals must match — an audio-only walk reads no
-//!   `smpl`/`inst` and does not judge the sample rate, so comparing it against a whole-header walk
-//!   fails on files both sides handle correctly (see `decode_as_wavetable_walk`).
+//! * **Sample**: [`parse`] (prefix mode, [`WalkGoal::WholeHeader`]) against the C++ size-aware
+//!   windowed walk. Covers the C++ adapter's window buffering and short-tail handling, and the
+//!   marshalling across the C ABI.
+//! * **WaveTable**: a [`WalkGoal::AudioOnly`] walk off the byte slice against the same walk
+//!   through the C ABI, plus wavetable acceptance at both `insist` settings. The goals must match;
+//!   see `decode_as_wavetable_walk`.
 //!
-//! Both are real defect surfaces, and a real defect has been caught on each.
-//!
-//! The two sides are deliberately NOT expected to agree everywhere; the differences below are the
-//! adjudicated ones, each recorded where the code that causes it lives:
-//!
-//! * the AIFF MARK pstring correction (`lib.rs`, `step_mark_entry`) — the C++ walk's one behaviour
-//!   change, 25 files in the AIFF corpus;
-//! * `cycle_size`/`explicitly_specifies_self` are Serum/Deluge convention with no governing spec, so
-//!   for THOSE the C++ was the oracle and any disagreement is a defect on this side.
-//!
-//! A `std` test (this crate's library stays `no_std`/no-`alloc`; nothing here links into it).
-//! Gated on `DELUGE_AUDIO_CORPUS`, a comma-separated list of corpus roots each walked recursively for
-//! `.wav`/`.aif`/`.aiff` files, so CI without a corpus checked out stays green:
+//! Gated on `DELUGE_AUDIO_CORPUS`, a comma-separated list of roots walked recursively for
+//! `.wav`/`.aif`/`.aiff` files; unset, the test is skipped:
 //!
 //! ```text
-//! DELUGE_AUDIO_CORPUS="$HOME/Deluge Backup"      cargo test -p deluge_audio_format --test corpus_differential -- --nocapture
-//! DELUGE_AUDIO_CORPUS="$HOME/deluge-aiff-corpus"  cargo test -p deluge_audio_format --test corpus_differential -- --nocapture
-//! DELUGE_AUDIO_CORPUS="$HOME/Deluge Backup,$HOME/deluge-aiff-corpus" cargo test -p deluge_audio_format --test corpus_differential -- --nocapture
+//! DELUGE_AUDIO_CORPUS="$HOME/Deluge Backup,$HOME/deluge-aiff-corpus" \
+//!     cargo test -p deluge_audio_format --test corpus_differential -- --nocapture
 //! ```
 //!
-//! That "stays green" only covers the var being unset entirely. Once it's set, an empty or
-//! misspelled root fails the test loudly (`no audio files found under ...`) rather than silently
-//! passing with zero files checked.
+//! Once set, finding no audio files fails the test rather than passing with nothing checked.
 //!
-//! The C++ side of the comparison is golden_vt_render's `audio_header_dump` scenario
-//! (`tests/integration/scenarios/audio_header_dump_scenario.cpp`, driving `scenarios/audio_header_dump.h`),
-//! which reads file paths on stdin and prints one `AUDIO-HEADER <json>` line per file. `./dbt test` builds
-//! golden_vt_render as the `golden-vt-render` product; this test finds it at
-//! `<repo root>/build/cargo-harness/release/golden_vt_render` (or `GOLDEN_VT_RENDER_BIN`).
+//! The C++ side is `golden_vt_render`'s `audio_header_dump` scenario
+//! (`tests/integration/scenarios/audio_header_dump*.cpp`), which reads paths on stdin and prints
+//! one `AUDIO-HEADER <json>` line per file. `./dbt test` builds it as the `golden-vt-render`
+//! product; this test runs `<repo root>/build/cargo-harness/release/golden_vt_render`, or
+//! `GOLDEN_VT_RENDER_BIN`.
 //!
-//! Known limitation, not reachable from the corpus: the hand-rolled JSON number parser below doesn't
-//! handle `nan`/`inf` tokens, so a `midi_note` that happened to render as one of those (impossible
-//! today — the value is always derived from small integer file fields, never from a computation that
-//! could produce a non-finite float) would panic in `parse_number` rather than compare cleanly.
+//! The JSON number parser does not handle `nan`/`inf`; `midi_note` is always finite, so the
+//! corpus cannot produce them.
 
 use deluge_audio_format::{
     parse, wavetable, AudioHeader, Container, FeedResult, HeaderError, HeaderParser, ParseError,
@@ -63,10 +40,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 // ============================================================================================
-// Minimal schema-specific JSON parsing. Not a general JSON library: the `audio_header_dump` scenario's
-// output is a fixed, flat shape (see `scenarios/audio_header_dump.cpp`), and adding a real JSON crate
-// as a dependency for one test file's fixed schema isn't worth it in a workspace that otherwise
-// depends on nothing.
+// Minimal JSON parsing for the dumper's fixed, flat output; not worth a dependency.
 // ============================================================================================
 
 #[derive(Debug, Clone)]
@@ -277,8 +251,8 @@ fn parse_json_line(line: &str) -> Json {
 // Corpus walking.
 // ============================================================================================
 
-/// Recursively collect every `*.wav`/`*.aif`/`*.aiff` file under `root` (case-insensitive
-/// extension), sorted for a deterministic run order.
+/// Recursively collects every `*.wav`/`*.aif`/`*.aiff` file under `root` (case-insensitive),
+/// sorted for a deterministic run order.
 fn walk_audio_files(root: &str) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![PathBuf::from(root)];
@@ -311,7 +285,7 @@ fn walk_audio_files(root: &str) -> Vec<PathBuf> {
 // The C++ dumper subprocess.
 // ============================================================================================
 
-/// What the scenario puts before each file's JSON, to tell its lines from the harness's own.
+/// Prefix on each of the scenario's per-file JSON lines.
 const DUMP_PREFIX: &str = "AUDIO-HEADER ";
 
 fn cpp_dumper_binary() -> PathBuf {
@@ -327,11 +301,9 @@ fn cpp_dumper_binary() -> PathBuf {
         .unwrap_or_else(|_| manifest_dir.join(bin))
 }
 
-/// Run the C++ dumper once over every path in `paths` and return each file's parsed JSON, keyed by
-/// its position in `paths` (the scenario emits exactly one `AUDIO-HEADER` line per stdin line, in order —
-/// see `audio_header_dump_scenario.cpp`). One subprocess for the WHOLE corpus rather than one per file:
-/// golden_vt_render boots the app once, so batching keeps a 2000+ file run to a couple of seconds
-/// instead of paying that boot cost per file.
+/// Runs the C++ dumper once over `paths` and returns each file's JSON, in `paths` order (the
+/// scenario emits one `AUDIO-HEADER` line per stdin line, in order). One subprocess for the whole
+/// corpus, so the app boots once.
 fn run_cpp_dumper(paths: &[PathBuf]) -> Vec<Json> {
     let bin = cpp_dumper_binary();
     assert!(
@@ -350,14 +322,13 @@ fn run_cpp_dumper(paths: &[PathBuf]) -> Vec<Json> {
 
     let mut stdin = child.stdin.take().expect("piped stdin");
     let paths_owned: Vec<PathBuf> = paths.to_vec();
-    // Write on a separate thread: with 2000+ paths the combined stdin/stdout pipe traffic can
-    // exceed the OS pipe buffer in both directions at once, so writing and reading on the same
-    // thread sequentially (write everything, then read) can deadlock once both pipes fill.
+    // Write on a separate thread: with many paths both pipes can fill at once, and writing then
+    // reading on one thread would deadlock.
     let writer = std::thread::spawn(move || {
         for p in &paths_owned {
             writeln!(stdin, "{}", p.to_string_lossy()).expect("write to dumper stdin");
         }
-        // stdin is dropped (closed) here, signalling EOF to the child.
+        // Dropping stdin here signals EOF to the child.
     });
 
     let stdout = child.stdout.take().expect("piped stdout");
@@ -393,15 +364,15 @@ struct Disagreement {
     field: &'static str,
     ours: String,
     theirs: String,
-    /// `Some(reason)` marks a KNOWN, adjudicated disagreement (see the module doc, and the comment on
-    /// the code that causes it): recorded, but does not fail the test. `None` is an unadjudicated
-    /// finding that DOES fail the test.
+    /// `Some(reason)` marks a known, adjudicated disagreement: reported but not a failure. `None`
+    /// fails the test.
     adjudicated: Option<&'static str>,
 }
 
-/// `ParseError`'s coarse outcome shape, for comparing against the C++'s single `Error` enum without
-/// requiring the exact `Reason` to line up. The C++ parser this replaced had no such granularity: it
-/// returned one of a handful of `Error` values regardless of which specific check failed.
+/// Buckets a [`ParseError`] the way the C++ side's `Error` values do, since the [`Reason`] does not
+/// cross the C ABI.
+///
+/// [`Reason`]: deluge_audio_format::Reason
 fn ours_outcome_category(e: &ParseError) -> &'static str {
     match e {
         ParseError::NeedAtLeast(_) => "corrupted",
@@ -411,8 +382,8 @@ fn ours_outcome_category(e: &ParseError) -> &'static str {
     }
 }
 
-/// Error values `audio_file_format.cpp` actually returns from `parseSampleHeader`/
-/// `parseWaveTableHeader` (`definitions_cxx.hpp`'s `enum class Error`, by ordinal).
+/// Buckets the `Error` ordinals (`definitions_cxx.hpp`) that `parseSampleHeader`/
+/// `parseWaveTableHeader` return.
 fn cpp_outcome_category(code: i64) -> &'static str {
     match code {
         5 => "corrupted",   // FILE_CORRUPTED
@@ -458,12 +429,8 @@ fn cmp_bool(
     }
 }
 
-/// `container` isn't carried by either C++ output struct (`SampleHeader`/`WaveTableHeader` — see
-/// `audio_file_format.h`; it's consumed internally by `detectContainer()` and never surfaced), so the
-/// dumper (`scenarios/audio_header_dump.cpp`'s `detectContainerTag()`) reports it independently, straight
-/// off the file's own 12-byte magic, as a top-level `"container"` field ("wav"/"aiff"/"unknown").
-/// Compared here so every `AudioHeader` field genuinely has a differential check, not just the ones
-/// nested under `sample`/`wavetable_insist_*`.
+/// Compares the container. Neither C++ output struct carries it, so the dumper reports it from the
+/// file's 12-byte magic as a top-level `"container"` field (`"wav"`/`"aiff"`/`"unknown"`).
 fn cmp_container(out: &mut Vec<Disagreement>, path: &Path, ours: Container, theirs: &Json) {
     let ours_tag = match ours {
         Container::Wav => "wav",
@@ -480,15 +447,9 @@ fn cmp_container(out: &mut Vec<Disagreement>, path: &Path, ours: Container, thei
     }
 }
 
-/// A guard band for a precision divergence: `midiNote - fineTune * 0.01` with a `double` literal
-/// evaluates in double and narrows only at the assignment; the Rust stays in `f32` throughout
-/// (matching the explicit casts, which is what the C++ source visibly intended). Verified exhaustively over all
-/// 32768 (note, fine_tune) pairs: 285 differed from the exact double-precision computation by less
-/// than 1e-4 semitone. Adjudicated in the RUST's favour — this tolerance existed to absorb that known
-/// double-vs-float promotion artefact, not to paper over a real bug, so it was deliberately far
-/// tighter than the actual worst-case divergence would have needed to catch a genuinely wrong
-/// computation (a wrong midi note or fine-tune byte produces errors of a whole semitone or more,
-/// nowhere close to this boundary).
+/// Tolerance on `midi_note`, in semitones: absorbs `f32`-vs-`f64` rounding of
+/// `note - fine_tune * 0.01` (under 1e-4 for every input pair), while a wrong note or fine-tune
+/// byte is off by at least a cent.
 const MIDI_NOTE_TOLERANCE: f64 = 1e-4;
 
 fn cmp_midi_note(out: &mut Vec<Disagreement>, path: &Path, ours: Option<f32>, theirs: &Json) {
@@ -518,35 +479,20 @@ fn cmp_midi_note(out: &mut Vec<Disagreement>, path: &Path, ours: Option<f32>, th
     }
 }
 
-/// A known, historical divergence, adjudicated when the C++ was still an independent implementation:
-/// its AIFF `MARK` pstring skip, `(stringLength + 1) & ~1`, rounded only the marker NAME length up to
-/// even; the AIFF spec pads the WHOLE pstring record (length byte + name) to an even total. The two
-/// formulas disagreed whenever the name length was even (including zero) — the common case, e.g. this
-/// crate's own AIFF corpus generator writes zero-length marker names — and every marker after the
-/// first one in such a file is misread by the `(stringLength + 1) & ~1` skip (verified on a real file: marker 2 resolved as
-/// `id=512 pos=466179` instead of `id=2 pos=1821`). The Rust implementation (`lib.rs`'s `MARK` arm)
-/// uses the corrected skip, `((1 + count + 1) & ~1) - 1`. This was adjudicated in the RUST's favour; a
-/// divergence here on an AIFF file was EXPECTED, not a Rust defect, and was never to be "fixed" by
-/// matching the C++ bug.
+/// Adjudication for AIFF loop points where a side skips `MARK` pstrings with
+/// `(stringLength + 1) & ~1` (rounding only the name) instead of padding the whole pstring to even,
+/// `((1 + stringLength + 1) & ~1) - 1`. The former misreads every marker after the first. This
+/// crate uses the latter; the former is a bug, never to be matched. With both sides decoding
+/// through this crate the exemption is not expected to fire.
 const AIFF_LOOP_MARKER_CPP_BUG: &str = "aiff_loop_marker_cpp_pstring_off_by_one (design doc §6)";
 
-/// An INDEPENDENT reimplementation of the AIFF `MARK`/`INST` sustain-loop resolution, parameterized by
-/// which pstring-skip formula to use, so `cmp_loop_points` can make the [`AIFF_LOOP_MARKER_CPP_BUG`]
-/// exemption CAUSAL instead of blanket: derived straight from the file's own bytes, never from `ours`
-/// or `theirs`, so it can't be fooled by a coincidental match on either side.
+/// Independently resolves an AIFF file's `INST` sustain loop through `MARK`, with either pstring
+/// skip (`buggy_pstring_skip` selects `(stringLength + 1) & ~1`), straight from the file's bytes.
 ///
-/// `buggy_pstring_skip = true` reproduces the old C++ parser's `(stringLength + 1) & ~1`
-/// (rounds only the marker NAME up to even, applied AFTER the 1-byte length prefix is already
-/// consumed); `false` uses the AIFF-spec-correct skip, `((1 + stringLength + 1) & ~1) - 1` (pads the
-/// WHOLE pstring record — length byte + name — to an even total), matching `lib.rs`'s `MARK` arm.
-///
-/// Deliberately simpler than either real implementation: no `kMaxNumMarkers` clamp (every corpus file
-/// this differential sees carries at most 2 markers), and any read that would run out of bounds just
-/// stops the walk rather than being bounds-checked field-by-field. This is a differential AID, not
-/// production code — it only needs to correctly predict what each formula does to real, well-formed
-/// corpus files, not to be hardened against hostile ones (`lib.rs`'s own unit tests already cover
-/// that). Returns `None` when the file isn't AIFF, has no `INST` sustain loop, or is too short to
-/// support the walk at all.
+/// Lets `cmp_loop_points` exempt a disagreement only when each side's value matches its formula's
+/// prediction. Test-only and simple: no marker clamp, and an out-of-bounds read just stops the
+/// walk. Returns `None` for a non-AIFF file, one without an `INST` sustain loop, or one too short
+/// to walk.
 fn aiff_marker_walk(bytes: &[u8], buggy_pstring_skip: bool) -> Option<(u32, u32)> {
     if bytes.len() < 12 || &bytes[0..4] != b"FORM" || &bytes[8..12] != b"AIFF" {
         return None;
@@ -630,9 +576,7 @@ fn cmp_loop_points(
     theirs: &Json,
 ) {
     let is_aiff = ours.container == Container::Aiff;
-    // Independently re-derive what EACH pstring-skip formula predicts for this specific file, straight
-    // from its bytes — see `aiff_marker_walk`'s doc for why this makes the exemption causal rather than
-    // "any AIFF loop-point mismatch is assumed to be the known bug."
+    // What each pstring-skip formula predicts for this file.
     let spec_walk = is_aiff.then(|| aiff_marker_walk(bytes, false)).flatten();
     let buggy_walk = is_aiff.then(|| aiff_marker_walk(bytes, true)).flatten();
 
@@ -654,12 +598,8 @@ fn cmp_loop_points(
     ] {
         let theirs_v = theirs.get(key).as_u32();
         if theirs_v != Some(ours_v) {
-            // Causal: only exempt when the C++'s ACTUAL reported value matches what the buggy formula
-            // independently predicts for this file, AND the Rust's ACTUAL value matches what the
-            // spec-correct formula independently predicts — never on container type alone. A real
-            // regression on either side (transposed begin/end, a broken clamp, a wrong ID match, …)
-            // would no longer match its respective prediction and so would fall through to `None`
-            // here, failing the test.
+            // Exempt only when the C++ value matches the buggy prediction and ours matches the
+            // correct one; any other regression fails the test.
             let adjudicated =
                 if is_aiff && spec_predicted == Some(ours_v) && buggy_predicted == theirs_v {
                     Some(AIFF_LOOP_MARKER_CPP_BUG)
@@ -733,9 +673,7 @@ fn compare_sample(
             );
             cmp_loop_points(out, path, h, bytes, sample);
             cmp_midi_note(out, path, h.midi_note, sample.get("midi_note"));
-            // The C++ IS the oracle for these two fields (Serum/Deluge
-            // convention, no governing spec) — deliberately no `adjudicated` tag, so ANY mismatch here
-            // fails the test as a real Rust defect.
+            // Serum/Deluge convention with no spec: any mismatch is a defect.
             cmp_u32(
                 out,
                 path,
@@ -782,16 +720,11 @@ fn compare_sample(
     }
 }
 
-/// Decode `bytes` the way `parseWaveTableHeader` does: a size-aware
-/// [`WalkGoal::AudioOnly`] walk, stopping at the audio data chunk.
+/// Decodes `bytes` as `parseWaveTableHeader` does: a size-aware [`WalkGoal::AudioOnly`] walk,
+/// stopping at the audio data chunk.
 ///
-/// The C++ side of this comparison has driven exactly this walk since the entry points moved onto
-/// this crate, and the two goals are not interchangeable — an audio-only walk reads no `smpl`/`inst`
-/// and does not insist on a playable sample rate. Deriving "ours" from `parse()` instead (prefix
-/// mode, whole header) made the comparison structurally divergent on precisely the files the goal
-/// exists for: one 192 kHz mono wavetable-shaped WAV in the corpus and this test failed with
-/// `ours="parse() failed: Unsupported(SampleRateOutOfRange)" theirs="ok"`, on a file both sides
-/// handle correctly.
+/// Comparing against [`parse`] instead would be wrong: a whole-header walk reads `smpl`/`inst` and
+/// rejects unplayable sample rates, so it disagrees on valid wavetables such as a 192 kHz one.
 fn decode_as_wavetable_walk(bytes: &[u8]) -> Result<AudioHeader, HeaderError> {
     let mut parser = HeaderParser::new_with_goal(bytes.len() as u32, WalkGoal::AudioOnly);
     loop {
@@ -894,9 +827,7 @@ fn compare_wavetable(
                     adjudicated: None,
                 });
             }
-            // If theirs also rejects, that's consistent enough without matching WHY: this side
-            // reports a decode error and the C++ side lowers it onto one of a handful of `Error`
-            // values, and the reject REASON is not carried across the C ABI at all.
+            // Both rejecting is agreement enough: the reason does not cross the C ABI.
         }
     }
     let _ = key;
@@ -910,8 +841,8 @@ fn compare_one_file(
 ) -> Vec<Disagreement> {
     let mut out = Vec::new();
     compare_sample(path, ours, bytes, theirs, &mut out);
-    // Each entry point is compared against the walk it actually runs: the Sample side against
-    // `parse` above, the WaveTable side against an audio-only walk.
+    // Each entry point against the walk it runs: Sample against `parse`, WaveTable against an
+    // audio-only walk.
     let ours_wavetable = decode_as_wavetable_walk(bytes);
     compare_wavetable(path, &ours_wavetable, false, theirs, &mut out);
     compare_wavetable(path, &ours_wavetable, true, theirs, &mut out);
@@ -923,10 +854,8 @@ fn compare_one_file(
 // ============================================================================================
 
 // ============================================================================================
-// Synthetic fixtures. A corpus is one person's library, not a proof: every regression this port
-// shipped was a shape the corpus did not contain. These are written to a temp directory and swept
-// alongside it, through the same C++ dumper and the same comparison, so the shapes we KNOW the two
-// entry points disagree about are covered rather than merely absent.
+// Synthetic fixtures: shapes a corpus may lack, written to a temp directory and swept through the
+// same dumper and comparison.
 // ============================================================================================
 
 /// A RIFF/WAVE file: `fmt ` + `data`, with the audio zero-filled.
@@ -953,8 +882,7 @@ fn synth_wav(channels: u16, rate: u32, bits: u16, audio_bytes: u32) -> Vec<u8> {
     file
 }
 
-/// A `smpl` chunk declaring `numSampleLoops == 0`, which is 36 bytes — less than the 52-byte window
-/// the arm that reads it uses.
+/// A `smpl` chunk with no loops: 36 bytes, less than the parser's 52-byte `smpl` window.
 fn synth_smpl_no_loops() -> Vec<u8> {
     let mut chunk = Vec::new();
     chunk.extend_from_slice(b"smpl");
@@ -965,8 +893,7 @@ fn synth_smpl_no_loops() -> Vec<u8> {
     chunk
 }
 
-/// Splice `chunk` in just before the `data` chunk of a file built by [`synth_wav`], fixing the RIFF
-/// size up. The audio is zero-filled, so the only thing that moves is the header layout.
+/// Splices `chunk` in just before the `data` chunk of a [`synth_wav`] file and fixes the RIFF size.
 fn synth_wav_with_chunk_before_data(base: Vec<u8>, chunk: &[u8]) -> Vec<u8> {
     let data_at = base
         .windows(4)
@@ -981,7 +908,7 @@ fn synth_wav_with_chunk_before_data(base: Vec<u8>, chunk: &[u8]) -> Vec<u8> {
     file
 }
 
-/// Write the synthetic fixtures into `dir` and return their paths.
+/// Writes the synthetic fixtures into `dir` and returns their paths.
 fn write_synthetic_fixtures(dir: &Path) -> Vec<PathBuf> {
     let mut written = Vec::new();
     let mut put = |name: &str, bytes: Vec<u8>| {
@@ -990,18 +917,16 @@ fn write_synthetic_fixtures(dir: &Path) -> Vec<PathBuf> {
         written.push(path);
     };
 
-    // The shape this comparison was structurally unable to agree on until the wavetable side ran an
-    // audio-only walk: 192 kHz is unplayable as a SAMPLE and irrelevant to a wavetable, and mono
-    // with a whole number of 2048-sample cycles is a wavetable by length alone.
+    // 192 kHz is unplayable as a sample but irrelevant to a wavetable; mono whole 2048-sample
+    // cycles make it a wavetable by length alone.
     put(
         "wt_192k_mono_2048.wav",
         synth_wav(1, 192_000, 16, 2048 * 2 * 4),
     );
-    // The same rate where it IS judged: as a stereo file of no wavetable shape, both sides must
-    // reject it, and for the same reason.
+    // The same rate where it is judged: a stereo non-wavetable both sides must reject alike.
     put("sample_192k_stereo.wav", synth_wav(2, 192_000, 16, 4096));
-    // A `smpl` declaring less than the window that reads it, immediately before `data` — the shape
-    // which an over-read would walk the byte source into the audio.
+    // A `smpl` shorter than its read window, right before `data`: an over-read would reach the
+    // audio.
     put(
         "wt_smpl_no_loops_before_data.wav",
         synth_wav_with_chunk_before_data(
@@ -1009,7 +934,7 @@ fn write_synthetic_fixtures(dir: &Path) -> Vec<PathBuf> {
             &synth_smpl_no_loops(),
         ),
     );
-    // Ordinary files, so a change that broke the common case here would show up here too.
+    // Ordinary files, covering the common case.
     put("sample_44k1_stereo.wav", synth_wav(2, 44_100, 16, 4096));
     put("wt_44k1_mono_2048.wav", synth_wav(1, 44_100, 16, 2048 * 2));
     written
@@ -1037,8 +962,7 @@ fn matches_the_cpp_parser_over_the_corpus() {
         "no audio files found under {roots_env:?}"
     );
 
-    // Swept alongside the corpus, through the same dumper and the same comparison. Kept in a
-    // directory of their own so a corpus root is never written to.
+    // In their own directory so a corpus root is never written to.
     let fixtures_dir = std::env::temp_dir().join("deluge-audio-differential-fixtures");
     std::fs::create_dir_all(&fixtures_dir)
         .unwrap_or_else(|e| panic!("create {fixtures_dir:?}: {e}"));
@@ -1073,11 +997,8 @@ fn matches_the_cpp_parser_over_the_corpus() {
                     *expected_counts.entry(reason).or_insert(0) += 1;
                     let examples = expected_examples.entry(reason).or_default();
                     if examples.len() < 5 {
-                        // Read `d.path` (not the loop's own `path`) so `Disagreement::path` is a field
-                        // this code genuinely uses, not just one that rides along for `Debug` printing
-                        // (the `unexpected` path below already relies on that Debug output — see the
-                        // final `assert!` — but a field only ever read through a derive doesn't count
-                        // as "read" for the dead-code lint).
+                        // Uses `d.path` rather than `path` so the field counts as read for the
+                        // dead-code lint (reads through a derived `Debug` do not).
                         examples.push(format!(
                             "{} [{}]: ours={} theirs={}",
                             d.path.display(),

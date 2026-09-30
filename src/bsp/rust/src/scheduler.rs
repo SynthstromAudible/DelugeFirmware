@@ -1,26 +1,14 @@
-//! `include/libdeluge/scheduler.h` — the cooperative task scheduler, implemented
-//! on top of the Embassy executor (the "Stage 2" design from that header).
+//! The task scheduler (`libdeluge/scheduler.h`) on Embassy.
 //!
-//! On the bare-metal / host BSPs this C ABI is backed by the C++ `TaskManager`
-//! (`src/OSLikeStuff/task_scheduler/`), a single-stack cooperative scheduler with
-//! a deadline-aware priority heuristic. On the Embassy BSP we instead **decompose**
-//! each registered Deluge task into its own Embassy task: `addRepeatingTask` claims
-//! a [`TaskSlot`] and spawns a [`task_runner`] instance that wakes on an
-//! `embassy_time` timer, runs the (synchronous, run-to-completion) C++ handle, and
-//! loops. The Embassy executor *is* the scheduler loop; there is no `TaskManager`
-//! on this BSP (its translation units drop out of the static-archive link because
-//! the C ABI symbols below satisfy every reference — see build.rs).
+//! Each registered Deluge task becomes its own Embassy task: `addRepeatingTask` claims a
+//! `TaskSlot` and spawns a `task_runner`, which waits on a timer (or polls its condition),
+//! runs the synchronous C++ body to completion, and loops. The executors are the scheduler loop.
+//! Ready tasks round-robin; there is no deadline heuristic. The priority-0 (audio) task runs on
+//! the audio executor when one is set ([`set_audio_spawner`]), where it can preempt the others;
+//! everything else runs on the thread executor, paced by `targetTimeBetweenCalls`.
 //!
-//! The deadline-aware priority heuristic (`chooseBestTask`) is intentionally not
-//! reproduced: Embassy round-robins ready tasks, audio is lifted onto an
-//! interrupt-driven path (so it cannot be starved regardless of cadence), and the
-//! remaining tasks are paced by their `targetTimeBetweenCalls`.
-//!
-//! Concurrency model: the executor is single-threaded (`executor-thread`), so the
-//! C-ABI entry points (called synchronously from the C++ app on the executor
-//! thread) and the task runners never race each other; the only other contexts are
-//! ISRs, which touch nothing here. The atomics below are for `static` interior
-//! mutability and ABI cleanliness, not cross-core synchronisation.
+//! Registration runs on the thread executor. The slot fields are atomics because the audio runner
+//! can preempt a thread-mode runner mid-body.
 #![allow(non_snake_case)]
 
 use core::sync::atomic::{AtomicBool, AtomicI8, AtomicU64, AtomicUsize, Ordering};
@@ -32,36 +20,28 @@ use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Instant, Timer};
 
-/// libdeluge/scheduler.h's `typedef bool (*RunCondition)();`: a task's predicate, `None` for none.
+/// `libdeluge/scheduler.h`'s `RunCondition`: a task's predicate, `None` for none.
 pub type RunCondition = Option<unsafe extern "C" fn() -> bool>;
 
-// ---------------------------------------------------------------------------
-// C-ABI types (libdeluge/scheduler.h), `RunCondition` included (above). Defined here
-// rather than taken from `sys`, because this module is also compiled where there
-// is no bindgen output (the plain host build); the `abi_pin!` at the end of the
-// file checks them against the header wherever there is.
-// ---------------------------------------------------------------------------
+// The header's types, defined here rather than taken from `sys` because the plain host build has
+// no bindgen output; the `abi_pin!`s at the end check them against the header wherever there is.
 
-/// libdeluge/scheduler.h's `typedef void (*TaskHandle)();`: nullable, as bindgen declares it. The C++ side always passes
-/// a task body; registration refuses a null one.
+/// `libdeluge/scheduler.h`'s `TaskHandle`, nullable as bindgen declares it; registration refuses
+/// a null one.
 type TaskHandle = Option<TaskBody>;
 /// A registered task body, the non-null [`TaskHandle`].
 type TaskBody = unsafe extern "C" fn();
-/// `int8_t` task id == the [`SLOTS`] index, matching the C++ ABI exactly.
+/// The `int8_t` task id: the [`SLOTS`] index.
 type TaskID = i8;
-/// `uint32_t` resource bitmask (RESOURCE_SD / RESOURCE_USB / RESOURCE_SD_ROUTINE).
+/// The `uint32_t` resource bitmask (`RESOURCE_SD`, `RESOURCE_USB`, `RESOURCE_SD_ROUTINE`).
 type ResourceID = u32;
 
 const RESOURCE_NONE: ResourceID = 0;
-// No `RESOURCE_SD` constant (`libdeluge/scheduler.h` value 1): this side never gates on it, and that
-// absence is deliberate rather than an omission — see `claim`'s doc below, which records that the
-// serialization RESOURCE_SD would have provided comes from the FS mutex instead. Declaring an
-// unused ABI mirror only produced a `-Wunused` warning.
-/// USB transport — `libdeluge/scheduler.h` RESOURCE_USB.
+// No `RESOURCE_SD`: storage serializes itself (see [`USB_GATE`]).
+/// `RESOURCE_USB`: the USB transport.
 const RESOURCE_USB: ResourceID = 2;
 
-// ABI guard: these must match libdeluge/scheduler.h's `typedef`s exactly, or the C++
-// side reads/writes ids and resources at the wrong width across the boundary.
+// The widths must match the header's typedefs.
 const _: () = {
     assert!(core::mem::size_of::<TaskID>() == 1, "TaskID must be int8_t");
     assert!(
@@ -74,53 +54,41 @@ const _: () = {
     );
 };
 
-/// Maximum concurrently-live tasks. Mirrors `TaskManager::kMaxTasks` so the slot
-/// table and the Embassy task pool below match the C++ scheduler's capacity.
-/// NOTE: kept in lock-step with the `task_runner` `pool_size` literal (the task
-/// macro wants a literal); the const-assert below guards against drift.
+/// The most tasks live at once. Must equal the `task_runner` `pool_size` literal (the task
+/// macro wants a literal), which the assert below guards.
 const MAX_TASKS: usize = 32;
 const _: () = assert!(
     MAX_TASKS == 32,
     "task_runner pool_size literal must equal MAX_TASKS"
 );
 
-/// How often a conditional task re-evaluates its `RunCondition` while waiting. The
-/// C++ scheduler checks conditionals on every idle pass; a few-ms poll is plenty
-/// (the only conditional in `registerTasks` is the one-shot startup-song task).
+/// How often a conditional task re-evaluates its `RunCondition` while waiting.
 const COND_POLL: Duration = Duration::from_millis(4);
 
-// ---------------------------------------------------------------------------
-// Task slot: per-task control block. One Embassy task runner instance owns each
-// in-use slot for its lifetime; the C-ABI control functions (block/unblock/run)
-// poke these fields and wake the runner via `wake`.
-// ---------------------------------------------------------------------------
-
+/// A task's control block. One [`task_runner`] owns each slot in use; the C-ABI control
+/// functions set its fields and wake the runner through `wake`.
 struct TaskSlot {
     /// Claimed by `add*Task`, released when the runner returns.
     used: AtomicBool,
-    /// `TaskBody` as a `usize` (transmuted on call). 0 only before first use.
+    /// The `TaskBody` as a `usize`; 0 only before first use.
     handle: AtomicUsize,
-    /// `RunCondition` as a `usize`, or 0 for a repeating task (every conditional
-    /// task carries one).
+    /// The `RunCondition` as a `usize`, or 0 for a repeating task.
     condition: AtomicUsize,
-    /// Target time between calls, microseconds. Conditional tasks (which is
-    /// where `once` comes from) ignore this and poll `condition` instead.
+    /// The target time between calls, in µs. Conditional tasks poll `condition` instead.
     period_us: AtomicU64,
-    /// Minimum time from completion to the next call, microseconds.
+    /// The minimum time from completion to the next call, in µs.
     backoff_us: AtomicU64,
-    /// Resource bitmask gating the run (these will map onto embassy-sync
-    /// mutexes; today the gate is a no-op).
+    /// The resource bitmask gating the run; only `RESOURCE_USB` has a gate.
     resource: AtomicU64,
-    /// Run once then free. Set only by conditional tasks.
+    /// Run once, then free the slot. Set only by conditional tasks.
     once: AtomicBool,
-    /// `blockTask`/`unblockTask`: when false the runner parks on `wake`.
+    /// Cleared by `blockTask`; while false the runner parks on `wake`.
     enabled: AtomicBool,
-    /// Exclude from `printStats`-style accounting.
+    /// Whether runs count towards `avg_run_us`; cleared by `ignoreForStats`.
     count_stats: AtomicBool,
-    /// Running-average run time, microseconds (halving filter, matching the C++
-    /// `StatBlock`: avg = (avg + sample) / 2).
+    /// The running-average run time in µs: `avg = (avg + sample) / 2`.
     avg_run_us: AtomicU64,
-    /// Wakes the runner early (runTask / unblockTask).
+    /// Wakes the runner early (`runTask`, `blockTask`, `unblockTask`).
     wake: Signal<CriticalSectionRawMutex, ()>,
 }
 
@@ -147,8 +115,7 @@ impl TaskSlot {
         unsafe { core::mem::transmute::<usize, TaskBody>(self.handle.load(Ordering::Relaxed)) }
     }
 
-    /// The stored predicate, or `None` for a repeating task. `RunCondition` is
-    /// itself `Option<fn>`, so a 0 (unset) word transmutes straight to `None`.
+    /// The stored predicate, or `None` for a repeating task (0 transmutes to `None`).
     fn condition_fn(&self) -> RunCondition {
         // SAFETY: written only by `claim` from a real `RunCondition` (or 0 = None).
         unsafe {
@@ -156,7 +123,7 @@ impl TaskSlot {
         }
     }
 
-    /// Microseconds to wait before the next run.
+    /// The wait before the next run, in µs.
     fn next_wait_us(&self) -> u64 {
         self.period_us.load(Ordering::Relaxed)
     }
@@ -166,7 +133,6 @@ impl TaskSlot {
             return;
         }
         let avg = self.avg_run_us.load(Ordering::Relaxed);
-        // Halving filter, matching C++ StatBlock::update.
         self.avg_run_us.store((avg + run_us) / 2, Ordering::Relaxed);
     }
 
@@ -179,53 +145,43 @@ impl TaskSlot {
         self.enabled.store(true, Ordering::Relaxed);
         self.count_stats.store(true, Ordering::Relaxed);
         self.avg_run_us.store(0, Ordering::Relaxed);
-        // Drain any stale wake so a freshly-claimed slot doesn't fire immediately.
+        // Drop any stale wake, so a newly claimed slot doesn't fire at once.
         self.wake.reset();
     }
 }
 
-/// The task table. `static` (not `static mut`): every field is interior-mutable
-/// and `Sync`, so `&'static TaskSlot` references handed to runners are sound.
+/// The task table. Every field is interior-mutable, so runners can hold `&'static TaskSlot`.
 static SLOTS: [TaskSlot; MAX_TASKS] = [const { TaskSlot::new() }; MAX_TASKS];
 
-/// Index of the slot whose handle is currently executing, for the
-/// `*ForCurrentTask` C-ABI calls. -1 when no handle is running.
+/// The slot whose body is running, for `ignoreForStats`; -1 when none is.
 static CURRENT: AtomicI8 = AtomicI8::new(-1);
 
-/// Resource gate (RESOURCE_USB). A task holding it in its schedule acquires the
-/// gate for the duration of its (synchronous) handle, so two same-resource tasks
-/// can't run concurrently. Audio (RESOURCE_NONE) never touches this, so the
-/// audio interrupt-executor never blocks on it.
+/// The `RESOURCE_USB` gate, held across a USB task's body so two such tasks never overlap. Audio
+/// never takes it, so the audio executor never blocks on it.
 ///
-/// There is no equivalent RESOURCE_SD gate: storage serializes itself (the efatfs
-/// FS mutex and `sd.rs`'s `SD_BUS`). `RESOURCE_SD_ROUTINE` needs no hold-off here
-/// either: nothing runs SD-routine work across a yield.
+/// There is no `RESOURCE_SD` gate: storage serializes itself (the filesystem mutex and the SD bus
+/// lock). `RESOURCE_SD_ROUTINE` needs none either: no SD-routine work runs across a yield.
 static USB_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
-// ---------------------------------------------------------------------------
-// Spawner stash. The executor closure in `main` calls [`set_spawner`] before the
-// C++ app's `deluge_app_init` runs `registerTasks()`, so the `add*Task` entry
-// points (invoked synchronously on the executor thread) can spawn runners.
-// Sound because the executor is single-threaded: only that thread ever touches it.
-// ---------------------------------------------------------------------------
+// Set by [`set_spawner`] before `registerTasks()` and read only on the thread executor.
 static mut SPAWNER: Option<Spawner> = None;
 
-/// Spawner for the preemptive audio interrupt-executor (`AUDIO_EXEC` in main).
-/// `SendSpawner` because that executor runs in a different context (the SGI). The
-/// priority-0 (audio) task is routed here so it preempts the thread executor.
+/// The audio executor's spawner, a `SendSpawner` because that executor runs in another context
+/// (the SGI on the device, a thread on host).
 static mut AUDIO_SPAWNER: Option<SendSpawner> = None;
 
-/// Stash the executor's spawner so the C-ABI `add*Task` functions can spawn task
-/// runners. Call once, from inside `executor.run(|spawner| ...)`, before
-/// `deluge_app_init`.
+/// Sets the thread executor's spawner, which the `add*Task` functions spawn runners with.
+///
+/// Call once, from inside that executor, before `deluge_app_init`.
 pub fn set_spawner(spawner: Spawner) {
-    // SAFETY: single-threaded executor; called once at startup before any task
-    // runs, and only ever read on the same thread.
+    // SAFETY: called once at startup, before any task runs, and read only on the same thread.
     unsafe { *core::ptr::addr_of_mut!(SPAWNER) = Some(spawner) };
 }
 
-/// Stash the audio interrupt-executor's spawner (from `InterruptExecutor::start`).
-/// Call once at startup, before `deluge_app_init`.
+/// Sets the audio executor's spawner, which the priority-0 task is spawned with.
+///
+/// Call once at startup, before `deluge_app_init`: a later call leaves audio on the thread
+/// executor.
 pub fn set_audio_spawner(spawner: SendSpawner) {
     // SAFETY: set once at startup before any task runs.
     unsafe { *core::ptr::addr_of_mut!(AUDIO_SPAWNER) = Some(spawner) };
@@ -241,31 +197,20 @@ fn audio_spawner() -> Option<SendSpawner> {
     unsafe { *core::ptr::addr_of!(AUDIO_SPAWNER) }
 }
 
-/// Whether the priority-0 (audio) task runs on an executor of its own -- the device's preemptive SGI executor, or
-/// host_app's `"deluge-audio"` thread -- rather than on the cooperative thread executor with everything else (the
-/// single-executor host harnesses). Decided once at startup, by [`set_audio_spawner`].
+/// Whether the priority-0 (audio) task has an executor of its own (the threaded host app's
+/// `"deluge-audio"` thread) rather than sharing the thread executor, as single-executor harnesses
+/// do. Decided at startup by [`set_audio_spawner`].
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 pub fn has_audio_executor() -> bool {
     audio_spawner().is_some()
 }
 
-/// Single-executor-harness override for the priority-0 (audio) task's schedule,
-/// set by golden_vt_render's `render_song`. `AudioEngine::routine_task`'s
-/// registered period (`deluge.cpp`: `8 / 44100.` seconds) is a scheduler poll/backoff
-/// hint tuned for the DEVICE's real DMA-paced render throttling
-/// (`AudioEngine::routine` decides internally whether a new block is actually due,
-/// based on the free-running DMA play head) — the host null-sink render pump
-/// (`audio_host.rs`'s `deluge_audio_drive`) has no such throttling and renders
-/// exactly one block every call, so on host the REGISTERED period does not
-/// correspond to "one real-time block period" at all (it fires ~1.6ms apart, vs.
-/// the true 128/44100s ≈ 2.9ms block period). A harness that races playback against
-/// modeled storage time needs the audio consumer to advance in a KNOWN, exact
-/// per-block virtual-time increment for that race to mean anything, so it overrides the audio slot's
-/// `period_us`/`backoff_us` at spawn time via this knob. `None` (unset, the
-/// default) preserves today's behavior for every other consumer (device, Lens 2,
-/// manual host_app runs) — see [`claim`]'s use of this below. Host-only: the whole
-/// mechanism is `#[cfg(not(target_os = "none"))]`, so it costs the device build
-/// nothing (not even a dead branch).
+/// The audio task's period override, in µs, for a harness that needs one block per period.
+///
+/// The registered period is a poll hint for the device, where `AudioEngine::routine` renders only
+/// when the DMA play head says a block is due. The host render pump renders a block on every call,
+/// so a harness racing playback against modeled storage time (golden_vt_render's `render_song`)
+/// sets the real block period instead. Host only; unset leaves the registered schedule.
 #[cfg(not(target_os = "none"))]
 static AUDIO_PERIOD_OVERRIDE_US: AtomicU64 = AtomicU64::new(0);
 #[cfg(not(target_os = "none"))]
@@ -273,9 +218,9 @@ static AUDIO_BACKOFF_OVERRIDE_US: AtomicU64 = AtomicU64::new(0);
 #[cfg(not(target_os = "none"))]
 static AUDIO_OVERRIDE_SET: AtomicBool = AtomicBool::new(false);
 
-/// See [`AUDIO_PERIOD_OVERRIDE_US`]'s doc comment. Call once at startup, before
-/// `deluge_app_init` runs `registerTasks()` (i.e. before the audio task is
-/// claimed).
+/// Sets `AUDIO_PERIOD_OVERRIDE_US` and the matching back-off, in µs.
+///
+/// Call before `deluge_app_init` runs `registerTasks()`, which claims the audio task.
 #[cfg(not(target_os = "none"))]
 pub fn set_audio_period_override_us(period_us: u64, backoff_us: u64) {
     AUDIO_PERIOD_OVERRIDE_US.store(period_us, Ordering::Relaxed);
@@ -283,8 +228,10 @@ pub fn set_audio_period_override_us(period_us: u64, backoff_us: u64) {
     AUDIO_OVERRIDE_SET.store(true, Ordering::Relaxed);
 }
 
-/// Claim a free slot, populate it, and spawn its runner. Returns the slot index as
-/// the `TaskID`, or -1 if the table is full or the spawner is unavailable.
+/// Claims a free slot, fills it, and spawns its runner.
+///
+/// Returns the slot index as the `TaskID`, or -1 if the table or the runner pool is full or no
+/// spawner is set.
 fn claim(
     name: *const core::ffi::c_char,
     handle: TaskBody,
@@ -296,10 +243,6 @@ fn claim(
     enabled: bool,
     on_audio: bool,
 ) -> TaskID {
-    // Single-executor harnesses only: substitute the virtual-time block-period override for the
-    // audio task's registered schedule — see `AUDIO_PERIOD_OVERRIDE_US`'s doc
-    // comment. A no-op (`period_us`/`backoff_us` pass through unchanged) unless
-    // `set_audio_period_override_us` was called, which only golden_vt_render's `render_song` does.
     #[cfg(not(target_os = "none"))]
     let (period_us, backoff_us) = if on_audio && AUDIO_OVERRIDE_SET.load(Ordering::Relaxed) {
         (
@@ -310,9 +253,7 @@ fn claim(
         (period_us, backoff_us)
     };
 
-    // Route the audio task to the preemptive audio interrupt-executor when it's
-    // available; everything else (and audio, if that executor isn't up) runs on
-    // the cooperative thread executor.
+    // Audio goes to the audio executor when there is one; everything else to the thread executor.
     let use_audio = on_audio && audio_spawner().is_some();
     if !use_audio && spawner().is_none() {
         log::error!(
@@ -336,8 +277,7 @@ fn claim(
             slot.resource.store(resource as u64, Ordering::Relaxed);
             slot.once.store(once, Ordering::Relaxed);
             slot.enabled.store(enabled, Ordering::Relaxed);
-            // The task macro yields a `Result<SpawnToken, _>` (pool allocation);
-            // `Err` means the pool (== MAX_TASKS) is exhausted.
+            // `Err` means the runner pool is exhausted.
             let Ok(token) = task_runner(slot) else {
                 slot.used.store(false, Ordering::Release);
                 log::error!(
@@ -347,7 +287,6 @@ fn claim(
                 return -1;
             };
             if use_audio {
-                // SendSpawner: the audio executor runs in the SGI context.
                 audio_spawner().unwrap().spawn(token);
             } else {
                 spawner().unwrap().spawn(token);
@@ -355,8 +294,7 @@ fn claim(
             return i as TaskID;
         }
     }
-    // A caller that ignores the -1 loses the task without a trace, and a missing task shows up only as whatever it
-    // drives going quiet: say which one, loudly.
+    // A caller that ignores the -1 loses the task silently, so name it.
     log::error!(
         "scheduler: the task table is full ({MAX_TASKS} slots); task {:?} will never run",
         task_name(name)
@@ -388,12 +326,7 @@ fn current_slot() -> Option<&'static TaskSlot> {
     slot_of(CURRENT.load(Ordering::Relaxed))
 }
 
-/// Count of currently-claimed slots — i.e. how many `add*Task` calls have
-/// landed and not yet been removed. `host_app`-only: the boot-and-idle smoke
-/// (`main.rs`) polls this from a second thread as the cheapest strong signal
-/// that the real C++ app's `registerTasks()` actually ran (it calls
-/// `addRepeatingTask`/`addConditionalTask` a couple dozen times during
-/// `deluge_app_init`), rather than just that BSP init reached that point.
+/// The number of claimed slots. The host harnesses poll it as the sign that `registerTasks()` ran.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 pub fn registered_task_count() -> usize {
     SLOTS
@@ -402,37 +335,33 @@ pub fn registered_task_count() -> usize {
         .count()
 }
 
-/// One Embassy task per Deluge task. Pool sized to [`MAX_TASKS`] so every slot can
-/// be live at once. Waits per the slot's schedule (or condition), runs the C++
-/// handle to completion, and loops; a once task exits after its first run.
+/// Runs one Deluge task: waits per the slot's schedule or condition, runs the C++ body to
+/// completion, and loops. A once task exits after its first run.
 #[embassy_executor::task(pool_size = 32)]
 async fn task_runner(slot: &'static TaskSlot) {
-    // Acquire-pair with `claim`'s store of `used`/handle so we observe them.
+    // Pairs with `claim`'s stores, so the slot's fields are visible.
     while !slot.used.load(Ordering::Acquire) {
         embassy_futures::yield_now().await;
     }
 
     loop {
         if !slot.enabled.load(Ordering::Relaxed) {
-            // Blocked: park until unblockTask/runTask signals us.
             slot.wake.wait().await;
             continue;
         }
 
         match slot.condition_fn() {
             Some(cond) => {
-                // Conditional task: poll the predicate, then run once.
-                // SAFETY: `cond` is the C++ app's predicate; calling it is benign.
+                // SAFETY: `cond` is the C++ app's registered predicate, which takes no arguments.
                 while !unsafe { cond() } {
                     Timer::after(COND_POLL).await;
                 }
             }
             None => {
-                // Timed task: wait the interval, but wake early on an explicit
-                // signal (runTask / unblock).
+                // Wait the interval, or less if signalled.
                 let wait = Duration::from_micros(slot.next_wait_us());
                 if let Either::Second(()) = select(Timer::after(wait), slot.wake.wait()).await {
-                    // Signalled: re-evaluate enabled at the top of the loop.
+                    // Re-check `enabled` first.
                     continue;
                 }
             }
@@ -444,9 +373,6 @@ async fn task_runner(slot: &'static TaskSlot) {
 
         let resource = slot.resource.load(Ordering::Relaxed) as ResourceID;
 
-        // Acquire the resource gate(s) the schedule asks for, held across the
-        // (synchronous) handle so same-resource tasks can't overlap. (RESOURCE_SD
-        // has no gate here — see the comment on `USB_GATE` above.)
         let run_us = {
             let _usb = if resource & RESOURCE_USB != 0 {
                 Some(USB_GATE.lock().await)
@@ -454,19 +380,18 @@ async fn task_runner(slot: &'static TaskSlot) {
                 None
             };
 
-            // Set CURRENT so `ignoreForStats` can find the running task, saving/restoring
-            // the previous value: the audio interrupt-executor can preempt a thread-mode
-            // task_runner mid-handle, and must leave CURRENT as it found it so the
-            // preempted task's id is intact when it resumes.
+            // Save and restore CURRENT: the audio runner can preempt a thread-mode runner
+            // mid-body and must leave the preempted task's id intact.
             let idx = SLOTS.iter().position(|s| core::ptr::eq(s, slot)).unwrap() as TaskID;
             let prev = CURRENT.swap(idx, Ordering::Relaxed);
             let t0 = Instant::now();
-            // SAFETY: a task body the C++ app registered, which takes no arguments and may run on this tier.
+            // SAFETY: a task body the C++ app registered, which takes no arguments and may run on
+            // this tier.
             unsafe { (slot.handle_fn())() };
             let run_us = t0.elapsed().as_micros();
             CURRENT.store(prev, Ordering::Relaxed);
             run_us
-            // _usb gate released here, before the once-check and back-off.
+            // The USB gate is released here, before the back-off.
         };
         slot.record(run_us);
 
@@ -474,7 +399,6 @@ async fn task_runner(slot: &'static TaskSlot) {
             break;
         }
 
-        // Back-off: never re-run sooner than backoff_us after completion.
         let backoff = slot.backoff_us.load(Ordering::Relaxed);
         if backoff != 0 {
             Timer::after(Duration::from_micros(backoff)).await;
@@ -484,9 +408,7 @@ async fn task_runner(slot: &'static TaskSlot) {
     slot.used.store(false, Ordering::Release);
 }
 
-// ---------------------------------------------------------------------------
-// Helpers for the seconds<->microseconds C ABI (the API speaks `double` seconds).
-// ---------------------------------------------------------------------------
+// The C ABI speaks `double` seconds.
 
 fn secs_to_us(seconds: f64) -> u64 {
     if seconds <= 0.0 {
@@ -500,10 +422,7 @@ fn us_to_secs(us: u64) -> f64 {
     us as f64 / 1_000_000.0
 }
 
-// ===========================================================================
-// libdeluge/scheduler.h C ABI. These are the symbols that satisfy the C++ app's
-// references (and thereby keep the C++ TaskManager out of the link).
-// ===========================================================================
+// The `libdeluge/scheduler.h` C ABI.
 
 #[unsafe(no_mangle)]
 pub extern "C" fn addRepeatingTask(
@@ -518,9 +437,7 @@ pub extern "C" fn addRepeatingTask(
     let Some(task) = task else {
         return -1;
     };
-    // Priority 0 is the audio routine: route it to the preemptive audio
-    // interrupt-executor (see AUDIO_EXEC in main) so a thread-mode storage spin
-    // can't starve it. All other priorities run cooperatively in thread mode.
+    // Priority 0 is the audio routine, which a thread-mode storage spin must not starve.
     let on_audio = priority == 0;
     claim(
         name,
@@ -567,7 +484,6 @@ pub extern "C" fn unblockTask(id: TaskID) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn runTask(id: TaskID) {
-    // Wake the task so it runs as soon as the executor next polls it.
     if let Some(slot) = slot_of(id) {
         slot.wake.signal(());
     }
@@ -592,25 +508,15 @@ pub extern "C" fn getSystemTime() -> f64 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn isSDRoutineActive() -> bool {
-    // The app reads this to avoid actions that can't run inside a slow-storage
-    // busy-wait. On this BSP there is no such busy-wait: SD goes through the async
-    // driver under `block_on` (which parks the executor, so nothing else runs during
-    // a transfer anyway). So it's always false here.
+    // No task body ever runs inside an SD busy-wait on this BSP.
     false
 }
 
-// ---------------------------------------------------------------------------
-// Cooperative yield (libdeluge/scheduler.h yield).
-//
-// Nothing on this BSP suspends: the yielding operations (song load, stem export,
-// grid clip create) are stepped synchronously by their callers, so `yield` here
-// is a defensive no-wait (it never busy-waits and never hangs). SD goes through
-// the async driver (sd.rs), so nothing waits on storage here.
-// ---------------------------------------------------------------------------
-
+// `yield` suspends nothing: the operations that call it are stepped by their callers, so it
+// evaluates the predicate once and returns.
 #[unsafe(export_name = "yield")]
 pub extern "C" fn r#yield(until: RunCondition) {
-    // SAFETY: `until` is the C++ caller's predicate; calling it is benign polling.
+    // SAFETY: `until` is the C++ caller's predicate, which takes no arguments.
     let _ = until.map_or(true, |p| unsafe { p() });
 }
 

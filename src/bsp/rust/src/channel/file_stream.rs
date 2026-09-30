@@ -1,31 +1,24 @@
-//! The stream channel: request/collect over the stream-write handle table that already exists.
+//! The stream channel (`libdeluge/file_stream.h`): request/collect over efatfs's stream handles.
 //!
-//! `SampleRecorder` writes one cluster per tick and once blocked the caller for the whole of each
-//! write. This module drives the same `stream_write_at` future on an Embassy task so
-//! the recorder can issue a write, return, and collect it on a later tick.
-//!
-//! There is no handle table here on purpose: `efatfs_fs`'s `STREAM_WRITE_CTX` is one already, sized
-//! at `MAX_STREAM_WRITE_HANDLES` (8) and documented as the recorder's own, with a generation
-//! counter per slot. This module only owns the request and its answer.
+//! Lets `SampleRecorder` issue a cluster write (or open, read, truncate, close, free-space query),
+//! return, and collect the answer on a later tick, while `file_stream_task` runs it on the storage
+//! tier. The handle table is efatfs's `STREAM_WRITE_CTX` (8 slots); this module owns only the
+//! request and its answer.
 //!
 //! # Safety
 //!
-//! The request carries a POINTER into the C++ caller's buffer, not a copy of the bytes — the same
-//! zero-copy shape `streaming_fill.h`'s `dest` uses in the read direction, and the reason a 32 KiB
-//! cluster write needs no staging buffer on either side. The C++ contract (`file_stream.h`) is that
-//! the buffer stays alive and unmodified until the collect is terminal, and
-//! `deluge::io::Stream::close()` enforces it by draining before the handle goes away.
-//!
-//! The pointer is stored as a `usize` rather than a `*const u8` so the request is `Send`; it is
-//! reconstituted only inside the task, and only for the duration of one `stream_write_at`.
+//! A read or write request carries a pointer into the caller's buffer, not a copy, so a 32 KiB
+//! cluster write needs no staging buffer. The caller must keep the buffer alive and unmodified
+//! until the collect is terminal (`deluge::io::Stream::close()` drains to guarantee it). The
+//! pointer is stored as a `usize` so the request is `Send`, and is turned back into a slice only
+//! inside the task, for one operation.
 //!
 //! # Handles
 //!
-//! Everything behind the exports works in `STREAM_WRITE_CTX` slots: the queued operation, its
-//! [`OpKey`], the published `Open` answer and the orphans the task closes. The exports alone convert,
-//! through [`crate::abi::handle`]: a handle a caller passes becomes its slot before any key is built
-//! from it, and the slot an `Open` answers becomes a handle only as the collect writes it out. So a
-//! request's key and its collect's key are always built from the same slot.
+//! Everything behind the exports works in `STREAM_WRITE_CTX` slots. Only the exports convert,
+//! through [`crate::abi::handle`]: a caller's handle becomes its slot before any key is built from
+//! it, and an `Open`'s slot becomes a handle only as the collect writes it out, so a request's key
+//! and its collect's key are always built from the same slot.
 
 use core::ffi::{CStr, c_char};
 
@@ -40,9 +33,7 @@ use embassy_sync::signal::Signal;
 use crate::abi::handle::{DelugeHandle, from_abi, to_abi};
 use crate::channel::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath, still_coming};
 
-/// The efatfs backend this driver writes through: the device module on the target, the host shim
-/// under `host_app`. One alias rather than a `#[cfg]` at every call site -- the same shape
-/// `file_bytes::backing` uses, and for the same reason.
+// The efatfs backend: the device module on the target, the host shim under `host_app`.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod backing {
     #[cfg(target_os = "none")]
@@ -57,8 +48,7 @@ mod backing {
     };
 }
 
-/// One outstanding operation. Pointers travel as `usize` so this is `Send`; see the module's Safety
-/// note. The caller owns every buffer named here until the matching collect is terminal.
+/// One outstanding operation. Buffers travel as `usize` addresses; see the module's Safety section.
 #[derive(Clone, Copy)]
 enum StreamOp {
     Open {
@@ -92,13 +82,13 @@ struct Queued {
     key: OpKey,
     /// The file an `Open` names; empty for the others.
     path: WritePath,
-    /// The card generation the request was made under. Its answer is stamped with it, so an answer that finishes
-    /// after an ejection is never collected as the new card's.
+    /// The card generation the request was made under. Its answer carries this stamp, so one that
+    /// finishes after an ejection is never collected as the new card's.
     generation: u32,
 }
 
-/// `op`'s key. `path` is the file an `Open` names, and keys it: the recorder's create and its finalize's reopen
-/// name different files, and each collects only its own answer.
+/// Returns `op`'s key. An `Open` is keyed by its path: the recorder's create and its finalize's
+/// reopen name different files, and each collects only its own answer.
 fn op_key(op: &StreamOp, path: &str) -> Option<OpKey> {
     match *op {
         StreamOp::Open { .. } => OpKey::new(OpKind::Open, 0, path),
@@ -111,16 +101,16 @@ fn op_key(op: &StreamOp, path: &str) -> Option<OpKey> {
 }
 
 static REQUEST: Mutex<CriticalSectionRawMutex, Option<Queued>> = Mutex::new(None);
-/// The operation the task is running. Kept apart from [`REQUEST`] so a collect can tell "still running" (PENDING)
-/// from "never asked" (UNKNOWN).
+/// The operation the task is running. Kept apart from [`REQUEST`] so a collect can tell "still
+/// running" (PENDING) from "never asked" (UNKNOWN).
 static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<OpKey>> = Mutex::new(None);
 static RESULT: Mutex<CriticalSectionRawMutex, AnswerSlot> = Mutex::new(AnswerSlot::new());
-/// The caller-owned buffer the running operation reads or writes, as an address; 0 when nothing is running or the
-/// operation has no buffer. Set under the REQUEST lock the operation is taken from, and cleared once the operation has
-/// finished with the buffer, so [`deluge_file_stream_holds`] never sees a gap between queued and running.
+/// The address of the caller's buffer the running operation uses; 0 when there is none. Set under
+/// the [`REQUEST`] lock the operation is taken from and cleared once the operation is done with the
+/// buffer, so [`deluge_file_stream_holds`] never sees a gap between queued and running.
 static RUNNING_BUFFER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
 
-/// The caller-owned buffer `op` reads from or writes into, as an address; 0 for an operation without one.
+/// Returns the address of the caller's buffer `op` uses; 0 for an operation without one.
 fn op_buffer(op: &StreamOp) -> usize {
     match op {
         StreamOp::ReadAt { dst, .. } => *dst,
@@ -129,11 +119,10 @@ fn op_buffer(op: &StreamOp) -> usize {
     }
 }
 
-/// C-ABI: whether a queued or running operation reads or writes through `buffer`.
+/// Returns whether a queued or running operation reads or writes through `buffer`.
 ///
-/// A caller must not free or reuse a buffer it handed to this channel while this answers true: the operation cannot
-/// be cancelled, and it touches the buffer whenever it runs. Answers true when it cannot tell, so the caller keeps the
-/// buffer a little longer rather than freeing it early.
+/// A caller must not free or reuse a buffer handed to this channel while this returns true: the
+/// operation cannot be cancelled. Returns true when it cannot tell (lock contended).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_stream_holds(buffer: *const core::ffi::c_void) -> bool {
     let addr = buffer as usize;
@@ -148,17 +137,17 @@ pub extern "C" fn deluge_file_stream_holds(buffer: *const core::ffi::c_void) -> 
 }
 static WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
-/// Accept an operation if nothing is in flight.
+/// Queues `op` if nothing is outstanding. Returns false if refused.
 ///
-/// Drops an uncollected answer with the SAME key first. `STREAM_WRITE_CTX` recycles slot indices, so without
-/// this, a recorder that inherits slot N would collect the previous recorder's answer as its own.
+/// First drops any uncollected answer with the same key: slot indices are recycled, so otherwise a
+/// recorder that inherits a slot would collect the previous recorder's answer as its own.
 fn accept(op: StreamOp, path: &str) -> bool {
     let (Ok(mut req), Ok(in_flight), Ok(mut result)) =
         (REQUEST.try_lock(), IN_FLIGHT.try_lock(), RESULT.try_lock())
     else {
         return false;
     };
-    // Single-flight. A second request while one is outstanding is REFUSED, never replaced: for the recorder a
+    // Single-flight: a second request is refused, never replaces the first. For the recorder a
     // dropped write is lost audio, so the caller must see the refusal.
     if req.is_some() || in_flight.is_some() {
         return false;
@@ -177,17 +166,17 @@ fn accept(op: StreamOp, path: &str) -> bool {
     true
 }
 
-/// Collect `(kind, handle, path)`'s answer. `out` receives the `Ok` payload on READY, `out_error` the `Err` payload
-/// on FAILED.
+/// Collects `(kind, handle, path)`'s answer. `out` receives the `Ok` payload on READY, `out_error`
+/// the `Err` payload on FAILED.
 ///
-/// One forward pass, REQUEST then IN_FLIGHT then RESULT, in the order an operation moves through them. The task
-/// marks an operation in flight while still holding the REQUEST lock, and publishes its answer before clearing
-/// IN_FLIGHT, so a pass in this order cannot miss an operation that is moving: it is in one of the three, or behind
-/// a contended lock, which [`still_coming`] and the RESULT branch below both read as PENDING. Probing RESULT first
-/// would let the answer land and IN_FLIGHT clear between the two looks, and report UNKNOWN for an operation that
-/// had just succeeded.
+/// Looks at [`REQUEST`], [`IN_FLIGHT`] then [`RESULT`], the order an operation moves through them.
+/// The task marks an operation in flight while still holding the `REQUEST` lock and publishes
+/// before clearing `IN_FLIGHT`, so this pass always finds a moving operation in one of the three or
+/// behind a contended lock (read as PENDING). Probing `RESULT` first could report UNKNOWN for an
+/// operation that had just succeeded.
 ///
 /// # Safety
+///
 /// Each out-pointer may be null; one that is not must point at a writable `u32`.
 unsafe fn collect(kind: OpKind, handle: u32, path: &str, out: *mut u32, out_error: *mut u32) -> u8 {
     let Some(key) = OpKey::new(kind, handle, path) else {
@@ -229,37 +218,34 @@ unsafe fn collect(kind: OpKind, handle: u32, path: &str, out: *mut u32, out_erro
     }
 }
 
-/// Milliseconds `file_stream_task` waits before each operation. Host harness only; see
+/// Milliseconds [`file_stream_task`] waits before each operation; see
 /// [`deluge_file_stream_set_latency_ms`].
 #[cfg(feature = "host_app")]
 static LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
 
-/// Host harness knob: make every stream-channel operation wait `ms` milliseconds before it touches the card, so a gate
-/// can hold an operation in flight while a consumer does something else. 0, the default, means no wait.
-///
-/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+/// Host harness knob: makes every stream-channel operation wait `ms` milliseconds before it touches
+/// the card, so a test can hold an operation in flight. 0, the default, means no wait.
 #[cfg(feature = "host_app")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_stream_set_latency_ms(ms: u32) {
     LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
 }
 
-/// Whether this channel's opens are refused the mount they would retry after `NO_FILESYSTEM`. Host harness only; see
+/// Whether this channel's opens skip the mount they would retry after `NO_FILESYSTEM`; see
 /// [`deluge_file_stream_set_mount_refused`].
 #[cfg(feature = "host_app")]
 static MOUNT_REFUSED: core::sync::atomic::AtomicBool = core::sync::atomic::AtomicBool::new(false);
 
-/// Host harness knob: while `refused`, an open this channel runs on an unmounted card answers `NO_FILESYSTEM` instead
-/// of mounting, so a gate can make an open fail with a status other than `NOT_FOUND`. Other channels still mount.
-///
-/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+/// Host harness knob: while `refused`, an open this channel runs on an unmounted card answers
+/// `NO_FILESYSTEM` instead of mounting, so a test can make an open fail with a status other than
+/// `NOT_FOUND`. Other channels still mount.
 #[cfg(feature = "host_app")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_stream_set_mount_refused(refused: bool) {
     MOUNT_REFUSED.store(refused, core::sync::atomic::Ordering::Relaxed);
 }
 
-/// The channel's own open: [`open_mounted`], unless the host harness has refused the mount.
+/// Opens `path` with [`open_mounted`], unless the host harness has refused the mount.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 async fn channel_open(path: &str, mode: u8) -> Result<u32, i8> {
     #[cfg(feature = "host_app")]
@@ -269,9 +255,10 @@ async fn channel_open(path: &str, mode: u8) -> Result<u32, i8> {
     open_mounted(path, mode).await
 }
 
-/// C-ABI: ask for a write.
+/// Requests a positional write of `len` bytes at `offset`. Returns false if refused.
 ///
 /// # Safety
+///
 /// `bytes` must point at `len` readable bytes that stay alive and unmodified until the matching
 /// collect is terminal.
 #[unsafe(no_mangle)]
@@ -298,9 +285,10 @@ pub unsafe extern "C" fn deluge_file_stream_request_write_at(
     )
 }
 
-/// C-ABI: collect the write.
+/// Collects the write; `out_written` receives the byte count. A short write is FAILED.
 ///
 /// # Safety
+///
 /// `out_written` may be null; when it is not, it must point at a writable `u32`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_collect_write_at(
@@ -322,9 +310,10 @@ pub unsafe extern "C" fn deluge_file_stream_collect_write_at(
     }
 }
 
-/// C-ABI: ask for an open.
+/// Requests an open of `path` in `mode`. Returns false if refused.
 ///
 /// # Safety
+///
 /// `path` must be a valid NUL-terminated C string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_request_open(path: *const c_char, mode: u8) -> bool {
@@ -338,12 +327,13 @@ pub unsafe extern "C" fn deluge_file_stream_request_open(path: *const c_char, mo
     accept(StreamOp::Open { mode }, p)
 }
 
-/// C-ABI: collect the open of `path`. `out_handle` receives the handle on READY, `out_error` the `DelugeStatus` the
-/// open failed with on FAILED.
+/// Collects the open of `path`. `out_handle` receives the handle on READY, `out_error` the
+/// `DelugeStatus` the open failed with on FAILED.
 ///
 /// # Safety
-/// `path` must be null or a valid NUL-terminated C string. Each out-pointer may be null; one that is not must point
-/// at a writable object of its type.
+///
+/// `path` must be null or a valid NUL-terminated C string. Each out-pointer may be null; one that
+/// is not must point at a writable object of its type.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_collect_open(
     path: *const c_char,
@@ -366,16 +356,17 @@ pub unsafe extern "C" fn deluge_file_stream_collect_open(
         unsafe { *out_handle = to_abi(slot) };
     }
     if status == DELUGE_CHANNEL_FAILED && !out_error.is_null() {
-        // The status travels as its byte; see the Open arm of the task.
+        // The task published the status as its byte.
         // SAFETY: non-null, and the caller guarantees it is writable.
         unsafe { *out_error = error as u8 as i8 };
     }
     status
 }
 
-/// C-ABI: ask for a positional read.
+/// Requests a positional read of `len` bytes at `offset`. Returns false if refused.
 ///
 /// # Safety
+///
 /// `dst` must point at `len` writable bytes that stay alive until the matching collect is terminal.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_request_read_at(
@@ -401,9 +392,10 @@ pub unsafe extern "C" fn deluge_file_stream_request_read_at(
     )
 }
 
-/// C-ABI: collect the read.
+/// Collects the read; `out_read` receives the byte count, which may be short.
 ///
 /// # Safety
+///
 /// `out_read` may be null; when it is not, it must point at a writable `u32`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_collect_read_at(
@@ -417,7 +409,7 @@ pub unsafe extern "C" fn deluge_file_stream_collect_read_at(
     unsafe { collect(OpKind::ReadAt, handle, "", out_read, core::ptr::null_mut()) }
 }
 
-/// C-ABI: ask for a truncate.
+/// Requests a truncate to `size` bytes. Returns false if refused.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_stream_request_truncate(handle: DelugeHandle, size: u32) -> bool {
     let Some(handle) = from_abi(handle) else {
@@ -426,7 +418,7 @@ pub extern "C" fn deluge_file_stream_request_truncate(handle: DelugeHandle, size
     accept(StreamOp::Truncate { handle, size }, "")
 }
 
-/// C-ABI: collect the truncate.
+/// Collects the truncate.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_stream_collect_truncate(handle: DelugeHandle) -> DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
@@ -444,7 +436,7 @@ pub extern "C" fn deluge_file_stream_collect_truncate(handle: DelugeHandle) -> D
     }
 }
 
-/// C-ABI: ask for a close.
+/// Requests a close. Returns false if refused.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_stream_request_close(handle: DelugeHandle) -> bool {
     let Some(handle) = from_abi(handle) else {
@@ -453,7 +445,7 @@ pub extern "C" fn deluge_file_stream_request_close(handle: DelugeHandle) -> bool
     accept(StreamOp::Close { handle }, "")
 }
 
-/// C-ABI: collect the close.
+/// Collects the close.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_stream_collect_close(handle: DelugeHandle) -> DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
@@ -471,15 +463,16 @@ pub extern "C" fn deluge_file_stream_collect_close(handle: DelugeHandle) -> Delu
     }
 }
 
-/// C-ABI: ask for the free-cluster count.
+/// Requests the free-cluster count. Returns false if refused.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_stream_request_stats() -> bool {
     accept(StreamOp::Stats, "")
 }
 
-/// C-ABI: collect the free-cluster count.
+/// Collects the free-cluster count.
 ///
 /// # Safety
+///
 /// `out_free_clusters` may be null; when it is not, it must point at a writable `u32`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_collect_stats(
@@ -497,16 +490,12 @@ pub unsafe extern "C" fn deluge_file_stream_collect_stats(
     }
 }
 
-/// Open `path`, mounting the card first if it turns out not to be mounted.
+/// Opens `path`, mounting the card first if the open fails with `NO_FILESYSTEM`.
 ///
-/// The same lazy shape `file_bytes::open_mounted` uses, and for the same reason: the caller may be
-/// the first thing to touch a card inserted after boot, and on the CHANNEL arm nothing else will have
-/// mounted it. (The synchronous arm is different -- it reaches efatfs directly and relies on
-/// `StorageManager::initSD` having mounted already, which is why that call cannot simply be deleted.)
-///
-/// Mounts only when the open failed with `NO_FILESYSTEM`, and answers the final open's status: a caller acts on
-/// that status (the recorder retries its folder only on `NOT_FOUND`), so a mount must not stand in for it. Shared
-/// with `file_bytes`, whose whole-file reads and writes open streams too.
+/// A channel request may be the first thing to touch a card inserted after boot, and nothing else
+/// on this path mounts it (synchronous callers rely on `StorageManager::initSD` instead). Returns
+/// the final open's status, never the mount's: callers act on it (the recorder retries its folder
+/// only on `NOT_FOUND`). Also used by [`file_bytes`](crate::channel::file_bytes).
 #[cfg(any(target_os = "none", feature = "host_app"))]
 pub(crate) async fn open_mounted(path: &str, mode: u8) -> Result<u32, i8> {
     use crate::channel::file_bytes::NO_FILESYSTEM;
@@ -519,7 +508,8 @@ pub(crate) async fn open_mounted(path: &str, mode: u8) -> Result<u32, i8> {
     }
 }
 
-/// The driver. Takes one operation at a time and publishes its answer.
+/// The stream channel's driver on the storage tier: runs one operation at a time and publishes its
+/// answer.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn file_stream_task() {
@@ -548,15 +538,14 @@ async fn file_stream_task_body() {
                 let mut req = REQUEST.lock().await;
                 match req.take() {
                     None => None,
-                    // A request from before the card changed that survived the flush (its `try_lock` lost the race)
-                    // names the old card: running it would touch the new card. Its answer could never be collected, so
-                    // none is published, and its buffer is never named as running.
+                    // A request from an earlier card that survived the flush's `try_lock` would
+                    // touch the new card. Drop it unrun: its answer could never be collected.
                     Some(q) if q.generation != crate::storage::card::generation() => Some(None),
                     Some(q) => {
                         RUNNING_BUFFER
                             .store(op_buffer(&q.op), core::sync::atomic::Ordering::Release);
-                        // Marked while the REQUEST lock is still held, so a collect never finds the operation in
-                        // neither slot: it sees it queued, sees it running, or meets a contended lock.
+                        // Marked while the REQUEST lock is still held, so a collect always sees the
+                        // operation queued, running, or behind a contended lock.
                         *IN_FLIGHT.lock().await = Some(q.key.clone());
                         Some(Some(q))
                     }
@@ -568,8 +557,8 @@ async fn file_stream_task_body() {
             let Some(queued) = taken else {
                 continue;
             };
-            // After marking it in flight, so a collect during the wait answers PENDING, exactly as it would while
-            // a slow card was working.
+            // After marking it in flight, so a collect during the wait answers PENDING, as for a
+            // slow card.
             #[cfg(feature = "host_app")]
             {
                 let ms = LATENCY_MS.load(core::sync::atomic::Ordering::Relaxed);
@@ -579,7 +568,8 @@ async fn file_stream_task_body() {
             }
             let path = queued.path.as_str();
             let result = match queued.op {
-                // The `Err` payload is the `DelugeStatus`'s byte; the collect turns it back into the status.
+                // The `Err` payload is the `DelugeStatus`'s byte; the collect turns it back into
+                // the status.
                 StreamOp::Open { mode } => channel_open(path, mode)
                     .await
                     .map_err(|status| u32::from(status as u8)),
@@ -589,13 +579,12 @@ async fn file_stream_task_body() {
                     dst,
                     len,
                 } => {
-                    // SAFETY: the C++ contract (file_stream.h) is that this buffer stays alive and
-                    // unmodified until the collect below is observed as terminal.
+                    // SAFETY: the caller keeps this buffer alive and unmodified until the collect
+                    // is terminal (`libdeluge/file_stream.h`).
                     let d =
                         unsafe { core::slice::from_raw_parts_mut(dst as *mut u8, len as usize) };
-                    // A SHORT read is reported as READY with its TRUE count; the caller decides
-                    // whether short is an error. Reporting it as FAILED would lose the distinction
-                    // between "nothing happened" and "less than asked for".
+                    // A short read is READY with its true count; the caller decides whether short
+                    // is an error.
                     backing::stream_read_at_via(handle, offset, d)
                         .await
                         .map(|n| n as u32)
@@ -610,8 +599,7 @@ async fn file_stream_task_body() {
                     // SAFETY: as above.
                     let s = unsafe { core::slice::from_raw_parts(src as *const u8, len as usize) };
                     match backing::stream_write_at(handle, offset, s).await {
-                        // A short WRITE is a failure, not a small success: a partial cluster must
-                        // never look written.
+                        // A short write is a failure: a partial cluster must never look written.
                         Some(n) if n as u32 == len => Ok(n as u32),
                         _ => Err(0),
                     }
@@ -642,12 +630,12 @@ async fn file_stream_task_body() {
     }
 }
 
-/// Forget everything asked of the card that is gone. Called by `deluge_card_flush`.
+/// Forgets everything asked of the card that is gone. Called by `deluge_card_flush`.
 ///
-/// Drops a queued request (its buffer was never touched, so `deluge_file_stream_holds` rightly stops naming it)
-/// and a waiting answer. Leaves the running operation alone: it is still using its buffer, and its answer arrives
-/// stamped for the old card, so no collect takes it. Each clear is `try_lock`ed and may not land; the generation
-/// stamp is what makes that safe.
+/// Drops a queued request (its buffer was never touched) and a waiting answer. The running
+/// operation is left alone: it still uses its buffer, and its answer is stamped for the old card so
+/// no collect takes it. Each clear is `try_lock`ed and may not land; the generation stamp is what
+/// makes that safe.
 pub(crate) fn flush_tables() {
     if let Ok(mut request) = REQUEST.try_lock() {
         *request = None;

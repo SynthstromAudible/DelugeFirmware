@@ -22,7 +22,8 @@ const STRUCTS: &[(&str, &str)] = &[
     ("DelugeSampleStreamGeometry", "deluge_sample_stream::DelugeSampleStreamGeometry"),
 ];
 
-/// Enums, likewise. `sys_layout` generates each as a Rust enum, so `abi_layout!` can match on its variants.
+/// Enums, likewise. `sys_layout` generates each as a Rust enum, so `abi_layout!` can match on its
+/// variants.
 #[rustfmt::skip]
 const ENUMS: &[(&str, &str)] = &[
     ("DelugeReadHint", "deluge_sample_reader::reader::ReadHint"),

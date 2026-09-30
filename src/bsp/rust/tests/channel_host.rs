@@ -1,3 +1,6 @@
+//! Host tests for the shared [`AnswerSlot`]: keying, card-generation stamps, and the orphans every
+//! dropped answer returns.
+
 use deluge_bsp_rust::channel::{Answer, AnswerSlot, Orphan, Take};
 
 /// An answer that may carry a handle, as an open does.

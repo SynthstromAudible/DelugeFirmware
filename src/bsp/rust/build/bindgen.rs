@@ -5,39 +5,20 @@ use std::path::Path;
 
 use super::{allowlist, crate_types};
 
-/// Generates the whole libdeluge C ABI (`include/libdeluge/*.h`) via bindgen
-/// for `clang_target`, writing `libdeluge_sys.rs` into `out_dir`: the POD
-/// types, the `DELUGE_*` constants, and an `extern "C"` declaration for every
-/// header function. The crate DEFINES the service functions itself
-/// (`#[no_mangle]`); the generated declarations are what those definitions are
-/// checked against, so a header change is a compile error rather than a
-/// silent ABI drift. Shared by the device path (`--target=armv7a-none-eabihf`)
-/// and the `host_app` path (`--target=x86_64-unknown-linux-gnu`) — same
-/// allowlist/flags otherwise, so the two `mod sys`es stay structurally
-/// identical modulo target.
+/// Binds the libdeluge headers for `clang_target`, writing `libdeluge_sys.rs` into `out_dir`: the
+/// POD types, the `DELUGE_*` constants, and a declaration of every header function.
 ///
-/// The header types an in-tree crate defines are bound to the crate's own
-/// types, and their header layouts are written to `libdeluge_layout.rs`
-/// instead: see `build_crate_types.rs`.
+/// The crate defines the service functions itself; the generated declarations are what `abi_pin!`
+/// checks those definitions against, so a header change is a compile error rather than silent ABI
+/// drift. The header types an in-tree crate defines bind to that crate's types, and their header
+/// layouts go to `libdeluge_layout.rs` instead (see [`crate_types`]).
 ///
-/// `deluge_host` defines `DELUGE_HOST`, as the host app's CMake build does, so
-/// the host-only declarations (latency knobs, the host trigger-clock edge) are
-/// bound for the `host_app` carrier and absent from the device one.
+/// `deluge_host` defines `DELUGE_HOST`, as the host app's CMake build does, which binds the
+/// host-only declarations.
 ///
-/// # Why no `-fshort-enums`
-///
-/// It is deliberately absent from both bindgen paths, and irrelevant to enum
-/// sizing here: all 11 libdeluge FFI enums pin their underlying type
-/// explicitly in the header (`enum DelugeStatus : int8_t`, and so on). An
-/// explicit underlying type is authoritative in both C and C++ — no flag or
-/// ABI default overrides it — so bindgen sizes them identically on every
-/// target.
-///
-/// That explicitness is load-bearing, not incidental. Without it the arm
-/// device (which defaults to short enums) and an un-flagged bindgen target
-/// would silently disagree on enum width, mislaying every enum-bearing POD
-/// across the FFI boundary. `--target` is passed purely for pointer width,
-/// alignment and calling convention.
+/// No `-fshort-enums`: every libdeluge enum declares its underlying type (`enum DelugeStatus :
+/// int8_t`), which no flag or ABI default overrides. That is load-bearing: the arm device defaults
+/// to short enums, and an unsized enum would differ in width between the two sides.
 pub fn run(
     repo_root: &Path,
     manifest_dir: &Path,
@@ -53,9 +34,7 @@ pub fn run(
             .clang_arg(format!("-I{}", include_dir.display()))
             .use_core()
             .clang_arg(format!("--target={clang_target}"))
-            // Layouts match the app being linked on every target (explicit
-            // fixed-width enums throughout), and the asserts would run host-side
-            // anyway.
+            // `abi_layout!` checks the layouts that matter, on the target itself.
             .layout_tests(false);
         if deluge_host {
             builder.clang_arg("-DDELUGE_HOST")
@@ -65,7 +44,8 @@ pub fn run(
     };
     let builder = base()
         .allowlist_type("Deluge.*")
-        // Every function and constant too: `abi_pin!` and `abi_const!` check the Rust side against these.
+        // Every function and constant too: `abi_pin!` and `abi_const!` check the Rust side against
+        // these.
         .allowlist_function("deluge_.*")
         .allowlist_function(allowlist::SCHEDULER_API_FUNCTIONS)
         .allowlist_function(allowlist::UNPREFIXED_FUNCTIONS)

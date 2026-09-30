@@ -1,5 +1,5 @@
-//! The single-slot prefix channel. Song preview is single-flight by construction (one browser, one
-//! coalescer), so this is a slot, not a table: no depth, no eviction, no ordering.
+//! Host tests for the prefix channel: the slot's keying and card-generation stamp, the driver's
+//! bounds and handle discipline, and the C ABI's request/collect contract.
 #![cfg(not(target_os = "none"))]
 
 use std::cell::{Cell, RefCell};
@@ -14,8 +14,7 @@ use file_prefix::{
     take_from,
 };
 
-/// Nonzero on purpose: 0 is what a dropped stamp would leave behind, so a slot built at 0 would let a
-/// publish that ignored its generation still satisfy every take.
+/// Nonzero, so a publish that dropped its stamp (leaving 0) cannot still satisfy every take.
 const CARD: u32 = 3;
 
 #[test]
@@ -39,8 +38,6 @@ fn a_published_prefix_is_taken_exactly_once() {
     assert!(take_from(&mut slot, &store, "SONGS/A.XML", CARD, &mut out).is_none());
 }
 
-/// A different path is absent, not a mis-served neighbour. With one slot this is the whole of the
-/// keying discipline.
 #[test]
 fn a_prefix_for_another_path_is_absent() {
     let mut slot = PrefixSlot::default();
@@ -50,8 +47,7 @@ fn a_prefix_for_another_path_is_absent() {
     assert!(take_from(&mut slot, &store, "SONGS/B.XML", CARD, &mut out).is_none());
 }
 
-/// The belt: a prefix read from the previous card is dropped at the TAKE, and does not stay resident
-/// either. Withholding without removing would only defer the problem to the next generation.
+/// A stale prefix is removed at the take, not merely withheld.
 #[test]
 fn a_prefix_from_a_previous_card_is_dropped_not_returned() {
     let mut slot = PrefixSlot::default();
@@ -65,9 +61,7 @@ fn a_prefix_from_a_previous_card_is_dropped_not_returned() {
     );
 }
 
-/// The race flush cannot win: there is no happens-before edge from a flush's bump to a concurrent
-/// publish's read of the generation, so a publish stamped BEFORE the bump can land after it. The take
-/// is what refuses it.
+/// A publish stamped before a flush's bump can land after it; the take refuses it.
 #[test]
 fn a_prefix_stamped_before_a_flush_cannot_be_taken_after_it() {
     let mut slot = PrefixSlot::default();
@@ -78,14 +72,9 @@ fn a_prefix_stamped_before_a_flush_cannot_be_taken_after_it() {
     assert!(slot.is_empty());
 }
 
-/// A buffer smaller than the prefix is a caller bug, not a truncation to paper over — and the answer
-/// is TERMINAL: consume the entry and report an empty prefix (which reaches the caller as READY with
-/// no bytes, i.e. blank artwork).
-///
-/// Leaving it resident for "a correctly-sized retry" is what this replaced, and it was a livelock:
-/// the caller is told UNKNOWN, the header tells it to request again, the task re-reads the file from
-/// the CARD, and the next collect with the same buffer says UNKNOWN again — once per tick, with real
-/// SD I/O each time.
+/// A buffer smaller than the prefix is a caller bug, and terminal: the entry is consumed and an
+/// empty prefix reported. Leaving it resident would make the caller re-request and re-read the card
+/// every tick.
 #[test]
 fn a_too_small_out_buffer_consumes_the_prefix_and_takes_nothing() {
     let mut slot = PrefixSlot::default();
@@ -106,14 +95,9 @@ fn a_too_small_out_buffer_consumes_the_prefix_and_takes_nothing() {
     );
 }
 
-/// The branch ORDER inside `take_from` is load-bearing: the generation is checked BEFORE the buffer
-/// size. Hoisting the size check above it — a plausible "simplify", since both end the take — would
-/// make a stale entry meeting a short buffer report `Some(0)`, which the collector turns into READY
-/// with blank artwork for a song on the card that is in the slot NOW. The caller would take that as
-/// a real answer and never re-request, so a card swap would silently blank artwork.
-///
-/// Stale wins: `None`, so the collector says UNKNOWN and asks again against the current card. The
-/// entry is still removed either way.
+/// The generation is checked before the buffer size: a stale entry meeting a short buffer must
+/// report `None` (re-request), not `Bytes(0)`, which the caller would accept as blank artwork for
+/// the current card.
 #[test]
 fn a_stale_prefix_meeting_a_short_buffer_is_refused_not_blanked() {
     let mut slot = PrefixSlot::default();
@@ -124,11 +108,8 @@ fn a_stale_prefix_meeting_a_short_buffer_is_refused_not_blanked() {
     assert!(slot.is_empty());
 }
 
-/// A failed read is an ANSWER the slot holds, not an absence — and it takes as a failure, once.
-///
-/// Absence would reach the collector as `UNKNOWN`, whose documented meaning is "request it (again)",
-/// so a file that cannot be read would be re-opened on every tick for as long as the cursor sat on
-/// it. That is the livelock the whole terminal convention exists to prevent.
+/// A failed read is an answer, taken once as a failure; absence would read as `UNKNOWN` and be
+/// re-read every tick.
 #[test]
 fn a_published_failure_is_taken_as_a_failure_exactly_once() {
     let mut slot = PrefixSlot::default();
@@ -147,12 +128,8 @@ fn a_published_failure_is_taken_as_a_failure_exactly_once() {
     assert!(take_from(&mut slot, &store, "SONGS/A.XML", CARD, &mut out).is_none());
 }
 
-/// The distinction the whole `PrefixTake` split exists for: an EMPTY FILE and a FAILED READ are
-/// different answers, not one answer with the same length.
-///
-/// They were the same answer once — both published as an empty prefix — and the caller shows the
-/// user an error for one and blank artwork for the other. A collapse here is invisible to any test
-/// that only looks at how many bytes came back, because both are zero.
+/// An empty file and a failed read are different answers; both have zero bytes, so only the
+/// variant tells them apart.
 #[test]
 fn an_empty_file_and_a_failed_read_are_different_answers() {
     let mut empty = PrefixSlot::default();
@@ -173,9 +150,8 @@ fn an_empty_file_and_a_failed_read_are_different_answers() {
     );
 }
 
-/// The card belt covers a failure exactly as it covers a prefix. A failure belongs to the card it
-/// was read from: served after a swap it would put an error on screen for a file on the NEW card
-/// that nothing has tried to read.
+/// A stale failure is refused too: served after a swap it would show an error for a file on the
+/// new card.
 #[test]
 fn a_failure_from_a_previous_card_is_dropped_not_returned() {
     let mut slot = PrefixSlot::default();
@@ -189,11 +165,8 @@ fn a_failure_from_a_previous_card_is_dropped_not_returned() {
     );
 }
 
-/// The slot must hold the largest single-shot read any consumer makes, and that is the DX7
-/// cartridge, not the song preview. The DX7 cartridge reads `min(filesize, 8192)`
-/// (`gui/menu_item/dx/cartridge.cpp`), and a 32-voice bank is 4104 bytes -- 8 past a 4096 slot,
-/// which is enough to fail its checksum.
-/// This is a bound a shipped consumer needs, not a defensive round number.
+/// The slot must hold the largest consumer's read, a DX7 32-voice bank (4104 bytes, which a 4096
+/// slot would truncate and fail its checksum).
 #[test]
 fn the_slot_holds_a_dx7_bank() {
     /// 6 header bytes + 32 voices x 128 bytes + checksum + EOX.
@@ -215,8 +188,7 @@ fn the_slot_holds_a_dx7_bank() {
     assert_eq!(&out[..DX7_32_VOICE_BANK], &bank[..]);
 }
 
-/// A publish writes its bytes into the STORE, not into the slot. On the device the store is the SDRAM
-/// buffer, so a publish that left it untouched would hand every take whatever bytes were there before.
+/// A publish writes its bytes into the store (the SDRAM buffer on device), not the slot.
 #[test]
 fn a_publish_writes_its_bytes_into_the_store() {
     let mut slot = PrefixSlot::default();
@@ -225,8 +197,7 @@ fn a_publish_writes_its_bytes_into_the_store() {
     assert_eq!(&store[..13], b"<song preview");
 }
 
-/// A take copies out of the STORE it is given, not out of anything the slot kept: overwrite the store
-/// between the publish and the take, and the take hands back the overwritten bytes.
+/// A take copies from the store it is given, not from anything the slot kept.
 #[test]
 fn a_take_copies_its_bytes_out_of_the_store() {
     let mut slot = PrefixSlot::default();
@@ -241,11 +212,8 @@ fn a_take_copies_its_bytes_out_of_the_store() {
     assert_eq!(&out[..3], b"xyz");
 }
 
-// ── The driver ──────────────────────────────────────────────────────────────
-// `prefix_io_once` is the only code in this module that touches a file, and its whole contract is
-// three properties a review cannot check: the read is bounded by BOTH the file's size and the
-// caller's ceiling, the handle is released on every path out, and a failure is distinguishable from
-// a genuinely empty file.
+// The driver: the read is bounded by both the file size and the caller's ceiling, the handle is
+// closed on every path, and a failure is distinct from an empty file.
 
 /// One call [`FakeOps`] observed, in order.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -258,10 +226,9 @@ enum Call {
 
 /// Counting double for [`LoadOps`], serving files from memory.
 ///
-/// `open_handles` is the LIVE count, asserted zero at the end of every test: the efatfs handle table
-/// has 128 slots, so a leaked handle is silent capacity loss rather than an error anything reports.
-/// Every operation resolves its HANDLE (not "whatever was opened last"), so a driver that read
-/// through a stale one panics here instead of quietly serving the right bytes for the wrong file.
+/// Tests assert `open_handles` (the live count) is zero at the end: a leaked efatfs handle is
+/// silent capacity loss. Every operation resolves its handle, so a driver using a stale one panics
+/// here.
 struct FakeOps {
     files: Vec<(String, Vec<u8>)>,
     /// Paths whose `open` reports a full efatfs handle table rather than a miss.
@@ -319,7 +286,7 @@ impl FakeOps {
         self.calls.borrow_mut().push(call);
     }
 
-    /// The invariant that holds at the end of EVERY read: no handle left open.
+    /// Asserts no handle is left open.
     fn assert_settled(&self) {
         assert_eq!(
             self.open_handles.get(),
@@ -329,8 +296,7 @@ impl FakeOps {
         );
     }
 
-    /// The path and bytes behind a live handle. Panics if `handle` was never issued or has already
-    /// been closed — either is a real defect in the driver, not a harness detail.
+    /// The path and bytes behind a live handle. Panics if `handle` was never issued or is closed.
     fn entry_for(&self, handle: u32) -> (String, Vec<u8>) {
         let live = self.live.borrow();
         live.iter()
@@ -359,8 +325,7 @@ impl LoadOps for FakeOps {
         else {
             return OpenVerdict::Missing;
         };
-        // A fresh handle every time, never reused, so a driver holding a stale one cannot
-        // accidentally land on a live entry.
+        // Handles are never reused, so a stale one cannot land on a live entry.
         let handle = self.next_handle.get();
         self.next_handle.set(handle + 1);
         self.live
@@ -389,7 +354,7 @@ impl LoadOps for FakeOps {
             return false;
         }
         if buf.is_empty() {
-            return true; // Mirrors `efatfs_fs::read_at`: an empty fill trivially succeeds.
+            return true; // An empty fill trivially succeeds, as in production.
         }
         let start = offset as usize;
         let Some(end) = start.checked_add(buf.len()) else {
@@ -434,8 +399,7 @@ fn a_short_file_is_read_whole_and_the_handle_released() {
     ops.assert_settled();
 }
 
-/// The ceiling, not the file, bounds a long file's read. Asking for the whole file would blow the
-/// slot the result has to fit in.
+/// The ceiling, not the file size, bounds a long file's read.
 #[test]
 fn a_long_file_is_read_only_up_to_the_ceiling() {
     let ops = FakeOps::new().with_file("SONGS/A.XML", vec![b'x'; PREFIX_CAPACITY * 2]);
@@ -457,8 +421,7 @@ fn a_long_file_is_read_only_up_to_the_ceiling() {
     ops.assert_settled();
 }
 
-/// An empty file reports a zero-length prefix, NOT a failure: there is genuinely nothing to read,
-/// which is a different answer from "the read did not happen".
+/// An empty file reads as a zero-length prefix, not a failure.
 #[test]
 fn an_empty_file_reads_an_empty_prefix() {
     let ops = FakeOps::new().with_file("SONGS/A.XML", Vec::new());
@@ -482,8 +445,7 @@ fn a_missing_file_reads_nothing_and_opens_no_handle() {
     ops.assert_settled();
 }
 
-/// A full efatfs handle table is not a verdict about this file, but this channel has no way to say
-/// so and nothing that could act on it if it did — the artwork is simply not available this tick.
+/// A full handle table is reported as a failed read; this channel has no transient failure.
 #[test]
 fn a_full_handle_table_reads_nothing() {
     let ops = FakeOps::new()
@@ -497,8 +459,7 @@ fn a_full_handle_table_reads_nothing() {
     ops.assert_settled();
 }
 
-/// Every failure after the open still releases the handle: the size failure and the read failure are
-/// the two paths out of the read that are not the happy one.
+/// A size failure and a read failure both still close the handle.
 #[test]
 fn a_failure_after_the_open_still_closes_the_handle() {
     let sized = FakeOps::new()
@@ -523,9 +484,7 @@ fn a_failure_after_the_open_still_closes_the_handle() {
     read.assert_settled();
 }
 
-// ── The live request/collect pipeline ───────────────────────────────────────
-// The C ABI over the process-wide statics. Only exists where its storage does, so the whole module
-// is gated on the switch — with it off there is no REQUEST, no IN_FLIGHT and no RESULT to drive.
+// The C ABI over the process-wide statics.
 
 use deluge_bsp_rust::storage::card;
 
@@ -540,24 +499,22 @@ mod live_pipeline {
     };
     use std::ffi::CString;
 
-    /// `REQUEST`/`IN_FLIGHT`/`RESULT` are process-wide and cargo runs tests on parallel threads, so
-    /// these must not interleave.
+    /// The statics are process-wide and tests run on parallel threads, so tests take this lock.
     static PIPELINE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-    /// What [`collect`] seeds its outputs with. Neither may be written unless the status is READY.
+    /// What [`collect`] seeds its outputs with; neither may be written unless the status is READY.
     const UNTOUCHED: u8 = 0xFF;
     const UNTOUCHED_LEN: u32 = 0xDEAD_BEEF;
 
-    /// Start from a known-empty channel, whatever the test before this one left behind.
+    /// Takes the pipeline lock and flushes the channel, whatever the previous test left.
     fn reset() -> std::sync::MutexGuard<'static, ()> {
         let guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         card::deluge_card_flush();
         guard
     }
 
-    /// Collect into a full-capacity buffer, returning the status, the bytes, and the reported
-    /// length. The buffer is seeded so the "written only on READY" half of the contract can be
-    /// asserted rather than assumed.
+    /// Collects into a full-capacity seeded buffer, returning the status, the bytes and the
+    /// reported length.
     fn collect(path: &str) -> (u8, Vec<u8>, u32) {
         let key = CString::new(path).unwrap();
         let mut buffer = vec![UNTOUCHED; PREFIX_CAPACITY];
@@ -575,9 +532,8 @@ mod live_pipeline {
         (status, buffer, len)
     }
 
-    /// Assert the outputs came back exactly as [`collect`] seeded them — the NEGATIVE half of
-    /// `file_prefix.h`'s contract, which a status-only assertion cannot see: a branch that wrote a
-    /// placeholder length, or hoisted the copy above the take, would leave every status right.
+    /// Asserts the outputs are still as [`collect`] seeded them: the "written only on READY" half
+    /// of `file_prefix.h`'s contract.
     fn assert_untouched(buffer: &[u8], len: u32) {
         assert_eq!(len, UNTOUCHED_LEN, "`out_len` is written only on READY");
         assert!(
@@ -592,8 +548,7 @@ mod live_pipeline {
         unsafe { deluge_file_prefix_request(key.as_ptr(), max_bytes) };
     }
 
-    /// Publish as the task would for a read that began just now: stamped with the CURRENT card
-    /// generation, so nothing here is accidentally testing the flush's drop path.
+    /// Publishes as the task would for a read that began under the current card generation.
     fn publish(path: &str, bytes: &[u8]) {
         block_on(publish_result(
             path,
@@ -602,7 +557,7 @@ mod live_pipeline {
         ));
     }
 
-    /// Publish as the task would for a read that FAILED — the `None` arm of the same call.
+    /// Publishes as the task would for a failed read.
     fn publish_failure(path: &str) {
         block_on(publish_result(
             path,
@@ -611,8 +566,7 @@ mod live_pipeline {
         ));
     }
 
-    /// A path never asked about is `UNKNOWN`, not `PENDING` — `PENDING` would tell the caller to
-    /// keep asking for something that will never arrive.
+    /// A path never asked about is `UNKNOWN`; `PENDING` would make the caller wait forever.
     #[test]
     fn an_unrequested_path_is_unknown() {
         let _guard = reset();
@@ -621,8 +575,6 @@ mod live_pipeline {
         assert_untouched(&buffer, len);
     }
 
-    /// A requested-but-unread path reports `PENDING`, so the caller waits instead of re-requesting
-    /// work already outstanding.
     #[test]
     fn a_requested_path_is_pending() {
         let _guard = reset();
@@ -632,11 +584,8 @@ mod live_pipeline {
         assert_untouched(&buffer, len);
     }
 
-    /// A read running RIGHT NOW reports `PENDING`, not `UNKNOWN`. No test runs the task, so
-    /// `mark_in_flight` — the seam the task uses — is driven directly to reach the real branch.
-    ///
-    /// A false `UNKNOWN` here would tell the caller to re-request a read that is already running,
-    /// on every tick.
+    /// A read running now reports `PENDING`, not `UNKNOWN` (which would make the caller re-request
+    /// it every tick). No test runs the task, so `mark_in_flight` is driven directly.
     #[test]
     fn an_in_flight_read_is_pending_not_unknown() {
         let _guard = reset();
@@ -644,15 +593,12 @@ mod live_pipeline {
             PrefixPath::try_from("SONGS/INFLIGHT.XML").unwrap(),
         )));
         assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_CHANNEL_PENDING);
-        // A DIFFERENT path is still unknown — the branch matches on identity, not on "something is
-        // in flight".
+        // Another path is still unknown: the branch matches on the path.
         assert_eq!(collect("SONGS/OTHER.XML").0, DELUGE_CHANNEL_UNKNOWN);
         block_on(mark_in_flight(None));
         assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
-    /// The whole round trip: a published prefix collects READY once, with its bytes and length, and
-    /// is gone afterwards.
     #[test]
     fn a_published_prefix_collects_ready_exactly_once() {
         let _guard = reset();
@@ -666,9 +612,8 @@ mod live_pipeline {
         assert_untouched(&buffer, len);
     }
 
-    /// An empty prefix is a real answer, not an absence: it is what an EMPTY FILE publishes, and it
-    /// must reach the caller as READY with a zero length rather than as UNKNOWN, which would have
-    /// it re-request the file on every tick forever.
+    /// An empty prefix (an empty file) collects READY with zero length, not `UNKNOWN`, which would
+    /// make the caller re-request it every tick.
     #[test]
     fn an_empty_prefix_collects_ready_with_zero_length() {
         let _guard = reset();
@@ -678,11 +623,7 @@ mod live_pipeline {
         assert_eq!(len, 0);
     }
 
-    /// A failed read collects FAILED, once, writing neither output — and is UNKNOWN afterwards.
-    ///
-    /// The status is the whole point: READY-with-zero-length is what an empty FILE gets, so
-    /// reporting a failure that way leaves the caller unable to tell an unreadable song from one
-    /// with no artwork.
+    /// A failed read collects FAILED once, writing neither output, and is `UNKNOWN` afterwards.
     #[test]
     fn a_failed_read_collects_failed_exactly_once() {
         let _guard = reset();
@@ -690,15 +631,14 @@ mod live_pipeline {
         let (status, buffer, len) = collect("SONGS/BROKEN.XML");
         assert_eq!(status, DELUGE_CHANNEL_FAILED);
         assert_untouched(&buffer, len);
-        // Terminal, exactly as READY is: the answer is consumed, and the caller must not re-request.
+        // Terminal, like READY: the answer is consumed.
         let (status, buffer, len) = collect("SONGS/BROKEN.XML");
         assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
         assert_untouched(&buffer, len);
     }
 
-    /// FAILED and an empty READY are DIFFERENT statuses over the same wire, which is the one
-    /// property the two tests above cannot state between them: each passes if both answers collapse
-    /// onto the other's status, as long as they collapse consistently.
+    /// FAILED and an empty READY are distinct statuses; the two tests above would each still pass
+    /// if both collapsed onto one status.
     #[test]
     fn an_empty_file_and_a_failed_read_collect_differently() {
         let _guard = reset();
@@ -714,8 +654,7 @@ mod live_pipeline {
         assert_eq!(failed, DELUGE_CHANNEL_FAILED);
     }
 
-    /// The card belt covers a failure too: one published before the card went is not served after
-    /// it, or an error pops for a file on the NEW card that nothing has tried to read.
+    /// A failure published before the card went is not served after it.
     #[test]
     fn a_failure_published_before_an_ejection_is_not_collectable_after_it() {
         let _guard = reset();
@@ -726,8 +665,8 @@ mod live_pipeline {
         assert_untouched(&buffer, len);
     }
 
-    /// Single flight, end to end: a second request replaces the first, so the abandoned path is
-    /// UNKNOWN — "request it (again)" — rather than sitting PENDING for a read nobody will do.
+    /// A second request replaces the first, so the abandoned path is `UNKNOWN`, not stuck
+    /// `PENDING`.
     #[test]
     fn a_second_request_supersedes_the_first() {
         let _guard = reset();
@@ -737,15 +676,12 @@ mod live_pipeline {
         assert_eq!(collect("SONGS/FIRST.XML").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
-    /// `deluge_card_flush` covers this channel along with every other loader, in one call: a prefix
-    /// published before the card went is uncollectable after it.
+    /// `deluge_card_flush` reaches this channel: a prefix published before the card went is
+    /// uncollectable after it.
     ///
-    /// **This does not pin the take-time belt, and must not be read as if it did.** With nothing
-    /// contending the slot the flush's own `try_lock` clear succeeds, so this passes even against a
-    /// `take_from` that ignores the stamp entirely (verified by re-running it under exactly that
-    /// neutering). What it pins is the wiring — that `card.rs` reaches THIS channel at all. The
-    /// take-time property is pinned by the two unit tests above, which are the ones that fail when
-    /// the stamp comparison is removed.
+    /// This pins the wiring, not the take-time stamp check: uncontended, the flush's own clear
+    /// succeeds, so this passes even if `take_from` ignores the stamp. The unit tests above pin
+    /// that.
     #[test]
     fn a_prefix_published_before_an_ejection_is_not_collectable_after_it() {
         let _guard = reset();
@@ -756,13 +692,11 @@ mod live_pipeline {
         assert_untouched(&buffer, len);
     }
 
-    /// The half a cleared table cannot cover: a read already in flight when the card went publishes
-    /// AFTERWARDS, stamped with the generation it began under, and is uncollectable.
+    /// A read in flight when the card went publishes afterwards, stamped with its old generation,
+    /// and is uncollectable.
     ///
-    /// **What refuses it here is `publish_result`'s early-drop check, not the take** — that check
-    /// calls itself "an optimisation, not the guarantee", and this test passes against a
-    /// stamp-ignoring `take_from` (verified). It is worth keeping for the drop it does pin, but the
-    /// guarantee is the take, and only the unit tests above hold that.
+    /// What refuses it here is `publish_result`'s early drop, not the take; the unit tests above
+    /// pin the take.
     #[test]
     fn a_read_in_flight_across_an_ejection_publishes_uncollectably() {
         let _guard = reset();

@@ -1,25 +1,20 @@
-//! The streamed sample-audio cluster's per-cluster state, backing the C++ `StreamedChunk`
-//! type. A plain Rust struct (NOT repr(C) — nothing C++ reads it anymore; only its size feeds
-//! the slab slot geometry). Drop-free: all fields are POD, so the manager still frees the slab slot
-//! directly (no destructor to run), preserving the trivially-destructible chunk contract.
+//! A streamed sample cluster's state, living at the front of its resource-manager slab slot.
 //!
-//! Field set: the C++ `StreamedChunk` also carries `sample`/`resource_slot`,
-//! but both are write-only in the live tree — their only C++ readers
-//! (`StreamedChunk::convert_data_if_necessary`/`resource_lease_asset_id`/
-//! `deluge::cluster::remove_reason(StreamedChunk&, ...)`, all in `cluster.cpp`) have zero call
-//! sites anywhere (dead code, superseded by the async Rust fill + `convert.h`'s pure core), so
-//! neither is carried here. `cluster_index` IS live: `deluge_sample_fill::fill_logic::begin`/
-//! `finish` document and use it directly in offset math.
+//! [`StreamedChunk`] is Rust-only (not `#[repr(C)]`); C++ sees only its payload offset, which
+//! feeds the slab slot geometry. Every field is plain data with no destructor, so the manager can
+//! free the slot directly. The resource manager constructs chunks through
+//! [`deluge_streaming_chunk_construct`]; everything else reaches the fields through the `pub`
+//! accessors here.
 
 use core::ffi::c_void;
 
 use crate::DelugeChunkConvertState;
 
-/// Cache line, matching the C++ `CACHE_LINE_SIZE` (definitions.h). The front guard between the
-/// struct header and the payload must be >= this; guarded C++-side by the slab reconcile.
+/// Cache line, matching the C++ `CACHE_LINE_SIZE`. The front guard between the header and the
+/// payload must be at least this.
 const CACHE_LINE: usize = 32;
 
-/// A resident chunk as the C ABI names it (`DelugeChunkBacking`, `include/libdeluge/types.h`).
+/// A resident chunk as the C ABI names it (`DelugeChunkBacking` in `libdeluge/types.h`).
 ///
 /// Every non-null pointer of this type points at a [`StreamedChunk`], which only Rust dereferences.
 #[repr(C)]
@@ -27,6 +22,7 @@ pub struct DelugeChunkBacking {
     _opaque: [u8; 0],
 }
 
+/// One streamed cluster's state; see the module docs.
 pub struct StreamedChunk {
     pub cluster_index: u32,
     pub loaded: bool,
@@ -51,17 +47,18 @@ impl StreamedChunk {
     }
 }
 
-/// Byte offset of the payload from the slot base for a streamed chunk: header + one cache-line
-/// front guard, matching the C++ `kChunkPayloadOffset` discipline (its own offset; the shared slab
-/// slot takes the max with ComputedChunk's — see general_memory_allocator.cpp).
+/// Byte offset of a streamed chunk's payload from its slot base: the header plus a one-cache-line
+/// front guard. The shared slab slot uses the larger of this and the C++ `kChunkPayloadOffset`.
 pub const RUST_CHUNK_PAYLOAD_OFFSET: usize = core::mem::size_of::<StreamedChunk>() + CACHE_LINE;
 
-/// Placement-construct a StreamedChunk at `dest`, setting its payload base + cluster index.
+/// Placement-constructs a [`StreamedChunk`] for cluster `index` at `dest`.
+///
 /// # Safety
+///
 /// `dest` must be a writable slab slot of at least `RUST_CHUNK_PAYLOAD_OFFSET + Cluster::size +
-/// trailing_guard` bytes.
+/// trailing guard` bytes.
 pub(crate) unsafe fn construct(dest: *mut u8, index: u32) {
-    // SAFETY: `dest` is a writable slab slot (caller contract); payload sits within it.
+    // SAFETY: `dest` is a writable slab slot (caller contract) and the payload lies within it.
     unsafe {
         core::ptr::write(
             dest as *mut StreamedChunk,
@@ -70,38 +67,24 @@ pub(crate) unsafe fn construct(dest: *mut u8, index: u32) {
     }
 }
 
-/// C-ABI: the byte offset a streamed chunk needs for its payload, so the C++ slab setup can size
-/// the shared slot as `max(this, ComputedChunk's kChunkPayloadOffset) + Cluster::size + guard`.
+/// Returns [`RUST_CHUNK_PAYLOAD_OFFSET`], for the C++ slab setup to size the shared slot.
 ///
-/// Unconditional `#[unsafe(no_mangle)]`, matching this crate's sibling export
-/// (`deluge_streaming_set_fill_context` in `lib.rs`): unlike `deluge_sample_stream`/
-/// `deluge_sample_source`, this crate declares no `host_app`/`sim` selector features (see
-/// `Cargo.toml`'s `[features]`) — it is pulled in unconditionally wherever it's linked at all
-/// (`native_fill` gates the manager-reaching fill, not symbol visibility), so there is no cfg to
-/// gate this export behind.
+/// Exported unconditionally, like this crate's other exports: it has no `c_abi` feature.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_streamed_chunk_payload_offset() -> u32 {
     RUST_CHUNK_PAYLOAD_OFFSET as u32
 }
 
-// ── Chunk construct + field accessors ─────────────────────────────────
-// The streamed chunk's storage lives entirely in Rust: the resource manager placement-constructs it
-// through `deluge_streaming_chunk_construct` (the sole remaining C-ABI export below, registered from
-// `chunk_residency.cpp`), and every other caller — the native fill task, the C++ region cursor's Rust
-// callers, the differential harnesses — reaches its fields only through the plain `pub fn` accessors
-// below (`payload`/`set_loaded`/`loaded`/`unloadable`/`set_unloadable`/`convert_state`/
-// `set_convert_state`). There is no longer a C++ caller for any of them; all access goes through
-// these accessors directly by path (`deluge_sample_fill::chunk::*`).
+// Construction and field accessors.
 
-/// C-ABI construct callback the resource manager invokes for a streamed SAMPLE chunk (registered from
-/// `chunk_residency.cpp` via `deluge_resource_set_construct`). Matches the manager's
-/// `DelugeResourceConstructFn` signature `(ctx, owner, index, dest)`. `ctx`/`owner` are unused: the
-/// relocated chunk carries neither a context nor its owning `Sample*` — both were write-only in the
-/// former C++ POD and dropped from the field set (see this module's header).
+/// The resource manager's construct callback for a streamed sample chunk, a
+/// `DelugeResourceConstructFn` registered from `chunk_residency.cpp`. `_ctx` and `_owner` are
+/// unused.
 ///
 /// # Safety
-/// `dest` is a manager-owned writable slab slot of at least `RUST_CHUNK_PAYLOAD_OFFSET + Cluster::size
-/// + trailing guard` bytes (the manager's construct contract).
+///
+/// `dest` must be a manager-owned writable slab slot of at least
+/// `RUST_CHUNK_PAYLOAD_OFFSET + Cluster::size + trailing guard` bytes.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_streaming_chunk_construct(
     _ctx: *mut c_void,
@@ -109,92 +92,95 @@ pub unsafe extern "C" fn deluge_streaming_chunk_construct(
     index: u32,
     dest: *mut c_void,
 ) {
-    // SAFETY: `dest` is a manager-owned writable slab slot (construct contract above).
+    // SAFETY: `dest` is a manager-owned writable slab slot (caller contract).
     unsafe { construct(dest as *mut u8, index) };
 }
 
-/// Reborrow an opaque chunk backing pointer as `&StreamedChunk`, for the read-only accessors
-/// ([`payload`], [`loaded`], [`unloadable`], [`convert_state`]).
+/// Reborrows a chunk backing pointer as `&StreamedChunk`, for the read-only accessors.
 ///
 /// # Safety
-/// `backing` must point at a live `StreamedChunk` this crate's [`construct`] placement-wrote into a
-/// leased manager slab slot, handed back by the manager (`deluge_resource_loader_next`).
+///
+/// `backing` must point at a live chunk that [`construct`] wrote into a leased manager slab slot.
 #[inline]
 unsafe fn chunk_ref<'a>(backing: *mut c_void) -> &'a StreamedChunk {
-    // SAFETY: caller contract — `backing` is a live constructed StreamedChunk.
+    // SAFETY: `backing` is a live constructed chunk (caller contract).
     unsafe { &*(backing as *const StreamedChunk) }
 }
 
-/// Reborrow an opaque chunk backing pointer as `&mut StreamedChunk`, for the accessors that mutate a
-/// field ([`set_loaded`], [`set_unloadable`], [`set_convert_state`]).
+/// Reborrows a chunk backing pointer as `&mut StreamedChunk`, for the mutating accessors.
 ///
 /// # Safety
-/// `backing` must point at a live `StreamedChunk` this crate's [`construct`] placement-wrote into a
-/// leased manager slab slot, handed back by the manager (`deluge_resource_loader_next`).
 ///
-/// This crate does NOT synchronize the field this reborrow lets its caller write against concurrent
-/// readers: `set_loaded` is written by the fill task while `loaded` (through [`chunk_ref`]) is
-/// polled from the BSP drain — a genuine producer/consumer pair on different tasks, not "the single
-/// fill task / cursor". The access is a plain, non-atomic read/write race by that description, but
-/// it is the SAME race the prior C++ `StreamedChunk::loaded` field access already had (a bare `bool`
-/// field, set by the fill context and polled by the cursor with no lock or atomic) — not a hazard
-/// introduced by this relocation, just carried forward unchanged. Each write-accessor below holds
-/// its `&mut` only for the duration of its own single field write, so no two writers alias it
-/// concurrently; a concurrent reader observing a torn or stale value is the pre-existing behaviour.
+/// As for [`chunk_ref`]. The fields are not synchronized: each accessor holds the `&mut` for a
+/// single field write only, and callers must not read a field another context may be writing.
 #[inline]
 unsafe fn chunk<'a>(backing: *mut c_void) -> &'a mut StreamedChunk {
-    // SAFETY: caller contract — `backing` is a live, uniquely-borrowed constructed StreamedChunk.
+    // SAFETY: `backing` is a live constructed chunk, not otherwise borrowed (caller contract).
     unsafe { &mut *(backing as *mut StreamedChunk) }
 }
 
-/// Base of the chunk's audio payload (the DMA/read destination and frame-read origin).
+/// Returns the base of the chunk's audio payload: the read destination and frame-read origin.
+///
 /// # Safety
-/// See [`chunk_ref`]: `backing` is a live constructed StreamedChunk.
+///
+/// `backing` must point at a live [`StreamedChunk`] constructed in a leased manager slab slot.
 #[inline]
 pub unsafe fn payload(backing: *mut c_void) -> *mut u8 {
     // SAFETY: `backing` is a live constructed StreamedChunk (chunk_ref()'s contract).
     unsafe { chunk_ref(backing).payload }
 }
 
-/// Mark the chunk's payload loaded/ready (the flag the C++ region cursor polls).
+/// Marks the chunk's payload loaded.
+///
 /// # Safety
-/// See [`chunk`]: `backing` is a live constructed StreamedChunk.
+///
+/// `backing` must point at a live [`StreamedChunk`] constructed in a leased manager slab slot.
+/// The write is not synchronized: no other context may access the field meanwhile.
 #[inline]
 pub unsafe fn set_loaded(backing: *mut c_void) {
     // SAFETY: `backing` is a live constructed StreamedChunk (chunk()'s contract).
     unsafe { chunk(backing).loaded = true };
 }
 
-/// Read the chunk's loaded/ready flag.
+/// Returns whether the chunk's payload is loaded.
+///
 /// # Safety
-/// See [`chunk_ref`]: `backing` is a live constructed StreamedChunk.
+///
+/// `backing` must point at a live [`StreamedChunk`] constructed in a leased manager slab slot.
 #[inline]
 pub unsafe fn loaded(backing: *mut c_void) -> bool {
     // SAFETY: `backing` is a live constructed StreamedChunk (chunk_ref()'s contract).
     unsafe { chunk_ref(backing).loaded }
 }
 
-/// Read the chunk's unloadable flag.
+/// Returns whether the chunk is marked unloadable.
+///
 /// # Safety
-/// See [`chunk_ref`]: `backing` is a live constructed StreamedChunk.
+///
+/// `backing` must point at a live [`StreamedChunk`] constructed in a leased manager slab slot.
 #[inline]
 pub unsafe fn unloadable(backing: *mut c_void) -> bool {
     // SAFETY: `backing` is a live constructed StreamedChunk (chunk_ref()'s contract).
     unsafe { chunk_ref(backing).unloadable }
 }
 
-/// Mark the chunk unloadable.
+/// Marks the chunk unloadable.
+///
 /// # Safety
-/// See [`chunk`]: `backing` is a live constructed StreamedChunk.
+///
+/// `backing` must point at a live [`StreamedChunk`] constructed in a leased manager slab slot.
+/// The write is not synchronized: no other context may access the field meanwhile.
 #[inline]
 pub unsafe fn set_unloadable(backing: *mut c_void) {
     // SAFETY: `backing` is a live constructed StreamedChunk (chunk()'s contract).
     unsafe { chunk(backing).unloadable = true };
 }
 
-/// Read the chunk's pre-conversion convert-state (first-three-bytes + boundary-stitch guards).
+/// Returns the chunk's convert state.
+///
 /// # Safety
-/// See [`chunk_ref`]: `backing` is a live constructed StreamedChunk.
+///
+/// `backing` must point at a live [`StreamedChunk`] constructed in a leased manager slab slot.
 #[inline]
 pub unsafe fn convert_state(backing: *mut c_void) -> DelugeChunkConvertState {
     // SAFETY: `backing` is a live constructed StreamedChunk (chunk_ref()'s contract).
@@ -206,9 +192,12 @@ pub unsafe fn convert_state(backing: *mut c_void) -> DelugeChunkConvertState {
     }
 }
 
-/// Write the chunk's convert-state (the inverse of [`convert_state`]).
+/// Sets the chunk's convert state.
+///
 /// # Safety
-/// See [`chunk`]: `backing` is a live constructed StreamedChunk.
+///
+/// `backing` must point at a live [`StreamedChunk`] constructed in a leased manager slab slot.
+/// The write is not synchronized: no other context may access the field meanwhile.
 #[inline]
 pub unsafe fn set_convert_state(backing: *mut c_void, state: DelugeChunkConvertState) {
     // SAFETY: `backing` is a live constructed StreamedChunk (chunk()'s contract).
@@ -220,9 +209,7 @@ pub unsafe fn set_convert_state(backing: *mut c_void, state: DelugeChunkConvertS
 
 #[cfg(test)]
 mod tests {
-    // A plain `cargo test` on this `#![no_std]` crate links no allocator; `std` is available on
-    // the host test binary, so pull it in here for `vec!` — mirrors `deluge_sample_stream`'s own
-    // `#[cfg(test)] mod tests { extern crate std; ... }` convention (registry.rs).
+    // The crate is `no_std`; the host test binary has `std`, needed here for `vec!`.
     extern crate std;
 
     use std::vec;
@@ -231,9 +218,8 @@ mod tests {
 
     #[test]
     fn payload_offset_clears_the_front_guard() {
-        // The payload must sit at least one cache line past the struct header, so the front
-        // guard (offset - struct size) covers the DMA cache-maintenance range-rounding + the
-        // application front-underread — exactly the C++ kChunkPayloadOffset discipline.
+        // The front guard must be a full cache line, covering DMA cache-maintenance rounding and
+        // the reader's front under-read, as for the C++ `kChunkPayloadOffset`.
         assert!(RUST_CHUNK_PAYLOAD_OFFSET >= core::mem::size_of::<StreamedChunk>() + CACHE_LINE);
         assert_eq!(
             RUST_CHUNK_PAYLOAD_OFFSET - core::mem::size_of::<StreamedChunk>(),
@@ -243,7 +229,7 @@ mod tests {
 
     #[test]
     fn construct_sets_payload_index_and_defaults() {
-        // A 4KB-aligned-enough backing buffer big enough for the header+guard.
+        // Big enough for the header and guard.
         let mut buf = vec![0u8; RUST_CHUNK_PAYLOAD_OFFSET + 64];
         let dest = buf.as_mut_ptr();
         // SAFETY: `dest` owns RUST_CHUNK_PAYLOAD_OFFSET+64 writable bytes for this test.
@@ -256,8 +242,7 @@ mod tests {
         assert_eq!(c.payload, unsafe { dest.add(RUST_CHUNK_PAYLOAD_OFFSET) });
     }
 
-    // Construct a chunk into a fresh backing buffer and hand back the opaque backing pointer the
-    // C-ABI accessors take.
+    // Constructs a chunk into `buf` and returns the backing pointer the accessors take.
     fn constructed(buf: &mut std::vec::Vec<u8>, index: u32) -> *mut c_void {
         let dest = buf.as_mut_ptr();
         // SAFETY: `buf` owns RUST_CHUNK_PAYLOAD_OFFSET+64 writable bytes (allocated by the caller).

@@ -1,19 +1,18 @@
-//! The checking `abi_pin!`/`abi_const!`/`abi_layout!`, for every crate whose `sys` is the bindgen output: this crate
-//! on device and under `host_app`, and `harness/golden_vt_render`. Include it with `#[macro_use]` before the first
-//! pinned module, because `macro_rules!` is textually scoped. A crate with no bindgen output includes the no-ops in
-//! `tests/support/abi_pin_noop.rs` instead.
+//! The checking `abi_pin!`/`abi_const!`/`abi_layout!`, for the builds whose `sys` is bindgen
+//! output (device and `host_app`); the plain host build gets the no-ops in `pin_noop.rs`. The
+//! macros are textually scoped, so [`crate::abi`] comes first in the crate root.
 #![allow(unused_macros)]
 
-/// Fails the build unless each named export has exactly the signature bindgen generated from its header. The
-/// export and the generated declaration go into one array, which compiles only if both coerce to the same `fn`
-/// pointer type. A safe export matches an `unsafe` declaration; a different parameter, return type or pointer
-/// mutability does not (E0308).
+/// Fails the build unless each named export has exactly the signature bindgen generated from its
+/// header. The export and the generated declaration go into one array, which compiles only if both
+/// coerce to the same `fn` pointer type. A safe export matches an `unsafe` declaration; a different
+/// parameter, return type or pointer mutability does not (E0308).
 ///
 /// - `abi_pin!(a, b)` pins `a` and `b` in scope at the invocation.
-/// - `abi_pin!(in path::to::module: a, b)` pins `a` and `b` defined in that module: another crate's exports, or a
-///   crate's own `extern "C"` declaration of a header function.
-/// - `abi_pin!(sys_name => local_name)` pins an export whose Rust name is not its C name: `r#yield`, which bindgen
-///   declares as `yield_` because `yield` is a Rust keyword.
+/// - `abi_pin!(in path::to::module: a, b)` pins `a` and `b` defined in that module: another crate's
+///   exports, or a crate's own `extern "C"` declaration of a header function.
+/// - `abi_pin!(sys_name => local_name)` pins an export whose Rust name is not its C name:
+///   `r#yield`, which bindgen declares as `yield_` because `yield` is a Rust keyword.
 macro_rules! abi_pin {
     ($sys:ident => $local:ident) => {
         const _: () = { let _ = [crate::sys::$sys, $local]; };
@@ -29,8 +28,8 @@ macro_rules! abi_pin {
     )+ };
 }
 
-/// Fails the build unless each constant copied on the Rust side equals the header's. Both sides are widened to
-/// `i64`, so a copy may use the width its module needs.
+/// Fails the build unless each constant copied on the Rust side equals the header's. Both sides are
+/// widened to `i64`, so a copy may use the width its module needs.
 macro_rules! abi_const {
     ($($ours:expr => $theirs:ident),+ $(,)?) => { $(
         const _: () = assert!(($ours) as i64 == crate::sys::$theirs as i64, stringify!($theirs));
@@ -38,22 +37,26 @@ macro_rules! abi_const {
 }
 
 /// Fails the build unless a crate's definition of a header type is the header's (`sys_layout`, see
-/// `build_crate_types.rs`), field for field or variant for variant.
+/// `build/crate_types.rs`), field for field or variant for variant.
 ///
-/// - `abi_layout!(Ours => Theirs { a, b })` names every field. It checks size, alignment and each offset, and
-///   builds the header's struct from ours in a closure that is never called: a header field the list does not
-///   name fails E0063, and a field whose type differs from ours by so much as signedness fails E0308. A second
-///   closure destructures ours by the same list, so a field ours has and the header lacks fails even where it
-///   fits in the header's padding (macro hygiene makes rustc word it "pattern requires `..` due to inaccessible
-///   fields"). A field whose type is itself a crate-defined header type is written
-///   `a as Name`: ours must be `sys`'s binding of `Name` and the header's must be `Name`, and `Name` has its own
-///   `abi_layout!`.
-/// - `abi_layout!(Ours => sys Theirs { a, b })` is the same check against `sys`'s own binding of a header struct,
-///   for a Rust copy of a header type that is not crate-defined (so `sys_layout` has no entry for it).
-/// - `abi_layout!(type Ours => sys Theirs)` checks that a Rust copy of a header typedef is `sys`'s type.
-/// - `abi_layout!(Ours => Theirs opaque)` is for storage the header declares only to size it: size and alignment.
-/// - `abi_layout!(enum Ours => Theirs { A = HEADER_A, B = HEADER_B })` checks size, each value, and that the two
-///   enums have the same variants: a variant added to either side fails an exhaustive match (E0004).
+/// - `abi_layout!(Ours => Theirs { a, b })` names every field. It checks size, alignment and each
+///   offset, and builds the header's struct from ours in a closure that is never called: a header
+///   field the list does not name fails E0063, and a field whose type differs from ours by so much
+///   as signedness fails E0308. A second closure destructures ours by the same list, so a field
+///   ours has and the header lacks fails even where it fits in the header's padding (macro hygiene
+///   makes rustc word it "pattern requires `..` due to inaccessible fields"). A field whose type is
+///   itself a crate-defined header type is written `a as Name`: ours must be `sys`'s binding of
+///   `Name` and the header's must be `Name`, and `Name` has its own `abi_layout!`.
+/// - `abi_layout!(Ours => sys Theirs { a, b })` is the same check against `sys`'s own binding of a
+///   header struct, for a Rust copy of a header type that is not crate-defined (so `sys_layout` has
+///   no entry for it).
+/// - `abi_layout!(type Ours => sys Theirs)` checks that a Rust copy of a header typedef is `sys`'s
+///   type.
+/// - `abi_layout!(Ours => Theirs opaque)` is for storage the header declares only to size it: size
+///   and alignment.
+/// - `abi_layout!(enum Ours => Theirs { A = HEADER_A, B = HEADER_B })` checks size, each value, and
+///   that the two enums have the same variants: a variant added to either side fails an exhaustive
+///   match (E0004).
 macro_rules! abi_layout {
     (@field $o:ident . $field:ident) => { $o.$field };
     (@field $o:ident . $field:ident as $nested:ident) => {{

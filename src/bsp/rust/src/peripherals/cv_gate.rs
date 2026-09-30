@@ -1,12 +1,9 @@
-//! cv_gate.h — CV outputs, gate outputs, and the external trigger clock.
+//! `libdeluge/cv_gate.h` — CV outputs, gate outputs, and the external trigger clock.
 //!
-//! Gates are plain GPIO (deluge_bsp::cv_gate::gate_set). CV outputs drive the
-//! MAX5136 DAC over RSPI0 — which is SHARED with the OLED — so CV writes funnel
-//! through a writer task that acquires the bus asynchronously
-//! (deluge_bsp::cv_gate::cv_set), exactly like the PIC output task: a synchronous
-//! `block_on(cv_set)` from the app tick could deadlock against the OLED task
-//! holding the bus guard. The board already ran `cv_gate::init()` (pins, DAC
-//! linearity, gate GPIO), so the init hooks here are no-ops.
+//! Gates are plain GPIO. CV outputs drive the MAX5136 DAC over RSPI0, which is shared with the
+//! OLED, so CV writes funnel through [`cv_writer`], which acquires the bus asynchronously: a
+//! synchronous send from an app task could deadlock against the OLED task holding the bus. Board
+//! bring-up already ran `deluge_bsp::cv_gate::init()`, so the init hooks here are no-ops.
 #![allow(non_upper_case_globals)]
 
 use core::future::poll_fn;
@@ -19,7 +16,7 @@ use embassy_sync::channel::Channel;
 
 use crate::sys::DelugeTriggerClockHandler;
 
-// ── CV output (RSPI0, shared with OLED → writer task) ──────────────────────────
+// CV output
 
 #[derive(Clone, Copy)]
 struct CvWrite {
@@ -30,8 +27,8 @@ struct CvWrite {
 static CV_OUT: Channel<CriticalSectionRawMutex, CvWrite, 16> = Channel::new();
 static CV_SENT: AtomicU32 = AtomicU32::new(0);
 
-/// The sole CV transmitter: drains queued writes and clocks each to the DAC over
-/// the shared RSPI0 bus (awaiting any in-progress OLED frame).
+/// Background task: the sole CV transmitter. Drains queued writes to the DAC over the shared
+/// RSPI0 bus, waiting out any OLED frame in progress.
 #[embassy_executor::task]
 pub async fn cv_writer() {
     loop {
@@ -57,7 +54,7 @@ pub extern "C" fn deluge_cv_sent_count() -> u32 {
     CV_SENT.load(Ordering::Relaxed)
 }
 
-// ── Gate output (plain GPIO) ───────────────────────────────────────────────────
+// Gate output
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_gate_init() {
@@ -70,10 +67,9 @@ pub extern "C" fn deluge_gate_set(channel: u8, on: bool) {
     unsafe { cv_gate::gate_set(channel, on) };
 }
 
-// ── External trigger clock (analog clock input) ────────────────────────────────
+// External trigger clock (analog clock input)
 
-/// App handler called on each trigger-clock rising edge, stored as a raw fn ptr
-/// (0 = none). DelugeTriggerClockHandler = Option<unsafe extern "C" fn(u64)>.
+/// The app's handler for each trigger-clock rising edge, as a raw fn pointer (0 = none).
 static TRIGGER_HANDLER: AtomicUsize = AtomicUsize::new(0);
 
 #[unsafe(no_mangle)]
@@ -81,8 +77,8 @@ pub extern "C" fn deluge_trigger_clock_set_handler(handler: DelugeTriggerClockHa
     TRIGGER_HANDLER.store(handler.map_or(0, |f| f as usize), Ordering::Relaxed);
 }
 
-/// Calls the app's trigger-clock handler once per rising edge captured by
-/// deluge_bsp::trigger_clock's ISR (woken by EDGE_WAKER; runs between app ticks).
+/// Background task: calls the app's trigger-clock handler once per rising edge the
+/// `deluge_bsp::trigger_clock` ISR captured, with the latest edge's capture stamp.
 #[embassy_executor::task]
 pub async fn trigger_clock_task() {
     let mut last = trigger_clock::EDGE_COUNT.load(Ordering::Relaxed);

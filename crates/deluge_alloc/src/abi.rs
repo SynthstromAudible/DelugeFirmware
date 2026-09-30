@@ -1,6 +1,8 @@
-//! The `libdeluge/alloc.h` exports whose C types differ from this crate's Rust API: a block is a `void*` in C and a
-//! `*mut u8` here, and C's reclaim hook may be NULL. Each forwards to the function of the same name at the crate root
-//! or in [`crate::slab`]. The exports whose types agree are those functions themselves.
+//! The `libdeluge/alloc.h` exports whose C types differ from this crate's Rust API.
+//!
+//! A block is a `void*` in C and a `*mut u8` here, and C's reclaim hook may be NULL. Each export
+//! forwards to the function of the same name at the crate root or in [`crate::slab`], and has that
+//! function's safety contract. The exports whose types agree are those functions themselves.
 
 use core::ffi::c_void;
 

@@ -66,9 +66,8 @@ fn scoped_tags_only_while_polling() {
     assert_eq!(tier::current(), Tier::Interaction);
 }
 
-/// The device rule, evaluated on host. On the device, every IRQ handler runs in SYS mode (the shared
-/// `_irq_handler` switches before dispatching), so the CPU mode cannot tell the storage executor's handler from
-/// thread mode: the handler has to mark itself, as the audio one does.
+/// The device rule, evaluated on host. The storage handler must mark itself: every IRQ handler runs
+/// in SYS mode, so the CPU mode cannot tell it from thread mode.
 #[test]
 fn device_rule_derives_storage_only_inside_the_marked_handler() {
     assert_eq!(tier::derive(false), Tier::Interaction);

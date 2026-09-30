@@ -1,18 +1,11 @@
-//! board.h — capability descriptor + ordered one-time board bring-up, over the
-//! deluge-sdk HAL/BSP: GPIO direction/mux for LEDs/codec/detects, the CV DAC
-//! SPI, the audio SSI, etc. All pin/port numbers stay BSP-internal here.
+//! `libdeluge/board.h` — the capability descriptor and the ordered one-time board bring-up (GPIO
+//! for LEDs, codec and jack detects, the CV DAC SPI, the audio SSI). Pin and port numbers stay
+//! BSP-internal.
 //!
-//! `deluge_board_probe_oled` currently hard-codes `true` (this hardware always
-//! has the OLED fitted); OLED bring-up itself (SSD1309 init, shared-RSPI0
-//! framebuffer streaming, PIC-forwarded chip-select) happens in display.rs /
-//! `deluge_bsp::oled` + `pic`, not here — `deluge_board_init_early` only touches
-//! the SPI_SSL pin mux for the 7-segment (non-OLED) variant.
+//! OLED bring-up is not here: [`display`](super::display) and `deluge_bsp::oled` own the panel.
 //!
-//! Compiled on host too under the `host_app` feature (see main.rs): the
-//! descriptor and `deluge_board`/`deluge_board_probe_oled` are pure data/logic
-//! and compile unchanged there; the hardware bring-up bodies
-//! (`deluge_board_init_early`/`deluge_board_init_audio`) get host no-op
-//! siblings below (there is no GPIO/CV-DAC/SSI0 hardware on host).
+//! On host (under `host_app`) the descriptor and OLED probe compile unchanged; the hardware
+//! bring-up functions are logging no-ops.
 #![allow(non_snake_case)]
 
 #[cfg(target_os = "none")]
@@ -29,8 +22,8 @@ use crate::sys::{DelugeBoard, DelugeDisplayKind_DELUGE_DISPLAY_OLED};
 
 static BOARD_NAME: &[u8] = b"Synthstrom Deluge (144-pad, OLED)\0";
 
-/// `DelugeBoard` holds a `*const c_char` (not `Sync`); the descriptor is
-/// immutable, so sharing it across threads is sound.
+/// The board descriptor, made `Sync`: `DelugeBoard` holds a `*const c_char`, but the descriptor is
+/// immutable, so sharing it is sound.
 struct BoardDescriptor(DelugeBoard);
 unsafe impl Sync for BoardDescriptor {}
 
@@ -51,23 +44,23 @@ static DELUGE_BOARD: BoardDescriptor = BoardDescriptor(DelugeBoard {
     audio_out_channels: 2,
 });
 
+/// Returns the board's static capability descriptor.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board() -> *const DelugeBoard {
     &DELUGE_BOARD.0
 }
 
-/// Report that an OLED is fitted. The hardware these BSP bring-up units run on
-/// has the OLED (the PIC firmware-version byte also has its high bit set, 0x81),
-/// so the app takes the OLED path; display.rs's oled_render task drives the panel.
-/// M-later: read the actual OLED-present flag (PIC fw byte bit 7) rather than
-/// hard-coding, for 7-segment-variant support.
+/// Reports that an OLED is fitted.
+///
+/// TODO: read the real OLED-present flag (PIC firmware-version byte, bit 7) to support the
+/// 7-segment variant.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_probe_oled() -> bool {
     true
 }
 
-/// Early bring-up: GPIO direction + initial state for status LEDs, codec/speaker
-/// enables, jack detects, analog sense + trigger-clock input, and the CV DAC SPI.
+/// Early bring-up: GPIO direction and initial state for the status LEDs, codec/speaker enables,
+/// jack detects, analog sense and trigger-clock input, and the CV DAC SPI.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_early(have_oled: bool) {
@@ -104,8 +97,7 @@ pub extern "C" fn deluge_board_init_early(have_oled: bool) {
     }
 }
 
-/// Host stand-in: no GPIO/CV-DAC hardware to bring up. Logs once so the boot
-/// trace shows the call was reached.
+/// Host stand-in: there is no hardware to bring up. Logs once so the boot trace shows the call.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_early(_have_oled: bool) {
@@ -116,7 +108,7 @@ pub extern "C" fn deluge_board_init_early(_have_oled: bool) {
     }
 }
 
-/// Bring up the audio serial (SSI0) port.
+/// Brings up the audio serial port (SSI0).
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_audio() {
@@ -124,8 +116,7 @@ pub extern "C" fn deluge_board_init_audio() {
     unsafe { deluge_bsp::audio::init() };
 }
 
-/// Host stand-in: no SSI0 hardware to bring up. Logs once so the boot trace
-/// shows the call was reached.
+/// Host stand-in: there is no SSI0 to bring up. Logs once so the boot trace shows the call.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_audio() {
@@ -136,12 +127,13 @@ pub extern "C" fn deluge_board_init_audio() {
     }
 }
 
-/// Storage bring-up (SPIBSC serial flash). TODO.
+/// Storage bring-up (SPIBSC serial flash). TODO: currently a no-op.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_storage() {}
 
-/// Unlock the L2 cache data region locked during boot. M-later TODO (the locked
-/// region just reduces cache slightly; safe to no-op for now).
+/// Unlocks the L2 cache data region locked during boot.
+///
+/// TODO: currently a no-op, which is safe — the locked region only reduces the usable cache.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_unlock_data_cache() {}
 

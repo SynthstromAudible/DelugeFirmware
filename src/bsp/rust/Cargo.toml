@@ -1,12 +1,6 @@
-# deluge-bsp-rust: the Rust/Embassy firmware image (Cargo-top). Implements the
-# <libdeluge/...> C-ABI boundary for the Synthstrom Deluge (Renesas RZ/A1L) on
-# top of the sibling deluge-sdk HAL+BSP, OWNS reset/main/_start + the Embassy
-# executor, and links the portable C++ application (built by CMake into
-# libdeluge_app.a) — running deluge_main() in one Embassy task.
-#
-# Standalone crate (NOT a workspace member). The path deps below sit inside the
-# deluge-sdk Cargo workspace, so their `workspace = true` embassy pins resolve
-# against that workspace and stay version-locked.
+# The Deluge firmware image: implements the libdeluge C ABI on the deluge-sdk HAL+BSP, owns reset
+# and the Embassy executors, and links the C++ application (libdeluge_app.a). Standalone crate, not
+# a workspace member.
 [package]
 name = "deluge-bsp-rust"
 version = "0.1.0"
@@ -25,130 +19,52 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
-# Truly cross-target deps: same source, same versions, on both device and host.
 embassy-sync = "0.8.0"
 embassy-futures = "0.1.2"
 log = "0.4"
 rtt-target = { version = "0.6", features = ["log"], optional = true }
-# R2 Task 3: `efatfs_core::DirEntryInfo::name` is a fixed-capacity
-# `heapless::String<256>`, not an `alloc::String` -- this module is compiled
-# both `no_std` (device) and `std` (host_app/fs_differential), and a
-# directory-entry name has a natural FAT LFN bound (255 UTF-16 units) so a
-# fixed-capacity type is a better fit than a heap allocation either way.
 heapless = { version = "0.8", default-features = false }
 
-# SR2d-4 Task 5: the native cluster fill's convert/stitch step (`fill_logic::finish_convert_stitch`)
-# calls this crate's safe wrappers over the app's own convert.cpp/stitch.cpp rather than
-# re-transliterating them. Unconditional (not target/feature-gated), like the deps just above:
-# `fill_logic` compiles on every tier this crate builds (device, host_app, plain host) -- see that
-# module's doc. Its own build.rs is target-aware (device vs host; SR2d-4 Task 5), so this resolves
-# correctly on all three.
+# The convert/stitch shim `deluge_sample_fill` calls; its build script is target-aware.
 deluge_sample_convert = { path = "../../../crates/deluge_sample_convert" }
-
-
-
-# C2a: the relocated cluster-fill core. `fill_logic` (Task 1) lands here; deluge-bsp-rust's
-# streaming_loader imports it instead of its own `mod fill_logic`. `native_fill` (Task 3) pulls in
-# the manager-reaching `native_begin`/`native_finish` -- streaming_loader.rs no longer defines those
-# itself; `ProdOps::begin`/`finish` now call straight into this crate.
 deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = ["native_fill"] }
 
-# Sibling deluge-sdk BSP + HAL (DelugeFirmware and deluge-sdk cloned side by
-# side). Both are dual-target as of deluge-sdk's feat/deluge-bsp-host: `sd`
-# (block_device.h's backing store) has the SAME async `Result<_, SdError>` API
-# on host (a file-backed disk image) and device (the real SDHI1 driver), so
-# `deluge-bsp-rust`'s `sd.rs` can call `deluge_bsp::sd::*` uniformly with no
-# `#[cfg]` at the call site (see sd.rs). `rza1l-hal` is dual-target too
-# (`target_os = "none"` gates its hardware-touching internals; its host build
-# is effectively inert but the crate itself compiles either way). Both are
-# therefore shared deps now rather than device-only.
-# `flash` feature: deluge-bsp gates its `flash` module behind an opt-in feature
-# (only flash-writing firmwares need it). We do — src/flash.rs reads device
-# settings from the reserved SPI-flash sector via deluge_bsp::flash.
-#
-# Pinned to a deluge-sdk revision so any checkout can build this firmware. For
-# live SDK co-development, `src/bsp/rust/local-sdk.toml` (gitignored) patches
-# these back to a sibling ../deluge-sdk checkout; `dbt build` and `dbt rust`
-# pass it via `cargo --config` when it exists.
+# deluge-sdk, pinned by revision. `dbt build`/`dbt rust` pass `src/bsp/rust/local-sdk.toml`
+# (gitignored) via `cargo --config` when it exists, to build against a sibling checkout instead.
+# The `flash` feature enables `deluge_bsp::flash`, which the settings sector reads need.
 deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", features = [
     "flash",
 ] }
 rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
 
-# ── Device (the Deluge, armv7a-none-eabihf) ──────────────────────────────────
-# `deluge-alloc` (the general-purpose Rust heap) has no host meaning — the host
-# harness links no C++ app and does no SDRAM bring-up (see build.rs) — so it
-# stays device-only.
-#
-# `platform-cortex-ar` and `platform-std` (host, below) are mutually exclusive
-# by embassy-executor's `check_at_most_one!`, so they must live in disjoint
-# `[target...]` sections rather than both landing in `[dependencies]`.
+# Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
+# exclusive in embassy-executor, so the two executors live in disjoint `[target]` sections.
 [target.'cfg(target_os = "none")'.dependencies]
 deluge-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
 
-# SP1: the device `BlockDevice`/`BufStream`/`embedded-fatfs` storage stack
-# (`fat_block_device.rs`) — same vendored crates `fs_differential`'s host
-# adapter already exercises, wired here onto the real SD driver.
+# The device storage stack: `BlockDevice` over the SD driver, `BufStream`, `embedded-fatfs`.
 block-device-driver = { path = "../../../crates/block-device-driver" }
 block-device-adapters = { path = "../../../crates/block-device-adapters" }
 aligned = "0.4"
 embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
-# Brings `File`'s `embedded_io_async::{Read,Seek,Write}` impls into scope
-# (efatfs_core.rs). Pinned to the same 0.7.0 `embedded-io-async`
-# embedded-fatfs itself depends on (NOT the older 0.6.1
-# `block-device-adapters`/`block-device-driver` use for their own `Read`
-# trait — both versions coexist in the graph; this is the one whose `Read`
-# impl `File` actually has).
+# The 0.7 `embedded-io-async`, whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the
+# block-device crates use 0.6; both versions are in the graph).
 embedded-io-async = "0.7.0"
-# `embedded-fatfs`'s `alloc` feature (above) is the first thing on this
-# no_std target to actually need `extern crate alloc`, which requires a
-# registered `#[global_allocator]` (see main.rs's `FS_ALLOCATOR`) — nothing
-# here used `alloc` before. Renamed via `package =` to `fs_alloc`: this
-# crate's OWN `crates/deluge_alloc` (TLSF heap) would otherwise collide, as
-# an unqualified dependency, with the sibling deluge-sdk `deluge-alloc` crate
-# already above (both normalize to the same `deluge_alloc` identifier).
+# The TLSF allocator behind the `#[global_allocator]` that `embedded-fatfs`'s `alloc` needs. Renamed
+# because it and deluge-sdk's `deluge-alloc` both normalise to `deluge_alloc`.
 fs_alloc = { package = "deluge_alloc", path = "../../../crates/deluge_alloc" }
 
-# DelugeFirmware's residency/eviction engine + GeneralMemoryAllocator backing
-# (TLSF + slab), exposed as C ABIs the archived C++ deluge_app calls. Linked
-# directly (not via the `deluge_rust` umbrella crate, whose #[panic_handler]
-# would collide with ours). A distinct allocator from the sibling `deluge-alloc`
-# above — disjoint memory and consumers, no C-symbol overlap; deluge_alloc rides
-# in transitively via deluge_resource.
+# The C-ABI crates the C++ app calls (residency/allocator, audio headers, sample source/reader/
+# stream). Their `#[no_mangle]` definitions have no C++ fallback, and lib.rs's `extern crate`s keep
+# them on the link line. `deluge_resource` is linked directly, not via the `deluge_rust` umbrella,
+# whose `#[panic_handler]` would collide with ours.
 deluge_resource = { path = "../../../crates/deluge_resource" }
-
-# The WAV/AIFF header decoder behind `libdeluge/audio_format.h`. The archived C++ app's
-# parseSampleHeader/parseWaveTableHeader call straight into its C ABI, and there is no weak C++
-# fallback, so the symbols have to be in this link. `extern crate` in main.rs keeps the rlib on
-# the link line (nothing in this crate's own Rust code references it).
 deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
-
-# SR2d-5 Task 4: the Rust region-port cursor (`deluge_sample_source_*`/`deluge_sample_region_*`),
-# wrapping `cursor::SampleSource<ManagerResidency>` over the SAME `deluge_resource` handle above --
-# calls it directly, not through a second manager. Its strong `#[no_mangle]` symbols (gated
-# `cfg(any(target_os = "none", feature = "host_app"))`, see abi.rs) are the SOLE definition of the
-# `deluge_sample_source_*`/`deluge_sample_region_*` C ABI on device (there is no C++ weak
-# fallback for them). It does NOT depend on
-# (or define) any `deluge_streaming_*` symbol -- it only CALLS a couple of those as `unsafe extern "C"`
-# (the open-bridge accessors), which the archived C++ app closure provides -- so this composes without a
-# duplicate-symbol conflict.
 deluge_sample_source = { path = "../../../crates/deluge_sample_source" }
-
-# U1 Task 1: the sample range-reader C ABI (`deluge_sample_reader_*`/`deluge_sample_read`,
-# include/libdeluge/sample_reader.h) -- the non-voice twin of the region-port cursor just above.
-# Depends on the SAME `deluge_resource` handle directly (its `Reader::held_lease` is a typed
-# `deluge_resource::facade::Lease`), not through a second manager. This task lands lifecycle only
-# (open/seek/close); `window`/`advance`/`ok`/`deluge_sample_read` are later tasks, already declared
-# in the header but not yet backed by a strong symbol here.
 deluge_sample_reader = { path = "../../../crates/deluge_sample_reader" }
-
-# U4c Task 2: the streaming-file slot registry C ABI (`deluge_sample_stream_*`,
-# include/libdeluge/sample_stream.h) -- pure build wiring, no consumer yet (a later task flips the
-# C++ facade onto it). Same shape as the reader dep just above: dependency-free feature selector, no
-# weak fallback, the first consumer's undefined ref pulls this archive member in.
 deluge_sample_stream = { path = "../../../crates/deluge_sample_stream" }
 
-# Embassy runtime — versions match deluge-sdk's workspace pins.
+# Embassy versions match deluge-sdk's workspace pins.
 embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread", "executor-interrupt"] }
 embassy-time = { version = "0.5.1", features = ["tick-hz-1_000_000"] }
 embassy-usb = "0.6.0"
@@ -157,60 +73,29 @@ embassy-usb-driver = "0.2.2"
 cortex-ar = "0.3"
 critical-section = "1"
 
-# ── Host (x86/std) ────────────────────────────────────────────────────────────
-# Same source, but the executor is std-thread-backed with no cortex-ar/BSP deps,
-# so the Embassy scheduler concurrency can be exercised off-hardware
-# (e.g. under ThreadSanitizer). No C++ app is linked on host (see build.rs).
+# Host (x86/std): the std-thread executor, so the scheduler also runs off-hardware (e.g. under
+# ThreadSanitizer).
 [target.'cfg(not(target_os = "none"))'.dependencies]
 embassy-executor = { version = "0.10.0", features = ["nightly"] }
 embassy-time = "0.5.1"
 critical-section = { version = "1", features = ["std"] }
-# Host `main`'s logger (device uses `log` over RTT instead; see the `rtt` feature).
 env_logger = "0.11"
-# The host-built C++ `deluge_app` closure (host_app feature) calls the same
-# deluge_resource_* / deluge_{alloc,slab_*,heap_*} C ABIs the device resolves via
-# the dep above. On host these crates are plain std rlibs (no panic_handler, no
-# dup-handler risk). Optional + gated by `host_app` so a plain host build never
-# pulls it in.
+# The host C++ app (`host_app`) calls the same C-ABI crates. `deluge_audio_format` is unconditional
+# because the audio loader walks headers through it in every build.
 deluge_resource = { path = "../../../crates/deluge_resource", optional = true }
-# Host sibling of the device dependency above: the host-built C++ `deluge_app` calls the same
-# `deluge_audio_header_*` C ABI, and the async audio loader, compiled in every build, walks headers
-# through it. A plain dependency for that reason, not `host_app`-gated.
 deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
-
-# SR2d-5 Task 4: host-side sibling of the device dep above. `abi.rs`'s strong symbols are gated
-# `cfg(any(target_os = "none", feature = "host_app"))`, so this crate's OWN `host_app` feature (forwarded
-# below) must be turned on alongside `deluge-bsp-rust`'s -- optional + gated the same way `deluge_resource`
-# just above is, so a plain host build never pulls it in (and never exports its no_mangle symbols; see
-# abi.rs's cfg_attr gate).
 deluge_sample_source = { path = "../../../crates/deluge_sample_source", optional = true }
-
-# U1 Task 1: host-side sibling of the device dep above. Same `host_app`-gated pattern (its own
-# `host_app` feature is forwarded below, widening its `abi.rs` cfg_attr gate) so a plain host build
-# never pulls it in.
 deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", optional = true }
-
-# U4c Task 2: host-side sibling of the device dep above. Same `host_app`-gated pattern (its own
-# `host_app` feature is forwarded below, widening its `abi.rs` cfg_attr gate) so a plain host build
-# never pulls it in.
 deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", optional = true }
 
-# R0b: the same `BlockDevice`/`BufStream`/`embedded-fatfs` storage stack the
-# device path (above) uses, made available on host too — `efatfs_host_shim.rs`
-# (host_app-only) reuses the storage-generic `efatfs_core` unchanged, which
-# needs these. Optional + gated by `host_app` (see its `dep:` list below), same
-# pattern as `deluge_resource` just above, so a plain host build never pulls
-# them in. No `fs_alloc`/`#[global_allocator]` needed on host: unlike the
-# device's `no_std` target, a std host binary already has an implicit default
-# allocator, so `embedded-fatfs`'s `alloc` feature (`extern crate alloc`) just
-# works. Minimal Task-4 dep-visibility change pulled forward by R0b's Task 3 —
-# see .superpowers/sdd/task-3-report.md.
+# The storage stack for `storage::efatfs::portable`, which every build compiles. A std host has a
+# default allocator, so no `fs_alloc` is needed.
 block-device-driver = { path = "../../../crates/block-device-driver" }
 block-device-adapters = { path = "../../../crates/block-device-adapters" }
 aligned = "0.4"
 embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
 embedded-io-async = "0.7.0"
-# The desktop simulator window, for `sim` (`dbt sim`): the firmware runs as its brain, in the same process.
+# The desktop simulator window for `sim`.
 deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", optional = true }
 
 [features]
@@ -225,14 +110,11 @@ host-runtime = [
     "embassy-time/std",
 ]
 
-## RTT (SEGGER Real-Time Transfer) logging over a debug probe: selects the
-## rza1l_rtt.x linker script (via build.rs) and registers the log logger.
+## RTT logging over a debug probe: selects the rza1l_rtt.x linker script and registers the logger.
 rtt = ["dep:rtt-target", "rza1l-hal/rtt"]
 
-## Link the host-built C++ `deluge_app` object and bindgen the libdeluge headers
-## for the host ABI, so the host binary can reach the C++ app boundary without a
-## device build. Pulls in the host-side `deluge_resource` dep, plus (R0b) the
-## storage stack `efatfs_host_shim`/`efatfs_core` need on host. Off by default.
+## Link the host-built C++ app into the host binary: bindgen the libdeluge headers for the host
+## ABI and export the C-ABI crates' symbols it calls.
 host_app = [
     "dep:deluge_resource",
     "dep:deluge_sample_source",
@@ -243,38 +125,25 @@ host_app = [
     "deluge_sample_stream/c_abi",
 ]
 
-## The emulator (`dbt sim`): the threaded host app runs as the brain of deluge-sdk's desktop simulator, in one
-## process, and `deluge_bsp`'s host arms drive the simulator's panel. See
-## docs/superpowers/specs/2026-09-29-embassy-emulator-design.md.
+## The emulator (`dbt sim`): the host app runs as the brain of deluge-sdk's desktop simulator, in
+## one process. See docs/superpowers/specs/2026-09-29-embassy-emulator-design.md.
 sim = ["host_app", "dep:deluge-simulator", "deluge-bsp/sim-link"]
 
-## Host-harness only: give host SD reads/writes a modeled per-transfer latency so
-## a transfer takes modeled virtual time (the host spin's progress hook advances the
-## clock) instead of completing instantly. Data is unchanged — only timing
-## is modeled. Off by default (off = byte-identical to no feature).
+## Host only: give each SD transfer a modeled latency in virtual time instead of completing
+## instantly. Data is unchanged.
 sim_latency = []
 
 [build-dependencies]
-# Generate Rust signatures + POD types from the canonical libdeluge C headers so
-# the boundary can't drift (type mismatch = compile error).
+# Generates the Rust side of the libdeluge headers, so the boundary cannot drift.
 bindgen = "0.70"
 
-# Redirect embassy-executor to the local fork that ports the InterruptExecutor to
-# platform-cortex-ar (GIC SGI pender). Same version (0.10.0), so this patch applies
-# across the whole graph (this crate + the deluge-sdk path-deps), keeping the
-# Executor/Spawner types identical everywhere.
+# The embassy fork that ports the InterruptExecutor to platform-cortex-ar (GIC SGI pender). Same
+# version, so it replaces embassy-executor across the whole graph.
 #
-# The integrated timer queue is *intrusive*: embassy-executor stores a
-# `TimerQueueItem` in each task header (via embassy-executor-timer-queue), and
-# embassy-time-queue-utils reads it back through `TimerQueueItem::from_embassy_waker`.
-# `embassy-executor-timer-queue` carries no `links` key, so without these extra
-# patches Cargo silently links TWO copies — the fork's (writing the task header,
-# pulled in by the forked embassy-executor) and crates.io's (reading it, pulled in
-# by the unpatched embassy-time-queue-utils the HAL driver uses). The two item
-# types don't match, so `schedule_wake` reads a garbage item, thinks the task is
-# already queued, and returns false → the hardware alarm is never armed → every
-# `Timer::await` hangs forever. Patch the whole intrusive timer-queue pair to the
-# fork so a single, consistent `TimerQueueItem` type is used on both sides.
+# The integrated timer queue is intrusive: the executor stores a `TimerQueueItem` in each task
+# header and embassy-time-queue-utils reads it back. `embassy-executor-timer-queue` has no `links`
+# key, so without patching the whole trio Cargo links two copies, the item types disagree, the alarm
+# is never armed, and every `Timer` await hangs.
 [patch.crates-io]
 embassy-executor = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
 embassy-executor-timer-queue = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }

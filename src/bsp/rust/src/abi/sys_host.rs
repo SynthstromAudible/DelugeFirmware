@@ -1,18 +1,11 @@
-//! Host stand-in for the device's `mod sys` (the bindgen output from the C++
-//! app headers, which build.rs only generates for the arm-eabi target). These
-//! types reproduce the C-ABI layout of `include/libdeluge/*.h` exactly, so the
-//! same boundary code in `control.rs`/`display.rs` compiles and runs unchanged
-//! on the host.
+//! The plain host build's `sys`: the subset of the libdeluge headers that the modules compiled
+//! there use, written by hand because that build has no bindgen output.
 //!
-//! The `host_app` build, where `sys` is the bindgen output, compiles this file a
-//! second time as `sys_host_check` and runs the pins at the bottom against it:
-//! every type here must be the header's field for field, and every constant its
-//! value. The plain host build expands them to nothing.
+//! The `host_app` build compiles this file again as `sys_host_check` beside the real `sys`, and
+//! the pins at the bottom check every type here field for field and every constant by value.
 #![allow(non_camel_case_types, non_upper_case_globals, dead_code)]
 
-/// `include/libdeluge/types.h`: `DelugeStatus`. Values span -13..=0; the
-/// header pins its underlying type explicitly (`enum DelugeStatus : int8_t`),
-/// so this is a 1-byte enum on every target.
+/// `libdeluge/types.h`'s `DelugeStatus`: `enum DelugeStatus : int8_t`, one byte on every target.
 pub type DelugeStatus = i8;
 pub const DelugeStatus_DELUGE_OK: DelugeStatus = 0;
 pub const DelugeStatus_DELUGE_ERR_PARAM: DelugeStatus = -2;
@@ -23,24 +16,16 @@ pub const DelugeStatus_DELUGE_ERR_NO_SPACE: DelugeStatus = -10;
 pub const DelugeStatus_DELUGE_ERR_NO_FILESYSTEM: DelugeStatus = -11;
 pub const DelugeStatus_DELUGE_ERR_NOT_EMPTY: DelugeStatus = -14;
 
-/// `include/libdeluge/control_surface.h`: `DelugeInputEventKind`. PAD=0,
-/// BUTTON=1, ENCODER=2 (unused by control.rs — encoder motion arrives via
-/// `deluge_encoder_take_edges`, not the event queue), NO_PRESSES=3. The
-/// header pins its underlying type explicitly (`enum DelugeInputEventKind :
-/// uint8_t`), so this is a 1-byte enum on every target — device, host_app,
-/// and this host stand-in alike.
+/// `libdeluge/control_surface.h`'s `DelugeInputEventKind`: `enum DelugeInputEventKind : uint8_t`.
+/// Encoder motion arrives through `deluge_encoder_take_edges`, not as `ENCODER` events.
 pub type DelugeInputEventKind = u8;
 pub const DelugeInputEventKind_DELUGE_EVENT_PAD: DelugeInputEventKind = 0;
 pub const DelugeInputEventKind_DELUGE_EVENT_BUTTON: DelugeInputEventKind = 1;
 pub const DelugeInputEventKind_DELUGE_EVENT_ENCODER: DelugeInputEventKind = 2;
 pub const DelugeInputEventKind_DELUGE_EVENT_NO_PRESSES: DelugeInputEventKind = 3;
 
-/// `include/libdeluge/control_surface.h`: `DelugeInputEvent`. `#[repr(C)]`
-/// with no manual padding needed: `value`'s `i16` alignment requires a
-/// 2-byte boundary, leaving one pad byte after `y` — Rust's C-compatible
-/// layout algorithm reproduces the C struct exactly (kind@0 1B, x@1, y@2,
-/// value@4), 6 bytes total (see the ABI guard in `control.rs`, which
-/// asserts this at compile time).
+/// `libdeluge/control_surface.h`'s `DelugeInputEvent`: 6 bytes, with one pad byte before
+/// `value`.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct DelugeInputEvent {
@@ -51,8 +36,7 @@ pub struct DelugeInputEvent {
     pub value: i16, // offset 4
 } // size: 6 bytes
 
-/// `include/libdeluge/control_surface.h`: `DelugeColour`. `#[repr(C)]`, three
-/// packed `u8` channels with no padding.
+/// `libdeluge/control_surface.h`'s `DelugeColour`.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct DelugeColour {
@@ -61,7 +45,7 @@ pub struct DelugeColour {
     pub b: u8,
 }
 
-/// `include/libdeluge/control_surface.h`: `DelugeBootInfo`.
+/// `libdeluge/control_surface.h`'s `DelugeBootInfo`.
 #[repr(C)]
 pub struct DelugeBootInfo {
     pub pic_firmware_version: u8,
@@ -69,14 +53,14 @@ pub struct DelugeBootInfo {
     pub factory_reset_requested: bool,
 }
 
-/// `include/libdeluge/types.h`: `DelugeChunkBacking`, the chunk type `deluge_sample_fill` defines
-/// (as bindgen's `sys` re-exports it; see `build_crate_types.rs`).
+/// `libdeluge/types.h`'s `DelugeChunkBacking`, which `deluge_sample_fill` defines (as the bindgen
+/// `sys` re-exports it; see `build/crate_types.rs`).
 #[allow(unused_imports)]
 pub use deluge_sample_fill::chunk::DelugeChunkBacking;
 
 unsafe extern "C" {
-    /// `include/libdeluge/sample_stream.h`: the resource-manager singleton
-    /// (`DelugeResource` is opaque, so `sys` binds it as `c_void`).
+    /// `libdeluge/sample_stream.h`: returns the resource-manager singleton (`DelugeResource` is
+    /// opaque, so it binds as `c_void`).
     pub fn deluge_streaming_resource_manager() -> *mut core::ffi::c_void;
 }
 

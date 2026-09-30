@@ -7,7 +7,7 @@ use deluge_bsp_rust::tier_meter;
 
 use tier_meter::Entry;
 
-/// Every counter here is process-global, so the cases run in order in one test.
+/// One test, because every counter is process-global.
 #[test]
 fn note_counts_only_post_boot_interaction() {
     tier_meter::note(Entry::FileOpen);

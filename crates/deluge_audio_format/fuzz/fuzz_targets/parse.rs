@@ -1,48 +1,30 @@
 #![no_main]
 
-//! Fuzz target: assert deluge_audio_format's central promise — no panic on any
-//! input, whichever way the parse is driven — and, for the streaming API, that
-//! no caller behaviour can turn a decode into an unbounded walk.
+//! Fuzz target: no input panics the decoder, and no caller behaviour makes a walk unbounded.
 //!
 //! Four drivers over the same bytes:
-//! 1. `parse`, the whole-file wrapper. A parse that succeeds must also survive
-//!    the wavetable-acceptance policy pass at both `insist` settings.
-//! 2. `HeaderParser` driven the way a reader on a card would, with windows that
-//!    sometimes hand back far more than was asked for — the recommended
-//!    behaviour, and the path through `feed`'s "consume the rest of this window"
-//!    loop that an exactly-sized answer never reaches.
-//! 3. `HeaderParser` driven by a caller that **zero-pads** every window to the
-//!    requested length instead of returning a short one. This is the single most
-//!    natural adapter mistake (`read_exact` into a zeroed buffer), and before
-//!    the parser was told the file's size it was fatal: an all-zero window reads
-//!    as a chunk tagged `\0\0\0\0` of size 0, the walk steps 8 bytes, and it
-//!    repeats until `u32` overflow — 536,870,912 feeds, i.e. a hang on a device
-//!    doing one SD read per feed. It is now unreachable by construction (a
-//!    request never names a byte past the end, so there is nothing to pad), and
-//!    the assertions below hold that line.
-//! 4. `HeaderParser` driven adversarially: windows taken from arbitrary offsets,
-//!    of arbitrary length, at arbitrary claimed `window_start`s across the whole
-//!    `u32` range — a caller answering a question nobody asked. Must still
-//!    terminate; a walk that keeps asking without advancing is worse than a
-//!    wrong answer.
+//! 1. `parse`; on success, wavetable acceptance at both `insist` settings.
+//! 2. `HeaderParser` fed honestly, sometimes with far more than was asked for (exercising `feed`'s
+//!    satisfy-from-this-window loop).
+//! 3. `HeaderParser` fed by a caller that zero-pads short reads to the requested length, with the
+//!    declared size overshooting the bytes held. Without the size clamp an all-zero window is a
+//!    size-0 chunk and the walk steps 8 bytes at a time until `u32` overflow.
+//! 4. `HeaderParser` fed adversarially: arbitrary bytes, lengths and claimed `window_start`s
+//!    across the whole `u32` range. It must still terminate.
 //!
-//! Every state-machine driver bounds its feed count against the file size the
-//! parser was given: each chunk consumes at least its 8-byte header before the
-//! next one, so an honest walk is linear in the file and a runaway is a real
-//! defect, not a slow test.
+//! Every `HeaderParser` driver checks each request lies inside the file and fits
+//! `MAX_WINDOW_BYTES`, and caps its feed count at a budget linear in the file size.
 
 use deluge_audio_format::{FeedResult, HeaderParser, MAX_WINDOW_BYTES};
 use libfuzzer_sys::fuzz_target;
 
-/// Feeds are bounded by the file's own chunk count: each chunk costs at least 8
-/// bytes and yields at most ~10 requests (a `MARK` chunk's count plus its 8
-/// bounded marker records). Generous, but finite — which is the whole point.
+/// Feed budget for a `size`-byte file: each chunk takes at least 8 bytes and at most ~10 requests
+/// (a `MARK` chunk's count plus 8 marker records).
 fn feed_budget(size: u32) -> u32 {
     64u32.saturating_add((size / 8).saturating_mul(12))
 }
 
-/// Assert the promise `pending` makes: the window it names lies wholly inside
-/// the file, and is small enough to hold on a stack.
+/// Asserts that a request lies inside the file and fits `MAX_WINDOW_BYTES`.
 fn check_request(start: u32, len: u32, size: u32) {
     assert!(
         u64::from(start) + u64::from(len) <= u64::from(size),
@@ -51,8 +33,8 @@ fn check_request(start: u32, len: u32, size: u32) {
     assert!(len <= MAX_WINDOW_BYTES, "asked for a {len}-byte window");
 }
 
-/// A reader that answers each request honestly, sometimes with far more than was
-/// asked for.
+/// Answers each request honestly; `oversupply` adds that many extra bytes (255: the rest of the
+/// file).
 fn drive_honestly(data: &[u8], oversupply: u8) {
     let size = data.len() as u32;
     let mut parser = HeaderParser::new(size);
@@ -76,10 +58,8 @@ fn drive_honestly(data: &[u8], oversupply: u8) {
     }
 }
 
-/// The adapter mistake: `read_exact` into a zeroed `len`-sized buffer, so bytes
-/// past the end of the file come back as zeros rather than as a short window.
-/// `slack` makes the size the parser is told overshoot the bytes actually held,
-/// so the padding really happens rather than being a no-op.
+/// Answers with a zeroed `len`-byte buffer, so bytes past those held come back as zeros. `slack`
+/// makes the declared size overshoot the bytes held, so padding actually happens.
 fn drive_zero_padding(data: &[u8], slack: u8) {
     let declared = (data.len() as u32).saturating_add(u32::from(slack));
     let mut parser = HeaderParser::new(declared);
@@ -106,8 +86,8 @@ fn drive_zero_padding(data: &[u8], slack: u8) {
     }
 }
 
-/// A caller answering the wrong question: arbitrary bytes, at an arbitrary
-/// claimed offset, in arbitrary quantity.
+/// Answers with arbitrary bytes, at an arbitrary claimed offset, in arbitrary quantity, scripted
+/// by `script`.
 fn drive_adversarially(data: &[u8], script: &[u8]) {
     if data.is_empty() {
         return;
@@ -126,9 +106,7 @@ fn drive_adversarially(data: &[u8], script: &[u8]) {
             "no progress under a misbehaving caller: {feeds} feeds"
         );
 
-        // A claimed window_start drawn from the whole u32 range, not just the
-        // low byte: an offset near the request, wildly past it, and everything
-        // between all have to terminate.
+        // A claimed window_start from the whole u32 range.
         let claimed = u32::from_le_bytes([
             script.get(step).copied().unwrap_or(0),
             script.get(step + 1).copied().unwrap_or(0),
@@ -158,9 +136,8 @@ fuzz_target!(|data: &[u8]| {
         let _ = deluge_audio_format::wavetable::accept_as_wavetable(&header, true);
     }
 
-    // The first byte steers how much the honest reader oversupplies and how far
-    // the declared size overshoots the bytes held; the tail scripts how badly
-    // the adversarial caller misbehaves on the head.
+    // The first byte sets the honest oversupply and the zero-padding slack; the second half
+    // scripts the adversarial caller over the first half.
     let knob = data.first().copied().unwrap_or(0);
     drive_honestly(data, knob);
     drive_zero_padding(data, knob);

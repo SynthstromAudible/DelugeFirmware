@@ -1,44 +1,28 @@
-//! Device `block_device_driver::BlockDevice<512>` over the real SD driver
-//! (`deluge_bsp::sd`) — the on-device sibling of `fs_differential`'s host
-//! `FileBlockDevice` (`fs_differential/src/block_dev.rs`), which mirrors this
-//! shape over a file-backed `RamDisk` instead. Both feed the same
-//! `BufStream`/`embedded-fatfs` stack (`crates/block-device-driver`,
-//! `crates/block-device-adapters`) this crate brings up on-device.
+//! `block_device_driver::BlockDevice<512>` over the real SD driver (`deluge_bsp::sd`), the device
+//! block device under the `BufStream`/`embedded-fatfs` stack.
 //!
-//! Unlike the host adapter, `type Error` here is `deluge_bsp::sd::SdError`,
-//! not `core::convert::Infallible`: `sd::read_sectors`/`write_sectors` talk to
-//! real SDHI hardware over DMA and can genuinely fail (card removed, protocol
-//! error, DMA timeout, …). `Infallible` would make that failure
-//! un-representable at the `BlockDevice` boundary; propagating `SdError`
-//! keeps a real I/O error visible to `embedded-fatfs` instead of silently
-//! discarding it (or panicking, `Infallible`'s only other option under a
-//! `Result` that must never be `Err`).
-//!
-//! Device-only: the real `sd` driver only exists under `target_os = "none"`
-//! (see `deluge_bsp::sd`'s module doc — its host stand-in is a file-backed
-//! image, already exercised by `fs_differential`, so there is nothing new to
-//! adapt on host).
+//! `type Error` is `SdError`, not `Infallible` as in `fs_differential`'s file-backed
+//! `FileBlockDevice`: SDHI transfers can fail (card removed, protocol error, DMA timeout), and the
+//! error has to reach `embedded-fatfs` rather than be discarded or panic.
 #![cfg(target_os = "none")]
 
 use aligned::{A4, Aligned};
 use block_device_driver::BlockDevice;
 use deluge_bsp::sd::{self, SdError};
 
-/// Block size this adapter (and the vendored FatFS `ffconf.h`, `FF_MIN_SS ==
-/// FF_MAX_SS == 512`) both fix.
+/// Block size fixed by this adapter and the vendored FatFS `ffconf.h` (`FF_MIN_SS == FF_MAX_SS ==
+/// 512`).
 const BLOCK_SIZE: usize = 512;
 
-/// A `BlockDevice<512>` over the real SDHI1 driver (`deluge_bsp::sd`).
+/// A `BlockDevice<512>` over the SDHI1 driver.
 ///
-/// Zero-sized: `sd`'s card state lives in module statics (see `sd.rs`), so
-/// this is just a handle onto the shared driver — `efatfs_fs.rs` mounts its
-/// `embedded-fatfs` `FileSystem` over exactly this type on device.
+/// Zero-sized: the card state lives in `deluge_bsp::sd`'s statics. The device efatfs mount is
+/// built over this type.
 pub struct SdBlockDevice;
 
-// B7 REGRESSION GUARD: every transfer in this impl MUST go through
-// `crate::storage::sd::locked_*`, never `deluge_bsp::sd::read_sectors`/`write_sectors`
-// directly. The raw calls bypass SD_BUS, which is what keeps a transfer off the single SDHI
-// controller while `sd::card_service` is re-identifying the card (see `read`'s comment below).
+// Every transfer must go through `crate::storage::sd::locked_*`, never the raw
+// `deluge_bsp::sd::read_sectors`/`write_sectors`: the raw calls bypass SD_BUS, which keeps a
+// transfer off the SDHI controller while `sd::card_service` re-identifies the card.
 impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
     type Error = SdError;
     type Align = A4;
@@ -49,30 +33,18 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
         data: &mut [Aligned<A4, [u8; BLOCK_SIZE]>],
     ) -> Result<(), SdError> {
         let count = data.len() as u32;
-        // SAFETY: `Aligned<A4, [u8; BLOCK_SIZE]>` is `#[repr(C)]` over the
-        // inner `[u8; BLOCK_SIZE]` array plus a zero-sized alignment marker
-        // (aligned 0.4's `Aligned<A, T>` has no other fields), so it has the
-        // same size (BLOCK_SIZE) and layout as a bare `[u8; BLOCK_SIZE]`, and
-        // a `[Aligned<A4, [u8; BLOCK_SIZE]>]` slice is therefore a contiguous
-        // run of BLOCK_SIZE-byte blocks with no inter-element padding —
-        // reinterpreting it as `data.len() * BLOCK_SIZE` flat bytes is sound.
-        // The pointer stays validly derived from `data` (same allocation,
-        // narrower type, non-null, no aliasing introduced — `data` is
-        // borrowed for this call's lifetime and nothing else reads it
-        // meanwhile), and the resulting `&mut [u8]` doesn't outlive `data`.
+        // SAFETY: `Aligned<A4, [u8; BLOCK_SIZE]>` is `#[repr(C)]` over the array plus a zero-sized
+        // alignment marker, so the slice is a contiguous, padding-free run of BLOCK_SIZE-byte
+        // blocks. The flat view is derived from `data`, covers the same bytes, and does not
+        // outlive the exclusive borrow.
         let flat = unsafe {
             core::slice::from_raw_parts_mut(data.as_mut_ptr().cast::<u8>(), data.len() * BLOCK_SIZE)
         };
-        // Route through the SD_BUS-guarded helper, NOT the raw driver call.
+        // SD_BUS is not redundant here: `sd::card_service` holds it across `sd::init().await`
+        // (about 1.3 s of card identification) without the FS mutex, and the streaming executor
+        // preempts the thread-mode executor `card_service` runs on.
         //
-        // The lock is not redundant: `sd::card_service` holds SD_BUS across
-        // `sd::init().await` — the ~1.3 s card-identification sequence — with no FS mutex
-        // involved, so SD_BUS is the only thing keeping a transfer and a card bring-up off the
-        // controller at the same time. That ordering matters MORE since streaming moved to its own
-        // interrupt executor, which preempts the thread mode `card_service` runs on.
-        //
-        // Lock order: this is reached under the efatfs FS mutex, so the order is
-        // FS -> SD_BUS. Nothing takes SD_BUS and then FS, so there is no inversion.
+        // Lock order is FS mutex -> SD_BUS; nothing takes SD_BUS and then the FS mutex.
         crate::storage::sd::locked_read_sectors(block_address, count, flat).await
     }
 
@@ -82,12 +54,10 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
         data: &[Aligned<A4, [u8; BLOCK_SIZE]>],
     ) -> Result<(), SdError> {
         let count = data.len() as u32;
-        // SAFETY: see the identical reinterpret in `read`, above — same
-        // layout argument, read-only direction.
+        // SAFETY: same layout argument as in `read`; shared, read-only view.
         let flat = unsafe {
             core::slice::from_raw_parts(data.as_ptr().cast::<u8>(), data.len() * BLOCK_SIZE)
         };
-        // B7: SD_BUS-guarded, for the same reason as `read` above.
         crate::storage::sd::locked_write_sectors(block_address, count, flat).await
     }
 
@@ -96,12 +66,10 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
     }
 }
 
-/// Stack-instantiation smoke: names the full device storage stack (`SdBlockDevice`
-/// -> `BufStream` -> `embedded_fatfs::FileSystem`) so the type-checker fully
-/// monomorphizes it for `armv7a-none-eabihf` — the decisive device-readiness
-/// check for the on-device storage stack. Never called (no card mount happens here); its only
-/// job is to force codegen of the whole stack. `#[allow(dead_code)]` since
-/// nothing calls it — its existence, not its execution, is the point.
+/// Forces the whole device storage stack (`SdBlockDevice` -> `BufStream` ->
+/// `embedded_fatfs::FileSystem`) to monomorphize for the device target.
+///
+/// Never called; its existence is the check.
 #[allow(dead_code)]
 async fn stack_instantiation_smoke() {
     use block_device_adapters::BufStream;

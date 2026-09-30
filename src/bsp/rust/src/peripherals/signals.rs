@@ -1,13 +1,8 @@
-//! signals.h — board GPIO signals, battery sense, and the MIDI/gate timer.
+//! `libdeluge/signals.h` — board GPIO signals, battery sense, and the MIDI/gate timer.
 //!
-//! `deluge_signal_write`/`read` map `DelugeSignal` to the board's GPIO pins; the
-//! pins are configured in board init.
-//! SPEAKER_ENABLE / CODEC_ENABLE gate the audio output path (the app turns the
-//! speaker amp on here, so this is what makes rendered audio audible).
-//!
-//! Battery ADC and the sample-accurate MIDI/gate timer are stubbed for now: the
-//! app runs without them — no battery readout, and gate/MIDI events fire at the
-//! app's tick granularity rather than sample-accurately. [refine later]
+//! [`deluge_signal_write`] and [`deluge_signal_read`] map `DelugeSignal` to the GPIO pins board
+//! init configured. `SPEAKER_ENABLE` and `CODEC_ENABLE` gate the audio output path: rendered audio
+//! is inaudible until the app turns them on.
 #![allow(non_upper_case_globals)]
 
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -55,7 +50,7 @@ pub extern "C" fn deluge_signal_read(signal: DelugeSignal) -> bool {
     }
 }
 
-// ── Battery sense (ADC channel 5, via deluge_bsp::battery) ─────────────────────
+// Battery sense (ADC channel 5, via `deluge_bsp::battery`)
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_battery_read_raw(out: *mut u16) -> bool {
@@ -74,48 +69,43 @@ pub extern "C" fn deluge_battery_start_conversion() {
     deluge_bsp::battery::start_conversion();
 }
 
-// ── Sample-accurate MIDI/gate timer (MTU2 one-shot) ───────────────────────────
+// Sample-accurate MIDI/gate timer (MTU2 channel 2 one-shot)
 //
-// The app schedules MIDI-output / gate-edge events that must fire at a precise
-// sample offset inside an audio render window — finer than the app tick. We use
-// MTU2 channel 2 (rza1's TIMER_MIDI_GATE_OUTPUT) as a one-shot: deluge_bsp's own
-// `midi_gate` module owns the same channel for pure-Rust firmwares, but its ISR
-// de-asserts a gate GPIO directly; here the C++ app's `midiAndGateTimerGoneOff()`
-// owns the action (MIDI + gate emission), and deluge-bsp must not reference app
-// symbols, so we drive mtu2 directly and call the app from our ISR.
+// The app schedules MIDI-output and gate-edge events at sample offsets finer than its tick. The
+// one-shot's ISR calls the app's `midiAndGateTimerGoneOff()`. `deluge_bsp::midi_gate` drives the
+// same channel for pure-Rust firmware, but deluge-bsp must not reference app symbols, so this
+// module drives `mtu2` directly.
 
-/// MTU2 channel for the MIDI/gate one-shot (TIMER_MIDI_GATE_OUTPUT = 2).
+/// MTU2 channel for the MIDI/gate one-shot (the app's `TIMER_MIDI_GATE_OUTPUT`).
 const GATE_TIMER_CH: u8 = 2;
-/// Prescaler P0/64 ≈ 520 kHz; 1 tick ≈ 1.92 µs, max one-shot ≈ 126 ms.
+/// Prescaler P0/64 ≈ 520 kHz: 1 tick ≈ 1.92 µs, longest one-shot ≈ 126 ms.
 const GATE_TIMER_PRESCALER: u16 = 64;
-/// GIC priority (matches deluge_bsp::midi_gate: above USB so gate timing isn't
-/// delayed behind USB servicing).
+/// GIC priority, above USB so gate timing is not delayed behind USB servicing.
 const GATE_TIMER_PRIORITY: u8 = 5;
 
-/// True while a one-shot is armed and not yet fired. The app polls this via
-/// deluge_midi_gate_timer_pending() and only re-arms when it reads false.
+/// True while a one-shot is armed and has not fired; the app re-arms only when it reads false.
 static GATE_TIMER_PENDING: AtomicBool = AtomicBool::new(false);
 
-/// MTU2 ch2 compare-match-A ISR. Clears the flag, disarms (one-shot), clears the
-/// pending flag, then runs the app handler (which may re-arm for the next event).
+/// MTU2 channel 2 compare-match-A ISR: clears and disarms the timer, clears
+/// [`GATE_TIMER_PENDING`], then runs the app handler (which may re-arm).
 fn gate_timer_isr() {
-    // SAFETY: only this ISR + the arm path touch ch2 after setup; clear before
-    // disarm so the GIC line can't re-trigger.
+    // SAFETY: only this ISR and the arm path touch channel 2 after setup. Clearing before
+    // disarming keeps the GIC line from re-triggering.
     unsafe {
         mtu2::clear_flag(GATE_TIMER_CH);
         mtu2::disarm(GATE_TIMER_CH);
     }
     GATE_TIMER_PENDING.store(false, Ordering::Release);
-    // SAFETY: app-provided C symbol; libdeluge documents this as an ISR callback (signals.h), and this
-    // is the MTU2 compare-match ISR.
+    // SAFETY: an app-provided C symbol that `libdeluge/signals.h` documents as an ISR callback.
     unsafe { crate::sys::midiAndGateTimerGoneOff() };
 }
 
-/// One-time MTU2 ch2 setup. Call in the boot setup window after gic::init
-/// (init_clocks) and mtu2::enable_write(), before interrupts are unmasked.
+/// One-time setup of MTU2 channel 2.
 ///
 /// # Safety
-/// Writes MTU2 + GIC registers; call once during single-threaded startup.
+///
+/// Writes MTU2 and GIC registers: call once during single-threaded startup, after `gic::init` and
+/// `mtu2::enable_write()`, before interrupts are unmasked.
 pub(crate) unsafe fn gate_timer_setup() {
     unsafe {
         mtu2::setup_one_shot(
@@ -134,9 +124,8 @@ pub extern "C" fn deluge_midi_gate_timer_pending() -> bool {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_gate_timer_arm(samples_from_now: u32) {
-    // samples → MTU2 ticks: ticks = samples * 766245 / 2^16 (≈ samples * 515616 /
-    // 44100), in u64 so it cannot overflow past ~5600 samples as u32 math would. TGRA is 16-bit, so it saturates at the
-    // ~126 ms one-shot ceiling.
+    // ticks = samples × 766245 / 2^16 (≈ samples × 515616 / 44100), in u64 so it cannot overflow.
+    // TGRA is 16-bit, so it saturates at the ~126 ms one-shot ceiling.
     let ticks = (((samples_from_now as u64) * 766245) >> 16).min(u16::MAX as u64) as u16;
     GATE_TIMER_PENDING.store(true, Ordering::Release);
     // SAFETY: ch2 was configured by gate_timer_setup() at boot.

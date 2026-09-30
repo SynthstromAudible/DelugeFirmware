@@ -1,48 +1,38 @@
-//! `golden_vt_render`: the Embassy host BSP's harness. Boots the real C++ `deluge_app` on this repo's Rust/Embassy
-//! host substrate under a virtual clock, fills the SD card with a fixture tree, and runs one scenario: by default a
-//! real offline `StemExport` of the fixture song, whose stem WAVs it copies out; otherwise the stepped scenario
-//! `GOLDEN_SCENARIO` names (`tests/integration/scenarios/scenario_table.cpp`). Sample cluster fills drain through the
-//! real async Embassy `streaming_fill_task` (the reader/overview and voice-playback paths route their fills onto that
-//! drain), so a sample-backed fixture renders real audio, not silence.
+//! `golden_vt_render`: boots the real C++ app on the BSP under a virtual clock, fills the card with
+//! a fixture tree, and runs one scenario deterministically.
+//!
+//! By default the scenario is an offline `StemExport` of the fixture song, whose stem WAVs it
+//! copies out; otherwise it is the scenario `GOLDEN_SCENARIO` names — the recorder round-trip, or a
+//! stepped scenario from `tests/integration/scenarios/scenario_table.cpp`. Sample cluster fills
+//! drain through the BSP's async `streaming_fill_task`, so a sample-backed fixture renders real
+//! audio.
 //!
 //! # Why a separate package
 //!
-//! `embassy-time`'s `std` feature (`deluge-bsp-rust`'s own host target) and a custom/`mock-driver`-shaped time driver
-//! both define `#[no_mangle] _embassy_time_now`/`_embassy_time_schedule_wake` -- a hard duplicate-symbol compile error
-//! if both land in one package's dependency graph (Cargo unifies a dependency's features across every target in one
-//! Cargo.toml; there is no per-`[[bin]]` override). See `Cargo.toml`'s header comment.
+//! The executor and time driver here would collide with the embassy std ones the BSP's
+//! `host-runtime` feature brings (duplicate `__pender` and time-driver symbols), and Cargo unifies
+//! features across a package, so this cannot be a binary of the BSP's package.
 //!
-//! # Executor + clock
+//! # Executor and clock
 //!
-//! `embassy_executor::raw::Executor` + a custom `AtomicBool` `__pender` + a `PeekableMockDriver` ([`clock`]). The driver
-//! loop: poll the executor to quiescence, peek the next due deadline, jump the virtual clock to exactly that deadline,
-//! repeat. No `platform-std`/`executor-thread` embassy-executor feature is enabled (see `Cargo.toml`), so there is
-//! exactly one `__pender` in this binary and it is ours.
+//! A `raw::Executor` with an `AtomicBool` [`pender`] and the virtual clock in [`clock`]. The loop
+//! in `main` polls the executor to quiescence, jumps the clock to the next due deadline, and
+//! repeats.
 //!
-//! # The boot livelock
+//! # `sim_latency` is off
 //!
-//! `deluge_app_init` calls the boot-time FatFS mount SYNCHRONOUSLY, via `embassy_futures::block_on` -- a tight
-//! busy-spin poll loop that never returns control to anything else on this one OS thread. Under `sim_latency`, that
-//! polled future's completion depends on a separately spawned `pump()` task's `Timer::after(latency).await` being
-//! POLLED by the executor -- but the executor's own `poll()` call is already on the stack, so nothing else can be
-//! polled until that whole call stack unwinds. This package sidesteps the question by not enabling `sim_latency` (see
-//! `Cargo.toml`: a golden renderer wants bit-exact output, not latency realism), so its host SD reads resolve
-//! synchronously and there is no modeled `Timer` to wait on. Storage time, where a gate needs it, is modeled in the
-//! async fill task instead (`deluge_streaming_set_fill_*`), which a synchronous spin never waits on.
+//! A synchronous card call spins in `block_on` on this one thread. Under `sim_latency` its
+//! transfer waits on a `Timer` that the `sim_latency::pump` task must fire, and that task cannot be
+//! polled while the spin holds the thread, so the process livelocks. A golden render wants
+//! bit-exact output anyway; where a gate needs storage time, the async fill task models it
+//! (`deluge_streaming_set_fill_*`).
 //!
-//! # The card is chosen BEFORE any task is spawned
+//! # The card is chosen before any task is spawned
 //!
-//! `memory_card::install` runs synchronously in `main`, before the executor exists or any task is spawned. `deluge-bsp`'s
-//! host `sd.rs` opens its disk lazily, exactly once, the first time anything touches it, and a memory disk must be
-//! chosen before that, and embassy does not guarantee poll order across tasks spawned in the same batch. Installed from
-//! a task instead, a poll order that reaches
-//! [`boot_task`]'s `sd::init()` first would open the WRONG backing -- silently, not a crash. In `main`
-//! (single-threaded, before the executor exists at all) there is no such race.
-//!
-//! # The BSP
-//!
-//! Everything but the executor, the clock and the scenario drivers is `deluge_bsp_rust`, built
-//! without its `host-runtime` feature so the executor and time driver here are the only ones.
+//! The BSP's host SD opens its disk once, lazily, on first access, and embassy does not order the
+//! first polls of tasks spawned together. So `main` installs the memory card before the executor
+//! exists; installed from a task, a poll order that reached [`boot_task`]'s SD bring-up first
+//! would open the wrong backing, silently.
 #![feature(impl_trait_in_assoc_type)]
 #![recursion_limit = "512"]
 
@@ -66,20 +56,9 @@ use deluge_bsp_rust::storage::efatfs::host as efatfs_host;
 use deluge_bsp_rust::storage::{memory_card, sd, sd_image, streaming_loader};
 use deluge_bsp_rust::{boot, scheduler, sys, tier_meter};
 
-// Host-only C-ABI bridge (tests/integration/scenarios/streaming_scenario.{h,cpp},
-// compiled into the host tree's `deluge_scenarios` objects, which build.rs archives
-// with the app's; the device firmware never contains it). Manually declared (not through
-// the bindgen `sys` module, same pattern `scenario.rs` uses for the identical
-// bridge): these are harness-only entry points the app exposes to the platform,
-// not part of the libdeluge C-ABI the app CONSUMES.
-//
-// The song-load quartet (`begin_song_load`/`song_listing_in_progress`/
-// `commit_song_load`/`song_load_in_progress`) also serves the streaming-underrun
-// harness (`scenario.rs`'s own copy of these same declarations) — this scenario
-// needs its own since it does NOT `#[path]`-
-// include `scenario.rs` (see the module doc). Without loading a real song
-/// A stepped scenario, as `tests/integration/scenarios/scenario_table.h` declares it: found by name, then driven by
-/// [`run_stepped_scenario`] -- `begin` once, then `dispatch_step` and `step_done` until `complete`.
+/// A stepped scenario, as `tests/integration/scenarios/scenario_table.h` declares it: found by
+/// name, then driven by [`run_stepped_scenario`]: `begin` once, then `dispatch_step` and
+/// `step_done` until `complete`.
 #[repr(C)]
 struct Scenario {
     name: *const c_char,
@@ -97,13 +76,14 @@ unsafe impl Sync for Scenario {}
 /// The stepped scenario `GOLDEN_SCENARIO` names, if it names one.
 fn stepped_scenario(name: &str) -> Option<&'static Scenario> {
     let name = std::ffi::CString::new(name).ok()?;
-    // SAFETY: host scenario C-ABI; `name` is NUL-terminated and outlives the call, and the table the answer
-    // points into is static.
+    // SAFETY: host scenario C-ABI; `name` is NUL-terminated and outlives the call, and the table
+    // the answer points into is static.
     unsafe { deluge_scenario_find(name.as_ptr()).as_ref() }
 }
 
-// first, `currentSong` is still the blank boot-time song `deluge_boot()`
-// leaves in place, and StemExport has nothing to export.
+// The host scenarios' C ABI (`tests/integration/scenarios/`), linked from the host tree; the device
+// firmware never contains it. Declared by hand: these are harness entry points, not part of the
+// libdeluge ABI that bindgen covers.
 unsafe extern "C" {
     fn deluge_scenario_start_song_load(full_path: *const c_char);
     fn deluge_scenario_song_load_begin_done() -> bool;
@@ -129,26 +109,18 @@ unsafe extern "C" {
     fn deluge_scenario_find(name: *const c_char) -> *const Scenario;
 }
 
-/// Set once [`boot_task`] has run the efatfs mount, `deluge_app_init` (which
-/// itself runs the C FatFS mount synchronously), and has marked boot finished.
-/// [`run_stem_export_scenario`] waits on this flag
-/// before dispatching the stem export.
+/// Set once [`boot_task`] has mounted the filesystem, run `deluge_app_init` and marked boot
+/// finished. Every scenario task waits on it.
 static BOOT_MOUNTED: AtomicBool = AtomicBool::new(false);
 
-/// Boot task: mirrors `deluge-bsp-rust`'s `host_app_task` exactly (PIC-ready
-/// wait, SD bring-up, efatfs mount, `deluge_app_init`, boot marked finished),
-/// reimplemented here rather than `#[path]`-included because `host_app_task` lives inside
-/// `../src/main.rs` itself, which carries a conflicting `#![no_std]`/device
-/// `fn main`/`EXECUTOR` static).
+/// Boots the app in the host runtime's order — PIC handshake, SD bring-up, filesystem mount,
+/// `deluge_app_init`, boot marked finished — with this harness's scenario hooks, then parks.
 #[embassy_executor::task]
 async fn boot_task() {
     deluge_bsp::pic::wait_ready().await;
     sd::boot_init().await;
 
-    // Mirrors `deluge-bsp-rust`'s `host_app_task` efatfs mount (see its comment). This mount
-    // runs synchronously; with `sim_latency` off for this package its transfers are plain
-    // synchronous reads, so there is no modeled delay to get stuck on.
-    // A failed mount must NOT abort boot — see the device/host_app_task comments this mirrors.
+    // A failed mount does not abort boot, as on the device: streamed samples just won't load.
     match efatfs_host::mount().await {
         Ok(()) => log::info!("golden_vt_render: efatfs mounted"),
         Err(status) => {
@@ -158,11 +130,10 @@ async fn boot_task() {
         }
     }
 
-    // The stem-render/drain arm (GOLDEN_SCENARIO unset) is not a Deluge: it renders a fixture song
-    // and needs none of the boot settings, while the prelude's reads (and the write it makes when
-    // MIDI_FOLLOW.XML is absent) would occupy the single-slot byte channel the export's own folder
-    // search uses. Scenario arms keep the prelude, which is what exercises it. Must precede
-    // deluge_app_init, which registers the task.
+    // The stem export (GOLDEN_SCENARIO unset) needs no boot settings, and the settings prelude's
+    // reads (and its write when MIDI_FOLLOW.XML is absent) would occupy the single-slot byte
+    // channel the export's folder search uses. Scenarios keep the prelude, which exercises it.
+    // Must precede deluge_app_init, which registers the task.
     if std::env::var("GOLDEN_SCENARIO")
         .unwrap_or_default()
         .is_empty()
@@ -172,32 +143,32 @@ async fn boot_task() {
     }
 
     log::info!("golden_vt_render: deluge_app_init() (registers + spawns task runners)");
-    // SAFETY: called once, after `scheduler::set_spawner` (main, below) and
-    // before anything else touches `currentSong`/scheduler state.
+    // SAFETY: called once, after `scheduler::set_spawner` (in main) and before anything else
+    // touches the app or scheduler state.
     unsafe { sys::deluge_app_init(board::deluge_board()) };
-    // A stepped scenario's hook for this moment: nothing has been polled since deluge_app_init spawned the task
-    // runners, so the render has not run yet.
+    // A stepped scenario's hook for this moment: the task runners deluge_app_init spawned have not
+    // been polled, so the render has not run yet.
     if let Some(on_app_init) =
         stepped_scenario(&std::env::var("GOLDEN_SCENARIO").unwrap_or_default())
             .and_then(|scenario| scenario.on_app_init)
     {
-        // SAFETY: DELUGE_HOST harness C-ABI through the scenario's table row; deluge_app_init has run.
+        // SAFETY: host scenario C ABI through the table row, after deluge_app_init.
         unsafe { on_app_init() };
     }
     boot::mark_finished();
     BOOT_MOUNTED.store(true, Ordering::Release);
     log::info!("golden_vt_render: boot+mount complete; scheduler running");
 
-    // Nothing left to pump: the scheduler's task runners were spawned by `deluge_app_init`.
+    // The scheduler's task runners, spawned by deluge_app_init, own the app's work.
     core::future::pending::<()>().await
 }
 
-/// In-image `SONGS/*.XML` path for `fixture` — the same `SONG_XML` values
-/// `scripts/golden_mixdown.sh`'s per-fixture `case` uses (the packed image
-/// flattens each fixture's song to `SONGS/<name>.XML`, dropping the
-/// `problem_songs/...` subdirectory the local backup corpus nests it under —
-/// see `sd_image::pack_golden_fixture`). `GOLDEN_STEM_SONG` overrides for a
-/// fixture not in this table.
+/// Returns the card path of `fixture`'s song (the fixture tree flattens it to `SONGS/<name>.XML`),
+/// or `GOLDEN_STEM_SONG` when set.
+///
+/// # Panics
+///
+/// Panics for a fixture not in the table when `GOLDEN_STEM_SONG` is unset.
 fn fixture_song_path(fixture: &str) -> String {
     if let Ok(path) = std::env::var("GOLDEN_STEM_SONG") {
         return path;
@@ -213,11 +184,8 @@ fn fixture_song_path(fixture: &str) -> String {
     .to_string()
 }
 
-/// `StemExportType` to export — matches the C++ enum's values
-/// (`definitions_cxx.hpp`: CLIP=0, TRACK=1, DRUM=2, MIXDOWN=3), carried as the
-/// `int32_t` `deluge_scenario_start_stem_export` takes. `GOLDEN_STEM_MODE`
-/// mirrors `deluge_render`'s own `--mode` flag (`host_render_main.cpp`'s
-/// `parse_mode`); defaults to TRACK, same as that tool.
+/// Returns the `StemExportType` `GOLDEN_STEM_MODE` names, as the C++ enum's value (CLIP=0, TRACK=1,
+/// DRUM=2, MIXDOWN=3 in `definitions_cxx.hpp`); defaults to TRACK.
 fn stem_export_mode() -> i32 {
     match std::env::var("GOLDEN_STEM_MODE")
         .unwrap_or_default()
@@ -231,9 +199,9 @@ fn stem_export_mode() -> i32 {
     }
 }
 
-/// Drive a stepped scenario (`scenario_table.h`): wait for boot and mount, `begin` it, then one `dispatch_step` per
-/// virtual millisecond, each waited out until `step_done`, until it is `complete`. Exits 1 on in-process failures, 2 on
-/// a wedge.
+/// Drives a stepped scenario (`scenario_table.h`): waits for boot, calls `begin`, then one
+/// `dispatch_step` per virtual millisecond, each waited out until `step_done`, until `complete`.
+/// Exits 1 on in-process failures, 2 on a wedge.
 #[embassy_executor::task]
 async fn run_stepped_scenario(
     scenario: &'static Scenario,
@@ -253,8 +221,8 @@ async fn run_stepped_scenario(
         Timer::after_millis(5).await;
     }
 
-    // SAFETY (every call below): DELUGE_HOST harness C-ABI through the scenario's table row; boot (confirmed above)
-    // has run `deluge_app_init`.
+    // SAFETY (every call below): host scenario C ABI through the scenario's table row; boot has run
+    // `deluge_app_init`.
     unsafe { (scenario.begin)() };
 
     let deadline = Instant::now() + Duration::from_secs(600);
@@ -267,8 +235,8 @@ async fn run_stepped_scenario(
             hard_exit(2);
         }
         unsafe { (scenario.dispatch_step)() };
-        // One virtual millisecond per step before asking whether it is done. The gates' tick counts and races are
-        // paced in these milliseconds.
+        // One virtual millisecond per step before asking whether it is done: the gates' tick
+        // counts and races are paced in these milliseconds.
         Timer::after_millis(1).await;
         while !unsafe { (scenario.step_done)() } {
             Timer::after_millis(1).await;
@@ -287,23 +255,12 @@ async fn run_stepped_scenario(
     done.store(true, Ordering::Release);
 }
 
-/// The render scenario: waits for [`boot_task`] to finish booting + mounting,
-/// starts a real offline `StemExport` run (`deluge_scenario_start_stem_export`),
-/// polls the driver to quiescence
-/// until it completes (`deluge_scenario_stem_export_done`), copies the produced
-/// stem WAV(s) out of the mounted image (`deluge_scenario_copy_stems_out` —
-/// mirrors `host_render_main.cpp`'s `copy_stems_out`), then declares the run
-/// done. `fixture` is already packed and pointed at by `DELUGE_SD_IMAGE` before
-/// this task is even spawned (see the module doc's "SD-image packing" section)
-/// — it's threaded through here only so the log lines identify which fixture
-/// this run is against.
+/// The default scenario: waits for boot, loads `fixture`'s song, runs an offline `StemExport`,
+/// and copies the stem WAVs out to `GOLDEN_STEM_OUT` (default `golden_stems`).
 ///
-/// Cluster fills DO drain here: `StemExport::renderWait`'s offline
-/// loop waits, pass by pass, for the real async `streaming_fill_task` to drain
-/// the loader queue (it asks `deluge_streaming_queue_drained()` and returns). A sample-backed fixture
-/// therefore renders real audio, not silence — this task proves both the
-/// plumbing (real WAV files, right count/structure, clean exit) and, with the
-/// fills drained, sample-content correctness.
+/// The card already holds the fixture (`main` installed it); `fixture` picks the song and labels
+/// the log. `StemExport::renderWait` waits pass by pass for `streaming_fill_task` to drain the
+/// loader queue, so a sample-backed fixture exports real audio.
 #[embassy_executor::task]
 async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBool) {
     log::info!(
@@ -323,20 +280,14 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
         Timer::after_millis(5).await;
     }
 
-    // Load the fixture's real song first — StemExport exports whatever
-    // `currentSong` currently is, and boot leaves it as the blank template
-    // song otherwise. Same two-phase dispatch/poll shape `scenario.rs`'s
-    // `run()` uses for the identical C-ABI (see `streaming_scenario.h`'s "Why
-    // two-phase song load" doc): `begin_song_load` only DISPATCHES the async
-    // directory listing.
+    // StemExport exports `currentSong`, which boot leaves blank. The load is two-phase (see
+    // `streaming_scenario.h`): the begin only dispatches the async directory listing.
     let song_path = fixture_song_path(fixture);
     log::info!("golden_vt_render: boot+mount confirmed for fixture={fixture}; loading {song_path}");
     let song_path_c =
         CString::new(song_path.clone()).expect("fixture_song_path never contains a NUL byte");
-    // Started through deluge_scenario_start_song_load -- see that C-ABI entry's doc for how the load
-    // is stepped.
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has already run
-    // `deluge_app_init`, so `currentSong` exists. `song_path_c` outlives the call.
+    // SAFETY: host scenario C ABI; boot has run `deluge_app_init`, and `song_path_c` outlives the
+    // call.
     unsafe { deluge_scenario_start_song_load(song_path_c.as_ptr()) };
 
     let deadline = Instant::now() + Duration::from_secs(30);
@@ -403,13 +354,10 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
 
     let mode = stem_export_mode();
     log::info!("golden_vt_render: dispatching stem export mode={mode}");
-    // SAFETY: DELUGE_HOST harness C-ABI; the song load above has completed, so
-    // `currentSong` is the fixture's real song. Fire-and-forget: this only
-    // starts the export (see the C++ doc comment) — it does not itself run it.
+    // SAFETY: host scenario C ABI; the song load has completed. This only starts the export.
     unsafe { deluge_scenario_start_stem_export(mode) };
 
-    // This wait budget only needs to cover real wall-clock render time, not a
-    // wedge in the usual "stuck forever" sense; keep it generous regardless.
+    // Generous: this budget covers the export's render time.
     let deadline = Instant::now() + Duration::from_secs(300);
     loop {
         // SAFETY: as above.
@@ -442,13 +390,12 @@ async fn run_stem_export_scenario(fixture: &'static str, done: &'static AtomicBo
     done.store(true, Ordering::Release);
 }
 
-/// The `GOLDEN_SCENARIO=recorder_roundtrip` alternative to [`run_stem_export_scenario`]:
-/// runs the SampleRecorder byte-exact round-trip oracle (the
-/// `deluge_scenario_run_recorder_roundtrip` harness scenario) on THIS Embassy substrate. Waits for boot+mount, sets the oracle up inline, then ticks its cases, the finalized
-/// probe's pump and the tail, one step per await, and exits with its result. Unlike the stem-export
-/// scenario, no song load and no fixture image: `main`
-/// formats an EMPTY FAT image (the recorder only ever writes new files), and the finalized probe
-/// reads efatfs on the same image it wrote.
+/// The `GOLDEN_SCENARIO=recorder_roundtrip` scenario: the SampleRecorder byte-exact round-trip
+/// oracle, then the ticked recording cases.
+///
+/// Waits for boot, sets the oracle up, then ticks its cases, the finalized probe and the tail one
+/// step per await, and exits with the result. The card starts empty: the recorder only writes new
+/// files, and the finalized probe reads back what it wrote.
 #[embassy_executor::task]
 async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     log::info!("golden_vt_render: run_recorder_roundtrip_scenario: awaiting boot+mount");
@@ -467,12 +414,12 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     }
 
     log::info!("golden_vt_render: boot+mount confirmed; starting the recorder round-trip");
-    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`. Set-up only: it
-    // blocks on nothing, so it runs here, inline, like everything after it.
+    // SAFETY: host scenario C ABI; boot has run `deluge_app_init`. Set-up only: it blocks on
+    // nothing.
     unsafe { deluge_scenario_run_recorder_roundtrip() };
 
-    // The CASES, driven from HERE -- one step per tick with a yield between, so the storage driver can
-    // answer. On the channel arm, a caller that does not return cannot be answered.
+    // One case step per tick with a yield between, so the storage channel can answer: a caller
+    // that does not return cannot be answered.
     let case_deadline = Instant::now() + Duration::from_secs(300);
     loop {
         // SAFETY: as above.
@@ -502,8 +449,8 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         Timer::after_millis(1).await;
     }
 
-    // The oracle's tail -- the live-readback probe, the finalized probe's acquire, the summary -- ticked the
-    // same way: its drains are requests now, answered between these calls.
+    // The oracle's tail — the live-readback probe, the finalized probe's acquire, the summary —
+    // ticked the same way: its drains are requests, answered between these calls.
     // SAFETY: as above.
     unsafe { deluge_scenario_recorder_rest_begin() };
     let rest_deadline = Instant::now() + Duration::from_secs(300);
@@ -529,9 +476,8 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         );
         hard_exit(1);
     }
-    // The `ticked_` cases. Driven from HERE, as the device drives a
-    // recorder: the cluster write goes through the channel. They cover the async write path and the
-    // blocking ticks from where the device drives them.
+    // The `ticked_` cases, driven from a task as the device drives a recorder: cluster writes go
+    // through the channel.
     // SAFETY: same C-ABI contract as the calls above; called only from this task.
     unsafe { deluge_scenario_ticked_begin(0) };
     let off_deadline = Instant::now() + Duration::from_secs(300);
@@ -545,8 +491,7 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
             log::error!("golden_vt_render: ticked recording did not complete within 300s — wedged");
             hard_exit(2);
         }
-        // Yield so the write task can make progress on the clusters the case has handed it. Without
-        // this the case cannot advance.
+        // Yield so the write task can make progress on the clusters the case handed it.
         Timer::after_millis(1).await;
     };
     if off_result != 1 {
@@ -554,8 +499,7 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         hard_exit(1);
     }
 
-    // Again, this time through the alteration branch. Separate run rather than a flag inside the
-    // first, so a failure names which shape broke.
+    // Again through the alteration branch, as a separate run so a failure names which shape broke.
     // SAFETY: same C-ABI contract as above.
     unsafe { deluge_scenario_ticked_begin(1) };
     let alter_deadline = Instant::now() + Duration::from_secs(300);
@@ -576,8 +520,8 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         hard_exit(1);
     }
 
-    // And once more, abandoning the recording part-way, so the abort machine runs: its close must
-    // complete before its unlink, and the free-cluster count is the only thing that can see it.
+    // Once more, abandoning the recording part-way so the abort machine runs: its close must
+    // complete before its unlink, which only the free-cluster count can see.
     // SAFETY: same C-ABI contract as above.
     unsafe { deluge_scenario_ticked_begin(2) };
     let abort_deadline = Instant::now() + Duration::from_secs(300);
@@ -598,12 +542,12 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         hard_exit(1);
     }
 
-    // The give-up cases: the channel busy with someone else's operation, then a cluster write held past
-    // the recorder's bound. Each prints its own line, and a failure stops neither the other case nor the
-    // tier report, so the script sees all three.
+    // The give-up cases (the channel busy with another operation, a cluster write held past the
+    // recorder's bound, and so on). Each prints its own line, and a failure stops neither the
+    // other cases nor the tier report, so the script sees every result.
     let mut give_up_failed = false;
-    // dirstall runs last: its held directory open is still in flight when it reports, and a case after it would
-    // find its own folder scan waiting behind that open.
+    // dirstall runs last: its held directory open is still in flight when it reports, and a later
+    // case's folder scan would wait behind it.
     for (mode, name) in [
         (3, "busy"),
         (4, "stall"),
@@ -635,7 +579,8 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
         }
     }
 
-    // Over every `ticked_` case: a synchronous card operation is a violation whichever case made it.
+    // Over every `ticked_` case: a synchronous card operation is a violation whichever case made
+    // it.
     // SAFETY: same C-ABI contract as above.
     unsafe { deluge_scenario_ticked_report() };
     if give_up_failed {
@@ -646,12 +591,15 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     done.store(true, Ordering::Release);
 }
 
-/// Write a minimal, genuinely parseable WAV: canonical 44-byte header, then `data_bytes` bytes of
-/// data all equal to `fill`.
+/// Writes a minimal parseable PCM WAV: the canonical 44-byte header, then `data_bytes` bytes all
+/// equal to `fill`.
 ///
-/// The fill is what makes two files that agree on every geometry field still tell each other apart
-/// when the C++ side fingerprints the bytes it reads back through the Sample's own stream — which is
-/// how `SAMPLES/BOTH.WAV` and `SAMPLES/ALT/BOTH.WAV` are distinguished at all.
+/// The fill tells apart files that agree on every geometry field (such as `SAMPLES/BOTH.WAV` and
+/// `SAMPLES/ALT/BOTH.WAV`) when the C++ side fingerprints the bytes it reads back.
+///
+/// # Panics
+///
+/// Panics if the file cannot be written.
 fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: u32, fill: u8) {
     const SAMPLE_RATE: u32 = 44_100;
     let block_align = channels * (bits / 8);
@@ -674,31 +622,10 @@ fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: 
         .unwrap_or_else(|e| panic!("writing the A/B fixture WAV {}: {e}", path.display()));
 }
 
-/// Stage the sample-collect scenario's card: two small, genuinely parseable WAVs under `SAMPLES/`,
-/// with different lengths and fills so a copy that fetched the wrong one is visible in the checksum.
+/// Stages the song-save scenario's card: an empty `SONGS` directory.
 ///
-/// Deliberately small. This gate is about WHICH ARM performed the transfers and whether the audio
-/// file list survives them, not about moving a lot of bytes.
-/// Stage the sample-collect scenario's card and pack it into a FAT image.
-///
-/// Two of these four files exist to make the ORDERING check able to fail at all.
-///
-/// A collect-media save rewrites `filePath` for exactly one shape of file: a recording, whose name
-/// is `REC` plus five characters plus `.WAV`, and which is given a random `_XXXXX` suffix so that
-/// re-saving cannot collide with the copy a previous save made. Every other file keeps its path.
-/// A fixture of ordinary samples therefore never moves anything in the audio-file vector, and the
-/// sorted-order check passes no matter how the code mutates it -- which is a check that cannot fail.
-///
-/// `REC12345.WAV` is that recording. `REC123450.WAV` is thirteen characters, so it is NOT renamed,
-/// and it is positioned deliberately: case-insensitively `REC12345.WAV` sorts before it and
-/// `REC12345_XXXXX.WAV` sorts after it (`.` < `0` < `_`). So the rename must move the recording
-/// ACROSS it. Rewrite the path without removing and reinserting the entry and the vector is left
-/// out of order at that exact index, which is what the gate reads.
-/// Stage the song-save scenario's card: an empty SONGS directory and nothing else.
-///
-/// The fixture that matters is not on the card. It is the SONG, which the scenario inflates in
-/// memory until its document outgrows the staging buffer -- a card full of files would not change
-/// what this gate measures.
+/// The fixture that matters is the song, which the scenario inflates in memory until its document
+/// outgrows the staging buffer.
 fn fill_song_save_card() {
     let root = std::env::temp_dir().join("deluge-song-save-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -706,6 +633,15 @@ fn fill_song_save_card() {
     memory_card::install(Some(&root));
 }
 
+/// Stages the sample-collect scenario's card: small WAVs with different lengths and fills, so a
+/// copy that fetched the wrong file shows in the checksum.
+///
+/// The two `RECORD/` files make the ordering check able to fail. A collect-media save renames only
+/// a recording (`REC` + five characters + `.WAV`), appending a random `_XXXXX`; ordinary samples
+/// never move in the audio-file vector. `REC12345.WAV` is that recording. `REC123450.WAV` is not
+/// renamed, and sorts (case-insensitively) after `REC12345.WAV` and before `REC12345_XXXXX.WAV`
+/// (`.` < `0` < `_`), so the rename must move the recording across it: rewriting the path without
+/// removing and reinserting the entry leaves the vector out of order at that index.
 fn fill_sample_collect_card() {
     let root = std::env::temp_dir().join("deluge-sample-collect-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -720,23 +656,12 @@ fn fill_sample_collect_card() {
     memory_card::install(Some(&root));
 }
 
-/// Stage the sample-load tree scenario's card and pack it into a FAT image.
+/// Stages the card-reinsert scenario's card: three samples, one per fate the reinsert walk
+/// distinguishes.
 ///
-/// - `SAMPLES/SLTSYN.WAV`, `SLTWT.WAV`, `SLTKIT.WAV` and `SLTAUD.WAV` are the song's samples: the synth's sample
-///   source, its wavetable source (2048 samples, one wavetable-length cycle), the kit drum and the audio clip. The
-///   scenario collects them into the song's folder when it saves, then removes the first three from here, so the
-///   song load can only find their collected copies.
-/// - `SYNTHS/SLTPSYN/SLTPSYN.WAV` and `KITS/SLTPKIT/SLTPKA.WAV` / `SLTPKB.WAV` are the presets' samples. Each preset
-///   names its sample under `SAMPLES/`, where no such file exists, so the load has to find it in the preset's own
-///   folder and rewrite the holder's path there.
-/// - `SAMPLES/SLTCKA.WAV`, `SLTCKB.WAV`, `SLTCKC.WAV`, `SLTCSB.WAV` and `SLTCAB.WAV` belong to the crucial-only load's
-///   song: a second kit's three drums, a second synth and a second audio clip. The scenario collects them into that
-///   song's folder too, and removes them from here before loading it.
-/// Stage the card-reinsert scenario's card: three samples, one per fate the walk distinguishes.
-///
-/// `CRLOST.WAV` is REMOVED by the scenario between the ejection and the re-insertion, which is what
-/// its resident Sample must then be marked unloadable for. The other two are never touched on the
-/// card; their fates are decided by whether a project still holds them.
+/// The scenario removes `CRLOST.WAV` between ejection and re-insertion, so its resident Sample must
+/// be marked unloadable. The other two stay on the card; their fates depend on whether a project
+/// still holds them.
 fn fill_card_reinsert_card() {
     let root = std::env::temp_dir().join("deluge-card-reinsert-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -750,6 +675,18 @@ fn fill_card_reinsert_card() {
     memory_card::install(Some(&root));
 }
 
+/// Stages the sample-load tree scenario's card.
+///
+/// - `SAMPLES/SLTSYN.WAV`, `SLTWT.WAV`, `SLTKIT.WAV` and `SLTAUD.WAV` are the song's samples: the
+///   synth's sample source, its wavetable source (one 2048-sample cycle), the kit drum and the
+///   audio clip. The scenario collects them into the song's folder when it saves, then removes the
+///   first three from here, so the song load can only find their collected copies.
+/// - `SYNTHS/SLTPSYN/SLTPSYN.WAV` and `KITS/SLTPKIT/SLTPKA.WAV` / `SLTPKB.WAV` are the presets'
+///   samples. Each preset names its sample under `SAMPLES/`, where no such file exists, so the load
+///   must find it in the preset's own folder and rewrite the holder's path.
+/// - `SAMPLES/SLTCKA.WAV`, `SLTCKB.WAV`, `SLTCKC.WAV`, `SLTCSB.WAV` and `SLTCAB.WAV` belong to the
+///   crucial-only load's song (a second kit's three drums, a second synth, a second audio clip),
+///   collected and removed the same way.
 fn fill_sample_load_tree_card() {
     let root = std::env::temp_dir().join("deluge-sample-load-tree-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -774,53 +711,40 @@ fn fill_sample_load_tree_card() {
     memory_card::install(Some(&root));
 }
 
-/// Stage the A/B scenario's card and pack it into a FAT image.
+/// Stages the audio-load A/B scenario's card. Every file is load-bearing:
 ///
-/// The layout is the fixture, and every part of it is load-bearing:
+/// - `SAMPLES/BOTH.WAV` is in the regular directory and in `SAMPLES/ALT`, with a different length
+///   and fill in each, so a wrong candidate order moves the geometry, the recorded path and the
+///   stream fingerprint together.
+/// - `SAMPLES/BOTH2.WAV` has the same shape but is asked for after the alternate directory is
+///   probed, with both candidates live (`BOTH.WAV`'s request carries one). It is the file that
+///   tests the candidate order itself.
+/// - `SAMPLES/ONLYALT.WAV` is only in `SAMPLES/ALT`: the probe must find it, and its regular-path
+///   miss promotes the load's alternate-dir status for every later case.
+/// - `SAMPLES/ONLYREG.WAV` and `SAMPLES/STEREO24.WAV` come after that promotion and see the changed
+///   try order; `STEREO24.WAV` (2 channels, 24-bit) differs in both fields compared first.
+/// - `SAMPLES/BADREG.WAV` is garbage at the regular path with a good copy in `SAMPLES/ALT`, asked
+///   for while the alternate dir is unprobed. A parse verdict is not a miss: the load must fail as
+///   `FILE_UNSUPPORTED` without trying the alternate.
+/// - `SAMPLES/GARBAGE.WAV` opens and fails to parse; `SAMPLES/EMPTY.WAV` is empty;
+///   `SAMPLES/MISSING.WAV` is never written. The backings must fail with the same `Error`, not
+///   merely both fail.
+/// - `SAMPLES/ALT/SELFDIR.WAV` sits inside the alternate directory, the one shape where the
+///   bare-name alternate candidate equals the regular path, so "an alternate won" must be decided
+///   by candidate position.
+/// - `SAMPLES/PREVIEW.WAV` is previewed once and must then load and draw with only per-tick calls
+///   driving it.
+/// - `SAMPLES/CANCEL.WAV` is asked for and abandoned before its load runs, and must never load or
+///   draw.
+/// - `SAMPLES/STALL.WAV` is previewed while the loader holds every load past the browser's bound;
+///   the preview must give up without loading or drawing it.
+/// - `SAMPLES/DRAWSTALL.WAV` is previewed while the streaming loader holds every cluster fill; the
+///   redraw must give up.
+/// - `SAMPLES/SWAP.WAV`, `SWAPB.WAV` and `WITNESS.WAV` serve the card-ejection stage (see the
+///   comment at their writes).
 ///
-/// - `SAMPLES/BOTH.WAV` exists in the regular directory AND in `SAMPLES/ALT`, with a different
-///   length and a different data fill in each. A backing that tries the candidates in the wrong
-///   order picks the other one and the geometry, the recorded path and the stream fingerprint all
-///   move together.
-/// - `SAMPLES/BOTH2.WAV` is the same two-locations shape, and exists because `BOTH.WAV` alone does
-///   not actually test the candidate ORDER: it is asked for before the alternate directory has been
-///   probed, so its request carries one candidate and any order picks it. `BOTH2.WAV` is asked for
-///   after the probe, with both candidates live. Reversing the loader's candidate order changes
-///   this file and only this file — which is how the gate was shown to be able to fail on file
-///   identity rather than only on geometry.
-/// - `SAMPLES/ONLYALT.WAV` exists ONLY in `SAMPLES/ALT`. It is the file that the alternate-dir probe
-///   has to find, and the one whose miss promotes the load's alternate-dir status for every later case.
-/// - `SAMPLES/ONLYREG.WAV` and `SAMPLES/STEREO24.WAV` come after that promotion, so they are the
-///   cases that see the changed try order — and `STEREO24.WAV`'s geometry (2 channels, 24-bit)
-///   differs in both fields the comparison names first.
-/// - `SAMPLES/BADREG.WAV` is garbage at the regular path with a good copy in `SAMPLES/ALT`, asked for while the
-///   alternate dir is still unprobed. A parse verdict is not a miss: the load must fail as `FILE_UNSUPPORTED`
-///   without probing or loading from the alternate dir.
-/// - `SAMPLES/GARBAGE.WAV` opens and then fails to parse; `SAMPLES/MISSING.WAV` is never written.
-///   Between them they pin that the two backings fail with the SAME `Error` identity, not merely
-///   that they both fail.
-/// - `SAMPLES/ALT/SELFDIR.WAV` sits INSIDE the alternate directory, which is the only shape where
-///   the bare-name alternate candidate and the regular path are the same string — so "an alternate
-///   won" can only be decided by candidate position, never by comparing paths.
-/// - `SAMPLES/PREVIEW.WAV` belongs to the preview re-drive stage rather than the case list: it is
-///   the file `SampleBrowser` is asked to preview once, and must then load and draw with nothing
-///   but per-tick calls driving it.
-/// - `SAMPLES/CANCEL.WAV` belongs to the cancellation stage, which asserts the converse: it is
-///   asked for and then abandoned before its load runs, and must never load or draw at all.
-/// - `SAMPLES/STALL.WAV` belongs to the stall stage: it is previewed while the loader holds every
-///   load far past the browser's bound, and the preview must give up without loading or drawing it.
-/// - `SAMPLES/DRAWSTALL.WAV` belongs to the preview-draw stall stage: previewed while the streaming loader holds every
-///   cluster fill, so its waveform can only be partly drawn and the redraw must give up.
-/// - `SAMPLES/SWAP.WAV`, `SAMPLES/SWAPB.WAV` and `SAMPLES/WITNESS.WAV` belong to the card-ejection
-///   stage: the first is parsed and left uncollected, the second is moved onto its path once the
-///   card has been marked ejected, and the third is what tells the stage the first has finished
-///   parsing. Their geometries are deliberately unlike each other.
-///
-/// The fixture is rewritten on every process start: `sd_image_path::fingerprint_dir` hashes
-/// path/length/mtime, not bytes, so every run packs its own 2.5 GB sparse image.
-/// `./dbt test` removes it afterwards (scenario_gate.py) — an accumulation of those under
-/// `/tmp/deluge-streaming-scenario-*.img` is a known way to wedge an unrelated stem export on this
-/// project.
+/// The staging tree is deleted once the card holds it: a full `/tmp` can wedge an unrelated stem
+/// export.
 fn fill_audio_load_ab_card() {
     let root = std::env::temp_dir().join("deluge-audio-load-ab-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -837,45 +761,34 @@ fn fill_audio_load_ab_card() {
     write_test_wav(&alt.join("BOTH2.WAV"), 1, 16, 3584, 0x77);
     write_test_wav(&samples.join("ONLYREG.WAV"), 1, 16, 2560, 0x44);
     write_test_wav(&samples.join("STEREO24.WAV"), 2, 24, 3072, 0x55);
-    // The nested case: three DIFFERENT locations, three different lengths. The regular path is
-    // nested, which is the only shape for which the flattened alternate candidate
-    // (`ALT/KIT_SNARE.WAV`) and the bare-name one (`ALT/SNARE.WAV`) are distinct strings at all.
+    // The nested case: three locations, three lengths. Only a nested regular path makes the
+    // flattened alternate candidate (`ALT/KIT_SNARE.WAV`) and the bare-name one (`ALT/SNARE.WAV`)
+    // distinct.
     write_test_wav(&kit.join("SNARE.WAV"), 1, 16, 1024, 0x88);
     write_test_wav(&alt.join("KIT_SNARE.WAV"), 1, 16, 2304, 0x99);
     write_test_wav(&alt.join("SNARE.WAV"), 1, 16, 3072, 0xAA);
-    // The self-directory case: the file lives IN the alternate directory, so
-    // the load context's `alternateDir` is its own directory and the bare-name alternate
-    // candidate stringifies to exactly the nominal path. Only a positional reading of
-    // "which candidate won" calls that an alternate hit -- see the `selfdir` entry in
-    // `audio_load_ab_scenario.cpp`'s kCases. There is deliberately NO flattened
-    // `ALT/ALT_SELFDIR.WAV` companion: the flattened candidate must miss so the
-    // ambiguous bare-name one is the one that wins.
+    // The self-directory case (`selfdir` in `audio_load_ab_scenario.cpp`'s kCases). There is
+    // deliberately no flattened `ALT/ALT_SELFDIR.WAV`: that candidate must miss so the ambiguous
+    // bare-name one wins.
     write_test_wav(&alt.join("SELFDIR.WAV"), 1, 16, 1280, 0xBB);
-    // The preview stage's file (see the same scenario's kPreviewPath): regular path
-    // only, and asked for by no case above, so it is never resident when that stage
-    // begins and its load necessarily goes through the loader.
+    // kPreviewPath: asked for by no case above, so it is not resident when the stage begins and
+    // its load goes through the loader.
     write_test_wav(&samples.join("PREVIEW.WAV"), 1, 16, 2816, 0xCC);
-    // The cancellation stage's file (kCancelPath): asked for once and then abandoned before the
-    // load runs. It is a real, loadable file on purpose -- the stage asserts that
-    // NOTHING loaded or drew it, and a file that could not have loaded anyway would let that pass
-    // for the wrong reason.
+    // kCancelPath: loadable on purpose, so "nothing loaded or drew it" cannot pass because the file
+    // could not load.
     write_test_wav(&samples.join("CANCEL.WAV"), 1, 16, 3328, 0xDD);
-    // The stall stage's file (kStallPath): previewed while the loader holds every load, so it must
-    // never load or draw. A real, loadable file for the same reason as `CANCEL.WAV`.
+    // kStallPath: loadable, for the same reason as CANCEL.WAV.
     write_test_wav(&samples.join("STALL.WAV"), 1, 16, 3840, 0xDE);
-    // The preview-draw stall stage's file: six 32 KB clusters, so each of the view's columns covers less than two of
-    // them and reads its cluster directly -- a draw made while the streaming loader holds every fill cannot find them
-    // resident. A file of 16 clusters or more is not enough: each column then spans whole clusters, which the draw
-    // takes from the overview the load already filled, never waiting for a fill. Asked for by nothing else.
+    // The preview-draw stall file: six 32 KB clusters, so each view column covers less than two and
+    // reads its cluster directly, which a held fill leaves non-resident. At 16 clusters or more
+    // each column spans whole clusters, which the draw takes from the overview without waiting.
     write_test_wav(&samples.join("DRAWSTALL.WAV"), 1, 16, 196_608, 0xDF);
 
-    // The card-ejection stage's three files (see `audio_load_ab_scenario.cpp`'s kSwapPath block
-    // comment). `SWAP.WAV` is the file the loader parses BEFORE the ejection; `SWAPB.WAV` is the
-    // "other card's" file, moved onto that same path once the card has been marked gone. They differ
-    // in every field the stage asserts — 1 vs 2 channels, 16- vs 24-bit, 2048 vs 6144 data bytes —
-    // so a header parsed from the first and applied to the second cannot coincide with a correct
-    // load. `WITNESS.WAV` is queued behind `SWAP.WAV` and drained after it, which is what lets the
-    // stage know the swap file's result has been published without guessing at a delay.
+    // The card-ejection stage (`audio_load_ab_scenario.cpp`'s kSwapPath): the loader parses
+    // SWAP.WAV before the ejection; SWAPB.WAV, the "other card's" file, is moved onto its path once
+    // the card is marked gone. They differ in every asserted field, so a header parsed from one and
+    // applied to the other cannot pass. WITNESS.WAV is queued behind SWAP.WAV, so its completion
+    // tells the stage SWAP.WAV's result is published.
     write_test_wav(&samples.join("SWAP.WAV"), 1, 16, 2048, 0xE1);
     write_test_wav(&samples.join("SWAPB.WAV"), 2, 24, 6144, 0xE2);
     write_test_wav(&samples.join("WITNESS.WAV"), 1, 16, 1536, 0xE3);
@@ -890,45 +803,39 @@ fn fill_audio_load_ab_card() {
         .expect("writing the A/B fixture's zero-length file");
 
     memory_card::install(Some(&root));
-    // The staging tree has served its purpose once the card holds it, and leaving it in the system
-    // temp dir is the same kind of litter as leaving the images themselves (see
-    // `./dbt test`'s cleanup): this harness runs on machines where a full /tmp is a
-    // known way to wedge an unrelated stem export.
+    // The card holds the tree now; don't leave it in /tmp.
     let _ = std::fs::remove_dir_all(&root);
 }
 
-// ── The song-preview A/B fixture ────────────────────────────────────────────
+// The song-preview A/B fixture
 //
-// `tests/integration/scenarios/song_preview_ab_scenario.cpp` names every file written below, and asserts the
-// artwork each one must produce against these very constants. The two must be read together.
+// `tests/integration/scenarios/song_preview_ab_scenario.cpp` names every file written below and
+// asserts each one's artwork against these constants; keep the two in step.
 
-/// Uniform preview channel value per synthetic song, mirroring the C++ scenario's constants of the
-/// same names. All different, so no two songs' artwork can be mistaken for each other -- which is
-/// the entire content of the card-swap assertion.
+/// Uniform preview channel value per synthetic song, matching the C++ scenario's constants of the
+/// same names. All different, so no two songs' artwork can be mistaken for each other (the
+/// card-swap assertion depends on it).
 const PREVIEW_PAD_RENDER: u8 = 0x30;
 const PREVIEW_PAD_JSON: u8 = 0x48;
 const PREVIEW_PAD_LATE: u8 = 0x50;
 const PREVIEW_PAD_SWAP_A: u8 = 0x20;
 const PREVIEW_PAD_SWAP_B: u8 = 0x60;
 
-/// Hex characters one full preview payload needs: (16 + 2 sidebar) columns x 8 rows x 3 colours x 2
-/// characters. `runPreviewWalk` reads exactly this and stops; a shorter payload renders a partial
-/// image, which is a different fixture from the one the C++ side asserts against.
+/// Hex characters in a full preview payload: (16 + 2 sidebar) columns × 8 rows × 3 colours × 2.
+/// `runPreviewWalk` reads exactly this many; a shorter payload renders a partial image.
 const PREVIEW_HEX_CHARS: usize = (16 + 2) * 8 * 3 * 2;
 
-/// A preview payload whose every pad is `value` on every channel.
+/// Returns a preview payload whose every pad is `value` on every channel.
 fn uniform_preview(value: u8) -> String {
     let pair = format!("{value:02X}");
     pair.repeat(PREVIEW_HEX_CHARS / 2)
 }
 
-/// A minimal song document the real deserializer accepts: the root `song` tag with the firmware
-/// attributes `openXMLFile` looks for, then whatever `body` adds, then the closing tag.
+/// Returns a minimal song document the real deserializer accepts: the root `song` tag with the
+/// firmware attributes `openXMLFile` looks for, then `body`, then the closing tag.
 ///
-/// Modelled attribute-for-attribute on the corpus (`firmwareVersion` then
-/// `earliestCompatibleFirmware` then `previewNumPads` then `preview`), because the preview walk
-/// steps over the first two and READS the third, so their presence and order are part of what the
-/// decode is being asked to handle.
+/// Attribute order follows the corpus (`firmwareVersion`, `earliestCompatibleFirmware`,
+/// `previewNumPads`, `preview`): the preview walk steps over the first two and reads the third.
 fn song_xml(body: &str) -> String {
     format!(
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n\tfirmwareVersion=\"c1.3.0\"\n\t\
@@ -936,7 +843,7 @@ fn song_xml(body: &str) -> String {
     )
 }
 
-/// A song whose artwork is a single uniform colour.
+/// Returns a song whose artwork is a single uniform colour.
 fn uniform_preview_song(value: u8) -> String {
     song_xml(&format!(
         "\tpreviewNumPads=\"144\"\n\tpreview=\"{}\"\n",
@@ -944,33 +851,28 @@ fn uniform_preview_song(value: u8) -> String {
     ))
 }
 
-/// Stage the song-preview A/B scenario's card and pack it into a FAT image.
-///
-/// Every file is one SHAPE of answer the two backings must agree about, and the mix is the whole
-/// fixture:
+/// Stages the song-preview A/B scenario's card. Each file is one shape of answer the two backings
+/// must agree about:
 ///
 /// - `SONGS/RENDER.XML` and `SONGS/JSONP.Json` are ordinary songs with artwork inside the read
-///   window, one through each deserializer. The JSON one is the checked-in
-///   `tests/support/data/songs/JsonPreview.Json` with its payload rewritten to a uniform colour, rather than
-///   hand-written here: that file is the only JSON song this project has, and reproducing its exact
-///   structure by hand is how a fixture ends up testing the fixture.
-/// - `SONGS/NOPREV.XML` has no `preview` attribute and is SHORTER than the read window. The
-///   shortness is load-bearing: a longer one would legitimately report Truncated on the buffer
-///   backing and NoPreview on the file backing, which is `LATE.XML`'s job rather than a bug.
-/// - `SONGS/CORRUPT.XML` opens and is not a song; `SONGS/EMPTY.XML` opens and has nothing in it;
-///   and `SONGS/MISSING.XML` is deliberately NOT written. Three different ways to fail, kept apart
-///   because what has to match is the reported `Error` IDENTITY, not the mere fact of failure.
-///   `MISSING.XML` pins that the two backings agree on a missing file rather than silently
-///   diverging.
-/// - `SONGS/LATE.XML` carries a filler attribute long enough to push `preview` past the read
-///   window, which is the one case whose two backings must legitimately differ (Rendered against
-///   Truncated).
+///   window, one per deserializer. The JSON one is the checked-in
+///   `tests/support/data/songs/JsonPreview.Json` with its payload rewritten, not hand-written, so
+///   the fixture does not end up testing itself.
+/// - `SONGS/NOPREV.XML` has no `preview` attribute and is shorter than the read window (a longer
+///   one would legitimately differ between backings — `LATE.XML`'s job).
+/// - `SONGS/CORRUPT.XML` is not a song, `SONGS/EMPTY.XML` is empty, and `SONGS/MISSING.XML` is not
+///   written: three failures kept apart because the reported `Error` must match, not merely the
+///   fact of failure.
+/// - `SONGS/LATE.XML` pushes `preview` past the read window with a filler attribute: the one case
+///   whose backings must differ (Rendered against Truncated).
 /// - `SONGS/SWAP.XML` and `SONGS/SWAPB.XML` are the card-swap pair: the second is moved onto the
-///   first's path once the card has been marked ejected, and their artwork differs.
-/// - `SONGS/CORPUS/C%02u.XML` are real songs copied from `DELUGE_SONG_CORPUS` when it is set. They
-///   carry no absolute expectation -- their artwork is whatever their author made -- and what they
-///   add is real documents: real attribute orders, real firmware versions, real preview offsets.
-///   Contiguous from zero, because the C++ side probes for them by index and stops at the first gap.
+///   first's path once the card is marked ejected.
+/// - `SONGS/CORPUS/C%02u.XML` are real songs copied from `DELUGE_SONG_CORPUS` (or
+///   `DELUGE_BACKUP/SONGS`) when set, with no absolute expectation; `COUNT.TXT` says how many.
+///
+/// # Panics
+///
+/// Panics if a file cannot be written, or if a named corpus stages no song.
 fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
     let root = std::env::temp_dir().join("deluge-song-preview-ab-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1001,18 +903,18 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
         songs.join("NOPREV.XML"),
         song_xml("\tpreviewNumPads=\"144\"\n"),
     );
-    // Opens, is not a song. `openXMLFile` walks to the end without finding its root tag.
+    // Not a song: `openXMLFile` walks to the end without finding its root tag.
     write(
         songs.join("CORRUPT.XML"),
         String::from(
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<notasong version=\"1\">\n</notasong>\n",
         ),
     );
-    // Opens and has nothing in it -- a DIFFERENT failure from a file that is not there, and the one
-    // that makes "READY with zero bytes" mean exactly one thing on the prefix channel.
+    // Empty: a different failure from a missing file, and the one that makes "READY with zero
+    // bytes" unambiguous on the prefix channel.
     write(songs.join("EMPTY.XML"), String::new());
-    // The read-window case: filler long enough that `preview` starts well past 4096 bytes, so the
-    // buffer backing runs out of bytes (Truncated) where the file backing renders.
+    // `preview` starts well past 4096 bytes, so the buffer backing runs out (Truncated) where the
+    // file backing renders.
     write(
         songs.join("LATE.XML"),
         song_xml(&format!(
@@ -1022,8 +924,7 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
         )),
     );
 
-    // The JSON song, taken from the checked-in fixture with its payload rewritten. Its 864-character
-    // preview is a run of hex, so the substitution is a straight slice replacement.
+    // The checked-in JSON song with its 864-hex-character payload replaced in place.
     let json_source = repo_root.join("tests/support/data/songs/JsonPreview.Json");
     let json = std::fs::read_to_string(&json_source).unwrap_or_else(|e| {
         panic!(
@@ -1047,8 +948,7 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
     json_song.push_str(&json[end..]);
     write(songs.join("JSONP.Json"), json_song);
 
-    // Real songs, when the maintainer's corpus is mounted. Absent, the synthetic cases above still
-    // run and the gate still gates -- what is lost is coverage of documents nobody here wrote.
+    // Real songs, when a corpus is available; without one the synthetic cases still run.
     let corpus = std::env::var_os("DELUGE_SONG_CORPUS").or_else(|| {
         std::env::var_os("DELUGE_BACKUP").map(|b| std::path::Path::new(&b).join("SONGS").into())
     });
@@ -1068,8 +968,7 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
                     .collect()
             })
             .unwrap_or_default();
-        // Sorted, so the same corpus directory produces the same case order on both legs and across
-        // runs. `read_dir` order is the filesystem's and is not stable.
+        // Sorted: `read_dir` order is not stable, and both legs and every run need the same order.
         entries.sort();
         for path in entries.iter().take(MAX_CORPUS_CASES) {
             let target = corpus_dir.join(format!("C{copied:02}.XML"));
@@ -1077,42 +976,41 @@ fn fill_song_preview_ab_card(repo_root: &std::path::Path) {
                 copied += 1;
             }
         }
-        // Naming a corpus and getting none of it staged is a failure, not a quiet fallback to the
-        // six synthetic cases. It is the same species of hole as a coverage check that can cover
-        // nothing: the run would still print PASS, and the only trace that fourteen real songs had
-        // silently left the gate would be a count in a log line nobody reads.
+        // A named corpus that stages nothing is a failure, not a silent fallback to the synthetic
+        // cases: the run would still pass with the real songs gone.
         assert!(
             copied > 0,
             "DELUGE_SONG_CORPUS names {} but no .XML song could be staged from it",
             std::path::Path::new(&corpus).display()
         );
     }
-    // Written UNCONDITIONALLY, zero included: the C++ side reads this rather than probing for songs
-    // by index, so its absence has to be a failure over there rather than something that silently
-    // means "no corpus". See `song_preview_ab_scenario.cpp`'s `kCorpusCountPath`.
+    // Always written, zero included: the C++ side reads it (`kCorpusCountPath`) and fails if it is
+    // absent, rather than taking absence to mean "no corpus".
     write(corpus_dir.join("COUNT.TXT"), format!("{copied}\n"));
     log::info!(
         "golden_vt_render: song-preview fixture staged {copied} corpus song(s) (corpus named: {corpus_was_named})"
     );
 
     memory_card::install(Some(&root));
-    // The staging tree has served its purpose once the card holds it.
+    // The card holds the tree now.
     let _ = std::fs::remove_dir_all(&root);
 }
 
-/// How many corpus songs the fixture stages, hand-duplicated with `kMaxCorpusCases` in
+/// The most corpus songs the fixture stages; must equal `kMaxCorpusCases` in
 /// `tests/integration/scenarios/song_preview_ab_scenario.cpp`.
 ///
-/// Asserted against its own literal, which makes a change take two deliberate edits, one on each
-/// side -- the same pinning `DELUGE_FILE_PREFIX_CAPACITY` gets at both ends of that boundary. What
-/// actually catches drift is the C++ side's runtime check against `COUNT.TXT`: a fixture that staged
-/// more than the scenario can hold fails there by name.
+/// The assert against its own literal makes a change take a deliberate edit on each side; the C++
+/// side's check against `COUNT.TXT` catches drift at run time.
 const MAX_CORPUS_CASES: usize = 16;
 const _: () = assert!(MAX_CORPUS_CASES == 16);
 
-/// Write a 16-bit PCM WAV of a sine at `freq_hz`, `frames` frames long, the same on every channel.
+/// Writes a 16-bit PCM WAV of a sine at `freq_hz`, `frames` frames long, the same on every channel.
 ///
-/// The claim's pitch detection needs a periodic signal to name a note; a constant fill names none.
+/// Pitch detection needs a periodic signal to name a note; a constant fill names none.
+///
+/// # Panics
+///
+/// Panics if the file cannot be written.
 fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f64) {
     const SAMPLE_RATE: u32 = 44_100;
     let data_bytes = frames * u32::from(channels) * 2;
@@ -1146,42 +1044,50 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
     });
 }
 
-/// Stage the sample-claim scenario's card and pack it into a FAT image.
+/// Stages the sample-claim scenario's card.
 ///
 /// Every file is asked for by one leg only, so a holder naming it can only be that leg's doing:
-/// - `SAMPLES/SCSYN.WAV`: a 440 Hz sine, claimed into the boot song's synth, whose pitch detection names its note.
-/// - `SAMPLES/SCPITCH.WAV`, `SCSUPA.WAV`, `SCSUPB.WAV`, `SCPSTALL.WAV`: SCSYN.WAV's sine under paths of their own, for
-///   the legs that must catch a pitch detection waiting for a cluster -- the resume leg, the two supersede legs and the
-///   pitch stall leg.
-/// - `SAMPLES/SCWTBIG.WAV`: 64 wavetable-length cycles, previewed and then claimed as a wavetable: a resident
-///   multi-cluster Sample most of whose clusters are not cached, so it is built from the card.
-/// - `SAMPLES/SCWTFULL.WAV`: 16 wavetable-length cycles, made fully resident as a Sample and then claimed as a
-///   wavetable, which converts it from memory. `SAMPLES/SCWTFUL2.WAV` holds the same bytes and is only ever built
-///   from the card: the reference the conversion is compared against.
-/// - `SAMPLES/SCCYCLE.WAV`: one 512-frame cycle of a sine, claimed as a wavetable from the context menu.
-/// - `SAMPLES/SCSTER.WAV`: stereo, claimed into a wavetable oscillator, which cannot take it and falls back to a
-///   sample.
-/// - `SAMPLES/SCGATE.WAV` and `SAMPLES/SCSTALL.WAV`: claimed while the loader holds their loads, for the gate and the
-///   stall bound.
-/// - `SAMPLES/SCKITD.WAV`: the sample the scenario's one-drum kit preset names, so the kit clip starts as a sample kit.
-/// - `SAMPLES/SCKICK.WAV`: claimed into that kit's drum. Its name holds "KICK", which the claim reads as a kick.
+/// - `SAMPLES/SCSYN.WAV`: a 440 Hz sine, claimed into the boot song's synth, whose pitch detection
+///   names its note.
+/// - `SAMPLES/SCPITCH.WAV`, `SCSUPA.WAV`, `SCSUPB.WAV`, `SCPSTALL.WAV`: SCSYN.WAV's sine under
+///   paths of their own, for the legs that must catch a pitch detection waiting for a cluster: the
+///   resume leg, the two supersede legs and the pitch stall leg.
+/// - `SAMPLES/SCWTBIG.WAV`: 64 wavetable-length cycles, previewed and then claimed as a wavetable:
+///   a resident multi-cluster Sample most of whose clusters are not cached, so it is built from the
+///   card.
+/// - `SAMPLES/SCWTFULL.WAV`: 16 wavetable-length cycles, made fully resident as a Sample and then
+///   claimed as a wavetable, which converts it from memory. `SAMPLES/SCWTFUL2.WAV` holds the same
+///   bytes and is only ever built from the card: the reference the conversion is compared against.
+/// - `SAMPLES/SCCYCLE.WAV`: one 512-frame cycle of a sine, claimed as a wavetable from the context
+///   menu.
+/// - `SAMPLES/SCSTER.WAV`: stereo, claimed into a wavetable oscillator, which cannot take it and
+///   falls back to a sample.
+/// - `SAMPLES/SCGATE.WAV` and `SAMPLES/SCSTALL.WAV`: claimed while the loader holds their loads,
+///   for the gate and the stall bound.
+/// - `SAMPLES/SCKITD.WAV`: the sample the scenario's one-drum kit preset names, so the kit clip
+///   starts as a sample kit.
+/// - `SAMPLES/SCKICK.WAV`: claimed into that kit's drum. Its name holds "KICK", which the claim
+///   reads as a kick.
 /// - `SAMPLES/SCAUD.WAV`: claimed into an audio clip.
 /// - `SAMPLES/SCSLICE.WAV`: one second long, sliced into four regions of 250 ms each.
-/// - `SAMPLES/RD/RD1.WAV`, `RD2.WAV` and `RD3.WAV`: the Drum Randomizer's folder. Its kit preset names the first, and
-///   the randomizer picks from the folder a drum's sample sits in, so these three are reachable by no other leg.
-/// - `SAMPLES/RDG/G1.WAV`..`G3.WAV`: the randomizer gate leg's folder, loaded by nothing before it, so its load reaches
-///   the loader's hold.
-/// - `SAMPLES/RDK/K1.WAV`: the randomizer stall leg's first row, alone in its folder and loaded before the hold.
-/// - `SAMPLES/RDS/S1.WAV`..`S3.WAV`: the stall leg's second row, loaded by nothing, so its load is held past the stall
-///   bound.
-/// - `SAMPLES/IMK/IMK_HAT.WAV`, `IMK_KICK.WAV` and `IMK_SNARE.WAV`: the kit folder import's folder, whose shared prefix
-///   the drum names drop.
-/// - `SAMPLES/IMG/IMG_A.WAV`..`IMG_C.WAV`: the import gate leg's folder, loaded by nothing before it.
-/// - `SAMPLES/IMS/IMS_A.WAV`..`IMS_C.WAV`: the import stall leg's folder; the first and last are loaded in its
-///   preparation, and the middle one is held.
+/// - `SAMPLES/RD/RD1.WAV`, `RD2.WAV` and `RD3.WAV`: the Drum Randomizer's folder. Its kit preset
+///   names the first, and the randomizer picks from the folder a drum's sample sits in, so these
+///   three are reachable by no other leg.
+/// - `SAMPLES/RDG/G1.WAV`..`G3.WAV`: the randomizer gate leg's folder, loaded by nothing before it,
+///   so its load reaches the loader's hold.
+/// - `SAMPLES/RDK/K1.WAV`: the randomizer stall leg's first row, alone in its folder and loaded
+///   before the hold.
+/// - `SAMPLES/RDS/S1.WAV`..`S3.WAV`: the stall leg's second row, loaded by nothing, so its load is
+///   held past the stall bound.
+/// - `SAMPLES/IMK/IMK_HAT.WAV`, `IMK_KICK.WAV` and `IMK_SNARE.WAV`: the kit folder import's folder,
+///   whose shared prefix the drum names drop.
+/// - `SAMPLES/IMG/IMG_A.WAV`..`IMG_C.WAV`: the import gate leg's folder, loaded by nothing before
+///   it.
+/// - `SAMPLES/IMS/IMS_A.WAV`..`IMS_C.WAV`: the import stall leg's folder; the first and last are
+///   loaded in its preparation, and the middle one is held.
 /// - `SYNTHS/`: empty; the multisample import leg writes its blank synth preset there.
-/// - `SAMPLES/IMM/IMM_A2.WAV`, `IMM_A3.WAV` and `IMM_A4.WAV`: the multisample folder import's folder, one-second sines
-///   at 110, 220 and 440 Hz.
+/// - `SAMPLES/IMM/IMM_A2.WAV`, `IMM_A3.WAV` and `IMM_A4.WAV`: the multisample folder import's
+///   folder, one-second sines at 110, 220 and 440 Hz.
 fn fill_sample_claim_card() {
     let root = std::env::temp_dir().join("deluge-sample-claim-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1210,19 +1116,19 @@ fn fill_sample_claim_card() {
         std::fs::create_dir_all(dir).expect("creating the sample-claim fixture directories");
     }
     write_sine_wav(&samples.join("SCSYN.WAV"), 1, 22_050, 440.0);
-    // The pitch legs' files: each the same 440 Hz sine as SCSYN.WAV, under a path no other leg reads, so its clusters
-    // are not resident when its claim's detection starts -- a scan that has read a file once never misses on it again.
+    // The pitch legs' files: SCSYN.WAV's sine under paths no other leg reads, so their clusters are
+    // not resident when detection starts (a file read once is never missed again).
     write_sine_wav(&samples.join("SCPITCH.WAV"), 1, 22_050, 440.0);
     write_sine_wav(&samples.join("SCSUPA.WAV"), 1, 22_050, 440.0);
     write_sine_wav(&samples.join("SCSUPB.WAV"), 1, 22_050, 440.0);
     write_sine_wav(&samples.join("SCPSTALL.WAV"), 1, 22_050, 440.0);
     write_sine_wav(&samples.join("SCCYCLE.WAV"), 1, 512, 44_100.0 / 512.0);
-    // The resident-wavetable leg's file: 64 wavetable-length cycles (131072 frames, 8 clusters), previewed -- so resident
-    // as a Sample, most clusters not cached -- and then claimed as a wavetable, which builds it from the card.
+    // 64 wavetable-length cycles (131072 frames, 8 clusters): resident as a Sample with most
+    // clusters uncached, so the wavetable claim builds it from the card.
     write_sine_wav(&samples.join("SCWTBIG.WAV"), 1, 131_072, 44_100.0 / 2048.0);
-    // The converted-wavetable leg's file: 16 wavetable-length cycles (32768 frames; three clusters with its
-    // header), made fully resident as a Sample and then claimed as a wavetable, which converts it from memory.
-    // Its twin has the same bytes and is never previewed: the card build the conversion is compared against.
+    // 16 wavetable-length cycles (32768 frames, three clusters with the header), fully resident, so
+    // the wavetable claim converts it from memory. Its twin is never previewed: the card build the
+    // conversion is compared against.
     write_sine_wav(&samples.join("SCWTFULL.WAV"), 1, 32_768, 44_100.0 / 2048.0);
     write_sine_wav(&samples.join("SCWTFUL2.WAV"), 1, 32_768, 44_100.0 / 2048.0);
     write_test_wav(&samples.join("SCSTER.WAV"), 2, 16, 8192, 0x36);
@@ -1257,20 +1163,7 @@ fn fill_sample_claim_card() {
     memory_card::install(Some(&root));
 }
 
-/// Stage the preset-load scenario's card and pack it into a FAT image.
-///
-/// Every sample a preset names sits in `SAMPLES/PL/`; the scenario writes the presets themselves into `SYNTHS/` and
-/// `KITS/` through the firmware's own serialisers, so both folders start empty:
-/// - `PLSYN.WAV`: the synth leg's preset's sample; `PLROW.WAV` the kit row leg's; `PLCLN.WAV` the clone leg's.
-/// - `PLKA.WAV`, `PLKB.WAV`, `PLKC.WAV`: the kit leg's preset's three drums.
-/// - `PLBASE.WAV`: the one drum of the kit clip's own preset, the one the new-kit-track gesture picks up.
-/// - `PLRACE.WAV`: the race leg's preset's sample.
-/// - `SAMPLES/PLH/PLHA..PLHC.WAV`: the supersession leg's heavy kit, loaded by nothing before it;
-///   `SAMPLES/PLL/PLLITE.WAV` its light kit.
-/// - `SAMPLES/PLG/PLGATE.WAV` and `SAMPLES/PLS/PLSTALL.WAV`: the gate and stall legs' held samples.
-/// - `SAMPLES/AQ/AQSA.WAV`, `AQKA..AQKD.WAV` and `AQKL.WAV`: the acquisition legs' synth, navigated kits and light kit;
-///   `SAMPLES/AQH/AQHA..AQHC.WAV` their heavy kit, and `SAMPLES/AQS/PLSTB.WAV` the acquisition stall leg's held sample.
-/// `load_policy`'s card: the one sample its `LP-DEFAULT` loads ask for.
+/// Stages `load_policy`'s card: the one sample its `LP-DEFAULT` loads ask for.
 fn fill_load_policy_card() {
     let root = std::env::temp_dir().join("deluge-load-policy-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1280,6 +1173,19 @@ fn fill_load_policy_card() {
     memory_card::install(Some(&root));
 }
 
+/// Stages the preset-load scenario's card.
+///
+/// The scenario writes the presets into `SYNTHS/` and `KITS/` through the firmware's serialisers,
+/// so both start empty (apart from the `SYNTHS/WALK/` folders). The samples:
+/// - `SAMPLES/PL/`: `PLSYN.WAV` (synth leg), `PLROW.WAV` (kit row leg), `PLCLN.WAV` (clone leg),
+///   `PLKA..PLKC.WAV` (kit leg's drums), `PLBASE.WAV` (the kit clip's own preset's drum, which the
+///   new-kit-track gesture picks up), `PLRACE.WAV` (race leg) and `PLNEST.WAV` (nested preset).
+/// - `SAMPLES/PLH/PLHA..PLHC.WAV`: the supersession leg's heavy kit, loaded by nothing before it;
+///   `SAMPLES/PLL/PLLITE.WAV` its light kit.
+/// - `SAMPLES/PLG/PLGATE.WAV` and `SAMPLES/PLS/PLSTALL.WAV`: the gate and stall legs' held samples.
+/// - `SAMPLES/AQ/AQSA.WAV`, `AQKA..AQKD.WAV` and `AQKL.WAV`: the acquisition legs' synth, navigated
+///   kits and light kit; `SAMPLES/AQH/AQHA..AQHC.WAV` their heavy kit; `SAMPLES/AQS/PLSTB.WAV` the
+///   acquisition stall leg's held sample.
 fn fill_preset_load_card() {
     let root = std::env::temp_dir().join("deluge-preset-load-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1313,14 +1219,13 @@ fn fill_preset_load_card() {
     write_test_wav(&samples.join("PLKC.WAV"), 1, 16, 3072, 0x93);
     write_test_wav(&samples.join("PLBASE.WAV"), 1, 16, 2048, 0x94);
     write_sine_wav(&samples.join("PLRACE.WAV"), 1, 22_050, 660.0);
-    // The nested preset's sample. Its preset lives at SYNTHS/NESTED/, reachable only by descending --
-    // every other gate's walk stays at depth 1 and the reference card's SYNTHS is flat, so the
-    // recursion has no coverage anywhere else.
+    // The nested preset's sample. Its preset lives in a subfolder of SYNTHS, reachable only by
+    // descending: no other gate covers the walk's recursion.
     write_sine_wav(&samples.join("PLNEST.WAV"), 1, 22_050, 770.0);
-    // 24 empty subfolders plus the one holding the preset. More than FILE_ITEMS_MAX_NUM_ELEMENTS
-    // (20), so the folder pass CULLS and the walk must page (`goto goAgain`) to see the last entry.
-    // ZNEST sorts after every W##, so the 24 empties are descended into and come back empty first --
-    // which is the return-from-recursion path, the one thing a change to the walk is most likely to break.
+    // 24 empty subfolders plus the one holding the preset: more than FILE_ITEMS_MAX_NUM_ELEMENTS
+    // (20), so the folder pass culls and the walk must page to see the last entry. ZNEST sorts
+    // after every W##, so the walk first returns from 24 empty descents — the path a change to the
+    // walk is most likely to break.
     for i in 1..=24 {
         std::fs::create_dir_all(root.join("SYNTHS").join("WALK").join(format!("W{i:02}")))
             .expect("creating the preset-walk filler folders");
@@ -1346,8 +1251,8 @@ fn fill_preset_load_card() {
     memory_card::install(Some(&root));
 }
 
-/// The card the `GOLDEN_SCENARIO=clear_song_undo` scenario runs on: the sample its preset binds, and the empty
-/// SYNTHS folder the scenario writes that preset into through the firmware.
+/// Stages the `clear_song_undo` scenario's card: the samples its preset and audio clip use, and the
+/// empty folders the scenario writes into through the firmware.
 fn fill_clear_song_undo_card() {
     let root = std::env::temp_dir().join("deluge-clear-song-undo-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1361,16 +1266,16 @@ fn fill_clear_song_undo_card() {
         std::fs::create_dir_all(dir).expect("creating the clear-song-undo fixture directories");
     }
     write_sine_wav(&samples.join("CSSYN.WAV"), 1, 22_050, 440.0);
-    // The two an AudioClip's sample change moves between, and the one the missing-file leg deletes before undoing.
+    // The two an AudioClip's sample change moves between, and the one the missing-file leg deletes
+    // before undoing.
     write_sine_wav(&samples.join("CSUNA.WAV"), 1, 22_050, 330.0);
     write_sine_wav(&samples.join("CSUNB.WAV"), 1, 22_050, 550.0);
     write_sine_wav(&samples.join("CSGONE.WAV"), 1, 22_050, 660.0);
     memory_card::install(Some(&root));
 }
 
-/// The card the song-load gate boots on: somewhere to save, and the one sample its song carries. It packs an
-/// image of its own rather than the golden fixture because the gate saves and loads a song it writes itself, and
-/// the fixture corpus has no sample this gate can name.
+/// Stages the song-load channel scenario's card: folders to save into, and the one sample its song
+/// carries. The gate saves and loads a song it writes itself, so it needs no golden fixture.
 fn fill_song_load_channel_card() {
     let root = std::env::temp_dir().join("deluge-song-load-channel-card");
     let _ = std::fs::remove_dir_all(&root);
@@ -1387,37 +1292,31 @@ fn fill_song_load_channel_card() {
     memory_card::install(Some(&root));
 }
 
-/// Our own pender: no thread, no parking — just a flag the driver loop polls
-/// itself between `raw::Executor::poll()` calls.
+/// Set by [`pender`]; the driver loop in `main` polls again while it is set.
 static PENDED: AtomicBool = AtomicBool::new(false);
 
+/// The executor's pender: no thread and no parking, just [`PENDED`].
 #[unsafe(export_name = "__pender")]
 fn pender(_context: *mut ()) {
     PENDED.store(true, Ordering::SeqCst);
 }
 
 fn main() {
-    // A `--release` build of this package compiles every `log::*!` call to a no-op
-    // (`deluge-bsp`/`rza1l-hal` request `log`'s `release_max_level_off`
-    // feature for the DEVICE build's benefit, and Cargo unifies that feature
-    // across this whole binary's dependency graph). Use a debug build (`cargo
-    // build`, no `--release`) when you need the log output.
+    // A `--release` build compiles every `log::*!` call away (`deluge-bsp`/`rza1l-hal` enable
+    // `log`'s `release_max_level_off`); use a debug build for log output.
     env_logger::init();
     log::info!("golden_vt_render: Embassy-host-BSP golden renderer (boot + mount rung)");
 
     let fixture = std::env::var("GOLDEN_FIXTURE").unwrap_or_else(|_| "cordae".to_string());
-    // Bound on VIRTUAL time simulated before giving up (NOT wall time — see
-    // `drive`'s doc comment below): generous, since a wedged boot should fail
-    // loudly rather than "simulate" forever.
+    // A bound on virtual time, not wall time, so a wedged run fails rather than simulating
+    // forever.
     let budget_ms: u64 = std::env::var("GOLDEN_VIRTUAL_BUDGET_MS")
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(60_000);
 
-    // GOLDEN_SCENARIO selects what this binary runs on the Embassy substrate: the default
-    // stem-export golden render, or the SampleRecorder byte-exact round-trip oracle. The
-    // recorder scenario ignores GOLDEN_FIXTURE — it formats an empty image and
-    // records into it rather than loading a corpus song.
+    // GOLDEN_SCENARIO selects the scenario: unset for the stem export, `recorder_roundtrip`, or a
+    // stepped scenario by name.
     let scenario = std::env::var("GOLDEN_SCENARIO").unwrap_or_default();
     let recorder_mode = scenario == "recorder_roundtrip";
     let stepped = stepped_scenario(&scenario);
@@ -1430,29 +1329,27 @@ fn main() {
         }
     );
 
-    // Fill the card for the scenario. Must run before anything below touches SD, and MUST run here
-    // (single-threaded, before any task is spawned) rather than inside a task -- see the module doc's
-    // "The card is chosen BEFORE any task is spawned" section.
+    // The card must be chosen here, before any task is spawned (see the module doc).
     let repo_root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .ancestors()
         .nth(5)
         .expect("CARGO_MANIFEST_DIR (src/bsp/rust/harness/golden_vt_render) has a repo root 5 levels up")
         .to_path_buf();
-    // The card: a memory disk filled with the scenario's fixture tree (memory_card.rs), unless DELUGE_SD_IMAGE names a
-    // file to use instead.
-    // render_song and render_preset play as the device does: every block rendered on the audio tier after boot, one
-    // 128-frame block per 2,902 virtual microseconds, so their golden timing checks compare against the device's
-    // own audio period. Both must be set before deluge_app_init registers the audio task.
+    // render_song and render_preset play as the device does: every block rendered on the audio
+    // tier after boot, one 128-frame block per 2,902 virtual microseconds, so their timing checks
+    // compare against the device's audio period. Both must be set before deluge_app_init registers
+    // the audio task.
     if scenario == "render_song" || scenario == "render_preset" {
         audio_host::set_realtime_render(true);
         scheduler::set_audio_period_override_us(2902, 0);
     }
-    // clock_input drives PlaybackHandler's analog-clock transport, which times its input ticks by
-    // AudioEngine::audioSampleTimer and so needs that timer to advance between edges; only real rendering moves it.
-    // Not the period override above -- this scenario has no golden timing to match, just needs the clock to move.
+    // clock_input's analog-clock transport times its input ticks by AudioEngine::audioSampleTimer,
+    // which only real rendering advances. It has no golden timing, so no period override.
     if scenario == "clock_input" {
         audio_host::set_realtime_render(true);
     }
+    // The card: a memory disk holding the scenario's fixture tree, unless DELUGE_SD_IMAGE names an
+    // image file.
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {
             "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard"
@@ -1482,54 +1379,33 @@ fn main() {
             _ => memory_card::install(Some(&sd_image::golden_fixture_tree(&repo_root, &fixture))),
         }
     }
-    // Same flag `host_render_main.cpp`'s `main()` sets before its own
-    // `deluge_main()` — `audio_host.rs`'s `deluge_audio_drive` reads it to trim
-    // redundant per-block diagnostic bookkeeping during the offline export (see
-    // its `render_mode()` doc comment). `host_app` never sets this, so this is
-    // inert everywhere but this binary.
-    // SAFETY: single-threaded at this point (before any task/executor exists).
+    // Trims the host audio drive's per-block diagnostic bookkeeping.
+    // SAFETY: single-threaded here; no task or executor exists yet.
     unsafe { std::env::set_var("DELUGE_RENDER", "1") };
 
-    // SAFETY: `raw::Executor` needs `&'static`; leaking a Box is the standard
-    // pattern for a `fn main` that doesn't itself run forever
-    // (`embassy_executor::Executor::run`'s own doc uses the same pattern).
+    // `raw::Executor` needs `&'static`; leak it.
     let executor: &'static raw::Executor =
         Box::leak(Box::new(raw::Executor::new(std::ptr::null_mut())));
     let spawner = executor.spawner();
     scheduler::set_spawner(spawner);
 
-    // Same BSP task set `deluge-bsp-rust`'s host_app boot block spawns (minus
-    // the audio-thread split — with
-    // `scheduler::set_audio_spawner` never called, the priority-0 audio task
-    // falls back to this single spawner automatically, the documented
-    // fallback path in `scheduler.rs`'s `claim`).
+    // The host runtime's BSP tasks, without its separate audio thread: with no
+    // `scheduler::set_audio_spawner`, the priority-0 audio task runs on this one executor.
     spawner.spawn(control::pic_pump().unwrap());
     spawner.spawn(control::pad_render().unwrap());
     spawner.spawn(control::encoder_wake_pump().unwrap());
     spawner.spawn(display::oled_render().unwrap());
-    // Only spawned under `sim_latency` (see Cargo.toml's `default` doc): with the feature off
-    // there is no modeled-latency queue for this task to pump.
+    // Only under `sim_latency`, which has a modeled-latency queue to pump.
     #[cfg(feature = "sim_latency")]
     spawner.spawn(sd::sim_latency::pump().unwrap());
     spawner.spawn(boot_task().unwrap());
-    // The async cluster-fill task, on the SAME executor `boot_task` and the
-    // C++ enqueue path run on (this binary has
-    // only the one executor — see the module doc's "Executor + clock"). Owns
-    // the loader queue.
+    // The async cluster-fill task, which owns the loader queue.
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
-    // The audio loader, always: without this spawn every sample load that opts in waits on a request
-    // nothing serves.
+    // The channel workers. Without each, every request on its channel waits forever.
     spawner.spawn(audio_loader::audio_load_task().unwrap());
-    // The prefix reader, on the same executor, always. Without this spawn every preview and cartridge
-    // load waits on a request nothing serves.
     spawner.spawn(file_prefix::file_prefix_task().unwrap());
-    // The directory opener, always: every listing after boot opens through it, and without this spawn
-    // each one waits on a request nothing serves.
     spawner.spawn(file_directory::file_directory_task().unwrap());
-    // The whole-file worker, always. Without this the channel's collects answer UNKNOWN forever and
-    // every settings operation would stall -- `SC-CHANNEL served=` is what tells the difference.
     spawner.spawn(file_bytes::file_bytes_task().unwrap());
-    // And the stream channel's worker, always: without this spawn its collects answer UNKNOWN forever.
     spawner.spawn(file_stream::file_stream_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
@@ -1543,10 +1419,8 @@ fn main() {
         spawner.spawn(run_stem_export_scenario(fixture_static, &DONE).unwrap());
     }
 
-    // --- Discrete-event driver loop -----------------------------------------
-    // Poll to quiescence, then jump the virtual clock straight to the next due
-    // deadline (rather than stepping tick-by-tick) until the scenario signals
-    // done or the virtual-time budget/wedge detection trips.
+    // The discrete-event loop: poll to quiescence, then jump the virtual clock to the next due
+    // deadline, until the scenario is done or the budget or wedge detection trips.
     let driver = clock::PeekableMockDriver::get();
     let budget_ticks = Duration::from_millis(budget_ms).as_ticks();
     let wall_start = std::time::Instant::now();
@@ -1596,32 +1470,27 @@ fn main() {
     hard_exit(0);
 }
 
-/// Immediate, unconditional process termination — skips libc's atexit-run C++
-/// static destructors: the real C++ app links objects
-/// with static storage duration (`AudioEngine`, `playbackHandler`, …) that
-/// register `__cxa_atexit` destructors at process start. A normal
-/// `std::process::exit` still runs those destructors — observed elsewhere as a
-/// SIGSEGV (exit code 139) AFTER the run had already succeeded, i.e.
-/// destructor ordering against some other still-referenced global, not a bug
-/// in the scenario itself. This process never needs an orderly C++ shutdown
-/// (there is no real device shutdown path either), so skip it.
+/// Prints the exit reports, flushes stdout and stderr, and ends the process with `code` without
+/// running C++ static destructors.
 ///
-/// Flushes stdout/stderr first: `log`/`env_logger` (via its `anstream`
-/// dependency) buffers writes rather than flushing per line, so without this,
-/// a run that fails fast could exit with its diagnostic log output silently
-/// discarded.
+/// `std::process::exit` would run the app's `__cxa_atexit` destructors, whose ordering against
+/// still-referenced globals can crash (SIGSEGV) after a successful run; the app never needs an
+/// orderly shutdown. The flush matters because `env_logger` buffers, so a fast failure would lose
+/// its log.
+///
+/// A run that made unguarded structural edits exits 3 instead of 0.
 fn hard_exit(mut code: i32) -> ! {
     use std::io::Write as _;
     memory_card::dump_if_asked();
-    // The synchronous-call inventory, on every exit: a failing run's numbers matter as much as a passing one's.
+    // The synchronous-call inventory, on every exit: a failing run's numbers matter too.
     tier_meter::print_report();
     if audio_host::render_after_boot() {
         println!("AUDIO-RENDER blocks={}", audio_host::drive_count());
     }
     // Structural edits to the render's containers made while the render could have preempted them
-    // (util/structural_edit_probe.h). Any fails an otherwise passing run (exit 3), so every golden gate checks that
-    // no such edit was made; the line says how many. Nothing is printed on a clean run, so its markers do not change.
-    // SAFETY: a DELUGE_HOST C-ABI getter reading relaxed atomics; safe at any point after the app is linked.
+    // (`util/structural_edit_probe.h`). Any fails an otherwise passing run (exit 3); nothing is
+    // printed on a clean run, so its markers do not change.
+    // SAFETY: a host C-ABI getter reading relaxed atomics; safe at any point.
     let unguarded = unsafe { deluge_unguarded_structural_edits_total() };
     if unguarded != 0 {
         println!("GUARD-UNGUARDED total={unguarded}");
@@ -1640,9 +1509,8 @@ fn hard_exit(mut code: i32) -> ! {
             options(noreturn, nostack)
         );
     }
-    // 32-bit ARM EABI (the arm-linux/qemu golden oracle): exit_group is syscall
-    // 248, taken in r7, argument in r0, via `svc #0`. Same "skip C++ static
-    // destructors" rationale as the x86-64 path above.
+    // 32-bit ARM EABI (the arm-linux/qemu golden leg): exit_group is syscall 248, number in r7,
+    // argument in r0.
     #[cfg(all(target_os = "linux", target_arch = "arm"))]
     unsafe {
         core::arch::asm!(

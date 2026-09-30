@@ -4,8 +4,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// `deluge_sample_stream_*`. No C++ caller references these yet, so lazy archive extraction would
-/// never pull their object into the link, and `--gc-sections` would drop them even if it did.
+/// The `deluge_sample_stream_*` C ABI, kept whole in the link whether or not the C++ app
+/// references each symbol (`deluge_sample_stream_get_asset_id` has no C++ caller).
 pub const SAMPLE_STREAM_ROOTS: [&str; 6] = [
     "deluge_sample_stream_open",
     "deluge_sample_stream_close",

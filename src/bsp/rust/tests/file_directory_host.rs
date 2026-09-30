@@ -1,21 +1,16 @@
-//! The single-slot directory channel. One listing at a time is already enforced by the browser
-//! (`Browser::listingInProgress_`), so this is a slot, not a table: no depth, no eviction, no
-//! ordering.
+//! Host tests for the directory channel's slot logic: keying, the card-generation stamp checked at
+//! take, and that every discarded handle is handed back to be closed.
 #![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::channel::file_directory;
 
 use file_directory::{DirOutcome, DirTake, DirectorySlot, drain, publish_into, take_from};
 
-/// Nonzero on purpose: 0 is what a dropped stamp would leave behind, so a slot built at 0 would let
-/// a publish that ignored its generation still satisfy every take.
+/// Nonzero, so a publish that dropped its stamp (leaving 0) cannot still satisfy every take.
 const CARD: u32 = 3;
 
-/// `DELUGE_ERR_NOT_FOUND`. This module carries a status as a bare `i8` -- `DelugeStatus`'s real
-/// underlying type (`typedef enum DelugeStatus : int8_t`, `types.h`) -- rather than the bindgen
-/// enum, so it compiles in every carrier that `#[path]`-includes it, including the ones with no
-/// bindings at all. The values are NEGATIVE, so an unsigned carrier would have silently reported
-/// every failure as some large positive status.
+/// `DELUGE_ERR_NOT_FOUND`, as the bare `i8` the channel carries (`DelugeStatus` is `int8_t` and its
+/// failures are negative).
 const NOT_FOUND: i8 = -8;
 
 #[test]
@@ -36,9 +31,8 @@ fn a_published_handle_is_taken_exactly_once() {
     );
 }
 
-/// A different path is absent, and -- the half that matters -- the entry it did not match is LEFT
-/// ALONE. Reporting it as an orphan would have the taker close a handle another path's collect is
-/// still going to ask for.
+/// A take for another path must leave the entry alone: reporting it as an orphan would close a
+/// handle another collect is still going to ask for.
 #[test]
 fn a_handle_for_another_path_is_absent_and_undisturbed() {
     let mut slot = DirectorySlot::new();
@@ -54,8 +48,7 @@ fn a_handle_for_another_path_is_absent_and_undisturbed() {
     );
 }
 
-/// A failure is carried, not collapsed: `onListingFailed` shows the underlying status, so an
-/// unreadable card and a missing folder do not become the same message.
+/// `onListingFailed` shows the status, so it must survive the slot.
 #[test]
 fn a_failure_carries_its_status() {
     let mut slot = DirectorySlot::new();
@@ -66,9 +59,8 @@ fn a_failure_carries_its_status() {
     );
 }
 
-/// The belt: a handle opened on the previous card is refused at the TAKE, removed from the slot,
-/// and -- because the snapshot table holds only `MAX_DIR_HANDLES` (8) -- handed back so the taker
-/// can close it. Dropping it silently would burn one of eight slots per card swap.
+/// A stale handle is refused at the take, removed, and handed back: dropping it silently would leak
+/// one of the eight directory handles per card swap.
 #[test]
 fn a_handle_from_a_previous_card_is_refused_and_handed_back_to_close() {
     let mut slot = DirectorySlot::new();
@@ -84,8 +76,7 @@ fn a_handle_from_a_previous_card_is_refused_and_handed_back_to_close() {
     );
 }
 
-/// A stale FAILURE is refused the same way, but there is nothing to close. Reporting an orphan here
-/// would have the taker close handle 0 -- a real, live slot belonging to somebody else.
+/// A stale failure has nothing to close; reporting handle 0 would close someone else's live slot.
 #[test]
 fn a_failure_from_a_previous_card_is_refused_with_nothing_to_close() {
     let mut slot = DirectorySlot::new();
@@ -97,9 +88,8 @@ fn a_failure_from_a_previous_card_is_refused_with_nothing_to_close() {
     assert!(slot.is_empty());
 }
 
-/// The race a flush cannot win: there is no happens-before edge from the generation bump to a
-/// concurrent publish's read of it, so a publish stamped BEFORE the bump can land after it. The
-/// take is what refuses it -- the flush's clear is `try_lock`ed and may never run at all.
+/// A publish stamped before a flush's bump can land after it (the flush's clear may never run); the
+/// take refuses it.
 #[test]
 fn a_handle_stamped_before_a_flush_cannot_be_taken_after_it() {
     let mut slot = DirectorySlot::new();
@@ -111,9 +101,8 @@ fn a_handle_stamped_before_a_flush_cannot_be_taken_after_it() {
     assert!(slot.is_empty());
 }
 
-/// Publishing over an uncollected answer displaces it, and a displaced OPEN handle is exactly as
-/// orphaned as a stale one. Single-flight makes this rare, not impossible: a browser that navigates
-/// away leaves its answer uncollected, and the next listing's publish lands on top of it.
+/// A browser that navigates away leaves its answer uncollected; the next publish displaces it and
+/// must hand its handle back.
 #[test]
 fn a_publish_over_an_uncollected_handle_hands_the_old_one_back() {
     let mut slot = DirectorySlot::new();
@@ -129,8 +118,6 @@ fn a_publish_over_an_uncollected_handle_hands_the_old_one_back() {
     );
 }
 
-/// `drain` is what `flush_tables` uses: empty the slot and hand back whatever handle it was holding,
-/// so an ejection does not strand one of the eight.
 #[test]
 fn draining_the_slot_hands_back_an_open_handle() {
     let mut slot = DirectorySlot::new();

@@ -22,10 +22,8 @@ pub fn link(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     warn_if_heap_hack_active(manifest_dir);
 }
 
-/// Copies the linker script + memory-layout fragment for the active `rtt`
-/// feature into `out_dir` and points the linker at them. rza1l-hal's own
-/// build.rs puts `rza1l.x` on the link search path; this supplies the
-/// matching `memory.x` (mirrors deluge-sdk's `firmwares/controller-firmware`).
+/// Copies the memory layout for the active `rtt` feature and the SDRAM fragment into `out_dir`,
+/// and points the linker at them. rza1l-hal's build script puts `rza1l.x` on the search path.
 fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
     let rtt = env::var("CARGO_FEATURE_RTT").is_ok();
     let (memory_src, linker_script) = if rtt {
@@ -33,12 +31,11 @@ fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
     } else {
         ("memory.x", "rza1l.x")
     };
-    // Linker sources live under linker/ (NOT the crate root): the cross linker
-    // resolves `INCLUDE memory.x` from its CWD (the crate root) before the -L
-    // search path, so a memory.x in the root would shadow this generated one.
+    // Not in the crate root: the linker resolves `INCLUDE memory.x` from its working directory
+    // before the -L path, so a memory.x there would shadow this one.
     let linker_src = manifest_dir.join("linker");
     fs::copy(linker_src.join(memory_src), out_dir.join("memory.x")).unwrap();
-    // Supplementary fragment that places the app's SDRAM sections + symbols.
+    // Places the app's SDRAM sections and symbols.
     fs::copy(
         linker_src.join("sdram_sections.x"),
         out_dir.join("sdram_sections.x"),
@@ -52,43 +49,28 @@ fn setup_linker_script(manifest_dir: &Path, out_dir: &Path) {
     println!("cargo:rerun-if-changed=linker/sdram_sections.x");
 }
 
-/// Forces (`-Wl,-u,SYM`) every device-side ABI entry point whose only
-/// reference wouldn't otherwise pull its archive member out of the link, so
-/// `--gc-sections` can't silently drop it. Each symbol is listed
-/// individually (not just one root per translation unit) because
-/// `--gc-sections` prunes unreached function sections one at a time even
-/// within an already-extracted object.
+/// Forces the device entry points that no strong reference would pull into the link.
 fn emit_forced_link_roots() {
     force_link_roots(&SAMPLE_STREAM_ROOTS);
     force_link_roots(&EFATFS_ROOTS);
 
-    // The pad-grid crash reporter (src/deluge/io/debug/fault_pattern.c). Its ONLY
-    // reference is the deliberately-weak one from the HAL's UNDEF vector, and a weak
-    // undefined reference does not pull a member out of an archive — so without this
-    // root the reporter is silently left out and every fault falls back to the bare
-    // spin, which is precisely the invisible-crash behaviour it exists to end.
+    // The pad-grid crash reporter (src/deluge/io/debug/fault_pattern.c). Its only reference is
+    // the HAL UNDEF vector's weak one, which pulls nothing from an archive; without this root
+    // every fault would fall back to a silent spin.
     force_link_roots(&["handle_cpu_fault"]);
 }
 
-/// Resolves the CMake build dir, build config, and archiver for the device
-/// link, each overridable by the matching `DELUGE_*` env var.
+/// Resolves the CMake build dir, build config and archiver for the device link, each overridable
+/// by its `DELUGE_*` environment variable (each with a `rerun-if-env-changed`, or repointing one
+/// would relink the last archive).
 ///
-/// Every override gets a `rerun-if-env-changed`: without one Cargo holds no
-/// directive mentioning the new value, so repointing any of them would
-/// silently relink whatever was last archived.
+/// The build dir defaults by target: `build/` (clang) for `armv7a-deluge-eabihf`, `build-gcc/`
+/// otherwise, so `cargo device` never archives clang objects into a GCC link. (Cargo sets `TARGET`
+/// to a custom target's JSON file stem.)
 ///
-/// **Build dir** defaults by target, not to the clang tree: this script also
-/// serves `cargo device` (`armv7a-none-eabihf`, GCC), and defaulting that to
-/// `build/` would archive clang objects into a GCC link — see the module docs
-/// for why that is worse than a build failure. Cargo sets `TARGET` to a custom
-/// target's JSON file stem, so the two device trees are distinguishable here.
-///
-/// **Archiver** defaults to `arm-none-eabi-ar`, which is correct for Debug:
-/// those objects are plain ELF. Release enables LTO (GCC slim-LTO, or ThinLTO
-/// bitcode on the clang tree), and GNU `ar` cannot read bitcode symbols — it
-/// writes an archive whose index is empty for every member, so the linker
-/// silently pulls in none of them. LTO builds must override this with an
-/// LTO-aware archiver (`gcc-ar` / `llvm-ar`).
+/// The archiver defaults to `arm-none-eabi-ar`, right for Debug's plain ELF objects. LTO builds
+/// must pass an LTO-aware one (`gcc-ar`, `llvm-ar`): GNU `ar` cannot index bitcode, and the linker
+/// then silently pulls in nothing.
 fn resolve_build_dir(repo_root: &Path) -> (PathBuf, String, PathBuf) {
     println!("cargo:rerun-if-env-changed=DELUGE_BUILD_DIR");
     println!("cargo:rerun-if-env-changed=DELUGE_BUILD_CONFIG");
@@ -103,8 +85,7 @@ fn resolve_build_dir(repo_root: &Path) -> (PathBuf, String, PathBuf) {
             repo_root.join(default_tree)
         });
     let cfg = env::var("DELUGE_BUILD_CONFIG").unwrap_or_else(|_| "Debug".into());
-    // `toolchain/current` symlinks to the active toolchain version's host dir,
-    // so this survives toolchain version bumps.
+    // `toolchain/current` links to the active toolchain version.
     println!("cargo:rerun-if-env-changed=DELUGE_DEVICE_AR");
     let ar = env::var("DELUGE_DEVICE_AR")
         .map(PathBuf::from)
@@ -114,14 +95,14 @@ fn resolve_build_dir(repo_root: &Path) -> (PathBuf, String, PathBuf) {
     (build_dir, cfg, ar)
 }
 
-/// Archives `deluge_app`'s object closure (an OBJECT lib, so no `.a` exists
-/// yet) into `libdeluge_app_objs.a`, panicking with the exact CMake command
-/// if the app hasn't been built at `build_dir`/`cfg`. Registers
-/// `rerun-if-changed` on each object's own path (content, not just
-/// presence): a directory-level `rerun-if-changed` only fires on add/remove,
-/// so editing a `.cpp` and rebuilding `deluge_app` in place wouldn't
-/// otherwise trigger a re-archive, leaving a stale link. The directory
-/// itself is also watched, to catch objects being added or removed.
+/// Archives `deluge_app`'s objects (an OBJECT library, so CMake makes no `.a`) into
+/// `libdeluge_app_objs.a`.
+///
+/// # Panics
+///
+/// If the app has not been built at `build_dir`/`cfg`; the message gives the CMake command.
+///
+/// Each object gets its own `rerun-if-changed`, since the directory's fires only on add or remove.
 fn archive_app_objects(
     repo_root: &Path,
     build_dir: &Path,
@@ -166,12 +147,8 @@ fn archive_app_objects(
     app_objs_archive
 }
 
-/// Emits the link args for the app archive plus the portable static-lib
-/// closure (argon/etl are header-only; no fatfs entry — C-FatFS is retired
-/// and no longer part of the CMake build graph, deluge_app's storage calls
-/// go through the efatfs C-ABI implemented natively in this crate), as one
-/// `--start-group` because the references are mutual: C++ calls the
-/// `deluge_*` services, this crate calls `deluge_main()`.
+/// Emits the app archive and its static libraries as one `--start-group`, because the references
+/// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
     let deps: [(&str, &str); 7] = [
         ("src/NE10", "libNE10.a"),
@@ -193,15 +170,8 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
     println!("cargo:rustc-link-arg=-Wl,--end-group");
 }
 
-/// Re-adds the C++/C runtime that `deluge_app` needs: rustc passes
-/// `-nodefaultlibs`, so libstdc++/libsupc++ (std::, `__cxa_*`, vtables),
-/// libgcc (helpers like `__popcountsi2`), newlib libc/libm, and libnosys
-/// (unhosted syscall stubs) all need re-adding explicitly. g++'s own search
-/// paths resolve these. Grouped for the libstdc++<->libc<->libgcc circular
-/// refs.
-///
-/// `__exidx_start`/`__exidx_end` are defined by rza1l.x's `.ARM.exidx`
-/// section (kept, not discarded) so C++ exception unwinding works.
+/// Re-adds the C and C++ runtime the app needs, which rustc's `-nodefaultlibs` drops, grouped
+/// for their circular references. rza1l.x keeps `.ARM.exidx`, so C++ unwinding works.
 fn emit_runtime_link_args() {
     println!("cargo:rustc-link-arg=-Wl,--start-group");
     for l in ["-lstdc++", "-lsupc++", "-lc", "-lm", "-lgcc", "-lnosys"] {
@@ -210,12 +180,8 @@ fn emit_runtime_link_args() {
     println!("cargo:rustc-link-arg=-Wl,--end-group");
 }
 
-/// Self-clearing nag for the temporary rza1l.x stack/heap-overlap workaround
-/// (`program_stack_start` retargeted to `__sram_heap_end` so the C++ app's
-/// GeneralMemoryAllocator can't overrun the mode stacks). Warns on every
-/// build while the HACK tag is present in the sibling deluge-sdk linker
-/// scripts; goes silent automatically once the proper fix (app sources heap
-/// bounds via libdeluge/memory.h) removes it.
+/// Warns while the linker scripts in a sibling `../deluge-sdk` checkout carry the
+/// `DELUGE_APP_HEAP_HACK` tag. Silent when there is no such checkout.
 fn warn_if_heap_hack_active(manifest_dir: &Path) {
     let sdk = manifest_dir.join("../../../../deluge-sdk/crates/rza1l-hal");
     for s in ["rza1l.x", "rza1l_rtt.x"] {

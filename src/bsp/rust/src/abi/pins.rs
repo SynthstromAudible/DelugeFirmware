@@ -1,7 +1,7 @@
-//! Pins for what this crate's modules do not define themselves, checked against the headers through `sys`: the
-//! in-tree crates' exports, the crates' own declarations of header functions, the crate-defined header types'
-//! layouts, and every header value a module copies by hand because it also compiles without `sys`. See
-//! `abi_pin_macros.rs`. `harness/golden_vt_render` compiles this file too.
+//! Pins for what this crate's modules do not define themselves, checked against the headers
+//! through `sys`: the in-tree crates' exports, those crates' own declarations of header functions,
+//! the crate-defined header types' layouts, and every header value a module copies by hand because
+//! the plain host build has no `sys`.
 
 // --- The in-tree crates' exports ---
 
@@ -61,19 +61,16 @@ abi_layout!(type deluge_audio_format::abi::DelugeStatus => sys DelugeStatus);
 abi_layout!(type deluge_audio_format::abi::DelugeAudioParseStatus => sys DelugeAudioParseStatus);
 abi_layout!(type deluge_audio_format::abi::DelugeWavetableAccept => sys DelugeWavetableAccept);
 
-// --- The crate-defined header types (see `build_crate_types.rs`): every field, every variant ---
+// --- The crate-defined header types (see `build/crate_types.rs`): every field, every variant ---
 
 abi_layout!(deluge_audio_format::abi::DelugeOptionalF32 => DelugeOptionalF32 { has, value });
-// `midi_note`'s field type is itself a crate-defined header type (`DelugeOptionalF32`, pinned above), not a
-// primitive, so the exhaustive closure needs the `as` escape to transmute through its own layout pin rather than
-// compare it directly.
+// `midi_note` is itself a crate-defined header type, hence `as`.
 abi_layout!(deluge_audio_format::abi::DelugeAudioHeader => DelugeAudioHeader { container, num_channels, byte_depth,
     raw_data_format, sample_rate, audio_data_start_pos_bytes, audio_data_length_bytes, file_loop_start_samples,
     file_loop_end_samples, midi_note as DelugeOptionalF32, wavetable_cycle_size,
     wavetable_explicitly_specifies_self });
 abi_layout!(deluge_audio_format::abi::DelugeAudioWindow => DelugeAudioWindow { start, len });
-// Opaque: the header declares this only as sized/aligned storage for the parser to walk through, with no fields of
-// its own to check, so size and alignment are the whole contract.
+// The header declares only sized, aligned storage for the parser.
 abi_layout!(deluge_audio_format::abi::DelugeAudioHeaderParser => DelugeAudioHeaderParser opaque);
 
 abi_layout!(deluge_sample_fill::FillContext => DelugeStreamingFillContext { efatfs_handle, audio_data_start_pos_bytes,
@@ -133,7 +130,8 @@ abi_const!(
     deluge_audio_format::abi::DELUGE_AUDIO_HEADER_PARSER_WORDS => DELUGE_AUDIO_HEADER_PARSER_WORDS,
 );
 
-// `LoadResult` embeds this, and `audio_loader.rs` checks `LoadResult`'s own offsets against `sys` beside it.
+// `LoadResult` embeds this, and `audio_loader.rs` checks `LoadResult`'s own offsets against `sys`
+// beside it.
 abi_layout!(crate::channel::audio_loader::LoadGeometry => sys DelugeAudioLoadGeometry { sample_rate,
     audio_data_start_pos_bytes, audio_data_length_bytes, file_loop_start_samples, file_loop_end_samples,
     wavetable_cycle_size, midi_note_value, num_channels, byte_depth, raw_data_format, midi_note_present,
@@ -144,7 +142,7 @@ abi_const!(
     crate::channel::audio_loader::DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED => DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED,
 );
 
-// The channels' shared vocabulary (channel.h), which every channel module takes from [`crate::channel`].
+// The channels' shared vocabulary (`libdeluge/channel.h`), from [`crate::channel`].
 abi_layout!(type crate::channel::DelugeChannelStatus => sys DelugeChannelStatus);
 abi_const!(
     crate::channel::DELUGE_CHANNEL_PENDING => DELUGE_CHANNEL_PENDING,
@@ -154,8 +152,7 @@ abi_const!(
     crate::channel::DELUGE_PATH_MAX => DELUGE_PATH_MAX,
 );
 
-// `DelugeTimestamp` (types.h) is not one of the crate-defined header types in `build_crate_types.rs`, so there is no
-// `sys_layout` entry for it: `file_bytes`'s copy is checked against `sys`'s own binding instead.
+// `DelugeTimestamp` is not crate-defined, so `file_bytes`'s copy is checked against `sys`.
 abi_layout!(crate::channel::file_bytes::FileTimestamp => sys DelugeTimestamp { year, month, day, hour, minute, second });
 
 abi_const!(

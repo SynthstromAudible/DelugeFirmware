@@ -1,19 +1,9 @@
-# deluge_sample_convert — the SR2 region backing's byte-conversion + boundary-
-# stitching capability, as an owned Rust crate. Its build.rs `cc::Build`-compiles
-# the app's convert.cpp + stitch.cpp (+ their audio_format_helpers.cpp dep + a thin
-# `extern "C"` shim) with their argon SIMD, exposing SAFE Rust wrappers over the two
-# pure functions the SR2d fill path will call (convert_cluster_data with a no-op
-# Yield, and stitch_boundaries).
+# Safe Rust wrappers over the app's convert/stitch C++, which build.rs compiles with `cc`.
 #
-# Standalone crate (excluded from crates/'s no_std workspace, not a member): it
-# has a std test harness that links the cc-built C++ objects, and its own pinned
-# C++ deps — so it stays isolated from the panic=abort/no_std workspace profiles.
-# Mirrors the proven layout of the SR2b de-risk spike (since retired, which this
-# productionizes) and tests/component/differential/fs_differential.
-#
-# Dep ownership: build.rs fetches argon + SIMDe pinned to the SAME SHAs the CMake
-# FetchContent uses, into a gitignored third_party/ cache. The crate owns its deps;
-# it does NOT scavenge a CMake build-*/_deps tree (see the report + build.rs).
+# Excluded from the crates/ workspace: its std test harness links the C++ objects, so it stays
+# clear of the workspace's panic=abort/no_std profiles. build.rs fetches argon and SIMDe into a
+# gitignored third_party/ at the revisions cmake/deps.cmake pins, rather than reading a CMake
+# `_deps` tree.
 [package]
 name = "deluge_sample_convert"
 version = "0.1.0"
@@ -31,9 +21,7 @@ path = "src/lib.rs"
 cc = "1"
 
 [features]
-# Host "shim-only" mode for the C-host sim: compile ONLY cpp/shim.cpp and let the final consumer's
-# already-compiled convert.cpp/stitch.cpp/audio_format_helpers.cpp (deluge_app's, in the shared
-# deluge_SOURCES glob) provide convert_word/stitch_boundaries/helpers. Mirrors the device path's
-# duplicate-definition avoidance. OFF by default: a standalone `cargo test`/`region_*_differential`
-# build has no deluge_app, so it needs the full HOST compile to define those symbols itself.
+## Compiles only the shim, for a final link that already supplies `convert.cpp`, `stitch.cpp` and
+## `audio_format_helpers.cpp` (otherwise they would be defined twice). Off for a standalone build,
+## which needs them compiled here.
 app_convert = []

@@ -1,36 +1,26 @@
 //! `libdeluge/fault.h` — what the portable crash reporter needs from this board.
 //!
-//! The pad-grid pattern itself is the app's (`src/deluge/io/debug/fault_pattern.c`), so a
-//! photographed panel decodes the same whichever board drew it. Only the two
-//! board-specific acts live here: getting a byte to the PIC, and saying
-//! which addresses are code or stack.
+//! The pad-grid pattern is the app's (`src/deluge/io/debug/fault_pattern.c`), so a photographed
+//! panel decodes the same on any board. Only the board-specific parts live here: getting bytes to
+//! the PIC, and saying which addresses are code or stack.
 //!
-//! Everything in this file runs from a CPU fault vector. The Embassy executor is not
-//! running, the heap may be wrecked, and interrupts are masked — so the transport here
-//! is a bare FIFO poll. It cannot use [`crate::peripherals::control`]'s queue or `deluge_bsp::pic`'s
-//! async senders, both of which need a live executor to make progress: reaching for
-//! them from a fault would simply hang, which is how a crash ends up invisible.
+//! Everything here runs from a CPU fault vector: no executor, a possibly wrecked heap, interrupts
+//! masked. The transport is therefore a bare FIFO poll; [`control`](super::control)'s queue and
+//! `deluge_bsp::pic`'s async senders need a live executor and would hang.
 
 use deluge_bsp::uart::PIC_CH;
 
 use crate::sys::DelugeFaultRanges;
 
-/// Bytes staged by [`deluge_fault_pad_write`] until the flush.
+/// Capacity of the static staging buffer that [`deluge_fault_pad_write`] fills until the flush.
 ///
-/// The pattern is at most 9 column-pair selects plus 8 column-pairs × 16 pads × 3
-/// colour bytes = 393 bytes, so this never has to wrap. Static, because a fault
-/// handler cannot allocate.
+/// The pattern is at most 393 bytes (9 column-pair selects plus 8 pairs × 16 pads × 3 colour
+/// bytes), so this never wraps. Static, because a fault handler cannot allocate.
 const STAGE_CAP: usize = 512;
 static mut STAGE: [u8; STAGE_CAP] = [0; STAGE_CAP];
 static mut STAGED: usize = 0;
 
-/// Code and stack bounds for classifying fault-time pointers.
-///
-/// `code_*` spans the whole on-chip SRAM image rather than a `.text`-only pair: this
-/// BSP is RAM-linked and its code, rodata and data all sit in that window, so a
-/// tighter range would need linker symbols the layout does not currently define, and
-/// erring wide only costs the report an occasional false candidate — erring narrow
-/// would silently drop real return addresses, which is worse.
+/// Writes the code and stack bounds the reporter uses to classify fault-time pointers.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_fault_ranges(out: *mut DelugeFaultRanges) {
@@ -45,27 +35,13 @@ pub extern "C" fn deluge_fault_ranges(out: *mut DelugeFaultRanges) {
         /// Base of the SRAM heap, which sits above `.text`/`.rodata` and below the stacks.
         static __sram_heap_start: u8;
     }
-    // SAFETY: `out` is a valid DelugeFaultRanges the caller owns; the two externs are
-    // linker-provided address markers, taken by `addr_of!` (never `&`) so the
-    // subtraction stays plain integer arithmetic — see boot_mem::zero's doc for what
-    // reference-derived pointer arithmetic did to the boot memsets.
+    // SAFETY: `out` is non-null and caller-owned; the externs are linker address markers, taken
+    // by `addr_of!` (never `&`) so only their addresses are used.
     unsafe {
-        // Code bounds, as tight as the available linker symbols allow: `[_start, __sram_heap_start)`.
-        //
-        // This used to be the whole on-chip SRAM window, 0x2000_0000..0x2030_0000, on the reasoning
-        // that erring wide only costs an occasional false candidate. Measured on device, that was too
-        // generous by far. The window also contains `.bss` (below `_start`), the SRAM heap and all
-        // five mode stacks (above), so ANY word on the faulting stack that happened to point at RAM
-        // passed the "is this a return address" test. A real E199 report came back with two of its
-        // three stack-walk hits being bss addresses — `__bss_start__` and `__frunk_bss_end` — which
-        // is worse than useless: a plausible-looking address that decodes to a variable sends whoever
-        // is reading the panel after a phantom frame.
-        //
-        // Bounding it to the image's own text keeps every genuine return address (they are all in
-        // `.text`, which begins at `_start`) while rejecting bss, heap and stack words outright.
-        // `.rodata` is still inside the range — it sits between text and the heap and there is no
-        // linker symbol here marking the text/rodata boundary — so a rodata pointer can still slip
-        // through. That is a much smaller surface than the previous one.
+        // Code is `[_start, __sram_heap_start)`: every return address is in `.text`, and the range
+        // excludes `.bss`, the heap and the stacks, whose words would otherwise pass as return
+        // addresses and send a reader after phantom frames. `.rodata` is still inside (no linker
+        // symbol marks the text/rodata boundary), so a rodata pointer can slip through.
         (*out).code_start = core::ptr::addr_of!(_start) as usize;
         (*out).code_end = core::ptr::addr_of!(__sram_heap_start) as usize;
         (*out).stack_start = core::ptr::addr_of!(program_stack_start) as usize;
@@ -76,15 +52,14 @@ pub extern "C" fn deluge_fault_ranges(out: *mut DelugeFaultRanges) {
     }
 }
 
-/// Stage one byte for the PIC. Silently drops past [`STAGE_CAP`] — a truncated
-/// pattern still shows the leading pointers, which is worth more than no pattern.
+/// Stages one byte for the PIC.
+///
+/// Silently drops past [`STAGE_CAP`]: a truncated pattern still shows the leading pointers.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_fault_pad_write(byte: u8) {
-    // No re-entry guard needed here: `handle_cpu_fault` admits one reporter and parks
-    // every later arrival, so only one caller ever reaches this.
-    // SAFETY: single-threaded fault context with interrupts masked; nothing else
-    // touches STAGE/STAGED once a fault has begun.
+    // SAFETY: single-threaded fault context with interrupts masked; `handle_cpu_fault` admits one
+    // reporter and parks every later arrival, so nothing else touches STAGE/STAGED.
     unsafe {
         let n = STAGED;
         if n < STAGE_CAP {
@@ -94,25 +69,20 @@ pub extern "C" fn deluge_fault_pad_write(byte: u8) {
     }
 }
 
-/// Push the staged bytes to the PIC and block until they are on the wire.
+/// Pushes the staged bytes to the PIC and blocks until they are on the wire.
 ///
-/// Takes the UART away from its DMA channel first. The PIC TX is normally driven by
-/// DMA (see `deluge_bsp::uart`'s `init_dma_tx`), and writing the FIFO underneath a
-/// live DMA transfer would interleave two byte streams and corrupt the pattern. In a
-/// fault nothing is going to want the DMA channel back.
-///
-/// Every wait is bounded. A PIC that has stopped accepting bytes must lose the race
-/// rather than hang the report — the pattern is the only thing left that can say what
-/// happened.
+/// Stops the PIC TX DMA channel first: writing the FIFO under a live DMA transfer would
+/// interleave two byte streams. Every wait is bounded, so a PIC that stops accepting bytes cannot
+/// hang the report.
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_fault_pad_flush() {
-    /// Spin budget per FIFO top-up. At 200 kbaud a 16-byte FIFO drains in ~640 µs;
-    /// this is far longer than that and still finite.
+    /// Spin budget per FIFO top-up: far longer than a 16-byte FIFO takes to drain at 200 kbaud
+    /// (~640 µs), and still finite.
     const SPIN_LIMIT: u32 = 2_000_000;
 
-    // SAFETY: fault context, interrupts masked. Stopping the DMA channel and writing
-    // the SCIF FIFO directly is sound precisely because no driver will run again.
+    // SAFETY: fault context with interrupts masked; no driver will run again, so taking the DMA
+    // channel and writing the SCIF FIFO directly is sound.
     unsafe {
         rza1l_hal::dmac::stop(deluge_bsp::system::PIC_DMA_TX_CH);
 

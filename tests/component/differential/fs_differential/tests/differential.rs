@@ -1,27 +1,18 @@
-//! SP0 harness integration tests: `embedded-fatfs`, driven over the shared
-//! `DISK` RAM image, checked against known-good expected bytes/listings
-//! (the fixture tree's own committed source files, plus the deterministic
-//! generator formulas `fixtures/mk_fixture.sh` uses for its two large
-//! synthetic files).
+//! `embedded-fatfs` reads and writes over the FAT32 and FAT16 fixture images, checked against
+//! known-good content: the committed `fixtures/tree/` files and the formulas
+//! `fixtures/mk_fixture.sh` uses for its large synthetic files.
+//!
+//! The images come from `mk_fixture.sh`, via the `SP0_FAT32` and `SP0_FAT16` environment variables.
 use fs_differential::diff::{compare_read, Captured, Node};
 use fs_differential::ops::{Entry, FsOpsMut, Op};
 use fs_differential::{efatfs::EFatFs, ram_disk::RamDisk};
 use std::sync::Mutex;
 
-/// `DISK` (`ram_disk.rs`) is a process-wide singleton. `cargo test` runs
-/// `#[test]`s in parallel threads by default, so any two tests that load an
-/// image / mount a filesystem would race on that shared state. Every such
-/// test takes this lock first, for the duration of the whole
-/// load-mount-read(/write) sequence, so only one is ever touching the
-/// shared image at a time -- an alternative to `--test-threads=1` that
-/// doesn't serialize the whole binary.
+/// Serializes tests over the process-wide [`RamDisk`] image; held for a test's whole
+/// load-mount-read/write sequence.
 static TEST_LOCK: Mutex<()> = Mutex::new(());
 
-/// Reads a fixture-tree source file's REAL bytes straight from
-/// `fixtures/tree/` -- the same files `fixtures/mk_fixture.sh` copies
-/// unmodified onto the card images -- so comparisons below are against the
-/// actual committed source of truth, not a hand-copied literal that could
-/// drift from it.
+/// Reads a file from `fixtures/tree/`, which `mk_fixture.sh` copies unmodified onto the images.
 fn tree_file(rel: &str) -> Vec<u8> {
     let path = format!(
         concat!(env!("CARGO_MANIFEST_DIR"), "/fixtures/tree/{}"),
@@ -35,9 +26,7 @@ fn known_big_multicluster() -> Vec<u8> {
     vec![0x55u8; 1_048_576]
 }
 
-/// `mk_fixture.sh`'s `huge.bin` (FAT32 fixture only): 64 MiB, byte at offset
-/// `i` is `(i >> 9) & 0xff` -- the exact formula the fixture generator's
-/// Python one-liner uses.
+/// `mk_fixture.sh`'s `huge.bin` (FAT32 only): 64 MiB, byte `i` is `(i >> 9) & 0xff`.
 fn known_huge() -> Vec<u8> {
     (0..67_108_864u64)
         .map(|i| ((i >> 9) & 0xff) as u8)
@@ -60,11 +49,8 @@ fn file_entry(name: &str, bytes: &[u8]) -> Entry {
     }
 }
 
-/// The whole fixture tree's known-good expected content, as a literal
-/// [`Node`] tree `compare_read` can diff a live `EFatFs` mount against.
-/// `has_huge` selects FAT32 (has `huge.bin`) vs FAT16 (doesn't -- see
-/// `mk_fixture.sh`'s comment on why: the FAT16 image can't hold a 64 MiB
-/// file plus the rest of the tree).
+/// The fixture tree's known-good content. `has_huge` is true for FAT32; the FAT16 image is too
+/// small for `huge.bin`.
 fn known_tree(has_huge: bool) -> Captured {
     let kick_bytes = tree_file("SAMPLES/Kicks/Deep House Kick (loud).wav");
     let hello_bytes = tree_file("SAMPLES/hello.txt");
@@ -115,9 +101,6 @@ fn known_tree(has_huge: bool) -> Captured {
     Captured::literal(Node::Dir(root_kids))
 }
 
-/// Drives the vendored `embedded-fatfs` against a FAT32 card image built by
-/// `fixtures/mk_fixture.sh`, and checks it reads back a known fixture file
-/// byte-for-byte.
 #[test]
 fn efatfs_reads_known_file_fat32() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -127,17 +110,11 @@ fn efatfs_reads_known_file_fat32() {
     assert_eq!(fs.read_file("/SAMPLES/hello.txt"), b"DELUGE-SP0\n");
 }
 
-/// Host analog: proves the `embedded-fatfs` detach/reattach
-/// (`File::close` → [`FileContext`](embedded_fatfs::FileContext) →
-/// `File::new_from_context`) round-trip the device handle table
-/// (`src/efatfs_fs.rs`) relies on reads back correct bytes — including when
-/// two reconstructed handles' reads are interleaved round-robin (the on-host
-/// analog of the device mutex serializing concurrent streamed reads).
+/// The detach/reattach round trip the device handle table relies on (`File::close` →
+/// `FileContext` → `File::new_from_context`) reads correct bytes, including with two handles'
+/// reads interleaved.
 ///
-/// DIVERGENCE: host is single-threaded `block_on`, so this validates the
-/// embedded-fatfs API round-trip + interleave correctness ONLY, NOT the device
-/// `static`/embassy-`Mutex` serialization — that still needs on-device
-/// verification.
+/// Single-threaded: this covers the API round trip, not the device's mutex serialization.
 #[test]
 fn efatfs_context_roundtrip_and_interleave_fat32() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -145,7 +122,7 @@ fn efatfs_context_roundtrip_and_interleave_fat32() {
     let _disk = RamDisk::load(&img);
     let fs = EFatFs::mount();
 
-    // (a) single-file detach → reattach → seek(0) → fill round-trip.
+    // Single-file round trip.
     let hello = fs.open_context("/SAMPLES/hello.txt");
     let mut buf = [0u8; 11]; // == len(b"DELUGE-SP0\n")
     let (hello, ok) = fs.read_at_context(&hello, 0, &mut buf);
@@ -155,10 +132,7 @@ fn efatfs_context_roundtrip_and_interleave_fat32() {
         "detach/reattach round-trip corrupted hello.txt"
     );
 
-    // (b) two handles; reads interleaved round-robin across both reconstructed
-    //     contexts. Each file's bytes, reassembled from its chunks, must match
-    //     the whole-file oracle — proving detach/reattach doesn't corrupt one
-    //     handle's stream when another's reads are interleaved with it.
+    // Two handles read round-robin; each reassembled file must match a whole-file read.
     let kick_path = "/SAMPLES/Kicks/Deep House Kick (loud).wav";
     let expected_hello = fs.read_file("/SAMPLES/hello.txt");
     let expected_kick = fs.read_file(kick_path);
@@ -204,9 +178,7 @@ fn efatfs_context_roundtrip_and_interleave_fat32() {
     );
 }
 
-/// Walks the WHOLE fixture tree and asserts efatfs agrees with the
-/// known-good expected content at every level -- SP0's core instrument, run
-/// against the FAT32 image.
+/// Compares the whole mounted tree of the image named by `env` with [`known_tree`].
 fn run_read_check(env: &str, has_huge: bool) {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let img = std::env::var(env)
@@ -226,27 +198,21 @@ fn read_diff_fat16() {
     run_read_check("SP0_FAT16", false);
 }
 
-/// The write-path corpus: mkdir, a multi-cluster LFN-named write,
-/// an extend that grows the same file further, a short-name write, a
-/// rename, and a delete of a pre-existing fixture file. Exercises create,
-/// extend-across-cluster-boundary, LFN entry creation, rename, and delete
-/// in one pass, on both FAT variants.
+/// The write corpus: mkdir, a multi-cluster LFN write, an extend across a cluster boundary, a
+/// short-name write, a rename, and a delete of a fixture file.
 fn write_corpus() -> Vec<Op> {
     vec![
         Op::Mkdir("/REC".into()),
         Op::Write("/REC/take 01.wav".into(), vec![0xAB; 40_000]), // multi-cluster, LFN name
-        Op::Extend("/REC/take 01.wav".into(), vec![0xCD; 9_000]), // extend, further multi-cluster growth
+        Op::Extend("/REC/take 01.wav".into(), vec![0xCD; 9_000]), // crosses a cluster boundary
         Op::Write("/REC/SHORT.RAW".into(), b"hi".to_vec()),
         Op::Rename("/REC/SHORT.RAW".into(), "/REC/Renamed Long.raw".into()),
         Op::Delete("/SAMPLES/hello.txt".into()),
     ]
 }
 
-/// The expected post-`write_corpus()` state, computed directly from the
-/// corpus's own literal payloads (fully known ahead of time -- no oracle
-/// needed). Checked via a FRESH [`EFatFs::mount`] so the check walks the
-/// on-disk directory/FAT structures from scratch, not any in-process state
-/// the writer's `EFatFs` instance cached.
+/// Checks the state [`write_corpus`] should leave, through a fresh mount so it reads the disk
+/// rather than the writer's cached state.
 fn assert_write_corpus_result() {
     let e = EFatFs::mount();
 
@@ -273,9 +239,6 @@ fn assert_write_corpus_result() {
     );
 }
 
-/// Replays `write_corpus()` against the FAT32 image and checks the result
-/// against the corpus's own known-good expectation -- SP0's write-path
-/// instrument.
 #[test]
 fn write_corpus_fat32() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -288,7 +251,6 @@ fn write_corpus_fat32() {
     assert_write_corpus_result();
 }
 
-/// Same corpus, FAT16 image.
 #[test]
 fn write_corpus_fat16() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -301,15 +263,9 @@ fn write_corpus_fat16() {
     assert_write_corpus_result();
 }
 
-/// FAT32-only raw-entry parsing helper for the `..` demonstration probe
-/// below. efatfs's own `read_dir` filters `.`/`..` out (see `efatfs.rs`'s
-/// `read_dir` doc) -- so the only way to see what it actually wrote into a
-/// `..` entry's first-cluster field is to read the raw 32-byte directory
-/// entry bytes straight out of the image.
+/// Raw FAT32 directory-entry parsing, to read a `..` entry that `read_dir` filters out.
 mod raw_fat32 {
-    /// The BPB fields needed to locate a cluster's first byte and a
-    /// directory's entries within a raw FAT32 image (boot-sector layout;
-    /// see e.g. Microsoft's `fatgen103.doc`).
+    /// The boot-sector fields needed to locate clusters (layout per Microsoft's `fatgen103.doc`).
     struct Bpb32 {
         bytes_per_sector: u32,
         sectors_per_cluster: u32,
@@ -338,10 +294,8 @@ mod raw_fat32 {
         sector as usize * bpb.bytes_per_sector as usize
     }
 
-    /// Scans 32-byte directory entries starting at byte offset `dir_off` for
-    /// a short-name (11-byte, space-padded) match, skipping deleted (0xE5)
-    /// and LFN (attr 0x0F) entries. Returns the matching entry's own byte
-    /// offset.
+    /// Returns the byte offset of the entry named `sfn11` (11-byte space-padded short name) in the
+    /// directory at `dir_off`, skipping deleted (0xE5) and LFN (attr 0x0F) entries.
     fn find_sfn_entry(img: &[u8], dir_off: usize, sfn11: &[u8; 11]) -> Option<usize> {
         let mut off = dir_off;
         loop {
@@ -356,18 +310,16 @@ mod raw_fat32 {
         }
     }
 
-    /// The first-cluster field (hi word at 0x14, lo word at 0x1A) of the
-    /// 32-byte directory entry starting at `entry_off`.
+    /// Returns the first-cluster field (high word at 0x14, low at 0x1A) of the entry at
+    /// `entry_off`.
     fn entry_first_cluster(img: &[u8], entry_off: usize) -> u32 {
         let hi = u16::from_le_bytes([img[entry_off + 0x14], img[entry_off + 0x15]]);
         let lo = u16::from_le_bytes([img[entry_off + 0x1A], img[entry_off + 0x1B]]);
         ((hi as u32) << 16) | lo as u32
     }
 
-    /// For a FAT32 image that has had a directory named `dirname` (an 8.3
-    /// short name, e.g. `"REC        "`, 11 bytes space-padded) created
-    /// directly under the root: returns `(dir's own first cluster, the
-    /// first-cluster field written into that dir's own ".." entry)`.
+    /// For a directory `dirname_sfn11` directly under the root, returns its first cluster and the
+    /// first-cluster field of its `..` entry.
     pub fn probe_dotdot_cluster(img: &[u8], dirname_sfn11: &[u8; 11]) -> (u32, u32) {
         let bpb = parse_bpb32(img);
         let root_off = cluster_offset(&bpb, bpb.root_cluster);
@@ -375,9 +327,7 @@ mod raw_fat32 {
             .expect("directory entry not found under root");
         let dir_cluster = entry_first_cluster(img, dir_entry_off);
         let dir_off = cluster_offset(&bpb, dir_cluster);
-        // "." is entry index 0, ".." is entry index 1 in a freshly-created
-        // directory (embedded-fatfs's `create_dir` writes them in that
-        // order -- see dir.rs).
+        // `create_dir` writes "." then "..".
         let dotdot_off = dir_off + 32;
         assert_eq!(
             &img[dotdot_off..dotdot_off + 2],
@@ -388,14 +338,9 @@ mod raw_fat32 {
     }
 }
 
-/// Regression test: embedded-fatfs's `Dir::create_dir` used to write the
-/// ROOT's own first cluster into a new directory's `..` entry when that
-/// directory is created directly under the FAT32 root, instead of the FAT
-/// convention (0, meaning "parent is the root"). The fix ports upstream
-/// rust-fatfs's `c4bb769` into `crates/embedded-fatfs/src/dir.rs`'s
-/// `create_dir` (an `is_root_dir()` distinction on `DirRawStream`/`File`).
-/// This probe reads the raw on-disk `..` entry directly, bypassing
-/// `read_dir` (which filters `.`/`..` out -- see `raw_fat32` module doc).
+/// A directory created under the FAT32 root gets 0 in its `..` entry's cluster field, as the FAT
+/// spec requires, not the root's cluster number. Guards the vendored `create_dir` fix (see
+/// `crates/embedded-fatfs/VENDOR.md`).
 #[test]
 fn fat32_dotdot_cluster_probe() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -413,37 +358,19 @@ fn fat32_dotdot_cluster_probe() {
 
     eprintln!("FAT32 '..' probe: embedded-fatfs -- REC cluster={e_rec_cluster}, '..' cluster field={e_dotdot_cluster}");
 
-    // FAT spec convention: a directory whose parent is the root writes 0
-    // into its ".." entry, regardless of the root's own actual
-    // first-cluster number.
     assert_eq!(
         e_dotdot_cluster, 0,
         "embedded-fatfs should write 0 into '..' under root (BUG-B, Task 6B)"
     );
 }
 
-// --- Card-reinsert / swap proxy ---------------------------------------------
-//
-// R4 Phase C Task 8's gate asks for a "mount -> op -> remount against a
-// second image -> op succeeds" scenario, to the extent the host shim can
-// model a card swap. The host has no card-detect line (that's a BSP/hardware
-// concept -- `deluge_block_ready`, per the project-model notes -- and is
-// untestable here), but `RamDisk::load_bytes` IS the host-level equivalent of
-// "different physical bytes are now behind the block device": it replaces
-// the whole backing image `FileBlockDevice`/`BufStream` read/write through,
-// exactly as a real card swap replaces what's behind the SD controller. This
-// proves `efatfs_core`'s open/mount path has no cross-mount state (cached FAT
-// sectors, directory cursors, a stale generation) that would corrupt or wedge
-// against a SECOND, geometrically-different image (FAT32 -> FAT16: different
-// FAT type, different total size, different cluster size) mounted right after
-// the first. The genuinely device-only part -- the actual electrical
-// card-detect transition and re-initializing the SPI/SD controller -- is
-// deferred to the on-device ear-check (see the R4 Phase C gate report).
+/// A card swap: after mounting FAT32, replacing the image with FAT16 and remounting reads the new
+/// image, so no mount state carries over. Card detect and controller re-init are device-only and
+/// not covered.
 #[test]
 fn reinsert_second_image_remount_and_op_succeeds() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
 
-    // Mount the FIRST image (FAT32) and do a real op: read a known file.
     let fat32_path =
         std::env::var("SP0_FAT32").expect("run mk_fixture.sh; set SP0_FAT32=/tmp/fat32.img");
     RamDisk::load(&fat32_path);
@@ -453,28 +380,20 @@ fn reinsert_second_image_remount_and_op_succeeds() {
         tree_file("SAMPLES/hello.txt"),
         "op on the first image (pre-swap) must succeed and read the first image's content"
     );
-    drop(e1); // no held locator survives the swap -- UI/storage identify files by path.
+    drop(e1); // Nothing survives the swap; files are identified by path.
 
-    // "Reinsert": the backing bytes are swapped out from under the block
-    // device for a SECOND, geometrically-different image (FAT16, not FAT32)
-    // -- `RamDisk::load` replaces `DISK` wholesale, exactly as a real card
-    // swap replaces what a fresh `f_mount`-equivalent open would read.
+    // Swap in an image with a different FAT type, size and cluster size.
     let fat16_path =
         std::env::var("SP0_FAT16").expect("run mk_fixture.sh; set SP0_FAT16=/tmp/fat16.img");
     RamDisk::load(&fat16_path);
 
-    // A fresh mount + op against the NEW image must succeed and see the
-    // SECOND image's content -- not wedge, not silently keep serving the
-    // first image's stale directory/FAT state.
     let e2 = EFatFs::mount();
     assert_eq!(
         e2.read_file("SAMPLES/hello.txt"),
         tree_file("SAMPLES/hello.txt"),
         "op after the swap must succeed and read the SECOND image's content"
     );
-    // The FAT16 fixture has no huge.bin (mk_fixture.sh: FAT16 image can't
-    // hold it) -- confirms this really is walking the FAT16 image's own
-    // directory structure, not a cached/stale FAT32 view.
+    // Only the FAT32 image has huge.bin, so this proves the FAT16 tree is being read.
     assert!(
         !e2.exists("SAMPLES/huge.bin"),
         "post-swap mount must reflect the SECOND image's own directory tree, \

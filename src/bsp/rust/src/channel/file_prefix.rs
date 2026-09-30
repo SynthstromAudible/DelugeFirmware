@@ -1,64 +1,36 @@
-//! The single-slot prefix channel: read the first N bytes of a file on the storage tier and hand
-//! them back to a caller that is not allowed to wait for them.
+//! The single-slot prefix channel: reads the first N bytes of a file on the storage tier for a
+//! caller that must not wait on the card.
 //!
-//! `include/libdeluge/file_prefix.h` is the C side. The shape is the request/collect split
-//! `audio_loader.rs` already uses — ask, return to your own loop, collect on a later tick — and it
-//! exists for the same reason: the caller (a browser drawing a song's artwork) runs on the
-//! interaction tier, where blocking on the card is what this whole boundary exists to stop.
+//! The C side is `libdeluge/file_prefix.h`. Callers request with [`deluge_file_prefix_request`] and
+//! poll [`deluge_file_prefix_collect`] on later ticks. The callers are the song browser's artwork
+//! preview and the DX7 cartridge load.
 //!
-//! ## Why this is a SLOT and not a table
+//! # One slot, not a table
 //!
-//! The audio loader keeps a queue and an eight-slot result table because a song load fans out into
-//! many concurrent sample loads. Song preview does not fan out at all: there is one browser, one
-//! cursor, and one coalescer behind it, so at most one prefix is ever wanted at a time. A single
-//! slot is therefore the honest structure — no depth, no eviction policy, no ordering — and a newer
-//! request simply replaces an older one, which is exactly what a cursor moving down a folder means.
+//! There is one browser and one cursor, so at most one prefix is wanted at a time: a newer request
+//! replaces an older one, and there is no depth or eviction policy.
 //!
-//! ## Everything here awaits, and nothing calls into C++
+//! # Tier contract
 //!
-//! The driver runs on the same executor as `audio_load_task` and inherits that module's single
-//! rule verbatim: it holds the `efatfs` FS mutex across an SD await, so it can neither run on the
-//! thread-mode executor (whose `sim_block::block_on` spin would starve the task holding the mutex)
-//! nor make a synchronous C++ call from its own interrupt executor (which would deadlock the other
-//! way round, and could preempt thread-mode mid-mutation). See `audio_loader.rs`'s module doc for
-//! the full argument.
+//! The task shares the audio loader's executor and its rule: it holds the efatfs FS mutex across
+//! SD awaits, so it never spins and never calls C++ (see [`audio_loader`](super::audio_loader)).
+//! Its filesystem operations are the loader's [`LoadOps`], so that rule is stated in one trait.
 //!
-//! That is why the filesystem operations arrive as [`crate::channel::audio_loader::LoadOps`] rather than as
-//! a second trait declared here: one trait means one place where "all async, no route into C++"
-//! has to hold, and `ProdOps` — the efatfs wiring behind it — is already written and already
-//! type-checked against both the device mount and the host shim.
+//! # Card swaps
 //!
-//! ## A prefix is keyed by path, and a path outlives the card it was read from
+//! The slot is keyed by path, so a prefix read from card A must not be served for card B's file at
+//! the same path. Each read is stamped with the [card generation](crate::storage::card::generation)
+//! it began under, and [`take_from`] serves an entry only when its stamp matches the taker's
+//! current generation. `deluge_card_flush`'s clears (`flush_tables`) are `try_lock`ed and may
+//! fail, and a read in flight across the flush publishes afterwards, so the check at take is the
+//! guarantee.
 //!
-//! Identical hazard to the loader's, and closed the same way. The slot is keyed by the nominal
-//! path, so a prefix read from card A would be served for card B's file at the same path after a
-//! swap — artwork from the wrong song, drawn with no error. Each read is STAMPED with the card
-//! generation it began under ([the card generation](crate::storage::card::generation), shared with every other loader), and
-//! [`take_from`] serves an entry only when its stamp equals the generation the taker is asking
-//! under, dropping it otherwise.
+//! # Build coverage
 //!
-//! The check lives at the TAKE, not at the flush: `deluge_card_flush`'s bump is unconditional but
-//! its table clears are `try_lock`ed, so an entry can outlive a flush, and a read already in flight
-//! publishes afterwards. Deciding from the taker's own current generation is what makes the outcome
-//! independent of which locks the flush managed to take. None of that may be re-argued from where
-//! either side is scheduled: the driver owns its own executor on device but is a plain
-//! `std::thread` under `host_app`, so any "these two cannot run at once" claim is false on some
-//! configuration that builds this file.
-//!
-//! ## What compiles where
-//!
-//! The channel has no feature switch.
-//!
-//! - Everywhere this module is: the slot logic ([`PrefixSlot`], [`publish_into`], [`take_from`]),
-//!   the driver ([`prefix_io_once`]), the statics, and the C ABI ([`deluge_file_prefix_request`],
-//!   [`deluge_file_prefix_collect`]). They are the only definitions.
-//! - Where the storage executor runs (the device, and the host under `host_app`): the task and its
-//!   work buffer.
-//!
-//! The slots hold metadata only and live in on-chip SRAM. The two [`PREFIX_CAPACITY`] byte buffers
-//! -- the published prefix ([`RESULT_BYTES`]) and the read in progress ([`WORK_BYTES`]) -- are in
-//! `.sdram_bss` on the device: on-chip SRAM shares a budget with the C++ allocator's
-//! `FAST_INTERNAL` heap and grows in 64 KiB steps of it, so 8 KiB buffers do not belong there.
+//! The slot logic, the driver ([`prefix_io_once`]), the statics and the C ABI build everywhere and
+//! are the only definitions. The task and its work buffer build only on device and under
+//! `host_app`. The two [`PREFIX_CAPACITY`] byte buffers (`RESULT_BYTES` and `WORK_BYTES`) are in
+//! `.sdram_bss` on device, because on-chip SRAM is shared with the C++ `FAST_INTERNAL` heap.
 
 use core::ffi::{CStr, c_char};
 
@@ -72,41 +44,27 @@ use embassy_sync::signal::Signal;
 
 use crate::channel::audio_loader::{LoadOps, OpenVerdict};
 
-/// How many bytes one prefix request may ask for. Sized from the channel's LARGEST consumer, which
-/// is the DX7 cartridge read (`min(filesize, 8192)`, `gui/menu_item/dx/cartridge.cpp`), not from the
-/// song preview.
+/// The most bytes one prefix request may ask for, and the size of the result slot;
+/// `DELUGE_FILE_PREFIX_CAPACITY` in C, pinned by `abi::pins`.
 ///
-/// Deliberately larger than `deluge::storage::kSongPreviewWindow`: the two answer different
-/// questions -- "how much of a song holds the artwork" (4096) versus "how
-/// big is the slot every consumer's result has to land in" (8192). `load_song_ui.cpp`
-/// asserts the surviving relation, that a request never exceeds the slot. Pinned against
-/// `DELUGE_FILE_PREFIX_CAPACITY` by `abi_pins.rs`.
-///
-/// It bounds the request as well as the slot: [`deluge_file_prefix_request`] clamps `max_bytes` to
-/// this, so the driver can never be asked for a read that would not fit in the slot the result has
-/// to land in.
+/// Sized for the largest consumer, the DX7 cartridge load, not the song preview's smaller
+/// `kSongPreviewWindow`. [`deluge_file_prefix_request`] clamps `max_bytes` to this, so a read
+/// always fits the slot.
 pub const PREFIX_CAPACITY: usize = 8192;
 
-/// Longest path this channel keys on, in CHARACTERS: `DELUGE_PATH_MAX` counts the NUL, so the text it can hold is
-/// one byte shorter.
+/// Longest path this channel keys on, in characters: `DELUGE_PATH_MAX` minus the NUL.
 pub(crate) const MAX_PATH_CHARS: usize = DELUGE_PATH_MAX - 1;
 
-/// One path, inline. **Nothing in this module may touch the Rust global heap** — that allocator
-/// assumes single-threaded use and this driver runs on a preempting executor. See
-/// `audio_loader::LoadPath`, which says it at length.
+/// One path, stored inline. Nothing in this module may touch the Rust global heap, which assumes
+/// single-threaded use while this task preempts thread mode.
 pub type PrefixPath = heapless::String<MAX_PATH_CHARS>;
 
-/// How many bytes of the store are the prefix, or `None` when the READ FAILED.
+/// How many bytes of the store are the prefix, or `None` when the read failed.
 ///
-/// The value [`PrefixSlot`] publishes: a prefix carries no handle, so unlike the directory
-/// channel's `DirOutcome` this never orphans anything and `crate::channel::Answer::orphan`'s
-/// default (always `None`) is exactly right.
-///
-/// A failure is an entry rather than an absence for the same reason a successful read is: the
-/// slot's only two answers to a taker are "here it is" and "never heard of it", and the second
-/// means "request it (again)". A failed read that published nothing would be re-requested and
-/// re-read on every tick. It is terminal, and it is DISTINCT from `Some(0)` — an empty file —
-/// because the caller shows the user an error for one and blank artwork for the other.
+/// A failure is published as an entry, not left absent: absence reads as `UNKNOWN` ("request it
+/// again"), so an unreadable file would be re-read every tick. It is distinct from `Some(0)` (an
+/// empty file) because the caller shows an error for one and blank artwork for the other. It
+/// carries no handle, so it never orphans anything.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PrefixLen(pub Option<usize>);
 
@@ -115,39 +73,32 @@ impl crate::channel::Answer for PrefixLen {}
 /// What [`take_from`] found in the slot for the path it was asked about.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum PrefixTake {
-    /// A prefix, this many bytes of it, copied into the taker's buffer. May legitimately be 0 — an
-    /// empty FILE.
+    /// This many bytes were copied into the taker's buffer; 0 for an empty file.
     Bytes(usize),
-    /// The read did not happen: the file would not open, could not be sized, or the read failed.
-    /// Nothing was written to the taker's buffer.
+    /// The file would not open, could not be sized, or the read failed. Nothing was written.
     Failed,
 }
 
-/// The one prefix this channel holds, if it holds one. See `crate::channel::AnswerSlot` for the
-/// slot rules; this type just names the key and value the prefix channel uses.
+/// The one prefix this channel holds, if any: an [`AnswerSlot`](crate::channel::AnswerSlot) keyed
+/// by path.
 ///
-/// Passed to [`publish_into`]/[`take_from`] by reference rather than reached for as a static, so
-/// the slot logic is compiled and unit-tested on every build — including the ones where [`RESULT`]
-/// does not exist at all.
-///
-/// It holds the entry and nothing else. The bytes live in a store passed beside it -- on the device
-/// [`RESULT_BYTES`], in SDRAM -- because an 8 KiB array inside the `Mutex` would sit in on-chip
-/// SRAM, and an empty `Option` is not all-zero bytes, so the slot itself cannot go to `.sdram_bss`.
+/// Passed to [`publish_into`] and [`take_from`] by reference so the slot logic is testable without
+/// the statics. It holds only the entry; the bytes live in a store passed beside it
+/// (`RESULT_BYTES` in production), which can go to `.sdram_bss` whereas the slot cannot (an
+/// empty `Option` is not all-zero bytes).
 pub struct PrefixSlot {
     inner: crate::channel::AnswerSlot<PrefixPath, PrefixLen>,
 }
 
 impl PrefixSlot {
-    /// An empty slot, in a `const` context — what [`RESULT`] is initialised with. [`Default`] does
-    /// the same thing everywhere else; this exists only because `Default::default` is not `const`.
+    /// Returns an empty slot; the `const` counterpart of [`Default`].
     pub const fn new() -> Self {
         Self {
             inner: crate::channel::AnswerSlot::new(),
         }
     }
 
-    /// Whether the slot holds nothing. The belt tests assert this after a stale take: a stamp that
-    /// was refused must also have been REMOVED.
+    /// Whether the slot holds nothing.
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
@@ -159,19 +110,12 @@ impl Default for PrefixSlot {
     }
 }
 
-/// Publish `bytes` under `key`, stamped with `generation`, replacing whatever the slot held.
+/// Publishes `bytes` under `key` into `slot` and `store`, stamped with `generation`, replacing
+/// whatever the slot held.
 ///
-/// A longer-than-capacity read is a driver bug, not a runtime condition: [`prefix_io_once`] is
-/// bounded by the `max_bytes` [`deluge_file_prefix_request`] already clamped to [`PREFIX_CAPACITY`].
-/// Truncating silently here would hand the decoder a short buffer that looks exactly like a
-/// genuinely short file — and "the preview attribute is not in this window" is precisely how a
-/// decoded prefix reports blank artwork, so the truncation would present as a song losing its
-/// artwork with nothing to say why.
-///
-/// A key too long to store is refused the same way — see [`new_entry`].
-///
-/// The bytes go into `store`, which [`take_from`] copies them back out of. Both halves are written in
-/// the one call, so a take never pairs this entry with another publish's bytes.
+/// Both halves are written in one call, so a take never pairs this entry with another publish's
+/// bytes. `bytes` longer than [`PREFIX_CAPACITY`] is a driver bug (requests are clamped) and
+/// trips a debug assertion. A key too long to store clears the slot (see `new_entry`).
 pub fn publish_into(
     slot: &mut PrefixSlot,
     store: &mut [u8; PREFIX_CAPACITY],
@@ -186,63 +130,37 @@ pub fn publish_into(
     }
 }
 
-/// Publish "the read for `key` did not happen", stamped with `generation`, replacing whatever the
-/// slot held.
-///
-/// A separate entry point rather than a `bytes: Option<&[u8]>` parameter on [`publish_into`],
-/// because the two are not variants of one operation at the call site: the driver either has bytes
-/// or it has a failure, and a `None` threaded through the successful path is how "publish nothing"
-/// and "publish a failure" get confused.
-///
-/// Refuses an over-long key and clears the slot, exactly as [`publish_into`] does and for the same
-/// reason.
+/// Publishes "the read for `key` failed", stamped with `generation`, replacing whatever the slot
+/// held. An over-long key clears the slot, as in [`publish_into`].
 pub fn publish_failure_into(slot: &mut PrefixSlot, key: &str, generation: u32) {
     let _ = new_entry(slot, key, generation, None);
 }
 
-/// Install a fresh entry under `key` and return `true`, or clear the slot and return `false` when the
-/// key does not fit.
+/// Installs a fresh entry under `key` and returns `true`, or clears the slot and returns `false`
+/// when the key does not fit.
 ///
-/// A key too long to store is refused, and the slot is CLEARED rather than left holding its previous
-/// entry: unreachable through the FFI (which refuses an over-long path before it ever reaches the
-/// driver), but a prefix nobody can key is a prefix nobody can ever take, and leaving a stale
-/// neighbour resident in its place is strictly worse than an empty slot.
+/// Unreachable through the FFI, which refuses over-long paths; clearing rather than keeping the
+/// previous entry avoids leaving a stale neighbour in place of an untakeable one.
 fn new_entry(slot: &mut PrefixSlot, key: &str, generation: u32, len: Option<usize>) -> bool {
     let Ok(key) = PrefixPath::try_from(key) else {
-        slot.inner.drain(); // no orphan possible -- see `PrefixLen`'s doc
+        slot.inner.drain(); // a `PrefixLen` carries no handle, so there is no orphan
         return false;
     };
     slot.inner.publish(key, PrefixLen(len), generation);
     true
 }
 
-/// Take `path`'s entry if the slot holds one stamped `generation` AND `out` is big enough, copying its
-/// bytes out of `store` -- the store [`publish_into`] wrote them to.
+/// Takes `path`'s entry if the slot holds one stamped `generation`, copying its bytes from `store`
+/// into `out`.
 ///
-/// The key match and the generation stamp are `crate::channel::AnswerSlot::take`'s rule: a
-/// mismatched key is left alone, a stale stamp is removed and reported as absent. `None` reaches
-/// the collector as `UNKNOWN`, whose documented meaning is already "request it (again)".
+/// Follows [`AnswerSlot::take`](crate::channel::AnswerSlot::take): a mismatched key is left alone;
+/// a stale stamp is removed and reported as `None` (the collector's `UNKNOWN`, "request it
+/// again").
 ///
-/// # An undersized `out` is TERMINAL, not a retry
-///
-/// A key match with a good stamp but an `out` shorter than the prefix is a caller bug — the header
-/// requires `out_cap` to be at least [`PREFIX_CAPACITY`], and
-/// [`deluge_file_prefix_collect`] `debug_assert!`s it so a dev build fails at the real cause. The
-/// entry is CONSUMED anyway and `Some(PrefixTake::Bytes(0))` returned, which the caller reads as
-/// READY with no bytes. Deliberately NOT [`PrefixTake::Failed`]: the read succeeded, and reporting a
-/// caller's own buffer bug as an I/O failure would put an SD-card error on screen for a file that
-/// is perfectly readable.
-///
-/// Leaving the prefix resident for "a correctly-sized retry" was the first shape and it was worse
-/// than doing nothing: the caller that has just been told UNKNOWN follows the header and
-/// re-requests, the task re-opens and re-reads the file from the CARD, [`publish_into`] replaces
-/// the entry, and the next collect — with the same small buffer — says UNKNOWN again. That is a
-/// once-per-tick re-read of real SD I/O for as long as the caller stays interested: the exact
-/// livelock the empty-prefix convention exists to prevent, arriving through a different door. The
-/// affordance only ever helped a caller that changed its buffer, and nothing tells it to.
-///
-/// Terminal-and-blank is the same failure convention the rest of this channel already uses, so a
-/// release build degrades to one song's artwork missing rather than to hammering the card.
+/// An `out` shorter than the prefix is a caller bug (the header requires at least
+/// [`PREFIX_CAPACITY`]). The entry is still consumed and `Bytes(0)` returned: not
+/// [`PrefixTake::Failed`], which would show an SD error for a readable file, and not left
+/// resident, which would make the caller re-request and re-read the card every tick.
 pub fn take_from(
     slot: &mut PrefixSlot,
     store: &[u8; PREFIX_CAPACITY],
@@ -251,17 +169,14 @@ pub fn take_from(
     out: &mut [u8],
 ) -> Option<PrefixTake> {
     let len = match slot.inner.take(path, generation) {
-        // Key mismatch or a stale stamp -- `crate::channel::AnswerSlot::take` already removed a
-        // stale entry (and left a mismatched one alone); there is nothing left here to close.
+        // Key mismatch or a stale stamp; a prefix has no handle to close.
         crate::channel::Take::Absent { .. } => return None,
-        // A published failure. Removed like any other answer; `out` is untouched.
+        // A published failure, consumed like any other answer; `out` is untouched.
         crate::channel::Take::Ready(PrefixLen(None)) => return Some(PrefixTake::Failed),
         crate::channel::Take::Ready(PrefixLen(Some(len))) => len,
     };
     if out.len() < len {
-        // Caller bug, and terminal: the entry is already consumed above, so this reports an empty
-        // prefix rather than leaving one the caller would re-request, and re-read from the card,
-        // every tick. See this function's doc.
+        // Caller bug; terminal. See the doc comment.
         return Some(PrefixTake::Bytes(0));
     }
     out[..len].copy_from_slice(&store[..len]);
@@ -271,63 +186,49 @@ pub fn take_from(
 /// One request waiting to be read.
 struct PrefixRequest {
     path: PrefixPath,
-    /// Already clamped to [`PREFIX_CAPACITY`] by [`deluge_file_prefix_request`].
-    ///
-    /// Read by `take_next_request`, which is compiled only where the task is (device, or
-    /// host under `host_app`). A build that has the statics but no task --
-    /// the host test binaries -- writes this field and never reads it, which is the honest shape
-    /// rather than a defect.
+    /// Already clamped to [`PREFIX_CAPACITY`]. Unread in builds without the task.
     #[allow(dead_code)]
     max_bytes: u32,
 }
 
-/// Raised to wake [`file_prefix_task`] when a prefix is newly requested. Always compiled — with the
-/// task absent nobody awaits it and signalling is a harmless flag set.
+/// Wakes `file_prefix_task` when a prefix is requested. Signalling with no task waiting is a
+/// harmless flag set.
 pub static PREFIX_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
-/// The one outstanding request, if any.
-///
-/// A single slot rather than a queue, and a newer request REPLACES an older one. That is the
-/// single-flight shape stated as storage: a browser cursor that has moved on does not want the path
-/// it left behind, and the caller of a dropped request reads `UNKNOWN` — "request it (again)" — on
-/// its next tick, which it will only do if it still wants it.
+/// The one outstanding request, if any. A newer request replaces an older one; the dropped
+/// request's caller reads `UNKNOWN` and re-requests only if it still wants it.
 static REQUEST: Mutex<CriticalSectionRawMutex, Option<PrefixRequest>> = Mutex::new(None);
 
-/// The path being read right now, if any. Exists so [`deluge_file_prefix_collect`] can answer
-/// `PENDING` rather than `UNKNOWN` in the window between a request leaving [`REQUEST`] and its
-/// bytes reaching [`RESULT`] — an `UNKNOWN` there would tell the caller to re-request work that is
-/// already running, and it would do so on every tick.
+/// The path being read right now, if any, so [`deluge_file_prefix_collect`] answers `PENDING`
+/// (not `UNKNOWN`, which would make the caller re-request running work) between a request leaving
+/// [`REQUEST`] and its bytes reaching [`RESULT`].
 static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<PrefixPath>> = Mutex::new(None);
 
 /// The finished prefix waiting to be collected. See [`PrefixSlot`].
 static RESULT: Mutex<CriticalSectionRawMutex, PrefixSlot> = Mutex::new(PrefixSlot::new());
 
-/// The published prefix's bytes, paired with the entry in [`RESULT`]. Reached only through
-/// [`result_parts`], which demands the `RESULT` guard.
+/// The published prefix's bytes, paired with the entry in [`RESULT`] and reached only through
+/// [`result_parts`].
 ///
-/// In `.sdram_bss` on the device, like the byte channel's buffers: NOLOAD, and zeroed by
-/// `boot_mem::init_sdram_memory()` before any task runs. A byte array is valid when zeroed; the
-/// `Mutex` slots above are not, which is why they stay on-chip and only the bytes move.
+/// In `.sdram_bss` on device (NOLOAD, zeroed by `boot_mem::init_sdram_memory()` before any task
+/// runs); a zeroed byte array is valid, unlike the `Mutex` slots, which stay on-chip.
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut RESULT_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
 
-/// The slot and its bytes, for as long as `guard` is borrowed.
-///
-/// Taking the `RESULT` guard by `&mut` is the point: the borrow checker then proves the lock is held
-/// for every use of the bytes, and the slot and the store come back as two disjoint borrows, so a
-/// publish or a take writes both halves in one lock hold.
+/// Returns the slot and its bytes as disjoint borrows of the held [`RESULT`] guard, so the borrow
+/// checker proves the lock is held for every use of the bytes.
 fn result_parts<'g>(
     guard: &'g mut MutexGuard<'_, CriticalSectionRawMutex, PrefixSlot>,
 ) -> (&'g mut PrefixSlot, &'g mut [u8; PREFIX_CAPACITY]) {
-    // SAFETY: nothing else names RESULT_BYTES, and a reference is handed out only while an exclusive
-    // borrow of the RESULT guard is held -- RESULT is the only lock guarding a `PrefixSlot` in this
-    // module -- so this is the only live reference.
+    // SAFETY: nothing else names RESULT_BYTES, and a reference is handed out only while an
+    // exclusive borrow of the RESULT guard (the only lock over a `PrefixSlot` here) is held, so
+    // this is the only live reference.
     let store = unsafe { &mut *core::ptr::addr_of_mut!(RESULT_BYTES) };
     (&mut **guard, store)
 }
 
-/// The read in progress, before it is published. [`file_prefix_task`]'s alone -- see
-/// [`claim_work_bytes`]. Placed as [`RESULT_BYTES`] is.
+/// The read in progress, before it is published; owned by `file_prefix_task` through
+/// [`claim_work_bytes`]. Placed like [`RESULT_BYTES`].
 #[cfg(any(target_os = "none", feature = "host_app"))]
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut WORK_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
@@ -337,27 +238,23 @@ static mut WORK_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
 static WORK_CLAIM: crate::channel::file_bytes::ClaimOnce =
     crate::channel::file_bytes::ClaimOnce::new();
 
-/// The work buffer, to the first caller only. [`file_prefix_task`] claims it once, at start.
+/// Returns the work buffer to the first caller only; `file_prefix_task` claims it once, at start.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 fn claim_work_bytes() -> Option<&'static mut [u8; PREFIX_CAPACITY]> {
     if !WORK_CLAIM.claim() {
         return None;
     }
-    // SAFETY: WORK_CLAIM grants exactly one claim for the life of the program and nothing else names
+    // SAFETY: WORK_CLAIM grants one claim for the life of the program and nothing else names
     // WORK_BYTES, so this is the only reference that will ever exist.
     Some(unsafe { &mut *core::ptr::addr_of_mut!(WORK_BYTES) })
 }
 
-/// Drop what this channel is holding. The card generation's bump belongs to the CALLER
-/// (`card.rs`'s `deluge_card_flush`), which performs it before calling here.
+/// Clears the request, the in-flight mark and the result.
 ///
-/// Runs synchronously from C++ on the interaction tier and must never wait, so all three are
-/// `try_lock`ed. **Every one of them may fail, and none of them costs anything**: the clears are
-/// housekeeping, and the safety property is the STAMP compared in [`take_from`]. A surviving entry
-/// carries the generation of the card it was read from and is therefore uncollectable, not
-/// stale-but-live; a surviving in-flight mark reports `PENDING` for one more collect and is cleared
-/// by the read that set it; a surviving request has done no I/O yet, so whenever it runs it reads
-/// whatever card is in the slot then and is stamped accordingly.
+/// Called by `deluge_card_flush` after it bumps the card generation. It runs synchronously from
+/// C++ and must never wait, so each clear is a `try_lock` that may fail harmlessly: a surviving
+/// entry carries its old stamp and [`take_from`] drops it; a surviving in-flight mark is cleared
+/// by its read; a surviving request has done no I/O and is stamped with whichever card it reads.
 pub(crate) fn flush_tables() {
     if let Ok(mut request) = REQUEST.try_lock() {
         *request = None;
@@ -366,30 +263,29 @@ pub(crate) fn flush_tables() {
         *in_flight = None;
     }
     if let Ok(mut result) = RESULT.try_lock() {
-        result.inner.drain(); // no orphan possible -- see `PrefixLen`'s doc
+        result.inner.drain(); // a `PrefixLen` carries no handle, so there is no orphan
     }
 }
 
-/// Milliseconds `file_prefix_task` waits after marking each read in flight. Host harness only; see
+/// Milliseconds `file_prefix_task` waits after marking each read in flight. See
 /// [`deluge_file_prefix_set_latency_ms`].
 #[cfg(feature = "host_app")]
 static LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
 
-/// Host harness knob: make every prefix read wait `ms` milliseconds after it is marked in flight, so
-/// a gate can hold a read while a consumer keeps collecting `PENDING`. 0, the default, means no wait.
-///
-/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+/// Host harness knob: makes every prefix read wait `ms` milliseconds after it is marked in flight,
+/// so a test can hold a read while a consumer keeps collecting `PENDING`. 0 (the default) means no
+/// wait.
 #[cfg(feature = "host_app")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_file_prefix_set_latency_ms(ms: u32) {
     LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
 }
 
-/// Request the first `max_bytes` of `file_path` and wake the reader. See `file_prefix.h`.
+/// Requests the first `max_bytes` (clamped to [`PREFIX_CAPACITY`]) of `file_path` and wakes the
+/// reader. See `file_prefix.h`.
 ///
-/// Silently drops an unusable request (NULL, non-UTF-8, over-long, or the request slot contended):
-/// there is no failure the caller could act on that re-requesting does not already cover, and the
-/// collect it will run next tick reports `UNKNOWN`, whose documented meaning is exactly that.
+/// An unusable request (NULL, non-UTF-8, over-long, or the slot contended) is dropped silently:
+/// the next collect reports `UNKNOWN` and the caller re-requests.
 ///
 /// # Safety
 ///
@@ -400,17 +296,13 @@ pub unsafe extern "C" fn deluge_file_prefix_request(file_path: *const c_char, ma
     let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
         return;
     };
-    // Clamped HERE, once, so nothing downstream has to defend against a read that could not fit in
-    // the slot: `publish_into` may then treat an over-long prefix as a driver bug rather than a
-    // runtime condition it has to truncate.
+    // Clamped once, here, so downstream an over-long prefix is a driver bug, not a runtime case.
     let max_bytes = max_bytes.min(PREFIX_CAPACITY as u32);
     enqueue_request(path, max_bytes);
 }
 
-/// Install the request and wake the reader, replacing any request not yet picked up.
-///
-/// `try_lock` rather than a block: this is called synchronously from C++ in whatever context the
-/// app happens to be in, and must never wait.
+/// Installs the request, replacing any not yet picked up, and wakes the reader. `try_lock`s: it
+/// is called synchronously from C++ in any context and must never wait.
 fn enqueue_request(path: PrefixPath, max_bytes: u32) {
     let Ok(mut request) = REQUEST.try_lock() else {
         return; // Contended; the caller re-requests on its next tick.
@@ -420,28 +312,25 @@ fn enqueue_request(path: PrefixPath, max_bytes: u32) {
     PREFIX_WAKE.signal(());
 }
 
-/// Collect the prefix read for `file_path`, if one is ready. See `file_prefix.h`.
+/// Collects the prefix read for `file_path`, if one is ready. See `file_prefix.h`.
 ///
-/// # Why the probe order is REQUEST -> IN_FLIGHT -> RESULT
+/// # Probe order
 ///
-/// An entry only ever moves forward: [`REQUEST`] -> [`IN_FLIGHT`] -> [`RESULT`]. Three rules make a
-/// forward pass unable to miss one, and all three are load-bearing — they are the audio loader's,
-/// unchanged, and its `deluge_audio_load_collect` doc argues each at length:
+/// An entry only moves forward, `REQUEST` → `IN_FLIGHT` → `RESULT`, and the probe reads in
+/// that order, under the audio loader's three rules (see
+/// [`deluge_audio_load_collect`](super::audio_loader::deluge_audio_load_collect)):
 ///
-/// 1. [`take_next_request`] sets `IN_FLIGHT` while still holding the `REQUEST` lock.
-/// 2. The task publishes to `RESULT` *before* clearing `IN_FLIGHT`, so that handoff overlaps
-///    rather than gaps.
-/// 3. [`is_requested`] and [`is_in_flight`] report `true` when they cannot take their lock — it is
-///    the LOCK, not the table, that covers the REQUEST -> IN_FLIGHT window, in which the entry
-///    genuinely is in neither.
+/// 1. `take_next_request` sets `IN_FLIGHT` while still holding the `REQUEST` lock.
+/// 2. The task publishes to `RESULT` before clearing `IN_FLIGHT`.
+/// 3. `is_requested` and `is_in_flight` report `true` when their lock is contended; only the
+///    held lock covers the REQUEST → IN_FLIGHT handoff, when the entry is in neither.
 ///
-/// Reading in the reverse order can report `UNKNOWN` for a read that has already landed, so the
-/// caller re-requests work that is done.
+/// Reading in reverse order can report `UNKNOWN` for a read that has already landed.
 ///
 /// # Safety
 ///
 /// `file_path` must be a valid NUL-terminated C string; `out_buf` must point to at least `out_cap`
-/// writable bytes and `out_len` to a writable `uint32_t`. Both outputs are written ONLY on
+/// writable bytes and `out_len` to a writable `uint32_t`. Both outputs are written only on
 /// [`DELUGE_CHANNEL_READY`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_prefix_collect(
@@ -457,22 +346,19 @@ pub unsafe extern "C" fn deluge_file_prefix_collect(
     let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
         return DELUGE_CHANNEL_UNKNOWN;
     };
-    // The header's requirement, checked where the caller can still be identified. A buffer shorter
-    // than the slot cannot hold every prefix this channel can publish, and the degradation
-    // (`take_from` consumes the entry and reports an empty prefix) is silent by design — so a dev
-    // build fails HERE, at the cause, rather than presenting as artwork that will not draw.
+    // The header's requirement. A short buffer degrades silently in release (`take_from` reports an
+    // empty prefix), so a debug build fails here, at the cause.
     debug_assert!(
         out_cap as usize >= PREFIX_CAPACITY,
         "`out_cap` must be at least DELUGE_FILE_PREFIX_CAPACITY"
     );
     // SAFETY: `out_buf` is non-null (checked above) and the caller promises `out_cap` writable
-    // bytes there. Nothing here reads the buffer, so its prior contents need not be initialised
-    // beyond what `&mut [u8]` already requires of the caller's own allocation.
+    // bytes there.
     let out = unsafe { core::slice::from_raw_parts_mut(out_buf, out_cap as usize) };
 
     match probe(&path, out) {
         Probe::Ready(len) => {
-            // SAFETY: `out_len` is non-null (checked above) and the caller's contract makes it a
+            // SAFETY: `out_len` is non-null (checked above) and, by the caller's contract, a
             // writable, aligned `uint32_t`. Written only on READY, as the header promises.
             unsafe { *out_len = len as u32 };
             DELUGE_CHANNEL_READY
@@ -485,41 +371,29 @@ pub unsafe extern "C" fn deluge_file_prefix_collect(
 
 /// What one forward pass over the channel found.
 ///
-/// Deliberately produced by a SINGLE pass. Asking "is it ready?" and "is it still coming?" as two
-/// separate passes reintroduces the race the ordering exists to close: the reader can publish and
-/// clear its in-flight mark between them, and the second pass then reports `UNKNOWN` for a prefix
-/// the first pass merely missed -- so the caller re-requests a read that has already landed and
-/// orphans the bytes it left behind.
+/// Produced by a single pass: separate "ready?" and "still coming?" passes would let the reader
+/// publish between them and report `UNKNOWN` for a prefix that has landed.
 enum Probe {
-    /// `out` has been written, with this many bytes. **Only this case writes it**, and the C side is
-    /// told so: `file_prefix.h` lets a caller pass an uninitialised buffer and read it back only on
-    /// READY. `live_pipeline`'s `collect` seeds a sentinel and every PENDING/UNKNOWN test asserts it
-    /// survives, so a future branch that writes a placeholder fails there rather than in a caller
-    /// that trusted the contract.
+    /// `out` has been written with this many bytes. Only this case writes it: `file_prefix.h` lets
+    /// a caller pass an uninitialised buffer and read it only on READY.
     Ready(usize),
     Pending,
     Unknown,
-    /// The read did not happen, and the caller is told so rather than being handed an empty prefix
-    /// it could not tell from an empty file. Terminal — see `file_prefix.h`'s
-    /// `DELUGE_CHANNEL_FAILED`.
+    /// The read failed; terminal (`DELUGE_CHANNEL_FAILED`), and distinct from an empty file.
     Failed,
 }
 
-/// One forward pass: REQUEST, then IN_FLIGHT, then RESULT. See [`deluge_file_prefix_collect`]'s doc
-/// for why the order and the contention mapping are both load-bearing.
+/// One forward pass: REQUEST, then IN_FLIGHT, then RESULT. See [`deluge_file_prefix_collect`].
 fn probe(path: &str, out: &mut [u8]) -> Probe {
     if is_requested(path) || is_in_flight(path) {
         return Probe::Pending;
     }
-    // A contended slot means the reader is mid-publish. `Pending` is the honest answer: never claim
-    // `Unknown` on contention, or the caller re-requests work that is about to land.
+    // A contended slot means the reader is mid-publish: `Unknown` would make the caller re-request
+    // work that is about to land.
     let Ok(mut result) = RESULT.try_lock() else {
         return Probe::Pending;
     };
-    // The card generation is read HERE, at the take, not sampled earlier: it is the collector's own
-    // view of which card is in the slot right now, and deciding from it is what makes a prefix's
-    // fate independent of whether the flush that invalidated it managed to take this lock. See
-    // [`take_from`].
+    // The generation is read at the take: the collector's own view of which card is in the slot.
     let (slot, store) = result_parts(&mut result);
     match take_from(slot, store, path, crate::storage::card::generation(), out) {
         Some(PrefixTake::Bytes(len)) => Probe::Ready(len),
@@ -530,10 +404,8 @@ fn probe(path: &str, out: &mut [u8]) -> Probe {
 
 /// Whether `path` is the request not yet picked up.
 ///
-/// **Contention reports `true`, and that is load-bearing, not defensive.** The reader marks a
-/// request in flight while still holding this lock, so a collect racing that handoff finds the lock
-/// taken — mapping it to `false` here would report `UNKNOWN` for a request mid-handoff, which is
-/// exactly the bug the probe order exists to prevent. Do not "simplify" this branch.
+/// Contention reports `true`, deliberately: the reader marks a request in flight while holding
+/// this lock, so `false` here would report `UNKNOWN` for a request mid-handoff.
 fn is_requested(path: &str) -> bool {
     match REQUEST.try_lock() {
         Ok(request) => request.as_ref().is_some_and(|r| r.path == path),
@@ -541,8 +413,8 @@ fn is_requested(path: &str) -> bool {
     }
 }
 
-/// Whether `path` is the read running right now. Contention reports `true`, for the same reason as
-/// [`is_requested`] — and with the same warning.
+/// Whether `path` is the read running right now. Contention reports `true`, as in
+/// [`is_requested`].
 fn is_in_flight(path: &str) -> bool {
     match IN_FLIGHT.try_lock() {
         Ok(in_flight) => in_flight.as_deref() == Some(path),
@@ -550,9 +422,8 @@ fn is_in_flight(path: &str) -> bool {
     }
 }
 
-/// Copy a C string into a fixed-capacity [`PrefixPath`]. `None` for NULL, non-UTF-8, or a path
-/// longer than the bound — a path that does not fit is refused rather than truncated, because a
-/// truncated path names a *different* file that may well exist.
+/// Copies a C string into a [`PrefixPath`]. Returns `None` for NULL, non-UTF-8, or a path longer
+/// than [`MAX_PATH_CHARS`]; a truncated path would name a different file.
 ///
 /// # Safety
 ///
@@ -566,22 +437,11 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<PrefixPath> {
     PrefixPath::try_from(cstr.to_str().ok()?).ok()
 }
 
-// ── The read driver ─────────────────────────────────────────────────────────
-
-/// Read up to `max_bytes` of `path`'s opening bytes into `out`, returning how many landed.
+/// Reads up to `max_bytes` of `path`'s opening bytes into `out`, returning how many landed.
 ///
-/// `open` -> `size_of` -> one `read_at(0, ..)` -> `close`, with the handle released on the single
-/// path out — the same shape, and the same handle discipline, as `load_io_once`.
-///
-/// # `None` is not the same as `Some(0)`
-///
-/// `None` means the read did not happen: the file would not open, could not be sized, or the read
-/// itself failed. `Some(0)` means the file is genuinely empty. [`file_prefix_task`] carries the
-/// distinction all the way out — `None` publishes a FAILURE and `Some(0)` an empty prefix, and
-/// `deluge_file_prefix_collect` reports them as `DELUGE_CHANNEL_FAILED` and READY-with-zero.
-///
-/// Collapsing them would leave the caller unable to tell an unreadable song from one with no
-/// artwork, while the synchronous backing shows an error for the first.
+/// `open`, `size_of`, one `read_at(0, ..)`, `close`; the handle is closed on every path. `None`
+/// means the read failed (no open, no size, or a read error) and is published as
+/// `DELUGE_CHANNEL_FAILED`; `Some(0)` is an empty file, published as READY with zero bytes.
 pub async fn prefix_io_once<O: LoadOps>(
     ops: &O,
     path: &str,
@@ -590,42 +450,18 @@ pub async fn prefix_io_once<O: LoadOps>(
 ) -> Option<usize> {
     let handle = match ops.open(path).await {
         OpenVerdict::Opened(handle) => handle,
-        // Neither verdict leaves anything for this channel to do, and neither is retried: the
-        // caller publishes a FAILURE for both, which `file_prefix.h` makes TERMINAL, so there is no
-        // next request unless the caller asks for this path again of its own accord.
-        //
-        // That is deliberate for `TableFull` too, even though a full efatfs handle table says
-        // nothing about this file. Making this one failure transient would give one function two
-        // conventions and reintroduce a retry that can livelock if handles never free.
-        //
-        // ## What terminal COSTS here
-        //
-        // A published failure reaches the browser as `SongPreviewOutcome::Error` and shows an
-        // error popup — for a song that is perfectly readable and that the synchronous backing,
-        // reading inline on its caller where the file read is serialised, would very likely have
-        // opened. Bounded and self-healing (the next visit re-asks and the table has drained), but
-        // visible rather than silent, and the trade is taken on that basis.
-        //
-        // ## The bounded mitigation, recorded and NOT taken
-        //
-        // The sibling loader shows the shape: `audio_loader.rs`'s `load_io_once` returns
-        // `DELUGE_ERROR_TOO_MANY_OPEN_STREAMS` under its own identity, so the C++ collector reclaims
-        // unleased handles and asks again rather than reading a full table as "nothing is here".
-        // This channel could do the same with ONE more bit on the boundary — a terminal-vs-transient
-        // failure, where transient means "reclaim and re-request once". The cost is exactly what
-        // this module's doc argues against: a second convention on a boundary whose whole safety
-        // property is that every answer is terminal, and a retry that has to be bounded by something
-        // if handles never free. Not built. If it is ever wanted, it belongs on `file_prefix.h`
-        // beside `DELUGE_CHANNEL_FAILED`, not as a special case here.
+        // Both publish a terminal failure. `TableFull` says nothing about this file, so a
+        // readable song can show an error popup while the handle table is full (the next visit
+        // re-asks). Making it transient, as the audio loader's `TOO_MANY_OPEN_STREAMS` is, would
+        // need a terminal-vs-transient bit in `file_prefix.h` and a bounded retry; not built.
         OpenVerdict::Missing | OpenVerdict::TableFull => return None,
     };
     let read = read_prefix(ops, handle, max_bytes, out).await;
-    // The single close, on the one path out of the read.
     ops.close(handle).await;
     read
 }
 
-/// Fill `out` from the front of the file behind `handle`. Never closes it — see [`prefix_io_once`].
+/// Fills `out` from the front of the file behind `handle`. Never closes it.
 async fn read_prefix<O: LoadOps>(
     ops: &O,
     handle: u32,
@@ -633,43 +469,27 @@ async fn read_prefix<O: LoadOps>(
     out: &mut [u8],
 ) -> Option<usize> {
     let size = ops.size_of(handle).await?;
-    // Bounded by BOTH: `max_bytes` is what the caller asked for, `size` is what exists.
-    // `LoadOps::read_at` is documented never to come up short at end of file, so a request past the
-    // end would be a read FAILURE rather than a partial fill.
+    // Bounded by the file size too: `LoadOps::read_at` fails, rather than filling short, past the
+    // end of the file.
     let want = size.min(max_bytes) as usize;
-    // `deluge_file_prefix_request` clamps `max_bytes` to `PREFIX_CAPACITY` and the task's buffer is
-    // that size, so this cannot bite; clamping rather than slicing blindly keeps a future caller
-    // that passes a smaller `out` from panicking on the interrupt executor, which would take the
-    // whole thing down.
+    // Cannot bite (requests are clamped to the buffer size), but clamping keeps a smaller `out`
+    // from panicking on the executor.
     debug_assert!(want <= out.len());
     let len = want.min(out.len());
-    // A zero-length read is legitimate (an empty file) and trivially succeeds.
+    // A zero-length read (an empty file) trivially succeeds.
     if !ops.read_at(handle, 0, &mut out[..len]).await {
         return None;
     }
     Some(len)
 }
 
-// ── The task ────────────────────────────────────────────────────────────────
-
 /// The prefix reader: wakes on [`PREFIX_WAKE`], serves the outstanding request through the audio
-/// loader's [`ProdOps`](crate::channel::audio_loader::ProdOps), publishes the bytes, then goes back to sleep.
+/// loader's [`ProdOps`](crate::channel::audio_loader::ProdOps), and publishes the result, on the
+/// storage tier.
 ///
-/// [`IN_FLIGHT`] is set before the I/O and cleared only after the prefix is published, so
-/// [`deluge_file_prefix_collect`] never sees a gap in which a running read looks unknown.
-///
-/// # A failed read publishes a FAILURE, and publishing it is not optional
-///
-/// Publishing nothing would report `UNKNOWN`, whose documented meaning is "request it (again)" —
-/// so a file that cannot be read would be re-requested and re-read on every single tick, forever,
-/// for as long as the cursor sits on it. A published failure ends that: it is terminal, exactly as
-/// a published prefix is.
-///
-/// It publishes a FAILURE rather than an empty prefix, which is what this did first. An empty
-/// prefix is terminal too, but it is the same answer a genuinely empty FILE gets, and the caller
-/// this channel was built for shows the user an error for one and blank artwork for the other. It
-/// could not, and the popups the synchronous backing shows would have gone missing the moment the
-/// channel was switched on.
+/// `IN_FLIGHT` is set before the I/O and cleared only after the result is published, so
+/// [`deluge_file_prefix_collect`] never sees a running read as unknown. A failed read is published
+/// as a failure (see [`PrefixLen`]).
 #[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn file_prefix_task() {
@@ -680,8 +500,8 @@ pub async fn file_prefix_task() {
 async fn file_prefix_task_body() {
     PREFIX_WAKE.wait().await;
     let ops = crate::channel::audio_loader::ProdOps::new();
-    // One buffer for the life of the task, and not in the task: an 8 KiB array held across the awaits
-    // below would sit in this task's pool, in on-chip SRAM. See `WORK_BYTES`.
+    // A static buffer: an 8 KiB array held across the awaits would sit in this task's pool, in
+    // on-chip SRAM.
     let Some(work) = claim_work_bytes() else {
         debug_assert!(
             false,
@@ -691,8 +511,8 @@ async fn file_prefix_task_body() {
     };
     loop {
         while let Some((request, generation)) = take_next_request().await {
-            // After the request is marked in flight, so a collect during the hold answers PENDING,
-            // exactly as it would while a slow card was reading the file.
+            // After the in-flight mark, so a collect during the hold answers PENDING, as it would
+            // for a slow card.
             #[cfg(feature = "host_app")]
             {
                 let ms = LATENCY_MS.load(core::sync::atomic::Ordering::Relaxed);
@@ -700,14 +520,10 @@ async fn file_prefix_task_body() {
                     embassy_time::Timer::after_millis(u64::from(ms)).await;
                 }
             }
-            // `None` is a failed read, and it is published AS a failure -- see this task's doc.
             let read = prefix_io_once(&ops, &request.path, request.max_bytes, &mut work[..]).await;
-            // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly in both tables,
-            // which is harmless, whereas the reverse leaves a window in which it is in neither and
-            // `collect` would report `UNKNOWN` for a read that just succeeded.
-            //
-            // `generation` was sampled before the I/O above, so a card pulled during it is what
-            // makes this publish a no-op.
+            // Publish before clearing IN_FLIGHT: the reverse leaves a window in which `collect`
+            // reports `UNKNOWN` for a read that just succeeded. `generation` was sampled before the
+            // I/O, so a card pulled during it makes this result uncollectable.
             publish_result(&request.path, read.map(|len| &work[..len]), generation).await;
             mark_in_flight(None).await;
         }
@@ -715,17 +531,12 @@ async fn file_prefix_task_body() {
     }
 }
 
-/// Take the outstanding request and mark it in flight, atomically with respect to
-/// [`deluge_file_prefix_collect`], and report the card generation the read begins under.
+/// Takes the outstanding request, marks it in flight, and returns it with the card generation the
+/// read begins under.
 ///
-/// The mark happens while the [`REQUEST`] lock is still held, so there is no instant at which the
-/// request has left the slot but not yet appeared as in-flight. A collect racing this either sees
-/// it requested, or blocks on the `try_lock` and reports `PENDING` — never `UNKNOWN`.
-///
-/// The generation is read HERE, before the first `await` that can suspend this task and therefore
-/// before any I/O, because that is what makes it mean "the card this read is reading". Reading it
-/// later — at publish time — reads the value a flush has already installed and defeats the check
-/// entirely.
+/// The mark is made while the [`REQUEST`] lock is held, so a racing collect reports `PENDING`,
+/// never `UNKNOWN`. The generation is read here, before any I/O, so it names the card this read
+/// reads; reading it at publish time would see the post-flush value.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 async fn take_next_request() -> Option<(PrefixRequest, u32)> {
     let mut request = REQUEST.lock().await;
@@ -735,39 +546,25 @@ async fn take_next_request() -> Option<(PrefixRequest, u32)> {
     Some((request, generation))
 }
 
-/// Record (or clear) the path being read right now. Called by [`file_prefix_task`] while it still
-/// holds the [`REQUEST`] lock — see [`take_next_request`].
+/// Records (or clears) the path being read right now.
 ///
-/// Also the seam the host tests drive to exercise [`deluge_file_prefix_collect`]'s IN_FLIGHT
-/// branch, which no test could reach otherwise because no test runs the task.
+/// The task calls this while holding the `REQUEST` lock. Host tests call it directly to reach
+/// [`deluge_file_prefix_collect`]'s IN_FLIGHT branch without running the task.
 pub async fn mark_in_flight(path: Option<PrefixPath>) {
     *IN_FLIGHT.lock().await = path;
 }
 
-/// Publish one finished read into the live [`RESULT`] slot — `Some(bytes)` for a prefix, `None` for
-/// a read that did not happen — stamped with the card generation the read began under, and skip the
-/// publish entirely if that card is already gone.
+/// Publishes one finished read into the live `RESULT` slot (`Some(bytes)` for a prefix, `None`
+/// for a failure), stamped with `generation`, unless that card has already gone.
 ///
-/// # The early-drop check is an optimisation, not the guarantee
-///
-/// There is no happens-before edge from `deluge_card_flush`'s `fetch_add` to this `load`
-/// when this task wins the `RESULT` lock (the two synchronise only through the lock, in the other
-/// direction), so this check can legitimately read the pre-flush generation, pass, and publish. The
-/// entry it publishes still carries the pre-flush stamp, and [`take_from`] drops it. Do not rewrite
-/// this as the safety property.
-///
-/// The check happens with the lock already held, not before acquiring it, so that it is at least
-/// ordered against a flush that DID take the lock.
+/// The check is only an early drop: with no happens-before edge from `deluge_card_flush`'s bump,
+/// it can read the pre-flush value and publish, and [`take_from`] then drops the entry. It runs
+/// under the lock so it is at least ordered against a flush that took that lock.
 pub async fn publish_result(key: &str, bytes: Option<&[u8]>, generation: u32) {
     let mut result = RESULT.lock().await;
     if generation != crate::storage::card::generation() {
-        // The card this was read from is gone. Dropping costs the I/O that produced it and nothing
-        // else, and the collector reads the resulting `UNKNOWN` as "request it again" -- which it
-        // then does, against the card that is actually in the slot.
-        //
-        // A FAILED read is dropped here too, and must be: the failure belongs to the card that has
-        // gone, and reporting it as terminal against the card now in the slot would put an error on
-        // screen for a file nobody has tried to read yet.
+        // Read from a card that has gone; the collector gets `UNKNOWN` and re-requests. A failure
+        // is dropped too: it belongs to the old card, not to the file now at this path.
         return;
     }
     let (slot, store) = result_parts(&mut result);

@@ -1,37 +1,36 @@
-//! Builds a real FAT32-formatted SD card image (a song plus its samples) for the
-//! streaming-underrun scenario (`runtime::host::scenario`) to load, by reusing the golden-master
-//! harness's own corpus/packing tooling rather than hand-rolling FAT image assembly.
+//! FAT32 SD card images of golden-corpus fixtures, for the host streaming scenario.
 //!
-//! Two steps, both delegated to already-proven tooling:
-//!   1. the project tree (`SONGS/…`, `SAMPLES/…`) — `scripts/golden_mixdown.sh
-//!      reconstruct`, the exact script the golden-master harness uses to rebuild its
-//!      fixture from the developer's local `~/Deluge Backup` corpus (see this repo's
-//!      song-corpus-location note).
-//!   2. the FAT image itself — mtools (`mformat`+`mcopy`), with 32 KB clusters and a
-//!      >= 2.5 GB floor (FAT32 needs >= 65525 clusters at that cluster size), matching real
-//!      Deluge SD card geometry.
-//!
-//! Host-only (`host_app`); never compiled for device.
+//! The project tree (`SONGS/…`, `SAMPLES/…`) comes from `scripts/golden_mixdown.sh reconstruct`,
+//! which rebuilds a fixture from the local `~/Deluge Backup` corpus. The image is packed with
+//! mtools in a real card's geometry: 32 KB clusters and at least 2.5 GB, since FAT32 needs 65,525
+//! clusters.
 #![cfg(all(not(target_os = "none"), feature = "host_app"))]
 
 use crate::storage::sd_image_path::Plan;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Ensures `fixture`'s project tree exists locally (reconstructing it from
-/// `DELUGE_BACKUP`/`DELUGE_GOLDEN_DIR` via `scripts/golden_mixdown.sh reconstruct` if not
-/// already cached — same env-var conventions as the golden harness), then packs it into a
-/// fresh temporary FAT32 image. Returns the image path (a process-unique temp file; the
-/// caller is responsible for pointing `DELUGE_SD_IMAGE` at it before any SD access).
+/// Returns a FAT32 image of `fixture`'s project tree, reconstructing the tree and packing the image
+/// as needed.
 ///
-/// Panics with a clear message on failure (missing local backup corpus, missing `mtools`,
-/// etc.) — this is one-time harness setup, not something to silently degrade under.
+/// The image is cached in the temp dir by content (see [`crate::storage::sd_image_path`]). The
+/// caller points `DELUGE_SD_IMAGE` at it before any SD access.
+///
+/// # Panics
+///
+/// Panics if the corpus or mtools is missing, or a step fails.
 pub fn pack_golden_fixture(repo_root: &Path, fixture: &str) -> PathBuf {
     pack_image(&golden_fixture_tree(repo_root, fixture))
 }
 
-/// The project tree for corpus fixture `fixture` (`<DELUGE_GOLDEN_DIR>/<fixture>_proj`), reconstructed from the song
-/// corpus by `scripts/golden_mixdown.sh reconstruct` when it is not there yet.
+/// Returns the project tree for corpus fixture `fixture` (`<DELUGE_GOLDEN_DIR>/<fixture>_proj`),
+/// reconstructing it with `scripts/golden_mixdown.sh reconstruct` if absent.
+///
+/// `DELUGE_GOLDEN_DIR` defaults to `~/.cache/deluge-golden`.
+///
+/// # Panics
+///
+/// Panics if the reconstruction fails.
 pub fn golden_fixture_tree(repo_root: &Path, fixture: &str) -> PathBuf {
     let golden_dir = std::env::var("DELUGE_GOLDEN_DIR")
         .map(PathBuf::from)
@@ -68,12 +67,14 @@ pub fn golden_fixture_tree(repo_root: &Path, fixture: &str) -> PathBuf {
     proj
 }
 
-/// Packs `project_dir` into a fresh sparse FAT32 image via mtools. Mirrors
-/// `host_render_main.cpp`'s `pack_image()` exactly: `truncate` a sparse file (only written
-/// samples occupy real disk blocks), `mformat -c 64` (32 KB clusters — the geometry a real
-/// Deluge SD card uses; mtools' size-based default would pick tiny 2 KB clusters, which
-/// makes the firmware stream in far smaller clusters than on-device), then `mcopy -s` the
-/// whole project tree onto the image root.
+/// Returns a sparse FAT32 image of `project_dir`, reusing a cached one for the same contents.
+///
+/// Uses `mformat -c 64` for 32 KB clusters: mtools' size-based default picks 2 KB clusters, which
+/// would make the firmware stream in far smaller clusters than on a real card.
+///
+/// # Panics
+///
+/// Panics if mtools fails or the image cannot be moved into place.
 pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
     let fingerprint = crate::storage::sd_image_path::fingerprint_dir(project_dir);
     let (staging, img) =
@@ -94,14 +95,13 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
 
     let dir_bytes = dir_size_bytes(project_dir);
     let mut bytes = dir_bytes.saturating_mul(2) + (64u64 << 20);
-    let min_bytes = 2560u64 << 20; // 2.5 GB -> comfortably >= 65525 32 KB clusters (valid FAT32)
+    let min_bytes = 2560u64 << 20; // 2.5 GB: comfortably over FAT32's 65,525 32 KB clusters
     if bytes < min_bytes {
         bytes = min_bytes;
     }
     bytes = (bytes + 511) & !511u64;
 
-    // Shelled out (not separate `Command`s with Rust-side globbing) so `mcopy`'s `*` gets
-    // the same shell glob expansion `host_render_main.cpp`'s `system()` calls rely on.
+    // Run through `sh` so the shell expands `mcopy`'s `*`.
     let script = format!(
         "set -e; truncate -s {bytes} '{staging}'; mformat -i '{staging}' -F -c 64 ::; \
          mcopy -s -Q -i '{staging}' '{proj}'/* ::/",
@@ -115,8 +115,7 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
         .status()
         .expect("run the mtools pack script (sh)");
     if !status.success() {
-        // Don't leave a half-packed staging file behind — that would be the very leak this
-        // module's naming scheme exists to prevent, just with a `.part` suffix.
+        // Don't leak the half-packed staging file.
         let _ = std::fs::remove_file(&staging);
         panic!(
             "packing '{}' into a FAT image failed — is mtools (mformat/mcopy) installed? script: {script}",
@@ -124,9 +123,8 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
         );
     }
 
-    // Atomic publish: until this rename, no other process can observe a partial image at the
-    // shared path. A concurrent pack of the same corpus simply renames its own equivalent
-    // staging file over ours, which is harmless.
+    // Atomic publish: no process sees a partial image at the shared path. A concurrent pack of
+    // the same corpus renames its equivalent file over ours, which is harmless.
     std::fs::rename(&staging, &img).unwrap_or_else(|e| {
         let _ = std::fs::remove_file(&staging);
         panic!(
@@ -144,14 +142,19 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
     img
 }
 
-/// Creates a fresh EMPTY FAT32 image (no project tree) for the recorder-roundtrip scenario,
-/// which only ever WRITES new files (it records, finalizes, then reads back what it wrote).
-/// Same geometry as [`pack_image`] — 2.5 GB sparse, 32 KB clusters via `mformat -c 64`. Returns
-/// the image path; the caller points `DELUGE_SD_IMAGE` at it before any SD access. Panics with a
-/// clear message on failure (one-time harness setup, not something to silently degrade under).
+/// Formats an empty 2.5 GB sparse FAT32 image with 32 KB clusters and returns its path.
+///
+/// Reformatted on every call at the one shared path from
+/// [`recorder_image_path`](crate::storage::sd_image_path::recorder_image_path), so no earlier run's
+/// files survive. The caller points `DELUGE_SD_IMAGE` at it before any SD
+/// access.
+///
+/// # Panics
+///
+/// Panics if mtools fails.
 pub fn format_empty_image() -> PathBuf {
     let img = crate::storage::sd_image_path::recorder_image_path(&std::env::temp_dir());
-    let bytes = 2560u64 << 20; // 2.5 GB -> comfortably >= 65525 32 KB clusters (valid FAT32)
+    let bytes = 2560u64 << 20; // 2.5 GB: comfortably over FAT32's 65,525 32 KB clusters
     let script = format!(
         "set -e; truncate -s {bytes} '{img}'; mformat -i '{img}' -F -c 64 ::",
         bytes = bytes,

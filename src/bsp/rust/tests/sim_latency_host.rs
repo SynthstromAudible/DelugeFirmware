@@ -1,11 +1,11 @@
-//! `sim_latency` round trip: a modeled host SD write, then a modeled read of the same sector, both through the
-//! real `deluge_block_write`/`deluge_block_read` C ABI from a thread that is not the executor's. Each transfer must
-//! take at least the modeled command overhead (the model is applied) and the read must return exactly the bytes
-//! written (the model changes timing only). `sim_latency::pump` runs on its own std executor thread, and the spin
-//! uses the threaded-host progress hook, the shape the preemptive host harness gives them.
+//! The `sim_latency` model through the `deluge_block_write`/`deluge_block_read` C ABI.
 //!
-//! Requires the `sim_latency` feature:
-//!   cargo test --features sim_latency --test sim_latency_host
+//! A write and a read-back of one sector, from a thread that is not the executor's, must each take
+//! at least the modeled command overhead and round-trip the bytes unchanged. `sim_latency::pump`
+//! runs on its own executor thread and the spin uses the threaded-host hook, as in the preemptive
+//! host harness.
+//!
+//! Run with `cargo test --features sim_latency --test sim_latency_host`.
 #![cfg(all(not(target_os = "none"), feature = "sim_latency"))]
 #![feature(impl_trait_in_assoc_type)]
 
@@ -19,12 +19,12 @@ use std::time::{Duration, Instant};
 
 use embassy_executor::{Executor, Spawner};
 
-/// Sector this test writes and reads, in its own image (see below).
+/// The sector written and read back, in this test's own image.
 const TEST_SECTOR: u32 = 4000;
 const PATTERN_LEN: usize = 512;
 
-/// Throughput high enough that the `bytes / throughput` term is negligible, so each transfer's modeled delay is
-/// close to the fixed command overhead: large enough to tell apart from an unmodeled file access.
+/// Modeled command overhead: large enough to tell a modeled transfer from a plain file access.
+/// The throughput below makes the per-byte term negligible.
 const OVERHEAD_US: u32 = 150_000;
 const THROUGHPUT_BYTES_PER_SEC: u32 = 1_000_000_000;
 
@@ -56,13 +56,13 @@ fn modeled_write_then_read_round_trips_and_takes_the_modeled_time() {
         .spawn(|| {
             let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
             executor.run(|spawner: Spawner| {
-                // Without it nothing consumes a modeled transfer's request and the transfer never completes.
+                // Without the pump no modeled transfer ever completes.
                 spawner.spawn(sd::sim_latency::pump().unwrap());
             });
         })
         .expect("spawning the host executor thread");
 
-    // The threaded hook never reports a wedge, so a model that never completes would hang: bound it here instead.
+    // The threaded hook never reports a wedge, so bound the round trip with a timeout.
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         round_trip();

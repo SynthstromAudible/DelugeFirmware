@@ -1,20 +1,19 @@
-//! The boot latch: false until the app's run loop starts, then true for good. Set once, right after
-//! `deluge_app_init` returns.
+//! The boot latch (`libdeluge/boot.h`): false until `deluge_app_init` returns, then true for good.
 use core::sync::atomic::{AtomicBool, Ordering};
 
 static FINISHED: AtomicBool = AtomicBool::new(false);
 
-/// Mark boot finished. Idempotent.
+/// Marks boot finished. Idempotent.
 pub fn mark_finished() {
     FINISHED.store(true, Ordering::Release);
 }
 
-/// Whether boot has finished.
+/// Returns whether boot has finished.
 pub fn finished() -> bool {
     FINISHED.load(Ordering::Acquire)
 }
 
-/// C-ABI twin of [`finished`] (`include/libdeluge/boot.h`).
+/// Returns whether boot has finished; the C-ABI form of [`finished`].
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_boot_finished() -> bool {
     finished()

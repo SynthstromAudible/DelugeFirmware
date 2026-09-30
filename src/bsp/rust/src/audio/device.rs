@@ -1,21 +1,15 @@
-//! audio_io.h — duplex block audio over the free-running SSI0 DMA rings.
+//! `libdeluge/audio_io.h` — duplex block audio over the free-running SSI0 DMA rings.
 //!
-//! The SSI TX/RX DMA rings free-run
-//! from board audio bring-up (`deluge_bsp::audio::init` → `ssi::init`, which
-//! starts both DMA channels and enables TX+RX). This module owns only the
-//! read/write cursors and the trickle pacing: the app renders i32 stereo via
-//! `deluge_app_render(in, out, frames)`, and we write those samples *directly*
-//! into the uncached TX ring (no f32 round-trip — the app is i32-native).
+//! Board audio bring-up starts both DMA rings; this module owns only the read/write cursors and
+//! the pacing. The app renders i32 stereo via `deluge_app_render`, written directly into the
+//! uncached TX ring.
 //!
-//! All state is touched only from the app's tasks (deluge_audio_drive and the
-//! timing queries), and no ISR touches it, so the `static mut` access is
-//! single-threaded. The exceptions are [`RENDER_BLOCKS`], an atomic the render
-//! bumps and thread mode reads in [`deluge_audio_await_block`], and
-//! [`BLOCK_START_PLAY`], an atomic the render (the preemptive audio tier)
-//! writes and the task tier reads to place capture stamps.
+//! No ISR touches this state, and the `static mut` cursors assume one accessor at a time. The
+//! cross-tier exceptions are atomics: [`RENDER_BLOCKS`], bumped by the render and read by
+//! [`deluge_audio_await_block`] in thread mode, and [`BLOCK_START_PLAY`], written by the render
+//! (the preemptive audio tier) and read by the task tier to place capture stamps.
 #![allow(non_upper_case_globals)]
-// This module is a single-threaded port (state touched only from the app task,
-// no ISR); the unsafe ops inside the unsafe fns are documented per-site.
+// The unsafe ops inside the unsafe fns are justified per site.
 #![allow(unsafe_op_in_unsafe_fn)]
 
 use core::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
@@ -25,7 +19,7 @@ use rza1l_hal::ssi;
 use crate::audio::pacing::pace_window;
 use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK, DelugeStereoSample};
 
-/// TX ring length in stereo frames (must be a power of two for the masks).
+/// TX ring length in stereo frames (a power of two, for the masks).
 const TX_FRAMES: usize = ssi::TX_FRAMES; // 1024
 /// RX ring length in stereo frames.
 const RX_FRAMES: usize = ssi::RX_FRAMES; // 2048
@@ -35,32 +29,27 @@ const RX_MASK: usize = RX_FRAMES - 1;
 /// The codec rate, in frames per second.
 pub(crate) const SAMPLE_RATE_HZ: u32 = 44_100;
 
-/// Initial RX read latency: keep the read cursor ~one TX-ring + a margin behind
-/// the RX DMA write head, so a render never reads ahead of what the RX DMA has
-/// actually captured.
+/// Initial RX read latency: the read cursor trails the RX DMA write head by about one TX ring
+/// plus a margin, so a render never reads uncaptured frames.
 const RX_LATENCY_FRAMES: usize = RX_FRAMES - TX_FRAMES - 16;
 
-/// Maximum frames per `deluge_app_render` call. This MUST NOT exceed the app's
-/// internal render-buffer size (board_config.h SSI_TX_BUFFER_NUM_SAMPLES = 128):
-/// the app renders into fixed `renderingMemory`/`reverbMemory` arrays of this
-/// size, so a larger block makes it write out of bounds into adjacent globals
-/// (it was clobbering AudioEngine::reverb's vtable → wild call). Our TX DMA ring
-/// (TX_FRAMES) is larger and independent; we just trickle ≤128-frame renders
-/// into it.
+/// Maximum frames per `deluge_app_render` call.
+///
+/// Must not exceed the app's render-buffer size (`SSI_TX_BUFFER_NUM_SAMPLES` = 128 in
+/// `board_config.h`): the app renders into fixed arrays of that size, and a larger block writes
+/// out of bounds into adjacent globals. The TX ring is larger and independent.
 const APP_BLOCK_FRAMES: usize = 128;
 
 const ZERO: DelugeStereoSample = DelugeStereoSample { l: 0, r: 0 };
 
-// Render scratch, sized to the app's render-buffer limit. Placed in SDRAM
-// (.sdram_bss, zeroed by boot) to spare the tight internal SRAM; the app renders
-// into RENDER_BLOCK and reads INPUT_BLOCK, then we trickle RENDER_BLOCK into the
-// (SRAM) TX DMA ring.
+// Render scratch, sized to the app's render-buffer limit. In SDRAM (`.sdram_bss`, zeroed at boot)
+// to spare internal SRAM; RENDER_BLOCK is flushed into the SRAM TX ring.
 #[unsafe(link_section = ".sdram_bss")]
 static mut RENDER_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
 #[unsafe(link_section = ".sdram_bss")]
 static mut INPUT_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
 
-// Cursors, all in stereo-frame units.
+// Cursors, in stereo frames.
 static mut TX_WRITE: usize = 0; // write cursor (frame index into TX ring)
 static mut PLAY_CACHED: usize = 0; // last-polled DMA play head (frame index)
 static mut RX_READ: usize = 0; // read cursor (frame index into RX ring)
@@ -68,20 +57,21 @@ static mut PENDING_POS: usize = 0; // [PENDING_POS, PENDING_END) = rendered, not
 static mut PENDING_END: usize = 0;
 // Anchors of the current render block, for sample-accurate gate/MIDI timing.
 static mut BLOCK_START_WRITE: usize = 0;
-/// The play frame the most recently begun render block started at. Written by the audio tier's render
-/// (`deluge_audio_drive`), read by the task tier (`deluge_audio_frames_until_block_offset`,
-/// `deluge_audio_stamp_to_render_offset`) — cross-tier, so atomic rather than `static mut`.
+/// The play frame at which the most recently begun render block started.
+///
+/// Written by the render ([`deluge_audio_drive`], audio tier) and read by the task tier, so it is
+/// atomic.
 static BLOCK_START_PLAY: AtomicUsize = AtomicUsize::new(0);
 
-/// [audio] -> [task] How many render blocks have begun: bumped just before each `deluge_app_render` call, read by
-/// [`deluge_audio_await_block`]. Wraps; only a change is ever looked for.
+/// How many render blocks have begun: bumped by the render (audio tier) just before each
+/// `deluge_app_render` call, read by [`deluge_audio_await_block`]. Wraps; only a change matters.
 static RENDER_BLOCKS: AtomicU32 = AtomicU32::new(0);
 
-/// How long [`deluge_audio_await_block`] waits for a block before it returns anyway, so a render that is not running
-/// cannot hang its caller: the caller's own deadline decides. Several blocks' worth (one is ~2.9 ms at 128 frames).
+/// How long [`deluge_audio_await_block`] waits for a block before returning anyway, so a stopped
+/// render cannot hang its caller. Several blocks' worth (one is ~2.9 ms at 128 frames).
 const AWAIT_BLOCK_BOUND_MS: u64 = 20;
 
-/// DMA TX play head as a frame index into the ring.
+/// Returns the DMA TX play head as a frame index into the ring.
 #[inline]
 pub(crate) fn tx_play_frame() -> usize {
     // SAFETY: both pointers are into the same TX ring (uncached alias).
@@ -89,7 +79,7 @@ pub(crate) fn tx_play_frame() -> usize {
     (slots / 2) & TX_MASK
 }
 
-/// DMA RX write head as a frame index into the ring.
+/// Returns the DMA RX write head as a frame index into the ring.
 #[inline]
 fn rx_write_frame() -> usize {
     // SAFETY: both pointers are into the same RX ring (uncached alias).
@@ -97,15 +87,13 @@ fn rx_write_frame() -> usize {
     (slots / 2) & RX_MASK
 }
 
-/// Flush pending rendered frames into the TX ring, stopping (returns false) when
-/// the write cursor would lap the play head; returns true once all are flushed.
-/// Re-polls the play head once when it appears full (as `doSomeOutputting()` did).
+/// Flushes pending rendered frames into the TX ring; returns true once all are flushed, false if
+/// the write cursor would lap the play head. Re-polls the play head once when the ring looks full.
 unsafe fn flush_pending() -> bool {
     let base = ssi::tx_buf_start();
     let rb = core::ptr::addr_of!(RENDER_BLOCK) as *const DelugeStereoSample;
     while PENDING_POS != PENDING_END {
-        // Lead == 0 means the write cursor is a full ring ahead of the play head
-        // (ring full) — re-poll once, and if still full, stop for now.
+        // A zero lead means the write cursor is a full ring ahead of the play head.
         if TX_WRITE.wrapping_sub(PLAY_CACHED) & TX_MASK == 0 {
             PLAY_CACHED = tx_play_frame();
             if TX_WRITE.wrapping_sub(PLAY_CACHED) & TX_MASK == 0 {
@@ -123,8 +111,8 @@ unsafe fn flush_pending() -> bool {
     true
 }
 
-/// Copy the next `frames` received frames out of the RX ring into INPUT_BLOCK and
-/// advance the read cursor (wrapping).
+/// Copies the next `frames` received frames from the RX ring into `INPUT_BLOCK` and advances the
+/// read cursor.
 unsafe fn prepare_input_block(frames: usize) {
     let base = ssi::rx_buf_start();
     let ib = core::ptr::addr_of_mut!(INPUT_BLOCK) as *mut DelugeStereoSample;
@@ -142,8 +130,7 @@ unsafe fn prepare_input_block(frames: usize) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_start() -> DelugeStatus {
-    // The SSI/DMA stream free-runs from board audio init; just (re-)anchor the
-    // cursors. Idempotent.
+    // The DMA stream free-runs from board audio init; only (re-)anchor the cursors. Idempotent.
     unsafe {
         TX_WRITE = 0;
         RX_READ = RX_LATENCY_FRAMES & RX_MASK;
@@ -162,12 +149,12 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
             PLAY_CACHED = tx_play_frame();
             // Frames the play head is ahead of the write cursor = free space.
             let raw = PLAY_CACHED.wrapping_sub(TX_WRITE) & TX_MASK;
-            // Render only as far as the play head advanced; on a second pass
-            // within one drive, only if it's been long enough to be worth it.
+            // Render only as far as the play head advanced; a second pass in one drive needs more
+            // than 10 free frames per render already done.
             if raw as u32 <= 10 * renders {
                 break;
             }
-            // Cap at the app's render-buffer size (NOT the TX ring) — see APP_BLOCK_FRAMES.
+            // Cap at the app's render-buffer size, not the TX ring (see APP_BLOCK_FRAMES).
             let frames = pace_window(raw, APP_BLOCK_FRAMES);
             BLOCK_START_WRITE = TX_WRITE;
             BLOCK_START_PLAY.store(PLAY_CACHED, Ordering::Relaxed);
@@ -186,14 +173,14 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
     renders
 }
 
-/// The render runs on the preemptive audio executor, which preempts thread mode: a block cannot be under way while
-/// this runs, and calling the render from here would run a second one alongside the executor's. So wait -- the CPU
-/// idles until an interrupt -- for the render to begin its next block. Bounded ([`AWAIT_BLOCK_BOUND_MS`]): a render
-/// that never runs (masked interrupts, a stopped audio task) returns control to the caller's own deadline.
+/// Waits (in WFI) until the render begins its next block, or [`AWAIT_BLOCK_BOUND_MS`] passes.
 ///
-/// The bound itself relies on some interrupt waking the WFI: nothing here arms an alarm for the deadline. In practice
-/// the priority-0 audio task's own `Timer` always has one queued (and the audio executor's SGI follows it), so the core
-/// wakes at least once a block; with every other alarm and interrupt quiet, the loop would sleep past its deadline.
+/// The render runs on the preemptive audio executor, so rendering from thread mode would run a
+/// second render alongside it. The bound lets a stopped render return control to the caller's own
+/// deadline.
+///
+/// Nothing arms an alarm for the deadline: the bound relies on some interrupt waking the WFI. The
+/// priority-0 audio task's `Timer` keeps one queued, so the core wakes at least once a block.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_await_block() {
     let start = RENDER_BLOCKS.load(Ordering::Acquire);
@@ -201,17 +188,15 @@ pub extern "C" fn deluge_audio_await_block() {
         embassy_time::Instant::now() + embassy_time::Duration::from_millis(AWAIT_BLOCK_BOUND_MS);
     while RENDER_BLOCKS.load(Ordering::Acquire) == start && embassy_time::Instant::now() < deadline
     {
-        // SAFETY: WFI only idles the core until the next interrupt (the audio executor's SGI, the time driver's
-        // alarm); it touches no memory.
+        // SAFETY: WFI only idles the core until the next interrupt; it touches no memory.
         unsafe { core::arch::asm!("wfi", options(nostack, preserves_flags)) };
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_input_resync() {
-    // The RX ring is deeper than the TX ring and timing comes from the TX play
-    // head; a glitch/startup can leave RX latency a full TX-ring too high. Pull
-    // the read cursor forward until latency is within [TX_FRAMES, 2*TX_FRAMES).
+    // The RX ring is deeper than the TX ring, and a glitch or startup can leave RX latency a full
+    // TX ring too high. Pull the read cursor forward until latency is in [TX_FRAMES, 2*TX_FRAMES).
     unsafe {
         let rx_write = rx_write_frame();
         loop {
@@ -242,8 +227,8 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
     }
 }
 
-/// How far past the start of the most recently begun render block the event stamped `stamp` fell. See
-/// `capture_stamp`. [task]
+/// Returns how far past the start of the most recently begun render block the event stamped
+/// `stamp` fell, in frames (see [`capture_stamp`](super::capture_stamp)). Task tier.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
     let block_start = BLOCK_START_PLAY.load(Ordering::Relaxed) as u32;

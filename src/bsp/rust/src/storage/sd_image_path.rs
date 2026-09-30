@@ -1,50 +1,27 @@
 //! Content-addressed naming for the harness's temporary FAT32 SD images.
 //!
-//! Split out of [`crate::storage::sd_image`] (which shells out to mtools and is therefore
-//! `host_app`-gated) so this policy — the part that decides *where* an image lives and
-//! *whether* one must be built at all — stays plain-host testable with no CMake C++ build.
-//! See `tests/sd_image_path_host.rs`.
+//! Kept apart from `storage::sd_image`, which needs `host_app`, so the naming policy is
+//! testable in a plain host build.
 //!
-//! # Why content-addressed
-//!
-//! A per-PID name (`deluge-streaming-scenario-<pid>.img`) mints a new file on every invocation,
-//! and nothing unlinks them, so `/tmp` grows without bound.
-//!
-//! The obvious fix — an RAII guard that unlinks on drop — is *wrong here*, because
-//! `preemptive_race_tsan/run.sh` documents that packing an image and consuming it as the SD
-//! backing store within the SAME process is unreliable on some hosts (the scenario reports
-//! `load_dispatched=false`); the reliable workflow is to pack in one process and reuse the
-//! image from a later one. Unlinking at exit would destroy exactly the artifact the next run
-//! is supposed to reuse.
-//!
-//! So the contradiction a per-PID scheme sits on — a per-PID name (says "disposable, mine") with
-//! a cross-process lifetime (says "cacheable, shared") — is resolved in favour of *shared*:
-//! the filename keys on a fingerprint of the packed corpus instead of the PID. One image per
-//! distinct corpus, reused by every later run, repacked automatically when the corpus changes.
-//! Bounded instead of unbounded, and re-runs get faster because they skip the pack entirely.
-//! This mirrors what `sweep.sh`'s `pack_selftest_image` already does for its own image.
+//! Images are keyed on a fingerprint of the packed corpus: one image per distinct corpus, reused by
+//! later runs and repacked when the corpus changes, so the temp dir stays bounded. They are not
+//! deleted at exit, because packing and consuming an image in the same process is unreliable on
+//! some hosts (see `harness/preemptive_race_tsan/run.sh`); the reliable workflow reuses an image
+//! packed by an earlier process.
 
 #![cfg(not(target_os = "none"))]
-// Shared by `#[path]` inclusion into the harness crate (golden_vt_render) as
-// well as the parent bin, and exercised by tests/sd_image_path_host.rs. Any single one of
-// those consumers uses only part of the surface — `recorder_image_path` for instance is
-// reached only from `format_empty_image`, which the bin itself never calls — so per-crate
-// dead-code analysis flags items that are live elsewhere. Same rationale as efatfs_core.rs.
 #![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 
-/// What [`scenario_plan`] decided for a given corpus fingerprint.
+/// Whether an image for a corpus fingerprint can be reused or must be packed.
 pub enum Plan {
     /// A matching image is already on disk; use it as-is and skip mtools entirely.
     Reuse(PathBuf),
-    /// No matching image yet. Pack into `staging`, then rename onto `final_path`.
+    /// No matching image yet: pack into `staging`, then rename onto `final_path`.
     ///
-    /// The two-step exists so a half-written image is never visible at the shared,
-    /// content-addressed path: `staging` is process-unique, and `rename(2)` within one
-    /// directory is atomic, so concurrent packs of the same corpus can race harmlessly —
-    /// each writes its own staging file and the last rename wins, with every observer
-    /// seeing either no image or a complete one.
+    /// `staging` is process-unique and the rename is atomic, so a partial image is never visible
+    /// at the shared path and concurrent packs of the same corpus race harmlessly.
     Pack {
         staging: PathBuf,
         final_path: PathBuf,
@@ -52,7 +29,7 @@ pub enum Plan {
 }
 
 impl Plan {
-    /// The path the caller should ultimately point `DELUGE_SD_IMAGE` at.
+    /// Returns the path the caller points `DELUGE_SD_IMAGE` at.
     pub fn final_path(&self) -> &Path {
         match self {
             Plan::Reuse(p) => p,
@@ -77,41 +54,28 @@ pub fn scenario_plan(tmp_root: &Path, fingerprint: &str) -> Plan {
     }
 }
 
-/// The single shared path for the recorder-roundtrip scenario's empty image.
+/// Returns the single shared path of the empty recorder image.
 ///
-/// Unlike [`scenario_plan`] this one is deliberately NOT reused across runs: that scenario
-/// records into the image and then reads back what it wrote, so a stale image carrying a
-/// previous run's recordings could mask a failure. The caller re-formats it every time —
-/// `mformat` over an already-sparse file is cheap, and resetting the FAT is exactly what
-/// "empty image" means. The win here is only that the file is *bounded*: one path, reused in
-/// place, instead of one abandoned 2.5 GB sparse image per PID.
-///
-/// Runs that genuinely need isolation (parallel recorder invocations) should set
-/// `DELUGE_SD_IMAGE` explicitly — every caller honours it and skips image creation entirely,
-/// the same escape hatch `sweep.sh` uses.
+/// One path, reformatted in place on every run so a previous run's recordings cannot mask a
+/// failure. Runs that need isolation from each other set `DELUGE_SD_IMAGE` instead.
 pub fn recorder_image_path(tmp_root: &Path) -> PathBuf {
     tmp_root.join("deluge-recorder-roundtrip.img")
 }
 
-/// A cheap fingerprint of `dir`'s contents: every file's path-relative name, byte length and
-/// mtime, hashed in a deterministic order.
+/// Returns a hex fingerprint of `dir`'s contents: every file's relative path, length and mtime,
+/// hashed in sorted order.
 ///
-/// Deliberately metadata-only. The corpus this addresses is multi-gigabyte of audio, so
-/// hashing file *contents* would cost more than the mtools pack it is meant to avoid — this is
-/// the same size+mtime staleness test `make` and `rsync` default to. The failure mode it
-/// admits (an edit that preserves both length and mtime) requires deliberate effort, and the
-/// escape hatch is to delete the cached image or point `DELUGE_SD_IMAGE` elsewhere.
-///
-/// Returns a stable hex string; unreadable entries are folded in as a distinct marker rather
-/// than skipped, so a permissions change still invalidates the cache.
+/// Metadata-only, like `make`'s staleness test: hashing gigabytes of audio would cost more than
+/// the pack it avoids. An edit that preserves length and mtime goes unnoticed; delete the cached
+/// image to force a repack. Unreadable entries are hashed as a marker, so a permissions change
+/// still invalidates the cache.
 pub fn fingerprint_dir(dir: &Path) -> String {
     let mut entries = Vec::new();
     collect(dir, dir, &mut entries);
     entries.sort();
 
-    // FNV-1a, written out rather than using `DefaultHasher` so the value is stable across
-    // toolchain versions — a cache key that silently changes under a compiler upgrade would
-    // orphan every previously packed image in /tmp, which is the bug this module exists to fix.
+    // FNV-1a rather than `DefaultHasher`, whose output may change between toolchains and would
+    // orphan every cached image.
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for entry in &entries {
         for byte in entry.as_bytes() {
@@ -122,9 +86,7 @@ pub fn fingerprint_dir(dir: &Path) -> String {
     format!("{hash:016x}")
 }
 
-/// Appends one `"<relative path>:<len>:<mtime>"` record per file beneath `dir`, recursing into
-/// subdirectories (the corpus is `SONGS/…` + `SAMPLES/…`, so a flat listing would miss almost
-/// everything).
+/// Appends one `"<relative path>:<len>:<mtime>"` record per file beneath `dir`, recursively.
 fn collect(root: &Path, dir: &Path, out: &mut Vec<String>) {
     let Ok(read_dir) = std::fs::read_dir(dir) else {
         out.push(format!(

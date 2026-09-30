@@ -5,19 +5,9 @@ edition = "2021"
 
 [dependencies]
 deluge_resource = { path = "../deluge_resource" }
-# `ManagerPin::payload` reads a leased chunk's payload base directly instead of hopping through the
-# `deluge_streaming_chunk_payload` C-ABI (U4d Task 6). Default-features (no `native_fill`): this
-# crate only uses `deluge_sample_fill::chunk` (the struct + accessors this caller needs), and
-# omitting `native_fill` skips the one thing that's actually manager-reaching -- `mod native`, the
-# `native_begin`/`native_finish` fill core `deluge_sample_reader` depends on `native_fill` for. It
-# is NOT a chunk-only build, though: `lib.rs` declares `pub mod chunk` and `pub mod fill_logic`
-# unconditionally, so this dependency also compiles `fill_logic.rs` and pulls in
-# `deluge_sample_convert`/`embassy-sync` transitively regardless of features. That has no binary-size
-# effect on any real build: every real target (device/host_app/sim) already links
-# `deluge_sample_reader`, which depends on this same crate WITH `native_fill`, and Cargo unifies a
-# path dependency to one build per binary -- so this crate's own feature set never shrinks what
-# actually gets compiled into device/host/sim, only what a standalone `cargo build/test -p
-# deluge_sample_source` compiles.
+# Only `chunk` is used (`ManagerPin::payload` reads a chunk's payload base directly). Default
+# features on purpose: `native_fill` is the manager-reaching fill core, which `deluge_sample_reader`
+# enables for every real build anyway.
 deluge_sample_fill = { path = "../deluge_sample_fill" }
 
 [dev-dependencies]

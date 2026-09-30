@@ -1,21 +1,25 @@
 //! One context in the heap at a time.
 //!
-//! On the device the audio render preempts every other context that touches a heap (thread mode, the streaming fill
-//! task's executor), and the heap has no lock of its own. So every heap step -- one TLSF malloc/free/shrink, one
-//! reclaim-guard flip, one slab slot's check-and-set -- runs inside a [`Section`]: every context but the audio render
-//! masks for the step; the render needs nothing, because nothing that touches a heap preempts it. The app registers
-//! the functions when it builds its heaps (src/deluge/memory/heaps.cpp), before any other context runs: `enter`
-//! masks unless the caller is the render and says whether it did, `exit` unmasks, and `note` reports each step to
-//! the app's structural-edit probe. Only O(1) work goes inside a section; never the reclaim hook, a copy, or a table
-//! scan.
+//! On the device the audio render preempts every other context that touches a heap, and the heap
+//! has no lock of its own. So every heap step — one TLSF malloc/free/shrink, one reclaim-guard
+//! flip, one slab slot's check-and-set — runs inside a `Section`: every context but the audio
+//! render masks for the step; the render needs nothing, because nothing that touches a heap
+//! preempts it.
+//!
+//! The app registers the hooks when it builds its heaps (`src/deluge/memory/heaps.cpp`), before any
+//! other context runs: `enter` masks unless the caller is the render and says whether it did,
+//! `exit` unmasks, and `note` reports each step to the app's structural-edit probe. Only O(1) work
+//! goes inside a section — never the reclaim hook, a copy, or a table scan.
 
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-/// [task] [isr] [audio] Mask unless the caller is the audio render; return whether it masked.
+/// Masks unless the caller is the audio render; returns whether it masked. Called from task, ISR
+/// and audio contexts.
 pub type SectionEnterFn = unsafe extern "C" fn() -> bool;
-/// [task] [isr] Unmask what a [`SectionEnterFn`] that returned true masked.
+/// Unmasks what a [`SectionEnterFn`] that returned true masked. Called from task and ISR contexts.
 pub type SectionExitFn = unsafe extern "C" fn();
-/// [task] [isr] [audio] Report one heap step of `kind` ([`STEP_HEAP`], [`STEP_SLAB`]).
+/// Reports one heap step of `kind` ([`STEP_HEAP`] or [`STEP_SLAB`]). Called from task, ISR and
+/// audio contexts.
 pub type StepNoteFn = unsafe extern "C" fn(kind: u8);
 
 /// A TLSF step: malloc, free, in-place shrink, usable size, or the reclaim guard.
@@ -27,8 +31,12 @@ static ENTER: AtomicUsize = AtomicUsize::new(0);
 static EXIT: AtomicUsize = AtomicUsize::new(0);
 static NOTE: AtomicUsize = AtomicUsize::new(0);
 
-/// Register the section's functions (any may be null: that part does nothing). Call once, at boot, before any
-/// context but the caller touches a heap.
+/// Registers the section hooks; a null hook does nothing.
+///
+/// # Safety
+///
+/// Call once at boot, before any other context touches a heap. Each hook must be callable from
+/// every context that uses a heap.
 #[no_mangle]
 pub unsafe extern "C" fn deluge_heap_set_section_hooks(
     enter: Option<SectionEnterFn>,
@@ -40,7 +48,7 @@ pub unsafe extern "C" fn deluge_heap_set_section_hooks(
     NOTE.store(note.map_or(0, |f| f as usize), Ordering::Relaxed);
 }
 
-/// RAII: one heap step's section. Enters, then reports the step from inside it.
+/// RAII guard for one heap step: enters, then reports the step from inside the section.
 pub(crate) struct Section {
     entered: bool,
 }
@@ -74,9 +82,11 @@ impl Drop for Section {
     }
 }
 
-/// Test hooks shared by every test in this crate. Hooks are process-wide, so one set is registered once and each
-/// thread picks its behaviour through `MODE`: `Record` (the default) logs events and counts its depth; the stress
-/// modes model the host section with a spin lock the render holds for its whole block.
+/// Test hooks shared by every test in this crate.
+///
+/// Hooks are process-wide, so one set is registered once and each thread picks its behaviour
+/// through `MODE`: `Record` (the default) logs events and counts depth; the stress modes model the
+/// host section with a spin lock the render holds for its whole block.
 #[cfg(test)]
 pub(crate) mod test_hooks {
     use super::*;
@@ -140,8 +150,8 @@ pub(crate) mod test_hooks {
     }
     unsafe extern "C" fn note(kind: u8) {
         let m = MODE.with(Cell::get);
-        // The stress model's own rule: a stress thread takes no heap step unless the lock is held (the render-shaped
-        // thread holds it for its whole block). A step outside it would make the stress prove nothing.
+        // A stress thread takes no heap step without the lock held; a step outside it would make
+        // the stress prove nothing.
         if (m == Mode::StressRender || m == Mode::StressInteraction)
             && !LOCK.load(Ordering::Relaxed)
         {
@@ -157,7 +167,7 @@ pub(crate) mod test_hooks {
     }
 
     static INSTALL: Once = Once::new();
-    /// Register the test hooks (idempotent) and clear this thread's event log.
+    /// Registers the test hooks (idempotent) and clears this thread's event log.
     pub fn install() {
         INSTALL.call_once(|| unsafe {
             deluge_heap_set_section_hooks(Some(enter), Some(exit), Some(note))

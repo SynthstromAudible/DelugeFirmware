@@ -1,5 +1,7 @@
-//! Links the host-built C++ app, with the BSP's own link logic (link arguments do not reach
-//! dependents, so the BSP's build script cannot do it for this binary).
+//! Links the host-built C++ app using the BSP's own link logic.
+//!
+//! Link arguments do not propagate to dependents, so the BSP's build script cannot do it for this
+//! binary.
 
 use std::env;
 use std::path::PathBuf;

@@ -1,8 +1,13 @@
-//! The audio drive's render-window pacing: how many frames one render call takes, given how far the DMA play head has
-//! moved. Its own module so the host can test it (`tests/audio_pacing_host.rs`); `audio.rs` runs it on the device.
+//! The audio drive's render-window pacing: how many frames one render call takes, given how far the
+//! DMA play head has moved.
+//!
+//! Only the device drive (`audio::device`) runs it; it is platform-independent so the host tests
+//! can cover it.
 
-/// Round/expand a raw free-frame count into a render window: double the amount over a small threshold (smoother under
-/// light load), cap at the ring, then round up to a multiple of 4 for the NEON kernels.
+/// Returns the render window for `raw` free frames in a ring of `ring` frames.
+///
+/// Doubles the amount over a small threshold (smoother under light load), caps at the ring, then
+/// rounds up to a multiple of 4 for the NEON kernels.
 pub fn pace_window(raw: usize, ring: usize) -> usize {
     const THRESHOLD: i32 = 6;
     let mut n = raw as i32;

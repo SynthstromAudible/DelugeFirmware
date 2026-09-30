@@ -1,11 +1,9 @@
-//! control_surface.h + encoder_io.h — pads/buttons (PIC) and encoders.
+//! `libdeluge/control_surface.h` and `libdeluge/encoder_io.h` — pads and buttons (via the PIC),
+//! LEDs, and encoders.
 //!
-//! deluge-bsp's async PIC pump task runs alongside the app's tasks: it decodes the PIC byte stream into events and
-//! buffers them in [`EVENTS`]. The synchronous boundary functions are thin shims —
-//! [`deluge_control_poll_event`] drains the buffer; [`deluge_encoder_take_edges`]
-//! reads the ISR-accumulated quadrature edge counters. The one-time UART (SCIF1
-//! DMA RX/TX) and encoder GPIO/GIC setup happens in `main`'s pre-executor window
-//! (`uart::init_pic` / `encoder::irq_init`), with IRQs masked.
+//! [`pic_pump`] decodes the PIC byte stream into `EVENTS`; [`pad_render`] is the sole PIC
+//! transmitter. The synchronous boundary functions only queue and drain. The one-time UART and
+//! encoder GPIO/GIC setup runs in the device runtime's pre-executor window, with IRQs masked.
 #![allow(non_snake_case)]
 
 use core::sync::atomic::{AtomicBool, AtomicI8, AtomicU16, Ordering};
@@ -21,25 +19,18 @@ use crate::sys::{
     DelugeInputEventKind_DELUGE_EVENT_PAD as KIND_PAD,
 };
 
-/// Latched PIC boot info for [`deluge_control_read_boot_info`]. 0 = not yet
-/// received; otherwise the raw firmware-version byte OR-ed with [`BOOT_FW_RECEIVED`].
-/// The pic_pump captures it from the `FirmwareVersion` event during boot (the byte
-/// arrives in response to `pic::init`'s REQUEST_FIRMWARE_VERSION, and the app yields
-/// to the pump — via `sd::boot_init().await` — before `deluge_app_init` reads it).
+/// Latched PIC boot info for [`deluge_control_read_boot_info`]: 0 until received, then the raw
+/// firmware-version byte OR-ed with [`BOOT_FW_RECEIVED`].
+///
+/// [`pic_pump`] latches it from the `FirmwareVersion` reply to `pic::init`'s request; boot awaits
+/// `storage::sd::boot_init()` before `deluge_app_init` reads it, which gives the pump time to run.
 static BOOT_FW: AtomicU16 = AtomicU16::new(0);
-/// "Received" sentinel bit OR-ed into [`BOOT_FW`] (raw byte is only 8 bits).
+/// "Received" sentinel bit OR-ed into [`BOOT_FW`] (the raw byte is 8 bits).
 const BOOT_FW_RECEIVED: u16 = 0x100;
 
-// ABI guard: DelugeInputEventKind's underlying type is pinned explicitly in
-// the header (`enum DelugeInputEventKind : uint8_t`, control_surface.h), so
-// it is 1 byte on every target — device (arm), host_app, and sim alike —
-// regardless of `-fshort-enums` (which stays removed from the build; see
-// build.rs). DelugeInputEvent is therefore {kind@0 (1B), x@1, y@2, value@4}
-// = 6 bytes (the i16 `value` needs 2-byte alignment, leaving one pad byte
-// after `y`). bindgen must match; if this ever regresses to a wider enum the
-// app reads x/y/value from the wrong offsets (silently, as garbage) — this
-// class of bug is real and hard to find (see the enum-width note on
-// DelugeRegionState in sample_source.h). Fail the build instead.
+// ABI guard: the header pins `enum DelugeInputEventKind : uint8_t`, so `DelugeInputEvent` is
+// {kind@0, x@1, y@2, value@4} = 6 bytes on every target. A wider enum would make the app read
+// x/y/value from the wrong offsets, silently; fail the build instead.
 const _: () = {
     assert!(
         core::mem::size_of::<DelugeInputEvent>() == 6,
@@ -51,19 +42,21 @@ const _: () = {
     );
 };
 
-/// CONTROL_DEFAULT_VELOCITY: 255 = "use the instrument default"; 0 = release.
+/// `CONTROL_DEFAULT_VELOCITY`: 255 means "use the instrument default"; 0 is a release.
 const DEFAULT_VELOCITY: i16 = 255;
 
-/// Decoded PIC input events, produced by [`pic_pump`], drained by
-/// [`deluge_control_poll_event`]. Bounded; `try_send` drops on overflow rather
-/// than blocking the RX pump (only matters during the non-yielding boot phase).
+/// Decoded PIC input events, produced by [`pic_pump`] and drained by
+/// [`deluge_control_poll_event`].
+///
+/// Bounded: overflow drops rather than blocking the RX pump (only reachable during the
+/// non-yielding boot phase).
 static EVENTS: Channel<CriticalSectionRawMutex, DelugeInputEvent, 64> = Channel::new();
 
-/// Background task: run the PIC baud-rate handshake, then decode its byte stream
-/// into [`EVENTS`]. Spawned by `main` before the app tick loop; makes progress
-/// whenever the app yields. OLED chip-select bytes are forwarded to the pic
-/// notifier (for the display path, M2c); encoder motion never arrives via the PIC
-/// (it is wired to RZ/A1L GPIO IRQs — see [`deluge_encoder_take_edges`]).
+/// Background task: runs the PIC baud-rate handshake, then decodes its byte stream into
+/// `EVENTS`.
+///
+/// OLED chip-select replies go to the `pic` notifier for the display path. Encoder motion never
+/// arrives via the PIC; it comes from GPIO IRQs (see [`deluge_encoder_take_edges`]).
 #[embassy_executor::task]
 pub async fn pic_pump() {
     pic::init().await;
@@ -94,9 +87,7 @@ pub async fn pic_pump() {
                 None
             }
             pic::Event::FirmwareVersion(v) => {
-                // Latch the raw version byte for `deluge_control_read_boot_info`.
-                // High bit (0x80) = OLED present; low 7 bits = version -- the PIC's
-                // boot-info byte layout. Mark "received" with 0x100.
+                // Latch the raw byte: high bit = OLED present, low 7 bits = version.
                 BOOT_FW.store((v as u16) | BOOT_FW_RECEIVED, Ordering::Relaxed);
                 log::info!(
                     "deluge-rust: PIC firmware v{} (oled={})",
@@ -114,8 +105,7 @@ pub async fn pic_pump() {
     }
 }
 
-/// PIC pad id → grid (x,y). Matches `deluge_bsp::pic::pad_coords` and `Pad(uint8_t)` in
-/// the app's pad.cpp.
+/// Maps a PIC pad id to a grid event at (x, y), as the app's `Pad(uint8_t)` does.
 fn pad_event(id: u8, value: i16) -> DelugeInputEvent {
     let (x, y) = pic::pad_coords(id);
     DelugeInputEvent {
@@ -126,8 +116,7 @@ fn pad_event(id: u8, value: i16) -> DelugeInputEvent {
     }
 }
 
-/// PIC button id (raw − 144) → matrix (x,y) = (id % 9, id / 9). Matches the rza1
-/// BSP's `(raw % 9, raw / 9 − kDisplayHeight*2)` with raw = id + 144 (= id + 16·9).
+/// Maps a PIC button id (raw byte − 144) to a matrix event at (id % 9, id / 9).
 fn button_event(id: u8, value: i16) -> DelugeInputEvent {
     DelugeInputEvent {
         kind: KIND_BUTTON,
@@ -137,25 +126,18 @@ fn button_event(id: u8, value: i16) -> DelugeInputEvent {
     }
 }
 
-/// Report PIC boot info to the app's one-time boot sequence (deluge.cpp): PIC
-/// firmware version, OLED-present, and whether the user held the reset control at
-/// power-on. The PIC's boot-info byte: low 7 bits = version, high bit = OLED
-/// present.
+/// Writes the PIC boot info (firmware version, OLED present, factory-reset request) to `*out`.
 ///
-/// `factory_reset_requested` is ALWAYS false here: the embassy PIC parser does not
-/// decode the boot reset-burst, so there is no genuine signal — and the previous
-/// STUB left this (and the whole struct) UNINITIALIZED, so the app read stack
-/// garbage and triggered a spurious "FACTORY RESET" (clobbering settings) on most
-/// boots. Returning a definite false is both correct and what stops that.
+/// `factory_reset_requested` is always false: the PIC parser does not decode the boot
+/// reset-burst. Every field must be written — an uninitialised struct makes the app read stack
+/// garbage and factory-reset the settings.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_read_boot_info(out: *mut DelugeBootInfo) {
     let fw = BOOT_FW.load(Ordering::Relaxed);
     let (version, oled_present) = if fw & BOOT_FW_RECEIVED != 0 {
         ((fw & 0x7f) as u8, (fw & 0x80) != 0)
     } else {
-        // Version byte not captured in time (boot race): the app targets the OLED
-        // panel on this BSP, so default present. Strictly better than the prior
-        // garbage; `factory_reset_requested` below is the load-bearing fix.
+        // The version byte did not arrive in time; this board has the OLED.
         (0, true)
     };
     // SAFETY: the app passes a valid DelugeBootInfo out-pointer (sync boot call).
@@ -166,8 +148,7 @@ pub extern "C" fn deluge_control_read_boot_info(out: *mut DelugeBootInfo) {
     }
 }
 
-/// Drain one decoded input event into `*out`. Returns false when none buffered.
-/// The app calls this repeatedly each tick (readButtonsAndPads).
+/// Drains one decoded input event into `*out`; returns false when none is buffered.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_poll_event(out: *mut DelugeInputEvent) -> bool {
     match EVENTS.try_receive() {
@@ -180,18 +161,16 @@ pub extern "C" fn deluge_control_poll_event(out: *mut DelugeInputEvent) -> bool 
     }
 }
 
-/// Map the app's encoder ordinal (hid::encoders::EncoderName: SCROLL_Y, SCROLL_X,
-/// TEMPO, SELECT, MOD_1, MOD_0) to deluge_bsp::encoder's ENCODER_DELTAS index
-/// (a different physical/pin order). Derived by matching each app encoder's pins
-/// (below, in app order) against deluge_bsp encoder::irq_init SETUP:
-///   app 0 SCROLL_Y(8/10)→4, 1 SCROLL_X(11/12)→0, 2 TEMPO(6/7)→1,
-///   3 SELECT(3/2)→5, 4 MOD_1(5/4)→3, 5 MOD_0(0/15)→2. Invert flags line up.
+/// Maps the app's encoder ordinal (`hid::encoders::EncoderName`) to the index in
+/// `deluge_bsp::encoder::ENCODER_DELTAS`, which is in pin order.
+///
+/// Derived by matching pins against `encoder::irq_init`'s setup table:
+/// SCROLL_Y(8/10)→4, SCROLL_X(11/12)→0, TEMPO(6/7)→1, SELECT(3/2)→5, MOD_1(5/4)→3,
+/// MOD_0(0/15)→2. The invert flags line up.
 const ENC_REMAP: [usize; encoder::NUM_ENCODERS] = [4, 0, 1, 5, 3, 2];
 
-/// Atomically read and clear the accumulated signed A-pin edge count for
-/// `encoder` (raw edges; the app applies its own detent policy). The counts are
-/// accumulated in deluge_bsp::encoder's quadrature ISRs (in its own pin order,
-/// remapped here to the app's ordinal).
+/// Atomically reads and clears the signed A-pin edge count the quadrature ISRs accumulated for
+/// `encoder` (an app ordinal). Raw edges: the app applies its own detent policy.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_encoder_take_edges(encoder: u8) -> i8 {
     let i = encoder as usize;
@@ -201,16 +180,12 @@ pub extern "C" fn deluge_encoder_take_edges(encoder: u8) -> i8 {
     encoder::ENCODER_DELTAS[ENC_REMAP[i]].swap(0, Ordering::Relaxed)
 }
 
-// ── Control-surface OUTPUT (LEDs / pads) ───────────────────────────────────────
+// Control-surface output (LEDs, pads)
 //
-// All PIC *transmit* goes through ONE task ([`pad_render`]) draining this command
-// queue. This is deliberate: the PIC TX path holds an async mutex (DMA_TX_LOCK)
-// across each transfer, so we must never `block_on` a PIC call from a tick while
-// the render task might hold that lock — that would deadlock (block_on stalls the
-// executor, so the task can't resume to release it). A single TX owner + a
-// command queue keeps every send on the async side, and the task `.await`s
-// between sends so the RX pump still runs. The boundary fns are non-blocking
-// producers (try_send; drop on overflow — a dropped frame self-heals next redraw).
+// Every PIC transmit goes through one task, `pad_render`, draining a command queue. The PIC TX
+// path holds an async mutex across each transfer, so a `block_on` of a PIC call from a tick could
+// deadlock against a task holding it. The boundary functions are non-blocking producers that drop
+// on overflow; a dropped frame self-heals on the next redraw.
 
 /// One queued control-surface output operation.
 #[derive(Clone, Copy)]
@@ -237,28 +212,27 @@ enum PicOut {
     },
 }
 
-/// Max bytes one queued command becomes on the PIC wire (a column-pair =
-/// 1 + 16·3 = 49). Used to report [`deluge_control_pad_output_space`] in *bytes*,
-/// which is what the app's redraw gates compare against (kNumBytesIn* in
-/// definitions_cxx.hpp: col update = 49, main redraw = 392, sidebar = 49).
+/// The most bytes one queued command becomes on the PIC wire (a column pair: 1 + 16·3).
+///
+/// [`deluge_control_pad_output_space`] reports in bytes because the app's redraw gates compare
+/// against its `kNumBytesIn*` constants.
 const BYTES_PER_CMD: u32 = 49;
 
-/// Output command queue. Sized so a full grid + sidebar redraw (≈10–18 commands)
-/// leaves plenty of free slots — important because the app gates redraws on
-/// [`deluge_control_pad_output_space`], which we derive from the free slot count.
+/// The output command queue, drained by [`pad_render`].
+///
+/// Sized so a full grid and sidebar redraw (≈10–18 commands) leaves plenty free: the app gates
+/// redraws on [`deluge_control_pad_output_space`], derived from the free slot count.
 static OUT: Channel<CriticalSectionRawMutex, PicOut, 64> = Channel::new();
-/// Set by any output op; [`deluge_control_flush`] turns a dirty state into a
-/// single Refresh so we don't spam done_sending_rows on every (mostly idle) tick.
+/// Set by any output op; [`deluge_control_flush`] turns it into a single refresh, so an idle tick
+/// sends nothing.
 static OUTPUT_DIRTY: AtomicBool = AtomicBool::new(false);
 
-/// Background task: the sole PIC transmitter. Drains [`OUT`] and performs each
-/// send asynchronously, yielding between them so the RX pump and the app tick
-/// loop keep running.
+/// Background task: the sole PIC transmitter. Drains `OUT`, yielding between sends so the RX
+/// pump and the app keep running.
 #[embassy_executor::task]
 pub async fn pad_render() {
-    // Don't transmit until pic::init() has finished the baud handshake — sending
-    // a command mid-handshake would go out at the wrong rate. Commands queued by
-    // the app during boot wait in OUT until then.
+    // A command sent mid-handshake would go out at the wrong baud rate; boot-time commands wait
+    // in OUT.
     pic::wait_ready().await;
     loop {
         match OUT.receive().await {
@@ -284,15 +258,13 @@ pub async fn pad_render() {
 
 #[inline]
 fn enqueue(cmd: PicOut) {
-    // Drop on overflow rather than block the app tick; a dropped pad frame
-    // self-heals on the next redraw.
+    // Drop on overflow rather than block the app; a dropped frame self-heals on the next redraw.
     let _ = OUT.try_send(cmd);
     OUTPUT_DIRTY.store(true, Ordering::Relaxed);
 }
 
-/// Set the colours of a main-grid column pair. `colours` holds `count` RGB
-/// entries (one per LED in the pair; the Deluge sends 16). The app pre-packs the
-/// PIC wire layout, so we forward the bytes as-is.
+/// Sets the colours of a main-grid column pair from `count` entries of `colours` (the app sends
+/// 16, in PIC wire order; at most 16 are used).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_set_pad_columns(idx: u8, colours: *const DelugeColour, count: u8) {
     let mut buf = [[0u8; 3]; 16];
@@ -305,23 +277,20 @@ pub extern "C" fn deluge_control_set_pad_columns(idx: u8, colours: *const Deluge
     enqueue(PicOut::Columns { idx, colours: buf });
 }
 
-/// Begin a horizontal scroll animation on the surface.
+/// Begins a horizontal scroll animation on the surface.
 ///
-/// The PIC animates a scroll from its own off-screen framebuffer: the app calls this once, then
-/// feeds one colour per row per tick via [`deluge_control_scroll_row`], ending each tick with
-/// [`deluge_control_scroll_done`]. That is why the scroll path does NOT go through
-/// [`deluge_control_set_pad_columns`] — sending one colour per row rather than the whole grid every
-/// ~7 ms is the point of the protocol.
+/// The PIC animates from its own off-screen framebuffer: the app calls this once, then feeds one
+/// colour per row per tick via [`deluge_control_scroll_row`], ending each tick with
+/// [`deluge_control_scroll_done`]. This avoids resending the whole grid every ~7 ms.
 ///
-/// `flags`: bit 0 = scrolling in the positive direction, bit 1 = the scrolled area includes the
-/// sidebar (18 columns, not 16). Forwarded as-is; see the SDK's opcode docs for why the encoding is
-/// arithmetic rather than named constants.
+/// `flags`: bit 0 = positive direction; bit 1 = the area includes the sidebar (18 columns, not
+/// 16). Forwarded as-is.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_scroll_horizontal(flags: u8) {
     enqueue(PicOut::ScrollSetup(flags));
 }
 
-/// Supply the incoming colour for one row of an in-progress horizontal scroll (`row` 0-7).
+/// Supplies the incoming colour for one row (0–7) of an in-progress horizontal scroll.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_scroll_row(row: u8, colour: DelugeColour) {
     enqueue(PicOut::ScrollRow {
@@ -330,15 +299,14 @@ pub extern "C" fn deluge_control_scroll_row(row: u8, colour: DelugeColour) {
     });
 }
 
-/// End a scroll tick: tells the PIC the row data for this step is complete, which is what makes it
-/// refresh. Shares the Refresh command with a normal grid update.
+/// Ends a scroll tick: tells the PIC this step's row data is complete, which makes it refresh.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_scroll_done() {
     enqueue(PicOut::Refresh);
 }
 
-/// Perform a vertical scroll, supplying the whole incoming row. `colours` holds `count` entries, one
-/// per column (the app sends all 18).
+/// Performs a vertical scroll, supplying the whole incoming row: `count` entries of `colours`, one
+/// per column (the app sends all 18; at most 18 are used).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_scroll_vertical(
     up: bool,
@@ -359,14 +327,14 @@ pub extern "C" fn deluge_control_scroll_vertical(
     });
 }
 
-/// Set an indicator LED on/off (board-defined index).
+/// Sets an indicator LED (board-defined index) on or off.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_set_led(led: u8, on: bool) {
     enqueue(PicOut::Led { id: led, on });
 }
 
-/// Set a gold-knob/mod indicator ring. `which` selects the knob; `levels` points
-/// to `count` per-LED brightnesses (the Deluge ring has 4).
+/// Sets a gold-knob indicator ring: `which` selects the knob (0 or non-zero); `levels` holds
+/// `count` per-LED brightnesses (the ring has 4; at most 4 are used).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, count: u8) {
     let mut ring = [0u8; 4];
@@ -380,25 +348,22 @@ pub extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, cou
     });
 }
 
-/// Surface refresh interval (board units).
+/// Sets the surface refresh interval (board units).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_set_refresh_time(ms: u8) {
     let _ = OUT.try_send(PicOut::RefreshTime(ms));
 }
 
-/// Free space, in BYTES, for queued pad output — the app gates redraws on this
-/// (`> kNumBytesInMainPadRedraw + …`), so it must be a byte count, not a slot
-/// count. We map free queue slots → bytes via [`BYTES_PER_CMD`]; this gives real
-/// back-pressure (drops as the queue fills) while clearing the redraw gates when
-/// the queue is reasonably empty.
+/// Returns the free space for queued pad output, in bytes: free queue slots × `BYTES_PER_CMD`.
+///
+/// The app gates redraws on this against byte counts, so it must not be a slot count.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_pad_output_space() -> u32 {
     OUT.free_capacity() as u32 * BYTES_PER_CMD
 }
 
-/// Flush batched surface output: if anything was queued since the last flush,
-/// append a single display-refresh. Called every tick, so gate on the dirty flag
-/// to avoid spamming refreshes when nothing changed.
+/// Flushes batched surface output: queues one refresh if anything was queued since the last
+/// flush.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_flush() {
     if OUTPUT_DIRTY.swap(false, Ordering::Relaxed) {
@@ -406,36 +371,29 @@ pub extern "C" fn deluge_control_flush() {
     }
 }
 
-/// Scheduler task id of the app's encoder task (`interpretEncodersTask`), captured
-/// from [`deluge_encoder_io_init`]. -1 until `encoders::init()` runs. The
-/// [`encoder_wake_pump`] task uses it to unblock the encoder task on movement.
+/// The scheduler task id of the app's encoder task, from [`deluge_encoder_io_init`]; -1 until
+/// then. [`encoder_wake_pump`] unblocks it on movement.
 static ENCODER_WAKE_TASK: AtomicI8 = AtomicI8::new(-1);
 
-/// Set up encoder GPIO/IRQs. The actual GPIO+GIC bring-up runs in `main`'s
-/// pre-executor window (encoder::irq_init, which must precede interrupt enable),
-/// so this boundary call — invoked later from encoders::init() — just records the
-/// `wake_task` id so [`encoder_wake_pump`] can wake the app's encoder task.
+/// Records `wake_task`, the app's encoder task, for [`encoder_wake_pump`] to wake.
 ///
-/// The app's `interpretEncodersTask` self-blocks (`blockTask`) after each run and
-/// relies on the board to `unblockTask` it when an encoder moves. Without that wake
-/// the task runs once and parks forever — i.e. the encoders go dead — so the wake
-/// must be delivered here.
+/// The GPIO/GIC bring-up already ran in the pre-executor window (it must precede interrupt
+/// enable). The app's `interpretEncodersTask` blocks itself after each run and relies on the board
+/// to unblock it when an encoder moves; without the wake the encoders go dead.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_encoder_io_init(wake_task: i8) {
     ENCODER_WAKE_TASK.store(wake_task, Ordering::Relaxed);
     log::info!("deluge-rust: deluge_encoder_io_init (encoder wake task id={wake_task})");
 }
 
-/// Bridge the board's encoder edge ISRs to the scheduler: the quadrature ISRs
-/// accumulate into `encoder::ENCODER_DELTAS` and fire `encoder::ENCODER_WAKER`;
-/// this task waits on that waker and `unblockTask`s the app's self-blocked encoder
-/// task so it drains the edges (and re-blocks). Without this, encoder input never
-/// reaches the app on the decomposed scheduler. Spawned by `main`.
+/// Background task: bridges the encoder edge ISRs to the scheduler.
+///
+/// Waits on `encoder::ENCODER_WAKER` and unblocks the app's encoder task so it drains the edges.
+/// Without it, encoder input never reaches the app.
 #[embassy_executor::task]
 pub async fn encoder_wake_pump() {
     loop {
-        // Park until an edge ISR signals movement. Register the waker *before*
-        // checking the deltas so an ISR landing in the gap can't be missed.
+        // Register the waker before checking the deltas so an ISR in the gap can't be missed.
         core::future::poll_fn(|cx| {
             encoder::ENCODER_WAKER.register(cx.waker());
             if encoder::ENCODER_DELTAS
@@ -453,9 +411,8 @@ pub async fn encoder_wake_pump() {
         if id >= 0 {
             crate::scheduler::unblockTask(id);
         }
-        // Bound the unblock rate (and let the encoder task drain the deltas before
-        // we re-check, else we'd spin until it runs). ~1 ms matches the app's
-        // former encoder-task cadence — imperceptible for knob turns.
+        // Bound the unblock rate and let the encoder task drain the deltas before the re-check
+        // (else this spins until it runs). 1 ms is imperceptible for knob turns.
         embassy_time::Timer::after(embassy_time::Duration::from_millis(1)).await;
     }
 }

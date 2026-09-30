@@ -1,27 +1,19 @@
-//! `deluge_sample_convert` — SAFE Rust wrappers over the app's `convert.cpp` / `stitch.cpp` (compiled
-//! into this crate by build.rs via `cc::Build`), exposing the two pure functions the SR2 region
-//! backing's fill path calls:
+//! Safe Rust wrappers over the app's `convert.cpp` and `stitch.cpp`, for the sample fill path.
 //!
-//!   * [`convert_cluster`] — in-place format conversion of a cluster's raw bytes ([`convert_word`] is
-//!     also exposed for the scalar single-word core), with a no-op cooperative `Yield`.
-//!   * [`stitch_boundaries`] — in-place boundary stitching of a cluster against its loaded neighbours.
+//! - [`convert_cluster`] converts a cluster's raw bytes to native format in place ([`convert_word`]
+//!   is the scalar single-word core).
+//! - [`stitch_boundaries`] stitches a cluster's boundary bytes against its loaded neighbours.
 //!
-//! The behaviour is pinned by `tests/unit/audio_stream/{convert,stitch,convert_cluster}_spec.cpp`; the
-//! `#[test]`s below round-trip the cc-built x86-SIMDe objects against the same assertions, and assert the
-//! armv7a-NEON compile/verify check (stamped by build.rs) succeeded.
+//! The build script compiles the C++ (see its docs for the host, device and `app_convert` modes).
+//! The tests mirror `tests/unit/audio_stream/{convert,stitch,convert_cluster}_spec.cpp` against the
+//! host objects, and check the build's armv7a-NEON verify stamp.
 
 #![deny(unsafe_op_in_unsafe_fn)]
-// This crate now has a real consumer -- the native fill task
-// (`deluge-bsp-rust`'s `fill_logic::finish_convert_stitch`) -- which links it on the actual
-// armv7a-none-eabihf device target, not just the x86 host test binary. `no_std` there only
-// (mirrors `deluge_resource`'s `#![cfg_attr(target_os = "none", no_std)]`): every non-test item here
-// is already plain `&mut [u8]`/pointer FFI over `core` primitives, so this costs nothing on host,
-// where the `#[cfg(test)]` module keeps using `std` (`Vec`, `vec!`) freely -- `target_os` on host is
-// never `"none"`, so `no_std` never applies there.
+// `no_std` on bare metal only; the host tests use `std`.
 #![cfg_attr(target_os = "none", no_std)]
 
-/// On-disk raw sample data format. Mirrors `RawDataFormat` in
-/// `src/deluge/storage/audio/audio_file_format.h` (a `uint8_t`-backed enum).
+/// On-disk raw sample data format. Mirrors the `uint8_t` enum `RawDataFormat` in
+/// `storage/audio/audio_file_format.h`.
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RawDataFormat {
@@ -39,8 +31,8 @@ pub enum RawDataFormat {
     EndiannessWrong32 = 5,
 }
 
-/// Audio-data geometry `convert_cluster` needs from the owning sample. Mirrors the C++ `ConvertGeometry`
-/// POD; gathered and passed by value by the caller.
+/// The owning sample's audio-data geometry that [`convert_cluster`] needs. Mirrors the C++
+/// `ConvertGeometry`.
 #[derive(Clone, Copy, Debug)]
 pub struct ConvertGeometry {
     /// Byte offset of the sample's audio data within the file.
@@ -51,8 +43,8 @@ pub struct ConvertGeometry {
     pub first_cluster_index_with_no_audio_data: i32,
 }
 
-/// Mutable view of the boundary bytes at the tail of the cluster immediately *before* the one being
-/// stitched. Mirrors the C++ `StitchPrevEdge`.
+/// The boundary bytes at the tail of the cluster before the one being stitched. Mirrors the C++
+/// `StitchPrevEdge`.
 pub struct PrevEdge<'a> {
     /// 11 bytes: `prev.payload()[cluster_size-4 .. cluster_size+7)`.
     pub tail: &'a mut [u8],
@@ -60,8 +52,8 @@ pub struct PrevEdge<'a> {
     pub end_boundary_converted: &'a mut bool,
 }
 
-/// View of the boundary bytes at the head of the cluster immediately *after* the one being stitched: a
-/// mutable span plus the read-only pre-conversion bytes. Mirrors the C++ `StitchNextEdge`.
+/// The boundary bytes at the head of the cluster after the one being stitched, plus its
+/// pre-conversion bytes. Mirrors the C++ `StitchNextEdge`.
 pub struct NextEdge<'a> {
     /// 7 bytes: `next.payload()[0..7)`.
     pub head: &'a mut [u8],
@@ -110,25 +102,25 @@ mod ffi {
     }
 }
 
-/// Convert a single 4-byte `word` from `format` to native representation. No cluster/geometry state;
-/// `Native` and `EndiannessWrong24` return the word unchanged (the 24-bit swap is group-wise, done in
-/// [`convert_cluster`]). See `convert_word` in `convert.h`.
+/// Converts one 4-byte `word` from `format` to native.
+///
+/// `Native` and `EndiannessWrong24` return the word unchanged; the 24-bit swap is group-wise and
+/// done by [`convert_cluster`].
 #[must_use]
 pub fn convert_word(word: i32, format: RawDataFormat) -> i32 {
     // Pure; no pointers cross the boundary.
     unsafe { ffi::deluge_sc_convert_word(word, format as u8) }
 }
 
-/// Convert `data` in place from `format` to native representation, over only the audio-bearing portion of
-/// the cluster given `geometry`. On a non-`Native` format the pre-conversion first 3 bytes are backed up
-/// into `unconverted_head_out` before any conversion (mirrors
-/// `StreamedChunk::first_three_bytes_pre_data_conversion`).
+/// Converts cluster `data` in place from `format` to native, over only its audio-bearing portion
+/// per `geometry`.
 ///
-/// The cooperative-scheduling `Yield` is a no-op here (the fill path drives its own scheduling). See
-/// `convert_cluster_data` in `convert.h`.
+/// For a non-`Native` format the first 3 bytes are first backed up into `unconverted_head_out`.
+/// The C++ cooperative yield is a no-op here. See `convert_cluster_data` in `convert.h`.
 ///
 /// # Panics
-/// Panics if `data.len() < 3` (the conversion unconditionally backs up the first 3 bytes).
+///
+/// Panics if `data.len() < 3`.
 pub fn convert_cluster(
     data: &mut [u8],
     cluster_index: i32,
@@ -143,9 +135,8 @@ pub fn convert_cluster(
         "convert_cluster: data must have at least 3 bytes"
     );
     let len = data.len();
-    // SAFETY: `data` is a valid, uniquely-borrowed slice of `len` bytes; `unconverted_head_out` is a
-    // valid 3-byte buffer; the null yield counter selects the shim's no-op Yield. The C++ writes only
-    // within [0, len) and the 3-byte head-out, matching the borrows.
+    // SAFETY: `data` is a uniquely borrowed slice of `len` bytes and `unconverted_head_out` a
+    // 3-byte buffer; the C++ writes only within them. A null yield counter selects the no-op yield.
     unsafe {
         ffi::deluge_sc_convert_cluster_data(
             data.as_mut_ptr(),
@@ -163,9 +154,10 @@ pub fn convert_cluster(
     }
 }
 
-/// Stitch the boundary bytes of a single cluster against its already-loaded neighbours, in place. Pure;
-/// mutates `self_data` (needs `cluster_size + 7` usable bytes), the supplied neighbour edge spans, and
-/// the boundary flags. A `None` neighbour means it is absent / not yet loaded. See `stitch_boundaries` in
+/// Stitches one cluster's boundary bytes against its loaded neighbours, in place.
+///
+/// Mutates `self_data`, which needs `cluster_size + 7` usable bytes, the neighbour edges, and the
+/// boundary flags. A `None` neighbour is absent or not loaded. See `stitch_boundaries` in
 /// `stitch.h`.
 #[allow(clippy::too_many_arguments)]
 pub fn stitch_boundaries(
@@ -205,9 +197,8 @@ pub fn stitch_boundaries(
         ),
     };
 
-    // SAFETY: every pointer is derived from a live, uniquely-borrowed slice/reference of the stated
-    // length (or null when the neighbour is absent). The C++ writes only within those spans and the four
-    // flags, matching the borrows.
+    // SAFETY: every pointer comes from a live, uniquely borrowed slice or reference of the stated
+    // length, or is null for an absent neighbour; the C++ writes only within those spans and flags.
     unsafe {
         ffi::deluge_sc_stitch_boundaries(
             self_data.as_mut_ptr(),
@@ -262,7 +253,7 @@ mod tests {
         head
     }
 
-    // ---- convert_word: mirrors convert_spec.cpp ------------------------------------------------
+    // convert_word: mirrors convert_spec.cpp
     #[test]
     fn convert_word_matches_spec() {
         assert_eq!(
@@ -280,7 +271,7 @@ mod tests {
         assert_eq!(convert_word(0.5f32.to_bits() as i32, Float), 0x4000_0000);
     }
 
-    // ---- FLOAT saturation / NaN: q31_from_float saturates at |x| >= 1 and flushes tiny/NaN --------
+    // FLOAT saturation / NaN: q31_from_float saturates at |x| >= 1 and flushes tiny/NaN
     #[test]
     fn convert_word_float_saturation_and_nan() {
         let f = |x: f32| convert_word(x.to_bits() as i32, Float);
@@ -302,7 +293,7 @@ mod tests {
         assert_eq!(f(1.0e-12), 0);
     }
 
-    // ---- convert_cluster UNSIGNED_8 across a 16-byte SIMD boundary: mirrors convert_cluster_spec ---
+    // convert_cluster UNSIGNED_8 across a 16-byte SIMD boundary: mirrors convert_cluster_spec
     #[test]
     fn convert_cluster_unsigned8_simd_region() {
         let cluster_size = 128;
@@ -318,7 +309,7 @@ mod tests {
         assert_eq!(data[127], 0x00);
     }
 
-    // ---- convert_cluster ENDIANNESS_WRONG_32 across a SIMD boundary + scalar tail ----------------
+    // convert_cluster ENDIANNESS_WRONG_32 across a SIMD boundary + scalar tail
     #[test]
     fn convert_cluster_wrong32_simd_region() {
         let cluster_size = 128;
@@ -338,7 +329,7 @@ mod tests {
         assert_eq!(data[127], 127);
     }
 
-    // ---- convert_cluster ENDIANNESS_WRONG_24 backup + swap: mirrors convert_cluster_spec ----------
+    // convert_cluster ENDIANNESS_WRONG_24 backup + swap: mirrors convert_cluster_spec
     #[test]
     fn convert_cluster_wrong24_swaps_and_backs_up() {
         let cluster_size = 32;
@@ -350,10 +341,11 @@ mod tests {
         assert_eq!(&data[29..32], &[31, 30, 29]); // last group [29,30,31] -> [31,30,29]
     }
 
-    // ---- the no-op-Yield concretization still fires the cadence (via the counting-Yield shim path) --
+    // The yield cadence still fires, observed through the shim's counting-yield path.
     #[test]
     fn convert_cluster_invokes_yield() {
-        // convert_cluster()'s public API uses a no-op Yield; drop to the shim to observe the cadence.
+        // convert_cluster()'s public API uses a no-op Yield; drop to the shim to observe the
+        // cadence.
         let cluster_size = 4096;
         let mut data = vec![0u8; cluster_size];
         let mut head = [0u8; 3];
@@ -377,7 +369,7 @@ mod tests {
         assert!(yc >= 1, "expected at least one yield, got {yc}");
     }
 
-    // ---- stitch_boundaries no neighbours: self_data unchanged, flags untouched -------------------
+    // stitch_boundaries no neighbours: self_data unchanged, flags untouched
     #[test]
     fn stitch_no_neighbors_unchanged() {
         let cluster_size = 32;
@@ -400,7 +392,7 @@ mod tests {
         assert!(!se);
     }
 
-    // ---- stitch_boundaries UNSIGNED_8 misaligned, both neighbours: mirrors stitch_spec -----------
+    // stitch_boundaries UNSIGNED_8 misaligned, both neighbours: mirrors stitch_spec
     #[test]
     fn stitch_unsigned8_misaligned_both_neighbors() {
         let cluster_size = 32;
@@ -443,8 +435,8 @@ mod tests {
         assert!(se);
     }
 
-    // ---- stitch_boundaries already-converted idempotency: next-half stages from unconverted_head --
-    //      (not head), then falls through to the full overhang copy from head. Mirrors stitch_spec.
+    // stitch_boundaries already-converted idempotency: the next half stages from unconverted_head
+    // (not head), then falls through to the full overhang copy from head. Mirrors stitch_spec.
     #[test]
     fn stitch_next_already_converted_stages_from_unconverted_head() {
         let cluster_size = 32;
@@ -452,7 +444,8 @@ mod tests {
         let mut next_head: Vec<u8> = (0..7u16).map(|i| (200 + i) as u8).collect();
         let next_unconverted_head: [u8; 3] = [90, 91, 92];
         let (mut ss, mut se) = (false, false);
-        let mut next_start = true; // already converted -> forces the unconverted_head staging branch
+        // Already converted: forces the unconverted_head staging branch.
+        let mut next_start = true;
         stitch_boundaries(
             &mut self_data,
             1,
@@ -469,12 +462,14 @@ mod tests {
             }),
         );
         // Pre-conversion straddling word self_data[29..33) = {29,30,31,unconverted_head[0]=90};
-        // rev16 -> {30,29,90,31}. self_data[31] == 90 proves the source was unconverted_head, not head.
+        // rev16 -> {30,29,90,31}. self_data[31] == 90 proves the source was unconverted_head, not
+        // head.
         assert_eq!(self_data[29], 30);
         assert_eq!(self_data[30], 29);
         assert_eq!(self_data[31], 90);
         assert!(next_start); // untouched (was already true)
-                             // Overhang finalized wholesale from next.head (need_copy7); next.head itself is never written.
+                             // Overhang finalized wholesale from next.head (need_copy7); next.head itself is never
+                             // written.
         for k in 0..7usize {
             assert_eq!(self_data[cluster_size + k], (200 + k) as u8);
             assert_eq!(next_head[k], (200 + k) as u8);
@@ -483,7 +478,7 @@ mod tests {
         assert!(se);
     }
 
-    // ---- armv7a-NEON compile + real-NEON verify (stamped by build.rs; no QEMU run) ---------------
+    // armv7a-NEON compile + real-NEON verify (stamped by build.rs; no QEMU run)
     #[test]
     fn armv7a_neon_compiles_with_real_neon() {
         let stamp = include_str!(concat!(env!("OUT_DIR"), "/arm_compile_result.txt"));

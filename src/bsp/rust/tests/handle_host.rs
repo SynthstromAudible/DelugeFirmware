@@ -1,3 +1,4 @@
+//! Tests the slot ↔ ABI handle mapping, where handle 0 means "none".
 #![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::abi::handle;

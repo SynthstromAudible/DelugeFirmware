@@ -1,15 +1,6 @@
-# deluge_sample_stream — the streaming-file slot registry behind the `deluge_sample_stream_*`
-# C-ABI (`include/libdeluge/sample_stream.h`, U4c). A fixed-capacity table of open efatfs streaming
-# handles, keyed by an opaque `deluge_sample_stream_open`-issued handle: each slot pairs an efatfs
-# read handle with (once the caller supplies them) the resource-manager asset id and streaming
-# geometry that let this crate register the asset's `DelugeStreamingFillContext` itself, the same
-# registration `SampleStream::register_fill_context` (C++) performs today. This is the U4c rung's
-# relocation target — a later task flips the C++ facade onto this registry instead of holding the
-# efatfs handle/geometry on `SampleStream` directly.
-#
-# A plain `no_std` rlib: no `#[panic_handler]` of its own (the final artifact — `deluge_rust`'s
-# umbrella / `deluge-bsp-rust`'s bin — provides one), composing without duplicate-symbol clashes,
-# exactly like `deluge_resource`/`deluge_sample_reader`.
+# The streaming-file slot registry behind the `deluge_sample_stream_*` C ABI
+# (`libdeluge/sample_stream.h`). A plain `no_std` rlib with no `#[panic_handler]`: the final
+# artifact provides one.
 [package]
 name = "deluge_sample_stream"
 version = "0.1.0"
@@ -22,23 +13,14 @@ name = "deluge_sample_stream"
 crate-type = ["rlib"]
 
 [dependencies]
-# `FillContext`: the fill-context this crate registers through `deluge_streaming_set_fill_context`,
-# which that crate exports.
 deluge_sample_fill = { path = "../deluge_sample_fill" }
-# The slot table is a blocking Mutex<CriticalSectionRawMutex, _> — mirrors `deluge_sample_fill`'s
-# own `FILL_CONTEXTS` table (see its lib.rs doc): this crate reaches the resource manager only
-# through late-bound `unsafe extern "C"` symbols (never a direct `deluge_resource` dependency), so
-# it has no access to that crate's own `Masked` critical section either. Neither `open`/`close`
-# (main/load thread) nor `read_at` (the synchronous fill) ever run on the audio
-# render ISR, so this plain blocking primitive is enough. Blocking primitive only — no
-# embassy-executor.
+# The slot table's blocking mutex. Its callers never run on the audio render ISR, so a plain
+# critical-section mutex is enough; no embassy-executor.
 embassy-sync = "0.8.0"
 
 [dev-dependencies]
-# `REGISTRY`'s `CriticalSectionRawMutex` needs a registered `critical-section` impl to link; the
-# device/`host_app` builds get one from `deluge-bsp-rust`'s own dependency tree, but this crate's
-# own `cargo test` links standalone, so it needs its own — same std-backed impl
-# `deluge_sample_fill`/`deluge_resource`'s dev-dependencies already use.
+# `cargo test` links standalone and needs a `critical-section` impl for `REGISTRY`; the firmware
+# build gets one from the BSP.
 critical-section = { version = "1", features = ["std"] }
 
 [features]

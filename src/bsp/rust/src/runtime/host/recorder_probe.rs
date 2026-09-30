@@ -1,28 +1,19 @@
-//! `host_app` diagnostic: does reading a STILL-RECORDING sample back resolve through the async
-//! streaming fill?
+//! A diagnostic: does a still-recording sample read back through the async streaming fill?
 //!
-//! Device/`host_app` route the fill onto the Rust async task (`streaming_loader.rs`), which reads
-//! through the fill context's `efatfs_handle` — and a recording's is `DELUGE_HANDLE_NONE`, whose read
-//! fails, so a still-recording sample resolves LOADING (re-queued, never READY) uniformly on every
-//! target, sim included. This module turns that into a measurement: it drives
-//! `scenarios/recorder_readback_probe.h`'s C-ABI (a real `SampleRecorder`, fed real audio, never
-//! finalized) through the SAME region-port entry point (`deluge_sample_region_acquire_ex`) real
-//! playback uses, on THIS target, and reports what actually comes back.
-//!
-//! Thread-agnostic like [`super::scenario::run`]: only `.await`s [`embassy_time::Timer`], no thread
-//! spawn, no `sim_latency` dependency. [`recorder_probe_task`] is the same not-reusable
-//! `host_app`-boot convenience wrapper `scenario::scenario_task` is (spawn on the host-app
-//! executor, poll [`take_result`] from the OS thread).
+//! The fill reads through the fill context's file handle, and a recording's is
+//! `DELUGE_HANDLE_NONE`, so such a read is expected to stay LOADING. This drives a real
+//! `SampleRecorder`, never finalized (`tests/integration/scenarios/recorder_readback_probe.h`),
+//! through the region port playback uses (`deluge_sample_region_acquire_ex`) and reports what
+//! comes back. Like [`super::scenario::run`], [`run`] only awaits timers; [`recorder_probe_task`]
+//! runs it for an OS thread that polls [`take_result`].
 #![cfg(all(not(target_os = "none"), feature = "host_app"))]
 
 use std::sync::Mutex;
 
 use embassy_time::{Duration, Instant, Timer};
 
-// Host-only C-ABI bridge (tests/integration/scenarios/recorder_readback_probe.{h,cpp}, compiled
-// into the host tree's `deluge_scenarios` objects that build.rs archives; the device firmware
-// never contains it). Manually declared here, same pattern as `scenario.rs`'s bridge: harness-only entry
-// points the app exposes to the platform, not part of the libdeluge C-ABI the app CONSUMES.
+// The host-only probe bridge (`recorder_readback_probe.{h,cpp}`, archived by the build script),
+// declared by hand as harness surface.
 unsafe extern "C" {
     fn deluge_harness_recorder_probe(num_channels: u8, num_frames: u32) -> u8;
     fn deluge_harness_recorder_probe_drain_tick();
@@ -33,34 +24,26 @@ unsafe extern "C" {
     fn deluge_harness_recorder_probe_end();
 }
 
-/// `DelugeRegionState` values, as bytes (`libdeluge/sample_source.h`); `0` is this probe's own
-/// "harness setup failed" sentinel (see `recorder_readback_probe.cpp`).
+/// The probe's "harness setup failed" sentinel. The other `STATE_*` values are
+/// `DelugeRegionState` (`libdeluge/sample_source.h`) as bytes.
 pub const STATE_HARNESS_ERROR: u8 = 0;
 pub const STATE_READY: u8 = crate::sys::DelugeRegionState::Ready as u8;
 pub const STATE_LOADING: u8 = crate::sys::DelugeRegionState::Loading as u8;
-/// Documented for completeness (mirrors `libdeluge/sample_source.h`'s full state enum) even though
-/// no code branches on it directly — a caller reads `final_state`/`resolved_ready` instead.
 #[allow(dead_code)]
 pub const STATE_UNAVAILABLE: u8 = crate::sys::DelugeRegionState::Unavailable as u8;
 
-/// Outcome of [`run`]. Plain data (not a `Result`/panic), same rationale as
-/// [`super::scenario::ScenarioResult`]: an unresolved probe is itself the finding, not a harness
-/// failure, so the caller decides what to make of it.
+/// The outcome of [`run`]. An unresolved read is a finding, not a failure, so the caller judges.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct RecorderProbeResult {
-    /// `registerTasks()` claimed a scheduler slot within `step_timeout` (same boot-readiness
-    /// signal `scenario::ScenarioResult::boot_ready` uses).
+    /// Boot reached `registerTasks()` within `step_timeout`.
     pub boot_ready: bool,
-    /// The first acquire's state, after the drain ticks (with `RecordingReadSource` deleted this is
-    /// expected to read LOADING uniformly, on sim as well as `host_app`).
+    /// The first acquire's state, after the drain ticks; expected LOADING.
     pub initial_state: u8,
-    /// The state after this task's own poll loop (which lets the REAL async fill task run between
-    /// checks, via `Timer::after` yields — the mechanism that actually owns the drain on
-    /// `host_app`), bounded by `poll_window`.
+    /// The state after polling for up to `poll_window`, yielding so the fill task can run.
     pub final_state: u8,
-    /// How many `Timer::after`-yielding poll iterations ran before `final_state` was read.
+    /// The poll iterations before `final_state` was read.
     pub poll_iterations: u32,
-    /// `final_state == STATE_READY` — the plain pass/fail a caller most likely wants.
+    /// `final_state == STATE_READY`.
     pub resolved_ready: bool,
 }
 
@@ -77,15 +60,11 @@ async fn wait_for(timeout: Duration, mut cond: impl FnMut() -> bool) -> bool {
     }
 }
 
-/// Runs the probe. `poll_window` bounds how long this waits, yielding to the executor between
-/// checks, for a `STATE_LOADING` result to resolve — long enough to give a background async fill
-/// task (if one is actually working the request) a real chance, short enough that a genuinely
-/// stuck fill (the routing-divergence finding) doesn't hang the caller forever.
+/// Runs the probe, waiting up to `poll_window` for a LOADING read to resolve.
 pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbeResult {
     let mut result = RecorderProbeResult::default();
 
-    // Same rationale as scenario::run: don't touch C++ app state (currentSong et al.) before
-    // registerTasks() has actually run.
+    // Touch no app state before `registerTasks()` has run.
     result.boot_ready = wait_for(step_timeout, || {
         crate::scheduler::registered_task_count() > 0
     })
@@ -94,20 +73,14 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
         return result;
     }
 
-    // Small ramp (50 frames, mono), comfortably inside the first cluster (Cluster::size is 32KB;
-    // 50 frames * 3 bytes = 150 bytes) so probing cluster index 0 is meaningful, and a handful of
-    // C++-side drain ticks to get it flushed to the SD file before probing (mirrors the sim
-    // round-trip harness's own pump pattern).
-    // Set up and feed; the loop below drains, with a yield between ticks, which is the whole point.
+    // 50 mono frames: well inside cluster 0, which is the one probed.
     let setup = unsafe { deluge_harness_recorder_probe(1, 50) };
     if setup == STATE_HARNESS_ERROR {
         result.initial_state = STATE_HARNESS_ERROR;
         return result;
     }
 
-    // The drain, one tick per YIELD: the channel arm needs the storage driver to run between
-    // ticks to answer the request, so awaiting here (rather than looping tightly) is what lets
-    // the op complete.
+    // Flush to the card, yielding between ticks so the storage task can answer each request.
     for _ in 0..4 {
         unsafe { deluge_harness_recorder_probe_drain_tick() };
         Timer::after_millis(1).await;
@@ -134,13 +107,11 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbe
     result
 }
 
-/// Cross-thread handoff for [`recorder_probe_task`] — see its doc comment.
+/// The result [`recorder_probe_task`] hands to the OS thread.
 static RESULT: Mutex<Option<RecorderProbeResult>> = Mutex::new(None);
 
-/// `host_app` boot-path convenience wrapper (NOT part of a reusable driver — same shape as
-/// `scenario::scenario_task`). Spawn on the SAME executor `host_app_task`
-/// and the async streaming-fill task run on, then poll [`take_result`] from the OS thread.
-/// Embassy task args must be `Copy`; durations are passed as plain millis.
+/// Runs [`run`] as an embassy task: spawn it on the host app executor, then poll
+/// [`take_result`]. Durations are in milliseconds.
 #[embassy_executor::task]
 pub async fn recorder_probe_task(step_timeout_ms: u64, poll_window_ms: u64) {
     let result = run(
@@ -151,7 +122,7 @@ pub async fn recorder_probe_task(step_timeout_ms: u64, poll_window_ms: u64) {
     *RESULT.lock().unwrap() = Some(result);
 }
 
-/// Takes the result [`recorder_probe_task`] stashed, if it has finished. `None` before completion.
+/// Takes the result [`recorder_probe_task`] stored, or `None` before it has finished.
 pub fn take_result() -> Option<RecorderProbeResult> {
     RESULT.lock().unwrap().take()
 }

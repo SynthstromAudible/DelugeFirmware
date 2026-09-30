@@ -1,14 +1,11 @@
-//! Safe Rust wrapper over `cpp/harness_shim.cpp`'s `region_fill_diff_finish_fill_over_buffers` — the
-//! C++ reference side of the fill-differential: a fresh, from-scratch replica of `finish_fill`'s
-//! convert+stitch orchestration (`async_fill.cpp:110-162`) over plain buffers, calling the SAME
-//! `convert_cluster_data`/`stitch_boundaries` primitives `fill_logic::finish_convert_stitch` calls (via
-//! `deluge_sample_convert`) — wired up independently, in C++, straight from the real
-//! `convert.h`/`stitch.h` headers, not a re-derivation of the Rust side's own logic.
+//! Safe wrapper over `cpp/harness_shim.cpp`'s `region_fill_diff_finish_fill_over_buffers`, the C++
+//! side of the fill differential.
 //!
-//! [`Geometry`]/[`Neighbour`]/[`ConvertState`] mirror `fill_logic`'s own `FillGeometry`/`NeighbourView`/
-//! `ConvertState` field-for-field, kept as independent types for the same reason `fill_logic`'s own doc
-//! gives for not sharing types with `streaming_loader`: this module has no dependency on
-//! `deluge-bsp-rust` at all (it only talks to the cc-compiled C++ slice), so it stays fully decoupled.
+//! The shim is an independent C++ implementation of the convert+stitch orchestration over plain
+//! buffers, built directly on the real `convert.h`/`stitch.h` primitives rather than derived from
+//! the Rust side. [`Geometry`], [`Neighbour`] and [`ConvertState`] mirror `fill_logic`'s
+//! `FillGeometry`, `NeighbourView` and `ConvertState` field for field, but are separate types so
+//! this side shares no code with the implementation under test.
 
 mod ffi {
     unsafe extern "C" {
@@ -37,8 +34,7 @@ mod ffi {
     }
 }
 
-/// Geometry the C++ reference needs — mirrors `fill_logic::FillGeometry`'s fields exactly (see this
-/// module's doc for why it's an independent type rather than a shared one).
+/// Per-cluster geometry for the C++ reference; mirrors `fill_logic::FillGeometry`.
 #[derive(Clone, Copy)]
 pub struct Geometry {
     pub audio_data_start_pos_bytes: u32,
@@ -49,19 +45,19 @@ pub struct Geometry {
     pub raw_data_format: u8,
 }
 
-/// One neighbour's payload + convert-state, mirrors `fill_logic::NeighbourView` field-for-field.
+/// One neighbour's payload and convert state; mirrors `fill_logic::NeighbourView`.
 pub struct Neighbour<'a> {
-    /// The neighbour's FULL `payload_with_trailing_slack()` buffer (`cluster_size + 7` bytes).
+    /// The neighbour's full payload-with-trailing-slack buffer (`cluster_size + 7` bytes).
     pub payload: &'a mut [u8],
-    /// The neighbour's `first_three_bytes_pre_data_conversion` (read only as the NEXT neighbour).
+    /// The neighbour's unconverted first three bytes; read only for the next neighbour.
     pub unconverted_head: &'a [u8; 3],
-    /// The neighbour's OWN `start_converted` flag (read/written only as the NEXT neighbour).
+    /// The neighbour's `start_converted` flag; used only for the next neighbour.
     pub start_converted: &'a mut bool,
-    /// The neighbour's OWN `end_converted` flag (read/written only as the PREV neighbour).
+    /// The neighbour's `end_converted` flag; used only for the previous neighbour.
     pub end_converted: &'a mut bool,
 }
 
-/// This chunk's own convert-state, mirrors `fill_logic::ConvertState` field-for-field.
+/// The filled chunk's own convert state; mirrors `fill_logic::ConvertState`.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub struct ConvertState {
     pub first_three_bytes: [u8; 3],
@@ -69,15 +65,17 @@ pub struct ConvertState {
     pub end_converted: bool,
 }
 
-/// Run the C++ reference's convert+stitch orchestration over `payload` (the FULL
-/// `payload_with_trailing_slack()` span, `geo.cluster_size + 7` bytes) — mirrors
-/// `fill_logic::finish_convert_stitch`'s own signature/contract exactly, so a differential test can
-/// drive both sides with IDENTICAL call shapes over independently-seeded clones of the same inputs.
+/// Runs the C++ convert+stitch orchestration over `payload`, the full `geo.cluster_size + 7`-byte
+/// payload-with-trailing-slack span.
+///
+/// Takes the same arguments as `fill_logic::finish_convert_stitch`, so a test can drive both sides
+/// identically over separately seeded copies of the same inputs.
 ///
 /// # Panics
-/// Panics if `payload.len() < geo.cluster_size + 7`, or if `geo.cluster_size < 11` — same
-/// preconditions as `fill_logic::finish_convert_stitch` (the prev edge slices
-/// `[cluster_size-4, cluster_size+7)`, which underflows below that).
+///
+/// Panics if `payload.len() < geo.cluster_size + 7` or `geo.cluster_size < 11` (the previous
+/// neighbour's edge slices `[cluster_size - 4, cluster_size + 7)`), matching
+/// `fill_logic::finish_convert_stitch`.
 pub fn finish_fill_over_buffers(
     payload: &mut [u8],
     index: u32,
@@ -118,12 +116,10 @@ pub fn finish_fill_over_buffers(
         ),
     };
 
-    // SAFETY: `payload` is a valid, exclusively-borrowed `cluster_size + 7`-byte buffer (asserted
-    // above). `self_state`'s three fields are valid in/out locations for the whole call.
-    // `prev`/`next`, when `Some`, are valid exclusively-borrowed buffers of the length just captured
-    // (or null/0 when absent) — the C++ side writes only within `[0, len)` of each and the four flags,
-    // matching these borrows; every raw part above is derived from a still-live reference (the `match`
-    // above only decomposes, it never drops anything before the call below).
+    // SAFETY: `payload` is an exclusive `cluster_size + 7`-byte buffer (asserted above) and
+    // `self_state`'s fields are valid in/out locations. Each neighbour pointer comes from a live
+    // exclusive borrow of the captured length (or is null/0 when absent); the C++ side writes only
+    // within `[0, len)` of each buffer and to the flags.
     unsafe {
         ffi::region_fill_diff_finish_fill_over_buffers(
             payload.as_mut_ptr(),

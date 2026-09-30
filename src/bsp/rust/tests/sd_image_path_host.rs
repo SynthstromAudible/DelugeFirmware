@@ -1,10 +1,5 @@
-//! `cargo test` entry point for the content-addressed SD-image naming policy
-//! (`src/sd_image_path.rs`). Plain-host test: needs neither the `host_app`
-//! feature nor a CMake C++ build (build.rs's host path is a no-op without
-//! `host_app`), because the naming policy is deliberately split out of the
-//! mtools-invoking `sd_image.rs`.
-//!
-//!   cargo test --test sd_image_path_host
+//! The content-addressed SD-image naming policy (`storage::sd_image_path`): stable, reusable image
+//! paths, reuse versus repack, and fingerprinting. Runs in a plain host build.
 #![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::storage::sd_image_path;
@@ -13,8 +8,7 @@ use sd_image_path::{Plan, fingerprint_dir, recorder_image_path, scenario_plan};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Per-test scratch root under the cargo target dir (never `/tmp` — these tests
-/// exist because of a `/tmp` leak).
+/// Returns a fresh per-test scratch directory under the cargo target dir, not `/tmp`.
 fn scratch(name: &str) -> PathBuf {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("target/tmp/sd_image_path_tests")
@@ -28,7 +22,7 @@ fn write_file(dir: &Path, name: &str, contents: &[u8]) {
     fs::write(dir.join(name), contents).expect("write fixture file");
 }
 
-// --- the leak regression: the reusable path must NOT be process-unique -------
+// The leak regression: the reusable path must not be process-unique.
 
 #[test]
 fn scenario_image_path_is_identical_for_the_same_fingerprint() {
@@ -155,7 +149,7 @@ fn fingerprint_changes_when_a_sample_changes_size() {
     );
 }
 
-// --- the sibling leak: format_empty_image ------------------------------------
+// --- the recorder image path ------------------------------------------------
 
 #[test]
 fn recorder_image_path_does_not_embed_the_process_id() {

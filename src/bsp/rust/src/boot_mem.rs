@@ -1,7 +1,8 @@
-//! C++ memory-model bring-up that must run AFTER `init_clocks` (SDRAM up) and
-//! BEFORE the application code: zero the SDRAM `.bss` regions, copy initialised
-//! SDRAM content from its SRAM load address, and run the C++ global constructors
-//! (`.init_array`). Symbols come from `linker/sdram_sections.x`.
+//! C++ memory bring-up: zero the SDRAM `.bss` regions, copy `.sdram_init` from its SRAM load
+//! address, and run the C++ global constructors.
+//!
+//! Runs after `init_clocks` (SDRAM up) and before any application code. The section symbols come
+//! from `linker/sdram_sections.x`.
 
 unsafe extern "C" {
     static __frunk_bss_start: u8;
@@ -15,21 +16,25 @@ unsafe extern "C" {
     static __init_array_end: u8;
 }
 
-/// SDRAM split: the application owns the low part (its heap runs from
-/// `__heap_start` up to the base of the Rust-owned slice below); the Rust
-/// allocator (deluge-bsp DMA/audio buffers) gets this reserved slice at the top.
+/// Base address of SDRAM.
+///
+/// The application owns the low part (its heap runs from `__heap_start` up to
+/// [`RUST_SDRAM_BASE`]); the Rust allocator (DMA and audio buffers) owns the top
+/// [`RUST_SDRAM_RESERVE`] bytes.
 pub const SDRAM_BASE: usize = 0x0C00_0000;
+/// SDRAM size in bytes.
 pub const SDRAM_SIZE: usize = 64 * 1024 * 1024;
+/// Bytes reserved at the top of SDRAM for the Rust allocator.
 pub const RUST_SDRAM_RESERVE: usize = 8 * 1024 * 1024;
-/// First address of the Rust-owned SDRAM slice = the app's external memory end.
+/// First address of the Rust-owned SDRAM slice, and the end of the app's external memory.
 pub const RUST_SDRAM_BASE: usize = SDRAM_BASE + SDRAM_SIZE - RUST_SDRAM_RESERVE;
 
-/// Zero the SDRAM `.bss` regions and copy `.sdram_init` from its SRAM LMA to its
-/// SDRAM VMA. Must be called once, after `init_clocks` (SDRAM controller up).
+/// Zeroes the SDRAM and frunk `.bss` regions and copies `.sdram_init` from its SRAM LMA to its
+/// SDRAM VMA.
 ///
 /// # Safety
-/// Call exactly once, after SDRAM is initialised and before any app code reads
-/// SDRAM-resident globals.
+///
+/// Call exactly once, after SDRAM is initialised and before any code reads SDRAM-resident globals.
 pub unsafe fn init_sdram_memory() {
     unsafe {
         zero(
@@ -51,11 +56,12 @@ pub unsafe fn init_sdram_memory() {
     }
 }
 
-/// Run the C++ global constructors. Must be called after [`init_sdram_memory`]
-/// (their storage may be in SDRAM) and before the application runs.
+/// Runs the C++ global constructors (`.init_array`).
 ///
 /// # Safety
-/// Call exactly once, before any code that depends on constructed globals.
+///
+/// Call exactly once, after [`init_sdram_memory`] (the globals may live in SDRAM) and before any
+/// code that depends on constructed globals.
 pub unsafe fn run_init_array() {
     type Ctor = unsafe extern "C" fn();
     unsafe {
@@ -68,22 +74,17 @@ pub unsafe fn run_init_array() {
     }
 }
 
-/// Zero `[start, end)`.
+/// Zeroes `[start, end)`.
 ///
-/// Takes RAW POINTERS, and the callers must produce them with `addr_of!` — never
-/// `&SYMBOL`. This previously took `&u8` references and computed
-/// `end as usize - start as usize`, which subtracts pointers derived from two
-/// *distinct* objects: UB in LLVM's model, so the difference folded away, `len > 0`
-/// went false, and **both memsets were deleted from the image**. The fingerprint was
-/// that `__sdram_bss_start`/`__frunk_bss_start` were absent from the linked ELF
-/// (nothing referenced them any more) while the `_end` symbols, which other code
-/// also reads, were still there.
+/// Callers must pass raw pointers made with `addr_of!`, never references to the linker symbols.
+/// Subtracting references to two distinct objects is UB to LLVM, which folds the length to zero
+/// and deletes the memset, leaving every `PLACE_SDRAM_BSS`/`PLACE_INTERNAL_FRUNK` global (the
+/// allocator's metadata included) holding the previous session's RAM. Casting each pointer to
+/// `usize` keeps the subtraction plain integer arithmetic.
 ///
-/// The consequence was not subtle: no SDRAM or frunk `.bss` was ever cleared, so
-/// every `PLACE_SDRAM_BSS`/`PLACE_INTERNAL_FRUNK` global — including the allocator's
-/// own metadata arrays — started each boot holding whatever the last session left in
-/// RAM. Casting each raw pointer to `usize` first keeps this as plain integer
-/// arithmetic, with no provenance claim for the optimiser to exploit.
+/// # Safety
+///
+/// `[start, end)` must be a writable region with `start <= end`.
 unsafe fn zero(start: *const u8, end: *const u8) {
     let len = (end as usize) - (start as usize);
     if len > 0 {

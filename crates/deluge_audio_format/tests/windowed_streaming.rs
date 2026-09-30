@@ -1,21 +1,9 @@
-//! The property that makes this parser usable on the device: driven through
-//! [`HeaderParser`], a header decode reads a handful of bytes, never the file.
+//! Tests that a [`HeaderParser`] decode reads a handful of bytes, never the file, and always
+//! terminates, whatever the caller does.
 //!
-//! A prefix-only protocol cannot do that. Every chunk's payload sits between the
-//! caller and the next chunk header, so "give me the first N bytes" walks the
-//! caller straight through the audio — measured over `~/Deluge Backup`, the
-//! required prefix was **100% of the file at the median, p90 and maximum**, up
-//! to a 183 MB single allocation for one file in the icoustic golden fixture.
-//! The device has 8 MB of SDRAM. Hence the windowed API, and hence this gate.
-//!
-//! Two halves:
-//! * always-run synthetic files, including one with a 512 MB audio payload that
-//!   is never materialised — proof the payload is stepped over by arithmetic
-//!   rather than read;
-//! * a corpus sweep gated on `DELUGE_AUDIO_CORPUS` (same convention as
-//!   `corpus_differential`), which reads each real file through nothing but the
-//!   windows the parser asks for and additionally asserts the streamed answer is
-//!   identical to `parse`'s whole-file answer.
+//! * Synthetic files, always run, including a 512 MB audio payload that is never materialised.
+//! * A corpus sweep gated on `DELUGE_AUDIO_CORPUS` (comma-separated roots), reading each file only
+//!   through the requested windows and checking the result against [`parse`]'s whole-file answer.
 //!
 //! ```text
 //! DELUGE_AUDIO_CORPUS="$HOME/Deluge Backup,$HOME/deluge-aiff-corpus" \
@@ -27,27 +15,21 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
-/// What a run of the state machine cost its caller.
+/// What a decode cost its caller.
 #[derive(Debug, Default, Clone, Copy)]
 struct Cost {
-    /// Largest single window the parser asked for. This is the caller's peak
-    /// buffer: it never has to hold two windows at once.
+    /// Largest single window requested: the caller's peak buffer.
     max_window: u32,
-    /// Total bytes handed to the parser across the whole decode.
+    /// Total bytes handed to the parser.
     bytes_read: u64,
-    /// How many times `feed` was called — a walk that failed to advance would
-    /// show up here as a runaway.
     feeds: u32,
 }
 
-/// Drive a decode of a `file_size`-byte file to completion, answering every
-/// request from `read`.
+/// Drives a decode of a `file_size`-byte file to completion, answering every request from
+/// `read`.
 ///
-/// Two checks run on every request, and both are the point of this harness,
-/// not incidental scaffolding: every request lies wholly inside the file, so
-/// `read` is never asked for a byte that does not exist and there is never
-/// anything to pad; and the total number of `feed` calls is capped, so a walk
-/// that fails to make progress fails here instead of looping.
+/// Asserts that every request lies inside the file and caps the number of feeds, so a walk that
+/// stops making progress fails instead of hanging.
 fn drive(
     file_size: u32,
     mut read: impl FnMut(u32, u32) -> Vec<u8>,
@@ -79,7 +61,7 @@ fn drive(
     }
 }
 
-/// Read windows out of an in-memory file image.
+/// Reads windows out of an in-memory file image.
 fn from_bytes(bytes: &[u8]) -> impl FnMut(u32, u32) -> Vec<u8> + '_ {
     move |start, len| {
         let from = (start as usize).min(bytes.len());
@@ -96,11 +78,8 @@ fn le32(v: u32) -> [u8; 4] {
     v.to_le_bytes()
 }
 
-/// `fmt ` + `data` + `smpl`, with the data chunk's payload declared as
-/// `audio_len` bytes but only `present` of them actually stored. The `smpl`
-/// chunk sits AFTER the audio — the layout 35% of the real corpus uses, and the
-/// one a prefix-only protocol can only reach by materialising everything in
-/// between.
+/// `fmt ` + `data` + `smpl`, with `data` declaring `audio_len` bytes of which only `present` are
+/// stored. The `smpl` chunk follows the audio, a common real-world layout.
 fn wav_with_trailing_smpl(audio_len: u32, present: u32) -> Vec<u8> {
     let mut chunks: Vec<u8> = Vec::new();
     chunks.extend_from_slice(b"fmt ");
@@ -146,17 +125,14 @@ fn wav_with_trailing_smpl(audio_len: u32, present: u32) -> Vec<u8> {
 
 #[test]
 fn a_half_gigabyte_of_audio_is_never_read() {
-    // The whole point, stated as a test: a 512 MB audio payload that exists only
-    // as a declared length. Nothing materialises it, and the parser still walks
-    // past it to the `smpl` chunk on the far side.
+    // A 512 MB audio payload that exists only as a declared length; the parser must still reach
+    // the `smpl` chunk beyond it.
     const AUDIO_LEN: u32 = 512 * 1024 * 1024;
     let head = wav_with_trailing_smpl(AUDIO_LEN, 0);
     let data_payload_start = 44u32; // 12 top + 8+16 fmt + 8 data header
     let tail_start = data_payload_start + AUDIO_LEN;
 
-    // A file that is a head, a hole, and a tail — the hole reads as zeros and is
-    // never allocated. If the parser ever asked for a window inside it, the
-    // assertion below would fire.
+    // Head, hole, tail: the hole is never allocated, and a request inside it fails the test.
     let file_size = head.len() as u32 + AUDIO_LEN;
     let (result, cost) = drive(file_size, |start, len| {
         assert!(
@@ -185,8 +161,7 @@ fn a_half_gigabyte_of_audio_is_never_read() {
     let header = result.expect("a 512 MB file's header decodes from a handful of bytes");
     assert_eq!(header.audio_data_start_pos_bytes, data_payload_start);
     assert_eq!(header.audio_data_length_bytes, AUDIO_LEN);
-    // Reached across the hole: the trailing metadata a prefix-only protocol
-    // could only see by buffering half a gigabyte first.
+    // The trailing metadata, reached across the hole.
     assert_eq!(header.file_loop_start_samples, 1234);
     assert_eq!(header.file_loop_end_samples, 5678);
     assert_eq!(header.midi_note, Some(60.0));
@@ -205,14 +180,11 @@ fn a_half_gigabyte_of_audio_is_never_read() {
 
 #[test]
 fn a_truncated_file_ends_the_walk_at_its_real_end() {
-    // The audio chunk declares 4096 bytes but the file holds 100 and stops. A
-    // streaming caller's short window says so, and the walk ends there rather
-    // than asking for bytes that will never exist.
+    // The audio chunk declares 4096 bytes but the file stops after 100; the walk ends there.
     let file = wav_with_trailing_smpl(4096, 100);
     let real_end = 44 + 100;
     let (result, cost) = drive(real_end as u32, from_bytes(&file[..real_end]));
-    // Everything the header itself said is still known; only the trailing
-    // metadata, which genuinely isn't in the file, is missing.
+    // The header's own facts survive; only the missing trailing metadata is absent.
     let header = result.expect("a truncated payload is not a corrupt header");
     assert_eq!(header.audio_data_length_bytes, 4096);
     assert_eq!(header.file_loop_start_samples, 0);
@@ -221,9 +193,7 @@ fn a_truncated_file_ends_the_walk_at_its_real_end() {
 
 #[test]
 fn an_oversized_window_is_consumed_in_one_feed() {
-    // A caller holding a whole SD cluster should not have to hand it back one
-    // field at a time. Feeding a superset window must satisfy every request it
-    // covers before the parser asks again.
+    // A superset window must satisfy every request it covers before the parser asks again.
     let file = wav_with_trailing_smpl(64, 64);
     let mut parser = HeaderParser::new(file.len() as u32);
     let mut feeds = 0;
@@ -240,8 +210,7 @@ fn an_oversized_window_is_consumed_in_one_feed() {
         }
     };
     assert_eq!(header.file_loop_end_samples, 5678);
-    // One feed, not two: the parser knows where the file ends, so it never has
-    // to ask the caller to confirm it by handing back nothing.
+    // One feed: the parser knows where the file ends, so it never asks the caller to confirm it.
     assert_eq!(
         feeds, 1,
         "a window covering the file should need exactly one feed"
@@ -250,17 +219,10 @@ fn an_oversized_window_is_consumed_in_one_feed() {
 
 #[test]
 fn a_zero_padding_caller_cannot_walk_forever() {
-    // The runaway this API shape exists to make unwritable. A caller that
-    // `read_exact`s into a zeroed `len`-sized buffer hands back zeros where the
-    // file has run out; an all-zero window reads as a chunk tagged four NULs of
-    // size 0, the walk steps 8 bytes, and it repeats until `u32` overflow —
-    // 536,870,912 feeds on this very input, a *valid* 12-byte empty RIFF/WAVE.
-    // Seconds on a host; on a device, one SD read each, so a hang.
-    //
-    // It cannot happen now: the parser is told the file is 12 bytes and never
-    // names a byte past that, so there is nothing to pad. `drive` asserts every
-    // request lies inside the file, so deleting that clamp fails here instead of
-    // hanging here.
+    // A caller that `read_exact`s into a zeroed buffer hands back zeros past the end of the
+    // file. Without the size clamp, an all-zero window reads as a size-0 chunk and the walk
+    // steps 8 bytes at a time until `u32` overflow: effectively a hang on a device. With it,
+    // no request extends past the 12-byte file, so there is nothing to pad.
     let file = b"RIFF\x04\x00\x00\x00WAVE";
     let (result, cost) = drive(12, |start, len| {
         let mut window = vec![0u8; len as usize];
@@ -278,10 +240,8 @@ fn a_zero_padding_caller_cannot_walk_forever() {
 
 #[test]
 fn a_window_that_never_reaches_the_request_terminates() {
-    // Contract violation, deliberately: answer every request with bytes from
-    // somewhere else entirely. The parser must still return — a caller bug must
-    // not become a device hang — and it must say the read failed rather than
-    // build a header out of whatever it was handed.
+    // Answer every request with the wrong bytes. The parser must still return, and report a
+    // failed read rather than build a header from them.
     let file = wav_with_trailing_smpl(64, 64);
     let (result, cost) = drive(file.len() as u32, |_start, _len| file[..4].to_vec());
     assert!(cost.feeds < 100, "{} feeds before giving up", cost.feeds);
@@ -315,13 +275,9 @@ fn walk_audio_files(root: &str, out: &mut Vec<PathBuf>) {
     recurse(Path::new(root), out);
 }
 
-/// Sweep every real audio file under `DELUGE_AUDIO_CORPUS`, decoding through
-/// nothing but the windows `HeaderParser` asks for, and check the largest
-/// window it ever requested against the bound every caller must size its
-/// buffer to (`MAX_WINDOW_BYTES`). Also cross-checks each streamed decode
-/// against `parse`'s whole-file answer, and repeats the sweep on a half- and
-/// one-byte-short truncation of every file, to cover the on-device failure
-/// mode of a card that filled or a transfer that stopped.
+/// Decodes every audio file under `DELUGE_AUDIO_CORPUS` through requested windows only, checks
+/// the largest window against `MAX_WINDOW_BYTES` and the result against `parse`, and repeats on
+/// each file cut to half and to one byte short (a card that filled, a transfer that stopped).
 #[test]
 fn windows_stay_bounded_over_the_corpus() {
     let Ok(roots) = std::env::var("DELUGE_AUDIO_CORPUS") else {
@@ -346,7 +302,7 @@ fn windows_stay_bounded_over_the_corpus() {
         };
         let whole = std::fs::read(path).expect("corpus file readable");
 
-        // Read ONLY what the parser asks for, straight off the file.
+        // Read only what the parser asks for, straight off the file.
         let size = whole.len() as u32;
         let (streamed, cost) = drive(size, |start, len| {
             let mut window = vec![0u8; len as usize];
@@ -372,10 +328,8 @@ fn windows_stay_bounded_over_the_corpus() {
             deluge_audio_format::MAX_WINDOW_BYTES
         );
 
-        // The streamed decode must agree with the whole-file one, field for
-        // field. Files the whole-file parser rejects are expected to be rejected
-        // by the streaming one too, but the two protocols legitimately differ on
-        // what a short file means, so only successes are compared.
+        // Only successes are compared: the two protocols legitimately differ on what a short
+        // file means.
         if let Ok(expected) = parse(&whole) {
             assert_eq!(
                 streamed.as_ref().ok(),
@@ -393,12 +347,8 @@ fn windows_stay_bounded_over_the_corpus() {
             worst_read = (cost.bytes_read, path.clone());
         }
 
-        // Truncated variants of the same file. `parse` cannot gate these — on a
-        // short file the streaming walk deliberately ends where the file does
-        // and returns what it read (as the C++ oracle's `bytePos < size()` loop
-        // does), where `parse` asks for more — so without this the streaming
-        // path's most likely real-world input, a file cut short by a card that
-        // filled or a transfer that stopped, would go entirely uncovered.
+        // Truncated variants. `parse` cannot check these (it asks for more where the streaming
+        // walk ends at the file's end), so check the invariants directly.
         for cut in [size / 2, size.saturating_sub(1)] {
             if cut < 12 {
                 continue;
@@ -410,9 +360,8 @@ fn windows_stay_bounded_over_the_corpus() {
                 path.display(),
                 short_cost.max_window
             );
-            // A truncated file still declares where its audio starts and how
-            // long it claims to be: those come from the chunk header, not the
-            // payload, so a cut that keeps the header must not change them.
+            // Audio start and declared length come from the chunk header, so a cut that keeps
+            // the header must not change them.
             if let (Ok(full), Ok(short)) = (parse(&whole), short) {
                 assert_eq!(
                     (

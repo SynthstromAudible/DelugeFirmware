@@ -1,98 +1,39 @@
-# Standalone build config for the Rust firmware bin (Cargo-top). Not inherited
-# from the deluge-sdk workspace (.cargo/config is resolved relative to the
-# invocation dir), so the target triple, Cortex-A9/NEON flags, build-std and the
-# embassy USB interface budget are replicated here.
-#
-# No forced [build] target: this crate now dual-targets (mirrors deluge-sdk's
-# `cargo deluge sim` pattern). Plain `cargo build`/`cargo build --target
-# x86_64-unknown-linux-gnu` builds the HOST (platform-std) image; `cargo device`
-# (below) builds the real ARM firmware, matching the CMake/build.rs C++-link
-# flow that only applies to the device target.
+# This crate is not a deluge-sdk workspace member, so the device target, Cortex-A9/NEON flags,
+# build-std and the embassy USB interface budget are set here. No default [build] target: a plain
+# `cargo build` builds the host binary; `cargo device` builds the ARM firmware.
 [alias]
-# `core,alloc`, not just `core`: since SP1 the device build pulls
-# `embedded-fatfs` with its `alloc` feature. Building only `core` from source
-# leaves `alloc` prebuilt against the *distributed* core, and the two `core`s
-# collide — "duplicate lang item in crate `core` (which `alloc` depends on)".
+# `core,alloc`, not just `core`: `embedded-fatfs` needs `alloc`, and a prebuilt `alloc` against a
+# rebuilt `core` fails with "duplicate lang item in crate `core`".
 device = "build --target armv7a-none-eabihf -Zbuild-std=core,alloc --no-default-features --features rtt"
 
 [target.armv7a-none-eabihf]
-# Drive the final link with the bundled arm-none-eabi-g++ so the C++ application
-# archive (libdeluge_app.a) and its runtime (libstdc++/libsupc++/libgcc/libm/
-# newlib) and the correct hard-float NEON multilib resolve automatically.
-# `-nostartfiles`: our entry is rza1l-hal's `_start`, not gcc's crt0.
-# Relative to the cargo invocation dir (src/bsp/rust). `dbt rust` overrides this
-# with an absolute path via CARGO_TARGET_ARMV7A_NONE_EABIHF_LINKER.
+# The bundled arm-none-eabi-g++ drives the link so libdeluge_app.a and its C++ runtime resolve.
+# `-nostartfiles`: the entry is rza1l-hal's `_start`, not gcc's crt0. The path is relative to
+# src/bsp/rust; `dbt rust` overrides it via CARGO_TARGET_ARMV7A_NONE_EABIHF_LINKER.
 linker = "../../../toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++"
 rustflags = [
   "-C", "target-cpu=cortex-a9",
   "-C", "target-feature=+neon",
   "-C", "linker-flavor=gcc",
   "-C", "link-arg=-nostartfiles",
-  # Float ABI for the LINK, not just codegen. Without these, arm-none-eabi-g++ resolves -lm/-lstdc++/
-  # -lsupc++/-lgcc from its DEFAULT multilib ("."), which is SOFT-float, while everything we compile is
-  # hard-float armv7a-none-eabihf. Any libm function actually called then reads its argument from r0
-  # instead of s0 and returns garbage -- silently, because functions the compiler inlines (floor, fabs)
-  # keep working, so only the out-of-line ones break. That is how the screensaver's std::lround() came
-  # back 0 for every drop, collapsing the rainfall onto a single x == y diagonal, while the identical
-  # code passed on the host. Selects thumb/v7-a+simd/hard; ARM/Thumb interworking makes that fine.
+  # Float ABI for the link, not just codegen: without these, g++ picks its default soft-float
+  # multilib for libm/libstdc++/libgcc, and every out-of-line libm call (e.g. `lround`) silently
+  # returns garbage from the wrong register. Selects the thumb/v7-a+simd/hard multilib.
   "-C", "link-arg=-mcpu=cortex-a9",
   "-C", "link-arg=-mfpu=neon",
   "-C", "link-arg=-mfloat-abi=hard",
 ]
 
-# ---------------------------------------------------------------------------
-# clang/lld cross-language LTO target (armv7a-deluge-eabihf.json). This is the
-# shipping device build; see scripts/cmake/CMakeToolchainDelugeClang.cmake for
-# the C++ side.
-#
-# Separate from the block above because the whole point of the custom target is
-# a feature set matching clang's — stock armv7a-none-eabihf sets +strict-align,
-# which clang does not, and that one callee-only feature blocks every
-# cross-language inline (LLVM requires the callee's features to be a SUBSET of
-# the caller's).
-#
-# Build with:
-#   cargo build --release --target ./armv7a-deluge-eabihf.json \
-#     -Zbuild-std=core,alloc -Zjson-target-spec --no-default-features --features rtt
-# after building the C++ side into a clang Release tree, and with
-# DELUGE_BUILD_DIR / DELUGE_DEVICE_CXX / DELUGE_DEVICE_CXXFLAGS / DELUGE_DEVICE_AR
-# pointed at that tree (see the clang toolchain file).
-#
-# Hand-run like that, this link gets NO rustflags at all: the [target.armv7a-
-# deluge-eabihf] block below deliberately spells no `rustflags` array, because
-# CARGO_TARGET_ARMV7A_DELUGE_EABIHF_RUSTFLAGS (a per-target RUSTFLAGS env var)
-# REPLACES rather than merges with one. Use `./dbt build` instead — it computes
-# and exports both CARGO_TARGET_ARMV7A_DELUGE_EABIHF_LINKER and _RUSTFLAGS from
-# discovered toolchain paths (see device_cxx_env() in scripts/tasks/task-build.py).
+# The shipping clang/lld cross-language LTO target (armv7a-deluge-eabihf.json). Its feature set
+# matches clang's (stock armv7a-none-eabihf adds +strict-align, which blocks every cross-language
+# inline). Build it with `./dbt build`, which exports CARGO_TARGET_ARMV7A_DELUGE_EABIHF_LINKER and
+# _RUSTFLAGS from the discovered toolchain (device_cxx_env() in scripts/tasks/task-build.py).
 [target.armv7a-deluge-eabihf]
-# Driven entirely by `dbt build`, which emits the linker and the full rustflags
-# list from discovered toolchain paths:
-#   CARGO_TARGET_ARMV7A_DELUGE_EABIHF_LINKER
-#   CARGO_TARGET_ARMV7A_DELUGE_EABIHF_RUSTFLAGS
-# They are not spelled here because a per-target RUSTFLAGS env var REPLACES
-# this array rather than merging, so a partial copy here would be a trap.
-# See scripts/tasks/task-build.py's device_cxx_env().
+# No `rustflags` here: the per-target RUSTFLAGS env var replaces this array rather than merging, so
+# a partial copy would be a trap. No inline-threshold override in that flag list either: measured a
+# no-op at the default, and the C++ side's -fno-inline-functions stays on for clang because gating
+# it off grew .text and SRAM.
 linker = "clang++"
-# NO inline-threshold override in that emitted flag list, deliberately.
-# -Wl,-mllvm,-inline-threshold=0 was tried and measured to be a no-op: with it
-# and without it the image is byte-identical (.text 1,464,564, exidx 37,672).
-# The flag does reach the LTO backend — threshold=1000 overflows SRAM by
-# 1,873,096 bytes — the default at -O2 simply already sits where 0 does for
-# this code.
-#
-# The C++ side keeps -fno-inline-functions for clang as well as GCC (root
-# CMakeLists). Gating it off for clang was measured on clean trees and is worse
-# on every axis:
-#                        blanket noinline        gated off
-#   .text                     1,381,508          1,464,564  (+83,056)
-#   .ARM.exidx                   68,704             37,672  (-31,032)
-#   SRAM                2,638,944 (87.5%)  2,687,412 (89.1%) (+48,468)
-#   Rust FFI symbols inlined         34                 26
-#
-# Note the direction of that last row: clang's `noinline` stops a C++ function
-# being inlined INTO callers, it does not stop callees being inlined into it, so
-# cross-language inlining survives — and more of it happens, presumably because
-# the budget is not spent duplicating C++ into C++ first.
 
 [env]
 EMBASSY_USB_MAX_INTERFACE_COUNT = "8"

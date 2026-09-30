@@ -1,23 +1,11 @@
-# deluge_sample_reader — the sample range-reader C-ABI (U1): a zero-copy streaming reader-handle
-# (plus a stateless copy convenience, later tasks) over a sample's source residency, for non-voice
-# consumers (pitch detect, waveform overview, crossfade averages, perc-cache, wavetable build, hop
-# search) that read raw-PCM frame RANGES without reaching `StreamedChunk` internals — the non-voice
-# twin of the voice region port (`deluge_sample_source`). See
-# docs/superpowers/specs/2026-07-27-u1-sample-range-reader-design.md.
+# The sample range-reader C ABI (`libdeluge/sample_reader.h`): raw-PCM frame ranges of a sample
+# for non-voice consumers (pitch detect, waveform, wavetable build). The non-voice twin of
+# `deluge_sample_source`.
 #
-# A SIBLING of `deluge_sample_fill`, not folded into it: `Reader::held_lease` needs the typed RAII
-# `deluge_resource::facade::Lease` guard (the same choice `deluge_sample_source` already made for
-# its own cursor slots), which means a direct Rust dependency on `deluge_resource` — exactly what
-# `deluge_sample_fill` deliberately does NOT have (its `native_fill` module reaches the manager
-# only through late-bound `unsafe extern "C"` symbols, precisely so it stays a lean,
-# `deluge_sample_convert`-only, sim-linkable core). Forcing that dependency onto `deluge_sample_fill`
-# for the reader's sake alone would be exactly the "unwanted dep" this crate's own design doc warns
-# against, so this crate stands alone instead and depends on `deluge_resource` directly, like
-# `deluge_sample_source` does.
+# Kept separate from `deluge_sample_fill` because it depends on `deluge_resource` directly (for the
+# typed `Lease`), which `deluge_sample_fill` deliberately avoids.
 #
-# A plain `no_std` rlib: no `#[panic_handler]` of its own (the final artifact — `deluge_rust`'s
-# umbrella / `deluge-bsp-rust`'s bin — provides one), composing without duplicate-symbol clashes,
-# exactly like `deluge_resource`/`deluge_sample_source`.
+# A plain `no_std` rlib with no `#[panic_handler]`: the final artifact provides one.
 [package]
 name = "deluge_sample_reader"
 version = "0.1.0"
@@ -30,15 +18,9 @@ name = "deluge_sample_reader"
 crate-type = ["rlib"]
 
 [dependencies]
-# The typed RAII `Lease`/`Resource` facade over the residency manager — `Reader::held_lease` stores
-# a `deluge_resource::facade::Lease` directly (not a locally reinvented lease type), mirroring
-# `deluge_sample_source`'s own choice for its cursor slots.
 deluge_resource = { path = "../deluge_resource" }
-# `fill_context_for` resolves a reader's geometry from the per-asset table C++ registers once at
-# sample-load (Task 3 Step 0); `native_begin`/`native_finish` (behind `native_fill`) are `window()`'s
-# `fill_now` primitives — this reader composes its own synchronous fill from them (C2a provided the
-# primitives, not the compose). Always-on, not a `[dev-dependencies]`: both are needed by this
-# crate's OWN production code (`reader.rs`), not just its tests.
+# `native_fill` supplies the fill primitives this crate's synchronous fill composes; production
+# code needs it, not only tests.
 deluge_sample_fill = { path = "../deluge_sample_fill", features = ["native_fill"] }
 
 [dev-dependencies]

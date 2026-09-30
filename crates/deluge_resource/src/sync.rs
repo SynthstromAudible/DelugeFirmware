@@ -1,40 +1,34 @@
-//! B1 synchronization primitives for the Manager. Every access to the Manager's
-//! shared `Cell` state routes through [`m_get`] / [`m_set`] / [`m_rmw`], which
-//! wrap the access in an asymmetric critical section (`Masked`): every context masks the
-//! minimal O(1) window EXCEPT the audio render context, which skips the mask entirely
-//! (gated on `!deluge_in_audio_context()`) because it preempts every other
-//! manager-touching context, so its RMWs are already atomic w.r.t. them.
-//! See docs/dev/known-concurrency-bugs.md (B1).
+//! Critical-section helpers guarding the manager's shared `Cell` state.
 //!
-//! There are three such contexts on the Rust BSP: audio (highest, skips), the streaming
-//! fill task (its own interrupt executor, masks), and thread mode
-//! (masks). The predicate is audio-specific rather than "in an interrupt" precisely so the
-//! middle one keeps its mask — see [`Masked`].
+//! Every access to that state goes through [`m_get`], [`m_set`] or [`m_rmw`], which wrap one
+//! O(1) access in a [`Masked`] window. The window is asymmetric: every context masks except the
+//! audio render context, which preempts every other context that touches the manager and so is
+//! already atomic with respect to them. See `docs/dev/known-concurrency-bugs.md` (B1).
 //!
-//! On host — where the preemptive TSan harness runs audio and streaming on real second and
-//! third OS threads and `deluge_in_audio_context()` is always false — ALL threads mask, so
-//! the global critical-section mutex serializes them and TSan sees no race.
+//! On the Rust BSP there are three such contexts: audio (highest priority, skips the mask), the
+//! streaming fill task (its own interrupt executor, masks), and thread mode (masks).
+//!
+//! On host, where the TSan harness runs audio and streaming on their own OS threads and
+//! `deluge_in_audio_context()` is always false, every thread masks, so the global
+//! critical-section mutex serializes them.
 
 use core::cell::Cell;
 
-// The C-ABI critical-section primitives, provided by the BSP (services.rs) in
-// the real device/host_app link. In the crate's own `cargo test` binary they
-// are provided by the `#[cfg(test)]` stubs at the bottom of this file.
+// Provided by the BSP (`services.rs`); in this crate's own tests, by `stubs` below.
 unsafe extern "C" {
     pub fn ENTER_CRITICAL_SECTION();
     pub fn EXIT_CRITICAL_SECTION();
     pub fn deluge_in_audio_context() -> bool;
 }
 
-/// RAII asymmetric critical section. Enters iff called outside the audio render context
-/// (`!deluge_in_audio_context()`) — a no-op on the audio path, which is already atomic
-/// w.r.t. every context that can touch the manager because it preempts all of them, and
-/// near-no-op on the cooperative BSP (nothing to preempt).
+/// RAII asymmetric critical section: masks unless called from the audio render context.
 ///
-/// The predicate is deliberately "am I the audio context", NOT "am I in an interrupt":
-/// the streaming fill task runs in its own interrupt context that audio preempts, so it
-/// must mask like any other preemptible caller. Gating on `deluge_in_interrupt()` would
-/// make its critical sections silently vanish and race the audio path.
+/// The audio context preempts every other context that touches the manager, so its accesses are
+/// already atomic and it skips the mask.
+///
+/// The predicate is deliberately "am I the audio context", not "am I in an interrupt": the
+/// streaming fill task runs in an interrupt context that audio preempts, so it must mask. Gating on
+/// `deluge_in_interrupt()` would silently drop its critical sections and race the audio path.
 pub struct Masked {
     active: bool,
 }
@@ -77,8 +71,8 @@ pub fn m_set<T>(c: &Cell<T>, v: T) {
     c.set(v);
 }
 
-/// Masked get→modify→set window over a single cell. The whole window is
-/// indivisible w.r.t. thread mode (and atomic on the audio path).
+/// Masked get→modify→set over a single cell; the whole window is indivisible with respect to
+/// every other manager context.
 #[inline]
 pub fn m_rmw<T: Copy, R>(c: &Cell<T>, f: impl FnOnce(&mut T) -> R) -> R {
     let _m = Masked::enter();
@@ -88,21 +82,10 @@ pub fn m_rmw<T: Copy, R>(c: &Cell<T>, f: impl FnOnce(&mut T) -> R) -> R {
     r
 }
 
-// ---- test-only providers of the C-ABI primitives -----------------------------
-// In `cargo test -p deluge_resource` there is no BSP in the link, so provide the
-// three extern symbols here, backed by the real `critical-section` std impl (so
-// the guard is exercised for real), plus a settable in-interrupt flag and
-// ENTER/EXIT counters so the asymmetry is directly assertable.
-//
-// The ENTER/EXIT counters are thread-local (not global atomics): `cargo test`
-// runs test functions on multiple threads in parallel, and a global counter
-// would let one test's m_rmw calls pollute another concurrently-running test's
-// enter/exit-count assertions. Thread-local counters make each test's counts
-// depend only on that test's own thread, matching IN_ISR/DEPTH/TOKEN below.
-// `pub(crate)` (not private) so sibling modules' tests — notably `facade`'s
-// `Lease::drop` ISR-safety proof — can drive the same two-context model
-// (`deluge_in_interrupt_set`) and read the same critical-section counters this
-// module's own tests use, rather than re-deriving a second harness.
+// Test-only providers of the BSP symbols, backed by the real `critical-section` std impl, with
+// settable context flags and ENTER/EXIT counters so the asymmetry is assertable. The state is
+// thread-local because `cargo test` runs tests in parallel and a global counter would let one
+// test pollute another's counts. `pub(crate)` so other modules' tests share this harness.
 #[cfg(test)]
 pub(crate) mod stubs {
     use core::cell::Cell;
@@ -117,9 +100,7 @@ pub(crate) mod stubs {
         static FAKE_NOW: Cell<u32> = const { Cell::new(1) };
     }
 
-    /// Host stand-in for the C++ audio sample timer the manager uses to measure loader service
-    /// latency. A monotonic counter is enough — the tests never assert on the value, they just need
-    /// the symbol to link.
+    /// Monotonic stand-in for the audio sample timer; tests never assert on its value.
     #[unsafe(no_mangle)]
     extern "C" fn deluge_debug_now_frames() -> u32 {
         FAKE_NOW.with(|c| {
@@ -178,11 +159,8 @@ pub(crate) mod stubs {
         IN_AUDIO.with(|f| f.set(v));
     }
 
-    /// Model the audio ISR: on device that context is both "in an interrupt" and "the audio
-    /// context", so a test that means "pretend we are the audio render" should set both
-    /// rather than picking one. Setting only the in-interrupt flag models the *streaming*
-    /// interrupt context instead — which masks, and is what
-    /// `a_non_audio_interrupt_context_still_masks` covers.
+    /// Models the audio ISR, which is both "in an interrupt" and "the audio context". Setting
+    /// only the in-interrupt flag models the streaming interrupt context instead, which masks.
     pub fn audio_isr_context_set(v: bool) {
         deluge_in_interrupt_set(v);
         deluge_in_audio_context_set(v);
@@ -233,10 +211,8 @@ mod tests {
 
     #[test]
     fn a_non_audio_interrupt_context_still_masks() {
-        // The streaming fill task runs in an interrupt context that the audio context
-        // preempts, so it may NOT skip the mask — unlike audio itself. Regression guard for
-        // the third-context hazard: gating on "am I in any interrupt" would silently make
-        // this a no-op and race the audio path.
+        // The streaming fill task runs in an interrupt context that audio preempts, so it must
+        // mask; gating on "am I in any interrupt" would make this a no-op and race audio.
         cs_reset_counts();
         deluge_in_interrupt_set(true); // in an ISR ...
         deluge_in_audio_context_set(false); // ... but not the audio one

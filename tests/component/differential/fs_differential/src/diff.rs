@@ -1,14 +1,12 @@
-//! Recursive read/enumerate walker: walks a whole tree through an `ops::FsOps`
-//! backend and compares it against another `FsOps` -- either a second live
-//! mount, or a hardcoded [`Captured`] tree literal built from known-good
-//! expected bytes -- asserting agreement byte-for-byte on file contents and
-//! entry-for-entry on directory listings.
+//! Tree comparison between two [`FsOps`] backends: a live mount against another mount or a
+//! [`Captured`] known-good tree, compared entry for entry and byte for byte.
 use crate::ops::{Entry, FsOps};
 
-/// Walk the whole tree rooted at `/` through both `a` and `b`, comparing
-/// directory listings and file contents at every level. Returns `Err` with a
-/// precise description of the FIRST divergence found (depth-first, in
-/// sorted-entry order), or `Ok(())` if the two stacks agree everywhere.
+/// Compares the whole tree under `/` in `a` and `b`: directory listings and file contents.
+///
+/// # Errors
+///
+/// Returns a description of the first divergence, depth-first in sorted-entry order.
 pub fn compare_read(a: &dyn FsOps, b: &dyn FsOps) -> Result<(), String> {
     walk(a, b, "/")
 }
@@ -44,24 +42,23 @@ fn child_path(dir: &str, e: &Entry) -> String {
     }
 }
 
-/// A backend-agnostic snapshot of a filesystem tree, either captured live
-/// (via `FsOps`) or built directly as a hardcoded known-good literal (see
-/// [`Captured::literal`]) so `compare_read` can check a live mount against a
-/// fixed expectation without needing a second live backend to diff against.
+/// A node of a filesystem tree snapshot held by [`Captured`].
 pub enum Node {
     File(Vec<u8>),
     Dir(Vec<(Entry, Node)>),
 }
 
+/// A filesystem tree snapshot, captured from a live mount or written as a known-good literal, that
+/// [`compare_read`] can check a mount against.
 pub struct Captured(Node);
 
 impl Captured {
-    /// Wrap a hand-built [`Node`] tree (known-good expected bytes/listing) as
-    /// an `FsOps` `compare_read` can diff a live mount against.
+    /// Wraps a hand-built known-good tree.
     pub fn literal(node: Node) -> Self {
         Captured(node)
     }
 
+    /// Snapshots the whole tree of `fs`.
     pub fn capture(fs: &dyn FsOps) -> Self {
         Captured(Self::capture_dir(fs, "/"))
     }

@@ -1,22 +1,21 @@
-//! The stream channel's answer slot.
+//! The stream channel's answer slot: pure, so it is host-tested without a card.
 //!
-//! Pure, so `tests/file_stream_host.rs` tests it without a card. The rules are `file_bytes`'s:
-//! - a take with another operation's key leaves the answer for its owner;
-//! - a take that finds its own answer stamped for an earlier card removes it and reports nothing.
-//!
-//! One rule is this channel's own. An `Open` answer carries a live stream handle, and the stream table has 8 slots.
-//! Every successful `Open` answer that leaves the slot without being collected is kept as an orphan, stamped with
-//! its card generation, and the channel's task closes it only while that card is still current. A remount already
-//! resets the stream table on ejection and reuses freed indices, so a stale orphan's handle may by then name a
-//! different, live stream on the new card; closing it would close that stream instead.
+//! It follows the shared slot rules in [`crate::channel`]. A successful `Open` answer carries a
+//! live stream handle; one that leaves the slot uncollected is kept as an orphan stamped with its
+//! card generation, and the channel's task closes it only while that card is still current. A
+//! remount resets the stream table and reuses freed indices, so a stale orphan's handle may name a
+//! different, live stream on the new card.
 
-/// Same bound as every other channel's path: `DELUGE_PATH_MAX` less the NUL.
+/// The longest path an `Open` takes: [`DELUGE_PATH_MAX`](crate::channel::DELUGE_PATH_MAX) less
+/// the NUL.
 pub const MAX_PATH_CHARS: usize = crate::channel::DELUGE_PATH_MAX - 1;
+/// A path held inline in an [`OpKey`].
 pub type WritePath = heapless::String<MAX_PATH_CHARS>;
 
 /// The stream table's size. No more handles than this can be open, so no more can be orphaned.
 const MAX_ORPHANS: usize = 8;
 
+/// The stream channel's operations.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum OpKind {
     Open,
@@ -28,8 +27,10 @@ pub enum OpKind {
 }
 
 /// Which operation an answer belongs to.
+///
 /// - Handle operations carry their handle and an empty path.
-/// - `Open` carries the path it opens, so an answer is collected only by the caller that asked for that file.
+/// - `Open` carries the path it opens, so an answer is collected only by the caller that asked for
+///   that file.
 /// - `Stats` carries neither: the channel is single-flight, and its collect names no file.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OpKey {
@@ -39,7 +40,7 @@ pub struct OpKey {
 }
 
 impl OpKey {
-    /// `None` when `path` is longer than [`MAX_PATH_CHARS`].
+    /// Builds a key, or `None` when `path` is longer than [`MAX_PATH_CHARS`].
     pub fn new(kind: OpKind, handle: u32, path: &str) -> Option<Self> {
         let mut stored = WritePath::new();
         stored.push_str(path).ok()?;
@@ -51,13 +52,14 @@ impl OpKey {
     }
 }
 
-/// Whether an operation a collect found no answer for is still coming, from what the request and in-flight slots
-/// showed: `Some(true)` the operation's key is there, `Some(false)` it is not, `None` the slot's lock was contended.
+/// Whether an operation a collect found no answer for is still coming, from what the request and
+/// in-flight slots showed: `Some(true)` the key is there, `Some(false)` it is not, `None` the
+/// slot's lock was contended.
 ///
-/// Contended counts as coming. The task hands a request from the request slot to the in-flight slot, and an answer
-/// from the in-flight slot to the result slot, while holding locks; a collect that meets one of those locks is
-/// looking at a handoff, not at an absence. Reporting "not there" would send the caller to ask again for an operation
-/// already under way -- and a CREATE_NEW open asked again finds its own file and fails with EXISTS.
+/// Contended counts as coming: the task moves a request to the in-flight slot, and an answer to the
+/// result slot, under those locks, so a contended lock is a handoff, not an absence. Reporting "not
+/// there" would make the caller ask again for an operation already under way — and a `CREATE_NEW`
+/// open asked again finds its own file and fails with `EXISTS`.
 pub fn still_coming(queued: Option<bool>, running: Option<bool>) -> bool {
     queued != Some(false) || running != Some(false)
 }
@@ -67,15 +69,15 @@ pub fn still_coming(queued: Option<bool>, running: Option<bool>) -> bool {
 pub enum Take {
     /// This operation's answer: the handle, byte count or free-cluster count.
     Ready(u32),
-    /// This operation failed. The payload is the `Err` it was published with: for an `Open`, the `DelugeStatus` it
-    /// failed with, as its byte; 0 for the others.
+    /// This operation failed. The payload is the `Err` it was published with: for an `Open`, the
+    /// `DelugeStatus` byte it failed with; 0 for the others.
     Failed(u32),
     /// No answer for this key and this card.
     Absent,
 }
 
-/// A stream answer: the `Ok` payload is a handle, byte count or free-cluster count. Only a successful `Open` carries a
-/// handle to release.
+/// A stream answer: the `Ok` payload is a handle, byte count or free-cluster count. Only a
+/// successful `Open` carries a handle to release.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StreamAnswer {
     kind: OpKind,
@@ -91,14 +93,15 @@ impl crate::channel::Answer for StreamAnswer {
     }
 }
 
+/// The stream channel's answer slot, plus the orphans it has retired.
 pub struct AnswerSlot {
     inner: crate::channel::AnswerSlot<OpKey, StreamAnswer>,
-    /// Orphans this slot has retired, each stamped with the card generation its `Open` was answered under. See
-    /// `crate::channel::Orphan`.
+    /// Retired orphans, each stamped with the card generation its `Open` was answered under.
     orphans: heapless::Vec<crate::channel::Orphan, MAX_ORPHANS>,
 }
 
 impl AnswerSlot {
+    /// An empty slot with no orphans.
     pub const fn new() -> Self {
         Self {
             inner: crate::channel::AnswerSlot::new(),
@@ -106,12 +109,13 @@ impl AnswerSlot {
         }
     }
 
+    /// Whether the slot holds no answer.
     pub fn is_empty(&self) -> bool {
         self.inner.is_empty()
     }
 
-    /// Hold `key`'s answer, stamped with the card generation its request was made under. Whatever the slot held
-    /// before is dropped, and orphaned if it was a live `Open`.
+    /// Holds `key`'s answer, stamped with the card generation its request was made under. Whatever
+    /// the slot held before is dropped, and orphaned if it was a live `Open`.
     pub fn publish(&mut self, key: OpKey, result: Result<u32, u32>, generation: u32) {
         let kind = key.kind;
         if let Some(orphan) = self
@@ -122,8 +126,8 @@ impl AnswerSlot {
         }
     }
 
-    /// Take `key`'s answer if it is stamped `generation`. An answer for another key is left alone. An answer for
-    /// this key stamped for another card is removed and orphaned if it was a live `Open`.
+    /// Takes `key`'s answer if it is stamped `generation`. An answer for another key is left alone;
+    /// one for this key stamped for another card is removed, and orphaned if it was a live `Open`.
     pub fn take(&mut self, key: &OpKey, generation: u32) -> Take {
         match self.inner.take(key, generation) {
             crate::channel::Take::Ready(StreamAnswer {
@@ -141,24 +145,22 @@ impl AnswerSlot {
         }
     }
 
-    /// Drop the answer if it is `key`'s.
+    /// Drops the answer if it is `key`'s.
     pub fn discard(&mut self, key: &OpKey) {
         if let Some(orphan) = self.inner.discard(key) {
             self.push_orphan(orphan);
         }
     }
 
-    /// Empty the slot.
+    /// Empties the slot.
     pub fn drain(&mut self) {
         if let Some(orphan) = self.inner.drain() {
             self.push_orphan(orphan);
         }
     }
 
-    /// A handle an uncollected `Open` answer opened, for the task to close — but only when it is still stamped
-    /// for `generation`. An orphan stamped for an earlier card is dropped without being returned: a remount
-    /// already reset that card's stream table and may have reused its index for a different, live stream, so
-    /// closing it now would close the wrong file.
+    /// Returns an orphaned handle stamped `generation`, for the task to close. Orphans stamped for
+    /// an earlier card are dropped unreturned: their index may now name a different, live stream.
     pub fn take_orphan(&mut self, generation: u32) -> Option<u32> {
         while let Some(orphan) = self.orphans.pop() {
             if orphan.generation == generation {
@@ -168,8 +170,8 @@ impl AnswerSlot {
         None
     }
 
-    /// Whether any orphan is queued, current or stale. Stale orphans still need a caller to drain them (they are
-    /// dropped, not returned, by [`Self::take_orphan`]), so this does not filter by generation.
+    /// Whether any orphan is queued, current or stale. Stale ones still need [`Self::take_orphan`]
+    /// to drop them, so this does not filter by generation.
     pub fn has_orphans(&self) -> bool {
         !self.orphans.is_empty()
     }

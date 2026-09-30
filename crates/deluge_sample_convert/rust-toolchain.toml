@@ -1,11 +1,6 @@
-# This crate is excluded from the crates/ workspace (see crates/Cargo.toml's
-# `exclude`), but it still sits beneath crates/, so rustup's upward search
-# would find crates/rust-toolchain.toml anyway if this file didn't exist --
-# same nightly, same components. This file is therefore nearly redundant; its
-# one real value is that the parent file also pins `targets` (armv7a-none-eabihf
-# etc., for the device build), which this host-only crate doesn't need. Without
-# this file, building it would resolve to the parent and pull those extra
-# target downloads for nothing.
+# Matches crates/rust-toolchain.toml minus its extra `targets`, which this host-only crate would
+# otherwise download for nothing (rustup would find the parent file, since the crate sits beneath
+# crates/ even though it is outside the workspace).
 [toolchain]
 channel = "nightly"
 components = ["rust-src", "clippy", "rustfmt"]

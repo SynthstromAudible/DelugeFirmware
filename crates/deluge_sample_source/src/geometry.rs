@@ -1,8 +1,8 @@
-//! Per-sample audio geometry and the short-last-cluster residency math, reimplemented
-//! natively from `sample_source.cpp:149-168`.
+//! Per-sample audio geometry and the short-last-cluster residency math.
 
-/// Immutable per-sample audio geometry, mirroring `DelugeSampleGeometry`
-/// (`include/libdeluge/sample_source.h`), parsed once above the port.
+/// Immutable per-sample audio geometry, parsed once above the port.
+///
+/// `#[repr(C)]` mirror of `DelugeSampleGeometry` (`libdeluge/sample_source.h`).
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Geometry {
@@ -14,16 +14,15 @@ pub struct Geometry {
     pub raw_data_format: u8,
 }
 
-/// "Still recording, length unknown" sentinel (see `sample_recorder.cpp`); leave the
-/// full cluster resident. `pub(crate)`: also referenced by `abi.rs`'s
-/// `num_clusters_for`, which needs the identical zero/sentinel guard this module's
-/// own `resident_bytes_for` applies.
+/// Audio length sentinel for "still recording, length unknown" (`kUnknownLengthSentinel` in
+/// `sample_length_sentinel.h`): every cluster counts as full.
 pub(crate) const UNKNOWN_LENGTH_SENTINEL: u64 = 0x8FFF_FFFF_FFFF_FFFF;
 
-/// Valid payload bytes for cluster `index`, clamping the last cluster to the
-/// geometry's audio-data end (bytes, not sectors). Full cluster for a full cluster,
-/// the remainder for a short last cluster, `0` for a cluster wholly past the end,
-/// and full cluster under the unknown-length sentinel / zero length.
+/// Returns the valid payload bytes of file cluster `index`.
+///
+/// A full cluster reports `cluster_size_bytes`, a short last cluster the bytes up to the audio
+/// data's end, and a cluster wholly past the end `0`. A zero length or the unknown-length sentinel
+/// reports every cluster as full.
 pub fn resident_bytes_for(index: u32, geo: &Geometry) -> u32 {
     let cluster_size = geo.cluster_size_bytes;
     if geo.audio_data_length_bytes == 0 || geo.audio_data_length_bytes == UNKNOWN_LENGTH_SENTINEL {

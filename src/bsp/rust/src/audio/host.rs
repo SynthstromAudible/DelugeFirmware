@@ -1,31 +1,20 @@
-//! `audio_io.h` — host render pump for the `host_app` feature: a null sink, or with `sim` the desktop simulator's
-//! audio device (`deluge_bsp::sim::render_block`), which plays the output and paces the render in real time.
+//! `libdeluge/audio_io.h` on host: renders each block for real, into a null sink or (with `sim`)
+//! the emulator's audio device, which plays it and paces the render in real time.
 //!
-//! On device (`audio.rs`) `deluge_audio_drive` trickles the app's render into
-//! the SSI TX DMA ring, paced by the free-running play head. There is no DMA
-//! (or any audio device at all) on host: this module instead makes the
-//! priority-0 C++ task (`AudioEngine::routine_task`, spawned by
-//! `registerTasks()` during `deluge_app_init` — see `scheduler.rs`'s
-//! `addRepeatingTask`) actually call `deluge_app_render` each time it drives,
-//! discarding the output block (a null sink), so the render graph exercises
-//! for real instead of the no-op stub in `host_link_stubs.rs`.
+//! The app's priority-0 task (`AudioEngine::routine_task`) calls [`deluge_audio_drive`], which
+//! calls `deluge_app_render` and discards the block unless it is captured
+//! ([`deluge_host_capture_start`]). The host runtime routes that task onto a separate
+//! `"deluge-audio"` executor thread (`scheduler::set_audio_spawner`), the stand-in for the
+//! device's preemptive audio executor; single-executor harnesses such as `golden_vt_render` do
+//! not, and run it inline instead (see `should_skip_render`).
 //!
-//! A second, preemptive host executor thread (`"deluge-audio"`, spawned in
-//! `main.rs`'s `host_app` boot path) is what `scheduler::set_audio_spawner`
-//! routes the priority-0 task onto — the host analogue of device `audio.rs`'s
-//! `AUDIO_EXEC` SGI executor. `AudioEngine::runRoutine()` (audio_engine.cpp) also
-//! calls `routine()` — and so `deluge_audio_drive` — directly and synchronously
-//! from `deluge_boot()`, before `registerTasks()` assigns `routine_task_id`
-//! ("necessary otherwise Deluge freezes on boot"); that one pre-registration call
-//! runs on whichever thread called `deluge_boot` (the host-app executor thread),
-//! not `"deluge-audio"` — expected, and `deluge_audio_drive` below accounts for
-//! it rather than treating it as a routing failure. Once `registerTasks()`
-//! returns, every subsequent call is driven by the scheduled task and runs on
-//! `"deluge-audio"`. No ISR and no other task touches this module's state
-//! concurrently with a render *from the same thread*, but the render itself can
-//! now run concurrently with everything else — the `static mut` buffer access is
-//! no longer single-threaded in the way `audio.rs` documents for its own
-//! statics; that's this module's whole point.
+//! `AudioEngine::runRoutine()` also calls the drive once during `deluge_boot()`, before the task
+//! is registered, on the boot thread rather than `"deluge-audio"`.
+//!
+//! The render buffers are `static mut`: only the render touches them, one block at a time.
+//!
+//! The host test hooks here (`deluge_host_*`) are C ABI for the scenarios: output capture, a
+//! deterministic test input signal, and a scripted DIN MIDI stream.
 #![allow(non_upper_case_globals)]
 
 use core::ptr::{addr_of, addr_of_mut};
@@ -33,69 +22,45 @@ use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use crate::sys::DelugeStereoSample;
 
-/// Maximum frames per `deluge_app_render` call. MUST match device `audio.rs`'s
-/// `APP_BLOCK_FRAMES` (128, not `host_audio.c`'s 32): the app's internal
-/// render-buffer globals (`renderingMemory`/`reverbMemory`) are fixed at this
-/// size (board_config.h `SSI_TX_BUFFER_NUM_SAMPLES`), and a larger block
-/// makes the app write out of bounds into adjacent globals. This is a real
-/// ABI constraint of the linked C++ object, not a host-only pacing choice —
-/// so it stays in lock-step with the device value regardless of host pacing.
+/// Frames per `deluge_app_render` call; must equal the device drive's.
+///
+/// The app's render buffers are fixed at `SSI_TX_BUFFER_NUM_SAMPLES` (128, `board_config.h`); a
+/// larger block writes out of bounds into adjacent globals.
 const APP_BLOCK_FRAMES: usize = 128;
 
 const ZERO: DelugeStereoSample = DelugeStereoSample { l: 0, r: 0 };
 
-// Null-sink render scratch. Plain host statics (no SDRAM section on host —
-// that's a device linker-script concept); the app renders into RENDER_BLOCK
-// reads INPUT_BLOCK: silence, unless a scenario arms the test input signal
-// (`deluge_host_test_input`). The render output is discarded unless captured.
+// Render scratch: the app renders into RENDER_BLOCK and reads INPUT_BLOCK (see fill_input_block).
 static mut RENDER_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
 static mut INPUT_BLOCK: [DelugeStereoSample; APP_BLOCK_FRAMES] = [ZERO; APP_BLOCK_FRAMES];
 
-/// Monotonic host frame cursor: total frames rendered so far, advanced by
-/// `APP_BLOCK_FRAMES` on every `deluge_audio_drive` call. Stands in for the
-/// device's DMA play head (`tx_play_frame()` in `audio.rs`) — there is no
-/// real playback device on host, so "now" is just "how much has been
-/// rendered", which is exactly what `deluge_audio_frames_until_block_offset`
-/// needs for the (non-sample-accurate) MIDI-gate timing queries the null-sink
-/// harness exercises.
+/// Total frames rendered: the host's stand-in for the device's DMA play head. "Now" is how much
+/// has been rendered.
 static CURSOR: AtomicU64 = AtomicU64::new(0);
-/// Cursor value at the start of the most recent render block (the host
-/// stand-in for `audio.rs`'s `BLOCK_START_WRITE`/`BLOCK_START_PLAY` pair — on
-/// host both collapse to the same value since there's no separate write vs.
-/// play head).
+/// [`CURSOR`] at the start of the most recent render block. With no separate write and play
+/// heads, it stands in for both of the device's block anchors.
 static BLOCK_START: AtomicU64 = AtomicU64::new(0);
 
-/// Count of `deluge_audio_drive` calls, for the periodic render-progress log.
+/// Blocks rendered, for [`drive_count`] and the progress log.
 static DRIVE_COUNT: AtomicU64 = AtomicU64::new(0);
-/// Log a render-progress line every this many drives (plus always on the
-/// first), so `deluge_app_render` actually firing is observable without
-/// flooding the log at ~44100/128 Hz.
+/// Log a render-progress line every this many blocks (and on the first), so rendering is visible
+/// without flooding the log at ~344 blocks a second.
 const LOG_EVERY: u64 = 500;
 
-/// Set once a render is observed running on the `"deluge-audio"` executor
-/// thread, i.e. the priority-0 task genuinely routed through
-/// `scheduler::set_audio_spawner` rather than staying on whichever thread
-/// happened to call `deluge_app_render` (see this module's doc comment re:
-/// the pre-registration synchronous call from `deluge_boot`). Polled by the
-/// `host_app` boot smoke in `main.rs` before it lets the process exit.
+/// Set once a render runs on the `"deluge-audio"` thread, i.e. the priority-0 task was routed
+/// through `scheduler::set_audio_spawner`.
 static AUDIO_THREAD_RENDER_SEEN: AtomicBool = AtomicBool::new(false);
 
-/// `true` once a `deluge_audio_drive` call has been observed on the
-/// `"deluge-audio"` thread — the host-side evidence that the priority-0 task
-/// routed to the second (audio) executor.
+/// Returns whether a render has run on the `"deluge-audio"` thread; the host runtime's boot check
+/// requires it.
 pub fn audio_thread_render_seen() -> bool {
     AUDIO_THREAD_RENDER_SEEN.load(Ordering::Relaxed)
 }
 
-/// Render-mode gate: mirrors `host_audio.c`'s own `DELUGE_RENDER` env-var check
-/// (cached once, same shape). `host_app` never sets this variable,
-/// so this reads `false` and changes nothing for them.
+/// Whether `DELUGE_RENDER` is set (non-empty, not "0"); read once. `golden_vt_render` sets it.
 ///
-/// Purely a diagnostic trim: when set, skips the per-call bookkeeping below (a
-/// thread-name `String` allocation plus `log::info!` calls) that would
-/// otherwise run on every single rendered block of what can be a multi-minute
-/// offline export. `deluge_app_render` itself is unaffected by this flag — see
-/// [`should_skip_render`] for the guard that actually matters.
+/// A diagnostic trim only: it skips the per-block thread-name and log bookkeeping in
+/// [`render_block`]. Whether a block renders is [`should_skip_render`]'s decision.
 fn render_mode() -> bool {
     static RENDER_MODE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *RENDER_MODE.get_or_init(|| {
@@ -105,60 +70,50 @@ fn render_mode() -> bool {
     })
 }
 
-/// Whether THIS `deluge_audio_drive` call must skip `deluge_app_render`
-/// entirely — the real null-sink guard (`render_mode` above is a separate,
-/// cosmetic trim).
+/// Whether this [`deluge_audio_drive`] call must skip `deluge_app_render`.
 ///
-/// `deluge_audio_drive` is reached from two fundamentally different callers
-/// that share this one function, and only one of them is safe to render from
-/// on a single-executor host harness (`golden_vt_render`, which
-/// — per this repo's "deterministic single-threaded executor ONLY" constraint —
-/// never call [`crate::scheduler::set_audio_spawner`], so the priority-0 audio
-/// task falls back to running on the SAME executor as everything else, not a
-/// separate thread):
+/// Never skipped:
+/// - before boot finishes (`AudioEngine::runRoutine()`'s call from `deluge_boot()`; skipping it
+///   freezes boot);
+/// - on the `"deluge-audio"` thread, the normal render path;
+/// - when [`render_after_boot`] or [`REALTIME_RENDER`] asks for every block.
 ///
-/// - **Before boot has finished** (`crate::boot::finished()` false) —
-///   `AudioEngine::runRoutine()`'s one-time pre-registration call from
-///   `deluge_boot()` (see this module's doc comment: skipping it freezes
-///   boot). Never skipped.
-/// - **After boot, on host_app's real `"deluge-audio"` OS thread**
-///   (`crate::scheduler::set_audio_spawner` called) — the NORMAL, load-bearing
-///   render path. Never skipped.
-/// - **After boot, anywhere else** — the priority-0 `AudioEngine::routine_task`'s
-///   own periodic tick on a single-executor harness. This call can reach C++
-///   sample-playback code that does a SYNCHRONOUS efatfs read; under
-///   `sim_latency` that read needs a `Timer` fired by a separate task
-///   (`sim_latency::pump`) to ever resolve, and a non-yielding `block_on` can
-///   never let that task get polled: a full-process livelock (a real offline
-///   `StemExport` run against a sample-backed song hung at 100% CPU inside
-///   exactly this call chain). Skipping it is safe: the render this call would
-///   have produced is discarded anyway (a null sink).
+/// Otherwise — after boot on a single-executor harness, where the priority-0 task runs on the
+/// same executor as everything else — the call is skipped. Such a render can reach a synchronous
+/// card read that, under `sim_latency`, waits on a `Timer` another task must fire; a
+/// non-yielding `block_on` never lets that task run, and the process livelocks. The skipped block
+/// would have been discarded anyway.
 fn should_skip_render() -> bool {
     if !crate::boot::finished() || render_after_boot() || REALTIME_RENDER.load(Ordering::Relaxed) {
         return false;
     }
-    // After boot: skip UNLESS this is host_app's real separate audio OS thread,
-    // where this is the legitimate, load-bearing render path.
+    // After boot, render only on the separate audio thread.
     let thread_name = std::thread::current().name().unwrap_or("").to_string();
     thread_name != "deluge-audio"
 }
 
-/// Set by a scenario that plays a song in real time (`render_song`): render every block after boot, as the device
-/// does. Every other scenario leaves it clear, and keeps the skip its recorded output depends on.
+/// Set by a scenario that plays a song in real time (`render_song`): render every block after
+/// boot, as the device does. Other scenarios leave it clear; their recorded output depends on the
+/// skip.
 static REALTIME_RENDER: AtomicBool = AtomicBool::new(false);
 
-/// Render every block after boot for the rest of this run; see [`REALTIME_RENDER`].
+/// Sets `REALTIME_RENDER` for the rest of this run.
 pub fn set_realtime_render(on: bool) {
     REALTIME_RENDER.store(on, Ordering::Relaxed);
 }
 
-/// The captured output, while capture is on: every rendered block's stereo samples, as little-endian `i32` pairs.
+/// The capture file, while capture is on: every rendered block's stereo samples, as little-endian
+/// `i32` pairs.
 static CAPTURE: std::sync::Mutex<Option<std::io::BufWriter<std::fs::File>>> =
     std::sync::Mutex::new(None);
 static CAPTURE_FRAMES: AtomicU64 = AtomicU64::new(0);
 
-/// Start capturing the rendered output into the file `RENDER_PCM_OUT` names. Without it, only the frame count is
-/// kept. C ABI for the scenario that starts playback.
+/// Starts capturing the rendered output into the file `RENDER_PCM_OUT` names; without that
+/// variable only the frame count is kept.
+///
+/// # Panics
+///
+/// Panics if the file cannot be created.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_host_capture_start() {
     let file = std::env::var_os("RENDER_PCM_OUT").map(|path| {
@@ -174,7 +129,7 @@ pub extern "C" fn deluge_host_capture_start() {
     CAPTURING.store(true, Ordering::Relaxed);
 }
 
-/// Stop capturing and flush what was captured. Returns the frames captured.
+/// Stops capturing, flushes the capture file, and returns the number of frames captured.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_host_capture_stop() -> u64 {
     CAPTURING.store(false, Ordering::Relaxed);
@@ -194,8 +149,8 @@ fn capture_block() {
     CAPTURE_FRAMES.fetch_add(APP_BLOCK_FRAMES as u64, Ordering::Relaxed);
     if let Some(file) = CAPTURE.lock().unwrap().as_mut() {
         use std::io::Write as _;
-        // SAFETY: single-threaded (see module doc): the render that wrote RENDER_BLOCK has returned, and nothing else
-        // touches it until the next drive.
+        // SAFETY: the render that wrote RENDER_BLOCK has returned, and nothing else touches it
+        // until the next drive.
         let block = unsafe { &*addr_of!(RENDER_BLOCK) };
         for s in block {
             file.write_all(&s.l.to_le_bytes())
@@ -206,28 +161,28 @@ fn capture_block() {
     }
 }
 
-/// Blocks rendered since boot; see [`drive_count`]. C ABI for scenarios.
+/// Returns the blocks rendered since boot ([`drive_count`]).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_host_render_count() -> u64 {
     drive_count()
 }
 
-/// `DELUGE_RENDER_AFTER_BOOT=1`: never skip, so a single-executor harness renders every block after boot as
-/// well. Any synchronous card call a render makes is then counted as an audio-tier call (`tier_meter`), which is
-/// how the calls the skip exists to avoid are found.
+/// Whether `DELUGE_RENDER_AFTER_BOOT=1`: never skip, so a single-executor harness renders every
+/// block after boot too. Any synchronous card call a render makes then counts as an audio-tier call
+/// (`tier_meter`), which is how the calls the skip avoids are found.
 pub fn render_after_boot() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var_os("DELUGE_RENDER_AFTER_BOOT").is_some_and(|v| v == "1"))
 }
 
-/// Frame the test input signal counts from, while it is armed; `u64::MAX` while it is not.
+/// The frame the test input signal counts from while armed; `u64::MAX` while not.
 static TEST_INPUT_ORIGIN: AtomicU64 = AtomicU64::new(u64::MAX);
 
-/// Arm (or disarm) the test input signal, with frame 0 at the current render position. C ABI for the scenario.
+/// Arms (or disarms) the test input signal, with frame 0 at the current render position.
 ///
-/// The signal feeds the INPUT_L/R/STEREO sources something to render: a sawtooth 128 frames long on the left and
-/// one 256 frames long on the right, both at full q31 scale and a pure function of the frame, so every run and
-/// architecture feeds the same samples. The channels differ so a render can tell them apart.
+/// The signal gives the INPUT_L/R/STEREO sources something to render: a full-scale q31 sawtooth,
+/// 128 frames long on the left and 256 on the right (so a render can tell them apart). It is a pure
+/// function of the frame, so every run and architecture feeds the same samples.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_host_test_input(on: bool) {
     let origin = if on {
@@ -238,11 +193,11 @@ pub extern "C" fn deluge_host_test_input(on: bool) {
     TEST_INPUT_ORIGIN.store(origin, Ordering::Relaxed);
 }
 
-/// Fill INPUT_BLOCK for the block starting at `block_start`: the test signal while armed, else `live` (the
-/// simulator's captured input, as `[-1, 1]` frames), else silence.
+/// Fills `INPUT_BLOCK` for the block starting at `block_start`: the test signal while armed, else
+/// `live` (the emulator's captured input, as `[-1, 1]` frames), else silence.
 fn fill_input_block(block_start: u64, live: Option<&[[f32; 2]]>) {
     let origin = TEST_INPUT_ORIGIN.load(Ordering::Relaxed);
-    // SAFETY: the render that reads INPUT_BLOCK has not started, and nothing else writes it (see the module doc).
+    // SAFETY: the render that reads INPUT_BLOCK has not started, and nothing else writes it.
     let block = unsafe { &mut *addr_of_mut!(INPUT_BLOCK) };
     for (i, s) in block.iter_mut().enumerate() {
         *s = if origin == u64::MAX {
@@ -261,8 +216,8 @@ fn fill_input_block(block_start: u64, live: Option<&[[f32; 2]]>) {
     }
 }
 
-/// A DIN MIDI note script: each event's bytes reach the app once the render has passed the event's frame, counted
-/// from the frame the script was armed at. What the synth golden masters play (`render_preset`).
+/// A DIN MIDI note script, as the synth golden masters play (`render_preset`): each event's bytes
+/// reach the app once the render passes the event's frame, counted from where the script was armed.
 struct DinScript {
     /// `(frame, bytes)`, in nondecreasing frame order.
     events: Vec<(u64, Vec<u8>)>,
@@ -273,8 +228,12 @@ struct DinScript {
 
 static DIN_SCRIPT: std::sync::Mutex<Option<DinScript>> = std::sync::Mutex::new(None);
 
-/// Parse a note script: one event per line, `<frame> <hex byte>...`, with `#` starting a comment. Frames must not
-/// decrease.
+/// Parses a note script: one event per line, `<frame> <hex byte>...`, `#` starting a comment.
+///
+/// # Errors
+///
+/// Returns a message naming the line for a bad frame or byte, an event with no bytes, or a frame
+/// that decreases.
 fn parse_din_script(text: &str) -> Result<Vec<(u64, Vec<u8>)>, String> {
     let mut events: Vec<(u64, Vec<u8>)> = Vec::new();
     for (n, line) in text.lines().enumerate() {
@@ -306,11 +265,14 @@ fn parse_din_script(text: &str) -> Result<Vec<(u64, Vec<u8>)>, String> {
     Ok(events)
 }
 
-/// Arm the note script at `path`, with frame 0 at the current render position. Returns the number of events, or -1
-/// when the script cannot be read or parsed (the reason is logged). C ABI for the scenario.
+/// Arms the note script at `path`, with frame 0 at the current render position.
+///
+/// Returns the number of events, or -1 (with the reason logged) if the script cannot be read or
+/// parsed.
 ///
 /// # Safety
-/// `path` is a NUL-terminated string.
+///
+/// `path` must be a valid NUL-terminated string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_host_midi_script_start(path: *const core::ffi::c_char) -> i32 {
     // SAFETY: the caller passes a NUL-terminated path.
@@ -337,7 +299,7 @@ pub unsafe extern "C" fn deluge_host_midi_script_start(path: *const core::ffi::c
     count
 }
 
-/// Events the app has read the whole of.
+/// Returns the number of script events the app has read in full.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_host_midi_script_released() -> u32 {
     DIN_SCRIPT
@@ -348,15 +310,16 @@ pub extern "C" fn deluge_host_midi_script_released() -> u32 {
 }
 
 unsafe extern "C" {
-    /// The synth's random stream (util/waves.h): oscillator phases, noise and random modulation all draw from it.
+    /// The synth's random stream (`util/waves.h`): oscillator phases, noise and random modulation
+    /// all draw from it.
     static mut jcong: u32;
 }
 
-/// `jcong`'s value at boot (util/waves.cpp).
+/// `jcong`'s value at boot (`util/waves.cpp`).
 const JCONG_BOOT_SEED: u32 = 380_116_160;
 
-/// The seed the script's first byte restarts the random stream from: `RENDER_RANDOM_SEED`, or the boot seed.
-/// Another seed measures how much a render depends on its random draws, as a re-baseline needs to know.
+/// Returns the seed the script's first byte restarts the random stream from: `RENDER_RANDOM_SEED`,
+/// or the boot seed. Another seed shows how much a render depends on its random draws.
 fn script_random_seed() -> u32 {
     static SEED: std::sync::OnceLock<u32> = std::sync::OnceLock::new();
     *SEED.get_or_init(|| {
@@ -367,12 +330,12 @@ fn script_random_seed() -> u32 {
     })
 }
 
-/// The next scripted DIN byte whose frame the render has passed, if any. What the host's
-/// `deluge_midi_din_read_timed` returns.
+/// Returns the next scripted DIN byte whose frame the render has passed, if any; the host's
+/// `deluge_midi_din_read_timed` serves it.
 ///
-/// Handing over the script's first byte restarts the synth's random stream from its boot seed (or
-/// `RENDER_RANDOM_SEED`), so what a note's randomness sounds like depends on the script alone, not on how many
-/// random numbers boot and loading drew first.
+/// Handing over the first byte restarts the synth's random stream from `script_random_seed`, so a
+/// note's randomness depends on the script alone, not on how many random numbers boot and loading
+/// drew.
 pub fn din_script_read() -> Option<u8> {
     let mut guard = DIN_SCRIPT.lock().unwrap();
     let script = guard.as_mut()?;
@@ -381,8 +344,8 @@ pub fn din_script_read() -> Option<u8> {
         return None;
     }
     if script.next == 0 && script.byte == 0 {
-        // SAFETY: a plain store to an app global; the app reads it only on the tiers that run MIDI and the render,
-        // and this runs on the MIDI tier, before the byte that starts the first note is handed over.
+        // SAFETY: a plain store to an app global, on the MIDI tier, before the byte that starts the
+        // first note is handed over.
         unsafe { jcong = script_random_seed() };
     }
     let b = bytes[script.byte];
@@ -394,22 +357,18 @@ pub fn din_script_read() -> Option<u8> {
     Some(b)
 }
 
-/// Total `deluge_audio_drive` calls observed so far (monotonic). Polled by
-/// `main.rs`'s `host_app` boot path to bound the post-boot concurrency soak by
-/// render-cycle count as well as wall-clock time.
+/// Returns the number of blocks rendered so far (monotonic).
 pub fn drive_count() -> u64 {
     DRIVE_COUNT.load(Ordering::Relaxed)
 }
 
-/// Two cases, as [`should_skip_render`] draws them:
+/// Waits for the render to advance a block.
 ///
-/// - **host_app** (`scheduler::set_audio_spawner` called): the render runs on its own `"deluge-audio"` thread, the
-///   device's preemptive audio executor's stand-in. Rendering here would run a second render alongside it, so sleep
-///   briefly and let that thread render.
-/// - **A single-executor harness** (golden_vt_render): the audio task is a cooperative task on the caller's own
-///   executor, and cannot run while the caller waits. Run its step inline: [`deluge_audio_drive`] enters the audio
-///   tier itself, and after boot it runs the block-start step of the render it skips
-///   (`deluge_app_render_skipped`), which is what lets go of what was handed over.
+/// - With an audio executor (the `"deluge-audio"` thread): sleeps briefly and lets that thread
+///   render; rendering here would run a second render alongside it.
+/// - On a single-executor harness: the audio task cannot run while the caller waits, so this runs
+///   [`deluge_audio_drive`] inline. After boot that skips the render but still runs its block-start
+///   step (`deluge_app_render_skipped`), which releases what was handed over.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_await_block() {
     if crate::scheduler::has_audio_executor() {
@@ -419,23 +378,18 @@ pub extern "C" fn deluge_audio_await_block() {
     }
 }
 
-/// Render via the real app render path: into the simulator's audio device while it has room (`sim`), else one block
-/// into the null sink. Called directly by the priority-0 C++ task (`AudioEngine::routine_task`)
-/// — see this module's doc comment; there is no separate pump task here.
+/// Renders on the audio tier: into the emulator's audio device while it has room (`sim`), else one
+/// block into the null sink.
 ///
-/// Per the `audio_io.h` contract, the return value is the number of times
-/// `deluge_app_render` was invoked this call (0 = no new audio needed), NOT a
-/// frame count — mirrors device `audio.rs`. The null sink renders exactly one block per call and
-/// returns 1, UNLESS [`should_skip_render`] says this specific call must skip
-/// `deluge_app_render` entirely, in which case it returns 0 (a normal,
-/// contract-valid "no new audio needed" outcome).
+/// Returns the number of `deluge_app_render` calls made (not frames), per `libdeluge/audio_io.h`:
+/// 1 for the null sink, 0 when `should_skip_render` skips.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_drive() -> u32 {
     let _tier = crate::tier::enter(crate::tier::Tier::Audio);
     if should_skip_render() {
-        // No audio, but the render's lifetime step still runs on this (render-tier) call: without it the epoch
-        // would stand still and nothing retired would ever be let go of or freed.
-        // SAFETY: an app entry point with no arguments, called on the render tier as app.h requires.
+        // The render's lifetime step still runs: without it the epoch stands still and nothing
+        // retired is ever released or freed. SAFETY: an app entry point with no arguments, called
+        // on the render tier as app.h requires.
         unsafe { crate::sys::deluge_app_render_skipped() };
         return 0;
     }
@@ -449,15 +403,15 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
     1
 }
 
-/// The simulator's audio device is the clock, as the DMA play head is on the device: render while its output has
-/// room, and at most two blocks a call, as the device's drive does.
+/// Renders into the emulator's audio device, which is the clock as the DMA play head is on the
+/// device: while its output has room, at most two blocks a call, as the device drive does.
 #[cfg(feature = "sim")]
 fn drive_simulator() -> u32 {
     let mut renders = 0;
     while renders < 2
         && deluge_bsp::sim::render_block(|frames| {
             render_block(Some(frames));
-            // SAFETY: single-threaded (see module doc): the render that wrote RENDER_BLOCK has returned.
+            // SAFETY: the render that wrote RENDER_BLOCK has returned.
             let out = unsafe { &*addr_of!(RENDER_BLOCK) };
             for (frame, s) in frames.iter_mut().zip(out) {
                 *frame = [q31_to_f32(s.l), q31_to_f32(s.r)];
@@ -479,16 +433,15 @@ fn f32_to_q31(s: f32) -> i32 {
     (s * 2_147_483_648.0) as i32
 }
 
-/// Render one block from the cursor into RENDER_BLOCK, reading `live` as its input (see [`fill_input_block`]).
+/// Renders one block at the cursor into `RENDER_BLOCK`, with `live` as input (see
+/// [`fill_input_block`]).
 fn render_block(live: Option<&[[f32; 2]]>) {
     let block_start = CURSOR.load(Ordering::Relaxed);
     BLOCK_START.store(block_start, Ordering::Relaxed);
     fill_input_block(block_start, live);
 
-    // SAFETY: single-threaded (see module doc) — no other task or ISR touches
-    // RENDER_BLOCK/INPUT_BLOCK. Pointers cover exactly APP_BLOCK_FRAMES
-    // elements of the app's native stereo-sample type, matching the device
-    // `audio.rs` call site's ABI exactly.
+    // SAFETY: nothing else touches RENDER_BLOCK/INPUT_BLOCK during the render; both hold exactly
+    // APP_BLOCK_FRAMES frames.
     unsafe {
         crate::sys::deluge_app_render(
             addr_of!(INPUT_BLOCK) as *const DelugeStereoSample,
@@ -496,15 +449,14 @@ fn render_block(live: Option<&[[f32; 2]]>) {
             APP_BLOCK_FRAMES as u32,
         );
     }
-    // Discarded unless captured or the simulator plays it: there is no DAC on the host.
+    // Discarded unless captured or the emulator plays it.
 
     CURSOR.store(block_start + APP_BLOCK_FRAMES as u64, Ordering::Relaxed);
     capture_block();
 
     let n = DRIVE_COUNT.fetch_add(1, Ordering::Relaxed) + 1;
     if render_mode() {
-        // See render_mode()'s doc: skip the diagnostic bookkeeping only — the
-        // render above already happened unconditionally.
+        // Skip only the diagnostic bookkeeping.
         return;
     }
     let thread_name = std::thread::current()
@@ -512,17 +464,11 @@ fn render_block(live: Option<&[[f32; 2]]>) {
         .unwrap_or("<unnamed>")
         .to_string();
     if n == 1 {
-        // Expected to read the host-app executor thread, NOT "deluge-audio" —
-        // this is `AudioEngine::runRoutine()`'s pre-registration direct call
-        // (routine_task_id is still -1), made before `registerTasks()` has had
-        // a chance to route anything anywhere. See this module's doc comment.
+        // The pre-registration call from deluge_boot(), on the boot thread.
         log::info!("audio: first (pre-registration) render on thread {thread_name:?}");
     }
     if thread_name == "deluge-audio" && !AUDIO_THREAD_RENDER_SEEN.swap(true, Ordering::Relaxed) {
-        // Evidence that the priority-0 task's *scheduled* render (not the
-        // pre-registration one above) genuinely routed to the second executor
-        // thread via `scheduler::set_audio_spawner`, and is running there
-        // concurrently with the main/host-app executor thread.
+        // The scheduled render reached the separate audio executor thread.
         log::info!("audio: render #{n} routed onto the \"deluge-audio\" executor thread");
     }
     if n == 1 || n.is_multiple_of(LOG_EVERY) {
@@ -535,18 +481,13 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
     offset_frames: u32,
     elapsed_frames_out: *mut u32,
 ) -> u32 {
-    // Host stand-in for device `audio.rs`'s TX-ring play-head math: "now" is
-    // the monotonic render cursor (no real DMA play head to poll), and there
-    // is no ring to mask against, so this is plain (non-panicking) wrapping
-    // arithmetic rather than a masked ring offset. The null-sink harness
-    // doesn't need sample-accurate MIDI-gate timing, only a sane,
-    // non-panicking answer.
+    // "Now" is the render cursor and there is no ring to mask against: plain wrapping arithmetic.
+    // Host timing need only be sane, not sample-accurate.
     let play_now = CURSOR.load(Ordering::Relaxed);
     let block_start = BLOCK_START.load(Ordering::Relaxed);
 
     if !elapsed_frames_out.is_null() {
-        // SAFETY: caller-provided out param, matching device `audio.rs`'s
-        // contract (non-null implies writable).
+        // SAFETY: a non-null out param is writable, per the ABI contract.
         unsafe {
             *elapsed_frames_out = play_now.wrapping_sub(block_start) as u32;
         }

@@ -1,13 +1,11 @@
-//! midi_io.h — MIDI I/O. DIN serial over deluge_bsp::uart (SCIF0, brought up in
-//! main). USB-MIDI is a **peripheral** (Deluge → computer) over the deluge-bsp
-//! MIDI 1.0 class on port 1; USB **host** (devices → Deluge) comes later,
-//! so `usb_is_host()` is false and host-enumeration events report NONE. Port 0 =
-//! DIN; port 1 = the USB peripheral connection; ports 2..=MAX (future USB-host
-//! device slots) report disconnected.
+//! `libdeluge/midi_io.h` — DIN MIDI over `deluge_bsp::uart` and USB-MIDI as a peripheral.
 //!
-//! NOTE: arrival timestamps (DIN and USB) are approximated with the current
-//! monotonic tick at read time (not the exact hardware capture tick) — fine for
-//! note input; sample-accurate MIDI-clock-in timing is a later refinement.
+//! Port 0 is DIN; port 1 is the USB peripheral connection (the Deluge as a device on a computer);
+//! ports 2 and up (USB-host device slots) always report disconnected, since USB host mode is not
+//! implemented.
+//!
+//! Arrival stamps (DIN and USB) are taken when the app reads the byte, not at hardware capture:
+//! fine for note input, not sample-accurate for MIDI clock in.
 #![allow(non_upper_case_globals)]
 
 use deluge_bsp::uart;
@@ -19,19 +17,18 @@ use crate::sys::{
 
 const DIN_PORT: u8 = 0;
 const USB_PORT_BASE: u8 = 1;
-/// board_config.h MAX_NUM_USB_MIDI_DEVICES.
+/// `MAX_NUM_USB_MIDI_DEVICES` from `board_config.h`.
 const MAX_USB_MIDI_DEVICES: u8 = 6;
 const PORT_COUNT: u8 = USB_PORT_BASE + MAX_USB_MIDI_DEVICES;
-/// SCIF TX FIFO depth (bytes) — back-pressure for DIN writes.
+/// SCIF TX FIFO depth in bytes, reported as the DIN write space.
 const DIN_TX_FIFO: u32 = 16;
-/// USB-MIDI peripheral port: the single to-computer connection while in
-/// peripheral mode (host-mode device slots 2..=MAX come later).
+/// The USB-MIDI peripheral port: the single connection to a computer.
 const USB_PERIPHERAL_PORT: u8 = USB_PORT_BASE;
 
-/// Number of raw bytes in a complete MIDI 1.0 message, from its status byte.
-/// USB-MIDI event packets always carry the status byte (no running status), so
-/// this recovers the true byte count from the class's zero-padded `[u8; 3]`
-/// messages before forwarding the exact bytes to the app's MIDI parser.
+/// Returns the length of a MIDI 1.0 message from its status byte.
+///
+/// USB-MIDI packets always carry the status byte, so this recovers the real length from the
+/// class's zero-padded `[u8; 3]` messages.
 fn midi1_msg_len(status: u8) -> usize {
     match status & 0xF0 {
         0x80 | 0x90 | 0xA0 | 0xB0 | 0xE0 => 3, // note off/on, poly AT, CC, pitch bend
@@ -47,7 +44,7 @@ fn midi1_msg_len(status: u8) -> usize {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_init() {
-    // DIN needs no init beyond the UART main brings up; USB-MIDI is deferred.
+    // The runtime brings up the DIN UART and the USB device.
 }
 
 #[unsafe(no_mangle)]
@@ -67,15 +64,14 @@ pub extern "C" fn deluge_midi_read_timed(
     max: u32,
     arrival_ticks: *mut u32,
 ) -> u32 {
-    // DIN is drained per-byte via deluge_midi_din_read_timed(); only USB ports
-    // deliver batches here — today, the single peripheral connection.
+    // DIN is read per byte via deluge_midi_din_read_timed(); only the USB peripheral port
+    // delivers batches here.
     if port != USB_PERIPHERAL_PORT || !usb_midi::connected() {
         return 0;
     }
     let max = max as usize;
     let mut written = 0usize;
-    // Pop whole messages only while a full 3-byte message is guaranteed to fit,
-    // so a destructively-popped message is never partially dropped.
+    // Pop only while a 3-byte message is sure to fit, so a popped message is never truncated.
     while max - written >= 3 {
         let Some(msg) = usb_midi::try_recv_from_host() else {
             break;
@@ -131,7 +127,7 @@ pub extern "C" fn deluge_midi_write_space(port: DelugeMidiPort) -> u32 {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
     match port {
-        // DIN TXI-driven FIFO drains on its own; USB reports its queued bytes.
+        // The DIN FIFO drains on its own (TXI-driven).
         USB_PERIPHERAL_PORT => usb_midi::tx_pending() as u32,
         _ => 0,
     }
@@ -163,13 +159,12 @@ pub extern "C" fn deluge_midi_flush(_port: DelugeMidiPort) {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_service() {
-    // DIN has no state machine; the USB device + endpoint pumps run as their own
-    // embassy tasks (see usb.rs), so there's nothing to pump here.
+    // The USB device and endpoint pumps run as their own tasks (see `usb`).
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_usb_is_host() -> bool {
-    // Peripheral-first: the Deluge is a USB-MIDI device. Host mode comes later.
+    // USB host mode is not implemented.
     false
 }
 

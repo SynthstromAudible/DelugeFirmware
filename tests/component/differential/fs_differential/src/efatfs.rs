@@ -1,58 +1,19 @@
-//! Mounts the vendored `embedded-fatfs` (`crates/embedded-fatfs/`) over the
-//! shared `DISK` image (`ram_disk.rs`) and reads/writes through it -- this
-//! harness's whole storage backend.
+//! [`EFatFs`]: the vendored `embedded-fatfs` mounted over the shared
+//! [`RamDisk`](crate::ram_disk::RamDisk) image, the harness's storage backend.
 //!
-//! Confirmed async API, from the vendored source (not the crates.io docs,
-//! not guessed -- this crate is never published and pins its own fork):
+//! Storage is [`FileBlockDevice`] wrapped in `block_device_adapters::BufStream`, the same adapter
+//! stack the device's SD path uses, so the differential corpus exercises it on host too.
 //!
-//!   `embedded_fatfs::FileSystem::<IO, TP, OCC>::new<T: IntoStorage<IO>>`
-//!       `(storage: T, options: FsOptions<TP, OCC>) -> Result<Self, Error<IO::Error>>`
-//!       -- async, and requires `storage` to be un-seeked (asserts pos==0 after
-//!       its own `seek(Start(0))`).                                    (fs.rs:377)
-//!   `embedded_fatfs::FsOptions::new() -> FsOptions<DefaultTimeProvider, LossyOemCpConverter>`
-//!       (fs.rs:256)
-//!   `FileSystem::root_dir(&self) -> Dir<'_, IO, TP, OCC>`             -- sync (fs.rs:629)
-//!   `Dir::open_file(&self, path: &str) -> Result<File<'a,IO,TP,OCC>, Error<IO::Error>>`
-//!       -- async; `path` is '/'-separated, leading/trailing '/' trimmed by
-//!       `split_path`, so an absolute path like "/SAMPLES/hello.txt" works.
-//!                                                                       (dir.rs:307)
-//!   `File` implements `embedded_io_async::Read`:
-//!       `async fn read(&mut self, buf: &mut [u8]) -> Result<usize, Error<IO::Error>>`,
-//!       `Ok(0)` at EOF. embedded-io-async 0.7 ships no `ReadExt::read_to_end`,
-//!       so `read_file` below loops `read()` to drain the file.        (file.rs:317-368)
-//!   `Dir::iter(&self) -> DirIter<'a, IO, TP, OCC>`                    -- sync (dir.rs:123)
-//!   `DirIter::next(&mut self) -> Option<Result<DirEntry<'a,IO,TP,OCC>, Error<IO::Error>>>`
-//!       -- async, `None` at end-of-directory.                         (dir.rs:833)
-//!   `DirEntry::file_name(&self) -> String`, `::len(&self) -> u64`, `::is_dir(&self) -> bool`
-//!       (dir_entry.rs:617,712,637; `file_name`/`len` need the `alloc` feature,
-//!       already on in this crate's `Cargo.toml`).
+//! The `*_context` methods are host counterparts of the BSP's `storage::efatfs::portable`
+//! functions: they reattach a detached `FileContext`, do one operation, and detach again. They are
+//! written out here because this library does not depend on the BSP.
 //!
-//! Write path, same vendored source:
-//!   `Dir::create_file(&self, path: &str) -> Result<File<'a,IO,TP,OCC>, Error<IO::Error>>`
-//!       -- async; opens if it already exists, creates (empty) otherwise.   (dir.rs:339)
-//!   `File::truncate(&mut self) -> Result<(), Error<IO::Error>>`
-//!       -- async; resets size to the file's current offset.               (file.rs:102)
-//!   `File` implements `embedded_io_async::Write`: `write`/`write_all`/`flush`.
-//!       `flush` MUST be called (or `File::close`) -- `update_dir_entry_after_write`
-//!       only updates the in-memory entry; the on-disk directory entry (size,
-//!       modified time) is written by `flush`, not by `write` itself.       (file.rs:254,371-444)
-//!   `Dir::create_dir(&self, path: &str) -> Result<Self, Error<IO::Error>>`  (dir.rs:384)
-//!   `Dir::remove(&self, path: &str) -> Result<(), Error<IO::Error>>`       (dir.rs:456)
-//!   `Dir::rename(&self, src_path: &str, dst_dir: &Dir<'_,IO,TP,OCC>, dst_path: &str)
-//!       -> Result<(), Error<IO::Error>>`                                   (dir.rs:520)
-//!
-//! `IO: ReadWriteSeek` is a blanket impl over any `T: embedded_io_async::{Read,
-//! Write, Seek}` (fs.rs:130-132), and `IntoStorage<T> for T` is blanket too
-//! (fs.rs:343), so the storage below needs only those three trait impls -- no
-//! bespoke `IntoStorage`.
-//!
-//! That storage is the real device bridge: `block_dev::FileBlockDevice`
-//! (`block_device_driver::BlockDevice<512>` over the shared `DISK`) wrapped
-//! in `block_device_adapters::BufStream`, which supplies the
-//! `embedded_io_async::{Read,Write,Seek}` `embedded-fatfs` needs. This is
-//! the exact adapter stack (plus `#68`/`#62`, vendored in
-//! `crates/block-device-adapters`) driven on-device, so the whole
-//! differential corpus validates it on host too.
+//! `embedded-fatfs` facts the code relies on:
+//! - `FileSystem::new` requires the storage to be at position 0.
+//! - Writes update only the in-memory directory entry; `flush` or `File::close` writes the size and
+//!   modified time to disk. `File::detach` does neither.
+//! - `File::truncate` truncates at the current position.
+//! - The directory iterator yields `.` and `..` in non-root directories.
 
 use crate::block_dev::FileBlockDevice;
 use crate::ops::Entry;
@@ -64,22 +25,21 @@ use embedded_fatfs::{
 };
 use embedded_io_async::{Read, Seek, SeekFrom, Write};
 
-/// A mounted `embedded-fatfs` volume, read + write path. Implements
-/// `ops::FsOps`/`ops::FsOpsMut` (`mount`/`read_file`/`read_dir`/write ops).
+/// A mounted `embedded-fatfs` volume; implements [`FsOps`](crate::ops::FsOps) and
+/// [`FsOpsMut`](crate::ops::FsOpsMut).
 pub struct EFatFs {
     fs: FileSystem<BufStream<FileBlockDevice, 512>, DefaultTimeProvider, LossyOemCpConverter>,
 }
 
 impl EFatFs {
-    /// Mount the volume currently installed via `ram_disk::RamDisk::load`.
+    /// Mounts the volume in the current [`RamDisk`](crate::ram_disk::RamDisk) image.
     pub fn mount() -> Self {
         let storage = BufStream::<FileBlockDevice, 512>::new(FileBlockDevice);
         let fs = block_on(FileSystem::new(storage, FsOptions::new())).expect("FileSystem::new");
         EFatFs { fs }
     }
 
-    /// The raw mounted `FileSystem`, for tests that drive the shared
-    /// `efatfs_core` handle-table logic directly over it.
+    /// Returns the mounted `FileSystem`, for tests that drive the BSP's `portable` core over it.
     pub fn raw(
         &self,
     ) -> &FileSystem<BufStream<FileBlockDevice, 512>, DefaultTimeProvider, LossyOemCpConverter>
@@ -87,7 +47,7 @@ impl EFatFs {
         &self.fs
     }
 
-    /// Read a whole file's contents.
+    /// Reads a whole file.
     pub fn read_file(&self, path: &str) -> Vec<u8> {
         block_on(async {
             let root = self.fs.root_dir();
@@ -105,11 +65,8 @@ impl EFatFs {
         })
     }
 
-    /// Host analog: open `path`, then DETACH it to an opaque
-    /// [`FileContext`] via `File::close()` — the exact handoff the device
-    /// handle table (`efatfs_fs.rs`) stores per open sample. The context is
-    /// opaque here (its fields are `pub(crate)`); the caller stores/clones the
-    /// whole struct.
+    /// Opens `path` and closes it to a detached [`FileContext`], the form the device handle table
+    /// stores per open file.
     pub fn open_context(&self, path: &str) -> FileContext {
         block_on(async {
             let f = self.fs.root_dir().open_file(path).await.expect("open_file");
@@ -117,12 +74,9 @@ impl EFatFs {
         })
     }
 
-    /// Re-attach `ctx` to a fresh [`File`] (`File::new_from_context`), seek to
-    /// ABSOLUTE `offset`, fill `dst` completely by looping the `Read` impl,
-    /// then detach again — returning the advanced context and whether the whole
-    /// buffer was filled (`false` on a short read / EOF). Mirrors the device
-    /// `read_at`'s clone-out → reattach → seek → fill → write-back, minus the
-    /// `HANDLES`/FS mutexes (host is single-threaded `block_on`).
+    /// Reads `dst.len()` bytes at absolute `offset` through `ctx`, then closes.
+    ///
+    /// Returns the advanced context and whether `dst` was filled (`false` on a short read).
     pub fn read_at_context(
         &self,
         ctx: &FileContext,
@@ -139,7 +93,7 @@ impl EFatFs {
             let mut filled = 0;
             while filled < dst.len() {
                 match f.read(&mut dst[filled..]).await.expect("read") {
-                    0 => break, // short read / EOF
+                    0 => break, // EOF
                     n => filled += n,
                 }
             }
@@ -148,24 +102,22 @@ impl EFatFs {
         })
     }
 
-    /// Host analog of `efatfs_core::create_context`: `Dir::create_file`
-    /// (open-or-create) then `File::truncate` — WRITE_CREATE semantics
-    /// (`exclusive == false`, starts empty even if `path` already existed) —
-    /// or, with `exclusive == true`, WRITE_CREATE_NEW (fails if `path`
-    /// already exists; embedded-fatfs has no atomic create-if-absent
-    /// primitive, so this checks `Dir::exists` first — safe here because
-    /// task-context file ops are single-threaded, both on host and on
-    /// device under `efatfs_fs::with_fs`'s mutex). Panics on any FS error,
-    /// INCLUDING WRITE_CREATE_NEW's "already exists" — use
-    /// [`try_create_exclusive`](Self::try_create_exclusive) to observe that
-    /// failure without panicking.
+    /// Counterpart of `portable::create_context`: creates `path` empty and returns its context.
+    ///
+    /// Without `exclusive` an existing file is truncated; with it, an existing file is an error.
+    /// `embedded-fatfs` has no atomic create-if-absent, so exclusivity is an `exists` check first,
+    /// which is sound because file operations are single-threaded.
+    ///
+    /// # Panics
+    ///
+    /// Panics on any filesystem error, including an exclusive create of an existing file; use
+    /// [`try_create_exclusive`](Self::try_create_exclusive) to observe that case.
     pub fn create_context(&self, path: &str, exclusive: bool) -> FileContext {
         self.try_create_context(path, exclusive)
             .expect("create_context")
     }
 
-    /// Non-panicking WRITE_CREATE_NEW: `None` if `path` already exists (or
-    /// any other FS error), instead of `create_context(path, true)`'s panic.
+    /// Creates `path` exclusively; returns `None` if it exists or on any other error.
     pub fn try_create_exclusive(&self, path: &str) -> Option<FileContext> {
         self.try_create_context(path, true)
     }
@@ -182,11 +134,8 @@ impl EFatFs {
         })
     }
 
-    /// Host analog of `efatfs_core::write_context`: reattach, seek to
-    /// absolute `offset`, loop `Write::write` over `src`, detach. Mirrors
-    /// `read_at_context`'s inlined (not `efatfs_core`-delegating) style since
-    /// this library crate doesn't depend on `efatfs_core` — only the test
-    /// binary `#[path]`-includes it.
+    /// Counterpart of `portable::write_context`: writes `src` at absolute `offset`, then closes
+    /// (flushing the directory entry). Returns the context and the bytes written.
     pub fn write_at_context(
         &self,
         ctx: &FileContext,
@@ -212,13 +161,10 @@ impl EFatFs {
         })
     }
 
-    /// Host analog of `efatfs_core::write_context_noflush`:
-    /// reattach, seek to absolute `offset`, loop `Write::write` over `src`,
-    /// then `File::detach()` instead of `close()` — the in-memory size
-    /// advances but the on-disk directory entry is NOT flushed. Pairs with
-    /// [`flush_context`](Self::flush_context). Inlined (not
-    /// `efatfs_core`-delegating), same rationale as
-    /// [`write_at_context`](Self::write_at_context).
+    /// Counterpart of `portable::write_context_noflush`: writes `src` at absolute `offset`, then
+    /// detaches without flushing, so only the context's in-memory size advances.
+    ///
+    /// Pair with [`flush_context`](Self::flush_context).
     pub fn write_at_via_context_noflush(
         &self,
         ctx: &FileContext,
@@ -243,13 +189,12 @@ impl EFatFs {
         })
     }
 
-    /// Host analog of `efatfs_core::read_at_via_context`:
-    /// reattach, seek to absolute `offset`, read bounded by the context's
-    /// IN-MEMORY size (so this sees data from a prior
-    /// [`write_at_via_context_noflush`](Self::write_at_via_context_noflush)
-    /// even before it's been flushed to disk), EOF-honest short count, then
-    /// `File::detach()` (no flush) — preserving the dirty write state for a
-    /// later [`flush_context`](Self::flush_context).
+    /// Counterpart of `portable::read_at_via_context`: reads at absolute `offset`, bounded by the
+    /// context's in-memory size, then detaches without flushing.
+    ///
+    /// Sees unflushed data from
+    /// [`write_at_via_context_noflush`](Self::write_at_via_context_noflush). Returns the true
+    /// byte count.
     pub fn read_at_via_context(
         &self,
         ctx: &FileContext,
@@ -274,11 +219,8 @@ impl EFatFs {
         })
     }
 
-    /// Host analog of `efatfs_core::flush_context`: reattach `ctx`
-    /// and `File::close()` it, flushing the accumulated in-memory size/mtime
-    /// edit (from one or more prior
-    /// [`write_at_via_context_noflush`](Self::write_at_via_context_noflush)
-    /// calls) to the on-disk directory entry.
+    /// Counterpart of `portable::flush_context`: writes the context's in-memory size and modified
+    /// time to the on-disk directory entry.
     pub fn flush_context(&self, ctx: &FileContext) -> FileContext {
         block_on(async {
             let f = File::new_from_context(ctx.clone(), &self.fs)
@@ -288,10 +230,8 @@ impl EFatFs {
         })
     }
 
-    /// Host analog of `efatfs_core::read_context_exact`: EOF-honest — returns
-    /// the true accumulated byte count on the first short read, NO
-    /// zero-padding (unlike `read_at_context`/`fill`'s streaming-read
-    /// tolerance).
+    /// Counterpart of `portable::read_context_exact`: reads at absolute `offset` and returns the
+    /// true byte count, with no zero-padding on a short read.
     pub fn read_exact_context(
         &self,
         ctx: &FileContext,
@@ -317,9 +257,8 @@ impl EFatFs {
         })
     }
 
-    /// Host analog of `efatfs_core::size_context`: file length via
-    /// `Seek(End(0))` (`File::size` is private to embedded-fatfs's own
-    /// module).
+    /// Counterpart of `portable::size_context`: the file length, via a seek to the end
+    /// (`File::size` is private).
     pub fn size_context(&self, ctx: &FileContext) -> (FileContext, u32) {
         block_on(async {
             let mut f = File::new_from_context(ctx.clone(), &self.fs)
@@ -331,9 +270,7 @@ impl EFatFs {
         })
     }
 
-    /// Host analog of `efatfs_core::truncate_context`: seek to `new_len`
-    /// (embedded-fatfs's `File::truncate` truncates AT the current position),
-    /// then truncate.
+    /// Counterpart of `portable::truncate_context`: truncates the file to `new_len` bytes.
     pub fn truncate_context(&self, ctx: &FileContext, new_len: u32) -> (FileContext, ()) {
         block_on(async {
             let mut f = File::new_from_context(ctx.clone(), &self.fs)
@@ -348,7 +285,7 @@ impl EFatFs {
         })
     }
 
-    /// List a directory's entries, sorted by name.
+    /// Lists a directory's entries, sorted by name, without `.` and `..`.
     pub fn read_dir(&self, path: &str) -> Vec<Entry> {
         block_on(async {
             let root = self.fs.root_dir();
@@ -362,12 +299,7 @@ impl EFatFs {
             while let Some(r) = iter.next().await {
                 let e = r.expect("dir entry");
                 let name = e.file_name();
-                // HARNESS NORMALIZATION: embedded-fatfs's directory iterator
-                // yields `.` and `..` pseudo-entries for non-root
-                // directories, which the C++ app's own directory-listing
-                // consumers never expect -- filter them out here so this
-                // harness's `read_dir` presents the same logical view a
-                // caller expects.
+                // The app's directory-listing consumers never expect `.` and `..`.
                 if name == "." || name == ".." {
                     continue;
                 }
@@ -382,9 +314,7 @@ impl EFatFs {
         })
     }
 
-    /// Test helper: `read_dir` collapsed to the harness's comparison shape
-    /// (`(name, is_dir, size)`), for enumeration-set equivalence tests against
-    /// a hardcoded known-good expected set.
+    /// Returns [`read_dir`](Self::read_dir) as `(name, is_dir, size)` tuples.
     pub fn readdir_all(&self, path: &str) -> Vec<(String, bool, u32)> {
         self.read_dir(path)
             .into_iter()
@@ -392,18 +322,15 @@ impl EFatFs {
             .collect()
     }
 
-    /// True if `path` (file or directory) exists. A fresh
-    /// [`mount`](Self::mount)ed `EFatFs` calling this is an independent,
-    /// from-disk check: it walks the on-disk directory structure through a
-    /// brand-new `FileSystem`, not any in-process cache a writer's `EFatFs`
-    /// instance might hold.
+    /// Returns whether `path` (file or directory) exists.
+    ///
+    /// Called on a freshly [`mount`](Self::mount)ed instance, this checks the disk rather than any
+    /// state a writer's instance holds.
     pub fn exists(&self, path: &str) -> bool {
         block_on(async { self.fs.root_dir().exists(path).await.unwrap_or(false) })
     }
 
-    /// The packed FAT modified-date/time (`(dos_date << 16) | dos_time`,
-    /// matching `set_time`'s convention) of `path`, read via `Dir::open_meta`
-    /// (directory-entry metadata only, no file data touched).
+    /// Returns `path`'s modified time as packed FAT date/time, `(dos_date << 16) | dos_time`.
     pub fn mtime(&self, path: &str) -> u32 {
         block_on(async {
             let entry = self.fs.root_dir().open_meta(path).await.expect("open_meta");
@@ -418,12 +345,7 @@ impl EFatFs {
         })
     }
 
-    /// Create a directory. `path`'s parent must already exist.
-    ///
-    /// `&self`, not `&mut self`: `Dir::create_dir` (like every other
-    /// `Dir` write op this file wraps) only needs `&self` — the actual
-    /// mutable state is the shared `DISK` RAM image behind `self.fs`'s
-    /// storage, not `self` itself.
+    /// Creates a directory; its parent must exist.
     pub fn mkdir(&self, path: &str) {
         block_on(async {
             self.fs
@@ -434,8 +356,7 @@ impl EFatFs {
         });
     }
 
-    /// Create (or truncate, if it already exists) `path` and write `bytes`
-    /// as its whole contents.
+    /// Creates or truncates `path` and writes `bytes` as its whole contents.
     pub fn write_new(&mut self, path: &str, bytes: &[u8]) {
         block_on(async {
             let root = self.fs.root_dir();
@@ -446,8 +367,7 @@ impl EFatFs {
         });
     }
 
-    /// Open the existing file at `path`, seek to its end, and append
-    /// `bytes`.
+    /// Appends `bytes` to the existing file at `path`.
     pub fn append(&mut self, path: &str, bytes: &[u8]) {
         block_on(async {
             let root = self.fs.root_dir();
@@ -458,36 +378,25 @@ impl EFatFs {
         });
     }
 
-    /// Delete an existing file or (empty) directory. `&mut self` to match
-    /// `ops::FsOpsMut::delete`'s trait signature (the differential-fuzzing
-    /// surface both backends implement).
+    /// Deletes an existing file or empty directory.
     pub fn delete(&mut self, path: &str) {
         block_on(async {
             self.fs.root_dir().remove(path).await.expect("remove");
         });
     }
 
-    /// Host analog of `efatfs_core::unlink` — same operation as
-    /// [`delete`](Self::delete), `&self` to match the path-op suite's
-    /// (mkdir/create_context/rename/unlink) signatures.
+    /// Counterpart of `portable::unlink`; the same operation as [`delete`](Self::delete), taking
+    /// `&self`.
     pub fn unlink(&self, path: &str) {
         block_on(async {
             self.fs.root_dir().remove(path).await.expect("remove");
         });
     }
 
-    /// Rename/move `from` to `to`, both absolute paths.
+    /// Renames or moves `from` to `to`, both absolute paths.
     ///
-    /// Drives the crate's `Dir::rename` directly, with no parent-resolution
-    /// workaround needed: the vendored crate fixes a bug where `Dir::rename`
-    /// would silently drop a multi-component `dst_path`'s leading directory
-    /// components (`dir.rs:559` passed the raw, untraversed `dst_dir`
-    /// parameter to `rename_internal` instead of the traversed destination
-    /// parent it had just computed; see `crates/embedded-fatfs/VENDOR.md`'s
-    /// "Applied local fixes"), so a plain `root.rename(from, &root, to)`
-    /// with a multi-component `to` lands in the right directory.
-    ///
-    /// `&self`, not `&mut self` — see [`mkdir`](Self::mkdir)'s doc comment.
+    /// Relies on the vendored crate's fix for multi-component destination paths in `Dir::rename`
+    /// (see `crates/embedded-fatfs/VENDOR.md`); upstream drops the destination's directories.
     pub fn rename(&self, from: &str, to: &str) {
         block_on(async {
             let root = self.fs.root_dir();
@@ -497,10 +406,12 @@ impl EFatFs {
         });
     }
 
-    /// Host analog of `efatfs_core::set_time`: `timestamp` is the
-    /// same packed FAT date/time (`(dos_date << 16) | dos_time`) that
-    /// `efatfs_core::set_time` documents. Panics on any FS error or
-    /// out-of-range date/time component.
+    /// Counterpart of `portable::set_time`: sets `path`'s modified time from packed FAT date/time,
+    /// `(dos_date << 16) | dos_time`.
+    ///
+    /// # Panics
+    ///
+    /// Panics on any filesystem error or out-of-range date/time component.
     pub fn set_time(&self, path: &str, timestamp: u32) {
         block_on(async {
             let dos_date = (timestamp >> 16) as u16;
