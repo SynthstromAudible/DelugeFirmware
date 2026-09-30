@@ -1,30 +1,12 @@
 //! The single-slot prefix channel. Song preview is single-flight by construction (one browser, one
 //! coalescer), so this is a slot, not a table: no depth, no eviction, no ordering.
-//!
-//! `deluge-bsp-rust` is bin-only (no `[lib]` target — see `Cargo.toml`), so this recompiles
-//! `src/file_prefix.rs` unmodified into this test binary via `#[path]`, the same convention
-//! `tests/audio_loader_host.rs` uses. `src/audio_loader.rs` comes along because the prefix driver
-//! reuses its [`LoadOps`] rather than declaring a second four-operation filesystem trait; it is a
-//! SIBLING module here, which is what makes `file_prefix.rs`'s `super::audio_loader` path resolve
-//! in this binary exactly as it does in the firmware.
 #![cfg(not(target_os = "none"))]
 
 use std::cell::{Cell, RefCell};
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
+use deluge_bsp_rust::audio_loader;
 
-// Included for its `LoadOps`/`OpenVerdict` alone, so the rest of the loader is dead here. That is
-// not a defect to fix by trimming the shared file -- it is fully exercised by
-// `tests/audio_loader_host.rs`, its own suite -- so the lint is silenced at the module that
-// causes it rather than anywhere inside production source.
-#[allow(dead_code)]
-#[path = "../src/audio_loader.rs"]
-mod audio_loader;
-
-#[path = "../src/file_prefix.rs"]
-mod file_prefix;
+use deluge_bsp_rust::file_prefix;
 
 use audio_loader::{LoadOps, OpenVerdict};
 use file_prefix::{
@@ -545,41 +527,7 @@ fn a_failure_after_the_open_still_closes_the_handle() {
 // The C ABI over the process-wide statics. Only exists where its storage does, so the whole module
 // is gated on the switch — with it off there is no REQUEST, no IN_FLIGHT and no RESULT to drive.
 
-/// The ejection hook, recompiled here the same way `tests/audio_loader_host.rs` does it: the flush
-/// test below drives `deluge_card_flush` rather than `flush_tables` directly, because "the bump
-/// precedes the clears, and the take is what refuses a survivor" is the whole of what it pins.
-///
-/// It reaches its loaders through `super::`, which is what makes it resolve both here (at this
-/// crate's root) and one module deeper in `crates/deluge_audio_loader_host`.
-#[path = "../src/card.rs"]
-mod card;
-
-/// The third sibling `card.rs` names: a carrier that compiles the flush without every module it
-/// flushes does not compile at all.
-#[allow(dead_code)]
-#[path = "../src/file_directory.rs"]
-mod file_directory;
-
-/// The fourth sibling `card.rs` names. It was added to `card.rs` without being added here, and this
-/// carrier stopped compiling.
-#[allow(dead_code)]
-#[path = "../src/file_bytes.rs"]
-mod file_bytes;
-
-/// The fifth sibling `card.rs` names: the stream channel's flush.
-#[allow(dead_code)]
-#[path = "../src/file_stream.rs"]
-mod file_stream;
-
-/// Storage for `file_stream` above.
-#[allow(dead_code)]
-#[path = "../src/file_stream_slot.rs"]
-mod file_stream_slot;
-
-/// The ABI's handle rule, which the channels' exports convert their handles through.
-#[allow(dead_code)]
-#[path = "../src/abi_handle.rs"]
-mod abi_handle;
+use deluge_bsp_rust::card;
 
 mod live_pipeline {
     use super::file_prefix::{

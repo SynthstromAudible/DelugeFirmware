@@ -1,7 +1,6 @@
 #![cfg(not(target_os = "none"))]
 
-#[path = "../src/abi_handle.rs"]
-mod abi_handle;
+use deluge_bsp_rust::abi_handle;
 
 use abi_handle::{from_abi, to_abi};
 

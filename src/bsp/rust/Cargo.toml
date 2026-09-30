@@ -14,6 +14,10 @@ edition = "2024"
 license = "GPL-3.0-or-later"
 publish = false
 
+[lib]
+name = "deluge_bsp_rust"
+path = "src/lib.rs"
+
 [[bin]]
 name = "deluge-rust"
 path = "src/main.rs"

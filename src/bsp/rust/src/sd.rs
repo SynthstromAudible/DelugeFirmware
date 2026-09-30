@@ -46,7 +46,7 @@ use embassy_sync::mutex::Mutex;
 
 /// Serializes SDHI peripheral access between the FatFS transfers and the streaming task's raw-sector reads, so the
 /// two can never drive the one SDHI controller concurrently.
-pub(crate) static SD_BUS: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
+pub static SD_BUS: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
 #[cfg(target_os = "none")]
 use crate::sys::{

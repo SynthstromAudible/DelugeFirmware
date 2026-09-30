@@ -4,8 +4,7 @@
 //!   cargo test --test audio_pacing_host
 #![cfg(not(target_os = "none"))]
 
-#[path = "../src/audio_pacing.rs"]
-mod audio_pacing;
+use deluge_bsp_rust::audio_pacing;
 
 use audio_pacing::pace_window;
 

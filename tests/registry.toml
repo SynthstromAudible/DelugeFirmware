@@ -817,7 +817,7 @@ kind = "unit"
 status = "gate"
 gates = "the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix channels, the SD image path, the SD bus card init, the audio loader. --locked, so a lock that has lost its deluge-alloc pin fails here instead of being rewritten."
 run = ["cargo", "test", "--locked"]
-requires = ["cargo", "deluge-sdk-sibling"]
+requires = ["cargo"]
 tier = "pr"
 runtime = "~4m first build, ~30s after"
 

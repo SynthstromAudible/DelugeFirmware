@@ -3,22 +3,10 @@
 //! spins, and the only executor that could resume `card_service` is the one spinning. A storage-tier caller,
 //! on its own executor, must keep waiting and then succeed on the re-identified card.
 #![cfg(not(target_os = "none"))]
-#![feature(impl_trait_in_assoc_type)]
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
-
-#[path = "../src/boot.rs"]
-mod boot;
-#[path = "../src/sd.rs"]
-mod sd;
-#[path = "../src/sim_block.rs"]
-mod sim_block;
-#[path = "../src/tier.rs"]
-mod tier;
-#[path = "../src/tier_meter.rs"]
-mod tier_meter;
+use deluge_bsp_rust::sd;
+use deluge_bsp_rust::sim_block;
+use deluge_bsp_rust::tier;
 
 use core::future::Future;
 use core::pin::pin;

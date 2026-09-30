@@ -1,16 +1,9 @@
 //! The meter counts a synchronous card call only after boot and only on the interaction tier.
 #![cfg(not(target_os = "none"))]
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
-
-#[path = "../src/boot.rs"]
-mod boot;
-#[path = "../src/tier.rs"]
-mod tier;
-#[path = "../src/tier_meter.rs"]
-mod tier_meter;
+use deluge_bsp_rust::boot;
+use deluge_bsp_rust::tier;
+use deluge_bsp_rust::tier_meter;
 
 use tier_meter::Entry;
 

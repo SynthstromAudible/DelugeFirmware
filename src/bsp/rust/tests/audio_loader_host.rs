@@ -5,14 +5,6 @@
 //! (each executor forbids what the other requires), and why [`LoadOps`] is only
 //! four async filesystem operations with no route into C++.
 //!
-//! `deluge-bsp-rust` is bin-only (no `[lib]` target — see `Cargo.toml`), so this
-//! recompiles `src/audio_loader.rs` unmodified into this test binary via
-//! `#[path]`, the same convention `tests/streaming_fill_host.rs`
-//! uses. Only the driver and the
-//! always-compiled request/collect tier are needed — the `prod` submodule (the
-//! efatfs backing) is gated on device/`host_app` and stays uncompiled, so this
-//! test never needs the C++ app linked.
-//!
 //! What these tests pin, in one line each: the efatfs handle is closed on every
 //! path; a parse verdict always reaches the caller with the error identity the
 //! synchronous path produced; a zero-length window is still read and fed; an
@@ -25,61 +17,9 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::CString;
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
+use deluge_bsp_rust::audio_loader;
 
-#[path = "../src/audio_loader.rs"]
-mod audio_loader;
-
-/// The ejection hook itself, recompiled here the same way — the belt tests below drive
-/// `deluge_card_flush` rather than its two halves, because "the bump precedes the clears" is part
-/// of what they are pinning. It reaches its loader through `super::audio_loader`, which is exactly
-/// what the module above provides — here at the crate root, and one module deeper when
-/// `crates/deluge_audio_loader_host` recompiles this whole file for CI.
-///
-/// The shared counter it bumps needs no `#[path]`: `deluge_card_generation` is a real dependency
-/// crate, so the very same static resolves here and in the BSP binary. That is why it is a crate —
-/// a `crate::card_generation` module would be a *different* static in this build from the one
-/// `audio_loader.rs` reads inside the firmware.
-#[path = "../src/card.rs"]
-mod card;
-
-/// The other loader `card.rs` flushes, recompiled here for the same reason: `deluge_card_flush`
-/// names BOTH of its siblings, so a carrier that provides only one does not compile. Its own slot
-/// logic is tested in `tests/file_prefix_host.rs`; here it exists to be linked.
-#[allow(dead_code)]
-#[path = "../src/file_prefix.rs"]
-mod file_prefix;
-
-/// The third loader `card.rs` flushes, here for exactly the same reason as `file_prefix` above:
-/// `deluge_card_flush` names every one of its siblings, so a carrier that leaves one out does
-/// not compile. Its own slot logic is tested in `tests/file_directory_host.rs`.
-#[allow(dead_code)]
-#[path = "../src/file_directory.rs"]
-mod file_directory;
-
-/// The fourth loader `card.rs` flushes, here for the same reason. Its own slot logic is tested in
-/// `tests/file_bytes_host.rs`.
-#[allow(dead_code)]
-#[path = "../src/file_bytes.rs"]
-mod file_bytes;
-
-/// The fifth channel `card.rs` flushes, here for the same reason. Its own slot logic is tested in
-/// `tests/file_stream_host.rs`.
-#[allow(dead_code)]
-#[path = "../src/file_stream.rs"]
-mod file_stream;
-
-/// Storage for `file_stream` above.
-#[allow(dead_code)]
-#[path = "../src/file_stream_slot.rs"]
-mod file_stream_slot;
-
-/// The ABI's handle rule, which the channels' exports convert their handles through.
-#[allow(dead_code)]
-#[path = "../src/abi_handle.rs"]
-mod abi_handle;
+use deluge_bsp_rust::card;
 
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,

@@ -1,19 +1,8 @@
 //! The single-slot whole-file byte channel. One operation at a time across all three kinds, so this
 //! is a slot, not a table: no depth, no eviction, no ordering.
-//!
-//! `deluge-bsp-rust` is bin-only (no `[lib]` target -- see `Cargo.toml`), so this recompiles
-//! `src/file_bytes.rs` unmodified into this test binary via `#[path]`, the same convention
-//! `tests/file_directory_host.rs` and `tests/file_prefix_host.rs` use. Like the directory channel it
-//! borrows nothing from `audio_loader`: reading a whole file and writing one back are not `LoadOps`'s
-//! four operations, so it declares its own three-operation trait and comes along alone.
 #![cfg(not(target_os = "none"))]
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
-
-#[path = "../src/file_bytes.rs"]
-mod file_bytes;
+use deluge_bsp_rust::file_bytes;
 
 use file_bytes::{
     ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, ClaimOnce, CopyOut,

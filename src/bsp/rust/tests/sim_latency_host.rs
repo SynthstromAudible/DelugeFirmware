@@ -9,22 +9,11 @@
 #![cfg(all(not(target_os = "none"), feature = "sim_latency"))]
 #![feature(impl_trait_in_assoc_type)]
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
-
-// No `deluge_bsp_rust::` path exists (bin-only crate) — re-include the modules by path, the same way the other
-// `tests/*_host.rs` files do.
-#[path = "../src/boot.rs"]
-mod boot;
-#[path = "../src/sd.rs"]
-mod sd;
-#[path = "../src/sim_block.rs"]
-mod sim_block;
-#[path = "../src/tier.rs"]
-mod tier;
-#[path = "../src/tier_meter.rs"]
-mod tier_meter;
+use deluge_bsp_rust::boot;
+use deluge_bsp_rust::sd;
+use deluge_bsp_rust::sim_block;
+use deluge_bsp_rust::tier;
+use deluge_bsp_rust::tier_meter;
 
 use std::time::{Duration, Instant};
 

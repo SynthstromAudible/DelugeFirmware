@@ -7,8 +7,7 @@
 //!   cargo test --test sd_image_path_host
 #![cfg(not(target_os = "none"))]
 
-#[path = "../src/sd_image_path.rs"]
-mod sd_image_path;
+use deluge_bsp_rust::sd_image_path;
 
 use sd_image_path::{Plan, fingerprint_dir, recorder_image_path, scenario_plan};
 use std::fs;

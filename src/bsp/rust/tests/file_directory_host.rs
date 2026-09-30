@@ -1,25 +1,9 @@
 //! The single-slot directory channel. One listing at a time is already enforced by the browser
 //! (`Browser::listingInProgress_`), so this is a slot, not a table: no depth, no eviction, no
 //! ordering.
-//!
-//! `deluge-bsp-rust` is bin-only (no `[lib]` target -- see `Cargo.toml`), so this recompiles
-//! `src/file_directory.rs` unmodified into this test binary via `#[path]`, the same convention
-//! `tests/file_prefix_host.rs` and `tests/audio_loader_host.rs` use. Unlike the prefix channel this
-//! module borrows nothing from `audio_loader`: its one I/O operation is a directory open, which is
-//! not in `LoadOps`, so it declares its own two-operation trait and comes along alone.
 #![cfg(not(target_os = "none"))]
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
-
-#[path = "../src/file_directory.rs"]
-mod file_directory;
-
-/// The ABI's handle rule, which the channels' exports convert their handles through.
-#[allow(dead_code)]
-#[path = "../src/abi_handle.rs"]
-mod abi_handle;
+use deluge_bsp_rust::file_directory;
 
 use file_directory::{DirOutcome, DirTake, DirectorySlot, drain, publish_into, take_from};
 

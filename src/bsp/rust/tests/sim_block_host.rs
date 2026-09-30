@@ -10,10 +10,7 @@ use core::sync::atomic::{AtomicU32, Ordering};
 use core::task::{Context, Poll};
 use std::sync::Mutex;
 
-// No `deluge_bsp_rust::` path exists (bin-only crate) — re-include the module by path,
-// the same way the other `tests/*_host.rs` files do.
-#[path = "../src/sim_block.rs"]
-mod sim_block;
+use deluge_bsp_rust::sim_block;
 
 use sim_block::Progress;
 

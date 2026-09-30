@@ -860,7 +860,7 @@ pub fn decode_candidates(buffer: &[u8]) -> Option<CandidateList> {
 /// # Safety
 ///
 /// `ptr` must be NULL or a valid NUL-terminated C string.
-pub(crate) unsafe fn cstr_to_path(ptr: *const c_char) -> Option<LoadPath> {
+pub unsafe fn cstr_to_path(ptr: *const c_char) -> Option<LoadPath> {
     if ptr.is_null() {
         return None;
     }

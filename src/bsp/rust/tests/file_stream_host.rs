@@ -1,12 +1,8 @@
 //! The stream channel's answer slot: one answer at a time, keyed by kind, handle and path, stamped with the card
 //! generation it was asked under.
-//!
-//! `deluge-bsp-rust` is bin-only, so this recompiles `src/file_stream_slot.rs` into the test binary via `#[path]`.
 #![cfg(not(target_os = "none"))]
 
-#[allow(dead_code)]
-#[path = "../src/file_stream_slot.rs"]
-mod file_stream_slot;
+use deluge_bsp_rust::file_stream_slot;
 
 use file_stream_slot::{AnswerSlot, MAX_PATH_CHARS, OpKey, OpKind, Take};
 

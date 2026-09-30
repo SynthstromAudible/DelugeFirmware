@@ -143,9 +143,9 @@ static_assert(util::to_underlying(Error::TOO_MANY_OPEN_STREAMS) == 34);
 static_assert(util::to_underlying(Error::LOAD_IN_PROGRESS) == 35);
 
 // DelugeAudioLoadResult as numbers. The Rust loader's `LoadResult` is checked against bindgen's
-// binding in the BSP build, and also compiles in carriers with no bindgen output
-// (crates/deluge_audio_loader_host), where it is pinned to these same literals -- so a reorder on
-// either side fails to build rather than silently reinterpreting every field after it.
+// binding in the BSP build, and pinned to these same literals in the plain host build, which has no
+// bindgen output -- so a reorder on either side fails to build rather than silently reinterpreting
+// every field after it.
 static_assert(sizeof(DelugeAudioLoadResult) == 312);
 static_assert(alignof(DelugeAudioLoadResult) == 8);
 static_assert(offsetof(DelugeAudioLoadResult, geometry) == 0);

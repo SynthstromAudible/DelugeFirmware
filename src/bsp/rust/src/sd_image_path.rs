@@ -35,7 +35,7 @@
 use std::path::{Path, PathBuf};
 
 /// What [`scenario_plan`] decided for a given corpus fingerprint.
-pub(crate) enum Plan {
+pub enum Plan {
     /// A matching image is already on disk; use it as-is and skip mtools entirely.
     Reuse(PathBuf),
     /// No matching image yet. Pack into `staging`, then rename onto `final_path`.
@@ -53,7 +53,7 @@ pub(crate) enum Plan {
 
 impl Plan {
     /// The path the caller should ultimately point `DELUGE_SD_IMAGE` at.
-    pub(crate) fn final_path(&self) -> &Path {
+    pub fn final_path(&self) -> &Path {
         match self {
             Plan::Reuse(p) => p,
             Plan::Pack { final_path, .. } => final_path,
@@ -62,7 +62,7 @@ impl Plan {
 }
 
 /// Decides whether the image for `fingerprint` can be reused or must be packed.
-pub(crate) fn scenario_plan(tmp_root: &Path, fingerprint: &str) -> Plan {
+pub fn scenario_plan(tmp_root: &Path, fingerprint: &str) -> Plan {
     let final_path = tmp_root.join(format!("deluge-streaming-scenario-{fingerprint}.img"));
     if final_path.is_file() {
         return Plan::Reuse(final_path);
@@ -89,7 +89,7 @@ pub(crate) fn scenario_plan(tmp_root: &Path, fingerprint: &str) -> Plan {
 /// Runs that genuinely need isolation (parallel recorder invocations) should set
 /// `DELUGE_SD_IMAGE` explicitly — every caller honours it and skips image creation entirely,
 /// the same escape hatch `sweep.sh` uses.
-pub(crate) fn recorder_image_path(tmp_root: &Path) -> PathBuf {
+pub fn recorder_image_path(tmp_root: &Path) -> PathBuf {
     tmp_root.join("deluge-recorder-roundtrip.img")
 }
 
@@ -104,7 +104,7 @@ pub(crate) fn recorder_image_path(tmp_root: &Path) -> PathBuf {
 ///
 /// Returns a stable hex string; unreadable entries are folded in as a distinct marker rather
 /// than skipped, so a permissions change still invalidates the cache.
-pub(crate) fn fingerprint_dir(dir: &Path) -> String {
+pub fn fingerprint_dir(dir: &Path) -> String {
     let mut entries = Vec::new();
     collect(dir, dir, &mut entries);
     entries.sort();
