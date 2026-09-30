@@ -1092,13 +1092,14 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 
 	soundDrumToReplace->drumName = enteredText.get();
 	soundDrumToReplace->path.set(&currentDir);
-	ParamManager* paramManager =
-	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
-	if (paramManager) {
+	// Steal the ParamManager that loading backed up, so its (now empty) backup entry is removed from the Song
+	ParamManager paramManager;
+	if (currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor,
+	                                                           &paramManager)) {
 		kitToLoadFor->addDrum(soundDrumToReplace);
 		// don't back up the param manager since we can't use the backup anyway
-		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
-		                 false);
+		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor,
+		                 &paramManager, false);
 
 		kitToLoadFor->selectedDrum = soundDrumToReplace;
 		kitToLoadFor->beenEdited();
