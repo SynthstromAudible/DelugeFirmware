@@ -112,6 +112,29 @@ jobs:
             exit 1
           }
 
+  rustdoc:
+    name: rustdoc
+    runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: "-D warnings"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            crates
+            src/bsp/rust
+      # Private items too: most of this code is crate-internal, and its links break as easily.
+      # golden_vt_render and the BSP's `host_app` build need the CMake host tree, so they are
+      # checked locally (docs/dev/rust_documentation.md).
+      - name: rustdoc
+        run: |
+          for m in crates/Cargo.toml crates/deluge_sample_convert/Cargo.toml src/bsp/rust/Cargo.toml \
+                   tests/component/differential/*/Cargo.toml; do
+            echo "== $m"
+            cargo doc --manifest-path "$m" --workspace --no-deps --document-private-items
+          done
+
   # TODO: BSP clippy/build for armv7a-none-eabihf. Needs nightly -Z build-std
   # (rust-src is already pinned in src/bsp/rust/rust-toolchain.toml) and the
   # deluge-sdk toolchain setup. Add once the device build runs cleanly in CI:
