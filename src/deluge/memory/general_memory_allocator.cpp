@@ -22,7 +22,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge_resource.h" // resource manager: the sole SDRAM reclaim coordinator
 #include "io/debug/log.h"
-#include "libdeluge/streaming_fill.h" // deluge_streamed_chunk_payload_offset(): Rust chunk's slot geometry
+#include "libdeluge/sample_stream.h" // deluge_streamed_chunk_payload_offset(): Rust chunk's slot geometry
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h" // setCardRead() — commit the cluster size before slab sizing
 #include "storage/cluster/cluster.h"          // kChunkPayloadOffset/kChunkTrailingGuard + Cluster::size: slab slot

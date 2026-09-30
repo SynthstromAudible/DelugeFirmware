@@ -39,6 +39,8 @@ const OPAQUE: &[(&str, &str)] = &[
     ("DelugeSampleReader", "deluge_sample_reader::abi::DelugeSampleReader"),
     ("DelugeSampleReservation", "deluge_sample_reader::reservation::DelugeSampleReservation"),
     ("DelugeSampleSource", "deluge_sample_source::abi::DelugeSampleSource"),
+    ("DelugeStreamBacking", "deluge_sample_source::abi::DelugeStreamBacking"),
+    ("DelugeChunkBacking", "deluge_sample_fill::chunk::DelugeChunkBacking"),
 ];
 
 /// Opaque handles from the crate only the device build depends on (as `fs_alloc`).

@@ -194,8 +194,10 @@ pub(crate) mod host_streaming_stubs {
     /// begin/read/finish recipe the real drain runs. `Reader::acquire_and_fill` then finds the chunk
     /// ready and serves it on the same call.
     #[unsafe(no_mangle)]
-    extern "C" fn deluge_streaming_request_chunk(chunk_backing: *mut c_void) {
-        let _ = crate::reservation::fill_now(chunk_backing);
+    extern "C" fn deluge_streaming_request_chunk(
+        chunk_backing: *mut deluge_sample_fill::chunk::DelugeChunkBacking,
+    ) {
+        let _ = crate::reservation::fill_now(chunk_backing.cast());
     }
 
     /// Synthetic card read: deterministic content keyed on the ABSOLUTE file byte offset

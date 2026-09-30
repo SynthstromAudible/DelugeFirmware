@@ -47,6 +47,17 @@ typedef enum DelugeStatus : int8_t {
 	DELUGE_ERR_NOT_EMPTY = -14,       ///< directory not empty
 } DelugeStatus;
 
+/// The resource manager chunks are leased from. Opaque; owned by the Rust `deluge_resource` crate.
+typedef struct DelugeResource DelugeResource;
+
+/// A sample's stream: the C++ `deluge::audio::stream::SampleStream` a region-port cursor is opened
+/// over. Opaque; only the C++ side dereferences it.
+typedef struct DelugeStreamBacking DelugeStreamBacking;
+
+/// A resident streamed chunk the fill queue fills: the Rust `deluge_sample_fill` crate's
+/// `StreamedChunk`. Opaque; only the Rust side dereferences it.
+typedef struct DelugeChunkBacking DelugeChunkBacking;
+
 /// A portable, timezone-free timestamp — matches FAT DOS date/time's own
 /// decomposition (year/month/day/hour/minute/second, no epoch, no TZ) so no
 /// backend needs to invent a timezone. A DOS-backed implementation rounds

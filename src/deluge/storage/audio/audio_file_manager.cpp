@@ -778,7 +778,7 @@ std::optional<AudioFile*> AudioFileManager::tryConvertResidentSample(Sample& sam
 	geometry.byte_depth = sample.byteDepth;
 	geometry.num_channels = sample.numChannels;
 	geometry.raw_data_format = static_cast<uint8_t>(sample.rawDataFormat);
-	DelugeSampleSource* source = deluge_sample_source_open(&sample.stream(), geometry);
+	DelugeSampleSource* source = deluge_sample_source_open(deluge::audio::stream::toAbi(sample.stream()), geometry);
 	if (source == nullptr) {
 		return std::nullopt;
 	}

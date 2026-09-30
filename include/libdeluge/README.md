@@ -46,7 +46,7 @@ the collect that reports READY, so it needs no such call.
 boot finishes (`deluge::boot::finished()`), the app uses blocking calls instead.
 
 `streaming_fill.h` is not one of these: it is the sample-streaming fill queue (enqueue/drain of the loader
-queue, plus synchronous efatfs handle calls and fill-context registration), not a keyed request/collect channel.
+queue and fill-context registration), not a keyed request/collect channel.
 
 ## Host-only declarations
 

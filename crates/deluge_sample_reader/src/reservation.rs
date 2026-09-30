@@ -44,13 +44,13 @@ pub enum LoadMode {
 }
 
 unsafe extern "C" {
-    /// The single process-wide resource-manager singleton (`include/libdeluge/streaming_fill.h`).
+    /// The single process-wide resource-manager singleton (`include/libdeluge/sample_stream.h`).
     /// The SAME extern declaration `reader.rs` makes of its own copy — a foreign-fn prototype may be
     /// declared more than once across a crate's modules without conflict (unlike a `#[no_mangle]`
     /// definition, which may only exist once); duplicated here rather than exposed from `reader.rs`
     /// so this module stays independent of `reader.rs`'s own internals.
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
-    /// The synchronous card read (`include/libdeluge/streaming_fill.h`) — see [`fill_now`].
+    /// The synchronous card read (`include/libdeluge/file_io.h`) — see [`fill_now`].
     pub fn deluge_efatfs_read_at(
         handle: u32,
         byte_offset: u32,

@@ -41,8 +41,8 @@
 #include "libdeluge/app.h"
 #include "libdeluge/audio_io.h"
 #include "libdeluge/file_stream.h"
+#include "libdeluge/sample_stream.h" // deluge_streaming_resource_manager()
 #include "libdeluge/signals.h"
-#include "libdeluge/streaming_fill.h" // deluge_streaming_resource_manager()
 #include "libdeluge/system.h"
 #include "libdeluge/tier.h"
 #include "memory/general_memory_allocator.h"

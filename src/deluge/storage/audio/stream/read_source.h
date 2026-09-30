@@ -6,8 +6,8 @@
 #include <span>
 
 extern "C" {
+#include "libdeluge/file_io.h" // deluge_efatfs_read_at
 #include "libdeluge/sample_stream.h"
-#include "libdeluge/streaming_fill.h"
 #include "libdeluge/types.h" // DelugeStatus
 }
 

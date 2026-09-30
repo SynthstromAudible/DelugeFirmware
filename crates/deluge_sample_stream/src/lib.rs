@@ -51,15 +51,15 @@ pub(crate) use deluge_sample_fill::FillContext as DelugeStreamingFillContext;
 // resource manager's own C ABI); mocked under `#[cfg(test)]` by `mock_backing` below, exactly as
 // `deluge_sample_reader::lib`'s own `host_streaming_stubs` mocks its externs for its crate's tests.
 unsafe extern "C" {
-    /// `include/libdeluge/streaming_fill.h`. Open a sample file for streaming reads.
+    /// `include/libdeluge/file_io.h`. Open a sample file for streaming reads.
     pub fn deluge_efatfs_open(
         path: *const c_char,
         out_handle: *mut u32,
         out_table_full: *mut bool,
     ) -> bool;
-    /// `include/libdeluge/streaming_fill.h`. Close a streaming file handle.
+    /// `include/libdeluge/file_io.h`. Close a streaming file handle.
     pub fn deluge_efatfs_close(handle: u32);
-    /// `include/libdeluge/streaming_fill.h`. Synchronous card read at an absolute byte offset.
+    /// `include/libdeluge/file_io.h`. Synchronous card read at an absolute byte offset.
     pub fn deluge_efatfs_read_at(
         handle: u32,
         byte_offset: u32,
@@ -67,7 +67,7 @@ unsafe extern "C" {
         count: u32,
         out_read: *mut u32,
     ) -> bool;
-    /// `include/libdeluge/streaming_fill.h`. The single process-wide resource-manager singleton.
+    /// `include/libdeluge/sample_stream.h`. The single process-wide resource-manager singleton.
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// `include/libdeluge/streaming_fill.h`. Register (or replace) an asset's fill-context.
     pub fn deluge_streaming_set_fill_context(

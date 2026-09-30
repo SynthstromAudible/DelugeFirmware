@@ -277,7 +277,7 @@ static HANDLES: Mutex<CriticalSectionRawMutex, HandleTable<{ efatfs_core::MAX_HA
 /// (this is a faithful mirror).
 pub async fn open(path: &str) -> OpenOutcome {
     // `open_context` now reports a granular `DelugeStatus`, but this streaming-read
-    // bridge's contract is still bare success/failure (see `streaming_fill.h`), so
+    // bridge's contract is still bare success/failure (see `file_io.h`), so
     // every open_context error collapses to `NotFound` here regardless of which one it was.
     let Some(Ok(ctx)) = with_fs(async |fs| efatfs_core::open_context(fs, path).await).await else {
         return OpenOutcome::NotFound;

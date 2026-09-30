@@ -19,6 +19,14 @@ use crate::DelugeChunkConvertState;
 /// struct header and the payload must be >= this; guarded C++-side by the slab reconcile.
 const CACHE_LINE: usize = 32;
 
+/// A resident chunk as the C ABI names it (`DelugeChunkBacking`, `include/libdeluge/types.h`).
+///
+/// Every non-null pointer of this type points at a [`StreamedChunk`], which only Rust dereferences.
+#[repr(C)]
+pub struct DelugeChunkBacking {
+    _opaque: [u8; 0],
+}
+
 pub struct StreamedChunk {
     pub cluster_index: u32,
     pub loaded: bool,

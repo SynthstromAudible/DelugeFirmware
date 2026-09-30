@@ -158,7 +158,7 @@ uint8_t deluge_harness_recorder_probe_acquire() {
 	geometry.num_channels = sample->numChannels;
 	geometry.raw_data_format = static_cast<uint8_t>(sample->rawDataFormat);
 
-	g_source = deluge_sample_source_open(&sample->stream(), geometry);
+	g_source = deluge_sample_source_open(deluge::audio::stream::toAbi(sample->stream()), geometry);
 	if (g_source == nullptr) {
 		return 0;
 	}
@@ -311,7 +311,7 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t reg
 	geometry.num_channels = sample->numChannels;
 	geometry.raw_data_format = static_cast<uint8_t>(sample->rawDataFormat);
 
-	g_finalizedSource = deluge_sample_source_open(&sample->stream(), geometry);
+	g_finalizedSource = deluge_sample_source_open(deluge::audio::stream::toAbi(sample->stream()), geometry);
 	if (g_finalizedSource == nullptr) {
 		finalizedTeardown();
 		return 0;

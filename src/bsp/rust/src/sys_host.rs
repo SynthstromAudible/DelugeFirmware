@@ -62,8 +62,13 @@ pub struct DelugeBootInfo {
     pub factory_reset_requested: bool,
 }
 
+/// `include/libdeluge/types.h`: `DelugeChunkBacking`, the chunk type `deluge_sample_fill` defines
+/// (as bindgen's `sys` re-exports it; see `build_crate_types.rs`).
+#[allow(unused_imports)]
+pub use deluge_sample_fill::chunk::DelugeChunkBacking;
+
 unsafe extern "C" {
-    /// `include/libdeluge/streaming_fill.h`: the resource-manager singleton
+    /// `include/libdeluge/sample_stream.h`: the resource-manager singleton
     /// (`DelugeResource` is opaque, so `sys` binds it as `c_void`).
     pub fn deluge_streaming_resource_manager() -> *mut core::ffi::c_void;
 }

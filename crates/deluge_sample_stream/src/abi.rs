@@ -50,8 +50,8 @@ pub extern "C" fn deluge_sample_stream_set_geometry(handle: u32, geo: DelugeSamp
 /// (`0xFFFFFFFF`) on an invalid handle or one with no asset id assigned yet.
 ///
 /// Named `_get_` (not the plain `deluge_sample_stream_asset_id` its sibling setter's naming would
-/// suggest): `streaming_fill.h` already declares an unrelated, already-exported
-/// `deluge_sample_stream_asset_id(void* stream_backing)` (`sample_stream.cpp`'s
+/// suggest): `sample_stream.h` also declares an unrelated, already-exported
+/// `deluge_sample_stream_asset_id(DelugeStreamBacking*)` (`sample_stream.cpp`'s
 /// `SampleStream*`-keyed accessor, consumed by `deluge_sample_source::abi`) — reusing that exact
 /// symbol name here for an incompatible signature would be a duplicate-symbol link error the
 /// moment both crates link into the same binary.

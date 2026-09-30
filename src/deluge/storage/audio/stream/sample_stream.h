@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"                    // Error, ClusterLoad (CLUSTER_ENQUEUE et al.)
+#include "libdeluge/types.h"                      // DelugeStreamBacking
 #include "storage/audio/stream/chunk_residency.h" // deluge_streaming_define_asset() + the chunk Source callbacks
 #include "storage/audio/stream/read_source.h"
 #include <cstddef>
@@ -173,5 +174,15 @@ private:
 	/// open_read_stream() sets it via deluge_sample_stream_open() and release_asset() clears it.
 	uint32_t stream_handle_ = 0;
 };
+
+/// @brief The C ABI's name for @p stream: the `stream_backing` a region-port cursor opens over.
+inline DelugeStreamBacking* toAbi(SampleStream& stream) {
+	return reinterpret_cast<DelugeStreamBacking*>(&stream);
+}
+
+/// @brief The stream behind a `stream_backing` the C ABI hands back; the inverse of toAbi().
+inline SampleStream* fromAbi(DelugeStreamBacking* backing) {
+	return reinterpret_cast<SampleStream*>(backing);
+}
 
 } // namespace deluge::audio::stream

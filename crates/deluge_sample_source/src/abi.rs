@@ -16,12 +16,11 @@
 //! (`sample_source.cpp`) already casts to `SampleStream*`. This module
 //! bridges it to the `{manager handle, asset id}` pair `ManagerResidency`
 //! needs via two C-ABI calls: `deluge_streaming_resource_manager()` (the
-//! process-wide boot-singleton getter, `include/libdeluge/streaming_fill.h`)
+//! process-wide boot-singleton getter, `include/libdeluge/sample_stream.h`)
 //! and `deluge_sample_stream_asset_id(stream_backing)` (the lazy-init
 //! accessor added alongside it, wrapping `deluge_streaming_define_asset()`).
 //! Neither call dereferences `stream_backing` on the Rust side -- it is
-//! forwarded straight through as an opaque pointer, exactly as the header's
-//! `void*` contract requires. Unit tests can't build a real `SampleStream`,
+//! forwarded straight through as the header's opaque `DelugeStreamBacking*`. Unit tests can't build a real `SampleStream`,
 //! so they override both externs with test doubles driving a test
 //! `deluge_resource` manager + asset (see the `tests` module below).
 //!
@@ -58,6 +57,14 @@ use deluge_resource::{DelugeResource, Resource};
 /// actually points at a pool [`Slot`]'s `source` field (see `open`/`close`).
 #[repr(C)]
 pub struct DelugeSampleSource {
+    _opaque: [u8; 0],
+}
+
+/// A sample's stream as the C ABI names it (`DelugeStreamBacking`, `include/libdeluge/types.h`):
+/// the C++ `deluge::audio::stream::SampleStream`. Only the C++ side dereferences it; this crate
+/// passes it back to `deluge_sample_stream_asset_id`.
+#[repr(C)]
+pub struct DelugeStreamBacking {
     _opaque: [u8; 0],
 }
 
@@ -114,16 +121,15 @@ pub struct DelugeSampleRegion {
 
 unsafe extern "C" {
     /// The resource-manager instance the streaming loader queue lives on
-    /// (`include/libdeluge/streaming_fill.h`). The process-wide boot-singleton
+    /// (`include/libdeluge/sample_stream.h`). The process-wide boot-singleton
     /// handle -- the same one `ManagerResidency::new`'s contract requires to
     /// stay live for the process's whole remaining life. Untyped, the one spelling every crate that declares it
     /// shares; the caller casts it to the manager.
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
-    /// `stream_backing`'s (a `deluge::audio::stream::SampleStream*`)
-    /// resource-manager Asset id, defining it first if not yet defined
-    /// (`include/libdeluge/streaming_fill.h`, wrapping
+    /// `stream_backing`'s resource-manager Asset id, defining it first if not
+    /// yet defined (`include/libdeluge/sample_stream.h`, wrapping
     /// `deluge_streaming_define_asset()`).
-    pub fn deluge_sample_stream_asset_id(stream_backing: *mut c_void) -> u32;
+    pub fn deluge_sample_stream_asset_id(stream_backing: *mut DelugeStreamBacking) -> u32;
 }
 
 // ---------------------------------------------------------------------------
@@ -316,7 +322,7 @@ fn num_clusters_for(geo: &Geometry) -> u32 {
     unsafe(no_mangle)
 )]
 pub unsafe extern "C" fn deluge_sample_source_open(
-    stream_backing: *mut c_void,
+    stream_backing: *mut DelugeStreamBacking,
     geometry: Geometry,
 ) -> *mut DelugeSampleSource {
     if stream_backing.is_null() {
@@ -760,7 +766,7 @@ mod tests {
     /// -- this test binary has no real `SampleStream` to dereference; see
     /// `dummy_stream_backing` and `TestBridge`'s doc.
     #[unsafe(no_mangle)]
-    extern "C" fn deluge_sample_stream_asset_id(_stream_backing: *mut c_void) -> u32 {
+    extern "C" fn deluge_sample_stream_asset_id(_stream_backing: *mut DelugeStreamBacking) -> u32 {
         TEST_BRIDGE.asset.get()
     }
 
@@ -768,9 +774,9 @@ mod tests {
     /// bridge test doubles above never dereference it (only `open()` itself
     /// null-checks it), so any non-null value stands in for the real
     /// `SampleStream*` production would pass.
-    fn dummy_stream_backing() -> *mut c_void {
+    fn dummy_stream_backing() -> *mut DelugeStreamBacking {
         static DUMMY: u8 = 0;
-        &DUMMY as *const u8 as *mut c_void
+        &DUMMY as *const u8 as *mut DelugeStreamBacking
     }
 
     #[test]

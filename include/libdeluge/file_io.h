@@ -252,6 +252,47 @@ DelugeStatus deluge_efatfs_rename(const char* old_path, const char* new_path);
 DelugeStatus deluge_efatfs_set_time(const char* path, uint16_t year, uint8_t month, uint8_t day, uint8_t hour,
                                     uint8_t minute, uint8_t second);
 
+/// The streaming-read handles: sample files the streaming fill reads cluster by cluster, at absolute
+/// byte offsets, through a handle table of their own (separate from the task-context files above).
+
+/// @brief Open a sample file for streaming reads through embedded-fatfs, writing its handle out.
+///
+/// The sync→async bridge for the streaming READ path: C++ calls this synchronously at sample-load,
+/// and the Rust implementation (`efatfs_fs.rs`) bridges to the async handle table by blocking on the
+/// async open.
+/// @param path           NUL-terminated absolute file path.
+/// @param out_handle     Receives the opaque handle on success; untouched on failure.
+/// @param out_table_full Always written (on both success and failure): true iff the open failed
+///                       specifically because the streaming-read handle table has no free slot (as
+///                       opposed to the file genuinely not existing, or the FS being unmounted) --
+///                       the caller maps a `true` value to a dedicated `Error::TOO_MANY_OPEN_STREAMS`
+///                       rather than the misleading `Error::FILE_NOT_FOUND`. Always `false` when
+///                       @p out_handle was written.
+/// @return true if the file was opened and @p out_handle written; false if the path/pointer is
+///         invalid, the FS is unmounted, or the open failed.
+bool deluge_efatfs_open(const char* path, uint32_t* out_handle, bool* out_table_full);
+
+/// @brief Close a streaming file handle previously returned by deluge_efatfs_open.
+///
+/// @param handle The handle to close.
+void deluge_efatfs_close(uint32_t handle);
+
+/// @brief Synchronously read @p count bytes at absolute @p byte_offset of the file behind @p handle.
+///
+/// The sync-path counterpart of the async `ProdOps::read` efatfs branch: the sample reservation's
+/// synchronous `fill_now` (`deluge_sample_reader`) reads through this. The Rust implementation
+/// (`efatfs_fs.rs` / `efatfs_host_shim.rs`) bridges to the async handle table by blocking on the
+/// async read.
+/// @param handle     A handle previously returned by deluge_efatfs_open.
+/// @param byte_offset Absolute byte offset within the file to read from.
+/// @param dst        Destination buffer; exactly @p count bytes are written on success.
+/// @param count      Number of bytes to read.
+/// @param out_read   Receives the bytes read on success (== @p count); untouched on failure.
+/// @return true iff the full @p count bytes were read. false (unmounted, bad handle, or a
+///         short/failed read) leaves @p dst partially written and @p out_read untouched — the caller
+///         must treat it as a read error.
+bool deluge_efatfs_read_at(uint32_t handle, uint32_t byte_offset, void* dst, uint32_t count, uint32_t* out_read);
+
 #ifdef __cplusplus
 }
 #endif

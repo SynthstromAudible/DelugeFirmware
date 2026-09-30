@@ -90,7 +90,7 @@ extern "C" fn deluge_debug_now_frames() -> u32 {
     0
 }
 
-/// The synchronous card-read primitive (`include/libdeluge/streaming_fill.h`) that
+/// The synchronous card-read primitive (`include/libdeluge/file_io.h`) that
 /// `deluge_sample_reader`'s reservation fill references, so it must exist for the link. Never
 /// reached: no reader or reservation here fills synchronously. Fails without touching `dst`.
 #[unsafe(no_mangle)]
@@ -108,7 +108,10 @@ extern "C" fn deluge_efatfs_read_at(
 /// cluster the harness did not prefill stays not-ready. Declared as an `extern` by the reader, so it
 /// must exist for the binary to link.
 #[unsafe(no_mangle)]
-extern "C" fn deluge_streaming_request_chunk(_chunk_backing: *mut c_void) {}
+extern "C" fn deluge_streaming_request_chunk(
+    _chunk_backing: *mut deluge_sample_fill::chunk::DelugeChunkBacking,
+) {
+}
 
 /// The one process-wide resource manager pointer `deluge_streaming_resource_manager` (just below)
 /// hands back to `deluge_sample_fill::native_finish` (called by [`ChunkHarness::new`] to seed each

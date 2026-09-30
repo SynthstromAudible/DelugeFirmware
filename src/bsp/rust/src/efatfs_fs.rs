@@ -202,7 +202,7 @@ pub async fn open(path: &str) -> OpenOutcome {
     // Open + detach under the FS mutex only; never touch HANDLES here (keeps the
     // FS→HANDLES order that pairs deadlock-free with read_at's HANDLES→FS).
     // `open_context` now reports a granular `DelugeStatus`, but this streaming-read
-    // bridge's contract is still bare success/failure (see `streaming_fill.h`), so
+    // bridge's contract is still bare success/failure (see `file_io.h`), so
     // every open_context error collapses to `NotFound` here regardless of which one it was.
     let Some(Ok(ctx)) = with_fs(async |fs| efatfs_core::open_context(fs, path).await).await else {
         return OpenOutcome::NotFound;
@@ -294,7 +294,7 @@ use core::ffi::{CStr, c_char};
 /// the failure was specifically [`HANDLES`] having no free slot (as opposed to
 /// a genuinely missing file or unmounted FS), so the caller can surface a
 /// distinguishable "too many open streams" error instead of a misleading
-/// "file not found". See `include/libdeluge/streaming_fill.h` for the C-side
+/// "file not found". See `include/libdeluge/file_io.h` for the C-side
 /// contract.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_open(
@@ -353,7 +353,7 @@ pub extern "C" fn deluge_efatfs_close(handle: u32) {
 /// C-ABI: synchronously read `count` bytes at `byte_offset` of the file behind `handle`, bridging
 /// the async [`read_at`] through a non-yielding spin — valid from any context. Writes
 /// `*out_read = count` and returns true iff the full buffer was filled. See
-/// `include/libdeluge/streaming_fill.h` for the contract.
+/// `include/libdeluge/file_io.h` for the contract.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_read_at(
     handle: u32,

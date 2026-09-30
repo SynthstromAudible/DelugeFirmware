@@ -81,13 +81,11 @@ typedef struct DelugeSampleRegion {
 
 /// @brief Open a per-reader cursor over one sample's residency.
 ///
-/// @param stream_backing Identifies the sample's residency (currently a
-///                        `deluge::audio::stream::SampleStream*`; an opaque source id once the
-///                        backend moves to Rust).
+/// @param stream_backing The sample's stream, which identifies its residency.
 /// @param geometry        The sample's immutable audio geometry.
 /// @return A new cursor, or `nullptr` on failure (e.g. a null @p stream_backing or no
 ///         resource manager yet).
-DelugeSampleSource* deluge_sample_source_open(void* stream_backing, DelugeSampleGeometry geometry);
+DelugeSampleSource* deluge_sample_source_open(DelugeStreamBacking* stream_backing, DelugeSampleGeometry geometry);
 
 /// @brief Make the region containing cluster @p index resident-or-scheduled, pin it, and report
 ///        which.

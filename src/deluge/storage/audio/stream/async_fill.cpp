@@ -17,8 +17,9 @@
 
 #include "storage/audio/stream/async_fill.h"
 
-#include "libdeluge/file_io.h"   // deluge_efatfs_file_*/_dir_* weak stubs
-#include "libdeluge/stream_io.h" // deluge_efatfs_stream_* weak stubs
+#include "libdeluge/file_io.h"       // deluge_efatfs_file_*/_dir_* weak stubs
+#include "libdeluge/sample_stream.h" // deluge_streaming_resource_manager
+#include "libdeluge/stream_io.h"     // deluge_efatfs_stream_* weak stubs
 
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"

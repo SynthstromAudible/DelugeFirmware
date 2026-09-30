@@ -113,11 +113,11 @@ fn queue_is_drained(mgr: *mut c_void) -> bool {
 /// other, so an un-owned entry whose requester dropped its lease (the reader's `if !filled` arm) was
 /// discarded on the drain's next poll -- which is why the display-only overview pre-scan once never
 /// converged on device.
-fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
+fn enqueue_chunk_for_fill(chunk_backing: *mut crate::sys::DelugeChunkBacking) {
     // `chunk_backing` is a resident, leased `StreamedChunk*`.
     let mgr = resource_manager();
     if !mgr.is_null() {
-        let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing) };
+        let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing.cast()) };
         unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, BLOCKING_FILL_PRIORITY) };
     }
     FILL_WAKE.signal(());
@@ -128,7 +128,9 @@ fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
 /// The chunk is enqueued under a queue-owned lease, so the fill survives the requester returning to
 /// its loop.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_streaming_request_chunk(chunk_backing: *mut c_void) {
+pub extern "C" fn deluge_streaming_request_chunk(
+    chunk_backing: *mut crate::sys::DelugeChunkBacking,
+) {
     if chunk_backing.is_null() {
         return;
     }
