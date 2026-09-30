@@ -28,14 +28,16 @@
 //! Single-flight rather than a queue because the filesystem underneath serialises everything anyway
 //! (`with_fs` is one mutex), and because it is what makes the refusal below observable.
 //!
-//! # Reads coalesce; writes do NOT
+//! # Every request is refused while the channel is busy
 //!
-//! A read request for something already in flight is dropped, exactly as `file_directory`'s is: the
-//! collect reports the one answer, and re-asking a question already asked costs nothing.
+//! Busy means a request is queued, an operation is in flight, or an uncollected answer of a [`non_idempotent`] kind
+//! is protected for its owner (see [`PROTECTED_ANSWER_REFUSALS`]); see [`enqueue_request`]. Nothing is queued or
+//! replaced. A read, existence check or stat refused this way returns nothing: its collect reads PENDING if the same
+//! request is the one in flight -- which is how a duplicate read coalesces -- and UNKNOWN otherwise, and re-asking
+//! a question costs nothing.
 //!
-//! A write, rename or unlink request that arrives while the channel is busy is **REFUSED** -- it returns
-//! `false`, and nothing is queued or replaced. This is the one place this channel deliberately
-//! differs from `file_directory`, and the difference is the point of it. `LatestWins` behaviour
+//! A write, rename or unlink request refused this way returns `false`. This is the one place this channel
+//! deliberately differs from `file_directory`, and the difference is the point of it. `LatestWins` behaviour
 //! drops the middle of three rapid requests; for a listing that is invisible, but two rapid toggles
 //! of a setting are two distinct intents and superseding the first loses a settings change that the
 //! user watched themselves make. A caller told `false` still holds its intent and retries.
@@ -428,10 +430,12 @@ impl ClaimOnce {
 
 /// Publish `outcome` under `(op, key)`, stamped with `generation`, replacing whatever the slot held.
 ///
-/// A displacement here is not the routine event it is in `file_directory`: single-flight across all
-/// three operation kinds means the slot can only still be occupied if a previous answer was never
-/// collected, which happens when a caller gives up mid-poll. Nothing is stranded by dropping it --
-/// unlike a directory handle, bytes have no owner to hand back to.
+/// A displacement here is not the routine event it is in `file_directory`: the channel is single-flight, so the slot
+/// can only still be occupied by an answer nobody collected. The request that led here was admitted, so that answer
+/// was not holding the channel: it is of a kind whose rerun reaches the same state, or a [`non_idempotent`] one past
+/// its [`PROTECTED_ANSWER_REFUSALS`] bound, or one stamped for a card that has gone. Its owner, if still polling,
+/// reads UNKNOWN and asks again. No handle is stranded by dropping it -- unlike a directory handle, an answer here
+/// owns nothing to hand back.
 ///
 /// An over-long key is REFUSED and the slot left cleared: unreachable through the FFI, which refuses
 /// an over-long path before it ever reaches the driver, but an answer nobody can key is an answer

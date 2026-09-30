@@ -161,8 +161,8 @@ private:
 	bool aborted_{false};
 	/// How many demands had settled, bound or empty, after the previous walk.
 	int32_t settledBefore_{0};
-	/// Counts kMaxStalledTicks walks in a row that leave something in flight and settle nothing new. See @ref
-	/// Reason::Stalled.
+	/// Counts the walks in a row that leave something in flight and settle nothing new; expires at kMaxStalledTicks of
+	/// them. See @ref Reason::Stalled.
 	deluge::io::StallBound stalledBound_{kMaxStalledTicks};
 	Progress progress_{};
 };
