@@ -169,7 +169,7 @@ struct WalkOptions {
 std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, WalkOptions options) {
 	DelugeAudioHeaderParser parser;
 	const uint8_t goal = options.stopAtAudioData ? DELUGE_AUDIO_WALK_AUDIO_ONLY : DELUGE_AUDIO_WALK_WHOLE_HEADER;
-	if (!deluge_audio_header_parser_init(&parser, sizeof(parser), src.size(), goal)) {
+	if (deluge_audio_header_parser_init(&parser, sizeof(parser), src.size(), goal) != DELUGE_OK) {
 		return std::unexpected(Error::BUG); // Storage too small — a build-time mismatch, not a file.
 	}
 

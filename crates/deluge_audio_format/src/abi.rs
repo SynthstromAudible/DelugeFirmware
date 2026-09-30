@@ -44,6 +44,14 @@ use crate::{
 // Status codes
 // ---------------------------------------------------------------------------
 
+/// `libdeluge/types.h`'s `DelugeStatus`: what `init` answers. Copied because
+/// this crate has no bindgen output; pinned by the BSP's `abi_pins.rs`.
+pub type DelugeStatus = i8;
+/// `DelugeStatus`'s success value.
+pub const DELUGE_OK: DelugeStatus = 0;
+/// `DelugeStatus`'s invalid-argument value.
+pub const DELUGE_ERR_PARAM: DelugeStatus = -2;
+
 /// `libdeluge/audio_format.h`'s `DelugeAudioParseStatus`: what `feed` and
 /// `finish_here` answer. The header fixes its width at `uint8_t`.
 pub type DelugeAudioParseStatus = u8;
@@ -278,9 +286,9 @@ unsafe fn as_parser_mut<'a>(parser: *mut DelugeAudioHeaderParser) -> &'a mut Hea
 /// Place a fresh parser for a `file_size`-byte file in the caller's `storage`.
 ///
 /// `storage_bytes` is the caller's own `sizeof(DelugeAudioHeaderParser)`.
-/// Returns `false` — having written nothing — if that is too small for the
-/// parser, the pointer is null, or `goal` is not one of the constants below;
-/// nothing else can fail.
+/// Returns [`DELUGE_OK`], or [`DELUGE_ERR_PARAM`] — having written nothing — if
+/// that is too small for the parser, the pointer is null, or `goal` is not one
+/// of the constants below; nothing else can fail.
 ///
 /// `file_size` must be the filesystem's own size for the file. It is what bounds
 /// the walk: no request can name a byte past it, so the end of the file is not
@@ -305,14 +313,14 @@ pub unsafe extern "C" fn deluge_audio_header_parser_init(
     storage_bytes: u32,
     file_size: u32,
     goal: u8,
-) -> bool {
+) -> DelugeStatus {
     if parser.is_null() || (storage_bytes as usize) < size_of::<HeaderParser>() {
-        return false;
+        return DELUGE_ERR_PARAM;
     }
     let goal = match goal {
         DELUGE_AUDIO_WALK_WHOLE_HEADER => WalkGoal::WholeHeader,
         DELUGE_AUDIO_WALK_AUDIO_ONLY => WalkGoal::AudioOnly,
-        _ => return false,
+        _ => return DELUGE_ERR_PARAM,
     };
     // SAFETY: non-null, big enough (checked above), and 8-aligned by the type's
     // own `repr(align(8))` on both sides. Writing a fresh value over whatever
@@ -322,7 +330,7 @@ pub unsafe extern "C" fn deluge_audio_header_parser_init(
             .cast::<HeaderParser>()
             .write(HeaderParser::new_with_goal(file_size, goal))
     };
-    true
+    DELUGE_OK
 }
 
 /// The window the parser is waiting for, or `false` once the walk is over
@@ -548,7 +556,7 @@ mod tests {
         let mut storage = DelugeAudioHeaderParser {
             _storage: [0; DELUGE_AUDIO_HEADER_PARSER_WORDS],
         };
-        let ok = unsafe {
+        let status = unsafe {
             deluge_audio_header_parser_init(
                 &mut storage,
                 size_of::<DelugeAudioHeaderParser>() as u32,
@@ -560,7 +568,10 @@ mod tests {
                 },
             )
         };
-        assert!(ok, "storage must be big enough for the parser");
+        assert_eq!(
+            status, DELUGE_OK,
+            "storage must be big enough for the parser"
+        );
 
         let mut header = DelugeAudioHeader {
             container: 0xFF,
@@ -738,14 +749,17 @@ mod tests {
             _storage: [0; DELUGE_AUDIO_HEADER_PARSER_WORDS],
         };
         let file = wav(&fmt_chunk(1, 44100, 16));
-        assert!(unsafe {
-            deluge_audio_header_parser_init(
-                &mut storage,
-                size_of::<DelugeAudioHeaderParser>() as u32,
-                file.len() as u32,
-                DELUGE_AUDIO_WALK_WHOLE_HEADER,
-            )
-        });
+        assert_eq!(
+            unsafe {
+                deluge_audio_header_parser_init(
+                    &mut storage,
+                    size_of::<DelugeAudioHeaderParser>() as u32,
+                    file.len() as u32,
+                    DELUGE_AUDIO_WALK_WHOLE_HEADER,
+                )
+            },
+            DELUGE_OK
+        );
 
         let mut container = 0xFFu8;
         assert!(
@@ -810,17 +824,28 @@ mod tests {
         let mut storage = DelugeAudioHeaderParser {
             _storage: [0; DELUGE_AUDIO_HEADER_PARSER_WORDS],
         };
-        assert!(!unsafe {
-            deluge_audio_header_parser_init(&mut storage, 8, 1024, DELUGE_AUDIO_WALK_WHOLE_HEADER)
-        });
-        assert!(unsafe {
-            deluge_audio_header_parser_init(
-                &mut storage,
-                size_of::<DelugeAudioHeaderParser>() as u32,
-                1024,
-                DELUGE_AUDIO_WALK_WHOLE_HEADER,
-            )
-        });
+        assert_eq!(
+            unsafe {
+                deluge_audio_header_parser_init(
+                    &mut storage,
+                    8,
+                    1024,
+                    DELUGE_AUDIO_WALK_WHOLE_HEADER,
+                )
+            },
+            DELUGE_ERR_PARAM
+        );
+        assert_eq!(
+            unsafe {
+                deluge_audio_header_parser_init(
+                    &mut storage,
+                    size_of::<DelugeAudioHeaderParser>() as u32,
+                    1024,
+                    DELUGE_AUDIO_WALK_WHOLE_HEADER,
+                )
+            },
+            DELUGE_OK
+        );
     }
 
     #[test]
@@ -830,12 +855,18 @@ mod tests {
         };
         let bytes = size_of::<DelugeAudioHeaderParser>() as u32;
         for goal in [DELUGE_AUDIO_WALK_WHOLE_HEADER, DELUGE_AUDIO_WALK_AUDIO_ONLY] {
-            assert!(unsafe { deluge_audio_header_parser_init(&mut storage, bytes, 1024, goal) });
+            assert_eq!(
+                unsafe { deluge_audio_header_parser_init(&mut storage, bytes, 1024, goal) },
+                DELUGE_OK
+            );
         }
         // Not defaulted to the whole-header walk: that is the wrong direction for
         // a caller whose byte source the audio-only walk is protecting.
         for goal in [2u8, 0xFF] {
-            assert!(!unsafe { deluge_audio_header_parser_init(&mut storage, bytes, 1024, goal) });
+            assert_eq!(
+                unsafe { deluge_audio_header_parser_init(&mut storage, bytes, 1024, goal) },
+                DELUGE_ERR_PARAM
+            );
         }
     }
 
