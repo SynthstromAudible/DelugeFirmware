@@ -226,7 +226,6 @@ pub fn main() {
                     target_blocks,
                     step_timeout: embassy_time::Duration::from_secs(step_timeout_secs),
                     post_load_sim_latency,
-                    concurrent_listing_every_blocks: None,
                 }
             });
 

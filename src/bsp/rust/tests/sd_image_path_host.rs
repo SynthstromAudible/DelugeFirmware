@@ -4,7 +4,7 @@
 
 use deluge_bsp_rust::storage::sd_image_path;
 
-use sd_image_path::{Plan, fingerprint_dir, recorder_image_path, scenario_plan};
+use sd_image_path::{Plan, fingerprint_dir, scenario_plan};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -147,26 +147,4 @@ fn fingerprint_changes_when_a_sample_changes_size() {
         fingerprint_dir(&dir),
         "edited sample must invalidate the cached image"
     );
-}
-
-// --- the recorder image path ------------------------------------------------
-
-#[test]
-fn recorder_image_path_does_not_embed_the_process_id() {
-    let tmp = scratch("recorder_no_pid");
-    let pid = std::process::id().to_string();
-
-    let path = recorder_image_path(&tmp);
-
-    assert!(
-        !path.to_string_lossy().contains(&pid),
-        "recorder image path {path:?} embeds pid {pid} — this is the same leak as pack_image"
-    );
-}
-
-#[test]
-fn recorder_image_path_is_a_single_stable_file() {
-    let tmp = scratch("recorder_stable");
-
-    assert_eq!(recorder_image_path(&tmp), recorder_image_path(&tmp));
 }

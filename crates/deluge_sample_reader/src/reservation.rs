@@ -193,15 +193,6 @@ impl Reservation {
     pub fn covered_indices(&self) -> &[u32] {
         &self.covered[..self.num_covered]
     }
-
-    /// Returns how many covered clusters actually hold a lease.
-    ///
-    /// Smaller than `covered_indices().len()` exactly when a load failed. This is the only way to
-    /// observe that: `open` returns a valid handle either way, so a `DELUGE_LOAD_NOW` caller cannot
-    /// otherwise tell whether anything was materialized.
-    pub fn num_leased(&self) -> usize {
-        self.leases.iter().filter(|lease| lease.is_some()).count()
-    }
 }
 
 /// The resolved geometry a reservation's walk needs.

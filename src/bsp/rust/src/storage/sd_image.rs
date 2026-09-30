@@ -142,40 +142,6 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
     img
 }
 
-/// Formats an empty 2.5 GB sparse FAT32 image with 32 KB clusters and returns its path.
-///
-/// Reformatted on every call at the one shared path from
-/// [`recorder_image_path`](crate::storage::sd_image_path::recorder_image_path), so no earlier run's
-/// files survive. The caller points `DELUGE_SD_IMAGE` at it before any SD
-/// access.
-///
-/// # Panics
-///
-/// Panics if mtools fails.
-pub fn format_empty_image() -> PathBuf {
-    let img = crate::storage::sd_image_path::recorder_image_path(&std::env::temp_dir());
-    let bytes = 2560u64 << 20; // 2.5 GB: comfortably over FAT32's 65,525 32 KB clusters
-    let script = format!(
-        "set -e; truncate -s {bytes} '{img}'; mformat -i '{img}' -F -c 64 ::",
-        bytes = bytes,
-        img = img.display(),
-    );
-    let status = Command::new("sh")
-        .arg("-c")
-        .arg(&script)
-        .status()
-        .expect("run the mtools format script (sh)");
-    assert!(
-        status.success(),
-        "formatting an empty FAT image failed — is mtools (mformat) installed? script: {script}"
-    );
-    log::info!(
-        "recorder-roundtrip: formatted empty image -> {} ({bytes} bytes)",
-        img.display()
-    );
-    img
-}
-
 fn dir_size_bytes(dir: &Path) -> u64 {
     let out = Command::new("du")
         .arg("-sb")

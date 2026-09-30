@@ -24,9 +24,6 @@ unsafe extern "C" {
     fn deluge_scenario_start_playback();
     fn deluge_scenario_playback_active() -> bool;
     fn deluge_scenario_start_recording() -> bool;
-    // The dispatched variant of `deluge_scenario_begin_song_load`, and its completion latch.
-    fn deluge_scenario_start_song_load(full_path: *const c_char);
-    fn deluge_scenario_song_load_begin_done() -> bool;
 }
 
 // The harness's underrun counters (`harness/streaming_underrun.{h,cpp}`), declared by hand for
@@ -50,14 +47,6 @@ pub struct ScenarioConfig {
     /// the `sim_latency` feature.
     #[cfg_attr(not(feature = "sim_latency"), allow(dead_code))]
     pub post_load_sim_latency: Option<(u32, u32)>,
-    /// Card contention during playback: `Some(n)` starts a listing-only browse of the song
-    /// about every `n` audio blocks' worth of elapsed time (0 means as often as possible),
-    /// never committing it, so the browser's listing competes with the streaming reads.
-    ///
-    /// It uses the dispatched `deluge_scenario_start_song_load`: the synchronous
-    /// `deluge_scenario_begin_song_load` does a blocking storage read that can livelock under
-    /// `sim_latency`.
-    pub concurrent_listing_every_blocks: Option<u64>,
 }
 
 /// The outcome of [`run`].
@@ -177,83 +166,11 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
 
     result.recording_started = unsafe { deluge_scenario_start_recording() };
 
-    // Step until the block target or the timeout; a short count is the caller's to judge. The
-    // contention knob fires its listings from this same poll loop rather than a second task.
-    match cfg.concurrent_listing_every_blocks {
-        None => {
-            wait_for(cfg.step_timeout, || {
-                crate::audio::host::drive_count().saturating_sub(blocks_before) >= cfg.target_blocks
-            })
-            .await;
-        }
-        Some(every_blocks) => {
-            let every_blocks = every_blocks.max(1);
-
-            // The cadence is in nominal block periods (128 frames at 44.1 kHz) of elapsed
-            // time, not `drive_count()` deltas: that counter stops advancing on an executor with
-            // no audio spawner, where post-boot renders are skipped.
-            const NOMINAL_BLOCK_PERIOD_US: u64 = 128 * 1_000_000 / 44_100; // 2902 (floor)
-            let interval = Duration::from_micros(every_blocks * NOMINAL_BLOCK_PERIOD_US);
-            let deadline = Instant::now() + cfg.step_timeout;
-            let mut next_fire_at = Instant::now() + interval;
-            let mut listing_in_flight = false;
-            let mut listings_fired: u64 = 0;
-
-            // A hard cap, not a tuned rate: each dispatch's `openUI(&loadSongUI)` pushes onto
-            // the 16-deep `uiNavigationHierarchy` and, never committing, nothing pops it.
-            // Playback start leaves the stack at depth 1, so the 16th dispatch would index out
-            // of bounds and abort the process. Capped below 15 to leave margin.
-            const MAX_SAFE_LISTINGS: u64 = 10;
-            let mut cap_logged = false;
-
-            loop {
-                let rendered = crate::audio::host::drive_count().saturating_sub(blocks_before);
-                if rendered >= cfg.target_blocks {
-                    break;
-                }
-                let now = Instant::now();
-                if now >= deadline {
-                    break;
-                }
-                // One listing in flight at a time, as a real browse would.
-                if !listing_in_flight && now >= next_fire_at {
-                    if listings_fired >= MAX_SAFE_LISTINGS {
-                        if !cap_logged {
-                            log::warn!(
-                                "streaming-scenario: concurrent_listing_every_blocks capped at \
-                                 {MAX_SAFE_LISTINGS} dispatches this run — the UI navigation \
-                                 stack (uiNavigationHierarchy, capacity 16) never pops while this \
-                                 knob is active (never commits), so continuing would abort the \
-                                 whole process; see task-4-report.md"
-                            );
-                            cap_logged = true;
-                        }
-                    } else {
-                        unsafe { deluge_scenario_start_song_load(path.as_ptr()) };
-                        listing_in_flight = true;
-                        listings_fired += 1;
-                        next_fire_at = now + interval;
-                    }
-                }
-                if listing_in_flight && unsafe { deluge_scenario_song_load_begin_done() } {
-                    listing_in_flight = false;
-                }
-                Timer::after_millis(5).await;
-            }
-            // Never return with a listing in flight.
-            if listing_in_flight {
-                wait_for(cfg.step_timeout, || unsafe {
-                    deluge_scenario_song_load_begin_done()
-                })
-                .await;
-            }
-            log::info!(
-                "streaming-scenario: concurrent_listing_every_blocks={every_blocks} \
-                 (interval={interval:?}) fired {listings_fired} overlapping listing(s) \
-                 during the block-target wait"
-            );
-        }
-    }
+    // Step until the block target or the timeout; a short count is the caller's to judge.
+    wait_for(cfg.step_timeout, || {
+        crate::audio::host::drive_count().saturating_sub(blocks_before) >= cfg.target_blocks
+    })
+    .await;
 
     result.blocks_rendered = crate::audio::host::drive_count().saturating_sub(blocks_before);
     result.cluster_reads = crate::storage::sd::stats::reads().saturating_sub(reads_before);

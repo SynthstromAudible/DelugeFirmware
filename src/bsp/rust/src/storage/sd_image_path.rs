@@ -54,14 +54,6 @@ pub fn scenario_plan(tmp_root: &Path, fingerprint: &str) -> Plan {
     }
 }
 
-/// Returns the single shared path of the empty recorder image.
-///
-/// One path, reformatted in place on every run so a previous run's recordings cannot mask a
-/// failure. Runs that need isolation from each other set `DELUGE_SD_IMAGE` instead.
-pub fn recorder_image_path(tmp_root: &Path) -> PathBuf {
-    tmp_root.join("deluge-recorder-roundtrip.img")
-}
-
 /// Returns a hex fingerprint of `dir`'s contents: every file's relative path, length and mtime,
 /// hashed in sorted order.
 ///
