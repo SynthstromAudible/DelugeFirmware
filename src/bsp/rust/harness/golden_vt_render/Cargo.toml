@@ -72,7 +72,8 @@ deluge_audio_format = { path = "../../../../../crates/deluge_audio_format" }
 # own dependency.
 deluge_card_generation = { path = "../../../../../crates/deluge_card_generation" }
 
-# The answer slot every single-flight storage channel keeps. Not yet used by any channel module here.
+# The answer slot every single-flight storage channel keeps. `file_directory` and `file_prefix`
+# build their slots on it.
 deluge_channel = { path = "../../../../../crates/deluge_channel" }
 
 # `#[path]`-included `streaming_loader.rs` (see src/main.rs) sources

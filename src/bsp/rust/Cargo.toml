@@ -48,7 +48,8 @@ deluge_sample_convert = { path = "../../../crates/deluge_sample_convert" }
 # case work at all; see the crate's own Cargo.toml for why it is not a module of this crate.
 deluge_card_generation = { path = "../../../crates/deluge_card_generation" }
 
-# The answer slot every single-flight storage channel keeps. Not yet used by any channel module here.
+# The answer slot every single-flight storage channel keeps. `file_directory` and `file_prefix`
+# build their slots on it.
 deluge_channel = { path = "../../../crates/deluge_channel" }
 
 # C2a: the relocated cluster-fill core. `fill_logic` (Task 1) lands here; deluge-bsp-rust's
