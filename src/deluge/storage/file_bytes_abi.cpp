@@ -27,12 +27,6 @@
 #include "libdeluge/file_directory.h" // ... and the two sibling channels'
 #include "libdeluge/file_prefix.h"
 
-// The path bound, which this header spells for its callers and the Rust side hand-duplicates as
-// `MAX_PATH_CHARS` (255 = this minus the NUL). Equal to the other channels' by construction: they
-// key the same filesystem, and a path one channel can name but another cannot would be a trap.
-static_assert(DELUGE_FILE_BYTES_MAX_PATH == DELUGE_MAX_PATH);
-static_assert(DELUGE_FILE_BYTES_MAX_PATH == DELUGE_FILE_DIRECTORY_MAX_PATH);
-
 // The byte bound, hand-duplicated on the Rust side as `MAX_BYTES`. Not derived from anything: it is
 // set by measurement against real settings files and against what the device image will link with
 // two staging buffers of this size. See the header.

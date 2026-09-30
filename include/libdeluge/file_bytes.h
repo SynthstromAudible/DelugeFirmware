@@ -60,27 +60,19 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Not currently parsed as C -- same situation as audio_load.h, file_prefix.h and file_directory.h,
- * and the same forward-looking hardening: `noexcept` is C++-only and invalid C syntax, so it is
- * spelled through this macro (#undef'd at the end of the file so it cannot leak into, or collide
- * with a same-named macro in, whatever includes this header next) rather than written bare. */
+#include "abi.h"
+#include "channel.h"
+
 #ifdef __cplusplus
-#define DELUGE_NOEXCEPT noexcept
 extern "C" {
-#else
-#define DELUGE_NOEXCEPT
 #endif
 
 /// @brief The longest path this channel can key on, INCLUDING the NUL — so the text it holds is one
 ///        byte shorter.
 ///
-/// Spelled here rather than left to `audio_load.h`'s identically-valued `DELUGE_MAX_PATH`, for the
-/// reason @ref file_directory.h gives: a caller needs it to decide whether a path is servable at all
-/// and should not have to include an unrelated header to find out.
-///
 /// @note A longer path is REFUSED, never truncated — a truncated path names a *different* file, which
 ///       may well exist and would then be read or, far worse, overwritten.
-#define DELUGE_FILE_BYTES_MAX_PATH 256u
+#define DELUGE_FILE_BYTES_MAX_PATH DELUGE_PATH_MAX
 
 /// @brief The largest file this channel will carry, in bytes.
 ///
@@ -111,20 +103,20 @@ extern "C" {
 /// @brief Collect: requested, or being read/written right now.
 ///
 /// Ask again on a later tick. Do NOT re-request: the operation is already under way.
-#define DELUGE_FILE_BYTES_PENDING 0u
+#define DELUGE_FILE_BYTES_PENDING DELUGE_CHANNEL_PENDING
 
 /// @brief Collect: the operation completed, and its answer was removed from the slot.
 ///
 /// For a read, `out_buf` now holds the file's bytes and `out_len` their count. For a write or a
 /// rename, the bytes reached the card. Terminal: the answer has been consumed, so a second collect
 /// for the same path reports @ref DELUGE_FILE_BYTES_UNKNOWN.
-#define DELUGE_FILE_BYTES_READY 1u
+#define DELUGE_FILE_BYTES_READY DELUGE_CHANNEL_READY
 
 /// @brief Collect: nothing is known about this path. Request it (again).
 ///
 /// This is also what a caller sees before its first request, after a card swap discarded an answer
 /// read from a card that has gone, and when a *different* path currently occupies the slot.
-#define DELUGE_FILE_BYTES_UNKNOWN 2u
+#define DELUGE_FILE_BYTES_UNKNOWN DELUGE_CHANNEL_UNKNOWN
 
 /// @brief Collect: the operation did not happen. `out_status` says why.
 ///
@@ -133,7 +125,7 @@ extern "C" {
 /// the defaults) from "the card is unreadable" (`DELUGE_ERR_IO`: write nothing, or the user's real
 /// settings are replaced by defaults) -- the same distinction `existence_policy.h`'s `Presence`
 /// exists to preserve.
-#define DELUGE_FILE_BYTES_FAILED 3u
+#define DELUGE_FILE_BYTES_FAILED DELUGE_CHANNEL_FAILED
 
 /// @brief Ask for the whole of `path` to be read, and return immediately.
 ///
@@ -436,5 +428,4 @@ void deluge_file_bytes_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }
 #endif
-#undef DELUGE_NOEXCEPT
 #endif // LIBDELUGE_FILE_BYTES_H

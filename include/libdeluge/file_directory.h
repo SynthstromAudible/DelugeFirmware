@@ -51,46 +51,38 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Not currently parsed as C -- same situation as audio_load.h and file_prefix.h, and the same
- * forward-looking hardening: `noexcept` is C++-only and invalid C syntax, so it is spelled through
- * this macro (#undef'd at the end of the file so it cannot leak into, or collide with a same-named
- * macro in, whatever includes this header next) rather than written bare. */
+#include "abi.h"
+#include "channel.h"
+
 #ifdef __cplusplus
-#define DELUGE_NOEXCEPT noexcept
 extern "C" {
-#else
-#define DELUGE_NOEXCEPT
 #endif
 
 /// @brief The longest path this channel can key on, INCLUDING the NUL — so the text it holds is one
 ///        byte shorter.
 ///
-/// Spelled here rather than left to `audio_load.h`'s identically-valued `DELUGE_MAX_PATH`, because a
-/// caller needs it to decide whether a path is servable at all and should not have to include an
-/// unrelated header to find out. `file_directory_abi.cpp` `static_assert`s the two equal.
-///
 /// @note A longer path is REFUSED, never truncated — a truncated path names a *different* directory,
 ///       which may well exist. @ref deluge_file_directory_request drops it silently, so a caller that
 ///       does not check this itself gets UNKNOWN forever with no error to show.
-#define DELUGE_FILE_DIRECTORY_MAX_PATH 256u
+#define DELUGE_FILE_DIRECTORY_MAX_PATH DELUGE_PATH_MAX
 
 /// @brief @ref deluge_file_directory_collect: requested, or being opened right now.
 ///
 /// Ask again on a later tick. Do NOT re-request: the open is already under way, and re-requesting
 /// would replace a request that is about to be served.
-#define DELUGE_FILE_DIRECTORY_PENDING 0u
+#define DELUGE_FILE_DIRECTORY_PENDING DELUGE_CHANNEL_PENDING
 
 /// @brief @ref deluge_file_directory_collect: a handle was written out and removed from the slot.
 ///
 /// `out_handle` holds an OPEN directory that is now the caller's to close. Terminal: the answer has
 /// been consumed, so a second collect for the same path reports UNKNOWN.
-#define DELUGE_FILE_DIRECTORY_READY 1u
+#define DELUGE_FILE_DIRECTORY_READY DELUGE_CHANNEL_READY
 
 /// @brief @ref deluge_file_directory_collect: nothing is known about this path.
 ///
 /// Request it (again). This is also what a caller sees before its first request, and what it sees
 /// after a card swap discarded an answer read from the card that has gone.
-#define DELUGE_FILE_DIRECTORY_UNKNOWN 2u
+#define DELUGE_FILE_DIRECTORY_UNKNOWN DELUGE_CHANNEL_UNKNOWN
 
 /// @brief @ref deluge_file_directory_collect: the open did not happen. `out_status` says why.
 ///
@@ -98,7 +90,7 @@ extern "C" {
 /// re-opened on every tick, forever, for as long as the browser sits on it. Unlike
 /// @ref file_prefix.h's failure this one carries a status, because the browser's failure path shows
 /// the user which failure it was, and "no such folder" must not become "the card is unreadable".
-#define DELUGE_FILE_DIRECTORY_FAILED 3u
+#define DELUGE_FILE_DIRECTORY_FAILED DELUGE_CHANNEL_FAILED
 
 /// @brief Ask for `dir_path` to be opened, and return immediately.
 ///
@@ -148,5 +140,4 @@ void deluge_file_directory_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }
 #endif
-#undef DELUGE_NOEXCEPT
 #endif // LIBDELUGE_FILE_DIRECTORY_H

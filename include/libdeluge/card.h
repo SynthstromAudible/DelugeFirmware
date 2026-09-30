@@ -26,15 +26,10 @@
 #ifndef LIBDELUGE_CARD_H
 #define LIBDELUGE_CARD_H
 
-/* Not currently parsed as C -- same situation as audio_load.h beside it, and the same forward-
- * looking hardening: `noexcept` is C++-only and invalid C syntax, so it is spelled through this
- * macro (#undef'd at the end of the file so it cannot leak into, or collide with a same-named macro
- * in, whatever includes this header next) rather than written bare. */
+#include "abi.h"
+
 #ifdef __cplusplus
-#define DELUGE_NOEXCEPT noexcept
 extern "C" {
-#else
-#define DELUGE_NOEXCEPT
 #endif
 
 /// @brief Discard everything every loader read from the card that has just been removed. Never
@@ -81,5 +76,4 @@ void deluge_card_flush(void) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }
 #endif
-#undef DELUGE_NOEXCEPT
 #endif // LIBDELUGE_CARD_H
