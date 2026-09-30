@@ -259,3 +259,12 @@ pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
     let block_start = BLOCK_START_PLAY.load(Ordering::Relaxed) as u32;
     crate::capture_stamp::render_offset(stamp, block_start, TX_MASK as u32)
 }
+
+abi_pin!(
+    deluge_audio_await_block,
+    deluge_audio_drive,
+    deluge_audio_frames_until_block_offset,
+    deluge_audio_input_resync,
+    deluge_audio_stamp_to_render_offset,
+    deluge_audio_start,
+);

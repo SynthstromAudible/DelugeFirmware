@@ -11,6 +11,10 @@
 
 use std::cell::{Cell, RefCell};
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 // Included for its `LoadOps`/`OpenVerdict` alone, so the rest of the loader is dead here. That is
 // not a defect to fix by trimming the shared file -- it is fully exercised by
 // `tests/audio_loader_host.rs`, its own suite -- so the lint is silenced at the module that

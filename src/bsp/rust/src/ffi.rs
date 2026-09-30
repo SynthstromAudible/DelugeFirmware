@@ -111,3 +111,16 @@ pub extern "C" fn deluge_display_consume_transfer_ack() -> bool {
 
 // signals.h (deluge_signal_write/read, deluge_battery_read_raw/start_conversion,
 // deluge_midi_gate_timer_pending/arm) is implemented in `signals`.
+
+abi_pin!(
+    deluge_control_enable_oled,
+    deluge_control_flash_pad,
+    deluge_control_flash_pad_colour,
+    deluge_control_init,
+    deluge_control_poll_resume,
+    deluge_control_set_dimmer_interval,
+    deluge_control_setup_for_pads,
+    deluge_control_wait_for_flush,
+    deluge_display_consume_transfer_ack,
+    deluge_display_write_seven_segment,
+);

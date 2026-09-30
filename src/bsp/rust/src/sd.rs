@@ -866,3 +866,11 @@ pub extern "C" fn deluge_block_poll_card_event(unit: u8) -> DelugeCardEvent {
         CARD_EJECTED
     }
 }
+
+abi_pin!(
+    deluge_block_poll_card_event,
+    deluge_block_read,
+    deluge_block_ready,
+    deluge_block_sd_unit,
+    deluge_block_write
+);

@@ -246,6 +246,8 @@ fn run_bindgen(
         .allowlist_function(
             "addRepeatingTask|addConditionalTask|ignoreForStats|getAverageRunTimeForTask|getSystemTime|runTask|yield_|blockTask|unblockTask|isSDRoutineActive",
         )
+        // system.h's critical-section pair, the other declared functions without the `deluge_` prefix.
+        .allowlist_function("ENTER_CRITICAL_SECTION|EXIT_CRITICAL_SECTION")
         .allowlist_var("DELUGE_.*")
         .use_core()
         // See ../build.rs: NO `-fshort-enums` — every libdeluge enum pins its

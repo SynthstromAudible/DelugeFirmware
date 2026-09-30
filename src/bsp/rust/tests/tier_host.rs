@@ -1,6 +1,10 @@
 //! Host tests for the tier tag: the default, nesting, and the future wrapper.
 #![cfg(not(target_os = "none"))]
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 #[path = "../src/tier.rs"]
 mod tier;
 

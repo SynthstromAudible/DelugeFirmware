@@ -18,6 +18,10 @@
 use core::ffi::c_void;
 use std::cell::{Cell, RefCell};
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 #[path = "../src/streaming_loader.rs"]
 mod streaming_loader;
 

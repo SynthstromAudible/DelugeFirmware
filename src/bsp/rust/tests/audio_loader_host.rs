@@ -25,6 +25,10 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::CString;
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 #[path = "../src/audio_loader.rs"]
 mod audio_loader;
 

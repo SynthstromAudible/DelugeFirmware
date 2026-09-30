@@ -179,3 +179,5 @@ mod host_tests {
         );
     }
 }
+
+abi_pin!(deluge_flash_erase, deluge_flash_program, deluge_flash_read);

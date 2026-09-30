@@ -729,3 +729,7 @@ pub async fn publish_result<O: DirOps>(ops: &O, key: &str, outcome: DirOutcome, 
         ops.close_dir(displaced).await;
     }
 }
+
+abi_pin!(deluge_file_directory_collect, deluge_file_directory_request);
+#[cfg(feature = "host_app")]
+abi_pin!(deluge_file_directory_set_latency_ms);

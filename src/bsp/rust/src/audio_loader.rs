@@ -283,6 +283,26 @@ pub struct LoadResult {
     pub error: u8,
 }
 
+/// The result slot as `deluge_audio_load_collect`'s declaration spells it: bindgen's `DelugeAudioLoadResult` where
+/// there is bindgen output, so the export's `abi_pin!` holds, else [`LoadResult`] itself. The export writes it
+/// through a cast, so the two must share a layout.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+type AbiLoadResult = crate::sys::DelugeAudioLoadResult;
+#[cfg(not(any(target_os = "none", feature = "host_app")))]
+type AbiLoadResult = LoadResult;
+
+#[cfg(any(target_os = "none", feature = "host_app"))]
+const _: () = {
+    use core::mem::{align_of, offset_of, size_of};
+    assert!(size_of::<AbiLoadResult>() == size_of::<LoadResult>());
+    assert!(align_of::<AbiLoadResult>() == align_of::<LoadResult>());
+    assert!(offset_of!(AbiLoadResult, geometry) == offset_of!(LoadResult, geometry));
+    assert!(offset_of!(AbiLoadResult, size_bytes) == offset_of!(LoadResult, size_bytes));
+    assert!(offset_of!(AbiLoadResult, alternate_path) == offset_of!(LoadResult, alternate_path));
+    assert!(offset_of!(AbiLoadResult, error) == offset_of!(LoadResult, error));
+    assert!(size_of::<crate::sys::DelugeAudioLoadGeometry>() == size_of::<LoadGeometry>());
+};
+
 impl LoadResult {
     /// A result carrying only a failure verdict. Geometry and path are zeroed;
     /// only `error` is meaningful, and the collector will not build anything.
@@ -596,7 +616,7 @@ fn enqueue_request(request: LoadRequest) -> bool {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_audio_load_collect(
     file_path: *const c_char,
-    out: *mut LoadResult,
+    out: *mut AbiLoadResult,
 ) -> u8 {
     if out.is_null() {
         return DELUGE_AUDIO_LOAD_UNKNOWN;
@@ -1264,3 +1284,7 @@ async fn take_next_request() -> Option<(LoadRequest, u32)> {
     mark_in_flight(Some(request.path.clone())).await;
     Some((request, generation))
 }
+
+abi_pin!(deluge_audio_load_collect, deluge_audio_load_request);
+#[cfg(feature = "host_app")]
+abi_pin!(deluge_audio_load_set_latency_ms);

@@ -100,6 +100,13 @@ pub struct FileTimestamp {
     pub second: u8,
 }
 
+/// The timestamp as `deluge_file_bytes_request_set_time`'s declaration spells it: bindgen's `DelugeTimestamp` where
+/// there is bindgen output, so the export's `abi_pin!` holds, else the mirror above.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+type AbiTimestamp = crate::sys::DelugeTimestamp;
+#[cfg(not(any(target_os = "none", feature = "host_app")))]
+type AbiTimestamp = FileTimestamp;
+
 // `DelugeTimestamp`'s layout (types.h), which the C caller passes by value.
 const _: () = {
     assert!(core::mem::size_of::<FileTimestamp>() == 8);
@@ -852,11 +859,19 @@ pub unsafe extern "C" fn deluge_file_bytes_request_mkdir_all(path: *const c_char
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_request_set_time(
     path: *const c_char,
-    timestamp: FileTimestamp,
+    timestamp: AbiTimestamp,
 ) -> bool {
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
         return false;
+    };
+    let timestamp = FileTimestamp {
+        year: timestamp.year,
+        month: timestamp.month,
+        day: timestamp.day,
+        hour: timestamp.hour,
+        minute: timestamp.minute,
+        second: timestamp.second,
     };
     enqueue_request(ByteRequest::SetTime { path, timestamp }, &[])
 }
@@ -1974,3 +1989,32 @@ pub async fn publish_result(
     }
     publish_into(&mut result, op, key, outcome, generation);
 }
+
+abi_pin!(
+    deluge_file_bytes_collect_copy,
+    deluge_file_bytes_collect_dir_exists,
+    deluge_file_bytes_collect_exists,
+    deluge_file_bytes_collect_mkdir_all,
+    deluge_file_bytes_collect_read,
+    deluge_file_bytes_collect_read_at,
+    deluge_file_bytes_collect_rename,
+    deluge_file_bytes_collect_set_time,
+    deluge_file_bytes_collect_stat,
+    deluge_file_bytes_collect_unlink,
+    deluge_file_bytes_collect_write,
+    deluge_file_bytes_collect_write_at,
+    deluge_file_bytes_request_copy,
+    deluge_file_bytes_request_dir_exists,
+    deluge_file_bytes_request_exists,
+    deluge_file_bytes_request_mkdir_all,
+    deluge_file_bytes_request_read,
+    deluge_file_bytes_request_read_at,
+    deluge_file_bytes_request_rename,
+    deluge_file_bytes_request_set_time,
+    deluge_file_bytes_request_stat,
+    deluge_file_bytes_request_unlink,
+    deluge_file_bytes_request_write,
+    deluge_file_bytes_request_write_at,
+);
+#[cfg(feature = "host_app")]
+abi_pin!(deluge_file_bytes_set_latency_ms);

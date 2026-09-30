@@ -98,6 +98,49 @@ extern crate deluge_sample_stream;
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 extern crate deluge_sample_stream;
 
+/// Fails the build unless each named export has exactly the signature bindgen generated from its header. The
+/// export and the generated declaration go into one array, which compiles only if both coerce to the same `fn`
+/// pointer type. A safe export matches an `unsafe` declaration; a different parameter, return type or pointer
+/// mutability does not (E0308).
+///
+/// `abi_pin!(sys_name => local_name)` pins an export whose Rust name is not its C name: `r#yield`, which bindgen
+/// declares as `yield_` because `yield` is a Rust keyword.
+///
+/// Every crate that `#[path]`-includes a pinned module defines these macros before its `mod` items, because
+/// `macro_rules!` is textually scoped: `harness/golden_vt_render` the real ones, the plain host tests the no-ops in
+/// `tests/support/abi_pin_noop.rs`.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+macro_rules! abi_pin {
+    ($sys:ident => $local:ident) => {
+        const _: () = { let _ = [crate::sys::$sys, $local]; };
+    };
+    (in $($m:ident)::+ : $($f:ident),+ $(,)?) => { $(
+        const _: () = { let _ = [crate::sys::$f, $($m)::+::$f]; };
+    )+ };
+    ($($f:ident),+ $(,)?) => { $(
+        const _: () = { let _ = [crate::sys::$f, $f]; };
+    )+ };
+}
+#[cfg(not(any(target_os = "none", feature = "host_app")))]
+macro_rules! abi_pin {
+    ($($t:tt)*) => {};
+}
+
+/// Fails the build unless each constant copied on the Rust side equals the header's. Both sides are widened to
+/// `i64`, so a copy may use the width its module needs.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+#[allow(unused_macros)]
+macro_rules! abi_const {
+    ($($ours:expr => $theirs:ident),+ $(,)?) => { $(
+        const _: () = assert!(($ours) as i64 == crate::sys::$theirs as i64, stringify!($theirs));
+    )+ };
+}
+#[cfg(not(any(target_os = "none", feature = "host_app")))]
+#[allow(unused_macros)]
+macro_rules! abi_const {
+    ($($t:tt)*) => {};
+}
+
 /// The libdeluge C ABI generated from include/libdeluge/*.h: POD types,
 /// `DELUGE_*` constants, and a declaration of every header function (the
 /// crate's own definitions of the service functions live in [`ffi`] and the

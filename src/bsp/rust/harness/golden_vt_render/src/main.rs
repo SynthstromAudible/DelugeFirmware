@@ -58,6 +58,26 @@ use embassy_executor::raw;
 use embassy_time::{Duration, Instant, Timer};
 use embassy_time_driver::Driver as _;
 
+/// The ABI pins the `#[path]`-included BSP modules end in: this package's `sys` is always the bindgen output, so these
+/// are always the checking variants. See `../../../src/main.rs`, which defines the same pair.
+macro_rules! abi_pin {
+    ($sys:ident => $local:ident) => {
+        const _: () = { let _ = [crate::sys::$sys, $local]; };
+    };
+    (in $($m:ident)::+ : $($f:ident),+ $(,)?) => { $(
+        const _: () = { let _ = [crate::sys::$f, $($m)::+::$f]; };
+    )+ };
+    ($($f:ident),+ $(,)?) => { $(
+        const _: () = { let _ = [crate::sys::$f, $f]; };
+    )+ };
+}
+#[allow(unused_macros)]
+macro_rules! abi_const {
+    ($($ours:expr => $theirs:ident),+ $(,)?) => { $(
+        const _: () = assert!(($ours) as i64 == crate::sys::$theirs as i64, stringify!($theirs));
+    )+ };
+}
+
 mod clock;
 #[path = "../../../src/memory_card.rs"]
 mod memory_card;

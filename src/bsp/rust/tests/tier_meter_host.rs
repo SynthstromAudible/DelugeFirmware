@@ -1,6 +1,10 @@
 //! The meter counts a synchronous card call only after boot and only on the interaction tier.
 #![cfg(not(target_os = "none"))]
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 #[path = "../src/boot.rs"]
 mod boot;
 #[path = "../src/tier.rs"]

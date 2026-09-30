@@ -9,6 +9,10 @@
 #![cfg(all(not(target_os = "none"), feature = "sim_latency"))]
 #![feature(impl_trait_in_assoc_type)]
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 // No `deluge_bsp_rust::` path exists (bin-only crate) — re-include the modules by path, the same way the other
 // `tests/*_host.rs` files do.
 #[path = "../src/boot.rs"]

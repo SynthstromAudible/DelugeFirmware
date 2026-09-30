@@ -572,3 +572,9 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
         .wrapping_add(offset_frames as u64)
         .wrapping_sub(play_now) as u32
 }
+
+abi_pin!(
+    deluge_audio_await_block,
+    deluge_audio_drive,
+    deluge_audio_frames_until_block_offset
+);

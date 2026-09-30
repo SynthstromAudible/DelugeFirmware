@@ -388,3 +388,17 @@ mod cs_tests {
         EXIT_CRITICAL_SECTION();
     }
 }
+
+abi_pin!(
+    deluge_clock_delay_ms,
+    deluge_clock_delay_us,
+    deluge_clock_now,
+    deluge_in_audio_context,
+    deluge_in_interrupt,
+    deluge_log,
+    deluge_memory_region,
+    deluge_memory_region_count,
+    deluge_memory_scratch,
+    ENTER_CRITICAL_SECTION,
+    EXIT_CRITICAL_SECTION,
+);

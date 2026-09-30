@@ -8,6 +8,10 @@
 //! four operations, so it declares its own three-operation trait and comes along alone.
 #![cfg(not(target_os = "none"))]
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 #[path = "../src/file_bytes.rs"]
 mod file_bytes;
 

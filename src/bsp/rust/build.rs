@@ -47,6 +47,9 @@ const EFATFS_ROOTS: [&str; 3] = [
 /// renames `yield_`.
 const SCHEDULER_API_FUNCTIONS: &str = "addRepeatingTask|addConditionalTask|ignoreForStats|getAverageRunTimeForTask|getSystemTime|runTask|yield_|blockTask|unblockTask|isSDRoutineActive";
 
+/// `system.h`'s critical-section pair, the other declared functions without the `deluge_` prefix.
+const SYSTEM_UNPREFIXED_FUNCTIONS: &str = "ENTER_CRITICAL_SECTION|EXIT_CRITICAL_SECTION";
+
 /// Emits `-Wl,-u,SYM` for each symbol, forcing it as a link root.
 fn force_link_roots(syms: &[&str]) {
     for sym in syms {
@@ -139,6 +142,7 @@ fn run_bindgen(
         // Every function and constant too: `abi_pin!` and `abi_const!` check the Rust side against these.
         .allowlist_function("deluge_.*")
         .allowlist_function(SCHEDULER_API_FUNCTIONS)
+        .allowlist_function(SYSTEM_UNPREFIXED_FUNCTIONS)
         .allowlist_var("DELUGE_.*")
         .use_core()
         .clang_arg(format!("--target={clang_target}"));

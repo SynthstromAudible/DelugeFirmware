@@ -777,3 +777,25 @@ pub(crate) fn flush_tables() {
     }
     WAKE.signal(());
 }
+
+abi_pin!(
+    deluge_file_write_collect_close,
+    deluge_file_write_collect_open,
+    deluge_file_write_collect_read_at,
+    deluge_file_write_collect_read_file,
+    deluge_file_write_collect_stats,
+    deluge_file_write_collect_truncate,
+    deluge_file_write_collect_write_at,
+    deluge_file_write_collect_write_file,
+    deluge_file_write_holds,
+    deluge_file_write_request_close,
+    deluge_file_write_request_open,
+    deluge_file_write_request_read_at,
+    deluge_file_write_request_read_file,
+    deluge_file_write_request_stats,
+    deluge_file_write_request_truncate,
+    deluge_file_write_request_write_at,
+    deluge_file_write_request_write_file,
+);
+#[cfg(feature = "host_app")]
+abi_pin!(deluge_file_write_set_latency_ms);

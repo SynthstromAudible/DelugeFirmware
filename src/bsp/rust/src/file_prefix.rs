@@ -825,3 +825,7 @@ pub async fn publish_result(key: &str, bytes: Option<&[u8]>, generation: u32) {
         None => publish_failure_into(slot, key, generation),
     }
 }
+
+abi_pin!(deluge_file_prefix_collect, deluge_file_prefix_request);
+#[cfg(feature = "host_app")]
+abi_pin!(deluge_file_prefix_set_latency_ms);

@@ -502,3 +502,10 @@ async fn streaming_fill_task_body() {
         FILL_WAKE.wait().await;
     }
 }
+
+abi_pin!(
+    deluge_streaming_queue_drained,
+    deluge_streaming_request_chunk,
+    deluge_streaming_request_drain,
+    deluge_streaming_signal_fill,
+);

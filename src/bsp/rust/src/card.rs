@@ -45,3 +45,5 @@ pub extern "C" fn deluge_card_flush() {
     super::file_bytes::flush_tables();
     super::file_write::flush_tables();
 }
+
+abi_pin!(deluge_card_flush);

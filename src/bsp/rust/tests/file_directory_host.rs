@@ -9,6 +9,10 @@
 //! not in `LoadOps`, so it declares its own two-operation trait and comes along alone.
 #![cfg(not(target_os = "none"))]
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 #[path = "../src/file_directory.rs"]
 mod file_directory;
 

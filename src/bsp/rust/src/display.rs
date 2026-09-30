@@ -169,3 +169,11 @@ pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
         std::process::abort();
     }
 }
+
+abi_pin!(
+    deluge_display_blit_oled,
+    deluge_display_freeze,
+    deluge_display_init,
+    deluge_display_service,
+    deluge_display_timer_event,
+);

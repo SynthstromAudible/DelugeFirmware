@@ -148,3 +148,12 @@ pub extern "C" fn deluge_midi_gate_timer_arm(samples_from_now: u32) {
     // SAFETY: ch2 was configured by gate_timer_setup() at boot.
     unsafe { mtu2::arm(GATE_TIMER_CH, ticks) };
 }
+
+abi_pin!(
+    deluge_battery_read_raw,
+    deluge_battery_start_conversion,
+    deluge_midi_gate_timer_arm,
+    deluge_midi_gate_timer_pending,
+    deluge_signal_read,
+    deluge_signal_write,
+);

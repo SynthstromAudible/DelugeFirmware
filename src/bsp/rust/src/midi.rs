@@ -180,3 +180,19 @@ pub extern "C" fn deluge_midi_usb_peripheral_connected() -> bool {
 pub extern "C" fn deluge_midi_poll_usb_host_event() -> DelugeUsbHostEvent {
     USB_HOST_NONE
 }
+
+abi_pin!(
+    deluge_midi_din_read_timed,
+    deluge_midi_flush,
+    deluge_midi_init,
+    deluge_midi_poll_usb_host_event,
+    deluge_midi_port_count,
+    deluge_midi_read_timed,
+    deluge_midi_service,
+    deluge_midi_usb_is_host,
+    deluge_midi_usb_peripheral_connected,
+    deluge_midi_usb_port,
+    deluge_midi_write,
+    deluge_midi_write_pending,
+    deluge_midi_write_space,
+);
