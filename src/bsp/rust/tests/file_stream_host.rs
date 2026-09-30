@@ -173,3 +173,24 @@ fn a_failed_open_is_taken_with_its_status() {
     slot.publish(open.clone(), Err(not_found), CARD);
     assert_eq!(slot.take(&open, CARD), Take::Failed(not_found));
 }
+
+/// A collect that finds no answer asks the request and in-flight slots whether one is coming. A slot whose lock is
+/// contended is mid-handoff, so it counts as coming: reporting "not there" would send the caller to ask again for an
+/// operation already under way -- for a CREATE_NEW open, one that then finds its own file and fails with EXISTS.
+#[test]
+fn a_contended_slot_is_still_coming() {
+    assert!(file_stream_slot::still_coming(None, Some(false)));
+    assert!(file_stream_slot::still_coming(Some(false), None));
+    assert!(file_stream_slot::still_coming(None, None));
+}
+
+#[test]
+fn a_queued_or_running_operation_is_still_coming() {
+    assert!(file_stream_slot::still_coming(Some(true), Some(false)));
+    assert!(file_stream_slot::still_coming(Some(false), Some(true)));
+}
+
+#[test]
+fn an_operation_in_neither_slot_is_not_coming() {
+    assert!(!file_stream_slot::still_coming(Some(false), Some(false)));
+}

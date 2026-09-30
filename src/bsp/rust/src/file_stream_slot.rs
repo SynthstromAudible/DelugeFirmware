@@ -51,6 +51,17 @@ impl OpKey {
     }
 }
 
+/// Whether an operation a collect found no answer for is still coming, from what the request and in-flight slots
+/// showed: `Some(true)` the operation's key is there, `Some(false)` it is not, `None` the slot's lock was contended.
+///
+/// Contended counts as coming. The task hands a request from the request slot to the in-flight slot, and an answer
+/// from the in-flight slot to the result slot, while holding locks; a collect that meets one of those locks is
+/// looking at a handoff, not at an absence. Reporting "not there" would send the caller to ask again for an operation
+/// already under way -- and a CREATE_NEW open asked again finds its own file and fails with EXISTS.
+pub fn still_coming(queued: Option<bool>, running: Option<bool>) -> bool {
+    queued != Some(false) || running != Some(false)
+}
+
 /// What a take found.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Take {

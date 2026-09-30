@@ -25,7 +25,7 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 
-use super::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath};
+use super::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath, still_coming};
 
 /// Copied from `libdeluge/file_stream.h`, because this module compiles in carriers with no bindgen
 /// output; pinned by `abi_pins.rs`.
@@ -177,48 +177,52 @@ fn accept(op: StreamOp, path: &str) -> bool {
 /// Collect `(kind, handle, path)`'s answer. `out` receives the `Ok` payload on READY, `out_error` the `Err` payload
 /// on FAILED.
 ///
+/// One forward pass, REQUEST then IN_FLIGHT then RESULT, in the order an operation moves through them. The task
+/// marks an operation in flight while still holding the REQUEST lock, and publishes its answer before clearing
+/// IN_FLIGHT, so a pass in this order cannot miss an operation that is moving: it is in one of the three, or behind
+/// a contended lock, which [`still_coming`] and the RESULT branch below both read as PENDING. Probing RESULT first
+/// would let the answer land and IN_FLIGHT clear between the two looks, and report UNKNOWN for an operation that
+/// had just succeeded.
+///
 /// # Safety
 /// Each out-pointer may be null; one that is not must point at a writable `u32`.
 unsafe fn collect(kind: OpKind, handle: u32, path: &str, out: *mut u32, out_error: *mut u32) -> u8 {
     let Some(key) = OpKey::new(kind, handle, path) else {
         return DELUGE_FILE_STREAM_UNKNOWN;
     };
-    if let Ok(mut result) = RESULT.try_lock() {
-        let taken = result.take(&key, deluge_card_generation::current());
-        if result.has_orphans() {
-            WAKE.signal(());
-        }
-        match taken {
-            Take::Ready(value) => {
-                if !out.is_null() {
-                    // SAFETY: non-null, and the caller guarantees it is writable.
-                    unsafe { *out = value };
-                }
-                return DELUGE_FILE_STREAM_READY;
-            }
-            Take::Failed(error) => {
-                if !out_error.is_null() {
-                    // SAFETY: non-null, and the caller guarantees it is writable.
-                    unsafe { *out_error = error };
-                }
-                return DELUGE_FILE_STREAM_FAILED;
-            }
-            Take::Absent => {}
-        }
-    }
     let queued = REQUEST
         .try_lock()
-        .map(|r| r.as_ref().is_some_and(|q| q.key == key))
-        .unwrap_or(false);
-    let running = IN_FLIGHT
-        .try_lock()
-        .map(|f| f.as_ref() == Some(&key))
-        .unwrap_or(false);
-    if queued || running {
-        DELUGE_FILE_STREAM_PENDING
-    } else {
+        .ok()
+        .map(|r| r.as_ref().is_some_and(|q| q.key == key));
+    let running = IN_FLIGHT.try_lock().ok().map(|f| f.as_ref() == Some(&key));
+    if still_coming(queued, running) {
+        return DELUGE_FILE_STREAM_PENDING;
+    }
+    // Contended: the task is publishing, and this operation's answer may be what it is publishing.
+    let Ok(mut result) = RESULT.try_lock() else {
+        return DELUGE_FILE_STREAM_PENDING;
+    };
+    let taken = result.take(&key, deluge_card_generation::current());
+    if result.has_orphans() {
+        WAKE.signal(());
+    }
+    match taken {
+        Take::Ready(value) => {
+            if !out.is_null() {
+                // SAFETY: non-null, and the caller guarantees it is writable.
+                unsafe { *out = value };
+            }
+            DELUGE_FILE_STREAM_READY
+        }
+        Take::Failed(error) => {
+            if !out_error.is_null() {
+                // SAFETY: non-null, and the caller guarantees it is writable.
+                unsafe { *out_error = error };
+            }
+            DELUGE_FILE_STREAM_FAILED
+        }
         // Nothing queued, nothing running, no answer for this card: ask again.
-        DELUGE_FILE_STREAM_UNKNOWN
+        Take::Absent => DELUGE_FILE_STREAM_UNKNOWN,
     }
 }
 
@@ -506,24 +510,30 @@ async fn file_stream_task_body() {
         WAKE.wait().await;
         loop {
             close_orphans().await;
-            let Some(queued) = ({
+            let taken = {
                 let mut req = REQUEST.lock().await;
-                let taken = req.take();
-                if let Some(q) = taken.as_ref() {
-                    RUNNING_BUFFER.store(op_buffer(&q.op), core::sync::atomic::Ordering::Release);
+                match req.take() {
+                    None => None,
+                    // A request from before the card changed that survived the flush (its `try_lock` lost the race)
+                    // names the old card: running it would touch the new card. Its answer could never be collected, so
+                    // none is published, and its buffer is never named as running.
+                    Some(q) if q.generation != deluge_card_generation::current() => Some(None),
+                    Some(q) => {
+                        RUNNING_BUFFER
+                            .store(op_buffer(&q.op), core::sync::atomic::Ordering::Release);
+                        // Marked while the REQUEST lock is still held, so a collect never finds the operation in
+                        // neither slot: it sees it queued, sees it running, or meets a contended lock.
+                        *IN_FLIGHT.lock().await = Some(q.key.clone());
+                        Some(Some(q))
+                    }
                 }
-                taken
-            }) else {
+            };
+            let Some(taken) = taken else {
                 break;
             };
-            // A request from before the card changed that survived the flush (its `try_lock` lost the race) names
-            // the old card: running it would touch the new card. Its answer could never be collected, so none is
-            // published.
-            if queued.generation != deluge_card_generation::current() {
-                RUNNING_BUFFER.store(0, core::sync::atomic::Ordering::Release);
+            let Some(queued) = taken else {
                 continue;
-            }
-            *IN_FLIGHT.lock().await = Some(queued.key.clone());
+            };
             // After marking it in flight, so a collect during the wait answers PENDING, exactly as it would while
             // a slow card was working.
             #[cfg(feature = "host_app")]
