@@ -46,7 +46,8 @@ const RX_MASK: usize = RX_FRAMES - 1;
 pub(crate) const SAMPLE_RATE_HZ: u32 = 44_100;
 
 /// Initial RX read latency: keep the read cursor ~one TX-ring + a margin behind
-/// the RX DMA write head (mirrors rza1 audio_io.cpp's start anchor).
+/// the RX DMA write head, so a render never reads ahead of what the RX DMA has
+/// actually captured.
 const RX_LATENCY_FRAMES: usize = RX_FRAMES - TX_FRAMES - 16;
 
 /// Maximum frames per `deluge_app_render` call. This MUST NOT exceed the app's
@@ -161,27 +162,6 @@ pub extern "C" fn deluge_audio_start() -> DelugeStatus {
         PENDING_END = 0;
     }
     DELUGE_OK
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_stop() {
-    // The free-running ring keeps the codec alive; nothing to do on this board.
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_max_block_frames() -> u32 {
-    APP_BLOCK_FRAMES as u32
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_sample_rate() -> u32 {
-    SAMPLE_RATE_HZ
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_output_latency_frames() -> u32 {
-    // The app renders up to one TX ring ahead of the play head.
-    TX_FRAMES as u32
 }
 
 #[unsafe(no_mangle)]

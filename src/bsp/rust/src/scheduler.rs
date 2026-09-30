@@ -89,8 +89,8 @@ const COND_POLL: Duration = Duration::from_millis(4);
 
 // ---------------------------------------------------------------------------
 // Task slot: per-task control block. One Embassy task runner instance owns each
-// in-use slot for its lifetime; the C-ABI control functions (block/unblock/boost/
-// remove/run/setNextRunTime) poke these fields and wake the runner via `wake`.
+// in-use slot for its lifetime; the C-ABI control functions (block/unblock/run)
+// poke these fields and wake the runner via `wake`.
 // ---------------------------------------------------------------------------
 
 struct TaskSlot {
@@ -98,32 +98,27 @@ struct TaskSlot {
     used: AtomicBool,
     /// `TaskHandle` as a `usize` (transmuted on call). 0 only before first use.
     handle: AtomicUsize,
-    /// `RunCondition` as a `usize`, or 0 for none (repeating/once tasks).
+    /// `RunCondition` as a `usize`, or 0 for a repeating task (every conditional
+    /// task carries one).
     condition: AtomicUsize,
-    /// Target time between calls, microseconds (repeating); or the one-shot delay
-    /// (once). Conditional tasks ignore this and poll `condition` instead.
+    /// Target time between calls, microseconds. Conditional tasks (which is
+    /// where `once` comes from) ignore this and poll `condition` instead.
     period_us: AtomicU64,
     /// Minimum time from completion to the next call, microseconds.
     backoff_us: AtomicU64,
     /// Resource bitmask gating the run (these will map onto embassy-sync
     /// mutexes; today the gate is a no-op).
     resource: AtomicU64,
-    /// Run once then free (once / conditional tasks).
+    /// Run once then free. Set only by conditional tasks.
     once: AtomicBool,
     /// `blockTask`/`unblockTask`: when false the runner parks on `wake`.
     enabled: AtomicBool,
-    /// `boostTask`: run the next cycle 10x sooner (one-shot, cleared after use).
-    boosted: AtomicBool,
-    /// `removeTask`: runner exits its loop and frees the slot.
-    stop: AtomicBool,
-    /// `setNextRunTimeforCurrentTask`: override the next wait (µs); 0 = no override.
-    next_override_us: AtomicU64,
     /// Exclude from `printStats`-style accounting.
     count_stats: AtomicBool,
     /// Running-average run time, microseconds (halving filter, matching the C++
     /// `StatBlock`: avg = (avg + sample) / 2).
     avg_run_us: AtomicU64,
-    /// Wakes the runner early (runTask / unblockTask / removeTask / boost).
+    /// Wakes the runner early (runTask / unblockTask).
     wake: Signal<CriticalSectionRawMutex, ()>,
 }
 
@@ -138,9 +133,6 @@ impl TaskSlot {
             resource: AtomicU64::new(RESOURCE_NONE as u64),
             once: AtomicBool::new(false),
             enabled: AtomicBool::new(true),
-            boosted: AtomicBool::new(false),
-            stop: AtomicBool::new(false),
-            next_override_us: AtomicU64::new(0),
             count_stats: AtomicBool::new(true),
             avg_run_us: AtomicU64::new(0),
             wake: Signal::new(),
@@ -153,7 +145,7 @@ impl TaskSlot {
         unsafe { core::mem::transmute::<usize, TaskHandle>(self.handle.load(Ordering::Relaxed)) }
     }
 
-    /// The stored predicate, or `None` for repeating/once tasks. `RunCondition` is
+    /// The stored predicate, or `None` for a repeating task. `RunCondition` is
     /// itself `Option<fn>`, so a 0 (unset) word transmutes straight to `None`.
     fn condition_fn(&self) -> RunCondition {
         // SAFETY: written only by `claim` from a real `RunCondition` (or 0 = None).
@@ -162,19 +154,9 @@ impl TaskSlot {
         }
     }
 
-    /// Microseconds to wait before the next run, consuming one-shot overrides.
+    /// Microseconds to wait before the next run.
     fn next_wait_us(&self) -> u64 {
-        let override_us = self.next_override_us.swap(0, Ordering::Relaxed);
-        let base = if override_us != 0 {
-            override_us
-        } else {
-            self.period_us.load(Ordering::Relaxed)
-        };
-        if self.boosted.swap(false, Ordering::Relaxed) {
-            base / 10
-        } else {
-            base
-        }
+        self.period_us.load(Ordering::Relaxed)
     }
 
     fn record(&self, run_us: u64) {
@@ -193,9 +175,6 @@ impl TaskSlot {
         self.resource.store(RESOURCE_NONE as u64, Ordering::Relaxed);
         self.once.store(false, Ordering::Relaxed);
         self.enabled.store(true, Ordering::Relaxed);
-        self.boosted.store(false, Ordering::Relaxed);
-        self.stop.store(false, Ordering::Relaxed);
-        self.next_override_us.store(0, Ordering::Relaxed);
         self.count_stats.store(true, Ordering::Relaxed);
         self.avg_run_us.store(0, Ordering::Relaxed);
         // Drain any stale wake so a freshly-claimed slot doesn't fire immediately.
@@ -423,7 +402,7 @@ pub fn registered_task_count() -> usize {
 
 /// One Embassy task per Deluge task. Pool sized to [`MAX_TASKS`] so every slot can
 /// be live at once. Waits per the slot's schedule (or condition), runs the C++
-/// handle to completion, and loops until removed or (for once tasks) it has run.
+/// handle to completion, and loops; a once task exits after its first run.
 #[embassy_executor::task(pool_size = 32)]
 async fn task_runner(slot: &'static TaskSlot) {
     // Acquire-pair with `claim`'s store of `used`/handle so we observe them.
@@ -432,11 +411,8 @@ async fn task_runner(slot: &'static TaskSlot) {
     }
 
     loop {
-        if slot.stop.load(Ordering::Relaxed) {
-            break;
-        }
         if !slot.enabled.load(Ordering::Relaxed) {
-            // Blocked: park until unblockTask/runTask/removeTask signals us.
+            // Blocked: park until unblockTask/runTask signals us.
             slot.wake.wait().await;
             continue;
         }
@@ -446,27 +422,20 @@ async fn task_runner(slot: &'static TaskSlot) {
                 // Conditional task: poll the predicate, then run once.
                 // SAFETY: `cond` is the C++ app's predicate; calling it is benign.
                 while !unsafe { cond() } {
-                    if slot.stop.load(Ordering::Relaxed) {
-                        slot.used.store(false, Ordering::Release);
-                        return;
-                    }
                     Timer::after(COND_POLL).await;
                 }
             }
             None => {
-                // Timed task: wait the (possibly boosted/overridden) interval, but
-                // wake early on an explicit signal (runTask / unblock / remove).
+                // Timed task: wait the interval, but wake early on an explicit
+                // signal (runTask / unblock).
                 let wait = Duration::from_micros(slot.next_wait_us());
                 if let Either::Second(()) = select(Timer::after(wait), slot.wake.wait()).await {
-                    // Signalled: re-evaluate stop/enabled at the top of the loop.
+                    // Signalled: re-evaluate enabled at the top of the loop.
                     continue;
                 }
             }
         }
 
-        if slot.stop.load(Ordering::Relaxed) {
-            break;
-        }
         if !slot.enabled.load(Ordering::Relaxed) {
             continue;
         }
@@ -483,8 +452,8 @@ async fn task_runner(slot: &'static TaskSlot) {
                 None
             };
 
-            // Set CURRENT for the *ForCurrentTask C-ABI calls, saving/restoring the
-            // previous value: the audio interrupt-executor can preempt a thread-mode
+            // Set CURRENT so `ignoreForStats` can find the running task, saving/restoring
+            // the previous value: the audio interrupt-executor can preempt a thread-mode
             // task_runner mid-handle, and must leave CURRENT as it found it so the
             // preempted task's id is intact when it resumes.
             let idx = SLOTS.iter().position(|s| core::ptr::eq(s, slot)).unwrap() as TaskID;
@@ -561,27 +530,6 @@ pub extern "C" fn addRepeatingTask(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn addOnceTask(
-    task: TaskHandle,
-    _priority: u8,
-    timeToWait: f64,
-    name: *const core::ffi::c_char,
-    resource: ResourceID,
-) -> TaskID {
-    claim(
-        name,
-        task,
-        None,
-        secs_to_us(timeToWait),
-        0,
-        resource,
-        true,
-        true,
-        false,
-    )
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn addConditionalTask(
     task: TaskHandle,
     _priority: u8,
@@ -590,14 +538,6 @@ pub extern "C" fn addConditionalTask(
     resource: ResourceID,
 ) -> TaskID {
     claim(name, task, condition, 0, 0, resource, true, true, false)
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn removeTask(id: TaskID) {
-    if let Some(slot) = slot_of(id) {
-        slot.stop.store(true, Ordering::Relaxed);
-        slot.wake.signal(());
-    }
 }
 
 #[unsafe(no_mangle)]
@@ -617,26 +557,10 @@ pub extern "C" fn unblockTask(id: TaskID) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn boostTask(id: TaskID) {
-    if let Some(slot) = slot_of(id) {
-        slot.boosted.store(true, Ordering::Relaxed);
-        slot.wake.signal(());
-    }
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn runTask(id: TaskID) {
     // Wake the task so it runs as soon as the executor next polls it.
     if let Some(slot) = slot_of(id) {
         slot.wake.signal(());
-    }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn setNextRunTimeforCurrentTask(seconds: f64) {
-    if let Some(slot) = current_slot() {
-        slot.next_override_us
-            .store(secs_to_us(seconds), Ordering::Relaxed);
     }
 }
 
@@ -650,11 +574,6 @@ pub extern "C" fn ignoreForStats() {
 #[unsafe(no_mangle)]
 pub extern "C" fn getAverageRunTimeForTask(id: TaskID) -> f64 {
     slot_of(id).map_or(0.0, |s| us_to_secs(s.avg_run_us.load(Ordering::Relaxed)))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn getAverageRunTimeforCurrentTask() -> f64 {
-    current_slot().map_or(0.0, |s| us_to_secs(s.avg_run_us.load(Ordering::Relaxed)))
 }
 
 #[unsafe(no_mangle)]
@@ -672,33 +591,16 @@ pub extern "C" fn isSDRoutineActive() -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// Cooperative yield (scheduler_api.h yield / yieldWithTimeout / yieldToIdle).
+// Cooperative yield (scheduler_api.h yield).
 //
 // Nothing on this BSP suspends: the yielding operations (song load, stem export,
-// grid clip create) are stepped synchronously by their callers, so `yield*`
-// here is a defensive no-wait (it never busy-waits and never hangs). SD goes through
+// grid clip create) are stepped synchronously by their callers, so `yield` here
+// is a defensive no-wait (it never busy-waits and never hangs). SD goes through
 // the async driver (sd.rs), so nothing waits on storage here.
 // ---------------------------------------------------------------------------
 
-/// The whole of `yield*` on this BSP: evaluates the predicate once and returns it;
-/// never waits, never hangs.
-fn poll_once(until: RunCondition) -> bool {
-    // SAFETY: `until` is the C++ caller's predicate; calling it is benign polling.
-    until.map_or(true, |p| unsafe { p() })
-}
-
 #[unsafe(export_name = "yield")]
 pub extern "C" fn r#yield(until: RunCondition) {
-    poll_once(until);
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn yieldWithTimeout(until: RunCondition, timeout: f64) -> bool {
-    let _ = timeout;
-    poll_once(until)
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn yieldToIdle(until: RunCondition) -> bool {
-    poll_once(until)
+    // SAFETY: `until` is the C++ caller's predicate; calling it is benign polling.
+    let _ = until.map_or(true, |p| unsafe { p() });
 }

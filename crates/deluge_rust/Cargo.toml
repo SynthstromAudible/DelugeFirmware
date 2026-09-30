@@ -27,10 +27,10 @@ deluge_resource = { path = "../deluge_resource" }
 deluge_audio_format = { path = "../deluge_audio_format" }
 # SR3a Task 1: optional -- only pulled into the umbrella build via the `sim` feature below.
 # Provides the Rust region-port cursor (`deluge_sample_source_*`/`deluge_sample_region_*`,
-# SR2d-5); the C-host sim's reader already calls these, and once this crate's strong
-# `#[no_mangle]` defs are linked in they override `sample_source.cpp`'s
-# `__attribute__((weak))` fallback -- mirrors `deluge-bsp-rust`'s own direct dependency on
-# device (src/bsp/rust/Cargo.toml).
+# SR2d-5); the C-host sim's reader already calls these. No weak C++ fallback exists --
+# pulling this dependency in via the `sim` feature is what makes the strong `#[no_mangle]`
+# defs present at all -- mirrors `deluge-bsp-rust`'s own direct dependency on device
+# (src/bsp/rust/Cargo.toml).
 deluge_sample_source = { path = "../deluge_sample_source", optional = true }
 # SIM (C2b): the Rust cluster fill, pulled into the sim's libdeluge_rust.a. native_fill = the
 # manager-reaching fill (native_begin/native_finish); sim_convert = build convert shim-only
@@ -56,9 +56,10 @@ deluge_sample_stream = { path = "../deluge_sample_stream", optional = true }
 # The sim enables this with `--features deluge_rust/asan` under DELUGE_SIM_SANITIZE.
 asan = ["deluge_alloc/asan"]
 # SR3a Task 1: build the Rust region cursor into the sim's `libdeluge_rust.a` so the C-host
-# sim resolves the SAME strong cursor as device/host_app (SR2d-5), instead of
-# `sample_source.cpp`'s weak C++ fallback. Forwards to `deluge_sample_source`'s own `sim`
-# feature, which is what actually widens `abi.rs`'s cfg gate to emit the `#[no_mangle]`
+# sim resolves the SAME strong cursor as device/host_app (SR2d-5); no weak C++ fallback
+# exists, so without this feature the sim has no cursor at all. Forwards to
+# `deluge_sample_source`'s own `sim` feature, which is what actually widens `abi.rs`'s
+# cfg gate to emit the `#[no_mangle]`
 # symbols -- pulling in the dependency alone would compile the cursor as dead, unexported
 # code. `sim/CMakeLists.txt` passes `--features deluge_rust/sim` unconditionally for the sim
 # build; off by default, so a plain `cargo build -p deluge_rust` is unaffected, and neither is

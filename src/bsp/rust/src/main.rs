@@ -141,9 +141,9 @@ mod audio_host;
 /// — and publishes a plain result the C++ side collects on its own tier. It calls
 /// no C++ itself; see its module doc for the two constraints that force that. Compiled
 /// on the Embassy BSP unconditionally (device, or host under `host_app`) so
-/// `deluge_audio_load_async_active`/`_request`/`_collect` always resolve to this
-/// crate's strong symbols rather than `audio_load_abi.cpp`'s weak fallbacks. The loader has no switch -- see its module
-/// doc's "Always on".
+/// `deluge_audio_load_async_active`/`_request`/`_collect` are always defined --
+/// `audio_load_abi.cpp` declares no fallback for them, so omitting this module would leave them
+/// undefined at link time. The loader has no switch -- see its module doc's "Always on".
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod audio_loader;
 /// The drive's render-window pacing, which `audio` runs.
@@ -284,7 +284,12 @@ mod scenario;
 /// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
 /// implemented on the Embassy executor (one task per registered Deluge task).
 mod scheduler;
-/// block_device.h + FatFS diskio — SD card over deluge_bsp::sd.
+/// block_device.h — the C-ABI SD-card entry points (`deluge_block_ready`/
+/// `deluge_block_read`/`deluge_block_write`) and the shared `SD_BUS`/async
+/// helpers over `deluge_bsp::sd`. The app's real transfers go through
+/// `fat_block_device::SdBlockDevice` (device) and
+/// `efatfs_host_shim::HostSdBlockDevice` (host) instead — see `sd.rs`'s
+/// module doc.
 mod sd;
 /// Streaming-underrun harness: packs a real FAT SD image from the golden
 /// harness's song/sample corpus for [`scenario`] to load. `host_app`-only.
@@ -535,7 +540,7 @@ pub extern "C" fn main() -> ! {
     unsafe { boot_mem::init_sdram_memory() };
 
     // Rust SDRAM allocator gets the reserved top slice; the app owns the rest
-    // (its heap runs __heap_start .. deluge_memory_external_end()).
+    // (its heap runs __heap_start .. boot_mem::RUST_SDRAM_BASE).
     unsafe {
         allocator::SDRAM.init(
             boot_mem::RUST_SDRAM_BASE as *mut u8,

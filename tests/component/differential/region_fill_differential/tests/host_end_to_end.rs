@@ -12,7 +12,7 @@
 //! satisfied (board/display/USB/OLED init, ~20+ symbols), not just the storage path. Verified
 //! empirically: enabling `--features host_app,async_streaming_loader` on a plain `deluge_resource`-
 //! only host test (normally built with neither feature) fails to link with 20+ undefined symbols
-//! (`deluge_control_enable_oled`, `deluge_board_init_early`, `openUSBHost`,
+//! (`deluge_control_enable_oled`, `deluge_board_init_early`,
 //! `deluge_board_unlock_data_cache`, ...) — exactly the "cc-compiling a large C++ closure" case the
 //! brief calls out as the trigger to fall back to a host adapter instead. (`ProdOps`'s two
 //! `StreamedChunk` accessors — `deluge_streaming_chunk_payload`/`_set_loaded` — used to be a second

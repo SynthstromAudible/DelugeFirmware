@@ -128,8 +128,8 @@ deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
 # wrapping `cursor::SampleSource<ManagerResidency>` over the SAME `deluge_resource` handle above --
 # calls it directly, not through a second manager. Its strong `#[no_mangle]` symbols (gated
 # `cfg(any(target_os = "none", feature = "host_app"))`, see abi.rs) are the SOLE definition of the
-# `deluge_sample_source_*`/`deluge_sample_region_*` C ABI on device (the C++ weak fallback
-# sample_source.cpp was deleted in SR3f). It does NOT depend on
+# `deluge_sample_source_*`/`deluge_sample_region_*` C ABI on device (there is no C++ weak
+# fallback for them). It does NOT depend on
 # (or define) any `deluge_streaming_*` symbol -- it only CALLS a couple of those as `unsafe extern "C"`
 # (the open-bridge accessors), which the archived C++ app closure provides -- so this composes without a
 # duplicate-symbol conflict.

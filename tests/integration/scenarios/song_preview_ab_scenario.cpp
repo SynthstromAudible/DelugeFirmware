@@ -1670,8 +1670,9 @@ void finishRun() {
 
 	case ListingStep::Mount: {
 		// One notice, not zero and not two. Zero is the hazard the mount generation exists for: a driver that mounts
-		// silently leaves is_mounted() true, and an edge detector that sampled that would skip the notification
-		// forever. Two is the other side of it -- both initSD() and the tick surface noticing the same mount.
+		// silently leaves the filesystem mounted, and an edge detector that sampled a one-off mounted/unmounted
+		// flag around its own mount call would skip the notification forever. Two is the other side of it -- both
+		// initSD() and the tick surface noticing the same mount.
 		const uint32_t notices = StorageManager::cardMountNotices() - g_mountNoticesBefore;
 		printf("SP-LISTING mount listed=%zu notices=%u requests=%d deferrals=%d\n", got.names.size(), notices,
 		       runRequests(), BrowserListingAbProbe::deferrals());

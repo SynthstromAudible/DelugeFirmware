@@ -35,21 +35,6 @@ extern "C" {
 /// [task]
 DelugeStatus deluge_audio_start(void);
 
-/// Stop the audio stream. No further `deluge_app_render()` calls occur after
-/// this returns. [task]
-void deluge_audio_stop(void);
-
-/// Maximum number of frames the BSP may request in a single `deluge_app_render`
-/// call. The application can size scratch buffers from this. [task]
-uint32_t deluge_audio_max_block_frames(void);
-
-/// Nominal output sample rate in Hz. [task] [audio]
-uint32_t deluge_audio_sample_rate(void);
-
-/// Approximate output latency in frames (render -> DAC), for timing-sensitive
-/// features (e.g. aligning MIDI/gate output to audio). [task] [audio]
-uint32_t deluge_audio_output_latency_frames(void);
-
 /// Drive the board's audio path. Flushes any rendered-but-unplayed samples to
 /// the DAC ring; then, while the previous block is fully flushed and the
 /// board's pacing policy asks for more (on RZ/A1L: render as far as the DMA

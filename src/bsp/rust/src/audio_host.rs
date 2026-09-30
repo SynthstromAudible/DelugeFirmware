@@ -435,16 +435,6 @@ pub extern "C" fn deluge_audio_await_block() {
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_max_block_frames() -> u32 {
-    APP_BLOCK_FRAMES as u32
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_sample_rate() -> u32 {
-    44_100
-}
-
 /// Render via the real app render path: into the simulator's audio device while it has room (`sim`), else one block
 /// into the null sink. Called directly by the priority-0 C++ task (`AudioEngine::routine_task`)
 /// — see this module's doc comment; there is no separate pump task here.

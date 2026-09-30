@@ -193,25 +193,6 @@ DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, uint32_t* o
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_file_read(uint32_t handle, void* dst, uint32_t count, uint32_t* out_read) {
-	auto* file = checkout(g_open_files, g_open_files_gen, handle);
-	if (file == nullptr) {
-		return DELUGE_ERR_PARAM;
-	}
-	auto& entry = g_entries.at(file->path);
-	uint32_t available =
-	    entry.data.size() > file->position ? static_cast<uint32_t>(entry.data.size()) - file->position : 0;
-	uint32_t real = count < available ? count : available;
-	std::memcpy(dst, entry.data.data() + file->position, real);
-	if (real < count) {
-		// Fill semantics: zero-pad a short tail at real EOF.
-		std::memset(static_cast<uint8_t*>(dst) + real, 0, count - real);
-	}
-	file->position += real;
-	*out_read = count;
-	return DELUGE_OK;
-}
-
 DelugeStatus deluge_efatfs_file_read_exact(uint32_t handle, void* dst, uint32_t count, uint32_t* out_read) {
 	auto* file = checkout(g_open_files, g_open_files_gen, handle);
 	if (file == nullptr) {
@@ -257,15 +238,6 @@ DelugeStatus deluge_efatfs_file_size(uint32_t handle, uint32_t* out_size) {
 		return DELUGE_ERR_PARAM;
 	}
 	*out_size = static_cast<uint32_t>(g_entries.at(file->path).data.size());
-	return DELUGE_OK;
-}
-
-DelugeStatus deluge_efatfs_file_truncate(uint32_t handle, uint32_t new_len) {
-	auto* file = checkout(g_open_files, g_open_files_gen, handle);
-	if (file == nullptr) {
-		return DELUGE_ERR_PARAM;
-	}
-	g_entries.at(file->path).data.resize(new_len);
 	return DELUGE_OK;
 }
 

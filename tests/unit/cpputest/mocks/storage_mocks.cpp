@@ -81,8 +81,9 @@ void logAudioAction(char const* /*string*/, const char* /*file*/, int /*line*/) 
 // rendering here.
 void routineWithClusterLoading() {
 }
-// Counts staging attempts made after boot, through the channels. These specs never reach the channel arm -- a
-// C++-only build never finishes booting, so every staged open takes its synchronous arm -- but openDocumentStaged
+// Counts staging attempts made after boot, through the channels. These specs never reach the channel arm -- this
+// mock build links no BSP and never finishes booting, so every staged open takes its synchronous arm -- but
+// openDocumentStaged
 // references it unconditionally, so it needs a body to link against.
 void noteSongStageTick() {
 }

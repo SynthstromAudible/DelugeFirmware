@@ -178,12 +178,11 @@ static FS: Mutex<CriticalSectionRawMutex, Option<Fs>> = Mutex::new(None);
 ///
 /// The C++ side reads this to notice an unmounted->mounted EDGE, which is what drives
 /// `AudioFileManager::firstCardRead()` (and through it `cardReinserted()`, which re-checks every
-/// resident sample against the new card). Sampling `deluge_efatfs_is_mounted()` either side of a
+/// resident sample against the new card). A one-off before/after sample of the mount state around a
 /// `deluge_efatfs_mount()` call only works while C++ is the only thing that ever mounts; the
 /// directory channel's driver also mounts, on the storage tier, because mounting is real card I/O
-/// and its caller is on the interaction tier. A driver that mounted silently would leave
-/// `is_mounted()` reading true with the notification never fired, and every later check would see
-/// "already mounted" and skip it forever.
+/// and its caller is on the interaction tier. Persisting the last-seen generation across calls,
+/// instead of re-sampling fresh each time, catches the edge no matter which caller mounted.
 ///
 /// A counter rather than a flag so no reader can consume the edge out from under another.
 static MOUNT_GENERATION: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
@@ -468,26 +467,6 @@ pub(crate) async fn task_file_open(path: &str, mode: u8) -> Result<u32, DelugeSt
     TASK_FILES.lock().await.insert(ctx).ok_or(DELUGE_ERR_IO) // table full
 }
 
-/// Fill-semantics read (zero-pads a short tail at EOF, like [`read_at`]) at the
-/// handle's current position, advancing it by `dst.len()` on success.
-async fn task_file_read(handle: u32, dst: &mut [u8]) -> Result<(), DelugeStatus> {
-    let Some((generation, ctx, pos)) = TASK_FILES.lock().await.checkout(handle) else {
-        return Err(DELUGE_ERR_PARAM);
-    };
-    let result = with_fs(async |fs| efatfs_core::read_context(fs, ctx, pos, dst).await).await;
-    match result {
-        Some(Some((newctx, filled))) => {
-            TASK_FILES
-                .lock()
-                .await
-                .commit(handle, generation, newctx, pos + dst.len() as u32);
-            if filled { Ok(()) } else { Err(DELUGE_ERR_IO) }
-        }
-        Some(None) => Err(DELUGE_ERR_IO),
-        None => Err(DELUGE_ERR_NO_FILESYSTEM),
-    }
-}
-
 /// EOF-honest read at the handle's current position -- the default for the
 /// port's `File::read` (`file.cpp`). Returns the TRUE byte count (may be less
 /// than `dst.len()` at EOF, never zero-padded), advancing the position by that
@@ -690,34 +669,6 @@ pub extern "C" fn deluge_efatfs_file_open(
     }
 }
 
-/// C-ABI: fill-semantics read (see [`task_file_read`]) at the handle's current
-/// position; always reports `*out_read = count` on success.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_file_read(
-    handle: u32,
-    dst: *mut u8,
-    count: u32,
-    out_read: *mut u32,
-) -> DelugeStatus {
-    crate::tier_meter::note(crate::tier_meter::Entry::FileRead);
-    if dst.is_null() || out_read.is_null() {
-        return DELUGE_ERR_PARAM;
-    }
-    // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
-    let buf = unsafe { core::slice::from_raw_parts_mut(dst, count as usize) };
-    let result = crate::sim_block::block_on(task_file_read(handle, buf));
-    match result {
-        Ok(()) => {
-            // SAFETY: `out_read` is non-null (checked above).
-            unsafe {
-                *out_read = count;
-            }
-            DELUGE_OK
-        }
-        Err(st) => st,
-    }
-}
-
 /// C-ABI: EOF-honest read (see [`task_file_read_exact`]) -- the default for the
 /// port's `File::read`. `*out_read` is the true byte count, `<= count`.
 #[unsafe(no_mangle)]
@@ -801,17 +752,6 @@ pub extern "C" fn deluge_efatfs_file_size(handle: u32, out_size: *mut u32) -> De
             }
             DELUGE_OK
         }
-        Err(st) => st,
-    }
-}
-
-/// C-ABI: truncate to `new_len` bytes.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_file_truncate(handle: u32, new_len: u32) -> DelugeStatus {
-    crate::tier_meter::note(crate::tier_meter::Entry::FileTruncate);
-    let result = crate::sim_block::block_on(task_file_truncate(handle, new_len));
-    match result {
-        Ok(()) => DELUGE_OK,
         Err(st) => st,
     }
 }
@@ -946,16 +886,6 @@ pub extern "C" fn deluge_efatfs_mount() -> bool {
     crate::tier_meter::note(crate::tier_meter::Entry::Mount);
     let fut = mount();
     crate::sim_block::block_on(fut).is_ok()
-}
-
-/// C-ABI: whether the FS is currently mounted (pure state check, no I/O). Lets a caller distinguish
-/// a fresh `mount()` transition from the already-mounted case, since `mount()`'s own success return
-/// can't tell them apart (it's idempotent).
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_is_mounted() -> bool {
-    crate::tier_meter::note(crate::tier_meter::Entry::IsMounted);
-    let fut = with_fs(async |_fs| ());
-    crate::sim_block::block_on(fut).is_some()
 }
 
 /// C-ABI (libdeluge/storage_busy.h): is a filesystem operation in flight? Host mirror of the
@@ -1372,13 +1302,6 @@ pub extern "C" fn deluge_efatfs_stream_read_at_via(
         }
         None => false,
     }
-}
-
-/// C-ABI: persist the handle's accumulated size/mtime edit to disk.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_stream_flush(handle: u32) -> bool {
-    crate::tier_meter::note(crate::tier_meter::Entry::StreamFlush);
-    crate::sim_block::block_on(stream_flush(handle))
 }
 
 /// C-ABI: truncate to `new_len` bytes.

@@ -81,10 +81,10 @@ deluge_sample_fill = { path = "../../../../../crates/deluge_sample_fill", featur
 
 # The Rust region-port cursor (`deluge_sample_source_*`/`deluge_sample_region_*`) and the
 # sample range-reader C ABI (`deluge_sample_reader_*`) — the SOLE definitions of those C-ABI
-# symbols now that the C++ side calls through to them unconditionally (`sample_source.cpp`/
-# `sample_reader_bridge.cpp` in the archived `deluge_app` object closure reference
+# symbols: the C++ side calls through to them unconditionally (`sample_source.cpp`/
+# `sample_reader_bridge.cpp` in the `deluge_app` object closure reference
 # `deluge_sample_reserve_*`/`deluge_sample_peek`/`deluge_sample_read`/`deluge_sample_invalidate`/
-# `deluge_sample_reader_*` directly; there is no more C++ weak fallback), so `golden_vt_render`
+# `deluge_sample_reader_*` directly, and there is no C++ weak fallback), so `golden_vt_render`
 # needs them to link against the `deluge_app` object closure. `host_app` feature widens each crate's own `abi.rs`
 # cfg_attr gate to export these symbols on host (mirrors `deluge-bsp-rust`'s own `host_app`
 # feature list in `../Cargo.toml`).

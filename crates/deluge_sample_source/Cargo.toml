@@ -30,19 +30,18 @@ critical-section = { version = "1", features = ["std"] }
 # feature = "host_app"), unsafe(no_mangle))]` selector can tell "device" and "host, but standing in for
 # the device via the host-built C++ app closure" apart from a plain `cargo test`/`cargo build` on this
 # crate alone, which must NOT export these symbols (they'd never be linked against anything and would
-# just be dead weight -- worse, on the C-host sim, which never enables this feature, exporting them
-# would risk colliding with the weak C++ fallback it deliberately keeps). `deluge-bsp-rust` forwards its
-# own `host_app` feature down to this one (see its Cargo.toml).
+# just be dead weight). `deluge-bsp-rust` forwards its own `host_app` feature down to this one (see its
+# Cargo.toml).
 host_app = []
 
 # SIM Task 1: the C-host sim's own sibling of `host_app` above. The sim links this crate through the
 # `deluge_rust` umbrella (crates/deluge_rust/Cargo.toml's own `sim` feature forwards to this one) rather
 # than standing in for a device build, so it needs a distinct selector -- but it drives the exact same
 # `abi.rs` cfg_attr gate (widened below to `any(target_os = "none", feature = "host_app", feature =
-# "sim")`), because the point of this feature is precisely to make the strong Rust cursor symbols win the
-# sim link over `sample_source.cpp`'s `__attribute__((weak))` fallback (SR2d-5), so golden can validate
-# the Rust cursor runs identically to device/host_app. Carries no dependency of its own, same shape as
-# `host_app`.
+# "sim")`), because the point of this feature is precisely to make the strong Rust cursor symbols
+# present for the sim link at all (SR2d-5) -- no weak C++ fallback exists, so without this feature the
+# sim has no cursor -- so golden can validate the Rust cursor runs identically to device/host_app.
+# Carries no dependency of its own, same shape as `host_app`.
 sim = []
 
 [lib]

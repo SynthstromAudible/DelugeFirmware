@@ -203,10 +203,6 @@ bool waitingForSDRoutineToEnd = false;
 // old uartPutCharBack back-pressure).
 static DelugeInputEvent heldInputEvent;
 
-extern uint8_t anythingInitiallyAttachedAsUSBHost;
-
-bool closedPeripheral = false;
-
 extern "C" {
 /// Wait for one second
 uint32_t timeUSBInitializationEnds = kSampleRate;
@@ -217,11 +213,6 @@ void setTimeUSBInitializationEnds(int32_t timeFromNow) {
 	usbInitializationPeriodComplete = 0;
 }
 }
-
-extern "C" void openUSBHost(void);
-extern "C" void closeUSBHost();
-extern "C" void openUSBPeripheral();
-extern "C" void closeUSBPeripheral(void);
 
 uint32_t picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
@@ -294,14 +285,6 @@ bool readButtonsAndPads() {
 	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
 		usbInitializationPeriodComplete = 1;
 	}
-
-	/*
-	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >=
-	(44100 << 1)) { D_PRINTLN("closing peripheral"); closeUSBPeripheral(); D_PRINTLN("switching back to host");
-	    openUSBHost();
-	    closedPeripheral = true;
-	}
-	*/
 
 	if (waitingForSDRoutineToEnd) {
 		if (isSDRoutineActive()) {
@@ -422,13 +405,6 @@ TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
 extern "C" void deluge_startup_skip_settings_prelude() {
 	startupConditionalTask = deluge::storage::armStartupSong;
 }
-
-extern "C" void usb_pstd_pcd_task(void);
-extern "C" void usb_cstd_usb_task(void);
-
-extern "C" volatile uint32_t usbLock;
-
-extern "C" void usb_main_host(void);
 
 void registerTasks() {
 	// addRepeatingTask arguments are:
@@ -639,21 +615,6 @@ static void deluge_boot(const DelugeBoard* board) {
 	// Assign each ConnectedUSBMIDIDevice its boundary MIDI port and initialise the
 	// MIDI transport before the USB stack can drive any MIDI transfers.
 	MIDIDeviceManager::init();
-
-	usbLock = 1;
-	openUSBHost();
-
-	// If nothing was plugged in to us as host, we'll go peripheral
-	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
-	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
-	if (!anythingInitiallyAttachedAsUSBHost) {
-		D_PRINTLN("switching from host to peripheral");
-		closeUSBHost();
-		openUSBPeripheral();
-	}
-
-	usbLock = 0;
 
 	// The three settings files are NOT read here. They are read by the settings prelude
 	// (storage/startup_song.h) behind the same card-ready trigger as the startup song, through the

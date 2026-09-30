@@ -57,25 +57,18 @@ void deluge_midi_init(void);
 /// Number of MIDI ports the board exposes. [task]
 uint8_t deluge_midi_port_count(void);
 
-/// Transport kind for a port. [task]
-DelugeMidiPortKind deluge_midi_port_kind(DelugeMidiPort port);
-
 /// The port carrying USB-MIDI device slot `device` (0-based) on `controller`.
 /// Stable for the life of the boot. One port per USB-MIDI device: the device's
 /// virtual cables are addressed inside the 4-byte event packets that flow over
 /// the port, not by separate ports. [task]
 DelugeMidiPort deluge_midi_usb_port(uint8_t controller, uint8_t device);
 
-/// Read up to `max` received bytes from `port` into `dst`. Non-blocking;
-/// returns the number of bytes copied (0 if none available). USB-MIDI ports
-/// deliver whole 4-byte event packets (decode with the deluge_midi protocol
-/// library) and the BSP arms its own receive transfers — there is nothing to
-/// re-arm or poll at this boundary. [task] [isr]
-uint32_t deluge_midi_read(DelugeMidiPort port, uint8_t* dst, uint32_t max);
-
-/// Like deluge_midi_read(), but when it returns > 0 also fills `*arrival_ticks` with the capture stamp of the
-/// drained batch's arrival (see `deluge_audio_stamp_to_render_offset`), as deluge_midi_din_read_timed() does
-/// per byte. Every message in the batch shares that one stamp. [task]
+/// Read up to `max` received bytes from `port` into `dst`, filling `*arrival_ticks` with the capture
+/// stamp of the drained batch's arrival (see `deluge_audio_stamp_to_render_offset`), as
+/// deluge_midi_din_read_timed() does per byte. Every message in the batch shares that one stamp.
+/// Non-blocking; returns the number of bytes copied (0 if none available). USB-MIDI ports deliver
+/// whole 4-byte event packets (decode with the deluge_midi protocol library) and the BSP arms its own
+/// receive transfers — there is nothing to re-arm or poll at this boundary. [task] [isr]
 uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max, uint32_t* arrival_ticks);
 
 /// Queue `len` bytes for transmission on `port`. Returns the number of bytes
@@ -108,11 +101,6 @@ void deluge_midi_flush(DelugeMidiPort port);
 /// the app. (DIN has no state machine; a BSP whose executor already drives the
 /// USB task may make this a no-op.) [task]
 void deluge_midi_service(void);
-
-/// True if `port` currently has a connected/usable MIDI endpoint (a DIN port is
-/// always present; a USB port is present only while a device is enumerated). The
-/// app polls this instead of reading USB-stack connection globals. [task]
-bool deluge_midi_port_connected(DelugeMidiPort port);
 
 /// USB-MIDI role queries. On this board USB host is the MIDI-device transport, so
 /// the app reads its role through the MIDI boundary rather than the USB-stack mode

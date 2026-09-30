@@ -16,7 +16,7 @@ unsafe extern "C" {
 }
 
 /// SDRAM split: the application owns the low part (its heap runs from
-/// `__heap_start` up to [`crate::ffi`]'s `deluge_memory_external_end`); the Rust
+/// `__heap_start` up to the base of the Rust-owned slice below); the Rust
 /// allocator (deluge-bsp DMA/audio buffers) gets this reserved slice at the top.
 pub const SDRAM_BASE: usize = 0x0C00_0000;
 pub const SDRAM_SIZE: usize = 64 * 1024 * 1024;

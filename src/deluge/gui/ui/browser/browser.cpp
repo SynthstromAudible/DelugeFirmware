@@ -194,8 +194,8 @@ static Error directoryOpenError(DelugeStatus status) {
 
 bool Browser::usingDirectoryChannel() {
 	// Every caller that reaches readFileItemsForFolder after boot can suspend: listings and typing predictions resume
-	// from graphicsRoutine(). Before boot there is no driver running to answer, and a C++-only build never finishes
-	// booting; both open directly, which is legal there.
+	// from graphicsRoutine(). Before boot there is no driver running to answer, and the unit tests (which link no
+	// BSP) never finish booting; both open directly, which is legal there.
 	return deluge::boot::finished();
 }
 

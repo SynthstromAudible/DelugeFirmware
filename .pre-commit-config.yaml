@@ -63,6 +63,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/|scripts/(check_platform_boundary\.py|platform_boundary_allowlist\.txt))
+      - id: check-abi-surface
+        name: every declared libdeluge function has a definition
+        entry: python3 scripts/check_abi_surface.py --check
+        language: system
+        pass_filenames: false
+        files: ^(include/libdeluge/|src/OSLikeStuff/scheduler_api\.h|src/bsp/rust/src/|crates/|scripts/check_abi_surface\.py)
       - id: dsp-next-boundary
         name: dsp-next L0 boundary
         description: src/deluge/dsp-next must not include app layers, the legacy dsp/, or the HAL/BSP

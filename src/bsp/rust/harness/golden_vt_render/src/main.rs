@@ -147,16 +147,18 @@ mod ffi;
 #[path = "../../../src/ffi_extra.rs"]
 mod ffi_extra;
 /// The single-slot whole-file byte channel and its request/collect C ABI. Compiled UNCONDITIONALLY:
-/// the channel has no feature switch, and `deluge_card_flush` names it. A build without it would let
-/// the C++ weak fallback resolve `deluge_file_bytes_async_active` to false, and every settings read
-/// and write would quietly take the inline arm while the gate reported a green run; `SC-CHANNEL
-/// served=0` is what catches that.
+/// the channel has no feature switch, and `deluge_card_flush` names it. There is no C++ fallback for
+/// `deluge_file_bytes_async_active`, so a module missing from this list would leave it undefined and
+/// fail the link; `SC-CHANNEL served=0` is the runtime check that the channel is actually serving
+/// requests, not just linked.
 #[path = "../../../src/file_bytes.rs"]
 mod file_bytes;
 /// The single-slot directory channel and its request/collect C ABI. Compiled UNCONDITIONALLY, like `file_bytes`
-/// above: the channel has no feature switch, and a build without it would let the C++ weak fallback answer every
-/// listing's request with UNKNOWN forever. `deluge_card_flush` names it too, so `card` cannot be compiled without
-/// it; the reverse does not hold, and a build without `card` has no caller for its `flush_tables`.
+/// above: the channel has no feature switch, and there is no C++ fallback for
+/// `deluge_file_directory_async_active` -- a module missing from this list fails the link instead of
+/// silently answering every listing's request with UNKNOWN. `deluge_card_flush` names it too, so `card`
+/// cannot be compiled without it; the reverse does not hold, and a build without `card` has no caller
+/// for its `flush_tables`.
 #[path = "../../../src/file_directory.rs"]
 mod file_directory;
 /// The single-slot file-prefix channel and its request/collect C ABI. Compiled unconditionally: the
@@ -164,9 +166,9 @@ mod file_directory;
 #[path = "../../../src/file_prefix.rs"]
 mod file_prefix;
 /// The recorder's async stream-write driver. Included here for the same reason every module above
-/// is: this binary is a separate package, so a module missing from this list resolves to the C++
-/// weak fallback and every write quietly takes the synchronous arm — which is exactly how the
-/// settings channel first shipped a green run reporting nothing served.
+/// is: this binary is a separate package, and there is no C++ fallback for
+/// `deluge_file_write_async_active`, so a module missing from this list fails the link instead of
+/// quietly taking the synchronous arm.
 #[path = "../../../src/file_write.rs"]
 mod file_write;
 /// The write channel's answer slot, storage for `file_write` above. Included here for the same reason every

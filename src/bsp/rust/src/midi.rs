@@ -14,9 +14,7 @@ use deluge_bsp::uart;
 use deluge_bsp::usb::classes::midi as usb_midi;
 
 use crate::sys::{
-    DelugeMidiPort, DelugeMidiPortKind, DelugeMidiPortKind_DELUGE_MIDI_DIN as KIND_DIN,
-    DelugeMidiPortKind_DELUGE_MIDI_USB_DEVICE as KIND_USB_DEV, DelugeUsbHostEvent,
-    DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,
+    DelugeMidiPort, DelugeUsbHostEvent, DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,
 };
 
 const DIN_PORT: u8 = 0;
@@ -58,22 +56,8 @@ pub extern "C" fn deluge_midi_port_count() -> u8 {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_port_kind(port: DelugeMidiPort) -> DelugeMidiPortKind {
-    if port == DIN_PORT {
-        KIND_DIN
-    } else {
-        KIND_USB_DEV
-    }
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_usb_port(_controller: u8, device: u8) -> DelugeMidiPort {
     USB_PORT_BASE + device
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_read(port: DelugeMidiPort, dst: *mut u8, max: u32) -> u32 {
-    deluge_midi_read_timed(port, dst, max, core::ptr::null_mut())
 }
 
 #[unsafe(no_mangle)]
@@ -179,15 +163,6 @@ pub extern "C" fn deluge_midi_flush(_port: DelugeMidiPort) {
 pub extern "C" fn deluge_midi_service() {
     // DIN has no state machine; the USB device + endpoint pumps run as their own
     // embassy tasks (see usb.rs), so there's nothing to pump here.
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_midi_port_connected(port: DelugeMidiPort) -> bool {
-    match port {
-        DIN_PORT => true, // DIN is always present
-        USB_PERIPHERAL_PORT => usb_midi::connected(),
-        _ => false, // future USB-host device slots
-    }
 }
 
 #[unsafe(no_mangle)]

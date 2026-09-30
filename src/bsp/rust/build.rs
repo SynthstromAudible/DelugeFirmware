@@ -31,15 +31,14 @@ const SAMPLE_STREAM_ROOTS: [&str; 6] = [
     "deluge_sample_stream_read_at",
 ];
 
-/// The efatfs mount C-ABI. All four have real C++ callers today (via
+/// The efatfs mount C-ABI. All three have real C++ callers today (via
 /// `storage_manager.cpp` / `audio_file_manager.cpp`), so these roots are
 /// belt-and-suspenders: harmless, and they keep the link robust against a
 /// refactor that drops the last caller of any one of them.
-const EFATFS_ROOTS: [&str; 4] = [
+const EFATFS_ROOTS: [&str; 3] = [
     "deluge_efatfs_mount",
     "deluge_efatfs_remount",
     "deluge_efatfs_cluster_size",
-    "deluge_efatfs_is_mounted",
 ];
 
 /// Emits `-Wl,-u,SYM` for each symbol, forcing it as a link root.

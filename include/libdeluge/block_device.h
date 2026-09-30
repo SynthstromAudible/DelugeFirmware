@@ -15,10 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/block_device.h — sector-addressed storage for FatFs.
+/// libdeluge/block_device.h — sector-addressed storage.
 ///
-/// Mirrors the FatFs `diskio` contract. The Rust BSP implements it over
-/// deluge-sdk's `deluge_bsp::sd`. A "unit" is a logical drive index.
+/// The Rust BSP implements it over deluge-sdk's `deluge_bsp::sd`. A "unit" is
+/// a logical drive index.
 #ifndef LIBDELUGE_BLOCK_DEVICE_H
 #define LIBDELUGE_BLOCK_DEVICE_H
 
@@ -29,13 +29,9 @@
 extern "C" {
 #endif
 
-/// The block-device unit (FatFs physical drive) of the board's SD card. The
-/// board owns which drive the SD is on, so the application does not hard-code
-/// it. [task]
+/// The block-device unit of the board's SD card. The board owns which drive
+/// the SD is on, so the application does not hard-code it. [task]
 uint8_t deluge_block_sd_unit(void);
-
-/// Bring up storage media (e.g. SD card init). [task]
-DelugeStatus deluge_block_init(uint8_t unit);
 
 /// True if media is present and initialised. [task]
 bool deluge_block_ready(uint8_t unit);
@@ -45,15 +41,6 @@ DelugeStatus deluge_block_read(uint8_t unit, uint8_t* dst, uint32_t sector, uint
 
 /// Write `count` sectors starting at `sector` from `src`. [task]
 DelugeStatus deluge_block_write(uint8_t unit, const uint8_t* src, uint32_t sector, uint32_t count);
-
-/// Total number of addressable sectors. [task]
-uint32_t deluge_block_sector_count(uint8_t unit);
-
-/// Bytes per sector (typically 512). [task]
-uint32_t deluge_block_sector_size(uint8_t unit);
-
-/// Flush any pending writes / complete in-flight operations. [task]
-DelugeStatus deluge_block_sync(uint8_t unit);
 
 /// @brief A card-detect edge observed since the last poll.
 typedef enum DelugeCardEvent : uint8_t {

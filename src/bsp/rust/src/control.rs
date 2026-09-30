@@ -95,8 +95,8 @@ pub async fn pic_pump() {
             }
             pic::Event::FirmwareVersion(v) => {
                 // Latch the raw version byte for `deluge_control_read_boot_info`.
-                // High bit (0x80) = OLED present; low 7 bits = version (mirrors the
-                // rza1 BSP's control_surface.cpp decode). Mark "received" with 0x100.
+                // High bit (0x80) = OLED present; low 7 bits = version -- the PIC's
+                // boot-info byte layout. Mark "received" with 0x100.
                 BOOT_FW.store((v as u16) | BOOT_FW_RECEIVED, Ordering::Relaxed);
                 log::info!(
                     "deluge-rust: PIC firmware v{} (oled={})",
@@ -139,8 +139,8 @@ fn button_event(id: u8, value: i16) -> DelugeInputEvent {
 
 /// Report PIC boot info to the app's one-time boot sequence (deluge.cpp): PIC
 /// firmware version, OLED-present, and whether the user held the reset control at
-/// power-on. Mirrors the rza1 BSP's `control_surface.cpp` decode of the version
-/// byte (low 7 bits = version, high bit = OLED present).
+/// power-on. The PIC's boot-info byte: low 7 bits = version, high bit = OLED
+/// present.
 ///
 /// `factory_reset_requested` is ALWAYS false here: the embassy PIC parser does not
 /// decode the boot reset-burst, so there is no genuine signal — and the previous
@@ -290,14 +290,6 @@ fn enqueue(cmd: PicOut) {
     OUTPUT_DIRTY.store(true, Ordering::Relaxed);
 }
 
-/// Set the colour of one main-grid pad. `host_app`-only: the app's real pad
-/// rendering path batches whole columns (see [`deluge_control_set_pad_columns`],
-/// implemented for both device and host above), so this single-pad entry point
-/// is unreached in practice. A no-op keeps host-linked boot-and-idle working.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_set_pad(_x: u8, _y: u8, _colour: DelugeColour) {}
-
 /// Set the colours of a main-grid column pair. `colours` holds `count` RGB
 /// entries (one per LED in the pair; the Deluge sends 16). The app pre-packs the
 /// PIC wire layout, so we forward the bytes as-is.
@@ -382,7 +374,6 @@ pub extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, cou
     // SAFETY: the app passes `count` valid brightness bytes.
     let src = unsafe { core::slice::from_raw_parts(levels, n) };
     ring[..n].copy_from_slice(&src[..n]);
-    // rza1 BSP maps `which != 0` to the knob select.
     enqueue(PicOut::Indicator {
         knob: (which != 0) as u8,
         levels: ring,

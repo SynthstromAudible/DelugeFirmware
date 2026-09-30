@@ -31,19 +31,16 @@ entries! {
     Close => "close",
     ReadAt => "read_at",
     FileOpen => "file_open",
-    FileRead => "file_read",
     FileReadExact => "file_read_exact",
     FileWrite => "file_write",
     FileSeek => "file_seek",
     FileSize => "file_size",
-    FileTruncate => "file_truncate",
     FileClose => "file_close",
     DirOpen => "dir_open",
     DirRead => "dir_read",
     DirClose => "dir_close",
     Stats => "stats",
     Mount => "mount",
-    IsMounted => "is_mounted",
     Unmount => "unmount",
     Remount => "remount",
     ClusterSize => "cluster_size",
@@ -54,7 +51,6 @@ entries! {
     StreamOpen => "stream_open",
     StreamWriteAt => "stream_write_at",
     StreamReadAtVia => "stream_read_at_via",
-    StreamFlush => "stream_flush",
     StreamTruncate => "stream_truncate",
     StreamSize => "stream_size",
     StreamClose => "stream_close",
@@ -162,12 +158,6 @@ pub extern "C" fn deluge_tier_sync_count(entry: u8) -> u32 {
     COUNTS
         .get(entry as usize)
         .map_or(0, |c| c.load(Ordering::Relaxed))
-}
-
-/// C ABI (`libdeluge/tier.h`): counted calls over every entry.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_tier_sync_total() -> u32 {
-    total()
 }
 
 /// C ABI (`libdeluge/tier.h`): entry index `entry`'s short name, or "" out of range. Static storage.

@@ -166,13 +166,6 @@ pub extern "C" fn deluge_in_audio_context() -> bool {
     false
 }
 
-/// Platform is already brought up by the Rust `main` before the app runs, so
-/// this is a no-op that just reports success. [task]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_platform_init() -> i32 {
-    0 // DELUGE_OK
-}
-
 /// Emit debug text (no implicit newline) to the RTT channel. Best-effort. [task] [isr]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_log(text: *const core::ffi::c_char) {
@@ -221,24 +214,6 @@ pub extern "C" fn deluge_clock_now() -> u64 {
     embassy_time::Instant::now().as_micros()
 }
 
-/// Same monotonic source for the scheduler. [task]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_clock_monotonic() -> u64 {
-    embassy_time::Instant::now().as_micros()
-}
-
-/// Ticks per second of [`deluge_clock_now`] (µs resolution). [task]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_clock_ticks_per_second() -> u64 {
-    1_000_000
-}
-
-/// Hz of [`deluge_clock_monotonic`]. [task]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_clock_monotonic_hz() -> u64 {
-    1_000_000
-}
-
 // ── memory.h ────────────────────────────────────────────────────────────────
 //
 // Device-only: describes the C++ app's SRAM/SDRAM regions via linker-symbol
@@ -247,22 +222,6 @@ pub extern "C" fn deluge_clock_monotonic_hz() -> u64 {
 // implementations of these same symbols, backed by process memory instead of
 // linker symbols — see the "memory.h + cache maintenance (host_app)" section
 // below.
-
-/// One past the application-usable external (SDRAM) region. Capped below the
-/// Rust allocator's reserved slice so the app's heap and the Rust SDRAM heap
-/// don't overlap. [task] [audio] [isr]
-#[cfg(target_os = "none")]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_memory_external_end() -> usize {
-    crate::boot_mem::RUST_SDRAM_BASE
-}
-
-/// Base of the fast internal (on-chip SRAM) region. [task] [audio] [isr]
-#[cfg(target_os = "none")]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_memory_internal_begin() -> usize {
-    0x2000_0000
-}
 
 /// Number of allocatable memory regions the board provides. [task]
 #[cfg(target_os = "none")]
@@ -379,20 +338,6 @@ pub extern "C" fn deluge_memory_region(index: u8, out: *mut DelugeMemoryRegion) 
     DELUGE_OK
 }
 
-/// One past the application-usable external (SDRAM-equivalent) region. [task] [audio] [isr]
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_memory_external_end() -> usize {
-    core::ptr::addr_of!(HOST_SDRAM) as usize + HOST_SDRAM_BYTES
-}
-
-/// Base of the fast internal (SRAM-equivalent) region. [task] [audio] [isr]
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_memory_internal_begin() -> usize {
-    core::ptr::addr_of!(HOST_INTERNAL) as usize
-}
-
 /// A writable scratch address whose contents are never read. [task] [audio] [isr]
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 #[unsafe(no_mangle)]
@@ -400,25 +345,6 @@ pub extern "C" fn deluge_memory_scratch() -> *mut core::ffi::c_void {
     static mut HOST_SCRATCH: [u8; 256] = [0; 256];
     core::ptr::addr_of_mut!(HOST_SCRATCH) as *mut core::ffi::c_void
 }
-
-/// Cache line size in bytes (alignment unit for DMA-coherent buffers). No real
-/// DMA on host; matches the device's actual RZ/A1 line size for allocator
-/// alignment behavior parity. [task]
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_cache_line_size() -> u32 {
-    64
-}
-
-/// No DMA on host → cache maintenance is a no-op. [task] [isr]
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_cache_clean(_addr: *const core::ffi::c_void, _size: u32) {}
-
-/// No DMA on host → cache maintenance is a no-op. [task] [isr]
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_cache_invalidate(_addr: *const core::ffi::c_void, _size: u32) {}
 
 #[cfg(all(test, not(target_os = "none")))]
 mod cs_tests {

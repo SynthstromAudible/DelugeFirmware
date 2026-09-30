@@ -26,7 +26,8 @@ pub use deluge_resource::*;
 // references `deluge_sample_source`'s items -- there is no `pub use` to keep it live -- so
 // without this, rustc/lld would never pull its single-object rlib into `libdeluge_rust.a`'s
 // link at all, even with the optional dependency + `sim` feature wired in Cargo.toml, and the
-// sim's C++ reader would keep resolving `sample_source.cpp`'s weak fallback.
+// sim link would fail with an undefined reference to `deluge_sample_source_*` -- there is no
+// weak fallback left to resolve it instead.
 #[cfg(feature = "sim")]
 extern crate deluge_sample_source;
 
@@ -44,8 +45,8 @@ extern crate deluge_sample_fill;
 // Force-link the sample range-reader into libdeluge_rust.a, same reasoning as the
 // fill/cursor above — nothing in this crate's Rust code references its items, so without an explicit
 // `extern crate` rustc/lld would drop its objects from the staticlib, and the migrated C++ consumers'
-// `deluge_sample_reader_*` references would go unresolved at the sim link. No weak fallback to override
-// here (unlike the fill) — retention alone suffices.
+// `deluge_sample_reader_*` references would go unresolved at the sim link, with no weak fallback to
+// resolve them instead -- retention alone suffices.
 #[cfg(feature = "sim")]
 extern crate deluge_sample_reader;
 

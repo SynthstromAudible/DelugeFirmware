@@ -34,20 +34,17 @@ enum {
 	DELUGE_TIER_AUDIO = 2,       ///< the audio render
 };
 
-/// @brief The tier running the caller. A C++-only build answers DELUGE_TIER_INTERACTION.
+/// @brief The tier running the caller.
 uint8_t deluge_tier_current(void);
 
-/// @brief Synchronous card calls made on the audio tier after boot, which must be none. Zero in a C++-only build.
+/// @brief Synchronous card calls made on the audio tier after boot, which must be none.
 uint32_t deluge_tier_sync_audio_total(void);
 
-/// @brief How many entry points the synchronous-call meter has. Zero in a C++-only build.
+/// @brief How many entry points the synchronous-call meter has.
 uint8_t deluge_tier_sync_entries(void);
 
 /// @brief Synchronous card calls made through @p entry after boot on the interaction tier.
 uint32_t deluge_tier_sync_count(uint8_t entry);
-
-/// @brief The sum of @ref deluge_tier_sync_count over every entry.
-uint32_t deluge_tier_sync_total(void);
 
 /// @brief @p entry's short name (`file_open`, `block_read`, ...), or "" out of range. Static storage.
 const char* deluge_tier_sync_name(uint8_t entry);

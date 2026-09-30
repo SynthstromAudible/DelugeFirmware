@@ -31,10 +31,8 @@ const BLOCK_SIZE: usize = 512;
 /// A `BlockDevice<512>` over the real SDHI1 driver (`deluge_bsp::sd`).
 ///
 /// Zero-sized: `sd`'s card state lives in module statics (see `sd.rs`), so
-/// this is just a handle onto the shared driver, exactly like `sd::device::
-/// DelugeBlockDevice` (the existing synchronous `embedded_sdmmc::BlockDevice`
-/// impl this crate's FatFS diskio shim uses) — this is the async sibling for
-/// `embedded-fatfs`.
+/// this is just a handle onto the shared driver — `efatfs_fs.rs` mounts its
+/// `embedded-fatfs` `FileSystem` over exactly this type on device.
 pub struct SdBlockDevice;
 
 // B7 REGRESSION GUARD: every transfer in this impl MUST go through

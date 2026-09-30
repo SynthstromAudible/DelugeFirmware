@@ -459,8 +459,8 @@ protected:
 	/// @return Always true: a listing can no longer be dropped. Kept for the callers that test it.
 	bool beginListing(ListingRequest req);
 	/// @brief Whether a directory open made here goes through the directory channel rather than opening directly.
-	/// @return True once boot has finished. False before it (boot, and every C++-only build, which never finishes
-	///         booting), where a direct open is legal.
+	/// @return True once boot has finished. False before it (boot, and the unit tests, which link no BSP and
+	///         never finish booting), where a direct open is legal.
 	[[nodiscard]] static bool usingDirectoryChannel();
 	/// @brief Obtain `path` as an open Directory: through the directory channel when @ref usingDirectoryChannel says
 	///        so, and by a direct open otherwise.

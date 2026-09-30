@@ -1054,8 +1054,9 @@ void LoadSongUI::dispatchPreview(const PreviewTarget& target) {
 
 void LoadSongUI::drivePreview() {
 	if (!deluge::boot::finished()) {
-		// Read the file inline. During boot -- which on a C++-only build, with no Rust prefix channel, is always --
-		// nothing would ever answer a request. After boot this arm would hold the interaction tier for the whole read
+		// Read the file inline. During boot -- which in the unit tests, with no Rust prefix channel linked, is
+		// always -- nothing would ever answer a request. After boot this arm would hold the interaction tier for
+		// the whole read
 		// (the efatfs entry points do not yield), which is why it is noted as a tier violation, and why it is
 		// unreachable there.
 		for (;;) {

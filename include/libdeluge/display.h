@@ -31,12 +31,8 @@ extern "C" {
 
 /// Blit a 1-bpp OLED framebuffer. `pixels` is `width*height/8` bytes, packed
 /// in the panel's native page/column order (matching the current canvas format).
-/// Asynchronous: the BSP may DMA the transfer; see `deluge_display_busy`.
-/// No-op on 7-segment boards. [task]
+/// Asynchronous: the BSP may DMA the transfer. No-op on 7-segment boards. [task]
 DelugeStatus deluge_display_blit_oled(const uint8_t* pixels, uint16_t width, uint16_t height);
-
-/// True while a previous blit/transfer is still in flight. [task] [isr]
-bool deluge_display_busy(void);
 
 /// Write the 7-segment display. `digits` points to `count` raw segment bytes
 /// (board-defined segment bit layout). No-op on OLED boards. [task]

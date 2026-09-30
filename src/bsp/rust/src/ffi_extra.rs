@@ -1,14 +1,12 @@
-//! Stubs for app/BSP symbols that live OUTSIDE the libdeluge C-ABI headers:
-//! BSP globals/functions the app references directly (USB-host, trigger
-//! clock), the FatFS `disk_*` diskio glue, NE10 DSP entry points (see note), and
-//! a couple of C-runtime/linker shims.
+//! Stubs for app/BSP symbols that live OUTSIDE the libdeluge C-ABI headers: the
+//! C-runtime shims `_sbrk`/`_fini`, and the host-only linker-boundary
+//! stand-ins.
 //!
-//! Compiled on host too under the `host_app` feature (see main.rs). Most of
-//! this module is already host-portable as-is (the BSP globals, the USB
-//! no-ops, the fault-pointer stub, the NE10 stubs); `_sbrk`/`_fini` stay
-//! device-only (host glibc/crt already provide them — see below), and the
-//! `program_stack_*`/`__frunk_*` linker-boundary stand-ins near the bottom are
-//! host-only (device gets the real symbols from the `rza1l.x` linker script).
+//! Compiled on host too under the `host_app` feature (see main.rs). `_sbrk`/
+//! `_fini` stay device-only (host glibc/crt already provide them — see
+//! below); the `program_stack_*`/`__frunk_*` linker-boundary stand-ins near
+//! the bottom are host-only (device gets the real symbols from the
+//! `rza1l.x` linker script).
 #![allow(non_upper_case_globals, unused_variables)]
 
 // --- newlib heap for malloc -------------------------------------------------
@@ -44,21 +42,6 @@ pub extern "C" fn _sbrk(incr: isize) -> *mut core::ffi::c_void {
     (base + old) as *mut core::ffi::c_void
 }
 
-// --- BSP globals the app reads ---
-#[unsafe(no_mangle)]
-pub static mut anythingInitiallyAttachedAsUSBHost: u8 = 0;
-
-// --- USB host/peripheral control (BSP) ---
-#[unsafe(no_mangle)]
-pub extern "C" fn openUSBHost() {}
-#[unsafe(no_mangle)]
-pub extern "C" fn closeUSBHost() {}
-#[unsafe(no_mangle)]
-pub extern "C" fn openUSBPeripheral() {}
-
-// FatFS diskio glue (disk_initialize/status/ioctl/read/write/timerproc,
-// get_fattime) is implemented in `sd` (SD card over deluge_bsp::sd).
-
 // `fault_handler_print_freeze_pointers` (the app's FREEZE_WITH_ERROR reporter) used to
 // be an empty stub here, so a FREEZE_WITH_ERROR on this BSP silently reported nothing.
 // The real pad-grid renderer is now portable (src/deluge/io/debug/fault_pattern.c) and
@@ -71,37 +54,6 @@ pub extern "C" fn openUSBPeripheral() {}
 #[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn _fini() {}
-
-// --- NE10 DSP entry points. TODO: the Debug libNE10.a doesn't compile the FFT/
-// FIR/IIR sources; investigate the NE10 CMake. Stubbed so the link succeeds; these must
-// become real before the FFT analysis path is exercised. ---
-macro_rules! ne10_stub {
-    ($($name:ident),+ $(,)?) => { $(
-        #[unsafe(no_mangle)]
-        pub extern "C" fn $name() -> i32 { 0 }
-    )+ };
-}
-ne10_stub!(
-    ne10_fft_alloc_c2c_float32_c,
-    ne10_fft_c2c_1d_float32_c,
-    ne10_fft_c2c_1d_float32_neon,
-    ne10_fft_c2c_1d_int16_c,
-    ne10_fft_c2c_1d_int16_neon,
-    ne10_fft_c2r_1d_float32_c,
-    ne10_fft_c2r_1d_float32_neon,
-    ne10_fft_c2r_1d_int16_c,
-    ne10_fft_c2r_1d_int16_neon,
-    ne10_fft_r2c_1d_float32_c,
-    ne10_fft_r2c_1d_float32_neon,
-    ne10_fft_r2c_1d_int16_c,
-    ne10_fft_r2c_1d_int16_neon,
-    ne10_fir_decimate_float_c,
-    ne10_fir_float_c,
-    ne10_fir_interpolate_float_c,
-    ne10_fir_lattice_float_c,
-    ne10_fir_sparse_float_c,
-    ne10_iir_lattice_float_c,
-);
 
 // --- Linker-boundary stand-ins (host_app only) ------------------------------
 // On device these four `extern uint32_t` symbols (memory/stack_guard.cpp,
