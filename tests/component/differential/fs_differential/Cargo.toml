@@ -18,4 +18,4 @@ aligned = "0.4"
 
 [dev-dependencies]
 # `tests/efatfs_core.rs` drives the BSP's storage-generic efatfs core.
-deluge-bsp-rust = { path = "../../../../src/bsp/rust" }
+deluge-bsp-rust = { path = "../../../../src/bsp/rust", default-features = false }

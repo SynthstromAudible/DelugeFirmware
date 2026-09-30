@@ -206,7 +206,6 @@ fn modified(path: &Path) -> Option<SystemTime> {
     std::fs::metadata(path).and_then(|m| m.modified()).ok()
 }
 
-#[cfg_attr(not(feature = "sim"), allow(dead_code))]
 /// Updates the directory [`install`] filled the card from with the card's current contents, and
 /// reports what changed.
 ///
@@ -270,7 +269,6 @@ pub fn write_back() {
     );
 }
 
-#[cfg_attr(not(feature = "sim"), allow(dead_code))]
 /// Appends every file under `dir` to `files`, as its card path and its bytes.
 async fn read_dir<IO, TP, OCC>(
     dir: &embedded_fatfs::Dir<'_, IO, TP, OCC>,
@@ -303,7 +301,6 @@ async fn read_dir<IO, TP, OCC>(
     }
 }
 
-#[cfg_attr(feature = "sim", allow(dead_code))]
 /// Writes the memory disk to the path in `GOLDEN_SD_DUMP`, if set; called on exit.
 pub fn dump_if_asked() {
     let Some(path) = std::env::var_os("GOLDEN_SD_DUMP") else {

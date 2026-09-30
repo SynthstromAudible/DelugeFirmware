@@ -33,20 +33,8 @@ use embassy_sync::signal::Signal;
 use crate::abi::handle::{DelugeHandle, from_abi, to_abi};
 use crate::channel::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath, still_coming};
 
-// The efatfs backend: the device module on the target, the host shim under `host_app`.
 #[cfg(has_app)]
-mod backing {
-    #[cfg(target_os = "none")]
-    pub(super) use crate::storage::efatfs::device::{
-        fs_stats_free, mount, stream_close, stream_open, stream_read_at_via, stream_truncate,
-        stream_write_at,
-    };
-    #[cfg(not(target_os = "none"))]
-    pub(super) use crate::storage::efatfs::host::{
-        fs_stats_free, mount, stream_close, stream_open, stream_read_at_via, stream_truncate,
-        stream_write_at,
-    };
-}
+use crate::storage::efatfs::backend as backing;
 
 /// One outstanding operation. Buffers travel as `usize` addresses; see the module's Safety section.
 #[derive(Clone, Copy)]

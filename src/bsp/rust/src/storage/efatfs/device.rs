@@ -20,7 +20,6 @@
 //! from any context, at the cost of holding the caller (and so the thread-mode tasks: PIC pump,
 //! OLED, UI) for the transfer; streaming runs on its own interrupt executor and is unaffected. The
 //! C-side contracts are in `libdeluge/file_io.h` and `libdeluge/stream_io.h`.
-#![allow(dead_code)]
 
 use aligned::{A4, Aligned};
 use block_device_adapters::{BufStream, StreamSlice};
@@ -471,7 +470,6 @@ pub(crate) async fn task_dir_close(handle: u32) {
 /// `deluge_card_flush` runs synchronously on the interaction tier and must close the directory
 /// channel's handle. If the table lock is contended, one of `MAX_DIR_HANDLES` slots leaks until
 /// the next mount; bounded, rare, and better than blocking the interaction tier in an eject.
-#[allow(dead_code)]
 pub(crate) fn try_close_dir(handle: u32) -> bool {
     match DIR_HANDLES.try_lock() {
         Ok(mut table) => {

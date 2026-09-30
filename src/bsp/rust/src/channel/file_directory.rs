@@ -414,18 +414,8 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<DirPath> {
 
 // Production wiring: only where the efatfs backing is linked (device, and host under `host_app`).
 
-/// The efatfs directory table: the device mount on device, the host shim under `host_app`.
 #[cfg(has_app)]
-mod backing {
-    #[cfg(target_os = "none")]
-    pub(super) use crate::storage::efatfs::device::{
-        mount, task_dir_close, task_dir_open, task_mkdir, try_close_dir,
-    };
-    #[cfg(not(target_os = "none"))]
-    pub(super) use crate::storage::efatfs::host::{
-        mount, task_dir_close, task_dir_open, task_mkdir, try_close_dir,
-    };
-}
+use crate::storage::efatfs::backend as backing;
 
 /// The production [`DirOps`], over the efatfs directory-handle table. Stateless: every operation
 /// is keyed by path or handle.

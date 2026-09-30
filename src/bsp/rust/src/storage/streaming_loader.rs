@@ -269,10 +269,7 @@ mod prod {
             let Some(slot) = crate::abi::handle::from_abi(d.handle) else {
                 return false;
             };
-            #[cfg(target_os = "none")]
-            return crate::storage::efatfs::device::read_at(slot, d.byte_offset, buf).await;
-            #[cfg(feature = "host_app")]
-            return crate::storage::efatfs::host::read_at(slot, d.byte_offset, buf).await;
+            crate::storage::efatfs::backend::read_at(slot, d.byte_offset, buf).await
         }
 
         fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {

@@ -1,5 +1,4 @@
-//! Host-only invariant harness driven by the proptest (and, via the `fuzzing` feature, a fuzz
-//! target).
+//! Host-only invariant harness driven by the proptests.
 //!
 //! Runs acquire/release/touch/reference churn against a real heap and manager, checking after
 //! every op that each leased chunk still holds its materialize pattern (never evicted or

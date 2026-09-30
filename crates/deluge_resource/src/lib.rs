@@ -16,8 +16,8 @@ pub mod manager;
 pub mod sync;
 pub mod value;
 
-#[cfg(any(test, feature = "fuzzing"))]
-pub mod testing;
+#[cfg(test)]
+mod testing;
 
 pub use facade::{Chunk, Resource};
 pub use manager::*;

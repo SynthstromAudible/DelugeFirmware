@@ -796,7 +796,6 @@ pub extern "C" fn deluge_file_bytes_set_latency_ms(ms: u32) {
 static PROGRESS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
 
 /// Records one unit of finished work in [`PROGRESS`].
-#[cfg_attr(not(has_app), allow(dead_code))]
 fn note_progress() {
     PROGRESS.fetch_add(1, Ordering::Release);
 }
@@ -1774,24 +1773,8 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 //
 // Compiled only where efatfs is linked: on device, and on host under `host_app`.
 
-// The efatfs backend: the device module on the target, the host shim under `host_app`.
 #[cfg(has_app)]
-mod backing {
-    #[cfg(target_os = "none")]
-    pub(super) use crate::storage::efatfs::device::{
-        mount, stream_close, stream_read_at_via, stream_size, stream_write_at, task_dir_close,
-        task_dir_open, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
-        task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
-        task_set_time, task_unlink,
-    };
-    #[cfg(not(target_os = "none"))]
-    pub(super) use crate::storage::efatfs::host::{
-        mount, stream_close, stream_read_at_via, stream_size, stream_write_at, task_dir_close,
-        task_dir_open, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
-        task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
-        task_set_time, task_unlink,
-    };
-}
+use crate::storage::efatfs::backend as backing;
 
 /// The real [`ByteOps`], over efatfs's task-context file table. Stateless: every operation is keyed
 /// by path.

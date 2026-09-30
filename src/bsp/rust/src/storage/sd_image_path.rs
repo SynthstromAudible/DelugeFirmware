@@ -9,8 +9,6 @@
 //! some hosts (see `harness/preemptive_race_tsan/run.sh`); the reliable workflow reuses an image
 //! packed by an earlier process.
 
-#![allow(dead_code)]
-
 use std::path::{Path, PathBuf};
 
 /// Whether an image for a corpus fingerprint can be reused or must be packed.

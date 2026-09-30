@@ -8,10 +8,6 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 publish = false
 
-[features]
-## Exposes the host-only `testing` harness outside the crate, for a fuzz target.
-fuzzing = []
-
 [lib]
 name = "deluge_resource"
 crate-type = ["rlib"]

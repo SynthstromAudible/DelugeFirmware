@@ -314,7 +314,7 @@ pub unsafe extern "C" fn deluge_block_write(
 ///
 /// Each transfer is counted once, in [`locked_read_sectors`]/[`locked_write_sectors`].
 #[cfg(not(target_os = "none"))]
-pub(crate) mod stats {
+pub mod stats {
     use core::sync::atomic::{AtomicU64, Ordering};
 
     static READS: AtomicU64 = AtomicU64::new(0);
@@ -334,7 +334,6 @@ pub(crate) mod stats {
     }
 
     /// Returns the total number of SD block writes.
-    #[cfg(all(feature = "host-runtime", not(feature = "sim")))]
     pub fn writes() -> u64 {
         WRITES.load(Ordering::Relaxed)
     }

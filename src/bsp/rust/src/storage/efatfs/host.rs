@@ -21,7 +21,6 @@
 //!   (see `sim_block::use_threaded_host_hook`). A hookless spin would wedge once the block device
 //!   awaits modeled latency.
 #![cfg(feature = "host_app")]
-#![allow(dead_code)]
 
 use aligned::{A4, Aligned};
 use block_device_adapters::BufStream;
@@ -44,7 +43,7 @@ pub struct HostSdBlockDevice;
 
 /// The raw `DelugeStatus` of a failed transfer; exists to satisfy `BlockDevice::Error: Debug`.
 #[derive(Debug)]
-pub struct HostBlockError(i8);
+pub struct HostBlockError(#[allow(dead_code, reason = "read through `Debug`")] i8);
 
 impl BlockDevice<512> for HostSdBlockDevice {
     type Align = A4;
@@ -479,7 +478,6 @@ pub(crate) async fn task_dir_close(handle: u32) {
 ///
 /// `deluge_card_flush` must close the directory channel's handle without blocking the interaction
 /// tier; a contended lock leaks one slot until the next mount.
-#[allow(dead_code)]
 pub(crate) fn try_close_dir(handle: u32) -> bool {
     match DIR_HANDLES.try_lock() {
         Ok(mut table) => {

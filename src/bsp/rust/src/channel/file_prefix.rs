@@ -187,7 +187,6 @@ pub fn take_from(
 struct PrefixRequest {
     path: PrefixPath,
     /// Already clamped to [`PREFIX_CAPACITY`]. Unread in builds without the task.
-    #[allow(dead_code)]
     max_bytes: u32,
 }
 

@@ -20,8 +20,6 @@
 //! lets forward seeks skip re-walking the cluster chain). Every op re-attaches a `File` from the
 //! context and detaches again, with no per-op heap allocation.
 
-#![allow(dead_code)]
-
 // `alloc` for `readdir_open`'s snapshot; this module also builds `no_std` on device.
 extern crate alloc;
 use alloc::string::String;

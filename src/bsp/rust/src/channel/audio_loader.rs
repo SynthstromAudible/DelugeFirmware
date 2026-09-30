@@ -769,11 +769,7 @@ pub use driver::{LoadOps, OpenVerdict, error_code_for, load_io_once};
 mod prod {
     use super::driver::LoadOps;
 
-    // The efatfs handle table: the device mount on device, the host shim under `host_app`.
-    #[cfg(target_os = "none")]
-    use crate::storage::efatfs::device as backing;
-    #[cfg(not(target_os = "none"))]
-    use crate::storage::efatfs::host as backing;
+    use crate::storage::efatfs::backend as backing;
 
     /// The production [`LoadOps`], over the efatfs streaming handle table. Stateless: every
     /// operation is keyed by handle.
