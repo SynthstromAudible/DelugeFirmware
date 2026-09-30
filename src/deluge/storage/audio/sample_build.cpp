@@ -47,8 +47,8 @@
 #include <optional>
 #include <string>
 
-static_assert(DELUGE_MAX_PATH == kFilenameBufferSize,
-              "DELUGE_MAX_PATH documents itself as matching this codebase's existing whole-path ceiling");
+static_assert(DELUGE_PATH_MAX == kFilenameBufferSize,
+              "DELUGE_PATH_MAX documents itself as matching this codebase's existing whole-path ceiling");
 
 namespace deluge::storage::sample_build {
 
@@ -153,17 +153,17 @@ static_assert(offsetof(DelugeAudioLoadResult, size_bytes) == 40);
 static_assert(offsetof(DelugeAudioLoadResult, alternate_path) == 48);
 static_assert(offsetof(DelugeAudioLoadResult, error) == 304);
 
-// The remaining values the Rust side hand-duplicates from this header. DELUGE_MAX_PATH is also the
+// The remaining values the Rust side hand-duplicates from this header. DELUGE_PATH_MAX is also the
 // stride of the candidate buffer and the width of DelugeAudioLoadResult::alternate_path, so a change
 // here that is not mirrored would misread every candidate slot after the first.
-static_assert(DELUGE_MAX_PATH == 256);
+static_assert(DELUGE_PATH_MAX == 256);
 // The one whose drift silently reinstates a bug rather than causing a mismatch: if this stopped
 // being the value the Rust side refuses, `deluge_audio_load_request` would clamp it to the candidate
 // bound and read a buffer the header says must not be read.
 static_assert(DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED == 0xFFFFFFFFu);
-static_assert(DELUGE_AUDIO_LOAD_PENDING == 0u);
-static_assert(DELUGE_AUDIO_LOAD_READY == 1u);
-static_assert(DELUGE_AUDIO_LOAD_UNKNOWN == 2u);
+static_assert(DELUGE_CHANNEL_PENDING == 0u);
+static_assert(DELUGE_CHANNEL_READY == 1u);
+static_assert(DELUGE_CHANNEL_UNKNOWN == 2u);
 // The Rust side bounds its candidate list by its own copy of this.
 static_assert(AudioFileManager::kMaxLoadCandidates == 3);
 
@@ -408,13 +408,13 @@ uint32_t candidates(const AudioLoadContext* context, std::string_view filePath, 
 		                                                            std::string{filePath}, proposed, capacity);
 		const size_t written = std::min(count, capacity);
 		for (size_t i = 0; i < written; i++) {
-			if (proposed[i].size() + 1 > DELUGE_MAX_PATH) {
+			if (proposed[i].size() + 1 > DELUGE_PATH_MAX) {
 				// A candidate too long to fit is a caller-visible failure, not a silent snprintf
 				// truncation the loader would go on to open -- and either miss, or worse, hit a
 				// different real file sitting at the truncated path.
 				return DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED;
 			}
-			std::snprintf(out + (i * DELUGE_MAX_PATH), DELUGE_MAX_PATH, "%s", proposed[i].c_str());
+			std::snprintf(out + (i * DELUGE_PATH_MAX), DELUGE_PATH_MAX, "%s", proposed[i].c_str());
 		}
 		return static_cast<uint32_t>(count);
 	} catch (...) {

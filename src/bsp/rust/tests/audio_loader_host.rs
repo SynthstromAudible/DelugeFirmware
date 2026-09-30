@@ -84,17 +84,19 @@ mod abi_handle;
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
     DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,
-    DELUGE_MAX_PATH, LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult, OpenVerdict,
-    RESULT_SLOTS, ResultTable, decode_candidates, load_io_once, publish_into, take_from,
+    LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult, OpenVerdict, RESULT_SLOTS,
+    ResultTable, decode_candidates, load_io_once, publish_into, take_from,
 };
 
 // The live request/collect pipeline. See the `live_pipeline` module below.
 use audio_loader::{
-    DELUGE_AUDIO_LOAD_PENDING, DELUGE_AUDIO_LOAD_READY, DELUGE_AUDIO_LOAD_UNKNOWN,
     deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
 };
 use card::deluge_card_flush;
 use deluge_card_generation::current as current_generation;
+use deluge_channel::{
+    DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
+};
 
 /// One call `FakeOps` observed, in order.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -346,7 +348,7 @@ fn block_on<F: core::future::Future>(future: F) -> F::Output {
 }
 
 fn path_of(path: &str) -> LoadPath {
-    LoadPath::try_from(path).expect("test path fits DELUGE_MAX_PATH")
+    LoadPath::try_from(path).expect("test path fits DELUGE_PATH_MAX")
 }
 
 fn request(path: &str, candidates: &[&str]) -> LoadRequest {
@@ -1096,7 +1098,7 @@ mod live_pipeline {
     fn request_load(path: &str, candidates: &[&str]) -> bool {
         let buffer = candidate_buffer(candidates);
         let key = CString::new(path).unwrap();
-        // SAFETY: the buffer is `candidates.len() * DELUGE_MAX_PATH` bytes,
+        // SAFETY: the buffer is `candidates.len() * DELUGE_PATH_MAX` bytes,
         // matching the count passed.
         unsafe {
             deluge_audio_load_request(
@@ -1114,7 +1116,7 @@ mod live_pipeline {
     fn an_unrequested_path_is_unknown() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let (status, out) = collect("never/asked.wav");
-        assert_eq!(status, DELUGE_AUDIO_LOAD_UNKNOWN);
+        assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
         assert_out_untouched(&out);
     }
 
@@ -1125,7 +1127,7 @@ mod live_pipeline {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         assert!(request_load("queued/A.wav", &["queued/A.wav"]));
         let (status, out) = collect("queued/A.wav");
-        assert_eq!(status, DELUGE_AUDIO_LOAD_PENDING);
+        assert_eq!(status, DELUGE_CHANNEL_PENDING);
         assert_out_untouched(&out);
     }
 
@@ -1143,12 +1145,12 @@ mod live_pipeline {
     fn an_in_flight_request_is_pending_not_unknown() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         block_on(mark_in_flight(Some(path_of("inflight/A.wav"))));
-        assert_eq!(collect("inflight/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        assert_eq!(collect("inflight/A.wav").0, DELUGE_CHANNEL_PENDING);
         // A DIFFERENT path is still unknown — the branch matches on identity,
         // not on "something is in flight".
-        assert_eq!(collect("inflight/B.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+        assert_eq!(collect("inflight/B.wav").0, DELUGE_CHANNEL_UNKNOWN);
         block_on(mark_in_flight(None));
-        assert_eq!(collect("inflight/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+        assert_eq!(collect("inflight/A.wav").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
     /// The window the task leaves open deliberately: a result is published while
@@ -1160,9 +1162,9 @@ mod live_pipeline {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         block_on(mark_in_flight(Some(path_of("window/A.wav"))));
         publish("window/A.wav", LoadResult::failed(DELUGE_ERROR_NONE));
-        assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        assert_eq!(collect("window/A.wav").0, DELUGE_CHANNEL_PENDING);
         block_on(mark_in_flight(None));
-        assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_READY);
+        assert_eq!(collect("window/A.wav").0, DELUGE_CHANNEL_READY);
     }
 
     /// A collected result is removed: a second collect reports `UNKNOWN`.
@@ -1174,9 +1176,9 @@ mod live_pipeline {
             LoadResult::failed(DELUGE_ERROR_FILE_CORRUPTED),
         );
         let (status, result) = collect("gone/A.wav");
-        assert_eq!(status, DELUGE_AUDIO_LOAD_READY);
+        assert_eq!(status, DELUGE_CHANNEL_READY);
         assert_eq!(result.error, DELUGE_ERROR_FILE_CORRUPTED);
-        assert_eq!(collect("gone/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+        assert_eq!(collect("gone/A.wav").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
     /// The `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` sentinel means the C side's
@@ -1200,7 +1202,7 @@ mod live_pipeline {
         assert!(!accepted, "the sentinel must refuse the request");
         assert_eq!(
             collect("trunc/A.wav").0,
-            DELUGE_AUDIO_LOAD_UNKNOWN,
+            DELUGE_CHANNEL_UNKNOWN,
             "a refused request must not have been queued"
         );
     }
@@ -1211,7 +1213,7 @@ mod live_pipeline {
     fn a_request_reads_only_the_candidate_slots_it_was_given() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         assert!(request_load("bound/A.wav", &["bound/A.wav"]));
-        assert_eq!(collect("bound/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        assert_eq!(collect("bound/A.wav").0, DELUGE_CHANNEL_PENDING);
     }
 
     // ── Ejection ────────────────────────────────────────────────────────────
@@ -1233,14 +1235,14 @@ mod live_pipeline {
         publish("eject/published.wav", LoadResult::failed(DELUGE_ERROR_NONE));
         assert_eq!(
             collect("eject/published.wav").0,
-            DELUGE_AUDIO_LOAD_READY,
+            DELUGE_CHANNEL_READY,
             "the result must be collectable before the ejection, or this test proves nothing"
         );
 
         publish("eject/published.wav", LoadResult::failed(DELUGE_ERROR_NONE));
         deluge_card_flush();
         let (status, out) = collect("eject/published.wav");
-        assert_eq!(status, DELUGE_AUDIO_LOAD_UNKNOWN);
+        assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
         assert_out_untouched(&out);
     }
 
@@ -1274,7 +1276,7 @@ mod live_pipeline {
         ));
         let (status, out) = collect("eject/inflight.wav");
         assert_eq!(
-            status, DELUGE_AUDIO_LOAD_UNKNOWN,
+            status, DELUGE_CHANNEL_UNKNOWN,
             "a load that began on the previous card must not publish onto this one"
         );
         assert_out_untouched(&out);
@@ -1286,7 +1288,7 @@ mod live_pipeline {
         publish("eject/inflight.wav", LoadResult::failed(DELUGE_ERROR_NONE));
         assert_eq!(
             collect("eject/inflight.wav").0,
-            DELUGE_AUDIO_LOAD_READY,
+            DELUGE_CHANNEL_READY,
             "a load that began AFTER the flush must publish normally"
         );
     }
@@ -1298,11 +1300,11 @@ mod live_pipeline {
     fn a_flush_discards_a_queued_request() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         assert!(request_load("eject/queued.wav", &["eject/queued.wav"]));
-        assert_eq!(collect("eject/queued.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        assert_eq!(collect("eject/queued.wav").0, DELUGE_CHANNEL_PENDING);
         deluge_card_flush();
         assert_eq!(
             collect("eject/queued.wav").0,
-            DELUGE_AUDIO_LOAD_UNKNOWN,
+            DELUGE_CHANNEL_UNKNOWN,
             "a flushed request must report UNKNOWN, which is what makes the collector ask again"
         );
     }
@@ -1314,9 +1316,9 @@ mod live_pipeline {
     fn a_flush_clears_the_in_flight_mark() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         block_on(mark_in_flight(Some(path_of("eject/mark.wav"))));
-        assert_eq!(collect("eject/mark.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        assert_eq!(collect("eject/mark.wav").0, DELUGE_CHANNEL_PENDING);
         deluge_card_flush();
-        assert_eq!(collect("eject/mark.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+        assert_eq!(collect("eject/mark.wav").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
     /// The loader keeps working after an ejection. Stated separately from the
@@ -1328,7 +1330,7 @@ mod live_pipeline {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         deluge_card_flush();
         assert!(request_load("eject/after.wav", &["eject/after.wav"]));
-        assert_eq!(collect("eject/after.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        assert_eq!(collect("eject/after.wav").0, DELUGE_CHANNEL_PENDING);
         // Drain it, so this test leaves the shared queue as it found it.
         deluge_card_flush();
     }
@@ -1337,15 +1339,15 @@ mod live_pipeline {
 // ── The candidate buffer decoder ────────────────────────────────────────────
 
 /// Build the buffer the app's `sample_build::candidates` would have written: one
-/// NUL-terminated path per `DELUGE_MAX_PATH` slot, the rest left as the caller had
+/// NUL-terminated path per `DELUGE_PATH_MAX` slot, the rest left as the caller had
 /// it.
 fn candidate_buffer(paths: &[&str]) -> Vec<u8> {
     // 0xAA, not zero: a slot the C side never wrote must not decode as an empty
     // string.
-    let mut buffer = vec![0xAAu8; paths.len() * DELUGE_MAX_PATH];
+    let mut buffer = vec![0xAAu8; paths.len() * DELUGE_PATH_MAX];
     for (slot, path) in paths.iter().enumerate() {
         let bytes = path.as_bytes();
-        let base = slot * DELUGE_MAX_PATH;
+        let base = slot * DELUGE_PATH_MAX;
         buffer[base..base + bytes.len()].copy_from_slice(bytes);
         buffer[base + bytes.len()] = 0;
     }
@@ -1371,13 +1373,13 @@ fn candidates_decode_slot_by_slot() {
 fn an_unterminated_candidate_slot_is_refused_even_after_a_good_one() {
     let mut buffer = candidate_buffer(&["A.wav", "B.wav"]);
     // Scrub slot 1's terminator, leaving slot 0 intact.
-    for byte in buffer[DELUGE_MAX_PATH..].iter_mut() {
+    for byte in buffer[DELUGE_PATH_MAX..].iter_mut() {
         *byte = 0xAA;
     }
     assert!(decode_candidates(&buffer).is_none());
     // Slot 0 alone still decodes, so the refusal above is about slot 1.
     assert_eq!(
-        decode_candidates(&buffer[..DELUGE_MAX_PATH]).unwrap()[0].as_str(),
+        decode_candidates(&buffer[..DELUGE_PATH_MAX]).unwrap()[0].as_str(),
         "A.wav"
     );
 }
@@ -1494,10 +1496,10 @@ fn the_admission_rule_matches_the_corpus_the_c_side_checks() {
             case.label
         );
 
-        let mut slot = vec![0xAAu8; DELUGE_MAX_PATH];
-        let usable = case.bytes.len().min(DELUGE_MAX_PATH);
+        let mut slot = vec![0xAAu8; DELUGE_PATH_MAX];
+        let usable = case.bytes.len().min(DELUGE_PATH_MAX);
         slot[..usable].copy_from_slice(&case.bytes[..usable]);
-        if case.bytes.len() < DELUGE_MAX_PATH {
+        if case.bytes.len() < DELUGE_PATH_MAX {
             slot[case.bytes.len()] = 0;
         }
         let accepted_as_candidate = decode_candidates(&slot).is_some();

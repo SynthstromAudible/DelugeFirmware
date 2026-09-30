@@ -62,6 +62,10 @@
 
 use core::ffi::{CStr, c_char};
 
+use deluge_channel::{
+    DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
+    DELUGE_PATH_MAX, DelugeChannelStatus,
+};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::{Mutex, MutexGuard};
 use embassy_sync::signal::Signal;
@@ -83,31 +87,14 @@ use super::audio_loader::{LoadOps, OpenVerdict};
 /// to land in.
 pub const PREFIX_CAPACITY: usize = 8192;
 
-/// Longest path this channel keys on, in CHARACTERS — `DELUGE_MAX_PATH` minus its NUL, the same
-/// bound `audio_loader::LoadPath` carries and for the same reason (a C buffer size counts the
-/// terminator; the text it can hold is one byte shorter).
-///
-/// Spelled here rather than imported from the loader so this module compiles in every carrier that
-/// `#[path]`-includes it, some with no bindgen output. Pinned by `abi_pins.rs`, like every value
-/// this module copies from a header.
-pub(crate) const MAX_PATH_CHARS: usize = 255;
+/// Longest path this channel keys on, in CHARACTERS: `DELUGE_PATH_MAX` counts the NUL, so the text it can hold is
+/// one byte shorter.
+pub(crate) const MAX_PATH_CHARS: usize = DELUGE_PATH_MAX - 1;
 
 /// One path, inline. **Nothing in this module may touch the Rust global heap** — that allocator
 /// assumes single-threaded use and this driver runs on a preempting executor. See
 /// `audio_loader::LoadPath`, which says it at length.
 pub type PrefixPath = heapless::String<MAX_PATH_CHARS>;
-
-/// `deluge_file_prefix_collect`: requested or in flight; ask again, do not re-request.
-pub const DELUGE_FILE_PREFIX_PENDING: u8 = 0;
-/// `deluge_file_prefix_collect`: a prefix was written out and removed.
-pub const DELUGE_FILE_PREFIX_READY: u8 = 1;
-/// `deluge_file_prefix_collect`: nothing known about this path. Request it (again).
-pub const DELUGE_FILE_PREFIX_UNKNOWN: u8 = 2;
-/// `deluge_file_prefix_collect`: the read did not happen. Terminal — do NOT re-request.
-///
-/// The one bit this channel carries that a caller cannot reconstruct. Everything else about a
-/// failure (which failure, on which layer) stays outside the boundary; see `file_prefix.h`.
-pub const DELUGE_FILE_PREFIX_FAILED: u8 = 3;
 
 /// How many bytes of the store are the prefix, or `None` when the READ FAILED.
 ///
@@ -454,20 +441,20 @@ fn enqueue_request(path: PrefixPath, max_bytes: u32) {
 ///
 /// `file_path` must be a valid NUL-terminated C string; `out_buf` must point to at least `out_cap`
 /// writable bytes and `out_len` to a writable `uint32_t`. Both outputs are written ONLY on
-/// [`DELUGE_FILE_PREFIX_READY`].
+/// [`DELUGE_CHANNEL_READY`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_prefix_collect(
     file_path: *const c_char,
     out_buf: *mut u8,
     out_cap: u32,
     out_len: *mut u32,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     if out_buf.is_null() || out_len.is_null() {
-        return DELUGE_FILE_PREFIX_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
-        return DELUGE_FILE_PREFIX_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     // The header's requirement, checked where the caller can still be identified. A buffer shorter
     // than the slot cannot hold every prefix this channel can publish, and the degradation
@@ -487,11 +474,11 @@ pub unsafe extern "C" fn deluge_file_prefix_collect(
             // SAFETY: `out_len` is non-null (checked above) and the caller's contract makes it a
             // writable, aligned `uint32_t`. Written only on READY, as the header promises.
             unsafe { *out_len = len as u32 };
-            DELUGE_FILE_PREFIX_READY
+            DELUGE_CHANNEL_READY
         }
-        Probe::Pending => DELUGE_FILE_PREFIX_PENDING,
-        Probe::Unknown => DELUGE_FILE_PREFIX_UNKNOWN,
-        Probe::Failed => DELUGE_FILE_PREFIX_FAILED,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
+        Probe::Failed => DELUGE_CHANNEL_FAILED,
     }
 }
 
@@ -513,7 +500,7 @@ enum Probe {
     Unknown,
     /// The read did not happen, and the caller is told so rather than being handed an empty prefix
     /// it could not tell from an empty file. Terminal — see `file_prefix.h`'s
-    /// `DELUGE_FILE_PREFIX_FAILED`.
+    /// `DELUGE_CHANNEL_FAILED`.
     Failed,
 }
 
@@ -590,7 +577,7 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<PrefixPath> {
 /// `None` means the read did not happen: the file would not open, could not be sized, or the read
 /// itself failed. `Some(0)` means the file is genuinely empty. [`file_prefix_task`] carries the
 /// distinction all the way out — `None` publishes a FAILURE and `Some(0)` an empty prefix, and
-/// `deluge_file_prefix_collect` reports them as `DELUGE_FILE_PREFIX_FAILED` and READY-with-zero.
+/// `deluge_file_prefix_collect` reports them as `DELUGE_CHANNEL_FAILED` and READY-with-zero.
 ///
 /// Collapsing them would leave the caller unable to tell an unreadable song from one with no
 /// artwork, while the synchronous backing shows an error for the first.
@@ -628,7 +615,7 @@ pub async fn prefix_io_once<O: LoadOps>(
         // this module's doc argues against: a second convention on a boundary whose whole safety
         // property is that every answer is terminal, and a retry that has to be bounded by something
         // if handles never free. Not built. If it is ever wanted, it belongs on `file_prefix.h`
-        // beside `DELUGE_FILE_PREFIX_FAILED`, not as a special case here.
+        // beside `DELUGE_CHANNEL_FAILED`, not as a special case here.
         OpenVerdict::Missing | OpenVerdict::TableFull => return None,
     };
     let read = read_prefix(ops, handle, max_bytes, out).await;

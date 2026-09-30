@@ -121,11 +121,11 @@ bool RandomizeDrums::step() {
 		DelugeHandle handle = DELUGE_HANDLE_NONE;
 		DelugeStatus st = DELUGE_OK;
 		const DelugeChannelStatus answer = deluge_file_directory_collect(rowFolder_.c_str(), &handle, &st);
-		if (answer == DELUGE_FILE_DIRECTORY_READY) {
+		if (answer == DELUGE_CHANNEL_READY) {
 			drainsCollected_++;
 			(void)deluge::io::Directory::adopt(handle); // closed on the spot by RAII
 		}
-		else if (answer == DELUGE_FILE_DIRECTORY_PENDING) {
+		else if (answer == DELUGE_CHANNEL_PENDING) {
 			// Bounded: a cancelled walk must not wait for an answer for ever either.
 			scanSpan_.note(deluge_clock_now());
 			if (scanSpan_.elapsedUs <= deluge::storage::kMaxUnproductiveUs) {

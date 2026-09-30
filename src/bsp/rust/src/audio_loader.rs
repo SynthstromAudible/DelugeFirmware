@@ -123,16 +123,13 @@
 use core::ffi::{CStr, c_char};
 use core::mem::MaybeUninit;
 
+use deluge_channel::{
+    DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
+    DelugeChannelStatus,
+};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
-
-/// Longest single candidate path, including its NUL — `DELUGE_MAX_PATH`
-/// (`audio_load.h`). The C side writes its candidate buffer at this stride, so
-/// it is a layout constant, not a preference. Copied, like every header value
-/// this module uses, because it compiles in carriers with no bindgen output;
-/// each copy is pinned by `abi_pins.rs`.
-pub const DELUGE_MAX_PATH: usize = 256;
 
 /// `AudioFileManager::kMaxLoadCandidates` — the C side proposes at most this
 /// many, so a longer buffer would only ever be partly meaningful.
@@ -161,13 +158,13 @@ pub(crate) const DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED: u32 = 0xFFFF_FFFF;
 /// Rust heap off it. Fixed-capacity storage is what actually removes it.
 pub type LoadPath = heapless::String<MAX_PATH_CHARS>;
 
-/// Longest path in CHARACTERS. [`DELUGE_MAX_PATH`] is a C buffer size and counts
+/// Longest path in CHARACTERS. [`DELUGE_PATH_MAX`] is a C buffer size and counts
 /// the NUL, so the text it can hold is one byte shorter. Keeping the two
-/// separate is not pedantry: sizing [`LoadPath`] at `DELUGE_MAX_PATH` let a
+/// separate is not pedantry: sizing [`LoadPath`] at `DELUGE_PATH_MAX` let a
 /// 256-character path be accepted as a request key and then refused by
 /// [`LoadResult::set_alternate_path`] (which needs room for the terminator),
 /// turning a loadable file into a spurious `FILE_UNREADABLE`.
-pub(crate) const MAX_PATH_CHARS: usize = DELUGE_MAX_PATH - 1;
+pub(crate) const MAX_PATH_CHARS: usize = DELUGE_PATH_MAX - 1;
 
 /// The candidate paths for one load, inline. See [`LoadPath`].
 pub type CandidateList = heapless::Vec<LoadPath, MAX_LOAD_CANDIDATES>;
@@ -211,13 +208,6 @@ pub const DELUGE_ERROR_FILE_UNSUPPORTED: u8 = 7;
 /// can end up loading a different file. This code is what routes it to the
 /// reclaim the synchronous path uses instead.
 pub const DELUGE_ERROR_TOO_MANY_OPEN_STREAMS: u8 = 34;
-
-/// `deluge_audio_load_collect`: queued or in flight; ask again, do not re-request.
-pub const DELUGE_AUDIO_LOAD_PENDING: u8 = 0;
-/// `deluge_audio_load_collect`: a result was written out and removed.
-pub const DELUGE_AUDIO_LOAD_READY: u8 = 1;
-/// `deluge_audio_load_collect`: nothing known about this path.
-pub const DELUGE_AUDIO_LOAD_UNKNOWN: u8 = 2;
 
 /// `AudioFileManager::kMaxLoadCandidates` and the Deluge `Error` numbers, pinned.
 ///
@@ -273,7 +263,7 @@ pub struct LoadResult {
     pub size_bytes: u64,
     /// The alternate location the bytes were found at, NUL-terminated, or an
     /// empty string when the regular path won.
-    pub alternate_path: [u8; DELUGE_MAX_PATH],
+    pub alternate_path: [u8; DELUGE_PATH_MAX],
     pub error: u8,
 }
 
@@ -303,7 +293,7 @@ impl LoadResult {
         Self {
             geometry: LoadGeometry::default(),
             size_bytes: 0,
-            alternate_path: [0; DELUGE_MAX_PATH],
+            alternate_path: [0; DELUGE_PATH_MAX],
             error,
         }
     }
@@ -314,19 +304,19 @@ impl LoadResult {
         Self {
             geometry,
             size_bytes,
-            alternate_path: [0; DELUGE_MAX_PATH],
+            alternate_path: [0; DELUGE_PATH_MAX],
             error: DELUGE_ERROR_NONE,
         }
     }
 
     /// Write `path` into `alternate_path`, NUL-terminated. `false` if it does not
     /// fit — which cannot happen for a candidate the C side proposed (it bounds
-    /// them by `DELUGE_MAX_PATH` and reports truncation rather than writing one
+    /// them by `DELUGE_PATH_MAX` and reports truncation rather than writing one
     /// that would not fit), but is refused rather than silently cut here.
     #[must_use]
     pub fn set_alternate_path(&mut self, path: &str) -> bool {
         let bytes = path.as_bytes();
-        if bytes.len() + 1 > DELUGE_MAX_PATH {
+        if bytes.len() + 1 > DELUGE_PATH_MAX {
             return false;
         }
         self.alternate_path[..bytes.len()].copy_from_slice(bytes);
@@ -487,7 +477,7 @@ pub extern "C" fn deluge_audio_load_set_latency_ms(ms: u32) {
 /// # Safety
 ///
 /// `file_path` must be a valid NUL-terminated C string, and `candidates` must
-/// point to at least `num_candidates * DELUGE_MAX_PATH` readable bytes. Both are
+/// point to at least `num_candidates * DELUGE_PATH_MAX` readable bytes. Both are
 /// copied out before this returns.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_audio_load_request(
@@ -513,10 +503,10 @@ pub unsafe extern "C" fn deluge_audio_load_request(
         return false;
     }
     let slots = (num_candidates as usize).min(MAX_LOAD_CANDIDATES);
-    // SAFETY: the caller promises `num_candidates * DELUGE_MAX_PATH` readable
+    // SAFETY: the caller promises `num_candidates * DELUGE_PATH_MAX` readable
     // bytes, and `slots` is clamped at or below `num_candidates`.
     let buffer =
-        unsafe { core::slice::from_raw_parts(candidates.cast::<u8>(), slots * DELUGE_MAX_PATH) };
+        unsafe { core::slice::from_raw_parts(candidates.cast::<u8>(), slots * DELUGE_PATH_MAX) };
     let Some(candidates) = decode_candidates(buffer) else {
         return false;
     };
@@ -582,18 +572,18 @@ fn enqueue_request(request: LoadRequest) -> bool {
 ///
 /// `file_path` must be a valid NUL-terminated C string and `out` a valid,
 /// writable [`LoadResult`]. `out` is written only on
-/// [`DELUGE_AUDIO_LOAD_READY`].
+/// [`DELUGE_CHANNEL_READY`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_audio_load_collect(
     file_path: *const c_char,
     out: *mut AbiLoadResult,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     if out.is_null() {
-        return DELUGE_AUDIO_LOAD_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
-        return DELUGE_AUDIO_LOAD_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
 
     // SAFETY: `out` is non-null (checked above) and the caller's contract makes it
@@ -603,9 +593,9 @@ pub unsafe extern "C" fn deluge_audio_load_collect(
     let out = unsafe { &mut *out.cast::<MaybeUninit<LoadResult>>() };
 
     match probe(&path, out) {
-        Probe::Ready => DELUGE_AUDIO_LOAD_READY,
-        Probe::Pending => DELUGE_AUDIO_LOAD_PENDING,
-        Probe::Unknown => DELUGE_AUDIO_LOAD_UNKNOWN,
+        Probe::Ready => DELUGE_CHANNEL_READY,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 
@@ -838,18 +828,18 @@ pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) 
 }
 
 /// Decode the candidate buffer the C side filled: one NUL-terminated path per
-/// [`DELUGE_MAX_PATH`] slot. `None` if any slot is unterminated, not UTF-8, or
+/// [`DELUGE_PATH_MAX`] slot. `None` if any slot is unterminated, not UTF-8, or
 /// there are more slots than [`MAX_LOAD_CANDIDATES`].
 ///
 /// Allocation-free, like everything else here — see [`LoadPath`].
 pub fn decode_candidates(buffer: &[u8]) -> Option<CandidateList> {
-    let slots = buffer.len() / DELUGE_MAX_PATH;
+    let slots = buffer.len() / DELUGE_PATH_MAX;
     if slots > MAX_LOAD_CANDIDATES {
         return None;
     }
     let mut out = CandidateList::new();
     for slot in 0..slots {
-        let bytes = &buffer[slot * DELUGE_MAX_PATH..(slot + 1) * DELUGE_MAX_PATH];
+        let bytes = &buffer[slot * DELUGE_PATH_MAX..(slot + 1) * DELUGE_PATH_MAX];
         // Anything after the NUL is the caller's untouched buffer, never read.
         let end = bytes.iter().position(|b| *b == 0)?;
         let path = LoadPath::try_from(core::str::from_utf8(&bytes[..end]).ok()?).ok()?;
@@ -859,7 +849,7 @@ pub fn decode_candidates(buffer: &[u8]) -> Option<CandidateList> {
 }
 
 /// Copy a C string into a fixed-capacity [`LoadPath`]. `None` for NULL, non-UTF-8,
-/// or a path longer than [`DELUGE_MAX_PATH`] — a path that does not fit is
+/// or a path longer than [`DELUGE_PATH_MAX`] — a path that does not fit is
 /// refused rather than truncated, because a truncated path names a *different*
 /// file that may well exist.
 ///
@@ -1063,7 +1053,7 @@ mod driver {
             && !result.set_alternate_path(winning_path)
         {
             // Cannot happen for a C-proposed candidate (bounded by
-            // DELUGE_MAX_PATH), but a path we cannot report is a path the
+            // DELUGE_PATH_MAX), but a path we cannot report is a path the
             // collector would open at the wrong location.
             return LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE);
         }

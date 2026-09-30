@@ -61,7 +61,7 @@ enum class FinalizePhase : uint8_t {
 struct FinalizeInputs {
 	FinalizePhase phase;
 	/// The `DELUGE_FILE_STREAM_*` value from the operation this phase issued, or
-	/// `DELUGE_FILE_STREAM_UNKNOWN` when nothing is in flight.
+	/// `DELUGE_CHANNEL_UNKNOWN` when nothing is in flight.
 	uint8_t collected;
 	bool clustersRemain;
 	bool havePartialBuffer;

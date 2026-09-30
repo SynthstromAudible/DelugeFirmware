@@ -41,7 +41,7 @@ bool deluge_file_stream_request_write_at(DelugeHandle, uint32_t, const uint8_t*,
 DelugeChannelStatus deluge_file_stream_collect_write_at(DelugeHandle, uint32_t*) noexcept {
 	// UNKNOWN, not PENDING: "there is nothing in flight, ask again if you want one". PENDING would
 	// tell a caller to keep waiting for an answer that can never come.
-	return DELUGE_FILE_STREAM_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 // The other operations, same two rules throughout: a request is REFUSED so the caller takes its
@@ -53,7 +53,7 @@ bool deluge_file_stream_request_open(const char*, uint8_t) noexcept {
 }
 
 DelugeChannelStatus deluge_file_stream_collect_open(const char*, DelugeHandle*, DelugeStatus*) noexcept {
-	return DELUGE_FILE_STREAM_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 bool deluge_file_stream_request_read_at(DelugeHandle, uint32_t, uint8_t*, uint32_t) noexcept {
@@ -61,7 +61,7 @@ bool deluge_file_stream_request_read_at(DelugeHandle, uint32_t, uint8_t*, uint32
 }
 
 DelugeChannelStatus deluge_file_stream_collect_read_at(DelugeHandle, uint32_t*) noexcept {
-	return DELUGE_FILE_STREAM_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 bool deluge_file_stream_request_truncate(DelugeHandle, uint32_t) noexcept {
@@ -69,7 +69,7 @@ bool deluge_file_stream_request_truncate(DelugeHandle, uint32_t) noexcept {
 }
 
 DelugeChannelStatus deluge_file_stream_collect_truncate(DelugeHandle) noexcept {
-	return DELUGE_FILE_STREAM_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 bool deluge_file_stream_request_close(DelugeHandle) noexcept {
@@ -77,7 +77,7 @@ bool deluge_file_stream_request_close(DelugeHandle) noexcept {
 }
 
 DelugeChannelStatus deluge_file_stream_collect_close(DelugeHandle) noexcept {
-	return DELUGE_FILE_STREAM_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 bool deluge_file_stream_request_stats(void) noexcept {
@@ -85,7 +85,7 @@ bool deluge_file_stream_request_stats(void) noexcept {
 }
 
 DelugeChannelStatus deluge_file_stream_collect_stats(uint32_t*) noexcept {
-	return DELUGE_FILE_STREAM_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 bool deluge_file_stream_holds(const void*) noexcept {
@@ -127,7 +127,7 @@ extern "C" bool deluge_file_bytes_request_unlink(const char* /*path*/) noexcept 
 
 extern "C" DelugeChannelStatus deluge_file_bytes_collect_unlink(const char* /*path*/,
                                                                 DelugeStatus* /*out_status*/) noexcept {
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" void deluge_file_bytes_request_exists(const char* /*path*/) noexcept {
@@ -139,7 +139,7 @@ extern "C" DelugeChannelStatus deluge_file_bytes_collect_exists(const char* /*pa
 	// UNKNOWN, not FAILED. FAILED is terminal and would be read as `StartupPresence::Unusable`, which
 	// would make a caller that has not finished booting skip the startup song forever rather than take its
 	// synchronous arm. This distinction is load-bearing -- do not "simplify" it.
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" void deluge_file_bytes_request_dir_exists(const char* /*path*/) noexcept {
@@ -149,7 +149,7 @@ extern "C" void deluge_file_bytes_request_dir_exists(const char* /*path*/) noexc
 extern "C" DelugeChannelStatus deluge_file_bytes_collect_dir_exists(const char* /*path*/, bool* /*out_present*/,
                                                                     DelugeStatus* /*out_status*/) noexcept {
 	// UNKNOWN, not FAILED, for the reason deluge_file_bytes_collect_exists gives.
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" bool deluge_file_bytes_request_mkdir_all(const char* /*path*/) noexcept {
@@ -160,7 +160,7 @@ extern "C" bool deluge_file_bytes_request_mkdir_all(const char* /*path*/) noexce
 
 extern "C" DelugeChannelStatus deluge_file_bytes_collect_mkdir_all(const char* /*path*/,
                                                                    DelugeStatus* /*out_status*/) noexcept {
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" bool deluge_file_bytes_request_set_time(const char* /*path*/, DelugeTimestamp /*timestamp*/) noexcept {
@@ -169,7 +169,7 @@ extern "C" bool deluge_file_bytes_request_set_time(const char* /*path*/, DelugeT
 
 extern "C" DelugeChannelStatus deluge_file_bytes_collect_set_time(const char* /*path*/,
                                                                   DelugeStatus* /*out_status*/) noexcept {
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" bool deluge_file_bytes_request_read_at(const char* /*path*/, uint32_t /*offset*/,
@@ -180,7 +180,7 @@ extern "C" bool deluge_file_bytes_request_read_at(const char* /*path*/, uint32_t
 extern "C" DelugeChannelStatus deluge_file_bytes_collect_read_at(const char* /*path*/, uint8_t* /*out_buf*/,
                                                                  uint32_t /*buf_cap*/, uint32_t* /*out_len*/,
                                                                  DelugeStatus* /*out_status*/) noexcept {
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" bool deluge_file_bytes_request_write_at(const char* /*path*/, uint32_t /*offset*/, const uint8_t* /*bytes*/,
@@ -192,7 +192,7 @@ extern "C" bool deluge_file_bytes_request_write_at(const char* /*path*/, uint32_
 
 extern "C" DelugeChannelStatus deluge_file_bytes_collect_write_at(const char* /*path*/, uint32_t* /*out_written*/,
                                                                   DelugeStatus* /*out_status*/) noexcept {
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" void deluge_file_bytes_request_stat(const char* /*path*/) noexcept {
@@ -203,7 +203,7 @@ extern "C" DelugeChannelStatus deluge_file_bytes_collect_stat(const char* /*path
                                                               DelugeStatus* /*out_status*/) noexcept {
 	// UNKNOWN, not FAILED, for the reason `collect_exists`'s fallback gives: FAILED is terminal, and a
 	// caller reading it as a real answer would act on a size it never obtained.
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" bool deluge_file_bytes_request_copy(const char* /*from*/, const char* /*to*/) noexcept {
@@ -212,7 +212,7 @@ extern "C" bool deluge_file_bytes_request_copy(const char* /*from*/, const char*
 
 extern "C" DelugeChannelStatus deluge_file_bytes_collect_copy(const char* /*to*/,
                                                               DelugeStatus* /*out_status*/) noexcept {
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" void deluge_file_bytes_request_read(const char* /*path*/) noexcept {
@@ -227,7 +227,7 @@ extern "C" DelugeChannelStatus deluge_file_bytes_collect_read(const char* /*path
 	// UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever -- and a caller that
 	// kept asking would never read the file, because on this build nothing is going to. No output is
 	// touched, which is exactly what the header promises for any status but READY/FAILED.
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" bool deluge_file_bytes_request_write(const char* /*path*/, const uint8_t* /*bytes*/,
@@ -239,7 +239,7 @@ extern "C" bool deluge_file_bytes_request_write(const char* /*path*/, const uint
 
 extern "C" DelugeChannelStatus deluge_file_bytes_collect_write(const char* /*path*/,
                                                                DelugeStatus* /*out_status*/) noexcept {
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" bool deluge_file_bytes_request_rename(const char* /*from*/, const char* /*to*/) noexcept {
@@ -248,7 +248,7 @@ extern "C" bool deluge_file_bytes_request_rename(const char* /*from*/, const cha
 
 extern "C" DelugeChannelStatus deluge_file_bytes_collect_rename(const char* /*to*/,
                                                                 DelugeStatus* /*out_status*/) noexcept {
-	return DELUGE_FILE_BYTES_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }
 
 extern "C" void deluge_file_directory_request(const char* /*dir_path*/, bool /*create_if_missing*/) noexcept {
@@ -262,5 +262,5 @@ extern "C" DelugeChannelStatus deluge_file_directory_collect(const char* /*dir_p
 	// UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever -- and a caller that
 	// kept asking would never open the folder, because on this build nothing is going to. Neither
 	// output is touched, which is exactly what the header promises for any status but READY/FAILED.
-	return DELUGE_FILE_DIRECTORY_UNKNOWN;
+	return DELUGE_CHANNEL_UNKNOWN;
 }

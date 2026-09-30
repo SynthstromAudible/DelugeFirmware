@@ -307,14 +307,14 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 			DelugeHandle dirHandle = DELUGE_HANDLE_NONE;
 			DelugeStatus dirStatus = DELUGE_OK;
 			switch (deluge_file_directory_collect(audioRecordingFolderNames[folderID], &dirHandle, &dirStatus)) {
-			case DELUGE_FILE_DIRECTORY_READY:
+			case DELUGE_CHANNEL_READY:
 				dir.emplace(deluge::io::Directory::adopt(dirHandle));
 				break;
-			case DELUGE_FILE_DIRECTORY_UNKNOWN:
+			case DELUGE_CHANNEL_UNKNOWN:
 				// "Request it (again)" -- and this is also where the FIRST request is issued.
 				deluge_file_directory_request(audioRecordingFolderNames[folderID], /*create_if_missing=*/false);
 				return Error::LISTING_DEFERRED;
-			case DELUGE_FILE_DIRECTORY_PENDING:
+			case DELUGE_CHANNEL_PENDING:
 				// Do NOT re-request: that would replace a request about to be served.
 				return Error::LISTING_DEFERRED;
 			default:
@@ -993,7 +993,7 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
 	DelugeAudioLoadResult result{};
 	switch (deluge_audio_load_collect(filePath.c_str(), &result)) {
 
-	case DELUGE_AUDIO_LOAD_READY:
+	case DELUGE_CHANNEL_READY:
 		if (result.error != static_cast<uint8_t>(Error::NONE)) {
 			return answerFailedLoadResult(context, filePath, result.error, error, asyncMode);
 		}
@@ -1008,13 +1008,13 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
 		// The bytes are already in hand: build and publish the Sample right here, synchronously.
 		return buildSampleFromLoadResult(filePath, result, error);
 
-	case DELUGE_AUDIO_LOAD_PENDING:
+	case DELUGE_CHANNEL_PENDING:
 		// Queued or in flight. Not a failure, and NOT a reason to request again -- the loader is
 		// already working on this exact path (which is why this keeps no in-flight table of its own).
 		*error = Error::LOAD_IN_PROGRESS;
 		return nullptr;
 
-	case DELUGE_AUDIO_LOAD_UNKNOWN:
+	case DELUGE_CHANNEL_UNKNOWN:
 	default:
 		if (asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly
 		    && context.alternateDirStatus == AlternateLoadDirStatus::PROBING
@@ -1257,19 +1257,19 @@ bool AudioFileManager::admissibleAsyncLoadPath(std::string_view path) {
 	// `cstr_to_path`/`decode_candidates`), and both must: a path this accepts and the loader refuses is
 	// a load that can never complete, while one this refuses and the loader would have accepted only
 	// costs a synchronous load.
-	return path.size() < DELUGE_MAX_PATH && deluge::string::isValidUtf8(path);
+	return path.size() < DELUGE_PATH_MAX && deluge::string::isValidUtf8(path);
 }
 
 bool AudioFileManager::admissibleAsyncCandidates(const char* candidates, uint32_t numCandidates) {
 	for (uint32_t i = 0; i < numCandidates; i++) {
-		const char* slot = candidates + (static_cast<size_t>(i) * DELUGE_MAX_PATH);
-		// Each slot is NUL-terminated within DELUGE_MAX_PATH by sample_build::candidates, which
+		const char* slot = candidates + (static_cast<size_t>(i) * DELUGE_PATH_MAX);
+		// Each slot is NUL-terminated within DELUGE_PATH_MAX by sample_build::candidates, which
 		// reports an over-long candidate as untrustworthy rather than writing it -- reading the length
 		// with a bound is belt and braces against that contract changing, not a second opinion about
 		// it. An unterminated slot measures the full width, which admissibleAsyncLoadPath refuses (the
 		// loader's decoder refuses it too, for the same reason: there is no path there to trust).
-		const auto* terminator = static_cast<const char*>(std::memchr(slot, '\0', DELUGE_MAX_PATH));
-		const size_t length = (terminator != nullptr) ? static_cast<size_t>(terminator - slot) : DELUGE_MAX_PATH;
+		const auto* terminator = static_cast<const char*>(std::memchr(slot, '\0', DELUGE_PATH_MAX));
+		const size_t length = (terminator != nullptr) ? static_cast<size_t>(terminator - slot) : DELUGE_PATH_MAX;
 		if (!admissibleAsyncLoadPath(std::string_view{slot, length})) {
 			return false;
 		}
@@ -1302,7 +1302,7 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(deluge::stora
 	// has actually missed (see answerFailedLoadResult, which resolves and asks again). Under
 	// MIGHT_EXIST that means the first request carries only the regular path -- exactly the one
 	// candidate resolveFileSize tries first from the same state.
-	std::array<char, kMaxLoadCandidates * DELUGE_MAX_PATH> candidates{};
+	std::array<char, kMaxLoadCandidates * DELUGE_PATH_MAX> candidates{};
 	const uint32_t proposed = deluge::storage::sample_build::candidates(&context, filePath, candidates.data(),
 	                                                                    static_cast<uint32_t>(kMaxLoadCandidates));
 	if (proposed == DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED || proposed == 0) {

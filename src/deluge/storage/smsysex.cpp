@@ -646,17 +646,17 @@ std::optional<deluge::io::Directory> smSysex::openDirectoryForSysex(const char* 
 	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	DelugeStatus status = DELUGE_OK;
 	switch (deluge_file_directory_collect(path, &handle, &status)) {
-	case DELUGE_FILE_DIRECTORY_READY:
+	case DELUGE_CHANNEL_READY:
 		// The handle is ours now, and closing it is not optional -- `adopt` is what puts it back
 		// under RAII, and `sxDir` holds it until the next open replaces it.
 		return deluge::io::Directory::adopt(handle);
-	case DELUGE_FILE_DIRECTORY_UNKNOWN:
+	case DELUGE_CHANNEL_UNKNOWN:
 		// "Request it (again)" -- the documented meaning, and where the FIRST request is issued.
 		deluge_file_directory_request(path, false);
 		return std::nullopt;
-	case DELUGE_FILE_DIRECTORY_PENDING:
+	case DELUGE_CHANNEL_PENDING:
 		return std::nullopt;
-	case DELUGE_FILE_DIRECTORY_FAILED:
+	case DELUGE_CHANNEL_FAILED:
 	default:
 		*outCode = toWireStatus(deluge::io::to_status(status));
 		return std::nullopt;

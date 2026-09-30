@@ -29,22 +29,16 @@
 
 use core::ffi::{CStr, c_char};
 
+use deluge_channel::{
+    DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
+    DelugeChannelStatus,
+};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 
 use super::abi_handle::{DelugeHandle, from_abi, to_abi};
 use super::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath, still_coming};
-
-/// Copied from `libdeluge/file_stream.h`, because this module compiles in carriers with no bindgen
-/// output; pinned by `abi_pins.rs`.
-pub const DELUGE_FILE_STREAM_PENDING: u8 = 0;
-/// See [`DELUGE_FILE_STREAM_PENDING`].
-pub const DELUGE_FILE_STREAM_READY: u8 = 1;
-/// See [`DELUGE_FILE_STREAM_PENDING`].
-pub const DELUGE_FILE_STREAM_UNKNOWN: u8 = 2;
-/// See [`DELUGE_FILE_STREAM_PENDING`].
-pub const DELUGE_FILE_STREAM_FAILED: u8 = 3;
 
 /// The efatfs backend this driver writes through: the device module on the target, the host shim
 /// under `host_app`. One alias rather than a `#[cfg]` at every call site -- the same shape
@@ -197,7 +191,7 @@ fn accept(op: StreamOp, path: &str) -> bool {
 /// Each out-pointer may be null; one that is not must point at a writable `u32`.
 unsafe fn collect(kind: OpKind, handle: u32, path: &str, out: *mut u32, out_error: *mut u32) -> u8 {
     let Some(key) = OpKey::new(kind, handle, path) else {
-        return DELUGE_FILE_STREAM_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     let queued = REQUEST
         .try_lock()
@@ -205,11 +199,11 @@ unsafe fn collect(kind: OpKind, handle: u32, path: &str, out: *mut u32, out_erro
         .map(|r| r.as_ref().is_some_and(|q| q.key == key));
     let running = IN_FLIGHT.try_lock().ok().map(|f| f.as_ref() == Some(&key));
     if still_coming(queued, running) {
-        return DELUGE_FILE_STREAM_PENDING;
+        return DELUGE_CHANNEL_PENDING;
     }
     // Contended: the task is publishing, and this operation's answer may be what it is publishing.
     let Ok(mut result) = RESULT.try_lock() else {
-        return DELUGE_FILE_STREAM_PENDING;
+        return DELUGE_CHANNEL_PENDING;
     };
     let taken = result.take(&key, deluge_card_generation::current());
     if result.has_orphans() {
@@ -221,17 +215,17 @@ unsafe fn collect(kind: OpKind, handle: u32, path: &str, out: *mut u32, out_erro
                 // SAFETY: non-null, and the caller guarantees it is writable.
                 unsafe { *out = value };
             }
-            DELUGE_FILE_STREAM_READY
+            DELUGE_CHANNEL_READY
         }
         Take::Failed(error) => {
             if !out_error.is_null() {
                 // SAFETY: non-null, and the caller guarantees it is writable.
                 unsafe { *out_error = error };
             }
-            DELUGE_FILE_STREAM_FAILED
+            DELUGE_CHANNEL_FAILED
         }
         // Nothing queued, nothing running, no answer for this card: ask again.
-        Take::Absent => DELUGE_FILE_STREAM_UNKNOWN,
+        Take::Absent => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 
@@ -312,9 +306,9 @@ pub unsafe extern "C" fn deluge_file_stream_request_write_at(
 pub unsafe extern "C" fn deluge_file_stream_collect_write_at(
     handle: DelugeHandle,
     out_written: *mut u32,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
-        return DELUGE_FILE_STREAM_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     // SAFETY: forwarded contract.
     unsafe {
@@ -355,23 +349,23 @@ pub unsafe extern "C" fn deluge_file_stream_collect_open(
     path: *const c_char,
     out_handle: *mut DelugeHandle,
     out_error: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     if path.is_null() {
-        return DELUGE_FILE_STREAM_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: caller guarantees NUL-termination.
     let Ok(p) = (unsafe { CStr::from_ptr(path) }).to_str() else {
-        return DELUGE_FILE_STREAM_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     let mut slot = 0u32;
     let mut error = 0u32;
     // SAFETY: `slot` and `error` are locals.
     let status = unsafe { collect(OpKind::Open, 0, p, &mut slot, &mut error) };
-    if status == DELUGE_FILE_STREAM_READY && !out_handle.is_null() {
+    if status == DELUGE_CHANNEL_READY && !out_handle.is_null() {
         // SAFETY: non-null, and the caller guarantees it is writable.
         unsafe { *out_handle = to_abi(slot) };
     }
-    if status == DELUGE_FILE_STREAM_FAILED && !out_error.is_null() {
+    if status == DELUGE_CHANNEL_FAILED && !out_error.is_null() {
         // The status travels as its byte; see the Open arm of the task.
         // SAFETY: non-null, and the caller guarantees it is writable.
         unsafe { *out_error = error as u8 as i8 };
@@ -415,9 +409,9 @@ pub unsafe extern "C" fn deluge_file_stream_request_read_at(
 pub unsafe extern "C" fn deluge_file_stream_collect_read_at(
     handle: DelugeHandle,
     out_read: *mut u32,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
-        return DELUGE_FILE_STREAM_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     // SAFETY: forwarded contract.
     unsafe { collect(OpKind::ReadAt, handle, "", out_read, core::ptr::null_mut()) }
@@ -434,11 +428,9 @@ pub extern "C" fn deluge_file_stream_request_truncate(handle: DelugeHandle, size
 
 /// C-ABI: collect the truncate.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_stream_collect_truncate(
-    handle: DelugeHandle,
-) -> deluge_channel::DelugeChannelStatus {
+pub extern "C" fn deluge_file_stream_collect_truncate(handle: DelugeHandle) -> DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
-        return DELUGE_FILE_STREAM_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     // SAFETY: null `out` is explicitly allowed.
     unsafe {
@@ -463,11 +455,9 @@ pub extern "C" fn deluge_file_stream_request_close(handle: DelugeHandle) -> bool
 
 /// C-ABI: collect the close.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_stream_collect_close(
-    handle: DelugeHandle,
-) -> deluge_channel::DelugeChannelStatus {
+pub extern "C" fn deluge_file_stream_collect_close(handle: DelugeHandle) -> DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
-        return DELUGE_FILE_STREAM_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     // SAFETY: null `out` is explicitly allowed.
     unsafe {
@@ -494,7 +484,7 @@ pub extern "C" fn deluge_file_stream_request_stats() -> bool {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_collect_stats(
     out_free_clusters: *mut u32,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: forwarded contract.
     unsafe {
         collect(

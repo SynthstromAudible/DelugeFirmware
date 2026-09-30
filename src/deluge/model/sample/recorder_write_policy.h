@@ -104,7 +104,7 @@ constexpr int32_t kMaxUnproductiveUs = 300'000;
 /// @param channelUsable     Whether this write may use the stream channel: boot has finished.
 /// @param issued            Whether the channel accepted the owed write and it has not been collected.
 /// @param collected         The `DELUGE_FILE_STREAM_*` value from the collect, or
-///                          `DELUGE_FILE_STREAM_UNKNOWN` when nothing was collected this tick.
+///                          `DELUGE_CHANNEL_UNKNOWN` when nothing was collected this tick.
 /// @param unproductiveUs   Microseconds this write has been unproductive.
 [[nodiscard]] WriteStep nextWriteStep(bool channelUsable, bool issued, uint8_t collected, int32_t unproductiveUs);
 

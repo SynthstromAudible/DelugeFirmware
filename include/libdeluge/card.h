@@ -64,7 +64,7 @@ extern "C" {
 /// apply-geometry in one call whose blocking open runs no other task. The open hits the old mount and
 /// fails.
 ///
-/// Afterwards every flushed path reports @ref DELUGE_AUDIO_LOAD_UNKNOWN, whose documented meaning is
+/// Afterwards every flushed path reports @ref DELUGE_CHANNEL_UNKNOWN, whose documented meaning is
 /// already "request it (again)" -- the collector needs no new lifecycle for this.
 ///
 /// Unconditionally callable, and callers must NOT gate it on any loader's "am I active?" selector: a

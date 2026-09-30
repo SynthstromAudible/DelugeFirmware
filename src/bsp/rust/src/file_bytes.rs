@@ -71,16 +71,18 @@
 use core::ffi::{CStr, c_char};
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use deluge_channel::{
+    DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
+    DELUGE_PATH_MAX, DelugeChannelStatus,
+};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::mutex::MutexGuard;
 use embassy_sync::signal::Signal;
 
-/// Longest path this channel keys on, in CHARACTERS -- `DELUGE_FILE_BYTES_MAX_PATH` minus its NUL,
-/// the same bound `file_directory::DirPath` carries and for the same reason (a C buffer size counts
-/// the terminator; the text it can hold is one byte shorter). Pinned by `abi_pins.rs`, like every
-/// value this module copies from a header: it compiles in carriers with no bindgen output.
-pub(crate) const MAX_PATH_CHARS: usize = 255;
+/// Longest path this channel keys on, in CHARACTERS: `DELUGE_PATH_MAX` counts the NUL, so the text it can hold is
+/// one byte shorter.
+pub(crate) const MAX_PATH_CHARS: usize = DELUGE_PATH_MAX - 1;
 
 /// The largest file this channel will carry.
 ///
@@ -176,15 +178,6 @@ pub(crate) const STREAM_READ: u8 = 0;
 pub(crate) const STREAM_CREATE: u8 = 1;
 /// See [`STREAM_READ`].
 pub(crate) const STREAM_CREATE_NEW: u8 = 2;
-
-/// `deluge_file_bytes_collect_*`: requested or in flight; ask again, do not re-request.
-pub const DELUGE_FILE_BYTES_PENDING: u8 = 0;
-/// `deluge_file_bytes_collect_*`: the operation completed and its answer was removed from the slot.
-pub const DELUGE_FILE_BYTES_READY: u8 = 1;
-/// `deluge_file_bytes_collect_*`: nothing known about this path. Request it (again).
-pub const DELUGE_FILE_BYTES_UNKNOWN: u8 = 2;
-/// `deluge_file_bytes_collect_*`: the operation did not happen. Terminal -- do NOT re-request.
-pub const DELUGE_FILE_BYTES_FAILED: u8 = 3;
 
 /// Which operation an entry belongs to.
 ///
@@ -1318,8 +1311,8 @@ fn in_flight_idle() -> bool {
 ///
 /// `path` must be a valid NUL-terminated C string; `out_buf` must point to at least `buf_cap`
 /// writable bytes; `out_len` and `out_status` must point to writable objects of their types.
-/// `out_buf` and `out_len` are written ONLY on [`DELUGE_FILE_BYTES_READY`], `out_status` ONLY on
-/// [`DELUGE_FILE_BYTES_FAILED`].
+/// `out_buf` and `out_len` are written ONLY on [`DELUGE_CHANNEL_READY`], `out_status` ONLY on
+/// [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_collect_read(
     path: *const c_char,
@@ -1327,13 +1320,13 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
     buf_cap: u32,
     out_len: *mut u32,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     if out_buf.is_null() || out_len.is_null() || out_status.is_null() {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     // SAFETY: non-null (checked above), and `out_buf` has at least `buf_cap` writable bytes by the
     // caller's contract. Written only through `copy_out`, and only when the whole answer fits.
@@ -1349,7 +1342,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
         Probe::Ready((ByteOutcome::Bytes(_), Some(CopyOut::Copied(len)))) => {
             // SAFETY: non-null (checked above); written only on READY, as the header promises.
             unsafe { *out_len = len };
-            DELUGE_FILE_BYTES_READY
+            DELUGE_CHANNEL_READY
         }
         Probe::Ready((ByteOutcome::Bytes(_), Some(CopyOut::TooBig))) => {
             // The answer is gone either way -- the take removed it -- so this is terminal, and that
@@ -1359,11 +1352,11 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
             //
             // SAFETY: non-null (checked above); written only on FAILED, as the header promises.
             unsafe { *out_status = NO_MEMORY };
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
         // An answer longer than its own buffer, which no producer can publish. UNKNOWN rather than a
         // panic on the interaction tier.
-        Probe::Ready((ByteOutcome::Bytes(_), _)) => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Ready((ByteOutcome::Bytes(_), _)) => DELUGE_CHANNEL_UNKNOWN,
         // None of these can be filed under Read -- `bytes_io_once` produces `Bytes` or `Failed` for
         // it, and the take matched on `ByteOp::Read`. Reported as UNKNOWN rather than asserted,
         // because the alternative hands the caller an uninitialised length.
@@ -1373,14 +1366,14 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
         | Probe::Ready((ByteOutcome::Size(_), _))
         | Probe::Ready((ByteOutcome::Wrote(_), _))
         | Probe::Ready((ByteOutcome::Filled(_), _))
-        | Probe::Ready((ByteOutcome::Refused { .. }, _)) => DELUGE_FILE_BYTES_UNKNOWN,
+        | Probe::Ready((ByteOutcome::Refused { .. }, _)) => DELUGE_CHANNEL_UNKNOWN,
         Probe::Ready((ByteOutcome::Failed(status), _)) => {
             // SAFETY: as above, and written only on FAILED.
             unsafe { *out_status = status };
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
-        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
-        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 
@@ -1389,12 +1382,12 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
 /// # Safety
 ///
 /// `path` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`,
-/// written ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+/// written ONLY on [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_collect_write(
     path: *const c_char,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::Write, path, out_status) }
 }
@@ -1404,12 +1397,12 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_write(
 /// # Safety
 ///
 /// `to` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`,
-/// written ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+/// written ONLY on [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_collect_rename(
     to: *const c_char,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::Rename, to, out_status) }
 }
@@ -1419,12 +1412,12 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_rename(
 /// # Safety
 ///
 /// `path` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`,
-/// written ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+/// written ONLY on [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_collect_unlink(
     path: *const c_char,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::Unlink, path, out_status) }
 }
@@ -1438,14 +1431,14 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_unlink(
 /// # Safety
 ///
 /// `path` must be a valid NUL-terminated C string; `out_present` must point to a writable `bool` and
-/// `out_status` to a writable `i8`. `out_present` is written ONLY on [`DELUGE_FILE_BYTES_READY`],
-/// `out_status` ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+/// `out_status` to a writable `i8`. `out_present` is written ONLY on [`DELUGE_CHANNEL_READY`],
+/// `out_status` ONLY on [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_collect_exists(
     path: *const c_char,
     out_present: *mut bool,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_presence(ByteOp::Exists, path, out_present, out_status) }
 }
@@ -1460,7 +1453,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_dir_exists(
     path: *const c_char,
     out_present: *mut bool,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_presence(ByteOp::DirExists, path, out_present, out_status) }
 }
@@ -1477,22 +1470,22 @@ unsafe fn collect_presence(
     out_status: *mut i8,
 ) -> u8 {
     if out_present.is_null() || out_status.is_null() {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     match probe(op, &path) {
         Probe::Ready(ByteOutcome::Exists(present)) => {
             // SAFETY: non-null (checked above); written only on READY, as the header promises.
             unsafe { *out_present = present };
-            DELUGE_FILE_BYTES_READY
+            DELUGE_CHANNEL_READY
         }
         Probe::Ready(ByteOutcome::Failed(status)) => {
             // SAFETY: as above, and written only on FAILED.
             unsafe { *out_status = status };
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
         // Neither can be filed under Exists -- `bytes_io_once` produces `Exists` or `Failed` for this
         // op, and the take matched on an existence op. Reported as UNKNOWN rather than asserted
@@ -1503,9 +1496,9 @@ unsafe fn collect_presence(
         | Probe::Ready(ByteOutcome::Size(_))
         | Probe::Ready(ByteOutcome::Wrote(_))
         | Probe::Ready(ByteOutcome::Filled(_))
-        | Probe::Ready(ByteOutcome::Refused { .. }) => DELUGE_FILE_BYTES_UNKNOWN,
-        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
-        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+        | Probe::Ready(ByteOutcome::Refused { .. }) => DELUGE_CHANNEL_UNKNOWN,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 
@@ -1514,12 +1507,12 @@ unsafe fn collect_presence(
 /// # Safety
 ///
 /// `path` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`,
-/// written ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+/// written ONLY on [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_collect_mkdir_all(
     path: *const c_char,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::MkdirAll, path, out_status) }
 }
@@ -1529,12 +1522,12 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_mkdir_all(
 /// # Safety
 ///
 /// `path` must be a valid NUL-terminated C string and `out_status` must point to a writable `i8`,
-/// written ONLY on [`DELUGE_FILE_BYTES_FAILED`].
+/// written ONLY on [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_collect_set_time(
     path: *const c_char,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::SetTime, path, out_status) }
 }
@@ -1552,13 +1545,13 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read_at(
     buf_cap: u32,
     out_len: *mut u32,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     if out_buf.is_null() || out_len.is_null() || out_status.is_null() {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     // SAFETY: non-null (checked above), and `out_buf` has at least `buf_cap` writable bytes by the
     // caller's contract. Written only through `copy_out`, and only when the whole block fits.
@@ -1574,22 +1567,22 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read_at(
         Probe::Ready((ByteOutcome::Block(_), Some(CopyOut::Copied(len)))) => {
             // SAFETY: non-null (checked above); written only on READY.
             unsafe { *out_len = len };
-            DELUGE_FILE_BYTES_READY
+            DELUGE_CHANNEL_READY
         }
         Probe::Ready((ByteOutcome::Block(_), Some(CopyOut::TooBig))) => {
             // SAFETY: non-null (checked above); written only on FAILED.
             unsafe { *out_status = NO_MEMORY };
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
         Probe::Ready((ByteOutcome::Failed(status), _)) => {
             // SAFETY: as above, and written only on FAILED.
             unsafe { *out_status = status };
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
         // `CopyOut::Invalid` and every outcome that cannot be filed under ReadAt.
-        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
-        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
-        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Ready(_) => DELUGE_CHANNEL_UNKNOWN,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 
@@ -1604,28 +1597,28 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_write_at(
     path: *const c_char,
     out_written: *mut u32,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     if out_written.is_null() || out_status.is_null() {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     match probe(ByteOp::WriteAt, &path) {
         Probe::Ready(ByteOutcome::Wrote(written)) => {
             // SAFETY: non-null (checked above); written only on READY.
             unsafe { *out_written = written };
-            DELUGE_FILE_BYTES_READY
+            DELUGE_CHANNEL_READY
         }
         Probe::Ready(ByteOutcome::Failed(status)) => {
             // SAFETY: as above, and written only on FAILED.
             unsafe { *out_status = status };
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
-        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
-        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
-        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Ready(_) => DELUGE_CHANNEL_UNKNOWN,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 
@@ -1640,28 +1633,28 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_stat(
     path: *const c_char,
     out_size: *mut u32,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     if out_size.is_null() || out_status.is_null() {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     match probe(ByteOp::Stat, &path) {
         Probe::Ready(ByteOutcome::Size(size)) => {
             // SAFETY: non-null (checked above); written only on READY.
             unsafe { *out_size = size };
-            DELUGE_FILE_BYTES_READY
+            DELUGE_CHANNEL_READY
         }
         Probe::Ready(ByteOutcome::Failed(status)) => {
             // SAFETY: as above, and written only on FAILED.
             unsafe { *out_status = status };
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
-        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
-        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
-        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Ready(_) => DELUGE_CHANNEL_UNKNOWN,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 
@@ -1674,7 +1667,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_stat(
 pub unsafe extern "C" fn deluge_file_bytes_collect_copy(
     to: *const c_char,
     out_status: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::Copy, to, out_status) }
 }
@@ -1684,24 +1677,24 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_copy(
 /// # Safety
 ///
 /// `path` must be a valid NUL-terminated C string. Each out-pointer may be null; one that is not must point at a
-/// writable object of its type. `out_len` is written only on [`DELUGE_FILE_BYTES_READY`], `out_error` and
-/// `out_needed` only on [`DELUGE_FILE_BYTES_FAILED`].
+/// writable object of its type. `out_len` is written only on [`DELUGE_CHANNEL_READY`], `out_error` and
+/// `out_needed` only on [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_collect_read_into(
     path: *const c_char,
     out_len: *mut u32,
     out_error: *mut i8,
     out_needed: *mut u32,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     match probe(ByteOp::ReadInto, &path) {
         Probe::Ready(ByteOutcome::Filled(len)) => {
             // SAFETY: the caller's contract, above.
             unsafe { write_out(out_len, len) };
-            DELUGE_FILE_BYTES_READY
+            DELUGE_CHANNEL_READY
         }
         Probe::Ready(ByteOutcome::Refused { status, needed }) => {
             // SAFETY: the caller's contract, above.
@@ -1709,12 +1702,12 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read_into(
                 write_out(out_error, status);
                 write_out(out_needed, needed);
             }
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
         // Nothing else can be filed under ReadInto: `bytes_io_once` produces `Filled` or `Refused` for it.
-        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
-        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
-        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Ready(_) => DELUGE_CHANNEL_UNKNOWN,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 
@@ -1723,33 +1716,33 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read_into(
 /// # Safety
 ///
 /// `path` must be a valid NUL-terminated C string. Each out-pointer may be null; one that is not must point at a
-/// writable object of its type. `out_written` is written only on [`DELUGE_FILE_BYTES_READY`], `out_error` only on
-/// [`DELUGE_FILE_BYTES_FAILED`].
+/// writable object of its type. `out_written` is written only on [`DELUGE_CHANNEL_READY`], `out_error` only on
+/// [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_collect_write_from(
     path: *const c_char,
     out_written: *mut u32,
     out_error: *mut i8,
-) -> deluge_channel::DelugeChannelStatus {
+) -> DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     match probe(ByteOp::WriteFrom, &path) {
         Probe::Ready(ByteOutcome::Wrote(written)) => {
             // SAFETY: the caller's contract, above.
             unsafe { write_out(out_written, written) };
-            DELUGE_FILE_BYTES_READY
+            DELUGE_CHANNEL_READY
         }
         Probe::Ready(ByteOutcome::Refused { status, .. }) => {
             // SAFETY: the caller's contract, above.
             unsafe { write_out(out_error, status) };
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
         // Nothing else can be filed under WriteFrom: `bytes_io_once` produces `Wrote` or `Refused` for it.
-        Probe::Ready(_) => DELUGE_FILE_BYTES_UNKNOWN,
-        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
-        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+        Probe::Ready(_) => DELUGE_CHANNEL_UNKNOWN,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 
@@ -1773,18 +1766,18 @@ unsafe fn write_out<T>(out: *mut T, value: T) {
 /// `i8` written only on FAILED.
 unsafe fn collect_completion(op: ByteOp, path: *const c_char, out_status: *mut i8) -> u8 {
     if out_status.is_null() {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
-        return DELUGE_FILE_BYTES_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     match probe(op, &path) {
-        Probe::Ready(ByteOutcome::Done) => DELUGE_FILE_BYTES_READY,
+        Probe::Ready(ByteOutcome::Done) => DELUGE_CHANNEL_READY,
         Probe::Ready(ByteOutcome::Failed(status)) => {
             // SAFETY: non-null (checked above); written only on FAILED.
             unsafe { *out_status = status };
-            DELUGE_FILE_BYTES_FAILED
+            DELUGE_CHANNEL_FAILED
         }
         // Neither can be filed under a completion op -- see the same case in
         // `deluge_file_bytes_collect_read`.
@@ -1794,9 +1787,9 @@ unsafe fn collect_completion(op: ByteOp, path: *const c_char, out_status: *mut i
         | Probe::Ready(ByteOutcome::Size(_))
         | Probe::Ready(ByteOutcome::Wrote(_))
         | Probe::Ready(ByteOutcome::Filled(_))
-        | Probe::Ready(ByteOutcome::Refused { .. }) => DELUGE_FILE_BYTES_UNKNOWN,
-        Probe::Pending => DELUGE_FILE_BYTES_PENDING,
-        Probe::Unknown => DELUGE_FILE_BYTES_UNKNOWN,
+        | Probe::Ready(ByteOutcome::Refused { .. }) => DELUGE_CHANNEL_UNKNOWN,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
     }
 }
 

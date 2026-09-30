@@ -90,7 +90,7 @@ public:
 	/// The bound the slicer's audition gives a load (its kMaxPreviewWaitAttempts), and the sample browser's preview's
 	/// give-up, counted here for the whole load rather than per file: any demand that settles, bound or empty, starts
 	/// the count again, so a large load on a slow card keeps loading, and only a load that has stopped moving ends.
-	static constexpr int32_t kMaxStalledTicks = 600;
+	static constexpr int32_t kMaxStalledTicks = deluge::io::kChannelStallTicks;
 
 	/// @brief Every sample a song needs: each output's, then each audio clip's.
 	[[nodiscard]] static AsyncSampleLoad forSong(Song& song, AudioLoadContext* context);

@@ -371,7 +371,7 @@ private:
 	///        one.
 	///
 	/// Deliberately keeps NO in-flight table of its own. The loader already keys its queue, its
-	/// in-flight set and its results by path, and reports DELUGE_AUDIO_LOAD_PENDING for a path it is
+	/// in-flight set and its results by path, and reports DELUGE_CHANNEL_PENDING for a path it is
 	/// already working on -- a second table here would be a second thing that has to agree with that
 	/// one.
 	///
@@ -443,7 +443,7 @@ private:
 	///
 	/// @param filePath The nominal path (the AudioFile's own path; @p result carries the alternate
 	///                 location the bytes were actually found at, if any).
-	/// @param result   A DELUGE_AUDIO_LOAD_READY result whose own error is Error::NONE -- a verdict is
+	/// @param result   A DELUGE_CHANNEL_READY result whose own error is Error::NONE -- a verdict is
 	///                 answered by answerFailedLoadResult instead.
 	/// @param error    Set on failure (never left at Error::NONE when this returns nullptr).
 	/// @return The published Sample, or nullptr with @p error set.
@@ -451,7 +451,7 @@ private:
 	                                     Error* error);
 
 	/// @brief admissibleAsyncLoadPath() over every slot of a candidate buffer.
-	/// @param candidates    `numCandidates * DELUGE_MAX_PATH` bytes, one NUL-terminated path per slot.
+	/// @param candidates    `numCandidates * DELUGE_PATH_MAX` bytes, one NUL-terminated path per slot.
 	/// @param numCandidates How many slots to check.
 	/// @return true if every candidate is one the loader would accept.
 	[[nodiscard]] static bool admissibleAsyncCandidates(const char* candidates, uint32_t numCandidates);

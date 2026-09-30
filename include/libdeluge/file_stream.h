@@ -34,8 +34,8 @@
 /// none of the device-link pressure @ref file_bytes.h's `DELUGE_FILE_BYTES_MAX_BYTES` documents.
 ///
 /// **The caller owns the buffer until the collect is terminal.** `bytes` must stay alive and
-/// unmodified from the request until the matching collect returns @ref DELUGE_FILE_STREAM_READY or
-/// @ref DELUGE_FILE_STREAM_FAILED. Nothing below the caller enforces this: `deluge::io::Stream::close()`
+/// unmodified from the request until the matching collect returns @ref DELUGE_CHANNEL_READY or
+/// @ref DELUGE_CHANNEL_FAILED. Nothing below the caller enforces this: `deluge::io::Stream::close()`
 /// deliberately does NOT drain first (see the note at its definition -- every wait primitive it could
 /// use is unavailable in the contexts it runs in), so the obligation belongs to the caller's own
 /// state machine, which must reach a terminal collect before it frees or closes.
@@ -53,8 +53,13 @@
 /// **Fixed-width, never a native enum.** `arm-none-eabi` defaults to short enums, so a native enum
 /// layout must never be relied on across this boundary.
 ///
+/// **What a collect answers**, in @ref channel.h's vocabulary: @ref DELUGE_CHANNEL_PENDING while the operation is
+/// requested or running (ask again on a later tick; do NOT re-request); @ref DELUGE_CHANNEL_READY when it completed,
+/// and @ref DELUGE_CHANNEL_FAILED when it did not, both terminal, their answer consumed;
+/// @ref DELUGE_CHANNEL_UNKNOWN when nothing is known about it, before its first request included: request it (again).
+///
 /// **Answers are stamped with the card generation their request was made under.** After an ejection, an answer to
-/// a request from before it is never collected, and its collect answers @ref DELUGE_FILE_STREAM_UNKNOWN.
+/// a request from before it is never collected, and its collect answers @ref DELUGE_CHANNEL_UNKNOWN.
 #ifndef LIBDELUGE_FILE_STREAM_H
 #define LIBDELUGE_FILE_STREAM_H
 
@@ -67,16 +72,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// @brief Requested, or running right now. Ask again on a later tick; do NOT re-request.
-#define DELUGE_FILE_STREAM_PENDING DELUGE_CHANNEL_PENDING
-/// @brief The write completed and its answer has been consumed. TERMINAL.
-#define DELUGE_FILE_STREAM_READY DELUGE_CHANNEL_READY
-/// @brief Nothing is known about this write. Request it (again). Also what a caller sees before its
-///        first request, and what every caller sees on a BSP without the Rust channel.
-#define DELUGE_FILE_STREAM_UNKNOWN DELUGE_CHANNEL_UNKNOWN
-/// @brief The write did not happen. TERMINAL -- do NOT re-request.
-#define DELUGE_FILE_STREAM_FAILED DELUGE_CHANNEL_FAILED
 
 /// @brief Ask for `len` bytes at `bytes` to be written to `handle` at absolute `offset`.
 ///
@@ -95,7 +90,7 @@ bool deluge_file_stream_request_write_at(DelugeHandle handle, uint32_t offset, c
 /// @brief Collect the answer for `handle`'s in-flight write.
 ///
 /// @param handle      The handle passed to @ref deluge_file_stream_request_write_at.
-/// @param out_written Written ONLY on @ref DELUGE_FILE_STREAM_READY, with the true byte count. A
+/// @param out_written Written ONLY on @ref DELUGE_CHANNEL_READY, with the true byte count. A
 ///                    count below the requested `len` is a short write; the caller treats it as a
 ///                    card error.
 /// @return one of the four statuses above.
@@ -118,10 +113,10 @@ bool deluge_file_stream_request_open(const char* path, uint8_t mode) DELUGE_NOEX
 
 /// @brief Collect the open of @p path.
 /// @param path       The path passed to @ref deluge_file_stream_request_open. An answer for another path is left for
-///                   its own caller, and this collect answers @ref DELUGE_FILE_STREAM_UNKNOWN.
-/// @param out_handle Written ONLY on @ref DELUGE_FILE_STREAM_READY, with a handle that is never
+///                   its own caller, and this collect answers @ref DELUGE_CHANNEL_UNKNOWN.
+/// @param out_handle Written ONLY on @ref DELUGE_CHANNEL_READY, with a handle that is never
 ///                   @ref DELUGE_HANDLE_NONE.
-/// @param out_error  Written ONLY on @ref DELUGE_FILE_STREAM_FAILED, with the status the open failed with:
+/// @param out_error  Written ONLY on @ref DELUGE_CHANNEL_FAILED, with the status the open failed with:
 ///                   `DELUGE_ERR_NOT_FOUND` for a missing folder, `DELUGE_ERR_NO_FILESYSTEM` when the card could not
 ///                   be mounted, `DELUGE_ERR_IO` when every stream slot is taken. May be null.
 DelugeChannelStatus deluge_file_stream_collect_open(const char* path, DelugeHandle* out_handle,
@@ -143,7 +138,7 @@ bool deluge_file_stream_request_read_at(DelugeHandle handle, uint32_t offset, ui
 
 /// @brief Collect the read.
 /// @param handle   The handle passed to @ref deluge_file_stream_request_read_at.
-/// @param out_read Written ONLY on @ref DELUGE_FILE_STREAM_READY, with the TRUE byte count, which may
+/// @param out_read Written ONLY on @ref DELUGE_CHANNEL_READY, with the TRUE byte count, which may
 ///                 be short of `len` at EOF. The caller decides whether short is an error; for the
 ///                 recorder mid-transform it is.
 DelugeChannelStatus deluge_file_stream_collect_read_at(DelugeHandle handle, uint32_t* out_read) DELUGE_NOEXCEPT;
@@ -176,7 +171,7 @@ DelugeChannelStatus deluge_file_stream_collect_close(DelugeHandle handle) DELUGE
 bool deluge_file_stream_request_stats(void) DELUGE_NOEXCEPT;
 
 /// @brief Collect the free-cluster count.
-/// @param out_free_clusters Written ONLY on @ref DELUGE_FILE_STREAM_READY.
+/// @param out_free_clusters Written ONLY on @ref DELUGE_CHANNEL_READY.
 DelugeChannelStatus deluge_file_stream_collect_stats(uint32_t* out_free_clusters) DELUGE_NOEXCEPT;
 
 /// @brief Whether a queued or running operation reads or writes through @p buffer. [task]

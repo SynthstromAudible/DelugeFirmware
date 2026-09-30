@@ -25,10 +25,10 @@ StemSearchPhase nextStemSearchPhase(StemSearchInputs in) {
 	if (in.phase == StemSearchPhase::Done || in.phase == StemSearchPhase::Failed) {
 		return in.phase;
 	}
-	if (in.collected == DELUGE_FILE_STREAM_PENDING || in.collected == DELUGE_FILE_STREAM_UNKNOWN) {
+	if (in.collected == DELUGE_CHANNEL_PENDING || in.collected == DELUGE_CHANNEL_UNKNOWN) {
 		return in.phase;
 	}
-	if (in.collected == DELUGE_FILE_STREAM_FAILED) {
+	if (in.collected == DELUGE_CHANNEL_FAILED) {
 		// Unlike the create machine, no failure here has a retry: a folder that cannot be made is
 		// the end of the search, and reusing one is exactly what must not happen.
 		return StemSearchPhase::Failed;

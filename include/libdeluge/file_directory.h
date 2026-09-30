@@ -58,46 +58,12 @@
 extern "C" {
 #endif
 
-/// @brief The longest path this channel can key on, INCLUDING the NUL — so the text it holds is one
-///        byte shorter.
-///
-/// @note A longer path is REFUSED, never truncated — a truncated path names a *different* directory,
-///       which may well exist. @ref deluge_file_directory_request drops it silently, so a caller that
-///       does not check this itself gets UNKNOWN forever with no error to show.
-#define DELUGE_FILE_DIRECTORY_MAX_PATH DELUGE_PATH_MAX
-
-/// @brief @ref deluge_file_directory_collect: requested, or being opened right now.
-///
-/// Ask again on a later tick. Do NOT re-request: the open is already under way, and re-requesting
-/// would replace a request that is about to be served.
-#define DELUGE_FILE_DIRECTORY_PENDING DELUGE_CHANNEL_PENDING
-
-/// @brief @ref deluge_file_directory_collect: a handle was written out and removed from the slot.
-///
-/// `out_handle` holds an OPEN directory that is now the caller's to close. Terminal: the answer has
-/// been consumed, so a second collect for the same path reports UNKNOWN.
-#define DELUGE_FILE_DIRECTORY_READY DELUGE_CHANNEL_READY
-
-/// @brief @ref deluge_file_directory_collect: nothing is known about this path.
-///
-/// Request it (again). This is also what a caller sees before its first request, and what it sees
-/// after a card swap discarded an answer read from the card that has gone.
-#define DELUGE_FILE_DIRECTORY_UNKNOWN DELUGE_CHANNEL_UNKNOWN
-
-/// @brief @ref deluge_file_directory_collect: the open did not happen. `out_status` says why.
-///
-/// TERMINAL -- do NOT re-request. A folder that cannot be opened would otherwise be re-requested and
-/// re-opened on every tick, forever, for as long as the browser sits on it. Unlike
-/// @ref file_prefix.h's failure this one carries a status, because the browser's failure path shows
-/// the user which failure it was, and "no such folder" must not become "the card is unreadable".
-#define DELUGE_FILE_DIRECTORY_FAILED DELUGE_CHANNEL_FAILED
-
 /// @brief Ask for `dir_path` to be opened, and return immediately.
 ///
-/// Replaces any request not yet picked up. Silently drops an unusable request (NULL, non-UTF-8, over
-/// long, or a contended slot): there is no failure a caller could act on that re-requesting does not
-/// already cover, and the collect it runs next tick reports @ref DELUGE_FILE_DIRECTORY_UNKNOWN,
-/// whose documented meaning is exactly that.
+/// Replaces any request not yet picked up. Silently drops an unusable request (NULL, non-UTF-8, longer
+/// than @ref DELUGE_PATH_MAX with its NUL, or a contended slot): there is no failure a caller could act on that
+/// re-requesting does not already cover, and the collect it runs next tick reports @ref DELUGE_CHANNEL_UNKNOWN, whose
+/// documented meaning is exactly that.
 /// @param dir_path NUL-terminated path of the directory to open. Copied out before this returns.
 /// @param create_if_missing Create `dir_path` before opening it. For the browser's missing-folder
 ///        fallback, which creates its default directory and lists that. The creation happens on the
@@ -110,15 +76,22 @@ void deluge_file_directory_request(const char* dir_path, bool create_if_missing)
 /// @brief Collect the directory opened for `dir_path`, if one is ready.
 ///
 /// @param dir_path   NUL-terminated path, matched exactly against the one requested.
-/// @param out_handle Written **only** on @ref DELUGE_FILE_DIRECTORY_READY, with an open directory
+/// @param out_handle Written **only** on @ref DELUGE_CHANNEL_READY, with an open directory
 ///                   handle the caller then owns and must close. Untouched on every other status,
 ///                   so it may be passed uninitialised.
-/// @param out_status Written **only** on @ref DELUGE_FILE_DIRECTORY_FAILED, with the status that
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED, with the status that
 ///                   stopped the open. Untouched on every other status.
-/// @return One of @ref DELUGE_FILE_DIRECTORY_PENDING, @ref DELUGE_FILE_DIRECTORY_READY,
-///         @ref DELUGE_FILE_DIRECTORY_UNKNOWN, @ref DELUGE_FILE_DIRECTORY_FAILED.
+/// @return @ref DELUGE_CHANNEL_PENDING while the open is requested or running: ask again on a later
+///         tick, and do NOT re-request, which would replace a request about to be served.
+///         @ref DELUGE_CHANNEL_READY with the handle, now the caller's to close.
+///         @ref DELUGE_CHANNEL_UNKNOWN when nothing is known about this path -- before the first request,
+///         after its answer was collected, or after a card swap discarded it -- so request it (again).
+///         @ref DELUGE_CHANNEL_FAILED when the open did not happen, with @p out_status saying why. It
+///         carries a status because the browser shows the user which failure it was, and "no such
+///         folder" must not become "the card is unreadable".
 /// @note READY and FAILED are both terminal: the answer is removed as it is reported, so asking a
-///       second time reports UNKNOWN. UNKNOWN alone means "request it (again)".
+///       second time reports UNKNOWN. UNKNOWN alone means "request it (again)"; a folder that cannot be
+///       opened would otherwise be re-opened every tick for as long as the browser sits on it.
 DelugeChannelStatus deluge_file_directory_collect(const char* dir_path, DelugeHandle* out_handle,
                                                   DelugeStatus* out_status) DELUGE_NOEXCEPT;
 

@@ -56,7 +56,7 @@
 
 #include "definitions_cxx.hpp" // Error
 
-#include "libdeluge/audio_load.h" // DelugeAudioLoadGeometry, DELUGE_MAX_PATH
+#include "libdeluge/audio_load.h" // DelugeAudioLoadGeometry, DELUGE_PATH_MAX
 
 #include <cstdint>
 #include <string_view>
@@ -136,14 +136,14 @@ bool resolveAlternateDir(AudioLoadContext* context, Error* error) noexcept;
 ///
 /// @param context       The load whose policy applies. Null: no load, so the regular path alone.
 /// @param filePath      The nominal path a load was asked for.
-/// @param out           Buffer of at least `maxCandidates * DELUGE_MAX_PATH` bytes; each slot holds one
+/// @param out           Buffer of at least `maxCandidates * DELUGE_PATH_MAX` bytes; each slot holds one
 ///                      NUL-terminated path, in try order -- the layout `deluge_audio_load_request` reads.
 /// @param maxCandidates Capacity of @p out, in slots.
 /// @return How many candidates were proposed in total. This can exceed @p maxCandidates, in which case
 ///         only the first @p maxCandidates were written to @p out -- the same snprintf-style
 ///         return-vs-capacity contract as `AudioFileManager::proposeLoadCandidates`.
 ///         `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` if @p out is not trustworthy at all (a candidate
-///         that would have been written did not fit in `DELUGE_MAX_PATH` bytes, or an internal
+///         that would have been written did not fit in `DELUGE_PATH_MAX` bytes, or an internal
 ///         allocation failed) -- the caller must not read @p out in that case.
 [[nodiscard]] uint32_t candidates(const AudioLoadContext* context, std::string_view filePath, char* out,
                                   uint32_t maxCandidates) noexcept;

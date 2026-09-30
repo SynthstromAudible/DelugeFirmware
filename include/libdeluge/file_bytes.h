@@ -44,8 +44,8 @@
 /// - the channel's state was being updated at the instant of the call (a lock was contended).
 ///
 /// A request that returns `bool` reports the refusal as false; a query that returns nothing (read, exists,
-/// dir_exists, stat) is refused silently, and its collect reads @ref DELUGE_FILE_BYTES_UNKNOWN until it asks again
-/// -- or @ref DELUGE_FILE_BYTES_PENDING while an identical request is the one in flight, which is how a duplicate
+/// dir_exists, stat) is refused silently, and its collect reads @ref DELUGE_CHANNEL_UNKNOWN until it asks again
+/// -- or @ref DELUGE_CHANNEL_PENDING while an identical request is the one in flight, which is how a duplicate
 /// read coalesces. A refused write is never superseded or replaced: two rapid toggles of a setting are two distinct
 /// intents, and a dropped write is gone where a dropped directory listing is merely re-asked. The caller must retry
 /// a refused write, and this is the one place this channel deliberately differs from @ref file_directory.h.
@@ -67,6 +67,23 @@
 /// which may run to a megabyte, so the pointer crosses rather than the bytes. The caller keeps the buffer until the
 /// collect is terminal and @ref deluge_file_bytes_holds says the channel has let go. Neither replaces a queued
 /// request or is replaced by one: while the channel is busy, each is refused.
+///
+/// **What a collect answers**, in @ref channel.h's vocabulary:
+/// - @ref DELUGE_CHANNEL_PENDING: requested, or running. Ask again on a later tick; do NOT re-request.
+/// - @ref DELUGE_CHANNEL_READY: the operation completed and its answer was removed from the slot. For a read,
+///   `out_buf` holds the file's bytes and `out_len` their count; for a write or a rename, the bytes reached the
+///   card. A second collect for the same path answers UNKNOWN.
+/// - @ref DELUGE_CHANNEL_UNKNOWN: nothing is known about this path -- before the first request, after a card swap
+///   discarded an answer read from the card that has gone, or while a different path occupies the slot. Request it
+///   (again).
+/// - @ref DELUGE_CHANNEL_FAILED: the operation did not happen, and `out_status` says why. Terminal: do NOT
+///   re-request, or a file that cannot be read is re-requested every tick forever. It carries a status because the
+///   caller distinguishes "no such file" (`DELUGE_ERR_NOT_FOUND`: write the defaults) from "the card is unreadable"
+///   (`DELUGE_ERR_IO`: write nothing, or the user's real settings are replaced by defaults), the distinction
+///   `existence_policy.h`'s `Presence` exists to preserve.
+///
+/// **A path longer than @ref DELUGE_PATH_MAX, NUL included, is refused, never truncated.** A truncated path names a
+/// different file, which may well exist and would then be read or, far worse, overwritten.
 ///
 /// **A write creates its parent directory.** That is why there is no `mkdir` operation here: every
 /// settings caller's `mkdir SETTINGS_FOLDER` existed only to make its own write succeed, and a card
@@ -91,13 +108,6 @@
 extern "C" {
 #endif
 
-/// @brief The longest path this channel can key on, INCLUDING the NUL — so the text it holds is one
-///        byte shorter.
-///
-/// @note A longer path is REFUSED, never truncated — a truncated path names a *different* file, which
-///       may well exist and would then be read or, far worse, overwritten.
-#define DELUGE_FILE_BYTES_MAX_PATH DELUGE_PATH_MAX
-
 /// @brief The largest file this channel will carry, in bytes.
 ///
 /// Set by measurement, in both directions. Real settings files on a real card measure 1.4-2.0 KiB
@@ -108,7 +118,7 @@ extern "C" {
 /// `.rtt_cached_reserve` and the device image stops linking. 16 KiB was measured to still link, so
 /// there is headroom -- but raising this is a device-link question, not a free change.
 ///
-/// @note A file larger than this is never truncated. The read reports @ref DELUGE_FILE_BYTES_FAILED
+/// @note A file larger than this is never truncated. The read reports @ref DELUGE_CHANNEL_FAILED
 ///       with `DELUGE_ERR_NO_MEMORY` and the write is refused, because a truncated settings file
 ///       parsed as if whole would silently reset every setting past the cut.
 #define DELUGE_FILE_BYTES_MAX_BYTES 8192u
@@ -124,41 +134,14 @@ extern "C" {
 /// and the image stopped linking. Keep this one small.
 #define DELUGE_FILE_BYTES_BLOCK 1024u
 
-/// @brief Collect: requested, or being read/written right now.
-///
-/// Ask again on a later tick. Do NOT re-request: the operation is already under way.
-#define DELUGE_FILE_BYTES_PENDING DELUGE_CHANNEL_PENDING
-
-/// @brief Collect: the operation completed, and its answer was removed from the slot.
-///
-/// For a read, `out_buf` now holds the file's bytes and `out_len` their count. For a write or a
-/// rename, the bytes reached the card. Terminal: the answer has been consumed, so a second collect
-/// for the same path reports @ref DELUGE_FILE_BYTES_UNKNOWN.
-#define DELUGE_FILE_BYTES_READY DELUGE_CHANNEL_READY
-
-/// @brief Collect: nothing is known about this path. Request it (again).
-///
-/// This is also what a caller sees before its first request, after a card swap discarded an answer
-/// read from a card that has gone, and when a *different* path currently occupies the slot.
-#define DELUGE_FILE_BYTES_UNKNOWN DELUGE_CHANNEL_UNKNOWN
-
-/// @brief Collect: the operation did not happen. `out_status` says why.
-///
-/// TERMINAL -- do NOT re-request, or a file that cannot be read is re-requested every tick forever.
-/// Carries a status because the caller distinguishes "no such file" (`DELUGE_ERR_NOT_FOUND`: write
-/// the defaults) from "the card is unreadable" (`DELUGE_ERR_IO`: write nothing, or the user's real
-/// settings are replaced by defaults) -- the same distinction `existence_policy.h`'s `Presence`
-/// exists to preserve.
-#define DELUGE_FILE_BYTES_FAILED DELUGE_CHANNEL_FAILED
-
 /// @brief Ask for the whole of `path` to be read, and return immediately.
 ///
 /// Silently dropped -- refused, with nothing to report it -- when the path is NULL or over long, or while the
 /// channel is busy: a request is already queued (this path's own included), an operation is in flight, an
 /// uncollected rename, unlink or write-from answer is waiting for its owner, or the channel was mid-update at the
 /// instant of the call. There is no failure a caller could act on that re-requesting does not already cover: the
-/// collect it runs next tick reports @ref DELUGE_FILE_BYTES_PENDING if this path's read is the one in flight, and
-/// @ref DELUGE_FILE_BYTES_UNKNOWN, whose documented meaning is "ask again", otherwise.
+/// collect it runs next tick reports @ref DELUGE_CHANNEL_PENDING if this path's read is the one in flight, and
+/// @ref DELUGE_CHANNEL_UNKNOWN, whose documented meaning is "ask again", otherwise.
 ///
 /// @param path NUL-terminated path of the file to read. Copied out before this returns.
 void deluge_file_bytes_request_read(const char* path) DELUGE_NOEXCEPT;
@@ -166,18 +149,18 @@ void deluge_file_bytes_request_read(const char* path) DELUGE_NOEXCEPT;
 /// @brief Collect the bytes read for `path`, if they are ready.
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
-/// @param out_buf    Written **only** on @ref DELUGE_FILE_BYTES_READY, with `*out_len` bytes. No NUL
+/// @param out_buf    Written **only** on @ref DELUGE_CHANNEL_READY, with `*out_len` bytes. No NUL
 ///                   is appended: a caller that wants one must reserve the room itself.
 /// @param buf_cap    Capacity of `out_buf`. A file longer than this reports
-///                   @ref DELUGE_FILE_BYTES_FAILED with `DELUGE_ERR_NO_MEMORY` rather than a
+///                   @ref DELUGE_CHANNEL_FAILED with `DELUGE_ERR_NO_MEMORY` rather than a
 ///                   truncated read, because a settings file cut short parses as a file whose
 ///                   remaining settings were absent.
-/// @param out_len    Written **only** on @ref DELUGE_FILE_BYTES_READY, with the byte count. Untouched
+/// @param out_len    Written **only** on @ref DELUGE_CHANNEL_READY, with the byte count. Untouched
 ///                   on every other status, so it may be passed uninitialised.
-/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED, with the status that stopped
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED, with the status that stopped
 ///                   the read. Untouched on every other status.
-/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
-///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @return One of @ref DELUGE_CHANNEL_PENDING, @ref DELUGE_CHANNEL_READY,
+///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
 /// @note READY and FAILED are both terminal: the answer is removed as it is reported, so asking a
 ///       second time reports UNKNOWN. UNKNOWN alone means "request it (again)".
 DelugeChannelStatus deluge_file_bytes_collect_read(const char* path, uint8_t* out_buf, uint32_t buf_cap,
@@ -208,9 +191,9 @@ bool deluge_file_bytes_request_write(const char* path, const uint8_t* bytes, uin
 /// @brief Collect the outcome of the write to `path`, if it has finished.
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
-/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
-/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
-///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED. READY means the bytes
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_CHANNEL_PENDING, @ref DELUGE_CHANNEL_READY,
+///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED. READY means the bytes
 ///         reached the card and the caller's buffer is free again.
 DelugeChannelStatus deluge_file_bytes_collect_write(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
@@ -232,9 +215,9 @@ bool deluge_file_bytes_request_rename(const char* from, const char* to) DELUGE_N
 /// @brief Collect the outcome of the rename to `to`, if it has finished.
 ///
 /// @param to         NUL-terminated destination path, matched exactly against the one requested.
-/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
-/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
-///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_CHANNEL_PENDING, @ref DELUGE_CHANNEL_READY,
+///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
 /// @note A rename whose source does not exist reports FAILED with `DELUGE_ERR_NOT_FOUND`. For the
 ///       migration callers that is the ordinary case -- there is no legacy file -- and not an error
 ///       to show anyone.
@@ -254,9 +237,9 @@ bool deluge_file_bytes_request_unlink(const char* path) DELUGE_NOEXCEPT;
 /// @brief Collect the outcome of the deletion of `path`, if it has finished.
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
-/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
-/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
-///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_CHANNEL_PENDING, @ref DELUGE_CHANNEL_READY,
+///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
 /// @note Deleting a path that was already gone reports FAILED with `DELUGE_ERR_NOT_FOUND`. For the
 ///       startup fail-safe's cleanup that is success by another name -- the file is not there, which
 ///       is what was wanted -- so that caller must not treat it as an error.
@@ -281,12 +264,12 @@ void deluge_file_bytes_request_exists(const char* path) DELUGE_NOEXCEPT;
 /// @brief Collect the existence answer for `path`, if there is one.
 ///
 /// @param path        NUL-terminated path, matched exactly against the one requested.
-/// @param out_present Written **only** on @ref DELUGE_FILE_BYTES_READY: true if the path is there,
+/// @param out_present Written **only** on @ref DELUGE_CHANNEL_READY: true if the path is there,
 ///                    false if it is known not to be. Untouched on every other status, so it may be
 ///                    passed uninitialised.
-/// @param out_status  Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
-/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
-///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @param out_status  Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_CHANNEL_PENDING, @ref DELUGE_CHANNEL_READY,
+///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
 /// @note THREE-STATE, and the third state is the point. READY with `*out_present == false` means
 ///       "known absent"; FAILED means "could not establish", which is NOT absence. A caller that
 ///       collapses FAILED into "absent" will write over files that are still there -- see
@@ -308,11 +291,11 @@ void deluge_file_bytes_request_dir_exists(const char* path) DELUGE_NOEXCEPT;
 /// @brief Collect the directory-existence answer for `path`, if there is one.
 ///
 /// @param path        NUL-terminated path, matched exactly against the one requested.
-/// @param out_present Written **only** on @ref DELUGE_FILE_BYTES_READY: true if the directory is there, false if it is
+/// @param out_present Written **only** on @ref DELUGE_CHANNEL_READY: true if the directory is there, false if it is
 ///                    known not to be. Untouched on every other status.
-/// @param out_status  Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
-/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
-///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @param out_status  Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_CHANNEL_PENDING, @ref DELUGE_CHANNEL_READY,
+///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
 /// @note Three-state, exactly as @ref deluge_file_bytes_collect_exists: FAILED is "could not establish", which is NOT
 ///       absence.
 DelugeChannelStatus deluge_file_bytes_collect_dir_exists(const char* path, bool* out_present,
@@ -338,10 +321,10 @@ bool deluge_file_bytes_request_mkdir_all(const char* path) DELUGE_NOEXCEPT;
 /// @brief Collect the outcome of the directory creation for `path`, if it has finished.
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
-/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED, with the first failure that
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED, with the first failure that
 ///                   was not "already exists". Untouched otherwise.
-/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
-///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @return One of @ref DELUGE_CHANNEL_PENDING, @ref DELUGE_CHANNEL_READY,
+///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
 DelugeChannelStatus deluge_file_bytes_collect_mkdir_all(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `path`'s modification time to be set, and return immediately.
@@ -362,9 +345,9 @@ bool deluge_file_bytes_request_set_time(const char* path, DelugeTimestamp timest
 /// @brief Collect the outcome of the timestamp write for `path`, if it has finished.
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
-/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
-/// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
-///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
+/// @return One of @ref DELUGE_CHANNEL_PENDING, @ref DELUGE_CHANNEL_READY,
+///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
 DelugeChannelStatus deluge_file_bytes_collect_set_time(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for up to @ref DELUGE_FILE_BYTES_BLOCK bytes to be read from `path` at `offset`.
@@ -386,12 +369,12 @@ bool deluge_file_bytes_request_read_at(const char* path, uint32_t offset, uint32
 /// @brief Collect the bytes read for `path`, if they are ready.
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
-/// @param out_buf    Written **only** on @ref DELUGE_FILE_BYTES_READY, with `*out_len` bytes.
+/// @param out_buf    Written **only** on @ref DELUGE_CHANNEL_READY, with `*out_len` bytes.
 /// @param buf_cap    Capacity of `out_buf`. A read longer than this reports
-///                   @ref DELUGE_FILE_BYTES_FAILED with `DELUGE_ERR_NO_MEMORY`.
+///                   @ref DELUGE_CHANNEL_FAILED with `DELUGE_ERR_NO_MEMORY`.
 /// @param out_len    Written **only** on READY. **A short count is not an error**: it means
 ///                   end-of-file was reached, which is how a caller detects it.
-/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED.
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED.
 DelugeChannelStatus deluge_file_bytes_collect_read_at(const char* path, uint8_t* out_buf, uint32_t buf_cap,
                                                       uint32_t* out_len, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
@@ -438,8 +421,8 @@ void deluge_file_bytes_request_stat(const char* path) DELUGE_NOEXCEPT;
 /// @brief Collect `path`'s size, if it is known.
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
-/// @param out_size   Written **only** on @ref DELUGE_FILE_BYTES_READY.
-/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED, with `DELUGE_ERR_NOT_FOUND`
+/// @param out_size   Written **only** on @ref DELUGE_CHANNEL_READY.
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED, with `DELUGE_ERR_NOT_FOUND`
 ///                   for a path that is not there.
 DelugeChannelStatus deluge_file_bytes_collect_stat(const char* path, uint32_t* out_size,
                                                    DelugeStatus* out_status) DELUGE_NOEXCEPT;
@@ -460,7 +443,7 @@ bool deluge_file_bytes_request_copy(const char* from, const char* to) DELUGE_NOE
 ///
 /// Keyed on the DESTINATION, because that is the name the caller goes on to use.
 /// @param to         NUL-terminated destination, matched exactly against the one requested.
-/// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED.
+/// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED.
 DelugeChannelStatus deluge_file_bytes_collect_copy(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for the whole of `path` to be read into `dst`.

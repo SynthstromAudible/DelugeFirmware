@@ -224,22 +224,22 @@ DirOpen collectOrRequestDir(const char* path, std::optional<Directory>* out, Sta
 	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	DelugeStatus st = DELUGE_OK;
 	switch (deluge_file_directory_collect(path, &handle, &st)) {
-	case DELUGE_FILE_DIRECTORY_READY:
+	case DELUGE_CHANNEL_READY:
 		// emplace, not assign: Directory is move-only with no default constructor, so there is no
 		// empty slot to assign into. Adopting here is what puts the handle back under RAII.
 		out->emplace(Directory::adopt(handle));
 		return DirOpen::Ready;
 
-	case DELUGE_FILE_DIRECTORY_UNKNOWN:
+	case DELUGE_CHANNEL_UNKNOWN:
 		// "Request it (again)" -- the documented meaning of UNKNOWN, and where the FIRST request is
 		// issued, which is why no separate "have I asked yet" flag is needed.
 		deluge_file_directory_request(path, /*create_if_missing=*/false);
 		return DirOpen::Pending;
 
-	case DELUGE_FILE_DIRECTORY_PENDING:
+	case DELUGE_CHANNEL_PENDING:
 		return DirOpen::Pending;
 
-	case DELUGE_FILE_DIRECTORY_FAILED:
+	case DELUGE_CHANNEL_FAILED:
 	default:
 		// TERMINAL, and deliberately NOT re-requested: a folder that cannot be opened would be
 		// re-opened on every tick, forever, for as long as the caller sat on it.

@@ -198,7 +198,7 @@ void DxSyxBrowser::browserGraphicsRoutine() {
 	const DelugeChannelStatus status =
 	    deluge_file_prefix_collect(g_cartridgeLoadPath.c_str(), g_cartridgeBuffer.data(),
 	                               static_cast<uint32_t>(g_cartridgeBuffer.size()), &length);
-	if (status == DELUGE_FILE_PREFIX_PENDING || status == DELUGE_FILE_PREFIX_UNKNOWN) {
+	if (status == DELUGE_CHANNEL_PENDING || status == DELUGE_CHANNEL_UNKNOWN) {
 		if (g_cartridgeWait.tick()) {
 			// The channel has left this read unanswered for the whole bound. Give up as a read that failed does: the
 			// popup, and the browser left up so another file can be picked. Nothing to clean up: the channel copied
@@ -214,14 +214,14 @@ void DxSyxBrowser::browserGraphicsRoutine() {
 		g_cartridgeWait.reset(); // answered: READY or FAILED
 	}
 	switch (status) {
-	case DELUGE_FILE_PREFIX_PENDING:
+	case DELUGE_CHANNEL_PENDING:
 		return; // being read; ask again next tick and do NOT re-request
-	case DELUGE_FILE_PREFIX_UNKNOWN:
+	case DELUGE_CHANNEL_UNKNOWN:
 		// "Request it (again)" -- the documented meaning, and where the FIRST ask for this path is
 		// issued. Never a failure to report.
 		deluge_file_prefix_request(g_cartridgeLoadPath.c_str(), DELUGE_FILE_PREFIX_CAPACITY);
 		return;
-	case DELUGE_FILE_PREFIX_FAILED:
+	case DELUGE_CHANNEL_FAILED:
 		// Terminal. The read did not happen, so there is nothing to parse; show the popup tryLoad()
 		// shows for a file it could not read, and leave the browser up, so you can pick another file.
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DX_ERROR_READ_ERROR));

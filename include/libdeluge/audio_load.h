@@ -43,20 +43,9 @@
 extern "C" {
 #endif
 
-/// Longest single candidate path in one slot of the buffer @ref deluge_audio_load_request reads,
-/// including the NUL terminator. Deliberately NOT the same bound as
-/// `DELUGE_MAX_FILENAME` (file_io.h): that one is a single path COMPONENT (FAT LFN max 255 chars),
-/// while a load candidate is a full multi-segment path (e.g. an alternate-dir "collect media"
-/// flattened name). Matches this codebase's existing whole-path ceiling instead
-/// (`kFilenameBufferSize`, definitions_cxx.hpp) -- the bound the storage/XML layer already treats as
-/// the longest path it will read or write, so no load candidate legitimately needs more. A candidate
-/// that would not fit is reported via `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED`, never silently
-/// truncated by `snprintf`.
-#define DELUGE_MAX_PATH DELUGE_PATH_MAX
-
 /// Sentinel the app's candidate policy (`deluge::storage::sample_build::candidates`) returns instead of
 /// a real count when its buffer is not trustworthy -- a candidate that would have been written did not
-/// fit in `DELUGE_MAX_PATH` bytes, or an internal allocation failed. Nobody may read that buffer, and
+/// fit in `DELUGE_PATH_MAX` bytes, or an internal allocation failed. Nobody may read that buffer, and
 /// @ref deluge_audio_load_request refuses this value as `num_candidates` rather than clamping it. Never
 /// a legitimate count: `AudioFileManager::kMaxLoadCandidates` bounds real returns far below this value.
 #define DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED 0xFFFFFFFFu
@@ -132,7 +121,7 @@ typedef struct DelugeAudioLoadResult {
 	uint64_t size_bytes;
 	/// The alternate location the bytes were actually found at, or "" if the regular path won -- the
 	/// path the app's build opens its read stream on. NUL-terminated.
-	char alternate_path[DELUGE_MAX_PATH];
+	char alternate_path[DELUGE_PATH_MAX];
 	/// A Deluge `Error` code (as `uint8_t`). `Error::NONE` means @ref geometry is valid and the
 	/// build should be published; anything else is the loader's verdict to fail the load with, and
 	/// carries the same identity the synchronous path produced (`FILE_UNSUPPORTED` for "not audio"
@@ -149,17 +138,6 @@ typedef struct DelugeAudioLoadResult {
 	uint8_t error;
 } DelugeAudioLoadResult;
 
-/// @ref deluge_audio_load_collect: the loader has no result for this path -- it is queued, or in
-/// flight. Ask again next tick; do NOT re-request.
-#define DELUGE_AUDIO_LOAD_PENDING DELUGE_CHANNEL_PENDING
-/// @ref deluge_audio_load_collect: a result was written to `out` and REMOVED from the loader. A
-/// second collect for the same path reports `DELUGE_AUDIO_LOAD_UNKNOWN`.
-#define DELUGE_AUDIO_LOAD_READY DELUGE_CHANNEL_READY
-/// @ref deluge_audio_load_collect: the loader knows nothing about this path. Either it was never
-/// requested, its result was already collected, or its result was evicted by later loads. The
-/// caller should request it (again).
-#define DELUGE_AUDIO_LOAD_UNKNOWN DELUGE_CHANNEL_UNKNOWN
-
 /// @brief Queue @p file_path for the async loader and wake it. Returns immediately; never waits.
 ///
 /// Pair with @ref deluge_audio_load_collect: request, return to your own loop, and ask for the
@@ -172,8 +150,11 @@ typedef struct DelugeAudioLoadResult {
 ///
 /// @param file_path      The nominal path being loaded, and the key @ref deluge_audio_load_collect
 ///                       looks the result up by. Must not be NULL.
-/// @param candidates     `num_candidates * DELUGE_MAX_PATH` bytes, one NUL-terminated path per slot
-///                       in try order. Must not be NULL. Copied out before this returns.
+/// @param candidates     `num_candidates * DELUGE_PATH_MAX` bytes, one NUL-terminated path per slot
+///                       in try order. Must not be NULL. Copied out before this returns. A slot holds a
+///                       whole path (not a component, as `DELUGE_MAX_FILENAME` does); a candidate that
+///                       would not fit is reported by `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED`, never
+///                       truncated.
 /// @param num_candidates How many slots of @p candidates to read. Anything above
 ///                       `AudioFileManager::kMaxLoadCandidates` is ignored;
 ///                       `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` is refused.
@@ -184,14 +165,18 @@ bool deluge_audio_load_request(const char* file_path, const char* candidates, ui
 
 /// @brief Collect the finished parse for @p file_path, if one is ready. Never waits.
 ///
-/// On `DELUGE_AUDIO_LOAD_READY` the result is written to @p out and removed from the loader, so the
+/// On `DELUGE_CHANNEL_READY` the result is written to @p out and removed from the loader, so the
 /// caller now owns it and must act on it: build and publish the `Sample` from it (or fail the load
 /// with `result.error`). That build is I/O-free apart from opening the Sample's own read stream,
 /// because the size and the geometry are already resolved here.
 ///
 /// @param file_path The nominal path passed to @ref deluge_audio_load_request. Must not be NULL.
-/// @param out       Written only when this returns `DELUGE_AUDIO_LOAD_READY`. Must not be NULL.
-/// @return One of `DELUGE_AUDIO_LOAD_PENDING` / `_READY` / `_UNKNOWN`.
+/// @param out       Written only when this returns `DELUGE_CHANNEL_READY`. Must not be NULL.
+/// @return @ref DELUGE_CHANNEL_PENDING while the path is queued or in flight: ask again next tick, and
+///         do NOT re-request. @ref DELUGE_CHANNEL_READY once a result was written to @p out and removed
+///         from the loader, so a second collect for the path answers UNKNOWN.
+///         @ref DELUGE_CHANNEL_UNKNOWN when the loader knows nothing about the path -- never requested,
+///         already collected, or evicted by later loads -- so request it again.
 DelugeChannelStatus deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* out) DELUGE_NOEXCEPT;
 
 /* Discarding what this loader parsed from a card that has been ejected is deluge_card_flush

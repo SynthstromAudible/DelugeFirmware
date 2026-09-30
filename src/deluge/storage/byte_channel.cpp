@@ -64,13 +64,13 @@ constexpr bool kFreezeOnViolation[8] = {
 /// "ask again" is the one answer that is safe under every interpretation.
 ByteIo fromAbi(uint8_t status) {
 	switch (status) {
-	case DELUGE_FILE_BYTES_PENDING:
+	case DELUGE_CHANNEL_PENDING:
 		return ByteIo::Pending;
-	case DELUGE_FILE_BYTES_READY:
+	case DELUGE_CHANNEL_READY:
 		return ByteIo::Ready;
-	case DELUGE_FILE_BYTES_UNKNOWN:
+	case DELUGE_CHANNEL_UNKNOWN:
 		return ByteIo::Unknown;
-	case DELUGE_FILE_BYTES_FAILED:
+	case DELUGE_CHANNEL_FAILED:
 		return ByteIo::Failed;
 	}
 	return ByteIo::Unknown;
@@ -84,7 +84,7 @@ ByteIo fromAbi(uint8_t status) {
 /// that never lands and never reports. Settings paths are compile-time literals today, so this
 /// cannot fire; it is here because the bound is the channel's, not the caller's.
 bool keyable(const char* path) {
-	return path != nullptr && strlen(path) < DELUGE_FILE_BYTES_MAX_PATH;
+	return path != nullptr && strlen(path) < DELUGE_PATH_MAX;
 }
 
 /// See @ref channelServedOps.
@@ -219,7 +219,7 @@ struct PendingOp {
 	Step step = Step::Idle;
 	/// The operation's path, COPIED. The four settings files were compile-time literals, but a
 	/// favourites bank's path is built at run time, and the channel keys on the characters.
-	char path[DELUGE_FILE_BYTES_MAX_PATH] = {};
+	char path[DELUGE_PATH_MAX] = {};
 	const char* legacyPath = nullptr;
 	ParseFn parse = nullptr;
 	AbsentFn onAbsent = nullptr;

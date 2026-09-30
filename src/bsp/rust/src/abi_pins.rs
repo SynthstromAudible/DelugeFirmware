@@ -129,12 +129,8 @@ abi_layout!(crate::audio_loader::LoadGeometry => sys DelugeAudioLoadGeometry { s
     wavetable_explicitly_specifies_self });
 
 abi_const!(
-    crate::audio_loader::DELUGE_MAX_PATH => DELUGE_MAX_PATH,
     crate::audio_loader::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
     crate::audio_loader::DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED => DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED,
-    crate::audio_loader::DELUGE_AUDIO_LOAD_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::audio_loader::DELUGE_AUDIO_LOAD_READY => DELUGE_CHANNEL_READY,
-    crate::audio_loader::DELUGE_AUDIO_LOAD_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
 );
 
 // The channels' shared vocabulary (channel.h), which every channel module takes from `deluge_channel`.
@@ -152,7 +148,7 @@ abi_const!(
 abi_layout!(crate::file_bytes::FileTimestamp => sys DelugeTimestamp { year, month, day, hour, minute, second });
 
 abi_const!(
-    crate::file_bytes::MAX_PATH_CHARS + 1 => DELUGE_FILE_BYTES_MAX_PATH,
+    crate::file_bytes::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
     crate::file_bytes::MAX_BYTES => DELUGE_FILE_BYTES_MAX_BYTES,
     crate::file_bytes::BLOCK_BYTES => DELUGE_FILE_BYTES_BLOCK,
     crate::file_bytes::NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
@@ -165,35 +161,19 @@ abi_const!(
     crate::file_bytes::STREAM_READ => DelugeStreamMode_DELUGE_STREAM_READ,
     crate::file_bytes::STREAM_CREATE => DelugeStreamMode_DELUGE_STREAM_WRITE_CREATE,
     crate::file_bytes::STREAM_CREATE_NEW => DelugeStreamMode_DELUGE_STREAM_WRITE_CREATE_NEW,
-    crate::file_bytes::DELUGE_FILE_BYTES_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::file_bytes::DELUGE_FILE_BYTES_READY => DELUGE_CHANNEL_READY,
-    crate::file_bytes::DELUGE_FILE_BYTES_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    crate::file_bytes::DELUGE_FILE_BYTES_FAILED => DELUGE_CHANNEL_FAILED,
 );
 
 abi_const!(
-    crate::file_directory::MAX_PATH_CHARS + 1 => DELUGE_FILE_DIRECTORY_MAX_PATH,
+    crate::file_directory::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
     crate::file_directory::NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
-    crate::file_directory::DELUGE_FILE_DIRECTORY_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::file_directory::DELUGE_FILE_DIRECTORY_READY => DELUGE_CHANNEL_READY,
-    crate::file_directory::DELUGE_FILE_DIRECTORY_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    crate::file_directory::DELUGE_FILE_DIRECTORY_FAILED => DELUGE_CHANNEL_FAILED,
 );
 
 abi_const!(
     crate::file_prefix::PREFIX_CAPACITY => DELUGE_FILE_PREFIX_CAPACITY,
     crate::file_prefix::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
-    crate::file_prefix::DELUGE_FILE_PREFIX_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::file_prefix::DELUGE_FILE_PREFIX_READY => DELUGE_CHANNEL_READY,
-    crate::file_prefix::DELUGE_FILE_PREFIX_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    crate::file_prefix::DELUGE_FILE_PREFIX_FAILED => DELUGE_CHANNEL_FAILED,
 );
 
 abi_const!(
-    crate::file_stream::DELUGE_FILE_STREAM_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::file_stream::DELUGE_FILE_STREAM_READY => DELUGE_CHANNEL_READY,
-    crate::file_stream::DELUGE_FILE_STREAM_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    crate::file_stream::DELUGE_FILE_STREAM_FAILED => DELUGE_CHANNEL_FAILED,
     crate::file_stream_slot::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
 );
 
