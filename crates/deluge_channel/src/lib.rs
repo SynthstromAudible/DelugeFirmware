@@ -1,4 +1,4 @@
-//! The answer slot every single-flight storage channel keeps.
+//! The answer slot every single-flight storage channel keeps, and the vocabulary its collects answer in.
 //!
 //! A channel takes one request at a time and publishes one answer, keyed by what was asked and stamped with the
 //! card generation it was asked under. The rules:
@@ -8,6 +8,21 @@
 //! - An answer that carries a resource (an open handle) and leaves the slot uncollected is an orphan. Every
 //!   method that drops an answer returns its orphan, for the channel to release.
 #![no_std]
+
+/// What a poll found: `libdeluge/channel.h`'s `DelugeChannelStatus`, one of the `DELUGE_CHANNEL_*` values below. The
+/// BSP's `abi_pins.rs` pins each against the header.
+pub type DelugeChannelStatus = u8;
+/// The request is queued or running: poll again.
+pub const DELUGE_CHANNEL_PENDING: DelugeChannelStatus = 0;
+/// The answer is here, and this poll took it.
+pub const DELUGE_CHANNEL_READY: DelugeChannelStatus = 1;
+/// No request for this key and card is queued, running or answered: ask again.
+pub const DELUGE_CHANNEL_UNKNOWN: DelugeChannelStatus = 2;
+/// The request ran and failed, and this poll took the failure.
+pub const DELUGE_CHANNEL_FAILED: DelugeChannelStatus = 3;
+
+/// The longest path any channel takes, including the NUL. A longer path is refused, never truncated.
+pub const DELUGE_PATH_MAX: usize = 256;
 
 /// What a channel publishes.
 pub trait Answer {

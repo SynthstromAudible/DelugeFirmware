@@ -164,7 +164,7 @@ pub struct StreamingFillDescriptor {
     pub dest: *mut u8,
     pub num_sectors: u32,
     pub ok: bool,
-    pub handle: u32,
+    pub handle: DelugeHandle,
     pub byte_offset: u32,
 }
 

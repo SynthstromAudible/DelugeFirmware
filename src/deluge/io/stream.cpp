@@ -41,7 +41,7 @@ bool Stream::request_write_at(uint32_t byte_offset, std::span<const std::byte> b
 	                                           static_cast<uint32_t>(buffer.size()));
 }
 
-uint8_t Stream::collect_write_at(uint32_t* out_written) {
+DelugeChannelStatus Stream::collect_write_at(uint32_t* out_written) {
 	if (handle_ == DELUGE_HANDLE_NONE) {
 		// UNKNOWN, not PENDING: nothing is in flight and nothing ever will be on this stream.
 		return DELUGE_FILE_STREAM_UNKNOWN;
@@ -57,7 +57,7 @@ bool Stream::request_open(std::string_view path, DelugeStreamMode mode) {
 	return deluge_file_stream_request_open(cpath->c_str(), static_cast<uint8_t>(mode));
 }
 
-uint8_t Stream::collect_open(std::string_view path, std::optional<Stream>* out, DelugeStatus* error) {
+DelugeChannelStatus Stream::collect_open(std::string_view path, std::optional<Stream>* out, DelugeStatus* error) {
 	const auto cpath = CPath::from(path);
 	if (!cpath) {
 		// A path this long was never accepted by request_open, so nothing is in flight for it:
@@ -65,7 +65,7 @@ uint8_t Stream::collect_open(std::string_view path, std::optional<Stream>* out, 
 		return DELUGE_FILE_STREAM_UNKNOWN;
 	}
 	DelugeHandle handle = DELUGE_HANDLE_NONE;
-	const uint8_t status = deluge_file_stream_collect_open(cpath->c_str(), &handle, error);
+	const DelugeChannelStatus status = deluge_file_stream_collect_open(cpath->c_str(), &handle, error);
 	if (status == DELUGE_FILE_STREAM_READY && out != nullptr) {
 		out->emplace(Stream(handle));
 	}
@@ -80,7 +80,7 @@ bool Stream::request_read_at(uint32_t byte_offset, std::span<std::byte> dst) {
 	                                          static_cast<uint32_t>(dst.size()));
 }
 
-uint8_t Stream::collect_read_at(uint32_t* out_read) {
+DelugeChannelStatus Stream::collect_read_at(uint32_t* out_read) {
 	if (handle_ == DELUGE_HANDLE_NONE) {
 		return DELUGE_FILE_STREAM_UNKNOWN;
 	}
@@ -94,7 +94,7 @@ bool Stream::request_truncate(uint32_t new_size) {
 	return deluge_file_stream_request_truncate(handle_, new_size);
 }
 
-uint8_t Stream::collect_truncate() {
+DelugeChannelStatus Stream::collect_truncate() {
 	if (handle_ == DELUGE_HANDLE_NONE) {
 		return DELUGE_FILE_STREAM_UNKNOWN;
 	}
@@ -108,11 +108,11 @@ bool Stream::request_close() {
 	return deluge_file_stream_request_close(handle_);
 }
 
-uint8_t Stream::collect_close() {
+DelugeChannelStatus Stream::collect_close() {
 	if (handle_ == DELUGE_HANDLE_NONE) {
 		return DELUGE_FILE_STREAM_UNKNOWN;
 	}
-	const uint8_t status = deluge_file_stream_collect_close(handle_);
+	const DelugeChannelStatus status = deluge_file_stream_collect_close(handle_);
 	if (status == DELUGE_FILE_STREAM_READY || status == DELUGE_FILE_STREAM_FAILED) {
 		// Disengage on ANY terminal status, exactly as the synchronous close() does on error: the
 		// handle is gone either way, and keeping it would let the destructor close it twice.

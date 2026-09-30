@@ -180,8 +180,8 @@ void deluge_file_bytes_request_read(const char* path) DELUGE_NOEXCEPT;
 ///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
 /// @note READY and FAILED are both terminal: the answer is removed as it is reported, so asking a
 ///       second time reports UNKNOWN. UNKNOWN alone means "request it (again)".
-uint8_t deluge_file_bytes_collect_read(const char* path, uint8_t* out_buf, uint32_t buf_cap, uint32_t* out_len,
-                                       DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_read(const char* path, uint8_t* out_buf, uint32_t buf_cap,
+                                                   uint32_t* out_len, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `len` bytes to be written over `path`, and return immediately.
 ///
@@ -212,7 +212,7 @@ bool deluge_file_bytes_request_write(const char* path, const uint8_t* bytes, uin
 /// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
 ///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED. READY means the bytes
 ///         reached the card and the caller's buffer is free again.
-uint8_t deluge_file_bytes_collect_write(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_write(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `from` to be renamed to `to`, and return immediately.
 ///
@@ -238,7 +238,7 @@ bool deluge_file_bytes_request_rename(const char* from, const char* to) DELUGE_N
 /// @note A rename whose source does not exist reports FAILED with `DELUGE_ERR_NOT_FOUND`. For the
 ///       migration callers that is the ordinary case -- there is no legacy file -- and not an error
 ///       to show anyone.
-uint8_t deluge_file_bytes_collect_rename(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_rename(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `path` to be deleted, and return immediately.
 ///
@@ -260,7 +260,7 @@ bool deluge_file_bytes_request_unlink(const char* path) DELUGE_NOEXCEPT;
 /// @note Deleting a path that was already gone reports FAILED with `DELUGE_ERR_NOT_FOUND`. For the
 ///       startup fail-safe's cleanup that is success by another name -- the file is not there, which
 ///       is what was wanted -- so that caller must not treat it as an error.
-uint8_t deluge_file_bytes_collect_unlink(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_unlink(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask whether `path` exists, and return immediately.
 ///
@@ -291,7 +291,8 @@ void deluge_file_bytes_request_exists(const char* path) DELUGE_NOEXCEPT;
 ///       "known absent"; FAILED means "could not establish", which is NOT absence. A caller that
 ///       collapses FAILED into "absent" will write over files that are still there -- see
 ///       `existence_policy.h`'s `StartupPresence`, which is this distinction given a name.
-uint8_t deluge_file_bytes_collect_exists(const char* path, bool* out_present, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_exists(const char* path, bool* out_present,
+                                                     DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask whether `path` exists as a DIRECTORY, and return immediately.
 ///
@@ -314,8 +315,8 @@ void deluge_file_bytes_request_dir_exists(const char* path) DELUGE_NOEXCEPT;
 ///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
 /// @note Three-state, exactly as @ref deluge_file_bytes_collect_exists: FAILED is "could not establish", which is NOT
 ///       absence.
-uint8_t deluge_file_bytes_collect_dir_exists(const char* path, bool* out_present,
-                                             DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_dir_exists(const char* path, bool* out_present,
+                                                         DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `path` and every missing directory above it to be created, and return immediately.
 ///
@@ -341,7 +342,7 @@ bool deluge_file_bytes_request_mkdir_all(const char* path) DELUGE_NOEXCEPT;
 ///                   was not "already exists". Untouched otherwise.
 /// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
 ///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
-uint8_t deluge_file_bytes_collect_mkdir_all(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_mkdir_all(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `path`'s modification time to be set, and return immediately.
 ///
@@ -364,7 +365,7 @@ bool deluge_file_bytes_request_set_time(const char* path, DelugeTimestamp timest
 /// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED. Untouched otherwise.
 /// @return One of @ref DELUGE_FILE_BYTES_PENDING, @ref DELUGE_FILE_BYTES_READY,
 ///         @ref DELUGE_FILE_BYTES_UNKNOWN, @ref DELUGE_FILE_BYTES_FAILED.
-uint8_t deluge_file_bytes_collect_set_time(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_set_time(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for up to @ref DELUGE_FILE_BYTES_BLOCK bytes to be read from `path` at `offset`.
 ///
@@ -391,8 +392,8 @@ bool deluge_file_bytes_request_read_at(const char* path, uint32_t offset, uint32
 /// @param out_len    Written **only** on READY. **A short count is not an error**: it means
 ///                   end-of-file was reached, which is how a caller detects it.
 /// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED.
-uint8_t deluge_file_bytes_collect_read_at(const char* path, uint8_t* out_buf, uint32_t buf_cap, uint32_t* out_len,
-                                          DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_read_at(const char* path, uint8_t* out_buf, uint32_t buf_cap,
+                                                      uint32_t* out_len, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `len` bytes to be written into `path` at `offset`.
 ///
@@ -422,8 +423,8 @@ bool deluge_file_bytes_request_write_at(const char* path, uint32_t offset, const
 /// @param out_written Written **only** on READY, with the byte count actually written. A short write
 ///                    is reported honestly rather than as success; the caller decides what it means.
 /// @param out_status  Written **only** on FAILED.
-uint8_t deluge_file_bytes_collect_write_at(const char* path, uint32_t* out_written,
-                                           DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_write_at(const char* path, uint32_t* out_written,
+                                                       DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `path`'s size.
 ///
@@ -440,7 +441,8 @@ void deluge_file_bytes_request_stat(const char* path) DELUGE_NOEXCEPT;
 /// @param out_size   Written **only** on @ref DELUGE_FILE_BYTES_READY.
 /// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED, with `DELUGE_ERR_NOT_FOUND`
 ///                   for a path that is not there.
-uint8_t deluge_file_bytes_collect_stat(const char* path, uint32_t* out_size, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_stat(const char* path, uint32_t* out_size,
+                                                   DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `from` to be copied to `to`, whole.
 ///
@@ -459,7 +461,7 @@ bool deluge_file_bytes_request_copy(const char* from, const char* to) DELUGE_NOE
 /// Keyed on the DESTINATION, because that is the name the caller goes on to use.
 /// @param to         NUL-terminated destination, matched exactly against the one requested.
 /// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED.
-uint8_t deluge_file_bytes_collect_copy(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_bytes_collect_copy(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 /// @brief Ask for the whole of `path` to be read into `dst`.
 ///

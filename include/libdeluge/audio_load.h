@@ -192,7 +192,7 @@ bool deluge_audio_load_request(const char* file_path, const char* candidates, ui
 /// @param file_path The nominal path passed to @ref deluge_audio_load_request. Must not be NULL.
 /// @param out       Written only when this returns `DELUGE_AUDIO_LOAD_READY`. Must not be NULL.
 /// @return One of `DELUGE_AUDIO_LOAD_PENDING` / `_READY` / `_UNKNOWN`.
-uint8_t deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* out) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* out) DELUGE_NOEXCEPT;
 
 /* Discarding what this loader parsed from a card that has been ejected is deluge_card_flush
  * (card.h), not a call of this header's own: the ejection invalidates every loader at once, and

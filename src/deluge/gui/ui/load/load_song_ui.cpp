@@ -1090,8 +1090,9 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 	}
 
 	uint32_t length = 0;
-	const uint8_t status = deluge_file_prefix_collect(attempt.target.path.c_str(), songPreviewPrefix.data(),
-	                                                  static_cast<uint32_t>(songPreviewPrefix.size()), &length);
+	const DelugeChannelStatus status =
+	    deluge_file_prefix_collect(attempt.target.path.c_str(), songPreviewPrefix.data(),
+	                               static_cast<uint32_t>(songPreviewPrefix.size()), &length);
 
 	if (status == DELUGE_FILE_PREFIX_PENDING || status == DELUGE_FILE_PREFIX_UNKNOWN) {
 		if (!previewWait_.tick()) {

@@ -99,7 +99,7 @@ bool deluge_file_stream_request_write_at(DelugeHandle handle, uint32_t offset, c
 ///                    count below the requested `len` is a short write; the caller treats it as a
 ///                    card error.
 /// @return one of the four statuses above.
-uint8_t deluge_file_stream_collect_write_at(DelugeHandle handle, uint32_t* out_written) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_stream_collect_write_at(DelugeHandle handle, uint32_t* out_written) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `path` to be opened for writing.
 ///
@@ -146,14 +146,14 @@ bool deluge_file_stream_request_read_at(DelugeHandle handle, uint32_t offset, ui
 /// @param out_read Written ONLY on @ref DELUGE_FILE_STREAM_READY, with the TRUE byte count, which may
 ///                 be short of `len` at EOF. The caller decides whether short is an error; for the
 ///                 recorder mid-transform it is.
-uint8_t deluge_file_stream_collect_read_at(DelugeHandle handle, uint32_t* out_read) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_stream_collect_read_at(DelugeHandle handle, uint32_t* out_read) DELUGE_NOEXCEPT;
 
 /// @brief Ask for the file behind `handle` to be truncated to `size` bytes.
 /// @return false when refused.
 bool deluge_file_stream_request_truncate(DelugeHandle handle, uint32_t size) DELUGE_NOEXCEPT;
 
 /// @brief Collect the truncate.
-uint8_t deluge_file_stream_collect_truncate(DelugeHandle handle) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_stream_collect_truncate(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `handle` to be closed, flushing its deferred directory entry.
 ///
@@ -165,7 +165,7 @@ uint8_t deluge_file_stream_collect_truncate(DelugeHandle handle) DELUGE_NOEXCEPT
 bool deluge_file_stream_request_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 /// @brief Collect the close.
-uint8_t deluge_file_stream_collect_close(DelugeHandle handle) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_stream_collect_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 /// @brief Ask for the filesystem's free-cluster count.
 ///
@@ -177,7 +177,7 @@ bool deluge_file_stream_request_stats(void) DELUGE_NOEXCEPT;
 
 /// @brief Collect the free-cluster count.
 /// @param out_free_clusters Written ONLY on @ref DELUGE_FILE_STREAM_READY.
-uint8_t deluge_file_stream_collect_stats(uint32_t* out_free_clusters) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_stream_collect_stats(uint32_t* out_free_clusters) DELUGE_NOEXCEPT;
 
 /// @brief Whether a queued or running operation reads or writes through @p buffer. [task]
 ///

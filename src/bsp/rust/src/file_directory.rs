@@ -398,7 +398,7 @@ pub unsafe extern "C" fn deluge_file_directory_collect(
     dir_path: *const c_char,
     out_handle: *mut DelugeHandle,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     if out_handle.is_null() || out_status.is_null() {
         return DELUGE_FILE_DIRECTORY_UNKNOWN;
     }

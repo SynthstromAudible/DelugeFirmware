@@ -28,15 +28,15 @@
 extern "C" {
 #endif
 
-/// Values of @ref deluge_tier_current.
-enum {
+/// The tiers code runs on.
+typedef enum DelugeTier : uint8_t {
 	DELUGE_TIER_INTERACTION = 0, ///< thread mode: the UI, the sequencer, the app's tasks
 	DELUGE_TIER_STORAGE = 1,     ///< the storage tasks
 	DELUGE_TIER_AUDIO = 2,       ///< the audio render
-};
+} DelugeTier;
 
-/// @brief The tier running the caller.
-uint8_t deluge_tier_current(void) DELUGE_NOEXCEPT;
+/// @brief The tier running the caller. [task] [audio] [isr]
+DelugeTier deluge_tier_current(void) DELUGE_NOEXCEPT;
 
 /// @brief Synchronous card calls made on the audio tier after boot, which must be none.
 uint32_t deluge_tier_sync_audio_total(void) DELUGE_NOEXCEPT;

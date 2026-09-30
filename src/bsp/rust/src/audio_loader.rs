@@ -587,7 +587,7 @@ fn enqueue_request(request: LoadRequest) -> bool {
 pub unsafe extern "C" fn deluge_audio_load_collect(
     file_path: *const c_char,
     out: *mut AbiLoadResult,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     if out.is_null() {
         return DELUGE_AUDIO_LOAD_UNKNOWN;
     }

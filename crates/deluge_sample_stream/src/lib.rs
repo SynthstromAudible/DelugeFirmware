@@ -214,13 +214,13 @@ pub(crate) mod mock_backing {
     }
 
     #[unsafe(no_mangle)]
-    extern "C" fn deluge_efatfs_close(handle: u32) {
+    extern "C" fn deluge_efatfs_close(handle: deluge_sample_fill::DelugeHandle) {
         CLOSED_HANDLES.with(|c| c.borrow_mut().push(handle));
     }
 
     #[unsafe(no_mangle)]
     extern "C" fn deluge_efatfs_read_at(
-        handle: u32,
+        handle: deluge_sample_fill::DelugeHandle,
         byte_offset: u32,
         dst: *mut c_void,
         count: u32,

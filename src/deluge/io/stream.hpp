@@ -1,6 +1,7 @@
 #pragma once
 
 #include "io/file.hpp" // reuses deluge::io::Status / to_status / to_deluge_status
+#include "libdeluge/channel.h"
 #include "libdeluge/stream_io.h"
 
 #include <cstdint>
@@ -50,7 +51,7 @@ public:
 	/// @brief Collect the in-flight write, if it has finished.
 	/// @param out_written Written only on `DELUGE_FILE_STREAM_READY`, with the true byte count.
 	/// @return a `DELUGE_FILE_STREAM_*` value.
-	[[nodiscard]] uint8_t collect_write_at(uint32_t* out_written);
+	[[nodiscard]] DelugeChannelStatus collect_write_at(uint32_t* out_written);
 
 	/// @brief Ask for @p path to be opened, without blocking.
 	///
@@ -65,8 +66,8 @@ public:
 	///              handle actually exists.
 	/// @param error Written ONLY on `DELUGE_FILE_STREAM_FAILED`, with the status the open failed with. May be null.
 	/// @return a `DELUGE_FILE_STREAM_*` value.
-	[[nodiscard]] static uint8_t collect_open(std::string_view path, std::optional<Stream>* out,
-	                                          DelugeStatus* error = nullptr);
+	[[nodiscard]] static DelugeChannelStatus collect_open(std::string_view path, std::optional<Stream>* out,
+	                                                      DelugeStatus* error = nullptr);
 
 	/// @brief Ask for @p dst.size() bytes at @p byte_offset to be read, without blocking.
 	///
@@ -78,13 +79,13 @@ public:
 
 	/// @brief Collect the read.
 	/// @param out_read Written only on READY, with the true count, which may be short at EOF.
-	[[nodiscard]] uint8_t collect_read_at(uint32_t* out_read);
+	[[nodiscard]] DelugeChannelStatus collect_read_at(uint32_t* out_read);
 
 	/// @brief Ask for this stream's file to be truncated to @p new_size, without blocking.
 	[[nodiscard]] bool request_truncate(uint32_t new_size);
 
 	/// @brief Collect the truncate.
-	[[nodiscard]] uint8_t collect_truncate();
+	[[nodiscard]] DelugeChannelStatus collect_truncate();
 
 	/// @brief Ask for this stream to be closed, without blocking.
 	///
@@ -95,7 +96,7 @@ public:
 
 	/// @brief Collect the close. Disengages this Stream on a terminal status, so the destructor
 	///        cannot close it a second time.
-	[[nodiscard]] uint8_t collect_close();
+	[[nodiscard]] DelugeChannelStatus collect_close();
 	/// @brief Read up to @p dst.size() bytes at absolute @p byte_offset back through this stream's
 	///        OWN open write context, bounded by its live (not yet flushed to disk) size.
 	///

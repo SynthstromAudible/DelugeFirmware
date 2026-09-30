@@ -461,7 +461,7 @@ pub unsafe extern "C" fn deluge_file_prefix_collect(
     out_buf: *mut u8,
     out_cap: u32,
     out_len: *mut u32,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     if out_buf.is_null() || out_len.is_null() {
         return DELUGE_FILE_PREFIX_UNKNOWN;
     }

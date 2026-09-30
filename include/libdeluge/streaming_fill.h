@@ -36,7 +36,7 @@ typedef struct StreamingFillDescriptor {
 	uint8_t* dest;        ///< cluster payload base; write exactly num_sectors*512 bytes here
 	uint32_t num_sectors; ///< sectors to read (accounts for a short final cluster) — the read LENGTH
 	bool ok;              ///< false => skip the read (unloadable / geometry error); do not call finish
-	uint32_t handle;      ///< efatfs file handle for this stream (streaming read is efatfs-only)
+	DelugeHandle handle;  ///< efatfs read handle for this stream (streaming is efatfs-only); a @ref DelugeHandle
 	uint32_t byte_offset; ///< absolute byte offset of this cluster within the file (efatfs read position)
 } StreamingFillDescriptor;
 

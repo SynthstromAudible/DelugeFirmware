@@ -195,8 +195,9 @@ void DxSyxBrowser::browserGraphicsRoutine() {
 	}
 
 	uint32_t length = 0;
-	const uint8_t status = deluge_file_prefix_collect(g_cartridgeLoadPath.c_str(), g_cartridgeBuffer.data(),
-	                                                  static_cast<uint32_t>(g_cartridgeBuffer.size()), &length);
+	const DelugeChannelStatus status =
+	    deluge_file_prefix_collect(g_cartridgeLoadPath.c_str(), g_cartridgeBuffer.data(),
+	                               static_cast<uint32_t>(g_cartridgeBuffer.size()), &length);
 	if (status == DELUGE_FILE_PREFIX_PENDING || status == DELUGE_FILE_PREFIX_UNKNOWN) {
 		if (g_cartridgeWait.tick()) {
 			// The channel has left this read unanswered for the whole bound. Give up as a read that failed does: the

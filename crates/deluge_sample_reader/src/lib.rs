@@ -209,7 +209,7 @@ pub(crate) mod host_streaming_stubs {
     /// zero-sector (`count == 0`) read.
     #[unsafe(no_mangle)]
     extern "C" fn deluge_efatfs_read_at(
-        _handle: u32,
+        _handle: deluge_sample_fill::DelugeHandle,
         byte_offset: u32,
         dst: *mut c_void,
         count: u32,

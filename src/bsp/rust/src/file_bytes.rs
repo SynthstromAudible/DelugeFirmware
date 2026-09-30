@@ -1327,7 +1327,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
     buf_cap: u32,
     out_len: *mut u32,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     if out_buf.is_null() || out_len.is_null() || out_status.is_null() {
         return DELUGE_FILE_BYTES_UNKNOWN;
     }
@@ -1394,7 +1394,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read(
 pub unsafe extern "C" fn deluge_file_bytes_collect_write(
     path: *const c_char,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::Write, path, out_status) }
 }
@@ -1409,7 +1409,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_write(
 pub unsafe extern "C" fn deluge_file_bytes_collect_rename(
     to: *const c_char,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::Rename, to, out_status) }
 }
@@ -1424,7 +1424,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_rename(
 pub unsafe extern "C" fn deluge_file_bytes_collect_unlink(
     path: *const c_char,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::Unlink, path, out_status) }
 }
@@ -1445,7 +1445,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_exists(
     path: *const c_char,
     out_present: *mut bool,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_presence(ByteOp::Exists, path, out_present, out_status) }
 }
@@ -1460,7 +1460,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_dir_exists(
     path: *const c_char,
     out_present: *mut bool,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_presence(ByteOp::DirExists, path, out_present, out_status) }
 }
@@ -1519,7 +1519,7 @@ unsafe fn collect_presence(
 pub unsafe extern "C" fn deluge_file_bytes_collect_mkdir_all(
     path: *const c_char,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::MkdirAll, path, out_status) }
 }
@@ -1534,7 +1534,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_mkdir_all(
 pub unsafe extern "C" fn deluge_file_bytes_collect_set_time(
     path: *const c_char,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::SetTime, path, out_status) }
 }
@@ -1552,7 +1552,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read_at(
     buf_cap: u32,
     out_len: *mut u32,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     if out_buf.is_null() || out_len.is_null() || out_status.is_null() {
         return DELUGE_FILE_BYTES_UNKNOWN;
     }
@@ -1604,7 +1604,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_write_at(
     path: *const c_char,
     out_written: *mut u32,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     if out_written.is_null() || out_status.is_null() {
         return DELUGE_FILE_BYTES_UNKNOWN;
     }
@@ -1640,7 +1640,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_stat(
     path: *const c_char,
     out_size: *mut u32,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     if out_size.is_null() || out_status.is_null() {
         return DELUGE_FILE_BYTES_UNKNOWN;
     }
@@ -1674,7 +1674,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_stat(
 pub unsafe extern "C" fn deluge_file_bytes_collect_copy(
     to: *const c_char,
     out_status: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     unsafe { collect_completion(ByteOp::Copy, to, out_status) }
 }
@@ -1692,7 +1692,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_read_into(
     out_len: *mut u32,
     out_error: *mut i8,
     out_needed: *mut u32,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
         return DELUGE_FILE_BYTES_UNKNOWN;
@@ -1730,7 +1730,7 @@ pub unsafe extern "C" fn deluge_file_bytes_collect_write_from(
     path: *const c_char,
     out_written: *mut u32,
     out_error: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
         return DELUGE_FILE_BYTES_UNKNOWN;

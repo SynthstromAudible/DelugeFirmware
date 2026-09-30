@@ -157,8 +157,8 @@ void deluge_file_prefix_request(const char* file_path, uint32_t max_bytes) DELUG
 /// @param out_len   Receives how many bytes were written to @p out_buf. Must not be NULL. Written
 ///                  only on READY, where it may legitimately be 0.
 /// @return One of `DELUGE_FILE_PREFIX_READY` / `_PENDING` / `_UNKNOWN` / `_FAILED`.
-uint8_t deluge_file_prefix_collect(const char* file_path, uint8_t* out_buf, uint32_t out_cap,
-                                   uint32_t* out_len) DELUGE_NOEXCEPT;
+DelugeChannelStatus deluge_file_prefix_collect(const char* file_path, uint8_t* out_buf, uint32_t out_cap,
+                                               uint32_t* out_len) DELUGE_NOEXCEPT;
 
 /* Discarding a prefix read from a card that has been ejected is deluge_card_flush (card.h), not a
  * call of this header's own: an ejection invalidates every loader at once, and they share one card

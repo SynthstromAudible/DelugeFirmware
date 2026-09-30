@@ -312,7 +312,7 @@ pub unsafe extern "C" fn deluge_file_stream_request_write_at(
 pub unsafe extern "C" fn deluge_file_stream_collect_write_at(
     handle: DelugeHandle,
     out_written: *mut u32,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
         return DELUGE_FILE_STREAM_UNKNOWN;
     };
@@ -355,7 +355,7 @@ pub unsafe extern "C" fn deluge_file_stream_collect_open(
     path: *const c_char,
     out_handle: *mut DelugeHandle,
     out_error: *mut i8,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     if path.is_null() {
         return DELUGE_FILE_STREAM_UNKNOWN;
     }
@@ -415,7 +415,7 @@ pub unsafe extern "C" fn deluge_file_stream_request_read_at(
 pub unsafe extern "C" fn deluge_file_stream_collect_read_at(
     handle: DelugeHandle,
     out_read: *mut u32,
-) -> u8 {
+) -> deluge_channel::DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
         return DELUGE_FILE_STREAM_UNKNOWN;
     };
@@ -434,7 +434,9 @@ pub extern "C" fn deluge_file_stream_request_truncate(handle: DelugeHandle, size
 
 /// C-ABI: collect the truncate.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_stream_collect_truncate(handle: DelugeHandle) -> u8 {
+pub extern "C" fn deluge_file_stream_collect_truncate(
+    handle: DelugeHandle,
+) -> deluge_channel::DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
         return DELUGE_FILE_STREAM_UNKNOWN;
     };
@@ -461,7 +463,9 @@ pub extern "C" fn deluge_file_stream_request_close(handle: DelugeHandle) -> bool
 
 /// C-ABI: collect the close.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_stream_collect_close(handle: DelugeHandle) -> u8 {
+pub extern "C" fn deluge_file_stream_collect_close(
+    handle: DelugeHandle,
+) -> deluge_channel::DelugeChannelStatus {
     let Some(handle) = from_abi(handle) else {
         return DELUGE_FILE_STREAM_UNKNOWN;
     };
@@ -488,7 +492,9 @@ pub extern "C" fn deluge_file_stream_request_stats() -> bool {
 /// # Safety
 /// `out_free_clusters` may be null; when it is not, it must point at a writable `u32`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn deluge_file_stream_collect_stats(out_free_clusters: *mut u32) -> u8 {
+pub unsafe extern "C" fn deluge_file_stream_collect_stats(
+    out_free_clusters: *mut u32,
+) -> deluge_channel::DelugeChannelStatus {
     // SAFETY: forwarded contract.
     unsafe {
         collect(

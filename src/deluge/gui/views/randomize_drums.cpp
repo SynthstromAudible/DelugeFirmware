@@ -120,7 +120,7 @@ bool RandomizeDrums::step() {
 		// cancelled walk's folder for ever.
 		DelugeHandle handle = DELUGE_HANDLE_NONE;
 		DelugeStatus st = DELUGE_OK;
-		const uint8_t answer = deluge_file_directory_collect(rowFolder_.c_str(), &handle, &st);
+		const DelugeChannelStatus answer = deluge_file_directory_collect(rowFolder_.c_str(), &handle, &st);
 		if (answer == DELUGE_FILE_DIRECTORY_READY) {
 			drainsCollected_++;
 			(void)deluge::io::Directory::adopt(handle); // closed on the spot by RAII
