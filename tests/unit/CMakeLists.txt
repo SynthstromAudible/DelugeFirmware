@@ -141,7 +141,9 @@ elseif (APPLE)
         ${RUST_WS}/deluge_audio_format/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
-        COMMAND cargo build -p deluge_rust --release
+        # The target dir is named for the reason the Linux branch gives: `dbt test` sets CARGO_TARGET_DIR, and a
+        # build that followed it would leave RUST_LIB stale.
+        COMMAND cargo build -p deluge_rust --release --target-dir ${RUST_WS}/target
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES}
             ${RUST_WS}/Cargo.lock
