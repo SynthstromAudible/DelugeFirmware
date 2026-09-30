@@ -17,7 +17,7 @@ from pathlib import Path
 SHARED_TARGET_SUBDIR = Path("build") / "cargo-harness"
 
 # The C++ app's object closure for the Embassy host harnesses: the app, its libraries and the host BSP's C side,
-# compiled for x86-64. Nothing links here; golden_vt_render's build.rs archives these objects.
+# compiled for x86-64. Nothing links here; golden_vt_render's build script archives these objects.
 HOST_APP_TREE = Path("build") / "host-app"
 HOST_APP_ARM_TREE = Path("build") / "host-app-arm"
 # The Rust target the ARM golden_vt_render is built for: 32-bit ARM Linux, hard float, run under qemu.

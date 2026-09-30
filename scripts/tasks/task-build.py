@@ -37,7 +37,7 @@ from pathlib import Path
 
 import util
 
-# The C++ targets the Rust build.rs archives + links (mirrors its panic message).
+# The C++ targets the Rust build script archives + links (mirrors its panic message).
 CPP_TARGETS = [
     "deluge_app",
     "NE10",

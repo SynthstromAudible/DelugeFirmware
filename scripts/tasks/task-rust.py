@@ -6,7 +6,7 @@ portable C++ application (Debug, `build-gcc/`) plus the Rust BSP, linked for
 `armv7a-none-eabihf`. CI does not yet build this target — the armv7a BSP job
 in .github/workflows/rust.yml is a commented-out TODO, pending a reproducible
 device build in CI. The Rust BSP (`src/bsp/rust`) links the C++ application
-as a static archive; its `build.rs` does NOT compile the C++ itself on this
+as a static archive; its build script does NOT compile the C++ itself on this
 path — it expects the app objects to already exist in `build-gcc/` (the GCC
 fallback tree; the clang tree that ships lives in `build/`, see `dbt build`)
 and panics otherwise. So the device build is a two-step flow:
@@ -34,7 +34,7 @@ from pathlib import Path
 
 import util
 
-# The C++ targets the Rust build.rs archives + links (mirrors its panic message).
+# The C++ targets the Rust build script archives + links (mirrors its panic message).
 CPP_TARGETS = [
     "deluge_app",
     "NE10",
@@ -49,7 +49,7 @@ CPP_TARGETS = [
 RUST_BSP_DIR = Path("src/bsp/rust")
 # The GCC fallback tree. The clang/lld shipping build owns `build/` (dbt build).
 BUILD_DIR = "build-gcc"
-# build.rs links Debug objects (see module docstring); keep both steps in sync.
+# The build script links Debug objects (see module docstring); keep both steps in sync.
 CONFIG = "Debug"
 
 
@@ -113,14 +113,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     os.chdir(util.get_git_root())
 
     if args.host:
-        # Host (platform-std) image: build.rs's host branch reads
+        # Host (platform-std) image: the build script's host branch reads
         # DELUGE_HOSTAPP_BUILD_DIR (default build/host-app/), not the
         # ARM CPP_TARGETS below — so skip build-gcc entirely, it would be
         # pure waste. See src/bsp/rust/HOST_HARNESS.md.
         print(
             "Building the HOST image (--host): C++ objects come from "
             "build/host-app (DELUGE_HOSTAPP_BUILD_DIR; `./dbt test --build-only golden-vt-render` builds it), not build-gcc. "
-            "See src/bsp/rust/HOST_HARNESS.md if build.rs panics on missing objects."
+            "See src/bsp/rust/HOST_HARNESS.md if the build script panics on missing objects."
         )
         cargo_args = ["cargo", "build"]
         if args.verbose:
@@ -173,7 +173,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     cargo_args += cargo_extra
     cargo_args += sdk_config_args()
 
-    # Explicit, because build.rs's default is `<root>/build` — the clang tree.
+    # Explicit, because the build script's default is `<root>/build` — the clang tree.
     env = {
         **os.environ,
         "DELUGE_BUILD_DIR": str(Path(util.get_git_root()).absolute() / BUILD_DIR),
