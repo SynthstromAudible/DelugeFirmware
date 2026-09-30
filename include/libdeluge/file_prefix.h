@@ -18,8 +18,8 @@
 /// @file
 /// @brief The first N bytes of a file, over the C ABI, without holding the caller.
 ///
-/// Request/collect, the same non-blocking shape @ref audio_load.h and `streaming_fill.h` already
-/// use: ask for a prefix, return to your own loop, and collect it on a later tick. It exists for
+/// Request/collect, the same non-blocking shape the channels in @ref audio_load.h already use: ask
+/// for a prefix, return to your own loop, and collect it on a later tick. It exists for
 /// callers that need to look at the START of a file from a tier that is not allowed to wait on the
 /// card -- a browser drawing song artwork being the case it was built for, where the alternative is
 /// a blocking read on the interaction tier.
@@ -47,15 +47,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Not currently parsed as C -- same situation as audio_load.h, and the same forward-looking
- * hardening: `noexcept` is C++-only and invalid C syntax, so it is spelled through this macro
- * (#undef'd at the end of the file so it cannot leak into, or collide with a same-named macro in,
- * whatever includes this header next) rather than written bare. */
+#include "abi.h"
+#include "channel.h"
+
 #ifdef __cplusplus
-#define DELUGE_NOEXCEPT noexcept
 extern "C" {
-#else
-#define DELUGE_NOEXCEPT
 #endif
 
 /// @brief The most bytes one prefix can be, and therefore the most a request can usefully ask for.
@@ -66,7 +62,7 @@ extern "C" {
 /// Sized from the channel's LARGEST consumer -- the DX7 cartridge's `min(filesize, 8192)` read --
 /// not from any one caller's window. It is deliberately NOT equal to
 /// `deluge::storage::kSongPreviewWindow` (4096): that is a request size, this is the slot every
-/// request's result lands in. `file_prefix_abi.cpp` `static_assert`s the relation that survives
+/// request's result lands in. `load_song_ui.cpp` `static_assert`s the relation that survives
 /// them being different, namely that a request can never exceed the slot.
 ///
 /// @note A collect's `out_cap` must be at least this, not merely as large as the caller's own
@@ -85,14 +81,14 @@ extern "C" {
 
 /// @ref deluge_file_prefix_collect: the read is requested or running. Ask again next tick; do NOT
 /// re-request.
-#define DELUGE_FILE_PREFIX_PENDING 0u
+#define DELUGE_FILE_PREFIX_PENDING DELUGE_CHANNEL_PENDING
 /// @ref deluge_file_prefix_collect: a prefix was written to `out_buf`/`out_len` and REMOVED from the
 /// channel. A second collect for the same path reports @ref DELUGE_FILE_PREFIX_UNKNOWN.
-#define DELUGE_FILE_PREFIX_READY 1u
+#define DELUGE_FILE_PREFIX_READY DELUGE_CHANNEL_READY
 /// @ref deluge_file_prefix_collect: the channel knows nothing about this path. Either it was never
 /// requested, its prefix was already collected, its request was superseded by another path's, or the
 /// card it was read from has since been ejected. The caller should request it (again).
-#define DELUGE_FILE_PREFIX_UNKNOWN 2u
+#define DELUGE_FILE_PREFIX_UNKNOWN DELUGE_CHANNEL_UNKNOWN
 /// @ref deluge_file_prefix_collect: the read did NOT happen -- the file would not open, could not be
 /// sized, or the read itself failed -- and the failure is REMOVED from the channel, exactly as a
 /// prefix is. Terminal, like @ref DELUGE_FILE_PREFIX_READY: do NOT re-request, or an unreadable file
@@ -110,7 +106,7 @@ extern "C" {
 /// Numerically outside audio_load.h's set on purpose: that header has three values and this one now
 /// has four, so a caller that cross-compares (see the note above) reads an unrecognised status
 /// rather than a wrong one.
-#define DELUGE_FILE_PREFIX_FAILED 3u
+#define DELUGE_FILE_PREFIX_FAILED DELUGE_CHANNEL_FAILED
 
 /// @brief Ask for the first @p max_bytes of @p file_path. Returns immediately; never waits.
 ///
@@ -169,12 +165,6 @@ uint8_t deluge_file_prefix_collect(const char* file_path, uint8_t* out_buf, uint
  * generation to say so. Deliberately not a doc comment -- it documents an absence, and would
  * otherwise attach itself to the declaration below. */
 
-/// @brief Whether the Rust async prefix channel backs this header on this BSP/config.
-/// @return true if a request will actually be read; false if every caller must read the file
-///         itself, synchronously. When this is false, @ref deluge_file_prefix_request does nothing
-///         and @ref deluge_file_prefix_collect always reports UNKNOWN.
-bool deluge_file_prefix_async_active(void) DELUGE_NOEXCEPT;
-
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every prefix read wait @p ms milliseconds after it is marked in flight.
 ///
@@ -187,5 +177,4 @@ void deluge_file_prefix_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }
 #endif
-#undef DELUGE_NOEXCEPT
 #endif // LIBDELUGE_FILE_PREFIX_H

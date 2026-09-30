@@ -199,7 +199,7 @@ impl ChunkSlot {
 // being enqueued and its fill completing). Provided by the C++ side; the manager has no clock of its
 // own. See `Stats`'s queue_wait_*/fill_* fields.
 unsafe extern "C" {
-    fn deluge_debug_now_frames() -> u32;
+    pub fn deluge_debug_now_frames() -> u32;
 }
 
 /// Number of cost classes the eviction stats bucket by (`evictions_by_cost[min(cost, COST_BUCKETS-1)]`).

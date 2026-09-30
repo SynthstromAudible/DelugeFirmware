@@ -51,9 +51,9 @@ use embassy_sync::signal::Signal;
 /// buffer size counts the terminator; the text it can hold is one byte shorter).
 ///
 /// Spelled here rather than imported so this module compiles in every carrier that
-/// `#[path]`-includes it. Pinned to the same literal by the assertion below and by
-/// `file_directory_abi.cpp`'s `static_assert`s, so the three cannot drift apart silently.
-const MAX_PATH_CHARS: usize = 255;
+/// `#[path]`-includes it, some with no bindgen output. Pinned by `abi_pins.rs`, like every value
+/// this module copies from a header.
+pub(crate) const MAX_PATH_CHARS: usize = 255;
 
 /// One path, inline. **Nothing in this module may touch the Rust global heap** -- that allocator
 /// assumes single-threaded use and this driver runs on a preempting executor. See
@@ -63,13 +63,13 @@ pub type DirPath = heapless::String<MAX_PATH_CHARS>;
 /// `DELUGE_ERR_NO_FILESYSTEM`, as a bare `i8`.
 ///
 /// Spelled here for the reason this whole module carries statuses bare: it compiles in carriers with
-/// no bindgen bindings at all. Pinned from the other side by `file_directory_abi.cpp`.
+/// no bindgen bindings at all.
 ///
 /// It is a NAMED constant and not written inline in the match below, and that is not style. An
 /// unknown identifier in pattern position is a fresh BINDING, not a comparison -- so
 /// `Err(DELUGE_ERR_NO_FILESYSTEM) =>` compiled, matched EVERY error, and sent every failed open down
 /// the mount path. The only complaint was a non-snake-case warning among thirty-odd others.
-const NO_FILESYSTEM: i8 = -11;
+pub(crate) const NO_FILESYSTEM: i8 = -11;
 
 /// `deluge_file_directory_collect`: requested or in flight; ask again, do not re-request.
 pub const DELUGE_FILE_DIRECTORY_PENDING: u8 = 0;
@@ -79,27 +79,6 @@ pub const DELUGE_FILE_DIRECTORY_READY: u8 = 1;
 pub const DELUGE_FILE_DIRECTORY_UNKNOWN: u8 = 2;
 /// `deluge_file_directory_collect`: the open did not happen. Terminal -- do NOT re-request.
 pub const DELUGE_FILE_DIRECTORY_FAILED: u8 = 3;
-
-/// The values this module hand-duplicates from `file_directory.h`, pinned.
-///
-/// Asserting a constant against its own literal looks tautological, and that is the point: it makes
-/// a change take two deliberate edits instead of one, and the mirror of these numbers lives in
-/// `file_directory_abi.cpp`'s `static_assert`s.
-///
-/// **The status numbering is the audio loader's and the prefix channel's, value for value**, and
-/// that is a safety property rather than tidiness. Two of these headers will plausibly be included
-/// in one translation unit -- browsing a folder wants a listing AND artwork -- where
-/// `deluge_file_directory_collect(..) == DELUGE_FILE_PREFIX_READY` compiles clean and nothing
-/// cross-checks it. Under a divergent numbering that expression would mean something else entirely.
-/// Keep them equal.
-const _: () = {
-    assert!(MAX_PATH_CHARS == 255); // DELUGE_MAX_PATH - 1, as audio_loader::LoadPath
-    assert!(NO_FILESYSTEM == -11); // DELUGE_ERR_NO_FILESYSTEM
-    assert!(DELUGE_FILE_DIRECTORY_PENDING == 0);
-    assert!(DELUGE_FILE_DIRECTORY_READY == 1);
-    assert!(DELUGE_FILE_DIRECTORY_UNKNOWN == 2);
-    assert!(DELUGE_FILE_DIRECTORY_FAILED == 3);
-};
 
 /// What one directory open produced.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -345,27 +324,15 @@ pub(crate) fn flush_tables() {
 /// and no card I/O is involved. A contended table means one of the eight slots leaks until the next
 /// mount -- bounded, rare, and strictly better than the alternative, which is blocking the
 /// interaction tier inside `deluge_card_flush`.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 fn close_handle_now(handle: u32) {
     backing::try_close_dir(handle);
 }
 
 /// No efatfs backing linked into this carrier, so there is no table to close against. Reached only
 /// by the `#[path]` test carriers, where every handle is a number the test made up.
-#[cfg(not(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-)))]
+#[cfg(not(any(target_os = "none", feature = "host_app")))]
 fn close_handle_now(_handle: u32) {}
-
-/// C-ABI: is the driver running? Always, on the Rust BSP: the directory channel has no feature switch.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_directory_async_active() -> bool {
-    true
-}
 
 /// Milliseconds `file_directory_task` waits before each open. Host harness only; see
 /// [`deluge_file_directory_set_latency_ms`].
@@ -554,17 +521,14 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<DirPath> {
 
 // ── The production ops ──────────────────────────────────────────────────────
 //
-// Only compiled where the efatfs backing is actually linked: on device under `efatfs_streaming`,
-// and on host under `host_app`. Kept separate from the driver above so the driver -- and every rule
+// Only compiled where the efatfs backing is actually linked: on device, and on host under
+// `host_app`. Kept separate from the driver above so the driver -- and every rule
 // in this file -- compiles and is tested in the `#[path]` carriers, which have no `crate::`.
 
 /// The efatfs directory table behind the production ops: the device mount on device, the host shim
 /// under `host_app`. One alias rather than a `#[cfg]` at every call site -- the same shape
 /// `audio_loader::prod` uses, and for the same reason.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
@@ -578,26 +542,17 @@ mod backing {
 
 /// The real [`DirOps`], wired to the efatfs directory-handle table. Holds no state: both operations
 /// are keyed by path or handle.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 pub struct ProdDirOps;
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 impl ProdDirOps {
     pub fn new() -> Self {
         Self
     }
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 impl DirOps for ProdDirOps {
     async fn open_dir(&self, path: &str) -> Result<u32, i8> {
         // The same `task_dir_open` `deluge_efatfs_dir_open` calls -- the difference is entirely
@@ -648,19 +603,13 @@ impl DirOps for ProdDirOps {
 /// forever, for as long as the browser sits on it. A published failure ends that: it is terminal,
 /// exactly as a published handle is, and it carries the status so `onListingFailed` can say which
 /// failure it was.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn file_directory_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_directory_task_body()).await
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn file_directory_task_body() {
     DIRECTORY_WAKE.wait().await;
     let ops = ProdDirOps::new();
@@ -701,10 +650,7 @@ async fn file_directory_task_body() {
 /// before any I/O, because that is what makes it mean "the card this open is opening". Reading it
 /// later -- at publish time -- reads the value a flush has already installed and defeats the check
 /// entirely.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn take_next_request() -> Option<(DirRequest, u32)> {
     let mut request = REQUEST.lock().await;
     let request = request.take()?;
@@ -739,10 +685,7 @@ pub async fn mark_in_flight(path: Option<DirPath>) {
 ///
 /// The check happens with the lock already held, not before acquiring it, so that it is at least
 /// ordered against a flush that DID take the lock.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 pub async fn publish_result<O: DirOps>(ops: &O, key: &str, outcome: DirOutcome, generation: u32) {
     let mut result = RESULT.lock().await;
     if generation != deluge_card_generation::current() {
@@ -765,3 +708,7 @@ pub async fn publish_result<O: DirOps>(ops: &O, key: &str, outcome: DirOutcome, 
         ops.close_dir(displaced).await;
     }
 }
+
+abi_pin!(deluge_file_directory_collect, deluge_file_directory_request);
+#[cfg(feature = "host_app")]
+abi_pin!(deluge_file_directory_set_latency_ms);

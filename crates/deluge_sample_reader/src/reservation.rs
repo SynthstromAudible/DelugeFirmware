@@ -49,11 +49,9 @@ unsafe extern "C" {
     /// declared more than once across a crate's modules without conflict (unlike a `#[no_mangle]`
     /// definition, which may only exist once); duplicated here rather than exposed from `reader.rs`
     /// so this module stays independent of `reader.rs`'s own internals.
-    fn deluge_streaming_resource_manager() -> *mut c_void;
-    /// The synchronous card read (`include/libdeluge/streaming_fill.h`) — see [`fill_now`]. The
-    /// SAME extern declaration `reader::fill_now` makes of its own copy; duplicated here for the
-    /// same independence reason as `deluge_streaming_resource_manager` above.
-    fn deluge_efatfs_read_at(
+    pub fn deluge_streaming_resource_manager() -> *mut c_void;
+    /// The synchronous card read (`include/libdeluge/streaming_fill.h`) — see [`fill_now`].
+    pub fn deluge_efatfs_read_at(
         handle: u32,
         byte_offset: u32,
         dst: *mut c_void,
@@ -63,17 +61,16 @@ unsafe extern "C" {
     /// Wake the async loader (`include/libdeluge/streaming_fill.h`) after enqueueing a chunk
     /// via `Resource::loader_enqueue` — see [`enqueue_unfilled`]'s own doc for the recipe this
     /// mirrors (the C++ `CLUSTER_ENQUEUE` path).
-    fn deluge_streaming_signal_fill();
+    pub fn deluge_streaming_signal_fill();
 }
 
-/// Run the synchronous cluster fill on `chunk_backing` — the SAME recipe `reader::fill_now`
-/// implements (resolve via `native_begin`, read exactly that span in one call, then run the
-/// post-read convert/stitch/publish tail via `native_finish`); duplicated here rather than exposed
-/// from `reader.rs` so this module stays independent of `reader.rs`'s own internals — see that
-/// function's own doc for the full rationale. Returns `native_finish`'s own
+/// Run the synchronous cluster fill on `chunk_backing`: resolve where/how much to read
+/// (`native_begin`), read exactly that span in ONE `deluge_efatfs_read_at` call, then run the
+/// post-read convert/stitch/publish tail (`native_finish`). `deluge-bsp-rust`'s async fill task
+/// composes the same two primitives around an `.await`ed read. Returns `native_finish`'s own
 /// result: `false` on a geometry-resolution failure, a failed/short read, or a failed
 /// convert/stitch/publish; `true` once the chunk is converted, stitched, and published ready.
-fn fill_now(chunk_backing: *mut c_void) -> bool {
+pub(crate) fn fill_now(chunk_backing: *mut c_void) -> bool {
     let d = deluge_sample_fill::native_begin(chunk_backing);
     if !d.ok {
         return false;
@@ -409,10 +406,8 @@ fn enqueue_unfilled(resource: &Resource, chunk: deluge_resource::facade::Chunk) 
 /// `load_mode`:
 /// - [`LoadMode::Enqueue`]: schedule the reservation onto the async loader
 ///   ([`enqueue_unfilled`]) and hand it back reserved, unfilled — never blocks.
-/// - [`LoadMode::Now`]: run the synchronous fill (`fill_now`) then `Resource::mark_ready` — the
-///   exact recipe `reader::Reader::acquire_and_fill` uses for its own miss branch. If the fill
-///   fails, the reservation is dropped (`None`) rather than kept unfilled, releasing it — matches
-///   `acquire_and_fill`'s own "`lease` drops here, releasing the failed reservation."
+/// - [`LoadMode::Now`]: run the synchronous fill (`fill_now`) then `Resource::mark_ready`. If the
+///   fill fails, the reservation is dropped (`None`) rather than kept unfilled, releasing it.
 /// - [`LoadMode::NowOrEnqueue`]: attempt the same synchronous fill; on failure, KEEP the
 ///   reservation and schedule it onto the async loader ([`enqueue_unfilled`]) instead of dropping
 ///   it (`Some`, unfilled) — mirrors `CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE`'s fall back to the

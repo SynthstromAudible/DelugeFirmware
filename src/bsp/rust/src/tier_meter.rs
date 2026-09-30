@@ -167,3 +167,10 @@ pub extern "C" fn deluge_tier_sync_name(entry: u8) -> *const c_char {
         .get(entry as usize)
         .map_or(c"".as_ptr(), |s| s.as_ptr().cast())
 }
+
+abi_pin!(
+    deluge_tier_sync_audio_total,
+    deluge_tier_sync_count,
+    deluge_tier_sync_entries,
+    deluge_tier_sync_name
+);

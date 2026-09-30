@@ -5,6 +5,10 @@
 #![cfg(not(target_os = "none"))]
 #![feature(impl_trait_in_assoc_type)]
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 #[path = "../src/boot.rs"]
 mod boot;
 #[path = "../src/sd.rs"]

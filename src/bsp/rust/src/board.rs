@@ -144,3 +144,12 @@ pub extern "C" fn deluge_board_init_storage() {}
 /// region just reduces cache slightly; safe to no-op for now).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_unlock_data_cache() {}
+
+abi_pin!(
+    deluge_board,
+    deluge_board_init_audio,
+    deluge_board_init_early,
+    deluge_board_init_storage,
+    deluge_board_probe_oled,
+    deluge_board_unlock_data_cache,
+);

@@ -121,14 +121,13 @@ extern "C" uint8_t deluge_file_bytes_collect_unlink(const char* /*path*/, Deluge
 }
 
 extern "C" void deluge_file_bytes_request_exists(const char* /*path*/) noexcept {
-	// No byte channel on the unit tests; the caller never reaches here because
-	// deluge_file_bytes_async_active() is false.
+	// No byte channel on the unit tests; the caller never reaches here because boot never finishes.
 }
 
 extern "C" uint8_t deluge_file_bytes_collect_exists(const char* /*path*/, bool* /*out_present*/,
                                                     DelugeStatus* /*out_status*/) noexcept {
 	// UNKNOWN, not FAILED. FAILED is terminal and would be read as `StartupPresence::Unusable`, which
-	// would make a build without the channel skip the startup song forever rather than take its
+	// would make a caller that has not finished booting skip the startup song forever rather than take its
 	// synchronous arm. This distinction is load-bearing -- do not "simplify" it.
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
@@ -184,8 +183,7 @@ extern "C" uint8_t deluge_file_bytes_collect_write_at(const char* /*path*/, uint
 }
 
 extern "C" void deluge_file_bytes_request_stat(const char* /*path*/) noexcept {
-	// No byte channel on the unit tests; the caller never reaches here because
-	// deluge_file_bytes_async_active() is false.
+	// No byte channel on the unit tests; the caller never reaches here because boot never finishes.
 }
 
 extern "C" uint8_t deluge_file_bytes_collect_stat(const char* /*path*/, uint32_t* /*out_size*/,
@@ -203,13 +201,9 @@ extern "C" uint8_t deluge_file_bytes_collect_copy(const char* /*to*/, DelugeStat
 	return DELUGE_FILE_BYTES_UNKNOWN;
 }
 
-extern "C" bool deluge_file_bytes_async_active() noexcept {
-	return false;
-}
-
 extern "C" void deluge_file_bytes_request_read(const char* /*path*/) noexcept {
-	// No byte channel on the unit tests; the caller never reaches here because
-	// deluge_file_bytes_async_active() is false. Dropping the request (rather than pretending to have
+	// No byte channel on the unit tests; the caller never reaches here because boot never finishes.
+	// Dropping the request (rather than pretending to have
 	// accepted it) is what the collect below already reports.
 }
 

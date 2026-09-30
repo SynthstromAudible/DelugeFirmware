@@ -51,11 +51,9 @@
 //!
 //! - Everywhere this module is: the slot logic ([`PrefixSlot`], [`publish_into`], [`take_from`]),
 //!   the driver ([`prefix_io_once`]), the statics, and the C ABI ([`deluge_file_prefix_request`],
-//!   [`deluge_file_prefix_collect`], [`deluge_file_prefix_async_active`]), which overrides
-//!   `file_prefix_abi.cpp`'s `__attribute__((weak))` fallbacks. Every other BSP never links this
-//!   crate, resolves those fallbacks, and reads files itself.
-//! - Where the storage executor runs (the device under `efatfs_streaming`, the host under
-//!   `host_app`): the task and its work buffer.
+//!   [`deluge_file_prefix_collect`]). They are the only definitions.
+//! - Where the storage executor runs (the device, and the host under `host_app`): the task and its
+//!   work buffer.
 //!
 //! The slots hold metadata only and live in on-chip SRAM. The two [`PREFIX_CAPACITY`] byte buffers
 //! -- the published prefix ([`RESULT_BYTES`]) and the read in progress ([`WORK_BYTES`]) -- are in
@@ -76,8 +74,9 @@ use super::audio_loader::{LoadOps, OpenVerdict};
 ///
 /// Deliberately larger than `deluge::storage::kSongPreviewWindow`: the two answer different
 /// questions -- "how much of a song holds the artwork" (4096) versus "how
-/// big is the slot every consumer's result has to land in" (8192). `file_prefix_abi.cpp`
-/// asserts the surviving relation, that a request never exceeds the slot.
+/// big is the slot every consumer's result has to land in" (8192). `load_song_ui.cpp`
+/// asserts the surviving relation, that a request never exceeds the slot. Pinned against
+/// `DELUGE_FILE_PREFIX_CAPACITY` by `abi_pins.rs`.
 ///
 /// It bounds the request as well as the slot: [`deluge_file_prefix_request`] clamps `max_bytes` to
 /// this, so the driver can never be asked for a read that would not fit in the slot the result has
@@ -89,10 +88,9 @@ pub const PREFIX_CAPACITY: usize = 8192;
 /// terminator; the text it can hold is one byte shorter).
 ///
 /// Spelled here rather than imported from the loader so this module compiles in every carrier that
-/// `#[path]`-includes it, including ones where the loader's own tier is switched off. The two are
-/// pinned to the same literal by the assertion below and by `file_prefix_abi.cpp`'s
-/// `static_assert`s, so they cannot drift apart silently.
-const MAX_PATH_CHARS: usize = 255;
+/// `#[path]`-includes it, some with no bindgen output. Pinned by `abi_pins.rs`, like every value
+/// this module copies from a header.
+pub(crate) const MAX_PATH_CHARS: usize = 255;
 
 /// One path, inline. **Nothing in this module may touch the Rust global heap** — that allocator
 /// assumes single-threaded use and this driver runs on a preempting executor. See
@@ -110,29 +108,6 @@ pub const DELUGE_FILE_PREFIX_UNKNOWN: u8 = 2;
 /// The one bit this channel carries that a caller cannot reconstruct. Everything else about a
 /// failure (which failure, on which layer) stays outside the boundary; see `file_prefix.h`.
 pub const DELUGE_FILE_PREFIX_FAILED: u8 = 3;
-
-/// The values this module hand-duplicates from `file_prefix.h`, pinned.
-///
-/// Asserting a constant against its own literal looks tautological, and that is the point: it makes
-/// a change take two deliberate edits instead of one, and the mirror of these numbers lives in
-/// `file_prefix_abi.cpp`'s `static_assert`s.
-///
-/// **The status numbering is the audio loader's, value for value** (`DELUGE_AUDIO_LOAD_PENDING`
-/// = 0, `_READY` = 1, `_UNKNOWN` = 2), and that is a safety property rather than tidiness. Both
-/// headers will plausibly be included in one translation unit — browsing a song wants samples AND
-/// artwork — where `deluge_file_prefix_collect(..) == DELUGE_AUDIO_LOAD_READY` compiles clean and
-/// nothing cross-checks it (`build.rs`'s bindgen allowlist covers `Deluge.*` TYPES, not macros).
-/// Under a divergent numbering that expression would mean PENDING, and the caller would decode
-/// bytes the header promises are untouched. Keep them equal.
-const _: () = {
-    assert!(PREFIX_CAPACITY == 8192); // DELUGE_FILE_PREFIX_CAPACITY; sized for cartridge.cpp
-    assert!(MAX_PATH_CHARS == 255); // DELUGE_MAX_PATH - 1, as audio_loader::LoadPath
-    assert!(DELUGE_FILE_PREFIX_PENDING == 0);
-    assert!(DELUGE_FILE_PREFIX_READY == 1);
-    assert!(DELUGE_FILE_PREFIX_UNKNOWN == 2);
-    // Outside the loader's set of three, on purpose -- see `file_prefix.h`'s macro doc.
-    assert!(DELUGE_FILE_PREFIX_FAILED == 3);
-};
 
 /// One finished prefix read, stamped with the card generation the read BEGAN under.
 struct PrefixEntry {
@@ -325,8 +300,8 @@ struct PrefixRequest {
     path: PrefixPath,
     /// Already clamped to [`PREFIX_CAPACITY`] by [`deluge_file_prefix_request`].
     ///
-    /// Read by `take_next_request`, which is compiled only where the task is (device under
-    /// `efatfs_streaming`, or host under `host_app`). A build that has the statics but no task --
+    /// Read by `take_next_request`, which is compiled only where the task is (device, or
+    /// host under `host_app`). A build that has the statics but no task --
     /// the host test binaries -- writes this field and never reads it, which is the honest shape
     /// rather than a defect.
     #[allow(dead_code)]
@@ -380,25 +355,16 @@ fn result_parts<'g>(
 
 /// The read in progress, before it is published. [`file_prefix_task`]'s alone -- see
 /// [`claim_work_bytes`]. Placed as [`RESULT_BYTES`] is.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut WORK_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
 
 /// Grants [`WORK_BYTES`] once.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 static WORK_CLAIM: super::file_bytes::ClaimOnce = super::file_bytes::ClaimOnce::new();
 
 /// The work buffer, to the first caller only. [`file_prefix_task`] claims it once, at start.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 fn claim_work_bytes() -> Option<&'static mut [u8; PREFIX_CAPACITY]> {
     if !WORK_CLAIM.claim() {
         return None;
@@ -428,14 +394,6 @@ pub(crate) fn flush_tables() {
     if let Ok(mut result) = RESULT.try_lock() {
         result.entry = None;
     }
-}
-
-/// Whether the Rust prefix channel backs `file_prefix.h` -- always, on this BSP. The symbol stays
-/// because a C++-only build links `file_prefix_abi.cpp`'s weak definition instead, which answers
-/// `false`.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_prefix_async_active() -> bool {
-    true
 }
 
 /// Milliseconds `file_prefix_task` waits after marking each read in flight. Host harness only; see
@@ -738,19 +696,13 @@ async fn read_prefix<O: LoadOps>(
 /// this channel was built for shows the user an error for one and blank artwork for the other. It
 /// could not, and the popups the synchronous backing shows would have gone missing the moment the
 /// channel was switched on.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn file_prefix_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_prefix_task_body()).await
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn file_prefix_task_body() {
     PREFIX_WAKE.wait().await;
     let ops = super::audio_loader::ProdOps::new();
@@ -800,10 +752,7 @@ async fn file_prefix_task_body() {
 /// before any I/O, because that is what makes it mean "the card this read is reading". Reading it
 /// later — at publish time — reads the value a flush has already installed and defeats the check
 /// entirely.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn take_next_request() -> Option<(PrefixRequest, u32)> {
     let mut request = REQUEST.lock().await;
     let request = request.take()?;
@@ -853,3 +802,7 @@ pub async fn publish_result(key: &str, bytes: Option<&[u8]>, generation: u32) {
         None => publish_failure_into(slot, key, generation),
     }
 }
+
+abi_pin!(deluge_file_prefix_collect, deluge_file_prefix_request);
+#[cfg(feature = "host_app")]
+abi_pin!(deluge_file_prefix_set_latency_ms);

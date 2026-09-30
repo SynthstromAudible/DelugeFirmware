@@ -62,25 +62,22 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Not currently parsed as C -- same situation as file_bytes.h, and the same forward-looking
- * hardening: `noexcept` is C++-only and invalid C syntax, so it is spelled through this macro
- * (#undef'd at the end of the file so it cannot leak into whatever includes this header next). */
+#include "abi.h"
+#include "channel.h"
+
 #ifdef __cplusplus
-#define DELUGE_NOEXCEPT noexcept
 extern "C" {
-#else
-#define DELUGE_NOEXCEPT
 #endif
 
 /// @brief Requested, or running right now. Ask again on a later tick; do NOT re-request.
-#define DELUGE_FILE_WRITE_PENDING 0u
+#define DELUGE_FILE_WRITE_PENDING DELUGE_CHANNEL_PENDING
 /// @brief The write completed and its answer has been consumed. TERMINAL.
-#define DELUGE_FILE_WRITE_READY 1u
+#define DELUGE_FILE_WRITE_READY DELUGE_CHANNEL_READY
 /// @brief Nothing is known about this write. Request it (again). Also what a caller sees before its
 ///        first request, and what every caller sees on a BSP without the Rust channel.
-#define DELUGE_FILE_WRITE_UNKNOWN 2u
+#define DELUGE_FILE_WRITE_UNKNOWN DELUGE_CHANNEL_UNKNOWN
 /// @brief The write did not happen. TERMINAL -- do NOT re-request.
-#define DELUGE_FILE_WRITE_FAILED 3u
+#define DELUGE_FILE_WRITE_FAILED DELUGE_CHANNEL_FAILED
 
 /// @brief Ask for `len` bytes at `bytes` to be written to `handle` at absolute `offset`.
 ///
@@ -242,11 +239,6 @@ bool deluge_file_write_request_write_file(const char* path, const uint8_t* src, 
 uint8_t deluge_file_write_collect_write_file(const char* path, uint32_t* out_written,
                                              uint8_t* out_exists) DELUGE_NOEXCEPT;
 
-/// @brief Whether the Rust driver is running and this channel may be used at all.
-///
-/// The whole of what a caller consults before choosing an arm.
-bool deluge_file_write_async_active(void) DELUGE_NOEXCEPT;
-
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every write-channel operation wait @p ms milliseconds before it touches the card.
 ///
@@ -259,6 +251,5 @@ void deluge_file_write_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 } // extern "C"
 #endif
-#undef DELUGE_NOEXCEPT
 
 #endif // LIBDELUGE_FILE_WRITE_H

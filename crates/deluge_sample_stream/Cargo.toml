@@ -22,6 +22,9 @@ name = "deluge_sample_stream"
 crate-type = ["rlib"]
 
 [dependencies]
+# `FillContext`: the fill-context this crate registers through `deluge_streaming_set_fill_context`,
+# which that crate exports.
+deluge_sample_fill = { path = "../deluge_sample_fill" }
 # The slot table is a blocking Mutex<CriticalSectionRawMutex, _> — mirrors `deluge_sample_fill`'s
 # own `FILL_CONTEXTS` table (see its lib.rs doc): this crate reaches the resource manager only
 # through late-bound `unsafe extern "C"` symbols (never a direct `deluge_resource` dependency), so

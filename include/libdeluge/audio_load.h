@@ -60,20 +60,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* Not currently parsed as C: neither wrapper.h nor the libdeluge.h umbrella
- * includes this header (src/bsp/rust/build.rs), so only the C++ translation units that include
- * it directly (audio_load_abi.cpp, the load scenarios) ever see it. This macro is forward-
- * looking hardening, not a fix for an active failure: it matches the C-parseable convention the
- * sibling libdeluge headers (audio_format.h, file_io.h) already follow, for whenever a Rust consumer
- * of this ABI is wired in and this header joins wrapper.h. `noexcept` is
- * C++-only and invalid C syntax, so it is spelled through this macro -- #undef'd at the end of the
- * file so it cannot leak into (or collide with a same-named macro in) whatever includes this header
- * next -- rather than written bare. */
+#include "abi.h"
+#include "channel.h"
+
 #ifdef __cplusplus
-#define DELUGE_NOEXCEPT noexcept
 extern "C" {
-#else
-#define DELUGE_NOEXCEPT
 #endif
 
 /// Longest single candidate path `deluge_audio_load_candidates` will write into one slot of its
@@ -85,7 +76,7 @@ extern "C" {
 /// the longest path it will read or write, so no load candidate legitimately needs more. A candidate
 /// that would not fit is reported via `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED`, never silently
 /// truncated by `snprintf`.
-#define DELUGE_MAX_PATH 256u
+#define DELUGE_MAX_PATH DELUGE_PATH_MAX
 
 /// Sentinel `deluge_audio_load_candidates` returns instead of a real count when `out` is not
 /// trustworthy -- a candidate that would have been written did not fit in `DELUGE_MAX_PATH` bytes, or
@@ -377,14 +368,14 @@ typedef struct DelugeAudioLoadResult {
 
 /// @ref deluge_audio_load_collect: the loader has no result for this path -- it is queued, or in
 /// flight. Ask again next tick; do NOT re-request.
-#define DELUGE_AUDIO_LOAD_PENDING 0u
+#define DELUGE_AUDIO_LOAD_PENDING DELUGE_CHANNEL_PENDING
 /// @ref deluge_audio_load_collect: a result was written to `out` and REMOVED from the loader. A
 /// second collect for the same path reports `DELUGE_AUDIO_LOAD_UNKNOWN`.
-#define DELUGE_AUDIO_LOAD_READY 1u
+#define DELUGE_AUDIO_LOAD_READY DELUGE_CHANNEL_READY
 /// @ref deluge_audio_load_collect: the loader knows nothing about this path. Either it was never
 /// requested, its result was already collected, or its result was evicted by later loads. The
 /// caller should request it (again).
-#define DELUGE_AUDIO_LOAD_UNKNOWN 2u
+#define DELUGE_AUDIO_LOAD_UNKNOWN DELUGE_CHANNEL_UNKNOWN
 
 /// @brief Queue @p file_path for the async loader and wake it. Returns immediately; never waits.
 ///
@@ -425,10 +416,6 @@ uint8_t deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* 
  * they share one card generation to say so. Deliberately not a doc comment -- it documents an
  * absence, and would otherwise attach itself to the declaration below. */
 
-/// @brief Whether the Rust async loader backs sample loads on this BSP/config.
-/// @return true if async loading is active; false if every load takes the synchronous path.
-bool deluge_audio_load_async_active(void) DELUGE_NOEXCEPT;
-
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every audio load wait @p ms milliseconds after it is marked in flight.
 ///
@@ -441,5 +428,4 @@ void deluge_audio_load_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }
 #endif
-#undef DELUGE_NOEXCEPT
 #endif // LIBDELUGE_AUDIO_LOAD_H

@@ -114,10 +114,9 @@ ByteIo counted(ByteIo status) {
 } // namespace
 
 bool usingByteChannel() {
-	// Boot as well as the switch, and the boot term is load-bearing: `deluge.cpp` reads all three settings files
-	// during boot, when the channel's task is not yet running and nothing is ticking to collect an answer. Boot would
-	// come up with defaults for every setting.
-	return deluge::boot::finished() && deluge_file_bytes_async_active();
+	// Boot is load-bearing: `deluge.cpp` reads all three settings files during boot, when the channel's task is not
+	// yet running and nothing is ticking to collect an answer. Boot would come up with defaults for every setting.
+	return deluge::boot::finished();
 }
 
 ByteIo requestRead(const char* path) {

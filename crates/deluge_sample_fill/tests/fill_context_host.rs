@@ -1,10 +1,8 @@
 //! Host round-trip test for the per-asset streaming fill-context table:
 //! `deluge_streaming_set_fill_context` (the main/load-thread
 //! write, called from C++ at sample-load) → `fill_context_for` (the read side the native fill task
-//! wires in). Always-compiled tier (see the crate's `lib.rs` doc) — unlike
-//! `deluge-bsp-rust`'s `tests/streaming_fill_host.rs`, this does NOT need `async_streaming_loader`
-//! (the fill-context table isn't gated on it) or `host_app` (it doesn't touch `deluge_resource` — see
-//! the table's own doc in `lib.rs`).
+//! wires in). Always-compiled tier (see the crate's `lib.rs` doc): this does NOT need `host_app` (it
+//! doesn't touch `deluge_resource` — see the table's own doc in `lib.rs`).
 //!
 //! A normal integration test for this crate: exercises `deluge_sample_fill`'s public API as an
 //! ordinary dependent, no `#[path]` recompilation needed (unlike `deluge-bsp-rust`'s bin-only

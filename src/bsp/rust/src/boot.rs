@@ -19,3 +19,5 @@ pub fn finished() -> bool {
 pub extern "C" fn deluge_boot_finished() -> bool {
     finished()
 }
+
+abi_pin!(deluge_boot_finished);

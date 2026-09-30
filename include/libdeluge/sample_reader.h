@@ -90,8 +90,9 @@ DelugeSampleReader* deluge_sample_reader_open(uint32_t source_id, uint64_t start
 
 /// @brief The contiguous run of valid, already-converted frames at the cursor.
 ///
-/// BLOCKS to make the data resident (must-load-now). Self-pins the window's backing while the
-/// window is live, so it cannot be evicted mid-read.
+/// Never blocks: a cluster that is not resident has its fill requested from the async drain, and
+/// the call reports a read failure until a later call finds it ready. Self-pins the window's
+/// backing while the window is live, so it cannot be evicted mid-read.
 /// @param reader The reader to read from.
 /// @return The window at the cursor; `frame_count == 0` means end-of-audio (or a hard read failure
 ///         — see deluge_sample_reader_ok).
@@ -135,8 +136,8 @@ void deluge_sample_reader_close(DelugeSampleReader* reader);
 ///
 /// Residency is signalled by the `frames` pointer, NOT `frame_count` (matching the semantics of the
 /// C++ facade's own `peek`): `frames == NULL` iff there is no valid resident position here — not
-/// resident, OR resident but not yet ready (a `deluge_sample_reader_open`+`window()` would block to
-/// fill it; this never does). A non-NULL `frames` with `frame_count == 0` means "resident and ready,
+/// resident, OR resident but not yet ready (a `deluge_sample_reader_open`+`window()` would request
+/// its fill; this never does). A non-NULL `frames` with `frame_count == 0` means "resident and ready,
 /// but the cursor is on the last PARTIAL frame" — read that frame via the pointer with your own byte
 /// bounds; do NOT treat a 0 count as not-resident.
 ///
@@ -228,7 +229,8 @@ void deluge_sample_reserve_move(DelugeSampleReservation* res, uint32_t source_id
 void deluge_sample_reserve_close(DelugeSampleReservation* res);
 
 /// @brief Convenience for cold one-shots: copy `[start_frame, start_frame + num_frames)`
-///        native-format frames of `source_id`'s sample into `dest`. Blocking.
+///        native-format frames of `source_id`'s sample into `dest`. Never blocks: the copy stops
+///        short at the first cluster that is not yet resident.
 ///
 /// Internally an open → window/copy loop → close (one path, not a second implementation) —
 /// equivalent to driving the handle API by hand with DELUGE_READ_CACHED.

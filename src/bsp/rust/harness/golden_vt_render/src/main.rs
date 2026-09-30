@@ -3,7 +3,7 @@
 //! real offline `StemExport` of the fixture song, whose stem WAVs it copies out; otherwise the stepped scenario
 //! `GOLDEN_SCENARIO` names (`tests/integration/scenarios/scenario_table.cpp`). Sample cluster fills drain through the
 //! real async Embassy `streaming_fill_task` (the reader/overview and voice-playback paths route their fills onto that
-//! drain under `async_active`), so a sample-backed fixture renders real audio, not silence.
+//! drain), so a sample-backed fixture renders real audio, not silence.
 //!
 //! # Why a separate package
 //!
@@ -58,6 +58,11 @@ use embassy_executor::raw;
 use embassy_time::{Duration, Instant, Timer};
 use embassy_time_driver::Driver as _;
 
+/// `abi_pin!`/`abi_const!`/`abi_layout!`, the checking variants: this package's `sys` is always the bindgen output.
+#[macro_use]
+#[path = "../../../src/abi_pin_macros.rs"]
+mod abi_pin_macros;
+
 mod clock;
 #[path = "../../../src/memory_card.rs"]
 mod memory_card;
@@ -98,6 +103,21 @@ mod sys {
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
 
+/// The header's own definitions of the types `sys` binds to an in-tree crate's types (see `build_crate_types.rs`).
+#[allow(
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case,
+    dead_code
+)]
+mod sys_layout {
+    include!(concat!(env!("OUT_DIR"), "/libdeluge_layout.rs"));
+}
+
+/// The pins `../../../src/main.rs` compiles beside its modules, checked against this package's `sys` too.
+#[path = "../../../src/abi_pins.rs"]
+mod abi_pins;
+
 // Reuse deluge-bsp-rust's own source files verbatim via `#[path]` — the same
 // pattern `tests/*.rs` already use (see `HOST_HARNESS.md`).
 #[path = "../../../src/audio_host.rs"]
@@ -131,9 +151,7 @@ mod control;
 mod display;
 /// Storage-generic core of the efatfs read path — see `../../../src/main.rs`'s
 /// `mod efatfs_core` doc. Gated on `host_app` (always on for this package) to
-/// mirror that file's cfg exactly, even though this package's own
-/// `#[cfg(feature = "efatfs_streaming")]` is what actually drives `mount()`
-/// (below, in `boot_task`).
+/// mirror that file's cfg exactly.
 #[cfg(feature = "host_app")]
 #[path = "../../../src/efatfs_core.rs"]
 mod efatfs_core;
@@ -148,14 +166,14 @@ mod ffi;
 mod ffi_extra;
 /// The single-slot whole-file byte channel and its request/collect C ABI. Compiled UNCONDITIONALLY:
 /// the channel has no feature switch, and `deluge_card_flush` names it. There is no C++ fallback for
-/// `deluge_file_bytes_async_active`, so a module missing from this list would leave it undefined and
+/// its request/collect symbols, so a module missing from this list would leave them undefined and
 /// fail the link; `SC-CHANNEL served=0` is the runtime check that the channel is actually serving
 /// requests, not just linked.
 #[path = "../../../src/file_bytes.rs"]
 mod file_bytes;
 /// The single-slot directory channel and its request/collect C ABI. Compiled UNCONDITIONALLY, like `file_bytes`
 /// above: the channel has no feature switch, and there is no C++ fallback for
-/// `deluge_file_directory_async_active` -- a module missing from this list fails the link instead of
+/// its request/collect symbols -- a module missing from this list fails the link instead of
 /// silently answering every listing's request with UNKNOWN. `deluge_card_flush` names it too, so `card`
 /// cannot be compiled without it; the reverse does not hold, and a build without `card` has no caller
 /// for its `flush_tables`.
@@ -166,9 +184,8 @@ mod file_directory;
 #[path = "../../../src/file_prefix.rs"]
 mod file_prefix;
 /// The recorder's async stream-write driver. Included here for the same reason every module above
-/// is: this binary is a separate package, and there is no C++ fallback for
-/// `deluge_file_write_async_active`, so a module missing from this list fails the link instead of
-/// quietly taking the synchronous arm.
+/// is: this binary is a separate package, and there is no C++ fallback for the write channel's
+/// request/collect symbols, so a module missing from this list fails the link.
 #[path = "../../../src/file_write.rs"]
 mod file_write;
 /// The write channel's answer slot, storage for `file_write` above. Included here for the same reason every
@@ -209,26 +226,14 @@ mod services;
 /// realism is deliberately off for a golden renderer).
 #[path = "../../../src/sim_block.rs"]
 mod sim_block;
-/// The async cluster-fill task + its selector/wakeup C ABI. The
-/// selector/wakeup symbols (`deluge_streaming_async_active`/
-/// `deluge_streaming_signal_fill`) are always compiled so their call
-/// sites link regardless of the `async_streaming_loader` feature (see that
-/// file's module doc); the actual drain machinery +
-/// [`streaming_loader::streaming_fill_task`] stay gated on the feature and are
-/// only spawned (below, in `main`) when it's enabled — on by default for this
-/// package (see `Cargo.toml`).
+/// The async cluster-fill task + its wakeup C ABI.
+/// [`streaming_loader::streaming_fill_task`] is spawned below, in `main`.
 #[path = "../../../src/streaming_loader.rs"]
 mod streaming_loader;
 #[path = "../../../src/tier.rs"]
 mod tier;
 #[path = "../../../src/tier_meter.rs"]
 mod tier_meter;
-
-unsafe extern "C" {
-    fn deluge_app_init(board: *const sys::DelugeBoard);
-    /// See deluge.cpp: opts this host out of the boot-settings prelude.
-    fn deluge_startup_skip_settings_prelude();
-}
 
 // Host-only C-ABI bridge (tests/integration/scenarios/streaming_scenario.{h,cpp},
 // compiled into the host tree's `deluge_scenarios` objects, which build.rs archives
@@ -313,11 +318,10 @@ async fn boot_task() {
     // runs synchronously; with `sim_latency` off for this package its transfers are plain
     // synchronous reads, so there is no modeled delay to get stuck on.
     // A failed mount must NOT abort boot — see the device/host_app_task comments this mirrors.
-    #[cfg(feature = "efatfs_streaming")]
     match crate::efatfs_host_shim::mount().await {
         Ok(()) => log::info!("golden_vt_render: efatfs mounted"),
         Err(()) => {
-            log::warn!("golden_vt_render: efatfs mount failed — streaming falls back to C FatFS");
+            log::warn!("golden_vt_render: efatfs mount failed — streamed samples will not load");
         }
     }
 
@@ -331,13 +335,13 @@ async fn boot_task() {
         .is_empty()
     {
         // SAFETY: plain store to a C++ global, before deluge_app_init reads it.
-        unsafe { deluge_startup_skip_settings_prelude() };
+        unsafe { sys::deluge_startup_skip_settings_prelude() };
     }
 
     log::info!("golden_vt_render: deluge_app_init() (registers + spawns task runners)");
     // SAFETY: called once, after `scheduler::set_spawner` (main, below) and
     // before anything else touches `currentSong`/scheduler state.
-    unsafe { deluge_app_init(board::deluge_board()) };
+    unsafe { sys::deluge_app_init(board::deluge_board()) };
     // A stepped scenario's hook for this moment: nothing has been polled since deluge_app_init spawned the task
     // runners, so the render has not run yet.
     if let Some(on_app_init) =
@@ -461,8 +465,7 @@ async fn run_stepped_scenario(
 /// — it's threaded through here only so the log lines identify which fixture
 /// this run is against.
 ///
-/// Cluster fills DO drain here: `async_active` is on for this package (see
-/// `Cargo.toml`'s `default` features), so `StemExport::renderWait`'s offline
+/// Cluster fills DO drain here: `StemExport::renderWait`'s offline
 /// loop waits, pass by pass, for the real async `streaming_fill_task` to drain
 /// the loader queue (it asks `deluge_streaming_queue_drained()` and returns). A sample-backed fixture
 /// therefore renders real audio, not silence — this task proves both the
@@ -1678,10 +1681,7 @@ fn main() {
     // The async cluster-fill task, on the SAME executor `boot_task` and the
     // C++ enqueue path run on (this binary has
     // only the one executor — see the module doc's "Executor + clock"). Owns
-    // the loader queue only once `deluge_streaming_async_active()` reports
-    // true (i.e. only under this feature — on by default for this package);
-    // inert otherwise.
-    #[cfg(feature = "async_streaming_loader")]
+    // the loader queue.
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
     // The audio loader, always: without this spawn every sample load that opts in waits on a request
     // nothing serves.

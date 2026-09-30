@@ -26,6 +26,7 @@
 // "templates must have C++ linkage".
 #include "stdint.h"
 #include "task_scheduler/clock_type.h"
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {

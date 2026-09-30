@@ -96,13 +96,6 @@ const GATE_TIMER_PRIORITY: u8 = 5;
 /// deluge_midi_gate_timer_pending() and only re-arms when it reads false.
 static GATE_TIMER_PENDING: AtomicBool = AtomicBool::new(false);
 
-unsafe extern "C" {
-    /// The app's MIDI/gate routine: emits the events whose scheduled sample
-    /// offset has now arrived. Declared `[isr]` by libdeluge (signals.h); we call
-    /// it from the MTU2 compare-match ISR, matching rza1.
-    fn midiAndGateTimerGoneOff();
-}
-
 /// MTU2 ch2 compare-match-A ISR. Clears the flag, disarms (one-shot), clears the
 /// pending flag, then runs the app handler (which may re-arm for the next event).
 fn gate_timer_isr() {
@@ -113,8 +106,9 @@ fn gate_timer_isr() {
         mtu2::disarm(GATE_TIMER_CH);
     }
     GATE_TIMER_PENDING.store(false, Ordering::Release);
-    // SAFETY: app-provided C symbol; libdeluge documents this as an ISR callback.
-    unsafe { midiAndGateTimerGoneOff() };
+    // SAFETY: app-provided C symbol; libdeluge documents this as an ISR callback (signals.h), and this
+    // is the MTU2 compare-match ISR.
+    unsafe { crate::sys::midiAndGateTimerGoneOff() };
 }
 
 /// One-time MTU2 ch2 setup. Call in the boot setup window after gic::init
@@ -148,3 +142,12 @@ pub extern "C" fn deluge_midi_gate_timer_arm(samples_from_now: u32) {
     // SAFETY: ch2 was configured by gate_timer_setup() at boot.
     unsafe { mtu2::arm(GATE_TIMER_CH, ticks) };
 }
+
+abi_pin!(
+    deluge_battery_read_raw,
+    deluge_battery_start_conversion,
+    deluge_midi_gate_timer_arm,
+    deluge_midi_gate_timer_pending,
+    deluge_signal_read,
+    deluge_signal_write,
+);

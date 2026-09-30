@@ -2,13 +2,12 @@
 //! app headers, which build.rs only generates for the arm-eabi target). These
 //! types reproduce the C-ABI layout of `include/libdeluge/*.h` exactly, so the
 //! same boundary code in `control.rs`/`display.rs` compiles and runs unchanged
-//! on the host. Layout is checked by the `control.rs` ABI guard
-//! (`DelugeInputEvent` == 6 bytes).
+//! on the host.
 //!
-//! Verified field-by-field against `include/libdeluge/types.h`
-//! (`DelugeStatus`) and `include/libdeluge/control_surface.h`
-//! (`DelugeColour`, `DelugeInputEventKind`, `DelugeInputEvent`,
-//! `DelugeBootInfo`).
+//! The `host_app` build, where `sys` is the bindgen output, compiles this file a
+//! second time as `sys_host_check` and runs the pins at the bottom against it:
+//! every type here must be the header's field for field, and every constant its
+//! value. The plain host build expands them to nothing.
 #![allow(non_camel_case_types, non_upper_case_globals, dead_code)]
 
 /// `include/libdeluge/types.h`: `DelugeStatus`. Values span -13..=0; the
@@ -62,3 +61,24 @@ pub struct DelugeBootInfo {
     pub oled_present: bool,
     pub factory_reset_requested: bool,
 }
+
+unsafe extern "C" {
+    /// `include/libdeluge/streaming_fill.h`: the resource-manager singleton
+    /// (`DelugeResource` is opaque, so `sys` binds it as `c_void`).
+    pub fn deluge_streaming_resource_manager() -> *mut core::ffi::c_void;
+}
+
+abi_pin!(deluge_streaming_resource_manager);
+abi_layout!(type self::DelugeStatus => sys DelugeStatus);
+abi_layout!(type self::DelugeInputEventKind => sys DelugeInputEventKind);
+abi_layout!(self::DelugeInputEvent => sys DelugeInputEvent { kind, x, y, value });
+abi_layout!(self::DelugeColour => sys DelugeColour { r, g, b });
+abi_layout!(self::DelugeBootInfo => sys DelugeBootInfo { pic_firmware_version, oled_present,
+    factory_reset_requested });
+abi_const!(
+    self::DelugeStatus_DELUGE_OK => DelugeStatus_DELUGE_OK,
+    self::DelugeInputEventKind_DELUGE_EVENT_PAD => DelugeInputEventKind_DELUGE_EVENT_PAD,
+    self::DelugeInputEventKind_DELUGE_EVENT_BUTTON => DelugeInputEventKind_DELUGE_EVENT_BUTTON,
+    self::DelugeInputEventKind_DELUGE_EVENT_ENCODER => DelugeInputEventKind_DELUGE_EVENT_ENCODER,
+    self::DelugeInputEventKind_DELUGE_EVENT_NO_PRESSES => DelugeInputEventKind_DELUGE_EVENT_NO_PRESSES,
+);

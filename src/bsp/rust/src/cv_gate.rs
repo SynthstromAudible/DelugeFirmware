@@ -112,3 +112,12 @@ pub async fn trigger_clock_task() {
         }
     }
 }
+
+abi_pin!(
+    deluge_cv_init,
+    deluge_cv_sent_count,
+    deluge_cv_set,
+    deluge_gate_init,
+    deluge_gate_set,
+    deluge_trigger_clock_set_handler,
+);

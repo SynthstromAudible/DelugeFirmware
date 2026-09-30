@@ -72,25 +72,26 @@ use crate::sys::{
 // `deluge_block_poll_card_event` reports the same event vocabulary on both
 // targets — though not by the same means: the device reads the SDHI's card-detect
 // edge latches, while host has no card to remove and so has no edge to detect.
+// Under `host_app` the copies are pinned by `abi_pins.rs`.
 #[cfg(not(target_os = "none"))]
-type DelugeStatus = i8;
+pub(crate) type DelugeStatus = i8;
 #[cfg(not(target_os = "none"))]
-const DELUGE_OK: DelugeStatus = 0;
+pub(crate) const DELUGE_OK: DelugeStatus = 0;
 #[cfg(not(target_os = "none"))]
-const DELUGE_ERR_IO: DelugeStatus = -5;
+pub(crate) const DELUGE_ERR_IO: DelugeStatus = -5;
 #[cfg(not(target_os = "none"))]
-const DELUGE_ERR_NODEV: DelugeStatus = -6;
+pub(crate) const DELUGE_ERR_NODEV: DelugeStatus = -6;
 #[cfg(not(target_os = "none"))]
-const DELUGE_ERR_WRITE_PROTECTED: DelugeStatus = -12;
+pub(crate) const DELUGE_ERR_WRITE_PROTECTED: DelugeStatus = -12;
 
 #[cfg(not(target_os = "none"))]
-type DelugeCardEvent = u8;
+pub(crate) type DelugeCardEvent = u8;
 #[cfg(not(target_os = "none"))]
-const CARD_NONE: DelugeCardEvent = 0;
+pub(crate) const CARD_NONE: DelugeCardEvent = 0;
 #[cfg(not(target_os = "none"))]
-const CARD_INSERTED: DelugeCardEvent = 1;
+pub(crate) const CARD_INSERTED: DelugeCardEvent = 1;
 #[cfg(not(target_os = "none"))]
-const CARD_EJECTED: DelugeCardEvent = 2;
+pub(crate) const CARD_EJECTED: DelugeCardEvent = 2;
 
 // DSTATUS bits `status_bits()` composes internally (ChaN's FatFs `diskio.h`
 // convention; no longer vendored in this tree, but the numeric values are the
@@ -866,3 +867,11 @@ pub extern "C" fn deluge_block_poll_card_event(unit: u8) -> DelugeCardEvent {
         CARD_EJECTED
     }
 }
+
+abi_pin!(
+    deluge_block_poll_card_event,
+    deluge_block_read,
+    deluge_block_ready,
+    deluge_block_sd_unit,
+    deluge_block_write
+);

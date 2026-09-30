@@ -67,7 +67,7 @@ typedef struct DelugeDirEntry {
 	bool is_archive;
 } DelugeDirEntry;
 
-/// The embedded-fatfs (Rust `efatfs_streaming`) task-context file/directory
+/// The embedded-fatfs task-context file/directory
 /// C-ABI. `deluge::io::File`/`Directory` (file.cpp) route to these
 /// unconditionally. Implemented in
 /// `efatfs_fs.rs` (device) / `efatfs_host_shim.rs` (host), both composing the

@@ -116,13 +116,14 @@ unsafe extern "C" {
     /// The resource-manager instance the streaming loader queue lives on
     /// (`include/libdeluge/streaming_fill.h`). The process-wide boot-singleton
     /// handle -- the same one `ManagerResidency::new`'s contract requires to
-    /// stay live for the process's whole remaining life.
-    fn deluge_streaming_resource_manager() -> *mut DelugeResource;
+    /// stay live for the process's whole remaining life. Untyped, the one spelling every crate that declares it
+    /// shares; the caller casts it to the manager.
+    pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// `stream_backing`'s (a `deluge::audio::stream::SampleStream*`)
     /// resource-manager Asset id, defining it first if not yet defined
     /// (`include/libdeluge/streaming_fill.h`, wrapping
     /// `deluge_streaming_define_asset()`).
-    fn deluge_sample_stream_asset_id(stream_backing: *mut c_void) -> u32;
+    pub fn deluge_sample_stream_asset_id(stream_backing: *mut c_void) -> u32;
 }
 
 // ---------------------------------------------------------------------------
@@ -323,7 +324,7 @@ pub unsafe extern "C" fn deluge_sample_source_open(
     }
     // SAFETY: no preconditions beyond FFI-safety -- the process-wide
     // boot-singleton getter (mirrors `GeneralMemoryAllocator::get().resourceManager()`).
-    let handle = unsafe { deluge_streaming_resource_manager() };
+    let handle = unsafe { deluge_streaming_resource_manager() }.cast::<DelugeResource>();
     if handle.is_null() {
         // No manager yet (e.g. boot ordering) -- nothing to build a residency over.
         return core::ptr::null_mut();

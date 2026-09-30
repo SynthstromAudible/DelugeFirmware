@@ -141,3 +141,9 @@ pub extern "C" fn deluge_fault_pad_flush() {
         STAGED = 0;
     }
 }
+
+abi_pin!(
+    deluge_fault_pad_flush,
+    deluge_fault_pad_write,
+    deluge_fault_ranges
+);

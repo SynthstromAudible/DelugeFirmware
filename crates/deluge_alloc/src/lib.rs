@@ -20,6 +20,7 @@
 #![cfg_attr(target_os = "none", no_std)]
 #![allow(clippy::missing_safety_doc)]
 
+pub mod abi;
 pub mod section;
 pub mod slab;
 mod tlsf;
@@ -55,8 +56,7 @@ unsafe fn heap<'a>(h: *mut DelugeHeap) -> &'a mut Tlsf {
 /// Build a heap over `[base, base+size)`. The TLSF control block is placed at the
 /// front of the region and the remainder becomes the managed pool, so no
 /// allocator-in-allocator and no external metadata storage.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_heap_create(base: *mut u8, size: usize) -> *mut DelugeHeap {
+pub unsafe fn deluge_heap_create(base: *mut u8, size: usize) -> *mut DelugeHeap {
     if base.is_null() {
         return ptr::null_mut();
     }
@@ -80,8 +80,7 @@ pub unsafe extern "C" fn deluge_heap_create(base: *mut u8, size: usize) -> *mut 
 #[no_mangle]
 pub unsafe extern "C" fn deluge_heap_destroy(_h: *mut DelugeHeap) {}
 
-#[no_mangle]
-pub unsafe extern "C" fn deluge_alloc(h: *mut DelugeHeap, size: usize, align: usize) -> *mut u8 {
+pub unsafe fn deluge_alloc(h: *mut DelugeHeap, size: usize, align: usize) -> *mut u8 {
     if h.is_null() {
         return ptr::null_mut();
     }
@@ -132,8 +131,7 @@ pub unsafe extern "C" fn deluge_alloc(h: *mut DelugeHeap, size: usize, align: us
 }
 
 /// Register the reclaim hook (called by the slab pool). One hook per heap.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_heap_register_reclaim(
+pub unsafe fn deluge_heap_register_reclaim(
     h: *mut DelugeHeap,
     cb: tlsf::ReclaimFn,
     ctx: *mut core::ffi::c_void,
@@ -147,8 +145,7 @@ pub unsafe extern "C" fn deluge_heap_register_reclaim(
     heap(h).set_reclaim(cb, ctx);
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn deluge_free(h: *mut DelugeHeap, p: *mut u8) {
+pub unsafe fn deluge_free(h: *mut DelugeHeap, p: *mut u8) {
     if h.is_null() || p.is_null() {
         return;
     }
@@ -158,8 +155,7 @@ pub unsafe extern "C" fn deluge_free(h: *mut DelugeHeap, p: *mut u8) {
 
 /// Resize. Shrinking stays in place under one step; growth is a new block, a copy made outside any section, and a
 /// free of the old block.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_realloc(
+pub unsafe fn deluge_realloc(
     h: *mut DelugeHeap,
     p: *mut u8,
     new_size: usize,
@@ -192,8 +188,7 @@ pub unsafe extern "C" fn deluge_realloc(
 }
 
 /// Bytes guaranteed usable at `p` (the block's payload size, >= the requested size).
-#[no_mangle]
-pub unsafe extern "C" fn deluge_usable_size(h: *mut DelugeHeap, p: *mut u8) -> usize {
+pub unsafe fn deluge_usable_size(h: *mut DelugeHeap, p: *mut u8) -> usize {
     if h.is_null() {
         return 0;
     }

@@ -36,11 +36,6 @@
 /// Nothing here may be re-argued from where a loader is scheduled: a loader owns its own executor
 /// on device but a plain `std::thread` under `host_app`, so any claim of the form "these two cannot
 /// run at once" is false on some configuration that builds this file.
-///
-/// Always exported, on every configuration this module compiles in, so the C++ call site links
-/// regardless of which build produced this BSP image — the same rule
-/// `deluge_audio_load_async_active` follows. That is also why `flush_tables` has a no-op sibling on
-/// builds without the loader: the bump still has to happen.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_card_flush() {
     deluge_card_generation::bump();
@@ -50,3 +45,5 @@ pub extern "C" fn deluge_card_flush() {
     super::file_bytes::flush_tables();
     super::file_write::flush_tables();
 }
+
+abi_pin!(deluge_card_flush);

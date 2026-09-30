@@ -21,9 +21,9 @@ use core::cell::Cell;
 // the real device/host_app link. In the crate's own `cargo test` binary they
 // are provided by the `#[cfg(test)]` stubs at the bottom of this file.
 unsafe extern "C" {
-    fn ENTER_CRITICAL_SECTION();
-    fn EXIT_CRITICAL_SECTION();
-    fn deluge_in_audio_context() -> bool;
+    pub fn ENTER_CRITICAL_SECTION();
+    pub fn EXIT_CRITICAL_SECTION();
+    pub fn deluge_in_audio_context() -> bool;
 }
 
 /// RAII asymmetric critical section. Enters iff called outside the audio render context

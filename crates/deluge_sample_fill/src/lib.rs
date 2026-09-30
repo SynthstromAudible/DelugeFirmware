@@ -201,6 +201,6 @@ pub struct DelugeChunkConvertState {
 // See `native`'s own module doc for what/why. Default-off (see this crate's Cargo.toml
 // `[features]` doc); `deluge-bsp-rust` and `region_fill_differential` both turn it on.
 #[cfg(feature = "native_fill")]
-mod native;
+pub mod native;
 #[cfg(feature = "native_fill")]
 pub use native::{native_begin, native_finish};

@@ -485,7 +485,7 @@ void deluge_scenario_load_policy_begin(void) {
 	g_asyncDeferredFirst = false;
 	// Line-buffered: the harness ends the process without flushing stdio, and these lines are the gate's output.
 	setvbuf(stdout, nullptr, _IOLBF, 0);
-	printf("LP-BEGIN asyncActive=%d\n", deluge_audio_load_async_active() ? 1 : 0);
+	printf("LP-BEGIN\n");
 }
 
 bool deluge_scenario_load_policy_complete(void) {

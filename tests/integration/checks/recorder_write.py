@@ -1,9 +1,6 @@
 """The recorder write-relocation gate: the recorder_roundtrip scenario, then the offline drain.
 
 What each check covers, and why each is separate:
-  RW-ACTIVE     that this binary reaches the Rust write driver at all. There is no C++ fallback for
-                `deluge_file_write_async_active`, so a module missing from the harness's module list fails the
-                build rather than silently taking the synchronous arm.
   RW-ROUNDTRIP  that a real recording still reads back byte-correctly, mid-recording AND finalized multi-cluster. It
                 is the half that catches a change that relocated the write and broke the recording on the way: a
                 recycled stream handle collecting a previous recorder's answer shows up as exactly this, and nothing
@@ -71,9 +68,6 @@ def _check_roundtrip(gate, run) -> tuple[int, int, int, int, int, int] | None:
     if not run.has("RW-RESULT "):
         gate.fail("no RW-RESULT line; the scenario did not run to completion")
         return None
-    if not run.has_line("RW-ACTIVE asyncActive=1"):
-        seen = "\n".join(run.starting("RW-ACTIVE")) or "no RW-ACTIVE line"
-        gate.fail(f"RW-ACTIVE — {seen}; the write driver is not reachable")
     if not run.has("8/8 cases passed"):
         gate.fail("RW-ROUNDTRIP — a recording did not read back correctly")
         for line in [line for line in run.lines if re.search(r"^CASE|FAIL", line)][:20]:

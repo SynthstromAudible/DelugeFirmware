@@ -195,7 +195,9 @@ defined:
      well as types.
    - Every Rust export is pinned against its generated declaration by `abi_pin!`, which fails the build on any
      mismatch in signature.
-   - Rust constants are re-exported from `sys`, not copied.
+   - Rust constants are re-exported from `sys` where the module only compiles with bindgen output. A module that
+     also compiles without it (the plain host tests, `src/main.rs`'s plain host build) keeps its own copy, and
+     each copy is pinned to `sys` by `abi_const!`.
    - The `*_abi.cpp` pin files go.
    - Carriers without bindgen (the plain host tests) use `sys_host.rs`, whose types are pinned to `sys` on
      `host_app` builds.

@@ -75,7 +75,7 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 		return progress_;
 	}
 
-	if (!deluge_audio_load_async_active() || audioFileManager.cardUnavailableForStreaming()) {
+	if (audioFileManager.cardUnavailableForStreaming()) {
 		// Nothing in flight can arrive from a card that cannot be read, and nothing new can be asked for: end.
 		progress_.state = State::Failed;
 		progress_.reason = Reason::CardUnusable;

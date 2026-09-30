@@ -42,9 +42,9 @@
 //! `RawDataFormat::Native` (0), so the convert step is a no-op and the seeded ramp survives into the
 //! resident payload unchanged, and `audio_data_start_bytes == 0`, so [`mapping::Geometry::total_frames`]'s
 //! simple "frame's whole span fits in `[0, audio_data_length_bytes)`" EOF rule holds exactly (see its
-//! own doc). All `N` clusters are pre-filled before any reader is opened, so `deluge_efatfs_read_at`
-//! (this file's own stub, always failing) is never actually exercised except by the ONE dedicated
-//! forced-failure case, which deliberately leaves its cluster unconstructed.
+//! own doc). All `N` clusters are pre-filled before any reader is opened, so no reader ever needs a
+//! fill except in the ONE dedicated forced-failure case, which deliberately leaves its cluster
+//! unconstructed and whose fill request this harness never answers.
 #![cfg(not(target_os = "none"))]
 
 use core::ffi::c_void;
@@ -90,13 +90,9 @@ extern "C" fn deluge_debug_now_frames() -> u32 {
     0
 }
 
-/// `deluge_sample_reader::reader::Reader`'s synchronous card-read primitive
-/// (`include/libdeluge/streaming_fill.h`). Unconditionally fails, without touching `dst` — this
-/// harness pre-fills and `native_finish`es every cluster it constructs BEFORE any reader is opened
-/// (see the module doc), so `acquire_leased` is always a cache hit and this stub is never reached
-/// except by [`forced_read_failure_sets_not_ok_distinct_from_eof`], which deliberately leaves its
-/// one cluster unconstructed so the reader must fall through to a real fill attempt — exactly the
-/// case this stub exists to fail.
+/// The synchronous card-read primitive (`include/libdeluge/streaming_fill.h`) that
+/// `deluge_sample_reader`'s reservation fill references, so it must exist for the link. Never
+/// reached: no reader or reservation here fills synchronously. Fails without touching `dst`.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_efatfs_read_at(
     _handle: u32,
@@ -108,15 +104,9 @@ extern "C" fn deluge_efatfs_read_at(
     false
 }
 
-/// No async streaming-fill task in this differential harness, so `Reader::acquire_and_fill` takes
-/// its synchronous `fill_now` route (through `deluge_efatfs_read_at` above) — the same path this
-/// harness has always exercised. `deluge_streaming_request_chunk` below is the async-BSP
-/// alternative, never reached here; both must exist for the binary to link.
-#[unsafe(no_mangle)]
-extern "C" fn deluge_streaming_async_active() -> bool {
-    false
-}
-
+/// No async streaming-fill task in this differential harness: a requested fill never lands, so a
+/// cluster the harness did not prefill stays not-ready. Declared as an `extern` by the reader, so it
+/// must exist for the binary to link.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_streaming_request_chunk(_chunk_backing: *mut c_void) {}
 
@@ -588,7 +578,7 @@ fn whole_sample_forward_scan_matches_oracle_and_read_and_ends_at_true_eof() {
 
     // Distinct-from-failure check: reading one MORE frame past the end must report EOF
     // (frame_count == 0) while reader_ok() stays TRUE -- contrast with
-    // `forced_read_failure_sets_not_ok_distinct_from_eof` below, where frame_count == 0 too but
+    // `unlanded_fill_sets_not_ok_distinct_from_eof` below, where frame_count == 0 too but
     // reader_ok() is false.
     let ptr = deluge_sample_reader_open(h.asset, total, 1, ReadHint::Cached);
     // SAFETY: `ptr` is live.
@@ -660,13 +650,13 @@ fn random_seek_sequence_matches_oracle_at_every_stop() {
     unsafe { deluge_sample_reader_close(ptr) };
 }
 
-/// A case that forces a read failure (rather than EOF): a cluster the harness never constructs, so
-/// the reader must fall through to `Reader::acquire_and_fill`'s fresh-`request` + `fill_now` path,
-/// which calls this file's own `deluge_efatfs_read_at` stub -- unconditionally `false`. Asserts
+/// A fill that never lands (rather than EOF): a cluster the harness never constructs, so the reader
+/// must fall through to `Reader::acquire_and_fill`'s fresh-`request` + fill request, which this
+/// file's own `deluge_streaming_request_chunk` stub never answers. Asserts
 /// `reader_ok()` -> false, DISTINCT from `frame_count == 0 && reader_ok() == true`
 /// (`whole_sample_forward_scan_matches_oracle_and_read_and_ends_at_true_eof`'s own EOF check).
 #[test]
-fn forced_read_failure_sets_not_ok_distinct_from_eof() {
+fn unlanded_fill_sets_not_ok_distinct_from_eof() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let ctx = fill_context(1, 0); // one full cluster's worth of real audio -- but never prefilled
     let h = ChunkHarness::new(ctx, 0); // prefill = 0: cluster 0 is registered geometry-wise, never resident
@@ -684,7 +674,7 @@ fn forced_read_failure_sets_not_ok_distinct_from_eof() {
     // SAFETY: `ptr` is live.
     assert!(
         !unsafe { deluge_sample_reader_ok(ptr) },
-        "a forced read failure must clear reader_ok() -- distinct from true EOF, which leaves it true"
+        "a fill that never lands must clear reader_ok() -- distinct from true EOF, which leaves it true"
     );
     // SAFETY: `ptr` is live, not used again.
     unsafe { deluge_sample_reader_close(ptr) };

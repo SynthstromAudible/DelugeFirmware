@@ -1,5 +1,5 @@
-//! `host_app` diagnostic: does reading a STILL-RECORDING sample back resolve on the target where
-//! `async_streaming_loader` is on by default?
+//! `host_app` diagnostic: does reading a STILL-RECORDING sample back resolve through the async
+//! streaming fill?
 //!
 //! Device/`host_app` route the fill onto the Rust async task (`streaming_loader.rs`), which reads
 //! via `efatfs_fs::read_at(handle=0, ...)` — and a recording's `efatfs_handle == 0`, so a
@@ -33,17 +33,15 @@ unsafe extern "C" {
     fn deluge_harness_recorder_probe_end();
 }
 
-/// `DelugeRegionState` values, mirrored here so the caller doesn't need the C header —
-/// `libdeluge/sample_source.h` is the source of truth (`DELUGE_REGION_READY = 1`, `_LOADING = 2`,
-/// `_UNAVAILABLE = 3`); `0` is this probe's own "harness setup failed" sentinel (see
-/// `recorder_readback_probe.cpp`).
+/// `DelugeRegionState` values, as bytes (`libdeluge/sample_source.h`); `0` is this probe's own
+/// "harness setup failed" sentinel (see `recorder_readback_probe.cpp`).
 pub const STATE_HARNESS_ERROR: u8 = 0;
-pub const STATE_READY: u8 = 1;
-pub const STATE_LOADING: u8 = 2;
+pub const STATE_READY: u8 = crate::sys::DelugeRegionState::Ready as u8;
+pub const STATE_LOADING: u8 = crate::sys::DelugeRegionState::Loading as u8;
 /// Documented for completeness (mirrors `libdeluge/sample_source.h`'s full state enum) even though
 /// no code branches on it directly — a caller reads `final_state`/`resolved_ready` instead.
 #[allow(dead_code)]
-pub const STATE_UNAVAILABLE: u8 = 3;
+pub const STATE_UNAVAILABLE: u8 = crate::sys::DelugeRegionState::Unavailable as u8;
 
 /// Outcome of [`run`]. Plain data (not a `Result`/panic), same rationale as
 /// [`crate::scenario::ScenarioResult`]: an unresolved probe is itself the finding, not a harness

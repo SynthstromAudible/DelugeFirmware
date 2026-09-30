@@ -989,7 +989,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 		// as Failed, the refusal every other unanswerable question here already gets.
 		constexpr int32_t kMaxStemSearchStallTicks = 600;
 
-		const bool mayUseChannel = deluge::boot::finished() && deluge_file_bytes_async_active();
+		const bool mayUseChannel = deluge::boot::finished();
 
 		while (stemSearchPhase_ != deluge::storage::StemSearchPhase::Done
 		       && stemSearchPhase_ != deluge::storage::StemSearchPhase::Failed) {

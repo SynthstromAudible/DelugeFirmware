@@ -252,3 +252,35 @@ pub extern "C" fn deluge_battery_read_raw(out: *mut u16) -> bool {
 pub extern "C" fn deluge_battery_start_conversion() {
     stub_log!("deluge_battery_start_conversion");
 }
+
+abi_pin!(
+    deluge_audio_input_resync,
+    deluge_audio_stamp_to_render_offset,
+    deluge_audio_start,
+    deluge_battery_read_raw,
+    deluge_battery_start_conversion,
+    deluge_cv_init,
+    deluge_cv_sent_count,
+    deluge_cv_set,
+    deluge_gate_init,
+    deluge_gate_set,
+    deluge_midi_din_read_timed,
+    deluge_midi_flush,
+    deluge_midi_gate_timer_arm,
+    deluge_midi_gate_timer_pending,
+    deluge_midi_init,
+    deluge_midi_poll_usb_host_event,
+    deluge_midi_port_count,
+    deluge_midi_read_timed,
+    deluge_midi_service,
+    deluge_midi_usb_is_host,
+    deluge_midi_usb_peripheral_connected,
+    deluge_midi_usb_port,
+    deluge_midi_write,
+    deluge_midi_write_pending,
+    deluge_midi_write_space,
+    deluge_signal_read,
+    deluge_signal_write,
+    deluge_trigger_clock_host_edge,
+    deluge_trigger_clock_set_handler,
+);

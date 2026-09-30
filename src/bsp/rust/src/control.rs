@@ -459,3 +459,20 @@ pub async fn encoder_wake_pump() {
         embassy_time::Timer::after(embassy_time::Duration::from_millis(1)).await;
     }
 }
+
+abi_pin!(
+    deluge_control_flush,
+    deluge_control_pad_output_space,
+    deluge_control_poll_event,
+    deluge_control_read_boot_info,
+    deluge_control_scroll_done,
+    deluge_control_scroll_horizontal,
+    deluge_control_scroll_row,
+    deluge_control_scroll_vertical,
+    deluge_control_set_indicator,
+    deluge_control_set_led,
+    deluge_control_set_pad_columns,
+    deluge_control_set_refresh_time,
+    deluge_encoder_io_init,
+    deluge_encoder_take_edges,
+);

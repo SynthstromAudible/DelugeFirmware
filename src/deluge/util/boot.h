@@ -27,6 +27,9 @@ namespace deluge::boot {
 /// the channels are the only place card I/O may start from. The unit tests, which link no BSP, never finish booting
 /// in this sense, so they always take the inline arm.
 ///
+/// This is the one switch between the blocking storage calls boot uses and the channels everything after boot uses.
+/// The channels are always present.
+///
 /// Monotonic: false, then true for the rest of the process. The platform marks boot finished (on the Rust BSP,
 /// `main.rs` calls `boot::mark_finished()` right after `deluge_app_init` returns); the app only reads it.
 [[nodiscard]] inline bool finished() {

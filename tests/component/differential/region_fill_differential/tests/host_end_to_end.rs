@@ -10,7 +10,7 @@
 //! `build.rs` archives the FULL host-built C++ `deluge_app` object closure and force-roots the link at
 //! `deluge_app_init` (`-Wl,-u,deluge_app_init`) — which then needs the WHOLE boot-time provider surface
 //! satisfied (board/display/USB/OLED init, ~20+ symbols), not just the storage path. Verified
-//! empirically: enabling `--features host_app,async_streaming_loader` on a plain `deluge_resource`-
+//! empirically: enabling `--features host_app` on a plain `deluge_resource`-
 //! only host test (normally built with neither feature) fails to link with 20+ undefined symbols
 //! (`deluge_control_enable_oled`, `deluge_board_init_early`,
 //! `deluge_board_unlock_data_cache`, ...) — exactly the "cc-compiling a large C++ closure" case the

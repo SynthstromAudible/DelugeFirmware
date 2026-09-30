@@ -1390,6 +1390,7 @@ dependencies = [
 name = "deluge_sample_stream"
 version = "0.1.0"
 dependencies = [
+ "deluge_sample_fill",
  "embassy-sync",
 ]
 

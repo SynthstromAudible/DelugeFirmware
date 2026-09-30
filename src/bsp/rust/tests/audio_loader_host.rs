@@ -25,6 +25,10 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::CString;
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 #[path = "../src/audio_loader.rs"]
 mod audio_loader;
 
@@ -76,8 +80,7 @@ use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
     DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,
     DELUGE_MAX_PATH, LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult, OpenVerdict,
-    RESULT_SLOTS, ResultTable, decode_candidates, deluge_audio_load_async_active, load_io_once,
-    publish_into, take_from,
+    RESULT_SLOTS, ResultTable, decode_candidates, load_io_once, publish_into, take_from,
 };
 
 // The live request/collect pipeline. See the `live_pipeline` module below.
@@ -1499,15 +1502,4 @@ fn the_admission_rule_matches_the_corpus_the_c_side_checks() {
             case.label
         );
     }
-}
-
-// ── The selector ─────────────────────────────────────────────────────────────
-
-/// `deluge_audio_load_async_active()` reports true: the loader has no switch, so
-/// every build that compiles this module routes opted-in loads through it. The C++
-/// weak fallback in `audio_load_abi.cpp` still answers false for BSPs that never
-/// link this crate.
-#[test]
-fn the_loader_is_always_active() {
-    assert!(deluge_audio_load_async_active());
 }

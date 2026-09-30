@@ -41,14 +41,13 @@ unsafe extern "C" {
     fn deluge_harness_recorder_finalized_multicluster_probe_end();
 }
 
-/// `DelugeRegionState` values, mirrored here so the caller doesn't need the C header —
-/// `libdeluge/sample_source.h` is the source of truth (`DELUGE_REGION_READY = 1`, `_LOADING = 2`,
-/// `_UNAVAILABLE = 3`); `0` is this probe's own "harness setup failed" sentinel.
+/// `DelugeRegionState` values, as bytes (`libdeluge/sample_source.h`); `0` is this probe's own
+/// "harness setup failed" sentinel.
 pub const STATE_HARNESS_ERROR: u8 = 0;
-pub const STATE_READY: u8 = 1;
-pub const STATE_LOADING: u8 = 2;
+pub const STATE_READY: u8 = crate::sys::DelugeRegionState::Ready as u8;
+pub const STATE_LOADING: u8 = crate::sys::DelugeRegionState::Loading as u8;
 #[allow(dead_code)]
-pub const STATE_UNAVAILABLE: u8 = 3;
+pub const STATE_UNAVAILABLE: u8 = crate::sys::DelugeRegionState::Unavailable as u8;
 
 /// Outcome of [`run`]. Plain data (not a `Result`/panic), same rationale as
 /// [`crate::recorder_probe::RecorderProbeResult`].

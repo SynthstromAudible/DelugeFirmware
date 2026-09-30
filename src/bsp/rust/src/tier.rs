@@ -114,3 +114,5 @@ pub async fn scoped<F: Future>(t: Tier, f: F) -> F::Output {
 pub extern "C" fn deluge_tier_current() -> u8 {
     current() as u8
 }
+
+abi_pin!(deluge_tier_current);

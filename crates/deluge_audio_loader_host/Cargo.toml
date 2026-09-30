@@ -61,15 +61,15 @@ critical-section = { version = "1", features = ["std"] }
 # executor in this build.
 embassy-futures = "0.1.2"
 
-# `audio_loader.rs` also branches on `efatfs_streaming` and `host_app` — the BSP
-# features that decide whether the efatfs backing is linked. Neither can ever be
-# on here (this package links no backing at all, which is the whole reason the
-# driver is reachable without the C++ app), but the `cfg`s reading them are still
-# compiled, and check-cfg would flag each as a typo. Declaring them as expected
-# values silences that without inventing two features this package would have to
-# pretend to support; `warn` is kept so a genuinely misspelled feature still
+# `audio_loader.rs` also branches on `host_app` — the BSP feature that decides
+# whether the efatfs backing is linked on host. It can never be on here (this
+# package links no backing at all, which is the whole reason the driver is
+# reachable without the C++ app), but the `cfg`s reading it are still compiled,
+# and check-cfg would flag it as a typo. Declaring it as an expected value
+# silences that without inventing a feature this package would have to pretend
+# to support; `warn` is kept so a genuinely misspelled feature still
 # shows up, and so the workspace's `clippy -D warnings` still catches one.
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
-    'cfg(feature, values("efatfs_streaming", "host_app"))',
+    'cfg(feature, values("host_app"))',
 ] }

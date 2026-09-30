@@ -11,7 +11,7 @@ use deluge_resource::DelugeResource;
 unsafe extern "C" {
     /// Wakes the async fill task (mirrors `SampleStream::get_cluster`'s post-enqueue
     /// signal) so an enqueued-but-unwoken chunk doesn't stall on `FILL_WAKE`.
-    fn deluge_streaming_signal_fill();
+    pub fn deluge_streaming_signal_fill();
 }
 
 // Test-only stand-in for the C-ABI symbol above, so this crate's host unit tests link standalone

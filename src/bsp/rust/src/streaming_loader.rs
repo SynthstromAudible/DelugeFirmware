@@ -2,26 +2,14 @@
 //! manager's loader queue (`deluge_resource_loader_next`), awaiting the actual
 //! SD read instead of running it synchronously inline.
 //!
-//! ## Two compilation tiers
+//! ## What compiles where
 //!
-//! This module compiles in two tiers, because the selector the C++ side calls
-//! (`deluge_streaming_async_active`) must resolve on the Embassy BSP regardless
-//! of whether the async backing is actually enabled — a cargo feature can't
-//! reach a C++ `#define`, so "is the async task active" has to be a runtime
-//! call, and that call needs a real symbol to link against either way:
-//!
-//! - Always compiled whenever this module is (i.e. on the Embassy BSP, device
-//!   or `host_app` — see the `mod streaming_loader;` cfg in `main.rs`), no
-//!   matter the `async_streaming_loader` feature: [`FILL_WAKE`], the two
-//!   `extern "C"` selector/wakeup functions just below it
-//!   (`deluge_streaming_async_active`, `deluge_streaming_signal_fill`), and the
-//!   per-asset fill-context table (`deluge_streaming_set_fill_context`,
-//!   [`fill_context_for`]) — asset definition, which registers it, happens on
-//!   every build at sample-load, not just the ones with the async fill task
-//!   built in. There is no C++ fallback: these are the only definitions.
-//! - Feature-gated behind `async_streaming_loader`: the actual drain machinery
-//!   ([`FillOps`], [`fill_once`], [`ProdOps`], [`streaming_fill_task`]). Spawned
-//!   in `main.rs` (device `main` + host `host_app`) only under that feature.
+//! [`FILL_WAKE`], the `extern "C"` wakeup and request/poll functions, and the
+//! drain machinery ([`FillOps`], [`fill_once`]) compile wherever this module
+//! does, including the `#[path]` host test carriers. The production wiring
+//! ([`ProdOps`], [`streaming_fill_task`]) needs the real C-ABI symbols, so it
+//! compiles only on device and under `host_app`; `main.rs` spawns the task on
+//! both. There is no C++ fallback: these are the only definitions.
 //!
 //! ## Why the drain loop is generic over [`FillOps`]
 //!
@@ -67,24 +55,12 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::signal::Signal;
 
 /// Raised to wake [`streaming_fill_task`] out of its idle wait — e.g. when a
-/// cluster is newly enqueued. Always
-/// compiled (see the module doc's "Two compilation tiers") — with the feature
-/// off, or before the task is spawned, nobody ever awaits it; signalling it is
-/// just a harmless flag set.
+/// cluster is newly enqueued. Before the task is spawned nobody awaits it;
+/// signalling it is just a harmless flag set.
 pub static FILL_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
-// ── Always-compiled C ABI: selector + wakeup ─────────────────────────────────
+// ── C ABI: wakeup ────────────────────────────────────────────────────────────
 // See `include/libdeluge/streaming_fill.h`'s doc comments for the C-side contract.
-
-/// Whether the async streaming-fill task owns the loader queue on this
-/// build. The return value is the only thing that depends on the cargo
-/// feature — the symbol itself must always exist so its call site (the Rust
-/// range reader's fill-route gate, `deluge_sample_reader`) links regardless of
-/// which config produced this BSP image.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_streaming_async_active() -> bool {
-    cfg!(feature = "async_streaming_loader")
-}
 
 /// Wake [`streaming_fill_task`] out of its idle wait. Safe to call whether or
 /// not the task exists yet — [`Signal::signal`] just records "latest value
@@ -96,21 +72,21 @@ pub extern "C" fn deluge_streaming_signal_fill() {
     FILL_WAKE.signal(());
 }
 
-// ── Always-compiled C ABI: the non-blocking request/poll pairs ──────────────
-// See `include/libdeluge/streaming_fill.h` for the C-side contract. Always compiled (like the
-// selector above) so the reader crate's call site links
-// on any Rust/Embassy BSP regardless of the `async_streaming_loader` feature; a non-async build
-// never reaches it at runtime because the reader gates on `deluge_streaming_async_active()`.
+// ── C ABI: the non-blocking request/poll pairs ──────────────────────────────
+// See `include/libdeluge/streaming_fill.h` for the C-side contract.
 
 /// Most-urgent loader priority (lower = more urgent), the opposite end of `kLowestLoaderPriority`
 /// (the passive-lookahead prefetch value `0xFFFF_FFFF`) — used to enqueue a chunk a caller has
 /// asked for and is waiting on, so the drain lands it ahead of any queued prefetch.
 const BLOCKING_FILL_PRIORITY: u32 = 0;
 
+/// The process-wide resource-manager singleton, as the untyped pointer the loader-queue C ABI takes.
+fn resource_manager() -> *mut c_void {
+    // SAFETY: no preconditions; returns the boot-singleton manager or null.
+    unsafe { crate::sys::deluge_streaming_resource_manager() }.cast::<c_void>()
+}
+
 unsafe extern "C" {
-    /// The process-wide resource-manager singleton (see the `prod` module's own copy of this
-    /// prototype; a foreign-fn prototype may be declared in more than one module without conflict).
-    fn deluge_streaming_resource_manager() -> *mut c_void;
     /// The chunk-table slot backing `ptr` (`deluge_resource.h`), for the loader-queue enqueue below.
     fn deluge_resource_slot_of(mgr: *mut c_void, ptr: *mut c_void) -> u32;
     /// Enqueue the chunk at `slot` at `priority` AND take a queue-owned lease, so the entry survives
@@ -138,9 +114,8 @@ fn queue_is_drained(mgr: *mut c_void) -> bool {
 /// discarded on the drain's next poll -- which is why the display-only overview pre-scan once never
 /// converged on device.
 fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
-    // SAFETY: `deluge_streaming_resource_manager` returns the boot-singleton manager;
     // `chunk_backing` is a resident, leased `StreamedChunk*`.
-    let mgr = unsafe { deluge_streaming_resource_manager() };
+    let mgr = resource_manager();
     if !mgr.is_null() {
         let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing) };
         unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, BLOCKING_FILL_PRIORITY) };
@@ -174,15 +149,14 @@ pub extern "C" fn deluge_streaming_request_drain() {
 /// and reporting otherwise would loop a poller forever.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_streaming_queue_drained() -> bool {
-    // SAFETY: returns the boot-singleton manager.
-    let mgr = unsafe { deluge_streaming_resource_manager() };
+    let mgr = resource_manager();
     if mgr.is_null() {
         return true;
     }
     queue_is_drained(mgr)
 }
 
-// ── Always-compiled C ABI: per-asset fill-context table ─────────────────────
+// ── C ABI: per-asset fill-context table ─────────────────────────────────────
 // Registered by C++ at sample-load (`deluge_streaming_define_asset()`/`SampleStream::open_read_stream()`,
 // see `chunk_residency.cpp`/`sample_stream.cpp`); read by `deluge_sample_fill::native_begin`/
 // `native_finish`. See `include/libdeluge/streaming_fill.h`'s doc for the C-side
@@ -195,7 +169,6 @@ pub use deluge_sample_fill::StreamingFillDescriptor;
 /// `kLowestLoaderPriority` — re-enqueue value for a cluster whose read just
 /// failed while still wanted, so it sinks behind everything else instead of
 /// being popped again immediately.
-#[cfg(feature = "async_streaming_loader")]
 const LOWEST_PRIORITY: u32 = 0xFFFF_FFFF;
 
 /// The four operations [`fill_once`] drains the loader queue through. `chunk`
@@ -207,7 +180,6 @@ const LOWEST_PRIORITY: u32 = 0xFFFF_FFFF;
 /// A generic `fill_once<O: FillOps>` (rather than `dyn FillOps` or free
 /// functions) keeps this a zero-cost, monomorphized boundary in the production
 /// path while still being fully substitutable in tests.
-#[cfg(feature = "async_streaming_loader")]
 pub trait FillOps {
     /// Pop the most-urgent queued+still-leased chunk, or a null pointer if the
     /// queue is empty (`deluge_resource_loader_next`).
@@ -269,7 +241,6 @@ pub trait FillOps {
 /// because there the queue entry lives on. Missing one of these would pin the
 /// chunk against eviction for the rest of the run — on a pulled card, every
 /// queued chunk at once.
-#[cfg(feature = "async_streaming_loader")]
 pub async fn fill_once<O: FillOps>(ops: &O) {
     loop {
         let chunk = ops.next();
@@ -337,22 +308,15 @@ pub async fn fill_once<O: FillOps>(ops: &O) {
 // Only compiled where the real C-ABI symbols below are actually linked: always
 // on device, and on host only under `host_app` (which links the host-built C++
 // app object closure — see Cargo.toml). Kept separate from `fill_once`/`FillOps`
-// above (which compile under `async_streaming_loader` alone) so a plain host
-// build of this feature — no `host_app` — never emits a reference to an
-// undefined extern symbol. Also requires `async_streaming_loader` itself
-// (`fill_once`/`FillOps` are gated on it) — see the module doc's "Two
-// compilation tiers".
-#[cfg(all(
-    feature = "async_streaming_loader",
-    any(target_os = "none", feature = "host_app")
-))]
+// above so a host test carrier without `host_app` never emits a reference to an
+// undefined extern symbol.
+#[cfg(any(target_os = "none", feature = "host_app"))]
 mod prod {
     use super::{FillOps, LOWEST_PRIORITY};
     use core::ffi::c_void;
     use deluge_sample_fill::StreamingFillDescriptor;
 
     unsafe extern "C" {
-        fn deluge_streaming_resource_manager() -> *mut c_void;
         fn deluge_resource_loader_next(mgr: *mut c_void) -> *mut c_void;
         fn deluge_resource_loader_enqueue(mgr: *mut c_void, slot: u32, priority: u32);
         fn deluge_resource_slot_of(mgr: *mut c_void, ptr: *mut c_void) -> u32;
@@ -374,10 +338,9 @@ mod prod {
         /// executor the whole app (and the C++ enqueue path) runs on — see the
         /// module doc's Concurrency section.
         pub fn new() -> Self {
-            // SAFETY: returns the one process-wide GeneralMemoryAllocator
-            // resource manager; no aliasing/ownership concern, it's a stable
-            // singleton pointer.
-            let mgr = unsafe { deluge_streaming_resource_manager() };
+            // The one process-wide GeneralMemoryAllocator resource manager;
+            // no aliasing/ownership concern, it's a stable singleton pointer.
+            let mgr = super::resource_manager();
 
             // No startup capacity guard here: convert-state lives directly on
             // each `StreamedChunk` via `deluge_sample_fill::chunk::convert_state`/
@@ -404,21 +367,10 @@ mod prod {
         }
 
         async fn read(&self, d: &StreamingFillDescriptor, buf: &mut [u8]) -> bool {
-            #[cfg(all(target_os = "none", feature = "efatfs_streaming"))]
-            {
-                return crate::efatfs_fs::read_at(d.handle, d.byte_offset, buf).await;
-            }
-            #[cfg(all(feature = "host_app", feature = "efatfs_streaming"))]
-            {
-                return crate::efatfs_host_shim::read_at(d.handle, d.byte_offset, buf).await;
-            }
-            // No efatfs backing compiled in (should not occur once efatfs_streaming is default): fail the
-            // read so the loader re-enqueues rather than silently reading nothing.
-            #[cfg(not(feature = "efatfs_streaming"))]
-            {
-                let _ = (d, buf);
-                false
-            }
+            #[cfg(target_os = "none")]
+            return crate::efatfs_fs::read_at(d.handle, d.byte_offset, buf).await;
+            #[cfg(feature = "host_app")]
+            return crate::efatfs_host_shim::read_at(d.handle, d.byte_offset, buf).await;
         }
 
         fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {
@@ -451,10 +403,7 @@ mod prod {
     }
 }
 
-#[cfg(all(
-    feature = "async_streaming_loader",
-    any(target_os = "none", feature = "host_app")
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 pub use prod::ProdOps;
 
 /// Milliseconds the fill task waits before each drain pass. Host harness only; see
@@ -491,7 +440,7 @@ pub extern "C" fn deluge_streaming_set_fill_read_latency_us(us: u32) {
 
 /// The fill task: wakes on [`FILL_WAKE`], drains the loader queue via the real
 /// [`ProdOps`], then goes back to sleep. Spawned in `main.rs` (device `main` +
-/// host `host_app`) under `async_streaming_loader`; the C++ enqueue path
+/// host `host_app`); the C++ enqueue path
 /// (`sample_stream.cpp`) wakes it via `deluge_streaming_signal_fill`.
 ///
 /// # Why `ProdOps` is constructed AFTER the first wake, never before
@@ -511,10 +460,7 @@ pub extern "C" fn deluge_streaming_set_fill_read_latency_us(us: u32) {
 /// [`FILL_WAKE`] until the C++ enqueue path runs, which is necessarily after init. `FILL_WAKE`
 /// is a latching `Signal`, so a wake that arrives before this task is first polled is stored
 /// and returned immediately — no wake is lost by waiting.
-#[cfg(all(
-    feature = "async_streaming_loader",
-    any(target_os = "none", feature = "host_app")
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn streaming_fill_task() {
     // The device derives the tier from the storage handler's own mark (`tier::storage_isr`); this line is the
@@ -527,10 +473,7 @@ pub async fn streaming_fill_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, streaming_fill_task_body()).await
 }
 
-#[cfg(all(
-    feature = "async_streaming_loader",
-    any(target_os = "none", feature = "host_app")
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn streaming_fill_task_body() {
     FILL_WAKE.wait().await;
     let ops = ProdOps::new();
@@ -546,3 +489,10 @@ async fn streaming_fill_task_body() {
         FILL_WAKE.wait().await;
     }
 }
+
+abi_pin!(
+    deluge_streaming_queue_drained,
+    deluge_streaming_request_chunk,
+    deluge_streaming_request_drain,
+    deluge_streaming_signal_fill,
+);

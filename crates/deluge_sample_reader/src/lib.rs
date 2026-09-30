@@ -97,7 +97,7 @@ mod host_critical_section_stubs {
     }
 }
 
-// `reader.rs`'s `fill_now`/`window()` reach the synchronous card read through an
+// `reservation.rs`'s `fill_now` reaches the synchronous card read through an
 // `unsafe extern "C"` declaration — a real C++ symbol in production (`efatfs_fs.rs`), which this
 // crate's own `cargo test` binary does not link. Mirrors `host_critical_section_stubs` above: ONE
 // crate-level `#[cfg(test)]` module providing every stub `#[unsafe(no_mangle)]` definition this
@@ -189,19 +189,14 @@ pub(crate) mod host_streaming_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn deluge_streaming_signal_fill() {}
 
-    /// The host test binary has no async streaming-fill task, so it takes the synchronous `fill_now`
-    /// route through `deluge_efatfs_read_at` above (the one these tests exercise) — exactly the
-    /// C-host `deluge_render` path. `Reader::acquire_and_fill` gates on this.
+    /// A drain that answers before returning: the host test binary has no async streaming-fill
+    /// task, so the request runs the fill in place, through `deluge_efatfs_read_at` below — the same
+    /// begin/read/finish recipe the real drain runs. `Reader::acquire_and_fill` then finds the chunk
+    /// ready and serves it on the same call.
     #[unsafe(no_mangle)]
-    extern "C" fn deluge_streaming_async_active() -> bool {
-        false
+    extern "C" fn deluge_streaming_request_chunk(chunk_backing: *mut c_void) {
+        let _ = crate::reservation::fill_now(chunk_backing);
     }
-
-    /// Never reached in the host test binary (`deluge_streaming_async_active` returns false, so
-    /// `acquire_and_fill` takes the `fill_now` branch), but declared as an `extern` there, so it
-    /// must exist for the binary to link.
-    #[unsafe(no_mangle)]
-    extern "C" fn deluge_streaming_request_chunk(_chunk_backing: *mut c_void) {}
 
     /// Synthetic card read: deterministic content keyed on the ABSOLUTE file byte offset
     /// (`dst[i] = (byte_offset + i) as u8`), so a test can compute a cluster's expected

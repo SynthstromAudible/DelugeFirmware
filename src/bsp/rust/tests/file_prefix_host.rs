@@ -11,6 +11,10 @@
 
 use std::cell::{Cell, RefCell};
 
+#[macro_use]
+#[path = "support/abi_pin_noop.rs"]
+mod abi_pin_noop;
+
 // Included for its `LoadOps`/`OpenVerdict` alone, so the rest of the loader is dead here. That is
 // not a defect to fix by trimming the shared file -- it is fully exercised by
 // `tests/audio_loader_host.rs`, its own suite -- so the lint is silenced at the module that
@@ -575,8 +579,8 @@ mod file_write_slot;
 mod live_pipeline {
     use super::file_prefix::{
         DELUGE_FILE_PREFIX_FAILED, DELUGE_FILE_PREFIX_PENDING, DELUGE_FILE_PREFIX_READY,
-        DELUGE_FILE_PREFIX_UNKNOWN, PREFIX_CAPACITY, PrefixPath, deluge_file_prefix_async_active,
-        deluge_file_prefix_collect, deluge_file_prefix_request, mark_in_flight, publish_result,
+        DELUGE_FILE_PREFIX_UNKNOWN, PREFIX_CAPACITY, PrefixPath, deluge_file_prefix_collect,
+        deluge_file_prefix_request, mark_in_flight, publish_result,
     };
     use super::{block_on, card};
     use std::ffi::CString;
@@ -650,12 +654,6 @@ mod live_pipeline {
             None,
             deluge_card_generation::current(),
         ));
-    }
-
-    /// The C++ side still asks before using this channel, and the Rust BSP always answers yes.
-    #[test]
-    fn the_switch_reports_active_on_this_build() {
-        assert!(deluge_file_prefix_async_active());
     }
 
     /// A path never asked about is `UNKNOWN`, not `PENDING` — `PENDING` would tell the caller to

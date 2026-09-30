@@ -27,6 +27,7 @@
 #ifndef LIBDELUGE_APP_H
 #define LIBDELUGE_APP_H
 
+#include "abi.h"
 #include "board.h"
 #include "types.h"
 
@@ -56,6 +57,22 @@ void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, ui
 /// on the render tier, in place of `deluge_app_render`, for that block.
 /// [audio]
 void deluge_app_render_skipped(void);
+
+/// @brief Opt this host out of the boot-settings prelude, leaving only the startup song.
+///
+/// For a host that drives its own scenario and never services the byte channel: the prelude's reads
+/// would sit in the channel forever and wedge whatever else needs it. Call it before
+/// `deluge_app_init`.
+/// [task]
+void deluge_startup_skip_settings_prelude(void) DELUGE_NOEXCEPT;
+
+/// @brief The render clock, in output frames since boot (`AudioEngine::audioSampleTimer`).
+///
+/// The Rust resource manager measures loader service latency with it: it has no clock of its own and
+/// cannot reach the audio engine. A plain 32-bit read, so it is atomic even while the render
+/// advances it; it wraps.
+/// [task] [audio]
+uint32_t deluge_debug_now_frames(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

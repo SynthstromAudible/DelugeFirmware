@@ -302,21 +302,15 @@ void runTick() {
 
 	case Stage::BurstCheck: {
 		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
-		const bool channel = deluge_file_bytes_async_active();
 		printf("SC-BURST value=%u served=%d illegal=%d\n", value, g_burstServed, g_burstIllegal);
 		if (value != kBurstThird) {
 			printf("SC-BURST FAIL the last write of the burst did not land (read %u, wanted %u)\n", value, kBurstThird);
 			g_failures++;
 		}
-		// With the channel: exactly two card writes, all through it. A build without the channel (the C++ weak
-		// fallback) must put none through it.
-		if (channel && g_burstServed != 2) {
+		// Exactly two card writes, all through the channel.
+		if (g_burstServed != 2) {
 			printf("SC-BURST FAIL the channel carried %d writes for a burst that should collapse to 2\n",
 			       g_burstServed);
-			g_failures++;
-		}
-		if (!channel && g_burstServed != 0) {
-			printf("SC-BURST FAIL the channel carried %d operations on a leg without it\n", g_burstServed);
 			g_failures++;
 		}
 		g_stage = Stage::OrderSubmit;
@@ -325,9 +319,7 @@ void runTick() {
 
 	case Stage::OrderSubmit:
 		// Write then read in ONE tick, so the read is submitted while the write is still waiting. No scrub of
-		// the in-memory value in between, and deliberately: a build without the channel serialises the
-		// settings on its inline arm when it RUNS, not when it was called, so a scrub made in this tick
-		// would be what it wrote.
+		// the in-memory value in between.
 		// A read that started ahead of the write would load the file's previous value over this one, which
 		// is what the check below catches; the served count is what shows the read ran at all.
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
@@ -347,14 +339,13 @@ void runTick() {
 		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
 		g_orderIllegal = deluge::storage::bytes::illegalInline() - g_illegalBefore;
 		g_orderServed = deluge::storage::bytes::channelServedOps() - g_servedBefore;
-		const bool channel = deluge_file_bytes_async_active();
 		printf("SC-ORDER value=%u served=%d\n", value, g_orderServed);
 		if (value != kOrderValue) {
 			printf("SC-ORDER FAIL a read queued behind a write did not see it (read %u, wanted %u)\n", value,
 			       kOrderValue);
 			g_failures++;
 		}
-		if (channel && g_orderServed != 2) {
+		if (g_orderServed != 2) {
 			printf("SC-ORDER FAIL the channel carried %d operations for one write and one read\n", g_orderServed);
 			g_failures++;
 		}
@@ -554,11 +545,9 @@ void runTick() {
 	}
 
 	case Stage::Fallback: {
-		const bool channel = deluge_file_bytes_async_active();
 		printf("SC-FALLBACK burst=%d order=%d\n", g_burstIllegal, g_orderIllegal);
 		// A busy channel queues: nothing the burst or the ordered write-then-read submitted was refused.
-		const bool ok = !channel || (g_burstIllegal == 0 && g_orderIllegal == 0);
-		if (!ok) {
+		if (g_burstIllegal != 0 || g_orderIllegal != 0) {
 			printf("SC-FALLBACK FAIL a settings operation was refused instead of queued behind a busy channel\n");
 			g_failures++;
 		}
@@ -589,9 +578,8 @@ void runTick() {
 		break;
 
 	case Stage::Tier: {
-		// Reported, never asserted here: a build without the channel honestly answers 0, and failing on it
-		// would fail that build for doing exactly what it is supposed to do.
-		// `tests/integration/checks/settings_channel.py` is what requires this to be non-zero -- see there.
+		// Reported, never asserted here: `tests/integration/checks/settings_channel.py` is what requires this to be
+		// non-zero -- see there.
 		printf("SC-CHANNEL served=%d\n", deluge::storage::bytes::channelServedOps());
 		const int32_t violations = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::Settings);
 		printf("SC-TIER violations=%d\n", violations);

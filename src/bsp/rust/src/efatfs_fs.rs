@@ -11,13 +11,11 @@
 //! holder `.await` (yield the executor) across the underlying SD transfer,
 //! rather than busy-spinning or blocking other tasks outright.
 //!
-//! Device-only and flag-gated: the file-handle table, the FFI boundary, and
-//! the streaming read path (`streaming_loader.rs`, `main.rs`) are what
-//! invoke [`mount`]/[`with_fs`]; anything in this module not reached from
-//! there stays dead code by design, hence the blanket `#![allow(dead_code)]`
-//! below (keeps the `efatfs_streaming` build warning-clean without
-//! disturbing the default build, which doesn't compile this file at all).
-#![cfg(all(target_os = "none", feature = "efatfs_streaming"))]
+//! Device-only: the file-handle table, the FFI boundary, and the streaming
+//! read path (`streaming_loader.rs`, `main.rs`) are what invoke
+//! [`mount`]/[`with_fs`]; anything in this module not reached from there
+//! stays dead code by design, hence the blanket `#![allow(dead_code)]` below.
+#![cfg(target_os = "none")]
 #![allow(dead_code)]
 
 use aligned::{A4, Aligned};
@@ -360,7 +358,7 @@ pub extern "C" fn deluge_efatfs_close(handle: u32) {
 pub extern "C" fn deluge_efatfs_read_at(
     handle: u32,
     byte_offset: u32,
-    dst: *mut u8,
+    dst: *mut core::ffi::c_void,
     count: u32,
     out_read: *mut u32,
 ) -> bool {
@@ -370,7 +368,7 @@ pub extern "C" fn deluge_efatfs_read_at(
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for the duration of this
     // synchronous call (the chunk's cluster payload buffer, from the reader's `fill_now`).
-    let buf = unsafe { core::slice::from_raw_parts_mut(dst, count as usize) };
+    let buf = unsafe { core::slice::from_raw_parts_mut(dst.cast::<u8>(), count as usize) };
     if crate::sim_block::block_on(read_at(handle, byte_offset, buf)) {
         // SAFETY: `out_read` is non-null (checked above), a `u32` the caller owns.
         unsafe {
@@ -638,7 +636,7 @@ pub extern "C" fn deluge_efatfs_file_open(
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_read_exact(
     handle: u32,
-    dst: *mut u8,
+    dst: *mut core::ffi::c_void,
     count: u32,
     out_read: *mut u32,
 ) -> DelugeStatus {
@@ -647,7 +645,7 @@ pub extern "C" fn deluge_efatfs_file_read_exact(
         return DELUGE_ERR_PARAM;
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
-    let buf = unsafe { core::slice::from_raw_parts_mut(dst, count as usize) };
+    let buf = unsafe { core::slice::from_raw_parts_mut(dst.cast::<u8>(), count as usize) };
     match crate::sim_block::block_on(task_file_read_exact(handle, buf)) {
         Ok(n) => {
             // SAFETY: `out_read` is non-null (checked above).
@@ -665,7 +663,7 @@ pub extern "C" fn deluge_efatfs_file_read_exact(
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_write(
     handle: u32,
-    src: *const u8,
+    src: *const core::ffi::c_void,
     count: u32,
     out_written: *mut u32,
 ) -> DelugeStatus {
@@ -674,7 +672,7 @@ pub extern "C" fn deluge_efatfs_file_write(
         return DELUGE_ERR_PARAM;
     }
     // SAFETY: `src` points at `count` readable bytes owned by the caller for this call.
-    let buf = unsafe { core::slice::from_raw_parts(src, count as usize) };
+    let buf = unsafe { core::slice::from_raw_parts(src.cast::<u8>(), count as usize) };
     match crate::sim_block::block_on(task_file_write(handle, buf)) {
         Ok(n) => {
             // SAFETY: `out_written` is non-null (checked above).
@@ -1241,7 +1239,7 @@ pub extern "C" fn deluge_efatfs_stream_open(
 pub extern "C" fn deluge_efatfs_stream_write_at(
     handle: u32,
     byte_offset: u32,
-    src: *const u8,
+    src: *const core::ffi::c_void,
     count: u32,
     out_written: *mut u32,
 ) -> bool {
@@ -1250,7 +1248,7 @@ pub extern "C" fn deluge_efatfs_stream_write_at(
         return false;
     }
     // SAFETY: `src` points at `count` readable bytes owned by the caller for this call.
-    let buf = unsafe { core::slice::from_raw_parts(src, count as usize) };
+    let buf = unsafe { core::slice::from_raw_parts(src.cast::<u8>(), count as usize) };
     match crate::sim_block::block_on(stream_write_at(handle, byte_offset, buf)) {
         Some(n) => {
             // SAFETY: `out_written` is non-null (checked above).
@@ -1269,7 +1267,7 @@ pub extern "C" fn deluge_efatfs_stream_write_at(
 pub extern "C" fn deluge_efatfs_stream_read_at_via(
     handle: u32,
     byte_offset: u32,
-    dst: *mut u8,
+    dst: *mut core::ffi::c_void,
     count: u32,
     out_read: *mut u32,
 ) -> bool {
@@ -1278,7 +1276,7 @@ pub extern "C" fn deluge_efatfs_stream_read_at_via(
         return false;
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
-    let buf = unsafe { core::slice::from_raw_parts_mut(dst, count as usize) };
+    let buf = unsafe { core::slice::from_raw_parts_mut(dst.cast::<u8>(), count as usize) };
     match crate::sim_block::block_on(stream_read_at_via(handle, byte_offset, buf)) {
         Some(n) => {
             // SAFETY: `out_read` is non-null (checked above).
@@ -1323,3 +1321,35 @@ pub extern "C" fn deluge_efatfs_stream_close(handle: u32) -> bool {
     crate::tier_meter::note(crate::tier_meter::Entry::StreamClose);
     crate::sim_block::block_on(stream_close(handle))
 }
+
+abi_pin!(
+    deluge_efatfs_close,
+    deluge_efatfs_cluster_size,
+    deluge_efatfs_dir_close,
+    deluge_efatfs_dir_open,
+    deluge_efatfs_dir_read,
+    deluge_efatfs_file_close,
+    deluge_efatfs_file_open,
+    deluge_efatfs_file_read_exact,
+    deluge_efatfs_file_seek,
+    deluge_efatfs_file_size,
+    deluge_efatfs_file_write,
+    deluge_efatfs_mkdir,
+    deluge_efatfs_mount,
+    deluge_efatfs_mount_generation,
+    deluge_efatfs_open,
+    deluge_efatfs_read_at,
+    deluge_efatfs_remount,
+    deluge_efatfs_rename,
+    deluge_efatfs_set_time,
+    deluge_efatfs_stats,
+    deluge_efatfs_stream_close,
+    deluge_efatfs_stream_open,
+    deluge_efatfs_stream_read_at_via,
+    deluge_efatfs_stream_size,
+    deluge_efatfs_stream_truncate,
+    deluge_efatfs_stream_write_at,
+    deluge_efatfs_unlink,
+    deluge_efatfs_unmount,
+    deluge_storage_fs_busy,
+);

@@ -103,7 +103,7 @@
 //! Everything here is compiled wherever this module is -- the Embassy BSP: device,
 //! or host under `host_app` (see the `mod audio_loader;` cfg in `main.rs`): the
 //! request/collect C ABI ([`deluge_audio_load_request`],
-//! [`deluge_audio_load_collect`], [`deluge_audio_load_async_active`]), the
+//! [`deluge_audio_load_collect`]), the
 //! queue/result tables behind it, the parse driver ([`LoadOps`], [`load_io_once`])
 //! and, where a backing is linked, `ProdOps` and [`audio_load_task`]. They are the
 //! only definitions: there is no C++ fallback.
@@ -121,18 +121,6 @@
 //! that to `crate::efatfs_fs` / `crate::efatfs_host_shim`, and
 //! `tests/audio_loader_host.rs` wires it to an in-memory double.
 
-// `audio_load_task` is the only drain for the request queue, and it needs a backing to do I/O through: on
-// device that is `efatfs_streaming`. A device build without it would compile cleanly, accept every request and
-// drain none, so the C++ collector would report LOAD_IN_PROGRESS forever, for every sample -- silence with no
-// error. Refused at compile time instead. On host the module is reached through `main.rs` under `host_app`
-// (itself a backing) and through `tests/audio_loader_host.rs`, which drives the tables by hand and needs no task.
-#[cfg(all(target_os = "none", not(feature = "efatfs_streaming")))]
-compile_error!(
-    "the async audio loader needs `efatfs_streaming` on device: `audio_load_task` is the only drain for \
-     the request queue and is not compiled without it, so every request would stay queued forever and \
-     the C++ side would see LOAD_IN_PROGRESS on every tick."
-);
-
 use core::ffi::{CStr, c_char};
 use core::mem::MaybeUninit;
 
@@ -142,7 +130,9 @@ use embassy_sync::signal::Signal;
 
 /// Longest single candidate path, including its NUL — `DELUGE_MAX_PATH`
 /// (`audio_load.h`). The C side writes its candidate buffer at this stride, so
-/// it is a layout constant, not a preference.
+/// it is a layout constant, not a preference. Copied, like every header value
+/// this module uses, because it compiles in carriers with no bindgen output;
+/// each copy is pinned by `abi_pins.rs`.
 pub const DELUGE_MAX_PATH: usize = 256;
 
 /// `AudioFileManager::kMaxLoadCandidates` — the C side proposes at most this
@@ -153,7 +143,7 @@ const MAX_LOAD_CANDIDATES: usize = 3;
 /// candidate did not fit, or an internal allocation failed. The header is
 /// explicit that the caller must not read `out` in that case, so a request
 /// carrying it is refused rather than clamped. Never a legitimate count.
-const DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED: u32 = 0xFFFF_FFFF;
+pub(crate) const DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED: u32 = 0xFFFF_FFFF;
 
 /// One path, inline. **Nothing in this module may touch the Rust global heap.**
 ///
@@ -178,7 +168,7 @@ pub type LoadPath = heapless::String<MAX_PATH_CHARS>;
 /// 256-character path be accepted as a request key and then refused by
 /// [`LoadResult::set_alternate_path`] (which needs room for the terminator),
 /// turning a loadable file into a spurious `FILE_UNREADABLE`.
-const MAX_PATH_CHARS: usize = DELUGE_MAX_PATH - 1;
+pub(crate) const MAX_PATH_CHARS: usize = DELUGE_MAX_PATH - 1;
 
 /// The candidate paths for one load, inline. See [`LoadPath`].
 pub type CandidateList = heapless::Vec<LoadPath, MAX_LOAD_CANDIDATES>;
@@ -230,23 +220,16 @@ pub const DELUGE_AUDIO_LOAD_READY: u8 = 1;
 /// `deluge_audio_load_collect`: nothing known about this path.
 pub const DELUGE_AUDIO_LOAD_UNKNOWN: u8 = 2;
 
-/// The values this module hand-duplicates from `audio_load.h`, pinned.
+/// `AudioFileManager::kMaxLoadCandidates` and the Deluge `Error` numbers, pinned.
 ///
 /// Asserting a constant against its own literal looks tautological, and that is
-/// exactly the point: it makes a change here take two deliberate edits instead of
-/// one, and the mirror of these numbers lives in `audio_load_abi.cpp`'s
-/// `static_assert`s. Without this the C side pinned only C's own values, so a
-/// Rust-side edit — `MAX_LOAD_CANDIDATES` most dangerously, since it silently
-/// changes how many candidate slots are read — was caught by nothing.
+/// exactly the point: these are C++ values no header declares, so bindgen cannot
+/// pin them, and this makes a change here take two deliberate edits instead of
+/// one. Their mirror lives in `audio_load_abi.cpp`'s `static_assert`s.
+/// `MAX_LOAD_CANDIDATES` is the dangerous one: it silently changes how many
+/// candidate slots are read.
 const _: () = {
-    assert!(DELUGE_MAX_PATH == 256);
-    assert!(MAX_PATH_CHARS == 255);
     assert!(MAX_LOAD_CANDIDATES == 3); // AudioFileManager::kMaxLoadCandidates
-    assert!(DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED == 0xFFFF_FFFF);
-    assert!(DELUGE_AUDIO_LOAD_PENDING == 0);
-    assert!(DELUGE_AUDIO_LOAD_READY == 1);
-    assert!(DELUGE_AUDIO_LOAD_UNKNOWN == 2);
-    // Deluge `Error`, pinned C-side by audio_load_abi.cpp's own static_asserts.
     assert!(DELUGE_ERROR_NONE == 0);
     assert!(DELUGE_ERROR_FILE_CORRUPTED == 5);
     assert!(DELUGE_ERROR_FILE_UNREADABLE == 6);
@@ -294,6 +277,26 @@ pub struct LoadResult {
     pub alternate_path: [u8; DELUGE_MAX_PATH],
     pub error: u8,
 }
+
+/// The result slot as `deluge_audio_load_collect`'s declaration spells it: bindgen's `DelugeAudioLoadResult` where
+/// there is bindgen output, so the export's `abi_pin!` holds, else [`LoadResult`] itself. The export writes it
+/// through a cast, so the two must share a layout.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+type AbiLoadResult = crate::sys::DelugeAudioLoadResult;
+#[cfg(not(any(target_os = "none", feature = "host_app")))]
+type AbiLoadResult = LoadResult;
+
+#[cfg(any(target_os = "none", feature = "host_app"))]
+const _: () = {
+    use core::mem::{align_of, offset_of, size_of};
+    assert!(size_of::<AbiLoadResult>() == size_of::<LoadResult>());
+    assert!(align_of::<AbiLoadResult>() == align_of::<LoadResult>());
+    assert!(offset_of!(AbiLoadResult, geometry) == offset_of!(LoadResult, geometry));
+    assert!(offset_of!(AbiLoadResult, size_bytes) == offset_of!(LoadResult, size_bytes));
+    assert!(offset_of!(AbiLoadResult, alternate_path) == offset_of!(LoadResult, alternate_path));
+    assert!(offset_of!(AbiLoadResult, error) == offset_of!(LoadResult, error));
+    assert!(size_of::<crate::sys::DelugeAudioLoadGeometry>() == size_of::<LoadGeometry>());
+};
 
 impl LoadResult {
     /// A result carrying only a failure verdict. Geometry and path are zeroed;
@@ -478,17 +481,6 @@ pub(crate) fn flush_tables() {
     }
 }
 
-/// Whether the Rust async loader backs sample loads — what the C++ side asks
-/// before choosing the async path over the synchronous one.
-///
-/// Always `true` wherever this module is compiled: the loader has no switch. The
-/// symbol is what overrides `audio_load_abi.cpp`'s weak `false`, which every BSP
-/// without this crate resolves, and those builds keep the synchronous path.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_load_async_active() -> bool {
-    true
-}
-
 /// Milliseconds `audio_load_task` waits after marking each load in flight. Host harness only; see
 /// [`deluge_audio_load_set_latency_ms`].
 #[cfg(feature = "host_app")]
@@ -619,7 +611,7 @@ fn enqueue_request(request: LoadRequest) -> bool {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_audio_load_collect(
     file_path: *const c_char,
-    out: *mut LoadResult,
+    out: *mut AbiLoadResult,
 ) -> u8 {
     if out.is_null() {
         return DELUGE_AUDIO_LOAD_UNKNOWN;
@@ -1153,18 +1145,15 @@ mod driver {
 pub use driver::{LoadOps, OpenVerdict, error_code_for, load_io_once};
 
 // ── Production wiring ───────────────────────────────────────────────────────
-// Only compiled where the efatfs backing is actually linked: on device under
-// `efatfs_streaming`, and on host under `host_app`. Kept separate from the driver
+// Only compiled where the efatfs backing is actually linked: on device, and on
+// host under `host_app`. Kept separate from the driver
 // above (which compiles with no backing at all) so the
 // `#[path]`-recompiled host test never emits a reference to an undefined symbol.
 //
 // Note what is NOT here: any `extern "C"` block. This half calls no C++ at all —
 // see the module doc.
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 mod prod {
     use super::driver::LoadOps;
 
@@ -1222,10 +1211,7 @@ mod prod {
     }
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[allow(unused_imports)]
 pub use prod::ProdOps;
 
@@ -1235,19 +1221,13 @@ pub use prod::ProdOps;
 /// [`IN_FLIGHT`] is set before the I/O and cleared only after the result is
 /// published, so [`deluge_audio_load_collect`] never sees a gap where a running
 /// load looks unknown.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn audio_load_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, audio_load_task_body()).await
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn audio_load_task_body() {
     LOAD_WAKE.wait().await;
     let ops = ProdOps::new();
@@ -1291,10 +1271,7 @@ async fn audio_load_task_body() {
 /// task and therefore before any I/O, because that is what makes it mean "the
 /// card this load is reading". Reading it later — at publish time — reads the
 /// value a flush has already installed and defeats the check entirely.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn take_next_request() -> Option<(LoadRequest, u32)> {
     let mut queue = QUEUE.lock().await;
     let request = queue.pop_front()?;
@@ -1302,3 +1279,7 @@ async fn take_next_request() -> Option<(LoadRequest, u32)> {
     mark_in_flight(Some(request.path.clone())).await;
     Some((request, generation))
 }
+
+abi_pin!(deluge_audio_load_collect, deluge_audio_load_request);
+#[cfg(feature = "host_app")]
+abi_pin!(deluge_audio_load_set_latency_ms);

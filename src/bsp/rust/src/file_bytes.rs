@@ -65,8 +65,9 @@ use embassy_sync::signal::Signal;
 
 /// Longest path this channel keys on, in CHARACTERS -- `DELUGE_FILE_BYTES_MAX_PATH` minus its NUL,
 /// the same bound `file_directory::DirPath` carries and for the same reason (a C buffer size counts
-/// the terminator; the text it can hold is one byte shorter).
-const MAX_PATH_CHARS: usize = 255;
+/// the terminator; the text it can hold is one byte shorter). Pinned by `abi_pins.rs`, like every
+/// value this module copies from a header: it compiles in carriers with no bindgen output.
+pub(crate) const MAX_PATH_CHARS: usize = 255;
 
 /// The largest file this channel will carry.
 ///
@@ -74,7 +75,7 @@ const MAX_PATH_CHARS: usize = 255;
 /// (`CommunityFeatures.XML` 1453 B, `MIDIFollow.XML` 1957 B), so this is roughly 4x the largest one
 /// that exists. Three buffers of this size exist -- [`REQUEST_BYTES`], [`WORK_BYTES`] and
 /// [`RESULT_BYTES`] -- and on device all three live in SDRAM, so raising this costs SDRAM rather
-/// than on-chip SRAM. It is still pinned against `DELUGE_FILE_BYTES_MAX_BYTES`, so raising it is a
+/// than on-chip SRAM. It is pinned against `DELUGE_FILE_BYTES_MAX_BYTES`, so raising it is a
 /// change on both sides of the ABI.
 ///
 /// A file above this bound is never truncated: the read reports `NO_MEMORY` and the write is
@@ -100,6 +101,13 @@ pub struct FileTimestamp {
     pub second: u8,
 }
 
+/// The timestamp as `deluge_file_bytes_request_set_time`'s declaration spells it: bindgen's `DelugeTimestamp` where
+/// there is bindgen output, so the export's `abi_pin!` holds, else the mirror above.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+type AbiTimestamp = crate::sys::DelugeTimestamp;
+#[cfg(not(any(target_os = "none", feature = "host_app")))]
+type AbiTimestamp = FileTimestamp;
+
 // `DelugeTimestamp`'s layout (types.h), which the C caller passes by value.
 const _: () = {
     assert!(core::mem::size_of::<FileTimestamp>() == 8);
@@ -124,11 +132,11 @@ pub const BLOCK_BYTES: usize = 1024;
 /// with no bindgen bindings at all. It is a NAMED constant and never written inline in a pattern --
 /// an unknown identifier in pattern position is a fresh BINDING, not a comparison, which in
 /// `file_directory` silently matched every error until it was caught.
-const NO_FILESYSTEM: i8 = -11;
+pub(crate) const NO_FILESYSTEM: i8 = -11;
 /// `DELUGE_ERR_NO_MEMORY`, as a bare `i8`. What a file too large for [`MAX_BYTES`] reports.
-const NO_MEMORY: i8 = -13;
+pub(crate) const NO_MEMORY: i8 = -13;
 /// `DELUGE_ERR_IO`, as a bare `i8`. A short write is reported as this rather than as success.
-const ERR_IO: i8 = -5;
+pub(crate) const ERR_IO: i8 = -5;
 /// `DELUGE_ERR_NOT_FOUND`, as a bare `i8`. The existence op's ANSWER "no", as distinct from every
 /// other failure, which means "could not tell".
 ///
@@ -136,18 +144,18 @@ const ERR_IO: i8 = -5;
 /// an unknown identifier in pattern position is a fresh BINDING, not a comparison, and this module's
 /// sibling shipped exactly that bug -- it compiled, matched EVERY error, and the only complaint was a
 /// non-snake-case warning among thirty-odd others.
-const NOT_FOUND: i8 = -8;
+pub(crate) const NOT_FOUND: i8 = -8;
 /// `DELUGE_ERR_EXISTS`, as a bare `i8`. What every segment but the last of an existing path reports,
 /// and therefore SUCCESS for "make sure this path is there".
 ///
 /// A NAMED constant, never written inline in a pattern, for the reason `NOT_FOUND` gives above.
-const EXISTS: i8 = -9;
+pub(crate) const EXISTS: i8 = -9;
 
 /// `DelugeFileOpenMode::READ`, matching `file_io.h`'s C enum's declaration order.
-const OPEN_READ: u8 = 0;
+pub(crate) const OPEN_READ: u8 = 0;
 /// `DelugeFileOpenMode::WRITE_CREATE`: create, or open and keep an existing file's bytes. The write
 /// path truncates explicitly afterwards rather than relying on a create mode to do it.
-const OPEN_WRITE_CREATE: u8 = 1;
+pub(crate) const OPEN_WRITE_CREATE: u8 = 1;
 
 /// `deluge_file_bytes_collect_*`: requested or in flight; ask again, do not re-request.
 pub const DELUGE_FILE_BYTES_PENDING: u8 = 0;
@@ -157,31 +165,6 @@ pub const DELUGE_FILE_BYTES_READY: u8 = 1;
 pub const DELUGE_FILE_BYTES_UNKNOWN: u8 = 2;
 /// `deluge_file_bytes_collect_*`: the operation did not happen. Terminal -- do NOT re-request.
 pub const DELUGE_FILE_BYTES_FAILED: u8 = 3;
-
-/// The values this module hand-duplicates from `file_bytes.h`, pinned.
-///
-/// Asserting a constant against its own literal looks tautological, and that is the point: it makes
-/// a change take two deliberate edits instead of one.
-///
-/// **The status numbering is the audio loader's, the prefix channel's and the directory channel's,
-/// value for value**, and that is a safety property rather than tidiness. Two of these headers will
-/// plausibly be included in one translation unit, where
-/// `deluge_file_bytes_collect_read(..) == DELUGE_FILE_DIRECTORY_READY` compiles clean and nothing
-/// cross-checks it. Under a divergent numbering that expression would mean something else entirely.
-const _: () = {
-    assert!(MAX_PATH_CHARS == 255); // DELUGE_FILE_BYTES_MAX_PATH - 1
-    assert!(MAX_BYTES == 8192); // DELUGE_FILE_BYTES_MAX_BYTES
-    assert!(BLOCK_BYTES == 1024); // DELUGE_FILE_BYTES_BLOCK
-    assert!(NO_FILESYSTEM == -11); // DELUGE_ERR_NO_FILESYSTEM
-    assert!(NO_MEMORY == -13); // DELUGE_ERR_NO_MEMORY
-    assert!(ERR_IO == -5); // DELUGE_ERR_IO
-    assert!(NOT_FOUND == -8); // DELUGE_ERR_NOT_FOUND
-    assert!(EXISTS == -9); // DELUGE_ERR_EXISTS
-    assert!(DELUGE_FILE_BYTES_PENDING == 0);
-    assert!(DELUGE_FILE_BYTES_READY == 1);
-    assert!(DELUGE_FILE_BYTES_UNKNOWN == 2);
-    assert!(DELUGE_FILE_BYTES_FAILED == 3);
-};
 
 /// Which operation an entry belongs to.
 ///
@@ -658,17 +641,11 @@ fn result_bytes<'g>(
 }
 
 /// Grants [`WORK_BYTES`] once.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 static WORK_CLAIM: ClaimOnce = ClaimOnce::new();
 
 /// The work buffer, to the first caller only. `file_bytes_task` claims it once, at start.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 fn claim_work_bytes() -> Option<&'static mut [u8; MAX_BYTES]> {
     if !WORK_CLAIM.claim() {
         return None;
@@ -697,14 +674,6 @@ pub(crate) fn flush_tables() {
     if let Ok(mut result) = RESULT.try_lock() {
         drain(&mut result);
     }
-}
-
-/// Whether the Rust byte channel backs `file_bytes.h` -- always, on this BSP. The C++ side still asks,
-/// because a C++-only build links `file_bytes_abi.cpp`'s weak definition instead, which answers
-/// `false` and keeps that build on its inline path.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_bytes_async_active() -> bool {
-    true
 }
 
 /// Milliseconds `file_bytes_task` waits before each operation. Host harness only; see
@@ -866,11 +835,19 @@ pub unsafe extern "C" fn deluge_file_bytes_request_mkdir_all(path: *const c_char
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_bytes_request_set_time(
     path: *const c_char,
-    timestamp: FileTimestamp,
+    timestamp: AbiTimestamp,
 ) -> bool {
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(path) }) else {
         return false;
+    };
+    let timestamp = FileTimestamp {
+        year: timestamp.year,
+        month: timestamp.month,
+        day: timestamp.day,
+        hour: timestamp.hour,
+        minute: timestamp.minute,
+        second: timestamp.second,
     };
     enqueue_request(ByteRequest::SetTime { path, timestamp }, &[])
 }
@@ -1506,17 +1483,14 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 
 // ── The production ops ──────────────────────────────────────────────────────
 //
-// Only compiled where the efatfs backing is actually linked: on device under `efatfs_streaming`,
-// and on host under `host_app`. Kept separate from the driver above so the driver -- and every rule
+// Only compiled where the efatfs backing is actually linked: on device, and on host under
+// `host_app`. Kept separate from the driver above so the driver -- and every rule
 // in this file -- compiles and is tested in the `#[path]` carriers, which have no `crate::`.
 
 /// The efatfs file operations behind the production ops: the device mount on device, the host shim
 /// under `host_app`. One alias rather than a `#[cfg]` at every call site -- the same shape
 /// `file_directory::backing` uses, and for the same reason.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
@@ -1534,16 +1508,10 @@ mod backing {
 
 /// The real [`ByteOps`], wired to the efatfs task-context file table. Holds no state: every
 /// operation is keyed by path.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 pub struct ProdByteOps;
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 impl ProdByteOps {
     pub fn new() -> Self {
         Self
@@ -1612,10 +1580,7 @@ impl ProdByteOps {
     }
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 impl ByteOps for ProdByteOps {
     async fn read_all(&self, path: &str, into: &mut [u8; MAX_BYTES]) -> Result<usize, i8> {
         let handle = Self::open_mounted(path, OPEN_READ).await?;
@@ -1886,19 +1851,13 @@ impl ByteOps for ProdByteOps {
 /// published failure ends that: it is terminal, exactly as a published answer is, and it carries the
 /// status so the caller can tell "no such file, write the defaults" from "the card is unreadable,
 /// write nothing".
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn file_bytes_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_bytes_task_body()).await
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn file_bytes_task_body() {
     let Some(work) = claim_work_bytes() else {
         debug_assert!(false, "the byte channel's work buffer was claimed twice");
@@ -1944,10 +1903,7 @@ async fn file_bytes_task_body() {
 /// before any I/O, because that is what makes it mean "the card this operation is touching". Reading
 /// it later -- at publish time -- reads the value a flush has already installed and defeats the
 /// check entirely.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<(ByteRequest, u32)> {
     let mut slot = REQUEST.lock().await;
     let request = slot.take()?;
@@ -2009,3 +1965,32 @@ pub async fn publish_result(
     }
     publish_into(&mut result, op, key, outcome, generation);
 }
+
+abi_pin!(
+    deluge_file_bytes_collect_copy,
+    deluge_file_bytes_collect_dir_exists,
+    deluge_file_bytes_collect_exists,
+    deluge_file_bytes_collect_mkdir_all,
+    deluge_file_bytes_collect_read,
+    deluge_file_bytes_collect_read_at,
+    deluge_file_bytes_collect_rename,
+    deluge_file_bytes_collect_set_time,
+    deluge_file_bytes_collect_stat,
+    deluge_file_bytes_collect_unlink,
+    deluge_file_bytes_collect_write,
+    deluge_file_bytes_collect_write_at,
+    deluge_file_bytes_request_copy,
+    deluge_file_bytes_request_dir_exists,
+    deluge_file_bytes_request_exists,
+    deluge_file_bytes_request_mkdir_all,
+    deluge_file_bytes_request_read,
+    deluge_file_bytes_request_read_at,
+    deluge_file_bytes_request_rename,
+    deluge_file_bytes_request_set_time,
+    deluge_file_bytes_request_stat,
+    deluge_file_bytes_request_unlink,
+    deluge_file_bytes_request_write,
+    deluge_file_bytes_request_write_at,
+);
+#[cfg(feature = "host_app")]
+abi_pin!(deluge_file_bytes_set_latency_ms);

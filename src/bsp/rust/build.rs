@@ -17,6 +17,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[path = "build_allowlist.rs"]
+mod build_allowlist;
+#[path = "build_crate_types.rs"]
+mod build_crate_types;
+
 /// `deluge_sample_stream_*`: no C++ caller exists yet, so nothing in this
 /// crate or the archived C++ closure leaves an unresolved reference into the
 /// rlib. Lazy `.a` extraction would never pull the object in at all, and these
@@ -67,7 +72,13 @@ fn main() {
         return;
     }
 
-    run_bindgen(&repo_root, &manifest_dir, &out_dir, "armv7a-none-eabihf");
+    run_bindgen(
+        &repo_root,
+        &manifest_dir,
+        &out_dir,
+        "armv7a-none-eabihf",
+        false,
+    );
     setup_linker_script(&manifest_dir, &out_dir);
     emit_forced_link_roots();
 
@@ -79,14 +90,24 @@ fn main() {
     warn_if_heap_hack_active(&manifest_dir);
 }
 
-/// Generates the libdeluge POD types (`include/libdeluge/*.h`) via bindgen
-/// for `clang_target`, writing `libdeluge_sys.rs` into `out_dir`. Types
-/// only — we DEFINE the service functions ourselves in src/ffi.rs
-/// (`#[no_mangle]`); the C contract drives the types so a layout/type
-/// change is a compile error. Shared by the device path
-/// (`--target=armv7a-none-eabihf`) and the `host_app` path
-/// (`--target=x86_64-unknown-linux-gnu`) — same allowlist/flags otherwise,
-/// so the two `mod sys`es stay structurally identical modulo target.
+/// Generates the whole libdeluge C ABI (`include/libdeluge/*.h`) via bindgen
+/// for `clang_target`, writing `libdeluge_sys.rs` into `out_dir`: the POD
+/// types, the `DELUGE_*` constants, and an `extern "C"` declaration for every
+/// header function. The crate DEFINES the service functions itself
+/// (`#[no_mangle]`); the generated declarations are what those definitions are
+/// checked against, so a header change is a compile error rather than a
+/// silent ABI drift. Shared by the device path (`--target=armv7a-none-eabihf`)
+/// and the `host_app` path (`--target=x86_64-unknown-linux-gnu`) — same
+/// allowlist/flags otherwise, so the two `mod sys`es stay structurally
+/// identical modulo target.
+///
+/// The header types an in-tree crate defines are bound to the crate's own
+/// types, and their header layouts are written to `libdeluge_layout.rs`
+/// instead: see `build_crate_types.rs`.
+///
+/// `deluge_host` defines `DELUGE_HOST`, as the host app's CMake build does, so
+/// the host-only declarations (latency knobs, the host trigger-clock edge) are
+/// bound for the `host_app` carrier and absent from the device one.
 ///
 /// # Why no `-fshort-enums`
 ///
@@ -102,26 +123,65 @@ fn main() {
 /// would silently disagree on enum width, mislaying every enum-bearing POD
 /// across the FFI boundary. `--target` is passed purely for pointer width,
 /// alignment and calling convention.
-fn run_bindgen(repo_root: &Path, manifest_dir: &Path, out_dir: &Path, clang_target: &str) {
+fn run_bindgen(
+    repo_root: &Path,
+    manifest_dir: &Path,
+    out_dir: &Path,
+    clang_target: &str,
+    deluge_host: bool,
+) {
     let include_dir = repo_root.join("include");
+    // scheduler.h re-exports the scheduler API from OSLikeStuff.
+    let scheduler_dir = repo_root.join("src/OSLikeStuff");
     let wrapper = manifest_dir.join("wrapper.h");
-    let bindings = bindgen::Builder::default()
-        .header(wrapper.to_str().unwrap())
-        .clang_arg(format!("-I{}", include_dir.display()))
+    let base = || {
+        let builder = bindgen::Builder::default()
+            .header(wrapper.to_str().unwrap())
+            .clang_arg(format!("-I{}", include_dir.display()))
+            .clang_arg(format!("-I{}", scheduler_dir.display()))
+            .use_core()
+            .clang_arg(format!("--target={clang_target}"))
+            // Layouts match the app being linked on every target (explicit
+            // fixed-width enums throughout), and the asserts would run host-side
+            // anyway.
+            .layout_tests(false);
+        if deluge_host {
+            builder.clang_arg("-DDELUGE_HOST")
+        } else {
+            builder
+        }
+    };
+    let builder = base()
         .allowlist_type("Deluge.*")
-        .use_core()
-        .clang_arg(format!("--target={clang_target}"))
-        // Layouts match the app being linked on every target (explicit
-        // fixed-width enums throughout), and the asserts would run host-side
-        // anyway.
-        .layout_tests(false)
+        // Every function and constant too: `abi_pin!` and `abi_const!` check the Rust side against these.
+        .allowlist_function("deluge_.*")
+        .allowlist_function(build_allowlist::SCHEDULER_API_FUNCTIONS)
+        .allowlist_function(build_allowlist::UNPREFIXED_FUNCTIONS)
+        .allowlist_var("DELUGE_.*");
+    let bindings = build_crate_types::bind_crate_types(builder, !deluge_host)
         .generate()
         .expect("bindgen failed on libdeluge headers");
-    bindings
-        .write_to_file(out_dir.join("libdeluge_sys.rs"))
-        .expect("write libdeluge_sys.rs");
+    fs::write(
+        out_dir.join("libdeluge_sys.rs"),
+        edition_2024_externs(&bindings.to_string()),
+    )
+    .expect("write libdeluge_sys.rs");
+    let layouts = build_crate_types::crate_type_layouts(base())
+        .generate()
+        .expect("bindgen failed on the crate-defined libdeluge types");
+    fs::write(out_dir.join("libdeluge_layout.rs"), layouts.to_string())
+        .expect("write libdeluge_layout.rs");
     println!("cargo:rerun-if-changed={}", wrapper.display());
     println!("cargo:rerun-if-changed={}", include_dir.display());
+    println!("cargo:rerun-if-changed={}", scheduler_dir.display());
+    println!("cargo:rerun-if-changed=build_allowlist.rs");
+    println!("cargo:rerun-if-changed=build_crate_types.rs");
+}
+
+/// Marks each generated `extern "C"` block `unsafe`, as edition 2024 requires.
+/// bindgen 0.70 predates `unsafe extern` and emits the bare form.
+fn edition_2024_externs(bindings: &str) -> String {
+    bindings.replace("\nextern \"C\" {", "\nunsafe extern \"C\" {")
 }
 
 /// Copies the linker script + memory-layout fragment for the active `rtt`
@@ -342,7 +402,13 @@ fn warn_if_heap_hack_active(manifest_dir: &Path) {
 fn run_host_app(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     let build_dir = resolve_host_build_dir(repo_root);
 
-    run_bindgen(repo_root, manifest_dir, out_dir, "x86_64-unknown-linux-gnu");
+    run_bindgen(
+        repo_root,
+        manifest_dir,
+        out_dir,
+        "x86_64-unknown-linux-gnu",
+        true,
+    );
     emit_host_forced_link_roots();
 
     let app_objs_dir = host_app_objs_dir(&build_dir);
