@@ -531,10 +531,12 @@ pub trait ByteOps {
     /// Copy `from` to `to`, whole, moving up to [`BLOCK_BYTES`] at a time through `scratch`.
     async fn copy_file(&self, from: &str, to: &str, scratch: &mut [u8]) -> Result<(), i8>;
     /// Read the whole of `path` into `into`. A file larger than `into` is refused with `NO_MEMORY` and its size;
-    /// nothing is read. A short read of a whole file is `IO`: the caller would parse a truncated document.
+    /// nothing is read. An open that fails reports the open's status (`NOT_FOUND` for a missing file). A short read
+    /// of a whole file is `IO`: the caller would parse a truncated document.
     async fn read_into(&self, path: &str, into: &mut [u8]) -> Result<u32, (i8, u32)>;
-    /// Write `bytes` as the whole of `path`. With `exclusive`, the create fails with `EXISTS` if the file is there,
-    /// in the same open, so no other writer can slip in between a check and the create. A short write is `IO`.
+    /// Write `bytes` as the whole of `path`, creating every missing directory above it. With `exclusive`, the create
+    /// fails with `EXISTS` if the file is there, in the same open, so no other writer can slip in between a check and
+    /// the create. An open that fails otherwise reports the open's status. A short write is `IO`.
     async fn write_new(&self, path: &str, bytes: &[u8], exclusive: bool) -> Result<u32, i8>;
 }
 
@@ -2253,11 +2255,13 @@ impl ByteOps for ProdByteOps {
     }
 
     async fn read_into(&self, path: &str, into: &mut [u8]) -> Result<u32, (i8, u32)> {
-        let Some(handle) = crate::file_stream::open_mounted(path, STREAM_READ)
-            .await
-            .ok()
-        else {
-            return Err((ERR_IO, 0));
+        let handle = match crate::file_stream::open_mounted(path, STREAM_READ).await {
+            Ok(handle) => handle,
+            // NO_MEMORY with a size is this operation's "the file did not fit", and its caller resizes on it, so an
+            // open that failed for want of memory is reported as a card error rather than as a file of size 0.
+            Err(NO_MEMORY) => return Err((ERR_IO, 0)),
+            // The open's own status: NOT_FOUND for a missing document, and so on.
+            Err(status) => return Err((status, 0)),
         };
         let size = backing::stream_size(handle).await.unwrap_or(0);
         if size == 0 || size as usize > into.len() {
@@ -2289,13 +2293,9 @@ impl ByteOps for ProdByteOps {
         } else {
             STREAM_CREATE
         };
-        let handle = match crate::file_stream::open_mounted(path, mode).await {
-            Ok(handle) => handle,
-            // Only an exclusive create answers EXISTS, and only when the file is there. Every other refusal is a card
-            // error to this operation's callers.
-            Err(EXISTS) => return Err(EXISTS),
-            Err(_) => return Err(ERR_IO),
-        };
+        // The open's own status on failure: EXISTS when an exclusive create finds the file there, and whatever else
+        // the card said -- NOT_FOUND, a refused name -- otherwise.
+        let handle = crate::file_stream::open_mounted(path, mode).await?;
         let written = backing::stream_write_at(handle, 0, bytes).await;
         backing::stream_close(handle).await;
         match written {
