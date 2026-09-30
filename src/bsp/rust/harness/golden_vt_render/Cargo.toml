@@ -72,6 +72,9 @@ deluge_audio_format = { path = "../../../../../crates/deluge_audio_format" }
 # own dependency.
 deluge_card_generation = { path = "../../../../../crates/deluge_card_generation" }
 
+# The answer slot every single-flight storage channel keeps. Not yet used by any channel module here.
+deluge_channel = { path = "../../../../../crates/deluge_channel" }
+
 # `#[path]`-included `streaming_loader.rs` (see src/main.rs) sources
 # `StreamingFillDescriptor` and `ProdOps::begin`/`finish`'s `native_begin`/`native_finish`
 # straight from this crate (the manager-reaching sync fill core) — so this
