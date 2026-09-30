@@ -21,10 +21,9 @@
 /// platform/BSP**. The platform owns `main` and the runtime; the application
 /// never assumes it owns either (so an Embassy executor can own them later).
 ///
-/// The Rust/Embassy BSP's `main` brings up Embassy and calls `deluge_app_init()`,
-/// which registers the application's tasks with the BSP's scheduler; the BSP's
-/// render task calls `deluge_app_audio_tick()`, which renders through
-/// `deluge_audio_drive()` and `deluge_app_render()`.
+/// The Rust/Embassy BSP's `main` brings up Embassy and calls `deluge_app_init()`.
+/// From then on the BSP's audio tier calls `deluge_app_audio_tick()`, and its app
+/// loop calls `deluge_app_service()`.
 #ifndef LIBDELUGE_APP_H
 #define LIBDELUGE_APP_H
 
@@ -40,6 +39,24 @@ extern "C" {
 /// services are initialised, before audio starts.
 /// [task]
 void deluge_app_init(const DelugeBoard* board) DELUGE_NOEXCEPT;
+
+/// Why the BSP's app loop called deluge_app_service: a set of these bits.
+typedef uint32_t DelugeWake;
+#define DELUGE_WAKE_TIMER 1u    ///< a time deluge_app_service returned has come
+#define DELUGE_WAKE_ENCODERS 2u ///< an encoder has edges to take (deluge_encoder_take_edges)
+#define DELUGE_WAKE_APP 4u      ///< the app asked for a pass (deluge_app_wake)
+
+/// @brief One pass of the app's loop, called by the BSP on the interaction tier from the end of
+/// deluge_app_init: runs every job that is due or woken, once each.
+/// @param now_us the BSP clock, in µs since boot
+/// @param reasons the DelugeWake bits gathered since the last pass
+/// @return when the app next needs a pass, in µs on the same clock, or UINT64_MAX for none
+/// [task]
+uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) DELUGE_NOEXCEPT;
+
+/// @brief Asks the BSP's app loop for a pass with @p reasons added. Callable from any tier.
+/// [task] [audio] [isr]
+void deluge_app_wake(DelugeWake reasons) DELUGE_NOEXCEPT;
 
 /// Realtime audio callback. Render `frames` stereo frames into `out`, reading
 /// the same number of input frames from `in` (either may be NULL if the board

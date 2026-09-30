@@ -671,6 +671,12 @@ extern "C" void deluge_app_init(const DelugeBoard* board) noexcept {
 	}
 }
 
+// Placeholder until the app loop's job list is wired up to it (Task 4): never asks for a pass, and
+// nothing spawns the BSP's app_loop task yet, so this never runs.
+extern "C" uint64_t deluge_app_service(uint64_t, DelugeWake) noexcept {
+	return UINT64_MAX;
+}
+
 // Card-detect is now pull-based: AudioFileManager::slowRoutine() polls
 // deluge_block_poll_card_event() instead of the BSP calling up into the app.
 

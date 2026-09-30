@@ -21,8 +21,8 @@
 //! # Modules
 //!
 //! - [`abi`], `sys`: the C ABI's plumbing, its build-time checks, and the header bindings.
-//! - [`runtime`], [`scheduler`], [`boot`], [`tier`], [`tier_meter`]: bring-up, executors, and which
-//!   tier is running.
+//! - [`runtime`], [`scheduler`], [`app_loop`], [`boot`], [`tier`], [`tier_meter`]: bring-up,
+//!   executors, and which tier is running.
 //! - [`audio`], [`peripherals`]: the board's I/O.
 //! - [`storage`], [`channel`]: the SD card, its filesystem, and the storage tier's channels.
 //! - `ffi`, `ffi_extra`, `services`, `host_link_stubs`: the remaining C-ABI services and link
@@ -115,6 +115,7 @@ mod sys_layout {
     include!(concat!(env!("OUT_DIR"), "/libdeluge_layout.rs"));
 }
 
+pub mod app_loop;
 pub mod boot;
 #[cfg(target_os = "none")]
 mod boot_mem;
