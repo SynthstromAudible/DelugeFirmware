@@ -172,7 +172,7 @@ void mock_file_io_clear_injections() {
 
 extern "C" {
 
-DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, DelugeHandle* out_handle) {
+DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, DelugeHandle* out_handle) noexcept {
 	if (DelugeStatus injected = injectedFor(path); injected != DELUGE_OK) {
 		return injected;
 	}
@@ -191,7 +191,8 @@ DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, DelugeHandl
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_file_read_exact(DelugeHandle handle, void* dst, uint32_t count, uint32_t* out_read) {
+DelugeStatus deluge_efatfs_file_read_exact(DelugeHandle handle, void* dst, uint32_t count,
+                                           uint32_t* out_read) noexcept {
 	auto* file = checkout(g_open_files, g_open_files_gen, handle);
 	if (file == nullptr) {
 		return DELUGE_ERR_PARAM;
@@ -206,7 +207,8 @@ DelugeStatus deluge_efatfs_file_read_exact(DelugeHandle handle, void* dst, uint3
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_file_write(DelugeHandle handle, const void* src, uint32_t count, uint32_t* out_written) {
+DelugeStatus deluge_efatfs_file_write(DelugeHandle handle, const void* src, uint32_t count,
+                                      uint32_t* out_written) noexcept {
 	auto* file = checkout(g_open_files, g_open_files_gen, handle);
 	if (file == nullptr) {
 		return DELUGE_ERR_PARAM;
@@ -221,7 +223,7 @@ DelugeStatus deluge_efatfs_file_write(DelugeHandle handle, const void* src, uint
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_file_seek(DelugeHandle handle, uint32_t offset) {
+DelugeStatus deluge_efatfs_file_seek(DelugeHandle handle, uint32_t offset) noexcept {
 	auto* file = checkout(g_open_files, g_open_files_gen, handle);
 	if (file == nullptr) {
 		return DELUGE_ERR_PARAM;
@@ -230,7 +232,7 @@ DelugeStatus deluge_efatfs_file_seek(DelugeHandle handle, uint32_t offset) {
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_file_size(DelugeHandle handle, uint32_t* out_size) {
+DelugeStatus deluge_efatfs_file_size(DelugeHandle handle, uint32_t* out_size) noexcept {
 	auto* file = checkout(g_open_files, g_open_files_gen, handle);
 	if (file == nullptr) {
 		return DELUGE_ERR_PARAM;
@@ -239,11 +241,11 @@ DelugeStatus deluge_efatfs_file_size(DelugeHandle handle, uint32_t* out_size) {
 	return DELUGE_OK;
 }
 
-void deluge_efatfs_file_close(DelugeHandle handle) {
+void deluge_efatfs_file_close(DelugeHandle handle) noexcept {
 	release_slot(g_open_files, g_open_files_gen, handle);
 }
 
-DelugeStatus deluge_efatfs_dir_open(const char* path, DelugeHandle* out_handle) {
+DelugeStatus deluge_efatfs_dir_open(const char* path, DelugeHandle* out_handle) noexcept {
 	if (DelugeStatus injected = injectedFor(path); injected != DELUGE_OK) {
 		return injected;
 	}
@@ -287,7 +289,7 @@ DelugeStatus deluge_efatfs_dir_open(const char* path, DelugeHandle* out_handle) 
 
 DelugeStatus deluge_efatfs_dir_read(DelugeHandle handle, char* out_name, uint32_t out_name_cap, bool* out_is_dir,
                                     uint32_t* out_size, uint32_t* out_modified, uint8_t* out_attrs,
-                                    bool* out_has_entry) {
+                                    bool* out_has_entry) noexcept {
 	auto* dir = checkout(g_open_dirs, g_open_dirs_gen, handle);
 	if (dir == nullptr) {
 		return DELUGE_ERR_PARAM;
@@ -307,11 +309,11 @@ DelugeStatus deluge_efatfs_dir_read(DelugeHandle handle, char* out_name, uint32_
 	return DELUGE_OK;
 }
 
-void deluge_efatfs_dir_close(DelugeHandle handle) {
+void deluge_efatfs_dir_close(DelugeHandle handle) noexcept {
 	release_slot(g_open_dirs, g_open_dirs_gen, handle);
 }
 
-DelugeStatus deluge_efatfs_mkdir(const char* path) {
+DelugeStatus deluge_efatfs_mkdir(const char* path) noexcept {
 	if (DelugeStatus injected = injectedFor(path); injected != DELUGE_OK) {
 		return injected;
 	}
@@ -327,7 +329,7 @@ DelugeStatus deluge_efatfs_mkdir(const char* path) {
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_unlink(const char* path) {
+DelugeStatus deluge_efatfs_unlink(const char* path) noexcept {
 	std::string p(path);
 	auto it = g_entries.find(p);
 	if (it == g_entries.end()) {
@@ -337,7 +339,7 @@ DelugeStatus deluge_efatfs_unlink(const char* path) {
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_rename(const char* old_path, const char* new_path) {
+DelugeStatus deluge_efatfs_rename(const char* old_path, const char* new_path) noexcept {
 	if (DelugeStatus injected = injectedFor(old_path); injected != DELUGE_OK) {
 		return injected;
 	}
@@ -352,7 +354,7 @@ DelugeStatus deluge_efatfs_rename(const char* old_path, const char* new_path) {
 }
 
 DelugeStatus deluge_efatfs_set_time(const char* path, uint16_t year, uint8_t month, uint8_t day, uint8_t hour,
-                                    uint8_t minute, uint8_t second) {
+                                    uint8_t minute, uint8_t second) noexcept {
 	std::string p(path);
 	auto it = g_entries.find(p);
 	if (it == g_entries.end()) {

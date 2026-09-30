@@ -17,6 +17,7 @@
 
 #ifndef LIBDELUGE_SAMPLE_SOURCE_H
 #define LIBDELUGE_SAMPLE_SOURCE_H
+#include "abi.h"
 #include "types.h"
 #include <stdint.h>
 #ifdef __cplusplus
@@ -85,7 +86,8 @@ typedef struct DelugeSampleRegion {
 /// @param geometry        The sample's immutable audio geometry.
 /// @return A new cursor, or `nullptr` on failure (e.g. a null @p stream_backing or no
 ///         resource manager yet).
-DelugeSampleSource* deluge_sample_source_open(DelugeStreamBacking* stream_backing, DelugeSampleGeometry geometry);
+DelugeSampleSource* deluge_sample_source_open(DelugeStreamBacking* stream_backing,
+                                              DelugeSampleGeometry geometry) DELUGE_NOEXCEPT;
 
 /// @brief Make the region containing cluster @p index resident-or-scheduled, pin it, and report
 ///        which.
@@ -112,7 +114,7 @@ DelugeSampleSource* deluge_sample_source_open(DelugeStreamBacking* stream_backin
 /// @param out       Filled with the resident region only on DELUGE_REGION_READY.
 /// @return The residency outcome; see DelugeRegionState.
 DelugeRegionState deluge_sample_region_acquire_ex(DelugeSampleSource* src, uint32_t index, int8_t direction,
-                                                  uint32_t priority, DelugeSampleRegion* out);
+                                                  uint32_t priority, DelugeSampleRegion* out) DELUGE_NOEXCEPT;
 
 /// @brief Boolean form of deluge_sample_region_acquire_ex: true == DELUGE_REGION_READY.
 ///
@@ -125,7 +127,7 @@ DelugeRegionState deluge_sample_region_acquire_ex(DelugeSampleSource* src, uint3
 /// @param out       Filled with the resident region only when the region is ready.
 /// @return true if @p out was filled (DELUGE_REGION_READY); false otherwise.
 bool deluge_sample_region_acquire(DelugeSampleSource* src, uint32_t index, int8_t direction, uint32_t priority,
-                                  DelugeSampleRegion* out);
+                                  DelugeSampleRegion* out) DELUGE_NOEXCEPT;
 
 /// @brief Residency of @p index as tracked by this cursor RIGHT NOW, WITHOUT acquiring anything.
 ///
@@ -150,7 +152,7 @@ bool deluge_sample_region_acquire(DelugeSampleSource* src, uint32_t index, int8_
 ///         or `prefetch`). UNAVAILABLE means only "ask me again after a different acquire_ex
 ///         call" — it is not a claim that @p index can never load; a fresh acquire_ex(index, ...)
 ///         may still succeed.
-DelugeRegionState deluge_sample_region_state(const DelugeSampleSource* src, uint32_t index);
+DelugeRegionState deluge_sample_region_state(const DelugeSampleSource* src, uint32_t index) DELUGE_NOEXCEPT;
 
 /// @brief Take an INDEPENDENT pin on the region's chunk, keyed on the opaque @p lease token alone
 ///        (no cursor involved).
@@ -158,7 +160,7 @@ DelugeRegionState deluge_sample_region_state(const DelugeSampleSource* src, uint
 /// Separate from the cursor's current/prefetch/pending pins (those are managed by acquire/close).
 /// @p lease == 0 is a no-op. The token comes from a READY `DelugeSampleRegion::lease`.
 /// @param lease Pin token from a READY `DelugeSampleRegion::lease`, or 0 for a no-op.
-void deluge_sample_region_retain(uint64_t lease);
+void deluge_sample_region_retain(uint64_t lease) DELUGE_NOEXCEPT;
 
 /// @brief Drop an INDEPENDENT pin previously taken with deluge_sample_region_retain, keyed on the
 ///        opaque @p lease token alone (no cursor involved).
@@ -168,12 +170,12 @@ void deluge_sample_region_retain(uint64_t lease);
 ///          cursor still holds as current/prefetch/pending would drop the cursor's own pin early,
 ///          exposing that chunk to eviction while the cursor still believes it is pinned.
 /// @param lease Pin token previously passed to deluge_sample_region_retain, or 0 for a no-op.
-void deluge_sample_region_release(uint64_t lease);
+void deluge_sample_region_release(uint64_t lease) DELUGE_NOEXCEPT;
 
 /// @brief Close the cursor, releasing any leases it still holds (current + prefetch).
 ///
 /// @param src The cursor to close.
-void deluge_sample_source_close(DelugeSampleSource* src);
+void deluge_sample_source_close(DelugeSampleSource* src) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

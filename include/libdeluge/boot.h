@@ -21,6 +21,7 @@
 #ifndef LIBDELUGE_BOOT_H
 #define LIBDELUGE_BOOT_H
 
+#include "abi.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -29,7 +30,7 @@ extern "C" {
 
 /// @brief Whether boot has finished. False, then true for the rest of the process. The unit tests, which link no BSP,
 ///        never mark it, so it is always false there.
-bool deluge_boot_finished(void);
+bool deluge_boot_finished(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

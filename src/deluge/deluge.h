@@ -24,8 +24,6 @@ extern "C" {
 #endif
 extern int main(void);
 
-extern void midiAndGateTimerGoneOff(void);
-
 extern void routineWithClusterLoading(void);
 
 extern void logAudioAction(char const* string);

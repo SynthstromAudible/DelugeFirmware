@@ -36,6 +36,7 @@
 #ifndef LIBDELUGE_STREAM_IO_H
 #define LIBDELUGE_STREAM_IO_H
 
+#include "abi.h"
 #include "types.h"
 #include <stdint.h>
 
@@ -72,30 +73,30 @@ typedef enum DelugeStreamMode : uint8_t {
 
 /// @brief Open a persistent stream-write handle. `mode` matches `DelugeStreamMode`'s
 ///        declaration-order values (0=READ, 1=WRITE_CREATE, 2=WRITE_CREATE_NEW, 3=WRITE_APPEND).
-bool deluge_efatfs_stream_open(const char* path, uint8_t mode, DelugeHandle* out_handle);
+bool deluge_efatfs_stream_open(const char* path, uint8_t mode, DelugeHandle* out_handle) DELUGE_NOEXCEPT;
 
 /// @brief Write `count` bytes at absolute `byte_offset`, advancing the handle's persisted
 ///        `FileContext` by the bytes actually written (`*out_written`). Does NOT persist the
 ///        advanced size/mtime to the on-disk directory entry -- see `deluge_efatfs_stream_close`.
 bool deluge_efatfs_stream_write_at(DelugeHandle handle, uint32_t byte_offset, const void* src, uint32_t count,
-                                   uint32_t* out_written);
+                                   uint32_t* out_written) DELUGE_NOEXCEPT;
 
 /// @brief EOF-honest read at absolute `byte_offset`, bounded by the handle's IN-MEMORY size (i.e.
 ///        this can read back data written earlier in the same unflushed session). `*out_read` is
 ///        the TRUE byte count actually read (`<= count`, less at EOF), never zero-padded.
 bool deluge_efatfs_stream_read_at_via(DelugeHandle handle, uint32_t byte_offset, void* dst, uint32_t count,
-                                      uint32_t* out_read);
+                                      uint32_t* out_read) DELUGE_NOEXCEPT;
 
 /// @brief Truncate the file behind `handle` to `new_len` bytes.
-bool deluge_efatfs_stream_truncate(DelugeHandle handle, uint32_t new_len);
+bool deluge_efatfs_stream_truncate(DelugeHandle handle, uint32_t new_len) DELUGE_NOEXCEPT;
 
 /// @brief Size of the file behind `handle`, in bytes.
-bool deluge_efatfs_stream_size(DelugeHandle handle, uint32_t* out_size);
+bool deluge_efatfs_stream_size(DelugeHandle handle, uint32_t* out_size) DELUGE_NOEXCEPT;
 
 /// @brief Persist the handle's accumulated in-memory size/mtime edit (built up by prior
 ///        `deluge_efatfs_stream_write_at` calls) to the on-disk directory entry, and close a
 ///        persistent stream-write handle opened via `deluge_efatfs_stream_open`, freeing its slot.
-bool deluge_efatfs_stream_close(DelugeHandle handle);
+bool deluge_efatfs_stream_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

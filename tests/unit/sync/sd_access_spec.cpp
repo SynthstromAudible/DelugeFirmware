@@ -7,7 +7,7 @@
 namespace {
 bool g_fs_busy = false;
 }
-extern "C" bool deluge_storage_fs_busy(void) {
+extern "C" bool deluge_storage_fs_busy(void) noexcept {
 	return g_fs_busy;
 }
 

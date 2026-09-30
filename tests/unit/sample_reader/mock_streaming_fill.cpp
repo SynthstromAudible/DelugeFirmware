@@ -16,21 +16,21 @@ void set_active_manager(DelugeResource* handle) {
 	g_active_manager = handle;
 }
 
-DelugeResource* deluge_streaming_resource_manager() {
+DelugeResource* deluge_streaming_resource_manager() noexcept {
 	return g_active_manager;
 }
 
 // No async streaming-fill task in this spec: a requested fill never lands. Declared as an extern by the
 // reader crate, so it must exist for the link even though this spec's one scenario never reaches it.
-void deluge_streaming_request_chunk(DelugeChunkBacking* /*chunk_backing*/) {
+void deluge_streaming_request_chunk(DelugeChunkBacking* /*chunk_backing*/) noexcept {
 }
 
 // Every reservation enqueue wakes the async fill task through this. With no such task here, there is
 // nothing to wake -- a no-op is exact.
-void deluge_streaming_signal_fill() {
+void deluge_streaming_signal_fill() noexcept {
 }
 
 bool deluge_efatfs_read_at(DelugeHandle /*handle*/, uint32_t /*byte_offset*/, void* /*dst*/, uint32_t /*count*/,
-                           uint32_t* /*out_read*/) {
+                           uint32_t* /*out_read*/) noexcept {
 	return false;
 }

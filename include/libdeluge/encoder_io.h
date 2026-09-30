@@ -25,6 +25,7 @@
 #ifndef LIBDELUGE_ENCODER_IO_H
 #define LIBDELUGE_ENCODER_IO_H
 
+#include "abi.h"
 #include "types.h"
 
 #ifdef __cplusplus
@@ -40,13 +41,13 @@ extern "C" {
 /// signed edges per encoder in an ISR and unblocks `wake_task` (a scheduler task
 /// id) whenever an encoder moves, so the application can drain promptly rather
 /// than poll. Call once at init, after the encoder task is registered. [task]
-void deluge_encoder_io_init(int8_t wake_task);
+void deluge_encoder_io_init(int8_t wake_task) DELUGE_NOEXCEPT;
 
 /// Atomically read and clear the accumulated signed A-pin edge count for
 /// `encoder` (0..DELUGE_NUM_ENCODERS-1). Two edges make one detent step on the
 /// Deluge encoders; detent reduction (and the non-detent gold-knob mode) is the
 /// application's concern. [task] [isr]
-int8_t deluge_encoder_take_edges(uint8_t encoder);
+int8_t deluge_encoder_take_edges(uint8_t encoder) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

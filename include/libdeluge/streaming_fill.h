@@ -24,6 +24,7 @@
 /// fill-context the task reads its geometry from. The streaming-asset lookups live in
 /// `sample_stream.h`; the efatfs handle calls the fill reads through live in `file_io.h`.
 #pragma once
+#include "abi.h"
 #include "libdeluge/types.h" // DelugeChunkBacking, DelugeHandle, DelugeResource
 #include <stdbool.h>
 #include <stddef.h>
@@ -48,7 +49,7 @@ extern "C" {
 /// The async task (`streaming_fill_task`, `streaming_loader.rs`) owns and drains the loader queue.
 /// Called unconditionally at every streaming CLUSTER_ENQUEUE site (`sample_stream.cpp`), after
 /// `deluge_resource_loader_enqueue()`. Harmless before the task first waits: the wake latches.
-void deluge_streaming_signal_fill(void);
+void deluge_streaming_signal_fill(void) DELUGE_NOEXCEPT;
 
 /// @brief Enqueue a chunk for filling, and return immediately.
 ///
@@ -57,17 +58,17 @@ void deluge_streaming_signal_fill(void);
 /// fill route (deluge_sample_reader's `reader.rs`) is one such caller.
 /// The chunk is enqueued under a queue-owned lease, so the fill survives the requester walking away.
 /// @param chunk_backing The resident StreamedChunk to fill. NULL is ignored.
-void deluge_streaming_request_chunk(DelugeChunkBacking* chunk_backing);
+void deluge_streaming_request_chunk(DelugeChunkBacking* chunk_backing) DELUGE_NOEXCEPT;
 
 /// @brief Wake the fill task to drain the loader queue, and return immediately.
 ///
 /// Pair with deluge_streaming_queue_drained().
-void deluge_streaming_request_drain(void);
+void deluge_streaming_request_drain(void) DELUGE_NOEXCEPT;
 
 /// @brief Report whether the loader queue holds nothing outstanding. Never waits.
 /// @return true when drained. Also true when there is no resource manager, since then there is
 ///         nothing to wait for and reporting otherwise would loop a poller forever.
-bool deluge_streaming_queue_drained(void);
+bool deluge_streaming_queue_drained(void) DELUGE_NOEXCEPT;
 
 /// @brief Per-asset geometry the native Rust fill task reads directly.
 ///
@@ -98,7 +99,8 @@ typedef struct DelugeStreamingFillContext {
 ///              signature for parity with the rest of the manager-scoped C ABI.
 /// @param asset The asset id (`SampleStream::resource_asset_id()`).
 /// @param ctx   The geometry to register for @p asset.
-void deluge_streaming_set_fill_context(DelugeResource* mgr, uint32_t asset, DelugeStreamingFillContext ctx);
+void deluge_streaming_set_fill_context(DelugeResource* mgr, uint32_t asset,
+                                       DelugeStreamingFillContext ctx) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

@@ -23,6 +23,7 @@
 #ifndef LIBDELUGE_MEMORY_H
 #define LIBDELUGE_MEMORY_H
 
+#include "abi.h"
 #include "types.h"
 #include <stdint.h>
 
@@ -43,14 +44,14 @@ typedef struct DelugeMemoryRegion {
 } DelugeMemoryRegion;
 
 /// Number of allocatable memory regions the board provides. [task]
-uint8_t deluge_memory_region_count(void);
+uint8_t deluge_memory_region_count(void) DELUGE_NOEXCEPT;
 
 /// Describe region `index` (0..count-1). [task]
-DelugeStatus deluge_memory_region(uint8_t index, DelugeMemoryRegion* out);
+DelugeStatus deluge_memory_region(uint8_t index, DelugeMemoryRegion* out) DELUGE_NOEXCEPT;
 
 /// A writable scratch address whose contents are never read (a "bit bucket"),
 /// for discarding streamed writes. [task] [audio] [isr]
-void* deluge_memory_scratch(void);
+void* deluge_memory_scratch(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

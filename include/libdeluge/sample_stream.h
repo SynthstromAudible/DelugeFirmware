@@ -33,6 +33,7 @@
 #ifndef LIBDELUGE_SAMPLE_STREAM_H
 #define LIBDELUGE_SAMPLE_STREAM_H
 
+#include "abi.h"
 #include "types.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -44,8 +45,8 @@ extern "C" {
 
 /// @brief The resource-manager instance the streaming loader queue lives on.
 /// @return The single DelugeResource instance — the same one returned by
-///         GeneralMemoryAllocator's resourceManager().
-DelugeResource* deluge_streaming_resource_manager(void);
+///         GeneralMemoryAllocator's resourceManager() — or null when it could not be created.
+DelugeResource* deluge_streaming_resource_manager(void) DELUGE_NOEXCEPT;
 
 /// @brief The resource-manager Asset id backing @p stream_backing, defining it first if needed.
 ///
@@ -60,13 +61,13 @@ DelugeResource* deluge_streaming_resource_manager(void);
 /// is the one entry point that defines it on demand.
 /// @param stream_backing The stream, as passed to deluge_sample_source_open. The definition
 ///                        (`sample_stream.cpp`) requires this to be a live `SampleStream`.
-/// @return The Asset id.
-uint32_t deluge_sample_stream_asset_id(DelugeStreamBacking* stream_backing);
+/// @return The Asset id, or `DELUGE_RESOURCE_NO_ASSET` when it could not be defined.
+uint32_t deluge_sample_stream_asset_id(DelugeStreamBacking* stream_backing) DELUGE_NOEXCEPT;
 
 /// @brief The byte offset a streamed chunk's payload sits at within its slab slot. The C++
 ///        slab setup sizes the shared cluster slot as max(this, ComputedChunk's kChunkPayloadOffset)
 ///        + Cluster::size + trailing guard. Rust-owned (deluge_sample_fill).
-uint32_t deluge_streamed_chunk_payload_offset(void);
+uint32_t deluge_streamed_chunk_payload_offset(void) DELUGE_NOEXCEPT;
 
 /// @brief The geometry a stream slot needs to register its asset's fill-context.
 ///
@@ -94,14 +95,14 @@ typedef struct DelugeSampleStreamGeometry {
 ///                        "file not found". On the registry's-own-table-full case, the
 ///                        underlying efatfs handle that was just opened is closed, never leaked.
 /// @return A non-zero slot handle on success; 0 on failure.
-uint32_t deluge_sample_stream_open(const char* path, bool* out_table_full);
+uint32_t deluge_sample_stream_open(const char* path, bool* out_table_full) DELUGE_NOEXCEPT;
 
 /// @brief Release @p handle's slot: close its efatfs handle (if any) and release its
 ///        resource-manager asset (if one was ever assigned).
 ///
 /// Idempotent — a no-op on 0 or an already-closed handle.
 /// @param handle A handle previously returned by deluge_sample_stream_open, or 0.
-void deluge_sample_stream_close(uint32_t handle);
+void deluge_sample_stream_close(uint32_t handle) DELUGE_NOEXCEPT;
 
 /// @brief Store @p geo on @p handle's slot, registering its streaming fill-context with the
 ///        resource manager once both a geometry and a real asset id are present.
@@ -109,7 +110,7 @@ void deluge_sample_stream_close(uint32_t handle);
 /// No-op on an invalid/out-of-range/already-closed @p handle.
 /// @param handle A handle previously returned by deluge_sample_stream_open.
 /// @param geo    The geometry to store.
-void deluge_sample_stream_set_geometry(uint32_t handle, DelugeSampleStreamGeometry geo);
+void deluge_sample_stream_set_geometry(uint32_t handle, DelugeSampleStreamGeometry geo) DELUGE_NOEXCEPT;
 
 /// @brief @p handle's currently assigned resource-manager asset id.
 ///
@@ -122,7 +123,7 @@ void deluge_sample_stream_set_geometry(uint32_t handle, DelugeSampleStreamGeomet
 /// @param handle A handle previously returned by deluge_sample_stream_open.
 /// @return The asset id, or DELUGE_RESOURCE_NO_ASSET (0xFFFFFFFF) on an invalid handle or one
 ///         with no asset id assigned yet.
-uint32_t deluge_sample_stream_get_asset_id(uint32_t handle);
+uint32_t deluge_sample_stream_get_asset_id(uint32_t handle) DELUGE_NOEXCEPT;
 
 /// @brief Assign @p id as @p handle's resource-manager asset, registering its streaming
 ///        fill-context once both an asset id and a geometry are present.
@@ -130,7 +131,7 @@ uint32_t deluge_sample_stream_get_asset_id(uint32_t handle);
 /// No-op on an invalid/out-of-range/already-closed @p handle.
 /// @param handle A handle previously returned by deluge_sample_stream_open.
 /// @param id     The resource-manager asset id to assign.
-void deluge_sample_stream_set_asset_id(uint32_t handle, uint32_t id);
+void deluge_sample_stream_set_asset_id(uint32_t handle, uint32_t id) DELUGE_NOEXCEPT;
 
 /// @brief Read @p len bytes at absolute @p byte_offset of @p handle's open file into @p buf.
 ///
@@ -145,7 +146,7 @@ void deluge_sample_stream_set_asset_id(uint32_t handle, uint32_t id);
 ///         already-closed @p handle, or the underlying efatfs read failing), leaving @p out_read
 ///         untouched.
 bool deluge_sample_stream_read_at(uint32_t handle, uint32_t byte_offset, uint8_t* buf, uint32_t len,
-                                  uint32_t* out_read);
+                                  uint32_t* out_read) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

@@ -88,9 +88,13 @@ namespace encoders = deluge::hid::encoders;
 Song* currentSong = nullptr;
 Song* preLoadedSong = nullptr;
 
-extern "C" void midiAndGateTimerGoneOff(void) {
-	cvEngine.updateGateOutputs();
-	midiEngine.flushMIDI();
+extern "C" void midiAndGateTimerGoneOff(void) noexcept {
+	try {
+		cvEngine.updateGateOutputs();
+		midiEngine.flushMIDI();
+	} catch (...) {
+		// An interrupt has no caller to report to. What was not sent stays pending for the next flush.
+	}
 }
 
 uint32_t timeNextGraphicsTick = 0;
@@ -658,10 +662,15 @@ static void deluge_boot(const DelugeBoard* board) {
 // runners drive the app: addRepeatingTask spawns an Embassy task immediately.
 // registerTasks() must precede encoders::init() — the encoder edge source needs
 // the (now-assigned) encoder task id to wake the self-blocking encoder task.
-extern "C" void deluge_app_init(const DelugeBoard* board) {
-	deluge_boot(board);
-	registerTasks();
-	encoders::init();
+extern "C" void deluge_app_init(const DelugeBoard* board) noexcept {
+	try {
+		deluge_boot(board);
+		registerTasks();
+		encoders::init();
+	} catch (...) {
+		// A boot that ran out of memory cannot go on; freeze with a code rather than terminate silently.
+		FREEZE_WITH_ERROR("BOOT");
+	}
 }
 
 // Card-detect is now pull-based: AudioFileManager::slowRoutine() polls

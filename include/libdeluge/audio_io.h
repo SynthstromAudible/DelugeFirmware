@@ -24,6 +24,7 @@
 #ifndef LIBDELUGE_AUDIO_IO_H
 #define LIBDELUGE_AUDIO_IO_H
 
+#include "abi.h"
 #include "types.h"
 
 #ifdef __cplusplus
@@ -33,7 +34,7 @@ extern "C" {
 /// Start the audio stream. After this call the BSP will begin invoking
 /// `deluge_app_render()`. Idempotent; safe to call once after init.
 /// [task]
-DelugeStatus deluge_audio_start(void);
+DelugeStatus deluge_audio_start(void) DELUGE_NOEXCEPT;
 
 /// Drive the board's audio path. Flushes any rendered-but-unplayed samples to
 /// the DAC ring; then, while the previous block is fully flushed and the
@@ -44,7 +45,7 @@ DelugeStatus deluge_audio_start(void);
 /// `deluge_app_render()` was invoked (0 = no new audio was needed). The
 /// application's audio task calls this; the BSP never invokes the app
 /// unprompted. [task]
-uint32_t deluge_audio_drive(void);
+uint32_t deluge_audio_drive(void) DELUGE_NOEXCEPT;
 
 /// @brief Wait for, or run, roughly one render block.
 ///
@@ -60,13 +61,13 @@ uint32_t deluge_audio_drive(void);
 ///    inline, on the audio tier.
 ///
 /// Never call from the render. [task]
-void deluge_audio_await_block(void);
+void deluge_audio_await_block(void) DELUGE_NOEXCEPT;
 
 /// Re-align the input stream's latency window after a glitch or at start-up
 /// (the input ring is deeper than the output ring; if an entire output-ring
 /// cycle was missed, input latency grows by a lap until corrected). Cheap;
 /// call periodically from a housekeeping task, never from the render. [task]
-void deluge_audio_input_resync(void);
+void deluge_audio_input_resync(void) DELUGE_NOEXCEPT;
 
 /// During/after a `deluge_app_render()` call: how many frames from now until
 /// the DAC plays sample `offset_frames` of the current render block, modulo
@@ -75,7 +76,7 @@ void deluge_audio_input_resync(void);
 /// began (`*elapsed_frames_out`, unmasked). Used to arm
 /// `deluge_midi_gate_timer_arm()` sample-accurately. Single play-head poll.
 /// [audio]
-uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t* elapsed_frames_out);
+uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t* elapsed_frames_out) DELUGE_NOEXCEPT;
 
 /// Convert a capture stamp into how far past the start of the most recently begun render block the event fell.
 ///
@@ -83,7 +84,7 @@ uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t
 /// `deluge_midi_din_read_timed()`, or a trigger-clock handler's argument. Every event lands one block late, by the
 /// same amount, so the spacing between events is exact. On the Embassy host every stamp converts to 0 ("now").
 /// [task]
-uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp);
+uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

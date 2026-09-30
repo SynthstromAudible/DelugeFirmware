@@ -18,6 +18,7 @@
 #ifndef LIBDELUGE_STORAGE_BUSY_H
 #define LIBDELUGE_STORAGE_BUSY_H
 
+#include "abi.h"
 #include <stdbool.h>
 
 #ifdef __cplusplus
@@ -31,7 +32,7 @@ extern "C" {
 /// @note Safe to call from ANY context and never blocks — interaction-tier callers querying "may I
 ///       start filesystem work now?" are the primary consumer.
 /// @return true iff a filesystem operation is currently in flight.
-bool deluge_storage_fs_busy(void);
+bool deluge_storage_fs_busy(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

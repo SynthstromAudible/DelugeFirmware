@@ -25,6 +25,7 @@
 #ifndef LIBDELUGE_ALLOC_H
 #define LIBDELUGE_ALLOC_H
 
+#include "abi.h"
 #include <stddef.h>
 #include <stdint.h>
 #ifndef __cplusplus
@@ -41,29 +42,29 @@ typedef struct DelugeHeap DelugeHeap;
 
 /// Build a heap managing `[base, base+size)`. Returns NULL if the region is too
 /// small to hold the control block. The region's memory is owned by the caller.
-DelugeHeap* deluge_heap_create(void* base, size_t size);
+DelugeHeap* deluge_heap_create(void* base, size_t size) DELUGE_NOEXCEPT;
 
 /// Invalidate a heap handle. The backing region is the caller's to free.
-void deluge_heap_destroy(DelugeHeap* heap);
+void deluge_heap_destroy(DelugeHeap* heap) DELUGE_NOEXCEPT;
 
 /// Allocate `size` bytes aligned to at least `align` (a power of two; values < 16
 /// are treated as 16 — the over-aligned-SIMD floor). Returns NULL on OOM.
-void* deluge_alloc(DelugeHeap* heap, size_t size, size_t align);
+void* deluge_alloc(DelugeHeap* heap, size_t size, size_t align) DELUGE_NOEXCEPT;
 
 /// Free a pointer previously returned by deluge_alloc / deluge_realloc.
-void deluge_free(DelugeHeap* heap, void* ptr);
+void deluge_free(DelugeHeap* heap, void* ptr) DELUGE_NOEXCEPT;
 
 /// Resize, preserving the leading min(old_usable, new_size) bytes. Returns NULL
 /// (leaving the original block intact) on failure.
-void* deluge_realloc(DelugeHeap* heap, void* ptr, size_t new_size, size_t align);
+void* deluge_realloc(DelugeHeap* heap, void* ptr, size_t new_size, size_t align) DELUGE_NOEXCEPT;
 
 /// Bytes guaranteed usable at `ptr` (the block's payload size, >= the request).
-size_t deluge_usable_size(DelugeHeap* heap, void* ptr);
+size_t deluge_usable_size(DelugeHeap* heap, void* ptr) DELUGE_NOEXCEPT;
 
 /// Read-only heap-integrity walk for the MEM_GUARD periodic check. Returns true if
 /// the physical block chain's boundary tags are intact. Never allocates; reads only
 /// block headers. A NULL heap is vacuously ok.
-bool deluge_heap_check(DelugeHeap* heap);
+bool deluge_heap_check(DelugeHeap* heap) DELUGE_NOEXCEPT;
 
 // ---------------------------------------------------------------------------
 // Slab cache pool — the "stealables" pager, layered on a heap (M2).
@@ -79,7 +80,7 @@ bool deluge_heap_check(DelugeHeap* heap);
 /// Reclaim hook: free at least `bytes_needed`; return true if it freed something
 /// (the alloc is retried). One hook per heap; a NULL `cb` registers nothing.
 typedef bool (*DelugeReclaimFn)(void* ctx, size_t bytes_needed);
-void deluge_heap_register_reclaim(DelugeHeap* heap, DelugeReclaimFn cb, void* ctx);
+void deluge_heap_register_reclaim(DelugeHeap* heap, DelugeReclaimFn cb, void* ctx) DELUGE_NOEXCEPT;
 
 /// @brief One heap step's critical section (crates/deluge_alloc/src/section.rs).
 ///
@@ -95,7 +96,7 @@ typedef void (*DelugeHeapStepNoteFn)(uint8_t kind);
 /// @param exit  Called after a heap step, undoing what `enter` did. May be NULL.
 /// @param note  Called to report each step's kind (0 = heap, 1 = slab) to the app's probe. May be NULL.
 void deluge_heap_set_section_hooks(DelugeHeapSectionEnterFn enter, DelugeHeapSectionExitFn exit,
-                                   DelugeHeapStepNoteFn note);
+                                   DelugeHeapStepNoteFn note) DELUGE_NOEXCEPT;
 
 /// Opaque slab handle.
 typedef struct DelugeSlab DelugeSlab;
@@ -107,7 +108,8 @@ typedef void (*DelugeEvictFn)(void* owner);
 /// Create a *managed* pool of `capacity` uniform `slot_size`-byte slots over `heap`
 /// and register it as the heap's reclaim hook (the pool self-evicts its coldest
 /// unpinned slot). Returns NULL on OOM.
-DelugeSlab* deluge_slab_create(DelugeHeap* heap, size_t slot_size, size_t capacity, DelugeEvictFn on_evict);
+DelugeSlab* deluge_slab_create(DelugeHeap* heap, size_t slot_size, size_t capacity,
+                               DelugeEvictFn on_evict) DELUGE_NOEXCEPT;
 
 /// Create a *backing-only* pool: uniform `slot_size`-byte slots over `heap`, but
 /// with eviction owned by an external coordinator. It registers no reclaim hook and
@@ -115,29 +117,29 @@ DelugeSlab* deluge_slab_create(DelugeHeap* heap, size_t slot_size, size_t capaci
 /// deluge_slab_release. `capacity` must be >= the most slots that can fit in `heap`,
 /// so the table is never the limiting factor. Used for the cluster pool, whose
 /// eviction policy lives in the C++ CacheManager. Returns NULL on OOM.
-DelugeSlab* deluge_slab_create_unmanaged(DelugeHeap* heap, size_t slot_size, size_t capacity);
+DelugeSlab* deluge_slab_create_unmanaged(DelugeHeap* heap, size_t slot_size, size_t capacity) DELUGE_NOEXCEPT;
 
 /// Zero every slot's bytes on acquire (off by default). For the sim/golden build
 /// (DELUGE_DETERMINISTIC_ALLOC) so a read-before-write of slot memory resolves to a
 /// defined 0 instead of layout-dependent recycled heap content. Leave off in firmware.
-void deluge_slab_set_zero_on_acquire(DelugeSlab* slab, bool on);
+void deluge_slab_set_zero_on_acquire(DelugeSlab* slab, bool on) DELUGE_NOEXCEPT;
 
 /// Acquire a slot for `owner` (may evict a cold slot). Returns the slot payload,
 /// or NULL if exhausted and nothing is evictable.
-void* deluge_slab_acquire(DelugeSlab* slab, void* owner);
+void* deluge_slab_acquire(DelugeSlab* slab, void* owner) DELUGE_NOEXCEPT;
 
 /// Pin / unpin a slot (refcounted) — a pinned slot is never evicted. Maps to the
 /// C++ Cluster::numReasonsToBeLoaded.
-void deluge_slab_pin(DelugeSlab* slab, void* slot);
-void deluge_slab_unpin(DelugeSlab* slab, void* slot);
+void deluge_slab_pin(DelugeSlab* slab, void* slot) DELUGE_NOEXCEPT;
+void deluge_slab_unpin(DelugeSlab* slab, void* slot) DELUGE_NOEXCEPT;
 
 /// Mark a slot most-recently-used (call on access so LRU reflects real usage).
-void deluge_slab_touch(DelugeSlab* slab, void* slot);
+void deluge_slab_touch(DelugeSlab* slab, void* slot) DELUGE_NOEXCEPT;
 
 /// Explicitly release a slot back to the heap (no eviction callback). Returns true
 /// if `slot` was one of this pool's slots (and was freed), false if not owned here —
 /// letting an external reclaim coordinator do "slab-release else heap-free".
-bool deluge_slab_release(DelugeSlab* slab, void* slot);
+bool deluge_slab_release(DelugeSlab* slab, void* slot) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }
