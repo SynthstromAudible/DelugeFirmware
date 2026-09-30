@@ -25,6 +25,7 @@
 #include "model/output.h"
 #include "util/audio_owned_list.h"
 #include "util/containers.h"
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <libdeluge/scheduler.h>
@@ -143,8 +144,8 @@ namespace AudioEngine {
 using VoicePool = deluge::memory::ObjectPool<Voice, deluge::memory::fast_allocator>;
 using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
-void routine();
-void routine_task();
+uint32_t routine();
+bool routine_task();
 void routineWithClusterLoading();
 void runRoutine();
 
@@ -265,7 +266,9 @@ extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
-extern TaskID routine_task_id;
+/// Set once the BSP's audio tier drives the render (at the end of deluge_app_init). From then on
+/// runRoutine() leaves rendering to the tier, which preempts its caller.
+extern std::atomic<bool> renderDrivenByTier;
 void feedReverbBackdoorForGrain(int index, q31_t value);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick

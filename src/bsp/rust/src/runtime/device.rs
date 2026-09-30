@@ -32,7 +32,7 @@ fn panic(_info: &PanicInfo) -> ! {
 
 static mut EXECUTOR: MaybeUninit<Executor> = MaybeUninit::uninit();
 
-/// The preemptive executor for audio: the scheduler routes the priority-0 task here.
+/// The preemptive executor for audio: it runs [`crate::audio::render::render_task`].
 ///
 /// It runs in a GIC SGI handler above thread mode, so a thread-mode storage spin cannot starve
 /// audio, and below the hard-RT ISRs (OSTM, MTU2 gate, MIDI), which preempt it.
@@ -180,8 +180,10 @@ pub fn start() -> ! {
     // precede any use of the interrupt executors.
     embassy_executor::set_gicd_base(0xE820_1000);
 
-    // Must precede `deluge_app_init`, whose `registerTasks()` adds the priority-0 task.
-    scheduler::set_audio_spawner(AUDIO_EXEC.start(AUDIO_SGI));
+    // The render task waits for boot to finish before its first tick.
+    AUDIO_EXEC
+        .start(AUDIO_SGI)
+        .spawn(crate::audio::render::render_task().unwrap());
     unsafe { rza1l_hal::gic::enable(AUDIO_SGI as u16) };
 
     STREAM_EXEC

@@ -277,22 +277,22 @@ pub fn main() {
             std::thread::sleep(Duration::from_millis(5));
         }
 
-        // Boot does not show the priority-0 (audio) task runs on the audio thread: wait for a
+        // Boot does not show the render task runs on the audio thread: wait for a
         // `deluge_audio_drive` call seen there. `deluge_boot`'s direct render call runs on the app
         // thread and does not count.
         let audio_deadline = Instant::now() + Duration::from_secs(5);
         loop {
             if audio_host::audio_thread_render_seen() {
                 log::info!(
-                    "deluge-bsp-rust: HOST APP audio-thread routing OK — priority-0 task rendered on \"deluge-audio\""
+                    "deluge-bsp-rust: HOST APP audio-thread routing OK — render task rendered on \"deluge-audio\""
                 );
                 break;
             }
             if Instant::now() >= audio_deadline {
                 panic!(
                     "host app boot: no deluge_audio_drive call was observed on the \"deluge-audio\" \
-                     thread within 5s after boot — the priority-0 task did not route to the audio \
-                     executor (scheduler::set_audio_spawner wiring regressed?)"
+                     thread within 5s after boot — the render task did not run on the audio \
+                     executor"
                 );
             }
             std::thread::sleep(Duration::from_millis(5));
@@ -544,16 +544,17 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
     crate::storage::sim_block::use_threaded_host_hook();
 
     // The audio thread: the host's stand-in for the preemptive `AUDIO_EXEC`.
-    let audio_spawner_ready = Arc::new(Barrier::new(2));
-    let audio_thread_barrier = Arc::clone(&audio_spawner_ready);
+    let audio_executor_ready = Arc::new(Barrier::new(2));
+    let audio_thread_barrier = Arc::clone(&audio_executor_ready);
     std::thread::Builder::new()
         .name("deluge-audio".into())
         .spawn(move || {
             let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
             executor.run(|spawner: Spawner| {
-                crate::scheduler::set_audio_spawner(spawner.make_send());
+                crate::audio::host::set_audio_executor();
+                spawner.spawn(crate::audio::render::render_task().unwrap());
                 log::info!(
-                    "deluge-bsp-rust: host audio executor up on thread {:?} — set_audio_spawner done",
+                    "deluge-bsp-rust: host audio executor up on thread {:?} — render task spawned",
                     std::thread::current().name()
                 );
                 audio_thread_barrier.wait();
@@ -561,9 +562,8 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
         })
         .expect("spawning the host audio executor thread");
 
-    // The audio spawner must be set before `registerTasks()` adds the priority-0 task, or that
-    // task silently falls back to the app executor instead of the audio thread.
-    audio_spawner_ready.wait();
+    // `set_audio_executor` must precede `deluge_app_init`: `deluge_audio_await_block` reads it.
+    audio_executor_ready.wait();
 
     // The storage thread: the host's stand-in for `STREAM_EXEC`. The tasks here hold the FS mutex
     // across SD awaits, so a non-yielding storage spin on the app thread must not starve them.

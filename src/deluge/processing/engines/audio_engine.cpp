@@ -520,7 +520,7 @@ bool doMonitoring;
 MonitoringAction monitoringAction;
 
 deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
-TaskID routine_task_id = -1;
+std::atomic<bool> renderDrivenByTier{false};
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
@@ -731,14 +731,9 @@ void routineWithClusterLoading() {
 }
 
 void runRoutine() {
-	// check if we've setup the audio routine task
-	if (routine_task_id != -1) [[likely]] {
-		// run AudioEngine::routine() task so that scheduler is aware
-		runTask(AudioEngine::routine_task_id);
-	}
-	// otherwise call audio routine directly (necessary otherwise Deluge freezes on boot)
-	else {
-		ignoreForStats();
+	// Once the audio tier drives the render it runs on its own cadence and preempts this caller, and
+	// rendering here too would run two renders at once. Before that, during boot, render here.
+	if (!renderDrivenByTier.load(std::memory_order_acquire)) {
 		routine();
 	}
 }
@@ -830,7 +825,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(getAverageRunTimeForTask(routine_task_id) * 44100.);
+	auto dspTime = (int32_t)(deluge_audio_render_time_average() * 44100.);
 	size_t nonDSP = numSamples - dspTime;
 	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
 	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
@@ -884,7 +879,6 @@ void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
 void dumpAudioLog();
-bool calledFromScheduler = false;
 
 static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t frames);
 
@@ -1065,6 +1059,15 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 		if (out != nullptr) {
 			memset(out, 0, frames * sizeof(DelugeStereoSample));
 		}
+	}
+}
+
+extern "C" bool deluge_app_audio_tick() noexcept {
+	try {
+		return AudioEngine::routine_task();
+	} catch (...) {
+		// Nothing to report to: the tick counts as one that rendered nothing, and the next tick renders on.
+		return false;
 	}
 }
 
@@ -1473,35 +1476,28 @@ void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWh
 	}
 }
 
-void routine_task() {
+bool routine_task() {
 	// An offline export owns the rendering: it drives routine() itself, as fast as it can, and the
 	// block count per call is what decides how rendering interleaves with the cluster loader and the
-	// recorder's write-out. A second, scheduler-paced caller rendering into the same recorder changes
-	// that interleaving and so changes the exported audio. There is also nothing for this task to do -
-	// an offline render is by definition not paced by the real-time clock.
+	// recorder's write-out. A second, tier-paced caller rendering into the same recorder changes that
+	// interleaving and so changes the exported audio.
 	if (stemExport.renderingOffline()) {
-		ignoreForStats();
-		return;
+		return false;
 	}
-
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
-		ignoreForStats();
-		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
-		        // called from within this!
+		return false;
 	}
-	calledFromScheduler = true;
-	routine();
-	calledFromScheduler = false;
+	return routine() > 0;
 }
-void routine() {
+uint32_t routine() {
 
 	logAction("AudioDriver::routine");
 
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
-		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
-		        // called from within this!
+		return 0; // Prevents this from being called again from inside any e.g. memory allocation routines that get
+		          // called from within this!
 	}
 
 	audioRoutineLocked = true;
@@ -1518,13 +1514,11 @@ void routine() {
 #endif
 
 	numRoutines = 0;
+	uint32_t renders = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		// The BSP flushes previously-rendered audio toward the DAC and calls
 		// deluge_app_render() for as many new frames as its pacing policy asks.
-		uint32_t renders = deluge_audio_drive();
-		if (renders == 0 && calledFromScheduler) {
-			ignoreForStats();
-		}
+		renders = deluge_audio_drive();
 	}
 	else {
 		if (!isSDRoutineActive()) {
@@ -1591,6 +1585,7 @@ void routine() {
 	}
 	audioRoutineLocked = false;
 	routineBeenCalled = true;
+	return renders;
 }
 
 int32_t getNumSamplesLeftToOutputFromPreviousRender() {

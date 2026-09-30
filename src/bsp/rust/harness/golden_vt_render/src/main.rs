@@ -42,6 +42,7 @@ use embassy_time_driver::Driver as _;
 mod clock;
 
 use deluge_bsp_rust::audio::host as audio_host;
+use deluge_bsp_rust::audio::render;
 use deluge_bsp_rust::channel::{
     audio_loader, file_bytes, file_directory, file_prefix, file_stream,
 };
@@ -1332,11 +1333,10 @@ fn main() {
         .to_path_buf();
     // render_song and render_preset play as the device does: every block rendered on the audio
     // tier after boot, one 128-frame block per 2,902 virtual microseconds, so their timing checks
-    // compare against the device's audio period. Both must be set before deluge_app_init registers
-    // the audio task.
+    // compare against the device's audio period. Set before the render task is spawned.
     if scenario == "render_song" || scenario == "render_preset" {
         audio_host::set_realtime_render(true);
-        scheduler::set_audio_period_override_us(2902, 0);
+        render::set_period_override_us(2902, 0);
     }
     // clock_input's analog-clock transport times its input ticks by AudioEngine::audioSampleTimer,
     // which only real rendering advances. It has no golden timing, so no period override.
@@ -1384,13 +1384,14 @@ fn main() {
     let spawner = executor.spawner();
     scheduler::set_spawner(spawner);
 
-    // The host runtime's BSP tasks, without its separate audio thread: with no
-    // `scheduler::set_audio_spawner`, the priority-0 audio task runs on this one executor.
+    // The host runtime's BSP tasks, without its separate audio thread: the render task shares this
+    // one executor.
     spawner.spawn(control::pic_pump().unwrap());
     spawner.spawn(control::pad_render().unwrap());
     spawner.spawn(control::encoder_wake_pump().unwrap());
     spawner.spawn(display::oled_render().unwrap());
     spawner.spawn(boot_task().unwrap());
+    spawner.spawn(render::render_task().unwrap());
     // The async cluster-fill task, which owns the loader queue.
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
     // The channel workers. Without each, every request on its channel waits forever.

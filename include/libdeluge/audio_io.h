@@ -88,6 +88,10 @@ uint32_t deluge_audio_frames_until_block_offset(uint32_t offset_frames, uint32_t
 /// [task]
 uint32_t deluge_audio_stamp_to_render_offset(uint32_t stamp) DELUGE_NOEXCEPT;
 
+/// @brief The running average of a render tick that rendered at least one block, in seconds:
+/// `avg = (avg + sample) / 2` per tick. Voice culling reads it. [task] [audio]
+double deluge_audio_render_time_average(void) DELUGE_NOEXCEPT;
+
 #ifdef __cplusplus
 }
 #endif

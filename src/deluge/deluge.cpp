@@ -430,8 +430,6 @@ void registerTasks() {
 
 	// 0-9: High priority (10 for dyn tasks)
 	uint8_t p = 0;
-	AudioEngine::routine_task_id = addRepeatingTask(&(AudioEngine::routine_task), p++, 8 / 44100., 64 / 44100.,
-	                                                128 / 44100., "audio  routine", RESOURCE_NONE);
 	addRepeatingTask(MidiEngine::check_incoming_usb, p++, 0.0005, 0.0005, 0.001, "check usb midi", RESOURCE_USB);
 
 	// this will block itself unless an encoder is actually moved so can have a fast rate
@@ -530,9 +528,6 @@ void registerTasks() {
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task
 	addRepeatingTask([]() { uiTimerManager.routine(); }, p++, 0.0001, 0.0007, 0.01, "ui routine", RESOURCE_NONE);
-
-	// addRepeatingTask([]() { AudioEngine::routineWithClusterLoading(); }, 0, 1 / 44100., 16 / 44100., 32 / 44100.,
-	// true); addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
 }
 // One-time bring-up: everything up to (but not including) registering the tasks.
 static void deluge_boot(const DelugeBoard* board) {
@@ -667,6 +662,8 @@ extern "C" void deluge_app_init(const DelugeBoard* board) noexcept {
 		deluge_boot(board);
 		registerTasks();
 		encoders::init();
+		// The BSP's audio tier starts rendering once this returns.
+		AudioEngine::renderDrivenByTier.store(true, std::memory_order_release);
 	} catch (...) {
 		// A boot that ran out of memory cannot go on; freeze with a code rather than terminate silently. The throw may
 		// come before the display exists, which freezeWithError() handles.

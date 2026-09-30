@@ -207,7 +207,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
 /// deadline.
 ///
 /// Nothing arms an alarm for the deadline: the bound relies on some interrupt waking the WFI. The
-/// priority-0 audio task's `Timer` keeps one queued, so the core wakes at least once a block.
+/// render task's `Timer` keeps one queued, so the core wakes at least once a block.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_await_block() {
     let start = RENDER_BLOCKS.load(Ordering::Acquire);

@@ -3,17 +3,16 @@
 //! Each registered Deluge task becomes its own Embassy task: `addRepeatingTask` claims a
 //! `TaskSlot` and spawns a `task_runner`, which waits on a timer (or polls its condition),
 //! runs the synchronous C++ body to completion, and loops. The executors are the scheduler loop.
-//! Ready tasks round-robin; there is no deadline heuristic. The priority-0 (audio) task runs on
-//! the audio executor when one is set ([`set_audio_spawner`]), where it can preempt the others;
-//! everything else runs on the thread executor, paced by `targetTimeBetweenCalls`.
+//! Ready tasks round-robin; there is no deadline heuristic. Every task runs on the thread
+//! executor, paced by `targetTimeBetweenCalls`; the render is not a task (see `audio::render`).
 //!
-//! Registration runs on the thread executor. The slot fields are atomics because the audio runner
-//! can preempt a thread-mode runner mid-body.
+//! Registration runs on the thread executor. The slot fields are atomics because the C-ABI control
+//! functions may be called from any tier.
 #![allow(non_snake_case)]
 
 use core::sync::atomic::{AtomicBool, AtomicI8, AtomicU64, AtomicUsize, Ordering};
 
-use embassy_executor::{SendSpawner, Spawner};
+use embassy_executor::Spawner;
 use embassy_futures::select::{Either, select};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
@@ -156,8 +155,7 @@ static SLOTS: [TaskSlot; MAX_TASKS] = [const { TaskSlot::new() }; MAX_TASKS];
 /// The slot whose body is running, for `ignoreForStats`; -1 when none is.
 static CURRENT: AtomicI8 = AtomicI8::new(-1);
 
-/// The `RESOURCE_USB` gate, held across a USB task's body so two such tasks never overlap. Audio
-/// never takes it, so the audio executor never blocks on it.
+/// The `RESOURCE_USB` gate, held across a USB task's body so two such tasks never overlap.
 ///
 /// There is no `RESOURCE_SD` gate: storage serializes itself (the filesystem mutex and the SD bus
 /// lock). `RESOURCE_SD_ROUTINE` needs none either: no SD-routine work runs across a yield.
@@ -165,10 +163,6 @@ static USB_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
 // Set by [`set_spawner`] before `registerTasks()` and read only on the thread executor.
 static mut SPAWNER: Option<Spawner> = None;
-
-/// The audio executor's spawner, a `SendSpawner` because that executor runs in another context
-/// (the SGI on the device, a thread on host).
-static mut AUDIO_SPAWNER: Option<SendSpawner> = None;
 
 /// Sets the thread executor's spawner, which the `add*Task` functions spawn runners with.
 ///
@@ -178,54 +172,9 @@ pub fn set_spawner(spawner: Spawner) {
     unsafe { *core::ptr::addr_of_mut!(SPAWNER) = Some(spawner) };
 }
 
-/// Sets the audio executor's spawner, which the priority-0 task is spawned with.
-///
-/// Call once at startup, before `deluge_app_init`: a later call leaves audio on the thread
-/// executor.
-pub fn set_audio_spawner(spawner: SendSpawner) {
-    // SAFETY: set once at startup before any task runs.
-    unsafe { *core::ptr::addr_of_mut!(AUDIO_SPAWNER) = Some(spawner) };
-}
-
 fn spawner() -> Option<Spawner> {
     // SAFETY: see `set_spawner`; reads happen only on the executor thread.
     unsafe { *core::ptr::addr_of!(SPAWNER) }
-}
-
-fn audio_spawner() -> Option<SendSpawner> {
-    // SAFETY: set once at startup; SendSpawner is Copy + Send.
-    unsafe { *core::ptr::addr_of!(AUDIO_SPAWNER) }
-}
-
-/// Whether the priority-0 (audio) task has an executor of its own (the threaded host app's
-/// `"deluge-audio"` thread) rather than sharing the thread executor, as single-executor harnesses
-/// do. Decided at startup by [`set_audio_spawner`].
-#[cfg(feature = "host_app")]
-pub fn has_audio_executor() -> bool {
-    audio_spawner().is_some()
-}
-
-/// The audio task's period override, in µs, for a harness that needs one block per period.
-///
-/// The registered period is a poll hint for the device, where `AudioEngine::routine` renders only
-/// when the DMA play head says a block is due. The host render pump renders a block on every call,
-/// so a harness racing playback against modeled storage time (golden_vt_render's `render_song`)
-/// sets the real block period instead. Host only; unset leaves the registered schedule.
-#[cfg(not(target_os = "none"))]
-static AUDIO_PERIOD_OVERRIDE_US: AtomicU64 = AtomicU64::new(0);
-#[cfg(not(target_os = "none"))]
-static AUDIO_BACKOFF_OVERRIDE_US: AtomicU64 = AtomicU64::new(0);
-#[cfg(not(target_os = "none"))]
-static AUDIO_OVERRIDE_SET: AtomicBool = AtomicBool::new(false);
-
-/// Sets `AUDIO_PERIOD_OVERRIDE_US` and the matching back-off, in µs.
-///
-/// Call before `deluge_app_init` runs `registerTasks()`, which claims the audio task.
-#[cfg(not(target_os = "none"))]
-pub fn set_audio_period_override_us(period_us: u64, backoff_us: u64) {
-    AUDIO_PERIOD_OVERRIDE_US.store(period_us, Ordering::Relaxed);
-    AUDIO_BACKOFF_OVERRIDE_US.store(backoff_us, Ordering::Relaxed);
-    AUDIO_OVERRIDE_SET.store(true, Ordering::Relaxed);
 }
 
 /// Claims a free slot, fills it, and spawns its runner.
@@ -241,27 +190,14 @@ fn claim(
     resource: ResourceID,
     once: bool,
     enabled: bool,
-    on_audio: bool,
 ) -> TaskID {
-    #[cfg(not(target_os = "none"))]
-    let (period_us, backoff_us) = if on_audio && AUDIO_OVERRIDE_SET.load(Ordering::Relaxed) {
-        (
-            AUDIO_PERIOD_OVERRIDE_US.load(Ordering::Relaxed),
-            AUDIO_BACKOFF_OVERRIDE_US.load(Ordering::Relaxed),
-        )
-    } else {
-        (period_us, backoff_us)
-    };
-
-    // Audio goes to the audio executor when there is one; everything else to the thread executor.
-    let use_audio = on_audio && audio_spawner().is_some();
-    if !use_audio && spawner().is_none() {
+    let Some(spawner) = spawner() else {
         log::error!(
             "scheduler: task {:?} registered before the executor runs; it will never run",
             task_name(name)
         );
         return -1;
-    }
+    };
     for (i, slot) in SLOTS.iter().enumerate() {
         if slot
             .used
@@ -286,11 +222,7 @@ fn claim(
                 );
                 return -1;
             };
-            if use_audio {
-                audio_spawner().unwrap().spawn(token);
-            } else {
-                spawner().unwrap().spawn(token);
-            }
+            spawner.spawn(token);
             return i as TaskID;
         }
     }
@@ -380,8 +312,7 @@ async fn task_runner(slot: &'static TaskSlot) {
                 None
             };
 
-            // Save and restore CURRENT: the audio runner can preempt a thread-mode runner
-            // mid-body and must leave the preempted task's id intact.
+            // Save and restore CURRENT, so the id outside this body is intact after it.
             let idx = SLOTS.iter().position(|s| core::ptr::eq(s, slot)).unwrap() as TaskID;
             let prev = CURRENT.swap(idx, Ordering::Relaxed);
             // `ignoreForStats` excludes one run, so every run starts counted.
@@ -429,7 +360,7 @@ fn us_to_secs(us: u64) -> f64 {
 #[unsafe(no_mangle)]
 pub extern "C" fn addRepeatingTask(
     task: TaskHandle,
-    priority: u8,
+    _priority: u8,
     backOffTime: f64,
     targetTimeBetweenCalls: f64,
     _maxTimeBetweenCalls: f64,
@@ -439,8 +370,6 @@ pub extern "C" fn addRepeatingTask(
     let Some(task) = task else {
         return -1;
     };
-    // Priority 0 is the audio routine, which a thread-mode storage spin must not starve.
-    let on_audio = priority == 0;
     claim(
         name,
         task,
@@ -450,7 +379,6 @@ pub extern "C" fn addRepeatingTask(
         resource,
         false,
         true,
-        on_audio,
     )
 }
 
@@ -465,7 +393,7 @@ pub extern "C" fn addConditionalTask(
     let Some(task) = task else {
         return -1;
     };
-    claim(name, task, condition, 0, 0, resource, true, true, false)
+    claim(name, task, condition, 0, 0, resource, true, true)
 }
 
 #[unsafe(no_mangle)]

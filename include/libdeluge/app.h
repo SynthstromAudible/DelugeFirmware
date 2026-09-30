@@ -23,7 +23,8 @@
 ///
 /// The Rust/Embassy BSP's `main` brings up Embassy and calls `deluge_app_init()`,
 /// which registers the application's tasks with the BSP's scheduler; the BSP's
-/// audio task calls `deluge_app_render()`.
+/// render task calls `deluge_app_audio_tick()`, which renders through
+/// `deluge_audio_drive()` and `deluge_app_render()`.
 #ifndef LIBDELUGE_APP_H
 #define LIBDELUGE_APP_H
 
@@ -57,6 +58,14 @@ void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, ui
 /// on the render tier, in place of `deluge_app_render`, for that block.
 /// [task] [audio]
 void deluge_app_render_skipped(void) DELUGE_NOEXCEPT;
+
+/// @brief One tick of the render, called by the BSP's audio tier on its poll cadence.
+///
+/// Renders as far as the output has played. Returns true if the tick rendered at least one block,
+/// the ticks the BSP's render-time average counts. Returns false, and renders nothing, while an
+/// offline export owns rendering or the render is locked.
+/// [audio]
+bool deluge_app_audio_tick(void) DELUGE_NOEXCEPT;
 
 /// @brief Opt this host out of the boot-settings prelude, leaving only the startup song.
 ///
