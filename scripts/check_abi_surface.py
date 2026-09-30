@@ -35,9 +35,16 @@ HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h")) + [
 
 BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 LINE_COMMENT = re.compile(r"//[^\n]*")
-# A declaration: one to four type words or stars, a name, a parameter list, an optional noexcept spelling, a `;`.
+# An optional noexcept spelling or `__attribute__((...))` (one level of nested parens allowed, e.g.
+# `__attribute__((format(printf, 1, 2)))`), any number of either, in any order, trailing the parameter list.
+_QUALIFIER = (
+    r"(?:DELUGE_NOEXCEPT|noexcept|__attribute__\s*\(\((?:[^()]|\([^()]*\))*\)\))"
+)
+# A declaration: one to four type words or stars, a name, a parameter list, trailing qualifiers, a `;`.
 DECLARATION = re.compile(
-    r"(?m)^[ \t]*((?:[A-Za-z_]\w*[ \t\*]+){1,4})([A-Za-z_]\w*)\s*\(([^;{()]|\([^;{()]*\))*\)\s*(?:DELUGE_NOEXCEPT|noexcept)?\s*;"
+    r"(?m)^[ \t]*((?:[A-Za-z_]\w*[ \t\*]+){1,4})([A-Za-z_]\w*)\s*\(([^;{()]|\([^;{()]*\))*\)\s*(?:"
+    + _QUALIFIER
+    + r"\s*)*;"
 )
 NOT_A_RETURN_TYPE = {"typedef", "return", "if", "while", "sizeof", "define"}
 
@@ -88,11 +95,13 @@ def cxx_definition(name: str) -> re.Pattern[str]:
 
 
 def rust_definition(name: str) -> re.Pattern[str]:
-    """A Rust `fn name`, or any item exported as `name` (`yield` is a Rust keyword, so it is exported by name)."""
+    """A Rust definition of `name`: `fn name` followed by its signature and a `{` (no `;` in between) -- not a bare
+    `fn name(...);` inside an `unsafe extern "C" { ... }` import block, which merely declares an external symbol --
+    or any item exported as `name` (`yield` is a Rust keyword, so it is exported by name)."""
     return re.compile(
         r"\bfn\s+"
         + re.escape(name)
-        + r"\b|export_name\s*=\s*\""
+        + r"\b[^;{]*\{|export_name\s*=\s*\""
         + re.escape(name)
         + r"\""
     )
