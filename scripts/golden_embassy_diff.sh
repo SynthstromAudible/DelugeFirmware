@@ -29,7 +29,7 @@
 # Exit: 0 = PASS (byte-identical to the stored golden) / update wrote the baseline,
 # 1 = mismatch or a render crash/wedge, 2 = setup error (no baseline yet, no corpus, etc.)
 #
-# Env overrides (same conventions as golden_mixdown.sh / sd_image.rs):
+# Env overrides (same conventions as golden_mixdown.sh / storage/sd_image.rs):
 #   DELUGE_GOLDEN_DIR         where the reconstructed project + golden baseline live
 #                             (default: ~/.cache/deluge-golden)
 #   DELUGE_BACKUP             the "Deluge Backup" root, used to reconstruct a fixture's

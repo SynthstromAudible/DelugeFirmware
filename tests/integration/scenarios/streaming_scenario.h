@@ -18,7 +18,7 @@
 #pragma once
 
 /// @brief Host-only C-ABI bridge for the streaming-underrun harness (the Rust/Embassy
-///        `host_app` BSP, `src/bsp/rust/src/scenario.rs`).
+///        `host_app` BSP, `src/bsp/rust/src/runtime/host/scenario.rs`).
 ///
 /// Lets the harness drive a REAL song load, REAL playback, and a REAL concurrent output
 /// recording headlessly — the exact application entry points a user's LOAD/PLAY/RECORD

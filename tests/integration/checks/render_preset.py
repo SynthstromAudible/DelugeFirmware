@@ -21,7 +21,7 @@ RENDER_PRESET_FILTER takes a comma-separated list of substrings, and runs the ca
 RENDER_PRESET_KEEP=<dir> keeps each case's output there, as `<case>.pcm` (interleaved little-endian i32, the case's
 length exactly), for tests/integration/golden/compare_renders.py.
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
-much a case depends on its random draws (audio_host.rs).
+much a case depends on its random draws (audio/host.rs).
 RENDER_PRESET_UPDATE=1 records the cases run instead of comparing them; a changed hash is a finding to explain in the
 commit that records the new one.
 """

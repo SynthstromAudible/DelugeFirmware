@@ -30,8 +30,8 @@
 ///   - `RENDER_SECONDS`: how long to capture (default 2). Whole 128-frame blocks are captured, so the capture can run
 ///     up to a block past it.
 ///   - `RENDER_INPUT`: `1` feeds the audio input the harness's test signal from the start of capture (see
-///     `audio_host.rs`), for presets whose sources read the input. Silence otherwise.
-///   - `RENDER_PCM_OUT`: where the harness writes the captured output (see `audio_host.rs`).
+///     `audio/host.rs`), for presets whose sources read the input. Silence otherwise.
+///   - `RENDER_PCM_OUT`: where the harness writes the captured output (see `audio/host.rs`).
 ///
 /// Lines:
 ///   - `RP-LOADED name=<n> swapped=<0|1>`: the synth the blank song holds once its preset load has finished. A

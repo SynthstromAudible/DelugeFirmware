@@ -33,7 +33,7 @@ std::map<std::string, MockEntry> g_entries;
 // Open file/directory handle tables, keyed by a packed `uint32_t` handle
 // `(generation << 16) | slot_index` handed back to callers -- mirrors the
 // real efatfs backend's generation-guarded Slot/HandleTable in
-// efatfs_core.rs (lowest free slot starting at 0), so a handle whose slot
+// storage/efatfs/portable.rs (lowest free slot starting at 0), so a handle whose slot
 // was freed and later reused for something else fails `checkout` cleanly
 // instead of silently aliasing. A claimed slot's generation is at least 1, so
 // no handle this table hands out is DELUGE_HANDLE_NONE, and checking out
@@ -60,7 +60,7 @@ std::vector<uint32_t> g_open_dirs_gen;
 
 // Claims the lowest free slot in `table`, bumping that slot's generation
 // (parallel `gens`, indexed the same as `table`) and returning the packed
-// handle `(generation << 16) | index`. Mirrors efatfs_core.rs's
+// handle `(generation << 16) | index`. Mirrors storage/efatfs/portable.rs's
 // Slot::generation, bumped on every claim so a handle from a prior tenant of
 // this index can never alias the new occupant.
 template <typename T>
@@ -79,7 +79,7 @@ uint32_t allocate_slot(std::vector<std::optional<T>>& table, std::vector<uint32_
 
 // Returns the live entry for `handle`, or nullptr if the slot is out of
 // range, free, or its generation no longer matches (a stale handle whose
-// slot was reused). Mirrors efatfs_core.rs's Slot/checkout generation guard
+// slot was reused). Mirrors storage/efatfs/portable.rs's Slot/checkout generation guard
 // so a bad handle fails cleanly instead of aborting the test binary.
 template <typename T>
 T* checkout(std::vector<std::optional<T>>& table, std::vector<uint32_t>& gens, uint32_t handle) {
@@ -106,7 +106,7 @@ void release_slot(std::vector<std::optional<T>>& table, std::vector<uint32_t>& g
 }
 
 // FAT attribute bits (mirrors file.cpp's kFatAttr* constants -- see
-// efatfs_core.rs's DirEntryInfo doc).
+// storage/efatfs/portable.rs's DirEntryInfo doc).
 constexpr uint8_t kFatAttrReadOnly = 0x01;
 constexpr uint8_t kFatAttrHidden = 0x02;
 constexpr uint8_t kFatAttrSystem = 0x04;

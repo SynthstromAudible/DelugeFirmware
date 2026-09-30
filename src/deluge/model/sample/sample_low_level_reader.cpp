@@ -379,11 +379,10 @@ RegionOutcome SampleLowLevelReader::assignClusters(SamplePlaybackGuide* guide, S
 #endif
 	ensureSource(sample);
 
-	// ensureSource() can leave source_ null when the source pool is exhausted: open() freezes with
-	// FREEZE_WITH_ERROR("SSP1") but that is not a hard halt on hardware (OLED::freezeWithError blocks then
-	// RESUMES), so it returns nullptr. Treat a null source as NotReady — drop the voice gracefully, the same
-	// as an underrun — so nothing downstream dereferences a null source. (deluge_sample_region_acquire is
-	// itself null-tolerant too; this is the explicit, self-documenting guard.)
+	// ensureSource() leaves source_ null when the source pool is exhausted (deluge_sample_source_open
+	// returns null). Treat a null source as NotReady — drop the voice gracefully, the same as an underrun —
+	// so nothing downstream dereferences it. (deluge_sample_region_acquire is null-tolerant too; this is the
+	// explicit guard.)
 	if (source_ == nullptr) {
 		// Diagnostic: this and the region_acquire failure below both used to return a bare false, so a
 		// caller's "setupClustersForPlayFromByte fail" could not distinguish "no source to read through"

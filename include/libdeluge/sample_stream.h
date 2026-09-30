@@ -88,13 +88,10 @@ typedef struct DelugeSampleStreamGeometry {
 /// @brief Open @p path for streaming reads and register a fresh slot for it. [task]
 ///
 /// @param path           NUL-terminated absolute file path.
-/// @param out_table_full Always written: true iff the failure was specifically this registry's
-///                        own slot table being full (as opposed to the underlying
-///                        deluge_efatfs_open failing for its own reasons, e.g. its own handle
-///                        table full or the file not existing) — lets a caller map this
-///                        registry's own exhaustion to a dedicated error rather than a misleading
-///                        "file not found". On the registry's-own-table-full case, the
-///                        underlying efatfs handle that was just opened is closed, never leaked.
+/// @param out_table_full Always written: true iff the failure was a full handle table, either
+///                        this registry's or efatfs's own, so a caller can report exhaustion
+///                        rather than "file not found". An efatfs handle opened for a slot that
+///                        then finds the registry full is closed, never leaked.
 /// @return The slot's handle on success; @ref DELUGE_HANDLE_NONE on failure.
 DelugeHandle deluge_sample_stream_open(const char* path, bool* out_table_full) DELUGE_NOEXCEPT;
 

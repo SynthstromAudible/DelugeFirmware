@@ -216,7 +216,7 @@ void deluge_resource_loader_enqueue_owned(DelugeResource* mgr, uint32_t slot, ui
 /// @note Idempotent, and does not de-queue.
 bool deluge_resource_loader_release_owned(DelugeResource* mgr, uint32_t slot);
 /// Pop the most-urgent queued + still-leased chunk's backing ptr (clears its queued flag), else NULL.
-/// Queued-but-unleased chunks are de-queued and left resident for normal eviction (not freed here).
+/// Queued-but-unleased chunks are skipped: they stay queued, and resident for normal eviction.
 void* deluge_resource_loader_next(DelugeResource* mgr);
 /// Whether any queued + leased chunk sits at the lowest priority (0xFFFFFFFF) — the load-song yield gate.
 bool deluge_resource_loader_has_lowest(DelugeResource* mgr);

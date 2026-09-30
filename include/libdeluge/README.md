@@ -17,7 +17,7 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
    `src/bsp/rust/harness/golden_vt_render/wrapper.h`, both just `#include <libdeluge/libdeluge.h>`), and every
    Rust export is pinned to its generated declaration by `abi_pin!` — beside the definition it pins (including the
    one rename form, `abi_pin!(yield_ => r#yield)` in `scheduler.rs`), and for another crate's own exports and
-   imports, via its `in path:` form, in `src/bsp/rust/src/abi_pins.rs`. That file also holds the `abi_layout!`
+   imports, via its `in path:` form, in `src/bsp/rust/src/abi/pins.rs`. That file also holds the `abi_layout!`
    and `abi_const!` checks, except for `sys_host.rs`'s, which sit at the bottom of that file. A crate-defined
    type that crosses the boundary is re-exported into `sys` under the header's name and checked exhaustively,
    field-for-field or variant-for-variant, by `abi_layout!`. A copied constant is pinned by `abi_const!`. The
@@ -55,7 +55,7 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
 Every table handle that crosses the ABI (an open file, directory or stream) is a `DelugeHandle` (`types.h`, a
 `uint32_t`), and `DELUGE_HANDLE_NONE` (0) is none: no call hands it out, and a caller tests a stored handle against
 it. The tables behind the handles index their slots from 0, so a slot crosses as `slot + 1`; the Rust exports
-convert with `src/bsp/rust/src/abi_handle.rs`'s `to_abi`/`from_abi`, at the exports only; the tables themselves
+convert with `src/bsp/rust/src/abi/handle.rs`'s `to_abi`/`from_abi`, at the exports only; the tables themselves
 work in slots. `sample_stream.h`'s registry numbers its handles the same way.
 
 A call passed `DELUGE_HANDLE_NONE` does nothing and gives its bad-argument answer: a status-returning call (a stream

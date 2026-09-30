@@ -377,7 +377,7 @@ DelugeChannelStatus deluge_file_bytes_collect_read_at(const char* path, uint8_t*
 
 /// @brief Ask for `len` bytes to be written into `path` at `offset`. [task]
 ///
-/// @warning **This does NOT truncate, and must not.** `efatfs_core::create_context` truncates
+/// @warning **This does NOT truncate, and must not.** `efatfs::portable::create_context` truncates
 ///          unconditionally, so an implementation that re-opened with `DELUGE_FILE_WRITE_CREATE`
 ///          would erase the file on every block and a multi-block transfer would end holding only
 ///          its last block. The Rust side opens non-truncating; a caller that wants an empty file
