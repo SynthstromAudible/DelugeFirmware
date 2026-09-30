@@ -132,8 +132,13 @@ pub extern "C" fn deluge_flash_program(offset: u32, src: *const c_void, len: u32
 mod host_tests {
     use super::*;
 
+    /// Every erase clears the whole store, so a test's erase must not land between another's
+    /// program and read.
+    static STORE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     #[test]
     fn host_flash_program_then_read_round_trips() {
+        let _store = STORE.lock().unwrap();
         let off = 0x40u32;
         let src = [0xDEu8, 0xAD, 0xBE, 0xEF];
         deluge_flash_erase(off);
@@ -145,6 +150,7 @@ mod host_tests {
 
     #[test]
     fn host_flash_read_of_erased_region_is_0xff() {
+        let _store = STORE.lock().unwrap();
         let off = 0x80u32;
         deluge_flash_erase(off);
         let mut dst = [0u8; 4];
