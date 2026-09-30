@@ -35,20 +35,38 @@
 /// a queue because the filesystem beneath serialises everything anyway, and because it is what makes
 /// the refusal below observable: a caller that is told "no" knows its intent did not happen.
 ///
-/// **Reads coalesce; writes do NOT.** A second @ref deluge_file_bytes_request_read for a path already
-/// in flight is a no-op, because re-asking a question already asked costs nothing and the collect
-/// reports the one answer. A @ref deluge_file_bytes_request_write that arrives while the channel is
-/// busy is REFUSED -- it returns false and nothing is queued or replaced. Two rapid toggles of a setting
-/// are two distinct intents, and superseding the first would silently lose a settings change; a
-/// dropped directory listing is merely re-asked, but a dropped write is gone. The caller must retry a
-/// refused write, and this is the one place this channel deliberately differs from
-/// @ref file_directory.h.
+/// **Every request is refused while the channel is busy; nothing is queued or replaced.** The channel is busy
+/// while any of these holds:
+/// - a request is already queued (whatever its kind or path);
+/// - an operation is in flight;
+/// - an uncollected rename, unlink or write-from answer for the current card is waiting for its owner -- see
+///   "Collect what you ask for" below;
+/// - the channel's state was being updated at the instant of the call (a lock was contended).
+///
+/// A request that returns `bool` reports the refusal as false; a query that returns nothing (read, exists,
+/// dir_exists, stat) is refused silently, and its collect reads @ref DELUGE_FILE_BYTES_UNKNOWN until it asks again
+/// -- or @ref DELUGE_FILE_BYTES_PENDING while an identical request is the one in flight, which is how a duplicate
+/// read coalesces. A refused write is never superseded or replaced: two rapid toggles of a setting are two distinct
+/// intents, and a dropped write is gone where a dropped directory listing is merely re-asked. The caller must retry
+/// a refused write, and this is the one place this channel deliberately differs from @ref file_directory.h.
+///
+/// **Waiting on a busy channel.** A caller that is refused, or kept PENDING, should count its waiting ticks against
+/// @ref deluge_file_bytes_progress rather than against the clock: the channel may legitimately be busy for a long
+/// time with someone else's copy, and only a channel whose progress mark has stopped moving is wedged.
+///
+/// **Collect what you ask for.** A rename, unlink or write-from cannot safely run twice -- a second rename reports
+/// NOT_FOUND for a rename that happened, and a second exclusive write finds its own file -- so an answer of one of
+/// those kinds is protected: until its owner collects it, the channel refuses every other caller's request, up to
+/// `PROTECTED_ANSWER_REFUSALS` (300) of them, after which the owner is taken to have gone and the answer may be
+/// displaced. A caller that requests one of these operations must therefore keep polling its collect until it is
+/// terminal. One that stops holds every other consumer off for those 300 refusals. Every other kind's uncollected
+/// answer is displaced by the next operation to finish, and its owner reads UNKNOWN and asks again.
 ///
 /// **Two operations borrow the caller's buffer instead of copying.**
 /// @ref deluge_file_bytes_request_read_into and @ref deluge_file_bytes_request_write_from carry a whole document,
 /// which may run to a megabyte, so the pointer crosses rather than the bytes. The caller keeps the buffer until the
 /// collect is terminal and @ref deluge_file_bytes_holds says the channel has let go. Neither replaces a queued
-/// request or is replaced by one: while another request is queued, each is refused.
+/// request or is replaced by one: while the channel is busy, each is refused.
 ///
 /// **A write creates its parent directory.** That is why there is no `mkdir` operation here: every
 /// settings caller's `mkdir SETTINGS_FOLDER` existed only to make its own write succeed, and a card
@@ -135,11 +153,12 @@ extern "C" {
 
 /// @brief Ask for the whole of `path` to be read, and return immediately.
 ///
-/// A request for a path already in flight is a no-op rather than a replacement, so a caller polling
-/// each tick cannot starve its own read. Silently drops an unusable request (NULL, over long, or a
-/// slot already holding a different path): there is no failure a caller could act on that
-/// re-requesting does not already cover, and the collect it runs next tick reports
-/// @ref DELUGE_FILE_BYTES_UNKNOWN, whose documented meaning is exactly that.
+/// Silently dropped -- refused, with nothing to report it -- when the path is NULL or over long, or while the
+/// channel is busy: a request is already queued (this path's own included), an operation is in flight, an
+/// uncollected rename, unlink or write-from answer is waiting for its owner, or the channel was mid-update at the
+/// instant of the call. There is no failure a caller could act on that re-requesting does not already cover: the
+/// collect it runs next tick reports @ref DELUGE_FILE_BYTES_PENDING if this path's read is the one in flight, and
+/// @ref DELUGE_FILE_BYTES_UNKNOWN, whose documented meaning is "ask again", otherwise.
 ///
 /// @param path NUL-terminated path of the file to read. Copied out before this returns.
 void deluge_file_bytes_request_read(const char* path) DELUGE_NOEXCEPT;
@@ -178,8 +197,10 @@ uint8_t deluge_file_bytes_collect_read(const char* path, uint8_t* out_buf, uint3
 ///              rather than clipped, because a settings file cut short parses as one whose remaining
 ///              settings were absent.
 /// @return true if the write was accepted and a collect will eventually report it. false if it was
-///         REFUSED -- the channel is busy with another operation, the path is NULL or over long, or
-///         `len` exceeds @ref DELUGE_FILE_BYTES_MAX_BYTES. **A refused write did not happen and
+///         REFUSED -- a request is already queued, an operation is in flight, or an uncollected rename, unlink or
+///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or the path is NULL or over long, or `len` exceeds
+///         @ref DELUGE_FILE_BYTES_MAX_BYTES. **A refused write did not happen and
 ///         nothing is queued**, so the caller must keep its intent and retry; unlike a read, a lost
 ///         request here is a lost settings change rather than a question worth re-asking.
 bool deluge_file_bytes_request_write(const char* path, const uint8_t* bytes, uint32_t len) DELUGE_NOEXCEPT;
@@ -200,9 +221,12 @@ uint8_t deluge_file_bytes_collect_write(const char* path, DelugeStatus* out_stat
 ///
 /// @param from NUL-terminated source path. Copied out before this returns.
 /// @param to   NUL-terminated destination path. Copied out before this returns.
-/// @return true if accepted. false if REFUSED -- the channel is busy with another operation, or
-///         either path is NULL or over long. Refused like a write rather than dropped like a read: a migration that
-///         silently did not happen leaves the file where the next boot will migrate it again.
+/// @return true if accepted; the caller must then collect it to a terminal state (see "Collect what you ask for").
+///         false if REFUSED -- a request is already queued, an operation is in flight, or an uncollected rename, unlink
+///         or write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or either path is NULL or over long. Refused like a write
+///         rather than dropped like a read: a migration that silently did not happen leaves the file where the next
+///         boot will migrate it again.
 bool deluge_file_bytes_request_rename(const char* from, const char* to) DELUGE_NOEXCEPT;
 
 /// @brief Collect the outcome of the rename to `to`, if it has finished.
@@ -219,9 +243,12 @@ uint8_t deluge_file_bytes_collect_rename(const char* to, DelugeStatus* out_statu
 /// @brief Ask for `path` to be deleted, and return immediately.
 ///
 /// @param path NUL-terminated path. Copied out before this returns.
-/// @return true if accepted. false if REFUSED -- the channel is busy with another operation, or the
-///         path is NULL or over long. Refused like a write rather than dropped like a read, because a
-///         caller that believes a file is gone when it is not will act on that belief.
+/// @return true if accepted; the caller must then collect it to a terminal state (see "Collect what you ask for").
+///         false if REFUSED -- a request is already queued, an operation is in flight, or an uncollected rename, unlink
+///         or write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or the path is NULL or over long. Refused like a write rather
+///         than dropped like a read, because a caller that believes a file is gone when it is not will act on that
+///         belief.
 bool deluge_file_bytes_request_unlink(const char* path) DELUGE_NOEXCEPT;
 
 /// @brief Collect the outcome of the deletion of `path`, if it has finished.
@@ -243,9 +270,10 @@ uint8_t deluge_file_bytes_collect_unlink(const char* path, DelugeStatus* out_sta
 /// read "present" as "absent" and may then overwrite it. Song files are far above that bound, which
 /// is why this operation exists rather than being expressed in terms of the read.
 ///
-/// A request for a path already in flight is a no-op rather than a replacement, exactly as the read's
-/// is, and an unusable request is dropped for the same reason: the next collect reports UNKNOWN,
-/// whose documented meaning is "ask again".
+/// Silently dropped exactly as @ref deluge_file_bytes_request_read is: when the path is NULL or over long, or while
+/// the channel is busy (a request queued, an operation in flight, an uncollected rename, unlink or write-from answer
+/// waiting for its owner, or the channel mid-update). The next collect reports PENDING if this path's check is the
+/// one in flight, and UNKNOWN, whose documented meaning is "ask again", otherwise.
 ///
 /// @param path NUL-terminated path. Copied out before this returns.
 void deluge_file_bytes_request_exists(const char* path) DELUGE_NOEXCEPT;
@@ -269,8 +297,9 @@ uint8_t deluge_file_bytes_collect_exists(const char* path, bool* out_present, De
 ///
 /// @ref deluge_file_bytes_request_exists opens its path as a file, which a directory is not, so it answers FAILED for
 /// every directory. This one opens the path as a directory and closes it again before answering, so no directory
-/// handle is held past the answer. Otherwise it behaves as that request: a request for a path already in flight is a
-/// no-op, and an unusable request is dropped.
+/// handle is held past the answer. Otherwise it behaves as that request, and is silently dropped under the same
+/// conditions: a NULL or over-long path, or a busy channel (a request queued, an operation in flight, an uncollected
+/// rename, unlink or write-from answer waiting for its owner, or the channel mid-update).
 ///
 /// @param path NUL-terminated path. Copied out before this returns.
 void deluge_file_bytes_request_dir_exists(const char* path) DELUGE_NOEXCEPT;
@@ -297,8 +326,10 @@ uint8_t deluge_file_bytes_collect_dir_exists(const char* path, bool* out_present
 /// is below this boundary already.
 ///
 /// @param path NUL-terminated path of the deepest directory wanted. Copied out before this returns.
-/// @return true if accepted. false if REFUSED -- the channel is busy with another operation, or the
-///         path is NULL or over long.
+/// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
+/// uncollected rename, unlink or
+///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or the path is NULL or over long.
 /// @note An already-existing path is SUCCESS, not `DELUGE_ERR_EXISTS`. Callers use this to mean "make
 ///       sure this is there", and the commonest outcome is that it already is.
 bool deluge_file_bytes_request_mkdir_all(const char* path) DELUGE_NOEXCEPT;
@@ -321,8 +352,10 @@ uint8_t deluge_file_bytes_collect_mkdir_all(const char* path, DelugeStatus* out_
 /// @param path      NUL-terminated path. Copied out before this returns.
 /// @param timestamp Passed BY VALUE. `DelugeTimestamp` is a fixed-width POD (`types.h`), so it
 ///                  crosses this boundary without a pointer and without a lifetime rule.
-/// @return true if accepted. false if REFUSED -- the channel is busy, or the path is NULL or over
-///         long.
+/// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
+/// uncollected rename, unlink or
+///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or the path is NULL or over long.
 bool deluge_file_bytes_request_set_time(const char* path, DelugeTimestamp timestamp) DELUGE_NOEXCEPT;
 
 /// @brief Collect the outcome of the timestamp write for `path`, if it has finished.
@@ -342,8 +375,11 @@ uint8_t deluge_file_bytes_collect_set_time(const char* path, DelugeStatus* out_s
 /// @param path   NUL-terminated path. Copied out before this returns.
 /// @param offset Byte offset to read from. Past end-of-file yields zero bytes, not an error.
 /// @param len    How many bytes to read, at most @ref DELUGE_FILE_BYTES_BLOCK.
-/// @return true if accepted. false if REFUSED -- the channel is busy, the path is NULL or over long,
-///         or `len` exceeds the block bound.
+/// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
+/// uncollected rename, unlink or
+///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or the path is NULL or over long, or
+///         `len` exceeds the block bound.
 bool deluge_file_bytes_request_read_at(const char* path, uint32_t offset, uint32_t len) DELUGE_NOEXCEPT;
 
 /// @brief Collect the bytes read for `path`, if they are ready.
@@ -372,7 +408,11 @@ uint8_t deluge_file_bytes_collect_read_at(const char* path, uint8_t* out_buf, ui
 /// @param offset Byte offset to write at.
 /// @param bytes  Copied out before this returns.
 /// @param len    Byte count, at most @ref DELUGE_FILE_BYTES_BLOCK.
-/// @return true if accepted. false if REFUSED.
+/// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
+/// uncollected rename, unlink or
+///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or the path or `bytes` is NULL, the path is
+///         over long, or `len` exceeds the block bound.
 bool deluge_file_bytes_request_write_at(const char* path, uint32_t offset, const uint8_t* bytes,
                                         uint32_t len) DELUGE_NOEXCEPT;
 
@@ -387,8 +427,10 @@ uint8_t deluge_file_bytes_collect_write_at(const char* path, uint32_t* out_writt
 
 /// @brief Ask for `path`'s size.
 ///
-/// Dropped rather than refused on an unusable request, like the other queries: the next collect
-/// reports UNKNOWN, whose documented meaning is "ask again".
+/// Silently dropped exactly as @ref deluge_file_bytes_request_read is: when the path is NULL or over long, or while
+/// the channel is busy (a request queued, an operation in flight, an uncollected rename, unlink or write-from answer
+/// waiting for its owner, or the channel mid-update). The next collect reports PENDING if this path's stat is the one
+/// in flight, and UNKNOWN, whose documented meaning is "ask again", otherwise.
 /// @param path NUL-terminated path. Copied out before this returns.
 void deluge_file_bytes_request_stat(const char* path) DELUGE_NOEXCEPT;
 
@@ -404,8 +446,12 @@ uint8_t deluge_file_bytes_collect_stat(const char* path, uint32_t* out_size, Del
 ///
 /// The entire copy, not a block of it: the read/write loop lives on the Rust side so its caller needs
 /// neither a loop nor two open files. `to`'s parent directory is created if absent, and `to` is
-/// truncated before the copy -- a copy onto a longer existing file must not leave its tail behind.
-/// @return true if accepted. false if REFUSED.
+/// truncated before the copy -- a copy onto a longer existing file must not leave its tail behind. The channel's
+/// progress mark (@ref deluge_file_bytes_progress) advances with every @ref DELUGE_FILE_BYTES_BLOCK it moves.
+/// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
+/// uncollected rename, unlink or
+///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or either path is NULL or over long.
 bool deluge_file_bytes_request_copy(const char* from, const char* to) DELUGE_NOEXCEPT;
 
 /// @brief Collect the outcome of the copy to `to`, if it has finished.
@@ -418,20 +464,26 @@ uint8_t deluge_file_bytes_collect_copy(const char* to, DelugeStatus* out_status)
 /// @brief Ask for the whole of `path` to be read into `dst`.
 ///
 /// `dst` is the caller's, kept alive and untouched until the collect is terminal (see deluge_file_bytes_holds).
-/// Refused (false) while another byte request is queued. [task]
+/// [task]
 ///
 /// Not bounded by @ref DELUGE_FILE_BYTES_MAX_BYTES: the bytes are not copied, so a song of a megabyte reads straight
 /// into its staging buffer. A file larger than `cap` is refused, never truncated.
 /// @param path NUL-terminated path. Copied out before this returns.
 /// @param dst  The caller's buffer, `cap` bytes.
 /// @param cap  Its capacity.
-/// @return true if accepted. false if REFUSED; the caller must retry.
+/// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
+/// uncollected rename, unlink or
+///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or the path or `dst` is NULL, the path is
+///         over long, or `cap` is 0. The caller must retry a refusal.
 bool deluge_file_bytes_request_read_into(const char* path, void* dst, uint32_t cap) DELUGE_NOEXCEPT;
 
 /// @brief Collect the read into the caller's buffer.
 ///
 /// READY: `*out_len` bytes are in `dst`. FAILED: `*out_error` says why; DELUGE_ERR_NO_MEMORY means the file did not
-/// fit, and `*out_needed` is its size. Any out-pointer may be null. [task]
+/// fit, and `*out_needed` is its size. A file that could not be opened reports the open's own status --
+/// DELUGE_ERR_NOT_FOUND for a missing file -- and an empty or short read DELUGE_ERR_IO. Any out-pointer may be null.
+/// [task]
 /// @param path       NUL-terminated path, matched exactly against the one requested.
 /// @param out_len    Written **only** on @ref DELUGE_CHANNEL_READY.
 /// @param out_error  Written **only** on @ref DELUGE_CHANNEL_FAILED.
@@ -442,21 +494,27 @@ DelugeChannelStatus deluge_file_bytes_collect_read_into(const char* path, uint32
 /// @brief Ask for the caller's bytes to be written as the whole of `path`.
 ///
 /// With `may_overwrite` false, the file must not exist; that check and the create are one atomic open. `src` is the
-/// caller's until the collect is terminal. Refused (false) while another byte request is queued. [task]
+/// caller's until the collect is terminal. [task]
 ///
-/// Not bounded by @ref DELUGE_FILE_BYTES_MAX_BYTES: the bytes are not copied. `path`'s parent directory must exist.
+/// Not bounded by @ref DELUGE_FILE_BYTES_MAX_BYTES: the bytes are not copied. The create makes every missing
+/// directory above `path`.
 /// @param path          NUL-terminated path. Copied out before this returns.
 /// @param src           The caller's bytes.
 /// @param len           Byte count.
 /// @param may_overwrite true to replace an existing file, false to refuse one.
-/// @return true if accepted. false if REFUSED; the caller must retry.
+/// @return true if accepted; the caller must then collect it to a terminal state (see "Collect what you ask for").
+///         false if REFUSED -- a request is already queued, an operation is in flight, or an uncollected rename, unlink
+///         or write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
+///         instant of the call; or the path or `src` is NULL, the path is over long, or `len` is
+///         0. The caller must retry a refusal.
 bool deluge_file_bytes_request_write_from(const char* path, const void* src, uint32_t len,
                                           bool may_overwrite) DELUGE_NOEXCEPT;
 
 /// @brief Collect the write from the caller's buffer.
 ///
 /// READY: all `*out_written` bytes are on the card. FAILED: `*out_error` says why; DELUGE_ERR_EXISTS means the name
-/// was taken and the existing file is untouched. [task]
+/// was taken and the existing file is untouched. Any other failed open reports the open's own status (a name the
+/// card refuses, a missing card), and a short write DELUGE_ERR_IO. [task]
 ///
 /// "The name is taken" asks the user a question; "the card failed" tells them something is wrong, so the two stay
 /// apart.
