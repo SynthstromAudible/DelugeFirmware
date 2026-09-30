@@ -206,7 +206,7 @@ private:
 	void endStagedSave(bool succeeded);
 	/// @brief Hand the shared serialiser back to file-backed use.
 	static void releaseStagedWriter();
-	/// @brief Defer one more tick, or give up if this save has stopped making progress.
+	/// @brief Defer one more caller tick, or give up once the byte channel has finished nothing for the stall bound.
 	static bool deferStagedSave();
 
 	static inline int32_t writeChannelServedOps_{};

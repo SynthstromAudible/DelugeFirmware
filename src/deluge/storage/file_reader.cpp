@@ -281,11 +281,11 @@ namespace {
 /// Completed whole-file staging reads served by the channel. See stagingChannelServedOps().
 int32_t stagingServedOps = 0;
 
-/// Defer one more tick, or give up if this staging has stopped making progress. A bound, not a
-/// timeout: the channel answers within a tick or two when it is running at all, so anything
-/// approaching this means it is not going to.
+/// Defer one more caller tick, or give up once the byte channel has finished nothing for the whole stall bound. A
+/// bound, not a timeout: a refusal behind someone else's long operation, or a wait on this read, keeps waiting for
+/// as long as the channel keeps finishing work, and only a channel that has stopped fails the load.
 StorageManager::StagedOpen deferStaging(StorageManager::StagingState* state) {
-	if (state->stalledTicks.tick()) {
+	if (state->stalledTicks.tick(deluge_file_bytes_progress())) {
 		return StorageManager::StagedOpen::Failed;
 	}
 	return StorageManager::StagedOpen::Deferred;

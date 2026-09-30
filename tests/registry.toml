@@ -517,7 +517,7 @@ kind = "property"
 status = "gate"
 gates = "a settings value written through the real consumer entry point must survive a read back, and no settings file operation may begin on the interaction tier. Two halves on purpose: the round trip catches a change that moved the I/O and broke the settings on the way, while SC-TIER, required zero, is the only check that shows where the I/O ran -- a round trip passes the same whichever tier did the I/O, so a gate with only a round trip would report success with every settings operation still on the interaction tier. The count is taken inside the consumer's own I/O path rather than at the point of dispatch, so it cannot report success for an operation that dispatched and then ran inline anyway."
 scenario = "settings_channel"
-markers = ["SC-ROUNDTRIP", "SC-BURST", "SC-ORDER", "SC-HEAD", "SC-FITS", "SC-UNLINK", "SC-PERF", "SC-OVERSIZE", "SC-FALLBACK", "SC-TIER", "SC-CHANNEL"]
+markers = ["SC-ROUNDTRIP", "SC-BURST", "SC-ORDER", "SC-HEAD", "SC-FITS", "SC-UNLINK", "SC-PERF", "SC-OVERSIZE", "SC-BUSY", "SC-FALLBACK", "SC-TIER", "SC-CHANNEL"]
 result = "SC-RESULT failures=0"
 check = "tests/integration/checks/settings_channel.py"
 builds = ["golden-vt-render"]

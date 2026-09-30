@@ -878,6 +878,42 @@ pub extern "C" fn deluge_file_bytes_set_latency_ms(ms: u32) {
     LATENCY_MS.store(ms, Ordering::Relaxed);
 }
 
+/// Units of work the task has finished: one per operation it published or dropped unrun, and one per chunk a copy
+/// moved. Read by [`deluge_file_bytes_progress`]; wraps.
+static PROGRESS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Record one unit of finished work. See [`PROGRESS`]. Only the task and its ops call it, so a carrier without them
+/// has no caller.
+#[cfg_attr(not(any(target_os = "none", feature = "host_app")), allow(dead_code))]
+fn note_progress() {
+    PROGRESS.fetch_add(1, Ordering::Release);
+}
+
+/// How much work the channel has finished, as a mark that moves whenever it finishes some. See `file_bytes.h`.
+///
+/// A caller refused or kept PENDING compares this against its previous tick's reading: a mark that moved means the
+/// channel is busy with work that is getting done, and one that has stood still for its whole stall bound means the
+/// channel has stopped. Compared for equality only, so the wrap is harmless.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_bytes_progress() -> u32 {
+    PROGRESS.load(Ordering::Acquire)
+}
+
+/// Milliseconds each chunk of a copy waits before it moves. Host harness only; see
+/// [`deluge_file_bytes_set_chunk_latency_ms`].
+#[cfg(feature = "host_app")]
+static CHUNK_LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: make each chunk a copy moves wait `ms` milliseconds first, so a gate can hold the channel with a
+/// long operation that keeps making progress -- a large copy on a slow card. 0, the default, means no wait.
+///
+/// Compiled only under `host_app`: the device image has neither this function nor the static it sets.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_bytes_set_chunk_latency_ms(ms: u32) {
+    CHUNK_LATENCY_MS.store(ms, Ordering::Relaxed);
+}
+
 // ── The request entry points ────────────────────────────────────────────────
 
 /// Request the whole of `path` be read, and wake the driver. See `file_bytes.h`.
@@ -2182,6 +2218,13 @@ impl ByteOps for ProdByteOps {
                 if read == 0 {
                     return Ok(());
                 }
+                #[cfg(feature = "host_app")]
+                {
+                    let ms = CHUNK_LATENCY_MS.load(Ordering::Relaxed);
+                    if ms > 0 {
+                        embassy_time::Timer::after_millis(u64::from(ms)).await;
+                    }
+                }
                 // Non-truncating, for the reason `write_at` gives at length.
                 let dst = Self::open_mounted(to, OPEN_READ).await?;
                 let written = async {
@@ -2198,6 +2241,7 @@ impl ByteOps for ProdByteOps {
                     return Err(ERR_IO);
                 }
                 offset += read as u32;
+                note_progress();
             }
         }
         .await;
@@ -2301,6 +2345,7 @@ async fn file_bytes_task_body() {
     loop {
         while let Some(taken) = take_next_request(work).await {
             let Some((request, generation)) = taken else {
+                note_progress();
                 continue;
             };
             // After the take, so the operation is already marked in flight: a collect during the wait answers
@@ -2325,6 +2370,7 @@ async fn file_bytes_task_body() {
             let (op, key) = request.key();
             publish_result(op, key, outcome, generation, work).await;
             mark_in_flight(None).await;
+            note_progress();
         }
         BYTES_WAKE.wait().await;
     }
@@ -2445,6 +2491,10 @@ abi_pin!(
     deluge_file_bytes_request_write_from,
     deluge_file_bytes_collect_write_from,
     deluge_file_bytes_holds,
+    deluge_file_bytes_progress,
 );
 #[cfg(feature = "host_app")]
-abi_pin!(deluge_file_bytes_set_latency_ms);
+abi_pin!(
+    deluge_file_bytes_set_latency_ms,
+    deluge_file_bytes_set_chunk_latency_ms
+);

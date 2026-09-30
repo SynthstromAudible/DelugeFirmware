@@ -22,6 +22,7 @@
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "io/stall_bound.h"
 #include "libdeluge/file_bytes.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "storage/byte_channel.h"
@@ -81,6 +82,17 @@ constexpr int32_t kMaxWaitTicks = 20000;
 /// 8 KiB bound; real settings files measure 66 to 1,957 bytes.
 constexpr int32_t kOversizeEntries = 600;
 
+/// The busy stage's hold: a copy of this many chunks, each waiting this long, keeps the channel busy with work that
+/// progresses for kBusyChunks * kBusyChunkLatencyMs virtual milliseconds (5 s). At one scenario step per two virtual
+/// milliseconds, and the app's own "settings io" task beside it, that is thousands of refused ticks for a write
+/// queued behind it -- far past `deluge::io::kChannelStallTicks`, which the check requires rather than assumes.
+constexpr uint32_t kBusyChunks = 100;
+constexpr uint32_t kBusyChunkLatencyMs = 50;
+/// The value the write held behind the copy carries. Differs from every value the earlier stages leave.
+constexpr uint32_t kBusyValue = 6;
+constexpr const char* kBusySource = "SCBUSY.BIN";
+constexpr const char* kBusyCopy = "SCBUSYCP.BIN";
+
 /// What every settings document must begin with. Spelled out here rather than taken from the code under test, so
 /// a change that altered the constant and the check together could not pass.
 constexpr const char* kXmlHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
@@ -123,6 +135,10 @@ enum class Stage : uint8_t {
 	OversizeWrite,
 	OversizeWait,
 	OversizeCheck,
+	BusyStart,
+	BusyWait,
+	BusyReadWait,
+	BusyCheck,
 	Fallback,
 	Restore,
 	RestoreWait,
@@ -150,6 +166,10 @@ bool g_oversizeHadFile = false;
 std::vector<uint8_t> g_oversizeBefore;
 size_t g_unknownBefore = 0;
 int32_t g_tierBefore = 0;
+/// The seam's refused-tick count when the busy stage submitted its write.
+int32_t g_refusedBefore = 0;
+/// How many ticks the busy stage's write was refused, taken once the seam went idle.
+int32_t g_busyRefused = 0;
 /// The DIN ports' clock setting as the scenario found it. The head stage changes it to make the MIDI device table
 /// worth writing; the restore puts it back.
 bool g_originalSendClock = true;
@@ -540,6 +560,86 @@ void runTick() {
 			printf("SC-OVERSIZE FAIL an oversize settings write was not refused cleanly\n");
 			g_failures++;
 		}
+		g_stage = Stage::BusyStart;
+		break;
+	}
+
+	case Stage::BusyStart: {
+		// A settings write queued behind a long operation that keeps making progress -- a copy of a large file, as a
+		// SysEx copy or a song save's sample collection runs -- must wait for it and land, not give up on a channel
+		// that is merely busy.
+		if (!deluge::storage::bytes::idle()) {
+			waitIdleThen("SC-BUSY", Stage::BusyStart, Stage::Fallback);
+			break;
+		}
+		std::vector<std::byte> chunk(DELUGE_FILE_BYTES_BLOCK, std::byte{0x5A});
+		auto source = deluge::io::File::open(kBusySource, DELUGE_FILE_WRITE_CREATE);
+		bool staged = source.has_value();
+		for (uint32_t i = 0; staged && i < kBusyChunks; i++) {
+			auto put = source->write(chunk);
+			staged = put.has_value() && *put == chunk.size();
+		}
+		if (source.has_value()) {
+			(void)source->close();
+		}
+		deluge_file_bytes_set_chunk_latency_ms(kBusyChunkLatencyMs);
+		if (!staged || !deluge_file_bytes_request_copy(kBusySource, kBusyCopy)) {
+			printf("SC-BUSY FAIL could not stage the copy that holds the channel (source %d)\n", (int)staged);
+			g_failures++;
+			deluge_file_bytes_set_chunk_latency_ms(0);
+			g_stage = Stage::Fallback;
+			break;
+		}
+		g_refusedBefore = deluge::storage::bytes::refusedTicks();
+		runtimeFeatureSettings.set(kProbeSetting, kBusyValue);
+		runtimeFeatureSettings.writeSettingsToFile();
+		g_waitTicks = 0;
+		g_stage = Stage::BusyWait;
+		break;
+	}
+
+	case Stage::BusyWait:
+		if (!deluge::storage::bytes::idle()) {
+			waitIdleThen("SC-BUSY", Stage::BusyWait, Stage::BusyCheck);
+			break;
+		}
+		deluge_file_bytes_set_chunk_latency_ms(0);
+		g_busyRefused = deluge::storage::bytes::refusedTicks() - g_refusedBefore;
+		runtimeFeatureSettings.set(kProbeSetting, kScrubValue);
+		runtimeFeatureSettings.readSettingsFromFile();
+		g_stage = Stage::BusyReadWait;
+		break;
+
+	case Stage::BusyReadWait:
+		waitIdleThen("SC-BUSY", Stage::BusyCheck, Stage::BusyCheck);
+		break;
+
+	case Stage::BusyCheck: {
+		deluge_file_bytes_set_chunk_latency_ms(0);
+		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
+		std::vector<uint8_t> copied;
+		const bool copyThere = readWholeFile(kBusyCopy, copied);
+		printf("SC-BUSY value=%u refused=%d bound=%d copyBytes=%zu\n", value, g_busyRefused,
+		       deluge::io::kChannelStallTicks, copyThere ? copied.size() : size_t{0});
+		// The value first: a write that gave up was refused on at most the stall bound's ticks, so the precondition
+		// below cannot tell a failed write from a hold too short to prove anything.
+		if (value != kBusyValue) {
+			printf("SC-BUSY FAIL a settings write held behind a long copy did not land (read %u, wanted %u)\n", value,
+			       kBusyValue);
+			g_failures++;
+		}
+		else if (g_busyRefused <= deluge::io::kChannelStallTicks) {
+			printf("SC-BUSY FAIL the write was refused on only %d ticks, within the stall bound; nothing was held past "
+			       "it, so this proves nothing\n",
+			       g_busyRefused);
+			g_failures++;
+		}
+		if (!copyThere || copied.size() != size_t{kBusyChunks} * DELUGE_FILE_BYTES_BLOCK) {
+			printf("SC-BUSY FAIL the copy that held the channel did not complete\n");
+			g_failures++;
+		}
+		(void)deluge::io::unlink(kBusySource);
+		(void)deluge::io::unlink(kBusyCopy);
 		g_stage = Stage::Fallback;
 		break;
 	}
@@ -634,6 +734,8 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_burstServed = 0;
 	g_burstIllegal = 0;
 	g_orderIllegal = 0;
+	g_refusedBefore = 0;
+	g_busyRefused = 0;
 }
 
 bool deluge_scenario_settings_channel_complete(void) {

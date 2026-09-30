@@ -235,13 +235,17 @@ void holdPath(const char* path) {
 	std::memcpy(g_pending.path, path, std::strlen(path) + 1);
 }
 
-/// How many ticks the pending operation has spent waiting for an answer.
+/// How many caller ticks the pending operation has spent refused or waiting for an answer while the channel finished
+/// nothing.
 ///
-/// A channel whose driver is not running answers PENDING forever -- the request sits in its slot with
-/// nothing to take it -- which is neither a refusal nor an answer, so nothing else here sees it.
-/// Without this bound a submitted operation is polled until the end of time and never happens,
-/// silently: the caller was told the channel took it, so it does not fall back either.
+/// A channel whose driver is not running answers PENDING, or refuses, forever -- which is neither an answer nor a
+/// failure. Without this bound a submitted operation is polled until the end of time and never happens, silently:
+/// the caller was told the channel took it, so it does not fall back either. Counted against the channel's progress
+/// mark, so an operation refused behind another caller's long copy waits for it rather than failing.
 deluge::io::StallBound g_pendingBound;
+
+/// Ticks on which the channel refused the pending operation's request. See @ref refusedTicks.
+int32_t g_refusedTicks = 0;
 
 /// The bytes in flight: a write's payload on the way out, a read's contents on the way in.
 ///
@@ -445,7 +449,7 @@ void serviceRoutine() {
 
 	// One tick's grace accounting, before any of the steps below. A step that returns without
 	// finishing has spent a tick; enough of those and the channel is not going to answer.
-	if (g_pending.step != Step::Idle && g_pendingBound.tick()) {
+	if (g_pending.step != Step::Idle && g_pendingBound.tick(deluge_file_bytes_progress())) {
 		abandonChannel();
 		return;
 	}
@@ -461,6 +465,7 @@ void serviceRoutine() {
 			g_pending.step = (g_pending.step == Step::ReadRequest) ? Step::ReadCollect : Step::ReadRetryCollect;
 			return;
 		case ByteIo::Unknown:
+			++g_refusedTicks;
 			return; // Refused this tick; ask again on the next one.
 		case ByteIo::Ready:
 		case ByteIo::Failed:
@@ -506,6 +511,7 @@ void serviceRoutine() {
 			g_pending.step = Step::RenameCollect;
 			return;
 		case ByteIo::Unknown:
+			++g_refusedTicks;
 			return; // Refused this tick; ask again on the next one.
 		case ByteIo::Ready:
 		case ByteIo::Failed:
@@ -540,6 +546,7 @@ void serviceRoutine() {
 			g_pending.step = Step::MkdirAllCollect;
 			return;
 		case ByteIo::Unknown:
+			++g_refusedTicks;
 			return; // Refused this tick; ask again on the next one.
 		case ByteIo::Ready:
 		case ByteIo::Failed:
@@ -571,6 +578,7 @@ void serviceRoutine() {
 			g_pending.step = Step::WriteCollect;
 			return;
 		case ByteIo::Unknown:
+			++g_refusedTicks;
 			return; // Refused this tick; the payload is still held, so ask again on the next one.
 		case ByteIo::Ready:
 		case ByteIo::Failed:
@@ -605,6 +613,7 @@ void serviceRoutine() {
 			g_pending.step = Step::UnlinkCollect;
 			return;
 		case ByteIo::Unknown:
+			++g_refusedTicks;
 			return; // Refused this tick; ask again on the next one.
 		case ByteIo::Ready:
 		case ByteIo::Failed:
@@ -636,6 +645,10 @@ void serviceRoutine() {
 
 int32_t channelServedOps() {
 	return g_channelServed;
+}
+
+int32_t refusedTicks() {
+	return g_refusedTicks;
 }
 
 bool idle() {

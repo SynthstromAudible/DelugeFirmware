@@ -50,7 +50,8 @@ namespace {
 /// The template song, and the fallback when the recorded startup song has gone.
 constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 
-/// How many consecutive unproductive attempts before the machine stops asking the channel.
+/// How many consecutive unproductive attempts, on caller ticks on which the channel finished nothing, before the
+/// machine stops asking the channel.
 ///
 /// The channel is single-flight across all operation kinds, so a settings write in flight refuses
 /// this machine's request. Retrying is right -- the machine is already ticking -- but an unbounded
@@ -120,9 +121,9 @@ std::string g_canaryPath;
 std::string g_songPath;
 /// Whether the current phase has issued its request yet.
 bool g_requested = false;
-/// Consecutive attempts at the current request that produced neither an answer nor progress.
-/// See @ref kMaxAttemptsWithoutProgress.
-int32_t g_attemptsWithoutProgress = 0;
+/// Consecutive attempts at the current request that produced no answer, counted only on caller ticks on which the
+/// channel finished nothing. See @ref kMaxAttemptsWithoutProgress.
+deluge::io::StallBound g_attemptBound{kMaxAttemptsWithoutProgress};
 /// Consecutive ticks the current request has spent PENDING. A separate bound from @ref
 /// kMaxAttemptsWithoutProgress, because it guards a different failure: a refusal is instant and means "busy", but a
 /// channel whose driver is not running answers PENDING forever, which is neither a refusal nor an answer.
@@ -156,7 +157,7 @@ std::string g_startupFailSafePath;
 void enter(StartupPhase phase) {
 	g_phase = phase;
 	g_requested = false;
-	g_attemptsWithoutProgress = 0;
+	g_attemptBound.reset();
 	g_pendingBound.reset();
 	g_inlineDone = false;
 }
@@ -166,8 +167,7 @@ void enter(StartupPhase phase) {
 /// Falls back permanently once `kMaxAttemptsWithoutProgress` consecutive unproductive attempts have
 /// been seen for the current phase -- see that constant.
 bool viaChannel() {
-	return deluge::storage::bytes::usingByteChannel() && g_attemptsWithoutProgress < kMaxAttemptsWithoutProgress
-	       && !g_pendingBound.expired();
+	return deluge::storage::bytes::usingByteChannel() && !g_attemptBound.expired() && !g_pendingBound.expired();
 }
 
 /// Note one more tick spent waiting, and abandon the channel for this phase once that has gone on too
@@ -176,7 +176,7 @@ bool viaChannel() {
 /// The re-request on giving up is what makes the fallback take effect: `viaChannel()` is consulted
 /// again at the next issue, and by then it answers false.
 bool stillWaiting() {
-	if (!g_pendingBound.tick()) {
+	if (!g_pendingBound.tick(deluge_file_bytes_progress())) {
 		return true;
 	}
 	g_requested = false; // re-issue, on the synchronous arm this time
@@ -190,7 +190,7 @@ void issueExists(const char* path) {
 			g_requested = true;
 		}
 		else {
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 		}
 		return;
 	}
@@ -227,7 +227,7 @@ std::optional<StartupPresence> collectExists(const char* path) {
 			// "Ask again" -- the documented meaning. Counted, because a channel that accepts and never
 			// answers looks exactly like this, forever.
 			g_requested = false;
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 			return std::nullopt;
 		case deluge::storage::bytes::ByteIo::Ready:
 			// A real answer, either way. `startup_action` is what keeps "known absent" apart from
@@ -253,7 +253,7 @@ void issueCanaryWrite() {
 			g_requested = true;
 		}
 		else {
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 		}
 		return;
 	}
@@ -319,7 +319,7 @@ void issueTemplateWrite() {
 			g_requested = true;
 		}
 		else {
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 		}
 		return;
 	}
@@ -363,7 +363,7 @@ std::optional<bool> collectTemplateWrite() {
 			// age bound (PROTECTED_ANSWER_REFUSALS refused requests); past it, re-staging can meet the file this
 			// write made, and the exclusive create then fails rather than overwriting it.
 			g_requested = false;
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 			return std::nullopt;
 		case DELUGE_CHANNEL_READY:
 			// A short write is a card error, not a success: the template would be half a document.
@@ -394,7 +394,7 @@ std::optional<bool> collectCanaryWrite() {
 			// Displaced before we took it; writing the same bytes twice is safe. Counted for the same
 			// reason as the existence collect's.
 			g_requested = false;
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 			return std::nullopt;
 		case deluge::storage::bytes::ByteIo::Ready:
 			g_canaryConfirmed = true;
@@ -420,7 +420,7 @@ void issueUnlink(const std::string& path) {
 			g_requested = true;
 		}
 		else {
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 		}
 		return;
 	}
@@ -452,7 +452,7 @@ bool unlinkFinished(const std::string& path) {
 			return false;
 		case deluge::storage::bytes::ByteIo::Unknown:
 			g_requested = false;
-			g_attemptsWithoutProgress++;
+			(void)g_attemptBound.tick(deluge_file_bytes_progress());
 			return false;
 		case deluge::storage::bytes::ByteIo::Ready:
 		case deluge::storage::bytes::ByteIo::Failed:

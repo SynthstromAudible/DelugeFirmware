@@ -274,7 +274,9 @@ void SaveUI::saveRoutine() {
 }
 
 bool SaveUI::deferStagedSave() {
-	return !stallBound_.tick();
+	// Every step of a staged save waits on the byte channel, so only the ticks on which it finished nothing count:
+	// a save held off by a long copy waits for it, and a wedged channel still fails the save.
+	return !stallBound_.tick(deluge_file_bytes_progress());
 }
 
 void SaveUI::runSerializePhase() {

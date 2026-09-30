@@ -475,6 +475,15 @@ DelugeChannelStatus deluge_file_bytes_collect_write_from(const char* path, uint3
 /// @param buffer The buffer handed to a request, as passed (its start address).
 bool deluge_file_bytes_holds(const void* buffer) DELUGE_NOEXCEPT;
 
+/// @brief How much work the channel has finished, as a mark that moves whenever it finishes some. [task]
+///
+/// Advances once per operation finished (answered, or dropped unrun because its card has gone) and once per
+/// @ref DELUGE_FILE_BYTES_BLOCK a copy moves. A caller that is refused, or kept PENDING, reads it each tick and counts
+/// only the ticks on which it did not move against its stall bound (`deluge::io::StallBound::tick(uint32_t)`): a
+/// channel busy with someone else's long operation keeps moving, and a wedged one stands still.
+/// @return The mark. It wraps, so compare two readings for equality only.
+uint32_t deluge_file_bytes_progress(void) DELUGE_NOEXCEPT;
+
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every byte-channel operation wait @p ms milliseconds before it touches the card.
 ///
@@ -482,6 +491,14 @@ bool deluge_file_bytes_holds(const void* buffer) DELUGE_NOEXCEPT;
 /// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
 /// @param ms Milliseconds of simulated delay per operation.
 void deluge_file_bytes_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+
+/// @brief Host harness only: make each @ref DELUGE_FILE_BYTES_BLOCK a copy moves wait @p ms milliseconds first.
+///
+/// Holds the channel with a long operation that keeps making progress, as a large copy on a slow card does, where
+/// @ref deluge_file_bytes_set_latency_ms holds one that makes none. 0 (the default) means no wait. Declared only for
+/// host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
+/// @param ms Milliseconds of simulated delay per chunk.
+void deluge_file_bytes_set_chunk_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 #endif
 
 #ifdef __cplusplus

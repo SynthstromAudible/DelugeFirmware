@@ -112,6 +112,11 @@ DelugeChannelStatus deluge_file_bytes_collect_write_from(const char*, uint32_t*,
 	return DELUGE_CHANNEL_UNKNOWN;
 }
 
+uint32_t deluge_file_bytes_progress() noexcept {
+	// No channel, so no work ever finishes: every waiting tick counts.
+	return 0;
+}
+
 } // extern "C"
 
 extern "C" bool deluge_file_bytes_request_unlink(const char* /*path*/) noexcept {
