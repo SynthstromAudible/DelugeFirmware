@@ -15,6 +15,13 @@
 /// so this is a 1-byte enum on every target.
 pub type DelugeStatus = i8;
 pub const DelugeStatus_DELUGE_OK: DelugeStatus = 0;
+pub const DelugeStatus_DELUGE_ERR_PARAM: DelugeStatus = -2;
+pub const DelugeStatus_DELUGE_ERR_IO: DelugeStatus = -5;
+pub const DelugeStatus_DELUGE_ERR_NOT_FOUND: DelugeStatus = -8;
+pub const DelugeStatus_DELUGE_ERR_EXISTS: DelugeStatus = -9;
+pub const DelugeStatus_DELUGE_ERR_NO_SPACE: DelugeStatus = -10;
+pub const DelugeStatus_DELUGE_ERR_NO_FILESYSTEM: DelugeStatus = -11;
+pub const DelugeStatus_DELUGE_ERR_NOT_EMPTY: DelugeStatus = -14;
 
 /// `include/libdeluge/control_surface.h`: `DelugeInputEventKind`. PAD=0,
 /// BUTTON=1, ENCODER=2 (unused by control.rs — encoder motion arrives via
@@ -82,6 +89,13 @@ abi_layout!(self::DelugeBootInfo => sys DelugeBootInfo { pic_firmware_version, o
     factory_reset_requested });
 abi_const!(
     self::DelugeStatus_DELUGE_OK => DelugeStatus_DELUGE_OK,
+    self::DelugeStatus_DELUGE_ERR_PARAM => DelugeStatus_DELUGE_ERR_PARAM,
+    self::DelugeStatus_DELUGE_ERR_IO => DelugeStatus_DELUGE_ERR_IO,
+    self::DelugeStatus_DELUGE_ERR_NOT_FOUND => DelugeStatus_DELUGE_ERR_NOT_FOUND,
+    self::DelugeStatus_DELUGE_ERR_EXISTS => DelugeStatus_DELUGE_ERR_EXISTS,
+    self::DelugeStatus_DELUGE_ERR_NO_SPACE => DelugeStatus_DELUGE_ERR_NO_SPACE,
+    self::DelugeStatus_DELUGE_ERR_NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
+    self::DelugeStatus_DELUGE_ERR_NOT_EMPTY => DelugeStatus_DELUGE_ERR_NOT_EMPTY,
     self::DelugeInputEventKind_DELUGE_EVENT_PAD => DelugeInputEventKind_DELUGE_EVENT_PAD,
     self::DelugeInputEventKind_DELUGE_EVENT_BUTTON => DelugeInputEventKind_DELUGE_EVENT_BUTTON,
     self::DelugeInputEventKind_DELUGE_EVENT_ENCODER => DelugeInputEventKind_DELUGE_EVENT_ENCODER,

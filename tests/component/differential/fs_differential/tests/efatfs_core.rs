@@ -1,45 +1,19 @@
 //! Host coverage of the REAL `efatfs_core` handle-table logic.
 //!
-//! The device handle table (`src/efatfs_fs.rs`) is `#![cfg(target_os = "none")]`
-//! and can't be reached from any host build; its logic lives in the
-//! storage-generic `src/efatfs_core.rs`. This test `#[path]`-includes that
-//! exact source and drives it over `fs_differential`'s host `FileSystem`
-//! (`FileBlockDevice` → `BufStream` → embedded-fatfs), so the generation guard,
-//! the `FileContext` detach/reattach, and the fill loop get real execution on
-//! host.
+//! The device handle table (`storage::efatfs::device`) is device-only; its logic lives in the
+//! storage-generic `storage::efatfs::portable`. This test drives that module over
+//! `fs_differential`'s host `FileSystem` (`FileBlockDevice` → `BufStream` → embedded-fatfs), so
+//! the generation guard, the `FileContext` detach/reattach, and the fill loop run on host.
 //!
 //! DIVERGENCE: host is single-threaded `block_on`, so this validates the core's
 //! logic (round-trip, interleave, recycle guard) ONLY, not the device
 //! `static`/embassy-`Mutex` serialization — that still needs on-device
 //! verification.
 
-// Recompile the real core into this test binary (same `#[path]` convention the
-// BSP host tests use). efatfs_core depends only on embedded_fatfs +
-// embedded_io_async, both of which are fs_differential deps.
-#[path = "../../../../../src/bsp/rust/src/storage/efatfs/portable.rs"]
-mod efatfs_core;
-
-// `efatfs_core.rs`'s `use crate::sys::{DelugeStatus, ...}` expects the real
-// libdeluge bindgen output the BSP crate provides (`target_os = "none"` or
-// `feature = "host_app"`) -- this test binary is a standalone crate with
-// neither, so it needs its own stand-in, the same values
-// `include/libdeluge/types.h`'s `DelugeStatus` pins.
-#[allow(non_upper_case_globals)]
-mod sys {
-    pub type DelugeStatus = i8;
-    pub const DelugeStatus_DELUGE_ERR_PARAM: DelugeStatus = -2;
-    pub const DelugeStatus_DELUGE_ERR_IO: DelugeStatus = -5;
-    pub const DelugeStatus_DELUGE_ERR_NOT_FOUND: DelugeStatus = -8;
-    pub const DelugeStatus_DELUGE_ERR_EXISTS: DelugeStatus = -9;
-    pub const DelugeStatus_DELUGE_ERR_NO_SPACE: DelugeStatus = -10;
-    pub const DelugeStatus_DELUGE_ERR_NO_FILESYSTEM: DelugeStatus = -11;
-    pub const DelugeStatus_DELUGE_ERR_NOT_EMPTY: DelugeStatus = -14;
-}
-
 use aligned::{Aligned, A4};
 use block_device_adapters::BufStream;
 use block_device_driver::BlockDevice;
-use efatfs_core::HandleTable;
+use deluge_bsp_rust::storage::efatfs::portable::{self as efatfs_core, HandleTable};
 use embassy_futures::block_on;
 use embedded_fatfs::{DefaultTimeProvider, FileSystem, FsOptions, LossyOemCpConverter};
 use fs_differential::{efatfs::EFatFs, ram_disk::RamDisk};

@@ -19,5 +19,4 @@ pub mod host;
 /// (any target) so `efatfs_host_shim` — the
 /// host counterpart of `efatfs_fs` — can reuse it unchanged; see that module's
 /// doc.
-#[cfg(any(target_os = "none", feature = "host_app"))]
-pub(crate) mod portable;
+pub mod portable;

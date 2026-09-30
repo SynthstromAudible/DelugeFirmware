@@ -23,7 +23,7 @@ embassy-futures = "0.1.2"
 block-device-driver = { path = "../../../../crates/block-device-driver" }
 block-device-adapters = { path = "../../../../crates/block-device-adapters" }
 aligned = "0.4"
-# R2 Task 3: the `#[path]`-included `efatfs_core.rs` (tests/efatfs_core.rs)
-# uses `heapless::String<256>` for `DirEntryInfo::name` -- same version pin as
-# `deluge-bsp-rust`'s Cargo.toml.
-heapless = { version = "0.8", default-features = false }
+
+[dev-dependencies]
+# `tests/efatfs_core.rs` drives the BSP's storage-generic efatfs core.
+deluge-bsp-rust = { path = "../../../../src/bsp/rust" }
