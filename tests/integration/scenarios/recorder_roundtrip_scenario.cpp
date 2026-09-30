@@ -776,9 +776,9 @@ extern "C" void deluge_scenario_ticked_report() {
 }
 
 extern "C" int32_t deluge_scenario_run_recorder_roundtrip() {
-	// Whether this binary can reach the async write driver at all. A module missing from
-	// golden_vt_render's `#[path]` list resolves to the C++ weak fallback, every write takes the
-	// synchronous arm, and every check below still passes -- so the wiring is measured, not assumed.
+	// Whether this binary can reach the async write driver at all. There is no C++ fallback for
+	// `deluge_file_write_async_active`, so a module missing from golden_vt_render's `#[path]` list
+	// would fail the link -- this measures the wiring directly rather than assuming the build proves it.
 	printf("RW-ACTIVE asyncActive=%d\n", (int)deluge_file_write_async_active());
 	g_failures = 0;
 	g_cases = 0;

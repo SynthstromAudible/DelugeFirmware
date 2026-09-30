@@ -1,9 +1,9 @@
 """The recorder write-relocation gate: the recorder_roundtrip scenario, then the offline drain.
 
 What each check covers, and why each is separate:
-  RW-ACTIVE     that this binary reaches the Rust write driver at all. A module missing from the harness's module
-                list resolves to the C++ weak fallback, and every write would then take the synchronous arm while
-                everything below stayed green.
+  RW-ACTIVE     that this binary reaches the Rust write driver at all. There is no C++ fallback for
+                `deluge_file_write_async_active`, so a module missing from the harness's module list fails the
+                build rather than silently taking the synchronous arm.
   RW-ROUNDTRIP  that a real recording still reads back byte-correctly, mid-recording AND finalized multi-cluster. It
                 is the half that catches a change that relocated the write and broke the recording on the way: a
                 recycled stream handle collecting a previous recorder's answer shows up as exactly this, and nothing

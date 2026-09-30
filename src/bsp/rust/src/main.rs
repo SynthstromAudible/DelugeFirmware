@@ -141,9 +141,9 @@ mod audio_host;
 /// — and publishes a plain result the C++ side collects on its own tier. It calls
 /// no C++ itself; see its module doc for the two constraints that force that. Compiled
 /// on the Embassy BSP unconditionally (device, or host under `host_app`) so
-/// `deluge_audio_load_async_active`/`_request`/`_collect` always resolve to this
-/// crate's strong symbols rather than `audio_load_abi.cpp`'s weak fallbacks. The loader has no switch -- see its module
-/// doc's "Always on".
+/// `deluge_audio_load_async_active`/`_request`/`_collect` are always defined --
+/// `audio_load_abi.cpp` declares no fallback for them, so omitting this module would leave them
+/// undefined at link time. The loader has no switch -- see its module doc's "Always on".
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod audio_loader;
 /// The drive's render-window pacing, which `audio` runs.

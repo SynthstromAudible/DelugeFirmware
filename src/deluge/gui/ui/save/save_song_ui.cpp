@@ -296,8 +296,8 @@ void SaveSongUI::runExistsPhase() {
 		return;
 	}
 
-	// After boot, so the byte channel is here: the Rust BSP always has it, and a C++-only build never
-	// finishes booting, so it never reaches this line.
+	// After boot, so the byte channel is here: the Rust BSP always has it, and the unit tests, which link no
+	// BSP, never finish booting, so they never reach this line.
 	++channelDocumentTicks_;
 	bool present = false;
 	DelugeStatus status = DELUGE_OK;

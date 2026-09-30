@@ -377,9 +377,10 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 
 /// @brief Run @p fn inline during boot, and nowhere else.
 ///
-/// Before boot has finished (and always, in a C++-only build) blocking on the card is legal and nothing yet answers a
-/// channel. After it the channels are the only place card I/O may start from, so an operation that reaches here then is
-/// one the channel could not carry (a document over its bound). It is not run, not dispatched, and it is counted in
+/// Before boot has finished (and always, in the unit tests, which link no BSP) blocking on the card is legal and
+/// nothing yet answers a channel. After it the channels are the only place card I/O may start from, so an operation
+/// that reaches here then is one the channel could not carry (a document over its bound). It is not run, not
+/// dispatched, and it is counted in
 /// @ref illegalInline.
 /// @param fn  The consumer's synchronous body.
 /// @param ctx Passed through to @p fn.
