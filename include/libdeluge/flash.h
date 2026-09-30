@@ -25,6 +25,7 @@
 #ifndef LIBDELUGE_FLASH_H
 #define LIBDELUGE_FLASH_H
 
+#include "abi.h"
 #include "types.h"
 
 #ifdef __cplusplus
@@ -32,14 +33,14 @@ extern "C" {
 #endif
 
 /// Read `len` bytes from `offset` within the settings flash region. [task]
-void deluge_flash_read(uint32_t offset, void* dst, uint32_t len);
+void deluge_flash_read(uint32_t offset, void* dst, uint32_t len) DELUGE_NOEXCEPT;
 
 /// Erase the flash sector containing `offset`. [task]
-void deluge_flash_erase(uint32_t offset);
+void deluge_flash_erase(uint32_t offset) DELUGE_NOEXCEPT;
 
 /// Program `len` bytes at `offset`. The containing sector must have been erased
 /// first (NOR flash can only clear bits on erase). [task]
-void deluge_flash_program(uint32_t offset, const void* src, uint32_t len);
+void deluge_flash_program(uint32_t offset, const void* src, uint32_t len) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

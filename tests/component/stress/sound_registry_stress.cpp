@@ -23,13 +23,13 @@ namespace {
 std::recursive_mutex g_critical_section;
 }
 
-extern "C" void ENTER_CRITICAL_SECTION() {
+extern "C" void ENTER_CRITICAL_SECTION() noexcept {
 	g_critical_section.lock();
 }
-extern "C" void EXIT_CRITICAL_SECTION() {
+extern "C" void EXIT_CRITICAL_SECTION() noexcept {
 	g_critical_section.unlock();
 }
-extern "C" bool deluge_in_audio_context() {
+extern "C" bool deluge_in_audio_context() noexcept {
 	return false;
 }
 

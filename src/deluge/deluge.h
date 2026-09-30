@@ -24,15 +24,13 @@ extern "C" {
 #endif
 extern int main(void);
 
-extern void midiAndGateTimerGoneOff(void);
-
 extern void routineWithClusterLoading(void);
 
 extern void logAudioAction(char const* string);
 
 extern void consoleTextIfAllBootedUp(char const* text);
-// scheduler_api.h's predicate type, repeated because deluge.h is included very widely (incl. vendored libs) and must
-// not depend on the boundary headers.
+// libdeluge/scheduler.h's predicate type, repeated because deluge.h is included very widely (incl. vendored libs)
+// and must not depend on the boundary headers.
 typedef bool (*RunCondition)();
 
 extern void setTimeUSBInitializationEnds(int32_t timeFromNow);

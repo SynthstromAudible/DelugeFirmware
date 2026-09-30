@@ -31,6 +31,7 @@
 #ifndef LIBDELUGE_SAMPLE_READER_H
 #define LIBDELUGE_SAMPLE_READER_H
 
+#include "abi.h"
 #include "libdeluge/sample_source.h" // DelugeSampleGeometry
 #include <stdbool.h>
 #include <stddef.h>
@@ -76,7 +77,7 @@ typedef struct DelugeFrameWindow {
 } DelugeFrameWindow;
 
 /// @brief Open a reader over `source_id`'s sample residency, positioned at `start_frame` and reading
-///        in `direction`.
+///        in `direction`. [task]
 ///
 /// `source_id` is the resource-manager Asset id the facade already defines for this sample — see
 /// `deluge_streaming_define_asset`; the voice port and this one share the same residency per sample.
@@ -86,9 +87,9 @@ typedef struct DelugeFrameWindow {
 /// @param hint        Steers eviction pressure — see DelugeReadHint.
 /// @return A new reader handle; the caller must eventually pass it to deluge_sample_reader_close.
 DelugeSampleReader* deluge_sample_reader_open(uint32_t source_id, uint64_t start_frame, int8_t direction,
-                                              DelugeReadHint hint);
+                                              DelugeReadHint hint) DELUGE_NOEXCEPT;
 
-/// @brief The contiguous run of valid, already-converted frames at the cursor.
+/// @brief The contiguous run of valid, already-converted frames at the cursor. [task]
 ///
 /// Never blocks: a cluster that is not resident has its fill requested from the async drain, and
 /// the call reports a read failure until a later call finds it ready. Self-pins the window's
@@ -96,40 +97,40 @@ DelugeSampleReader* deluge_sample_reader_open(uint32_t source_id, uint64_t start
 /// @param reader The reader to read from.
 /// @return The window at the cursor; `frame_count == 0` means end-of-audio (or a hard read failure
 ///         — see deluge_sample_reader_ok).
-DelugeFrameWindow deluge_sample_reader_window(DelugeSampleReader* reader);
+DelugeFrameWindow deluge_sample_reader_window(DelugeSampleReader* reader) DELUGE_NOEXCEPT;
 
-/// @brief Advance the cursor `frames` frames, in the reader's own `direction`.
+/// @brief Advance the cursor `frames` frames, in the reader's own `direction`. [task]
 ///
 /// Crosses cluster boundaries internally: releases the old pin, acquires and pins the next. The
 /// next deluge_sample_reader_window call reflects the new position.
 /// @param reader The reader to advance.
 /// @param frames Number of frames to advance by.
-void deluge_sample_reader_advance(DelugeSampleReader* reader, uint32_t frames);
+void deluge_sample_reader_advance(DelugeSampleReader* reader, uint32_t frames) DELUGE_NOEXCEPT;
 
 /// @brief Random-access reposition to `frame` (for the both-directions hop search); like `open()`
-///        without re-allocating a reader.
+///        without re-allocating a reader. [task]
 ///
 /// Releases any pin the reader currently holds — the next `window()` re-pins at the new position.
 /// @param reader The reader to reposition.
 /// @param frame  Sample-frame index to seek to.
-void deluge_sample_reader_seek(DelugeSampleReader* reader, uint64_t frame);
+void deluge_sample_reader_seek(DelugeSampleReader* reader, uint64_t frame) DELUGE_NOEXCEPT;
 
-/// @brief Whether the reader is still healthy.
+/// @brief Whether the reader is still healthy. [task]
 ///
 /// False only if the last `deluge_sample_reader_window` call failed to make its data resident (card
 /// error / out of memory) — distinct from ordinary end-of-audio, which is reported via
 /// `DelugeFrameWindow::frame_count == 0` instead.
 /// @param reader The reader to query.
 /// @return `true` unless the last window read hard-failed.
-bool deluge_sample_reader_ok(const DelugeSampleReader* reader);
+bool deluge_sample_reader_ok(const DelugeSampleReader* reader) DELUGE_NOEXCEPT;
 
-/// @brief Release the reader and any pin it still holds.
+/// @brief Release the reader and any pin it still holds. [task]
 /// @param reader The reader to close.
-void deluge_sample_reader_close(DelugeSampleReader* reader);
+void deluge_sample_reader_close(DelugeSampleReader* reader) DELUGE_NOEXCEPT;
 
 /// @brief Stateless, passive resident-peek: the resident, already-converted frames at `start_frame`
 ///        of `source_id`'s residency, as a zero-copy run to the CONTAINING CLUSTER's own boundary in
-///        `direction`.
+///        `direction`. [task] [audio]
 ///
 /// Takes NO lease, bumps NO recency, triggers NO load on a miss, and prefetches NO neighbouring
 /// cluster — safe to call from the audio render thread.
@@ -153,9 +154,9 @@ void deluge_sample_reader_close(DelugeSampleReader* reader);
 ///         extends toward HIGHER addresses (forward, up to the cluster's own last resident frame);
 ///         for `-1` it extends toward LOWER addresses (backward, down to the cluster's own first
 ///         frame) — the caller walks DOWN from `frames` in that case, not up from some earlier start.
-DelugeFrameWindow deluge_sample_peek(uint32_t source_id, uint64_t start_frame, int8_t direction);
+DelugeFrameWindow deluge_sample_peek(uint32_t source_id, uint64_t start_frame, int8_t direction) DELUGE_NOEXCEPT;
 
-/// @brief Invalidate every currently-resident cluster of `source_id`'s sample.
+/// @brief Invalidate every currently-resident cluster of `source_id`'s sample. [task]
 ///
 /// Cancels any queued/in-flight loads and marks each resident cluster unloadable, so a mid-flight
 /// async fill will not complete with stale bytes. Used when the sample's backing file has gone
@@ -163,7 +164,7 @@ DelugeFrameWindow deluge_sample_peek(uint32_t source_id, uint64_t start_frame, i
 /// overview-scan reset; this handles only the per-cluster residency. Idempotent; a no-op on a sample
 /// with no resident clusters.
 /// @param source_id Resource-manager Asset id for the sample.
-void deluge_sample_invalidate(uint32_t source_id);
+void deluge_sample_invalidate(uint32_t source_id) DELUGE_NOEXCEPT;
 
 /// @brief A per-reservation passive lookahead handle. Opaque; owned by the backend.
 ///
@@ -192,18 +193,18 @@ typedef enum DelugeLoadMode : uint8_t {
 
 /// @brief Open a passive lookahead reservation over `source_id`'s sample residency, pinning up to a
 ///        fixed small depth of clusters starting at the cluster containing `marker_frame`, walking
-///        in `direction`.
+///        in `direction`. [task] [audio]
 /// @param source_id    Resource-manager Asset id for the sample.
 /// @param marker_frame A sample-frame index (frame 0 == the sample's first audio-data frame).
 /// @param direction    +1 forward, -1 reverse.
 /// @param load_mode    How the covered clusters are loaded — see DelugeLoadMode.
 /// @return A new reservation handle; the caller must eventually pass it to deluge_sample_reserve_close.
 DelugeSampleReservation* deluge_sample_reserve_open(uint32_t source_id, uint64_t marker_frame, int8_t direction,
-                                                    DelugeLoadMode load_mode);
+                                                    DelugeLoadMode load_mode) DELUGE_NOEXCEPT;
 
 /// @brief Re-anchor `res` to the cluster containing `marker_frame`, walking in `direction` exactly
 ///        as `deluge_sample_reserve_open` does, rebinding it to @p source_id first if that differs
-///        from the Asset it currently holds.
+///        from the Asset it currently holds. [task] [audio]
 ///
 /// Guarded: if `marker_frame` maps to the SAME cluster `res` is already anchored on, this is a
 /// no-op — no lease is released or acquired, avoiding per-render-tick lease churn while a marker
@@ -222,15 +223,15 @@ DelugeSampleReservation* deluge_sample_reserve_open(uint32_t source_id, uint64_t
 ///                     exactly the sample-preview E199 (see the 2026-08-15 async-note-on-residency
 ///                     design doc).
 void deluge_sample_reserve_move(DelugeSampleReservation* res, uint32_t source_id, uint64_t marker_frame,
-                                int8_t direction, DelugeLoadMode load_mode);
+                                int8_t direction, DelugeLoadMode load_mode) DELUGE_NOEXCEPT;
 
-/// @brief Release `res` and every lease it still holds.
+/// @brief Release `res` and every lease it still holds. [task] [audio]
 /// @param res The reservation to close.
-void deluge_sample_reserve_close(DelugeSampleReservation* res);
+void deluge_sample_reserve_close(DelugeSampleReservation* res) DELUGE_NOEXCEPT;
 
 /// @brief Convenience for cold one-shots: copy `[start_frame, start_frame + num_frames)`
 ///        native-format frames of `source_id`'s sample into `dest`. Never blocks: the copy stops
-///        short at the first cluster that is not yet resident.
+///        short at the first cluster that is not yet resident. [task]
 ///
 /// Internally an open → window/copy loop → close (one path, not a second implementation) —
 /// equivalent to driving the handle API by hand with DELUGE_READ_CACHED.
@@ -241,7 +242,7 @@ void deluge_sample_reserve_close(DelugeSampleReservation* res);
 /// @param dest_bytes  Capacity of `dest`, in bytes; bounds the write (never writes past it).
 /// @return Frames actually written (short at end-of-audio).
 uint32_t deluge_sample_read(uint32_t source_id, uint64_t start_frame, uint32_t num_frames, void* dest,
-                            size_t dest_bytes);
+                            size_t dest_bytes) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

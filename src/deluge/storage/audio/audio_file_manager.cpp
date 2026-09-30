@@ -26,7 +26,7 @@
 #include "io/file.hpp"
 #include "io/midi/midi_device_manager.h"
 #include "io/stream.hpp"
-#include "libdeluge/audio_load.h" // the async loader's request/collect pair + the sample build
+#include "libdeluge/audio_load.h" // the async loader's request/collect pair
 #include "libdeluge/block_device.h"
 #include "libdeluge/card.h" // deluge_card_flush
 #include "libdeluge/file_directory.h"
@@ -48,6 +48,7 @@
 #include "storage/audio/audio_load_abi.h" // deluge::storage::errorFromAbiByte
 #include "storage/audio/file_byte_source.h"
 #include "storage/audio/load_trace.h"
+#include "storage/audio/sample_build.h"
 #include "storage/byte_channel.h"
 #include "storage/cluster/cluster.h"
 #include "storage/existence_policy.h"
@@ -62,6 +63,7 @@
 #include <cstring> // std::memchr (<string.h> alone only guarantees the global-namespace names)
 #include <new>
 #include <string.h>
+#include <string_view>
 #include <strings.h>
 
 AudioFileManager audioFileManager{};
@@ -129,7 +131,7 @@ void AudioFileManager::init() {
 		uint32_t clusterBytes = 0;
 		// Shouldn't fail right after a successful mount, but never let a 0 cluster size through -
 		// Cluster::set_size(0) would make every file read request 0 bytes.
-		if (!deluge_efatfs_cluster_size(&clusterBytes)) {
+		if (deluge_efatfs_cluster_size(&clusterBytes) != DELUGE_OK) {
 			clusterBytes = Cluster::kSizeFAT16Max;
 		}
 		Cluster::set_size(clusterBytes);
@@ -163,7 +165,7 @@ void AudioFileManager::cardReinserted() {
 	// unavailable query fall through to the "stayed the same" branch below - never a spurious
 	// increased/decreased trip.
 	uint32_t newClusterSize = Cluster::size;
-	deluge_efatfs_cluster_size(&newClusterSize);
+	(void)deluge_efatfs_cluster_size(&newClusterSize);
 
 	// If cluster size has increased, we're in trouble
 	if (newClusterSize > Cluster::size) {
@@ -302,17 +304,17 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 			}
 		}
 		else {
-			uint32_t dirHandle = 0;
+			DelugeHandle dirHandle = DELUGE_HANDLE_NONE;
 			DelugeStatus dirStatus = DELUGE_OK;
 			switch (deluge_file_directory_collect(audioRecordingFolderNames[folderID], &dirHandle, &dirStatus)) {
-			case DELUGE_FILE_DIRECTORY_READY:
+			case DELUGE_CHANNEL_READY:
 				dir.emplace(deluge::io::Directory::adopt(dirHandle));
 				break;
-			case DELUGE_FILE_DIRECTORY_UNKNOWN:
+			case DELUGE_CHANNEL_UNKNOWN:
 				// "Request it (again)" -- and this is also where the FIRST request is issued.
 				deluge_file_directory_request(audioRecordingFolderNames[folderID], /*create_if_missing=*/false);
 				return Error::LISTING_DEFERRED;
-			case DELUGE_FILE_DIRECTORY_PENDING:
+			case DELUGE_CHANNEL_PENDING:
 				// Do NOT re-request: that would replace a request about to be served.
 				return Error::LISTING_DEFERRED;
 			default:
@@ -776,7 +778,7 @@ std::optional<AudioFile*> AudioFileManager::tryConvertResidentSample(Sample& sam
 	geometry.byte_depth = sample.byteDepth;
 	geometry.num_channels = sample.numChannels;
 	geometry.raw_data_format = static_cast<uint8_t>(sample.rawDataFormat);
-	DelugeSampleSource* source = deluge_sample_source_open(&sample.stream(), geometry);
+	DelugeSampleSource* source = deluge_sample_source_open(deluge::audio::stream::toAbi(sample.stream()), geometry);
 	if (source == nullptr) {
 		return std::nullopt;
 	}
@@ -991,7 +993,7 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
 	DelugeAudioLoadResult result{};
 	switch (deluge_audio_load_collect(filePath.c_str(), &result)) {
 
-	case DELUGE_AUDIO_LOAD_READY:
+	case DELUGE_CHANNEL_READY:
 		if (result.error != static_cast<uint8_t>(Error::NONE)) {
 			return answerFailedLoadResult(context, filePath, result.error, error, asyncMode);
 		}
@@ -1006,13 +1008,13 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
 		// The bytes are already in hand: build and publish the Sample right here, synchronously.
 		return buildSampleFromLoadResult(filePath, result, error);
 
-	case DELUGE_AUDIO_LOAD_PENDING:
+	case DELUGE_CHANNEL_PENDING:
 		// Queued or in flight. Not a failure, and NOT a reason to request again -- the loader is
 		// already working on this exact path (which is why this keeps no in-flight table of its own).
 		*error = Error::LOAD_IN_PROGRESS;
 		return nullptr;
 
-	case DELUGE_AUDIO_LOAD_UNKNOWN:
+	case DELUGE_CHANNEL_UNKNOWN:
 	default:
 		if (asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly
 		    && context.alternateDirStatus == AlternateLoadDirStatus::PROBING
@@ -1085,15 +1087,15 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::stora
 	// as saying the two paths agree on every FILE_UNREADABLE.
 	//
 	// Closing it needs the loader to distinguish its own producers, i.e. another code hand-kept in step
-	// across a boundary nothing cross-checks (audio_load.h has no bindgen coverage). That trade was
-	// weighed and declined; this comment is the record of what it left behind.
+	// across the loader's boundary. That trade was weighed and declined; this comment is the record of what it left
+	// behind.
 	//
 	// The `!= MIGHT_EXIST` re-check is what bounds this to one attempt per load, structurally rather
 	// than by counting: the retry only happens when the probe actually moved the status, so the guard
 	// above is necessarily false next time round.
 	if (failureErrorFromAbiByte(resultError) == Error::FILE_UNREADABLE
 	    && context.alternateDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
-	    && deluge_audio_load_resolve_alternate_dir(deluge::storage::toAbi(context), nullptr)
+	    && deluge::storage::sample_build::resolveAlternateDir(&context, nullptr)
 	    && context.alternateDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
 		// The alternate dir exists after all, so there are candidates this request did not carry --
 		// exactly what resolveFileSize does at this same point. A decline here is passed straight
@@ -1188,8 +1190,11 @@ bool AudioFileManager::collectFolderProbe(deluge::storage::AudioLoadContext& con
 
 AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePath, const DelugeAudioLoadResult& result,
                                                        Error* error) {
-	const auto fail = [&](uint8_t abiError) -> AudioFile* {
-		*error = failureErrorFromAbiByte(abiError);
+	namespace sample_build = deluge::storage::sample_build;
+	// Never Error::NONE on a failure: a caller reading nullptr with *error still NONE would take it for
+	// "not on the card" rather than the failure it is.
+	const auto fail = [&](Error cause) -> AudioFile* {
+		*error = (cause != Error::NONE) ? cause : Error::BUG;
 		return nullptr;
 	};
 
@@ -1197,45 +1202,46 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 		// Not reachable through collectAsyncSampleLoad, which routes a verdict to
 		// answerFailedLoadResult before this is called. Kept so a future second caller cannot build a
 		// Sample out of a result whose geometry was never filled in.
-		return fail(result.error);
+		return fail(failureErrorFromAbiByte(result.error));
 	}
 
-	uint8_t abiError = static_cast<uint8_t>(Error::NONE);
-	DelugeSampleBuild* build =
-	    deluge_audio_load_begin(filePath.c_str(), result.alternate_path, result.size_bytes, &abiError);
+	Error buildError = Error::NONE;
+	sample_build::SampleBuild* build =
+	    sample_build::begin(filePath, result.alternate_path, result.size_bytes, &buildError);
 	if (build == nullptr) {
-		return fail(abiError); // nothing adopted, nothing to abandon
+		return fail(buildError); // nothing adopted, nothing to abandon
 	}
 
-	// From here the Sample is adopted and reasoned, so EXACTLY one of deluge_audio_load_finish or
-	// deluge_audio_load_abandon must run on every path out of this function -- see audio_load.h's
-	// ownership note for what an escape leaves behind (an unevictable, zero-geometry Sample that every
-	// fill-context consumer silently resolves nothing for).
+	// From here the Sample is adopted and reasoned, so EXACTLY one of finish or abandon must run on
+	// every path out of this function -- see sample_build.h's ownership note for what an escape leaves
+	// behind (an unevictable, zero-geometry Sample that every fill-context consumer silently resolves
+	// nothing for).
 
 	// The Sample's own streaming read handle: a build published without it loads with no error and
 	// plays silence forever. Open the file the size and geometry actually came from -- the alternate
 	// location if the loader resolved one, the nominal path otherwise.
-	const char* pathToOpen = (result.alternate_path[0] != '\0') ? result.alternate_path : filePath.c_str();
-	abiError = deluge_audio_load_bind_read_stream(build, pathToOpen);
-	if (abiError != static_cast<uint8_t>(Error::NONE)) {
-		deluge_audio_load_abandon(build);
-		return fail(abiError);
+	const std::string_view pathToOpen =
+	    (result.alternate_path[0] != '\0') ? std::string_view{result.alternate_path} : std::string_view{filePath};
+	buildError = sample_build::bindReadStream(build, pathToOpen);
+	if (buildError != Error::NONE) {
+		sample_build::abandon(build);
+		return fail(buildError);
 	}
 
 	// Refusable, and refused rather than degraded for a reason (an invalid raw_data_format renders
 	// wrong while loading without error) -- so this return is checked, not assumed.
-	if (!deluge_audio_load_apply_geometry(build, &result.geometry, &abiError)) {
-		deluge_audio_load_abandon(build);
-		return fail(abiError);
+	if (!sample_build::applyGeometry(build, result.geometry, &buildError)) {
+		sample_build::abandon(build);
+		return fail(buildError);
 	}
 
-	abiError = static_cast<uint8_t>(Error::NONE);
-	DelugeAudioFile* published = nullptr;
-	if (!deluge_audio_load_finish(build, static_cast<uint8_t>(Error::NONE), &abiError, &published)) {
+	buildError = Error::NONE;
+	AudioFile* published = sample_build::finish(build, Error::NONE, &buildError);
+	if (published == nullptr) {
 		// Publishing itself failed (e.g. the cache insert ran out of memory). finish() consumed the
-		// build either way, so there is nothing left to abandon -- and its error_out, not our
-		// Error::NONE input, is the outcome to report.
-		return fail(abiError);
+		// build either way, so there is nothing left to abandon -- and its reported outcome, not our
+		// Error::NONE input, is what to report.
+		return fail(buildError);
 	}
 
 	// The published object comes back from finish() itself rather than being searched for again: it is
@@ -1243,7 +1249,7 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 	// keyed by the path passed to begin() (the SYNTH/KIT alternate-location rule rewrites it), so a
 	// re-search would be both a window and an assumption. The synchronous path holds the pointer for
 	// exactly the same reason.
-	return reinterpret_cast<AudioFile*>(published);
+	return published;
 }
 
 bool AudioFileManager::admissibleAsyncLoadPath(std::string_view path) {
@@ -1251,19 +1257,19 @@ bool AudioFileManager::admissibleAsyncLoadPath(std::string_view path) {
 	// `cstr_to_path`/`decode_candidates`), and both must: a path this accepts and the loader refuses is
 	// a load that can never complete, while one this refuses and the loader would have accepted only
 	// costs a synchronous load.
-	return path.size() < DELUGE_MAX_PATH && deluge::string::isValidUtf8(path);
+	return path.size() < DELUGE_PATH_MAX && deluge::string::isValidUtf8(path);
 }
 
 bool AudioFileManager::admissibleAsyncCandidates(const char* candidates, uint32_t numCandidates) {
 	for (uint32_t i = 0; i < numCandidates; i++) {
-		const char* slot = candidates + (static_cast<size_t>(i) * DELUGE_MAX_PATH);
-		// Each slot is NUL-terminated within DELUGE_MAX_PATH by deluge_audio_load_candidates, which
+		const char* slot = candidates + (static_cast<size_t>(i) * DELUGE_PATH_MAX);
+		// Each slot is NUL-terminated within DELUGE_PATH_MAX by sample_build::candidates, which
 		// reports an over-long candidate as untrustworthy rather than writing it -- reading the length
 		// with a bound is belt and braces against that contract changing, not a second opinion about
 		// it. An unterminated slot measures the full width, which admissibleAsyncLoadPath refuses (the
 		// loader's decoder refuses it too, for the same reason: there is no path there to trust).
-		const auto* terminator = static_cast<const char*>(std::memchr(slot, '\0', DELUGE_MAX_PATH));
-		const size_t length = (terminator != nullptr) ? static_cast<size_t>(terminator - slot) : DELUGE_MAX_PATH;
+		const auto* terminator = static_cast<const char*>(std::memchr(slot, '\0', DELUGE_PATH_MAX));
+		const size_t length = (terminator != nullptr) ? static_cast<size_t>(terminator - slot) : DELUGE_PATH_MAX;
 		if (!admissibleAsyncLoadPath(std::string_view{slot, length})) {
 			return false;
 		}
@@ -1296,10 +1302,9 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(deluge::stora
 	// has actually missed (see answerFailedLoadResult, which resolves and asks again). Under
 	// MIGHT_EXIST that means the first request carries only the regular path -- exactly the one
 	// candidate resolveFileSize tries first from the same state.
-	std::array<char, kMaxLoadCandidates * DELUGE_MAX_PATH> candidates{};
-	const uint32_t proposed =
-	    deluge_audio_load_candidates(deluge::storage::toAbi(context), filePath.c_str(), candidates.data(),
-	                                 static_cast<uint32_t>(kMaxLoadCandidates));
+	std::array<char, kMaxLoadCandidates * DELUGE_PATH_MAX> candidates{};
+	const uint32_t proposed = deluge::storage::sample_build::candidates(&context, filePath, candidates.data(),
+	                                                                    static_cast<uint32_t>(kMaxLoadCandidates));
 	if (proposed == DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED || proposed == 0) {
 		// No trustworthy candidate list to hand over: a candidate too long to fit, or a candidate
 		// construction that failed. Decline rather than request, and let the synchronous path -- which
@@ -1556,7 +1561,7 @@ void AudioFileManager::reinitEjectedCard() {
 	// drop-and-remount a card swap needs -- and with no remount, the mount-generation counter
 	// StorageManager tracks (noticeCardMount()) never sees an edge either, so firstCardRead()
 	// would never fire.
-	if (!deluge_efatfs_remount()) {
+	if (deluge_efatfs_remount() != DELUGE_OK) {
 		return; // Remount failed (e.g. unreadable card) - stay ejected, retry next tick.
 	}
 	cardEjected = false;

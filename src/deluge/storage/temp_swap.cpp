@@ -27,8 +27,8 @@
 namespace deluge::storage {
 
 namespace {
-/// The longest path the byte and stream channels key, in characters: `DELUGE_FILE_BYTES_MAX_PATH` less its NUL.
-constexpr size_t kMaxPathChars = DELUGE_FILE_BYTES_MAX_PATH - 1;
+/// The longest path the byte and stream channels key, in characters: `DELUGE_PATH_MAX` less its NUL.
+constexpr size_t kMaxPathChars = DELUGE_PATH_MAX - 1;
 constexpr std::string_view kTempSuffix = ".tmp";
 } // namespace
 

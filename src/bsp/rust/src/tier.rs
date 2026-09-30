@@ -109,10 +109,20 @@ pub async fn scoped<F: Future>(t: Tier, f: F) -> F::Output {
     .await
 }
 
+/// `libdeluge/tier.h`'s `DelugeTier`, which [`deluge_tier_current`] returns. Spelled here rather than taken from
+/// `sys` because the host tests compile this file without one; the pins below hold it to the header.
+pub type DelugeTier = u8;
+
 /// C-ABI twin of [`current`] (`include/libdeluge/tier.h`).
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_tier_current() -> u8 {
-    current() as u8
+pub extern "C" fn deluge_tier_current() -> DelugeTier {
+    current() as DelugeTier
 }
 
 abi_pin!(deluge_tier_current);
+abi_layout!(type DelugeTier => sys DelugeTier);
+abi_const!(
+    Tier::Interaction as u8 => DelugeTier_DELUGE_TIER_INTERACTION,
+    Tier::Storage as u8 => DelugeTier_DELUGE_TIER_STORAGE,
+    Tier::Audio as u8 => DelugeTier_DELUGE_TIER_AUDIO,
+);

@@ -5,9 +5,9 @@
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """The libdeluge C ABI's surface: every declared function, where it is defined, and who calls it.
 
-Declarations are read from ``include/libdeluge/*.h`` and ``src/OSLikeStuff/scheduler_api.h``. A function is
-*defined* by a Rust ``fn`` in ``src/bsp/rust/src`` or ``crates/*/src``, or by a C/C++ body in ``src/``. Mocks in
-``tests/`` are reported apart, because a mock of a function nobody calls keeps nothing alive.
+Declarations are read from ``include/libdeluge/*.h``. A function is *defined* by a Rust ``fn`` in
+``src/bsp/rust/src`` or ``crates/*/src``, or by a C/C++ body in ``src/``. Mocks in ``tests/`` are reported
+apart, because a mock of a function nobody calls keeps nothing alive.
 
 ``--pins`` requires an ``abi_pin!`` for every Rust definition and every Rust ``extern "C"`` import of a declared
 function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test)]`` stubs are exempt.
@@ -24,6 +24,8 @@ Usage:
     scripts/check_abi_surface.py --dead       # declared functions nothing calls
     scripts/check_abi_surface.py --check      # exit 1 if a declared function has no definition
     scripts/check_abi_surface.py --pins       # exit 1 if a declared function Rust defines or imports has no abi_pin!
+    scripts/check_abi_surface.py --tags       # exit 1 if a declared function's doc has no [task]/[audio]/[isr] tag
+    scripts/check_abi_surface.py --noexcept   # exit 1 if a declared function does not end DELUGE_NOEXCEPT
     scripts/check_abi_surface.py NAME...      # the rows for these functions
 """
 
@@ -33,9 +35,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h")) + [
-    ROOT / "src" / "OSLikeStuff" / "scheduler_api.h"
-]
+HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h"))
 
 BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 LINE_COMMENT = re.compile(r"//[^\n]*")
@@ -44,13 +44,19 @@ LINE_COMMENT = re.compile(r"//[^\n]*")
 _QUALIFIER = (
     r"(?:DELUGE_NOEXCEPT|noexcept|__attribute__\s*\(\((?:[^()]|\([^()]*\))*\)\))"
 )
-# A declaration: one to four type words or stars, a name, a parameter list, trailing qualifiers, a `;`.
+# A declaration: one to four type words or stars, a name, a parameter list, trailing qualifiers (group
+# `qualifiers`), a `;`.
 DECLARATION = re.compile(
-    r"(?m)^[ \t]*((?:[A-Za-z_]\w*[ \t\*]+){1,4})([A-Za-z_]\w*)\s*\(([^;{()]|\([^;{()]*\))*\)\s*(?:"
+    r"(?m)^[ \t]*((?:[A-Za-z_]\w*[ \t\*]+){1,4})([A-Za-z_]\w*)\s*\(([^;{()]|\([^;{()]*\))*\)\s*(?P<qualifiers>(?:"
     + _QUALIFIER
-    + r"\s*)*;"
+    + r"\s*)*);"
 )
 NOT_A_RETURN_TYPE = {"typedef", "return", "if", "while", "sizeof", "define"}
+# A calling-context tag: a context a function may be called from. Not part of a longer bracketed expression
+# (`arr[isr]`, `x[0][task]`), so an index in a code example is not read as a tag.
+TAG = re.compile(r"(?<![\w\]])\[(task|audio|isr)\]")
+# The lines a doc block is made of: `///`, `/**` and the ` *` continuation lines of a `/** */` block.
+DOC_LINE = re.compile(r"^\s*(?:///|/\*\*|\*)")
 
 
 def strip_comments(text: str) -> str:
@@ -65,6 +71,63 @@ def declared() -> dict[str, Path]:
             if words and words[0] not in NOT_A_RETURN_TYPE:
                 names.setdefault(match.group(2), header)
     return names
+
+
+def blank_comments(text: str) -> str:
+    """`text` with every comment's characters replaced by spaces, newlines kept, so offsets and line numbers still
+    match `text`."""
+
+    def blank(match: re.Match[str]) -> str:
+        return re.sub(r"[^\n]", " ", match.group())
+
+    return LINE_COMMENT.sub(blank, BLOCK_COMMENT.sub(blank, text))
+
+
+def untagged(headers: list[Path] = HEADERS) -> list[str]:
+    """Declared functions with no context tag in their doc block or in a `///<` comment on the declaration.
+
+    Each declaration is located by its match in the comment-blanked header, not by searching for its name. Its doc
+    block is the `///`, `/**` or ` *` lines directly above it; any other line, such as a `//` banner, ends it."""
+    missing = []
+    for header in headers:
+        text = header.read_text()
+        lines = text.splitlines()
+        for match in DECLARATION.finditer(blank_comments(text)):
+            words = match.group(1).split()
+            if not words or words[0] in NOT_A_RETURN_TYPE:
+                continue
+            first = text.count("\n", 0, match.start(2))
+            last = text.count("\n", 0, match.end())
+            doc = []
+            i = first - 1
+            while i >= 0 and DOC_LINE.match(lines[i]):
+                doc.append(lines[i])
+                i -= 1
+            trailing = [
+                line[line.index("///<") :]
+                for line in lines[first : last + 1]
+                if "///<" in line
+            ]
+            if not TAG.search("\n".join(doc + trailing)):
+                missing.append(match.group(2))
+    return missing
+
+
+def not_noexcept(headers: list[Path] = HEADERS) -> list[str]:
+    """Declared functions whose declaration does not end `DELUGE_NOEXCEPT` before its `;`, as `name (header:line)`."""
+    missing = []
+    for header in headers:
+        text = blank_comments(header.read_text())
+        for match in DECLARATION.finditer(text):
+            words = match.group(1).split()
+            if not words or words[0] in NOT_A_RETURN_TYPE:
+                continue
+            if not re.search(r"\bDELUGE_NOEXCEPT\b", match.group("qualifiers")):
+                line = text.count("\n", 0, match.start(2)) + 1
+                missing.append(
+                    f"{match.group(2)} ({header.relative_to(ROOT).as_posix()}:{line})"
+                )
+    return missing
 
 
 def source_files(*roots: str, suffixes: tuple[str, ...]) -> list[Path]:
@@ -273,6 +336,8 @@ def main() -> int:
     parser.add_argument("--dead", action="store_true")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--pins", action="store_true")
+    parser.add_argument("--tags", action="store_true")
+    parser.add_argument("--noexcept", action="store_true")
     args = parser.parse_args()
 
     decls = declared()
@@ -303,11 +368,23 @@ def main() -> int:
                     where = scope if "/" in scope else f"crates/{scope}"
                     unpinned.append(name)
                     print(f"unpinned: {name} ({kind} in {where})")
-    if (args.check and undefined) or unpinned:
+    missing = untagged() if args.tags else []
+    for name in missing:
+        print(f"untagged: {name}")
+    throwing = not_noexcept() if args.noexcept else []
+    for entry in throwing:
+        print(f"not DELUGE_NOEXCEPT: {entry}")
+    if (args.check and undefined) or unpinned or missing or throwing:
         if undefined and args.check:
             print(f"{len(undefined)} declared function(s) with no definition")
         if unpinned:
             print(f"{len(unpinned)} Rust definition(s) or import(s) with no abi_pin!")
+        if missing:
+            print(
+                f"{len(missing)} declared function(s) with no [task]/[audio]/[isr] tag"
+            )
+        if throwing:
+            print(f"{len(throwing)} declared function(s) not ending DELUGE_NOEXCEPT")
         return 1
     return 0
 

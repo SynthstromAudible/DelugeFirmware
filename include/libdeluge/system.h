@@ -21,6 +21,7 @@
 #ifndef LIBDELUGE_SYSTEM_H
 #define LIBDELUGE_SYSTEM_H
 
+#include "abi.h"
 #include "types.h"
 
 #ifdef __cplusplus
@@ -28,14 +29,14 @@ extern "C" {
 #endif
 
 /// Emit debug/log text to the board's debug channel (RTT/UART), with no implicit
-/// newline — the caller owns formatting. Best-effort, may be dropped. [task] [isr]
-void deluge_log(const char* text);
+/// newline — the caller owns formatting. Best-effort, may be dropped. [task] [audio] [isr]
+void deluge_log(const char* text) DELUGE_NOEXCEPT;
 
 /// True if currently executing in an interrupt/ISR context (false in normal task
 /// context). The scheduler uses this to refuse to yield from within an ISR.
 /// Boards without preemptive interrupts (e.g. the host sim) always return false.
 /// [task] [isr]
-bool deluge_in_interrupt(void);
+bool deluge_in_interrupt(void) DELUGE_NOEXCEPT;
 
 /// @brief True iff the caller is executing in the audio render context.
 ///
@@ -44,9 +45,9 @@ bool deluge_in_interrupt(void);
 /// deluge_in_interrupt(): a lower-priority interrupt (the streaming fill executor) is not the audio
 /// context, and must still mask. On the Rust BSP, deluge_in_interrupt() cannot see either handler:
 /// the shared IRQ entry switches to SYS mode before dispatching.
-/// [task] [isr]
+/// [task] [audio] [isr]
 /// @return true iff currently executing in the audio render context.
-bool deluge_in_audio_context(void);
+bool deluge_in_audio_context(void) DELUGE_NOEXCEPT;
 
 /// Enter a critical section: mask interrupts so the following code runs without
 /// preemption. Nestable — each ENTER must be paired with one EXIT, and only the
@@ -55,11 +56,11 @@ bool deluge_in_audio_context(void);
 ///
 /// This is a CPU/system primitive owned by the BSP (the RZ/A1L implementation
 /// masks IRQs via CPSID/CPSIE; a host-sim would use a recursive lock or no-op;
-/// Embassy would use a critical-section crate). [task] [isr]
-void ENTER_CRITICAL_SECTION();
+/// Embassy would use a critical-section crate). [task] [audio] [isr]
+void ENTER_CRITICAL_SECTION() DELUGE_NOEXCEPT;
 
-/// Exit a critical section opened by ENTER_CRITICAL_SECTION(). [task] [isr]
-void EXIT_CRITICAL_SECTION();
+/// Exit a critical section opened by ENTER_CRITICAL_SECTION(). [task] [audio] [isr]
+void EXIT_CRITICAL_SECTION() DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }
@@ -85,7 +86,7 @@ inline int32_t g_delugeAudioExcludedDepth = 0;
 
 /// @brief How many AudioExcludedSections the calling context is inside. [task] [isr]
 /// @return The current nesting depth.
-inline int32_t deluge_audio_excluded_depth() {
+inline int32_t deluge_audio_excluded_depth() noexcept {
 	return g_delugeAudioExcludedDepth;
 }
 

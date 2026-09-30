@@ -158,7 +158,7 @@ uint8_t deluge_harness_recorder_probe_acquire() {
 	geometry.num_channels = sample->numChannels;
 	geometry.raw_data_format = static_cast<uint8_t>(sample->rawDataFormat);
 
-	g_source = deluge_sample_source_open(&sample->stream(), geometry);
+	g_source = deluge_sample_source_open(deluge::audio::stream::toAbi(sample->stream()), geometry);
 	if (g_source == nullptr) {
 		return 0;
 	}
@@ -296,8 +296,8 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t reg
 
 	// Open a FRESH read handle on the finalized file -- the recorder's own write context is already
 	// closed by now (finalizeRecordedFile() closed it), and this Sample never went through
-	// AudioFileManager::buildAudioFileFromCard, so efatfs_handle_ is still 0. This mirrors how a
-	// real reload/playback of a just-recorded sample reaches it.
+	// AudioFileManager::buildAudioFileFromCard, so its stream handle is still DELUGE_HANDLE_NONE. This
+	// mirrors how a real reload/playback of a just-recorded sample reaches it.
 	if (sample->stream().open_read_stream(sample->filePath) != Error::NONE) {
 		finalizedTeardown();
 		return 0;
@@ -311,7 +311,7 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe_finish(uint32_t reg
 	geometry.num_channels = sample->numChannels;
 	geometry.raw_data_format = static_cast<uint8_t>(sample->rawDataFormat);
 
-	g_finalizedSource = deluge_sample_source_open(&sample->stream(), geometry);
+	g_finalizedSource = deluge_sample_source_open(deluge::audio::stream::toAbi(sample->stream()), geometry);
 	if (g_finalizedSource == nullptr) {
 		finalizedTeardown();
 		return 0;

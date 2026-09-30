@@ -113,11 +113,11 @@ fn queue_is_drained(mgr: *mut c_void) -> bool {
 /// other, so an un-owned entry whose requester dropped its lease (the reader's `if !filled` arm) was
 /// discarded on the drain's next poll -- which is why the display-only overview pre-scan once never
 /// converged on device.
-fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
+fn enqueue_chunk_for_fill(chunk_backing: *mut crate::sys::DelugeChunkBacking) {
     // `chunk_backing` is a resident, leased `StreamedChunk*`.
     let mgr = resource_manager();
     if !mgr.is_null() {
-        let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing) };
+        let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing.cast()) };
         unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, BLOCKING_FILL_PRIORITY) };
     }
     FILL_WAKE.signal(());
@@ -128,7 +128,9 @@ fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
 /// The chunk is enqueued under a queue-owned lease, so the fill survives the requester returning to
 /// its loop.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_streaming_request_chunk(chunk_backing: *mut c_void) {
+pub extern "C" fn deluge_streaming_request_chunk(
+    chunk_backing: *mut crate::sys::DelugeChunkBacking,
+) {
     if chunk_backing.is_null() {
         return;
     }
@@ -367,10 +369,15 @@ mod prod {
         }
 
         async fn read(&self, d: &StreamingFillDescriptor, buf: &mut [u8]) -> bool {
+            // `d.handle` is the fill context's `efatfs_handle`, which crossed the ABI: NONE (a sample
+            // still recording, or not yet opened) names no slot, and its read fails cleanly.
+            let Some(slot) = crate::abi_handle::from_abi(d.handle) else {
+                return false;
+            };
             #[cfg(target_os = "none")]
-            return crate::efatfs_fs::read_at(d.handle, d.byte_offset, buf).await;
+            return crate::efatfs_fs::read_at(slot, d.byte_offset, buf).await;
             #[cfg(feature = "host_app")]
-            return crate::efatfs_host_shim::read_at(d.handle, d.byte_offset, buf).await;
+            return crate::efatfs_host_shim::read_at(slot, d.byte_offset, buf).await;
         }
 
         fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {
@@ -440,8 +447,8 @@ pub extern "C" fn deluge_streaming_set_fill_read_latency_us(us: u32) {
 
 /// The fill task: wakes on [`FILL_WAKE`], drains the loader queue via the real
 /// [`ProdOps`], then goes back to sleep. Spawned in `main.rs` (device `main` +
-/// host `host_app`); the C++ enqueue path
-/// (`sample_stream.cpp`) wakes it via `deluge_streaming_signal_fill`.
+/// host `host_app`); whoever enqueues a chunk (`deluge_sample_reader`'s reservation and
+/// `deluge_sample_source`'s manager residency) wakes it via `deluge_streaming_signal_fill`.
 ///
 /// # Why `ProdOps` is constructed AFTER the first wake, never before
 ///

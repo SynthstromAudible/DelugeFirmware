@@ -131,14 +131,11 @@ fn run_bindgen(
     deluge_host: bool,
 ) {
     let include_dir = repo_root.join("include");
-    // scheduler.h re-exports the scheduler API from OSLikeStuff.
-    let scheduler_dir = repo_root.join("src/OSLikeStuff");
     let wrapper = manifest_dir.join("wrapper.h");
     let base = || {
         let builder = bindgen::Builder::default()
             .header(wrapper.to_str().unwrap())
             .clang_arg(format!("-I{}", include_dir.display()))
-            .clang_arg(format!("-I{}", scheduler_dir.display()))
             .use_core()
             .clang_arg(format!("--target={clang_target}"))
             // Layouts match the app being linked on every target (explicit
@@ -173,7 +170,6 @@ fn run_bindgen(
         .expect("write libdeluge_layout.rs");
     println!("cargo:rerun-if-changed={}", wrapper.display());
     println!("cargo:rerun-if-changed={}", include_dir.display());
-    println!("cargo:rerun-if-changed={}", scheduler_dir.display());
     println!("cargo:rerun-if-changed=build_allowlist.rs");
     println!("cargo:rerun-if-changed=build_crate_types.rs");
 }

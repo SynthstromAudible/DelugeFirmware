@@ -22,6 +22,7 @@
 #ifndef LIBDELUGE_BLOCK_DEVICE_H
 #define LIBDELUGE_BLOCK_DEVICE_H
 
+#include "abi.h"
 #include "types.h"
 #include <stdint.h>
 
@@ -31,16 +32,16 @@ extern "C" {
 
 /// The block-device unit of the board's SD card. The board owns which drive
 /// the SD is on, so the application does not hard-code it. [task]
-uint8_t deluge_block_sd_unit(void);
+uint8_t deluge_block_sd_unit(void) DELUGE_NOEXCEPT;
 
 /// True if media is present and initialised. [task]
-bool deluge_block_ready(uint8_t unit);
+bool deluge_block_ready(uint8_t unit) DELUGE_NOEXCEPT;
 
 /// Read `count` sectors starting at `sector` into `dst`. [task]
-DelugeStatus deluge_block_read(uint8_t unit, uint8_t* dst, uint32_t sector, uint32_t count);
+DelugeStatus deluge_block_read(uint8_t unit, uint8_t* dst, uint32_t sector, uint32_t count) DELUGE_NOEXCEPT;
 
 /// Write `count` sectors starting at `sector` from `src`. [task]
-DelugeStatus deluge_block_write(uint8_t unit, const uint8_t* src, uint32_t sector, uint32_t count);
+DelugeStatus deluge_block_write(uint8_t unit, const uint8_t* src, uint32_t sector, uint32_t count) DELUGE_NOEXCEPT;
 
 /// @brief A card-detect edge observed since the last poll.
 typedef enum DelugeCardEvent : uint8_t {
@@ -54,7 +55,7 @@ typedef enum DelugeCardEvent : uint8_t {
 /// Pull-based, not a callback: the card-detect interrupt records the edge in the
 /// BSP/HAL and the application polls for it from its own loop. The lower layers
 /// never call up into the app. [task]
-DelugeCardEvent deluge_block_poll_card_event(uint8_t unit);
+DelugeCardEvent deluge_block_poll_card_event(uint8_t unit) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

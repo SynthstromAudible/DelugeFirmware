@@ -5,6 +5,8 @@
 
 use core::ffi::c_char;
 
+use deluge_sample_fill::{DelugeHandle, DelugeStatus, DELUGE_OK};
+
 use crate::registry;
 use crate::DelugeSampleStreamGeometry;
 
@@ -22,7 +24,7 @@ use crate::DelugeSampleStreamGeometry;
 pub unsafe extern "C" fn deluge_sample_stream_open(
     path: *const c_char,
     out_table_full: *mut bool,
-) -> u32 {
+) -> DelugeHandle {
     registry::open(path, out_table_full)
 }
 
@@ -32,7 +34,7 @@ pub unsafe extern "C" fn deluge_sample_stream_open(
     any(target_os = "none", feature = "host_app", feature = "sim"),
     unsafe(no_mangle)
 )]
-pub extern "C" fn deluge_sample_stream_close(handle: u32) {
+pub extern "C" fn deluge_sample_stream_close(handle: DelugeHandle) {
     registry::close(handle);
 }
 
@@ -42,7 +44,10 @@ pub extern "C" fn deluge_sample_stream_close(handle: u32) {
     any(target_os = "none", feature = "host_app", feature = "sim"),
     unsafe(no_mangle)
 )]
-pub extern "C" fn deluge_sample_stream_set_geometry(handle: u32, geo: DelugeSampleStreamGeometry) {
+pub extern "C" fn deluge_sample_stream_set_geometry(
+    handle: DelugeHandle,
+    geo: DelugeSampleStreamGeometry,
+) {
     registry::set_geometry(handle, geo);
 }
 
@@ -50,8 +55,8 @@ pub extern "C" fn deluge_sample_stream_set_geometry(handle: u32, geo: DelugeSamp
 /// (`0xFFFFFFFF`) on an invalid handle or one with no asset id assigned yet.
 ///
 /// Named `_get_` (not the plain `deluge_sample_stream_asset_id` its sibling setter's naming would
-/// suggest): `streaming_fill.h` already declares an unrelated, already-exported
-/// `deluge_sample_stream_asset_id(void* stream_backing)` (`sample_stream.cpp`'s
+/// suggest): `sample_stream.h` also declares an unrelated, already-exported
+/// `deluge_sample_stream_asset_id(DelugeStreamBacking*)` (`sample_stream.cpp`'s
 /// `SampleStream*`-keyed accessor, consumed by `deluge_sample_source::abi`) — reusing that exact
 /// symbol name here for an incompatible signature would be a duplicate-symbol link error the
 /// moment both crates link into the same binary.
@@ -59,7 +64,7 @@ pub extern "C" fn deluge_sample_stream_set_geometry(handle: u32, geo: DelugeSamp
     any(target_os = "none", feature = "host_app", feature = "sim"),
     unsafe(no_mangle)
 )]
-pub extern "C" fn deluge_sample_stream_get_asset_id(handle: u32) -> u32 {
+pub extern "C" fn deluge_sample_stream_get_asset_id(handle: DelugeHandle) -> u32 {
     registry::asset_id(handle)
 }
 
@@ -69,15 +74,16 @@ pub extern "C" fn deluge_sample_stream_get_asset_id(handle: u32) -> u32 {
     any(target_os = "none", feature = "host_app", feature = "sim"),
     unsafe(no_mangle)
 )]
-pub extern "C" fn deluge_sample_stream_set_asset_id(handle: u32, id: u32) {
+pub extern "C" fn deluge_sample_stream_set_asset_id(handle: DelugeHandle, id: u32) {
     registry::set_asset_id(handle, id);
 }
 
 /// Read up to `len` bytes at `byte_offset` of `handle`'s open file into `buf`. On success writes the
-/// bytes actually read to `*out_read` (0 is a legitimate read at/after EOF) and returns `true`;
-/// returns `false` on a failed read (an invalid/out-of-range/freed handle, or the underlying efatfs
-/// read reporting failure), leaving `*out_read` untouched. Mirrors `deluge_efatfs_read_at`'s
-/// success/byte-count split. See [`registry::read_at`] for the full contract.
+/// bytes actually read to `*out_read` (0 is a legitimate read at/after EOF) and returns `DELUGE_OK`;
+/// on a failed read returns `DELUGE_ERR_PARAM` for an invalid/out-of-range/freed handle, or the
+/// underlying efatfs read's own status, leaving `*out_read` untouched. Mirrors
+/// `deluge_efatfs_read_at`'s success/byte-count split. See [`registry::read_at`] for the full
+/// contract.
 ///
 /// # Safety
 /// `buf`, if `len > 0`, must be valid for at least `len` writable bytes; `out_read` must be a valid
@@ -87,22 +93,22 @@ pub extern "C" fn deluge_sample_stream_set_asset_id(handle: u32, id: u32) {
     unsafe(no_mangle)
 )]
 pub unsafe extern "C" fn deluge_sample_stream_read_at(
-    handle: u32,
+    handle: DelugeHandle,
     byte_offset: u32,
     buf: *mut u8,
     len: u32,
     out_read: *mut u32,
-) -> bool {
+) -> DelugeStatus {
     // SAFETY: forwarded from this fn's own contract.
     match unsafe { registry::read_at(handle, byte_offset, buf, len) } {
-        Some(n) => {
+        Ok(n) => {
             if !out_read.is_null() {
                 // SAFETY: `out_read` non-null and writable per this fn's own contract.
                 unsafe { *out_read = n };
             }
-            true
+            DELUGE_OK
         }
-        None => false,
+        Err(status) => status,
     }
 }
 
@@ -128,6 +134,7 @@ mod tests {
 
     #[test]
     fn abi_wrappers_round_trip_through_the_registry() {
+        let _serial = mock_backing::serial();
         mock_backing::reset();
         mock_backing::set_open_result(11, true, false);
         let mut tf = false;
@@ -152,10 +159,10 @@ mod tests {
         let mut buf = [0u8; 4];
         let mut got: u32 = 0;
         // SAFETY: `buf` is a valid 4-byte local buffer; `got` is a valid out-param.
-        let ok = unsafe {
+        let status = unsafe {
             deluge_sample_stream_read_at(h, 0, buf.as_mut_ptr(), buf.len() as u32, &mut got)
         };
-        assert!(ok);
+        assert_eq!(status, deluge_sample_fill::DELUGE_OK);
         assert_eq!(got, 4);
 
         deluge_sample_stream_close(h);

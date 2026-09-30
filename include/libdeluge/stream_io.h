@@ -36,15 +36,13 @@
 #ifndef LIBDELUGE_STREAM_IO_H
 #define LIBDELUGE_STREAM_IO_H
 
+#include "abi.h"
 #include "types.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// An open stream. Opaque; owned by the BSP implementation.
-typedef struct DelugeStream DelugeStream;
 
 /// @brief Mode for deluge_efatfs_stream_open: what the stream is opened for.
 typedef enum DelugeStreamMode : uint8_t {
@@ -66,40 +64,57 @@ typedef enum DelugeStreamMode : uint8_t {
 /// recording, keeping the file's in-memory size/mtime edit resident between
 /// writes and only persisting it to the on-disk directory entry on
 /// `deluge_efatfs_stream_close` (see `write_context_noflush`'s
-/// doc). Every handle-taking function's handle is an opaque `u32` (the
-/// caller boxes it into a `DelugeStream*`, mirroring the streaming-read
-/// handle in sample_stream.h).
+/// doc). Every handle is a @ref DelugeHandle: 0 is none, and a call given it
+/// fails as it fails any handle that names no open stream.
 ///
-/// These are `bool` (not `DelugeStatus`): the Rust side has no notion of
-/// `DelugeStatus`'s finer-grained error codes, only success/failure.
-/// `stream.cpp` maps `false` to `Status::ERR`.
+/// Each returns a @ref DelugeStatus. `DELUGE_ERR_PARAM` is a call no stream could serve: a null
+/// pointer, or the handle 0. Past the open, the efatfs layer keeps no finer reason than "the operation
+/// failed", so a handle that names no open stream, an unmounted volume and a failed card access are
+/// all `DELUGE_ERR_IO`.
 
-/// @brief Open a persistent stream-write handle. `mode` matches `DelugeStreamMode`'s
-///        declaration-order values (0=READ, 1=WRITE_CREATE, 2=WRITE_CREATE_NEW, 3=WRITE_APPEND).
-bool deluge_efatfs_stream_open(const char* path, uint8_t mode, uint32_t* out_handle);
+/// @brief Open a persistent stream-write handle. [task]
+///
+/// @param path       Forward-slash path rooted at the storage volume.
+/// @param mode       A `DelugeStreamMode` value (0=READ, 1=WRITE_CREATE, 2=WRITE_CREATE_NEW,
+///                   3=WRITE_APPEND).
+/// @param out_handle Set to the opened handle on success; untouched on failure.
+/// @return `DELUGE_OK`; `DELUGE_ERR_PARAM` for a null or non-UTF-8 path, a null @p out_handle or an
+///         unknown @p mode; `DELUGE_ERR_NO_FILESYSTEM` if no volume is mounted; the open's own status
+///         (`DELUGE_ERR_NOT_FOUND`, `DELUGE_ERR_EXISTS`, `DELUGE_ERR_NO_SPACE`, ...) if it fails;
+///         `DELUGE_ERR_IO` if every stream handle is in use.
+DelugeStatus deluge_efatfs_stream_open(const char* path, uint8_t mode, DelugeHandle* out_handle) DELUGE_NOEXCEPT;
 
 /// @brief Write `count` bytes at absolute `byte_offset`, advancing the handle's persisted
 ///        `FileContext` by the bytes actually written (`*out_written`). Does NOT persist the
-///        advanced size/mtime to the on-disk directory entry -- see `deluge_efatfs_stream_close`.
-bool deluge_efatfs_stream_write_at(uint32_t handle, uint32_t byte_offset, const void* src, uint32_t count,
-                                   uint32_t* out_written);
+///        advanced size/mtime to the on-disk directory entry -- see `deluge_efatfs_stream_close`. [task]
+/// @return `DELUGE_OK` (`*out_written` set); `DELUGE_ERR_PARAM` for the handle 0 or a null pointer;
+///         `DELUGE_ERR_IO` otherwise.
+DelugeStatus deluge_efatfs_stream_write_at(DelugeHandle handle, uint32_t byte_offset, const void* src, uint32_t count,
+                                           uint32_t* out_written) DELUGE_NOEXCEPT;
 
 /// @brief EOF-honest read at absolute `byte_offset`, bounded by the handle's IN-MEMORY size (i.e.
 ///        this can read back data written earlier in the same unflushed session). `*out_read` is
-///        the TRUE byte count actually read (`<= count`, less at EOF), never zero-padded.
-bool deluge_efatfs_stream_read_at_via(uint32_t handle, uint32_t byte_offset, void* dst, uint32_t count,
-                                      uint32_t* out_read);
+///        the TRUE byte count actually read (`<= count`, less at EOF), never zero-padded. [task]
+/// @return `DELUGE_OK` (`*out_read` set); `DELUGE_ERR_PARAM` for the handle 0 or a null pointer;
+///         `DELUGE_ERR_IO` otherwise.
+DelugeStatus deluge_efatfs_stream_read_at_via(DelugeHandle handle, uint32_t byte_offset, void* dst, uint32_t count,
+                                              uint32_t* out_read) DELUGE_NOEXCEPT;
 
-/// @brief Truncate the file behind `handle` to `new_len` bytes.
-bool deluge_efatfs_stream_truncate(uint32_t handle, uint32_t new_len);
+/// @brief Truncate the file behind `handle` to `new_len` bytes. [task]
+/// @return `DELUGE_OK`; `DELUGE_ERR_PARAM` for the handle 0; `DELUGE_ERR_IO` otherwise.
+DelugeStatus deluge_efatfs_stream_truncate(DelugeHandle handle, uint32_t new_len) DELUGE_NOEXCEPT;
 
-/// @brief Size of the file behind `handle`, in bytes.
-bool deluge_efatfs_stream_size(uint32_t handle, uint32_t* out_size);
+/// @brief Size of the file behind `handle`, in bytes. [task]
+/// @return `DELUGE_OK` (`*out_size` set); `DELUGE_ERR_PARAM` for the handle 0 or a null @p out_size;
+///         `DELUGE_ERR_IO` otherwise.
+DelugeStatus deluge_efatfs_stream_size(DelugeHandle handle, uint32_t* out_size) DELUGE_NOEXCEPT;
 
 /// @brief Persist the handle's accumulated in-memory size/mtime edit (built up by prior
 ///        `deluge_efatfs_stream_write_at` calls) to the on-disk directory entry, and close a
 ///        persistent stream-write handle opened via `deluge_efatfs_stream_open`, freeing its slot.
-bool deluge_efatfs_stream_close(uint32_t handle);
+///        The slot is freed whatever the status. [task]
+/// @return `DELUGE_OK`; `DELUGE_ERR_PARAM` for the handle 0; `DELUGE_ERR_IO` if the flush failed.
+DelugeStatus deluge_efatfs_stream_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

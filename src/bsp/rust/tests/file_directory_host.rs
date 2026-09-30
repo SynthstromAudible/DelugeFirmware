@@ -16,6 +16,11 @@ mod abi_pin_noop;
 #[path = "../src/file_directory.rs"]
 mod file_directory;
 
+/// The ABI's handle rule, which the channels' exports convert their handles through.
+#[allow(dead_code)]
+#[path = "../src/abi_handle.rs"]
+mod abi_handle;
+
 use file_directory::{DirOutcome, DirTake, DirectorySlot, drain, publish_into, take_from};
 
 /// Nonzero on purpose: 0 is what a dropped stamp would leave behind, so a slot built at 0 would let

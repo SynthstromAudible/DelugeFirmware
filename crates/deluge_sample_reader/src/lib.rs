@@ -194,30 +194,34 @@ pub(crate) mod host_streaming_stubs {
     /// begin/read/finish recipe the real drain runs. `Reader::acquire_and_fill` then finds the chunk
     /// ready and serves it on the same call.
     #[unsafe(no_mangle)]
-    extern "C" fn deluge_streaming_request_chunk(chunk_backing: *mut c_void) {
-        let _ = crate::reservation::fill_now(chunk_backing);
+    extern "C" fn deluge_streaming_request_chunk(
+        chunk_backing: *mut deluge_sample_fill::chunk::DelugeChunkBacking,
+    ) {
+        let _ = crate::reservation::fill_now(chunk_backing.cast());
     }
 
     /// Synthetic card read: deterministic content keyed on the ABSOLUTE file byte offset
     /// (`dst[i] = (byte_offset + i) as u8`), so a test can compute a cluster's expected
     /// post-fill bytes independently of this stub. `set_force_read_failure(true)` makes EVERY
-    /// call fail closed (returns `false`, `dst`/`out_read` untouched); `set_fail_at_byte_offset`
+    /// call fail closed (returns `DELUGE_ERR_IO`, `dst`/`out_read` untouched); `set_fail_at_byte_offset`
     /// fails only the ONE cluster whose `byte_offset` matches, for isolating a single neighbour's
     /// failure. Both checks run before touching `count`/`dst`, so they apply even to a
     /// zero-sector (`count == 0`) read.
     #[unsafe(no_mangle)]
     extern "C" fn deluge_efatfs_read_at(
-        _handle: u32,
+        _handle: deluge_sample_fill::DelugeHandle,
         byte_offset: u32,
         dst: *mut c_void,
         count: u32,
         out_read: *mut u32,
-    ) -> bool {
+    ) -> deluge_sample_fill::DelugeStatus {
+        // `DELUGE_ERR_IO`: what the real read answers for a failed card read.
+        const DELUGE_ERR_IO: deluge_sample_fill::DelugeStatus = -5;
         if FORCE_READ_FAILURE.with(|f| f.get()) {
-            return false;
+            return DELUGE_ERR_IO;
         }
         if FAIL_AT_BYTE_OFFSET.with(|f| f.get()) == Some(byte_offset) {
-            return false;
+            return DELUGE_ERR_IO;
         }
         // SAFETY: `dst` is the caller's just-allocated destination buffer, valid for at least
         // `count` bytes (this crate's own `fill_now`, the only caller); `out_read` is a valid
@@ -229,6 +233,6 @@ pub(crate) mod host_streaming_stubs {
             }
             *out_read = count;
         }
-        true
+        deluge_sample_fill::DELUGE_OK
     }
 }

@@ -17,6 +17,8 @@
 
 #ifndef LIBDELUGE_AUDIO_FORMAT_H
 #define LIBDELUGE_AUDIO_FORMAT_H
+#include "abi.h"
+#include "types.h"
 #include <stdbool.h>
 #include <stdint.h>
 #ifndef __cplusplus
@@ -177,7 +179,7 @@ typedef struct DelugeAudioHeaderParser {
 	alignas(8) uint64_t opaque[DELUGE_AUDIO_HEADER_PARSER_WORDS];
 } DelugeAudioHeaderParser;
 
-/// @brief Place a fresh parser for a @p file_size -byte file in @p parser.
+/// @brief Place a fresh parser for a @p file_size -byte file in @p parser. [task]
 ///
 /// @param parser        Caller-owned storage.
 /// @param storage_bytes The caller's own `sizeof(DelugeAudioHeaderParser)`.
@@ -190,20 +192,21 @@ typedef struct DelugeAudioHeaderParser {
 ///                      which fields come back and the wrong one for the caller's byte source, since a
 ///                      wavetable caller that mistyped the byte would silently get the over-reading
 ///                      walk back.
-/// @return false (having written nothing) if @p parser is null, @p storage_bytes is too small for the
-///         parser, or @p goal is not a DelugeAudioWalkGoal; nothing else can fail.
-bool deluge_audio_header_parser_init(DelugeAudioHeaderParser* parser, uint32_t storage_bytes, uint32_t file_size,
-                                     uint8_t goal);
+/// @return `DELUGE_OK`, or `DELUGE_ERR_PARAM` (having written nothing) if @p parser is null,
+///         @p storage_bytes is too small for the parser, or @p goal is not a DelugeAudioWalkGoal; nothing else
+///         can fail.
+DelugeStatus deluge_audio_header_parser_init(DelugeAudioHeaderParser* parser, uint32_t storage_bytes,
+                                             uint32_t file_size, uint8_t goal) DELUGE_NOEXCEPT;
 
-/// @brief The window the parser is waiting for.
+/// @brief The window the parser is waiting for. [task]
 ///
 /// @param parser An initialised parser.
 /// @param out    Receives the request. `out->len` may be 0; feed it an empty window rather than
 ///               skipping the feed, or the walk never terminates.
 /// @return false once the walk is over (done or failed), leaving @p out untouched.
-bool deluge_audio_header_parser_pending(const DelugeAudioHeaderParser* parser, DelugeAudioWindow* out);
+bool deluge_audio_header_parser_pending(const DelugeAudioHeaderParser* parser, DelugeAudioWindow* out) DELUGE_NOEXCEPT;
 
-/// @brief Hand the parser bytes read from the file.
+/// @brief Hand the parser bytes read from the file. [task]
 ///
 /// Supplying MORE than was asked for is wanted (see DELUGE_AUDIO_MAX_WINDOW_BYTES).
 ///
@@ -220,12 +223,13 @@ bool deluge_audio_header_parser_pending(const DelugeAudioHeaderParser* parser, D
 /// @param window_len   How many bytes @p window holds.
 /// @param window_start The absolute file offset @p window begins at.
 /// @param header_out   Written only on DELUGE_AUDIO_PARSE_DONE.
-/// @return A DelugeAudioParseStatus. DELUGE_AUDIO_PARSE_NEED means "ask `pending` again"; every other
+/// @return DELUGE_AUDIO_PARSE_NEED means "ask `pending` again"; every other
 ///         value is terminal.
-uint8_t deluge_audio_header_parser_feed(DelugeAudioHeaderParser* parser, const uint8_t* window, uint32_t window_len,
-                                        uint32_t window_start, DelugeAudioHeader* header_out);
+DelugeAudioParseStatus deluge_audio_header_parser_feed(DelugeAudioHeaderParser* parser, const uint8_t* window,
+                                                       uint32_t window_len, uint32_t window_start,
+                                                       DelugeAudioHeader* header_out) DELUGE_NOEXCEPT;
 
-/// @brief Whether the walk has located the audio data.
+/// @brief Whether the walk has located the audio data. [task]
 ///
 /// True once a `data`/`SSND` chunk has been read and the header's audio start/length can no longer
 /// change. Pair it with deluge_audio_header_parser_finish_here() to stop the walk there — which is what
@@ -234,9 +238,9 @@ uint8_t deluge_audio_header_parser_feed(DelugeAudioHeaderParser* parser, const u
 ///
 /// @param parser An initialised parser.
 /// @return true once the audio chunk has been located.
-bool deluge_audio_header_parser_located_audio_data(const DelugeAudioHeaderParser* parser);
+bool deluge_audio_header_parser_located_audio_data(const DelugeAudioHeaderParser* parser) DELUGE_NOEXCEPT;
 
-/// @brief The container the file declares, once the 12-byte top header has been read.
+/// @brief The container the file declares, once the 12-byte top header has been read. [task]
 ///
 /// Known after the very first feed, long before the header is decoded. It is exposed for the one
 /// verdict that depends on the container alone and should not wait for the rest of the walk: a
@@ -249,9 +253,9 @@ bool deluge_audio_header_parser_located_audio_data(const DelugeAudioHeaderParser
 /// @param out    Receives a DelugeAudioContainer.
 /// @return false, leaving @p out untouched, before the top header has been read and on a walk that
 ///         failed without identifying a container.
-bool deluge_audio_header_parser_container(const DelugeAudioHeaderParser* parser, uint8_t* out);
+bool deluge_audio_header_parser_container(const DelugeAudioHeaderParser* parser, uint8_t* out) DELUGE_NOEXCEPT;
 
-/// @brief End the walk here and resolve the header from what has been read so far.
+/// @brief End the walk here and resolve the header from what has been read so far. [task]
 ///
 /// The same finalisation the end of the file would have run, just earlier: fields the remaining chunks
 /// would have set keep their "the file said nothing" defaults. Fails for the same reasons the end of a
@@ -260,17 +264,19 @@ bool deluge_audio_header_parser_container(const DelugeAudioHeaderParser* parser,
 ///
 /// @param parser     An initialised parser.
 /// @param header_out Written only on DELUGE_AUDIO_PARSE_DONE.
-/// @return A DelugeAudioParseStatus; never DELUGE_AUDIO_PARSE_NEED — this call always terminates.
-uint8_t deluge_audio_header_parser_finish_here(DelugeAudioHeaderParser* parser, DelugeAudioHeader* header_out);
+/// @return Never DELUGE_AUDIO_PARSE_NEED — this call always terminates.
+DelugeAudioParseStatus deluge_audio_header_parser_finish_here(DelugeAudioHeaderParser* parser,
+                                                              DelugeAudioHeader* header_out) DELUGE_NOEXCEPT;
 
-/// @brief Decide whether a decoded header may be used as a wavetable.
+/// @brief Decide whether a decoded header may be used as a wavetable. [task]
 ///
 /// @param header         A header a parse produced.
 /// @param insist         Mirrors `makeWaveTableWorkAtAllCosts`: waives the `clm `/length-shape check and
 ///                       the AIFF rejection, but never the mono requirement.
 /// @param cycle_size_out Written only on DELUGE_WAVETABLE_ACCEPTED.
-/// @return A DelugeWavetableAccept.
-uint8_t deluge_audio_header_accept_as_wavetable(const DelugeAudioHeader* header, bool insist, uint32_t* cycle_size_out);
+/// @return DELUGE_WAVETABLE_ACCEPTED, or why the header was rejected.
+DelugeWavetableAccept deluge_audio_header_accept_as_wavetable(const DelugeAudioHeader* header, bool insist,
+                                                              uint32_t* cycle_size_out) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

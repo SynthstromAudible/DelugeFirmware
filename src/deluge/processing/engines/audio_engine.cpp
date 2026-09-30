@@ -41,8 +41,8 @@
 #include "libdeluge/app.h"
 #include "libdeluge/audio_io.h"
 #include "libdeluge/file_stream.h"
+#include "libdeluge/sample_stream.h" // deluge_streaming_resource_manager()
 #include "libdeluge/signals.h"
-#include "libdeluge/streaming_fill.h" // deluge_streaming_resource_manager()
 #include "libdeluge/system.h"
 #include "libdeluge/tier.h"
 #include "memory/general_memory_allocator.h"
@@ -63,7 +63,6 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
-#include "scheduler_api.h"
 #include "storage/audio/load_trace.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
@@ -82,6 +81,7 @@
 #include <cstring>
 #include <execution>
 #include <iterator>
+#include <libdeluge/scheduler.h>
 #include <new>
 #include <numeric>
 #include <ranges>
@@ -896,13 +896,18 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 /// chosen) is the board's: on RZ/A1L it stays the DMA-polled variable window.
 /// See <libdeluge/app.h>: a block the board chose not to render still runs the render's block-start lifetime step, so
 /// objects handed to the render are let go of and freed on schedule.
-extern "C" void deluge_app_render_skipped(void) {
-	// The render's own work, excluded like a rendered block (see deluge_app_render()).
-	AudioExcludedSection renderBlock;
-	renderRetirementStep();
+extern "C" void deluge_app_render_skipped(void) noexcept {
+	try {
+		// The render's own work, excluded like a rendered block (see deluge_app_render()).
+		AudioExcludedSection renderBlock;
+		renderRetirementStep();
+	} catch (...) {
+		// Nothing to report to: whatever this step did not let go of stays retired, and the next block's step takes it.
+	}
 }
 
-extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) {
+/// The body of deluge_app_render(), which catches whatever it throws.
+static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) {
 	// The whole block is one AudioExcludedSection. On the device this is free: the render runs on the audio tier, which
 	// nothing preempts, so it never masks. On host the render is a thread like any other, and this is what gives it
 	// the device's guarantee: an interaction-tier structural edit to a container the render walks (each runs in its
@@ -1050,6 +1055,19 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 		}
 	}
 }
+
+extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) noexcept {
+	try {
+		renderAppBlock(in, out, frames);
+	} catch (...) {
+		// The render must not throw (it must not even allocate); if it does, this block is silence rather than an
+		// unwind out of the BSP's render driver. `out` may be NULL (app.h), and then there is no block to silence.
+		if (out != nullptr) {
+			memset(out, 0, frames * sizeof(DelugeStereoSample));
+		}
+	}
+}
+
 void renderAudio(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
 	std::span reverbBuffer{reverbMemory.data(), numSamples};

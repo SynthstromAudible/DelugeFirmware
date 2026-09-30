@@ -42,8 +42,8 @@ enum class CreatePhase : uint8_t {
 /// @brief Everything `nextCreatePhase` is allowed to look at.
 struct CreateInputs {
 	CreatePhase phase;
-	/// The `DELUGE_FILE_STREAM_*` value from the operation this phase issued, or
-	/// `DELUGE_FILE_STREAM_UNKNOWN` when nothing is in flight.
+	/// The `DELUGE_CHANNEL_*` value from the operation this phase issued, or
+	/// `DELUGE_CHANNEL_UNKNOWN` when nothing is in flight.
 	uint8_t collected;
 	/// `Stats` reported zero free clusters.
 	bool spaceExhausted;

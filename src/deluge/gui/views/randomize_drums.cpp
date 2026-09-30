@@ -118,14 +118,14 @@ bool RandomizeDrums::step() {
 		// ⚠️ Deliberately NOT collectOrRequestDir: that re-requests on UNKNOWN, which is right for a
 		// caller trying to OPEN and wrong for one trying to STOP -- it would keep re-opening a
 		// cancelled walk's folder for ever.
-		uint32_t handle = 0;
+		DelugeHandle handle = DELUGE_HANDLE_NONE;
 		DelugeStatus st = DELUGE_OK;
-		const uint8_t answer = deluge_file_directory_collect(rowFolder_.c_str(), &handle, &st);
-		if (answer == DELUGE_FILE_DIRECTORY_READY) {
+		const DelugeChannelStatus answer = deluge_file_directory_collect(rowFolder_.c_str(), &handle, &st);
+		if (answer == DELUGE_CHANNEL_READY) {
 			drainsCollected_++;
 			(void)deluge::io::Directory::adopt(handle); // closed on the spot by RAII
 		}
-		else if (answer == DELUGE_FILE_DIRECTORY_PENDING) {
+		else if (answer == DELUGE_CHANNEL_PENDING) {
 			// Bounded: a cancelled walk must not wait for an answer for ever either.
 			scanSpan_.note(deluge_clock_now());
 			if (scanSpan_.elapsedUs <= deluge::storage::kMaxUnproductiveUs) {

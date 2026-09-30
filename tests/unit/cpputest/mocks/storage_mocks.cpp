@@ -99,9 +99,9 @@ UITimerManager uiTimerManager{};
 
 // The other two halves of readDone()'s politeness: push the display and flush the pad-LED queue. No
 // display and no pads in a host test.
-extern "C" void deluge_display_service(void) {
+extern "C" void deluge_display_service(void) noexcept {
 }
-extern "C" void deluge_control_flush(void) {
+extern "C" void deluge_control_flush(void) noexcept {
 }
 
 // FREEZE_WITH_ERROR's landing pad: the deserializers assert on malformed documents. On the device this

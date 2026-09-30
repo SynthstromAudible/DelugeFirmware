@@ -31,18 +31,13 @@
 #ifndef LIBDELUGE_FILE_IO_H
 #define LIBDELUGE_FILE_IO_H
 
+#include "abi.h"
 #include "types.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/// An open file. Opaque; owned by the BSP implementation.
-typedef struct DelugeFile DelugeFile;
-
-/// An open directory iterator. Opaque; owned by the BSP implementation.
-typedef struct DelugeDir DelugeDir;
 
 /// Longest filename this boundary will report/accept, including the NUL
 /// terminator (FAT LFN max is 255 characters).
@@ -72,32 +67,27 @@ typedef struct DelugeDirEntry {
 /// unconditionally. Implemented in
 /// `efatfs_fs.rs` (device) / `efatfs_host_shim.rs` (host), both composing the
 /// storage-generic `efatfs_core` primitives -- see those files' doc comments
-/// for the handle-table/locking discipline. Every handle-taking function's
-/// handle is an opaque `u32` boxed into the corresponding
-/// `DelugeFile*`/`DelugeDir*` pointer (cast, not dereferenced), the same
-/// convention the streaming handle uses.
+/// for the handle-table/locking discipline. Every handle is a @ref DelugeHandle:
+/// 0 is none, and a call given it fails as it fails any handle that names no
+/// open file or directory.
 ///
-/// These 11 fallible file/dir/path operations return `DelugeStatus`, so
-/// callers (chiefly `file.cpp`) can report a granular error
-/// (`DELUGE_ERR_NOT_FOUND`, `DELUGE_ERR_EXISTS`, `DELUGE_ERR_NOT_EMPTY`, ...)
-/// instead of a single undifferentiated failure. `_file_close`/`_dir_close`
-/// cannot fail and stay `void`. The remaining whole-volume queries below
-/// (`_stats`/`_mount`/`_remount`/`_cluster_size`) stay plain `bool`: each has
-/// exactly one failure mode (no volume mounted, or the mount/query itself
-/// failing), so there is no granular error to distinguish and a `DelugeStatus`
-/// would carry no more information than the `bool` already does.
+/// Every fallible call here returns a @ref DelugeStatus, so callers (chiefly
+/// `file.cpp`) can report a granular error (`DELUGE_ERR_NOT_FOUND`,
+/// `DELUGE_ERR_EXISTS`, `DELUGE_ERR_NOT_EMPTY`, ...) instead of a single
+/// undifferentiated failure. `_file_close`/`_dir_close`/`_close` cannot fail
+/// and are `void`.
 
-/// @brief Open a task-context file.
+/// @brief Open a task-context file. [task]
 ///
 /// @param path       Forward-slash path rooted at the storage volume.
 /// @param mode       Matches `DelugeFileOpenMode`'s declaration-order values
 ///                    (0=READ, 1=WRITE_CREATE, 2=WRITE_CREATE_NEW).
 /// @param out_handle Set to the opened handle on success.
 /// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, uint32_t* out_handle);
+DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, DelugeHandle* out_handle) DELUGE_NOEXCEPT;
 
 /// @brief EOF-honest read at the handle's current position -- the efatfs
-///        backend for `deluge::io::File::read`.
+///        backend for `deluge::io::File::read`. [task]
 ///
 /// @param handle   Handle from deluge_efatfs_file_open.
 /// @param dst      Destination buffer, at least `count` bytes.
@@ -105,45 +95,52 @@ DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, uint32_t* o
 /// @param out_read Set to the TRUE byte count actually read (`<= count`, less
 ///                  at real EOF), never zero-padded.
 /// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_file_read_exact(uint32_t handle, void* dst, uint32_t count, uint32_t* out_read);
+DelugeStatus deluge_efatfs_file_read_exact(DelugeHandle handle, void* dst, uint32_t count,
+                                           uint32_t* out_read) DELUGE_NOEXCEPT;
 
 /// @brief Write `count` bytes at the handle's current position, advancing it
-///        by the bytes actually written.
+///        by the bytes actually written. [task]
 ///
 /// @param handle      Handle from deluge_efatfs_file_open.
 /// @param src         Source buffer, at least `count` bytes.
 /// @param count       Number of bytes to write.
 /// @param out_written Set to the number of bytes actually written.
 /// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_file_write(uint32_t handle, const void* src, uint32_t count, uint32_t* out_written);
+DelugeStatus deluge_efatfs_file_write(DelugeHandle handle, const void* src, uint32_t count,
+                                      uint32_t* out_written) DELUGE_NOEXCEPT;
 
-/// @brief Move the handle's cursor to an absolute byte offset.
+/// @brief Move the handle's cursor to an absolute byte offset. [task]
 ///
 /// @param handle Handle from deluge_efatfs_file_open.
 /// @param offset Absolute byte offset.
 /// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_file_seek(uint32_t handle, uint32_t offset);
+DelugeStatus deluge_efatfs_file_seek(DelugeHandle handle, uint32_t offset) DELUGE_NOEXCEPT;
 
-/// @brief Total size of the file behind `handle`, in bytes.
+/// @brief Total size of the file behind `handle`, in bytes. [task]
 ///
 /// @param handle   Handle from deluge_efatfs_file_open.
 /// @param out_size Set to the file size on success.
 /// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_file_size(uint32_t handle, uint32_t* out_size);
+DelugeStatus deluge_efatfs_file_size(DelugeHandle handle, uint32_t* out_size) DELUGE_NOEXCEPT;
 
-/// @brief Free + total cluster counts of the mounted volume (whole-FS query).
+/// @brief Free + total cluster counts of the mounted volume (whole-FS query). [task]
 /// @param out_free_clusters  Set to the free cluster count on success.
 /// @param out_total_clusters Set to the total cluster count on success.
-/// @return true on success (both out-params written); false if no volume is mounted or a query
-///         error occurs — in which case the out-params are left untouched.
-bool deluge_efatfs_stats(uint32_t* out_free_clusters, uint32_t* out_total_clusters);
+/// @return `DELUGE_OK` with both out-params written. Otherwise the out-params are left untouched:
+///         `DELUGE_ERR_PARAM` for a null out-param, `DELUGE_ERR_NO_FILESYSTEM` if no volume is
+///         mounted, or the query's own status (`DELUGE_ERR_IO`, ...).
+DelugeStatus deluge_efatfs_stats(uint32_t* out_free_clusters, uint32_t* out_total_clusters) DELUGE_NOEXCEPT;
 
 /// @brief Mount the storage volume if it isn't already mounted. Idempotent: a call while already
-///        mounted is a no-op success.
-/// @return true if mounted (or already was); false on mount failure.
-bool deluge_efatfs_mount(void);
+///        mounted is a no-op success. [task]
+/// @return `DELUGE_OK` if mounted (or already was); `DELUGE_ERR_NO_FILESYSTEM` if the card holds no
+///         FAT volume it can read; `DELUGE_ERR_IO` if the card could not be read. A failure the
+///         filesystem reports some other way is mapped by the BSP's `error_to_status`, so it may also
+///         be `DELUGE_ERR_PARAM`, `DELUGE_ERR_NOT_FOUND`, `DELUGE_ERR_EXISTS`, `DELUGE_ERR_NOT_EMPTY` or
+///         `DELUGE_ERR_NO_SPACE`.
+DelugeStatus deluge_efatfs_mount(void) DELUGE_NOEXCEPT;
 
-/// @brief How many times the filesystem has become mounted, as a monotonic counter.
+/// @brief How many times the filesystem has become mounted, as a monotonic counter. [task]
 ///
 /// Read this to notice an unmounted→mounted EDGE. The directory channel's driver mounts on the
 /// storage tier — mounting is card I/O and the directory channel's caller is on the interaction
@@ -155,39 +152,40 @@ bool deluge_efatfs_mount(void);
 /// A counter rather than a flag, so no reader consumes the edge out from under another.
 /// @return A value that changes on every mount. Only changes are meaningful; the absolute value is
 ///         not, and it may be 0 on a BSP with no filesystem at all.
-uint32_t deluge_efatfs_mount_generation(void);
+uint32_t deluge_efatfs_mount_generation(void) DELUGE_NOEXCEPT;
 
 /// @brief Drop the mounted volume and re-mount fresh, invalidating every outstanding handle
 ///        (streaming reads, task-context files/dirs, and in-progress stream-writes all become
-///        invalid — callers must reopen). Used to pick up a card SWAP.
-/// @return true on success; false on mount failure.
-bool deluge_efatfs_remount(void);
+///        invalid — callers must reopen). Used to pick up a card SWAP. [task]
+/// @return The same statuses as @ref deluge_efatfs_mount. On a failure the filesystem is left
+///         unmounted.
+DelugeStatus deluge_efatfs_remount(void) DELUGE_NOEXCEPT;
 
-/// @brief Drop the filesystem, leaving it UNMOUNTED.
+/// @brief Drop the filesystem, leaving it UNMOUNTED. [task]
 ///
-/// The symmetric counterpart of @ref deluge_efatfs_mount, which until now had none —
-/// @ref deluge_efatfs_remount drops and re-mounts in one step, so nothing could leave the filesystem
-/// unmounted. That is the state a lazily-mounting caller has to be able to start from, so without
-/// this it could not be exercised.
-void deluge_efatfs_unmount(void);
+/// The counterpart of @ref deluge_efatfs_mount: @ref deluge_efatfs_remount drops and re-mounts in
+/// one step, and this is the one call that leaves the filesystem unmounted, the state a
+/// lazily-mounting caller has to be able to start from.
+void deluge_efatfs_unmount(void) DELUGE_NOEXCEPT;
 
-/// @brief The mounted volume's cluster (allocation-unit) size, in bytes.
+/// @brief The mounted volume's cluster (allocation-unit) size, in bytes. [task]
 /// @param out_bytes Set to the cluster size on success.
-/// @return true on success; false if no volume is mounted or a query error
-///         occurs — in which case `*out_bytes` is left untouched.
-bool deluge_efatfs_cluster_size(uint32_t* out_bytes);
+/// @return `DELUGE_OK` with `*out_bytes` written. Otherwise `*out_bytes` is left untouched:
+///         `DELUGE_ERR_PARAM` for a null @p out_bytes, `DELUGE_ERR_NO_FILESYSTEM` if no volume is
+///         mounted, or the query's own status (`DELUGE_ERR_IO`, ...).
+DelugeStatus deluge_efatfs_cluster_size(uint32_t* out_bytes) DELUGE_NOEXCEPT;
 
-/// @brief Close a task-context file handle opened via deluge_efatfs_file_open.
+/// @brief Close a task-context file handle opened via deluge_efatfs_file_open. [task]
 ///
 /// @param handle Handle to close.
-void deluge_efatfs_file_close(uint32_t handle);
+void deluge_efatfs_file_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
-/// @brief Open `path` as a directory for iteration.
+/// @brief Open `path` as a directory for iteration. [task]
 ///
 /// @param path       Forward-slash path rooted at the storage volume.
 /// @param out_handle Set to the opened handle on success.
 /// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_dir_open(const char* path, uint32_t* out_handle);
+DelugeStatus deluge_efatfs_dir_open(const char* path, DelugeHandle* out_handle) DELUGE_NOEXCEPT;
 
 /// @brief Read the next directory entry's fields into the caller's out-params
 ///        (mirrors `DelugeDirEntry`'s fields). If there are no more entries,
@@ -196,7 +194,7 @@ DelugeStatus deluge_efatfs_dir_open(const char* path, uint32_t* out_handle);
 ///        entry whose name doesn't fit in DELUGE_MAX_FILENAME bytes
 ///        (including the NUL) is skipped internally -- never truncated into
 ///        `out_name` -- so this never fails the whole enumeration over one
-///        oversized filename.
+///        oversized filename. [task]
 ///
 /// @param handle        Handle from deluge_efatfs_dir_open.
 /// @param out_name      NUL-terminated on success; must point at
@@ -211,35 +209,35 @@ DelugeStatus deluge_efatfs_dir_open(const char* path, uint32_t* out_handle);
 ///                       `HID`=0x02, `SYS`=0x04, `DIR`=0x10, `ARC`=0x20).
 /// @param out_has_entry Set to `false` once enumeration is exhausted.
 /// @return `DELUGE_OK` on success (including end-of-directory).
-DelugeStatus deluge_efatfs_dir_read(uint32_t handle, char* out_name, uint32_t out_name_cap, bool* out_is_dir,
+DelugeStatus deluge_efatfs_dir_read(DelugeHandle handle, char* out_name, uint32_t out_name_cap, bool* out_is_dir,
                                     uint32_t* out_size, uint32_t* out_modified, uint8_t* out_attrs,
-                                    bool* out_has_entry);
+                                    bool* out_has_entry) DELUGE_NOEXCEPT;
 
-/// @brief Close a directory handle opened via deluge_efatfs_dir_open.
+/// @brief Close a directory handle opened via deluge_efatfs_dir_open. [task]
 ///
 /// @param handle Handle to close.
-void deluge_efatfs_dir_close(uint32_t handle);
+void deluge_efatfs_dir_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
-/// @brief Create a directory.
+/// @brief Create a directory. [task]
 ///
 /// @param path Forward-slash path rooted at the storage volume.
 /// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_mkdir(const char* path);
+DelugeStatus deluge_efatfs_mkdir(const char* path) DELUGE_NOEXCEPT;
 
-/// @brief Delete a file or empty directory.
+/// @brief Delete a file or empty directory. [task]
 ///
 /// @param path Forward-slash path rooted at the storage volume.
 /// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_unlink(const char* path);
+DelugeStatus deluge_efatfs_unlink(const char* path) DELUGE_NOEXCEPT;
 
-/// @brief Rename/move a file or directory.
+/// @brief Rename/move a file or directory. [task]
 ///
 /// @param old_path Existing path.
 /// @param new_path Destination path.
 /// @return `DELUGE_OK` on success.
-DelugeStatus deluge_efatfs_rename(const char* old_path, const char* new_path);
+DelugeStatus deluge_efatfs_rename(const char* old_path, const char* new_path) DELUGE_NOEXCEPT;
 
-/// @brief Set a file or directory's last-modified timestamp.
+/// @brief Set a file or directory's last-modified timestamp. [task]
 ///
 /// @param path   Forward-slash path rooted at the storage volume.
 /// @param year   Full calendar year (e.g. 2026).
@@ -250,7 +248,53 @@ DelugeStatus deluge_efatfs_rename(const char* old_path, const char* new_path);
 /// @param second Second, 0-59.
 /// @return `DELUGE_OK` on success.
 DelugeStatus deluge_efatfs_set_time(const char* path, uint16_t year, uint8_t month, uint8_t day, uint8_t hour,
-                                    uint8_t minute, uint8_t second);
+                                    uint8_t minute, uint8_t second) DELUGE_NOEXCEPT;
+
+/// The streaming-read handles: sample files the streaming fill reads cluster by cluster, at absolute
+/// byte offsets, through a handle table of their own (separate from the task-context files above).
+
+/// @brief Open a sample file for streaming reads through embedded-fatfs, writing its handle out. [task]
+///
+/// The sync→async bridge for the streaming READ path: C++ calls this synchronously at sample-load,
+/// and the Rust implementation (`efatfs_fs.rs`) bridges to the async handle table by blocking on the
+/// async open.
+/// @param path           NUL-terminated absolute file path.
+/// @param out_handle     Receives the handle on success; untouched on failure.
+/// @param out_table_full Written on every call that gets past the null checks and the path's UTF-8
+///                       check (a non-UTF-8 path answers `DELUGE_ERR_PARAM` before writing it): true
+///                       iff the open failed specifically because the streaming-read handle table has
+///                       no free slot (as opposed to the file genuinely not existing, or the FS being
+///                       unmounted) -- the caller maps a `true` value to a dedicated
+///                       `Error::TOO_MANY_OPEN_STREAMS` rather than the misleading
+///                       `Error::FILE_NOT_FOUND`. Always `false` when @p out_handle was written.
+/// @return `DELUGE_OK` with @p out_handle written; `DELUGE_ERR_PARAM` for a null pointer or a
+///         non-UTF-8 path; `DELUGE_ERR_NO_FILESYSTEM` if the FS is unmounted; the open's own status
+///         (`DELUGE_ERR_NOT_FOUND`, ...) if it failed; `DELUGE_ERR_NO_MEMORY` when the handle table
+///         is full (with `*out_table_full` set).
+DelugeStatus deluge_efatfs_open(const char* path, DelugeHandle* out_handle, bool* out_table_full) DELUGE_NOEXCEPT;
+
+/// @brief Close a streaming file handle previously returned by deluge_efatfs_open. [task]
+///
+/// @param handle The handle to close.
+void deluge_efatfs_close(DelugeHandle handle) DELUGE_NOEXCEPT;
+
+/// @brief Synchronously read @p count bytes at absolute @p byte_offset of the file behind @p handle. [task]
+///
+/// The sync-path counterpart of the async `ProdOps::read` efatfs branch: the sample reservation's
+/// synchronous `fill_now` (`deluge_sample_reader`) reads through this. The Rust implementation
+/// (`efatfs_fs.rs` / `efatfs_host_shim.rs`) bridges to the async handle table by blocking on the
+/// async read.
+/// @param handle     A handle previously returned by deluge_efatfs_open.
+/// @param byte_offset Absolute byte offset within the file to read from.
+/// @param dst        Destination buffer; exactly @p count bytes are written on success.
+/// @param count      Number of bytes to read.
+/// @param out_read   Receives the bytes read on success (== @p count); untouched on failure.
+/// @return `DELUGE_OK` iff the full @p count bytes were read. `DELUGE_ERR_PARAM` for the handle 0 or
+///         a null pointer; `DELUGE_ERR_IO` for anything else (unmounted, a handle naming no open
+///         file, or a short/failed read), which leaves @p dst partially written and @p out_read
+///         untouched.
+DelugeStatus deluge_efatfs_read_at(DelugeHandle handle, uint32_t byte_offset, void* dst, uint32_t count,
+                                   uint32_t* out_read) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

@@ -448,7 +448,7 @@ constexpr int32_t kStreamWriteSlots = 8;
 
 /// Whether @p path names a directory on the card. Synchronous: the scenario's own check, not the recorder's.
 bool folderExists(const char* path) {
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	if (deluge_efatfs_dir_open(path, &handle) != DELUGE_OK) {
 		return false;
 	}
@@ -497,7 +497,7 @@ constexpr uint32_t kDirStallLatencyMs = 3000;
 void driveNeighbour() {
 	if (g_ticked.neighbourHeld) {
 		uint32_t freeClusters = 0;
-		if (deluge_file_stream_collect_stats(&freeClusters) == DELUGE_FILE_STREAM_PENDING) {
+		if (deluge_file_stream_collect_stats(&freeClusters) == DELUGE_CHANNEL_PENDING) {
 			return;
 		}
 		g_ticked.neighbourHeld = false;
@@ -527,7 +527,7 @@ void driveStall(const SampleRecorder& rec) {
 int32_t finishGiveUpCase(SampleRecorder& rec) {
 	if (g_ticked.neighbourHeld) {
 		uint32_t freeClusters = 0;
-		if (deluge_file_stream_collect_stats(&freeClusters) == DELUGE_FILE_STREAM_PENDING) {
+		if (deluge_file_stream_collect_stats(&freeClusters) == DELUGE_CHANNEL_PENDING) {
 			return 0; // Let the competing operation finish, so the next case starts on an idle channel.
 		}
 		g_ticked.neighbourHeld = false;

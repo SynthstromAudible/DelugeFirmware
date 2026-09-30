@@ -16,6 +16,8 @@ use core::ffi::{c_char, c_void};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::blocking_mutex::Mutex;
 
+use deluge_sample_fill::{DelugeStatus, DELUGE_ERR_PARAM, DELUGE_OK};
+
 use crate::{DelugeSampleStreamGeometry, DelugeStreamingFillContext, DELUGE_RESOURCE_NO_ASSET};
 
 /// Fixed slot-table capacity. Set to 256 to match the sibling `deluge_sample_source` crate's own
@@ -23,12 +25,12 @@ use crate::{DelugeSampleStreamGeometry, DelugeStreamingFillContext, DELUGE_RESOU
 pub const CAP: usize = 256;
 
 /// One registered streaming handle: the efatfs read handle (always a real, open handle — a slot
-/// exists only after a successful `deluge_efatfs_open`, and `0` is a valid handle the OS hands out
-/// for the first open; a still-recording sample never opens a slot at all), the resource-manager
+/// exists only after a successful `deluge_efatfs_open`, which never hands out `DELUGE_HANDLE_NONE`;
+/// a still-recording sample never opens a slot at all), the resource-manager
 /// asset id ([`DELUGE_RESOURCE_NO_ASSET`] until [`set_asset_id`] assigns one), and the geometry
 /// [`set_geometry`] stores, if any.
 struct Slot {
-    efatfs_handle: u32,
+    efatfs_handle: deluge_sample_fill::DelugeHandle,
     asset_id: u32,
     geometry: Option<DelugeSampleStreamGeometry>,
 }
@@ -86,7 +88,7 @@ pub fn open(path: *const c_char, out_table_full: *mut bool) -> u32 {
     // interprets it, so `path`'s validity is exactly that extern's own contract, forwarded from
     // this fn's own caller; `&mut handle`/`&mut efatfs_table_full` are valid local out-params.
     let opened = unsafe { crate::deluge_efatfs_open(path, &mut handle, &mut efatfs_table_full) };
-    if !opened {
+    if opened != DELUGE_OK {
         // SAFETY: `out_table_full`'s validity is this fn's own caller-supplied contract.
         unsafe { write_out(out_table_full, efatfs_table_full) };
         return 0;
@@ -134,8 +136,7 @@ pub fn close(handle: u32) {
         return; // Already closed -- idempotent no-op.
     };
     // Always close the slot's efatfs handle. A registry slot only ever exists after a successful
-    // `deluge_efatfs_open` (see `open`), so `efatfs_handle` is always a real handle -- including the
-    // valid `0` the OS hands out for the first open. (Guarding on `!= 0` here would leak handle 0.)
+    // `deluge_efatfs_open` (see `open`), so `efatfs_handle` is always a real handle.
     // SAFETY: `slot.efatfs_handle` was returned live by `deluge_efatfs_open` in `open` and has not
     // been closed since -- this slot held the only copy of it, and `take()` above already cleared the
     // slot for any re-entrant/concurrent `close` on the same handle.
@@ -193,34 +194,39 @@ pub fn set_asset_id(handle: u32, id: u32) {
     try_register_fill_context(index);
 }
 
-/// Read up to `len` bytes at `byte_offset` of `handle`'s open file into `buf`. Returns `Some(n)`
-/// with the bytes actually read -- `Some(0)` is a legitimate read at/after EOF, NOT a failure -- or
-/// `None` if the read failed: an invalid/out-of-range/freed `handle`, or `deluge_efatfs_read_at`
-/// itself reporting failure. Mirroring `deluge_efatfs_read_at`'s own success/byte-count split keeps
-/// the C++ `SampleStreamReadSource` a faithful forward of `EfatfsReadSource` (EOF -> `Ok(0)`,
-/// failure -> `Err`) rather than collapsing the two into a bare `0`.
+/// Read up to `len` bytes at `byte_offset` of `handle`'s open file into `buf`. Returns `Ok(n)`
+/// with the bytes actually read -- `Ok(0)` is a legitimate read at/after EOF, NOT a failure -- or
+/// the failure's `DelugeStatus`: `DELUGE_ERR_PARAM` for an invalid/out-of-range/freed `handle`,
+/// otherwise `deluge_efatfs_read_at`'s own. Mirroring `deluge_efatfs_read_at`'s own
+/// success/byte-count split keeps the C++ `SampleStreamReadSource` a faithful forward of
+/// `EfatfsReadSource` (EOF -> `Ok(0)`, failure -> `Err`) rather than collapsing the two into a
+/// bare `0`.
 ///
 /// # Safety
 /// `buf`, if `len > 0`, must be valid for at least `len` writable bytes.
-pub unsafe fn read_at(handle: u32, byte_offset: u32, buf: *mut u8, len: u32) -> Option<u32> {
-    let index = slot_index(handle)?;
+pub unsafe fn read_at(
+    handle: u32,
+    byte_offset: u32,
+    buf: *mut u8,
+    len: u32,
+) -> Result<u32, DelugeStatus> {
+    let index = slot_index(handle).ok_or(DELUGE_ERR_PARAM)?;
     // `None` => freed slot.
-    let efatfs_handle = REGISTRY.lock(|table| {
-        table.borrow()[index]
-            .as_ref()
-            .map(|slot| slot.efatfs_handle)
-    })?;
-    // NB: no `efatfs_handle == 0` "still recording" short-circuit here. A registry slot is created
-    // only AFTER a successful `deluge_efatfs_open` (see `open`), so its handle is always a real,
-    // readable one -- and `0` is a valid handle the OS hands out for the very first open. A
+    let efatfs_handle = REGISTRY
+        .lock(|table| {
+            table.borrow()[index]
+                .as_ref()
+                .map(|slot| slot.efatfs_handle)
+        })
+        .ok_or(DELUGE_ERR_PARAM)?;
+    // No "still recording" short-circuit here. A registry slot is created only AFTER a successful
+    // `deluge_efatfs_open` (see `open`), so its handle is always a real, readable one. A
     // still-recording sample never opens a registry slot at all (it registers its handle-less
-    // fill-context directly with the resource manager via the facade's no-slot path); overloading
-    // handle `0` as "no handle" here would instead silently fail every read of whichever sample the
-    // OS happened to give handle 0, failing its header load and forcing a wasteful re-open.
+    // fill-context directly with the resource manager via the facade's no-slot path).
     let mut out_read: u32 = 0;
     // SAFETY: `buf` valid for `len` bytes per this fn's own contract; `out_read` is a valid local
     // out-param.
-    let ok = unsafe {
+    let status = unsafe {
         crate::deluge_efatfs_read_at(
             efatfs_handle,
             byte_offset,
@@ -229,7 +235,11 @@ pub unsafe fn read_at(handle: u32, byte_offset: u32, buf: *mut u8, len: u32) -> 
             &mut out_read,
         )
     };
-    ok.then_some(out_read)
+    if status == DELUGE_OK {
+        Ok(out_read)
+    } else {
+        Err(status)
+    }
 }
 
 /// Register `index`'s slot's fill-context with the resource manager, once BOTH a real asset id
@@ -290,6 +300,7 @@ mod tests {
 
     #[test]
     fn open_stores_handle_then_close_releases() {
+        let _serial = mock_backing::serial();
         mock_backing::reset();
         mock_backing::set_open_result(
             /*handle=*/ 42, /*ok=*/ true, /*table_full=*/ false,
@@ -310,6 +321,7 @@ mod tests {
     /// passed.
     #[test]
     fn fill_context_registers_once_on_the_second_of_geometry_then_asset_id() {
+        let _serial = mock_backing::serial();
         mock_backing::reset();
         mock_backing::set_open_result(7, true, false);
         let mut tf = false;
@@ -357,6 +369,7 @@ mod tests {
     /// extra efatfs handle is closed (never silently dropped).
     #[test]
     fn table_full_on_the_capacity_plus_one_open_closes_the_extra_handle() {
+        let _serial = mock_backing::serial();
         mock_backing::reset();
         mock_backing::set_open_result(99, true, false);
 
@@ -384,41 +397,11 @@ mod tests {
         }
     }
 
-    /// (c): regression guard -- `0` is a VALID efatfs handle (the OS hands it out for the very first
-    /// open), so a slot whose `efatfs_handle == 0` must forward the read exactly like any other, NOT
-    /// short-circuit to a clean-failed `0`. Overloading handle `0` as "still recording / no handle"
-    /// here silently failed the header load of whichever sample happened to get handle 0, forcing a
-    /// wasteful re-open that, at the efatfs handle cap, silently dropped a real sample.
-    #[test]
-    fn read_at_on_a_handle_zero_slot_forwards_the_call() {
-        mock_backing::reset();
-        mock_backing::set_open_result(0, true, false); // the OS's first, valid handle: 0
-        let mut tf = false;
-        let h = open(c"FIRST.WAV".as_ptr(), &mut tf);
-        assert_ne!(h, 0); // slot handles are 1-based; only the efatfs handle is 0
-        mock_backing::set_read_result(10);
-
-        let mut buf = [0u8; 16];
-        // SAFETY: `buf` is a valid 16-byte local buffer.
-        let n = unsafe { read_at(h, 1234, buf.as_mut_ptr(), buf.len() as u32) };
-        assert_eq!(
-            n,
-            Some(10),
-            "a handle-0 slot must actually read, not fail clean"
-        );
-        assert_eq!(
-            mock_backing::last_read_call(),
-            Some((0, 1234, 16)),
-            "read must be forwarded to efatfs handle 0"
-        );
-
-        close(h);
-    }
-
     /// (d): `read_at` on a real handle forwards the byte_offset/len and returns the mock's byte
     /// count.
     #[test]
     fn read_at_on_a_real_handle_forwards_the_call_and_returns_the_byte_count() {
+        let _serial = mock_backing::serial();
         mock_backing::reset();
         mock_backing::set_open_result(55, true, false);
         let mut tf = false;
@@ -429,7 +412,7 @@ mod tests {
         let mut buf = [0u8; 16];
         // SAFETY: `buf` is a valid 16-byte local buffer.
         let n = unsafe { read_at(h, 1234, buf.as_mut_ptr(), buf.len() as u32) };
-        assert_eq!(n, Some(10));
+        assert_eq!(n, Ok(10));
         assert_eq!(mock_backing::last_read_call(), Some((55, 1234, 16)));
 
         close(h);
@@ -440,6 +423,7 @@ mod tests {
     /// `DELUGE_RESOURCE_NO_ASSET`) must NOT call it at all.
     #[test]
     fn close_releases_the_assigned_asset_but_not_an_unassigned_one() {
+        let _serial = mock_backing::serial();
         mock_backing::reset();
         mock_backing::set_open_result(21, true, false);
 
@@ -469,6 +453,7 @@ mod tests {
 
     #[test]
     fn open_failure_propagates_table_full_and_returns_zero() {
+        let _serial = mock_backing::serial();
         mock_backing::reset();
         mock_backing::set_open_result(0, false, true);
         let mut tf = false;
@@ -479,6 +464,7 @@ mod tests {
 
     #[test]
     fn zero_and_out_of_range_handles_are_tolerated_everywhere() {
+        let _serial = mock_backing::serial();
         mock_backing::reset();
         close(0);
         assert_eq!(asset_id(0), DELUGE_RESOURCE_NO_ASSET);
@@ -488,7 +474,8 @@ mod tests {
         // SAFETY: `buf` is a valid 4-byte local buffer.
         let n = unsafe { read_at(0, 0, buf.as_mut_ptr(), buf.len() as u32) };
         assert_eq!(
-            n, None,
+            n,
+            Err(DELUGE_ERR_PARAM),
             "an invalid handle is a failed read, not a 0-byte success"
         );
 

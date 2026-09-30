@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
@@ -28,6 +27,7 @@
 #include "util/containers.h"
 #include <cstddef>
 #include <cstdint>
+#include <libdeluge/scheduler.h>
 #include <memory>
 
 class Song;

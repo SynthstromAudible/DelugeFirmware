@@ -18,9 +18,9 @@
 #include "log.h"
 
 #include "io/debug/print.h"
-#include "scheduler_api.h"
 #include "util/functions.h"
 #include <cstdarg>
+#include <libdeluge/scheduler.h>
 
 #ifdef __cplusplus
 extern "C" {

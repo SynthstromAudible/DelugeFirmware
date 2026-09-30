@@ -46,7 +46,7 @@ SampleLowLevelReader::~SampleLowLevelReader() {
 // Geometry is parsed here (above the port) from the immutable per-sample fields. A reader object can be
 // reused for a different sample (voices are pooled), so re-open if the backing stream changed.
 void SampleLowLevelReader::ensureSource(Sample* sample) {
-	void* backing = &sample->stream();
+	DelugeStreamBacking* backing = deluge::audio::stream::toAbi(sample->stream());
 	if (source_ != nullptr && source_backing_ != backing) {
 		deluge_sample_source_close(source_);
 		source_ = nullptr;

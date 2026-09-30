@@ -38,7 +38,7 @@ extern "C" {
 /// One-time application setup. Called once after the platform and all BSP
 /// services are initialised, before audio starts.
 /// [task]
-void deluge_app_init(const DelugeBoard* board);
+void deluge_app_init(const DelugeBoard* board) DELUGE_NOEXCEPT;
 
 /// Realtime audio callback. Render `frames` stereo frames into `out`, reading
 /// the same number of input frames from `in` (either may be NULL if the board
@@ -47,16 +47,16 @@ void deluge_app_init(const DelugeBoard* board);
 /// MUST NOT block, allocate, take locks, or call any non-`[audio]` boundary
 /// function. Note: final volume / click-free fades are handled by the BSP
 /// (e.g. the RZ/A1L SCUX DVU block) — render at unity here.
-/// [audio]
-void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames);
+/// [task] [audio]
+void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSample* out, uint32_t frames) DELUGE_NOEXCEPT;
 
 /// @brief A render block the board chose not to produce (a host harness's null sink that skips rendering).
 ///
 /// Runs only the render's block-start lifetime step -- the epoch advance and the let-go of retired
 /// objects -- with no audio, so an object handed to the render is still let go of and freed. Call it
 /// on the render tier, in place of `deluge_app_render`, for that block.
-/// [audio]
-void deluge_app_render_skipped(void);
+/// [task] [audio]
+void deluge_app_render_skipped(void) DELUGE_NOEXCEPT;
 
 /// @brief Opt this host out of the boot-settings prelude, leaving only the startup song.
 ///

@@ -94,10 +94,12 @@ use block_device_driver::BlockDevice;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, mutex::Mutex};
 use embedded_fatfs::{DefaultTimeProvider, FileSystem, FsOptions, LossyOemCpConverter};
 
+use crate::abi_handle::{from_abi, to_abi};
 use crate::efatfs_core::{self, DirHandleTable, HandleTable, OpenOutcome, TaskFileTable};
 use crate::sys::{
-    DelugeStatus, DelugeStatus_DELUGE_ERR_IO as DELUGE_ERR_IO,
+    DelugeHandle, DelugeStatus, DelugeStatus_DELUGE_ERR_IO as DELUGE_ERR_IO,
     DelugeStatus_DELUGE_ERR_NO_FILESYSTEM as DELUGE_ERR_NO_FILESYSTEM,
+    DelugeStatus_DELUGE_ERR_NO_MEMORY as DELUGE_ERR_NO_MEMORY,
     DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM, DelugeStatus_DELUGE_OK as DELUGE_OK,
 };
 
@@ -202,14 +204,14 @@ pub extern "C" fn deluge_efatfs_mount_generation() -> u32 {
 /// [`HostSdBlockDevice`], which `.await`s `crate::sd::locked_*_sectors`,
 /// so they suspend and resume normally on the executor — no
 /// special-casing needed here.
-pub async fn mount() -> Result<(), ()> {
+pub async fn mount() -> Result<(), DelugeStatus> {
     if FS.lock().await.is_some() {
         return Ok(()); // already mounted -- idempotent
     }
     let storage = BufStream::<HostSdBlockDevice, 512>::new(HostSdBlockDevice);
     let fs = FileSystem::new(storage, FsOptions::new())
         .await
-        .map_err(|_| ())?;
+        .map_err(|e| efatfs_core::error_to_status(&e))?;
     *FS.lock().await = Some(fs);
     // Bumped only on the transition, with the FS installed: a reader that sees the new value can
     // rely on the filesystem being usable.
@@ -230,8 +232,8 @@ async fn reset_all_handle_tables() {
 
 /// Drop the filesystem, leaving it unmounted.
 ///
-/// The symmetric counterpart of [`mount`], which until now had none: [`remount`] drops and re-mounts
-/// in one step, so nothing could put the filesystem into the unmounted state and leave it there.
+/// The counterpart of [`mount`]: [`remount`] drops and re-mounts in one step, and this is the one
+/// call that puts the filesystem into the unmounted state and leaves it there.
 /// That is the state the directory channel's driver mounts OUT of, so without this it could not be
 /// exercised at all.
 pub async fn unmount() {
@@ -241,7 +243,7 @@ pub async fn unmount() {
 
 /// Drop the mounted FS, reset the four handle tables, and re-mount fresh. See
 /// the device `efatfs_fs::remount` for the full card-swap rationale.
-pub async fn remount() -> Result<(), ()> {
+pub async fn remount() -> Result<(), DelugeStatus> {
     *FS.lock().await = None; // drop the old Fs
     reset_all_handle_tables().await;
     mount().await // re-mount fresh
@@ -276,11 +278,10 @@ static HANDLES: Mutex<CriticalSectionRawMutex, HandleTable<{ efatfs_core::MAX_HA
 /// specifically why the open failed — see the device `efatfs_fs::open`'s doc
 /// (this is a faithful mirror).
 pub async fn open(path: &str) -> OpenOutcome {
-    // `open_context` now reports a granular `DelugeStatus`, but this streaming-read
-    // bridge's contract is still bare success/failure (see `streaming_fill.h`), so
-    // every open_context error collapses to `NotFound` here regardless of which one it was.
-    let Some(Ok(ctx)) = with_fs(async |fs| efatfs_core::open_context(fs, path).await).await else {
-        return OpenOutcome::NotFound;
+    let ctx = match with_fs(async |fs| efatfs_core::open_context(fs, path).await).await {
+        Some(Ok(ctx)) => ctx,
+        Some(Err(status)) => return OpenOutcome::Failed(status),
+        None => return OpenOutcome::Failed(DELUGE_ERR_NO_FILESYSTEM),
     };
     match HANDLES.lock().await.insert(ctx) {
         Some(h) => OpenOutcome::Handle(h),
@@ -345,68 +346,49 @@ pub async fn close(handle: u32) {
 use core::ffi::{CStr, c_char};
 
 /// C-ABI: open a sample file for streaming; writes the handle to `*out_handle`.
-/// Returns false if the path/pointer is null or invalid, the FS is unmounted,
-/// or the open failed. `*out_table_full` is always written on a `false`
-/// return — true iff the failure was specifically [`HANDLES`] being full (see
-/// the device `deluge_efatfs_open`'s doc, which this mirrors).
+/// `DELUGE_ERR_PARAM` if the path/pointer is null or invalid, otherwise the
+/// open's status. `*out_table_full` is written past the null checks — true iff
+/// the failure was specifically [`HANDLES`] being full (see the device
+/// `deluge_efatfs_open`'s doc, which this mirrors).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_open(
     path: *const c_char,
-    out_handle: *mut u32,
+    out_handle: *mut DelugeHandle,
     out_table_full: *mut bool,
-) -> bool {
+) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::Open);
     if path.is_null() || out_handle.is_null() || out_table_full.is_null() {
-        return false;
+        return DELUGE_ERR_PARAM;
     }
-    // SAFETY: `path` is a NUL-terminated C string supplied by the caller,
-    // valid for the duration of this call (same contract as the device FFI).
-    let path = match unsafe { CStr::from_ptr(path) }.to_str() {
-        Ok(p) => p,
-        Err(_) => return false,
+    // SAFETY: `path` is a NUL-terminated C string supplied by the caller, valid for the duration
+    // of this call.
+    let Ok(path) = unsafe { CStr::from_ptr(path) }.to_str() else {
+        return DELUGE_ERR_PARAM;
     };
-    // Drive the async open the SAME way the device bridge (`efatfs_fs.rs`) does: one
-    // non-yielding spin, whatever the calling context. What makes that safe on a
-    // single-threaded harness is that this is `sim_block::block_on`, not
-    // `embassy_futures::block_on` — the registered progress hook pumps the higher-priority
-    // executor and advances the virtual clock on every `Pending`, so an open-path read that
-    // needs the executor to advance (pump `Timer`, release `SD_BUS`) still completes. A
-    // HOOKLESS spin here would livelock, which is the deadlock this module's `read` fix
-    // addresses; see this module's doc.
-    let opened = crate::sim_block::block_on(open(path));
-    match opened {
+    let (status, table_full) = match crate::sim_block::block_on(open(path)) {
         OpenOutcome::Handle(h) => {
-            // SAFETY: `out_handle`/`out_table_full` are non-null (checked above) and point at
-            // memory the caller owns for the duration of this synchronous call.
-            unsafe {
-                *out_handle = h;
-                *out_table_full = false;
-            }
-            true
+            // SAFETY: `out_handle` is non-null (checked above) and points at memory the caller
+            // owns for the duration of this synchronous call.
+            unsafe { *out_handle = to_abi(h) };
+            (DELUGE_OK, false)
         }
-        OpenOutcome::TableFull => {
-            // SAFETY: see above.
-            unsafe {
-                *out_table_full = true;
-            }
-            false
-        }
-        OpenOutcome::NotFound => {
-            // SAFETY: see above.
-            unsafe {
-                *out_table_full = false;
-            }
-            false
-        }
-    }
+        OpenOutcome::TableFull => (DELUGE_ERR_NO_MEMORY, true),
+        OpenOutcome::Failed(status) => (status, false),
+    };
+    // SAFETY: `out_table_full` is non-null (checked above), owned by the caller for this call.
+    unsafe { *out_table_full = table_full };
+    status
 }
 
 /// C-ABI: close a streaming file handle. Same unconditional spin as
 /// [`deluge_efatfs_open`] — though `close` issues no SD reads (it only frees a [`HANDLES`]
 /// slot), so it can barely pend at all.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_close(handle: u32) {
+pub extern "C" fn deluge_efatfs_close(handle: DelugeHandle) {
     crate::tier_meter::note(crate::tier_meter::Entry::Close);
+    let Some(handle) = from_abi(handle) else {
+        return;
+    };
     crate::sim_block::block_on(close(handle));
 }
 
@@ -415,28 +397,28 @@ pub extern "C" fn deluge_efatfs_close(handle: u32) {
 /// read pend without livelocking the single-threaded harness (see this module's doc).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_read_at(
-    handle: u32,
+    handle: DelugeHandle,
     byte_offset: u32,
     dst: *mut core::ffi::c_void,
     count: u32,
     out_read: *mut u32,
-) -> bool {
+) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::ReadAt);
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
     if dst.is_null() || out_read.is_null() {
-        return false;
+        return DELUGE_ERR_PARAM;
     }
-    // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
+    // SAFETY: `dst` points at `count` writable bytes owned by the caller for the duration of this
+    // synchronous call (the chunk's cluster payload buffer, from the reader's `fill_now`).
     let buf = unsafe { core::slice::from_raw_parts_mut(dst.cast::<u8>(), count as usize) };
-    let filled = crate::sim_block::block_on(read_at(handle, byte_offset, buf));
-    if filled {
-        // SAFETY: `out_read` is non-null (checked above), a `u32` the caller owns.
-        unsafe {
-            *out_read = count;
-        }
-        true
-    } else {
-        false
+    if !crate::sim_block::block_on(read_at(handle, byte_offset, buf)) {
+        return DELUGE_ERR_IO;
     }
+    // SAFETY: `out_read` is non-null (checked above), a `u32` the caller owns.
+    unsafe { *out_read = count };
+    DELUGE_OK
 }
 
 // --- Task-context file/dir tables --------------------------------------------
@@ -645,7 +627,7 @@ pub(crate) fn try_close_dir(handle: u32) -> bool {
 pub extern "C" fn deluge_efatfs_file_open(
     path: *const c_char,
     mode: u8,
-    out_handle: *mut u32,
+    out_handle: *mut DelugeHandle,
 ) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::FileOpen);
     if path.is_null() || out_handle.is_null() {
@@ -661,7 +643,7 @@ pub extern "C" fn deluge_efatfs_file_open(
         Ok(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
             unsafe {
-                *out_handle = h;
+                *out_handle = to_abi(h);
             }
             DELUGE_OK
         }
@@ -673,12 +655,15 @@ pub extern "C" fn deluge_efatfs_file_open(
 /// port's `File::read`. `*out_read` is the true byte count, `<= count`.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_read_exact(
-    handle: u32,
+    handle: DelugeHandle,
     dst: *mut core::ffi::c_void,
     count: u32,
     out_read: *mut u32,
 ) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::FileReadExact);
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
     if dst.is_null() || out_read.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -701,12 +686,15 @@ pub extern "C" fn deluge_efatfs_file_read_exact(
 /// byte count written.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_write(
-    handle: u32,
+    handle: DelugeHandle,
     src: *const core::ffi::c_void,
     count: u32,
     out_written: *mut u32,
 ) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::FileWrite);
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
     if src.is_null() || out_written.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -727,8 +715,11 @@ pub extern "C" fn deluge_efatfs_file_write(
 
 /// C-ABI: move the handle's cursor to an absolute byte offset.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_file_seek(handle: u32, offset: u32) -> DelugeStatus {
+pub extern "C" fn deluge_efatfs_file_seek(handle: DelugeHandle, offset: u32) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::FileSeek);
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
     let result = crate::sim_block::block_on(task_file_seek(handle, offset));
     match result {
         Ok(()) => DELUGE_OK,
@@ -738,8 +729,14 @@ pub extern "C" fn deluge_efatfs_file_seek(handle: u32, offset: u32) -> DelugeSta
 
 /// C-ABI: total file size in bytes.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_file_size(handle: u32, out_size: *mut u32) -> DelugeStatus {
+pub extern "C" fn deluge_efatfs_file_size(
+    handle: DelugeHandle,
+    out_size: *mut u32,
+) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::FileSize);
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
     if out_size.is_null() {
         return DELUGE_ERR_PARAM;
     }
@@ -758,8 +755,11 @@ pub extern "C" fn deluge_efatfs_file_size(handle: u32, out_size: *mut u32) -> De
 
 /// C-ABI: close a task-context file handle.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_file_close(handle: u32) {
+pub extern "C" fn deluge_efatfs_file_close(handle: DelugeHandle) {
     crate::tier_meter::note(crate::tier_meter::Entry::FileClose);
+    let Some(handle) = from_abi(handle) else {
+        return;
+    };
     crate::sim_block::block_on(task_file_close(handle));
 }
 
@@ -767,7 +767,7 @@ pub extern "C" fn deluge_efatfs_file_close(handle: u32) {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_dir_open(
     path: *const c_char,
-    out_handle: *mut u32,
+    out_handle: *mut DelugeHandle,
 ) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::DirOpen);
     if path.is_null() || out_handle.is_null() {
@@ -783,7 +783,7 @@ pub extern "C" fn deluge_efatfs_dir_open(
         Ok(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
             unsafe {
-                *out_handle = h;
+                *out_handle = to_abi(h);
             }
             DELUGE_OK
         }
@@ -795,7 +795,7 @@ pub extern "C" fn deluge_efatfs_dir_open(
 /// function for the full contract this mirrors.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_dir_read(
-    handle: u32,
+    handle: DelugeHandle,
     out_name: *mut c_char,
     out_name_cap: u32,
     out_is_dir: *mut bool,
@@ -805,6 +805,9 @@ pub extern "C" fn deluge_efatfs_dir_read(
     out_has: *mut bool,
 ) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::DirRead);
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
     if out_name.is_null()
         || out_name_cap == 0
         || out_is_dir.is_null()
@@ -849,8 +852,11 @@ pub extern "C" fn deluge_efatfs_dir_read(
 
 /// C-ABI: close a directory handle.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_dir_close(handle: u32) {
+pub extern "C" fn deluge_efatfs_dir_close(handle: DelugeHandle) {
     crate::tier_meter::note(crate::tier_meter::Entry::DirClose);
+    let Some(handle) = from_abi(handle) else {
+        return;
+    };
     crate::sim_block::block_on(task_dir_close(handle));
 }
 
@@ -859,33 +865,34 @@ pub extern "C" fn deluge_efatfs_dir_close(handle: u32) {
 pub extern "C" fn deluge_efatfs_stats(
     out_free_clusters: *mut u32,
     out_total_clusters: *mut u32,
-) -> bool {
+) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::Stats);
     if out_free_clusters.is_null() || out_total_clusters.is_null() {
-        return false;
+        return DELUGE_ERR_PARAM;
     }
     let fut = with_fs(async |fs| efatfs_core::fs_stats(fs).await);
-    let result = crate::sim_block::block_on(fut).flatten();
-    match result {
-        Some((free, total)) => {
+    match crate::sim_block::block_on(fut) {
+        Some(Ok((free, total))) => {
             // SAFETY: both out-params non-null (checked above), owned by the caller for this call.
             unsafe {
                 *out_free_clusters = free;
                 *out_total_clusters = total;
             }
-            true
+            DELUGE_OK
         }
-        None => false,
+        Some(Err(status)) => status,
+        None => DELUGE_ERR_NO_FILESYSTEM,
     }
 }
 
 /// C-ABI: mount the FS if it isn't already mounted (idempotent -- see
-/// [`mount`]). True if mounted (or already was), false on failure.
+/// [`mount`]). `DELUGE_OK` if mounted (or already was), else the mount's status.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_mount() -> bool {
+pub extern "C" fn deluge_efatfs_mount() -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::Mount);
-    let fut = mount();
-    crate::sim_block::block_on(fut).is_ok()
+    crate::sim_block::block_on(mount())
+        .err()
+        .unwrap_or(DELUGE_OK)
 }
 
 /// C-ABI (libdeluge/storage_busy.h): is a filesystem operation in flight? Host mirror of the
@@ -908,30 +915,29 @@ pub extern "C" fn deluge_efatfs_unmount() {
 /// C-ABI: drop the mounted FS + reset the four handle tables + re-mount fresh
 /// (see [`remount`]).
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_remount() -> bool {
+pub extern "C" fn deluge_efatfs_remount() -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::Remount);
-    let fut = remount();
-    crate::sim_block::block_on(fut).is_ok()
+    crate::sim_block::block_on(remount())
+        .err()
+        .unwrap_or(DELUGE_OK)
 }
 
 /// C-ABI: the mounted volume's cluster (allocation-unit) size, in bytes.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_cluster_size(out_bytes: *mut u32) -> bool {
+pub extern "C" fn deluge_efatfs_cluster_size(out_bytes: *mut u32) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::ClusterSize);
     if out_bytes.is_null() {
-        return false;
+        return DELUGE_ERR_PARAM;
     }
     let fut = with_fs(async |fs| efatfs_core::fs_cluster_size(fs).await);
-    let result = crate::sim_block::block_on(fut).flatten();
-    match result {
-        Some(bytes) => {
+    match crate::sim_block::block_on(fut) {
+        Some(Ok(bytes)) => {
             // SAFETY: `out_bytes` is non-null (checked above), owned by the caller for this call.
-            unsafe {
-                *out_bytes = bytes;
-            }
-            true
+            unsafe { *out_bytes = bytes };
+            DELUGE_OK
         }
-        None => false,
+        Some(Err(status)) => status,
+        None => DELUGE_ERR_NO_FILESYSTEM,
     }
 }
 
@@ -1097,8 +1103,8 @@ static STREAM_WRITE_CTX: Mutex<
 /// the free count; `efatfs_core::fs_stats` yields `(free, total)` and no caller here needs the total.
 pub(crate) async fn fs_stats_free() -> Option<u32> {
     with_fs(async |fs| efatfs_core::fs_stats(fs).await)
-        .await
-        .flatten()
+        .await?
+        .ok()
         .map(|(free, _total)| free)
 }
 
@@ -1225,27 +1231,23 @@ pub(crate) async fn stream_close(handle: u32) -> bool {
 pub extern "C" fn deluge_efatfs_stream_open(
     path: *const c_char,
     mode: u8,
-    out_handle: *mut u32,
-) -> bool {
+    out_handle: *mut DelugeHandle,
+) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::StreamOpen);
     if path.is_null() || out_handle.is_null() {
-        return false;
+        return DELUGE_ERR_PARAM;
     }
     // SAFETY: `path` is a NUL-terminated C string valid for the duration of this call.
-    let path = match unsafe { CStr::from_ptr(path) }.to_str() {
-        Ok(p) => p,
-        Err(_) => return false,
+    let Ok(path) = unsafe { CStr::from_ptr(path) }.to_str() else {
+        return DELUGE_ERR_PARAM;
     };
-    let opened = crate::sim_block::block_on(stream_open(path, mode));
-    match opened {
+    match crate::sim_block::block_on(stream_open(path, mode)) {
         Ok(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
-            unsafe {
-                *out_handle = h;
-            }
-            true
+            unsafe { *out_handle = to_abi(h) };
+            DELUGE_OK
         }
-        Err(_) => false,
+        Err(status) => status,
     }
 }
 
@@ -1253,92 +1255,106 @@ pub extern "C" fn deluge_efatfs_stream_open(
 /// the true byte count written.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_stream_write_at(
-    handle: u32,
+    handle: DelugeHandle,
     byte_offset: u32,
     src: *const core::ffi::c_void,
     count: u32,
     out_written: *mut u32,
-) -> bool {
+) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::StreamWriteAt);
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
     if src.is_null() || out_written.is_null() {
-        return false;
+        return DELUGE_ERR_PARAM;
     }
     // SAFETY: `src` points at `count` readable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts(src.cast::<u8>(), count as usize) };
-    let result = crate::sim_block::block_on(stream_write_at(handle, byte_offset, buf));
-    match result {
-        Some(n) => {
-            // SAFETY: `out_written` is non-null (checked above).
-            unsafe {
-                *out_written = n as u32;
-            }
-            true
-        }
-        None => false,
-    }
+    let Some(n) = crate::sim_block::block_on(stream_write_at(handle, byte_offset, buf)) else {
+        return DELUGE_ERR_IO;
+    };
+    // SAFETY: `out_written` is non-null (checked above).
+    unsafe { *out_written = n as u32 };
+    DELUGE_OK
 }
 
 /// C-ABI: EOF-honest read at absolute `byte_offset` (see [`stream_read_at_via`]). `*out_read` is
 /// the true byte count read, `<= count`.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_stream_read_at_via(
-    handle: u32,
+    handle: DelugeHandle,
     byte_offset: u32,
     dst: *mut core::ffi::c_void,
     count: u32,
     out_read: *mut u32,
-) -> bool {
+) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::StreamReadAtVia);
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
     if dst.is_null() || out_read.is_null() {
-        return false;
+        return DELUGE_ERR_PARAM;
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts_mut(dst.cast::<u8>(), count as usize) };
-    let result = crate::sim_block::block_on(stream_read_at_via(handle, byte_offset, buf));
-    match result {
-        Some(n) => {
-            // SAFETY: `out_read` is non-null (checked above).
-            unsafe {
-                *out_read = n as u32;
-            }
-            true
-        }
-        None => false,
-    }
+    let Some(n) = crate::sim_block::block_on(stream_read_at_via(handle, byte_offset, buf)) else {
+        return DELUGE_ERR_IO;
+    };
+    // SAFETY: `out_read` is non-null (checked above).
+    unsafe { *out_read = n as u32 };
+    DELUGE_OK
 }
 
 /// C-ABI: truncate to `new_len` bytes.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_stream_truncate(handle: u32, new_len: u32) -> bool {
+pub extern "C" fn deluge_efatfs_stream_truncate(
+    handle: DelugeHandle,
+    new_len: u32,
+) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::StreamTruncate);
-    crate::sim_block::block_on(stream_truncate(handle, new_len))
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
+    if crate::sim_block::block_on(stream_truncate(handle, new_len)) {
+        DELUGE_OK
+    } else {
+        DELUGE_ERR_IO
+    }
 }
 
 /// C-ABI: total size in bytes.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_stream_size(handle: u32, out_size: *mut u32) -> bool {
+pub extern "C" fn deluge_efatfs_stream_size(
+    handle: DelugeHandle,
+    out_size: *mut u32,
+) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::StreamSize);
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
     if out_size.is_null() {
-        return false;
+        return DELUGE_ERR_PARAM;
     }
-    let result = crate::sim_block::block_on(stream_size(handle));
-    match result {
-        Some(sz) => {
-            // SAFETY: `out_size` is non-null (checked above).
-            unsafe {
-                *out_size = sz;
-            }
-            true
-        }
-        None => false,
-    }
+    let Some(size) = crate::sim_block::block_on(stream_size(handle)) else {
+        return DELUGE_ERR_IO;
+    };
+    // SAFETY: `out_size` is non-null (checked above).
+    unsafe { *out_size = size };
+    DELUGE_OK
 }
 
 /// C-ABI: flush and close a persistent stream-write handle, freeing its slot.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_efatfs_stream_close(handle: u32) -> bool {
+pub extern "C" fn deluge_efatfs_stream_close(handle: DelugeHandle) -> DelugeStatus {
     crate::tier_meter::note(crate::tier_meter::Entry::StreamClose);
-    crate::sim_block::block_on(stream_close(handle))
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_ERR_PARAM;
+    };
+    if crate::sim_block::block_on(stream_close(handle)) {
+        DELUGE_OK
+    } else {
+        DELUGE_ERR_IO
+    }
 }
 
 abi_pin!(

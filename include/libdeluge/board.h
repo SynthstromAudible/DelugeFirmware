@@ -23,6 +23,7 @@
 #ifndef LIBDELUGE_BOARD_H
 #define LIBDELUGE_BOARD_H
 
+#include "abi.h"
 #include "types.h"
 #include <stdint.h>
 
@@ -65,7 +66,7 @@ typedef struct DelugeBoard {
 
 /// Return the board this BSP targets. Valid from `deluge_app_init` on.
 /// [task]
-const DelugeBoard* deluge_board(void);
+const DelugeBoard* deluge_board(void) DELUGE_NOEXCEPT;
 
 // ---------------------------------------------------------------------------
 // One-time board bring-up. The application's boot path is interleaved — app
@@ -78,27 +79,27 @@ const DelugeBoard* deluge_board(void);
 /// Runtime probe: true if the bootloader already configured the OLED panel's
 /// SPI DMA, i.e. an OLED is fitted. The app uses this to choose the OLED vs
 /// 7-segment bring-up and display object. Valid before any board_init. [task]
-bool deluge_board_probe_oled(void);
+bool deluge_board_probe_oled(void) DELUGE_NOEXCEPT;
 
 /// Early bring-up, before the app's CV/audio/storage subsystems: GPIO
 /// direction + initial state for the status LEDs, codec and speaker enables,
 /// jack detects, analog voltage sense and the trigger-clock input; create and
 /// start the CV DAC SPI; and, when `have_oled`, the OLED-shared-SPI slave
 /// select, transfer interrupts and DMA (otherwise the 7-segment SPI mux). [task]
-void deluge_board_init_early(bool have_oled);
+void deluge_board_init_early(bool have_oled) DELUGE_NOEXCEPT;
 
 /// Bring up the audio serial (SSI) port. Called once after init_early and the
 /// display object exists, before the audio engine starts. [task]
-void deluge_board_init_audio(void);
+void deluge_board_init_audio(void) DELUGE_NOEXCEPT;
 
 /// Storage-phase bring-up: SPIBSC pins + serial-flash controller. Must run only
 /// after external RAM/audio is up, because the controller's busy-wait loops run
 /// the injected audio/graphics routines. [task]
-void deluge_board_init_storage(void);
+void deluge_board_init_storage(void) DELUGE_NOEXCEPT;
 
 /// Unlock the L2 cache data region locked during boot, just before entering the
 /// main loop. [task]
-void deluge_board_unlock_data_cache(void);
+void deluge_board_unlock_data_cache(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

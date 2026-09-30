@@ -1,5 +1,6 @@
 #include "io/file.hpp"
 
+#include "io/c_path.h"
 #include "libdeluge/file_directory.h"
 
 #include <cstdint>
@@ -7,30 +8,6 @@
 namespace deluge::io {
 
 namespace {
-
-// The efatfs backend's `u32` handles are boxed into the opaque DelugeFile*/DelugeDir* pointers,
-// the same convention the streaming handle uses -- these are never dereferenced, only cast back
-// to `u32` before crossing into Rust.
-//
-// The Rust TaskFileTable/DirHandleTable `insert` hands out the lowest free
-// slot starting at 0, so the offset-less cast used to box slot 0 into
-// nullptr. File/Directory's RAII guards (`if (handle_) { close(); }`) treat
-// null as "no handle", so a slot-0 handle would never get closed -- leaking
-// the Rust slot and, for a slot-0 file opened for write, losing unflushed
-// data. Reserve 0/null for "empty" by storing `handle + 1` and recovering
-// `ptr - 1`, so every real slot (including 0) boxes to a non-null pointer.
-DelugeFile* box_file_handle(uint32_t handle) {
-	return reinterpret_cast<DelugeFile*>(static_cast<uintptr_t>(handle) + 1);
-}
-uint32_t unbox_file_handle(DelugeFile* handle) {
-	return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(handle) - 1);
-}
-DelugeDir* box_dir_handle(uint32_t handle) {
-	return reinterpret_cast<DelugeDir*>(static_cast<uintptr_t>(handle) + 1);
-}
-uint32_t unbox_dir_handle(DelugeDir* handle) {
-	return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(handle) - 1);
-}
 
 // FAT attribute bits (embedded_fatfs::FileAttributes::bits() -- see
 // efatfs_core.rs's DirEntryInfo doc).
@@ -140,20 +117,24 @@ std::expected<bool, Status> presence_from_open(const std::expected<File, Status>
 }
 
 std::expected<File, Status> File::open(std::string_view path, DelugeFileOpenMode mode) {
-	uint32_t handle = 0;
-	DelugeStatus st = deluge_efatfs_file_open(path.data(), static_cast<uint8_t>(mode), &handle);
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
+	DelugeStatus st = deluge_efatfs_file_open(cpath->c_str(), static_cast<uint8_t>(mode), &handle);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
-	return File(box_file_handle(handle));
+	return File(handle);
 }
 
 std::expected<std::span<std::byte>, Status> File::read(std::span<std::byte> buffer) {
 	uint32_t out_read = 0;
 	// EOF-honest read (the true short count, never zero-padded) -- the
 	// efatfs backend for this port method.
-	DelugeStatus st = deluge_efatfs_file_read_exact(unbox_file_handle(handle_), buffer.data(),
-	                                                static_cast<uint32_t>(buffer.size()), &out_read);
+	DelugeStatus st =
+	    deluge_efatfs_file_read_exact(handle_, buffer.data(), static_cast<uint32_t>(buffer.size()), &out_read);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -162,8 +143,8 @@ std::expected<std::span<std::byte>, Status> File::read(std::span<std::byte> buff
 
 std::expected<uint32_t, Status> File::write(std::span<const std::byte> buffer) {
 	uint32_t out_written = 0;
-	DelugeStatus st = deluge_efatfs_file_write(unbox_file_handle(handle_), buffer.data(),
-	                                           static_cast<uint32_t>(buffer.size()), &out_written);
+	DelugeStatus st =
+	    deluge_efatfs_file_write(handle_, buffer.data(), static_cast<uint32_t>(buffer.size()), &out_written);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -171,7 +152,7 @@ std::expected<uint32_t, Status> File::write(std::span<const std::byte> buffer) {
 }
 
 std::expected<void, Status> File::seek(uint32_t offset) {
-	DelugeStatus st = deluge_efatfs_file_seek(unbox_file_handle(handle_), offset);
+	DelugeStatus st = deluge_efatfs_file_seek(handle_, offset);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -180,7 +161,7 @@ std::expected<void, Status> File::seek(uint32_t offset) {
 
 std::expected<uint32_t, Status> File::size() {
 	uint32_t out_size = 0;
-	DelugeStatus st = deluge_efatfs_file_size(unbox_file_handle(handle_), &out_size);
+	DelugeStatus st = deluge_efatfs_file_size(handle_, &out_size);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -188,26 +169,28 @@ std::expected<uint32_t, Status> File::size() {
 }
 
 std::expected<void, Status> File::close() {
-	deluge_efatfs_file_close(unbox_file_handle(handle_));
-	handle_ = nullptr; // matters even on error: don't let the destructor double-close
+	deluge_efatfs_file_close(handle_);
+	handle_ = DELUGE_HANDLE_NONE; // matters even on error: don't let the destructor double-close
 	return {};
 }
 
 std::expected<Directory, Status> Directory::open(std::string_view path) {
-	uint32_t handle = 0;
-	DelugeStatus st = deluge_efatfs_dir_open(path.data(), &handle);
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
+	DelugeStatus st = deluge_efatfs_dir_open(cpath->c_str(), &handle);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
-	return Directory(box_dir_handle(handle));
+	return Directory(handle);
 }
 
-Directory Directory::adopt(uint32_t handle) {
-	// Deliberately the same boxing open() applies to the handle it just received, rather than a
-	// second path into the private constructor: a handle from the async channel and a handle from a
-	// synchronous open are the same efatfs slot index, and boxing them differently would make one of
-	// the two unclose-able.
-	return Directory(box_dir_handle(handle));
+Directory Directory::adopt(DelugeHandle handle) {
+	// A handle from the async channel and one from a synchronous open name the same directory table
+	// under the same handle rule, so both are stored as they came.
+	return Directory(handle);
 }
 
 std::expected<std::optional<DelugeDirEntry>, Status> Directory::read() {
@@ -215,8 +198,8 @@ std::expected<std::optional<DelugeDirEntry>, Status> Directory::read() {
 	bool has_entry = false;
 	uint32_t modified = 0;
 	uint8_t attrs = 0;
-	DelugeStatus st = deluge_efatfs_dir_read(unbox_dir_handle(handle_), entry.name, DELUGE_MAX_FILENAME,
-	                                         &entry.is_directory, &entry.size, &modified, &attrs, &has_entry);
+	DelugeStatus st = deluge_efatfs_dir_read(handle_, entry.name, DELUGE_MAX_FILENAME, &entry.is_directory, &entry.size,
+	                                         &modified, &attrs, &has_entry);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -232,31 +215,31 @@ std::expected<std::optional<DelugeDirEntry>, Status> Directory::read() {
 }
 
 std::expected<void, Status> Directory::close() {
-	deluge_efatfs_dir_close(unbox_dir_handle(handle_));
-	handle_ = nullptr; // matters even on error: don't let the destructor double-close
+	deluge_efatfs_dir_close(handle_);
+	handle_ = DELUGE_HANDLE_NONE; // matters even on error: don't let the destructor double-close
 	return {};
 }
 
 DirOpen collectOrRequestDir(const char* path, std::optional<Directory>* out, Status* outStatus) {
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	DelugeStatus st = DELUGE_OK;
 	switch (deluge_file_directory_collect(path, &handle, &st)) {
-	case DELUGE_FILE_DIRECTORY_READY:
+	case DELUGE_CHANNEL_READY:
 		// emplace, not assign: Directory is move-only with no default constructor, so there is no
 		// empty slot to assign into. Adopting here is what puts the handle back under RAII.
 		out->emplace(Directory::adopt(handle));
 		return DirOpen::Ready;
 
-	case DELUGE_FILE_DIRECTORY_UNKNOWN:
+	case DELUGE_CHANNEL_UNKNOWN:
 		// "Request it (again)" -- the documented meaning of UNKNOWN, and where the FIRST request is
 		// issued, which is why no separate "have I asked yet" flag is needed.
 		deluge_file_directory_request(path, /*create_if_missing=*/false);
 		return DirOpen::Pending;
 
-	case DELUGE_FILE_DIRECTORY_PENDING:
+	case DELUGE_CHANNEL_PENDING:
 		return DirOpen::Pending;
 
-	case DELUGE_FILE_DIRECTORY_FAILED:
+	case DELUGE_CHANNEL_FAILED:
 	default:
 		// TERMINAL, and deliberately NOT re-requested: a folder that cannot be opened would be
 		// re-opened on every tick, forever, for as long as the caller sat on it.
@@ -276,7 +259,11 @@ std::expected<bool, Status> presence_from_open(const std::expected<Directory, St
 }
 
 std::expected<void, Status> mkdir(std::string_view path) {
-	DelugeStatus st = deluge_efatfs_mkdir(path.data());
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeStatus st = deluge_efatfs_mkdir(cpath->c_str());
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -284,7 +271,11 @@ std::expected<void, Status> mkdir(std::string_view path) {
 }
 
 std::expected<void, Status> unlink(std::string_view path) {
-	DelugeStatus st = deluge_efatfs_unlink(path.data());
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeStatus st = deluge_efatfs_unlink(cpath->c_str());
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -292,7 +283,12 @@ std::expected<void, Status> unlink(std::string_view path) {
 }
 
 std::expected<void, Status> rename(std::string_view old_path, std::string_view new_path) {
-	DelugeStatus st = deluge_efatfs_rename(old_path.data(), new_path.data());
+	const auto cpath_old = CPath::from(old_path);
+	const auto cpath_new = CPath::from(new_path);
+	if (!cpath_old || !cpath_new) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeStatus st = deluge_efatfs_rename(cpath_old->c_str(), cpath_new->c_str());
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -300,7 +296,11 @@ std::expected<void, Status> rename(std::string_view old_path, std::string_view n
 }
 
 std::expected<void, Status> set_time(std::string_view path, DelugeTimestamp timestamp) {
-	DelugeStatus st = deluge_efatfs_set_time(path.data(), timestamp.year, timestamp.month, timestamp.day,
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeStatus st = deluge_efatfs_set_time(cpath->c_str(), timestamp.year, timestamp.month, timestamp.day,
 	                                         timestamp.hour, timestamp.minute, timestamp.second);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));

@@ -47,6 +47,31 @@ typedef enum DelugeStatus : int8_t {
 	DELUGE_ERR_NOT_EMPTY = -14,       ///< directory not empty
 } DelugeStatus;
 
+/// A handle to a row of one of the BSP's tables: an open file, directory or stream.
+///
+/// 0 is none (@ref DELUGE_HANDLE_NONE), and no call ever hands it out. A caller stores the number as it came and
+/// tests it against @ref DELUGE_HANDLE_NONE. A call that takes a handle and is passed @ref DELUGE_HANDLE_NONE does
+/// nothing and answers its bad-argument result: a status-returning call answers @ref DELUGE_ERR_PARAM, a close that
+/// returns nothing does nothing, a channel request answers false and a channel collect answers
+/// `DELUGE_CHANNEL_UNKNOWN`. A non-zero handle that names no open row is refused by each call's own rule, which is
+/// not always the same answer (the streaming `deluge_efatfs_read_at` and `deluge_efatfs_stream_*` calls answer
+/// @ref DELUGE_ERR_IO for it).
+typedef uint32_t DelugeHandle;
+
+/// The handle that names nothing. See @ref DelugeHandle.
+#define DELUGE_HANDLE_NONE 0u
+
+/// The resource manager chunks are leased from. Opaque; owned by the Rust `deluge_resource` crate.
+typedef struct DelugeResource DelugeResource;
+
+/// A sample's stream: the C++ `deluge::audio::stream::SampleStream` a region-port cursor is opened
+/// over. Opaque; only the C++ side dereferences it.
+typedef struct DelugeStreamBacking DelugeStreamBacking;
+
+/// A resident streamed chunk the fill queue fills: the Rust `deluge_sample_fill` crate's
+/// `StreamedChunk`. Opaque; only the Rust side dereferences it.
+typedef struct DelugeChunkBacking DelugeChunkBacking;
+
 /// A portable, timezone-free timestamp — matches FAT DOS date/time's own
 /// decomposition (year/month/day/hour/minute/second, no epoch, no TZ) so no
 /// backend needs to invent a timezone. A DOS-backed implementation rounds

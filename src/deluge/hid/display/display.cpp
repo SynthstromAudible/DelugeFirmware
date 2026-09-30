@@ -2,6 +2,7 @@
 #include "gui/l10n/l10n.h"
 #include "io/debug/log.h" // D_PRINTLN — freezeWithError logs the code before it stops the world
 #include <cstdio>
+#include <cstdlib>
 
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
@@ -101,6 +102,17 @@ extern "C" void freezeWithError(char const* error) {
 	std::fprintf(stderr, "FREEZE_WITH_ERROR: %s\n", error);
 	std::fflush(stderr);
 #endif
+	if (display == nullptr) {
+		// Before boot has made the display (a failure in deluge_app_init's own boot) there is no panel to freeze on.
+		// The code is logged above, and on the device FREEZE_WITH_ERROR has already drawn the pad-grid report.
+#ifdef DELUGE_HOST
+		std::abort();
+#else
+		while (true) {
+			__asm__ volatile("nop");
+		}
+#endif
+	}
 	display->freezeWithError(error);
 }
 

@@ -1,18 +1,24 @@
 # The libdeluge C ABI overhaul
 
-Status: planned 2026-09-29. Five phase plans implement it:
+Status: implemented. Phases 1-4 are merged into `next`; phase 5 has landed on its branch. What remains open is
+listed in section 5. Five phase plans implement it:
 
-1. `docs/superpowers/plans/2026-09-29-libdeluge-abi-p1-bugs.md`: live defects the audits found.
-2. `docs/superpowers/plans/2026-09-29-libdeluge-abi-p2-dead-surface.md`: delete everything no one calls.
+1. `docs/superpowers/plans/2026-09-29-libdeluge-abi-p1-bugs.md`: live defects the audits found. Branch
+   `fix/libdeluge-abi-bugs`, merged into `next` (a20e0ff82).
+2. `docs/superpowers/plans/2026-09-29-libdeluge-abi-p2-dead-surface.md`: delete everything no one calls. Branch
+   `chore/libdeluge-dead-surface`, merged into `next` (1d4d303ce).
 3. `docs/superpowers/plans/2026-09-29-libdeluge-abi-p3-header-contract.md`: bindgen checks the whole surface.
-4. `docs/superpowers/plans/2026-09-29-libdeluge-abi-p4-channels.md`: one channel shape on both sides.
-5. `docs/superpowers/plans/2026-09-29-libdeluge-abi-p5-shape.md`: the remaining structural cleanups.
+   Branch `chore/libdeluge-header-contract`, merged into `next` (307705272).
+4. `docs/superpowers/plans/2026-09-29-libdeluge-abi-p4-channels.md`: one channel shape on both sides. Branch
+   `refactor/libdeluge-channels`, merged into `next` (7d07f5f31).
+5. `docs/superpowers/plans/2026-09-29-libdeluge-abi-p5-shape.md`: the remaining structural cleanups. Branch
+   `refactor/libdeluge-shape`, off `next` at 7d07f5f31.
 
 Each phase ships on its own and leaves `./dbt test` green; later phases assume the earlier ones landed.
 
 ## 1. What the ABI is
 
-`include/libdeluge/*.h` (35 headers) is the C boundary between the portable C++ app (`src/deluge`) and the
+`include/libdeluge/*.h` (37 headers) is the C boundary between the portable C++ app (`src/deluge`) and the
 platform. With the legacy RZA1 BSP and the C host retired, one platform implements it: the Rust BSP
 (`src/bsp/rust`, `#[unsafe(no_mangle)]` exports), with a few symbols in in-tree crates (`crates/deluge_*`). It runs
 on the device and, under `host_app`, on the Embassy host (the gates and `dbt sim`).
@@ -190,7 +196,7 @@ defined:
      indices.
 4. **Delete before binding.** P2 removes the dead surface before P3 binds everything, so nothing dead gets a pin.
 5. **Bindgen is the contract.**
-   - `wrapper.h` includes all 35 headers.
+   - `wrapper.h` includes the umbrella `libdeluge.h`, which includes the other 36 headers.
    - bindgen emits functions (`allowlist_function("deluge_.*")`) and constants (`allowlist_var("DELUGE_.*")`) as
      well as types.
    - Every Rust export is pinned against its generated declaration by `abi_pin!`, which fails the build on any
@@ -231,3 +237,18 @@ defined:
 - The device image must link: `./dbt build RelWithDebInfo` with `src/bsp/rust/local-sdk.toml` moved aside, then
   `git checkout -q src/bsp/rust/Cargo.lock`.
 - Hardware never gates a phase.
+
+## 5. Open follow-ups
+
+The overhaul leaves these open. None is ABI shape; each is behaviour behind the ABI.
+
+- **P4's parked channel behaviours.** The progress self-feed, the SysEx scaling, the recorder's folder retry, and a
+  caller's own `write_from` that can stay PENDING with no bound.
+- **Audio-tier hazards.** An `[audio]` function should never block, allocate or lock, and some still do: the mod-FX
+  buffer is set up and released inside the render through `deluge_alloc`/`deluge_free`, a region acquire can take and
+  release slab slots (`deluge_slab_acquire`/`deluge_slab_release`), the render takes `ENTER_CRITICAL_SECTION`, and a
+  freeze in the render blocks in `deluge_fault_pad_flush`. `include/libdeluge/README.md` lists them; the tags record
+  them, they do not fix them.
+- **The blocking recorder arm's NOT_FOUND to MakeFolder step is untested.** `SampleRecorder`'s synchronous create
+  path retries through `CreatePhase::MakeFolder` when `deluge::io::Stream::open` answers `NOT_FOUND`; no gate drives
+  that branch.

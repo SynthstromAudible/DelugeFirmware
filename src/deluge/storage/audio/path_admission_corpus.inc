@@ -39,7 +39,7 @@
  */
 
 /* Ordinary paths, and the boundary the fixed-capacity buffer imposes: 255 bytes fits, 256 does not
- * (DELUGE_MAX_PATH counts the NUL). */
+ * (DELUGE_PATH_MAX counts the NUL). */
 DELUGE_PATH_ADMISSION_CASE(true, "SAMPLES/KICK.WAV", 1, "an ordinary path")
 DELUGE_PATH_ADMISSION_CASE(true, "", 1, "the empty path")
 DELUGE_PATH_ADMISSION_CASE(true, "A", 255, "255 bytes, the longest that fits")

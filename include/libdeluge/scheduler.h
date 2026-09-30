@@ -17,15 +17,11 @@
 
 /// libdeluge/scheduler.h — cooperative task scheduling.
 ///
-/// The scheduler is a boundary service. Its canonical definition is the existing
-/// `OSLikeStuff/scheduler_api.h` (already a clean C API: opaque ids, plain
-/// functions). It is re-exported here so application code includes it via
-/// `<libdeluge/...>` like every other service.
-///
-/// MIGRATION: in a later step `scheduler_api.h` (and `clock_type.h`) move
-/// physically under `include/libdeluge/` and this forwarding include is dropped.
-/// Until then this header forwards to the current location so there is a single
-/// source of truth and no risk of drift.
+/// Registers tasks that run cooperatively from a single caller loop, paced by priority and a
+/// target/back-off/max cadence (`addRepeatingTask`) or a predicate (`addConditionalTask`). The
+/// scheduler itself is the BSP's (`src/bsp/rust/src/scheduler.rs`); the application is only ever
+/// on the C side of this ABI. Also declares the clock tick type and rate (`dTime`,
+/// `DELUGE_CLOCKS_PER*`) that the C++ `Time` wrapper (`task_scheduler/clock_type.h`) is built on.
 ///
 /// ON EMBASSY: this same C API can be implemented on top of the Embassy executor
 /// (Stage 2 in docs/dev/libdeluge_bsp_design.md) — `addRepeatingTask` -> spawn a
@@ -34,9 +30,94 @@
 #ifndef LIBDELUGE_SCHEDULER_H
 #define LIBDELUGE_SCHEDULER_H
 
-// NOTE: relative include reflects the pre-migration source layout; it is the one
-// include in this directory that intentionally reaches back into OSLikeStuff and
-// will be replaced by a physical move.
-#include "scheduler_api.h" // IWYU pragma: export
+#include "abi.h"
+#include <stdint.h>
+#ifndef __cplusplus
+#include <stdbool.h>
+#endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/// A tick count at the board's fixed clock rate (see DELUGE_CLOCKS_PER).
+typedef int64_t dTime;
+#define DELUGE_CLOCKS_PER 33330000
+#define DELUGE_CLOCKS_PERf 33330000.
+
+/// void function with no arguments
+typedef void (*TaskHandle)();
+typedef bool (*RunCondition)();
+typedef int8_t TaskID;
+typedef uint32_t ResourceID;
+#define RESOURCE_NONE 0
+// for actually reading the SD
+#define RESOURCE_SD 1
+#define RESOURCE_USB 2
+// for things that can't run in the SD routine
+#define RESOURCE_SD_ROUTINE 4
+
+/// Schedule a task that will be called at a regular interval.
+///
+/// The scheduler will try to run the task at a regular cadence such that the time between start of calls to the
+/// task is approximately targetTimeBetweenCalls. It will never call the task sooner than backOffTime seconds after it
+/// last completed.
+///
+/// Tasks are selected to run based on priority and expected duration (computed via a running average of previous
+/// invocations of the task). The task with the lowest priority that can complete before a task with higher
+/// priority needs to start will run, without violation of the backOffTime.
+///
+/// @param task The task to call
+/// @param priority Priority of the task. Tasks with lower numbers are given preference over tasks with higher numbers.
+/// @param backOffTime Minimum time from completing the task to calling it again in seconds.
+/// @param targetTimeBetweenCalls Desired time between calls to the task, including the runtime for the task itself.
+/// @param resource
+/// [task]
+int8_t addRepeatingTask(TaskHandle task, uint8_t priority, double backOffTime, double targetTimeBetweenCalls,
+                        double maxTimeBetweenCalls, const char* name, ResourceID resource) DELUGE_NOEXCEPT;
+
+/// add a task that runs only after the condition returns true. Condition checks should be very fast or they could
+/// interfere with scheduling
+/// [task]
+int8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condition, const char* name,
+                          ResourceID resources) DELUGE_NOEXCEPT;
+
+/// Exclude the current task invocation's run time from its scheduling average (e.g. this call did
+/// no real work, so it should not count toward how long the task is expected to take). Called both
+/// from plain tasks and from the audio render's own driving task. [task] [audio]
+void ignoreForStats() DELUGE_NOEXCEPT;
+
+/// Running average of how long `id`'s task takes to run per call, in seconds. Only ever read for the
+/// render's own task, from inside the render (culling/direness). [audio]
+double getAverageRunTimeForTask(TaskID id) DELUGE_NOEXCEPT;
+
+/// Seconds elapsed since Embassy's monotonic clock started (`Instant::now()`) — effectively since
+/// boot. [task] [audio]
+double getSystemTime() DELUGE_NOEXCEPT;
+
+/// Wake `id`'s task to run as soon as the scheduler next has a chance, without waiting for its
+/// normal cadence. [task]
+void runTask(TaskID id) DELUGE_NOEXCEPT;
+
+/// Poll `until` once (true if NULL) and return at once. The only implementation never busy-waits or
+/// runs another task in between — it is not a scheduling primitive, just a checkpoint at which the
+/// caller itself may be preempted. [task]
+void yield(RunCondition until) DELUGE_NOEXCEPT;
+
+/// set the current task to blocked
+/// [task]
+void blockTask(TaskID id) DELUGE_NOEXCEPT;
+
+/// Clear a task's blocked state set by blockTask, so it can be scheduled again. [task]
+void unblockTask(TaskID id) DELUGE_NOEXCEPT;
+
+/// True while a slow-storage (SD / SPI-flash / USB) busy-wait is yielding to the scheduler.
+/// The application reads it to gate user actions that must not run re-entrantly inside a
+/// storage routine. Owned by the
+/// scheduler (the runtime concurrency layer), not the app — on Embassy this is a runtime flag.
+/// Read from plain tasks and from inside the render's own driving task. [task] [audio]
+bool isSDRoutineActive(void) DELUGE_NOEXCEPT;
+#ifdef __cplusplus
+}
+#endif
 #endif // LIBDELUGE_SCHEDULER_H

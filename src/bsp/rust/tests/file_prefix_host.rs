@@ -576,13 +576,20 @@ mod file_stream;
 #[path = "../src/file_stream_slot.rs"]
 mod file_stream_slot;
 
+/// The ABI's handle rule, which the channels' exports convert their handles through.
+#[allow(dead_code)]
+#[path = "../src/abi_handle.rs"]
+mod abi_handle;
+
 mod live_pipeline {
     use super::file_prefix::{
-        DELUGE_FILE_PREFIX_FAILED, DELUGE_FILE_PREFIX_PENDING, DELUGE_FILE_PREFIX_READY,
-        DELUGE_FILE_PREFIX_UNKNOWN, PREFIX_CAPACITY, PrefixPath, deluge_file_prefix_collect,
-        deluge_file_prefix_request, mark_in_flight, publish_result,
+        PREFIX_CAPACITY, PrefixPath, deluge_file_prefix_collect, deluge_file_prefix_request,
+        mark_in_flight, publish_result,
     };
     use super::{block_on, card};
+    use deluge_channel::{
+        DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
+    };
     use std::ffi::CString;
 
     /// `REQUEST`/`IN_FLIGHT`/`RESULT` are process-wide and cargo runs tests on parallel threads, so
@@ -662,7 +669,7 @@ mod live_pipeline {
     fn an_unrequested_path_is_unknown() {
         let _guard = reset();
         let (status, buffer, len) = collect("never/asked.XML");
-        assert_eq!(status, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
         assert_untouched(&buffer, len);
     }
 
@@ -673,7 +680,7 @@ mod live_pipeline {
         let _guard = reset();
         request("SONGS/PENDING.XML", 4096);
         let (status, buffer, len) = collect("SONGS/PENDING.XML");
-        assert_eq!(status, DELUGE_FILE_PREFIX_PENDING);
+        assert_eq!(status, DELUGE_CHANNEL_PENDING);
         assert_untouched(&buffer, len);
     }
 
@@ -688,12 +695,12 @@ mod live_pipeline {
         block_on(mark_in_flight(Some(
             PrefixPath::try_from("SONGS/INFLIGHT.XML").unwrap(),
         )));
-        assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_FILE_PREFIX_PENDING);
+        assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_CHANNEL_PENDING);
         // A DIFFERENT path is still unknown — the branch matches on identity, not on "something is
         // in flight".
-        assert_eq!(collect("SONGS/OTHER.XML").0, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_eq!(collect("SONGS/OTHER.XML").0, DELUGE_CHANNEL_UNKNOWN);
         block_on(mark_in_flight(None));
-        assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
     /// The whole round trip: a published prefix collects READY once, with its bytes and length, and
@@ -703,11 +710,11 @@ mod live_pipeline {
         let _guard = reset();
         publish("SONGS/READY.XML", b"<song preview=\"00\"");
         let (status, buffer, len) = collect("SONGS/READY.XML");
-        assert_eq!(status, DELUGE_FILE_PREFIX_READY);
+        assert_eq!(status, DELUGE_CHANNEL_READY);
         assert_eq!(len as usize, b"<song preview=\"00\"".len());
         assert_eq!(&buffer[..len as usize], b"<song preview=\"00\"");
         let (status, buffer, len) = collect("SONGS/READY.XML");
-        assert_eq!(status, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
         assert_untouched(&buffer, len);
     }
 
@@ -719,7 +726,7 @@ mod live_pipeline {
         let _guard = reset();
         publish("SONGS/EMPTY.XML", b"");
         let (status, _, len) = collect("SONGS/EMPTY.XML");
-        assert_eq!(status, DELUGE_FILE_PREFIX_READY);
+        assert_eq!(status, DELUGE_CHANNEL_READY);
         assert_eq!(len, 0);
     }
 
@@ -733,11 +740,11 @@ mod live_pipeline {
         let _guard = reset();
         publish_failure("SONGS/BROKEN.XML");
         let (status, buffer, len) = collect("SONGS/BROKEN.XML");
-        assert_eq!(status, DELUGE_FILE_PREFIX_FAILED);
+        assert_eq!(status, DELUGE_CHANNEL_FAILED);
         assert_untouched(&buffer, len);
         // Terminal, exactly as READY is: the answer is consumed, and the caller must not re-request.
         let (status, buffer, len) = collect("SONGS/BROKEN.XML");
-        assert_eq!(status, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
         assert_untouched(&buffer, len);
     }
 
@@ -755,8 +762,8 @@ mod live_pipeline {
             empty, failed,
             "an empty file and a failed read must not report the same status"
         );
-        assert_eq!(empty, DELUGE_FILE_PREFIX_READY);
-        assert_eq!(failed, DELUGE_FILE_PREFIX_FAILED);
+        assert_eq!(empty, DELUGE_CHANNEL_READY);
+        assert_eq!(failed, DELUGE_CHANNEL_FAILED);
     }
 
     /// The card belt covers a failure too: one published before the card went is not served after
@@ -767,7 +774,7 @@ mod live_pipeline {
         publish_failure("SONGS/EJECTED.XML");
         card::deluge_card_flush();
         let (status, buffer, len) = collect("SONGS/EJECTED.XML");
-        assert_eq!(status, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
         assert_untouched(&buffer, len);
     }
 
@@ -778,8 +785,8 @@ mod live_pipeline {
         let _guard = reset();
         request("SONGS/FIRST.XML", 4096);
         request("SONGS/SECOND.XML", 4096);
-        assert_eq!(collect("SONGS/SECOND.XML").0, DELUGE_FILE_PREFIX_PENDING);
-        assert_eq!(collect("SONGS/FIRST.XML").0, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_eq!(collect("SONGS/SECOND.XML").0, DELUGE_CHANNEL_PENDING);
+        assert_eq!(collect("SONGS/FIRST.XML").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
     /// `deluge_card_flush` covers this channel along with every other loader, in one call: a prefix
@@ -797,7 +804,7 @@ mod live_pipeline {
         publish("SONGS/EJECTED.XML", b"card A");
         card::deluge_card_flush();
         let (status, buffer, len) = collect("SONGS/EJECTED.XML");
-        assert_eq!(status, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
         assert_untouched(&buffer, len);
     }
 
@@ -818,6 +825,6 @@ mod live_pipeline {
             Some(b"card A"),
             began_under,
         ));
-        assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_CHANNEL_UNKNOWN);
     }
 }

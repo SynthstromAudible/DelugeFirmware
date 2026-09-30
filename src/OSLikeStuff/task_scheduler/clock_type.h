@@ -1,20 +1,7 @@
-//
-// Created by Mark Adams on 2024-11-23.
-//
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <compare>               // Time's defaulted operator<=>
+#include <libdeluge/scheduler.h> // dTime, DELUGE_CLOCKS_PER*
 
-#include <stdint.h>
-#define DELUGE_CLOCKS_PER 33330000
-#define DELUGE_CLOCKS_PERf 33330000.
 #define ONE_OVER_CLOCK (1 / DELUGE_CLOCKS_PERf)
-
-typedef int64_t dTime;
-#ifdef __cplusplus
-} // end of extern C section
-
-#include <compare> // Time's defaulted operator<=>
 
 constexpr double rollTime = ((double)(UINT32_MAX) / DELUGE_CLOCKS_PERf);
 class Time {
@@ -52,5 +39,3 @@ public:
 		return *this;
 	}
 };
-
-#endif

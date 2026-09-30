@@ -371,7 +371,7 @@ private:
 	///        one.
 	///
 	/// Deliberately keeps NO in-flight table of its own. The loader already keys its queue, its
-	/// in-flight set and its results by path, and reports DELUGE_AUDIO_LOAD_PENDING for a path it is
+	/// in-flight set and its results by path, and reports DELUGE_CHANNEL_PENDING for a path it is
 	/// already working on -- a second table here would be a second thing that has to agree with that
 	/// one.
 	///
@@ -435,15 +435,15 @@ private:
 	bool startFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
 
 	/// @brief Build and publish a Sample from a collected parse result. No I/O beyond the one
-	///        read-stream open (see deluge_audio_load_bind_read_stream).
+	///        read-stream open (see sample_build::bindReadStream).
 	///
 	/// Runs the whole build the loader is not allowed to run itself -- begin, bind, apply the parsed
 	/// geometry, publish -- checking every step, and abandoning the build on any failure so nothing is
-	/// left adopted-but-unpublished. See libdeluge/audio_load.h's ownership note.
+	/// left adopted-but-unpublished. See storage/audio/sample_build.h's ownership note.
 	///
 	/// @param filePath The nominal path (the AudioFile's own path; @p result carries the alternate
 	///                 location the bytes were actually found at, if any).
-	/// @param result   A DELUGE_AUDIO_LOAD_READY result whose own error is Error::NONE -- a verdict is
+	/// @param result   A DELUGE_CHANNEL_READY result whose own error is Error::NONE -- a verdict is
 	///                 answered by answerFailedLoadResult instead.
 	/// @param error    Set on failure (never left at Error::NONE when this returns nullptr).
 	/// @return The published Sample, or nullptr with @p error set.
@@ -451,7 +451,7 @@ private:
 	                                     Error* error);
 
 	/// @brief admissibleAsyncLoadPath() over every slot of a candidate buffer.
-	/// @param candidates    `numCandidates * DELUGE_MAX_PATH` bytes, one NUL-terminated path per slot.
+	/// @param candidates    `numCandidates * DELUGE_PATH_MAX` bytes, one NUL-terminated path per slot.
 	/// @param numCandidates How many slots to check.
 	/// @return true if every candidate is one the loader would accept.
 	[[nodiscard]] static bool admissibleAsyncCandidates(const char* candidates, uint32_t numCandidates);

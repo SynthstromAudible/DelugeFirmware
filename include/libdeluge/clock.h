@@ -22,6 +22,7 @@
 #ifndef LIBDELUGE_CLOCK_H
 #define LIBDELUGE_CLOCK_H
 
+#include "abi.h"
 #include "types.h"
 
 #ifdef __cplusplus
@@ -33,15 +34,15 @@ extern "C" {
 /// is narrow (e.g. the RZ/A1L's 16-bit MTU), this wraps — it is not yet a wide
 /// monotonic clock; callers doing interval math should difference within the
 /// counter width. [task] [audio] [isr]
-uint64_t deluge_clock_now(void);
+uint64_t deluge_clock_now(void) DELUGE_NOEXCEPT;
 
 /// Busy-wait for approximately `us` microseconds. Use sparingly; prefer the
 /// scheduler for anything non-trivial. [task]
-void deluge_clock_delay_us(uint32_t us);
+void deluge_clock_delay_us(uint32_t us) DELUGE_NOEXCEPT;
 
 /// Busy-wait for approximately `ms` milliseconds. Separate from the microsecond
 /// path because boards may use a coarser timer for longer delays. [task]
-void deluge_clock_delay_ms(uint32_t ms);
+void deluge_clock_delay_ms(uint32_t ms) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

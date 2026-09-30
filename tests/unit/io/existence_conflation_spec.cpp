@@ -15,7 +15,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 	// Seed a real file, then make the filesystem REFUSE to answer for it.
 	it("does not report a refused check as absent", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("SETTINGS/MIDIFollow.XML", DELUGE_FILE_WRITE_CREATE, &h))
 		    .to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);
@@ -38,7 +38,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 
 	it("reports an existing file as present", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("SETTINGS/MIDIFollow.XML", DELUGE_FILE_WRITE_CREATE, &h))
 		    .to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);
@@ -53,7 +53,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 	// the rule is "NOT_FOUND is the only path to false", not "anything unusual is false".
 	it("does not report a non-BUSY I/O failure as absent either", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("SETTINGS/MIDIFollow.XML", DELUGE_FILE_WRITE_CREATE, &h))
 		    .to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);
@@ -71,7 +71,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 	// real mock/File::open chain exactly like the cases above, not hand-built expecteds.
 	it("classifies a refused check on an existing file as Undeterminable / UseInMemoryOnly", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("SETTINGS/MIDIFollow.XML", DELUGE_FILE_WRITE_CREATE, &h))
 		    .to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);
@@ -88,7 +88,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 
 	it("classifies a non-BUSY refusal on an existing file as Undeterminable / UseInMemoryOnly", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("SETTINGS/MIDIFollow.XML", DELUGE_FILE_WRITE_CREATE, &h))
 		    .to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);
@@ -115,7 +115,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 
 	it("classifies an existing path as Present / Load", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("SETTINGS/MIDIFollow.XML", DELUGE_FILE_WRITE_CREATE, &h))
 		    .to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);
@@ -165,7 +165,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 	// not Absent. Opening it as a directory must not be reported as a safe absence.
 	it("classifies a directory-open on a file path as Undeterminable, not absent", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("SETTINGS/MIDIFollow.XML", DELUGE_FILE_WRITE_CREATE, &h))
 		    .to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);
@@ -181,7 +181,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 	// still has gets silently overwritten. Injected BUSY is the real shape of that refusal.
 	it("refuses to write when the check was refused", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("SONGS/SONG001.XML", DELUGE_FILE_WRITE_CREATE, &h))
 		    .to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);
@@ -208,7 +208,7 @@ describe existence_conflation("existence checks distinguish absent from undeterm
 
 	it("reports an occupied name, and writes once the overwrite is confirmed", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("SONGS/SONG002.XML", DELUGE_FILE_WRITE_CREATE, &h))
 		    .to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);

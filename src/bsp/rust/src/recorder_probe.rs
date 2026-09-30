@@ -2,9 +2,9 @@
 //! streaming fill?
 //!
 //! Device/`host_app` route the fill onto the Rust async task (`streaming_loader.rs`), which reads
-//! via `efatfs_fs::read_at(handle=0, ...)` — and a recording's `efatfs_handle == 0`, so a
-//! still-recording sample resolves LOADING (re-queued, never READY) uniformly on every target, sim
-//! included. This module turns that into a measurement: it drives
+//! through the fill context's `efatfs_handle` — and a recording's is `DELUGE_HANDLE_NONE`, whose read
+//! fails, so a still-recording sample resolves LOADING (re-queued, never READY) uniformly on every
+//! target, sim included. This module turns that into a measurement: it drives
 //! `scenarios/recorder_readback_probe.h`'s C-ABI (a real `SampleRecorder`, fed real audio, never
 //! finalized) through the SAME region-port entry point (`deluge_sample_region_acquire_ex`) real
 //! playback uses, on THIS target, and reports what actually comes back.

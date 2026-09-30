@@ -71,7 +71,7 @@ enum class ByteIo : uint8_t {
 ///
 /// A no-op for a request already in flight, so polling callers cannot starve their own read.
 /// @param path NUL-terminated path. Refused (and reported through the next collect as `Unknown`) if
-///        it is longer than `DELUGE_FILE_BYTES_MAX_PATH`.
+///        it is longer than `DELUGE_PATH_MAX`.
 /// @return `Pending` when the request was accepted or was already in flight; `Failed` when `path`
 ///         cannot be keyed at all, which no amount of re-requesting will fix.
 ByteIo requestRead(const char* path);
@@ -322,7 +322,7 @@ using DoneFn = void (*)(void* ctx, SettingsOutcome outcome);
 /// @return true when the channel took it -- in flight or queued behind what is -- and @p onDone (if any) will
 ///         be called later. **false when the caller must do the read itself**, because the channel is not the
 ///         place for it here (switch off, or before boot) or @p path does not fit
-///         `DELUGE_FILE_BYTES_MAX_PATH`. A busy channel is never a false: it queues.
+///         `DELUGE_PATH_MAX`. A busy channel is never a false: it queues.
 ///
 /// @note The path is COPIED; the caller's string may be a temporary.
 bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentFn onAbsent, void* ctx,

@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief The C++-side helper shared by libdeluge/audio_load.h's implementation and its C++ callers.
+/// @brief The numeric `Error` mapping for the loader verdict libdeluge/audio_load.h carries.
 ///
 /// Not part of the C ABI: audio_load.h is the contract everything crossing the boundary keeps. This
 /// header exists only so the one numeric `Error` mapping that boundary defines has a single
@@ -33,10 +33,10 @@ namespace deluge::storage {
 ///
 /// Never `static_cast<Error>(byte)`: `enum class Error` has no fixed underlying type, so casting an
 /// out-of-range byte into it is undefined behaviour. The numeric identity this depends on is pinned
-/// by static_asserts beside the definition (audio_load_abi.cpp), so an `Error` enumerator inserted
+/// by static_asserts beside the definition (sample_build.cpp), so an `Error` enumerator inserted
 /// upstream breaks the build rather than silently shifting every later code.
 ///
-/// @param v A byte received through one of audio_load.h's `error_out` / `error` fields.
+/// @param v A byte received through audio_load.h (`DelugeAudioLoadResult::error`).
 /// @return The matching `Error`; `Error::UNSPECIFIED` for a byte that is not one of `Error`'s values
 ///         (a fail-safe degrade, matching the direction the ABI's other byte mappings take).
 Error errorFromAbiByte(uint8_t v) noexcept;

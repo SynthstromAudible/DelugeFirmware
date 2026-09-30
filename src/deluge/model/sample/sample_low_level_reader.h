@@ -185,7 +185,7 @@ protected:
 	///        lazily against the sample's `stream()` (see ensureSource). Holds the current + prefetch
 	///        pins.
 	DelugeSampleSource* source_ = nullptr;
-	void* source_backing_ = nullptr; ///< the &sample->stream() `source_` was opened against (reader reuse)
+	DelugeStreamBacking* source_backing_ = nullptr; ///< the stream `source_` was opened against (reader reuse)
 
 	/// @brief The reader's sole residency representation: the last region acquired through the port
 	///        (assignClusters / moveOnToNextCluster / the cache-resync).

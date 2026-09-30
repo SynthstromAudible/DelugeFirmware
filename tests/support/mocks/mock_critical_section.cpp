@@ -30,20 +30,20 @@
 
 extern "C" {
 
-void ENTER_CRITICAL_SECTION() {
+void ENTER_CRITICAL_SECTION() noexcept {
 }
 
-void EXIT_CRITICAL_SECTION() {
+void EXIT_CRITICAL_SECTION() noexcept {
 }
 
-bool deluge_in_interrupt() {
+bool deluge_in_interrupt() noexcept {
 	return false;
 }
 
 /// Mirrors deluge_in_interrupt above: these drivers never run from an ISR, so they are never
 /// the audio context either. Consequence: the resource manager always masks under the specs,
 /// which is what the masked-path assertions expect.
-bool deluge_in_audio_context() {
+bool deluge_in_audio_context() noexcept {
 	return false;
 }
 
@@ -51,7 +51,7 @@ bool deluge_in_audio_context() {
 /// `AudioEngine::audioSampleTimer` (see src/deluge/io/debug/resource_clock.cpp), which these drivers
 /// do not link. A monotonic counter satisfies the manager's only requirement (that successive reads
 /// do not go backwards); no spec asserts on the latency figures it produces.
-uint32_t deluge_debug_now_frames() {
+uint32_t deluge_debug_now_frames() noexcept {
 	static uint32_t now = 1;
 	return ++now;
 }

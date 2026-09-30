@@ -15,31 +15,30 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/audio_load.h's implementation: thin adapters over AudioFileManager's no-I/O
+/// The card-sample build (sample_build.h): thin adapters over AudioFileManager's no-I/O
 /// prologue/epilogue (beginSampleFromCard/finishSampleFromCard), the I/O-free candidate policy
 /// (proposeLoadCandidates), the one I/O probe the async loader must sequence before it
 /// (resolveAlternateLoadDirStatus), and the streaming read-handle bind (SampleStream::open_read_stream)
-/// a published build must have. See audio_load.h for the contract each function keeps, in particular
-/// the build ownership rule and the call order.
+/// a published build must have. Also the numeric `Error` mapping for the byte libdeluge/audio_load.h
+/// carries a loader verdict in (audio_load_abi.h).
 ///
-/// Every function here is `noexcept`: the repo's allocators throw `deluge::exception::BAD_ALLOC`
-/// (operators.cpp), and letting that (or anything else) unwind out of an `extern "C"` frame into the
-/// Rust caller on the other side of this boundary is undefined behaviour -- on this target it
-/// presents as `std::terminate()` aborting silently, i.e. an unexplained device death with no error
-/// message. Each function catches with `catch (...)`, not just `deluge::exception` -- the repo's own
-/// allocators only ever throw that, but anything else escaping would be the exact silent-terminate()
-/// outcome this exists to prevent -- and degrades to a safe return instead. Where a catch handler
-/// itself calls back into C++ (deluge_audio_load_begin's cleanup path), that call is wrapped in its
-/// own nested try/catch so a second exception can't escape either.
+/// Every build function is `noexcept`, and each catches with `catch (...)` so that is honest: the
+/// repo's allocators throw `deluge::exception::BAD_ALLOC` (operators.cpp), and anything escaping a
+/// `noexcept` frame is `std::terminate()` -- on this target an unexplained, silent device death. Where
+/// a catch handler itself calls back into C++ (begin()'s cleanup path), that call is wrapped in its own
+/// nested try/catch so a second exception can't escape either.
 
-#include "libdeluge/audio_load.h"
+#include "storage/audio/sample_build.h"
 
 #include "definitions_cxx.hpp" // kFilenameBufferSize
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_format.h" // RawDataFormat
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/audio_load_abi.h"
+#include "storage/audio/audio_load_context.h"
 #include "util/misc.h" // util::to_underlying
+
+#include "libdeluge/audio_load.h"
 
 #include <algorithm>
 #include <cstddef> // offsetof
@@ -48,53 +47,64 @@
 #include <optional>
 #include <string>
 
-static_assert(DELUGE_MAX_PATH == kFilenameBufferSize,
-              "DELUGE_MAX_PATH documents itself as matching this codebase's existing whole-path ceiling");
+static_assert(DELUGE_PATH_MAX == kFilenameBufferSize,
+              "DELUGE_PATH_MAX documents itself as matching this codebase's existing whole-path ceiling");
 
-namespace {
-
-/// Marks a `BuildHandle` as live. Arbitrary but stable -- not a format tag, just a canary.
-constexpr uint32_t kBuildMagic = 0x4C445342u; // "LDSB"
-/// Marks a `BuildHandle` as consumed (finished or abandoned already), written just before it is
-/// freed. See validateHandle() for what this can and cannot catch.
-constexpr uint32_t kBuildMagicConsumed = 0u;
+namespace deluge::storage::sample_build {
 
 /// A build in flight: the Sample plus the sizeBytes finishSampleFromCard needs for finalizeAfterLoad
-/// (buildAudioFileFromCard's caller resolves this once and threads it through both halves; a direct
-/// caller across this boundary has to carry it the same way, since Sample itself has nowhere to park
-/// it before finalizeAfterLoad runs). `magic` is consumed-tracking only -- see validateHandle().
-struct BuildHandle {
-	uint32_t magic = kBuildMagic;
+/// (buildAudioFileFromCard's caller resolves this once and threads it through both halves; a caller
+/// of this split build has to carry it the same way, since Sample itself has nowhere to park it before
+/// finalizeAfterLoad runs). `magic` is consumed-tracking only -- see validateBuild().
+struct SampleBuild {
+	/// Marks a build as live. Arbitrary but stable -- not a format tag, just a canary.
+	static constexpr uint32_t kLive = 0x4C445342u; // "LDSB"
+	/// Marks a build as consumed (finished or abandoned already), written just before it is freed.
+	static constexpr uint32_t kConsumed = 0u;
+
+	uint32_t magic = kLive;
 	Sample* sample;
 	uint64_t sizeBytes;
 };
 
-/// Validate an opaque `DelugeSampleBuild*` before touching it. NULL and an already-consumed handle
-/// both come back as "not a live build" instead of being dereferenced further -- the header promises
-/// `finish`/`abandon`/`apply_geometry` are safe against exactly these.
+} // namespace deluge::storage::sample_build
+
+namespace {
+
+using deluge::storage::sample_build::SampleBuild;
+
+/// Validate a build before touching it. Null and an already-consumed build both come back as "not a
+/// live build" instead of being dereferenced further -- the header promises `finish`/`abandon`/
+/// `applyGeometry`/`bindReadStream` are safe against exactly these.
 ///
-/// Reading `handle->magic` on a genuinely freed or foreign pointer is still, strictly, undefined
-/// behaviour -- there is no way to validate an arbitrary opaque pointer without a registry this
-/// boundary doesn't keep, and a sanitizer build may well report the read itself as a
-/// heap-use-after-free (which is a perfectly good "fails loudly" outcome). What this DOES reliably
-/// catch, on a build without a sanitizer attached, is the realistic caller bug -- reusing the same
-/// handle across two finish/abandon calls -- turning it into a clean refusal instead of dispatching
-/// straight through to a Sample that has already been destructed.
-BuildHandle* validateHandle(DelugeSampleBuild* build) noexcept {
-	auto* handle = reinterpret_cast<BuildHandle*>(build);
-	if (handle == nullptr || handle->magic != kBuildMagic) {
+/// Reading `build->magic` on a genuinely freed pointer is still, strictly, undefined behaviour -- there
+/// is no way to validate an arbitrary pointer without a registry this build doesn't keep, and a
+/// sanitizer build may well report the read itself as a heap-use-after-free (which is a perfectly good
+/// "fails loudly" outcome). What this DOES reliably catch, on a build without a sanitizer attached, is
+/// the realistic caller bug -- reusing the same build across two finish/abandon calls -- turning it
+/// into a clean refusal instead of dispatching straight through to a Sample that has already been
+/// destructed.
+SampleBuild* validateBuild(SampleBuild* build) noexcept {
+	if (build == nullptr || build->magic != SampleBuild::kLive) {
 		return nullptr;
 	}
-	return handle;
+	return build;
 }
 
-// Every value `error_in`/`error_out` can carry across this boundary is matched by NUMBER
-// (errorFromAbiByte below), never `static_cast<Error>(byte)` -- `enum class Error` has no fixed
-// underlying type, so its valid range is whatever `int` gives it and casting an out-of-range byte is
-// undefined behaviour. These static_asserts pin the numeric identity errorFromAbiByte depends on:
-// inserting a new Error enumerator upstream (definitions_cxx.hpp) shifts every later value, and
-// without this, that shift would be silent -- every gate staying green while a caller across this
-// boundary mismatches every code from the insertion point on.
+/// Write @p value to @p out when the caller asked for it.
+void report(Error* out, Error value) noexcept {
+	if (out != nullptr) {
+		*out = value;
+	}
+}
+
+// Every Error code crossing libdeluge/audio_load.h (DelugeAudioLoadResult::error, which the Rust
+// loader writes from its own copies of these numbers) is matched by NUMBER (errorFromAbiByte below), never
+// `static_cast<Error>(byte)` -- `enum class Error` has no fixed underlying type, so its valid range is whatever `int`
+// gives it and casting an out-of-range byte is undefined behaviour. These static_asserts pin the numeric identity
+// errorFromAbiByte depends on: inserting a new Error enumerator upstream (definitions_cxx.hpp) shifts every later
+// value, and without this, that shift would be silent -- every gate staying green while a caller across this boundary
+// mismatches every code from the insertion point on.
 static_assert(util::to_underlying(Error::NONE) == 0);
 static_assert(util::to_underlying(Error::INSUFFICIENT_RAM) == 1);
 static_assert(util::to_underlying(Error::UNSPECIFIED) == 2);
@@ -132,28 +142,10 @@ static_assert(util::to_underlying(Error::FILE_NOT_SAVED) == 33);
 static_assert(util::to_underlying(Error::TOO_MANY_OPEN_STREAMS) == 34);
 static_assert(util::to_underlying(Error::LOAD_IN_PROGRESS) == 35);
 
-// The request/collect boundary's two POD structs are hand-declared on BOTH sides: audio_load.h is
-// not in the Rust BSP's wrapper.h, so bindgen does not generate them and nothing else cross-checks
-// them. Pinning the size alone would not be enough -- swapping two same-width fields keeps every
-// size identical and compiles clean on both sides, which is exactly the "loads without error,
-// renders wrong" failure this file's own doc comment calls the worst available shape. These mirror
-// the `const _` assertions in src/bsp/rust/src/audio_loader.rs, so a reorder on either side fails
-// to build rather than silently reinterpreting every field after it.
-static_assert(sizeof(DelugeAudioLoadGeometry) == 36);
-static_assert(alignof(DelugeAudioLoadGeometry) == 4);
-static_assert(offsetof(DelugeAudioLoadGeometry, sample_rate) == 0);
-static_assert(offsetof(DelugeAudioLoadGeometry, audio_data_start_pos_bytes) == 4);
-static_assert(offsetof(DelugeAudioLoadGeometry, audio_data_length_bytes) == 8);
-static_assert(offsetof(DelugeAudioLoadGeometry, file_loop_start_samples) == 12);
-static_assert(offsetof(DelugeAudioLoadGeometry, file_loop_end_samples) == 16);
-static_assert(offsetof(DelugeAudioLoadGeometry, wavetable_cycle_size) == 20);
-static_assert(offsetof(DelugeAudioLoadGeometry, midi_note_value) == 24);
-static_assert(offsetof(DelugeAudioLoadGeometry, num_channels) == 28);
-static_assert(offsetof(DelugeAudioLoadGeometry, byte_depth) == 29);
-static_assert(offsetof(DelugeAudioLoadGeometry, raw_data_format) == 30);
-static_assert(offsetof(DelugeAudioLoadGeometry, midi_note_present) == 31);
-static_assert(offsetof(DelugeAudioLoadGeometry, wavetable_explicitly_specifies_self) == 32);
-
+// DelugeAudioLoadResult as numbers. The Rust loader's `LoadResult` is checked against bindgen's
+// binding in the BSP build, and also compiles in carriers with no bindgen output
+// (crates/deluge_audio_loader_host), where it is pinned to these same literals -- so a reorder on
+// either side fails to build rather than silently reinterpreting every field after it.
 static_assert(sizeof(DelugeAudioLoadResult) == 312);
 static_assert(alignof(DelugeAudioLoadResult) == 8);
 static_assert(offsetof(DelugeAudioLoadResult, geometry) == 0);
@@ -161,17 +153,17 @@ static_assert(offsetof(DelugeAudioLoadResult, size_bytes) == 40);
 static_assert(offsetof(DelugeAudioLoadResult, alternate_path) == 48);
 static_assert(offsetof(DelugeAudioLoadResult, error) == 304);
 
-// The remaining values the Rust side hand-duplicates from this header. DELUGE_MAX_PATH is also the
+// The remaining values the Rust side hand-duplicates from this header. DELUGE_PATH_MAX is also the
 // stride of the candidate buffer and the width of DelugeAudioLoadResult::alternate_path, so a change
 // here that is not mirrored would misread every candidate slot after the first.
-static_assert(DELUGE_MAX_PATH == 256);
+static_assert(DELUGE_PATH_MAX == 256);
 // The one whose drift silently reinstates a bug rather than causing a mismatch: if this stopped
 // being the value the Rust side refuses, `deluge_audio_load_request` would clamp it to the candidate
 // bound and read a buffer the header says must not be read.
 static_assert(DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED == 0xFFFFFFFFu);
-static_assert(DELUGE_AUDIO_LOAD_PENDING == 0u);
-static_assert(DELUGE_AUDIO_LOAD_READY == 1u);
-static_assert(DELUGE_AUDIO_LOAD_UNKNOWN == 2u);
+static_assert(DELUGE_CHANNEL_PENDING == 0u);
+static_assert(DELUGE_CHANNEL_READY == 1u);
+static_assert(DELUGE_CHANNEL_UNKNOWN == 2u);
 // The Rust side bounds its candidate list by its own copy of this.
 static_assert(AudioFileManager::kMaxLoadCandidates == 3);
 
@@ -182,9 +174,9 @@ static_assert(AudioFileManager::kMaxLoadCandidates == 3);
 /// `static_cast` -- the same fail-safe direction `raw_data_format_from_u8`
 /// (crates/deluge_sample_fill/src/fill_logic.rs) takes for the analogous RawDataFormat byte below.
 ///
-/// Declared in audio_load_abi.h (a C++-only header, not part of the ABI) rather than kept file-local:
-/// the C++ collector that consumes `DelugeAudioLoadResult::error` needs exactly this mapping, and a
-/// second copy of it is a second thing to keep in step with the asserts above.
+/// Declared in audio_load_abi.h rather than kept file-local: the C++ collector that consumes
+/// `DelugeAudioLoadResult::error` needs exactly this mapping, and a second copy of it is a second
+/// thing to keep in step with the asserts above.
 Error deluge::storage::errorFromAbiByte(uint8_t v) noexcept {
 	switch (v) {
 	case 0:
@@ -311,7 +303,7 @@ namespace {
 	case Error::TOO_MANY_OPEN_STREAMS:
 	case Error::LOAD_IN_PROGRESS:
 	// Listed for completeness only. This one never crosses the audio-load ABI: it is the BROWSER's
-	// deferral (a folder listing waiting on the directory channel), and `errorToAbiByte` has no
+	// deferral (a folder listing waiting on the directory channel), and the loader has no
 	// number for it. If one is ever needed, give it its own byte -- do not reuse 35, which is
 	// LOAD_IN_PROGRESS and means something a caller acts on differently.
 	case Error::LISTING_DEFERRED:
@@ -353,86 +345,76 @@ std::optional<RawDataFormat> tryRawDataFormatFromByte(uint8_t v) noexcept {
 
 } // namespace
 
-extern "C" DelugeSampleBuild* deluge_audio_load_begin(const char* file_path, const char* alternate_path,
-                                                      uint64_t size_bytes, uint8_t* error_out) noexcept {
+namespace deluge::storage::sample_build {
+
+SampleBuild* begin(std::string_view filePath, std::string_view alternatePath, uint64_t sizeBytes,
+                   Error* error) noexcept {
 	Sample* sample = nullptr;
 	try {
-		Error error = Error::NONE;
-		const std::string filePath{file_path};
-		const std::string alternate{alternate_path};
-		sample = audioFileManager.beginSampleFromCard(filePath, alternate, size_bytes, &error);
+		Error beginError = Error::NONE;
+		sample = audioFileManager.beginSampleFromCard(std::string{filePath}, std::string{alternatePath}, sizeBytes,
+		                                              &beginError);
 		if (sample == nullptr) {
-			if (error_out != nullptr) {
-				*error_out = static_cast<uint8_t>(error);
-			}
+			report(error, beginError);
 			return nullptr;
 		}
-		auto* handle = new BuildHandle{.sample = sample, .sizeBytes = size_bytes};
-		if (error_out != nullptr) {
-			*error_out = static_cast<uint8_t>(Error::NONE);
-		}
-		return reinterpret_cast<DelugeSampleBuild*>(handle);
+		auto* build = new SampleBuild{.sample = sample, .sizeBytes = sizeBytes};
+		report(error, Error::NONE);
+		return build;
 	}
 	// Catches EVERYTHING, not just deluge::exception: this repo's own allocators only ever throw
 	// that, but a stray std::length_error out of std::string (or anything else) unwinding out of
-	// this noexcept, extern "C" function is exactly the silent-terminate() outcome this file's
-	// hardening exists to prevent -- a narrower catch would leave that door open.
+	// this noexcept function is exactly the silent-terminate() outcome this file's hardening exists
+	// to prevent -- a narrower catch would leave that door open.
 	catch (...) {
 		if (sample != nullptr) {
 			// beginSampleFromCard succeeded -- adopting and reasoning `sample` -- before the
-			// allocation that just threw (the BuildHandle wrapper itself). Destroy it the same way
-			// abandon() would, so this doesn't orphan an adopted, reasoned, zero-geometry Sample with
-			// no handle left to close it. Nested try: if THIS throws too (e.g. another allocation
-			// failure while destroying), there is nothing further to do safely, so swallow it rather
-			// than let a second exception escape this noexcept function.
+			// allocation that just threw (the SampleBuild itself). Destroy it the same way abandon()
+			// would, so this doesn't orphan an adopted, reasoned, zero-geometry Sample with no build
+			// left to close it. Nested try: if THIS throws too (e.g. another allocation failure while
+			// destroying), there is nothing further to do safely, so swallow it rather than let a
+			// second exception escape this noexcept function.
 			try {
 				Error destroyError = Error::INSUFFICIENT_RAM;
-				(void)audioFileManager.finishSampleFromCard(sample, size_bytes, &destroyError);
+				(void)audioFileManager.finishSampleFromCard(sample, sizeBytes, &destroyError);
 			} catch (...) {}
 		}
-		if (error_out != nullptr) {
-			*error_out = static_cast<uint8_t>(Error::INSUFFICIENT_RAM);
-		}
+		report(error, Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 }
 
-extern "C" bool deluge_audio_load_resolve_alternate_dir(DelugeAudioLoadContext* context, uint8_t* error_out) noexcept {
+bool resolveAlternateDir(AudioLoadContext* context, Error* error) noexcept {
 	try {
-		Error error = Error::NONE;
-		deluge::storage::AudioLoadContext noLoad;
-		const bool exists = audioFileManager.resolveAlternateLoadDirStatus(
-		    (context != nullptr) ? *deluge::storage::fromAbi(context) : noLoad, &error);
-		if (error_out != nullptr) {
-			*error_out = static_cast<uint8_t>(error);
-		}
+		Error resolveError = Error::NONE;
+		AudioLoadContext noLoad;
+		const bool exists =
+		    audioFileManager.resolveAlternateLoadDirStatus((context != nullptr) ? *context : noLoad, &resolveError);
+		report(error, resolveError);
 		return exists;
 	} catch (...) {
-		if (error_out != nullptr) {
-			*error_out = static_cast<uint8_t>(Error::INSUFFICIENT_RAM);
-		}
+		report(error, Error::INSUFFICIENT_RAM);
 		return false;
 	}
 }
 
-extern "C" uint32_t deluge_audio_load_candidates(const DelugeAudioLoadContext* context, const char* file_path,
-                                                 char* out, uint32_t max_candidates) noexcept {
+uint32_t candidates(const AudioLoadContext* context, std::string_view filePath, char* out,
+                    uint32_t maxCandidates) noexcept {
 	try {
-		std::string candidates[AudioFileManager::kMaxLoadCandidates];
-		const size_t capacity = std::min<size_t>(max_candidates, AudioFileManager::kMaxLoadCandidates);
-		const deluge::storage::AudioLoadContext noLoad;
-		const size_t count =
-		    audioFileManager.proposeLoadCandidates((context != nullptr) ? *deluge::storage::fromAbi(context) : noLoad,
-		                                           std::string{file_path}, candidates, capacity);
+		std::string proposed[AudioFileManager::kMaxLoadCandidates];
+		const size_t capacity = std::min<size_t>(maxCandidates, AudioFileManager::kMaxLoadCandidates);
+		const AudioLoadContext noLoad;
+		const size_t count = audioFileManager.proposeLoadCandidates((context != nullptr) ? *context : noLoad,
+		                                                            std::string{filePath}, proposed, capacity);
 		const size_t written = std::min(count, capacity);
 		for (size_t i = 0; i < written; i++) {
-			if (candidates[i].size() + 1 > DELUGE_MAX_PATH) {
+			if (proposed[i].size() + 1 > DELUGE_PATH_MAX) {
 				// A candidate too long to fit is a caller-visible failure, not a silent snprintf
 				// truncation the loader would go on to open -- and either miss, or worse, hit a
 				// different real file sitting at the truncated path.
 				return DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED;
 			}
-			std::snprintf(out + (i * DELUGE_MAX_PATH), DELUGE_MAX_PATH, "%s", candidates[i].c_str());
+			std::snprintf(out + (i * DELUGE_PATH_MAX), DELUGE_PATH_MAX, "%s", proposed[i].c_str());
 		}
 		return static_cast<uint32_t>(count);
 	} catch (...) {
@@ -440,110 +422,92 @@ extern "C" uint32_t deluge_audio_load_candidates(const DelugeAudioLoadContext* c
 	}
 }
 
-extern "C" uint8_t deluge_audio_load_bind_read_stream(DelugeSampleBuild* build, const char* path) noexcept {
-	BuildHandle* handle = validateHandle(build);
-	if (handle == nullptr) {
-		return static_cast<uint8_t>(Error::BUG); // invalid/consumed build: a caller bug, not a file problem
+Error bindReadStream(SampleBuild* build, std::string_view path) noexcept {
+	SampleBuild* live = validateBuild(build);
+	if (live == nullptr) {
+		return Error::BUG; // invalid/consumed build: a caller bug, not a file problem
 	}
 	try {
 		// SampleStream::open_read_stream owns the deluge_sample_stream registry handle (a DIFFERENT
-		// handle space from whatever efatfs handle the caller used to read/parse the header) and its
+		// handle space from whatever efatfs handle the loader used to read/parse the header) and its
 		// own TOO_MANY_OPEN_STREAMS reclaim retry -- forward to it rather than reimplementing either.
-		return static_cast<uint8_t>(handle->sample->stream().open_read_stream(path));
+		return live->sample->stream().open_read_stream(path);
 	} catch (...) {
-		return static_cast<uint8_t>(Error::INSUFFICIENT_RAM);
+		return Error::INSUFFICIENT_RAM;
 	}
 }
 
-extern "C" bool deluge_audio_load_apply_geometry(DelugeSampleBuild* build, const DelugeAudioLoadGeometry* geometry,
-                                                 uint8_t* error_out) noexcept {
-	BuildHandle* handle = validateHandle(build);
-	if (handle == nullptr || geometry == nullptr) {
-		// A caller bug (invalid/consumed build, or no geometry at all) -- refuse rather than
-		// silently no-op, so the caller cannot go on to `finish` a build nothing was ever written to.
-		if (error_out != nullptr) {
-			*error_out = static_cast<uint8_t>(Error::BUG);
-		}
+bool applyGeometry(SampleBuild* build, const Geometry& geometry, Error* error) noexcept {
+	SampleBuild* live = validateBuild(build);
+	if (live == nullptr) {
+		// A caller bug -- refuse rather than silently no-op, so the caller cannot go on to `finish` a
+		// build nothing was ever written to.
+		report(error, Error::BUG);
 		return false;
 	}
-	const std::optional<RawDataFormat> rawDataFormat = tryRawDataFormatFromByte(geometry->raw_data_format);
+	const std::optional<RawDataFormat> rawDataFormat = tryRawDataFormatFromByte(geometry.raw_data_format);
 	if (!rawDataFormat.has_value()) {
 		// Refuse outright rather than degrade: unlike every other field here, the synchronous path
 		// structurally cannot receive an invalid RawDataFormat (AudioFile::loadFile assigns it
 		// straight from the parser), so accepting one would be the async path inventing a failure
 		// mode -- silent wrong-geometry render -- that has no sync-path analogue at all.
-		if (error_out != nullptr) {
-			*error_out = static_cast<uint8_t>(Error::BUG);
-		}
+		report(error, Error::BUG);
 		return false;
 	}
-	Sample* s = handle->sample;
-	s->numChannels = geometry->num_channels;
-	s->byteDepth = geometry->byte_depth;
+	Sample* s = live->sample;
+	s->numChannels = geometry.num_channels;
+	s->byteDepth = geometry.byte_depth;
 	s->rawDataFormat = *rawDataFormat;
-	s->sampleRate = geometry->sample_rate;
-	s->audioDataStartPosBytes = geometry->audio_data_start_pos_bytes;
-	s->audioDataLengthBytes = geometry->audio_data_length_bytes;
-	s->fileLoopStartSamples = geometry->file_loop_start_samples;
-	s->fileLoopEndSamples = geometry->file_loop_end_samples;
+	s->sampleRate = geometry.sample_rate;
+	s->audioDataStartPosBytes = geometry.audio_data_start_pos_bytes;
+	s->audioDataLengthBytes = geometry.audio_data_length_bytes;
+	s->fileLoopStartSamples = geometry.file_loop_start_samples;
+	s->fileLoopEndSamples = geometry.file_loop_end_samples;
 	// -1 == the file specified no root note (matches AudioFile::loadFile's header->midiNote.value_or(-1.0f)).
-	s->midiNoteFromFile = (geometry->midi_note_present != 0) ? geometry->midi_note_value : -1.0f;
-	s->waveTableCycleSize = geometry->wavetable_cycle_size;
-	s->fileExplicitlySpecifiesSelfAsWaveTable = (geometry->wavetable_explicitly_specifies_self != 0);
-	if (error_out != nullptr) {
-		*error_out = static_cast<uint8_t>(Error::NONE);
-	}
+	s->midiNoteFromFile = (geometry.midi_note_present != 0) ? geometry.midi_note_value : -1.0f;
+	s->waveTableCycleSize = geometry.wavetable_cycle_size;
+	s->fileExplicitlySpecifiesSelfAsWaveTable = (geometry.wavetable_explicitly_specifies_self != 0);
+	report(error, Error::NONE);
 	return true;
 }
 
-extern "C" bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error_in, uint8_t* error_out,
-                                         DelugeAudioFile** published_out) noexcept {
-	if (published_out != nullptr) {
-		// Cleared up front, so every failure exit below (including the invalid-handle one, which
-		// returns before anything else runs) leaves it NULL rather than whatever the caller had there.
-		*published_out = nullptr;
-	}
-	BuildHandle* raw = validateHandle(build);
+AudioFile* finish(SampleBuild* build, Error errorIn, Error* error) noexcept {
+	SampleBuild* raw = validateBuild(build);
 	if (raw == nullptr) {
-		if (error_out != nullptr) {
-			*error_out = static_cast<uint8_t>(Error::BUG);
-		}
-		return false;
+		report(error, Error::BUG);
+		return nullptr;
 	}
-	raw->magic = kBuildMagicConsumed;         // consumed now -- a later call through this pointer is a caller
-	                                          // bug, not a live build (see validateHandle()).
-	std::unique_ptr<BuildHandle> handle{raw}; // guarantees the wrapper itself is freed on every path
-	                                          // below, including the exception path.
-	Error error = deluge::storage::errorFromAbiByte(error_in);
+	raw->magic = SampleBuild::kConsumed;     // consumed now -- a later call through this pointer is a caller
+	                                         // bug, not a live build (see validateBuild()).
+	std::unique_ptr<SampleBuild> owned{raw}; // guarantees the build itself is freed on every path below,
+	                                         // including the exception path.
+	Error outcome = errorIn;
 	AudioFile* published = nullptr;
 	try {
-		published = audioFileManager.finishSampleFromCard(handle->sample, handle->sizeBytes, &error);
+		published = audioFileManager.finishSampleFromCard(owned->sample, owned->sizeBytes, &outcome);
 	} catch (...) {
-		error = Error::INSUFFICIENT_RAM;
+		outcome = Error::INSUFFICIENT_RAM;
 		published = nullptr;
 	}
-	if (error_out != nullptr) {
-		*error_out = static_cast<uint8_t>(error);
-	}
-	if (published != nullptr && published_out != nullptr) {
-		*published_out = reinterpret_cast<DelugeAudioFile*>(published);
-	}
-	return published != nullptr;
+	report(error, outcome);
+	return published;
 }
 
-extern "C" void deluge_audio_load_abandon(DelugeSampleBuild* build) noexcept {
-	BuildHandle* raw = validateHandle(build);
+void abandon(SampleBuild* build) noexcept {
+	SampleBuild* raw = validateBuild(build);
 	if (raw == nullptr) {
 		return;
 	}
-	raw->magic = kBuildMagicConsumed;
-	std::unique_ptr<BuildHandle> handle{raw};
+	raw->magic = SampleBuild::kConsumed;
+	std::unique_ptr<SampleBuild> owned{raw};
 	try {
 		Error error = Error::FILE_UNREADABLE; // any non-NONE drives finishSampleFromCard's destroy path
-		(void)audioFileManager.finishSampleFromCard(handle->sample, handle->sizeBytes, &error);
+		(void)audioFileManager.finishSampleFromCard(owned->sample, owned->sizeBytes, &error);
 	} catch (...) {
 		// Best-effort: if finishSampleFromCard threw mid-destroy, the Sample's exact state is no
-		// longer knowable from here -- but the BuildHandle wrapper itself is still freed either way
-		// (`handle`'s destructor runs regardless of this catch).
+		// longer knowable from here -- but the build itself is still freed either way (`owned`'s
+		// destructor runs regardless of this catch).
 	}
 }
+
+} // namespace deluge::storage::sample_build

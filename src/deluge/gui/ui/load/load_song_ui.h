@@ -309,8 +309,12 @@ private:
 
 	/// @brief How many consecutive ticks STAGE waits for the browser's listing before giving up. A bound, not a
 	///        timeout: a listing settles in a handful of ticks when it settles at all, and an empty folder must end
-	///        the load with an error rather than spinning forever.
+	///        the load with an error rather than spinning forever. More than three channel stall bounds
+	///        (`deluge::io::kChannelStallTicks`), so the listing's own directory open, which that bound limits, gives
+	///        up and reports first.
 	static constexpr int32_t kMaxStagingWaitTicks = 2000;
+	static_assert(kMaxStagingWaitTicks > 3 * deluge::io::kChannelStallTicks,
+	              "the directory open the listing waits on must give up before the staging wait does");
 
 	/// @brief Consecutive ticks STAGE has waited for the browser's listing. Bounded.
 	deluge::io::StallBound stagingWait_{kMaxStagingWaitTicks};

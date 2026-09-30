@@ -17,6 +17,7 @@
 
 #include "storage/audio/stream/sample_stream.h"
 #include "definitions_cxx.hpp"
+#include "io/c_path.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/sample/sample.h"
@@ -27,7 +28,6 @@
 #include <memory>
 #include <new>
 #include <span>
-#include <string>
 #include <utility>
 
 #include "deluge_resource.h"         // resource manager: a Sample is an Asset, its SAMPLE clusters the Chunks
@@ -42,7 +42,7 @@ uint32_t SampleStream::resource_asset_id() const {
 
 void SampleStream::set_resource_asset_id(uint32_t id) {
 	resource_asset_id_ = id;
-	if (stream_handle_ != 0) {
+	if (stream_handle_ != DELUGE_HANDLE_NONE) {
 		// Write-through mirror onto the registry slot, so its own try_register_fill_context (fired by
 		// this same C-ABI call, Rust-side) can register once a geometry is also present on the slot --
 		// see register_fill_context()'s call sequencing, which always sets the id here BEFORE the
@@ -62,7 +62,7 @@ void SampleStream::register_fill_context() {
 	if (resource_asset_id_ == DELUGE_RESOURCE_NO_ASSET) {
 		return;
 	}
-	if (stream_handle_ != 0) {
+	if (stream_handle_ != DELUGE_HANDLE_NONE) {
 		// Re-push the id: covers the "Asset defined while still recording, stream opened only
 		// afterwards" ordering, where set_resource_asset_id()'s own write-through couldn't reach a slot
 		// that didn't exist yet at definition time.
@@ -82,7 +82,7 @@ void SampleStream::register_fill_context() {
 	}
 	// No registry slot yet -- a still-recording sample, which has nowhere in the registry to hold
 	// geometry at all (opening one requires a real path). Register directly with the resource
-	// manager instead: `efatfs_handle = 0` makes any premature cluster read fail cleanly rather than
+	// manager instead: `efatfs_handle = DELUGE_HANDLE_NONE` makes any premature cluster read fail cleanly rather than
 	// leaving this Asset with no fill-context registered anywhere (which would otherwise let residency
 	// resolve READY with no way to ever produce real bytes).
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
@@ -90,7 +90,7 @@ void SampleStream::register_fill_context() {
 		return;
 	}
 	DelugeStreamingFillContext ctx{
-	    .efatfs_handle = 0,
+	    .efatfs_handle = DELUGE_HANDLE_NONE,
 	    .audio_data_start_pos_bytes = sample_.audioDataStartPosBytes,
 	    .audio_data_length_bytes = sample_.audioDataLengthBytes,
 	    .first_cluster_index_with_no_audio_data = sample_.getFirstClusterIndexWithNoAudioData(),
@@ -104,13 +104,13 @@ void SampleStream::register_fill_context() {
 }
 
 void SampleStream::release_asset() {
-	if (stream_handle_ != 0) {
+	if (stream_handle_ != DELUGE_HANDLE_NONE) {
 		// Closes the registry slot's efatfs read handle (if any) and releases its resource-manager
 		// asset mirror (kept in sync by set_resource_asset_id()/register_fill_context() above) in one
 		// call. Never ALSO release resource_asset_id_ directly here -- the registry already owns that
 		// release once a slot exists, and releasing twice would double-free the manager's asset slot.
 		deluge_sample_stream_close(stream_handle_);
-		stream_handle_ = 0;
+		stream_handle_ = DELUGE_HANDLE_NONE;
 		resource_asset_id_ = DELUGE_RESOURCE_NO_ASSET;
 		return;
 	}
@@ -131,10 +131,14 @@ Error SampleStream::open_read_stream(std::string_view path) {
 	// the underlying efatfs file handle itself); a failure to open is a stream-open failure
 	// propagated to the caller (the sample won't load). A still-recording sample has no read handle
 	// at all (see make_read_source()) until this same path reopens one once recording finishes.
-	std::string cpath{path}; // NUL-terminate for the C-ABI (path is a non-terminated string_view)
+	// A path the ABI cannot carry whole names no file this can open.
+	const auto cpath = deluge::io::CPath::from(path);
+	if (!cpath) {
+		return Error::FILE_NOT_FOUND;
+	}
 	bool table_full = false;
-	uint32_t handle = deluge_sample_stream_open(cpath.c_str(), &table_full);
-	if (handle == 0 && table_full) {
+	DelugeHandle handle = deluge_sample_stream_open(cpath->c_str(), &table_full);
+	if (handle == DELUGE_HANDLE_NONE && table_full) {
 		// The handle table is a scarce resource with no eviction policy of its own. A
 		// resident Sample pins a handle for its whole residency, and residency normally ends
 		// only under MEMORY pressure — but a browser preview leaves each sample cached, and
@@ -147,10 +151,10 @@ Error SampleStream::open_read_stream(std::string_view path) {
 		// more. If it still fails, the streams really are all in use and the error is honest.
 		if (audioFileManager.releaseUnleasedAudioFiles() > 0) {
 			table_full = false;
-			handle = deluge_sample_stream_open(cpath.c_str(), &table_full);
+			handle = deluge_sample_stream_open(cpath->c_str(), &table_full);
 		}
 	}
-	if (handle == 0) {
+	if (handle == DELUGE_HANDLE_NONE) {
 		return table_full ? Error::TOO_MANY_OPEN_STREAMS : Error::FILE_NOT_FOUND;
 	}
 	stream_handle_ = handle;
@@ -164,10 +168,10 @@ Error SampleStream::open_read_stream(std::string_view path) {
 
 std::unique_ptr<ReadSource> SampleStream::make_read_source() {
 	// An open registry handle = the streaming read path (a normal card-loaded sample). A
-	// still-recording sample (stream_handle_ == 0 -- no handle is opened until recording finishes)
-	// has no reader at all. A caller that could reach a still-recording Sample must guard against it
-	// itself (see WaveformRenderer::investigateWholeCluster()) -- a handle-0 read here just fails
-	// cleanly (deluge_sample_stream_read_at() treats handle 0 as "no such handle").
+	// still-recording sample (stream_handle_ == DELUGE_HANDLE_NONE -- no handle is opened until
+	// recording finishes) has no reader at all. A caller that could reach a still-recording Sample must
+	// guard against it itself (see WaveformRenderer::investigateWholeCluster()) -- a read here just
+	// fails cleanly (deluge_sample_stream_read_at() answers DELUGE_ERR_PARAM for DELUGE_HANDLE_NONE).
 	return std::make_unique<SampleStreamReadSource>(stream_handle_, static_cast<uint8_t>(Cluster::size_magnitude));
 }
 
@@ -176,11 +180,14 @@ std::unique_ptr<ReadSource> SampleStream::make_read_source() {
 extern "C" {
 
 // The region-port open() bridge's stream-backing -> resource-asset accessor (declared in
-// libdeluge/streaming_fill.h alongside its sibling deluge_streaming_resource_manager): forwards to the
+// libdeluge/sample_stream.h alongside its sibling deluge_streaming_resource_manager): forwards to the
 // asset-definition entry point (chunk_residency.cpp).
-uint32_t deluge_sample_stream_asset_id(void* stream_backing) {
-	auto* stream = reinterpret_cast<deluge::audio::stream::SampleStream*>(stream_backing);
-	return deluge_streaming_define_asset(&stream->sample());
+uint32_t deluge_sample_stream_asset_id(DelugeStreamBacking* stream_backing) noexcept {
+	try {
+		return deluge_streaming_define_asset(&deluge::audio::stream::fromAbi(stream_backing)->sample());
+	} catch (...) {
+		return DELUGE_RESOURCE_NO_ASSET;
+	}
 }
 
 } // extern "C"

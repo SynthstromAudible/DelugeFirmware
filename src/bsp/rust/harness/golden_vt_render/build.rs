@@ -236,14 +236,12 @@ fn run_bindgen(
     out_dir: &std::path::Path,
 ) {
     let include_dir = repo_root.join("include");
-    let scheduler_dir = repo_root.join("src/OSLikeStuff");
     let wrapper = manifest_dir.join("wrapper.h");
     let clang_target = env::var("TARGET").expect("cargo sets TARGET for build scripts");
     let base = || {
         bindgen::Builder::default()
             .header(wrapper.to_str().unwrap())
             .clang_arg(format!("-I{}", include_dir.display()))
-            .clang_arg(format!("-I{}", scheduler_dir.display()))
             // The host app is compiled with DELUGE_HOST, so its host-only declarations are part of this ABI.
             .clang_arg("-DDELUGE_HOST")
             .use_core()
@@ -276,7 +274,6 @@ fn run_bindgen(
         .expect("write libdeluge_layout.rs");
     println!("cargo:rerun-if-changed={}", wrapper.display());
     println!("cargo:rerun-if-changed={}", include_dir.display());
-    println!("cargo:rerun-if-changed={}", scheduler_dir.display());
     println!("cargo:rerun-if-changed=../../build_allowlist.rs");
     println!("cargo:rerun-if-changed=../../build_crate_types.rs");
 }

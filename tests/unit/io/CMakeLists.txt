@@ -8,7 +8,9 @@
 deluge_specs_driver(io_specs
   SOURCES
     mock_file_io.cpp
+    mock_stream_io.cpp
     ../../../src/deluge/io/file.cpp
+    ../../../src/deluge/io/stream.cpp
     # The storage channels' C ABI as "no channel here", for io/file.cpp's collectOrRequestDir.
     ../../support/mocks/storage_channel_mocks.cpp
     ../../../src/deluge/storage/existence_policy.cpp
@@ -23,6 +25,5 @@ deluge_specs_driver(io_specs
     ../../../include         # libdeluge/file_io.h, libdeluge/types.h
     ../../../src/deluge      # io/file.hpp
     ../../../src             # definitions_cxx.hpp (storage/storage_manager.h's transitive include)
-    ../../../src/OSLikeStuff # scheduler_api.h (libdeluge/scheduler.h's transitive include)
     ../../support/mocks      # util/firmware_version.h host stub (the real one is generated at firmware-build time)
 )

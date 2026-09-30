@@ -120,6 +120,7 @@ add_executable(UnitTests
         dx_cartridge_window_tests.cpp
         trigger_clock_input_tests.cpp
         stall_bound_tests.cpp
+        c_path_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
 # the repo root (tests/support/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so
@@ -135,7 +136,7 @@ target_include_directories(UnitTests PRIVATE
         ../../../include
         ../../../src
         ../../../src/deluge
-        ../../../src/OSLikeStuff        # scheduler_api.h, reached via libdeluge/scheduler.h
+        ../../../src/OSLikeStuff        # task_scheduler/clock_type.h (time_tests.cpp)
         ../io                   # mock_file_io.h, the in-memory card behind deluge::io::File
         ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
 )

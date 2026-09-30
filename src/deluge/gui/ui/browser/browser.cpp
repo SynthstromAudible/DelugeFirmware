@@ -203,7 +203,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 	// UNKNOWN forever — which for the audio loader is a benign "ask again" but here is the attempt's
 	// only forward path, so the browser would re-run the listing every tick with no error ever shown.
 	// Deeply nested user folders can exceed the bound.
-	if (strlen(path) >= DELUGE_FILE_DIRECTORY_MAX_PATH) {
+	if (strlen(path) >= DELUGE_PATH_MAX) {
 		return std::unexpected(Error::FILE_NOT_FOUND);
 	}
 
@@ -218,13 +218,13 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		return std::move(*opened);
 	}
 
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	DelugeStatus status = DELUGE_OK;
 	switch (deluge_file_directory_collect(path, &handle, &status)) {
-	case DELUGE_FILE_DIRECTORY_READY:
+	case DELUGE_CHANNEL_READY:
 		g_directoryWait.reset();
 		return deluge::io::Directory::adopt(handle);
-	case DELUGE_FILE_DIRECTORY_UNKNOWN:
+	case DELUGE_CHANNEL_UNKNOWN:
 		// "Request it (again)" — the documented meaning, and never a failure to report. This is also
 		// where the FIRST request for a path is issued: the attempt names a directory the channel has
 		// not been told about, so its opening drive lands here.
@@ -237,7 +237,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		g_directoryRequests++;
 		listing_.deferrals++;
 		return std::unexpected(Error::LISTING_DEFERRED);
-	case DELUGE_FILE_DIRECTORY_PENDING:
+	case DELUGE_CHANNEL_PENDING:
 		// Requested or being opened. Ask again next tick and do NOT re-request, which would replace a
 		// request that is about to be served.
 		if (waitedPastBound()) {
@@ -245,7 +245,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		}
 		listing_.deferrals++;
 		return std::unexpected(Error::LISTING_DEFERRED);
-	case DELUGE_FILE_DIRECTORY_FAILED:
+	case DELUGE_CHANNEL_FAILED:
 		// Terminal: the channel will not retry and neither may we, or a folder that cannot be opened
 		// would be re-requested on every tick for as long as the browser sits on it. Mapped exactly as
 		// the synchronous arm maps it, so the fallback fires on both.

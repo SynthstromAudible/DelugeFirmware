@@ -92,7 +92,7 @@ constexpr int32_t kMaxUnproductiveUs = 300'000;
 ///
 /// Past it the operation has failed, but it may not be released: the driver can still use what it was
 /// given. The create and finalize machines latch this and fail on the terminal answer.
-/// @param collected      The `DELUGE_FILE_STREAM_*` value from this tick's collect.
+/// @param collected      The `DELUGE_CHANNEL_*` value from this tick's collect.
 /// @param unproductiveUs Microseconds this operation has been unproductive.
 [[nodiscard]] bool stalledPastBound(uint8_t collected, int32_t unproductiveUs);
 
@@ -103,8 +103,8 @@ constexpr int32_t kMaxUnproductiveUs = 300'000;
 ///
 /// @param channelUsable     Whether this write may use the stream channel: boot has finished.
 /// @param issued            Whether the channel accepted the owed write and it has not been collected.
-/// @param collected         The `DELUGE_FILE_STREAM_*` value from the collect, or
-///                          `DELUGE_FILE_STREAM_UNKNOWN` when nothing was collected this tick.
+/// @param collected         The `DELUGE_CHANNEL_*` value from the collect, or
+///                          `DELUGE_CHANNEL_UNKNOWN` when nothing was collected this tick.
 /// @param unproductiveUs   Microseconds this write has been unproductive.
 [[nodiscard]] WriteStep nextWriteStep(bool channelUsable, bool issued, uint8_t collected, int32_t unproductiveUs);
 

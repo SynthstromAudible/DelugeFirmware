@@ -28,17 +28,17 @@
 // No board regions in the host unit tests: the allocator's global regions are
 // degenerate (the tests drive MemoryRegion against their own buffers), so the
 // region enumeration the GeneralMemoryAllocator constructor walks is empty.
-uint8_t deluge_memory_region_count(void) {
+uint8_t deluge_memory_region_count(void) noexcept {
 	return 0;
 }
-DelugeStatus deluge_memory_region(uint8_t /*index*/, DelugeMemoryRegion* /*out*/) {
+DelugeStatus deluge_memory_region(uint8_t /*index*/, DelugeMemoryRegion* /*out*/) noexcept {
 	return DELUGE_ERR_NODEV;
 }
 
-uint64_t deluge_clock_now(void) {
+uint64_t deluge_clock_now(void) noexcept {
 	return 0;
 }
-void deluge_clock_delay_ms(uint32_t /*ms*/) {
+void deluge_clock_delay_ms(uint32_t /*ms*/) noexcept {
 }
-void deluge_clock_delay_us(uint32_t /*us*/) {
+void deluge_clock_delay_us(uint32_t /*us*/) noexcept {
 }

@@ -52,6 +52,15 @@ abi_pin!(in deluge_sample_source::manager_residency: deluge_streaming_signal_fil
 abi_pin!(in deluge_sample_stream: deluge_efatfs_open, deluge_efatfs_close, deluge_efatfs_read_at,
     deluge_streaming_resource_manager, deluge_streaming_set_fill_context);
 
+// --- The copies of header typedefs ---
+
+abi_layout!(type crate::abi_handle::DelugeHandle => sys DelugeHandle);
+abi_layout!(type deluge_sample_fill::DelugeHandle => sys DelugeHandle);
+abi_layout!(type deluge_sample_fill::DelugeStatus => sys DelugeStatus);
+abi_layout!(type deluge_audio_format::abi::DelugeStatus => sys DelugeStatus);
+abi_layout!(type deluge_audio_format::abi::DelugeAudioParseStatus => sys DelugeAudioParseStatus);
+abi_layout!(type deluge_audio_format::abi::DelugeWavetableAccept => sys DelugeWavetableAccept);
+
 // --- The crate-defined header types (see `build_crate_types.rs`): every field, every variant ---
 
 abi_layout!(deluge_audio_format::abi::DelugeOptionalF32 => DelugeOptionalF32 { has, value });
@@ -96,6 +105,13 @@ abi_layout!(deluge_sample_stream::DelugeSampleStreamGeometry => DelugeSampleStre
 // --- Header values copied by hand ---
 
 abi_const!(
+    deluge_sample_fill::DELUGE_OK => DelugeStatus_DELUGE_OK,
+    deluge_sample_fill::DELUGE_ERR_PARAM => DelugeStatus_DELUGE_ERR_PARAM,
+    deluge_audio_format::abi::DELUGE_OK => DelugeStatus_DELUGE_OK,
+    deluge_audio_format::abi::DELUGE_ERR_PARAM => DelugeStatus_DELUGE_ERR_PARAM,
+);
+
+abi_const!(
     deluge_audio_format::abi::DELUGE_AUDIO_PARSE_NEED => DelugeAudioParseStatus_DELUGE_AUDIO_PARSE_NEED,
     deluge_audio_format::abi::DELUGE_AUDIO_PARSE_DONE => DelugeAudioParseStatus_DELUGE_AUDIO_PARSE_DONE,
     deluge_audio_format::abi::DELUGE_AUDIO_PARSE_NOT_AUDIO => DelugeAudioParseStatus_DELUGE_AUDIO_PARSE_NOT_AUDIO,
@@ -117,13 +133,25 @@ abi_const!(
     deluge_audio_format::abi::DELUGE_AUDIO_HEADER_PARSER_WORDS => DELUGE_AUDIO_HEADER_PARSER_WORDS,
 );
 
+// `LoadResult` embeds this, and `audio_loader.rs` checks `LoadResult`'s own offsets against `sys` beside it.
+abi_layout!(crate::audio_loader::LoadGeometry => sys DelugeAudioLoadGeometry { sample_rate,
+    audio_data_start_pos_bytes, audio_data_length_bytes, file_loop_start_samples, file_loop_end_samples,
+    wavetable_cycle_size, midi_note_value, num_channels, byte_depth, raw_data_format, midi_note_present,
+    wavetable_explicitly_specifies_self });
+
 abi_const!(
-    crate::audio_loader::DELUGE_MAX_PATH => DELUGE_MAX_PATH,
     crate::audio_loader::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
     crate::audio_loader::DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED => DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED,
-    crate::audio_loader::DELUGE_AUDIO_LOAD_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::audio_loader::DELUGE_AUDIO_LOAD_READY => DELUGE_CHANNEL_READY,
-    crate::audio_loader::DELUGE_AUDIO_LOAD_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
+);
+
+// The channels' shared vocabulary (channel.h), which every channel module takes from `deluge_channel`.
+abi_layout!(type deluge_channel::DelugeChannelStatus => sys DelugeChannelStatus);
+abi_const!(
+    deluge_channel::DELUGE_CHANNEL_PENDING => DELUGE_CHANNEL_PENDING,
+    deluge_channel::DELUGE_CHANNEL_READY => DELUGE_CHANNEL_READY,
+    deluge_channel::DELUGE_CHANNEL_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
+    deluge_channel::DELUGE_CHANNEL_FAILED => DELUGE_CHANNEL_FAILED,
+    deluge_channel::DELUGE_PATH_MAX => DELUGE_PATH_MAX,
 );
 
 // `DelugeTimestamp` (types.h) is not one of the crate-defined header types in `build_crate_types.rs`, so there is no
@@ -131,7 +159,7 @@ abi_const!(
 abi_layout!(crate::file_bytes::FileTimestamp => sys DelugeTimestamp { year, month, day, hour, minute, second });
 
 abi_const!(
-    crate::file_bytes::MAX_PATH_CHARS + 1 => DELUGE_FILE_BYTES_MAX_PATH,
+    crate::file_bytes::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
     crate::file_bytes::MAX_BYTES => DELUGE_FILE_BYTES_MAX_BYTES,
     crate::file_bytes::BLOCK_BYTES => DELUGE_FILE_BYTES_BLOCK,
     crate::file_bytes::NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
@@ -144,35 +172,19 @@ abi_const!(
     crate::file_bytes::STREAM_READ => DelugeStreamMode_DELUGE_STREAM_READ,
     crate::file_bytes::STREAM_CREATE => DelugeStreamMode_DELUGE_STREAM_WRITE_CREATE,
     crate::file_bytes::STREAM_CREATE_NEW => DelugeStreamMode_DELUGE_STREAM_WRITE_CREATE_NEW,
-    crate::file_bytes::DELUGE_FILE_BYTES_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::file_bytes::DELUGE_FILE_BYTES_READY => DELUGE_CHANNEL_READY,
-    crate::file_bytes::DELUGE_FILE_BYTES_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    crate::file_bytes::DELUGE_FILE_BYTES_FAILED => DELUGE_CHANNEL_FAILED,
 );
 
 abi_const!(
-    crate::file_directory::MAX_PATH_CHARS + 1 => DELUGE_FILE_DIRECTORY_MAX_PATH,
+    crate::file_directory::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
     crate::file_directory::NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
-    crate::file_directory::DELUGE_FILE_DIRECTORY_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::file_directory::DELUGE_FILE_DIRECTORY_READY => DELUGE_CHANNEL_READY,
-    crate::file_directory::DELUGE_FILE_DIRECTORY_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    crate::file_directory::DELUGE_FILE_DIRECTORY_FAILED => DELUGE_CHANNEL_FAILED,
 );
 
 abi_const!(
     crate::file_prefix::PREFIX_CAPACITY => DELUGE_FILE_PREFIX_CAPACITY,
     crate::file_prefix::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
-    crate::file_prefix::DELUGE_FILE_PREFIX_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::file_prefix::DELUGE_FILE_PREFIX_READY => DELUGE_CHANNEL_READY,
-    crate::file_prefix::DELUGE_FILE_PREFIX_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    crate::file_prefix::DELUGE_FILE_PREFIX_FAILED => DELUGE_CHANNEL_FAILED,
 );
 
 abi_const!(
-    crate::file_stream::DELUGE_FILE_STREAM_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::file_stream::DELUGE_FILE_STREAM_READY => DELUGE_CHANNEL_READY,
-    crate::file_stream::DELUGE_FILE_STREAM_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    crate::file_stream::DELUGE_FILE_STREAM_FAILED => DELUGE_CHANNEL_FAILED,
     crate::file_stream_slot::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
 );
 

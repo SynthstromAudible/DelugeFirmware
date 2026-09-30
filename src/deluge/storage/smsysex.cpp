@@ -14,7 +14,6 @@
 #include "libdeluge/file_directory.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
-#include "scheduler_api.h"
 #include "storage/byte_channel.h"
 #include "storage/fs_status.h"
 #include "storage/smsysex_pending.h"
@@ -24,6 +23,7 @@
 #include "util/pack.h"
 #include <cstdint>
 #include <cstring>
+#include <libdeluge/scheduler.h>
 
 #define MAX_DIR_LINES 25
 
@@ -643,20 +643,20 @@ std::optional<deluge::io::Directory> smSysex::openDirectoryForSysex(const char* 
 		return std::move(*opened);
 	}
 
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	DelugeStatus status = DELUGE_OK;
 	switch (deluge_file_directory_collect(path, &handle, &status)) {
-	case DELUGE_FILE_DIRECTORY_READY:
+	case DELUGE_CHANNEL_READY:
 		// The handle is ours now, and closing it is not optional -- `adopt` is what puts it back
 		// under RAII, and `sxDir` holds it until the next open replaces it.
 		return deluge::io::Directory::adopt(handle);
-	case DELUGE_FILE_DIRECTORY_UNKNOWN:
+	case DELUGE_CHANNEL_UNKNOWN:
 		// "Request it (again)" -- the documented meaning, and where the FIRST request is issued.
 		deluge_file_directory_request(path, false);
 		return std::nullopt;
-	case DELUGE_FILE_DIRECTORY_PENDING:
+	case DELUGE_CHANNEL_PENDING:
 		return std::nullopt;
-	case DELUGE_FILE_DIRECTORY_FAILED:
+	case DELUGE_CHANNEL_FAILED:
 	default:
 		*outCode = toWireStatus(deluge::io::to_status(status));
 		return std::nullopt;

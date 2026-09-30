@@ -27,12 +27,12 @@
 #include "model/sample/sample_recorder.h"
 #include "model/voice/voice_sample.h"
 #include "processing/engines/audio_engine.h"
-#include "scheduler_api.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 #include "sync/sd_access.h"
 #include <algorithm>
 #include <iterator>
+#include <libdeluge/scheduler.h>
 #include <limits>
 #include <optional>
 #include <string.h>
@@ -580,13 +580,14 @@ bool WaveformRenderer::investigateWholeCluster(Sample* sample, int32_t clusterIn
 
 	// Don't investigate a cluster of a Sample a SampleRecorder still has open. A recording target's
 	// SampleRecorder writes into private capture buffers and never opens a real efatfs read handle on
-	// its Sample (SampleStream::efatfs_handle() stays 0 for its whole life as a recording target -- see
-	// SampleStream::open_read_stream()/make_read_source()), so ANY get_cluster() load attempt here --
-	// not just the actively-being-written cluster -- would simply fail. (The background scan does
-	// reach a recording-in-progress Sample: SampleRecorder::setup() registers it in
-	// audioFileManager.audioFiles as soon as the file's created, well before capture finishes.) We
-	// leave the scan cursor parked here; once the recorder detaches (recording finishes and the
-	// SampleRecorder is destructed), the Sample becomes independently loadable and the scan resumes.
+	// its Sample (its SampleStream's stream handle stays DELUGE_HANDLE_NONE for its whole life as a
+	// recording target -- see SampleStream::open_read_stream()/make_read_source()), so ANY
+	// get_cluster() load attempt here -- not just the actively-being-written cluster -- would simply
+	// fail. (The background scan does reach a recording-in-progress Sample: SampleRecorder::setup()
+	// registers it in audioFileManager.audioFiles as soon as the file's created, well before capture
+	// finishes.) We leave the scan cursor parked here; once the recorder detaches (recording finishes
+	// and the SampleRecorder is destructed), the Sample becomes independently loadable and the scan
+	// resumes.
 	for (SampleRecorder* recorder = AudioEngine::firstRecorder; recorder != nullptr; recorder = recorder->next) {
 		if (recorder->sample == sample) {
 			return false;

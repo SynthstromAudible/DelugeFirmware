@@ -42,7 +42,6 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/load_trace.h"
 #include "storage/byte_channel.h" // noteIoTier, for the inline preview read
@@ -52,6 +51,7 @@
 #include "storage/storage_manager.h"
 #include "util/boot.h"
 #include "util/try.h"
+#include <libdeluge/scheduler.h>
 
 #include <array>
 #include <cstdint>
@@ -1090,12 +1090,13 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 	}
 
 	uint32_t length = 0;
-	const uint8_t status = deluge_file_prefix_collect(attempt.target.path.c_str(), songPreviewPrefix.data(),
-	                                                  static_cast<uint32_t>(songPreviewPrefix.size()), &length);
+	const DelugeChannelStatus status =
+	    deluge_file_prefix_collect(attempt.target.path.c_str(), songPreviewPrefix.data(),
+	                               static_cast<uint32_t>(songPreviewPrefix.size()), &length);
 
-	if (status == DELUGE_FILE_PREFIX_PENDING || status == DELUGE_FILE_PREFIX_UNKNOWN) {
+	if (status == DELUGE_CHANNEL_PENDING || status == DELUGE_CHANNEL_UNKNOWN) {
 		if (!previewWait_.tick()) {
-			if (status == DELUGE_FILE_PREFIX_UNKNOWN) {
+			if (status == DELUGE_CHANNEL_UNKNOWN) {
 				// "The caller should request it (again)" -- the documented meaning, and never a failure to
 				// report. This is also where the FIRST request for a target is issued: drawSongPreview() names
 				// a song the channel has not been told about, so its opening drive lands here.
@@ -1119,7 +1120,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 	previewWait_.reset(); // answered: READY or FAILED
 	PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
 
-	if (status == DELUGE_FILE_PREFIX_FAILED) {
+	if (status == DELUGE_CHANNEL_FAILED) {
 		// The read did not happen: the file would not open, could not be sized, or the read failed.
 		// Terminal, so this is NOT re-requested -- and reported, because the file backing reports the
 		// same thing for the same song and the two must not disagree about whether the user hears

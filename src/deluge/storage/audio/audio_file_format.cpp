@@ -138,7 +138,7 @@ static_assert(kSampleReadAheadBytes >= DELUGE_AUDIO_MAX_WINDOW_BYTES,
               "the buffer must be able to hold the largest window the decoder can ask for");
 
 /// The decoder's terminal status as one of the two error values this file has ever reported.
-Error decodeError(uint8_t status) {
+Error decodeError(DelugeAudioParseStatus status) {
 	switch (status) {
 	case DELUGE_AUDIO_PARSE_NOT_AUDIO:   // Neither RIFF/WAVE nor FORM/AIFF.
 	case DELUGE_AUDIO_PARSE_UNSUPPORTED: // Bit depth, format tag, channel count or sample rate.
@@ -169,7 +169,7 @@ struct WalkOptions {
 std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, WalkOptions options) {
 	DelugeAudioHeaderParser parser;
 	const uint8_t goal = options.stopAtAudioData ? DELUGE_AUDIO_WALK_AUDIO_ONLY : DELUGE_AUDIO_WALK_WHOLE_HEADER;
-	if (!deluge_audio_header_parser_init(&parser, sizeof(parser), src.size(), goal)) {
+	if (deluge_audio_header_parser_init(&parser, sizeof(parser), src.size(), goal) != DELUGE_OK) {
 		return std::unexpected(Error::BUG); // Storage too small — a build-time mismatch, not a file.
 	}
 
@@ -187,7 +187,7 @@ std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, WalkO
 		}
 
 		if (options.stopAtAudioData && deluge_audio_header_parser_located_audio_data(&parser)) {
-			const uint8_t status = deluge_audio_header_parser_finish_here(&parser, &header);
+			const DelugeAudioParseStatus status = deluge_audio_header_parser_finish_here(&parser, &header);
 			if (status != DELUGE_AUDIO_PARSE_DONE) {
 				return std::unexpected(decodeError(status));
 			}
@@ -208,7 +208,7 @@ std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, WalkO
 			return std::unexpected(bytes.error());
 		}
 
-		const uint8_t status =
+		const DelugeAudioParseStatus status =
 		    deluge_audio_header_parser_feed(&parser, reinterpret_cast<const uint8_t*>(bytes->data()),
 		                                    static_cast<uint32_t>(bytes->size()), want.start, &header);
 		if (status == DELUGE_AUDIO_PARSE_DONE) {
@@ -221,7 +221,7 @@ std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, WalkO
 }
 
 /// The wavetable acceptance verdict as the Error values callers switch on.
-Error wavetableError(uint8_t verdict) {
+Error wavetableError(DelugeWavetableAccept verdict) {
 	switch (verdict) {
 	case DELUGE_WAVETABLE_REJECT_STEREO:
 		return Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
@@ -285,7 +285,8 @@ std::expected<WaveTableHeader, Error> parseWaveTableHeader(AudioByteSource& src,
 	}
 
 	uint32_t cycleSize = 0;
-	const uint8_t verdict = deluge_audio_header_accept_as_wavetable(&*header, makeWaveTableWorkAtAllCosts, &cycleSize);
+	const DelugeWavetableAccept verdict =
+	    deluge_audio_header_accept_as_wavetable(&*header, makeWaveTableWorkAtAllCosts, &cycleSize);
 	if (verdict != DELUGE_WAVETABLE_ACCEPTED) {
 		return std::unexpected(wavetableError(verdict));
 	}

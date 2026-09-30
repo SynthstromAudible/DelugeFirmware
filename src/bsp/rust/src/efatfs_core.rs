@@ -202,7 +202,9 @@ impl<const N: usize> HandleTable<N> {
 /// `Error::FILE_NOT_FOUND` a bare `Option<u32>` would collapse it into.
 pub enum OpenOutcome {
     Handle(u32),
-    NotFound,
+    /// The open itself failed: `DELUGE_ERR_NO_FILESYSTEM` for an unmounted FS, otherwise
+    /// [`open_context`]'s status (`DELUGE_ERR_NOT_FOUND` for a missing file, ...).
+    Failed(DelugeStatus),
     TableFull,
 }
 
@@ -569,25 +571,30 @@ where
         .map_err(|e| error_to_status(&e))
 }
 
-/// Free + total cluster counts of the mounted volume.
-pub async fn fs_stats<IO, TP, OCC>(fs: &FileSystem<IO, TP, OCC>) -> Option<(u32, u32)>
+/// Free + total cluster counts of the mounted volume. `Err` (mapped via [`error_to_status`]) if
+/// the query failed.
+pub async fn fs_stats<IO, TP, OCC>(fs: &FileSystem<IO, TP, OCC>) -> Result<(u32, u32), DelugeStatus>
 where
     IO: ReadWriteSeek,
     TP: TimeProvider,
     OCC: OemCpConverter,
 {
-    let s = fs.stats().await.ok()?;
-    Some((s.free_clusters(), s.total_clusters()))
+    let s = fs.stats().await.map_err(|e| error_to_status(&e))?;
+    Ok((s.free_clusters(), s.total_clusters()))
 }
 
-/// The mounted volume's cluster (allocation-unit) size, in bytes.
-pub async fn fs_cluster_size<IO, TP, OCC>(fs: &FileSystem<IO, TP, OCC>) -> Option<u32>
+/// The mounted volume's cluster (allocation-unit) size, in bytes. `Err` (mapped via
+/// [`error_to_status`]) if the query failed.
+pub async fn fs_cluster_size<IO, TP, OCC>(fs: &FileSystem<IO, TP, OCC>) -> Result<u32, DelugeStatus>
 where
     IO: ReadWriteSeek,
     TP: TimeProvider,
     OCC: OemCpConverter,
 {
-    fs.stats().await.ok().map(|s| s.cluster_size())
+    fs.stats()
+        .await
+        .map(|s| s.cluster_size())
+        .map_err(|e| error_to_status(&e))
 }
 
 /// Create the directory at `path`, creating any missing parent directories too

@@ -17,14 +17,15 @@
 
 #include "scenarios/load_policy_scenario.h"
 
-#include "libdeluge/audio_load.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
 #include "model/sample/sample.h"
 #include "scenarios/load_invariants.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/audio/sample_build.h"
 
-#include "deluge_resource.h" // DelugeResourceStats, deluge_resource_stats(_reset)
+#include "deluge_resource.h"   // DelugeResourceStats, deluge_resource_stats(_reset)
+#include "libdeluge/channel.h" // DELUGE_PATH_MAX
 
 #include <array>
 #include <cstddef>
@@ -162,70 +163,70 @@ bool checkProposeLoadCandidates() {
 	return ok;
 }
 
-/// Pin the C ABI build's contracts (libdeluge/audio_load.h): abandoning a build must not publish it, and must not
-/// leave it sitting in the manager half-built; apply_geometry() must refuse an invalid raw_data_format rather than
+/// Pin the sample build's contracts (storage/audio/sample_build.h): abandoning a build must not publish it, and must
+/// not leave it sitting in the manager half-built; applyGeometry() must refuse an invalid raw_data_format rather than
 /// silently accept it.
-bool checkAudioLoadAbiAbandon() {
+bool checkSampleBuildAbandon() {
+	namespace sample_build = deluge::storage::sample_build;
 	bool ok = true;
 
 	// abandons a build without publishing it
 	{
 		const size_t before = audioFileManager.audioFiles.size();
-		uint8_t error = 0;
-		DelugeSampleBuild* build = deluge_audio_load_begin("TEST/abandon.wav", "", 4096, &error);
+		Error error = Error::NONE;
+		sample_build::SampleBuild* build = sample_build::begin("TEST/abandon.wav", "", 4096, &error);
 		if (build == nullptr) {
-			printf("FAIL [audioLoadAbiAbandon]: deluge_audio_load_begin returned NULL (error=%u)\n", error);
+			printf("FAIL [sampleBuildAbandon]: begin() returned null (error=%d)\n", static_cast<int>(error));
 			return false;
 		}
-		deluge_audio_load_abandon(build);
+		sample_build::abandon(build);
 		// Nothing published. NOTE: begin() never inserts into audioFiles (only finish() does), so this
 		// alone does not prove abandon() actually released the adopted chunk -- see the loop below for
 		// that.
 		if (audioFileManager.audioFiles.size() != before) {
-			printf("FAIL [audioLoadAbiAbandon]: audioFiles.size() changed across abandon (%zu -> %zu)\n", before,
+			printf("FAIL [sampleBuildAbandon]: audioFiles.size() changed across abandon (%zu -> %zu)\n", before,
 			       audioFileManager.audioFiles.size());
 			ok = false;
 		}
 	}
 
-	// apply_geometry() refuses an invalid raw_data_format (rather than silently degrading it, which
+	// applyGeometry() refuses an invalid raw_data_format (rather than silently degrading it, which
 	// would publish a sample that renders wrong with no error) and accepts a valid one.
 	{
-		uint8_t error = 0;
-		DelugeSampleBuild* build = deluge_audio_load_begin("TEST/geometry.wav", "", 4096, &error);
+		Error error = Error::NONE;
+		sample_build::SampleBuild* build = sample_build::begin("TEST/geometry.wav", "", 4096, &error);
 		if (build == nullptr) {
-			printf("FAIL [audioLoadAbiAbandon]: deluge_audio_load_begin (geometry case) returned NULL "
-			       "(error=%u)\n",
-			       error);
+			printf("FAIL [sampleBuildAbandon]: begin() (geometry case) returned null (error=%d)\n",
+			       static_cast<int>(error));
 			return false;
 		}
 
-		DelugeAudioLoadGeometry geometry{};
+		sample_build::Geometry geometry{};
 		geometry.raw_data_format = 200; // not one of RawDataFormat's 0..5 values
-		uint8_t geometryError = 0;
-		const bool acceptedInvalid = deluge_audio_load_apply_geometry(build, &geometry, &geometryError);
-		if (acceptedInvalid || geometryError != static_cast<uint8_t>(Error::BUG)) {
-			printf("FAIL [audioLoadAbiAbandon]: apply_geometry() accepted an invalid raw_data_format=200 "
-			       "(accepted=%d error=%u)\n",
-			       acceptedInvalid, geometryError);
+		Error geometryError = Error::NONE;
+		const bool acceptedInvalid = sample_build::applyGeometry(build, geometry, &geometryError);
+		if (acceptedInvalid || geometryError != Error::BUG) {
+			printf("FAIL [sampleBuildAbandon]: applyGeometry() accepted an invalid raw_data_format=200 "
+			       "(accepted=%d error=%d)\n",
+			       acceptedInvalid, static_cast<int>(geometryError));
 			ok = false;
 		}
 
 		geometry.raw_data_format = 0; // RawDataFormat::NATIVE -- valid
-		geometryError = 0;
-		const bool acceptedValid = deluge_audio_load_apply_geometry(build, &geometry, &geometryError);
-		if (!acceptedValid || geometryError != static_cast<uint8_t>(Error::NONE)) {
-			printf("FAIL [audioLoadAbiAbandon]: apply_geometry() refused a valid raw_data_format=0 "
-			       "(accepted=%d error=%u)\n",
-			       acceptedValid, geometryError);
+		geometryError = Error::UNSPECIFIED;
+		const bool acceptedValid = sample_build::applyGeometry(build, geometry, &geometryError);
+		if (!acceptedValid || geometryError != Error::NONE) {
+			printf("FAIL [sampleBuildAbandon]: applyGeometry() refused a valid raw_data_format=0 "
+			       "(accepted=%d error=%d)\n",
+			       acceptedValid, static_cast<int>(geometryError));
 			ok = false;
 		}
 
-		deluge_audio_load_abandon(build);
+		sample_build::abandon(build);
 	}
 
 	// abandon() must actually release the adopted resource-manager chunk, not just free the
-	// BuildHandle wrapper. Two complementary checks catch two different leak SHAPES a buggy abandon()
+	// SampleBuild itself. Two complementary checks catch two different leak SHAPES a buggy abandon()
 	// could take -- neither alone is sufficient:
 	//
 	//  (a) A leak that keeps the chunk LEASED (e.g. abandon() forgets to release the reason at all):
@@ -252,23 +253,23 @@ bool checkAudioLoadAbiAbandon() {
 
 		constexpr int kIterations = 20000;
 		for (int i = 0; i < kIterations; i++) {
-			uint8_t error = 0;
-			DelugeSampleBuild* build = deluge_audio_load_begin("TEST/abandon_loop.wav", "", 4096, &error);
+			Error error = Error::NONE;
+			sample_build::SampleBuild* build = sample_build::begin("TEST/abandon_loop.wav", "", 4096, &error);
 			if (build == nullptr) {
-				printf("FAIL [audioLoadAbiAbandon]: begin/abandon churn ran out of chunk-table slots -- "
-				       "begin() failed after %d iterations (error=%u); abandon() is likely leaking\n",
-				       i, error);
+				printf("FAIL [sampleBuildAbandon]: begin/abandon churn ran out of chunk-table slots -- "
+				       "begin() failed after %d iterations (error=%d); abandon() is likely leaking\n",
+				       i, static_cast<int>(error));
 				ok = false;
 				break;
 			}
-			deluge_audio_load_abandon(build);
+			sample_build::abandon(build);
 		}
 
 		if (mgr != nullptr) {
 			DelugeResourceStats stats{};
 			deluge_resource_stats(mgr, &stats);
 			if (stats.evictions != 0) {
-				printf("FAIL [audioLoadAbiAbandon]: %llu pressure-driven eviction(s) during begin/abandon "
+				printf("FAIL [sampleBuildAbandon]: %llu pressure-driven eviction(s) during begin/abandon "
 				       "churn that should never have needed any -- abandon() is likely dropping the lease "
 				       "without destroying the object (shape (b) above)\n",
 				       static_cast<unsigned long long>(stats.evictions));
@@ -318,6 +319,38 @@ bool checkPathAdmissionCorpus() {
 
 /// The sample every `LP-DEFAULT` load asks for; the card holds it (golden_vt_render's `fill_load_policy_card`).
 constexpr const char* kDefaultPath = "SAMPLES/DEFAULT.WAV";
+
+/// Pin that a Sample's read stream opens exactly the path it is given: a path the ABI cannot carry whole is refused
+/// with the open's own failure, never cut short to a different file. `SAMPLES/DEFAULT.WAV` followed by a NUL and more
+/// names no file, though the card holds the file its first 19 bytes name; a path of `DELUGE_PATH_MAX` bytes has no
+/// room for its terminator.
+bool checkReadStreamPath() {
+	namespace sample_build = deluge::storage::sample_build;
+	bool ok = true;
+	Error error = Error::NONE;
+	sample_build::SampleBuild* build = sample_build::begin("TEST/open_path.wav", "", 4096, &error);
+	if (build == nullptr) {
+		printf("FAIL [readStreamPath]: begin() returned null (error=%d)\n", static_cast<int>(error));
+		return false;
+	}
+	constexpr std::string_view kEmbeddedNul{"SAMPLES/DEFAULT.WAV\0.bak", 24};
+	const Error embedded = sample_build::bindReadStream(build, kEmbeddedNul);
+	if (embedded != Error::FILE_NOT_FOUND) {
+		printf("FAIL [readStreamPath]: a path with an embedded NUL answered error=%d, not FILE_NOT_FOUND -- it opened "
+		       "the file named by the bytes before the NUL\n",
+		       static_cast<int>(embedded));
+		ok = false;
+	}
+	const std::string overLong(DELUGE_PATH_MAX, 'A');
+	const Error tooLong = sample_build::bindReadStream(build, overLong);
+	if (tooLong != Error::FILE_NOT_FOUND) {
+		printf("FAIL [readStreamPath]: a path of DELUGE_PATH_MAX bytes answered error=%d, not FILE_NOT_FOUND\n",
+		       static_cast<int>(tooLong));
+		ok = false;
+	}
+	sample_build::abandon(build);
+	return ok;
+}
 /// Ticks an explicit async load may stay `LOAD_IN_PROGRESS` before it counts as wedged.
 constexpr int kMaxDeferrals = 2000;
 
@@ -443,9 +476,10 @@ void runOneCardStep() {
 	case Stage::Pure:
 		// The abandon churn first: it asserts no pressure-driven eviction, which holds only while nothing else has
 		// filled memory.
-		report("LP-ABANDON", checkAudioLoadAbiAbandon());
+		report("LP-ABANDON", checkSampleBuildAbandon());
 		report("LP-CANDIDATES", checkProposeLoadCandidates());
 		report("LP-ADMISSION", checkPathAdmissionCorpus());
+		report("LP-OPEN-PATH", checkReadStreamPath());
 		g_stage = Stage::HolderDefault;
 		break;
 	case Stage::HolderDefault:

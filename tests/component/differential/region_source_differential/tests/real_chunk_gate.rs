@@ -154,7 +154,9 @@ extern "C" fn deluge_streaming_signal_fill() {}
 /// pulls `abi.rs`'s compiled code in alongside the `manager_residency`/`cursor`
 /// code this gate actually exercises; never called by anything this test does.
 #[unsafe(no_mangle)]
-extern "C" fn deluge_sample_stream_asset_id(_stream_backing: *mut c_void) -> u32 {
+extern "C" fn deluge_sample_stream_asset_id(
+    _stream_backing: *mut deluge_sample_source::abi::DelugeStreamBacking,
+) -> u32 {
     0
 }
 

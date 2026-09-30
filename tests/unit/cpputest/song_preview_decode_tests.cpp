@@ -36,7 +36,7 @@ void stageOnCard(const std::filesystem::path& p) {
 	}
 	std::fclose(f);
 
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	CHECK_EQUAL(DELUGE_OK, deluge_efatfs_file_open(p.c_str(), DELUGE_FILE_WRITE_CREATE, &handle));
 	uint32_t written = 0;
 	CHECK_EQUAL(DELUGE_OK, deluge_efatfs_file_write(handle, whole.data(), whole.size(), &written));
@@ -160,7 +160,7 @@ TEST(SongPreviewDecode, decodeSongPreviewLeavesTheGlobalDeserializerWhereItFound
 /// An EMPTY buffer is an Error, and reports the same `Error` a failed open does.
 ///
 /// This is what the prefix channel now hands the decoder for a genuinely empty FILE, and the caller
-/// leans on it: since a failed READ is reported separately (DELUGE_FILE_PREFIX_FAILED), zero bytes
+/// leans on it: since a failed READ is reported separately (DELUGE_CHANNEL_FAILED), zero bytes
 /// reaching this function means an empty file, and an empty file is not a song. A decode that
 /// answered NoPreview here would draw blank artwork for it while the file backing put an error on
 /// screen for the same file -- the exact divergence the two backings were carrying.

@@ -109,6 +109,10 @@ mod abi_pin_macros;
 #[path = "../tests/support/abi_pin_noop.rs"]
 mod abi_pin_macros;
 
+/// The ABI's handle rule: 0 is none, and a table slot crosses as `slot + 1`. Compiled unconditionally; every
+/// module that hands a table handle across the ABI converts through it.
+mod abi_handle;
+
 /// The libdeluge C ABI generated from include/libdeluge/*.h: POD types,
 /// `DELUGE_*` constants, and a declaration of every header function (the
 /// crate's own definitions of the service functions live in [`ffi`] and the
@@ -180,7 +184,7 @@ mod audio_host;
 /// no C++ itself; see its module doc for the two constraints that force that. Compiled
 /// on the Embassy BSP unconditionally (device, or host under `host_app`) so
 /// `deluge_audio_load_request`/`_collect` are always defined --
-/// `audio_load_abi.cpp` declares no fallback for them, so omitting this module would leave them
+/// the app declares no fallback for them, so omitting this module would leave them
 /// undefined at link time. The loader has no switch -- see its module doc's "Always on".
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod audio_loader;
@@ -315,8 +319,8 @@ mod recorder_probe;
 /// blocks) — see its module doc. `host_app`-only.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod scenario;
-/// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
-/// implemented on the Embassy executor (one task per registered Deluge task).
+/// libdeluge/scheduler.h — the cooperative task scheduler, implemented on the
+/// Embassy executor (one task per registered Deluge task).
 mod scheduler;
 /// block_device.h — the C-ABI SD-card entry points (`deluge_block_ready`/
 /// `deluge_block_read`/`deluge_block_write`) and the shared `SD_BUS`/async
@@ -734,7 +738,9 @@ async fn app_task() {
 
         match crate::efatfs_fs::mount().await {
             Ok(()) => log::info!("efatfs: mounted"),
-            Err(()) => log::warn!("efatfs: mount failed — streamed samples will not load"),
+            Err(status) => {
+                log::warn!("efatfs: mount failed ({status}) — streamed samples will not load")
+            }
         }
     }
 
@@ -781,7 +787,9 @@ async fn host_app_task() {
     // the R0 design doc for why a single-threaded sim's shape is different).
     match crate::efatfs_host_shim::mount().await {
         Ok(()) => log::info!("efatfs: mounted (host)"),
-        Err(()) => log::warn!("efatfs: host mount failed — streamed samples will not load"),
+        Err(status) => {
+            log::warn!("efatfs: host mount failed ({status}) — streamed samples will not load")
+        }
     }
 
     log::info!("deluge-bsp-rust: host deluge_app_init() (registers + spawns task runners)");

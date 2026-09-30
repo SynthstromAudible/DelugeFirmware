@@ -7,6 +7,7 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
 namespace deluge::io {
 
@@ -36,23 +37,22 @@ DelugeStatus to_deluge_status(Status status);
 class File {
 public:
 	File(File&) = delete;
-	File(File&& other) noexcept : handle_(other.handle_) { other.handle_ = nullptr; }
+	File(File&& other) noexcept : handle_(std::exchange(other.handle_, DELUGE_HANDLE_NONE)) {}
 	File& operator=(File&) = delete;
 	File& operator=(File&& other) noexcept {
 		if (this != &other) {
-			if (handle_) {
+			if (handle_ != DELUGE_HANDLE_NONE) {
 				// Route through close() (not deluge_efatfs_file_close directly) so
-				// the unbox + "handle_ = nullptr" bookkeeping lives in exactly one
+				// the "handle_ = DELUGE_HANDLE_NONE" bookkeeping lives in exactly one
 				// place -- see file.cpp's close().
 				(void)close();
 			}
-			handle_ = other.handle_;
-			other.handle_ = nullptr;
+			handle_ = std::exchange(other.handle_, DELUGE_HANDLE_NONE);
 		}
 		return *this;
 	}
 	~File() {
-		if (handle_) {
+		if (handle_ != DELUGE_HANDLE_NONE) {
 			(void)close();
 		}
 	}
@@ -65,8 +65,8 @@ public:
 	std::expected<void, Status> close();
 
 private:
-	explicit File(DelugeFile* handle) : handle_(handle) {}
-	DelugeFile* handle_ = nullptr;
+	explicit File(DelugeHandle handle) : handle_(handle) {}
+	DelugeHandle handle_ = DELUGE_HANDLE_NONE;
 };
 
 /// @brief Collapse an open attempt into an existence answer.
@@ -79,21 +79,20 @@ std::expected<bool, Status> presence_from_open(const std::expected<File, Status>
 class Directory {
 public:
 	Directory(Directory&) = delete;
-	Directory(Directory&& other) noexcept : handle_(other.handle_) { other.handle_ = nullptr; }
+	Directory(Directory&& other) noexcept : handle_(std::exchange(other.handle_, DELUGE_HANDLE_NONE)) {}
 	Directory& operator=(Directory&) = delete;
 	Directory& operator=(Directory&& other) noexcept {
 		if (this != &other) {
-			if (handle_) {
+			if (handle_ != DELUGE_HANDLE_NONE) {
 				// Route through close() -- see File's move-assignment for why.
 				(void)close();
 			}
-			handle_ = other.handle_;
-			other.handle_ = nullptr;
+			handle_ = std::exchange(other.handle_, DELUGE_HANDLE_NONE);
 		}
 		return *this;
 	}
 	~Directory() {
-		if (handle_) {
+		if (handle_ != DELUGE_HANDLE_NONE) {
 			(void)close();
 		}
 	}
@@ -108,14 +107,14 @@ public:
 	/// @param handle An open efatfs directory handle, as written to `deluge_file_directory_collect`'s
 	///        `out_handle`. Must not be closed by the caller as well.
 	/// @return A Directory owning `handle`.
-	[[nodiscard]] static Directory adopt(uint32_t handle);
+	[[nodiscard]] static Directory adopt(DelugeHandle handle);
 
 	std::expected<std::optional<DelugeDirEntry>, Status> read();
 	std::expected<void, Status> close();
 
 private:
-	explicit Directory(DelugeDir* handle) : handle_(handle) {}
-	DelugeDir* handle_ = nullptr;
+	explicit Directory(DelugeHandle handle) : handle_(handle) {}
+	DelugeHandle handle_ = DELUGE_HANDLE_NONE;
 };
 
 /// @brief How an attempt to open a directory through the async channel ended.

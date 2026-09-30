@@ -37,9 +37,9 @@ level = "integration"
 runner = "scenario"
 kind = "regression"
 status = "gate"
-gates = "the load policies no loader state can show: AudioFileManager::proposeLoadCandidates proposes the right paths in the right order (LP-CANDIDATES) -- the async loader opens them in exactly that order; the C++ admission rule agrees with path_admission_corpus.inc, which the Rust loader is tested against too (LP-ADMISSION); the libdeluge/audio_load.h build contract, where abandoning a build publishes nothing, apply_geometry refuses an invalid raw data format, and 20,000 begin/abandon rounds release every chunk they adopt, so a browser cursor that never lands cannot exhaust the chunk table (LP-ABANDON); and AudioFileHolder::loadFile and getAudioFileFromFilename default to the synchronous backing, which a call with the mode omitted shows by loading at once while the same call made explicitly AsyncOrBlocking first reports LOAD_IN_PROGRESS (LP-DEFAULT)."
+gates = "the load policies no loader state can show: AudioFileManager::proposeLoadCandidates proposes the right paths in the right order (LP-CANDIDATES) -- the async loader opens them in exactly that order; the C++ admission rule agrees with path_admission_corpus.inc, which the Rust loader is tested against too (LP-ADMISSION); the sample build contract (storage/audio/sample_build.h), where abandoning a build publishes nothing, applyGeometry refuses an invalid raw data format, and 20,000 begin/abandon rounds release every chunk they adopt, so a browser cursor that never lands cannot exhaust the chunk table (LP-ABANDON); a sample's read stream opens exactly the path it is given, refusing one with an embedded NUL or with no room for its terminator rather than opening the file a shortened path names (LP-OPEN-PATH); and AudioFileHolder::loadFile and getAudioFileFromFilename default to the synchronous backing, which a call with the mode omitted shows by loading at once while the same call made explicitly AsyncOrBlocking first reports LOAD_IN_PROGRESS (LP-DEFAULT)."
 scenario = "load_policy"
-markers = ["LP-ABANDON", "LP-CANDIDATES", "LP-ADMISSION", "LP-DEFAULT", "LP-INVARIANTS"]
+markers = ["LP-ABANDON", "LP-CANDIDATES", "LP-ADMISSION", "LP-OPEN-PATH", "LP-DEFAULT", "LP-INVARIANTS"]
 result = "LP-RESULT failures=0"
 builds = ["golden-vt-render"]
 requires = []

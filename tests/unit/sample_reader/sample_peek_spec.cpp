@@ -14,6 +14,7 @@
 #include "deluge_resource.h"
 #include "libdeluge/alloc.h"
 #include "libdeluge/sample_reader.h"
+#include "libdeluge/sample_stream.h"
 #include "libdeluge/streaming_fill.h"
 
 #include "cppspec.hpp"

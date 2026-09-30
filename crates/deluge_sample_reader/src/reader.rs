@@ -7,6 +7,7 @@ use core::ffi::c_void;
 
 use deluge_resource::facade::Lease;
 use deluge_resource::{DelugeResource, Resource};
+use deluge_sample_fill::chunk::DelugeChunkBacking;
 
 /// Mirrors `include/libdeluge/sample_reader.h`'s `DelugeReadHint`. Crosses the FFI by value (see
 /// `abi::deluge_sample_reader_open`), so `#[repr(u8)]` (fixed width) exactly matches the header's
@@ -113,7 +114,7 @@ fn locate(frame: u64, geo: &Geometry) -> Option<(u32, u32, u32)> {
 }
 
 unsafe extern "C" {
-    /// The single process-wide resource-manager singleton (`include/libdeluge/streaming_fill.h`).
+    /// The single process-wide resource-manager singleton (`include/libdeluge/sample_stream.h`).
     /// Resolved once at `open()` time and cached — the same boot-singleton contract
     /// `deluge_sample_source::manager_residency::ManagerResidency::new` requires of its own handle.
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
@@ -121,7 +122,7 @@ unsafe extern "C" {
     /// (`include/libdeluge/streaming_fill.h`). The chunk is enqueued under a queue-owned lease, so the
     /// fill survives this reader dropping its own; the caller's next tick takes a cache hit. Real body
     /// in `streaming_loader.rs`.
-    pub fn deluge_streaming_request_chunk(chunk_backing: *mut c_void);
+    pub fn deluge_streaming_request_chunk(chunk_backing: *mut DelugeChunkBacking);
 }
 
 /// A reader's frame-cursor state over one sample's source residency
@@ -261,7 +262,7 @@ impl Reader {
             cluster_index,
             self.geometry.cluster_size_bytes as usize,
         )?;
-        let backing = lease.chunk().as_ptr() as *mut c_void;
+        let backing = lease.chunk().as_ptr() as *mut DelugeChunkBacking;
         // Request the fill on the async drain and never wait for it: a synchronous `block_on` here
         // would deadlock a single-threaded executor against the drain it waits for. The caller (the
         // display-only background waveform overview pre-scan, or a pitch scan) retries on its next

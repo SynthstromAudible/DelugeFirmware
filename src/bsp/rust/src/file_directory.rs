@@ -42,18 +42,19 @@
 
 use core::ffi::{CStr, c_char};
 
+use super::abi_handle::{DelugeHandle, to_abi};
+
+use deluge_channel::{
+    DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
+    DELUGE_PATH_MAX, DelugeChannelStatus,
+};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 
-/// Longest path this channel keys on, in CHARACTERS -- `DELUGE_MAX_PATH` minus its NUL, the same
-/// bound `audio_loader::LoadPath` and `file_prefix::PrefixPath` carry, and for the same reason (a C
-/// buffer size counts the terminator; the text it can hold is one byte shorter).
-///
-/// Spelled here rather than imported so this module compiles in every carrier that
-/// `#[path]`-includes it, some with no bindgen output. Pinned by `abi_pins.rs`, like every value
-/// this module copies from a header.
-pub(crate) const MAX_PATH_CHARS: usize = 255;
+/// Longest path this channel keys on, in CHARACTERS: `DELUGE_PATH_MAX` counts the NUL, so the text it can hold is
+/// one byte shorter.
+pub(crate) const MAX_PATH_CHARS: usize = DELUGE_PATH_MAX - 1;
 
 /// One path, inline. **Nothing in this module may touch the Rust global heap** -- that allocator
 /// assumes single-threaded use and this driver runs on a preempting executor. See
@@ -70,15 +71,6 @@ pub type DirPath = heapless::String<MAX_PATH_CHARS>;
 /// `Err(DELUGE_ERR_NO_FILESYSTEM) =>` compiled, matched EVERY error, and sent every failed open down
 /// the mount path. The only complaint was a non-snake-case warning among thirty-odd others.
 pub(crate) const NO_FILESYSTEM: i8 = -11;
-
-/// `deluge_file_directory_collect`: requested or in flight; ask again, do not re-request.
-pub const DELUGE_FILE_DIRECTORY_PENDING: u8 = 0;
-/// `deluge_file_directory_collect`: a handle was written out and removed. It is now the caller's.
-pub const DELUGE_FILE_DIRECTORY_READY: u8 = 1;
-/// `deluge_file_directory_collect`: nothing known about this path. Request it (again).
-pub const DELUGE_FILE_DIRECTORY_UNKNOWN: u8 = 2;
-/// `deluge_file_directory_collect`: the open did not happen. Terminal -- do NOT re-request.
-pub const DELUGE_FILE_DIRECTORY_FAILED: u8 = 3;
 
 /// What one directory open produced.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -390,33 +382,33 @@ fn enqueue_request(path: DirPath, create: bool) {
 ///
 /// `dir_path` must be a valid NUL-terminated C string; `out_handle` must point to a writable
 /// `uint32_t` and `out_status` to a writable `DelugeStatus`. `out_handle` is written ONLY on
-/// [`DELUGE_FILE_DIRECTORY_READY`], `out_status` ONLY on [`DELUGE_FILE_DIRECTORY_FAILED`].
+/// [`DELUGE_CHANNEL_READY`], `out_status` ONLY on [`DELUGE_CHANNEL_FAILED`].
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_directory_collect(
     dir_path: *const c_char,
-    out_handle: *mut u32,
+    out_handle: *mut DelugeHandle,
     out_status: *mut i8,
-) -> u8 {
+) -> DelugeChannelStatus {
     if out_handle.is_null() || out_status.is_null() {
-        return DELUGE_FILE_DIRECTORY_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(dir_path) }) else {
-        return DELUGE_FILE_DIRECTORY_UNKNOWN;
+        return DELUGE_CHANNEL_UNKNOWN;
     };
     match probe(&path) {
         Probe::Ready(handle) => {
             // SAFETY: `out_handle` is non-null (checked above) and the caller's contract makes it a
             // writable, aligned `uint32_t`. Written only on READY, as the header promises.
-            unsafe { *out_handle = handle };
-            DELUGE_FILE_DIRECTORY_READY
+            unsafe { *out_handle = to_abi(handle) };
+            DELUGE_CHANNEL_READY
         }
-        Probe::Pending => DELUGE_FILE_DIRECTORY_PENDING,
-        Probe::Unknown => DELUGE_FILE_DIRECTORY_UNKNOWN,
+        Probe::Pending => DELUGE_CHANNEL_PENDING,
+        Probe::Unknown => DELUGE_CHANNEL_UNKNOWN,
         Probe::Failed(status) => {
             // SAFETY: as above, and written only on FAILED.
             unsafe { *out_status = status };
-            DELUGE_FILE_DIRECTORY_FAILED
+            DELUGE_CHANNEL_FAILED
         }
     }
 }
@@ -429,7 +421,8 @@ pub unsafe extern "C" fn deluge_file_directory_collect(
 /// the first pass merely missed -- so the caller re-requests an open that has already landed and
 /// strands the handle it left behind.
 enum Probe {
-    /// An open directory handle, now the caller's to close. **Only this case writes `out_handle`.**
+    /// An open directory's table slot, now the caller's to close; the collect writes it out as its
+    /// handle. **Only this case writes `out_handle`.**
     Ready(u32),
     Pending,
     Unknown,
@@ -552,7 +545,7 @@ impl DirOps for ProdDirOps {
                 //
                 // `mount()` bumps `deluge_efatfs_mount_generation`, which is how the C++ side still
                 // learns to run `firstCardRead()`.
-                backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
+                backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
                 backing::task_dir_open(path)
                     .await
                     .map_err(|status| status as i8)

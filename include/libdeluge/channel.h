@@ -25,7 +25,7 @@
 #include "types.h"
 
 /// What a poll found: one of the `DELUGE_CHANNEL_*` values. A byte, and the values are macros rather than enum
-/// constants, so that bindgen evaluates them, and so do the per-channel aliases defined in terms of them.
+/// constants, so that bindgen evaluates them.
 typedef uint8_t DelugeChannelStatus;
 /// The request is queued or running: poll again.
 #define DELUGE_CHANNEL_PENDING 0u
