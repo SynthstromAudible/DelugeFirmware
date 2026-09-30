@@ -311,9 +311,8 @@ DelugeChannelStatus deluge_file_bytes_collect_dir_exists(const char* path, bool*
 ///
 /// @param path NUL-terminated path of the deepest directory wanted. Copied out before this returns.
 /// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
-/// uncollected rename, unlink or
-///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
-///         instant of the call; or the path is NULL or over long.
+///         uncollected rename, unlink or write-from answer is waiting for its owner (see the module doc), or the
+///         channel was mid-update at the instant of the call; or the path is NULL or over long.
 /// @note An already-existing path is SUCCESS, not `DELUGE_ERR_EXISTS`. Callers use this to mean "make
 ///       sure this is there", and the commonest outcome is that it already is.
 bool deluge_file_bytes_request_mkdir_all(const char* path) DELUGE_NOEXCEPT;
@@ -337,9 +336,8 @@ DelugeChannelStatus deluge_file_bytes_collect_mkdir_all(const char* path, Deluge
 /// @param timestamp Passed BY VALUE. `DelugeTimestamp` is a fixed-width POD (`types.h`), so it
 ///                  crosses this boundary without a pointer and without a lifetime rule.
 /// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
-/// uncollected rename, unlink or
-///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
-///         instant of the call; or the path is NULL or over long.
+///         uncollected rename, unlink or write-from answer is waiting for its owner (see the module doc), or the
+///         channel was mid-update at the instant of the call; or the path is NULL or over long.
 bool deluge_file_bytes_request_set_time(const char* path, DelugeTimestamp timestamp) DELUGE_NOEXCEPT;
 
 /// @brief Collect the outcome of the timestamp write for `path`, if it has finished.
@@ -360,10 +358,9 @@ DelugeChannelStatus deluge_file_bytes_collect_set_time(const char* path, DelugeS
 /// @param offset Byte offset to read from. Past end-of-file yields zero bytes, not an error.
 /// @param len    How many bytes to read, at most @ref DELUGE_FILE_BYTES_BLOCK.
 /// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
-/// uncollected rename, unlink or
-///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
-///         instant of the call; or the path is NULL or over long, or
-///         `len` exceeds the block bound.
+///         uncollected rename, unlink or write-from answer is waiting for its owner (see the module doc), or the
+///         channel was mid-update at the instant of the call; or the path is NULL or over long, or `len` exceeds the
+///         block bound.
 bool deluge_file_bytes_request_read_at(const char* path, uint32_t offset, uint32_t len) DELUGE_NOEXCEPT;
 
 /// @brief Collect the bytes read for `path`, if they are ready.
@@ -393,10 +390,9 @@ DelugeChannelStatus deluge_file_bytes_collect_read_at(const char* path, uint8_t*
 /// @param bytes  Copied out before this returns.
 /// @param len    Byte count, at most @ref DELUGE_FILE_BYTES_BLOCK.
 /// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
-/// uncollected rename, unlink or
-///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
-///         instant of the call; or the path or `bytes` is NULL, the path is
-///         over long, or `len` exceeds the block bound.
+///         uncollected rename, unlink or write-from answer is waiting for its owner (see the module doc), or the
+///         channel was mid-update at the instant of the call; or the path or `bytes` is NULL, the path is over long, or
+///         `len` exceeds the block bound.
 bool deluge_file_bytes_request_write_at(const char* path, uint32_t offset, const uint8_t* bytes,
                                         uint32_t len) DELUGE_NOEXCEPT;
 
@@ -434,9 +430,8 @@ DelugeChannelStatus deluge_file_bytes_collect_stat(const char* path, uint32_t* o
 /// truncated before the copy -- a copy onto a longer existing file must not leave its tail behind. The channel's
 /// progress mark (@ref deluge_file_bytes_progress) advances with every @ref DELUGE_FILE_BYTES_BLOCK it moves.
 /// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
-/// uncollected rename, unlink or
-///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
-///         instant of the call; or either path is NULL or over long.
+///         uncollected rename, unlink or write-from answer is waiting for its owner (see the module doc), or the
+///         channel was mid-update at the instant of the call; or either path is NULL or over long.
 bool deluge_file_bytes_request_copy(const char* from, const char* to) DELUGE_NOEXCEPT;
 
 /// @brief Collect the outcome of the copy to `to`, if it has finished.
@@ -457,10 +452,9 @@ DelugeChannelStatus deluge_file_bytes_collect_copy(const char* to, DelugeStatus*
 /// @param dst  The caller's buffer, `cap` bytes.
 /// @param cap  Its capacity.
 /// @return true if accepted. false if REFUSED -- a request is already queued, an operation is in flight, or an
-/// uncollected rename, unlink or
-///         write-from answer is waiting for its owner (see the module doc), or the channel was mid-update at the
-///         instant of the call; or the path or `dst` is NULL, the path is
-///         over long, or `cap` is 0. The caller must retry a refusal.
+///         uncollected rename, unlink or write-from answer is waiting for its owner (see the module doc), or the
+///         channel was mid-update at the instant of the call; or the path or `dst` is NULL, the path is over long, or
+///         `cap` is 0. The caller must retry a refusal.
 bool deluge_file_bytes_request_read_into(const char* path, void* dst, uint32_t cap) DELUGE_NOEXCEPT;
 
 /// @brief Collect the read into the caller's buffer.

@@ -8,9 +8,11 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
 
 1. **C, and only C, crosses.** Every declaration is inside `extern "C"`. Only fixed-width integers, `bool`, and
    POD structs and enums with an explicit underlying type cross. No STL, no exceptions, no allocation across the
-   boundary. No function behind the ABI may throw or unwind: the Rust side aborts on panic, and the ABI requires a
-   C++ callback to catch at the boundary. `DELUGE_NOEXCEPT` (`abi.h`) marks this on the declarations that already
-   carry it; the rest are not yet held to it by the compiler.
+   boundary. No function behind the ABI may throw or unwind: the Rust side aborts on panic, and a C++ definition
+   catches at the boundary and returns its failure value. Every function declaration ends `DELUGE_NOEXCEPT`
+   (`abi.h`), so the compiler holds every C++ definition to it. A failure that carries a reason crosses as
+   `DelugeStatus`, a channel's collect answers a `DelugeChannelStatus` (`DELUGE_CHANNEL_*`), and a path is bounded
+   by `DELUGE_PATH_MAX`.
 2. **The header is the contract.** bindgen reads every header (`src/bsp/rust/wrapper.h` and
    `src/bsp/rust/harness/golden_vt_render/wrapper.h`, both just `#include <libdeluge/libdeluge.h>`), and every
    Rust export is pinned to its generated declaration by `abi_pin!` — beside the definition it pins (including the

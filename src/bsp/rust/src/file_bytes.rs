@@ -921,9 +921,10 @@ pub extern "C" fn deluge_file_bytes_set_chunk_latency_ms(ms: u32) {
 /// Request the whole of `path` be read, and wake the driver. See `file_bytes.h`.
 ///
 /// Silently drops an unusable request (NULL, non-UTF-8, over-long, or a busy channel): there is no
-/// failure the caller could act on that re-requesting does not already cover, and the collect it
-/// runs next tick reports `UNKNOWN`, whose documented meaning is exactly that. A read is the one
-/// operation here for which that is true -- see the module doc.
+/// failure the caller could act on that re-requesting does not already cover. The collect it runs
+/// next tick reports `PENDING` if this path's read is the one in flight, and otherwise `UNKNOWN`,
+/// whose documented meaning is exactly that. A read is the one operation here for which that is
+/// true -- see the module doc.
 ///
 /// # Safety
 ///
