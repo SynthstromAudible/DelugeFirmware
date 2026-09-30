@@ -83,22 +83,25 @@ int8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condit
                           ResourceID resources) DELUGE_NOEXCEPT;
 
 /// Exclude the current task invocation's run time from its scheduling average (e.g. this call did
-/// no real work, so it should not count toward how long the task is expected to take). [task]
+/// no real work, so it should not count toward how long the task is expected to take). Called both
+/// from plain tasks and from the audio render's own driving task. [task] [audio]
 void ignoreForStats() DELUGE_NOEXCEPT;
 
-/// Running average of how long `id`'s task takes to run per call, in seconds. [task]
+/// Running average of how long `id`'s task takes to run per call, in seconds. Only ever read for the
+/// render's own task, from inside the render (culling/direness). [audio]
 double getAverageRunTimeForTask(TaskID id) DELUGE_NOEXCEPT;
 
-/// Seconds elapsed since the scheduler started: a free-running monotonic clock. [task]
+/// Seconds elapsed since Embassy's monotonic clock started (`Instant::now()`) — effectively since
+/// boot. [task] [audio]
 double getSystemTime() DELUGE_NOEXCEPT;
 
 /// Wake `id`'s task to run as soon as the scheduler next has a chance, without waiting for its
 /// normal cadence. [task]
 void runTask(TaskID id) DELUGE_NOEXCEPT;
 
-/// Give other tasks a chance to run, resuming when `until` returns true (or after giving them one
-/// chance, if `until` is NULL). A cooperative checkpoint for a caller that must not hold the
-/// current task indefinitely. [task]
+/// Poll `until` once (true if NULL) and return at once. The only implementation never busy-waits or
+/// runs another task in between — it is not a scheduling primitive, just a checkpoint at which the
+/// caller itself may be preempted. [task]
 void yield(RunCondition until) DELUGE_NOEXCEPT;
 
 /// set the current task to blocked
@@ -112,7 +115,7 @@ void unblockTask(TaskID id) DELUGE_NOEXCEPT;
 /// The application reads it to gate user actions that must not run re-entrantly inside a
 /// storage routine. Owned by the
 /// scheduler (the runtime concurrency layer), not the app — on Embassy this is a runtime flag.
-/// [task]
+/// Read from plain tasks and from inside the render's own driving task. [task] [audio]
 bool isSDRoutineActive(void) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }
