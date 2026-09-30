@@ -620,7 +620,7 @@ fn a_republish_restarts_the_age_bound() {
 }
 
 /// A caller-buffer request asked under a card that has gone is dropped unrun, so its buffer is never named as
-/// running; one asked under the current card runs and names its buffer; every other kind runs as before.
+/// running; one asked under the current card runs and names its buffer.
 #[test]
 fn a_stale_caller_buffer_request_is_dropped_at_take_and_never_marks_its_buffer() {
     let read_into = ByteRequest::ReadInto {
@@ -645,9 +645,65 @@ fn a_stale_caller_buffer_request_is_dropped_at_take_and_never_marks_its_buffer()
         file_bytes::admit_at_take(&write_from, CARD, CARD),
         Some(0x2000)
     );
+}
 
-    let read = ByteRequest::Read {
-        path: path(SETTINGS),
-    };
-    assert_eq!(file_bytes::admit_at_take(&read, CARD, CARD + 1), Some(0));
+/// Every kind asked under a card that has gone is dropped unrun: a rename, unlink or write queued for the old card
+/// and taken after a flush whose clear lost its race would otherwise run against the new one. Asked under the current
+/// card, each runs, naming no buffer.
+#[test]
+fn a_stale_request_of_every_kind_is_dropped_at_take() {
+    let p = path(SETTINGS);
+    let requests = [
+        ByteRequest::Read { path: p.clone() },
+        ByteRequest::Write {
+            path: p.clone(),
+            len: 4,
+        },
+        ByteRequest::Rename {
+            from: path("SETTINGS/old.XML"),
+            to: p.clone(),
+        },
+        ByteRequest::Unlink { path: p.clone() },
+        ByteRequest::Exists { path: p.clone() },
+        ByteRequest::DirExists { path: p.clone() },
+        ByteRequest::MkdirAll { path: p.clone() },
+        ByteRequest::SetTime {
+            path: p.clone(),
+            timestamp: FileTimestamp {
+                year: 2026,
+                month: 9,
+                day: 30,
+                hour: 0,
+                minute: 0,
+                second: 0,
+            },
+        },
+        ByteRequest::ReadAt {
+            path: p.clone(),
+            offset: 0,
+            len: 4,
+        },
+        ByteRequest::WriteAt {
+            path: p.clone(),
+            offset: 0,
+            len: 4,
+        },
+        ByteRequest::Stat { path: p.clone() },
+        ByteRequest::Copy {
+            from: path("SETTINGS/src.XML"),
+            to: p.clone(),
+        },
+    ];
+    for request in &requests {
+        assert_eq!(
+            file_bytes::admit_at_take(request, CARD, CARD + 1),
+            None,
+            "{request:?}"
+        );
+        assert_eq!(
+            file_bytes::admit_at_take(request, CARD, CARD),
+            Some(0),
+            "{request:?}"
+        );
+    }
 }

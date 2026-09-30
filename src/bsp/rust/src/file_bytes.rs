@@ -48,9 +48,7 @@
 //! terminal, and [`deluge_file_bytes_holds`] tells it when the task has let go. The pointer travels as a `usize` so
 //! the request is `Send`, and is turned back into a slice only inside the task, for the one operation.
 //!
-//! Neither replaces a queued request nor is replaced by one: see [`accepts`]. And a caller-buffer request is
-//! stamped with the card generation it was made under, and the task drops it unrun if that card has gone: it
-//! would read or write a file on a card its caller never asked about.
+//! Neither replaces a queued request nor is replaced by one: see [`accepts`].
 //!
 //! # A write creates its parent directory
 //!
@@ -61,11 +59,12 @@
 //!
 //! # Card generations
 //!
-//! Every answer is stamped with the card generation the operation BEGAN under, and the stamp is
-//! checked at the TAKE -- never only at publish, for the reason `file_directory` gives at length:
-//! `deluge_card_flush`'s clear is `try_lock`ed and may not land at all. Unlike that channel there is
-//! no scarce handle to strand here; a refused answer is simply dropped, and its caller reads
-//! `UNKNOWN` and asks again.
+//! Every request is stamped with the card generation it was asked under, and the task drops one whose card has
+//! gone unrun (see [`admit_at_take`]): it would touch a file on a card its caller never asked about. Every answer
+//! is stamped with the card generation the operation BEGAN under, and the stamp is checked at the TAKE -- never
+//! only at publish, for the reason `file_directory` gives at length: `deluge_card_flush`'s clear is `try_lock`ed
+//! and may not land at all. Unlike that channel there is no scarce handle to strand here; a refused answer is
+//! simply dropped, and its caller reads `UNKNOWN` and asks again.
 
 use core::ffi::{CStr, c_char};
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -272,10 +271,14 @@ pub fn answer_blocks(
 /// What the driver does with a request it takes: `None` drops it unrun, `Some(buffer)` runs it with `buffer`
 /// named as running (0 for a kind with no caller buffer).
 ///
-/// A caller-buffer request asked under a card that has gone is dropped: it names a file on the old card, running it
-/// would read or write the new one, and its answer could never be collected. Its buffer is never named as running.
+/// A request of any kind asked under a card that has gone is dropped: it names a file on the old card, running it
+/// would read, write, rename or remove one on the new card, and its answer could never be collected. A dropped
+/// caller-buffer request's buffer is never named as running.
+///
+/// This, not the flush's clear, is what keeps an old card's request off the new card: the clear is `try_lock`ed
+/// and may lose its race with a take.
 pub fn admit_at_take(request: &ByteRequest, asked_under: u32, current: u32) -> Option<usize> {
-    if caller_buffer(request.key().0) && asked_under != current {
+    if asked_under != current {
         return None;
     }
     Some(request.caller_buffer())
@@ -847,9 +850,9 @@ fn claim_work_bytes() -> Option<&'static mut [u8; MAX_BYTES]> {
 ///
 /// Runs synchronously from C++ on the interaction tier and must never wait, so all three are
 /// `try_lock`ed. **Every one of them may fail, and none of them costs correctness**: the clears are
-/// housekeeping, and the safety property is the STAMP compared in [`take_from`]. A surviving entry
-/// carries the generation of the card that has gone and is therefore uncollectable, not
-/// stale-but-live. Unlike `file_directory` there is no scarce handle to strand, so a skipped clear
+/// housekeeping, and the safety properties are the STAMPS -- a surviving request's, compared in
+/// [`admit_at_take`], drops it unrun, and a surviving answer's, compared in [`take_from`], makes it
+/// uncollectable rather than stale-but-live. Unlike `file_directory` there is no scarce handle to strand, so a skipped clear
 /// here costs nothing at all until the next publish overwrites it.
 pub(crate) fn flush_tables() {
     if let Ok(mut request) = REQUEST.try_lock() {
@@ -2378,7 +2381,7 @@ async fn file_bytes_task_body() {
 
 /// Take the outstanding request and mark it in flight, atomically with respect to the collects, and
 /// report the card generation the operation begins under. `None` when nothing is queued; `Some(None)` when the
-/// request taken was a stale caller-buffer request, dropped unrun.
+/// request taken was asked under a card that has gone, and was dropped unrun.
 ///
 /// The mark happens while the [`REQUEST`] lock is still held, so there is no instant at which the
 /// request has left the slot but not yet appeared as in-flight. A collect racing this either sees it
@@ -2395,8 +2398,8 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteReq
         request,
         generation: asked_under,
     } = slot.take()?;
-    // A caller-buffer request from before the card changed that survived the flush (its `try_lock` lost the race):
-    // see `admit_at_take`.
+    // A request from before the card changed that survived the flush (its `try_lock` lost the race): see
+    // `admit_at_take`.
     let Some(buffer) = admit_at_take(&request, asked_under, deluge_card_generation::current())
     else {
         return Some(None);

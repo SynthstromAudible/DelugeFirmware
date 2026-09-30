@@ -37,7 +37,9 @@ const FLUSHES: [fn(); 5] = [
 /// No correctness rests on a clear landing — the stamp, compared at take, is the safety property,
 /// and it holds no matter which locks were taken or which contexts the two sides ran in (see
 /// [`super::audio_loader::take_from`], [`super::file_prefix::take_from`] and
-/// [`super::file_directory::take_from`]).
+/// [`super::file_directory::take_from`]). The byte and stream channels stamp their queued REQUESTS
+/// too, and their tasks drop one asked under a card that has gone unrun (see
+/// [`super::file_bytes::admit_at_take`]), so a request a clear missed never reaches the new card.
 ///
 /// The directory channel's clear is the one that costs a RESOURCE when it is skipped rather than
 /// merely leaving a dead entry: it holds one of eight efatfs directory handles. See that module's
