@@ -66,7 +66,9 @@ if (UNIX AND NOT APPLE)
         ${RUST_WS}/deluge_audio_format/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
-        COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET}
+        # The target dir is named, as RUST_LIB is: `dbt test` sets CARGO_TARGET_DIR for its own cargo builds, and a
+        # build that followed it would leave RUST_LIB as it was, so the specs would link a stale decoder.
+        COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET} --target-dir ${RUST_WS}/target
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES}
             ${RUST_WS}/Cargo.lock
