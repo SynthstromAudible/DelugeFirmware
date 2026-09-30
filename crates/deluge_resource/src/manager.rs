@@ -1423,7 +1423,6 @@ pub struct DelugeResource {
     _opaque: [u8; 0],
 }
 
-#[inline]
 /// Asserts the hash indexes and the chunk table describe the same set of chunks.
 ///
 /// Checks both directions: every occupied slot is reachable from its own bucket exactly once (a
@@ -1550,6 +1549,7 @@ pub(crate) unsafe fn debug_find_resident_both(
 /// # Safety
 ///
 /// `h` must be a non-null live handle from `deluge_resource_create`.
+#[inline]
 pub(crate) unsafe fn mgr<'a>(h: *mut DelugeResource) -> &'a Manager {
     &*(h as *mut Manager)
 }
