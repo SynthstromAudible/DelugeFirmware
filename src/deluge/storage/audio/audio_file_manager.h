@@ -435,11 +435,11 @@ private:
 	bool startFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
 
 	/// @brief Build and publish a Sample from a collected parse result. No I/O beyond the one
-	///        read-stream open (see deluge_audio_load_bind_read_stream).
+	///        read-stream open (see sample_build::bindReadStream).
 	///
 	/// Runs the whole build the loader is not allowed to run itself -- begin, bind, apply the parsed
 	/// geometry, publish -- checking every step, and abandoning the build on any failure so nothing is
-	/// left adopted-but-unpublished. See libdeluge/audio_load.h's ownership note.
+	/// left adopted-but-unpublished. See storage/audio/sample_build.h's ownership note.
 	///
 	/// @param filePath The nominal path (the AudioFile's own path; @p result carries the alternate
 	///                 location the bytes were actually found at, if any).

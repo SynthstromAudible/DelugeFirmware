@@ -27,8 +27,8 @@
 ///   async loader tries them in exactly this order, so a wrong order opens the wrong file or misses one.
 /// - `LP-ADMISSION`: `AudioFileManager::admissibleAsyncLoadPath` agrees with `path_admission_corpus.inc`, which the
 ///   Rust loader is tested against too. A looser C++ rule asks the loader for a path it refuses, forever.
-/// - `LP-ABANDON`: the `libdeluge/audio_load.h` build contract. Abandoning a build publishes nothing,
-///   `apply_geometry` refuses an invalid raw data format, and 20,000 begin/abandon rounds release every chunk they
+/// - `LP-ABANDON`: the sample build contract (`storage/audio/sample_build.h`). Abandoning a build publishes nothing,
+///   `applyGeometry` refuses an invalid raw data format, and 20,000 begin/abandon rounds release every chunk they
 ///   adopt, so a browser cursor that never lands on a file cannot exhaust the chunk table. Runs before anything
 ///   else loads, so its eviction count is its own.
 /// - `LP-DEFAULT layer=holder|manager`: `AudioFileHolder::loadFile` and `AudioFileManager::getAudioFileFromFilename`

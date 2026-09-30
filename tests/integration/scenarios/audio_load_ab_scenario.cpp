@@ -280,8 +280,8 @@ constexpr int32_t kMaxDrawStallTicks = 20000;
 // Everything the async loader holds is keyed by the nominal PATH, and a
 // DelugeAudioLoadResult records nothing about which card produced it. So a header
 // parsed from one card and collected after another has been inserted binds the
-// NEW card's file (deluge_audio_load_bind_read_stream opens the path) to the OLD
-// card's geometry (deluge_audio_load_apply_geometry writes the numbers the result
+// NEW card's file (sample_build::bindReadStream opens the path) to the OLD
+// card's geometry (sample_build::applyGeometry writes the numbers the result
 // carries). It loads clean, reports no error, and plays the wrong thing.
 //
 // This stage reproduces exactly that sequence and requires it NOT to happen:

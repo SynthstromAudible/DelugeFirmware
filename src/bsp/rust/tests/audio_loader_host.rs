@@ -591,8 +591,8 @@ fn the_first_candidate_that_opens_wins_when_more_than_one_would() {
 }
 
 /// The regular path winning means NO alternate location — an empty string, which
-/// is what `deluge_audio_load_begin` documents for "resolved at `file_path`
-/// directly" (and never NULL).
+/// is what the app's `sample_build::begin` takes for "resolved at the nominal
+/// path directly".
 #[test]
 fn the_regular_path_winning_reports_no_alternate_location() {
     let ops = FakeOps::new().with_file("SAMPLES/A.wav", minimal_wav());
@@ -1331,7 +1331,7 @@ mod live_pipeline {
 
 // ── The candidate buffer decoder ────────────────────────────────────────────
 
-/// Build the buffer `deluge_audio_load_candidates` would have written: one
+/// Build the buffer the app's `sample_build::candidates` would have written: one
 /// NUL-terminated path per `DELUGE_MAX_PATH` slot, the rest left as the caller had
 /// it.
 fn candidate_buffer(paths: &[&str]) -> Vec<u8> {

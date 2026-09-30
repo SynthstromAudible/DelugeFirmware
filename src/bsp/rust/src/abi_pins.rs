@@ -117,6 +117,12 @@ abi_const!(
     deluge_audio_format::abi::DELUGE_AUDIO_HEADER_PARSER_WORDS => DELUGE_AUDIO_HEADER_PARSER_WORDS,
 );
 
+// `LoadResult` embeds this, and `audio_loader.rs` checks `LoadResult`'s own offsets against `sys` beside it.
+abi_layout!(crate::audio_loader::LoadGeometry => sys DelugeAudioLoadGeometry { sample_rate,
+    audio_data_start_pos_bytes, audio_data_length_bytes, file_loop_start_samples, file_loop_end_samples,
+    wavetable_cycle_size, midi_note_value, num_channels, byte_depth, raw_data_format, midi_note_present,
+    wavetable_explicitly_specifies_self });
+
 abi_const!(
     crate::audio_loader::DELUGE_MAX_PATH => DELUGE_MAX_PATH,
     crate::audio_loader::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,

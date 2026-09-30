@@ -34,9 +34,6 @@ enum class AlternateLoadDirStatus {
 	             ///< collected the answer yet.
 };
 
-/// libdeluge/audio_load.h's opaque handle for a deluge::storage::AudioLoadContext.
-struct DelugeAudioLoadContext;
-
 namespace deluge::storage {
 
 /// @brief How a lookup may use the async loader (libdeluge/audio_load.h) for a sample that is not in memory.
@@ -104,25 +101,5 @@ struct AudioLoadContext {
 		return path;
 	}
 };
-
-/// @brief @p context as libdeluge/audio_load.h's opaque handle.
-[[nodiscard]] inline DelugeAudioLoadContext* toAbi(AudioLoadContext& context) {
-	return reinterpret_cast<DelugeAudioLoadContext*>(&context);
-}
-
-/// @copydoc toAbi(AudioLoadContext&)
-[[nodiscard]] inline const DelugeAudioLoadContext* toAbi(const AudioLoadContext& context) {
-	return reinterpret_cast<const DelugeAudioLoadContext*>(&context);
-}
-
-/// @brief The context behind a non-null handle made by toAbi().
-[[nodiscard]] inline AudioLoadContext* fromAbi(DelugeAudioLoadContext* context) {
-	return reinterpret_cast<AudioLoadContext*>(context);
-}
-
-/// @copydoc fromAbi(DelugeAudioLoadContext*)
-[[nodiscard]] inline const AudioLoadContext* fromAbi(const DelugeAudioLoadContext* context) {
-	return reinterpret_cast<const AudioLoadContext*>(context);
-}
 
 } // namespace deluge::storage

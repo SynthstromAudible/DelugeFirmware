@@ -37,15 +37,14 @@
 //!
 //! That is why [`LoadOps`] is only four operations, all `async`, all filesystem.
 //! It is also why the candidate list arrives as data in the request rather than
-//! being asked for: `deluge_audio_load_resolve_alternate_dir` probes a directory
-//! (`Directory::open` -> `deluge_efatfs_dir_open` -> a spin) and
-//! `deluge_audio_load_candidates` allocates `std::string`s, so both must run on
-//! the requesting tier.
+//! being asked for: the app's `sample_build::resolveAlternateDir` probes a
+//! directory (a spin) and its `sample_build::candidates` allocates
+//! `std::string`s, so both must run on the requesting tier.
 //!
 //! ## What the split buys beyond safety
 //!
 //! The ownership hazard the previous shape had is *gone*, not merely handled.
-//! `deluge_audio_load_begin` adopts a `Sample` and reasons it before any I/O, so
+//! The app's `sample_build::begin` adopts a `Sample` and reasons it before any I/O, so
 //! exactly one of `finish`/`abandon` had to run on every path across every await.
 //! Now `begin` and its matching `finish` sit inside one synchronous C++ function
 //! with no suspension point between them, and this half owns no C++ object at
@@ -139,7 +138,7 @@ pub const DELUGE_MAX_PATH: usize = 256;
 /// many, so a longer buffer would only ever be partly meaningful.
 const MAX_LOAD_CANDIDATES: usize = 3;
 
-/// `deluge_audio_load_candidates`' "`out` is not trustworthy at all" sentinel: a
+/// The app's candidate policy's "`out` is not trustworthy at all" sentinel: a
 /// candidate did not fit, or an internal allocation failed. The header is
 /// explicit that the caller must not read `out` in that case, so a request
 /// carrying it is refused rather than clamped. Never a legitimate count.
@@ -195,7 +194,7 @@ const _: () = assert!(
 // Deluge `Error` codes as they cross the ABI, matched by NUMBER (`audio_load.h`:
 // "Fixed-width, never a native enum"). `enum class Error` has no fixed underlying
 // type, so the C++ side pins these numeric identities with `static_assert`s in
-// `audio_load_abi.cpp`; these constants are this side of that same pinning.
+// `sample_build.cpp`; these constants are this side of that same pinning.
 /// `Error::NONE`.
 pub const DELUGE_ERROR_NONE: u8 = 0;
 /// `Error::FILE_CORRUPTED`.
@@ -225,7 +224,7 @@ pub const DELUGE_AUDIO_LOAD_UNKNOWN: u8 = 2;
 /// Asserting a constant against its own literal looks tautological, and that is
 /// exactly the point: these are C++ values no header declares, so bindgen cannot
 /// pin them, and this makes a change here take two deliberate edits instead of
-/// one. Their mirror lives in `audio_load_abi.cpp`'s `static_assert`s.
+/// one. Their mirror lives in `sample_build.cpp`'s `static_assert`s.
 /// `MAX_LOAD_CANDIDATES` is the dangerous one: it silently changes how many
 /// candidate slots are read.
 const _: () = {
@@ -295,7 +294,6 @@ const _: () = {
     assert!(offset_of!(AbiLoadResult, size_bytes) == offset_of!(LoadResult, size_bytes));
     assert!(offset_of!(AbiLoadResult, alternate_path) == offset_of!(LoadResult, alternate_path));
     assert!(offset_of!(AbiLoadResult, error) == offset_of!(LoadResult, error));
-    assert!(size_of::<crate::sys::DelugeAudioLoadGeometry>() == size_of::<LoadGeometry>());
 };
 
 impl LoadResult {
@@ -337,36 +335,13 @@ impl LoadResult {
     }
 }
 
-/// `DelugeAudioLoadGeometry`'s and `DelugeAudioLoadResult`'s layouts, pinned
-/// field by field.
-///
-/// This boundary is hand-declared on both sides — `audio_load.h` is not in
-/// `wrapper.h`, so bindgen does not generate these structs. Pinning the SIZE
-/// alone is not enough and was the gap here before: swapping `sample_rate` and
-/// `audio_data_start_pos_bytes` (both `u32`) keeps every size identical and
-/// compiles clean on both sides, producing a sample that loads without error and
-/// renders at the wrong rate — this file's own "worst available shape".
-///
-/// `audio_load_abi.cpp` carries the mirror of these numbers as `static_assert`s,
-/// so a reorder on EITHER side fails to compile rather than silently
-/// reinterpreting every field after it.
+/// `DelugeAudioLoadResult`'s layout, as numbers, for the carriers with no
+/// bindgen output (`crates/deluge_audio_loader_host`). Where there is bindgen
+/// output, the block above checks `LoadResult` against it, and `abi_pins.rs`
+/// checks [`LoadGeometry`] against `sys::DelugeAudioLoadGeometry` field by field.
+/// `sample_build.cpp` carries the mirror of these numbers as `static_assert`s.
 const _: () = {
     use core::mem::{align_of, offset_of, size_of};
-
-    assert!(size_of::<LoadGeometry>() == 36);
-    assert!(align_of::<LoadGeometry>() == 4);
-    assert!(offset_of!(LoadGeometry, sample_rate) == 0);
-    assert!(offset_of!(LoadGeometry, audio_data_start_pos_bytes) == 4);
-    assert!(offset_of!(LoadGeometry, audio_data_length_bytes) == 8);
-    assert!(offset_of!(LoadGeometry, file_loop_start_samples) == 12);
-    assert!(offset_of!(LoadGeometry, file_loop_end_samples) == 16);
-    assert!(offset_of!(LoadGeometry, wavetable_cycle_size) == 20);
-    assert!(offset_of!(LoadGeometry, midi_note_value) == 24);
-    assert!(offset_of!(LoadGeometry, num_channels) == 28);
-    assert!(offset_of!(LoadGeometry, byte_depth) == 29);
-    assert!(offset_of!(LoadGeometry, raw_data_format) == 30);
-    assert!(offset_of!(LoadGeometry, midi_note_present) == 31);
-    assert!(offset_of!(LoadGeometry, wavetable_explicitly_specifies_self) == 32);
 
     assert!(size_of::<LoadResult>() == 312);
     assert!(align_of::<LoadResult>() == 8);
@@ -528,7 +503,7 @@ pub unsafe extern "C" fn deluge_audio_load_request(
         return false;
     }
     if num_candidates == DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED {
-        // `deluge_audio_load_candidates` reported its buffer untrustworthy, and
+        // The app's candidate policy reported its buffer untrustworthy, and
         // the header is explicit that the caller must not read it. Clamping this
         // to the candidate bound and reading three slots anyway would open
         // whatever a silent truncation left there -- possibly a DIFFERENT real

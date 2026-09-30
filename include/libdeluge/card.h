@@ -37,9 +37,8 @@ extern "C" {
 ///
 /// Call this when the card is EJECTED. A loader's cache is keyed by the nominal path and the path
 /// outlives the card it was read from, so a result parsed from one card must never be applied after
-/// another has been inserted: for the audio loader (@ref audio_load.h), @ref
-/// deluge_audio_load_bind_read_stream would open the NEW card's file at that path and @ref
-/// deluge_audio_load_apply_geometry would write the OLD card's numbers onto it. That loads with no
+/// another has been inserted: for the audio loader (@ref audio_load.h), the app's sample build would
+/// open the NEW card's file at that path and write the OLD card's geometry onto it. That loads with no
 /// error and plays the wrong thing -- audio_load.h's own "worst available shape".
 ///
 /// **At ejection, not at re-insertion.** Flushing on the way back in leaves the window open for as
@@ -56,8 +55,8 @@ extern "C" {
 ///
 /// **That is a statement about the loaders' tables, not about the whole load pipeline.** A result
 /// already handed out is past the loader's reach: @ref deluge_audio_load_collect removes it, and the
-/// caller then runs @ref deluge_audio_load_begin -> @ref deluge_audio_load_bind_read_stream -> @ref
-/// deluge_audio_load_apply_geometry, of which the bind is a real open. An ejection landing in that
+/// caller then runs its sample build (`storage/audio/sample_build.h`: begin -> bindReadStream ->
+/// applyGeometry), of which the bind is a real open. An ejection landing in that
 /// window has nothing left to flush -- the geometry is already on the caller's stack. It degrades to a
 /// read error rather than a wrong load, because the re-insert (`AudioFileManager::reinitEjectedCard`
 /// -> `deluge_efatfs_remount`) cannot run during the bind: it runs from `AudioFileManager::slowRoutine`,
