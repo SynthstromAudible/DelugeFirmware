@@ -66,15 +66,15 @@ mod file_directory;
 mod file_bytes;
 
 /// The fifth channel `card.rs` flushes, here for the same reason. Its own slot logic is tested in
-/// `tests/file_write_host.rs`.
+/// `tests/file_stream_host.rs`.
 #[allow(dead_code)]
-#[path = "../src/file_write.rs"]
-mod file_write;
+#[path = "../src/file_stream.rs"]
+mod file_stream;
 
-/// Storage for `file_write` above.
+/// Storage for `file_stream` above.
 #[allow(dead_code)]
-#[path = "../src/file_write_slot.rs"]
-mod file_write_slot;
+#[path = "../src/file_stream_slot.rs"]
+mod file_stream_slot;
 
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,

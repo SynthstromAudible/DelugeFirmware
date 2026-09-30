@@ -1,14 +1,14 @@
-//! The write channel's answer slot: one answer at a time, keyed by kind, handle and path, stamped with the card
+//! The stream channel's answer slot: one answer at a time, keyed by kind, handle and path, stamped with the card
 //! generation it was asked under.
 //!
-//! `deluge-bsp-rust` is bin-only, so this recompiles `src/file_write_slot.rs` into the test binary via `#[path]`.
+//! `deluge-bsp-rust` is bin-only, so this recompiles `src/file_stream_slot.rs` into the test binary via `#[path]`.
 #![cfg(not(target_os = "none"))]
 
 #[allow(dead_code)]
-#[path = "../src/file_write_slot.rs"]
-mod file_write_slot;
+#[path = "../src/file_stream_slot.rs"]
+mod file_stream_slot;
 
-use file_write_slot::{AnswerSlot, MAX_PATH_CHARS, OpKey, OpKind, Take};
+use file_stream_slot::{AnswerSlot, MAX_PATH_CHARS, OpKey, OpKind, Take};
 
 /// Nonzero on purpose: a publish that dropped its stamp would leave 0, and a slot tested at 0 would not notice.
 const CARD: u32 = 3;
@@ -31,7 +31,7 @@ fn a_failure_is_taken_as_failed() {
     let mut slot = AnswerSlot::new();
     let k = key(OpKind::Open, 0, "SONGS/A.XML");
     slot.publish(k.clone(), Err(0), CARD);
-    assert_eq!(slot.take(&k, CARD), Take::Failed);
+    assert_eq!(slot.take(&k, CARD), Take::Failed(0));
 }
 
 #[test]
@@ -150,4 +150,26 @@ fn a_path_longer_than_the_bound_has_no_key() {
     let long = "x".repeat(MAX_PATH_CHARS + 1);
     assert!(OpKey::new(OpKind::Open, 0, &long).is_none());
     assert!(OpKey::new(OpKind::Open, 0, &long[..MAX_PATH_CHARS]).is_some());
+}
+
+#[test]
+fn an_open_collected_with_another_path_leaves_the_answer() {
+    let mut slot = AnswerSlot::new();
+    let mine = key(OpKind::Open, 0, "SAMPLES/RECORD/REC001.WAV");
+    slot.publish(mine.clone(), Ok(3), CARD);
+    assert_eq!(
+        slot.take(&key(OpKind::Open, 0, "SAMPLES/RECORD/REC002.WAV"), CARD),
+        Take::Absent
+    );
+    assert_eq!(slot.take(&mine, CARD), Take::Ready(3));
+}
+
+#[test]
+fn a_failed_open_is_taken_with_its_status() {
+    let mut slot = AnswerSlot::new();
+    let open = key(OpKind::Open, 0, "SAMPLES/RECORD/REC001.WAV");
+    // DELUGE_ERR_NOT_FOUND (-8), carried as its byte.
+    let not_found = u32::from((-8i8) as u8);
+    slot.publish(open.clone(), Err(not_found), CARD);
+    assert_eq!(slot.take(&open, CARD), Take::Failed(not_found));
 }

@@ -566,15 +566,15 @@ mod file_directory;
 #[path = "../src/file_bytes.rs"]
 mod file_bytes;
 
-/// The fifth sibling `card.rs` names: the write channel's flush.
+/// The fifth sibling `card.rs` names: the stream channel's flush.
 #[allow(dead_code)]
-#[path = "../src/file_write.rs"]
-mod file_write;
+#[path = "../src/file_stream.rs"]
+mod file_stream;
 
-/// Storage for `file_write` above.
+/// Storage for `file_stream` above.
 #[allow(dead_code)]
-#[path = "../src/file_write_slot.rs"]
-mod file_write_slot;
+#[path = "../src/file_stream_slot.rs"]
+mod file_stream_slot;
 
 mod live_pipeline {
     use super::file_prefix::{

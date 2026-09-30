@@ -1,7 +1,7 @@
 // tests/unit/io/stem_search_policy_spec.cpp
 #include "processing/stem_export/stem_search_policy.h"
 
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 
 #include "cppspec.hpp"
 
@@ -13,7 +13,7 @@ using deluge::storage::StemSearchPhase;
 
 namespace {
 StemSearchInputs probe(Presence p, int32_t tried) {
-	return StemSearchInputs{StemSearchPhase::ProbeCandidate, DELUGE_FILE_WRITE_READY, p, tried};
+	return StemSearchInputs{StemSearchPhase::ProbeCandidate, DELUGE_FILE_STREAM_READY, p, tried};
 }
 } // namespace
 
@@ -21,7 +21,7 @@ StemSearchInputs probe(Presence p, int32_t tried) {
 describe stem_search_policy("the stem folder search never reuses a folder it cannot rule out", $ {
 
 	it("creates the base folder, then the song folder, then starts probing", _ {
-		StemSearchInputs in{StemSearchPhase::MkdirBase, DELUGE_FILE_WRITE_READY, Presence::Absent, 0};
+		StemSearchInputs in{StemSearchPhase::MkdirBase, DELUGE_FILE_STREAM_READY, Presence::Absent, 0};
 		expect(nextStemSearchPhase(in) == StemSearchPhase::MkdirSong).to_equal(true);
 		in.phase = StemSearchPhase::MkdirSong;
 		expect(nextStemSearchPhase(in) == StemSearchPhase::ProbeCandidate).to_equal(true);
@@ -54,28 +54,28 @@ describe stem_search_policy("the stem folder search never reuses a folder it can
 	});
 
 	it("finishes once the chosen candidate is created", _ {
-		StemSearchInputs in{StemSearchPhase::MkdirCandidate, DELUGE_FILE_WRITE_READY, Presence::Absent, 3};
+		StemSearchInputs in{StemSearchPhase::MkdirCandidate, DELUGE_FILE_STREAM_READY, Presence::Absent, 3};
 		expect(nextStemSearchPhase(in) == StemSearchPhase::Done).to_equal(true);
 	});
 
 	// A creation that fails after the probe said Absent means somebody else took it in between, or
 	// the card turned hostile. Either way, do not silently reuse it -- fail.
 	it("fails when the chosen candidate cannot be created", _ {
-		StemSearchInputs in{StemSearchPhase::MkdirCandidate, DELUGE_FILE_WRITE_FAILED, Presence::Absent, 3};
+		StemSearchInputs in{StemSearchPhase::MkdirCandidate, DELUGE_FILE_STREAM_FAILED, Presence::Absent, 3};
 		expect(nextStemSearchPhase(in) == StemSearchPhase::Failed).to_equal(true);
 	});
 
 	it("stays put while an operation is pending, and re-issues on UNKNOWN", _ {
-		StemSearchInputs pending{StemSearchPhase::ProbeCandidate, DELUGE_FILE_WRITE_PENDING, Presence::Absent, 0};
+		StemSearchInputs pending{StemSearchPhase::ProbeCandidate, DELUGE_FILE_STREAM_PENDING, Presence::Absent, 0};
 		expect(nextStemSearchPhase(pending) == StemSearchPhase::ProbeCandidate).to_equal(true);
-		StemSearchInputs unknown{StemSearchPhase::MkdirBase, DELUGE_FILE_WRITE_UNKNOWN, Presence::Absent, 0};
+		StemSearchInputs unknown{StemSearchPhase::MkdirBase, DELUGE_FILE_STREAM_UNKNOWN, Presence::Absent, 0};
 		expect(nextStemSearchPhase(unknown) == StemSearchPhase::MkdirBase).to_equal(true);
 	});
 
 	it("is terminal at Done and Failed", _ {
-		StemSearchInputs d{StemSearchPhase::Done, DELUGE_FILE_WRITE_READY, Presence::Absent, 0};
+		StemSearchInputs d{StemSearchPhase::Done, DELUGE_FILE_STREAM_READY, Presence::Absent, 0};
 		expect(nextStemSearchPhase(d) == StemSearchPhase::Done).to_equal(true);
-		StemSearchInputs f{StemSearchPhase::Failed, DELUGE_FILE_WRITE_READY, Presence::Absent, 0};
+		StemSearchInputs f{StemSearchPhase::Failed, DELUGE_FILE_STREAM_READY, Presence::Absent, 0};
 		expect(nextStemSearchPhase(f) == StemSearchPhase::Failed).to_equal(true);
 	});
 });

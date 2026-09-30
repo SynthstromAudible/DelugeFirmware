@@ -1871,17 +1871,17 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
-        mount, stream_close, stream_open, stream_read_at_via, stream_size, stream_write_at,
-        task_dir_close, task_dir_open, task_file_close, task_file_open, task_file_read_exact,
-        task_file_seek, task_file_size, task_file_truncate, task_file_write, task_mkdir,
-        task_rename, task_set_time, task_unlink,
+        mount, stream_close, stream_read_at_via, stream_size, stream_write_at, task_dir_close,
+        task_dir_open, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
+        task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
+        task_set_time, task_unlink,
     };
     #[cfg(not(target_os = "none"))]
     pub(super) use crate::efatfs_host_shim::{
-        mount, stream_close, stream_open, stream_read_at_via, stream_size, stream_write_at,
-        task_dir_close, task_dir_open, task_file_close, task_file_open, task_file_read_exact,
-        task_file_seek, task_file_size, task_file_truncate, task_file_write, task_mkdir,
-        task_rename, task_set_time, task_unlink,
+        mount, stream_close, stream_read_at_via, stream_size, stream_write_at, task_dir_close,
+        task_dir_open, task_file_close, task_file_open, task_file_read_exact, task_file_seek,
+        task_file_size, task_file_truncate, task_file_write, task_mkdir, task_rename,
+        task_set_time, task_unlink,
     };
 }
 
@@ -1951,19 +1951,6 @@ impl ProdByteOps {
             }
             Err(status) => Err(status as i8),
         }
-    }
-
-    /// Open `path` on the stream table, mounting the card first if it turns out not to be mounted.
-    ///
-    /// `stream_open` collapses "no filesystem" and a real failure into one `None`, so this retries once on any
-    /// failure. `mount()` is idempotent, so a retry after a genuine error costs one wasted call and still reports the
-    /// error.
-    async fn stream_open_mounted(path: &str, mode: u8) -> Option<u32> {
-        if let Some(handle) = backing::stream_open(path, mode).await {
-            return Some(handle);
-        }
-        backing::mount().await.ok()?;
-        backing::stream_open(path, mode).await
     }
 
     /// The parent directory of `path`, or `None` when it names something at the card root.
@@ -2219,7 +2206,10 @@ impl ByteOps for ProdByteOps {
     }
 
     async fn read_into(&self, path: &str, into: &mut [u8]) -> Result<u32, (i8, u32)> {
-        let Some(handle) = Self::stream_open_mounted(path, STREAM_READ).await else {
+        let Some(handle) = crate::file_stream::open_mounted(path, STREAM_READ)
+            .await
+            .ok()
+        else {
             return Err((ERR_IO, 0));
         };
         let size = backing::stream_size(handle).await.unwrap_or(0);
@@ -2252,17 +2242,12 @@ impl ByteOps for ProdByteOps {
         } else {
             STREAM_CREATE
         };
-        let Some(handle) = Self::stream_open_mounted(path, mode).await else {
-            // stream_open collapses its status, so the refusal does not say WHY. Ask separately, and only to
-            // CLASSIFY: the write did not happen either way, so nothing races on it -- the worst case is calling a
-            // file that vanished in between a card error, which is harmless.
-            if exclusive {
-                if let Some(existing) = Self::stream_open_mounted(path, STREAM_READ).await {
-                    backing::stream_close(existing).await;
-                    return Err(EXISTS);
-                }
-            }
-            return Err(ERR_IO);
+        let handle = match crate::file_stream::open_mounted(path, mode).await {
+            Ok(handle) => handle,
+            // Only an exclusive create answers EXISTS, and only when the file is there. Every other refusal is a card
+            // error to this operation's callers.
+            Err(EXISTS) => return Err(EXISTS),
+            Err(_) => return Err(ERR_IO),
         };
         let written = backing::stream_write_at(handle, 0, bytes).await;
         backing::stream_close(handle).await;

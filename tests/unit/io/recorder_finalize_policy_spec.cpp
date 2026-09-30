@@ -2,7 +2,7 @@
 #include "model/sample/recorder_finalize_policy.h"
 #include "model/sample/recorder_write_policy.h"
 
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 
 #include "cppspec.hpp"
 
@@ -14,11 +14,11 @@ using deluge::storage::nextFinalizePhase;
 namespace {
 // A tick on which nothing is in flight: UNKNOWN is what a collect reports when no request is keyed.
 FinalizeInputs at(FinalizePhase p) {
-	return FinalizeInputs{p, DELUGE_FILE_WRITE_UNKNOWN, false, false, false, false, false, false, 0, false};
+	return FinalizeInputs{p, DELUGE_FILE_STREAM_UNKNOWN, false, false, false, false, false, false, 0, false};
 }
 FinalizeInputs ready(FinalizePhase p) {
 	FinalizeInputs in = at(p);
-	in.collected = DELUGE_FILE_WRITE_READY;
+	in.collected = DELUGE_FILE_STREAM_READY;
 	return in;
 }
 } // namespace
@@ -37,7 +37,7 @@ describe recorder_finalize_policy("finalize advances only on answers it actually
 		};
 		for (FinalizePhase p : ioPhases) {
 			FinalizeInputs in = at(p);
-			in.collected = DELUGE_FILE_WRITE_FAILED;
+			in.collected = DELUGE_FILE_STREAM_FAILED;
 			expect(nextFinalizePhase(in) == FinalizePhase::Failed).to_equal(true);
 		}
 	});
@@ -46,7 +46,7 @@ describe recorder_finalize_policy("finalize advances only on answers it actually
 	// one still owns the caller's buffer.
 	it("stays put while an operation is pending", _ {
 		FinalizeInputs in = at(FinalizePhase::BatchRead);
-		in.collected = DELUGE_FILE_WRITE_PENDING;
+		in.collected = DELUGE_FILE_STREAM_PENDING;
 		expect(nextFinalizePhase(in) == FinalizePhase::BatchRead).to_equal(true);
 	});
 
@@ -142,7 +142,7 @@ describe recorder_finalize_policy("finalize advances only on answers it actually
 	// be freed -- would pull it out from under the driver.
 	it("holds position on a pending answer even past the bound", _ {
 		FinalizeInputs in = at(FinalizePhase::BatchWrite);
-		in.collected = DELUGE_FILE_WRITE_PENDING;
+		in.collected = DELUGE_FILE_STREAM_PENDING;
 		in.unproductiveUs = kMaxUnproductiveUs + 100;
 		in.failing = true;
 		expect(nextFinalizePhase(in) == FinalizePhase::BatchWrite).to_equal(true);

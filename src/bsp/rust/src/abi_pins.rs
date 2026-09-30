@@ -169,11 +169,11 @@ abi_const!(
 );
 
 abi_const!(
-    crate::file_write::DELUGE_FILE_WRITE_PENDING => DELUGE_CHANNEL_PENDING,
-    crate::file_write::DELUGE_FILE_WRITE_READY => DELUGE_CHANNEL_READY,
-    crate::file_write::DELUGE_FILE_WRITE_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    crate::file_write::DELUGE_FILE_WRITE_FAILED => DELUGE_CHANNEL_FAILED,
-    crate::file_write_slot::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
+    crate::file_stream::DELUGE_FILE_STREAM_PENDING => DELUGE_CHANNEL_PENDING,
+    crate::file_stream::DELUGE_FILE_STREAM_READY => DELUGE_CHANNEL_READY,
+    crate::file_stream::DELUGE_FILE_STREAM_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
+    crate::file_stream::DELUGE_FILE_STREAM_FAILED => DELUGE_CHANNEL_FAILED,
+    crate::file_stream_slot::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
 );
 
 // The host `sd.rs` spells what the device build takes from `deluge-sdk`.

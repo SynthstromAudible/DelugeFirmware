@@ -263,6 +263,10 @@ private:
 		return (createIssued_ && createPhase_ == deluge::storage::CreatePhase::Open)
 		       || (finalizeIssued_ && finalizePhase_ == deluge::storage::FinalizePhase::OpenForAlter);
 	}
+	/// The path of the open this recorder last asked the channel for: the create's, or finalize's reopen. The channel
+	/// keys an open's answer by its path, and the abort, which drains whichever open is in flight, knows it only by
+	/// this.
+	std::string openPath_;
 	bool createTriedMakeFolder_ = false;
 	bool createOpenNotFound_ = false;
 	/// How long this phase's request has been unproductive. See deluge::storage::kMaxUnproductiveUs.

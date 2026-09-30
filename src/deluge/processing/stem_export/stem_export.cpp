@@ -31,7 +31,7 @@
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
 #include "libdeluge/file_io.h"
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 #include "libdeluge/streaming_fill.h" // deluge_streaming_request_drain
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
@@ -988,7 +988,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 
 		while (stemSearchPhase_ != deluge::storage::StemSearchPhase::Done
 		       && stemSearchPhase_ != deluge::storage::StemSearchPhase::Failed) {
-			uint8_t collected = DELUGE_FILE_WRITE_READY;
+			uint8_t collected = DELUGE_FILE_STREAM_READY;
 			deluge::storage::Presence candidate = deluge::storage::Presence::Absent;
 
 			switch (stemSearchPhase_) {
@@ -1035,16 +1035,16 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 							return Error::LISTING_DEFERRED;
 						}
 						// Stalled: a folder that could not be made, which ends the search.
-						collected = DELUGE_FILE_WRITE_FAILED;
+						collected = DELUGE_FILE_STREAM_FAILED;
 						break;
 					}
-					collected = (io == deluge::storage::bytes::ByteIo::Ready) ? DELUGE_FILE_WRITE_READY
-					                                                          : DELUGE_FILE_WRITE_FAILED;
+					collected = (io == deluge::storage::bytes::ByteIo::Ready) ? DELUGE_FILE_STREAM_READY
+					                                                          : DELUGE_FILE_STREAM_FAILED;
 				}
 				else {
 					collected = deluge::io::mkdir(stemSearchCandidatePath_.c_str()).has_value()
-					                ? DELUGE_FILE_WRITE_READY
-					                : DELUGE_FILE_WRITE_FAILED;
+					                ? DELUGE_FILE_STREAM_READY
+					                : DELUGE_FILE_STREAM_FAILED;
 				}
 				break;
 			}

@@ -7,7 +7,7 @@ What each check covers, and why each is separate:
                 else in the run would notice.
   RW-CHANNEL    that the async arm was EXECUTED by the `ticked_` recordings: they must serve writes beyond the ones
                 the oracle's cases served (RW-SUMMARY's count, taken before they run).
-  RW-TICKED     that the recorder drain ran after boot, its writes on the write channel. This is the gate's real
+  RW-TICKED     that the recorder drain ran after boot, its writes on the stream channel. This is the gate's real
                 subject: RW-CHANNEL alone says writes were served, not which drain issued them.
   RW-TICKED-CREATE  that CREATING the recording's file ran through the create machine.
   RW-TICKED-FINALIZE  that FINISHING a recording ran through the finalize machine. A served count says operations
@@ -25,13 +25,16 @@ What each check covers, and why each is separate:
   RW-TIER       how many synchronous card operations the recorder began on the interaction tier after boot, over
                 every `ticked_` case, and how many of its channel requests were refused. Required 0: after boot
                 every recorder operation goes through a channel.
-  RW-BUSY       that a recording made while another write-channel operation keeps taking the channel is refused,
+  RW-BUSY       that a recording made while another stream-channel operation keeps taking the channel is refused,
                 asks again, never writes synchronously, and still reads back exactly.
   RW-STALL      that a cluster write held past the recorder's bound fails the take while the write is still
                 outstanding, keeps its buffer until the answer, closes the file through the channel, and never
                 writes synchronously.
   RW-DIR-STALL  that a recording whose folder scan's directory open is held past the recorder's bound fails its
                 create with a card error, makes no file, and never opens the folder synchronously.
+  RW-OPEN-IOERR  that a create whose open fails with a card error other than NOT_FOUND -- the card unmounted under the
+                open, and the channel refused the mount -- fails the recording without making its folder: only a
+                missing folder is worth the folder retry.
   RW-DRAIN      that the offline stem-export path still drains to completion. That loop calls the card routine in a
                 bounded loop expecting each call to COMPLETE a write.
 
@@ -42,7 +45,7 @@ harness recording down the stem path needs more engine state than `processStarte
 `lastFolderNameForStemExport`, and a case that silently records to RESAMPLE while calling itself a stem case is worse
 than none.
 
-One leg plus the offline drain: the write channel has no feature switch, so there is no build without it to compare
+One leg plus the offline drain: the stream channel has no feature switch, so there is no build without it to compare
 against.
 """
 
@@ -129,7 +132,7 @@ def _check_roundtrip(gate, run) -> tuple[int, int, int, int, int, int] | None:
                 f"RW-TIER — the recorder began {tier} synchronous card operation(s) after boot"
             )
 
-    for tag in ("RW-BUSY", "RW-STALL", "RW-DIR-STALL"):
+    for tag in ("RW-BUSY", "RW-STALL", "RW-DIR-STALL", "RW-OPEN-IOERR"):
         found = run.starting(f"{tag} ")
         if not found:
             gate.fail(f"{tag} — no {tag} line; the case did not finish")

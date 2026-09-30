@@ -27,7 +27,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
 #include "io/file.hpp"
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -556,7 +556,7 @@ void runTick() {
 	}
 	case Stage::HeldSave: {
 		g_heldCompletedBefore = SaveSongUI::documentSavesCompleted();
-		deluge_file_write_set_latency_ms(kHeldLatencyMs);
+		deluge_file_stream_set_latency_ms(kHeldLatencyMs);
 		SongSaveChannelProbe::typeName(kHeldName);
 		SongSaveChannelProbe::pressEnter();
 		g_waitTicks = 0;
@@ -565,7 +565,7 @@ void runTick() {
 	}
 	case Stage::HeldWait: {
 		if (saveMachineryIdle() || ++g_waitTicks > kMaxWaitTicks) {
-			deluge_file_write_set_latency_ms(0);
+			deluge_file_stream_set_latency_ms(0);
 			g_stage = Stage::HeldCheck;
 		}
 		break;

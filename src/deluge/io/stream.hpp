@@ -48,7 +48,7 @@ public:
 	[[nodiscard]] bool request_write_at(uint32_t byte_offset, std::span<const std::byte> buffer);
 
 	/// @brief Collect the in-flight write, if it has finished.
-	/// @param out_written Written only on `DELUGE_FILE_WRITE_READY`, with the true byte count.
+	/// @param out_written Written only on `DELUGE_FILE_STREAM_READY`, with the true byte count.
 	/// @return a `DELUGE_FILE_WRITE_*` value.
 	[[nodiscard]] uint8_t collect_write_at(uint32_t* out_written);
 
@@ -58,12 +58,15 @@ public:
 	/// @return false when refused (another operation is in flight, or the channel is not running).
 	[[nodiscard]] static bool request_open(std::string_view path, DelugeStreamMode mode);
 
-	/// @brief Collect the open, constructing the Stream in @p out on success.
-	/// @param out Engaged ONLY on `DELUGE_FILE_WRITE_READY`. An optional rather than a `Stream*`
-	///            because Stream has no valid empty state -- there is nothing to overwrite until the
-	///            handle actually exists.
+	/// @brief Collect the open of @p path, constructing the Stream in @p out on success.
+	/// @param path  The path @ref request_open was given. An answer for another path is left for its own caller.
+	/// @param out   Engaged ONLY on `DELUGE_FILE_STREAM_READY`. An optional rather than a `Stream*`
+	///              because Stream has no valid empty state -- there is nothing to overwrite until the
+	///              handle actually exists.
+	/// @param error Written ONLY on `DELUGE_FILE_STREAM_FAILED`, with the status the open failed with. May be null.
 	/// @return a `DELUGE_FILE_WRITE_*` value.
-	[[nodiscard]] static uint8_t collect_open(std::optional<Stream>* out);
+	[[nodiscard]] static uint8_t collect_open(std::string_view path, std::optional<Stream>* out,
+	                                          DelugeStatus* error = nullptr);
 
 	/// @brief Ask for @p dst.size() bytes at @p byte_offset to be read, without blocking.
 	///

@@ -61,7 +61,7 @@ int32_t deluge_scenario_recorder_roundtrip_failures();
 ///               takes its REMOVE_RIGHT_CHANNEL branch. No other case permits alteration, so without this
 ///               the batch machine is never run.
 ///             - 2 `abort`: abandoned part-way, so the abort machine runs.
-///             - 3 `busy`: another write-channel operation keeps taking the channel, so the recorder's
+///             - 3 `busy`: another stream-channel operation keeps taking the channel, so the recorder's
 ///               requests are refused and asked again. Prints `RW-BUSY`.
 ///             - 4 `stall`: a cluster write is held past the recorder's bound, so the take fails without a
 ///               synchronous write. Prints `RW-STALL`.

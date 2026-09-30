@@ -1,6 +1,6 @@
-//! The write channel's answer slot.
+//! The stream channel's answer slot.
 //!
-//! Pure, so `tests/file_write_host.rs` tests it without a card. The rules are `file_bytes`'s:
+//! Pure, so `tests/file_stream_host.rs` tests it without a card. The rules are `file_bytes`'s:
 //! - a take with another operation's key leaves the answer for its owner;
 //! - a take that finds its own answer stamped for an earlier card removes it and reports nothing.
 //!
@@ -29,7 +29,8 @@ pub enum OpKind {
 
 /// Which operation an answer belongs to.
 /// - Handle operations carry their handle and an empty path.
-/// - `Open` and `Stats` carry neither: the channel is single-flight, and their collects name no file.
+/// - `Open` carries the path it opens, so an answer is collected only by the caller that asked for that file.
+/// - `Stats` carries neither: the channel is single-flight, and its collect names no file.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OpKey {
     pub kind: OpKind,
@@ -55,8 +56,9 @@ impl OpKey {
 pub enum Take {
     /// This operation's answer: the handle, byte count or free-cluster count.
     Ready(u32),
-    /// This operation failed.
-    Failed,
+    /// This operation failed. The payload is the `Err` it was published with: for an `Open`, the `DelugeStatus` it
+    /// failed with, as its byte; 0 for the others.
+    Failed(u32),
     /// No answer for this key and this card.
     Absent,
 }
@@ -116,7 +118,9 @@ impl AnswerSlot {
             deluge_channel::Take::Ready(StreamAnswer {
                 result: Ok(value), ..
             }) => Take::Ready(value),
-            deluge_channel::Take::Ready(StreamAnswer { result: Err(_), .. }) => Take::Failed,
+            deluge_channel::Take::Ready(StreamAnswer {
+                result: Err(error), ..
+            }) => Take::Failed(error),
             deluge_channel::Take::Absent { orphan } => {
                 if let Some(orphan) = orphan {
                     self.push_orphan(orphan);

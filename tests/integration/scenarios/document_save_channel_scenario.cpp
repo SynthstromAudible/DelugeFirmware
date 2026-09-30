@@ -28,7 +28,7 @@
 #include "hid/button.h"
 #include "io/file.hpp"
 #include "libdeluge/file_bytes.h"
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 #include "memory/heaps.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
@@ -119,7 +119,7 @@ constexpr const char* kSongGuardName = "DSSONG01";
 constexpr const char* kSongGuardPath = "SONGS/DSSONG01.XML";
 constexpr const char* kSongGuardPresetName = "DSGUARD1";
 constexpr const char* kSongGuardPresetPath = "SYNTHS/DSGUARD1.XML";
-/// Byte- and write-channel latency while the song save runs, so its collection and document machines span
+/// Byte- and stream-channel latency while the song save runs, so its collection and document machines span
 /// many ticks and the preset save can be dispatched while they do.
 constexpr uint32_t kSongGuardLatencyMs = 20;
 constexpr const char* kAccountName = "DSACCT01";
@@ -634,7 +634,7 @@ void runTick() {
 		g_songGuardTried = false;
 		g_songGuardRefused = false;
 		deluge_file_bytes_set_latency_ms(kSongGuardLatencyMs);
-		deluge_file_write_set_latency_ms(kSongGuardLatencyMs);
+		deluge_file_stream_set_latency_ms(kSongGuardLatencyMs);
 		DocumentSaveChannelProbe::typeName(kSongGuardName);
 		DocumentSaveChannelProbe::pressEnterSong();
 		g_waitTicks = 0;
@@ -667,7 +667,7 @@ void runTick() {
 	case Stage::SongGuardWait: {
 		if (!saveSongUI.collectInFlight() && !saveSongUI.docInFlight() && !SaveUI::saveInFlight()) {
 			deluge_file_bytes_set_latency_ms(0);
-			deluge_file_write_set_latency_ms(0);
+			deluge_file_stream_set_latency_ms(0);
 			g_stage = Stage::SongGuardCheck;
 			break;
 		}
@@ -1065,7 +1065,7 @@ void runTick() {
 			(void)deluge::io::unlink(g_accountPath.c_str());
 		}
 		deluge_file_bytes_set_latency_ms(0);
-		deluge_file_write_set_latency_ms(0);
+		deluge_file_stream_set_latency_ms(0);
 		fflush(stdout);
 		g_summaryPrinted = true;
 		g_stage = Stage::Done;

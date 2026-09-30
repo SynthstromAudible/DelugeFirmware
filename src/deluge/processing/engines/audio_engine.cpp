@@ -40,7 +40,7 @@
 #include "io/midi/midi_engine.h"
 #include "libdeluge/app.h"
 #include "libdeluge/audio_io.h"
-#include "libdeluge/file_write.h"
+#include "libdeluge/file_stream.h"
 #include "libdeluge/signals.h"
 #include "libdeluge/streaming_fill.h" // deluge_streaming_resource_manager()
 #include "libdeluge/system.h"
@@ -2027,7 +2027,7 @@ void requestRecorderCardRoutines() {
 	if (deluge_in_interrupt()) {
 		return;
 	}
-	// Inline, always: cardRoutine()'s card operations go through the write channel after boot, and before boot
+	// Inline, always: cardRoutine()'s card operations go through the stream channel after boot, and before boot
 	// blocking is legal (and no recorder exists yet). Counted after boot only -- the gates' evidence that the drain
 	// runs off the storage tier.
 	if (deluge::boot::finished()) {
