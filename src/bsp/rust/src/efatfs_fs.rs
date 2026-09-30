@@ -11,13 +11,11 @@
 //! holder `.await` (yield the executor) across the underlying SD transfer,
 //! rather than busy-spinning or blocking other tasks outright.
 //!
-//! Device-only and flag-gated: the file-handle table, the FFI boundary, and
-//! the streaming read path (`streaming_loader.rs`, `main.rs`) are what
-//! invoke [`mount`]/[`with_fs`]; anything in this module not reached from
-//! there stays dead code by design, hence the blanket `#![allow(dead_code)]`
-//! below (keeps the `efatfs_streaming` build warning-clean without
-//! disturbing the default build, which doesn't compile this file at all).
-#![cfg(all(target_os = "none", feature = "efatfs_streaming"))]
+//! Device-only: the file-handle table, the FFI boundary, and the streaming
+//! read path (`streaming_loader.rs`, `main.rs`) are what invoke
+//! [`mount`]/[`with_fs`]; anything in this module not reached from there
+//! stays dead code by design, hence the blanket `#![allow(dead_code)]` below.
+#![cfg(target_os = "none")]
 #![allow(dead_code)]
 
 use aligned::{A4, Aligned};

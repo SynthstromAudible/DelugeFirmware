@@ -129,36 +129,13 @@ heapless = { version = "0.8", default-features = false }
 # busy-spin against the `SD_BUS` mutex starving the render to ~0.01x
 # realtime (cordae's full 8-stem TRACK export: ~3.7hr -> ~37s / ~58x
 # realtime with it dropped, clean valid WAVs).
-# `async_streaming_loader` + `efatfs_streaming` are ALSO on by default here:
-# this package's whole point is to boot the app with
-# `deluge_streaming_async_active()` TRUE (the Rust async cluster-fill task
-# owning the loader queue, reading through the embedded-fatfs shim) — a
-# plain/legacy-C++-fill boot would defeat the purpose of standing this
-# package up at all.
-default = [
-    "host_app",
-    "async_streaming_loader",
-    "efatfs_streaming",
-]
+default = ["host_app"]
 host_app = []
 sim_latency = []
-# Mount the host efatfs shim in `boot_task` (before `deluge_app_init`) and
-# drive the embedded-fatfs streaming READ path instead of C FatFS — see
-# `../Cargo.toml`'s `efatfs_streaming` feature doc for the device-side
-# equivalent.
-#
-# Composes `async_streaming_loader`: NOT optional, structurally required, because
-# only the async fill path ever consults `StreamingFillDescriptor.handle`.
-efatfs_streaming = ["async_streaming_loader"]
 # Not enabled — exists only so the shared `#[cfg(feature = "rtt")]` conditionals in
 # `services.rs` don't trip rustc's unknown-cfg lint in this package (it is a real
 # feature over there, unrelated to this package's own concerns).
 rtt = []
-# Mirrors `../Cargo.toml`'s `async_streaming_loader` feature exactly (same
-# spelling, so `streaming_loader.rs`'s `#[cfg(feature = "async_streaming_loader")]`
-# conditionals need zero edits when `#[path]`-included here). See `main.rs`'s
-# `mod streaming_loader` doc comment for how this package spawns the task.
-async_streaming_loader = []
 
 [build-dependencies]
 bindgen = "0.70"

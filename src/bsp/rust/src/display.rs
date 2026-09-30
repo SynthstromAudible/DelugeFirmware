@@ -161,8 +161,7 @@ pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
     // or not a freeze happened. The abort is what makes a `FREEZE_WITH_ERROR` on host observable
     // at all: it restores the pre-freeze behaviour where the same call was a live `assert()` that
     // `abort()`ed (host builds have no `NDEBUG`), which is what the song-preview/audio-load A/B
-    // scripts' existing "leg exited nonzero" checks already fail a run on — see
-    // `deluge_system_reset` in services.rs for the same host-abort pattern.
+    // scripts' existing "leg exited nonzero" checks already fail a run on.
     #[cfg(not(target_os = "none"))]
     {
         let _ = PIC_SELECT_KNOB_PRESS;

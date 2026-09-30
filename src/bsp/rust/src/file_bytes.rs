@@ -658,17 +658,11 @@ fn result_bytes<'g>(
 }
 
 /// Grants [`WORK_BYTES`] once.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 static WORK_CLAIM: ClaimOnce = ClaimOnce::new();
 
 /// The work buffer, to the first caller only. `file_bytes_task` claims it once, at start.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 fn claim_work_bytes() -> Option<&'static mut [u8; MAX_BYTES]> {
     if !WORK_CLAIM.claim() {
         return None;
@@ -697,14 +691,6 @@ pub(crate) fn flush_tables() {
     if let Ok(mut result) = RESULT.try_lock() {
         drain(&mut result);
     }
-}
-
-/// Whether the Rust byte channel backs `file_bytes.h` -- always, on this BSP. The C++ side still asks,
-/// because a C++-only build links `file_bytes_abi.cpp`'s weak definition instead, which answers
-/// `false` and keeps that build on its inline path.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_bytes_async_active() -> bool {
-    true
 }
 
 /// Milliseconds `file_bytes_task` waits before each operation. Host harness only; see
@@ -1506,17 +1492,14 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 
 // ── The production ops ──────────────────────────────────────────────────────
 //
-// Only compiled where the efatfs backing is actually linked: on device under `efatfs_streaming`,
-// and on host under `host_app`. Kept separate from the driver above so the driver -- and every rule
+// Only compiled where the efatfs backing is actually linked: on device, and on host under
+// `host_app`. Kept separate from the driver above so the driver -- and every rule
 // in this file -- compiles and is tested in the `#[path]` carriers, which have no `crate::`.
 
 /// The efatfs file operations behind the production ops: the device mount on device, the host shim
 /// under `host_app`. One alias rather than a `#[cfg]` at every call site -- the same shape
 /// `file_directory::backing` uses, and for the same reason.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
@@ -1534,16 +1517,10 @@ mod backing {
 
 /// The real [`ByteOps`], wired to the efatfs task-context file table. Holds no state: every
 /// operation is keyed by path.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 pub struct ProdByteOps;
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 impl ProdByteOps {
     pub fn new() -> Self {
         Self
@@ -1612,10 +1589,7 @@ impl ProdByteOps {
     }
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 impl ByteOps for ProdByteOps {
     async fn read_all(&self, path: &str, into: &mut [u8; MAX_BYTES]) -> Result<usize, i8> {
         let handle = Self::open_mounted(path, OPEN_READ).await?;
@@ -1886,19 +1860,13 @@ impl ByteOps for ProdByteOps {
 /// published failure ends that: it is terminal, exactly as a published answer is, and it carries the
 /// status so the caller can tell "no such file, write the defaults" from "the card is unreadable,
 /// write nothing".
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn file_bytes_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_bytes_task_body()).await
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn file_bytes_task_body() {
     let Some(work) = claim_work_bytes() else {
         debug_assert!(false, "the byte channel's work buffer was claimed twice");
@@ -1944,10 +1912,7 @@ async fn file_bytes_task_body() {
 /// before any I/O, because that is what makes it mean "the card this operation is touching". Reading
 /// it later -- at publish time -- reads the value a flush has already installed and defeats the
 /// check entirely.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<(ByteRequest, u32)> {
     let mut slot = REQUEST.lock().await;
     let request = slot.take()?;

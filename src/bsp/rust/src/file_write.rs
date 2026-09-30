@@ -40,10 +40,7 @@ pub const DELUGE_FILE_WRITE_FAILED: u8 = 3;
 /// The efatfs backend this driver writes through: the device module on the target, the host shim
 /// under `host_app`. One alias rather than a `#[cfg]` at every call site -- the same shape
 /// `file_bytes::backing` uses, and for the same reason.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::efatfs_fs::{
@@ -361,12 +358,6 @@ pub unsafe extern "C" fn deluge_file_write_collect_write_file(
     status
 }
 
-/// C-ABI: is the driver running? Always, on the Rust BSP: the write channel has no feature switch.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_write_async_active() -> bool {
-    true
-}
-
 /// Milliseconds `file_write_task` waits before each operation. Host harness only; see
 /// [`deluge_file_write_set_latency_ms`].
 #[cfg(feature = "host_app")]
@@ -569,10 +560,7 @@ pub unsafe extern "C" fn deluge_file_write_collect_stats(out_free_clusters: *mut
 /// `stream_open` collapses "no filesystem" and a real failure into one `None`, so this retries once
 /// on any failure rather than only on the unmounted case. `mount()` is idempotent, so a retry after a
 /// genuine error costs one wasted call and still reports the error.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn open_mounted(path: &str, mode: u8) -> Option<u32> {
     if let Some(handle) = backing::stream_open(path, mode).await {
         return Some(handle);
@@ -582,19 +570,13 @@ async fn open_mounted(path: &str, mode: u8) -> Option<u32> {
 }
 
 /// The driver. Takes one operation at a time and publishes its answer.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn file_write_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_write_task_body()).await
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn close_orphans() {
     loop {
         let orphan = RESULT
@@ -606,10 +588,7 @@ async fn close_orphans() {
     }
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn file_write_task_body() {
     loop {
         WAKE.wait().await;

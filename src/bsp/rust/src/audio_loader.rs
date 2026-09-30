@@ -103,7 +103,7 @@
 //! Everything here is compiled wherever this module is -- the Embassy BSP: device,
 //! or host under `host_app` (see the `mod audio_loader;` cfg in `main.rs`): the
 //! request/collect C ABI ([`deluge_audio_load_request`],
-//! [`deluge_audio_load_collect`], [`deluge_audio_load_async_active`]), the
+//! [`deluge_audio_load_collect`]), the
 //! queue/result tables behind it, the parse driver ([`LoadOps`], [`load_io_once`])
 //! and, where a backing is linked, `ProdOps` and [`audio_load_task`]. They are the
 //! only definitions: there is no C++ fallback.
@@ -120,18 +120,6 @@
 //! orchestration takes its filesystem operations through a trait. `ProdOps` wires
 //! that to `crate::efatfs_fs` / `crate::efatfs_host_shim`, and
 //! `tests/audio_loader_host.rs` wires it to an in-memory double.
-
-// `audio_load_task` is the only drain for the request queue, and it needs a backing to do I/O through: on
-// device that is `efatfs_streaming`. A device build without it would compile cleanly, accept every request and
-// drain none, so the C++ collector would report LOAD_IN_PROGRESS forever, for every sample -- silence with no
-// error. Refused at compile time instead. On host the module is reached through `main.rs` under `host_app`
-// (itself a backing) and through `tests/audio_loader_host.rs`, which drives the tables by hand and needs no task.
-#[cfg(all(target_os = "none", not(feature = "efatfs_streaming")))]
-compile_error!(
-    "the async audio loader needs `efatfs_streaming` on device: `audio_load_task` is the only drain for \
-     the request queue and is not compiled without it, so every request would stay queued forever and \
-     the C++ side would see LOAD_IN_PROGRESS on every tick."
-);
 
 use core::ffi::{CStr, c_char};
 use core::mem::MaybeUninit;
@@ -476,17 +464,6 @@ pub(crate) fn flush_tables() {
     if let Ok(mut results) = RESULTS.try_lock() {
         results.clear();
     }
-}
-
-/// Whether the Rust async loader backs sample loads — what the C++ side asks
-/// before choosing the async path over the synchronous one.
-///
-/// Always `true` wherever this module is compiled: the loader has no switch. The
-/// symbol is what overrides `audio_load_abi.cpp`'s weak `false`, which every BSP
-/// without this crate resolves, and those builds keep the synchronous path.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_load_async_active() -> bool {
-    true
 }
 
 /// Milliseconds `audio_load_task` waits after marking each load in flight. Host harness only; see
@@ -1153,18 +1130,15 @@ mod driver {
 pub use driver::{LoadOps, OpenVerdict, error_code_for, load_io_once};
 
 // ── Production wiring ───────────────────────────────────────────────────────
-// Only compiled where the efatfs backing is actually linked: on device under
-// `efatfs_streaming`, and on host under `host_app`. Kept separate from the driver
+// Only compiled where the efatfs backing is actually linked: on device, and on
+// host under `host_app`. Kept separate from the driver
 // above (which compiles with no backing at all) so the
 // `#[path]`-recompiled host test never emits a reference to an undefined symbol.
 //
 // Note what is NOT here: any `extern "C"` block. This half calls no C++ at all —
 // see the module doc.
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 mod prod {
     use super::driver::LoadOps;
 
@@ -1222,10 +1196,7 @@ mod prod {
     }
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[allow(unused_imports)]
 pub use prod::ProdOps;
 
@@ -1235,19 +1206,13 @@ pub use prod::ProdOps;
 /// [`IN_FLIGHT`] is set before the I/O and cleared only after the result is
 /// published, so [`deluge_audio_load_collect`] never sees a gap where a running
 /// load looks unknown.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn audio_load_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, audio_load_task_body()).await
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn audio_load_task_body() {
     LOAD_WAKE.wait().await;
     let ops = ProdOps::new();
@@ -1291,10 +1256,7 @@ async fn audio_load_task_body() {
 /// task and therefore before any I/O, because that is what makes it mean "the
 /// card this load is reading". Reading it later — at publish time — reads the
 /// value a flush has already installed and defeats the check entirely.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn take_next_request() -> Option<(LoadRequest, u32)> {
     let mut queue = QUEUE.lock().await;
     let request = queue.pop_front()?;

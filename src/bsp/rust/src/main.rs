@@ -141,7 +141,7 @@ mod audio_host;
 /// — and publishes a plain result the C++ side collects on its own tier. It calls
 /// no C++ itself; see its module doc for the two constraints that force that. Compiled
 /// on the Embassy BSP unconditionally (device, or host under `host_app`) so
-/// `deluge_audio_load_async_active`/`_request`/`_collect` are always defined --
+/// `deluge_audio_load_request`/`_collect` are always defined --
 /// `audio_load_abi.cpp` declares no fallback for them, so omitting this module would leave them
 /// undefined at link time. The loader has no switch -- see its module doc's "Always on".
 #[cfg(any(target_os = "none", feature = "host_app"))]
@@ -178,20 +178,16 @@ mod display;
 /// (`HandleTable` + `FileContext` detach/reattach + generation guard + fill
 /// loop). `efatfs_fs` wraps it with the device statics/mutexes/FFI; host tests
 /// drive it directly. Also reachable under `host_app`
-/// (any target, independent of `efatfs_streaming`) so `efatfs_host_shim` — the
+/// (any target) so `efatfs_host_shim` — the
 /// host counterpart of `efatfs_fs` — can reuse it unchanged; see that module's
 /// doc.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 mod efatfs_core;
 /// The single-owner `embedded-fatfs` mount — one `FileSystem` behind an
-/// async `Mutex`, the only way live code touches the vendored FS. Non-default:
-/// `efatfs_streaming` feature. `mount()`/`with_fs()` are invoked from this
-/// crate's boot path and the streaming read path once the feature is
-/// enabled.
-#[cfg(all(target_os = "none", feature = "efatfs_streaming"))]
+/// async `Mutex`, the only way live code touches the vendored FS.
+/// `mount()`/`with_fs()` are invoked from this crate's boot path and the
+/// streaming read path.
+#[cfg(target_os = "none")]
 mod efatfs_fs;
 /// Host counterpart of `efatfs_fs` — mounts `embedded-fatfs` over a
 /// block device backed by the SD_BUS-guarded async helpers (see that
@@ -272,8 +268,8 @@ mod midi;
 /// module doc. `host_app`-only.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod recorder_finalize_probe;
-/// Does a still-recording sample's live read-back resolve on THIS target
-/// (`async_streaming_loader` on)? See its module doc. `host_app`-only.
+/// Does a still-recording sample's live read-back resolve on THIS target? See its
+/// module doc. `host_app`-only.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod recorder_probe;
 /// Streaming-underrun harness: the reusable, thread-agnostic scenario driver
@@ -307,14 +303,10 @@ mod signals;
 /// The blocking-I/O seam: a plain non-yielding block on device, and on host a spin driven
 /// by a harness-registered progress hook. See the module doc for why host needs the hook.
 mod sim_block;
-/// The async cluster-fill task and its selector/wakeup C ABI: drains
-/// the resource manager's loader queue on this executor, awaiting the SD read
-/// instead of running it inline. Compiled on the Embassy
-/// BSP unconditionally (device, or host under `host_app`) so
-/// `deluge_streaming_async_active`/`deluge_streaming_signal_fill` always link;
-/// the task itself (spawned below) and the rest of the drain machinery stay
-/// gated behind `async_streaming_loader` — see its module doc's "Two
-/// compilation tiers".
+/// The async cluster-fill task and its wakeup C ABI: drains the resource
+/// manager's loader queue on this executor, awaiting the SD read instead of
+/// running it inline. Compiled on the Embassy BSP unconditionally (device, or
+/// host under `host_app`).
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod streaming_loader;
 /// Which execution tier is running the caller (`libdeluge/tier.h`).
@@ -473,36 +465,27 @@ fn stream_sgi_handler() {
 /// an SD await, and a thread-mode caller's non-yielding `sim_block::block_on` spin would deadlock
 /// against that if both shared an executor. The file-prefix task is here for the same reason
 /// and on the same terms.
-#[cfg(all(
-    target_os = "none",
-    any(feature = "async_streaming_loader", feature = "efatfs_streaming")
-))]
+#[cfg(target_os = "none")]
 #[embassy_executor::task]
 async fn stream_bootstrap() {
     // SAFETY: this task only ever runs on STREAM_EXEC (it is spawned onto it and nowhere
     // else), so the Spawner yielded here belongs to STREAM_EXEC, and the non-Send task
     // spawned with it never leaves the executor it was created on.
     let spawner = unsafe { Spawner::for_current_executor() }.await;
-    #[cfg(feature = "async_streaming_loader")]
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
-    #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(audio_loader::audio_load_task().unwrap());
     // Here rather than on the thread-mode executor for the same reason as the load task above: it
     // holds the FS mutex across an SD await, and a thread-mode caller's non-yielding
     // `sim_block::block_on` spin would deadlock against that if the two shared an executor.
-    #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(file_prefix::file_prefix_task().unwrap());
     // Here for the same reason again: `task_dir_open` goes through `with_fs`, so it holds the FS
     // mutex across an SD await.
-    #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(file_directory::file_directory_task().unwrap());
     // And again: every one of `task_file_open`/`_read_exact`/`_write`/`_truncate` and `task_rename`
     // goes through `with_fs`, so this task holds the FS mutex across an SD await too.
-    #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(file_bytes::file_bytes_task().unwrap());
     // The recorder's cluster write. Same reason as its neighbours: `stream_write_at` goes through
     // `with_fs`, so this task holds the FS mutex across an SD await.
-    #[cfg(feature = "efatfs_streaming")]
     spawner.spawn(file_write::file_write_task().unwrap());
 }
 
@@ -612,15 +595,9 @@ pub extern "C" fn main() -> ! {
     // not be enabled before the executor its handler drives exists. Spawned via
     // `stream_bootstrap` — see that task's doc for why a SendSpawner cannot take the fill task
     // directly.
-    // Every task this executor can host is listed, not just the ones that happened to be on when it was
-    // written: a channel switched on without its entry here would have its task spawned onto an executor
-    // nobody started -- a dead channel that every consumer's inline arm would then hide.
-    #[cfg(any(feature = "async_streaming_loader", feature = "efatfs_streaming"))]
     STREAM_EXEC
         .start(STREAM_SGI)
         .spawn(stream_bootstrap().unwrap());
-    #[cfg(not(any(feature = "async_streaming_loader", feature = "efatfs_streaming")))]
-    let _ = STREAM_EXEC.start(STREAM_SGI);
     unsafe { rza1l_hal::gic::enable(STREAM_SGI as u16) };
 
     let executor: &'static mut Executor = unsafe {
@@ -697,15 +674,13 @@ async fn app_task() {
     deluge_bsp::pic::wait_ready().await;
     crate::sd::boot_init().await;
 
-    // With `efatfs_streaming` enabled (the default): give the
-    // FS allocator a real backing arena, then mount the single-owner
+    // Give the FS allocator a real backing arena, then mount the single-owner
     // embedded-fatfs `FileSystem` — BEFORE `deluge_app_init` so the FS is ready
     // for the first C++ sample-load. A failed mount must NOT brick boot — but note
     // the streaming read is efatfs-only with no fallback filesystem, so a
     // failed mount means streamed samples won't load (open_read_stream fails).
     // The SD block driver is already up (boot_init above) and nothing has
     // touched the card yet.
-    #[cfg(feature = "efatfs_streaming")]
     {
         // Backing arena for `crate::FS_ALLOCATOR` (see its doc): embedded-fatfs's
         // `alloc` feature needs a live heap before its first allocation (LFN
@@ -783,10 +758,9 @@ async fn host_app_task() {
     // dedicated audio OS thread (spawned above in `main`, before this task),
     // so this task's `block_on` busy-spin never starves it (see Appendix A of
     // the R0 design doc for why a single-threaded sim's shape is different).
-    #[cfg(feature = "efatfs_streaming")]
     match crate::efatfs_host_shim::mount().await {
         Ok(()) => log::info!("efatfs: mounted (host)"),
-        Err(()) => log::warn!("efatfs: host mount failed — streaming falls back to C FatFS"),
+        Err(()) => log::warn!("efatfs: host mount failed — streamed samples will not load"),
     }
 
     log::info!("deluge-bsp-rust: host deluge_app_init() (registers + spawns task runners)");
@@ -845,9 +819,7 @@ fn main() {
     // which C-FatFS's `f_mount`
     // tolerates (it just re-derives the free-cluster count) but
     // `embedded-fatfs`'s stricter mount validation rejects outright
-    // (`CorruptedFileSystem`) — so enabling `efatfs_streaming` on this path
-    // surfaced a pre-existing landmine that C-FatFS-only builds never
-    // triggered. Under `host_app`, the real app's own boot (FatFS/efatfs mount
+    // (`CorruptedFileSystem`). Under `host_app`, the real app's own boot (FatFS/efatfs mount
     // + whatever scenario runs) already exercises the same
     // `deluge_block_write`/`deluge_block_read` ABI end-to-end with real data,
     // making this synthetic smoke test both redundant and unsafe there.
@@ -1290,7 +1262,7 @@ fn main() {
             if result.resolved_ready {
                 log::info!(
                     "deluge-bsp-rust: HOST APP recorder probe FINDING — a still-recording \
-                     sample's data DID resolve READY on this target (async_streaming_loader on)."
+                     sample's data DID resolve READY on this target."
                 );
             } else {
                 log::warn!(
@@ -1560,7 +1532,6 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
             .spawn(move || {
                 let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
                 executor.run(|spawner: Spawner| {
-                    #[cfg(feature = "async_streaming_loader")]
                     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
                     spawner.spawn(audio_loader::audio_load_task().unwrap());
                     spawner.spawn(file_prefix::file_prefix_task().unwrap());

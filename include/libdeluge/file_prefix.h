@@ -165,12 +165,6 @@ uint8_t deluge_file_prefix_collect(const char* file_path, uint8_t* out_buf, uint
  * generation to say so. Deliberately not a doc comment -- it documents an absence, and would
  * otherwise attach itself to the declaration below. */
 
-/// @brief Whether the Rust async prefix channel backs this header on this BSP/config.
-/// @return true if a request will actually be read; false if every caller must read the file
-///         itself, synchronously. When this is false, @ref deluge_file_prefix_request does nothing
-///         and @ref deluge_file_prefix_collect always reports UNKNOWN.
-bool deluge_file_prefix_async_active(void) DELUGE_NOEXCEPT;
-
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every prefix read wait @p ms milliseconds after it is marked in flight.
 ///

@@ -928,16 +928,16 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 	//
 	// Every conjunct below keeps an existing caller's behaviour exactly as it is: only a caller that
 	// opted in, only for a Sample (the loader parses sample headers; a WaveTable's build reads the file
-	// again through the deserializer), only where the loader is actually backing loads, only when the
-	// caller allowed the card to be read at all (!mayReadCard means "in-memory lookup only", and a
-	// request is card I/O on another tier), and only while the card is usable (a disabled card must
-	// still report Error::SD_CARD from resolveFileSize, not sit in LOAD_IN_PROGRESS forever).
+	// again through the deserializer), only when the caller allowed the card to be read at all
+	// (!mayReadCard means "in-memory lookup only", and a request is card I/O on another tier), and only
+	// while the card is usable (a disabled card must still report Error::SD_CARD from resolveFileSize,
+	// not sit in LOAD_IN_PROGRESS forever).
 	// AsyncOnly adds one rule to all of that: a sample it may read is never read here. Whatever the loader cannot be
 	// asked for is answered as a failure rather than falling through to resolveFileSize.
 	const bool asyncOnlySample =
 	    asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly && mayReadCard && type == AudioFileType::SAMPLE;
 	if (asyncMode != deluge::storage::AsyncLoadMode::Blocking && mayReadCard && !cardDisabled
-	    && type == AudioFileType::SAMPLE && deluge_audio_load_async_active()) {
+	    && type == AudioFileType::SAMPLE) {
 		// A folder probe that is out is collected first, so the lookups that follow see its answer.
 		if (asyncOnlySample && !collectFolderProbe(context, error)) {
 			return nullptr;
@@ -952,7 +952,7 @@ AudioFile* AudioFileManager::getAudioFileFromFilenameUntraced(deluge::storage::A
 		}
 	}
 	else if (asyncOnlySample) {
-		// A disabled card, or no loader to ask.
+		// A disabled card.
 		*error = Error::SD_CARD;
 		return nullptr;
 	}

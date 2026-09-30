@@ -22,7 +22,7 @@
 #include "gui/views/instrument_clip_view.h"        // fileBrowserShouldNotPreview
 #include "gui/waveform/waveform_basic_navigator.h" // proof the preview actually DREW
 #include "io/file.hpp"                             // the card swap's unlink + rename
-#include "libdeluge/audio_load.h"                  // deluge_audio_load_async_active, _set_latency_ms
+#include "libdeluge/audio_load.h"                  // deluge_audio_load_set_latency_ms
 #include "model/sample/sample.h"
 #include "scenarios/load_invariants.h" // checkLoadInvariants -- shared with load_policy
 #include "storage/audio/audio_file_manager.h"
@@ -537,12 +537,10 @@ void printAgainstReference(const std::string& line, const std::string& reference
 }
 
 /// Print the per-run facts the reference has no counterpart for, and assert that the loads really went through the
-/// async loader: that it is active, and that every case answered LOAD_IN_PROGRESS at least once before settling,
-/// rather than being served synchronously (or from memory) with the loader never consulted.
+/// async loader: that every case answered LOAD_IN_PROGRESS at least once before settling, rather than being served
+/// synchronously (or from memory) with the loader never consulted.
 void printSummary() {
-	const bool active = deluge_audio_load_async_active();
-	printf("AB-SUMMARY asyncActive=%d cases=%zu deferrals=%d failures=%d\n", active ? 1 : 0, kCases.size(),
-	       g_deferralsTotal, g_failures);
+	printf("AB-SUMMARY cases=%zu deferrals=%d failures=%d\n", kCases.size(), g_deferralsTotal, g_failures);
 
 	printf("AB-DEFER");
 	for (size_t i = 0; i < kCases.size(); i++) {
@@ -550,16 +548,14 @@ void printSummary() {
 	}
 	printf("\n");
 
-	if (active) {
-		// EVERY case, not merely some case. See g_deferralsByCase's comment for the fall-through this
-		// catches and the run-wide total misses.
-		for (size_t i = 0; i < kCases.size(); i++) {
-			if (g_deferralsByCase[i] == 0) {
-				printf("FAIL [audioLoadAB]: the async backing is active but case '%s' never deferred -- it was "
-				       "answered on the synchronous path, so it is not under test at all\n",
-				       kCases[i].label);
-				g_failures++;
-			}
+	// EVERY case, not merely some case. See g_deferralsByCase's comment for the fall-through this
+	// catches and the run-wide total misses.
+	for (size_t i = 0; i < kCases.size(); i++) {
+		if (g_deferralsByCase[i] == 0) {
+			printf("FAIL [audioLoadAB]: case '%s' never deferred -- it was answered on the synchronous path, so it "
+			       "is not under test at all\n",
+			       kCases[i].label);
+			g_failures++;
 		}
 	}
 	// Absolute, not comparative: see g_selfdirAlternatePath. The reference and the async load both
@@ -589,12 +585,8 @@ void printSummary() {
 		       static_cast<int>(g_badRegStatusAfter));
 		g_failures++;
 	}
-	if (!active) {
-		printf("FAIL [audioLoadAB]: the async loader is not active, so no load in this run went through it\n");
-		g_failures++;
-	}
 	// Reprint with the summary's own failures folded in, so a reader of the last line sees the real
-	// count rather than the count as it stood before these two checks ran.
+	// count rather than the count as it stood before these checks ran.
 	printf("AB-RESULT failures=%d\n", g_failures);
 	fflush(stdout);
 }
@@ -719,8 +711,7 @@ void runOnePreviewTick() {
 ///
 /// Not compared against a reference: the synchronous path never defers, so its re-drive counts have nothing to say.
 void finishPreviewStage(bool drawn) {
-	printf("AB-PREVIEW asyncActive=%d drawn=%d ticks=%d redrives=%d pending=%d\n",
-	       deluge_audio_load_async_active() ? 1 : 0, drawn ? 1 : 0, g_previewTicks, g_previewRedrives,
+	printf("AB-PREVIEW drawn=%d ticks=%d redrives=%d pending=%d\n", drawn ? 1 : 0, g_previewTicks, g_previewRedrives,
 	       sampleBrowser.previewLoadPending() ? 1 : 0);
 
 	if (!drawn) {
@@ -804,8 +795,7 @@ void runOneCancelTick() {
 void finishCancelStage() {
 	const bool drawn = cancelledHasDrawn();
 	const bool loaded = cancelledWasLoaded();
-	printf("AB-CANCEL asyncActive=%d drawn=%d loaded=%d ticks=%d pending=%d\n",
-	       deluge_audio_load_async_active() ? 1 : 0, drawn ? 1 : 0, loaded ? 1 : 0, g_cancelTicks,
+	printf("AB-CANCEL drawn=%d loaded=%d ticks=%d pending=%d\n", drawn ? 1 : 0, loaded ? 1 : 0, g_cancelTicks,
 	       sampleBrowser.previewLoadPending() ? 1 : 0);
 
 	if (drawn) {
@@ -1155,9 +1145,8 @@ void runOneEjectTick() {
 
 /// Print the ejection stage's outcome and assert it.
 void finishEjectStage() {
-	const bool active = deluge_audio_load_async_active();
-	printf("AB-EJECT-SUMMARY asyncActive=%d swapped=%d requestDeferrals=%d collectDeferrals=%d\n", active ? 1 : 0,
-	       g_ejectSwapFailed ? 0 : 1, g_ejectRequestDeferrals, g_ejectCollectDeferrals);
+	printf("AB-EJECT-SUMMARY swapped=%d requestDeferrals=%d collectDeferrals=%d\n", g_ejectSwapFailed ? 0 : 1,
+	       g_ejectRequestDeferrals, g_ejectCollectDeferrals);
 
 	// Without this, the stage could "pass" having never created the hazard at all: a pre-eject ask
 	// that was answered synchronously (a permanent request decline falls through to the sync path)
@@ -1250,7 +1239,7 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	// what stdout is whenever this harness's output is piped or redirected, discards every line
 	// this scenario printed. Losing exactly the output the gate reads.
 	setvbuf(stdout, nullptr, _IOLBF, 0);
-	printf("AB-BEGIN asyncActive=%d cases=%zu\n", deluge_audio_load_async_active() ? 1 : 0, kCases.size());
+	printf("AB-BEGIN cases=%zu\n", kCases.size());
 }
 
 bool deluge_scenario_audio_load_ab_complete(void) {

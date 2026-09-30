@@ -239,11 +239,6 @@ bool deluge_file_write_request_write_file(const char* path, const uint8_t* src, 
 uint8_t deluge_file_write_collect_write_file(const char* path, uint32_t* out_written,
                                              uint8_t* out_exists) DELUGE_NOEXCEPT;
 
-/// @brief Whether the Rust driver is running and this channel may be used at all.
-///
-/// The whole of what a caller consults before choosing an arm.
-bool deluge_file_write_async_active(void) DELUGE_NOEXCEPT;
-
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every write-channel operation wait @p ms milliseconds before it touches the card.
 ///

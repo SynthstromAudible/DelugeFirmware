@@ -59,12 +59,9 @@ enum class ByteIo : uint8_t {
 ///
 /// @return true when the caller must request/collect; false when it must take its synchronous arm.
 ///
-/// Mirrors `Browser::usingDirectoryChannel()`: after boot, and only while the Rust channel is switched on. The boot
-/// term is what keeps the three boot reads in `deluge.cpp` working: the channel's task is not yet running then, and
-/// nothing is ticking to collect an answer -- the device would boot with defaults for every setting.
-///
-/// The selector is checked LAST because with the channel absent the weak collect answers UNKNOWN
-/// forever, so a caller that consulted it would defer every tick and never read anything.
+/// Mirrors `Browser::usingDirectoryChannel()`: true exactly when boot has finished. That is what keeps the three boot
+/// reads in `deluge.cpp` working: the channel's task is not yet running then, and nothing is ticking to collect an
+/// answer -- the device would boot with defaults for every setting.
 [[nodiscard]] bool usingByteChannel();
 
 /// @name Whole-file reads

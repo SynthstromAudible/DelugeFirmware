@@ -181,15 +181,6 @@ pub extern "C" fn deluge_log(text: *const core::ffi::c_char) {
     }
 }
 
-/// Reset the device. Does not return. On host there is no hardware reset
-/// vector, so this tears down the process the same way a watchdog reset would
-/// end the firmware's execution. [task]
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_system_reset() -> ! {
-    std::process::abort()
-}
-
 // ── clock.h ─────────────────────────────────────────────────────────────────
 
 /// Busy-wait `us` microseconds via the OSTM-backed embassy-time driver. [task]

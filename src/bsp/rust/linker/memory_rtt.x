@@ -13,7 +13,7 @@ MEMORY {
        stacks (which start at INTERNAL_RAM_END - 0x10000 = 0x202F0000). Placing it
        here — rather than mid-SRAM — lets the image + `__sram_heap` span grow all
        the way up to the RTT region instead of being capped ~192 KB lower, which is
-       what a large live feature (e.g. the `efatfs_streaming` embedded-fatfs mount)
+       what a large live component (e.g. the embedded-fatfs mount)
        needs to fit at debug opt-levels. RTT addresses are auto-discovered from the
        ELF's `_SEGGER_RTT` symbol (deluge_run.py / cortex-debug `address: auto`), so
        no tooling address is hard-coded to the value below.

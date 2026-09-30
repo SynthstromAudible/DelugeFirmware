@@ -153,10 +153,9 @@ pub fn begin(index: u32, geo: &FillGeometry) -> BeginResult {
 /// `start_converted`/`end_converted` are the boundary idempotency guards. Deliberately a SEPARATE
 /// type, not a re-export of [`crate::DelugeChunkConvertState`] (the live `StreamedChunk`
 /// convert-state store's own type): that type needs `crate::chunk::convert_state`/
-/// `set_convert_state`, so it only compiles on the device or under `host_app`
-/// (`async_streaming_loader`-gated in `streaming_loader.rs`), while this module
+/// `set_convert_state`, so it only compiles on the device or under `host_app`, while this module
 /// (and [`finish_convert_stitch`]) stays a plain, FFI-free buffer operation that compiles and tests
-/// on EVERY tier, including a bare host build with neither feature — the same reason [`FillGeometry`]
+/// on EVERY tier, including a bare host build without `host_app` — the same reason [`FillGeometry`]
 /// doesn't reuse `streaming_loader::FillContext` either. `streaming_loader::prod::ProdOps::finish`
 /// (the only real caller, gated to the tier where both types exist) converts between the two with a
 /// trivial field-for-field copy.

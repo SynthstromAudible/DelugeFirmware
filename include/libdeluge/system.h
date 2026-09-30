@@ -27,9 +27,6 @@
 extern "C" {
 #endif
 
-/// Reset the device. Does not return. [task]
-void deluge_system_reset(void) __attribute__((noreturn));
-
 /// Emit debug/log text to the board's debug channel (RTT/UART), with no implicit
 /// newline — the caller owns formatting. Best-effort, may be dropped. [task] [isr]
 void deluge_log(const char* text);

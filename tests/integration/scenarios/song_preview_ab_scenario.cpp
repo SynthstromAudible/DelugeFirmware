@@ -23,18 +23,18 @@
 #include "gui/ui/browser/dx_browser.h"                    // dxBrowser, driven by the DX stage
 #include "gui/ui/load/load_instrument_preset_ui.h"        // presetAcquisitionsRun(), the acquire stage's inert counter
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/save/save_song_ui.h"   // the real caller, driven end to end below
-#include "gui/ui/ui.h"                  // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
-#include "gui/views/arranger_view.h"    // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
-#include "gui/views/session_view.h"     // the `sessionView` global driving SessionView's three gestures
-#include "gui/views/view.h"             // the `view` global driving View's two acquisition gestures
-#include "hid/button.h"                 // the SYNTH/CV buttons the Grid output-type gesture is pressed with
-#include "hid/led/pad_leds.h"           // the image both backings render into
-#include "hid/matrix/matrix_driver.h"   // padStates, which the audition-pad completion asks about
-#include "io/file.hpp"                  // the card swap's unlink + rename
-#include "libdeluge/file_directory.h"   // deluge_file_directory_set_latency_ms
-#include "libdeluge/file_prefix.h"      // deluge_file_prefix_async_active
-#include "model/clip/instrument_clip.h" // the boot song's session clip, driven by the View gestures
+#include "gui/ui/save/save_song_ui.h" // the real caller, driven end to end below
+#include "gui/ui/ui.h"                // currentUIMode, UI_MODE_NONE -- View's gestures gate on it
+#include "gui/views/arranger_view.h"  // beginNewInstrumentAcquisition(), the acquire stage's REAL gesture entry point
+#include "gui/views/session_view.h"   // the `sessionView` global driving SessionView's three gestures
+#include "gui/views/view.h"           // the `view` global driving View's two acquisition gestures
+#include "hid/button.h"               // the SYNTH/CV buttons the Grid output-type gesture is pressed with
+#include "hid/led/pad_leds.h"         // the image both backings render into
+#include "hid/matrix/matrix_driver.h" // padStates, which the audition-pad completion asks about
+#include "io/file.hpp"                // the card swap's unlink + rename
+#include "libdeluge/file_directory.h" // deluge_file_directory_set_latency_ms
+#include "libdeluge/file_prefix.h"
+#include "model/clip/instrument_clip.h"                    // the boot song's session clip, driven by the View gestures
 #include "model/mod_controllable/mod_controllable_audio.h" // the cast writeToFile's backed-up-paramManager lookup needs
 #include "model/model_stack.h"                             // setupModelStackWithTimelineCounter
 #include "model/output.h"                                  // Output::name, read by the acquire stage
@@ -881,13 +881,11 @@ void runWindowTick() {
 		return;
 	}
 
-	const bool async = deluge_file_prefix_async_active();
 	const uint32_t crc = imageCrc();
 	// Its own tag rather than SP-CASE: the one song the browser must not draw as its reference does, so each
 	// half is held to its own absolute expectation instead.
-	printf("SP-WINDOW asyncActive=%d | outcome=%s | error=%d | crc=%08X | deferrals=%d\n", async ? 1 : 0,
-	       outcomeName(SongPreviewAbProbe::outcome()), static_cast<int>(SongPreviewAbProbe::error()), crc,
-	       g_caseDeferrals);
+	printf("SP-WINDOW outcome=%s | error=%d | crc=%08X | deferrals=%d\n", outcomeName(SongPreviewAbProbe::outcome()),
+	       static_cast<int>(SongPreviewAbProbe::error()), crc, g_caseDeferrals);
 	checkRendered(kWindowLabel, crc);
 
 	const Case expected{kWindowLabel, kWindowFilename,      SongPreviewOutcome::Truncated,
@@ -1064,9 +1062,7 @@ void runSwapEject(void*) {
 }
 
 void finishSwapStage() {
-	const bool async = deluge_file_prefix_async_active();
-	printf("SP-SWAP-SUMMARY asyncActive=%d swapped=%d collectDeferrals=%d\n", async ? 1 : 0, g_swapFailed ? 0 : 1,
-	       g_swapCollectDeferrals);
+	printf("SP-SWAP-SUMMARY swapped=%d collectDeferrals=%d\n", g_swapFailed ? 0 : 1, g_swapCollectDeferrals);
 	// The direct witness that the stale prefix was REFUSED rather than served, and the threshold is
 	// two rather than one for a reason that a run with the belt removed made plain:
 	//
@@ -3430,9 +3426,7 @@ void runPreviewStallTick() {
 }
 
 void printSummary() {
-	const bool async = deluge_file_prefix_async_active();
-	printf("SP-SUMMARY asyncActive=%d cases=%zu corpus=%zu failures=%d\n", async ? 1 : 0, kCases.size(), g_corpusRan,
-	       g_failures);
+	printf("SP-SUMMARY cases=%zu corpus=%zu failures=%d\n", kCases.size(), g_corpusRan, g_failures);
 
 	printf("SP-DEFER");
 	for (size_t i = 0; i < kCases.size(); i++) {
@@ -3536,7 +3530,7 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	// what stdout is whenever this harness's output is piped, discards every line this scenario
 	// printed. Losing exactly the output the gate diffs.
 	setvbuf(stdout, nullptr, _IOLBF, 0);
-	printf("SP-BEGIN asyncActive=%d cases=%zu\n", deluge_file_prefix_async_active() ? 1 : 0, kCases.size());
+	printf("SP-BEGIN cases=%zu\n", kCases.size());
 }
 
 bool deluge_scenario_song_preview_ab_complete(void) {

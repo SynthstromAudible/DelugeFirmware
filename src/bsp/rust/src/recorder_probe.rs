@@ -1,5 +1,5 @@
-//! `host_app` diagnostic: does reading a STILL-RECORDING sample back resolve on the target where
-//! `async_streaming_loader` is on by default?
+//! `host_app` diagnostic: does reading a STILL-RECORDING sample back resolve through the async
+//! streaming fill?
 //!
 //! Device/`host_app` route the fill onto the Rust async task (`streaming_loader.rs`), which reads
 //! via `efatfs_fs::read_at(handle=0, ...)` — and a recording's `efatfs_handle == 0`, so a

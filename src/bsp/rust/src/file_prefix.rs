@@ -51,11 +51,9 @@
 //!
 //! - Everywhere this module is: the slot logic ([`PrefixSlot`], [`publish_into`], [`take_from`]),
 //!   the driver ([`prefix_io_once`]), the statics, and the C ABI ([`deluge_file_prefix_request`],
-//!   [`deluge_file_prefix_collect`], [`deluge_file_prefix_async_active`]), which overrides
-//!   `file_prefix_abi.cpp`'s `__attribute__((weak))` fallbacks. Every other BSP never links this
-//!   crate, resolves those fallbacks, and reads files itself.
-//! - Where the storage executor runs (the device under `efatfs_streaming`, the host under
-//!   `host_app`): the task and its work buffer.
+//!   [`deluge_file_prefix_collect`]). They are the only definitions.
+//! - Where the storage executor runs (the device, and the host under `host_app`): the task and its
+//!   work buffer.
 //!
 //! The slots hold metadata only and live in on-chip SRAM. The two [`PREFIX_CAPACITY`] byte buffers
 //! -- the published prefix ([`RESULT_BYTES`]) and the read in progress ([`WORK_BYTES`]) -- are in
@@ -325,8 +323,8 @@ struct PrefixRequest {
     path: PrefixPath,
     /// Already clamped to [`PREFIX_CAPACITY`] by [`deluge_file_prefix_request`].
     ///
-    /// Read by `take_next_request`, which is compiled only where the task is (device under
-    /// `efatfs_streaming`, or host under `host_app`). A build that has the statics but no task --
+    /// Read by `take_next_request`, which is compiled only where the task is (device, or
+    /// host under `host_app`). A build that has the statics but no task --
     /// the host test binaries -- writes this field and never reads it, which is the honest shape
     /// rather than a defect.
     #[allow(dead_code)]
@@ -380,25 +378,16 @@ fn result_parts<'g>(
 
 /// The read in progress, before it is published. [`file_prefix_task`]'s alone -- see
 /// [`claim_work_bytes`]. Placed as [`RESULT_BYTES`] is.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut WORK_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
 
 /// Grants [`WORK_BYTES`] once.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 static WORK_CLAIM: super::file_bytes::ClaimOnce = super::file_bytes::ClaimOnce::new();
 
 /// The work buffer, to the first caller only. [`file_prefix_task`] claims it once, at start.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 fn claim_work_bytes() -> Option<&'static mut [u8; PREFIX_CAPACITY]> {
     if !WORK_CLAIM.claim() {
         return None;
@@ -428,14 +417,6 @@ pub(crate) fn flush_tables() {
     if let Ok(mut result) = RESULT.try_lock() {
         result.entry = None;
     }
-}
-
-/// Whether the Rust prefix channel backs `file_prefix.h` -- always, on this BSP. The symbol stays
-/// because a C++-only build links `file_prefix_abi.cpp`'s weak definition instead, which answers
-/// `false`.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_prefix_async_active() -> bool {
-    true
 }
 
 /// Milliseconds `file_prefix_task` waits after marking each read in flight. Host harness only; see
@@ -738,19 +719,13 @@ async fn read_prefix<O: LoadOps>(
 /// this channel was built for shows the user an error for one and blank artwork for the other. It
 /// could not, and the popups the synchronous backing shows would have gone missing the moment the
 /// channel was switched on.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 #[embassy_executor::task]
 pub async fn file_prefix_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_prefix_task_body()).await
 }
 
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn file_prefix_task_body() {
     PREFIX_WAKE.wait().await;
     let ops = super::audio_loader::ProdOps::new();
@@ -800,10 +775,7 @@ async fn file_prefix_task_body() {
 /// before any I/O, because that is what makes it mean "the card this read is reading". Reading it
 /// later — at publish time — reads the value a flush has already installed and defeats the check
 /// entirely.
-#[cfg(any(
-    all(target_os = "none", feature = "efatfs_streaming"),
-    feature = "host_app"
-))]
+#[cfg(any(target_os = "none", feature = "host_app"))]
 async fn take_next_request() -> Option<(PrefixRequest, u32)> {
     let mut request = REQUEST.lock().await;
     let request = request.take()?;

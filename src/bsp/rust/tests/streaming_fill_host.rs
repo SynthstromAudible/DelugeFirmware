@@ -9,12 +9,10 @@
 //!
 //! `deluge-bsp-rust` is bin-only (no `[lib]` target — see `Cargo.toml`), so this
 //! recompiles `src/streaming_loader.rs` unmodified into this test binary via
-//! `#[path]`. Only the
-//! `async_streaming_loader`-gated `fill_once`/`FillOps` orchestration is needed
-//! here — the `host_app`-gated `prod` submodule (the real `extern "C"` wiring)
-//! stays uncompiled, so this test never needs the real C++ app linked.
+//! `#[path]`. Only the `fill_once`/`FillOps` orchestration is needed here — the
+//! `host_app`-gated `prod` submodule (the real `extern "C"` wiring) stays
+//! uncompiled, so this test never needs the real C++ app linked.
 
-#![cfg(feature = "async_streaming_loader")]
 #![cfg(not(target_os = "none"))]
 
 use core::ffi::c_void;

@@ -558,7 +558,7 @@ fn efatfs_forward_seek_does_not_restart_chain_walk() {
 /// whole-file/interleave tests with the pattern the streaming engine
 /// actually issues.
 #[test]
-fn efatfs_streaming_pattern_matches_known_fat32() {
+fn efatfs_playback_pattern_matches_known_fat32() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let img = fat32();
     let _disk = RamDisk::load(&img);
@@ -602,7 +602,7 @@ fn efatfs_streaming_pattern_matches_known_fat32() {
 /// streaming check above can actually detect a divergence (per the project's
 /// real-execution mandate). If this ever passes-as-equal, the check is blind.
 #[test]
-fn efatfs_streaming_pattern_nonvacuous() {
+fn efatfs_playback_pattern_nonvacuous() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let img = fat32();
     let _disk = RamDisk::load(&img);
@@ -956,7 +956,7 @@ fn efatfs_core_readdir_matches_known_set_fat32() {
 // fs_differential only `#[path]`-includes `efatfs_core.rs` (see this file's module doc) and does
 // not link the `deluge-bsp-rust` binary crate the C-ABI `extern "C"` symbols live in, so the
 // C-ABI wiring itself is instead covered by `cargo build -p deluge-bsp-rust --features
-// host_app,efatfs_streaming` + `cargo test -p deluge-bsp-rust --target x86_64-unknown-linux-gnu`
+// host_app` + `cargo test -p deluge-bsp-rust --target x86_64-unknown-linux-gnu`
 // (the whole host suite, which builds and links those symbols). This test proves the primitive
 // underneath them: a recording-shaped sequential multi-cluster write through the no-flush write
 // path, then EVERY already-written cluster -- not just the most recently written one -- reading

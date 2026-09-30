@@ -1,7 +1,7 @@
 //! The reader's pure state: [`Reader`], a small frame-cursor over one sample's source residency.
 //! `open`/`seek` handle lifecycle, with ordinary `Drop` for close (see `abi.rs`). `open` resolves
-//! real geometry, and `window`/`advance` do the actual streaming reads — must-load-now acquire, a
-//! composed synchronous fill on a miss, and a self-pinning single held lease.
+//! real geometry, and `window`/`advance` do the actual streaming reads — a cache-hit acquire, a
+//! fill requested from the async drain on a miss, and a self-pinning single held lease.
 
 use core::ffi::c_void;
 
@@ -112,63 +112,15 @@ fn locate(frame: u64, geo: &Geometry) -> Option<(u32, u32, u32)> {
     Some((cluster_index, byte_offset, resident))
 }
 
-/// Run the synchronous cluster fill on `chunk_backing`: resolve where/how much to read
-/// (`native_begin`), read exactly that span in ONE call (a single `deluge_efatfs_read_at` over the
-/// whole `num_sectors*512`-byte span, not a sector-by-sector loop), then run the post-read
-/// convert/stitch/publish tail (`native_finish`). `deluge_sample_fill` provides the two
-/// primitives; this crate composes the glue between them. `deluge-bsp-rust`'s async fill task
-/// composes them the same way, just with an `.await`ed read in place of this synchronous one.
-///
-/// Returns `native_finish`'s own result — `false` on a geometry-resolution failure (`!d.ok`), a
-/// failed/short read, or a failed convert/stitch/publish; `true` once the chunk is converted,
-/// stitched, and published ready.
-fn fill_now(chunk_backing: *mut c_void) -> bool {
-    let d = deluge_sample_fill::native_begin(chunk_backing);
-    if !d.ok {
-        return false;
-    }
-    let count = d.num_sectors * 512;
-    let mut out_read: u32 = 0;
-    // SAFETY: `d.dest` is this chunk's just-allocated payload buffer (resolved by `native_begin`
-    // from the same registered geometry that sized this chunk's backing), valid for at least
-    // `count` bytes; `out_read` is a valid local out-param.
-    let read_ok = unsafe {
-        deluge_efatfs_read_at(
-            d.handle,
-            d.byte_offset,
-            d.dest as *mut c_void,
-            count,
-            &mut out_read,
-        )
-    };
-    deluge_sample_fill::native_finish(chunk_backing, read_ok)
-}
-
 unsafe extern "C" {
     /// The single process-wide resource-manager singleton (`include/libdeluge/streaming_fill.h`).
     /// Resolved once at `open()` time and cached — the same boot-singleton contract
     /// `deluge_sample_source::manager_residency::ManagerResidency::new` requires of its own handle.
     fn deluge_streaming_resource_manager() -> *mut c_void;
-    /// The synchronous card read (`include/libdeluge/streaming_fill.h`) — see [`fill_now`].
-    fn deluge_efatfs_read_at(
-        handle: u32,
-        byte_offset: u32,
-        dst: *mut c_void,
-        count: u32,
-        out_read: *mut u32,
-    ) -> bool;
-    /// Whether the Rust async streaming-fill task owns the loader queue on this build/BSP
-    /// (`include/libdeluge/streaming_fill.h`). Gates [`Reader::acquire_and_fill`]'s fill route: false
-    /// (the C-host `deluge_render` sim — resolves the `async_fill.cpp` weak `false`) keeps the
-    /// synchronous [`fill_now`] byte-for-byte; true (the Rust/Embassy BSP) routes through the async
-    /// drain via [`deluge_streaming_request_chunk`] below.
-    fn deluge_streaming_async_active() -> bool;
     /// Enqueue a reserved chunk's fill on the async drain and return at once
-    /// (`include/libdeluge/streaming_fill.h`) -- the async-BSP replacement for [`fill_now`]. The chunk is
-    /// enqueued under a queue-owned lease, so the fill survives this reader dropping its own; the
-    /// caller's next tick takes a cache hit. Real body in `streaming_loader.rs`; weak no-op fallback in
-    /// `async_fill.cpp` for non-async BSPs (never reached -- they report
-    /// `deluge_streaming_async_active() == false`).
+    /// (`include/libdeluge/streaming_fill.h`). The chunk is enqueued under a queue-owned lease, so the
+    /// fill survives this reader dropping its own; the caller's next tick takes a cache hit. Real body
+    /// in `streaming_loader.rs`.
     fn deluge_streaming_request_chunk(chunk_backing: *mut c_void);
 }
 
@@ -274,15 +226,14 @@ impl Reader {
         self.ok
     }
 
-    /// `deluge_resource_acquire`'s must-load-now shape, composed from the facade's own primitives
-    /// (the facade has no single blocking "acquire, materializing via a caller-supplied
-    /// synchronous fill" call, so `Manager::acquire`'s real C-ABI counterpart isn't reused instead):
-    /// a cache hit (`acquire_leased`) returns immediately;
-    /// a miss `request`s a fresh reservation (construct-only, mirroring the async prefetch path's
-    /// OWN asset registration) and then runs the fill SYNCHRONOUSLY in-line rather than handing it
-    /// to the async loader, so this call never returns until the cluster is genuinely resident —
-    /// matching `window()`'s "BLOCKS to make the data resident" contract. `None` on a reservation
-    /// failure or a failed fill (the reservation's lease is dropped either way, so nothing leaks).
+    /// Acquire cluster `cluster_index`, composed from the facade's own primitives: a cache hit
+    /// (`acquire_leased`) returns immediately; a miss `request`s a fresh reservation
+    /// (construct-only, mirroring the async prefetch path's OWN asset registration) and hands its
+    /// fill to the async drain. `Some` only once the chunk is
+    /// ready -- which a drain that answered before `deluge_streaming_request_chunk` returned makes
+    /// true at once; otherwise `None`, and the caller retries on its next tick, which takes a cache
+    /// hit. `None` also on a reservation failure (the reservation's lease is dropped either way, so
+    /// nothing leaks).
     ///
     /// # `DELUGE_READ_SCAN`'s hint
     /// The design calls for `DELUGE_READ_SCAN` to pass the manager a low-value/no-retain hint so a
@@ -291,9 +242,8 @@ impl Reader {
     /// `loader_enqueue`): none of them takes a per-acquire eviction-value or recency-bypass
     /// parameter today — eviction rank is purely a function of the ASSET's registered cost, size,
     /// and recency (`deluge_resource::value::evict_rank`), and `loader_enqueue`'s own `priority`
-    /// only orders the async fill queue, which this synchronous path never uses. So `hint` is
-    /// stored on `Reader` and forwarded through the public API, but has no manager lever to act
-    /// on yet — an honest, derived-not-invented gap, not silently dropped.
+    /// only orders the async fill queue. So `hint` is stored on `Reader` and forwarded through the
+    /// public API, but has no manager lever to act on yet — an honest, derived-not-invented gap, not silently dropped.
     fn acquire_and_fill(&self, cluster_index: u32) -> Option<Lease> {
         if self.manager.is_null() {
             // No manager yet (e.g. boot ordering) -- nothing to acquire through. Mirrors
@@ -312,26 +262,17 @@ impl Reader {
             self.geometry.cluster_size_bytes as usize,
         )?;
         let backing = lease.chunk().as_ptr() as *mut c_void;
-        // Fill route, gated on whether an async streaming-fill drain owns the loader queue:
-        // - false (the C-host `deluge_render` sim): the synchronous [`fill_now`] exactly as before —
-        //   a passthrough read with no async task, byte-for-byte the golden path.
-        // - true (the Rust/Embassy BSP): request the fill on the async drain
-        //   ([`deluge_streaming_request_chunk`]) and report not-ready: a synchronous `block_on` here
-        //   would deadlock a single-threaded executor against the drain it waits for. The caller (the
-        //   display-only background waveform overview pre-scan, or a pitch scan) retries on its next tick, which takes
-        //   a cache hit -- never affecting audio/stem output (overview data is display-only).
-        // SAFETY: `deluge_streaming_async_active`/`_request_chunk` are the streaming-fill C-ABI;
-        // `backing` is the just-`request`ed, still-leased chunk (its lease is held here).
-        let filled = if unsafe { deluge_streaming_async_active() } {
-            unsafe { deluge_streaming_request_chunk(backing) };
-            false
-        } else {
-            fill_now(backing)
-        };
-        if !filled {
-            return None; // `lease` drops here, releasing the unfilled reservation.
+        // Request the fill on the async drain and never wait for it: a synchronous `block_on` here
+        // would deadlock a single-threaded executor against the drain it waits for. The caller (the
+        // display-only background waveform overview pre-scan, or a pitch scan) retries on its next
+        // tick, which takes a cache hit -- never affecting audio/stem output (overview data is
+        // display-only).
+        // SAFETY: `deluge_streaming_request_chunk` is the streaming-fill C-ABI; `backing` is the
+        // just-`request`ed, still-leased chunk (its lease is held here).
+        unsafe { deluge_streaming_request_chunk(backing) };
+        if !resource.is_ready(lease.chunk()) {
+            return None; // `lease` drops here; the queue's own lease keeps the fill alive.
         }
-        resource.mark_ready(lease.chunk());
         Some(lease)
     }
 
@@ -413,13 +354,13 @@ impl Reader {
     /// introduces; the byte-identity differential (a later task) is the right place to prove this
     /// doesn't matter in practice for this reader's own (sequential) access pattern.
     ///
-    /// Otherwise: must-load-now acquires (and, on a miss, synchronously fills) the cluster via
+    /// Otherwise: acquires (and, on a miss, requests the fill of) the cluster via
     /// [`Self::acquire_and_fill`], replacing any prior held lease (ONE held pin — the self-pin
     /// invariant), and returns a pointer into it plus how many WHOLE (possibly straddling) frames
     /// are valid in the reader's own `direction` from here.
     ///
-    /// An acquire/fill failure for THIS cluster sets `ok = false` and returns `{null, 0}` — distinct
-    /// from the EOF case above (which leaves `ok` alone).
+    /// An acquire/fill failure for THIS cluster, or a fill still in flight, sets `ok = false` and
+    /// returns `{null, 0}` — distinct from the EOF case above (which leaves `ok` alone).
     pub fn window(&mut self) -> (*const u8, u32) {
         // Each window() is judged fresh: a prior transient failure (card error / OOM) must not latch
         // the reader dead. Every existing failure path below re-sets `ok = false` for THIS attempt,
@@ -1036,7 +977,7 @@ mod tests {
         // 512, not a smaller power of two: `fill_logic::begin`'s sector math is
         // `cluster_size >> 9` (512-byte sectors, mirroring the real `deluge_efatfs_read_at`
         // granularity) — a cluster smaller than one sector would report `num_sectors == 0` and
-        // `fill_now` would never read anything. Real `Cluster::size` is always far larger (a real
+        // the fill would never read anything. Real `Cluster::size` is always far larger (a real
         // FAT cluster, KBs); 512 is the smallest size that keeps this synthetic sample honest.
         const CLUSTER_SIZE: u32 = 512;
         const CLUSTER_MAGNITUDE: u32 = 9; // 2^9 == 512

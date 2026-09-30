@@ -416,10 +416,6 @@ uint8_t deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* 
  * they share one card generation to say so. Deliberately not a doc comment -- it documents an
  * absence, and would otherwise attach itself to the declaration below. */
 
-/// @brief Whether the Rust async loader backs sample loads on this BSP/config.
-/// @return true if async loading is active; false if every load takes the synchronous path.
-bool deluge_audio_load_async_active(void) DELUGE_NOEXCEPT;
-
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every audio load wait @p ms milliseconds after it is marked in flight.
 ///

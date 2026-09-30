@@ -54,7 +54,7 @@ typedef enum DelugeStreamMode : uint8_t {
 	DELUGE_STREAM_WRITE_APPEND,     ///< open an existing file for writing at its current size; no truncation
 } DelugeStreamMode;
 
-/// The embedded-fatfs (Rust `efatfs_streaming`) persistent stream-write C-ABI --
+/// The embedded-fatfs persistent stream-write C-ABI --
 /// the whole of this boundary; `deluge::io::Stream` (stream.cpp) routes every
 /// recorder write through these. Implemented in `efatfs_fs.rs` (device) /
 /// `efatfs_host_shim.rs` (host), both composing the storage-generic

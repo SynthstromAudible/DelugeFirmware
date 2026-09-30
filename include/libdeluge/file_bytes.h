@@ -409,13 +409,6 @@ bool deluge_file_bytes_request_copy(const char* from, const char* to) DELUGE_NOE
 /// @param out_status Written **only** on @ref DELUGE_FILE_BYTES_FAILED.
 uint8_t deluge_file_bytes_collect_copy(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Whether the Rust async whole-file channel backs this header on this BSP/config.
-/// @return true if a request will actually be served; false if every caller must do its own file I/O,
-///         synchronously. When this is false, the request functions do nothing (and the two that
-///         return a bool return false) and every collect reports UNKNOWN -- so a caller that only
-///         polled would wait forever, and must take its synchronous arm instead.
-bool deluge_file_bytes_async_active(void) DELUGE_NOEXCEPT;
-
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every byte-channel operation wait @p ms milliseconds before it touches the card.
 ///

@@ -122,12 +122,6 @@ void deluge_file_directory_request(const char* dir_path, bool create_if_missing)
 uint8_t deluge_file_directory_collect(const char* dir_path, uint32_t* out_handle,
                                       DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Whether the Rust async directory channel backs this header on this BSP/config.
-/// @return true on the Rust BSP, always: the channel has no feature switch.
-/// @note Callers select on `deluge::boot::finished()` rather than on this. A finished boot means the Rust BSP and
-///       so a running driver; a C++-only build never finishes booting, and its callers open synchronously.
-bool deluge_file_directory_async_active(void) DELUGE_NOEXCEPT;
-
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every directory open wait @p ms milliseconds before it touches the card.
 ///

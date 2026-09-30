@@ -72,30 +72,18 @@ uint32_t deluge_sample_stream_asset_id(void* stream_backing);
 ///        + Cluster::size + trailing guard. Rust-owned (deluge_sample_fill).
 uint32_t deluge_streamed_chunk_payload_offset(void);
 
-/// @brief Whether the Rust async streaming-fill task (`streaming_fill_task`, cargo feature
-///        `async_streaming_loader`) owns the loader queue on this build/BSP.
-///
-/// A runtime getter rather than a compile-time `#define`: the C++ `deluge_app` is built once by
-/// CMake and linked into whichever BSP, so a Rust cargo feature can't reach a C++ preprocessor
-/// define. True only with the Rust BSP's `async_streaming_loader` feature enabled (the
-/// implementation lives in `streaming_loader.rs`). When true, the
-/// async task owns and drains the (streaming-only) loader queue itself; there is no C++-side pump
-/// anymore (the old `loader::pump()`/`request_pump()` were deleted with `loader.cpp`).
-/// @return true if the async task owns the loader queue on this build/BSP.
-bool deluge_streaming_async_active(void);
-
 /// @brief Wake the async streaming-fill task out of its idle wait.
 ///
+/// The async task (`streaming_fill_task`, `streaming_loader.rs`) owns and drains the loader queue.
 /// Called unconditionally at every streaming CLUSTER_ENQUEUE site (`sample_stream.cpp`), after
-/// `deluge_resource_loader_enqueue()`. Harmless when the async backing isn't active: with the
-/// feature off it signals a `Signal` nobody awaits.
+/// `deluge_resource_loader_enqueue()`. Harmless before the task first waits: the wake latches.
 void deluge_streaming_signal_fill(void);
 
 /// @brief Enqueue a chunk for filling, and return immediately.
 ///
 /// A caller that cannot block -- because its predicate needs another task to be polled, and it is itself
 /// inside the executor's poll -- requests the fill and returns to its own loop. The range reader's
-/// async-BSP fill route (deluge_sample_reader's `reader.rs`) is one such caller.
+/// fill route (deluge_sample_reader's `reader.rs`) is one such caller.
 /// The chunk is enqueued under a queue-owned lease, so the fill survives the requester walking away.
 /// @param chunk_backing The resident StreamedChunk to fill. NULL is ignored.
 void deluge_streaming_request_chunk(void* chunk_backing);
@@ -113,8 +101,8 @@ bool deluge_streaming_queue_drained(void);
 /// @brief Open a sample file for streaming reads through embedded-fatfs, writing its handle out.
 ///
 /// The sync→async bridge for the streaming READ path: C++ calls this synchronously at sample-load,
-/// and the Rust implementation (`efatfs_fs.rs`, cargo feature `efatfs_streaming`) bridges to the
-/// async handle table by blocking on the async open.
+/// and the Rust implementation (`efatfs_fs.rs`) bridges to the async handle table by blocking on the
+/// async open.
 /// @param path           NUL-terminated absolute file path.
 /// @param out_handle     Receives the opaque handle on success; untouched on failure.
 /// @param out_table_full Always written (on both success and failure): true iff the open failed
@@ -134,10 +122,10 @@ void deluge_efatfs_close(uint32_t handle);
 
 /// @brief Synchronously read @p count bytes at absolute @p byte_offset of the file behind @p handle.
 ///
-/// The sync-path counterpart of the async `ProdOps::read` efatfs branch: the range reader's
+/// The sync-path counterpart of the async `ProdOps::read` efatfs branch: the sample reservation's
 /// synchronous `fill_now` (`deluge_sample_reader`) reads through this. The Rust implementation
-/// (`efatfs_fs.rs` / `efatfs_host_shim.rs`, cargo feature `efatfs_streaming`) bridges to the async
-/// handle table by blocking on the async read.
+/// (`efatfs_fs.rs` / `efatfs_host_shim.rs`) bridges to the async handle table by blocking on the
+/// async read.
 /// @param handle     A handle previously returned by deluge_efatfs_open.
 /// @param byte_offset Absolute byte offset within the file to read from.
 /// @param dst        Destination buffer; exactly @p count bytes are written on success.
@@ -171,9 +159,7 @@ typedef struct DelugeStreamingFillContext {
 ///
 /// Called unconditionally from `SampleStream::ensure_resource_asset()` once the asset is defined
 /// (and again from `open_read_stream()` if the efatfs handle becomes known afterwards) —
-/// see `sample_stream.cpp`. Always compiled in the Rust BSP, regardless of the
-/// `async_streaming_loader` cargo feature (asset definition happens on every build, not just the
-/// ones with the native fill task built in).
+/// see `sample_stream.cpp`.
 /// @param mgr   The resource manager instance (see deluge_streaming_resource_manager). Unused by the
 ///              Rust implementation today (there is exactly one process-wide manager); kept in the
 ///              signature for parity with the rest of the manager-scoped C ABI.
