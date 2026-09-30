@@ -1,5 +1,4 @@
-//! The functions bindgen binds besides the `deluge_*` ones. Shared by `build.rs` and
-//! `harness/golden_vt_render/build.rs`, so both `sys` modules declare the same set.
+//! The functions bindgen binds besides the `deluge_*` ones.
 
 /// The functions `libdeluge/scheduler.h` declares, which do not share the `deluge_` prefix
 /// (`scripts/check_abi_surface.py` lists the same set). bindgen matches the allowlist against the

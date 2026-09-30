@@ -11,7 +11,7 @@
 //! different, live stream on the new card; closing it would close that stream instead.
 
 /// Same bound as every other channel's path: `DELUGE_PATH_MAX` less the NUL.
-pub const MAX_PATH_CHARS: usize = deluge_channel::DELUGE_PATH_MAX - 1;
+pub const MAX_PATH_CHARS: usize = super::channel::DELUGE_PATH_MAX - 1;
 pub type WritePath = heapless::String<MAX_PATH_CHARS>;
 
 /// The stream table's size. No more handles than this can be open, so no more can be orphaned.
@@ -82,7 +82,7 @@ pub struct StreamAnswer {
     result: Result<u32, u32>,
 }
 
-impl deluge_channel::Answer for StreamAnswer {
+impl super::channel::Answer for StreamAnswer {
     fn orphan(&self) -> Option<u32> {
         match (self.kind, self.result) {
             (OpKind::Open, Ok(handle)) => Some(handle),
@@ -92,16 +92,16 @@ impl deluge_channel::Answer for StreamAnswer {
 }
 
 pub struct AnswerSlot {
-    inner: deluge_channel::AnswerSlot<OpKey, StreamAnswer>,
+    inner: super::channel::AnswerSlot<OpKey, StreamAnswer>,
     /// Orphans this slot has retired, each stamped with the card generation its `Open` was answered under. See
-    /// `deluge_channel::Orphan`.
-    orphans: heapless::Vec<deluge_channel::Orphan, MAX_ORPHANS>,
+    /// `super::channel::Orphan`.
+    orphans: heapless::Vec<super::channel::Orphan, MAX_ORPHANS>,
 }
 
 impl AnswerSlot {
     pub const fn new() -> Self {
         Self {
-            inner: deluge_channel::AnswerSlot::new(),
+            inner: super::channel::AnswerSlot::new(),
             orphans: heapless::Vec::new(),
         }
     }
@@ -126,13 +126,13 @@ impl AnswerSlot {
     /// this key stamped for another card is removed and orphaned if it was a live `Open`.
     pub fn take(&mut self, key: &OpKey, generation: u32) -> Take {
         match self.inner.take(key, generation) {
-            deluge_channel::Take::Ready(StreamAnswer {
+            super::channel::Take::Ready(StreamAnswer {
                 result: Ok(value), ..
             }) => Take::Ready(value),
-            deluge_channel::Take::Ready(StreamAnswer {
+            super::channel::Take::Ready(StreamAnswer {
                 result: Err(error), ..
             }) => Take::Failed(error),
-            deluge_channel::Take::Absent { orphan } => {
+            super::channel::Take::Absent { orphan } => {
                 if let Some(orphan) = orphan {
                     self.push_orphan(orphan);
                 }
@@ -174,7 +174,7 @@ impl AnswerSlot {
         !self.orphans.is_empty()
     }
 
-    fn push_orphan(&mut self, orphan: deluge_channel::Orphan) {
+    fn push_orphan(&mut self, orphan: super::channel::Orphan) {
         let kept = self.orphans.push(orphan);
         debug_assert!(
             kept.is_ok(),

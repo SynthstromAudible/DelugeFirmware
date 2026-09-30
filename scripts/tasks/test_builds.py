@@ -179,7 +179,7 @@ def products(root: Path) -> dict[str, Product]:
         "golden-vt-render-arm": GoldenVtRenderArm(
             "golden-vt-render-arm",
             ["host-app-arm"],
-            ["cargo", "deluge-sdk-sibling", "qemu-arm"],
+            ["cargo", "qemu-arm"],
             {
                 "GOLDEN_VT_RENDER_TARGET": ARM_TARGET,
                 "GOLDEN_VT_RENDER_WRAPPER": "qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9",
@@ -188,7 +188,7 @@ def products(root: Path) -> dict[str, Product]:
         "golden-vt-render": GoldenVtRender(
             "golden-vt-render",
             ["host-app"],
-            ["cargo", "deluge-sdk-sibling"],
+            ["cargo"],
             host_app_env,
         ),
     }

@@ -64,16 +64,16 @@ asan = ["deluge_alloc/asan"]
 # code. `sim/CMakeLists.txt` passes `--features deluge_rust/sim` unconditionally for the sim
 # build; off by default, so a plain `cargo build -p deluge_rust` is unaffected, and neither is
 # device/host_app (they link `deluge_sample_source` directly, not through this umbrella).
-sim = [
+sample_abi = [
     "dep:deluge_sample_source",
-    "deluge_sample_source/sim",
+    "deluge_sample_source/c_abi",
     "dep:deluge_sample_fill",
     "deluge_sample_fill/native_fill",
-    "deluge_sample_fill/sim_convert",
+    "deluge_sample_fill/app_convert",
     "dep:critical-section",
     "critical-section/std",
     "dep:deluge_sample_reader",
-    "deluge_sample_reader/sim",
+    "deluge_sample_reader/c_abi",
     "dep:deluge_sample_stream",
-    "deluge_sample_stream/sim",
+    "deluge_sample_stream/c_abi",
 ]

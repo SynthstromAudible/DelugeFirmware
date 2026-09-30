@@ -33,8 +33,8 @@ use audio_loader::{
     deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
 };
 use card::deluge_card_flush;
-use deluge_card_generation::current as current_generation;
-use deluge_channel::{
+use deluge_bsp_rust::card::generation as current_generation;
+use deluge_bsp_rust::channel::{
     DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
 };
 

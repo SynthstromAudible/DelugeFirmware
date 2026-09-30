@@ -42,16 +42,5 @@ embassy-sync = "0.8.0"
 critical-section = { version = "1", features = ["std"] }
 
 [features]
-# Mirrors `deluge_sample_source`'s own `host_app` selector (see its Cargo.toml) — lets `abi.rs`'s
-# `cfg_attr(any(target_os = "none", feature = "host_app"), unsafe(no_mangle))` gate tell "device, or
-# host standing in for it via the host-built C++ app closure" apart from a plain `cargo test`/
-# `cargo build` on this crate alone, which must NOT export these symbols (dead weight with nothing
-# to link against).
-host_app = []
-# The C-host sim's sibling of `host_app` above. The sim links this crate through the `deluge_rust`
-# umbrella (its `sim` feature forwards here), so it needs a distinct selector that drives the same
-# `abi.rs` cfg_attr gate (widened to `any(target_os = "none", feature = "host_app", feature =
-# "sim")`). Dependency-free, exactly like `host_app`: the registry's backing (efatfs +
-# resource-manager externs) is supplied by the umbrella's own `sim` feature via cargo feature
-# unification, and this crate adds no second compile of anything.
-sim = []
+## Export the C ABI (`#[no_mangle]`) on a host build. The device build always exports it.
+c_abi = []

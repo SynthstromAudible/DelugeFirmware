@@ -535,7 +535,7 @@ mod live_pipeline {
         mark_in_flight, publish_result,
     };
     use super::{block_on, card};
-    use deluge_channel::{
+    use deluge_bsp_rust::channel::{
         DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
     };
     use std::ffi::CString;
@@ -598,7 +598,7 @@ mod live_pipeline {
         block_on(publish_result(
             path,
             Some(bytes),
-            deluge_card_generation::current(),
+            deluge_bsp_rust::card::generation(),
         ));
     }
 
@@ -607,7 +607,7 @@ mod live_pipeline {
         block_on(publish_result(
             path,
             None,
-            deluge_card_generation::current(),
+            deluge_bsp_rust::card::generation(),
         ));
     }
 
@@ -766,7 +766,7 @@ mod live_pipeline {
     #[test]
     fn a_read_in_flight_across_an_ejection_publishes_uncollectably() {
         let _guard = reset();
-        let began_under = deluge_card_generation::current();
+        let began_under = deluge_bsp_rust::card::generation();
         card::deluge_card_flush(); // the card goes while the read is running
         block_on(publish_result(
             "SONGS/INFLIGHT.XML",

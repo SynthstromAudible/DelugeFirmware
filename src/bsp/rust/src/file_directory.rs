@@ -38,13 +38,13 @@
 //!
 //! Every entry is stamped with the card generation the open BEGAN under, and the stamp is compared
 //! at the TAKE -- never only at publish. `deluge_card_flush`'s clear is `try_lock`ed and may not
-//! land at all; the take is the guarantee. See `crates/deluge_card_generation`.
+//! land at all; the take is the guarantee. See [`super::card`].
 
 use core::ffi::{CStr, c_char};
 
 use super::abi_handle::{DelugeHandle, to_abi};
 
-use deluge_channel::{
+use super::channel::{
     DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
     DELUGE_PATH_MAX, DelugeChannelStatus,
 };
@@ -100,13 +100,13 @@ impl DirOutcome {
     }
 }
 
-impl deluge_channel::Answer for DirOutcome {
+impl super::channel::Answer for DirOutcome {
     fn orphan(&self) -> Option<u32> {
         self.handle()
     }
 }
 
-/// What [`take_from`] found for the path it was asked about. See `deluge_channel::Take` for the
+/// What [`take_from`] found for the path it was asked about. See `super::channel::Take` for the
 /// key/generation rule this mirrors.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DirTake {
@@ -121,7 +121,7 @@ pub enum DirTake {
     },
 }
 
-/// The one answer this channel holds, if it holds one. See `deluge_channel::AnswerSlot` for the
+/// The one answer this channel holds, if it holds one. See `super::channel::AnswerSlot` for the
 /// slot rules; this type just names the key and value the browser's directory channel uses.
 ///
 /// Passed to [`publish_into`]/[`take_from`]/[`drain`] by reference rather than reached for as a
@@ -132,13 +132,13 @@ pub enum DirTake {
 /// means something else (one row of the handle table). Two types with one name, one holding the
 /// other's handles, would be a needless trap.
 pub struct DirectorySlot {
-    inner: deluge_channel::AnswerSlot<DirPath, DirOutcome>,
+    inner: super::channel::AnswerSlot<DirPath, DirOutcome>,
 }
 
 impl DirectorySlot {
     pub const fn new() -> Self {
         Self {
-            inner: deluge_channel::AnswerSlot::new(),
+            inner: super::channel::AnswerSlot::new(),
         }
     }
     pub fn is_empty(&self) -> bool {
@@ -182,12 +182,12 @@ pub fn publish_into(
 }
 
 /// Take `path`'s outcome if the slot holds one stamped `generation`. See
-/// `deluge_channel::AnswerSlot::take` for the rule; `orphan` here is that take's `Orphan` handle
+/// `super::channel::AnswerSlot::take` for the rule; `orphan` here is that take's `Orphan` handle
 /// alone, since this channel has no other use for the generation it carried.
 pub fn take_from(slot: &mut DirectorySlot, path: &str, generation: u32) -> DirTake {
     match slot.inner.take(path, generation) {
-        deluge_channel::Take::Ready(outcome) => DirTake::Ready(outcome),
-        deluge_channel::Take::Absent { orphan } => DirTake::Absent {
+        super::channel::Take::Ready(outcome) => DirTake::Ready(outcome),
+        super::channel::Take::Absent { orphan } => DirTake::Absent {
             orphan: orphan.map(|orphan| orphan.handle),
         },
     }
@@ -444,7 +444,7 @@ fn probe(path: &str) -> Probe {
     // The card generation is read HERE, at the take, not sampled earlier: it is the collector's own
     // view of which card is in the slot right now, and deciding from it is what makes a handle's
     // fate independent of whether the flush that invalidated it managed to take this lock.
-    match take_from(&mut result, path, deluge_card_generation::current()) {
+    match take_from(&mut result, path, super::card::generation()) {
         DirTake::Ready(DirOutcome::Opened(handle)) => Probe::Ready(handle),
         DirTake::Ready(DirOutcome::Failed(status)) => Probe::Failed(status),
         DirTake::Absent { orphan } => {
@@ -632,7 +632,7 @@ async fn file_directory_task_body() {
 async fn take_next_request() -> Option<(DirRequest, u32)> {
     let mut request = REQUEST.lock().await;
     let request = request.take()?;
-    let generation = deluge_card_generation::current();
+    let generation = super::card::generation();
     mark_in_flight(Some(request.path.clone())).await;
     Some((request, generation))
 }
@@ -655,7 +655,7 @@ pub async fn mark_in_flight(path: Option<DirPath>) {
 ///
 /// # The early-drop check is an optimisation, not the guarantee
 ///
-/// There is no happens-before edge from `deluge_card_generation::bump`'s `fetch_add` to this `load`
+/// There is no happens-before edge from `deluge_card_flush`'s `fetch_add` to this `load`
 /// when this task wins the `RESULT` lock (the two synchronise only through the lock, in the other
 /// direction), so this check can legitimately read the pre-flush generation, pass, and publish. The
 /// entry it publishes still carries the pre-flush stamp, and [`take_from`] drops it. Do not rewrite
@@ -666,7 +666,7 @@ pub async fn mark_in_flight(path: Option<DirPath>) {
 #[cfg(any(target_os = "none", feature = "host_app"))]
 pub async fn publish_result<O: DirOps>(ops: &O, key: &str, outcome: DirOutcome, generation: u32) {
     let mut result = RESULT.lock().await;
-    if generation != deluge_card_generation::current() {
+    if generation != super::card::generation() {
         // The card this was opened on is gone. The handle names a snapshot of a directory that is
         // no longer in the slot, so close it here rather than publish it -- the collector would
         // refuse it at the take anyway, and this way the close happens on the task, which can

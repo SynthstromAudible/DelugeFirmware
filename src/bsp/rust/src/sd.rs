@@ -40,6 +40,7 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use deluge_bsp::sd;
+#[cfg(any(target_os = "none", not(feature = "sim_latency")))]
 use embassy_futures::block_on;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
@@ -96,8 +97,11 @@ pub(crate) const CARD_EJECTED: DelugeCardEvent = 2;
 // DSTATUS bits `status_bits()` composes internally (ChaN's FatFs `diskio.h`
 // convention; no longer vendored in this tree, but the numeric values are the
 // de-facto standard `deluge_block_ready` reports against).
+#[cfg(target_os = "none")]
 const STA_NOINIT: u8 = 0x01;
+#[cfg(target_os = "none")]
 const STA_NODISK: u8 = 0x02;
+#[cfg(target_os = "none")]
 const STA_PROTECT: u8 = 0x04;
 /// Bytes per sector — the transfer unit `deluge_block_read`/`deluge_block_write` size their buffers to.
 const SECTOR_SIZE: usize = 512;
@@ -442,7 +446,9 @@ pub(crate) mod stats {
     }
 
     /// Total SD block writes, any backend (the plain/`sim_latency` `deluge_block_write`, or efatfs's
-    /// `HostSdBlockDevice::write` via `locked_write_sectors`).
+    /// `HostSdBlockDevice::write` via `locked_write_sectors`). Only the host binary's streaming
+    /// scenario reads it.
+    #[cfg(all(feature = "host-runtime", not(feature = "sim")))]
     pub fn writes() -> u64 {
         WRITES.load(Ordering::Relaxed)
     }

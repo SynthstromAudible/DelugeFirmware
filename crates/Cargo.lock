@@ -69,14 +69,6 @@ name = "deluge_audio_format"
 version = "0.1.0"
 
 [[package]]
-name = "deluge_card_generation"
-version = "0.1.0"
-
-[[package]]
-name = "deluge_channel"
-version = "0.1.0"
-
-[[package]]
 name = "deluge_resource"
 version = "0.1.0"
 dependencies = [

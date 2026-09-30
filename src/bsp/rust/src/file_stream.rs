@@ -29,7 +29,7 @@
 
 use core::ffi::{CStr, c_char};
 
-use deluge_channel::{
+use super::channel::{
     DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
     DelugeChannelStatus,
 };
@@ -171,7 +171,7 @@ fn accept(op: StreamOp, path: &str) -> bool {
         op,
         key,
         path: stored,
-        generation: deluge_card_generation::current(),
+        generation: super::card::generation(),
     });
     WAKE.signal(());
     true
@@ -205,7 +205,7 @@ unsafe fn collect(kind: OpKind, handle: u32, path: &str, out: *mut u32, out_erro
     let Ok(mut result) = RESULT.try_lock() else {
         return DELUGE_CHANNEL_PENDING;
     };
-    let taken = result.take(&key, deluge_card_generation::current());
+    let taken = result.take(&key, super::card::generation());
     if result.has_orphans() {
         WAKE.signal(());
     }
@@ -529,10 +529,7 @@ pub async fn file_stream_task() {
 #[cfg(any(target_os = "none", feature = "host_app"))]
 async fn close_orphans() {
     loop {
-        let orphan = RESULT
-            .lock()
-            .await
-            .take_orphan(deluge_card_generation::current());
+        let orphan = RESULT.lock().await.take_orphan(super::card::generation());
         let Some(handle) = orphan else { break };
         backing::stream_close(handle).await;
     }
@@ -551,7 +548,7 @@ async fn file_stream_task_body() {
                     // A request from before the card changed that survived the flush (its `try_lock` lost the race)
                     // names the old card: running it would touch the new card. Its answer could never be collected, so
                     // none is published, and its buffer is never named as running.
-                    Some(q) if q.generation != deluge_card_generation::current() => Some(None),
+                    Some(q) if q.generation != super::card::generation() => Some(None),
                     Some(q) => {
                         RUNNING_BUFFER
                             .store(op_buffer(&q.op), core::sync::atomic::Ordering::Release);

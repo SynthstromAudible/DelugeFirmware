@@ -1,4 +1,4 @@
-use deluge_channel::{Answer, AnswerSlot, Orphan, Take};
+use deluge_bsp_rust::channel::{Answer, AnswerSlot, Orphan, Take};
 
 /// An answer that may carry a handle, as an open does.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

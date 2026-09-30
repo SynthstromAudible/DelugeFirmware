@@ -144,14 +144,14 @@ abi_const!(
     crate::audio_loader::DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED => DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED,
 );
 
-// The channels' shared vocabulary (channel.h), which every channel module takes from `deluge_channel`.
-abi_layout!(type deluge_channel::DelugeChannelStatus => sys DelugeChannelStatus);
+// The channels' shared vocabulary (channel.h), which every channel module takes from [`crate::channel`].
+abi_layout!(type super::channel::DelugeChannelStatus => sys DelugeChannelStatus);
 abi_const!(
-    deluge_channel::DELUGE_CHANNEL_PENDING => DELUGE_CHANNEL_PENDING,
-    deluge_channel::DELUGE_CHANNEL_READY => DELUGE_CHANNEL_READY,
-    deluge_channel::DELUGE_CHANNEL_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
-    deluge_channel::DELUGE_CHANNEL_FAILED => DELUGE_CHANNEL_FAILED,
-    deluge_channel::DELUGE_PATH_MAX => DELUGE_PATH_MAX,
+    super::channel::DELUGE_CHANNEL_PENDING => DELUGE_CHANNEL_PENDING,
+    super::channel::DELUGE_CHANNEL_READY => DELUGE_CHANNEL_READY,
+    super::channel::DELUGE_CHANNEL_UNKNOWN => DELUGE_CHANNEL_UNKNOWN,
+    super::channel::DELUGE_CHANNEL_FAILED => DELUGE_CHANNEL_FAILED,
+    super::channel::DELUGE_PATH_MAX => DELUGE_PATH_MAX,
 );
 
 // `DelugeTimestamp` (types.h) is not one of the crate-defined header types in `build_crate_types.rs`, so there is no

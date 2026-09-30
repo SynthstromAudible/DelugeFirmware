@@ -39,14 +39,10 @@
 //! [`boot_task`]'s `sd::init()` first would open the WRONG backing -- silently, not a crash. In `main`
 //! (single-threaded, before the executor exists at all) there is no such race.
 //!
-//! # Reused shared substrate
+//! # The BSP
 //!
-//! `#[path]`-includes the SAME source files `deluge-bsp-rust`'s own `host_app` build compiles (`boot.rs`,
-//! `scheduler.rs`, `sd.rs`, `board.rs`, `control.rs`, `display.rs`, `ffi.rs`, `ffi_extra.rs`, `flash.rs`,
-//! `services.rs`, `audio_host.rs`, `sd_image.rs`, `streaming_loader.rs`, `efatfs_core.rs`, `efatfs_host_shim.rs`) -- a
-//! second, independently configured COMPILATION of the same source (this package's own `mod sys`/Cargo features), not
-//! a fork: a change to any of these files is picked up by every package that path-includes it. Deliberately does NOT
-//! `#[path]`-include `scenario.rs`: its stepped scenarios live in the C++ scenario table instead.
+//! Everything but the executor, the clock and the scenario drivers is `deluge_bsp_rust`, built
+//! without its `host-runtime` feature so the executor and time driver here are the only ones.
 #![feature(impl_trait_in_assoc_type)]
 #![recursion_limit = "512"]
 
@@ -58,185 +54,14 @@ use embassy_executor::raw;
 use embassy_time::{Duration, Instant, Timer};
 use embassy_time_driver::Driver as _;
 
-/// `abi_pin!`/`abi_const!`/`abi_layout!`, the checking variants: this package's `sys` is always the bindgen output.
-#[macro_use]
-#[path = "../../../src/abi_pin_macros.rs"]
-mod abi_pin_macros;
-
 mod clock;
-#[path = "../../../src/memory_card.rs"]
-mod memory_card;
 
-// Link-only: the host-built C++ `deluge_app` object closure (build.rs) calls the
-// deluge_resource_* residency C ABI and the deluge_{alloc,slab_*,heap_*}
-// allocator C ABI. `extern crate` forces the rlib onto the link line so those
-// `#[no_mangle]` symbols resolve; nothing here references them from Rust.
-extern crate deluge_resource;
-// Link-only, same reasoning as `deluge_resource` above: the archived `deluge_app` object closure's
-// `audio_file_format.cpp` calls straight into this crate's `deluge_audio_header_*` `#[no_mangle]`
-// symbols, whose sole definition it is; nothing here references them from Rust.
-extern crate deluge_audio_format;
-// Link-only, same reasoning as `deluge_resource` above: `sample_source.cpp`/
-// `sample_reader_bridge.cpp` in the archived `deluge_app` object closure call
-// straight into these crates' `deluge_sample_reserve_*`/`deluge_sample_peek`/
-// `deluge_sample_read`/`deluge_sample_invalidate`/`deluge_sample_reader_*`
-// `#[no_mangle]` symbols; nothing here references them from Rust, so without
-// this `extern crate` rustc/lld would drop the whole rlib and the link would
-// fail with undefined symbols (mirrors `../src/main.rs`'s identical
-// `host_app`-gated declarations for both crates).
-extern crate deluge_sample_reader;
-extern crate deluge_sample_source;
-// Link-only, same reasoning as the pair above: `deluge_sample_stream`'s `abi.rs` (a later task)
-// will define the `deluge_sample_stream_*` C ABI. Nothing here references it from Rust yet (no
-// consumer — that is a later task), so without this `extern crate` rustc/lld would drop the whole
-// rlib; this just proves the symbols are present and compile clean.
-extern crate deluge_sample_stream;
-
-/// Real bindgen'd libdeluge C-ABI types (see `build.rs`).
-#[allow(
-    non_upper_case_globals,
-    non_camel_case_types,
-    non_snake_case,
-    dead_code
-)]
-mod sys {
-    include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
-}
-
-/// The header's own definitions of the types `sys` binds to an in-tree crate's types (see `build_crate_types.rs`).
-#[allow(
-    non_upper_case_globals,
-    non_camel_case_types,
-    non_snake_case,
-    dead_code
-)]
-mod sys_layout {
-    include!(concat!(env!("OUT_DIR"), "/libdeluge_layout.rs"));
-}
-
-/// The pins `../../../src/main.rs` compiles beside its modules, checked against this package's `sys` too.
-#[path = "../../../src/abi_pins.rs"]
-mod abi_pins;
-
-// Reuse deluge-bsp-rust's own source files verbatim via `#[path]` — the same
-// pattern `tests/*.rs` already use (see `HOST_HARNESS.md`).
-/// The ABI's handle rule: every module here that hands a table handle across the ABI converts through it.
-#[path = "../../../src/abi_handle.rs"]
-mod abi_handle;
-#[path = "../../../src/audio_host.rs"]
-mod audio_host;
-/// The async audio-file load task and its request/collect C ABI: the AWAITED file I/O of a
-/// card sample's load (open a candidate, size it, walk its header), publishing a result the
-/// C++ collector picks up on its own tier.
-///
-/// Compiled unconditionally: the loader has no switch, and the file-prefix channel below reuses its
-/// `LoadOps`/`ProdOps`.
-#[path = "../../../src/audio_loader.rs"]
-mod audio_loader;
-#[path = "../../../src/board.rs"]
-mod board;
-#[path = "../../../src/boot.rs"]
-mod boot;
-/// Capture stamps: where on the TX play timeline an input event happened. See its module doc.
-// `deluge_audio_stamp_to_render_offset` (the only caller of `stamp_at`/`render_offset`) lives in
-// `audio.rs`, which this host package doesn't compile; only `now_for` (via `host_link_stubs.rs`) is
-// exercised here.
-#[allow(dead_code)]
-#[path = "../../../src/capture_stamp.rs"]
-mod capture_stamp;
-/// `deluge_card_flush` — the ejection hook that bumps the shared card generation and then clears
-/// every loader's tables. Compiled unconditionally, like the loaders it clears.
-#[path = "../../../src/card.rs"]
-mod card;
-#[path = "../../../src/control.rs"]
-mod control;
-#[path = "../../../src/display.rs"]
-mod display;
-/// Storage-generic core of the efatfs read path — see `../../../src/main.rs`'s
-/// `mod efatfs_core` doc. Gated on `host_app` (always on for this package) to
-/// mirror that file's cfg exactly.
-#[cfg(feature = "host_app")]
-#[path = "../../../src/efatfs_core.rs"]
-mod efatfs_core;
-/// Host counterpart of the device `efatfs_fs.rs` — see `../../../src/main.rs`'s
-/// `mod efatfs_host_shim` doc.
-#[cfg(feature = "host_app")]
-#[path = "../../../src/efatfs_host_shim.rs"]
-mod efatfs_host_shim;
-#[path = "../../../src/ffi.rs"]
-mod ffi;
-#[path = "../../../src/ffi_extra.rs"]
-mod ffi_extra;
-/// The single-slot whole-file byte channel and its request/collect C ABI. Compiled UNCONDITIONALLY:
-/// the channel has no feature switch, and `deluge_card_flush` names it. There is no C++ fallback for
-/// its request/collect symbols, so a module missing from this list would leave them undefined and
-/// fail the link; `SC-CHANNEL served=0` is the runtime check that the channel is actually serving
-/// requests, not just linked.
-#[path = "../../../src/file_bytes.rs"]
-mod file_bytes;
-/// The single-slot directory channel and its request/collect C ABI. Compiled UNCONDITIONALLY, like `file_bytes`
-/// above: the channel has no feature switch, and there is no C++ fallback for
-/// its request/collect symbols -- a module missing from this list fails the link instead of
-/// silently answering every listing's request with UNKNOWN. `deluge_card_flush` names it too, so `card`
-/// cannot be compiled without it; the reverse does not hold, and a build without `card` has no caller
-/// for its `flush_tables`.
-#[path = "../../../src/file_directory.rs"]
-mod file_directory;
-/// The single-slot file-prefix channel and its request/collect C ABI. Compiled unconditionally: the
-/// channel has no switch, and `deluge_card_flush` names it, so `card.rs` does not compile without it.
-#[path = "../../../src/file_prefix.rs"]
-mod file_prefix;
-/// The recorder's async stream-write driver. Included here for the same reason every module above
-/// is: this binary is a separate package, and there is no C++ fallback for the stream channel's
-/// request/collect symbols, so a module missing from this list fails the link.
-#[path = "../../../src/file_stream.rs"]
-mod file_stream;
-/// The stream channel's answer slot, storage for `file_stream` above. Included here for the same reason every
-/// module in this list is: a module missing resolves `file_stream`'s `use super::file_stream_slot::...` against
-/// nothing, and this binary would fail to build rather than silently drop the channel.
-#[path = "../../../src/file_stream_slot.rs"]
-mod file_stream_slot;
-#[path = "../../../src/flash.rs"]
-mod flash;
-#[path = "../../../src/host_link_stubs.rs"]
-mod host_link_stubs;
-#[path = "../../../src/scheduler.rs"]
-mod scheduler;
-#[path = "../../../src/sd.rs"]
-mod sd;
-// Only `golden_fixture_tree` is used here: the card is a memory disk (memory_card.rs), not an mtools-packed file.
-#[allow(dead_code)]
-#[path = "../../../src/sd_image.rs"]
-mod sd_image;
-/// `sd_image`'s content-addressed image naming/reuse policy (same module the parent crate
-/// registers) — `sd_image.rs` reaches it as `crate::sd_image_path`, so every crate that
-/// `#[path]`-includes `sd_image.rs` must include this alongside it.
-#[path = "../../../src/sd_image_path.rs"]
-mod sd_image_path;
-#[path = "../../../src/services.rs"]
-mod services;
-/// The storage spin seam. Needed here because `efatfs_host_shim.rs` now drives every FS
-/// operation through `sim_block::block_on` unconditionally, matching the device bridge.
-///
-/// This package registers **no progress hook**, deliberately, and that is the right choice
-/// rather than an omission: it is single-threaded (one executor, one discrete-event driver
-/// loop), so no other thread exists to satisfy a `Pending`, and
-/// `sim_block::use_threaded_host_hook` would only disarm wedge detection. With no hook a
-/// `Pending` is reported as a wedge — which for this harness is the desired outcome, since a
-/// storage future that cannot complete here should fail the byte-identity gate loudly rather
-/// than silently. In practice nothing pends: this package does not enable `sim_latency`, so its
-/// host SD reads resolve synchronously (see `Cargo.toml`'s `[features]` note on why latency
-/// realism is deliberately off for a golden renderer).
-#[path = "../../../src/sim_block.rs"]
-mod sim_block;
-/// The async cluster-fill task + its wakeup C ABI.
-/// [`streaming_loader::streaming_fill_task`] is spawned below, in `main`.
-#[path = "../../../src/streaming_loader.rs"]
-mod streaming_loader;
-#[path = "../../../src/tier.rs"]
-mod tier;
-#[path = "../../../src/tier_meter.rs"]
-mod tier_meter;
+use deluge_bsp_rust::deluge_bsp;
+use deluge_bsp_rust::{
+    audio_host, audio_loader, board, boot, control, display, efatfs_host_shim, file_bytes,
+    file_directory, file_prefix, file_stream, memory_card, scheduler, sd, sd_image,
+    streaming_loader, sys, tier_meter,
+};
 
 // Host-only C-ABI bridge (tests/integration/scenarios/streaming_scenario.{h,cpp},
 // compiled into the host tree's `deluge_scenarios` objects, which build.rs archives
@@ -315,13 +140,13 @@ static BOOT_MOUNTED: AtomicBool = AtomicBool::new(false);
 #[embassy_executor::task]
 async fn boot_task() {
     deluge_bsp::pic::wait_ready().await;
-    crate::sd::boot_init().await;
+    sd::boot_init().await;
 
     // Mirrors `deluge-bsp-rust`'s `host_app_task` efatfs mount (see its comment). This mount
     // runs synchronously; with `sim_latency` off for this package its transfers are plain
     // synchronous reads, so there is no modeled delay to get stuck on.
     // A failed mount must NOT abort boot — see the device/host_app_task comments this mirrors.
-    match crate::efatfs_host_shim::mount().await {
+    match efatfs_host_shim::mount().await {
         Ok(()) => log::info!("golden_vt_render: efatfs mounted"),
         Err(status) => {
             log::warn!(

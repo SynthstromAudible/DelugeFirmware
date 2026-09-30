@@ -106,7 +106,7 @@ if (UNIX AND NOT APPLE)
         ${RUST_WS}/deluge_sample_source/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB_SIM}
-        COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET} --features sim
+        COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET} --features sample_abi
             --target-dir ${RUST_WS}/target-tests-sim
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES_SIM}

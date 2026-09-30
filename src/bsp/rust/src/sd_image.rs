@@ -1,5 +1,5 @@
 //! Builds a real FAT32-formatted SD card image (a song plus its samples) for the
-//! [`crate::scenario`] streaming-underrun harness to load, by reusing the golden-master
+//! streaming-underrun scenario (`runtime::host::scenario`) to load, by reusing the golden-master
 //! harness's own corpus/packing tooling rather than hand-rolling FAT image assembly.
 //!
 //! Two steps, both delegated to already-proven tooling:

@@ -1,5 +1,4 @@
-//! The header types the in-tree crates define in Rust. Shared by `build.rs` and
-//! `harness/golden_vt_render/build.rs`.
+//! The header types the in-tree crates define in Rust.
 //!
 //! bindgen does not generate these. `sys` re-exports each crate's own type under the header's name
 //! instead, so a crate's export and its generated declaration name the same Rust type and

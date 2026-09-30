@@ -13,7 +13,7 @@
 # `embedded-fatfs` with its `alloc` feature. Building only `core` from source
 # leaves `alloc` prebuilt against the *distributed* core, and the two `core`s
 # collide — "duplicate lang item in crate `core` (which `alloc` depends on)".
-device = "build --target armv7a-none-eabihf -Zbuild-std=core,alloc"
+device = "build --target armv7a-none-eabihf -Zbuild-std=core,alloc --no-default-features --features rtt"
 
 [target.armv7a-none-eabihf]
 # Drive the final link with the bundled arm-none-eabi-g++ so the C++ application
@@ -53,7 +53,7 @@ rustflags = [
 #
 # Build with:
 #   cargo build --release --target ./armv7a-deluge-eabihf.json \
-#     -Zbuild-std=core,alloc -Zjson-target-spec
+#     -Zbuild-std=core,alloc -Zjson-target-spec --no-default-features --features rtt
 # after building the C++ side into a clang Release tree, and with
 # DELUGE_BUILD_DIR / DELUGE_DEVICE_CXX / DELUGE_DEVICE_CXXFLAGS / DELUGE_DEVICE_AR
 # pointed at that tree (see the clang toolchain file).

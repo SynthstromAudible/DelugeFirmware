@@ -13,6 +13,7 @@ version = "0.1.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 publish = false
+build = "build/main.rs"
 
 [lib]
 name = "deluge_bsp_rust"
@@ -44,17 +45,7 @@ heapless = { version = "0.8", default-features = false }
 # correctly on all three.
 deluge_sample_convert = { path = "../../../crates/deluge_sample_convert" }
 
-# The one card generation, shared by every loader here that caches something read from the card
-# (`audio_loader`, and the file-prefix reader beside it). Unconditional, like the deps above: it is
-# a single `AtomicU32` with no dependencies of its own, and it must resolve on every tier this
-# crate builds -- device, `host_app`, AND a plain host `cargo test`, where `tests/*.rs`
-# `#[path]`-include the loader modules that read it. An `extern crate` path is what makes that last
-# case work at all; see the crate's own Cargo.toml for why it is not a module of this crate.
-deluge_card_generation = { path = "../../../crates/deluge_card_generation" }
 
-# The answer slot every single-flight storage channel keeps. `file_directory` and `file_prefix`
-# build their slots on it.
-deluge_channel = { path = "../../../crates/deluge_channel" }
 
 # C2a: the relocated cluster-fill core. `fill_logic` (Task 1) lands here; deluge-bsp-rust's
 # streaming_loader imports it instead of its own `mod fill_logic`. `native_fill` (Task 3) pulls in
@@ -171,8 +162,8 @@ critical-section = "1"
 # so the Embassy scheduler concurrency can be exercised off-hardware
 # (e.g. under ThreadSanitizer). No C++ app is linked on host (see build.rs).
 [target.'cfg(not(target_os = "none"))'.dependencies]
-embassy-executor = { version = "0.10.0", features = ["nightly", "platform-std", "executor-thread"] }
-embassy-time = { version = "0.5.1", features = ["std"] }
+embassy-executor = { version = "0.10.0", features = ["nightly"] }
+embassy-time = "0.5.1"
 critical-section = { version = "1", features = ["std"] }
 # Host `main`'s logger (device uses `log` over RTT instead; see the `rtt` feature).
 env_logger = "0.11"
@@ -223,7 +214,16 @@ embedded-io-async = { version = "0.7.0", optional = true }
 deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", optional = true }
 
 [features]
-default = ["rtt"]
+default = ["rtt", "host-runtime"]
+
+## The host binary's runtime: embassy's std executor and time driver. A harness with its own
+## executor and time driver (golden_vt_render) depends on this crate without it. The device
+## executor is exclusive with it, so device builds pass `--no-default-features --features rtt`.
+host-runtime = [
+    "embassy-executor/platform-std",
+    "embassy-executor/executor-thread",
+    "embassy-time/std",
+]
 
 ## RTT (SEGGER Real-Time Transfer) logging over a debug probe: selects the
 ## rza1l_rtt.x linker script (via build.rs) and registers the log logger.
@@ -236,11 +236,11 @@ rtt = ["dep:rtt-target", "rza1l-hal/rtt"]
 host_app = [
     "dep:deluge_resource",
     "dep:deluge_sample_source",
-    "deluge_sample_source/host_app",
+    "deluge_sample_source/c_abi",
     "dep:deluge_sample_reader",
-    "deluge_sample_reader/host_app",
+    "deluge_sample_reader/c_abi",
     "dep:deluge_sample_stream",
-    "deluge_sample_stream/host_app",
+    "deluge_sample_stream/c_abi",
     "dep:block-device-driver",
     "dep:block-device-adapters",
     "dep:aligned",

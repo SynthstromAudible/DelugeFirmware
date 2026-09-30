@@ -46,20 +46,5 @@ deluge_alloc = { path = "../deluge_alloc" }
 critical-section = { version = "1", features = ["std"] }
 
 [features]
-# Task 1 (SR-U1): mirrors `deluge_sample_source`'s own `host_app` selector (see its Cargo.toml) —
-# lets `abi.rs`'s `cfg_attr(any(target_os = "none", feature = "host_app"), unsafe(no_mangle))` gate
-# tell "device, or host standing in for it via the host-built C++ app closure" apart from a plain
-# `cargo test`/`cargo build` on this crate alone, which must NOT export these symbols (dead weight
-# with nothing to link against). No `sim` feature yet: U1 does not wire the C-host sim (that is a
-# later, separate rung — see the U1 Task 1 report) — a future sim-link task adds it the same way
-# `deluge_sample_source` did, not invented ahead of need here.
-host_app = []
-# SIM (U2 Task 0): the C-host sim's sibling of `host_app` above. The sim links this crate through the
-# `deluge_rust` umbrella (its `sim` feature forwards here), so it needs a distinct selector that drives
-# the same `abi.rs` cfg_attr gate (widened to `any(target_os = "none", feature = "host_app", feature =
-# "sim")`). Dependency-free, exactly like `host_app`: the reader's backing (`deluge_sample_fill`,
-# `deluge_sample_convert` shim, `critical-section/std`) is supplied by the umbrella's own `sim` feature
-# via cargo feature unification — this crate reaches convert only THROUGH `deluge_sample_fill`, adding
-# no second compile. There is NO weak C++ fallback for these symbols, so (unlike the cursor/fill) no
-# lever/deletion is needed — the first consumer's undefined reference pulls the archive member.
-sim = []
+## Export the C ABI (`#[no_mangle]`) on a host build. The device build always exports it.
+c_abi = []

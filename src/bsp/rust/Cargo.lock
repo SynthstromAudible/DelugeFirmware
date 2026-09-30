@@ -1287,8 +1287,6 @@ dependencies = [
  "deluge-simulator",
  "deluge_alloc",
  "deluge_audio_format",
- "deluge_card_generation",
- "deluge_channel",
  "deluge_resource",
  "deluge_sample_convert",
  "deluge_sample_fill",
@@ -1351,14 +1349,6 @@ version = "0.1.0"
 
 [[package]]
 name = "deluge_audio_format"
-version = "0.1.0"
-
-[[package]]
-name = "deluge_card_generation"
-version = "0.1.0"
-
-[[package]]
-name = "deluge_channel"
 version = "0.1.0"
 
 [[package]]

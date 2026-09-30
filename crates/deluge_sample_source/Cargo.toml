@@ -25,23 +25,7 @@ deluge_alloc = { path = "../deluge_alloc" }
 critical-section = { version = "1", features = ["std"] }
 
 [features]
-# SR2d-5 Task 4: mirrors `deluge-bsp-rust`'s own `host_app` feature (src/bsp/rust/Cargo.toml). Carries
-# no dependency of its own -- it exists purely so `abi.rs`'s `#[cfg_attr(any(target_os = "none",
-# feature = "host_app"), unsafe(no_mangle))]` selector can tell "device" and "host, but standing in for
-# the device via the host-built C++ app closure" apart from a plain `cargo test`/`cargo build` on this
-# crate alone, which must NOT export these symbols (they'd never be linked against anything and would
-# just be dead weight). `deluge-bsp-rust` forwards its own `host_app` feature down to this one (see its
-# Cargo.toml).
-host_app = []
-
-# SIM Task 1: the C-host sim's own sibling of `host_app` above. The sim links this crate through the
-# `deluge_rust` umbrella (crates/deluge_rust/Cargo.toml's own `sim` feature forwards to this one) rather
-# than standing in for a device build, so it needs a distinct selector -- but it drives the exact same
-# `abi.rs` cfg_attr gate (widened below to `any(target_os = "none", feature = "host_app", feature =
-# "sim")`), because the point of this feature is precisely to make the strong Rust cursor symbols
-# present for the sim link at all (SR2d-5) -- no weak C++ fallback exists, so without this feature the
-# sim has no cursor -- so golden can validate the Rust cursor runs identically to device/host_app.
-# Carries no dependency of its own, same shape as `host_app`.
-sim = []
+## Export the C ABI (`#[no_mangle]`) on a host build. The device build always exports it.
+c_abi = []
 
 [lib]

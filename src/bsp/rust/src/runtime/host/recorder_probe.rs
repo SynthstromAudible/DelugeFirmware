@@ -9,7 +9,7 @@
 //! finalized) through the SAME region-port entry point (`deluge_sample_region_acquire_ex`) real
 //! playback uses, on THIS target, and reports what actually comes back.
 //!
-//! Thread-agnostic like [`crate::scenario::run`]: only `.await`s [`embassy_time::Timer`], no thread
+//! Thread-agnostic like [`super::scenario::run`]: only `.await`s [`embassy_time::Timer`], no thread
 //! spawn, no `sim_latency` dependency. [`recorder_probe_task`] is the same not-reusable
 //! `host_app`-boot convenience wrapper `scenario::scenario_task` is (spawn on the host-app
 //! executor, poll [`take_result`] from the OS thread).
@@ -44,7 +44,7 @@ pub const STATE_LOADING: u8 = crate::sys::DelugeRegionState::Loading as u8;
 pub const STATE_UNAVAILABLE: u8 = crate::sys::DelugeRegionState::Unavailable as u8;
 
 /// Outcome of [`run`]. Plain data (not a `Result`/panic), same rationale as
-/// [`crate::scenario::ScenarioResult`]: an unresolved probe is itself the finding, not a harness
+/// [`super::scenario::ScenarioResult`]: an unresolved probe is itself the finding, not a harness
 /// failure, so the caller decides what to make of it.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct RecorderProbeResult {

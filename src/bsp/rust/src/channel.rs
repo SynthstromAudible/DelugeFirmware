@@ -7,7 +7,6 @@
 //!   has gone, and leaving it resident would let a later take find it.
 //! - An answer that carries a resource (an open handle) and leaves the slot uncollected is an orphan. Every
 //!   method that drops an answer returns its orphan, for the channel to release.
-#![no_std]
 
 /// What a poll found: `libdeluge/channel.h`'s `DelugeChannelStatus`, one of the `DELUGE_CHANNEL_*` values below. The
 /// BSP's `abi_pins.rs` pins each against the header.

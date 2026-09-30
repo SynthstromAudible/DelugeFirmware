@@ -3,12 +3,24 @@
 
 #[cfg(feature = "sim")]
 use crate::memory_card;
+
+// The harness modes of the threaded host app, each opted into by an environment variable.
+#[cfg(all(feature = "host_app", not(feature = "sim")))]
+mod recorder_finalize_probe;
+#[cfg(all(feature = "host_app", not(feature = "sim")))]
+mod recorder_probe;
+#[cfg(all(feature = "host_app", not(feature = "sim")))]
+mod scenario;
+#[cfg(all(feature = "host_app", not(feature = "sim")))]
+use crate::audio_host;
+#[cfg(not(any(feature = "sim_latency", feature = "host_app")))]
+use crate::sd;
 #[cfg(feature = "host_app")]
 use crate::{
-    audio_host, audio_loader, board, boot, file_bytes, file_directory, file_prefix, file_stream,
+    audio_loader, board, boot, file_bytes, file_directory, file_prefix, file_stream,
     streaming_loader, sys,
 };
-use crate::{control, display, sd};
+use crate::{control, display};
 
 /// `host_app` feature: host sibling of [`app_task`] above — the real C++ app's
 /// one-time bring-up, run on the host executor spawned by `fn main`'s
@@ -293,7 +305,7 @@ pub fn main() {
                 };
                 #[cfg(not(feature = "sim_latency"))]
                 let post_load_sim_latency = None;
-                crate::scenario::ScenarioConfig {
+                scenario::ScenarioConfig {
                     song_full_path: Box::leak(song.into_boxed_str()),
                     target_blocks,
                     step_timeout: embassy_time::Duration::from_secs(step_timeout_secs),
@@ -350,11 +362,11 @@ pub fn main() {
             // handler would (see scenario.rs's module doc: it never spawns a
             // thread itself).
             if let Some(cfg) = scenario_cfg {
-                spawner.spawn(crate::scenario::scenario_task(cfg).unwrap());
+                spawner.spawn(scenario::scenario_task(cfg).unwrap());
             }
             if recorder_probe_requested {
                 spawner.spawn(
-                    crate::recorder_probe::recorder_probe_task(
+                    recorder_probe::recorder_probe_task(
                         recorder_probe_step_timeout_ms,
                         recorder_probe_poll_window_ms,
                     )
@@ -363,7 +375,7 @@ pub fn main() {
             }
             if recorder_finalize_probe_requested {
                 spawner.spawn(
-                    crate::recorder_finalize_probe::recorder_finalize_probe_task(
+                    recorder_finalize_probe::recorder_finalize_probe_task(
                         recorder_finalize_probe_step_timeout_ms,
                         recorder_finalize_probe_poll_window_ms,
                     )
@@ -446,7 +458,7 @@ pub fn main() {
             let watchdog = Duration::from_millis(cfg.step_timeout.as_millis() * 8);
             let deadline = Instant::now() + watchdog;
             let result = loop {
-                if let Some(r) = crate::scenario::take_result() {
+                if let Some(r) = scenario::take_result() {
                     break r;
                 }
                 if Instant::now() >= deadline {
@@ -511,7 +523,7 @@ pub fn main() {
             );
             let deadline = Instant::now() + watchdog;
             let result = loop {
-                if let Some(r) = crate::recorder_probe::take_result() {
+                if let Some(r) = recorder_probe::take_result() {
                     break r;
                 }
                 if Instant::now() >= deadline {
@@ -533,9 +545,7 @@ pub fn main() {
                 result.poll_iterations,
                 result.resolved_ready,
             );
-            if !result.boot_ready
-                || result.initial_state == crate::recorder_probe::STATE_HARNESS_ERROR
-            {
+            if !result.boot_ready || result.initial_state == recorder_probe::STATE_HARNESS_ERROR {
                 log::error!(
                     "deluge-bsp-rust: HOST APP recorder probe HARNESS FAILURE (see fields above)"
                 );
@@ -571,7 +581,7 @@ pub fn main() {
             );
             let deadline = Instant::now() + watchdog;
             let result = loop {
-                if let Some(r) = crate::recorder_finalize_probe::take_result() {
+                if let Some(r) = recorder_finalize_probe::take_result() {
                     break r;
                 }
                 if Instant::now() >= deadline {
@@ -598,7 +608,7 @@ pub fn main() {
                 result.passed,
             );
             if !result.boot_ready
-                || result.initial_state == crate::recorder_finalize_probe::STATE_HARNESS_ERROR
+                || result.initial_state == recorder_finalize_probe::STATE_HARNESS_ERROR
             {
                 log::error!(
                     "deluge-bsp-rust: HOST APP recorder finalize probe HARNESS FAILURE (see fields above)"

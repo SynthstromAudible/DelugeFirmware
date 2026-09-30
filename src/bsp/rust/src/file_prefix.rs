@@ -33,7 +33,7 @@
 //! Identical hazard to the loader's, and closed the same way. The slot is keyed by the nominal
 //! path, so a prefix read from card A would be served for card B's file at the same path after a
 //! swap — artwork from the wrong song, drawn with no error. Each read is STAMPED with the card
-//! generation it began under ([`deluge_card_generation`], shared with every other loader), and
+//! generation it began under ([the card generation](super::card::generation), shared with every other loader), and
 //! [`take_from`] serves an entry only when its stamp equals the generation the taker is asking
 //! under, dropping it otherwise.
 //!
@@ -62,7 +62,7 @@
 
 use core::ffi::{CStr, c_char};
 
-use deluge_channel::{
+use super::channel::{
     DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
     DELUGE_PATH_MAX, DelugeChannelStatus,
 };
@@ -99,7 +99,7 @@ pub type PrefixPath = heapless::String<MAX_PATH_CHARS>;
 /// How many bytes of the store are the prefix, or `None` when the READ FAILED.
 ///
 /// The value [`PrefixSlot`] publishes: a prefix carries no handle, so unlike the directory
-/// channel's `DirOutcome` this never orphans anything and `deluge_channel::Answer::orphan`'s
+/// channel's `DirOutcome` this never orphans anything and `super::channel::Answer::orphan`'s
 /// default (always `None`) is exactly right.
 ///
 /// A failure is an entry rather than an absence for the same reason a successful read is: the
@@ -110,7 +110,7 @@ pub type PrefixPath = heapless::String<MAX_PATH_CHARS>;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct PrefixLen(pub Option<usize>);
 
-impl deluge_channel::Answer for PrefixLen {}
+impl super::channel::Answer for PrefixLen {}
 
 /// What [`take_from`] found in the slot for the path it was asked about.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -123,7 +123,7 @@ pub enum PrefixTake {
     Failed,
 }
 
-/// The one prefix this channel holds, if it holds one. See `deluge_channel::AnswerSlot` for the
+/// The one prefix this channel holds, if it holds one. See `super::channel::AnswerSlot` for the
 /// slot rules; this type just names the key and value the prefix channel uses.
 ///
 /// Passed to [`publish_into`]/[`take_from`] by reference rather than reached for as a static, so
@@ -134,7 +134,7 @@ pub enum PrefixTake {
 /// [`RESULT_BYTES`], in SDRAM -- because an 8 KiB array inside the `Mutex` would sit in on-chip
 /// SRAM, and an empty `Option` is not all-zero bytes, so the slot itself cannot go to `.sdram_bss`.
 pub struct PrefixSlot {
-    inner: deluge_channel::AnswerSlot<PrefixPath, PrefixLen>,
+    inner: super::channel::AnswerSlot<PrefixPath, PrefixLen>,
 }
 
 impl PrefixSlot {
@@ -142,7 +142,7 @@ impl PrefixSlot {
     /// the same thing everywhere else; this exists only because `Default::default` is not `const`.
     pub const fn new() -> Self {
         Self {
-            inner: deluge_channel::AnswerSlot::new(),
+            inner: super::channel::AnswerSlot::new(),
         }
     }
 
@@ -219,7 +219,7 @@ fn new_entry(slot: &mut PrefixSlot, key: &str, generation: u32, len: Option<usiz
 /// Take `path`'s entry if the slot holds one stamped `generation` AND `out` is big enough, copying its
 /// bytes out of `store` -- the store [`publish_into`] wrote them to.
 ///
-/// The key match and the generation stamp are `deluge_channel::AnswerSlot::take`'s rule: a
+/// The key match and the generation stamp are `super::channel::AnswerSlot::take`'s rule: a
 /// mismatched key is left alone, a stale stamp is removed and reported as absent. `None` reaches
 /// the collector as `UNKNOWN`, whose documented meaning is already "request it (again)".
 ///
@@ -251,12 +251,12 @@ pub fn take_from(
     out: &mut [u8],
 ) -> Option<PrefixTake> {
     let len = match slot.inner.take(path, generation) {
-        // Key mismatch or a stale stamp -- `deluge_channel::AnswerSlot::take` already removed a
+        // Key mismatch or a stale stamp -- `super::channel::AnswerSlot::take` already removed a
         // stale entry (and left a mismatched one alone); there is nothing left here to close.
-        deluge_channel::Take::Absent { .. } => return None,
+        super::channel::Take::Absent { .. } => return None,
         // A published failure. Removed like any other answer; `out` is untouched.
-        deluge_channel::Take::Ready(PrefixLen(None)) => return Some(PrefixTake::Failed),
-        deluge_channel::Take::Ready(PrefixLen(Some(len))) => len,
+        super::channel::Take::Ready(PrefixLen(None)) => return Some(PrefixTake::Failed),
+        super::channel::Take::Ready(PrefixLen(Some(len))) => len,
     };
     if out.len() < len {
         // Caller bug, and terminal: the entry is already consumed above, so this reports an empty
@@ -520,7 +520,7 @@ fn probe(path: &str, out: &mut [u8]) -> Probe {
     // fate independent of whether the flush that invalidated it managed to take this lock. See
     // [`take_from`].
     let (slot, store) = result_parts(&mut result);
-    match take_from(slot, store, path, deluge_card_generation::current(), out) {
+    match take_from(slot, store, path, super::card::generation(), out) {
         Some(PrefixTake::Bytes(len)) => Probe::Ready(len),
         Some(PrefixTake::Failed) => Probe::Failed,
         None => Probe::Unknown,
@@ -729,7 +729,7 @@ async fn file_prefix_task_body() {
 async fn take_next_request() -> Option<(PrefixRequest, u32)> {
     let mut request = REQUEST.lock().await;
     let request = request.take()?;
-    let generation = deluge_card_generation::current();
+    let generation = super::card::generation();
     mark_in_flight(Some(request.path.clone())).await;
     Some((request, generation))
 }
@@ -749,7 +749,7 @@ pub async fn mark_in_flight(path: Option<PrefixPath>) {
 ///
 /// # The early-drop check is an optimisation, not the guarantee
 ///
-/// There is no happens-before edge from `deluge_card_generation::bump`'s `fetch_add` to this `load`
+/// There is no happens-before edge from `deluge_card_flush`'s `fetch_add` to this `load`
 /// when this task wins the `RESULT` lock (the two synchronise only through the lock, in the other
 /// direction), so this check can legitimately read the pre-flush generation, pass, and publish. The
 /// entry it publishes still carries the pre-flush stamp, and [`take_from`] drops it. Do not rewrite
@@ -759,7 +759,7 @@ pub async fn mark_in_flight(path: Option<PrefixPath>) {
 /// ordered against a flush that DID take the lock.
 pub async fn publish_result(key: &str, bytes: Option<&[u8]>, generation: u32) {
     let mut result = RESULT.lock().await;
-    if generation != deluge_card_generation::current() {
+    if generation != super::card::generation() {
         // The card this was read from is gone. Dropping costs the I/O that produced it and nothing
         // else, and the collector reads the resulting `UNKNOWN` as "request it again" -- which it
         // then does, against the card that is actually in the slot.

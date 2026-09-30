@@ -53,6 +53,17 @@ BUILD_DIR = "build-gcc"
 CONFIG = "Debug"
 
 
+def device_feature_args(cargo_extra: list[str]) -> list[str]:
+    """The device build's features: `rtt`, without the host binary's default `host-runtime`.
+
+    A caller that passes `--no-default-features` itself is choosing the feature set, so `rtt` is left
+    to it.
+    """
+    if "--no-default-features" in cargo_extra:
+        return []
+    return ["--no-default-features", "--features", "rtt"]
+
+
 def sdk_config_args() -> list[str]:
     """`cargo --config local-sdk.toml` when the local deluge-sdk override exists.
 
@@ -147,8 +158,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return result
 
     # ── Step 2: archive the C++ objects + link the ARM Rust firmware ─────────
-    # rust-toolchain.toml selects the nightly toolchain + armv7a target; the rtt
-    # logging feature is on by default. Matches the `device` alias in
+    # rust-toolchain.toml selects the nightly toolchain + armv7a target. Matches the `device` alias in
     # src/bsp/rust/.cargo/config.toml.
     cargo_args = [
         "cargo",
@@ -159,6 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     ]
     if args.verbose:
         cargo_args += ["--verbose"]
+    cargo_args += device_feature_args(cargo_extra)
     cargo_args += cargo_extra
     cargo_args += sdk_config_args()
 

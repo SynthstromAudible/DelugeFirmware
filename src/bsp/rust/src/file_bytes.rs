@@ -71,7 +71,7 @@
 use core::ffi::{CStr, c_char};
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use deluge_channel::{
+use super::channel::{
     DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
     DELUGE_PATH_MAX, DelugeChannelStatus,
 };
@@ -330,18 +330,18 @@ impl PartialEq<(ByteOp, &str)> for ByteKey {
     }
 }
 
-/// No byte outcome carries a handle, so `deluge_channel::Answer`'s default `orphan` -- always `None`
+/// No byte outcome carries a handle, so `super::channel::Answer`'s default `orphan` -- always `None`
 /// -- is exactly right.
-impl deluge_channel::Answer for ByteOutcome {}
+impl super::channel::Answer for ByteOutcome {}
 
-/// The one answer this channel holds, if it holds one. See `deluge_channel::AnswerSlot` for the slot
+/// The one answer this channel holds, if it holds one. See `super::channel::AnswerSlot` for the slot
 /// rules this wraps; this type just names the key and value the byte channel uses.
 ///
 /// Passed to [`publish_into`]/[`take_from`]/[`drain`] by reference rather than reached for as a
 /// static, so the slot logic is compiled and unit-tested on every build -- including the ones where
 /// the live [`RESULT`] does not exist.
 pub struct BytesSlot {
-    inner: deluge_channel::AnswerSlot<ByteKey, ByteOutcome>,
+    inner: super::channel::AnswerSlot<ByteKey, ByteOutcome>,
     /// Requests the answer held has refused. See [`PROTECTED_ANSWER_REFUSALS`].
     refusals: u32,
 }
@@ -349,7 +349,7 @@ pub struct BytesSlot {
 impl BytesSlot {
     pub const fn new() -> Self {
         Self {
-            inner: deluge_channel::AnswerSlot::new(),
+            inner: super::channel::AnswerSlot::new(),
             refusals: 0,
         }
     }
@@ -475,8 +475,8 @@ pub enum ByteTake {
 /// belongs to may be about to collect it.
 pub fn take_from(slot: &mut BytesSlot, op: ByteOp, path: &str, generation: u32) -> ByteTake {
     match slot.inner.take(&(op, path), generation) {
-        deluge_channel::Take::Ready(outcome) => ByteTake::Ready(outcome),
-        deluge_channel::Take::Absent { .. } => ByteTake::Absent,
+        super::channel::Take::Ready(outcome) => ByteTake::Ready(outcome),
+        super::channel::Take::Absent { .. } => ByteTake::Absent,
     }
 }
 
@@ -1272,7 +1272,7 @@ fn enqueue_request(request: ByteRequest, payload: &[u8]) -> bool {
     if !accepts(queued, request.key().0) || !in_flight_idle() {
         return false;
     }
-    let generation = deluge_card_generation::current();
+    let generation = super::card::generation();
     // Held by an uncollected answer whose rerun would not be harmless, or contended: refused, and retried.
     let admitted = RESULT
         .try_lock()
@@ -1841,7 +1841,7 @@ fn probe_with<R>(
     // The card generation is read HERE, at the take, not sampled earlier: it is the collector's own
     // view of which card is in the slot right now, and deciding from it is what makes an answer's
     // fate independent of whether the flush that invalidated it managed to take this lock.
-    match take_from(&mut result, op, path, deluge_card_generation::current()) {
+    match take_from(&mut result, op, path, super::card::generation()) {
         // `ready` runs with the guard still held, so the bytes it reads are the ones published with
         // this entry: no publish can land between the take and the copy.
         ByteTake::Ready(outcome) => Probe::Ready(ready(outcome, result_bytes(&mut result))),
@@ -2398,8 +2398,7 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteReq
     } = slot.take()?;
     // A request from before the card changed that survived the flush (its `try_lock` lost the race): see
     // `admit_at_take`.
-    let Some(buffer) = admit_at_take(&request, asked_under, deluge_card_generation::current())
-    else {
+    let Some(buffer) = admit_at_take(&request, asked_under, super::card::generation()) else {
         return Some(None);
     };
     RUNNING_BUFFER.store(buffer, Ordering::Release);
@@ -2410,7 +2409,7 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteReq
         let len = (len as usize).min(MAX_BYTES);
         work[..len].copy_from_slice(&request_bytes(&mut slot)[..len]);
     }
-    let generation = deluge_card_generation::current();
+    let generation = super::card::generation();
     mark_in_flight(Some(request.key_owned())).await;
     Some(Some((request, generation)))
 }
@@ -2429,7 +2428,7 @@ pub async fn mark_in_flight(entry: Option<(ByteOp, BytesPath)>) {
 ///
 /// # The early-drop check is an optimisation, not the guarantee
 ///
-/// There is no happens-before edge from `deluge_card_generation::bump`'s `fetch_add` to this `load`
+/// There is no happens-before edge from `deluge_card_flush`'s `fetch_add` to this `load`
 /// when this task wins the `RESULT` lock (the two synchronise only through the lock, in the other
 /// direction), so this check can legitimately read the pre-flush generation, pass, and publish. The
 /// entry it publishes still carries the pre-flush stamp, and [`take_from`] drops it. Do not rewrite
@@ -2449,7 +2448,7 @@ pub async fn publish_result(
     work: &[u8; MAX_BYTES],
 ) {
     let mut result = RESULT.lock().await;
-    if generation != deluge_card_generation::current() {
+    if generation != super::card::generation() {
         // The card this ran against is gone. A FAILED answer is dropped here too, and must be: the
         // failure belongs to the card that has gone, and reporting it as terminal against the card
         // now in the slot would put an error on screen for a file nobody has touched yet.

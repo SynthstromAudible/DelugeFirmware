@@ -46,4 +46,4 @@ native_fill = []
 # this gates only HOW deluge_sample_convert is compiled. Enabled solely via deluge_rust's `sim` feature;
 # a standalone `cargo test -p deluge_sample_fill` / region_*_differential build leaves it OFF and gets
 # the full convert compile.
-sim_convert = ["deluge_sample_convert/app_convert"]
+app_convert = ["deluge_sample_convert/app_convert"]

@@ -1,21 +1,21 @@
-//! `include/libdeluge/card.h` — what every loader on this BSP has to forget when the card is
-//! pulled.
+//! What every loader on this BSP has to forget when the card is pulled (`libdeluge/card.h`), and
+//! the card generation they stamp their answers with.
 //!
-//! One entry point, [`deluge_card_flush`]. It lives here rather than in `audio_loader.rs` because
-//! it is a property of THE CARD, not of any one loader: an ejection invalidates everything read
-//! from that card at once, and the counter it bumps ([`deluge_card_generation`]) is shared by every
-//! loader that caches card-derived state.
-//!
-//! # Reach the loaders through `super::`, never `crate::`
-//!
-//! Like `audio_loader.rs`, `file_prefix.rs` and `file_directory.rs` beside it, this file is
-//! `#[path]`-recompiled into
-//! other packages (the BSP's own `tests/audio_loader_host.rs`, `crates/deluge_audio_loader_host`
-//! under that, and the `golden_vt_render` harness), and in one of them it is nested a module deep
-//! rather than sitting at the crate root. `super::audio_loader` names the sibling module in every
-//! one of those nestings; `crate::audio_loader` names it in only some. Every carrier that compiles
-//! this file must therefore provide BOTH sibling modules. The shared counter needs no such care —
-//! [`deluge_card_generation`] is a real dependency crate, so every build resolves the same static.
+//! The generation is a property of the card, not of any one loader, so every loader that caches
+//! something read from the card shares this one counter. Read it with [`generation`] where a load
+//! begins and compare it where the result is taken. Sampling it at publish time instead would read
+//! the generation a flush has already installed and let a stale result through.
+
+use core::sync::atomic::{AtomicU32, Ordering};
+
+/// Which card the loaders are reading, bumped once per ejection. A wrapping counter: `!=` is the
+/// only test, and telling apart two generations 2^32 ejections apart is not something anything needs.
+static GENERATION: AtomicU32 = AtomicU32::new(0);
+
+/// The generation a load starting now belongs to.
+pub fn generation() -> u32 {
+    GENERATION.load(Ordering::Acquire)
+}
 
 /// Every channel that keeps answers read from the card. Each clears its queued requests and waiting answers; none
 /// may block, because the ejection path runs this with the card already gone.
@@ -50,7 +50,7 @@ const FLUSHES: [fn(); 5] = [
 /// run at once" is false on some configuration that builds this file.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_card_flush() {
-    deluge_card_generation::bump();
+    GENERATION.fetch_add(1, Ordering::AcqRel);
     for flush in FLUSHES {
         flush();
     }

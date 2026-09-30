@@ -457,10 +457,7 @@ pub struct DelugeSampleReservation {
 ///
 /// Never returns null: heap allocation only aborts on this dependency graph (no `#[panic_handler]`
 /// unwind path — see `abi::deluge_sample_reader_open`'s own doc for the identical argument).
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_reserve_open(
     source_id: u32,
     marker_frame: u64,
@@ -477,10 +474,7 @@ pub extern "C" fn deluge_sample_reserve_open(
 /// # Safety
 /// `res` must be a live pointer previously returned by `deluge_sample_reserve_open` and not yet
 /// passed to `deluge_sample_reserve_close`.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_reserve_move(
     res: *mut DelugeSampleReservation,
     source_id: u32,
@@ -500,10 +494,7 @@ pub unsafe extern "C" fn deluge_sample_reserve_move(
 /// # Safety
 /// `res`, if non-null, must be a live pointer previously returned by `deluge_sample_reserve_open`
 /// and not yet passed to this function.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_reserve_close(res: *mut DelugeSampleReservation) {
     if res.is_null() {
         return;

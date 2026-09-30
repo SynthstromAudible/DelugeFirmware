@@ -1,21 +1,9 @@
-# golden_vt_render: an Embassy-host-BSP golden renderer — boots the real C++
-# `deluge_app`, mounts a fixture SD-card image, and (this rung's scope only)
-# exits cleanly. See `src/main.rs`'s module doc for the boot sequence.
+# The golden renderer: boots the real C++ app on the BSP under a virtual clock and renders one
+# scenario deterministically. See `src/main.rs`.
 #
-# Deliberately a fully separate Cargo package from `deluge-bsp-rust`
-# (`../Cargo.toml`): `embassy-time`'s `std` feature
-# (deluge-bsp-rust's own host target) and a custom/`mock-driver`-shaped time
-# driver both define `#[no_mangle] _embassy_time_now`/
-# `_embassy_time_schedule_wake` — a hard duplicate-symbol compile error if
-# both land in one package's dependency graph (Cargo unifies a dependency's
-# features across every target in one Cargo.toml; there is no per-`[[bin]]`
-# override).
-#
-# Reuses deluge-bsp-rust's own source files via `#[path]` (see src/main.rs) —
-# the same pattern `tests/*.rs` already use — so this is a
-# second, independently-configured COMPILATION of the same source, not a
-# fork/copy: a change to the shared files is picked up by every package that
-# path-includes it.
+# A separate package because it brings its own executor and time driver. embassy's std ones (the
+# BSP's `host-runtime` feature) define the same `__pender` and time-driver symbols, and Cargo
+# unifies features across a package, so the two cannot share one.
 [package]
 name = "golden_vt_render"
 version = "0.1.0"
@@ -28,121 +16,22 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
-# No `platform-*` feature (see src/main.rs's driver): keeps the crate from
-# defining its own `__pender`, so we supply one ourselves and drive a
-# poll-to-quiescence/advance-to-next-deadline loop instead of a
-# thread-parking executor.
+deluge-bsp-rust = { path = "../..", default-features = false, features = ["host_app"] }
+# No platform feature: `src/main.rs` supplies the `__pender` and drives the executor itself.
 embassy-executor = { version = "0.10.0", default-features = false, features = ["nightly"] }
-# No `std`/`mock-driver` feature: keeps embassy-time from registering its own
-# time driver, so the hand-rolled `PeekableMockDriver` (src/clock.rs) can be
-# the sole one.
+# No `std` or `mock-driver` feature: `src/clock.rs` is the time driver.
 embassy-time = { version = "0.5.1", default-features = false }
 embassy-time-driver = { version = "0.2.2", features = ["tick-hz-1_000_000"] }
 embassy-time-queue-utils = "0.3.2"
 embassy-futures = "0.1.2"
-embassy-sync = "0.8.0"
-# `std` backend: a real critical-section impl on host (global mutex) — the
-# shared source files (sd.rs/scheduler.rs) are compiled
-# `not(target_os = "none")`, std, same as deluge-bsp-rust's own host target.
 critical-section = { version = "1", features = ["std"] }
 log = "0.4"
 env_logger = "0.11"
 
-# Sibling deluge-sdk BSP: `sd.rs` calls `deluge_bsp::sd::*` uniformly (dual-target,
-# see that file's module doc). Host-only relevant surface (block_device.h's backing
-# store) does not itself depend on embassy-time/-executor, so this path dep does not
-# reintroduce the std/mock-driver conflict this package exists to avoid.
-deluge-bsp = { path = "../../../../../../deluge-sdk/crates/deluge-bsp", features = ["flash"] }
-
-# The host-built C++ `deluge_app` object closure (build.rs) calls the
-# deluge_resource_* residency C ABI and the deluge_{alloc,slab_*,heap_*} allocator
-# C ABI — same as deluge-bsp-rust's own `host_app` feature (see its main.rs `extern
-# crate deluge_resource` comment). Linked directly (not the `deluge_rust` umbrella,
-# which carries its own #[panic_handler]).
-deluge_resource = { path = "../../../../../crates/deluge_resource" }
-# The WAV/AIFF header decoder behind `libdeluge/audio_format.h`. The archived `deluge_app` object
-# closure's parseSampleHeader/parseWaveTableHeader call straight into its `deluge_audio_header_*`
-# C ABI, and there is no weak C++ fallback, so the rlib has to be on this link line too (mirrors
-# `deluge-bsp-rust`'s own dependency).
-deluge_audio_format = { path = "../../../../../crates/deluge_audio_format" }
-
-# The card generation the `#[path]`-included `audio_loader.rs`/`card.rs` (see src/main.rs) stamp
-# results with and compare at take. A crate, not a BSP module, precisely so this recompilation
-# reads the SAME static the firmware does instead of a private copy — mirrors `deluge-bsp-rust`'s
-# own dependency.
-deluge_card_generation = { path = "../../../../../crates/deluge_card_generation" }
-
-# The answer slot every single-flight storage channel keeps. `file_directory` and `file_prefix`
-# build their slots on it.
-deluge_channel = { path = "../../../../../crates/deluge_channel" }
-
-# `#[path]`-included `streaming_loader.rs` (see src/main.rs) sources
-# `StreamingFillDescriptor` and `ProdOps::begin`/`finish`'s `native_begin`/`native_finish`
-# straight from this crate (the manager-reaching sync fill core) — so this
-# package needs the same dependency `deluge-bsp-rust` does,
-# with `native_fill` on (this package recompiles `ProdOps`, which calls both).
-deluge_sample_fill = { path = "../../../../../crates/deluge_sample_fill", features = ["native_fill"] }
-
-# The Rust region-port cursor (`deluge_sample_source_*`/`deluge_sample_region_*`) and the
-# sample range-reader C ABI (`deluge_sample_reader_*`) — the SOLE definitions of those C-ABI
-# symbols: the C++ side calls through to them unconditionally (`sample_source.cpp`/
-# `sample_reader_bridge.cpp` in the `deluge_app` object closure reference
-# `deluge_sample_reserve_*`/`deluge_sample_peek`/`deluge_sample_read`/`deluge_sample_invalidate`/
-# `deluge_sample_reader_*` directly, and there is no C++ weak fallback), so `golden_vt_render`
-# needs them to link against the `deluge_app` object closure. `host_app` feature widens each crate's own `abi.rs`
-# cfg_attr gate to export these symbols on host (mirrors `deluge-bsp-rust`'s own `host_app`
-# feature list in `../Cargo.toml`).
-deluge_sample_source = { path = "../../../../../crates/deluge_sample_source", features = ["host_app"] }
-deluge_sample_reader = { path = "../../../../../crates/deluge_sample_reader", features = ["host_app"] }
-# U4c Task 2: the streaming-file slot registry C ABI (`deluge_sample_stream_*`) — same reasoning as
-# the pair just above (added here so `golden_vt_render` links against the CURRENT `deluge_app`
-# object closure; no consumer yet, so this proves the symbols are present, nothing more).
-deluge_sample_stream = { path = "../../../../../crates/deluge_sample_stream", features = ["host_app"] }
-
-# The same `BlockDevice`/`BufStream`/`embedded-fatfs` storage stack
-# `deluge-bsp-rust`'s own `host_app` feature pulls in (see its Cargo.toml
-# comment) — `efatfs_host_shim.rs`/`efatfs_core.rs` (path-included above) need
-# these. Plain (non-optional) deps, not gated behind a Cargo feature: this
-# package always builds with `host_app` semantics (its whole purpose), so
-# there is no "host_app off" configuration to spare the extra deps for, unlike
-# the main crate's plain host BSP smoke-test build. No `fs_alloc`/
-# `#[global_allocator]` needed here either — same reasoning as the main
-# crate's Cargo.toml: host's implicit std allocator already covers
-# embedded-fatfs's `alloc` feature.
-block-device-driver = { path = "../../../../../crates/block-device-driver" }
-block-device-adapters = { path = "../../../../../crates/block-device-adapters" }
-aligned = "0.4"
-embedded-fatfs = { path = "../../../../../crates/embedded-fatfs", default-features = false, features = [
-    "lfn",
-    "alloc",
-] }
-embedded-io-async = "0.7.0"
-# `efatfs_core.rs`'s `DirEntryInfo::name` is a `heapless::String<256>`, so the
-# path-included module needs the same dep — and the same version pin — the
-# main crate and `fs_differential` carry. Without it this
-# package fails to build with `unresolved import heapless`.
-heapless = { version = "0.8", default-features = false }
-
 [features]
-# `host_app` always on for this package (it exists ONLY to run the real C++
-# app on this host-BSP substrate). `sim_latency` is deliberately NOT in this
-# package's default set: this package wants bit-exact GOLDEN output, not latency
-# realism, and the streaming-margin gate models storage time in the fill task
-# instead (`deluge_streaming_set_fill_*`). A
-# characterization spike measured `sim_latency`'s off-fiber `block_on`
-# busy-spin against the `SD_BUS` mutex starving the render to ~0.01x
-# realtime (cordae's full 8-stem TRACK export: ~3.7hr -> ~37s / ~58x
-# realtime with it dropped, clean valid WAVs).
-default = ["host_app"]
-host_app = []
-sim_latency = []
-# Not enabled — exists only so the shared `#[cfg(feature = "rtt")]` conditionals in
-# `services.rs` don't trip rustc's unknown-cfg lint in this package (it is a real
-# feature over there, unrelated to this package's own concerns).
-rtt = []
-
-[build-dependencies]
-bindgen = "0.70"
+## Model SD transfer latency. Off: a golden render must be bit-exact, and the streaming-margin gate
+## models storage time in the fill task instead (`deluge_streaming_set_fill_*`).
+sim_latency = ["deluge-bsp-rust/sim_latency"]
 
 [profile.dev]
 opt-level = 1

@@ -17,7 +17,7 @@
 //! (`deluge_sample_region_acquire_ex`) real playback uses, on THIS target, and reports the
 //! finalize-time-grow sizing plus the acquired region's byte correctness.
 //!
-//! Thread-agnostic like [`crate::scenario::run`] and [`crate::recorder_probe::run`]: only
+//! Thread-agnostic like [`super::scenario::run`] and [`super::recorder_probe::run`]: only
 //! `.await`s [`embassy_time::Timer`], no thread spawn, no `sim_latency` dependency.
 #![cfg(all(not(target_os = "none"), feature = "host_app"))]
 
@@ -50,7 +50,7 @@ pub const STATE_LOADING: u8 = crate::sys::DelugeRegionState::Loading as u8;
 pub const STATE_UNAVAILABLE: u8 = crate::sys::DelugeRegionState::Unavailable as u8;
 
 /// Outcome of [`run`]. Plain data (not a `Result`/panic), same rationale as
-/// [`crate::recorder_probe::RecorderProbeResult`].
+/// [`super::recorder_probe::RecorderProbeResult`].
 #[derive(Debug, Default, Clone, Copy)]
 pub struct RecorderFinalizeProbeResult {
     /// `registerTasks()` claimed a scheduler slot within `step_timeout`.
@@ -140,7 +140,7 @@ pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderFinal
 static RESULT: Mutex<Option<RecorderFinalizeProbeResult>> = Mutex::new(None);
 
 /// `host_app` boot-path convenience wrapper (NOT part of a reusable driver — same shape as
-/// [`crate::recorder_probe::recorder_probe_task`]). Spawn on the SAME executor `host_app_task`
+/// [`super::recorder_probe::recorder_probe_task`]). Spawn on the SAME executor `host_app_task`
 /// and the async streaming-fill task run on, then poll [`take_result`] from
 /// the OS thread. Embassy task args must be `Copy`; durations are passed as plain millis.
 #[embassy_executor::task]
