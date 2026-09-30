@@ -42,7 +42,6 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
@@ -51,6 +50,7 @@
 #include "util/functions.h"
 #include "util/string.h"
 #include <iterator>
+#include <libdeluge/scheduler.h>
 #include <new>
 #include <string.h>
 

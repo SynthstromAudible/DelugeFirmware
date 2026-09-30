@@ -19,10 +19,10 @@
 
 #ifdef __cplusplus
 
-#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
 #include "playback/playback_handler.h"
+#include <libdeluge/scheduler.h>
 
 class MIDICable;
 class MIDIDrum;

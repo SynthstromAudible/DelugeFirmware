@@ -63,7 +63,6 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
-#include "scheduler_api.h"
 #include "storage/audio/load_trace.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
@@ -82,6 +81,7 @@
 #include <cstring>
 #include <execution>
 #include <iterator>
+#include <libdeluge/scheduler.h>
 #include <new>
 #include <numeric>
 #include <ranges>

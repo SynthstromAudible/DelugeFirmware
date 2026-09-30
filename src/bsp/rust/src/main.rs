@@ -319,8 +319,8 @@ mod recorder_probe;
 /// blocks) — see its module doc. `host_app`-only.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod scenario;
-/// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
-/// implemented on the Embassy executor (one task per registered Deluge task).
+/// libdeluge/scheduler.h — the cooperative task scheduler, implemented on the
+/// Embassy executor (one task per registered Deluge task).
 mod scheduler;
 /// block_device.h — the C-ABI SD-card entry points (`deluge_block_ready`/
 /// `deluge_block_read`/`deluge_block_write`) and the shared `SD_BUS`/async

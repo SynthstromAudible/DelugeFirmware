@@ -1,6 +1,5 @@
-//! scheduler.h / OSLikeStuff `scheduler_api.h` — the cooperative task scheduler,
-//! implemented on top of the Embassy executor (the "Stage 2" design from
-//! `include/libdeluge/scheduler.h`).
+//! `include/libdeluge/scheduler.h` — the cooperative task scheduler, implemented
+//! on top of the Embassy executor (the "Stage 2" design from that header).
 //!
 //! On the bare-metal / host BSPs this C ABI is backed by the C++ `TaskManager`
 //! (`src/OSLikeStuff/task_scheduler/`), a single-stack cooperative scheduler with
@@ -33,17 +32,17 @@ use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 use embassy_time::{Duration, Instant, Timer};
 
-/// scheduler_api.h's `typedef bool (*RunCondition)();`: a task's predicate, `None` for none.
+/// libdeluge/scheduler.h's `typedef bool (*RunCondition)();`: a task's predicate, `None` for none.
 pub type RunCondition = Option<unsafe extern "C" fn() -> bool>;
 
 // ---------------------------------------------------------------------------
-// C-ABI types (scheduler_api.h), `RunCondition` included (above). Defined here
+// C-ABI types (libdeluge/scheduler.h), `RunCondition` included (above). Defined here
 // rather than taken from `sys`, because this module is also compiled where there
 // is no bindgen output (the plain host build); the `abi_pin!` at the end of the
 // file checks them against the header wherever there is.
 // ---------------------------------------------------------------------------
 
-/// scheduler_api.h's `typedef void (*TaskHandle)();`: nullable, as bindgen declares it. The C++ side always passes
+/// libdeluge/scheduler.h's `typedef void (*TaskHandle)();`: nullable, as bindgen declares it. The C++ side always passes
 /// a task body; registration refuses a null one.
 type TaskHandle = Option<TaskBody>;
 /// A registered task body, the non-null [`TaskHandle`].
@@ -54,14 +53,14 @@ type TaskID = i8;
 type ResourceID = u32;
 
 const RESOURCE_NONE: ResourceID = 0;
-// No `RESOURCE_SD` constant (`scheduler_api.h` value 1): this side never gates on it, and that
+// No `RESOURCE_SD` constant (`libdeluge/scheduler.h` value 1): this side never gates on it, and that
 // absence is deliberate rather than an omission — see `claim`'s doc below, which records that the
 // serialization RESOURCE_SD would have provided comes from the FS mutex instead. Declaring an
 // unused ABI mirror only produced a `-Wunused` warning.
-/// USB transport — `scheduler_api.h` RESOURCE_USB.
+/// USB transport — `libdeluge/scheduler.h` RESOURCE_USB.
 const RESOURCE_USB: ResourceID = 2;
 
-// ABI guard: these must match scheduler_api.h's `typedef`s exactly, or the C++
+// ABI guard: these must match libdeluge/scheduler.h's `typedef`s exactly, or the C++
 // side reads/writes ids and resources at the wrong width across the boundary.
 const _: () = {
     assert!(core::mem::size_of::<TaskID>() == 1, "TaskID must be int8_t");
@@ -502,7 +501,7 @@ fn us_to_secs(us: u64) -> f64 {
 }
 
 // ===========================================================================
-// scheduler_api.h C ABI. These are the symbols that satisfy the C++ app's
+// libdeluge/scheduler.h C ABI. These are the symbols that satisfy the C++ app's
 // references (and thereby keep the C++ TaskManager out of the link).
 // ===========================================================================
 
@@ -601,7 +600,7 @@ pub extern "C" fn isSDRoutineActive() -> bool {
 }
 
 // ---------------------------------------------------------------------------
-// Cooperative yield (scheduler_api.h yield).
+// Cooperative yield (libdeluge/scheduler.h yield).
 //
 // Nothing on this BSP suspends: the yielding operations (song load, stem export,
 // grid clip create) are stepped synchronously by their callers, so `yield` here

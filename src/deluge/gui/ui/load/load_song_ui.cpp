@@ -42,7 +42,6 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/load_trace.h"
 #include "storage/byte_channel.h" // noteIoTier, for the inline preview read
@@ -52,6 +51,7 @@
 #include "storage/storage_manager.h"
 #include "util/boot.h"
 #include "util/try.h"
+#include <libdeluge/scheduler.h>
 
 #include <array>
 #include <cstdint>

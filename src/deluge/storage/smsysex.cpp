@@ -14,7 +14,6 @@
 #include "libdeluge/file_directory.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
-#include "scheduler_api.h"
 #include "storage/byte_channel.h"
 #include "storage/fs_status.h"
 #include "storage/smsysex_pending.h"
@@ -24,6 +23,7 @@
 #include "util/pack.h"
 #include <cstdint>
 #include <cstring>
+#include <libdeluge/scheduler.h>
 
 #define MAX_DIR_LINES 25
 

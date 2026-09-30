@@ -72,7 +72,6 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/stem_export/stem_export.h"
-#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
@@ -86,6 +85,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <iterator>
+#include <libdeluge/scheduler.h>
 #include <new>
 
 using namespace deluge;

@@ -136,7 +136,7 @@ target_include_directories(UnitTests PRIVATE
         ../../../include
         ../../../src
         ../../../src/deluge
-        ../../../src/OSLikeStuff        # scheduler_api.h, reached via libdeluge/scheduler.h
+        ../../../src/OSLikeStuff        # task_scheduler/clock_type.h (time_tests.cpp)
         ../io                   # mock_file_io.h, the in-memory card behind deluge::io::File
         ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
 )

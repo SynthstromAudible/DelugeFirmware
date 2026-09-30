@@ -5,9 +5,9 @@
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """The libdeluge C ABI's surface: every declared function, where it is defined, and who calls it.
 
-Declarations are read from ``include/libdeluge/*.h`` and ``src/OSLikeStuff/scheduler_api.h``. A function is
-*defined* by a Rust ``fn`` in ``src/bsp/rust/src`` or ``crates/*/src``, or by a C/C++ body in ``src/``. Mocks in
-``tests/`` are reported apart, because a mock of a function nobody calls keeps nothing alive.
+Declarations are read from ``include/libdeluge/*.h``. A function is *defined* by a Rust ``fn`` in
+``src/bsp/rust/src`` or ``crates/*/src``, or by a C/C++ body in ``src/``. Mocks in ``tests/`` are reported
+apart, because a mock of a function nobody calls keeps nothing alive.
 
 ``--pins`` requires an ``abi_pin!`` for every Rust definition and every Rust ``extern "C"`` import of a declared
 function, each by a pin that reaches it (see ``pinned``). A crate's ``#[cfg(test)]`` stubs are exempt.
@@ -33,9 +33,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h")) + [
-    ROOT / "src" / "OSLikeStuff" / "scheduler_api.h"
-]
+HEADERS = sorted((ROOT / "include" / "libdeluge").glob("*.h"))
 
 BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 LINE_COMMENT = re.compile(r"//[^\n]*")

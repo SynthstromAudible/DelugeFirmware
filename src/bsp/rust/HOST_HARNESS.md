@@ -31,7 +31,7 @@ as before M1).
    `tests/support/scheduler_host_exercise.rs`, Task 5 — this document) — brings
    up a real host `embassy_executor::Executor` on its own thread (mirroring
    `main.rs`'s device `executor.run(...)` and the deluge-sdk `host::run`
-   template) and drives `scheduler.rs` through the actual `scheduler_api.h`
+   template) and drives `scheduler.rs` through the actual `libdeluge/scheduler.h`
    C ABI: two repeating tasks, an once-task, a conditional task (predicate
    gated), a block/unblock cycle, a `runTask` nudge, and a `deluge_worker_run`
    fiber op that suspends in `scheduler::yield()` (`fiber::yield_until`) until
@@ -54,7 +54,7 @@ deluge_bsp_rust::...`. Both entry points instead declare the exact same `mod
 fiber; mod scheduler;` tree `main.rs` does, via `#[path]` pointing at the real
 sources (`src/fiber.rs`, `src/scheduler.rs`) — this **recompiles those two
 files unmodified** into the test/example binary rather than duplicating their
-logic; every symbol used (the `scheduler_api.h` C-ABI fns, plus
+logic; every symbol used (the `libdeluge/scheduler.h` C-ABI fns, plus
 `fiber::deluge_worker_run`/`worker_poll`/`WORKER_WAKE`) was already `pub`
 before Task 5, so no visibility change to `scheduler.rs`/`fiber.rs` was
 needed. The actual task bodies + assertions live once, in

@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "OSLikeStuff/scheduler_api.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <libdeluge/scheduler.h>
 
 namespace deluge::hid::encoders {
 

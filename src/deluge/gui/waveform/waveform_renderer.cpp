@@ -27,12 +27,12 @@
 #include "model/sample/sample_recorder.h"
 #include "model/voice/voice_sample.h"
 #include "processing/engines/audio_engine.h"
-#include "scheduler_api.h"
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
 #include "sync/sd_access.h"
 #include <algorithm>
 #include <iterator>
+#include <libdeluge/scheduler.h>
 #include <limits>
 #include <optional>
 #include <string.h>

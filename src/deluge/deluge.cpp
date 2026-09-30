@@ -73,7 +73,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/stem_export/stem_export.h"
-#include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
@@ -81,6 +80,7 @@
 #include "storage/startup_song.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
+#include <libdeluge/scheduler.h>
 #include <stdlib.h>
 
 namespace encoders = deluge::hid::encoders;
@@ -657,7 +657,7 @@ static void deluge_boot(const DelugeBoard* board) {
 }
 
 // libdeluge entry (app.h). The platform calls deluge_app_init() once at startup; the
-// scheduler_api.h C ABI is backed by the Embassy executor (one task per registered
+// libdeluge/scheduler.h C ABI is backed by the Embassy executor (one task per registered
 // task — see src/bsp/rust/src/scheduler.rs), so we registerTasks() here and the
 // runners drive the app: addRepeatingTask spawns an Embassy task immediately.
 // registerTasks() must precede encoders::init() — the encoder edge source needs

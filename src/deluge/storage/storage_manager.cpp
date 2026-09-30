@@ -52,7 +52,7 @@
 #include "libdeluge/display.h"
 
 extern "C" {
-#include <scheduler_api.h>
+#include <libdeluge/scheduler.h>
 }
 
 FirmwareVersion song_firmware_version = FirmwareVersion::current();
