@@ -1,6 +1,5 @@
 //! Tests the per-asset fill-context table: `deluge_streaming_set_fill_context` writes, and
 //! `fill_context_for` reads back.
-#![cfg(not(target_os = "none"))]
 
 use core::ptr;
 

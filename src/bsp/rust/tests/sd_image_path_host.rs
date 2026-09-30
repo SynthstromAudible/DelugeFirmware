@@ -1,6 +1,5 @@
 //! The content-addressed SD-image naming policy (`storage::sd_image_path`): stable, reusable image
 //! paths, reuse versus repack, and fingerprinting. Runs in a plain host build.
-#![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::storage::sd_image_path;
 

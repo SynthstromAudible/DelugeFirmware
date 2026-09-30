@@ -1,6 +1,5 @@
 //! Host tests for the byte channel's pure parts: answer keying, card-generation stamps and
 //! displacement in [`BytesSlot`], `copy_out`, request admission and the work-buffer claim.
-#![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::channel::file_bytes;
 

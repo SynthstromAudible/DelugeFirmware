@@ -1,7 +1,7 @@
 //! The board's peripherals behind the libdeluge headers.
 
 // Also on host under `host_app`: the descriptor and probe are pure logic.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 pub mod board;
 pub mod control;
 #[cfg(target_os = "none")]

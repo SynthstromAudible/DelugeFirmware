@@ -89,13 +89,9 @@ if (UNIX AND NOT APPLE)
     add_subdirectory(alloc)
     add_subdirectory(resource)
 
-    # A SEPARATE umbrella build, with the `sim` feature on, exclusively for
-    # sample_reader: `deluge_sample_reader`'s `deluge_sample_reader_*` /
-    # `deluge_sample_read` C-ABI symbols are only emitted (`#[unsafe(no_mangle)]`) under
-    # `target_os = "none"` or the `host_app`/`sim` feature gates (see that crate's abi.rs) --
-    # plain `deluge_rust_rs` above builds with none of those, so it never exports them. Uses
-    # its own `--target-dir` (not the plain `deluge_rust_rs` build's) so the two feature sets
-    # never fight over the same output path.
+    # A second umbrella build, with `sample_abi` on, for the sample_reader spec: the sample
+    # crates export their C ABI on a host build only with their `c_abi` feature, which
+    # `sample_abi` turns on. Its own --target-dir keeps the two feature sets' outputs apart.
     set(RUST_LIB_SIM ${RUST_WS}/target-tests-sim/${RUST_TARGET}/release/libdeluge_rust.a)
     # Own glob (not layered on RUST_SOURCES -- GLOB_RECURSE patterns are wildcards, not a list of
     # already-resolved paths to re-glob), mirroring sim/CMakeLists.txt's own SIM_RUST_SOURCES.

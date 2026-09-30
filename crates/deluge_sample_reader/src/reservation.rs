@@ -346,7 +346,7 @@ pub struct DelugeSampleReservation {
 /// Opens a lookahead reservation over `source_id`. See [`Reservation::open`].
 ///
 /// Never returns null: allocation failure aborts rather than returning.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_reserve_open(
     source_id: u32,
     marker_frame: u64,
@@ -363,7 +363,7 @@ pub extern "C" fn deluge_sample_reserve_open(
 ///
 /// `res` must be a live pointer from `deluge_sample_reserve_open` not yet passed to
 /// `deluge_sample_reserve_close`.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_reserve_move(
     res: *mut DelugeSampleReservation,
     source_id: u32,
@@ -382,7 +382,7 @@ pub unsafe extern "C" fn deluge_sample_reserve_move(
 ///
 /// `res` must be null or a live pointer from `deluge_sample_reserve_open` not yet passed to this
 /// function.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_reserve_close(res: *mut DelugeSampleReservation) {
     if res.is_null() {
         return;

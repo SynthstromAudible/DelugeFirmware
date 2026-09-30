@@ -1,5 +1,4 @@
 //! The meter counts a synchronous card call only after boot and only on the interaction tier.
-#![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::boot;
 use deluge_bsp_rust::tier;

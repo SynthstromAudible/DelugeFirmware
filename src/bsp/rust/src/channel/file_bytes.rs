@@ -91,9 +91,9 @@ pub struct FileTimestamp {
 
 /// The timestamp type [`deluge_file_bytes_request_set_time`] takes: bindgen's `DelugeTimestamp`
 /// where there is bindgen output (so the export's `abi_pin!` holds), else [`FileTimestamp`].
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 type AbiTimestamp = crate::sys::DelugeTimestamp;
-#[cfg(not(any(target_os = "none", feature = "host_app")))]
+#[cfg(not(has_app))]
 type AbiTimestamp = FileTimestamp;
 
 // `DelugeTimestamp`'s layout (`libdeluge/types.h`).
@@ -746,11 +746,11 @@ fn result_bytes<'g>(
 }
 
 /// Grants [`WORK_BYTES`] once.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 static WORK_CLAIM: ClaimOnce = ClaimOnce::new();
 
 /// Returns the work buffer to the first caller only. `file_bytes_task` claims it once, at start.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 fn claim_work_bytes() -> Option<&'static mut [u8; MAX_BYTES]> {
     if !WORK_CLAIM.claim() {
         return None;
@@ -796,7 +796,7 @@ pub extern "C" fn deluge_file_bytes_set_latency_ms(ms: u32) {
 static PROGRESS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
 
 /// Records one unit of finished work in [`PROGRESS`].
-#[cfg_attr(not(any(target_os = "none", feature = "host_app")), allow(dead_code))]
+#[cfg_attr(not(has_app), allow(dead_code))]
 fn note_progress() {
     PROGRESS.fetch_add(1, Ordering::Release);
 }
@@ -1775,7 +1775,7 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<BytesPath> {
 // Compiled only where efatfs is linked: on device, and on host under `host_app`.
 
 // The efatfs backend: the device module on the target, the host shim under `host_app`.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::storage::efatfs::device::{
@@ -1795,10 +1795,10 @@ mod backing {
 
 /// The real [`ByteOps`], over efatfs's task-context file table. Stateless: every operation is keyed
 /// by path.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 pub struct ProdByteOps;
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 impl ProdByteOps {
     /// The production ops.
     pub fn new() -> Self {
@@ -1860,7 +1860,7 @@ impl ProdByteOps {
     }
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 impl ByteOps for ProdByteOps {
     async fn read_all(&self, path: &str, into: &mut [u8; MAX_BYTES]) -> Result<usize, i8> {
         let handle = Self::open_mounted(path, OPEN_READ).await?;
@@ -2157,13 +2157,13 @@ impl ByteOps for ProdByteOps {
 /// `IN_FLIGHT` is set before the operation and cleared only after the answer is published, so a
 /// running operation never looks unknown. A failure is published too: publishing nothing would
 /// read as UNKNOWN ("ask again"), and the caller would retry a failing read forever.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[embassy_executor::task]
 pub async fn file_bytes_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_bytes_task_body()).await
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn file_bytes_task_body() {
     let Some(work) = claim_work_bytes() else {
         debug_assert!(false, "the byte channel's work buffer was claimed twice");
@@ -2209,7 +2209,7 @@ async fn file_bytes_task_body() {
 ///
 /// The generation is read here, before any I/O, so it names the card the operation touches.
 /// Reading it at publish would see a flush's new value and defeat the check.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteRequest, u32)>> {
     let mut slot = REQUEST.lock().await;
     let Queued {

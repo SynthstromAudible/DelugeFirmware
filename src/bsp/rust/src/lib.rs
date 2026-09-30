@@ -28,7 +28,6 @@
 //! - `ffi`, `ffi_extra`, `services`, `host_link_stubs`: the remaining C-ABI services and link
 //!   symbols.
 #![cfg_attr(target_os = "none", no_std)]
-#![cfg_attr(target_os = "none", no_main)]
 #![feature(impl_trait_in_assoc_type)]
 // Computing the layout of `audio_load_task`'s `TaskPool<Fut>` (nested `async fn` trait futures)
 // exceeds the default query depth of 128. The future is finite; flattening the driver to fit
@@ -36,9 +35,14 @@
 #![recursion_limit = "512"]
 // The plain host build (no `host_app`) compiles the storage channels and loaders for their host
 // tests, but not the C++ app that calls them, so their C-ABI halves are unreachable there.
-#![cfg_attr(not(any(target_os = "none", feature = "host_app")), allow(dead_code))]
+#![cfg_attr(not(has_app), allow(dead_code))]
 // The storage traits run on one executor and are never required to be `Send`.
 #![allow(async_fn_in_trait)]
+
+// `host_app` and `sim` are host features: a device build with either would define every host C-ABI
+// export beside the device one.
+#[cfg(all(target_os = "none", feature = "host_app"))]
+compile_error!("`host_app` (and `sim`, which enables it) is host-only");
 
 #[cfg(all(target_os = "none", feature = "host-runtime"))]
 compile_error!(
@@ -49,25 +53,15 @@ compile_error!(
 // Link-only: the C++ app calls these crates' `#[no_mangle]` C ABI (residency and allocator, audio
 // headers, sample source/reader/stream), which has no C++ fallback. Nothing in this crate's Rust
 // references them, so without `extern crate` the linker would drop their rlibs.
-#[cfg(target_os = "none")]
+#[cfg(has_app)]
 extern crate deluge_audio_format;
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-extern crate deluge_audio_format;
-#[cfg(target_os = "none")]
+#[cfg(has_app)]
 extern crate deluge_resource;
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-extern crate deluge_resource;
-#[cfg(target_os = "none")]
+#[cfg(has_app)]
 extern crate deluge_sample_reader;
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-extern crate deluge_sample_reader;
-#[cfg(target_os = "none")]
+#[cfg(has_app)]
 extern crate deluge_sample_source;
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-extern crate deluge_sample_source;
-#[cfg(target_os = "none")]
-extern crate deluge_sample_stream;
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(has_app)]
 extern crate deluge_sample_stream;
 
 // First, because its macros are textually scoped.
@@ -87,11 +81,11 @@ pub mod sys {
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
 // The plain host build has no bindgen output; `sys_host.rs` stands in.
-#[cfg(all(not(target_os = "none"), not(feature = "host_app")))]
+#[cfg(not(has_app))]
 #[path = "abi/sys_host.rs"]
 pub mod sys;
 /// The libdeluge C ABI, generated from `libdeluge/*.h` for the host ABI.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 pub mod sys {
     #![allow(
         non_upper_case_globals,
@@ -104,13 +98,13 @@ pub mod sys {
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
 // `sys_host.rs` again beside the real `sys`, so its pins check the stand-ins against the headers.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 #[path = "abi/sys_host.rs"]
 mod sys_host_check;
 
 /// The headers' own definitions of the types `sys` binds to in-tree crates' types, which
 /// `abi_layout!` checks those crates' definitions against.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[allow(
     non_upper_case_globals,
     non_camel_case_types,
@@ -125,11 +119,11 @@ pub mod boot;
 #[cfg(target_os = "none")]
 mod boot_mem;
 // The C-ABI services and link symbols the C++ app needs: present wherever it is linked.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 mod ffi;
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 mod ffi_extra;
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 mod host_link_stubs;
 pub mod scheduler;
 mod services;

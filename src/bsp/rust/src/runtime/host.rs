@@ -615,22 +615,16 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
         .expect("spawning the host app executor thread");
 }
 
-/// Ends the process at once with `exit_group(2)`, skipping libc's atexit handlers.
+/// Ends the process at once with `_exit`, skipping libc's atexit handlers.
 ///
 /// A normal exit runs the C++ app's static destructors (`AudioEngine`, `midiEngine`, …) while the
 /// app and audio threads are still calling into those objects, which ends in `pure virtual method
 /// called`. The device never returns from `main` either, so a hard exit is the right model.
 #[cfg(feature = "host_app")]
 fn hard_exit(code: i32) -> ! {
-    #[cfg(target_os = "linux")]
-    unsafe {
-        core::arch::asm!(
-            "syscall",
-            in("rax") 231usize, // exit_group
-            in("rdi") code,
-            options(noreturn, nostack)
-        );
+    unsafe extern "C" {
+        fn _exit(code: i32) -> !;
     }
-    #[cfg(not(target_os = "linux"))]
-    std::process::exit(code);
+    // SAFETY: `_exit` ends the process without running atexit handlers; it takes any status.
+    unsafe { _exit(code) }
 }

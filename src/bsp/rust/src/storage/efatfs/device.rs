@@ -20,7 +20,6 @@
 //! from any context, at the cost of holding the caller (and so the thread-mode tasks: PIC pump,
 //! OLED, UI) for the transfer; streaming runs on its own interrupt executor and is unaffected. The
 //! C-side contracts are in `libdeluge/file_io.h` and `libdeluge/stream_io.h`.
-#![cfg(target_os = "none")]
 #![allow(dead_code)]
 
 use aligned::{A4, Aligned};

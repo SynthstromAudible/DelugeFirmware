@@ -2,8 +2,6 @@
 //! queue: each path's call sequence, and that the queue-owned lease is released on every path but
 //! the re-enqueue.
 
-#![cfg(not(target_os = "none"))]
-
 use core::ffi::c_void;
 use std::cell::{Cell, RefCell};
 

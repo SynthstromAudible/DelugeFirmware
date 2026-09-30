@@ -23,7 +23,7 @@ fn panic(_info: &PanicInfo) -> ! {
     // Never unwind across the `extern "C"` boundary. Print straight to RTT, not through `log`:
     // release builds compile `log`'s levels out, which made every device panic silent. The spin
     // stalls only the context that panicked, so a thread-mode panic leaves audio playing.
-    #[cfg(all(feature = "rtt", target_os = "none"))]
+    #[cfg(feature = "rtt")]
     rtt_target::rprintln!("PANIC: {}", _info);
     loop {
         core::hint::spin_loop();
@@ -110,7 +110,7 @@ async fn stream_bootstrap() {
 pub fn start() -> ! {
     // RTT logger first, so every boot step is visible over the probe. The ring
     // buffer + control block live in uncached SRAM (.rtt_buffer / rza1l_rtt.x).
-    #[cfg(all(feature = "rtt", target_os = "none"))]
+    #[cfg(feature = "rtt")]
     {
         let channels = rtt_target::rtt_init! {
             up: { 0: { size: 16384, name: "Terminal", section: ".rtt_buffer" } }

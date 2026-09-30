@@ -216,7 +216,7 @@ pub async fn fill_once<O: FillOps>(ops: &O) {
 
 // Production wiring: only where the app's C symbols are linked (device, and host under
 // `host_app`).
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 mod prod {
     use super::{FillOps, LOWEST_PRIORITY};
     use core::ffi::c_void;
@@ -304,7 +304,7 @@ mod prod {
     }
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 pub use prod::ProdOps;
 
 /// Milliseconds the fill task waits before each drain pass (host harness knob).
@@ -344,7 +344,7 @@ pub extern "C" fn deluge_streaming_set_fill_read_latency_us(us: u32) {
 /// that write and could use the default instead of the card's cluster size. Nothing signals
 /// [`FILL_WAKE`] until the C++ enqueue path runs, after init, and the signal latches, so no wake
 /// is lost.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[embassy_executor::task]
 pub async fn streaming_fill_task() {
     // Reports on RTT which tier the device derives here; expected `Storage`.
@@ -356,7 +356,7 @@ pub async fn streaming_fill_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, streaming_fill_task_body()).await
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn streaming_fill_task_body() {
     FILL_WAKE.wait().await;
     let ops = ProdOps::new();

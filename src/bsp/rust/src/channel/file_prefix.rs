@@ -229,17 +229,17 @@ fn result_parts<'g>(
 
 /// The read in progress, before it is published; owned by `file_prefix_task` through
 /// [`claim_work_bytes`]. Placed like [`RESULT_BYTES`].
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[cfg_attr(target_os = "none", unsafe(link_section = ".sdram_bss"))]
 static mut WORK_BYTES: [u8; PREFIX_CAPACITY] = [0; PREFIX_CAPACITY];
 
 /// Grants [`WORK_BYTES`] once.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 static WORK_CLAIM: crate::channel::file_bytes::ClaimOnce =
     crate::channel::file_bytes::ClaimOnce::new();
 
 /// Returns the work buffer to the first caller only; `file_prefix_task` claims it once, at start.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 fn claim_work_bytes() -> Option<&'static mut [u8; PREFIX_CAPACITY]> {
     if !WORK_CLAIM.claim() {
         return None;
@@ -490,13 +490,13 @@ async fn read_prefix<O: LoadOps>(
 /// `IN_FLIGHT` is set before the I/O and cleared only after the result is published, so
 /// [`deluge_file_prefix_collect`] never sees a running read as unknown. A failed read is published
 /// as a failure (see [`PrefixLen`]).
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[embassy_executor::task]
 pub async fn file_prefix_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_prefix_task_body()).await
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn file_prefix_task_body() {
     PREFIX_WAKE.wait().await;
     let ops = crate::channel::audio_loader::ProdOps::new();
@@ -537,7 +537,7 @@ async fn file_prefix_task_body() {
 /// The mark is made while the [`REQUEST`] lock is held, so a racing collect reports `PENDING`,
 /// never `UNKNOWN`. The generation is read here, before any I/O, so it names the card this read
 /// reads; reading it at publish time would see the post-flush value.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn take_next_request() -> Option<(PrefixRequest, u32)> {
     let mut request = REQUEST.lock().await;
     let request = request.take()?;

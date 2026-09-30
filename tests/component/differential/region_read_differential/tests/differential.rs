@@ -16,7 +16,6 @@
 //! `audio_data_start_bytes` is 0, so [`mapping::Geometry::total_frames`] is the exact end of audio.
 //! All clusters are filled before a reader opens, except in the one forced-failure case, which
 //! leaves its cluster unconstructed.
-#![cfg(not(target_os = "none"))]
 
 use core::ffi::c_void;
 use core::ptr;

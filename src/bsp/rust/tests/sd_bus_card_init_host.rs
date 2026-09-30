@@ -3,7 +3,6 @@
 //! `card_service` holds `SD_BUS` across the ~1.3 s identification, on the thread executor. An
 //! interaction-tier caller must fail fast, since it spins on the executor `card_service` needs; a
 //! storage-tier caller must wait and then succeed on the re-identified card.
-#![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::storage::sd;
 use deluge_bsp_rust::storage::sim_block;

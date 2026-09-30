@@ -4,7 +4,7 @@
 //! which rebuilds a fixture from the local `~/Deluge Backup` corpus. The image is packed with
 //! mtools in a real card's geometry: 32 KB clusters and at least 2.5 GB, since FAT32 needs 65,525
 //! clusters.
-#![cfg(all(not(target_os = "none"), feature = "host_app"))]
+#![cfg(feature = "host_app")]
 
 use crate::storage::sd_image_path::Plan;
 use std::path::{Path, PathBuf};

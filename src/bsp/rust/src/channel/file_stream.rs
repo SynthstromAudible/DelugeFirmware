@@ -34,7 +34,7 @@ use crate::abi::handle::{DelugeHandle, from_abi, to_abi};
 use crate::channel::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath, still_coming};
 
 // The efatfs backend: the device module on the target, the host shim under `host_app`.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::storage::efatfs::device::{
@@ -246,7 +246,7 @@ pub extern "C" fn deluge_file_stream_set_mount_refused(refused: bool) {
 }
 
 /// Opens `path` with [`open_mounted`], unless the host harness has refused the mount.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn channel_open(path: &str, mode: u8) -> Result<u32, i8> {
     #[cfg(feature = "host_app")]
     if MOUNT_REFUSED.load(core::sync::atomic::Ordering::Relaxed) {
@@ -496,7 +496,7 @@ pub unsafe extern "C" fn deluge_file_stream_collect_stats(
 /// on this path mounts it (synchronous callers rely on `StorageManager::initSD` instead). Returns
 /// the final open's status, never the mount's: callers act on it (the recorder retries its folder
 /// only on `NOT_FOUND`). Also used by [`file_bytes`](crate::channel::file_bytes).
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 pub(crate) async fn open_mounted(path: &str, mode: u8) -> Result<u32, i8> {
     use crate::channel::file_bytes::NO_FILESYSTEM;
     match backing::stream_open(path, mode).await {
@@ -510,13 +510,13 @@ pub(crate) async fn open_mounted(path: &str, mode: u8) -> Result<u32, i8> {
 
 /// The stream channel's driver on the storage tier: runs one operation at a time and publishes its
 /// answer.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[embassy_executor::task]
 pub async fn file_stream_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_stream_task_body()).await
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn close_orphans() {
     loop {
         let orphan = RESULT
@@ -528,7 +528,7 @@ async fn close_orphans() {
     }
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn file_stream_task_body() {
     loop {
         WAKE.wait().await;

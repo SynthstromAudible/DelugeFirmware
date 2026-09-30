@@ -5,7 +5,7 @@ mod device;
 #[cfg(target_os = "none")]
 pub use device::start;
 
-#[cfg(all(not(target_os = "none"), feature = "host-runtime"))]
+#[cfg(feature = "host-runtime")]
 mod host;
-#[cfg(all(not(target_os = "none"), feature = "host-runtime"))]
+#[cfg(feature = "host-runtime")]
 pub use host::main;

@@ -19,7 +19,11 @@ fn main() {
     let repo_root = manifest_dir.join("../../..").canonicalize().unwrap();
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
+    // `has_app`: the C++ app is linked and `sys` is bindgen's output, on the device and under
+    // `host_app`.
+    println!("cargo::rustc-check-cfg=cfg(has_app)");
     if env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("none") {
+        println!("cargo::rustc-cfg=has_app");
         bindgen::run(
             &repo_root,
             &manifest_dir,
@@ -31,6 +35,7 @@ fn main() {
     } else if env::var("CARGO_FEATURE_HOST_APP").is_ok() {
         // The bindgen target follows the build target: struct layouts differ between x86-64 and the
         // 32-bit arm-linux target the golden harness also runs on.
+        println!("cargo::rustc-cfg=has_app");
         let target = env::var("TARGET").unwrap();
         bindgen::run(&repo_root, &manifest_dir, &out_dir, &target, true);
         // Link arguments reach only this package's own binary, which needs `host-runtime`. Without

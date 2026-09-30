@@ -159,12 +159,12 @@ pub struct LoadResult {
 /// The result slot type in `deluge_audio_load_collect`'s signature: bindgen's
 /// `DelugeAudioLoadResult` where there is bindgen output (so `abi_pin!` holds), else
 /// [`LoadResult`]. The export writes through a cast, so the two must share a layout.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 type AbiLoadResult = crate::sys::DelugeAudioLoadResult;
-#[cfg(not(any(target_os = "none", feature = "host_app")))]
+#[cfg(not(has_app))]
 type AbiLoadResult = LoadResult;
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 const _: () = {
     use core::mem::{align_of, offset_of, size_of};
     assert!(size_of::<AbiLoadResult>() == size_of::<LoadResult>());
@@ -765,7 +765,7 @@ mod driver {
 pub use driver::{LoadOps, OpenVerdict, error_code_for, load_io_once};
 
 // Production wiring: only where the efatfs backing is linked (device, and host under `host_app`).
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 mod prod {
     use super::driver::LoadOps;
 
@@ -815,7 +815,7 @@ mod prod {
     }
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[allow(unused_imports)]
 pub use prod::ProdOps;
 
@@ -824,13 +824,13 @@ pub use prod::ProdOps;
 ///
 /// `IN_FLIGHT` is set before the I/O and cleared only after the result is published, so
 /// [`deluge_audio_load_collect`] never sees a running load as unknown.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[embassy_executor::task]
 pub async fn audio_load_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, audio_load_task_body()).await
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn audio_load_task_body() {
     LOAD_WAKE.wait().await;
     let ops = ProdOps::new();
@@ -863,7 +863,7 @@ async fn audio_load_task_body() {
 /// The mark is made while the [`QUEUE`] lock is held, so a racing collect sees the request queued
 /// or finds the lock contended — `PENDING` either way, never `UNKNOWN`. The generation is read
 /// here, before any I/O, so it names the card this load reads.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn take_next_request() -> Option<(LoadRequest, u32)> {
     let mut queue = QUEUE.lock().await;
     let request = queue.pop_front()?;

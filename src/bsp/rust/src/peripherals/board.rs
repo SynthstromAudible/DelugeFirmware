@@ -98,7 +98,7 @@ pub extern "C" fn deluge_board_init_early(have_oled: bool) {
 }
 
 /// Host stand-in: there is no hardware to bring up. Logs once so the boot trace shows the call.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_early(_have_oled: bool) {
     use core::sync::atomic::{AtomicBool, Ordering};
@@ -117,7 +117,7 @@ pub extern "C" fn deluge_board_init_audio() {
 }
 
 /// Host stand-in: there is no SSI0 to bring up. Logs once so the boot trace shows the call.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_board_init_audio() {
     use core::sync::atomic::{AtomicBool, Ordering};

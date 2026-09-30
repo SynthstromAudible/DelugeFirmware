@@ -1,6 +1,5 @@
 //! Host tests for the directory channel's slot logic: keying, the card-generation stamp checked at
 //! take, and that every discarded handle is handed back to be closed.
-#![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::channel::file_directory;
 

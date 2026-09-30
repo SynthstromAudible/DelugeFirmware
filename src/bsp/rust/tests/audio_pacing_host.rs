@@ -1,6 +1,5 @@
 //! Tests the audio drive's render-window pacing ([`pace_window`]) against the arithmetic of the
 //! app's original `AudioEngine::routine_()`.
-#![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::audio::pacing;
 

@@ -25,8 +25,8 @@ log = "0.4"
 rtt-target = { version = "0.6", features = ["log"], optional = true }
 heapless = { version = "0.8", default-features = false }
 
-# The convert/stitch shim `deluge_sample_fill` calls; its build script is target-aware.
-deluge_sample_convert = { path = "../../../crates/deluge_sample_convert" }
+# The header decoder the audio loader walks headers through, and whose C ABI the app calls.
+deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
 deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = ["native_fill"] }
 
 # deluge-sdk, pinned by revision. `dbt build`/`dbt rust` pass `src/bsp/rust/local-sdk.toml`
@@ -37,32 +37,33 @@ deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev
 ] }
 rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
 
+# The filesystem `storage::efatfs::portable` drives on every build. The 0.7 `embedded-io-async` is
+# the one whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the block-device crates
+# use 0.6; both versions are in the graph).
+embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
+embedded-io-async = "0.7.0"
+
 # Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
 # exclusive in embassy-executor, so the two executors live in disjoint `[target]` sections.
 [target.'cfg(target_os = "none")'.dependencies]
 deluge-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
 
-# The device storage stack: `BlockDevice` over the SD driver, `BufStream`, `embedded-fatfs`.
+# The device storage stack under the filesystem: `BlockDevice` over the SD driver, `BufStream`.
 block-device-driver = { path = "../../../crates/block-device-driver" }
 block-device-adapters = { path = "../../../crates/block-device-adapters" }
 aligned = "0.4"
-embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
-# The 0.7 `embedded-io-async`, whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the
-# block-device crates use 0.6; both versions are in the graph).
-embedded-io-async = "0.7.0"
 # The TLSF allocator behind the `#[global_allocator]` that `embedded-fatfs`'s `alloc` needs. Renamed
 # because it and deluge-sdk's `deluge-alloc` both normalise to `deluge_alloc`.
 fs_alloc = { package = "deluge_alloc", path = "../../../crates/deluge_alloc" }
 
-# The C-ABI crates the C++ app calls (residency/allocator, audio headers, sample source/reader/
-# stream). Their `#[no_mangle]` definitions have no C++ fallback, and lib.rs's `extern crate`s keep
-# them on the link line. `deluge_resource` is linked directly, not via the `deluge_rust` umbrella,
-# whose `#[panic_handler]` would collide with ours.
+# The C-ABI crates the C++ app calls (residency/allocator, sample source/reader/stream). Their
+# `#[no_mangle]` definitions have no C++ fallback, and lib.rs's `extern crate`s keep them on the
+# link line. `deluge_resource` is linked directly, not via the `deluge_rust` umbrella, whose
+# `#[panic_handler]` would collide with ours.
 deluge_resource = { path = "../../../crates/deluge_resource" }
-deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
-deluge_sample_source = { path = "../../../crates/deluge_sample_source" }
-deluge_sample_reader = { path = "../../../crates/deluge_sample_reader" }
-deluge_sample_stream = { path = "../../../crates/deluge_sample_stream" }
+deluge_sample_source = { path = "../../../crates/deluge_sample_source", features = ["c_abi"] }
+deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", features = ["c_abi"] }
+deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", features = ["c_abi"] }
 
 # Embassy versions match deluge-sdk's workspace pins.
 embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread", "executor-interrupt"] }
@@ -79,20 +80,15 @@ critical-section = "1"
 embassy-executor = { version = "0.10.0", features = ["nightly"] }
 embassy-time = "0.5.1"
 critical-section = { version = "1", features = ["std"] }
-env_logger = "0.11"
-# The host C++ app (`host_app`) calls the same C-ABI crates. `deluge_audio_format` is unconditional
-# because the audio loader walks headers through it in every build.
+env_logger = { version = "0.11", optional = true }
+# The host C++ app (`host_app`) calls the same C-ABI crates.
 deluge_resource = { path = "../../../crates/deluge_resource", optional = true }
-deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
 deluge_sample_source = { path = "../../../crates/deluge_sample_source", optional = true }
 deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", optional = true }
 deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", optional = true }
 
-# `storage::efatfs::portable`, which every build compiles, needs the filesystem; the host mount
-# (`host_app`) adds the block-device stack under it. A std host has a default allocator, so no
-# `fs_alloc` is needed.
-embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
-embedded-io-async = "0.7.0"
+# The block-device stack under the host mount (`host_app`). A std host has a default allocator, so
+# no `fs_alloc` is needed.
 block-device-driver = { path = "../../../crates/block-device-driver", optional = true }
 block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
 aligned = { version = "0.4", optional = true }
@@ -100,7 +96,7 @@ aligned = { version = "0.4", optional = true }
 deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", optional = true }
 
 [features]
-default = ["rtt", "host-runtime"]
+default = ["host-runtime"]
 
 ## The host binary's runtime: embassy's std executor and time driver. A harness with its own
 ## executor and time driver (golden_vt_render) depends on this crate without it. The device
@@ -109,6 +105,7 @@ host-runtime = [
     "embassy-executor/platform-std",
     "embassy-executor/executor-thread",
     "embassy-time/std",
+    "dep:env_logger",
 ]
 
 ## RTT logging over a debug probe: selects the rza1l_rtt.x linker script and registers the logger.

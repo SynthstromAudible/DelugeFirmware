@@ -128,7 +128,7 @@ pub extern "C" fn deluge_flash_program(offset: u32, src: *const c_void, len: u32
 
 /// Tests the host flash model: erased reads are 0xFF, program round-trips, out-of-range access
 /// clamps.
-#[cfg(all(test, not(target_os = "none")))]
+#[cfg(test)]
 mod host_tests {
     use super::*;
 

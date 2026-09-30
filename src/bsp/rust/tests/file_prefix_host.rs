@@ -1,6 +1,5 @@
 //! Host tests for the prefix channel: the slot's keying and card-generation stamp, the driver's
 //! bounds and handle discipline, and the C ABI's request/collect contract.
-#![cfg(not(target_os = "none"))]
 
 use std::cell::{Cell, RefCell};
 

@@ -200,7 +200,7 @@ fn audio_spawner() -> Option<SendSpawner> {
 /// Whether the priority-0 (audio) task has an executor of its own (the threaded host app's
 /// `"deluge-audio"` thread) rather than sharing the thread executor, as single-executor harnesses
 /// do. Decided at startup by [`set_audio_spawner`].
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 pub fn has_audio_executor() -> bool {
     audio_spawner().is_some()
 }
@@ -327,7 +327,7 @@ fn current_slot() -> Option<&'static TaskSlot> {
 }
 
 /// The number of claimed slots. The host harnesses poll it as the sign that `registerTasks()` ran.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 pub fn registered_task_count() -> usize {
     SLOTS
         .iter()

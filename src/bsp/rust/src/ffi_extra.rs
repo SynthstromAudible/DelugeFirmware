@@ -36,7 +36,7 @@ pub extern "C" fn _fini() {}
 // The app takes only the addresses of these `extern uint32_t` boundary symbols
 // (memory/stack_guard.cpp, memory/heaps.cpp). On host they are `.set` aliases onto the edges of
 // real statics, since Rust has no linker-level alias.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 mod boundary_markers {
     /// The "frunk" (small internal) slack region's size. `init_heaps()` builds a real heap over
     /// `[__frunk_bss_end, __frunk_slack_end)`.

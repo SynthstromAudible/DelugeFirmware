@@ -1,5 +1,4 @@
 //! Host tests for the tier tag: the default, nesting, and the future wrapper.
-#![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::tier;
 

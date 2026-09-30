@@ -234,13 +234,13 @@ pub(crate) fn flush_tables() {
 /// Closing only removes a handle-table row (no card I/O), so a `try_lock` suffices. If the table
 /// is contended the handle leaks until the next mount, which beats blocking the interaction tier
 /// inside `deluge_card_flush`.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 fn close_handle_now(handle: u32) {
     backing::try_close_dir(handle);
 }
 
 // Without an efatfs backing (the plain host build) there is no handle table to close against.
-#[cfg(not(any(target_os = "none", feature = "host_app")))]
+#[cfg(not(has_app))]
 fn close_handle_now(_handle: u32) {}
 
 /// Milliseconds `file_directory_task` waits before each open. See
@@ -415,7 +415,7 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<DirPath> {
 // Production wiring: only where the efatfs backing is linked (device, and host under `host_app`).
 
 /// The efatfs directory table: the device mount on device, the host shim under `host_app`.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 mod backing {
     #[cfg(target_os = "none")]
     pub(super) use crate::storage::efatfs::device::{
@@ -429,17 +429,17 @@ mod backing {
 
 /// The production [`DirOps`], over the efatfs directory-handle table. Stateless: every operation
 /// is keyed by path or handle.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 pub struct ProdDirOps;
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 impl ProdDirOps {
     pub fn new() -> Self {
         Self
     }
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 impl DirOps for ProdDirOps {
     async fn open_dir(&self, path: &str) -> Result<u32, i8> {
         // The `task_dir_open` that `deluge_efatfs_dir_open` spins on, awaited instead.
@@ -476,13 +476,13 @@ impl DirOps for ProdDirOps {
 /// [`deluge_file_directory_collect`] never sees a running open as unknown. A failed open is
 /// published as a terminal failure; publishing nothing would read as `UNKNOWN` and be re-requested
 /// every tick.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[embassy_executor::task]
 pub async fn file_directory_task() {
     crate::tier::scoped(crate::tier::Tier::Storage, file_directory_task_body()).await
 }
 
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn file_directory_task_body() {
     DIRECTORY_WAKE.wait().await;
     let ops = ProdDirOps::new();
@@ -514,7 +514,7 @@ async fn file_directory_task_body() {
 /// The mark is made while the [`REQUEST`] lock is held, so a racing collect reports `PENDING`,
 /// never `UNKNOWN`. The generation is read here, before any I/O, so it names the card this open
 /// reads; reading it at publish time would see the post-flush value.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 async fn take_next_request() -> Option<(DirRequest, u32)> {
     let mut request = REQUEST.lock().await;
     let request = request.take()?;
@@ -539,7 +539,7 @@ pub async fn mark_in_flight(path: Option<DirPath>) {
 /// `deluge_card_flush`'s bump, it can read the pre-flush value and publish, and [`take_from`] then
 /// refuses the entry. It runs under the lock so it is at least ordered against a flush that took
 /// that lock.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 pub async fn publish_result<O: DirOps>(ops: &O, key: &str, outcome: DirOutcome, generation: u32) {
     let mut result = RESULT.lock().await;
     if generation != crate::storage::card::generation() {

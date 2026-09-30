@@ -3,13 +3,13 @@
 
 // `abi_pin!`/`abi_const!`/`abi_layout!`: checking where `sys` is bindgen output, no-ops where it
 // is `sys_host.rs`.
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 #[macro_use]
 mod pin_macros;
-#[cfg(not(any(target_os = "none", feature = "host_app")))]
+#[cfg(not(has_app))]
 #[macro_use]
 #[path = "pin_noop.rs"]
 mod pin_macros;
 pub mod handle;
-#[cfg(any(target_os = "none", feature = "host_app"))]
+#[cfg(has_app)]
 pub(crate) mod pins;

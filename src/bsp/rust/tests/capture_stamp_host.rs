@@ -1,6 +1,5 @@
 //! Tests capture stamps: placing input events on the TX play timeline and converting them to render
 //! offsets.
-#![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::audio::capture_stamp;
 

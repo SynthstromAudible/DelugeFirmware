@@ -1,6 +1,5 @@
 //! Host tests for the stream channel's answer slot: keying by kind, handle and path,
 //! card-generation stamps, orphaned `Open` handles, and `still_coming`.
-#![cfg(not(target_os = "none"))]
 
 use deluge_bsp_rust::channel::file_stream_slot;
 

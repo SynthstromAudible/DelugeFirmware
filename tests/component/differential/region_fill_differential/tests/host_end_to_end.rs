@@ -7,7 +7,6 @@
 //! FAT read path is covered by `fs_differential`. Convert state is kept in local
 //! `fill_logic::ConvertState` values, zeroed as for a never-finished chunk;
 //! `tests/native_finish_glue.rs` drives the real chunk store and `native_finish` instead.
-#![cfg(not(target_os = "none"))]
 
 use core::ffi::c_void;
 use core::ptr;

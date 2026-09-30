@@ -33,7 +33,6 @@
 //!   converted" branch (recompute from self's captured `unconverted_head`). An empty second store
 //!   would take the other branch and produce different bytes.
 //!   [`neighbour_convert_state_is_read_back_through_the_shared_store`] covers the write side.
-#![cfg(not(target_os = "none"))]
 
 use core::ffi::c_void;
 use core::ptr;

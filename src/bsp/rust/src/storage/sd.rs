@@ -139,7 +139,7 @@ pub async fn card_service() {
 /// Brings the host SD image up before `deluge_app_init`, mirroring the device boot sequence.
 ///
 /// Not strictly required: the host image opens lazily on first access. Idempotent.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 pub async fn boot_init() {
     let r = sd::init().await;
     log::info!(

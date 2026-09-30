@@ -1,6 +1,5 @@
 //! `sim_block::block_on`: a future pending on an outside agent completes when a progress hook is
 //! registered, and an unsatisfiable one trips the spin budget instead of spinning forever.
-#![cfg(not(target_os = "none"))]
 
 use core::future::Future;
 use core::pin::Pin;

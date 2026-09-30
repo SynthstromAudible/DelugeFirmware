@@ -23,14 +23,6 @@
 #![cfg(feature = "host_app")]
 #![allow(dead_code)]
 
-// A device build must never also enable `host_app`: this module and the device mount would both
-// compile and define every efatfs C-ABI symbol twice, which surfaces as an opaque E0428.
-#[cfg(all(target_os = "none", feature = "host_app"))]
-compile_error!(
-    "storage::efatfs::device and storage::efatfs::host both define the efatfs C ABI; a device \
-     build (target_os = \"none\") must not enable the `host_app` feature"
-);
-
 use aligned::{A4, Aligned};
 use block_device_adapters::BufStream;
 use block_device_driver::BlockDevice;

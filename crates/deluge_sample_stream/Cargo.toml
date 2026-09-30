@@ -24,5 +24,6 @@ embassy-sync = "0.8.0"
 critical-section = { version = "1", features = ["std"] }
 
 [features]
-## Export the C ABI (`#[no_mangle]`) on a host build. The device build always exports it.
+## Export the C ABI (`#[no_mangle]`). The BSP and the unit-test umbrella turn it on; the crate's own
+## tests leave it off, since the exports call symbols only a final link provides.
 c_abi = []

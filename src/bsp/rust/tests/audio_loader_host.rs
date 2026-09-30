@@ -5,7 +5,6 @@
 //! error identity; a zero-length window is still read and fed; an uncollected result is evicted,
 //! not leaked; and nothing parsed from one card survives its ejection, including a load in flight
 //! across it and a publish into a table the flush could not clear.
-#![cfg(not(target_os = "none"))]
 
 use std::cell::{Cell, RefCell};
 use std::ffi::CString;

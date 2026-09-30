@@ -15,7 +15,7 @@ use crate::DelugeSampleStreamGeometry;
 ///
 /// `path` must be a valid, NUL-terminated C string. `out_table_full`, if non-null, must be valid
 /// for one write.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_stream_open(
     path: *const c_char,
     out_table_full: *mut bool,
@@ -26,14 +26,14 @@ pub unsafe extern "C" fn deluge_sample_stream_open(
 
 /// Closes `handle`'s efatfs handle and releases its asset, if one was assigned. A no-op on `0` or
 /// an already-closed handle.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_stream_close(handle: DelugeHandle) {
     registry::close(handle);
 }
 
 /// Stores `geo` on `handle`'s slot, registering its fill-context once an asset id is also
 /// present. A no-op on an invalid handle.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_stream_set_geometry(
     handle: DelugeHandle,
     geo: DelugeSampleStreamGeometry,
@@ -46,14 +46,14 @@ pub extern "C" fn deluge_sample_stream_set_geometry(
 ///
 /// Named `_get_` because `deluge_sample_stream_asset_id(DelugeStreamBacking*)` is a different,
 /// C++-defined symbol in the same header.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_stream_get_asset_id(handle: DelugeHandle) -> u32 {
     registry::asset_id(handle)
 }
 
 /// Assigns asset `id` to `handle`'s slot, registering its fill-context once a geometry is also
 /// present. A no-op on an invalid handle.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_stream_set_asset_id(handle: DelugeHandle, id: u32) {
     registry::set_asset_id(handle, id);
 }
@@ -68,7 +68,7 @@ pub extern "C" fn deluge_sample_stream_set_asset_id(handle: DelugeHandle, id: u3
 ///
 /// If `len > 0`, `buf` must be valid for `len` writable bytes. `out_read` must be null or valid
 /// for one write.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_stream_read_at(
     handle: DelugeHandle,
     byte_offset: u32,

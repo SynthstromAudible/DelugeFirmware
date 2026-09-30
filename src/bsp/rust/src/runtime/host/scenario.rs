@@ -6,7 +6,6 @@
 //! thread and only awaits [`embassy_time::Timer`]s, so any executor can drive it. The caller boots
 //! the C++ app first. [`scenario_task`] runs it on the host app executor and hands the result to
 //! the OS thread through [`take_result`].
-#![cfg(all(not(target_os = "none"), feature = "host_app"))]
 
 use core::ffi::c_char;
 use std::ffi::CString;

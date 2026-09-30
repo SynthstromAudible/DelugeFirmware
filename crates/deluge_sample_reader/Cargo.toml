@@ -28,5 +28,6 @@ deluge_alloc = { path = "../deluge_alloc" }
 critical-section = { version = "1", features = ["std"] }
 
 [features]
-## Export the C ABI (`#[no_mangle]`) on a host build. The device build always exports it.
+## Export the C ABI (`#[no_mangle]`). The BSP and the unit-test umbrella turn it on; the crate's own
+## tests leave it off, since the exports call symbols only a final link provides.
 c_abi = []

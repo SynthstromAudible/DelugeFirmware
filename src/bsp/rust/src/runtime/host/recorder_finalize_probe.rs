@@ -10,7 +10,6 @@
 //! (`tests/integration/scenarios/recorder_readback_probe.h`), acquires region 1 through
 //! `deluge_sample_region_acquire_ex`, and checks the table size and the bytes. Like
 //! [`super::scenario::run`], [`run`] only awaits timers.
-#![cfg(all(not(target_os = "none"), feature = "host_app"))]
 
 use std::sync::Mutex;
 

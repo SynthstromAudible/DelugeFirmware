@@ -7,15 +7,7 @@
 #[cfg(target_os = "none")]
 use core::sync::atomic::{AtomicU32, Ordering};
 
-#[cfg(target_os = "none")]
-use crate::sys::{
-    DelugeMemoryKind_DELUGE_MEM_FAST_INTERNAL as KIND_INTERNAL,
-    DelugeMemoryKind_DELUGE_MEM_LARGE_EXTERNAL as KIND_EXTERNAL, DelugeMemoryRegion, DelugeStatus,
-    DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM, DelugeStatus_DELUGE_OK as DELUGE_OK,
-};
-
-// The host app needs the memory providers too.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(has_app)]
 use crate::sys::{
     DelugeMemoryKind_DELUGE_MEM_FAST_INTERNAL as KIND_INTERNAL,
     DelugeMemoryKind_DELUGE_MEM_LARGE_EXTERNAL as KIND_EXTERNAL, DelugeMemoryRegion, DelugeStatus,
@@ -238,34 +230,34 @@ pub extern "C" fn deluge_memory_scratch() -> *mut core::ffi::c_void {
 // The host app's `GeneralMemoryAllocator` gets two process statics as its regions.
 
 /// The external region's size: room for the stealable, external and small external heaps.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 const HOST_SDRAM_BYTES: usize = 67_108_864;
 /// The internal (on-chip SRAM stand-in) region's size.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 const HOST_INTERNAL_BYTES: usize = 2_097_152;
 
 /// A heap region, 16-byte aligned because `deluge_heap_create` requires it (a plain `[u8; N]`
 /// static is only byte-aligned).
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 #[repr(C, align(16))]
 struct HeapRegion<const N: usize>([u8; N]);
 
 /// Region 0: large external (SDRAM stand-in).
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 static mut HOST_SDRAM: HeapRegion<HOST_SDRAM_BYTES> = HeapRegion([0; HOST_SDRAM_BYTES]);
 /// Region 1: fast internal (SRAM stand-in).
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 static mut HOST_INTERNAL: HeapRegion<HOST_INTERNAL_BYTES> = HeapRegion([0; HOST_INTERNAL_BYTES]);
 
 /// The number of allocatable memory regions. `[task]`
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_memory_region_count() -> u8 {
     2
 }
 
 /// Describes region `index`: 0 is large external, 1 is fast internal. `[task]`
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_memory_region(index: u8, out: *mut DelugeMemoryRegion) -> DelugeStatus {
     let (base, size, kind): (*mut u8, usize, _) = match index {
@@ -291,14 +283,14 @@ pub extern "C" fn deluge_memory_region(index: u8, out: *mut DelugeMemoryRegion) 
 }
 
 /// A writable scratch address whose contents are never read. `[task]` `[audio]` `[isr]`
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+#[cfg(feature = "host_app")]
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_memory_scratch() -> *mut core::ffi::c_void {
     static mut HOST_SCRATCH: [u8; 256] = [0; 256];
     core::ptr::addr_of_mut!(HOST_SCRATCH) as *mut core::ffi::c_void
 }
 
-#[cfg(all(test, not(target_os = "none")))]
+#[cfg(test)]
 mod cs_tests {
     use super::{ENTER_CRITICAL_SECTION, EXIT_CRITICAL_SECTION};
     use std::sync::Arc;

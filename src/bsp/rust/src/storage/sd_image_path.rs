@@ -9,7 +9,6 @@
 //! some hosts (see `harness/preemptive_race_tsan/run.sh`); the reliable workflow reuses an image
 //! packed by an earlier process.
 
-#![cfg(not(target_os = "none"))]
 #![allow(dead_code)]
 
 use std::path::{Path, PathBuf};

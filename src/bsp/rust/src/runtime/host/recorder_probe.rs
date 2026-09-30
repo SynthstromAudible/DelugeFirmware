@@ -6,7 +6,6 @@
 //! through the region port playback uses (`deluge_sample_region_acquire_ex`) and reports what
 //! comes back. Like [`super::scenario::run`], [`run`] only awaits timers; [`recorder_probe_task`]
 //! runs it for an OS thread that polls [`take_result`].
-#![cfg(all(not(target_os = "none"), feature = "host_app"))]
 
 use std::sync::Mutex;
 

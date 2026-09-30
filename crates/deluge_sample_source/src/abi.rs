@@ -1,8 +1,7 @@
 //! The `deluge_sample_source_*` / `deluge_sample_region_*` C ABI (`libdeluge/sample_source.h`).
 //!
 //! Wraps [`SampleSource<ManagerResidency>`](SampleSource) behind a fixed, allocation-free static
-//! pool of cursors. The device build always exports the symbols; a host build exports them with
-//! the `c_abi` feature.
+//! pool of cursors. The symbols are exported under the `c_abi` feature.
 //!
 //! # `open`'s `stream_backing`
 //!
@@ -214,7 +213,7 @@ fn num_clusters_for(geo: &Geometry) -> u32 {
 /// `stream_backing`, if non-null, must be a live `SampleStream` for the duration of the call. The
 /// handle [`deluge_streaming_resource_manager`] returns, if non-null, must stay live for the
 /// cursor's whole life.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_source_open(
     stream_backing: *mut DelugeStreamBacking,
     geometry: Geometry,
@@ -265,7 +264,7 @@ pub unsafe extern "C" fn deluge_sample_source_open(
 ///
 /// `src`, if non-null, must come from [`deluge_sample_source_open`] and not yet be closed. `out`,
 /// if non-null, must be valid for writes.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_region_acquire_ex(
     src: *mut DelugeSampleSource,
     index: u32,
@@ -299,7 +298,7 @@ pub unsafe extern "C" fn deluge_sample_region_acquire_ex(
 /// # Safety
 ///
 /// As for [`deluge_sample_region_acquire_ex`].
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_region_acquire(
     src: *mut DelugeSampleSource,
     index: u32,
@@ -318,7 +317,7 @@ pub unsafe extern "C" fn deluge_sample_region_acquire(
 /// # Safety
 ///
 /// `src`, if non-null, must come from [`deluge_sample_source_open`] and not yet be closed.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_region_state(
     src: *const DelugeSampleSource,
     index: u32,
@@ -333,7 +332,7 @@ pub unsafe extern "C" fn deluge_sample_region_state(
 /// Takes an independent pin on a region's chunk by its `lease` token.
 ///
 /// A no-op on `0`, a stale token, or before any source has been opened.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_region_retain(lease: u64) {
     let handle = m_get(&ACTIVE_MANAGER.0);
     if handle.is_null() {
@@ -345,7 +344,7 @@ pub extern "C" fn deluge_sample_region_retain(lease: u64) {
 }
 
 /// Drops an independent pin taken by [`deluge_sample_region_retain`], with the same no-op cases.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_region_release(lease: u64) {
     let handle = m_get(&ACTIVE_MANAGER.0);
     if handle.is_null() {
@@ -362,7 +361,7 @@ pub extern "C" fn deluge_sample_region_release(lease: u64) {
 ///
 /// `src`, if non-null, must come from [`deluge_sample_source_open`] and not yet be closed; it must
 /// not be used after this call.
-#[cfg_attr(any(target_os = "none", feature = "c_abi"), unsafe(no_mangle))]
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_source_close(src: *mut DelugeSampleSource) {
     if src.is_null() {
         return;
