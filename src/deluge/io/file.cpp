@@ -1,5 +1,6 @@
 #include "io/file.hpp"
 
+#include "io/c_path.h"
 #include "libdeluge/file_directory.h"
 
 #include <cstdint>
@@ -116,8 +117,12 @@ std::expected<bool, Status> presence_from_open(const std::expected<File, Status>
 }
 
 std::expected<File, Status> File::open(std::string_view path, DelugeFileOpenMode mode) {
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
 	DelugeHandle handle = DELUGE_HANDLE_NONE;
-	DelugeStatus st = deluge_efatfs_file_open(path.data(), static_cast<uint8_t>(mode), &handle);
+	DelugeStatus st = deluge_efatfs_file_open(cpath->c_str(), static_cast<uint8_t>(mode), &handle);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -170,8 +175,12 @@ std::expected<void, Status> File::close() {
 }
 
 std::expected<Directory, Status> Directory::open(std::string_view path) {
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
 	DelugeHandle handle = DELUGE_HANDLE_NONE;
-	DelugeStatus st = deluge_efatfs_dir_open(path.data(), &handle);
+	DelugeStatus st = deluge_efatfs_dir_open(cpath->c_str(), &handle);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -250,7 +259,11 @@ std::expected<bool, Status> presence_from_open(const std::expected<Directory, St
 }
 
 std::expected<void, Status> mkdir(std::string_view path) {
-	DelugeStatus st = deluge_efatfs_mkdir(path.data());
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeStatus st = deluge_efatfs_mkdir(cpath->c_str());
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -258,7 +271,11 @@ std::expected<void, Status> mkdir(std::string_view path) {
 }
 
 std::expected<void, Status> unlink(std::string_view path) {
-	DelugeStatus st = deluge_efatfs_unlink(path.data());
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeStatus st = deluge_efatfs_unlink(cpath->c_str());
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -266,7 +283,12 @@ std::expected<void, Status> unlink(std::string_view path) {
 }
 
 std::expected<void, Status> rename(std::string_view old_path, std::string_view new_path) {
-	DelugeStatus st = deluge_efatfs_rename(old_path.data(), new_path.data());
+	const auto cpath_old = CPath::from(old_path);
+	const auto cpath_new = CPath::from(new_path);
+	if (!cpath_old || !cpath_new) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeStatus st = deluge_efatfs_rename(cpath_old->c_str(), cpath_new->c_str());
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));
 	}
@@ -274,7 +296,11 @@ std::expected<void, Status> rename(std::string_view old_path, std::string_view n
 }
 
 std::expected<void, Status> set_time(std::string_view path, DelugeTimestamp timestamp) {
-	DelugeStatus st = deluge_efatfs_set_time(path.data(), timestamp.year, timestamp.month, timestamp.day,
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::PARAM);
+	}
+	DelugeStatus st = deluge_efatfs_set_time(cpath->c_str(), timestamp.year, timestamp.month, timestamp.day,
 	                                         timestamp.hour, timestamp.minute, timestamp.second);
 	if (st != DELUGE_OK) {
 		return std::unexpected(to_status(st));

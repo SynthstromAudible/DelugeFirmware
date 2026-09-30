@@ -120,6 +120,7 @@ add_executable(UnitTests
         dx_cartridge_window_tests.cpp
         trigger_clock_input_tests.cpp
         stall_bound_tests.cpp
+        c_path_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
 # the repo root (tests/support/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so

@@ -1,17 +1,21 @@
 #include "io/stream.hpp"
 
+#include "io/c_path.h"
 #include "libdeluge/file_stream.h"
 
 #include <cstdint>
-#include <string>
 
 namespace deluge::io {
 
 std::expected<Stream, Status> Stream::open(std::string_view path, DelugeStreamMode mode) {
 	// One persistent write context for the whole recording -- every subsequent
 	// write_at/read_at_via/close on this Stream reuses it; no per-call reopen.
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return std::unexpected(Status::ERR);
+	}
 	DelugeHandle handle = DELUGE_HANDLE_NONE;
-	if (!deluge_efatfs_stream_open(path.data(), static_cast<uint8_t>(mode), &handle)) {
+	if (!deluge_efatfs_stream_open(cpath->c_str(), static_cast<uint8_t>(mode), &handle)) {
 		return std::unexpected(Status::ERR);
 	}
 	return Stream(handle);
@@ -46,12 +50,22 @@ uint8_t Stream::collect_write_at(uint32_t* out_written) {
 }
 
 bool Stream::request_open(std::string_view path, DelugeStreamMode mode) {
-	return deluge_file_stream_request_open(path.data(), static_cast<uint8_t>(mode));
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		return false;
+	}
+	return deluge_file_stream_request_open(cpath->c_str(), static_cast<uint8_t>(mode));
 }
 
 uint8_t Stream::collect_open(std::string_view path, std::optional<Stream>* out, DelugeStatus* error) {
+	const auto cpath = CPath::from(path);
+	if (!cpath) {
+		// A path this long was never accepted by request_open, so nothing is in flight for it:
+		// the same answer collect_open gives for any path with no matching request.
+		return DELUGE_FILE_STREAM_UNKNOWN;
+	}
 	DelugeHandle handle = DELUGE_HANDLE_NONE;
-	const uint8_t status = deluge_file_stream_collect_open(std::string(path).c_str(), &handle, error);
+	const uint8_t status = deluge_file_stream_collect_open(cpath->c_str(), &handle, error);
 	if (status == DELUGE_FILE_STREAM_READY && out != nullptr) {
 		out->emplace(Stream(handle));
 	}
