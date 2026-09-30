@@ -35,6 +35,10 @@ pub mod fill_logic;
 /// `audio::RENDER_BLOCK`/`INPUT_BLOCK`, and `ffi_extra::NEWLIB_HEAP`.
 const FILL_CONTEXT_CAP: usize = 4096;
 
+/// `include/libdeluge/types.h`'s `DelugeHandle`: 0 is none, and a table slot crosses as `slot + 1`. This crate
+/// cannot see the bindgen output, so the BSP's `abi_pins.rs` pins the copy.
+pub type DelugeHandle = u32;
+
 /// Mirrors `include/libdeluge/streaming_fill.h`'s `DelugeStreamingFillContext` exactly (verbatim
 /// field order/types) — the per-asset geometry `deluge_streaming_set_fill_context` registers at
 /// sample-load and the native fill task reads via [`fill_context_for`]. See that header's doc for
@@ -44,7 +48,7 @@ const FILL_CONTEXT_CAP: usize = 4096;
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct FillContext {
-    pub efatfs_handle: u32,
+    pub efatfs_handle: DelugeHandle,
     pub audio_data_start_pos_bytes: u32,
     pub audio_data_length_bytes: u64,
     pub first_cluster_index_with_no_audio_data: i32,

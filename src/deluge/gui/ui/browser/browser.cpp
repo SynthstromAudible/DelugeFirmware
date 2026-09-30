@@ -218,7 +218,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		return std::move(*opened);
 	}
 
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	DelugeStatus status = DELUGE_OK;
 	switch (deluge_file_directory_collect(path, &handle, &status)) {
 	case DELUGE_FILE_DIRECTORY_READY:

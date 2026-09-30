@@ -120,6 +120,9 @@ mod abi_pins;
 
 // Reuse deluge-bsp-rust's own source files verbatim via `#[path]` — the same
 // pattern `tests/*.rs` already use (see `HOST_HARNESS.md`).
+/// The ABI's handle rule: every module here that hands a table handle across the ABI converts through it.
+#[path = "../../../src/abi_handle.rs"]
+mod abi_handle;
 #[path = "../../../src/audio_host.rs"]
 mod audio_host;
 /// The async audio-file load task and its request/collect C ABI: the AWAITED file I/O of a

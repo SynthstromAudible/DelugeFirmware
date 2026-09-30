@@ -43,9 +43,6 @@
 extern "C" {
 #endif
 
-/// An open stream. Opaque; owned by the BSP implementation.
-typedef struct DelugeStream DelugeStream;
-
 /// @brief Mode for deluge_efatfs_stream_open: what the stream is opened for.
 typedef enum DelugeStreamMode : uint8_t {
 	DELUGE_STREAM_READ,             ///< open an existing file (no write/read_at_via use)
@@ -66,9 +63,8 @@ typedef enum DelugeStreamMode : uint8_t {
 /// recording, keeping the file's in-memory size/mtime edit resident between
 /// writes and only persisting it to the on-disk directory entry on
 /// `deluge_efatfs_stream_close` (see `write_context_noflush`'s
-/// doc). Every handle-taking function's handle is an opaque `u32` (the
-/// caller boxes it into a `DelugeStream*`, mirroring the streaming-read
-/// handle in sample_stream.h).
+/// doc). Every handle is a @ref DelugeHandle: 0 is none, and a call given it
+/// fails as it fails any handle that names no open stream.
 ///
 /// These are `bool` (not `DelugeStatus`): the Rust side has no notion of
 /// `DelugeStatus`'s finer-grained error codes, only success/failure.
@@ -76,30 +72,30 @@ typedef enum DelugeStreamMode : uint8_t {
 
 /// @brief Open a persistent stream-write handle. `mode` matches `DelugeStreamMode`'s
 ///        declaration-order values (0=READ, 1=WRITE_CREATE, 2=WRITE_CREATE_NEW, 3=WRITE_APPEND).
-bool deluge_efatfs_stream_open(const char* path, uint8_t mode, uint32_t* out_handle);
+bool deluge_efatfs_stream_open(const char* path, uint8_t mode, DelugeHandle* out_handle);
 
 /// @brief Write `count` bytes at absolute `byte_offset`, advancing the handle's persisted
 ///        `FileContext` by the bytes actually written (`*out_written`). Does NOT persist the
 ///        advanced size/mtime to the on-disk directory entry -- see `deluge_efatfs_stream_close`.
-bool deluge_efatfs_stream_write_at(uint32_t handle, uint32_t byte_offset, const void* src, uint32_t count,
+bool deluge_efatfs_stream_write_at(DelugeHandle handle, uint32_t byte_offset, const void* src, uint32_t count,
                                    uint32_t* out_written);
 
 /// @brief EOF-honest read at absolute `byte_offset`, bounded by the handle's IN-MEMORY size (i.e.
 ///        this can read back data written earlier in the same unflushed session). `*out_read` is
 ///        the TRUE byte count actually read (`<= count`, less at EOF), never zero-padded.
-bool deluge_efatfs_stream_read_at_via(uint32_t handle, uint32_t byte_offset, void* dst, uint32_t count,
+bool deluge_efatfs_stream_read_at_via(DelugeHandle handle, uint32_t byte_offset, void* dst, uint32_t count,
                                       uint32_t* out_read);
 
 /// @brief Truncate the file behind `handle` to `new_len` bytes.
-bool deluge_efatfs_stream_truncate(uint32_t handle, uint32_t new_len);
+bool deluge_efatfs_stream_truncate(DelugeHandle handle, uint32_t new_len);
 
 /// @brief Size of the file behind `handle`, in bytes.
-bool deluge_efatfs_stream_size(uint32_t handle, uint32_t* out_size);
+bool deluge_efatfs_stream_size(DelugeHandle handle, uint32_t* out_size);
 
 /// @brief Persist the handle's accumulated in-memory size/mtime edit (built up by prior
 ///        `deluge_efatfs_stream_write_at` calls) to the on-disk directory entry, and close a
 ///        persistent stream-write handle opened via `deluge_efatfs_stream_open`, freeing its slot.
-bool deluge_efatfs_stream_close(uint32_t handle);
+bool deluge_efatfs_stream_close(DelugeHandle handle);
 
 #ifdef __cplusplus
 }

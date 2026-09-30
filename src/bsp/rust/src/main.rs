@@ -109,6 +109,10 @@ mod abi_pin_macros;
 #[path = "../tests/support/abi_pin_noop.rs"]
 mod abi_pin_macros;
 
+/// The ABI's handle rule: 0 is none, and a table slot crosses as `slot + 1`. Compiled unconditionally; every
+/// module that hands a table handle across the ABI converts through it.
+mod abi_handle;
+
 /// The libdeluge C ABI generated from include/libdeluge/*.h: POD types,
 /// `DELUGE_*` constants, and a declaration of every header function (the
 /// crate's own definitions of the service functions live in [`ffi`] and the

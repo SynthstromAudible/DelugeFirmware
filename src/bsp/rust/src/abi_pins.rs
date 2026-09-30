@@ -52,6 +52,11 @@ abi_pin!(in deluge_sample_source::manager_residency: deluge_streaming_signal_fil
 abi_pin!(in deluge_sample_stream: deluge_efatfs_open, deluge_efatfs_close, deluge_efatfs_read_at,
     deluge_streaming_resource_manager, deluge_streaming_set_fill_context);
 
+// --- The copies of header typedefs ---
+
+abi_layout!(type crate::abi_handle::DelugeHandle => sys DelugeHandle);
+abi_layout!(type deluge_sample_fill::DelugeHandle => sys DelugeHandle);
+
 // --- The crate-defined header types (see `build_crate_types.rs`): every field, every variant ---
 
 abi_layout!(deluge_audio_format::abi::DelugeOptionalF32 => DelugeOptionalF32 { has, value });

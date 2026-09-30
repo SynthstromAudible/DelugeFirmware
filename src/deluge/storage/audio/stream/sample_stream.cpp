@@ -82,7 +82,7 @@ void SampleStream::register_fill_context() {
 	}
 	// No registry slot yet -- a still-recording sample, which has nowhere in the registry to hold
 	// geometry at all (opening one requires a real path). Register directly with the resource
-	// manager instead: `efatfs_handle = 0` makes any premature cluster read fail cleanly rather than
+	// manager instead: `efatfs_handle = DELUGE_HANDLE_NONE` makes any premature cluster read fail cleanly rather than
 	// leaving this Asset with no fill-context registered anywhere (which would otherwise let residency
 	// resolve READY with no way to ever produce real bytes).
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
@@ -90,7 +90,7 @@ void SampleStream::register_fill_context() {
 		return;
 	}
 	DelugeStreamingFillContext ctx{
-	    .efatfs_handle = 0,
+	    .efatfs_handle = DELUGE_HANDLE_NONE,
 	    .audio_data_start_pos_bytes = sample_.audioDataStartPosBytes,
 	    .audio_data_length_bytes = sample_.audioDataLengthBytes,
 	    .first_cluster_index_with_no_audio_data = sample_.getFirstClusterIndexWithNoAudioData(),

@@ -54,14 +54,14 @@ unsafe extern "C" {
     /// `include/libdeluge/file_io.h`. Open a sample file for streaming reads.
     pub fn deluge_efatfs_open(
         path: *const c_char,
-        out_handle: *mut u32,
+        out_handle: *mut deluge_sample_fill::DelugeHandle,
         out_table_full: *mut bool,
     ) -> bool;
     /// `include/libdeluge/file_io.h`. Close a streaming file handle.
-    pub fn deluge_efatfs_close(handle: u32);
+    pub fn deluge_efatfs_close(handle: deluge_sample_fill::DelugeHandle);
     /// `include/libdeluge/file_io.h`. Synchronous card read at an absolute byte offset.
     pub fn deluge_efatfs_read_at(
-        handle: u32,
+        handle: deluge_sample_fill::DelugeHandle,
         byte_offset: u32,
         dst: *mut c_void,
         count: u32,
@@ -113,6 +113,16 @@ pub(crate) mod mock_backing {
         static LAST_FILL_CONTEXT: RefCell<Option<(u32, DelugeStreamingFillContext)>> =
             const { RefCell::new(None) };
         static RELEASED_ASSETS: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
+    }
+
+    /// Serialises the tests that open registry slots. The mocks' state is per thread, but the
+    /// registry is one process-wide table, and a test that fills every slot of it fails any test that
+    /// opens a slot while it runs. Hold the guard for the whole test.
+    pub(crate) fn serial() -> std::sync::MutexGuard<'static, ()> {
+        static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        SERIAL
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
     /// Clear every recorded/configured bit of mock state — call at the top of every test (this

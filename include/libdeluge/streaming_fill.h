@@ -24,7 +24,7 @@
 /// fill-context the task reads its geometry from. The streaming-asset lookups live in
 /// `sample_stream.h`; the efatfs handle calls the fill reads through live in `file_io.h`.
 #pragma once
-#include "libdeluge/types.h" // DelugeChunkBacking, DelugeResource
+#include "libdeluge/types.h" // DelugeChunkBacking, DelugeHandle, DelugeResource
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -77,7 +77,7 @@ bool deluge_streaming_queue_drained(void);
 /// geometry the old `deluge::audio::stream::begin_fill` used to read off `Sample`/`Cluster` per
 /// chunk, snapshotted once per asset instead.
 typedef struct DelugeStreamingFillContext {
-	uint32_t efatfs_handle;              ///< This sample's open embedded-fatfs read handle (0 = none yet).
+	DelugeHandle efatfs_handle;          ///< This sample's open embedded-fatfs read handle (0 = none yet).
 	uint32_t audio_data_start_pos_bytes; ///< Offset from the start of the file to the first audio byte.
 	uint64_t audio_data_length_bytes;    ///< Audio payload length in bytes; 0x8FFFFFFFFFFFFFFF = still recording.
 	int32_t first_cluster_index_with_no_audio_data; ///< First cluster index past the end of the audio data.

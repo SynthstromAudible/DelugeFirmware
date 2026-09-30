@@ -448,7 +448,7 @@ constexpr int32_t kStreamWriteSlots = 8;
 
 /// Whether @p path names a directory on the card. Synchronous: the scenario's own check, not the recorder's.
 bool folderExists(const char* path) {
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	if (deluge_efatfs_dir_open(path, &handle) != DELUGE_OK) {
 		return false;
 	}

@@ -30,7 +30,7 @@
 
 extern "C" {
 
-bool deluge_file_stream_request_write_at(uint32_t, uint32_t, const uint8_t*, uint32_t) noexcept {
+bool deluge_file_stream_request_write_at(DelugeHandle, uint32_t, const uint8_t*, uint32_t) noexcept {
 	// Refused, so the caller takes its synchronous arm. Silently accepting and never answering is
 	// the failure this project has hit three times (the startup fail-safe's boot wedge,
 	// smsysex_pending, and the settings submit machine): a channel that accepts and never answers
@@ -38,7 +38,7 @@ bool deluge_file_stream_request_write_at(uint32_t, uint32_t, const uint8_t*, uin
 	return false;
 }
 
-uint8_t deluge_file_stream_collect_write_at(uint32_t, uint32_t*) noexcept {
+uint8_t deluge_file_stream_collect_write_at(DelugeHandle, uint32_t*) noexcept {
 	// UNKNOWN, not PENDING: "there is nothing in flight, ask again if you want one". PENDING would
 	// tell a caller to keep waiting for an answer that can never come.
 	return DELUGE_FILE_STREAM_UNKNOWN;
@@ -52,31 +52,31 @@ bool deluge_file_stream_request_open(const char*, uint8_t) noexcept {
 	return false;
 }
 
-DelugeChannelStatus deluge_file_stream_collect_open(const char*, uint32_t*, DelugeStatus*) noexcept {
+DelugeChannelStatus deluge_file_stream_collect_open(const char*, DelugeHandle*, DelugeStatus*) noexcept {
 	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
-bool deluge_file_stream_request_read_at(uint32_t, uint32_t, uint8_t*, uint32_t) noexcept {
+bool deluge_file_stream_request_read_at(DelugeHandle, uint32_t, uint8_t*, uint32_t) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_stream_collect_read_at(uint32_t, uint32_t*) noexcept {
+uint8_t deluge_file_stream_collect_read_at(DelugeHandle, uint32_t*) noexcept {
 	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
-bool deluge_file_stream_request_truncate(uint32_t, uint32_t) noexcept {
+bool deluge_file_stream_request_truncate(DelugeHandle, uint32_t) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_stream_collect_truncate(uint32_t) noexcept {
+uint8_t deluge_file_stream_collect_truncate(DelugeHandle) noexcept {
 	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
-bool deluge_file_stream_request_close(uint32_t) noexcept {
+bool deluge_file_stream_request_close(DelugeHandle) noexcept {
 	return false;
 }
 
-uint8_t deluge_file_stream_collect_close(uint32_t) noexcept {
+uint8_t deluge_file_stream_collect_close(DelugeHandle) noexcept {
 	return DELUGE_FILE_STREAM_UNKNOWN;
 }
 
@@ -249,7 +249,7 @@ extern "C" void deluge_file_directory_request(const char* /*dir_path*/, bool /*c
 	// (rather than pretending to have accepted it) is what the collect below already reports.
 }
 
-extern "C" uint8_t deluge_file_directory_collect(const char* /*dir_path*/, uint32_t* /*out_handle*/,
+extern "C" uint8_t deluge_file_directory_collect(const char* /*dir_path*/, DelugeHandle* /*out_handle*/,
                                                  DelugeStatus* /*out_status*/) noexcept {
 	// UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever -- and a caller that
 	// kept asking would never open the folder, because on this build nothing is going to. Neither

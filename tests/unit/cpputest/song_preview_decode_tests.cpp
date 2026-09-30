@@ -36,7 +36,7 @@ void stageOnCard(const std::filesystem::path& p) {
 	}
 	std::fclose(f);
 
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	CHECK_EQUAL(DELUGE_OK, deluge_efatfs_file_open(p.c_str(), DELUGE_FILE_WRITE_CREATE, &handle));
 	uint32_t written = 0;
 	CHECK_EQUAL(DELUGE_OK, deluge_efatfs_file_write(handle, whole.data(), whole.size(), &written));

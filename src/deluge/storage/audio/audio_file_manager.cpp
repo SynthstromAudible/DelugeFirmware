@@ -304,7 +304,7 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 			}
 		}
 		else {
-			uint32_t dirHandle = 0;
+			DelugeHandle dirHandle = DELUGE_HANDLE_NONE;
 			DelugeStatus dirStatus = DELUGE_OK;
 			switch (deluge_file_directory_collect(audioRecordingFolderNames[folderID], &dirHandle, &dirStatus)) {
 			case DELUGE_FILE_DIRECTORY_READY:

@@ -35,11 +35,9 @@ std::map<std::string, MockEntry> g_entries;
 // real efatfs backend's generation-guarded Slot/HandleTable in
 // efatfs_core.rs (lowest free slot starting at 0), so a handle whose slot
 // was freed and later reused for something else fails `checkout` cleanly
-// instead of silently aliasing. deluge::io::File/Directory box these into
-// their opaque DelugeFile*/DelugeDir* by adding 1 (file.cpp's
-// box_file_handle doc); a packed handle of 0 (slot 0, generation 0) boxes to
-// a non-null 1 just like any other value, so this table doesn't need to
-// reserve either slot 0 or generation 0 for anything.
+// instead of silently aliasing. A claimed slot's generation is at least 1, so
+// no handle this table hands out is DELUGE_HANDLE_NONE, and checking out
+// DELUGE_HANDLE_NONE fails like any other stale handle.
 
 struct OpenFile {
 	std::string path;
@@ -174,7 +172,7 @@ void mock_file_io_clear_injections() {
 
 extern "C" {
 
-DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, uint32_t* out_handle) {
+DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, DelugeHandle* out_handle) {
 	if (DelugeStatus injected = injectedFor(path); injected != DELUGE_OK) {
 		return injected;
 	}
@@ -193,7 +191,7 @@ DelugeStatus deluge_efatfs_file_open(const char* path, uint8_t mode, uint32_t* o
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_file_read_exact(uint32_t handle, void* dst, uint32_t count, uint32_t* out_read) {
+DelugeStatus deluge_efatfs_file_read_exact(DelugeHandle handle, void* dst, uint32_t count, uint32_t* out_read) {
 	auto* file = checkout(g_open_files, g_open_files_gen, handle);
 	if (file == nullptr) {
 		return DELUGE_ERR_PARAM;
@@ -208,7 +206,7 @@ DelugeStatus deluge_efatfs_file_read_exact(uint32_t handle, void* dst, uint32_t 
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_file_write(uint32_t handle, const void* src, uint32_t count, uint32_t* out_written) {
+DelugeStatus deluge_efatfs_file_write(DelugeHandle handle, const void* src, uint32_t count, uint32_t* out_written) {
 	auto* file = checkout(g_open_files, g_open_files_gen, handle);
 	if (file == nullptr) {
 		return DELUGE_ERR_PARAM;
@@ -223,7 +221,7 @@ DelugeStatus deluge_efatfs_file_write(uint32_t handle, const void* src, uint32_t
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_file_seek(uint32_t handle, uint32_t offset) {
+DelugeStatus deluge_efatfs_file_seek(DelugeHandle handle, uint32_t offset) {
 	auto* file = checkout(g_open_files, g_open_files_gen, handle);
 	if (file == nullptr) {
 		return DELUGE_ERR_PARAM;
@@ -232,7 +230,7 @@ DelugeStatus deluge_efatfs_file_seek(uint32_t handle, uint32_t offset) {
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_file_size(uint32_t handle, uint32_t* out_size) {
+DelugeStatus deluge_efatfs_file_size(DelugeHandle handle, uint32_t* out_size) {
 	auto* file = checkout(g_open_files, g_open_files_gen, handle);
 	if (file == nullptr) {
 		return DELUGE_ERR_PARAM;
@@ -241,11 +239,11 @@ DelugeStatus deluge_efatfs_file_size(uint32_t handle, uint32_t* out_size) {
 	return DELUGE_OK;
 }
 
-void deluge_efatfs_file_close(uint32_t handle) {
+void deluge_efatfs_file_close(DelugeHandle handle) {
 	release_slot(g_open_files, g_open_files_gen, handle);
 }
 
-DelugeStatus deluge_efatfs_dir_open(const char* path, uint32_t* out_handle) {
+DelugeStatus deluge_efatfs_dir_open(const char* path, DelugeHandle* out_handle) {
 	if (DelugeStatus injected = injectedFor(path); injected != DELUGE_OK) {
 		return injected;
 	}
@@ -287,7 +285,7 @@ DelugeStatus deluge_efatfs_dir_open(const char* path, uint32_t* out_handle) {
 	return DELUGE_OK;
 }
 
-DelugeStatus deluge_efatfs_dir_read(uint32_t handle, char* out_name, uint32_t out_name_cap, bool* out_is_dir,
+DelugeStatus deluge_efatfs_dir_read(DelugeHandle handle, char* out_name, uint32_t out_name_cap, bool* out_is_dir,
                                     uint32_t* out_size, uint32_t* out_modified, uint8_t* out_attrs,
                                     bool* out_has_entry) {
 	auto* dir = checkout(g_open_dirs, g_open_dirs_gen, handle);
@@ -309,7 +307,7 @@ DelugeStatus deluge_efatfs_dir_read(uint32_t handle, char* out_name, uint32_t ou
 	return DELUGE_OK;
 }
 
-void deluge_efatfs_dir_close(uint32_t handle) {
+void deluge_efatfs_dir_close(DelugeHandle handle) {
 	release_slot(g_open_dirs, g_open_dirs_gen, handle);
 }
 

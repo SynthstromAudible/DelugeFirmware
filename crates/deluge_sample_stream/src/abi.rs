@@ -128,6 +128,7 @@ mod tests {
 
     #[test]
     fn abi_wrappers_round_trip_through_the_registry() {
+        let _serial = mock_backing::serial();
         mock_backing::reset();
         mock_backing::set_open_result(11, true, false);
         let mut tf = false;

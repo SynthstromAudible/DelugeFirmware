@@ -80,10 +80,8 @@ extern "C" {
 
 /// @brief Ask for `len` bytes at `bytes` to be written to `handle` at absolute `offset`.
 ///
-/// @param handle A stream-write handle from `deluge_efatfs_stream_open`. ZERO IS VALID -- this
-///               table's slots are indexed from zero, which is why `deluge::io::Stream` boxes
-///               `handle + 1` into its opaque pointer. Do not borrow `sample_stream.h`'s
-///               `0 = invalid` convention; it belongs to a different registry.
+/// @param handle A stream handle from @ref deluge_file_stream_collect_open or `deluge_efatfs_stream_open`.
+///               @ref DELUGE_HANDLE_NONE is refused.
 /// @param offset Absolute byte offset within the file.
 /// @param bytes  Caller-owned buffer. Must stay alive and unmodified until the matching collect is
 ///               terminal. NOT copied.
@@ -91,7 +89,7 @@ extern "C" {
 /// @return false when the request was refused -- `handle` already has a write in flight, the
 ///         channel is not running, or a pointer/length is unusable. The caller MUST retry or take
 ///         its synchronous arm; nothing has been queued.
-bool deluge_file_stream_request_write_at(uint32_t handle, uint32_t offset, const uint8_t* bytes,
+bool deluge_file_stream_request_write_at(DelugeHandle handle, uint32_t offset, const uint8_t* bytes,
                                          uint32_t len) DELUGE_NOEXCEPT;
 
 /// @brief Collect the answer for `handle`'s in-flight write.
@@ -101,7 +99,7 @@ bool deluge_file_stream_request_write_at(uint32_t handle, uint32_t offset, const
 ///                    count below the requested `len` is a short write; the caller treats it as a
 ///                    card error.
 /// @return one of the four statuses above.
-uint8_t deluge_file_stream_collect_write_at(uint32_t handle, uint32_t* out_written) DELUGE_NOEXCEPT;
+uint8_t deluge_file_stream_collect_write_at(DelugeHandle handle, uint32_t* out_written) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `path` to be opened for writing.
 ///
@@ -121,12 +119,12 @@ bool deluge_file_stream_request_open(const char* path, uint8_t mode) DELUGE_NOEX
 /// @brief Collect the open of @p path.
 /// @param path       The path passed to @ref deluge_file_stream_request_open. An answer for another path is left for
 ///                   its own caller, and this collect answers @ref DELUGE_FILE_STREAM_UNKNOWN.
-/// @param out_handle Written ONLY on @ref DELUGE_FILE_STREAM_READY. ZERO IS A VALID HANDLE -- see the
-///                   note on @ref deluge_file_stream_request_write_at.
+/// @param out_handle Written ONLY on @ref DELUGE_FILE_STREAM_READY, with a handle that is never
+///                   @ref DELUGE_HANDLE_NONE.
 /// @param out_error  Written ONLY on @ref DELUGE_FILE_STREAM_FAILED, with the status the open failed with:
 ///                   `DELUGE_ERR_NOT_FOUND` for a missing folder, `DELUGE_ERR_NO_FILESYSTEM` when the card could not
 ///                   be mounted, `DELUGE_ERR_IO` when every stream slot is taken. May be null.
-DelugeChannelStatus deluge_file_stream_collect_open(const char* path, uint32_t* out_handle,
+DelugeChannelStatus deluge_file_stream_collect_open(const char* path, DelugeHandle* out_handle,
                                                     DelugeStatus* out_error) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `len` bytes at `offset` to be read into `dst`.
@@ -134,27 +132,28 @@ DelugeChannelStatus deluge_file_stream_collect_open(const char* path, uint32_t* 
 /// Goes through the HANDLE, not a path, and that is load-bearing: it reads bounded by the handle's
 /// live, not-yet-flushed size (`deluge_efatfs_stream_read_at_via`). A path-keyed read would see the
 /// on-disk extent instead, which during finalize is the wrong number.
-/// @param handle A stream-write handle. Zero is valid.
+/// @param handle A stream handle. @ref DELUGE_HANDLE_NONE is refused.
 /// @param offset Absolute byte offset within the file.
 /// @param dst    Caller-owned destination. Must stay alive and unmodified until the collect is
 ///               terminal. NOT copied.
 /// @param len    Byte count to read.
 /// @return false when refused; the caller must retry or take its synchronous arm.
-bool deluge_file_stream_request_read_at(uint32_t handle, uint32_t offset, uint8_t* dst, uint32_t len) DELUGE_NOEXCEPT;
+bool deluge_file_stream_request_read_at(DelugeHandle handle, uint32_t offset, uint8_t* dst,
+                                        uint32_t len) DELUGE_NOEXCEPT;
 
 /// @brief Collect the read.
 /// @param handle   The handle passed to @ref deluge_file_stream_request_read_at.
 /// @param out_read Written ONLY on @ref DELUGE_FILE_STREAM_READY, with the TRUE byte count, which may
 ///                 be short of `len` at EOF. The caller decides whether short is an error; for the
 ///                 recorder mid-transform it is.
-uint8_t deluge_file_stream_collect_read_at(uint32_t handle, uint32_t* out_read) DELUGE_NOEXCEPT;
+uint8_t deluge_file_stream_collect_read_at(DelugeHandle handle, uint32_t* out_read) DELUGE_NOEXCEPT;
 
 /// @brief Ask for the file behind `handle` to be truncated to `size` bytes.
 /// @return false when refused.
-bool deluge_file_stream_request_truncate(uint32_t handle, uint32_t size) DELUGE_NOEXCEPT;
+bool deluge_file_stream_request_truncate(DelugeHandle handle, uint32_t size) DELUGE_NOEXCEPT;
 
 /// @brief Collect the truncate.
-uint8_t deluge_file_stream_collect_truncate(uint32_t handle) DELUGE_NOEXCEPT;
+uint8_t deluge_file_stream_collect_truncate(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 /// @brief Ask for `handle` to be closed, flushing its deferred directory entry.
 ///
@@ -163,10 +162,10 @@ uint8_t deluge_file_stream_collect_truncate(uint32_t handle) DELUGE_NOEXCEPT;
 /// first leaves a stale near-empty entry with `first_cluster` still ~0, frees no clusters, and lets a
 /// later file that recycles the freed short-name slot receive this handle's flush.
 /// @return false when refused.
-bool deluge_file_stream_request_close(uint32_t handle) DELUGE_NOEXCEPT;
+bool deluge_file_stream_request_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 /// @brief Collect the close.
-uint8_t deluge_file_stream_collect_close(uint32_t handle) DELUGE_NOEXCEPT;
+uint8_t deluge_file_stream_collect_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
 /// @brief Ask for the filesystem's free-cluster count.
 ///

@@ -76,6 +76,11 @@ mod file_stream;
 #[path = "../src/file_stream_slot.rs"]
 mod file_stream_slot;
 
+/// The ABI's handle rule, which the channels' exports convert their handles through.
+#[allow(dead_code)]
+#[path = "../src/abi_handle.rs"]
+mod abi_handle;
+
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
     DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,

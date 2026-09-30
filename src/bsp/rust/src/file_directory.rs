@@ -42,6 +42,8 @@
 
 use core::ffi::{CStr, c_char};
 
+use super::abi_handle::{DelugeHandle, to_abi};
+
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
@@ -394,7 +396,7 @@ fn enqueue_request(path: DirPath, create: bool) {
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_directory_collect(
     dir_path: *const c_char,
-    out_handle: *mut u32,
+    out_handle: *mut DelugeHandle,
     out_status: *mut i8,
 ) -> u8 {
     if out_handle.is_null() || out_status.is_null() {
@@ -408,7 +410,7 @@ pub unsafe extern "C" fn deluge_file_directory_collect(
         Probe::Ready(handle) => {
             // SAFETY: `out_handle` is non-null (checked above) and the caller's contract makes it a
             // writable, aligned `uint32_t`. Written only on READY, as the header promises.
-            unsafe { *out_handle = handle };
+            unsafe { *out_handle = to_abi(handle) };
             DELUGE_FILE_DIRECTORY_READY
         }
         Probe::Pending => DELUGE_FILE_DIRECTORY_PENDING,
@@ -429,7 +431,8 @@ pub unsafe extern "C" fn deluge_file_directory_collect(
 /// the first pass merely missed -- so the caller re-requests an open that has already landed and
 /// strands the handle it left behind.
 enum Probe {
-    /// An open directory handle, now the caller's to close. **Only this case writes `out_handle`.**
+    /// An open directory's table slot, now the caller's to close; the collect writes it out as its
+    /// handle. **Only this case writes `out_handle`.**
     Ready(u32),
     Pending,
     Unknown,

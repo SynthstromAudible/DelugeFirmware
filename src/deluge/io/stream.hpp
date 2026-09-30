@@ -8,28 +8,28 @@
 #include <optional>
 #include <span>
 #include <string_view>
+#include <utility>
 
 namespace deluge::io {
 
 class Stream {
 public:
 	Stream(Stream&) = delete;
-	Stream(Stream&& other) noexcept : handle_(other.handle_) { other.handle_ = nullptr; }
+	Stream(Stream&& other) noexcept : handle_(std::exchange(other.handle_, DELUGE_HANDLE_NONE)) {}
 	Stream& operator=(Stream&) = delete;
 	Stream& operator=(Stream&& other) noexcept {
 		if (this != &other) {
-			if (handle_) {
+			if (handle_ != DELUGE_HANDLE_NONE) {
 				// Route through close() rather than the raw C-ABI so the handle teardown
 				// lives in exactly one place -- see stream.cpp's close().
 				(void)close();
 			}
-			handle_ = other.handle_;
-			other.handle_ = nullptr;
+			handle_ = std::exchange(other.handle_, DELUGE_HANDLE_NONE);
 		}
 		return *this;
 	}
 	~Stream() {
-		if (handle_) {
+		if (handle_ != DELUGE_HANDLE_NONE) {
 			(void)close();
 		}
 	}
@@ -113,8 +113,8 @@ public:
 	std::expected<void, Status> close();
 
 private:
-	explicit Stream(DelugeStream* handle) : handle_(handle) {}
-	DelugeStream* handle_ = nullptr;
+	explicit Stream(DelugeHandle handle) : handle_(handle) {}
+	DelugeHandle handle_ = DELUGE_HANDLE_NONE;
 };
 
 } // namespace deluge::io

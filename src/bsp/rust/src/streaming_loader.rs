@@ -369,10 +369,15 @@ mod prod {
         }
 
         async fn read(&self, d: &StreamingFillDescriptor, buf: &mut [u8]) -> bool {
+            // `d.handle` is the fill context's `efatfs_handle`, which crossed the ABI: NONE (a sample
+            // still recording, or not yet opened) names no slot, and its read fails cleanly.
+            let Some(slot) = crate::abi_handle::from_abi(d.handle) else {
+                return false;
+            };
             #[cfg(target_os = "none")]
-            return crate::efatfs_fs::read_at(d.handle, d.byte_offset, buf).await;
+            return crate::efatfs_fs::read_at(slot, d.byte_offset, buf).await;
             #[cfg(feature = "host_app")]
-            return crate::efatfs_host_shim::read_at(d.handle, d.byte_offset, buf).await;
+            return crate::efatfs_host_shim::read_at(slot, d.byte_offset, buf).await;
         }
 
         fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {

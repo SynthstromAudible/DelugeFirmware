@@ -13,7 +13,7 @@ extern "C" {
 describe mock_file_io("the file_io.h mock backing", $ {
 	it("round-trips a write then read", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("a.txt", DELUGE_FILE_WRITE_CREATE, &h)).to_equal(DELUGE_OK);
 		const char* msg = "hello";
 		uint32_t written = 0;
@@ -33,7 +33,7 @@ describe mock_file_io("the file_io.h mock backing", $ {
 
 	it("reports NOT_FOUND opening a missing file for read", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("missing.txt", DELUGE_FILE_READ, &h)).to_equal(DELUGE_ERR_NOT_FOUND);
 	});
 
@@ -47,7 +47,7 @@ describe mock_file_io("the file_io.h mock backing", $ {
 
 	it("mkdir on a path already occupied by a file reports EXISTS", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		deluge_efatfs_file_open("a.txt", DELUGE_FILE_WRITE_CREATE, &h);
 		deluge_efatfs_file_close(h);
 		expect(deluge_efatfs_mkdir("a.txt")).to_equal(DELUGE_ERR_EXISTS);
@@ -55,7 +55,7 @@ describe mock_file_io("the file_io.h mock backing", $ {
 
 	it("unlink removes an entry", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		deluge_efatfs_file_open("a.txt", DELUGE_FILE_WRITE_CREATE, &h);
 		deluge_efatfs_file_close(h);
 		expect(deluge_efatfs_unlink("a.txt")).to_equal(DELUGE_OK);
@@ -65,7 +65,7 @@ describe mock_file_io("the file_io.h mock backing", $ {
 
 	it("rename moves an entry to a new path", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		deluge_efatfs_file_open("old.txt", DELUGE_FILE_WRITE_CREATE, &h);
 		deluge_efatfs_file_close(h);
 		expect(deluge_efatfs_rename("old.txt", "new.txt")).to_equal(DELUGE_OK);
@@ -79,12 +79,12 @@ describe mock_file_io("the file_io.h mock backing", $ {
 	it("lists direct children of a directory, distinguishing files from subdirectories", _ {
 		mock_file_io_reset();
 		deluge_efatfs_mkdir("SONGS");
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		deluge_efatfs_file_open("SONGS/a.xml", DELUGE_FILE_WRITE_CREATE, &h);
 		deluge_efatfs_file_close(h);
 		deluge_efatfs_mkdir("SONGS/sub");
 
-		uint32_t d = 0;
+		DelugeHandle d = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_dir_open("SONGS", &d)).to_equal(DELUGE_OK);
 		bool saw_file = false, saw_dir = false;
 		bool has_entry = true;
@@ -115,7 +115,7 @@ describe mock_file_io("the file_io.h mock backing", $ {
 
 	it("write/seek/size after close fail cleanly, do not abort", _ {
 		mock_file_io_reset();
-		uint32_t h = 0;
+		DelugeHandle h = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("a.txt", DELUGE_FILE_WRITE_CREATE, &h)).to_equal(DELUGE_OK);
 		deluge_efatfs_file_close(h);
 
@@ -143,7 +143,7 @@ describe mock_file_io("the file_io.h mock backing", $ {
 
 	it("a stale handle after slot reuse does not alias the new occupant", _ {
 		mock_file_io_reset();
-		uint32_t hA = 0;
+		DelugeHandle hA = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("a.txt", DELUGE_FILE_WRITE_CREATE, &hA)).to_equal(DELUGE_OK);
 		const char* msgA = "AAAA";
 		uint32_t written = 0;
@@ -151,7 +151,7 @@ describe mock_file_io("the file_io.h mock backing", $ {
 		deluge_efatfs_file_close(hA);
 
 		// b.txt's open reuses a.txt's freed slot, with a bumped generation.
-		uint32_t hB = 0;
+		DelugeHandle hB = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("b.txt", DELUGE_FILE_WRITE_CREATE, &hB)).to_equal(DELUGE_OK);
 		expect(hB).not_().to_equal(hA);
 		const char* msgB = "BBBB";
@@ -165,7 +165,7 @@ describe mock_file_io("the file_io.h mock backing", $ {
 
 		// hB itself is unaffected: reopened for read, it still sees its own bytes.
 		deluge_efatfs_file_close(hB);
-		uint32_t hB2 = 0;
+		DelugeHandle hB2 = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_file_open("b.txt", DELUGE_FILE_READ, &hB2)).to_equal(DELUGE_OK);
 		char buf2[4] = {};
 		uint32_t read2 = 0;
@@ -177,7 +177,7 @@ describe mock_file_io("the file_io.h mock backing", $ {
 	it("dir handle after close fails cleanly, does not abort", _ {
 		mock_file_io_reset();
 		deluge_efatfs_mkdir("SONGS");
-		uint32_t d = 0;
+		DelugeHandle d = DELUGE_HANDLE_NONE;
 		expect(deluge_efatfs_dir_open("SONGS", &d)).to_equal(DELUGE_OK);
 		deluge_efatfs_dir_close(d);
 

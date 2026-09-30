@@ -119,7 +119,7 @@ void deluge_file_directory_request(const char* dir_path, bool create_if_missing)
 ///         @ref DELUGE_FILE_DIRECTORY_UNKNOWN, @ref DELUGE_FILE_DIRECTORY_FAILED.
 /// @note READY and FAILED are both terminal: the answer is removed as it is reported, so asking a
 ///       second time reports UNKNOWN. UNKNOWN alone means "request it (again)".
-uint8_t deluge_file_directory_collect(const char* dir_path, uint32_t* out_handle,
+uint8_t deluge_file_directory_collect(const char* dir_path, DelugeHandle* out_handle,
                                       DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 #ifdef DELUGE_HOST

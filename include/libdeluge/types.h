@@ -47,6 +47,16 @@ typedef enum DelugeStatus : int8_t {
 	DELUGE_ERR_NOT_EMPTY = -14,       ///< directory not empty
 } DelugeStatus;
 
+/// A handle to a row of one of the BSP's tables: an open file, directory or stream.
+///
+/// 0 is none (@ref DELUGE_HANDLE_NONE), and no call ever hands it out. A caller stores the number as it came and
+/// tests it against @ref DELUGE_HANDLE_NONE; a call that takes a handle refuses @ref DELUGE_HANDLE_NONE the way it
+/// refuses any handle that names no open row.
+typedef uint32_t DelugeHandle;
+
+/// The handle that names nothing. See @ref DelugeHandle.
+#define DELUGE_HANDLE_NONE 0u
+
 /// The resource manager chunks are leased from. Opaque; owned by the Rust `deluge_resource` crate.
 typedef struct DelugeResource DelugeResource;
 

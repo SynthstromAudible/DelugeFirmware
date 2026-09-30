@@ -150,7 +150,7 @@ public:
 	/// re-pushing the Asset id onto the slot first in case `open_read_stream()` raced ahead of a
 	/// not-yet-defined Asset). Before that -- a still-recording Sample, with no registry slot to hold
 	/// geometry at all -- it registers directly with the resource manager
-	/// (`deluge_streaming_set_fill_context`, `efatfs_handle = 0`), so a premature cluster read fails
+	/// (`deluge_streaming_set_fill_context`, `efatfs_handle = DELUGE_HANDLE_NONE`), so a premature cluster read fails
 	/// cleanly instead of a still-recording Asset having no fill-context registered anywhere. Kept as a
 	/// `SampleStream` method (not relocated alongside the asset-definition core) because it is
 	/// stream/geometry-coupled -- it reads `sample_`'s geometry and `stream_handle_`/`resource_asset_id_`

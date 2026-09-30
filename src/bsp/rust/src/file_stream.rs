@@ -18,6 +18,14 @@
 //!
 //! The pointer is stored as a `usize` rather than a `*const u8` so the request is `Send`; it is
 //! reconstituted only inside the task, and only for the duration of one `stream_write_at`.
+//!
+//! # Handles
+//!
+//! Everything behind the exports works in `STREAM_WRITE_CTX` slots: the queued operation, its
+//! [`OpKey`], the published `Open` answer and the orphans the task closes. The exports alone convert,
+//! through [`crate::abi_handle`]: a handle a caller passes becomes its slot before any key is built
+//! from it, and the slot an `Open` answers becomes a handle only as the collect writes it out. So a
+//! request's key and its collect's key are always built from the same slot.
 
 use core::ffi::{CStr, c_char};
 
@@ -25,6 +33,7 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 
+use super::abi_handle::{DelugeHandle, from_abi, to_abi};
 use super::file_stream_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath, still_coming};
 
 /// Copied from `libdeluge/file_stream.h`, because this module compiles in carriers with no bindgen
@@ -273,14 +282,14 @@ async fn channel_open(path: &str, mode: u8) -> Result<u32, i8> {
 /// collect is terminal.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_request_write_at(
-    handle: u32,
+    handle: DelugeHandle,
     offset: u32,
     bytes: *const u8,
     len: u32,
 ) -> bool {
-    // NOTE: handle 0 is VALID here. This table is `STREAM_WRITE_CTX`, whose slots are indexed from
-    // zero -- which is exactly why `deluge::io::Stream` boxes `handle + 1` into its opaque pointer.
-    // The `0 = invalid` convention belongs to `sample_stream.h`'s registry, not this one.
+    let Some(handle) = from_abi(handle) else {
+        return false;
+    };
     if bytes.is_null() || len == 0 {
         return false;
     }
@@ -301,9 +310,12 @@ pub unsafe extern "C" fn deluge_file_stream_request_write_at(
 /// `out_written` may be null; when it is not, it must point at a writable `u32`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_collect_write_at(
-    handle: u32,
+    handle: DelugeHandle,
     out_written: *mut u32,
 ) -> u8 {
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_FILE_STREAM_UNKNOWN;
+    };
     // SAFETY: forwarded contract.
     unsafe {
         collect(
@@ -341,7 +353,7 @@ pub unsafe extern "C" fn deluge_file_stream_request_open(path: *const c_char, mo
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_collect_open(
     path: *const c_char,
-    out_handle: *mut u32,
+    out_handle: *mut DelugeHandle,
     out_error: *mut i8,
 ) -> u8 {
     if path.is_null() {
@@ -351,9 +363,14 @@ pub unsafe extern "C" fn deluge_file_stream_collect_open(
     let Ok(p) = (unsafe { CStr::from_ptr(path) }).to_str() else {
         return DELUGE_FILE_STREAM_UNKNOWN;
     };
+    let mut slot = 0u32;
     let mut error = 0u32;
-    // SAFETY: `out_handle` is forwarded under the caller's contract; `error` is a local.
-    let status = unsafe { collect(OpKind::Open, 0, p, out_handle, &mut error) };
+    // SAFETY: `slot` and `error` are locals.
+    let status = unsafe { collect(OpKind::Open, 0, p, &mut slot, &mut error) };
+    if status == DELUGE_FILE_STREAM_READY && !out_handle.is_null() {
+        // SAFETY: non-null, and the caller guarantees it is writable.
+        unsafe { *out_handle = to_abi(slot) };
+    }
     if status == DELUGE_FILE_STREAM_FAILED && !out_error.is_null() {
         // The status travels as its byte; see the Open arm of the task.
         // SAFETY: non-null, and the caller guarantees it is writable.
@@ -368,11 +385,14 @@ pub unsafe extern "C" fn deluge_file_stream_collect_open(
 /// `dst` must point at `len` writable bytes that stay alive until the matching collect is terminal.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn deluge_file_stream_request_read_at(
-    handle: u32,
+    handle: DelugeHandle,
     offset: u32,
     dst: *mut u8,
     len: u32,
 ) -> bool {
+    let Some(handle) = from_abi(handle) else {
+        return false;
+    };
     if dst.is_null() || len == 0 {
         return false;
     }
@@ -392,20 +412,32 @@ pub unsafe extern "C" fn deluge_file_stream_request_read_at(
 /// # Safety
 /// `out_read` may be null; when it is not, it must point at a writable `u32`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn deluge_file_stream_collect_read_at(handle: u32, out_read: *mut u32) -> u8 {
+pub unsafe extern "C" fn deluge_file_stream_collect_read_at(
+    handle: DelugeHandle,
+    out_read: *mut u32,
+) -> u8 {
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_FILE_STREAM_UNKNOWN;
+    };
     // SAFETY: forwarded contract.
     unsafe { collect(OpKind::ReadAt, handle, "", out_read, core::ptr::null_mut()) }
 }
 
 /// C-ABI: ask for a truncate.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_stream_request_truncate(handle: u32, size: u32) -> bool {
+pub extern "C" fn deluge_file_stream_request_truncate(handle: DelugeHandle, size: u32) -> bool {
+    let Some(handle) = from_abi(handle) else {
+        return false;
+    };
     accept(StreamOp::Truncate { handle, size }, "")
 }
 
 /// C-ABI: collect the truncate.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_stream_collect_truncate(handle: u32) -> u8 {
+pub extern "C" fn deluge_file_stream_collect_truncate(handle: DelugeHandle) -> u8 {
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_FILE_STREAM_UNKNOWN;
+    };
     // SAFETY: null `out` is explicitly allowed.
     unsafe {
         collect(
@@ -420,13 +452,19 @@ pub extern "C" fn deluge_file_stream_collect_truncate(handle: u32) -> u8 {
 
 /// C-ABI: ask for a close.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_stream_request_close(handle: u32) -> bool {
+pub extern "C" fn deluge_file_stream_request_close(handle: DelugeHandle) -> bool {
+    let Some(handle) = from_abi(handle) else {
+        return false;
+    };
     accept(StreamOp::Close { handle }, "")
 }
 
 /// C-ABI: collect the close.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_file_stream_collect_close(handle: u32) -> u8 {
+pub extern "C" fn deluge_file_stream_collect_close(handle: DelugeHandle) -> u8 {
+    let Some(handle) = from_abi(handle) else {
+        return DELUGE_FILE_STREAM_UNKNOWN;
+    };
     // SAFETY: null `out` is explicitly allowed.
     unsafe {
         collect(

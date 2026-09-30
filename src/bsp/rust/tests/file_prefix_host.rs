@@ -576,6 +576,11 @@ mod file_stream;
 #[path = "../src/file_stream_slot.rs"]
 mod file_stream_slot;
 
+/// The ABI's handle rule, which the channels' exports convert their handles through.
+#[allow(dead_code)]
+#[path = "../src/abi_handle.rs"]
+mod abi_handle;
+
 mod live_pipeline {
     use super::file_prefix::{
         DELUGE_FILE_PREFIX_FAILED, DELUGE_FILE_PREFIX_PENDING, DELUGE_FILE_PREFIX_READY,

@@ -52,7 +52,7 @@ unsafe extern "C" {
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// The synchronous card read (`include/libdeluge/file_io.h`) — see [`fill_now`].
     pub fn deluge_efatfs_read_at(
-        handle: u32,
+        handle: deluge_sample_fill::DelugeHandle,
         byte_offset: u32,
         dst: *mut c_void,
         count: u32,

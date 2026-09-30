@@ -7,29 +7,14 @@
 
 namespace deluge::io {
 
-namespace {
-
-// Mirrors file.cpp's box_file_handle boxing (see its doc for the full rationale) -- the efatfs
-// backend's persistent stream-write `u32` handle is boxed into the opaque `DelugeStream*`,
-// `handle + 1` so slot 0 doesn't box to null (Stream's RAII `close()` guards on
-// `handle_ != nullptr`).
-DelugeStream* box_stream_handle(uint32_t handle) {
-	return reinterpret_cast<DelugeStream*>(static_cast<uintptr_t>(handle) + 1);
-}
-uint32_t unbox_stream_handle(DelugeStream* handle) {
-	return static_cast<uint32_t>(reinterpret_cast<uintptr_t>(handle) - 1);
-}
-
-} // namespace
-
 std::expected<Stream, Status> Stream::open(std::string_view path, DelugeStreamMode mode) {
 	// One persistent write context for the whole recording -- every subsequent
 	// write_at/read_at_via/close on this Stream reuses it; no per-call reopen.
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	if (!deluge_efatfs_stream_open(path.data(), static_cast<uint8_t>(mode), &handle)) {
 		return std::unexpected(Status::ERR);
 	}
-	return Stream(box_stream_handle(handle));
+	return Stream(handle);
 }
 
 std::expected<uint32_t, Status> Stream::write_at(uint32_t byte_offset, std::span<const std::byte> buffer) {
@@ -37,28 +22,27 @@ std::expected<uint32_t, Status> Stream::write_at(uint32_t byte_offset, std::span
 	// No-flush write -- see stream_io.h's `deluge_efatfs_stream_write_at` doc. The persisted
 	// size/mtime edit is flushed to disk on `close()` (or an explicit mid-recording flush, not
 	// exercised by this port).
-	if (!deluge_efatfs_stream_write_at(unbox_stream_handle(handle_), byte_offset, buffer.data(),
-	                                   static_cast<uint32_t>(buffer.size()), &out_written)) {
+	if (!deluge_efatfs_stream_write_at(handle_, byte_offset, buffer.data(), static_cast<uint32_t>(buffer.size()),
+	                                   &out_written)) {
 		return std::unexpected(Status::ERR);
 	}
 	return out_written;
 }
 
 bool Stream::request_write_at(uint32_t byte_offset, std::span<const std::byte> buffer) {
-	if (handle_ == nullptr) {
+	if (handle_ == DELUGE_HANDLE_NONE) {
 		return false;
 	}
-	return deluge_file_stream_request_write_at(unbox_stream_handle(handle_), byte_offset,
-	                                           reinterpret_cast<const uint8_t*>(buffer.data()),
+	return deluge_file_stream_request_write_at(handle_, byte_offset, reinterpret_cast<const uint8_t*>(buffer.data()),
 	                                           static_cast<uint32_t>(buffer.size()));
 }
 
 uint8_t Stream::collect_write_at(uint32_t* out_written) {
-	if (handle_ == nullptr) {
+	if (handle_ == DELUGE_HANDLE_NONE) {
 		// UNKNOWN, not PENDING: nothing is in flight and nothing ever will be on this stream.
 		return DELUGE_FILE_STREAM_UNKNOWN;
 	}
-	return deluge_file_stream_collect_write_at(unbox_stream_handle(handle_), out_written);
+	return deluge_file_stream_collect_write_at(handle_, out_written);
 }
 
 bool Stream::request_open(std::string_view path, DelugeStreamMode mode) {
@@ -66,75 +50,74 @@ bool Stream::request_open(std::string_view path, DelugeStreamMode mode) {
 }
 
 uint8_t Stream::collect_open(std::string_view path, std::optional<Stream>* out, DelugeStatus* error) {
-	uint32_t handle = 0;
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
 	const uint8_t status = deluge_file_stream_collect_open(std::string(path).c_str(), &handle, error);
 	if (status == DELUGE_FILE_STREAM_READY && out != nullptr) {
-		out->emplace(Stream(box_stream_handle(handle)));
+		out->emplace(Stream(handle));
 	}
 	return status;
 }
 
 bool Stream::request_read_at(uint32_t byte_offset, std::span<std::byte> dst) {
-	if (handle_ == nullptr) {
+	if (handle_ == DELUGE_HANDLE_NONE) {
 		return false;
 	}
-	return deluge_file_stream_request_read_at(unbox_stream_handle(handle_), byte_offset,
-	                                          reinterpret_cast<uint8_t*>(dst.data()),
+	return deluge_file_stream_request_read_at(handle_, byte_offset, reinterpret_cast<uint8_t*>(dst.data()),
 	                                          static_cast<uint32_t>(dst.size()));
 }
 
 uint8_t Stream::collect_read_at(uint32_t* out_read) {
-	if (handle_ == nullptr) {
+	if (handle_ == DELUGE_HANDLE_NONE) {
 		return DELUGE_FILE_STREAM_UNKNOWN;
 	}
-	return deluge_file_stream_collect_read_at(unbox_stream_handle(handle_), out_read);
+	return deluge_file_stream_collect_read_at(handle_, out_read);
 }
 
 bool Stream::request_truncate(uint32_t new_size) {
-	if (handle_ == nullptr) {
+	if (handle_ == DELUGE_HANDLE_NONE) {
 		return false;
 	}
-	return deluge_file_stream_request_truncate(unbox_stream_handle(handle_), new_size);
+	return deluge_file_stream_request_truncate(handle_, new_size);
 }
 
 uint8_t Stream::collect_truncate() {
-	if (handle_ == nullptr) {
+	if (handle_ == DELUGE_HANDLE_NONE) {
 		return DELUGE_FILE_STREAM_UNKNOWN;
 	}
-	return deluge_file_stream_collect_truncate(unbox_stream_handle(handle_));
+	return deluge_file_stream_collect_truncate(handle_);
 }
 
 bool Stream::request_close() {
-	if (handle_ == nullptr) {
+	if (handle_ == DELUGE_HANDLE_NONE) {
 		return false;
 	}
-	return deluge_file_stream_request_close(unbox_stream_handle(handle_));
+	return deluge_file_stream_request_close(handle_);
 }
 
 uint8_t Stream::collect_close() {
-	if (handle_ == nullptr) {
+	if (handle_ == DELUGE_HANDLE_NONE) {
 		return DELUGE_FILE_STREAM_UNKNOWN;
 	}
-	const uint8_t status = deluge_file_stream_collect_close(unbox_stream_handle(handle_));
+	const uint8_t status = deluge_file_stream_collect_close(handle_);
 	if (status == DELUGE_FILE_STREAM_READY || status == DELUGE_FILE_STREAM_FAILED) {
 		// Disengage on ANY terminal status, exactly as the synchronous close() does on error: the
-		// handle is gone either way, and leaving it boxed would let the destructor close it twice.
-		handle_ = nullptr;
+		// handle is gone either way, and keeping it would let the destructor close it twice.
+		handle_ = DELUGE_HANDLE_NONE;
 	}
 	return status;
 }
 
 std::expected<uint32_t, Status> Stream::read_at_via(uint32_t byte_offset, std::span<std::byte> dst) {
 	uint32_t out_read = 0;
-	if (!deluge_efatfs_stream_read_at_via(unbox_stream_handle(handle_), byte_offset, dst.data(),
-	                                      static_cast<uint32_t>(dst.size()), &out_read)) {
+	if (!deluge_efatfs_stream_read_at_via(handle_, byte_offset, dst.data(), static_cast<uint32_t>(dst.size()),
+	                                      &out_read)) {
 		return std::unexpected(Status::ERR);
 	}
 	return out_read;
 }
 
 std::expected<void, Status> Stream::truncate(uint32_t new_size) {
-	if (!deluge_efatfs_stream_truncate(unbox_stream_handle(handle_), new_size)) {
+	if (!deluge_efatfs_stream_truncate(handle_, new_size)) {
 		return std::unexpected(Status::ERR);
 	}
 	return {};
@@ -142,7 +125,7 @@ std::expected<void, Status> Stream::truncate(uint32_t new_size) {
 
 std::expected<uint32_t, Status> Stream::size() {
 	uint32_t out_size = 0;
-	if (!deluge_efatfs_stream_size(unbox_stream_handle(handle_), &out_size)) {
+	if (!deluge_efatfs_stream_size(handle_, &out_size)) {
 		return std::unexpected(Status::ERR);
 	}
 	return out_size;
@@ -153,8 +136,8 @@ std::expected<void, Status> Stream::close() {
 	// The channel holds a raw pointer into the caller's buffer, and every caller frees that buffer
 	// after close() returns. The obligation sits with the state machine that owns the buffer: see
 	// `SampleRecorder::cardRoutine`, which never reaches a terminal status with a write outstanding.
-	bool ok = deluge_efatfs_stream_close(unbox_stream_handle(handle_));
-	handle_ = nullptr; // matters even on error: don't let the destructor double-close
+	bool ok = deluge_efatfs_stream_close(handle_);
+	handle_ = DELUGE_HANDLE_NONE; // matters even on error: don't let the destructor double-close
 	if (!ok) {
 		return std::unexpected(Status::ERR);
 	}
