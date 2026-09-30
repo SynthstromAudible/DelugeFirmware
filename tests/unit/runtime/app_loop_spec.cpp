@@ -1,0 +1,168 @@
+// tests/unit/runtime/app_loop_spec.cpp
+#include "runtime/app_loop.h"
+
+#include "cppspec.hpp"
+
+#include <vector>
+
+using deluge::runtime::JobId;
+using deluge::runtime::kNever;
+using deluge::runtime::kNoJob;
+using deluge::runtime::Loop;
+using deluge::runtime::Micros;
+
+namespace {
+Micros g_now = 0;
+int g_wakes = 0;
+Micros clock() {
+	return g_now;
+}
+void waker() {
+	++g_wakes;
+}
+
+std::vector<char> g_log;
+Loop* g_loop = nullptr;
+JobId g_self = kNoJob;
+Micros g_body_time = 0;
+
+void bodyA() {
+	g_log.push_back('a');
+	g_now += g_body_time;
+}
+void bodyB() {
+	g_log.push_back('b');
+	g_now += g_body_time;
+}
+void selfRequesting() {
+	g_log.push_back('s');
+	g_loop->request(g_self);
+}
+void selfCancelling() {
+	g_log.push_back('c');
+	g_loop->cancel(g_self);
+}
+
+void reset() {
+	g_now = 1000;
+	g_wakes = 0;
+	g_log.clear();
+	g_body_time = 0;
+	g_self = kNoJob;
+}
+} // namespace
+
+// clang-format off
+describe app_loop("deluge::runtime::Loop", $ {
+	before_each([] { reset(); });
+
+	it("runs a timed job once its gap has passed since it was added", _ {
+		Loop loop{clock, waker};
+		loop.add("a", bodyA, 100, 0);
+		expect(loop.service(1050, 0)).to_equal(Micros{1100});
+		expect(g_log.size()).to_equal(size_t{0});
+		g_now = 1100;
+		loop.service(1100, 0);
+		expect(g_log.size()).to_equal(size_t{1});
+	});
+
+	it("measures the gap from the end of a run", _ {
+		Loop loop{clock, waker};
+		loop.add("a", bodyA, 100, 0);
+		g_now = 1100;
+		g_body_time = 30;
+		// The run ends at 1130, so the next is due at 1230.
+		expect(loop.service(1100, 0)).to_equal(Micros{1230});
+	});
+
+	it("runs eligible jobs once each, in registration order", _ {
+		Loop loop{clock, waker};
+		loop.add("a", bodyA, 0, 0);
+		loop.add("b", bodyB, 0, 0);
+		loop.service(1000, 0);
+		expect(g_log).to_equal(std::vector<char>{'a', 'b'});
+	});
+
+	it("runs a wake-only job only when a reason it listens for arrives", _ {
+		Loop loop{clock, waker};
+		loop.add("a", bodyA, kNever, 0b10);
+		expect(loop.service(5000, 0b01)).to_equal(kNever);
+		expect(g_log.size()).to_equal(size_t{0});
+		loop.service(5000, 0b10);
+		expect(g_log.size()).to_equal(size_t{1});
+	});
+
+	it("runs a requested job on the next pass and wakes the loop", _ {
+		Loop loop{clock, waker};
+		JobId a = loop.add("a", bodyA, kNever, 0);
+		loop.request(a);
+		expect(g_wakes).to_equal(1);
+		loop.service(1000, 0);
+		expect(g_log.size()).to_equal(size_t{1});
+		// Consumed: the next pass does not run it again.
+		loop.service(1000, 0);
+		expect(g_log.size()).to_equal(size_t{1});
+	});
+
+	it("runs a job that requests itself again on the next pass, not the same one", _ {
+		Loop loop{clock, waker};
+		g_loop = &loop;
+		g_self = loop.add("s", selfRequesting, kNever, 0);
+		loop.request(g_self);
+		expect(loop.service(1000, 0)).to_equal(Micros{1000});
+		expect(g_log.size()).to_equal(size_t{1});
+		loop.service(1000, 0);
+		expect(g_log.size()).to_equal(size_t{2});
+	});
+
+	it("never runs a job again once it cancels itself", _ {
+		Loop loop{clock, waker};
+		g_loop = &loop;
+		g_self = loop.add("c", selfCancelling, 0, 0);
+		loop.service(1000, 0);
+		loop.request(g_self);
+		expect(loop.service(2000, 0)).to_equal(kNever);
+		expect(g_log).to_equal(std::vector<char>{'c'});
+	});
+
+	it("records each job's last and worst run, and its run count", _ {
+		Loop loop{clock, waker};
+		JobId a = loop.add("a", bodyA, 0, 0);
+		g_body_time = 30;
+		loop.service(1000, 0);
+		g_body_time = 10;
+		loop.service(g_now, 0);
+		auto s = loop.stats(a);
+		expect(s.runs).to_equal(uint32_t{2});
+		expect(s.lastRun).to_equal(Micros{10});
+		expect(s.maxRun).to_equal(Micros{30});
+	});
+
+	it("zeroes worst runs and counts on resetStats, and keeps the last run", _ {
+		Loop loop{clock, waker};
+		JobId a = loop.add("a", bodyA, 0, 0);
+		g_body_time = 30;
+		loop.service(1000, 0);
+		loop.resetStats();
+		auto s = loop.stats(a);
+		expect(s.runs).to_equal(uint32_t{0});
+		expect(s.maxRun).to_equal(Micros{0});
+		expect(s.lastRun).to_equal(Micros{30});
+	});
+
+	it("reports an empty JobStats for an id never added", _ {
+		Loop loop{clock, waker};
+		expect(loop.stats(3).runs).to_equal(uint32_t{0});
+		expect(loop.stats(3).name == nullptr).to_be_truthy();
+	});
+
+	it("refuses a job past its capacity", _ {
+		Loop loop{clock, waker};
+		for (size_t i = 0; i < Loop::kMaxJobs; ++i) {
+			expect(loop.add("x", bodyA, kNever, 0)).not_().to_equal(kNoJob);
+		}
+		expect(loop.add("over", bodyA, kNever, 0)).to_equal(kNoJob);
+	});
+});
+
+CPPSPEC_SPEC(app_loop)
