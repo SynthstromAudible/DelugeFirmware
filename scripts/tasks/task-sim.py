@@ -100,8 +100,8 @@ def build(root: Path) -> int:
     held = lock.read_bytes() if config else None
     print("==> sim: emulator", flush=True)
     try:
-        # cargo does not see C++ changes: touching build.rs makes it archive the freshly built objects again.
-        (root / RUST_BSP_DIR / "build.rs").touch()
+        # cargo does not see C++ changes: touching the build script makes it archive the freshly built objects again.
+        (root / RUST_BSP_DIR / "build" / "main.rs").touch()
         return subprocess.run(
             ["cargo", "build", "--release", "--features", "sim", *config],
             cwd=root / RUST_BSP_DIR,

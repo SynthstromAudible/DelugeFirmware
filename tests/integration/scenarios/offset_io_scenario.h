@@ -25,7 +25,7 @@
 ///
 /// A `write_at` that truncated would leave only the final block, and a single-block round trip would
 /// pass happily against exactly that bug — which is what this gate most risks, because
-/// `efatfs_core::create_context` truncates unconditionally and the correct open mode looks like a
+/// `efatfs::portable::create_context` truncates unconditionally and the correct open mode looks like a
 /// mistake. Three blocks at ascending offsets is what makes the guard real.
 ///
 /// ## The tier count is not this gate's evidence

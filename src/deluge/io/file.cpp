@@ -10,7 +10,7 @@ namespace deluge::io {
 namespace {
 
 // FAT attribute bits (embedded_fatfs::FileAttributes::bits() -- see
-// efatfs_core.rs's DirEntryInfo doc).
+// storage/efatfs/portable.rs's DirEntryInfo doc).
 constexpr uint8_t kFatAttrReadOnly = 0x01;
 constexpr uint8_t kFatAttrHidden = 0x02;
 constexpr uint8_t kFatAttrSystem = 0x04;
@@ -18,7 +18,7 @@ constexpr uint8_t kFatAttrArchive = 0x20;
 
 // Unpacks deluge_efatfs_dir_read's `out_modified` -- the same
 // `(dos_date << 16) | dos_time` convention deluge_efatfs_set_time packs and
-// efatfs_core.rs's `pack_fat_datetime`/`set_time` document.
+// storage/efatfs/portable.rs's `pack_fat_datetime`/`set_time` document.
 DelugeTimestamp unpack_fat_datetime(uint32_t packed) {
 	auto dos_date = static_cast<uint16_t>(packed >> 16);
 	auto dos_time = static_cast<uint16_t>(packed & 0xFFFFU);

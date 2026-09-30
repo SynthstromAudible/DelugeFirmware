@@ -1,40 +1,31 @@
-//! The `deluge_sample_reader_*`/`deluge_sample_read` C ABI
-//! (`include/libdeluge/sample_reader.h`). The lifecycle trio — `open`/`seek`/`close` — heap-boxes
-//! a [`crate::reader::Reader`]; `window`/`advance`/`ok` are the read core. `deluge_sample_read` is
-//! the stateless copy-out convenience — a thin shim over [`crate::reader::Reader::read`], which
-//! composes `open` -> `window`/`advance` -> drop itself, so there is still only ONE residency path.
+//! The `deluge_sample_reader_*` / `deluge_sample_read` C ABI (`libdeluge/sample_reader.h`).
 //!
-//! Unlike `deluge_sample_source`'s `DelugeSampleSource` (a fixed, allocation-free static pool,
-//! because that port's `open()`/`close()` can fire on the audio render ISR at note-start/-end),
-//! this reader is explicitly a NON-voice, off-audio-thread handle — the design doc's own semantics
-//! section is blocking by design ("non-voice runs off the audio thread"). Nothing here needs to
-//! avoid the heap, so `open` is a plain `Box::new` + `Box::into_raw`, and `close` is `Box::from_raw`
-//! + drop — no pool, no slot-recovery cast tricks.
+//! `open` heap-boxes a [`Reader`] and `close` drops it; `window`/`advance`/`ok` are the read core.
+//! The stateless `deluge_sample_read`, `deluge_sample_peek` and `deluge_sample_invalidate` are
+//! thin shims over [`crate::reader`].
+//!
+//! Unlike `deluge_sample_source`, whose static pool exists because it opens and closes on the audio
+//! ISR, this reader is used only off the audio thread and may block, so it uses the heap freely.
 
 use alloc::boxed::Box;
 use core::ffi::c_void;
 
 use crate::reader::{ReadHint, Reader};
 
-/// Opaque per-reader handle, mirroring `DelugeSampleReader`. Every non-null pointer of this type
-/// this module ever hands out from `open()` is actually a `Box<Reader>` turned into a raw pointer
-/// via `Box::into_raw` — `close()` is the only legal way to reclaim it (`Box::from_raw`).
+/// Opaque reader handle, mirroring `DelugeSampleReader`.
+///
+/// Every non-null pointer `deluge_sample_reader_open` returns is a `Box<Reader>` from
+/// `Box::into_raw`; only `deluge_sample_reader_close` may reclaim it.
 #[repr(C)]
 pub struct DelugeSampleReader {
     _opaque: [u8; 0],
 }
 
-/// Open a reader over `source_id`'s sample residency, positioned at `start_frame` and reading in
-/// `direction`. See the header doc (`deluge_sample_reader_open`) and [`Reader::open`] for the full
-/// contract, including how `source_id`'s identity resolves geometry.
+/// Opens a reader over `source_id`'s residency at `start_frame`, reading in `direction`. See
+/// [`Reader::open`].
 ///
-/// Never returns null: heap allocation only aborts (no `#[panic_handler]` unwind path
-/// on this dependency graph — see the crate's lib.rs doc), so there is no OOM-null case to report,
-/// unlike `deluge_sample_source_open`'s fixed pool, which can legitimately exhaust.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+/// Never returns null: allocation failure aborts rather than returning.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_reader_open(
     source_id: u32,
     start_frame: u64,
@@ -45,50 +36,40 @@ pub extern "C" fn deluge_sample_reader_open(
     Box::into_raw(Box::new(reader)) as *mut DelugeSampleReader
 }
 
-/// Random-access reposition: release any pin `reader` currently holds and move its cursor to
-/// `frame`. No-op on a null `reader` (mirrors the header's null-tolerant contract, matching the
-/// sibling `deluge_sample_source_*` ABI's own convention for a handle that could — in a future
-/// task, or a caller's own bug — legitimately be null).
+/// Releases any pin `reader` holds and moves its cursor to `frame`. A no-op on a null `reader`.
 ///
 /// # Safety
-/// `reader`, if non-null, must be a live pointer previously returned by
-/// `deluge_sample_reader_open` and not yet passed to `deluge_sample_reader_close`.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// `reader` must be null or a live pointer from `deluge_sample_reader_open` not yet passed to
+/// `deluge_sample_reader_close`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_reader_seek(reader: *mut DelugeSampleReader, frame: u64) {
     if reader.is_null() {
         return;
     }
-    // SAFETY: non-null per the check above; live and not yet closed per this fn's own contract —
-    // the same pointer `open()` produced from a `Box<Reader>`.
+    // SAFETY: non-null, and a live `Box<Reader>` pointer per this function's contract.
     let r = unsafe { &mut *(reader as *mut Reader) };
     r.seek(frame);
 }
 
-/// Release `reader` and any pin it still holds. No-op on a null `reader`.
+/// Releases `reader` and any pin it still holds. A no-op on a null `reader`.
 ///
 /// # Safety
-/// `reader`, if non-null, must be a live pointer previously returned by
-/// `deluge_sample_reader_open`, not yet closed, and must not be used again after this call.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// `reader` must be null or a live pointer from `deluge_sample_reader_open` not yet closed. It must
+/// not be used after this call.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_reader_close(reader: *mut DelugeSampleReader) {
     if reader.is_null() {
         return;
     }
-    // SAFETY: `reader` was returned by `deluge_sample_reader_open` as `Box::into_raw(Box::new(..))`
-    // cast to `*mut DelugeSampleReader` (same address, `Reader`'s layout underneath); non-null per
-    // the check above; live and not yet closed per this fn's own contract. Reclaiming it as
-    // `Box<Reader>` and dropping releases `held_lease`, if any, exactly once.
+    // SAFETY: non-null, and the live `Box<Reader>` pointer `open` produced, per this function's
+    // contract. Dropping it releases `held_lease`, if any, exactly once.
     let reader = unsafe { Box::from_raw(reader as *mut Reader) };
     drop(reader);
 }
 
-/// Mirrors `include/libdeluge/sample_reader.h`'s `DelugeFrameWindow` field-for-field.
+/// Mirrors `DelugeFrameWindow` (`libdeluge/sample_reader.h`) field for field.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct DelugeFrameWindow {
@@ -96,19 +77,14 @@ pub struct DelugeFrameWindow {
     pub frame_count: u32,
 }
 
-/// The contiguous run of valid, already-converted frames at `reader`'s cursor. BLOCKS to make the
-/// data resident. See the header doc and [`Reader::window`] for the full contract. A null `reader`
-/// reports `{null, 0}` (matching a not-yet-open/never-successfully-opened reader — there is no
-/// cursor to report a window for, so this is the same shape as this reader's own EOF report, not a
-/// distinct error case at the ABI boundary).
+/// Returns the contiguous run of converted frames at `reader`'s cursor, blocking until it is
+/// resident. See [`Reader::window`]. A null `reader` reports `{null, 0}`, the same shape as EOF.
 ///
 /// # Safety
-/// `reader`, if non-null, must be a live pointer previously returned by
-/// `deluge_sample_reader_open` and not yet passed to `deluge_sample_reader_close`.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// `reader` must be null or a live pointer from `deluge_sample_reader_open` not yet passed to
+/// `deluge_sample_reader_close`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_reader_window(
     reader: *mut DelugeSampleReader,
 ) -> DelugeFrameWindow {
@@ -118,7 +94,7 @@ pub unsafe extern "C" fn deluge_sample_reader_window(
             frame_count: 0,
         };
     }
-    // SAFETY: non-null per the check above; live and not yet closed per this fn's own contract.
+    // SAFETY: non-null, and live per this function's contract.
     let r = unsafe { &mut *(reader as *mut Reader) };
     let (frames, frame_count) = r.window();
     DelugeFrameWindow {
@@ -127,16 +103,14 @@ pub unsafe extern "C" fn deluge_sample_reader_window(
     }
 }
 
-/// Advance `reader`'s cursor `frames` frames in its own direction. No-op on a null `reader`. See
-/// the header doc and [`Reader::advance`] for the full contract.
+/// Advances `reader`'s cursor by `frames` in its direction. A no-op on a null `reader`. See
+/// [`Reader::advance`].
 ///
 /// # Safety
-/// `reader`, if non-null, must be a live pointer previously returned by
-/// `deluge_sample_reader_open` and not yet passed to `deluge_sample_reader_close`.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// `reader` must be null or a live pointer from `deluge_sample_reader_open` not yet passed to
+/// `deluge_sample_reader_close`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_reader_advance(
     reader: *mut DelugeSampleReader,
     frames: u32,
@@ -144,41 +118,34 @@ pub unsafe extern "C" fn deluge_sample_reader_advance(
     if reader.is_null() {
         return;
     }
-    // SAFETY: non-null per the check above; live and not yet closed per this fn's own contract.
+    // SAFETY: non-null, and live per this function's contract.
     let r = unsafe { &mut *(reader as *mut Reader) };
     r.advance(frames);
 }
 
-/// True unless the last `window()` call failed to make its data resident — distinct from ordinary
-/// end-of-audio (`frame_count == 0`). A null `reader` reports `false` (mirrors a reader that was
-/// never validly opened — there is no cursor to be "ok").
+/// Returns `true` unless the last `window()` failed to make its data resident, which is distinct
+/// from end of audio (`frame_count == 0`). A null `reader` reports `false`.
 ///
 /// # Safety
-/// `reader`, if non-null, must be a live pointer previously returned by
-/// `deluge_sample_reader_open` and not yet passed to `deluge_sample_reader_close`.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// `reader` must be null or a live pointer from `deluge_sample_reader_open` not yet passed to
+/// `deluge_sample_reader_close`.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_reader_ok(reader: *const DelugeSampleReader) -> bool {
     if reader.is_null() {
         return false;
     }
-    // SAFETY: non-null per the check above; live and not yet closed per this fn's own contract.
+    // SAFETY: non-null, and live per this function's contract.
     let r = unsafe { &*(reader as *const Reader) };
     r.ok()
 }
 
-/// The stateless copy-out convenience. See the header doc (`deluge_sample_read`) and
-/// [`Reader::read`] for the full contract -- this is a thin type-cast shim over it, matching every
-/// other `abi.rs` wrapper in this module.
+/// Copies frames from `source_id` into `dest` without a caller-held reader. See [`Reader::read`].
 ///
 /// # Safety
-/// `dest`, if `dest_bytes > 0`, must be valid for at least `dest_bytes` writable bytes.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// If `dest_bytes > 0`, `dest` must be valid for `dest_bytes` writable bytes.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_read(
     source_id: u32,
     start_frame: u64,
@@ -186,7 +153,7 @@ pub unsafe extern "C" fn deluge_sample_read(
     dest: *mut c_void,
     dest_bytes: usize,
 ) -> u32 {
-    // SAFETY: forwarded from this fn's own contract.
+    // SAFETY: `dest`/`dest_bytes` are covered by this function's contract.
     unsafe {
         Reader::read(
             source_id,
@@ -198,16 +165,10 @@ pub unsafe extern "C" fn deluge_sample_read(
     }
 }
 
-/// Stateless, passive resident-peek: the resident, already-converted frames at `start_frame` of
-/// `source_id`'s residency, as a zero-copy run to the containing cluster's own boundary in
-/// `direction`. See the header doc (`deluge_sample_peek`) and [`crate::reader::peek`] for the
-/// full contract -- this is a thin type-cast shim over it, matching every other wrapper in this
-/// module. Takes no pointer argument, so (unlike most of this module) there is no pointer
-/// contract to forward -- a plain, non-`unsafe` `extern "C" fn`, like `deluge_sample_reader_open`.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+/// Returns the frames at `start_frame` of `source_id` that are already resident and converted, up
+/// to the containing cluster's boundary in `direction`, without loading anything. See
+/// [`crate::reader::peek`].
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_peek(
     source_id: u32,
     start_frame: u64,
@@ -220,14 +181,9 @@ pub extern "C" fn deluge_sample_peek(
     }
 }
 
-/// Invalidate every currently-resident cluster of `source_id`'s sample: flag each unloadable and
-/// cancel any queued load. See the header doc (`deluge_sample_invalidate`) and [`crate::reader::invalidate`]
-/// for the full contract. Stateless, keyed by `source_id` like `deluge_sample_peek` — a plain,
-/// non-`unsafe` `extern "C" fn`.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+/// Flags every resident cluster of `source_id`'s sample unloadable and cancels any queued load.
+/// See [`crate::reader::invalidate`].
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_invalidate(source_id: u32) {
     crate::reader::invalidate(source_id);
 }
@@ -251,27 +207,22 @@ mod tests {
         _buf: Vec<u128>,
     }
 
-    /// Placement-construct a real `StreamedChunk` at `dest`: `Resource::request` (used to mint
-    /// the leases these tests attach to a reader) requires SOME construct callback attached to
-    /// the asset (see `deluge_resource`'s own `request_constructs_without_loading_then_leases`
-    /// test — a construct-less asset refuses `request`), and `invalidate`'s own tests read the
-    /// resulting chunk's `unloadable` flag back through the real
-    /// `deluge_sample_fill::chunk::unloadable` accessor — which requires a genuinely
-    /// constructed backing to reborrow soundly (mirrors `reader::tests::window_tests`'s own
-    /// `real_chunk_construct`; see `lib.rs`'s `host_streaming_stubs` module doc for why this
-    /// crate uses real C-ABI construct/accessors rather than stubs).
+    /// Placement-constructs a real `StreamedChunk` at `dest`.
+    ///
+    /// `Resource::request` refuses an asset with no construct callback, and the `invalidate` tests
+    /// read `unloadable` back through the real accessor, which needs a constructed backing.
     ///
     /// # Safety
-    /// `dest` must be a writable slot of at least `deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET`
-    /// bytes — every asset this module's harness defines requests `CHUNK_SIZE` (4096) bytes per
-    /// chunk, ample headroom for the small `StreamedChunk` header.
+    ///
+    /// `dest` must be writable for at least `deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET`
+    /// bytes; this harness's chunks are `CHUNK_SIZE` bytes.
     unsafe extern "C" fn real_chunk_construct(
         ctx: *mut c_void,
         owner: *mut c_void,
         index: u32,
         dest: *mut u8,
     ) {
-        // SAFETY: forwarding the caller's contract (above) to the real construct.
+        // SAFETY: the caller's contract is the real construct's.
         unsafe {
             deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
                 ctx,
@@ -282,10 +233,8 @@ mod tests {
         }
     }
 
-    /// A `FillContext` compatible with `CHUNK_SIZE` (4096 = 2^12) — just enough for
-    /// `deluge_sample_reader_open` (`Reader::open`) to resolve real geometry; this
-    /// module's tests exercise the raw C-ABI lifecycle surface, never `window()`, so the exact
-    /// values beyond `cluster_size`/`cluster_size_magnitude` don't matter.
+    /// A `FillContext` for `CHUNK_SIZE` clusters, enough for `Reader::open` to resolve geometry.
+    /// These tests never call `window()`, so the other values do not matter.
     fn abi_fill_context() -> FillContext {
         FillContext {
             efatfs_handle: 0,
@@ -300,11 +249,7 @@ mod tests {
         }
     }
 
-    /// A `FillContext` sized for exactly two resident clusters (`audio_data_length_bytes ==
-    /// 2 * CHUNK_SIZE`) — for `invalidate`'s own test, which (unlike every other test in this
-    /// module) needs `deluge_sample_invalidate`'s cluster-span math (`ceil((start + length) /
-    /// cluster_size)`) to resolve to a real, non-zero span rather than `abi_fill_context`'s
-    /// unbounded `0`.
+    /// A `FillContext` two clusters long, so `invalidate` has a non-zero cluster span.
     fn two_cluster_fill_context() -> FillContext {
         FillContext {
             audio_data_length_bytes: (CHUNK_SIZE * 2) as u64,
@@ -312,12 +257,8 @@ mod tests {
         }
     }
 
-    /// Build a manager over a fresh test heap (leaking its backing arena) with one requestable
-    /// asset attached — the same harness shape `reader.rs`'s own tests use, duplicated here (each
-    /// test module keeps its own small copy, matching the sibling crates' convention) since this
-    /// module tests the raw C-ABI surface specifically, not `Reader`'s internal state. Also
-    /// registers `ctx` as the asset's fill-context and routes the `deluge_streaming_resource_manager`
-    /// stub — every caller must hold [`TEST_LOCK`] for its whole run (see that static's own doc).
+    /// Builds a manager over a leaked test heap with one requestable asset, registers `ctx` as its
+    /// fill-context, and makes it the active manager. Callers must hold [`TEST_LOCK`].
     fn manager_and_asset_with_context(ctx: FillContext) -> (*mut DelugeResource, u32) {
         let words = (256 * 1024usize).div_ceil(16);
         let mut buf: Vec<u128> = std::vec![0u128; words];
@@ -328,9 +269,7 @@ mod tests {
         // SAFETY: `h` is the live heap handle just created above.
         let handle = unsafe { deluge_resource::deluge_resource_create(h, 4, 16) };
         assert!(!handle.is_null());
-        // SAFETY: `handle` is live; `real_chunk_construct` has the required C-ABI signature. No
-        // materialize needed -- this module never `acquire`s through the asset, only
-        // `Resource::request`s directly in the test bodies below.
+        // SAFETY: `handle` is live. No materialize callback: these tests only `Resource::request`.
         let asset = unsafe {
             deluge_resource::deluge_resource_define_asset(
                 handle,
@@ -342,7 +281,7 @@ mod tests {
                 deluge_resource::manager::BACKING_HEAP,
             )
         };
-        // SAFETY: `handle`/`asset` are live/valid per the call above.
+        // SAFETY: `handle` and `asset` are live.
         unsafe {
             deluge_resource::deluge_resource_set_construct(
                 handle,
@@ -355,8 +294,7 @@ mod tests {
         (handle, asset)
     }
 
-    /// The harness every test in this module but `invalidate`'s own uses — a thin wrapper over
-    /// [`manager_and_asset_with_context`] with the shared single-cluster [`abi_fill_context`].
+    /// [`manager_and_asset_with_context`] with [`abi_fill_context`].
     fn test_manager_and_asset() -> (*mut DelugeResource, u32) {
         manager_and_asset_with_context(abi_fill_context())
     }
@@ -383,13 +321,11 @@ mod tests {
         let ptr = deluge_sample_reader_open(asset, 5, 1, ReadHint::Cached);
         assert!(!ptr.is_null());
 
-        // Reach through the opaque pointer to attach a real lease (mirroring what `window()`
-        // itself does), the same way `reader.rs`'s own tests do.
+        // Attach a real lease through the opaque pointer, as `window()` would.
         let lease = resource.request(asset, 0, CHUNK_SIZE).expect("request");
         let slot = resource.slot_of(lease.chunk());
         assert_eq!(resource.lease_count_by_slot(slot), 1);
-        // SAFETY: `ptr` is live; `Reader`'s layout underlies `DelugeSampleReader`, matching every
-        // other cast in this module.
+        // SAFETY: `ptr` is a live `Box<Reader>` pointer.
         unsafe { (*(ptr as *mut Reader)).held_lease = Some(lease) };
 
         // SAFETY: `ptr` is live, not yet closed.
@@ -420,7 +356,7 @@ mod tests {
 
         let lease = resource.request(asset, 1, CHUNK_SIZE).expect("request");
         let slot = resource.slot_of(lease.chunk());
-        // SAFETY: `ptr` is live; see the cast note above.
+        // SAFETY: `ptr` is a live `Box<Reader>` pointer.
         unsafe { (*(ptr as *mut Reader)).held_lease = Some(lease) };
         assert_eq!(resource.lease_count_by_slot(slot), 1);
 
@@ -436,7 +372,7 @@ mod tests {
 
     #[test]
     fn null_reader_is_tolerated_by_seek_close_advance_and_ok() {
-        // SAFETY: `reader` is null (the case under test) -- every fn null-checks before any deref.
+        // SAFETY: every function null-checks before dereferencing.
         unsafe {
             deluge_sample_reader_seek(core::ptr::null_mut(), 5);
             deluge_sample_reader_advance(core::ptr::null_mut(), 5);
@@ -451,8 +387,6 @@ mod tests {
     #[test]
     fn invalidate_flags_and_dequeues_every_resident_cluster() {
         let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        // Two-cluster sample. Build the manager, register its fill-context, make it the active
-        // manager -- the shared harness, sized for two clusters (see `two_cluster_fill_context`).
         let (handle, asset) = manager_and_asset_with_context(two_cluster_fill_context());
 
         // SAFETY: `handle` is live for the test's duration.
@@ -466,11 +400,10 @@ mod tests {
         assert!(
             resource.loader_next().is_some(),
             "precondition: queue is non-empty"
-        ); // non-vacuity
-        resource.loader_enqueue(s1, 0xFFFF_FFFF); // re-enqueue what loader_next just popped
+        );
+        resource.loader_enqueue(s1, 0xFFFF_FFFF); // Re-enqueue what `loader_next` popped.
 
-        // SAFETY: `l0`/`l1`'s chunks were placement-constructed by `real_chunk_construct` above
-        // (this harness's registered construct callback) and stay live (leases held) here.
+        // SAFETY: both chunks were constructed by `real_chunk_construct` and are leased.
         unsafe {
             assert!(!deluge_sample_fill::chunk::unloadable(
                 l0.chunk().as_ptr() as *mut c_void
@@ -482,8 +415,7 @@ mod tests {
 
         deluge_sample_invalidate(asset);
 
-        // Both clusters were flagged unloadable (the real `StreamedChunk` accessor, read directly).
-        // SAFETY: both chunks are still live (leases held) for the duration of this read.
+        // SAFETY: both chunks are still leased.
         unsafe {
             assert!(
                 deluge_sample_fill::chunk::unloadable(l0.chunk().as_ptr() as *mut c_void),
@@ -494,24 +426,17 @@ mod tests {
                 "cluster 1 flagged unloadable"
             );
         }
-        // The queue was drained (loader_remove ran for the queued cluster).
         assert!(
             resource.loader_next().is_none(),
             "invalidate dequeued the queued cluster"
         );
 
         drop((l0, l1));
-        // Each `cargo test` test runs on its own thread and `ACTIVE_MANAGER` is a `thread_local`
-        // (see `set_active_manager`'s own doc), so there is nothing shared left to restore here --
-        // unlike `POOL`/`ACTIVE_MANAGER` in crates that serialize tests over real statics.
     }
 
-    /// Mirrors `resident_bytes_for_full_clusters_short_last_and_sentinel`'s own sentinel/zero
-    /// coverage (`reader.rs`'s tests), but for `invalidate`: `audio_data_length_bytes ==
-    /// UNKNOWN_LENGTH_SENTINEL` (still recording) has no finite geometric cluster-count bound, and
-    /// `== 0` is the same "length not known yet" shape -- both must make `invalidate` return
-    /// promptly as a no-op (bounded, not a ~4.3-billion-iteration scan) rather than flag or dequeue
-    /// anything, even when a cluster IS resident.
+    /// An unknown (`UNKNOWN_LENGTH_SENTINEL`, still recording) or zero length gives no finite
+    /// cluster bound, so `invalidate` must return at once without touching a resident cluster,
+    /// rather than scan ~4.3 billion clusters.
     #[test]
     fn invalidate_is_a_bounded_no_op_when_length_is_unknown_or_zero() {
         let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -530,8 +455,7 @@ mod tests {
 
             deluge_sample_invalidate(asset);
 
-            // SAFETY: `l0`'s chunk was placement-constructed by `real_chunk_construct` and stays
-            // live (lease held) for the duration of this read.
+            // SAFETY: the chunk was constructed by `real_chunk_construct` and is leased.
             assert!(
                 !unsafe {
                     deluge_sample_fill::chunk::unloadable(l0.chunk().as_ptr() as *mut c_void)

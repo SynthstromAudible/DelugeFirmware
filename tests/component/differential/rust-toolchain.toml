@@ -1,10 +1,5 @@
-# Covers every package beneath this directory: rustup searches upward from the
-# cargo invocation directory, so one file here replaces the four copies these
-# harnesses used to carry. Those four were never byte-identical -- each had its
-# own header comment naming its cloned-from sibling -- but their `[toolchain]`
-# bodies matched, which is what makes the collapse sound. Keep it here rather
-# than per-package -- a harness that genuinely needs a different toolchain
-# should say so by carrying its own file, which then reads as deliberate.
+# Covers every package beneath this directory: rustup searches upward from the directory cargo
+# runs in. A harness that needs a different toolchain carries its own file.
 [toolchain]
 channel = "nightly"
 components = ["rust-src", "clippy", "rustfmt"]

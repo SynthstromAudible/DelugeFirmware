@@ -1,85 +1,17 @@
-//! Host unit tests for `audio_loader` — the awaited-I/O half of a card sample's
-//! load, plus the result table that carries its output to the C++ collector.
+//! Host tests for `audio_loader`: the parse driver over an in-memory [`LoadOps`], the result
+//! table, and the request/collect C ABI.
 //!
-//! See `src/audio_loader.rs`'s module doc for why the halves are split at all
-//! (each executor forbids what the other requires), and why [`LoadOps`] is only
-//! four async filesystem operations with no route into C++.
-//!
-//! `deluge-bsp-rust` is bin-only (no `[lib]` target — see `Cargo.toml`), so this
-//! recompiles `src/audio_loader.rs` unmodified into this test binary via
-//! `#[path]`, the same convention `tests/streaming_fill_host.rs`
-//! uses. Only the driver and the
-//! always-compiled request/collect tier are needed — the `prod` submodule (the
-//! efatfs backing) is gated on device/`host_app` and stays uncompiled, so this
-//! test never needs the C++ app linked.
-//!
-//! What these tests pin, in one line each: the efatfs handle is closed on every
-//! path; a parse verdict always reaches the caller with the error identity the
-//! synchronous path produced; a zero-length window is still read and fed; an
-//! uncollected result is evicted rather than leaked; and nothing parsed from one
-//! card survives that card being ejected, including a load that was still in
-//! flight when it went and one that publishes into a table the flush could not
-//! clear.
-#![cfg(not(target_os = "none"))]
+//! They pin that the efatfs handle is closed on every path; a verdict keeps the synchronous path's
+//! error identity; a zero-length window is still read and fed; an uncollected result is evicted,
+//! not leaked; and nothing parsed from one card survives its ejection, including a load in flight
+//! across it and a publish into a table the flush could not clear.
 
 use std::cell::{Cell, RefCell};
 use std::ffi::CString;
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
+use deluge_bsp_rust::channel::audio_loader;
 
-#[path = "../src/audio_loader.rs"]
-mod audio_loader;
-
-/// The ejection hook itself, recompiled here the same way — the belt tests below drive
-/// `deluge_card_flush` rather than its two halves, because "the bump precedes the clears" is part
-/// of what they are pinning. It reaches its loader through `super::audio_loader`, which is exactly
-/// what the module above provides — here at the crate root, and one module deeper when
-/// `crates/deluge_audio_loader_host` recompiles this whole file for CI.
-///
-/// The shared counter it bumps needs no `#[path]`: `deluge_card_generation` is a real dependency
-/// crate, so the very same static resolves here and in the BSP binary. That is why it is a crate —
-/// a `crate::card_generation` module would be a *different* static in this build from the one
-/// `audio_loader.rs` reads inside the firmware.
-#[path = "../src/card.rs"]
-mod card;
-
-/// The other loader `card.rs` flushes, recompiled here for the same reason: `deluge_card_flush`
-/// names BOTH of its siblings, so a carrier that provides only one does not compile. Its own slot
-/// logic is tested in `tests/file_prefix_host.rs`; here it exists to be linked.
-#[allow(dead_code)]
-#[path = "../src/file_prefix.rs"]
-mod file_prefix;
-
-/// The third loader `card.rs` flushes, here for exactly the same reason as `file_prefix` above:
-/// `deluge_card_flush` names every one of its siblings, so a carrier that leaves one out does
-/// not compile. Its own slot logic is tested in `tests/file_directory_host.rs`.
-#[allow(dead_code)]
-#[path = "../src/file_directory.rs"]
-mod file_directory;
-
-/// The fourth loader `card.rs` flushes, here for the same reason. Its own slot logic is tested in
-/// `tests/file_bytes_host.rs`.
-#[allow(dead_code)]
-#[path = "../src/file_bytes.rs"]
-mod file_bytes;
-
-/// The fifth channel `card.rs` flushes, here for the same reason. Its own slot logic is tested in
-/// `tests/file_stream_host.rs`.
-#[allow(dead_code)]
-#[path = "../src/file_stream.rs"]
-mod file_stream;
-
-/// Storage for `file_stream` above.
-#[allow(dead_code)]
-#[path = "../src/file_stream_slot.rs"]
-mod file_stream_slot;
-
-/// The ABI's handle rule, which the channels' exports convert their handles through.
-#[allow(dead_code)]
-#[path = "../src/abi_handle.rs"]
-mod abi_handle;
+use deluge_bsp_rust::storage::card;
 
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
@@ -88,15 +20,15 @@ use audio_loader::{
     ResultTable, decode_candidates, load_io_once, publish_into, take_from,
 };
 
-// The live request/collect pipeline. See the `live_pipeline` module below.
+// The live request/collect pipeline; see `live_pipeline` below.
 use audio_loader::{
     deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
 };
 use card::deluge_card_flush;
-use deluge_card_generation::current as current_generation;
-use deluge_channel::{
+use deluge_bsp_rust::channel::{
     DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
 };
+use deluge_bsp_rust::storage::card::generation as current_generation;
 
 /// One call `FakeOps` observed, in order.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -109,10 +41,8 @@ enum Call {
 
 /// Counting double for [`LoadOps`].
 ///
-/// `open_handles` is the LIVE count: incremented by `open`, decremented by
-/// `close`, and asserted zero at the end of every test because the efatfs handle
-/// table has only `MAX_HANDLES` (128) slots — a leaked handle is silent capacity
-/// loss, not an error anything reports.
+/// `open_handles` is the live count, asserted zero at the end of every test: a leaked efatfs handle
+/// is silent capacity loss.
 struct FakeOps {
     /// The file's bytes, served from memory, keyed by path.
     files: Vec<(String, Vec<u8>)>,
@@ -131,13 +61,9 @@ struct FakeOps {
     reads_done: Cell<u32>,
     /// Live handles: `handle -> the bytes that handle refers to`.
     ///
-    /// Keyed by HANDLE, not "whatever was opened last", and that is the point.
-    /// `efatfs_fs::size_of_handle` exists because the pre-existing size entry
-    /// point reads a DIFFERENT handle table, so sizing through it would silently
-    /// bound the parse to another file. A double that ignores the handle cannot
-    /// observe that bug at all — it would serve the right bytes for the wrong
-    /// handle. Every operation here therefore looks the handle up and panics if
-    /// it was never issued or has been closed.
+    /// Every operation resolves its handle and panics if it was never issued or has been closed,
+    /// so a driver that sized or read through the wrong handle cannot be served the right bytes by
+    /// accident.
     live: RefCell<Vec<(u32, String, Vec<u8>)>>,
 }
 
@@ -167,15 +93,14 @@ impl FakeOps {
         self
     }
 
-    /// Make `open` of `path` report `OpenVerdict::TableFull` -- the efatfs handle
-    /// table being full -- rather than a miss. The file need not exist.
+    /// Makes `open` of `path` report `OpenVerdict::TableFull` rather than a miss. The file need not
+    /// exist.
     fn with_table_full_for(mut self, path: &str) -> Self {
         self.table_full_for.push(String::from(path));
         self
     }
 
-    /// Make `path` open successfully but fail to size, the shape
-    /// `tryOpenCandidate` treats as a plain candidate miss.
+    /// Makes `path` open but fail to size, which `tryOpenCandidate` treats as a candidate miss.
     fn with_size_failing_for(mut self, path: &str) -> Self {
         self.size_fails_for.push(String::from(path));
         self
@@ -198,8 +123,7 @@ impl FakeOps {
         self.calls.borrow_mut().push(call);
     }
 
-    /// Assert the invariant that holds at the end of EVERY load: no handle left
-    /// open.
+    /// Asserts no handle is left open.
     fn assert_settled(&self) {
         assert_eq!(
             self.open_handles(),
@@ -209,9 +133,7 @@ impl FakeOps {
         );
     }
 
-    /// The bytes behind a live handle. Panics if `handle` was never issued by
-    /// `open`, or has already been closed — either is a real defect in the
-    /// driver, not a test-harness detail.
+    /// The bytes behind a live handle. Panics if `handle` was never issued or is closed.
     fn bytes_for(&self, handle: u32) -> Vec<u8> {
         self.entry_for(handle).1
     }
@@ -256,8 +178,7 @@ impl LoadOps for FakeOps {
         else {
             return OpenVerdict::Missing;
         };
-        // A fresh handle every time, never reused, so a driver that held on to a
-        // stale one cannot accidentally land on a live entry.
+        // Handles are never reused, so a stale one cannot land on a live entry.
         let handle = self.next_handle.get();
         self.next_handle.set(handle + 1);
         self.live
@@ -286,10 +207,8 @@ impl LoadOps for FakeOps {
         if self.fail_read_after.is_some_and(|limit| done >= limit) {
             return false;
         }
-        // Mirrors `efatfs_fs::read_at`: an empty fill trivially succeeds, whatever
-        // the offset. This is the case the driver MUST still feed. The handle is
-        // still resolved first, so a zero-length read against a bad handle is
-        // caught too.
+        // An empty fill trivially succeeds at any offset, as in production; this is the case the
+        // driver must still feed. The handle is resolved first, so a bad handle is still caught.
         let bytes = self.bytes_for(handle);
         if buf.is_empty() {
             return true;
@@ -317,9 +236,8 @@ impl LoadOps for FakeOps {
     }
 }
 
-/// Smallest RIFF/WAVE that parses: the 44-byte canonical header (12-byte RIFF
-/// container + 24-byte `fmt ` chunk + 8-byte `data` chunk header), 16-bit mono
-/// 44100, then 4 frames of audio.
+/// Smallest RIFF/WAVE that parses: the 44-byte canonical header (12-byte RIFF container, 24-byte
+/// `fmt ` chunk, 8-byte `data` chunk header), 16-bit mono 44100, then 4 frames of audio.
 fn minimal_wav() -> Vec<u8> {
     let audio: [u8; 8] = [0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00];
     let mut wav = Vec::new();
@@ -341,8 +259,7 @@ fn minimal_wav() -> Vec<u8> {
     wav
 }
 
-/// Run a future to completion on the test thread — the same helper
-/// `tests/streaming_fill_host.rs` uses, rather than a second executor dependency.
+/// Runs a future to completion on the test thread.
 fn block_on<F: core::future::Future>(future: F) -> F::Output {
     embassy_futures::block_on(future)
 }
@@ -373,7 +290,7 @@ fn alternate_of(result: &LoadResult) -> String {
     String::from_utf8(result.alternate_path[..end].to_vec()).expect("UTF-8")
 }
 
-// ── The happy path ──────────────────────────────────────────────────────────
+// The happy path
 
 /// A good file parses to a geometry, a size, and no error — and closes its handle.
 #[test]
@@ -385,8 +302,8 @@ fn a_good_file_parses_to_a_geometry() {
     ops.assert_settled();
 }
 
-/// The geometry crossing the ABI is the parsed header, field for field. A wrong
-/// or missed field here loads without any error and renders wrong.
+/// The geometry crossing the ABI is the parsed header, field for field; a missed field loads
+/// without error and renders wrong.
 #[test]
 fn the_parsed_geometry_matches_the_header() {
     let ops = FakeOps::new().with_file("A.wav", minimal_wav());
@@ -404,20 +321,12 @@ fn the_parsed_geometry_matches_the_header() {
     // The file declares no root note and no `clm ` tag.
     assert_eq!(geometry.midi_note_present, 0);
     assert_eq!(geometry.wavetable_explicitly_specifies_self, 0);
-    // The parser's "the file said nothing" default, mirroring the C++ parser's
-    // Serum convention.
+    // The parser's "the file said nothing" default (the Serum convention).
     assert_eq!(geometry.wavetable_cycle_size, 2048);
 }
 
-/// Two loads through one `FakeOps` must each report their OWN file's size, via
-/// their own handle.
-///
-/// The double serves strictly by handle and issues a fresh one per open, so a
-/// driver that cached a handle, a size, or "the last file opened" between loads
-/// reports the first file's size for the second — which is the shape of the bug
-/// `efatfs_fs::size_of_handle` exists to prevent (the pre-existing size entry
-/// point reads a different handle table, so it would bound the parse to another
-/// file entirely).
+/// Two loads through one `FakeOps` each report their own file's size, via their own handle, so a
+/// driver that cached a handle or size between loads fails.
 #[test]
 fn each_load_is_sized_through_its_own_handle() {
     let mut small = minimal_wav();
@@ -447,10 +356,10 @@ fn each_load_is_sized_through_its_own_handle() {
     ops.assert_settled();
 }
 
-// ── The handle is released on every path ────────────────────────────────────
+// The handle is released on every path
 
-/// Nothing opens: no handle was taken, and the verdict is `FILE_UNREADABLE` —
-/// there is always a result for the collector, never silence.
+/// Nothing opens: no handle was taken, and the verdict is `FILE_UNREADABLE` (always a result,
+/// never silence).
 #[test]
 fn no_candidate_opening_reports_unreadable() {
     let ops = FakeOps::new();
@@ -482,8 +391,7 @@ fn a_failed_size_closes_the_handle() {
     assert!(ops.calls().contains(&Call::Close));
 }
 
-/// A read that fails mid-parse (a card pulled) still closes the handle and still
-/// produces a verdict.
+/// A read that fails mid-parse (a card pulled) still closes the handle and produces a verdict.
 #[test]
 fn a_failed_read_mid_parse_closes_the_handle() {
     let ops = FakeOps::new()
@@ -494,10 +402,9 @@ fn a_failed_read_mid_parse_closes_the_handle() {
     ops.assert_settled();
 }
 
-// ── Parse verdicts keep the C++ side's error identity ───────────────────────
+// Parse verdicts keep the synchronous path's error identity
 
-/// Not audio at all: `FILE_UNSUPPORTED`, the same code the synchronous path
-/// produced, which is what `sample_browser.cpp` reads as "not a wavetable, try it
+/// Not audio: `FILE_UNSUPPORTED`, which `sample_browser.cpp` reads as "not a wavetable, try it
 /// as a sample".
 #[test]
 fn a_non_audio_file_reports_file_unsupported() {
@@ -521,15 +428,11 @@ fn a_wav_without_audio_data_reports_file_corrupted() {
     ops.assert_settled();
 }
 
-// ── Candidate order and the alternate location ──────────────────────────────
+// Candidate order and the alternate location
 
-/// Candidates are tried in order and the FIRST that opens wins. A winner that is
-/// not in the LAST slot is reported as the alternate location — exactly
-/// `usingAlternateLocation`, and the path the collector must bind its read stream
-/// to.
-///
-/// The list is shaped the way `proposeLoadCandidates` shapes one: the regular
-/// path last, alternates before it.
+/// The first candidate that opens wins; a winner not in the last slot is reported as the
+/// alternate location, the path the collector binds its read stream to. The list is shaped as
+/// `proposeLoadCandidates` shapes it: alternates first, the regular path last.
 #[test]
 fn the_first_candidate_that_opens_becomes_the_alternate_location() {
     let ops = FakeOps::new().with_file("SAMPLES/SONG/A.wav", minimal_wav());
@@ -542,19 +445,12 @@ fn the_first_candidate_that_opens_becomes_the_alternate_location() {
     ops.assert_settled();
 }
 
-/// The order the candidates arrive in is the order they are tried, and the FIRST
-/// one that opens wins. All three files exist here, which is what makes the claim
-/// testable at all: with only one openable candidate, "first that opens" cannot
-/// be told apart from "last", or from "any". The C++ side decides which copy of a
-/// duplicated sample a load gets purely by the order it fills the buffer
-/// (AudioFileManager::requestAsyncSampleLoad), so this is that contract.
-///
-/// Removing the earlier candidates one at a time walks the winner down the list,
-/// which is the same order `resolveFileSize` walks.
+/// Candidates are tried in the order given and the first that opens wins; the C++ side picks which
+/// copy of a duplicated sample loads by that order. All three files exist, so "first" is
+/// distinguishable from "last" or "any"; removing candidates walks the winner down the list.
 #[test]
 fn the_first_candidate_that_opens_wins_when_more_than_one_would() {
-    // The real three-candidate shape: flattened alternate, bare-name alternate,
-    // regular path last.
+    // Flattened alternate, bare-name alternate, regular path last.
     let candidates = [
         "SAMPLES/ALT/KIT_A.wav",
         "SAMPLES/ALT/A.wav",
@@ -585,8 +481,7 @@ fn the_first_candidate_that_opens_wins_when_more_than_one_would() {
     assert_eq!(alternate_of(&result), candidates[1]);
     without_flattened.assert_settled();
 
-    // Drop both alternates: the regular path in the last slot wins, and reports
-    // no alternate location.
+    // Drop both alternates: the regular path wins and reports no alternate location.
     let regular_only = FakeOps::new().with_file(candidates[2], minimal_wav());
     let result = block_on(load_io_once(
         &regular_only,
@@ -597,9 +492,8 @@ fn the_first_candidate_that_opens_wins_when_more_than_one_would() {
     regular_only.assert_settled();
 }
 
-/// The regular path winning means NO alternate location — an empty string, which
-/// is what the app's `sample_build::begin` takes for "resolved at the nominal
-/// path directly".
+/// The regular path winning reports an empty alternate path, which `sample_build::begin` reads as
+/// "resolved at the nominal path".
 #[test]
 fn the_regular_path_winning_reports_no_alternate_location() {
     let ops = FakeOps::new().with_file("SAMPLES/A.wav", minimal_wav());
@@ -610,23 +504,16 @@ fn the_regular_path_winning_reports_no_alternate_location() {
     assert_eq!(alternate_of(&result), "");
 }
 
-/// ⭐ The alternate directory IS the file's own directory, so the bare-name
-/// alternate candidate stringifies to exactly the nominal path.
+/// When the alternate directory is the file's own directory, the bare-name alternate candidate
+/// equals the nominal path.
 ///
-/// This is the case that separates the two ways of deciding "did an alternate
-/// win". A load context whose `alternateDir` is `SAMPLES/ALT`, and a file already at
-/// `SAMPLES/ALT/A.wav` gives candidates whose slot 1 (bare name in the alternate
-/// dir) and slot 2 (regular path) are the SAME string. `resolveFileSize`
-/// classifies by SLOT and calls the slot-1 hit an alternate; a
-/// `winning_path != request.path` test calls it regular and leaves
-/// `alternate_path` empty. `Sample::loadedFromAlternatePath` is what
-/// `save_song_ui.cpp` gates the collect-media copy-back on, so the empty one
-/// means the sample is silently not copied into the saved song folder.
+/// The winner must be classified by slot, not by string equality: the slot-1 hit is an alternate.
+/// Reporting it as regular would leave `Sample::loadedFromAlternatePath` empty, and
+/// `save_song_ui.cpp` would skip copying the sample into the saved song folder.
 #[test]
 fn a_bare_name_candidate_equal_to_the_nominal_path_is_still_an_alternate() {
-    // What proposeLoadCandidates produces for SAMPLES/ALT/A.wav with
-    // an alternate directory of "SAMPLES/ALT": the flattened form, the bare
-    // name in the alternate dir, then the regular path -- the last two identical.
+    // `proposeLoadCandidates` for `SAMPLES/ALT/A.wav` with alternate directory `SAMPLES/ALT`:
+    // flattened form, bare name in the alternate dir, regular path (the last two identical).
     let candidates = [
         "SAMPLES/ALT/ALT_A.wav",
         "SAMPLES/ALT/A.wav",
@@ -646,18 +533,14 @@ fn a_bare_name_candidate_equal_to_the_nominal_path_is_still_an_alternate() {
     ops.assert_settled();
 }
 
-// ── A full handle table is not a candidate miss ─────────────────────────────
+// A full handle table is not a candidate miss
 
-/// ⭐ The efatfs handle table filling up must NOT read as "this candidate is not
-/// here".
+/// A full efatfs handle table must not read as "this candidate is not here".
 ///
-/// The loader opens through the same 128-slot table `open_read_stream` uses, and
-/// `sample_stream.cpp` documents it filling up by construction under browser
-/// preview -- the async loader's own workload. Reported as a miss it becomes
-/// `FILE_UNREADABLE`, which is the collector's retry gate: the load probes the
-/// alternate directory, promotes the load's alternate-dir status for every later sample,
-/// and can answer with a same-named file from there. The synchronous path instead
-/// reports `TOO_MANY_OPEN_STREAMS` and runs `releaseUnleasedAudioFiles()`.
+/// The table fills up under browser preview, this loader's own workload. As a miss it would become
+/// `FILE_UNREADABLE`, and the collector would probe the alternate directory and could load a
+/// same-named file from there. It must be `TOO_MANY_OPEN_STREAMS`, which the collector answers by
+/// reclaiming unleased files.
 #[test]
 fn a_full_handle_table_is_reported_as_too_many_open_streams() {
     let ops = FakeOps::new()
@@ -665,8 +548,7 @@ fn a_full_handle_table_is_reported_as_too_many_open_streams() {
         .with_table_full_for("SAMPLES/A.wav");
     let result = block_on(load_io_once(
         &ops,
-        // Regular path last, as proposeLoadCandidates orders them. The alternate
-        // is tried first and misses; the regular one then hits the full table.
+        // The alternate misses; the regular path then hits the full table.
         &request("SAMPLES/A.wav", &["SAMPLES/OTHER/A.wav", "SAMPLES/A.wav"]),
     ));
     assert_eq!(
@@ -676,9 +558,8 @@ fn a_full_handle_table_is_reported_as_too_many_open_streams() {
     ops.assert_settled();
 }
 
-/// A full table stops the walk rather than trying the remaining candidates: every
-/// one of them would hit the same full table, and continuing would end the load
-/// on `FILE_UNREADABLE` -- the miss verdict this exists to avoid producing.
+/// A full table stops the walk: every remaining candidate would hit it too, and continuing would
+/// end on `FILE_UNREADABLE`.
 #[test]
 fn a_full_handle_table_stops_the_candidate_walk() {
     let ops = FakeOps::new()
@@ -697,14 +578,10 @@ fn a_full_handle_table_stops_the_candidate_walk() {
     ops.assert_settled();
 }
 
-// ── An unsizeable candidate is a miss, not the end of the load ──────────────
+// An unsizeable candidate is a miss, not the end of the load
 
-/// ⭐ A candidate that opens but cannot be sized is a plain candidate MISS, and
-/// the walk moves to the next candidate.
-///
-/// `tryOpenCandidate` does exactly this (its own `sz.has_value()` check), so a
-/// loader that ended the load there would let an openable-but-unsizeable
-/// candidate shadow a perfectly good later one -- on the async path only.
+/// A candidate that opens but cannot be sized is a candidate miss, as in `tryOpenCandidate`; it
+/// must not shadow a good later candidate.
 #[test]
 fn an_unsizeable_candidate_yields_to_the_next_one() {
     let ops = FakeOps::new()
@@ -742,12 +619,10 @@ fn an_unsizeable_candidate_yields_to_the_next_one() {
     ops.assert_settled();
 }
 
-// ── The window protocol ─────────────────────────────────────────────────────
+// The window protocol
 
-/// Every window stays inside the size the parser was given
-/// (`start + len <= size`), which is what makes [`LoadOps::read_at`]'s
-/// full-fill-or-`false` contract usable: a short read can only be a real failure,
-/// never an end of file that a byte count would have had to distinguish.
+/// Every window stays inside the size the parser was given (`start + len <= size`), which is what
+/// lets [`LoadOps::read_at`] treat a short read as a real failure.
 #[test]
 fn every_window_stays_inside_the_file() {
     let bytes = minimal_wav();
@@ -763,22 +638,16 @@ fn every_window_stays_inside_the_file() {
         "the parser must never name a byte past the size it was given; reads were {:?}",
         ops.reads()
     );
-    // The audio payload is stepped over by arithmetic, never read: the walk stops
-    // at the `data` chunk HEADER (offset 36, 8 bytes) and does not read the 8
-    // audio bytes behind it.
+    // The audio payload is skipped by arithmetic: the walk stops at the `data` chunk header
+    // (offset 36, 8 bytes).
     assert_eq!(ops.reads(), vec![(0, 12), (12, 8), (20, 16), (36, 8)]);
 }
 
-/// A zero-length window request must still be READ and FED. The parser resolves
-/// the end of the file inside `feed` and never terminates without a `feed` call,
-/// so a driver that treated `len == 0` as "nothing to do" and skipped it would
-/// spin in the parse loop forever — this test would hang rather than fail.
+/// A zero-length window must still be read and fed: the parser resolves end of file inside
+/// `feed`, so a driver that skipped it would loop forever (this test would hang).
 ///
-/// A zero-byte file is the case that produces one: `pending` clamps the container
-/// header request to what remains, which is nothing. In production a zero-byte
-/// file is refused before a `Sample` is ever built, so this is defence in depth on
-/// the driver's own loop rather than a reachable card state — which is precisely
-/// why it needs a test: nothing else would notice if the loop stopped feeding.
+/// A zero-byte file produces one. Production refuses zero-byte files before building a `Sample`,
+/// so this guards the driver's own loop.
 #[test]
 fn a_zero_length_window_is_still_read_and_fed() {
     let ops = FakeOps::new().with_file("A.wav", Vec::new());
@@ -793,17 +662,10 @@ fn a_zero_length_window_is_still_read_and_fed() {
     ops.assert_settled();
 }
 
-// ── The result table: what carries a result between the halves ──────────────
-//
-// These run against a LOCAL `ResultTable`, not the process-wide `RESULTS`
-// static, so they pin the table logic apart from the live pipeline. The
-// `remove_at` ordering bug lived in exactly this code.
+// The result table, driven through a local `ResultTable` rather than the `RESULTS` static.
 
-/// The card generation the ordering tests below publish and take under.
-///
-/// Deliberately nonzero: `0` is what an unstamped entry would hold, so a table
-/// built at `0` would let a `publish_into` that dropped the stamp on the floor
-/// still satisfy every take.
+/// The card generation the ordering tests publish and take under. Nonzero, so a publish that
+/// dropped its stamp (leaving 0) cannot still satisfy every take.
 const CARD: u32 = 3;
 
 fn table_with(paths: &[&str]) -> ResultTable {
@@ -819,19 +681,12 @@ fn table_with(paths: &[&str]) -> ResultTable {
     table
 }
 
-/// Take under the same card the table was built on.
-///
-/// The ordering and eviction tests are about `remove_at`, not about generations,
-/// so they say so by taking through this rather than repeating [`CARD`] at every
-/// call. The generation belt has its own tests below, which pass the parameter
-/// explicitly because it is the thing under test there.
+/// Takes under [`CARD`]. The generation tests below pass the generation explicitly.
 fn take(table: &mut ResultTable, path: &str) -> Option<LoadResult> {
     take_from(table, path, CARD)
 }
 
-/// A published result is taken exactly once: the payload, then nothing, because
-/// taking REMOVES it. Returning it twice would let a caller build the same
-/// `Sample` twice.
+/// A published result is taken exactly once; returning it twice could build a `Sample` twice.
 #[test]
 fn a_result_is_taken_exactly_once() {
     let mut table = table_with(&["once/A.wav"]);
@@ -847,13 +702,8 @@ fn an_unpublished_path_is_absent() {
     assert!(take(&mut table, "never/asked.wav").is_none());
 }
 
-/// Re-publishing the same key REPLACES its entry rather than adding a second, so
-/// a coalescing caller (the browser re-requesting as the cursor settles) cannot
-/// grow the table with duplicates — and the newest parse is the one taken.
-///
-/// Exercised from the MIDDLE of a populated table, not against a single entry:
-/// the replace path rotates through `remove_at`, which is where the ordering bug
-/// lived.
+/// Re-publishing a key replaces its entry rather than adding a second, and the newest parse is
+/// taken. Exercised mid-table, where the replacement goes through `remove_at`.
 #[test]
 fn republishing_a_key_replaces_its_entry_in_place() {
     let mut table = table_with(&["dup/A", "dup/B", "dup/C"]);
@@ -875,10 +725,8 @@ fn republishing_a_key_replaces_its_entry_in_place() {
     assert!(take(&mut table, "dup/C").is_some());
 }
 
-/// An uncollected result is EVICTED, oldest first, once the table fills — it is
-/// not held forever and it is not leaked. That is safe only because `LoadResult`
-/// owns nothing: eviction costs the I/O that produced it and nothing else, and the
-/// caller sees `UNKNOWN`, whose documented meaning is "request it again".
+/// An uncollected result is evicted, oldest first, once the table fills. Safe because
+/// `LoadResult` owns nothing; the collector sees `UNKNOWN` and re-requests.
 #[test]
 fn an_uncollected_result_is_evicted_rather_than_leaked() {
     let keys: Vec<String> = (0..=RESULT_SLOTS).map(|i| format!("evict/{i}")).collect();
@@ -895,13 +743,9 @@ fn an_uncollected_result_is_evicted_rather_than_leaked() {
     }
 }
 
-/// Taking from the MIDDLE must leave the remaining entries in their original
-/// order, because eviction is oldest-first and reads that order.
-///
-/// Regression test for a real bug in `remove_at`: it rotated the survivors
-/// instead of restoring them, so after one mid-table take the "oldest" entry was
-/// no longer oldest and the next eviction discarded the wrong result. Verified to
-/// fail against the buggy rotation, not merely to pass against the fix.
+/// Taking from the middle leaves the remaining entries in their original order, which
+/// oldest-first eviction reads. Regression test: `remove_at` once rotated the survivors, so the
+/// next eviction discarded the wrong result.
 #[test]
 fn taking_from_the_middle_keeps_the_eviction_order() {
     let keys: Vec<String> = (0..RESULT_SLOTS).map(|i| format!("ord/{i}")).collect();
@@ -937,29 +781,15 @@ fn taking_from_the_middle_keeps_the_eviction_order() {
     assert!(take(&mut table, "ord/y").is_some());
 }
 
-// ── The generation belt: the stamp on the RESIDENT entry ────────────────────
+// The generation stamp on the resident entry
 //
-// `deluge_card_flush` bumps the generation unconditionally -- that half cannot
-// fail -- but the table clears it then calls are `flush_tables`'s, and those are
-// `try_lock`ed, so a contended `RESULTS` is left populated. And there is no
-// happens-before edge from that bump to a concurrent `publish_result`'s read of
-// it, so a publish can also legitimately pass its own pre-insert check and land
-// after the flush. Both leave a stale entry resident, and neither is hypothetical
-// on `host_app` builds, where the loader is a plain `std::thread` alongside the
-// app rather than an interrupt executor.
-//
-// What makes those harmless is that the entry carries the generation it was
-// published under and `take_from` compares it against the generation the TAKER is
-// asking under. These two tests are the evidence for that; the A/B gate is not,
-// because its witness handshake parks the loader at the flush so nothing is ever
-// in flight across one.
+// A stale entry can stay resident: `flush_tables`' clears are `try_lock`ed, and a publish can pass
+// its own pre-insert check and land after the flush (no happens-before edge from the bump). Under
+// `host_app` the loader is a plain `std::thread`, so both happen. `take_from` comparing the entry's
+// stamp with the taker's generation is what makes them harmless; these tests pin that.
 
-/// An entry stamped by the previous card is not returned, and does not stay
-/// resident either -- it is dropped from the table on the way past.
-///
-/// Withholding without removing would only defer the problem: the entry would
-/// still be sitting there at the next generation, and it also occupies a slot the
-/// live cards' results need.
+/// An entry stamped by the previous card is not returned, and is removed from the table rather
+/// than left occupying a slot.
 #[test]
 fn an_entry_from_a_previous_card_is_dropped_not_returned() {
     let mut table = table_with(&["gen/A.wav"]);
@@ -977,15 +807,10 @@ fn an_entry_from_a_previous_card_is_dropped_not_returned() {
     );
 }
 
-/// The TAKER's current generation is the only thing that decides -- which is what
-/// covers the case `publish_result`'s pre-insert check structurally cannot.
-///
-/// The scenario: `deluge_card_flush` has already bumped to `CARD + 1`, and
-/// `flush_tables` has failed (or not yet tried) to clear the table. The loader,
-/// which sampled `CARD` before its I/O, wins the `RESULTS` lock and publishes
-/// anyway -- its check reads whatever the bump has not yet been ordered against,
-/// so assume it passes. The entry lands. It must still be uncollectable, and its
-/// `CARD + 1` neighbour must not be.
+/// The taker's current generation decides, covering the case `publish_result`'s pre-insert check
+/// cannot: after a flush bumped to `CARD + 1` without clearing the table, a load that sampled
+/// `CARD` publishes anyway. That entry must be uncollectable, and its `CARD + 1` neighbour must
+/// not be.
 #[test]
 fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
     let mut table = ResultTable::new();
@@ -1015,9 +840,8 @@ fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
         take_from(&mut table, "gen/late.wav", CARD + 1).is_none(),
         "a result stamped before the flush must not be collectable after it"
     );
-    // The positive control, and it is not optional: a check that refused
-    // EVERYTHING after a flush would satisfy the assertion above while wedging the
-    // loader for the rest of the session.
+    // Positive control: a check that refused everything after a flush would pass the assertion
+    // above while wedging the loader.
     assert_eq!(
         take_from(&mut table, "gen/fresh.wav", CARD + 1)
             .expect("a load that began on the current card must be collectable")
@@ -1027,19 +851,15 @@ fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
     assert!(table.is_empty());
 }
 
-// ── The live pipeline: request -> in flight -> collect ──────────────────────
-//
-// These drive the process-wide statics through the real C ABI.
+// The live pipeline: request, in flight, collect, through the real C ABI over the process-wide
+// statics.
 mod live_pipeline {
     use super::*;
 
-    /// `RESULTS`/`QUEUE`/`IN_FLIGHT` are process-wide and cargo runs tests on
-    /// parallel threads, so these must not interleave.
+    /// The statics are process-wide and tests run on parallel threads, so tests take this lock.
     static PIPELINE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-    /// The value `collect` seeds `out` with before every call. `0xFF` is not a
-    /// real error code (the largest is `TOO_MANY_OPEN_STREAMS`, 34), so it cannot
-    /// be mistaken for a result the loader actually produced.
+    /// What `collect` seeds `out` with. `0xFF` is not a real error code (the largest is 34).
     const UNTOUCHED: u8 = 0xFF;
 
     fn collect(path: &str) -> (u8, LoadResult) {
@@ -1051,23 +871,12 @@ mod live_pipeline {
         (status, out)
     }
 
-    /// Assert `out` came back exactly as [`collect`] seeded it.
+    /// Asserts `out` came back exactly as [`collect`] seeded it: `audio_load.h` writes `out` only
+    /// on `READY`, so a caller may pass an uninitialised slot.
     ///
-    /// This is the NEGATIVE half of `audio_load.h`'s contract, and it had no test
-    /// at all: `out` is written on `READY` and on nothing else, so a caller may
-    /// pass an uninitialised slot and read it back only on `READY`. Every
-    /// `PENDING`/`UNKNOWN` assertion here checked the status and dropped the
-    /// result on the floor, which is exactly the shape that lets a violation
-    /// through — status stays right, the C++ collector never looks, and the whole
-    /// suite stays green until some later caller does look.
-    ///
-    /// What it catches: a `probe` branch that writes a placeholder, or an
-    /// `out.write` hoisted above the `take_from` match to reuse a scratch value.
-    /// Both leave the status correct and only this assertion wrong.
-    ///
-    /// Checks every field rather than just `error`, because a partial write —
-    /// geometry stamped before a verdict is known, say — is the more likely
-    /// accident and the harder one to see.
+    /// Catches a `probe` branch that writes a placeholder, or a write hoisted above the take,
+    /// either of which leaves the status right. Every field is checked, since a partial write is
+    /// the likelier accident.
     fn assert_out_untouched(result: &LoadResult) {
         assert_eq!(
             result.error, UNTOUCHED,
@@ -1088,9 +897,7 @@ mod live_pipeline {
         );
     }
 
-    /// Publish as the loader task would for a load that began just now: stamped
-    /// with the CURRENT card generation, so nothing here is accidentally testing
-    /// the flush's drop path.
+    /// Publishes as the loader task would for a load that began under the current card generation.
     fn publish(path: &str, result: LoadResult) {
         block_on(publish_result(path_of(path), result, current_generation()));
     }
@@ -1109,9 +916,7 @@ mod live_pipeline {
         }
     }
 
-    /// A path the loader has never been asked about is `UNKNOWN`, not `PENDING`
-    /// — `PENDING` would tell the caller to keep asking for something that will
-    /// never arrive.
+    /// A path never asked about is `UNKNOWN`; `PENDING` would make the caller wait forever.
     #[test]
     fn an_unrequested_path_is_unknown() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -1120,8 +925,6 @@ mod live_pipeline {
         assert_out_untouched(&out);
     }
 
-    /// A queued-but-unparsed request reports `PENDING`, so the caller waits
-    /// instead of re-requesting work already in the queue.
     #[test]
     fn a_queued_request_is_pending() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -1131,32 +934,21 @@ mod live_pipeline {
         assert_out_untouched(&out);
     }
 
-    /// A load being parsed RIGHT NOW reports `PENDING`, not `UNKNOWN`.
-    ///
-    /// This branch had no test at all, because no test runs the loader task —
-    /// the same degenerate-coverage shape that hid the `remove_at` bug.
-    /// `mark_in_flight` is the seam the task uses, so driving it directly
-    /// exercises the real branch rather than a copy of it.
-    ///
-    /// A false `UNKNOWN` here is not cosmetic: it tells the caller to re-request
-    /// a load that is already running, on every tick, and each redundant request
-    /// eventually orphans a result slot.
+    /// A load being parsed now reports `PENDING`, not `UNKNOWN` (which would make the caller
+    /// re-request it every tick). No test runs the task, so `mark_in_flight` is driven directly.
     #[test]
     fn an_in_flight_request_is_pending_not_unknown() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         block_on(mark_in_flight(Some(path_of("inflight/A.wav"))));
         assert_eq!(collect("inflight/A.wav").0, DELUGE_CHANNEL_PENDING);
-        // A DIFFERENT path is still unknown — the branch matches on identity,
-        // not on "something is in flight".
+        // Another path is still unknown: the branch matches on the path.
         assert_eq!(collect("inflight/B.wav").0, DELUGE_CHANNEL_UNKNOWN);
         block_on(mark_in_flight(None));
         assert_eq!(collect("inflight/A.wav").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
-    /// The window the task leaves open deliberately: a result is published while
-    /// its path is still marked in flight. `PENDING` is the correct answer there
-    /// — one extra tick, never a wrong one — and the result is collectable as
-    /// soon as the mark clears.
+    /// A result published while its path is still marked in flight reports `PENDING` (one extra
+    /// tick), and is collectable once the mark clears.
     #[test]
     fn a_published_result_still_marked_in_flight_reports_pending() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -1181,11 +973,8 @@ mod live_pipeline {
         assert_eq!(collect("gone/A.wav").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
-    /// The `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` sentinel means the C side's
-    /// buffer is not trustworthy at all. It must be REFUSED, not clamped to the
-    /// candidate bound and read anyway — the header is explicit that the caller
-    /// must not read `out`, and a silently truncated path can name a different
-    /// real file.
+    /// The `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` sentinel means the buffer must not be read: the
+    /// request is refused, not clamped, since a truncated path can name a different real file.
     #[test]
     fn the_truncation_sentinel_is_refused_not_clamped() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -1216,19 +1005,14 @@ mod live_pipeline {
         assert_eq!(collect("bound/A.wav").0, DELUGE_CHANNEL_PENDING);
     }
 
-    // ── Ejection ────────────────────────────────────────────────────────────
+    // Ejection
     //
-    // A result is keyed by path and records nothing about the card it came from,
-    // so one parsed before an ejection and collected after the next insertion
-    // binds the NEW card's file to the OLD card's geometry: a load that reports no
-    // error and plays the wrong thing. `deluge_card_flush` is what makes that
-    // impossible, and there are two halves to it -- what was already published,
-    // and what is still in flight. The second is the one that is easy to get
-    // wrong, so it has its own test.
+    // A result records nothing about its card, so one parsed before an ejection and collected after
+    // the next insertion would apply the old card's geometry to the new card's file.
+    // `deluge_card_flush` must cover both what was already published and what is still in flight.
 
-    /// A result published before the ejection is gone afterwards: `UNKNOWN`, whose
-    /// documented meaning is "request it again" -- which is exactly what the
-    /// collector should do against the card that is now in the slot.
+    /// A result published before the ejection is `UNKNOWN` afterwards, so the collector re-requests
+    /// against the card now in the slot.
     #[test]
     fn a_flush_discards_a_published_result() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -1246,29 +1030,22 @@ mod live_pipeline {
         assert_out_untouched(&out);
     }
 
-    /// A load already IN FLIGHT when the card goes finishes afterwards and
-    /// publishes into a table the flush has already emptied -- reinstating exactly
-    /// the stale result the flush existed to remove.
+    /// A load in flight when the card goes publishes afterwards and must not become collectable.
     ///
-    /// This is the half that clearing the tables cannot cover, and the half a
-    /// naive fix gets wrong: stamping the result with the generation it PUBLISHES
-    /// under reads the value the flush just installed, so the check passes and the
-    /// stale result lands anyway. The stamp has to be the one the load BEGAN
-    /// under, which is what `take_next_request` samples and what this test
-    /// reproduces by capturing the generation before the flush.
+    /// The stamp must be the generation the load began under (sampled in `take_next_request`);
+    /// stamping at publish time would read the post-flush value and let the stale result through.
+    /// The test captures the generation before the flush to reproduce that.
     #[test]
     fn a_flush_drops_a_result_from_a_load_that_was_already_in_flight() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        // The loader picks the request up and starts its I/O: this is the moment
-        // `take_next_request` samples the generation.
+        // The loader picks the request up: `take_next_request` samples the generation here.
         block_on(mark_in_flight(Some(path_of("eject/inflight.wav"))));
         let began_under = current_generation();
 
         // The card is pulled mid-parse.
         deluge_card_flush();
 
-        // ...and the parse finishes anyway, because nothing can stop an await that
-        // is already running. Its result must not become collectable.
+        // ...and the parse finishes anyway. Its result must not become collectable.
         block_on(publish_result(
             path_of("eject/inflight.wav"),
             LoadResult::failed(DELUGE_ERROR_NONE),
@@ -1281,10 +1058,8 @@ mod live_pipeline {
         );
         assert_out_untouched(&out);
 
-        // The positive control, and it is not optional: a check that dropped
-        // EVERY publish after a flush would satisfy the assertion above while
-        // wedging the loader permanently -- every later load would report
-        // LOAD_IN_PROGRESS, then UNKNOWN, forever.
+        // Positive control: a check that dropped every publish after a flush would pass the
+        // assertion above while wedging the loader for good.
         publish("eject/inflight.wav", LoadResult::failed(DELUGE_ERROR_NONE));
         assert_eq!(
             collect("eject/inflight.wav").0,
@@ -1293,9 +1068,7 @@ mod live_pipeline {
         );
     }
 
-    /// A queued request does not survive the ejection either. It named a path on a
-    /// card that is gone, and honouring it would answer with whatever happens to
-    /// sit at that path on the next one.
+    /// A queued request does not survive the ejection: it named a path on a card that has gone.
     #[test]
     fn a_flush_discards_a_queued_request() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -1309,9 +1082,8 @@ mod live_pipeline {
         );
     }
 
-    /// The in-flight MARK goes too. Left behind, it reports `PENDING` for a load
-    /// nothing will ever publish, and the collector waits for it on every tick
-    /// instead of requesting the file from the card that is actually present.
+    /// The in-flight mark goes too; left behind, it would report `PENDING` for a load nothing will
+    /// publish.
     #[test]
     fn a_flush_clears_the_in_flight_mark() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -1321,10 +1093,8 @@ mod live_pipeline {
         assert_eq!(collect("eject/mark.wav").0, DELUGE_CHANNEL_UNKNOWN);
     }
 
-    /// The loader keeps working after an ejection. Stated separately from the
-    /// positive control inside the in-flight test because it is the property a
-    /// too-broad flush breaks in the field rather than in a unit test: a card
-    /// swapped mid-session must still load samples, not go quiet.
+    /// The loader keeps working after an ejection: a card swapped mid-session must still load
+    /// samples.
     #[test]
     fn the_loader_still_accepts_work_after_a_flush() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -1336,14 +1106,12 @@ mod live_pipeline {
     }
 }
 
-// ── The candidate buffer decoder ────────────────────────────────────────────
+// The candidate buffer decoder
 
-/// Build the buffer the app's `sample_build::candidates` would have written: one
-/// NUL-terminated path per `DELUGE_PATH_MAX` slot, the rest left as the caller had
-/// it.
+/// Builds the buffer `sample_build::candidates` would write: one NUL-terminated path per
+/// `DELUGE_PATH_MAX` slot, the rest left as the caller had it.
 fn candidate_buffer(paths: &[&str]) -> Vec<u8> {
-    // 0xAA, not zero: a slot the C side never wrote must not decode as an empty
-    // string.
+    // Not zero: a slot the C side never wrote must not decode as an empty string.
     let mut buffer = vec![0xAAu8; paths.len() * DELUGE_PATH_MAX];
     for (slot, path) in paths.iter().enumerate() {
         let bytes = path.as_bytes();
@@ -1365,10 +1133,8 @@ fn candidates_decode_slot_by_slot() {
     assert_eq!(decoded[2].as_str(), "A2.wav");
 }
 
-/// An unterminated slot is refused rather than read past — and the refusal must
-/// hold when it is NOT the first slot, which is the case a single-slot buffer
-/// cannot exercise. Slot 0 is a perfectly good path; slot 1 is unterminated, and
-/// the whole buffer is rejected rather than the good prefix accepted.
+/// An unterminated slot rejects the whole buffer, even when it is not the first: slot 0 is good,
+/// slot 1 unterminated.
 #[test]
 fn an_unterminated_candidate_slot_is_refused_even_after_a_good_one() {
     let mut buffer = candidate_buffer(&["A.wav", "B.wav"]);
@@ -1384,7 +1150,7 @@ fn an_unterminated_candidate_slot_is_refused_even_after_a_good_one() {
     );
 }
 
-// ── The admission rule, shared with the C++ side ────────────────────────────
+// The admission rule, shared with the C++ side
 
 /// One case from `path_admission_corpus.inc`.
 struct AdmissionCase {
@@ -1393,16 +1159,11 @@ struct AdmissionCase {
     label: String,
 }
 
-/// Parse the corpus the C++ side `#include`s.
+/// Parses the corpus the C++ side `#include`s.
 ///
-/// The file is the single source of truth for which paths the loader accepts:
-/// C++ checks the rule before requesting (a path refused permanently must never
-/// become a request that is retried forever), and this side applies it when the
-/// request arrives. Reading the same file from both is what makes a drift between
-/// them fail a test rather than resurface as a load that never completes.
-///
-/// The reader is deliberately simple, and the corpus documents the format it
-/// understands: one macro call per line, `\xNN` the only escape.
+/// It is the single source of truth for which paths the loader accepts: C++ checks it before
+/// requesting and this side when the request arrives, so drift fails a test instead of producing
+/// a load that is retried forever. Format: one macro call per line, `\xNN` the only escape.
 fn admission_corpus() -> Vec<AdmissionCase> {
     const CORPUS: &str = include_str!("../../../deluge/storage/audio/path_admission_corpus.inc");
     const MACRO: &str = "DELUGE_PATH_ADMISSION_CASE(";
@@ -1464,8 +1225,7 @@ fn admission_corpus() -> Vec<AdmissionCase> {
         });
     }
 
-    // A corpus that silently parsed to nothing would make every assertion below
-    // vacuous -- exactly what a renamed macro or a reformatted file would do.
+    // An empty parse (a renamed macro, a reformatted file) would make every assertion vacuous.
     assert!(
         cases.len() >= 15,
         "the shared corpus parsed to only {} case(s); the file's format changed under this reader",
@@ -1474,14 +1234,9 @@ fn admission_corpus() -> Vec<AdmissionCase> {
     cases
 }
 
-/// Every case in the shared corpus gets the verdict it declares, from the two
-/// entry points the refusal actually happens in.
-///
-/// `cstr_to_path` is the nominal path's check; `decode_candidates` is each
-/// candidate slot's. A case too long to fit a slot AT ALL is unterminated there
-/// rather than over-length, which is the same refusal by a different route --
-/// both mean "this path never becomes a load", which is what the C++ side has to
-/// agree with.
+/// Every corpus case gets its declared verdict from both refusal points: `cstr_to_path` for the
+/// nominal path and `decode_candidates` for each candidate slot. A case too long for a slot is
+/// refused there as unterminated rather than over-length; either way it never becomes a load.
 #[test]
 fn the_admission_rule_matches_the_corpus_the_c_side_checks() {
     use std::ffi::CString;

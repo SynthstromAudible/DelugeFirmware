@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Lens 2 harness runner: the cross-tier race meter, under ThreadSanitizer.
+# The cross-tier race meter: the host app under ThreadSanitizer.
 #
-# Runs the `host_app` scenario path wired into `main.rs` (real song load, real-
+# Runs the `host_app` scenario path of the host binary (real song load, real-
 # time playback on its own preemptive OS-thread executor, a concurrent output recording) —
-# see main.rs's `host_app` boot block and scenario.rs's module doc — against the TSan-
-# instrumented `deluge_app` (HOST_HARNESS.md's "M4c" section), for N iterations, and
+# see src/runtime/host.rs and src/runtime/host/scenario.rs — against the TSan-
+# instrumented `deluge_app` (see HOST_HARNESS.md), for N iterations, and
 # classifies every TSan finding against races.txt, the catalogue of cross-tier race sites.
 #
 # The north-star's second invariant is that state shared across tiers is owned by exactly one
@@ -38,10 +38,10 @@
 #                                  # regression test for this classifier's own logic,
 #                                  # independent of the TSan binary.
 #
-# Prerequisites (see HOST_HARNESS.md's M4c section for the one-time setup):
+# Prerequisites (see HOST_HARNESS.md for the one-time setup):
 #   - clang/clang++ whose LLVM major matches `rustc +nightly`'s bundled LLVM.
 #   - the sysroot symlink for librustc-nightly_rt.tsan.a under the custom
-#     x86_64-unknown-linux-gnu-tsan target (HOST_HARNESS.md, "One-time environment setup").
+#     x86_64-unknown-linux-gnu-tsan target (HOST_HARNESS.md, "One-time setup").
 #   - mtools (mformat/mcopy) if DELUGE_SD_IMAGE isn't pre-set and no cached fixture exists.
 #
 # Known gotcha: packing an image and consuming it as the SD backing store WITHIN THE SAME

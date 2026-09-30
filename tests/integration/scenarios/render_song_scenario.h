@@ -26,7 +26,7 @@
 /// Configured from the environment, so each gate is a registry entry:
 ///   - `RENDER_SONG`: the song's card path (required).
 ///   - `RENDER_BLOCKS`: the 128-frame blocks to render after playback starts (default 3000, about 8.7 s).
-///   - `RENDER_PCM_OUT`: where the harness writes the captured output (see `audio_host.rs`).
+///   - `RENDER_PCM_OUT`: where the harness writes the captured output (see `audio/host.rs`).
 ///   - `RENDER_FILL_DELAY_MS`, `RENDER_FILL_READ_US`: the storage model while playing -- how long the fill task waits
 ///   to
 ///     be scheduled, and how long each chunk's read takes. Both 0 by default.

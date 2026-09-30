@@ -65,8 +65,8 @@ typedef struct DelugeDirEntry {
 /// The embedded-fatfs task-context file/directory
 /// C-ABI. `deluge::io::File`/`Directory` (file.cpp) route to these
 /// unconditionally. Implemented in
-/// `efatfs_fs.rs` (device) / `efatfs_host_shim.rs` (host), both composing the
-/// storage-generic `efatfs_core` primitives -- see those files' doc comments
+/// `storage/efatfs/device.rs` (device) / `storage/efatfs/host.rs` (host), both composing the
+/// storage-generic `efatfs::portable` primitives -- see those files' doc comments
 /// for the handle-table/locking discipline. Every handle is a @ref DelugeHandle:
 /// 0 is none, and a call given it fails as it fails any handle that names no
 /// open file or directory.
@@ -256,7 +256,7 @@ DelugeStatus deluge_efatfs_set_time(const char* path, uint16_t year, uint8_t mon
 /// @brief Open a sample file for streaming reads through embedded-fatfs, writing its handle out. [task]
 ///
 /// The sync→async bridge for the streaming READ path: C++ calls this synchronously at sample-load,
-/// and the Rust implementation (`efatfs_fs.rs`) bridges to the async handle table by blocking on the
+/// and the Rust implementation (`storage/efatfs/device.rs`) bridges to the async handle table by blocking on the
 /// async open.
 /// @param path           NUL-terminated absolute file path.
 /// @param out_handle     Receives the handle on success; untouched on failure.
@@ -282,7 +282,7 @@ void deluge_efatfs_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 ///
 /// The sync-path counterpart of the async `ProdOps::read` efatfs branch: the sample reservation's
 /// synchronous `fill_now` (`deluge_sample_reader`) reads through this. The Rust implementation
-/// (`efatfs_fs.rs` / `efatfs_host_shim.rs`) bridges to the async handle table by blocking on the
+/// (`storage/efatfs/device.rs` / `storage/efatfs/host.rs`) bridges to the async handle table by blocking on the
 /// async read.
 /// @param handle     A handle previously returned by deluge_efatfs_open.
 /// @param byte_offset Absolute byte offset within the file to read from.

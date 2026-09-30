@@ -54,9 +54,9 @@ typedef enum DelugeStreamMode : uint8_t {
 
 /// The embedded-fatfs persistent stream-write C-ABI --
 /// the whole of this boundary; `deluge::io::Stream` (stream.cpp) routes every
-/// recorder write through these. Implemented in `efatfs_fs.rs` (device) /
-/// `efatfs_host_shim.rs` (host), both composing the storage-generic
-/// `efatfs_core::write_context_noflush`/`flush_context`/`read_at_via_context`
+/// recorder write through these. Implemented in `storage/efatfs/device.rs` (device) /
+/// `storage/efatfs/host.rs` (host), both composing the storage-generic
+/// `efatfs::portable::write_context_noflush`/`flush_context`/`read_at_via_context`
 /// primitives -- see those files' doc comments for the handle-table/locking
 /// discipline.
 ///

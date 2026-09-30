@@ -1,37 +1,15 @@
-//! Host unit test for `streaming_loader::fill_once` — the async
-//! cluster-fill drain loop, exercised against an in-memory [`FakeOps`] double
-//! rather than the real C++ resource manager/`StreamedChunk`. See
-//! `src/streaming_loader.rs`'s module doc ("Why the drain loop is generic over
-//! `FillOps`") for why: constructing real C++ objects (or mocking the
-//! `#[no_mangle]` C symbols, which would collide with the real ones under
-//! `host_app`) is impractical/unsafe for a host test, so the orchestration is
-//! injected instead.
-//!
-//! `deluge-bsp-rust` is bin-only (no `[lib]` target — see `Cargo.toml`), so this
-//! recompiles `src/streaming_loader.rs` unmodified into this test binary via
-//! `#[path]`. Only the `fill_once`/`FillOps` orchestration is needed here — the
-//! `host_app`-gated `prod` submodule (the real `extern "C"` wiring) stays
-//! uncompiled, so this test never needs the real C++ app linked.
-
-#![cfg(not(target_os = "none"))]
+//! `streaming_loader::fill_once`, the cluster-fill drain loop, driven by an in-memory [`FakeOps`]
+//! queue: each path's call sequence, and that the queue-owned lease is released on every path but
+//! the re-enqueue.
 
 use core::ffi::c_void;
 use std::cell::{Cell, RefCell};
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
-
-/// The plain host `sys`, which declares the resource-manager accessor `streaming_loader.rs` calls.
-#[path = "../src/sys_host.rs"]
-mod sys;
-
-#[path = "../src/streaming_loader.rs"]
-mod streaming_loader;
+use deluge_bsp_rust::storage::streaming_loader;
 
 use streaming_loader::{FillOps, StreamingFillDescriptor, fill_once};
 
-/// One call `FakeOps` observed, in order — the orchestration assertion surface.
+/// One call `FakeOps` observed; tests assert on the sequence.
 #[derive(Debug, PartialEq, Eq, Clone)]
 enum Call {
     Next,
@@ -44,39 +22,27 @@ enum Call {
     EnqueueLowest(usize),
 }
 
-/// A fake queued cluster. Owns its own backing buffer so `begin`'s
-/// `StreamingFillDescriptor::dest` points at real, correctly-sized memory —
-/// `fill_once` really does write `num_sectors * 512` bytes into it via the
-/// unsafe slice it builds from the descriptor.
+/// A fake queued cluster, owning a real `num_sectors * 512`-byte buffer for `fill_once` to write.
 struct FakeChunk {
     id: usize,
     num_sectors: u32,
     begin_ok: bool,
     /// What `is_unloadable` reports for this chunk.
     unloadable: bool,
-    /// What `external_lease_count` reports for this chunk — leases held by anyone
-    /// other than the load queue itself (only consulted by `fill_once` after a
-    /// failed read).
+    /// What `external_lease_count` reports for this chunk.
     lease_count: u32,
-    /// Whether the queue holds its own lease on this chunk
-    /// (`deluge_resource_loader_enqueue_owned`). `release_owned` clears it, and
-    /// tests assert it ends false on every terminal path — a queue lease left
-    /// held would pin the real chunk against eviction for the rest of the run.
+    /// Whether the queue holds its own lease on this chunk; `release_owned` clears it.
     queue_leased: Cell<bool>,
     buf: RefCell<Vec<u8>>,
-    /// Non-zero selects the efatfs-handle read path in `begin`'s descriptor —
-    /// see `fill_once_efatfs_handle_plumbs_descriptor_into_read`. Zero (the
-    /// default via `one_chunk`) keeps every other test on the raw-sector path.
+    /// Non-zero makes the fake `read` copy from `FakeOps::efatfs_file`; zero (the default) makes
+    /// it stamp a pattern.
     handle: u32,
-    /// File-relative byte offset `begin`'s descriptor reports alongside
-    /// `handle`; only meaningful when `handle != 0`.
+    /// The file byte offset `begin`'s descriptor reports.
     byte_offset: u32,
 }
 
-/// The `FillOps` test double: an in-memory priority queue (lower number = more
-/// urgent, matching `deluge_resource_loader_next`'s real ordering) plus a
-/// recording of every call made, so tests can assert on the orchestration
-/// itself rather than on any real I/O or C++ side effect.
+/// The `FillOps` test double: an in-memory priority queue (lower is more urgent, as in the real
+/// loader queue) that records every call.
 struct FakeOps {
     chunks: Vec<Box<FakeChunk>>,
     /// (chunk id, priority) pairs still queued.
@@ -84,9 +50,7 @@ struct FakeOps {
     calls: RefCell<Vec<Call>>,
     /// What the next `read()` call returns.
     read_result: RefCell<bool>,
-    /// In-memory stand-in for the file `efatfs_fs::read_at` would read from on
-    /// device. Only populated by the efatfs-handle plumbing test; every other
-    /// test leaves it empty and never takes the `handle != 0` branch.
+    /// The "file" a read with `handle != 0` copies from.
     efatfs_file: Vec<u8>,
 }
 
@@ -114,8 +78,8 @@ impl FakeOps {
     }
 
     /// # Safety
-    /// `ptr` must be a `*mut c_void` this `FakeOps` itself handed out via
-    /// `next()` (i.e. one of `self.chunks`' addresses).
+    ///
+    /// `ptr` must be one this `FakeOps` handed out from `next()`.
     unsafe fn chunk_from_ptr(ptr: *mut c_void) -> &'static FakeChunk {
         unsafe { &*(ptr as *const FakeChunk) }
     }
@@ -173,17 +137,12 @@ impl FillOps for FakeOps {
             count: d.num_sectors,
         });
         if d.handle != 0 {
-            // Fake stand-in for the device-only `efatfs_fs::read_at`: copy
-            // straight out of the in-memory "file" at the descriptor's byte
-            // offset, proving `fill_once` threads `handle`/`byte_offset`
-            // through to `read` untouched. See the module doc atop this file
-            // and `fill_once_efatfs_handle_plumbs_descriptor_into_read` below.
+            // Stand-in for the efatfs `read_at`: copy from the "file" at the descriptor's offset.
             let start = d.byte_offset as usize;
             buf.copy_from_slice(&self.efatfs_file[start..start + buf.len()]);
             return true;
         }
-        // Prove the descriptor's byte range really is the one `fill_once` reads
-        // into: stamp a recognizable pattern rather than leaving it untouched.
+        // Stamp a recognizable pattern, to show `fill_once` read into the descriptor's range.
         buf.fill(0xAB);
         *self.read_result.borrow()
     }
@@ -195,8 +154,7 @@ impl FillOps for FakeOps {
             chunk: fc.id,
             read_ok,
         });
-        // Mirrors `native_finish`'s early-out: returns false exactly when
-        // `read_ok` is false.
+        // Like `native_finish`: false exactly when `read_ok` is false.
         read_ok
     }
 
@@ -230,8 +188,7 @@ fn one_chunk(id: usize, begin_ok: bool) -> FakeChunk {
         begin_ok,
         unloadable: false,
         lease_count: 1, // still wanted by default; the read-failure-drop test overrides this
-        // Every chunk reaching the drain came through `loader_enqueue_owned` (the request path uses
-        // it), so the queue lease starts held.
+        // Chunks are enqueued through the owned path, so the queue lease starts held.
         queue_leased: Cell::new(true),
         buf: RefCell::new(vec![0u8; (num_sectors as usize) * 512]),
         handle: 0,
@@ -239,9 +196,6 @@ fn one_chunk(id: usize, begin_ok: bool) -> FakeChunk {
     }
 }
 
-/// Happy path: one queued cluster → `begin` resolves it, `read` is awaited,
-/// `finish(chunk, true)` runs, then the loop pops the now-empty queue and
-/// returns.
 #[test]
 fn fill_once_happy_path_drains_one_cluster() {
     let ops = FakeOps::new(vec![one_chunk(0, true)], /* read_result = */ true);
@@ -270,16 +224,12 @@ fn fill_once_happy_path_drains_one_cluster() {
     // The read really did land in the chunk's own buffer.
     assert!(ops.chunk_by_id(0).buf.borrow().iter().all(|&b| b == 0xAB));
     assert!(ops.pending.borrow().is_empty());
-    // The queue's own lease is gone: a filled chunk is left ready-but-unpinned, so a
-    // fire-and-forget requester takes a cache hit on its next tick and eviction still works.
+    // A filled chunk is left ready but unpinned: a cache hit for the requester, still evictable.
     assert!(!ops.chunk_by_id(0).queue_leased.get());
 }
 
-/// Read failure while still leased: `read` returns false → `finish` is NOT
-/// called (it's the success-only convert/stitch/publish tail) → the lease
-/// count is checked and found still > 0 → the cluster is re-enqueued at
-/// `LOWEST_PRIORITY` (0xFFFF_FFFF) and the loop stops immediately — no
-/// second `next()` call in the same `fill_once`.
+/// A failed read of a still-wanted chunk skips `finish`, re-enqueues it at the lowest priority and
+/// stops without another `next()`.
 #[test]
 fn fill_once_read_failure_reenqueues_lowest_and_stops() {
     let mut chunk = one_chunk(0, true);
@@ -304,20 +254,13 @@ fn fill_once_read_failure_reenqueues_lowest_and_stops() {
         ]
     );
     assert_eq!(*ops.pending.borrow(), vec![(0, u32::MAX)]);
-    // The one path that must NOT release: the queue entry lives on, so its lease must too, or the
-    // re-queued chunk would be discarded by the next `loader_next` exactly as an unleased one is.
+    // The one path that keeps the queue lease: without it the next `loader_next` would discard the
+    // re-queued entry.
     assert!(ops.chunk_by_id(0).queue_leased.get());
 }
 
-/// Read failure while UNLEASED: `read` returns false, and by the time it's
-/// checked the cluster has already dropped to 0 leases (already unwanted) →
-/// no `finish`, no `enqueue_lowest` — the cluster is just dropped and the loop
-/// keeps draining the next queued cluster (the `lease_count(...) == 0` case
-/// keeps draining rather than stopping). Both queued clusters are
-/// unleased-and-failing here so the whole queue drains to empty rather than
-/// stopping after the first — the "continues" half of the behaviour,
-/// complementing the single-chunk case in
-/// `fill_once_read_failure_reenqueues_lowest_and_stops`.
+/// A failed read of a chunk nobody else leases drops it and keeps draining; both chunks fail here,
+/// so the whole queue drains.
 #[test]
 fn fill_once_read_failure_unleased_drops_and_continues() {
     let mut first = one_chunk(0, true);
@@ -356,16 +299,12 @@ fn fill_once_read_failure_unleased_drops_and_continues() {
     );
     // Nothing was re-enqueued for either chunk — both were dropped, not requeued.
     assert!(ops.pending.borrow().is_empty());
-    // And neither is left pinned. This is the bound on retrying a permanently failing read (a
-    // pulled card): without the release, every abandoned chunk would keep its queue lease and the
-    // table would fill with chunks that can never be evicted.
+    // Neither is left pinned: on a pulled card, abandoned chunks would otherwise fill the table
+    // unevictably.
     assert!(!ops.chunk_by_id(0).queue_leased.get());
     assert!(!ops.chunk_by_id(1).queue_leased.get());
 }
 
-/// `begin` reports `ok = false` (unloadable / geometry error) → that chunk is
-/// skipped outright (no `read`, no `finish`, no `enqueue_lowest`), and the loop
-/// keeps draining the rest of the queue.
 #[test]
 fn fill_once_skips_chunk_when_begin_not_ok() {
     let ops = FakeOps::new(
@@ -403,17 +342,8 @@ fn fill_once_skips_chunk_when_begin_not_ok() {
     assert!(!ops.chunk_by_id(0).queue_leased.get());
 }
 
-/// Proves the descriptor→read plumbing for the efatfs path: when `begin()`
-/// yields a descriptor with `handle != 0` and a `byte_offset`, `fill_once`
-/// threads that descriptor into `read()` untouched, and a fake file-backed
-/// `read` (copying out of an in-memory `Vec<u8>` "file" at `d.byte_offset`)
-/// fills the chunk's buffer with the right bytes.
-///
-/// Divergence from production: this proves the descriptor plumbing
-/// (`handle`/`byte_offset` → `read` → `buf`) only — the REAL
-/// `efatfs_fs::read_at` is device-only (`target_os = "none"`) and cannot be
-/// called from a host test. It's covered on host by `fs_differential`'s
-/// round-trip test, and separately on-device.
+/// `fill_once` passes `begin`'s descriptor (`handle`, `byte_offset`) to `read` unchanged. The real
+/// efatfs read is not exercised here.
 #[test]
 fn fill_once_efatfs_handle_plumbs_descriptor_into_read() {
     let num_sectors = 2u32;
@@ -457,9 +387,6 @@ fn fill_once_efatfs_handle_plumbs_descriptor_into_read() {
     );
 }
 
-/// A chunk marked unloadable (`is_unloadable` reports true) is skipped right
-/// after `next()` — no `begin`, no `read`, no `finish` — while a following
-/// loadable chunk still drains normally.
 #[test]
 fn fill_once_skips_unloadable_chunk() {
     let mut unloadable = one_chunk(0, true);

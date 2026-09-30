@@ -1,23 +1,12 @@
-# deluge_resource — the cached-asset / resource manager core for the Deluge,
-# behind a stable C ABI (deluge_resource.h). Replaces the C++ Stealable /
-# CacheManager / numReasonsToBeLoaded machinery with a value-scored, lease-based
-# cache of reconstructable assets. See docs/dev/resource_manager.md.
-#
-# A plain `no_std` rlib (no panic handler — the `deluge_rust` umbrella provides it).
-# Bookkeeping is intrusive + fixed-capacity, `core::`-only: NO `alloc`/global
-# allocator, so the reclaim hook can never re-enter mid-mutation (mirrors the slab).
-# Backing memory comes from `deluge_alloc` (TLSF heap + unmanaged slab), called
-# directly as a Rust dependency (the C ABI is only the outbound C++ boundary).
+# The cached-asset resource manager behind `deluge_resource.h`. A `no_std` rlib with no panic
+# handler and no global allocator (the reclaim hook must never re-enter the manager); backing
+# memory comes from `deluge_alloc`.
 [package]
 name = "deluge_resource"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
 publish = false
-
-[features]
-# Exposes the host-only `testing` harness to external consumers (a future fuzz crate).
-fuzzing = []
 
 [lib]
 name = "deluge_resource"

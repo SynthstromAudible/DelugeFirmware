@@ -37,7 +37,7 @@
 #undef printf
 #endif
 
-// The harness's capture sink, render count and note script (audio_host.rs).
+// The harness's capture sink, render count and note script (audio/host.rs).
 extern "C" {
 void deluge_host_capture_start(void);
 uint64_t deluge_host_capture_stop(void);

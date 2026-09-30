@@ -1,10 +1,5 @@
-# deluge_alloc — the from-scratch TLSF + slab allocator core for the Deluge,
-# behind a stable C ABI (libdeluge/alloc.h). Replaces the C++ MemoryRegion/GMA
-# internals; validated bit-for-bit by the conformance suite in tests/unit/alloc
-# (which is the same AllocatorUnderTest suite the C++ MemoryRegion passes).
-#
-# `no_std` core. Built as a staticlib for the host (x86_64-unknown-linux-gnu) for
-# conformance testing now, and cross-compiled for the device (armv7a) later.
+# TLSF + slab allocator core behind the C ABI in `libdeluge/alloc.h`. `no_std`. The BSP links it
+# directly; the C++ conformance suite in `tests/unit/alloc` links it through `deluge_rust`.
 [package]
 name = "deluge_alloc"
 version = "0.1.0"
@@ -13,27 +8,18 @@ license = "GPL-3.0-or-later"
 publish = false
 
 [features]
-# Exposes the host-only `testing` invariant harness to external consumers (the
-# fuzz crate). Unit tests get it via cfg(test) without this feature.
+## Exposes the `testing` invariant harness to external consumers (the fuzz crate); unit tests get
+## it via `cfg(test)`.
 fuzzing = []
-# Emit AddressSanitizer poison/unpoison around the allocator's carve/free/coalesce
-# so use-after-free / use-after-steal within a heap is caught on the host-sim ASan
-# build. The __asan_*_memory_region symbols resolve from libasan at the final C++
-# link (the sim links -fsanitize=address); off, the hooks compile away. See
-# tlsf.rs. Enabled by the sim's DELUGE_SIM_SANITIZE build (sim/CMakeLists.txt).
+## Emits AddressSanitizer poison/unpoison around carve/free/coalesce, so use-after-free within a heap
+## is caught. Opt-in for a link built with `-fsanitize=address`, which resolves the
+## `__asan_*_memory_region` symbols; no build enables it. Off, the hooks compile away.
 asan = []
 
 [lib]
 name = "deluge_alloc"
-# A plain rlib library now: the `deluge_rust` umbrella crate is the staticlib that
-# links into the firmware/sim/tests (and owns the single panic handler). `cargo
-# test` (host) exercises the Rust API directly via the rlib.
 crate-type = ["rlib"]
 
 [dev-dependencies]
-# Property-based testing with shrinking — generates op sequences and minimises any
-# failing case. Complements the fixed-seed churn tests and the cargo-fuzz target;
-# all three drive the same testing::Harness.
 proptest = "1"
 
-# [profile.*] lives in the workspace root (crates/Cargo.toml) — cargo ignores it here.

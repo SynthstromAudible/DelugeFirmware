@@ -1,19 +1,14 @@
-//! `cargo test` entry point for the audio drive's render-window pacing (`src/audio_pacing.rs`), which runs only on the
-//! device.
-//!
-//!   cargo test --test audio_pacing_host
-#![cfg(not(target_os = "none"))]
+//! Tests the audio drive's render-window pacing ([`pace_window`]) against the arithmetic of the
+//! app's original `AudioEngine::routine_()`.
 
-#[path = "../src/audio_pacing.rs"]
-mod audio_pacing;
+use deluge_bsp_rust::audio::pacing;
 
-use audio_pacing::pace_window;
+use pacing::pace_window;
 
-/// The ring the device's drive paces against (`audio.rs`'s `APP_BLOCK_FRAMES`).
+/// The ring the device drive paces against (its `APP_BLOCK_FRAMES`).
 const RING: usize = 128;
 
-/// The window adjustment as AudioEngine::routine_() computed it before the drive moved into the BSP, kept as the
-/// reference the relocated arithmetic must reproduce.
+/// The reference window: the adjustment the app's `AudioEngine::routine_()` computed.
 fn original_routine_window(mut n: usize) -> usize {
     let threshold: i32 = 6;
     if n < RING {

@@ -92,7 +92,7 @@ typedef struct DelugeAudioLoadGeometry {
  *  - The loader task cannot run on the thread-mode executor. It holds the single filesystem mutex
  *    across an SD await, while the C++ `deluge_efatfs_*` entry points bridge to those same futures
  *    through a NON-yielding spin ("the calling context is HELD ... thread-mode tasks do not run
- *    during one" -- efatfs_fs.rs). A thread-mode spin would wait forever on a mutex only the task
+ *    during one" -- storage/efatfs/device.rs). A thread-mode spin would wait forever on a mutex only the task
  *    it is starving can release.
  *  - Running on its own interrupt executor instead, it must never make a synchronous C++ call that
  *    reaches storage, for the mirror-image reason: those calls spin rather than await, and a spin

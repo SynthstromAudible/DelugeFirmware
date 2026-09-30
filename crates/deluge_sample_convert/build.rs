@@ -1,45 +1,30 @@
 //! Build script for `deluge_sample_convert`.
 //!
-//! Compiles the app's `convert.cpp` + `stitch.cpp` (+ their `audio_format_helpers.cpp` dep + the
-//! `extern "C"` shim in cpp/shim.cpp) differently depending on which target this crate is actually
-//! being built FOR (`CARGO_CFG_TARGET_OS`, the same check `deluge-bsp-rust`'s own build.rs uses):
+//! Compiles the app's `convert.cpp`, `stitch.cpp` and `audio_format_helpers.cpp`, plus the
+//! `extern "C"` shim in `cpp/shim.cpp`, in one of three modes chosen by the target:
 //!
-//!   1. HOST (`cargo test`/a plain `cargo build` of this crate, or as a dependency of a host/`host_app`
-//!      build): x86 via `cc::Build` + SIMDe — LINKED into the test binary so the #[test] FFI round-trips
-//!      can prove the objects behave correctly (mirroring tests/unit/audio_stream/*_spec.cpp) — PLUS the
-//!      armv7a-NEON compile-and-verify check (no QEMU): the produced objects must be ARM ELF, and
-//!      convert's object must contain real NEON codegen (`vcvt.s32.f32`, the FLOAT->Q31 path). The
-//!      result is stamped to OUT_DIR/arm_compile_result.txt and asserted by a #[test].
-//!   2. DEVICE (`target_os = "none"`, i.e. as a dependency of `deluge-bsp-rust`'s real
-//!      `cargo device`/armv7a-none-eabihf build, this crate's first real consumer):
-//!      compiles ONLY `cpp/shim.cpp` for armv7a-NEON with the real device flags (no SIMDe, the
-//!      toolchain's real `<arm_neon.h>`), archives that one object, and emits the `cargo:rustc-link-lib`
-//!      directive so `deluge-bsp-rust`'s final device link picks it up. Deliberately does NOT recompile
-//!      `convert.cpp`/`stitch.cpp`/`audio_format_helpers.cpp` for the device — see [`build_device`]'s doc
-//!      for why (duplicate-definition avoidance against the app's own already-linked objects).
-//!   3. HOST + the `app_convert` Cargo feature (the C-host sim, standing in for the app link): the SAME
-//!      shim-only, duplicate-avoidance idea as DEVICE, but via `cc::Build` + SIMDe like HOST #1 (the sim
-//!      is still an x86 host build). Compiles ONLY `cpp/shim.cpp`, skips the ARM verify, and leaves
-//!      `convert_word`/`stitch_boundaries`/helpers undefined for `deluge_app`'s own already-compiled
-//!      objects to resolve at the sim's final link. OFF by default — see the feature's doc in Cargo.toml.
+//! 1. **Host** (default): compiles all four TUs for x86 with `cc` and SIMDe, linked into this
+//!    crate so its tests can round-trip them. Also compiles each TU for armv7a-NEON (`-c` only)
+//!    and checks the objects are ARM ELF and that `convert`'s carries real NEON codegen
+//!    (`vcvt.s32.f32`); the result is stamped to `OUT_DIR/arm_compile_result.txt` for a test.
+//! 2. **Device** (`target_os = "none"`, as a BSP dependency): compiles only the shim, with the
+//!    device flags and the toolchain's own `<arm_neon.h>`; see [`build_device`].
+//! 3. **Host with `app_convert`**: compiles only the shim, like the device, for a final link that
+//!    already supplies `convert_word`, `stitch_boundaries` and the helpers.
 //!
-//! Dep ownership: argon + SIMDe are header-only and pinned by tag. This crate OWNS them
-//! — `fetch_pinned` git-fetches each at the SAME SHA the CMake FetchContent uses into a gitignored
-//! third_party/ cache. It does NOT scavenge a CMake build-*/_deps tree, so a standalone `cargo test`
-//! works from a clean checkout (with network) without any CMake build having run first. The DEVICE path
-//! only needs argon (no SIMDe — the real target never uses the portable fallback).
+//! argon and SIMDe are header-only. [`fetch_pinned`] shallow-fetches them into a gitignored
+//! `third_party/` at the revisions `cmake/deps.cmake` pins, so a clean checkout builds without any
+//! CMake build (it needs network the first time). The device mode needs only argon.
 //!
-//! Recipe (flags/defines/include dirs) mirrors tests/unit/audio_stream/CMakeLists.txt,
-//! sim/CMakeLists.txt, and scripts/cmake/CMakeToolchainDeluge.cmake.
+//! Flags, defines and include dirs mirror `tests/unit/audio_stream/CMakeLists.txt`,
+//! `sim/CMakeLists.txt` and `scripts/cmake/CMakeToolchainDeluge.cmake`.
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// `scripts/cmake/CMakeToolchainDeluge.cmake`'s `ARCH_FLAGS` (`-mcpu`/`-mfpu`/`-mfloat-abi`/`-mthumb`/
-/// `-mthumb-interwork`/`-mlittle-endian`) plus `-funsafe-math-optimizations`, which that file notes is
-/// "required to use NEON instead of VFPv3 for floating point".
+/// `CMakeToolchainDeluge.cmake`'s `ARCH_FLAGS`, plus `-funsafe-math-optimizations` (required for
+/// NEON rather than VFPv3 floating point).
 ///
-/// Shared by the HOST-side verify-only compile and the DEVICE-side real compile ([`build_device`]) so
-/// the two can never drift apart.
+/// Shared by the host verify compile and the device compile so the two cannot drift apart.
 const ARM_ARCH_FLAGS: [&str; 7] = [
     "-mcpu=cortex-a9",
     "-mfpu=neon",
@@ -50,7 +35,7 @@ const ARM_ARCH_FLAGS: [&str; 7] = [
     "-funsafe-math-optimizations",
 ];
 
-// Pins — MUST match the CMake FetchContent tags (cmake/deps.cmake).
+// Must match the revisions in `cmake/deps.cmake`.
 const ARGON_URL: &str = "https://github.com/stellar-aria/argon";
 const ARGON_SHA: &str = "5897db725c1cdee452b5f288614796364468f2ea";
 const SIMDE_URL: &str = "https://github.com/simd-everywhere/simde";
@@ -80,7 +65,7 @@ fn main() {
     }
     println!("cargo:rerun-if-changed=build.rs");
 
-    // --- Own the pinned deps: fetch argon (+ SIMDe, host-only) into a gitignored third_party/ cache. ---
+    // argon for every mode; SIMDe below, for the host modes only.
     let third_party = manifest.join("third_party");
     let argon_dir = third_party.join("argon");
     fetch_pinned(
@@ -92,8 +77,7 @@ fn main() {
     );
     let argon_inc = argon_dir.join("include");
 
-    // Mode 2 (see the module docs). `target_os = "none"` means we are being built as a dependency of
-    // `deluge-bsp-rust`'s real armv7a-none-eabihf device build — the same check its own build.rs uses.
+    // Device mode: `target_os = "none"` means a bare-metal (BSP device) build.
     let device = std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("none");
     if device {
         build_device(
@@ -108,10 +92,8 @@ fn main() {
         return;
     }
 
-    // Fetched here (rather than up top with argon) because the DEVICE path above returns before this
-    // point and never needs it (real target, real <arm_neon.h>). Both branches below — the shim-only
-    // `app_convert` branch and the full HOST build further down — DO need it: shim.cpp includes
-    // convert.h -> argon.hpp, and on a non-ARM host argon falls back to SIMDe's portable NEON shim.
+    // Both host modes need SIMDe: `shim.cpp` includes `convert.h` and so argon, which falls back to
+    // SIMDe's portable NEON on a non-ARM host.
     let simde_dir = third_party.join("simde");
     fetch_pinned(
         "simde",
@@ -122,9 +104,8 @@ fn main() {
     );
     let simde_root = simde_dir;
 
-    // Mode 3 (see the module docs): the sim's own deluge_app already compiles convert.cpp/stitch.cpp/
-    // audio_format_helpers.cpp, so recompiling them here would double-define convert_word and
-    // stitch_boundaries.
+    // `app_convert`: the final link already has `convert.cpp`, `stitch.cpp` and the helpers, so
+    // compiling them here would double-define `convert_word` and `stitch_boundaries`.
     let app_convert = std::env::var("CARGO_FEATURE_APP_CONVERT").is_ok();
     if app_convert {
         let mut build = cc::Build::new();
@@ -136,24 +117,18 @@ fn main() {
             .include(&src_deluge) // storage/..., util/...
             .include(&include) // libdeluge/types.h
             .include(&argon_inc) // argon headers used by shim.cpp's included app headers
-            // argon's bare <arm/neon.h> falls back to SIMDe on a non-ARM host, via the same compat shim
-            // + SIMDe root the full HOST cc::Build uses below (added after `cargo build --features
-            // app_convert` failed on `fatal error: arm/neon.h: No such file or directory`).
+            // argon's bare <arm/neon.h> resolves to SIMDe on a non-ARM host, as in the full build.
             .include(&sim_compat) // <arm_neon.h> -> SIMDe shim
             .include(&simde_root) // compat shim's <simde/arm/neon.h>
             .include(simde_root.join("simde")) // argon's bare <arm/neon.h>
             .define("DELUGE_HOST", None)
-            .define("SIMDE_NO_NATIVE", None) // portable-C NEON fallback = bit-accurate to device NEON
+            .define("SIMDE_NO_NATIVE", None) // portable NEON, bit-accurate to the device
             .flag_if_supported("-Wno-unused-parameter");
         build.compile("deluge_sample_convert_cc");
         return;
     }
 
-    // --- HOST-only from here down: SIMDe is fetched above (shared with the app_convert branch). -------
-
-    // ============================================================================================
-    // 1. x86 host build via cc::Build + SIMDe (the runnable, linked-in path).
-    // ============================================================================================
+    // Host mode: the x86 build, linked into this crate.
     let mut build = cc::Build::new();
     build
         .cpp(true)
@@ -162,24 +137,24 @@ fn main() {
         .file(&stitch_cpp)
         .file(&helpers_cpp)
         .file(&shim_cpp)
-        // App include roots (mirror tests/unit/audio_stream/CMakeLists.txt + sim HOST_INCLUDE_DIRS).
+        // App include roots, as in tests/unit/audio_stream/CMakeLists.txt.
         .include(&src) // definitions_cxx.hpp (SHARED_INCLUDE)
         .include(&src_deluge) // storage/..., util/...
         .include(&include) // libdeluge/types.h
-        // argon + SIMDe (non-native host): argon's bare <arm/neon.h> and the compat <arm_neon.h> shim.
+        // argon + SIMDe (non-native host): argon's bare <arm/neon.h> and the compat <arm_neon.h>
+        // shim.
         .include(&argon_inc) // argon.hpp, argon/helpers/size.hpp
         .include(&sim_compat) // <arm_neon.h> -> SIMDe shim
         .include(&simde_root) // compat shim's <simde/arm/neon.h>
         .include(simde_root.join("simde")) // argon's bare <arm/neon.h>
-        // Host markers, mirroring sim/CMakeLists.txt.
+        // Host markers, as in sim/CMakeLists.txt.
         .define("DELUGE_HOST", None)
-        .define("SIMDE_NO_NATIVE", None) // portable-C NEON fallback = bit-accurate to device NEON
+        .define("SIMDE_NO_NATIVE", None) // portable NEON, bit-accurate to the device
         .flag_if_supported("-Wno-unused-parameter");
     build.compile("deluge_sample_convert_cc");
 
-    // ============================================================================================
-    // 2. armv7a-NEON device compile-and-verify via the repo's arm-none-eabi g++ (no QEMU; -c only).
-    // ============================================================================================
+    // ARM verify: compile each TU with the repo's arm-none-eabi-g++ (`-c` only) and check the
+    // objects.
     let arm_result = arm_compile_check(
         &repo,
         &argon_inc,
@@ -197,8 +172,12 @@ fn main() {
     }
 }
 
-/// Git-fetch `url` at exactly `sha` into `dest` (shallow), if the checkout marker isn't already present
-/// at the pinned SHA. Owns the dep reproducibly without depending on a CMake `_deps` tree.
+/// Shallow-fetches `url` at `sha` into `dest`, unless `dest` already holds that revision (checked
+/// by `marker_rel` and a `.pinned-sha` stamp).
+///
+/// # Panics
+///
+/// Panics if the fetch fails or the marker is missing afterwards.
 fn fetch_pinned(name: &str, url: &str, sha: &str, dest: &Path, marker_rel: &Path) {
     let marker = dest.join(marker_rel);
     let sha_stamp = dest.join(".pinned-sha");
@@ -210,7 +189,7 @@ fn fetch_pinned(name: &str, url: &str, sha: &str, dest: &Path, marker_rel: &Path
         return;
     }
 
-    // Stale/partial checkout — start clean.
+    // Stale or partial checkout: start clean.
     let _ = std::fs::remove_dir_all(dest);
     std::fs::create_dir_all(dest).unwrap_or_else(|e| panic!("mkdir {}: {e}", dest.display()));
 
@@ -244,9 +223,10 @@ fn fetch_pinned(name: &str, url: &str, sha: &str, dest: &Path, marker_rel: &Path
     std::fs::write(&sha_stamp, sha).ok();
 }
 
-/// Compile each TU for armv7a-NEON with the real device flags (-c only, real <arm_neon.h>), then verify
-/// the produced objects are ARM ELF and that `convert`'s object carries real NEON codegen. Returns "OK\n
-/// <details>" or "FAIL\n<log>".
+/// Compiles each TU for armv7a-NEON with the device flags (`-c` only, native `<arm_neon.h>`), then
+/// checks the objects are ARM ELF and that `convert`'s carries real NEON codegen.
+///
+/// Returns `"OK\n<details>"` or `"FAIL\n<log>"`.
 #[allow(clippy::too_many_arguments)]
 fn arm_compile_check(
     repo: &Path,
@@ -258,8 +238,7 @@ fn arm_compile_check(
     convert_cpp: &Path,
     files: &[&PathBuf],
 ) -> String {
-    // `toolchain/current` symlinks to the active toolchain version's host dir (mirrors
-    // `deluge-bsp-rust`'s own build.rs), so this survives version bumps.
+    // `toolchain/current` links to the active toolchain version, so this survives version bumps.
     let bin = repo.join("toolchain/current/arm-none-eabi-gcc/bin");
     let gxx = bin.join("arm-none-eabi-g++");
     let objdump = bin.join("arm-none-eabi-objdump");
@@ -304,7 +283,7 @@ fn arm_compile_check(
         return format!("FAIL\n{log}");
     }
 
-    // Verify ARM ELF + real NEON codegen in convert's object (the FLOAT->Q31 vcvt.s32.f32 path).
+    // `vcvt.s32.f32` is convert's float-to-Q31 path.
     let convert_obj = convert_obj.expect("convert.cpp arm object produced");
     if !objdump.is_file() {
         return "OK\narm objects produced (objdump absent, NEON not disassembly-verified)\n"
@@ -344,29 +323,14 @@ fn arm_compile_check(
     )
 }
 
-/// The REAL armv7a-NEON build for the device target — this crate's first actual
-/// consumer (`deluge-bsp-rust`'s native fill task) links it into the real firmware image, not just a
-/// verify-only compile. Compiles ONLY `cpp/shim.cpp` (real device NEON flags, no SIMDe, the toolchain's
-/// real `<arm_neon.h>` — same recipe as [`arm_compile_check`]'s per-TU compile, just for one file and
-/// actually archived+linked this time), then archives that one object and emits the `cargo:rustc-link-*`
-/// directives `deluge-bsp-rust`'s final device link needs.
+/// Builds the shim for the device and emits the link directives for the BSP's final link.
 ///
-/// Deliberately does **NOT** recompile `convert.cpp`/`stitch.cpp`/`audio_format_helpers.cpp` for the
-/// device, unlike the host branch's `cc::Build` above. Those three TUs are already part of the app's own
-/// CMake `deluge_app` target (`storage/audio/stream/convert.cpp`/`stitch.cpp`,
-/// `util/audio_format_helpers.cpp` are in the shared `deluge_SOURCES` glob — the SAME TUs the legacy C++
-/// `finish_fill` sync path already calls on device), and `deluge-bsp-rust`'s own build.rs already
-/// archives+links that WHOLE object closure (`libdeluge_app_objs.a`) into the same final device binary.
-/// Compiling them a SECOND time here, into a SECOND archive, would risk a duplicate-definition link
-/// error for their non-template exported symbols (`convert_word`, `stitch_boundaries`,
-/// `q31_from_float`/`swapEndianness*`) — instead, `shim.cpp`'s own object is compiled with those
-/// references left UNDEFINED, and the final device link resolves them against the SINGLE, already-
-/// compiled definitions already present in `libdeluge_app_objs.a` (ordinary static-archive symbol
-/// resolution — no different from any other cross-TU call within the app itself).
-/// `convert_cluster_data`/`convert_word_range` (templates, defined inline in `convert.h`) are unaffected
-/// either way: each TU that calls them gets its own instantiation compiled directly into its own object
-/// file (`shim.cpp`'s own no-op-Yield instantiation is a distinct mangled symbol from the app's own
-/// real-Yield instantiation, so there is no clash there regardless of this choice).
+/// Compiles only `cpp/shim.cpp` (device NEON flags, no SIMDe) and archives it. `convert.cpp`,
+/// `stitch.cpp` and `audio_format_helpers.cpp` are already in the app's objects
+/// (`libdeluge_app_objs.a`), which the BSP links; compiling them again would duplicate
+/// `convert_word`, `stitch_boundaries` and the helpers. The shim leaves those undefined for the app
+/// to resolve. The inline templates in `convert.h` are unaffected: the shim's no-op-yield
+/// instantiation mangles differently from the app's.
 #[allow(clippy::too_many_arguments)]
 fn build_device(
     repo: &Path,
@@ -378,14 +342,10 @@ fn build_device(
     shim_cpp: &Path,
 ) {
     let bin = repo.join("toolchain/current/arm-none-eabi-gcc/bin");
-    // The device C++ compiler is overridable (via DELUGE_DEVICE_CXX) so this shim can be built by
-    // the same compiler as the rest of the app. This MUST match: GCC mangles int32_t as `long` on
-    // arm-none-eabi where clang mangles it as `int`, so a GCC-built shim's references to
-    // convert_word/stitch_boundaries do not resolve against a clang-built deluge_app (and vice
-    // versa).
-    //
-    // DELUGE_DEVICE_CXXFLAGS replaces ARM_ARCH_FLAGS rather than adding to it: clang rejects
-    // -mthumb-interwork, so the caller supplies the whole arch set.
+    // `DELUGE_DEVICE_CXX` must name the compiler that builds the app: GCC mangles `int32_t` as
+    // `long` on arm-none-eabi and clang as `int`, so a mismatched shim's references do not resolve.
+    // `DELUGE_DEVICE_CXXFLAGS` replaces `ARM_ARCH_FLAGS` rather than extending it, because clang
+    // rejects `-mthumb-interwork`.
     println!("cargo:rerun-if-env-changed=DELUGE_DEVICE_CXX");
     println!("cargo:rerun-if-env-changed=DELUGE_DEVICE_CXXFLAGS");
     let gxx = std::env::var("DELUGE_DEVICE_CXX")
@@ -410,8 +370,7 @@ fn build_device(
     let status = Command::new(&gxx)
         .args(["-std=c++26", "-c"])
         .args(&arch_flags)
-        // Native <arm_neon.h> — no SIMDe, no compat shim on the real target (matches
-        // `arm_compile_check`'s device recipe).
+        // Native <arm_neon.h>, as in `arm_compile_check`.
         .arg(format!("-I{}", argon_inc.display()))
         .arg(format!("-I{}", src.display()))
         .arg(format!("-I{}", src_deluge.display()))

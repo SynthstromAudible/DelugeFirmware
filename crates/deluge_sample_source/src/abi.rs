@@ -1,43 +1,21 @@
-//! The `deluge_sample_source_*` / `deluge_sample_region_*` C ABI
-//! (`include/libdeluge/sample_source.h`), wrapping `cursor::SampleSource<
-//! ManagerResidency>` behind a fixed, allocation-free static source pool --
-//! reimplements `sample_source.cpp`'s pool discipline (`g_source_pool`,
-//! `claim_source_slot`/`release_source_slot`) natively.
+//! The `deluge_sample_source_*` / `deluge_sample_region_*` C ABI (`libdeluge/sample_source.h`).
 //!
-//! The link-time weak/strong selector that makes these symbols win over the
-//! C++ backing is the `cfg_attr` gate on each `#[no_mangle]` below (device and
-//! host_app build it directly; the C-host sim links it via this crate's own
-//! `sim` feature, forwarded from `deluge_rust`'s umbrella build -- see
-//! `crates/deluge_rust/Cargo.toml` and `sim/CMakeLists.txt`).
+//! Wraps [`SampleSource<ManagerResidency>`](SampleSource) behind a fixed, allocation-free static
+//! pool of cursors. The symbols are exported under the `c_abi` feature.
 //!
-//! # `open()`'s `stream_backing`
-//! The reader passes its opaque `deluge::audio::stream::SampleStream*`
-//! unchanged -- the same pointer the C++ backing
-//! (`sample_source.cpp`) already casts to `SampleStream*`. This module
-//! bridges it to the `{manager handle, asset id}` pair `ManagerResidency`
-//! needs via two C-ABI calls: `deluge_streaming_resource_manager()` (the
-//! process-wide boot-singleton getter, `include/libdeluge/sample_stream.h`)
-//! and `deluge_sample_stream_asset_id(stream_backing)` (the lazy-init
-//! accessor added alongside it, wrapping `deluge_streaming_define_asset()`).
-//! Neither call dereferences `stream_backing` on the Rust side -- it is
-//! forwarded straight through as the header's opaque `DelugeStreamBacking*`. Unit tests can't build a real `SampleStream`,
-//! so they override both externs with test doubles driving a test
-//! `deluge_resource` manager + asset (see the `tests` module below).
+//! # `open`'s `stream_backing`
 //!
-//! # `retain`/`release` and the single boot-singleton manager
-//! `deluge_sample_region_retain`/`_release` take ONLY the opaque `lease`
-//! token -- no source, no manager handle -- matching the header exactly. That
-//! works in the C++ backing because a lease there IS a raw `StreamedChunk*`,
-//! self-sufficient with no external table lookup. `ManagerResidency`'s token
-//! is `{slot<<32 | gen}`, meaningful only relative to the specific
-//! `*mut DelugeResource` that minted it, so a lease-only call needs SOME way
-//! to recover that handle. Production runs exactly one boot-singleton
-//! `deluge_resource` manager (the same contract `ManagerResidency::new`
-//! documents), so this module caches the most-recently-`open()`-ed handle in
-//! [`ACTIVE_MANAGER`] and routes standalone retain/release through it --
-//! correct for the current single-manager reality, and it preserves the
-//! header's exact signature (no added parameter). Flagged here for whoever
-//! revisits a hypothetical multi-manager future.
+//! The reader passes its opaque `DelugeStreamBacking*` (a C++ `SampleStream`). This module never
+//! dereferences it; it recovers the `{manager handle, asset id}` pair [`ManagerResidency`] needs
+//! from [`deluge_streaming_resource_manager`] and [`deluge_sample_stream_asset_id`]
+//! (`libdeluge/sample_stream.h`).
+//!
+//! # `retain` / `release` and the single manager
+//!
+//! `deluge_sample_region_retain`/`_release` take only the opaque `lease` token, which is meaningful
+//! only relative to the manager that minted it. Production runs one boot-singleton manager, so
+//! `open` caches its handle in `ACTIVE_MANAGER` and the lease-only calls route through it. More
+//! than one manager would break this.
 
 use core::cell::{Cell, UnsafeCell};
 use core::ffi::c_void;
@@ -48,40 +26,29 @@ use crate::manager_residency::ManagerResidency;
 use deluge_resource::sync::{m_get, m_set, Masked};
 use deluge_resource::{DelugeResource, Resource};
 
-// ---------------------------------------------------------------------------
-// C-ABI type reprs (field-for-field mirrors of include/libdeluge/sample_source.h)
-// ---------------------------------------------------------------------------
+// C-ABI types, mirroring `libdeluge/sample_source.h`.
 
-/// Opaque per-reader cursor handle, mirroring `DelugeSampleSource`. Owned by
-/// this module: every non-null pointer of this type that ever leaves `open()`
-/// actually points at a pool [`Slot`]'s `source` field (see `open`/`close`).
+/// Opaque per-reader cursor handle, mirroring `DelugeSampleSource`.
+///
+/// Every non-null handle [`deluge_sample_source_open`] returns points at a pool `Slot`'s `source`
+/// field.
 #[repr(C)]
 pub struct DelugeSampleSource {
     _opaque: [u8; 0],
 }
 
-/// A sample's stream as the C ABI names it (`DelugeStreamBacking`, `include/libdeluge/types.h`):
-/// the C++ `deluge::audio::stream::SampleStream`. Only the C++ side dereferences it; this crate
-/// passes it back to `deluge_sample_stream_asset_id`.
+/// A sample's stream as the C ABI names it (`DelugeStreamBacking`, `libdeluge/types.h`): the C++
+/// `deluge::audio::stream::SampleStream`. Only the C++ side dereferences it.
 #[repr(C)]
 pub struct DelugeStreamBacking {
     _opaque: [u8; 0],
 }
 
 /// Residency outcome of a region query, mirroring `DelugeRegionState`.
-/// Numbered from 1 (never 0), matching the header, so `if (state)` can't be
-/// misread as a boolean.
 ///
-/// `#[repr(u8)]`, NOT plain `#[repr(C)]`: the header (`include/libdeluge/
-/// sample_source.h`) pins `enum DelugeRegionState` to an explicit `: uint8_t`
-/// fixed underlying type (C23 + C++11 syntax) -- like every other libdeluge
-/// enum, each pinned to its own explicit fixed width in its header. This one
-/// crosses the FFI BY VALUE (`deluge_sample_region_acquire_ex`'s return), so
-/// a bare `#[repr(C)]` enum (Rust's C `int`, 4 bytes) would mismatch the
-/// header's 1-byte width; `#[repr(u8)]` matches it exactly. This does NOT
-/// rely on `-fshort-enums` -- the build passes no such flag (see
-/// `build.rs`'s `run_bindgen`); the explicit underlying type is what fixes
-/// the width on both sides, independent of any compiler flag.
+/// Numbered from 1, so `if (state)` cannot be misread as a boolean. `#[repr(u8)]`, not
+/// `#[repr(C)]`: the header fixes the underlying type to `uint8_t`, and the enum crosses the FFI
+/// by value as [`deluge_sample_region_acquire_ex`]'s return.
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum DelugeRegionState {
@@ -100,8 +67,7 @@ impl From<RegionState> for DelugeRegionState {
     }
 }
 
-/// One acquired, pinned, borrowed region of resident sample data, mirroring
-/// `DelugeSampleRegion`.
+/// One acquired, pinned region of resident sample data, mirroring `DelugeSampleRegion`.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct DelugeSampleRegion {
@@ -111,50 +77,32 @@ pub struct DelugeSampleRegion {
     pub lease: u64,
 }
 
-// `DelugeSampleGeometry` is NOT redefined here: `geometry::Geometry` is already `#[repr(C)]` and
-// field-for-field identical to the header's `DelugeSampleGeometry` (see `geometry.rs`), so
-// `deluge_sample_source_open` takes it directly rather than duplicating an equivalent struct.
+// `DelugeSampleGeometry` is `crate::geometry::Geometry`, already `#[repr(C)]`.
 
-// ---------------------------------------------------------------------------
-// The open() bridge: stream_backing -> {manager handle, asset id}
-// ---------------------------------------------------------------------------
+// The `open` bridge: stream backing -> {manager handle, asset id}.
 
 unsafe extern "C" {
-    /// The resource-manager instance the streaming loader queue lives on
-    /// (`include/libdeluge/sample_stream.h`). The process-wide boot-singleton
-    /// handle -- the same one `ManagerResidency::new`'s contract requires to
-    /// stay live for the process's whole remaining life. Untyped, the one spelling every crate that declares it
-    /// shares; the caller casts it to the manager.
+    /// The boot-singleton resource manager the streaming loader queue lives on. Untyped, as every
+    /// crate declares it; the caller casts it to the manager.
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
-    /// `stream_backing`'s resource-manager Asset id, defining it first if not
-    /// yet defined (`include/libdeluge/sample_stream.h`, wrapping
-    /// `deluge_streaming_define_asset()`).
+    /// `stream_backing`'s resource-manager asset id, defining the asset on first use.
     pub fn deluge_sample_stream_asset_id(stream_backing: *mut DelugeStreamBacking) -> u32;
 }
 
-// ---------------------------------------------------------------------------
-// Static, allocation-free source pool
-// ---------------------------------------------------------------------------
+// Static, allocation-free source pool.
 
-/// Fixed source pool -- `open()` claims a slot under a masked check-and-set
-/// (allocation-free, ISR-safe), never the heap: `open` fires at note-start on
-/// the audio render thread, so it must not route through a heap that can
-/// walk/lock/throw. Sized like the C++ pool: `16 * kMaxNumVoicesUnison *
-/// kNumSources == 256` (see `sample_source.cpp`'s derivation -- a 96-reader
-/// concurrent-open ceiling at default pool sizing, ~2.6x headroom for a
-/// same-tick note-on burst before the CPU culler reclaims voices).
+/// Number of pooled cursors: `16 * kMaxNumVoicesUnison * kNumSources`.
+///
+/// `open` runs at note start on the audio tier, so it claims a static slot rather than touching
+/// the heap. The size leaves headroom for a same-tick note-on burst before the CPU culler reclaims
+/// voices.
 const POOL_SIZE: usize = 256;
 
-/// One pooled cursor plus its claimed/free marker. `source` is `Slot`'s FIRST
-/// field (enforced by the `offset_of!` assertion below) so the
-/// `*mut DelugeSampleSource` `open()` hands out -- a pointer straight at
-/// `source` -- casts back to its enclosing `Slot` in O(1), no scan, mirroring
-/// `sample_source.cpp`'s `SampleSourceSlot` (`source` first,
-/// `static_assert(offsetof(..., source) == 0)`). `in_use` is a plain,
-/// non-atomic `Cell<bool>` -- its claim/release are guarded by
-/// `deluge_resource::sync::Masked`, the SAME primitive `SampleSource`'s own
-/// slots and the manager's tables use (see `claim_slot`/`deluge_sample_source_close`
-/// and this type's `Sync` doc below), not a separate atomic mechanism.
+/// One pooled cursor and its claimed flag.
+///
+/// `source` is at offset 0 (asserted below), so the handle `open` returns, a pointer at `source`,
+/// casts straight back to its `Slot`. `in_use` is claimed and released under
+/// `deluge_resource::sync::Masked`.
 #[repr(C)]
 struct Slot {
     source: UnsafeCell<Option<SampleSource<ManagerResidency>>>,
@@ -177,73 +125,35 @@ const _: () = assert!(
      must stay Slot's first (offset-0) field for that cast to be sound"
 );
 
-// SAFETY: `Slot`'s two fields, `source: UnsafeCell<...>` and
-// `in_use: Cell<bool>`, are both interior-mutable and neither is `Sync` on its
-// own; sharing `&Slot` across threads is sound because EVERY touch of EITHER
-// field goes through the crate-wide masked-`Cell` discipline
-// (`deluge_resource::sync::Masked`), never a separate atomic:
-//   1. Slot INTEGRITY (which caller, if any, owns this slot's `source` right
-//      now) is guarded by `in_use`, claimed/released only under a
-//      `Masked::enter()` window (`claim_slot`, `deluge_sample_source_close`).
-//      Whichever caller's masked read-then-set observes `in_use == false` and
-//      flips it to `true` is the only caller ever permitted to read/write
-//      `source` between its claim and the matching `close()`'s release, so two
-//      callers never alias the same slot's `source`.
-//   2. Every touch of `source`'s CONTENTS, once claimed, goes through
-//      `SampleSource`'s own masked-`Cell` discipline (see `cursor.rs`'s module
-//      doc) -- the identical mechanism, not a second one.
-// The correctness model behind (1) does NOT depend on which thread runs which
-// entry point. `open()` and `close()` can BOTH be invoked from the audio render
-// thread -- a pooled reader reused for a new sample calls `close()` then
-// `open()` on the render path via `SampleLowLevelReader::ensureSource()` -- as
-// well as from the main thread (voice teardown / song swap). Soundness comes
-// instead from `Masked::enter()` adapting to the CALLER's context through a live
-// `deluge_in_interrupt()` check: called from the main thread it masks the audio
-// ISR for the whole masked read-then-set (claim) or flip (release); called from
-// the audio ISR it is a no-op, which is correct precisely because the audio ISR
-// is atomic w.r.t. main (non-reentrant, un-preemptible by main). So a claim's
-// masked read-then-set and a release's masked flip are each indivisible w.r.t.
-// any pool operation in the OTHER context, whichever thread each actually runs
-// on. Two claims never race each other (the audio ISR is single-threaded/
-// non-reentrant, and a main-thread claim masks the ISR); a claim and a release
-// on DIFFERENT slots never touch the same `in_use`; on the SAME slot they are
-// serialized by that flag. A concurrent `acquire_ex` against an already-claimed
-// slot's `source` stays coherent via (2). This protects POOL SLOT INTEGRITY
-// only -- tearing down a source while something else still actively acquires
-// through the SAME pointer is a pre-existing, out-of-scope hazard mirrored from
-// the C++ backing (caller discipline, not this pool's job).
+// SAFETY: both fields are interior-mutable and every access is masked:
+//   1. `in_use` is read-then-set (claim) and cleared (release) inside a `Masked` window. Only the
+//      caller whose claim flipped it owns `source` until the matching close, so no two callers
+//      alias a slot's `source`.
+//   2. Once claimed, `source`'s contents are touched only through `SampleSource`'s own masked
+//      cells.
+// `open` and `close` run on the audio tier (a pooled reader reopened via
+// `SampleLowLevelReader::ensureSource`) and in thread mode (voice teardown). `Masked` masks in
+// every context but audio, and audio preempts the others, so each claim and release is
+// indivisible with respect to the other contexts. This guards pool-slot integrity only: closing a
+// source while another context still acquires through the same handle is the caller's bug.
 unsafe impl Sync for Slot {}
 
-/// File-scope static: lives in `.bss`, never touches the heap.
+/// The source pool, in `.bss`.
 static POOL: [Slot; POOL_SIZE] = [const { Slot::new() }; POOL_SIZE];
 
-/// The single boot-singleton `deluge_resource` handle, cached from the most
-/// recent successful `open()` -- see the module doc's `retain`/`release`
-/// section for why the lease-only ABI needs this. A masked `Cell` (via
-/// [`m_get`]/[`m_set`]), the SAME discipline [`Slot`]'s own `in_use` and
-/// `SampleSource`'s slots use -- ONE concurrency mechanism for the whole
-/// crate, not a second atomic just for this handle.
+/// The boot-singleton manager handle, cached by the most recent successful `open` for the
+/// lease-only `retain`/`release` (see the module docs). Accessed only through [`m_get`]/[`m_set`].
 struct ActiveManagerCell(Cell<*mut DelugeResource>);
 
-// SAFETY: the sole field is an interior-mutable `Cell<*mut DelugeResource>`,
-// not `Sync` on its own; every touch (`open`'s writer, `retain`/`release`'s
-// readers) goes through `deluge_resource::sync::m_get`/`m_set`, which wrap the
-// access in the same masked critical section `Slot`'s `in_use` and
-// `SampleSource`'s slots use, so concurrent access from the audio ISR and the
-// main thread stays coherent by the same argument as `Slot`'s `Sync` doc
-// above.
+// SAFETY: every access goes through `m_get`/`m_set`, which mask as for `Slot` above.
 unsafe impl Sync for ActiveManagerCell {}
 
 static ACTIVE_MANAGER: ActiveManagerCell = ActiveManagerCell(Cell::new(core::ptr::null_mut()));
 
-/// Claim a free pool slot under a masked check-and-set, or `None` if every
-/// slot is in use. Mirrors `sample_source.cpp`'s `claim_source_slot`.
+/// Claims a free pool slot, or `None` if every slot is in use.
 ///
-/// Each slot's read-then-set runs in its OWN `Masked::enter()` window (not one
-/// window over the whole scan), matching `SampleSource`'s own per-cell masking
-/// granularity (see `cursor.rs`'s `set_slot`/`slot_index`) -- a scan that held
-/// the mask for its entire length would mask the audio ISR far longer than any
-/// single slot's critical section needs to.
+/// Each slot's check-and-set gets its own masked window, so the scan never holds the mask for
+/// longer than one slot.
 fn claim_slot() -> Option<&'static Slot> {
     POOL.iter().find(|slot| {
         let _m = Masked::enter();
@@ -256,41 +166,30 @@ fn claim_slot() -> Option<&'static Slot> {
     })
 }
 
-/// Shared borrow of the `SampleSource` a live `src` pointer (from a prior
-/// `open()`) tracks, or `None` if `src` is null. `'static` because every
-/// non-null `src` this ABI ever hands out points into [`POOL`], a `'static`
-/// static.
+/// Borrows the cursor behind `src`, or `None` if `src` is null. `'static` because every handle
+/// points into [`POOL`].
 ///
 /// # Safety
-/// `src`, if non-null, must be a pointer previously returned by
-/// `deluge_sample_source_open` and not yet passed to
-/// `deluge_sample_source_close` (the C-ABI's own caller contract -- mirrored,
-/// not re-litigated, here).
+///
+/// `src`, if non-null, must come from [`deluge_sample_source_open`] and not yet be closed.
 unsafe fn source_ref(
     src: *const DelugeSampleSource,
 ) -> Option<&'static SampleSource<ManagerResidency>> {
     if src.is_null() {
         return None;
     }
-    // SAFETY: forwarded from this fn's own contract above -- `src` points at a
-    // live slot's `source` cell.
+    // SAFETY: per this fn's contract, `src` points at a live slot's `source` cell.
     let cell = unsafe { &*(src as *const Option<SampleSource<ManagerResidency>>) };
     cell.as_ref()
 }
 
-/// Total FILE cluster count for `geo` (`ceil((audio_data_start_bytes +
-/// audio_data_length_bytes) / cluster_size_bytes)`): a region index is a file
-/// cluster index, as `resident_bytes_for` counts it, so a header that pushes the
-/// audio's tail past a boundary adds a cluster. Used only to size `ManagerResidency`'s
-/// `num_clusters` range guard at `open()` time -- NOT the per-cluster
-/// short-last-cluster byte accounting, which stays exclusively
-/// `geometry::resident_bytes_for`'s job (this function does not re-derive
-/// that math). Under the unknown-length sentinel or a zero length,
-/// `resident_bytes_for` reports every cluster as fully valid rather than
-/// clamping -- mirror that here by reporting the cluster range as unbounded
-/// (`u32::MAX`) instead of a length computed from a not-yet-final byte count.
-/// `cluster_size_bytes == 0` is degenerate (no valid geometry can divide by
-/// it); report zero clusters rather than panicking on the division.
+/// Returns the file cluster count for `geo`: `ceil((audio_data_start_bytes +
+/// audio_data_length_bytes) / cluster_size_bytes)`.
+///
+/// Region indices are file cluster indices, so a header that pushes the audio's tail past a
+/// boundary adds a cluster. A zero length or the unknown-length sentinel is unbounded
+/// (`u32::MAX`), matching [`resident_bytes_for`](crate::geometry::resident_bytes_for); a zero
+/// cluster size gives `0`.
 fn num_clusters_for(geo: &Geometry) -> u32 {
     if geo.cluster_size_bytes == 0 {
         return 0;
@@ -303,24 +202,18 @@ fn num_clusters_for(geo: &Geometry) -> u32 {
         .min(u32::MAX as u64) as u32
 }
 
-// ---------------------------------------------------------------------------
-// C-ABI surface
-// ---------------------------------------------------------------------------
+// C-ABI surface.
 
-/// Open a per-reader cursor from the reader's opaque stream backing. See the
-/// module doc for the `stream_backing` -> `{manager handle, asset id}` bridge.
+/// Opens a per-reader cursor over `stream_backing`.
+///
+/// Returns null if `stream_backing` is null, no manager exists yet, or the pool is exhausted.
 ///
 /// # Safety
-/// `stream_backing`, if non-null, must be a live `deluge::audio::stream::
-/// SampleStream*` for the duration of this call -- forwarded as-is to
-/// `deluge_sample_stream_asset_id`, never dereferenced on the Rust side.
-/// `deluge_streaming_resource_manager`'s returned handle, if non-null, must be
-/// live for the whole life of the `SampleSource` this opens (the crate-wide
-/// boot-singleton contract -- see `ManagerResidency::new`).
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// `stream_backing`, if non-null, must be a live `SampleStream` for the duration of the call. The
+/// handle [`deluge_streaming_resource_manager`] returns, if non-null, must stay live for the
+/// cursor's whole life.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_source_open(
     stream_backing: *mut DelugeStreamBacking,
     geometry: Geometry,
@@ -328,20 +221,16 @@ pub unsafe extern "C" fn deluge_sample_source_open(
     if stream_backing.is_null() {
         return core::ptr::null_mut();
     }
-    // SAFETY: no preconditions beyond FFI-safety -- the process-wide
-    // boot-singleton getter (mirrors `GeneralMemoryAllocator::get().resourceManager()`).
+    // SAFETY: a getter with no preconditions.
     let handle = unsafe { deluge_streaming_resource_manager() }.cast::<DelugeResource>();
     if handle.is_null() {
-        // No manager yet (e.g. boot ordering) -- nothing to build a residency over.
+        // No manager yet (boot ordering).
         return core::ptr::null_mut();
     }
-    // SAFETY: `stream_backing` is non-null (checked above) and, per this fn's
-    // contract, a live `SampleStream*` for the duration of this call.
+    // SAFETY: `stream_backing` is non-null and live per this fn's contract.
     let asset = unsafe { deluge_sample_stream_asset_id(stream_backing) };
     let num_clusters = num_clusters_for(&geometry);
-    // SAFETY: `handle` is non-null (checked above) and live for this source's
-    // whole life -- forwarded from `deluge_streaming_resource_manager`'s own
-    // contract (this fn's contract above).
+    // SAFETY: `handle` is non-null and, per this fn's contract, live for the cursor's life.
     let residency = unsafe {
         ManagerResidency::new(
             handle,
@@ -353,46 +242,29 @@ pub unsafe extern "C" fn deluge_sample_source_open(
     let source = SampleSource::new(residency, geometry);
 
     let Some(slot) = claim_slot() else {
-        // Pool exhausted. Mirror `deluge_resource`'s OWN fixed-table-exhaustion
-        // convention (e.g. `Manager::define_asset`'s `NONE` sentinel, and the
-        // various `alloc_backing`/`request` null returns in manager.rs) rather
-        // than the C++ side's diagnostic `FREEZE_WITH_ERROR("SSP1")`: this
-        // crate is a plain `no_std` rlib with NO `#[panic_handler]` of its own
-        // (same note as `deluge_resource::lib` -- the `deluge_rust` umbrella
-        // provides the one for the whole dependency graph), and
-        // `deluge_resource` itself never panics on a full fixed-capacity
-        // table -- it always returns null/`NONE` and lets the caller decide.
-        // The C++ FREEZE_WITH_ERROR is ALSO not a true halt on hardware (it
-        // blocks then resumes -- see sample_source.cpp's own note) and still
-        // returns `nullptr` afterward, so both sides converge on the same
-        // caller-visible outcome (null), just reached differently.
+        // Pool exhausted: return null and let the caller drop the voice, as `deluge_resource`
+        // does for its own full tables.
         return core::ptr::null_mut();
     };
-    // SAFETY: `slot` was just uniquely claimed via the masked check-and-set in
-    // `claim_slot`, so no other caller can be concurrently reading/writing
-    // `slot.source` -- this initializing write is exclusive.
+    // SAFETY: `claim_slot` just claimed `slot` for this caller alone, so this write is exclusive.
     unsafe {
         *slot.source.get() = Some(source);
     }
-    // Cache the manager handle for the source/lease-less `retain`/`release`
-    // ABI (see the module doc): production runs exactly one boot-singleton
-    // `deluge_resource` handle, so every `open()` stores the same value here
-    // in practice.
+    // Cache the handle for the lease-only `retain`/`release` (see the module docs).
     m_set(&ACTIVE_MANAGER.0, handle);
     slot.source.get() as *mut DelugeSampleSource
 }
 
-/// Make the region containing cluster `index` resident-or-scheduled, pin it,
-/// and report which. See the header doc for the full contract.
+/// Makes region `index` resident or scheduled, pins it, and reports which (see
+/// [`SampleSource::acquire_ex`]).
+///
+/// `out` is written only on `Ready`. A null `src` (an `open` that failed) is `Unavailable`.
 ///
 /// # Safety
-/// `src`, if non-null, must be a live pointer from `deluge_sample_source_open`
-/// not yet closed. `out`, if non-null, must be a valid, writable
-/// `DelugeSampleRegion` -- it is written only on `DELUGE_REGION_READY`.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// `src`, if non-null, must come from [`deluge_sample_source_open`] and not yet be closed. `out`,
+/// if non-null, must be valid for writes.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_region_acquire_ex(
     src: *mut DelugeSampleSource,
     index: u32,
@@ -400,20 +272,14 @@ pub unsafe extern "C" fn deluge_sample_region_acquire_ex(
     priority: u32,
     out: *mut DelugeSampleRegion,
 ) -> DelugeRegionState {
-    // Null-tolerant, matching the header: open() can return null on pool
-    // exhaustion, so `src` can legitimately be null here. There is no cursor
-    // to schedule a fill on, so this is UNAVAILABLE -- `out` untouched.
-    //
-    // SAFETY: null-checked by `source_ref` itself; a non-null `src` is live
-    // per this fn's own contract above.
+    // SAFETY: `source_ref` null-checks; a non-null `src` is live per this fn's contract.
     let Some(source) = (unsafe { source_ref(src as *const DelugeSampleSource) }) else {
         return DelugeRegionState::Unavailable;
     };
     let (state, region) = source.acquire_ex(index, direction, priority);
     if let (RegionState::Ready, Some(region)) = (state, region) {
         if !out.is_null() {
-            // SAFETY: `out` is non-null and, per this fn's contract, a valid
-            // writable `DelugeSampleRegion` on the caller's side.
+            // SAFETY: `out` is non-null and valid for writes per this fn's contract.
             unsafe {
                 *out = DelugeSampleRegion {
                     payload_base: region.payload_base as *mut c_void,
@@ -427,15 +293,12 @@ pub unsafe extern "C" fn deluge_sample_region_acquire_ex(
     state.into()
 }
 
-/// Boolean form of [`deluge_sample_region_acquire_ex`]: `true` ==
-/// `DELUGE_REGION_READY`.
+/// Boolean form of [`deluge_sample_region_acquire_ex`]: `true` on `Ready`.
 ///
 /// # Safety
-/// Same contract as [`deluge_sample_region_acquire_ex`].
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// As for [`deluge_sample_region_acquire_ex`].
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_region_acquire(
     src: *mut DelugeSampleSource,
     index: u32,
@@ -443,61 +306,45 @@ pub unsafe extern "C" fn deluge_sample_region_acquire(
     priority: u32,
     out: *mut DelugeSampleRegion,
 ) -> bool {
-    // SAFETY: forwards this fn's own contract, identical to acquire_ex's.
+    // SAFETY: this fn's contract is `acquire_ex`'s.
     (unsafe { deluge_sample_region_acquire_ex(src, index, direction, priority, out) })
         == DelugeRegionState::Ready
 }
 
-/// Residency of `index` as tracked by this cursor RIGHT NOW, without
-/// acquiring anything. See the header doc for the full contract.
+/// Returns the residency of `index` as the cursor tracks it now, without acquiring anything
+/// (see [`SampleSource::state`]). A null `src` is `Unavailable`.
 ///
 /// # Safety
-/// `src`, if non-null, must be a live pointer from `deluge_sample_source_open`
-/// not yet closed.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// `src`, if non-null, must come from [`deluge_sample_source_open`] and not yet be closed.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_region_state(
     src: *const DelugeSampleSource,
     index: u32,
 ) -> DelugeRegionState {
-    // SAFETY: forwarded from this fn's own contract above; null-checked by
-    // `source_ref` itself.
+    // SAFETY: `source_ref` null-checks; a non-null `src` is live per this fn's contract.
     match unsafe { source_ref(src) } {
         Some(source) => source.state(index).into(),
         None => DelugeRegionState::Unavailable,
     }
 }
 
-/// Take an independent pin on the region's chunk, keyed on the opaque `lease`
-/// token alone. `lease == 0` is a no-op, as is a call before any source has
-/// ever been opened (nothing cached in [`ACTIVE_MANAGER`] to route through).
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+/// Takes an independent pin on a region's chunk by its `lease` token.
+///
+/// A no-op on `0`, a stale token, or before any source has been opened.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_region_retain(lease: u64) {
     let handle = m_get(&ACTIVE_MANAGER.0);
     if handle.is_null() {
         return;
     }
-    // SAFETY: `handle` was stored by a prior successful `open()` from a
-    // caller-supplied live `deluge_resource` handle (the descriptor's own
-    // contract, forwarded through `deluge_sample_source_open`); it stays live
-    // for the process's remaining life per the boot-singleton contract
-    // `ManagerResidency::new` documents.
+    // SAFETY: a successful `open` stored `handle`; the boot-singleton manager stays live.
     let res = unsafe { Resource::from_handle(handle) };
-    res.retain_token(lease); // no-op on lease == 0 / a stale token (facade's own guard)
+    res.retain_token(lease);
 }
 
-/// Drop an independent pin taken via [`deluge_sample_region_retain`]. See its
-/// doc for the `ACTIVE_MANAGER` routing and the `lease == 0` / no-source
-/// no-op cases.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+/// Drops an independent pin taken by [`deluge_sample_region_retain`], with the same no-op cases.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub extern "C" fn deluge_sample_region_release(lease: u64) {
     let handle = m_get(&ACTIVE_MANAGER.0);
     if handle.is_null() {
@@ -508,50 +355,32 @@ pub extern "C" fn deluge_sample_region_release(lease: u64) {
     res.release_token(lease);
 }
 
-/// Close the cursor, releasing any leases it still holds (current + pending +
-/// prefetch), and return its pool slot for reuse. No-op on a null `src`.
+/// Closes the cursor, releasing every lease it holds, and returns its pool slot. A no-op on null.
 ///
 /// # Safety
-/// `src`, if non-null, must be a live pointer from `deluge_sample_source_open`
-/// not yet closed, and must not be used again after this call.
-#[cfg_attr(
-    any(target_os = "none", feature = "host_app", feature = "sim"),
-    unsafe(no_mangle)
-)]
+///
+/// `src`, if non-null, must come from [`deluge_sample_source_open`] and not yet be closed; it must
+/// not be used after this call.
+#[cfg_attr(feature = "c_abi", unsafe(no_mangle))]
 pub unsafe extern "C" fn deluge_sample_source_close(src: *mut DelugeSampleSource) {
     if src.is_null() {
         return;
     }
-    // SAFETY: `src` was returned by `deluge_sample_source_open` as
-    // `slot.source.get() as *mut DelugeSampleSource`; `Slot`'s `#[repr(C)]`
-    // layout plus the `offset_of!` assertion above guarantee `source` sits at
-    // offset 0, so reinterpreting the SAME address as `*const Slot` recovers
-    // the enclosing slot -- mirrors `sample_source.cpp`'s
-    // `reinterpret_cast<SampleSourceSlot*>(src)` (`release_source_slot`),
-    // which relies on the identical `offsetof(...) == 0` invariant there.
+    // SAFETY: `src` points at a slot's `source`, which is at offset 0 of the `#[repr(C)]` `Slot`
+    // (asserted above), so the same address is the slot.
     let slot = unsafe { &*(src as *const Slot) };
-    // SAFETY: `slot` is a live pool slot (recovered above). This fn's own
-    // contract requires `src` not be used again after this call, so nothing
-    // else may be touching `slot.source` for the rest of this function --
-    // exactly the same "pool slot integrity only" boundary `Slot`'s `Sync`
-    // justification documents (tearing down a source while something else
-    // still actively acquires through the SAME pointer is a pre-existing,
-    // out-of-scope caller-discipline hazard, matching the C++ backing).
+    // SAFETY: the caller owns the slot and, per this fn's contract, uses `src` no more, so nothing
+    // else touches `slot.source` (see `Slot`'s `Sync` note).
     let cell = unsafe { &mut *slot.source.get() };
     if let Some(source) = cell.as_ref() {
-        // Drops current + pending + prefetch leases under `SampleSource`'s
-        // own masked-cell discipline (see cursor.rs's `close`).
         source.close();
     }
-    *cell = None; // reset the slot's payload to empty, ready for reuse
-                  // Masked release: `Masked::enter` adapts to the caller's context --
-                  // it masks the audio ISR when `close()` is called from main, and is a
-                  // safe no-op when `close()` is itself on the render ISR (e.g. a reader
-                  // reused via `ensureSource`) -- matching `claim_slot`'s own masked
-                  // check-and-set (see `Slot`'s `Sync` doc for the full argument).
-    m_set(&slot.in_use, false); // return the slot to the pool
+    *cell = None;
+    // Masked release, pairing with `claim_slot`'s masked claim.
+    m_set(&slot.in_use, false);
 }
 
+// Tests of the C ABI and its pool over a real manager and real streamed-chunk backing.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -563,28 +392,21 @@ mod tests {
 
     const CLUSTER_SIZE: usize = 16;
 
-    /// Per-slot slab size: the real `StreamedChunk` front guard
-    /// (`deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET`) plus this test's `CLUSTER_SIZE`
-    /// payload, 16-aligned -- mirrors production's own `kChunkPayloadOffset`-sized `BACKING_SLAB`
-    /// slots (`general_memory_allocator.cpp`) and `cursor.rs`'s own test harness.
+    /// Per-slot slab size: the `StreamedChunk` header plus a `CLUSTER_SIZE` payload, 16-aligned,
+    /// as production's slab slots are sized.
     const BACKING_SIZE: usize =
         (deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET + CLUSTER_SIZE).next_multiple_of(16);
 
-    /// Both tests below mutate the process-wide [`POOL`] and [`ACTIVE_MANAGER`]
-    /// statics; under the default parallel test runner two tests running at once
-    /// would race that shared state. Every test takes this lock for its whole run
-    /// -- the standard process-wide-singleton test-lock pattern (same problem, same
-    /// fix as the region-port harnesses use for their own shared statics).
+    /// Serializes the tests, which share the process-wide [`POOL`], [`ACTIVE_MANAGER`] and
+    /// `TEST_BRIDGE`.
     static TEST_LOCK: Mutex<()> = Mutex::new(());
 
-    /// The real construct callback production registers for streamed-chunk assets
-    /// (`chunk_residency.cpp`), reached through a thin `ConstructFn`-shaped forwarder. Same fixture
-    /// as `cursor.rs`'s own `real_chunk_construct` (each test module keeps its own small copy
-    /// rather than sharing one across `#[cfg(test)]` boundaries).
+    /// The production streamed-chunk construct callback, adapted to `ConstructFn`'s `*mut u8`
+    /// `dest`.
     ///
     /// # Safety
-    /// `dest` must be a writable slab slot of at least `BACKING_SIZE` bytes -- this module's own
-    /// slab satisfies that.
+    ///
+    /// `dest` must be a writable slab slot of at least `BACKING_SIZE` bytes.
     unsafe extern "C" fn real_chunk_construct(
         ctx: *mut c_void,
         owner: *mut c_void,
@@ -602,14 +424,13 @@ mod tests {
         }
     }
 
-    /// Backing arena for the leaked test heap, kept alive for the process's
-    /// remaining life -- mirrors `ManagerResidency`'s boot-singleton contract.
+    /// The arena behind a leaked test heap.
     struct TestHeap {
         _buf: Vec<u128>,
     }
 
-    /// Build a manager + `BACKING_SIZE`-slotted slab over a fresh test heap and leak the arena --
-    /// real streamed-chunk assets are `BACKING_SLAB` in production, not `BACKING_HEAP`.
+    /// Builds a manager with a `BACKING_SIZE`-slotted slab over a fresh, leaked test heap. Streamed
+    /// chunks are slab-backed in production.
     fn test_manager_handle() -> *mut DelugeResource {
         let words = (256 * 1024usize).div_ceil(16);
         let mut buf: Vec<u128> = std::vec![0u128; words];
@@ -619,8 +440,7 @@ mod tests {
         // contract.
         let h = unsafe { deluge_alloc::deluge_heap_create(ptr, words * 16) };
         std::mem::forget(TestHeap { _buf: buf });
-        // SAFETY: `h` is the live heap handle just created above; 16 slots of
-        // `BACKING_SIZE` bytes each is ample for these tests.
+        // SAFETY: `h` is the live heap handle just created above.
         let slab = unsafe { deluge_alloc::slab::deluge_slab_create_unmanaged(h, BACKING_SIZE, 16) };
         assert!(!slab.is_null());
         // SAFETY: `h` is the live heap handle just created above.
@@ -631,9 +451,7 @@ mod tests {
         handle
     }
 
-    /// Define a requestable, slab-backed asset whose `construct` is the real
-    /// `deluge_streaming_chunk_construct` (no `materialize` -- matching production; this cursor
-    /// drives readiness through `mark_index_ready`, standing in for the loader).
+    /// Defines a slab-backed streamed-chunk asset, with no `materialize`, as production does.
     fn define_ramp_asset(h: *mut DelugeResource) -> u32 {
         // SAFETY: `h` is a live handle (from `test_manager_handle`); the
         // callback has the required C-ABI signature.
@@ -655,10 +473,8 @@ mod tests {
         asset
     }
 
-    /// Drive readiness through the manager directly (standing in for the loader this provider
-    /// only schedules -- real fill is a later task), seeding the chunk's PAYLOAD region (not its
-    /// slot base) with the per-index ramp `payload[b] = index as u8 + b as u8` the byte-check test
-    /// below reads.
+    /// Marks `index` ready through the manager directly, standing in for the loader, after seeding
+    /// its payload with the ramp `payload[b] = index + b`.
     fn mark_index_ready(h: *mut DelugeResource, asset: u32, index: u32) {
         // SAFETY: `h` is a live handle; these are the same FFI-safe C-ABI
         // calls the facade wraps.
@@ -687,10 +503,9 @@ mod tests {
         unsafe { deluge_resource::deluge_resource_release(h, ptr) };
     }
 
-    /// The range guard counts FILE clusters, as `resident_bytes_for` and the region index do: a header that
-    /// pushes the audio's tail past a cluster boundary adds one. A header of a quarter cluster before exactly two
-    /// clusters of audio spans three, and the third holds the last quarter cluster -- a WAV's 44-byte header before
-    /// 64 KiB of audio, at the device's 32 KiB clusters.
+    /// A quarter-cluster header before exactly two clusters of audio spans three file clusters, the
+    /// third holding the last quarter: a WAV's 44-byte header before 64 KiB of audio, at 32 KiB
+    /// clusters.
     #[test]
     fn num_clusters_counts_the_header_offset() {
         let geo = Geometry {
@@ -725,26 +540,14 @@ mod tests {
         }
     }
 
-    /// Test doubles for `deluge_streaming_resource_manager`/
-    /// `deluge_sample_stream_asset_id`: `sample_stream.cpp`'s/`async_fill.cpp`'s
-    /// real C++ bodies aren't linked into this test binary, and there is no
-    /// real `SampleStream` to build in a unit test, so `open()`'s bridge is
-    /// exercised against these no-mangle overrides instead -- resolved by the
-    /// linker in place of the `unsafe extern "C"` declarations above, exactly
-    /// the same trick `lib.rs`'s `host_critical_section_stubs` already uses
-    /// for `deluge_resource::sync`'s critical-section externs.
-    ///
-    /// Both tests that call `deluge_sample_source_open` set these via
-    /// `set_test_bridge` before opening, under the same `TEST_LOCK` that
-    /// already serializes this module's tests against the shared `POOL`/
-    /// `ACTIVE_MANAGER` statics -- so a plain (non-atomic) `Cell` pair
-    /// suffices here too.
+    /// What the test definitions of `deluge_streaming_resource_manager` and
+    /// `deluge_sample_stream_asset_id` return. The app's real definitions are not linked, and a
+    /// unit test has no real `SampleStream`. Set by `set_test_bridge` under `TEST_LOCK`.
     struct TestBridge {
         handle: Cell<*mut DelugeResource>,
         asset: Cell<u32>,
     }
-    // SAFETY: every touch of both cells is serialized by TEST_LOCK (see the
-    // doc above), so there is never concurrent access to race.
+    // SAFETY: every access is serialized by `TEST_LOCK`.
     unsafe impl Sync for TestBridge {}
     static TEST_BRIDGE: TestBridge = TestBridge {
         handle: Cell::new(core::ptr::null_mut()),
@@ -756,24 +559,19 @@ mod tests {
         TEST_BRIDGE.asset.set(asset);
     }
 
-    /// Test double for `deluge_streaming_resource_manager`. See `TestBridge`'s doc.
+    /// Test definition of `deluge_streaming_resource_manager`.
     #[unsafe(no_mangle)]
     extern "C" fn deluge_streaming_resource_manager() -> *mut DelugeResource {
         TEST_BRIDGE.handle.get()
     }
 
-    /// Test double for `deluge_sample_stream_asset_id`. Ignores `stream_backing`
-    /// -- this test binary has no real `SampleStream` to dereference; see
-    /// `dummy_stream_backing` and `TestBridge`'s doc.
+    /// Test definition of `deluge_sample_stream_asset_id`; ignores `stream_backing`.
     #[unsafe(no_mangle)]
     extern "C" fn deluge_sample_stream_asset_id(_stream_backing: *mut DelugeStreamBacking) -> u32 {
         TEST_BRIDGE.asset.get()
     }
 
-    /// A non-null dummy `stream_backing` for `deluge_sample_source_open`: the
-    /// bridge test doubles above never dereference it (only `open()` itself
-    /// null-checks it), so any non-null value stands in for the real
-    /// `SampleStream*` production would pass.
+    /// A non-null `stream_backing` that nothing dereferences.
     fn dummy_stream_backing() -> *mut DelugeStreamBacking {
         static DUMMY: u8 = 0;
         &DUMMY as *const u8 as *mut DelugeStreamBacking
@@ -792,9 +590,7 @@ mod tests {
         let src1 = unsafe { deluge_sample_source_open(backing, geo) };
         assert!(!src1.is_null(), "first open must succeed");
 
-        // A second open() -- alloc-free BY CONSTRUCTION (claim_slot only ever
-        // flips an in_use Cell<bool> under a masked check-and-set, never
-        // touches the heap) -- gets a DIFFERENT slot than the first, still-live one.
+        // A second open gets a different slot from the first, still-live one.
         let src2 = unsafe { deluge_sample_source_open(backing, geo) };
         assert!(!src2.is_null(), "second open must succeed");
         assert_ne!(
@@ -808,9 +604,7 @@ mod tests {
             deluge_sample_source_close(src2);
         }
 
-        // close() must return each slot to the pool: a handful of further
-        // open/close cycles must keep succeeding (never null), proving slots
-        // are reclaimed rather than leaked.
+        // Further open/close cycles keep succeeding, so close returns slots to the pool.
         for _ in 0..8 {
             // SAFETY: `backing` is still live.
             let s = unsafe { deluge_sample_source_open(backing, geo) };
@@ -858,8 +652,7 @@ mod tests {
             assert_eq!(byte, b as u8, "ramp byte {b} of cluster 0");
         }
 
-        // retain/release balance: forwarded through ACTIVE_MANAGER, no panic,
-        // no crash, and idempotently reversible.
+        // retain/release route through `ACTIVE_MANAGER`.
         deluge_sample_region_retain(out.lease);
         deluge_sample_region_release(out.lease);
 
@@ -867,13 +660,8 @@ mod tests {
         unsafe { deluge_sample_source_close(src) };
     }
 
-    /// Ports `sample_source_spec.cpp`'s "8b: acquire_ex's READY path is the
-    /// boolean acquire's true, unchanged" (plus the boolean-specific half of
-    /// "acquire on a not-yet-loaded cluster returns false and leaves `out`
-    /// untouched"). [`deluge_sample_region_acquire`] -- the boolean C-ABI
-    /// wrapper -- is exercised only here:
-    /// every other test in this module calls `deluge_sample_region_acquire_ex`
-    /// directly, so this test is the boolean wrapper's sole coverage.
+    /// The boolean [`deluge_sample_region_acquire`] is `true` with the same region on `Ready`, and
+    /// `false` with `out` untouched otherwise.
     #[test]
     fn boolean_acquire_matches_ready_and_is_false_with_out_untouched_otherwise() {
         let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -898,9 +686,7 @@ mod tests {
         let state = unsafe { deluge_sample_region_acquire_ex(src, 0, 1, 0, &mut via_ex) };
         assert_eq!(state, DelugeRegionState::Ready);
 
-        // A second cursor over the same already-ready index, so the boolean call
-        // below is its own fresh acquire rather than re-acquiring what `via_ex`
-        // already holds.
+        // A second cursor, so the boolean call is a fresh acquire.
         // SAFETY: `backing` is still live.
         let src_bool = unsafe { deluge_sample_source_open(backing, geo) };
         assert!(!src_bool.is_null());
@@ -988,8 +774,7 @@ mod tests {
             unsafe { deluge_sample_region_state(core::ptr::null(), 0) },
             DelugeRegionState::Unavailable
         );
-        // close() on a null src, and retain/release on a zero token, must be
-        // silent no-ops (no panic, no crash).
+        // close() on a null src and retain/release on a zero token are no-ops.
         // SAFETY: `src` is null (the case under test).
         unsafe { deluge_sample_source_close(core::ptr::null_mut()) };
         deluge_sample_region_retain(0);

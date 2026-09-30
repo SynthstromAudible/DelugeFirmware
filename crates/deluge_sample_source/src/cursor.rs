@@ -1,36 +1,36 @@
-//! The region-port cursor's full tri-state `acquire_ex` state machine: `current`
-//! (the pinned, loaded region the caller reads), `pending` (a retained LOADING
-//! reservation from a prior acquire, so its fill keeps progressing across
-//! defer/retry), and `prefetch` (a standing reservation for the neighbouring
-//! region in the caller's playback direction, so the next acquire of it is a
-//! resident hit). Reimplements `sample_source.cpp:217-366` natively: steps 2-4
-//! (current/pending), step 1 (promotion off a prefetch hit), step 5 (neighbour
-//! prefetch on the READY path), `deluge_sample_region_state`, and retain/release.
+//! The per-reader region-port cursor: the tri-state `acquire_ex` state machine behind
+//! `deluge_sample_region_*`.
 //!
-//! Slots hold RAII pins (`Cell<Option<R::Pin>>`); a transition `take`s the outgoing
-//! pin (dropping it releases exactly one lease) and `set`s the new one — lease
-//! balance falls out of ownership, never hand-balanced. Every touch of a slot (and
-//! of `prefetch_index`, its tracked-index sidecar) is wrapped in
-//! `deluge_resource::sync::Masked` — the SAME asymmetric critical section the
-//! manager's own tables use — because these slots are touched from more than one
-//! context: `acquire_ex` from the audio ISR, and `close` from either the main
-//! thread (voice teardown) or the render ISR itself (a reader reused via
-//! `ensureSource`). `Masked` adapts to the caller's context via a live
-//! `deluge_in_interrupt()` check, so the discipline is correct regardless of
-//! which thread runs which — it never relies on a fixed thread affinity.
+//! A cursor holds up to three pins:
+//! - `current`: the loaded region the caller reads;
+//! - `pending`: a `Loading` reservation from an earlier acquire, retained so its fill keeps
+//!   progressing across defer/retry;
+//! - `prefetch`: a reservation for the neighbouring region in the playback direction, so the next
+//!   acquire of it is a resident hit.
 //!
-//! Invariant (relied on by `state`'s "at most one slot matches" correctness):
-//! `current`, `pending`, and `prefetch` never track the same index simultaneously.
-//! The promotion path (which consumes the standing prefetch for the index it
-//! matches) and the READY-path prefetch's own dedupe (`prefetch_index != next`)
-//! together maintain it.
+//! Slots hold RAII pins in `Cell<Option<R::Pin>>`; a transition drops the outgoing pin, releasing
+//! exactly one lease, so lease balance follows from ownership.
+//!
+//! # Concurrency
+//!
+//! `acquire_ex` runs on the audio tier; `close` runs on the audio tier (a pooled reader reopened
+//! for a new sample) or in thread mode (voice teardown). Every slot access, including the
+//! `prefetch_index` sidecar, is therefore wrapped in `deluge_resource::sync::Masked`, the same
+//! asymmetric critical section the manager's tables use: it masks everywhere except the audio
+//! context, which is already atomic with respect to the others.
+//!
+//! # Invariant
+//!
+//! `current`, `pending` and `prefetch` never track the same index at once, so at most one slot
+//! matches in [`SampleSource::state`]. Promotion (which consumes the prefetch for its index) and
+//! the prefetch's own dedupe maintain it.
 
 use crate::geometry::{resident_bytes_for, Geometry};
 use crate::residency::{Get, RegionPin, Residency};
 use core::cell::Cell;
 use deluge_resource::sync::{m_get, Masked};
 
-/// Mirrors `DelugeRegionState`.
+/// A region's residency, mirroring `DelugeRegionState`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RegionState {
     Ready = 1,
@@ -38,8 +38,8 @@ pub enum RegionState {
     Unavailable = 3,
 }
 
-/// Mirrors `DelugeSampleRegion`: the region descriptor `acquire_ex` fills on
-/// `RegionState::Ready`.
+/// The region descriptor [`SampleSource::acquire_ex`] returns on [`RegionState::Ready`], mirroring
+/// `DelugeSampleRegion`.
 pub struct RegionOut {
     pub payload_base: *const u8,
     pub region_index: u32,
@@ -47,12 +47,9 @@ pub struct RegionOut {
     pub lease: u64,
 }
 
-/// One region-port cursor: `current` (the pinned, loaded region the caller reads),
-/// `pending` (a retained LOADING reservation from a prior acquire, so its fill
-/// keeps progressing across defer/retry), and `prefetch` (a standing reservation
-/// for the neighbouring region in the caller's playback direction, tracked by
-/// `prefetch_index`, `u32::MAX` = empty). Slots hold RAII pins; a transition drops
-/// the outgoing pin (releasing its lease).
+/// One region-port cursor; see the [module docs](crate::cursor) for its slots and invariant.
+///
+/// `prefetch_index` tracks the prefetch slot's index, `u32::MAX` when empty.
 pub struct SampleSource<R: Residency> {
     residency: R,
     geo: Geometry,
@@ -63,6 +60,7 @@ pub struct SampleSource<R: Residency> {
 }
 
 impl<R: Residency> SampleSource<R> {
+    /// Creates an empty cursor over `residency` for a sample with geometry `geo`.
     pub fn new(residency: R, geo: Geometry) -> Self {
         Self {
             residency,
@@ -74,33 +72,23 @@ impl<R: Residency> SampleSource<R> {
         }
     }
 
-    /// Masked swap of a slot: `take`s the outgoing pin under the mask and drops it
-    /// (inside the same window `Cell::set` performs the replace-and-drop), then
-    /// installs `v`. A single-cell O(1) window, matching the manager's own `m_set`
-    /// granularity (`deluge_resource::sync::m_set`) — just not `Copy`-bounded, since
-    /// a pin isn't `Copy`.
+    /// Replaces a slot's pin under the mask, dropping the outgoing one inside the same window. The
+    /// non-`Copy` counterpart of `deluge_resource::sync::m_set`.
     fn set_slot(slot: &Cell<Option<R::Pin>>, v: Option<R::Pin>) {
         let _m = Masked::enter();
         slot.set(v);
     }
 
-    /// Drop any retained LOADING reservation (release its lease). Called on all
-    /// three outcome paths AFTER this call's own pin is in hand — so a retry
-    /// landing on the same chunk nets exactly one lease (the provider's cache-hit
-    /// already re-leased).
+    /// Drops any retained `Loading` reservation. Every outcome path calls this after its own pin is
+    /// in hand, so a retry landing on the same chunk nets exactly one lease.
     fn release_pending(&self) {
         Self::set_slot(&self.pending, None); // drops the Option's pin -> releases its lease
     }
 
-    /// The index `slot`'s pin tracks, if any. `take`+inspect+`set` under ONE masked
-    /// window (not two `m_get`/`m_set`-style calls) — a window split in two would
-    /// let a concurrent `close()` observe the slot as transiently `None` and clear
-    /// it as a no-op, only for this call's restore to silently revive the pin
-    /// `close()` meant to release. Mirrors the manager's own multi-statement
-    /// `Masked::enter()` sections (e.g. `manager.rs`'s `evict_lowest`), used
-    /// whenever a read must stay coherent with the write that follows it. The
-    /// shared primitive behind `current_index` and `state`'s `pending`/`prefetch`
-    /// resolution.
+    /// The index `slot`'s pin tracks, if any.
+    ///
+    /// The take, inspect and restore share one masked window: split in two, a concurrent `close`
+    /// could see the slot transiently empty, and the restore would revive the pin it released.
     fn slot_index(slot: &Cell<Option<R::Pin>>) -> Option<u32> {
         let _m = Masked::enter();
         let v = slot.take();
@@ -114,30 +102,21 @@ impl<R: Residency> SampleSource<R> {
         Self::slot_index(&self.current)
     }
 
-    /// Masked read of the standing prefetch's tracked index (`u32::MAX` = empty).
-    /// A plain `Cell<u32>` read, so this reuses `deluge_resource::sync::m_get`
-    /// rather than a bespoke take/set window — the same primitive `manager.rs`
-    /// uses for its own `Copy` cells.
+    /// Masked read of the prefetch slot's index (`u32::MAX` when empty).
     fn prefetch_index(&self) -> u32 {
         m_get(&self.prefetch_index)
     }
 
-    /// Masked swap of the prefetch slot AND its tracked index TOGETHER, so the two
-    /// never observably diverge across a window seam (a reader between two
-    /// separately-masked writes could otherwise see a pin with a stale/absent
-    /// index, or vice versa).
+    /// Replaces the prefetch pin and its index in one masked window, so no reader sees them
+    /// disagree.
     fn set_prefetch(&self, pin: Option<R::Pin>, idx: u32) {
         let _m = Masked::enter();
         self.prefetch.set(pin); // drops the outgoing pin -> releases its lease
         self.prefetch_index.set(idx);
     }
 
-    /// Step 1 (`sample_source.cpp:229-238`): if the standing prefetch tracks
-    /// `index`, take it out and clear `prefetch_index` — the lease transfers from
-    /// `prefetch` to this call, so the caller skips a fresh `residency.acquire`.
-    /// `None` if there is no hit (leaves `prefetch`/`prefetch_index` untouched).
-    /// One masked window over both cells: a read-then-conditionally-take that
-    /// `set_prefetch` (a plain swap) can't express.
+    /// Takes the prefetch pin if it tracks `index`, transferring its lease to the caller in place
+    /// of a fresh acquire. Returns `None`, leaving the prefetch untouched, on a miss.
     fn take_promoted(&self, index: u32) -> Option<R::Pin> {
         let _m = Masked::enter();
         if self.prefetch_index.get() != index {
@@ -150,11 +129,9 @@ impl<R: Residency> SampleSource<R> {
         pin
     }
 
-    /// Step 5 (`sample_source.cpp:294-309`), READY-path only, called AFTER
-    /// `current` is pinned: prefetch the neighbour in `direction`, if in range and
-    /// not already the standing prefetch. A `Loading` neighbour is stored as-is
-    /// (any state is fine — it just isn't ready yet); `Unavailable` leaves
-    /// `prefetch` empty.
+    /// Prefetches the neighbour of `index` in `direction` (±1), if in range and not already the
+    /// prefetch. Called on the `Ready` path only, after `current` is pinned. A `Loading` neighbour
+    /// is kept as-is; `Unavailable` leaves the prefetch empty.
     fn prefetch_neighbour(&self, index: u32, direction: i8, priority: u32) {
         debug_assert!(
             direction == 1 || direction == -1,
@@ -169,32 +146,31 @@ impl<R: Residency> SampleSource<R> {
             return;
         }
         if self.prefetch_index() == next {
-            return; // already the standing prefetch -- nothing to do
+            return;
         }
-        // Drop any standing prefetch (a different index) BEFORE acquiring the new
-        // one, mirroring the C++ contract's ordering.
+        // Release the old prefetch before acquiring the new one.
         self.set_prefetch(None, u32::MAX);
         match self.residency.acquire(next, priority) {
             Get::Unavailable => {
-                // Nothing came back; prefetch stays empty (already cleared above).
+                // The prefetch stays empty.
             }
             Get::Loading(pin) | Get::Ready(pin) => self.set_prefetch(Some(pin), next),
         }
     }
 
-    /// Non-blocking, synchronous: schedules a fill if needed but never waits for
-    /// one. `direction` steers the neighbour prefetched on the READY path.
+    /// Makes region `index` resident or scheduled, pins it, and reports which.
+    ///
+    /// Never blocks: a non-resident region is scheduled at loader `priority` and reported
+    /// `Loading`. On `Ready` the region becomes `current` and the neighbour in `direction` (±1) is
+    /// prefetched.
     pub fn acquire_ex(
         &self,
         index: u32,
         direction: i8,
         priority: u32,
     ) -> (RegionState, Option<RegionOut>) {
-        // Step 1: a hit on the standing prefetch promotes it in place of a fresh
-        // acquire -- same tri-state logic runs on the promoted pin below, keyed by
-        // its LIVE readiness (a promoted-but-not-yet-loaded prefetch falls through
-        // to the Loading arm, which moves it to `pending` -- exactly the "promotion
-        // empties prefetch, moves the reservation to pending" contract).
+        // A prefetch hit is promoted in place of a fresh acquire and classified by live readiness;
+        // one still loading moves to `pending`.
         let get = match self.take_promoted(index) {
             Some(pin) => {
                 if pin.is_ready() {
@@ -207,43 +183,30 @@ impl<R: Residency> SampleSource<R> {
         };
         match get {
             Get::Unavailable => {
-                // Nothing was leased for this region — there is no fill in flight —
-                // and any earlier pending reservation is moot, so drop that too.
+                // No fill is in flight, and any earlier pending reservation is moot.
                 self.release_pending();
                 (RegionState::Unavailable, None)
             }
             Get::Loading(pin) => {
-                // Retain as pending; leave current alone (the caller may still be
-                // reading the region it already has). release_pending AFTER the new
-                // pin is in hand, so a retry on the same chunk nets exactly one lease.
+                // Retain as pending; leave `current` alone, as the caller may still be reading it.
                 self.release_pending();
                 Self::set_slot(&self.pending, Some(pin));
                 (RegionState::Loading, None)
             }
             Get::Ready(pin) => {
-                // Any pending reservation is superseded — if it is this very chunk
-                // (the retry that finally landed) this drops the duplicate lease the
-                // provider's acquire just added, leaving the single lease `current`
-                // is about to hold.
+                // Any pending reservation is superseded; if it is this chunk (a retry that landed),
+                // this drops the duplicate lease, leaving the one `current` is about to hold.
                 self.release_pending();
                 let token = pin.token();
                 let payload_base = pin.payload();
-                // Fuse-release the old current unless it is THIS index already
-                // (dedupe: re-acquiring the current index must stay a single lease).
-                // Identity is by index — the cursor's slots never track the same
-                // index at once.
+                // Replace `current` unless it already tracks this index.
                 let same = matches!(self.current_index(), Some(i) if i == index);
                 if same {
-                    // The provider's acquire took a SECOND lease on the chunk already
-                    // pinned as `current` (a cache-hit re-leases). Drop THIS new pin
-                    // so `current` keeps its single original lease — that is what
-                    // makes re-acquiring the same index truly idempotent. payload_base
-                    // and token were already read off this pin above, and since it is
-                    // the SAME chunk as the standing `current`, they are identical to
-                    // current's — reading them before this drop is correct.
+                    // The acquire took a second lease on the chunk `current` already pins; drop it
+                    // so re-acquiring is idempotent. Its payload and token equal `current`'s.
                     drop(pin);
                 } else {
-                    Self::set_slot(&self.current, Some(pin)); // drops old current -> fuses its lease
+                    Self::set_slot(&self.current, Some(pin));
                 }
                 let out = RegionOut {
                     payload_base,
@@ -251,17 +214,13 @@ impl<R: Residency> SampleSource<R> {
                     resident_bytes: resident_bytes_for(index, &self.geo),
                     lease: token,
                 };
-                // Step 5: prefetch the forward/backward neighbour now that
-                // `current` holds its new pin.
                 self.prefetch_neighbour(index, direction, priority);
                 (RegionState::Ready, Some(out))
             }
         }
     }
 
-    /// Masked take/inspect/restore: true iff `slot`'s pin tracks `index` (matched
-    /// by `RegionPin::index`, the pin's OWN tracked index — never a side-channel
-    /// copy). Leaves the slot untouched.
+    /// Whether `slot`'s pin tracks `index`, read in one masked window.
     fn slot_matches(slot: &Cell<Option<R::Pin>>, index: u32) -> bool {
         let _m = Masked::enter();
         let v = slot.take();
@@ -270,10 +229,7 @@ impl<R: Residency> SampleSource<R> {
         m
     }
 
-    /// Masked take/inspect/restore: `Some(Ready|Loading)` iff `slot`'s pin tracks
-    /// `index`, resolved by re-reading LIVE `is_ready()` (a pin taken as Loading
-    /// may have since landed); `None` if the slot is empty or tracks a different
-    /// index. Leaves the slot untouched.
+    /// The live state of `slot`'s pin if it tracks `index`, read in one masked window.
     fn slot_state_if_index(slot: &Cell<Option<R::Pin>>, index: u32) -> Option<RegionState> {
         let _m = Masked::enter();
         let v = slot.take();
@@ -289,14 +245,10 @@ impl<R: Residency> SampleSource<R> {
         result
     }
 
-    /// Reimplements `deluge_sample_region_state` (`sample_source.cpp:321-352`):
-    /// pure observation (no acquire, no lease, no mutation) that resolves `index`
-    /// against each slot's OWN tracked index, `current` -> `pending` -> `prefetch`,
-    /// with LIVE readiness. `current` is checked first: whenever it is set it is,
-    /// by invariant, already loaded (only a ready pin is ever pinned as `current`
-    /// -- see `acquire_ex`'s READY arm), so a match there is always `Ready`. By
-    /// the cursor's own never-same-index invariant (see the module doc), at most
-    /// one of the three checks below can match.
+    /// Returns the residency of `index` as this cursor tracks it, without acquiring anything.
+    ///
+    /// Checks `current`, then `pending`, then `prefetch`, with live readiness. Only a ready pin is
+    /// ever made `current`, so a match there is always `Ready`.
     pub fn state(&self, index: u32) -> RegionState {
         if Self::slot_matches(&self.current, index) {
             return RegionState::Ready;
@@ -310,34 +262,32 @@ impl<R: Residency> SampleSource<R> {
         RegionState::Unavailable
     }
 
-    /// Independent-pin retain/release — forwards the opaque token to the provider
-    /// (generation-checked; no-op on 0/stale). Cursor-independent, matching the C
-    /// ABI's `deluge_sample_region_retain`/`_release`.
+    /// Takes an independent pin by lease token. A no-op on `0` or a stale token; independent of
+    /// this cursor's slots.
     pub fn retain(&self, token: u64) {
         self.residency.retain_token(token);
     }
 
-    /// See [`Self::retain`].
+    /// Drops an independent pin taken by [`Self::retain`].
     pub fn release(&self, token: u64) {
         self.residency.release_token(token);
     }
 
+    /// Releases every pin the cursor holds.
     pub fn close(&self) {
         Self::set_slot(&self.current, None);
         Self::set_slot(&self.pending, None);
         self.set_prefetch(None, u32::MAX);
     }
 
-    /// The index `pending` is retained for, if any. Test-only peek (used to assert
-    /// the never-same-index invariant); production code never needs `pending`'s
-    /// index in isolation — `state`'s own resolution goes through
-    /// `slot_state_if_index` instead.
+    /// The index `pending` tracks, if any.
     #[cfg(test)]
     fn pending_index(&self) -> Option<u32> {
         Self::slot_index(&self.pending)
     }
 }
 
+// Lease-balance and state tests of the cursor over a real manager and real streamed-chunk backing.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -353,24 +303,17 @@ mod tests {
     const CLUSTER_SIZE: usize = 16;
     const CHUNK_CAP: usize = 16;
 
-    /// Per-slot slab size: the real `StreamedChunk` front guard
-    /// (`deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET`) plus this test's `CLUSTER_SIZE`
-    /// payload, 16-aligned — mirrors production's own `kChunkPayloadOffset`-sized `BACKING_SLAB`
-    /// slots (`general_memory_allocator.cpp`) and `deluge_sample_reader`'s own `BACKING_SIZE` test
-    /// harness (`reader.rs`'s `window_tests` module).
+    /// Per-slot slab size: the `StreamedChunk` header plus a `CLUSTER_SIZE` payload, 16-aligned,
+    /// as production's slab slots are sized.
     const BACKING_SIZE: usize =
         (deluge_sample_fill::chunk::RUST_CHUNK_PAYLOAD_OFFSET + CLUSTER_SIZE).next_multiple_of(16);
 
-    /// The real construct callback production registers for streamed-chunk assets
-    /// (`chunk_residency.cpp`), reached through a thin `ConstructFn`-shaped forwarder
-    /// (`deluge_resource::manager::ConstructFn` takes `dest: *mut u8`; the real construct's C-ABI
-    /// signature takes `dest: *mut c_void` — the two function pointer types don't unify, so this
-    /// wrapper is the cast, not a behavioural stand-in). Mirrors `deluge_sample_reader`'s own
-    /// `real_chunk_construct` (`reader.rs`).
+    /// The production streamed-chunk construct callback, adapted to `ConstructFn`'s `*mut u8`
+    /// `dest`.
     ///
     /// # Safety
-    /// `dest` must be a writable slab slot of at least `BACKING_SIZE` bytes — this module's own
-    /// slab satisfies that.
+    ///
+    /// `dest` must be a writable slab slot of at least `BACKING_SIZE` bytes.
     unsafe extern "C" fn real_chunk_construct(
         ctx: *mut c_void,
         owner: *mut c_void,
@@ -388,16 +331,13 @@ mod tests {
         }
     }
 
-    /// Struct backing the leaked test heap arena (kept alive for the process's
-    /// remaining life — mirrors `ManagerResidency`'s boot-singleton contract).
+    /// The arena behind a leaked test heap.
     struct TestHeap {
         _buf: Vec<u128>,
     }
 
-    /// Build a manager + `BACKING_SIZE`-slotted slab over a fresh test heap and leak the arena,
-    /// mirroring `manager_residency::tests::test_manager_handle` (and
-    /// `deluge_sample_reader`'s own slab-backed `window_tests::harness`) — real streamed-chunk
-    /// assets are `BACKING_SLAB` in production (`chunk_residency.cpp`), not `BACKING_HEAP`.
+    /// Builds a manager with a `BACKING_SIZE`-slotted slab over a fresh, leaked test heap. Streamed
+    /// chunks are slab-backed in production.
     fn test_manager_handle() -> *mut DelugeResource {
         let words = (256 * 1024usize).div_ceil(16);
         let mut buf: Vec<u128> = std::vec![0u128; words];
@@ -406,8 +346,7 @@ mod tests {
         // binary's life, matching `ManagerResidency::new`'s boot-singleton contract.
         let h = unsafe { deluge_alloc::deluge_heap_create(ptr, words * 16) };
         std::mem::forget(TestHeap { _buf: buf });
-        // SAFETY: `h` is the live heap handle just created above; `CHUNK_CAP` slots of
-        // `BACKING_SIZE` bytes each is ample for these tests (at most a handful resident at once).
+        // SAFETY: `h` is the live heap handle just created above.
         let slab =
             unsafe { deluge_alloc::slab::deluge_slab_create_unmanaged(h, BACKING_SIZE, CHUNK_CAP) };
         assert!(!slab.is_null());
@@ -419,10 +358,7 @@ mod tests {
         handle
     }
 
-    /// Define a requestable, slab-backed asset whose `construct` is the real
-    /// `deluge_streaming_chunk_construct` (no `materialize` — matching production, which never
-    /// registers one for streamed chunks either; this cursor drives readiness through
-    /// `mark_index_ready`, standing in for the loader's `mark_ready`).
+    /// Defines a slab-backed streamed-chunk asset, with no `materialize`, as production does.
     fn define_ramp_asset(h: *mut DelugeResource) -> u32 {
         // SAFETY: `h` is a live handle (from `test_manager_handle`); the callback
         // has the required C-ABI signature.
@@ -444,11 +380,9 @@ mod tests {
         asset
     }
 
-    /// Drive readiness through the manager directly (standing in for the loader this provider
-    /// only schedules — real fill is a later task), seeding the chunk's PAYLOAD region (not its
-    /// slot base) with the per-index ramp `payload[b] = index as u8 + b as u8` the byte-check test
-    /// below reads. Releases the lease it takes to reserve/find the chunk, so it doesn't skew a
-    /// test's subsequent lease-count assertions.
+    /// Marks `index` ready through the manager directly, standing in for the loader, after seeding
+    /// its payload with the ramp `payload[b] = index + b`. Releases the lease it takes, so lease
+    /// counts are not skewed.
     fn mark_index_ready(h: *mut DelugeResource, asset: u32, index: u32) {
         // SAFETY: `h` is a live handle; these are the same FFI-safe C-ABI calls the
         // facade wraps.
@@ -477,9 +411,7 @@ mod tests {
         unsafe { deluge_resource::deluge_resource_release(h, ptr) };
     }
 
-    /// Sum of every slot's live lease count across the manager's whole chunk table
-    /// — the lease-balance oracle: RAII pins should never leak or double-release,
-    /// so this total must move by exactly the amount each test expects.
+    /// The sum of live lease counts across the manager's chunk table: the lease-balance oracle.
     fn total_leases(h: *mut DelugeResource) -> u64 {
         (0..CHUNK_CAP as u32)
             // SAFETY: `h` is a live handle; `lease_count_by_slot` tolerates any
@@ -501,8 +433,8 @@ mod tests {
         }
     }
 
-    /// A `SampleSource<ManagerResidency>` over a fresh test heap + ramp asset, plus
-    /// the raw handle/asset for driving readiness / reading lease counts.
+    /// A cursor over a fresh manager and asset, plus the handle and asset for driving readiness and
+    /// reading lease counts.
     fn new_source(num_clusters: u32) -> (SampleSource<ManagerResidency>, *mut DelugeResource, u32) {
         let h = test_manager_handle();
         let asset = define_ramp_asset(h);
@@ -529,9 +461,8 @@ mod tests {
         assert!(out.is_none());
         assert_eq!(total_leases(h), 1, "pending holds exactly one lease");
 
-        // Re-acquire the same (still-loading) index: idempotent, still Loading,
-        // still exactly one pending lease (the old pending is dropped, the fresh
-        // cache-hit lease from get_cluster/acquire takes its place).
+        // Re-acquiring the still-loading index is idempotent: the fresh lease replaces the old
+        // pending one.
         let (state2, out2) = src.acquire_ex(0, 0, 0);
         assert_eq!(state2, RegionState::Loading);
         assert!(out2.is_none());
@@ -544,11 +475,8 @@ mod tests {
 
     #[test]
     fn acquire_ready_pins_current_fills_out_and_fuses_old_current() {
-        // direction=1 (a realistic forward-playback caller — real callers never
-        // pass 0, see voice_sample.cpp/sample_low_level_reader.cpp's playDirection)
-        // so each READY acquire also prefetches its forward neighbour (step 5);
-        // the lease-count assertions below account for that extra standing lease
-        // alongside the original current/fuse/dedupe assertions.
+        // direction=1, as real callers pass ±1: each Ready acquire also prefetches its forward
+        // neighbour, and the lease counts below include that prefetch.
         let (src, h, asset) = new_source(4);
         mark_index_ready(h, asset, 0);
 
@@ -559,24 +487,19 @@ mod tests {
         assert_eq!(out0.resident_bytes, CLUSTER_SIZE as u32);
         // payload_base = the seeded ramp for index 0: dest[b] = 0 + b.
         for b in 0..CLUSTER_SIZE {
-            // SAFETY: `payload_base` is the manager's live, ready, leased backing
-            // for cluster 0, at least `CLUSTER_SIZE` bytes (per this test's geometry
-            // and `deluge_resource_lease_count_by_slot`'s pinning contract).
+            // SAFETY: `payload_base` is cluster 0's live, leased backing of `CLUSTER_SIZE` bytes.
             let byte = unsafe { *out0.payload_base.add(b) };
             assert_eq!(byte, b as u8, "ramp byte {b} of cluster 0");
         }
-        // current(0) + the neighbour prefetch of index 1 the READY path just
-        // scheduled (not yet marked ready, so it sits as a Loading prefetch).
+        // current(0) plus the Loading prefetch of index 1.
         assert_eq!(
             total_leases(h),
             2,
             "one current lease + one standing prefetch lease after first Ready"
         );
 
-        // Advance to index 1: the standing prefetch from above already tracks it,
-        // so this is a PROMOTE (no fresh acquire) once it's marked ready — the fuse
-        // of the old current(0) is the only lease this step drops; the prefetch of
-        // the NEW neighbour (index 2) it schedules next is the only lease it adds.
+        // Advance to index 1, promoting the prefetch: current(0) is released and a prefetch of
+        // index 2 is added.
         mark_index_ready(h, asset, 1);
         let (state1, out1) = src.acquire_ex(1, 1, 0);
         assert_eq!(state1, RegionState::Ready);
@@ -588,10 +511,8 @@ mod tests {
             "advancing current promotes+fuses net zero; prefetching index 2 adds one"
         );
 
-        // Re-acquire index 1 (already current): idempotent dedupe (the fresh
-        // cache-hit lease taken to resolve it is dropped immediately), and
-        // out.lease/payload equal the standing current's. The standing prefetch of
-        // index 2 is untouched (already the standing prefetch — step 5 no-ops).
+        // Re-acquiring the current index is idempotent and reports the same lease and payload; the
+        // prefetch of index 2 is untouched.
         let (state1b, out1b) = src.acquire_ex(1, 1, 0);
         assert_eq!(state1b, RegionState::Ready);
         let out1b = out1b.expect("ready must fill out");
@@ -610,14 +531,11 @@ mod tests {
         );
     }
 
-    /// A READY acquire prefetches its forward neighbour (step 5); the NEXT acquire
-    /// of that neighbour is a PROMOTE — no fresh `residency.acquire` — and stays
-    /// lease-balanced (the lease simply transfers from `prefetch` to `current`).
+    /// Acquiring the prefetched neighbour promotes it: the lease moves from `prefetch` to
+    /// `current`.
     #[test]
     fn ready_prefetches_forward_neighbour_and_next_acquire_promotes_it() {
-        // num_clusters=2 so index 1's own forward neighbour (index 2) is out of
-        // range: after the promote below, no further prefetch fires, keeping the
-        // final lease count a clean, unambiguous 1.
+        // Two clusters, so index 1 has no neighbour to prefetch and the final count is 1.
         let (src, h, asset) = new_source(2);
         mark_index_ready(h, asset, 0);
         mark_index_ready(h, asset, 1);
@@ -635,15 +553,8 @@ mod tests {
             "neighbour 1 is prefetched and already ready"
         );
 
-        // Promote: index 1 is the standing prefetch, so this must NOT take a fresh
-        // lease -- if it mistakenly did (a fresh cache-hit acquire, then fused),
-        // the net lease count after would be identical (a fresh Ready acquire nets
-        // the same 2->1 via its own fuse+dedupe), so the real tell is the
-        // never-same-index invariant: a buggy non-promoting path would leave the
-        // OLD prefetch(1) still standing alongside the new current(1), i.e. total
-        // would stay 2 with current and prefetch both tracking index 1. Promotion
-        // instead transfers the lease, so current(0) is fused away and nothing
-        // remains to prefetch (index 2 is out of range) -- total drops to 1.
+        // A non-promoting acquire would leave prefetch(1) standing beside current(1), keeping the
+        // total at 2; promotion transfers the lease and releases current(0), so it drops to 1.
         let (state1, out1) = src.acquire_ex(1, 1, 0);
         assert_eq!(state1, RegionState::Ready);
         let out1 = out1.expect("ready must fill out");
@@ -661,24 +572,19 @@ mod tests {
         assert_eq!(src.state(1), RegionState::Ready, "current(1), promoted");
     }
 
-    /// The discriminating truthfulness case: an indexed `state` query must resolve
-    /// by each slot's OWN tracked index, never by assuming "the standing prefetch
-    /// is always index+1 of the last acquire". After a jump ahead of the standing
-    /// prefetch, `state` of the prefetch's neighbour must report what is ACTUALLY
-    /// tracked (nothing, here -- LOADING never triggers step 5), not the jumped-to
-    /// index's own Loading state.
+    /// `state` resolves by each slot's own tracked index, not by assuming the prefetch is always
+    /// one past the last acquire.
     #[test]
     fn indexed_state_is_truthful_after_jump_ahead_of_prefetch() {
         let (src, h, asset) = new_source(8);
         mark_index_ready(h, asset, 0);
 
-        // acquire(0) -> READY, prefetches neighbour 1 (not marked ready -> Loading).
+        // acquire(0) -> Ready, prefetch(1) Loading.
         let (state0, _out0) = src.acquire_ex(0, 1, 0);
         assert_eq!(state0, RegionState::Ready);
 
-        // acquire(5) jumps past the standing prefetch: LOADING (pending=5). The
-        // LOADING path never runs step 5, so the standing prefetch(1) is untouched
-        // -- nothing this cursor tracks ever becomes 6.
+        // acquire(5) -> Loading (pending=5). The Loading path does not prefetch, so nothing
+        // tracks index 6.
         let (state5, out5) = src.acquire_ex(5, 1, 0);
         assert_eq!(state5, RegionState::Loading);
         assert!(out5.is_none());
@@ -702,9 +608,7 @@ mod tests {
         );
     }
 
-    /// The three-slot resolution order (`current` -> `pending` -> `prefetch`) with
-    /// LIVE readiness: a slot's match is re-queried at `state()` time, not cached
-    /// from whenever it was last touched.
+    /// `state` resolves `current`, then `pending`, then `prefetch`, reading readiness live.
     #[test]
     fn state_matches_current_pending_prefetch_by_tracked_index() {
         let (src, h, asset) = new_source(4);
@@ -724,9 +628,7 @@ mod tests {
         );
         assert_eq!(src.state(3), RegionState::Unavailable, "tracked by no slot");
 
-        // Land the prefetch's chunk (simulating the loader) without touching the
-        // cursor at all -- `state` must re-observe it live, not report a cached
-        // Loading.
+        // Land the prefetch's chunk without touching the cursor; `state` must see it live.
         mark_index_ready(h, asset, 1);
         assert_eq!(
             src.state(1),
@@ -735,9 +637,7 @@ mod tests {
         );
     }
 
-    /// `retain`/`release` forward the opaque lease token to the provider
-    /// (balance +1/-1); `close` drops current+pending+prefetch, returning the
-    /// manager's total lease count to its pre-acquire baseline.
+    /// `retain`/`release` move the lease balance by one each; `close` returns it to baseline.
     #[test]
     fn retain_release_balance_and_close_drops_all_slots() {
         let (src, h, asset) = new_source(2);
@@ -762,9 +662,8 @@ mod tests {
         );
     }
 
-    /// A caller jumping to a different index while an earlier LOADING reservation
-    /// is still outstanding supersedes it without leaking: the old pending is
-    /// dropped, the new one leased, net one pending lease throughout.
+    /// Jumping to another index while a `Loading` reservation is outstanding supersedes it without
+    /// leaking.
     #[test]
     fn jump_ahead_supersedes_pending_without_leak() {
         let (src, h, _asset) = new_source(8);
@@ -790,12 +689,8 @@ mod tests {
         assert_eq!(src.state(7), RegionState::Loading, "the new pending");
     }
 
-    /// `current`, `pending`, and `prefetch` must never track the same index at
-    /// once (the invariant `state`'s "at most one slot matches" correctness relies
-    /// on) -- exercised across a representative sequence covering a Ready-path
-    /// prefetch, a jump past it, a promote-to-Ready, and a promote-to-Loading
-    /// (moved into `pending`, per the "promotion empties prefetch, moves the
-    /// reservation to pending" contract).
+    /// The never-same-index invariant holds across a prefetch, a jump past it, a promotion to
+    /// `Ready`, and a promotion to `Loading` (which moves the reservation to `pending`).
     #[test]
     fn slots_never_track_the_same_index() {
         fn assert_distinct(src: &SampleSource<ManagerResidency>) {
@@ -835,13 +730,8 @@ mod tests {
         assert_distinct(&src); // prefetches(3)=Loading
     }
 
-    /// Ports `sample_source_spec.cpp`'s "8b: a scheduled-but-unloaded region
-    /// is LOADING and its lease is RETAINED across the call" -- specifically its
-    /// tail ("when the fill lands, the same retry becomes READY and the retained
-    /// lease folds into the current pin -- exactly one lease, no duplicate from
-    /// the retries"). `acquire_loading_retains_pending_and_leaves_current` never
-    /// marks the index ready, so this landing fold is exercised only here -- this
-    /// test is its sole coverage.
+    /// A `Loading` region's lease is retained across retries, and when the fill lands the retry
+    /// folds it into `current`: one lease, no duplicate.
     #[test]
     fn loading_retry_that_lands_ready_folds_into_a_single_lease() {
         let (src, h, asset) = new_source(4);
@@ -852,8 +742,7 @@ mod tests {
         assert!(out.is_none());
         assert_eq!(total_leases(h), 1, "pending holds exactly one lease");
 
-        // A defer/retry cycle before the fill lands is idempotent: still Loading,
-        // still exactly one lease.
+        // Retrying before the fill lands is idempotent.
         let (state2, out2) = src.acquire_ex(1, 1, 0);
         assert_eq!(state2, RegionState::Loading);
         assert!(out2.is_none());
@@ -863,9 +752,8 @@ mod tests {
             "retrying before landing must stay one lease"
         );
 
-        // The fill lands; the same retry now reports Ready and folds the retained
-        // pending lease into `current` -- no duplicate from the retries. The READY
-        // path's own neighbour prefetch (direction=1) adds the only other lease.
+        // The fill lands: the retry reports Ready and folds the pending lease into `current`. The
+        // neighbour prefetch adds the only other lease.
         mark_index_ready(h, asset, 1);
         let (state3, out3) = src.acquire_ex(1, 1, 0);
         assert_eq!(state3, RegionState::Ready);
@@ -878,17 +766,11 @@ mod tests {
         );
     }
 
-    /// Ports `sample_source_spec.cpp`'s "8b: a pending LOADING region that
-    /// becomes unreservable is dropped, not stranded" -- exercises the
-    /// `Get::Unavailable` arm's `release_pending()` with a REAL outstanding
-    /// pending lease already in hand, unlike the zero-baseline
-    /// `acquire_unavailable_leaves_nothing_leased`. The real `ManagerResidency`
-    /// has no lever to make an ALREADY-reserved (leased) index turn unreservable
-    /// mid-flight -- a live lease can't be evicted -- so an out-of-range index
-    /// stands in for "the next acquire reports Unavailable"; the load-bearing
-    /// claim (an outstanding pending lease is released, not stranded) is the
-    /// same either way. Also locks in the C++ spec's "lease == 0 is a no-op"
-    /// case for `retain`/`release` against a live (here, zero) balance.
+    /// An `Unavailable` acquire releases an outstanding pending lease rather than stranding it,
+    /// and a zero token is a no-op for `retain`/`release`.
+    ///
+    /// A leased index cannot be evicted, so an out-of-range index stands in for a region that
+    /// becomes unreservable.
     #[test]
     fn pending_lease_is_dropped_not_stranded_when_the_next_acquire_is_unavailable() {
         let (src, h, _asset) = new_source(4);
@@ -913,20 +795,14 @@ mod tests {
         assert_eq!(total_leases(h), 0);
     }
 
-    /// Ports `sample_source_spec.cpp`'s "8b: a LOADING acquire that
-    /// consumes the standing prefetch still reports a truthful state for that
-    /// same index (the in-flight `pending` reservation, not UNAVAILABLE)".
-    /// `take_promoted`'s "falls through to the Loading arm, which moves it to
-    /// pending" contract (see `acquire_ex`'s step-1 doc) is exercised by
-    /// `slots_never_track_the_same_index`'s sequence, but that test only checks
-    /// the never-same-index invariant there, never that `state()` stays truthful
-    /// (LOADING, not UNAVAILABLE) while the promoted reservation sits in `pending`.
+    /// Promoting a prefetch that is still loading moves it to `pending`, and `state` keeps
+    /// reporting it `Loading`, not `Unavailable`.
     #[test]
     fn promoted_prefetch_that_is_not_yet_ready_lands_in_pending_and_state_stays_truthful() {
         let (src, h, asset) = new_source(2);
         mark_index_ready(h, asset, 0);
 
-        // acquire(0) -> Ready, prefetches neighbour 1 (not marked ready -> Loading).
+        // acquire(0) -> Ready, prefetch(1) Loading.
         let (state0, _out0) = src.acquire_ex(0, 1, 0);
         assert_eq!(state0, RegionState::Ready);
         assert_eq!(
@@ -935,29 +811,21 @@ mod tests {
             "standing prefetch, not yet landed"
         );
 
-        // Acquire exactly the prefetched index while it is still not ready: this
-        // promotes prefetch(1) -- `take_promoted` hits -- but since the pin isn't
-        // ready yet, it falls through to the Loading arm and moves into `pending`,
-        // emptying `prefetch`.
+        // Acquire the prefetched index while still loading: it moves into `pending`.
         let (state1, out1) = src.acquire_ex(1, 1, 0);
         assert_eq!(state1, RegionState::Loading);
         assert!(out1.is_none());
 
-        // THE load-bearing assertion: index 1 is now tracked by `pending`, not
-        // lost in the prefetch->pending handoff -- state() must still say
-        // LOADING, never UNAVAILABLE (which would tell a deferring caller nothing
-        // is in flight, when a fill genuinely still is).
+        // `Unavailable` here would tell a deferring caller nothing is in flight when a fill is.
         assert_eq!(src.state(1), RegionState::Loading);
         assert_eq!(total_leases(h), 2, "current(0) + the promoted pending(1)");
 
-        // It lands -- the same indexed query reports READY, still without acquiring.
+        // It lands: `state` reports Ready without acquiring.
         mark_index_ready(h, asset, 1);
         assert_eq!(src.state(1), RegionState::Ready);
 
-        // And the retry that actually acquires it lands cleanly: the pending
-        // lease folds into `current`, no leak, no duplicate. num_clusters=2, so
-        // index 1 has no in-range forward neighbour to prefetch, keeping the
-        // final count an unambiguous single lease.
+        // The retry folds the pending lease into `current`. Two clusters, so no neighbour
+        // prefetch: exactly one lease.
         let (state1b, out1b) = src.acquire_ex(1, 1, 0);
         assert_eq!(state1b, RegionState::Ready);
         let out1b = out1b.expect("ready must fill out");
@@ -969,9 +837,7 @@ mod tests {
         );
     }
 
-    /// Splitmix64: a tiny, dependency-free PRNG (no `rand`/`proptest` dev-dep
-    /// exists on this crate) used only to pick deterministic op sequences below --
-    /// NOT for anything security- or distribution-sensitive.
+    /// SplitMix64, for deterministic op sequences.
     fn splitmix64(state: &mut u64) -> u64 {
         *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = *state;
@@ -980,23 +846,12 @@ mod tests {
         z ^ (z >> 31)
     }
 
-    /// A randomized lease-balance cross-check (fuzzed forward-walks / jumps / state
-    /// queries): a deterministic random walk of cursor operations over
-    /// MANY seeds, asserting the cursor's own lease bookkeeping is self-consistent
-    /// throughout and net-zero on close, never panicking, double-freeing, or
-    /// running any slot out of the manager's tracked range.
+    /// Seeded random walks of cursor operations (steps, jumps, state queries, fills, retains)
+    /// check lease balance.
     ///
-    /// Two invariants are checked, not one:
-    /// - PER-STEP (the strong one): a cursor's `current`/`pending`/`prefetch`
-    ///   slots hold at most one lease each, so at every point in the walk
-    ///   `total_leases(h)` can only be explained by "at most 3 cursor-owned
-    ///   leases" plus whatever this test has explicitly `retain`ed and not yet
-    ///   `release`d. Any excess is a leak (or a double-lease) caught the INSTANT
-    ///   it happens, not just at the end.
-    /// - END-OF-SEED: after releasing every outstanding explicit retain and
-    ///   calling `close()`, the manager's total lease count must return to
-    ///   exactly the pre-walk baseline (0) -- no leak, no double-free survives a
-    ///   full teardown.
+    /// - After every step, outstanding leases are at most three cursor-owned ones plus the
+    ///   test's explicit retains, so a leak is caught on the step that causes it.
+    /// - After releasing the retains and closing, the total returns to zero.
     #[test]
     fn random_walk_lease_balance_is_net_zero_across_many_seeds() {
         use std::collections::HashMap;
@@ -1008,8 +863,7 @@ mod tests {
         for seed in 0..256u64 {
             let mut rng = seed ^ 0xD1B5_4A32_D192_ED03;
 
-            // A fresh manager per seed keeps seeds fully independent (no leakage
-            // of one seed's leases into another's baseline).
+            // A fresh manager per seed keeps seeds independent.
             let (mut src, h, asset) = new_source(6);
             let num_clusters = 6u32;
 
@@ -1050,21 +904,17 @@ mod tests {
                         }
                     }
                     3 => {
-                        // Pure state query -- must never acquire or mutate.
+                        // State query: must never acquire or mutate.
                         let idx = (splitmix64(&mut rng) % u64::from(num_clusters)) as u32;
                         let _ = src.state(idx);
                     }
                     4 => {
-                        // Stand in for the loader landing a fill, unlocking Ready
-                        // transitions/promotions the walk would otherwise never
-                        // reach.
+                        // Land a fill, standing in for the loader.
                         let idx = (splitmix64(&mut rng) % u64::from(num_clusters)) as u32;
                         mark_index_ready(h, asset, idx);
                     }
                     5 => {
-                        // Retain a random previously-seen token (independent of
-                        // the cursor's own slots -- may be stale/superseded,
-                        // which the provider tolerates as a no-op).
+                        // Retain a previously seen token; a stale one is a no-op.
                         if !known_tokens.is_empty() {
                             let i = (splitmix64(&mut rng) as usize) % known_tokens.len();
                             let token = known_tokens[i];
@@ -1089,10 +939,7 @@ mod tests {
                     _ => unreachable!("r % 7 is in 0..7"),
                 }
 
-                // PER-STEP invariant: nothing beyond "the cursor's own <=3 slot
-                // leases, plus whatever this test still holds retained" is ever
-                // outstanding. A leak (or double-free that inflates the count)
-                // trips this on the very step that causes it.
+                // Per-step bound: the cursor's slot leases plus this test's retains.
                 let budget = MAX_CURSOR_OWNED_LEASES + outstanding_retains(&retained);
                 assert!(
                     total_leases(h) <= budget,
@@ -1102,16 +949,12 @@ mod tests {
                     total_leases(h)
                 );
 
-                // Occasionally close and reopen a fresh cursor over the SAME
-                // manager/asset mid-walk -- `close()` must drop exactly the
-                // cursor's own slots (any outstanding explicit retains are
-                // independent and survive it), never more, never less.
+                // Occasionally reopen over the same manager: `close` drops exactly the cursor's own
+                // slots; explicit retains survive it.
                 if r.is_multiple_of(37) {
                     src.close();
                     known_tokens.clear();
-                    // SAFETY: `h` is the same live handle `new_source` created;
-                    // reopening a fresh cursor over it mirrors a real reader
-                    // being torn down and a new one taking its place.
+                    // SAFETY: `h` is the live handle `new_source` created.
                     let residency =
                         unsafe { ManagerResidency::new(h, asset, CLUSTER_SIZE, num_clusters) };
                     src = SampleSource::new(residency, test_geo(num_clusters));
@@ -1119,14 +962,12 @@ mod tests {
                 }
             }
 
-            // Explicit release of everything this seed still holds retained...
+            // Release every explicit retain, then close: the total must return to zero.
             for (token, count) in retained.drain() {
                 for _ in 0..count {
                     src.release(token);
                 }
             }
-            // ...then close, dropping the cursor's own current/pending/prefetch
-            // pins -- together, net-zero: no leak, no double-free.
             src.close();
             assert_eq!(
                 total_leases(h),

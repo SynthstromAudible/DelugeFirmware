@@ -12,7 +12,7 @@
 //!
 //! # Examples
 //!
-//! ```rust
+//! ```rust,no_run
 //! use tokio::fs;
 //! use embedded_io_async::Write;
 //!

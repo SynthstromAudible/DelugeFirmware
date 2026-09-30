@@ -1,8 +1,5 @@
-//! Host tests for the `sim_block` seam (R5a Phase 0). Verifies that a future which is
-//! Pending until an external agent acts can still complete under a non-yielding block,
-//! provided a progress hook is registered — and that an unsatisfiable future trips the
-//! wedge budget instead of spinning forever.
-#![cfg(not(target_os = "none"))]
+//! `sim_block::block_on`: a future pending on an outside agent completes when a progress hook is
+//! registered, and an unsatisfiable one trips the spin budget instead of spinning forever.
 
 use core::future::Future;
 use core::pin::Pin;
@@ -10,22 +7,13 @@ use core::sync::atomic::{AtomicU32, Ordering};
 use core::task::{Context, Poll};
 use std::sync::Mutex;
 
-// No `deluge_bsp_rust::` path exists (bin-only crate) — re-include the module by path,
-// the same way the other `tests/*_host.rs` files do.
-#[path = "../src/sim_block.rs"]
-mod sim_block;
+use deluge_bsp_rust::storage::sim_block;
 
 use sim_block::Progress;
 
-/// `sim_block`'s progress hook and spin budget are process-global statics.
-/// `cargo test` runs `#[test]`s in parallel threads by default, so without
-/// this lock one test's `set_progress_hook`/`set_spin_budget` can stomp on
-/// another's mid-spin (see `fs_differential/tests/differential.rs:9-18` for
-/// the same idiom against a different shared global). Every test here takes
-/// this lock first, for its whole body, instead of requiring
-/// `--test-threads=1`. It does NOT reset the hook/budget between tests —
-/// each test already sets both explicitly at the top, which is what gives
-/// it a clean slate.
+/// Serializes the tests: the progress hook and spin budget are process-global.
+///
+/// Each test takes it for its whole body and sets both hook and budget itself.
 static TEST_LOCK: Mutex<()> = Mutex::new(());
 
 /// Ready only once `TICKS` has been bumped `n` times by the progress hook.
@@ -66,9 +54,8 @@ fn block_on_completes_when_hook_makes_progress() {
     );
 }
 
-/// Pending until another OS thread sets `CROSS_THREAD_DONE` — the shape every host-shim
-/// storage spin has once the I/O-class waits collapse. Unlike [`NeedsTicks`], nothing the
-/// spinning thread itself does can make this ready.
+/// Ready only once another OS thread sets `CROSS_THREAD_DONE`; nothing the spinning thread does
+/// can make it ready.
 struct NeedsOtherThread;
 static CROSS_THREAD_DONE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
@@ -85,16 +72,13 @@ impl Future for NeedsOtherThread {
 
 #[test]
 fn threaded_host_hook_completes_a_spin_another_thread_satisfies() {
-    // The threaded host's real case: this thread spins on state only ANOTHER OS thread can
-    // set. With no hook (or a Stalled one) `block_on` calls that a wedge and trips its budget;
-    // on a threaded host yielding IS progress, which is what the threaded-host hook encodes.
+    // Only another OS thread can satisfy this spin; on a threaded host, yielding is progress.
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     CROSS_THREAD_DONE.store(false, Ordering::SeqCst);
 
     sim_block::use_threaded_host_hook();
-    // Deliberately small. If yielding did NOT count as progress, this budget would trip long
-    // before the sleeping thread lands — so a pass means the hook is what carried the spin,
-    // not that the spin happened to be short.
+    // Small enough to trip long before the other thread lands unless the hook counts yielding as
+    // progress.
     sim_block::set_spin_budget(50);
 
     let h = std::thread::spawn(|| {
@@ -118,9 +102,7 @@ fn stalled_hook() -> Progress {
 #[test]
 #[should_panic(expected = "sim_block: wedged")]
 fn block_on_wedges_instead_of_spinning_forever() {
-    // This test panics on purpose while holding `TEST_LOCK`, poisoning it —
-    // hence the `unwrap_or_else(|e| e.into_inner())` recovery on every
-    // acquisition above and below, rather than a bare `.unwrap()`.
+    // Panics while holding `TEST_LOCK`, poisoning it; every acquisition recovers from that.
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     TICKS.store(0, Ordering::SeqCst);
     sim_block::set_progress_hook(stalled_hook);

@@ -17,7 +17,7 @@ from pathlib import Path
 SHARED_TARGET_SUBDIR = Path("build") / "cargo-harness"
 
 # The C++ app's object closure for the Embassy host harnesses: the app, its libraries and the host BSP's C side,
-# compiled for x86-64. Nothing links here; golden_vt_render's build.rs archives these objects.
+# compiled for x86-64. Nothing links here; golden_vt_render's build script archives these objects.
 HOST_APP_TREE = Path("build") / "host-app"
 HOST_APP_ARM_TREE = Path("build") / "host-app-arm"
 # The Rust target the ARM golden_vt_render is built for: 32-bit ARM Linux, hard float, run under qemu.
@@ -179,7 +179,7 @@ def products(root: Path) -> dict[str, Product]:
         "golden-vt-render-arm": GoldenVtRenderArm(
             "golden-vt-render-arm",
             ["host-app-arm"],
-            ["cargo", "deluge-sdk-sibling", "qemu-arm"],
+            ["cargo", "qemu-arm"],
             {
                 "GOLDEN_VT_RENDER_TARGET": ARM_TARGET,
                 "GOLDEN_VT_RENDER_WRAPPER": "qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9",
@@ -188,7 +188,7 @@ def products(root: Path) -> dict[str, Product]:
         "golden-vt-render": GoldenVtRender(
             "golden-vt-render",
             ["host-app"],
-            ["cargo", "deluge-sdk-sibling"],
+            ["cargo"],
             host_app_env,
         ),
     }

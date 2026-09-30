@@ -3,6 +3,19 @@
 version = 4
 
 [[package]]
+name = "aarch32-cpu"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5db6700cf01549520abec199376115e1ceb6fde1d1de30064f0f230be8a0c305"
+dependencies = [
+ "arbitrary-int 2.1.1",
+ "arm-targets 0.4.3",
+ "bitbybit",
+ "num_enum",
+ "thiserror",
+]
+
+[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -99,6 +112,12 @@ name = "arm-targets"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3371884971a96d71d8bd4e781188a7d327d7e5e455d07ef4c352922c66695e9e"
+
+[[package]]
+name = "arm-targets"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0555f30eb9cd1a07d7677d01971da6c74cbbb0f73f0667cbee74e590a68a619"
 
 [[package]]
 name = "as-slice"
@@ -224,6 +243,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1d07550c9036bf2ae0c684c4297d503f838287c83c53686d05370d0e139ae570"
 
 [[package]]
+name = "const-default"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b396d1f76d455557e1218ec8066ae14bba60b4b36ecd55577ba979f5db7ecaa"
+
+[[package]]
 name = "cordyceps"
 version = "0.3.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -240,7 +265,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4ea2a354642e242870bc43b57a517359b0be6e96d302b2811cd0644c979c54e"
 dependencies = [
  "arbitrary-int 2.1.1",
- "arm-targets",
+ "arm-targets 0.3.0",
  "bitbybit",
  "critical-section",
  "num_enum",
@@ -320,8 +345,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "deluge-alloc"
+version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de#fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de"
+dependencies = [
+ "critical-section",
+ "rlsf",
+]
+
+[[package]]
 name = "deluge-bsp"
 version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de#fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de"
 dependencies = [
  "cortex-ar",
  "critical-section",
@@ -337,19 +372,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "deluge-bsp-rust"
+version = "0.1.0"
+dependencies = [
+ "aligned",
+ "bindgen",
+ "block-device-adapters",
+ "block-device-driver",
+ "cortex-ar",
+ "critical-section",
+ "deluge-alloc",
+ "deluge-bsp",
+ "deluge_alloc",
+ "deluge_audio_format",
+ "deluge_resource",
+ "deluge_sample_fill",
+ "deluge_sample_reader",
+ "deluge_sample_source",
+ "deluge_sample_stream",
+ "embassy-executor",
+ "embassy-futures",
+ "embassy-sync",
+ "embassy-time",
+ "embassy-usb",
+ "embassy-usb-driver",
+ "embedded-fatfs",
+ "embedded-io-async 0.7.0",
+ "heapless 0.8.0",
+ "log",
+ "rza1l-hal",
+]
+
+[[package]]
 name = "deluge_alloc"
 version = "0.1.0"
 
 [[package]]
 name = "deluge_audio_format"
-version = "0.1.0"
-
-[[package]]
-name = "deluge_card_generation"
-version = "0.1.0"
-
-[[package]]
-name = "deluge_channel"
 version = "0.1.0"
 
 [[package]]
@@ -419,6 +478,8 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5d0d3b15c9d7dc4fec1d8cb77112472fb008b3b28c51ad23838d83587a6d2f1e"
 dependencies = [
+ "aarch32-cpu",
+ "arm-targets 0.4.3",
  "cordyceps",
  "critical-section",
  "document-features",
@@ -685,30 +746,14 @@ checksum = "e4eba85ea1d0a966a983acd07deee566e67395d2d96b6fb39e62b5a833f1eb0b"
 name = "golden_vt_render"
 version = "0.1.0"
 dependencies = [
- "aligned",
- "bindgen",
- "block-device-adapters",
- "block-device-driver",
  "critical-section",
- "deluge-bsp",
- "deluge_audio_format",
- "deluge_card_generation",
- "deluge_channel",
- "deluge_resource",
- "deluge_sample_fill",
- "deluge_sample_reader",
- "deluge_sample_source",
- "deluge_sample_stream",
+ "deluge-bsp-rust",
  "embassy-executor",
  "embassy-futures",
- "embassy-sync",
  "embassy-time",
  "embassy-time-driver",
  "embassy-time-queue-utils",
- "embedded-fatfs",
- "embedded-io-async 0.7.0",
  "env_logger",
- "heapless 0.8.0",
  "log",
 ]
 
@@ -1021,6 +1066,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
 
 [[package]]
+name = "rlsf"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07393724337be2ee43a9d86164df4505746874a3fa65913374bc6d6a92314362"
+dependencies = [
+ "cfg-if",
+ "const-default",
+ "libc",
+ "rustversion",
+]
+
+[[package]]
 name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1035,6 +1092,7 @@ checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 [[package]]
 name = "rza1l-hal"
 version = "0.1.0"
+source = "git+https://github.com/FirestormAudio/deluge-embassy.git?rev=fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de#fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de"
 dependencies = [
  "cortex-ar",
  "critical-section",

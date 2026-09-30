@@ -1,22 +1,20 @@
-//! Two-Level Segregated Fit (TLSF) allocator core — O(1) bounded alloc/free with
-//! bounded fragmentation, `no_std`, no MMU, all metadata in the managed region.
+//! Two-Level Segregated Fit (TLSF) allocator core: O(1) alloc/free with bounded fragmentation,
+//! `no_std`, all metadata in the managed region.
 //!
-//! From-scratch implementation of the canonical TLSF algorithm (Masmano et al.;
-//! structure follows Matt Conte's reference `tlsf.c`).
+//! Follows the canonical algorithm (Masmano et al.) and the structure of Matt Conte's `tlsf.c`.
+//! Invariants, by construction:
 //!
-//! Invariants this guarantees by construction (the reason for the rewrite):
-//! - every payload pointer is **16-byte aligned** (granularity == 16, headers
-//!   padded to 16), and `alloc` honors any larger power-of-two alignment;
-//! - adjacent free blocks always coalesce (boundary tags);
-//! - alloc/free are O(1) worst-case (segregated free lists + bitmaps).
+//! - every payload is 16-byte aligned (granularity 16, headers padded to 16), and `malloc` honours
+//!   any larger power-of-two alignment;
+//! - no two free blocks are physically adjacent (boundary-tag coalescing);
+//! - alloc/free are O(1) worst case (segregated free lists plus bitmaps).
 
 use core::ffi::c_void;
 use core::ptr;
 
-/// Reclaim hook: invoked when the heap is out of space, to ask a resource layer
-/// (the slab cache pool) to free `bytes_needed` worth of reclaimable memory.
-/// Returns true if it freed something (the alloc is then retried). Mirrors the
-/// C++ `Reclaimer` seam on the Rust side.
+/// Reclaim hook, called when the heap is out of space to ask the cache layer to free
+/// `bytes_needed` bytes of reclaimable memory. Returns true if it freed something, and the
+/// allocation is retried.
 pub type ReclaimFn = unsafe extern "C" fn(ctx: *mut c_void, bytes_needed: usize) -> bool;
 
 const ALIGN_LOG2: usize = 4;
@@ -33,21 +31,19 @@ const BLOCK_PREV_FREE: usize = 1 << 1;
 const FLAG_MASK: usize = BLOCK_FREE | BLOCK_PREV_FREE;
 const SIZE_MASK: usize = !FLAG_MASK;
 
-/// Per-block boundary tag — *exactly* `HEADER_SIZE` (16) bytes. Padded to 16 so
-/// payloads (which start immediately after) are 16-aligned on every arch. The
-/// doubly-linked free-list links are NOT struct fields: while a block is free they
-/// live in the first two words of its *payload* (see `link_next`/`link_prev`). This
-/// matters for soundness — keeping the struct at 16 bytes means a `&BlockHeader` (or
-/// any `&self`/`&mut self` method) never spans more than the 16 bytes actually
-/// reserved for a header, so forming one for the end sentinel (which has only a
-/// header, no payload) stays in-bounds. (A 32-byte struct made the sentinel's
-/// reference run past the arena — UB, caught by miri.)
+/// Per-block boundary tag, exactly `HEADER_SIZE` (16) bytes, so payloads are 16-aligned on every
+/// architecture.
+///
+/// The free-list links are not fields: while a block is free they live in the first two words of
+/// its payload (`link_next`/`link_prev`). Keeping the struct at 16 bytes is a soundness
+/// requirement — a `&BlockHeader` must never span past the header, because the end sentinel has
+/// no payload and a larger struct would reach beyond the arena.
 #[repr(C, align(16))]
 struct BlockHeader {
     /// Physical-predecessor block; valid only when this block's PREV_FREE is set.
     prev_phys: *mut BlockHeader,
-    /// Payload size in bytes (multiple of ALIGN) in the high bits; low 2 bits are
-    /// the BLOCK_FREE / BLOCK_PREV_FREE flags.
+    /// Payload size in bytes (a multiple of `ALIGN`); the low 2 bits are the `BLOCK_FREE` and
+    /// `BLOCK_PREV_FREE` flags.
     size_and_flags: usize,
 }
 
@@ -112,10 +108,8 @@ unsafe fn next_phys(block: *mut BlockHeader) -> *mut BlockHeader {
     (payload_of(block)).add((*block).size()) as *mut BlockHeader
 }
 
-// Doubly-linked free-list links, stored in the payload of a *free* block (which is
-// always >= MIN_BLOCK_SIZE = two pointers). Kept out of `BlockHeader` so the struct
-// stays exactly HEADER_SIZE; only ever touched on free blocks, so the payload bytes
-// they occupy are always in-bounds.
+// Free-list links, stored in a free block's payload (always at least `MIN_BLOCK_SIZE`, two
+// pointers). Only touched on free blocks, so the bytes are always in bounds.
 #[inline]
 unsafe fn link_next(block: *mut BlockHeader) -> *mut BlockHeader {
     (payload_of(block) as *mut *mut BlockHeader).read()
@@ -133,18 +127,13 @@ unsafe fn set_link_prev(block: *mut BlockHeader, v: *mut BlockHeader) {
     (payload_of(block) as *mut *mut BlockHeader).add(1).write(v);
 }
 
-// ---------------------------------------------------------------------------
-// AddressSanitizer poisoning (host-sim use-after-free / use-after-steal).
+// AddressSanitizer poisoning.
 //
-// With the `asan` feature on, a free (or never-yet-carved) block's payload is
-// poisoned so any access traps — EXCEPT its first `LINK_BYTES` (the two free-list
-// links the allocator parks there) and its 16-byte header, which the allocator
-// must keep touching. malloc unpoisons the whole carved block before returning it.
-// Off, every hook compiles to nothing, so the device codegen is unchanged.
-//
-// The __asan_* runtime symbols resolve from libasan at the final C++ link (the sim
-// links -fsanitize=address); this staticlib leaves them undefined, which is fine.
-// ---------------------------------------------------------------------------
+// With the `asan` feature, a free or never-carved block's payload is poisoned so any access traps,
+// except its header and its first `LINK_BYTES` (the free-list links), which the allocator keeps
+// touching. `malloc` unpoisons the whole carved block before returning it. Without the feature
+// every hook compiles to nothing. The `__asan_*` symbols are left undefined here, for the
+// `-fsanitize=address` link to resolve.
 
 /// Bytes at a free block's payload start reserved for its two free-list links.
 const LINK_BYTES: usize = 2 * core::mem::size_of::<*mut BlockHeader>();
@@ -171,8 +160,7 @@ unsafe fn asan_unpoison(_addr: *mut u8, _size: usize) {
     }
 }
 
-/// Poison the body of a now-free `block`, leaving its two free-list links (the
-/// only bytes the allocator reads/writes while it sits free) accessible.
+/// Poisons the body of a now-free `block`, leaving its free-list links accessible.
 #[inline(always)]
 unsafe fn poison_free_body(block: *mut BlockHeader) {
     let size = (*block).size();
@@ -181,15 +169,13 @@ unsafe fn poison_free_body(block: *mut BlockHeader) {
     }
 }
 
-/// Unpoison the full payload of `block` (its final, post-split size) — called
-/// just before handing the block to the caller.
+/// Unpoisons the full payload of `block` at its current size.
 #[inline(always)]
 unsafe fn unpoison_block(block: *mut BlockHeader) {
     asan_unpoison(payload_of(block), (*block).size());
 }
 
-/// (first-level, second-level) index for a block of `size`, rounded *down*
-/// (used when inserting a free block).
+/// Returns the (first-level, second-level) index for a free block of `size`, rounded down.
 #[inline]
 fn mapping_insert(size: usize) -> (usize, usize) {
     if size < SMALL_BLOCK_SIZE {
@@ -201,8 +187,8 @@ fn mapping_insert(size: usize) -> (usize, usize) {
     }
 }
 
-/// (fl, sl) rounded *up* to the next size class (used when searching for a block
-/// to satisfy an allocation), so the found block is guaranteed large enough.
+/// Returns the (fl, sl) index rounded up to the next size class, so any block found there is large
+/// enough for `size`.
 #[inline]
 fn mapping_search(size: usize) -> (usize, usize) {
     let size = if size >= SMALL_BLOCK_SIZE {
@@ -214,25 +200,27 @@ fn mapping_search(size: usize) -> (usize, usize) {
     mapping_insert(size)
 }
 
+/// A TLSF control block, placed in front of the pool it manages.
 pub struct Tlsf {
     fl_bitmap: u32,
     sl_bitmap: [u32; FL_INDEX_COUNT],
     blocks: [[*mut BlockHeader; SL_INDEX_COUNT]; FL_INDEX_COUNT],
-    // Reclaim hook (the slab cache pool registers here). All-zero after init()
-    // means "no hook" (Option<fn> null niche, null ctx, not reclaiming).
+    // All-zero after `init` means no hook and not reclaiming.
     reclaim_cb: Option<ReclaimFn>,
     reclaim_ctx: *mut c_void,
     reclaiming: bool,
-    // The single managed pool's first physical block and one-past-the-end byte,
-    // recorded by add_pool for the read-only integrity walk (check()). Null/0 until
-    // a pool is added. (Each Deluge heap has exactly one pool — deluge_heap_create.)
+    // The one pool's first block and end address, for `check`; null/0 until `add_pool`.
     pool_first: *mut BlockHeader,
     pool_end: usize,
 }
 
 impl Tlsf {
-    /// Construct an empty TLSF in place at `ptr` (must point to writable storage
-    /// of at least `size_of::<Tlsf>()` bytes).
+    /// Constructs an empty TLSF in place.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must point to writable storage of at least [`control_size`](Self::control_size)
+    /// bytes.
     pub unsafe fn init(ptr: *mut Tlsf) {
         ptr::write_bytes(ptr as *mut u8, 0, core::mem::size_of::<Tlsf>());
     }
@@ -246,8 +234,8 @@ impl Tlsf {
         self.reclaim_ctx = ctx;
     }
 
-    /// The registered hook, if any. Returned by value so the caller can drop its
-    /// borrow of the heap before invoking it (the hook re-enters via free()).
+    /// Returns the registered hook, by value so the caller can drop its heap borrow before calling
+    /// it (the hook re-enters through `free`).
     pub fn reclaim_hook(&self) -> Option<(ReclaimFn, *mut c_void)> {
         self.reclaim_cb.map(|cb| (cb, self.reclaim_ctx))
     }
@@ -298,7 +286,7 @@ impl Tlsf {
         }
     }
 
-    /// Find a free block >= the size implied by (fl, sl); returns null if none.
+    /// Finds a free block at least as large as class (fl, sl); returns null if none.
     unsafe fn search_suitable(&self, fl_in: usize, sl_in: usize) -> *mut BlockHeader {
         let mut fl = fl_in;
         let mut sl = sl_in;
@@ -317,12 +305,12 @@ impl Tlsf {
         self.blocks[fl][sl]
     }
 
-    /// Mark `block` used, removing it from its free list, and split off any
-    /// remainder beyond `size` as a new free block.
+    /// Marks `block` used, removes it from its free list, and splits any remainder beyond `size`
+    /// into a new free block.
     unsafe fn use_block(&mut self, block: *mut BlockHeader, size: usize) {
         self.remove_free_block(block);
-        // Unpoison the whole block first: split() writes the remainder's header into
-        // what was this block's poisoned body. split() then re-poisons the remainder.
+        // `split` writes the remainder's header into the poisoned body, then re-poisons the
+        // remainder.
         unpoison_block(block);
         self.split(block, size);
         (*block).set_used();
@@ -331,8 +319,7 @@ impl Tlsf {
         (*next).set_prev_used();
     }
 
-    /// If `block` is larger than `size` by at least a minimum block, split the
-    /// remainder into a new free block and register it.
+    /// Splits the remainder beyond `size` into a new free block, if it is large enough to be one.
     unsafe fn split(&mut self, block: *mut BlockHeader, size: usize) {
         let block_size = (*block).size();
         if block_size >= size + HEADER_SIZE + MIN_BLOCK_SIZE {
@@ -352,8 +339,8 @@ impl Tlsf {
         }
     }
 
-    /// Coalesce `block` with its physical predecessor and successor if free.
-    /// Returns the (possibly new) merged block, registered as free.
+    /// Frees `block`, coalescing it with a free physical predecessor and successor, and registers
+    /// the merged block.
     unsafe fn free_block(&mut self, mut block: *mut BlockHeader) {
         (*block).set_free();
         // merge with next if free
@@ -376,14 +363,17 @@ impl Tlsf {
         (*after).prev_phys = block;
         (*after).set_prev_free();
         self.insert_free_block(block);
-        // Poison the whole merged body (the freed user bytes plus any absorbed
-        // neighbours' former headers/links — all interior now). The link area
-        // insert_free_block just wrote stays accessible.
+        // Poison the whole merged body, including absorbed neighbours' headers; the links stay
+        // accessible.
         poison_free_body(block);
     }
 
-    /// Add a usable memory region to the pool. The control block (`Tlsf`) must
-    /// live elsewhere (e.g. at the start of the arena, before `mem`).
+    /// Adds `[mem, mem + size)` as the heap's pool. `mem` must be `ALIGN`-aligned and must not
+    /// overlap the control block.
+    ///
+    /// # Safety
+    ///
+    /// The region must be writable and owned by the heap for its lifetime.
     pub unsafe fn add_pool(&mut self, mem: *mut u8, size: usize) {
         debug_assert!((mem as usize).is_multiple_of(ALIGN));
         // Layout: [free block header][... payload ...][sentinel header]
@@ -393,25 +383,11 @@ impl Tlsf {
             return;
         }
         let block = mem as *mut BlockHeader;
-        // Round DOWN to ALIGN, not merely to the flag granularity.
-        //
-        // `SIZE_MASK` is `!FLAG_MASK` (`!3`), so it only guarantees a multiple of 4 — but every
-        // block payload in this allocator must be ALIGN(16)-aligned, and `check()` enforces exactly
-        // that ("payloads are 16-aligned by construction"). The sentinel sits at
-        // `block + HEADER_SIZE + block_size`, so a `block_size` that is 4 (mod 16) puts the
-        // sentinel — and its header writes below — on a misaligned address. That is undefined
-        // behaviour, and on a freshly built pool it made the heap fail its own integrity walk
-        // immediately.
-        //
-        // It only bites a pool whose SIZE is not a multiple of ALIGN. `deluge_heap_create` aligns
-        // the base but derives the size from the region's end, so a region whose end is unaligned
-        // produces exactly that. The firmware's "frunk" heap is one: its bounds are the linker
-        // symbols `__frunk_bss_end`/`__frunk_slack_end`, which carry no 16-byte guarantee, and were
-        // observed at `0x200a8b84 .. 0x200b0b84` — both 4 (mod 16). Every previous test passed a
-        // `words * 16` size, which is why this went unseen.
-        //
-        // Rounding down only ever discards up to ALIGN-1 bytes at the very top of the pool, which
-        // were unusable anyway: a block must be ALIGN-aligned to be handed out.
+        // Round down to `ALIGN`, not merely to the flag granularity (`SIZE_MASK` only gives a
+        // multiple of 4). The sentinel sits at `block + HEADER_SIZE + block_size`, so a size that
+        // is not a multiple of 16 misaligns it, which is UB and fails `check`. A region whose end
+        // is unaligned (the device's frunk heap, bounded by linker symbols) yields such a size.
+        // The discarded bytes, at most `ALIGN - 1`, were unusable anyway.
         let block_size = (size - pool_overhead) & !(ALIGN - 1);
         (*block).prev_phys = Self::null();
         (*block).size_and_flags = block_size;
@@ -427,18 +403,16 @@ impl Tlsf {
         // Record the pool span for the integrity walk (single pool per heap).
         self.pool_first = block;
         self.pool_end = mem as usize + size;
-        // Whole pool starts free: poison its body so accesses to not-yet-carved
-        // space trap too (malloc unpoisons each block as it hands it out).
+        // The whole pool starts free: poison it so accesses to uncarved space trap too.
         poison_free_body(block);
     }
 
-    /// Read-only integrity walk of the managed pool: validates each physical
-    /// block's boundary tags (payload alignment, size granularity), the
-    /// prev-free flag / `prev_phys` back-link coherence, the no-two-adjacent-free
-    /// invariant, and that the chain terminates at the zero-size used sentinel
-    /// within the pool. Returns true if intact. Never allocates and bounds every
-    /// step by `pool_end`, so a corrupted size can't walk out of the arena. Reads
-    /// only headers (never a poisoned free-block body), so it is ASan-safe.
+    /// Walks the pool and returns whether it is intact.
+    ///
+    /// Checks each block's payload alignment and size granularity, the prev-free flag against the
+    /// `prev_phys` back-link, that no two free blocks are adjacent, and that the chain ends at the
+    /// zero-size used sentinel. Every step is bounded by `pool_end`, so a corrupted size cannot
+    /// walk out of the arena. Reads only headers, so it is ASan-safe; never allocates.
     pub unsafe fn check(&self) -> bool {
         if self.pool_first.is_null() {
             return true; // no pool registered: vacuously intact
@@ -489,7 +463,7 @@ impl Tlsf {
         }
     }
 
-    /// Round a request up to the granularity and the free-block minimum.
+    /// Rounds a request up to the granularity and the free-block minimum.
     #[inline]
     fn adjust_size(size: usize) -> usize {
         let s = (size + ALIGN - 1) & !(ALIGN - 1);
@@ -500,6 +474,8 @@ impl Tlsf {
         }
     }
 
+    /// Allocates `size` bytes aligned to `align` (at least `ALIGN`). Returns null if `size` is 0 or
+    /// nothing fits; does not reclaim.
     pub unsafe fn malloc(&mut self, size: usize, align: usize) -> *mut u8 {
         if size == 0 {
             return ptr::null_mut();
@@ -517,12 +493,10 @@ impl Tlsf {
             return payload_of(block);
         }
 
-        // Over-aligned: reserve room to shift the payload up to an aligned
-        // boundary. The leading gap, if any, must become a *valid* free block
-        // (header + >= MIN_BLOCK_SIZE payload), so reserve at most
-        // align + HEADER + MIN_BLOCK_SIZE of slack. A free block from search has
-        // only used physical neighbours (TLSF never leaves two free blocks
-        // adjacent), so the leading remnant can't coalesce — just insert it.
+        // Over-aligned: reserve slack to shift the payload to an aligned boundary. A non-zero
+        // leading gap must become a valid free block (header plus `MIN_BLOCK_SIZE`), hence
+        // `align + HEADER_SIZE + MIN_BLOCK_SIZE`. The searched block's neighbours are both used, so
+        // the leading remnant cannot coalesce and is simply inserted.
         let extra = align + HEADER_SIZE + MIN_BLOCK_SIZE;
         let (fl, sl) = mapping_search(adjust + extra);
         let block = self.search_suitable(fl, sl);
@@ -530,16 +504,14 @@ impl Tlsf {
             return ptr::null_mut();
         }
         self.remove_free_block(block);
-        // The manual carve below writes headers/links across this block's body, so
-        // unpoison it first; the leading remnant (if any) and the split tail are
-        // re-poisoned as they become free.
+        // The carve writes headers across the body; the remnant and tail are re-poisoned as they
+        // become free.
         unpoison_block(block);
 
         let payload = payload_of(block) as usize;
         let mut aligned = (payload + align - 1) & !(align - 1);
         let mut gap = aligned - payload;
-        // The leading block needs HEADER + MIN_BLOCK_SIZE bytes; if the gap is
-        // smaller (but non-zero) push the payload up one more alignment step.
+        // A non-zero gap too small for a leading block pushes the payload up one more step.
         if gap != 0 && gap < HEADER_SIZE + MIN_BLOCK_SIZE {
             aligned += align;
             gap = aligned - payload;
@@ -569,6 +541,7 @@ impl Tlsf {
         payload_of(block)
     }
 
+    /// Frees `payload`; null is a no-op.
     pub unsafe fn free(&mut self, payload: *mut u8) {
         if payload.is_null() {
             return;
@@ -577,6 +550,7 @@ impl Tlsf {
         self.free_block(block);
     }
 
+    /// Returns the payload size of `payload`'s block; 0 for null.
     pub unsafe fn usable_size(&self, payload: *mut u8) -> usize {
         if payload.is_null() {
             return 0;
@@ -584,8 +558,8 @@ impl Tlsf {
         (*block_of(payload)).size()
     }
 
-    /// Split `block` (which is USED) down to `want` payload bytes, freeing the
-    /// tail, when the excess is large enough to be its own block. Pointer-stable.
+    /// Shrinks used `block` to `want` payload bytes, freeing the tail if it is large enough to be
+    /// its own block.
     unsafe fn shrink_in_place(&mut self, block: *mut BlockHeader, want: usize) {
         let cur = (*block).size();
         if cur < want + HEADER_SIZE + MIN_BLOCK_SIZE {
@@ -599,8 +573,9 @@ impl Tlsf {
         self.free_block(tail); // marks free, coalesces with the following block, inserts
     }
 
-    /// Shrink `payload`'s block in place if `new_size` fits and the alignment already holds. Returns whether it did,
-    /// and the block's current payload size (what a moving realloc must copy).
+    /// Shrinks `payload`'s block in place if `new_size` fits and the alignment already holds.
+    /// Returns whether it did, and the block's payload size before the call (what a moving realloc
+    /// must copy).
     pub unsafe fn try_shrink_in_place(
         &mut self,
         payload: *mut u8,
@@ -618,13 +593,10 @@ impl Tlsf {
         (false, cur)
     }
 
-    /// Resize, preserving the leading min(old, new) bytes. A **shrink** is done in
-    /// place (split the tail, pointer-stable, no copy — and no worse for
-    /// fragmentation than moving, since the freed tail still coalesces with any
-    /// following free block). This covers the in-place-resize
-    /// callers (wave_table / patch_cable_set trims), which all shrink. A **grow**
-    /// has no in-place consumer, so it just moves (alloc + copy + free) — correct, only
-    /// unoptimized.
+    /// Resizes, preserving the leading `min(old, new)` bytes.
+    ///
+    /// A shrink is in place and pointer-stable; the freed tail still coalesces. A grow moves
+    /// (alloc, copy, free). On failure returns null and leaves `payload` intact.
     pub unsafe fn realloc(&mut self, payload: *mut u8, new_size: usize, align: usize) -> *mut u8 {
         if payload.is_null() {
             return self.malloc(new_size, align);

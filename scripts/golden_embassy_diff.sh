@@ -7,7 +7,7 @@
 # fresh reference, the actual `<fixture>_MIXDOWN.golden.wav.sha256` in
 # `DELUGE_GOLDEN_DIR`. This is the reusable convergence gate for the
 # golden-on-Embassy work: run it after any change that could perturb the Embassy
-# renderer's output (sim_latency/config changes, streaming-fill relocations, etc.)
+# renderer's output (config changes, streaming-fill relocations, etc.)
 # to prove the Rust/Embassy BSP still produces bit-exact golden output.
 #
 # Usage:
@@ -29,7 +29,7 @@
 # Exit: 0 = PASS (byte-identical to the stored golden) / update wrote the baseline,
 # 1 = mismatch or a render crash/wedge, 2 = setup error (no baseline yet, no corpus, etc.)
 #
-# Env overrides (same conventions as golden_mixdown.sh / sd_image.rs):
+# Env overrides (same conventions as golden_mixdown.sh / storage/sd_image.rs):
 #   DELUGE_GOLDEN_DIR         where the reconstructed project + golden baseline live
 #                             (default: ~/.cache/deluge-golden)
 #   DELUGE_BACKUP             the "Deluge Backup" root, used to reconstruct a fixture's

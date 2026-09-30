@@ -188,7 +188,7 @@ EXTERN_FN = re.compile(r"\bfn\s+([A-Za-z_]\w*)\s*\(")
 
 # Where a Rust item lives, for matching it to the pin that checks it: the file's repo-relative path for
 # `src/bsp/rust/src` and `src/bsp/rust/harness`, whose pins sit beside what they pin, or the crate's directory name for `crates/<dir>/src`,
-# which `abi_pins.rs` pins through the `in path:` form.
+# which `abi/pins.rs` pins through the `in path:` form.
 Scope = str
 
 

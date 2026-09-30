@@ -1,6 +1,4 @@
 use core::cmp;
-use core::u16;
-use core::u8;
 
 use crate::dir_entry::DIR_ENTRY_SIZE;
 use crate::error::{Error, IoError};
@@ -809,7 +807,6 @@ pub(crate) fn format_boot_sector<E: IoError>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use core::u32;
 
     fn init() {
         let _ = env_logger::builder().is_test(true).try_init();

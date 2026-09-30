@@ -1,51 +1,12 @@
-//! Host end-to-end: drives the full read -> convert -> stitch -> publish pipeline over a
-//! REAL `deluge_resource` manager (pure Rust, no C++), reading a SYNTHETIC "file" (an in-memory byte
-//! buffer) instead of `efatfs_host_shim::read_at` — see below for why, and what's covered elsewhere
-//! instead.
+//! Host end-to-end fill: read → convert → stitch → publish over a real `deluge_resource` manager,
+//! checked against the C++ reference.
 //!
-//! ## Why not `efatfs_host_shim::read_at` / real `ProdOps` (a deliberate, documented deviation)
-//!
-//! `efatfs_host_shim.rs` is gated `#![cfg(feature = "host_app")]`, and `deluge-bsp-rust`'s `host_app`
-//! Cargo feature does far more than pull in the storage stack this test would actually touch: its
-//! `build.rs` archives the FULL host-built C++ `deluge_app` object closure and force-roots the link at
-//! `deluge_app_init` (`-Wl,-u,deluge_app_init`) — which then needs the WHOLE boot-time provider surface
-//! satisfied (board/display/USB/OLED init, ~20+ symbols), not just the storage path. Verified
-//! empirically: enabling `--features host_app` on a plain `deluge_resource`-
-//! only host test (normally built with neither feature) fails to link with 20+ undefined symbols
-//! (`deluge_control_enable_oled`, `deluge_board_init_early`,
-//! `deluge_board_unlock_data_cache`, ...) — exactly the "cc-compiling a large C++ closure" case the
-//! brief calls out as the trigger to fall back to a host adapter instead. (`ProdOps`'s two
-//! `StreamedChunk` accessors — `deluge_streaming_chunk_payload`/`_set_loaded` — used to be a second
-//! reason `ProdOps`/`fill_once` were out of reach here, back when they were C++-defined in
-//! `async_fill.cpp`; the streamed chunk's storage now lives in `deluge_sample_fill::chunk` (Rust), so
-//! that reason no longer applies — the `host_app` closure above remains the one still standing.)
-//!
-//! So this test takes the "host adapter" path the brief explicitly sanctions, extended one step
-//! further: it also stands in a plain in-memory buffer for the SD-backed file `efatfs_host_shim::
-//! read_at` would otherwise read, rather than pulling in the whole `host_app`-gated storage stack
-//! (`crate::sd` / `deluge-bsp` / `embedded-fatfs`) for a read whose CONTRACT (fill `dst` from
-//! `byte_offset`, report success) is trivial. [`synthetic_read_at`] below matches
-//! `efatfs_host_shim::read_at`'s own documented contract exactly ("Read `dst.len()` bytes from
-//! absolute `byte_offset` of the file behind `handle`. Returns `true` iff the full buffer was
-//! filled."). This test's job is the fill ORCHESTRATION (read -> convert -> stitch -> publish), not
-//! re-proving the FAT read path — that path (and the per-asset fill-context REGISTRATION table this
-//! test also skips, building a [`fill_logic::FillGeometry`] by hand instead) already has its own
-//! dedicated host coverage (`tests/streaming_fill_context_host.rs`).
-//!
-//! Everything else here is real: a genuine `deluge_resource` manager (built over a real heap via its
-//! C-ABI), and the real `fill_logic::begin`/`finish_convert_stitch`. Convert-state
-//! itself is plain local `fill_logic::ConvertState` values rather than the chunk's own real store
-//! (the live store now lives on the streamed chunk's convert-state accessors, in Rust,
-//! but this test still keeps its own plain local values, since driving the real store
-//! would mean pulling in `ProdOps`/`fill_once` from `deluge-bsp-rust`, out of reach here for the
-//! `host_app`-closure reason above; `tests/native_finish_glue.rs` is the gate that drives the real
-//! store instead — see its own module doc). A never-`finish`ed chunk's state is simply zeroed
-//! `ConvertState::default()`, matching what the real store would report for a chunk nothing has ever
-//! written. Only the orchestration `ProdOps::begin`/`finish` themselves perform (resolve geometry,
-//! drive the read, gather neighbours, call `finish_convert_stitch`, publish) is reproduced by hand
-//! here, mirroring `streaming_loader.rs`'s `prod` module's own logic (not `fill_once`/`ProdOps`
-//! directly, which live behind the `host_app` closure).
-#![cfg(not(target_os = "none"))]
+//! The fill orchestration (resolve geometry, read, gather neighbours, `finish_convert_stitch`,
+//! publish) is reproduced by hand over `fill_logic`. The file is an in-memory buffer read through
+//! [`synthetic_read_at`], which has the contract of the BSP's `storage::efatfs::host::read_at`; the
+//! FAT read path is covered by `fs_differential`. Convert state is kept in local
+//! `fill_logic::ConvertState` values, zeroed as for a never-finished chunk;
+//! `tests/native_finish_glue.rs` drives the real chunk store and `native_finish` instead.
 
 use core::ffi::c_void;
 use core::ptr;
@@ -59,9 +20,8 @@ use deluge_resource::{
 use deluge_sample_fill::fill_logic;
 use fill_logic::{FillGeometry, NeighbourView, begin, finish_convert_stitch};
 
-// Single-threaded-per-test critical section: `deluge_resource`'s `sync::Masked` calls these three
-// C-ABI symbols; this test never models the audio-ISR context, so inert no-op stand-ins are
-// semantically correct (nothing here can race with itself — a single thread, no concurrent "ISR").
+// Host stand-ins for the C-ABI symbols `deluge_resource` calls. Each test is single-threaded with
+// no audio ISR, so no-ops are correct.
 #[unsafe(no_mangle)]
 extern "C" fn ENTER_CRITICAL_SECTION() {}
 #[unsafe(no_mangle)]
@@ -70,9 +30,7 @@ extern "C" fn EXIT_CRITICAL_SECTION() {}
 extern "C" fn deluge_in_interrupt() -> bool {
     false
 }
-// `deluge_resource` also asks its host whether it is standing on the audio render context (to skip
-// its critical section there -- never true here, so it always masks) and for the audio sample timer,
-// used for its loader-latency stats (instrumentation only; nothing here reads them).
+// Never on the audio context here; the timer only feeds latency stats nothing reads.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_in_audio_context() -> bool {
     false
@@ -82,26 +40,22 @@ extern "C" fn deluge_debug_now_frames() -> u32 {
     0
 }
 
-/// One sector (512 bytes) — the smallest realistic `Cluster::size` (`begin`'s sector math right-shifts
-/// by 9, so anything smaller than a sector rounds its default full-cluster read down to zero sectors;
-/// the fill-differential's own `simd_geo` deliberately uses a SMALLER 128-byte cluster for tighter
-/// SIMD/tail coverage, which is fine there since that test never calls `begin` — but this end-to-end
-/// test exercises `begin` for real, so it needs a realistic size).
+/// One sector, the smallest cluster `begin` handles: its read length is in whole sectors, so a
+/// smaller cluster would read nothing.
 const CLUSTER_SIZE: u32 = 512;
 const CLUSTER_MAGNITUDE: u32 = 9; // 2^9 = 512
 const PAYLOAD_LEN: usize = CLUSTER_SIZE as usize + 7;
 
-/// `deluge_resource_request`'s async `construct` callback: no I/O, just makes the chunk's backing
-/// bytes deterministic (not uninitialized heap garbage) before the synthetic read/stitch fill in the
-/// meaningful bytes. A requestable asset needs SOME `construct` callback to be requestable at all.
+/// The asset's `construct` callback (an asset needs one to be requestable): fills the backing with
+/// a known byte instead of heap garbage.
 unsafe extern "C" fn mock_construct(
     _ctx: *mut c_void,
     _owner: *mut c_void,
     _index: u32,
     dest: *mut u8,
 ) {
-    // SAFETY: `dest` comes from the manager's just-allocated `PAYLOAD_LEN`-byte backing (the fixed
-    // `size` this test always passes to `deluge_resource_request`).
+    // SAFETY: `dest` is the manager's fresh `PAYLOAD_LEN`-byte backing; every request here uses
+    // that size.
     unsafe { core::ptr::write_bytes(dest, 0xEE, PAYLOAD_LEN) };
 }
 
@@ -116,9 +70,8 @@ impl TestManager {
     fn new(chunk_cap: usize) -> Self {
         let words = (256 * 1024usize).div_ceil(16);
         let mut buf = vec![0u128; words];
-        // SAFETY: `buf` is a live, 16-aligned, `words * 16`-byte arena for as long as `self` (and thus
-        // `buf`) is alive — `buf` is moved into the returned `TestManager`, never freed while `handle`
-        // is in use.
+        // SAFETY: `buf` is a 16-aligned `words * 16`-byte arena, moved into the returned
+        // `TestManager` and so alive as long as `handle`.
         let heap = unsafe { fs_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
         // SAFETY: `heap` is the live handle just created above.
         let handle = unsafe { deluge_resource_create(heap, 4, chunk_cap) };
@@ -144,8 +97,8 @@ impl TestManager {
         }
     }
 
-    /// Reserve chunk `index`'s backing under a hard lease, `PAYLOAD_LEN` bytes — the async/`request`
-    /// (no-I/O) path the real production `begin` uses too (an external loader fills the data after).
+    /// Reserves chunk `index`'s `PAYLOAD_LEN`-byte backing under a hard lease, without I/O; the
+    /// caller fills it.
     fn request(&self, index: u32) -> *mut u8 {
         // SAFETY: `self.handle`/`self.asset` are live and valid.
         unsafe { deluge_resource_request(self.handle, self.asset, index, PAYLOAD_LEN) }
@@ -161,19 +114,16 @@ impl TestManager {
         unsafe { deluge_resource_mark_ready(self.handle, chunk) };
     }
 
-    /// The RT-safe "resident and ready" probe — mirrors `ProdOps`'s own neighbour-gather check
-    /// (`deluge_resource_try_acquire`) and is what this test uses to assert "mark-ready is reachable"
-    /// concretely: null before `mark_ready`, non-null (and identical to the leased pointer) after.
+    /// The RT-safe resident-and-ready probe the fill uses to gather neighbours: null until
+    /// `mark_ready`.
     fn try_acquire(&self, index: u32) -> *mut u8 {
         // SAFETY: `self.handle`/`self.asset` are live and valid.
         unsafe { deluge_resource_try_acquire(self.handle, self.asset, index) }
     }
 }
 
-/// Stand-in for `efatfs_host_shim::read_at` — SAME documented contract ("Read `dst.len()` bytes from
-/// absolute `byte_offset` of the file behind `handle`. Returns `true` iff the full buffer was
-/// filled."), over a plain in-memory byte slice instead of a mounted FAT file. See the module doc for
-/// why.
+/// Reads `dst.len()` bytes from absolute `byte_offset` of `file`; returns `true` iff `dst` was
+/// filled.
 fn synthetic_read_at(file: &[u8], byte_offset: u32, dst: &mut [u8]) -> bool {
     let start = byte_offset as usize;
     let Some(end) = start.checked_add(dst.len()) else {
@@ -188,8 +138,8 @@ fn synthetic_read_at(file: &[u8], byte_offset: u32, dst: &mut [u8]) -> bool {
 
 fn geo() -> FillGeometry {
     FillGeometry {
-        audio_data_start_pos_bytes: 3, // misaligned: 3 & 0b11 = 3 (nonzero) -> real boundary conversion
-        audio_data_length_bytes: 100_000, // well past 3 clusters -> none of them is the last
+        audio_data_start_pos_bytes: 3,    // misaligned
+        audio_data_length_bytes: 100_000, // none of the 3 clusters is the last
         first_cluster_index_with_no_audio_data: 50,
         cluster_size: CLUSTER_SIZE,
         cluster_size_magnitude: CLUSTER_MAGNITUDE,
@@ -197,17 +147,13 @@ fn geo() -> FillGeometry {
     }
 }
 
-/// A synthetic "file" spanning exactly 3 clusters' worth of raw data, with a distinguishable byte
-/// pattern (so a wrong-offset read would be obviously wrong, even though nothing here asserts on it
-/// directly — the C++-reference cross-check below is the real assertion).
+/// Three clusters of raw data in a position-dependent pattern.
 fn synthetic_file() -> Vec<u8> {
     region_fill_differential::ramp(0xF11E, 3 * CLUSTER_SIZE as usize)
 }
 
-/// One cluster's worth of the read step: `begin` resolves where/how much (mirrors `begin_fill`'s
-/// descriptor), the synthetic read fills the leading `cluster_size` bytes of `dest` (the trailing
-/// 7-byte slack is never read — only ever written later by `stitch`/`construct`, matching real
-/// `payload()` vs. `payload_with_trailing_slack()` semantics).
+/// The read step for one cluster: `begin` gives the offset and sector count, and the read fills
+/// `dest`'s leading `cluster_size` bytes. The 7-byte trailing slack is written only by the stitch.
 fn read_into(file: &[u8], geo: &FillGeometry, index: u32, dest: &mut [u8]) {
     let r = begin(index, geo);
     assert!(r.ok, "begin() geometry error for index {index}");
@@ -220,14 +166,8 @@ fn read_into(file: &[u8], geo: &FillGeometry, index: u32, dest: &mut [u8]) {
     assert!(filled, "synthetic read failed for index {index}");
 }
 
-/// Full pipeline: request 3 chunks (prev, self, next) from a real manager, read each via the synthetic
-/// file, run `finish_convert_stitch` on the middle one (mirroring `ProdOps::finish`'s neighbour-gather
-/// + convert/stitch + sidecar write-back + publish), then assert:
-///   - the resulting bytes match an INDEPENDENTLY computed expected converted+stitched output (the SAME
-///     C++ reference the fill-differential test uses, over the SAME synthetic bytes) — tying this
-///     end-to-end run back to the byte-exactness gate, not just re-asserting the wiring in isolation;
-///   - mark-ready is reachable: `try_acquire` is null before `mark_ready` (a `request`ed-but-not-ready
-///     chunk must stay invisible to the RT-safe path) and returns the SAME pointer after.
+/// Fills the middle of three chunks and checks the result matches the C++ reference over the same
+/// bytes, and that the chunk is invisible to `try_acquire` until `mark_ready` publishes it.
 #[test]
 fn read_convert_stitch_publish_matches_cpp_reference_and_mark_ready_is_reachable() {
     let mgr = TestManager::new(8);
@@ -240,8 +180,8 @@ fn read_convert_stitch_publish_matches_cpp_reference_and_mark_ready_is_reachable
     assert!(!prev_ptr.is_null() && !self_ptr.is_null() && !next_ptr.is_null());
 
     // SAFETY: each pointer is the just-`request`ed, `PAYLOAD_LEN`-byte backing for its own chunk,
-    // uniquely held here (no other alias exists) for the extent of the `read_into`/`finish_convert_stitch`
-    // calls below.
+    // uniquely held here (no other alias exists) for the extent of the
+    // `read_into`/`finish_convert_stitch` calls below.
     {
         let prev_buf = unsafe { core::slice::from_raw_parts_mut(prev_ptr, PAYLOAD_LEN) };
         read_into(&file, &geo, 0, prev_buf);
@@ -255,23 +195,18 @@ fn read_convert_stitch_publish_matches_cpp_reference_and_mark_ready_is_reachable
         read_into(&file, &geo, 2, next_buf);
     }
 
-    // Not yet ready: the RT-safe probe must report absent.
     assert!(
         mgr.try_acquire(1).is_null(),
         "try_acquire must be null before mark_ready (chunk is still just Loading)"
     );
 
-    // -- ProdOps::finish's own orchestration, driven by hand (see the module doc): gather each
-    // neighbour's convert-state (none of these three chunks has ever been `finish`ed before, so each
-    // starts at the zeroed default — matching what the real `StreamedChunk` accessors would report
-    // for a chunk nothing has ever written), run finish_convert_stitch, then publish. --
+    // The finish step: no chunk has been finished before, so all convert state starts zeroed.
     let mut self_state = fill_logic::ConvertState::default();
     let mut prev_state = fill_logic::ConvertState::default();
     let mut next_state = fill_logic::ConvertState::default();
 
     {
-        // SAFETY: same three pointers, still the sole aliases; each slice is exclusively borrowed for
-        // exactly this call.
+        // SAFETY: the same three backings, still unaliased; each slice lives only for this call.
         let self_buf = unsafe { core::slice::from_raw_parts_mut(self_ptr, PAYLOAD_LEN) };
         let prev_buf = unsafe { core::slice::from_raw_parts_mut(prev_ptr, PAYLOAD_LEN) };
         let next_buf = unsafe { core::slice::from_raw_parts_mut(next_ptr, PAYLOAD_LEN) };
@@ -303,11 +238,7 @@ fn read_convert_stitch_publish_matches_cpp_reference_and_mark_ready_is_reachable
 
     mgr.mark_ready(self_ptr);
 
-    // -- Cross-check against the SAME C++ reference the fill-differential uses, over freshly re-read
-    // clones of the SAME synthetic bytes — independent of the manager plumbing above; this is what
-    // ties the end-to-end pipeline back to the byte-exactness gate. Both neighbours are fresh (never
-    // independently `finish`ed) here too, so their `unconverted_head`/`end_converted` inputs are the
-    // same zeroed defaults `self_state`/`prev_state`/`next_state` started from above. --
+    // The C++ reference over freshly read copies of the same bytes, with the same zeroed state.
     let mut expect_self = vec![0u8; PAYLOAD_LEN];
     let mut expect_prev = vec![0u8; PAYLOAD_LEN];
     let mut expect_next = vec![0u8; PAYLOAD_LEN];
@@ -343,9 +274,8 @@ fn read_convert_stitch_publish_matches_cpp_reference_and_mark_ready_is_reachable
         }),
     );
 
-    // SAFETY: `self_ptr` is still resident (leased since `request`, never released) and still the sole
-    // borrow at this point (the earlier mutable borrows all ended at the close of their own blocks
-    // above).
+    // SAFETY: `self_ptr` is still leased (never released) and the earlier mutable borrows have
+    // ended.
     let self_bytes_now = unsafe { core::slice::from_raw_parts(self_ptr, PAYLOAD_LEN) };
     assert_eq!(
         self_bytes_now,
@@ -356,8 +286,6 @@ fn read_convert_stitch_publish_matches_cpp_reference_and_mark_ready_is_reachable
     assert_eq!(self_state.start_converted, expect_state.start_converted);
     assert_eq!(self_state.end_converted, expect_state.end_converted);
 
-    // mark-ready is reachable: the RT-safe probe now reports the chunk resident + ready, returning the
-    // SAME backing pointer `mark_ready` published.
     let ready = mgr.try_acquire(1);
     assert!(
         !ready.is_null(),

@@ -584,7 +584,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "three blocks written at ascending offsets through the real SysEx transfer verbs must all still be on the card, a copy must reproduce its source byte-for-byte, and copying a missing source must report an error. THREE blocks and not one is the whole point: efatfs_core::create_context truncates unconditionally, so a write_at that re-opened that way would leave only the last block, and a single-block round trip would pass against exactly that bug. The missing-source case is load-bearing for the same class of reason -- without a case whose expected answer is an error, a handler replying before its operation completed reports the same err=0 a correct one does. OI-CHANNEL going non-zero is the evidence that the SysEx operations took the channel. OI-DIR-STALL holds a directory listing's open far past the handler's 600-tick bound and requires a timeout reply (15) with no entries, and OI-TIER requires that SMSysex opened no directory synchronously on the interaction tier after boot."
+gates = "three blocks written at ascending offsets through the real SysEx transfer verbs must all still be on the card, a copy must reproduce its source byte-for-byte, and copying a missing source must report an error. THREE blocks and not one is the whole point: efatfs::portable::create_context truncates unconditionally, so a write_at that re-opened that way would leave only the last block, and a single-block round trip would pass against exactly that bug. The missing-source case is load-bearing for the same class of reason -- without a case whose expected answer is an error, a handler replying before its operation completed reports the same err=0 a correct one does. OI-CHANNEL going non-zero is the evidence that the SysEx operations took the channel. OI-DIR-STALL holds a directory listing's open far past the handler's 600-tick bound and requires a timeout reply (15) with no entries, and OI-TIER requires that SMSysex opened no directory synchronously on the interaction tier after boot."
 scenario = "offset_io"
 markers = ["OI-TRANSFER", "OI-COPY", "OI-DIR", "OI-CHANNEL", "OI-ILLEGAL", "OI-GIVEUP", "OI-DIR-STALL", "OI-TIER"]
 result = "OI-RESULT failures=0"
@@ -817,7 +817,7 @@ kind = "unit"
 status = "gate"
 gates = "the Rust BSP's host tests and in-crate #[test]s: the tier meter and tier latch, the file byte/directory/prefix channels, the SD image path, the SD bus card init, the audio loader. --locked, so a lock that has lost its deluge-alloc pin fails here instead of being rewritten."
 run = ["cargo", "test", "--locked"]
-requires = ["cargo", "deluge-sdk-sibling"]
+requires = ["cargo"]
 tier = "pr"
 runtime = "~4m first build, ~30s after"
 

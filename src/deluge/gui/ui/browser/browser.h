@@ -326,7 +326,7 @@ protected:
 	/// Each of those opens can defer, so the listing has to suspend and resume BETWEEN them — and,
 	/// critically, must never redo an open it has already made. Re-running the whole listing from the
 	/// top was tried and cannot work: `readdir_next` MOVES each name out of the directory snapshot as
-	/// it walks (`efatfs_core.rs`, "a given entry can only be read once", deliberately, because a
+	/// it walks (`storage/efatfs/portable.rs`, "a given entry can only be read once", deliberately, because a
 	/// large snapshot is what leaves the arena short), so a directory cannot be enumerated twice from
 	/// one handle. A re-run therefore needs a fresh open for every open it already made, which a
 	/// single-slot channel cannot serve, and the listing livelocks.

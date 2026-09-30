@@ -1,10 +1,8 @@
-//! Host-only invariant harness for the resource manager — the model the proptest
-//! and (future) cargo-fuzz target drive, analogous to `deluge_alloc::testing`.
-//! Exercises acquire/release/touch/reference churn against a real heap + manager
-//! and checks the core invariants after every op:
-//!   - every leased pointer is unique (no two live leases alias),
-//!   - a leased chunk's bytes stay its materialize pattern (never evicted/corrupted),
-//!   - acquire/release never panics or returns a misaligned pointer.
+//! Host-only invariant harness driven by the proptests.
+//!
+//! Runs acquire/release/touch/reference churn against a real heap and manager, checking after
+//! every op that each leased chunk still holds its materialize pattern (never evicted or
+//! corrupted) and that acquires are 16-byte aligned.
 
 extern crate std;
 use crate::{
@@ -56,6 +54,7 @@ struct Lease {
     index: u32,
 }
 
+/// A manager over its own heap with four assets, plus the leases the churn currently holds.
 pub struct Harness {
     mgr: *mut crate::DelugeResource,
     assets: Vec<u32>,
@@ -64,8 +63,9 @@ pub struct Harness {
 }
 
 impl Harness {
+    /// Creates a manager over a `heap_bytes` arena with `chunk_cap` chunk slots.
     pub fn new(heap_bytes: usize, chunk_cap: usize) -> Self {
-        // 16-aligned arena (Vec<u128>) — see the note in lib.rs's `heap` helper.
+        // `Vec<u128>` for a 16-aligned arena, as in the crate tests' `arena` helper.
         let words = heap_bytes.div_ceil(16);
         let mut buf = std::vec![0u128; words];
         let h =
@@ -93,6 +93,7 @@ impl Harness {
         }
     }
 
+    /// Applies `op`, then checks the invariants.
     pub fn step(&mut self, op: Op) {
         match op {
             Op::Acquire { asset, index } => {
@@ -128,8 +129,7 @@ impl Harness {
         self.check();
     }
 
-    /// Invariants over the currently-leased chunks: each keeps its materialize
-    /// pattern (a leased chunk is never evicted or corrupted).
+    /// Asserts every leased chunk still holds its materialize pattern.
     fn check(&self) {
         for (i, l) in self.live.iter().enumerate() {
             let logical = self.assets.iter().position(|&x| x == l.asset).unwrap() as u32;
@@ -145,9 +145,8 @@ impl Harness {
     }
 }
 
-/// Decode fuzzer bytes into a churn sequence and run it (the cargo-fuzz entry).
-// `chunks_exact(3)` reads fine here and `as_chunks::<3>()` would only reshuffle the
-// loop for an equivalent result in this fuzzer-only helper.
+/// Decodes fuzzer bytes (three per op) into a churn sequence and runs it.
+// `chunks_exact(3)` reads as clearly as `as_chunks::<3>()` here.
 #[allow(clippy::chunks_exact_to_as_chunks)]
 pub fn run_bytes(data: &[u8]) {
     let mut h = Harness::new(256 * 1024, 64);

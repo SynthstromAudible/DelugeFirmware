@@ -1,16 +1,14 @@
-//! Host-only randomized invariant harness for the allocator, shared by the unit
-//! tests (`tests/`) and the fuzz targets (`fuzz/`). Mirrors the C++ conformance
-//! suite (tests/unit/alloc) so the Rust and C++ sides check the same invariants:
-//! 16-byte (and requested) alignment, non-overlapping live blocks, per-block data
-//! integrity across churn, realloc fidelity, and full reclamation after a drain.
+//! Randomized invariant harness for the allocator, shared by the unit tests and the fuzz targets.
 //!
-//! Available on the host only (`cfg(any(test, feature = "fuzzing"))`); uses `std`.
+//! Checks the same invariants as the C++ conformance suite in `tests/unit/alloc`: 16-byte (and
+//! requested) alignment, non-overlapping live blocks, data integrity across churn, realloc
+//! fidelity, and full reclamation after a drain. Host only (`test` or the `fuzzing` feature).
 
 use crate::{
     deluge_alloc, deluge_free, deluge_heap_create, deluge_realloc, deluge_usable_size, DelugeHeap,
 };
 
-/// One fuzzer/test-driven operation against a slot table.
+/// One operation against the harness's slot table.
 #[derive(Clone, Copy, Debug)]
 pub enum Op {
     Alloc {
@@ -34,16 +32,17 @@ struct Live {
     seed: u8,
 }
 
-/// A heap over an owned arena plus a model of what's live, validating invariants
-/// after every operation. Any violation returns `Err(reason)`.
+/// A heap over an owned arena plus a model of what is live, checking invariants after every
+/// operation. A violation returns `Err(reason)`.
 pub struct Harness {
-    arena: Vec<u128>, // 16-aligned arena (real BSP regions are page-aligned; see lib.rs aligned_arena)
+    arena: Vec<u128>, // 16-aligned, as miri requires for the TLSF's headers
     h: *mut DelugeHeap,
     slots: Vec<Option<Live>>,
     counter: u8,
 }
 
 impl Harness {
+    /// Creates a heap of about `arena_bytes` with `num_slots` empty slots.
     pub fn new(arena_bytes: usize, num_slots: usize) -> Self {
         let words = arena_bytes / 16 + 1;
         let mut arena = vec![0u128; words];
@@ -94,7 +93,7 @@ impl Harness {
         a0 < b1 && b0 < a1
     }
 
-    /// Apply one op, checking all invariants. Returns Err on a violation.
+    /// Applies one op and checks all invariants.
     pub fn step(&mut self, op: Op) -> Result<(), String> {
         let n = self.slots.len();
         match op {
@@ -155,7 +154,7 @@ impl Harness {
                 let new_size = (size % 65536) + 1;
                 let np = unsafe { deluge_realloc(self.h, live.ptr, new_size, align) };
                 if np.is_null() {
-                    // failure must leave the original intact
+                    // Failure must leave the original intact.
                     if !Self::check_pattern(live.ptr, live.usable, live.seed) {
                         return Err(format!("failed realloc corrupted original slot {slot}"));
                     }
@@ -183,8 +182,8 @@ impl Harness {
         Ok(())
     }
 
-    /// Free everything still live (checking integrity), then assert the arena
-    /// coalesced back: a single large allocation must succeed.
+    /// Frees everything still live, checking integrity, then checks the arena coalesced back: a
+    /// single large allocation must succeed.
     pub fn drain_and_check(&mut self) -> Result<(), String> {
         for i in 0..self.slots.len() {
             if let Some(live) = self.slots[i].take() {
@@ -207,8 +206,8 @@ impl Harness {
     }
 }
 
-/// Decode a fuzzer byte string into a bounded op sequence and run it. Returns
-/// Err on any invariant violation (the fuzzer treats Err as a crash).
+/// Decodes a fuzzer byte string into a bounded op sequence and runs it. Returns `Err` on any
+/// invariant violation.
 pub fn run_bytes(data: &[u8]) -> Result<(), String> {
     let mut h = Harness::new(1 << 20, 256);
     let mut it = data.iter().copied();
@@ -229,14 +228,10 @@ pub fn run_bytes(data: &[u8]) -> Result<(), String> {
     h.drain_and_check()
 }
 
-// ===========================================================================
-// Slab cache pool model. Drives the slab + competing general allocations
-// and asserts the eviction/pinning invariants after every op:
-//   * a PINNED slot is never evicted, and its data is never disturbed;
-//   * no two live slots (or general allocs) ever alias;
-//   * every live slot/alloc stays aligned, in-range, usable, pattern-intact.
-// Eviction is observed through the on_evict callback into a thread-local queue.
-// ===========================================================================
+// Slab cache pool model. Drives the slab plus competing general allocations and checks after every
+// op that a pinned slot is never evicted or disturbed, no two live slots or allocations alias, and
+// every live one stays aligned, in range, usable and pattern-intact. Evictions arrive through
+// `on_evict` into a thread-local queue.
 
 use crate::slab::{
     deluge_slab_acquire, deluge_slab_create, deluge_slab_pin, deluge_slab_release,
@@ -253,6 +248,8 @@ unsafe extern "C" fn on_evict(owner: *mut c_void) {
     EVICTED.with(|e| e.borrow_mut().push(owner as usize));
 }
 
+/// One operation against a [`SlabModel`]. Index operands pick a live slot or allocation modulo
+/// their count; `GeneralAlloc` carries a size.
 #[derive(Clone, Copy, Debug)]
 pub enum SlabOp {
     Acquire,
@@ -277,10 +274,11 @@ struct General {
     pattern: u8,
 }
 
+/// A managed slab pool over an owned heap plus a model of its live slots and general allocations.
 pub struct SlabModel {
-    // Owns the backing memory for the heap's lifetime (read only via lo/hi).
+    // Owns the heap's backing memory; read only through `lo`/`hi`.
     #[allow(dead_code)]
-    arena: Vec<u128>, // 16-aligned arena (real BSP regions are page-aligned; see lib.rs aligned_arena)
+    arena: Vec<u128>, // 16-aligned, as miri requires for the TLSF's headers
     heap: *mut DelugeHeap,
     slab: *mut DelugeSlab,
     slot_size: usize,
@@ -293,6 +291,7 @@ pub struct SlabModel {
 }
 
 impl SlabModel {
+    /// Creates a heap of about `arena_bytes` and a managed pool of `capacity` slots over it.
     pub fn new(arena_bytes: usize, slot_size: usize, capacity: usize) -> Self {
         let words = arena_bytes / 16 + 1;
         let mut arena = vec![0u128; words];
@@ -325,8 +324,7 @@ impl SlabModel {
         self.next_pat
     }
 
-    /// Remove owners the slab reported evicted; a pinned owner being evicted is a
-    /// hard failure.
+    /// Drops owners the slab reported evicted; evicting a pinned owner is a failure.
     fn reconcile(&mut self) -> Result<(), String> {
         let evicted: Vec<usize> = EVICTED.with(|e| core::mem::take(&mut *e.borrow_mut()));
         for owner in evicted {
@@ -382,6 +380,7 @@ impl SlabModel {
         Ok(())
     }
 
+    /// Applies one op and checks all invariants.
     pub fn step(&mut self, op: SlabOp) -> Result<(), String> {
         match op {
             SlabOp::Acquire => {
@@ -456,7 +455,7 @@ impl SlabModel {
     }
 }
 
-/// Decode fuzzer bytes into a slab op sequence and run it (Err == crash).
+/// Decodes fuzzer bytes into a slab op sequence and runs it. Returns `Err` on any violation.
 pub fn run_slab_bytes(data: &[u8]) -> Result<(), String> {
     let mut m = SlabModel::new(128 * 1024, 4096, 16);
     let mut it = data.iter().copied();

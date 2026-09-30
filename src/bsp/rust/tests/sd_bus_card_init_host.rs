@@ -1,24 +1,12 @@
-//! `sd::card_service` holds SD_BUS across the ~1.3 s identification of a newly inserted card, on the thread
-//! executor. A thread-mode (interaction-tier) synchronous card call that arrives then must fail fast: it
-//! spins, and the only executor that could resume `card_service` is the one spinning. A storage-tier caller,
-//! on its own executor, must keep waiting and then succeed on the re-identified card.
-#![cfg(not(target_os = "none"))]
-#![feature(impl_trait_in_assoc_type)]
+//! SD bus acquisition while a newly inserted card is being identified.
+//!
+//! `card_service` holds `SD_BUS` across the ~1.3 s identification, on the thread executor. An
+//! interaction-tier caller must fail fast, since it spins on the executor `card_service` needs; a
+//! storage-tier caller must wait and then succeed on the re-identified card.
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
-
-#[path = "../src/boot.rs"]
-mod boot;
-#[path = "../src/sd.rs"]
-mod sd;
-#[path = "../src/sim_block.rs"]
-mod sim_block;
-#[path = "../src/tier.rs"]
-mod tier;
-#[path = "../src/tier_meter.rs"]
-mod tier_meter;
+use deluge_bsp_rust::storage::sd;
+use deluge_bsp_rust::storage::sim_block;
+use deluge_bsp_rust::tier;
 
 use core::future::Future;
 use core::pin::pin;
@@ -26,7 +14,7 @@ use core::task::{Context, Poll, Waker};
 
 use deluge_bsp::sd as card;
 
-/// The card's state and SD_BUS are process-global; the two tests take this for their whole body.
+/// Serializes the tests: the card state and `SD_BUS` are process-global.
 static TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn fresh_card() {
@@ -45,7 +33,8 @@ fn interaction_tier_read_during_identification_fails_fast() {
     fresh_card();
     sim_block::set_spin_budget(10_000);
 
-    // `card_service` mid-identification: it holds the bus, and the removal before it cleared readiness.
+    // Simulate `card_service` mid-identification: it holds the bus, and the removal before it
+    // cleared readiness.
     let identifying = sd::SD_BUS.try_lock().expect("nothing else holds the bus");
     card::invalidate();
 

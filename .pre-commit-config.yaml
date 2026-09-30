@@ -68,7 +68,7 @@ repos:
         entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
         language: system
         pass_filenames: false
-        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build(_.*)?\.rs|src/bsp/rust/Cargo\.toml|crates/|scripts/check_abi_surface\.py)
+        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|scripts/check_abi_surface\.py)
       - id: dsp-next-boundary
         name: dsp-next L0 boundary
         description: src/deluge/dsp-next must not include app layers, the legacy dsp/, or the HAL/BSP

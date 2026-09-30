@@ -1,40 +1,28 @@
+//! The production [`Residency`] provider, over the `deluge_resource` manager.
+
 use crate::residency::{Get, RegionPin, Residency};
 use core::ffi::c_void;
 use deluge_resource::facade::{Lease, Resource};
 use deluge_resource::DelugeResource;
 
-// A C-ABI entry point the APP provides in production
-// (`src/deluge/storage/audio/stream/async_fill.cpp`). This crate's own `cargo test` binary links
-// `deluge_resource` (and this crate) standalone, with no app around to supply it, so a
-// `#[cfg(test)]` stub below stands in — mirroring the `host_critical_section_stubs` pattern in
-// `lib.rs`.
+// Provided by the BSP (`storage::streaming_loader`); by a stub below in this crate's tests.
 unsafe extern "C" {
-    /// Wakes the async fill task (mirrors `SampleStream::get_cluster`'s post-enqueue
-    /// signal) so an enqueued-but-unwoken chunk doesn't stall on `FILL_WAKE`.
+    /// Wakes the streaming fill task so a freshly enqueued chunk does not wait for its next wake.
     pub fn deluge_streaming_signal_fill();
 }
 
-// Test-only stand-in for the C-ABI symbol above, so this crate's host unit tests link standalone
-// (see the comment on the `extern "C"` block).
 #[cfg(test)]
 mod host_streaming_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn deluge_streaming_signal_fill() {}
 }
 
-/// Production residency provider: composes the `deluge_resource` facade. `Ready` =
-/// a cache hit (`acquire_leased`); `Loading` = a fresh reservation (`request` +
-/// `loader_enqueue`); `Unavailable` = out of range or the manager could not reserve.
-/// Real fill (the loader turning a Loading chunk Ready via efatfs) is a later task —
-/// this provider only schedules; tests drive readiness through the manager directly.
+/// The production residency provider, over the `deluge_resource` facade.
 ///
-/// `cluster_size`/`num_clusters` are supplied by the caller (the cursor, which owns
-/// the `Geometry` and derives `num_clusters` from it — `ceil((audio_data_start +
-/// audio_data_length) / cluster_size)`, the file's clusters, sentinel/zero-length
-/// treated as "caller decides"), not recomputed
-/// here: this provider does no length math of its own, keeping `resident_bytes_for`
-/// in `geometry.rs` the single home of the short-last-cluster arithmetic (and any
-/// cluster-count arithmetic that piggybacks on the same geometry).
+/// `Ready` is a cache hit (`acquire_leased`); `Loading` is a fresh or in-flight reservation, queued
+/// for the streaming loader, which fills it; `Unavailable` is an index out of range or a manager
+/// that could not reserve. The caller supplies `cluster_size` and `num_clusters`; this provider
+/// does no length math.
 pub struct ManagerResidency {
     handle: *mut DelugeResource,
     asset: u32,
@@ -43,9 +31,12 @@ pub struct ManagerResidency {
 }
 
 impl ManagerResidency {
+    /// Creates a provider for `asset`'s chunks.
+    ///
     /// # Safety
-    /// `handle` must be a live `deluge_resource` handle valid for this provider's
-    /// whole life (a boot singleton in production).
+    ///
+    /// `handle` must be a live `deluge_resource` handle for this provider's whole life (a boot
+    /// singleton in production).
     pub unsafe fn new(
         handle: *mut DelugeResource,
         asset: u32,
@@ -66,9 +57,8 @@ impl ManagerResidency {
     }
 }
 
-/// A pinned region for `ManagerResidency`: the RAII `Lease` (release on drop) + the
-/// handle so readiness + token stay LIVE queries (re-read through the manager, never
-/// cached at acquire time).
+/// A [`ManagerResidency`] pin: the RAII lease plus the manager handle, so readiness and the token
+/// are read live from the manager rather than cached at acquire time.
 pub struct ManagerPin {
     lease: Lease,
     index: u32,
@@ -76,7 +66,7 @@ pub struct ManagerPin {
 }
 impl ManagerPin {
     fn resource(&self) -> Resource<'_> {
-        // SAFETY: same boot-singleton contract as ManagerResidency::resource.
+        // SAFETY: `handle` came from a `ManagerResidency`, so it is live per its `new` contract.
         unsafe { Resource::from_handle(self.handle) }
     }
 }
@@ -88,9 +78,8 @@ impl RegionPin for ManagerPin {
         self.resource().is_ready(self.lease.chunk())
     }
     fn payload(&self) -> *const u8 {
-        // SAFETY: the chunk is lease-pinned resident for this pin's lifetime, so its backing is a
-        // live StreamedChunk constructed by `deluge_streaming_chunk_construct` (registered from
-        // `chunk_residency.cpp`); `deluge_sample_fill::chunk::payload` returns its payload base.
+        // SAFETY: the lease keeps the chunk resident for this pin's life, so its backing is a live
+        // `StreamedChunk` built by the streamed-chunk asset's construct callback.
         unsafe {
             deluge_sample_fill::chunk::payload(self.lease.chunk().as_ptr() as *mut c_void)
                 as *const u8
@@ -108,7 +97,7 @@ impl Residency for ManagerResidency {
             return Get::Unavailable;
         }
         let res = self.resource();
-        // Cache hit (resident + ready) -> Ready, pinned by the returned Lease.
+        // Resident and ready: pinned by the returned lease.
         if let Some(lease) = res.acquire_leased(self.asset, index) {
             return Get::Ready(ManagerPin {
                 lease,
@@ -116,12 +105,12 @@ impl Residency for ManagerResidency {
                 handle: self.handle,
             });
         }
-        // Not ready: reserve (idempotent on an in-flight chunk) + schedule -> Loading.
+        // Not ready: reserve (idempotent on an in-flight chunk) and schedule.
         match res.request(self.asset, index, self.cluster_size) {
             Some(lease) => {
                 let slot = res.slot_of(lease.chunk());
                 res.loader_enqueue(slot, priority);
-                // SAFETY: no-arg C-ABI wake; mirrors SampleStream::get_cluster's post-enqueue signal.
+                // SAFETY: a no-argument C-ABI wake with no preconditions.
                 unsafe { deluge_streaming_signal_fill() };
                 Get::Loading(ManagerPin {
                     lease,
@@ -190,15 +179,13 @@ mod tests {
         true
     }
 
-    /// A manager over a throwaway test heap, mirroring `deluge_resource::facade`'s own
-    /// test harness (a 16-aligned arena kept alive alongside the handle).
+    /// The 16-aligned arena behind a test heap.
     struct TestHeap {
         _buf: Vec<u128>,
     }
 
-    /// Build a manager over a fresh test heap and leak its backing arena for the
-    /// process's remaining life — mirrors the boot-singleton contract `ManagerResidency`
-    /// requires of its handle, and keeps the test helpers infallible/`'static`.
+    /// Builds a manager over a fresh test heap, leaking the arena so the handle stays live like
+    /// the production boot singleton.
     fn test_manager_handle() -> *mut DelugeResource {
         let words = (256 * 1024usize).div_ceil(16);
         let mut buf: Vec<u128> = std::vec![0u128; words];
@@ -213,7 +200,7 @@ mod tests {
         handle
     }
 
-    /// Define a requestable asset whose `construct` seeds `make_ramp(index, 16)`.
+    /// Defines a requestable heap-backed asset whose chunks hold a per-index ramp.
     fn define_ramp_asset(h: *mut DelugeResource) -> u32 {
         // SAFETY: `h` is a live handle (from `test_manager_handle`); the callbacks
         // have the required C-ABI signature.
@@ -235,8 +222,7 @@ mod tests {
         asset
     }
 
-    /// Drive readiness through the manager directly (standing in for the loader this
-    /// provider only schedules — real fill is a later task).
+    /// Marks `index` ready through the manager directly, standing in for the loader.
     fn mark_index_ready(h: *mut DelugeResource, asset: u32, index: u32) {
         // SAFETY: `h` is a live handle; `try_acquire`/`mark_ready` are the same
         // FFI-safe C-ABI calls the facade wraps.
@@ -253,16 +239,15 @@ mod tests {
         };
         // SAFETY: `h`/`ptr` are live/valid per the calls above.
         unsafe { deluge_resource::deluge_resource_mark_ready(h, ptr) };
-        // The lease taken by `try_acquire`/`request` above is ours to drop — release it
-        // so it doesn't skew the test's subsequent lease-count-driven acquires.
+        // Drop the lease taken above so it does not skew later acquires.
         // SAFETY: `h`/`ptr` are live/valid.
         unsafe { deluge_resource::deluge_resource_release(h, ptr) };
     }
 
     #[test]
     fn acquire_reports_ready_loading_unavailable_and_pins() {
-        let h = test_manager_handle(); // *mut DelugeResource over a test heap
-        let asset = define_ramp_asset(h); // construct seeds make_ramp(index, 16)
+        let h = test_manager_handle();
+        let asset = define_ramp_asset(h);
         let geo = Geometry {
             audio_data_start_bytes: 0,
             audio_data_length_bytes: 16 * 8,

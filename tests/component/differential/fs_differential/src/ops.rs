@@ -1,10 +1,10 @@
-//! Filesystem-op result types this harness's `EFatFs` backend presents.
+//! The read and write interfaces a filesystem backend presents to the harness.
 //!
-//! `Entry` is the directory-listing entry type `read_dir` returns. `FsOps`
-//! is the interface `diff::compare_read` walks a backend through -- either a
-//! live `EFatFs` mount or a hardcoded `diff::Captured` known-good literal.
+//! [`FsOps`] is what [`compare_read`](crate::diff::compare_read) walks: a live [`EFatFs`] mount or
+//! a [`Captured`](crate::diff::Captured) tree.
 use crate::efatfs::EFatFs;
 
+/// A directory-listing entry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub name: String,
@@ -12,9 +12,7 @@ pub struct Entry {
     pub is_dir: bool,
 }
 
-/// Common read/enumerate surface a backend presents, so `diff::compare_read`
-/// can walk it through a single `&dyn FsOps` (live mount or known-good
-/// literal alike).
+/// Read and enumerate operations a backend presents.
 pub trait FsOps {
     fn read_file(&self, path: &str) -> Vec<u8>;
     fn read_dir(&self, path: &str) -> Vec<Entry>; // sorted by name
@@ -29,10 +27,7 @@ impl FsOps for EFatFs {
     }
 }
 
-/// A single write-path operation covering the write-path primitives the
-/// Deluge's own file I/O actually exercises: create a directory, write a
-/// new (possibly multi-cluster) file, extend an existing file (potentially
-/// across a cluster boundary), rename, and delete.
+/// One write operation, covering the primitives the firmware's file I/O uses.
 #[derive(Debug, Clone)]
 pub enum Op {
     Mkdir(String),
@@ -42,25 +37,20 @@ pub enum Op {
     Rename(String, String),
 }
 
-/// Write-path surface a backend presents, mirroring `FsOps` for reads.
-/// `&mut self` because the backend wraps real mutable filesystem state (an
-/// `embedded_fatfs::FileSystem`) even though the actual bytes land in the
-/// shared `DISK` RAM image (`ram_disk.rs`), not in `self` itself.
+/// Write operations a backend presents.
 pub trait FsOpsMut: FsOps {
-    /// Create a directory. `path`'s parent must already exist.
+    /// Creates a directory; its parent must exist.
     fn mkdir(&mut self, path: &str);
-    /// Create (or truncate, if it already exists) `path` and write `bytes`
-    /// as its whole contents.
+    /// Creates or truncates `path` and writes `bytes` as its whole contents.
     fn write_new(&mut self, path: &str, bytes: &[u8]);
-    /// Open the existing file at `path`, seek to its end, and append
-    /// `bytes`.
+    /// Appends `bytes` to the existing file at `path`.
     fn append(&mut self, path: &str, bytes: &[u8]);
-    /// Delete an existing file or (empty) directory.
+    /// Deletes an existing file or empty directory.
     fn delete(&mut self, path: &str);
-    /// Rename/move `from` to `to`.
+    /// Renames or moves `from` to `to`.
     fn rename(&mut self, from: &str, to: &str);
 
-    /// Dispatch a single `Op` to the matching method above.
+    /// Applies `op` through the matching method.
     fn apply(&mut self, op: &Op) {
         match op {
             Op::Mkdir(p) => self.mkdir(p),

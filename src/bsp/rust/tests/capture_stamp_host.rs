@@ -1,14 +1,7 @@
-//! Capture stamps: where on the TX play timeline an input event happened.
-//!
-//! `deluge-bsp-rust` is bin-only, so this recompiles `src/capture_stamp.rs` into the test binary via `#[path]`,
-//! the convention the other `*_host.rs` tests use.
-#![cfg(not(target_os = "none"))]
+//! Tests capture stamps: placing input events on the TX play timeline and converting them to render
+//! offsets.
 
-// `now_for`'s host arm is exercised through `host_link_stubs.rs`/`cv_gate.rs`'s own callers, not from here;
-// this suite is `stamp_at`/`render_offset` only.
-#[allow(dead_code)]
-#[path = "../src/capture_stamp.rs"]
-mod capture_stamp;
+use deluge_bsp_rust::audio::capture_stamp;
 
 use capture_stamp::{render_offset, stamp_at};
 

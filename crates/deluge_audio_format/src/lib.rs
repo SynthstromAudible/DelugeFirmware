@@ -1,40 +1,29 @@
 //! Audio-file header decoding: WAV/RIFF and AIFF/FORM.
 //!
-//! No I/O, no allocation, no async, and no panic on any input. The caller owns
-//! all reading; [`HeaderParser`] owns the walk and asks for one small window at
-//! a time. That shape is the point: it lets an async task drive the parse,
-//! which a pull-based parser cannot, and it makes the
-//! decoder trivially fuzzable.
+//! No I/O, no allocation, no async, and no panic on any input. The caller owns all reading;
+//! [`HeaderParser`] owns the walk and asks for one small window at a time, so an async task can
+//! drive the parse and the decoder is easy to fuzz. The C ABI over it is [`abi`]
+//! (`libdeluge/audio_format.h`).
 //!
-//! **Windows, not prefixes.** The parser asks for at most
-//! [`MAX_WINDOW_BYTES`] at a time, at an offset of its choosing, and steps over
-//! the audio payload by arithmetic — it is never read, never buffered. Asking
-//! instead for a growing *prefix* would have made bounded-memory decoding
-//! impossible: a chunk's payload sits between the caller and the next chunk
-//! header, so over `~/Deluge Backup` the required prefix was 100% of the file
-//! at the median, p90 and maximum — up to 183 MB for one file, on a device with
-//! 8 MB of SDRAM. The C++ parser being replaced here *seeks*; losing that and
-//! substituting contiguity was the defect this API shape fixes.
+//! # Windows, not prefixes
 //!
-//! **The parser is told the file's size**, which is what makes the walk finite
-//! by construction rather than by the caller behaving: no request can name a
-//! byte past the end, so the end of the file is not something a caller has to
-//! signal — and cannot get wrong. That is also why the two entry points return
-//! different errors. [`HeaderParser`] fails with [`HeaderError`], which has no
-//! "supply more and retry" variant to loop on; only [`parse`], whose slice
-//! really is a prefix the caller can extend, has [`ParseError::NeedAtLeast`].
+//! The parser asks for at most [`MAX_WINDOW_BYTES`] at a time, at an offset of its choosing, and
+//! steps over the audio payload by arithmetic without reading it. A growing-prefix protocol cannot
+//! bound memory: a chunk's payload sits between the caller and the next chunk header, so the
+//! prefix a real file needs is usually the whole file.
 //!
-//! [`parse`] remains as a convenience for callers that hold a whole file (tests,
-//! tools, the corpus differential).
+//! # File size and the two error types
 //!
-//! Wavetable *acceptance* deliberately lives elsewhere ([`wavetable`]): this
-//! module reports what a file says, not whether some caller may use it.
+//! [`HeaderParser`] is told the file's size, so no request can name a byte past the end and the
+//! walk is finite by construction. It fails with [`HeaderError`], which has no "supply more and
+//! retry" variant. Only [`parse`], whose slice is a prefix the caller can extend, returns
+//! [`ParseError::NeedAtLeast`]. [`parse`] is for callers that hold a whole file (tests, tools).
+//!
+//! Whether a header may be used as a wavetable is a separate policy decision, in [`wavetable`].
 
 #![no_std]
-// `deny`, not `forbid`: the C ABI in [`abi`] cannot hand a raw pointer back to
-// safe Rust without it, and `forbid` cannot be lifted even for one module. That
-// module is the only place the lint is relaxed, and it says so at its top; the
-// decoder itself stays unsafe-free.
+// `deny`, not `forbid`: the C ABI in [`abi`] needs `unsafe` to turn raw pointers into references,
+// and `forbid` cannot be lifted for one module. The decoder itself is unsafe-free.
 #![deny(unsafe_code)]
 
 #[cfg(test)]
@@ -43,8 +32,8 @@ extern crate std;
 pub mod abi;
 pub mod wavetable;
 
-/// Which container the file uses. Decides endianness for everything after the
-/// 12-byte top header: RIFF is little-endian, AIFF big-endian.
+/// The file's container. Decides endianness after the 12-byte top header: RIFF is little-endian,
+/// AIFF big-endian (chunk sizes included).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum Container {
@@ -52,9 +41,10 @@ pub enum Container {
     Aiff = 1,
 }
 
-/// How the audio bytes are encoded relative to what the engine wants. The
-/// `EndiannessWrong*` variants record that the samples need byte-swapping —
-/// AIFF PCM is big-endian, so it always lands on one of them.
+/// How the audio bytes are encoded relative to what the engine wants.
+///
+/// Discriminants match the C++ `RawDataFormat` enum. `EndiannessWrong*` means the samples need
+/// byte-swapping: AIFF PCM wider than 8 bits is big-endian, so it always lands on one of them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum RawDataFormat {
@@ -66,9 +56,10 @@ pub enum RawDataFormat {
     EndiannessWrong32 = 5,
 }
 
-/// Why a file could not be decoded. Separate from [`ParseError`] so the same
-/// reason can be reported as either malformed (the file contradicts itself) or
-/// unsupported (the file is valid but says something we cannot use).
+/// Why a file could not be decoded.
+///
+/// Carried by both `Malformed` (the file contradicts itself) and `Unsupported` (valid, but says
+/// something we cannot use) variants of [`ParseError`] and [`HeaderError`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reason {
     NoFmtChunk,
@@ -82,47 +73,38 @@ pub enum Reason {
 /// Why [`parse`] could not produce a header from its (possibly partial) buffer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParseError {
-    /// Not a failure: [`parse`]'s prefix ran out. The caller must supply at
-    /// least this many bytes from the start of the file and call again. Chunk
-    /// order is not guaranteed, so a header can need an arbitrary prefix before
-    /// it is complete — which is exactly why a streaming caller should drive
-    /// [`HeaderParser`] instead, where this means "the file is truncated" and
-    /// nothing more.
+    /// Not a failure: the prefix ran out. Supply at least this many bytes from the start of the
+    /// file and call again. Chunk order is not fixed, so a header can need an arbitrarily long
+    /// prefix; streaming callers should drive [`HeaderParser`] instead.
     NeedAtLeast(u32),
-    /// No container we recognise. Distinct from `Malformed` so a caller can
-    /// tell "not an audio file" from "a broken audio file".
+    /// No container we recognise: not an audio file, as opposed to a broken one.
     NotAudio,
     Malformed(Reason),
     Unsupported(Reason),
 }
 
-/// Why a streaming decode stopped.
+/// Why a [`HeaderParser`] walk stopped.
 ///
-/// Deliberately has no "supply more and retry": a [`HeaderParser`] is told the
-/// file's size at construction and never asks for a byte past it, so "the
-/// caller must read further" is not a state this type can express. That is the
-/// whole difference from [`ParseError`], whose [`ParseError::NeedAtLeast`]
-/// means exactly that — and an adapter looping on the two as if they were the
-/// same thing would re-read a file that has no more bytes to give, forever.
+/// Unlike [`ParseError`] there is no "supply more and retry": the parser knows the file's size
+/// and never asks past it. An adapter that retried on [`HeaderError::Truncated`] as if it were
+/// [`ParseError::NeedAtLeast`] would loop forever.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum HeaderError {
-    /// No container we recognise. Distinct from `Malformed` so a caller can
-    /// tell "not an audio file" from "a broken audio file".
+    /// No container we recognise: not an audio file, as opposed to a broken one.
     NotAudio,
     Malformed(Reason),
     Unsupported(Reason),
-    /// The file ends before the header does. `needs_at_least` is how long the
-    /// file would have to be for the field being read to exist — a fact about
-    /// the file, not an instruction to fetch more.
+    /// The file ends before the header does, or a read came back short. `needs_at_least` is how
+    /// long the file would have to be for the field being read to exist — a fact about the file,
+    /// not an instruction to fetch more.
     Truncated {
         needs_at_least: u32,
     },
 }
 
 impl From<HeaderError> for ParseError {
-    /// [`parse`] treats its slice as a *prefix* the caller can extend, so a
-    /// file that ends too early is the one case that really is "supply more and
-    /// call again" — the only place the two meanings legitimately meet.
+    /// Maps `Truncated` to `NeedAtLeast`: [`parse`]'s slice is a prefix the caller can extend,
+    /// so there running out of bytes does mean "supply more".
     fn from(error: HeaderError) -> Self {
         match error {
             HeaderError::NotAudio => ParseError::NotAudio,
@@ -133,14 +115,10 @@ impl From<HeaderError> for ParseError {
     }
 }
 
-/// What a walk is FOR: which chunks it reads, and which of the file's claims it
-/// insists on.
+/// What a walk is for: which chunks it reads, and which of the file's claims it insists on.
 ///
-/// Not a style preference: a wavetable load and a sample load accept
-/// different files, and collapsing the two changes which files load. A
-/// wavetable load uses only the audio's shape and location; it never asks what
-/// rate the file plays back at, and it never renders a note. So the metadata
-/// that answers those questions is neither read nor believed.
+/// A sample load and a wavetable load accept different files; collapsing the two changes which
+/// files load.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum WalkGoal {
@@ -148,29 +126,25 @@ pub enum WalkGoal {
     WholeHeader = 0,
     /// Only what locates and shapes the audio. What a WaveTable load wants:
     ///
-    /// * per-note playback metadata (`smpl`, `inst`, AIFF `INST`) is stepped
-    ///   over unread, so a root note and loop points stay unset — and, because
-    ///   those chunks are read at a fixed extent rather than at their declared
-    ///   length, so does the caller's reader stay behind the audio it is about
-    ///   to read;
-    /// * the sample rate is still reported but no longer has to be one we can
-    ///   play. A 192 kHz single-cycle file is a perfectly good wavetable;
-    ///   wavetable rendering never looks at the rate.
+    /// * per-note metadata (`smpl`, `inst`, AIFF `INST`) is stepped over unread, so root note and
+    ///   loop points stay unset, and payload windows are bounded so the walk never reads past the
+    ///   audio start — the caller's reader goes on to read the audio from where the walk left it;
+    /// * the sample rate is reported but need not be playable (a 192 kHz single-cycle file is a
+    ///   valid wavetable; wavetable rendering ignores the rate).
     AudioOnly = 1,
 }
 
-/// Hints a file gives about being a wavetable. Facts only — whether they are
-/// *sufficient* is [`wavetable::accept_as_wavetable`]'s decision.
+/// Hints a file gives about being a wavetable. Facts only; whether they suffice is
+/// [`wavetable::accept_as_wavetable`]'s decision.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WavetableHints {
-    /// Samples per cycle. Defaults to 2048 when the file says nothing, matching
-    /// the C++ parser, whose Serum convention this mirrors.
+    /// Samples per cycle, from a `clm ` tag; 2048 (the Serum default) when the file says nothing.
     pub cycle_size: u32,
-    /// A `clm ` tag was present, i.e. the file declares itself a wavetable.
+    /// A `clm ` tag was present: the file declares itself a wavetable.
     pub explicitly_specifies_self: bool,
 }
 
-/// Everything a header tells us. A plain value: no behaviour, no ownership.
+/// Everything a header tells us, as a plain value.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct AudioHeader {
     pub container: Container,
@@ -181,53 +155,42 @@ pub struct AudioHeader {
     /// Offset from the start of the file to the first audio byte.
     pub audio_data_start_pos_bytes: u32,
     pub audio_data_length_bytes: u32,
-    /// 0 == no loop. That is the WAV/AIFF convention (a degenerate 0,0 range),
-    /// not a sentinel of ours, and the two can be set independently.
+    /// Loop start in sample frames; 0 means no loop (the WAV/AIFF convention). Start and end are
+    /// set independently.
     pub file_loop_start_samples: u32,
     pub file_loop_end_samples: u32,
-    /// `None` == the file specified no root note.
+    /// Root note as a fractional MIDI note number; `None` if the file specifies none.
     pub midi_note: Option<f32>,
     pub wavetable: WavetableHints,
 }
 
-/// Read a little-endian `u32` at `pos`, or `None` if `bytes` is too short.
-/// Bounds-checked: no panic, ever.
+/// Reads a little-endian `u32` at `pos`, or `None` if `bytes` is too short.
 fn read_u32_le(bytes: &[u8], pos: usize) -> Option<u32> {
     let end = pos.checked_add(4)?;
     let word = bytes.get(pos..end)?;
     Some(u32::from_le_bytes(word.try_into().ok()?))
 }
 
-/// Read a big-endian `u32` at `pos`, or `None` if `bytes` is too short.
-/// Bounds-checked: no panic, ever.
+/// Reads a big-endian `u32` at `pos`, or `None` if `bytes` is too short.
 fn read_u32_be(bytes: &[u8], pos: usize) -> Option<u32> {
     let end = pos.checked_add(4)?;
     let word = bytes.get(pos..end)?;
     Some(u32::from_be_bytes(word.try_into().ok()?))
 }
 
-/// Read a big-endian `u16` at `pos`, or `None` if `bytes` is too short.
-/// Bounds-checked: no panic, ever.
+/// Reads a big-endian `u16` at `pos`, or `None` if `bytes` is too short.
 fn read_u16_be(bytes: &[u8], pos: usize) -> Option<u16> {
     let end = pos.checked_add(2)?;
     let half = bytes.get(pos..end)?;
     Some(u16::from_be_bytes(half.try_into().ok()?))
 }
 
-/// Decode a big-endian 80-bit IEEE 754 extended-precision float (the AIFF
-/// `COMM` sample rate) straight to a `u32`.
+/// Decodes a big-endian 80-bit IEEE 754 extended float (the AIFF `COMM` sample rate) to a `u32`.
 ///
-/// AIFF sample rates are always small positive integers, which this format
-/// represents exactly — so unlike the C++ oracle (`ConvertFromIeeeExtended`
-/// in `audio_format_helpers.cpp`), which goes through `f64` and then
-/// truncates to `uint32_t` (undefined behaviour in C++ when that `f64` is
-/// negative or out of `u32` range), this decodes via integer shifts on the
-/// 64-bit mantissa and never touches a float. A hostile exponent (e.g. the
-/// all-ones "infinity" encoding, or one that would shift the mantissa out of
-/// `u32` range entirely) saturates to `0` or `u32::MAX` rather than
-/// panicking; the caller's `5000..=96000` range check then rejects it just
-/// as the C++'s own range check rejects its infinite/huge/negative result —
-/// so this is a deliberate implementation change, not a spec deviation.
+/// Integer shifts on the 64-bit mantissa, no floating point: real rates are small positive
+/// integers, which the format represents exactly. Fractions truncate. Values that cannot be a rate
+/// (negative, infinite/NaN, beyond `u32`) saturate to `0` or `u32::MAX`, which the caller's
+/// `5000..=96000` range check rejects.
 fn decode_aiff_extended_rate(bytes: &[u8; 10]) -> u32 {
     let expon = (u16::from(bytes[0] & 0x7F) << 8) | u16::from(bytes[1]);
     let hi = u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]]);
@@ -241,23 +204,18 @@ fn decode_aiff_extended_rate(bytes: &[u8; 10]) -> u32 {
         return u32::MAX;
     }
     if bytes[0] & 0x80 != 0 {
-        // Negative "sample rate" is nonsensical; 0 fails the range check
-        // below exactly as reliably as any other sentinel would.
+        // A negative rate is nonsense; 0 fails the caller's range check.
         return 0;
     }
 
-    // value == mantissa * 2^exp. The C++ reaches this same quantity via two
-    // `ldexp` calls (on the high and low 32-bit halves separately, at -31
-    // and a further -32) that combine to the same -63 used here on the
-    // unified 64-bit mantissa.
+    // value == mantissa * 2^exp, with the 64-bit mantissa's binary point after its top bit
+    // (bias 16383, 63 fraction bits).
     let mantissa = (u64::from(hi) << 32) | u64::from(lo);
     let exp = i32::from(expon) - 16383 - 63;
 
     if exp >= 0 {
-        // exp is bounded well under 64 by realistic files, but a hostile
-        // exponent could ask for a shift the type can't perform: `<<` panics
-        // if the shift amount reaches the bit width, in every build profile,
-        // not just under overflow-checks.
+        // A hostile exponent can ask for a shift of 64 or more, which panics in every build
+        // profile.
         let shift = exp as u32;
         if shift >= u64::BITS {
             return u32::MAX; // far beyond any real sample rate
@@ -272,44 +230,31 @@ fn decode_aiff_extended_rate(bytes: &[u8; 10]) -> u32 {
     }
 }
 
-/// The largest window [`HeaderParser`] can ever ask a caller for, in bytes.
+/// The largest window [`HeaderParser`] can ask a caller for, in bytes: the caller's peak buffer.
 ///
-/// Every request is one of: the 12-byte container header; a chunk header (8
-/// bytes, plus at most one preceding alignment pad byte); or a fixed-size slice
-/// of one chunk's payload, the largest being `smpl`'s 52 (its loop record's
-/// last field ends at offset 52). The AIFF `MARK` table is walked one 7-byte
-/// marker record at a time rather than as a whole chunk, so no size a *file*
-/// declares can influence how much the caller has to hold.
+/// Every request is the 12-byte container header, a chunk header (8 bytes, plus at most one
+/// preceding pad byte), or a fixed-size slice of one chunk's payload — the largest being `smpl`'s
+/// 52, where its first loop record's end field ends. `MARK` is walked one 7-byte record at a time,
+/// so no size a file declares affects the bound.
 ///
-/// This constant is the point of the windowed protocol: peak caller memory is
-/// this many bytes, not the file.
-///
-/// **It is a floor, not a serving size.** A caller should hand back whatever it
-/// already holds — a whole SD cluster is ideal — and the parser will satisfy as
-/// many requests from that one window as it covers. The difference is not
-/// cosmetic. A walk costs one request per chunk header, and a file whose `data`
-/// chunk *under-declares* its length (a recorder that never fixed up the header,
-/// a card that filled mid-write — not hostile input, just common damage) makes
-/// the parser read the audio itself as a stream of nonsense chunk headers. On a
-/// 1 MB file of that shape the walk takes 131,075 feeds at exact windows,
-/// 2,050 at 512 bytes, 258 at 4 KiB, and 34 at 32 KiB. The parse is bounded and
-/// correct either way; only the number of round trips to the card changes, and
-/// on a device those are what you are paying for.
+/// This is a floor, not a serving size. Callers should hand back whatever they already hold (a
+/// whole SD cluster is ideal); the parser satisfies every request the window covers before asking
+/// again. It matters: a `data` chunk that under-declares its length (an unfinalised recording, a
+/// card that filled mid-write) makes the walk read the audio as a stream of junk chunk headers,
+/// one request each, so small windows mean many round trips to the card.
 pub const MAX_WINDOW_BYTES: u32 = 52;
 
 const TOP_HEADER_LEN: u32 = 12;
 const CHUNK_HEADER_LEN: u32 = 8;
 
-/// AIFF `MARK` marker table bound, matching the C++ parser this replaced's
-/// `kMaxNumMarkers`. A fixed-size array, no `alloc`: markers past this bound
-/// are ignored exactly as the C++ does (it clamps the declared count down to
-/// this before the read loop runs).
+/// Capacity of the AIFF `MARK` marker table. The declared count is clamped to this before any
+/// marker is read; later markers are ignored.
 const MAX_NUM_MARKERS: usize = 8;
 
-/// An AIFF `MARK` chunk's leading marker count.
+/// Length of an AIFF `MARK` chunk's leading marker count (`u16`).
 const MARK_COUNT_LEN: u32 = 2;
-/// One `MARK` marker record's fixed head: id:u16, position:u32, name length:u8.
-/// The name itself is only skipped over, never read.
+/// Length of one `MARK` record's fixed head: id `u16`, position `u32`, name length `u8`. The name
+/// is skipped, never read.
 const MARK_ENTRY_LEN: u32 = 7;
 
 /// What the parser wants next, or the finished header.
@@ -324,8 +269,7 @@ pub enum FeedResult {
     },
 }
 
-/// Which chunk payload a [`Phase::Payload`] is waiting on, and how many bytes
-/// of it the corresponding arm reads.
+/// Which chunk payload a [`Phase::Payload`] is waiting on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PayloadKind {
     Fmt,
@@ -338,11 +282,11 @@ enum PayloadKind {
 }
 
 impl PayloadKind {
-    /// Bytes the arm reads from the chunk's payload start. Deliberately a
-    /// constant per chunk type and NOT the chunk's declared length: the C++
-    /// oracle reads these fixed extents regardless of what the chunk claims
-    /// (see the `clm ` over-read note in the arm below), and a file-declared
-    /// length would put a file in charge of the caller's buffer size.
+    /// Bytes read from the chunk's payload start.
+    ///
+    /// A fixed extent per chunk type, not the chunk's declared length: a declared length would put
+    /// the file in charge of the caller's buffer size. The extents (and the `clm ` over-read they
+    /// imply) match the C++ decoder this crate replaced.
     const fn window_len(self) -> u32 {
         match self {
             PayloadKind::Fmt => 16,
@@ -350,17 +294,14 @@ impl PayloadKind {
             PayloadKind::Inst => 2,
             PayloadKind::Clm => 7,
             PayloadKind::Comm => 18,
-            // 8, where the C++ oracle read only the 4-byte offset. Reading the
-            // unused `blockSize` behind it costs nothing and reaches no further
-            // than the audio does anyway: an SSND's own audio starts at
-            // `data_start + 8 + offset`, so this window stops exactly where the
-            // earliest possible audio byte is.
+            // offset + blockSize. SSND audio starts at `data_start + 8 + offset`, so this never
+            // reaches into the audio.
             PayloadKind::Ssnd => 8,
             PayloadKind::AiffInst => 14,
         }
     }
 
-    /// Every kind, so the bound below can be checked over all of them.
+    /// Every kind, for the compile-time bound check below.
     const ALL: [PayloadKind; 7] = [
         PayloadKind::Fmt,
         PayloadKind::Smpl,
@@ -372,10 +313,8 @@ impl PayloadKind {
     ];
 }
 
-/// [`MAX_WINDOW_BYTES`] is a promise to the caller about its buffer, so it is
-/// checked here at compile time rather than left to a test to notice: every
-/// window the parser can ask for is one of these, and raising the bound has to
-/// be a deliberate edit to the constant, not a side effect of a new chunk arm.
+// Every window the parser can request fits [`MAX_WINDOW_BYTES`]. Checked at compile time so that
+// raising the bound is a deliberate edit to the constant, not a side effect of a new chunk arm.
 const _: () = {
     let mut i = 0;
     while i < PayloadKind::ALL.len() {
@@ -396,16 +335,14 @@ struct Chunk {
     raw_size: u32,
 }
 
-/// Where the walk is. Every non-terminal variant maps to exactly one bounded
-/// window request (see `HeaderParser::request`).
+/// Where the walk is. Every non-terminal variant maps to one bounded window request (see
+/// [`HeaderParser::request`]).
 #[derive(Clone, Copy, Debug)]
 enum Phase {
     /// Wants the 12-byte RIFF/FORM container header.
     Top,
-    /// Wants the chunk header at `at + pad`. `pad` is the previous chunk's
-    /// trailing alignment byte, requested together with the header so that a
-    /// file which omits it (legal when the odd chunk is last) still reads as a
-    /// clean end of walk rather than a demand for a byte that isn't there.
+    /// Wants the chunk header at `at + pad`. `pad` is the previous chunk's trailing alignment byte,
+    /// requested with the header so a file that omits it after its last chunk still ends cleanly.
     Header {
         at: u32,
         pad: u32,
@@ -419,7 +356,7 @@ enum Phase {
         chunk: Chunk,
         chunk_end: u32,
     },
-    /// Wants one `MARK` marker record: id, position and name length.
+    /// Wants one `MARK` record's fixed head at `cursor`: record `index` of `declared`.
     MarkEntry {
         chunk: Chunk,
         chunk_end: u32,
@@ -433,16 +370,11 @@ enum Phase {
 
 /// A resumable WAV/AIFF header decode.
 ///
-/// The caller owns all reading; the parser owns the walk. It asks for one small
-/// window at a time ([`FeedResult::Need`]) and is handed the bytes
-/// ([`HeaderParser::feed`]) until it reports [`FeedResult::Done`] or fails.
-/// Nothing here allocates, blocks, panics or reads a file: the whole state is
-/// this fixed-size value, so an Embassy task, a fiber, or a plain loop can each
-/// drive it the same way.
-///
-/// The audio payload is **skipped by arithmetic** — never requested, never
-/// buffered. That is the difference between this and a prefix-only protocol,
-/// and it is why the peak buffer is [`MAX_WINDOW_BYTES`] rather than the file.
+/// The caller owns all reading; the parser owns the walk. It asks for one window at a time
+/// ([`HeaderParser::pending`]) and is handed the bytes ([`HeaderParser::feed`]) until it reports
+/// [`FeedResult::Done`] or fails. It never allocates, blocks or panics, and its whole state is this
+/// fixed-size value, so any executor or a plain loop can drive it. The audio payload is skipped by
+/// arithmetic, never requested.
 ///
 /// ```
 /// # use deluge_audio_format::{HeaderParser, FeedResult};
@@ -451,7 +383,7 @@ enum Phase {
 /// let mut parser = HeaderParser::new(file_size);
 /// while let Some((start, len)) = parser.pending() {
 ///     // `start + len` is inside the file, so this always reads real bytes.
-///     // Handing back MORE than `len` — a whole cluster, say — is better still.
+///     // Handing back more than `len` (a whole cluster, say) is better still.
 ///     let window = read_exact_at(&[], start, len);
 ///     match parser.feed(window, start) {
 ///         Ok(FeedResult::Done(header)) => { let _ = header; break }
@@ -462,22 +394,14 @@ enum Phase {
 /// ```
 #[derive(Clone, Debug)]
 pub struct HeaderParser {
-    /// The file's true size, when the caller knows it — which every real caller
-    /// does: the filesystem has it. Knowing it is what makes
-    /// [`HeaderParser::pending`] unable to name a byte past the end, and so
-    /// makes the walk finite by construction.
-    ///
-    /// `None` is prefix mode, reachable only through [`parse`] (see
-    /// [`HeaderParser::for_prefix`]), where the end of the file is not known
-    /// and running out of bytes has to mean "ask for more" instead.
+    /// The file's size, which bounds every request and so makes the walk finite. `None` is prefix
+    /// mode ([`HeaderParser::for_prefix`]), where running out of bytes means "ask for more".
     file_size: Option<u32>,
-    /// What this walk is for; see [`WalkGoal`]. Fixed at construction.
     goal: WalkGoal,
     phase: Phase,
     container: Container,
-    /// Bytes 4..8 of the container header: how many bytes the file claims
-    /// follow them. Only consulted to tell a genuinely empty container from a
-    /// prefix truncated before its first chunk header.
+    /// Bytes 4..8 of the container header: how many bytes the file claims follow them. Only used
+    /// to tell an empty container from one truncated before its first chunk header.
     declared_after_top: u32,
     saw_a_chunk: bool,
     found_data_chunk: bool,
@@ -492,52 +416,43 @@ pub struct HeaderParser {
     midi_note: Option<f32>,
     wavetable_cycle_size: u32,
     wavetable_explicitly_specifies_self: bool,
-    /// AIFF `MARK`/`INST` marker-resolved loop state. Marker IDs are signed
-    /// 16-bit per the AIFF spec (the C++ parser this replaced used `int16_t`), and
-    /// -1 is not a valid marker ID (it's outside the field's 16-bit *unsigned*
-    /// wire encoding), so it doubles as "INST not seen yet", exactly mirroring
-    /// the C++ default.
+    /// AIFF `MARK` table, resolved against `INST`'s sustain-loop IDs in `finish`. Marker IDs are
+    /// signed 16-bit (the wire `u16` reinterpreted).
     marker_ids: [i16; MAX_NUM_MARKERS],
     marker_positions: [u32; MAX_NUM_MARKERS],
-    /// How many entries of the two arrays above actually hold a
-    /// successfully-read marker — *not* simply the declared/clamped count.
+    /// Entries of the marker arrays actually read, not the declared count.
     num_markers: usize,
+    /// `INST` sustain-loop marker IDs; -1 until an `INST` chunk is read. (The AIFF spec requires
+    /// positive IDs, so -1 never names a real marker.)
     sustain_loop_begin_marker_id: i16,
     sustain_loop_end_marker_id: i16,
 }
 
 impl HeaderParser {
-    /// A parser positioned at the start of a `file_size`-byte file, wanting its
-    /// container header.
+    /// Creates a [`WalkGoal::WholeHeader`] parser for a `file_size`-byte file.
     ///
-    /// Passing the size is not a convenience — it is what bounds the walk. Every
-    /// request is clamped to what the file actually holds, so a request past the
-    /// end cannot be expressed, and a caller cannot answer one by padding.
+    /// `file_size` must be the file's real size: every request is clamped to it, which is what
+    /// bounds the walk.
     #[must_use]
     pub const fn new(file_size: u32) -> Self {
         Self::with_size(Some(file_size), WalkGoal::WholeHeader)
     }
 
-    /// A parser positioned at the start of a `file_size`-byte file, reading only
-    /// what `goal` calls for.
+    /// Creates a parser for a `file_size`-byte file that reads only what `goal` calls for.
     #[must_use]
     pub const fn new_with_goal(file_size: u32, goal: WalkGoal) -> Self {
         Self::with_size(Some(file_size), goal)
     }
 
-    /// A parser for a caller that does not know where the file ends: running out
-    /// of bytes means "supply more", not "the file stopped".
+    /// Creates a parser in prefix mode, where running out of bytes means "supply more".
     ///
-    /// Private on purpose. It is the shape [`parse`] needs — its slice is a
-    /// prefix, not a file — and the one shape whose walk is not bounded by a
-    /// size, so it is not something a caller can reach for by accident.
+    /// Private: only [`parse`] needs it, and it is the one mode whose walk is not bounded by a
+    /// size.
     const fn for_prefix() -> Self {
         Self::with_size(None, WalkGoal::WholeHeader)
     }
 
-    /// The window a fresh parser wants: the container header. Exposed so
-    /// [`parse`] can drive the walk without a "what if it's already finished"
-    /// branch that could never be taken.
+    /// The window a fresh parser wants: the container header.
     const FIRST_REQUEST: (u32, u32) = (0, TOP_HEADER_LEN);
 
     const fn with_size(file_size: Option<u32>, goal: WalkGoal) -> Self {
@@ -568,12 +483,12 @@ impl HeaderParser {
         }
     }
 
-    /// The window `feed` is waiting for as `(start, len)`, or `None` once the
-    /// parse has finished (successfully or not).
+    /// Returns the window `feed` is waiting for as `(start, len)`, or `None` once the walk has
+    /// finished (successfully or not).
     ///
-    /// Both halves are inside the file: `start + len` never exceeds the size
-    /// this parser was built with, so `read_exact` into a `len`-sized buffer is
-    /// always the right thing and there is never anything to pad.
+    /// `start + len` never exceeds the file size, so the bytes always exist. `len` may be 0 (an
+    /// empty file); feed an empty window, since the parser only advances inside
+    /// [`HeaderParser::feed`].
     #[must_use]
     pub fn pending(&self) -> Option<(u32, u32)> {
         match self.phase {
@@ -582,50 +497,37 @@ impl HeaderParser {
         }
     }
 
-    /// The container the file declares, as soon as the 12-byte top header has
-    /// been read — which is after the very first [`HeaderParser::feed`], long
-    /// before the header is decoded.
+    /// Returns the container the file declares, available after the first
+    /// [`HeaderParser::feed`].
     ///
-    /// It is exposed because a caller can have a verdict that depends only on
-    /// the container and should not wait for the rest of the walk: loading a
-    /// file as a wavetable rejects AIFF outright unless the user insists, and
-    /// that verdict is made straight after detecting the
-    /// container, before reading a single chunk. Deciding it later instead would
-    /// report a *decode* failure for a malformed AIFF, and the browser reads
-    /// that error as "this file cannot be a wavetable, but try it as a sample"
-    /// — so the difference is whether such a file still loads.
+    /// For verdicts that depend on the container alone: a wavetable load rejects AIFF before
+    /// reading any chunk. Waiting for the decode would turn a malformed AIFF into a decode error,
+    /// which the browser treats differently (it then does not fall back to loading the file as a
+    /// sample).
     ///
-    /// `None` before the top header has been read, and on a walk that failed
-    /// without identifying a container.
+    /// `None` before the top header has been read, and on a walk that failed without identifying
+    /// a container.
     #[must_use]
     pub fn container(&self) -> Option<Container> {
         match self.phase {
-            // Not read yet.
             Phase::Top => None,
-            // `step_top` is the only step that fails without a container in
-            // hand, by way of these two errors. `Truncated` can also come from a
-            // later step, so it is qualified by "no chunk was ever walked" —
-            // conservative in the one case where the container is in fact known
-            // (a file whose FIRST chunk header is truncated), which costs a
-            // caller nothing but a decode error it would have reported anyway.
+            // `step_top` fails only with these two errors. `Truncated` can also come from a later
+            // step, so it counts only if no chunk was walked — conservative for a file whose
+            // first chunk header is truncated, which fails the decode anyway.
             Phase::Failed(HeaderError::NotAudio) => None,
             Phase::Failed(HeaderError::Truncated { .. }) if !self.saw_a_chunk => None,
             _ => Some(self.container),
         }
     }
 
-    /// Whether the walk has located the audio data: a `data`/`SSND` chunk has
-    /// been read and [`AudioHeader::audio_data_start_pos_bytes`] /
-    /// [`AudioHeader::audio_data_length_bytes`] can no longer change.
+    /// Returns whether a `data`/`SSND` chunk has been read, so
+    /// [`AudioHeader::audio_data_start_pos_bytes`] and [`AudioHeader::audio_data_length_bytes`]
+    /// are final.
     ///
-    /// Pair it with [`HeaderParser::finish_here`] to stop the walk at that point.
-    /// A caller reading a file as a *wavetable* wants exactly that: everything
-    /// past the audio chunk is metadata a wavetable does not use, and walking it
-    /// drags the caller's own reader past the audio it is about to read — which
-    /// is why a wavetable walk stops here.
-    ///
-    /// AIFF's `SSND` carries an offset in its payload, so this stays false until
-    /// that payload has been stepped, not merely until the chunk header has.
+    /// A wavetable load pairs this with [`HeaderParser::finish_here`]: what follows the audio chunk
+    /// is metadata it does not use, and walking it would move the caller's reader past the audio
+    /// it is about to read. For AIFF this stays false until the `SSND` payload (which carries the
+    /// audio offset) has been read, not just its header.
     #[must_use]
     pub fn located_audio_data(&self) -> bool {
         self.found_data_chunk
@@ -638,38 +540,34 @@ impl HeaderParser {
             )
     }
 
-    /// End the walk here and resolve the header from what has been read so far.
+    /// Ends the walk now and resolves the header from what has been read so far.
     ///
-    /// The same finalisation the end of the file would have run, just earlier:
-    /// the fields the remaining chunks would have set keep the values they have
-    /// (loop points and root note stay at their "the file said nothing"
-    /// defaults). Fails for the same reasons the end of a file does — no
-    /// `data`/`SSND` chunk, no `fmt `/`COMM` chunk — so it is only meaningful
-    /// once [`HeaderParser::located_audio_data`] is true.
+    /// Runs the same finalisation as reaching the end of the file; fields later chunks would have
+    /// set keep their defaults (no loop, no root note). Idempotent: on a finished walk it
+    /// re-reports that outcome.
     ///
-    /// Idempotent: on an already-finished walk it re-reports that outcome
-    /// instead of finishing twice.
+    /// # Errors
+    ///
+    /// The same as reaching the end of the file: [`Reason::NoDataChunk`] or [`Reason::NoFmtChunk`]
+    /// if those chunks have not been read, so call it once
+    /// [`HeaderParser::located_audio_data`] is true. A walk that already failed returns its error.
     pub fn finish_here(&mut self) -> Result<AudioHeader, HeaderError> {
         match self.phase {
             Phase::Done(header) => return Ok(header),
             Phase::Failed(error) => return Err(error),
             _ => {}
         }
-        // `finish`'s only use of `eof` is telling a genuinely empty container
-        // from one truncated before its first chunk header, which no walk that
-        // has read a chunk can be. The file's own size is the honest answer
-        // regardless, and prefix mode has none to give.
+        // `finish` uses `eof` only to tell an empty container from one truncated before its first
+        // chunk header. The file size is the right answer; prefix mode has none.
         self.try_step_finish(self.file_size.unwrap_or(0))?;
         match self.phase {
             Phase::Done(header) => Ok(header),
-            // `finish` either sets `Done` or returns the error `try_step_finish`
-            // has already turned into `Failed` above.
+            // Unreachable: `finish` either sets `Done` or returned an error above.
             _ => Err(HeaderError::Malformed(Reason::NoDataChunk)),
         }
     }
 
-    /// [`HeaderParser::finish`] with the same failure bookkeeping every other
-    /// step gets: an error is recorded on the parser, not just returned.
+    /// [`HeaderParser::finish`], recording any error on the parser as every other step does.
     fn try_step_finish(&mut self, eof: u32) -> Result<(), HeaderError> {
         if let Err(error) = self.finish(eof) {
             self.phase = Phase::Failed(error);
@@ -678,21 +576,19 @@ impl HeaderParser {
         Ok(())
     }
 
-    /// Hand the parser the bytes it asked for.
+    /// Hands the parser the bytes it asked for.
     ///
-    /// `window_start` is the absolute file offset `window` begins at; it should
-    /// be the `start` of the pending request. Supplying **more** than was asked
-    /// for is not merely allowed but wanted — see [`MAX_WINDOW_BYTES`] — and the
-    /// parser will satisfy as many further requests from the same window as it
-    /// fully covers before asking again.
+    /// `window_start` is the absolute file offset `window` begins at, normally the pending
+    /// request's `start`. Supplying more than was asked for is encouraged (see
+    /// [`MAX_WINDOW_BYTES`]): the parser satisfies every further request the window fully covers
+    /// before returning [`FeedResult::Need`]. The end of the file needs no answer; the parser
+    /// knows where it is and finishes the walk itself.
     ///
-    /// Supplying **less** is a failed read: the request was already clamped to
-    /// the file, so the bytes exist. It is reported as
-    /// [`HeaderError::Truncated`] rather than quietly ending the walk with a
-    /// half-built header. There is nothing to pad and no reason to.
+    /// # Errors
     ///
-    /// The end of the file needs no answer at all: the parser knows where it is
-    /// and finishes the walk itself.
+    /// Any decode failure. Supplying less than was asked for is a failed read (the request was
+    /// clamped to the file, so the bytes exist) and returns [`HeaderError::Truncated`]; do not pad.
+    /// Once failed, every later call returns the same error.
     pub fn feed(&mut self, window: &[u8], window_start: u32) -> Result<FeedResult, HeaderError> {
         loop {
             match self.phase {
@@ -703,17 +599,14 @@ impl HeaderParser {
 
             let (start, len) = self.request();
             if self.past_end(start) {
-                // The file has nothing at this offset. That is the end of the
-                // walk, and the parser already knows it — no round trip, and no
-                // way for a caller to answer with padding instead.
+                // End of file: finish without a round trip to the caller.
                 self.try_step(&[])?;
                 continue;
             }
 
             let available = window_at(window, window_start, start);
             if self.file_size.is_some() && (available.len() as u32) < len {
-                // Clamped above, so these bytes are inside the file: a short
-                // answer is a read that failed, not an end of file.
+                // The request was clamped to the file, so a short answer is a failed read.
                 let error = HeaderError::Truncated {
                     needs_at_least: start.saturating_add(len),
                 };
@@ -735,7 +628,7 @@ impl HeaderParser {
         }
     }
 
-    /// Whether the file is known to hold nothing at `start`.
+    /// Returns whether the file is known to hold nothing at `start`.
     fn past_end(&self, start: u32) -> bool {
         self.file_size.is_some_and(|size| start >= size)
     }
@@ -752,8 +645,8 @@ impl HeaderParser {
     fn request(&self) -> (u32, u32) {
         let (start, len) = self.unclamped_request();
         match self.file_size {
-            // `start < size` holds whenever this is reached: `feed` resolves a
-            // request at or past the end itself, without asking the caller.
+            // For `start >= size` this yields len 0; `feed` resolves such a request itself, so
+            // only an empty file's first request reaches a caller that way.
             Some(size) => (start, len.min(size.saturating_sub(start))),
             None => (start, len),
         }
@@ -768,33 +661,23 @@ impl HeaderParser {
             }
             Phase::MarkCount { chunk, .. } => (chunk.data_start, MARK_COUNT_LEN),
             Phase::MarkEntry { cursor, .. } => (cursor, MARK_ENTRY_LEN),
-            // Terminal phases are filtered out by `pending`/`feed` before this
-            // is reached; a zero-length request is inert if one ever isn't.
+            // Filtered out by `pending`/`feed`; a zero-length request is inert regardless.
             Phase::Done(_) | Phase::Failed(_) => (0, 0),
         }
     }
 
-    /// How much of a chunk's payload to ask for.
+    /// Returns how much of a chunk's payload to ask for.
     ///
-    /// [`PayloadKind::window_len`] is a fixed extent per chunk type, NOT the
-    /// chunk's declared length — deliberately, because that is what the C++
-    /// oracle read. On a whole-header walk it is used as is, over-reads and all:
-    /// those over-reads are what the corpus differential was validated against,
-    /// and nothing downstream cares where the walk left the caller's reader.
+    /// A whole-header walk uses [`PayloadKind::window_len`] as is, over-reads included; nothing
+    /// downstream reuses its reader position.
     ///
-    /// An audio-only walk does owe the caller that, because a wavetable load
-    /// hands the same reader to the code that reads the audio (see
-    /// [`WalkGoal::AudioOnly`]). So the window is bounded to this chunk plus one
-    /// chunk header — the earliest point at which the NEXT chunk's payload, and
-    /// hence the audio, could begin. That makes "the walk never reads past
-    /// `audio_data_start_pos_bytes`" true by arithmetic rather than by no real
-    /// file having tripped it.
-    ///
-    /// It bites only where a chunk declares less than `window_len - 8`: in
-    /// practice a `fmt ` claiming under 8 bytes, which is malformed either way
-    /// and now fails the decode instead of reading its bit depth out of the
-    /// audio. The `clm ` over-read (7 bytes from a chunk that declares 4) is
-    /// untouched — 4 + 8 is still past 7 — so that quirk survives, as it must.
+    /// An audio-only walk hands its reader on to the code that reads the audio (see
+    /// [`WalkGoal::AudioOnly`]), so its window is capped at this chunk's payload plus one chunk
+    /// header — the earliest the next chunk's payload, and so the audio, can begin. That makes
+    /// "the walk never reads past `audio_data_start_pos_bytes`" hold by arithmetic. The cap only
+    /// bites on a chunk declaring less than `window_len - 8` bytes, in practice a malformed `fmt `
+    /// under 8 bytes, which then fails the decode. The `clm ` over-read (7 bytes from a chunk
+    /// declaring 4) is within the cap and preserved.
     fn payload_window_len(&self, kind: PayloadKind, chunk: Chunk) -> u32 {
         let extent = kind.window_len();
         match self.goal {
@@ -831,13 +714,9 @@ impl HeaderParser {
             (b"FORM", b"AIFF") => Container::Aiff,
             _ => return Err(HeaderError::NotAudio),
         };
-        // Bytes 4..8 declare how many bytes follow them: the 4-byte format id
-        // plus every chunk after it. A truthful, fully-supplied empty container
-        // is self-describing — the file's real end equals `8 + declared`.
-        // That's the only signal available for telling a genuinely empty
-        // container (no chunks at all) apart from a file truncated before its
-        // first chunk header; once the walk has read a real chunk we no longer
-        // need it (see `finish`).
+        // Bytes 4..8 declare how many bytes follow them: the 4-byte form type plus every chunk.
+        // `finish` uses it to tell an empty container (end == 8 + declared) from one truncated
+        // before its first chunk header.
         let declared = [top[4], top[5], top[6], top[7]];
         self.declared_after_top = match self.container {
             Container::Wav => u32::from_le_bytes(declared),
@@ -851,38 +730,20 @@ impl HeaderParser {
     }
 
     fn step_header(&mut self, win: &[u8], at: u32, pad: u32) -> Result<(), HeaderError> {
-        // The previous chunk's trailing pad byte is deliberately NOT required
-        // to be present: it exists only so the NEXT chunk starts on an even
-        // offset, and real-world files routinely omit it when the odd chunk is
-        // the last thing in the file — there's nothing to align if there is no
-        // next chunk. (Verified against `~/Deluge Backup/SONGS/problem_songs/…/
-        // tropic regsnare1.wav`, whose `data` chunk is exactly 249477 bytes —
-        // odd — ending exactly at the file's real 249557-byte end with the pad
-        // byte never written. Demanding it rejected that complete, valid file.)
+        // The previous chunk's pad byte is optional: real files routinely omit it when the
+        // odd-sized chunk is the last in the file, and such files must load.
         let header = win.get(pad as usize..).unwrap_or(&[]);
         if header.is_empty() {
-            // Nothing at this offset: the file ends here, which is the end of
-            // the walk — the same conclusion the C++ oracle reaches when its
-            // `bytePos < src.size()` loop condition stops holding.
+            // Nothing at this offset: the file ends here, and so does the walk.
             let eof = at.saturating_add(win.len() as u32);
             return self.finish(eof);
         }
         let header_start = at.saturating_add(pad);
         if header.len() < CHUNK_HEADER_LEN as usize {
-            // A few bytes that cannot hold a chunk header are the end of the
-            // walk, not a truncated one — when we know where the file ends.
-            //
-            // In size-aware mode the request was clamped to the file, so a short
-            // window means the FILE stops here: there is no chunk at this offset
-            // and no bytes are coming. Files shaped like that must keep loading.
-            // Trailing slop is mundane (DAW
-            // padding, an interrupted copy, a card that filled mid-write), so
-            // treating it as corruption would stop such a file loading.
-            //
-            // Prefix mode has no size to reason with: there, running out of
-            // bytes really can mean the caller simply stopped reading, so it
-            // stays "supply more" (see the type docs on [`HeaderError`] vs
-            // [`ParseError`]).
+            // With a known size the request was clamped to the file, so fewer than 8 bytes means
+            // the file ends here: trailing slop (DAW padding, an interrupted copy, a card that
+            // filled mid-write) ends the walk rather than failing it. In prefix mode running out
+            // may just mean the caller stopped reading, so it stays "supply more".
             if self.file_size.is_some() {
                 let eof = at.saturating_add(win.len() as u32);
                 return self.finish(eof);
@@ -893,8 +754,7 @@ impl HeaderParser {
         }
 
         let tag: [u8; 4] = [header[0], header[1], header[2], header[3]];
-        // Chunk *sizes* follow the container's endianness too — AIFF is
-        // big-endian throughout, not just in its field values.
+        // Chunk sizes follow the container's endianness too.
         let raw_size = match self.container {
             Container::Wav => read_u32_le(header, 4),
             Container::Aiff => read_u32_be(header, 4),
@@ -904,8 +764,7 @@ impl HeaderParser {
 
         let data_start = match header_start.checked_add(CHUNK_HEADER_LEN) {
             Some(v) => v,
-            // A chunk header the caller can't possibly grow into can never be
-            // satisfied; report the largest ask we can.
+            // A payload past the end of the `u32` offset space can never exist.
             None => {
                 return Err(HeaderError::Truncated {
                     needs_at_least: u32::MAX,
@@ -923,20 +782,13 @@ impl HeaderParser {
                 self.found_data_chunk = true;
                 self.audio_data_start_pos_bytes = data_start;
                 self.audio_data_length_bytes = raw_size;
-                // A Sample parse keeps walking after the data chunk (to pick up
-                // `smpl`/`inst`/`clm ` metadata, which legally follow it) rather
-                // than stopping here — matching the C++ parser this replaced. The
-                // payload itself is stepped over, never read.
+                // Keep walking: `smpl`/`inst`/`clm ` may follow the audio. The payload is stepped
+                // over, never read.
                 self.advance_past(chunk)
             }
-            // The three per-note metadata chunks. An audio-only walk steps over
-            // them unread, exactly as the C++ oracle's `isSample` gate did.
-            // That is not merely saved
-            // work: their windows are a fixed extent, NOT the chunk's declared
-            // length, so reading a `smpl` that declares less than 52 bytes (a
-            // no-loops sampler chunk declares 36) walks the CALLER's reader past
-            // the audio chunk header behind it — and a wavetable load hands that
-            // same reader, position and all, to the code that reads the audio.
+            // Per-note metadata. An audio-only walk skips these unread: their windows are a fixed
+            // extent, so a `smpl` declaring less than 52 bytes (36 with no loops) would move the
+            // caller's reader past the audio chunk header behind it.
             (Container::Wav, b"smpl") if self.reads_note_metadata() => {
                 self.wait_for(PayloadKind::Smpl, chunk)
             }
@@ -948,11 +800,8 @@ impl HeaderParser {
             }
             (Container::Wav, b"clm ") => self.wait_for(PayloadKind::Clm, chunk),
             (Container::Aiff, b"COMM") => {
-                // COMM is exactly 18 bytes. The C++ oracle rejects any other
-                // declared length outright rather than reading a partial or
-                // extended COMM — and it does so before looking at the
-                // payload at all, so this check precedes
-                // the window request.
+                // COMM must declare exactly 18 bytes; any other length is rejected before the
+                // payload is requested.
                 if raw_size != PayloadKind::Comm.window_len() {
                     return Err(HeaderError::Unsupported(Reason::UnsupportedFormatTag));
                 }
@@ -963,35 +812,26 @@ impl HeaderParser {
                 self.wait_for(PayloadKind::Ssnd, chunk)
             }
             (Container::Aiff, b"MARK") => {
-                // Bounded to this chunk's own declared payload rather than the
-                // rest of the file: the C++ oracle reads from the raw file
-                // stream with no such bound, so a corrupted MARK (declared count
-                // too high for its payload) can walk it into a neighbouring
-                // chunk's bytes. That's an accident of the C++'s single-pass
-                // streaming design, not documented AIFF behaviour, so it isn't
-                // worth reproducing — we stop at the chunk boundary instead.
+                // Marker reads are bounded to this chunk's declared payload, so a count too high
+                // for the payload stops at the chunk boundary instead of reading the next chunk.
                 let chunk_end = data_start.saturating_add(raw_size);
                 self.phase = Phase::MarkCount { chunk, chunk_end };
                 Ok(())
             }
-            // Chunks we don't inspect — including the three above on an
-            // audio-only walk — are skipped by arithmetic alone.
+            // Everything else, including per-note metadata on an audio-only walk, is skipped
+            // unread.
             _ => self.advance_past(chunk),
         }
     }
 
-    /// Whether this walk reads the chunks that describe playing a note back
-    /// (`smpl`, `inst`, AIFF `INST`). See [`WalkGoal::AudioOnly`].
+    /// Returns whether this walk reads per-note metadata (`smpl`, `inst`, AIFF `INST`). See
+    /// [`WalkGoal::AudioOnly`].
     const fn reads_note_metadata(&self) -> bool {
         matches!(self.goal, WalkGoal::WholeHeader)
     }
 
-    /// Whether the file's sample rate has to be one we can play back.
-    ///
-    /// Only a Sample load has to be able to play the file at its own rate; a
-    /// wavetable is rendered from the audio's shape, and never asks. The C++
-    /// oracle gated the range check the same way, and a 192 kHz single-cycle
-    /// file browsed as a wavetable loaded and played because of it.
+    /// Returns whether the sample rate must be playable (`5000..=96000` Hz). Only a Sample load
+    /// plays the file at its own rate; a wavetable ignores it.
     const fn insists_on_a_playable_rate(&self) -> bool {
         matches!(self.goal, WalkGoal::WholeHeader)
     }
@@ -1001,15 +841,13 @@ impl HeaderParser {
         Ok(())
     }
 
-    /// Step over the rest of `chunk` — payload included, unread — and line up
-    /// the next chunk header. RIFF/IFF chunks are word-aligned, so an odd
-    /// payload is followed by a pad byte, folded into the next request.
+    /// Steps over the rest of `chunk`, payload unread, and lines up the next chunk header.
+    /// RIFF/IFF chunks are word-aligned, so an odd payload's pad byte is folded into the next
+    /// request.
     fn advance_past(&mut self, chunk: Chunk) -> Result<(), HeaderError> {
         let unpadded_end = match chunk.data_start.checked_add(chunk.raw_size) {
             Some(v) => v,
-            // `raw_size` comes straight from the file: a hostile size that walks
-            // the cursor past the end of the address space can never be
-            // satisfied by any buffer.
+            // A file-declared size that overflows the `u32` offset space can never be satisfied.
             None => {
                 return Err(HeaderError::Truncated {
                     needs_at_least: u32::MAX,
@@ -1029,20 +867,17 @@ impl HeaderParser {
         kind: PayloadKind,
         chunk: Chunk,
     ) -> Result<(), HeaderError> {
-        // Each arm below asks for exactly the bytes it reads and gets back a
-        // fixed-size array, so every read after that is bounds-checked by the
-        // type rather than by a rule kept in step with it by hand. The arms
-        // that tolerate a short window (metadata whose absence just leaves a
-        // field at its default, mirroring the C++ oracle's bounds-checked reads
-        // that silently skip) simply never ask.
+        // Arms that require their fields take a fixed-size array, so later reads are
+        // bounds-checked by the type. Optional metadata arms read field by field and leave a field
+        // at its default when the window is short.
         let short = |needed: u32| HeaderError::Truncated {
             needs_at_least: chunk.data_start.saturating_add(needed),
         };
 
         match kind {
             PayloadKind::Fmt => {
-                // fmt chunk layout: wFormatTag:u16, wChannels:u16, dwSampleRate:u32,
-                // dwByteRate:u32 (unused), wBlockAlign:u16, wBitsPerSample:u16.
+                // `fmt ` (little-endian): wFormatTag:u16, wChannels:u16, dwSampleRate:u32,
+                // dwByteRate:u32, wBlockAlign:u16, wBitsPerSample:u16.
                 let fields = win
                     .first_chunk::<16>()
                     .ok_or_else(|| short(PayloadKind::Fmt.window_len()))?;
@@ -1062,8 +897,7 @@ impl HeaderParser {
                 };
 
                 if format_tag == 1 {
-                    // PCM: RawDataFormat stays whatever the bit-depth arm above set
-                    // (Native, or Unsigned8 for 8-bit).
+                    // PCM: keep the format set above (Native, or Unsigned8 for 8-bit).
                 } else if format_tag == 3 && byte_depth == 4 {
                     self.raw_data_format = RawDataFormat::Float;
                 } else {
@@ -1080,40 +914,28 @@ impl HeaderParser {
 
                 self.byte_depth = Some(byte_depth);
                 self.num_channels = Some(channels as u8);
-                // Recorded even on a walk that will not insist on it (where the
-                // C++ oracle left the field at its 44100 default). Nothing reads
-                // it on that path — a `WaveTableHeader` has no sample rate — and
-                // a field whose value depends on why it was read would be a trap
-                // for whoever reads it next.
+                // Recorded on every walk, so the field never depends on the goal.
                 self.sample_rate = sample_rate;
             }
             PayloadKind::Smpl => {
-                // smpl header: manufacturer, product, samplePeriod,
-                // midiUnityNote, midiPitchFraction, smpteFormat, smpteOffset,
-                // numSampleLoops, samplerData — 9 little-endian u32 fields (36
-                // bytes), then the loop records. Each field read is
-                // independently bounds-checked; a short/truncated chunk just
-                // leaves midi_note/loop points unset rather than erroring.
-                // Mirrors the C++ parser this replaced.
+                // `smpl`: manufacturer, product, samplePeriod, midiUnityNote, midiPitchFraction,
+                // smpteFormat, smpteOffset, numSampleLoops, samplerData — nine little-endian u32
+                // (36 bytes) — then the loop records. A short chunk leaves the note and loop
+                // points unset rather than failing.
                 if let (Some(midi_unity_note), Some(pitch_fraction)) =
                     (read_u32_le(win, 12), read_u32_le(win, 16))
                 {
                     if (midi_unity_note != 0 || pitch_fraction != 0) && midi_unity_note < 128 {
-                        // Fractional root note; 2^32 is exactly representable in f32.
+                        // midiPitchFraction is in units of 2^-32 semitone.
                         self.midi_note =
                             Some(pitch_fraction as f32 / 4_294_967_296.0 + midi_unity_note as f32);
                     }
                 }
 
-                // Only a single declared loop is ever honoured: the C++ gates
-                // the loop read on `numLoops == 1` rather than looping
-                // `numLoops` times, so a hostile declared count (e.g.
-                // 0xFFFF_FFFF) never drives any iteration — bounded or not —
-                // and never indexes past what a single loop record needs.
+                // Loop points are read only when exactly one loop is declared, so the declared
+                // count never drives iteration.
                 if read_u32_le(win, 28) == Some(1) {
-                    // loop record: cuePointId, type, start, end, fraction,
-                    // playCount — 6 u32 fields starting right after the
-                    // 36-byte header above.
+                    // Loop record at 36: cuePointId, type, start, end, fraction, playCount (u32).
                     if let (Some(loop_start), Some(loop_end)) =
                         (read_u32_le(win, 44), read_u32_le(win, 48))
                     {
@@ -1123,14 +945,9 @@ impl HeaderParser {
                 }
             }
             PayloadKind::Inst => {
-                // inst chunk: MIDIUnshiftedNote:u8, fineTune:i8 (signed,
-                // 1/100th semitone), lowNote, highNote, lowVelocity,
-                // highVelocity, gain — only the first two bytes are used.
-                // Applied in file order like `smpl` above: whichever of
-                // `smpl`/`inst` is walked later simply overwrites the note set
-                // by the other, with no other precedence rule — that's exactly
-                // what the C++ does too, since both arms write `f.midiNote`
-                // unconditionally when their own guard passes.
+                // `inst`: unshiftedNote:u8, fineTune:i8 (cents), lowNote, highNote, lowVelocity,
+                // highVelocity, gain; only the first two are used. Whichever of `smpl`/`inst`
+                // comes later in the file sets the note.
                 if let (Some(&midi_note_byte), Some(&fine_tune_byte)) = (win.first(), win.get(1)) {
                     if midi_note_byte < 128 {
                         let fine_tune = fine_tune_byte as i8;
@@ -1139,36 +956,16 @@ impl HeaderParser {
                 }
             }
             PayloadKind::Clm => {
-                // Serum wavetable-hint chunk: "<!>" followed by an ASCII
-                // decimal cycle-size, e.g. "<!>2048". The C++ oracle reads
-                // exactly 7 raw bytes at the chunk payload *regardless of the
-                // chunk's own declared length* — it never bounds the read to
-                // `thisChunk.length`. That's a real
-                // over-read quirk, not a typo: this field pair is Serum/Deluge
-                // convention, not a documented format, so audio_file_format.cpp
-                // is normative and we mirror it exactly, quirks included. It is
-                // also why `window_len` is a constant per chunk type rather than
-                // the declared length.
+                // Serum wavetable hint: "<!>" then the cycle size as ASCII decimal, e.g.
+                // "<!>2048". Always 7 bytes from the payload start, whatever the chunk declares.
+                // This is Serum/Deluge convention with no spec; the C++ decoder's behaviour,
+                // over-read included, is the reference.
                 if let Some(raw) = win.get(0..7) {
-                    // The C++ loads the first 4 bytes as a little-endian u32 and
-                    // masks it with 0x00FFFFFF before comparing to
-                    // charsToIntegerConstant('<','!','>',0). Masking off the
-                    // top byte means the comparison only constrains bytes 0-2 to be
-                    // "<!>" — byte index 3 is left completely unconstrained and,
-                    // next, gets read as the *first* digit character below.
                     if raw[0] == b'<' && raw[1] == b'!' && raw[2] == b'>' {
                         self.wavetable_explicitly_specifies_self = true;
-                        // memToUIntOrError parses raw[3..7] — up to 4 ASCII
-                        // decimal digits immediately following the tag, with no
-                        // separator (util/audio_format_helpers.cpp:22-34). Any
-                        // non-digit anywhere in the run aborts the whole parse
-                        // (mirroring memToUIntOrError's immediate `return -1`),
-                        // which the C++ then only applies when >= 1. This
-                        // window is fixed at 4 bytes, so a u32 can't actually
-                        // overflow here, but
-                        // accumulate with checked arithmetic anyway rather than
-                        // trust the window size never grows out from under this
-                        // comment.
+                        // Exactly the four bytes after the tag must all be ASCII digits; anything
+                        // else, or a value of 0, keeps the default. Checked arithmetic guards
+                        // against a wider window later.
                         let mut number: u32 = 0;
                         let mut is_number = true;
                         for &digit_byte in &raw[3..7] {
@@ -1193,9 +990,8 @@ impl HeaderParser {
                 }
             }
             PayloadKind::Comm => {
-                // COMM layout (big-endian): numChannels:u16,
-                // numSampleFrames:u32 (unused here), sampleSize:u16,
-                // sampleRate:extended80 (10 bytes) — exactly 18 bytes.
+                // `COMM` (big-endian): numChannels:u16, numSampleFrames:u32, sampleSize:u16,
+                // sampleRate:extended80 — 18 bytes.
                 let fields = win
                     .first_chunk::<18>()
                     .ok_or_else(|| short(PayloadKind::Comm.window_len()))?;
@@ -1216,12 +1012,9 @@ impl HeaderParser {
                     _ => return Err(HeaderError::Unsupported(Reason::UnsupportedBitDepth)),
                 };
 
-                // AIFF PCM is big-endian; anything wider than 8 bits needs a
-                // byte-swap on this (little-endian) target, hence
-                // EndiannessWrong*. 8-bit AIFF is signed already (unlike WAV's
-                // unsigned-8 convention), so it needs neither a swap nor
-                // `Unsigned8` — it stays `Native`. Mirrors the C++ parser
-                // this replaced.
+                // AIFF PCM is big-endian, so wider than 8 bits needs a byte-swap on this
+                // little-endian target. 8-bit AIFF is signed (unlike WAV's unsigned 8-bit), so it
+                // stays `Native`.
                 self.raw_data_format = match byte_depth {
                     2 => RawDataFormat::EndiannessWrong16,
                     3 => RawDataFormat::EndiannessWrong24,
@@ -1239,22 +1032,15 @@ impl HeaderParser {
                 self.sample_rate = sample_rate;
             }
             PayloadKind::Ssnd => {
-                // SSND payload is offset:u32 + blockSize:u32 (both big-endian)
-                // followed by the audio bytes; the audio start must skip past
-                // both plus the declared `offset`, and the audio length excludes
-                // them from the chunk's declared size. Mirrors the C++ parser
-                // this replaced.
+                // `SSND`: offset:u32, blockSize:u32 (big-endian), then the audio. Audio starts
+                // `offset` bytes after those 8, and its length is the chunk size minus both.
                 const SSND_PREFIX_LEN: u32 = 8;
                 let fields = win
                     .first_chunk::<{ SSND_PREFIX_LEN as usize }>()
                     .ok_or_else(|| short(SSND_PREFIX_LEN))?;
                 let offset = u32::from_be_bytes([fields[0], fields[1], fields[2], fields[3]]);
 
-                // The C++ computes this as an unsigned subtraction that silently
-                // wraps to a huge value when a hostile `offset` exceeds the
-                // declared chunk size; that's not part of the AIFF spec, just
-                // unhandled-malformed-input behaviour in the oracle, so we
-                // deliberately saturate to 0 instead of mirroring the wraparound.
+                // Saturates to 0 when `offset` exceeds the chunk size.
                 self.audio_data_length_bytes = chunk
                     .raw_size
                     .saturating_sub(offset)
@@ -1267,11 +1053,9 @@ impl HeaderParser {
                     .unwrap_or(u32::MAX);
             }
             PayloadKind::AiffInst => {
-                // INST layout (big-endian): baseNote:u8, detune:i8 (1/100th
-                // semitone), lowNote, highNote, lowVelocity, highVelocity,
-                // gain:i16 — 8 bytes — then the sustain loop: playMode:u16,
-                // beginID:u16, endID:u16 (6 bytes). The release loop that
-                // follows is never read. Mirrors the C++ parser this replaced.
+                // AIFF `INST` (big-endian): baseNote:u8, detune:i8 (cents), lowNote, highNote,
+                // lowVelocity, highVelocity, gain:i16 (8 bytes), then the sustain loop:
+                // playMode:u16, beginID:u16, endID:u16. The release loop after it is not read.
                 if let (Some(&midi_note_byte), Some(&fine_tune_byte)) = (win.first(), win.get(1)) {
                     let fine_tune = fine_tune_byte as i8;
                     if (midi_note_byte != 0 || fine_tune != 0) && midi_note_byte < 128 {
@@ -1296,9 +1080,8 @@ impl HeaderParser {
         chunk: Chunk,
         chunk_end: u32,
     ) -> Result<(), HeaderError> {
-        // MARK layout (big-endian): numMarkers:u16, then that many marker
-        // records back to back. The count field is bounded by the chunk's own
-        // declared end the same way every per-marker read below is.
+        // `MARK` (big-endian): numMarkers:u16, then that many records back to back. Like every
+        // marker read, the count must lie within the chunk's declared end.
         let declared = chunk
             .data_start
             .checked_add(2)
@@ -1311,9 +1094,7 @@ impl HeaderParser {
         self.phase = Phase::MarkEntry {
             chunk,
             chunk_end,
-            // The `+ 2` is the count field just read; `checked_add` above
-            // proved it doesn't overflow, but say so in the same idiom the rest
-            // of the walk uses rather than relying on the reader to remember.
+            // Past the count field; the `checked_add` above proved this cannot overflow.
             cursor: chunk.data_start.saturating_add(MARK_COUNT_LEN),
             index: 0,
             declared,
@@ -1330,10 +1111,8 @@ impl HeaderParser {
         index: usize,
         declared: usize,
     ) -> Result<(), HeaderError> {
-        // One marker record: id:u16 (bit-reinterpreted as the spec's signed
-        // 16-bit ID, matching the C++'s own uint16_t-into-int16_t assignment),
-        // position:u32, then a Pascal string name (u8 length prefix + that many
-        // bytes, padded to an even total). Mirrors the C++ parser this replaced.
+        // One record: id:u16 (reinterpreted as the spec's signed ID), position:u32, then a pstring
+        // name (u8 length + that many bytes, padded so the whole pstring is even).
         let id = match cursor
             .checked_add(2)
             .filter(|&e| e <= chunk_end)
@@ -1354,9 +1133,7 @@ impl HeaderParser {
         };
         let cursor = cursor.saturating_add(4);
 
-        // The id/position pair is fully read at this point, so record it even if
-        // the trailing name string (read next, only to find where the *next*
-        // marker starts) turns out to be truncated.
+        // Record the marker even if its name (read only to find the next record) is truncated.
         self.marker_ids[index] = id;
         self.marker_positions[index] = position;
         self.num_markers = index + 1;
@@ -1367,26 +1144,13 @@ impl HeaderParser {
         };
         let cursor = cursor.saturating_add(1);
 
-        // THE ONE DELIBERATE BEHAVIOUR CHANGE IN THIS PARSER, and this comment
-        // is its record — nothing outside the source justifies it.
+        // Skip the rest of the pstring so the whole thing (length byte + name) has even length:
+        // name + 1 bytes for an even name length, name bytes for an odd one.
         //
-        // The pstring-skip amount below is a correction, not a mirror, of the
-        // C++ parser's `(stringLength + 1) & ~1`. That rounds only the *name*
-        // length up to even and skips that many bytes after the
-        // already-consumed 1-byte length prefix — but the AIFF pstring
-        // convention (and what real encoders write) pads the *whole* record,
-        // length byte plus name, to an even total. The two rules disagree
-        // whenever the name length is odd or zero, which is the common case:
-        // 3-letter marker names like "beg"/"end".
-        //
-        // Consequence of the C++ rule: every marker after the first in a
-        // multi-marker file is read one byte off, so its ID and position are
-        // garbage, and an AIFF's sustain loop resolves to nothing. Measured over
-        // a 40-file AIFF corpus, 25 files' `file_loop_end_samples` came back 0
-        // from the C++ and correct from this formula; the corpus differential
-        // carries those 25 as its one adjudicated disagreement category. WAV is
-        // untouched — it has no MARK chunk — and the golden corpus is all WAV,
-        // so no golden can move on this.
+        // This deliberately differs from the original C++ decoder, which skipped
+        // `(stringLength + 1) & ~1` — rounding only the name — and so misread every marker after
+        // the first by one byte, leaving AIFF sustain loops unresolved. It is the one intended
+        // behaviour difference from that decoder, and only AIFF files are affected.
         let skip = if str_len % 2 == 0 {
             u32::from(str_len) + 1
         } else {
@@ -1410,14 +1174,12 @@ impl HeaderParser {
         Ok(())
     }
 
-    /// The walk has reached the end of the file at `eof`. Resolve what the
-    /// chunks said into a header, or report why they don't add up.
+    /// Resolves what the chunks said into a header once the walk ends at `eof`, or reports why
+    /// they don't add up.
     fn finish(&mut self, eof: u32) -> Result<(), HeaderError> {
-        // If we never walked a real chunk, we can't tell a genuinely empty
-        // container from a file truncated before its first chunk header — fall
-        // back to the top-level size field. Once at least one chunk has been
-        // walked, running out on a chunk boundary is unambiguously the end of
-        // the container.
+        // With no chunk walked, only the container's size field tells an empty container from one
+        // truncated before its first chunk header. After a chunk, ending on a chunk boundary is
+        // the end of the container.
         if !self.saw_a_chunk && 8u32.checked_add(self.declared_after_top) != Some(eof) {
             return Err(HeaderError::Truncated {
                 needs_at_least: eof.saturating_add(CHUNK_HEADER_LEN),
@@ -1436,25 +1198,13 @@ impl HeaderParser {
             None => return Err(HeaderError::Malformed(Reason::NoFmtChunk)),
         };
 
-        // AIFF marker-resolved loop finalisation: `INST`'s sustain-loop marker
-        // IDs only mean anything once the whole header has been scanned, since
-        // `MARK` (which maps IDs to sample positions) can appear before or after
-        // `INST`.
+        // Resolve AIFF `INST` sustain-loop marker IDs through the `MARK` table. Done here because
+        // `MARK` may come before or after `INST`. An ID with no matching marker leaves that loop
+        // point at 0 (no loop).
         //
-        // This block is inert on a [`WalkGoal::AudioOnly`] walk, but only by
-        // dataflow: the gated `INST` arm is the SOLE writer of
-        // `sustain_loop_*_marker_id`, so they keep the -1 that means "no INST
-        // seen" and the condition below never holds. `MARK` itself is NOT gated
-        // (the C++ oracle read it in both modes), so `marker_ids` really is
-        // populated on such a walk. An arm that starts writing a sustain-loop id
-        // outside `INST` would silently give an audio-only walk loop points it
-        // is not supposed to have — gate it, or gate this.
-        //
-        // `sustain_loop_end_marker_id != -1` gates on "an INST chunk was seen"
-        // the same way the C++ does; an ID with no matching `MARK` entry — or
-        // no `MARK` chunk at all — simply never writes either field, leaving
-        // both at their 0 ("no loop") default. Mirrors the C++ parser this
-        // replaced.
+        // Inert on a [`WalkGoal::AudioOnly`] walk only because the gated `INST` arm is the sole
+        // writer of `sustain_loop_*_marker_id`; `MARK` is read on every walk. Anything else that
+        // writes those IDs must be gated too, or audio-only walks gain loop points.
         if self.container == Container::Aiff && self.sustain_loop_end_marker_id != -1 {
             for i in 0..self.num_markers {
                 if self.marker_ids[i] == self.sustain_loop_begin_marker_id {
@@ -1486,18 +1236,17 @@ impl HeaderParser {
     }
 }
 
-/// The part of `window` that lives at absolute offset `start` onwards, or
-/// nothing at all if the window doesn't reach that far.
+/// Returns the part of `window` from absolute offset `start` on, or an empty slice if the window
+/// does not cover `start`.
 fn window_at(window: &[u8], window_start: u32, start: u32) -> &[u8] {
     match start.checked_sub(window_start) {
         Some(offset) => window.get(offset as usize..).unwrap_or(&[]),
-        // The window begins after the bytes we need, so it says nothing about
-        // what is at `start`.
+        // The window begins after `start`.
         None => &[],
     }
 }
 
-/// Whether `window` fully contains the `len` bytes at absolute offset `start`.
+/// Returns whether `window` fully contains the `len` bytes at absolute offset `start`.
 fn covers(window: &[u8], window_start: u32, start: u32, len: u32) -> bool {
     match start.checked_sub(window_start) {
         Some(offset) => window.len() as u64 >= u64::from(offset) + u64::from(len),
@@ -1505,26 +1254,20 @@ fn covers(window: &[u8], window_start: u32, start: u32, len: u32) -> bool {
     }
 }
 
-/// Decode the header of a file supplied whole, in one slice.
+/// Decodes the header from a prefix of a file held in memory.
 ///
-/// A convenience wrapper over [`HeaderParser`] for callers that already hold
-/// the entire file — tests, tools, the corpus differential. `bytes` is treated
-/// as a *prefix*, not necessarily the whole file: when the walk needs bytes
-/// beyond it, this returns [`ParseError::NeedAtLeast`] with the offset the
-/// caller must reach.
+/// For callers that already hold the file (tests, tools). Streaming callers should drive
+/// [`HeaderParser`], which never needs more than [`MAX_WINDOW_BYTES`] at once.
 ///
-/// Streaming callers — anything reading off a card — should drive
-/// [`HeaderParser`] directly instead: it never asks for more than
-/// [`MAX_WINDOW_BYTES`] at a time, where this can ask for the whole file.
+/// # Errors
+///
+/// [`ParseError::NeedAtLeast`] when the walk needs bytes beyond `bytes`; otherwise why the file
+/// could not be decoded.
 pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
     let mut parser = HeaderParser::for_prefix();
     let mut request = HeaderParser::FIRST_REQUEST;
     loop {
-        // A request that starts past the prefix is the one thing this shape
-        // can't answer: we don't know whether the file really ends here or the
-        // caller simply stopped reading, so we ask for more rather than
-        // silently truncating the walk. A `HeaderParser` has no such ambiguity —
-        // it is told the size and never asks past it.
+        // Past the prefix we cannot tell end of file from end of input, so ask for more.
         let (start, len) = request;
         if start as usize > bytes.len() {
             return Err(ParseError::NeedAtLeast(start));
@@ -1580,8 +1323,7 @@ mod tests {
 
     #[test]
     fn riff_and_form_are_detected() {
-        // No fmt/data yet, so both are Malformed — but NOT NotAudio: the
-        // container was recognised.
+        // Malformed (no fmt/data), not NotAudio: the container was recognised.
         assert!(matches!(
             parse(&riff_empty()),
             Err(ParseError::Malformed(_))
@@ -1661,9 +1403,8 @@ mod tests {
         assert_eq!(h.midi_note, None);
     }
 
-    /// Drive a size-aware walk over a whole file, the way a device caller does:
-    /// ask, read exactly what was asked, feed — including the zero-length
-    /// requests, which the parser needs in order to terminate.
+    /// Drives a size-aware walk over `file` the way a device caller does: ask, read exactly what
+    /// was asked, feed.
     fn decode_streamed(file: &[u8]) -> Result<AudioHeader, HeaderError> {
         let mut parser = HeaderParser::new(file.len() as u32);
         loop {
@@ -1681,10 +1422,8 @@ mod tests {
 
     #[test]
     fn a_tail_too_short_for_a_chunk_header_ends_the_walk() {
-        // Trailing slop is mundane — DAW padding, an interrupted copy, a card
-        // that filled mid-write — and such files must keep loading, so every
-        // length from 1 to 7 (exactly where that read gave up) must decode to
-        // the same header as the clean file.
+        // Trailing slop (DAW padding, an interrupted copy, a card that filled mid-write) of 1 to 7
+        // bytes must decode to the same header as the clean file.
         let clean = riff_fmt_data(2, 44100, 16, 8);
         let expected = decode_streamed(&clean).expect("the file itself must decode");
         for tail in 1..CHUNK_HEADER_LEN {
@@ -1696,17 +1435,14 @@ mod tests {
                 "{tail} trailing bytes must not change the header"
             );
         }
-        // 8 trailing bytes DO hold a chunk header, so they go through the
-        // ordinary walk instead — as a chunk claiming a length that runs off the
-        // end, which the walk also ends on. The two paths agree, which is the
-        // point: the boundary at 8 is not a cliff.
+        // 8 trailing bytes read as a chunk header whose length runs off the end, which also ends
+        // the walk with the same header.
         let mut chunk_sized = clean.clone();
         chunk_sized.extend(core::iter::repeat_n(0xAA, CHUNK_HEADER_LEN as usize));
         assert_eq!(decode_streamed(&chunk_sized), Ok(expected));
     }
 
-    /// [`decode_streamed`] for a walk with a goal, reporting how far the caller
-    /// had to read — which is the property an audio-only walk has to keep.
+    /// [`decode_streamed`] with a goal, also returning how far into the file the caller read.
     fn decode_streamed_with_goal(
         file: &[u8],
         goal: WalkGoal,
@@ -1733,12 +1469,8 @@ mod tests {
 
     #[test]
     fn an_audio_only_walk_leaves_the_reader_behind_the_audio() {
-        // A `smpl` chunk declaring 36 bytes — the ordinary "sampler chunk, no
-        // loops" shape — sits between `fmt ` and `data`. Reading it takes a
-        // fixed 52-byte window, which swallows the `data` header behind it and
-        // leaves the caller's reader PAST the audio start. A wavetable load
-        // hands that same reader to the code that reads the audio, so this is
-        // the invariant, not an optimisation.
+        // A 36-byte `smpl` (no loops) between `fmt ` and `data`. Its fixed 52-byte window would
+        // swallow the `data` header behind it and put the reader past the audio start.
         let mut smpl = std::vec::Vec::new();
         smpl.extend_from_slice(b"smpl");
         smpl.extend_from_slice(&36u32.to_le_bytes());
@@ -1750,7 +1482,7 @@ mod tests {
         file.extend_from_slice(b"data");
         file.extend_from_slice(&2048u32.to_le_bytes());
         file.resize(file.len() + 2048, 0);
-        // Fix up the RIFF size now that the body is complete.
+        // Patch the RIFF size now the body is complete.
         let riff_size = (file.len() - 8) as u32;
         file[4..8].copy_from_slice(&riff_size.to_le_bytes());
 
@@ -1762,9 +1494,7 @@ mod tests {
             header.audio_data_start_pos_bytes
         );
 
-        // The whole-header walk reads it, as it must — that is where root notes
-        // and loop points come from — and overshoots, which is why the two goals
-        // exist.
+        // The whole-header walk reads it (root note and loop points live there) and overshoots.
         let (whole, whole_read_to) = decode_streamed_with_goal(&file, WalkGoal::WholeHeader);
         let whole = whole.expect("the file must decode");
         assert_eq!(
@@ -1776,13 +1506,9 @@ mod tests {
 
     #[test]
     fn a_short_fmt_cannot_pull_an_audio_only_walk_into_the_audio() {
-        // The `smpl` case above is not the only way a fixed-extent window can
-        // reach past the audio: `fmt `'s extent is 16, so a `fmt ` declaring
-        // fewer than 8 bytes with `data` right behind it puts the audio inside
-        // the window. This file decodes far enough to matter — the tag and
-        // channel count are real, and `wBitsPerSample` lands on the second audio
-        // frame, 0x0010 LE, which reads as a perfectly ordinary 16 — so nothing
-        // upstream stops the walk before the reader is already past the audio.
+        // `fmt `'s extent is 16, so a `fmt ` declaring 4 bytes with `data` right behind it puts
+        // the audio inside the window. The audio is chosen so `wBitsPerSample` would read as a
+        // plausible 16 (0x0010 LE), so nothing else stops the walk.
         let mut file = std::vec::Vec::new();
         file.extend_from_slice(b"RIFF");
         file.extend_from_slice(&0u32.to_le_bytes()); // patched below
@@ -1799,27 +1525,22 @@ mod tests {
         // 12 container + 8 `fmt ` header + 4 payload + 8 `data` header.
         let audio_start = 32;
 
-        // Whichever way the decode goes, the reader must not have entered the
-        // audio: that is the promise an audio-only walk makes to a caller that
-        // is about to read it.
+        // Whatever the decode's outcome, the reader must not have entered the audio.
         let (_, read_to) = decode_streamed_with_goal(&file, WalkGoal::AudioOnly);
         assert!(
             read_to <= audio_start,
             "an audio-only walk read to {read_to}, into the audio at {audio_start}"
         );
 
-        // The whole-header walk keeps the C++ oracle's over-read — 16 bytes from
-        // a chunk that declares 4 — because that is what the corpus differential
-        // was validated against, and nothing downstream reuses its reader.
+        // The whole-header walk keeps the fixed 16-byte over-read.
         let (_, whole_read_to) = decode_streamed_with_goal(&file, WalkGoal::WholeHeader);
         assert_eq!(whole_read_to, 36);
     }
 
     #[test]
     fn only_a_whole_header_walk_insists_on_a_playable_rate() {
-        // 192 kHz, mono, a whole number of 2048-sample cycles: unplayable as a
-        // sample, a perfectly good wavetable. It loaded before the parse moved
-        // here, because wavetable rendering never reads the rate.
+        // 192 kHz mono, a whole number of 2048-sample cycles: unplayable as a sample, a valid
+        // wavetable.
         let file = riff_fmt_data(1, 192_000, 16, 2048 * 2);
         assert_eq!(
             decode_streamed(&file),
@@ -1834,8 +1555,7 @@ mod tests {
 
     #[test]
     fn a_short_tail_still_asks_for_more_in_prefix_mode() {
-        // The other half of the rule above: `parse`'s slice is a prefix, so
-        // running out of bytes there really can mean the caller stopped reading.
+        // `parse`'s slice is a prefix, so a short tail means "supply more", not end of file.
         let clean = riff_fmt_data(2, 44100, 16, 8);
         let mut slopped = clean.clone();
         slopped.extend_from_slice(&[0xAA, 0xAA, 0xAA]);
@@ -1856,8 +1576,7 @@ mod tests {
             .pending()
             .expect("a fresh parser wants the top header");
         let window = &file[start as usize..(start + len) as usize];
-        // The walk fails right after (an empty container has no data chunk), but
-        // the container it identified is reportable all the same.
+        // The walk fails (an empty container has no data chunk), but the container is known.
         let _ = parser.feed(window, start);
         assert_eq!(parser.container(), Some(Container::Aiff));
 
@@ -1973,15 +1692,14 @@ mod tests {
     #[test]
     fn inst_sets_root_note_with_fine_tune() {
         let h = parse(&riff_with_inst(60, -50)).expect("should parse");
-        // The C++ parser this replaced computed midiNote - fineTune * 0.01.
+        // midiNote - fineTune * 0.01.
         assert_eq!(h.midi_note, Some(60.0 - (-50.0) * 0.01));
     }
 
     #[test]
     fn inst_note_out_of_range_is_ignored() {
         let h = parse(&riff_with_inst(200, 0)).expect("should parse");
-        // 200 as a raw byte is >= 128, so the C++ guard (`midiNote < 128`)
-        // rejects it and midi_note stays unset.
+        // Notes >= 128 are ignored.
         assert_eq!(h.midi_note, None);
     }
 
@@ -2008,19 +1726,14 @@ mod tests {
     fn absent_clm_means_no_declaration() {
         let h = parse(&riff_fmt_data(1, 44100, 16, 8)).expect("should parse");
         assert!(!h.wavetable.explicitly_specifies_self);
-        // The C++ default is 2048 even with no clm chunk.
+        // 2048 by default, even with no clm chunk.
         assert_eq!(h.wavetable.cycle_size, 2048);
     }
 
     #[test]
     fn clm_digit_overflow_does_not_panic() {
-        // The C++ oracle only ever reads 4 digit characters after "<!>" (a
-        // fixed 7-byte payload read), so this can't overflow a u32 even
-        // naively. But a naive Rust port might
-        // instead walk the *whole* declared chunk payload as digits — this
-        // chunk's ASCII payload is a long run of digits, well beyond what
-        // fits in a u32 if accumulated without checked/saturating arithmetic.
-        // Assert only that parse returns rather than panicking.
+        // A run of digits far longer than fits a u32, in case the digit parse ever reads past
+        // the fixed four. Asserts only that `parse` returns.
         let mut payload = std::string::String::from("<!>");
         payload.push_str(&"9".repeat(200));
         let _ = parse(&riff_with_clm(&payload));
@@ -2028,9 +1741,7 @@ mod tests {
 
     #[test]
     fn later_chunk_wins_when_smpl_and_inst_both_set_the_note() {
-        // smpl before inst in the file: inst, appearing later in the walk,
-        // overwrites smpl's note — the walk applies both arms in file order
-        // with no extra precedence rule.
+        // smpl then inst: inst, later in the file, sets the note.
         let mut v = riff_with_smpl(0, 0, 60);
         v.extend_from_slice(b"inst");
         v.extend_from_slice(&7u32.to_le_bytes());
@@ -2044,11 +1755,8 @@ mod tests {
 
     #[test]
     fn hostile_smpl_loop_count_does_not_panic_or_hang() {
-        // A `smpl` chunk that declares an enormous loop count (0xFFFF_FFFF)
-        // while its actual payload holds only the 36-byte header — no loop
-        // records at all. The C++ reference gates the loop read on
-        // `numLoops == 1`, so a count that isn't exactly 1 must never drive
-        // any iteration, bounded or not.
+        // A `smpl` declaring 0xFFFF_FFFF loops with no loop records: only a count of exactly 1
+        // is honoured, so the count must never drive iteration.
         let mut v = riff_fmt_data(1, 44100, 16, 8);
         v.extend_from_slice(b"smpl");
         v.extend_from_slice(&36u32.to_le_bytes()); // header only, no loop data follows
@@ -2112,12 +1820,8 @@ mod tests {
 
     #[test]
     fn aiff_comm_extreme_exponent_does_not_panic() {
-        // A COMM chunk whose 80-bit extended sample rate has an all-ones
-        // exponent (the IEEE 754 extended infinity/NaN encoding) and a zero
-        // mantissa. The C++ oracle's ConvertFromIeeeExtended returns
-        // HUGE_VAL for this and then truncates it to uint32_t — UB in C++.
-        // Our decode must just return, not panic, on the shift-by-a-hostile-
-        // exponent this implies.
+        // A COMM sample rate with an all-ones exponent (the extended infinity/NaN encoding) and a
+        // zero mantissa. The decode must return without an out-of-range shift.
         let mut v = std::vec::Vec::new();
         v.extend_from_slice(b"FORM");
         v.extend_from_slice(&0u32.to_be_bytes());
@@ -2172,18 +1876,8 @@ mod tests {
 
     #[test]
     fn aiff_unmatched_marker_ids_leave_loops_zero() {
-        // INST names IDs 7/8, MARK only defines 1/2 — nothing to resolve.
-        //
-        // `form_with_markers` can't build this case directly: it reuses its
-        // `begin_id`/`end_id` arguments for both the MARK entries and the INST
-        // sustain-loop fields, so calling it with IDs 7/8 would define MARK
-        // markers 7 and 8 too, which DOES resolve — that's the
-        // `aiff_markers_resolve_to_loop_points` case, not an unmatched-ID one.
-        // Constructed by hand below instead, so MARK and INST genuinely
-        // disagree. Verified against the C++ parser this replaced: the
-        // finalisation loop only ever *writes* fileLoopStart/EndSamples when a
-        // markerIDs[m] entry equals the wanted ID, so with no match both stay
-        // at their zero-initialised default.
+        // INST names IDs 7/8, MARK defines only 1/2, so both loop points stay 0. Built by hand
+        // because `form_with_markers` uses the same IDs for MARK and INST.
         let mut v = form_comm_ssnd(1, 44100, 16, 8);
         let mut mark = std::vec::Vec::new();
         mark.extend_from_slice(&2u16.to_be_bytes());
@@ -2211,20 +1905,10 @@ mod tests {
 
     #[test]
     fn aiff_marker_count_past_bound_is_clamped() {
-        // The marker table bound is 8, matching the C++ parser this
-        // replaced's `kMaxNumMarkers`. Declare 9
-        // well-formed markers (ids 1..=9, positions 100..=900) — one more
-        // than the table holds — and have INST name marker 8 (the last one
-        // *inside* the bound, table index 7) as the loop start and marker 9
-        // (the first one *past* the bound) as the loop end.
-        //
-        // This exercises the boundary from both directions: marker 8 must
-        // still resolve (the clamp must not be off-by-one in the stricter
-        // direction and cut the table short), while marker 9 must NOT
-        // resolve (it must never be written into the table at all — with a
-        // fixed `[_; 8]` array and no clamp, writing a 9th entry would be an
-        // out-of-bounds array write, i.e. this test would panic rather than
-        // merely assert wrong, if the clamp were missing or off-by-one).
+        // Nine markers against a table of eight. INST names marker 8 (the last inside the bound)
+        // as loop start and marker 9 (the first past it) as loop end: 8 must resolve and 9 must
+        // not. A missing or off-by-one clamp either cuts the table short or panics on the 9th
+        // write.
         let mut v = form_comm_ssnd(1, 44100, 16, 8);
         let mut mark = std::vec::Vec::new();
         mark.extend_from_slice(&9u16.to_be_bytes()); // numMarkers: one past kMaxNumMarkers
@@ -2259,10 +1943,8 @@ mod tests {
 
     #[test]
     fn aiff_hostile_mark_huge_count_short_payload_does_not_panic_or_hang() {
-        // MARK declares 0xFFFF markers but the chunk payload holds none.
-        // numMarkers must be clamped (to kMaxNumMarkers = 8) before any loop
-        // runs, and each per-marker field read must be bounds-checked, so
-        // this must return promptly rather than hang or panic.
+        // MARK declares 0xFFFF markers but holds none: the count is clamped and every marker read
+        // is bounded by the chunk.
         let mut v = form_comm_ssnd(1, 44100, 16, 8);
         v.extend_from_slice(b"MARK");
         v.extend_from_slice(&2u32.to_be_bytes()); // declared chunk payload: just the count
@@ -2272,10 +1954,8 @@ mod tests {
 
     #[test]
     fn aiff_hostile_mark_pstring_overruns_chunk_does_not_panic() {
-        // One marker whose pstring declares a length that walks the cursor
-        // past the MARK chunk's own declared end. The marker's id/position
-        // are still fully present and readable; only the trailing name
-        // string is truncated.
+        // One marker whose name length runs past the MARK chunk's end; its id and position are
+        // intact.
         let mut v = form_comm_ssnd(1, 44100, 16, 8);
         let mut mark = std::vec::Vec::new();
         mark.extend_from_slice(&1u16.to_be_bytes()); // numMarkers
@@ -2290,10 +1970,8 @@ mod tests {
 
     #[test]
     fn huge_chunk_size_does_not_panic() {
-        // A chunk size near u32::MAX must not overflow when word-aligned
-        // (`raw_size + (raw_size & 1)`). None of these declared sizes can be
-        // satisfied by any real buffer, so any `Err` is fine here — the
-        // point is that `parse` returns at all instead of panicking.
+        // Chunk sizes near u32::MAX must not overflow when stepped over and padded. Any `Err` is
+        // fine; the point is that `parse` returns.
         for size in [0xFFFFFFFFu32, 0xFFFFFFFEu32, 0x7FFFFFFFu32] {
             let mut v = std::vec::Vec::new();
             v.extend_from_slice(b"RIFF");

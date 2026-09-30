@@ -1,10 +1,9 @@
-//! deluge_sample_stream — the streaming-file slot registry behind
-//! `include/libdeluge/sample_stream.h`'s `deluge_sample_stream_*` C-ABI. A
-//! fixed-capacity table (`registry`) of open efatfs streaming handles, each pairing an efatfs
-//! read handle with the resource-manager asset id + geometry a caller supplies once known,
-//! registering the asset's `DelugeStreamingFillContext` with the resource manager itself the
-//! moment both are present — reproducing `SampleStream::register_fill_context`'s own no-op-until-
-//! defined behaviour natively. See `registry`'s module doc for the slot semantics and `abi` for
+//! The streaming-file slot registry behind the `deluge_sample_stream_*` C ABI
+//! (`libdeluge/sample_stream.h`).
+//!
+//! [`registry`] holds a fixed table of open efatfs streaming handles. Each slot pairs a read handle
+//! with the resource-manager asset id and geometry the C++ `SampleStream` facade supplies, and
+//! registers the asset's `DelugeStreamingFillContext` itself once both are present. [`abi`] holds
 //! the C-ABI wrappers.
 #![no_std]
 
@@ -13,21 +12,16 @@ use core::ffi::{c_char, c_void};
 pub mod abi;
 pub mod registry;
 
-/// Mirrors `deluge_resource.h`'s `DELUGE_RESOURCE_NO_ASSET` — the "no asset yet" sentinel a
-/// freshly opened slot starts with (`registry::Slot::asset_id`) until
-/// `deluge_sample_stream_set_asset_id` assigns a real one. A separate literal, not a dependency on
-/// `deluge_resource` (this crate reaches the manager only through late-bound `unsafe extern "C"`
-/// symbols — see the crate's Cargo.toml doc), matching this workspace's established "each side
-/// re-mirrors the one constant it needs" convention (`deluge_sample_reader::reader`'s own
-/// `UNKNOWN_LENGTH_SENTINEL` doc).
+/// `DELUGE_RESOURCE_NO_ASSET` from `deluge_resource.h`: the asset id of a slot that has none yet.
+///
+/// Mirrored by hand: this crate reaches the resource manager only through late-bound externs,
+/// never a `deluge_resource` dependency.
 pub const DELUGE_RESOURCE_NO_ASSET: u32 = 0xFFFF_FFFF;
 
-/// Mirrors `include/libdeluge/sample_stream.h`'s `DelugeSampleStreamGeometry` exactly (verbatim
-/// field order/types): `include/libdeluge/streaming_fill.h`'s `DelugeStreamingFillContext` minus
-/// `efatfs_handle` — the registry supplies that field itself, from the slot's own efatfs handle,
-/// when it assembles the full fill-context (see `registry::try_register_fill_context`). A
-/// separate type from [`DelugeStreamingFillContext`] below: the geometry crosses this crate's own
-/// C-ABI, while the fill-context crosses only the consumed `deluge_streaming_set_fill_context`.
+/// Mirrors `DelugeSampleStreamGeometry` (`libdeluge/sample_stream.h`) field for field.
+///
+/// This is `DelugeStreamingFillContext` minus `efatfs_handle`, which the registry fills in from
+/// the slot's own handle when it builds the context.
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct DelugeSampleStreamGeometry {
@@ -41,25 +35,22 @@ pub struct DelugeSampleStreamGeometry {
     pub num_channels: u8,
 }
 
-/// `include/libdeluge/streaming_fill.h`'s `DelugeStreamingFillContext`, the struct
-/// `deluge_streaming_set_fill_context` takes by value: `deluge_sample_fill`'s definition, which
-/// exports that function. Only `registry::try_register_fill_context` builds one, from a slot's own
-/// efatfs handle plus its stored [`DelugeSampleStreamGeometry`].
+/// `DelugeStreamingFillContext` (`libdeluge/streaming_fill.h`), as passed by value to
+/// `deluge_streaming_set_fill_context`.
 pub(crate) use deluge_sample_fill::FillContext as DelugeStreamingFillContext;
 
-// ── Externs this crate consumes — real bodies elsewhere (efatfs_fs.rs / efatfs_host_shim.rs, the
-// resource manager's own C ABI); mocked under `#[cfg(test)]` by `mock_backing` below, exactly as
-// `deluge_sample_reader::lib`'s own `host_streaming_stubs` mocks its externs for its crate's tests.
+// Externs this crate consumes: efatfs from the BSP (`storage::efatfs`), the rest from the
+// resource manager's C ABI. Mocked under `cfg(test)` by `mock_backing`.
 unsafe extern "C" {
-    /// `include/libdeluge/file_io.h`. Open a sample file for streaming reads.
+    /// Opens a sample file for streaming reads (`libdeluge/file_io.h`).
     pub fn deluge_efatfs_open(
         path: *const c_char,
         out_handle: *mut deluge_sample_fill::DelugeHandle,
         out_table_full: *mut bool,
     ) -> deluge_sample_fill::DelugeStatus;
-    /// `include/libdeluge/file_io.h`. Close a streaming file handle.
+    /// Closes a streaming file handle (`libdeluge/file_io.h`).
     pub fn deluge_efatfs_close(handle: deluge_sample_fill::DelugeHandle);
-    /// `include/libdeluge/file_io.h`. Synchronous card read at an absolute byte offset.
+    /// Reads synchronously from the card at an absolute byte offset (`libdeluge/file_io.h`).
     pub fn deluge_efatfs_read_at(
         handle: deluge_sample_fill::DelugeHandle,
         byte_offset: u32,
@@ -67,23 +58,21 @@ unsafe extern "C" {
         count: u32,
         out_read: *mut u32,
     ) -> deluge_sample_fill::DelugeStatus;
-    /// `include/libdeluge/sample_stream.h`. The single process-wide resource-manager singleton.
+    /// Returns the process-wide resource manager (`libdeluge/sample_stream.h`).
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
-    /// `include/libdeluge/streaming_fill.h`. Register (or replace) an asset's fill-context.
+    /// Registers or replaces an asset's fill-context (`libdeluge/streaming_fill.h`).
     pub fn deluge_streaming_set_fill_context(
         mgr: *mut c_void,
         asset: u32,
         ctx: DelugeStreamingFillContext,
     );
-    /// `deluge_resource.h`. Retire an asset, freeing any of its still-resident chunks.
+    /// Retires an asset, freeing its resident chunks (`deluge_resource.h`).
     fn deluge_resource_release_asset(mgr: *mut c_void, asset: u32);
 }
 
-/// Safe stand-ins for this crate's six consumed externs, driving an in-test fake — since a plain
-/// `cargo test` on this crate links none of the real efatfs/resource-manager bodies. Mirrors
-/// `deluge_sample_reader::lib`'s own `host_streaming_stubs` module (one crate-level `#[cfg(test)]`
-/// module providing every stub definition every test module needs — a `#[no_mangle]` symbol may
-/// only be defined once in a linked binary, so this can't be duplicated per test module).
+/// In-test fakes for the consumed externs, which a plain `cargo test` does not link.
+///
+/// One crate-level module: a `#[no_mangle]` symbol may be defined only once per binary.
 #[cfg(test)]
 pub(crate) mod mock_backing {
     extern crate std;
@@ -96,10 +85,8 @@ pub(crate) mod mock_backing {
 
     use crate::DelugeStreamingFillContext;
 
-    /// A stand-in "resource manager" pointer: never dereferenced by this crate (it's only ever
-    /// forwarded to `deluge_streaming_set_fill_context`/`deluge_resource_release_asset`, both
-    /// mocked here too), so any fixed non-null value proves `try_register_fill_context`'s own
-    /// null-manager guard doesn't spuriously trip.
+    /// A non-null stand-in manager pointer. Never dereferenced; it only has to pass the
+    /// registry's null-manager guard.
     fn fake_manager() -> *mut c_void {
         core::ptr::dangling_mut::<c_void>()
     }
@@ -115,9 +102,10 @@ pub(crate) mod mock_backing {
         static RELEASED_ASSETS: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
     }
 
-    /// Serialises the tests that open registry slots. The mocks' state is per thread, but the
-    /// registry is one process-wide table, and a test that fills every slot of it fails any test that
-    /// opens a slot while it runs. Hold the guard for the whole test.
+    /// Serialises tests that open registry slots.
+    ///
+    /// The mock state is per thread, but the registry is process-wide: a test that fills every slot
+    /// fails any test that opens one meanwhile. Hold the guard for the whole test.
     pub(crate) fn serial() -> std::sync::MutexGuard<'static, ()> {
         static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
         SERIAL
@@ -125,10 +113,7 @@ pub(crate) mod mock_backing {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    /// Clear every recorded/configured bit of mock state — call at the top of every test (this
-    /// module's state is `thread_local`, so `cargo test`'s per-test thread already isolates
-    /// concurrent tests from each other; `reset()` just gives each test a clean slate on ITS OWN
-    /// thread, matching the sibling crates' own harness convention).
+    /// Clears this thread's mock state. Call at the top of every test.
     pub(crate) fn reset() {
         OPEN_RESULT.with(|c| *c.borrow_mut() = (0, true, false));
         LAST_OPENED_PATH.with(|c| c.borrow_mut().clear());
@@ -139,7 +124,7 @@ pub(crate) mod mock_backing {
         RELEASED_ASSETS.with(|c| c.borrow_mut().clear());
     }
 
-    /// Configure the next (and every subsequent, until reset) `deluge_efatfs_open` call's result.
+    /// Sets the result of every `deluge_efatfs_open` call until the next reset.
     pub(crate) fn set_open_result(handle: u32, ok: bool, table_full: bool) {
         OPEN_RESULT.with(|c| *c.borrow_mut() = (handle, ok, table_full));
     }
@@ -154,10 +139,8 @@ pub(crate) mod mock_backing {
         CLOSED_HANDLES.with(|c| c.borrow().clone())
     }
 
-    /// Configure how many bytes the next (and every subsequent, until reset) `deluge_efatfs_read_at`
-    /// call reports read — the call still always succeeds (returns `DELUGE_OK`); a registry-level
-    /// failed-read case has no test here (the header's failure statuses are real I/O failures, which
-    /// this mock has no need to model beyond the count it hands back).
+    /// Sets the byte count every `deluge_efatfs_read_at` call reports until the next reset. The
+    /// call always returns `DELUGE_OK`.
     pub(crate) fn set_read_result(bytes: u32) {
         READ_RESULT_BYTES.with(|c| *c.borrow_mut() = bytes);
     }
@@ -172,9 +155,7 @@ pub(crate) mod mock_backing {
         LAST_FILL_CONTEXT.with(|c| *c.borrow())
     }
 
-    /// How many times `deluge_streaming_set_fill_context` has been called since the last reset —
-    /// lets a test assert registration happened exactly once, not merely that the last call's
-    /// payload looks right.
+    /// The number of `deluge_streaming_set_fill_context` calls since the last reset.
     pub(crate) fn fill_context_call_count() -> usize {
         LAST_FILL_CONTEXT_CALLS.with(|c| *c.borrow())
     }
@@ -194,16 +175,14 @@ pub(crate) mod mock_backing {
         out_handle: *mut u32,
         out_table_full: *mut bool,
     ) -> deluge_sample_fill::DelugeStatus {
-        // SAFETY: `path` is a live, NUL-terminated C string for the duration of this call (every
-        // caller in this crate's own tests passes a `c"..."` literal or an equivalent static).
+        // SAFETY: every caller in this crate's tests passes a `c"..."` literal.
         let s = unsafe { CStr::from_ptr(path) }
             .to_string_lossy()
             .to_string();
         LAST_OPENED_PATH.with(|c| *c.borrow_mut() = s);
         let (handle, ok, table_full) = OPEN_RESULT.with(|c| *c.borrow());
         if ok {
-            // SAFETY: `out_handle` is the caller's valid local out-param (this crate's own
-            // `registry::open`, the sole caller).
+            // SAFETY: the sole caller, `registry::open`, passes a valid local out-param.
             unsafe { *out_handle = handle };
         }
         if !out_table_full.is_null() {
@@ -234,9 +213,8 @@ pub(crate) mod mock_backing {
     ) -> deluge_sample_fill::DelugeStatus {
         LAST_READ_CALL.with(|c| *c.borrow_mut() = Some((handle, byte_offset, count)));
         let bytes = READ_RESULT_BYTES.with(|c| *c.borrow()).min(count);
-        // SAFETY: `dst` is the caller's destination buffer, valid for at least `count` bytes
-        // (this crate's own `registry::read_at`, the sole caller); `bytes <= count` by
-        // construction above.
+        // SAFETY: `registry::read_at`, the sole caller, passes `dst` valid for `count` bytes, and
+        // `bytes <= count`.
         unsafe {
             let d = dst as *mut u8;
             for i in 0..bytes {

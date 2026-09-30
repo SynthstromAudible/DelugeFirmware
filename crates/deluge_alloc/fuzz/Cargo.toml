@@ -1,8 +1,6 @@
-# cargo-fuzz harness for the deluge_alloc TLSF core. Run with:
-#   cd crates/deluge_alloc && cargo +nightly fuzz run ops
-# The `ops` target decodes the fuzzer byte string into an alloc/free/realloc
-# sequence and asserts the full invariant set (alignment, non-overlap, data
-# integrity, realloc fidelity, drain reclamation) via deluge_alloc::testing.
+# cargo-fuzz targets for the allocator: `ops` (alloc/free/realloc sequences) and `slab` (the slab
+# cache pool), both checking the invariants in `deluge_alloc::testing`. Not runnable as it stands:
+# see the `alloc-fuzz` entry in tests/registry.toml.
 [package]
 name = "deluge_alloc-fuzz"
 version = "0.0.0"

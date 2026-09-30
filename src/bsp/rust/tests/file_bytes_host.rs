@@ -1,40 +1,23 @@
-//! The single-slot whole-file byte channel. One operation at a time across all three kinds, so this
-//! is a slot, not a table: no depth, no eviction, no ordering.
-//!
-//! `deluge-bsp-rust` is bin-only (no `[lib]` target -- see `Cargo.toml`), so this recompiles
-//! `src/file_bytes.rs` unmodified into this test binary via `#[path]`, the same convention
-//! `tests/file_directory_host.rs` and `tests/file_prefix_host.rs` use. Like the directory channel it
-//! borrows nothing from `audio_loader`: reading a whole file and writing one back are not `LoadOps`'s
-//! four operations, so it declares its own three-operation trait and comes along alone.
-#![cfg(not(target_os = "none"))]
+//! Host tests for the byte channel's pure parts: answer keying, card-generation stamps and
+//! displacement in [`BytesSlot`], `copy_out`, request admission and the work-buffer claim.
 
-#[macro_use]
-#[path = "support/abi_pin_noop.rs"]
-mod abi_pin_noop;
-
-#[path = "../src/file_bytes.rs"]
-mod file_bytes;
+use deluge_bsp_rust::channel::file_bytes;
 
 use file_bytes::{
     ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, ClaimOnce, CopyOut,
     FileTimestamp, copy_out, drain, publish_into, take_from,
 };
 
-/// Nonzero on purpose: 0 is what a dropped stamp would leave behind, so a slot built at 0 would let
-/// a publish that ignored its generation still satisfy every take.
+/// Nonzero: a publish that dropped its stamp would leave 0.
 const CARD: u32 = 3;
 
-/// `DELUGE_ERR_NOT_FOUND`. This module carries a status as a bare `i8` -- `DelugeStatus`'s real
-/// underlying type (`typedef enum DelugeStatus : int8_t`, `types.h`) -- rather than the bindgen enum,
-/// so it compiles in every carrier that `#[path]`-includes it. The values are NEGATIVE, so an
-/// unsigned carrier would have silently reported every failure as some large positive status.
+/// `DELUGE_ERR_NOT_FOUND`, as the bare `i8` the channel carries statuses in.
 const NOT_FOUND: i8 = -8;
 
 const SETTINGS: &str = "SETTINGS/CommunityFeatures.XML";
 
-/// A read's answer. Its bytes live in the channel's result buffer, not in the outcome, which carries
-/// only their length -- so these slot tests pin keying, stamps and displacement, and the harness
-/// gates (settings-channel, favourites-channel, offset-io) pin the bytes themselves.
+/// A read's answer. The outcome carries only the length (the bytes live in the channel's result
+/// buffer), so these tests pin keying, stamps and displacement, not the bytes.
 fn bytes(text: &str) -> ByteOutcome {
     ByteOutcome::Bytes(text.len() as u32)
 }
@@ -60,9 +43,8 @@ fn a_published_answer_is_taken_exactly_once() {
     );
 }
 
-/// **The reason the key carries the operation kind.** `SETTINGS/MIDIDevices.XML` is both read and
-/// written, and a collect matching on the path alone would hand a read's bytes to a write's caller,
-/// which would then report to the user that their settings had reached the card.
+/// The key carries the operation kind: `SETTINGS/MIDIDevices.XML` is both read and written, and a
+/// path-only match would hand a read's bytes to a write's caller.
 #[test]
 fn a_read_answer_is_not_a_write_answer_for_the_same_path() {
     let mut slot = BytesSlot::new();
@@ -85,8 +67,7 @@ fn a_read_answer_is_not_a_write_answer_for_the_same_path() {
     );
 }
 
-/// A different path is absent, and -- the half that matters -- the entry it did not match is LEFT
-/// ALONE. Discarding it would drop an answer whose own caller is still going to ask for it.
+/// A different path is absent, and the entry it did not match is left for its own caller.
 #[test]
 fn an_answer_for_another_path_is_absent_and_undisturbed() {
     let mut slot = BytesSlot::new();
@@ -107,10 +88,8 @@ fn an_answer_for_another_path_is_absent_and_undisturbed() {
     );
 }
 
-/// **The safety property.** `flush_tables`'s clear is `try_lock`ed and may not land, so a stale entry
-/// can still be resident. The take is what refuses it -- and it must REMOVE it as well as withhold
-/// it, or a later take at some future generation finds it again, which is exactly the wrong-card bug
-/// the stamp exists to prevent.
+/// The safety property: the flush's clear may not land, so the take must refuse a stale entry and
+/// remove it, or a take at some later generation could find it again.
 #[test]
 fn an_answer_stamped_for_a_departed_card_is_refused_and_removed() {
     let mut slot = BytesSlot::new();
@@ -131,9 +110,9 @@ fn an_answer_stamped_for_a_departed_card_is_refused_and_removed() {
     );
 }
 
-/// A publish displaces an uncollected answer rather than being refused, and that is deliberate: a
-/// caller that gives up mid-poll would otherwise leave the slot occupied with nothing able to clear
-/// it. See `enqueue_request`'s doc -- it is safe only because all three operations are idempotent.
+/// A publish displaces an uncollected answer rather than being refused, so a caller that gives up
+/// mid-poll cannot wedge the slot. (Admission protects non-idempotent answers; see
+/// `answer_blocks`.)
 #[test]
 fn a_publish_displaces_an_uncollected_answer() {
     let mut slot = BytesSlot::new();
@@ -150,9 +129,8 @@ fn a_publish_displaces_an_uncollected_answer() {
     );
 }
 
-/// A failure is a published, TERMINAL answer -- not the absence of one. Publishing nothing would
-/// report UNKNOWN, whose documented meaning is "request it (again)", so a settings file that cannot
-/// be read would be re-requested on every tick forever.
+/// A failure is a published, terminal answer; publishing nothing would read as UNKNOWN and the
+/// caller would retry forever.
 #[test]
 fn a_failure_is_published_and_carries_its_status() {
     let mut slot = BytesSlot::new();
@@ -183,8 +161,7 @@ fn drain_empties_the_slot() {
     );
 }
 
-/// A rename is keyed on its DESTINATION, because that is the name the caller goes on to use -- and
-/// the source is where the file no longer is.
+/// A rename is keyed on its destination, the name the caller goes on to use.
 #[test]
 fn a_rename_is_keyed_on_its_destination() {
     let request = ByteRequest::Rename {
@@ -198,8 +175,8 @@ fn a_rename_is_keyed_on_its_destination() {
     );
 }
 
-/// The reason `Exists(false)` is not `Failed`. "Known absent" is an ANSWER; a collect that could not
-/// establish existence is not, and the startup fail-safe writes to the card on one and not the other.
+/// "Known absent" is an answer, not a failure: the startup fail-safe writes to the card on one and
+/// not the other.
 #[test]
 fn a_known_absence_is_an_answer_not_a_failure() {
     let mut slot = BytesSlot::new();
@@ -216,7 +193,7 @@ fn a_known_absence_is_an_answer_not_a_failure() {
     );
 }
 
-/// And the other half: a check that could not be answered must not arrive as `Exists(false)`.
+/// A check that could not be answered must not arrive as `Exists(false)`.
 #[test]
 fn an_unanswerable_check_is_not_a_known_absence() {
     let mut slot = BytesSlot::new();
@@ -276,9 +253,8 @@ fn a_dir_exists_request_is_keyed_on_its_path() {
     );
 }
 
-/// A folder's answer and a file's answer for the same path are different questions: a file check must never be
-/// handed a folder check's `true`, and the async sample load's folder probe must never be handed a file check's
-/// `Failed`, which is what a file check answers for every folder.
+/// A folder check and a file check on the same path are different questions: a file check fails
+/// for every folder, so neither may be handed the other's answer.
 #[test]
 fn a_dir_exists_answer_is_not_an_exists_answer_for_the_same_path() {
     let mut slot = BytesSlot::new();
@@ -312,7 +288,7 @@ fn an_unlink_request_is_keyed_on_its_path() {
     );
 }
 
-/// Keying holds for the two new kinds too: a path creation's answer is not a timestamp's.
+/// A path creation's answer is not a timestamp's.
 #[test]
 fn a_mkdir_answer_is_not_a_set_time_answer_for_the_same_path() {
     let mut slot = BytesSlot::new();
@@ -387,8 +363,8 @@ fn a_read_at_answer_is_not_a_write_at_answer() {
     );
 }
 
-/// A zero-length block is an ANSWER -- end of file -- and must survive as one. A transfer detects
-/// its own end this way, so collapsing it into a failure would break termination.
+/// A zero-length block is an answer (end of file), not a failure: a transfer detects its end this
+/// way.
 #[test]
 fn an_empty_block_is_an_answer_not_a_failure() {
     let mut slot = BytesSlot::new();
@@ -405,7 +381,7 @@ fn an_empty_block_is_an_answer_not_a_failure() {
     );
 }
 
-/// A copy is keyed on its DESTINATION, like a rename -- that is the name the caller goes on to use.
+/// A copy is keyed on its destination, like a rename.
 #[test]
 fn a_copy_is_keyed_on_its_destination() {
     let request = ByteRequest::Copy {
@@ -419,8 +395,7 @@ fn a_copy_is_keyed_on_its_destination() {
     );
 }
 
-/// Every collect that hands bytes to C++ goes through `copy_out`. It copies exactly the answer and
-/// leaves the rest of the caller's buffer alone.
+/// `copy_out` copies exactly the answer and leaves the rest of the caller's buffer alone.
 #[test]
 fn a_copy_out_copies_exactly_the_answer() {
     let src = *b"<settings/>....";
@@ -433,8 +408,8 @@ fn a_copy_out_copies_exactly_the_answer() {
     );
 }
 
-/// A caller buffer too small for the answer gets NOTHING: a settings file cut short parses as one
-/// whose remaining settings were absent, which silently resets them.
+/// A caller buffer too small for the answer gets nothing: a truncated settings file would parse
+/// with its remaining settings reset.
 #[test]
 fn a_copy_out_into_too_small_a_buffer_writes_nothing() {
     let src = *b"<settings/>";
@@ -443,9 +418,8 @@ fn a_copy_out_into_too_small_a_buffer_writes_nothing() {
     assert_eq!(dst, [0xAA; 4]);
 }
 
-/// An answer claiming more bytes than its buffer holds cannot be produced. If one appears it writes
-/// nothing, and it is reported as `Invalid` even when the destination is ALSO too small -- the
-/// collect turns `Invalid` into UNKNOWN, never into a terminal failure for a real file.
+/// An impossible answer (longer than its buffer) writes nothing and is `Invalid` even when the
+/// destination is also too small, so it never becomes a terminal failure for a real file.
 #[test]
 fn a_copy_out_longer_than_its_source_is_invalid_and_writes_nothing() {
     let src = *b"<s/>";
@@ -457,7 +431,7 @@ fn a_copy_out_longer_than_its_source_is_invalid_and_writes_nothing() {
     assert_eq!(small, [0xAA; 2]);
 }
 
-/// What hands the work buffer to the task: one claim, ever.
+/// The work-buffer grant succeeds once, ever.
 #[test]
 fn a_claim_once_grants_exactly_one_claim() {
     let grant = ClaimOnce::new();
@@ -466,8 +440,8 @@ fn a_claim_once_grants_exactly_one_claim() {
     assert!(!grant.claim());
 }
 
-/// A write carries its LENGTH; its bytes are copied into the request buffer at submit. Only the two
-/// writes own any of that buffer, which is what the task's take-time copy keys on.
+/// Only the two buffered writes own part of the request buffer, which the task's take-time copy
+/// keys on.
 #[test]
 fn a_write_request_carries_its_length_not_its_bytes() {
     let write = ByteRequest::Write {
@@ -513,8 +487,8 @@ fn a_second_write_from_is_refused_not_replaced() {
     ));
 }
 
-/// `enqueue_request` refuses every request while another is queued, a read over a read included: the request
-/// that was already queued is kept, and the new one's collect reads UNKNOWN until it asks again.
+/// Every request is refused while another is queued, a read over a read included; the queued one
+/// is kept.
 #[test]
 fn the_existing_read_rule_is_unchanged() {
     assert_eq!(
@@ -528,9 +502,8 @@ fn path(text: &str) -> BytesPath {
     BytesPath::try_from(text).expect("fits")
 }
 
-/// A rename, an unlink and a caller-buffer write do something a second run would not: the rename's source is
-/// gone, the unlinked file is gone, the exclusive write finds its own file. Everything else reaches the same state
-/// run twice.
+/// A rename, an unlink and a caller-buffer write do something a second run would not; every
+/// other kind reaches the same state run twice.
 #[test]
 fn only_renames_unlinks_and_caller_buffer_writes_are_not_idempotent() {
     for op in [ByteOp::Rename, ByteOp::Unlink, ByteOp::WriteFrom] {
@@ -619,8 +592,8 @@ fn a_republish_restarts_the_age_bound() {
     assert!(!slot.admits_new_request(CARD));
 }
 
-/// A caller-buffer request asked under a card that has gone is dropped unrun, so its buffer is never named as
-/// running; one asked under the current card runs and names its buffer.
+/// A caller-buffer request from a gone card is dropped unrun, so its buffer is never named as
+/// running; one from the current card runs and names its buffer.
 #[test]
 fn a_stale_caller_buffer_request_is_dropped_at_take_and_never_marks_its_buffer() {
     let read_into = ByteRequest::ReadInto {
@@ -647,9 +620,8 @@ fn a_stale_caller_buffer_request_is_dropped_at_take_and_never_marks_its_buffer()
     );
 }
 
-/// Every kind asked under a card that has gone is dropped unrun: a rename, unlink or write queued for the old card
-/// and taken after a flush whose clear lost its race would otherwise run against the new one. Asked under the current
-/// card, each runs, naming no buffer.
+/// Every kind from a gone card is dropped unrun, or a request that survived the flush would run
+/// against the new card. From the current card, each runs, naming no buffer.
 #[test]
 fn a_stale_request_of_every_kind_is_dropped_at_take() {
     let p = path(SETTINGS);

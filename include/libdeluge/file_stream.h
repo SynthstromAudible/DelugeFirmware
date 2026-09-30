@@ -23,7 +23,7 @@
 /// `streaming_fill.h` use. It exists for `SampleRecorder`, whose per-cluster write runs for the
 /// whole length of a recording and is the recorder's dominant blocking.
 ///
-/// **It carries no handle table.** One already exists: `efatfs_fs.rs`'s `STREAM_WRITE_CTX`, a
+/// **It carries no handle table.** One already exists: `storage/efatfs/device.rs`'s `STREAM_WRITE_CTX`, a
 /// `HandleTable<MAX_STREAM_WRITE_HANDLES>` sized at 8 and documented as the recorder's own, with a
 /// generation counter per slot so a deferred write-back can detect its slot having been recycled.
 /// `stream_write_at` is already an async fn; `deluge_efatfs_stream_write_at` merely blocks on it.

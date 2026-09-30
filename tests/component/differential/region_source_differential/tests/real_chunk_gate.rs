@@ -1,60 +1,15 @@
-//! A payload-offset gate: drives the Rust region-port cursor
-//! (`deluge_sample_source::cursor::SampleSource<ManagerResidency>`) over a REAL
-//! `deluge_resource` manager whose chunk backing is a REAL streamed chunk — not
-//! the Vec-backed fake that the retired region_differential harness's own
-//! `RustBackend`/`HarnessResidency` seeded (`rust_backend.rs`), which stored each cluster's
-//! "payload" directly in a bare `Vec<u8>` with NO header in front of it, so `payload == backing`
-//! there by construction. That made `ManagerPin::payload()`'s pre-fix bug — returning the
-//! raw manager backing pointer (the chunk HEADER) instead of routing through
-//! `deluge_sample_fill::chunk::payload` (`backing + payload_offset`, the real
-//! PAYLOAD) — invisible to every existing gate. This test proves the fix
-//! against the geometry that actually exercises it.
+//! Payload-offset gate: the region cursor (`SampleSource<ManagerResidency>`) over a real
+//! `deluge_resource` manager whose chunks are real `StreamedChunk`s.
 //!
-//! ## How the real streamed-chunk backing is built
+//! A streamed chunk's payload sits at a non-zero offset from its manager backing, behind the
+//! `StreamedChunk` header. Payloads are seeded with `make_ramp` through
+//! `deluge_sample_fill::chunk::payload`, so a cursor that reads from the backing pointer instead
+//! (as `ManagerPin::payload()` once did) sees header bytes and fails the ramp comparison. A fake
+//! backing with `payload == backing` cannot catch that.
 //!
-//! The streamed chunk's storage (construct + all seven field accessors) lives
-//! in `deluge_sample_fill::chunk` (Rust); this gate drives the real Rust
-//! construct/accessors directly, no C++ at all. [`construct_streamed_chunk`] (a thin signature-matching
-//! wrapper — see its own doc) placement-constructs a real `StreamedChunk` at a
-//! `deluge_resource` asset's slab-slot base, with its payload pointer set to
-//! `base + payload_offset` (`ChunkHarness::new`, mirroring
-//! `native_finish_glue.rs::ChunkHarness::new`). `ChunkHarness::seed_and_mark_ready`
-//! then writes `make_ramp(index)` through the REAL `deluge_sample_fill::chunk::payload`
-//! accessor (the same real, compiler-computed offset `ManagerPin::payload()` itself
-//! calls through) — never a raw `backing.add(b)` write, which would land in the
-//! header instead of the payload. The manager backing pointer (`try_acquire`'s
-//! return, offset 0) and the payload pointer (`deluge_sample_fill::chunk::payload`'s
-//! return, offset `payload_offset`, always non-zero — see
-//! `deluge_sample_fill::chunk`'s own doc) are therefore GENUINELY DIFFERENT
-//! addresses, exactly the geometry a backing-vs-payload confusion needs to be
-//! byte-detectable: the header bytes `StreamedChunk`'s own fields hold (a payload
-//! pointer, cluster_index, a few bools) don't coincidentally equal `make_ramp`'s
-//! pattern, so a cursor reading from the wrong pointer fails the ramp comparison
-//! immediately.
-//!
-//! ## How the cursor is driven
-//!
-//! Directly via `deluge_sample_source`'s own Rust API —
-//! `ManagerResidency::new(handle, asset, cluster_size, num_clusters)` +
-//! `SampleSource::new(residency, geo)` — the SAME construction `rust_backend.rs`'s
-//! `RustBackend::open` and `manager_residency.rs`'s/`cursor.rs`'s own unit tests
-//! use, NOT the `deluge_sample_source_open` C-ABI bridge (`abi.rs`).
-//! Both `ManagerResidency` and `SampleSource` are already `pub` — no visibility
-//! change was needed. The bridge would additionally require test doubles for
-//! `deluge_streaming_resource_manager`/`deluge_sample_stream_asset_id` (the
-//! `open()` seam) and the allocation-free source pool's slot-claim machinery,
-//! none of which this gate's payload-offset question needs — the direct API is
-//! the minimal composition that drives the real cursor over a real chunk without
-//! dragging in that extra layer.
-//!
-//! ## Teeth
-//!
-//! Verified by hand (never committed): reverting `ManagerPin::payload()`
-//! (`manager_residency.rs`) to `self.lease.chunk().as_ptr() as *const u8` (the
-//! pre-fix body) makes `cursor_resolves_real_streamed_chunk_payload_offset_correctly`
-//! fail immediately — the captured bytes are the `StreamedChunk` header, not
-//! `make_ramp`. Restored immediately after (`git diff` on that file empty
-//! again) — no bug is committed.
+//! The cursor is built directly (`ManagerResidency::new` + `SampleSource::new`) rather than through
+//! the `deluge_sample_source_open` C-ABI bridge, which would need more test doubles and adds
+//! nothing to the payload-offset question.
 use core::ffi::c_void;
 use std::ptr;
 use std::sync::Mutex;
@@ -70,17 +25,9 @@ use deluge_sample_source::cursor::{RegionOut, RegionState, SampleSource};
 use deluge_sample_source::geometry::Geometry;
 use deluge_sample_source::manager_residency::ManagerResidency;
 
-// `deluge_resource::sync::Masked` (used by both `deluge_resource` and
-// `deluge_sample_source::cursor`) calls out to three `extern "C"`
-// critical-section primitives. This crate links both as plain non-test rlibs (no
-// `--cfg test` on THEIR compilations, only ours), so their own `#[cfg(test)]`
-// stubs are compiled out of what this binary pulls in — this test binary must
-// supply the three symbols itself, or the link fails with `undefined symbol:
-// ENTER_CRITICAL_SECTION` (etc). Identical pattern to the retired region_differential harness's
-// `tests::differential::host_critical_section_stubs` and
-// `deluge_sample_source::host_critical_section_stubs`. `deluge_in_interrupt` is
-// hard-wired `false` — this gate never models the audio-ISR context — so masking
-// is genuinely exercised, not bypassed.
+// `deluge_resource::sync::Masked` calls three `extern "C"` critical-section primitives. The
+// dependency crates' own `#[cfg(test)]` stubs are compiled out here, so this binary supplies them.
+// `deluge_in_interrupt` is always false, so masking is really exercised.
 mod host_critical_section_stubs {
     use std::cell::Cell;
 
@@ -122,9 +69,7 @@ mod host_critical_section_stubs {
     extern "C" fn deluge_in_interrupt() -> bool {
         false
     }
-    // `deluge_resource` also asks its host whether it is standing on the audio render context (to skip
-    // its critical section there -- never true here, so it always masks) and for the audio sample timer,
-    // used for its loader-latency stats (instrumentation only; nothing here reads them).
+    // Never on the audio context here; the timer only feeds latency stats nothing reads.
     #[unsafe(no_mangle)]
     extern "C" fn deluge_in_audio_context() -> bool {
         false
@@ -135,24 +80,14 @@ mod host_critical_section_stubs {
     }
 }
 
-/// `ManagerResidency::acquire`'s Loading branch (`manager_residency.rs`) calls this
-/// after `loader_enqueue` — a real, app-provided symbol in production
-/// (`sample_stream.cpp`'s `get_cluster`), absent here since this test never spawns
-/// a real loader/fill task and drives every index straight to `Ready` via
-/// `ChunkHarness::seed_and_mark_ready` before the cursor ever sees it (mirrors
-/// the retired region_differential harness's `rust_backend::HarnessResidency`, which likewise
-/// never simulated a fill landing mid-run). A Loading acquire can still fire during
-/// this gate's own op sequence (e.g. an out-of-range/not-yet-seeded index, or a
-/// prefetch neighbour this test didn't pre-seed) and must not stall/panic — a
-/// no-op stand-in is correct here, same tier as the critical-section stubs above.
+/// Link stub for the fill signal `ManagerResidency::acquire`'s loading branch sends. No fill task
+/// runs here (every index is made ready up front), and a loading acquire, such as an unseeded
+/// prefetch neighbour, must not stall, so a no-op is correct.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_streaming_signal_fill() {}
 
-/// Test double for `deluge_sample_stream_asset_id` (`abi.rs`'s `open()` bridge,
-/// unused by this gate — see the module doc's "How the cursor is driven"). Only
-/// present as a defensive link-time stand-in in case some codegen-unit grouping
-/// pulls `abi.rs`'s compiled code in alongside the `manager_residency`/`cursor`
-/// code this gate actually exercises; never called by anything this test does.
+/// Link stub for `deluge_sample_stream_asset_id`, used only by the unused `open()` bridge in
+/// `abi.rs`; present in case that code is linked in. Never called.
 #[unsafe(no_mangle)]
 extern "C" fn deluge_sample_stream_asset_id(
     _stream_backing: *mut deluge_sample_source::abi::DelugeStreamBacking,
@@ -160,27 +95,19 @@ extern "C" fn deluge_sample_stream_asset_id(
     0
 }
 
-/// Placement-construct callback matching `deluge_resource::ConstructFn`'s exact
-/// signature (`dest: *mut u8`), forwarding to the real
-/// `deluge_sample_fill::chunk::deluge_streaming_chunk_construct` — the SAME
-/// callback the resource manager invokes for a real streamed SAMPLE chunk in
-/// production (`chunk_residency.cpp`). A thin wrapper is needed only because
-/// that function's own `dest` parameter is typed `*mut c_void` (its C-ABI
-/// declared shape) while `ConstructFn` requires `*mut u8` — the two are
-/// ABI-identical (both a plain data pointer), just declared with different
-/// pointee types on each side of the boundary, so Rust's function-pointer
-/// typing (unlike C's) won't let one satisfy the other directly. Mirrors
-/// `region_fill_differential::tests::native_finish_glue::construct_streamed_chunk`.
+/// Construct callback forwarding to `deluge_sample_fill::chunk::deluge_streaming_chunk_construct`,
+/// the one production uses for streamed sample chunks.
+///
+/// Needed only because `ConstructFn` takes `dest: *mut u8` and the target takes `*mut c_void`;
+/// Rust function-pointer types don't unify the two.
 unsafe extern "C" fn construct_streamed_chunk(
     ctx: *mut c_void,
     owner: *mut c_void,
     index: u32,
     dest: *mut u8,
 ) {
-    // SAFETY: forwards `dest` unchanged (only its declared pointee type differs) to
-    // the real construct function, under the same manager construct-contract this
-    // function's own caller (`deluge_resource_request`, via
-    // `deluge_resource_set_construct`) upholds.
+    // SAFETY: forwards `dest` unchanged under the construct contract `deluge_resource_request`
+    // upholds for this callback.
     unsafe {
         deluge_sample_fill::chunk::deluge_streaming_chunk_construct(
             ctx,
@@ -191,23 +118,14 @@ unsafe extern "C" fn construct_streamed_chunk(
     }
 }
 
-/// `cargo test` runs `#[test]`s in parallel threads; `deluge_resource::sync::Masked`
-/// and the critical-section stubs above are process-global state, so any two
-/// tests building a manager at once would race it. Every test takes this lock for
-/// its whole run — same pattern as the retired region_differential harness's and
-/// `deluge_sample_source`'s own `TEST_LOCK`s.
+/// Serializes tests: the manager's masking and the critical-section stubs are process-global.
 static TEST_LOCK: Mutex<()> = Mutex::new(());
 
 const CLUSTER_SIZE: u32 = 64;
-const CHUNK_CAP: u32 = 32; // generous headroom over this gate's handful of indices
+const CHUNK_CAP: u32 = 32; // ample for this gate's handful of indices
 
-/// A real `deluge_resource` manager over a throwaway test heap, with one
-/// requestable asset whose `construct` places a REAL streamed chunk (payload at
-/// `backing + payload_offset`) at each chunk's slab-slot base. Mirrors
-/// `native_finish_glue.rs::ChunkHarness`, minus the fill-orchestration pieces
-/// this gate doesn't need (no active-manager plumbing —
-/// `deluge_streaming_resource_manager` isn't in this gate's call path — the
-/// cursor is driven directly over `handle`/`asset`, not through that lookup).
+/// A real `deluge_resource` manager over a test heap, with one asset whose `construct` places a
+/// real streamed chunk (payload at `backing + payload_offset`) at each slab slot.
 struct ChunkHarness {
     handle: *mut DelugeResource,
     asset: u32,
@@ -219,8 +137,7 @@ impl ChunkHarness {
     fn new() -> Self {
         let words = (256 * 1024usize).div_ceil(16);
         let mut buf = vec![0u128; words];
-        // SAFETY: `buf` is a live, 16-aligned, `words * 16`-byte arena for as long
-        // as `self` (and thus `buf`) is alive.
+        // SAFETY: `buf` is a 16-aligned `words * 16`-byte arena kept alive by the harness.
         let heap = unsafe { fs_alloc::deluge_heap_create(buf.as_mut_ptr() as *mut u8, words * 16) };
         // SAFETY: `heap` is the live handle just created above.
         let handle = unsafe { deluge_resource_create(heap, 4, CHUNK_CAP as usize) };
@@ -242,8 +159,6 @@ impl ChunkHarness {
         unsafe {
             deluge_resource_set_construct(handle, asset, Some(construct_streamed_chunk));
         }
-        // The Rust-owned streamed-chunk payload offset — the real,
-        // compiler-computed value reported over its own C-ABI, not hand-derived.
         let payload_offset =
             deluge_sample_fill::chunk::deluge_streamed_chunk_payload_offset() as usize;
         let backing_size = payload_offset + CLUSTER_SIZE as usize + 7; // + kTrailingSlackBytes
@@ -256,21 +171,14 @@ impl ChunkHarness {
         }
     }
 
-    /// Reserve (constructing a REAL `StreamedChunk` if not already resident),
-    /// write `make_ramp(index, CLUSTER_SIZE)` through the REAL
-    /// `deluge_sample_fill::chunk::payload` accessor (never a raw backing-pointer
-    /// write — see the module doc), mark it ready, and release the reservation
-    /// lease this call itself took. Mirrors `manager_residency.rs`'s/`cursor.rs`'s
-    /// own `mark_index_ready` test helper, except the seed write goes through the
-    /// real payload accessor over a real `StreamedChunk`, not a raw
-    /// `dest.add(b)` write into pre-construct backing bytes.
+    /// Requests chunk `index` (constructing it if needed), writes `make_ramp(index, CLUSTER_SIZE)`
+    /// through the payload accessor, marks it ready and drops this call's lease.
     fn seed_and_mark_ready(&self, index: u32) {
         // SAFETY: `self.handle`/`self.asset` are live and valid.
         let ptr = unsafe { deluge_resource_try_acquire(self.handle, self.asset, index) };
         let ptr = if ptr.is_null() {
-            // SAFETY: `self.handle`/`self.asset` are live/valid; `self.backing_size`
-            // is exactly what `construct_streamed_chunk` (via
-            // `deluge_streamed_chunk_payload_offset`) expects.
+            // SAFETY: `self.handle`/`self.asset` are live; `self.backing_size` is what
+            // `construct_streamed_chunk` expects.
             let p = unsafe {
                 deluge_resource_request(self.handle, self.asset, index, self.backing_size)
             };
@@ -279,38 +187,30 @@ impl ChunkHarness {
         } else {
             ptr
         };
-        // SAFETY: `ptr` is a live, resident `StreamedChunk*` backing from the call
-        // above; `deluge_sample_fill::chunk::payload` returns `ptr + payload_offset`,
-        // `CLUSTER_SIZE` bytes of which are this chunk's own payload allocation.
+        // SAFETY: `ptr` is a resident `StreamedChunk` backing; the accessor returns its
+        // `CLUSTER_SIZE`-byte payload.
         let payload = unsafe { deluge_sample_fill::chunk::payload(ptr as *mut c_void) };
         let ramp = region_source_differential::make_ramp(index, CLUSTER_SIZE as usize);
-        // SAFETY: `payload` is non-null and valid for `CLUSTER_SIZE` writable bytes
-        // per the call above; `ramp` holds exactly that many bytes.
+        // SAFETY: `payload` is valid for `CLUSTER_SIZE` writable bytes; `ramp` is that long.
         unsafe { ptr::copy_nonoverlapping(ramp.as_ptr(), payload, CLUSTER_SIZE as usize) };
         // SAFETY: `self.handle`/`ptr` are live/valid per the calls above.
         unsafe { deluge_resource_mark_ready(self.handle, ptr) };
-        // The lease taken by `try_acquire`/`request` above is ours to drop — release
-        // it so it doesn't skew a test's own lease-count assertions.
+        // Drop this call's lease so it doesn't skew the tests' lease counts.
         // SAFETY: `self.handle`/`ptr` are live/valid.
         unsafe { deluge_resource_release(self.handle, ptr) };
     }
 
-    /// Sum of every slot's live hard-lease count across the manager's whole chunk
-    /// table — the lease-balance oracle, matching `cursor.rs`'s/
-    /// `manager_residency.rs`'s own `total_leases` test helper.
+    /// Returns the total live hard-lease count across the chunk table, for lease-balance checks.
     fn total_leases(&self) -> u64 {
         (0..CHUNK_CAP)
-            // SAFETY: `self.handle` is live; `lease_count_by_slot` tolerates any
-            // slot index (returns 0 out of range), per its own doc.
+            // SAFETY: `self.handle` is live; out-of-range slots report 0.
             .map(|slot| unsafe { deluge_resource_lease_count_by_slot(self.handle, slot) as u64 })
             .sum()
     }
 }
 
-/// `geo`'s last cluster (index `NUM_CLUSTERS - 1`) has a short tail: `SHORT_TAIL`
-/// bytes instead of a full `CLUSTER_SIZE`, so `resident_bytes_for`'s short-last-
-/// cluster clamp is genuinely exercised (mirrors
-/// the retired region_differential harness's `cpp_backend::Scenario::dense` short-tail choice).
+/// A geometry whose last cluster holds only `SHORT_TAIL` bytes, exercising the short-last-cluster
+/// clamp in `resident_bytes_for`.
 const NUM_CLUSTERS: u32 = 6;
 const SHORT_TAIL: u32 = 20;
 
@@ -326,17 +226,11 @@ fn geo() -> Geometry {
     }
 }
 
-/// Captured region's payload bytes must equal `make_ramp(index, resident_bytes)` —
-/// the offset-correctness assertion this whole gate exists to make: if
-/// `ManagerPin::payload()` ever again returns the `StreamedChunk` HEADER (the
-/// pre-fix bug — see the module doc's "Teeth" section) instead of the payload
-/// (`backing + payload_offset`), the header's own field bytes (a pointer, an
-/// index, a couple of bools) will not coincidentally match this pattern and this
-/// assertion fails immediately.
+/// Asserts a captured region's payload equals `make_ramp(index, resident_bytes)`. Header bytes
+/// read through a backing-vs-payload mix-up will not match.
 fn assert_payload_matches_ramp(out: &RegionOut, index: u32, label: &str) {
-    // SAFETY: `out.payload_base` is a live, `out.resident_bytes`-byte region per
-    // `acquire_ex`'s own READY contract — pinned resident for as long as the lease
-    // this `RegionOut` carries is held, which is true for the duration of this call.
+    // SAFETY: a ready region's `payload_base` is pinned for `resident_bytes` bytes while its lease
+    // is held, which it is for this call.
     let bytes =
         unsafe { std::slice::from_raw_parts(out.payload_base, out.resident_bytes as usize) };
     let expected = region_source_differential::make_ramp(index, out.resident_bytes as usize);
@@ -348,12 +242,9 @@ fn assert_payload_matches_ramp(out: &RegionOut, index: u32, label: &str) {
     );
 }
 
-/// The gate itself: an `Op` sequence (acquire forward, re-acquire, forward walk,
-/// reverse, state, short-last-cluster, retain/release/close) driven through a
-/// real `SampleSource<ManagerResidency>` over the real-`StreamedChunk` harness
-/// above — reusing the retired region_differential harness's op vocabulary in spirit; there is no
-/// second backend to diff against here, only the `make_ramp` oracle each `Ready` acquire's payload
-/// must match.
+/// Drives a real `SampleSource<ManagerResidency>` through acquire, re-acquire, forward and reverse
+/// walks, a state query, the short last cluster and retain/release/close; every ready payload must
+/// match `make_ramp` and every lease must come back.
 #[test]
 fn cursor_resolves_real_streamed_chunk_payload_offset_correctly() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -363,12 +254,12 @@ fn cursor_resolves_real_streamed_chunk_payload_offset_correctly() {
     }
     assert_eq!(h.total_leases(), 0, "seeding must not leak any lease");
 
-    // SAFETY: `h.handle` is live for the whole test (leaked-for-test-life arena).
+    // SAFETY: `h.handle` lives for the whole test.
     let residency =
         unsafe { ManagerResidency::new(h.handle, h.asset, CLUSTER_SIZE as usize, NUM_CLUSTERS) };
     let source = SampleSource::new(residency, geo());
 
-    // -- Acquire forward. --
+    // Acquire forward.
     let (state0, out0) = source.acquire_ex(0, 1, 0);
     assert_eq!(state0, RegionState::Ready);
     let out0 = out0.expect("ready must fill out");
@@ -379,7 +270,7 @@ fn cursor_resolves_real_streamed_chunk_payload_offset_correctly() {
     );
     assert_payload_matches_ramp(&out0, 0, "acquire(0, forward)");
 
-    // -- Re-acquire the same index: idempotent dedupe, same payload/lease. --
+    // Re-acquire the same index: deduplicated, same payload and lease.
     let (state0b, out0b) = source.acquire_ex(0, 1, 0);
     assert_eq!(state0b, RegionState::Ready);
     let out0b = out0b.expect("ready must fill out");
@@ -393,21 +284,21 @@ fn cursor_resolves_real_streamed_chunk_payload_offset_correctly() {
     );
     assert_payload_matches_ramp(&out0b, 0, "re-acquire(0)");
 
-    // -- Forward walk to index 1 (the prior READY acquire already prefetched it). --
+    // Forward to index 1, already prefetched by the ready acquire.
     let (state1, out1) = source.acquire_ex(1, 1, 0);
     assert_eq!(state1, RegionState::Ready);
     let out1 = out1.expect("ready must fill out");
     assert_eq!(out1.region_index, 1);
     assert_payload_matches_ramp(&out1, 1, "acquire(1, forward)");
 
-    // -- Reverse back to index 0. --
+    // Reverse back to index 0.
     let (state0c, out0c) = source.acquire_ex(0, -1, 0);
     assert_eq!(state0c, RegionState::Ready);
     let out0c = out0c.expect("ready must fill out");
     assert_eq!(out0c.region_index, 0);
     assert_payload_matches_ramp(&out0c, 0, "acquire(0, reverse)");
 
-    // -- Pure state query, no acquire. --
+    // State query only.
     assert_eq!(source.state(0), RegionState::Ready);
     assert_eq!(
         source.state(NUM_CLUSTERS), // one past the end
@@ -415,8 +306,7 @@ fn cursor_resolves_real_streamed_chunk_payload_offset_correctly() {
         "past the end of the stream"
     );
 
-    // -- Short last cluster: resident_bytes clamps to the tail, and the ramp
-    // comparison is over exactly that many (short) bytes. --
+    // Short last cluster: `resident_bytes` clamps to the tail.
     let last = NUM_CLUSTERS - 1;
     let (state_last, out_last) = source.acquire_ex(last, 1, 0);
     assert_eq!(state_last, RegionState::Ready);
@@ -428,7 +318,7 @@ fn cursor_resolves_real_streamed_chunk_payload_offset_correctly() {
     );
     assert_payload_matches_ramp(&out_last, last, "acquire(last, short cluster)");
 
-    // -- Independent-pin retain/release balance. --
+    // Independent-pin retain/release balance.
     let baseline = h.total_leases();
     source.retain(out_last.lease);
     assert_eq!(
@@ -439,8 +329,7 @@ fn cursor_resolves_real_streamed_chunk_payload_offset_correctly() {
     source.release(out_last.lease);
     assert_eq!(h.total_leases(), baseline, "release must drop it back");
 
-    // -- close() drops current + pending + prefetch; every lease this cursor ever
-    // took (including any standing prefetch from the walk above) must come back. --
+    // `close()` drops current, pending and prefetch; every lease must come back.
     source.close();
     assert_eq!(
         h.total_leases(),
@@ -449,12 +338,7 @@ fn cursor_resolves_real_streamed_chunk_payload_offset_correctly() {
     );
 }
 
-/// Non-vacuity: mirrors the retired region_differential harness's `perturb` "corrupt one captured
-/// byte, assert the comparison detects it" pattern. Proves the ramp comparison
-/// `assert_payload_matches_ramp` performs above actually has teeth — a captured
-/// payload that has been tampered with must NOT equal `make_ramp` any more; if
-/// this test ever passed with the corruption left in place, the whole gate above
-/// would be checking nothing.
+/// Non-vacuity: flipping one bit of a captured payload must make the ramp comparison fail.
 #[test]
 fn corrupted_payload_capture_diverges_from_the_ramp() {
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
@@ -475,9 +359,7 @@ fn corrupted_payload_capture_diverges_from_the_ramp() {
         unsafe { std::slice::from_raw_parts(out.payload_base, out.resident_bytes as usize) }
             .to_vec();
 
-    // Sanity: the UNCORRUPTED capture matches — so the divergence asserted below is
-    // caused by the corruption, not a pre-existing mismatch this test would trip on
-    // regardless.
+    // The uncorrupted capture must match, so the failure below comes from the corruption.
     assert_eq!(
         captured,
         region_source_differential::make_ramp(0, captured.len()),
@@ -485,7 +367,7 @@ fn corrupted_payload_capture_diverges_from_the_ramp() {
     );
 
     let mut corrupted = captured.clone();
-    corrupted[3] ^= 0x01; // flip one bit — mirrors Perturbation::FlipPayloadByte
+    corrupted[3] ^= 0x01; // flip one bit
     assert_ne!(
         corrupted,
         region_source_differential::make_ramp(0, corrupted.len()),

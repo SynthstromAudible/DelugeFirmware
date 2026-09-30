@@ -1,43 +1,35 @@
-//! A single Rust-owned in-RAM disk image, read/written byte-granular by
-//! `block_dev::FileBlockDevice` on behalf of `efatfs::EFatFs`'s
-//! `embedded-fatfs` mount.
+//! The process-wide in-RAM disk image that
+//! [`FileBlockDevice`](crate::block_dev::FileBlockDevice) serves.
 //!
-//! Only one image is live at a time (`DISK` is a single process-wide slot),
-//! matching the harness's single-threaded use: load an image, mount and
-//! drive `embedded-fatfs` against it, done.
+//! Only one image is live at a time; tests that use it must serialize.
 use std::sync::Mutex;
 
 static DISK: Mutex<Vec<u8>> = Mutex::new(Vec::new());
 
+/// Handle to the shared disk image.
 pub struct RamDisk;
 
 impl RamDisk {
-    /// Load a card image file into the shared in-RAM disk, replacing
-    /// whatever was there before.
+    /// Loads a card image file, replacing the current image.
     pub fn load(image_path: &str) -> Self {
         Self::load_bytes(&std::fs::read(image_path).expect("read image"))
     }
 
-    /// Load raw image bytes into the shared in-RAM disk, replacing whatever
-    /// was there before. Tests that need a fresh, independent copy of the
-    /// same starting fixture (e.g. to compare two runs against each other)
-    /// reload it between them -- write ops mutate the shared `DISK` in
-    /// place (see `tests/differential.rs`'s `TEST_LOCK`, which serializes
-    /// the whole load-mount-read/write span against other tests).
+    /// Loads raw image bytes, replacing the current image.
+    ///
+    /// Writes mutate the image in place, so a test that needs the same starting fixture twice
+    /// reloads it.
     pub fn load_bytes(bytes: &[u8]) -> Self {
         *DISK.lock().unwrap() = bytes.to_vec();
         RamDisk
     }
 
-    /// A snapshot copy of the current disk contents, for before/after
-    /// comparisons.
+    /// Returns a copy of the current image.
     pub fn snapshot(&self) -> Vec<u8> {
         DISK.lock().unwrap().clone()
     }
 
-    /// Byte-granular read from the shared image into `buf`, starting at byte
-    /// offset `pos`. Returns the number of bytes actually copied (`0` once
-    /// `pos` is at or past the end of the image -- EOF).
+    /// Reads from byte offset `pos` into `buf`; returns the bytes copied (`0` at or past the end).
     pub fn read_at(pos: u64, buf: &mut [u8]) -> usize {
         let d = DISK.lock().unwrap();
         let pos = pos as usize;
@@ -49,9 +41,7 @@ impl RamDisk {
         n
     }
 
-    /// Byte-granular write into the shared image at byte offset `pos`,
-    /// growing the image (zero-filled) if the write runs past its current
-    /// end. Same `DISK` mutex as `read_at`.
+    /// Writes `buf` at byte offset `pos`, zero-extending the image if the write runs past its end.
     pub fn write_at(pos: u64, buf: &[u8]) {
         let mut d = DISK.lock().unwrap();
         let pos = pos as usize;
@@ -62,7 +52,7 @@ impl RamDisk {
         d[pos..end].copy_from_slice(buf);
     }
 
-    /// Current size of the shared image, in bytes.
+    /// Returns the image size in bytes.
     pub fn len() -> u64 {
         DISK.lock().unwrap().len() as u64
     }

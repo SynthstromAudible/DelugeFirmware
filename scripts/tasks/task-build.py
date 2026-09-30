@@ -37,7 +37,7 @@ from pathlib import Path
 
 import util
 
-# The C++ targets the Rust build.rs archives + links (mirrors its panic message).
+# The C++ targets the Rust build script archives + links (mirrors its panic message).
 CPP_TARGETS = [
     "deluge_app",
     "NE10",
@@ -274,6 +274,17 @@ def check_tree_is_clang(build_dir: str) -> int:
     return 1
 
 
+def device_feature_args(cargo_extra: list[str]) -> list[str]:
+    """The device build's features: `rtt`, without the host binary's default `host-runtime`.
+
+    A caller that passes `--no-default-features` itself is choosing the feature set, so `rtt` is left
+    to it.
+    """
+    if "--no-default-features" in cargo_extra:
+        return []
+    return ["--no-default-features", "--features", "rtt"]
+
+
 def sdk_config_args(root: Path) -> list[str]:
     """`cargo --config local-sdk.toml` when the local deluge-sdk override exists.
 
@@ -342,6 +353,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         cargo_args += ["--release"]
     if args.verbose:
         cargo_args += ["--verbose"]
+    cargo_args += device_feature_args(cargo_extra)
     cargo_args += cargo_extra
     cargo_args += sdk_config_args(root)
 

@@ -38,11 +38,6 @@ PROBES = {
         "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs, "
         "or have the golden fixtures already rebuilt in DELUGE_GOLDEN_DIR (default ~/.cache/deluge-golden)"
     ),
-    "deluge-sdk-sibling": (
-        "clone https://github.com/FirestormAudio/deluge-embassy as a sibling "
-        "checkout at ../deluge-sdk -- the Rust BSP and its harnesses carry a "
-        "path dependency on it"
-    ),
 }
 
 
@@ -238,10 +233,6 @@ def probe(requirement: str, root: Path) -> bool:
         case "arm-linux-gnueabihf-gcc":
             # What the arm-linux builds use of it: the sysroot's C library and libstdc++, which clang links against.
             return (Path("/usr/arm-linux-gnueabihf/include/stdio.h")).is_file()
-        case "deluge-sdk-sibling":
-            # A checkout of another repository beside this one, not a path
-            # inside it -- hence `root.parent`.
-            return (root.parent / "deluge-sdk").is_dir()
         case "song-corpus":
             for var in ("DELUGE_SONG_CORPUS", "DELUGE_BACKUP"):
                 value = os.environ.get(var)

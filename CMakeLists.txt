@@ -177,10 +177,10 @@ add_compile_options(
 
     # Optimization level.
     #
-    # DELUGE_DEBUG_OPT_LEVEL exists for the Rust/Embassy device build. build.rs links the C++ app from
-    # pre-built object files, and it cannot read Release/RelWithDebInfo's slim-LTO objects, so the device
-    # firmware is forced to consume DEBUG objects. Set this to -O2 to get an optimized, non-LTO app the
-    # Rust link can still consume:
+    # DELUGE_DEBUG_OPT_LEVEL exists for the Rust/Embassy device build. Its build script (src/bsp/rust/build/)
+    # links the C++ app from pre-built object files, and it cannot read Release/RelWithDebInfo's slim-LTO
+    # objects, so the device firmware is forced to consume DEBUG objects. Set this to -O2 to get an optimized,
+    # non-LTO app the Rust link can still consume:
     #
     #   cmake -B build-gcc -DDELUGE_DEBUG_OPT_LEVEL=-O2 && ./dbt rust --release
     #

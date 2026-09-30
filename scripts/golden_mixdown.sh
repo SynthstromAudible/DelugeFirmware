@@ -5,7 +5,7 @@
 # drive. Use `scripts/golden_embassy_diff.sh <fixture> [check|update|padsweep]` for the async
 # song-render golden instead — including the `padsweep` layout-invariance guard, which it
 # implements on the Embassy renderer. Only the `reconstruct` verb below remains in use (it rebuilds a
-# fixture's project tree from the backup corpus and drives no renderer — `src/bsp/rust/src/sd_image.rs`
+# fixture's project tree from the backup corpus and drives no renderer — `src/bsp/rust/src/storage/sd_image.rs`
 # calls it).
 #
 # Golden A/B harness for the headless Cordae render (deluge_render).

@@ -1,28 +1,18 @@
-//! Host-only no-op stubs for the peripheral C ABI (`audio_io.h`, `midi_io.h`,
-//! `cv_gate.h`, `signals.h`) under `host_app`.
+//! The host app's stand-ins for the peripheral C ABI (`audio_io.h`, `midi_io.h`, `cv_gate.h`,
+//! `signals.h`), which the device-only peripheral modules provide on the target.
 //!
-//! These close the last of the host `deluge_app` object closure's undefined
-//! symbols that the real (device-only) `audio`/`cv_gate`/`midi`/`signals`
-//! modules provide on-target. Boot-and-idle never drives real peripheral I/O on
-//! host (no SSI/DMA rings, no PIC-shared RSPI0, no USB stack), so inert defaults
-//! are correct here. The exceptions are DIN input, which reads the note script a
-//! scenario arms (`audio_host.rs`), DIN MIDI in and out, which the desktop
-//! simulator's MIDI queues carry under `sim`, and audio capture, which
-//! `audio_host.rs` owns.
-//!
-//! Return values are chosen wherever the boot path might actually read one, so a
-//! "wrong zero" can't silently wedge boot — e.g. `deluge_audio_drive` returning 0
-//! (no renders needed) is the documented idle case, not a failure.
-//! `deluge_midi_port_count` returns 0: with zero ports the app's `0..port_count`
-//! loops never touch MIDI I/O at all, the most inert option, and nothing on the
-//! boot-and-idle path depends on a DIN port existing.
+//! The host has no peripherals, so most are inert, with return values chosen so the app idles
+//! rather than wedges. The exceptions: DIN input reads the note script a scenario arms
+//! (`audio::host`), under `sim` DIN MIDI in and out go through the simulator's queues, and the
+//! trigger clock keeps its handler for the harness to fire. `deluge_midi_port_count` returns 0,
+//! so the app's per-port loops touch no MIDI I/O.
 #![allow(unused_variables, non_snake_case)]
 use crate::sys::{
     DelugeMidiPort, DelugeSignal, DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK,
     DelugeUsbHostEvent, DelugeUsbHostEvent_DELUGE_USB_HOST_NONE as USB_HOST_NONE,
 };
 
-/// midi_io.h's `DELUGE_MIDI_DIN`: the port the app writes DIN MIDI to.
+/// `midi_io.h`'s `DELUGE_MIDI_DIN`: the port the app writes DIN MIDI to.
 #[cfg(feature = "sim")]
 const DIN_PORT: DelugeMidiPort = 0;
 
@@ -36,11 +26,7 @@ macro_rules! stub_log {
 }
 
 // ── audio_io.h ─────────────────────────────────────────────────────────────
-// `deluge_audio_drive`/`max_block_frames`/`sample_rate`/`frames_until_block_offset`
-// are real (see `audio_host.rs`) — the priority-0 task actually renders via
-// `deluge_app_render` instead of a no-op. The remaining audio_io.h symbols
-// below (start/input_resync/stamp_to_render_offset) have no host equivalent
-// (no DMA ring to (re-)anchor or resync) and stay inert stubs.
+// The rendering half is real, in `audio::host`; these have no DMA ring to act on.
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_start() -> DelugeStatus {
@@ -87,7 +73,7 @@ pub extern "C" fn deluge_gate_set(channel: u8, on: bool) {
     stub_log!("deluge_gate_set");
 }
 
-/// The app's trigger-clock handler (0 = none), as `cv_gate.rs` keeps it on the device.
+/// The app's trigger-clock handler, or 0 for none.
 static TRIGGER_HANDLER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
 
 #[unsafe(no_mangle)]
@@ -98,7 +84,7 @@ pub extern "C" fn deluge_trigger_clock_set_handler(handler: crate::sys::DelugeTr
     );
 }
 
-/// Host harness only: deliver one rising edge to the installed handler, as the device's trigger-clock task does.
+/// Delivers one trigger-clock edge to the installed handler, for host harnesses.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_trigger_clock_host_edge(stamp: u64) {
     let h = TRIGGER_HANDLER.load(core::sync::atomic::Ordering::Relaxed);
@@ -149,9 +135,7 @@ pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u
         return len;
     }
     stub_log!("deluge_midi_write");
-    // Always "accept" (silently dropped) rather than
-    // reporting 0 accepted, so a caller retrying on partial acceptance can't
-    // spin forever against a port that will never drain.
+    // Accept and drop, so a caller retrying on partial acceptance cannot spin forever.
     len
 }
 
@@ -169,19 +153,18 @@ pub extern "C" fn deluge_midi_write_pending(port: DelugeMidiPort) -> u32 {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_din_read_timed(byte: *mut u8, arrival_stamp: *mut u32) -> bool {
-    // DIN input is a note script a scenario arms (audio_host.rs), else the simulator's MIDI input (`sim`); nothing
-    // arrives without either.
-    let script = crate::audio_host::din_script_read();
+    // A scenario's note script, else (under `sim`) the simulator's MIDI input.
+    let script = crate::audio::host::din_script_read();
     #[cfg(feature = "sim")]
     let script = script.or_else(|| deluge_bsp::sim::panel().and_then(|panel| panel.pop_midi_in()));
     let Some(b) = script else {
         return false;
     };
-    // SAFETY: the app passes valid out-pointers (arrival_stamp may be null), as for the device's midi.rs.
+    // SAFETY: the app passes valid out-pointers; `arrival_stamp` may be null.
     unsafe {
         *byte = b;
         if !arrival_stamp.is_null() {
-            *arrival_stamp = crate::capture_stamp::now_for(0);
+            *arrival_stamp = crate::audio::capture_stamp::now_for(0);
         }
     }
     true
@@ -224,9 +207,8 @@ pub extern "C" fn deluge_midi_gate_timer_pending() -> bool {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_gate_timer_arm(samples_from_now: u32) {
     stub_log!("deluge_midi_gate_timer_arm");
-    // No MTU2 (or any) one-shot timer on host.
-    // Reachable via `deluge_audio_drive`'s (audio_host.rs) render path, which
-    // can hit AudioEngine::scheduleMidiGateOutISR and arm the gate timer.
+    // No one-shot timer on host. Reached from the render path through
+    // `AudioEngine::scheduleMidiGateOutISR`.
 }
 
 // ── signals.h ──────────────────────────────────────────────────────────────

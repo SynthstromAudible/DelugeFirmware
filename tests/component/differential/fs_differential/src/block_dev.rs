@@ -1,23 +1,17 @@
-//! Host `block_device_driver::BlockDevice<512>` over the shared `DISK` image
-//! (`ram_disk.rs`), for `efatfs::EFatFs` to mount `embedded-fatfs` through --
-//! the real `BlockDevice` -> `BufStream` stack (`crates/block-device-driver`,
-//! `crates/block-device-adapters`) driven on-device, rather than a
-//! byte-granular shortcut.
+//! A `BlockDevice<512>` over the shared [`RamDisk`] image.
 //!
-//! `RamDisk::read_at`/`write_at` are already byte-granular over `DISK`, so
-//! this just walks the requested blocks and delegates each 512-byte chunk to
-//! them.
+//! [`EFatFs`](crate::efatfs::EFatFs) mounts through this and the same `BufStream` adapter stack the
+//! device uses, rather than a byte-granular shortcut.
 
 use aligned::{Aligned, A4};
 use block_device_driver::BlockDevice;
 
 use crate::ram_disk::RamDisk;
 
-/// Block size this harness's fixtures fix (matches the real target SD
-/// card's sector size).
+/// Block size in bytes; the SD card's sector size.
 const BLOCK_SIZE: usize = 512;
 
-/// A `BlockDevice<512>` over the shared `DISK` image.
+/// A `BlockDevice<512>` over the shared [`RamDisk`] image.
 pub struct FileBlockDevice;
 
 impl BlockDevice<BLOCK_SIZE> for FileBlockDevice {

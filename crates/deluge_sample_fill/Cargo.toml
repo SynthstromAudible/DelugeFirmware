@@ -1,14 +1,10 @@
-# deluge_sample_fill — the shared, sim-linkable cluster-fill core (C2a). Holds the
-# fill arithmetic (`fill_logic`, convert/stitch over `deluge_sample_convert`), the
-# per-asset fill-context table, and (behind `native_fill`) the manager-reaching
-# `native_begin`/`native_finish` + their strong `deluge_streaming_*` C-ABI overrides.
-# A plain `no_std` rlib: no `#[panic_handler]` of its own (the final artifact — the
-# `deluge_rust` umbrella / `deluge-bsp-rust` bin — provides one), so it composes without
-# duplicate-symbol clashes, exactly like `deluge_resource`/`deluge_alloc`.
+# Cluster-fill core shared by the BSP and the host tests: the fill arithmetic (`fill_logic`), the
+# per-asset fill-context table, and, behind `native_fill`, the manager-reaching fill.
+# A plain `no_std` rlib; the final artifact supplies the panic handler.
 [package]
 name = "deluge_sample_fill"
 version = "0.1.0"
-# edition 2024: the fill core uses `unsafe extern "C"` blocks + `#[unsafe(no_mangle)]`.
+# 2024: the fill core uses `unsafe extern "C"` blocks and `#[unsafe(no_mangle)]`.
 edition = "2024"
 license = "GPL-3.0-or-later"
 publish = false
@@ -18,32 +14,21 @@ name = "deluge_sample_fill"
 crate-type = ["rlib"]
 
 [dependencies]
-# fill_logic::finish_convert_stitch calls convert_cluster/stitch_boundaries. Path to the
-# sibling crate under crates/ (NOT itself a crates/ workspace member — its build.rs is
-# target-aware).
 deluge_sample_convert = { path = "../deluge_sample_convert" }
-# The FILL_CONTEXTS static is a blocking Mutex<CriticalSectionRawMutex, _>. Blocking
-# primitive only — no embassy-executor.
+# Blocking `Mutex` for the fill-context table only; no executor.
 embassy-sync = "0.8.0"
 
 [dev-dependencies]
-# `FILL_CONTEXTS`'s `CriticalSectionRawMutex` needs a registered `critical-section` impl to
-# link; the device/`host_app` builds get one from `deluge-bsp-rust`'s own dependency tree, but
-# this crate's own `cargo test` (e.g. `tests/fill_context_host.rs`) links standalone, so it
-# needs its own — same std-backed impl `deluge_resource`'s dev-dependencies already use.
+# The context table's `CriticalSectionRawMutex` needs a registered implementation to link; the
+# standalone test binary brings the std one.
 critical-section = { version = "1", features = ["std"] }
 
 [features]
-# Default-off. Gates the manager-reaching fill (native_begin/native_finish), which reference
-# undefined `extern "C"` manager/chunk symbols and so only compile where a final link provides them.
-# Off by default so `cargo test -p deluge_sample_fill` (fill_logic + fill-context tier)
-# builds and links with nothing to resolve. Turned on by deluge-bsp-rust, deluge_rust's
-# `sim` feature, and region_fill_differential.
+## The manager-reaching fill (`native_begin`/`native_finish`). It references `extern "C"`
+## manager and chunk symbols, so it only links where the final artifact provides them; off, the
+## crate's own tests link with nothing to resolve.
 default = []
 native_fill = []
-# Sim-only pass-through: build the convert dependency in shim-only mode (the sim's deluge_app provides
-# convert.cpp/stitch.cpp objects). Distinct from native_fill (which gates the manager-reaching fill) —
-# this gates only HOW deluge_sample_convert is compiled. Enabled solely via deluge_rust's `sim` feature;
-# a standalone `cargo test -p deluge_sample_fill` / region_*_differential build leaves it OFF and gets
-# the full convert compile.
-sim_convert = ["deluge_sample_convert/app_convert"]
+## Builds `deluge_sample_convert` shim-only, for a final link that supplies the convert/stitch
+## objects itself (see that crate's `app_convert`).
+app_convert = ["deluge_sample_convert/app_convert"]
