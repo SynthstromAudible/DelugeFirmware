@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 /// Emit debug/log text to the board's debug channel (RTT/UART), with no implicit
-/// newline — the caller owns formatting. Best-effort, may be dropped. [task] [isr]
+/// newline — the caller owns formatting. Best-effort, may be dropped. [task] [audio] [isr]
 void deluge_log(const char* text) DELUGE_NOEXCEPT;
 
 /// True if currently executing in an interrupt/ISR context (false in normal task
@@ -45,7 +45,7 @@ bool deluge_in_interrupt(void) DELUGE_NOEXCEPT;
 /// deluge_in_interrupt(): a lower-priority interrupt (the streaming fill executor) is not the audio
 /// context, and must still mask. On the Rust BSP, deluge_in_interrupt() cannot see either handler:
 /// the shared IRQ entry switches to SYS mode before dispatching.
-/// [task] [isr]
+/// [task] [audio] [isr]
 /// @return true iff currently executing in the audio render context.
 bool deluge_in_audio_context(void) DELUGE_NOEXCEPT;
 
@@ -56,10 +56,10 @@ bool deluge_in_audio_context(void) DELUGE_NOEXCEPT;
 ///
 /// This is a CPU/system primitive owned by the BSP (the RZ/A1L implementation
 /// masks IRQs via CPSID/CPSIE; a host-sim would use a recursive lock or no-op;
-/// Embassy would use a critical-section crate). [task] [isr]
+/// Embassy would use a critical-section crate). [task] [audio] [isr]
 void ENTER_CRITICAL_SECTION() DELUGE_NOEXCEPT;
 
-/// Exit a critical section opened by ENTER_CRITICAL_SECTION(). [task] [isr]
+/// Exit a critical section opened by ENTER_CRITICAL_SECTION(). [task] [audio] [isr]
 void EXIT_CRITICAL_SECTION() DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus

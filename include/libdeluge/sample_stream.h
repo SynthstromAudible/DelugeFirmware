@@ -43,12 +43,12 @@
 extern "C" {
 #endif
 
-/// @brief The resource-manager instance the streaming loader queue lives on.
+/// @brief The resource-manager instance the streaming loader queue lives on. [task] [audio]
 /// @return The single DelugeResource instance — the same one returned by
 ///         GeneralMemoryAllocator's resourceManager() — or null when it could not be created.
 DelugeResource* deluge_streaming_resource_manager(void) DELUGE_NOEXCEPT;
 
-/// @brief The resource-manager Asset id backing @p stream_backing, defining it first if needed.
+/// @brief The resource-manager Asset id backing @p stream_backing, defining it first if needed. [task] [audio]
 ///
 /// The region-port `open()` bridge: the reader passes its
 /// `deluge::audio::stream::SampleStream` as `deluge_sample_source_open`'s `stream_backing`,
@@ -66,7 +66,7 @@ uint32_t deluge_sample_stream_asset_id(DelugeStreamBacking* stream_backing) DELU
 
 /// @brief The byte offset a streamed chunk's payload sits at within its slab slot. The C++
 ///        slab setup sizes the shared cluster slot as max(this, ComputedChunk's kChunkPayloadOffset)
-///        + Cluster::size + trailing guard. Rust-owned (deluge_sample_fill).
+///        + Cluster::size + trailing guard. Rust-owned (deluge_sample_fill). [task]
 uint32_t deluge_streamed_chunk_payload_offset(void) DELUGE_NOEXCEPT;
 
 /// @brief The geometry a stream slot needs to register its asset's fill-context.
@@ -84,7 +84,7 @@ typedef struct DelugeSampleStreamGeometry {
 	uint8_t num_channels; ///< Sample::numChannels — channel count (1 = mono, 2 = stereo).
 } DelugeSampleStreamGeometry;
 
-/// @brief Open @p path for streaming reads and register a fresh slot for it.
+/// @brief Open @p path for streaming reads and register a fresh slot for it. [task]
 ///
 /// @param path           NUL-terminated absolute file path.
 /// @param out_table_full Always written: true iff the failure was specifically this registry's
@@ -98,21 +98,21 @@ typedef struct DelugeSampleStreamGeometry {
 uint32_t deluge_sample_stream_open(const char* path, bool* out_table_full) DELUGE_NOEXCEPT;
 
 /// @brief Release @p handle's slot: close its efatfs handle (if any) and release its
-///        resource-manager asset (if one was ever assigned).
+///        resource-manager asset (if one was ever assigned). [task]
 ///
 /// Idempotent — a no-op on 0 or an already-closed handle.
 /// @param handle A handle previously returned by deluge_sample_stream_open, or 0.
 void deluge_sample_stream_close(uint32_t handle) DELUGE_NOEXCEPT;
 
 /// @brief Store @p geo on @p handle's slot, registering its streaming fill-context with the
-///        resource manager once both a geometry and a real asset id are present.
+///        resource manager once both a geometry and a real asset id are present. [task]
 ///
 /// No-op on an invalid/out-of-range/already-closed @p handle.
 /// @param handle A handle previously returned by deluge_sample_stream_open.
 /// @param geo    The geometry to store.
 void deluge_sample_stream_set_geometry(uint32_t handle, DelugeSampleStreamGeometry geo) DELUGE_NOEXCEPT;
 
-/// @brief @p handle's currently assigned resource-manager asset id.
+/// @brief @p handle's currently assigned resource-manager asset id. Nothing in the app or BSP calls it. [task]
 ///
 /// Named `_get_` (not the plain `deluge_sample_stream_asset_id` its handle-based sibling setter's
 /// naming would suggest): this header also declares the UNRELATED
@@ -126,14 +126,14 @@ void deluge_sample_stream_set_geometry(uint32_t handle, DelugeSampleStreamGeomet
 uint32_t deluge_sample_stream_get_asset_id(uint32_t handle) DELUGE_NOEXCEPT;
 
 /// @brief Assign @p id as @p handle's resource-manager asset, registering its streaming
-///        fill-context once both an asset id and a geometry are present.
+///        fill-context once both an asset id and a geometry are present. [task]
 ///
 /// No-op on an invalid/out-of-range/already-closed @p handle.
 /// @param handle A handle previously returned by deluge_sample_stream_open.
 /// @param id     The resource-manager asset id to assign.
 void deluge_sample_stream_set_asset_id(uint32_t handle, uint32_t id) DELUGE_NOEXCEPT;
 
-/// @brief Read @p len bytes at absolute @p byte_offset of @p handle's open file into @p buf.
+/// @brief Read @p len bytes at absolute @p byte_offset of @p handle's open file into @p buf. [task]
 ///
 /// Mirrors deluge_efatfs_read_at's success/byte-count split so a legitimate zero-byte read at/after
 /// EOF stays distinct from a failure.

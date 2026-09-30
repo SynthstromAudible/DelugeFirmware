@@ -33,7 +33,7 @@ extern "C" {
 #endif
 
 /// @brief Discard everything every loader read from the card that has just been removed. Never
-///        waits.
+///        waits. [task]
 ///
 /// Call this when the card is EJECTED. A loader's cache is keyed by the nominal path and the path
 /// outlives the card it was read from, so a result parsed from one card must never be applied after

@@ -134,7 +134,7 @@ extern "C" {
 /// and the image stopped linking. Keep this one small.
 #define DELUGE_FILE_BYTES_BLOCK 1024u
 
-/// @brief Ask for the whole of `path` to be read, and return immediately.
+/// @brief Ask for the whole of `path` to be read, and return immediately. [task]
 ///
 /// Silently dropped -- refused, with nothing to report it -- when the path is NULL or over long, or while the
 /// channel is busy: a request is already queued (this path's own included), an operation is in flight, an
@@ -146,7 +146,7 @@ extern "C" {
 /// @param path NUL-terminated path of the file to read. Copied out before this returns.
 void deluge_file_bytes_request_read(const char* path) DELUGE_NOEXCEPT;
 
-/// @brief Collect the bytes read for `path`, if they are ready.
+/// @brief Collect the bytes read for `path`, if they are ready. [task]
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
 /// @param out_buf    Written **only** on @ref DELUGE_CHANNEL_READY, with `*out_len` bytes. No NUL
@@ -166,7 +166,7 @@ void deluge_file_bytes_request_read(const char* path) DELUGE_NOEXCEPT;
 DelugeChannelStatus deluge_file_bytes_collect_read(const char* path, uint8_t* out_buf, uint32_t buf_cap,
                                                    uint32_t* out_len, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `len` bytes to be written over `path`, and return immediately.
+/// @brief Ask for `len` bytes to be written over `path`, and return immediately. [task]
 ///
 /// Creates `path`'s parent directory if it is absent, so a caller needs no `mkdir` of its own.
 ///
@@ -188,7 +188,7 @@ DelugeChannelStatus deluge_file_bytes_collect_read(const char* path, uint8_t* ou
 ///         request here is a lost settings change rather than a question worth re-asking.
 bool deluge_file_bytes_request_write(const char* path, const uint8_t* bytes, uint32_t len) DELUGE_NOEXCEPT;
 
-/// @brief Collect the outcome of the write to `path`, if it has finished.
+/// @brief Collect the outcome of the write to `path`, if it has finished. [task]
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
 /// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
@@ -197,7 +197,7 @@ bool deluge_file_bytes_request_write(const char* path, const uint8_t* bytes, uin
 ///         reached the card and the caller's buffer is free again.
 DelugeChannelStatus deluge_file_bytes_collect_write(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `from` to be renamed to `to`, and return immediately.
+/// @brief Ask for `from` to be renamed to `to`, and return immediately. [task]
 ///
 /// For the settings family's legacy-path migration, which moves a file left at the card root into
 /// `SETTINGS/`. Keyed on `to`, because that is the name the caller goes on to use.
@@ -212,7 +212,7 @@ DelugeChannelStatus deluge_file_bytes_collect_write(const char* path, DelugeStat
 ///         boot will migrate it again.
 bool deluge_file_bytes_request_rename(const char* from, const char* to) DELUGE_NOEXCEPT;
 
-/// @brief Collect the outcome of the rename to `to`, if it has finished.
+/// @brief Collect the outcome of the rename to `to`, if it has finished. [task]
 ///
 /// @param to         NUL-terminated destination path, matched exactly against the one requested.
 /// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
@@ -223,7 +223,7 @@ bool deluge_file_bytes_request_rename(const char* from, const char* to) DELUGE_N
 ///       to show anyone.
 DelugeChannelStatus deluge_file_bytes_collect_rename(const char* to, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `path` to be deleted, and return immediately.
+/// @brief Ask for `path` to be deleted, and return immediately. [task]
 ///
 /// @param path NUL-terminated path. Copied out before this returns.
 /// @return true if accepted; the caller must then collect it to a terminal state (see "Collect what you ask for").
@@ -234,7 +234,7 @@ DelugeChannelStatus deluge_file_bytes_collect_rename(const char* to, DelugeStatu
 ///         belief.
 bool deluge_file_bytes_request_unlink(const char* path) DELUGE_NOEXCEPT;
 
-/// @brief Collect the outcome of the deletion of `path`, if it has finished.
+/// @brief Collect the outcome of the deletion of `path`, if it has finished. [task]
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
 /// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
@@ -245,7 +245,7 @@ bool deluge_file_bytes_request_unlink(const char* path) DELUGE_NOEXCEPT;
 ///       is what was wanted -- so that caller must not treat it as an error.
 DelugeChannelStatus deluge_file_bytes_collect_unlink(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask whether `path` exists, and return immediately.
+/// @brief Ask whether `path` exists, and return immediately. [task]
 ///
 /// **Not a read.** Answering existence by requesting @ref deluge_file_bytes_request_read and reading
 /// `NOT_FOUND` as absence works only for files below @ref DELUGE_FILE_BYTES_MAX_BYTES: a larger file
@@ -261,7 +261,7 @@ DelugeChannelStatus deluge_file_bytes_collect_unlink(const char* path, DelugeSta
 /// @param path NUL-terminated path. Copied out before this returns.
 void deluge_file_bytes_request_exists(const char* path) DELUGE_NOEXCEPT;
 
-/// @brief Collect the existence answer for `path`, if there is one.
+/// @brief Collect the existence answer for `path`, if there is one. [task]
 ///
 /// @param path        NUL-terminated path, matched exactly against the one requested.
 /// @param out_present Written **only** on @ref DELUGE_CHANNEL_READY: true if the path is there,
@@ -277,7 +277,7 @@ void deluge_file_bytes_request_exists(const char* path) DELUGE_NOEXCEPT;
 DelugeChannelStatus deluge_file_bytes_collect_exists(const char* path, bool* out_present,
                                                      DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask whether `path` exists as a DIRECTORY, and return immediately.
+/// @brief Ask whether `path` exists as a DIRECTORY, and return immediately. [task]
 ///
 /// @ref deluge_file_bytes_request_exists opens its path as a file, which a directory is not, so it answers FAILED for
 /// every directory. This one opens the path as a directory and closes it again before answering, so no directory
@@ -288,7 +288,7 @@ DelugeChannelStatus deluge_file_bytes_collect_exists(const char* path, bool* out
 /// @param path NUL-terminated path. Copied out before this returns.
 void deluge_file_bytes_request_dir_exists(const char* path) DELUGE_NOEXCEPT;
 
-/// @brief Collect the directory-existence answer for `path`, if there is one.
+/// @brief Collect the directory-existence answer for `path`, if there is one. [task]
 ///
 /// @param path        NUL-terminated path, matched exactly against the one requested.
 /// @param out_present Written **only** on @ref DELUGE_CHANNEL_READY: true if the directory is there, false if it is
@@ -301,7 +301,7 @@ void deluge_file_bytes_request_dir_exists(const char* path) DELUGE_NOEXCEPT;
 DelugeChannelStatus deluge_file_bytes_collect_dir_exists(const char* path, bool* out_present,
                                                          DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `path` and every missing directory above it to be created, and return immediately.
+/// @brief Ask for `path` and every missing directory above it to be created, and return immediately. [task]
 ///
 /// Whole-path, not one segment. A caller that walked segments itself would need a phase machine per
 /// caller to do it over this channel, and both callers that need this already have a segment loop
@@ -317,7 +317,7 @@ DelugeChannelStatus deluge_file_bytes_collect_dir_exists(const char* path, bool*
 ///       sure this is there", and the commonest outcome is that it already is.
 bool deluge_file_bytes_request_mkdir_all(const char* path) DELUGE_NOEXCEPT;
 
-/// @brief Collect the outcome of the directory creation for `path`, if it has finished.
+/// @brief Collect the outcome of the directory creation for `path`, if it has finished. [task]
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
 /// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED, with the first failure that
@@ -326,7 +326,7 @@ bool deluge_file_bytes_request_mkdir_all(const char* path) DELUGE_NOEXCEPT;
 ///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
 DelugeChannelStatus deluge_file_bytes_collect_mkdir_all(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `path`'s modification time to be set, and return immediately.
+/// @brief Ask for `path`'s modification time to be set, and return immediately. [task]
 ///
 /// Its own operation rather than an optional parameter on @ref deluge_file_bytes_request_mkdir_all,
 /// because only two of its four callers follow a directory creation: the other two stamp an arbitrary
@@ -340,7 +340,7 @@ DelugeChannelStatus deluge_file_bytes_collect_mkdir_all(const char* path, Deluge
 ///         channel was mid-update at the instant of the call; or the path is NULL or over long.
 bool deluge_file_bytes_request_set_time(const char* path, DelugeTimestamp timestamp) DELUGE_NOEXCEPT;
 
-/// @brief Collect the outcome of the timestamp write for `path`, if it has finished.
+/// @brief Collect the outcome of the timestamp write for `path`, if it has finished. [task]
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
 /// @param out_status Written **only** on @ref DELUGE_CHANNEL_FAILED. Untouched otherwise.
@@ -348,7 +348,7 @@ bool deluge_file_bytes_request_set_time(const char* path, DelugeTimestamp timest
 ///         @ref DELUGE_CHANNEL_UNKNOWN, @ref DELUGE_CHANNEL_FAILED.
 DelugeChannelStatus deluge_file_bytes_collect_set_time(const char* path, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask for up to @ref DELUGE_FILE_BYTES_BLOCK bytes to be read from `path` at `offset`.
+/// @brief Ask for up to @ref DELUGE_FILE_BYTES_BLOCK bytes to be read from `path` at `offset`. [task]
 ///
 /// Stateless: the path and offset are the whole request, and no handle is opened, held or returned.
 /// `smsysex`'s `readBlock` already seeks to an address carried on the wire before every read, so this
@@ -363,7 +363,7 @@ DelugeChannelStatus deluge_file_bytes_collect_set_time(const char* path, DelugeS
 ///         block bound.
 bool deluge_file_bytes_request_read_at(const char* path, uint32_t offset, uint32_t len) DELUGE_NOEXCEPT;
 
-/// @brief Collect the bytes read for `path`, if they are ready.
+/// @brief Collect the bytes read for `path`, if they are ready. [task]
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
 /// @param out_buf    Written **only** on @ref DELUGE_CHANNEL_READY, with `*out_len` bytes.
@@ -375,7 +375,7 @@ bool deluge_file_bytes_request_read_at(const char* path, uint32_t offset, uint32
 DelugeChannelStatus deluge_file_bytes_collect_read_at(const char* path, uint8_t* out_buf, uint32_t buf_cap,
                                                       uint32_t* out_len, DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `len` bytes to be written into `path` at `offset`.
+/// @brief Ask for `len` bytes to be written into `path` at `offset`. [task]
 ///
 /// @warning **This does NOT truncate, and must not.** `efatfs_core::create_context` truncates
 ///          unconditionally, so an implementation that re-opened with `DELUGE_FILE_WRITE_CREATE`
@@ -396,7 +396,7 @@ DelugeChannelStatus deluge_file_bytes_collect_read_at(const char* path, uint8_t*
 bool deluge_file_bytes_request_write_at(const char* path, uint32_t offset, const uint8_t* bytes,
                                         uint32_t len) DELUGE_NOEXCEPT;
 
-/// @brief Collect the outcome of the write to `path`, if it has finished.
+/// @brief Collect the outcome of the write to `path`, if it has finished. [task]
 ///
 /// @param path        NUL-terminated path, matched exactly against the one requested.
 /// @param out_written Written **only** on READY, with the byte count actually written. A short write
@@ -405,7 +405,7 @@ bool deluge_file_bytes_request_write_at(const char* path, uint32_t offset, const
 DelugeChannelStatus deluge_file_bytes_collect_write_at(const char* path, uint32_t* out_written,
                                                        DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `path`'s size.
+/// @brief Ask for `path`'s size. [task]
 ///
 /// Silently dropped exactly as @ref deluge_file_bytes_request_read is: when the path is NULL or over long, or while
 /// the channel is busy (a request queued, an operation in flight, an uncollected rename, unlink or write-from answer
@@ -414,7 +414,7 @@ DelugeChannelStatus deluge_file_bytes_collect_write_at(const char* path, uint32_
 /// @param path NUL-terminated path. Copied out before this returns.
 void deluge_file_bytes_request_stat(const char* path) DELUGE_NOEXCEPT;
 
-/// @brief Collect `path`'s size, if it is known.
+/// @brief Collect `path`'s size, if it is known. [task]
 ///
 /// @param path       NUL-terminated path, matched exactly against the one requested.
 /// @param out_size   Written **only** on @ref DELUGE_CHANNEL_READY.
@@ -423,7 +423,7 @@ void deluge_file_bytes_request_stat(const char* path) DELUGE_NOEXCEPT;
 DelugeChannelStatus deluge_file_bytes_collect_stat(const char* path, uint32_t* out_size,
                                                    DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `from` to be copied to `to`, whole.
+/// @brief Ask for `from` to be copied to `to`, whole. [task]
 ///
 /// The entire copy, not a block of it: the read/write loop lives on the Rust side so its caller needs
 /// neither a loop nor two open files. `to`'s parent directory is created if absent, and `to` is
@@ -434,7 +434,7 @@ DelugeChannelStatus deluge_file_bytes_collect_stat(const char* path, uint32_t* o
 ///         channel was mid-update at the instant of the call; or either path is NULL or over long.
 bool deluge_file_bytes_request_copy(const char* from, const char* to) DELUGE_NOEXCEPT;
 
-/// @brief Collect the outcome of the copy to `to`, if it has finished.
+/// @brief Collect the outcome of the copy to `to`, if it has finished. [task]
 ///
 /// Keyed on the DESTINATION, because that is the name the caller goes on to use.
 /// @param to         NUL-terminated destination, matched exactly against the one requested.
@@ -523,13 +523,14 @@ uint32_t deluge_file_bytes_progress(void) DELUGE_NOEXCEPT;
 
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every byte-channel operation wait @p ms milliseconds before it touches the card.
+/// [task]
 ///
 /// Lets a gate hold an operation in flight while a consumer does something else. 0 (the default) means no wait.
 /// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
 /// @param ms Milliseconds of simulated delay per operation.
 void deluge_file_bytes_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 
-/// @brief Host harness only: make each @ref DELUGE_FILE_BYTES_BLOCK a copy moves wait @p ms milliseconds first.
+/// @brief Host harness only: make each @ref DELUGE_FILE_BYTES_BLOCK a copy moves wait @p ms milliseconds first. [task]
 ///
 /// Holds the channel with a long operation that keeps making progress, as a large copy on a slow card does, where
 /// @ref deluge_file_bytes_set_latency_ms holds one that makes none. 0 (the default) means no wait. Declared only for

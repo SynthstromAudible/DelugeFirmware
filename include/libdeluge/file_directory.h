@@ -58,7 +58,7 @@
 extern "C" {
 #endif
 
-/// @brief Ask for `dir_path` to be opened, and return immediately.
+/// @brief Ask for `dir_path` to be opened, and return immediately. [task]
 ///
 /// Replaces any request not yet picked up. Silently drops an unusable request (NULL, non-UTF-8, longer
 /// than @ref DELUGE_PATH_MAX with its NUL, or a contended slot): there is no failure a caller could act on that
@@ -73,7 +73,7 @@ extern "C" {
 ///        "already exists", which is not a failure for the caller's purpose.
 void deluge_file_directory_request(const char* dir_path, bool create_if_missing) DELUGE_NOEXCEPT;
 
-/// @brief Collect the directory opened for `dir_path`, if one is ready.
+/// @brief Collect the directory opened for `dir_path`, if one is ready. [task]
 ///
 /// @param dir_path   NUL-terminated path, matched exactly against the one requested.
 /// @param out_handle Written **only** on @ref DELUGE_CHANNEL_READY, with an open directory
@@ -96,7 +96,7 @@ DelugeChannelStatus deluge_file_directory_collect(const char* dir_path, DelugeHa
                                                   DelugeStatus* out_status) DELUGE_NOEXCEPT;
 
 #ifdef DELUGE_HOST
-/// @brief Host harness only: make every directory open wait @p ms milliseconds before it touches the card.
+/// @brief Host harness only: make every directory open wait @p ms milliseconds before it touches the card. [task]
 ///
 /// Lets a gate hold an open in flight while a consumer keeps ticking. 0 (the default) means no wait.
 /// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.

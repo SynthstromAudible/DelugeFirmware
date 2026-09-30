@@ -70,7 +70,7 @@ extern "C" {
 ///       caller's buffer.
 #define DELUGE_FILE_PREFIX_CAPACITY 8192u
 
-/// @brief Ask for the first @p max_bytes of @p file_path. Returns immediately; never waits.
+/// @brief Ask for the first @p max_bytes of @p file_path. Returns immediately; never waits. [task]
 ///
 /// Pair with @ref deluge_file_prefix_collect: request, return to your own loop, and ask for the
 /// bytes on a later tick.
@@ -85,7 +85,7 @@ extern "C" {
 ///                  @ref DELUGE_FILE_PREFIX_CAPACITY. A shorter file yields a shorter prefix.
 void deluge_file_prefix_request(const char* file_path, uint32_t max_bytes) DELUGE_NOEXCEPT;
 
-/// @brief Collect the prefix read for @p file_path, if one is ready. Never waits.
+/// @brief Collect the prefix read for @p file_path, if one is ready. Never waits. [task]
 ///
 /// On @ref DELUGE_CHANNEL_READY the bytes are written to @p out_buf, their count to @p out_len,
 /// and the prefix is REMOVED from the channel, so the caller now owns the only copy. **Neither
@@ -137,7 +137,7 @@ DelugeChannelStatus deluge_file_prefix_collect(const char* file_path, uint8_t* o
  * otherwise attach itself to the declaration below. */
 
 #ifdef DELUGE_HOST
-/// @brief Host harness only: make every prefix read wait @p ms milliseconds after it is marked in flight.
+/// @brief Host harness only: make every prefix read wait @p ms milliseconds after it is marked in flight. [task]
 ///
 /// Lets a gate hold a read in flight while a consumer keeps collecting PENDING. 0 (the default) means no wait.
 /// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.

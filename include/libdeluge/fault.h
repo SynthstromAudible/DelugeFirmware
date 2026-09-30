@@ -59,10 +59,10 @@ typedef struct DelugeFaultRanges {
 } DelugeFaultRanges;
 
 /// Fill in the board's code and stack bounds. Must not fail; zeroed fields simply
-/// mean "cannot classify", which costs the report some candidate pointers.
+/// mean "cannot classify", which costs the report some candidate pointers. [task] [audio] [isr]
 void deluge_fault_ranges(DelugeFaultRanges* out) DELUGE_NOEXCEPT;
 
-/// Queue one byte to the pad driver on the fault path.
+/// Queue one byte to the pad driver on the fault path. [task] [audio] [isr]
 ///
 /// Byte-at-a-time deliberately: it mirrors how the pattern is generated (a colour at
 /// a time, a column-pair at a time) and keeps the hook trivial enough to be
@@ -70,7 +70,7 @@ void deluge_fault_ranges(DelugeFaultRanges* out) DELUGE_NOEXCEPT;
 /// is going to run.
 void deluge_fault_pad_write(uint8_t byte) DELUGE_NOEXCEPT;
 
-/// Push every queued byte to the pad driver and block until the wire is idle.
+/// Push every queued byte to the pad driver and block until the wire is idle. [task] [audio] [isr]
 ///
 /// Must not rely on an interrupt or a DMA completion callback to make progress —
 /// poll. Must also be bounded: a wedged transmitter has to lose the race rather than

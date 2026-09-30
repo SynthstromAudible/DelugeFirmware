@@ -44,14 +44,14 @@ typedef struct StreamingFillDescriptor {
 extern "C" {
 #endif
 
-/// @brief Wake the async streaming-fill task out of its idle wait.
+/// @brief Wake the async streaming-fill task out of its idle wait. [task] [audio]
 ///
 /// The async task (`streaming_fill_task`, `streaming_loader.rs`) owns and drains the loader queue.
 /// Called unconditionally at every streaming CLUSTER_ENQUEUE site (`sample_stream.cpp`), after
 /// `deluge_resource_loader_enqueue()`. Harmless before the task first waits: the wake latches.
 void deluge_streaming_signal_fill(void) DELUGE_NOEXCEPT;
 
-/// @brief Enqueue a chunk for filling, and return immediately.
+/// @brief Enqueue a chunk for filling, and return immediately. [task]
 ///
 /// A caller that cannot block -- because its predicate needs another task to be polled, and it is itself
 /// inside the executor's poll -- requests the fill and returns to its own loop. The range reader's
@@ -60,12 +60,12 @@ void deluge_streaming_signal_fill(void) DELUGE_NOEXCEPT;
 /// @param chunk_backing The resident StreamedChunk to fill. NULL is ignored.
 void deluge_streaming_request_chunk(DelugeChunkBacking* chunk_backing) DELUGE_NOEXCEPT;
 
-/// @brief Wake the fill task to drain the loader queue, and return immediately.
+/// @brief Wake the fill task to drain the loader queue, and return immediately. [task]
 ///
 /// Pair with deluge_streaming_queue_drained().
 void deluge_streaming_request_drain(void) DELUGE_NOEXCEPT;
 
-/// @brief Report whether the loader queue holds nothing outstanding. Never waits.
+/// @brief Report whether the loader queue holds nothing outstanding. Never waits. [task]
 /// @return true when drained. Also true when there is no resource manager, since then there is
 ///         nothing to wait for and reporting otherwise would loop a poller forever.
 bool deluge_streaming_queue_drained(void) DELUGE_NOEXCEPT;
@@ -89,7 +89,7 @@ typedef struct DelugeStreamingFillContext {
 	uint8_t num_channels; ///< Sample::numChannels — channel count (1 = mono, 2 = stereo).
 } DelugeStreamingFillContext;
 
-/// @brief Register (or replace) asset @p asset's streaming fill-context.
+/// @brief Register (or replace) asset @p asset's streaming fill-context. [task]
 ///
 /// Called unconditionally from `SampleStream::ensure_resource_asset()` once the asset is defined
 /// (and again from `open_read_stream()` if the efatfs handle becomes known afterwards) —

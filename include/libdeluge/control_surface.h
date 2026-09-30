@@ -123,18 +123,18 @@ void deluge_control_set_pad_columns(uint8_t idx, const DelugeColour* colours, ui
 /// Flash main pad `idx` using the surface's built-in flash timer (optionally in
 /// a surface-defined palette colour index). [task]
 void deluge_control_flash_pad(uint8_t idx) DELUGE_NOEXCEPT;
-void deluge_control_flash_pad_colour(uint8_t idx, int32_t colour_idx) DELUGE_NOEXCEPT;
+void deluge_control_flash_pad_colour(uint8_t idx, int32_t colour_idx) DELUGE_NOEXCEPT; ///< [task]
 
 /// Smooth-scroll animation primitives: the surface keeps an off-screen
 /// framebuffer it smears to animate scrolling. [task]
 void deluge_control_scroll_horizontal(uint8_t flags) DELUGE_NOEXCEPT;
-void deluge_control_scroll_vertical(bool up, const DelugeColour* colours, uint8_t count) DELUGE_NOEXCEPT;
-void deluge_control_scroll_row(uint8_t row, DelugeColour colour) DELUGE_NOEXCEPT;
-void deluge_control_scroll_done(void) DELUGE_NOEXCEPT;
+void deluge_control_scroll_vertical(bool up, const DelugeColour* colours, uint8_t count) DELUGE_NOEXCEPT; ///< [task]
+void deluge_control_scroll_row(uint8_t row, DelugeColour colour) DELUGE_NOEXCEPT;                         ///< [task]
+void deluge_control_scroll_done(void) DELUGE_NOEXCEPT;                                                    ///< [task]
 
 /// Surface refresh / dimmer timing (board-defined units). [task]
 void deluge_control_set_refresh_time(uint8_t ms) DELUGE_NOEXCEPT;
-void deluge_control_set_dimmer_interval(uint8_t interval) DELUGE_NOEXCEPT;
+void deluge_control_set_dimmer_interval(uint8_t interval) DELUGE_NOEXCEPT; ///< [task]
 
 #ifdef __cplusplus
 }

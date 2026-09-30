@@ -138,7 +138,7 @@ typedef struct DelugeAudioLoadResult {
 	uint8_t error;
 } DelugeAudioLoadResult;
 
-/// @brief Queue @p file_path for the async loader and wake it. Returns immediately; never waits.
+/// @brief Queue @p file_path for the async loader and wake it. Returns immediately; never waits. [task]
 ///
 /// Pair with @ref deluge_audio_load_collect: request, return to your own loop, and ask for the
 /// result on a later tick. This is the same non-blocking shape `deluge_streaming_request_chunk`
@@ -163,7 +163,7 @@ typedef struct DelugeAudioLoadResult {
 ///         `LOAD_IN_PROGRESS`, so its next tick re-requests.
 bool deluge_audio_load_request(const char* file_path, const char* candidates, uint32_t num_candidates) DELUGE_NOEXCEPT;
 
-/// @brief Collect the finished parse for @p file_path, if one is ready. Never waits.
+/// @brief Collect the finished parse for @p file_path, if one is ready. Never waits. [task]
 ///
 /// On `DELUGE_CHANNEL_READY` the result is written to @p out and removed from the loader, so the
 /// caller now owns it and must act on it: build and publish the `Sample` from it (or fail the load
@@ -185,7 +185,7 @@ DelugeChannelStatus deluge_audio_load_collect(const char* file_path, DelugeAudio
  * absence, and would otherwise attach itself to the declaration below. */
 
 #ifdef DELUGE_HOST
-/// @brief Host harness only: make every audio load wait @p ms milliseconds after it is marked in flight.
+/// @brief Host harness only: make every audio load wait @p ms milliseconds after it is marked in flight. [task]
 ///
 /// Lets a gate hold a load in flight while a consumer keeps collecting PENDING. 0 (the default) means no wait.
 /// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.

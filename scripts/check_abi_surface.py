@@ -24,6 +24,7 @@ Usage:
     scripts/check_abi_surface.py --dead       # declared functions nothing calls
     scripts/check_abi_surface.py --check      # exit 1 if a declared function has no definition
     scripts/check_abi_surface.py --pins       # exit 1 if a declared function Rust defines or imports has no abi_pin!
+    scripts/check_abi_surface.py --tags       # exit 1 if a declared function's doc has no [task]/[audio]/[isr] tag
     scripts/check_abi_surface.py NAME...      # the rows for these functions
 """
 
@@ -49,6 +50,8 @@ DECLARATION = re.compile(
     + r"\s*)*;"
 )
 NOT_A_RETURN_TYPE = {"typedef", "return", "if", "while", "sizeof", "define"}
+# A calling-context tag: the tiers a function may be called from.
+TAG = re.compile(r"\[(task|audio|isr)\]")
 
 
 def strip_comments(text: str) -> str:
@@ -63,6 +66,39 @@ def declared() -> dict[str, Path]:
             if words and words[0] not in NOT_A_RETURN_TYPE:
                 names.setdefault(match.group(2), header)
     return names
+
+
+def untagged() -> list[str]:
+    """Declared functions whose doc comment (the comment lines directly above the declaration) and declaration
+    line carry no context tag."""
+    missing = []
+    for header in HEADERS:
+        lines = header.read_text().splitlines()
+        for match in DECLARATION.finditer(strip_comments("\n".join(lines))):
+            words = match.group(1).split()
+            if not words or words[0] in NOT_A_RETURN_TYPE:
+                continue
+            name = match.group(2)
+            call = re.compile(r"\b" + re.escape(name) + r"\s*\(")
+            index = next(
+                (
+                    i
+                    for i, line in enumerate(lines)
+                    if call.search(line)
+                    and not line.lstrip().startswith(("//", "*", "/*"))
+                ),
+                None,
+            )
+            if index is None:
+                continue
+            doc = []
+            i = index - 1
+            while i >= 0 and lines[i].lstrip().startswith(("///", "//", "*", "/*")):
+                doc.append(lines[i])
+                i -= 1
+            if not TAG.search("\n".join(doc)) and not TAG.search(lines[index]):
+                missing.append(name)
+    return missing
 
 
 def source_files(*roots: str, suffixes: tuple[str, ...]) -> list[Path]:
@@ -271,6 +307,7 @@ def main() -> int:
     parser.add_argument("--dead", action="store_true")
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--pins", action="store_true")
+    parser.add_argument("--tags", action="store_true")
     args = parser.parse_args()
 
     decls = declared()
@@ -301,11 +338,18 @@ def main() -> int:
                     where = scope if "/" in scope else f"crates/{scope}"
                     unpinned.append(name)
                     print(f"unpinned: {name} ({kind} in {where})")
-    if (args.check and undefined) or unpinned:
+    missing = untagged() if args.tags else []
+    for name in missing:
+        print(f"untagged: {name}")
+    if (args.check and undefined) or unpinned or missing:
         if undefined and args.check:
             print(f"{len(undefined)} declared function(s) with no definition")
         if unpinned:
             print(f"{len(unpinned)} Rust definition(s) or import(s) with no abi_pin!")
+        if missing:
+            print(
+                f"{len(missing)} declared function(s) with no [task]/[audio]/[isr] tag"
+            )
         return 1
     return 0
 

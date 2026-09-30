@@ -29,7 +29,7 @@ extern "C" {
 #endif
 
 /// @brief Whether boot has finished. False, then true for the rest of the process. The unit tests, which link no BSP,
-///        never mark it, so it is always false there.
+///        never mark it, so it is always false there. [task]
 bool deluge_boot_finished(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus

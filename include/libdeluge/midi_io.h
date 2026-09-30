@@ -55,7 +55,7 @@ typedef enum DelugeMidiPortKind : uint8_t {
 /// BSP whose USB stack owns its own lifecycle may make this a no-op. [task]
 void deluge_midi_init(void) DELUGE_NOEXCEPT;
 
-/// Number of MIDI ports the board exposes. [task]
+/// Number of MIDI ports the board exposes. [task] [audio]
 uint8_t deluge_midi_port_count(void) DELUGE_NOEXCEPT;
 
 /// The port carrying USB-MIDI device slot `device` (0-based) on `controller`.
@@ -69,31 +69,31 @@ DelugeMidiPort deluge_midi_usb_port(uint8_t controller, uint8_t device) DELUGE_N
 /// deluge_midi_din_read_timed() does per byte. Every message in the batch shares that one stamp.
 /// Non-blocking; returns the number of bytes copied (0 if none available). USB-MIDI ports deliver
 /// whole 4-byte event packets (decode with the deluge_midi protocol library) and the BSP arms its own
-/// receive transfers — there is nothing to re-arm or poll at this boundary. [task] [isr]
+/// receive transfers — there is nothing to re-arm or poll at this boundary. [task]
 uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max,
                                 uint32_t* arrival_ticks) DELUGE_NOEXCEPT;
 
 /// Queue `len` bytes for transmission on `port`. Returns the number of bytes
-/// accepted (may be < len if the TX buffer is full). Non-blocking. [task]
+/// accepted (may be < len if the TX buffer is full). Non-blocking. [task] [audio]
 uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len) DELUGE_NOEXCEPT;
 
 /// Free space (in bytes) in the port's TX buffer. [task]
 uint32_t deluge_midi_write_space(DelugeMidiPort port) DELUGE_NOEXCEPT;
 
 /// Bytes currently buffered for transmission on `port` but not yet on the wire.
-/// The app uses this to tell whether output is still pending. [task]
+/// The app uses this to tell whether output is still pending. [task] [audio]
 uint32_t deluge_midi_write_pending(DelugeMidiPort port) DELUGE_NOEXCEPT;
 
 /// Read the next received DIN/serial MIDI byte together with its capture stamp.
 /// Returns true and fills `*byte` and `*arrival_stamp` when a byte was
 /// available; false (leaving the outputs untouched) when the RX buffer is
 /// empty. `*arrival_stamp` is the event's capture stamp; see
-/// `deluge_audio_stamp_to_render_offset`. Non-blocking. [task] [isr]
+/// `deluge_audio_stamp_to_render_offset`. Non-blocking. [task]
 bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_stamp) DELUGE_NOEXCEPT;
 
 /// Push any buffered TX bytes toward the wire if idle. USB-MIDI ports on one
 /// controller share the wire, so flushing any of them pumps that controller's
-/// whole USB-MIDI transport. [task] [isr]
+/// whole USB-MIDI transport. [task] [audio] [isr]
 void deluge_midi_flush(DelugeMidiPort port) DELUGE_NOEXCEPT;
 
 /// Service the MIDI transport: pump all MIDI transport state machines,

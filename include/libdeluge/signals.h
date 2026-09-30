@@ -87,12 +87,12 @@ void deluge_battery_start_conversion(void) DELUGE_NOEXCEPT;
 
 /// True if the output timer is already armed (an output ISR is pending). The app
 /// checks this before arming, or before emitting output inline, so it never
-/// races the scheduled ISR. [task] [isr]
+/// races the scheduled ISR. [task] [audio]
 bool deluge_midi_gate_timer_pending(void) DELUGE_NOEXCEPT;
 
 /// Arm the output timer to fire midiAndGateTimerGoneOff() `samples_from_now`
 /// audio samples in the future. Call only when !deluge_midi_gate_timer_pending().
-/// [task]
+/// [audio]
 void deluge_midi_gate_timer_arm(uint32_t samples_from_now) DELUGE_NOEXCEPT;
 
 // ---------------------------------------------------------------------------

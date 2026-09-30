@@ -44,7 +44,7 @@ DelugeStatus deluge_audio_start(void) DELUGE_NOEXCEPT;
 /// frame count and an input block aligned to it. Returns how many times
 /// `deluge_app_render()` was invoked (0 = no new audio was needed). The
 /// application's audio task calls this; the BSP never invokes the app
-/// unprompted. [task]
+/// unprompted. [task] [audio]
 uint32_t deluge_audio_drive(void) DELUGE_NOEXCEPT;
 
 /// @brief Wait for, or run, roughly one render block.

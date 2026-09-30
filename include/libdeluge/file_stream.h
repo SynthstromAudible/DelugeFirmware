@@ -73,7 +73,7 @@
 extern "C" {
 #endif
 
-/// @brief Ask for `len` bytes at `bytes` to be written to `handle` at absolute `offset`.
+/// @brief Ask for `len` bytes at `bytes` to be written to `handle` at absolute `offset`. [task]
 ///
 /// @param handle A stream handle from @ref deluge_file_stream_collect_open or `deluge_efatfs_stream_open`.
 ///               @ref DELUGE_HANDLE_NONE is refused.
@@ -87,7 +87,7 @@ extern "C" {
 bool deluge_file_stream_request_write_at(DelugeHandle handle, uint32_t offset, const uint8_t* bytes,
                                          uint32_t len) DELUGE_NOEXCEPT;
 
-/// @brief Collect the answer for `handle`'s in-flight write.
+/// @brief Collect the answer for `handle`'s in-flight write. [task]
 ///
 /// @param handle      The handle passed to @ref deluge_file_stream_request_write_at.
 /// @param out_written Written ONLY on @ref DELUGE_CHANNEL_READY, with the true byte count. A
@@ -96,7 +96,7 @@ bool deluge_file_stream_request_write_at(DelugeHandle handle, uint32_t offset, c
 /// @return one of the four statuses above.
 DelugeChannelStatus deluge_file_stream_collect_write_at(DelugeHandle handle, uint32_t* out_written) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `path` to be opened for writing.
+/// @brief Ask for `path` to be opened for writing. [task]
 ///
 /// The only PATH-keyed operation here: there is no handle yet. The handle arrives in the collect, which names the
 /// same path.
@@ -111,7 +111,7 @@ DelugeChannelStatus deluge_file_stream_collect_write_at(DelugeHandle handle, uin
 /// @return false when refused -- another operation is in flight, or the channel is not running.
 bool deluge_file_stream_request_open(const char* path, uint8_t mode) DELUGE_NOEXCEPT;
 
-/// @brief Collect the open of @p path.
+/// @brief Collect the open of @p path. [task]
 /// @param path       The path passed to @ref deluge_file_stream_request_open. An answer for another path is left for
 ///                   its own caller, and this collect answers @ref DELUGE_CHANNEL_UNKNOWN.
 /// @param out_handle Written ONLY on @ref DELUGE_CHANNEL_READY, with a handle that is never
@@ -122,7 +122,7 @@ bool deluge_file_stream_request_open(const char* path, uint8_t mode) DELUGE_NOEX
 DelugeChannelStatus deluge_file_stream_collect_open(const char* path, DelugeHandle* out_handle,
                                                     DelugeStatus* out_error) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `len` bytes at `offset` to be read into `dst`.
+/// @brief Ask for `len` bytes at `offset` to be read into `dst`. [task]
 ///
 /// Goes through the HANDLE, not a path, and that is load-bearing: it reads bounded by the handle's
 /// live, not-yet-flushed size (`deluge_efatfs_stream_read_at_via`). A path-keyed read would see the
@@ -136,21 +136,21 @@ DelugeChannelStatus deluge_file_stream_collect_open(const char* path, DelugeHand
 bool deluge_file_stream_request_read_at(DelugeHandle handle, uint32_t offset, uint8_t* dst,
                                         uint32_t len) DELUGE_NOEXCEPT;
 
-/// @brief Collect the read.
+/// @brief Collect the read. [task]
 /// @param handle   The handle passed to @ref deluge_file_stream_request_read_at.
 /// @param out_read Written ONLY on @ref DELUGE_CHANNEL_READY, with the TRUE byte count, which may
 ///                 be short of `len` at EOF. The caller decides whether short is an error; for the
 ///                 recorder mid-transform it is.
 DelugeChannelStatus deluge_file_stream_collect_read_at(DelugeHandle handle, uint32_t* out_read) DELUGE_NOEXCEPT;
 
-/// @brief Ask for the file behind `handle` to be truncated to `size` bytes.
+/// @brief Ask for the file behind `handle` to be truncated to `size` bytes. [task]
 /// @return false when refused.
 bool deluge_file_stream_request_truncate(DelugeHandle handle, uint32_t size) DELUGE_NOEXCEPT;
 
-/// @brief Collect the truncate.
+/// @brief Collect the truncate. [task]
 DelugeChannelStatus deluge_file_stream_collect_truncate(DelugeHandle handle) DELUGE_NOEXCEPT;
 
-/// @brief Ask for `handle` to be closed, flushing its deferred directory entry.
+/// @brief Ask for `handle` to be closed, flushing its deferred directory entry. [task]
 ///
 /// A caller that will DELETE this file must wait for the collect to be terminal before unlinking.
 /// Closing flushes the size/first_cluster/mtime edit deferred for the whole recording; unlinking
@@ -159,10 +159,10 @@ DelugeChannelStatus deluge_file_stream_collect_truncate(DelugeHandle handle) DEL
 /// @return false when refused.
 bool deluge_file_stream_request_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
-/// @brief Collect the close.
+/// @brief Collect the close. [task]
 DelugeChannelStatus deluge_file_stream_collect_close(DelugeHandle handle) DELUGE_NOEXCEPT;
 
-/// @brief Ask for the filesystem's free-cluster count.
+/// @brief Ask for the filesystem's free-cluster count. [task]
 ///
 /// Exists for the recorder's pre-flight space check, and doubles as the only instrument that can see
 /// a leaked cluster chain -- an ordering bug that deletes a file before closing it is invisible to
@@ -170,7 +170,7 @@ DelugeChannelStatus deluge_file_stream_collect_close(DelugeHandle handle) DELUGE
 /// @return false when refused.
 bool deluge_file_stream_request_stats(void) DELUGE_NOEXCEPT;
 
-/// @brief Collect the free-cluster count.
+/// @brief Collect the free-cluster count. [task]
 /// @param out_free_clusters Written ONLY on @ref DELUGE_CHANNEL_READY.
 DelugeChannelStatus deluge_file_stream_collect_stats(uint32_t* out_free_clusters) DELUGE_NOEXCEPT;
 
@@ -184,6 +184,7 @@ bool deluge_file_stream_holds(const void* buffer) DELUGE_NOEXCEPT;
 
 #ifdef DELUGE_HOST
 /// @brief Host harness only: make every stream-channel operation wait @p ms milliseconds before it touches the card.
+/// [task]
 ///
 /// Lets a gate hold an operation in flight while a consumer does something else. 0 (the default) means no wait.
 /// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
@@ -191,7 +192,7 @@ bool deluge_file_stream_holds(const void* buffer) DELUGE_NOEXCEPT;
 void deluge_file_stream_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 
 /// @brief Host harness only: while @p refused, an open this channel runs on an unmounted card fails with
-///        `DELUGE_ERR_NO_FILESYSTEM` instead of mounting it.
+///        `DELUGE_ERR_NO_FILESYSTEM` instead of mounting it. [task]
 ///
 /// Lets a gate fail an open with a status other than `DELUGE_ERR_NOT_FOUND`. Other channels still mount. Declared only
 /// for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.

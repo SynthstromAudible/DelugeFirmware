@@ -26,7 +26,7 @@ extern "C" {
 #endif
 
 /// @brief True when a filesystem operation is in flight — i.e. touching the filesystem now would
-///        block until it completes.
+///        block until it completes. [task]
 ///
 /// True while the efatfs FS mutex is held by a storage task.
 /// @note Safe to call from ANY context and never blocks — interaction-tier callers querying "may I
