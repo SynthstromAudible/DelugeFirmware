@@ -1,40 +1,4 @@
 /* bindgen input: the whole libdeluge C ABI. Parsed as C (no __cplusplus), so every declaration and POD type is
  * read and the C++-only helpers are skipped. Include dirs: <repo>/include, and <repo>/src/OSLikeStuff for the
  * scheduler API that scheduler.h re-exports. */
-#include <libdeluge/abi.h>
-#include <libdeluge/alloc.h>
-#include <libdeluge/app.h>
-#include <libdeluge/audio_format.h>
-#include <libdeluge/audio_io.h>
-#include <libdeluge/audio_load.h>
-#include <libdeluge/block_device.h>
-#include <libdeluge/board.h>
-#include <libdeluge/boot.h>
-#include <libdeluge/card.h>
-#include <libdeluge/channel.h>
-#include <libdeluge/clock.h>
-#include <libdeluge/control_surface.h>
-#include <libdeluge/cv_gate.h>
-#include <libdeluge/display.h>
-#include <libdeluge/encoder_io.h>
-#include <libdeluge/fault.h>
-#include <libdeluge/file_bytes.h>
-#include <libdeluge/file_directory.h>
-#include <libdeluge/file_io.h>
-#include <libdeluge/file_prefix.h>
-#include <libdeluge/file_write.h>
-#include <libdeluge/flash.h>
 #include <libdeluge/libdeluge.h>
-#include <libdeluge/memory.h>
-#include <libdeluge/midi_io.h>
-#include <libdeluge/sample_reader.h>
-#include <libdeluge/sample_source.h>
-#include <libdeluge/sample_stream.h>
-#include <libdeluge/scheduler.h>
-#include <libdeluge/signals.h>
-#include <libdeluge/storage_busy.h>
-#include <libdeluge/stream_io.h>
-#include <libdeluge/streaming_fill.h>
-#include <libdeluge/system.h>
-#include <libdeluge/tier.h>
-#include <libdeluge/types.h>

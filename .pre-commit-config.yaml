@@ -64,7 +64,7 @@ repos:
         pass_filenames: false
         files: ^(src/deluge/|scripts/(check_platform_boundary\.py|platform_boundary_allowlist\.txt))
       - id: check-abi-surface
-        name: every declared libdeluge function has a definition
+        name: every declared libdeluge function has a definition and a signature pin
         entry: python3 scripts/check_abi_surface.py --check --pins
         language: system
         pass_filenames: false
