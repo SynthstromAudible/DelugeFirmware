@@ -1103,9 +1103,9 @@ pub(crate) async fn fs_stats_free() -> Option<u32> {
 }
 
 /// Open `path` as a stream. `mode` is a `DelugeStreamMode` (declaration order: 0 = READ,
-/// 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW, 3 = WRITE_APPEND). Returns the handle, or `None`.
-/// Open `path` on the stream table, answering the `DelugeStatus` a failure had: `NO_FILESYSTEM` when nothing is
-/// mounted, the directory walk's status (`NOT_FOUND` for a missing folder), or `IO` when the table is full.
+/// 1 = WRITE_CREATE, 2 = WRITE_CREATE_NEW, 3 = WRITE_APPEND). A failure answers its `DelugeStatus`:
+/// `NO_FILESYSTEM` when nothing is mounted, the open's own status (`NOT_FOUND` for a missing file or folder;
+/// the create modes make a missing parent folder themselves), or `IO` when the table is full.
 pub(crate) async fn stream_open(path: &str, mode: u8) -> Result<u32, DelugeStatus> {
     let ctx = with_fs(async |fs| match mode {
         0 => efatfs_core::open_context(fs, path).await,

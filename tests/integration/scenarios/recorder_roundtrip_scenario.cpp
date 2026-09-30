@@ -391,6 +391,8 @@ struct TickedCase {
 	bool unmounted = false;
 	/// Whether the openioerr case's recording folder existed before it started. The case proves nothing if it did.
 	bool folderBefore = false;
+	/// The status the openioerr case's create open failed with, read before the recorder is freed.
+	DelugeStatus openError = DELUGE_OK;
 	/// Whether the busy case's competing operation is in flight.
 	bool neighbourHeld = false;
 	/// Whether the stall case has slowed the channel down yet.
@@ -534,6 +536,7 @@ int32_t finishGiveUpCase(SampleRecorder& rec) {
 	const bool cardError = rec.hadCardError;
 	const bool pendingAtEnd = rec.writePending();
 	const bool fileOpen = rec.file.has_value();
+	g_ticked.openError = rec.createOpenErrorForDiag();
 	const std::string path = rec.filePathCreated;
 	// Freed BEFORE the tier is read: a destructor left with a file to close is itself a violation.
 	g_ticked.rec.reset();
@@ -555,12 +558,12 @@ int32_t finishGiveUpCase(SampleRecorder& rec) {
 		// A failed open is not worth a folder: only NOT_FOUND is. A retry on any failure makes the folder, then opens
 		// on the card the byte channel mounted for it, and the recording succeeds.
 		const bool folderAfter = folderExists(kOpenIoErrFolder);
-		const bool ok =
-		    g_ticked.unmounted && !g_ticked.folderBefore && cardError && !folderAfter && !fileOpen && tier == 0;
-		printf("RW-OPEN-IOERR ok=%d unmounted=%d folderBefore=%d cardError=%d folderAfter=%d fileOpen=%d tier=%d "
-		       "ticks=%d\n",
-		       (int)ok, (int)g_ticked.unmounted, (int)g_ticked.folderBefore, (int)cardError, (int)folderAfter,
-		       (int)fileOpen, (int)tier, g_ticked.ticks);
+		const bool ok = g_ticked.unmounted && !g_ticked.folderBefore && g_ticked.openError == DELUGE_ERR_NO_FILESYSTEM
+		                && cardError && !folderAfter && !fileOpen && tier == 0;
+		printf("RW-OPEN-IOERR ok=%d unmounted=%d folderBefore=%d openStatus=%d cardError=%d folderAfter=%d fileOpen=%d "
+		       "tier=%d ticks=%d\n",
+		       (int)ok, (int)g_ticked.unmounted, (int)g_ticked.folderBefore, (int)g_ticked.openError, (int)cardError,
+		       (int)folderAfter, (int)fileOpen, (int)tier, g_ticked.ticks);
 		fflush(nullptr);
 		return ok ? 1 : 2;
 	}
@@ -599,6 +602,7 @@ extern "C" void deluge_scenario_ticked_begin(int32_t mode) {
 	g_ticked.dirStall = (mode == 5);
 	g_ticked.openIoErr = (mode == 8);
 	g_ticked.unmounted = false;
+	g_ticked.openError = DELUGE_OK;
 	g_ticked.folderBefore = g_ticked.openIoErr && folderExists(kOpenIoErrFolder);
 	g_ticked.neighbourHeld = false;
 	g_ticked.stallArmed = false;

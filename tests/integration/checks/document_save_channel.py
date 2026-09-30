@@ -1,8 +1,8 @@
 """The document-save channel gate.
 
 Saves a preset through the REAL ENTER gesture and requires that the document was written whole, read back through the
-channel, and stored through the write channel after boot. No other gate builds `write_file`, and a feature no gate
-builds is code that has never run. The write channel has no feature switch, so there is one leg.
+channel, and stored through the byte channel's write-from after boot. No other gate builds that whole-document write,
+and a feature no gate builds is code that has never run. The byte channel has no feature switch, so there is one leg.
 
 What the checks cover:
   DS-CHANNEL    the document write was SERVED by the channel -- the async arm ran.

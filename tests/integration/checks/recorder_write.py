@@ -34,7 +34,7 @@ What each check covers, and why each is separate:
                 create with a card error, makes no file, and never opens the folder synchronously.
   RW-OPEN-IOERR  that a create whose open fails with a card error other than NOT_FOUND -- the card unmounted under the
                 open, and the channel refused the mount -- fails the recording without making its folder: only a
-                missing folder is worth the folder retry.
+                missing folder is worth the folder retry. Its openStatus must be NO_FILESYSTEM (-11).
   RW-DRAIN      that the offline stem-export path still drains to completion. That loop calls the card routine in a
                 bounded loop expecting each call to COMPLETE a write.
 

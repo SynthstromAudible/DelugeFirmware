@@ -48,7 +48,7 @@ constexpr int32_t kMaxStemCandidates = 1000;
 /// @brief Everything `nextStemSearchPhase` is allowed to look at.
 struct StemSearchInputs {
 	StemSearchPhase phase;
-	/// The `DELUGE_FILE_WRITE_*` value from the operation this phase issued, or
+	/// The `DELUGE_FILE_STREAM_*` value from the operation this phase issued, or
 	/// `DELUGE_FILE_STREAM_UNKNOWN` when nothing is in flight.
 	uint8_t collected;
 	/// `ProbeCandidate`'s answer.

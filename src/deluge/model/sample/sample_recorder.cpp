@@ -1097,6 +1097,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 
 		case CreatePhase::Open: {
 			createOpenNotFound_ = false;
+			createOpenError_ = DELUGE_OK;
 			if (mayUseChannel) {
 				// Refused: nothing was queued, so ask again next tick, until the bound. Opening here instead would
 				// block this tier on the card.
@@ -1178,6 +1179,7 @@ SampleRecorder::CreateStep SampleRecorder::advanceCreate() {
 			}
 			else if (collected == DELUGE_FILE_STREAM_FAILED) {
 				// Only a missing folder is worth the retry: any other failure fails the recording.
+				createOpenError_ = openError;
 				createOpenNotFound_ = (openError == DELUGE_ERR_NOT_FOUND);
 			}
 			break;

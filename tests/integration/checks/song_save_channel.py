@@ -4,12 +4,12 @@ The scenario saves a song whose document is far too big to fit the staging buffe
 memory, placed on the card, read back and verified, and that overwriting it left a song behind whichever way the save
 went.
 
-The song save builds its document in memory first and then places it -- and the channel that carries it is NOT the
-one the rest of this flow uses. The byte channel copies into a fixed staging buffer and refuses anything over 8 KiB;
-no song has ever fitted that, the smallest measured being 11.5 KB and the largest 1.10 MB. The write channel passes
-the pointer instead. A build that sent a song down the copying channel failed every time and simply produced no file.
-Neither channel has a feature switch: the document write rides the write channel; the temp-name search, the
-read-back, the unlink and the rename ride the byte channel.
+The song save builds its document in memory first and then places it -- and the operation that carries it is NOT
+the one the rest of this flow uses. The byte channel's copying write stages through a fixed buffer and refuses
+anything over 8 KiB; no song has ever fitted that, the smallest measured being 11.5 KB and the largest 1.10 MB. Its
+write-from passes the pointer instead. A build that sent a song down the copying write failed every time and simply
+produced no file. Every step rides the byte channel -- the document write as a write-from; the temp-name search, the
+read-back, the unlink and the rename as its other operations -- and it has no feature switch.
 
 What the scenario's own lines cover:
   SS-GREW       the song really did outgrow the staging buffer, at least twice. A fixture that fits the initial
@@ -27,10 +27,12 @@ What the scenario's own lines cover:
                 name. That window is the cost of unlinking before renaming, and this gate does not claim to close it.
   SS-HELD       a save whose write the channel holds far past the stall bound still completes, and its file is
                 byte-identical to an unheld save of the same song made just before: a running write cannot be
-                cancelled, so giving up on it only releases the serialiser it is still copying from.
+                cancelled, so giving up on it only releases the serialiser it is still copying from. Its line carries
+                heldUs, how long after the save began the write landed; the scenario fails the leg unless that is
+                past the stall bound, since a write that was never held proves nothing.
 
 What this module checks, from SS-SUMMARY, SS-GREW and the mid-save lines:
-  SS-CHANNEL    the steps were SERVED by the channels, and the document write by the WRITE channel.
+  SS-CHANNEL    the steps were SERVED by the channels, and the document write by the byte channel's write-from.
   SS-ACCOUNTED  the channels account for every card step, and none took the inline arm. Neither SS-CHANNEL nor
                 SS-SAVED can see WHICH arm carried which step.
   SS-TICKED     the steps went through the channels after boot. The gate's actual claim.
@@ -68,7 +70,7 @@ def check(gate, run):
         )
     if not write:
         gate.fail(
-            f"SS-CHANNEL — the write channel served {_count(write)} document write(s)"
+            f"SS-CHANNEL — the byte channel's write-from served {_count(write)} document write(s)"
         )
 
     if not steps:
@@ -104,6 +106,6 @@ def check(gate, run):
 
     if not gate.failures:
         gate.say(
-            "PASS — the song document was built in memory, placed on the card through the write channel across"
+            "PASS — the song document was built in memory, placed on the card through the byte channel across"
         )
         gate.say("       ticks, read back, and loaded as a song")
