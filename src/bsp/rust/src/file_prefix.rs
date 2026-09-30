@@ -75,7 +75,8 @@ use super::audio_loader::{LoadOps, OpenVerdict};
 /// Deliberately larger than `deluge::storage::kSongPreviewWindow`: the two answer different
 /// questions -- "how much of a song holds the artwork" (4096) versus "how
 /// big is the slot every consumer's result has to land in" (8192). `file_prefix_abi.cpp`
-/// asserts the surviving relation, that a request never exceeds the slot.
+/// asserts the surviving relation, that a request never exceeds the slot. Pinned against
+/// `DELUGE_FILE_PREFIX_CAPACITY` by `abi_pins.rs`.
 ///
 /// It bounds the request as well as the slot: [`deluge_file_prefix_request`] clamps `max_bytes` to
 /// this, so the driver can never be asked for a read that would not fit in the slot the result has
@@ -87,10 +88,9 @@ pub const PREFIX_CAPACITY: usize = 8192;
 /// terminator; the text it can hold is one byte shorter).
 ///
 /// Spelled here rather than imported from the loader so this module compiles in every carrier that
-/// `#[path]`-includes it, including ones where the loader's own tier is switched off. The two are
-/// pinned to the same literal by the assertion below and by `file_prefix_abi.cpp`'s
-/// `static_assert`s, so they cannot drift apart silently.
-const MAX_PATH_CHARS: usize = 255;
+/// `#[path]`-includes it, some with no bindgen output. Pinned by `abi_pins.rs`, like every value
+/// this module copies from a header.
+pub(crate) const MAX_PATH_CHARS: usize = 255;
 
 /// One path, inline. **Nothing in this module may touch the Rust global heap** — that allocator
 /// assumes single-threaded use and this driver runs on a preempting executor. See
@@ -108,29 +108,6 @@ pub const DELUGE_FILE_PREFIX_UNKNOWN: u8 = 2;
 /// The one bit this channel carries that a caller cannot reconstruct. Everything else about a
 /// failure (which failure, on which layer) stays outside the boundary; see `file_prefix.h`.
 pub const DELUGE_FILE_PREFIX_FAILED: u8 = 3;
-
-/// The values this module hand-duplicates from `file_prefix.h`, pinned.
-///
-/// Asserting a constant against its own literal looks tautological, and that is the point: it makes
-/// a change take two deliberate edits instead of one, and the mirror of these numbers lives in
-/// `file_prefix_abi.cpp`'s `static_assert`s.
-///
-/// **The status numbering is the audio loader's, value for value** (`DELUGE_AUDIO_LOAD_PENDING`
-/// = 0, `_READY` = 1, `_UNKNOWN` = 2), and that is a safety property rather than tidiness. Both
-/// headers will plausibly be included in one translation unit — browsing a song wants samples AND
-/// artwork — where `deluge_file_prefix_collect(..) == DELUGE_AUDIO_LOAD_READY` compiles clean and
-/// nothing cross-checks it (`build.rs`'s bindgen allowlist covers `Deluge.*` TYPES, not macros).
-/// Under a divergent numbering that expression would mean PENDING, and the caller would decode
-/// bytes the header promises are untouched. Keep them equal.
-const _: () = {
-    assert!(PREFIX_CAPACITY == 8192); // DELUGE_FILE_PREFIX_CAPACITY; sized for cartridge.cpp
-    assert!(MAX_PATH_CHARS == 255); // DELUGE_MAX_PATH - 1, as audio_loader::LoadPath
-    assert!(DELUGE_FILE_PREFIX_PENDING == 0);
-    assert!(DELUGE_FILE_PREFIX_READY == 1);
-    assert!(DELUGE_FILE_PREFIX_UNKNOWN == 2);
-    // Outside the loader's set of three, on purpose -- see `file_prefix.h`'s macro doc.
-    assert!(DELUGE_FILE_PREFIX_FAILED == 3);
-};
 
 /// One finished prefix read, stamped with the card generation the read BEGAN under.
 struct PrefixEntry {

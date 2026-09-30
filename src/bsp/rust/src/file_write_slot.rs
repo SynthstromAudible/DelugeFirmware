@@ -10,7 +10,7 @@
 //! resets the stream table on ejection and reuses freed indices, so a stale orphan's handle may by then name a
 //! different, live stream on the new card; closing it would close that stream instead.
 
-/// Same bound as every other channel's path: 256 bytes with the NUL.
+/// Same bound as every other channel's path: `DELUGE_PATH_MAX` (256 bytes) less the NUL. Pinned by `abi_pins.rs`.
 pub const MAX_PATH_CHARS: usize = 255;
 pub type WritePath = heapless::String<MAX_PATH_CHARS>;
 

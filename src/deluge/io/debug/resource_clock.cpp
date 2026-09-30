@@ -15,18 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "libdeluge/app.h"
 #include "processing/engines/audio_engine.h"
 #include <cstdint>
 
-/// @brief The clock the Rust resource manager measures loader service latency with.
+/// @brief The clock the Rust resource manager measures loader service latency with (`libdeluge/app.h`).
 ///
-/// `crates/deluge_resource` has no clock of its own and cannot reach the audio engine, so it declares
-/// this and the app provides it. Output frames (the `AudioEngine::audioSampleTimer` unit), which is
+/// Output frames (the `AudioEngine::audioSampleTimer` unit), which is
 /// the natural unit here: a 32 KB cluster is ~8192 frames of 44.1 kHz stereo 16-bit playback, so a
 /// latency in frames is directly comparable to the budget it has to fit inside.
 ///
 /// A plain 32-bit read, so it is atomic on this target even though the audio ISR writes the timer —
 /// see the deadline-scheduling design for why the timer is deliberately NOT widened to 64 bits.
-extern "C" uint32_t deluge_debug_now_frames() {
+extern "C" uint32_t deluge_debug_now_frames() noexcept {
 	return AudioEngine::audioSampleTimer;
 }

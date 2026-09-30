@@ -17,6 +17,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+#[path = "build_crate_types.rs"]
+mod build_crate_types;
+
 /// `deluge_sample_stream_*`: no C++ caller exists yet, so nothing in this
 /// crate or the archived C++ closure leaves an unresolved reference into the
 /// rlib. Lazy `.a` extraction would never pull the object in at all, and these
@@ -47,8 +50,10 @@ const EFATFS_ROOTS: [&str; 3] = [
 /// renames `yield_`.
 const SCHEDULER_API_FUNCTIONS: &str = "addRepeatingTask|addConditionalTask|ignoreForStats|getAverageRunTimeForTask|getSystemTime|runTask|yield_|blockTask|unblockTask|isSDRoutineActive";
 
-/// `system.h`'s critical-section pair, the other declared functions without the `deluge_` prefix.
-const SYSTEM_UNPREFIXED_FUNCTIONS: &str = "ENTER_CRITICAL_SECTION|EXIT_CRITICAL_SECTION";
+/// The other declared functions without the `deluge_` prefix: `system.h`'s critical-section pair, and the MIDI/gate
+/// timer callback `signals.h` declares for the app to implement.
+const UNPREFIXED_FUNCTIONS: &str =
+    "ENTER_CRITICAL_SECTION|EXIT_CRITICAL_SECTION|midiAndGateTimerGoneOff";
 
 /// Emits `-Wl,-u,SYM` for each symbol, forcing it as a link root.
 fn force_link_roots(syms: &[&str]) {
@@ -105,6 +110,10 @@ fn main() {
 /// allowlist/flags otherwise, so the two `mod sys`es stay structurally
 /// identical modulo target.
 ///
+/// The header types an in-tree crate defines are bound to the crate's own
+/// types, and their header layouts are written to `libdeluge_layout.rs`
+/// instead: see `build_crate_types.rs`.
+///
 /// `deluge_host` defines `DELUGE_HOST`, as the host app's CMake build does, so
 /// the host-only declarations (latency knobs, the host trigger-clock edge) are
 /// bound for the `host_app` carrier and absent from the device one.
@@ -134,26 +143,31 @@ fn run_bindgen(
     // scheduler.h re-exports the scheduler API from OSLikeStuff.
     let scheduler_dir = repo_root.join("src/OSLikeStuff");
     let wrapper = manifest_dir.join("wrapper.h");
-    let mut builder = bindgen::Builder::default()
-        .header(wrapper.to_str().unwrap())
-        .clang_arg(format!("-I{}", include_dir.display()))
-        .clang_arg(format!("-I{}", scheduler_dir.display()))
+    let base = || {
+        let builder = bindgen::Builder::default()
+            .header(wrapper.to_str().unwrap())
+            .clang_arg(format!("-I{}", include_dir.display()))
+            .clang_arg(format!("-I{}", scheduler_dir.display()))
+            .use_core()
+            .clang_arg(format!("--target={clang_target}"))
+            // Layouts match the app being linked on every target (explicit
+            // fixed-width enums throughout), and the asserts would run host-side
+            // anyway.
+            .layout_tests(false);
+        if deluge_host {
+            builder.clang_arg("-DDELUGE_HOST")
+        } else {
+            builder
+        }
+    };
+    let builder = base()
         .allowlist_type("Deluge.*")
         // Every function and constant too: `abi_pin!` and `abi_const!` check the Rust side against these.
         .allowlist_function("deluge_.*")
         .allowlist_function(SCHEDULER_API_FUNCTIONS)
-        .allowlist_function(SYSTEM_UNPREFIXED_FUNCTIONS)
-        .allowlist_var("DELUGE_.*")
-        .use_core()
-        .clang_arg(format!("--target={clang_target}"));
-    if deluge_host {
-        builder = builder.clang_arg("-DDELUGE_HOST");
-    }
-    let bindings = builder
-        // Layouts match the app being linked on every target (explicit
-        // fixed-width enums throughout), and the asserts would run host-side
-        // anyway.
-        .layout_tests(false)
+        .allowlist_function(UNPREFIXED_FUNCTIONS)
+        .allowlist_var("DELUGE_.*");
+    let bindings = build_crate_types::bind_crate_types(builder, !deluge_host)
         .generate()
         .expect("bindgen failed on libdeluge headers");
     fs::write(
@@ -161,9 +175,15 @@ fn run_bindgen(
         edition_2024_externs(&bindings.to_string()),
     )
     .expect("write libdeluge_sys.rs");
+    let layouts = build_crate_types::crate_type_layouts(base())
+        .generate()
+        .expect("bindgen failed on the crate-defined libdeluge types");
+    fs::write(out_dir.join("libdeluge_layout.rs"), layouts.to_string())
+        .expect("write libdeluge_layout.rs");
     println!("cargo:rerun-if-changed={}", wrapper.display());
     println!("cargo:rerun-if-changed={}", include_dir.display());
     println!("cargo:rerun-if-changed={}", scheduler_dir.display());
+    println!("cargo:rerun-if-changed=build_crate_types.rs");
 }
 
 /// Marks each generated `extern "C"` block `unsafe`, as edition 2024 requires.

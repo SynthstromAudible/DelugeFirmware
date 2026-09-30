@@ -116,12 +116,12 @@ unsafe extern "C" {
     /// The single process-wide resource-manager singleton (`include/libdeluge/streaming_fill.h`).
     /// Resolved once at `open()` time and cached — the same boot-singleton contract
     /// `deluge_sample_source::manager_residency::ManagerResidency::new` requires of its own handle.
-    fn deluge_streaming_resource_manager() -> *mut c_void;
+    pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// Enqueue a reserved chunk's fill on the async drain and return at once
     /// (`include/libdeluge/streaming_fill.h`). The chunk is enqueued under a queue-owned lease, so the
     /// fill survives this reader dropping its own; the caller's next tick takes a cache hit. Real body
     /// in `streaming_loader.rs`.
-    fn deluge_streaming_request_chunk(chunk_backing: *mut c_void);
+    pub fn deluge_streaming_request_chunk(chunk_backing: *mut c_void);
 }
 
 /// A reader's frame-cursor state over one sample's source residency

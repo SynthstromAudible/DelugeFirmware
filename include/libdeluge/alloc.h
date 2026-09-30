@@ -77,7 +77,7 @@ bool deluge_heap_check(DelugeHeap* heap);
 // ---------------------------------------------------------------------------
 
 /// Reclaim hook: free at least `bytes_needed`; return true if it freed something
-/// (the alloc is retried). One hook per heap.
+/// (the alloc is retried). One hook per heap; a NULL `cb` registers nothing.
 typedef bool (*DelugeReclaimFn)(void* ctx, size_t bytes_needed);
 void deluge_heap_register_reclaim(DelugeHeap* heap, DelugeReclaimFn cb, void* ctx);
 

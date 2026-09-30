@@ -25,16 +25,6 @@ use rza1l_hal::ssi;
 use crate::audio_pacing::pace_window;
 use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK, DelugeStereoSample};
 
-unsafe extern "C" {
-    /// The app renders `frames` stereo samples into `out`, reading `frames`
-    /// aligned input samples from `in` (app.h). i32-native; no scaling here.
-    fn deluge_app_render(
-        input: *const DelugeStereoSample,
-        out: *mut DelugeStereoSample,
-        frames: u32,
-    );
-}
-
 /// TX ring length in stereo frames (must be a power of two for the masks).
 const TX_FRAMES: usize = ssi::TX_FRAMES; // 1024
 /// RX ring length in stereo frames.
@@ -183,7 +173,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
             BLOCK_START_PLAY.store(PLAY_CACHED, Ordering::Relaxed);
             prepare_input_block(frames);
             RENDER_BLOCKS.fetch_add(1, Ordering::Release);
-            deluge_app_render(
+            crate::sys::deluge_app_render(
                 core::ptr::addr_of!(INPUT_BLOCK) as *const DelugeStereoSample,
                 core::ptr::addr_of_mut!(RENDER_BLOCK) as *mut DelugeStereoSample,
                 frames as u32,

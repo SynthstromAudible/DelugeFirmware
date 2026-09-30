@@ -98,53 +98,23 @@ extern crate deluge_sample_stream;
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 extern crate deluge_sample_stream;
 
-/// Fails the build unless each named export has exactly the signature bindgen generated from its header. The
-/// export and the generated declaration go into one array, which compiles only if both coerce to the same `fn`
-/// pointer type. A safe export matches an `unsafe` declaration; a different parameter, return type or pointer
-/// mutability does not (E0308).
-///
-/// `abi_pin!(sys_name => local_name)` pins an export whose Rust name is not its C name: `r#yield`, which bindgen
-/// declares as `yield_` because `yield` is a Rust keyword.
-///
-/// Every crate that `#[path]`-includes a pinned module defines these macros before its `mod` items, because
-/// `macro_rules!` is textually scoped: `harness/golden_vt_render` the real ones, the plain host tests the no-ops in
-/// `tests/support/abi_pin_noop.rs`.
+/// `abi_pin!`/`abi_const!`/`abi_layout!`: the checking variants where `sys` is the bindgen output, the no-ops where
+/// it is `sys_host.rs`. See `abi_pin_macros.rs`.
 #[cfg(any(target_os = "none", feature = "host_app"))]
-macro_rules! abi_pin {
-    ($sys:ident => $local:ident) => {
-        const _: () = { let _ = [crate::sys::$sys, $local]; };
-    };
-    (in $($m:ident)::+ : $($f:ident),+ $(,)?) => { $(
-        const _: () = { let _ = [crate::sys::$f, $($m)::+::$f]; };
-    )+ };
-    ($($f:ident),+ $(,)?) => { $(
-        const _: () = { let _ = [crate::sys::$f, $f]; };
-    )+ };
-}
+#[macro_use]
+#[path = "abi_pin_macros.rs"]
+mod abi_pin_macros;
 #[cfg(not(any(target_os = "none", feature = "host_app")))]
-macro_rules! abi_pin {
-    ($($t:tt)*) => {};
-}
-
-/// Fails the build unless each constant copied on the Rust side equals the header's. Both sides are widened to
-/// `i64`, so a copy may use the width its module needs.
-#[cfg(any(target_os = "none", feature = "host_app"))]
-#[allow(unused_macros)]
-macro_rules! abi_const {
-    ($($ours:expr => $theirs:ident),+ $(,)?) => { $(
-        const _: () = assert!(($ours) as i64 == crate::sys::$theirs as i64, stringify!($theirs));
-    )+ };
-}
-#[cfg(not(any(target_os = "none", feature = "host_app")))]
-#[allow(unused_macros)]
-macro_rules! abi_const {
-    ($($t:tt)*) => {};
-}
+#[macro_use]
+#[path = "../tests/support/abi_pin_noop.rs"]
+mod abi_pin_macros;
 
 /// The libdeluge C ABI generated from include/libdeluge/*.h: POD types,
 /// `DELUGE_*` constants, and a declaration of every header function (the
 /// crate's own definitions of the service functions live in [`ffi`] and the
-/// modules beside it). No C++ app is linked on host
+/// modules beside it). A header type an in-tree crate defines is that crate's
+/// type here, re-exported under the header's name (see `build_crate_types.rs`).
+/// No C++ app is linked on host
 /// unless `host_app` is enabled (see build.rs), so there is no bindgen output
 /// to include.
 #[cfg(target_os = "none")]
@@ -172,6 +142,24 @@ mod sys {
     )]
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
+
+/// The header's own definitions of the types `sys` binds to an in-tree crate's types (see `build_crate_types.rs`),
+/// which `abi_layout!` checks the crates' definitions against.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+#[allow(
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case,
+    dead_code
+)]
+mod sys_layout {
+    include!(concat!(env!("OUT_DIR"), "/libdeluge_layout.rs"));
+}
+
+/// Signature and value pins for what this crate's modules do not define themselves: the in-tree crates' exports,
+/// the Rust side's own declarations of header functions, and the constants copied by hand.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+mod abi_pins;
 
 /// audio_io.h — duplex block audio over the SSI0 DMA rings.
 #[cfg(target_os = "none")]
@@ -361,23 +349,6 @@ mod tier_meter;
 /// USB device bring-up — USB-MIDI 1.0 peripheral (Deluge → computer).
 #[cfg(target_os = "none")]
 mod usb;
-
-#[cfg(target_os = "none")]
-unsafe extern "C" {
-    /// One-time C++ application bring-up (deluge.cpp / app.h). On this BSP it also
-    /// runs `registerTasks()`, which spawns one Embassy task per registered Deluge
-    /// task through the `scheduler_api.h` C ABI in [`scheduler`]. After this returns
-    /// the spawned runners drive the app.
-    fn deluge_app_init(board: *const sys::DelugeBoard);
-}
-// `host_app` feature: host-side sibling of the device import above. The
-// host-built `deluge_app` object closure (build.rs's `run_host_app`)
-// exports the exact same symbol; this lets the host `host_app` boot path
-// (below) call the real `deluge_app_init` → `registerTasks()` on host too.
-#[cfg(all(not(target_os = "none"), feature = "host_app"))]
-unsafe extern "C" {
-    fn deluge_app_init(board: *const sys::DelugeBoard);
-}
 
 /// `#[global_allocator]` binding for `extern crate alloc` — required as
 /// soon as any dependency needs it, which `fat_block_device.rs`'s
@@ -766,7 +737,7 @@ async fn app_task() {
     // deluge_app_init → registerTasks() spawns the per-task runners onto this
     // executor via scheduler::set_spawner's stashed spawner. They begin running as
     // soon as we yield below.
-    unsafe { deluge_app_init(board::deluge_board()) };
+    unsafe { sys::deluge_app_init(board::deluge_board()) };
     boot::mark_finished();
     log::info!("deluge-rust: scheduler running");
 
@@ -812,7 +783,7 @@ async fn host_app_task() {
     // deluge_app_init → registerTasks() spawns the per-task runners onto this
     // executor via scheduler::set_spawner's stashed spawner. They begin running
     // as soon as we yield below.
-    unsafe { deluge_app_init(board::deluge_board()) };
+    unsafe { sys::deluge_app_init(board::deluge_board()) };
     boot::mark_finished();
     log::info!("deluge-bsp-rust: host scheduler running");
 

@@ -51,9 +51,9 @@ use embassy_sync::signal::Signal;
 /// buffer size counts the terminator; the text it can hold is one byte shorter).
 ///
 /// Spelled here rather than imported so this module compiles in every carrier that
-/// `#[path]`-includes it. Pinned to the same literal by the assertion below and by
-/// `file_directory_abi.cpp`'s `static_assert`s, so the three cannot drift apart silently.
-const MAX_PATH_CHARS: usize = 255;
+/// `#[path]`-includes it, some with no bindgen output. Pinned by `abi_pins.rs`, like every value
+/// this module copies from a header.
+pub(crate) const MAX_PATH_CHARS: usize = 255;
 
 /// One path, inline. **Nothing in this module may touch the Rust global heap** -- that allocator
 /// assumes single-threaded use and this driver runs on a preempting executor. See
@@ -63,13 +63,13 @@ pub type DirPath = heapless::String<MAX_PATH_CHARS>;
 /// `DELUGE_ERR_NO_FILESYSTEM`, as a bare `i8`.
 ///
 /// Spelled here for the reason this whole module carries statuses bare: it compiles in carriers with
-/// no bindgen bindings at all. Pinned from the other side by `file_directory_abi.cpp`.
+/// no bindgen bindings at all.
 ///
 /// It is a NAMED constant and not written inline in the match below, and that is not style. An
 /// unknown identifier in pattern position is a fresh BINDING, not a comparison -- so
 /// `Err(DELUGE_ERR_NO_FILESYSTEM) =>` compiled, matched EVERY error, and sent every failed open down
 /// the mount path. The only complaint was a non-snake-case warning among thirty-odd others.
-const NO_FILESYSTEM: i8 = -11;
+pub(crate) const NO_FILESYSTEM: i8 = -11;
 
 /// `deluge_file_directory_collect`: requested or in flight; ask again, do not re-request.
 pub const DELUGE_FILE_DIRECTORY_PENDING: u8 = 0;
@@ -79,27 +79,6 @@ pub const DELUGE_FILE_DIRECTORY_READY: u8 = 1;
 pub const DELUGE_FILE_DIRECTORY_UNKNOWN: u8 = 2;
 /// `deluge_file_directory_collect`: the open did not happen. Terminal -- do NOT re-request.
 pub const DELUGE_FILE_DIRECTORY_FAILED: u8 = 3;
-
-/// The values this module hand-duplicates from `file_directory.h`, pinned.
-///
-/// Asserting a constant against its own literal looks tautological, and that is the point: it makes
-/// a change take two deliberate edits instead of one, and the mirror of these numbers lives in
-/// `file_directory_abi.cpp`'s `static_assert`s.
-///
-/// **The status numbering is the audio loader's and the prefix channel's, value for value**, and
-/// that is a safety property rather than tidiness. Two of these headers will plausibly be included
-/// in one translation unit -- browsing a folder wants a listing AND artwork -- where
-/// `deluge_file_directory_collect(..) == DELUGE_FILE_PREFIX_READY` compiles clean and nothing
-/// cross-checks it. Under a divergent numbering that expression would mean something else entirely.
-/// Keep them equal.
-const _: () = {
-    assert!(MAX_PATH_CHARS == 255); // DELUGE_MAX_PATH - 1, as audio_loader::LoadPath
-    assert!(NO_FILESYSTEM == -11); // DELUGE_ERR_NO_FILESYSTEM
-    assert!(DELUGE_FILE_DIRECTORY_PENDING == 0);
-    assert!(DELUGE_FILE_DIRECTORY_READY == 1);
-    assert!(DELUGE_FILE_DIRECTORY_UNKNOWN == 2);
-    assert!(DELUGE_FILE_DIRECTORY_FAILED == 3);
-};
 
 /// What one directory open produced.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

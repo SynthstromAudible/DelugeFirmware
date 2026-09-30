@@ -27,8 +27,8 @@ use embassy_sync::signal::Signal;
 
 use super::file_write_slot::{AnswerSlot, OpKey, OpKind, Take, WritePath};
 
-/// Hand-duplicated from `libdeluge/file_write.h`; pinned against it by `static_assert` in
-/// `file_write_abi.cpp`, because bindgen's allowlist covers types and not macros.
+/// Copied from `libdeluge/file_write.h`, because this module compiles in carriers with no bindgen
+/// output; pinned by `abi_pins.rs`.
 pub const DELUGE_FILE_WRITE_PENDING: u8 = 0;
 /// See [`DELUGE_FILE_WRITE_PENDING`].
 pub const DELUGE_FILE_WRITE_READY: u8 = 1;

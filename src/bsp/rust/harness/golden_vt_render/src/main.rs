@@ -58,25 +58,10 @@ use embassy_executor::raw;
 use embassy_time::{Duration, Instant, Timer};
 use embassy_time_driver::Driver as _;
 
-/// The ABI pins the `#[path]`-included BSP modules end in: this package's `sys` is always the bindgen output, so these
-/// are always the checking variants. See `../../../src/main.rs`, which defines the same pair.
-macro_rules! abi_pin {
-    ($sys:ident => $local:ident) => {
-        const _: () = { let _ = [crate::sys::$sys, $local]; };
-    };
-    (in $($m:ident)::+ : $($f:ident),+ $(,)?) => { $(
-        const _: () = { let _ = [crate::sys::$f, $($m)::+::$f]; };
-    )+ };
-    ($($f:ident),+ $(,)?) => { $(
-        const _: () = { let _ = [crate::sys::$f, $f]; };
-    )+ };
-}
-#[allow(unused_macros)]
-macro_rules! abi_const {
-    ($($ours:expr => $theirs:ident),+ $(,)?) => { $(
-        const _: () = assert!(($ours) as i64 == crate::sys::$theirs as i64, stringify!($theirs));
-    )+ };
-}
+/// `abi_pin!`/`abi_const!`/`abi_layout!`, the checking variants: this package's `sys` is always the bindgen output.
+#[macro_use]
+#[path = "../../../src/abi_pin_macros.rs"]
+mod abi_pin_macros;
 
 mod clock;
 #[path = "../../../src/memory_card.rs"]
@@ -117,6 +102,21 @@ extern crate deluge_sample_stream;
 mod sys {
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
+
+/// The header's own definitions of the types `sys` binds to an in-tree crate's types (see `build_crate_types.rs`).
+#[allow(
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case,
+    dead_code
+)]
+mod sys_layout {
+    include!(concat!(env!("OUT_DIR"), "/libdeluge_layout.rs"));
+}
+
+/// The pins `../../../src/main.rs` compiles beside its modules, checked against this package's `sys` too.
+#[path = "../../../src/abi_pins.rs"]
+mod abi_pins;
 
 // Reuse deluge-bsp-rust's own source files verbatim via `#[path]` — the same
 // pattern `tests/*.rs` already use (see `HOST_HARNESS.md`).
@@ -235,12 +235,6 @@ mod tier;
 #[path = "../../../src/tier_meter.rs"]
 mod tier_meter;
 
-unsafe extern "C" {
-    fn deluge_app_init(board: *const sys::DelugeBoard);
-    /// See deluge.cpp: opts this host out of the boot-settings prelude.
-    fn deluge_startup_skip_settings_prelude();
-}
-
 // Host-only C-ABI bridge (tests/integration/scenarios/streaming_scenario.{h,cpp},
 // compiled into the host tree's `deluge_scenarios` objects, which build.rs archives
 // with the app's; the device firmware never contains it). Manually declared (not through
@@ -341,13 +335,13 @@ async fn boot_task() {
         .is_empty()
     {
         // SAFETY: plain store to a C++ global, before deluge_app_init reads it.
-        unsafe { deluge_startup_skip_settings_prelude() };
+        unsafe { sys::deluge_startup_skip_settings_prelude() };
     }
 
     log::info!("golden_vt_render: deluge_app_init() (registers + spawns task runners)");
     // SAFETY: called once, after `scheduler::set_spawner` (main, below) and
     // before anything else touches `currentSong`/scheduler state.
-    unsafe { deluge_app_init(board::deluge_board()) };
+    unsafe { sys::deluge_app_init(board::deluge_board()) };
     // A stepped scenario's hook for this moment: nothing has been polled since deluge_app_init spawned the task
     // runners, so the render has not run yet.
     if let Some(on_app_init) =

@@ -65,8 +65,9 @@ use embassy_sync::signal::Signal;
 
 /// Longest path this channel keys on, in CHARACTERS -- `DELUGE_FILE_BYTES_MAX_PATH` minus its NUL,
 /// the same bound `file_directory::DirPath` carries and for the same reason (a C buffer size counts
-/// the terminator; the text it can hold is one byte shorter).
-const MAX_PATH_CHARS: usize = 255;
+/// the terminator; the text it can hold is one byte shorter). Pinned by `abi_pins.rs`, like every
+/// value this module copies from a header: it compiles in carriers with no bindgen output.
+pub(crate) const MAX_PATH_CHARS: usize = 255;
 
 /// The largest file this channel will carry.
 ///
@@ -74,7 +75,7 @@ const MAX_PATH_CHARS: usize = 255;
 /// (`CommunityFeatures.XML` 1453 B, `MIDIFollow.XML` 1957 B), so this is roughly 4x the largest one
 /// that exists. Three buffers of this size exist -- [`REQUEST_BYTES`], [`WORK_BYTES`] and
 /// [`RESULT_BYTES`] -- and on device all three live in SDRAM, so raising this costs SDRAM rather
-/// than on-chip SRAM. It is still pinned against `DELUGE_FILE_BYTES_MAX_BYTES`, so raising it is a
+/// than on-chip SRAM. It is pinned against `DELUGE_FILE_BYTES_MAX_BYTES`, so raising it is a
 /// change on both sides of the ABI.
 ///
 /// A file above this bound is never truncated: the read reports `NO_MEMORY` and the write is
@@ -131,11 +132,11 @@ pub const BLOCK_BYTES: usize = 1024;
 /// with no bindgen bindings at all. It is a NAMED constant and never written inline in a pattern --
 /// an unknown identifier in pattern position is a fresh BINDING, not a comparison, which in
 /// `file_directory` silently matched every error until it was caught.
-const NO_FILESYSTEM: i8 = -11;
+pub(crate) const NO_FILESYSTEM: i8 = -11;
 /// `DELUGE_ERR_NO_MEMORY`, as a bare `i8`. What a file too large for [`MAX_BYTES`] reports.
-const NO_MEMORY: i8 = -13;
+pub(crate) const NO_MEMORY: i8 = -13;
 /// `DELUGE_ERR_IO`, as a bare `i8`. A short write is reported as this rather than as success.
-const ERR_IO: i8 = -5;
+pub(crate) const ERR_IO: i8 = -5;
 /// `DELUGE_ERR_NOT_FOUND`, as a bare `i8`. The existence op's ANSWER "no", as distinct from every
 /// other failure, which means "could not tell".
 ///
@@ -143,18 +144,18 @@ const ERR_IO: i8 = -5;
 /// an unknown identifier in pattern position is a fresh BINDING, not a comparison, and this module's
 /// sibling shipped exactly that bug -- it compiled, matched EVERY error, and the only complaint was a
 /// non-snake-case warning among thirty-odd others.
-const NOT_FOUND: i8 = -8;
+pub(crate) const NOT_FOUND: i8 = -8;
 /// `DELUGE_ERR_EXISTS`, as a bare `i8`. What every segment but the last of an existing path reports,
 /// and therefore SUCCESS for "make sure this path is there".
 ///
 /// A NAMED constant, never written inline in a pattern, for the reason `NOT_FOUND` gives above.
-const EXISTS: i8 = -9;
+pub(crate) const EXISTS: i8 = -9;
 
 /// `DelugeFileOpenMode::READ`, matching `file_io.h`'s C enum's declaration order.
-const OPEN_READ: u8 = 0;
+pub(crate) const OPEN_READ: u8 = 0;
 /// `DelugeFileOpenMode::WRITE_CREATE`: create, or open and keep an existing file's bytes. The write
 /// path truncates explicitly afterwards rather than relying on a create mode to do it.
-const OPEN_WRITE_CREATE: u8 = 1;
+pub(crate) const OPEN_WRITE_CREATE: u8 = 1;
 
 /// `deluge_file_bytes_collect_*`: requested or in flight; ask again, do not re-request.
 pub const DELUGE_FILE_BYTES_PENDING: u8 = 0;
@@ -164,31 +165,6 @@ pub const DELUGE_FILE_BYTES_READY: u8 = 1;
 pub const DELUGE_FILE_BYTES_UNKNOWN: u8 = 2;
 /// `deluge_file_bytes_collect_*`: the operation did not happen. Terminal -- do NOT re-request.
 pub const DELUGE_FILE_BYTES_FAILED: u8 = 3;
-
-/// The values this module hand-duplicates from `file_bytes.h`, pinned.
-///
-/// Asserting a constant against its own literal looks tautological, and that is the point: it makes
-/// a change take two deliberate edits instead of one.
-///
-/// **The status numbering is the audio loader's, the prefix channel's and the directory channel's,
-/// value for value**, and that is a safety property rather than tidiness. Two of these headers will
-/// plausibly be included in one translation unit, where
-/// `deluge_file_bytes_collect_read(..) == DELUGE_FILE_DIRECTORY_READY` compiles clean and nothing
-/// cross-checks it. Under a divergent numbering that expression would mean something else entirely.
-const _: () = {
-    assert!(MAX_PATH_CHARS == 255); // DELUGE_FILE_BYTES_MAX_PATH - 1
-    assert!(MAX_BYTES == 8192); // DELUGE_FILE_BYTES_MAX_BYTES
-    assert!(BLOCK_BYTES == 1024); // DELUGE_FILE_BYTES_BLOCK
-    assert!(NO_FILESYSTEM == -11); // DELUGE_ERR_NO_FILESYSTEM
-    assert!(NO_MEMORY == -13); // DELUGE_ERR_NO_MEMORY
-    assert!(ERR_IO == -5); // DELUGE_ERR_IO
-    assert!(NOT_FOUND == -8); // DELUGE_ERR_NOT_FOUND
-    assert!(EXISTS == -9); // DELUGE_ERR_EXISTS
-    assert!(DELUGE_FILE_BYTES_PENDING == 0);
-    assert!(DELUGE_FILE_BYTES_READY == 1);
-    assert!(DELUGE_FILE_BYTES_UNKNOWN == 2);
-    assert!(DELUGE_FILE_BYTES_FAILED == 3);
-};
 
 /// Which operation an entry belongs to.
 ///

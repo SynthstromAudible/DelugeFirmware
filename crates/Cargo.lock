@@ -148,6 +148,7 @@ name = "deluge_sample_stream"
 version = "0.1.0"
 dependencies = [
  "critical-section",
+ "deluge_sample_fill",
  "embassy-sync",
 ]
 

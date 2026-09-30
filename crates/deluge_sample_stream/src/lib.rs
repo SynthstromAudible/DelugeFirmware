@@ -26,11 +26,8 @@ pub const DELUGE_RESOURCE_NO_ASSET: u32 = 0xFFFF_FFFF;
 /// field order/types): `include/libdeluge/streaming_fill.h`'s `DelugeStreamingFillContext` minus
 /// `efatfs_handle` — the registry supplies that field itself, from the slot's own efatfs handle,
 /// when it assembles the full fill-context (see `registry::try_register_fill_context`). A
-/// SEPARATE mirror from [`DelugeStreamingFillContext`] below (not a shared type): the geometry
-/// crosses this crate's own C-ABI, while the fill-context crosses only the consumed
-/// `deluge_streaming_set_fill_context` extern — matching this workspace's established "each side
-/// re-mirrors the one struct it needs" convention (`deluge_sample_reader::reader`'s own
-/// `Geometry` doc).
+/// separate type from [`DelugeStreamingFillContext`] below: the geometry crosses this crate's own
+/// C-ABI, while the fill-context crosses only the consumed `deluge_streaming_set_fill_context`.
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct DelugeSampleStreamGeometry {
@@ -44,38 +41,26 @@ pub struct DelugeSampleStreamGeometry {
     pub num_channels: u8,
 }
 
-/// Mirrors `include/libdeluge/streaming_fill.h`'s `DelugeStreamingFillContext` exactly (verbatim
-/// field order/types) — the struct `deluge_streaming_set_fill_context` takes by value. `pub(crate)`:
-/// only `registry::try_register_fill_context` ever builds one, from a slot's own efatfs handle plus
-/// its stored [`DelugeSampleStreamGeometry`].
-#[repr(C)]
-#[derive(Clone, Copy)]
-pub(crate) struct DelugeStreamingFillContext {
-    pub efatfs_handle: u32,
-    pub audio_data_start_pos_bytes: u32,
-    pub audio_data_length_bytes: u64,
-    pub first_cluster_index_with_no_audio_data: i32,
-    pub cluster_size: u32,
-    pub cluster_size_magnitude: u32,
-    pub raw_data_format: u8,
-    pub byte_depth: u8,
-    pub num_channels: u8,
-}
+/// `include/libdeluge/streaming_fill.h`'s `DelugeStreamingFillContext`, the struct
+/// `deluge_streaming_set_fill_context` takes by value: `deluge_sample_fill`'s definition, which
+/// exports that function. Only `registry::try_register_fill_context` builds one, from a slot's own
+/// efatfs handle plus its stored [`DelugeSampleStreamGeometry`].
+pub(crate) use deluge_sample_fill::FillContext as DelugeStreamingFillContext;
 
 // ── Externs this crate consumes — real bodies elsewhere (efatfs_fs.rs / efatfs_host_shim.rs, the
 // resource manager's own C ABI); mocked under `#[cfg(test)]` by `mock_backing` below, exactly as
 // `deluge_sample_reader::lib`'s own `host_streaming_stubs` mocks its externs for its crate's tests.
 unsafe extern "C" {
     /// `include/libdeluge/streaming_fill.h`. Open a sample file for streaming reads.
-    fn deluge_efatfs_open(
+    pub fn deluge_efatfs_open(
         path: *const c_char,
         out_handle: *mut u32,
         out_table_full: *mut bool,
     ) -> bool;
     /// `include/libdeluge/streaming_fill.h`. Close a streaming file handle.
-    fn deluge_efatfs_close(handle: u32);
+    pub fn deluge_efatfs_close(handle: u32);
     /// `include/libdeluge/streaming_fill.h`. Synchronous card read at an absolute byte offset.
-    fn deluge_efatfs_read_at(
+    pub fn deluge_efatfs_read_at(
         handle: u32,
         byte_offset: u32,
         dst: *mut c_void,
@@ -83,9 +68,9 @@ unsafe extern "C" {
         out_read: *mut u32,
     ) -> bool;
     /// `include/libdeluge/streaming_fill.h`. The single process-wide resource-manager singleton.
-    fn deluge_streaming_resource_manager() -> *mut c_void;
+    pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// `include/libdeluge/streaming_fill.h`. Register (or replace) an asset's fill-context.
-    fn deluge_streaming_set_fill_context(
+    pub fn deluge_streaming_set_fill_context(
         mgr: *mut c_void,
         asset: u32,
         ctx: DelugeStreamingFillContext,

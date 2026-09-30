@@ -130,7 +130,9 @@ use embassy_sync::signal::Signal;
 
 /// Longest single candidate path, including its NUL — `DELUGE_MAX_PATH`
 /// (`audio_load.h`). The C side writes its candidate buffer at this stride, so
-/// it is a layout constant, not a preference.
+/// it is a layout constant, not a preference. Copied, like every header value
+/// this module uses, because it compiles in carriers with no bindgen output;
+/// each copy is pinned by `abi_pins.rs`.
 pub const DELUGE_MAX_PATH: usize = 256;
 
 /// `AudioFileManager::kMaxLoadCandidates` — the C side proposes at most this
@@ -141,7 +143,7 @@ const MAX_LOAD_CANDIDATES: usize = 3;
 /// candidate did not fit, or an internal allocation failed. The header is
 /// explicit that the caller must not read `out` in that case, so a request
 /// carrying it is refused rather than clamped. Never a legitimate count.
-const DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED: u32 = 0xFFFF_FFFF;
+pub(crate) const DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED: u32 = 0xFFFF_FFFF;
 
 /// One path, inline. **Nothing in this module may touch the Rust global heap.**
 ///
@@ -166,7 +168,7 @@ pub type LoadPath = heapless::String<MAX_PATH_CHARS>;
 /// 256-character path be accepted as a request key and then refused by
 /// [`LoadResult::set_alternate_path`] (which needs room for the terminator),
 /// turning a loadable file into a spurious `FILE_UNREADABLE`.
-const MAX_PATH_CHARS: usize = DELUGE_MAX_PATH - 1;
+pub(crate) const MAX_PATH_CHARS: usize = DELUGE_MAX_PATH - 1;
 
 /// The candidate paths for one load, inline. See [`LoadPath`].
 pub type CandidateList = heapless::Vec<LoadPath, MAX_LOAD_CANDIDATES>;
@@ -218,23 +220,16 @@ pub const DELUGE_AUDIO_LOAD_READY: u8 = 1;
 /// `deluge_audio_load_collect`: nothing known about this path.
 pub const DELUGE_AUDIO_LOAD_UNKNOWN: u8 = 2;
 
-/// The values this module hand-duplicates from `audio_load.h`, pinned.
+/// `AudioFileManager::kMaxLoadCandidates` and the Deluge `Error` numbers, pinned.
 ///
 /// Asserting a constant against its own literal looks tautological, and that is
-/// exactly the point: it makes a change here take two deliberate edits instead of
-/// one, and the mirror of these numbers lives in `audio_load_abi.cpp`'s
-/// `static_assert`s. Without this the C side pinned only C's own values, so a
-/// Rust-side edit — `MAX_LOAD_CANDIDATES` most dangerously, since it silently
-/// changes how many candidate slots are read — was caught by nothing.
+/// exactly the point: these are C++ values no header declares, so bindgen cannot
+/// pin them, and this makes a change here take two deliberate edits instead of
+/// one. Their mirror lives in `audio_load_abi.cpp`'s `static_assert`s.
+/// `MAX_LOAD_CANDIDATES` is the dangerous one: it silently changes how many
+/// candidate slots are read.
 const _: () = {
-    assert!(DELUGE_MAX_PATH == 256);
-    assert!(MAX_PATH_CHARS == 255);
     assert!(MAX_LOAD_CANDIDATES == 3); // AudioFileManager::kMaxLoadCandidates
-    assert!(DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED == 0xFFFF_FFFF);
-    assert!(DELUGE_AUDIO_LOAD_PENDING == 0);
-    assert!(DELUGE_AUDIO_LOAD_READY == 1);
-    assert!(DELUGE_AUDIO_LOAD_UNKNOWN == 2);
-    // Deluge `Error`, pinned C-side by audio_load_abi.cpp's own static_asserts.
     assert!(DELUGE_ERROR_NONE == 0);
     assert!(DELUGE_ERROR_FILE_CORRUPTED == 5);
     assert!(DELUGE_ERROR_FILE_UNREADABLE == 6);

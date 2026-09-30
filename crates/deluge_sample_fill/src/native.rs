@@ -13,7 +13,7 @@ use core::ffi::c_void;
 use crate::{DelugeChunkConvertState, FillContext, StreamingFillDescriptor, fill_context_for};
 
 unsafe extern "C" {
-    fn deluge_streaming_resource_manager() -> *mut c_void;
+    pub fn deluge_streaming_resource_manager() -> *mut c_void;
     // `deluge_resource_chunk_ident`: recovers a loader-queue chunk's `(asset, index)` identity
     // (out-params; `false` on a miss) so `begin`/`finish` can look up its per-asset fill-context
     // (`fill_context_for`) -- mirrors `deluge_resource_slot_of` (declared in `deluge-bsp-rust`'s own

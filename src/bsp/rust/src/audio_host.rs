@@ -33,22 +33,6 @@ use core::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
 use crate::sys::DelugeStereoSample;
 
-unsafe extern "C" {
-    /// The app renders `frames` stereo samples into `output`, reading `frames`
-    /// aligned input samples from `input` (app.h). i32-native; no scaling
-    /// here. Exact mirror of device `audio.rs`'s import (same signature, same
-    /// ABI) — the host-built `deluge_app` object closure exports the same
-    /// symbol.
-    fn deluge_app_render(
-        input: *const DelugeStereoSample,
-        output: *mut DelugeStereoSample,
-        frames: u32,
-    );
-    /// A block skipped by [`should_skip_render`]: the app still runs the render's block-start lifetime step (app.h),
-    /// so objects handed to the render are let go of and freed on a single-executor harness too.
-    fn deluge_app_render_skipped();
-}
-
 /// Maximum frames per `deluge_app_render` call. MUST match device `audio.rs`'s
 /// `APP_BLOCK_FRAMES` (128, not `host_audio.c`'s 32): the app's internal
 /// render-buffer globals (`renderingMemory`/`reverbMemory`) are fixed at this
@@ -452,7 +436,7 @@ pub extern "C" fn deluge_audio_drive() -> u32 {
         // No audio, but the render's lifetime step still runs on this (render-tier) call: without it the epoch
         // would stand still and nothing retired would ever be let go of or freed.
         // SAFETY: an app entry point with no arguments, called on the render tier as app.h requires.
-        unsafe { deluge_app_render_skipped() };
+        unsafe { crate::sys::deluge_app_render_skipped() };
         return 0;
     }
 
@@ -506,7 +490,7 @@ fn render_block(live: Option<&[[f32; 2]]>) {
     // elements of the app's native stereo-sample type, matching the device
     // `audio.rs` call site's ABI exactly.
     unsafe {
-        deluge_app_render(
+        crate::sys::deluge_app_render(
             addr_of!(INPUT_BLOCK) as *const DelugeStereoSample,
             addr_of_mut!(RENDER_BLOCK) as *mut DelugeStereoSample,
             APP_BLOCK_FRAMES as u32,

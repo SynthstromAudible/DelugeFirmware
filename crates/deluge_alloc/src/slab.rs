@@ -311,8 +311,7 @@ pub unsafe extern "C" fn deluge_slab_set_zero_on_acquire(slab: *mut DelugeSlab, 
     }
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn deluge_slab_acquire(slab: *mut DelugeSlab, owner: *mut c_void) -> *mut u8 {
+pub unsafe fn deluge_slab_acquire(slab: *mut DelugeSlab, owner: *mut c_void) -> *mut u8 {
     if slab.is_null() {
         return ptr::null_mut();
     }
@@ -320,8 +319,7 @@ pub unsafe extern "C" fn deluge_slab_acquire(slab: *mut DelugeSlab, owner: *mut 
 }
 
 /// Mark a slot's payload as in-use (un-evictable) — refcounted.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_slab_pin(slab: *mut DelugeSlab, p: *mut u8) {
+pub unsafe fn deluge_slab_pin(slab: *mut DelugeSlab, p: *mut u8) {
     if slab.is_null() {
         return;
     }
@@ -335,8 +333,7 @@ pub unsafe extern "C" fn deluge_slab_pin(slab: *mut DelugeSlab, p: *mut u8) {
     }
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn deluge_slab_unpin(slab: *mut DelugeSlab, p: *mut u8) {
+pub unsafe fn deluge_slab_unpin(slab: *mut DelugeSlab, p: *mut u8) {
     if slab.is_null() {
         return;
     }
@@ -351,8 +348,7 @@ pub unsafe extern "C" fn deluge_slab_unpin(slab: *mut DelugeSlab, p: *mut u8) {
 }
 
 /// Mark a slot most-recently-used (call on access so LRU reflects real usage).
-#[no_mangle]
-pub unsafe extern "C" fn deluge_slab_touch(slab: *mut DelugeSlab, p: *mut u8) {
+pub unsafe fn deluge_slab_touch(slab: *mut DelugeSlab, p: *mut u8) {
     if slab.is_null() {
         return;
     }
@@ -370,8 +366,7 @@ pub unsafe extern "C" fn deluge_slab_touch(slab: *mut DelugeSlab, p: *mut u8) {
 /// Returns true if `p` was one of this pool's slots (and was freed), false if it
 /// isn't owned here — letting an external reclaim coordinator do "slab-release else
 /// heap-free" to route cluster victims to the slab and everything else to the heap.
-#[no_mangle]
-pub unsafe extern "C" fn deluge_slab_release(slab: *mut DelugeSlab, p: *mut u8) -> bool {
+pub unsafe fn deluge_slab_release(slab: *mut DelugeSlab, p: *mut u8) -> bool {
     if slab.is_null() {
         return false;
     }

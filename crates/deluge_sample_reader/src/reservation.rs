@@ -49,9 +49,9 @@ unsafe extern "C" {
     /// declared more than once across a crate's modules without conflict (unlike a `#[no_mangle]`
     /// definition, which may only exist once); duplicated here rather than exposed from `reader.rs`
     /// so this module stays independent of `reader.rs`'s own internals.
-    fn deluge_streaming_resource_manager() -> *mut c_void;
+    pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// The synchronous card read (`include/libdeluge/streaming_fill.h`) — see [`fill_now`].
-    fn deluge_efatfs_read_at(
+    pub fn deluge_efatfs_read_at(
         handle: u32,
         byte_offset: u32,
         dst: *mut c_void,
@@ -61,7 +61,7 @@ unsafe extern "C" {
     /// Wake the async loader (`include/libdeluge/streaming_fill.h`) after enqueueing a chunk
     /// via `Resource::loader_enqueue` — see [`enqueue_unfilled`]'s own doc for the recipe this
     /// mirrors (the C++ `CLUSTER_ENQUEUE` path).
-    fn deluge_streaming_signal_fill();
+    pub fn deluge_streaming_signal_fill();
 }
 
 /// Run the synchronous cluster fill on `chunk_backing`: resolve where/how much to read

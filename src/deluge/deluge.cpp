@@ -402,7 +402,7 @@ TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
 /// Measured: the offline stem drain hung for 900s against a cold card image, and finished in 37s
 /// with nothing submitted.
 
-extern "C" void deluge_startup_skip_settings_prelude() {
+extern "C" void deluge_startup_skip_settings_prelude() noexcept {
 	startupConditionalTask = deluge::storage::armStartupSong;
 }
 

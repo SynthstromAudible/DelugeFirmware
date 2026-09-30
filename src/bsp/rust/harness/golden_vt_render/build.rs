@@ -22,6 +22,9 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
+#[path = "../../build_crate_types.rs"]
+mod build_crate_types;
+
 fn main() {
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
     // DelugeFirmware repo root (crate is at <root>/src/bsp/rust/harness/golden_vt_render).
@@ -234,27 +237,33 @@ fn run_bindgen(
     let scheduler_dir = repo_root.join("src/OSLikeStuff");
     let wrapper = manifest_dir.join("wrapper.h");
     let clang_target = env::var("TARGET").expect("cargo sets TARGET for build scripts");
-    let bindings = bindgen::Builder::default()
-        .header(wrapper.to_str().unwrap())
-        .clang_arg(format!("-I{}", include_dir.display()))
-        .clang_arg(format!("-I{}", scheduler_dir.display()))
-        // The host app is compiled with DELUGE_HOST, so its host-only declarations are part of this ABI.
-        .clang_arg("-DDELUGE_HOST")
+    let base = || {
+        bindgen::Builder::default()
+            .header(wrapper.to_str().unwrap())
+            .clang_arg(format!("-I{}", include_dir.display()))
+            .clang_arg(format!("-I{}", scheduler_dir.display()))
+            // The host app is compiled with DELUGE_HOST, so its host-only declarations are part of this ABI.
+            .clang_arg("-DDELUGE_HOST")
+            .use_core()
+            // See ../build.rs: NO `-fshort-enums` — every libdeluge enum pins its
+            // underlying type explicitly in its header, so both sides already
+            // agree on each enum's width regardless of the flag.
+            .clang_arg(format!("--target={clang_target}"))
+            .layout_tests(false)
+    };
+    let builder = base()
         .allowlist_type("Deluge.*")
         .allowlist_function("deluge_.*")
         // scheduler_api.h's functions; `yield_` is bindgen's Rust name for `yield`, which is what the allowlist matches.
         .allowlist_function(
             "addRepeatingTask|addConditionalTask|ignoreForStats|getAverageRunTimeForTask|getSystemTime|runTask|yield_|blockTask|unblockTask|isSDRoutineActive",
         )
-        // system.h's critical-section pair, the other declared functions without the `deluge_` prefix.
-        .allowlist_function("ENTER_CRITICAL_SECTION|EXIT_CRITICAL_SECTION")
-        .allowlist_var("DELUGE_.*")
-        .use_core()
-        // See ../build.rs: NO `-fshort-enums` — every libdeluge enum pins its
-        // underlying type explicitly in its header, so both sides already
-        // agree on each enum's width regardless of the flag.
-        .clang_arg(format!("--target={clang_target}"))
-        .layout_tests(false)
+        // The other declared functions without the `deluge_` prefix: system.h's critical-section pair, and
+        // signals.h's MIDI/gate timer callback.
+        .allowlist_function("ENTER_CRITICAL_SECTION|EXIT_CRITICAL_SECTION|midiAndGateTimerGoneOff")
+        .allowlist_var("DELUGE_.*");
+    // The crate-defined header types: see ../../build_crate_types.rs. This package never builds for the device.
+    let bindings = build_crate_types::bind_crate_types(builder, false)
         .generate()
         .expect("bindgen failed on libdeluge headers");
     fs::write(
@@ -262,9 +271,15 @@ fn run_bindgen(
         edition_2024_externs(&bindings.to_string()),
     )
     .expect("write libdeluge_sys.rs");
+    let layouts = build_crate_types::crate_type_layouts(base())
+        .generate()
+        .expect("bindgen failed on the crate-defined libdeluge types");
+    fs::write(out_dir.join("libdeluge_layout.rs"), layouts.to_string())
+        .expect("write libdeluge_layout.rs");
     println!("cargo:rerun-if-changed={}", wrapper.display());
     println!("cargo:rerun-if-changed={}", include_dir.display());
     println!("cargo:rerun-if-changed={}", scheduler_dir.display());
+    println!("cargo:rerun-if-changed=../../build_crate_types.rs");
 }
 
 /// Marks each generated `extern "C"` block `unsafe`, as edition 2024 requires.
