@@ -158,8 +158,9 @@ extern MidiEngine midiEngine;
 extern "C" {
 #endif
 extern uint16_t g_usb_usbmode;
-/// App-owned re-entrancy guard for USB-MIDI servicing; see midi_engine.cpp's definition for the
-/// full rationale. Declared once here; every user includes this header rather than re-declaring it.
+/// App-owned re-entrancy guard against `MidiEngine::check_incoming_usb` re-entering
+/// `deluge_midi_service`; see midi_engine.cpp's definition for the full rationale.
+/// Declared once here; every user includes this header rather than re-declaring it.
 extern volatile uint32_t usbLock;
 #ifdef __cplusplus
 }

@@ -41,12 +41,14 @@
 
 extern "C" {
 
-// App-owned re-entrancy guard for USB-MIDI servicing (shared with the BSP, which
-// reads it during flush and receive re-arming). All MIDI transport — DIN and USB
-// alike — is driven through the <libdeluge/midi_io.h> port + byte-stream boundary:
-// the app reads/writes 4-byte USB-MIDI event packets on a device's port and packs/
-// decodes them with the deluge_midi protocol library; the BSP owns the transfer
-// mechanics (buffers, descriptors, send/receive state machine, re-arming).
+// App-owned re-entrancy guard against `MidiEngine::check_incoming_usb` servicing
+// re-entering `deluge_midi_service` while a call is already in flight (see its
+// definition below). All MIDI transport — DIN and USB alike — is driven through
+// the <libdeluge/midi_io.h> port + byte-stream boundary: the app reads/writes
+// 4-byte USB-MIDI event packets on a device's port and packs/decodes them with
+// the deluge_midi protocol library; the BSP owns the transfer mechanics
+// (buffers, descriptors, send/receive state machine, re-arming), but does not
+// read or write this guard.
 volatile uint32_t usbLock = 0;
 }
 
