@@ -17,12 +17,22 @@
 //! this file must therefore provide BOTH sibling modules. The shared counter needs no such care —
 //! [`deluge_card_generation`] is a real dependency crate, so every build resolves the same static.
 
+/// Every channel that keeps answers read from the card. Each clears its queued requests and waiting answers; none
+/// may block, because the ejection path runs this with the card already gone.
+const FLUSHES: [fn(); 5] = [
+    super::audio_loader::flush_tables,
+    super::file_prefix::flush_tables,
+    super::file_directory::flush_tables,
+    super::file_bytes::flush_tables,
+    super::file_write::flush_tables,
+];
+
 /// Discard everything every loader read from the card that has just been removed. See `card.h`.
 ///
 /// The bump comes FIRST and cannot fail; each module's clear is best-effort housekeeping behind a
 /// `try_lock`. Every loader that caches card-derived state is cleared here, in one call — that is
 /// the shape the header promises ("a second loader gets covered by calling this, not by growing a
-/// second flush"), so a new loader adds a line here rather than an entry point of its own.
+/// second flush"), so a new loader adds a line to [`FLUSHES`] rather than an entry point of its own.
 ///
 /// No correctness rests on a clear landing — the stamp, compared at take, is the safety property,
 /// and it holds no matter which locks were taken or which contexts the two sides ran in (see
@@ -39,11 +49,9 @@
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_card_flush() {
     deluge_card_generation::bump();
-    super::audio_loader::flush_tables();
-    super::file_prefix::flush_tables();
-    super::file_directory::flush_tables();
-    super::file_bytes::flush_tables();
-    super::file_write::flush_tables();
+    for flush in FLUSHES {
+        flush();
+    }
 }
 
 abi_pin!(deluge_card_flush);

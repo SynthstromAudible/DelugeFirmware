@@ -219,30 +219,47 @@ pub enum ByteOutcome {
     Failed(i8),
 }
 
-/// One finished operation, stamped with the card generation it BEGAN under.
-struct ByteEntry {
-    op: ByteOp,
-    key: BytesPath,
-    generation: u32,
-    outcome: ByteOutcome,
+/// What a byte-channel answer is keyed by: the operation and its path.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ByteKey {
+    pub op: ByteOp,
+    pub path: BytesPath,
 }
 
-/// The one answer this channel holds, if it holds one.
+impl PartialEq<(ByteOp, &str)> for ByteKey {
+    fn eq(&self, other: &(ByteOp, &str)) -> bool {
+        self.op == other.0 && self.path.as_str() == other.1
+    }
+}
+
+/// No byte outcome carries a handle, so `deluge_channel::Answer`'s default `orphan` -- always `None`
+/// -- is exactly right.
+impl deluge_channel::Answer for ByteOutcome {}
+
+/// The one answer this channel holds, if it holds one. See `deluge_channel::AnswerSlot` for the slot
+/// rules this wraps; this type just names the key and value the byte channel uses.
 ///
 /// Passed to [`publish_into`]/[`take_from`]/[`drain`] by reference rather than reached for as a
 /// static, so the slot logic is compiled and unit-tested on every build -- including the ones where
 /// the live [`RESULT`] does not exist.
-#[derive(Default)]
 pub struct BytesSlot {
-    entry: Option<ByteEntry>,
+    inner: deluge_channel::AnswerSlot<ByteKey, ByteOutcome>,
 }
 
 impl BytesSlot {
     pub const fn new() -> Self {
-        Self { entry: None }
+        Self {
+            inner: deluge_channel::AnswerSlot::new(),
+        }
     }
     pub fn is_empty(&self) -> bool {
-        self.entry.is_none()
+        self.inner.is_empty()
+    }
+}
+
+impl Default for BytesSlot {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -310,17 +327,13 @@ pub fn publish_into(
     outcome: ByteOutcome,
     generation: u32,
 ) {
-    slot.entry = None;
-    let Ok(key) = BytesPath::try_from(key) else {
+    slot.inner.drain();
+    let Ok(path) = BytesPath::try_from(key) else {
         debug_assert!(false, "an over-long key cannot reach a publish");
         return;
     };
-    slot.entry = Some(ByteEntry {
-        op,
-        key,
-        generation,
-        outcome,
-    });
+    slot.inner
+        .publish(ByteKey { op, path }, outcome, generation);
 }
 
 /// What [`take_from`] found for the operation it was asked about.
@@ -346,24 +359,15 @@ pub enum ByteTake {
 /// A key MISMATCH leaves the slot alone. It is not this take's answer to discard: the operation it
 /// belongs to may be about to collect it.
 pub fn take_from(slot: &mut BytesSlot, op: ByteOp, path: &str, generation: u32) -> ByteTake {
-    let Some(entry) = slot.entry.as_ref() else {
-        return ByteTake::Absent;
-    };
-    if entry.op != op || entry.key != path {
-        return ByteTake::Absent;
-    }
-    let stamped = entry.generation;
-    let entry = slot.entry.take().expect("checked just above");
-    if stamped == generation {
-        ByteTake::Ready(entry.outcome)
-    } else {
-        ByteTake::Absent
+    match slot.inner.take(&(op, path), generation) {
+        deluge_channel::Take::Ready(outcome) => ByteTake::Ready(outcome),
+        deluge_channel::Take::Absent { .. } => ByteTake::Absent,
     }
 }
 
 /// Empty the slot. What `flush_tables` uses on an ejection.
 pub fn drain(slot: &mut BytesSlot) {
-    slot.entry = None;
+    slot.inner.drain();
 }
 
 // ── The driver ──────────────────────────────────────────────────────────────
