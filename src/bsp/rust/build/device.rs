@@ -19,7 +19,6 @@ pub fn link(repo_root: &Path, manifest_dir: &Path, out_dir: &Path) {
     let app_objs_archive = archive_app_objects(repo_root, &build_dir, &cfg, &ar, out_dir);
     link_app_closure(&build_dir, &cfg, &app_objs_archive);
     emit_runtime_link_args();
-    warn_if_heap_hack_active(manifest_dir);
 }
 
 /// Copies the memory layout for the active `rtt` feature and the SDRAM fragment into `out_dir`,
@@ -178,21 +177,4 @@ fn emit_runtime_link_args() {
         println!("cargo:rustc-link-arg={l}");
     }
     println!("cargo:rustc-link-arg=-Wl,--end-group");
-}
-
-/// Warns while the linker scripts in a sibling `../deluge-sdk` checkout carry the
-/// `DELUGE_APP_HEAP_HACK` tag. Silent when there is no such checkout.
-fn warn_if_heap_hack_active(manifest_dir: &Path) {
-    let sdk = manifest_dir.join("../../../../deluge-sdk/crates/rza1l-hal");
-    for s in ["rza1l.x", "rza1l_rtt.x"] {
-        let p = sdk.join(s);
-        println!("cargo:rerun-if-changed={}", p.display());
-        if fs::read_to_string(&p).is_ok_and(|c| c.contains("DELUGE_APP_HEAP_HACK")) {
-            println!(
-                "cargo:warning=TEMP HACK active in deluge-sdk {s}: program_stack_start \
-                 retargeted to __sram_heap_end for the C++ app heap. Remove once the app \
-                 sources heap bounds via libdeluge/memory.h (deluge_memory_*)."
-            );
-        }
-    }
 }
