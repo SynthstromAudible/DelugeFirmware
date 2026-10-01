@@ -204,14 +204,16 @@ public:
 	/// nowhere legal to redo the operation inline, so a channel that stopped answering ends the search as Failed --
 	/// the refusal every other unanswerable question here already gets.
 	deluge::io::StallBound stemSearchStall_{};
-	/// How many times the current candidate's channel operation may be found unanswered before the search gives
-	/// up, whatever the clock says.
+	/// How many times, within one run of the "stem export" job, the current candidate's channel operation may be
+	/// found unanswered before the search gives up, whatever the clock says.
 	///
 	/// The offline export runs the recorder, and so this search, many times within one job run. Inside a run the
 	/// channel cannot answer (on the device the tier is blocked; on a virtual clock no time passes), so the time
-	/// bound alone would never end that loop. 600 is the length of the time bound at the "audio slow" job's 6 ms.
+	/// bound alone would never end that loop. Across runs the time bound decides. 600 is the length of the time bound
+	/// in ticks of the "audio slow" job, at 6 ms.
 	static constexpr int32_t kMaxInRunPumps = 600;
-	/// Unanswered finds of the current candidate's operation. See @ref kMaxInRunPumps.
+	/// Unanswered finds of the current candidate's operation in this run of the "stem export" job. See
+	/// @ref kMaxInRunPumps.
 	int32_t stemSearchPumps_ = 0;
 	/// @brief Note one unanswered find of the current candidate's operation.
 	/// @return Whether the search should give up on it: the time bound has passed, or the in-run guard has.

@@ -25,6 +25,7 @@
 #include "io/stall_bound.h"
 #include "libdeluge/file_bytes.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "runtime/app_loop.h"
 #include "storage/byte_channel.h"
 
 #include <cstdio>
@@ -83,12 +84,9 @@ constexpr int32_t kMaxWaitTicks = 20000;
 constexpr int32_t kOversizeEntries = 600;
 
 /// The busy stage's hold: a copy of this many chunks, each waiting this long, keeps the channel busy with work that
-/// progresses for kBusyChunks * kBusyChunkLatencyMs virtual milliseconds (5 s). At one scenario step per two virtual
-/// milliseconds, and the app's own "settings io" task beside it, that is thousands of refused ticks for a write
-/// queued behind it -- far past kStallBoundTicks, which the check requires rather than assumes.
+/// progresses for kBusyChunks * kBusyChunkLatencyMs virtual milliseconds (5 s), so a write queued behind it is held
+/// past the channel stall bound (`deluge::io::kChannelStallUs`) -- which the check measures rather than assumes.
 constexpr uint32_t kBusyChunks = 100;
-/// The channel stall bound (`deluge::io::kChannelStallUs`) in ticks of the "settings io" job, which runs every 6 ms.
-constexpr int32_t kStallBoundTicks = static_cast<int32_t>(deluge::io::kChannelStallUs / 6'000);
 constexpr uint32_t kBusyChunkLatencyMs = 50;
 /// The value the write held behind the copy carries. Differs from every value the earlier stages leave.
 constexpr uint32_t kBusyValue = 6;
@@ -172,6 +170,9 @@ int32_t g_tierBefore = 0;
 int32_t g_refusedBefore = 0;
 /// How many ticks the busy stage's write was refused, taken once the seam went idle.
 int32_t g_busyRefused = 0;
+/// When the busy stage submitted its write, and how long, in virtual time, it took to land.
+uint64_t g_busyStartUs = 0;
+uint64_t g_busyHeldUs = 0;
 /// The DIN ports' clock setting as the scenario found it. The head stage changes it to make the MIDI device table
 /// worth writing; the restore puts it back.
 bool g_originalSendClock = true;
@@ -595,6 +596,7 @@ void runTick() {
 		g_refusedBefore = deluge::storage::bytes::refusedTicks();
 		runtimeFeatureSettings.set(kProbeSetting, kBusyValue);
 		runtimeFeatureSettings.writeSettingsToFile();
+		g_busyStartUs = deluge::runtime::nowUs();
 		g_waitTicks = 0;
 		g_stage = Stage::BusyWait;
 		break;
@@ -607,6 +609,7 @@ void runTick() {
 		}
 		deluge_file_bytes_set_chunk_latency_ms(0);
 		g_busyRefused = deluge::storage::bytes::refusedTicks() - g_refusedBefore;
+		g_busyHeldUs = deluge::runtime::nowUs() - g_busyStartUs;
 		runtimeFeatureSettings.set(kProbeSetting, kScrubValue);
 		runtimeFeatureSettings.readSettingsFromFile();
 		g_stage = Stage::BusyReadWait;
@@ -621,19 +624,20 @@ void runTick() {
 		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
 		std::vector<uint8_t> copied;
 		const bool copyThere = readWholeFile(kBusyCopy, copied);
-		printf("SC-BUSY value=%u refused=%d bound=%d copyBytes=%zu\n", value, g_busyRefused, kStallBoundTicks,
-		       copyThere ? copied.size() : size_t{0});
-		// The value first: a write that gave up was refused on at most the stall bound's ticks, so the precondition
-		// below cannot tell a failed write from a hold too short to prove anything.
+		printf("SC-BUSY value=%u refused=%d heldUs=%llu boundUs=%llu copyBytes=%zu\n", value, g_busyRefused,
+		       static_cast<unsigned long long>(g_busyHeldUs),
+		       static_cast<unsigned long long>(deluge::io::kChannelStallUs), copyThere ? copied.size() : size_t{0});
+		// The value first: a write that gave up was held for at most the stall bound, so the precondition below
+		// cannot tell a failed write from a hold too short to prove anything.
 		if (value != kBusyValue) {
 			printf("SC-BUSY FAIL a settings write held behind a long copy did not land (read %u, wanted %u)\n", value,
 			       kBusyValue);
 			g_failures++;
 		}
-		else if (g_busyRefused <= kStallBoundTicks) {
-			printf("SC-BUSY FAIL the write was refused on only %d ticks, within the stall bound; nothing was held past "
+		else if (g_busyHeldUs <= deluge::io::kChannelStallUs) {
+			printf("SC-BUSY FAIL the write was held for only %llu us, within the stall bound; nothing was held past "
 			       "it, so this proves nothing\n",
-			       g_busyRefused);
+			       static_cast<unsigned long long>(g_busyHeldUs));
 			g_failures++;
 		}
 		if (!copyThere || copied.size() != size_t{kBusyChunks} * DELUGE_FILE_BYTES_BLOCK) {
@@ -738,6 +742,8 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_orderIllegal = 0;
 	g_refusedBefore = 0;
 	g_busyRefused = 0;
+	g_busyStartUs = 0;
+	g_busyHeldUs = 0;
 }
 
 bool deluge_scenario_settings_channel_complete(void) {

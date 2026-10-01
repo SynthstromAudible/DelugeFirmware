@@ -134,6 +134,8 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 }
 
 void StemExport::exportRoutine() {
+	// A new run: the in-run guard counts only this run's pumps. Across runs the time bound decides.
+	stemSearchPumps_ = 0;
 	switch (exportPhase) {
 	case ExportPhase::NONE:
 		return;
@@ -871,6 +873,11 @@ Error StemExport::getUnusedStemRecordingFilePath(std::string* filePath, AudioRec
 	return Error::NONE;
 }
 
+bool StemExport::stemSearchStalled() {
+	const bool timedOut = stemSearchStall_.tick();
+	return timedOut || ++stemSearchPumps_ >= kMaxInRunPumps;
+}
+
 /// gets folder path in SAMPLES/EXPORTS to write stems to
 /// within the STEMS folder, it will try to create a folder with the name of the SONG
 /// if it cannot create a folder with the SONG name because it already exists, it will continue creating folder path
@@ -883,11 +890,6 @@ Error StemExport::getUnusedStemRecordingFilePath(std::string* filePath, AudioRec
 /// file system calls, it will save the last song and sub-folder name saved to a std::string including the last
 /// incremental folder number and use that to obtain the filePath for the next stem export job (e.g. if you are
 /// exporting the same song more and stem export type than once)
-bool StemExport::stemSearchStalled() {
-	const bool timedOut = stemSearchStall_.tick();
-	return timedOut || ++stemSearchPumps_ >= kMaxInRunPumps;
-}
-
 Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioRecordingFolder folder) {
 
 	const auto folderID = util::to_underlying(folder);

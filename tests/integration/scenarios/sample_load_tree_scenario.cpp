@@ -1013,6 +1013,11 @@ std::optional<deluge::storage::AsyncSampleLoad> g_asyncLoad;
 int32_t g_asyncTicks = 0;
 /// When the leg in progress started, on the stall bounds' clock.
 uint64_t g_asyncStartUs = 0;
+/// When the leg's previous tick ran, and the longest gap between two of its ticks so far.
+uint64_t g_asyncLastTickUs = 0;
+uint64_t g_asyncMaxGapUs = 0;
+/// The longest gap between two ticks of the stall leg's first load: the most its give-up may overrun the bound by.
+uint64_t g_stallMaxGapUs = 0;
 int32_t g_sampleOpensBefore = 0;
 int32_t g_probesBefore = 0;
 /// The leg's AsyncOnly sample lookups that reached the blocking card read, and that probed the folder, on the
@@ -1165,6 +1170,8 @@ bool beginAsyncLeg() {
 	deluge_audio_load_set_latency_ms((g_asyncLeg == AsyncLeg::Stall) ? kStallHoldMs : kAsyncLatencyMs);
 	g_asyncTicks = 0;
 	g_asyncStartUs = deluge::runtime::nowUs();
+	g_asyncLastTickUs = 0;
+	g_asyncMaxGapUs = 0;
 	return true;
 }
 
@@ -1212,6 +1219,7 @@ bool stepStall(const deluge::storage::AsyncSampleLoad::Progress& progress) {
 	// The first load has ended. Lift the hold and load the same instrument again: the request the first load left in
 	// flight answers once its hold runs out, well inside the second load's bound.
 	g_stallFirst = progress;
+	g_stallMaxGapUs = g_asyncMaxGapUs;
 	deluge_audio_load_set_latency_ms(0);
 	g_asyncLoad.emplace(AsyncSampleLoad::forOutput(*g_asyncInstrument, nullptr));
 	g_stallStep = StallStep::AwaitSecond;
@@ -1264,6 +1272,11 @@ bool tickAsyncLeg() {
 	const deluge::storage::AsyncSampleLoad::Progress progress = g_asyncLoad->tick();
 	currentUIMode = modeBefore;
 	g_asyncTicks++;
+	const uint64_t tickUs = deluge::runtime::nowUs();
+	if (g_asyncLastTickUs != 0 && tickUs - g_asyncLastTickUs > g_asyncMaxGapUs) {
+		g_asyncMaxGapUs = tickUs - g_asyncLastTickUs;
+	}
+	g_asyncLastTickUs = tickUs;
 	if (g_asyncLeg == AsyncLeg::CardGone && !stepCardGone(progress) && asyncLegWithinCap()) {
 		return false;
 	}
@@ -1420,9 +1433,15 @@ void checkStall() {
 		printf("SLT-ASYNC FAIL leg=stall the held load did not end Failed/Stalled\n");
 		g_failures++;
 	}
-	if (g_stallFirst.stalledUs < AsyncSampleLoad::kMaxStalledUs || g_stallFirst.stalledTicks != g_stallFirst.ticks) {
-		printf("SLT-ASYNC FAIL leg=stall the held load did not end on the bound's walk (%llu us)\n",
-		       static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs));
+	// On the bound's walk: the first walk at or past the bound, so short of it by less than one gap between walks.
+	if (g_stallFirst.stalledUs < AsyncSampleLoad::kMaxStalledUs
+	    || g_stallFirst.stalledUs >= AsyncSampleLoad::kMaxStalledUs + g_stallMaxGapUs
+	    || g_stallFirst.stalledTicks != g_stallFirst.ticks) {
+		printf("SLT-ASYNC FAIL leg=stall the held load did not end on the bound's walk: stalled %llu us, wanted at "
+		       "least %llu us and under %llu us (the bound plus the longest gap between walks)\n",
+		       static_cast<unsigned long long>(g_stallFirst.stalledUs),
+		       static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs),
+		       static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs + g_stallMaxGapUs));
 		g_failures++;
 	}
 	if (g_stallFirst.bound != 0) {
@@ -1875,6 +1894,7 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_asyncSynthInstrument = nullptr;
 	g_stallStep = StallStep::AwaitFirst;
 	g_stallFirst = {};
+	g_stallMaxGapUs = 0;
 	g_orphanStep = OrphanStep::AwaitProbing;
 	g_orphanDemand = {};
 }

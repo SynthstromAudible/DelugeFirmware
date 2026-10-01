@@ -20,9 +20,8 @@ uint64_t fakeClock() {
 describe stall_bound("a stall bound gives up on a channel after a span of time with no progress", $ {
 
 	it("defaults to the channel bound", _ {
-		g_now = 0;
-		StallBound bound{kChannelStallUs, &fakeClock};
-		expect(bound.limitUs()).to_equal(uint64_t{3'600'000});
+		expect(StallBound{}.limitUs()).to_equal(kChannelStallUs);
+		expect(kChannelStallUs).to_equal(uint64_t{3'600'000});
 	});
 
 	it("expires once its limit has passed since the first unproductive tick, not before", _ {

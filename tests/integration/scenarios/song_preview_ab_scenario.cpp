@@ -3061,7 +3061,8 @@ void runByPathTick() {
 		if (BrowserListingAbProbe::inProgress()) {
 			BrowserListingAbProbe::tick();
 			if (BrowserListingAbProbe::inProgress()) {
-				if (++g_byPathTicks; stallWindowPassed(kListingStallWindowUs)) {
+				++g_byPathTicks;
+				if (stallWindowPassed(kListingStallWindowUs)) {
 					printf("SP-RELOAD-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_byPathTicks);
 					g_failures++;
 					finishByPathStage();
@@ -3106,7 +3107,8 @@ void runByPathTick() {
 		if (BrowserListingAbProbe::inProgress()) {
 			BrowserListingAbProbe::tick();
 			if (BrowserListingAbProbe::inProgress()) {
-				if (++g_byPathTicks; stallWindowPassed(kListingStallWindowUs)) {
+				++g_byPathTicks;
+				if (stallWindowPassed(kListingStallWindowUs)) {
 					printf("SP-LISTING-STALL FAIL inside: still waiting after %d ticks -- it never gave up\n",
 					       g_byPathTicks);
 					g_failures++;
@@ -3153,7 +3155,8 @@ void runByPathTick() {
 		if (BrowserListingAbProbe::inProgress()) {
 			BrowserListingAbProbe::tick();
 			if (BrowserListingAbProbe::inProgress()) {
-				if (++g_byPathTicks; stallWindowPassed(kListingStallWindowUs)) {
+				++g_byPathTicks;
+				if (stallWindowPassed(kListingStallWindowUs)) {
 					printf("SP-LISTING-STALL FAIL entry: still waiting after %d ticks -- it never gave up\n",
 					       g_byPathTicks);
 					g_failures++;
@@ -3369,7 +3372,8 @@ void runDxTick() {
 		if (DxSyxBrowser::cartridgeLoadInFlight()) {
 			dxBrowser.graphicsRoutine();
 			if (DxSyxBrowser::cartridgeLoadInFlight()) {
-				if (++g_dxTicks; stallWindowPassed(kDxStallWindowUs)) {
+				++g_dxTicks;
+				if (stallWindowPassed(kDxStallWindowUs)) {
 					printf("SP-DX-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_dxTicks);
 					g_failures++;
 					finishDxStage();

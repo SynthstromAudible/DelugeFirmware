@@ -319,6 +319,8 @@ private:
 	static constexpr uint64_t kMaxStagingWaitUs = 12'000'000;
 	static_assert(kMaxStagingWaitUs > 3 * deluge::io::kChannelStallUs,
 	              "the directory open the listing waits on must give up before the staging wait does");
+	static_assert(kMaxStagingWaitUs > Browser::kDirectoryStallUs,
+	              "the listing's directory open, bounded by Browser::kDirectoryStallUs, must give up first");
 
 	/// @brief How long STAGE has waited for the browser's listing. Bounded.
 	deluge::io::StallBound stagingWait_{kMaxStagingWaitUs};
