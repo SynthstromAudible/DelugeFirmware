@@ -61,9 +61,9 @@ public:
 	///                   the load, so pass a free function or a captureless lambda.
 	void beginLoad(void (*onComplete)() = nullptr);
 
-	/// @brief Advances an in-flight load past a wait it has finished, then asks for the job's next run. Cheap no-op
-	/// when
-	///        none is in flight.
+	/// @brief Advances an in-flight load past a wait it has finished, then asks for the job's next run.
+	///
+	/// A cheap no-op when none is in flight.
 	///
 	/// Run by its own job (@ref jobId), so every entry point - both browser gestures, the startup song, and the host
 	/// harness drivers - is driven from one place.
@@ -79,7 +79,8 @@ public:
 	/// streaming loader's lowest-priority entries (SETTLE), which it wakes the app for only once its whole queue drains
 	/// -- playback streaming can keep that from happening, and a failed read re-enqueued at the lowest priority stops
 	/// the drain without a wake; and the arming (AWAIT_ARM), which the load button, the arm itself and the swap the
-	/// playback routine launches each change. The old job gap, so each is noticed as soon as it was before.
+	/// playback routine launches each change. 6 ms is short enough that each is noticed within a couple of render
+	/// blocks.
 	static constexpr uint64_t kRecheckUs = 6'000;
 
 	/// @brief True from @ref beginLoad until the load's completion has run.

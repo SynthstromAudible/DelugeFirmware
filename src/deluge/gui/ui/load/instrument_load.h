@@ -270,7 +270,7 @@ private:
 	/// @name What the load in flight holds.
 	/// @{
 	/// How long the preset's staging may go without the byte channel finishing anything before the load gives up, in
-	/// µs: 18 s, far past any real staging, as the browser's own loads have always been allowed.
+	/// µs: 18 s, far past any real staging, so only a channel that has stopped finishing work fails the load.
 	static constexpr uint64_t kStagingStallUs = 18'000'000;
 	StorageManager::StagingState staging_{.stallBound = deluge::io::StallBound{kStagingStallUs}};
 	bool stagingOpen_{false}; ///< A staging has begun and not been released.

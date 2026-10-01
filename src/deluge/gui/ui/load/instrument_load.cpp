@@ -150,8 +150,8 @@ void InstrumentLoad::armNextRun() {
 	}
 	uint64_t next = deluge::runtime::kNever;
 	if (walkRunning_) {
-		// Every walk waits only on a directory open, whose answer raises WAKE_STORAGE; this is the run that finds the
-		// open's bound over.
+		// Every walk waits only on a directory open, whose answer raises WAKE_STORAGE and wakes the job. This deadline,
+		// read from the browser's shared directory bound, is a watchdog only: the run that finds the open's bound over.
 		const uint64_t deadline = Browser::directoryWaitDeadlineUs();
 		next = (deadline != deluge::runtime::kNever) ? deadline : deluge::runtime::nowUs() + Browser::kDirectoryStallUs;
 	}

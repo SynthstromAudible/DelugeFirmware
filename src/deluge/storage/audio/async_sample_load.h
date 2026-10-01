@@ -90,8 +90,8 @@ public:
 	///
 	/// The bound the slicer's audition and the sample browser's preview give a load before giving up, measured here for
 	/// the whole load rather than per file: any demand that settles, bound or empty, starts the span again, so a large
-	/// load on a slow card keeps loading, and only a load that has stopped moving ends. 18 s of wall-clock time: five
-	/// channel stall bounds, the length a load ticked every 30 ms gets from 600 ticks without progress.
+	/// load on a slow card keeps loading, and only a load that has stopped moving ends. 18 s, five channel stall
+	/// bounds: long enough for a card that is slow but still answering, short enough that a dead one is reported.
 	static constexpr uint64_t kMaxStalledUs = 18'000'000;
 
 	/// @brief Every sample a song needs: each output's, then each audio clip's.

@@ -159,8 +159,8 @@ public:
 	[[nodiscard]] static Error lastListingFailure();
 
 	/// @brief How long a directory open may go unanswered by the channel before the listing gives up, in
-	///        microseconds: 9 s of wall-clock time, the length 600 unanswered asks get at the graphics routine's 15 ms
-	///        period.
+	///        microseconds: 9 s, two and a half channel stall bounds, long enough for a slow card and short enough that
+	///        a dead one ends the listing with an error.
 	static constexpr uint64_t kDirectoryStallUs = 9'000'000;
 
 	/// @brief When the directory open in hand gives up if the channel does not answer it first, on the app loop's
