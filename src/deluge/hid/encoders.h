@@ -20,7 +20,6 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
-#include <libdeluge/scheduler.h>
 
 namespace deluge::hid::encoders {
 
@@ -94,13 +93,5 @@ ContinuousEncoder& modEncoderAt(size_t i);    ///< 0=mod0 1=mod1
 /// Last AudioEngine::audioSampleTimer tick at which we noticed a change on one of the mod encoders.
 /// Defined in encoder_input.cpp; also written by view.cpp.
 extern uint32_t timeModEncoderLastTurned[];
-
-// ── Lifecycle ─────────────────────────────────────────────────────────────
-
-void init();
-
-/// Scheduler task that drains the encoders. It blocks itself after each run and is unblocked from the
-/// encoder IRQ, so it only consumes CPU when an encoder has actually moved. Set by registerTasks().
-extern TaskID EncoderTaskID;
 
 } // namespace deluge::hid::encoders

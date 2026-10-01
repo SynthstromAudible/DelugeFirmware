@@ -17,8 +17,21 @@
 #include "runtime/app_loop.h"
 
 #include <algorithm>
+#include <libdeluge/app.h>
+#include <libdeluge/scheduler.h>
 
 namespace deluge::runtime {
+
+namespace {
+Micros bspClock() {
+	return static_cast<Micros>(getSystemTime() * 1'000'000.0);
+}
+void wakeBsp() {
+	deluge_app_wake(DELUGE_WAKE_APP);
+}
+} // namespace
+
+Loop appLoop{bspClock, wakeBsp};
 
 JobId Loop::add(const char* name, void (*body)(), Micros gap, WakeMask wakes) {
 	if (count_ == kMaxJobs) {
@@ -48,20 +61,30 @@ void Loop::cancel(JobId id) {
 }
 
 Micros Loop::service(Micros now, WakeMask reasons) {
-	// Requests made during this pass, a job's own included, belong to the next one: take this pass's
-	// requests before running anything.
-	std::array<bool, kMaxJobs> requested{};
-	for (size_t i = 0; i < count_; ++i) {
-		requested[i] = jobs_[i].requested.exchange(false, std::memory_order_acq_rel);
+	if (!inPass_) {
+		// Requests made during this pass, a job's own included, belong to the next one: take this
+		// pass's requests before running anything.
+		for (size_t i = 0; i < count_; ++i) {
+			passRequested_[i] = jobs_[i].requested.exchange(false, std::memory_order_acq_rel);
+		}
+		passReasons_ = reasons | carryReasons_;
+		carryReasons_ = 0;
+		cursor_ = 0;
+		inPass_ = true;
+	}
+	else {
+		// Jobs still ahead in this pass see the new reasons now; those already passed see them next pass.
+		passReasons_ |= reasons;
+		carryReasons_ |= reasons;
 	}
 
-	for (size_t i = 0; i < count_; ++i) {
+	for (size_t i = cursor_; i < count_; ++i) {
 		Job& job = jobs_[i];
 		if (job.cancelled) {
 			continue;
 		}
-		const bool woken = (reasons & job.wakes) != 0;
-		if (!woken && !requested[i] && now < job.nextDue) {
+		const bool woken = (passReasons_ & job.wakes) != 0;
+		if (!woken && !passRequested_[i] && now < job.nextDue) {
 			continue;
 		}
 		const Micros start = clock_();
@@ -74,8 +97,14 @@ Micros Loop::service(Micros now, WakeMask reasons) {
 		if (job.gap != kNever) {
 			job.nextDue = now + job.gap;
 		}
+		cursor_ = i + 1;
+		return now;
 	}
 
+	inPass_ = false;
+	if (carryReasons_ != 0) {
+		return now;
+	}
 	Micros next = kNever;
 	for (size_t i = 0; i < count_; ++i) {
 		const Job& job = jobs_[i];

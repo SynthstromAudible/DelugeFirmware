@@ -1594,7 +1594,15 @@ void AudioFileManager::slowRoutine() {
 	// One resident per pass: the re-check of a returned card runs where this routine stands.
 	(void)cardReinsert.tick();
 
+#ifdef DELUGE_HOST
+	// The load trace records the load path. This scan belongs to no load: where its calls fall against a load's
+	// trace depends only on when this routine happens to run, so it runs untraced.
+	const auto loadTraceSink = deluge::storage::load_trace::setSink(nullptr);
 	backgroundWaveformOverviewScan();
+	(void)deluge::storage::load_trace::setSink(loadTraceSink);
+#else
+	backgroundWaveformOverviewScan();
+#endif
 }
 
 // Background "waveform overview" pre-scan (issue #4460). Walks loaded Samples a little at a time, off the

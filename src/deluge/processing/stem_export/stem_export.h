@@ -45,7 +45,7 @@ public:
 
 	/// @brief Advances an in-flight export. Cheap no-op when none is running.
 	///
-	/// Registered as a repeating task by registerTasks(). Each step returns here rather than blocking
+	/// Registered as an app-loop job by registerJobs(). Each step returns here rather than blocking
 	/// per element, so the UI can keep servicing a cancellation and the fill task the render depends on
 	/// can keep running while an export is in flight.
 	void exportRoutine();

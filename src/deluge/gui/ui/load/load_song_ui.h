@@ -62,7 +62,7 @@ public:
 
 	/// @brief Advances an in-flight load past a wait it has finished. Cheap no-op when none is in flight.
 	///
-	/// Registered as a repeating task by registerTasks(), so every entry point - both browser gestures,
+	/// Registered as an app-loop job by registerJobs(), so every entry point - both browser gestures,
 	/// the startup song, and the host harness drivers - is driven from one place.
 	void loadRoutine();
 

@@ -45,6 +45,11 @@ struct JobStats {
 /// A job runs in a pass when a reason it listens for arrived, when something requested it, or when
 /// its gap has passed since its last run ended. A pass runs each such job once, in registration
 /// order, so registration order is priority order. Jobs run to completion, one at a time.
+///
+/// Each service() call runs at most one job, and a pass spans as many calls as it has jobs to run.
+/// The caller yields between calls, so the rest of its executor runs between jobs: the storage
+/// channels on a single-executor host, the BSP's own tasks on the device. A job that waits on a
+/// channel is answered before the next job runs, as it was when each job was its own task.
 class Loop {
 public:
 	using Clock = Micros (*)();
@@ -67,9 +72,18 @@ public:
 	/// Stops @p id for good. Safe from the job's own body.
 	void cancel(JobId id);
 
-	/// Runs one pass: every job that is due, woken or requested, once each, in order.
-	/// @return when the loop next needs a pass (kNever if only a wake or request can make one due)
+	/// Runs the next job of the current pass, starting a pass if none is in progress. A pass runs
+	/// every job that is due, woken or requested, once each, in order, one job per call.
+	///
+	/// Reasons that arrive mid-pass reach the jobs still ahead in this pass, and every job in the
+	/// next pass.
+	/// @return the clock after the run when a job ran (call again after a yield); when the pass has
+	///         ended, when the loop next needs a pass (kNever if only a wake or request can make one
+	///         due)
 	Micros service(Micros now, WakeMask reasons);
+
+	/// Whether a pass is part-way through: call service again after a yield.
+	bool inPass() const { return inPass_; }
 
 	/// How many jobs have been added.
 	size_t size() const { return count_; }
@@ -98,6 +112,19 @@ private:
 	Waker waker_;
 	std::array<Job, kMaxJobs> jobs_{};
 	size_t count_ = 0;
+
+	bool inPass_ = false;
+	/// The job the current pass looks at next.
+	size_t cursor_ = 0;
+	/// The reasons the current pass runs jobs for.
+	WakeMask passReasons_ = 0;
+	/// The requests taken when the current pass started.
+	std::array<bool, kMaxJobs> passRequested_{};
+	/// Reasons that arrived mid-pass, for the next pass.
+	WakeMask carryReasons_ = 0;
 };
+
+/// The app's loop, which deluge_app_service runs.
+extern Loop appLoop;
 
 } // namespace deluge::runtime

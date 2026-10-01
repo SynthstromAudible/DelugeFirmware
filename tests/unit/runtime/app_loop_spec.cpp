@@ -11,6 +11,12 @@ using deluge::runtime::kNoJob;
 using deluge::runtime::Loop;
 using deluge::runtime::Micros;
 
+extern "C" double getSystemTime() noexcept {
+	return 0.0;
+}
+extern "C" void deluge_app_wake(uint32_t) noexcept {
+}
+
 namespace {
 Micros g_now = 0;
 int g_wakes = 0;
@@ -34,6 +40,10 @@ void bodyB() {
 	g_log.push_back('b');
 	g_now += g_body_time;
 }
+void bodyC() {
+	g_log.push_back('c');
+	g_now += g_body_time;
+}
 void selfRequesting() {
 	g_log.push_back('s');
 	g_loop->request(g_self);
@@ -50,6 +60,16 @@ void reset() {
 	g_body_time = 0;
 	g_self = kNoJob;
 }
+
+/// Runs service() until the pass it starts has ended; returns the last call's answer. The reasons go
+/// to the first call only, as a driver hands them over once.
+Micros pass(Loop& loop, Micros now, deluge::runtime::WakeMask reasons) {
+	Micros r = loop.service(now, reasons);
+	while (loop.inPass()) {
+		r = loop.service(now, 0);
+	}
+	return r;
+}
 } // namespace
 
 // clang-format off
@@ -59,10 +79,10 @@ describe app_loop("deluge::runtime::Loop", $ {
 	it("runs a timed job once its gap has passed since it was added", _ {
 		Loop loop{clock, waker};
 		loop.add("a", bodyA, 100, 0);
-		expect(loop.service(1050, 0)).to_equal(Micros{1100});
+		expect(pass(loop, 1050, 0)).to_equal(Micros{1100});
 		expect(g_log.size()).to_equal(size_t{0});
 		g_now = 1100;
-		loop.service(1100, 0);
+		pass(loop, 1100, 0);
 		expect(g_log.size()).to_equal(size_t{1});
 	});
 
@@ -72,23 +92,23 @@ describe app_loop("deluge::runtime::Loop", $ {
 		g_now = 1100;
 		g_body_time = 30;
 		// The run ends at 1130, so the next is due at 1230.
-		expect(loop.service(1100, 0)).to_equal(Micros{1230});
+		expect(pass(loop, 1100, 0)).to_equal(Micros{1230});
 	});
 
 	it("runs eligible jobs once each, in registration order", _ {
 		Loop loop{clock, waker};
 		loop.add("a", bodyA, 0, 0);
 		loop.add("b", bodyB, 0, 0);
-		loop.service(1000, 0);
+		pass(loop, 1000, 0);
 		expect(g_log).to_equal(std::vector<char>{'a', 'b'});
 	});
 
 	it("runs a wake-only job only when a reason it listens for arrives", _ {
 		Loop loop{clock, waker};
 		loop.add("a", bodyA, kNever, 0b10);
-		expect(loop.service(5000, 0b01)).to_equal(kNever);
+		expect(pass(loop, 5000, 0b01)).to_equal(kNever);
 		expect(g_log.size()).to_equal(size_t{0});
-		loop.service(5000, 0b10);
+		pass(loop, 5000, 0b10);
 		expect(g_log.size()).to_equal(size_t{1});
 	});
 
@@ -97,10 +117,10 @@ describe app_loop("deluge::runtime::Loop", $ {
 		JobId a = loop.add("a", bodyA, kNever, 0);
 		loop.request(a);
 		expect(g_wakes).to_equal(1);
-		loop.service(1000, 0);
+		pass(loop, 1000, 0);
 		expect(g_log.size()).to_equal(size_t{1});
 		// Consumed: the next pass does not run it again.
-		loop.service(1000, 0);
+		pass(loop, 1000, 0);
 		expect(g_log.size()).to_equal(size_t{1});
 	});
 
@@ -109,9 +129,9 @@ describe app_loop("deluge::runtime::Loop", $ {
 		g_loop = &loop;
 		g_self = loop.add("s", selfRequesting, kNever, 0);
 		loop.request(g_self);
-		expect(loop.service(1000, 0)).to_equal(Micros{1000});
+		expect(pass(loop, 1000, 0)).to_equal(Micros{1000});
 		expect(g_log.size()).to_equal(size_t{1});
-		loop.service(1000, 0);
+		pass(loop, 1000, 0);
 		expect(g_log.size()).to_equal(size_t{2});
 	});
 
@@ -119,9 +139,9 @@ describe app_loop("deluge::runtime::Loop", $ {
 		Loop loop{clock, waker};
 		g_loop = &loop;
 		g_self = loop.add("c", selfCancelling, 0, 0);
-		loop.service(1000, 0);
+		pass(loop, 1000, 0);
 		loop.request(g_self);
-		expect(loop.service(2000, 0)).to_equal(kNever);
+		expect(pass(loop, 2000, 0)).to_equal(kNever);
 		expect(g_log).to_equal(std::vector<char>{'c'});
 	});
 
@@ -129,9 +149,9 @@ describe app_loop("deluge::runtime::Loop", $ {
 		Loop loop{clock, waker};
 		JobId a = loop.add("a", bodyA, 0, 0);
 		g_body_time = 30;
-		loop.service(1000, 0);
+		pass(loop, 1000, 0);
 		g_body_time = 10;
-		loop.service(g_now, 0);
+		pass(loop, g_now, 0);
 		auto s = loop.stats(a);
 		expect(s.runs).to_equal(uint32_t{2});
 		expect(s.lastRun).to_equal(Micros{10});
@@ -142,7 +162,7 @@ describe app_loop("deluge::runtime::Loop", $ {
 		Loop loop{clock, waker};
 		JobId a = loop.add("a", bodyA, 0, 0);
 		g_body_time = 30;
-		loop.service(1000, 0);
+		pass(loop, 1000, 0);
 		loop.resetStats();
 		auto s = loop.stats(a);
 		expect(s.runs).to_equal(uint32_t{0});
@@ -154,6 +174,43 @@ describe app_loop("deluge::runtime::Loop", $ {
 		Loop loop{clock, waker};
 		expect(loop.stats(3).runs).to_equal(uint32_t{0});
 		expect(loop.stats(3).name == nullptr).to_be_truthy();
+	});
+
+	it("runs one job per call and resumes the pass where it left off", _ {
+		Loop loop{clock, waker};
+		loop.add("a", bodyA, 0, 0);
+		loop.add("b", bodyB, 0, 0);
+		g_body_time = 5;
+		// A job ran: the answer is the clock after it, to be called again after a yield.
+		expect(loop.service(1000, 0)).to_equal(Micros{1005});
+		expect(g_log).to_equal(std::vector<char>{'a'});
+		expect(loop.inPass()).to_be_truthy();
+		loop.service(g_now, 0);
+		expect(g_log).to_equal(std::vector<char>{'a', 'b'});
+		expect(loop.inPass()).to_be_truthy();
+		// Nothing left in the pass: it ends, and the answer is when the next one is due (a's, which
+		// ended at 1005 with no gap).
+		expect(loop.service(g_now, 0)).to_equal(Micros{1005});
+		expect(loop.inPass()).to_be_falsy();
+		expect(g_log).to_equal(std::vector<char>{'a', 'b'});
+	});
+
+	it("a reason arriving mid-pass reaches jobs earlier in the order on the next pass", _ {
+		Loop loop{clock, waker};
+		loop.add("a", bodyA, kNever, 0b10);
+		loop.add("b", bodyB, 0, 0);
+		loop.add("c", bodyC, kNever, 0b10);
+		loop.service(1000, 0);
+		expect(g_log).to_equal(std::vector<char>{'b'});
+		// Mid-pass: c, still ahead, runs in this pass; a, already behind, does not.
+		loop.service(1000, 0b10);
+		expect(g_log).to_equal(std::vector<char>{'b', 'c'});
+		// The pass ends and asks for another at once, for a.
+		expect(loop.service(1000, 0)).to_equal(Micros{1000});
+		expect(loop.inPass()).to_be_falsy();
+		// The next pass carries the reason to a.
+		loop.service(1000, 0);
+		expect(g_log).to_equal(std::vector<char>{'b', 'c', 'a'});
 	});
 
 	it("refuses a job past its capacity", _ {

@@ -161,7 +161,7 @@ static CURRENT: AtomicI8 = AtomicI8::new(-1);
 /// lock). `RESOURCE_SD_ROUTINE` needs none either: no SD-routine work runs across a yield.
 static USB_GATE: Mutex<CriticalSectionRawMutex, ()> = Mutex::new(());
 
-// Set by [`set_spawner`] before `registerTasks()` and read only on the thread executor.
+// Set by [`set_spawner`] before `deluge_app_init` and read only on the thread executor.
 static mut SPAWNER: Option<Spawner> = None;
 
 /// Sets the thread executor's spawner, which the `add*Task` functions spawn runners with.
@@ -256,15 +256,6 @@ fn slot_of(id: TaskID) -> Option<&'static TaskSlot> {
 
 fn current_slot() -> Option<&'static TaskSlot> {
     slot_of(CURRENT.load(Ordering::Relaxed))
-}
-
-/// The number of claimed slots. The host harnesses poll it as the sign that `registerTasks()` ran.
-#[cfg(feature = "host_app")]
-pub fn registered_task_count() -> usize {
-    SLOTS
-        .iter()
-        .filter(|s| s.used.load(Ordering::Acquire))
-        .count()
 }
 
 /// Runs one Deluge task: waits per the slot's schedule or condition, runs the C++ body to

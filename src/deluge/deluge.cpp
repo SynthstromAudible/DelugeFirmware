@@ -73,6 +73,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/stem_export/stem_export.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
@@ -410,81 +411,94 @@ extern "C" void deluge_startup_skip_settings_prelude() noexcept {
 	startupConditionalTask = deluge::storage::armStartupSong;
 }
 
-void registerTasks() {
-	// addRepeatingTask arguments are:
-	//
-	// - priority (lower = more important)
-	// - min time between calls
-	// - target time between calls
-	// - max time between calls
-	//
-	// Scheduling algorithm is in chooseBestTask(), briefly:
-	// - keep track of average time a task takes
-	// - run the least important task that can finish before
-	//   a more important task needs to start
-	//
-	// Explicit gaps at 10, 20, 30, 40 for dynamic tasks.
-	//
-	// p++ for priorities, so we can be sure the lexical order
-	// here is always priority order.
+namespace {
+using deluge::runtime::appLoop;
+using deluge::runtime::kNever;
+using deluge::runtime::Micros;
 
-	// 0-9: High priority (10 for dyn tasks)
-	uint8_t p = 0;
-	addRepeatingTask(MidiEngine::check_incoming_usb, p++, 0.0005, 0.0005, 0.001, "check usb midi", RESOURCE_USB);
+constexpr Micros us(double seconds) {
+	return static_cast<Micros>(seconds * 1'000'000.0);
+}
 
-	// this will block itself unless an encoder is actually moved so can have a fast rate
-	encoders::EncoderTaskID = addRepeatingTask(&(encoders::interpretEncodersTask), p++, 0.001, 0.001, 0.002,
-	                                           "interpret encoders fast", RESOURCE_NONE);
-	// formerly part of audio routine, updates midi and clock
-	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 0.0005, 0.001, 0.002, "playback routine", RESOURCE_NONE);
-	midiEngine.routine_task_id = addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 0.0005, 0.001, 0.002,
-	                                              "midi routine", RESOURCE_SD | RESOURCE_USB);
-	// handles sd card recorders
-	// named "slow" but isn't actually, it handles audio recording setup
-	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow", RESOURCE_NONE);
-	// frees what deleted outputs and drums handed to the render, once it has run two blocks past them
-	addRepeatingTask([]() { AudioEngine::reclaimRetired(); }, p++, 0.005, 0.01, 0.05, "reclaim retired", RESOURCE_NONE);
-	addRepeatingTask(&(readButtonsAndPadsOnce), p++, 0.005, 0.005, 0.01, "buttons and pads", RESOURCE_NONE);
+deluge::runtime::JobId startupJob = deluge::runtime::kNoJob;
 
-	// 11-19: Medium priority (20 for dyn tasks)
-	p = 11;
+#if ENABLE_TEXT_OUTPUT
+/// Jobs whose worst run is at least this long are reported: this long is how late a single run
+/// can make every other job, the playback and MIDI routines included.
+constexpr Micros kReportRunAtLeast = 1000;
 
-	// 30 Hz update desired?
-	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
+/// Prints each job whose worst run since the last report reached kReportRunAtLeast, then starts a
+/// new window. Debug builds only; its output goes wherever D_PRINTLN does (RTT on the device).
+void reportJobStats() {
+	for (deluge::runtime::JobId id = 0; id < appLoop.size(); ++id) {
+		const auto s = appLoop.stats(id);
+		if (s.maxRun >= kReportRunAtLeast) {
+			D_PRINTLN("job %s: worst %llu us over %lu runs (last %llu us)", s.name,
+			          static_cast<unsigned long long>(s.maxRun), static_cast<unsigned long>(s.runs),
+			          static_cast<unsigned long long>(s.lastRun));
+		}
+	}
+	appLoop.resetStats();
+}
+#endif
+
+/// Polls for the card, then runs the startup task once.
+void startupWhenCardReady() {
+	if (isCardReady()) {
+		startupConditionalTask();
+		appLoop.cancel(startupJob);
+	}
+}
+} // namespace
+
+// The app's jobs, which the BSP's app loop runs (runtime/app_loop.h): in registration order, one at a
+// time. A job runs when its gap has passed since its last run ended, or when a reason it listens for
+// arrives. The render is not a job: the BSP's audio tier drives it (deluge_app_audio_tick).
+void registerJobs() {
+	appLoop.add("interpret encoders", &encoders::interpretEncodersTask, kNever, DELUGE_WAKE_ENCODERS);
+	// Formerly part of the audio routine: updates MIDI and clock.
+	appLoop.add("playback routine", [] { playbackHandler.routine(); }, us(0.0015), 0);
+	appLoop.add("midi routine", [] { playbackHandler.midiRoutine(); }, us(0.0015), 0);
+	// Named "slow" but isn't: it handles audio recording setup.
+	appLoop.add("audio slow", &AudioEngine::slowRoutine, us(0.006), 0);
+	// Frees what deleted outputs and drums handed to the render, once it has run two blocks past them.
+	appLoop.add("reclaim retired", [] { AudioEngine::reclaimRetired(); }, us(0.015), 0);
+	appLoop.add("buttons and pads", &readButtonsAndPadsOnce, us(0.01), 0);
+	appLoop.add("pending UI", &doAnyPendingUIRendering, us(0.02), 0);
 
 	// Advances a song load past a wait it has finished. Cheap when no load is in flight, and it runs one
 	// phase of the load and returns, its card I/O going through the channels, so it holds no SD resource itself.
-	addRepeatingTask([]() { loadSongUI.loadRoutine(); }, p++, 0.001, 0.005, 0.02, "song load", RESOURCE_NONE);
+	appLoop.add("song load", [] { loadSongUI.loadRoutine(); }, us(0.006), 0);
 
 	// A staged document save builds itself on this tier and then stores it in one operation. Like the
 	// song load above, it parks between steps and needs something to bring it back -- and returning to
 	// the run loop is the only reason the storage driver can make progress at all.
-	addRepeatingTask([]() { SaveUI::saveRoutine(); }, p++, 0.001, 0.005, 0.02, "document save", RESOURCE_NONE);
+	appLoop.add("document save", [] { SaveUI::saveRoutine(); }, us(0.006), 0);
 	// The sample browser's claim is a phase machine on this tier, and like the save above it waits between steps and
-	// needs something to bring it back, whichever UI is on top. At the graphics routine's 15 ms, so the stall bound on
-	// its load keeps its length.
-	addRepeatingTask([]() { deluge::gui::sampleClaim.routine(); }, p++, 0.015, 0.015, 0.03, "sample claim",
-	                 RESOURCE_NONE);
+	// needs something to bring it back, whichever UI is on top. Every 30 ms, so the stall bound on its load keeps its
+	// length.
+	appLoop.add("sample claim", [] { deluge::gui::sampleClaim.routine(); }, us(0.03), 0);
 	// The browser's folder import is the same kind of machine, and its context menu is on top while it runs, so it has
 	// no graphics routine of its own to be ticked from either.
-	addRepeatingTask([]() { deluge::gui::folderImport.routine(); }, p++, 0.015, 0.015, 0.03, "folder import",
-	                 RESOURCE_NONE);
+	appLoop.add("folder import", [] { deluge::gui::folderImport.routine(); }, us(0.03), 0);
 	// The preset browser's own loads are the same kind of machine; the clone menu can be on top while one is out.
 	// Undo and redo are the same kind of machine: the reversion's samples are loaded here before it runs.
-	addRepeatingTask([]() { deluge::gui::reversion.routine(); }, p++, 0.015, 0.015, 0.03, "reversion", RESOURCE_NONE);
+	appLoop.add("reversion", [] { deluge::gui::reversion.routine(); }, us(0.03), 0);
 	// The pattern browser's reads are the same kind of machine, and a load from Enter lands after the browser has
-	// closed. They share this task rather than taking a slot of their own: the task table is full.
-	addRepeatingTask(
-	    []() {
+	// closed. They share this job: one job per UI surface.
+	appLoop.add(
+	    "instrument load",
+	    [] {
 		    deluge::gui::instrumentLoad.routine();
 		    loadPatternUI.loadRoutine();
 	    },
-	    p++, 0.015, 0.015, 0.03, "instrument load", RESOURCE_NONE);
+	    us(0.03), 0);
 	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
 	// the same reason: both are request/collect state machines whose caller returned long ago, and
 	// neither has a UI tick of its own to resume from.
-	addRepeatingTask(
-	    []() {
+	appLoop.add(
+	    "settings io",
+	    [] {
 		    deluge::storage::bytes::serviceRoutine();
 		    // The favourites bank rides the same channel and applies what an operation produced on THIS tier, so
 		    // it runs straight after the channel has been driven.
@@ -492,42 +506,37 @@ void registerTasks() {
 		    // A staged document released mid-read is parked until the byte channel lets go of it; free it then.
 		    StorageManager::reapOrphanedStaging();
 	    },
-	    p++, 0.001, 0.005, 0.02, "settings io", RESOURCE_NONE);
+	    us(0.006), 0);
 
 	// Advances the startup fail-safe's phases. Beside the two above for the same reason: it is a
 	// request/collect state machine whose caller returned long ago, and it has no UI tick of its own
 	// to resume from. Cheap and reentrant once the machine reaches Done.
-	addRepeatingTask([]() { deluge::storage::startupSongRoutine(); }, p++, 0.001, 0.005, 0.02, "startup failsafe",
-	                 RESOURCE_NONE);
+	appLoop.add("startup failsafe", [] { deluge::storage::startupSongRoutine(); }, us(0.006), 0);
 
 	// Same shape for stem export: each pass runs one phase of the export and returns, so the
 	// UI keeps running for the whole export - which is what makes cancelling it possible at all.
-	addRepeatingTask([]() { stemExport.exportRoutine(); }, p++, 0.001, 0.005, 0.02, "stem export", RESOURCE_NONE);
+	appLoop.add("stem export", [] { stemExport.exportRoutine(); }, us(0.006), 0);
 
 	// Check for and handle queued SysEx traffic
-	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.",
-	                 RESOURCE_SD);
+	appLoop.add("Handle pending SysEx traffic.", [] { smSysex::handleNextSysEx(); }, us(0.0004), 0);
 
-	// 21-29: Low priority (30 for dyn tasks)
-	p = 21;
 	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
 	// if recordings are finished
-	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, p++, 0.1, 0.1, 0.2, "audio file slow", RESOURCE_SD);
+	appLoop.add("audio file slow", [] { audioFileManager.slowRoutine(); }, us(0.2), 0);
 	// Needs the SD resources: it can call finishRecording(), which frees the SampleRecorder, and that must not happen
 	// while the card routine is part-way through using it.
-	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow",
-	                 RESOURCE_SD | RESOURCE_SD_ROUTINE);
+	appLoop.add("audio recorder slow", [] { audioRecorder.slowRoutine(); }, us(0.1), 0);
 	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
-	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "playback slow routine",
-	                 RESOURCE_SD);
-	// 31-39: Idle priority (40 for dyn tasks)
-	p = 31;
-	addRepeatingTask(&deluge_control_flush, p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
-	addRepeatingTask(&deluge_display_service, p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
+	appLoop.add("playback slow routine", [] { playbackHandler.slowRoutine(); }, us(0.1), 0);
+	appLoop.add("PIC flush", &deluge_control_flush, us(0.002), 0);
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task
-	addRepeatingTask([]() { uiTimerManager.routine(); }, p++, 0.0001, 0.0007, 0.01, "ui routine", RESOURCE_NONE);
+	appLoop.add("ui routine", [] { uiTimerManager.routine(); }, us(0.0008), 0);
+	startupJob = appLoop.add("startup/render", &startupWhenCardReady, us(0.004), 0);
+#if ENABLE_TEXT_OUTPUT
+	appLoop.add("job stats", &reportJobStats, us(10.0), 0);
+#endif
 }
 // One-time bring-up: everything up to (but not including) registering the tasks.
 static void deluge_boot(const DelugeBoard* board) {
@@ -566,10 +575,6 @@ static void deluge_boot(const DelugeBoard* board) {
 #if RECORD_TEST_MODE == 1
 	makeTestRecording();
 #endif
-
-	// encoders::init() is deferred until after registerTasks() below: it hands the encoder
-	// edge source the scheduler id of the encoder task to wake on movement (the task blocks
-	// itself between rotations), and that id isn't assigned until the task is registered.
 
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
@@ -622,7 +627,6 @@ static void deluge_boot(const DelugeBoard* board) {
 	// window that `deluge::boot::finished()` names.
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
-	addConditionalTask(startupConditionalTask, 100, isCardReady, "startup/render", RESOURCE_SD | RESOURCE_SD_ROUTINE);
 
 #ifdef TEST_VECTOR
 	NoteVector noteVector;
@@ -651,17 +655,13 @@ static void deluge_boot(const DelugeBoard* board) {
 	// (The SD-routine reentrancy flag is scheduler-owned and starts clear; no reset needed here.)
 }
 
-// libdeluge entry (app.h). The platform calls deluge_app_init() once at startup; the
-// libdeluge/scheduler.h C ABI is backed by the Embassy executor (one task per registered
-// task — see src/bsp/rust/src/scheduler.rs), so we registerTasks() here and the
-// runners drive the app: addRepeatingTask spawns an Embassy task immediately.
-// registerTasks() must precede encoders::init() — the encoder edge source needs
-// the (now-assigned) encoder task id to wake the self-blocking encoder task.
+// libdeluge entry (app.h). The platform calls deluge_app_init() once at startup. When it returns, the
+// BSP's audio tier starts calling deluge_app_audio_tick() and its app loop deluge_app_service(),
+// which runs the jobs registerJobs() added.
 extern "C" void deluge_app_init(const DelugeBoard* board) noexcept {
 	try {
 		deluge_boot(board);
-		registerTasks();
-		encoders::init();
+		registerJobs();
 		// The BSP's audio tier starts rendering once this returns.
 		AudioEngine::renderDrivenByTier.store(true, std::memory_order_release);
 	} catch (...) {
@@ -671,10 +671,12 @@ extern "C" void deluge_app_init(const DelugeBoard* board) noexcept {
 	}
 }
 
-// Placeholder until the app loop's job list is wired up to it (Task 4): never asks for a pass, and
-// nothing spawns the BSP's app_loop task yet, so this never runs.
-extern "C" uint64_t deluge_app_service(uint64_t, DelugeWake) noexcept {
-	return UINT64_MAX;
+extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noexcept {
+	try {
+		return appLoop.service(now_us, reasons);
+	} catch (...) {
+		return now_us;
+	}
 }
 
 // Card-detect is now pull-based: AudioFileManager::slowRoutine() polls

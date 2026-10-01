@@ -43,7 +43,7 @@ under the `host_app` feature, on the Embassy host that `dbt sim` and the gates r
      (IRQ mode), so `[task]` does not mean thread mode.
    - `[isr]`: may be called from an interrupt handler or a fault path.
 
-   Before `registerTasks()`, the boot's song-less render runs `routine()` once on the task executor, so the
+   Before `registerJobs()`, the boot's song-less render runs `routine()` once on the task executor, so the
    functions `routine()` reaches directly (`deluge_audio_drive`, `deluge_app_render`, `deluge_app_render_skipped`,
    `deluge_heap_check`) also carry `[task]`. The render's deeper callees do not: the three `[audio]`-only ones
    (`deluge_audio_frames_until_block_offset` and `deluge_midi_gate_timer_arm`, reached only when MIDI or gate output

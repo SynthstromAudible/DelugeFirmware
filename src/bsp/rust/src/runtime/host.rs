@@ -28,8 +28,8 @@ mod scenario;
 /// Boots the C++ app on the host app executor, in the device `app_task`'s order: wait for the
 /// PIC handshake, bring SD up, mount the filesystem, then `deluge_app_init`.
 ///
-/// It then marks boot finished and parks: the scheduler's task runners, spawned by
-/// `deluge_app_init`, own the app's work.
+/// It then marks boot finished and parks: the app loop (`crate::app_loop`) runs the app's jobs
+/// from then on.
 #[cfg(feature = "host_app")]
 #[embassy_executor::task]
 async fn host_app_task() {
@@ -46,12 +46,10 @@ async fn host_app_task() {
         }
     }
 
-    log::info!("deluge-bsp-rust: host deluge_app_init() (registers + spawns task runners)");
-    // `registerTasks()` spawns the per-task runners onto this executor through the spawner
-    // stashed by `scheduler::set_spawner`; they run once this task yields.
+    log::info!("deluge-bsp-rust: host deluge_app_init() (registers the app's jobs)");
     unsafe { sys::deluge_app_init(board::deluge_board()) };
     boot::mark_finished();
-    log::info!("deluge-bsp-rust: host scheduler running");
+    log::info!("deluge-bsp-rust: host boot finished");
 
     core::future::pending::<()>().await
 }
@@ -131,7 +129,6 @@ pub fn main() {
                     crate::scheduler::set_spawner(spawner);
                     spawner.spawn(control::pic_pump().unwrap());
                     spawner.spawn(control::pad_render().unwrap());
-                    spawner.spawn(control::encoder_wake_pump().unwrap());
                     spawner.spawn(display::oled_render().unwrap());
                 });
             })
@@ -151,7 +148,7 @@ pub fn main() {
         log::info!("deluge-bsp-rust: whole-BSP host boot OK (control/display tasks quiescent)");
     }
 
-    // The threaded host app. Boot is proven by `registerTasks()` claiming a scheduler slot, with
+    // The threaded host app. Boot is proven by boot finishing (`deluge_app_init` returning), with
     // the app's first OLED frame as a fallback signal.
     #[cfg(all(feature = "host_app", not(feature = "sim")))]
     {
@@ -254,11 +251,8 @@ pub fn main() {
         let deadline = Instant::now() + Duration::from_secs(20);
         let mut boot_ok = false;
         loop {
-            let tasks = crate::scheduler::registered_task_count();
-            if tasks > 0 {
-                log::info!(
-                    "deluge-bsp-rust: HOST APP boot OK — registerTasks() claimed {tasks} scheduler slot(s)"
-                );
+            if crate::boot::finished() {
+                log::info!("deluge-bsp-rust: HOST APP boot OK — deluge_app_init returned");
                 boot_ok = true;
             }
             if deluge_bsp::oled::boot_frame_captured() {
@@ -270,8 +264,7 @@ pub fn main() {
             }
             if Instant::now() >= deadline {
                 panic!(
-                    "host app boot: registerTasks() had not claimed any scheduler slot within 20s \
-                     (deluge_app_init likely wedged or crashed before reaching registerTasks())"
+                    "host app boot: deluge_app_init had not returned within 20s (wedged or crashed during boot)"
                 );
             }
             std::thread::sleep(Duration::from_millis(5));
@@ -531,8 +524,8 @@ fn insert_sim_card() -> Option<std::path::PathBuf> {
 /// Starts the threaded host app: the audio, streaming and app executors, each on its own OS thread,
 /// in the device's bring-up order.
 ///
-/// The app executor spawns the control and display tasks and [`host_app_task`], then runs `extra`
-/// for the caller's own tasks. Returns once all three threads are running.
+/// The app executor spawns the control and display tasks, [`host_app_task`] and the app loop, then
+/// runs `extra` for the caller's own tasks. Returns once all three threads are running.
 #[cfg(feature = "host_app")]
 fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 'static) {
     use embassy_executor::{Executor, Spawner};
@@ -606,9 +599,9 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
                 crate::scheduler::set_spawner(spawner);
                 spawner.spawn(control::pic_pump().unwrap());
                 spawner.spawn(control::pad_render().unwrap());
-                spawner.spawn(control::encoder_wake_pump().unwrap());
                 spawner.spawn(display::oled_render().unwrap());
                 spawner.spawn(host_app_task().unwrap());
+                spawner.spawn(crate::app_loop::app_loop().unwrap());
                 extra(spawner);
             });
         })

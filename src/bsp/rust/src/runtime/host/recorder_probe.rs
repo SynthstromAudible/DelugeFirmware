@@ -34,7 +34,7 @@ pub const STATE_UNAVAILABLE: u8 = crate::sys::DelugeRegionState::Unavailable as 
 /// The outcome of [`run`]. An unresolved read is a finding, not a failure, so the caller judges.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct RecorderProbeResult {
-    /// Boot reached `registerTasks()` within `step_timeout`.
+    /// Boot finished within `step_timeout`.
     pub boot_ready: bool,
     /// The first acquire's state, after the drain ticks; expected LOADING.
     pub initial_state: u8,
@@ -63,11 +63,8 @@ async fn wait_for(timeout: Duration, mut cond: impl FnMut() -> bool) -> bool {
 pub async fn run(step_timeout: Duration, poll_window: Duration) -> RecorderProbeResult {
     let mut result = RecorderProbeResult::default();
 
-    // Touch no app state before `registerTasks()` has run.
-    result.boot_ready = wait_for(step_timeout, || {
-        crate::scheduler::registered_task_count() > 0
-    })
-    .await;
+    // Touch no app state before boot has finished.
+    result.boot_ready = wait_for(step_timeout, || crate::boot::finished()).await;
     if !result.boot_ready {
         return result;
     }

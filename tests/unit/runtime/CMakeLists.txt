@@ -6,4 +6,5 @@ deluge_specs_driver(runtime_specs
     ../../../src/deluge/runtime/app_loop.cpp
   INCLUDES
     ../../../src/deluge # runtime/app_loop.h
+    ../../../include # libdeluge/app.h
 )

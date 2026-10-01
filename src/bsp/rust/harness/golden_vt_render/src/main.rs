@@ -50,7 +50,7 @@ use deluge_bsp_rust::deluge_bsp;
 use deluge_bsp_rust::peripherals::{board, control, display};
 use deluge_bsp_rust::storage::efatfs::host as efatfs_host;
 use deluge_bsp_rust::storage::{memory_card, sd, sd_image, streaming_loader};
-use deluge_bsp_rust::{boot, scheduler, sys, tier_meter};
+use deluge_bsp_rust::{app_loop, boot, scheduler, sys, tier_meter};
 
 /// A stepped scenario, as `tests/integration/scenarios/scenario_table.h` declares it: found by
 /// name, then driven by [`run_stepped_scenario`]: `begin` once, then `dispatch_step` and
@@ -129,7 +129,7 @@ async fn boot_task() {
     // The stem export (GOLDEN_SCENARIO unset) needs no boot settings, and the settings prelude's
     // reads (and its write when MIDI_FOLLOW.XML is absent) would occupy the single-slot byte
     // channel the export's folder search uses. Scenarios keep the prelude, which exercises it.
-    // Must precede deluge_app_init, which registers the task.
+    // Must precede deluge_app_init, which registers the startup job.
     if std::env::var("GOLDEN_SCENARIO")
         .unwrap_or_default()
         .is_empty()
@@ -138,12 +138,12 @@ async fn boot_task() {
         unsafe { sys::deluge_startup_skip_settings_prelude() };
     }
 
-    log::info!("golden_vt_render: deluge_app_init() (registers + spawns task runners)");
+    log::info!("golden_vt_render: deluge_app_init() (registers the app's jobs)");
     // SAFETY: called once, after `scheduler::set_spawner` (in main) and before anything else
     // touches the app or scheduler state.
     unsafe { sys::deluge_app_init(board::deluge_board()) };
-    // A stepped scenario's hook for this moment: the task runners deluge_app_init spawned have not
-    // been polled, so the render has not run yet.
+    // A stepped scenario's hook for this moment: boot has not been marked finished, so neither the
+    // app loop nor the render has run yet.
     if let Some(on_app_init) =
         stepped_scenario(&std::env::var("GOLDEN_SCENARIO").unwrap_or_default())
             .and_then(|scenario| scenario.on_app_init)
@@ -153,9 +153,9 @@ async fn boot_task() {
     }
     boot::mark_finished();
     BOOT_MOUNTED.store(true, Ordering::Release);
-    log::info!("golden_vt_render: boot+mount complete; scheduler running");
+    log::info!("golden_vt_render: boot+mount complete; app loop running");
 
-    // The scheduler's task runners, spawned by deluge_app_init, own the app's work.
+    // The app loop runs the app's jobs from here on.
     core::future::pending::<()>().await
 }
 
@@ -1388,7 +1388,7 @@ fn main() {
     // one executor.
     spawner.spawn(control::pic_pump().unwrap());
     spawner.spawn(control::pad_render().unwrap());
-    spawner.spawn(control::encoder_wake_pump().unwrap());
+    spawner.spawn(app_loop::app_loop().unwrap());
     spawner.spawn(display::oled_render().unwrap());
     spawner.spawn(boot_task().unwrap());
     spawner.spawn(render::render_task().unwrap());

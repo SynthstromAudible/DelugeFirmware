@@ -197,12 +197,10 @@ pub fn start() -> ! {
         (*p).assume_init_mut()
     };
     executor.run(move |spawner: Spawner| {
-        // For the task runners `registerTasks()` spawns through the scheduler's C ABI.
+        // For tasks added through the scheduler's C ABI (`libdeluge/scheduler.h`).
         scheduler::set_spawner(spawner);
         // Decodes pad and button input.
         spawner.spawn(control::pic_pump().unwrap());
-        // Wakes the app's self-blocking encoder task on encoder movement.
-        spawner.spawn(control::encoder_wake_pump().unwrap());
         // The sole PIC transmitter: drains the LED/pad output queue.
         spawner.spawn(control::pad_render().unwrap());
         // SSD1309 init and frame streaming over RSPI0.
@@ -216,6 +214,8 @@ pub fn start() -> ! {
         spawner.spawn(usb::midi_rx_task(usb_midi.ep_out).unwrap());
         spawner.spawn(usb::midi_tx_task(usb_midi.ep_in).unwrap());
         spawner.spawn(app_task().unwrap());
+        // Runs the app's jobs once boot has finished.
+        spawner.spawn(crate::app_loop::app_loop().unwrap());
         // Re-identifies the card after a swap. Its own task because `sd::init()` needs
         // embassy-time timers, which a blocking storage call cannot run.
         spawner.spawn(sd::card_service().unwrap());
@@ -224,8 +224,8 @@ pub fn start() -> ! {
 
 /// Boots the C++ app, then parks.
 ///
-/// `deluge_app_init` calls `registerTasks()`, which spawns one Embassy task per Deluge task
-/// through the [`scheduler`] C ABI; those runners drive the app from then on.
+/// Once `deluge_app_init` returns, the app loop (`crate::app_loop`) runs the app's jobs and the
+/// audio tier drives the render.
 #[embassy_executor::task]
 async fn app_task() {
     use embassy_time::Timer;
@@ -284,11 +284,10 @@ async fn app_task() {
         }
     }
 
-    log::info!("deluge-rust: deluge_app_init() (registers + spawns task runners)");
-    // The task runners `registerTasks()` spawns start once this task yields.
+    log::info!("deluge-rust: deluge_app_init() (registers the app's jobs)");
     unsafe { sys::deluge_app_init(board::deluge_board()) };
     boot::mark_finished();
-    log::info!("deluge-rust: scheduler running");
+    log::info!("deluge-rust: boot finished");
 
     core::future::pending::<()>().await
 }

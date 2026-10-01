@@ -211,6 +211,12 @@ void runTick() {
 		if (collected == DELUGE_CHANNEL_PENDING && ++g_ticks < kStageTicks) {
 			break;
 		}
+		// UNKNOWN: another caller's request displaced the answer before it was taken (a read's answer is not held
+		// for its owner, because a read can be asked again). Ask again, as file_reader does.
+		if (collected == DELUGE_CHANNEL_UNKNOWN && ++g_ticks < kStageTicks) {
+			g_stage = Stage::StatusRead;
+			break;
+		}
 		g_readStatus = (collected == DELUGE_CHANNEL_FAILED) ? error : DELUGE_OK;
 		g_ticks = 0;
 		g_stage = Stage::StatusWrite;

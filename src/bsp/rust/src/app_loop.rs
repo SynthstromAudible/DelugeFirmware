@@ -56,6 +56,9 @@ async fn encoder_edges() {
 /// with the current time in µs and the reasons, and waits for the deadline it returns
 /// (`u64::MAX` for none).
 ///
+/// When the deadline it returns has already come, it yields once before calling again, so other
+/// tasks on the executor run between calls.
+///
 /// The first pass runs at once. Never returns.
 pub async fn drive(service: fn(u64, u32) -> u64) {
     let mut due = Instant::now();
@@ -75,6 +78,14 @@ pub async fn drive(service: fn(u64, u32) -> u64) {
         } else {
             Instant::from_micros(next)
         };
+        // The app runs one job per call and answers "now" while its pass has more to run. The
+        // wait below can end without yielding (a wake or encoder edge already pending ends it on
+        // its first poll), so yield here: every job run is followed by an executor turn, and the
+        // rest of this executor (the storage channels on a single-executor host, the BSP's own
+        // tasks on the device) runs between jobs.
+        if due <= Instant::now() {
+            embassy_futures::yield_now().await;
+        }
     }
 }
 

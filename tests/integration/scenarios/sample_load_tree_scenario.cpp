@@ -157,11 +157,13 @@ constexpr int32_t kMaxWaitTicks = 200000;
 /// while a load walks the tree. Pinned so a walk that drops or adds a call is seen.
 ///
 /// These calls keep the audio engine running while a load walks the tree; a ticked walk also returns to the run
-/// loop, so the count reflects how the walk is structured, not a property of the tree.
-constexpr int32_t kSongRoutines = 39;
+/// loop, so the count reflects how the walk is structured, not a property of the tree. The background waveform
+/// overview scan runs untraced (AudioFileManager::slowRoutine), so its calls, which fall wherever the app loop
+/// happens to run it, are not counted.
+constexpr int32_t kSongRoutines = 38;
 constexpr int32_t kSynthRoutines = 2;
 constexpr int32_t kKitRoutines = 3;
-constexpr int32_t kCrucialRoutines = 84;
+constexpr int32_t kCrucialRoutines = 76;
 
 /// Milliseconds the loader holds each load during an async leg, so each load spans several scenario ticks.
 constexpr uint32_t kAsyncLatencyMs = 20;

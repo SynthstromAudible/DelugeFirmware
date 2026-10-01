@@ -6,7 +6,7 @@
 //! encoder GPIO/GIC setup runs in the device runtime's pre-executor window, with IRQs masked.
 #![allow(non_snake_case)]
 
-use core::sync::atomic::{AtomicBool, AtomicI8, AtomicU16, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 
 use deluge_bsp::{encoder, pic};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -371,52 +371,6 @@ pub extern "C" fn deluge_control_flush() {
     }
 }
 
-/// The scheduler task id of the app's encoder task, from [`deluge_encoder_io_init`]; -1 until
-/// then. [`encoder_wake_pump`] unblocks it on movement.
-static ENCODER_WAKE_TASK: AtomicI8 = AtomicI8::new(-1);
-
-/// Records `wake_task`, the app's encoder task, for [`encoder_wake_pump`] to wake.
-///
-/// The GPIO/GIC bring-up already ran in the pre-executor window (it must precede interrupt
-/// enable). The app's `interpretEncodersTask` blocks itself after each run and relies on the board
-/// to unblock it when an encoder moves; without the wake the encoders go dead.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_encoder_io_init(wake_task: i8) {
-    ENCODER_WAKE_TASK.store(wake_task, Ordering::Relaxed);
-    log::info!("deluge-rust: deluge_encoder_io_init (encoder wake task id={wake_task})");
-}
-
-/// Background task: bridges the encoder edge ISRs to the scheduler.
-///
-/// Waits on `encoder::ENCODER_WAKER` and unblocks the app's encoder task so it drains the edges.
-/// Without it, encoder input never reaches the app.
-#[embassy_executor::task]
-pub async fn encoder_wake_pump() {
-    loop {
-        // Register the waker before checking the deltas so an ISR in the gap can't be missed.
-        core::future::poll_fn(|cx| {
-            encoder::ENCODER_WAKER.register(cx.waker());
-            if encoder::ENCODER_DELTAS
-                .iter()
-                .any(|d| d.load(Ordering::Relaxed) != 0)
-            {
-                core::task::Poll::Ready(())
-            } else {
-                core::task::Poll::Pending
-            }
-        })
-        .await;
-
-        let id = ENCODER_WAKE_TASK.load(Ordering::Relaxed);
-        if id >= 0 {
-            crate::scheduler::unblockTask(id);
-        }
-        // Bound the unblock rate and let the encoder task drain the deltas before the re-check
-        // (else this spins until it runs). 1 ms is imperceptible for knob turns.
-        embassy_time::Timer::after(embassy_time::Duration::from_millis(1)).await;
-    }
-}
-
 abi_pin!(
     deluge_control_flush,
     deluge_control_pad_output_space,
@@ -430,6 +384,5 @@ abi_pin!(
     deluge_control_set_led,
     deluge_control_set_pad_columns,
     deluge_control_set_refresh_time,
-    deluge_encoder_io_init,
     deluge_encoder_take_edges,
 );
