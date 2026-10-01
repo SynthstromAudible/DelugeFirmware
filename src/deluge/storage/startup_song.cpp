@@ -360,7 +360,7 @@ std::optional<bool> collectTemplateWrite() {
 		case DELUGE_CHANNEL_UNKNOWN:
 			// Nothing queued, running or answered: the request was dropped unrun by a card change, or its answer
 			// was displaced. A write-from's answer is protected from displacement only up to the byte channel's
-			// age bound (PROTECTED_ANSWER_REFUSALS refused requests); past it, re-staging can meet the file this
+			// age bound (PROTECTED_ANSWER_SPAN); past it, re-staging can meet the file this
 			// write made, and the exclusive create then fails rather than overwriting it.
 			g_requested = false;
 			(void)g_attemptBound.tick(deluge_file_bytes_progress());

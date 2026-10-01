@@ -56,11 +56,12 @@
 ///
 /// **Collect what you ask for.** A rename, unlink or write-from cannot safely run twice -- a second rename reports
 /// NOT_FOUND for a rename that happened, and a second exclusive write finds its own file -- so an answer of one of
-/// those kinds is protected: until its owner collects it, the channel refuses every other caller's request, up to
-/// `PROTECTED_ANSWER_REFUSALS` (300) of them, after which the owner is taken to have gone and the answer may be
-/// displaced. A caller that requests one of these operations must therefore keep polling its collect until it is
-/// terminal. One that stops holds every other consumer off for those 300 refusals. Every other kind's uncollected
-/// answer is displaced by the next operation to finish, and its owner reads UNKNOWN and asks again.
+/// those kinds is protected: until its owner collects it, the channel refuses every other caller's request, for up to
+/// `PROTECTED_ANSWER_SPAN` (100 ms from the first request it refuses), after which the owner is taken to have gone and
+/// the answer may be displaced. A caller that requests one of these operations must therefore collect it as soon as it
+/// is woken (`DELUGE_WAKE_STORAGE`). One that stops holds every other consumer off for that span. Taking an answer
+/// that refused someone raises `DELUGE_WAKE_STORAGE`, so a refused caller asks again then. Every other kind's
+/// uncollected answer is displaced by the next operation to finish, and its owner reads UNKNOWN and asks again.
 ///
 /// **Two operations borrow the caller's buffer instead of copying.**
 /// @ref deluge_file_bytes_request_read_into and @ref deluge_file_bytes_request_write_from carry a whole document,
