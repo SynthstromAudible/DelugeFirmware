@@ -71,7 +71,10 @@ public:
 	void request(JobId id);
 
 	/// Runs @p id at @p whenUs or later: the job's next due time becomes the earlier of its current
-	/// one and @p whenUs. Interaction tier only (it writes nextDue, which service() reads).
+	/// one and @p whenUs. Interaction tier only (it writes nextDue, which service() reads). A job
+	/// may call this on its own id from inside its own body, to ask for its own next run (a UI
+	/// timer deadline, a back-off, a watchdog): service() clears the due time that triggered the
+	/// run before the body runs, so a self-request made during the run is kept, not overwritten.
 	void requestAt(JobId id, Micros whenUs);
 
 	/// Stops @p id for good. Safe from the job's own body.

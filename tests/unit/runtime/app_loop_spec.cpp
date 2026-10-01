@@ -30,6 +30,8 @@ void waker() {
 std::vector<char> g_log;
 Loop* g_loop = nullptr;
 JobId g_self = kNoJob;
+JobId g_other1 = kNoJob;
+JobId g_other2 = kNoJob;
 Micros g_body_time = 0;
 
 void bodyA() {
@@ -56,6 +58,16 @@ void selfCancelling() {
 	g_log.push_back('c');
 	g_loop->cancel(g_self);
 }
+void selfRequestingAt() {
+	g_log.push_back('r');
+	g_loop->requestAt(g_self, g_now + 500);
+}
+void requestsOthers() {
+	g_log.push_back('r');
+	// A past time: due at once, whichever pass picks it up.
+	g_loop->requestAt(g_other1, 1);
+	g_loop->requestAt(g_other2, 1);
+}
 
 void reset() {
 	g_now = 1000;
@@ -63,6 +75,8 @@ void reset() {
 	g_log.clear();
 	g_body_time = 0;
 	g_self = kNoJob;
+	g_other1 = kNoJob;
+	g_other2 = kNoJob;
 }
 
 /// Runs service() until the pass it starts has ended; returns the last call's answer. The reasons go
@@ -296,6 +310,42 @@ describe app_loop("deluge::runtime::Loop", $ {
 		g_now = 1200;
 		loop.service(1200, 0);
 		expect(loop.service(1200, 0)).to_equal(kNever);
+	});
+
+	it("a job that asks for its own next run during its run keeps that request", _ {
+		Loop loop{clock, waker};
+		g_loop = &loop;
+		g_self = loop.add("a", selfRequestingAt, kNever, 0);
+		loop.request(g_self);
+		expect(pass(loop, 1000, 0)).to_equal(Micros{1500});
+		expect(g_log.size()).to_equal(size_t{1});
+		g_now = 1500;
+		loop.service(1500, 0);
+		expect(g_log.size()).to_equal(size_t{2});
+	});
+
+	it("a gapped job that asks for an earlier run than its gap runs at the earlier time", _ {
+		Loop loop{clock, waker};
+		g_loop = &loop;
+		g_self = loop.add("a", selfRequestingAt, 1000, 0); // due at 2000
+		g_now = 2000;
+		expect(pass(loop, 2000, 0)).to_equal(Micros{2500});
+	});
+
+	it("a job that asks for a past time for a job later in the same pass runs it in this pass; "
+	   "for an earlier job, in the next pass", _ {
+		Loop loop{clock, waker};
+		g_loop = &loop;
+		JobId a = loop.add("a", bodyA, kNever, 0);
+		JobId b = loop.add("b", requestsOthers, kNever, 0);
+		JobId c = loop.add("c", bodyC, kNever, 0);
+		g_other1 = c; // later in this pass: reached before the pass ends
+		g_other2 = a; // earlier in this pass: already behind the cursor
+		loop.request(b);
+		expect(pass(loop, 1000, 0)).to_equal(Micros{1});
+		expect(g_log).to_equal(std::vector<char>{'r', 'c'});
+		pass(loop, 1000, 0);
+		expect(g_log).to_equal(std::vector<char>{'r', 'c', 'a'});
 	});
 });
 
