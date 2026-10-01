@@ -55,7 +55,7 @@ public:
 
 protected:
 	/// @brief Note that the machine being run ends this run waiting: on the channel's DELUGE_WAKE_STORAGE, and at the
-	///        latest at @p deadlineUs (`deluge::runtime::kNever` for a wait only the channel's answer may end).
+	///        latest at @p deadlineUs (a stall bound's deadline, or a write-from's re-check).
 	static void waitUntil(uint64_t deadlineUs);
 	/// Set by @ref waitUntil during the machine's step; a machine still in flight that did not set it runs again at
 	/// once.

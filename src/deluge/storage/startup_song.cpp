@@ -735,8 +735,12 @@ void armNextRun(StartupPhase phaseBefore, bool requestedBefore) {
 		appLoop.request(startupSongJob);
 		return;
 	}
-	// kNever for the template write, whose PENDING is waited out unbounded (it cannot be cancelled): only its answer
-	// brings the job back.
+	if (g_phase == StartupPhase::WriteTemplate) {
+		// The template write's PENDING is waited out unbounded (it cannot be cancelled), so its pending bound never
+		// starts: its answer brings the job back, re-checked in case that wake is lost.
+		appLoop.requestAt(startupSongJob, deluge::runtime::nowUs() + deluge::storage::bytes::kWriteFromRecheckUs);
+		return;
+	}
 	appLoop.requestAt(startupSongJob, g_pendingBound.deadlineUs());
 }
 

@@ -26,6 +26,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/file_bytes.h"
+#include "storage/byte_channel.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "storage/temp_swap.h"
@@ -372,8 +373,8 @@ void SaveUI::runWritePhase() {
 		}
 		writeIssued_ = true;
 		stallBound_.reset();
-		// Only its answer ends this wait: see the PENDING branch below.
-		waitUntil(deluge::runtime::kNever);
+		// Only its answer ends this wait, re-checked in case its wake is lost: see the PENDING branch below.
+		waitUntil(deluge::runtime::nowUs() + deluge::storage::bytes::kWriteFromRecheckUs);
 		return;
 	}
 
@@ -383,8 +384,8 @@ void SaveUI::runWritePhase() {
 	if (collected == DELUGE_CHANNEL_PENDING) {
 		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
 		// from the staged document and cannot be cancelled, so giving up would release the serialiser under it and
-		// remove a temp file it still has open. Only its answer brings the job back.
-		waitUntil(deluge::runtime::kNever);
+		// remove a temp file it still has open. Its answer brings the job back, re-checked in case that wake is lost.
+		waitUntil(deluge::runtime::nowUs() + deluge::storage::bytes::kWriteFromRecheckUs);
 		return;
 	}
 	if (collected == DELUGE_CHANNEL_UNKNOWN) {

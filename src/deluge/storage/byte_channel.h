@@ -421,6 +421,14 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 /// proxy for an operation finishing and not the thing itself.
 [[nodiscard]] bool idle();
 
+/// @brief How often a caller waiting on its own `write_from` collects it again when nothing has woken it, in
+///        microseconds.
+///
+/// A document write copies from its caller's buffer and cannot be cancelled, so that wait never gives up: the caller
+/// keeps the buffer until the write answers, however long the card takes. Its answer raises `DELUGE_WAKE_STORAGE`;
+/// this re-check only guards against a lost wake, so the caller does not sleep forever on one.
+inline constexpr uint64_t kWriteFromRecheckUs = 250'000;
+
 /// @brief The job that runs @ref serviceRoutine, set by `registerJobs`.
 ///
 /// It has no gap and listens for `DELUGE_WAKE_STORAGE`: every submission requests it, and each run asks for the next

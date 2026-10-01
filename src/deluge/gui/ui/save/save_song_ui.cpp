@@ -808,8 +808,8 @@ void SaveSongUI::runWritePhase() {
 		}
 		docWriteIssued_ = true;
 		docStallBound_.reset();
-		// Only its answer ends this wait: see the PENDING branch below.
-		waitUntil(deluge::runtime::kNever);
+		// Only its answer ends this wait, re-checked in case its wake is lost: see the PENDING branch below.
+		waitUntil(deluge::runtime::nowUs() + deluge::storage::bytes::kWriteFromRecheckUs);
 		return;
 	}
 
@@ -820,8 +820,8 @@ void SaveSongUI::runWritePhase() {
 	if (collected == DELUGE_CHANNEL_PENDING) {
 		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
 		// from the staged document and cannot be cancelled, so giving up would only release the serialiser under it.
-		// Only its answer brings the job back.
-		waitUntil(deluge::runtime::kNever);
+		// Its answer brings the job back, re-checked in case that wake is lost.
+		waitUntil(deluge::runtime::nowUs() + deluge::storage::bytes::kWriteFromRecheckUs);
 		return;
 	}
 	if (collected == DELUGE_CHANNEL_UNKNOWN) {

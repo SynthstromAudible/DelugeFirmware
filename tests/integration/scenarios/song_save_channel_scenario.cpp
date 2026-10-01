@@ -581,7 +581,6 @@ void runTick() {
 		// Only the document write is held: the steps before it may be given up on past the stall bound, and would
 		// be. The save runs its steps on its own job, as soon as the channel answers, so the hold is set before the
 		// save starts rather than when the write is observed about to issue -- no scenario tick falls in between.
-		g_heldStartUs = deluge_clock_now();
 		g_heldTicksBefore = SaveSongUI::channelDocumentTicks();
 		deluge_file_bytes_set_write_from_latency_ms(kHeldLatencyMs);
 		SongSaveChannelProbe::pressEnter();
@@ -590,7 +589,13 @@ void runTick() {
 		break;
 	}
 	case Stage::HeldWait: {
-		if (g_heldWriteUs == 0 && SaveSongUI::documentWriteChannelServedOps() > g_heldWriteServedBefore) {
+		// The held save names a free target, so the document machine's first channel step is the write: the hold is
+		// timed from the machine's start, not from Enter, which the existence check and collection come between.
+		if (g_heldStartUs == 0 && saveSongUI.docInFlight()) {
+			g_heldStartUs = deluge_clock_now();
+		}
+		if (g_heldStartUs != 0 && g_heldWriteUs == 0
+		    && SaveSongUI::documentWriteChannelServedOps() > g_heldWriteServedBefore) {
 			g_heldWriteUs = deluge_clock_now() - g_heldStartUs;
 			g_heldTicks = SaveSongUI::channelDocumentTicks() - g_heldTicksBefore;
 			deluge_file_bytes_set_write_from_latency_ms(0);
