@@ -854,10 +854,12 @@ void deluge_scenario_path_operations_dispatch_step(void) {
 		return;
 	}
 	g_stepDone = false;
-	// The SysEx pump. In the firmware this job runs only when something requests it (a queued message, a
-	// back-off, a resumed path operation); here the scenario owns the tick, so without this call a queued
-	// request would never be processed.
-	smSysex::handleNextSysEx();
+	// No direct call to smSysex::handleNextSysEx() here, deliberately: this harness's `app_loop` task
+	// (src/bsp/rust/src/app_loop.rs) already drives the real job, and `sysex_queue_drains` (below)
+	// exists to prove THAT path -- a message queued via sysexReceived must make the job ask for its
+	// own run, or nothing would ever process it. A direct call here would make every request below
+	// pass even with that self-request deleted, which is exactly the regression this gate exists to
+	// catch.
 	runTick();
 	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
 	g_stepDone = true;
