@@ -1766,6 +1766,9 @@ void runTick() {
 		}
 		g_crucialClockAtLoad = playbackHandler.isEitherClockActive();
 		openTrace("crucial", "LTC");
+		// Each load is held, so the rest pass is still walking on the first tick the swap can be armed on: the load
+		// runs as the loader answers, and an unheld rest pass can finish between two scenario ticks.
+		deluge_audio_load_set_latency_ms(kAsyncLatencyMs);
 		loadSongUI.beginLoad();
 		g_waitTicks = 0;
 		g_stage = Stage::CrucialWait;
@@ -1787,6 +1790,7 @@ void runTick() {
 						((holder->audioFile != nullptr) ? g_crucialBoundAtArm : g_crucialUnboundAtArm)++;
 					});
 				}
+				deluge_audio_load_set_latency_ms(0);
 			}
 			renderWhileArmed();
 		}

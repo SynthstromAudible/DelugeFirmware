@@ -53,7 +53,9 @@
 #include "util/try.h"
 #include <libdeluge/scheduler.h>
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdint>
 #include <span>
 #include <string.h>
@@ -433,9 +435,11 @@ void LoadSongUI::beginLoad(void (*onComplete)()) {
 	loadPhase_ = LoadPhase::STAGE;
 
 	// Attempt it once here rather than waiting for the next loadRoutine() pass. Boot loads the startup
-	// song before the repeating tasks are running, so a beginLoad() that only parked would never be
+	// song before the jobs are running, so a beginLoad() that only parked would never be
 	// picked up and the device would sit at the splash screen forever.
 	runStageSegment();
+	// The run above may have been made outside the loop's pass, where a time it asked for wakes nothing.
+	deluge::runtime::appLoop.request(jobId);
 }
 
 /// @brief Fill @ref songStaging_ from the card, a tick at a time, then move the load on to BEGIN.
@@ -492,6 +496,58 @@ void LoadSongUI::releaseSongStaging() {
 }
 
 void LoadSongUI::loadRoutine() {
+	runPhase();
+	armNextRun();
+}
+
+void LoadSongUI::armNextRun() {
+	using deluge::runtime::appLoop;
+	const uint64_t now = deluge::runtime::nowUs();
+	uint64_t next = deluge::runtime::kNever;
+	switch (loadPhase_) {
+	case LoadPhase::NONE:
+		return;
+	case LoadPhase::STAGE:
+		if (stagingPath_.empty()) {
+			// Waiting for the browser's listing.
+			next = std::min(stagingWait_.deadlineUs(), now + kRecheckUs);
+		}
+		else {
+			next = StorageManager::stagingNextRunUs(songStaging_);
+		}
+		break;
+	case LoadPhase::BEGIN:
+	case LoadPhase::ARM:
+		next = 0;
+		break;
+	case LoadPhase::ESSENTIAL:
+		next = essentialLoad_.has_value() ? essentialLoad_->nextTickUs() : 0;
+		break;
+	case LoadPhase::SETTLE: {
+		// settleDeadline_ is on getSystemTime(), the clock the app loop's is rounded from: round up past it.
+		const uint64_t deadline = static_cast<uint64_t>(std::ceil(settleDeadline_ * 1'000'000.0)) + 1;
+		next = std::min(deadline, now + kRecheckUs);
+		break;
+	}
+	case LoadPhase::AWAIT_ARM:
+		next = now + kRecheckUs;
+		if (restLoad_.has_value()) {
+			next = std::min(next, restLoad_->nextTickUs());
+		}
+		break;
+	case LoadPhase::FINISH:
+		next = restLoad_.has_value() ? restLoad_->nextTickUs() : 0;
+		break;
+	}
+	if (next == 0) {
+		appLoop.request(jobId);
+	}
+	else if (next != deluge::runtime::kNever) {
+		appLoop.requestAt(jobId, next);
+	}
+}
+
+void LoadSongUI::runPhase() {
 	switch (loadPhase_) {
 	case LoadPhase::NONE:
 		return;

@@ -488,8 +488,11 @@ void registerJobs() {
 	appLoop.add("pending UI", &doAnyPendingUIRendering, us(0.02), 0);
 
 	// Advances a song load past a wait it has finished. Cheap when no load is in flight. It runs one phase of the
-	// load and returns; the load's card I/O goes through the channels.
-	appLoop.add("song load", [] { loadSongUI.loadRoutine(); }, us(0.006), 0);
+	// load and returns; the load's card I/O goes through the channels. It runs when a load begins, when a storage
+	// channel answers, and at the time the phase it is parked in asks for -- see LoadSongUI::armNextRun.
+	loadSongUI.jobId = appLoop.add("song load", [] { loadSongUI.loadRoutine(); }, kNever, DELUGE_WAKE_STORAGE);
+	// The startup song's load can begin before the job exists.
+	appLoop.request(loadSongUI.jobId);
 
 	// A staged document save builds itself on this tier and then stores it in one operation. Like the
 	// song load above, it parks between steps and needs something to bring it back -- and returning to
