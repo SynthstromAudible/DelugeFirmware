@@ -40,6 +40,10 @@ namespace {
 /// a channel that is merely busy would answer the host with an error for a request that would have
 /// succeeded a few ticks later.
 constexpr uint64_t kMaxRefusalUs = kSysExStallUs;
+// A refusal by an orphaned protected answer ends only when its span does, and nothing wakes this then: the refusal
+// bound's deadline run asks first, so it must come well after the span.
+static_assert(uint64_t{DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS} * 1000 * 3 <= kMaxRefusalUs,
+              "the byte channel's protected-answer span must be well inside the SysEx refusal bound");
 
 PathOp g_op = PathOp::None;
 std::string g_pathA;

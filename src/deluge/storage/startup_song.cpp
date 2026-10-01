@@ -97,6 +97,8 @@ int32_t g_settingsDone = 0;
 /// How long the prelude has gone without all its completions. Elapsed time, never a tick count --
 /// a tick count means a different wait to every caller.
 deluge::io::StallBound g_settingsBound{kMaxUnproductiveUs};
+static_assert(int64_t{DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS} * 1000 * 3 <= kMaxUnproductiveUs,
+              "the byte channel's protected-answer span must be well inside the shortest caller bound");
 /// Whether the prelude gave up rather than hearing from everything it submitted. Reported by the
 /// gate; a give-up still arms the song, because a Deluge that boots to nothing because a settings
 /// read stalled is worse than one that boots with defaults.

@@ -599,14 +599,6 @@ fn the_span_starts_at_the_first_refusal() {
     assert!(slot.admits_new_request(CARD, first + SPAN));
 }
 
-/// The shortest bound among the channel's callers is SysEx's 0.3 s; the span frees the channel
-/// well inside it, so a refused caller that next runs at its own deadline is admitted then.
-#[test]
-fn the_span_is_well_inside_the_shortest_caller_bound() {
-    const SYSEX_STALL: Duration = Duration::from_millis(300);
-    assert!(SPAN * 3 <= SYSEX_STALL);
-}
-
 #[test]
 fn taking_a_protected_answer_that_refused_someone_is_reported() {
     let mut slot = BytesSlot::new();

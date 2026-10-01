@@ -25,6 +25,7 @@
 #include "runtime/app_loop.h"
 #include "util/boot.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <deque>
@@ -445,6 +446,11 @@ bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDon
 
 namespace {
 
+/// How long after a refusal the machine asks again if nothing wakes it sooner, in microseconds: the protected-answer
+/// span, past which an orphaned answer no longer refuses, plus a margin.
+constexpr uint64_t kRefusedRecheckUs = (uint64_t{DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS} + 50) * 1000;
+static_assert(kRefusedRecheckUs < deluge::io::kChannelStallUs, "the re-ask must come well before the stall bound");
+
 /// Whether @p step asks the channel for something, as opposed to waiting for its answer.
 bool asksChannel(Step step) {
 	switch (step) {
@@ -476,6 +482,14 @@ void armNextRun(Step before) {
 	}
 	if (asksChannel(g_pending.step) && g_pending.step != before) {
 		appLoop.request(serviceJob);
+		return;
+	}
+	if (asksChannel(g_pending.step)) {
+		// Refused. The stall bound is judged before the request is asked again, so its deadline run would give up
+		// without asking; and an uncollected answer that refused it raises no wake when it ages out. Ask again once
+		// that answer's span has passed.
+		appLoop.requestAt(serviceJob,
+		                  std::min(g_pendingBound.deadlineUs(), deluge::runtime::nowUs() + kRefusedRecheckUs));
 		return;
 	}
 	appLoop.requestAt(serviceJob, g_pendingBound.deadlineUs());

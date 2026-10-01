@@ -203,15 +203,23 @@ pub fn non_idempotent(op: ByteOp) -> bool {
 ///
 /// Ordered against both sides:
 /// - Well before any refused caller gives up. The shortest bound among the byte channel's callers
-///   is SysEx's 0.3 s (`deluge::storage::kSysExStallUs`); the others use the 3.6 s channel bound
-///   (`deluge::io::kChannelStallUs`) or longer. A protected answer holds a refused caller off
-///   for at most a third of the shortest, so a caller that is only woken at its own bound's
-///   deadline is admitted on that retry rather than giving up.
+///   is 0.3 s (SysEx's `deluge::storage::kSysExStallUs`, the startup prelude's and the recorder's
+///   `kMaxUnproductiveUs`); the rest use the 3.6 s channel bound (`deluge::io::kChannelStallUs`)
+///   or longer. An answer that ages out raises no wake, so what admits a refused caller is its own
+///   re-ask after the span: either a re-ask it makes before judging its bound (SysEx, the startup
+///   fail-safe and the saves ask first, so their deadline run, at least 0.3 s after their first
+///   refusal, is admitted), or a re-ask it schedules within the span plus a margin (the settings
+///   machine, which judges its bound before asking, re-asks within 150 ms). Either way the span
+///   must be well inside the shortest bound, as a third of it is.
 /// - Well after any owner still collecting has taken it. Every owner of these answers (document,
 ///   preset and startup-song saves, SysEx path operations, the recorder's abort) collects on the
 ///   `DELUGE_WAKE_STORAGE` the publish raises or on a job tick of at most 6 ms, so an answer that
 ///   ages out belongs to an owner that has gone.
-pub const PROTECTED_ANSWER_SPAN: Duration = Duration::from_millis(100);
+pub const PROTECTED_ANSWER_SPAN: Duration = Duration::from_millis(PROTECTED_ANSWER_SPAN_MS);
+
+/// [`PROTECTED_ANSWER_SPAN`] in milliseconds, pinned against
+/// `DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS`, which C++ callers schedule their re-ask by.
+pub const PROTECTED_ANSWER_SPAN_MS: u64 = 100;
 
 /// Whether an answer of kind `held`, stamped `stamp`, holds the channel against a new request asked
 /// under `generation`, when it has been refusing requests for `refusing_for`.
