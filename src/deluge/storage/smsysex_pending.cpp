@@ -265,6 +265,9 @@ void issue() {
 		}
 		if (accepted == ByteIo::Pending) {
 			g_issued = true;
+			// The span starts at the issue, not at the first collect: a job that runs only when woken would
+			// otherwise have no deadline to wait for while the channel never answers.
+			(void)g_pendingBound.tick(deluge_file_bytes_progress());
 		}
 		else {
 			(void)g_refusalBound.tick(deluge_file_bytes_progress());
@@ -404,8 +407,9 @@ std::optional<deluge::io::Status> pathOpCollect() {
 	case ByteIo::Pending:
 		if (g_pendingBound.tick(deluge_file_bytes_progress())) {
 			// The channel accepted and never answered. Re-issue on the synchronous arm, which
-			// `viaChannel` now refuses to bypass.
+			// `viaChannel` now refuses to bypass, now rather than on a later run: nothing would wake one.
 			g_issued = false;
+			issue();
 		}
 		return std::nullopt;
 	case ByteIo::Unknown:
@@ -413,11 +417,28 @@ std::optional<deluge::io::Status> pathOpCollect() {
 		// displacement while this polls, up to the byte channel's age bound, so a rerun of either happens only
 		// after a card change dropped it unrun, or past that bound; the other operations here reach the same
 		// state run twice.
+		// Asked again now: nothing would wake a later run for it.
 		g_issued = false;
 		(void)g_refusalBound.tick(deluge_file_bytes_progress());
+		issue();
 		return std::nullopt;
 	}
 	return std::nullopt;
+}
+
+uint64_t pathOpDeadlineUs() {
+	if (g_op == PathOp::None) {
+		return deluge::runtime::kNever;
+	}
+	if (!g_issued) {
+		// Refused: the channel freeing up wakes the job, and the refusal bound's deadline is when it stops asking.
+		return g_refusalBound.deadlineUs();
+	}
+	if (!viaChannel()) {
+		// The synchronous arm has already run it; only the collect is left.
+		return 0;
+	}
+	return g_pendingBound.deadlineUs();
 }
 
 void pathOpClear() {

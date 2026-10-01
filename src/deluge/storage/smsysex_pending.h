@@ -112,6 +112,16 @@ bool pathOpStartBlock(PathOp op, const char* path, uint32_t offset, const uint8_
 ///         reply and calls @ref pathOpClear.
 [[nodiscard]] std::optional<deluge::io::Status> pathOpCollect();
 
+/// @brief When the operation started and not yet collected next needs a run if nothing wakes it, in microseconds
+/// on `deluge::runtime::nowUs()`'s clock.
+///
+/// While the operation waits on the byte channel, its answer (or the channel freeing up for a refused request) raises
+/// `DELUGE_WAKE_STORAGE`; this is the stall bound's deadline for the wait, so a channel that never answers is still
+/// given up on in time.
+/// @return 0 when the operation has finished on the synchronous arm and only needs collecting; the deadline of the
+///         bound for the wait in force; `deluge::runtime::kNever` when no operation is pending.
+[[nodiscard]] uint64_t pathOpDeadlineUs();
+
 /// @brief Forget the operation, so the next one may start.
 ///
 /// Also resets @ref pathOpStage, so a multi-step handler starts its next request from step 0.

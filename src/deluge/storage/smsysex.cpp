@@ -21,6 +21,7 @@
 #include "util/boot.h"
 #include "util/containers.h"
 #include "util/pack.h"
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <libdeluge/scheduler.h>
@@ -1003,11 +1004,15 @@ void smSysex::handleNextSysEx() {
 		deluge::runtime::appLoop.request(jobId);
 	}
 	else {
-		// The front entry's path operation is still in flight, so it stays queued and will be re-parsed
-		// next run. Its own stall bound would be the sharper deadline to arm, but it lives behind
-		// `smsysex_pending.cpp`'s anonymous namespace, unreachable from here; poll briefly instead. A
-		// later task adds a completion wake and this becomes its fallback.
-		deluge::runtime::appLoop.requestAt(jobId, deluge::runtime::nowUs() + 1000);
+		// The front entry waits on a channel, so it stays queued and is re-parsed on the run the channel's
+		// answer wakes (DELUGE_WAKE_STORAGE). The wait's stall bound is when it gives up if no answer comes.
+		uint64_t deadline = std::min(deluge::storage::pathOpDeadlineUs(), dirOpenWait.deadlineUs());
+		if (deadline == deluge::runtime::kNever) {
+			// Every handler that returns "not done" waits on one of the two above; one that did not would never
+			// run again, so it is polled instead.
+			deadline = deluge::runtime::nowUs() + 1000;
+		}
+		deluge::runtime::appLoop.requestAt(jobId, deadline);
 	}
 }
 

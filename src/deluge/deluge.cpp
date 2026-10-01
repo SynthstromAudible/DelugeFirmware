@@ -537,9 +537,11 @@ void registerJobs() {
 	// UI keeps running for the whole export - which is what makes cancelling it possible at all.
 	appLoop.add("stem export", [] { stemExport.exportRoutine(); }, us(0.006), 0);
 
-	// Runs only when a SysEx message is queued, or the job itself asks for another run (a back-off or a
-	// resumed path operation): see smSysex::sysexReceived and smSysex::handleNextSysEx.
-	smSysex::jobId = appLoop.add("Handle pending SysEx traffic.", [] { smSysex::handleNextSysEx(); }, kNever, 0);
+	// Runs only when a SysEx message is queued, when a storage channel answers (a path operation or directory open
+	// it waits on), or when the job itself asks for another run (a back-off, or the deadline of the wait it is on): see
+	// smSysex::sysexReceived and smSysex::handleNextSysEx.
+	smSysex::jobId =
+	    appLoop.add("Handle pending SysEx traffic.", [] { smSysex::handleNextSysEx(); }, kNever, DELUGE_WAKE_STORAGE);
 
 	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
 	// if recordings are finished

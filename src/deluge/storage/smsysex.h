@@ -13,9 +13,9 @@ namespace smSysex {
 
 const uint32_t MAX_PATH_NAME_LEN = 255;
 
-/// The SysEx job's id in `deluge::runtime::appLoop`, set by `registerJobs`. The job has no gap and
-/// listens for no wake: it runs only when `sysexReceived` or `handleNextSysEx` itself asks for it, so
-/// a message gets a run instead of waiting for the next poll.
+/// The SysEx job's id in `deluge::runtime::appLoop`, set by `registerJobs`. The job has no gap: it runs
+/// when `sysexReceived` or `handleNextSysEx` itself asks for it, and on `DELUGE_WAKE_STORAGE` while a
+/// request waits on a channel, so a message gets a run instead of waiting for the next poll.
 extern deluge::runtime::JobId jobId;
 
 // Helper structure for file operation parameters
