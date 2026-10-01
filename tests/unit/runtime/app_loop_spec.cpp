@@ -8,6 +8,7 @@
 using deluge::runtime::JobId;
 using deluge::runtime::kNever;
 using deluge::runtime::kNoJob;
+using deluge::runtime::kThrowRetryUs;
 using deluge::runtime::Loop;
 using deluge::runtime::Micros;
 
@@ -273,6 +274,22 @@ describe app_loop("deluge::runtime::Loop", $ {
 		expect(s.failures).to_equal(uint32_t{1});
 		loop.resetStats();
 		expect(loop.stats(t).failures).to_equal(uint32_t{0});
+	});
+
+	it("a timerless job that throws is retried after kThrowRetryUs", _ {
+		Loop loop{clock, waker};
+		JobId t = loop.add("t", bodyThrows, kNever, 0);
+		loop.request(t);
+		// Nothing requests or wakes it again, and it has no gap to fall back on -- without the retry,
+		// it would be due at kNever and never run again.
+		expect(pass(loop, 1000, 0)).to_equal(Micros{1000} + kThrowRetryUs);
+		expect(g_log).to_equal(std::vector<char>{'t'});
+		g_now = 1000 + kThrowRetryUs - 1;
+		pass(loop, g_now, 0);
+		expect(g_log).to_equal(std::vector<char>{'t'});
+		g_now = 1000 + kThrowRetryUs;
+		pass(loop, g_now, 0);
+		expect(g_log).to_equal(std::vector<char>{'t', 't'});
 	});
 
 	it("refuses a job past its capacity", _ {

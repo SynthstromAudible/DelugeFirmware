@@ -102,6 +102,7 @@ Micros Loop::service(Micros now, WakeMask reasons) {
 		// calls requestAt() on itself (a UI timer deadline, a back-off, a watchdog) sets its next
 		// run rather than having it overwritten below.
 		job.nextDue = kNever;
+		bool threw = false;
 		try {
 			job.body();
 		} catch (...) {
@@ -112,6 +113,7 @@ Micros Loop::service(Micros now, WakeMask reasons) {
 			// marked as run, so the same call would be retried at once and nothing after it in the
 			// pass would get a turn.
 			++job.failures;
+			threw = true;
 		}
 		now = clock_();
 		const Micros ran = now - start;
@@ -119,9 +121,14 @@ Micros Loop::service(Micros now, WakeMask reasons) {
 		job.maxRun = std::max(job.maxRun, ran);
 		++job.runs;
 		// A gapped job is due again by its gap at the latest, but a self-request for an earlier
-		// time (above) still wins. A timerless job keeps whatever the body asked for, or kNever.
+		// time (above) still wins. A timerless job keeps whatever the body asked for, or kNever --
+		// unless the body threw before it could ask for anything, in which case it gets kThrowRetryUs
+		// instead of being left with no run ever requested again.
 		if (job.gap != kNever) {
 			job.nextDue = std::min(job.nextDue, now + job.gap);
+		}
+		else if (threw) {
+			job.nextDue = std::min(job.nextDue, now + kThrowRetryUs);
 		}
 		cursor_ = i + 1;
 		return now;
