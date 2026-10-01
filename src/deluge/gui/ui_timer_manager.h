@@ -87,7 +87,6 @@ public:
 	void unsetTimer(TimerName which);
 
 	bool isTimerSet(TimerName which);
-	void setTimerByOtherTimer(TimerName which, TimerName fromTimer);
 
 	/// The "ui routine" job, which runs routine() at the next timer's time.
 	deluge::runtime::JobId jobId = deluge::runtime::kNoJob;

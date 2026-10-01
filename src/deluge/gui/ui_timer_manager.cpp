@@ -269,13 +269,6 @@ void UITimerManager::setTimerSamples(TimerName which, int32_t samples) {
 	}
 }
 
-void UITimerManager::setTimerByOtherTimer(TimerName which, TimerName fromTimer) {
-	auto& timer = getTimer(which);
-	auto& srcTimer = getTimer(fromTimer);
-	timer.triggerTime = srcTimer.triggerTime;
-	timer.active = true;
-}
-
 void UITimerManager::unsetTimer(TimerName which) {
 	getTimer(which).active = false;
 	workOutNextEventTime();
