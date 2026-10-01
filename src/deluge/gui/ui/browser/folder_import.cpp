@@ -162,6 +162,8 @@ void FolderImport::request(FolderImportRequest request) {
 	closeGate();
 	phase_ = Phase::List;
 	routine();
+	// The run above may have been made outside the loop's pass, where a time it asked for wakes nothing.
+	deluge::runtime::appLoop.request(jobId);
 }
 
 void FolderImport::cancel() {
@@ -180,6 +182,41 @@ void FolderImport::cancel() {
 
 void FolderImport::routine() {
 	while (step()) {}
+	armNextRun();
+}
+
+void FolderImport::armNextRun() {
+	using deluge::runtime::appLoop;
+	switch (phase_) {
+	case Phase::AwaitList:
+		if (listSpan_.sinceUs == deluge::storage::UnproductiveSpan::kNone) {
+			// The open has not been asked for yet: the next run asks.
+			appLoop.request(jobId);
+		}
+		else {
+			// The directory channel's answer raises WAKE_STORAGE; this is the run that finds the bound over.
+			const uint64_t left = static_cast<uint64_t>(deluge::storage::kMaxUnproductiveUs - listSpan_.elapsedUs) + 1;
+			appLoop.requestAt(jobId, deluge::runtime::nowUs() + left);
+		}
+		break;
+	case Phase::AwaitLoad: {
+		const uint64_t next = load_.nextTickUs();
+		if (next == 0) {
+			appLoop.request(jobId);
+		}
+		else {
+			appLoop.requestAt(jobId, next);
+		}
+		break;
+	}
+	case Phase::AwaitDetect:
+	case Phase::AwaitRedetect:
+	case Phase::AwaitOctaveUp:
+		appLoop.requestAt(jobId, deluge::runtime::nowUs() + deluge::sample::kScanRecheckUs);
+		break;
+	default:
+		break;
+	}
 }
 
 bool FolderImport::step() {

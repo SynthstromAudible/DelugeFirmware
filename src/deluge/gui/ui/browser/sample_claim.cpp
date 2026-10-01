@@ -172,7 +172,7 @@ void SampleClaim::armNextRun() {
 		break;
 	}
 	case Phase::AwaitPitch:
-		appLoop.requestAt(jobId, deluge::runtime::nowUs() + kPitchRecheckUs);
+		appLoop.requestAt(jobId, deluge::runtime::nowUs() + deluge::sample::kScanRecheckUs);
 		break;
 	default:
 		break;

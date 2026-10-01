@@ -502,8 +502,10 @@ void registerJobs() {
 	deluge::gui::sampleClaim.jobId =
 	    appLoop.add("sample claim", [] { deluge::gui::sampleClaim.routine(); }, kNever, DELUGE_WAKE_STORAGE);
 	// The browser's folder import is the same kind of machine, and its context menu is on top while it runs, so it has
-	// no graphics routine of its own to be ticked from either.
-	appLoop.add("folder import", [] { deluge::gui::folderImport.routine(); }, us(0.03), 0);
+	// no graphics routine of its own to be ticked from either. It runs when an import is asked for, when a storage
+	// channel answers, and at the time its wait asks for -- see FolderImport::armNextRun.
+	deluge::gui::folderImport.jobId =
+	    appLoop.add("folder import", [] { deluge::gui::folderImport.routine(); }, kNever, DELUGE_WAKE_STORAGE);
 	// The preset browser's own loads are the same kind of machine; the clone menu can be on top while one is out.
 	// Undo and redo are the same kind of machine: the reversion's samples are loaded here before it runs. It runs when
 	// a reversion is asked for, when a storage channel answers, and at its pre-load's next tick -- see

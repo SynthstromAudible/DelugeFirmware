@@ -83,13 +83,6 @@ public:
 	/// @brief The job routine() runs on, woken by DELUGE_WAKE_STORAGE.
 	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
 
-	/// @brief How often a pitch detection waiting for a window asks again, in µs.
-	///
-	/// The streaming loader wakes the app only once its queue drains, which playback streaming can put off for as long
-	/// as it plays; this re-check keeps the detection moving in the meantime. Well inside the detection's own bound
-	/// (kMaxUnproductiveUs), so its give-up is measured to within this.
-	static constexpr uint64_t kPitchRecheckUs = 10'000;
-
 	/// @brief Whether a claim is in flight or waiting to start.
 	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle || queued_.has_value(); }
 
@@ -145,7 +138,7 @@ private:
 	/// @brief Cancel the claim in flight: end it at once, telling no one.
 	void cancel();
 	/// @brief Ask for the job's next run for the wait the claim stopped on: the load's next tick, or the pitch
-	///        detection's re-check. An idle claim asks for none.
+	///        detection's re-check (kScanRecheckUs). An idle claim asks for none.
 	void armNextRun();
 	/// @brief Remove the wavetable gold-knob assignments from a claim that ended as a sample.
 	void removeWaveTableKnobs();

@@ -32,6 +32,12 @@ namespace deluge::sample {
 constexpr int32_t kMinAccurateFrequency = (1638400 >> (kPitchDetectWindowSizeMagnitude));
 /// @brief How many times past the default a window may be lengthened.
 constexpr int32_t kMaxLengthDoublings = (16 - kPitchDetectWindowSizeMagnitude);
+/// @brief How soon a consumer that runs only when woken ticks a scan that answered Pending again, in µs.
+///
+/// A Pending scan waits for a window from the streaming loader, which wakes the app only once its queue drains, and
+/// playback streaming can keep it from draining for as long as it plays; this re-check keeps the scan moving in the
+/// meantime. Well inside the scan's own bound (kMaxUnproductiveUs), so its give-up is measured to within this.
+constexpr uint64_t kScanRecheckUs = 10'000;
 
 /// @brief One pitch detection of a Sample, a tick at a time, never waiting for the card.
 ///
