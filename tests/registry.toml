@@ -643,6 +643,22 @@ tier = "pr"
 runtime = "~1m"
 
 [[harness]]
+name = "ui-timer-deadline"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the \"ui routine\" job runs the UI timers at their deadlines instead of polling: over about half a second of the sample clock it must run between 30 and 400 times a second (UT-RATE) -- often enough for the graphics routine's 15 ms timer, and far below the 1,250 a second it polled at. A 2 ms timer set just after the graphics routine re-armed, with every timer at least 600 samples (13.6 ms) off, must fire within 344 samples of being set -- its own 2 ms plus two blocks -- not at the job's pending run (UT-EARLIER, ui_timer_earlier_deadline): setTimer brings the job's pending run forward to the new timer's time."
+scenario = "ui_timer_deadline"
+markers = ["UT-RATE", "UT-EARLIER"]
+result = "UT-RESULT failures=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~1m"
+
+[[harness]]
 name = "render-song"
 path = "."
 level = "integration"

@@ -159,5 +159,6 @@ add_subdirectory(storage)
 add_subdirectory(audio_stream)
 add_subdirectory(sync)
 add_subdirectory(runtime)
+add_subdirectory(gui)
 add_subdirectory(cpputest)
 

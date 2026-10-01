@@ -46,6 +46,7 @@
 #include "scenarios/sound_lifetime_scenario.h"
 #include "scenarios/staging_release_scenario.h"
 #include "scenarios/startup_failsafe_scenario.h"
+#include "scenarios/ui_timer_deadline_scenario.h"
 
 #include <cstring>
 
@@ -134,6 +135,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"startup_failsafe", nullptr, &deluge_scenario_startup_failsafe_begin, &deluge_scenario_startup_failsafe_complete,
      &deluge_scenario_startup_failsafe_dispatch_step, &deluge_scenario_startup_failsafe_step_done,
      &deluge_scenario_startup_failsafe_failures},
+    {"ui_timer_deadline", nullptr, &deluge_scenario_ui_timer_deadline_begin,
+     &deluge_scenario_ui_timer_deadline_complete, &deluge_scenario_ui_timer_deadline_dispatch_step,
+     &deluge_scenario_ui_timer_deadline_step_done, &deluge_scenario_ui_timer_deadline_failures},
 };
 
 } // namespace

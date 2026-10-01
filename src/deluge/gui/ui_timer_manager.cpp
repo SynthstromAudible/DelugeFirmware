@@ -40,6 +40,7 @@
 
 #include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
+#include "libdeluge/tier.h"
 
 UITimerManager uiTimerManager{};
 extern void inputRoutine();
@@ -53,6 +54,7 @@ void UITimerManager::routine() {
 
 	int32_t timeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (timeTilNextEvent >= 0) {
+		requestRun();
 		return;
 	}
 
@@ -248,6 +250,7 @@ void UITimerManager::routine() {
 	}
 
 	workOutNextEventTime();
+	requestRun();
 }
 
 void UITimerManager::setTimer(TimerName which, int32_t ms) {
@@ -262,6 +265,7 @@ void UITimerManager::setTimerSamples(TimerName which, int32_t samples) {
 	int32_t oldTimeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (samples < oldTimeTilNextEvent) {
 		timeNextEvent = timer.triggerTime;
+		requestRun();
 	}
 }
 
@@ -275,6 +279,18 @@ void UITimerManager::setTimerByOtherTimer(TimerName which, TimerName fromTimer) 
 void UITimerManager::unsetTimer(TimerName which) {
 	getTimer(which).active = false;
 	workOutNextEventTime();
+	requestRun();
+}
+
+void UITimerManager::requestRun() {
+	// The render can arm a timer too (its voice-culling alert blinks an LED), and requestAt() is for the interaction
+	// tier only. request() is safe from any tier: the job runs next pass and asks for its own deadline then.
+	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
+		deluge::runtime::appLoop.request(jobId);
+		return;
+	}
+	const auto remaining = static_cast<int32_t>(timeNextEvent - AudioEngine::audioSampleTimer);
+	deluge::runtime::appLoop.requestAt(jobId, deluge::runtime::nowUs() + uiTimerRunDelayUs(remaining));
 }
 
 bool UITimerManager::isTimerSet(TimerName which) {

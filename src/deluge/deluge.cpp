@@ -549,10 +549,11 @@ void registerJobs() {
 	appLoop.add("audio recorder slow", [] { audioRecorder.slowRoutine(); }, us(0.1), 0);
 	// Actions undo/redo MIDI commands that had to wait for the card.
 	appLoop.add("playback slow routine", [] { playbackHandler.slowRoutine(); }, us(0.1), 0);
-	// needs to be called very frequently,
-	// handles animations and checks on the timers for any infrequent actions
-	// long term this should probably be made into an idle task
-	appLoop.add("ui routine", [] { uiTimerManager.routine(); }, us(0.0008), 0);
+	// Runs the UI timers (animations, blinks, the graphics routine) at the next one's time: routine() and
+	// setTimer() ask for the job's next run themselves.
+	uiTimerManager.jobId = appLoop.add("ui routine", [] { uiTimerManager.routine(); }, kNever, 0);
+	// Boot armed its timers before the job existed, so nothing has asked for its first run yet.
+	appLoop.request(uiTimerManager.jobId);
 	startupJob = appLoop.add("startup/render", &startupWhenCardReady, us(0.004), 0);
 #if ENABLE_TEXT_OUTPUT
 	appLoop.add("job stats", &reportJobStats, us(10.0), 0);

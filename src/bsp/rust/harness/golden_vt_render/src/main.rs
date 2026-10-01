@@ -1342,12 +1342,18 @@ fn main() {
     if scenario == "clock_input" {
         audio_host::set_realtime_render(true);
     }
+    // ui_timer_deadline compares UI timers, which run on AudioEngine::audioSampleTimer, with the app
+    // loop's virtual clock, so the sample clock keeps the device's pace: one block per 2,902 µs.
+    if scenario == "ui_timer_deadline" {
+        audio_host::set_realtime_render(true);
+        render::set_period_override_us(2902, 0);
+    }
     // The card: a memory disk holding the scenario's fixture tree, unless DELUGE_SD_IMAGE names an
     // image file.
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {
             "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard"
-            | "audio_header_dump" => memory_card::install(None),
+            | "audio_header_dump" | "ui_timer_deadline" => memory_card::install(None),
             "audio_load_ab" => fill_audio_load_ab_card(),
             "song_preview_ab" => fill_song_preview_ab_card(&repo_root),
             "song_save_channel" => fill_song_save_card(),
