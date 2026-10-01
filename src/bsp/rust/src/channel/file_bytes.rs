@@ -851,6 +851,20 @@ pub extern "C" fn deluge_file_bytes_set_chunk_latency_ms(ms: u32) {
     CHUNK_LATENCY_MS.store(ms, Ordering::Relaxed);
 }
 
+/// Milliseconds each [`ByteOp::WriteFrom`] waits before it touches the card, on top of
+/// [`LATENCY_MS`]; see [`deluge_file_bytes_set_write_from_latency_ms`].
+#[cfg(feature = "host_app")]
+static WRITE_FROM_LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: makes every document write (`write_from`) wait `ms` milliseconds before it
+/// touches the card, and no other operation, so a test can hold a save's write past its stall
+/// bound while the steps around it run at the card's own pace. 0, the default, means no wait.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_bytes_set_write_from_latency_ms(ms: u32) {
+    WRITE_FROM_LATENCY_MS.store(ms, Ordering::Relaxed);
+}
+
 // ── The request entry points ────────────────────────────────────────────────
 
 /// Requests a whole-file read of `path` (up to [`MAX_BYTES`]).
@@ -2203,7 +2217,10 @@ async fn file_bytes_task_body() {
             // After the take, so a collect during the wait answers PENDING, as for a slow card.
             #[cfg(feature = "host_app")]
             {
-                let ms = LATENCY_MS.load(Ordering::Relaxed);
+                let mut ms = LATENCY_MS.load(Ordering::Relaxed);
+                if request.key().0 == ByteOp::WriteFrom {
+                    ms = ms.saturating_add(WRITE_FROM_LATENCY_MS.load(Ordering::Relaxed));
+                }
                 if ms > 0 {
                     embassy_time::Timer::after_millis(u64::from(ms)).await;
                 }
@@ -2333,5 +2350,6 @@ abi_pin!(
 #[cfg(feature = "host_app")]
 abi_pin!(
     deluge_file_bytes_set_latency_ms,
-    deluge_file_bytes_set_chunk_latency_ms
+    deluge_file_bytes_set_chunk_latency_ms,
+    deluge_file_bytes_set_write_from_latency_ms
 );

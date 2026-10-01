@@ -239,19 +239,38 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 ///
 /// The borrow is why every exit calls releaseStagedWriter(): left in memory mode, the shared
 /// serialiser silently stops reaching the card for everyone after this save.
+void SaveUI::waitUntil(uint64_t deadlineUs) {
+	waitedThisRun_ = true;
+	deluge::runtime::appLoop.requestAt(saveJob, deadlineUs);
+}
+
 void SaveUI::saveRoutine() {
+	// A machine still in flight after its step either waits (see waitUntil) or has more to do at once.
+	bool moreNow = false;
 	// The song save's sample collection runs on its own machine, for the reason its enum is separate:
 	// its flow is not a staged document write and sharing one would make both harder to follow.
 	if (saveSongUI.collectInFlight()) {
+		waitedThisRun_ = false;
 		saveSongUI.collectRoutine();
+		moreNow |= saveSongUI.collectInFlight() && !waitedThisRun_;
 	}
 	// The song's document write runs on a machine of its own, entered when the collection finishes.
 	if (saveSongUI.docInFlight()) {
+		waitedThisRun_ = false;
 		saveSongUI.docRoutine();
+		moreNow |= saveSongUI.docInFlight() && !waitedThisRun_;
 	}
-	if (phaseOwner_ == nullptr) {
-		return;
+	if (phaseOwner_ != nullptr && savePhase_ != SavePhase::NONE) {
+		waitedThisRun_ = false;
+		runStagedStep();
+		moreNow |= phaseOwner_ != nullptr && savePhase_ != SavePhase::NONE && !waitedThisRun_;
 	}
+	if (moreNow) {
+		deluge::runtime::appLoop.request(saveJob);
+	}
+}
+
+void SaveUI::runStagedStep() {
 	switch (savePhase_) {
 	case SavePhase::NONE:
 		return;
@@ -276,7 +295,11 @@ void SaveUI::saveRoutine() {
 bool SaveUI::deferStagedSave() {
 	// Every step of a staged save waits on the byte channel, so only a span in which it finished nothing counts:
 	// a save held off by a long copy waits for it, and a wedged channel still fails the save.
-	return !stallBound_.tick(deluge_file_bytes_progress());
+	if (stallBound_.tick(deluge_file_bytes_progress())) {
+		return false;
+	}
+	waitUntil(stallBound_.deadlineUs());
+	return true;
 }
 
 void SaveUI::runSerializePhase() {
@@ -349,6 +372,8 @@ void SaveUI::runWritePhase() {
 		}
 		writeIssued_ = true;
 		stallBound_.reset();
+		// Only its answer ends this wait: see the PENDING branch below.
+		waitUntil(deluge::runtime::kNever);
 		return;
 	}
 
@@ -358,15 +383,19 @@ void SaveUI::runWritePhase() {
 	if (collected == DELUGE_CHANNEL_PENDING) {
 		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
 		// from the staged document and cannot be cancelled, so giving up would release the serialiser under it and
-		// remove a temp file it still has open.
+		// remove a temp file it still has open. Only its answer brings the job back.
+		waitUntil(deluge::runtime::kNever);
 		return;
 	}
 	if (collected == DELUGE_CHANNEL_UNKNOWN) {
-		// Never keyed, so nothing is coming. Re-issue rather than wait forever.
+		// Never keyed, so nothing is coming. Re-issue rather than wait forever -- at once, since no answer will wake
+		// it.
 		writeIssued_ = false;
 		if (!deferStagedSave()) {
 			endStagedSave(false);
+			return;
 		}
+		deluge::runtime::appLoop.request(saveJob);
 		return;
 	}
 	writeIssued_ = false;

@@ -277,6 +277,7 @@ bool SaveSongUI::beginUnstagedSave(const deluge::storage::SaveRequest& request) 
 	existsRequest_ = request;
 	collectStallBound_.reset();
 	collectPhase_ = CollectPhase::EXISTS;
+	deluge::runtime::appLoop.request(saveJob);
 	return true;
 }
 
@@ -433,7 +434,11 @@ void SaveSongUI::collectRoutine() {
 bool SaveSongUI::deferCollection() {
 	// Measures only a span in which the byte channel finished nothing: a copy moves a chunk at a time, so a large
 	// sample's copy keeps restarting the span for as long as it runs, and a wedged channel still ends the collection.
-	return !collectStallBound_.tick(deluge_file_bytes_progress());
+	if (collectStallBound_.tick(deluge_file_bytes_progress())) {
+		return false;
+	}
+	waitUntil(collectStallBound_.deadlineUs());
+	return true;
 }
 
 void SaveSongUI::abandonCollection() {
@@ -654,7 +659,11 @@ bool SaveSongUI::docInline() {
 bool SaveSongUI::deferDocument() {
 	// Every document step waits on the byte channel. Only a span in which it finished nothing counts, so a step
 	// refused behind someone else's long operation waits for it, and a wedged channel still ends the save.
-	return !docStallBound_.tick(deluge_file_bytes_progress());
+	if (docStallBound_.tick(deluge_file_bytes_progress())) {
+		return false;
+	}
+	waitUntil(docStallBound_.deadlineUs());
+	return true;
 }
 
 void SaveSongUI::abandonDocument(Error error) {
@@ -799,6 +808,8 @@ void SaveSongUI::runWritePhase() {
 		}
 		docWriteIssued_ = true;
 		docStallBound_.reset();
+		// Only its answer ends this wait: see the PENDING branch below.
+		waitUntil(deluge::runtime::kNever);
 		return;
 	}
 
@@ -809,14 +820,19 @@ void SaveSongUI::runWritePhase() {
 	if (collected == DELUGE_CHANNEL_PENDING) {
 		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
 		// from the staged document and cannot be cancelled, so giving up would only release the serialiser under it.
+		// Only its answer brings the job back.
+		waitUntil(deluge::runtime::kNever);
 		return;
 	}
 	if (collected == DELUGE_CHANNEL_UNKNOWN) {
-		// Never keyed, so nothing is coming. Re-issue rather than wait forever.
+		// Never keyed, so nothing is coming. Re-issue rather than wait forever -- at once, since no answer will wake
+		// it.
 		docWriteIssued_ = false;
 		if (!deferDocument()) {
 			abandonDocument(Error::WRITE_FAIL);
+			return;
 		}
+		deluge::runtime::appLoop.request(saveJob);
 		return;
 	}
 	docWriteIssued_ = false;

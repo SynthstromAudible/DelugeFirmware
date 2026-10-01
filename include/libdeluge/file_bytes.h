@@ -538,6 +538,15 @@ void deluge_file_bytes_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 /// host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
 /// @param ms Milliseconds of simulated delay per chunk.
 void deluge_file_bytes_set_chunk_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+
+/// @brief Host harness only: make every @ref deluge_file_bytes_request_write_from operation wait @p ms milliseconds
+/// before it touches the card, on top of @ref deluge_file_bytes_set_latency_ms. [task]
+///
+/// Holds a save's document write without holding the existence checks, read-backs and renames around it, which a
+/// save gives up on past its stall bound. 0 (the default) means no wait. Declared only for host builds, and defined
+/// only by the Rust BSP's `host_app` build; never in a device image.
+/// @param ms Milliseconds of simulated delay per document write.
+void deluge_file_bytes_set_write_from_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 #endif
 
 #ifdef __cplusplus

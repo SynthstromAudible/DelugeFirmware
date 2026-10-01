@@ -493,7 +493,9 @@ void registerJobs() {
 	// A staged document save builds itself on this tier and then stores it in one operation. Like the
 	// song load above, it parks between steps and needs something to bring it back -- and returning to
 	// the run loop is the only reason the storage driver can make progress at all.
-	appLoop.add("document save", [] { SaveUI::saveRoutine(); }, us(0.006), 0);
+	// It runs when a save starts, when the channel answers, and at the stall bound's deadline of the wait it is on --
+	// see SaveUI::saveJob.
+	SaveUI::saveJob = appLoop.add("document save", [] { SaveUI::saveRoutine(); }, kNever, DELUGE_WAKE_STORAGE);
 	// The sample browser's claim is a phase machine on this tier, and like the save above it waits between steps and
 	// needs something to bring it back, whichever UI is on top. Every 30 ms, so the stall bound on its load keeps its
 	// length.

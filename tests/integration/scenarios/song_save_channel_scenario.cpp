@@ -91,9 +91,13 @@ constexpr const char* kHeldName = "SSTEST02";
 constexpr const char* kHeldPath = "SONGS/SSTEST02.XML";
 /// How long the byte channel holds the document write in the held leg, in virtual milliseconds. The save's own stall
 /// bound is `SaveSongUI::documentStallLimitUs()`; the check measures how long the save actually spent on the held
-/// write and requires more than that, rather than assuming it. Lifted once the write lands, so the read-back, unlink
-/// and rename that follow run at the card's own pace.
+/// write and requires more than that, rather than assuming it. Applied to document writes only
+/// (`deluge_file_bytes_set_write_from_latency_ms`), so the existence checks before it and the read-back, unlink and
+/// rename after it run at the card's own pace.
 constexpr uint32_t kHeldLatencyMs = 10000;
+/// How long the byte channel holds each operation while SS-BACKMIDSAVE presses BACK, in virtual milliseconds. The save
+/// runs on its own job, as soon as the channel answers, so without a hold it can finish before the next scenario tick.
+constexpr uint32_t kBackLatencyMs = 20;
 
 /// Notes per row. Sized so the document clears 65536 bytes -- two doublings of the 32768-byte
 /// staging buffer -- with the default song's own ~11.5 KB underneath it.
@@ -309,6 +313,7 @@ void runTick() {
 	}
 	case Stage::SaveFirst: {
 		SongSaveChannelProbe::typeName(kSaveName);
+		deluge_file_bytes_set_latency_ms(kBackLatencyMs);
 		SongSaveChannelProbe::pressEnter();
 		g_stage = Stage::SaveFirstBack;
 		break;
@@ -344,6 +349,7 @@ void runTick() {
 		else {
 			printf("SS-EXITMIDSAVE exit=skipped\n");
 		}
+		deluge_file_bytes_set_latency_ms(0);
 		g_waitTicks = 0;
 		g_stage = Stage::SaveFirstWait;
 		break;
@@ -572,26 +578,25 @@ void runTick() {
 		g_heldWriteUs = 0;
 		g_heldStartUs = 0;
 		SongSaveChannelProbe::typeName(kHeldName);
+		// Only the document write is held: the steps before it may be given up on past the stall bound, and would
+		// be. The save runs its steps on its own job, as soon as the channel answers, so the hold is set before the
+		// save starts rather than when the write is observed about to issue -- no scenario tick falls in between.
+		g_heldStartUs = deluge_clock_now();
+		g_heldTicksBefore = SaveSongUI::channelDocumentTicks();
+		deluge_file_bytes_set_write_from_latency_ms(kHeldLatencyMs);
 		SongSaveChannelProbe::pressEnter();
 		g_waitTicks = 0;
 		g_stage = Stage::HeldWait;
 		break;
 	}
 	case Stage::HeldWait: {
-		// Only the document write is held: the steps before it may be given up on past the stall bound, and would be.
-		if (g_heldStartUs == 0 && saveSongUI.docWriteAboutToIssue()) {
-			g_heldStartUs = deluge_clock_now();
-			g_heldTicksBefore = SaveSongUI::channelDocumentTicks();
-			deluge_file_bytes_set_latency_ms(kHeldLatencyMs);
-		}
-		if (g_heldStartUs != 0 && g_heldWriteUs == 0
-		    && SaveSongUI::documentWriteChannelServedOps() > g_heldWriteServedBefore) {
+		if (g_heldWriteUs == 0 && SaveSongUI::documentWriteChannelServedOps() > g_heldWriteServedBefore) {
 			g_heldWriteUs = deluge_clock_now() - g_heldStartUs;
 			g_heldTicks = SaveSongUI::channelDocumentTicks() - g_heldTicksBefore;
-			deluge_file_bytes_set_latency_ms(0);
+			deluge_file_bytes_set_write_from_latency_ms(0);
 		}
 		if (saveMachineryIdle() || ++g_waitTicks > kMaxWaitTicks) {
-			deluge_file_bytes_set_latency_ms(0);
+			deluge_file_bytes_set_write_from_latency_ms(0);
 			g_stage = Stage::HeldCheck;
 		}
 		break;

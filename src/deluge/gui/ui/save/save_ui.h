@@ -54,6 +54,13 @@ public:
 	[[nodiscard]] static bool anySaveInFlight();
 
 protected:
+	/// @brief Note that the machine being run ends this run waiting: on the channel's DELUGE_WAKE_STORAGE, and at the
+	///        latest at @p deadlineUs (`deluge::runtime::kNever` for a wait only the channel's answer may end).
+	static void waitUntil(uint64_t deadlineUs);
+	/// Set by @ref waitUntil during the machine's step; a machine still in flight that did not set it runs again at
+	/// once.
+	static inline bool waitedThisRun_{};
+
 	// void displayText(bool blinkImmediately) final;
 	void enterKeyPress() final;
 	/// @brief A save screen's own button handling, reached only when no save is in flight.
@@ -157,8 +164,15 @@ public:
 	[[nodiscard]] static int32_t verifyChannelServedOps() { return verifyChannelServedOps_; }
 	[[nodiscard]] static int32_t verifyInlineServedOps() { return verifyInlineServedOps_; }
 
-	/// @brief Drive a staged save one step. Registered as a repeating task in deluge.cpp.
+	/// @brief Drive a staged save one step, and the song save's collection and document machines. Run by
+	///        @ref saveJob.
 	static void saveRoutine();
+
+	/// @brief The job that runs @ref saveRoutine, set by `registerJobs`.
+	///
+	/// It has no gap and listens for `DELUGE_WAKE_STORAGE`: a save's start requests it, and each run asks for the next
+	/// one it needs -- at once when a machine can move again, or at the stall bound's deadline of the wait it is on.
+	static inline deluge::runtime::JobId saveJob{deluge::runtime::kNoJob};
 
 	/// @brief Whether a staged save is mid-flight. For gates; NOT the same as the UI being open.
 	[[nodiscard]] static bool saveInFlight() { return saveInFlight_; }
@@ -183,6 +197,8 @@ private:
 		FINISH,    ///< Running the caller's completion.
 	};
 
+	/// @brief Run the staged save's current phase.
+	static void runStagedStep();
 	void runSerializePhase();
 	void runWritePhase();
 	void runFinishPhase();
