@@ -34,8 +34,8 @@ uint32_t dirOffsetCounter;
 
 JsonSerializer jWriter;
 std::string activeDirName;
-/// Consecutive ticks the directory open for the front `dir` request has gone unanswered. See smSysex::getDirEntries().
-deluge::io::StallBound dirOpenWait;
+/// How long the directory open for the front `dir` request has gone unanswered. See smSysex::getDirEntries().
+deluge::io::StallBound dirOpenWait{deluge::storage::kSysExStallUs};
 const size_t blockBufferMax = 1024;
 const size_t sysexBufferMax = blockBufferMax + 256;
 uint8_t* writeBlockBuffer = nullptr;

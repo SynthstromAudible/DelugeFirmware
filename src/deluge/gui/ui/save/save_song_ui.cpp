@@ -431,8 +431,8 @@ void SaveSongUI::collectRoutine() {
 }
 
 bool SaveSongUI::deferCollection() {
-	// Counts only the ticks on which the byte channel finished nothing: a copy moves a chunk at a time, so a large
-	// sample's copy keeps the count at zero for as long as it runs, and a wedged channel still ends the collection.
+	// Measures only a span in which the byte channel finished nothing: a copy moves a chunk at a time, so a large
+	// sample's copy keeps restarting the span for as long as it runs, and a wedged channel still ends the collection.
 	return !collectStallBound_.tick(deluge_file_bytes_progress());
 }
 
@@ -652,7 +652,7 @@ bool SaveSongUI::docInline() {
 }
 
 bool SaveSongUI::deferDocument() {
-	// Every document step waits on the byte channel. Only the ticks on which it finished nothing count, so a step
+	// Every document step waits on the byte channel. Only a span in which it finished nothing counts, so a step
 	// refused behind someone else's long operation waits for it, and a wedged channel still ends the save.
 	return !docStallBound_.tick(deluge_file_bytes_progress());
 }

@@ -59,8 +59,8 @@ PLACE_SDRAM_BSS std::array<uint8_t, DELUGE_FILE_PREFIX_CAPACITY> g_cartridgeBuff
 /// g_cartridgeLoadPath before the collect reads it: the browser stays open until the load
 /// succeeds, so a second enterKeyPress can land while one is already in flight.
 bool g_cartridgeLoadInFlight = false;
-/// Consecutive ticks the load in flight has found its read unanswered (UNKNOWN or PENDING).
-deluge::io::StallBound g_cartridgeWait;
+/// How long the load in flight has found its read unanswered (UNKNOWN or PENDING).
+deluge::io::StallBound g_cartridgeWait{DxSyxBrowser::kCartridgeStallUs};
 /// Loads that gave up at the bound. See DxSyxBrowser::cartridgeGiveUps().
 int32_t g_cartridgeGiveUps = 0;
 

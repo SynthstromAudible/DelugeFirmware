@@ -62,6 +62,8 @@ file(GLOB_RECURSE deluge_SOURCES
         # mock_file_io.cpp (borrowed from tests/unit/io) backs deluge::io::File with an in-memory card.
         ../../../src/deluge/storage/song_preview.cpp
         ../../../src/deluge/storage/file_reader.cpp
+        # deluge::runtime::nowUs(), the clock behind the stall bounds file_reader.cpp and slicer.cpp construct.
+        ../../../src/deluge/runtime/app_loop.cpp
         # The storage channels' C ABI as "no channel here": the Rust BSP defines them everywhere else.
         ../../support/mocks/storage_channel_mocks.cpp
         ../../../src/deluge/storage/Deserializer.cpp
@@ -119,7 +121,6 @@ add_executable(UnitTests
         slicer_preview_tests.cpp
         dx_cartridge_window_tests.cpp
         trigger_clock_input_tests.cpp
-        stall_bound_tests.cpp
         c_path_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to

@@ -90,10 +90,9 @@ constexpr const char* kReferencePath = "SONGS/SSTEST03.XML";
 constexpr const char* kHeldName = "SSTEST02";
 constexpr const char* kHeldPath = "SONGS/SSTEST02.XML";
 /// How long the byte channel holds the document write in the held leg, in virtual milliseconds. The save's own stall
-/// bound is `SaveSongUI::documentStallLimit()` caller ticks of the "document save" task (600, at 1 to 20 ms a tick);
-/// the check counts the ticks the save actually spent on the held write and requires more than that, rather than
-/// assuming a tick rate. Lifted once the write lands, so the read-back, unlink and rename that follow run at the
-/// card's own pace.
+/// bound is `SaveSongUI::documentStallLimitUs()`; the check measures how long the save actually spent on the held
+/// write and requires more than that, rather than assuming it. Lifted once the write lands, so the read-back, unlink
+/// and rename that follow run at the card's own pace.
 constexpr uint32_t kHeldLatencyMs = 10000;
 
 /// Notes per row. Sized so the document clears 65536 bytes -- two doublings of the 32768-byte
@@ -603,10 +602,10 @@ void runTick() {
 		const bool present = readWholeFile(kHeldPath, bytes);
 		const uint32_t crc = present ? crc32(bytes.data(), bytes.size()) : 0;
 		const auto heldUs = static_cast<long long>(g_heldWriteUs);
-		const int32_t bound = saveSongUI.documentStallLimit();
-		printf("SS-HELD completed=%d present=%d bytes=%zu crc=%08X heldUs=%lld heldTicks=%d bound=%d ticks=%d\n",
-		       (int)completed, (int)present, bytes.size(), crc, heldUs, (int)g_heldTicks, (int)bound, g_waitTicks);
-		if (g_heldTicks <= bound) {
+		const auto bound = static_cast<long long>(saveSongUI.documentStallLimitUs());
+		printf("SS-HELD completed=%d present=%d bytes=%zu crc=%08X heldUs=%lld heldTicks=%d boundUs=%lld ticks=%d\n",
+		       (int)completed, (int)present, bytes.size(), crc, heldUs, (int)g_heldTicks, bound, g_waitTicks);
+		if (heldUs <= bound) {
 			printf("SS-HELD FAIL the document write landed within the stall bound; nothing was held past it, so this "
 			       "proves nothing\n");
 			g_failures++;

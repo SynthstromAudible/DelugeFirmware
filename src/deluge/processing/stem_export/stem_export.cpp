@@ -883,6 +883,11 @@ Error StemExport::getUnusedStemRecordingFilePath(std::string* filePath, AudioRec
 /// file system calls, it will save the last song and sub-folder name saved to a std::string including the last
 /// incremental folder number and use that to obtain the filePath for the next stem export job (e.g. if you are
 /// exporting the same song more and stem export type than once)
+bool StemExport::stemSearchStalled() {
+	const bool timedOut = stemSearchStall_.tick();
+	return timedOut || ++stemSearchPumps_ >= kMaxInRunPumps;
+}
+
 Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioRecordingFolder folder) {
 
 	const auto folderID = util::to_underlying(folder);
@@ -982,6 +987,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 			stemSearchIssued_ = false;
 			stemSearchCandidatesTried_ = 0;
 			stemSearchStall_.reset();
+			stemSearchPumps_ = 0;
 			stemSearchCandidatePath_ = tempPathForSearch;
 		}
 
@@ -1001,7 +1007,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectExists(stemSearchCandidatePath_.c_str(), &present, &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						if (!stemSearchStall_.tick()) {
+						if (!stemSearchStalled()) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestExists(stemSearchCandidatePath_.c_str());
 							}
@@ -1029,7 +1035,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectMkdirAll(stemSearchCandidatePath_.c_str(), &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						if (!stemSearchStall_.tick()) {
+						if (!stemSearchStalled()) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestMkdirAll(stemSearchCandidatePath_.c_str());
 							}
@@ -1071,6 +1077,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 				stemSearchCandidatePath_.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
 			}
 			stemSearchStall_.reset();
+			stemSearchPumps_ = 0;
 			stemSearchPhase_ = next;
 		}
 

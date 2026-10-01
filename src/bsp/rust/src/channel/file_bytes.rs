@@ -195,8 +195,9 @@ pub fn non_idempotent(op: ByteOp) -> bool {
 /// How many new requests an uncollected answer of a [`non_idempotent`] kind refuses before the
 /// channel gives up on its owner and lets a new request displace it.
 ///
-/// Each caller asks at most once per tick and gives up after `kChannelStallTicks` (600) refusals;
-/// half that frees the channel well before any caller it holds off gives up. An owner still polling
+/// Each caller asks at most once per tick and gives up only once its stall bound has passed
+/// (`deluge::io::StallBound`), which spans at least 600 of its own ticks at its job's gap; half
+/// that frees the channel well before any caller it holds off gives up. An owner still polling
 /// takes its answer on its next tick, so an answer that ages out belongs to an owner that has gone.
 pub const PROTECTED_ANSWER_REFUSALS: u32 = 300;
 

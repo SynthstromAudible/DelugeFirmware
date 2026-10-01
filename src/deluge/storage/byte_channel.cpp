@@ -235,12 +235,11 @@ void holdPath(const char* path) {
 	std::memcpy(g_pending.path, path, std::strlen(path) + 1);
 }
 
-/// How many caller ticks the pending operation has spent refused or waiting for an answer while the channel finished
-/// nothing.
+/// How long the pending operation has spent refused or waiting for an answer while the channel finished nothing.
 ///
 /// A channel whose driver is not running answers PENDING, or refuses, forever -- which is neither an answer nor a
 /// failure. Without this bound a submitted operation is polled until the end of time and never happens, silently:
-/// the caller was told the channel took it, so it does not fall back either. Counted against the channel's progress
+/// the caller was told the channel took it, so it does not fall back either. Measured against the channel's progress
 /// mark, so an operation refused behind another caller's long copy waits for it rather than failing.
 deluge::io::StallBound g_pendingBound;
 
@@ -447,8 +446,8 @@ void serviceRoutine() {
 	// machine below only appends, so nothing re-enters it.
 	promoteHead();
 
-	// One tick's grace accounting, before any of the steps below. A step that returns without
-	// finishing has spent a tick; enough of those and the channel is not going to answer.
+	// The stall accounting, before any of the steps below. A step that returns without finishing has
+	// waited another tick; once the channel has finished nothing for the whole bound, it is not going to answer.
 	if (g_pending.step != Step::Idle && g_pendingBound.tick(deluge_file_bytes_progress())) {
 		abandonChannel();
 		return;

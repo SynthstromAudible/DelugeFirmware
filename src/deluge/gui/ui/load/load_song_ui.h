@@ -81,6 +81,10 @@ public:
 
 	bool deletedPartsOfOldSong{};
 
+	/// @brief How long a song preview's read may go unanswered before the preview gives up, in microseconds: 9 s, the
+	///        channel stall bound scaled to the graphics routine that re-asks, every 15 ms.
+	static constexpr uint64_t kPreviewStallUs = 9'000'000;
+
 	// ui
 	UIType getUIType() override { return UIType::LOAD_SONG; }
 	bool canDisplayFavourites() override { return true; }
@@ -224,13 +228,13 @@ private:
 	/// `currentFileChanged` ticked again, so two columns were copied out of an unfilled store.
 	int32_t pendingScrollDirection_{0};
 
-	/// @brief Consecutive collects that found the current preview's read unanswered (UNKNOWN or PENDING), and the
-	///        attempt they were counted for.
+	/// @brief How long the collects have found the current preview's read unanswered (UNKNOWN or PENDING), and the
+	///        attempt they were measured for.
 	///
 	/// At the bound the preview gives up with the card error: the pads cannot stay scrolled out for as long as a
-	/// card takes not to answer. A different attempt, or an answered read, starts the count again.
+	/// card takes not to answer. A different attempt, or an answered read, starts the span again.
 	/// @{
-	deluge::io::StallBound previewWait_;
+	deluge::io::StallBound previewWait_{kPreviewStallUs};
 	uint32_t previewWaitGeneration_{0};
 	std::string previewWaitPath_;
 	/// @}
@@ -307,17 +311,17 @@ private:
 	/// document of its own.
 	FileDeserializer* stagingPrevious_{nullptr};
 
-	/// @brief How many consecutive ticks STAGE waits for the browser's listing before giving up. A bound, not a
+	/// @brief How long STAGE waits for the browser's listing before giving up, in microseconds. A bound, not a
 	///        timeout: a listing settles in a handful of ticks when it settles at all, and an empty folder must end
 	///        the load with an error rather than spinning forever. More than three channel stall bounds
-	///        (`deluge::io::kChannelStallTicks`), so the listing's own directory open, which that bound limits, gives
+	///        (`deluge::io::kChannelStallUs`), so the listing's own directory open, which that bound limits, gives
 	///        up and reports first.
-	static constexpr int32_t kMaxStagingWaitTicks = 2000;
-	static_assert(kMaxStagingWaitTicks > 3 * deluge::io::kChannelStallTicks,
+	static constexpr uint64_t kMaxStagingWaitUs = 12'000'000;
+	static_assert(kMaxStagingWaitUs > 3 * deluge::io::kChannelStallUs,
 	              "the directory open the listing waits on must give up before the staging wait does");
 
-	/// @brief Consecutive ticks STAGE has waited for the browser's listing. Bounded.
-	deluge::io::StallBound stagingWait_{kMaxStagingWaitTicks};
+	/// @brief How long STAGE has waited for the browser's listing. Bounded.
+	deluge::io::StallBound stagingWait_{kMaxStagingWaitUs};
 
 	/// @brief Completion handed to @ref beginLoad, cleared as it runs.
 	void (*loadOnComplete_)(){nullptr};

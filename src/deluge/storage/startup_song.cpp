@@ -50,8 +50,8 @@ namespace {
 /// The template song, and the fallback when the recorded startup song has gone.
 constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 
-/// How many consecutive unproductive attempts, on caller ticks on which the channel finished nothing, before the
-/// machine stops asking the channel.
+/// How long the machine's attempts may go unproductive, with the channel finishing nothing, before it stops asking
+/// the channel, in microseconds.
 ///
 /// The channel is single-flight across all operation kinds, so a settings write in flight refuses
 /// this machine's request. Retrying is right -- the machine is already ticking -- but an unbounded
@@ -59,17 +59,17 @@ constexpr const char* kDefaultSongFullPath = "SONGS/DEFAULT.XML";
 /// where blocking is legal; after boot, that is refused, and the operation fails
 /// through the machine's own cautious paths.
 ///
-/// **It counts re-asks as well as refusals, and that is the half that matters.** A refusal is a
+/// **It measures re-asks as well as refusals, and that is the half that matters.** A refusal is a
 /// `false` from a request that returns one; but the read and existence requests return nothing at
 /// all, so a channel that ACCEPTS a request and never answers it produces neither a refusal nor a
 /// result -- just `UNKNOWN` forever, and a machine that re-asks forever. That livelock shape is what
 /// a dead channel looks like from here.
 ///
-/// As many as the stall bound below, and for the same reason. After boot the inline arm refuses to
+/// As long as the stall bound below, and for the same reason. After boot the inline arm refuses to
 /// run, so giving up on a channel that is merely busy would skip a startup song that would have
 /// loaded a few ticks later: only a channel that has made no progress for as long as a stalled one is
 /// given up on.
-constexpr int32_t kMaxAttemptsWithoutProgress = 600;
+constexpr uint64_t kMaxWithoutProgressUs = deluge::io::kChannelStallUs;
 
 /// @name The settings prelude
 ///
@@ -121,11 +121,11 @@ std::string g_canaryPath;
 std::string g_songPath;
 /// Whether the current phase has issued its request yet.
 bool g_requested = false;
-/// Consecutive attempts at the current request that produced no answer, counted only on caller ticks on which the
-/// channel finished nothing. See @ref kMaxAttemptsWithoutProgress.
-deluge::io::StallBound g_attemptBound{kMaxAttemptsWithoutProgress};
-/// Consecutive ticks the current request has spent PENDING. A separate bound from @ref
-/// kMaxAttemptsWithoutProgress, because it guards a different failure: a refusal is instant and means "busy", but a
+/// How long the attempts at the current request have produced no answer while the channel finished nothing. See
+/// @ref kMaxWithoutProgressUs.
+deluge::io::StallBound g_attemptBound{kMaxWithoutProgressUs};
+/// How long the current request has spent PENDING. A separate bound from @ref
+/// kMaxWithoutProgressUs, because it guards a different failure: a refusal is instant and means "busy", but a
 /// channel whose driver is not running answers PENDING forever, which is neither a refusal nor an answer.
 deluge::io::StallBound g_pendingBound;
 /// @}
@@ -164,8 +164,8 @@ void enter(StartupPhase phase) {
 
 /// Whether the channel should carry this operation, or the synchronous arm should.
 ///
-/// Falls back permanently once `kMaxAttemptsWithoutProgress` consecutive unproductive attempts have
-/// been seen for the current phase -- see that constant.
+/// Falls back permanently, for the current phase, once its attempts have gone unproductive for
+/// `kMaxWithoutProgressUs` or a request has sat PENDING for the stall bound -- see that constant.
 bool viaChannel() {
 	return deluge::storage::bytes::usingByteChannel() && !g_attemptBound.expired() && !g_pendingBound.expired();
 }

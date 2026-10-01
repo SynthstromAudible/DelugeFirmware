@@ -68,15 +68,14 @@ int32_t g_unusedSlotCalls = 0;
 int32_t g_totalDirectoryOpens = 0;
 /// See Browser::directoryRequests().
 int32_t g_directoryRequests = 0;
-/// Consecutive ticks the directory open in hand has gone unanswered by the channel. See
-/// Browser::openDirectoryForListing().
-deluge::io::StallBound g_directoryWait;
+/// How long the directory open in hand has gone unanswered by the channel. See Browser::openDirectoryForListing().
+deluge::io::StallBound g_directoryWait{Browser::kDirectoryStallUs};
 
-/// Count one unanswered tick of the open in hand.
+/// Note one unanswered tick of the open in hand.
 ///
 /// Giving up needs no cleanup: the channel copied the path at the request, and an answer that arrives later holds one
 /// directory handle only until the next publish displaces it and the driver closes it.
-/// @return Whether the open has now gone unanswered for the whole bound, in which case the count starts again.
+/// @return Whether the open has now gone unanswered for the whole bound, in which case the span starts again.
 bool waitedPastBound() {
 	if (!g_directoryWait.tick()) {
 		return false;

@@ -46,6 +46,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "runtime/app_loop.h"
 #include "scenarios/preset_fixture_loader.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/audio/audio_file.h"
@@ -177,9 +178,12 @@ constexpr std::array<int32_t, 8> kAsyncWavetableReads{1, 1, 0, 0, 1, 1, 0, 1};
 constexpr uint32_t kRaceProbeLatencyMs = 600;
 /// Milliseconds the byte channel holds each operation in the card-gone leg, so the probe is still out at the eject.
 constexpr uint32_t kCardGoneProbeLatencyMs = 400;
-/// Milliseconds the loader holds each load in the stall leg: longer than AsyncSampleLoad::kMaxStalledTicks scenario
-/// ticks, so the first load stalls, and over well before a second load's bound runs out.
-constexpr uint32_t kStallHoldMs = 1600;
+/// Milliseconds the loader holds each load in the stall leg: longer than AsyncSampleLoad::kMaxStalledUs, so the first
+/// load stalls, and over well before a second load's bound runs out.
+constexpr uint32_t kStallHoldMs = static_cast<uint32_t>(deluge::storage::AsyncSampleLoad::kMaxStalledUs / 1000) + 2000;
+/// How long, in virtual time, the stall leg may take before it is called wedged: the first load's bound, the second
+/// load's, and a margin. The leg waits in time because its bound is time.
+constexpr uint64_t kStallLegWindowUs = 2 * deluge::storage::AsyncSampleLoad::kMaxStalledUs + 2'000'000;
 
 enum class Stage : uint8_t {
 	SongKit,
@@ -1007,6 +1011,8 @@ Instrument* g_asyncInstrument = nullptr;
 deluge::storage::AudioLoadContext g_asyncContext{};
 std::optional<deluge::storage::AsyncSampleLoad> g_asyncLoad;
 int32_t g_asyncTicks = 0;
+/// When the leg in progress started, on the stall bounds' clock.
+uint64_t g_asyncStartUs = 0;
 int32_t g_sampleOpensBefore = 0;
 int32_t g_probesBefore = 0;
 /// The leg's AsyncOnly sample lookups that reached the blocking card read, and that probed the folder, on the
@@ -1158,6 +1164,7 @@ bool beginAsyncLeg() {
 	g_probesBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoadProbe);
 	deluge_audio_load_set_latency_ms((g_asyncLeg == AsyncLeg::Stall) ? kStallHoldMs : kAsyncLatencyMs);
 	g_asyncTicks = 0;
+	g_asyncStartUs = deluge::runtime::nowUs();
 	return true;
 }
 
@@ -1233,6 +1240,15 @@ bool stepOrphan(const deluge::storage::AsyncSampleLoad::Progress& progress) {
 	return true;
 }
 
+/// Whether the leg in progress may keep ticking before it is called wedged: kStallLegWindowUs of virtual time for the
+/// stall leg, kMaxAsyncTicks ticks for every other.
+bool asyncLegWithinCap() {
+	if (g_asyncLeg == AsyncLeg::Stall) {
+		return deluge::runtime::nowUs() - g_asyncStartUs < kStallLegWindowUs;
+	}
+	return g_asyncTicks < kMaxAsyncTicks;
+}
+
 /// One tick of the leg's load, on the interaction tier. True once the load has ended, or has run past its bound.
 bool tickAsyncLeg() {
 	const auto modeBefore = currentUIMode;
@@ -1248,17 +1264,17 @@ bool tickAsyncLeg() {
 	const deluge::storage::AsyncSampleLoad::Progress progress = g_asyncLoad->tick();
 	currentUIMode = modeBefore;
 	g_asyncTicks++;
-	if (g_asyncLeg == AsyncLeg::CardGone && !stepCardGone(progress) && g_asyncTicks < kMaxAsyncTicks) {
+	if (g_asyncLeg == AsyncLeg::CardGone && !stepCardGone(progress) && asyncLegWithinCap()) {
 		return false;
 	}
-	if (g_asyncLeg == AsyncLeg::Stall && !stepStall(progress) && g_asyncTicks < kMaxAsyncTicks) {
+	if (g_asyncLeg == AsyncLeg::Stall && !stepStall(progress) && asyncLegWithinCap()) {
 		return false;
 	}
-	if (g_asyncLeg == AsyncLeg::Orphan && !stepOrphan(progress) && g_asyncTicks < kMaxAsyncTicks) {
+	if (g_asyncLeg == AsyncLeg::Orphan && !stepOrphan(progress) && asyncLegWithinCap()) {
 		return false;
 	}
 	const bool ended = (progress.state != deluge::storage::AsyncSampleLoad::State::Loading);
-	if (!ended && g_asyncTicks < kMaxAsyncTicks) {
+	if (!ended && asyncLegWithinCap()) {
 		return false;
 	}
 	deluge_audio_load_set_latency_ms(0);
@@ -1395,18 +1411,18 @@ void checkCardGone() {
 /// nothing bound. The second load, once the hold was lifted, is compared with the blocking load by the caller.
 void checkStall() {
 	using deluge::storage::AsyncSampleLoad;
-	printf("SLT-ASYNC probe leg=stall first=%s/%s ticks=%d stalledTicks=%d bound=%d inFlight=%d\n",
+	printf("SLT-ASYNC probe leg=stall first=%s/%s ticks=%d stalledTicks=%d stalledUs=%llu bound=%d inFlight=%d\n",
 	       asyncStateName(g_stallFirst.state), asyncReasonName(g_stallFirst.reason), g_stallFirst.ticks,
-	       g_stallFirst.stalledTicks, g_stallFirst.bound, g_stallFirst.inFlight);
+	       g_stallFirst.stalledTicks, static_cast<unsigned long long>(g_stallFirst.stalledUs), g_stallFirst.bound,
+	       g_stallFirst.inFlight);
 	if (g_stallFirst.state != AsyncSampleLoad::State::Failed
 	    || g_stallFirst.reason != AsyncSampleLoad::Reason::Stalled) {
 		printf("SLT-ASYNC FAIL leg=stall the held load did not end Failed/Stalled\n");
 		g_failures++;
 	}
-	if (g_stallFirst.stalledTicks != AsyncSampleLoad::kMaxStalledTicks
-	    || g_stallFirst.ticks != AsyncSampleLoad::kMaxStalledTicks) {
-		printf("SLT-ASYNC FAIL leg=stall the held load did not end on the bound's walk (%d)\n",
-		       AsyncSampleLoad::kMaxStalledTicks);
+	if (g_stallFirst.stalledUs < AsyncSampleLoad::kMaxStalledUs || g_stallFirst.stalledTicks != g_stallFirst.ticks) {
+		printf("SLT-ASYNC FAIL leg=stall the held load did not end on the bound's walk (%llu us)\n",
+		       static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs));
 		g_failures++;
 	}
 	if (g_stallFirst.bound != 0) {

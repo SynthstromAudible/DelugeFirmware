@@ -17,66 +17,101 @@
 
 #pragma once
 
+#include "runtime/app_loop.h"
+
 #include <cstdint>
 
 namespace deluge::io {
 
-/// How many caller ticks a caller may spend waiting on a channel before it gives up on it.
+/// How long a caller may wait on a channel request with no progress before it gives up on it, in microseconds.
 ///
 /// A channel whose driver never runs answers PENDING forever, or refuses forever, which is neither an answer nor a
-/// failure. Without a bound, a caller would poll until the end of time. Six hundred caller ticks is several seconds at
-/// the UI's tick rate: far beyond any real operation, far short of forever.
-inline constexpr int32_t kChannelStallTicks = 600;
+/// failure. Without a bound, a caller would poll until the end of time. 3.6 s is far beyond any real operation and far
+/// short of forever.
+inline constexpr uint64_t kChannelStallUs = 3'600'000;
 
-/// Counts the caller ticks a caller spends waiting on one channel request, and says when to give up.
+/// Measures how long a caller has waited on one channel request with nothing to show for it, and says when to give
+/// up.
 ///
-/// A tick is one caller tick that produced no answer: the request was refused, is still PENDING, or was reported
-/// UNKNOWN and must be asked again. Each call site counts whichever of those it can meet.
+/// An unproductive tick is one caller tick that produced no answer: the request was refused, is still PENDING, or was
+/// reported UNKNOWN and must be asked again. Each call site ticks on whichever of those it can meet. The span runs
+/// from the first unproductive tick to the latest one, on the BSP's monotonic clock.
 ///
-/// Against a channel that reports its progress, count with @ref tick(uint32_t): then only the ticks on which the
-/// channel finished nothing count, so a caller held off by someone else's long operation waits for as long as that
-/// operation keeps moving, and a channel that has stopped moving still fails it after @ref limit ticks.
+/// Time, not a tick count, because a caller that runs only when something wakes it would never tick against a dead
+/// channel, and a count of its runs would never reach any bound. Such a caller asks to run at @ref deadlineUs, so its
+/// tick there finds the span over.
+///
+/// Against a channel that reports its progress, tick with @ref tick(uint32_t): a moved mark restarts the span, so a
+/// caller held off by someone else's long operation waits for as long as that operation keeps moving, and a channel
+/// that has stopped moving still fails it once @ref limitUs has passed.
 class StallBound {
 public:
-	explicit constexpr StallBound(int32_t limit = kChannelStallTicks) noexcept : limit_{limit} {}
+	using Clock = uint64_t (*)();
 
-	/// Start counting again, for a new request.
+	/// @param limitUs How long the span may run before the bound expires, in microseconds.
+	/// @param clock   The clock the span is measured on, in microseconds.
+	explicit constexpr StallBound(uint64_t limitUs = kChannelStallUs, Clock clock = &deluge::runtime::nowUs) noexcept
+	    : limitUs_{limitUs}, clock_{clock} {}
+
+	/// Start a new span, for a new request.
 	void reset() noexcept {
-		ticks_ = 0;
+		sinceUs_ = deluge::runtime::kNever;
+		lastUs_ = 0;
 		seenProgress_ = false;
 	}
 
-	/// Count one caller tick spent waiting. True once the limit is reached, and on every tick after.
+	/// Note one unproductive tick. The first after @ref reset starts the span.
+	/// @return True once @ref limitUs has passed since the span started, and on every tick after.
 	bool tick() noexcept {
-		if (ticks_ < limit_) {
-			ticks_++;
+		const uint64_t now = clock_();
+		if (sinceUs_ == deluge::runtime::kNever) {
+			sinceUs_ = now;
 		}
+		lastUs_ = (now > sinceUs_) ? now : sinceUs_;
 		return expired();
 	}
 
-	/// Count one caller tick spent waiting on a channel whose progress mark reads @p progress.
+	/// Note one unproductive tick on a channel whose progress mark reads @p progress.
 	///
-	/// A mark that differs from the one the previous tick saw means the channel finished some work in between, so
-	/// the count starts over before this tick is counted. Marks are compared for equality only, so a wrapped counter
-	/// is still progress. The first tick after @ref reset has nothing to compare against and simply counts.
+	/// A mark that differs from the one the previous tick saw means the channel finished some work in between, so the
+	/// span starts again at this tick. Marks are compared for equality only, so a wrapped counter is still progress.
+	/// The first tick after @ref reset has nothing to compare against and simply ticks.
 	/// @param progress The channel's progress mark, read this tick (e.g. `deluge_file_bytes_progress()`).
-	/// @return True once @ref limit consecutive ticks have seen the same mark.
+	/// @return True once @ref limitUs has passed with the same mark.
 	bool tick(uint32_t progress) noexcept {
 		if (seenProgress_ && progress != progress_) {
-			ticks_ = 0;
+			sinceUs_ = deluge::runtime::kNever;
 		}
 		progress_ = progress;
 		seenProgress_ = true;
 		return tick();
 	}
 
-	[[nodiscard]] bool expired() const noexcept { return ticks_ >= limit_; }
-	[[nodiscard]] int32_t ticks() const noexcept { return ticks_; }
-	[[nodiscard]] int32_t limit() const noexcept { return limit_; }
+	/// Whether the latest tick found the span at or past @ref limitUs. Time passing without a tick changes nothing.
+	[[nodiscard]] bool expired() const noexcept {
+		return sinceUs_ != deluge::runtime::kNever && elapsedUs() >= limitUs_;
+	}
+	/// The span from its start to the latest tick, in microseconds. Zero before the first tick.
+	[[nodiscard]] uint64_t elapsedUs() const noexcept {
+		return (sinceUs_ == deluge::runtime::kNever) ? 0 : lastUs_ - sinceUs_;
+	}
+	[[nodiscard]] uint64_t limitUs() const noexcept { return limitUs_; }
+	/// When this bound will expire if nothing progresses: a job waiting on its channel asks for a run at this time,
+	/// so it gives up even if the channel never wakes it. kNever before the first tick.
+	[[nodiscard]] uint64_t deadlineUs() const noexcept {
+		if (sinceUs_ == deluge::runtime::kNever) {
+			return deluge::runtime::kNever;
+		}
+		return (limitUs_ > deluge::runtime::kNever - sinceUs_) ? deluge::runtime::kNever : sinceUs_ + limitUs_;
+	}
 
 private:
-	int32_t limit_;
-	int32_t ticks_ = 0;
+	uint64_t limitUs_;
+	Clock clock_;
+	/// When the span started, or kNever when none has.
+	uint64_t sinceUs_ = deluge::runtime::kNever;
+	/// The latest tick's time.
+	uint64_t lastUs_ = 0;
 	/// The progress mark the previous @ref tick(uint32_t) saw, valid once `seenProgress_` is set.
 	uint32_t progress_ = 0;
 	bool seenProgress_ = false;

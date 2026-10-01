@@ -85,8 +85,10 @@ constexpr int32_t kOversizeEntries = 600;
 /// The busy stage's hold: a copy of this many chunks, each waiting this long, keeps the channel busy with work that
 /// progresses for kBusyChunks * kBusyChunkLatencyMs virtual milliseconds (5 s). At one scenario step per two virtual
 /// milliseconds, and the app's own "settings io" task beside it, that is thousands of refused ticks for a write
-/// queued behind it -- far past `deluge::io::kChannelStallTicks`, which the check requires rather than assumes.
+/// queued behind it -- far past kStallBoundTicks, which the check requires rather than assumes.
 constexpr uint32_t kBusyChunks = 100;
+/// The channel stall bound (`deluge::io::kChannelStallUs`) in ticks of the "settings io" job, which runs every 6 ms.
+constexpr int32_t kStallBoundTicks = static_cast<int32_t>(deluge::io::kChannelStallUs / 6'000);
 constexpr uint32_t kBusyChunkLatencyMs = 50;
 /// The value the write held behind the copy carries. Differs from every value the earlier stages leave.
 constexpr uint32_t kBusyValue = 6;
@@ -619,8 +621,8 @@ void runTick() {
 		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
 		std::vector<uint8_t> copied;
 		const bool copyThere = readWholeFile(kBusyCopy, copied);
-		printf("SC-BUSY value=%u refused=%d bound=%d copyBytes=%zu\n", value, g_busyRefused,
-		       deluge::io::kChannelStallTicks, copyThere ? copied.size() : size_t{0});
+		printf("SC-BUSY value=%u refused=%d bound=%d copyBytes=%zu\n", value, g_busyRefused, kStallBoundTicks,
+		       copyThere ? copied.size() : size_t{0});
 		// The value first: a write that gave up was refused on at most the stall bound's ticks, so the precondition
 		// below cannot tell a failed write from a hold too short to prove anything.
 		if (value != kBusyValue) {
@@ -628,7 +630,7 @@ void runTick() {
 			       kBusyValue);
 			g_failures++;
 		}
-		else if (g_busyRefused <= deluge::io::kChannelStallTicks) {
+		else if (g_busyRefused <= kStallBoundTicks) {
 			printf("SC-BUSY FAIL the write was refused on only %d ticks, within the stall bound; nothing was held past "
 			       "it, so this proves nothing\n",
 			       g_busyRefused);

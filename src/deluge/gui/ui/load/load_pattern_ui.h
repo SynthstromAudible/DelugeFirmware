@@ -100,8 +100,11 @@ private:
 	};
 	/// The read @ref loadRoutine is advancing.
 	std::optional<PatternRead> active_;
+	/// How long the read may go without progress before it gives up: 18 s, the channel stall bound scaled to the
+	/// "instrument load" job this read runs on, which asks every 30 ms rather than every 6.
+	static constexpr uint64_t kStagingStallUs = 18'000'000;
 	/// The active read's bytes.
-	StorageManager::StagingState staging_{};
+	StorageManager::StagingState staging_{.stallBound = deluge::io::StallBound{kStagingStallUs}};
 
 	void requestRead(PatternRead read);
 	/// Stop the active read and free its staging.

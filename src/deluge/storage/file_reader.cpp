@@ -274,7 +274,8 @@ void StorageManager::releaseStaging(StagingState* state) {
 			freeStagingBuffer(state->buffer, state->size);
 		}
 	}
-	*state = {};
+	// A fresh state for the next staging, with the caller's stall limit.
+	*state = {.stallBound = deluge::io::StallBound{state->stallBound.limitUs()}};
 }
 
 namespace {
@@ -282,10 +283,10 @@ namespace {
 int32_t stagingServedOps = 0;
 
 /// Defer one more caller tick, or give up once the byte channel has finished nothing for the whole stall bound. A
-/// bound, not a timeout: a refusal behind someone else's long operation, or a wait on this read, keeps waiting for
-/// as long as the channel keeps finishing work, and only a channel that has stopped fails the load.
+/// stall bound, not a timeout on the read: a refusal behind someone else's long operation, or a wait on this read,
+/// keeps waiting for as long as the channel keeps finishing work, and only a channel that has stopped fails the load.
 StorageManager::StagedOpen deferStaging(StorageManager::StagingState* state) {
-	if (state->stalledTicks.tick(deluge_file_bytes_progress())) {
+	if (state->stallBound.tick(deluge_file_bytes_progress())) {
 		return StorageManager::StagedOpen::Failed;
 	}
 	return StorageManager::StagedOpen::Deferred;
@@ -332,7 +333,7 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 			case deluge::storage::bytes::ByteIo::Failed:
 				return StagedOpen::Failed;
 			case deluge::storage::bytes::ByteIo::Ready:
-				state->stalledTicks.reset();
+				state->stallBound.reset();
 				break;
 			}
 			if (size == 0) {
@@ -349,7 +350,7 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 			return deferStaging(state);
 		}
 		state->issued = true;
-		state->stalledTicks.reset();
+		state->stallBound.reset();
 		return StagedOpen::Deferred;
 	}
 	else {

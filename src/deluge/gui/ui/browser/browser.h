@@ -158,6 +158,10 @@ public:
 	/// @brief The error the most recent of those failures reported. For gates only.
 	[[nodiscard]] static Error lastListingFailure();
 
+	/// @brief How long a directory open may go unanswered by the channel before the listing gives up, in
+	///        microseconds: 9 s, the channel stall bound scaled to the graphics routine that asks, every 15 ms.
+	static constexpr uint64_t kDirectoryStallUs = 9'000'000;
+
 	/// @brief How many reloads -- the scroll past a culled window's edge -- have started. For gates only.
 	[[nodiscard]] static int32_t reloadsRun();
 

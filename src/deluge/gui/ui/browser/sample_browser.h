@@ -121,7 +121,7 @@ public:
 
 	/// @brief How many previews gave up on a load that stopped moving.
 	///
-	/// A preview whose load ends stalled (AsyncSampleLoad::kMaxStalledTicks walks in a row with nothing settled) gives
+	/// A preview whose load ends stalled (AsyncSampleLoad::kMaxStalledUs of walks with nothing settled) gives
 	/// up with the card error; see finishPreviewLoad(). Exposed for the A/B gate, which holds a load far past the
 	/// bound.
 	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }

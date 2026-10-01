@@ -43,6 +43,12 @@
 /// starting or resuming.
 namespace deluge::storage {
 
+/// How long a SysEx request may wait on a channel with nothing to show for it before it gives up, in microseconds.
+///
+/// Shorter than the other callers' bound (`deluge::io::kChannelStallUs`): the SysEx job asks every 0.4 ms, and a
+/// request that waits holds every request queued behind it.
+inline constexpr uint64_t kSysExStallUs = 300'000;
+
 /// Which path operation is in flight.
 enum class PathOp : uint8_t {
 	None,

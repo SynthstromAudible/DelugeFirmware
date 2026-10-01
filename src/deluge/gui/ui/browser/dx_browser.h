@@ -47,7 +47,12 @@ public:
 	/// namespace.
 	static bool cartridgeLoadInFlight();
 
-	/// @brief How many cartridge loads gave up because the channel left their read unanswered for 600 ticks.
+	/// @brief How long a cartridge load may find its read unanswered before it gives up, in microseconds: 9 s, the
+	///        channel stall bound scaled to the graphics routine that collects it, every 15 ms.
+	static constexpr uint64_t kCartridgeStallUs = 9'000'000;
+
+	/// @brief How many cartridge loads gave up because the channel left their read unanswered for
+	///        @ref kCartridgeStallUs.
 	///
 	/// For the song-preview gate, like @ref cartridgeLoadInFlight.
 	static int32_t cartridgeGiveUps();

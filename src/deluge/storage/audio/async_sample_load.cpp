@@ -105,18 +105,20 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 
 	samplesSettled_ = (samplesInFlight_ == 0);
 	// Progress is a demand settled since the previous walk, bound or empty. A walk that settles nothing while something
-	// is still in flight counts toward the bound; one that settles anything starts the count again.
+	// is still in flight counts toward the bound; one that settles anything starts the span again.
 	const int32_t settled = progress_.bound + progress_.emptyHolders;
 	const bool madeProgress = (settled > settledBefore_);
 	settledBefore_ = settled;
 	bool stalled = false;
 	if (progress_.inFlight > 0 && !madeProgress) {
 		stalled = stalledBound_.tick();
+		progress_.stalledTicks++;
 	}
 	else {
 		stalledBound_.reset();
+		progress_.stalledTicks = 0;
 	}
-	progress_.stalledTicks = stalledBound_.ticks();
+	progress_.stalledUs = stalledBound_.elapsedUs();
 	if (aborted_) {
 		progress_.state = State::Failed;
 		progress_.reason = Reason::Aborted;

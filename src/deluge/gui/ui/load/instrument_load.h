@@ -255,7 +255,10 @@ private:
 
 	/// @name What the load in flight holds.
 	/// @{
-	StorageManager::StagingState staging_{};
+	/// How long the preset's staging may go without progress before the load gives up: 18 s, the channel stall bound
+	/// scaled to the "instrument load" job, which asks every 30 ms rather than every 6.
+	static constexpr uint64_t kStagingStallUs = 18'000'000;
+	StorageManager::StagingState staging_{.stallBound = deluge::io::StallBound{kStagingStallUs}};
 	bool stagingOpen_{false}; ///< A staging has begun and not been released.
 	FileDeserializer* previousDeserializer_{nullptr};
 	Instrument* newInstrument_{nullptr};

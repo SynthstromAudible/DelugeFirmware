@@ -411,7 +411,7 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 /// @brief How many caller ticks the submit machine's pending request has been refused by the channel, in total.
 ///
 /// Observational: a gate reads it to prove that a submission was held off behind other work for longer than the stall
-/// bound (`deluge::io::kChannelStallTicks`) and still completed.
+/// bound (`deluge::io::kChannelStallUs`) and still completed.
 [[nodiscard]] int32_t refusedTicks();
 
 /// @brief Whether the seam has nothing in flight and nothing waiting.

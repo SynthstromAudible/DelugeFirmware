@@ -28,18 +28,18 @@ namespace deluge::storage {
 
 namespace {
 
-/// How many consecutive refusals, on caller ticks on which the channel finished nothing, before this stops asking
-/// the channel.
+/// How long the current request may go refused while the channel finishes nothing before this stops asking the
+/// channel, in microseconds.
 ///
 /// The channel is single-flight across all operation kinds, so another consumer's operation in
 /// flight refuses this one. Retrying is right -- the handler is re-entered every tick anyway -- but
 /// an unbounded retry would let a wedged channel stall the SysEx queue behind one request. A channel that keeps
 /// finishing work is busy, not wedged, so its refusals do not count.
 ///
-/// As many as the stall bound below. After boot the synchronous arm refuses to run, so giving up on
+/// As long as the stall bound below. After boot the synchronous arm refuses to run, so giving up on
 /// a channel that is merely busy would answer the host with an error for a request that would have
 /// succeeded a few ticks later.
-constexpr int32_t kMaxRefusals = 600;
+constexpr uint64_t kMaxRefusalUs = kSysExStallUs;
 
 PathOp g_op = PathOp::None;
 std::string g_pathA;
@@ -59,12 +59,12 @@ uint32_t g_resultValue = 0;
 
 /// Whether the request has been issued (as opposed to started but still refused).
 bool g_issued = false;
-/// Refusals and re-asks of the current request, counted only on caller ticks on which the channel finished nothing.
-deluge::io::StallBound g_refusalBound{kMaxRefusals};
-/// How long the operation in flight has sat PENDING. A separate bound from @ref kMaxRefusals, because it guards a
+/// How long the current request has been refused or re-asked while the channel finished nothing.
+deluge::io::StallBound g_refusalBound{kMaxRefusalUs};
+/// How long the operation in flight has sat PENDING. A separate bound from @ref kMaxRefusalUs, because it guards a
 /// different failure: a refusal is instant and means "busy", but a channel whose driver is not running answers
 /// PENDING forever, which is neither a refusal nor an answer.
-deluge::io::StallBound g_pendingBound;
+deluge::io::StallBound g_pendingBound{kSysExStallUs};
 
 /// The synchronous arm's answer, read on the tick after the one that ran (or refused) it.
 bool g_inlineDone = false;
