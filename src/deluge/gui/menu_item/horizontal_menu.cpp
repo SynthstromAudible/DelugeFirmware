@@ -326,10 +326,6 @@ void HorizontalMenu::selectEncoderAction(int32_t offset) {
 	child->selectEncoderAction(offset * calcNextKnobSpeed(offset));
 	focusChild(child);
 	displayNotification(child);
-
-	// We don't want to return true for selectEncoderEditsInstrument(), since
-	// that would trigger for scrolling in the menu as well.
-	return soundEditor.markInstrumentAsEdited();
 }
 
 void HorizontalMenu::displayNotification(MenuItem* menuItem) {
@@ -679,6 +675,14 @@ void HorizontalMenu::handleItemAction(MenuItem* menuItem) {
 
 bool HorizontalMenu::hasItem(const MenuItem* item) {
 	return std::ranges::contains(items, item);
+}
+
+bool HorizontalMenu::selectEncoderActionEditsInstrument() {
+	MenuItem* child = *current_item_;
+	if (child) {
+		return child->selectEncoderActionEditsInstrument();
+	}
+	return false;
 }
 
 MenuPermission HorizontalMenu::initializeItem(MenuItem* menuItem) {
