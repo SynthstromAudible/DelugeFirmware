@@ -175,6 +175,8 @@ struct SysExDataEntry {
 
 deluge::deque<SysExDataEntry> SysExQ;
 
+deluge::runtime::JobId smSysex::jobId = deluge::runtime::kNoJob;
+
 // The following constants assume that the messageID part ranges from 1 to SYSEX_MSGID_MAX
 // and that SYSEX_MSGID_MAX is 1 less than a power of 2.
 // It also assumes that MAX_SYSEX_SESSIONS is also 1 less than a power of 2.
@@ -955,13 +957,18 @@ void smSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 
 	SysExDataEntry& de = SysExQ.emplace_back(cable, len);
 	memcpy(de.data, data, len);
+	// The job has no gap and no wake: a message sitting in the queue with nobody asking for a run would
+	// never get one.
+	deluge::runtime::appLoop.request(jobId);
 }
 
 // smSysex is a namespace (no instance state), so what little state the pump needs lives at file
 // scope. processFrontSysEx() is the parse+handle+reply body; handleNextSysEx() is the per-tick
-// trigger.
+// trigger. processFrontSysEx() returns whether the front entry finished (and was popped), which is
+// what handleNextSysEx() needs to tell "more queued behind the one just answered" apart from "this
+// one is still in flight".
 namespace smSysex {
-void processFrontSysEx();
+bool processFrontSysEx();
 }
 
 void smSysex::handleNextSysEx() {
@@ -970,6 +977,9 @@ void smSysex::handleNextSysEx() {
 		return;
 	}
 	if (deluge::sync::sd_busy()) {
+		// Not refused for good: the back-off is on the card being busy, not on this request, so ask for
+		// another run once that has had a chance to pass.
+		deluge::runtime::appLoop.requestAt(jobId, deluge::runtime::nowUs() + 1000);
 		return;
 	}
 
@@ -982,10 +992,26 @@ void smSysex::handleNextSysEx() {
 	//
 	// `sd_busy()` is a back-off while any filesystem operation is in flight anywhere, not what makes this
 	// call safe: neither arm touches FatFS from this stack.
-	processFrontSysEx();
+	const bool done = processFrontSysEx();
+	if (SysExQ.empty()) {
+		// Drained: nothing left to arm a run for.
+		return;
+	}
+	if (done) {
+		// The front entry answered and was popped, and another is waiting behind it: drain it too, one
+		// message per run, rather than making it wait for the next wake.
+		deluge::runtime::appLoop.request(jobId);
+	}
+	else {
+		// The front entry's path operation is still in flight, so it stays queued and will be re-parsed
+		// next run. Its own stall bound would be the sharper deadline to arm, but it lives behind
+		// `smsysex_pending.cpp`'s anonymous namespace, unreachable from here; poll briefly instead. A
+		// later task adds a completion wake and this becomes its fallback.
+		deluge::runtime::appLoop.requestAt(jobId, deluge::runtime::nowUs() + 1000);
+	}
 }
 
-void smSysex::processFrontSysEx() {
+bool smSysex::processFrontSysEx() {
 
 	SysExDataEntry& de = SysExQ.front();
 
@@ -1061,6 +1087,7 @@ finished:
 	if (done) {
 		SysExQ.pop_front();
 	}
+	return done;
 }
 
 // Helper function to parse file operation parameters
