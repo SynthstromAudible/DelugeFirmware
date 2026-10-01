@@ -481,8 +481,11 @@ void registerJobs() {
 	appLoop.add("midi routine", [] { playbackHandler.midiRoutine(); }, us(0.0015), 0);
 	// Named "slow" but isn't: it handles audio recording setup.
 	appLoop.add("audio slow", &AudioEngine::slowRoutine, us(0.006), 0);
-	// Frees what deleted outputs and drums handed to the render, once it has run two blocks past them.
-	appLoop.add("reclaim retired", [] { AudioEngine::reclaimRetired(); }, us(0.015), 0);
+	// Frees what deleted outputs and drums handed to the render, once it has run two blocks past them. Runs when
+	// something is handed over, and again while anything is still waiting -- see AudioEngine::reclaimRoutine.
+	AudioEngine::reclaimJob = appLoop.add("reclaim retired", &AudioEngine::reclaimRoutine, kNever, 0);
+	// Anything handed over before the job existed asked for nobody's run.
+	appLoop.request(AudioEngine::reclaimJob);
 	// Runs only when the BSP has queued pad or button events, and drains them all.
 	inputJob = appLoop.add("buttons and pads", &readButtonsAndPadsOnce, kNever, DELUGE_WAKE_INPUT);
 	appLoop.add("pending UI", &doAnyPendingUIRendering, us(0.02), 0);
@@ -570,8 +573,9 @@ void registerJobs() {
 	// It can call finishRecording(), which frees the SampleRecorder. Jobs run one at a time on this tier, so no other
 	// job is part-way through using that recorder when it does.
 	appLoop.add("audio recorder slow", [] { audioRecorder.slowRoutine(); }, us(0.1), 0);
-	// Actions undo/redo MIDI commands that had to wait for the card.
-	appLoop.add("playback slow routine", [] { playbackHandler.slowRoutine(); }, us(0.1), 0);
+	// Actions undo/redo MIDI commands that had to wait for the card. Requested where a command is made to wait, and
+	// again while the card is busy -- see PlaybackHandler::slowRoutine.
+	playbackHandler.slowJob = appLoop.add("playback slow routine", [] { playbackHandler.slowRoutine(); }, kNever, 0);
 	// Runs the UI timers (animations, blinks, the graphics routine) at the next one's time: routine() and
 	// setTimer() ask for the job's next run themselves.
 	uiTimerManager.jobId = appLoop.add("ui routine", [] { uiTimerManager.routine(); }, kNever, 0);

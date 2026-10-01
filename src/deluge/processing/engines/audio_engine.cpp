@@ -365,6 +365,7 @@ void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
 	r.sequence = ++retireSequencePushed;
 	pushOrOverflow(r);
 	retireList.retire(object, destroy, r.sequence);
+	deluge::runtime::appLoop.request(AudioEngine::reclaimJob);
 }
 
 /// [render] The render's block-start lifetime step: advance the epoch, then let go of everything retired since the
@@ -2317,6 +2318,15 @@ uint32_t retireDrainMicrosMax(bool reset) {
 	             : retireDrainMicrosMax_.load(std::memory_order_relaxed);
 }
 #endif
+
+deluge::runtime::JobId reclaimJob = deluge::runtime::kNoJob;
+
+void reclaimRoutine() {
+	reclaimRetired();
+	if (retiredPending() > 0) {
+		deluge::runtime::appLoop.requestAt(reclaimJob, deluge::runtime::nowUs() + kReclaimRecheckUs);
+	}
+}
 
 std::size_t retiredPending() {
 	// Every retired object not yet destroyed is in the list, whether or not its request has reached the render.

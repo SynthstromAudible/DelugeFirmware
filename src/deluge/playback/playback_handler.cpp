@@ -156,7 +156,11 @@ void PlaybackHandler::routine() {
 
 void PlaybackHandler::slowRoutine() {
 	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
-	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && !deluge::sync::sd_busy()) {
+	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && deluge::sync::sd_busy()) {
+		deluge::runtime::appLoop.requestAt(slowJob, deluge::runtime::nowUs() + kSlowRetryUs);
+		return;
+	}
+	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE) {
 
 		D_PRINTLN("actioning pending command -----------------------------------------");
 
@@ -2809,6 +2813,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 					// routine - which is locked cos we're in it!
 					pendingGlobalMIDICommand = command;
 					pendingGlobalMIDICommandNumClustersWritten = 0;
+					deluge::runtime::appLoop.request(slowJob);
 				}
 				break;
 
