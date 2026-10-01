@@ -42,6 +42,7 @@ JobId Loop::add(const char* name, void (*body)(), Micros gap, WakeMask wakes) {
 	job.body = body;
 	job.gap = gap;
 	job.wakes = wakes;
+	listened_ |= wakes;
 	job.nextDue = gap == kNever ? kNever : clock_() + gap;
 	return static_cast<JobId>(count_++);
 }
@@ -75,7 +76,7 @@ Micros Loop::service(Micros now, WakeMask reasons) {
 	else {
 		// Jobs still ahead in this pass see the new reasons now; those already passed see them next pass.
 		passReasons_ |= reasons;
-		carryReasons_ |= reasons;
+		carryReasons_ |= reasons & listened_;
 	}
 
 	for (size_t i = cursor_; i < count_; ++i) {

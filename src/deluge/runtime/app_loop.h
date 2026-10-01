@@ -48,8 +48,8 @@ struct JobStats {
 ///
 /// Each service() call runs at most one job, and a pass spans as many calls as it has jobs to run.
 /// The caller yields between calls, so the rest of its executor runs between jobs: the storage
-/// channels on a single-executor host, the BSP's own tasks on the device. A job that waits on a
-/// channel is answered before the next job runs, as it was when each job was its own task.
+/// channels on a single-executor host, the BSP's own tasks on the device. So a job that waits on a
+/// channel is answered before the next job runs.
 class Loop {
 public:
 	using Clock = Micros (*)();
@@ -120,8 +120,10 @@ private:
 	WakeMask passReasons_ = 0;
 	/// The requests taken when the current pass started.
 	std::array<bool, kMaxJobs> passRequested_{};
-	/// Reasons that arrived mid-pass, for the next pass.
+	/// Reasons that arrived mid-pass, for the next pass. Only reasons some job listens for.
 	WakeMask carryReasons_ = 0;
+	/// Every reason some added job listens for.
+	WakeMask listened_ = 0;
 };
 
 /// The app's loop, which deluge_app_service runs.

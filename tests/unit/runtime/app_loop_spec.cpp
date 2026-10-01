@@ -213,6 +213,20 @@ describe app_loop("deluge::runtime::Loop", $ {
 		expect(g_log).to_equal(std::vector<char>{'b', 'c', 'a'});
 	});
 
+	it("a pass ends without asking for another when only reasons no job listens to arrived mid-pass", _ {
+		Loop loop{clock, waker};
+		loop.add("a", bodyA, 100, 0);
+		loop.add("b", bodyB, 100, 0b10);
+		g_now = 1100;
+		loop.service(1100, 0);
+		// Mid-pass: a reason nobody listens for (a driver's timer reason, say).
+		loop.service(1100, 0b01);
+		expect(g_log).to_equal(std::vector<char>{'a', 'b'});
+		// The pass ends and asks for the next due time, not for another pass at once.
+		expect(loop.service(1100, 0)).to_equal(Micros{1200});
+		expect(loop.inPass()).to_be_falsy();
+	});
+
 	it("refuses a job past its capacity", _ {
 		Loop loop{clock, waker};
 		for (size_t i = 0; i < Loop::kMaxJobs; ++i) {

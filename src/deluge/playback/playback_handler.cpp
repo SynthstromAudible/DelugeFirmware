@@ -161,7 +161,7 @@ void PlaybackHandler::slowRoutine() {
 
 		// Snapshot which command (UNDO vs REDO) and clear the pending flag now, before handing it over. A
 		// reversion whose samples have to be loaded outlives this call, and slowRoutine() can be re-entered
-		// before it ends — e.g. from this same repeating task's own next tick (deluge.cpp). Clearing
+		// before it ends — e.g. from this same job's own next run (deluge.cpp). Clearing
 		// pendingGlobalMIDICommand here means a re-entrant call sees NONE and does nothing, instead of asking
 		// for the same command twice.
 		GlobalMIDICommand command = pendingGlobalMIDICommand;

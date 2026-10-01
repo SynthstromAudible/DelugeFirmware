@@ -456,7 +456,7 @@ void startupWhenCardReady() {
 // arrives. The render is not a job: the BSP's audio tier drives it (deluge_app_audio_tick).
 void registerJobs() {
 	appLoop.add("interpret encoders", &encoders::interpretEncodersTask, kNever, DELUGE_WAKE_ENCODERS);
-	// Formerly part of the audio routine: updates MIDI and clock.
+	// Updates MIDI and clock.
 	appLoop.add("playback routine", [] { playbackHandler.routine(); }, us(0.0015), 0);
 	appLoop.add("midi routine", [] { playbackHandler.midiRoutine(); }, us(0.0015), 0);
 	// Named "slow" but isn't: it handles audio recording setup.
@@ -466,8 +466,8 @@ void registerJobs() {
 	appLoop.add("buttons and pads", &readButtonsAndPadsOnce, us(0.01), 0);
 	appLoop.add("pending UI", &doAnyPendingUIRendering, us(0.02), 0);
 
-	// Advances a song load past a wait it has finished. Cheap when no load is in flight, and it runs one
-	// phase of the load and returns, its card I/O going through the channels, so it holds no SD resource itself.
+	// Advances a song load past a wait it has finished. Cheap when no load is in flight. It runs one phase of the
+	// load and returns; the load's card I/O goes through the channels.
 	appLoop.add("song load", [] { loadSongUI.loadRoutine(); }, us(0.006), 0);
 
 	// A staged document save builds itself on this tier and then stores it in one operation. Like the
@@ -523,10 +523,10 @@ void registerJobs() {
 	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
 	// if recordings are finished
 	appLoop.add("audio file slow", [] { audioFileManager.slowRoutine(); }, us(0.2), 0);
-	// Needs the SD resources: it can call finishRecording(), which frees the SampleRecorder, and that must not happen
-	// while the card routine is part-way through using it.
+	// It can call finishRecording(), which frees the SampleRecorder. Jobs run one at a time on this tier, so no other
+	// job is part-way through using that recorder when it does.
 	appLoop.add("audio recorder slow", [] { audioRecorder.slowRoutine(); }, us(0.1), 0);
-	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
+	// Actions undo/redo MIDI commands that had to wait for the card.
 	appLoop.add("playback slow routine", [] { playbackHandler.slowRoutine(); }, us(0.1), 0);
 	appLoop.add("PIC flush", &deluge_control_flush, us(0.002), 0);
 	// needs to be called very frequently,
@@ -675,6 +675,7 @@ extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noex
 	try {
 		return appLoop.service(now_us, reasons);
 	} catch (...) {
+		// The job that threw is not marked as run, so the next call (asked for at once) runs it again.
 		return now_us;
 	}
 }
