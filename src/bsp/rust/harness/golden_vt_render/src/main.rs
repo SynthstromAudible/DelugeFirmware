@@ -50,7 +50,7 @@ use deluge_bsp_rust::deluge_bsp;
 use deluge_bsp_rust::peripherals::{board, control, display};
 use deluge_bsp_rust::storage::efatfs::host as efatfs_host;
 use deluge_bsp_rust::storage::{memory_card, sd, sd_image, streaming_loader};
-use deluge_bsp_rust::{app_loop, boot, scheduler, sys, tier_meter};
+use deluge_bsp_rust::{app_loop, boot, sys, tier_meter};
 
 /// A stepped scenario, as `tests/integration/scenarios/scenario_table.h` declares it: found by
 /// name, then driven by [`run_stepped_scenario`]: `begin` once, then `dispatch_step` and
@@ -139,8 +139,7 @@ async fn boot_task() {
     }
 
     log::info!("golden_vt_render: deluge_app_init() (registers the app's jobs)");
-    // SAFETY: called once, after `scheduler::set_spawner` (in main) and before anything else
-    // touches the app or scheduler state.
+    // SAFETY: called once, before anything else touches the app state.
     unsafe { sys::deluge_app_init(board::deluge_board()) };
     // A stepped scenario's hook for this moment: boot has not been marked finished, so neither the
     // app loop nor the render has run yet.
@@ -1382,7 +1381,6 @@ fn main() {
     let executor: &'static raw::Executor =
         Box::leak(Box::new(raw::Executor::new(std::ptr::null_mut())));
     let spawner = executor.spawner();
-    scheduler::set_spawner(spawner);
 
     // The host runtime's BSP tasks, without its separate audio thread: the render task shares this
     // one executor.

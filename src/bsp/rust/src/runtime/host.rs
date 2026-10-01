@@ -126,7 +126,6 @@ pub fn main() {
             .spawn(|| {
                 let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
                 executor.run(|spawner: Spawner| {
-                    crate::scheduler::set_spawner(spawner);
                     spawner.spawn(control::pic_pump().unwrap());
                     spawner.spawn(control::pad_render().unwrap());
                     spawner.spawn(display::oled_render().unwrap());
@@ -596,7 +595,6 @@ fn start_threaded_host(extra: impl FnOnce(embassy_executor::Spawner) + Send + 's
         .spawn(move || {
             let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
             executor.run(move |spawner: Spawner| {
-                crate::scheduler::set_spawner(spawner);
                 spawner.spawn(control::pic_pump().unwrap());
                 spawner.spawn(control::pad_render().unwrap());
                 spawner.spawn(display::oled_render().unwrap());

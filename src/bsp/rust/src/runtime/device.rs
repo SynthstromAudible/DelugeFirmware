@@ -9,7 +9,7 @@ use embassy_executor::{Executor, InterruptExecutor, Spawner};
 use crate::channel::{audio_loader, file_bytes, file_directory, file_prefix, file_stream};
 use crate::peripherals::{board, control, cv_gate, display, signals, usb};
 use crate::storage::{sd, streaming_loader};
-use crate::{boot, boot_mem, scheduler, sys};
+use crate::{boot, boot_mem, sys};
 
 /// The Rust global allocator, which `embedded-fatfs`'s `alloc` feature needs.
 ///
@@ -197,8 +197,6 @@ pub fn start() -> ! {
         (*p).assume_init_mut()
     };
     executor.run(move |spawner: Spawner| {
-        // For tasks added through the scheduler's C ABI (`libdeluge/scheduler.h`).
-        scheduler::set_spawner(spawner);
         // Decodes pad and button input.
         spawner.spawn(control::pic_pump().unwrap());
         // The sole PIC transmitter: drains the LED/pad output queue.
@@ -224,8 +222,7 @@ pub fn start() -> ! {
 
 /// Boots the C++ app, then parks.
 ///
-/// Once `deluge_app_init` returns, the app loop (`crate::app_loop`) runs the app's jobs and the
-/// audio tier drives the render.
+/// Once `deluge_app_init` returns, the render task and the app loop drive the app.
 #[embassy_executor::task]
 async fn app_task() {
     use embassy_time::Timer;

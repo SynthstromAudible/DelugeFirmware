@@ -397,7 +397,7 @@ void setupBlankSong() {
 // reads the three settings files through the channel and THEN arms the startup-song loader above;
 // headless hosts override this before deluge_app_init() runs (see deluge_startup_skip_settings_prelude()).
 // A plain firmware or interactive-host build never touches it, so behaviour is unchanged on-device.
-TaskHandle startupConditionalTask = deluge::storage::armStartupSettings;
+void (*startupConditionalTask)() = deluge::storage::armStartupSettings;
 
 /// @brief Opt a non-Deluge host out of the boot-settings prelude, leaving only the startup song.
 ///
