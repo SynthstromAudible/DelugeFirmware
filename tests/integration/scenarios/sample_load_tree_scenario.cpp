@@ -1798,11 +1798,14 @@ void runTick() {
 			g_crucialSwapTick = g_waitTicks;
 		}
 		if (!loadSongUI.loadInFlight()) {
+			// The hold ends with the leg, whether or not the arm tick was ever reached.
+			deluge_audio_load_set_latency_ms(0);
 			g_crucialRoutines = closeTrace();
 			playbackHandler.endPlayback();
 			g_stage = Stage::CrucialCheck;
 		}
 		else if (++g_waitTicks > kMaxCrucialWaitTicks) {
+			deluge_audio_load_set_latency_ms(0);
 			(void)closeTrace();
 			printf("SLT-CRUCIAL FAIL the crucial song's load never finished\n");
 			g_failures++;

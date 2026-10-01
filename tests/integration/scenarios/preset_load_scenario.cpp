@@ -2202,6 +2202,8 @@ void runBlankTick() {
 }
 
 void nextLeg() {
+	// A leg's document hold ends with it, however the leg ended.
+	deluge_file_bytes_set_latency_ms(0);
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 	g_walkStep = WalkMachineStep::ArmFound;
 	g_step = Step::Prepare;
