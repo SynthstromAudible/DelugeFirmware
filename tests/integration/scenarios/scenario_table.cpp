@@ -28,6 +28,7 @@
 #include "scenarios/container_guard_scenario.h"
 #include "scenarios/document_save_channel_scenario.h"
 #include "scenarios/favourites_channel_scenario.h"
+#include "scenarios/idle_job_rates_scenario.h"
 #include "scenarios/load_policy_scenario.h"
 #include "scenarios/offset_io_scenario.h"
 #include "scenarios/path_operations_scenario.h"
@@ -81,6 +82,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"favourites_channel", nullptr, &deluge_scenario_favourites_channel_begin,
      &deluge_scenario_favourites_channel_complete, &deluge_scenario_favourites_channel_dispatch_step,
      &deluge_scenario_favourites_channel_step_done, &deluge_scenario_favourites_channel_failures},
+    {"idle_job_rates", nullptr, &deluge_scenario_idle_job_rates_begin, &deluge_scenario_idle_job_rates_complete,
+     &deluge_scenario_idle_job_rates_dispatch_step, &deluge_scenario_idle_job_rates_step_done,
+     &deluge_scenario_idle_job_rates_failures},
     {"load_policy", nullptr, &deluge_scenario_load_policy_begin, &deluge_scenario_load_policy_complete,
      &deluge_scenario_load_policy_dispatch_step, &deluge_scenario_load_policy_step_done,
      &deluge_scenario_load_policy_failures},
