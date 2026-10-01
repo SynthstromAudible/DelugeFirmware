@@ -1066,7 +1066,11 @@ extern "C" bool deluge_app_audio_tick() noexcept {
 	try {
 		return AudioEngine::routine_task();
 	} catch (...) {
-		// Nothing to report to: the tick counts as one that rendered nothing, and the next tick renders on.
+		// routine() may have thrown after setting audioRoutineLocked and before clearing it; left set,
+		// that reentrancy guard would make every future tick return false and silence audio for good.
+		// Clear it here so the next tick renders. Nothing else to report to: this tick counts as one
+		// that rendered nothing.
+		AudioEngine::audioRoutineLocked = false;
 		return false;
 	}
 }

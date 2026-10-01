@@ -35,9 +35,10 @@ inline constexpr JobId kNoJob = 0xFF;
 /// A job's run times, from the loop's clock.
 struct JobStats {
 	const char* name = nullptr;
-	Micros maxRun = 0;  ///< the longest run since the last Loop::resetStats(), in µs
-	Micros lastRun = 0; ///< the most recent run, in µs
-	uint32_t runs = 0;  ///< runs since the last Loop::resetStats()
+	Micros maxRun = 0;     ///< the longest run since the last Loop::resetStats(), in µs
+	Micros lastRun = 0;    ///< the most recent run, in µs
+	uint32_t runs = 0;     ///< runs since the last Loop::resetStats()
+	uint32_t failures = 0; ///< runs that threw, since the last Loop::resetStats()
 };
 
 /// The interaction tier's jobs, which the BSP's app loop runs through `deluge_app_service`.
@@ -73,7 +74,10 @@ public:
 	void cancel(JobId id);
 
 	/// Runs the next job of the current pass, starting a pass if none is in progress. A pass runs
-	/// every job that is due, woken or requested, once each, in order, one job per call.
+	/// every job that is due, woken or requested, once each, in order, one job per call. A job that
+	/// throws still counts as having run: the throw is caught, the job's gap and stats advance as
+	/// for a normal run, and the pass carries on with the next job, so one misbehaving job cannot
+	/// starve the rest.
 	///
 	/// Reasons that arrive mid-pass reach the jobs still ahead in this pass, and every job in the
 	/// next pass.
@@ -91,7 +95,7 @@ public:
 	/// @p id's run times, or an empty JobStats for an id never added. Read it from the loop's own tier.
 	JobStats stats(JobId id) const;
 
-	/// Zeroes every job's worst run and run count.
+	/// Zeroes every job's worst run, run count and failure count.
 	void resetStats();
 
 private:
@@ -106,6 +110,7 @@ private:
 		Micros maxRun = 0;
 		Micros lastRun = 0;
 		uint32_t runs = 0;
+		uint32_t failures = 0;
 	};
 
 	Clock clock_;

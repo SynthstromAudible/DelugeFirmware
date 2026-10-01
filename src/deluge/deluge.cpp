@@ -427,15 +427,16 @@ deluge::runtime::JobId startupJob = deluge::runtime::kNoJob;
 /// can make every other job, the playback and MIDI routines included.
 constexpr Micros kReportRunAtLeast = 1000;
 
-/// Prints each job whose worst run since the last report reached kReportRunAtLeast, then starts a
-/// new window. Debug builds only; its output goes wherever D_PRINTLN does (RTT on the device).
+/// Prints each job whose worst run since the last report reached kReportRunAtLeast or that threw,
+/// then starts a new window. Debug builds only; its output goes wherever D_PRINTLN does (RTT on the
+/// device).
 void reportJobStats() {
 	for (deluge::runtime::JobId id = 0; id < appLoop.size(); ++id) {
 		const auto s = appLoop.stats(id);
-		if (s.maxRun >= kReportRunAtLeast) {
-			D_PRINTLN("job %s: worst %llu us over %lu runs (last %llu us)", s.name,
+		if (s.maxRun >= kReportRunAtLeast || s.failures != 0) {
+			D_PRINTLN("job %s: worst %llu us over %lu runs, %lu failed (last %llu us)", s.name,
 			          static_cast<unsigned long long>(s.maxRun), static_cast<unsigned long>(s.runs),
-			          static_cast<unsigned long long>(s.lastRun));
+			          static_cast<unsigned long>(s.failures), static_cast<unsigned long long>(s.lastRun));
 		}
 	}
 	appLoop.resetStats();
@@ -675,7 +676,10 @@ extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noex
 	try {
 		return appLoop.service(now_us, reasons);
 	} catch (...) {
-		// The job that threw is not marked as run, so the next call (asked for at once) runs it again.
+		// appLoop.service() already catches a throwing job's own body, so this is something else --
+		// e.g. a bad reasons value hitting undefined behaviour above the job loop. There is no job to
+		// charge the failure to, so just keep the clock moving: ask for another pass right away rather
+		// than leave the app loop stalled.
 		return now_us;
 	}
 }

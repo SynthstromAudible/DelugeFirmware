@@ -44,6 +44,10 @@ void bodyC() {
 	g_log.push_back('c');
 	g_now += g_body_time;
 }
+void bodyThrows() {
+	g_log.push_back('t');
+	throw 1;
+}
 void selfRequesting() {
 	g_log.push_back('s');
 	g_loop->request(g_self);
@@ -225,6 +229,36 @@ describe app_loop("deluge::runtime::Loop", $ {
 		// The pass ends and asks for the next due time, not for another pass at once.
 		expect(loop.service(1100, 0)).to_equal(Micros{1200});
 		expect(loop.inPass()).to_be_falsy();
+	});
+
+	it("a job that throws runs again only after its gap, and the jobs after it still run in the same pass", _ {
+		Loop loop{clock, waker};
+		loop.add("t", bodyThrows, 100, 0);
+		loop.add("b", bodyB, 0, 0);
+		pass(loop, 1000, 0);
+		expect(g_log).to_equal(std::vector<char>{'b'});
+		g_now = 1100;
+		pass(loop, 1100, 0);
+		// t throws (caught), and b, after it in order, still runs in the same pass.
+		expect(g_log).to_equal(std::vector<char>{'b', 't', 'b'});
+		// t's gap restarts from this run: not due again at the same time.
+		pass(loop, 1100, 0);
+		expect(g_log).to_equal(std::vector<char>{'b', 't', 'b', 'b'});
+		// Due again once the gap has passed.
+		g_now = 1200;
+		pass(loop, 1200, 0);
+		expect(g_log).to_equal(std::vector<char>{'b', 't', 'b', 'b', 't', 'b'});
+	});
+
+	it("a throw is counted in the job's stats", _ {
+		Loop loop{clock, waker};
+		JobId t = loop.add("t", bodyThrows, 0, 0);
+		pass(loop, 1000, 0);
+		auto s = loop.stats(t);
+		expect(s.runs).to_equal(uint32_t{1});
+		expect(s.failures).to_equal(uint32_t{1});
+		loop.resetStats();
+		expect(loop.stats(t).failures).to_equal(uint32_t{0});
 	});
 
 	it("refuses a job past its capacity", _ {
