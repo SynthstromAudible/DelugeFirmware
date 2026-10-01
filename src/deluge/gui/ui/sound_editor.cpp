@@ -220,7 +220,7 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	{
 		D_PRINTLN("no image");
 
-		return true;
+		return false; // show root UI
 	}
 	if (!should_render_shortcut_overlay())
 	{
@@ -242,7 +242,7 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 		}
 
 		D_PRINTLN("shortcut overlay not rendered");
-		return false;
+		return false; // show root UI
 	}
 
 
