@@ -190,18 +190,39 @@ void SoundEditor::renderMainShortcutsOnly(ModControllableAudio* forThing, RGB im
 	}
 }
 
+bool SoundEditor::should_render_shortcut_overlay()
+{
+	// don't render overlay if feature is turned off
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)) {
+		return false;
+	}
+	
+	// don't render overlay if you're not holding shift
+	if (!Buttons::isShiftButtonPressed()) {
+		return false;
+	}
+	
+	// don't render overlay if you're not in sound editor (e.g. you're in settings menu or note/note row editors)
+	return in_sound_editor();
+}
+
+// check if we're really in a sound editing menu (e.g. grid shortcut relevant)
+// sound editor class is also used to render settings menu, note editor menu and note row editor menu
+bool SoundEditor::in_sound_editor() {
+	return getCurrentUI() == &soundEditor && !inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor();;
+}
+
 bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea)
 {
-
+	
 	if (!image)
 	{
 		D_PRINTLN("no image");
 
-		return true;
+		return should_render_shortcut_overlay();
 	}
-	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)
-		|| !Buttons::isShiftButtonPressed())
+	if (!should_render_shortcut_overlay())
 	{
 		if (haveRenderedPads)
 		{
@@ -220,8 +241,8 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 			haveRenderedPads = false;
 		}
 
-		D_PRINTLN("shift not pressed");
-		return false;
+		D_PRINTLN("shortcut overlay not rendered");
+		return false; // show root UI
 	}
 
 
@@ -534,11 +555,13 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		}
 	}
 
-	// Encoder button
+	// Potentially render shortcut overlay / refresh root UI pads
 	if (b == SHIFT)
 	{
 		uiNeedsRendering(this, 0xFFFFFFFF,0xFFFFFFFF);
 	}
+
+	// Encoder button
 	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
 		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
