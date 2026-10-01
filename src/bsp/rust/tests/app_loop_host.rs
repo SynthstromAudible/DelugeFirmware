@@ -1,4 +1,4 @@
-//! Host tests for the app-loop driver: deadlines, wakes and encoder levels, on an embassy std
+//! Host tests for the app-loop driver: deadlines, wakes, and encoder and input levels, on an embassy std
 //! executor with a stand-in service.
 //!
 //! The driver's wake state is process-global, so the tests share one driver on one executor and run
@@ -9,11 +9,15 @@ use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::SeqCst};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
-use deluge_bsp_rust::app_loop::{self, WAKE_APP, WAKE_ENCODERS, WAKE_TIMER};
+use deluge_bsp_rust::app_loop::{self, WAKE_APP, WAKE_ENCODERS, WAKE_INPUT, WAKE_TIMER};
 use deluge_bsp_rust::deluge_bsp::encoder::{ENCODER_DELTAS, ENCODER_WAKER};
+use deluge_bsp_rust::peripherals::control;
+use deluge_bsp_rust::sys::{DelugeInputEvent, DelugeInputEventKind_DELUGE_EVENT_PAD as KIND_PAD};
 
 /// Every service call: (now, reasons).
 static CALLS: Mutex<Vec<(u64, u32)>> = Mutex::new(Vec::new());
+/// How many input events each service call drained, in call order.
+static DRAINED: Mutex<Vec<usize>> = Mutex::new(Vec::new());
 /// What the stand-in service returns: the next deadline, in µs, or `u64::MAX`.
 static NEXT: AtomicU64 = AtomicU64::new(u64::MAX);
 /// Calls left for which the stand-in service answers "now", as the app does mid-pass.
@@ -26,13 +30,19 @@ static NEIGHBOUR: embassy_sync::signal::Signal<
 /// How many service calls had been made when [`neighbour`] first ran; `u64::MAX` until it has.
 static NEIGHBOUR_SAW: AtomicU64 = AtomicU64::new(u64::MAX);
 
-/// The stand-in `deluge_app_service`. It records the call and, like the app's encoder job, takes
-/// the encoder edges.
+/// The stand-in `deluge_app_service`. It records the call and, like the app's encoder and input
+/// jobs, takes the encoder edges and drains every queued input event.
 fn service(now: u64, reasons: u32) -> u64 {
     CALLS.lock().unwrap().push((now, reasons));
     for d in &ENCODER_DELTAS {
         d.swap(0, core::sync::atomic::Ordering::Relaxed);
     }
+    let mut ev = pad(0);
+    let mut drained = 0;
+    while control::deluge_control_poll_event(&mut ev) {
+        drained += 1;
+    }
+    DRAINED.lock().unwrap().push(drained);
     if BUSY.load(SeqCst) > 0 {
         BUSY.fetch_sub(1, SeqCst);
         NEIGHBOUR.signal(());
@@ -79,7 +89,18 @@ fn serial() -> MutexGuard<'static, ()> {
     });
     NEXT.store(u64::MAX, SeqCst);
     CALLS.lock().unwrap().clear();
+    DRAINED.lock().unwrap().clear();
     guard
+}
+
+/// A pad press at column `x` of the top row.
+fn pad(x: u8) -> DelugeInputEvent {
+    DelugeInputEvent {
+        kind: KIND_PAD,
+        x,
+        y: 0,
+        value: 255,
+    }
 }
 
 fn wait_until(timeout: Duration, what: &str, pred: impl Fn() -> bool) {
@@ -173,5 +194,55 @@ fn a_service_answering_now_lets_the_executor_run_before_the_next_call() {
     assert!(
         saw < 5,
         "no executor turn between service calls: the neighbour ran after call {saw}"
+    );
+}
+
+#[test]
+fn input_burst_drains() {
+    let _s = serial();
+    // A burst queued before the driver hears of it: three events, one wake.
+    for x in 0..3 {
+        assert!(control::queue_event_without_wake(pad(x)));
+    }
+    app_loop::wake(WAKE_INPUT);
+    wait_until(Duration::from_millis(500), "a pass with WAKE_INPUT", || {
+        calls().iter().any(|&(_, r)| r & WAKE_INPUT != 0)
+    });
+    // The service drained the queue, so the level check stops raising WAKE_INPUT: no pass in the
+    // next 50 ms.
+    std::thread::sleep(Duration::from_millis(50));
+    let input_passes: Vec<usize> = calls()
+        .iter()
+        .zip(DRAINED.lock().unwrap().iter())
+        .filter(|&(&(_, r), _)| r & WAKE_INPUT != 0)
+        .map(|(_, &n)| n)
+        .collect();
+    assert_eq!(
+        input_passes,
+        vec![3],
+        "one WAKE_INPUT pass, which drains all three"
+    );
+    assert_eq!(calls().len(), 1, "passes kept coming with the queue empty");
+
+    // Events queued without a wake are still seen by the next pass: the driver checks the level.
+    assert!(control::queue_event_without_wake(pad(4)));
+    app_loop::wake(WAKE_APP);
+    wait_until(
+        Duration::from_millis(500),
+        "a WAKE_APP pass that also carries WAKE_INPUT",
+        || {
+            calls()
+                .iter()
+                .any(|&(_, r)| r & WAKE_APP != 0 && r & WAKE_INPUT != 0)
+        },
+    );
+
+    // The pump's push wakes the driver by itself.
+    let before = calls().len();
+    control::queue_event(pad(5));
+    wait_until(
+        Duration::from_millis(500),
+        "a pass woken by the push",
+        || calls()[before..].iter().any(|&(_, r)| r & WAKE_INPUT != 0),
     );
 }

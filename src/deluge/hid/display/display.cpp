@@ -1,4 +1,5 @@
 #include "display.h"
+#include "deluge/deluge.h"
 #include "gui/l10n/l10n.h"
 #include "io/debug/log.h" // D_PRINTLN — freezeWithError logs the code before it stops the world
 #include <cstdio>
@@ -120,10 +121,8 @@ extern "C" void displayPopup(char const* text) {
 	display->displayPopup(text);
 }
 
-extern uint8_t usbInitializationPeriodComplete;
-
 extern "C" void consoleTextIfAllBootedUp(char const* text) {
-	if (usbInitializationPeriodComplete != 0u) {
+	if (usbInitializationPeriodComplete()) {
 		display->consoleText(text);
 	}
 }

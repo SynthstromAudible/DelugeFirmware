@@ -40,8 +40,6 @@ extern "C" {
 extern void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
 
-extern uint8_t usbInitializationPeriodComplete;
-
 namespace deluge::hid::display {
 
 using ImageStore = oled_canvas::Canvas::ImageStore;

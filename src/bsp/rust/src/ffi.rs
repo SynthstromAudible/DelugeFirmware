@@ -64,12 +64,6 @@ pub extern "C" fn deluge_display_write_seven_segment(digits: *const u8, count: u
     0
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_consume_transfer_ack() -> bool {
-    stub_log!("deluge_display_consume_transfer_ack");
-    false
-}
-
 abi_pin!(
     deluge_control_enable_oled,
     deluge_control_flash_pad,
@@ -79,6 +73,5 @@ abi_pin!(
     deluge_control_set_dimmer_interval,
     deluge_control_setup_for_pads,
     deluge_control_wait_for_flush,
-    deluge_display_consume_transfer_ack,
     deluge_display_write_seven_segment,
 );

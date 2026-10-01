@@ -3,8 +3,8 @@
 //!
 //! The app owns its jobs and their order (`deluge::runtime::Loop`); this task owns only the
 //! waiting. Wake reasons accumulate in [`REASONS`] from any tier and are handed to the next pass.
-//! The encoder reason is level-triggered, read from the edge counters after every wait, so edges
-//! that arrive between passes are never lost.
+//! The encoder and input reasons are level-triggered, read from the edge counters and the input
+//! queue after every wait, so edges and events that arrive between passes are never lost.
 
 use core::sync::atomic::{AtomicU32, Ordering};
 
@@ -20,6 +20,8 @@ pub const WAKE_TIMER: u32 = 1;
 pub const WAKE_ENCODERS: u32 = 2;
 /// `DELUGE_WAKE_APP`: the app asked for a pass.
 pub const WAKE_APP: u32 = 4;
+/// `DELUGE_WAKE_INPUT`: pad or button events are queued (`deluge_control_poll_event`).
+pub const WAKE_INPUT: u32 = 8;
 
 /// The reasons gathered since the last pass.
 static REASONS: AtomicU32 = AtomicU32::new(0);
@@ -53,7 +55,8 @@ async fn encoder_edges() {
     .await
 }
 
-/// Serves `service` forever: waits for its deadline, a [`wake`], or encoder edges, then calls it
+/// Serves `service` forever: waits for its deadline, a [`wake`] (which the input pump raises for each
+/// queued event), or encoder edges, then calls it
 /// with the current time in µs and the reasons, and waits for the deadline it returns
 /// (`u64::MAX` for none).
 ///
@@ -72,6 +75,9 @@ pub async fn drive(service: fn(u64, u32) -> u64) {
         }
         if encoders_pending() {
             reasons |= WAKE_ENCODERS;
+        }
+        if crate::peripherals::control::events_pending() {
+            reasons |= WAKE_INPUT;
         }
         let next = service(now.as_micros(), reasons);
         due = if next == u64::MAX {
@@ -116,4 +122,5 @@ abi_const!(
     WAKE_TIMER => DELUGE_WAKE_TIMER,
     WAKE_ENCODERS => DELUGE_WAKE_ENCODERS,
     WAKE_APP => DELUGE_WAKE_APP,
+    WAKE_INPUT => DELUGE_WAKE_INPUT,
 );

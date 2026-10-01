@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -30,7 +31,12 @@ extern void logAudioAction(char const* string);
 
 extern void consoleTextIfAllBootedUp(char const* text);
 
+/// Starts a console-text quiet window that ends @p timeFromNow samples from now.
 extern void setTimeUSBInitializationEnds(int32_t timeFromNow);
+
+/// Whether the console-text quiet window (one second after boot, or one setTimeUSBInitializationEnds
+/// started) has ended.
+extern bool usbInitializationPeriodComplete(void);
 
 #ifdef __cplusplus
 }

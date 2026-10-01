@@ -208,14 +208,20 @@ bool waitingForSDRoutineToEnd = false;
 // old uartPutCharBack back-pressure).
 static DelugeInputEvent heldInputEvent;
 
-extern "C" {
-/// Wait for one second
-uint32_t timeUSBInitializationEnds = kSampleRate;
-uint8_t usbInitializationPeriodComplete = 0;
+namespace {
+/// When the console-text quiet window ends, in µs on the BSP clock: one second after boot, then
+/// wherever setTimeUSBInitializationEnds moves it.
+deluge::runtime::Micros usbInitializationEndsUs = 1'000'000;
+} // namespace
 
+extern "C" {
 void setTimeUSBInitializationEnds(int32_t timeFromNow) {
-	timeUSBInitializationEnds = AudioEngine::audioSampleTimer + timeFromNow;
-	usbInitializationPeriodComplete = 0;
+	usbInitializationEndsUs =
+	    deluge::runtime::nowUs() + static_cast<deluge::runtime::Micros>(timeFromNow) * 1'000'000 / kSampleRate;
+}
+
+bool usbInitializationPeriodComplete() {
+	return deluge::runtime::nowUs() >= usbInitializationEndsUs;
 }
 }
 
@@ -285,40 +291,52 @@ static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 	return true;
 }
 
+namespace {
+deluge::runtime::JobId inputJob = deluge::runtime::kNoJob;
+
+/// How soon a held event, or a shift change the card routine kept from the LED, is tried again.
+constexpr deluge::runtime::Micros kInputRetryUs = 10'000;
+
+/// Asks for another run of the input job: a held event has no new input to wake it.
+void retryInputSoon() {
+	deluge::runtime::appLoop.requestAt(inputJob, deluge::runtime::nowUs() + kInputRetryUs);
+}
+} // namespace
+
 bool readButtonsAndPads() {
-
-	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
-		usbInitializationPeriodComplete = 1;
-	}
-
+	bool anything = false;
 	if (waitingForSDRoutineToEnd) {
 		if (isSDRoutineActive()) {
+			retryInputSoon();
 			return false;
 		}
 		D_PRINTLN("got to end of sd routine");
 		waitingForSDRoutineToEnd = false;
 		// Re-dispatch the event we deferred; it may defer again.
 		if (!dispatchInputEvent(heldInputEvent)) {
+			retryInputSoon();
 			return false;
 		}
+		anything = true;
 	}
 
+	// Drain the queue: the BSP wakes this job once for a burst. A deferred event stops the drain, and
+	// the events behind it wait for the retry so they stay in order.
 	DelugeInputEvent ev;
-	bool anything = deluge_control_poll_event(&ev);
-	if (anything) {
+	while (deluge_control_poll_event(&ev)) {
+		anything = true;
 		if (!dispatchInputEvent(ev)) {
+			retryInputSoon();
 			return false;
 		}
 	}
 
-	// OLED transfer-ack: the input decode consumed the PIC ack, so pump the next
-	// low-level OLED transfer here rather than off a raw byte.
-	if (deluge_display_consume_transfer_ack()) {
-		uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
+	if (isSDRoutineActive()) {
+		// A shift change made now reaches the LED only once the card routine has ended.
+		retryInputSoon();
 	}
-
-	if (!isSDRoutineActive() && Buttons::shiftHasChanged()
-	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
+	else if (Buttons::shiftHasChanged()
+	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
 		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
 	}
 
@@ -464,7 +482,8 @@ void registerJobs() {
 	appLoop.add("audio slow", &AudioEngine::slowRoutine, us(0.006), 0);
 	// Frees what deleted outputs and drums handed to the render, once it has run two blocks past them.
 	appLoop.add("reclaim retired", [] { AudioEngine::reclaimRetired(); }, us(0.015), 0);
-	appLoop.add("buttons and pads", &readButtonsAndPadsOnce, us(0.01), 0);
+	// Runs only when the BSP has queued pad or button events, and drains them all.
+	inputJob = appLoop.add("buttons and pads", &readButtonsAndPadsOnce, kNever, DELUGE_WAKE_INPUT);
 	appLoop.add("pending UI", &doAnyPendingUIRendering, us(0.02), 0);
 
 	// Advances a song load past a wait it has finished. Cheap when no load is in flight. It runs one phase of the
