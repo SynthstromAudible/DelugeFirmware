@@ -29,9 +29,6 @@ extern void routineWithClusterLoading(void);
 extern void logAudioAction(char const* string);
 
 extern void consoleTextIfAllBootedUp(char const* text);
-// libdeluge/scheduler.h's predicate type, repeated because deluge.h is included very widely (incl. vendored libs)
-// and must not depend on the boundary headers.
-typedef bool (*RunCondition)();
 
 extern void setTimeUSBInitializationEnds(int32_t timeFromNow);
 
