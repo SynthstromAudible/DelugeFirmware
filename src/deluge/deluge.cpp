@@ -505,8 +505,11 @@ void registerJobs() {
 	// no graphics routine of its own to be ticked from either.
 	appLoop.add("folder import", [] { deluge::gui::folderImport.routine(); }, us(0.03), 0);
 	// The preset browser's own loads are the same kind of machine; the clone menu can be on top while one is out.
-	// Undo and redo are the same kind of machine: the reversion's samples are loaded here before it runs.
-	appLoop.add("reversion", [] { deluge::gui::reversion.routine(); }, us(0.03), 0);
+	// Undo and redo are the same kind of machine: the reversion's samples are loaded here before it runs. It runs when
+	// a reversion is asked for, when a storage channel answers, and at its pre-load's next tick -- see
+	// Reversion::routine.
+	deluge::gui::reversion.jobId =
+	    appLoop.add("reversion", [] { deluge::gui::reversion.routine(); }, kNever, DELUGE_WAKE_STORAGE);
 	// The pattern browser's reads are the same kind of machine, and a load from Enter lands after the browser has
 	// closed. They share this job: one job per UI surface.
 	appLoop.add(

@@ -38,11 +38,23 @@ bool Reversion::request(Direction direction) {
 	nextWanted_ = 0;
 	phase_ = Phase::Collect;
 	routine();
+	// The run above may have been made outside the loop's pass, where a time it asked for wakes nothing.
+	deluge::runtime::appLoop.request(jobId);
 	return true;
 }
 
 void Reversion::routine() {
 	while (step()) {}
+	if (phase_ != Phase::Samples) {
+		return;
+	}
+	const uint64_t next = load_.nextTickUs();
+	if (next == 0) {
+		deluge::runtime::appLoop.request(jobId);
+	}
+	else {
+		deluge::runtime::appLoop.requestAt(jobId, next);
+	}
 }
 
 bool Reversion::step() {
