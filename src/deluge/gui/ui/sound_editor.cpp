@@ -215,12 +215,12 @@ bool SoundEditor::in_sound_editor() {
 bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea)
 {
-
+	
 	if (!image)
 	{
 		D_PRINTLN("no image");
 
-		return false; // show root UI
+		return should_render_shortcut_overlay();
 	}
 	if (!should_render_shortcut_overlay())
 	{
