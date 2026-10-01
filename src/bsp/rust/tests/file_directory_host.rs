@@ -133,7 +133,7 @@ fn draining_the_slot_hands_back_an_open_handle() {
     );
 }
 
-// The C ABI over the process-wide statics.
+// `mark_in_flight` over the process-wide `IN_FLIGHT` static; no C ABI call and no task running.
 
 /// Clearing the in-flight mark wakes the app (`DELUGE_WAKE_STORAGE`); marking it does not. No test
 /// runs the task, so `mark_in_flight` is driven directly, as the other channel tests do.

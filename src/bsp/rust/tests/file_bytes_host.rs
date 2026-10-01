@@ -681,7 +681,7 @@ fn a_stale_request_of_every_kind_is_dropped_at_take() {
     }
 }
 
-// The C ABI over the process-wide statics.
+// `mark_in_flight` over the process-wide `IN_FLIGHT` static; no C ABI call and no task running.
 
 /// Clearing the in-flight mark wakes the app (`DELUGE_WAKE_STORAGE`); marking it does not. No test
 /// runs the task, so `mark_in_flight` is driven directly, as the other channel tests do.

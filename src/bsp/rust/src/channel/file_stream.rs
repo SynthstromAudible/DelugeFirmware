@@ -556,6 +556,10 @@ async fn file_stream_task_body() {
                 break;
             };
             let Some(queued) = taken else {
+                // Dropped unrun (an earlier card's request, released from the REQUEST lock
+                // above): IN_FLIGHT was never set for it, but `mark_in_flight(None)` still wakes
+                // the app for this drop, as `file_bytes` does.
+                mark_in_flight(None).await;
                 continue;
             };
             // After marking it in flight, so a collect during the wait answers PENDING, as for a
@@ -621,12 +625,15 @@ async fn file_stream_task_body() {
                 }
                 StreamOp::Stats => backing::fs_stats_free().await.ok_or(0),
             };
+            // The operation has finished with the caller's buffer, if it had one. Cleared before
+            // the publish/wake below, so a job woken to free the buffer never still finds it held
+            // (`deluge_file_stream_holds`).
+            RUNNING_BUFFER.store(0, core::sync::atomic::Ordering::Release);
             RESULT
                 .lock()
                 .await
                 .publish(queued.key, result, queued.generation);
             mark_in_flight(None).await;
-            RUNNING_BUFFER.store(0, core::sync::atomic::Ordering::Release);
         }
     }
 }
