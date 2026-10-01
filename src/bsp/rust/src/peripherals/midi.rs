@@ -70,7 +70,10 @@ pub extern "C" fn deluge_midi_read_timed(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_midi_write(port: DelugeMidiPort, src: *const u8, len: u32) -> u32 {
-    // SAFETY: the app passes `len` valid bytes.
+    if src.is_null() {
+        return 0;
+    }
+    // SAFETY: `src` is non-null and the app passes `len` valid bytes there.
     let data = unsafe { core::slice::from_raw_parts(src, len as usize) };
     if port == DIN_PORT {
         return uart::try_write_midi(data) as u32;
