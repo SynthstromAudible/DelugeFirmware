@@ -268,6 +268,9 @@ void StorageManager::releaseStaging(StagingState* state) {
 			// safe failure.
 			if (slot != orphanedStaging.end()) {
 				*slot = {.buffer = state->buffer, .size = state->size};
+				// Reaped by the byte-channel job, which the channel's DELUGE_WAKE_STORAGE runs once it lets go. A run
+				// now covers a let-go that landed before the buffer was parked.
+				deluge::runtime::appLoop.request(deluge::storage::bytes::serviceJob);
 			}
 		}
 		else {

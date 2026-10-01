@@ -513,20 +513,23 @@ void registerJobs() {
 		    loadPatternUI.loadRoutine();
 	    },
 	    us(0.03), 0);
-	// Drives whatever a settings read or write handed to the byte channel. Beside the song load for
-	// the same reason: both are request/collect state machines whose caller returned long ago, and
-	// neither has a UI tick of its own to resume from.
-	appLoop.add(
+	// Drives whatever a settings read or write handed to the byte channel: a request/collect state machine whose
+	// caller returned long ago, with no UI tick of its own to resume from. It runs when a submission asks for it, when
+	// the channel answers, and at its stall bound's deadline -- see deluge::storage::bytes::serviceJob.
+	deluge::storage::bytes::serviceJob = appLoop.add(
 	    "settings io",
 	    [] {
 		    deluge::storage::bytes::serviceRoutine();
 		    // The favourites bank rides the same channel and applies what an operation produced on THIS tier, so
 		    // it runs straight after the channel has been driven.
 		    favouritesManager.serviceRoutine();
-		    // A staged document released mid-read is parked until the byte channel lets go of it; free it then.
+		    // A staged document released mid-read is parked until the byte channel lets go of it, which wakes
+		    // this job; free it then.
 		    StorageManager::reapOrphanedStaging();
 	    },
-	    us(0.006), 0);
+	    kNever, DELUGE_WAKE_STORAGE);
+	// A submission made before the job existed asked for nobody's run.
+	appLoop.request(deluge::storage::bytes::serviceJob);
 
 	// Advances the startup fail-safe's phases. Beside the two above for the same reason: it is a
 	// request/collect state machine whose caller returned long ago, and it has no UI tick of its own

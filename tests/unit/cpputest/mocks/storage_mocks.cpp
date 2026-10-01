@@ -66,6 +66,7 @@ void dealloc(void* /*ptr*/) {
 // known" rather than inventing a result.
 
 namespace deluge::storage::bytes {
+deluge::runtime::JobId serviceJob = deluge::runtime::kNoJob;
 ByteIo requestStat(const char* /*path*/) {
 	return ByteIo::Failed;
 }

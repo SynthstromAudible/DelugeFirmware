@@ -755,10 +755,9 @@ void deluge_scenario_settings_channel_dispatch_step(void) {
 		return;
 	}
 	g_stepDone = false;
-	// The channel's pump. In the firmware this is a repeating task registered in `deluge.cpp`; here
-	// the scenario owns the tick, so without this call the channel arm would be requested and never
-	// collected -- and a dead channel would pass.
-	deluge::storage::bytes::serviceRoutine();
+	// No direct call to deluge::storage::bytes::serviceRoutine() here: this harness's `app_loop` task runs the real
+	// "settings io" job, which runs only when a submission or the channel's answer asks for it. Pumping it from here
+	// every tick would let the gate pass with those requests deleted.
 	runTick();
 	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
 	g_stepDone = true;

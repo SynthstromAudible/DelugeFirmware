@@ -18,6 +18,7 @@
 #pragma once
 
 #include "libdeluge/types.h"
+#include "runtime/app_loop.h"
 
 #include <cstdint>
 
@@ -420,11 +421,18 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 /// proxy for an operation finishing and not the thing itself.
 [[nodiscard]] bool idle();
 
+/// @brief The job that runs @ref serviceRoutine, set by `registerJobs`.
+///
+/// It has no gap and listens for `DELUGE_WAKE_STORAGE`: every submission requests it, and each run asks for the next
+/// one it needs -- at once when the machine can move again, or at the stall bound's deadline while it waits on the
+/// channel.
+extern deluge::runtime::JobId serviceJob;
+
 /// @brief Drive whatever @ref submitRead, @ref submitWrite and @ref submitMkdirAll handed over, one operation
 ///        at a time, oldest first.
 ///
-/// Registered as a repeating task in `deluge.cpp`, and called by the settings-channel gate's own tick. Cheap and
-/// reentrant when there is nothing pending.
+/// Run by @ref serviceJob, and called by the settings-channel gate's own tick. Cheap and reentrant when there is
+/// nothing pending.
 void serviceRoutine();
 
 /// @}
