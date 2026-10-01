@@ -84,6 +84,8 @@ public:
 	/// may call this on its own id from inside its own body, to ask for its own next run (a UI
 	/// timer deadline, a back-off, a watchdog): service() clears the due time that triggered the
 	/// run before the body runs, so a self-request made during the run is kept, not overwritten.
+	/// It never wakes the driver: it takes effect when the current or next pass ends, so an entry point
+	/// that is not itself a job follows it with request().
 	void requestAt(JobId id, Micros whenUs);
 
 	/// Stops @p id for good. Safe from the job's own body.

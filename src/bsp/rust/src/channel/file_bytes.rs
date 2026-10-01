@@ -214,7 +214,10 @@ pub fn non_idempotent(op: ByteOp) -> bool {
 /// - Well after any owner still collecting has taken it. Every owner of these answers (document,
 ///   preset and startup-song saves, SysEx path operations, the recorder's abort) collects on the
 ///   `DELUGE_WAKE_STORAGE` the publish raises or on a job tick of at most 6 ms, so an answer that
-///   ages out belongs to an owner that has gone.
+///   ages out belongs to an owner that has gone. This assumes no long synchronous job runs between
+///   a refused requester and the answer's owner, which would hold the owner off past the span
+///   while it is still collecting. If one does, the answer ages out unclaimed and the requester
+///   simply re-asks after `kRefusedRecheckUs`.
 pub const PROTECTED_ANSWER_SPAN: Duration = Duration::from_millis(PROTECTED_ANSWER_SPAN_MS);
 
 /// [`PROTECTED_ANSWER_SPAN`] in milliseconds, pinned against

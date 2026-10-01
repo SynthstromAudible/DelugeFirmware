@@ -208,9 +208,10 @@ public:
 	/// found unanswered before the search gives up, whatever the clock says.
 	///
 	/// The offline export runs the recorder, and so this search, many times within one job run. Inside a run the
-	/// channel cannot answer (on the device the tier is blocked; on a virtual clock no time passes), so the time
-	/// bound alone would never end that loop. Across runs the time bound decides. 600 is the length of the time bound
-	/// in ticks of the "audio slow" job, at 6 ms.
+	/// channel cannot answer on the host, whose single executor runs the channel's tier only between runs, and on a
+	/// virtual clock no time passes. (On the device the storage tier is pre-emptive and can answer inside a run.)
+	/// So the time bound alone would never end that loop. Across runs the time bound decides. 600 is the length of the
+	/// time bound in ticks of the "audio slow" job, at 6 ms.
 	static constexpr int32_t kMaxInRunPumps = 600;
 	/// Unanswered finds of the current candidate's operation in this run of the "stem export" job. See
 	/// @ref kMaxInRunPumps.
