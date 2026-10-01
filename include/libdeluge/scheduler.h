@@ -43,11 +43,10 @@ typedef int64_t dTime;
 /// boot. [task] [audio]
 double getSystemTime() DELUGE_NOEXCEPT;
 
-/// True while a slow-storage (SD / SPI-flash / USB) busy-wait is yielding to the scheduler.
+/// True while a slow-storage (SD / SPI-flash / USB) busy-wait is yielding to the runtime.
 /// The application reads it to gate user actions that must not run re-entrantly inside a
-/// storage routine. Owned by the
-/// scheduler (the runtime concurrency layer), not the app — on Embassy this is a runtime flag.
-/// Read from plain tasks and from inside the render's own driving task. [task] [audio]
+/// storage routine. Owned by the BSP's runtime concurrency layer, not the app — on Embassy this is
+/// a runtime flag. Read from plain tasks and from inside the render's own driving task. [task] [audio]
 bool isSDRoutineActive(void) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }

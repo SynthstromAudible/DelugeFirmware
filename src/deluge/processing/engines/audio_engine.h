@@ -304,7 +304,7 @@ void retire(Song* song);
 ///        swap's finish, whose sample-load retry needs the old song's memory back.
 void awaitRetired();
 /// @brief [interaction] Destroy every retired object the render has let go of, once two blocks have begun since it
-///        was handed over. Called by a repeating scheduler task and, before each handover, by retire().
+///        was handed over. Called by a job in the app loop and, before each handover, by retire().
 void reclaimRetired();
 /// @brief [interaction] How many retired objects are still waiting to be destroyed. Test/diagnostic hook.
 std::size_t retiredPending();

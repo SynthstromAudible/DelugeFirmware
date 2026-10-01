@@ -32,6 +32,7 @@ pub fn wake(reasons: u32) {
     WAKE.signal(());
 }
 
+/// Whether any encoder has edges the app hasn't taken yet.
 fn encoders_pending() -> bool {
     encoder::ENCODER_DELTAS
         .iter()
@@ -103,6 +104,8 @@ pub async fn app_loop() {
     .await
 }
 
+/// C ABI: `libdeluge/app.h`'s `deluge_app_wake`. Adds `reasons` for the next pass and wakes the
+/// driver. Callable from any tier, including the audio tier's ISR context.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_app_wake(reasons: u32) {
     wake(reasons);

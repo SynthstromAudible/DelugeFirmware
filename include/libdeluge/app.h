@@ -46,11 +46,14 @@ typedef uint32_t DelugeWake;
 #define DELUGE_WAKE_ENCODERS 2u ///< an encoder has edges to take (deluge_encoder_take_edges)
 #define DELUGE_WAKE_APP 4u      ///< the app asked for a pass (deluge_app_wake)
 
-/// @brief One pass of the app's loop, called by the BSP on the interaction tier from the end of
-/// deluge_app_init: runs every job that is due or woken, once each.
+/// @brief Runs at most one due, woken or requested job of the app's loop, called by the BSP on the
+/// interaction tier from the end of deluge_app_init. A pass runs every such job once each, in order,
+/// one job per call: while the current pass still has jobs to run, the return value is now_us, so
+/// the caller gives its executor a turn and calls again to continue the pass.
 /// @param now_us the BSP clock, in µs since boot
 /// @param reasons the DelugeWake bits gathered since the last pass
-/// @return when the app next needs a pass, in µs on the same clock, or UINT64_MAX for none
+/// @return now_us while the current pass has more jobs to run; otherwise, when the app next needs a
+/// pass, in µs on the same clock, or UINT64_MAX for none
 /// [task]
 uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) DELUGE_NOEXCEPT;
 

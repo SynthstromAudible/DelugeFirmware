@@ -60,7 +60,7 @@ extern "C" {
 /// window has nothing left to flush -- the geometry is already on the caller's stack. It degrades to a
 /// read error rather than a wrong load, because the re-insert (`AudioFileManager::reinitEjectedCard`
 /// -> `deluge_efatfs_remount`) cannot run during the bind: it runs from `AudioFileManager::slowRoutine`,
-/// a scheduler task on the same tier, and `buildSampleFromLoadResult` runs begin, bind and
+/// an app-loop job on the same tier, and `buildSampleFromLoadResult` runs begin, bind and
 /// apply-geometry in one call whose blocking open runs no other task. The open hits the old mount and
 /// fails.
 ///

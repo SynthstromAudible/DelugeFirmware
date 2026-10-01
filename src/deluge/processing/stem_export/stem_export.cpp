@@ -61,8 +61,8 @@ StemExport stemExport{};
 
 /// How many audio blocks one offline pass renders before returning to the run loop.
 ///
-/// Offline export has no scheduler driving the audio routine, so the pass drives it directly - routing
-/// each block back through the scheduler instead would cap a headless render at about realtime.
+/// Offline export has no audio tier driving the audio routine, so the pass drives it directly - routing
+/// each block back through the audio tier instead would cap a headless render at about realtime.
 /// Batching keeps that direct-drive throughput while still letting go often enough for the fill task,
 /// the UI, and a cancellation to get a look in. A pass also stops early the moment the loader queue has
 /// work, so this bound only matters while nothing needs filling.
@@ -173,10 +173,11 @@ void StemExport::startNextElement() {
 
 /// One pass of the wait an element's recording needs.
 ///
-/// Live, there is nothing to do but look: the scheduler is already running the audio routine, playback
-/// and the recorder. Offline there is no scheduler driving them, so this drives them itself - but in a
-/// BOUNDED batch, returning to the run loop either when the batch is spent or as soon as the loader
-/// queue has work, since the fill task that serves it only runs once we let go.
+/// Live, there is nothing to do but look: the audio tier is already running the audio routine, and the
+/// app loop's own jobs already run playback and the recorder. Offline there is nothing driving them, so
+/// this drives them itself - but in a BOUNDED batch, returning to the run loop either when the batch is
+/// spent or as soon as the loader queue has work, since the fill task that serves it only runs once we
+/// let go.
 void StemExport::driveElement() {
 	// elementFinished() is NOT a pure predicate - it drives stopOutputRecording(), which is what
 	// eventually ends the recording. It must be evaluated exactly once per render iteration: asking a
@@ -209,8 +210,8 @@ void StemExport::driveElement() {
 		}
 	}
 	else {
-		// Live: the scheduler is already running the audio routine, playback and the recorder, so all
-		// this pass does is take that one look.
+		// Live: the audio tier is already running the audio routine, and the app loop's own jobs
+		// already run playback and the recorder, so all this pass does is take that one look.
 		finished = elementFinished();
 	}
 
