@@ -70,6 +70,10 @@ public:
 	/// Runs @p id in the next pass. Safe from any tier.
 	void request(JobId id);
 
+	/// Runs @p id at @p whenUs or later: the job's next due time becomes the earlier of its current
+	/// one and @p whenUs. Interaction tier only (it writes nextDue, which service() reads).
+	void requestAt(JobId id, Micros whenUs);
+
 	/// Stops @p id for good. Safe from the job's own body.
 	void cancel(JobId id);
 
@@ -133,5 +137,8 @@ private:
 
 /// The app's loop, which deluge_app_service runs.
 extern Loop appLoop;
+
+/// The loop's clock, in µs since boot: what jobs and stall bounds measure time with.
+Micros nowUs();
 
 } // namespace deluge::runtime

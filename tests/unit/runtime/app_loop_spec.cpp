@@ -268,6 +268,35 @@ describe app_loop("deluge::runtime::Loop", $ {
 		}
 		expect(loop.add("over", bodyA, kNever, 0)).to_equal(kNoJob);
 	});
+
+	it("runs a timerless job at a time it asked for, not before", _ {
+		Loop loop{clock, waker};
+		JobId a = loop.add("a", bodyA, kNever, 0);
+		loop.requestAt(a, 1500);
+		expect(loop.service(1000, 0)).to_equal(Micros{1500});
+		expect(g_log.size()).to_equal(size_t{0});
+		g_now = 1500;
+		loop.service(1500, 0);
+		expect(g_log.size()).to_equal(size_t{1});
+	});
+
+	it("keeps the earlier of a gap's due time and a requested time", _ {
+		Loop loop{clock, waker};
+		JobId a = loop.add("a", bodyA, 100, 0); // due 1100
+		loop.requestAt(a, 2000);
+		expect(loop.service(1000, 0)).to_equal(Micros{1100});
+		loop.requestAt(a, 1050);
+		expect(loop.service(1000, 0)).to_equal(Micros{1050});
+	});
+
+	it("forgets a requested time once the job has run", _ {
+		Loop loop{clock, waker};
+		JobId a = loop.add("a", bodyA, kNever, 0);
+		loop.requestAt(a, 1200);
+		g_now = 1200;
+		loop.service(1200, 0);
+		expect(loop.service(1200, 0)).to_equal(kNever);
+	});
 });
 
 CPPSPEC_SPEC(app_loop)

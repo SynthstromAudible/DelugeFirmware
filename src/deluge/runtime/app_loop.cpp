@@ -64,6 +64,12 @@ void Loop::cancel(JobId id) {
 	}
 }
 
+void Loop::requestAt(JobId id, Micros whenUs) {
+	if (id < count_) {
+		jobs_[id].nextDue = std::min(jobs_[id].nextDue, whenUs);
+	}
+}
+
 Micros Loop::service(Micros now, WakeMask reasons) {
 	if (!inPass_) {
 		// Requests made during this pass, a job's own included, belong to the next one: take this
@@ -108,9 +114,7 @@ Micros Loop::service(Micros now, WakeMask reasons) {
 		job.lastRun = ran;
 		job.maxRun = std::max(job.maxRun, ran);
 		++job.runs;
-		if (job.gap != kNever) {
-			job.nextDue = now + job.gap;
-		}
+		job.nextDue = job.gap == kNever ? kNever : now + job.gap;
 		cursor_ = i + 1;
 		return now;
 	}
@@ -147,6 +151,10 @@ void Loop::resetStats() {
 		jobs_[i].runs = 0;
 		jobs_[i].failures = 0;
 	}
+}
+
+Micros nowUs() {
+	return bspClock();
 }
 
 } // namespace deluge::runtime
