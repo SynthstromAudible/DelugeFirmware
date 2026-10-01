@@ -59,6 +59,7 @@ public:
 	virtual bool hasItem(const MenuItem* item);
 	decltype(items)& getItems() { return items; }
 	MenuItem* getCurrentItem() const { return *current_item_; }
+	bool selectEncoderActionEditsInstrument() override;
 
 protected:
 	Paging paging;

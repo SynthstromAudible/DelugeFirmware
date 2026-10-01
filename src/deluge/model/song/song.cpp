@@ -111,7 +111,11 @@ Kit* getCurrentKit() {
 
 /// Do not call in static/global constructors, song won't exist yet
 Instrument* getCurrentInstrument() {
-	auto output = currentSong->getCurrentClip()->output;
+	auto currentClip = currentSong->getCurrentClip();
+	if (currentClip == nullptr) {
+		return nullptr;
+	}
+	auto output = currentClip->output;
 	if (output == nullptr) {
 		return nullptr;
 	}
