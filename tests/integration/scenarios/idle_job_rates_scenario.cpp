@@ -48,6 +48,8 @@ constexpr std::array kWakeDriven = {
     "instrument load",       "settings io",     "startup failsafe", "Handle pending SysEx traffic.",
     "playback slow routine",
 };
+/// The job whose rate is bounded rather than zero.
+constexpr const char* kUiJob = "ui routine";
 /// The ui routine's bounds, in runs per second: the graphics routine's 15 ms timer alone is about 67 a second, and a
 /// deadline can take a few runs, since the sample clock moves a block (2.9 ms) at a time (ui-timer-deadline's UT-RATE
 /// bounds).
@@ -90,7 +92,27 @@ bool isWakeDriven(const char* name) {
 	return false;
 }
 
+/// Whether a job of that name is registered, so that a renamed job fails the scenario rather than dropping out of it.
+bool isRegistered(const char* name) {
+	for (JobId id = 0; id < appLoop.size(); ++id) {
+		if (std::strcmp(appLoop.stats(id).name, name) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void report(Micros elapsedUs) {
+	for (const char* name : kWakeDriven) {
+		if (!isRegistered(name)) {
+			printf("IR-MISSING job=%s\n", name);
+			fail("a job this scenario expects is not registered");
+		}
+	}
+	if (!isRegistered(kUiJob)) {
+		printf("IR-MISSING job=%s\n", kUiJob);
+		fail("the ui routine is not registered");
+	}
 	for (JobId id = 0; id < appLoop.size(); ++id) {
 		const auto s = appLoop.stats(id);
 		const double perSecond = static_cast<double>(g_windowRuns[id]) * 1e6 / static_cast<double>(elapsedUs);
@@ -100,7 +122,7 @@ void report(Micros elapsedUs) {
 			printf("IR-FAIL job=%s\n", s.name);
 			fail("a wake-driven job ran on an idle app: something polls it");
 		}
-		if (std::strcmp(s.name, "ui routine") == 0 && (perSecond < kUiMinPerSecond || perSecond > kUiMaxPerSecond)) {
+		if (std::strcmp(s.name, kUiJob) == 0 && (perSecond < kUiMinPerSecond || perSecond > kUiMaxPerSecond)) {
 			fail("the ui routine ran outside its timers' rate");
 		}
 	}
