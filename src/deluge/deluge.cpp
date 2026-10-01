@@ -548,7 +548,6 @@ void registerJobs() {
 	appLoop.add("audio recorder slow", [] { audioRecorder.slowRoutine(); }, us(0.1), 0);
 	// Actions undo/redo MIDI commands that had to wait for the card.
 	appLoop.add("playback slow routine", [] { playbackHandler.slowRoutine(); }, us(0.1), 0);
-	appLoop.add("PIC flush", &deluge_control_flush, us(0.002), 0);
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task

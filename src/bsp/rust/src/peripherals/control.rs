@@ -6,6 +6,8 @@
 //! encoder GPIO/GIC setup runs in the device runtime's pre-executor window, with IRQs masked.
 #![allow(non_snake_case)]
 
+#[cfg(not(target_os = "none"))]
+use core::sync::atomic::AtomicU32;
 use core::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 
 use deluge_bsp::{encoder, pic};
@@ -246,37 +248,83 @@ const BYTES_PER_CMD: u32 = 49;
 /// Sized so a full grid and sidebar redraw (≈10–18 commands) leaves plenty free: the app gates
 /// redraws on [`deluge_control_pad_output_space`], derived from the free slot count.
 static OUT: Channel<CriticalSectionRawMutex, PicOut, 64> = Channel::new();
-/// Set by any output op; [`deluge_control_flush`] turns it into a single refresh, so an idle tick
-/// sends nothing.
+/// Set by any output op; [`pad_render`] clears it with a single refresh once `OUT` drains, so an
+/// idle batch sends nothing extra.
 static OUTPUT_DIRTY: AtomicBool = AtomicBool::new(false);
 
-/// Background task: the sole PIC transmitter. Drains `OUT`, yielding between sends so the RX
-/// pump and the app keep running.
+/// Counts [`refresh`] calls, so a host test can check pad_render sent exactly one PIC refresh
+/// after a batch drained. The host stand-in for the PIC UART (`pic::tx`) only logs, so this is the
+/// one place that call is otherwise observable off-target.
+#[cfg(not(target_os = "none"))]
+static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
+
+/// Current value of [`REFRESH_COUNT`]. Host test seam.
+#[cfg(not(target_os = "none"))]
+#[doc(hidden)]
+pub fn refresh_count_for_test() -> u32 {
+    REFRESH_COUNT.load(Ordering::Relaxed)
+}
+
+/// Resets [`REFRESH_COUNT`] to 0. Host test seam.
+#[cfg(not(target_os = "none"))]
+#[doc(hidden)]
+pub fn reset_refresh_count_for_test() {
+    REFRESH_COUNT.store(0, Ordering::Relaxed);
+}
+
+/// Background task: the sole PIC transmitter. Drains `OUT`, yielding between sends so the RX pump
+/// and the app keep running.
+///
+/// Every [`enqueue`] runs synchronously inside the app job that called it, and this task runs on
+/// the same thread executor, so once `OUT` is found empty that job's whole batch has been sent —
+/// exactly the moment to trigger the PIC's refresh, which [`refresh`] does once per batch rather
+/// than once per command. This replaces the separate "PIC flush" job that used to poll
+/// [`OUTPUT_DIRTY`] on its own schedule: that job's own `try_send` could be dropped under a full
+/// queue, where sending from here, after the queue is already known empty, cannot be.
 #[embassy_executor::task]
 pub async fn pad_render() {
     // A command sent mid-handshake would go out at the wrong baud rate; boot-time commands wait
     // in OUT.
     pic::wait_ready().await;
     loop {
-        match OUT.receive().await {
-            PicOut::Columns { idx, colours } => pic::set_column_pair_rgb(idx, &colours).await,
-            PicOut::Led { id, on } => {
-                if on {
-                    pic::led_on(id).await
-                } else {
-                    pic::led_off(id).await
-                }
-            }
-            PicOut::Indicator { knob, levels } => pic::set_gold_knob_indicators(knob, levels).await,
-            PicOut::RefreshTime(ms) => pic::set_refresh_time(ms).await,
-            PicOut::Refresh => pic::done_sending_rows().await,
-            PicOut::ScrollSetup(flags) => pic::setup_horizontal_scroll(flags).await,
-            PicOut::ScrollRow { row, colour } => pic::send_scroll_row(row, colour).await,
-            PicOut::ScrollVertical { up, colours, count } => {
-                pic::vertical_scroll(up, &colours[..(count as usize).min(18)]).await
-            }
+        send(OUT.receive().await).await;
+        while let Ok(cmd) = OUT.try_receive() {
+            send(cmd).await;
+        }
+        if OUTPUT_DIRTY.swap(false, Ordering::Relaxed) {
+            refresh().await;
         }
     }
+}
+
+/// Sends one queued control-surface output operation to the PIC.
+async fn send(cmd: PicOut) {
+    match cmd {
+        PicOut::Columns { idx, colours } => pic::set_column_pair_rgb(idx, &colours).await,
+        PicOut::Led { id, on } => {
+            if on {
+                pic::led_on(id).await
+            } else {
+                pic::led_off(id).await
+            }
+        }
+        PicOut::Indicator { knob, levels } => pic::set_gold_knob_indicators(knob, levels).await,
+        PicOut::RefreshTime(ms) => pic::set_refresh_time(ms).await,
+        PicOut::Refresh => refresh().await,
+        PicOut::ScrollSetup(flags) => pic::setup_horizontal_scroll(flags).await,
+        PicOut::ScrollRow { row, colour } => pic::send_scroll_row(row, colour).await,
+        PicOut::ScrollVertical { up, colours, count } => {
+            pic::vertical_scroll(up, &colours[..(count as usize).min(18)]).await
+        }
+    }
+}
+
+/// Sends the PIC's "done sending rows" command, which triggers its display refresh. The sole
+/// place that happens, so [`REFRESH_COUNT`] on host counts every one.
+async fn refresh() {
+    pic::done_sending_rows().await;
+    #[cfg(not(target_os = "none"))]
+    REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
 }
 
 #[inline]
@@ -385,14 +433,11 @@ pub extern "C" fn deluge_control_pad_output_space() -> u32 {
     OUT.free_capacity() as u32 * BYTES_PER_CMD
 }
 
-/// Flushes batched surface output: queues one refresh if anything was queued since the last
-/// flush.
+/// No-op: [`pad_render`] now sends the PIC refresh itself once its output queue drains, so there
+/// is nothing left to flush. Kept as an ABI function because the app still calls it after pad/LED
+/// bursts; those calls are harmless.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_flush() {
-    if OUTPUT_DIRTY.swap(false, Ordering::Relaxed) {
-        let _ = OUT.try_send(PicOut::Refresh);
-    }
-}
+pub extern "C" fn deluge_control_flush() {}
 
 abi_pin!(
     deluge_control_flush,
