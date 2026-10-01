@@ -278,9 +278,8 @@ pub fn reset_refresh_count_for_test() {
 /// Every [`enqueue`] runs synchronously inside the app job that called it, and this task runs on
 /// the same thread executor, so once `OUT` is found empty that job's whole batch has been sent —
 /// exactly the moment to trigger the PIC's refresh, which [`refresh`] does once per batch rather
-/// than once per command. This replaces the separate "PIC flush" job that used to poll
-/// [`OUTPUT_DIRTY`] on its own schedule: that job's own `try_send` could be dropped under a full
-/// queue, where sending from here, after the queue is already known empty, cannot be.
+/// than once per command. The refresh is sent from here, after the queue is known empty, so it
+/// cannot be dropped by a full queue the way a `try_send` from the app's side could be.
 #[embassy_executor::task]
 pub async fn pad_render() {
     // A command sent mid-handshake would go out at the wrong baud rate; boot-time commands wait
@@ -433,9 +432,8 @@ pub extern "C" fn deluge_control_pad_output_space() -> u32 {
     OUT.free_capacity() as u32 * BYTES_PER_CMD
 }
 
-/// No-op: [`pad_render`] now sends the PIC refresh itself once its output queue drains, so there
-/// is nothing left to flush. Kept as an ABI function because the app still calls it after pad/LED
-/// bursts; those calls are harmless.
+/// No-op: [`pad_render`] sends the PIC refresh when its output queue drains, so the app has
+/// nothing to flush. The ABI function exists because the app calls it after pad/LED bursts.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_control_flush() {}
 
