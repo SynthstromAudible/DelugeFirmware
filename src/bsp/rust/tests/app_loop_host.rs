@@ -1,11 +1,11 @@
-//! Host tests for the app-loop driver: deadlines, wakes, and encoder and input levels, on an embassy std
+//! Host tests for the app-loop driver: deadlines, wakes, encoder levels and input edges, on an embassy std
 //! executor with a stand-in service.
 //!
 //! The driver's wake state is process-global, so the tests share one driver on one executor and run
 //! one at a time under [`serial`].
 #![feature(impl_trait_in_assoc_type)]
 
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::SeqCst};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::SeqCst};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -24,6 +24,8 @@ static DRAINED: Mutex<Vec<usize>> = Mutex::new(Vec::new());
 static NEXT: AtomicU64 = AtomicU64::new(u64::MAX);
 /// Calls left for which the stand-in service answers "now", as the app does mid-pass.
 static BUSY: AtomicU32 = AtomicU32::new(0);
+/// When set, the stand-in service leaves queued input events alone, as a deferral does.
+static LEAVE: AtomicBool = AtomicBool::new(false);
 /// Wakes [`neighbour`] on the first busy call.
 static NEIGHBOUR: embassy_sync::signal::Signal<
     embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
@@ -41,7 +43,7 @@ fn service(now: u64, reasons: u32) -> u64 {
     }
     let mut ev = pad(0);
     let mut drained = 0;
-    while control::deluge_control_poll_event(&mut ev) {
+    while !LEAVE.load(SeqCst) && control::deluge_control_poll_event(&mut ev) {
         drained += 1;
     }
     DRAINED.lock().unwrap().push(drained);
@@ -223,8 +225,7 @@ fn input_burst_drains() {
     wait_until(Duration::from_millis(500), "a pass with WAKE_INPUT", || {
         calls().iter().any(|&(_, r)| r & WAKE_INPUT != 0)
     });
-    // The service drained the queue, so the level check stops raising WAKE_INPUT: no pass in the
-    // next 50 ms.
+    // The service drained the queue, and a drained queue raises nothing: no pass in the next 50 ms.
     std::thread::sleep(Duration::from_millis(50));
     let input_passes: Vec<usize> = calls()
         .iter()
@@ -239,19 +240,6 @@ fn input_burst_drains() {
     );
     assert_eq!(calls().len(), 1, "passes kept coming with the queue empty");
 
-    // Events queued without a wake are still seen by the next pass: the driver checks the level.
-    assert!(control::queue_event_without_wake(pad(4)));
-    app_loop::wake(WAKE_APP);
-    wait_until(
-        Duration::from_millis(500),
-        "a WAKE_APP pass that also carries WAKE_INPUT",
-        || {
-            calls()
-                .iter()
-                .any(|&(_, r)| r & WAKE_APP != 0 && r & WAKE_INPUT != 0)
-        },
-    );
-
     // The pump's push wakes the driver by itself.
     let before = calls().len();
     control::queue_event(pad(5));
@@ -260,4 +248,34 @@ fn input_burst_drains() {
         "a pass woken by the push",
         || calls()[before..].iter().any(|&(_, r)| r & WAKE_INPUT != 0),
     );
+}
+
+#[test]
+fn a_deferred_event_does_not_raise_input_on_later_passes() {
+    let _s = serial();
+    // The service leaves this event queued, as a deferral does.
+    LEAVE.store(true, SeqCst);
+    control::queue_event(pad(6));
+    wait_until(Duration::from_millis(500), "the pass for the push", || {
+        calls().iter().any(|&(_, r)| r & WAKE_INPUT != 0)
+    });
+    // Later passes, whatever woke them, don't carry WAKE_INPUT for the event still queued: a level
+    // check would make each of them carry it and the app would re-pass at once, without end.
+    let before = calls().len();
+    app_loop::wake(WAKE_APP);
+    wait_until(Duration::from_millis(500), "a WAKE_APP pass", || {
+        calls().len() > before
+    });
+    std::thread::sleep(Duration::from_millis(50));
+    LEAVE.store(false, SeqCst);
+    let later = calls()[before..].to_vec();
+    assert_eq!(later.len(), 1, "passes kept coming: {later:?}");
+    assert_eq!(
+        later[0].1 & WAKE_INPUT,
+        0,
+        "a deferred event raised WAKE_INPUT"
+    );
+    // Drain it for the next test.
+    let mut ev = pad(0);
+    while control::deluge_control_poll_event(&mut ev) {}
 }

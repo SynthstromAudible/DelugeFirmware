@@ -78,6 +78,11 @@ async fn encoder_edges() {
 /// with the current time in µs and the reasons, and waits for the deadline it returns
 /// (`u64::MAX` for none).
 ///
+/// Input is edge-only: `WAKE_INPUT` comes from each push, never from the queue being non-empty. A
+/// level check would make every pass carry it while an event the app deferred stays queued, and the
+/// app's own re-pass on a carried wake would then spin; the app drains the queue or arms its own
+/// retry. Encoders have no per-edge wake, so their level is checked.
+///
 /// When the deadline it returns has already come, it yields once before calling again, so other
 /// tasks on the executor run between calls.
 ///
@@ -93,9 +98,6 @@ pub async fn drive(service: fn(u64, u32) -> u64) {
         }
         if encoders_pending() {
             reasons |= WAKE_ENCODERS;
-        }
-        if crate::peripherals::control::events_pending() {
-            reasons |= WAKE_INPUT;
         }
         let next = service(now.as_micros(), reasons);
         due = if next == u64::MAX {

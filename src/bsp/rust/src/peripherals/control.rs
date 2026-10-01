@@ -109,8 +109,7 @@ pub async fn pic_pump() {
 
 /// Queues `ev` for the app and wakes its loop with `WAKE_INPUT`; drops it when [`EVENTS`] is full.
 ///
-/// The driver's level check ([`events_pending`]) runs only after a wait ends, so a push the driver
-/// is asleep for needs this wake.
+/// The wake is the only way the driver hears of input: it has no level check on [`EVENTS`].
 pub fn queue_event(ev: DelugeInputEvent) {
     if EVENTS.try_send(ev).is_ok() {
         crate::app_loop::wake(crate::app_loop::WAKE_INPUT);
@@ -118,16 +117,11 @@ pub fn queue_event(ev: DelugeInputEvent) {
 }
 
 /// Queues `ev` without waking the app's loop; returns false when [`EVENTS`] is full. A host test
-/// seam: it stages a burst that the driver hears of only through one later wake or its level check.
+/// seam: it stages a burst that the driver hears of only through one later wake.
 #[cfg(not(target_os = "none"))]
 #[doc(hidden)]
 pub fn queue_event_without_wake(ev: DelugeInputEvent) -> bool {
     EVENTS.try_send(ev).is_ok()
-}
-
-/// Whether input events are queued that the app hasn't drained yet.
-pub(crate) fn events_pending() -> bool {
-    !EVENTS.is_empty()
 }
 
 /// Maps a PIC pad id to a grid event at (x, y), as the app's `Pad(uint8_t)` does.
