@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "io/stall_bound.h"
+#include "libdeluge/file_bytes.h"
 #include "libdeluge/types.h"
 #include "runtime/app_loop.h"
 
@@ -428,6 +430,13 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 /// keeps the buffer until the write answers, however long the card takes. Its answer raises `DELUGE_WAKE_STORAGE`;
 /// this re-check only guards against a lost wake, so the caller does not sleep forever on one.
 inline constexpr uint64_t kWriteFromRecheckUs = 250'000;
+
+/// @brief How long after the byte channel refused a request its caller asks again if nothing wakes it sooner, in
+///        microseconds: the protected-answer span, past which an orphaned answer no longer refuses (and raises no
+///        wake as it ages out), plus a margin. A request refused behind an operation in flight is woken sooner, by
+///        that operation's answer.
+inline constexpr uint64_t kRefusedRecheckUs = (uint64_t{DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS} + 50) * 1000;
+static_assert(kRefusedRecheckUs < deluge::io::kChannelStallUs, "the re-ask must come well before the stall bound");
 
 /// @brief The job that runs @ref serviceRoutine, set by `registerJobs`.
 ///

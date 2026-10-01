@@ -288,13 +288,28 @@ int32_t stagingServedOps = 0;
 /// Defer one more caller tick, or give up once the byte channel has finished nothing for the whole stall bound. A
 /// stall bound, not a timeout on the read: a refusal behind someone else's long operation, or a wait on this read,
 /// keeps waiting for as long as the channel keeps finishing work, and only a channel that has stopped fails the load.
-StorageManager::StagedOpen deferStaging(StorageManager::StagingState* state) {
+StorageManager::StagedOpen deferStaging(StorageManager::StagingState* state, StorageManager::StagingState::Wait wait) {
+	state->wait = wait;
 	if (state->stallBound.tick(deluge_file_bytes_progress())) {
 		return StorageManager::StagedOpen::Failed;
 	}
 	return StorageManager::StagedOpen::Deferred;
 }
 } // namespace
+
+uint64_t StorageManager::stagingNextRunUs(const StagingState& state) {
+	const uint64_t now = deluge::runtime::nowUs();
+	const uint64_t deadline = state.stallBound.deadlineUs();
+	switch (state.wait) {
+	case StagingState::Wait::Now:
+		return 0;
+	case StagingState::Wait::Refused:
+		return std::min(deadline, now + deluge::storage::bytes::kRefusedRecheckUs);
+	case StagingState::Wait::Answer:
+		break;
+	}
+	return (deadline != deluge::runtime::kNever) ? deadline : now + state.stallBound.limitUs();
+}
 
 StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, char const* firstTagName,
                                                               char const* altTagName, StagingState* state) {
@@ -330,9 +345,10 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 				if (deluge::storage::bytes::requestStat(path) == deluge::storage::bytes::ByteIo::Failed) {
 					return StagedOpen::Failed;
 				}
-				return deferStaging(state);
+				// A refused stat is dropped with no answer, so this may wait on nothing.
+				return deferStaging(state, StagingState::Wait::Refused);
 			case deluge::storage::bytes::ByteIo::Pending:
-				return deferStaging(state);
+				return deferStaging(state, StagingState::Wait::Answer);
 			case deluge::storage::bytes::ByteIo::Failed:
 				return StagedOpen::Failed;
 			case deluge::storage::bytes::ByteIo::Ready:
@@ -350,10 +366,11 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		}
 		if (!deluge_file_bytes_request_read_into(path, state->buffer, state->size)) {
 			// Refused, not failed: nothing was queued, so ask again next tick.
-			return deferStaging(state);
+			return deferStaging(state, StagingState::Wait::Refused);
 		}
 		state->issued = true;
 		state->stallBound.reset();
+		state->wait = StagingState::Wait::Answer;
 		return StagedOpen::Deferred;
 	}
 	else {
@@ -362,12 +379,12 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 		uint32_t needed = 0;
 		const DelugeChannelStatus collected = deluge_file_bytes_collect_read_into(path, &got, &error, &needed);
 		if (collected == DELUGE_CHANNEL_PENDING) {
-			return deferStaging(state);
+			return deferStaging(state, StagingState::Wait::Answer);
 		}
 		if (collected == DELUGE_CHANNEL_UNKNOWN) {
 			// Never keyed, so nothing is coming. Re-issue next tick rather than wait forever.
 			state->issued = false;
-			return deferStaging(state);
+			return deferStaging(state, StagingState::Wait::Now);
 		}
 		if (collected == DELUGE_CHANNEL_FAILED) {
 			state->issued = false;
@@ -381,6 +398,7 @@ StorageManager::StagedOpen StorageManager::openDocumentStaged(char const* path, 
 					return StagedOpen::Failed;
 				}
 				state->size = needed;
+				state->wait = StagingState::Wait::Now;
 				return StagedOpen::Deferred;
 			}
 			releaseStaging(state);

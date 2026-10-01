@@ -288,6 +288,10 @@ void LoadPatternUI::requestRead(PatternRead read) {
 	active_ = std::move(read);
 	// Before boot the read is inline and lands here; after it, this issues the first channel request.
 	loadRoutine();
+	// The run above may have been made outside the loop's pass, where a time it asked for wakes nothing.
+	if (active_.has_value()) {
+		deluge::runtime::appLoop.request(jobId);
+	}
 }
 
 void LoadPatternUI::dropRead() {
@@ -305,6 +309,13 @@ void LoadPatternUI::loadRoutine() {
 	const StorageManager::StagedOpen opened =
 	    StorageManager::openDocumentStaged(active_->path.c_str(), "pattern", "", &staging_);
 	if (opened == StorageManager::StagedOpen::Deferred) {
+		const uint64_t next = StorageManager::stagingNextRunUs(staging_);
+		if (next == 0) {
+			deluge::runtime::appLoop.request(jobId);
+		}
+		else {
+			deluge::runtime::appLoop.requestAt(jobId, next);
+		}
 		return;
 	}
 	const PatternRead read = *active_;

@@ -20,6 +20,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/reversion.h"
 #include "gui/ui/sound_editor.h"
@@ -1490,6 +1491,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
+	deluge::gui::instrumentLoad.songMadeCurrent();
 	loadSongUI.deletedPartsOfOldSong = false;
 
 	currentSong->sendAllMIDIPGMs();

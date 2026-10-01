@@ -304,6 +304,10 @@ bool Browser::restoreListing() {
 	return true;
 }
 
+uint64_t Browser::directoryWaitDeadlineUs() {
+	return g_directoryWait.deadlineUs();
+}
+
 void Browser::runPendingListing() {
 	// A listing spans however many ticks its opens need, and `listing_` carries where it is up to. A
 	// re-entry while one is active RESUMES the machine — it must NOT re-run the action's *Impl, which

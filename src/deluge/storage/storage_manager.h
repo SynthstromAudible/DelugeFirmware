@@ -452,9 +452,16 @@ struct StagingState {
 	bool issued = false;
 	/// How long this staging has been deferred without progress. Bounded, because a channel that is
 	/// never going to answer must END the wait rather than defer forever -- an unbounded retry is not
-	/// patience, it is a wedge that presents as the device having hung. The caller sets its limit to
-	/// suit how often it asks; releaseStaging() keeps it.
+	/// patience, it is a wedge that presents as the device having hung. The caller sets its limit;
+	/// releaseStaging() keeps it.
 	deluge::io::StallBound stallBound{};
+	/// What the latest Deferred waits for. See stagingNextRunUs().
+	enum class Wait : uint8_t {
+		Answer,  ///< The channel's answer to a request it holds, which raises DELUGE_WAKE_STORAGE.
+		Refused, ///< The channel refused (or may have dropped) a request: asked again on the next run.
+		Now,     ///< Nothing to wait for: the next run issues the read.
+	};
+	Wait wait = Wait::Answer;
 };
 
 /// @brief Read the whole of @p path into a freshly allocated buffer, blocking until it is there.
@@ -485,6 +492,15 @@ Error readWholeFileSynchronously(char const* path, StagingState* out);
 /// @note On Opened this leaves `activeDeserializer` pointing at a memory reader, with all of
 ///       openDelugeBuffer()'s caveats about saving and restoring it.
 StagedOpen openDocumentStaged(char const* path, char const* firstTagName, char const* altTagName, StagingState* state);
+
+/// @brief When a caller that runs only when woken asks again after openDocumentStaged() answered Deferred, on the app
+///        loop's clock (µs).
+///
+/// 0 (at once) when the next run has a request to issue; for a refused request, the stall bound's deadline or
+/// kRefusedRecheckUs from now, whichever is sooner (an answer aging out of the channel raises no wake); for a
+/// request the channel holds, the stall bound's deadline -- a full bound from now if its span has not started -- since
+/// the answer itself raises DELUGE_WAKE_STORAGE.
+[[nodiscard]] uint64_t stagingNextRunUs(const StagingState& state);
 
 /// @brief Free a staged buffer and clear its state. Safe on a state that holds nothing.
 ///

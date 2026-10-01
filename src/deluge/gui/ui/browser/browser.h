@@ -162,6 +162,12 @@ public:
 	///        microseconds: 9 s, the channel stall bound scaled to the graphics routine that asks, every 15 ms.
 	static constexpr uint64_t kDirectoryStallUs = 9'000'000;
 
+	/// @brief When the directory open in hand gives up if the channel does not answer it first, on the app loop's
+	///        clock (µs); kNever when no open is waiting. A caller that runs only when woken and was told
+	///        Error::LISTING_DEFERRED asks for a run at this time: the channel's answer raises DELUGE_WAKE_STORAGE
+	///        sooner.
+	[[nodiscard]] static uint64_t directoryWaitDeadlineUs();
+
 	/// @brief How many reloads -- the scroll past a culled window's edge -- have started. For gates only.
 	[[nodiscard]] static int32_t reloadsRun();
 

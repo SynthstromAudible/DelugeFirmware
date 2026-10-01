@@ -32,6 +32,7 @@
 #include "hid/button.h"
 #include "io/file.hpp"
 #include "libdeluge/audio_load.h"     // deluge_audio_load_set_latency_ms
+#include "libdeluge/file_bytes.h"     // deluge_file_bytes_set_latency_ms
 #include "libdeluge/file_directory.h" // deluge_file_directory_set_latency_ms
 #include "memory/fast_allocator.h"
 #include "model/clip/clip.h"
@@ -206,6 +207,10 @@ constexpr const char* kStallSample = "SAMPLES/PLS/PLSTALL.WAV";
 /// How long the loader holds each load in the supersession and gate legs, and in the stall leg.
 constexpr uint32_t kHoldMs = 400;
 constexpr uint32_t kStallHoldMs = 30000;
+/// How long the byte channel holds each operation while a leg needs a document read still out on its next tick: the
+/// revert's and the blank song's preset, each staged in a few operations. The load runs when its channel answers, so
+/// with no hold it can land before the scenario ticks again.
+constexpr uint32_t kDocumentHoldMs = 20;
 /// Scenario ticks the stall leg's commit may take to give up before it is called wedged: far past its stall bound.
 constexpr int32_t kMaxStallTicks = 20000;
 
@@ -792,6 +797,7 @@ void tickRevert() {
 	g_revertTried = true;
 	g_revertClosedAtOnce = !isUIOpen(&loadInstrumentPresetUI);
 	g_revertGateClosed = currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	deluge_file_bytes_set_latency_ms(0);
 }
 
 /// The gate leg's first wait tick: while the commit is still out, an output-type button and an encoder turn.
@@ -819,6 +825,10 @@ void tickGate() {
 void actLeg() {
 	using namespace deluge::hid::button;
 	if (isRevertLeg(g_leg)) {
+		if (g_leg == Leg::RevertCard) {
+			// The original's document is still being read on the first wait tick, where the gate is looked at.
+			deluge_file_bytes_set_latency_ms(kDocumentHoldMs);
+		}
 		// The mute pad, which is what backs out of the browser (padAction()'s potentiallyExit).
 		(void)getCurrentUI()->padAction(kDisplayWidth, 0, 1);
 		return;
@@ -2150,8 +2160,10 @@ void runBlankTick() {
 		g_blankReadsBefore = deluge::gui::instrumentLoad.documentReads();
 		g_blankEdited = false;
 		if (g_leg == Leg::BlankEdited) {
-			// The preset's sample is held, so the default synth can be edited while the song's request is still out.
+			// The preset's document and sample are held, so the default synth can be edited while the song's request is
+			// still out.
 			deluge_audio_load_set_latency_ms(kHoldMs);
+			deluge_file_bytes_set_latency_ms(kDocumentHoldMs);
 		}
 		(void)deluge::gui::context_menu::clearSong.acceptCurrentOption();
 		printf("PL-PROBE leg=%s cleared=1\n", legName(g_leg));
@@ -2168,6 +2180,7 @@ void runBlankTick() {
 				instrument->editedByUser = true;
 				g_blankEdited = true;
 				deluge_audio_load_set_latency_ms(0);
+				deluge_file_bytes_set_latency_ms(0);
 			}
 		}
 		const bool acquired = LoadInstrumentPresetUI::presetAcquisitionsRun() > g_blankRunsBefore;

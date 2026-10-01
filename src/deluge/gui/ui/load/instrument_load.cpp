@@ -33,6 +33,8 @@
 #include "storage/file_item.h"
 #include "util/functions.h"
 
+#include <algorithm>
+
 namespace deluge::gui {
 
 InstrumentLoad instrumentLoad{};
@@ -91,10 +93,14 @@ bool InstrumentLoad::request(const InstrumentLoadRequest& request) {
 		closeGate();
 	}
 	if (!coalescer_.request(request)) {
-		return true; // queued: the load in flight is cancelled at its next phase boundary, unless it is a creation
+		// Queued: the load in flight is cancelled at its next phase boundary, unless it is a creation.
+		deluge::runtime::appLoop.request(jobId);
+		return true;
 	}
 	start(coalescer_.current());
 	routine();
+	// The run above may have been made outside the loop's pass, where a time it asked for wakes nothing.
+	deluge::runtime::appLoop.request(jobId);
 	return true;
 }
 
@@ -116,6 +122,7 @@ void InstrumentLoad::cancel() {
 	std::optional<InstrumentLoadRequest> next = coalescer_.complete();
 	if (next.has_value()) {
 		start(*next);
+		deluge::runtime::appLoop.request(jobId);
 	}
 }
 
@@ -132,6 +139,34 @@ void InstrumentLoad::routine() {
 		                          .dirPath = getInstrumentFolder(OutputType::SYNTH)}});
 	}
 	while (step()) {}
+	armNextRun();
+}
+
+void InstrumentLoad::armNextRun() {
+	using deluge::runtime::appLoop;
+	if (walkUnticked_) {
+		appLoop.request(jobId);
+		return;
+	}
+	uint64_t next = deluge::runtime::kNever;
+	if (walkRunning_) {
+		// Every walk waits only on a directory open, whose answer raises WAKE_STORAGE; this is the run that finds the
+		// open's bound over.
+		const uint64_t deadline = Browser::directoryWaitDeadlineUs();
+		next = (deadline != deluge::runtime::kNever) ? deadline : deluge::runtime::nowUs() + Browser::kDirectoryStallUs;
+	}
+	if ((phase_ == Phase::Stage || phase_ == Phase::MidiDef) && stagingOpen_) {
+		next = std::min(next, StorageManager::stagingNextRunUs(staging_));
+	}
+	if (phase_ == Phase::Samples && load_.has_value()) {
+		next = std::min(next, load_->nextTickUs());
+	}
+	if (next == 0) {
+		appLoop.request(jobId);
+	}
+	else if (next != deluge::runtime::kNever) {
+		appLoop.requestAt(jobId, next);
+	}
 }
 
 bool InstrumentLoad::acquisitionInFlight() const {
@@ -283,6 +318,7 @@ void InstrumentLoad::tickWalkHere() {
 	// set phase_ = Idle while a walk is out, and step() returns at Phase::Idle without ever reaching stepWalk(),
 	// so a walk ticked only from there would be stranded: walkRunning_ stays true and every later walk queues
 	// behind a search nobody is advancing.
+	walkUnticked_ = false;
 	bool waiting = false;
 	switch (walkOut_.walk) {
 	case deluge::storage::AcquireWalk::UnusedSlot:
@@ -306,6 +342,7 @@ void InstrumentLoad::tickWalkHere() {
 }
 
 void InstrumentLoad::beginWalkHere() {
+	walkUnticked_ = true;
 	if (walkOut_.walk == deluge::storage::AcquireWalk::UnusedSlot) {
 		// Counted for the preset-load gate (AQ-SLOT): a walk begun.
 		slotScans_++;

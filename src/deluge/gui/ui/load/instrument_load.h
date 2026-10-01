@@ -22,6 +22,7 @@
 #include "gui/ui/load/preset_navigation.h"
 #include "gui/ui/load/preset_walk.h"
 #include "gui/ui/load/slot_name_scan.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/latest_wins.h"
 #include "storage/preset_acquisition.h"
@@ -121,7 +122,8 @@ struct AcquireSnapshot {
 
 /// @brief Preset loads on the interaction tier: the browser's own, and every change-type and navigate acquisition.
 ///
-/// A phase machine, advanced by request() and by routine() from its own repeating task.
+/// A phase machine, advanced by request() and by routine() from its own job, which runs when a load is asked for, when
+/// a storage channel answers, and at the time the wait it is on asks for (see armNextRun()).
 /// - **Browse** (a synth, kit or MIDI preset into the browser's clip, a synth preset into a kit row, or a clone):
 ///   the browser's prologue decides; the document is staged through the byte channel and parsed on this tier; the
 ///   samples load through one AsyncSampleLoad over the new Instrument (or drum); the browser swaps it in, in one pass.
@@ -159,8 +161,16 @@ public:
 	///        acquisition is not the browser's, and is left alone.
 	void cancel();
 
-	/// @brief Advance the load as far as it can go without waiting. Called by the "instrument load" repeating task.
+	/// @brief Advance the load as far as it can go without waiting, then ask for the job's next run. Called by the
+	///        "instrument load" job.
 	void routine();
+
+	/// @brief The job routine() runs on, woken by DELUGE_WAKE_STORAGE. Shared with the pattern browser's reads.
+	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
+
+	/// @brief Ask for a run of the job: a song just made current may be a blank one asking for its first preset
+	///        (Song::blankPresetPending), which routine() asks for.
+	void songMadeCurrent() const { deluge::runtime::appLoop.request(jobId); }
 
 	/// @brief Whether a load is in flight or queued.
 	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle; }
@@ -238,6 +248,10 @@ private:
 	void beginSampleLoad(Instrument& instrument);
 	/// @brief Show the name a navigate's walk landed on, before its preset loads.
 	void echoNavigation() const;
+	/// @brief Ask for the job's next run for whatever the load waits on: at once when a walk is armed but not yet
+	///        ticked, otherwise the soonest of the walk's directory open, the staging's next run
+	///        (StorageManager::stagingNextRunUs()) and the sample load's next tick. An idle load asks for none.
+	void armNextRun();
 
 	/// @brief Advance an inline walk, from routine() rather than from the phase machine.
 	void tickWalkHere();
@@ -255,8 +269,8 @@ private:
 
 	/// @name What the load in flight holds.
 	/// @{
-	/// How long the preset's staging may go without progress before the load gives up: 18 s, the channel stall bound
-	/// scaled to the "instrument load" job, which asks every 30 ms rather than every 6.
+	/// How long the preset's staging may go without the byte channel finishing anything before the load gives up, in
+	/// µs: 18 s, far past any real staging, as the browser's own loads have always been allowed.
 	static constexpr uint64_t kStagingStallUs = 18'000'000;
 	StorageManager::StagingState staging_{.stallBound = deluge::io::StallBound{kStagingStallUs}};
 	bool stagingOpen_{false}; ///< A staging has begun and not been released.
@@ -275,6 +289,9 @@ private:
 	/// Set as a walk is queued and cleared by the walk as it ends: a walk still out, perhaps an abandoned load's, is
 	/// waited for before another is queued, so the two never share @ref walkOut_ and @ref walked_.
 	bool walkRunning_{false};
+	/// The walk out has been armed and not yet ticked: routine() ticks it at its start, so the next run must come at
+	/// once.
+	bool walkUnticked_{false};
 	/// The Unlaunched search, a folder at a time. Holds its OWN listing, so it reads folders without
 	/// touching what the browser is showing.
 	PresetWalk walk_machine_{};

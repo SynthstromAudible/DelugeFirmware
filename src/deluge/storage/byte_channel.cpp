@@ -446,11 +446,6 @@ bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDon
 
 namespace {
 
-/// How long after a refusal the machine asks again if nothing wakes it sooner, in microseconds: the protected-answer
-/// span, past which an orphaned answer no longer refuses, plus a margin.
-constexpr uint64_t kRefusedRecheckUs = (uint64_t{DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS} + 50) * 1000;
-static_assert(kRefusedRecheckUs < deluge::io::kChannelStallUs, "the re-ask must come well before the stall bound");
-
 /// Whether @p step asks the channel for something, as opposed to waiting for its answer.
 bool asksChannel(Step step) {
 	switch (step) {

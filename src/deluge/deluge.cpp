@@ -409,6 +409,7 @@ void setupBlankSong() {
 
 	setUIForLoadedSong(currentSong);
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	deluge::gui::instrumentLoad.songMadeCurrent();
 }
 
 // Which conditional task fires once the SD card is ready. Normally the settings prelude, which
@@ -513,14 +514,19 @@ void registerJobs() {
 	deluge::gui::reversion.jobId =
 	    appLoop.add("reversion", [] { deluge::gui::reversion.routine(); }, kNever, DELUGE_WAKE_STORAGE);
 	// The pattern browser's reads are the same kind of machine, and a load from Enter lands after the browser has
-	// closed. They share this job: one job per UI surface.
-	appLoop.add(
+	// closed. They share this job: one job per UI surface. It runs when either is asked for a load, when a storage
+	// channel answers, and at the time their waits ask for -- see InstrumentLoad::armNextRun and
+	// LoadPatternUI::loadRoutine.
+	deluge::gui::instrumentLoad.jobId = appLoop.add(
 	    "instrument load",
 	    [] {
 		    deluge::gui::instrumentLoad.routine();
 		    loadPatternUI.loadRoutine();
 	    },
-	    us(0.03), 0);
+	    kNever, DELUGE_WAKE_STORAGE);
+	loadPatternUI.jobId = deluge::gui::instrumentLoad.jobId;
+	// The boot song is built before the job exists, and a blank one asks for its first preset from the job's run.
+	deluge::gui::instrumentLoad.songMadeCurrent();
 	// Drives whatever a settings read or write handed to the byte channel: a request/collect state machine whose
 	// caller returned long ago, with no UI tick of its own to resume from. It runs when a submission asks for it, when
 	// the channel answers, and at its stall bound's deadline -- see deluge::storage::bytes::serviceJob.
