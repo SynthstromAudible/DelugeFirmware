@@ -27,11 +27,11 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
 #include "io/stall_bound.h"
-#include "libdeluge/clock.h" // deluge_clock_now
 #include "libdeluge/file_bytes.h"
-#include "model/sample/recorder_write_policy.h" // UnproductiveSpan, kMaxUnproductiveUs
+#include "model/sample/recorder_write_policy.h" // kMaxUnproductiveUs
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "runtime/app_loop.h"
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
 #include "storage/flash_storage.h"
@@ -96,7 +96,7 @@ int32_t g_settingsAccepted = 0;
 int32_t g_settingsDone = 0;
 /// How long the prelude has gone without all its completions. Elapsed time, never a tick count --
 /// a tick count means a different wait to every caller.
-UnproductiveSpan g_settingsSpan;
+deluge::io::StallBound g_settingsBound{kMaxUnproductiveUs};
 /// Whether the prelude gave up rather than hearing from everything it submitted. Reported by the
 /// gate; a give-up still arms the song, because a Deluge that boots to nothing because a settings
 /// read stalled is worse than one that boots with defaults.
@@ -104,6 +104,7 @@ bool g_settingsGaveUp = false;
 
 void settingsReadDone(void* /*ctx*/, deluge::storage::bytes::SettingsOutcome /*outcome*/) {
 	g_settingsDone++;
+	deluge::runtime::appLoop.request(startupSongJob);
 }
 /// @}
 
@@ -160,6 +161,8 @@ void enter(StartupPhase phase) {
 	g_attemptBound.reset();
 	g_pendingBound.reset();
 	g_inlineDone = false;
+	// A new phase issues its request on its first run, so it runs now.
+	deluge::runtime::appLoop.request(startupSongJob);
 }
 
 /// Whether the channel should carry this operation, or the synchronous arm should.
@@ -188,6 +191,8 @@ void issueExists(const char* path) {
 	if (viaChannel()) {
 		if (deluge::storage::bytes::requestExists(path) == deluge::storage::bytes::ByteIo::Pending) {
 			g_requested = true;
+			// The span starts at the issue: a job that runs only when woken has a deadline even if no answer comes.
+			(void)g_pendingBound.tick(deluge_file_bytes_progress());
 		}
 		else {
 			(void)g_attemptBound.tick(deluge_file_bytes_progress());
@@ -251,6 +256,7 @@ void issueCanaryWrite() {
 		if (deluge::storage::bytes::requestWrite(g_canaryPath.c_str(), "", 0)
 		    == deluge::storage::bytes::ByteIo::Pending) {
 			g_requested = true;
+			(void)g_pendingBound.tick(deluge_file_bytes_progress()); // as issueExists
 		}
 		else {
 			(void)g_attemptBound.tick(deluge_file_bytes_progress());
@@ -418,6 +424,7 @@ void issueUnlink(const std::string& path) {
 	if (viaChannel()) {
 		if (deluge::storage::bytes::requestUnlink(path.c_str()) == deluge::storage::bytes::ByteIo::Pending) {
 			g_requested = true;
+			(void)g_pendingBound.tick(deluge_file_bytes_progress()); // as issueExists
 		}
 		else {
 			(void)g_attemptBound.tick(deluge_file_bytes_progress());
@@ -469,8 +476,9 @@ void armStartupSettings() {
 	g_settingsAccepted = 0;
 	g_settingsDone = 0;
 	g_settingsGaveUp = false;
-	g_settingsSpan.reset();
+	g_settingsBound.reset();
 	g_settingsPhase = SettingsPhase::Reading;
+	deluge::runtime::appLoop.request(startupSongJob);
 	// Each consumer's own entry point. It already preferred the channel and fell back to blocking
 	// only because `started()` was false during boot; from here `started()` is true, so the channel
 	// takes them. Each returns whether it was ACCEPTED -- an early-out ("we only want to do this
@@ -509,11 +517,13 @@ void armStartupSong() {
 	enter(StartupPhase::CheckCanary);
 }
 
-void startupSongRoutine() {
+namespace {
+
+/// One step of the prelude or the machine.
+void advanceStartup() {
 	if (g_settingsPhase == SettingsPhase::Reading) {
 		if (g_settingsDone < g_settingsAccepted) {
-			g_settingsSpan.note(deluge_clock_now());
-			if (g_settingsSpan.elapsedUs <= kMaxUnproductiveUs) {
+			if (!g_settingsBound.tick()) {
 				return; // still waiting: the song machine must NOT arm on stale settings
 			}
 			g_settingsGaveUp = true;
@@ -692,6 +702,51 @@ void startupSongRoutine() {
 		return;
 	}
 	}
+}
+
+/// Ask for the job's next run after one step, which began in @p phaseBefore with @p requestedBefore.
+///
+/// A phase entered during the step has already asked (see @ref enter). Otherwise a request that must be asked again
+/// (its answer was displaced, or its pending bound gave up on the channel) or an answer the synchronous arm already
+/// has runs at once; a refused request or one the channel holds waits for the channel's DELUGE_WAKE_STORAGE, with
+/// the bound's deadline as the latest run.
+void armNextRun(StartupPhase phaseBefore, bool requestedBefore) {
+	using deluge::runtime::appLoop;
+	if (g_settingsPhase == SettingsPhase::Reading) {
+		// Each read's completion requests the job; the bound is how long it waits for the rest.
+		appLoop.requestAt(startupSongJob, g_settingsBound.deadlineUs());
+		return;
+	}
+	if (g_phase == StartupPhase::Idle || g_phase == StartupPhase::Done || g_phase != phaseBefore) {
+		return;
+	}
+	if (!g_requested) {
+		if (requestedBefore) {
+			appLoop.request(startupSongJob);
+		}
+		else {
+			appLoop.requestAt(startupSongJob, g_attemptBound.deadlineUs());
+		}
+		return;
+	}
+	if (!viaChannel()) {
+		appLoop.request(startupSongJob);
+		return;
+	}
+	// kNever for the template write, whose PENDING is waited out unbounded (it cannot be cancelled): only its answer
+	// brings the job back.
+	appLoop.requestAt(startupSongJob, g_pendingBound.deadlineUs());
+}
+
+} // namespace
+
+deluge::runtime::JobId startupSongJob = deluge::runtime::kNoJob;
+
+void startupSongRoutine() {
+	const StartupPhase phaseBefore = g_phase;
+	const bool requestedBefore = g_requested;
+	advanceStartup();
+	armNextRun(phaseBefore, requestedBefore);
 }
 
 bool startupSongCanaryConfirmed() {

@@ -75,6 +75,14 @@ constexpr int32_t kMaxDriveTicks = 5000;
 /// so a machine that gives up finishes well inside that bound and one that keeps waiting runs into it.
 constexpr uint32_t kGiveUpLatencyMs = 30000;
 
+/// How long the drive stage holds every byte-channel operation, in milliseconds of virtual time.
+///
+/// The machine runs on its own job, as often as the channel answers, so with an instant channel it can pass through
+/// several phases between two scenario ticks. Holding each operation for several ticks keeps every phase -- the canary
+/// write, and the window between it and the cleanup unlink -- in view of @ref observeCanaryOrdering, which samples once
+/// per tick.
+constexpr uint32_t kDriveLatencyMs = 20;
+
 /// How many ticks the give-up stage gets: well above the 600-tick stall bound, well below the latency above.
 constexpr int32_t kMaxGiveUpTicks = 2000;
 
@@ -95,8 +103,8 @@ int32_t g_giveUpTierBefore = 0;
 /// downstream leads to the load, so the canary must ALREADY be on the card.
 ///
 /// Checked by opening the file, not by asking the machine -- asking the machine would only confirm
-/// that it believes the write landed, which is the very thing under test. Called every tick, from
-/// beside the machine's own pump.
+/// that it believes the write landed, which is the very thing under test. Called every tick; see
+/// @ref kDriveLatencyMs for why every phase lasts long enough to be seen.
 void observeCanaryOrdering() {
 	if (deluge::storage::startupSongAwaitingCanary()) {
 		g_sawCanaryPhase = true;
@@ -139,6 +147,7 @@ void runTick() {
 		// tier that entry point does its I/O on, so a gate that reached past it would test a path
 		// the product never takes.
 		g_illegalBefore = deluge::storage::bytes::illegalInline();
+		deluge_file_bytes_set_latency_ms(kDriveLatencyMs);
 		deluge::storage::armStartupSong();
 		g_stage = Stage::DriveCheck;
 		break;
@@ -150,6 +159,7 @@ void runTick() {
 		if (!deluge::storage::startupSongIdle() && ++g_driveTicks < kMaxDriveTicks) {
 			break;
 		}
+		deluge_file_bytes_set_latency_ms(0);
 		if (g_driveTicks >= kMaxDriveTicks) {
 			printf("SF-DRIVE FAIL the fail-safe machine did not finish within %d ticks\n", kMaxDriveTicks);
 			g_failures++;
@@ -357,11 +367,9 @@ void deluge_scenario_startup_failsafe_dispatch_step(void) {
 		return;
 	}
 	g_stepDone = false;
-	// The machine's pump. In the firmware this is a repeating task registered in `deluge.cpp`; here
-	// the scenario owns the tick. Called before AND after the stage below so the machine gets a tick
-	// per dispatch whatever the stage does -- without it the fail-safe would be armed and never
-	// advanced, and a dead channel would pass.
-	deluge::storage::startupSongRoutine();
+	// No direct call to deluge::storage::startupSongRoutine() here: this harness's `app_loop` task runs the real
+	// "startup failsafe" job, which runs only when arming, a phase change, the channel's answer or its stall bound's
+	// deadline asks for it. Pumping it from here every tick would let the gate pass with those requests deleted.
 	observeCanaryOrdering();
 	runTick();
 	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.

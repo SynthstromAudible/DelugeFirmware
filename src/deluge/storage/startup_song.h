@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "runtime/app_loop.h"
+
 /// @file
 /// @brief The startup song's crash fail-safe.
 ///
@@ -57,7 +59,14 @@ void armStartupSettings();
 /// those hosts swap the handle before `deluge_main()` runs.
 void armStartupSong();
 
-/// @brief Advance the fail-safe by one phase. Registered as a repeating task.
+/// @brief The job that runs @ref startupSongRoutine, set by `registerJobs`.
+///
+/// It has no gap and listens for `DELUGE_WAKE_STORAGE`: arming, each settings read's completion and each phase change
+/// request it, and each run asks for the next one it needs -- at once when it can move again, or at the wait's stall
+/// bound deadline while it waits on the channel.
+extern deluge::runtime::JobId startupSongJob;
+
+/// @brief Advance the fail-safe by one phase. Run by @ref startupSongJob.
 ///
 /// Cheap and reentrant once the machine has finished — it returns immediately from `Idle` and `Done`.
 void startupSongRoutine();

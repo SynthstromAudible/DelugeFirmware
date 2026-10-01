@@ -534,7 +534,8 @@ void registerJobs() {
 	// Advances the startup fail-safe's phases. Beside the two above for the same reason: it is a
 	// request/collect state machine whose caller returned long ago, and it has no UI tick of its own
 	// to resume from. Cheap and reentrant once the machine reaches Done.
-	appLoop.add("startup failsafe", [] { deluge::storage::startupSongRoutine(); }, us(0.006), 0);
+	deluge::storage::startupSongJob =
+	    appLoop.add("startup failsafe", [] { deluge::storage::startupSongRoutine(); }, kNever, DELUGE_WAKE_STORAGE);
 
 	// Same shape for stem export: each pass runs one phase of the export and returns, so the
 	// UI keeps running for the whole export - which is what makes cancelling it possible at all.
