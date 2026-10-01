@@ -162,10 +162,14 @@ pub trait FillOps {
 ///
 /// Every path except the re-enqueue releases the queue-owned lease; a missed release pins the chunk
 /// for the rest of the run (on a pulled card, every queued chunk).
+///
+/// Wakes the app (`DELUGE_WAKE_STORAGE`) once the queue is drained (not on the re-enqueue path,
+/// where one chunk is still waiting for a retry).
 pub async fn fill_once<O: FillOps>(ops: &O) {
     loop {
         let chunk = ops.next();
         if chunk.is_null() {
+            crate::app_loop::wake(crate::app_loop::WAKE_STORAGE);
             return;
         }
 

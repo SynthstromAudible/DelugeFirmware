@@ -1,11 +1,12 @@
 //! Host tests for the byte channel's pure parts: answer keying, card-generation stamps and
 //! displacement in [`BytesSlot`], `copy_out`, request admission and the work-buffer claim.
 
+use deluge_bsp_rust::app_loop;
 use deluge_bsp_rust::channel::file_bytes;
 
 use file_bytes::{
     ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, ClaimOnce, CopyOut,
-    FileTimestamp, copy_out, drain, publish_into, take_from,
+    FileTimestamp, copy_out, drain, mark_in_flight, publish_into, take_from,
 };
 
 /// Nonzero: a publish that dropped its stamp would leave 0.
@@ -678,4 +679,28 @@ fn a_stale_request_of_every_kind_is_dropped_at_take() {
             "{request:?}"
         );
     }
+}
+
+// The C ABI over the process-wide statics.
+
+/// Clearing the in-flight mark wakes the app (`DELUGE_WAKE_STORAGE`); marking it does not. No test
+/// runs the task, so `mark_in_flight` is driven directly, as the other channel tests do.
+#[test]
+fn finishing_an_operation_wakes_the_app() {
+    app_loop::reset_reasons_for_test();
+    embassy_futures::block_on(mark_in_flight(Some((
+        ByteOp::Read,
+        BytesPath::try_from(SETTINGS).unwrap(),
+    ))));
+    assert_eq!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "marking an operation in flight must not wake the app early"
+    );
+    embassy_futures::block_on(mark_in_flight(None));
+    assert_ne!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "clearing the in-flight mark must wake the app"
+    );
 }

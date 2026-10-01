@@ -2158,6 +2158,9 @@ async fn file_bytes_task_body() {
     loop {
         while let Some(taken) = take_next_request(work).await {
             let Some((request, generation)) = taken else {
+                // Dropped unrun (an earlier card's request); IN_FLIGHT was never set for it, but
+                // `mark_in_flight(None)` still wakes the app for this drop.
+                mark_in_flight(None).await;
                 note_progress();
                 continue;
             };
@@ -2218,11 +2221,16 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteReq
 }
 
 /// Records (or clears) the operation running right now. The task sets it while still holding the
-/// `REQUEST` lock.
+/// `REQUEST` lock. Clearing it wakes the app (`DELUGE_WAKE_STORAGE`): the operation's result, or
+/// its absence, is visible once this returns.
 ///
 /// Public so the host tests, which do not run the task, can drive the collects' in-flight branch.
 pub async fn mark_in_flight(entry: Option<(ByteOp, BytesPath)>) {
+    let done = entry.is_none();
     *IN_FLIGHT.lock().await = entry;
+    if done {
+        crate::app_loop::wake(crate::app_loop::WAKE_STORAGE);
+    }
 }
 
 /// Publishes one finished operation into `RESULT`, stamped with the card generation it began

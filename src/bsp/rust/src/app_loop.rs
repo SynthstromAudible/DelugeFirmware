@@ -22,6 +22,8 @@ pub const WAKE_ENCODERS: u32 = 2;
 pub const WAKE_APP: u32 = 4;
 /// `DELUGE_WAKE_INPUT`: pad or button events are queued (`deluge_control_poll_event`).
 pub const WAKE_INPUT: u32 = 8;
+/// `DELUGE_WAKE_STORAGE`: a storage channel finished or dropped an operation.
+pub const WAKE_STORAGE: u32 = 16;
 
 /// The reasons gathered since the last pass.
 static REASONS: AtomicU32 = AtomicU32::new(0);
@@ -32,6 +34,22 @@ static WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 pub fn wake(reasons: u32) {
     REASONS.fetch_or(reasons, Ordering::Release);
     WAKE.signal(());
+}
+
+/// Current value of [`REASONS`]. Host test seam: a storage-channel test calls this directly,
+/// since no driver runs in that test to consume it through a pass.
+#[cfg(not(target_os = "none"))]
+#[doc(hidden)]
+pub fn reasons_for_test() -> u32 {
+    REASONS.load(Ordering::Acquire)
+}
+
+/// Resets [`REASONS`] to 0. Host test seam: lets a test get a clean reading after a setup step
+/// (e.g. a card flush) that also wakes the app.
+#[cfg(not(target_os = "none"))]
+#[doc(hidden)]
+pub fn reset_reasons_for_test() {
+    REASONS.store(0, Ordering::Release);
 }
 
 /// Whether any encoder has edges the app hasn't taken yet.
@@ -123,4 +141,5 @@ abi_const!(
     WAKE_ENCODERS => DELUGE_WAKE_ENCODERS,
     WAKE_APP => DELUGE_WAKE_APP,
     WAKE_INPUT => DELUGE_WAKE_INPUT,
+    WAKE_STORAGE => DELUGE_WAKE_STORAGE,
 );

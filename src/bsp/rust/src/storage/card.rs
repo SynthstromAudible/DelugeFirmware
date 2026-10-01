@@ -46,6 +46,9 @@ pub extern "C" fn deluge_card_flush() {
     for flush in FLUSHES {
         flush();
     }
+    // Every channel's queued and in-flight work for the old card is gone now; wake the app
+    // (`DELUGE_WAKE_STORAGE`) so a job waiting on one of those drops does not sleep through it.
+    crate::app_loop::wake(crate::app_loop::WAKE_STORAGE);
 }
 
 abi_pin!(deluge_card_flush);

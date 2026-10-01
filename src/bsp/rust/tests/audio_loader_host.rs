@@ -9,6 +9,7 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::CString;
 
+use deluge_bsp_rust::app_loop;
 use deluge_bsp_rust::channel::audio_loader;
 
 use deluge_bsp_rust::storage::card;
@@ -945,6 +946,39 @@ mod live_pipeline {
         assert_eq!(collect("inflight/B.wav").0, DELUGE_CHANNEL_UNKNOWN);
         block_on(mark_in_flight(None));
         assert_eq!(collect("inflight/A.wav").0, DELUGE_CHANNEL_UNKNOWN);
+    }
+
+    /// Clearing the in-flight mark wakes the app (`DELUGE_WAKE_STORAGE`); marking it does not.
+    #[test]
+    fn finishing_a_load_wakes_the_app() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        app_loop::reset_reasons_for_test();
+        block_on(mark_in_flight(Some(path_of("wake/A.wav"))));
+        assert_eq!(
+            app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+            0,
+            "marking a load in flight must not wake the app early"
+        );
+        block_on(mark_in_flight(None));
+        assert_ne!(
+            app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+            0,
+            "clearing the in-flight mark must wake the app"
+        );
+    }
+
+    /// A card flush wakes the app (`DELUGE_WAKE_STORAGE`) too: queued and in-flight work for the
+    /// old card is gone, and a job waiting on one of those drops must not sleep through it.
+    #[test]
+    fn a_flush_wakes_the_app() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        app_loop::reset_reasons_for_test();
+        deluge_card_flush();
+        assert_ne!(
+            app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+            0,
+            "a card flush must wake the app"
+        );
     }
 
     /// A result published while its path is still marked in flight reports `PENDING` (one extra

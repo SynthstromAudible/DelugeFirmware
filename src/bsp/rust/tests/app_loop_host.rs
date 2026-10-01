@@ -9,7 +9,9 @@ use std::sync::atomic::{AtomicU32, AtomicU64, Ordering::SeqCst};
 use std::sync::{Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
-use deluge_bsp_rust::app_loop::{self, WAKE_APP, WAKE_ENCODERS, WAKE_INPUT, WAKE_TIMER};
+use deluge_bsp_rust::app_loop::{
+    self, WAKE_APP, WAKE_ENCODERS, WAKE_INPUT, WAKE_STORAGE, WAKE_TIMER,
+};
 use deluge_bsp_rust::deluge_bsp::encoder::{ENCODER_DELTAS, ENCODER_WAKER};
 use deluge_bsp_rust::peripherals::control;
 use deluge_bsp_rust::sys::{DelugeInputEvent, DelugeInputEventKind_DELUGE_EVENT_PAD as KIND_PAD};
@@ -122,6 +124,19 @@ fn wake_from_another_thread_runs_a_pass() {
     wait_until(Duration::from_millis(500), "a pass with WAKE_APP", || {
         calls().iter().any(|&(_, r)| r & WAKE_APP != 0)
     });
+}
+
+/// `WAKE_STORAGE` is raised the same way as every other reason: a storage channel (not run by this
+/// test) would call this from the storage tier when it finishes or drops an operation.
+#[test]
+fn storage_wake_runs_a_pass() {
+    let _s = serial();
+    app_loop::wake(WAKE_STORAGE);
+    wait_until(
+        Duration::from_millis(500),
+        "a pass with WAKE_STORAGE",
+        || calls().iter().any(|&(_, r)| r & WAKE_STORAGE != 0),
+    );
 }
 
 #[test]

@@ -46,6 +46,7 @@ typedef uint32_t DelugeWake;
 #define DELUGE_WAKE_ENCODERS 2u ///< an encoder has edges to take (deluge_encoder_take_edges)
 #define DELUGE_WAKE_APP 4u      ///< the app asked for a pass (deluge_app_wake)
 #define DELUGE_WAKE_INPUT 8u    ///< pad or button events are queued (deluge_control_poll_event)
+#define DELUGE_WAKE_STORAGE 16u ///< a storage channel finished or dropped an operation
 
 /// @brief Runs at most one due, woken or requested job of the app's loop, called by the BSP on the
 /// interaction tier from the end of deluge_app_init. A pass runs every such job once each, in order,

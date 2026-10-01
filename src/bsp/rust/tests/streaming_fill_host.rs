@@ -5,6 +5,7 @@
 use core::ffi::c_void;
 use std::cell::{Cell, RefCell};
 
+use deluge_bsp_rust::app_loop;
 use deluge_bsp_rust::storage::streaming_loader;
 
 use streaming_loader::{FillOps, StreamingFillDescriptor, fill_once};
@@ -423,4 +424,35 @@ fn fill_once_skips_unloadable_chunk() {
     );
     // The unloadable chunk isn't left pinned.
     assert!(!ops.chunk_by_id(0).queue_leased.get());
+}
+
+/// `fill_once` wakes the app (`DELUGE_WAKE_STORAGE`) when it leaves the queue drained, but not on
+/// the re-enqueue path, where one chunk is still waiting for a retry.
+#[test]
+fn fill_once_wakes_the_app_only_when_the_queue_drains() {
+    let ops = FakeOps::new(vec![one_chunk(0, true)], /* read_result = */ true);
+    ops.enqueue(0, 10);
+    app_loop::reset_reasons_for_test();
+
+    embassy_futures::block_on(fill_once(&ops));
+
+    assert_ne!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "a drained queue must wake the app"
+    );
+
+    let mut chunk = one_chunk(1, true);
+    chunk.lease_count = 1; // still wanted, so the failed read re-enqueues it
+    let ops = FakeOps::new(vec![chunk], /* read_result = */ false);
+    ops.enqueue(1, 10);
+    app_loop::reset_reasons_for_test();
+
+    embassy_futures::block_on(fill_once(&ops));
+
+    assert_eq!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "a re-enqueued chunk awaiting retry must not wake the app"
+    );
 }

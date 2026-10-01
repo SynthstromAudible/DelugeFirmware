@@ -461,12 +461,17 @@ fn is_in_flight(path: &str) -> bool {
     }
 }
 
-/// Records (or clears) the load being parsed right now.
+/// Records (or clears) the load being parsed right now. Clearing it wakes the app
+/// (`DELUGE_WAKE_STORAGE`): the load's result is visible once this returns.
 ///
 /// The task calls this while holding the `QUEUE` lock (see [`deluge_audio_load_collect`]).
 /// Host tests call it directly to reach the collect's IN_FLIGHT branch without running the task.
 pub async fn mark_in_flight(path: Option<LoadPath>) {
+    let done = path.is_none();
     *IN_FLIGHT.lock().await = path;
+    if done {
+        crate::app_loop::wake(crate::app_loop::WAKE_STORAGE);
+    }
 }
 
 /// Removes and returns the entry at `index`, preserving the order of the rest.

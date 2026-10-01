@@ -98,6 +98,19 @@ static RESULT: Mutex<CriticalSectionRawMutex, AnswerSlot> = Mutex::new(AnswerSlo
 /// buffer, so [`deluge_file_stream_holds`] never sees a gap between queued and running.
 static RUNNING_BUFFER: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
 
+/// Records (or clears) the operation running right now. Clearing it wakes the app
+/// (`DELUGE_WAKE_STORAGE`): the operation's result is visible once this returns.
+///
+/// The task calls this while holding the `REQUEST` lock when marking an operation in flight.
+/// Host tests call it directly to reach [`collect`]'s IN_FLIGHT branch without running the task.
+pub async fn mark_in_flight(entry: Option<OpKey>) {
+    let done = entry.is_none();
+    *IN_FLIGHT.lock().await = entry;
+    if done {
+        crate::app_loop::wake(crate::app_loop::WAKE_STORAGE);
+    }
+}
+
 /// Returns the address of the caller's buffer `op` uses; 0 for an operation without one.
 fn op_buffer(op: &StreamOp) -> usize {
     match op {
@@ -534,7 +547,7 @@ async fn file_stream_task_body() {
                             .store(op_buffer(&q.op), core::sync::atomic::Ordering::Release);
                         // Marked while the REQUEST lock is still held, so a collect always sees the
                         // operation queued, running, or behind a contended lock.
-                        *IN_FLIGHT.lock().await = Some(q.key.clone());
+                        mark_in_flight(Some(q.key.clone())).await;
                         Some(Some(q))
                     }
                 }
@@ -612,7 +625,7 @@ async fn file_stream_task_body() {
                 .lock()
                 .await
                 .publish(queued.key, result, queued.generation);
-            *IN_FLIGHT.lock().await = None;
+            mark_in_flight(None).await;
             RUNNING_BUFFER.store(0, core::sync::atomic::Ordering::Release);
         }
     }
