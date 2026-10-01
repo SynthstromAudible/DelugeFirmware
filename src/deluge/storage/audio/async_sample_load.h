@@ -115,6 +115,15 @@ public:
 	/// @brief What the last tick() returned.
 	[[nodiscard]] const Progress& progress() const { return progress_; }
 
+	/// @brief When a consumer that runs only when woken should tick a load still Loading again, on the app loop's
+	///        clock (µs).
+	///
+	/// 0, meaning at once, when the last walk settled something, or left a wavetable waiting only for samples that
+	/// walk found settled: the next walk can move without anything arriving. Otherwise everything in flight waits on a
+	/// storage channel, whose answer raises DELUGE_WAKE_STORAGE, and this is the stall bound's deadline, so a channel
+	/// that never answers still ends the load. kNever once the load has ended.
+	[[nodiscard]] uint64_t nextTickUs() const;
+
 private:
 	struct SongRoot {
 		Song* song;
@@ -159,6 +168,10 @@ private:
 	bool samplesSettled_{false};
 	/// Samples this walk left in flight.
 	int32_t samplesInFlight_{0};
+	/// Whether this walk left a wavetable waiting for the samples to settle, rather than for its folder's probe.
+	bool wavetableAwaitsSamples_{false};
+	/// Whether the next walk can move with nothing arriving first: see nextTickUs().
+	bool retickNow_{false};
 	/// Whether this walk met an abort.
 	bool aborted_{false};
 	/// How many demands had settled, bound or empty, after the previous walk.

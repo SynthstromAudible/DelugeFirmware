@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/pitch_scan.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/latest_sample_load.h"
 
 #include <cstdint>
@@ -55,10 +56,11 @@ struct ClaimRequest {
 /// @brief The sample browser's claim: loading the file the browser is on into the current synth, kit drum or audio
 ///        clip.
 ///
-/// A phase machine on the interaction tier, advanced by request() and by routine() from its own repeating task, so it
-/// runs whichever UI is on top. The file's load goes through the async sample load, and pitch detection is a PitchScan
-/// ticked here, which never waits for the card. A wavetable's lookup still reads the card synchronously: a blocking
-/// lookup on this tier, as song load's. Every model and UI change happens on the interaction tier.
+/// A phase machine on the interaction tier, advanced by request() and by routine() from its own job, so it runs
+/// whichever UI is on top. The job runs when a claim is asked for, when a storage channel answers, and at the time the
+/// wait it is on asks for (see armNextRun()). The file's load goes through the async sample load, and pitch detection
+/// is a PitchScan ticked here, which never waits for the card. A wavetable's lookup still reads the card synchronously:
+/// a blocking lookup on this tier, as song load's. Every model and UI change happens on the interaction tier.
 ///
 /// An explicit claim closes the browser's gate (UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES) until it ends. An auto-load
 /// claim does not, and the next cursor move cancels it. A cancelled claim ends at once: nothing of it is out anywhere
@@ -74,8 +76,19 @@ public:
 	/// @brief Cancel an auto-load claim in flight, or waiting to start. An explicit claim is left as it is.
 	void cancelAutoLoad();
 
-	/// @brief Advance the claim as far as it can go without waiting. Called by its repeating task.
+	/// @brief Advance the claim as far as it can go without waiting, then ask for the job's next run. Called by its
+	/// job.
 	void routine();
+
+	/// @brief The job routine() runs on, woken by DELUGE_WAKE_STORAGE.
+	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
+
+	/// @brief How often a pitch detection waiting for a window asks again, in µs.
+	///
+	/// The streaming loader wakes the app only once its queue drains, which playback streaming can put off for as long
+	/// as it plays; this re-check keeps the detection moving in the meantime. Well inside the detection's own bound
+	/// (kMaxUnproductiveUs), so its give-up is measured to within this.
+	static constexpr uint64_t kPitchRecheckUs = 10'000;
 
 	/// @brief Whether a claim is in flight or waiting to start.
 	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle || queued_.has_value(); }
@@ -131,6 +144,9 @@ private:
 	void end(bool success, Error error);
 	/// @brief Cancel the claim in flight: end it at once, telling no one.
 	void cancel();
+	/// @brief Ask for the job's next run for the wait the claim stopped on: the load's next tick, or the pitch
+	///        detection's re-check. An idle claim asks for none.
+	void armNextRun();
 	/// @brief Remove the wavetable gold-knob assignments from a claim that ended as a sample.
 	void removeWaveTableKnobs();
 

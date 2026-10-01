@@ -87,6 +87,7 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	progress_.emptyHolders = 0;
 	progress_.inFlight = 0;
 	samplesInFlight_ = 0;
+	wavetableAwaitsSamples_ = false;
 	aborted_ = false;
 	context_ = callerContext_;
 	scopeDepth_ = 0;
@@ -119,6 +120,7 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 		progress_.stalledTicks = 0;
 	}
 	progress_.stalledUs = stalledBound_.elapsedUs();
+	retickNow_ = madeProgress || (wavetableAwaitsSamples_ && samplesInFlight_ == 0);
 	if (aborted_) {
 		progress_.state = State::Failed;
 		progress_.reason = Reason::Aborted;
@@ -131,6 +133,16 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 		progress_.reason = Reason::Stalled;
 	}
 	return progress_;
+}
+
+uint64_t AsyncSampleLoad::nextTickUs() const {
+	if (progress_.state != State::Loading) {
+		return deluge::runtime::kNever;
+	}
+	if (retickNow_ || progress_.ticks == 0) {
+		return 0;
+	}
+	return stalledBound_.deadlineUs();
 }
 
 Walk AsyncSampleLoad::stopIfAborted() {
@@ -210,6 +222,7 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 		probing = (context_->alternateDirStatus == AlternateLoadDirStatus::PROBING);
 	}
 	if (waveTable && (!samplesSettled_ || probing)) {
+		wavetableAwaitsSamples_ = wavetableAwaitsSamples_ || !probing;
 		progress_.inFlight++;
 		return;
 	}

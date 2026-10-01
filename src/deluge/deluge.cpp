@@ -497,9 +497,10 @@ void registerJobs() {
 	// see SaveUI::saveJob.
 	SaveUI::saveJob = appLoop.add("document save", [] { SaveUI::saveRoutine(); }, kNever, DELUGE_WAKE_STORAGE);
 	// The sample browser's claim is a phase machine on this tier, and like the save above it waits between steps and
-	// needs something to bring it back, whichever UI is on top. Every 30 ms, so the stall bound on its load keeps its
-	// length.
-	appLoop.add("sample claim", [] { deluge::gui::sampleClaim.routine(); }, us(0.03), 0);
+	// needs something to bring it back, whichever UI is on top. It runs when a claim is asked for, when a storage
+	// channel answers, and at the time its wait asks for -- see SampleClaim::armNextRun.
+	deluge::gui::sampleClaim.jobId =
+	    appLoop.add("sample claim", [] { deluge::gui::sampleClaim.routine(); }, kNever, DELUGE_WAKE_STORAGE);
 	// The browser's folder import is the same kind of machine, and its context menu is on top while it runs, so it has
 	// no graphics routine of its own to be ticked from either.
 	appLoop.add("folder import", [] { deluge::gui::folderImport.routine(); }, us(0.03), 0);
