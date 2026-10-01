@@ -559,6 +559,9 @@ void registerJobs() {
 
 	// Same shape for stem export: each pass runs one phase of the export and returns, so the
 	// UI keeps running for the whole export - which is what makes cancelling it possible at all.
+	// It keeps a gap rather than running on wakes. An offline render advances only the render clock, and the
+	// recorder's stem-folder search, pumped from inside the render's loop, finishes only when other jobs run between
+	// passes on the app's clock; a wake-only export would need that search turned into a phase step of its own first.
 	appLoop.add("stem export", [] { stemExport.exportRoutine(); }, us(0.006), 0);
 
 	// Runs only when a SysEx message is queued, when a storage channel answers (a path operation or directory open
