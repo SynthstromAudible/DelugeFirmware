@@ -16,6 +16,7 @@
  */
 
 #include "storage/startup_song.h"
+#include <algorithm>
 #include <cstdio>
 
 #include "definitions_cxx.hpp"
@@ -727,7 +728,11 @@ void armNextRun(StartupPhase phaseBefore, bool requestedBefore) {
 			appLoop.request(startupSongJob);
 		}
 		else {
-			appLoop.requestAt(startupSongJob, g_attemptBound.deadlineUs());
+			// Refused: the answer that refused it raises no wake when it ages out of the channel, so ask again
+			// after the protected span rather than at the attempt bound.
+			appLoop.requestAt(startupSongJob,
+			                  std::min(g_attemptBound.deadlineUs(),
+			                           deluge::runtime::nowUs() + deluge::storage::bytes::kRefusedRecheckUs));
 		}
 		return;
 	}

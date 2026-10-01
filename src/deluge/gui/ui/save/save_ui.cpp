@@ -31,6 +31,7 @@
 #include "storage/storage_manager.h"
 #include "storage/temp_swap.h"
 #include "util/boot.h"
+#include <algorithm>
 #include <optional>
 #include <span>
 
@@ -242,7 +243,11 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 /// serialiser silently stops reaching the card for everyone after this save.
 void SaveUI::waitUntil(uint64_t deadlineUs) {
 	waitedThisRun_ = true;
-	deluge::runtime::appLoop.requestAt(saveJob, deadlineUs);
+	// A wait here is for an answer, which raises its own wake, or after a refused request, which raises none once
+	// the answer that refused it ages out of the channel. The re-check bounds the second, so a refused save asks
+	// again after the protected span rather than at the stall deadline.
+	deluge::runtime::appLoop.requestAt(
+	    saveJob, std::min(deadlineUs, deluge::runtime::nowUs() + deluge::storage::bytes::kRefusedRecheckUs));
 }
 
 void SaveUI::saveRoutine() {
