@@ -667,6 +667,8 @@ extern "C" void deluge_app_init(const DelugeBoard* board) noexcept {
 
 extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noexcept {
 	try {
+		// Before any job reads the view's active model stack: apply what the render asked for since the last job.
+		view.applyPostedStackRequests();
 		return appLoop.service(now_us, reasons);
 	} catch (...) {
 		// appLoop.service() already catches a throwing job's own body, so this is something else --

@@ -44,6 +44,7 @@ class ModelStackWithThreeMainThings;
 class ParamManagerForTimeline;
 class LearnedMIDI;
 class Kit;
+class Song;
 
 // A view is where the user can interact with the pads - song view, Clip view, automation view and keyboard view.
 // (Is that still a good description? This class is a bit of a mishmash of poorly organised code, sorry.)
@@ -78,13 +79,37 @@ public:
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter,
 	                                             bool shouldSendMidiFeedback = true);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
-	/// @brief Leave the mod encoders on nothing until a UI gives them something again.
+	/// @brief [interaction] Leave the mod encoders on nothing until a UI gives them something again.
 	///
 	/// For when what the active mod controllable belongs to is about to go -- a song swapped out or deleted, a clip
-	/// freed -- since the knobs reach the view whichever UI is on top. Writes only the model stack, so the render may
-	/// call it too, as it does when it retires a clip and when an armed launch swaps the song; the knob indicators and
-	/// mod LEDs are left to an interaction-tier caller.
+	/// freed -- since the knobs reach the view whichever UI is on top. Writes only the model stack; the knob
+	/// indicators and mod LEDs are left to the caller.
 	void releaseActiveModControllable();
+	/// @brief [interaction] Whether the active model stack names @p song or anything it owns: the song itself, one of
+	///        its clips, or one of its outputs (main or hibernating) as the ModControllable.
+	///
+	/// Walks only what the song owns -- its clip arrays and output lists -- and compares; it follows none of the song's
+	/// per-clip reference fields (currentClip, syncScalingClip, beingRecordedFromClip), which may name clips already
+	/// freed. @p song must be alive.
+	bool activeModControllableNamesSong(Song* song) const;
+	/// @brief [render] or [interaction] A song swap is taking @p outgoing out of play: let go of the active model stack
+	///        if it names @p outgoing or anything it owns.
+	///
+	/// On the interaction tier the stack is released at once, whatever it names. On the render it is only asked for
+	/// (postedStackRequests()), and applied by the interaction tier before its next job: an interaction handler the
+	/// render preempted keeps a stack whose parts all still name the outgoing song, which stays alive until the
+	/// interaction tier hands it to AudioEngine::retire(Song*).
+	void songSwappedOut(Song* outgoing);
+	/// @brief [render] or [interaction] The recording of the arrangement-only clip @p from has moved on to its clone
+	///        @p to: point the active model stack at @p to, if it still names @p from -- at once on the interaction
+	///        tier, by request (as songSwappedOut()) on the render.
+	void recordingMovedToClip(Clip* from, Clip* to);
+	/// @brief [interaction] Apply, in order, every change to the active model stack the render has asked for since the
+	///        last call.
+	///
+	/// Called before every app-loop job (deluge_app_service()) and by AudioEngine::retire() before it hands anything
+	/// over, so no request is left naming an object once the interaction tier has let go of it.
+	void applyPostedStackRequests();
 	void cycleThroughReverbPresets();
 	char const* getReverbPresetDisplayName(int32_t preset);
 	int32_t getCurrentReverbPreset();
@@ -175,6 +200,9 @@ public:
 	// deceivingly this is used only while learning drums
 	Kit* kitPressedForMIDILearn{};
 
+	/// What the mod encoders, mod buttons and MIDI follow act on. [interaction] Written only by the interaction tier,
+	/// whose handlers read it across many instructions; the render reads only its pointers' values, to compare, and
+	/// asks for any change through songSwappedOut() or recordingMovedToClip().
 	ModelStackWithThreeMainThings activeModControllableModelStack{};
 	uint8_t dummy[MODEL_STACK_MAX_SIZE - sizeof(ModelStackWithThreeMainThings)]{};
 

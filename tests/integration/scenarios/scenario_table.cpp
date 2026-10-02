@@ -52,7 +52,12 @@
 #include "scenarios/startup_failsafe_scenario.h"
 #include "scenarios/ui_timer_deadline_scenario.h"
 
+#include "gui/views/view.h"
+
+#include <array>
 #include <cstring>
+#include <iterator>
+#include <utility>
 
 namespace {
 
@@ -155,10 +160,27 @@ constexpr DelugeScenario kScenarios[] = {
      &deluge_scenario_ui_timer_deadline_step_done, &deluge_scenario_ui_timer_deadline_failures},
 };
 
+/// A step is an interaction-tier entry into the app, as an app-loop job is: like deluge_app_service(), it first
+/// applies what the render has asked of the view's active model stack.
+template <std::size_t I>
+void dispatchStepAsInteractionEntry() {
+	view.applyPostedStackRequests();
+	kScenarios[I].dispatchStep();
+}
+
+template <std::size_t... I>
+constexpr std::array<DelugeScenario, sizeof...(I)> withInteractionEntries(std::index_sequence<I...>) {
+	return {DelugeScenario{kScenarios[I].name, kScenarios[I].onAppInit, kScenarios[I].begin, kScenarios[I].complete,
+	                       &dispatchStepAsInteractionEntry<I>, kScenarios[I].stepDone, kScenarios[I].failures}...};
+}
+
+/// The rows the driver is given.
+constexpr auto kEntries = withInteractionEntries(std::make_index_sequence<std::size(kScenarios)>{});
+
 } // namespace
 
 extern "C" const DelugeScenario* deluge_scenario_find(const char* name) {
-	for (const DelugeScenario& scenario : kScenarios) {
+	for (const DelugeScenario& scenario : kEntries) {
 		if (std::strcmp(scenario.name, name) == 0) {
 			return &scenario;
 		}

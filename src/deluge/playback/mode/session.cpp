@@ -2481,10 +2481,8 @@ void Session::doTickForward(int32_t posIncrement) {
 				Clip* newClip = (Clip*)modelStackWithTimelineCounter->getTimelineCounter();
 				newClip->processCurrentPos(modelStackWithTimelineCounter, 0);
 
-				if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-					view.activeModControllableModelStack.setTimelineCounter(newClip);
-					view.activeModControllableModelStack.paramManager = &newClip->paramManager;
-				}
+				// The knobs follow the recording on to the new clip, if they were on the old one.
+				view.recordingMovedToClip(clip, newClip);
 			}
 		}
 	}

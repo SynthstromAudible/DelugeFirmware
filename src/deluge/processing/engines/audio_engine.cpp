@@ -169,40 +169,11 @@ void letGoOfSound(Sound& sound) {
 	AudioEngine::sounds.remove(&sound);
 }
 
-/// [interaction] or [render] Stop the view's active ModControllable model stack naming @p clip. Compares only.
+/// [interaction] Stop the view's active ModControllable model stack naming @p clip. Compares only.
 void clearViewIfClip(Clip const* clip) {
 	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
 		view.releaseActiveModControllable();
 	}
-}
-
-/// Whether the view's active ModControllable model stack names anything @p song owns: the song itself, one of its
-/// clips, or one of its outputs as the ModControllable. Walks only what the song owns -- its clip arrays and output
-/// lists -- and compares; it follows none of the song's per-clip reference fields (currentClip, syncScalingClip,
-/// beingRecordedFromClip), which may name clips already freed.
-bool viewNamesSong(Song* song) {
-	ModelStackWithThreeMainThings& stack = view.activeModControllableModelStack;
-	TimelineCounter const* counter = stack.getTimelineCounterAllowNull();
-	if (counter == song || stack.modControllable == &song->globalEffectable) {
-		return true;
-	}
-	for (ClipArray const* array : {&song->sessionClips, &song->arrangementOnlyClips}) {
-		for (Clip const* clip : *array) {
-			if (counter == clip) {
-				return true;
-			}
-		}
-	}
-	if (stack.modControllable != nullptr) {
-		for (Output* first : {song->firstOutput, static_cast<Output*>(song->firstHibernatingInstrument)}) {
-			for (Output* output = first; output != nullptr; output = output->next) {
-				if (stack.modControllable == output->toModControllable()) {
-					return true;
-				}
-			}
-		}
-	}
-	return false;
 }
 
 /// [render] Drop every reference the render keeps from block to block to a retired clip. The caller already unlinked
@@ -211,7 +182,8 @@ bool viewNamesSong(Song* song) {
 /// is the catch for what the render itself may have written between the retire and this let-go: another clip's
 /// beingRecordedFromClip and syncScalingClip (the recording ticks), and currentClip (session.cpp's new-recording
 /// hand-over). Only the current song is looked at: the render reaches clips through currentSong alone, and a song that
-/// is no longer current takes its references with it.
+/// is no longer current takes its references with it. The view's active stack needs no catch: only the interaction
+/// tier writes it, and retire() applied the render's requests for it before clearing it.
 void letGoOfClip(Clip* clip) {
 	if (currentSong != nullptr) {
 		if (currentSong->getCurrentClip() == clip) {
@@ -228,14 +200,13 @@ void letGoOfClip(Clip* clip) {
 			}
 		}
 	}
-	clearViewIfClip(clip);
 }
 
 /// [render] Let go of a retired song: end the voices of, and deregister, every Sound of every output it owns (its
-/// main and hibernating lists, as Song::deleteAllOutputs() walks them), then drop the view's reference to it or to
-/// anything it owns. AudioEngine::retire(Song*) already dropped that reference on the interaction tier; this is the
-/// catch. The song is no longer current, so the render reaches none of its clips through currentSong; its own
-/// currentClip, syncScalingClip and beingRecordedFromClip fields are left alone -- they may name clips already freed.
+/// main and hibernating lists, as Song::deleteAllOutputs() walks them). AudioEngine::retire(Song*) already dropped the
+/// view's reference to it on the interaction tier, the only tier that writes it. The song is no longer current, so
+/// the render reaches none of its clips through currentSong; its own currentClip, syncScalingClip and
+/// beingRecordedFromClip fields are left alone -- they may name clips already freed.
 void letGoOfSong(Song* song) {
 	// A song can hold hundreds of Sounds (every drum of every kit), and this runs inside one block. Taking each out of
 	// the registry on its own would scan the registry once per Sound; mark them instead, then take every marked one
@@ -266,9 +237,6 @@ void letGoOfSong(Song* song) {
 	}
 	if (anyMarked) {
 		AudioEngine::sounds.remove_if([](Sound const* sound) { return sound->letGoWithSong; });
-	}
-	if (viewNamesSong(song)) {
-		view.releaseActiveModControllable();
 	}
 }
 
@@ -2166,6 +2134,8 @@ deluge::util::SnapshotDomain& renderDomain() {
 void retire(SoundDrum* drum) {
 	// First, so a stream of retires frees what earlier ones handed over.
 	reclaimRetired();
+	// No request the render posted for the view's active stack may outlive what it names.
+	view.applyPostedStackRequests();
 	handOver(RetireRequest{.drum = drum}, drum, [](void* p) {
 		auto* d = static_cast<SoundDrum*>(p);
 		checkLetGoBeforeDestroy(nullptr, d);
@@ -2178,6 +2148,8 @@ void retire(SoundDrum* drum) {
 void retire(Output* output) {
 	// First, so a stream of retires frees what earlier ones handed over.
 	reclaimRetired();
+	// No request the render posted for the view's active stack may outlive what it names.
+	view.applyPostedStackRequests();
 	handOver(RetireRequest{.output = output}, output, [](void* p) {
 		auto* o = static_cast<Output*>(p);
 		checkLetGoBeforeDestroy(o, nullptr);
@@ -2198,7 +2170,9 @@ void retire(Clip* clip) {
 	// The references the interaction tier itself reads and writes are cleared here, at once, as ~Clip() used to: no
 	// handler that runs before the render's next block may see the retired (detached, possibly output-less) clip as
 	// the current clip or the view's active one, nor copy it somewhere nothing clears. letGoOfClip() is the catch for
-	// what the render writes itself before it lets go.
+	// what the render writes itself before it lets go. The render's requests for the view's active stack are applied
+	// first, so none is left naming this clip (a recording moved on to it, or from it) once it is freed.
+	view.applyPostedStackRequests();
 	if (currentSong != nullptr) {
 		if (currentSong->getCurrentClip() == clip) {
 			currentSong->setCurrentClip(nullptr);
@@ -2223,10 +2197,11 @@ void retire(Song* song) {
 	// First, so a stream of retires frees what earlier ones handed over.
 	reclaimRetired();
 	// As retire(Clip*): the view's active model stack is the one reference the interaction tier's own handlers read
-	// that may still name the old song or something it owns (an armed swap leaves it on the old song's clip). Drop it
-	// now, so no handler running before the render's next block reaches the old song through it. letGoOfSong() is the
-	// catch.
-	if (viewNamesSong(song)) {
+	// that may still name the old song or something it owns (an armed swap on the render only asks for it to be
+	// dropped). Apply what the render asked for, then drop it, so no handler reaches the old song through it and no
+	// request is left naming the song once it is freed.
+	view.applyPostedStackRequests();
+	if (view.activeModControllableNamesSong(song)) {
 		view.releaseActiveModControllable();
 	}
 	handOver(RetireRequest{.song = song}, song, [](void* p) {

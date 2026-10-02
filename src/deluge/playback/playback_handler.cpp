@@ -1499,7 +1499,9 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	// Swap stuff over
 	AudioEngine::killAllVoices(true);
 	midiFollow.clearStoredClips(); // need to clear clip pointers stored for previous song
-	view.releaseActiveModControllable();
+	// The knobs let go of the outgoing song: at once on the interaction tier, by request on the render (an armed
+	// launch), since only the interaction tier writes the view's active model stack.
+	view.songSwappedOut(currentSong);
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
