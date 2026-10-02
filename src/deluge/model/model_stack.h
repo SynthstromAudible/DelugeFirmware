@@ -409,6 +409,12 @@ ModelStackWithModControllable::addParamManager(ParamManagerForTimeline* newParam
 	return toReturn;
 }
 
+/// The Kind a builder carries for @p paramCollection. A null collection is the "no param" answer (a MIDI knob on no
+/// valid CC, an output with no ParamManager), which has no kind.
+inline deluge::modulation::params::Kind paramKindOf(ParamCollection* paramCollection) {
+	return (paramCollection != nullptr) ? paramCollection->getParamKind() : deluge::modulation::params::Kind::NONE;
+}
+
 // Although the ParamCollection is referenced inside the Summary, this is to call when you've already grabbed that
 // pointer out, to avoid the CPU having to go and look at it again.
 inline ModelStackWithParamCollection*
@@ -417,7 +423,7 @@ ModelStackWithThreeMainThings::addParamCollection(ParamCollection* newParamColle
 	ModelStackWithParamCollection* toReturn = (ModelStackWithParamCollection*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
-	toReturn->kind = newParamCollection->getParamKind();
+	toReturn->kind = paramKindOf(newParamCollection);
 	return toReturn;
 }
 
@@ -427,7 +433,7 @@ ModelStackWithThreeMainThings::addParamCollectionSummary(ParamCollectionSummary*
 	ModelStackWithParamCollection* toReturn = (ModelStackWithParamCollection*)this;
 	toReturn->summary = newSummary;
 	toReturn->paramCollection = newSummary->paramCollection;
-	toReturn->kind = newSummary->paramCollection->getParamKind();
+	toReturn->kind = paramKindOf(newSummary->paramCollection);
 	return toReturn;
 }
 
@@ -437,7 +443,7 @@ ModelStackWithThreeMainThings::addParamCollectionAndId(ParamCollection* newParam
 	ModelStackWithParamId* toReturn = (ModelStackWithParamId*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
-	toReturn->kind = newParamCollection->getParamKind();
+	toReturn->kind = paramKindOf(newParamCollection);
 	toReturn->paramId = newParamId;
 	return toReturn;
 }
@@ -449,7 +455,7 @@ inline ModelStackWithAutoParam* ModelStackWithThreeMainThings::addParam(ParamCol
 	ModelStackWithAutoParam* toReturn = (ModelStackWithAutoParam*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
-	toReturn->kind = newParamCollection->getParamKind();
+	toReturn->kind = paramKindOf(newParamCollection);
 	toReturn->paramId = newParamId;
 	toReturn->autoParam = newAutoParam;
 	return toReturn;
