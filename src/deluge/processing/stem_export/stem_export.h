@@ -149,13 +149,14 @@ public:
 	bool exportAwaitingDrain;
 	/// @}
 
-	/// @brief How long an offline render waits at the drain point for the streaming loader before it asks for the
-	///        drain again, in µs.
+	/// @brief How often an offline render parked at the drain point asks the streaming loader for the drain again,
+	///        in µs.
 	///
-	/// The loader wakes the app when its queue drains, which is what ends the wait. A failed read it re-enqueues at
-	/// the lowest priority stops the drain without a wake, and only a fresh drain request picks it up again. Measured
-	/// from the first look that found the queue not drained; the wait never gives up, it only asks again.
-	deluge::io::StallBound drainWait_{deluge::io::kChannelStallUs};
+	/// The loader wakes the app when its queue drains, which is what normally ends the wait. A failed read it
+	/// re-enqueues at the lowest priority stops the drain without a wake, and only a fresh drain request picks it up
+	/// again. The wait never gives up: a read that keeps failing is the loader's to bound, and the render cannot move
+	/// past the drain point without it.
+	static constexpr uint64_t kDrainRecheckUs = 6'000;
 
 	/// @brief How often a live export looks whether its element has finished, in µs.
 	///
@@ -174,24 +175,42 @@ public:
 	void finishExport();     ///< Restore, run the completion UI, and clear the export.
 	/// @}
 
-	/// @brief How many whole clusters an offline render may hold for the card before it waits for the card's
-	///        writes.
+	/// @brief How many completed clusters may wait for the card, behind the one whose write is in flight, before an
+	///        offline render stops to let the card catch up.
 	///
-	/// An offline render runs far faster than real time, and the recorder writes one cluster per channel answer.
-	/// Unbounded, the render outruns the card and the unwritten audio grows in RAM until the recorder runs out of
-	/// buffers; on a host whose single executor answers the channel only between job runs, a pass renders about 190
-	/// clusters for every 2 it writes. Two leaves one cluster in flight and the next one ready behind it, so the card
+	/// The recorder counts a cluster as written when it issues its write, so this excludes the cluster in flight and
+	/// the one being filled: the render is held once more than this many completed clusters have not yet been handed
+	/// to the card. An offline render runs far faster than real time, and the recorder hands the card one cluster per
+	/// channel answer. Unbounded, the render outruns the card and the unwritten audio grows in RAM until the recorder
+	/// runs out of buffers; on a host whose single executor answers the channel only between job runs, a pass renders
+	/// about 190 clusters for every 2 it writes. Two keeps the next writes ready behind the one in flight, so the card
 	/// is never left idle waiting for the render.
 	static constexpr int32_t kMaxOwedClusters = 2;
 
+	/// @brief Why an offline render cannot move on inside this run, if it cannot.
+	enum class CardHold : uint8_t {
+		/// Not held: render on.
+		NotHeld,
+		/// Held on an answer from the card: the stem-folder search's, or the recorder's (see
+		/// SampleRecorder::waitsOnChannel()). The answer wakes the job.
+		WaitsOnCard,
+		/// Held, but the recorder's card routine moves on by itself on its next tick: its last answer ended a phase
+		/// and the next phase's request is not out yet, so no answer will wake the job for it.
+		MovesOn,
+	};
+
 	/// @brief Whether the offline render can make no further progress inside this run, because what it waits for is
-	///        answered by the card.
+	///        answered by the card, and if so whether an answer will come to wake the job.
 	///
-	/// True while the recorder's stem-folder search is out, while the recorder has finished capturing but still has
+	/// Held while the recorder's stem-folder search is out, while the recorder has finished capturing but still has
 	/// card work to do (only that work remains, so rendering on is waste), and while more than
-	/// @ref kMaxOwedClusters clusters are owed to the card. A recorder that has failed its take or has settled holds
-	/// nothing: it ends through its own stall bound.
-	[[nodiscard]] bool heldByCard() const;
+	/// @ref kMaxOwedClusters completed clusters wait for the card. A recorder that has failed its take or has settled
+	/// holds nothing: it ends through its own stall bound.
+	///
+	/// While held, each run still renders one iteration before its slow routines collect the card's answers, so the
+	/// render's lead grows by at most one iteration per wake, while a cluster holds about 40 blocks: the backlog still
+	/// drains.
+	[[nodiscard]] CardHold cardHold() const;
 
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport(StemExportType stemExportType);
