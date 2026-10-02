@@ -865,10 +865,13 @@ removePendingOverdub:
 					// The dispatch itself carries no answer, so this returns ActionResult::DEALT_WITH
 					// regardless.
 					//
-					// The pad is down right now on BOTH paths, so the held marker is set for both: the
-					// synchronous one cannot see a release in between, so it always finds it true and
+					// The pad is down right now on BOTH paths, so the press is marked held for both: the
+					// synchronous one cannot see a release in between, so it always finds it held and
 					// enters the held mode.
-					newTrackPressHeld_ = true;
+					newTrackPress_ = NewTrackPress::Held;
+					newTrackPressX_ = xDisplay;
+					newTrackPressY_ = yDisplay;
+					newTrackPressTime_ = AudioEngine::audioSampleTimer;
 					if (toCreate == OutputType::SYNTH || toCreate == OutputType::KIT) {
 						deluge::storage::PresetRequest request{
 						    .consumer = deluge::storage::PresetConsumer::SessionNewTrack,
@@ -882,8 +885,8 @@ removePendingOverdub:
 						    .shiftHeld = Buttons::isShiftButtonPressed(),
 						    .dirPath = getInstrumentFolder(toCreate),
 						};
-						// A dropped gesture creates nothing, which is what the pad already showed. The held
-						// marker outliving it is harmless: only completeNewTrack() reads it, and the next
+						// A dropped gesture creates nothing, which is what the pad already showed. The press
+						// state outliving it is harmless: only completeNewTrack() reads it, and the next
 						// new-track press sets it afresh before dispatching. See
 						// dispatchPresetAcquisition()'s doc.
 						(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
@@ -991,12 +994,17 @@ justEndClipPress:
 			else {
 				// The pad that may have started a deferred new-track acquisition is up, so completeNewTrack()
 				// must not enter the held-clip mode when it eventually runs -- nothing would ever leave it (see
-				// newTrackPressHeld_'s doc).
+				// newTrackPress_'s doc). Let go on its own pad within a tap's length, it is kept as the tap
+				// it would have been on an existing clip, timed the same way as the branch above.
 				//
-				// Not cleared in the two branches above either: reaching them means either the
-				// completion has already run (it clears the marker itself on every path) or another
+				// Not touched in the two branches above either: reaching them means either the
+				// completion has already run (it resets the state itself on every path) or another
 				// gesture owns the UI mode.
-				newTrackPressHeld_ = false;
+				if (newTrackPress_ == NewTrackPress::Held) {
+					const bool tap = xDisplay == newTrackPressX_ && yDisplay == newTrackPressY_
+					                 && AudioEngine::audioSampleTimer - newTrackPressTime_ < kShortPressTime;
+					newTrackPress_ = tap ? NewTrackPress::Tapped : NewTrackPress::None;
+				}
 			}
 		}
 	}
@@ -1674,9 +1682,10 @@ void SessionView::beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yD
 void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex,
                                    bool shiftHeld, const deluge::storage::AcquireResult* acquired) {
 	Clip* clip = createNewInstrumentClip(type, yDisplay, acquired);
+	const NewTrackPress press = newTrackPress_;
+	// The gesture is over whatever happens below.
+	newTrackPress_ = NewTrackPress::None;
 	if (!clip) {
-		// The gesture is over: nothing was created, so nothing will be held.
-		newTrackPressHeld_ = false;
 		return;
 	}
 
@@ -1698,18 +1707,31 @@ void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yD
 	selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
 	requestRendering(this, 0, 1 << selectedClipYDisplay);
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-		// Only enter the held mode if the pad is still down. On the dispatched path the release can
-		// already have been consumed while the acquisition was in flight, and nothing would ever leave
-		// a held mode entered after it (see newTrackPressHeld_'s doc). The synchronous path always
-		// finds it set, so it always enters the held mode too.
-		if (newTrackPressHeld_) {
-			newTrackPressHeld_ = false;
-			beginHoldingClipPress(clip, xDisplay, yDisplay);
-		}
+	if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeRows) {
+		return;
 	}
-	else {
-		newTrackPressHeld_ = false;
+	// Only enter the held mode if the pad is still down. On the dispatched path the release can already have been
+	// consumed while the acquisition was in flight, and nothing would ever leave a held mode entered after it (see
+	// newTrackPress_'s doc). The synchronous path always finds it held, so it always enters the held mode too.
+	switch (press) {
+	case NewTrackPress::None:
+		return;
+	case NewTrackPress::Held:
+		beginHoldingClipPress(clip, xDisplay, yDisplay);
+		return;
+	case NewTrackPress::Tapped:
+		// What the press and its quick release would have done had the clip been there: hold it, then the
+		// quick-release branch of padAction().
+		beginHoldingClipPress(clip, xDisplay, yDisplay);
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+			createClip = false;
+			clipPressEnded();
+			return;
+		}
+		transitionToViewForClip(clip);
+		createClip = false;
+		return;
 	}
 }
 

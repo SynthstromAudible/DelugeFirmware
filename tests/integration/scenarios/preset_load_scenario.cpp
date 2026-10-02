@@ -80,14 +80,17 @@ public:
 	static void setExtensions(char const** extensions) { Browser::allowedFileExtensions = extensions; }
 
 	/// An empty pad pressed in Rows layout: the new-track gesture, making a track of @p type.
-	static void pressEmptyRow(int32_t yDisplay, OutputType type = OutputType::SYNTH) {
+	static void pressEmptyRow(int32_t yDisplay, OutputType type = OutputType::SYNTH, int32_t velocity = 1) {
 		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 		currentSong->songViewYScroll = 0;
 		currentUIMode = UI_MODE_NONE;
 		FlashStorage::defaultUseLastClipType = true;
 		sessionView.lastTypeCreated = type;
-		(void)sessionView.padAction(0, yDisplay, 1);
+		(void)sessionView.padAction(0, yDisplay, velocity);
 	}
+
+	/// The pad at @p yDisplay let go, in Rows layout.
+	static void releaseRow(int32_t yDisplay) { (void)sessionView.padAction(0, yDisplay, 0); }
 
 	/// Let go of whatever clip press a gesture left held, and go back to Rows layout.
 	static void releasePress() {
@@ -259,6 +262,9 @@ enum class Leg : uint8_t {
 	AqSupersede,
 	AqRefuse,
 	AqClone,
+	/// The new-track pad let go before its acquisition lands: quickly (a tap enters the clip), not at all (the clip
+	/// is held), and slowly (neither).
+	AqTap,
 	AqNavWrap,
 	AqChangeCases,
 	RevertCard,
@@ -367,6 +373,8 @@ const char* legName(Leg leg) {
 		return "aq-refuse";
 	case Leg::AqClone:
 		return "aq-clone";
+	case Leg::AqTap:
+		return "aq-tap";
 	case Leg::AqNavWrap:
 		return "aq-nav-wrap";
 	case Leg::AqChangeCases:
@@ -631,6 +639,7 @@ const char* legPreset() {
 	case Leg::AqSupersede:
 	case Leg::AqRefuse:
 	case Leg::AqClone:
+	case Leg::AqTap:
 	case Leg::AqNavWrap:
 	case Leg::AqChangeCases:
 	case Leg::AqStall:
@@ -1132,6 +1141,7 @@ void checkLeg() {
 	case Leg::AqSupersede:
 	case Leg::AqRefuse:
 	case Leg::AqClone:
+	case Leg::AqTap:
 	case Leg::AqNavWrap:
 	case Leg::AqChangeCases:
 	case Leg::AqStall:
@@ -1206,6 +1216,9 @@ int32_t g_aqLoadsBefore = 0;
 bool g_aqTurned = false;
 bool g_aqHeavySwapped = false;
 TierMark g_aqTierMark{};
+/// AQ-TAP: the row its press is on, and whether it has been let go.
+int32_t g_tapRow = 0;
+bool g_tapReleased = false;
 
 bool isAcquireLeg(Leg leg) {
 	switch (leg) {
@@ -1215,6 +1228,7 @@ bool isAcquireLeg(Leg leg) {
 	case Leg::AqSupersede:
 	case Leg::AqRefuse:
 	case Leg::AqClone:
+	case Leg::AqTap:
 	case Leg::AqNavWrap:
 	case Leg::AqChangeCases:
 	case Leg::AqStall:
@@ -1229,10 +1243,10 @@ bool isAcquireLeg(Leg leg) {
 
 /// How many gestures the leg makes, one after another.
 int32_t acquireActs(Leg leg) {
-	return leg == Leg::AqChangeCases                      ? 6
-	       : leg == Leg::AqNavigate                       ? 3
-	       : (leg == Leg::AqNew || leg == Leg::AqNavWrap) ? 2
-	                                                      : 1;
+	return leg == Leg::AqChangeCases                       ? 6
+	       : (leg == Leg::AqNavigate || leg == Leg::AqTap) ? 3
+	       : (leg == Leg::AqNew || leg == Leg::AqNavWrap)  ? 2
+	                                                       : 1;
 }
 
 /// What the acquisition legs count: InstrumentLoad's own reads and loads, which is all there is to count now.
@@ -1430,6 +1444,25 @@ bool actAcquire() {
 		PresetAcquireProbe::pressEmptyRow(emptyRow(), OutputType::SYNTH);
 		PresetAcquireProbe::pressEmptyRow(emptyRow() + 1, OutputType::KIT);
 		PresetAcquireProbe::pressEmptyRow(emptyRow() + 2, OutputType::SYNTH);
+		return true;
+	case Leg::AqTap:
+		// Each act presses the first empty row. The tap and the slow release let go in the same tick, before the
+		// acquisition the press dispatched has landed; the slow one after a press longer than a tap, on the audio
+		// clock the pad handler times presses by. Nothing renders in this scenario, so that clock is moved by hand.
+		g_tapRow = emptyRow();
+		g_tapReleased = false;
+		PresetAcquireProbe::pressEmptyRow(g_tapRow);
+		if (g_aqAct != 1) {
+			if (g_aqAct == 2) {
+				AudioEngine::audioSampleTimer += kShortPressTime + 1;
+			}
+			PresetAcquireProbe::releaseRow(g_tapRow);
+			g_tapReleased = true;
+			if (!loadInstrumentPresetUI.presetAcquisitionInFlight()) {
+				printf("AQ-TAP FAIL the acquisition landed before the pad was let go, so nothing was tested\n");
+				g_failures++;
+			}
+		}
 		return true;
 	case Leg::AqClone:
 		if (g_aqClip == nullptr) {
@@ -1703,6 +1736,36 @@ void checkAcquireAct() {
 		}
 		break;
 	}
+	case Leg::AqTap: {
+		static constexpr const char* kTapGestures[] = {"tap", "hold", "slow"};
+		Clip* const made = (added.size() == 1) ? added[0] : nullptr;
+		const bool current = made != nullptr && currentSong->getCurrentClip() == made;
+		const bool entered = current && currentUIMode == UI_MODE_INSTRUMENT_CLIP_EXPANDING;
+		const bool held = current && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+		printf("AQ-TAP gesture=%s clipsAdded=%d released=%d entered=%d held=%d mode=%d runs=%d\n",
+		       kTapGestures[g_aqAct], static_cast<int32_t>(added.size()), g_tapReleased ? 1 : 0, entered ? 1 : 0,
+		       held ? 1 : 0, static_cast<int>(currentUIMode), runs);
+		if (made == nullptr) {
+			aqFail("AQ-TAP", "the new-track press made no track");
+		}
+		else if (g_aqAct == 0 && !entered) {
+			aqFail("AQ-TAP", "a new-track pad tapped before its preset landed did not enter the clip once it did");
+		}
+		else if (g_aqAct == 1 && !held) {
+			aqFail("AQ-TAP", "a new-track pad still held when its preset landed did not hold the clip");
+		}
+		else if (g_aqAct == 2 && (entered || held)) {
+			aqFail("AQ-TAP",
+			       "a new-track pad let go slowly before its preset landed entered or held the clip once it did");
+		}
+		if (g_aqAct == 1) {
+			PresetAcquireProbe::releaseRow(g_tapRow);
+		}
+		PresetAcquireProbe::releasePress();
+		changeRootUI(&sessionView);
+		currentUIMode = UI_MODE_NONE;
+		break;
+	}
 	case Leg::AqClone: {
 		int32_t synths = 0;
 		int32_t kits = 0;
@@ -1879,8 +1942,11 @@ void runAcquireTick() {
 			g_aqStep = AqStep::Act;
 			break;
 		}
-		if (g_leg != Leg::AqSlotStall && g_leg != Leg::AqNavStall && g_leg != Leg::AqChangeStall) {
-			checkAcquireTier(); // a slot scan loads nothing, which AQ-TIER would call a leg that did no work
+		if (g_leg != Leg::AqSlotStall && g_leg != Leg::AqNavStall && g_leg != Leg::AqChangeStall
+		    && g_leg != Leg::AqTap) {
+			// A slot scan loads nothing, which AQ-TIER would call a leg that did no work; AQ-TAP's tracks may find
+			// every synth preset already in the song.
+			checkAcquireTier();
 		}
 		nextLeg();
 		break;

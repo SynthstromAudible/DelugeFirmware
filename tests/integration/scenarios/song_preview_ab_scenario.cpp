@@ -336,7 +336,7 @@ public:
 	}
 
 	/// Whether the empty-pad gesture is still waiting for its acquisition's completion to hold the pad.
-	static bool newTrackPressHeld() { return sessionView.newTrackPressHeld_; }
+	static bool newTrackPressHeld() { return sessionView.newTrackPress_ != SessionView::NewTrackPress::None; }
 
 	/// Drives the grid new-track gesture's ENTER continuation, resuming from the state the clip-type
 	/// picker leaves behind and going through exitTrackCreation()'s real funnel.
@@ -2396,7 +2396,7 @@ void runAcquireTick() {
 			}
 		}
 		// The gesture's own tail, which runs from completeNewTrack() a tick later, off the caller's stack.
-		// The probe forced UI_MODE_NONE before the press, and newTrackPressHeld_ was never cleared (no
+		// The probe forced UI_MODE_NONE before the press, and newTrackPress_ was left held (no
 		// release was injected), so the held mode being set proves beginHoldingClipPress() actually ran
 		// after the acquisition.
 		if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
