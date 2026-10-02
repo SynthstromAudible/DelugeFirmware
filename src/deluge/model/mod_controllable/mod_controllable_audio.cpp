@@ -671,7 +671,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 void ModControllableAudio::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager,
                                                       bool writeAutomation, int32_t* valuesForOverride) {
 	// Serialize from the value DOM (deluge::project). Byte-identical to the former hand-written sequence
-	// (param_automation.cpp, verified in param_projection_test), the first production use of the param DOM.
+	// (param_automation.cpp, verified in the param-projection driver), the first production use of the param DOM.
 	deluge::project::DocParamSet unpatched = deluge::project::toDocParamSet(*paramManager->getUnpatchedParamSet());
 	deluge::project::serializeModControllableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
 }
@@ -686,7 +686,7 @@ bool ModControllableAudio::readParamTagFromFile(Deserializer& reader, char const
                                                 ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 	// Read the shared param block from the value DOM (deluge::project). The MCA block has no legacy-only
 	// tag names, so this fully replaces the former hand-written dispatch; verified by the golden round-trip
-	// and param_projection_test.
+	// and the param-projection driver.
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 	return deluge::project::readModControllableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,

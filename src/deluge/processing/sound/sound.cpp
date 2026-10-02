@@ -4062,7 +4062,7 @@ justCloseTag:
 
 void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
 	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
-	// (verified in param_projection_test). serializeSoundParams emits the patched + unpatched flat attrs,
+	// (verified in the param-projection driver). serializeSoundParams emits the patched + unpatched flat attrs,
 	// the shared ModControllableAudio block, the mid-block writeOpeningTagEnd, the <envelope*> groups, the
 	// <patchCables> block and the shared tags.
 	deluge::project::DocParamManager doc = deluge::project::toDocParamManagerFromStore(*paramManager);
