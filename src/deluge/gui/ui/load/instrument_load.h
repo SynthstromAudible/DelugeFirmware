@@ -23,6 +23,7 @@
 #include "gui/ui/load/preset_navigation.h"
 #include "gui/ui/load/preset_walk.h"
 #include "gui/ui/load/slot_name_scan.h"
+#include "playback/render_requests.h"
 #include "runtime/app_loop.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/latest_wins.h"
@@ -200,9 +201,13 @@ public:
 	/// @brief The job routine() runs on, woken by DELUGE_WAKE_STORAGE. Shared with the pattern browser's reads.
 	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
 
-	/// @brief Ask for a run of the job: a song just made current may be a blank one asking for its first preset
-	///        (Song::blankPresetPending), which routine() asks for.
-	void songMadeCurrent() const { deluge::runtime::appLoop.request(jobId); }
+	/// @brief [interaction] Ask for a run of the job: a song just made current may be a blank one asking for its first
+	///        preset (Song::blankPresetPending), which routine() asks for. A swap the render makes asks for it through
+	///        deluge::playback::songSwappedOut().
+	void songMadeCurrent() const {
+		deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::InstrumentLoadNotified);
+		deluge::runtime::appLoop.request(jobId);
+	}
 
 	/// @brief Whether a load is in flight or queued.
 	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle; }

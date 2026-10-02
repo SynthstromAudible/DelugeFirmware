@@ -56,6 +56,7 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/render_requests.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
@@ -860,6 +861,7 @@ extern "C" void deluge_app_render_skipped(void) noexcept {
 		AudioExcludedSection renderBlock;
 #if defined(DELUGE_HOST)
 		View::RenderBlockStackWatch stackWatch;
+		deluge::playback::RenderBlockInteractionWatch interactionWatch;
 #endif
 		renderRetirementStep();
 	} catch (...) {
@@ -875,8 +877,10 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	// own section) and a render block never overlap.
 	AudioExcludedSection renderBlock;
 #if defined(DELUGE_HOST)
-	// For the harness: whether this block changed the view's active model stack, which only the interaction tier may.
+	// For the harness: whether this block changed the view's active model stack, or other state only the interaction
+	// tier may write.
 	View::RenderBlockStackWatch stackWatch;
+	deluge::playback::RenderBlockInteractionWatch interactionWatch;
 #endif
 	// Marks this thread as rendering, for the host's count of the render's heap allocations (it must make none).
 	struct RenderBlockMark {
@@ -2175,9 +2179,9 @@ void retire(Clip* clip) {
 	// The references the interaction tier itself reads and writes are cleared here, at once, as ~Clip() used to: no
 	// handler that runs before the render's next block may see the retired (detached, possibly output-less) clip as
 	// the current clip or the view's active one, nor copy it somewhere nothing clears. letGoOfClip() is the catch for
-	// what the render writes itself before it lets go. The render's requests for the view's active stack are applied
-	// first, so none is left naming this clip (a recording moved on to it, or from it) once it is freed.
-	view.applyPostedStackRequests();
+	// what the render writes itself before it lets go. The render's requests are applied first, so none is left naming
+	// this clip (a recording moved on to it, or from it) once it is freed.
+	deluge::playback::applyRenderRequests();
 	if (currentSong != nullptr) {
 		if (currentSong->getCurrentClip() == clip) {
 			currentSong->setCurrentClip(nullptr);
@@ -2205,7 +2209,7 @@ void retire(Song* song) {
 	// that may still name the old song or something it owns (an armed swap on the render only asks for it to be
 	// dropped). Apply what the render asked for, then drop it, so no handler reaches the old song through it and no
 	// request is left naming the song once it is freed.
-	view.applyPostedStackRequests();
+	deluge::playback::applyRenderRequests();
 	if (view.activeModControllableNamesSong(song)) {
 		view.releaseActiveModControllable();
 	}

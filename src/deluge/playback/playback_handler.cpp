@@ -66,6 +66,7 @@
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/render_requests.h"
 #include "playback/trigger_clock_input.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
@@ -1498,15 +1499,10 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	// Swap stuff over
 	AudioEngine::killAllVoices(true);
-	midiFollow.clearStoredClips(); // need to clear clip pointers stored for previous song
-	// The knobs let go of the outgoing song: at once on the interaction tier, by request on the render (an armed
-	// launch), since only the interaction tier writes the view's active model stack.
-	view.songSwappedOut(currentSong);
+	Song* const outgoing = currentSong;
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
-	deluge::gui::instrumentLoad.songMadeCurrent();
-	loadSongUI.deletedPartsOfOldSong = false;
 
 	currentSong->sendAllMIDIPGMs();
 	AudioEngine::getReverbParamsFromSong(currentSong);
@@ -1553,8 +1549,9 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	AudioEngine::bypassCulling = true;
 
-	display->displayLoadingAnimationText("Loading"); // More loading might need to happen now, or still be happening
-	currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
+	// What the swap changes that only the interaction tier writes -- the knobs, MIDI follow's stored clips, the load's
+	// mode and animation: done at once on the interaction tier, asked for on the render (an armed launch).
+	deluge::playback::songSwappedOut(outgoing);
 	AudioEngine::logAction("PlaybackHandler::doSongSwap end");
 }
 

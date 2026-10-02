@@ -45,6 +45,10 @@ public:
 	void scheduleFillEvent(Clip* clip, int64_t atTickCount);
 	void cancelAllLaunchScheduling();
 	void launchSchedulingMightNeedCancelling();
+	/// @brief [interaction] Show how many repeats are left until the armed launch: the load's popup while an armed song
+	///        swap waits, otherwise the session's OLED. The render asks for this through
+	///        deluge::playback::launchRepeatCounted().
+	void showLaunchRepeatsRemaining();
 	void reSyncClipToSongTicks(Clip* clip);
 	void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething = false,
 	                bool mayResumeClip = true) override;

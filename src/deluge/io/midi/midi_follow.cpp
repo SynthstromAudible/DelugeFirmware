@@ -29,6 +29,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_takeover.h"
+#include "model/clip/clip_array.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -40,6 +41,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
+#include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/byte_channel.h"
 #include "storage/existence_policy.h"
@@ -703,21 +705,32 @@ bool MidiFollow::isGlobalEffectableContext() {
 	return false;
 }
 
-/// used to store the clip's for each note received so that note off's can be sent to the right clip
+/// [interaction] The clip each note received was sent to, so its note-off can be sent to the same clip. Written and
+/// read only by the interaction tier: MIDI input, clip deletion, and the interaction side of a song swap.
 PLACE_SDRAM_DATA Clip* clipForLastNoteReceived[kMaxMIDIValue + 1] = {0};
 
-/// initializes the clipForLastNoteReceived array
-/// called when swapping songs to make sure that you aren't using clips from the old song
-void MidiFollow::clearStoredClips() {
-	for (int32_t i = 0; i <= 127; i++) {
-		clipForLastNoteReceived[i] = nullptr;
+void MidiFollow::forgetClipsNotOfCurrentSong() {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::MidiFollowStoredClips);
+	for (Clip*& stored : clipForLastNoteReceived) {
+		if (stored == nullptr) {
+			continue;
+		}
+		bool ofCurrentSong = false;
+		if (currentSong != nullptr) {
+			for (ClipArray const* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
+				for (Clip const* clip : *array) {
+					ofCurrentSong = ofCurrentSong || clip == stored;
+				}
+			}
+		}
+		if (!ofCurrentSong) {
+			stored = nullptr;
+		}
 	}
 }
 
-/// removes a specific clip pointer from the clipForLastNoteReceived array
-/// if a clip is deleted, it should be removed from this array to ensure note off's don't get sent
-/// to delete clips
 void MidiFollow::removeClip(Clip* clip) {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::MidiFollowStoredClips);
 	for (int32_t i = 0; i <= 127; i++) {
 		if (clipForLastNoteReceived[i] == clip) {
 			clipForLastNoteReceived[i] = nullptr;

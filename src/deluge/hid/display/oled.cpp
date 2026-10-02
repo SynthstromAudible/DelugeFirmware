@@ -27,6 +27,7 @@
 #include "libdeluge/clock.h"
 #include "libdeluge/display.h"
 #include "playback/playback_handler.h"
+#include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "util/c_string.h"
@@ -718,6 +719,7 @@ void updateWorkingAnimation() {
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::LoadingAnimation);
 	loading = !strcmp(word, "Loading");
 	if (working_animation_count) {
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
@@ -729,6 +731,7 @@ void OLED::displayWorkingAnimation(char const* word) {
 }
 
 void OLED::removeWorkingAnimation() {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::LoadingAnimation);
 	// return; // infinite animation duration for debugging purposes
 	if (hasPopupOfType(PopupType::NOTIFICATION)) {
 		removePopup();

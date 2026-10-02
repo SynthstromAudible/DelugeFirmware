@@ -92,26 +92,11 @@ public:
 	/// per-clip reference fields (currentClip, syncScalingClip, beingRecordedFromClip), which may name clips already
 	/// freed. @p song must be alive.
 	bool activeModControllableNamesSong(Song* song) const;
-	/// @brief [render] or [interaction] A song swap is taking @p outgoing out of play: let go of the active model stack
-	///        if it names @p outgoing or anything it owns.
+	/// @brief [interaction] The recording of the arrangement-only clip @p from has moved on to its clone @p to: point
+	///        the active model stack at @p to, if it still names @p from. The ModControllable (the output) stays.
 	///
-	/// On the interaction tier the stack is released at once, whatever it names. On the render it is only asked for
-	/// (postedStackRequests()), and applied by the interaction tier before its next job: an interaction handler the
-	/// render preempted keeps a stack whose parts all still name the outgoing song, which stays alive until the
-	/// interaction tier hands it to AudioEngine::retire(Song*).
-	void songSwappedOut(Song* outgoing);
-	/// @brief [render] or [interaction] The recording of the arrangement-only clip @p from has moved on to its clone
-	///        @p to: point the active model stack at @p to, if it still names @p from -- at once on the interaction
-	///        tier, by request (as songSwappedOut()) on the render.
-	void recordingMovedToClip(Clip* from, Clip* to);
-	/// @brief [interaction] Apply, in order, every change to the active model stack the render has asked for since the
-	///        last call.
-	///
-	/// Called before every app-loop job (deluge_app_service()), by AudioEngine::retire(Clip*) and retire(Song*) before
-	/// they hand anything over (requests name only songs and clips), so no request is left naming an object once the
-	/// interaction tier has let go of it, and by songSwappedOut() and recordingMovedToClip() on the interaction tier
-	/// before their own change. Interaction tier only: it is the queue's one consumer.
-	void applyPostedStackRequests();
+	/// The render asks for this through deluge::playback::recordingMovedToClip().
+	void followRecordingToClip(Clip* from, Clip* to);
 	void cycleThroughReverbPresets();
 	char const* getReverbPresetDisplayName(int32_t preset);
 	int32_t getCurrentReverbPreset();
@@ -204,7 +189,8 @@ public:
 
 	/// What the mod encoders, mod buttons and MIDI follow act on. [interaction] Written only by the interaction tier,
 	/// whose handlers read it across many instructions; the render reads only its pointers' values, to compare, and
-	/// asks for any change through songSwappedOut() or recordingMovedToClip().
+	/// asks for any change through deluge::playback::songSwappedOut() or recordingMovedToClip()
+	/// (playback/render_requests.h).
 	ModelStackWithThreeMainThings activeModControllableModelStack{};
 	uint8_t dummy[MODEL_STACK_MAX_SIZE - sizeof(ModelStackWithThreeMainThings)]{};
 
