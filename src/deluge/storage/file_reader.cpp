@@ -23,11 +23,8 @@
 /// document opened, and knows nothing else. That is what lets a host test link the parser without
 /// linking the instrument model behind it.
 
-#include "gui/ui_timer_manager.h"
 #include "io/file.hpp"
 #include "io/stall_bound.h"
-#include "libdeluge/control_surface.h"
-#include "libdeluge/display.h"
 #include "libdeluge/file_bytes.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
@@ -52,7 +49,6 @@ FileReader::FileReader(char* memBuffer, uint32_t bufLen) {
 	fileClusterBuffer = memBuffer;
 	currentReadBufferEndPos = bufLen;
 	memoryBased = true;
-	callRoutines = false;
 	fileReadBufferCurrentPos = 0;
 }
 
@@ -69,7 +65,6 @@ void FileReader::resetReader() {
 	else {
 		fileReadBufferCurrentPos = 0;
 	}
-	readCount = 0;
 	reachedBufferEnd = false;
 }
 
@@ -84,7 +79,6 @@ bool FileReader::readFileClusterIfNecessary() {
 	}
 	// Load next Cluster if necessary
 	if (fileReadBufferCurrentPos >= Cluster::size) {
-		readCount = 0;
 		bool result = readFileCluster();
 		if (!result) {
 			reachedBufferEnd = true;
@@ -149,24 +143,6 @@ bool FileReader::readChar(char* thisChar) {
 	fileReadBufferCurrentPos++;
 
 	return true;
-}
-
-// Call various routines 1 out of N times, where N = 64 at present.
-void FileReader::readDone() {
-	readCount++; // Increment first, cos we don't want to call SD routine immediately when it's 0
-
-	if (!callRoutines) {
-		return;
-	}
-
-	if (!(readCount & 63)) { // 511 bad. 255 almost fine. 127 almost always fine
-		AudioEngine::routineWithClusterLoading();
-
-		uiTimerManager.routine();
-
-		deluge_display_service();
-		deluge_control_flush();
-	}
 }
 
 bool FileReader::closeWriter() {

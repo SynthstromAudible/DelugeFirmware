@@ -76,14 +76,10 @@ public:
 	char* GetCurrentAddressInBuffer() { return fileClusterBuffer + fileReadBufferCurrentPos; }
 
 protected:
-	bool callRoutines = true;
 	bool readFileCluster();
 	bool readFileClusterIfNecessary();
 
-	void readDone();
-
 	bool memoryBased = false;
-	int32_t readCount{}; // Used for multitask interleaving.
 	bool reachedBufferEnd{};
 	void resetReader();
 };

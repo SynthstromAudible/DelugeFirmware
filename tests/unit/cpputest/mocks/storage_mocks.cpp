@@ -78,10 +78,6 @@ ByteIo collectStat(const char* /*path*/, uint32_t* /*outSize*/, DelugeStatus* /*
 namespace AudioEngine {
 void logAudioAction(char const* /*string*/, const char* /*file*/, int /*line*/) {
 }
-// FileReader::readDone() calls this every 64th read so a long parse does not starve audio. Nothing is
-// rendering here.
-void routineWithClusterLoading() {
-}
 // Counts staging attempts made after boot, through the channels. These specs never reach the channel arm -- this
 // mock build links no BSP and never finishes booting, so every staged open takes its synchronous arm -- but
 // openDocumentStaged
@@ -89,21 +85,6 @@ void routineWithClusterLoading() {
 void noteSongStageTick() {
 }
 } // namespace AudioEngine
-
-// FileReader::readDone() also pokes the UI timers on the way past. Nothing schedules anything here,
-// so the manager exists only to be called: default-constructed (its members already have initialisers)
-// and with a routine() that has nothing to service.
-UITimerManager::UITimerManager() = default;
-void UITimerManager::routine() {
-}
-UITimerManager uiTimerManager{};
-
-// The other two halves of readDone()'s politeness: push the display and flush the pad-LED queue. No
-// display and no pads in a host test.
-extern "C" void deluge_display_service(void) noexcept {
-}
-extern "C" void deluge_control_flush(void) noexcept {
-}
 
 // FREEZE_WITH_ERROR's landing pad: the deserializers assert on malformed documents. On the device this
 // halts with a code on the display; in a test it must be loud and immediate, because carrying on past a
