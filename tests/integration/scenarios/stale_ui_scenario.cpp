@@ -18,6 +18,7 @@
 #include "scenarios/stale_ui_scenario.h"
 
 #include "definitions_cxx.hpp"
+#include "extern.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
@@ -40,6 +41,8 @@
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
 #include "model/instrument/instrument.h"
+#include "model/instrument/melodic_instrument.h"
+#include "model/model_stack.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
@@ -47,6 +50,7 @@
 #include "playback/render_requests.h"
 #include "util/misc.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
@@ -225,6 +229,16 @@ int32_t g_staleFollowClips = 0;
 uint32_t g_modeAfterSwap = 0;
 bool g_animationAfterSwap = false;
 int32_t g_madeCurrentAfterSwap = 0;
+/// swap_work, dropped_swap: a note an external MIDI keyboard auditions on the outgoing song's instrument while the load
+/// waits on its armed swap, and whether the outgoing song was still auditioning once the swap's interaction side ran.
+constexpr int32_t kExternalNote = 72;
+constexpr int32_t kExternalChannel = 1;
+bool g_externalAuditioned = false;
+int32_t g_outgoingAuditioning = -1;
+/// dropped_swap: the queue is flooded at the swap, so only the swap's own slot carries it.
+int32_t g_overflowsAtLegStart = 0;
+bool g_dropAuditioned = false;
+int32_t g_dropOutgoingAuditioning = -1;
 
 /// The note pad tapped just before NEXT_SONG: its release deletes the note and records an undo action.
 constexpr int32_t kNoteX = 0;
@@ -240,6 +254,19 @@ bool stackEmpty() {
 	return getRootUI() == nullptr;
 }
 
+/// An external MIDI keyboard's note on @p output (a melodic instrument of the current song), as MIDI input auditions
+/// it; returns whether it is auditioning.
+bool auditionFromExternalMidi(Output* output) {
+	if (output == nullptr || output->type != OutputType::SYNTH) {
+		return false;
+	}
+	auto* instrument = static_cast<MelodicInstrument*>(output);
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	instrument->beginAuditioningForNote(modelStack, kExternalNote, 100, zeroMPEValues, kExternalChannel);
+	return instrument->isNoteAuditioning(kExternalNote);
+}
+
 /// MIDI follow's stored clips that are not one of the current song's: each would send a note-off into another song.
 /// Compared by address only.
 int32_t staleFollowClips() {
@@ -248,12 +275,8 @@ int32_t staleFollowClips() {
 		if (stored == nullptr) {
 			continue;
 		}
-		bool ofCurrentSong = false;
-		for (ClipArray const* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
-			for (Clip const* clip : *array) {
-				ofCurrentSong = ofCurrentSong || clip == stored;
-			}
-		}
+		const bool ofCurrentSong = std::ranges::contains(currentSong->sessionClips, stored)
+		                           || std::ranges::contains(currentSong->arrangementOnlyClips, stored);
 		stale += ofCurrentSong ? 0 : 1;
 	}
 	return stale;
@@ -492,6 +515,7 @@ void stepEditorSetup() {
 	clipForLastNoteReceived[kPlantedNote] = clip;
 	g_madeCurrentAtLegStart =
 	    deluge::playback::interactionOwnedWrites(deluge::playback::InteractionOwned::InstrumentLoadNotified);
+	(void)deluge::playback::outgoingAuditioningAfterLastSwap();
 	g_loadSeen = false;
 	currentSong->loadNextSong();
 	g_steps = 0;
@@ -505,6 +529,10 @@ void stepEditorRun() {
 	if (loadSongUI.loadInFlight() && stackEmpty()) {
 		const bool swapped = currentSong != g_songBefore;
 		(swapped ? g_postSwapSteps : g_preSwapSteps)++;
+		// swap_work: while the load waits on the armed swap, an external keyboard plays the outgoing song's synth.
+		if (!swapped && !g_externalAuditioned && currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
+			g_externalAuditioned = auditionFromExternalMidi(g_clipBefore->output);
+		}
 		if (getCurrentUI() == &soundEditor) {
 			g_staleEditor++;
 		}
@@ -523,6 +551,7 @@ void stepEditorRun() {
 			g_madeCurrentAfterSwap =
 			    deluge::playback::interactionOwnedWrites(deluge::playback::InteractionOwned::InstrumentLoadNotified)
 			    - g_madeCurrentAtLegStart;
+			g_outgoingAuditioning = deluge::playback::outgoingAuditioningAfterLastSwap();
 		}
 	}
 	if (!loadOver()) {
@@ -545,9 +574,10 @@ void stepEditorRun() {
 		fail("SU-RETIRED", "the view still pointed into the swapped-out song");
 	}
 	const bool loadingMode = g_modeAfterSwap == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
-	printf("SU-SWAPWORK checked=%d staleFollowClips=%d loadingMode=%d animation=%d madeCurrent=%d\n",
+	printf("SU-SWAPWORK checked=%d staleFollowClips=%d loadingMode=%d animation=%d madeCurrent=%d "
+	       "externalAudition=%d outgoingAuditioning=%d\n",
 	       g_swapWorkChecked ? 1 : 0, g_staleFollowClips, loadingMode ? 1 : 0, g_animationAfterSwap ? 1 : 0,
-	       g_madeCurrentAfterSwap);
+	       g_madeCurrentAfterSwap, g_externalAuditioned ? 1 : 0, g_outgoingAuditioning);
 	if (!g_swapWorkChecked) {
 		fail("SU-SWAPWORK", "no step saw the load in flight after the swap, so nothing was tested");
 	}
@@ -563,6 +593,12 @@ void stepEditorRun() {
 		}
 		if (g_madeCurrentAfterSwap <= 0) {
 			fail("SU-SWAPWORK", "the instrument load was not told a song was made current");
+		}
+		if (!g_externalAuditioned) {
+			fail("SU-SWAPWORK", "no external MIDI audition was started on the outgoing song, so that was not tested");
+		}
+		else if (g_outgoingAuditioning != 0) {
+			fail("SU-SWAPWORK", "the outgoing song was still auditioning after the swap's interaction side ran");
 		}
 	}
 	g_steps = 0;
@@ -593,6 +629,10 @@ void stepAuditionSetup() {
 	}
 	g_songBefore = currentSong;
 	g_loadSeen = false;
+	// dropped_swap: the render's swap finds the request queue full.
+	g_overflowsAtLegStart = deluge::playback::renderRequestOverflows();
+	deluge::playback::floodRenderRequestsAtNextSwap();
+	(void)deluge::playback::outgoingAuditioningAfterLastSwap();
 	currentSong->loadNextSong();
 	g_steps = 0;
 	g_stage = Stage::AuditionRun;
@@ -604,6 +644,17 @@ void stepAuditionRun() {
 		g_auditionChecked = true;
 		g_padStillPressed = instrumentClipView.auditionPadIsPressed[0] != 0 || matrixDriver.isPadPressed(kAuditionX, 0);
 		g_stillAuditioning = g_auditioned->isAnyAuditioningHappening();
+	}
+	if (loadSongUI.loadInFlight() && stackEmpty()) {
+		if (currentSong == g_songBefore) {
+			if (g_auditionChecked && !g_dropAuditioned
+			    && currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
+				g_dropAuditioned = auditionFromExternalMidi(g_auditioned);
+			}
+		}
+		else if (g_dropOutgoingAuditioning < 0) {
+			g_dropOutgoingAuditioning = deluge::playback::outgoingAuditioningAfterLastSwap();
+		}
 	}
 	if (!loadOver()) {
 		if (++g_steps > kMaxSettleSteps) {
@@ -621,6 +672,15 @@ void stepAuditionRun() {
 	}
 	if (g_padStillPressed || g_stillAuditioning) {
 		fail("SU-AUDITION", "an audition held when the load took the UIs down was still sounding or pressed after it");
+	}
+	const int32_t overflows = deluge::playback::renderRequestOverflows() - g_overflowsAtLegStart;
+	printf("SU-SWAPDROP overflows=%d externalAudition=%d outgoingAuditioning=%d loadEnded=1\n", overflows,
+	       g_dropAuditioned ? 1 : 0, g_dropOutgoingAuditioning);
+	if (overflows == 0 || !g_dropAuditioned) {
+		fail("SU-SWAPDROP", "the swap did not overflow the queue with an external audition on, so nothing was tested");
+	}
+	else if (g_dropOutgoingAuditioning != 0) {
+		fail("SU-SWAPDROP", "a swap whose place the full queue lost did not stop the outgoing song's auditioning");
 	}
 	g_steps = 0;
 	g_stage = Stage::NoteSetup;
