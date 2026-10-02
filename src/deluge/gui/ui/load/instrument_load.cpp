@@ -73,38 +73,84 @@ bool promotes(const InstrumentLoadRequest& request, const InstrumentLoadRequest&
 
 } // namespace
 
-bool InstrumentLoad::request(const InstrumentLoadRequest& request) {
+LoadTicket InstrumentLoad::request(const InstrumentLoadRequest& request) {
 	if (const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
 	    queued.has_value() && neverSuperseded(*queued)) {
 		// A queued creation, revert or definition is never replaced: superseding the middle of three quick new-track
 		// presses would lose a track, and superseding a revert would leave the clip on what the user backed out of.
 		// What comes after it is refused, and the gesture kept is the one the user made first.
-		return false;
+		return {};
 	}
+	const LoadTicket ticket{.generation = nextGeneration_};
+	nextGeneration_ = (nextGeneration_ == UINT32_MAX) ? 1 : nextGeneration_ + 1;
 	if (phase_ != Phase::Idle && promotes(request, active_)) {
 		// Select on the file a scroll-load is already loading: that load becomes the commit, rather than start again.
+		// It is the commit's load now, so the scroll-load's ticket no longer names it.
 		active_.commit = true;
 		active_.completion = request.completion;
+		active_.generation = ticket.generation;
 		coalescer_.clear_queued();
 		closeGate();
-		return true;
+		return ticket;
 	}
 	if (request.commit) {
 		closeGate();
 	}
-	if (!coalescer_.request(request)) {
+	InstrumentLoadRequest ticketed = request;
+	ticketed.generation = ticket.generation;
+	if (!coalescer_.request(ticketed)) {
 		// Queued: the load in flight is cancelled at its next phase boundary, unless it is a creation.
 		deluge::runtime::appLoop.request(jobId);
-		return true;
+		return ticket;
 	}
 	start(coalescer_.current());
 	routine();
 	// The run above may have been made outside the loop's pass, where a time it asked for wakes nothing.
 	deluge::runtime::appLoop.request(jobId);
-	return true;
+	return ticket;
 }
 
-void InstrumentLoad::cancel() {
+CancelResult InstrumentLoad::cancel(LoadTicket ticket) {
+	if (!ticket.accepted()) {
+		return CancelResult::Stale;
+	}
+	if (const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
+	    queued.has_value() && queued->generation == ticket.generation) {
+		if (neverSuperseded(*queued)) {
+			return CancelResult::Refused;
+		}
+		const bool queuedCommit = queued->commit;
+		coalescer_.clear_queued();
+		if (phase_ != Phase::Idle && !neverSuperseded(active_)) {
+			// The load in flight was to be dropped for this one at its next phase boundary, so it goes with it:
+			// cancelling the newest of a fast scroll leaves none of it loading.
+			originValid_ = false;
+			dropActive();
+		}
+		// A queued commit closed the gate as it was asked for; only a commit still in flight keeps it closed.
+		if (queuedCommit && !(phase_ != Phase::Idle && active_.commit)) {
+			openGate();
+		}
+		cancellations_++;
+		return CancelResult::Cancelled;
+	}
+	if (phase_ == Phase::Idle || active_.generation != ticket.generation) {
+		return CancelResult::Stale;
+	}
+	if (neverSuperseded(active_)) {
+		return CancelResult::Refused;
+	}
+	if (coalescer_.queued().has_value()) {
+		return CancelResult::Stale; // a newer request has replaced it, and drops it at its next phase boundary
+	}
+	// Where a navigate's walk landed is not where the clip is any more: the next navigate walks on from the clip.
+	originValid_ = false;
+	cancellations_++;
+	dropActive();
+	return CancelResult::Cancelled;
+}
+
+void InstrumentLoad::cancelBrowserLoads() {
 	const std::optional<InstrumentLoadRequest>& queued = coalescer_.queued();
 	if (queued.has_value() && queued->kind == Kind::Browse) {
 		coalescer_.clear_queued();
@@ -112,13 +158,19 @@ void InstrumentLoad::cancel() {
 	if (phase_ == Phase::Idle || active_.kind != Kind::Browse) {
 		return;
 	}
+	// An acquisition queued behind the browser's load still runs.
+	dropActive();
+}
+
+void InstrumentLoad::dropActive() {
 	const bool commit = active_.commit;
+	// Releases the staging and drops the sample load before stepSamples() can tick it again, so a load cancelled
+	// here never reaches the failed-load path, which keeps a partial Instrument and shows a card error.
 	abandon();
 	phase_ = Phase::Idle;
 	if (commit) {
 		openGate();
 	}
-	// An acquisition queued behind the browser's load still runs.
 	std::optional<InstrumentLoadRequest> next = coalescer_.complete();
 	if (next.has_value()) {
 		start(*next);

@@ -348,7 +348,18 @@ bool LoadInstrumentPresetUI::scrollLoadInFlight() const {
 // Every non-reload encoder tick asks for the file the cursor lands on. The machine coalesces latest-wins, so a fast
 // scroll cancels each load it leaves and only loads where the user settles.
 void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
-	deluge::gui::instrumentLoad.request({.target = snapshotTarget(movementDirection), .completion = &onScrollLoaded});
+	scrollLoadTicket_ = deluge::gui::instrumentLoad.request(
+	    {.target = snapshotTarget(movementDirection), .completion = &onScrollLoaded});
+}
+
+ActionResult LoadInstrumentPresetUI::backButtonAction() {
+	// BACK while the preset under the cursor is still loading drops that load, and any older scroll-load it was queued
+	// to replace: the clip keeps what it had, and the browser stays where it is. Once nothing of the browser's is
+	// loading, BACK goes up a folder or out, as in every browser.
+	if (deluge::gui::instrumentLoad.cancel(scrollLoadTicket_) == deluge::gui::CancelResult::Cancelled) {
+		return ActionResult::DEALT_WITH;
+	}
+	return LoadUI::backButtonAction();
 }
 
 void LoadInstrumentPresetUI::onScrollLoaded(Error error) {
@@ -409,13 +420,14 @@ void LoadInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 }
 
 void LoadInstrumentPresetUI::close() {
-	deluge::gui::instrumentLoad.cancel();
+	deluge::gui::instrumentLoad.cancelBrowserLoads();
 	LoadUI::close();
 }
 
 bool LoadInstrumentPresetUI::dispatchPresetAcquisition(const deluge::storage::PresetRequest& request) {
-	return deluge::gui::instrumentLoad.request(
-	    {.kind = deluge::gui::InstrumentLoadRequest::Kind::Acquire, .preset = request});
+	return deluge::gui::instrumentLoad
+	    .request({.kind = deluge::gui::InstrumentLoadRequest::Kind::Acquire, .preset = request})
+	    .accepted();
 }
 
 bool LoadInstrumentPresetUI::presetAcquisitionInFlight() const {
@@ -1291,7 +1303,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
 	// A load still out would swap in behind the revert.
-	deluge::gui::instrumentLoad.cancel();
+	deluge::gui::instrumentLoad.cancelBrowserLoads();
 	revertToInitialPreset();
 	LoadUI::exitAction();
 }

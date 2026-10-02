@@ -660,6 +660,22 @@ tier = "pr"
 runtime = "~5s"
 
 [[harness]]
+name = "load-cancel"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a preset load can be cancelled by the ticket its request returned, and BACK in the preset browser cancels the browser's scroll-load. Six synth presets, each naming a sample of its own, are written through the firmware and selected in the real preset browser opened on the boot song's synth clip. cancel_at_stage: with the byte channel holding the document read, BACK while the scroll-load is still staging must cancel it at once, leaving the browser open on the same file, the clip on its previous preset, no loading animation, and past the hold no further reads or sample loads, nothing of the preset in the song and no error shown (LC-STAGE). cancel_at_samples: with the loader holding the sample load, BACK once the preset is parsed and loading its sample must do the same, and leave no param manager or sample lease behind: the parsed synth freed, never swapped in, no give-up counted and no card error shown (LC-SAMPLES). cancel_queued: BACK straight after a scroll on from a preset still loading its sample, the newer scroll-load queued behind it, must leave neither loading and neither in the song (LC-QUEUED). stale_ticket: a cancel naming a scroll-load that has finished must answer Stale and change nothing; a cancel naming a load still in flight with a newer selection's load queued behind it to replace it must answer Stale and drop neither; and a cancel naming a load a newer selection replaced, made while the newer load is in flight, must answer Stale and leave the newer load to land (LC-STALE). refused_for_a_creation: the clip view's new-synth gesture's load must refuse a cancel, and complete (LC-REFUSED). The host build has no allocator leak count, so a leak shows as the preset's synth left in the song, an orphaned param manager or a held sample lease."
+scenario = "load_cancel"
+markers = ["LC-SETUP", "LC-STAGE-BACK", "LC-STAGE", "LC-SAMPLES-BACK", "LC-SAMPLES", "LC-QUEUED-BACK", "LC-QUEUED", "LC-STALE-FINISHED", "LC-STALE-QUEUED", "LC-STALE-REPLACED", "LC-STALE", "LC-REFUSED-CANCEL", "LC-REFUSED"]
+result = "LC-RESULT failures=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~5s"
+
+[[harness]]
 name = "ui-timer-deadline"
 path = "."
 level = "integration"

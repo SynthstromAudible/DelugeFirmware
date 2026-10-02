@@ -1246,6 +1246,24 @@ fn fill_preset_load_card() {
     memory_card::install(Some(&root));
 }
 
+/// Stages the load-cancel scenario's card: the samples its six synth presets name, in `SAMPLES/LC/`, and an empty
+/// `SYNTHS/` the scenario writes the presets into through the firmware's serialisers.
+fn fill_load_cancel_card() {
+    let root = std::env::temp_dir().join("deluge-load-cancel-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES").join("LC");
+    for dir in [&samples, &root.join("SYNTHS")] {
+        std::fs::create_dir_all(dir).expect("creating the load-cancel fixture directories");
+    }
+    write_sine_wav(&samples.join("LCA.WAV"), 1, 22_050, 440.0);
+    write_sine_wav(&samples.join("LCB.WAV"), 1, 22_050, 330.0);
+    write_sine_wav(&samples.join("LCC.WAV"), 1, 22_050, 550.0);
+    write_sine_wav(&samples.join("LCD.WAV"), 1, 22_050, 660.0);
+    write_sine_wav(&samples.join("LCE.WAV"), 1, 22_050, 770.0);
+    write_sine_wav(&samples.join("LCF.WAV"), 1, 22_050, 880.0);
+    memory_card::install(Some(&root));
+}
+
 /// Stages the `clear_song_undo` scenario's card: the samples its preset and audio clip use, and the
 /// empty folders the scenario writes into through the firmware.
 fn fill_clear_song_undo_card() {
@@ -1370,6 +1388,7 @@ fn main() {
             "sample_load_tree" => fill_sample_load_tree_card(),
             "sample_claim" => fill_sample_claim_card(),
             "preset_load" => fill_preset_load_card(),
+            "load_cancel" => fill_load_cancel_card(),
             "load_policy" => fill_load_policy_card(),
             "clear_song_undo" => fill_clear_song_undo_card(),
             "song_load_channel" => fill_song_load_channel_card(),

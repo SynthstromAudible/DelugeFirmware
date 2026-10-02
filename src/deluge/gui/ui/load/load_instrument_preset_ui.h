@@ -112,6 +112,9 @@ public:
 	/// @brief Whether a preset load is in flight or queued.
 	[[nodiscard]] bool scrollLoadInFlight() const;
 
+	/// @brief The ticket of the browser's most recent scroll-load: the load BACK cancels while it is still out.
+	[[nodiscard]] deluge::gui::LoadTicket scrollLoadTicket() const { return scrollLoadTicket_; }
+
 	/// @brief Ask InstrumentLoad for one instrument acquisition: its walk and its load run on the interaction
 	///        tier, and the gesture's follow-up runs once the Instrument is ready.
 	///
@@ -133,6 +136,7 @@ protected:
 	void currentFileChanged(int32_t movementDirection) override;
 	void onBrowserOpened() override;
 	void onListingFailed(Error error) override;
+	ActionResult backButtonAction() override;
 
 private:
 	bool showingAuditionPads();
@@ -210,6 +214,8 @@ private:
 	int32_t noteRowIndex{};
 	NoteRow* noteRow{};
 	Error currentInstrumentLoadError;
+	/// The browser's most recent scroll-load; see scrollLoadTicket().
+	deluge::gui::LoadTicket scrollLoadTicket_{};
 
 	int16_t initialChannel{};
 	int8_t initialChannelSuffix{};

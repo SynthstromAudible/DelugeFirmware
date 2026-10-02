@@ -465,26 +465,10 @@ bool writeInstrumentDocument(Instrument& instrument, const char* path, const cha
 	return error == Error::NONE || fail(legName(g_leg), "a preset file could not be closed");
 }
 
-/// A synth preset whose first oscillator plays @p samplePath, written through the firmware's new-synth and save
-/// paths (never hand-written: a content-empty preset corrupts the heap on the load that rejects it). The synth is
-/// leaked: it is never added to the song.
+/// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).
 bool writeSampleSynthPreset(const char* path, const char* samplePath) {
-	ParamManagerForTimeline paramManager;
-	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
-	if (instrument == nullptr) {
-		return fail(legName(g_leg), "no synth for a preset");
-	}
-	auto* synth = static_cast<SoundInstrument*>(instrument);
-	synth->setupAsBlankSynth(&paramManager, false);
-	synth->sources[0].setOscType(OscType::SAMPLE);
-	AudioFileHolder* holder = firstHolder(synth->sources[0]);
-	if (holder == nullptr) {
-		return fail(legName(g_leg), "a preset synth has no sample range");
-	}
-	holder->filePath = samplePath;
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
-	                                &paramManager, true);
-	return writeInstrumentDocument(*instrument, path, "\n</sound>\n");
+	return deluge::harness::writeSampleSynthPreset(path, samplePath)
+	       || fail(legName(g_leg), "a synth preset could not be written");
 }
 
 /// A sample drum, the way the slicer builds one, added to @p kit.

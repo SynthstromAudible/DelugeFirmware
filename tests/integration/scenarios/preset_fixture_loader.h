@@ -62,4 +62,14 @@ Error loadPresetFixture(Song* song, OutputType outputType, Instrument** getInstr
 /// @return The new clip, or null if the preset could not be loaded or the clip could not be made.
 Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay, const char* presetPath);
 
+/// @brief Write a synth preset whose first oscillator plays @p samplePath, through the firmware's new-synth and save
+///        paths.
+///
+/// Never hand-written: a content-empty preset corrupts the heap on the load that rejects it. The synth is leaked: it is
+/// never added to the song. Synchronous; a fixture build on the interaction tier.
+/// @param path       The preset file to write, e.g. "SYNTHS/PLSYN.XML". Overwritten if it exists.
+/// @param samplePath The sample the preset names, e.g. "SAMPLES/PL/PLSYN.WAV".
+/// @return Whether the preset was written.
+bool writeSampleSynthPreset(const char* path, const char* samplePath);
+
 } // namespace deluge::harness
