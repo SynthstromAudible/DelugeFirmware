@@ -1500,11 +1500,6 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 	AudioEngine::killAllVoices(true);
 	midiFollow.clearStoredClips(); // need to clear clip pointers stored for previous song
 	view.releaseActiveModControllable();
-	// Nothing is under the knobs until the new song's UI is up; the panel must not show the old song's values.
-	indicator_leds::clearKnobIndicatorLevels();
-	for (auto led : indicator_leds::modLed) {
-		indicator_leds::setLedState(led, false);
-	}
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;

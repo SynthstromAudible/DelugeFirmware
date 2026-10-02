@@ -955,8 +955,10 @@ midiLearnMelodicInstrumentAction:
 					    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 				}
 
+				// A song load releases held pads before it takes the UIs down; the tap must not enter a clip then.
 				if (performActionOnPadRelease && xDisplay == selectedClipPressXDisplay
-				    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
+				    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime
+				    && !loadSongUI.isLoadingSong()) {
 
 					// Not allowed if recording arrangement
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {

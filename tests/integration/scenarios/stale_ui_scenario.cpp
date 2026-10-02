@@ -34,6 +34,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "io/file.hpp"
 #include "io/midi/midi_engine.h"
+#include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/instrument/instrument.h"
 #include "model/output.h"
@@ -129,6 +130,8 @@ enum class Stage : uint8_t {
 	EditorRun,     ///< ...the sound editor on top, NEXT_SONG, and the swap watched.
 	AuditionSetup, ///< held_audition: an audition pad held on the clip view when NEXT_SONG arrives.
 	AuditionRun,   ///< ...the note must end when the UIs are taken down, not at the swap.
+	NoteSetup,     ///< tapped_note: a note pad tapped on the clip view when NEXT_SONG arrives.
+	NoteRun,       ///< ...the undo action its release records must not outlive the outgoing song.
 	HoldStart,     ///< hold_load_to_launch: LOAD pressed in the load browser and held through the load.
 	HoldRelease,   ///< ...released once the load waits on it; the swap must arm and the load end.
 	FailedRun,     ///< failed_load: NEXT_SONG onto a song that cannot be read; the surviving song gets its UI back.
@@ -195,6 +198,10 @@ Instrument* g_auditioned = nullptr;
 bool g_auditionChecked = false;
 bool g_padStillPressed = false;
 bool g_stillAuditioning = false;
+/// The note pad tapped just before NEXT_SONG: its release deletes the note and records an undo action.
+constexpr int32_t kNoteX = 0;
+constexpr int32_t kNoteY = 3;
+bool g_noteTapped = false;
 
 void fail(const char* marker, const char* what) {
 	printf("%s FAIL %s\n", marker, what);
@@ -523,6 +530,54 @@ void stepAuditionRun() {
 	if (g_padStillPressed || g_stillAuditioning) {
 		fail("SU-AUDITION", "an audition held when the load took the UIs down was still sounding or pressed after it");
 	}
+	g_steps = 0;
+	g_stage = Stage::NoteSetup;
+}
+
+/// A note on the clip, then a tap on it that NEXT_SONG arrives in the middle of: the load's release of that pad is a
+/// short tap on an existing note, which deletes it and records an undo action against the outgoing song.
+void stepNoteSetup() {
+	if (currentSong->sessionClips.empty()) {
+		(void)currentSong->ensureAtLeastOneSessionClip();
+		currentSong->blankPresetPending = false;
+	}
+	if (frontClip("SU-UNDO") == nullptr) {
+		g_stage = Stage::Report;
+		return;
+	}
+	if (!playbackHandler.isEitherClockActive()) {
+		playbackHandler.setupPlaybackUsingInternalClock(0, false);
+	}
+	(void)matrixDriver.padAction(kNoteX, kNoteY, 64);
+	(void)matrixDriver.padAction(kNoteX, kNoteY, 0);
+	(void)matrixDriver.padAction(kNoteX, kNoteY, 64);
+	g_noteTapped = matrixDriver.isPadPressed(kNoteX, kNoteY);
+	g_songBefore = currentSong;
+	g_loadSeen = false;
+	currentSong->loadNextSong();
+	g_steps = 0;
+	g_stage = Stage::NoteRun;
+}
+
+void stepNoteRun() {
+	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
+	if (!loadOver()) {
+		if (++g_steps > kMaxSettleSteps) {
+			fail("SU-UNDO", "the NEXT_SONG load never ended");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	(void)matrixDriver.padAction(kNoteX, kNoteY, 0);
+	const bool undoEmpty = actionLogger.firstAction[0] == nullptr && actionLogger.firstAction[1] == nullptr;
+	printf("SU-UNDO loadSeen=%d noteTapped=%d undoEmpty=%d steps=%d\n", g_loadSeen ? 1 : 0, g_noteTapped ? 1 : 0,
+	       undoEmpty ? 1 : 0, g_steps);
+	if (!g_noteTapped) {
+		fail("SU-UNDO", "no note pad was held when NEXT_SONG arrived, so nothing was tested");
+	}
+	else if (!undoEmpty) {
+		fail("SU-UNDO", "an undo action recorded against the outgoing song survived the load");
+	}
 	// hold_load_to_launch: the load browser, on the song now current.
 	(void)openUI(&loadSongUI);
 	g_steps = 0;
@@ -660,6 +715,12 @@ void deluge_scenario_stale_ui_dispatch_step(void) {
 		break;
 	case Stage::AuditionRun:
 		stepAuditionRun();
+		break;
+	case Stage::NoteSetup:
+		stepNoteSetup();
+		break;
+	case Stage::NoteRun:
+		stepNoteRun();
 		break;
 	case Stage::HoldStart:
 		stepHoldStart();

@@ -620,8 +620,6 @@ void LoadSongUI::runPhase() {
 }
 
 void LoadSongUI::runBeginSegment() {
-	actionLogger.deleteAllLogs();
-
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
@@ -646,8 +644,10 @@ void LoadSongUI::runBeginSegment() {
 
 	// Every UI is about to be taken down, and none will hear the releases of pads still held: end each held gesture
 	// now, through the UIs that started it, while the song it plays is still alive. Before the mode below, which
-	// would hide an audition from the release that ends it.
+	// would hide an audition from the release that ends it, and before the undo history goes: a release can record an
+	// action (a tap on a note deletes it), and none may outlive the song it would revert.
 	matrixDriver.noPressesHappening();
+	actionLogger.deleteAllLogs();
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -853,6 +853,13 @@ void LoadSongUI::tickRest() {
 }
 
 void LoadSongUI::runFinishSegment() {
+	// The swap let go of the knobs (PlaybackHandler::doSongSwap()); nothing is under them until the new song's UI is
+	// up, so the panel must not go on showing the old song's values. Here rather than at the swap, which an armed
+	// launch runs on the audio tier.
+	indicator_leds::clearKnobIndicatorLevels();
+	for (auto led : indicator_leds::modLed) {
+		indicator_leds::setLedState(led, false);
+	}
 	// To override our popup if we did one. (Still necessary?)
 	deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 	// The swap's been done and the first tick of the new song has been done; any samples wanting data
