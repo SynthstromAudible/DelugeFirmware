@@ -1011,7 +1011,10 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 		return;
 	}
 
-	if (currentSong->project.arrangement.sections[clip->section()].num_repetitions != LAUNCH_EXCLUSIVE) {
+	// An arrangement-only clip has no section (255); it is never launch-exclusive.
+	const uint8_t section = clip->section();
+	if (section >= kMaxNumSections
+	    || currentSong->project.arrangement.sections[section].num_repetitions != LAUNCH_EXCLUSIVE) {
 		lastSectionArmed = REALLY_OUT_OF_RANGE;
 	}
 
