@@ -43,9 +43,19 @@ constexpr Micros kSettleUs = 2'000'000;
 constexpr Micros kWindowUs = 10'000'000;
 /// The jobs with no gap that only a wake or a request runs. On an idle app nothing asks for any of them.
 constexpr std::array kWakeDriven = {
-    "interpret encoders",    "reclaim retired", "buttons and pads", "song load",
-    "document save",         "sample claim",    "folder import",    "reversion",
-    "instrument load",       "settings io",     "startup failsafe", "Handle pending SysEx traffic.",
+    "interpret encoders",
+    "reclaim retired",
+    "buttons and pads",
+    "song load",
+    "document save",
+    "sample claim",
+    "folder import",
+    "reversion",
+    "instrument load",
+    "settings io",
+    "startup failsafe",
+    "stem export",
+    "Handle pending SysEx traffic.",
     "playback slow routine",
 };
 /// The job whose rate is bounded rather than zero.

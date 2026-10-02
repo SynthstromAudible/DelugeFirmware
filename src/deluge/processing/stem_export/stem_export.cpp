@@ -37,6 +37,8 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
+#include "model/sample/recorder_write_policy.h"
+#include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -49,6 +51,7 @@
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/string.h"
+#include <algorithm>
 #include <iterator>
 #include <libdeluge/scheduler.h>
 #include <new>
@@ -131,6 +134,7 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	exportIndex = (exportTotal != 0 && totalNumStemsToExport != 0) ? elementCount - 1 : -1;
 
 	exportPhase = ExportPhase::NEXT_ELEMENT;
+	deluge::runtime::appLoop.request(jobId);
 }
 
 void StemExport::exportRoutine() {
@@ -142,16 +146,69 @@ void StemExport::exportRoutine() {
 
 	case ExportPhase::NEXT_ELEMENT:
 		startNextElement();
-		return;
+		break;
 
 	case ExportPhase::AWAIT_ELEMENT:
 		driveElement();
-		return;
+		break;
 
 	case ExportPhase::FINISH:
 		finishExport();
+		break;
+	}
+	armNextRun();
+}
+
+void StemExport::armNextRun() {
+	using deluge::runtime::appLoop;
+	if (exportPhase == ExportPhase::NONE) {
 		return;
 	}
+	if (exportPhase != ExportPhase::AWAIT_ELEMENT) {
+		appLoop.request(jobId);
+		return;
+	}
+	const uint64_t now = deluge::runtime::nowUs();
+	if (!renderOffline) {
+		appLoop.requestAt(jobId, now + kLiveRecheckUs);
+		return;
+	}
+	const bool held = heldByCard();
+	if (!exportAwaitingDrain) {
+		if (!held) {
+			// The batch is spent: render on.
+			appLoop.request(jobId);
+			return;
+		}
+		if (!stemSearchActive_ && !audioRecorder.recorder->waitsOnChannel()) {
+			// The recorder's card routine moves on by itself on its next tick (its last answer ended a phase, and
+			// the next phase's request is not out yet): no answer will wake the job for it.
+			appLoop.request(jobId);
+			return;
+		}
+	}
+	// Each wait below is answered by a DELUGE_WAKE_STORAGE. The time is the run that looks again without one.
+	uint64_t next = deluge::runtime::kNever;
+	if (stemSearchActive_) {
+		// The stem-folder search, on the byte channel. A refused request is asked again after kRefusedRecheckUs, since
+		// an answer that ages out of the channel raises no wake; past the search's own bound the run gives it up.
+		next = std::min(stemSearchStall_.deadlineUs(), now + deluge::storage::bytes::kRefusedRecheckUs);
+	}
+	else if (held) {
+		// The recorder's card work. Every answer wakes the job, but the "audio slow" job drives the same card routine
+		// on its own gap, and a take it fails at the recorder's stall bound settles without a wake: look again then.
+		next = now + deluge::storage::kMaxUnproductiveUs;
+	}
+	if (exportAwaitingDrain) {
+		// Parked at the drain point. The loader wakes the app only on a whole drain: past the deadline the run asks for
+		// the drain again.
+		if (drainWait_.tick()) {
+			drainWait_.reset();
+			(void)drainWait_.tick();
+		}
+		next = std::min(next, drainWait_.deadlineUs());
+	}
+	appLoop.requestAt(jobId, next);
 }
 
 void StemExport::startNextElement() {
@@ -206,9 +263,15 @@ void StemExport::driveElement() {
 				break;
 			}
 			exportAwaitingDrain = false;
+			drainWait_.reset();
 
 			AudioEngine::slowRoutine();
 			audioRecorder.slowRoutine();
+			// Rendering on while the export waits on the card only buffers more audio in RAM: end the batch here,
+			// between two whole render iterations, and resume once the channel has answered.
+			if (heldByCard()) {
+				break;
+			}
 		}
 	}
 	else {
@@ -231,6 +294,21 @@ void StemExport::driveElement() {
 	}
 
 	exportPhase = ExportPhase::AWAIT_ELEMENT;
+}
+
+bool StemExport::heldByCard() const {
+	if (stemSearchActive_) {
+		return true;
+	}
+	const SampleRecorder* recorder = audioRecorder.recorder;
+	if (recorder == nullptr || recorder->hadCardError || recorder->settled()) {
+		return false;
+	}
+	if (recorder->status.load(std::memory_order_acquire) >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		return true;
+	}
+	return recorder->currentRecordClusterIndex.load(std::memory_order_acquire) - recorder->firstUnwrittenClusterIndex
+	       > kMaxOwedClusters;
 }
 
 void StemExport::finishExport() {
@@ -271,6 +349,8 @@ void StemExport::abortStemExportProcess(deluge::l10n::String reason) {
 	highestUsedStemFolderNumber++;
 	display->displayPopup(deluge::l10n::get(reason), 6);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
+	// The export sees the cancel on its next run, wherever it is parked.
+	deluge::runtime::appLoop.request(jobId);
 }
 
 /// Simulate pressing record and play in order to trigger resampling of out output that ends when loop ends

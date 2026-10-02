@@ -224,6 +224,13 @@ public:
 	/// outstanding, and freeing the recorder then frees the buffer the driver is writing from; a recorder
 	/// freed with its file open closes it synchronously.
 	[[nodiscard]] bool settled() const;
+	/// @brief Whether the card routine's next tick can only wait on the channel.
+	///
+	/// True while an operation it asked for is unanswered, and while one that was refused or answered UNKNOWN waits
+	/// to be asked again; the channel's next answer wakes the app for both, and the recorder's stall bound ends the
+	/// wait if none comes. False when the next tick moves on by itself (it asks for the next phase's operation, or
+	/// writes the next cluster), and when there is no card work left.
+	[[nodiscard]] bool waitsOnChannel() const;
 
 private:
 private:

@@ -37,6 +37,9 @@ What each check covers, and why each is separate:
                 missing folder is worth the folder retry. Its openStatus must be NO_FILESYSTEM (-11).
   RW-DRAIN      that the offline stem-export path still drains to completion. That loop calls the card routine in a
                 bounded loop expecting each call to COMPLETE a write.
+  RW-DRAIN-STEMS  that the drain's TRACK export actually wrote its stems: at least one WAV, none empty. A drain whose
+                folder search gives up records nothing and still terminates, so RW-DRAIN alone passes without a stem
+                ever being written.
 
 NOT covered: the stem-export folder search. Its machine is exercised only by the offline render RW-DRAIN runs, which
 starts the export after boot, so the search takes its CHANNEL arm there; no check reads its outcome beyond the render
@@ -203,6 +206,18 @@ def run(gate):
         )
         for line in drain.err.splitlines()[:20]:
             gate.say(line)
+    else:
+        stems_dir = gate.tmp / "drain-stems"
+        stems = sorted(stems_dir.rglob("*.WAV")) if stems_dir.is_dir() else []
+        empty = [stem.name for stem in stems if stem.stat().st_size == 0]
+        if not stems:
+            gate.fail(
+                "RW-DRAIN-STEMS — the TRACK export terminated without writing a stem"
+            )
+        elif empty:
+            gate.fail(f"RW-DRAIN-STEMS — empty stems: {', '.join(empty)}")
+        else:
+            gate.say(f"RW-DRAIN-STEMS stems={len(stems)}")
 
     if gate.failures:
         gate.say("recorder write: FAILED")

@@ -23,6 +23,7 @@
 #include "gui/l10n/strings.h"
 #include "io/stall_bound.h"
 #include "processing/sound/sound_drum.h"
+#include "runtime/app_loop.h"
 #include "util/c_string.h"
 #include <cstdint>
 #include <string>
@@ -43,12 +44,17 @@ public:
 	void stopPlayback();
 	void stopOutputRecording();
 
-	/// @brief Advances an in-flight export. Cheap no-op when none is running.
+	/// @brief Advances an in-flight export, then asks for the job's next run. Cheap no-op when none is running.
 	///
-	/// Registered as an app-loop job by registerJobs(). Each step returns here rather than blocking
-	/// per element, so the UI can keep servicing a cancellation and the fill task the render depends on
-	/// can keep running while an export is in flight.
+	/// Run by its own job (@ref jobId). Each step returns here rather than blocking per element, so the UI can keep
+	/// servicing a cancellation, and the fill task and the storage channels the render depends on can answer, while
+	/// an export is in flight.
 	void exportRoutine();
+
+	/// @brief The job exportRoutine() runs on, woken by DELUGE_WAKE_STORAGE. It runs when an export starts or is
+	///        aborted, when a storage channel answers or the streaming loader drains, and at the time the phase it is
+	///        parked in asks for (see armNextRun()).
+	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
 
 	/// @brief True from @ref startStemExportProcess until the export has torn down.
 	[[nodiscard]] bool isExportInFlight() const { return exportPhase != ExportPhase::NONE; }
@@ -143,12 +149,49 @@ public:
 	bool exportAwaitingDrain;
 	/// @}
 
+	/// @brief How long an offline render waits at the drain point for the streaming loader before it asks for the
+	///        drain again, in µs.
+	///
+	/// The loader wakes the app when its queue drains, which is what ends the wait. A failed read it re-enqueues at
+	/// the lowest priority stops the drain without a wake, and only a fresh drain request picks it up again. Measured
+	/// from the first look that found the queue not drained; the wait never gives up, it only asks again.
+	deluge::io::StallBound drainWait_{deluge::io::kChannelStallUs};
+
+	/// @brief How often a live export looks whether its element has finished, in µs.
+	///
+	/// The recording ends on the playback and recorder jobs, which raise no wake for this one.
+	static constexpr uint64_t kLiveRecheckUs = 6'000;
+
+	/// @brief Ask for the job's next run for the phase the export is parked in: at once for a phase that can move now
+	///        or an offline render that has blocks to go; when the render waits on the card, the wait's deadline (see
+	///        the body); the live re-check otherwise.
+	void armNextRun();
+
 	/// @name The export's steps, each one pass of the routine. Run where the caller stands.
 	/// @{
 	void startNextElement(); ///< Fetch and start the next element, or fall through to the teardown.
 	void driveElement();     ///< One bounded slice of an offline render, then re-check for the finish.
 	void finishExport();     ///< Restore, run the completion UI, and clear the export.
 	/// @}
+
+	/// @brief How many whole clusters an offline render may hold for the card before it waits for the card's
+	///        writes.
+	///
+	/// An offline render runs far faster than real time, and the recorder writes one cluster per channel answer.
+	/// Unbounded, the render outruns the card and the unwritten audio grows in RAM until the recorder runs out of
+	/// buffers; on a host whose single executor answers the channel only between job runs, a pass renders about 190
+	/// clusters for every 2 it writes. Two leaves one cluster in flight and the next one ready behind it, so the card
+	/// is never left idle waiting for the render.
+	static constexpr int32_t kMaxOwedClusters = 2;
+
+	/// @brief Whether the offline render can make no further progress inside this run, because what it waits for is
+	///        answered by the card.
+	///
+	/// True while the recorder's stem-folder search is out, while the recorder has finished capturing but still has
+	/// card work to do (only that work remains, so rendering on is waste), and while more than
+	/// @ref kMaxOwedClusters clusters are owed to the card. A recorder that has failed its take or has settled holds
+	/// nothing: it ends through its own stall bound.
+	[[nodiscard]] bool heldByCard() const;
 
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport(StemExportType stemExportType);

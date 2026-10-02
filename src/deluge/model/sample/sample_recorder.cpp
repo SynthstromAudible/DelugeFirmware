@@ -1643,6 +1643,31 @@ bool SampleRecorder::settled() const {
 	return current != RecorderStatus::ABORTED || abortPhase_ == AbortPhase::Done;
 }
 
+bool SampleRecorder::waitsOnChannel() const {
+	using deluge::storage::UnproductiveSpan;
+	if (inFlightClusterIndex_ >= 0) {
+		return true;
+	}
+	// ACQUIRE: the same decision read cardRoutine() makes.
+	const RecorderStatus current = status.load(std::memory_order_acquire);
+	if (current == RecorderStatus::ABORTED) {
+		return abortPhase_ != AbortPhase::Done && (abortIssued_ || abortSpan_.sinceUs != UnproductiveSpan::kNone);
+	}
+	if (current >= RecorderStatus::COMPLETE) {
+		return false;
+	}
+	if (hadCardError) {
+		return failedCloseIssued_;
+	}
+	if (filePathCreated.empty() || createPhase_ != deluge::storage::CreatePhase::Done) {
+		return createIssued_ || createSpan_.sinceUs != UnproductiveSpan::kNone;
+	}
+	if (current == RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
+		return finalizeIssued_ || finalizeSpan_.sinceUs != UnproductiveSpan::kNone;
+	}
+	return false;
+}
+
 void SampleRecorder::finishCluster(int32_t clusterIndex) {
 	// writeCluster() recycles this buffer's memory back to the free-list once the write succeeds --
 	// no separate "reason" to drop; we privately own it outright.
