@@ -15,28 +15,32 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/scheduler.h — cooperative task scheduling.
+/// libdeluge/scheduler.h — the BSP clock the app reads.
 ///
-/// The scheduler is a boundary service. Its canonical definition is the existing
-/// `OSLikeStuff/scheduler_api.h` (already a clean C API: opaque ids, plain
-/// functions). It is re-exported here so application code includes it via
-/// `<libdeluge/...>` like every other service.
-///
-/// MIGRATION: in a later step `scheduler_api.h` (and `clock_type.h`) move
-/// physically under `include/libdeluge/` and this forwarding include is dropped.
-/// Until then this header forwards to the current location so there is a single
-/// source of truth and no risk of drift.
-///
-/// ON EMBASSY: this same C API can be implemented on top of the Embassy executor
-/// (Stage 2 in docs/dev/libdeluge_bsp_design.md) — `addRepeatingTask` -> spawn a
-/// task with an embassy-time ticker, `RESOURCE_*` -> embassy-sync mutexes. The
-/// application keeps this interface either way.
+/// The app's work runs as jobs in its own loop (src/deluge/runtime/app_loop.h), which the BSP drives
+/// through deluge_app_service (app.h); the render runs on the BSP's audio tier
+/// (deluge_app_audio_tick). Also declares the clock tick type and rate (`dTime`,
+/// `DELUGE_CLOCKS_PER*`) that the C++ `Time` wrapper (`task_scheduler/clock_type.h`) is built on.
 #ifndef LIBDELUGE_SCHEDULER_H
 #define LIBDELUGE_SCHEDULER_H
 
-// NOTE: relative include reflects the pre-migration source layout; it is the one
-// include in this directory that intentionally reaches back into OSLikeStuff and
-// will be replaced by a physical move.
-#include "scheduler_api.h" // IWYU pragma: export
+#include "abi.h"
+#include <stdint.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/// A tick count at the board's fixed clock rate (see DELUGE_CLOCKS_PER).
+typedef int64_t dTime;
+#define DELUGE_CLOCKS_PER 33330000
+#define DELUGE_CLOCKS_PERf 33330000.
+
+/// Seconds elapsed since Embassy's monotonic clock started (`Instant::now()`) — effectively since
+/// boot. [task] [audio]
+double getSystemTime() DELUGE_NOEXCEPT;
+
+#ifdef __cplusplus
+}
+#endif
 #endif // LIBDELUGE_SCHEDULER_H

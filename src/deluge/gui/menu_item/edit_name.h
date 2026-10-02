@@ -24,7 +24,16 @@ namespace deluge::gui::menu_item {
 
 class EditName final : public MenuItem {
 public:
-	using MenuItem::MenuItem;
+	enum class Target {
+		CLIP,
+		DRUM,
+		AUDIO_OUTPUT,
+	};
+
+	EditName(l10n::String newName, Target target) : MenuItem(newName), target_{target} {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
+
+private:
+	Target target_;
 };
 } // namespace deluge::gui::menu_item

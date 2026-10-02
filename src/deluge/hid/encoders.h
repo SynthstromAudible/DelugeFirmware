@@ -17,7 +17,6 @@
 
 #pragma once
 
-#include "OSLikeStuff/scheduler_api.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -39,10 +38,6 @@ public:
 
 	/// Returns the accumulated signed detent count and resets pos to 0.
 	int32_t take();
-
-	/// Puts a value back (used by the SD card-routine retry path).
-	/// fetch_add rather than store so a detent that arrived from the IRQ since take() isn't clobbered.
-	void restore(int32_t val) { pos.fetch_add(val, std::memory_order_relaxed); }
 
 private:
 	int32_t edgeAccumulator = 0; ///< Accumulates A-pin edges until we have a full detent click. IRQ-only.
@@ -94,13 +89,5 @@ ContinuousEncoder& modEncoderAt(size_t i);    ///< 0=mod0 1=mod1
 /// Last AudioEngine::audioSampleTimer tick at which we noticed a change on one of the mod encoders.
 /// Defined in encoder_input.cpp; also written by view.cpp.
 extern uint32_t timeModEncoderLastTurned[];
-
-// ── Lifecycle ─────────────────────────────────────────────────────────────
-
-void init();
-
-/// Scheduler task that drains the encoders. It blocks itself after each run and is unblocked from the
-/// encoder IRQ, so it only consumes CPU when an encoder has actually moved. Set by registerTasks().
-extern TaskID EncoderTaskID;
 
 } // namespace deluge::hid::encoders

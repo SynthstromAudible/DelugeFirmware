@@ -2,7 +2,6 @@
 
 #include "deluge-project/param_address.h" // OwnerId
 #include "deluge-project/song.h"          // project: param_backup / backed_params
-#include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -12,20 +11,33 @@
 
 namespace deluge::edits {
 
-// Verbatim reification of InstrumentClipView::deleteDrum (non-undoable — no Consequence): remove the drum, reassign the
-// row to an unassigned drum (or delete an empty row), retire the drum's automation stores, then destruct + dealloc it.
+// Verbatim reification of InstrumentClipView::deleteDrum (non-undoable — no Consequence): end the drum's note and take
+// it out of the render's set, remove it, reassign the row to an unassigned drum (or delete an empty row), retire the
+// drum's automation stores, then hand the drum to the render to let go of and free.
 Error RemoveKitRow::apply(Context& ctx) {
 	auto* clip = static_cast<InstrumentClip*>(engineStack_->getTimelineCounter());
 	auto* kit = static_cast<Kit*>(clip->output);
 
-	kit->removeDrum(drum_);
-
 	// Find Drum's NoteRow
 	int32_t noteRowIndex;
 	NoteRow* noteRow = clip->getNoteRowForDrum(drum_, &noteRowIndex);
-	if (noteRow) {
-		ModelStackWithNoteRow* modelStackWithNoteRow = engineStack_->addNoteRow(noteRowIndex, noteRow);
 
+	// The drum may still be sounding (an audition pad held through LOAD/KIT and back), and the kit's render only
+	// ever reaches a drum in its renderingDrums: end its note and take it out of that set before removing
+	// it, as the preset-replace path (LoadInstrumentPresetUI::swapKitRow) does. Its voices are ended by the render
+	// when it lets go of the retired drum, below.
+	// TODO: renderingDrums is the render's set, written here from the interaction tier (swapKitRow does
+	// the same). A pre-existing cross-tier write, left for the interaction-side voice/render-set commands.
+	ModelStackWithNoteRow* modelStackWithNoteRow =
+	    (noteRow != nullptr) ? engineStack_->addNoteRow(noteRowIndex, noteRow) : nullptr;
+	if (noteRow) {
+		noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+	}
+	kit->renderingDrums.remove(drum_);
+
+	kit->removeDrum(drum_);
+
+	if (noteRow) {
 		// Give NoteRow another unassigned Drum, or no Drum if there are none
 		noteRow->setDrum(kit->getFirstUnassignedDrum(clip), kit, modelStackWithNoteRow);
 
@@ -40,14 +52,18 @@ Error RemoveKitRow::apply(Context& ctx) {
 		}
 	}
 
-	// Delete the Drum we came here to delete
+	// Delete the Drum we came here to delete: the render ends its voices and lets go of it before it is freed
 	ctx.model.param_backup.deleteForModControllable(drum_);
 	if (std::optional<uint32_t> drumId = drum_->id()) { // retire its tree-resident automation stores
 		ctx.model.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
 	}
-	void* toDealloc = dynamic_cast<void*>(drum_);
-	drum_->~SoundDrum();
-	delugeDealloc(toDealloc);
+	// Out of the kit for good: the render's let-go of the drum must not write back into the kit's
+	// renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering skips a null kit). Erase
+	// again first: a sequencer note-on between the first erase and the note row's reassignment re-inserts the drum,
+	// and after this nothing can name it. The render will own this set in later work.
+	kit->renderingDrums.remove(drum_);
+	drum_->kit = nullptr;
+	AudioEngine::retire(drum_);
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	return Error::NONE;

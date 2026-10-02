@@ -58,7 +58,7 @@ public:
 			info.setMode(current_value);
 		}
 	}
-	bool wrapAround() override { return display->have7SEG(); }
+	bool wrapAround() override { return false; }
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
 		bool shortOpt = optType == OptType::SHORT;

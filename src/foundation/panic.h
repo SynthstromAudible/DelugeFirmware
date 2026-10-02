@@ -53,7 +53,9 @@ void handle_cpu_fault(uint32_t addrSYSLR, uint32_t addrSYSSP, uint32_t addrUSRLR
 }
 #endif
 
-#if defined(__arm__)
+// The pad-grid fault report needs the board (its transport and code ranges), so a host build freezes without it, even
+// when compiled for ARM.
+#if defined(__arm__) && !defined(DELUGE_HOST)
 #define FREEZE_WITH_ERROR(error)                                                                                       \
 	({                                                                                                                 \
 		uint32_t regLR = 0;                                                                                            \

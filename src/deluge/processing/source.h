@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/sample_controls.h"
+#include "storage/audio/sample_load_walk.h"
 #include "storage/multi_range/multi_range_array.h"
 #include "util/phase_increment_fine_tuner.h"
 
@@ -72,7 +73,10 @@ public:
 
 	int16_t defaultRangeI; // -1 means none yet
 
-	bool renderInStereo(Sound* s, SampleHolder* sampleHolder = nullptr);
+	/// Whether this source renders in stereo. Static + fully parameterised (no `Sound`/`Source` reach) so the
+	/// voice kernel can call it straight off its per-block config. Still reads `AudioEngine` stereo/input globals.
+	static bool renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
+	                           SampleHolder* sampleHolder);
 	void setCents(int32_t newCents);
 	// M3 owner-5 slice G: setters that write the DocSource record (when bound) alongside the native cache. Every menu /
 	// runtime write site funnels through these; save reads the record.
@@ -84,7 +88,10 @@ public:
 	void recalculateFineTuner();
 	int32_t getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching = false);
 	void detachAllAudioFiles();
-	Error loadAllSamples(bool mayActuallyReadFiles);
+	/// @brief Report each range's file to @p visitor, with a checkpoint before each. Loads nothing.
+	/// @param visitor Receives a demand for each range's audio file and a checkpoint before each one.
+	/// @return Walk::Stop if a checkpoint stopped the walk.
+	deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	void setReversed(bool newReversed);
 	int32_t getRangeIndex(int32_t note);
 	MultiRange* getRange(int32_t note);

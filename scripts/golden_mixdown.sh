@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 #
+# RENDER VERBS UNAVAILABLE ON THIS BRANCH: the sample-streaming golden runs on the async Embassy
+# renderer, and this branch has no C-host `deluge_render` target for check/update/padsweep to
+# drive. Use `scripts/golden_embassy_diff.sh <fixture> [check|update|padsweep]` for the async
+# song-render golden instead — including the `padsweep` layout-invariance guard, which it
+# implements on the Embassy renderer. Only the `reconstruct` verb below remains in use (it rebuilds a
+# fixture's project tree from the backup corpus and drives no renderer — `src/bsp/rust/src/storage/sd_image.rs`
+# calls it).
+#
 # Golden A/B harness for the headless Cordae render (deluge_render).
 #
 # Renders the Cordae song deterministically and byte-compares the output stem against a
@@ -73,7 +81,12 @@ reconstruct_project() {
 		else
 			echo "  WARN missing sample: $src"; miss=$((miss+1))
 		fi
-	done < <(grep -ho 'fileName="[^"]*"' "$SONG_DIR/$SONG_XML" | sed 's/fileName="//;s/"$//' | sort -u)
+	# Both attributes matter: `fileName=` covers kit/synth sample refs, `filePath=` covers audioClip
+	# recordings. Grepping only fileName= would silently drop the audio-clip refs (36 in the icoustic
+	# fixture), leaving those samples absent from the reconstructed project — quietly shrinking what
+	# the golden render actually exercises.
+	done < <(grep -hoE '(fileName|filePath)="[^"]*"' "$SONG_DIR/$SONG_XML" \
+		| sed -E 's/^(fileName|filePath)="//; s/"$//' | sort -u)
 	echo "  samples: $ok copied, $miss missing"
 }
 

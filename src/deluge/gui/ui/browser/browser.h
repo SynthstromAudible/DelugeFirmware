@@ -18,43 +18,32 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/browser/file_listing.h"
 #include "gui/ui/qwerty_ui.h"
 #include "hid/button.h"
 #include "io/debug/log.h"
 #include "model/favourite/favourite_manager.h"
+#include "storage/deferred_load.h"
 #include "storage/file_item.h"
 #include "util/containers.h"
 
-extern "C" {
-#include "fatfs/ff.h"
-
-FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory object */
-                                  FILINFO* fno, /* Pointer to file information to return */
-                                  FilePointer* filePointer);
-}
+#include <expected>
+#include <optional>
+#include <string>
 
 class Instrument;
 class FileItem;
-class NumericLayerScrollingText;
 class Song;
-
-// FIXME: std::expected<std::pair<bool, FileItem*>, Error>
-struct PresetNavigationResult {
-	FileItem* fileItem;
-	bool loadedFromFile;
-	Error error;
-};
 
 struct Slot {
 	int16_t slot;
 	int8_t subSlot;
 };
 
-#define NUM_FILES_ON_SCREEN 3
-
-#define CATALOG_SEARCH_LEFT 0
-#define CATALOG_SEARCH_RIGHT 1
-#define CATALOG_SEARCH_BOTH 2
+using deluge::gui::browser::CatalogSearch;
+using deluge::gui::browser::Collation;
+using deluge::gui::browser::FileListing;
+using deluge::gui::browser::SearchHit;
 
 #define FILE_ITEMS_MAX_NUM_ELEMENTS 20
 #define FILE_ITEMS_MAX_NUM_ELEMENTS_FOR_NAVIGATION 20 // It "should" be able to be way less than this.
@@ -65,73 +54,482 @@ class Browser : public QwertyUI {
 public:
 	Browser();
 
-	void close();
+	/// @brief Tear the browser down, cancelling anything it has in flight.
+	///
+	/// `virtual` deliberately, unlike `UI::close()` which it hides. A subclass with its own in-flight
+	/// work — `DxSyxBrowser`'s cartridge read — has to be able to cancel it here, and the call that
+	/// matters comes through `exitAction()`, where the static type is `Browser`. A non-virtual
+	/// subclass `close()` would compile, look right, and never run on the path that actually closes
+	/// the browser.
+	virtual void close();
 	virtual std::string getCurrentFilePath() = 0;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	void currentFileDeleted();
 	Error goIntoFolder(char const* folderName);
 	Error createFolder();
 	Error createFoldersRecursiveIfNotExists(const char* path);
 	void selectEncoderAction(int8_t offset) override;
 	static FileItem* getCurrentFileItem();
-	Error readFileItemsForFolder(char const* filePrefixHere, bool allowFolders, char const** allowedFileExtensionsHere,
+	/// @brief Read one folder's entries into @ref listing.
+	/// @param dirToRead The folder to open. Passed rather than taken from `currentDir`: a read no
+	///        longer moves the browser's navigation, so the two can legitimately differ.
+	/// @param into The listing to fill.
+	Error readFileItemsForFolder(FileListing& into, const std::string& dirToRead, char const* filePrefixHere,
+	                             bool allowFolders, char const** allowedFileExtensionsHere,
 	                             char const* filenameToStartAt, int32_t newMaxNumFileItems,
-	                             int32_t newCatalogSearchDirection = CATALOG_SEARCH_BOTH);
+	                             CatalogSearch newCatalogSearchDirection = CatalogSearch::Both);
 	Error setFileByFullPath(OutputType outputType, char const* fullPath);
+	/// @brief Sort the listing by this browser's collation.
+	///
+	/// Stays on Browser because the collation is a Browser property -- `shouldInterpretNoteNamesForThisBrowser`
+	/// -- while the sorting itself belongs to the listing. That split is the reason this was an
+	/// instance member while its siblings were `static`.
 	void sortFileItems();
-	FileItem* getNewFileItem();
 	static void emptyFileItems();
-	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
-	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
 	Error getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName);
 	bool opened() override;
-	void cullSomeFileItems();
-	bool checkFP();
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
-	static std::string currentDir;
-	static deluge::vector<FileItem> fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
-	/// Mirrors CStringArray::search(): binary search by displayName using strcmpspecial; returns the matching
-	/// index, or the insertion point if not found. Set shouldInterpretNoteNames and octaveStartsFromA first.
-	static int32_t searchFileItems(char const* searchString, bool* foundExact = nullptr);
-	static int32_t numFileItemsDeletedAtStart;
-	static int32_t numFileItemsDeletedAtEnd;
-	static char const* firstFileItemRemaining;
-	static char const* lastFileItemRemaining;
-
-	static OutputType outputTypeToLoad;
-	static char const* filenameToStartSearchAt;
+	/// @brief The per-tick surface, and FINAL on purpose.
+	///
+	/// The listing pump lives here, and a subclass must not be able to skip it. Subclasses put their
+	/// own per-tick work in browserGraphicsRoutine() instead, which this calls.
+	///
+	/// `final` because the alternative failed silently. SampleBrowser and LoadSongUI both overrode
+	/// graphicsRoutine() and tail-called UI::graphicsRoutine() — a shape that, once the base acquired
+	/// per-tick work of its own, would have skipped it entirely on the two most-used browsers, with
+	/// nothing to say so. The guarantee wanted here is structural, not a runtime assertion: writing
+	/// the override on the wrong function must not compile.
+	void graphicsRoutine() final;
 
 	// ui
+
+	/// @brief Where the browser IS: the folder the user has navigated to.
+	///
+	/// Not the same thing as `listing.dir()`, which is the folder the current items were READ from.
+	/// They agree while the browser sits still, and a walk that reads other folders is exactly when
+	/// they must not be confused for one another.
+	static std::string currentDir;
+
+	/// @brief The folder the browser is showing.
+	///
+	/// One instance: one browser is open at a time, which is what the seven statics this replaces
+	/// already assumed.
+	static FileListing listing;
+
+	static OutputType outputTypeToLoad;
+
+	/// @brief True while a listing begun by beginListing() is in flight.
+	///
+	/// A caller that drives beginListing() from outside the normal HID-event flow (e.g. a headless
+	/// harness) needs this to know when it's safe to act on the listing's result
+	/// (getCurrentFileItem() etc) instead of racing it.
+	/// @return True while a listing is in flight; false once it has completed (or none was started).
+	static bool isListingInProgress() { return listingInProgress_; }
+
+	/// @brief How many times getUnusedSlot() has run. For gates only.
+	///
+	/// getUnusedSlot names a brand-new slot by READING the folder, from inside a listing that is
+	/// already running. A gate needs to prove that a listing which suspended in that read does not
+	/// name a second time when it resumes — `pickBrandNewName`'s `enteredText.empty()` guard is what
+	/// prevents it. This counter lets a gate measure that guard rather than assume it.
+	[[nodiscard]] static int32_t unusedSlotCalls();
+
+	/// @brief Every directory open the browser has ever made. For gates only.
+	///
+	/// NOT `ListingState::opensThisListing`, and the difference is the whole point: a listing that
+	/// RESTARTS re-arms `listing_` and resets that member, so it cannot see the restart it is meant to
+	/// catch. This one is never reset, so redone opens show up as a higher total.
+	[[nodiscard]] static int32_t totalDirectoryOpens();
+
+	/// @brief Every directory-channel request the browser has issued. For gates only.
+	///
+	/// A request goes out only when the channel answers UNKNOWN for the open in hand, which for a listing or prediction
+	/// that resumes is once per open. One that restarted from the top would ask again for an open it had already made,
+	/// so a gate that counts more requests than opens has caught a restart.
+	[[nodiscard]] static int32_t directoryRequests();
+
+	/// @brief How many listings have failed through @ref onListingFailed. For gates only.
+	[[nodiscard]] static int32_t listingFailures();
+
+	/// @brief The error the most recent of those failures reported. For gates only.
+	[[nodiscard]] static Error lastListingFailure();
+
+	/// @brief How long a directory open may go unanswered by the channel before the listing gives up, in
+	///        microseconds: 9 s, two and a half channel stall bounds, long enough for a slow card and short enough that
+	///        a dead one ends the listing with an error.
+	static constexpr uint64_t kDirectoryStallUs = 9'000'000;
+
+	/// @brief When the directory open in hand gives up if the channel does not answer it first, on the app loop's
+	///        clock (µs); kNever when no open is waiting. A caller that runs only when woken and was told
+	///        Error::LISTING_DEFERRED asks for a run at this time: the channel's answer raises DELUGE_WAKE_STORAGE
+	///        sooner.
+	[[nodiscard]] static uint64_t directoryWaitDeadlineUs();
+
+	/// @brief How many reloads -- the scroll past a culled window's edge -- have started. For gates only.
+	[[nodiscard]] static int32_t reloadsRun();
+
 	ActionResult exitUI() override {
 		exitAction();
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}
 	bool isFavouritesVisible() override;
 	bool isBanksVisible() override;
+	void favouritesBankApplied() override { favouritesChanged(); }
 
 protected:
 	Error setEnteredTextFromCurrentFilename();
 	Error goUpOneDirectoryLevel();
 	virtual Error arrivedInNewFolder(int32_t direction, char const* filenameToStartAt = nullptr,
 	                                 char const* defaultDir = nullptr);
-	bool predictExtendedText() override;
+	bool predictExtendedText(std::optional<int32_t> editPosOnFailure = std::nullopt) override;
 	void goIntoDeleteFileContextMenu();
 	ActionResult mainButtonAction(bool on);
 	virtual void exitAction();
 	virtual ActionResult backButtonAction();
+	/// @brief A subclass's own per-tick work. Called by graphicsRoutine() after the base's.
+	///
+	/// Override this, never graphicsRoutine() — which is `final` precisely so that the mistake is a
+	/// compile error rather than a browser whose listing silently stops being pumped. There is no
+	/// need to chain to UI::graphicsRoutine(): the base makes that call once, for everybody.
+	virtual void browserGraphicsRoutine() {}
+
 	virtual void folderContentsReady(int32_t entryDirection) {}
 	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false) override;
+	// Keeps the selected file index and top visible browser row inside Browser::listing.
+	void clampFileSelectionAndScroll(bool allowNoFileSelection = true);
+
+	// --- async-listing base machinery ---
+	//
+	// One active listing at a time (browser state is already static/shared, e.g. fileItems),
+	// so the pending request + flag are static too.
+	enum class ListingAction { Open, IntoFolder, UpLevel, Reload, ByPath };
+
+	/// @brief What a reload does once its read lands. Carried on the request and the machine; empty for every other
+	///        action. The turn itself is the request's `direction`, and is not repeated here.
+	struct ReloadTail {
+		bool searchFromEnd{}; ///< read from the far end rather than around the entered name
+		CatalogSearch searchDirection{CatalogSearch::Both}; ///< which end, when searchFromEnd
+	};
+
+	struct ListingRequest {
+		ListingAction action;
+		int32_t direction; ///< arrivedInNewFolder direction (0 open, ±1 nav); a Reload's encoder turn
+		// params captured per-action (owned copies -- a listing outlives the call that began it):
+		std::string filenameToStartAt;    ///< Open
+		std::string defaultDir;           ///< Open
+		std::string folderOrPath;         ///< IntoFolder (folder name) / ByPath (full path)
+		std::optional<ReloadTail> reload; ///< Reload
+	};
+	static bool listingInProgress_;
+	static ListingRequest pendingListing_;
+
+	/// @brief What a listing begun inside an open browser may replace, kept so a failure can put it back.
+	///
+	/// A listing started while a completed listing is on screen -- into a folder, up a level, a favourite by path, a
+	/// change of output type, a reload -- changes the directory and entered text before it reads anything, and a read
+	/// that succeeds replaces the file list before a later step can still fail. The browser can stay open on a failure
+	/// only by showing what was there before, so all of it is copied when the listing begins. `FileItem` owns nothing,
+	/// so the copy is a plain one.
+	struct ListingRestore {
+		std::string currentDir;
+		/// The whole listing, in one field: the items, both counters and both bracket names, so
+		/// restoring it is a plain assignment rather than copying each piece by hand.
+		FileListing listing;
+		int32_t fileIndexSelected{};
+		int32_t scrollPosVertical{};
+		int32_t scrollPosHorizontal{};
+		std::string enteredText;
+		int16_t enteredTextEditPos{};
+		bool arrivedAtFileByTyping{};
+		bool qwertyVisible{};
+	};
+	/// @brief Whether a completed listing is on screen. Set when a listing succeeds; cleared by opened() and close().
+	static bool listingShown_;
+	/// @brief What to put back if the listing in progress fails. Empty for a listing that opens the browser, which
+	///        closes it on failure instead, and for one there was no memory to copy for.
+	static std::optional<ListingRestore> listingRestore_;
+	/// @brief Whether @ref captureListingRestore has already run for the next beginListing(), which then keeps that
+	///        copy rather than taking its own.
+	static bool listingRestoreTaken_;
+	/// @brief Whether the failure being reported put the previous listing back. Read by @ref onListingFailed.
+	static bool listingRestored_;
+	/// @brief Copy what the next listing may replace, if a completed listing is on screen.
+	///
+	/// beginListing() calls this itself. A caller that changes browser state before calling beginListing() calls this
+	/// first instead, and must then reach beginListing() without returning in between. While a listing is in progress
+	/// it keeps the copy it has: that listing may already have changed the directory or emptied the list, and the copy
+	/// it took before changing anything is still the one to put back.
+	static void captureListingRestore();
+	/// @brief Put back what the failed listing replaced.
+	/// @return Whether there was anything to put back.
+	static bool restoreListing();
+
+	/// @brief The parameters of ONE directory read.
+	///
+	/// A listing makes up to three reads and they genuinely differ — the post-cull re-read drops the
+	/// search string, and the brand-new-name re-read changes the output type, the prefix AND the
+	/// search direction — so they are carried rather than recomputed from the caller's arguments.
+	struct ListingRead {
+		/// @brief The directory to read.
+		///
+		/// REWRITTEN by the missing-folder fallback, which moves the read to `defaultDirToAlsoTry`.
+		/// That is why a suspended read must resume with this same object rather than a freshly built
+		/// one: a read that deferred mid-fallback would otherwise re-run the fallback against the
+		/// directory it had already moved away from.
+		std::string dir;
+		OutputType outputType{};
+		char const* filePrefix{};
+		std::string filenameToStartAt;
+		char const* defaultDirToAlsoTry{}; ///< null on both re-reads: a fallback happens once
+		bool allowFolders{true};
+		CatalogSearch catalogSearchDirection{CatalogSearch::Right};
+		/// Whether the song's own Instruments are merged into the listing alongside the folder's files. The blank
+		/// song's walk clears it: its default synth is named "0" and would be the first thing the walk landed on.
+		bool includeSongInstruments{true};
+		/// Create the directory before opening it — the missing-folder fallback's `mkdir`, moved onto
+		/// the storage tier by riding the channel's request instead of running inline. Set only on the
+		/// async arm; the synchronous arm runs only before boot finishes, where an inline mkdir is
+		/// legal.
+		bool createIfMissing{};
+		/// @brief Whether this read has already created the default folder.
+		///
+		/// Per-read state that must survive a deferral -- a listing that deferred after creating the
+		/// folder would otherwise `mkdir` it again on resume and read the resulting EXISTS as
+		/// terminal -- so it belongs with the read.
+		bool triedCreatingFolder{};
+
+		/// @brief Drop the search string, and the search DIRECTION that depends on it.
+		///
+		/// The two must move together or the cull dereferences a null pointer. `cullSomeFileItems`
+		/// only consults `listing.searchName()` under CatalogSearch::Both — the "tend towards equal
+		/// amounts either side" branch — and it consults it by calling `searchFileItems`, which hands
+		/// it straight to `strcmpspecial`. So a read with no search string but a BOTH direction
+		/// null-derefs the moment the folder holds enough entries to cull.
+		///
+		/// The pairing was implicit and the missing-folder fallback got it wrong — it cleared the
+		/// search string and left the direction alone. That is NOT currently reachable, and the reason
+		/// is worth writing down: `readFileItemsForFolder` maps its directory-open failure through
+		/// `delugeStatusToError`, which collapses NOT_FOUND onto `Error::FILE_NOT_FOUND`, so the
+		/// fallback's `Error::FOLDER_DOESNT_EXIST` test can never be true and the whole fallback is
+		/// dead code. Whoever revives it — a browser entered on a missing folder is *supposed* to fall
+		/// back to its default directory and create it — would otherwise revive the crash with it. It
+		/// is one function now so the two cannot be separated again.
+		void dropSearchString() {
+			filenameToStartAt.clear();
+			catalogSearchDirection = CatalogSearch::Right;
+		}
+	};
+
+	/// @brief Which part of a listing runs next.
+	///
+	/// A listing is not one directory open. `arrivedInNewFolder` opens nothing itself; between it and
+	/// `readFileItemsForFolder` sit three retry loops — a missing folder falls back to
+	/// `defaultDirToAlsoTry` and then to `mkdir`, a culled listing is re-read from the start, and a
+	/// brand-new name forces a third read. One listing performs up to FOUR opens, on two paths, with
+	/// a filesystem mutation between, and which of them happen depends on what the earlier ones
+	/// returned.
+	///
+	/// Each of those opens can defer, so the listing has to suspend and resume BETWEEN them — and,
+	/// critically, must never redo an open it has already made. Re-running the whole listing from the
+	/// top was tried and cannot work: `readdir_next` MOVES each name out of the directory snapshot as
+	/// it walks (`storage/efatfs/portable.rs`, "a given entry can only be read once", deliberately, because a
+	/// large snapshot is what leaves the arena short), so a directory cannot be enumerated twice from
+	/// one handle. A re-run therefore needs a fresh open for every open it already made, which a
+	/// single-slot channel cannot serve, and the listing livelocks.
+	///
+	/// Hence an explicit machine: `Read` performs the pending read, `Select` is the pure tail that
+	/// decides what to make current, and either may hand back to `Read` with new parameters.
+	enum class ListingPhase : uint8_t {
+		Read,         ///< perform ListingState::read — at most one open per entry, then advance
+		Select,       ///< the pure selection tail over whatever the read produced
+		ReloadSelect, ///< a reload's tail: the index its turn asked for, then finishSelectEncoderAction
+		Finalize,     ///< folderContentsReady()
+		Done,
+	};
+
+	/// @brief Everything a suspended listing needs in order to resume where it left off.
+	///
+	/// Static for the same reason `pendingListing_` is: one listing at a time. Nothing here is
+	/// captured-and-restored — the machine never re-runs a step, so there is nothing to undo.
+	struct ListingState {
+		bool active{};
+		ListingPhase phase{ListingPhase::Read};
+		ListingRead read;
+		int32_t direction{};
+		/// Whether the selection tail runs after the read that is pending. TRUE by default and for the
+		/// post-cull re-read; FALSE only for the brand-new-name re-read, which falls straight through
+		/// to "no file selected" exactly as the original `goto useNonExistentFileName` did.
+		bool rerunSelectionAfterRead{true};
+		/// Whether the read that just completed had a search string — the selection tail branches on
+		/// it, and by then `read.filenameToStartAt` may already have been rewritten.
+		bool readHadSearchString{};
+		/// How many opens this listing has made, across the WHOLE listing rather than per resumption. A gate
+		/// compares it with the requests the listing issued.
+		int32_t opensThisListing{};
+		/// Whether the selection found the search string EXACTLY. `ListingAction::ByPath` is the one
+		/// caller that needs to know, and it needs it as an existence answer: a favourite naming a file
+		/// that has been deleted must report FILE_NOT_FOUND rather than silently selecting whatever
+		/// sorted into its place. Recorded by the search the selection already performs, rather than
+		/// searched for a second time, so the two cannot disagree about what "the same name" means.
+		bool foundExactMatch{};
+		/// How many times this listing suspended. Zero on the synchronous arm by construction, so a
+		/// gate can require it to be non-zero and know the async path was actually reached rather than
+		/// quietly answered by a direct open.
+		int32_t deferrals{};
+		/// Set for a reload: the Read phase hands over to ReloadSelect instead of the ordinary selection.
+		std::optional<ReloadTail> reload;
+	};
+	static ListingState listing_;
+
+	/// @brief Everything a suspended typing prediction needs in order to resume where it left off.
+	///
+	/// Prediction performs up to FIVE reads per call: `doneNewRead` guards the re-read, but the
+	/// extra-zeroes branch clears it before looping back, so each of the four attempts can read again.
+	/// Restarting from the top would therefore livelock against the single-slot channel exactly as the
+	/// listing did — read #1 takes the answer and consumes the slot, read #2 finds it empty and
+	/// defers, the restart consumes the freshly published answer again. So the loop's progress is
+	/// carried and the re-entry continues from it.
+	struct PredictionTarget {
+		std::string searchString;      ///< as extended so far, including any appended zeroes
+		int32_t numExtraZeroesAdded{}; ///< how far through the extra-zero attempts
+		bool doneNewRead{};            ///< whether this search string has already been re-read
+		/// The file selected when the prediction STARTED, so the tail can tell whether it landed
+		/// somewhere new. NOT recomputable on resumption: a read rebuilds fileItems, so
+		/// getCurrentFileItem() afterwards names a different file and the comparison would either
+		/// fire a spurious preview or miss a real one.
+		std::string oldFilename;
+		/// What to restore if the prediction ultimately fails — and OPTIONAL, because only ONE of the
+		/// four call sites consumes the result. `qwerty_ui.cpp`'s pad-typing path undoes the character
+		/// on false; the two backspace paths and the horizontal-encoder path ignore it, and a
+		/// resumption that undid unconditionally would corrupt all three.
+		std::optional<int32_t> editPosOnFailure;
+	};
+
+	struct PredictionState {
+		bool active{};
+		PredictionTarget target;
+		int32_t opensThisPrediction{}; ///< reads that reached the filesystem; the gate counts on it
+	};
+	static PredictionState prediction_;
+	/// @brief The prediction waiting to be re-driven, if one suspended.
+	///
+	/// A plain optional rather than `DeferredLoad`, deliberately. DeferredLoad exists for work that
+	/// is DISPATCHED — its generations, in-flight flag and is_current answer "is the op that came
+	/// back still the one we wanted?". A prediction dispatches nothing: it defers inline and is
+	/// re-driven inline from the tick, so none of that applies, and `request()` would not even arm
+	/// the pending slot (that is `complete()`'s job for an op that reported back).
+	///
+	/// Latest-wins falls out of assignment: a second keystroke starts a new prediction, which
+	/// overwrites this before the tick sees the old one.
+	static std::optional<PredictionTarget> pendingPrediction_;
+
+	/// @brief The search loop, over `prediction_.target`. See @ref PredictionTarget.
+	bool continuePrediction();
+
+	/// @brief What the selection tail decided to do next.
+	enum class SelectionOutcome : uint8_t {
+		Finalize,         ///< a file is selected; run the completion hook
+		UseNonExistent,   ///< no file selected; clear the selection, then finalize
+		RereadFromStart,  ///< re-read this folder with no search string, then run selection AGAIN
+		RereadForNewName, ///< re-read for the brand-new name, then UseNonExistent
+	};
+
+	/// @brief Run the listing until it completes, fails, or needs an open that is not ready.
+	/// @return Error::NONE when the listing is complete, Error::LISTING_DEFERRED when it suspended
+	///         (call again; nothing has advanced past the pending open), or the failure.
+	Error stepListing();
+	/// @brief Dispatch the pending action's own start — its pre-work plus the listing it asks for.
+	Error startPendingListing();
+	/// @brief Run the pending action's completion tail, once the listing has finished.
+	Error finishPendingListing();
+	/// @brief Perform ListingState::read, including its missing-folder fallback and mkdir retry.
+	/// @return As @ref stepListing. Each iteration of the fallback is one open; a deferral leaves the
+	///         state already advanced past any fallback it took, so resuming does not redo it.
+	Error performListingRead();
+	/// @brief The selection tail: pure, no I/O, decides what a completed read makes current.
+	[[nodiscard]] std::expected<SelectionOutcome, Error> applyListingSelection();
+	/// @brief Settle on the file at fileIndexSelected: name it and bring it into view.
+	[[nodiscard]] std::expected<SelectionOutcome, Error> useFoundFile();
+	/// @brief Nominate a brand-new name if one was not already, asking for the re-read it forces.
+	[[nodiscard]] std::expected<SelectionOutcome, Error> pickBrandNewName();
+
+	friend class BrowserListingAbProbe;
+	friend class PathOperationsBrowserProbe;
+	/// The preset-load gate's AQ legs check that a walk leaves allowedFileExtensions as it found it.
+	friend class PresetAcquireProbe;
+
+	/// @brief Begin `req`'s listing, which graphicsRoutine() then runs on this tier until it completes.
+	///
+	/// Sets listingInProgress_ and shows the loading indicator. Nothing is dispatched.
+	/// @param req The listing to run.
+	/// @return Always true: a listing can no longer be dropped. Kept for the callers that test it.
+	bool beginListing(ListingRequest req);
+	/// @brief Whether a directory open made here goes through the directory channel rather than opening directly.
+	/// @return True once boot has finished. False before it (boot, and the unit tests, which link no BSP and
+	///         never finish booting), where a direct open is legal.
+	[[nodiscard]] static bool usingDirectoryChannel();
+	/// @brief Obtain `path` as an open Directory: through the directory channel when @ref usingDirectoryChannel says
+	///        so, and by a direct open otherwise.
+	/// @param path NUL-terminated directory path.
+	/// @param createIfMissing Create `path` before opening it. Only the channel honours this; a direct open ignores
+	///        it, so a caller on the inline arm creates the folder itself.
+	/// @return The open Directory, or the Error that stopped it — which may be
+	///         @ref Error::LISTING_DEFERRED, meaning "not a failure; the attempt will be re-run", or
+	///         Error::SD_CARD once the channel has left one open unanswered for 600 consecutive ticks.
+	[[nodiscard]] static std::expected<deluge::io::Directory, Error> openDirectoryForListing(char const* path,
+	                                                                                         bool createIfMissing);
+
+	/// @brief Start or resume the pending listing, and run its completion hooks once it ends. Called from
+	///        graphicsRoutine() each tick while listingInProgress_.
+	void runPendingListing();
+
+	// Completion hooks (run inside the listing):
+	virtual void onBrowserOpened() {} ///< Open-only bespoke tail (default empty).
+	/// @brief Default handling for a failed listing: displayError(), then close() (not exitAction()) -- unless the
+	///        listing began inside an open browser and put back what it replaced, in which case the browser stays
+	///        open on it.
+	/// @param error The failure reported by the listing.
+	virtual void onListingFailed(Error error);
+
+	// Bodies of the listing actions, run inside runPendingListing().
+	Error openListingImpl(int32_t direction, char const* filenameToStartAt, char const* defaultDir);
+	Error goIntoFolderImpl(char const* folderName);
+	Error goUpOneDirectoryLevelImpl();
+	Error setFileByFullPathImpl(char const* fullPath);
+	Error reloadImpl(int32_t direction);
+
+	/// @brief Shared selectEncoderAction tail: applies the fileIndexSelected/scroll update and fires
+	///        currentFileChanged.
+	///
+	/// Runs either synchronously (no reload needed) or from reloadImpl() inside the listing.
+	/// @param newFileIndex The newly selected file index.
+	/// @param offset       The encoder offset that produced this selection.
+	/// @return Error::NONE on success, or the failure from the underlying reload/selection.
+	Error finishSelectEncoderAction(int32_t newFileIndex, int8_t offset);
 	static Slot getSlot(char const* displayName);
-	Error readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
-	                                       char const* filenameToStartAt, char const* defaultDirToAlsoTry,
-	                                       bool allowFoldersint,
-	                                       Availability availabilityRequirement = Availability::ANY,
-	                                       int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+	/// Returns the character just past filePrefix within `name`, or nullptr if `name` does not start with filePrefix.
+	/// Names always carry the prefix; only *rendering* strips it.
+	char const* nameAfterPrefix(char const* name) const;
+	/// @brief Perform one folder read into the browser's file list: the folder's files, merged with
+	///        the song's own Instruments, sorted and trimmed.
+	///
+	/// Takes @p read by REFERENCE because the missing-folder fallback rewrites it — it moves the read
+	/// to `defaultDirToAlsoTry` and drops the search string — and a read that suspends mid-fallback
+	/// has to resume with those rewrites already applied, or it re-runs the fallback against the
+	/// directory it had already moved away from, with the wrong search string. A caller that does not
+	/// care about the rewrites passes a temporary and lets it go.
+	///
+	/// @param into The listing to fill. The browser's own for a listing, a walk's own for a walk --
+	///        which is the point: a read does not imply whose list is being replaced.
+	/// @param read The read to perform; MUTATED by the fallback.
+	/// @return Error::LISTING_DEFERRED when the directory channel has not answered yet — ask again
+	///         with this same @p read, and no open is ever made twice.
+	Error readFolder(FileListing& into, ListingRead& read);
 	void favouritesChanged();
 
 	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or
@@ -149,8 +547,7 @@ protected:
 	int32_t fileIconPt2Width;
 
 	// 7Seg Only
-	static int8_t numberEditPos; // -1 is default
-	static NumericLayerScrollingText* scrollingText;
+	static int8_t numberEditPos;   // -1 is default
 	bool shouldWrapFolderContents; // As in, wrap around at the end.
 
 	bool mayDefaultToBrandNewNameOnEntry;
@@ -164,8 +561,10 @@ inline void printInstrumentFileList(const char* where) {
 	D_PRINT("\n");
 	D_PRINT(where);
 	D_PRINT(" List: \n");
-	for (FileItem const& fileItem : Browser::fileItems) {
-		D_PRINTLN(" - %s (%lu)", fileItem.displayName, fileItem.filePointer.sclust);
+	for (FileItem const& fileItem : Browser::listing.items()) {
+		// .c_str(): displayName() returns const std::string&, and passing a
+		// non-trivial type through a variadic function is undefined behaviour.
+		D_PRINTLN(" - %s", fileItem.displayName().c_str());
 	}
 	D_PRINT("\n");
 }

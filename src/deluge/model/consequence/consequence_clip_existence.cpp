@@ -30,6 +30,7 @@
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/audio_engine.h"
 #include "util/misc.h"
 
 ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* newClipArray,
@@ -41,6 +42,9 @@ ConsequenceClipExistence::ConsequenceClipExistence(Clip* newClip, ClipArray* new
 
 void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn, Song* song) {
 	if (whichQueueActionIn != util::to_underlying(type)) {
+		// The clip is in its deleted state here: out of its song's arrays and detached from its output (revert()'s
+		// delete branch did what Song::deleteClipObject()'s prepareForDestruction() does), so this is the same
+		// handover.
 		song->deleteBackedUpParamManagersForClip(clip);
 
 #if ALPHA_OR_BETA_VERSION
@@ -51,8 +55,8 @@ void ConsequenceClipExistence::prepareForDestruction(int32_t whichQueueActionIn,
 		}
 #endif
 
-		clip->~Clip();
-		delugeDealloc(clip);
+		// The render may still hold it from block to block: it lets go at its next block, and only then is it freed.
+		AudioEngine::retire(clip);
 	}
 }
 

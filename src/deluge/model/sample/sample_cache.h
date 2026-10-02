@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 
 class Sample;
-class Cluster;
+struct ComputedChunk; // computed/cached chunk — perc-cache + sample-cache scratch (see storage/cluster/cluster.h)
 
 class SampleCache {
 public:
@@ -33,7 +33,7 @@ public:
 	// cluster is ever evicted (the asset is evict_tail_first), so nothing cascades.
 	void onCacheEvict(int32_t clusterIndex);
 	bool setupNewCluster(int32_t cachedClusterIndex);
-	Cluster* getCluster(int32_t clusterIndex);
+	ComputedChunk* getCluster(int32_t clusterIndex);
 	void setWriteBytePos(int32_t newWriteBytePos);
 
 	// Resource-manager Asset id for this cache's SAMPLE_CACHE clusters. The manager is the sole
@@ -57,5 +57,5 @@ private:
 	int32_t getNumExistentClusters(int32_t thisWriteBytePos);
 
 	// This has to be last!!!
-	Cluster* clusters[1]{}; // These are not initialized, and are only "valid" as far as writeBytePos dictates
+	ComputedChunk* clusters[1]{}; // These are not initialized, and are only "valid" as far as writeBytePos dictates
 };

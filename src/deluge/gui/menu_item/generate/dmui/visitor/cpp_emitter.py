@@ -1,6 +1,7 @@
 from contextlib import contextmanager
-from .visitor import Visitor
+
 from .. import dsl
+from .visitor import Visitor
 
 
 class CppEmitter(Visitor):

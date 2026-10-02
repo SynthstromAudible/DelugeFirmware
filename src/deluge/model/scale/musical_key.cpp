@@ -60,12 +60,10 @@ int32_t MusicalKey::incrementYNoteInKey(int32_t yNote, int32_t increment, bool i
 	int32_t y_note_within_octave = (uint16_t)(y_note_relative_to_root + 120) % 12;
 
 	int32_t octave = ((uint16_t)(y_note_relative_to_root + 120 - y_note_within_octave) / 12) - 10;
-	auto old_octave = octave;
 	int32_t y_visual_within_octave = 0;
 	for (int32_t i = 0; i < num_scale_notes && modeNotes[i] <= y_note_within_octave; i++) {
 		y_visual_within_octave = i;
 	}
-	auto old_mode_note = y_visual_within_octave;
 	if (inOctave) {
 		y_visual_within_octave = (y_visual_within_octave + inc) % num_scale_notes;
 		if (y_visual_within_octave < 0) {
@@ -83,15 +81,30 @@ int32_t MusicalKey::incrementYNoteInKey(int32_t yNote, int32_t increment, bool i
 			octave--;
 		}
 	}
-	auto new_note = modeNotes[y_visual_within_octave] + (octave * 12) + rootNote;
-	if (std::abs(new_note - yNote) > 2) {
-		D_PRINTLN("new note is too different");
-	}
-	D_PRINTLN("incremented from %i to %i", yNote, new_note);
-	D_PRINTLN("Octave %i, mode_note %i, old_octave %i, old mode note % i", octave, y_visual_within_octave, old_octave,
-	          old_mode_note);
+	return modeNotes[y_visual_within_octave] + (octave * 12) + rootNote;
+}
 
-	return new_note;
+int32_t MusicalKey::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, bool inKey) const {
+	return inKey ? incrementYNoteInKey(yNote, increment, inOctave) : incrementYNoteNoKey(yNote, increment, inOctave);
+}
+
+int32_t MusicalKey::incrementYNoteNoKey(int32_t yNote, int32_t increment, bool inOctave) const {
+	auto inc = std::clamp<int32_t>(increment, -1, 1);
+	if (!inOctave) {
+		return yNote + inc;
+	}
+	// e.g. chromatic (revisit if someone adds microtonal support)
+	constexpr int32_t kNumChromaticNotes = 12;
+	int32_t y_note_relative_to_root = yNote - rootNote;
+	int32_t y_note_within_octave = (uint16_t)(y_note_relative_to_root + 120) % kNumChromaticNotes;
+
+	int32_t octave = ((uint16_t)(y_note_relative_to_root + 120 - y_note_within_octave) / kNumChromaticNotes) - 10;
+
+	y_note_within_octave = (y_note_within_octave + inc) % kNumChromaticNotes;
+	if (y_note_within_octave < 0) {
+		y_note_within_octave += kNumChromaticNotes;
+	}
+	return y_note_within_octave + (octave * 12) + rootNote;
 }
 
 bool MusicalKey::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) const {

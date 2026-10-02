@@ -47,6 +47,7 @@
 #include "model/edits/edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/model_stack.h"
 #include "model/scale/preset_scales.h"
 #include "model/song/song.h"
 #include "modulation/midi/midi_param.h"
@@ -105,20 +106,9 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 	}
 }
 
-void InstrumentClipMinder::redrawNumericDisplay() {
-	if (stemExport.processStarted) {
-		return;
-	}
-	if (display->have7SEG()) {
-		if (getCurrentUI()->toClipMinder()) { // Seems a redundant check now? Maybe? Or not?
-			view.displayOutputName(getCurrentOutput(), false);
-		}
-	}
-}
-
 void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
-		stemExport.displayStemExportProgressOLED(StemExportType::DRUM);
+		stemExport.displayStemExportProgress(StemExportType::DRUM);
 		return;
 	}
 	view.displayOutputName(getCurrentOutput(), false, getCurrentClip());
@@ -131,75 +121,24 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 
 	etl::string<30> buffer;
 
-	bool doScroll = false;
+	MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
+	bool usedCustomName = midiInstrument->appendCCName(buffer, controlNumber);
+	bool doScroll = usedCustomName && buffer.size() > 4;
 
-	if (controlNumber == CC_NUMBER_NONE) {
-		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
+	if (automationExists) {
+		buffer.append("\n");
+		buffer.append("(automated)");
 	}
-	else if (controlNumber == CC_NUMBER_PITCH_BEND) {
-		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
-	}
-	else if (controlNumber == CC_NUMBER_AFTERTOUCH) {
-		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
-	}
-	else if (controlNumber == CC_NUMBER_Y_AXIS) {
-		// in mono expression this is mod wheel, and y-axis is not directly controllable
-		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
-	}
-	else {
-		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-		bool appendedName = false;
-
-		if (controlNumber >= 0 && controlNumber < kNumRealCCNumbers) {
-			std::string_view name = midiInstrument->getNameFromCC(controlNumber);
-			// if we have a name for this midi cc set by the user, display that instead of the cc number
-			if (!name.empty()) {
-				buffer.append(name.data());
-				doScroll = name.size() > 4;
-				appendedName = true;
-			}
-		}
-
-		// if we don't have a midi cc name set, draw CC number instead
-		if (!appendedName) {
-			if (display->haveOLED()) {
-				buffer.append("CC ");
-				deluge::string::appendInt(buffer, controlNumber);
-			}
-			else {
-				if (controlNumber < 100) {
-					buffer.append("CC");
-				}
-				else {
-					buffer.append("C");
-				}
-				deluge::string::appendInt(buffer, controlNumber);
-			}
-		}
-	}
-
-	if (display->haveOLED()) {
-		if (automationExists) {
-			buffer.append("\n");
-			buffer.append("(automated)");
-		}
-		display->popupText(buffer.c_str());
-	}
-	else {
-		if (doScroll) {
-			display->setScrollingText(buffer.c_str(), 0, 600, -1, automationExists ? 3 : 255);
-		}
-		else {
-			display->setText(buffer.c_str(), true, automationExists ? 3 : 255, false);
-		}
-	}
+	display->popupText(buffer.c_str());
 }
 #pragma GCC pop
-bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType, bool is_dx) {
-	Error error;
-
+// Ask InstrumentLoad for new-instrument creation: naming a free preset slot reads the card, which
+// InstrumentLoad's walk does before createNewInstrument() below runs with the name it found. The
+// clip-not-empty guard runs HERE, before any card access, matching View::changeOutputType()'s identical guard
+// (InstrumentClip::changeOutputType(), that leaf's equivalent, carries no copy of it either).
+bool InstrumentClipMinder::beginNewInstrumentAcquisition(OutputType newOutputType, bool is_dx,
+                                                         deluge::storage::PresetConsumer consumer) {
 	OutputType oldOutputType = getCurrentOutputType();
-
 	InstrumentClip* clip = getCurrentInstrumentClip();
 
 	// don't allow clip type change if clip is not empty
@@ -209,11 +148,45 @@ bool InstrumentClipMinder::createNewInstrument(OutputType newOutputType, bool is
 		return false;
 	}
 
+	deluge::storage::PresetRequest request{
+	    .consumer = consumer,
+	    .outputType = newOutputType,
+	    .isDx = is_dx,
+	    .dirPath = getInstrumentFolder(newOutputType),
+	    // Snapshotted, not re-read by the completion: the clip current when the completion runs may
+	    // not be the clip this gesture was made on. `oldInstrument` doubles as the liveness guard
+	    // runAcquisitionFollowUp() already applies to every other clip-bearing consumer -- if `clip`'s
+	    // output is gone by the time this runs, the completion is skipped rather than acting on a
+	    // clip that may have moved on to something else entirely.
+	    .oldInstrument = (Instrument*)clip->output,
+	    .clip = clip,
+	};
+	// The acquisition may still fail once it runs (no unused slot, OOM, etc); the gesture itself was
+	// accepted here, so report success and let the completion surface any error, exactly as
+	// View::changeOutputType() does.
+	return loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// The MinderNewInstrument completion. No extra tail: createNewInstrument()'s bool is deliberately
+// discarded.
+void InstrumentClipMinder::completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+                                                 const deluge::storage::AcquireResult& acquired) {
+	createNewInstrument(clip, newOutputType, is_dx, acquired);
+}
+
+// Run by InstrumentLoad once the acquisition has landed, reached only through
+// beginNewInstrumentAcquisition(). Reads no card: `acquired` carries the slot name. Acts on `clip`
+// (the dispatch-time snapshot) throughout, not getCurrentInstrumentClip()/getCurrentOutput() -- see
+// this function's doc.
+bool InstrumentClipMinder::createNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+                                               const deluge::storage::AcquireResult& acquired) {
+	Error error;
+
+	OutputType oldOutputType = clip->output->type;
+
 	bool shouldReplaceWholeInstrument = currentSong->shouldOldOutputBeReplaced(clip);
 
-	std::string newName;
-	char const* thingName = (newOutputType == OutputType::SYNTH) ? "SYNT" : "KIT";
-	Browser::currentDir = getInstrumentFolder(newOutputType);
+	std::string newName = acquired.name; // the unused slot the acquisition's walk found
 
 	// Reachable only via `goto gotError` from the error paths below.
 	if (false) {
@@ -222,7 +195,7 @@ gotError:
 		return false;
 	}
 
-	error = loadInstrumentPresetUI.getUnusedSlot(newOutputType, &newName, thingName);
+	error = acquired.error;
 	if (error != Error::NONE) {
 		goto gotError;
 	}
@@ -265,7 +238,7 @@ gotError:
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 	// If replacing whole Instrument
 	if (shouldReplaceWholeInstrument) {
@@ -273,7 +246,7 @@ gotError:
 		//  This is how we feed a ParamManager into the replaceInstrument() function
 		currentSong->project.param_backup.backUp((ModControllableAudio*)newInstrument->toModControllable(), nullptr,
 		                                         &newParamManager, true);
-		currentSong->replaceInstrument(getCurrentInstrument(), newInstrument, false);
+		currentSong->replaceInstrument((Instrument*)clip->output, newInstrument, false);
 	}
 
 	// Or if just adding new Instrument
@@ -305,32 +278,26 @@ gotError:
 
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E060", "H060");
 
+	// Deliberately still live, not passed `clip`: setLedStates() reflects whatever IS on screen right
+	// now, the same as every other completion's LED/redraw tail (ViewChangeTypeMinder's arm, View::
+	// completeChangeOutputType()'s recolour/repaint) -- it is a "show the truth" call, not part of the
+	// acquisition's own logic, so it stays on the established live-read exception those share.
 	setLedStates();
 
 	newInstrument->setName(newName);
 
 	if (is_dx) {
-		soundEditor.setup(getCurrentInstrumentClip(), &dxMenu, 0);
+		soundEditor.setup(clip, &dxMenu, 0);
 		openUI(&soundEditor);
 	}
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		redrawNumericDisplay();
-	}
+	renderUIsForOled();
 
 	return true;
 }
 
 void InstrumentClipMinder::displayOrLanguageChanged() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		redrawNumericDisplay();
-	}
+	renderUIsForOled();
 }
 
 void InstrumentClipMinder::setLedStates() {
@@ -364,17 +331,10 @@ void InstrumentClipMinder::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentInstrumentClip());
 	MIDITranspose::exitScaleModeForMIDITransposeClips();
-	if (display->have7SEG()) {
-		redrawNumericDisplay();
-	}
 }
 
-ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
-
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	// If holding save button...
 	if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && on) {
@@ -466,7 +426,8 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if ((getCurrentOutputType() == OutputType::KIT) && (getCurrentInstrumentClip()->affectEntire)) {
+			// todo: this should probably be inside the sound editor but I don't want to deal with it right now
+			if (SoundEditor::shouldEditKitAffectEntire()) {
 				soundEditor.setupKitGlobalFXMenu = true;
 			}
 
@@ -540,10 +501,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	else if (b == SYNTH) {
 		if (on && currentUIMode == UI_MODE_NONE) {
 			if (Buttons::isButtonPressed(MOD7)) { // FM
-				createNewInstrument(OutputType::SYNTH, true);
+				beginNewInstrumentAcquisition(OutputType::SYNTH, true);
 			}
 			else if (Buttons::isShiftButtonPressed()) {
-				createNewInstrument(OutputType::SYNTH);
+				beginNewInstrumentAcquisition(OutputType::SYNTH);
 			}
 			else {
 				changeOutputType(OutputType::SYNTH);
@@ -570,17 +531,15 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	return ActionResult::DEALT_WITH;
 }
 
-bool InstrumentClipMinder::changeOutputType(OutputType newOutputType) {
+bool InstrumentClipMinder::changeOutputType(OutputType newOutputType, deluge::storage::PresetConsumer consumer) {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	bool success = view.changeOutputType(newOutputType, modelStack);
-
-	if (success) {
-		setLedStates(); // Might need to change the scale LED's state
-	}
-
-	return success;
+	// setLedStates() is not run here: for Synth/Kit this bool means "dispatched", not "swapped", so it
+	// would read the OLD output type. It runs from View::completeChangeOutputTypeFor()'s
+	// ViewChangeTypeMinder (or, via InstrumentClipView, ViewChangeType) arm instead, once the swap (if
+	// any) has actually happened.
+	return view.changeOutputType(newOutputType, modelStack, /*doBlink=*/false, consumer);
 }
 
 void InstrumentClipMinder::calculateDefaultRootNote() {
@@ -609,13 +568,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(noteCode, noteName, &isNatural);
 
-	if (display->haveOLED()) {
-		display->popupTextTemporary(noteName);
-	}
-	else {
-		uint8_t drawDot = !isNatural ? 0 : 255;
-		display->setText(noteName, false, drawDot, true);
-	}
+	display->popupTextTemporary(noteName);
 }
 
 void InstrumentClipMinder::cycleThroughScales() {

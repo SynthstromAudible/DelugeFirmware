@@ -45,7 +45,6 @@ public:
 			char buffer[5];
 			strcpy(buffer, "CAR");
 			intToString(source_id_ + 1, buffer + 3);
-			display->setText(buffer);
 		}
 		else {
 			Submenu::drawName();

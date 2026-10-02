@@ -34,42 +34,18 @@ extern void deleteOldSongBeforeLoadingNew();
 namespace deluge::gui::context_menu {
 ClearSong clearSong{};
 
-char const* ClearSong::getTitle() {
-	using enum l10n::String;
-	return l10n::get(STRING_FOR_CLEAR_SONG_QMARK);
-}
-
-std::span<char const*> ClearSong::getOptions() {
-	using enum l10n::String;
-	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
-		return {options, 1};
-	}
-	else {
-		static char const* options[] = {l10n::get(STRING_FOR_NEW)};
-		return {options, 1};
-	}
-}
-
-void ClearSong::focusRegained() {
-	ContextMenu::focusRegained();
-
-	// TODO: Switch a bunch of LEDs off (?)
-
-	indicator_leds::setLedState(IndicatorLED::SAVE, false);
-	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
-	indicator_leds::setLedState(IndicatorLED::KIT, false);
-
-	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
-	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
-	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
-	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
-
-	indicator_leds::blinkLed(IndicatorLED::LOAD);
-	indicator_leds::blinkLed(IndicatorLED::BACK);
-}
-
-bool ClearSong::acceptCurrentOption() {
+namespace {
+/// "Create New Song": ends playback, tears down the old song, builds a blank one and puts the UI back on it.
+///
+/// Reads no card. `ensureAtLeastOneSessionClip()` builds the clip on the built-in default synth, with
+/// `InstrumentLoad` acquiring the preset afterwards on the interaction tier; that leaves a song holding one
+/// unsampled synth and nothing for a `loadAllSamples()` call to do, so none is made. This runs where its caller
+/// stands, and the whole operation is over when it returns.
+///
+/// It takes every UI down (`nullifyUIs()`) before the old song goes, and puts the new song's root UI up at the end.
+/// In between, getCurrentUI() reports the empty stack's inert UI, so nothing that runs then reaches this menu or a view
+/// of the song being freed.
+void runAccept() {
 	if (playbackHandler.playbackState
 	    && (playbackHandler.isInternalClockActive() || currentPlaybackMode == &arrangement)) {
 
@@ -94,26 +70,66 @@ bool ClearSong::acceptCurrentOption() {
 
 	Song* toDelete = currentSong;
 
-	preLoadedSong->ensureAtLeastOneSessionClip(); // Will load a synth preset from SD card
+	preLoadedSong->ensureAtLeastOneSessionClip(); // The built-in default synth; reads no card
 
 	playbackHandler.doSongSwap(playbackHandler.isEitherClockActive());
+	// Only with the clock running: stopped, deleteOldSongBeforeLoadingNew() above already retired the old song and
+	// waited for it to be freed, and left currentSong null. Handed to the render, which lets go of it before it is
+	// freed.
 	if (toDelete) {
-		void* toDealloc = dynamic_cast<void*>(toDelete);
-		toDelete->~Song();
-		delugeDealloc(toDealloc);
+		AudioEngine::retire(toDelete);
+		// Wait until it is freed: the call below destroys temp-recorded Samples the old song's audio clips still hold.
+		AudioEngine::awaitRetired();
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
-
-	// If for some reason the default synth preset included a sample which needs loading, and somehow there wasn't
-	// enough RAM to load it before, do it now.
-	currentSong->loadAllSamples();
 
 	setUIForLoadedSong(currentSong);
 	currentUIMode = UI_MODE_NONE;
 
 	display->removeWorkingAnimation();
+}
+} // namespace
 
+char const* ClearSong::getTitle() {
+	using enum l10n::String;
+	return l10n::get(STRING_FOR_CLEAR_SONG_QMARK);
+}
+
+std::span<char const*> ClearSong::getOptions() {
+	using enum l10n::String;
+	static char const* options[] = {l10n::get(STRING_FOR_OK)};
+	return {options, 1};
+}
+
+void ClearSong::focusRegained() {
+	ContextMenu::focusRegained();
+
+	// TODO: Switch a bunch of LEDs off (?)
+
+	indicator_leds::setLedState(IndicatorLED::SAVE, false);
+	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
+	indicator_leds::setLedState(IndicatorLED::KIT, false);
+
+	indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, false);
+	indicator_leds::setLedState(IndicatorLED::CLIP_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
+	indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
+
+	indicator_leds::blinkLed(IndicatorLED::LOAD);
+	indicator_leds::blinkLed(IndicatorLED::BACK);
+}
+
+bool ClearSong::acceptCurrentOption() {
+	// Always true (never trigger ContextMenu::buttonAction()'s synchronous close()): runAccept() does the whole
+	// sequence itself, including the UI teardown, and there is no failure branch to report -- this doesn't read
+	// ensureAtLeastOneSessionClip()'s bool either.
+	//
+	// The gate closes around the call: nothing that checks the UI mode may start a gesture on either song while
+	// runAccept() replaces one with the other.
+	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	runAccept();
+	currentUIMode = UI_MODE_NONE;
 	return true;
 }
 } // namespace deluge::gui::context_menu

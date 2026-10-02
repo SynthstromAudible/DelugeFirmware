@@ -22,7 +22,6 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
-#include "libdeluge/scheduler.h" // isSDRoutineActive()
 #include "storage/flash_storage.h"
 
 namespace deluge::gui {
@@ -53,9 +52,6 @@ bool ContextMenu::opened() {
 
 void ContextMenu::focusRegained() {
 	indicator_leds::blinkLed(IndicatorLED::BACK);
-	if (display->have7SEG()) {
-		drawCurrentOption();
-	}
 }
 
 void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
@@ -117,58 +113,34 @@ void ContextMenu::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 void ContextMenu::selectEncoderAction(int8_t offset) {
 	const size_t numOptions = getOptions().size();
 
-	if (display->haveOLED()) {
-		bool wasOnScrollPos = (currentOption == scrollPos);
-		int32_t oldCurrentOption = currentOption;
-		do {
-			currentOption += offset;
-			if (currentOption >= numOptions || currentOption < 0) {
-				currentOption = oldCurrentOption;
-				return;
-			}
-		} while (!isCurrentOptionAvailable());
-
-		if (currentOption < scrollPos) {
-			scrollPos = currentOption;
+	bool wasOnScrollPos = (currentOption == scrollPos);
+	int32_t oldCurrentOption = currentOption;
+	do {
+		currentOption += offset;
+		if (currentOption >= numOptions || currentOption < 0) {
+			currentOption = oldCurrentOption;
+			return;
 		}
-		else if (offset >= 0 && !wasOnScrollPos) {
-			scrollPos = oldCurrentOption;
-		}
-		renderUIsForOled();
-	}
-	else {
-		do {
-			if (offset >= 0) {
-				currentOption++;
-				if (currentOption >= numOptions) {
-					currentOption -= numOptions;
-				}
-			}
-			else {
-				currentOption--;
-				if (currentOption < 0) {
-					currentOption += numOptions;
-				}
-			}
+	} while (!isCurrentOptionAvailable());
 
-		} while (!isCurrentOptionAvailable());
-		drawCurrentOption();
+	if (currentOption < scrollPos) {
+		scrollPos = currentOption;
 	}
+	else if (offset >= 0 && !wasOnScrollPos) {
+		scrollPos = oldCurrentOption;
+	}
+	renderUIsForOled();
 }
 
 const uint32_t buttonAndPadActionUIModes[] = {UI_MODE_STEM_EXPORT, UI_MODE_CLIP_PRESSED_IN_SONG_VIEW,
                                               UI_MODE_MIDI_LEARN, 0};
 
-ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	if (b == BACK) {
 		if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 getOut:
-			display->setNextTransitionDirection(-1);
 			close();
 		}
 	}
@@ -176,9 +148,6 @@ getOut:
 	else if (b == SELECT_ENC) {
 probablyAcceptCurrentOption:
 		if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			bool success = acceptCurrentOption();
 			if (!success) {
 				goto getOut;
@@ -199,18 +168,10 @@ probablyAcceptCurrentOption:
 
 void ContextMenu::drawCurrentOption() {
 	const auto options = getOptions();
-	if (display->have7SEG()) {
-		indicator_leds::ledBlinkTimeout(0, true);
-		display->setText(options[currentOption], false, 255, true);
-	}
 }
 
 ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-		display->setNextTransitionDirection(-1);
 		close();
 	}
 

@@ -97,10 +97,6 @@ void KeyboardScreen::killColumnSwitchKey(int32_t column) {
 	}
 }
 ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
-	if (isSDRoutineActive() && !allowSomeUserActionsEvenWhenInCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
-	}
-
 	// Handle overruling shortcut presses
 	ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
 	if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
@@ -167,10 +163,6 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// Handle setting root note
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		// We probably couldn't have got this far if it was a Kit, but let's just check
 		if (getCurrentOutputType() != OutputType::KIT && lastNotesState.count == 0 && currentNotesState.count == 1) {
 			toggleScaleModeOnButtonRelease = false;
@@ -188,7 +180,14 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 		updateActiveNotes();
 	}
 
-	requestRendering();
+	// The main pad grid only changes when the set of active notes changes, but rendering it re-transmits the whole
+	// grid over UART. During rapid pressing that competes with reading incoming pad events; the reporter of #3168
+	// specifically saw redundant redraws (e.g. a second finger on an already-lit note, or lifting one of two
+	// fingers on the same note - both leave the highlight unchanged). Skip the main render for those no-op events,
+	// but always refresh the sidebar since column-control pads can change it. uiNeedsRendering OR-accumulates, so
+	// this can never suppress a render another code path already requested.
+	uint32_t mainRowsToRender = (currentNotesState.states != lastNotesState.states) ? 0xFFFFFFFF : 0;
+	uiNeedsRendering(this, mainRowsToRender, 0xFFFFFFFF);
 	return ActionResult::DEALT_WITH;
 }
 
@@ -292,7 +291,7 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 			enterUIMode(UI_MODE_AUDITIONING);
 
-			// Begin resampling - yup this is even allowed if we're in the card routine!
+			// Begin resampling
 			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
 			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
 				audioRecorder.beginOutputRecording();
@@ -352,12 +351,7 @@ void KeyboardScreen::updateActiveNotes() {
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
 		exitUIMode(UI_MODE_AUDITIONING);
 
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::removePopup();
-		}
-		else {
-			redrawNumericDisplay();
-		}
+		deluge::hid::display::OLED::removePopup();
 	}
 }
 
@@ -389,12 +383,8 @@ void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrumen
 	}
 }
 
-ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
-
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
@@ -452,11 +442,8 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 					exitScaleMode();
 				}
 				else {
-					enterScaleMode();
+					enterScaleMode(currentSong->project.scale.key.rootNote);
 				}
-			}
-			else if (inScaleMode && display->have7SEG()) {
-				displayCurrentScaleName();
 			}
 		}
 	}
@@ -504,19 +491,28 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	// Kit button
+	//
+	// NEITHER branch of handleInstrumentChange() may gate the layout refresh on its return.
+	// For Synth/Kit both are dispatches, and the return means "gesture accepted", not "instrument
+	// swapped" -- calling selectLayout(0) here would run it against the PRE-swap instrument and leave
+	// the keyboard on the wrong layout for good, since nothing would refresh it afterwards. So both
+	// consumers are passed explicitly and both completions carry the refresh:
+	// PresetConsumer::KeyboardNewInstrument for the shift/FM branch, PresetConsumer::KeyboardChangeType
+	// for the plain one. The MIDI/CV buttons below are the exception, and stay eager: they read no card
+	// and really do run to completion inside the call.
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			if (instrumentClipView.handleInstrumentChange(OutputType::KIT)) {
-				selectLayout(0);
-			}
+			(void)instrumentClipView.handleInstrumentChange(OutputType::KIT,
+			                                                deluge::storage::PresetConsumer::KeyboardNewInstrument,
+			                                                deluge::storage::PresetConsumer::KeyboardChangeType);
 		}
 	}
 
 	else if (b == SYNTH && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			if (instrumentClipView.handleInstrumentChange(OutputType::SYNTH)) {
-				selectLayout(0);
-			}
+			(void)instrumentClipView.handleInstrumentChange(OutputType::SYNTH,
+			                                                deluge::storage::PresetConsumer::KeyboardNewInstrument,
+			                                                deluge::storage::PresetConsumer::KeyboardChangeType);
 		}
 	}
 
@@ -554,10 +550,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
 			Output* output = instrumentClip->output;
 
@@ -582,23 +574,18 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	else {
-		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
+		ActionResult result = InstrumentClipMinder::buttonAction(b, on);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
 		}
 
-		// This might potentially do something while inCardRoutine but the condition above discards the call anyway
-		return view.buttonAction(b, on, inCardRoutine);
+		return view.buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-	}
-
+ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset) {
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 		getCurrentInstrumentClip()->setColourOffset(getCurrentInstrumentClip()->colourOffset() + offset);
 		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
@@ -717,11 +704,9 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 
 		char noteName[3] = {0};
 		noteName[0] = useSharps ? noteCodeToNoteLetter[newRootNote] : noteCodeToNoteLetterFlats[newRootNote];
-		if (display->haveOLED()) {
-			if (noteCodeIsSharp[newRootNote]) {
-				char accidential = useSharps ? '#' : FLAT_CHAR;
-				noteName[1] = accidential;
-			}
+		if (noteCodeIsSharp[newRootNote]) {
+			char accidential = useSharps ? '#' : FLAT_CHAR;
+			noteName[1] = accidential;
 		}
 		display->displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
 		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
@@ -745,9 +730,6 @@ void KeyboardScreen::exitAuditionMode() {
 	updateActiveNotes();
 
 	exitUIMode(UI_MODE_AUDITIONING);
-	if (display->have7SEG()) {
-		redrawNumericDisplay();
-	}
 }
 
 bool KeyboardScreen::opened() {
@@ -816,6 +798,12 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth
 
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->renderSidebarPads(image);
 
+	if (occupancyMask) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			PadLEDs::refreshSidebarOccupancy(image[y], occupancyMask[y]);
+		}
+	}
+
 	return true;
 }
 
@@ -833,12 +821,7 @@ void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 
 	getCurrentInstrumentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(selectedRootNote);
 
-	if (display->haveOLED()) {
-		currentSong->displayCurrentRootNoteAndScaleName();
-	}
-	else {
-		displayCurrentScaleName();
-	}
+	currentSong->displayCurrentRootNoteAndScaleName();
 
 	evaluateActiveNotes();
 	updateActiveNotes();

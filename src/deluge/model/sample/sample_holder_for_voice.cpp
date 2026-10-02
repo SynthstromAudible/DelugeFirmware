@@ -16,9 +16,11 @@
  */
 
 #include "model/sample/sample_holder_for_voice.h"
+#include "io/debug/log.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_transpose.h"
 #include "processing/source.h"
-#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
 #include <cmath>
 
@@ -34,31 +36,22 @@ SampleHolderForVoice::SampleHolderForVoice() {
 	// For backwards compatibility
 	startMSec = 0;
 	endMSec = 0;
-
-	for (auto& l : clustersForLoopStart) {
-		l = nullptr;
-	}
 }
 
 SampleHolderForVoice::~SampleHolderForVoice() {
 	// We have to unassign reasons here, even though our parent destructor will call unassignAllReasons() - our
 	// overriding of that virtual function won't happen as we've already been destructed!
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		if (clustersForLoopStart[l]) {
-			audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E247");
-		}
+	if (clustersForLoopStart_ != nullptr) {
+		deluge_sample_reserve_close(clustersForLoopStart_);
 	}
 }
 
 void SampleHolderForVoice::unassignAllClusterReasons(bool beingDestructed) {
 	SampleHolder::unassignAllClusterReasons(beingDestructed);
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-		if (clustersForLoopStart[l]) {
-			// Happened to me while auto-pilot testing, I think
-			audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E320");
-			if (!beingDestructed) {
-				clustersForLoopStart[l] = nullptr;
-			}
+	if (clustersForLoopStart_ != nullptr) {
+		deluge_sample_reserve_close(clustersForLoopStart_);
+		if (!beingDestructed) {
+			clustersForLoopStart_ = nullptr;
 		}
 	}
 }
@@ -86,27 +79,31 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 		}
 	}
 
-	if (loopStartPlaybackAtSample) {
-		int32_t loopStartPlaybackAtByte =
-		    ((Sample*)audioFile)->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
-		claimClusterReasonsForMarker(clustersForLoopStart, loopStartPlaybackAtByte, playDirection,
+	Sample* sample = (Sample*)audioFile;
+	uint64_t durationClusters =
+	    static_cast<uint64_t>(getDurationInSamples()) * bytesPerSample >> Cluster::size_magnitude;
+	int64_t nextClusterStartByte = static_cast<int64_t>(startPlaybackAtByte_) + playDirection * 2 * Cluster::size;
+	bool nextClustersInSample =
+	    sample->isLengthKnown() && nextClusterStartByte >= static_cast<int64_t>(sample->audioDataStartPosBytes)
+	    && static_cast<uint64_t>(nextClusterStartByte) < sample->audioDataStartPosBytes + sample->audioDataLengthBytes;
+
+	// A short sample can stay entirely cached: pin the clusters following the start marker's window.
+	if (durationClusters <= kMaxNumClustersLoadedAhead + kNumClustersLoadedAhead && nextClustersInSample) {
+		claimClusterReasonsForMarker(clustersForLoopStart_, nextClusterStartByte, playDirection,
 		                             clusterLoadInstruction);
 	}
 
-	else if (static_cast<int32_t>(((Sample*)audioFile)->clusters.size()) <= 4) {
-		// claim the next few reasons for the sample instead since we can keep it all cached
-		int32_t nextClusterStartByte = (((Sample*)audioFile)->audioDataStartPosBytes + Cluster::size_magnitude) << 1;
-
-		claimClusterReasonsForMarker(clustersForLoopStart, nextClusterStartByte, playDirection, clusterLoadInstruction);
+	else if (loopStartPlaybackAtSample) {
+		int32_t loopStartPlaybackAtByte = sample->audioDataStartPosBytes + loopStartPlaybackAtSample * bytesPerSample;
+		claimClusterReasonsForMarker(clustersForLoopStart_, loopStartPlaybackAtByte, playDirection,
+		                             clusterLoadInstruction);
 	}
 
 	// Or if no loop start point now, clear out any reasons we had before
 	else {
-		for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-			if (clustersForLoopStart[l]) {
-				audioFileManager.removeReasonFromCluster(*clustersForLoopStart[l], "E246");
-				clustersForLoopStart[l] = nullptr;
-			}
+		if (clustersForLoopStart_ != nullptr) {
+			deluge_sample_reserve_close(clustersForLoopStart_);
+			clustersForLoopStart_ = nullptr;
 		}
 	}
 }
@@ -134,36 +131,15 @@ uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {
 	}
 }
 
-void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool doingSingleCycle,
-                                                              bool rangeCoversJustOneNote, bool thatOneNote) {
-	((Sample*)audioFile)->workOutMIDINote(doingSingleCycle);
-	float midiNote = ((Sample*)audioFile)->midiNote;
-	if (midiNote != -1000) {
-		float semitones = (float)60 - midiNote;
-		int32_t semitonesInt = roundf(semitones);
-		int32_t cents = roundf((semitones - semitonesInt) * 100);
-
-		// If it's the only range, minimize the transpose
-		if (minimizeOctaves) {
-			while (semitonesInt <= -6) {
-				semitonesInt += 12;
-			}
-			while (semitonesInt > 6) {
-				semitonesInt -= 12;
-			}
-		}
-
-		else if (rangeCoversJustOneNote) {
-			if (semitonesInt == 60 - thatOneNote) {
-				if (cents >= -4 && cents <= 4) {
-					cents = 0;
-					// Uart::println("discarded cents");
-				}
-			}
-		}
-
-		transpose = semitonesInt;
-		setCents(cents);
+void SampleHolderForVoice::setTransposeAccordingToSamplePitch(bool minimizeOctaves, bool rangeCoversJustOneNote,
+                                                              int32_t thatOneNote) {
+	// The note is the detection's: every caller has run it. Nothing is scanned here.
+	const float midiNote = ((Sample*)audioFile)->midiNote;
+	if (midiNote != MIDI_NOTE_ERROR && midiNote != MIDI_NOTE_UNSET) {
+		const deluge::sample::SampleTranspose t =
+		    deluge::sample::transposeForNote(midiNote, minimizeOctaves, rangeCoversJustOneNote, thatOneNote);
+		transpose = t.semitones;
+		setCents(t.cents);
 	}
 }
 

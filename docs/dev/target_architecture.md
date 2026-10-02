@@ -1,8 +1,7 @@
 # Deluge target architecture — modular library decomposition
 
-> Companion to [`libdeluge_separation_plan.md`](libdeluge_separation_plan.md) and
-> [`libdeluge_bsp_design.md`](libdeluge_bsp_design.md). Those docs put a C-ABI
-> hardware boundary (`libdeluge`) *under* the application. This doc designs the
+> Companion to the `libdeluge` boundary ([`include/libdeluge/README.md`](../../include/libdeluge/README.md)),
+> which puts a C-ABI hardware boundary *under* the application. This doc designs the
 > decomposition of everything *above* that boundary: the long-term target where
 > the application is a set of portable, individually testable libraries with
 > enforced dependency rules — plus the runtime model (execution contexts,
@@ -63,7 +62,8 @@ Downward arrows (gui → model) are healthy. The defining problems are the
   menu item is a class conflating tree structure, behavior, and rendering.
 - **Concurrency safety is ad-hoc discipline.** The UI mutates the model while
   the audio path reads it; safety rests on single-core cooperative scheduling
-  plus hand-placed guards (`allowSomeUserActionsEvenWhenInCardRoutine`). There
+  plus hand-placed guards at call sites that query `deluge_storage_fs_busy()`
+  (the `deluge::sync::sd_busy()` app-side alias) and `audioRoutineLocked`. There
   is no declared contract for which code may run in which context.
 - **Undo is its own smeared subsystem**: `model/action` + `model/consequence`
   (the ActionLogger) is invoked ad-hoc from views and model code alike.
@@ -267,9 +267,11 @@ writes these attributes," so neither model nor format library knows the
 other. Also owns the legacy-name alias tables (§7.3).
 
 **deluge-stream** — audio-context storage: cluster cache, sample streaming,
-SD read scheduling, `Stealable` implementations. Split from `deluge-files`
-because the two halves have opposite realtime contracts (blocking-allowed vs
-audio-safe), which today share a directory and a god-object.
+SD read scheduling, resource-manager `Source`/`materialize`/`on_evict` wiring (`Stealable` is fully
+retired -- see `crates/deluge_resource`). Split from `deluge-files` because the two halves have
+opposite realtime contracts (blocking-allowed vs audio-safe), which today share a directory and
+a god-object. Implemented via `include/libdeluge/stream_io.h`
+(docs/superpowers/specs/2026-07-15-deluge-stream-boundary-design.md).
 
 **deluge-engine** — voice allocation and rendering, patch compilation and
 evaluation (§7), the sequencer/playback handler, arpeggiator runtime, audio

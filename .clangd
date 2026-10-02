@@ -1,3 +1,13 @@
+# clangd needs nothing here for the default setup: `dbt configure` writes
+# build/compile_commands.json from the clang tree, clangd finds it on its own,
+# and every flag in it is a flag clangd's own frontend understands.
+#
+# What remains is for pointing clangd at the GCC fallback tree
+# (build-gcc/compile_commands.json), whose commands still carry GCC-only
+# options. clang does not merely warn on these -- it errors, so -Wno-unknown-*
+# cannot rescue them and they have to be dropped outright.
 CompileFlags:
-  Add: [-Wno-unknown-argument, -Wno-unknown-warning-option, -D__cpp_concepts=202002L]
+  # -fuse-linker-plugin also appears in the GCC tree's commands, but clang
+  # accepts it once the warning is silenced, so it needs no Remove entry.
+  Add: [-Wno-unknown-argument, -Wno-unknown-warning-option]
   Remove: [-mthumb-interwork, -fanalyzer, -fdevirtualize-at-ltrans]

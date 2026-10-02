@@ -27,7 +27,6 @@ Error FileItem::setupWithInstrument(Instrument* newInstrument, bool hibernating)
 	instrument = newInstrument;
 	isFolder = false;
 	instrumentAlreadyInSong = !hibernating;
-	displayName = filename.c_str();
 	maybeExistsOnCard = newInstrument->mightExistOnCard;
 
 	return Error::NONE;
@@ -43,22 +42,6 @@ std::string FileItem::getFilenameWithExtension() const {
 
 std::string FileItem::getFilenameWithoutExtension() const {
 	std::string result = filename;
-	if (filenameIncludesExtension) {
-		size_t dotPos = result.rfind('.');
-		if (dotPos != std::string::npos) {
-			result.resize(dotPos);
-		}
-	}
-	return result;
-}
-
-std::string FileItem::getDisplayNameWithoutExtension() const {
-	if (display->haveOLED()) {
-		return getFilenameWithoutExtension();
-	}
-
-	// 7SEG...
-	std::string result = displayName;
 	if (filenameIncludesExtension) {
 		size_t dotPos = result.rfind('.');
 		if (dotPos != std::string::npos) {

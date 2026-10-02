@@ -35,16 +35,20 @@
 #include "playback/mode/playback_mode.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/smsysex.h"
+#include "sync/sd_access.h"
 #include "version.h"
+#include <algorithm>
 
 extern "C" {
 
-// App-owned re-entrancy guard for USB-MIDI servicing (shared with the BSP, which
-// reads it during flush and receive re-arming). All MIDI transport — DIN and USB
-// alike — is driven through the <libdeluge/midi_io.h> port + byte-stream boundary:
-// the app reads/writes 4-byte USB-MIDI event packets on a device's port and packs/
-// decodes them with the deluge_midi protocol library; the BSP owns the transfer
-// mechanics (buffers, descriptors, send/receive state machine, re-arming).
+// App-owned re-entrancy guard against `MidiEngine::check_incoming_usb` servicing
+// re-entering `deluge_midi_service` while a call is already in flight (see its
+// definition below). All MIDI transport — DIN and USB alike — is driven through
+// the <libdeluge/midi_io.h> port + byte-stream boundary: the app reads/writes
+// 4-byte USB-MIDI event packets on a device's port and packs/decodes them with
+// the deluge_midi protocol library; the BSP owns the transfer mechanics
+// (buffers, descriptors, send/receive state machine, re-arming), but does not
+// read or write this guard.
 volatile uint32_t usbLock = 0;
 }
 
@@ -57,9 +61,12 @@ MidiEngine::MidiEngine() {
 	for (auto& midiChannelType : midiFollowChannelType) {
 		midiChannelType.clear();
 	}
+	// Channel 1 on any device follows the active instrument out of the box: the startup settings, which read a
+	// user's MIDIFollow.XML over it, run only once a card is ready, and without a card incoming MIDI must still play.
+	midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone = 0;
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = false;
-	midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
+	midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::NONE;
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;
 	midiTakeover = MIDITakeoverMode::JUMP;
@@ -107,11 +114,15 @@ void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t fil
 	sendMidi(source, MIDIMessage::cc(channel, 123, 0), filter);
 }
 
+/// Saturate a value into the 7 bits a MIDI data byte gets. Callers derive these from internal 32-bit parameter values,
+/// which can land outside 0-127; letting one through sets bit 7 and the receiver reads it as a status byte instead - if
+/// it falls in 0xF8-0xFF that's a spurious System Real-Time message (see #4821).
+static uint8_t toDataByte(int32_t value) {
+	return static_cast<uint8_t>(std::clamp<int32_t>(value, 0, 127));
+}
+
 void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter) {
-	if (value > 127) {
-		value = 127;
-	}
-	sendMidi(source, MIDIMessage::cc(channel, cc, value), filter);
+	sendMidi(source, MIDIMessage::cc(channel, cc, toDataByte(value)), filter);
 }
 
 void MidiEngine::sendClock(MIDISource source, bool sendUSB, int32_t howMany) {
@@ -154,13 +165,13 @@ void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend
 	sendMidi(source, MIDIMessage::pitchBend(channel, bend), filter);
 }
 
-void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter) {
-	sendMidi(source, MIDIMessage::channelAftertouch(channel, value), filter);
+void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter) {
+	sendMidi(source, MIDIMessage::channelAftertouch(channel, toDataByte(value)), filter);
 }
 
-void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode,
+void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode,
                                           int32_t filter) {
-	sendMidi(source, MIDIMessage::polyphonicAftertouch(channel, noteCode, value), filter);
+	sendMidi(source, MIDIMessage::polyphonicAftertouch(channel, noteCode, toDataByte(value)), filter);
 }
 
 void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter, bool sendUSB) {
@@ -482,11 +493,6 @@ void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len)
 	}
 }
 
-extern "C" {
-
-extern uint8_t currentlyAccessingCard;
-}
-
 void MidiEngine::check_incoming_usb() {
 	bool usbLockNow = usbLock;
 
@@ -503,10 +509,16 @@ void MidiEngine::check_incoming_usb() {
 void MidiEngine::checkIncomingUsbMidi() {
 
 	if (!usbCurrentlyInitialized
-	    || currentlyAccessingCard != 0) { // hack to avoid SysEx handlers clashing with other sd-card activity.
-		if (currentlyAccessingCard != 0) {
-			// D_PRINTLN("checkIncomingUsbMidi seeing currentlyAccessingCard non-zero");
-		}
+	    || deluge::sync::sd_busy()) { // hack to avoid SysEx handlers clashing with other sd-card activity.
+		// D_PRINTLN("checkIncomingUsbMidi seeing sd_busy()"); -- left commented out on purpose. This is
+		// the "midi routine" task, scheduled at a 0.001s target / 0.0005s backoff (deluge.cpp:542-543),
+		// i.e. close to 1kHz -- and ENABLE_TEXT_OUTPUT is on for Debug/RelWithDebInfo (CMakeLists.txt),
+		// the config that actually gets flashed. Restoring this line, even briefly, emitted on the order
+		// of 1-2k formatted UART lines/sec during a song load or streaming burst, and the resulting UART
+		// backpressure stalled the very routine this branch exists to defer. sd_busy() is true for one
+		// filesystem operation at a time, but a load issues them back to back, so it reads true on most
+		// ticks across the whole load. Re-add it only rate-limited (e.g. on a false->true transition, or the
+		// first N occurrences) if this needs to come back.
 		return;
 	}
 	check_incoming_usb();
@@ -527,9 +539,8 @@ void MidiEngine::checkIncomingUsbMidi() {
 
 			// Drain whole 4-byte event packets from the device's port into a local
 			// buffer (one bulk transfer holds at most 64 bytes). The BSP (re)arms
-			// its own receive transfers as part of the read; one timestamp covers
-			// the batch — the same value (and read point) as the old
-			// &timeLastBRDY[ip], so MIDI-clock-in timing is unchanged.
+			// its own receive transfers as part of the read; one capture stamp
+			// covers the batch.
 			uint8_t received[64];
 			uint32_t rxTicks = 0;
 			uint32_t bytesReceivedHere =
@@ -581,7 +592,7 @@ bool lastWasNoteOn = false;
 void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1,
                                      uint8_t data2, uint32_t* timer) {
 
-	bool shouldDoMidiThruNow = midiThru;
+	bool shouldDoMidiThruNow = cable.midi_thru;
 
 	// Make copies of these, cos we might modify the variables, and we need the originals to do MIDI thru at the end.
 	uint8_t originalStatusType = statusType;

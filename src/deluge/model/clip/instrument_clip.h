@@ -30,8 +30,15 @@ class NoteRow;
 class InstrumentClip;
 class Instrument;
 class ModControllable;
+namespace deluge::storage {
+struct AcquireResult;
+struct AcquireWalkSpec;
+} // namespace deluge::storage
 class Drum;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class ParamManagerForTimeline;
 class Sound;
 class Note;
@@ -70,7 +77,8 @@ public:
 	void replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack);
 	void seeWhatNotesWithinOctaveArePresent(NoteSet&, MusicalKey);
 	void transpose(int32_t, ModelStackWithTimelineCounter* modelStack);
-	void nudgeNotesVertically(int32_t direction, VerticalNudgeType, ModelStackWithTimelineCounter* modelStack);
+	/// Returns false, changing nothing, if the transpose would leave the playable note range.
+	bool nudgeNotesVertically(int32_t direction, VerticalNudgeType, ModelStackWithTimelineCounter* modelStack);
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
 	Error clone(ModelStackWithTimelineCounter* modelStack, bool shouldFlattenReversing = false) const override;
 	NoteRow* createNewNoteRowForYVisual(int32_t, Song* song);
@@ -201,7 +209,37 @@ public:
 	Error appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	                 ModelStackWithTimelineCounter* otherModelStack) override;
 	void instrumentBeenEdited() override;
+	/// @brief Change this clip to a MIDI or CV Instrument. A Synth or Kit is acquired by InstrumentLoad: see
+	///        beginChangeOutputType() and applyChangeOutputType(); this returns nullptr for one.
+	/// @param modelStack   This clip's model stack.
+	/// @param newOutputType The Instrument type to change to.
+	/// @return The new Instrument, or nullptr when @p newOutputType is unchanged or is a Synth or Kit.
 	Instrument* changeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType);
+	/// @brief A Synth or Kit change-type's card-free prologue: which preset to walk for, from where.
+	/// @param modelStack   This clip's model stack.
+	/// @param newOutputType The Synth or Kit type to change to.
+	/// @param walk Filled with a Confirm walk from the type's backed-up preset.
+	/// @return false when the clip already has @p newOutputType.
+	bool beginChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+	                           deluge::storage::AcquireWalkSpec* walk);
+	/// @brief Swap in the Synth or Kit a change-type acquired.
+	/// @param modelStack   This clip's model stack.
+	/// @param newOutputType The Synth or Kit type being applied.
+	/// @param acquired The result of resolving beginChangeOutputType()'s walk.
+	/// @return The new Instrument, or nullptr when the acquisition failed (its error shown).
+	Instrument* applyChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+	                                  const deluge::storage::AcquireResult& acquired);
+	/// @brief The swap every change-type ends with: the whole Instrument, or just this clip's.
+	/// @param modelStack   This clip's model stack.
+	/// @param newOutputType The Instrument type being switched to.
+	/// @param newInstrument The Instrument to switch to.
+	/// @param instrumentAlreadyInSong Whether @p newInstrument is already in the song's output list.
+	/// @param canReplaceWholeInstrument Whether the old Instrument may be replaced outright rather than just this
+	///        clip's Instrument pointer changed.
+	/// @return The new Instrument.
+	Instrument* finishChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+	                                   Instrument* newInstrument, bool instrumentAlreadyInSong,
+	                                   bool canReplaceWholeInstrument);
 	Error transferVoicesToOriginalClipFromThisClone(ModelStackWithTimelineCounter* modelStackOriginal,
 	                                                ModelStackWithTimelineCounter* modelStackClone) override;
 	void getSuggestedParamManager(Clip* newClip, ParamManagerForTimeline** suggestedParamManager,

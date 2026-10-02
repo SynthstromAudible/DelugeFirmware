@@ -1,0 +1,5 @@
+/target
+# Pinned C++ deps (argon + SIMDe) are fetched by build.rs into this cache at the
+# exact SHAs the CMake FetchContent uses. They are OWNED (pinned in build.rs), not
+# vendored into git history — checking in SIMDe's tree would bloat the repo.
+/third_party

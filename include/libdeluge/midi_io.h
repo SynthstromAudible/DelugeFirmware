@@ -24,7 +24,9 @@
 #ifndef LIBDELUGE_MIDI_IO_H
 #define LIBDELUGE_MIDI_IO_H
 
+#include "abi.h"
 #include "types.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,8 +35,8 @@ extern "C" {
 /// Opaque MIDI port id, 0 .. deluge_midi_port_count()-1.
 typedef uint8_t DelugeMidiPort;
 
-/// Kind of MIDI transport behind a port.
-typedef enum DelugeMidiPortKind {
+/// @brief Kind of MIDI transport behind a port.
+typedef enum DelugeMidiPortKind : uint8_t {
 	DELUGE_MIDI_DIN = 0,
 	DELUGE_MIDI_USB_DEVICE = 1,
 	DELUGE_MIDI_USB_HOST = 2,
@@ -51,56 +53,48 @@ typedef enum DelugeMidiPortKind {
 /// its transfer descriptors. Call once at startup, before the USB stack is
 /// opened (DIN needs no init beyond the UART the board already brings up). A
 /// BSP whose USB stack owns its own lifecycle may make this a no-op. [task]
-void deluge_midi_init(void);
+void deluge_midi_init(void) DELUGE_NOEXCEPT;
 
-/// Number of MIDI ports the board exposes. [task]
-uint8_t deluge_midi_port_count(void);
-
-/// Transport kind for a port. [task]
-DelugeMidiPortKind deluge_midi_port_kind(DelugeMidiPort port);
+/// Number of MIDI ports the board exposes. [task] [audio]
+uint8_t deluge_midi_port_count(void) DELUGE_NOEXCEPT;
 
 /// The port carrying USB-MIDI device slot `device` (0-based) on `controller`.
 /// Stable for the life of the boot. One port per USB-MIDI device: the device's
 /// virtual cables are addressed inside the 4-byte event packets that flow over
 /// the port, not by separate ports. [task]
-DelugeMidiPort deluge_midi_usb_port(uint8_t controller, uint8_t device);
+DelugeMidiPort deluge_midi_usb_port(uint8_t controller, uint8_t device) DELUGE_NOEXCEPT;
 
-/// Read up to `max` received bytes from `port` into `dst`. Non-blocking;
-/// returns the number of bytes copied (0 if none available). USB-MIDI ports
-/// deliver whole 4-byte event packets (decode with the deluge_midi protocol
-/// library) and the BSP arms its own receive transfers — there is nothing to
-/// re-arm or poll at this boundary. [task] [isr]
-uint32_t deluge_midi_read(DelugeMidiPort port, uint8_t* dst, uint32_t max);
-
-/// Like deluge_midi_read(), but when it returns > 0 also fills `*arrival_ticks`
-/// with the hardware timestamp of the drained batch's arrival, in the board's
-/// foundation tick units — the same source as deluge_midi_din_read_timed(), so
-/// MIDI-clock-in timing is preserved across transports. [task]
-uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max, uint32_t* arrival_ticks);
+/// Read up to `max` received bytes from `port` into `dst`, filling `*arrival_ticks` with the capture
+/// stamp of the drained batch's arrival (see `deluge_audio_stamp_to_render_offset`), as
+/// deluge_midi_din_read_timed() does per byte. Every message in the batch shares that one stamp.
+/// Non-blocking; returns the number of bytes copied (0 if none available). USB-MIDI ports deliver
+/// whole 4-byte event packets (decode with the deluge_midi protocol library) and the BSP arms its own
+/// receive transfers — there is nothing to re-arm or poll at this boundary. [task]
+uint32_t deluge_midi_read_timed(DelugeMidiPort port, uint8_t* dst, uint32_t max,
+                                uint32_t* arrival_ticks) DELUGE_NOEXCEPT;
 
 /// Queue `len` bytes for transmission on `port`. Returns the number of bytes
-/// accepted (may be < len if the TX buffer is full). Non-blocking. [task]
-uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len);
+/// accepted (may be < len if the TX buffer is full). Non-blocking. [task] [audio]
+uint32_t deluge_midi_write(DelugeMidiPort port, const uint8_t* src, uint32_t len) DELUGE_NOEXCEPT;
 
 /// Free space (in bytes) in the port's TX buffer. [task]
-uint32_t deluge_midi_write_space(DelugeMidiPort port);
+uint32_t deluge_midi_write_space(DelugeMidiPort port) DELUGE_NOEXCEPT;
 
 /// Bytes currently buffered for transmission on `port` but not yet on the wire.
-/// The app uses this to tell whether output is still pending. [task]
-uint32_t deluge_midi_write_pending(DelugeMidiPort port);
+/// The app uses this to tell whether output is still pending. [task] [audio]
+uint32_t deluge_midi_write_pending(DelugeMidiPort port) DELUGE_NOEXCEPT;
 
-/// Read the next received DIN/serial MIDI byte together with the hardware
-/// timestamp of its arrival. Returns true and fills `*byte` and `*arrival_ticks`
-/// when a byte was available; false (leaving the outputs untouched) when the RX
-/// buffer is empty. The timestamp is in the board's foundation tick units — the
-/// same source the app already uses to time incoming MIDI clock — so clock-in
-/// jitter is preserved. Non-blocking. [task] [isr]
-bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_ticks);
+/// Read the next received DIN/serial MIDI byte together with its capture stamp.
+/// Returns true and fills `*byte` and `*arrival_stamp` when a byte was
+/// available; false (leaving the outputs untouched) when the RX buffer is
+/// empty. `*arrival_stamp` is the event's capture stamp; see
+/// `deluge_audio_stamp_to_render_offset`. Non-blocking. [task]
+bool deluge_midi_din_read_timed(uint8_t* byte, uint32_t* arrival_stamp) DELUGE_NOEXCEPT;
 
 /// Push any buffered TX bytes toward the wire if idle. USB-MIDI ports on one
 /// controller share the wire, so flushing any of them pumps that controller's
-/// whole USB-MIDI transport. [task] [isr]
-void deluge_midi_flush(DelugeMidiPort port);
+/// whole USB-MIDI transport. [task] [audio] [isr]
+void deluge_midi_flush(DelugeMidiPort port) DELUGE_NOEXCEPT;
 
 /// Service the MIDI transport: pump all MIDI transport state machines,
 /// non-blocking — USB send/receive arming, enumeration polling, draining
@@ -108,12 +102,7 @@ void deluge_midi_flush(DelugeMidiPort port);
 /// routine; it is the pull point that replaces the USB stack calling up into
 /// the app. (DIN has no state machine; a BSP whose executor already drives the
 /// USB task may make this a no-op.) [task]
-void deluge_midi_service(void);
-
-/// True if `port` currently has a connected/usable MIDI endpoint (a DIN port is
-/// always present; a USB port is present only while a device is enumerated). The
-/// app polls this instead of reading USB-stack connection globals. [task]
-bool deluge_midi_port_connected(DelugeMidiPort port);
+void deluge_midi_service(void) DELUGE_NOEXCEPT;
 
 /// USB-MIDI role queries. On this board USB host is the MIDI-device transport, so
 /// the app reads its role through the MIDI boundary rather than the USB-stack mode
@@ -122,16 +111,17 @@ bool deluge_midi_port_connected(DelugeMidiPort port);
 /// True when the USB controller acts as a host (devices plug into the Deluge);
 /// false when it is a peripheral (the Deluge plugs into a computer). The app uses
 /// this to decide how many USB-MIDI devices it may enumerate per controller. [task]
-bool deluge_midi_usb_is_host(void);
+bool deluge_midi_usb_is_host(void) DELUGE_NOEXCEPT;
 
 /// True when, as a USB peripheral, a host is attached (has enumerated us).
 /// Meaningless in host mode. [task]
-bool deluge_midi_usb_peripheral_connected(void);
+bool deluge_midi_usb_peripheral_connected(void) DELUGE_NOEXCEPT;
 
-/// A USB-host enumeration event observed since the last poll. USB host is the
-/// MIDI-device transport on this board, so these surface through the MIDI
+/// @brief A USB-host enumeration event observed since the last poll.
+///
+/// USB host is the MIDI-device transport on this board, so these surface through the MIDI
 /// boundary.
-typedef enum DelugeUsbHostEvent {
+typedef enum DelugeUsbHostEvent : uint8_t {
 	DELUGE_USB_HOST_NONE = 0,
 	DELUGE_USB_HOST_HUB_ATTACHED,
 	DELUGE_USB_HOST_DEVICE_DETACHED,
@@ -144,7 +134,7 @@ typedef enum DelugeUsbHostEvent {
 /// Pull-based, not a callback: the USB host stack records events and the app
 /// polls for them, then decides what to display and localize. The USB stack
 /// does no UI/localization and never calls up into the app. [task]
-DelugeUsbHostEvent deluge_midi_poll_usb_host_event(void);
+DelugeUsbHostEvent deluge_midi_poll_usb_host_event(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

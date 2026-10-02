@@ -17,6 +17,8 @@
 
 #include "hid/led/pad_leds.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "dsp-next/fixed/osc/sine_table.h"
 #include "gui/colour/colour.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
@@ -32,14 +34,19 @@
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/led/draw_square.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
+
+using deluge::dsp::fixed::linear_table_interpolator;
+using deluge::dsp::fixed::sine_table;
 
 #include "libdeluge/control_surface.h"
 
@@ -103,6 +110,11 @@ bool sampleReversed;
 // Same for InstrumentClips
 int32_t clipLength;
 RGB clipMuteSquareColour;
+// Keyboard view has no mute / section columns of its own, so its two sidebar columns morph between the keyboard
+// colours and the Session colours of the row they collapse into (or expand out of). Both destination colours are
+// needed; the mute one is clipMuteSquareColour above.
+RGB clipSectionSquareColour;
+bool morphKeyboardSidebar;
 
 bool renderingLock;
 
@@ -111,6 +123,8 @@ uint32_t transitionStartTime;
 
 uint32_t greyoutCols;
 uint32_t greyoutRows;
+
+constexpr uint32_t kClipExpandCollapseRefreshMs = 25;
 
 void init() {
 	memset(slowFlashSquares, 255, sizeof(slowFlashSquares));
@@ -298,13 +312,40 @@ void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t gre
 	image[yDisplay][sideBarX + kDisplayWidth] = RGB(red, green, blue);
 }
 
+void refreshSidebarOccupancy(RGB rowImage[], uint8_t rowOccupancyMask[]) {
+	for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; x++) {
+		rowOccupancyMask[x] = (rowImage[x] == gui::colours::black) ? 0 : 64;
+	}
+}
+
+void clearTransitionStoreOffScreenRows() {
+	for (int32_t storeRow : {int32_t{0}, int32_t{kDisplayHeight + 1}}) {
+		std::fill_n(imageStore[storeRow], kDisplayWidth + kSideBarWidth, gui::colours::black);
+		memset(occupancyMaskStore[storeRow], 0, kDisplayWidth + kSideBarWidth);
+	}
+}
+
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
 	clipLength = getCurrentClip()->loopLength();
+	morphKeyboardSidebar = false;
 
 	if (collapsingOutOfClipMinder) {
 		// This shouldn't have to be done every time
 		clipMuteSquareColour = view.getClipMuteSquareColour(getCurrentClip(), clipMuteSquareColour);
 	}
+}
+
+void enableKeyboardSidebarMorph(RGB sessionSectionColour) {
+	morphKeyboardSidebar = true;
+	clipSectionSquareColour = sessionSectionColour;
+}
+
+// Smoothstep, in 16.16. Avoids harsh colour changes on the sidebar while rows are moving quickly.
+uint16_t smoothProgress(uint16_t progress) {
+	uint32_t p = progress;
+	uint32_t pSquared = (p * p) >> 16;
+	uint32_t pCubed = (pSquared * p) >> 16;
+	return static_cast<uint16_t>(std::min<uint32_t>((3 * pSquared) - (2 * pCubed), 65535));
 }
 
 void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, int32_t progress) {
@@ -323,15 +364,30 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 	// Do some pre figuring out, which applies to all columns
 	uint16_t* intensity1Array = (uint16_t*)miscStringBuffer;
 	uint16_t* intensity2Array = (uint16_t*)&miscStringBuffer[kMaxNumAnimatedRows * sizeof(uint16_t)];
+	// Full precision row positions are needed for keyboard sidebar colour blends, which depend on proximity to
+	// the destination session row.
+	int32_t newRowPositionArray[kMaxNumAnimatedRows];
 	int8_t newRowPosition1Array[kMaxNumAnimatedRows];
 
 	for (int32_t i = 0; i < numAnimatedRows; i++) {
 		int32_t newRowPosition = (int32_t)animatedRowGoingFrom[i] * 65536
 		                         + ((int32_t)animatedRowGoingTo[i] - animatedRowGoingFrom[i]) * (65536 - progress);
+		newRowPositionArray[i] = newRowPosition;
 		newRowPosition1Array[i] = newRowPosition >> 16;
 		intensity2Array[i] = newRowPosition; // & 65535;
 		intensity1Array[i] = 65535 - intensity2Array[i];
 	}
+
+	// Blend amounts for the two sidebar columns. They don't vary per column, so work them out once.
+	bool expanding = isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING);
+	bool transitioning = expanding || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING);
+	bool keyboardSidebarMorphing = morphKeyboardSidebar && transitioning;
+	uint16_t clippedProgress = std::min<int32_t>(progress, 65535);
+	uint16_t muteBlendProgress = expanding ? smoothProgress(clippedProgress) : clippedProgress;
+	// How much of the Session sidebar colour to show. `progress` already runs backwards for a collapse, so this
+	// single expression covers both directions: it starts at the Session colours and ends at the keyboard ones when
+	// expanding, and does the reverse when collapsing.
+	uint16_t keyboardSessionBlend = keyboardSidebarMorphing ? smoothProgress(65535 - clippedProgress) : 0;
 
 	int32_t greyStart =
 	    instrumentClipView.getSquareFromPos(clipLength - 1, NULL, currentSong->persistentView.xScroll[NAVIGATION_CLIP])
@@ -384,41 +440,85 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			}
 		}
 
+		bool expandingMuteColumn = expanding && col == kDisplayWidth;
+		bool keyboardSidebarColumn =
+		    keyboardSidebarMorphing && col >= kDisplayWidth && col < kDisplayWidth + kSideBarWidth;
+
+		if (expandingMuteColumn && animatedRowGoingTo[0] >= 0 && animatedRowGoingTo[0] < kDisplayHeight) {
+			int32_t sessionMuteIntensity = 65535 - muteBlendProgress;
+			PadLEDs::image[animatedRowGoingTo[0]][col] =
+			    drawSquare(clipMuteSquareColour, sessionMuteIntensity, PadLEDs::image[animatedRowGoingTo[0]][col],
+			               &occupancyMask[animatedRowGoingTo[0]][col]);
+		}
+
 		for (int32_t i = 0; i < numAnimatedRows; i++) {
 			if (!occupancyMaskStore[i][col]) {
 				continue; // Nothing to do if there was nothing in this square
 			}
 
-			RGB& squareColours = imageStore[i][col];
+			// Work on a local copy so per-row colour morphs do not alter the stored source frame.
+			RGB squareColours = imageStore[i][col];
 
 			int32_t intensity1 = intensity1Array[i];
 			int32_t intensity2 = intensity2Array[i];
 
-			if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)
-			    || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING)) {
+			if (transitioning) {
 
-				// If the audition column, fade it out as we go
-				if (col == kDisplayWidth + kSideBarWidth - 1) {
+				// Keyboard's sidebar columns morph between their keyboard colours and the Session colours of the row
+				// they collapse into / expand out of, in whichever direction we're going.
+				if (keyboardSidebarColumn) {
+					RGB sessionColour = (col == kDisplayWidth) ? clipMuteSquareColour : clipSectionSquareColour;
+					uint16_t sessionBlend = keyboardSessionBlend;
+					if (animatedRowGoingTo[i] >= 0 && animatedRowGoingTo[i] < kDisplayHeight) {
+						constexpr int32_t kKeyboardColourBlendDistance = 3 * 65536;
+						// Cap the morph by how far this row still is from the Session row, so pads hold their keyboard
+						// colours until they're visually close to it rather than changing colour across the display.
+						int32_t distanceFromDestination =
+						    newRowPositionArray[i] - ((int32_t)animatedRowGoingTo[i] * 65536);
+						if (distanceFromDestination < 0) {
+							distanceFromDestination = -distanceFromDestination;
+						}
+						uint16_t proximityBlend = 0;
+						if (distanceFromDestination < kKeyboardColourBlendDistance) {
+							// 64-bit intermediate: the numerator reaches 3 * 65536 * 65535, well past INT32_MAX.
+							uint32_t proximityProgress =
+							    ((uint64_t)(kKeyboardColourBlendDistance - distanceFromDestination) * 65535)
+							    / kKeyboardColourBlendDistance;
+							proximityBlend = smoothProgress(std::min<uint32_t>(proximityProgress, 65535));
+						}
+						sessionBlend = std::min(sessionBlend, proximityBlend);
+					}
+					squareColours = RGB::blend(sessionColour, squareColours, sessionBlend);
+				}
+
+				// The clip's audition column has nowhere to go in Session view, so fade it as we go: `progress` runs
+				// forwards when expanding and backwards when collapsing, so this fades it in and out respectively.
+				else if (col == kDisplayWidth + kSideBarWidth - 1) {
 					intensity1 = ((uint32_t)intensity1 * progress) >> 16;
 					intensity2 = ((uint32_t)intensity2 * progress) >> 16;
 				}
 
 				// If the mute-col, we want to alter the colour
-				if (col == kDisplayWidth) {
-					squareColours = RGB::blend(squareColours, clipMuteSquareColour, progress);
+				else if (col == kDisplayWidth) {
+					if (expandingMuteColumn) {
+						// Fade in the session mute pad underneath as the clip mute column expands out of it.
+						intensity1 = ((uint32_t)intensity1 * muteBlendProgress) >> 16;
+						intensity2 = ((uint32_t)intensity2 * muteBlendProgress) >> 16;
+					}
+					squareColours = RGB::blend(squareColours, clipMuteSquareColour, muteBlendProgress);
 				}
 			}
 
 			if (newRowPosition1Array[i] >= 0 && newRowPosition1Array[i] < kDisplayHeight) {
 				PadLEDs::image[newRowPosition1Array[i]][col] =
 				    drawSquare(squareColours, intensity1, PadLEDs::image[newRowPosition1Array[i]][col],
-				               &occupancyMask[newRowPosition1Array[i]][col], occupancyMaskStore[i][col]);
+				               &occupancyMask[newRowPosition1Array[i]][col]);
 			}
 
 			if (newRowPosition1Array[i] >= -1 && newRowPosition1Array[i] < kDisplayHeight - 1) {
 				PadLEDs::image[newRowPosition1Array[i] + 1][col] =
 				    drawSquare(squareColours, intensity2, PadLEDs::image[newRowPosition1Array[i] + 1][col],
-				               &occupancyMask[newRowPosition1Array[i] + 1][col], occupancyMaskStore[i][col]);
+				               &occupancyMask[newRowPosition1Array[i] + 1][col]);
 			}
 		}
 	}
@@ -624,9 +724,8 @@ void renderExplodeAnimation(int32_t explodedness, bool shouldSendOut) {
 						}
 
 						uint32_t intensityNow = (yIntensity[yOffset] * xIntensityArray[xSource][xOffset]) >> 16;
-						PadLEDs::image[yNow][xNow] =
-						    drawSquare(imageStore[ySource + 1][xSource], intensityNow, PadLEDs::image[yNow][xNow],
-						               &occupancyMask[yNow][xNow], occupancyMaskStore[ySource + 1][xSource]);
+						PadLEDs::image[yNow][xNow] = drawSquare(imageStore[ySource + 1][xSource], intensityNow,
+						                                        PadLEDs::image[yNow][xNow], &occupancyMask[yNow][xNow]);
 					}
 				}
 			}
@@ -726,16 +825,14 @@ void changeDimmerInterval(int32_t offset) {
 		setDimmerInterval(newInterval);
 	}
 
-	if (display->haveOLED()) {
-		char text[20];
-		strcpy(text, "Brightness: ");
-		char* pos = strchr(text, 0);
-		intToString((25 - dimmerInterval) << 2, pos);
-		pos = strchr(text, 0);
-		*(pos++) = '%';
-		*pos = 0;
-		display->popupTextTemporary(text);
-	}
+	char text[20];
+	strcpy(text, "Brightness: ");
+	char* pos = strchr(text, 0);
+	intToString((25 - dimmerInterval) << 2, pos);
+	pos = strchr(text, 0);
+	*(pos++) = '%';
+	*pos = 0;
+	display->popupTextTemporary(text);
 }
 
 void setDimmerInterval(int32_t newInterval) {
@@ -1059,7 +1156,8 @@ void renderClipExpandOrCollapse() {
 
 	renderInstrumentClipCollapseAnimation(0, kDisplayWidth + kSideBarWidth, progress);
 
-	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, UI_MS_PER_REFRESH);
+	// The sidebar rows move a long way over this short transition, so keep the samples close to one row apart.
+	uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, kClipExpandCollapseRefreshMs);
 }
 
 void renderNoteRowExpandOrCollapse() {
@@ -1095,7 +1193,7 @@ void renderZoom() {
 		transitionProgress = 65536 - transitionProgress;
 	}
 
-	uint32_t sineValue = (getSine((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
+	uint32_t sineValue = (sine_table.value((transitionProgress + 98304) & 131071, 17) >> 16) + 32768;
 
 	// The commented line is equivalent to the other lines just below
 	// int32_t negativeFactorProgress = pow(zoomFactor, transitionProgress - 1) * 134217728; // Sorry, the purpose of
@@ -1111,7 +1209,7 @@ void renderZoom() {
 	// "0.5" (32768). And so on.
 
 	uint32_t inImageTimesBiggerThanNormal =
-	    interpolateTable(fine, 10, expTableSmall); // This could be changed to run on a bigger number of bits in input
+	    linear_table_interpolator.interpolate(fine, 10, expTableSmall); // could run on more input bits
 	inImageTimesBiggerThanNormal = increaseMagnitude(inImageTimesBiggerThanNormal, coarse - 14);
 
 	renderZoomWithProgress(inImageTimesBiggerThanNormal, sineValue, &imageStore[0][0][0],

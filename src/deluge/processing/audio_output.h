@@ -21,7 +21,7 @@
 #include "gui/ui/ui.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
-#include "modulation/envelope.h"
+#include "synth/envelope.h"
 #include "util/container/enum_to_string_map.hpp"
 
 class ModelStackWithTimelineCounter;
@@ -103,21 +103,39 @@ public:
 
 	AudioOutputMode mode{AudioOutputMode::player};
 
-	Output* getOutputRecordingFrom() { return outputRecordingFrom; }
+	Output* getOutputRecordingFrom() override { return outputRecordingFrom; }
 	void clearRecordingFrom() override { setOutputRecordingFrom(nullptr); }
+	// Specific-track recording only makes sense from another audio-capable output.
+	bool canRecordFrom(Output const* source) const {
+		return source && source != this && source->type != OutputType::MIDI_OUT && source->type != OutputType::CV;
+	}
 	void setOutputRecordingFrom(Output* toRecordfrom) {
-		if (toRecordfrom == this) {
-			// can happen from bad save files
-			return;
+		if (toRecordfrom && !canRecordFrom(toRecordfrom)) {
+			// Can happen from bad save files or stale UI state.
+			toRecordfrom = nullptr;
 		}
-		if (outputRecordingFrom) {
+		releaseMonitoringClaim();
+		outputRecordingFrom = toRecordfrom;
+		updateMonitoringClaim();
+	}
+
+	/// Give up the monitoring duty on outputRecordingFrom, but only if we're the one currently holding it. Several
+	/// AudioOutputs can record from the same output (e.g. an overdub cloned from a sampler), and only the monitoring
+	/// one suppresses that output's own rendering in the song - clearing another's claim would render it twice.
+	void releaseMonitoringClaim() {
+		if (outputRecordingFrom && outputRecordingFrom->getOutputRecordingThis() == this) {
 			outputRecordingFrom->setRenderingToAudioOutput(false, nullptr);
 		}
-		outputRecordingFrom = toRecordfrom;
-		if (outputRecordingFrom) {
-			// If we are a SAMPLER or a LOOPER then we're monitoring the audio, so tell the other output that we're in
-			// charge of rendering
-			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
+	}
+
+	/// If we are a SAMPLER or a LOOPER then we're monitoring the audio, so tell the other output that we're in charge
+	/// of rendering.
+	void updateMonitoringClaim() {
+		if (outputRecordingFrom && mode != AudioOutputMode::player) {
+			outputRecordingFrom->setRenderingToAudioOutput(true, this);
+		}
+		else {
+			releaseMonitoringClaim();
 		}
 	}
 
@@ -129,25 +147,9 @@ public:
 		modeInt = (modeInt + offset) % kNumAudioOutputModes;
 
 		mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
-		if (outputRecordingFrom) {
-			// update the output we're recording from on whether we're monitoring
-			outputRecordingFrom->setRenderingToAudioOutput(mode != AudioOutputMode::player, this);
-		}
+		// update the output we're recording from on whether we're monitoring
+		updateMonitoringClaim();
 		renderUIsForOled(); // oled shows the type on the clip screen (including while holding a clip in song view)
-		if (display->have7SEG()) {
-			const char* type;
-			switch (mode) {
-			case AudioOutputMode::player:
-				type = "PLAY";
-				break;
-			case AudioOutputMode::sampler:
-				type = "SAMP";
-				break;
-			case AudioOutputMode::looper:
-				type = "LOOP";
-			}
-			display->displayPopup(type);
-		}
 	}
 
 protected:

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
 #include "gui/menu_item/reverb/model.h"
+#include "gui/ui/browser/file_listing.h"
 #include "io/midi/learned_midi.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
@@ -32,17 +33,22 @@
 #include "model/scale/scale_change.h"
 #include "model/scale/scale_mapper.h"
 #include "model/song/song_view_state.h"
-#include "model/sync.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/sync.h"
 #include "storage/flash_storage.h"
+#include "storage/preset_acquisition.h"
 #include "util/c_string.h"
 #include "util/containers.h"
 #include "util/etl_string.h"
+#include <atomic>
 #include <utility>
 
 class MidiCommand;
+namespace deluge::storage {
+struct AcquireResult;
+}
 class Clip;
 class AudioClip;
 class Instrument;
@@ -78,8 +84,42 @@ class Song final : public TimelineCounter {
 public:
 	Song();
 	~Song() override;
+
+	/// @brief How many Songs have been destroyed while the render could still reach them, since boot: the Song was
+	///        still currentSong, or a Sound of one of its outputs (a synth, or a kit's sound drum) was still in the
+	///        Sound registry. Checked at the top of ~Song's body, before anything is torn down.
+	static int32_t songsDestroyedWhileReachable();
+	/// @brief How many retired objects (AudioEngine::retiredPending()) were still waiting to be freed when the most
+	///        recent Song was constructed: a stopped-clock load or clear must have freed the old song before it builds
+	///        the new one, so this reads 0 right after one. Evidence, not state; -1 before any Song is built.
+	static int32_t retiredPendingAtLastConstruction();
 	bool mayDoubleTempo();
+	/// @brief Build the first session Clip if the song has none, on the built-in default synth.
+	///
+	/// Reads no card: it runs before the interaction tier exists (boot), and in clear-song on a Song that is not yet
+	/// current, so the preset that replaces the default synth is asked for later, through @ref blankPresetPending.
+	/// @return true if a Clip was created.
 	bool ensureAtLeastOneSessionClip();
+	/// @brief Take @p acquired -- the preset the blank song asked for -- in place of the default synth.
+	///
+	/// Does nothing unless the clip still holds that synth, untouched: anything else means the user got there first,
+	/// and the delivery's own cleanup deletes the preset nobody took.
+	/// Returns whether the preset replaced the default synth, which is then freed.
+	bool completeBlankPreset(const deluge::storage::AcquireResult& acquired);
+
+	/// @name The blank song's first preset
+	/// @{
+	/// Whether this song still wants the first SYNTHS preset in place of its default synth. Cleared by
+	/// InstrumentLoad::routine() as it asks for one.
+	bool blankPresetPending = false;
+	Instrument* blankPresetInstrument = nullptr; ///< The default synth the preset would replace.
+	InstrumentClip* blankPresetClip = nullptr;   ///< The clip that synth was built for.
+	/// @}
+	/// [interaction] -> [render] Set by AudioEngine::songSwapAboutToHappen() before it deletes the sounds that will not
+	/// sound until a swap replaces this song; cleared again only if the swap never comes (a failed load). The render's
+	/// reverb update reads it and leaves the reverb as it is while it is set. A property of the song, so a swap needs
+	/// no write: the incoming song's is clear.
+	std::atomic<bool> soundsDeletedForSwap{false};
 	void transposeAllScaleModeClips(int32_t interval);
 	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();
@@ -121,7 +161,10 @@ public:
 	void setBPM(float tempoBPM, bool shouldLogAction);
 	void setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldLogAction);
 	void deleteSoundsWhichWontSound();
-	void writeTemplateSong(const char* templateSong);
+	/// @brief [interaction] Delete a clip the caller has already taken out of this song's arrays. Unless
+	///        @p songBeingDestroyedToo, prepares it for destruction and hands it to AudioEngine::retire(), so it is
+	///        freed only after the render let go of it: the caller must not touch @p clip afterwards. From ~Song()
+	///        (@p songBeingDestroyedToo), destroys it at once.
 	void
 	deleteClipObject(Clip* clip, bool songBeingDestroyedToo = false,
 	                 InstrumentRemoval instrumentRemovalInstruction = InstrumentRemoval::DELETE_OR_HIBERNATE_IF_UNUSED);
@@ -135,6 +178,9 @@ public:
 	AudioOutput* getAudioOutputFromName(std::string_view name);
 	void setupPatchingForAllParamManagers();
 	void replaceInstrument(Instrument* oldInstrument, Instrument* newInstrument, bool keepNoteRowsWithMIDIInput = true);
+	/// Move @p output one place along the output list: towards the end if @p direction >= 0, else towards the start.
+	/// The caller has checked there is an output to swap with. (The arranger's output drag.)
+	void moveOutput(Output* output, int32_t direction);
 	void stopAllMIDIAndGateNotesPlaying();
 	void stopAllAuditioning();
 	void deleteOrHibernateOutput(Output* output);
@@ -224,7 +270,10 @@ public:
 	void removeDocOutput(Output* output);
 
 	void writeToFile(Serializer& writer);
-	void loadAllSamples(bool mayActuallyReadFiles = true);
+	void loadAllSamples(bool mayActuallyReadFiles = true, deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief Report every audio file the song names to @p visitor, in load order: each output's, then each audio
+	///        clip's, with a checkpoint before every clip. Loads nothing.
+	void walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
@@ -250,7 +299,9 @@ public:
 	bool doesOutputHaveAnyClips(Output* output);
 	void deleteBackedUpParamManagersForClip(Clip* clip);
 	void deleteHibernatingInstrumentWithSlot(OutputType outputType, char const* name);
-	void loadCrucialSamplesOnly();
+	void loadCrucialSamplesOnly(deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief As walkSampleDemands(), but only what the active clips need to sound, with no clip checkpoints.
+	void walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor);
 	Clip* getSessionClipWithOutput(Output* output, int32_t requireSection = -1, Clip* excludeClip = nullptr,
 	                               int32_t* clipIndex = nullptr, bool excludePendingOverdubs = false);
 	void restoreClipStatesBeforeArrangementPlay();
@@ -303,9 +354,19 @@ public:
 	void resumeClipsClonedForArrangementRecording();
 	void setParamsInAutomationMode(bool newState);
 	bool shouldOldOutputBeReplaced(Clip* clip, Availability* availabilityRequirement = nullptr);
+	/// @brief Navigate a MIDI or CV output through its channels. A Synth or Kit is acquired by InstrumentLoad and
+	///        applied by applyNavigateThroughPresets(); this returns @p output unchanged for one.
 	Output* navigateThroughPresetsForInstrument(Output* output, int32_t offset);
+	/// @brief Swap in the Synth or Kit a navigate acquired for @p oldInstrument.
+	/// @return The new Instrument, or @p oldInstrument when the acquisition found nothing (its error shown).
+	Output* applyNavigateThroughPresets(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired);
 	void instrumentSwapped(Instrument* newInstrument);
+	/// @brief Change @p oldInstrument to a MIDI or CV Instrument. A Synth or Kit is acquired by InstrumentLoad and
+	///        applied by applyChangeOutputType(); this returns nullptr for one.
 	Instrument* changeOutputType(Instrument* oldInstrument, OutputType newOutputType);
+	/// @brief Swap in the Synth or Kit a change-type acquired for @p oldInstrument.
+	/// @return The new Instrument, or nullptr when the acquisition failed (its error shown).
+	Instrument* applyChangeOutputType(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired);
 	AudioOutput* getFirstAudioOutput();
 	AudioOutput* createNewAudioOutput(Output* replaceOutput = nullptr);
 	/// buffer must have at least 5 characters on 7seg, or 30 for OLED
@@ -321,6 +382,7 @@ public:
 	bool hasAnyPendingNextOverdubs();
 	Output* getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement);
 	void deleteOutput(Output* output);
+	void clearRecordingFromReferencesTo(Output* output);
 	void cullAudioClipVoice();
 	int32_t getYScrollSongViewWithoutPendingOverdubs();
 	int32_t removeOutputFromMainList(Output* output, bool stopAnyAuditioningFirst = true);
@@ -329,7 +391,9 @@ public:
 	void setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity);
 	void midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone,
 	                                         int32_t whichBendRange, int32_t bendSemitones);
-	Error addInstrumentsToFileItems(OutputType outputType);
+	/// @brief Merge this song's own Instruments for @p outputType into @p into, for the folder that
+	///        listing was read from.
+	Error addInstrumentsToFileItems(deluge::gui::browser::FileListing& into, OutputType outputType);
 
 	uint32_t getQuarterNoteLength();
 	uint32_t getBarLength();
@@ -375,7 +439,7 @@ public:
 	bool hasBeenTransposed = 0;
 	int16_t transposeOffset = 0;
 
-	int32_t countAudioClips() const;
+	int32_t countAudioVoices() const;
 
 	// Chord memory
 	uint8_t chordMemNoteCount[kDisplayHeight] = {0};

@@ -159,6 +159,17 @@ void* deluge_resource_acquire(DelugeResource* mgr, uint32_t asset, uint32_t inde
 /// that is `request`ed but not yet `mark_ready`'d). The seam for the RT render / embassy storage path.
 void* deluge_resource_try_acquire(DelugeResource* mgr, uint32_t asset, uint32_t index);
 
+/// @brief Non-leasing residency peek: the backing pointer for `(asset, index)` if resident (ready
+///        or not), else null.
+///
+/// Does NOT take a lease and does NOT bump recency — a peek must not perturb eviction ordering.
+/// Callers that need loaded data check the chunk's own ready/loaded flag.
+/// @param mgr   Resource manager instance.
+/// @param asset Asset id.
+/// @param index Chunk index within the asset.
+/// @return The backing pointer if resident, else NULL.
+void* deluge_resource_peek(DelugeResource* mgr, uint32_t asset, uint32_t index);
+
 /// Mark a `request`ed (Loading) chunk ready — called when its read completes (the C++ loader after
 /// readClusterData, or an embassy storage task after its async DMA). No-op if `ptr` isn't resident.
 void deluge_resource_mark_ready(DelugeResource* mgr, void* ptr);
@@ -171,16 +182,52 @@ uint32_t deluge_resource_slot_of(DelugeResource* mgr, void* ptr);
 /// single source of truth for a cluster's reason count, read via the C++ slot handle (no scan).
 uint32_t deluge_resource_lease_count_by_slot(DelugeResource* mgr, uint32_t slot);
 
+/// @brief Hard leases on the chunk at `slot` excluding the load queue's own.
+///
+/// Answers "does any consumer besides the queue still want this chunk?", and equals
+/// deluge_resource_lease_count_by_slot for a chunk the queue holds no lease on. The async drain's
+/// abandonment check: with a queue-owned lease held, the raw count never reaches 0.
+/// @see deluge_resource_loader_enqueue_owned
+uint32_t deluge_resource_external_lease_count_by_slot(DelugeResource* mgr, uint32_t slot);
+
 /// Cluster load queue (per-slot state inside the manager; replaces the C++ ClusterPriorityQueue). The
 /// priority is the caller's audio-domain rating — lower = more urgent.
-/// enqueue the chunk at `slot` (re-enqueue updates the priority); remove de-queues it.
+/// enqueue the chunk at `slot` (re-enqueue updates the priority); remove de-queues it (and drops any
+/// queue-owned lease, so an erased entry cannot leave the chunk pinned).
 void deluge_resource_loader_enqueue(DelugeResource* mgr, uint32_t slot, uint32_t priority);
 void deluge_resource_loader_remove(DelugeResource* mgr, uint32_t slot);
+
+/// @brief Enqueue the chunk at `slot` AND take a queue-owned hard lease.
+///
+/// deluge_resource_loader_next serves only leased chunks (filling an evictable one could write into a
+/// recycled slot) and silently discards the rest, so a caller that cannot hold its own lease until the
+/// load lands — a fire-and-forget "fill this eventually" — must enqueue through this instead, letting
+/// the queue hold the lease the guard requires. Idempotent in the lease: re-enqueueing updates the
+/// priority without taking a second one.
+///
+/// @warning Every terminal path of the loader MUST pair this with
+/// deluge_resource_loader_release_owned. A stranded queue lease pins the chunk against eviction for
+/// the rest of the run.
+void deluge_resource_loader_enqueue_owned(DelugeResource* mgr, uint32_t slot, uint32_t priority);
+
+/// @brief Release the queue-owned lease taken by deluge_resource_loader_enqueue_owned.
+/// @return Whether there was one to release — false for a chunk enqueued under the plain protocol,
+///         whose enqueuer owns its own lease.
+/// @note Idempotent, and does not de-queue.
+bool deluge_resource_loader_release_owned(DelugeResource* mgr, uint32_t slot);
 /// Pop the most-urgent queued + still-leased chunk's backing ptr (clears its queued flag), else NULL.
-/// Queued-but-unleased chunks are de-queued and left resident for normal eviction (not freed here).
+/// Queued-but-unleased chunks are skipped: they stay queued, and resident for normal eviction.
 void* deluge_resource_loader_next(DelugeResource* mgr);
 /// Whether any queued + leased chunk sits at the lowest priority (0xFFFFFFFF) — the load-song yield gate.
 bool deluge_resource_loader_has_lowest(DelugeResource* mgr);
+/// @brief Whether any queued + leased chunk remains at all (any priority).
+///
+/// The non-destructive loader-queue-non-empty predicate the offline async drain blocks on.
+/// Answers "would deluge_resource_loader_next return non-null" without popping or mutating
+/// anything.
+/// @param mgr Resource manager instance.
+/// @return True if the loader queue holds at least one queued + leased chunk.
+bool deluge_resource_loader_has_any(DelugeResource* mgr);
 
 /// Number of cost classes `evictions_by_cost` buckets by (must match the Rust COST_BUCKETS).
 #define DELUGE_RESOURCE_COST_BUCKETS 8
@@ -196,6 +243,35 @@ typedef struct DelugeResourceStats {
 	uint64_t alloc_failures; // alloc_backing returned null (pool exhausted after reclaim)
 	uint64_t adopts;         // objects adopted
 	uint64_t evictions_by_cost[DELUGE_RESOURCE_COST_BUCKETS]; // evicted-chunk breakdown by cost class
+	// Scan-cost instrumentation (THROWAWAY: added 2026-08-16 to size the manager's O(table) linear
+	// scans on device; remove once the indexing decision is made). `*_calls` counts invocations,
+	// `*_slots` counts slots actually visited -- the cost driver, since each visit is a masked
+	// (interrupt-disabling) read of a chunk slot in SDRAM. Measured on hardware: a full 6144-slot
+	// scan costs ~10.5 ms, i.e. ~1.7 us per slot visited.
+	uint64_t scan_resident_calls;
+	uint64_t scan_resident_slots;
+	uint64_t scan_ptr_calls;
+	uint64_t scan_ptr_slots;
+	uint64_t scan_free_calls;
+	uint64_t scan_free_slots;
+	uint64_t scan_evict_calls;
+	uint64_t scan_evict_slots;
+	// Loader queue depth sampled inside loader_next's existing scan: how many candidates it chose
+	// between. Measured mean 1.19 / max 37 on 2026-08-16 — about one at a time, so there is nothing
+	// to order. A mean well above 1 is when ordering would start to matter.
+	uint64_t loader_depth_polls;
+	uint64_t loader_depth_total;
+	uint64_t loader_depth_max;
+	// Loader service latency in output frames, split: queue_wait = enqueue -> loader_next (the fill
+	// task's scheduling delay); fill = loader_next -> mark_ready (the card). Measured 2026-08-16:
+	// queue_wait mean 35 ms vs fill mean 5.6 ms, i.e. 86% of a chunk's latency is scheduling. 35 ms
+	// is the number the storage-tier scheduling work has to beat.
+	uint64_t queue_wait_samples;
+	uint64_t queue_wait_total;
+	uint64_t queue_wait_max;
+	uint64_t fill_samples;
+	uint64_t fill_total;
+	uint64_t fill_max;
 } DelugeResourceStats;
 
 /// Copy the manager's cumulative counters into `*out`. No-op if either pointer is null.

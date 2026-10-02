@@ -2,7 +2,7 @@
 
 #include "deluge-project/note_address.h"
 #include "model/edits/edit.h"
-#include "model/iterance/iterance.h" // Iterance
+#include "sequence/iterance.h" // Iterance
 #include <cstdint>
 #include <optional>
 

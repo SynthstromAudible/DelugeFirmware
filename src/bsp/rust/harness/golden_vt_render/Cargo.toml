@@ -1,0 +1,33 @@
+# The golden renderer: boots the real C++ app on the BSP under a virtual clock and renders one
+# scenario deterministically. See `src/main.rs`.
+#
+# A separate package because it brings its own executor and time driver. embassy's std ones (the
+# BSP's `host-runtime` feature) define the same `__pender` and time-driver symbols, and Cargo
+# unifies features across a package, so the two cannot share one.
+[package]
+name = "golden_vt_render"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "golden_vt_render"
+path = "src/main.rs"
+test = false
+
+[dependencies]
+deluge-bsp-rust = { path = "../..", default-features = false, features = ["host_app"] }
+# No platform feature: `src/main.rs` supplies the `__pender` and drives the executor itself.
+embassy-executor = { version = "0.10.0", default-features = false, features = ["nightly"] }
+# No `std` or `mock-driver` feature: `src/clock.rs` is the time driver.
+embassy-time = { version = "0.5.1", default-features = false }
+embassy-time-driver = { version = "0.2.2", features = ["tick-hz-1_000_000"] }
+embassy-time-queue-utils = "0.3.2"
+embassy-futures = "0.1.2"
+critical-section = { version = "1", features = ["std"] }
+log = "0.4"
+env_logger = "0.11"
+
+[profile.dev]
+opt-level = 1
+debug = true

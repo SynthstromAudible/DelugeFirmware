@@ -18,14 +18,18 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/sample/sample_cluster.h"
+#include "model/sample/overview_cache_entry.h"
+#include "model/sample/sample_length_sentinel.h"
 #include "model/sample/sample_perc_cache_zone.h"
 #include "storage/audio/audio_file.h"
+#include "storage/audio/stream/convert.h"
+#include "storage/audio/stream/sample_stream.h"
+#include "storage/cluster/cluster.h" // Cluster::size_magnitude, for geometricClusterCount()
 #include "util/containers.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
+#include "util/segmented_vector.h" // deluge::SegmentedVector, for overviewCache_
 #include <array>
-#include <bit>
 #include <cstdint>
 
 #define SAMPLE_DO_LOCKS (ALPHA_OR_BETA_VERSION)
@@ -65,8 +69,24 @@ public:
 	void workOutBitMask();
 	Error initialize(int32_t numClusters);
 	void markAsUnloadable();
-	float determinePitch(bool doingSingleCycle, float minFreqHz, float maxFreqHz, bool doPrimeTest);
-	void workOutMIDINote(bool doingSingleCycle, float minFreqHz = 20, float maxFreqHz = 10000, bool doPrimeTest = true);
+	/// @brief Settle midiNote without scanning, if it can be: already known, a single cycle, or the note the file
+	///        names. @return Whether it is settled; false means a pitch scan must find it.
+	bool midiNoteWithoutScan(bool doingSingleCycle);
+	/// @brief Set midiNote from a detected frequency in Hz; 0 (a failed detection) sets MIDI_NOTE_ERROR.
+	void setMidiNoteFromFrequency(float hz);
+	/// @name The pitch scan's analysis: deluge::sample::PitchScan fills the buffer and calls these.
+	/// @{
+	/// @brief What one analysis of a filled pitch window decided.
+	struct PitchVerdict {
+		enum class Kind : uint8_t { Failed, Found, LongerLength } kind;
+		float hz; ///< The fundamental in Hz when Found.
+	};
+	/// @brief Bytes of the scan's buffer: the FFT input, its output, and the float index table, back to back.
+	static size_t pitchBufferBytes();
+	/// @brief FFT and fundamental search over a filled window in @p buffer (pitchBufferBytes() long).
+	PitchVerdict analysePitchWindow(int32_t* buffer, int32_t lengthDoublings, int32_t defaultLengthDoublings,
+	                                float minFreqHz, float maxFreqHz, bool doPrimeTest);
+	/// @}
 	uint32_t getLengthInMSec();
 	SampleCache* getOrCreateCache(SampleHolder* sampleHolder, int32_t phaseIncrement, int32_t timeStretchRatio,
 	                              bool reversed, bool mayCreate, bool* created);
@@ -75,49 +95,52 @@ public:
 	int32_t getFirstClusterIndexWithNoAudioData();
 	Error fillPercCache(TimeStretcher* timeStretcher, int32_t startPosSamples, int32_t endPosSamples,
 	                    int32_t playDirection, int32_t maxNumSamplesToProcess);
-	void percCacheClusterStolen(Cluster* cluster);
+	void percCacheClusterStolen(ComputedChunk* cluster);
 	void deletePercCache(bool beingDestructed = false);
 	uint8_t* prepareToReadPercCache(int32_t pixellatedPos, int32_t playDirection, int32_t* earliestPixellatedPos,
 	                                int32_t* latestPixellatedPos);
 	bool getAveragesForCrossfade(int32_t* totals, int32_t startBytePos, int32_t crossfadeLengthSamples,
 	                             int32_t playDirection, int32_t lengthToAverageEach);
-	void convertDataOnAnyClustersIfNecessary();
-	/// Lazily define this Sample's resource-manager Asset (its SAMPLE clusters are the Asset's
-	/// Chunks: materialize = readClusterData, on_evict = drop + ~Cluster). Returns the asset id. The
-	/// manager is the sole SDRAM evictor, so this never returns NO_ASSET — a missing manager / full
-	/// asset table is fatal (FREEZE), no legacy fallback.
-	uint32_t ensureResourceAsset();
 	int32_t getMaxPeakFromZero();
 	int32_t getFoundValueCentrePoint();
 	int32_t getValueSpan();
+
+	// Discards the cached per-cluster waveform overview (issue #4460) and rewinds the background pre-scan,
+	// so it gets rebuilt from scratch. Call when the underlying audio data may have changed on disk.
+	void resetOverviewScan();
 	void finalizeAfterLoad(uint32_t fileSize) override;
+
+	/// @brief This Sample's audio-stream orchestrator.
+	///
+	/// Owns the read-stream handle, the resource-manager Asset for this Sample's clusters, and the
+	/// ReadSource selection.
+	/// @return The owned SampleStream, by reference.
+	/// @see storage/audio/stream/sample_stream.h
+	[[nodiscard]] deluge::audio::stream::SampleStream& stream() { return stream_; }
+	/// @copydoc stream()
+	///
+	/// Const overload -- lets a `const Sample&` consumer reach read-only accessors without dropping
+	/// const.
+	[[nodiscard]] const deluge::audio::stream::SampleStream& stream() const { return stream_; }
+
+	/// @return The physical entry count of the waveform overview cache (`overviewCache_.size()`).
+	[[nodiscard]] size_t overviewCacheSize() const { return overviewCache_.size(); }
+	/// @brief Access the waveform overview cache entry for cluster @p index.
+	[[nodiscard]] OverviewCacheEntry& overviewCacheEntry(uint32_t index) { return overviewCache_[index]; }
+	/// @copydoc overviewCacheEntry(uint32_t)
+	[[nodiscard]] const OverviewCacheEntry& overviewCacheEntry(uint32_t index) const { return overviewCache_[index]; }
+	/// @brief Resize the waveform overview cache to exactly @p n entries.
+	///
+	/// Sized at the same hooks a sample's cluster count can change at (initialize, finalize-grow,
+	/// truncate-shrink -- see those call sites). Never grown concurrently with a reader, so no
+	/// `reserve()` pre-sizing is needed.
+	void resizeOverviewCache(size_t n) { overviewCache_.resize(n); }
 
 	// Floating point
 	[[nodiscard]] q31_t convertToNative(float value) const { return q31_from_float(value); }
 
 	[[nodiscard]] q31_t convertToNative(int32_t value) const {
-		switch (rawDataFormat) {
-		case RawDataFormat::FLOAT:
-			return q31_from_float(std::bit_cast<float>(value));
-
-		case RawDataFormat::ENDIANNESS_WRONG_32: // Or endianness swap
-			return swapEndianness32(value);
-
-		case RawDataFormat::ENDIANNESS_WRONG_16:
-			return swapEndianness2x16(value);
-
-		case RawDataFormat::UNSIGNED_8:
-			return value ^ 0x80808080;
-
-		case RawDataFormat::ENDIANNESS_WRONG_24:
-			// handled by caller
-			[[fallthrough]];
-
-		case RawDataFormat::NATIVE:
-			// nothing to be done
-			break;
-		}
-		return value;
+		return deluge::audio::stream::convert_word(value, rawDataFormat);
 	}
 
 	std::string tempFilePathForRecording{};
@@ -125,8 +148,27 @@ public:
 	uint32_t sampleRate{44100};
 	uint32_t audioDataStartPosBytes; // That is, the offset from the start of the WAV file
 	uint64_t audioDataLengthBytes;
+
+	/// @brief Sentinel value for `audioDataLengthBytes` / `lengthInSamples` meaning "not yet known".
+	///
+	/// Set while a recording is in progress and its final length hasn't been determined yet.
+	/// @see deluge::sample_length::kUnknownLengthSentinel (sample_length_sentinel.h) -- the same
+	///      value, standalone for consumers that don't want the full `Sample` class.
+	static constexpr uint64_t kUnknownLengthSentinel = deluge::sample_length::kUnknownLengthSentinel;
+	/// @return Whether this Sample's length has been determined (i.e. is not the "unknown" sentinel).
+	[[nodiscard]] bool isLengthKnown() const { return audioDataLengthBytes != kUnknownLengthSentinel; }
+
+	/// @return The cluster count implied purely by this sample's audio-data extent (start + length),
+	///         rounded up. Only meaningful once `isLengthKnown()` -- the caller's job to check.
+	[[nodiscard]] uint32_t geometricClusterCount() const {
+		return ((audioDataStartPosBytes + audioDataLengthBytes - 1) >> Cluster::size_magnitude) + 1;
+	}
+
+	/// @return The sample's logical cluster count, derived: the geometry implied by its audio-data extent
+	///         once `isLengthKnown()`, else the live recorder's captured-cluster count while recording.
+	[[nodiscard]] size_t num_clusters() const;
+
 	uint32_t bitMask{0};
-	bool audioStartDetected;
 
 	uint64_t lengthInSamples;
 
@@ -154,6 +196,12 @@ public:
 	int32_t minValueFound;
 	int32_t maxValueFound;
 
+	// Background "waveform overview" pre-scan cursor (issue #4460). The next cluster index that the idle
+	// pre-scan should investigate-whole-length, so that zoomed-out single-row rendering finds per-cluster
+	// min/max already cached and never has to load clusters synchronously mid-scroll. Seeded to the first
+	// audio cluster by advanceOverviewScan / resetOverviewScan (clusters aren't known at construction).
+	int32_t overviewScanNextCluster{0};
+
 	deluge::fast_vector<SampleCacheElement> caches{}; // Sorted ascending by SampleCacheElement::key()
 
 	uint8_t* percCacheMemory[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
@@ -162,7 +210,7 @@ public:
 	// which would re-enter these arrays mid-modification.
 	deluge::vector<SamplePercCacheZone> percCacheZones[2]{};
 
-	Cluster** percCacheClusters[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
+	ComputedChunk** percCacheClusters[2]{nullptr, nullptr}; // One for each play-direction: 0=forwards; 1=reversed
 	int32_t numPercCacheClusters{};
 	// Resource-manager Asset id per play-direction for the perc-cache clusters (construct-only,
 	// leased-while-nearby by the TimeStretcher). DELUGE_RESOURCE_NO_ASSET (0xFFFFFFFF) = legacy.
@@ -173,13 +221,18 @@ public:
 
 	uint32_t waveTableCycleSize{0}; // In case this later gets used for a WaveTable
 
-	deluge::fast_vector<SampleCluster> clusters{};
+	/// @brief Owns the read-stream handle and the resource-manager Asset.
+	///
+	/// See storage/audio/stream/sample_stream.h.
+	/// @note ~Sample releases the Asset explicitly, before `stream_` destructs -- see ~Sample's
+	///       definition.
+	deluge::audio::stream::SampleStream stream_{*this};
 
-	// Resource-manager Asset id for this Sample's SAMPLE clusters (DELUGE_RESOURCE_NO_ASSET
-	// until defined on first stream). Owns raw-cluster residency once routed through the
-	// manager; released in ~Sample. 0xFFFFFFFF == DELUGE_RESOURCE_NO_ASSET (kept as a literal
-	// here so the widely-included header needn't pull in deluge_resource.h).
-	uint32_t resourceAssetId{0xFFFFFFFFu};
+	/// @brief The waveform overview cache: one `OverviewCacheEntry` per cluster of the file.
+	///
+	/// A stable-address `SegmentedVector` so a `OverviewCacheEntry&` handed out by
+	/// overviewCacheEntry() stays valid across later growth -- see `resizeOverviewCache()`.
+	deluge::SegmentedVector<OverviewCacheEntry, 256, deluge::memory::fast_allocator> overviewCache_{};
 
 protected:
 	// Project-relevance hooks (the object's hard-lease 0↔1 transitions): toggle the soft-reference on

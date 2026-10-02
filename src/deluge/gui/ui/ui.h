@@ -28,7 +28,22 @@ class RootUI;
 class TimelineView;
 
 extern uint32_t currentUIMode;
+
+/// Set while pad and OLED rendering (or a session-view scroll setup) is running, so a nested render or a
+/// horizontal-encoder action arriving inside it is refused rather than re-entering.
 extern bool pendingUIRenderingLock;
+
+/// Holds a re-entry lock for its lifetime: sets the flag on construction and clears it on every exit path.
+class ReentryLockHold {
+public:
+	explicit ReentryLockHold(bool& lock) : lock_{lock} { lock_ = true; }
+	~ReentryLockHold() { lock_ = false; }
+	ReentryLockHold(const ReentryLockHold&) = delete;
+	ReentryLockHold& operator=(const ReentryLockHold&) = delete;
+
+private:
+	bool& lock_;
+};
 
 // Exclusive UI modes - only one of these can be active at a time.
 #define UI_MODE_NONE 0
@@ -47,7 +62,6 @@ extern bool pendingUIRenderingLock;
 #define UI_MODE_ADDING_DRUM_NOTEROW 28
 #define UI_MODE_CREATING_CLIP 29
 // Gaps here
-#define UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED 33
 #define UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES 34
 #define UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED 35
 #define UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED 36
@@ -66,7 +80,6 @@ extern bool pendingUIRenderingLock;
 #define UI_MODE_VIEWING_RECORD_ARMING 50
 #define UI_MODE_HOLDING_SAVE_BUTTON 51
 #define UI_MODE_HOLDING_LOAD_BUTTON 52
-#define UI_MODE_PREDICTING_QWERTY_TEXT 53
 #define UI_MODE_AUDIO_CLIP_EXPANDING 54
 #define UI_MODE_AUDIO_CLIP_COLLAPSING 55
 #define UI_MODE_MODULATING_PARAM_HOLDING_ENCODER_DOWN 58
@@ -95,11 +108,9 @@ public:
 	UI();
 
 	virtual ActionResult padAction(int32_t x, int32_t y, int32_t velocity) { return ActionResult::DEALT_WITH; }
-	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
-		return ActionResult::NOT_DEALT_WITH;
-	}
+	virtual ActionResult buttonAction(deluge::hid::Button b, bool on) { return ActionResult::NOT_DEALT_WITH; }
 	virtual ActionResult horizontalEncoderAction(int32_t offset) { return ActionResult::DEALT_WITH; }
-	virtual ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) { return ActionResult::DEALT_WITH; }
+	virtual ActionResult verticalEncoderAction(int32_t offset) { return ActionResult::DEALT_WITH; }
 	virtual void selectEncoderAction(int8_t offset) {}
 	virtual void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	virtual void modButtonAction(uint8_t whichButton, bool on);
@@ -115,7 +126,7 @@ public:
 
 	virtual void focusRegained() {}
 	// the `display` and/or `chosenLanguage` object changed. redraw accordingly.
-	virtual void displayOrLanguageChanged() {}
+	virtual void displayOrLanguageChanged();
 	virtual bool canSeeViewUnderneath() { return false; }
 	/// Convert this clip to a clip minder. Returns true for views which manage a single clip,
 	/// false for song level views
@@ -171,6 +182,9 @@ public:
 	virtual bool canDisplayFavourites() { return false; }
 	virtual bool isFavouritesVisible() { return false; }
 	virtual bool isBanksVisible() { return false; }
+	/// @brief The favourites bank on screen has finished loading (or failed to). Screens that show favourites
+	///        redraw them; the rest ignore it.
+	virtual void favouritesBankApplied() {}
 
 #if ENABLE_MATRIX_DEBUG
 	const char* getUIName();
@@ -181,6 +195,20 @@ protected:
 };
 
 // UIs
+
+/// @brief True while a song load or a song clear has taken every UI down (nullifyUIs()), until the incoming song's
+///        root UI is set -- and at boot, before the first root UI is set.
+///
+/// Input dispatchers ask this to route the gestures the load itself answers -- arming its swap, and the armed swap's
+/// loop count -- to the load rather than to getCurrentUI().
+bool uiStackEmpty();
+
+/// @brief The UI on top of the stack.
+///
+/// Never null. While uiStackEmpty(), it is a UI that acts on nothing: the UIs that were open belong to the song being
+/// replaced, which may already be freed. It compares unequal to every real UI, reports no clip minder, timeline view
+/// or view underneath, and drops input, timers and rendering, except the mod encoders and mod buttons, which go
+/// to the view.
 UI* getCurrentUI();
 RootUI* getRootUI();
 UI* getUIUpOneLevel(int32_t numLevelsUp);

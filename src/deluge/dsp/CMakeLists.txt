@@ -11,6 +11,7 @@ add_library(deluge_dsp STATIC ${deluge_dsp_SOURCES})
 target_include_directories(deluge_dsp PRIVATE
   ${CMAKE_CURRENT_LIST_DIR}/..
   ${SHARED_INCLUDE}
+  ${CMAKE_SOURCE_DIR}/include # <libdeluge/...> boundary headers
 )
 
 target_include_directories(deluge_dsp PUBLIC

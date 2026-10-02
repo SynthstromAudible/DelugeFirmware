@@ -32,7 +32,6 @@ public:
 	void flashParamName();
 	void readValueAgain() final;
 	void selectEncoderAction(int32_t offset) final;
-	void drawValue();
 	void horizontalEncoderAction(int32_t offset) override;
 	ActionResult timerCallback() override;
 	[[nodiscard]] std::string_view getTitle() const override;

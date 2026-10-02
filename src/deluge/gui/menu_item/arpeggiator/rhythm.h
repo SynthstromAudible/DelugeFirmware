@@ -32,8 +32,6 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxPresetArpRhythm; }
 
-	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
-
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		char name[12];
 		// Index: Name
@@ -62,7 +60,7 @@ public:
 		}
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
 

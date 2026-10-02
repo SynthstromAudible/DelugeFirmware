@@ -19,12 +19,14 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/ui/load/load_pattern_ui.h"
+#include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "io/debug/log.h"
 #include "lib/printf.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -62,7 +64,11 @@ bool TimelineView::calculateZoomPinSquares(uint32_t oldScroll, uint32_t newScrol
 	return true;
 }
 
-ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+void TimelineView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
+	memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
+}
+
+ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Horizontal encoder button
@@ -88,9 +94,6 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Triplets button
 	else if (b == TRIPLETS) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			tripletsButtonPressed();
 		}
 	}
@@ -113,7 +116,7 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 #endif
 
 	else {
-		return view.buttonAction(b, on, inCardRoutine);
+		return view.buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -130,21 +133,17 @@ bool horizontalEncoderActionLock = false;
 
 ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-
-	// These next two, I had here before adding the actual SD lock check / remind-later above. Maybe they're not still
-	// necessary? If either was true, wouldn't isSDRoutineActive() be true also for us to have gotten here?
+	// Nothing pumps input from inside rendering or from inside this action, so finding either lock held is a bug:
+	// drop the turn rather than re-enter.
 	if (pendingUIRenderingLock) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to
-		                                                     // still come back later and do it, but oh well
+		D_PRINTLN("horizontal encoder turn dropped: UI rendering in progress");
+		return ActionResult::DEALT_WITH;
 	}
 	if (horizontalEncoderActionLock) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Really wouldn't want to get in here multiple times,
-		                                                     // while pre-rendering the waveforms for the new navigation
+		D_PRINTLN("horizontal encoder turn dropped: action already running");
+		return ActionResult::DEALT_WITH;
 	}
-	horizontalEncoderActionLock = true;
+	ReentryLockHold hold{horizontalEncoderActionLock};
 
 	int32_t navSysId = getNavSysId();
 
@@ -169,7 +168,7 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
 				// Prevent further zooming in the delayed direction (see below)
 				if (isWithinZoomDelay && (delayHorizontalZoomMagnitude == zoomMagnitude)) {
-					goto getOut;
+					return ActionResult::DEALT_WITH;
 				}
 
 				delayHorizontalZoomUntil = 0;
@@ -184,7 +183,7 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 			// Constrain to zoom limits
 			if ((zoomMagnitude == -1 && oldXZoom <= 3)
 			    || (zoomMagnitude == 1 && oldXZoom >= std::min<uint32_t>(clipLengthMaxZoom * 16, kMaxZoom))) {
-				goto getOut;
+				return ActionResult::DEALT_WITH;
 			}
 
 			currentSong->persistentView.xZoom[navSysId] = newZoom;
@@ -220,8 +219,6 @@ ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 		}
 	}
 
-getOut:
-	horizontalEncoderActionLock = false;
 	return ActionResult::DEALT_WITH;
 }
 
@@ -257,52 +254,9 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 		whichSubBeat++;
 	}
 
-	if (display->haveOLED()) {
-		char buffer[15];
-		sprintf(buffer, "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
-		display->popupTextTemporary(buffer);
-	}
-	else {
-		char text[5];
-
-		uint8_t dotMask = 0b10000000;
-
-		if (whichBar >= 10000) {
-			strcpy(text, tooLongText);
-		}
-		else {
-			strcpy(text, "    ");
-
-			if (whichBar < 10) {
-				intToString(whichBar, &text[1]);
-			}
-			else {
-				intToString(whichBar, &text[0]);
-			}
-
-			if (whichBar < 100) {
-				dotMask |= 1 << 2;
-
-				if (quantization >= (oneBar >> 2)) {
-					text[2] = ' ';
-					goto putBeatCountOnFarRight;
-				}
-
-				intToString(whichBeat, &text[2]);
-				dotMask |= 1 << 1;
-
-				intToString(whichSubBeat, &text[3]);
-			}
-			else if (whichBar < 1000) {
-				dotMask |= 1 << 1;
-
-putBeatCountOnFarRight:
-				intToString(whichBeat, &text[3]);
-			}
-		}
-
-		display->displayPopup(text, 3, false, dotMask);
-	}
+	char buffer[15];
+	sprintf(buffer, "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
+	display->popupTextTemporary(buffer);
 }
 
 // Changes the actual xScroll.

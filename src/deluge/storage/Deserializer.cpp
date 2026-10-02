@@ -15,37 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+// A tokenizer, and nothing more: it knows tags, attributes and bytes. The object model (Song, Kit,
+// Sound, the drums, the clips) is the business of whoever reads THROUGH this, never of the reader
+// itself -- which is what lets a host test link the parser without linking the instrument model
+// behind it.
 #include "definitions_cxx.hpp"
-#include "fatfs/fatfs.hpp"
-#include "gui/ui/sound_editor.h"
-#include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
-#include "model/clip/instrument_clip.h"
-#include "model/drum/gate_drum.h"
-#include "model/drum/midi_drum.h"
-#include "model/instrument/cv_instrument.h"
-#include "model/instrument/kit.h"
-#include "model/instrument/midi_instrument.h"
-#include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
-#include "modulation/midi/midi_param_collection.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
+#include "util/c_string.h"
 #include "util/firmware_version.h"
-#include "util/functions.h"
-#include "util/try.h"
-#include "version.h"
 #include <string.h>
-
-extern "C" {
-#include "fatfs/diskio.h"
-#include "fatfs/ff.h"
-}
 
 /*******************************************************************************
 
@@ -131,7 +113,6 @@ skipToNextTag:
 	}
 
 getOut:
-	readDone();
 
 	if (false) {
 skipPastRest:
@@ -220,7 +201,6 @@ doReadName:
 
 		if (false) {
 reachedNameEnd:
-			readDone();
 			haveReachedNameEnd = true;
 			// If possible, just return a pointer to the chars within the existing buffer
 			if (!charPos && fileReadBufferCurrentPos < currentReadBufferEndPos) {
@@ -409,8 +389,6 @@ void XMLDeserializer::skipUntilChar(char endChar) {
 	} while (fileReadBufferCurrentPos == currentReadBufferEndPos && readFileClusterIfNecessary());
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
-
-	readDone();
 }
 
 // Returns memory error. If error, caller must deal with the fact that the end-character hasn't been reached
@@ -439,7 +417,6 @@ Error XMLDeserializer::readStringUntilChar(std::string& string, char endChar) {
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
 
-	readDone();
 	return Error::NONE;
 }
 
@@ -474,8 +451,6 @@ char const* XMLDeserializer::readUntilChar(char endChar) {
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
 
-	readDone();
-
 	stringBuffer[charPos] = 0;
 	return stringBuffer;
 }
@@ -504,7 +479,6 @@ char const* XMLDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChars
 		// If we were able to just read the whole thing in one go, just return a pointer to the chars within the
 		// existing buffer
 		if (numCharsHere == numChars) {
-			readDone();
 			return &fileClusterBuffer[bufferPosAtStart];
 		}
 
@@ -516,7 +490,6 @@ char const* XMLDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChars
 
 			// And if we've now got all the chars we needed, return
 			if (charPos == numChars) {
-				readDone();
 				return stringBuffer;
 			}
 		}
@@ -554,7 +527,6 @@ char XMLDeserializer::readNextCharOfTagOrAttributeValue() {
 		else {
 			xmlArea = IN_TAG_PAST_NAME; // Could be ' or "
 		}
-		readDone();
 		return 0;
 	}
 	return thisChar;
@@ -837,8 +809,7 @@ void XMLDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 	tagDepthCaller = tagDepthFile;
 }
 
-Error XMLDeserializer::openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
-                                   bool ignoreIncorrectFirmware) {
+Error XMLDeserializer::openXMLFile(char const* firstTagName, char const* altTagName, bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openXMLFile");
 

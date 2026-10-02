@@ -57,6 +57,11 @@ namespace params = deluge::modulation::params;
 
 void Slicer::focusRegained() {
 
+	// `slicer` is a singleton, so an audition load held from the PREVIOUS visit is still held here, naming a slice of
+	// whatever sample that visit was slicing. graphicsRoutine() ticks it again the moment this UI is current, so
+	// without this it would sound that stale audition into the new session.
+	cancelPreview();
+
 	actionLogger.deleteAllLogs();
 
 	numClips = 16;
@@ -67,10 +72,6 @@ void Slicer::focusRegained() {
 	for (int32_t i = 0; i < MAX_MANUAL_SLICES; i++) {
 		manualSlicePoints[i].startPos = 0;
 		manualSlicePoints[i].transpose = 0;
-	}
-
-	if (display->have7SEG()) {
-		redraw();
 	}
 }
 
@@ -101,11 +102,15 @@ void Slicer::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 }
 
 void Slicer::redraw() {
-	display->setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
 }
 
 bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
                             uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
+	// closeUI() calls this with no image, asking only whether the slicer renders the main pads. A slice's commit closes
+	// the browser beneath the slicer, so every slice reaches that call.
+	if (!image) {
+		return true;
+	}
 
 	if (slicerMode == SLICER_MODE_REGION) {
 		RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
@@ -158,6 +163,15 @@ bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 void Slicer::graphicsRoutine() {
+	// This surface (every ~15 ms while the slicer is on top) is the only thing that finishes a slice or a held
+	// audition.
+	if (slicePhase_ == SlicePhase::Loading) {
+		tickSlice();
+		if (slicePhase_ == SlicePhase::Idle) {
+			return; // the slice ended; one that landed has closed the slicer
+		}
+	}
+	tickAudition();
 
 	int32_t newTickSquare = 255;
 	VoiceSample* voiceSample = nullptr;
@@ -180,7 +194,7 @@ void Slicer::graphicsRoutine() {
 
 			VoiceUnisonPartSource* part = &voice->unisonParts[drum->numUnison >> 1].sources[0];
 			if (part != nullptr && part->active) {
-				voiceSample = part->voiceSample;
+				voiceSample = part->sampleVoiceAdapter.voiceSample();
 				guide = &voice->guides[soundEditor.currentSourceIndex];
 			}
 		}
@@ -225,24 +239,16 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 			newPos = waveformBasicNavigator.sample->lengthInSamples;
 		manualSlicePoints[currentSlice].startPos = newPos;
 
-		if (display->haveOLED()) {
-			char buffer[24];
-			strcpy(buffer, "Start: ");
-			intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
-			display->popupTextTemporary(buffer);
-		}
-		else {
-			char buffer[12];
-			strcpy(buffer, "");
-			intToString(manualSlicePoints[currentSlice].startPos / 1000, buffer + strlen(buffer));
-			display->displayPopup(buffer, 0, true);
-		}
+		char buffer[24];
+		strcpy(buffer, "Start: ");
+		intToString(manualSlicePoints[currentSlice].startPos, buffer + strlen(buffer));
+		display->popupTextTemporary(buffer);
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult Slicer::verticalEncoderAction(int32_t offset) {
 	if (slicerMode == SLICER_MODE_MANUAL) {
 
 		manualSlicePoints[currentSlice].transpose += offset;
@@ -250,17 +256,9 @@ ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 			manualSlicePoints[currentSlice].transpose = 24;
 		if (manualSlicePoints[currentSlice].transpose < -24)
 			manualSlicePoints[currentSlice].transpose = -24;
-		if (display->haveOLED()) {
-			char buffer[32];
-			snprintf(buffer, 32, "Transpose: %d", manualSlicePoints[currentSlice].transpose);
-			display->popupTextTemporary(buffer);
-		}
-		else {
-			char buffer[12];
-			strcpy(buffer, "");
-			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-			display->displayPopup(buffer, 0, true);
-		}
+		char buffer[32];
+		snprintf(buffer, 32, "Transpose: %d", manualSlicePoints[currentSlice].transpose);
+		display->popupTextTemporary(buffer);
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -290,15 +288,10 @@ void Slicer::selectEncoderAction(int8_t offset) {
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		redraw();
-	}
+	renderUIsForOled();
 }
 
-ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	if (currentUIMode != UI_MODE_NONE || !on) {
@@ -307,16 +300,15 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 
 	// switch slicer mode
 	if (b == X_ENC && on) {
+		// Auditions only exist in MANUAL mode, and this leaves the mode a held one was pressed in, killing its voices
+		// on the way out. Nothing asks for a replacement, so without cancelling, a held audition would sound after the
+		// mode switch that stopped it.
+		cancelPreview();
 		slicerMode++;
 		slicerMode %= 2;
 		if (slicerMode == SLICER_MODE_MANUAL)
 			AudioEngine::stopAnyPreviewing();
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			redraw();
-		}
+		renderUIsForOled();
 
 		getCurrentKit()->firstDrum->killAllVoices(); // stop
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -325,19 +317,10 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 
 	// pop up Transpose value
 	if (b == Y_ENC && on && slicerMode == SLICER_MODE_MANUAL && currentSlice < numManualSlice) {
-		if (display->haveOLED()) {
-
-			char buffer[24];
-			strcpy(buffer, "Transpose: ");
-			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-			display->popupTextTemporary(buffer);
-		}
-		else {
-			char buffer[12];
-			strcpy(buffer, "");
-			intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
-			display->displayPopup(buffer, 0, true);
-		}
+		char buffer[24];
+		strcpy(buffer, "Transpose: ");
+		intToString(manualSlicePoints[currentSlice].transpose, buffer + strlen(buffer));
+		display->popupTextTemporary(buffer);
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -365,48 +348,51 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			}
 
 			uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				redraw();
-			}
+			renderUIsForOled();
 			return ActionResult::DEALT_WITH;
 		}
 	}
 
 	if (b == SELECT_ENC) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-		if (slicerMode == SLICER_MODE_REGION) {
-			doSlice();
-		}
-		else {
+		// Committing ends in sampleBrowser.exitAndNeverDeleteDrum() → close(), i.e. the slicer is gone by the time a
+		// held audition could land, and the drums it would sound through have been rebuilt underneath it.
+		cancelPreview();
+
+		// Snapshot the gesture: the slice runs from these plain values, never from the live members, so an encoder
+		// turn or pad press while its load is out can't desync what gets sliced from what gets painted.
+		pendingSliceTarget_.isManual = (slicerMode == SLICER_MODE_MANUAL);
+		pendingSliceTarget_.sliceCount = pendingSliceTarget_.isManual ? numManualSlice : numClips;
+		if (pendingSliceTarget_.isManual) {
+			std::copy(std::begin(manualSlicePoints), std::end(manualSlicePoints),
+			          std::begin(pendingSliceTarget_.manualPoints));
 			getCurrentKit()->firstDrum->killAllVoices(); // stop
-			numClips = numManualSlice;
-			doSlice();
-			Kit* kit = getCurrentKit();
-			for (int32_t i = 0; i < numManualSlice; i++) {
-				Drum* drum = kit->getDrumFromIndex(i);
-				SoundDrum* soundDrum = (SoundDrum*)drum;
-				MultisampleRange* range = (MultisampleRange*)soundDrum->sources[0].getOrCreateFirstRange();
-				Sample* sample = (Sample*)range->sampleHolder.audioFile;
-				range->sampleHolder.startPos = manualSlicePoints[i].startPos;
-				range->sampleHolder.endPos = (i == numManualSlice - 1) ? waveformBasicNavigator.sample->lengthInSamples
-				                                                       : this->manualSlicePoints[i + 1].startPos;
-				range->sampleHolder.transpose = manualSlicePoints[i].transpose;
-				// M3 owner-5: the manual-slice zone edits above overwrote this drum's range — reflect into the
-				// record.
-				soundDrum->sources[0].seedDocRanges();
-			}
 		}
+
+		// The gate, until tickSlice() ends the slice: the top of this function refuses BACK and a second Select while
+		// it is set, so nothing closes the slicer or slices twice while the load is out.
+		currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		AudioEngine::stopAnyPreviewing();
+
+		// The first drum names the browser's file, set once here, and the load binds it.
+		soundEditor.cutSound();
+		AudioFileHolder* holder = soundEditor.getCurrentAudioFileHolder();
+		holder->setAudioFile(nullptr);
+		holder->filePath = static_cast<Browser&>(sampleBrowser).getCurrentFilePath();
+		sliceLoad_.request(
+		    deluge::storage::SampleDemand{
+		        .holder = holder,
+		        .reversed = soundEditor.currentSource->sampleControls.isCurrentlyReversed(),
+		        .manuallySelected = true,
+		        .clusterLoadInstruction = CLUSTER_ENQUEUE,
+		    },
+		    /*context=*/nullptr, 0);
+		slicePhase_ = SlicePhase::Loading;
 	}
 
 	else if (b == BACK) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
+		// Leaving the slicer: close() pops it off the UI stack, so graphicsRoutine() stops running and a held audition
+		// would otherwise sit held until the next visit.
+		cancelPreview();
 		if (slicerMode == SLICER_MODE_MANUAL) {
 			RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 			waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
@@ -425,7 +411,6 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			soundDrum->sources[0].seedDocRanges();
 		}
 
-		display->setNextTransitionDirection(-1);
 		close();
 	}
 	else {
@@ -447,30 +432,67 @@ void Slicer::stopAnyPreviewing() {
 	}
 }
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
-	if (on) {
-		Kit* kit = getCurrentKit();
-		SoundDrum* drum = (SoundDrum*)kit->firstDrum;
+	// Snapshot the request: plain values only, so no pointer into manualSlicePoints[] or any other live UI state
+	// survives past this call.
+	const PreviewTarget target{
+	    .startPoint = startPoint,
+	    .endPoint = endPoint,
+	    .transpose = transpose,
+	    .on = on,
+	};
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+	if (!on) {
+		// A release sends its note-off at once and drops any load a press is waiting on: a note-on whose load has not
+		// landed must never sound after the finger has lifted. `aReleaseBeforeTheLoadLandsNeverSoundsItsNoteOn` pins
+		// it.
+		auditionLoad_.cancel();
+		soundAudition(target);
+		return;
+	}
 
+	Kit* kit = getCurrentKit();
+	SoundDrum* drum = (SoundDrum*)kit->firstDrum;
+	MultisampleRange* range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
+	drum->setName("1");
+	drum->sources[0].setRepeatMode(SampleRepeatMode::ONCE);
+
+	// The path is what says "a different sample is being sliced now"; the null audioFile is what says "its load hasn't
+	// landed yet". Both have to ask: a held load leaves the holder naming a file it does not hold yet.
+	if (!(waveformBasicNavigator.sample->filePath == range->sampleHolder.filePath)) {
+		stopAnyPreviewing();
+		range->sampleHolder.filePath = waveformBasicNavigator.sample->filePath.c_str();
+	}
+	if (range->sampleHolder.audioFile == nullptr) {
+		// The load, the params and the note stay one group: the params and the note wait for tickAudition() to see
+		// the load land. A newer press replaces this one.
+		auditionLoad_.request(
+		    deluge::storage::SampleDemand{
+		        .holder = &range->sampleHolder,
+		        .manuallySelected = true,
+		        .clusterLoadInstruction = CLUSTER_ENQUEUE,
+		    },
+		    /*context=*/nullptr, target);
+		return;
+	}
+	auditionLoad_.cancel();
+	soundAudition(target);
+}
+
+void Slicer::soundAudition(const PreviewTarget& target) {
+	if (target.on) {
+		SoundDrum* drum = (SoundDrum*)getCurrentKit()->firstDrum;
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
-		drum->setName("1");
-		drum->sources[0].setRepeatMode(SampleRepeatMode::ONCE);
-
-		if (!(waveformBasicNavigator.sample->filePath == range->sampleHolder.filePath)) {
-			stopAnyPreviewing();
-			range->sampleHolder.filePath = waveformBasicNavigator.sample->filePath.c_str();
-			range->sampleHolder.loadFile(false, true, true);
+		range->sampleHolder.startPos = target.startPoint;
+		if (target.endPoint != -1) {
+			range->sampleHolder.endPos = target.endPoint;
 		}
-		range->sampleHolder.startPos = startPoint;
-		if (endPoint != -1)
-			range->sampleHolder.endPos = endPoint;
-		range->sampleHolder.transpose = transpose;
+		range->sampleHolder.transpose = target.transpose;
 		// M3 owner-5: the preview-audition zone edits above changed the range's file/zone/transpose — reflect
 		// into the record.
 		drum->sources[0].seedDocRanges();
 
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ModelStackWithParamId* modelStackWithParamId =
 		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
@@ -484,10 +506,38 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
 		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 	}
-	instrumentClipView.sendAuditionNote(on, 0, 64, 0);
+	instrumentClipView.sendAuditionNote(target.on, 0, 64, 0);
+}
+
+void Slicer::tickAudition() {
+	using Result = deluge::storage::LatestSampleLoad<PreviewTarget>::Result;
+	using Reason = deluge::storage::AsyncSampleLoad::Reason;
+
+	const auto outcome = auditionLoad_.tick();
+	if (!outcome.has_value()) {
+		return; // nothing held, or still loading
+	}
+	if (outcome->result == Result::Failed) {
+		// Nothing more can arrive for this load: it stopped moving, or the card cannot be read. The card error and no
+		// note; the next press asks again.
+		if (outcome->reason == Reason::Stalled) {
+			previewGiveUps_++;
+		}
+		if (outcome->reason == Reason::Stalled || outcome->reason == Reason::CardUnusable) {
+			display->displayError(Error::SD_CARD);
+		}
+		return;
+	}
+	// Bound, or Empty: a holder the lookup left empty sounds nothing, as it always has, with no error.
+	soundAudition(outcome->payload);
 }
 
 ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
+	// Refused while a slice's load is out: a press would point the first drum's holder at its audition under the load
+	// binding it, and the browser beneath would take a region pad.
+	if (slicePhase_ != SlicePhase::Idle) {
+		return ActionResult::DEALT_WITH;
+	}
 
 	if (on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad on
 
@@ -531,7 +581,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 
 					VoiceUnisonPartSource* part = &assigned_voice->unisonParts[drum->numUnison >> 1].sources[0];
 					if (part != nullptr && part->active) {
-						voiceSample = part->voiceSample;
+						voiceSample = part->sampleVoiceAdapter.voiceSample();
 						guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
 					}
 				}
@@ -559,12 +609,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			redraw();
-		}
+		renderUIsForOled();
 		uiNeedsRendering(this, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 	else if (!on && x < kDisplayWidth && y < kDisplayHeight / 2 && slicerMode == SLICER_MODE_MANUAL) { // pad off
@@ -578,17 +623,53 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 	return sampleBrowser.padAction(x, y, on);
 }
 
-void Slicer::doSlice() {
+void Slicer::tickSlice() {
+	using Result = deluge::storage::LatestSampleLoad<uint32_t>::Result;
 
-	AudioEngine::stopAnyPreviewing();
+	const auto outcome = sliceLoad_.tick();
+	if (!outcome.has_value()) {
+		return; // still loading
+	}
+	slicePhase_ = SlicePhase::Idle;
 
-	Error error = sampleBrowser.claimAudioFileForInstrument();
-	if (error != Error::NONE) {
-getOut:
-		display->displayError(error);
-		return;
+	if (outcome->result == Result::Bound) {
+		const SliceCommitTarget& target = pendingSliceTarget_;
+		const Error error = doSlice(target.sliceCount);
+		if (error != Error::NONE) {
+			display->displayError(error);
+		}
+		else if (target.isManual) {
+			// The drums doSlice() made, in order: the loop indexes them, so it runs only once they all exist.
+			Kit* kit = getCurrentKit();
+			for (int32_t i = 0; i < target.sliceCount; i++) {
+				Drum* drum = kit->getDrumFromIndex(i);
+				SoundDrum* soundDrum = (SoundDrum*)drum;
+				MultisampleRange* range = (MultisampleRange*)soundDrum->sources[0].getOrCreateFirstRange();
+				range->sampleHolder.startPos = target.manualPoints[i].startPos;
+				range->sampleHolder.endPos = (i == target.sliceCount - 1)
+				                                 ? waveformBasicNavigator.sample->lengthInSamples
+				                                 : target.manualPoints[i + 1].startPos;
+				range->sampleHolder.transpose = target.manualPoints[i].transpose;
+				// M3 owner-5: the manual-slice zone edits above overwrote this drum's range — reflect into the
+				// record.
+				soundDrum->sources[0].seedDocRanges();
+			}
+		}
+	}
+	else {
+		// No drums were made, so nothing is painted. Kit::getDrumFromIndex() answers the first drum for an index past
+		// the end, so a paint loop here would write every slice's points onto that one drum.
+		const Error error = (outcome->result == Result::Empty) ? outcome->error : Error::SD_CARD;
+		if (error != Error::NONE) {
+			display->displayError(error);
+		}
 	}
 
+	// Release the gate buttonAction() closed.
+	currentUIMode = UI_MODE_NONE;
+}
+
+Error Slicer::doSlice(int32_t sliceCount) {
 	Kit* kit = getCurrentKit();
 
 	// Do the first Drum
@@ -628,14 +709,14 @@ getOut:
 
 		uint32_t lengthInSamples = sample->lengthInSamples;
 
-		uint32_t lengthSamplesPerSlice = lengthInSamples / numClips;
+		uint32_t lengthSamplesPerSlice = lengthInSamples / sliceCount;
 		uint32_t lengthMSPerSlice = lengthSamplesPerSlice * 1000 / sample->sampleRate;
 
 		bool doEnvelopes =
 		    (lengthMSPerSlice >= 90); // Only do fades in and out if we've got at least 100ms to play with
 
 		firstRange->sampleHolder.startPos = 0;
-		uint32_t nextDrumStart = lengthInSamples / numClips;
+		uint32_t nextDrumStart = lengthInSamples / sliceCount;
 		firstRange->sampleHolder.endPos = nextDrumStart;
 
 		firstDrum->sources[0].repeatMode =
@@ -666,30 +747,26 @@ getOut:
 		}
 
 		// Do the rest of the Drums
-		for (int32_t i = 1; i < numClips; i++) {
+		for (int32_t i = 1; i < sliceCount; i++) {
 
 			// Make the Drum and its ParamManager
 			ParamManagerForTimeline paramManager;
-			error = paramManager.setupWithPatching();
+			Error error = paramManager.setupWithPatching();
 			if (error != Error::NONE) {
-				goto getOut;
+				return error;
 			}
 
 			void* drumMemory = deluge::memory::alloc_fast(sizeof(SoundDrum));
 			if (!drumMemory) {
-ramError:
-				error = Error::INSUFFICIENT_RAM;
-				goto getOut;
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			SoundDrum* newDrum = new (drumMemory) SoundDrum();
 
 			MultisampleRange* range = (MultisampleRange*)newDrum->sources[0].getOrCreateFirstRange();
 			if (!range) {
-ramError2:
-				newDrum->~SoundDrum();
-				delugeDealloc(drumMemory);
-				goto ramError;
+				AudioEngine::retire(newDrum);
+				return Error::INSUFFICIENT_RAM;
 			}
 
 			Sound::initParams(&paramManager);
@@ -700,14 +777,15 @@ ramError2:
 			newDrum->setupAsSample(&paramManager);
 
 			range->sampleHolder.startPos = nextDrumStart;
-			nextDrumStart = (uint64_t)lengthInSamples * (i + 1) / numClips;
+			nextDrumStart = (uint64_t)lengthInSamples * (i + 1) / sliceCount;
 			range->sampleHolder.endPos = nextDrumStart;
 
 			newDrum->sources[0].repeatMode =
 			    (lengthMSPerSlice < 2002) ? SampleRepeatMode::ONCE : FlashStorage::defaultSliceMode;
 
 			range->sampleHolder.filePath = sample->filePath;
-			range->sampleHolder.loadFile(false, false, true);
+			// The first drum's load bound this sample already: every other slice binds the same one, from memory.
+			range->sampleHolder.setAudioFile(sample, false, false, CLUSTER_ENQUEUE);
 			// M3 owner-5: this new drum's slice range was just populated (zone + file) — reflect into the
 			// record.
 			newDrum->sources[0].seedDocRanges();
@@ -716,7 +794,7 @@ ramError2:
 				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
 				    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_ATTACK),
 				    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
-				if (i != numClips - 1) {
+				if (i != sliceCount - 1) {
 					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
 					    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_RELEASE),
 					    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
@@ -739,7 +817,7 @@ ramError2:
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 	instrumentClipView.recalculateColours();
 
-	display->setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
+	return Error::NONE;
 }

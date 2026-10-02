@@ -19,21 +19,17 @@
 
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "fatfs/fatfs.hpp"
-#include "libdeluge/scheduler.h" // isSDRoutineActive()
-#include "model/sync.h"
+#include "io/file.hpp"
+#include "io/stall_bound.h"
+#include "modulation/sync.h"
 #include "util/firmware_version.h"
 
 #include <cstdint>
+#include <expected>
 #include <optional>
-
-extern "C" {
-#include "fatfs/ff.h"
-}
+#include <span>
 
 extern void deleteOldSongBeforeLoadingNew();
-
-extern FatFS::Filesystem fileSystem;
 
 class Instrument;
 class PlaybackMode;
@@ -57,38 +53,39 @@ public:
 	FileReader(char* memBuffer, uint32_t bufLen);
 	virtual ~FileReader();
 
-	FIL readFIL{};
+	std::optional<deluge::io::File> file;
 	char* fileClusterBuffer;
-	UINT currentReadBufferEndPos{};
+	uint32_t currentReadBufferEndPos{};
 	int32_t fileReadBufferCurrentPos{};
 
-	FRESULT closeWriter();
+	/// @return true on success, false on failure.
+	bool closeWriter();
 
 	bool peekChar(char* thisChar);
 	bool readChar(char* thisChar);
+
+	/// @brief Whether the reader has run out of bytes to hand out.
+	///
+	/// For a file-backed reader that means end of file. For a memory-backed one it means the end of
+	/// the supplied buffer, which is NOT the same claim: the buffer may be a prefix of a longer file,
+	/// so a walk that stops here has been cut short rather than having seen everything there is.
+	[[nodiscard]] bool reachedEnd() const { return reachedBufferEnd; }
+
 	uint32_t bytesRemainingInBuffer() { return currentReadBufferEndPos - fileReadBufferCurrentPos; }
 	char* GetCurrentAddressInBuffer() { return fileClusterBuffer + fileReadBufferCurrentPos; }
 
-	/// Whether long reads may interleave the cooperative audio/SD routine. True for file-backed
-	/// reads (firmware default); false for in-memory reads, which must not pump the audio engine.
-	bool shouldCallRoutines() const { return callRoutines; }
-
 protected:
-	bool callRoutines = true;
 	bool readFileCluster();
 	bool readFileClusterIfNecessary();
 
-	void readDone();
-
 	bool memoryBased = false;
-	int32_t readCount{}; // Used for multitask interleaving.
 	bool reachedBufferEnd{};
 	void resetReader();
 };
 
 class FileWriter {
 public:
-	FIL writeFIL{};
+	std::optional<deluge::io::File> file;
 	FileWriter();
 	FileWriter(bool inMem);
 
@@ -99,14 +96,20 @@ public:
 	void writeByte(int8_t b);
 	void writeBlock(uint8_t* block, uint32_t size);
 	void writeChars(char const* output);
-	FRESULT closeWriter();
+	/// @return true on success, false on failure.
+	bool closeWriter();
 
 	char* getBufferPtr() { return writeClusterBuffer; }
 	int32_t bytesWritten();
-	void setMemoryBased() {
-		memoryBased = true;
-		callRoutines = false;
-	}
+	void setMemoryBased() { memoryBased = true; }
+	/// @brief Put the writer back to writing through a file.
+	///
+	/// Needed because the shared serialiser is borrowed for memory-backed work and then handed back:
+	/// left in memory mode it would silently stop reaching the card for everyone after it.
+	void clearMemoryBased() { memoryBased = false; }
+
+	/// @brief Bytes the buffer can currently hold. GROWS as a memory-backed document outgrows it.
+	[[nodiscard]] uint32_t bufferCapacity() const { return bufferSize; }
 
 	/// Redirect writes into a caller-owned buffer (for in-memory serialization, e.g. a host
 	/// round-trip harness). Writes truncate at `len`, so size it to the largest expected output.
@@ -119,10 +122,21 @@ public:
 protected:
 	void resetWriter();
 	Error writeBufferToFile();
+
+	/// @brief Double the buffer, preserving what has been written. Memory-backed writers only.
+	/// @return false if a larger block could not be had, which is a FAILED save and never a short one.
+	bool growWriteBuffer();
+
 	bool memoryBased = false;
-	bool callRoutines = true;
 	uint8_t indentAmount{};
 	char* writeClusterBuffer;
+	/// @brief The address alloc_sdram actually returned.
+	///
+	/// `writeClusterBuffer` is this plus CACHE_LINE_SIZE, so freeing THAT hands the allocator an
+	/// interior pointer -- which the host's own test seam documents libc rejecting outright. Keeping
+	/// the base is what lets the destructor and the growth path both free the thing that was
+	/// allocated.
+	char* writeClusterBufferBase{};
 	uint32_t bufferSize;
 	int32_t fileWriteBufferCurrentPos{};
 	int32_t fileTotalBytesWritten{};
@@ -208,15 +222,14 @@ class FileDeserializer : public Deserializer, public FileReader {
 public:
 	FileDeserializer() : FileReader() {}
 	FileDeserializer(uint8_t* inbuf, size_t buflen) : FileReader((char*)inbuf, buflen) {}
-
-	// Disambiguate the two inherited shouldCallRoutines() (Deserializer's virtual + FileReader's flag
-	// reader) and route the base virtual to the file-backed callRoutines flag.
-	[[nodiscard]] bool shouldCallRoutines() const override { return FileReader::shouldCallRoutines(); }
 };
 
 class XMLDeserializer : public FileDeserializer {
 public:
 	XMLDeserializer();
+	/// @brief Read XML out of a caller-owned buffer instead of a file.
+	/// @param inbuf  First byte of the buffer; the caller owns it and must outlive this reader.
+	/// @param buflen Bytes readable at @p inbuf.
 	XMLDeserializer(uint8_t* inbuf, size_t buflen);
 	~XMLDeserializer() override = default;
 
@@ -236,8 +249,7 @@ public:
 	bool match(char const ch) override;
 
 	void exitTag(char const* exitTagName = NULL, bool closeObject = false) override;
-	Error openXMLFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
-	                  bool ignoreIncorrectFirmware = false);
+	Error openXMLFile(char const* firstTagName, char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 	void reset() override;
 
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) override;
@@ -336,8 +348,7 @@ public:
 	bool match(char const ch) override;
 	void exitTag(char const* exitTagName = NULL, bool closeObject = false) override;
 
-	Error openJsonFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName = "",
-	                   bool ignoreIncorrectFirmware = false);
+	Error openJsonFile(char const* firstTagName, char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 	void reset() override;
 	Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) override;
 	void setReplySeqNum(uint8_t msgNum) { replySeqNum = msgNum; }
@@ -383,26 +394,221 @@ extern Deserializer* activeReader;
 
 namespace StorageManager {
 
-std::expected<FatFS::File, Error> createFile(char const* filePath, bool mayOverwrite);
+/// @brief The XML declaration every XML document the firmware writes begins with.
+///
+/// `createXMLFile` writes it for a document streamed to the card; a document serialised into memory for the byte
+/// channel writes it itself, so both arms produce the same bytes.
+inline constexpr const char* kXmlDocumentHead = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+
+std::expected<deluge::io::File, Error> createFile(char const* filePath, bool mayOverwrite);
 Error createXMLFile(char const* pathName, XMLSerializer& writer, bool mayOverwrite = false, bool displayErrors = true);
 Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverwrite = false,
                      bool displayErrors = true);
-Error openXMLFile(FilePointer* filePointer, XMLDeserializer& reader, char const* firstTagName,
-                  char const* altTagName = "", bool ignoreIncorrectFirmware = false);
-Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char const* firstTagName,
-                   char const* altTagName = "", bool ignoreIncorrectFirmware = false);
-Error openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName = "",
-                     bool ignoreIncorrectFirmware = false);
-// Record-first song load (deserializer step 2b): read the whole file and replay it to readFromFile via
-// the Value tree instead of streaming. Same post-condition as openDelugeFile (activeReader positioned
-// inside firstTagName). Pair every Error::NONE return with releaseTreeReader() once the load completes.
-Error openDelugeFileTree(FileItem* currentFileItem, char const* firstTagName, char const* altTagName = "",
-                         bool ignoreIncorrectFirmware = false);
+/// @brief Open a Deluge document that is already in memory, with no I/O of any kind.
+///
+/// The only way a document is parsed. It picks the deserializer the caller names rather than
+/// inferring it from a filename extension, points that deserializer at @p buffer, and runs
+/// XMLDeserializer::openXMLFile() or JsonDeserializer::openJsonFile() to validate it -- those remain
+/// the deserializers' own methods.
+///
+/// @param buffer                 The document bytes. Borrowed, NOT copied: it must outlive every read
+///                               through `activeDeserializer` that follows. May be a PREFIX of a longer
+///                               document — the reader simply runs out where the buffer does, which
+///                               FileReader::reachedEnd() then reports.
+///                               MUTABLE, and written to: the walk NUL-terminates each name and value
+///                               it returns IN PLACE, overwriting the delimiter byte in these very
+///                               bytes (`XMLDeserializer::readNextAttributeName`, and both
+///                               deserializers' `readUntilChar`). The caller's buffer therefore comes
+///                               back perforated with NULs, and read-only storage — a `.rodata`
+///                               literal, a memory-mapped page — must never be passed here.
+/// @param isJson                 `true` to parse as JSON, `false` as XML. The caller decides, because
+///                               a buffer has no filename to infer from.
+/// @param firstTagName           The root tag the document must open with.
+/// @param altTagName             An accepted alternative root tag.
+/// @param ignoreIncorrectFirmware Pass the file's `earliestCompatibleFirmware` check.
+/// @return Error::NONE, or Error::FILE_CORRUPTED if the root tag was not found.
+/// @note This leaves `activeDeserializer` pointing at the memory reader on EVERY path, the failed
+///       open included — so a caller must save the previous value before calling and restore it at a
+///       single exit, as `deluge::storage::decodeSongPreview()` does. That is not hygiene: code
+///       downstream WRITES through the global without opening a document of its own (SaveSongUI's
+///       sample collection reads `Cluster::size` — 32 KiB — into `activeDeserializer->fileClusterBuffer`,
+///       which left pointing here IS @p buffer). Copy that function's save/restore, not just this call.
+Error openDelugeBuffer(std::span<uint8_t> buffer, bool isJson, char const* firstTagName, char const* altTagName = "",
+                       bool ignoreIncorrectFirmware = false);
+
+/// @brief Parse an in-memory Deluge document into a Value tree and position a tree reader inside its root tag.
+///
+/// The record-first counterpart of openDelugeBuffer(): the whole document is parsed up front (JSON or XML per
+/// @p isJson) into `smSongTree`, and `activeReader` is pointed at a ValueTreeDeserializer over it, entered at
+/// @p firstTagName -- the same post-condition openDelugeBuffer() leaves for a streaming reader. Unlike
+/// openDelugeBuffer(), @p buffer is only read, never perforated, and it may be released as soon as this returns:
+/// the tree owns its own copies. `activeDeserializer` is left untouched.
+///
+/// @return Error::NONE, Error::FILE_CORRUPTED if the bytes did not parse or held no @p firstTagName, or the
+///         firmware-tag check's error. On any failure `activeReader` is left on the file reader.
+/// @note Pair every call with releaseTreeReader() once the read is done, success or not.
+Error openDelugeBufferTree(std::span<const uint8_t> buffer, bool isJson, char const* firstTagName,
+                           char const* altTagName = "", bool ignoreIncorrectFirmware = false);
+
+/// @brief Free the tree openDelugeBufferTree() parsed, and point `activeReader` back at the file reader.
 void releaseTreeReader();
+
+/// @brief Outcome of one attempt to stage a document and open it for parsing.
+enum class StagedOpen : uint8_t {
+	/// Nothing is ready yet. The caller must return to its executor and ask again on a later tick.
+	/// Only the channel arm can produce this; the synchronous arm never does.
+	Deferred,
+	/// The document is in the caller's `StagingState` and `activeDeserializer` now points at it.
+	Opened,
+	/// The document could not be staged or did not parse. Any buffer has been released.
+	Failed,
+};
+
+/// @brief Cross-tick state for one staged open. One per concurrent staging caller.
+///
+/// This must OUTLIVE the parse, not merely the open. openDelugeBuffer() borrows these bytes and the
+/// walk NUL-terminates names and values inside them, so freeing when the open returns pulls the
+/// document out from under the deserializer. Free it when the DESERIALIZER is finished --
+/// releaseStaging() after closeWriter(), and on every path that abandons the load in between.
+struct StagingState {
+	/// The staged bytes, owned by this state and freed by releaseStaging().
+	uint8_t* buffer = nullptr;
+	/// Bytes in `buffer`. Set to the file's true size once the fill completes.
+	uint32_t size = 0;
+	/// Whether a channel read has been issued and is awaiting its collect.
+	bool issued = false;
+	/// How long this staging has been deferred without progress. Bounded, because a channel that is
+	/// never going to answer must END the wait rather than defer forever -- an unbounded retry is not
+	/// patience, it is a wedge that presents as the device having hung. The caller sets its limit;
+	/// releaseStaging() keeps it.
+	deluge::io::StallBound stallBound{};
+	/// What the latest Deferred waits for. See stagingNextRunUs().
+	enum class Wait : uint8_t {
+		Answer,  ///< The channel's answer to a request it holds, which raises DELUGE_WAKE_STORAGE.
+		Refused, ///< The channel refused (or may have dropped) a request: asked again on the next run.
+		Now,     ///< Nothing to wait for: the next run issues the read.
+	};
+	Wait wait = Wait::Answer;
+};
+
+/// @brief Read the whole of @p path into a freshly allocated buffer, blocking until it is there.
+///
+/// The inline arm of openDocumentStaged(), which takes it only before boot finishes; openDocumentSynchronously()
+/// fills through it too. Nothing chooses it because staging failed.
+///
+/// @param path NUL-terminated path.
+/// @param out  Receives the buffer and its size on success; untouched on failure.
+/// @return Error::NONE, or which KIND of failure it was. FILE_CORRUPTED for a file that opened and
+///         held nothing -- an empty document has no root tag, which is what the streaming reader
+///         reported for one, and collapsing that into FILE_NOT_FOUND would tell someone their file
+///         is missing when it is sitting on the card.
+Error readWholeFileSynchronously(char const* path, StagingState* out);
+
+/// @brief Stage @p path in memory and open it for parsing, from whichever arm this context allows.
+///
+/// The one entry point for reading a Deluge document. After boot it drives the byte channel and the
+/// whole-file read, returning StagedOpen::Deferred until the bytes arrive; before boot finishes it
+/// fills synchronously and returns a terminal answer at once.
+///
+/// @param path         NUL-terminated path. Its extension picks the parser, exactly as the file-backed
+///                     opener did: a name containing ".Json" parses as JSON, anything else as XML.
+/// @param firstTagName The root tag the document must open with.
+/// @param altTagName   An accepted alternative root tag.
+/// @param state        Caller-owned, and must outlive the parse. See StagingState.
+/// @return Deferred (ask again next tick), Opened, or Failed.
+/// @note On Opened this leaves `activeDeserializer` pointing at a memory reader, with all of
+///       openDelugeBuffer()'s caveats about saving and restoring it.
+StagedOpen openDocumentStaged(char const* path, char const* firstTagName, char const* altTagName, StagingState* state);
+
+/// @brief Stage @p path in memory without parsing it: openDocumentStaged() minus the open.
+///
+/// Same arms, same Deferred/Failed answers and the same StagingState contract; Opened here means only that all of
+/// the file's bytes are in `state->buffer`, untouched -- for a caller that parses them some other way
+/// (openDelugeBufferTree()).
+StagedOpen stageDocument(char const* path, StagingState* state);
+
+/// @brief When a caller that runs only when woken asks again after openDocumentStaged() answered Deferred, on the app
+///        loop's clock (µs).
+///
+/// 0 (at once) when the next run has a request to issue; for a refused request, the stall bound's deadline or
+/// kRefusedRecheckUs from now, whichever is sooner (an answer aging out of the channel raises no wake); for a
+/// request the channel holds, the stall bound's deadline -- a full bound from now if its span has not started -- since
+/// the answer itself raises DELUGE_WAKE_STORAGE.
+[[nodiscard]] uint64_t stagingNextRunUs(const StagingState& state);
+
+/// @brief Free a staged buffer and clear its state. Safe on a state that holds nothing.
+///
+/// Safe mid-read, too: a buffer the byte channel is still reading into is parked instead of freed, and
+/// reapOrphanedStaging() frees it once the channel lets go. So a consumer that abandons a staged read on any path
+/// needs no special handling.
+void releaseStaging(StagingState* state);
+
+/// @brief Free the parked buffers the byte channel no longer holds. Called from the channels' service task, and from
+///        each staging call, so a parked buffer is freed within a tick of its read finishing.
+void reapOrphanedStaging();
+
+/// @brief How many released buffers are parked waiting for the byte channel to let go. For gates.
+[[nodiscard]] int32_t orphanedStagingCount();
+
+/// @brief Stage a document synchronously in a shared slot and open it for parsing.
+///
+/// Blocks on the card for the whole read, so it belongs to the inline arms that run before boot finishes: the
+/// settings, MIDI-device, MIDI-follow and performance-view readers, the favourites bank, and the song browser's
+/// preview. After boot each of those reads through a channel instead, and a document read that has to span ticks
+/// uses openDocumentStaged().
+///
+/// The shared slot is safe because these callers are never in flight at once -- each runs start to finish on one
+/// call stack. The caller MUST call releaseDocumentStaging() once its deserializer is finished.
+///
+/// @return Error::NONE, Error::FILE_NOT_FOUND if it could not be staged, or Error::FILE_CORRUPTED.
+Error openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName = "");
+
+/// @brief Whether @p path names a JSON document rather than an XML one.
+///
+/// The extension rule the file-backed opener used, in one place now that three call sites need it: a
+/// buffer has no filename to infer from, so whoever stages one has to decide before parsing. Getting
+/// it wrong routes an XML song to the JSON parser and the failure reads as a corrupt file.
+bool documentIsJson(char const* path);
+
+/// @brief Release the shared slot filled by openDocumentSynchronously(). Safe to call twice.
+void releaseDocumentStaging();
+
+/// @brief Whole-file staging reads the CHANNEL has completed.
+///
+/// The evidence that the async arm executed at all, for a gate to check against -- without it, a test
+/// could pass while quietly always taking the synchronous path.
+[[nodiscard]] int32_t stagingChannelServedOps();
 Error initSD();
 
-bool fileExists(char const* pathName);
-bool fileExists(char const* pathName, FilePointer* fp);
+/// @brief Run AudioFileManager::firstCardRead() if the filesystem has been mounted since we last
+///        looked, and nothing otherwise.
+///
+/// The card can now be mounted by something other than @ref initSD — the directory channel's driver
+/// mounts on the storage tier, because mounting is card I/O and its caller is on the interaction
+/// tier. So the unmounted→mounted edge is tracked by a counter both paths share rather than by
+/// `initSD` watching its own call.
+///
+/// The work it starts does not care where its caller stands: `cardReinserted()` ARMS a walk that
+/// checks one resident per tick through the byte channel, rather than opening every resident sample
+/// in one blocking pass. That is why this takes no "may I run the work here?" parameter.
+void noticeCardMount();
+
+/// @brief How many mount edges @ref noticeCardMount has acted on. For gates only.
+///
+/// Exists because the two hazards here are both invisible from the outside: firing the notification
+/// twice for one mount, and never firing it at all. Neither shows up in a listing's result.
+[[nodiscard]] uint32_t cardMountNotices();
+
+/// @brief Check whether a file exists at @p pathName.
+///
+/// @param pathName Absolute path on the SD volume.
+/// @return `true` if the file is present; `false` if it is **known absent**
+///         (Status::NOT_FOUND). Otherwise an error if existence could not be determined, e.g.
+///         Status::BUSY (the filesystem refused to answer) or Status::NO_FILESYSTEM
+///         (card unusable).
+/// @warning Callers must never treat an error as absence — see
+///          docs/superpowers/specs/2026-08-08-existence-check-conflation-design.md.
+std::expected<bool, deluge::io::Status> fileExists(char const* pathName);
 /// takes a full path/to/file.text and makes sure the directories exist
 bool buildPathToFile(const char* fileName);
 
@@ -410,37 +616,64 @@ bool checkSDPresent();
 bool checkSDInitialized();
 
 Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = nullptr);
-Error loadInstrumentFromFile(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
-                             Instrument** getInstrument, FilePointer* filePointer, std::string* name,
-                             std::string* dirPath);
+/// @brief Read an Instrument from the document `activeDeserializer` has open, and close it.
+///
+/// The parse half of a staged read: it opens nothing and frees no staging, so a caller that staged the document itself
+/// (openDocumentStaged(), or the harness's own fixture loader) parses it on its own tier. On any failure the Instrument
+/// it made is deleted again.
+/// @param song                   The song the Instrument will belong to.
+/// @param clip                   The clip it is being loaded for, if any.
+/// @param outputType             Which kind of Instrument the document must hold.
+/// @param mayReadSamplesFromFiles Whether sample data may be read from the card while parsing.
+/// @param getInstrument Receives the new Instrument on success; untouched otherwise.
+/// @param name          The Instrument's name.
+/// @param dirPath       The folder the preset is in.
+/// @return Error::NONE, or why the document could not be read into an Instrument.
+Error parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
+                              Instrument** getInstrument, std::string* name, std::string* dirPath);
+/// @brief The root tag, and its accepted alternative, of an @p outputType preset document.
+/// @param outputType   Which kind of Instrument the document must hold.
+/// @param firstTagName Set to the expected root tag.
+/// @param altTagName   Set to the accepted alternative root tag.
+void instrumentDocumentTags(OutputType outputType, char const** firstTagName, char const** altTagName);
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
-Error openMidiDeviceDefinitionFile(FilePointer* filePointer);
-Error loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrument, FilePointer* filePointer, std::string* fileName,
-                                   bool updateFileName = true);
+/// @brief Read a device definition into @p midiInstrument from the document `activeDeserializer` has open, and close
+///        it. The parse half of a staged definition read; it opens nothing and frees no staging.
+/// @param midiInstrument The instrument to read the definition into.
+/// @param fileName       Set to the definition's file name.
+/// @param updateFileName Whether @p fileName should be updated.
+/// @return Error::NONE, or why the definition could not be read.
+Error parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName, bool updateFileName);
 
-Error openPatternFile(FilePointer* filePointer);
-Error loadPatternFile(FilePointer* filePointer, std::string* fileName, bool overwriteExisting, bool noScaling,
-                      bool previewOnly, bool selectedDrumOnly);
+/// @brief Paste the pattern the document `activeDeserializer` has open into the current clip, and close it. The parse
+///        half of a staged pattern read; it opens nothing and frees no staging.
+/// @param overwriteExisting Whether the pasted notes replace the ones already under them.
+/// @param noScaling         Whether the notes keep the pattern's own scale instead of the clip's.
+/// @param previewOnly       Whether this is a PLAY preview rather than a load.
+/// @param selectedDrumOnly  Whether only the selected drum's row is pasted.
+/// @return Error::NONE, or why the pattern could not be read.
+Error parsePatternDocument(bool overwriteExisting, bool noScaling, bool previewOnly, bool selectedDrumOnly);
 
-Error openFavouriteFile(FilePointer* filePointer);
-Error loadFavouriteFile(FilePointer* filePointer, std::string* fileName);
+Error openFavouriteFile(char const* path);
 
 Drum* createNewDrum(DrumType drumType);
-Error loadSynthToDrum(Song* song, InstrumentClip* clip, bool mayReadSamplesFromFiles, SoundDrum** getInstrument,
-                      FilePointer* filePointer, std::string* name, std::string* dirPath);
-void openFilePointer(FilePointer* fp, FileReader& reader);
+/// @brief Read a synth preset into a new SoundDrum from the document `activeDeserializer` has open, and close it.
+///
+/// The parse half of a staged synth-to-row read; it opens nothing and frees no staging. On success a drum already in
+/// @p getInstrument is deleted and replaced by the new one; on failure the new drum is deleted.
+/// @param song          The song the drum will belong to.
+/// @param clip          The clip it is being loaded for.
+/// @param getInstrument The drum slot to fill.
+/// @return Error::NONE, or why the document could not be read into a drum.
+Error parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument);
 
 Error checkSpaceOnCard();
-
-Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 } // namespace StorageManager
 
 extern FirmwareVersion song_firmware_version;
-extern FILINFO staticFNO;
-extern FatFS::Directory staticDIR;
 extern bool writeJsonFlag; // serialization format master switch; runtime-mutable, defaults false (XML)
 
 inline bool isCardReady() {
-	return !isSDRoutineActive() && Error::NONE == StorageManager::initSD();
+	return Error::NONE == StorageManager::initSD();
 }

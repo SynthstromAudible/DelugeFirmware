@@ -45,6 +45,7 @@
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
+#include "sync/sd_access.h"
 #include "util/cfunctions.h"
 #include "util/misc.h"
 
@@ -128,10 +129,6 @@ bool SampleMarkerEditor::opened() {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-	if (display->have7SEG()) {
-		displayText();
-	}
-
 	if (getRootUI() != &instrumentClipView) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
@@ -199,8 +196,9 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		getCurrentSampleHolder().endPos = value;
 	}
 
-	getCurrentSampleHolder().claimClusterReasons(getCurrentSampleControls()->reversed,
-	                                             CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
+	// Marker prefetch must never block the UI on a card read — enqueue and let the loader fill it.
+	// Playback tolerates a not-yet-loaded cluster (same as the realtime path).
+	getCurrentSampleHolder().claimClusterReasons(getCurrentSampleControls()->reversed, CLUSTER_ENQUEUE);
 
 	if (clipType == ClipType::AUDIO) {
 		if (audioClipActive) {
@@ -341,19 +339,10 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	blinkPhase = 0;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		displayText();
-	}
+	renderUIsForOled();
 }
 
 ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
-
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	if (currentUIMode != UI_MODE_AUDITIONING) { // Don't want to do this while auditioning - too easy to do by mistake
 		ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
@@ -641,12 +630,7 @@ doWriteValue:
 
 doRender:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				displayText();
-			}
+			renderUIsForOled();
 		}
 
 		// Release press
@@ -662,15 +646,12 @@ doRender:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Back button
 	if (b == BACK) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			exitUI();
 		}
 	}
@@ -696,7 +677,6 @@ ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bo
 }
 
 ActionResult SampleMarkerEditor::exitUI() {
-	display->setNextTransitionDirection(-1);
 	close();
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
@@ -747,9 +727,6 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 	}
 
 	// We're quite likely going to need to read the SD card to do either scrolling or zooming
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	MarkerColumn* colsToSend = nullptr;
 	MarkerColumn cols[kNumMarkerTypes];
@@ -887,18 +864,14 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)
 	    || getCurrentClip()->type == ClipType::AUDIO) {
 		return ActionResult::DEALT_WITH;
 	}
 
 	// Must say these buttons were not pressed, or else editing might take place
-	ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
-
-	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return result;
-	}
+	ActionResult result = instrumentClipView.verticalEncoderAction(offset);
 
 	if (getRootUI() == &keyboardScreen) {
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
@@ -918,7 +891,7 @@ bool SampleMarkerEditor::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 void SampleMarkerEditor::graphicsRoutine() {
 
 #ifdef TEST_SAMPLE_LOOP_POINTS
-	if (!currentlyAccessingCard && !(getNoise() >> 27)) {
+	if (!deluge::sync::sd_busy() && !(getNoise() >> 27)) {
 		Uart::println("random change to marker -----------------------------");
 
 		int32_t minDistance = 1;
@@ -1032,7 +1005,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 				VoiceUnisonPartSource* part = &assigned_voice->unisonParts[soundEditor.currentSound->numUnison >> 1]
 				                                   .sources[soundEditor.currentSourceIndex];
 				if (part != nullptr && part->active) {
-					voiceSample = part->voiceSample;
+					voiceSample = part->sampleVoiceAdapter.voiceSample();
 					guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
 				}
 			}
@@ -1282,8 +1255,6 @@ void SampleMarkerEditor::displayText() {
 
 	char buffer[5];
 	intToString(number, buffer, numDecimals + 1);
-
-	display->setText(buffer, true, drawDot);
 }
 
 void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth],

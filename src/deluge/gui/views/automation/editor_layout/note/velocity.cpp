@@ -104,9 +104,9 @@ void AutomationEditorLayoutNoteVelocity::renderNoteSquare(RGB image[][kDisplayWi
 }
 
 /// updates OLED display to display the current velocity
-void AutomationEditorLayoutNoteVelocity::displayParameterValueOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                                   int32_t yPos, int32_t knobPosLeft,
-                                                                   int32_t knobPosRight) {
+void AutomationEditorLayoutNoteVelocity::displayParameterValue(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                                               int32_t yPos, int32_t knobPosLeft,
+                                                               int32_t knobPosRight) {
 	if (knobPosRight != kNoSelection) {
 		char bufferLeft[10];
 		bufferLeft[0] = 'L';
@@ -296,13 +296,7 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 		if (getMultiPadPressActive()) {
 			int32_t leftPadSelectedVelocity = getVelocityFromY(getLeftPadSelectedY());
 			int32_t rightPadSelectedVelocity = getVelocityFromY(getRightPadSelectedY());
-			if (display->haveOLED()) {
-				renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
-			}
-			else {
-				// for 7seg, render value of last pad pressed
-				renderDisplay(getLeftPadSelectedX() == x ? leftPadSelectedVelocity : rightPadSelectedVelocity);
-			}
+			renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
 		}
 		else {
 			if (velocity) {

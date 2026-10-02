@@ -1,10 +1,9 @@
 #pragma once
-#include "board_config.h"     // board capabilities/layout (HAL-free; was RZA1/cpu_specific.h)
+#include "board_config.h"     // board capabilities/layout (HAL-free)
 #include "foundation/panic.h" // IWYU pragma: export — freezeWithError + FREEZE_WITH_ERROR (foundation tier)
-// (Also was RZA1/system/r_typedefs.h, a Renesas wrapper around these standard headers.)
-#include <stdbool.h> // IWYU pragma: export
-#include <stddef.h>  // IWYU pragma: export
-#include <stdint.h>  // IWYU pragma: export
+#include <stdbool.h>          // IWYU pragma: export
+#include <stddef.h>           // IWYU pragma: export
+#include <stdint.h>           // IWYU pragma: export
 
 #define ALPHA_OR_BETA_VERSION 1 // Whether to compile with additional error-checking
 
@@ -14,8 +13,8 @@
 // periodic heap walk) compiles away to nothing.
 //
 // Disabled automatically under a sanitizer (host-sim AddressSanitizer, or DELUGE_VALGRIND): MEM_GUARD writes and reads
-// the freed block body (its poison fill + verify-on-realloc), which would itself trip the sanitizer. When a sanitizer is
-// active the heap_poison.h hooks own corruption detection instead - they give strictly stronger, hardware-accurate
+// the freed block body (its poison fill + verify-on-realloc), which would itself trip the sanitizer. When a sanitizer
+// is active the heap_poison.h hooks own corruption detection instead - they give strictly stronger, hardware-accurate
 // coverage and must be the sole writer of freed-block shadow state.
 #if defined(__SANITIZE_ADDRESS__) || defined(DELUGE_VALGRIND)
 #define MEM_GUARD 0
@@ -50,5 +49,4 @@
 #define RUNTIME_FEATURE_SETTING_MAX_OPTIONS 9
 
 // Board-specific values (audio/MIDI buffer sizes, CACHE_LINE_SIZE, PLACE_SDRAM_*, XTAL,
-// timer/channel counts) now live in board_config.h (above). Raw RZ/A1L peripheral indices
-// (the MTU TIMER_* channels) live in the HAL, RZA1/cpu_specific.h.
+// timer/channel counts) live in board_config.h (above).

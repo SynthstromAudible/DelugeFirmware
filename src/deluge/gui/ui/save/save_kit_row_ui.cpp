@@ -51,8 +51,7 @@ bool SaveKitRowUI::opened() {
 	// Must set this before calling SaveUI::opened(), which uses this to work out folder name
 
 	bool success = SaveUI::opened();
-	if (!success) { // In this case, an error will have already displayed.
-doReturnFalse:
+	if (!success) {                      // In this case, an error will have already displayed.
 		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on
 		                                 // the pads.
 		return false;
@@ -66,100 +65,57 @@ doReturnFalse:
 
 	currentDir = soundDrumToSave->path;
 	if (currentDir.empty()) { // Would this even be able to happen?
-tryDefaultDir:
 		currentDir = defaultDir;
 	}
 
-	if (display->haveOLED()) {
-		fileIcon = deluge::hid::display::OLED::synthIcon;
-		title = "Save synth preset";
-	}
+	fileIcon = deluge::hid::display::OLED::synthIcon;
+	title = "Save synth preset";
 
 	filePrefix = "SYNT";
 
-	Error error = arrivedInNewFolder(0, enteredText.c_str(), defaultDir);
-	if (error != Error::NONE) {
-gotError:
-		display->displayError(error);
-		goto doReturnFalse;
-	}
+	// The listing dispatches asynchronously; return optimistically here. onBrowserOpened() runs
+	// the blinkLed+focusRegained tail once the listing succeeds. Failure goes through the base
+	// Browser::onListingFailed() (displayError + close()).
+	beginListing(
+	    {.action = ListingAction::Open, .direction = 0, .filenameToStartAt = enteredText, .defaultDir = defaultDir});
 
-	indicator_leds::blinkLed(IndicatorLED::SYNTH);
-
-	focusRegained();
 	return true;
 }
 
-bool SaveKitRowUI::performSave(bool mayOverwrite) {
-	if (display->have7SEG()) {
-		display->displayLoadingAnimation();
-	}
+void SaveKitRowUI::onBrowserOpened() {
+	indicator_leds::blinkLed(IndicatorLED::SYNTH);
+	focusRegained();
+}
 
+bool SaveKitRowUI::beforeStagedWrite(const deluge::storage::SaveRequest& request) {
 	// We can't save into this slot if another Instrument in this Song already uses it
-	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.c_str(), currentDir.c_str(),
-	                                             false)) {
+	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, request.enteredText.c_str(),
+	                                             request.dirPath.c_str(), false)) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SAME_NAME));
 		display->removeWorkingAnimation();
 		return false;
 	}
-
 	// Alright, we know the new slot isn't used by an Instrument in the Song, but there may be an Instrument lurking
 	// in memory with that slot, which we need to just delete
-	currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, enteredText.c_str());
+	currentSong->deleteHibernatingInstrumentWithSlot(outputTypeToLoad, request.enteredText.c_str());
+	return true;
+}
 
-	std::string filePath = getCurrentFilePath();
-	Error error = Error::NONE;
-	if (error != Error::NONE) {
-fail:
-		display->displayError(error);
-		return false;
-	}
-
-	error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, mayOverwrite, false);
-
-	if (error == Error::FILE_ALREADY_EXISTS) {
-		gui::context_menu::overwriteFile.currentSaveUI = this;
-
-		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
-
-		if (available) { // Will always be true.
-			display->setNextTransitionDirection(1);
-			openUI(&gui::context_menu::overwriteFile);
-			return true;
-		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto fail;
-		}
-	}
-
-	else if (error != Error::NONE) {
-		goto fail;
-	}
-
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-	}
-
-	soundDrumToSave->writeToFileAsInstrument(false, paramManagerToSave);
-
-	char const* endString = "\n</sound>\n";
-
-	error = GetSerializer().closeFileAfterWriting(filePath.c_str(), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-	                                              endString);
+void SaveKitRowUI::afterStagedSave(const deluge::storage::SaveRequest& request) {
 	display->removeWorkingAnimation();
-	if (error != Error::NONE) {
-		goto fail;
-	}
-
 	// Give the Instrument in memory its new slot
-	soundDrumToSave->setName(enteredText.c_str());
-	soundDrumToSave->path = currentDir.c_str();
-
+	soundDrumToSave->setName(request.enteredText.c_str());
+	soundDrumToSave->path = request.dirPath.c_str();
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the
 	// user to select such a slot
-
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PRESET_SAVED));
 	close();
+}
+
+bool SaveKitRowUI::serializeForSave(XMLSerializer& into) {
+	// `into` IS the shared serialiser this writes through: writeToFileAsInstrument takes none and
+	// reaches GetSerializer() itself, which is exactly why the staged document is built there.
+	(void)into;
+	soundDrumToSave->writeToFileAsInstrument(false, paramManagerToSave);
 	return true;
 }

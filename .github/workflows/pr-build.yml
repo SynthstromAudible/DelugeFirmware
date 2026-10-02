@@ -1,11 +1,18 @@
 name: Pull Request Build
 
+# NOTE: the `build` job in build.yml is disabled (see its `if: false` and the
+# comment there), so the `release-build` and `debug-build` jobs below (which
+# call build.yml) are permanently-green checks that build nothing. They are
+# left in place rather than removed because they may be listed in this
+# repo's required-status-checks branch protection, and removing them is the
+# repo owner's call.
 on:
   push:
     branches:
       - 'synthstrom-official'
   pull_request:
     branches:
+      - 'next'
       - 'release/**'
       - 'main'
   merge_group:

@@ -57,15 +57,6 @@ public:
 		setCurrentPhase(value);
 	}
 
-	void drawValue() override {
-		if (this->getValue() < 0) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED), false, 255, true);
-		}
-		else {
-			Decimal::drawValue();
-		}
-	}
-
 	void drawPixelsForOled() override {
 		oled_canvas::Canvas& canvas = OLED::main;
 		if (this->getValue() < 0) {
@@ -82,7 +73,7 @@ public:
 		}
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		Source& source = sound->sources[source_id_];
 

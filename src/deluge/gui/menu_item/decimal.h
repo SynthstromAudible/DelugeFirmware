@@ -34,16 +34,12 @@ public:
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 protected:
-	void drawValue() override;
 	[[nodiscard]] virtual int32_t getNumDecimalPlaces() const = 0;
 	[[nodiscard]] virtual int32_t getDefaultEditPos() const { return 2; }
 	[[nodiscard]] virtual int32_t getNumberEditSize();
 
 	void drawPixelsForOled() override;
 
-	// 7Seg Only
-	virtual void drawActualValue(bool justDidHorizontalScroll = false);
-	virtual void appendAdditionalDots(std::vector<uint8_t>& dotPositions) {};
 	static int32_t getNumNonZeroDecimals(int32_t value);
 
 private:
@@ -63,8 +59,6 @@ protected:
 	virtual const char* getUnit() { return ""; }
 	void drawPixelsForOled() override;
 	void drawDecimal(int32_t textWidth, int32_t textHeight, int32_t yPixel);
-	// 7Seg Only
-	void drawActualValue(bool justDidHorizontalScroll = false) override;
 };
 
 } // namespace deluge::gui::menu_item

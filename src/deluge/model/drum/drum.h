@@ -21,6 +21,8 @@
 #include "io/midi/learned_midi.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
+#include "storage/audio/audio_load_context.h"
+#include "storage/audio/sample_load_walk.h"
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -96,7 +98,16 @@ public:
 	                    int32_t ticksLate = 0, uint32_t samplesLate = 0) = 0;
 	virtual void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) = 0;
 
-	virtual Error loadAllSamples(bool mayActuallyReadFiles) { return Error::NONE; }
+	/// @brief Load every audio file this drum's sound names, on this tier, before returning.
+	/// @param mayActuallyReadFiles false confines every lookup to files already in memory.
+	/// @param context The load this belongs to, or null for none.
+	void loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
+	/// @brief Report every audio file this drum's sound names to @p visitor, in load order. Loads nothing.
+	/// @param visitor Receives each demand.
+	/// @return Walk::Continue, or Walk::Stop if @p visitor asked to stop early.
+	virtual deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+		return deluge::storage::Walk::Continue;
+	}
 	virtual void prepareDrumToHaveNoActiveClip() {}
 
 	virtual void writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) = 0;

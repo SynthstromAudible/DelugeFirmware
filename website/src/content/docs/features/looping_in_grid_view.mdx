@@ -4,6 +4,10 @@ title: Looping in Grid View
 
 import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
 import { Badge } from "@astrojs/starlight/components"
+import recordTakeDemoVideo from "./assets/looping_in_grid_view/Record_Take_Demo.mov?url"
+import recordTakeDemoPoster from "./assets/looping_in_grid_view/posters/Record_Take_Demo.jpg?url"
+import loopPadsDemoVideo from "./assets/looping_in_grid_view/Loop_Pads_Demo.mov?url"
+import loopPadsDemoPoster from "./assets/looping_in_grid_view/posters/Loop_Pads_Demo.png?url"
 
 The Synthstrom Deluge offers several different workflows for looping audio and sequences. This page focuses on looping in Grid View, a <Badge text="c1.0 Feature" variant="tip" />.
 
@@ -40,7 +44,18 @@ The above techniques are described below
 
 This video demonstrates how to do it with an audio clip, using the microphone as the audio source, however it also works for arming non-audio clip's for recording.
 
-https://github.com/user-attachments/assets/be1862c0-ef45-45fa-911b-8ec588246280
+<video
+  controls
+  preload="metadata"
+  width="720"
+  aria-label="Create and record a clip in existing Grid View track demo"
+  poster={recordTakeDemoPoster}
+  src={recordTakeDemoVideo}
+>
+  <a href={recordTakeDemoVideo}>
+    Create and record a clip in existing Grid View track demo
+  </a>
+</video>
 
 To use the technique shown in the video above, you must follow these steps:
 
@@ -70,4 +85,17 @@ To enable the Grid Loop/Layering Loop pads (<Badge text="c1.2 Feature" variant="
 
 After you have setup the above, you can now use the LOOP/LAYERING LOOP global MIDI commands in grid view.
 
-**NOTE:** The mechanics of the looping workflow in Grid View using the LOOP/LAYERING LOOP global midi commands are still being worked on. Once the changes are finalized more information will be made available in this document.
+This video demonstrates using the Magenta LAYERING LOOP pad in grid view which will continuously create a new audio clip in a new track until you stop it.
+
+<video
+  controls
+  preload="metadata"
+  width="720"
+  aria-label="Create and record a clip in new Grid View track with loop pads demo"
+  poster={loopPadsDemoPoster}
+  src={loopPadsDemoVideo}
+>
+  <a href={loopPadsDemoVideo}>
+    Create and record a clip in new Grid View track with loop pads demo
+  </a>
+</video>

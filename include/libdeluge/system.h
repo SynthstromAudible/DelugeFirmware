@@ -17,39 +17,37 @@
 
 /// libdeluge/system.h — platform lifecycle and low-level services.
 ///
-/// Replaces the boot/reset/fault wiring currently in `main.c`, `resetprg.c`,
-/// `fault_handler`, and `RZA1/intc`. The platform calls `deluge_platform_init`
-/// before any other service and before `deluge_app_init`.
+/// The platform is up before `deluge_app_init` runs.
 #ifndef LIBDELUGE_SYSTEM_H
 #define LIBDELUGE_SYSTEM_H
 
+#include "abi.h"
 #include "types.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/// Bring up the SoC and board to the point where all other libdeluge services
-/// are usable (clocks, MMU/cache, interrupt controller, peripherals). Must be
-/// called exactly once, first. [task]
-DelugeStatus deluge_platform_init(void);
-
-/// Reset the device. Does not return. [task]
-void deluge_system_reset(void) __attribute__((noreturn));
-
-/// Stop all hardware timers/peripherals in preparation for handing control away
-/// (e.g. chainloading new firmware). Call with interrupts already disabled. [task]
-void deluge_system_quiesce(void);
-
 /// Emit debug/log text to the board's debug channel (RTT/UART), with no implicit
-/// newline — the caller owns formatting. Best-effort, may be dropped. [task] [isr]
-void deluge_log(const char* text);
+/// newline — the caller owns formatting. Best-effort, may be dropped. [task] [audio] [isr]
+void deluge_log(const char* text) DELUGE_NOEXCEPT;
 
 /// True if currently executing in an interrupt/ISR context (false in normal task
 /// context). The scheduler uses this to refuse to yield from within an ISR.
 /// Boards without preemptive interrupts (e.g. the host sim) always return false.
 /// [task] [isr]
-bool deluge_in_interrupt(void);
+bool deluge_in_interrupt(void) DELUGE_NOEXCEPT;
+
+/// @brief True iff the caller is executing in the audio render context.
+///
+/// The one context that preempts every other context touching shared audio/resource state, and
+/// therefore the one context permitted to skip a mask that exists to exclude it. Distinct from
+/// deluge_in_interrupt(): a lower-priority interrupt (the streaming fill executor) is not the audio
+/// context, and must still mask. On the Rust BSP, deluge_in_interrupt() cannot see either handler:
+/// the shared IRQ entry switches to SYS mode before dispatching.
+/// [task] [audio] [isr]
+/// @return true iff currently executing in the audio render context.
+bool deluge_in_audio_context(void) DELUGE_NOEXCEPT;
 
 /// Enter a critical section: mask interrupts so the following code runs without
 /// preemption. Nestable — each ENTER must be paired with one EXIT, and only the
@@ -58,11 +56,11 @@ bool deluge_in_interrupt(void);
 ///
 /// This is a CPU/system primitive owned by the BSP (the RZ/A1L implementation
 /// masks IRQs via CPSID/CPSIE; a host-sim would use a recursive lock or no-op;
-/// Embassy would use a critical-section crate). [task] [isr]
-void ENTER_CRITICAL_SECTION();
+/// Embassy would use a critical-section crate). [task] [audio] [isr]
+void ENTER_CRITICAL_SECTION() DELUGE_NOEXCEPT;
 
-/// Exit a critical section opened by ENTER_CRITICAL_SECTION(). [task] [isr]
-void EXIT_CRITICAL_SECTION();
+/// Exit a critical section opened by ENTER_CRITICAL_SECTION(). [task] [audio] [isr]
+void EXIT_CRITICAL_SECTION() DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }
@@ -72,6 +70,52 @@ void EXIT_CRITICAL_SECTION();
 struct CriticalSectionGuard {
 	CriticalSectionGuard() { ENTER_CRITICAL_SECTION(); }
 	~CriticalSectionGuard() { EXIT_CRITICAL_SECTION(); }
+};
+
+/// @brief Nesting depth of AudioExcludedSections that actually exclude the render (that masked, or on host took the
+///        lock) in the calling context.
+///
+/// Sections nest; the count is per thread on host (each thread's sections are its own) and a plain global on the
+/// device. The audio render's own section never counts: on the device it does not mask, so an interrupt that
+/// preempts the render (the storage handler) still sees the depth of the code it interrupted.
+#ifdef DELUGE_HOST
+inline thread_local int32_t g_delugeAudioExcludedDepth = 0;
+#else
+inline int32_t g_delugeAudioExcludedDepth = 0;
+#endif
+
+/// @brief How many AudioExcludedSections the calling context is inside. [task] [isr]
+/// @return The current nesting depth.
+inline int32_t deluge_audio_excluded_depth() noexcept {
+	return g_delugeAudioExcludedDepth;
+}
+
+/// @brief RAII asymmetric critical section: enters iff the caller is NOT the audio render
+/// (`!deluge_in_audio_context()`).
+///
+/// The C++ twin of the resource manager's `deluge_resource::sync::Masked`. Guard every change to a structure the
+/// audio render walks, and every walk. On the device the audio render skips the mask: it preempts every other
+/// context, so nothing can change the structure mid-walk; every other context masks for its window. On host,
+/// deluge_in_audio_context() is always false, so every thread takes the one global lock, which is what excludes the
+/// audio thread's walks from another thread's changes. Its depth is deluge_audio_excluded_depth().
+struct AudioExcludedSection {
+	AudioExcludedSection() : entered_(!deluge_in_audio_context()) {
+		if (entered_) {
+			ENTER_CRITICAL_SECTION();
+			g_delugeAudioExcludedDepth++;
+		}
+	}
+	~AudioExcludedSection() {
+		if (entered_) {
+			g_delugeAudioExcludedDepth--;
+			EXIT_CRITICAL_SECTION();
+		}
+	}
+	AudioExcludedSection(const AudioExcludedSection&) = delete;
+	AudioExcludedSection& operator=(const AudioExcludedSection&) = delete;
+
+private:
+	bool entered_;
 };
 #endif
 

@@ -19,18 +19,10 @@ void ActiveScaleMenu::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void ActiveScaleMenu::readValueAgain() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		const char* name = getScaleName(static_cast<Scale>(currentPos));
-		uint8_t dotPos = isDisabled(currentPos) ? 255 : 3;
-		display->setScrollingText(name, 0, 600, -1, dotPos);
-	}
+	renderUIsForOled();
 }
 
 void ActiveScaleMenu::drawName() {
-	display->setScrollingText(getName().data());
 }
 
 void ActiveScaleMenu::drawPixelsForOled() {

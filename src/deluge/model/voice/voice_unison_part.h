@@ -20,9 +20,8 @@
 #include "definitions_cxx.hpp"
 #include "model/voice/voice_unison_part_source.h"
 
+// A pure (mode-agnostic) per-unison source container. The FM modulator grid that used to live here moved to
+// FMEngine (the first stateful engine) — it was FM-exclusive state; see model/voice/fm_engine.h.
 struct VoiceUnisonPart {
-	uint32_t modulatorPhase[kNumModulators]{};
-	uint32_t modulatorPhaseIncrement[kNumModulators]{};
-	int32_t modulatorFeedback[kNumModulators]{};
 	VoiceUnisonPartSource sources[kNumSources];
 };

@@ -30,7 +30,7 @@
 // (and RIFF/AIFF container detection) lives in parseSampleHeader / parseWaveTableHeader — this method is just
 // the type-dispatch the old fake-polymorphic casts hid, plus lowering the parser's optionals to Sample's
 // legacy defaults.
-Error AudioFile::loadFile(AudioByteSource& source, bool makeWaveTableWorkAtAllCosts, DeserializerByteSource* wtSource) {
+Error AudioFile::loadFile(AudioByteSource& source, bool makeWaveTableWorkAtAllCosts, FileByteSource* wtSource) {
 	if (type == AudioFileType::WAVETABLE) {
 		const std::expected<WaveTableHeader, Error> header = parseWaveTableHeader(source, makeWaveTableWorkAtAllCosts);
 		if (!header) {

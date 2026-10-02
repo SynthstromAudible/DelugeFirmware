@@ -23,7 +23,7 @@
 #include <string>
 
 class AudioByteSource;
-class DeserializerByteSource;
+class FileByteSource;
 
 // An AudioFile (Sample / WaveTable) is a resource-manager *adopted* object: the owner allocates +
 // builds it, the manager owns only its eviction (value-scored). `addReason`/`removeReason` route to
@@ -34,12 +34,18 @@ public:
 	AudioFile(AudioFileType newType) : type(newType) {}
 	virtual ~AudioFile() = default;
 
-	// Parse the header off `source` (container detection included) and apply it to this object (Sample: take
-	// the fields; WaveTable: hand them to WaveTable::setup). `wtSource` is the deserializer-backed source for
-	// setup's zero-copy data read — only the WAVETABLE path uses it, and it is the same object as `source`
-	// (the concrete handle the band loop needs the cluster accessors from).
-	Error loadFile(AudioByteSource& source, bool makeWaveTableWorkAtAllCosts,
-	               DeserializerByteSource* wtSource = nullptr);
+	/// @brief Parse the header off @p source (container detection included) and apply it to this object.
+	///
+	/// Sample: take the parsed fields directly. WaveTable: hand them to WaveTable::setup for its zero-copy
+	/// data read. @p wtSource supplies setup's cluster accessors — only the WAVETABLE path uses it, and it
+	/// is the same object as @p source.
+	/// @param source                     Byte source the header is parsed from.
+	/// @param makeWaveTableWorkAtAllCosts Force wavetable interpretation even without the tag/length hints
+	///                                    that normally identify one.
+	/// @param wtSource                   Cluster-accessor handle for WaveTable::setup's zero-copy read;
+	///                                   unused on the Sample path.
+	/// @return Error::NONE on success, or the parse/setup failure.
+	Error loadFile(AudioByteSource& source, bool makeWaveTableWorkAtAllCosts, FileByteSource* wtSource = nullptr);
 	virtual void finalizeAfterLoad(uint32_t fileSize) {}
 
 	void addReason();

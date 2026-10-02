@@ -16,9 +16,6 @@ void Submenu::beginSession(MenuItem* navigatedBackwardFrom) {
 		initial_index_ = 0; // only set on first access, remember previously accessed menu otherwise.
 	}
 	focusChild(navigatedBackwardFrom);
-	if (display->have7SEG()) {
-		updateDisplay();
-	}
 }
 
 bool Submenu::focusChild(const MenuItem* child) {
@@ -44,11 +41,8 @@ void Submenu::updateDisplay() {
 		// no relevant items, back out
 		soundEditor.goUpOneLevel();
 	}
-	else if (display->haveOLED()) {
-		renderUIsForOled();
-	}
 	else {
-		(*current_item_)->drawName();
+		renderUIsForOled();
 	}
 }
 
@@ -133,7 +127,7 @@ void Submenu::drawSubmenuItemsForOled(std::span<MenuItem*> options, const int32_
 }
 
 bool Submenu::wrapAround() {
-	return display->have7SEG() || renderingStyle() == HORIZONTAL;
+	return renderingStyle() == HORIZONTAL;
 }
 
 void Submenu::selectEncoderAction(int32_t offset) {
@@ -186,24 +180,29 @@ void Submenu::selectEncoderAction(int32_t offset) {
 
 bool Submenu::shouldForwardButtons() {
 	// Should we deliver buttons to selected menu item instead?
-	return (*current_item_)->isSubmenu() == false && renderingStyle() == RenderingStyle::HORIZONTAL;
+	return renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()
+	       && (*current_item_)->isSubmenu() == false;
 }
 
 MenuItem* Submenu::selectButtonPress() {
 	if (shouldForwardButtons()) {
+		// In horizontal menus, some items (e.g. patch cable menus like vibrato)
+		// should enter their own full-screen session before handling SELECT.
+		if ((*current_item_)->allowToBeginSessionFromHorizontalMenu()) {
+			return *current_item_;
+		}
 		return (*current_item_)->selectButtonPress();
 	}
-	else {
-		return *current_item_;
-	}
+
+	return *current_item_;
 }
 
-ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on) {
 	if (shouldForwardButtons()) {
-		return (*current_item_)->buttonAction(b, on, inCardRoutine);
+		return (*current_item_)->buttonAction(b, on);
 	}
 	else {
-		return MenuItem::buttonAction(b, on, inCardRoutine);
+		return MenuItem::buttonAction(b, on);
 	}
 }
 

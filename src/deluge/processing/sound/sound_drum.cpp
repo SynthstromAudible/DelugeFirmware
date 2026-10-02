@@ -47,9 +47,10 @@ bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 }
 
 void SoundDrum::resetTimeEnteredState() {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
 	for (const ActiveVoice& voice : this->voices()) {
-		voice->envelopes[0].resetTimeEntered();
+		voice->resetEnvelope0TimeEntered();
 	}
 }
 
@@ -72,6 +73,7 @@ void SoundDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloc
 extern bool expressionValueChangesMustBeDoneSmoothly;
 
 void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
+	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
@@ -112,8 +114,8 @@ void SoundDrum::setupPatchingForAllParamManagers(Song* song) {
 	song->setupPatchingForAllParamManagersForDrum(this);
 }
 
-Error SoundDrum::loadAllSamples(bool mayActuallyReadFiles) {
-	return Sound::loadAllAudioFiles(mayActuallyReadFiles);
+deluge::storage::Walk SoundDrum::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	return walkSourceDemands(visitor);
 }
 
 void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramManager) {
@@ -164,13 +166,23 @@ void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
 	}
 }
 
+SoundDrum::~SoundDrum() {
+#if ALPHA_OR_BETA_VERSION
+	// Still in its kit's rendering list: the render would walk into freed memory. Whatever destroys a drum takes it out
+	// first (the render's let-go of a retired drum does, by ending its voices).
+	if (static_cast<RenderingDrumsLink*>(this)->is_linked()) {
+		FREEZE_WITH_ERROR("E461");
+	}
+#endif
+}
+
 void SoundDrum::setSkippingRendering(bool newSkipping) {
 	if (kit != nullptr && newSkipping != skippingRendering) {
 		if (newSkipping) {
-			kit->drumsWithRenderingActive.erase(this);
+			kit->renderingDrums.remove(this);
 		}
 		else {
-			kit->drumsWithRenderingActive.insert(this);
+			kit->renderingDrums.add(this);
 		}
 	}
 

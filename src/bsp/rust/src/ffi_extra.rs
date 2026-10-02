@@ -1,24 +1,22 @@
-//! Stubs for app/BSP symbols that live OUTSIDE the libdeluge C-ABI headers:
-//! BSP globals/functions the app references directly (USB-host, card, trigger
-//! clock), the FatFS `disk_*` diskio glue, NE10 DSP entry points (see note), and
-//! a couple of C-runtime/linker shims. Replaced with real impls as they land.
+//! Link symbols outside the libdeluge headers: the device's C-runtime shims (`_sbrk`, `_fini`),
+//! which glibc provides on host, and the host app's stand-ins for the linker-script boundary
+//! symbols `rza1l.x` provides on the device.
 #![allow(non_upper_case_globals, unused_variables)]
 
-use core::sync::atomic::{AtomicUsize, Ordering};
-
-// --- newlib heap for malloc -------------------------------------------------
-// libgcc's emulated TLS (__emutls_get_address → emutls_alloc) and other newlib
-// internals call malloc, which needs _sbrk. -lnosys's _sbrk just fails, so any
-// thread_local access (notably the C++ exception runtime's per-thread
-// __cxa_eh_globals) aborts. Provide a real _sbrk over a dedicated heap in SDRAM
-// (don't eat the tight SRAM heap; zeroed by boot_mem via .sdram_bss).
+// newlib's malloc, which libgcc's emulated TLS needs (e.g. the C++ exception runtime's
+// `__cxa_eh_globals`), calls `_sbrk`; -lnosys's version always fails. This one serves a dedicated
+// SDRAM heap, keeping the tight SRAM heap free.
+#[cfg(target_os = "none")]
 #[unsafe(link_section = ".sdram_bss")]
 static mut NEWLIB_HEAP: [u8; 1024 * 1024] = [0; 1024 * 1024];
-static NEWLIB_BRK: AtomicUsize = AtomicUsize::new(0);
+#[cfg(target_os = "none")]
+static NEWLIB_BRK: core::sync::atomic::AtomicUsize = core::sync::atomic::AtomicUsize::new(0);
 
-/// newlib heap break. Returns the previous break, or (void*)-1 on exhaustion.
+/// Moves newlib's heap break by `incr`; returns the previous break, or `(void*)-1` on exhaustion.
+#[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn _sbrk(incr: isize) -> *mut core::ffi::c_void {
+    use core::sync::atomic::Ordering;
     let base = core::ptr::addr_of_mut!(NEWLIB_HEAP) as *mut u8 as usize;
     let len = 1024 * 1024usize;
     let old = NEWLIB_BRK.load(Ordering::Relaxed);
@@ -30,71 +28,39 @@ pub extern "C" fn _sbrk(incr: isize) -> *mut core::ffi::c_void {
     (base + old) as *mut core::ffi::c_void
 }
 
-// --- BSP globals the app reads (cf. src/bsp/{host,rza1}) ---
-#[unsafe(no_mangle)]
-pub static mut anythingInitiallyAttachedAsUSBHost: u8 = 0;
-#[unsafe(no_mangle)]
-pub static mut currentlyAccessingCard: u8 = 0;
-#[unsafe(no_mangle)]
-pub static mut triggerClockRisingEdgesReceived: u32 = 0;
-#[unsafe(no_mangle)]
-pub static mut triggerClockRisingEdgesProcessed: u32 = 0;
-/// uint32_t triggerClockRisingEdgeTimes[TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED].
-#[unsafe(no_mangle)]
-pub static mut triggerClockRisingEdgeTimes: [u32; 16] = [0; 16];
-
-// --- USB host/peripheral control (BSP) ---
-#[unsafe(no_mangle)]
-pub extern "C" fn openUSBHost() {}
-#[unsafe(no_mangle)]
-pub extern "C" fn closeUSBHost() {}
-#[unsafe(no_mangle)]
-pub extern "C" fn openUSBPeripheral() {}
-
-// FatFS diskio glue (disk_initialize/status/ioctl/read/write/timerproc,
-// get_fattime) is implemented in `sd` (SD card over deluge_bsp::sd).
-
-// --- The app's FREEZE_WITH_ERROR macro calls this BSP fault reporter. ---
-#[unsafe(no_mangle)]
-pub extern "C" fn fault_handler_print_freeze_pointers(
-    sys_lr: u32,
-    sys_sp: u32,
-    usr_lr: u32,
-    usr_sp: u32,
-) {
-}
-
-// --- C runtime shim: with -nostartfiles there's no crtn _fini. ---
+// With -nostartfiles there is no crtn `_fini`.
+#[cfg(target_os = "none")]
 #[unsafe(no_mangle)]
 pub extern "C" fn _fini() {}
 
-// --- NE10 DSP entry points. TODO: the Debug libNE10.a doesn't compile the FFT/
-// FIR/IIR sources; investigate the NE10 CMake. Stubbed so the link succeeds; these must
-// become real before the FFT analysis path is exercised. ---
-macro_rules! ne10_stub {
-    ($($name:ident),+ $(,)?) => { $(
-        #[unsafe(no_mangle)]
-        pub extern "C" fn $name() -> i32 { 0 }
-    )+ };
+// The app takes only the addresses of these `extern uint32_t` boundary symbols
+// (memory/stack_guard.cpp, memory/heaps.cpp). On host they are `.set` aliases onto the edges of
+// real statics, since Rust has no linker-level alias.
+#[cfg(feature = "host_app")]
+mod boundary_markers {
+    /// The "frunk" (small internal) slack region's size. `init_heaps()` builds a real heap over
+    /// `[__frunk_bss_end, __frunk_slack_end)`.
+    const HOST_FRUNK_BYTES: usize = 262_144;
+    // The heap requires a 16-byte-aligned base; a plain `[u8; N]` static is byte-aligned.
+    #[repr(C, align(16))]
+    struct HeapRegion<const N: usize>([u8; N]);
+    static mut HOST_FRUNK: HeapRegion<HOST_FRUNK_BYTES> = HeapRegion([0; HOST_FRUNK_BYTES]);
+
+    /// The one address both `program_stack_start` and `program_stack_end` alias. Equal bounds tell
+    /// `checkStack` there is no known stack region, so it returns at once.
+    static HOST_STACK_MARKER: u32 = 0;
+
+    core::arch::global_asm!(
+        ".global __frunk_bss_end",
+        ".set __frunk_bss_end, {frunk}",
+        ".global __frunk_slack_end",
+        ".set __frunk_slack_end, {frunk} + {frunk_bytes}",
+        ".global program_stack_start",
+        ".set program_stack_start, {marker}",
+        ".global program_stack_end",
+        ".set program_stack_end, {marker}",
+        frunk = sym HOST_FRUNK,
+        frunk_bytes = const HOST_FRUNK_BYTES,
+        marker = sym HOST_STACK_MARKER,
+    );
 }
-ne10_stub!(
-    ne10_fft_alloc_c2c_float32_c,
-    ne10_fft_c2c_1d_float32_c,
-    ne10_fft_c2c_1d_float32_neon,
-    ne10_fft_c2c_1d_int16_c,
-    ne10_fft_c2c_1d_int16_neon,
-    ne10_fft_c2r_1d_float32_c,
-    ne10_fft_c2r_1d_float32_neon,
-    ne10_fft_c2r_1d_int16_c,
-    ne10_fft_c2r_1d_int16_neon,
-    ne10_fft_r2c_1d_float32_c,
-    ne10_fft_r2c_1d_float32_neon,
-    ne10_fft_r2c_1d_int16_c,
-    ne10_fft_r2c_1d_int16_neon,
-    ne10_fir_decimate_float_c,
-    ne10_fir_float_c,
-    ne10_fir_interpolate_float_c,
-    ne10_fir_lattice_float_c,
-    ne10_fir_sparse_float_c,
-    ne10_iir_lattice_float_c,
-);

@@ -1,0 +1,20 @@
+[workspace]
+# Empty table: detaches this vendored crate from any parent Cargo workspace
+# (in particular `crates/Cargo.toml`, whose lockfile feeds the firmware build).
+# This directory is its own workspace root.
+
+[package]
+name = "block-device-driver"
+version = "0.2.0"
+edition = "2021"
+readme = "README.md"
+rust-version = "1.75"
+keywords = ["block", "device", "no_std"]
+categories = ["filesystem"]
+license = "MIT"
+description = """
+Block device trait
+"""
+
+[dependencies]
+aligned = "0.4.2"

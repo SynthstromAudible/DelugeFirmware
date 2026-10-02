@@ -27,6 +27,10 @@ SampleControls::SampleControls() {
 }
 
 int32_t SampleControls::getInterpolationBufferSize(int32_t phaseIncrement) {
+	return getInterpolationBufferSize(interpolationMode, phaseIncrement);
+}
+
+int32_t SampleControls::getInterpolationBufferSize(InterpolationMode interpolationMode, int32_t phaseIncrement) {
 	if (interpolationMode == InterpolationMode::LINEAR) {
 useLinearInterpolation:
 		return 2;

@@ -20,13 +20,11 @@
 /// "What the board *is*": pad/CV/gate counts, button and LED grid, display
 /// geometry, channel layout, UI cadence. These are portable configuration the
 /// application legitimately depends on, so they live here — a HAL-free header —
-/// rather than in the RZ/A1L HAL. A different board replaces this file.
+/// rather than in the BSP. A different board replaces this file.
 ///
 /// This header deliberately contains NO hardware-implementation detail (no DMA
 /// channels, bus/port indices, register values or memory-map addresses). Those
-/// live in the HAL (RZA1/cpu_specific.h); application code that still references
-/// them is, by definition, not yet portable and is flagged by the platform-
-/// boundary check until it moves behind a <libdeluge/...> port.
+/// belong to the BSP, behind a <libdeluge/...> port.
 #ifndef DELUGE_BOARD_CONFIG_H
 #define DELUGE_BOARD_CONFIG_H
 
@@ -69,7 +67,7 @@
 // buffer sizes, memory placement, clock). The values are board-set; the concepts apply to
 // any board, so the application may use them. A different board (or a host build) supplies
 // its own values here. This is NOT a place for raw peripheral/DMA/register indices — those
-// live in the HAL (RZA1/cpu_specific.h).
+// belong to the BSP.
 
 // --- DMA-buffer alignment ---------------------------------------------------
 #define CACHE_LINE_SIZE 32
@@ -87,8 +85,6 @@
 
 #define MAX_NUM_USB_MIDI_DEVICES 6
 
-#define TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED 4
-
 // --- Clock ------------------------------------------------------------------
 #if DELUGE_MODEL >= DELUGE_MODEL_144_G
 #define XTAL_SPEED_MHZ 13007402 // 1.65% lower, for SSCG
@@ -100,13 +96,15 @@
 // The platform/linker provides these sections; a host build defines them as no-ops.
 // Paul: It seems this area is not executable, could not find a reason in the datasheet,
 // marked NOLOAD now
-#if defined(__APPLE__)
+#if defined(__APPLE__) || IN_UNIT_TESTS
 // Mach-O rejects ELF-style ".name" section specifiers (it wants "__SEG,__sect", <=16 chars), and a
 // macOS build is always the host — which has no real SDRAM — so these placements are no-ops there.
+// Unit tests are likewise a host build with no SDRAM, and no linker script providing the sections.
 #define PLACE_INTERNAL_FRUNK
 #define PLACE_SDRAM_BSS
 #define PLACE_SDRAM_DATA
 #define PLACE_SDRAM_RODATA
+#define PLACE_SDRAM_TEXT
 #else
 #define PLACE_INTERNAL_FRUNK __attribute__((__section__(".frunk_bss")))
 

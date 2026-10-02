@@ -134,14 +134,14 @@ inline int32_t clz(uint32_t input) {
 ///@brief Convert from a float to a q31 value, saturating above 1.0
 ///@note VFP instruction - 1 cycle for issue, 4 cycles result latency
 static inline q31_t q31_from_float(float value) {
-	asm("vcvt.s32.f32 %0, %0, #31" : "=t"(value) : "t"(value));
+	asm("vcvt.s32.f32 %0, %0, #31" : "+t"(value));
 	return std::bit_cast<q31_t>(value);
 }
 
 ///@brief Convert from a q31 to a float
 ///@note VFP instruction - 1 cycle for issue, 4 cycles result latency
 static inline float q31_to_float(q31_t value) {
-	asm("vcvt.f32.s32 %0, %0, #31" : "=t"(value) : "t"(value));
+	asm("vcvt.f32.s32 %0, %0, #31" : "+t"(value));
 	return std::bit_cast<float>(value);
 }
 #else
@@ -311,7 +311,7 @@ public:
 	// (no VFP) and during constant evaluation we must reproduce them *bit-exactly*, or the host-sim
 	// diverges from the firmware. The hardware behaviour is: scale by exactly 2^fractional_bits,
 	// round toward zero, saturate to the int32 range, and map NaN to 0. Verified lane-for-lane
-	// against qemu-arm in tests/qemu/spec/fixedpoint_vfp_spec.cpp.
+	// against qemu-arm in tests/unit-arm/spec/fixedpoint_vfp_spec.cpp.
 	//
 	// Note the scale is 2^fractional_bits, NOT one() — one() is INT32_MAX (not 2^31) when
 	// fractional_bits == 31, whereas VFP always uses the power of two. 2^fractional_bits is exact
@@ -387,7 +387,7 @@ public:
 		// is always true, which would discard the VFP path entirely. On host there is no VFP, so the asm
 		// branch is compiled out and the portable path below is always taken.
 		if (!std::is_constant_evaluated()) {
-			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
+			asm("vcvt.s32.f32 %0, %0, %1" : "+t"(value) : "I"(fractional_bits));
 			value_ = std::bit_cast<int32_t>(value); // NOLINT
 			return;
 		}
@@ -401,7 +401,7 @@ public:
 #if defined(__arm__)
 		if (!std::is_constant_evaluated()) {
 			int32_t output = value_;
-			asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
+			asm("vcvt.f32.s32 %0, %0, %1" : "+t"(output) : "I"(fractional_bits));
 			return std::bit_cast<float>(output);
 		}
 #endif

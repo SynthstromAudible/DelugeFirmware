@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "model/sync.h"
+#include "modulation/sync.h"
 #include <cstdint>
 
 namespace deluge::project {

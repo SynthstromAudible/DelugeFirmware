@@ -24,27 +24,31 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "io/debug/log.h"
+#include "io/file.hpp"
+#include "libdeluge/file_bytes.h"
+#include "libdeluge/file_io.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
+#include "storage/existence_policy.h"
 #include "storage/flash_storage.h"
+#include "storage/readback_check.h"
 #include "storage/storage_manager.h"
 #include "storage/wave_table/wave_table.h"
+#include "sync/sd_access.h"
+#include "util/boot.h"
 #include "util/functions.h"
 #include "util/string.h"
 #include "util/try.h"
 #include <algorithm>
+#include <array>
+#include <cstdint>
 #include <cstring>
-
-extern "C" {
-#include "fatfs/ff.h"
-}
 
 using namespace deluge;
 using namespace gui;
-
-extern uint8_t currentlyAccessingCard;
 
 SaveSongUI saveSongUI{};
 
@@ -81,7 +85,6 @@ doReturnFalse:
 			error = Error::NONE;
 		}
 		if (error != Error::NONE) {
-gotError:
 			display->displayError(error);
 			goto doReturnFalse;
 		}
@@ -90,13 +93,18 @@ gotError:
 
 	currentDir = currentSong->project.metadata.dir_path;
 
-	error = arrivedInNewFolder(0, searchFilename.c_str(), "SONGS");
-	if (error != Error::NONE) {
-		goto gotError;
-	}
-
 	// TODO: create folder if doesn't exist.
 
+	// The listing (and the LED-blink tail in onBrowserOpened()) happens async: dispatch it and
+	// return optimistically. Failure goes through the base Browser::onListingFailed()
+	// (displayError + close()) once the listing completes.
+	beginListing(
+	    {.action = ListingAction::Open, .direction = 0, .filenameToStartAt = searchFilename, .defaultDir = "SONGS"});
+
+	return true;
+}
+
+void SaveSongUI::onBrowserOpened() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
 	indicator_leds::setLedState(IndicatorLED::MIDI, false);
@@ -111,7 +119,6 @@ gotError:
 	// do this after focus regained, otherwise the first scroll starts
 	// from the beginning instead of showing the incremented number
 	enteredTextEditPos = 0; // enteredText.getLength();
-	return true;
 }
 
 void SaveSongUI::focusRegained() {
@@ -119,385 +126,856 @@ void SaveSongUI::focusRegained() {
 	return SaveUI::focusRegained();
 }
 
-bool SaveSongUI::performSave(bool mayOverwrite) {
+bool SaveSongUI::planTransfers(std::vector<PlannedTransfer>& into, bool collectingSamples,
+                               const std::string& songAlternatePath, int32_t alternateDirLength) {
+	for (AudioFile* audioFile : audioFileManager.audioFiles) {
+		if (!audioFile->isProjectReferenced()) {
+			continue;
+		}
 
-	if (ALPHA_OR_BETA_VERSION && currentlyAccessingCard) {
-		FREEZE_WITH_ERROR("E316");
+		PlannedTransfer entry;
+		entry.file = audioFile;
+
+		// A recording still at its temporary location has to be moved into place. The move CLEARS the
+		// temporary path, which is what the copy below then consults -- so both the move and the
+		// clearing are recorded here rather than done.
+		if (audioFile->type == AudioFileType::SAMPLE) {
+			auto& sample = *static_cast<Sample*>(audioFile);
+			if (!sample.tempFilePathForRecording.empty()) {
+				entry.renameTemp = true;
+				entry.renameFrom = sample.tempFilePathForRecording;
+				entry.renameTo = audioFile->filePath;
+				entry.clearTempPath = true;
+			}
+		}
+
+		// Or the file needs copying to or from an "alt" location -- either a collect-media save, or a
+		// file imported from such a folder. The obscure combination matters: a collect-media save can
+		// ALSO have just moved (or failed to move) a recording out of its temporary location.
+		if (collectingSamples || !audioFile->loadedFromAlternatePath.empty()) {
+
+			// Saving under the same name and folder, collecting, and it already came from the alternate
+			// location: there is nothing to do.
+			if (collectingSamples && !audioFile->loadedFromAlternatePath.empty()
+			    && deluge::string::caselessEquals(currentDir, currentSong->project.metadata.dir_path)
+			    && deluge::string::caselessEquals(enteredText, currentSong->project.metadata.name)) {
+				if (entry.renameTemp) {
+					into.push_back(std::move(entry)); // the move above still has to happen
+				}
+				continue;
+			}
+
+			// The source, in both the worlds TRANSFER might find itself in. If the rename above
+			// succeeds the temporary file is gone and `filePath` is the source; if it fails the
+			// temporary file is still there and is the source.
+			if (!audioFile->loadedFromAlternatePath.empty()) {
+				entry.copyFromAfterRename = audioFile->loadedFromAlternatePath;
+				entry.copyFromIfRenameFailed = audioFile->loadedFromAlternatePath;
+			}
+			else {
+				entry.copyFromAfterRename = audioFile->filePath;
+				entry.copyFromIfRenameFailed = entry.renameTemp ? entry.renameFrom : audioFile->filePath;
+			}
+
+			// The destination, and the renaming that goes with it.
+			std::string pathForNaming = audioFile->filePath;
+			bool needToPretendLoadedAlternate = false;
+
+			if (collectingSamples) {
+				// A recording gets a random suffix, so that re-saving does not collide with the copy a
+				// previous save made.
+				const char* normalFilePath = pathForNaming.c_str();
+				if (!memcasecmp(normalFilePath, "SAMPLES/RECORD/REC", 18)
+				    || !memcasecmp(normalFilePath, "SAMPLES/RESAMPLE/REC", 20)
+				    || !memcasecmp(normalFilePath, "SAMPLES/CLIPS/REC", 17)) {
+					const char* slashAddr = strrchr(normalFilePath, '/');
+					const int32_t slashPos = static_cast<int32_t>(slashAddr - normalFilePath);
+					const int32_t fileNamePos = slashPos + 1;
+
+					if (static_cast<int32_t>(pathForNaming.size()) - fileNamePos == 12
+					    && !strcasecmp(normalFilePath + fileNamePos + 8, ".WAV")) {
+						char buffer[11];
+						buffer[0] = '_';
+						buffer[6] = '.';
+						buffer[7] = 'W';
+						buffer[8] = 'A';
+						buffer[9] = 'V';
+						buffer[10] = 0;
+						seedRandom();
+						for (int32_t i = 1; i < 6; i++) {
+							const int32_t rand = random(35);
+							buffer[i] =
+							    (rand < 10) ? static_cast<char>('0' + rand) : static_cast<char>('A' + (rand - 10));
+						}
+						// COMPUTED, not applied: the vector is sorted by this field and searched by
+						// bisection, so rewriting it now would break every lookup until the transfers
+						// finish.
+						entry.newFilePath = pathForNaming.substr(0, fileNamePos + 8) + buffer;
+						pathForNaming = entry.newFilePath;
+						// The file will exist only in the alternate location, so it has to be marked as
+						// having come from there -- or a later collect-media save would copy it again.
+						needToPretendLoadedAlternate = true;
+					}
+				}
+
+				// SEEDED with the song's alternate folder, not empty: setupAlternateAudioFilePath
+				// APPENDS to this string and uses `alternateDirLength` to know where its own prefix
+				// ends. Handing it a fresh string leaves it building a path with no root, which
+				// reaches the filesystem as an empty name and panics it outright.
+				std::string destination = songAlternatePath;
+				if (!memcasecmp(pathForNaming.c_str(), "SAMPLES/", 8)) {
+					const Error error =
+					    audioFileManager.setupAlternateAudioFilePath(destination, alternateDirLength, pathForNaming);
+					if (error != Error::NONE) {
+						return false;
+					}
+				}
+				else {
+					destination += getFileNameFromEndOfPath(pathForNaming.c_str());
+				}
+				if (destination.empty()) {
+					// Never hand an empty name to the card: it does not fail, it panics the filesystem.
+					return false;
+				}
+				entry.copyTo = destination;
+				if (needToPretendLoadedAlternate) {
+					entry.newAlternatePath = destination;
+				}
+			}
+			else {
+				entry.copyTo = pathForNaming;
+				// A successful copy back into the main location means the file is no longer only in the
+				// alternate one.
+				entry.clearAlternatePath = true;
+			}
+
+			entry.copy = true;
+		}
+
+		if (entry.renameTemp || entry.copy) {
+			into.push_back(std::move(entry));
+		}
 	}
 
+	// Nothing above writes to any AudioFile or to audioFiles. That is not tidiness: the vector is
+	// sorted by filePath and search() binary-searches it, so a path rewritten here would break the
+	// ordering for every lookup between now and the end of the transfers. SC-ATOMIC in the
+	// sample-collect gate is what holds this true.
+	return true;
+}
+
+bool SaveSongUI::beginUnstagedSave(const deluge::storage::SaveRequest& request) {
 	if (currentSong->hasAnyPendingNextOverdubs()) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OVERDUBS_PENDING));
 		return false;
 	}
-
 	display->displayLoadingAnimationText("Saving");
 
-	std::string filePath = getCurrentFilePath();
+	// The target name is checked on a later tick, by runExistsPhase(). Nothing is planned and no
+	// sample is copied until the answer says the name may be written: the collection copies media into
+	// the new song's folder BEFORE the document is written, so learning at the write that the name was
+	// taken would be too late.
+	existsRequest_ = request;
+	collectStallBound_.reset();
+	collectPhase_ = CollectPhase::EXISTS;
+	deluge::runtime::appLoop.request(saveJob);
+	return true;
+}
+
+void SaveSongUI::runExistsPhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	const char* path = existsRequest_.filePath.c_str();
+	const bool booting = !deluge::boot::finished();
+
+	if (booting) {
+		// Blocking is legal here, and a channel request issued from a context that will not yield could
+		// never be answered.
+		++documentInlineServedOps_;
+		++documentSteps_;
+		resolveExists(StorageManager::fileExists(path));
+		return;
+	}
+
+	// After boot, so the byte channel is here: the Rust BSP always has it, and the unit tests, which link no
+	// BSP, never finish booting, so they never reach this line.
+	++channelDocumentTicks_;
+	bool present = false;
+	DelugeStatus status = DELUGE_OK;
+	switch (deluge::storage::bytes::collectExists(path, &present, &status)) {
+	case ByteIo::Unknown:
+		if (deluge::storage::bytes::requestExists(path) == ByteIo::Failed) {
+			// A path the channel cannot key will never be answered: "could not tell", which is refused.
+			resolveExists(std::unexpected(deluge::io::Status::PARAM));
+			return;
+		}
+		if (!deferCollection()) {
+			abandonExists();
+		}
+		return;
+	case ByteIo::Pending:
+		if (!deferCollection()) {
+			abandonExists();
+		}
+		return;
+	case ByteIo::Failed:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		// NOT absence. save_action() refuses an undeterminable answer rather than writing over a file
+		// whose absence was never confirmed.
+		resolveExists(std::unexpected(deluge::io::to_status(status)));
+		return;
+	case ByteIo::Ready:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		resolveExists(std::expected<bool, deluge::io::Status>(present));
+		return;
+	}
+}
+
+void SaveSongUI::abandonExists() {
+	collectPhase_ = CollectPhase::NONE;
+	display->removeLoadingAnimation();
+	display->displayError(Error::SD_CARD);
+	endUnstagedDispatch(existsRequest_, false);
+}
+
+void SaveSongUI::resolveExists(const std::expected<bool, deluge::io::Status>& presence) {
+	collectStallBound_.reset();
+	// By value: the dispatch ends below, and ending it may start another save that reuses the member.
+	const deluge::storage::SaveRequest request = existsRequest_;
+
+	switch (deluge::storage::save_action(presence, request.mayOverwrite)) {
+	case deluge::storage::SaveAction::Refuse:
+		// The card did not answer. Writing here would overwrite a file whose absence was never
+		// confirmed -- see existence_policy.h. Write nothing.
+		collectPhase_ = CollectPhase::NONE;
+		display->removeLoadingAnimation();
+		display->displayError(Error::SD_CARD);
+		endUnstagedDispatch(request, false);
+		return;
+	case deluge::storage::SaveAction::Occupied:
+		collectPhase_ = CollectPhase::NONE;
+		context_menu::overwriteFile.currentSaveUI = this;
+		if (!context_menu::overwriteFile.setupAndCheckAvailability()) { // Always available.
+			display->removeLoadingAnimation();
+			display->displayError(Error::UNSPECIFIED);
+			endUnstagedDispatch(request, false);
+			return;
+		}
+		display->removeWorkingAnimation();
+		openUI(&context_menu::overwriteFile);
+		endUnstagedDispatch(request, true);
+		return;
+	case deluge::storage::SaveAction::Write:
+		break;
+	}
+
+	// We might want to copy some samples around - either because we're "collecting" them to a folder, or
+	// because they were loaded in from a collected folder and we now need to put them in the main samples folder.
+	std::string newSongAlternatePath =
+	    deluge::storage::AudioLoadContext::alternateDirFor(request.dirPath.c_str(), request.enteredText.c_str());
+	newSongAlternatePath.append("/");
+	const int32_t dirPathLengthNew = static_cast<int32_t>(newSongAlternatePath.size());
+	// Decide everything first, then perform it a tick at a time. The list of audio files is sorted by
+	// path and searched by bisection, and the transfers rewrite paths -- so nothing is applied until
+	// every transfer has finished.
+	transfers_.clear();
 	Error error = Error::NONE;
+	if (!planTransfers(transfers_, request.collectingSamples, newSongAlternatePath, dirPathLengthNew)) {
+		error = Error::UNSPECIFIED;
+	}
 	if (error != Error::NONE) {
-gotError:
+		collectPhase_ = CollectPhase::NONE;
 		display->removeLoadingAnimation();
 		display->displayError(error);
+		endUnstagedDispatch(request, false);
+		return;
+	}
+
+	// Write covers both "nothing there" and "the user confirmed an overwrite"; only the latter has a file
+	// to unlink afterwards.
+	pendingFilePath_ = request.filePath;
+	pendingFileAlreadyExisted_ = request.mayOverwrite;
+	anyErrorMovingTempFiles_ = false;
+	transferCursor_ = 0;
+	renameIssued_ = false;
+	copyIssued_ = false;
+	renameSucceeded_ = true;
+	collectPhase_ = CollectPhase::TRANSFER;
+	// "Dealt with": the collection has started, and finishes on later ticks.
+	endUnstagedDispatch(request, true);
+}
+
+void SaveSongUI::collectRoutine() {
+	switch (collectPhase_) {
+	case CollectPhase::NONE:
+		return;
+	case CollectPhase::EXISTS:
+		runExistsPhase();
+		return;
+	case CollectPhase::TRANSFER:
+		runTransferPhase();
+		return;
+	case CollectPhase::APPLY:
+		applyTransfers();
+		transfers_.clear();
+		collectStallBound_.reset();
+		collectPhase_ = CollectPhase::FINISH;
+		return;
+	case CollectPhase::FINISH:
+		// The document write is a machine of its own, started here directly: it picks an arm per
+		// step.
+		collectPhase_ = CollectPhase::NONE;
+		(void)finishSaveAfterCollection();
+		return;
+	}
+}
+
+bool SaveSongUI::deferCollection() {
+	// Measures only a span in which the byte channel finished nothing: a copy moves a chunk at a time, so a large
+	// sample's copy keeps restarting the span for as long as it runs, and a wedged channel still ends the collection.
+	if (collectStallBound_.tick(deluge_file_bytes_progress())) {
 		return false;
 	}
+	waitUntil(collectStallBound_.deadlineUs());
+	return true;
+}
 
-	bool fileAlreadyExisted = StorageManager::fileExists(filePath.c_str());
+void SaveSongUI::abandonCollection() {
+	// NOTHING is applied. Every decided path stays decided and unwritten, so what is in memory still
+	// matches what is on the card -- which is the whole reason the decisions were kept apart from the
+	// transfers.
+	collectPhase_ = CollectPhase::NONE;
+	transfers_.clear();
+	display->removeLoadingAnimation();
+	display->displayError(Error::UNSPECIFIED);
+}
 
-	if (!mayOverwrite && fileAlreadyExisted) {
-		context_menu::overwriteFile.currentSaveUI = this;
+void SaveSongUI::runTransferPhase() {
+	using deluge::storage::bytes::ByteIo;
 
-		bool available = context_menu::overwriteFile.setupAndCheckAvailability();
+	if (transferCursor_ >= transfers_.size()) {
+		collectPhase_ = CollectPhase::APPLY;
+		return;
+	}
+	PlannedTransfer& entry = transfers_[transferCursor_];
 
-		if (available) { // Always true.
-			display->removeWorkingAnimation();
-			display->setNextTransitionDirection(1);
-			openUI(&context_menu::overwriteFile);
-			return true;
+	const bool booting = !deluge::boot::finished();
+
+	if (booting) {
+		// Blocking is legal here, and asking the channel would be worse than pointless: a request
+		// issued from a context that will not yield can never be answered.
+		++transferInlineServedOps_;
+		if (!transferOneSynchronously()) {
+			abandonCollection();
+			return;
 		}
-		else {
-			error = Error::UNSPECIFIED;
-			goto gotError;
+		++transferCursor_;
+		renameIssued_ = false;
+		copyIssued_ = false;
+		renameSucceeded_ = true;
+		collectStallBound_.reset();
+		return;
+	}
+
+	// Past this point every transfer goes through the channel, from the interaction tier. This counter
+	// is what a gate reads to confirm the work went through the channel. Counting the inline case
+	// here too would make the number say "through the channel" about work that ran inline.
+	++channelTransferTicks_;
+
+	DelugeStatus status = DELUGE_OK;
+
+	// The move out of a temporary location comes first, because whether it SUCCEEDS is what decides
+	// where the copy below reads from.
+	if (entry.renameTemp && !renameIssued_) {
+		switch (deluge::storage::bytes::collectRename(entry.renameTo.c_str(), &status)) {
+		case ByteIo::Unknown:
+			// Ask -- and honour the answer: a path that cannot be keyed reports Failed, and discarding
+			// that leaves this asking a channel that will never reply.
+			if (deluge::storage::bytes::requestRename(entry.renameFrom.c_str(), entry.renameTo.c_str())
+			    == ByteIo::Failed) {
+				renameIssued_ = true;
+				renameSucceeded_ = false;
+				anyErrorMovingTempFiles_ = true;
+				return;
+			}
+			if (!deferCollection()) {
+				abandonCollection();
+			}
+			return;
+		case ByteIo::Pending:
+			if (!deferCollection()) {
+				abandonCollection();
+			}
+			return;
+		case ByteIo::Failed:
+			// NOT fatal, deliberately: warn, leave the recording where it is, and copy from there.
+			renameIssued_ = true;
+			renameSucceeded_ = false;
+			anyErrorMovingTempFiles_ = true;
+			collectStallBound_.reset();
+			return;
+		case ByteIo::Ready:
+			renameIssued_ = true;
+			renameSucceeded_ = true;
+			collectStallBound_.reset();
+			return;
 		}
 	}
 
-	// We might want to copy some samples around - either because we're "collecting" them to a folder, or because they
-	// were loaded in from a collected folder and we now need to put them in the main samples folder.
-
-	// Create sample dir
-	std::string newSongAlternatePath;
-
-	std::string filenameWithoutExtension = getCurrentFilenameWithoutExtension();
-
-	error = audioFileManager.setupAlternateAudioFileDir(newSongAlternatePath, currentDir.c_str(),
-	                                                    filenameWithoutExtension.c_str());
-	if (error != Error::NONE) {
-		goto gotError;
+	if (entry.copy) {
+		const std::string& from = renameSucceeded_ ? entry.copyFromAfterRename : entry.copyFromIfRenameFailed;
+		switch (deluge::storage::bytes::collectCopy(entry.copyTo.c_str(), &status)) {
+		case ByteIo::Unknown:
+			if (deluge::storage::bytes::requestCopy(from.c_str(), entry.copyTo.c_str()) == ByteIo::Failed) {
+				abandonCollection();
+				return;
+			}
+			if (!deferCollection()) {
+				abandonCollection();
+			}
+			return;
+		case ByteIo::Pending:
+			if (!deferCollection()) {
+				abandonCollection();
+			}
+			return;
+		case ByteIo::Failed:
+			// A failed COPY does abandon the save. Collect-media promises the song's folder holds
+			// everything it references; half of that, believed whole, is worse than a visible error.
+			abandonCollection();
+			return;
+		case ByteIo::Ready:
+			++transferChannelServedOps_;
+			break;
+		}
 	}
 
-	newSongAlternatePath.append("/");
-	int32_t dirPathLengthNew = newSongAlternatePath.size();
+	// This entry is done.
+	++transferCursor_;
+	renameIssued_ = false;
+	copyIssued_ = false;
+	renameSucceeded_ = true;
+	collectStallBound_.reset();
+}
 
-	bool anyErrorMovingTempFiles = false;
+bool SaveSongUI::transferOneSynchronously() {
+	PlannedTransfer& entry = transfers_[transferCursor_];
 
-	// Go through each AudioFile we have a record of in RAM.
-	auto saveAudioFile = [&](AudioFile* audioFile) {
-		// If this AudioFile is used in this Song...
-		if (audioFile->isProjectReferenced()) {
-
-			if (audioFile->type == AudioFileType::SAMPLE) {
-				Sample& sample = *static_cast<Sample*>(audioFile);
-				// If this is a recording which still exists at its temporary location, move the file
-				if (!sample.tempFilePathForRecording.empty()) {
-					StorageManager::buildPathToFile(audioFile->filePath.c_str());
-					FRESULT result = f_rename(sample.tempFilePathForRecording.c_str(), audioFile->filePath.c_str());
-					if (result == FR_OK) {
-						sample.tempFilePathForRecording.clear();
-					}
-					else {
-						// We at least need to warn the user that although the main file save was (hopefully soon to be)
-						// successful, something's gone wrong
-						anyErrorMovingTempFiles = true;
-						D_PRINTLN("rename failed.  %d %s %s", result, sample.tempFilePathForRecording.c_str(),
-						          audioFile->filePath.c_str());
-					}
-				}
-			}
-
-			// Or if file needs copying either to or from an "alt" location - either because we're doing a "collect
-			// media" or importing from such a folder. Crucial obscure combination - we could be doing a "collect media"
-			// *AND ALSO* have moved (or even failed to move!) a recorded file from its "temp" location above
-			if (collectingSamples || !audioFile->loadedFromAlternatePath.empty()) {
-
-				// If saving as *same* song name/slot, collecting samples, and it already came from alt location, no
-				// need to do it again
-				if (collectingSamples && !audioFile->loadedFromAlternatePath.empty()) {
-					if (deluge::string::caselessEquals(currentDir, currentSong->project.metadata.dir_path)) {
-						if (deluge::string::caselessEquals(enteredText, currentSong->project.metadata.name)) {
-							return true;
-						}
-					}
-				}
-
-				char const* sourceFilePath;
-
-				// Sort out source file path
-				if (!audioFile->loadedFromAlternatePath.empty()) {
-					// If we loaded the file from an alternate path originally, well we saved that exact path just so we
-					// can recall it here!
-					sourceFilePath = audioFile->loadedFromAlternatePath.c_str();
-				}
-				else {
-					sourceFilePath =
-					    (audioFile->type != AudioFileType::SAMPLE
-					     || ((Sample*)audioFile)->tempFilePathForRecording.empty())
-					        ? audioFile->filePath.c_str()
-					        : ((Sample*)audioFile)
-					              ->tempFilePathForRecording.c_str(); // It may still have a temp path if for some
-					                                                  // reason we failed to move it, above
-				}
-
-				// Note: we can't just use the clusters to write back to the card, cos these might contain data that we
-				// converted
-
-				// Open file to read
-				FRESULT result = FRESULT::FR_OK;
-				// this is just blind copying to move samples to/from the song folder. The serializer is being used for
-				// the song file write so use the deserializer
-				result = f_open(&activeDeserializer->readFIL, sourceFilePath, FA_READ);
-
-				if (result != FR_OK) {
-					D_PRINTLN("open fail %s", sourceFilePath);
-					error = Error::UNSPECIFIED;
-					display->removeLoadingAnimation();
-					display->displayError(error);
-					return false;
-				}
-
-				char const* destFilePath;
-				char const* normalFilePath; // Just briefly stores a thing below
-
-				bool needToPretendLoadedAlternate = false;
-
-				// Sort out destination file path
-				if (collectingSamples) {
-
-					// If this sample is a "recording", we need to append a random string on the end
-					// NOTE: I guess this would do this multiple times if we kept re-saving... probably not the end of
-					// the world?
-					normalFilePath = audioFile->filePath.c_str();
-					if (!memcasecmp(normalFilePath, "SAMPLES/RECORD/REC", 18)
-					    || !memcasecmp(normalFilePath, "SAMPLES/RESAMPLE/REC", 20)
-					    || !memcasecmp(normalFilePath, "SAMPLES/CLIPS/REC", 17)) {
-						char const* slashAddr = strrchr(normalFilePath, '/');
-						int32_t slashPos = (uintptr_t)slashAddr - (uintptr_t)normalFilePath;
-
-						int32_t fileNamePos = slashPos + 1;
-
-						if (audioFile->filePath.size() - fileNamePos == 12
-						    && !strcasecmp(normalFilePath + fileNamePos + 8, ".WAV")) {
-
-							// Generate random string, with _ at start and .WAV at end
-							char buffer[11];
-							buffer[0] = '_';
-							buffer[6] = '.';
-							buffer[7] = 'W';
-							buffer[8] = 'A';
-							buffer[9] = 'V';
-							buffer[10] = 0;
-
-							seedRandom();
-
-							for (int32_t i = 1; i < 6; i++) {
-								int32_t rand = random(35);
-								if (rand < 10) {
-									buffer[i] = '0' + rand;
-								}
-								else {
-									buffer[i] = 'A' + (rand - 10);
-								}
-							}
-
-							// Append that random string
-							audioFile->filePath.resize(fileNamePos + 8), audioFile->filePath.append(buffer);
-
-							// And because the AudioFile in memory is now associated with a file name which only exists
-							// in the "alternative location", we need to mark it as if it was loaded from there, so any
-							// future copying of that file will treat it correctly
-							// - particularly if the user does another collect-media save over this one, meaning the
-							// file should not be copied again.
-							needToPretendLoadedAlternate =
-							    true; // We don't have that alternate path yet, so just make a note to do it below.
-						}
-					}
-
-					// Normally, the filePath will be in the SAMPLES folder, which our name-condensing system was
-					// designed for...
-					if (!memcasecmp(audioFile->filePath.c_str(), "SAMPLES/", 8)) {
-						error = audioFileManager.setupAlternateAudioFilePath(newSongAlternatePath, dirPathLengthNew,
-						                                                     audioFile->filePath);
-						if (error != Error::NONE) {
-							activeDeserializer->closeWriter();
-							display->removeLoadingAnimation();
-							display->displayError(error);
-							return false;
-						}
-					}
-
-					// Or, if it wasn't in the SAMPLES folder, e.g. if it was in a dedicated SYNTH folder, then we have
-					// to just use the original filename, and hope it doesn't clash with anything.
-					else {
-						char const* fileName = getFileNameFromEndOfPath(audioFile->filePath.c_str());
-						newSongAlternatePath.resize(dirPathLengthNew);
-						newSongAlternatePath.append(fileName);
-					}
-
-					if (needToPretendLoadedAlternate) {
-						audioFile->loadedFromAlternatePath = newSongAlternatePath;
-					}
-
-					destFilePath = newSongAlternatePath.c_str();
-				}
-				else {
-					destFilePath = audioFile->filePath.c_str();
-				}
-
-				// Create file to write
-				auto created = StorageManager::createFile(destFilePath, false);
-				if (!created) {
-					if (created.error() == Error::FILE_ALREADY_EXISTS) {
-						// No problem - the audio file was already there from
-						// before, so we don't need to copy it again now.
-					}
-					else {
-						error = created.error();
-						activeDeserializer->closeWriter();
-						display->removeLoadingAnimation();
-						display->displayError(error);
-						return false;
-					}
-				}
-
-				// Or if everything's fine and we're ready to write / copy...
-				else {
-
-					// Copy
-					while (true) {
-						UINT bytesRead;
-						result = f_read(&activeDeserializer->readFIL, activeDeserializer->fileClusterBuffer,
-						                Cluster::size, &bytesRead);
-						if (result) {
-							D_PRINTLN("read fail");
-							error = Error::UNSPECIFIED;
-							activeDeserializer->closeWriter();
-							display->removeLoadingAnimation();
-							display->displayError(error);
-							return false;
-						}
-						if (!bytesRead) {
-							break; // Stop, on rare case where file ended right at end of last cluster
-						}
-
-						auto written =
-						    created.value().write({(std::byte*)activeDeserializer->fileClusterBuffer, bytesRead});
-						if (!written || written.value() != bytesRead) {
-							D_PRINTLN("write fail %d", result);
-							error = Error::UNSPECIFIED;
-							activeDeserializer->closeWriter();
-							display->removeLoadingAnimation();
-							display->displayError(error);
-							return false;
-						}
-
-						if (bytesRead < Cluster::size) {
-							break; // Stop - file clearly ended part-way through cluster
-						}
-					}
-				}
-
-				activeDeserializer->closeWriter(); // Close source file
-
-				// Write has succeeded. We can mark it as existing in its normal main location (e.g. in the SAMPLES
-				// folder). Unless we were collection media, in which case it won't be there - it'll be in the new
-				// alternate location we put it in.
-				if (!collectingSamples) {
-					audioFile->loadedFromAlternatePath.clear();
-				}
-			}
+	if (entry.renameTemp) {
+		// A failed move is NOT fatal: the recording stays where it is and the copy reads from there.
+		StorageManager::buildPathToFile(entry.renameTo.c_str());
+		const auto renamed = deluge::io::rename(entry.renameFrom, entry.renameTo);
+		renameSucceeded_ = renamed.has_value();
+		if (!renameSucceeded_) {
+			anyErrorMovingTempFiles_ = true;
 		}
+	}
+
+	if (!entry.copy) {
 		return true;
-	};
+	}
 
-	if (!std::ranges::all_of(audioFileManager.audioFiles, saveAudioFile)) {
+	const std::string& from = renameSucceeded_ ? entry.copyFromAfterRename : entry.copyFromIfRenameFailed;
+	auto source = deluge::io::File::open(from.c_str(), DELUGE_FILE_READ);
+	if (!source) {
 		return false;
 	}
+	auto created = StorageManager::createFile(entry.copyTo.c_str(), false);
+	if (!created) {
+		// Already there from a previous save is SUCCESS: treating it as an error would abandon
+		// perfectly good saves.
+		return created.error() == Error::FILE_ALREADY_EXISTS;
+	}
 
-	std::string filePathDuringWrite;
-
-	// If we're overwriting an existing file, we'll write to a temp file first. Find one that doesn't already exist
-	if (fileAlreadyExisted) {
-
-		int32_t tempFileNumber = 0;
-
-		while (true) {
-			filePathDuringWrite = "SONGS/TEMP";
-			filePathDuringWrite.append(deluge::string::fromInt(tempFileNumber, 4));
-			if (writeJsonFlag) {
-				filePathDuringWrite.append(".Json");
-				error = Error::NONE;
-			}
-			else {
-				filePathDuringWrite.append(".XML");
-				error = Error::NONE;
-			}
-			if (error != Error::NONE) {
-				goto gotError;
-			}
-
-			if (!StorageManager::fileExists(filePathDuringWrite.c_str())) {
-				break;
-			}
-
-			tempFileNumber++;
+	std::array<std::byte, 4096> buffer{};
+	while (true) {
+		auto read = source->read(std::span<std::byte>(buffer));
+		if (!read) {
+			return false;
 		}
+		const size_t got = read->size();
+		if (got == 0) {
+			break;
+		}
+		auto written = created->write(std::span<const std::byte>(buffer.data(), got));
+		if (!written || *written != got) {
+			return false;
+		}
+		if (got < buffer.size()) {
+			break;
+		}
+	}
+	(void)created->close();
+	(void)source->close();
+	return true;
+}
+
+void SaveSongUI::applyTransfers() {
+	for (PlannedTransfer& entry : transfers_) {
+		const bool changesPath = !entry.newFilePath.empty();
+		const bool changesAlternate = !entry.newAlternatePath.empty() || entry.clearAlternatePath;
+		if (entry.clearTempPath && entry.file->type == AudioFileType::SAMPLE && renameSucceeded_) {
+			static_cast<Sample*>(entry.file)->tempFilePathForRecording.clear();
+		}
+		if (!changesPath && !changesAlternate) {
+			continue;
+		}
+
+		// THIS ORDER AND NO OTHER. searchForExactObject bisects on the CURRENT filePath, so locating
+		// must happen while the vector is still ordered by it. Mutating first searches for the new path
+		// in a vector ordered by the old one and returns -1, silently losing the file from the index.
+		int32_t i = -1;
+		if (changesPath) {
+			i = audioFileManager.audioFiles.searchForExactObject(entry.file);
+			if (i >= 0) {
+				audioFileManager.audioFiles.erase(audioFileManager.audioFiles.begin() + i);
+			}
+		}
+		if (changesPath) {
+			entry.file->filePath = entry.newFilePath;
+		}
+		if (!entry.newAlternatePath.empty()) {
+			entry.file->loadedFromAlternatePath = entry.newAlternatePath;
+		}
+		else if (entry.clearAlternatePath) {
+			entry.file->loadedFromAlternatePath.clear();
+		}
+		if (changesPath && i >= 0) {
+			(void)audioFileManager.audioFiles.insertElement(entry.file);
+		}
+	}
+}
+
+namespace {
+/// The TEMP + four-digit name space. Exhausting it fails the save; it does not keep asking.
+constexpr int32_t kMaxTempNameAttempts = 10000;
+} // namespace
+
+bool SaveSongUI::docInline() {
+	return !deluge::boot::finished();
+}
+
+bool SaveSongUI::deferDocument() {
+	// Every document step waits on the byte channel. Only a span in which it finished nothing counts, so a step
+	// refused behind someone else's long operation waits for it, and a wedged channel still ends the save.
+	if (docStallBound_.tick(deluge_file_bytes_progress())) {
+		return false;
+	}
+	waitUntil(docStallBound_.deadlineUs());
+	return true;
+}
+
+void SaveSongUI::abandonDocument(Error error) {
+	// Nothing destructive has run unless UNLINK completed, and UNLINK runs only after the temp file
+	// has been written AND verified -- so on the overwrite path the user's existing song is still
+	// there. That ordering is the whole reason the temp dance survives this conversion.
+	releaseSongWriter();
+	docPhase_ = DocPhase::NONE;
+	display->removeLoadingAnimation();
+	display->displayError(error);
+}
+
+void SaveSongUI::docRoutine() {
+	switch (docPhase_) {
+	case DocPhase::NONE:
+		return;
+	case DocPhase::SERIALIZE:
+		runSerializePhase();
+		return;
+	case DocPhase::TEMPNAME:
+		runTempNamePhase();
+		return;
+	case DocPhase::WRITE:
+		runWritePhase();
+		return;
+	case DocPhase::VERIFY:
+		runVerifyPhase();
+		return;
+	case DocPhase::UNLINK:
+		runUnlinkPhase();
+		return;
+	case DocPhase::RENAME:
+		runRenamePhase();
+		return;
+	case DocPhase::FINISH:
+		runDocFinishPhase();
+		return;
+	}
+}
+
+void SaveSongUI::runSerializePhase() {
+	// No card contact whatsoever. This is the half of a save that needs no storage at all.
+	const uint32_t capacityBefore = activeSongWriter().bufferCapacity();
+	if (!serializeSongToBuffer()) {
+		abandonDocument(Error::WRITE_FAIL);
+		return;
+	}
+	// Count the doublings, so a gate can tell a song that exercised the growth path from one that
+	// fitted the initial buffer and proved nothing about it.
+	stagedDocumentGrowths_ = 0;
+	for (uint32_t c = capacityBefore; c < activeSongWriter().bufferCapacity(); c *= 2) {
+		stagedDocumentGrowths_++;
+	}
+
+	docTempNumber_ = 0;
+	docStallBound_.reset();
+	if (pendingFileAlreadyExisted_) {
+		docPhase_ = DocPhase::TEMPNAME;
 	}
 	else {
-		filePathDuringWrite = filePath;
+		docWritePath_ = pendingFilePath_;
+		docPhase_ = DocPhase::WRITE;
+	}
+}
+
+void SaveSongUI::runTempNamePhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	if (docTempNumber_ >= kMaxTempNameAttempts) {
+		// Every candidate name is taken. Fail rather than keep asking: this is a bound on the name
+		// space, separate from the per-request stall bound above it.
+		abandonDocument(Error::SD_CARD);
+		return;
 	}
 
-	D_PRINTLN("creating:  %s", filePathDuringWrite.c_str());
+	docWritePath_ = "SONGS/TEMP";
+	docWritePath_.append(deluge::string::fromInt(docTempNumber_, 4));
+	docWritePath_.append(writeJsonFlag ? ".Json" : ".XML");
 
-	if (writeJsonFlag) {
-		// Write the actual song file
-		error = StorageManager::createJsonFile(filePathDuringWrite.c_str(), smJsonSerializer, false, false);
-		if (error != Error::NONE) {
-			goto gotError;
+	if (docInline()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	++channelDocumentTicks_;
+	DelugeStatus status = DELUGE_OK;
+	bool present = false;
+	switch (deluge::storage::bytes::collectExists(docWritePath_.c_str(), &present, &status)) {
+	case ByteIo::Unknown:
+		if (deluge::storage::bytes::requestExists(docWritePath_.c_str()) == ByteIo::Failed) {
+			abandonDocument(Error::SD_CARD);
 		}
-	}
-	else {
-		error = StorageManager::createXMLFile(filePathDuringWrite.c_str(), smSerializer, false, false);
-		if (error != Error::NONE) {
-			goto gotError;
+		else if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
 		}
-	}
-
-	// (Sept 2019) - it seems a crash sometimes occurs sometime after this point. A 0-byte file gets created. Could be
-	// for either overwriting or not.
-
-	deluge::project::saveSong(*currentSong, GetSerializer());
-
-	error = GetSerializer().closeFileAfterWriting(
-	    filePathDuringWrite.c_str(),
-	    writeJsonFlag ? "{\"song\": {\n" : "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n", "\n</song>\n");
-	if (error != Error::NONE) {
-		goto gotError;
-	}
-
-	// If "overwriting an existing file"...
-	if (fileAlreadyExisted) {
-
-		// Delete the old file
-		FRESULT result = f_unlink(filePath.c_str());
-		if (result != FR_OK) {
-cardError:
-			error = fresultToDelugeErrorCode(result);
-			goto gotError;
+		return;
+	case ByteIo::Pending:
+		if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
 		}
-
-		// Rename the new file
-		result = f_rename(filePathDuringWrite.c_str(), filePath.c_str());
-		if (result != FR_OK) {
-			goto cardError;
+		return;
+	case ByteIo::Failed:
+		// The card did not answer. Treating an unanswerable name as free would write over whatever
+		// is there -- the same rule the target's existence check follows.
+		abandonDocument(Error::SD_CARD);
+		return;
+	case ByteIo::Ready:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		docStallBound_.reset();
+		if (present) {
+			docTempNumber_++; // Taken; try the next one on the next tick.
+			return;
 		}
+		docPhase_ = DocPhase::WRITE;
+		return;
 	}
+}
+
+void SaveSongUI::runWritePhase() {
+	if (docInline()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	// The byte channel's write-from, not the copying write every other phase here uses. The copying write stages
+	// into a fixed buffer and refuses anything over 8 KiB; write-from passes the pointer across. No song has ever
+	// fitted the first: the smallest measured is 11.5 KB and the largest 1.10 MB. The staged buffer must stay alive
+	// and unmodified until the collect is terminal, which is why nothing releases the serialiser before FINISH.
+	++channelDocumentTicks_;
+
+	if (!docWriteIssued_) {
+		// may_overwrite is false in both cases: on the overwrite path this is a temp name just found
+		// free, and on the direct path the target name was free or we would be on the temp path. A
+		// refusal is safer than a race either way.
+		if (!deluge_file_bytes_request_write_from(docWritePath_.c_str(), stagedDocument_, stagedLength_, false)) {
+			// Refused, not failed: nothing was queued, so ask again next tick.
+			if (!deferDocument()) {
+				abandonDocument(Error::WRITE_FAIL);
+			}
+			return;
+		}
+		docWriteIssued_ = true;
+		docStallBound_.reset();
+		// Only its answer ends this wait, re-checked in case its wake is lost: see the PENDING branch below.
+		waitUntil(deluge::runtime::nowUs() + deluge::storage::bytes::kWriteFromRecheckUs);
+		return;
+	}
+
+	uint32_t writtenLen = 0;
+	DelugeStatus error = DELUGE_OK;
+	const DelugeChannelStatus collected =
+	    deluge_file_bytes_collect_write_from(docWritePath_.c_str(), &writtenLen, &error);
+	if (collected == DELUGE_CHANNEL_PENDING) {
+		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
+		// from the staged document and cannot be cancelled, so giving up would only release the serialiser under it.
+		// Its answer brings the job back, re-checked in case that wake is lost.
+		waitUntil(deluge::runtime::nowUs() + deluge::storage::bytes::kWriteFromRecheckUs);
+		return;
+	}
+	if (collected == DELUGE_CHANNEL_UNKNOWN) {
+		// Never keyed, so nothing is coming. Re-issue rather than wait forever -- at once, since no answer will wake
+		// it.
+		docWriteIssued_ = false;
+		if (!deferDocument()) {
+			abandonDocument(Error::WRITE_FAIL);
+			return;
+		}
+		deluge::runtime::appLoop.request(saveJob);
+		return;
+	}
+	docWriteIssued_ = false;
+	if (collected == DELUGE_CHANNEL_FAILED || writtenLen != stagedLength_) {
+		// A short write is a card error, never a smaller document.
+		abandonDocument(Error::WRITE_FAIL);
+		return;
+	}
+	++documentChannelServedOps_;
+	++documentWriteChannelServedOps_;
+	++documentSteps_;
+	docStallBound_.reset();
+	docPhase_ = DocPhase::VERIFY;
+	docReadBack_.begin(songReadBackExpectation());
+}
+
+void SaveSongUI::runVerifyPhase() {
+	using deluge::storage::ReadBackTick;
+
+	if (docInline()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	++channelDocumentTicks_;
+	const ReadBackTick tick = docReadBack_.step(docWritePath_.c_str());
+	// Every answer the channel gave counts, including the one that failed the check.
+	const int32_t served = docReadBack_.takeServedOps();
+	documentChannelServedOps_ += served;
+	documentSteps_ += served;
+	switch (tick) {
+	case ReadBackTick::Waiting:
+		if (!deferDocument()) {
+			abandonDocument(Error::WRITE_FAIL);
+		}
+		return;
+	case ReadBackTick::Failed:
+		// A document whose length or ends differ from what was built is a short or wrong write, and a
+		// short song parses as a smaller one -- the quiet corruption this check exists to catch.
+		abandonDocument(Error::WRITE_FAIL);
+		return;
+	case ReadBackTick::Advanced:
+		docStallBound_.reset();
+		return;
+	case ReadBackTick::Passed:
+		docStallBound_.reset();
+		docPhase_ = pendingFileAlreadyExisted_ ? DocPhase::UNLINK : DocPhase::FINISH;
+		return;
+	}
+}
+
+void SaveSongUI::runUnlinkPhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	if (docInline()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	++channelDocumentTicks_;
+	DelugeStatus status = DELUGE_OK;
+	switch (deluge::storage::bytes::collectUnlink(pendingFilePath_.c_str(), &status)) {
+	case ByteIo::Unknown:
+		if (deluge::storage::bytes::requestUnlink(pendingFilePath_.c_str()) == ByteIo::Failed) {
+			abandonDocument(Error::SD_CARD);
+		}
+		else if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Pending:
+		if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Failed:
+		abandonDocument(Error::SD_CARD);
+		return;
+	case ByteIo::Ready:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		docStallBound_.reset();
+		docPhase_ = DocPhase::RENAME;
+		return;
+	}
+}
+
+void SaveSongUI::runRenamePhase() {
+	using deluge::storage::bytes::ByteIo;
+
+	if (docInline()) {
+		(void)runOneDocStep();
+		return;
+	}
+
+	++channelDocumentTicks_;
+	DelugeStatus status = DELUGE_OK;
+	switch (deluge::storage::bytes::collectRename(pendingFilePath_.c_str(), &status)) {
+	case ByteIo::Unknown:
+		if (deluge::storage::bytes::requestRename(docWritePath_.c_str(), pendingFilePath_.c_str()) == ByteIo::Failed) {
+			abandonDocument(Error::SD_CARD);
+		}
+		else if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Pending:
+		if (!deferDocument()) {
+			abandonDocument(Error::SD_CARD);
+		}
+		return;
+	case ByteIo::Failed:
+		abandonDocument(Error::SD_CARD);
+		return;
+	case ByteIo::Ready:
+		++documentChannelServedOps_;
+		++documentSteps_;
+		docStallBound_.reset();
+		docPhase_ = DocPhase::FINISH;
+		return;
+	}
+}
+
+void SaveSongUI::runDocFinishPhase() {
+	// Hand the shared serialiser back BEFORE anything else: it is global, and the two settings
+	// writes below reach code that writes files through it.
+	releaseSongWriter();
+	docPhase_ = DocPhase::NONE;
+	// Reaching here is the only evidence a save SUCCEEDED. Every failure path abandons after the
+	// file has already been written, so the file's presence proves nothing on its own.
+	++documentSavesCompleted_;
 
 	display->removeWorkingAnimation();
-	char const* message = anyErrorMovingTempFiles
-	                          ? (deluge::l10n::get(deluge::l10n::String::STRING_FOR_ERROR_MOVING_TEMP_FILES))
-	                          : (deluge::l10n::get(deluge::l10n::String::STRING_FOR_SONG_SAVED));
-	// Update all of these
-	currentSong->project.metadata.name = enteredText;
-	currentSong->project.metadata.dir_path = currentDir;
 
+	// `anyErrorMovingTempFiles_` is not surfaced as a popup; nothing displays it, as upstream.
+	// The name and folder the save was STARTED with, not whatever the browser holds now: the save spans
+	// many ticks, and reading the live values would record something typed while it ran.
+	currentSong->project.metadata.name = existsRequest_.enteredText;
+	currentSong->project.metadata.dir_path = existsRequest_.dirPath;
+
+	// Both of these choose their own arm: they use the byte channel when it is running and write
+	// inline only before boot finishes, so calling them from here does not block this tier.
 	if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTSAVED) {
 		runtimeFeatureSettings.writeSettingsToFile();
 	}
@@ -505,5 +983,135 @@ cardError:
 	MIDIDeviceManager::writeDevicesToFile();
 
 	close();
+}
+
+bool SaveSongUI::runOneDocStep() {
+	// Only ever before boot finishes, where blocking is legal: after boot every phase goes through a
+	// channel, and both channels are always there.
+	++documentInlineServedOps_;
+	++documentSteps_;
+	if (!docStepSynchronously()) {
+		abandonDocument(Error::WRITE_FAIL);
+		return false;
+	}
+	return true;
+}
+
+bool SaveSongUI::docStepSynchronously() {
+	switch (docPhase_) {
+	case DocPhase::TEMPNAME: {
+		switch (deluge::storage::save_action(StorageManager::fileExists(docWritePath_.c_str()), false)) {
+		case deluge::storage::SaveAction::Write:
+			docPhase_ = DocPhase::WRITE;
+			return true;
+		case deluge::storage::SaveAction::Occupied:
+			docTempNumber_++;
+			return true;
+		case deluge::storage::SaveAction::Refuse:
+			return false;
+		}
+		return false;
+	}
+	case DocPhase::WRITE: {
+		StorageManager::buildPathToFile(docWritePath_.c_str());
+		auto created = StorageManager::createFile(docWritePath_.c_str(), false);
+		if (!created) {
+			return false;
+		}
+		auto written = created->write(
+		    std::span<const std::byte>(reinterpret_cast<const std::byte*>(stagedDocument_), stagedLength_));
+		const bool ok = written.has_value() && *written == stagedLength_;
+		(void)created->close();
+		if (!ok) {
+			return false;
+		}
+		docPhase_ = DocPhase::VERIFY;
+		docReadBack_.begin(songReadBackExpectation());
+		return true;
+	}
+	case DocPhase::VERIFY: {
+		if (!deluge::storage::readBackSynchronously(docWritePath_.c_str(), songReadBackExpectation())) {
+			return false;
+		}
+		docPhase_ = pendingFileAlreadyExisted_ ? DocPhase::UNLINK : DocPhase::FINISH;
+		return true;
+	}
+	case DocPhase::UNLINK: {
+		if (!deluge::io::unlink(pendingFilePath_).has_value()) {
+			return false;
+		}
+		docPhase_ = DocPhase::RENAME;
+		return true;
+	}
+	case DocPhase::RENAME: {
+		if (!deluge::io::rename(docWritePath_, pendingFilePath_).has_value()) {
+			return false;
+		}
+		docPhase_ = DocPhase::FINISH;
+		return true;
+	}
+	case DocPhase::NONE:
+	case DocPhase::SERIALIZE:
+	case DocPhase::FINISH:
+		// Never dispatched: SERIALIZE and FINISH touch no card, and NONE is not a step.
+		return true;
+	}
+	return false;
+}
+
+deluge::storage::ReadBackExpectation SaveSongUI::songReadBackExpectation() const {
+	// JSON has no closing string to compare: JsonSerializer::closeFileAfterWriting passed NULL for it.
+	return {.staged = stagedDocument_,
+	        .length = stagedLength_,
+	        .head = writeJsonFlag ? kSongHeadJson : kSongHeadXml,
+	        .tail = writeJsonFlag ? nullptr : kSongTailXml};
+}
+
+FileWriter& SaveSongUI::activeSongWriter() {
+	if (writeJsonFlag) {
+		return static_cast<FileWriter&>(smJsonSerializer);
+	}
+	return static_cast<FileWriter&>(smSerializer);
+}
+
+bool SaveSongUI::serializeSongToBuffer() {
+	FileWriter& writer = activeSongWriter();
+
+	// No prologue and no closing tag here. Song::writeToFile() calls the serializer's reset() itself,
+	// writes the XML declaration, and closes with writeClosingTag("song") -- writing either here
+	// would duplicate it. This differs from the staged PRESET saves, whose serialisers write no header
+	// of their own: opening a file with createXMLFile() writes it for them instead.
+	//
+	// setMemoryBased() survives that internal reset(): reset() clears the buffer position, the byte
+	// count and the failure flag, and nothing else.
+	writer.setMemoryBased();
+	deluge::project::saveSong(*currentSong, GetSerializer());
+
+	const int32_t written = writer.bytesWritten();
+	if (written <= 0) {
+		// An empty document is a FAILED save, not a small one.
+		releaseSongWriter();
+		return false;
+	}
+	stagedDocument_ = reinterpret_cast<const uint8_t*>(writer.getBufferPtr());
+	stagedLength_ = static_cast<uint32_t>(written);
+	return true;
+}
+
+void SaveSongUI::releaseSongWriter() {
+	stagedDocument_ = nullptr;
+	stagedLength_ = 0;
+	// The two halves come from different bases: XMLSerializer inherits Serializer AND FileWriter, and
+	// the memory-based surface is on the FileWriter side while reset() is virtual on the Serializer
+	// side. GetSerializer() reaches only the latter, which is why activeSongWriter() exists at all.
+	activeSongWriter().clearMemoryBased();
+	GetSerializer().reset();
+}
+
+bool SaveSongUI::finishSaveAfterCollection() {
+	// The card work runs inside the document machine, whose steps each choose their own arm; what
+	// is left here is bookkeeping, which runs legally wherever it is called from.
+	docPhase_ = DocPhase::SERIALIZE;
+	docStallBound_.reset();
 	return true;
 }

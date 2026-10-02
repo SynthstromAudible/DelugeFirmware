@@ -1,0 +1,10 @@
+# WAV/AIFF header decoding for `libdeluge/audio_format.h`: bytes in, `AudioHeader` out. Reads no
+# files, allocates nothing, decodes no audio.
+[package]
+name = "deluge_audio_format"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[lib]

@@ -39,9 +39,8 @@ public:
 	                      SquareInfo& squareInfo);
 
 public:
-	void renderNoteEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, InstrumentClip* clip,
-	                                 OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight);
-	void renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType, int32_t knobPosLeft);
+	void renderNoteEditorDisplay(deluge::hid::display::oled_canvas::Canvas& canvas, InstrumentClip* clip,
+	                             OutputType outputType, int32_t knobPosLeft, int32_t knobPosRight);
 
 private:
 	std::string getNoteRowName(NoteRow* noteRow, bool isKit);

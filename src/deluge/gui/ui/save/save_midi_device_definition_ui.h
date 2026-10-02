@@ -26,10 +26,11 @@ public:
 
 	bool opened() override;
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
+	ActionResult saveScreenButtonAction(deluge::hid::Button b, bool on) override;
 	void endSession() {};
-	bool performSave(bool mayOverwrite) override;
+	bool serializeForSave(XMLSerializer& into) override;
+	[[nodiscard]] bool savesStagedDocument() const override { return true; }
+	void afterStagedSave(const deluge::storage::SaveRequest& request) override;
 
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth] = nullptr) override {
@@ -38,6 +39,9 @@ public:
 
 	// ui
 	UIType getUIType() override { return UIType::SAVE_MIDI_DEVICE_DEFINITION; }
+
+protected:
+	void onBrowserOpened() override;
 };
 
 extern SaveMidiDeviceDefinitionUI saveMidiDeviceDefinitionUI;

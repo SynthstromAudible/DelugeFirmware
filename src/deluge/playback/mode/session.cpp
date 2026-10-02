@@ -35,6 +35,7 @@
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
+#include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
@@ -84,6 +85,18 @@ const Colour defaultClipSectionColours[] = {RGB::fromHue(102), // bright light b
                                             pastel::yellow.forTail(),
                                             green.forTail(),
                                             magenta.forTail()};
+
+// Manual clip launch doesn't pre-arm an outgoing active audio clip when another clip is launching on the same output;
+// doLaunch() stops it when the incoming clip takes that output. Section launch keeps the same pre-launch state for
+// active audio clips on outputs that the target section will take.
+static ArmState
+getSectionLaunchStopArmStateForActiveClip(Clip* clip, const deluge::fast_set<Output*>& outputsTakenBySectionLaunch) {
+	if (clip->type == ClipType::AUDIO && outputsTakenBySectionLaunch.contains(clip->output)) {
+		return ArmState::OFF;
+	}
+
+	return ArmState::ON_NORMAL;
+}
 
 Session::Session() {
 	cancelAllLaunchScheduling();
@@ -789,21 +802,27 @@ void Session::cancelAllLaunchScheduling() {
 	launchEventAtSwungTickCount = 0;
 }
 
+void Session::showLaunchRepeatsRemaining() {
+	RootUI* rootUI = getRootUI();
+	if (loadSongUI.isLoadingSong()) {
+		loadSongUI.displayLoopsRemainingPopup();
+	}
+	else if ((rootUI == &sessionView || rootUI == &performanceView)
+	         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+		renderUIsForOled();
+	}
+}
+
 void Session::launchSchedulingMightNeedCancelling() {
 	if (!preLoadedSong && !areAnyClipsArmed()) {
 		cancelAllLaunchScheduling();
-		if (display->haveOLED()) {
-			RootUI* rootUI = getRootUI();
-			if (loadSongUI.isLoadingSong()) {
-				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
-			}
-			else if ((rootUI == &sessionView || rootUI == &performanceView)
-			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-				renderUIsForOled();
-			}
+		RootUI* rootUI = getRootUI();
+		if (loadSongUI.isLoadingSong()) {
+			loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 		}
-		else {
-			sessionView.redrawNumericDisplay();
+		else if ((rootUI == &sessionView || rootUI == &performanceView)
+		         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+			renderUIsForOled();
 		}
 	}
 }
@@ -1268,7 +1287,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 	for (int32_t c = 0; c < std::ssize(modelStack->song->project.clips.session_clips); c++) {
 		Clip* clip = modelStack->song->project.clips.session_clips[c];
 
-		if (clip->section() == section && !clip->activeIfNoSolo) {
+		if (clip->section() == section && clip->launchStyle() != LaunchStyle::FILL && !clip->activeIfNoSolo) {
 			clip->activeIfNoSolo = true;
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -1291,14 +1310,9 @@ void Session::armingChanged() {
 		sessionView.requestRendering(rootUI, 0, 0xFFFFFFFF);
 
 		if (getCurrentUI()->canSeeViewUnderneath()) {
-			if (display->haveOLED()) {
-				if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
-				    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-					renderUIsForOled();
-				}
-			}
-			else {
-				sessionView.redrawNumericDisplay();
+			if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+			    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+				renderUIsForOled();
 			}
 probablyDoFlashPlayEnable:
 			if (hasPlaybackActive()) {
@@ -1358,7 +1372,7 @@ void Session::armClipsAlongWithExistingLaunching(ArmState armState, uint8_t sect
 	{
 		for (int l = 0; l < std::ssize(currentSong->project.clips.session_clips); l++) {
 			Clip* thisClip = currentSong->project.clips.session_clips[l];
-			if (thisClip->section() == section) {
+			if (thisClip->section() == section && thisClip->launchStyle() != LaunchStyle::FILL) {
 				// If we're arming a section, we know there's no soloing or armed Clips, so that's easy.
 				// Only arm if it's not playing
 				if (!thisClip->activeIfNoSolo) {
@@ -1383,7 +1397,7 @@ void Session::armClipsWithNothingToSyncTo(uint8_t section, Clip* clip) {
 	{
 		for (int c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
 			Clip* thisClip = currentSong->project.clips.session_clips[c];
-			if (thisClip->section() == section) {
+			if (thisClip->section() == section && thisClip->launchStyle() != LaunchStyle::FILL) {
 				thisClip->activeIfNoSolo = true;
 				currentSong->assertActiveness(modelStack->addTimelineCounter(thisClip)); // Very inefficient
 			}
@@ -1432,7 +1446,8 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 		for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
 			Clip* thisClip = currentSong->project.clips.session_clips[c];
 
-			if (thisClip->section() == section && thisClip->loopLength() > longestStartingClipLength) {
+			if (thisClip->section() == section && thisClip->launchStyle() != LaunchStyle::FILL
+			    && thisClip->loopLength() > longestStartingClipLength) {
 				longestStartingClipLength = thisClip->loopLength();
 			}
 		}
@@ -1641,6 +1656,36 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 	// late-start
 	else {
 		deluge::fast_set<Output*> outputsWeHavePickedAClipFor;
+		deluge::fast_set<Output*> outputsTakenBySectionLaunch;
+
+		// Look ahead before the main arming pass so active audio clips can stay unarmed if this section launch will
+		// replace them on the same output. That matches manual clip launch, where doLaunch() stops the old clip when
+		// the incoming clip takes the output.
+		for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
+			Clip* sectionClip = currentSong->project.clips.session_clips[c];
+
+			// Clips outside the launched section are not incoming clips for this section launch.
+			if (sectionClip->section() != section) {
+				continue;
+			}
+
+			// Fill clips are skipped by normal section launch, so they cannot take an output here.
+			if (sectionClip->launchStyle() == LaunchStyle::FILL) {
+				continue;
+			}
+
+			// doLaunch() only records inactive armed clips as taking an output; already-active clips keep playing.
+			if (currentSong->isClipActive(sectionClip)) {
+				continue;
+			}
+
+			// doLaunch() also excludes pending overdubs that clone the output from its output-takeover list.
+			if (sectionClip->isPendingOverdub && sectionClip->willCloneOutputForOverdub()) {
+				continue;
+			}
+
+			outputsTakenBySectionLaunch.insert(sectionClip->output);
+		}
 
 		// Ok, we're going to do a big complex thing where we traverse just once (or occasionally twice) through all
 		// sessionClips. Reverse order so behaviour of this new code is the same as the old code
@@ -1674,7 +1719,10 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 						for (int32_t d = std::ssize(currentSong->project.clips.session_clips) - 1; d > c; d--) {
 							Clip* thatClip = currentSong->project.clips.session_clips[d];
 							if (thatClip->output == output) {
-								thatClip->armState = thatClip->activeIfNoSolo ? ArmState::ON_NORMAL : ArmState::OFF;
+								thatClip->armState = thatClip->activeIfNoSolo
+								                         ? getSectionLaunchStopArmStateForActiveClip(
+								                               thatClip, outputsTakenBySectionLaunch)
+								                         : ArmState::OFF;
 							}
 						}
 
@@ -1720,7 +1768,8 @@ weWantThisClipInactive:
 
 					// If it's active, arm it to stop
 					else if (thisClip->activeIfNoSolo) {
-						thisClip->armState = ArmState::ON_NORMAL;
+						thisClip->armState =
+						    getSectionLaunchStopArmStateForActiveClip(thisClip, outputsTakenBySectionLaunch);
 					}
 
 					// Or if it's already inactive...
@@ -1756,7 +1805,8 @@ weWantThisClipInactive:
 						// If we've already picked a Clip for this same Output, we definitely don't want this one
 						// remaining active, so arm it to stop
 						if (outputsWeHavePickedAClipFor.contains(thisClip->output)) {
-							thisClip->armState = ArmState::ON_NORMAL;
+							thisClip->armState =
+							    getSectionLaunchStopArmStateForActiveClip(thisClip, outputsTakenBySectionLaunch);
 						}
 					}
 				}
@@ -2337,19 +2387,7 @@ traverseClips:
 		else {
 
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
-			if (display->haveOLED()) {
-				RootUI* rootUI = getRootUI();
-				if (loadSongUI.isLoadingSong()) {
-					loadSongUI.displayLoopsRemainingPopup();
-				}
-				else if ((rootUI == &sessionView || rootUI == &performanceView)
-				         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-					renderUIsForOled();
-				}
-			}
-			else {
-				sessionView.redrawNumericDisplay();
-			}
+			deluge::playback::launchRepeatCounted();
 		}
 	}
 
@@ -2454,10 +2492,8 @@ void Session::doTickForward(int32_t posIncrement) {
 				Clip* newClip = (Clip*)modelStackWithTimelineCounter->getTimelineCounter();
 				newClip->processCurrentPos(modelStackWithTimelineCounter, 0);
 
-				if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-					view.activeModControllableModelStack.setTimelineCounter(newClip);
-					view.activeModControllableModelStack.paramManager = &newClip->paramManager;
-				}
+				// The knobs follow the recording on to the new clip, if they were on the old one.
+				deluge::playback::recordingMovedToClip(clip, newClip);
 			}
 		}
 	}
@@ -2681,6 +2717,7 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 
 	// Note: this isn't quite perfect - it doesn’t know if Clip will cut out due to another one launching. But the ill
 	// effects of this are pretty minor.
+	// todo: fix this for LAST iteration
 	bool willLoop =
 	    !launchEventAtSwungTickCount             // If no launch event scheduled, obviously it'll loop
 	    || numRepeatsTilLaunch > 1               // If the launch event is gonna just trigger another repeat, it'll loop

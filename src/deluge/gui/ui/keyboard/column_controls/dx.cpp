@@ -81,22 +81,24 @@ void DXColumn::handleLeavingColumn(ModelStackWithTimelineCounter* modelStackWith
 
 void DXColumn::handlePad(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, PressedPad pad,
                          KeyboardLayout* layout) {
+	// evaluatePads() replays every held pad on each pad and encoder event, so acting on the press would re-toggle
+	// an op that is still held down. Act on the release instead, which is delivered exactly once per press.
+	if (pad.active) {
+		return;
+	}
+
 	DxPatch* patch = getCurrentDxPatch();
 	if (!patch) {
 		return;
 	}
 
 	int op = 8 - pad.y - 1; // op 0-5
-	if (pad.active) {
-		if (Buttons::isShiftButtonPressed()) {
-			menu_item::dxParam.openForOpOrGlobal(op);
-		}
-		else {
-			if (op < 6) {
-				bool val = patch->opSwitch(op);
-				patch->setOpSwitch(op, !val);
-			}
-		}
+	if (Buttons::isShiftButtonPressed()) {
+		menu_item::dxParam.openForOpOrGlobal(op);
+	}
+	else if (op < 6) {
+		bool val = patch->opSwitch(op);
+		patch->setOpSwitch(op, !val);
 	}
 };
 } // namespace deluge::gui::ui::keyboard::controls

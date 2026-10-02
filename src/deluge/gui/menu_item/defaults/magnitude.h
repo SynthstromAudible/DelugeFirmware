@@ -18,7 +18,7 @@
 #include "gui/menu_item/enumeration.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "model/sync.h"
+#include "modulation/sync.h"
 #include "storage/flash_storage.h"
 #include "util/c_string.h"
 
@@ -43,7 +43,6 @@ public:
 		canvas.drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, 18, 20);
 	}
 
-	void drawValue() override { display->setTextAsNumber(96 << this->getValue()); }
 	size_t size() override { return 7; }
 };
 } // namespace deluge::gui::menu_item::defaults

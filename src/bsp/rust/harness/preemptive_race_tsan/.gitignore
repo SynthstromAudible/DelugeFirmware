@@ -1,0 +1,5 @@
+# Raw TSan run output — large (multi-MB per run) and non-deterministic (thread
+# interleaving/addresses vary run to run). The durable record is the curated stack excerpts
+# in .superpowers/sdd/task-9-report.md, same "gitignored, local" pattern HOST_HARNESS.md's
+# Spike B established for its own transcript.
+logs/

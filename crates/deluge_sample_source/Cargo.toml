@@ -1,0 +1,22 @@
+[package]
+name = "deluge_sample_source"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+deluge_resource = { path = "../deluge_resource" }
+# Only `chunk` is used (`ManagerPin::payload` reads a chunk's payload base directly). Default
+# features on purpose: `native_fill` is the manager-reaching fill core, which `deluge_sample_reader`
+# enables for every real build anyway.
+deluge_sample_fill = { path = "../deluge_sample_fill" }
+
+[dev-dependencies]
+deluge_alloc = { path = "../deluge_alloc" }
+critical-section = { version = "1", features = ["std"] }
+
+[features]
+## Export the C ABI (`#[no_mangle]`). The BSP and the unit-test umbrella turn it on; the crate's own
+## tests leave it off, since the exports call symbols only a final link provides.
+c_abi = []
+
+[lib]

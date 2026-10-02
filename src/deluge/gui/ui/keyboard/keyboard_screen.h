@@ -37,8 +37,8 @@ public:
 	KeyboardScreen();
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void selectEncoderAction(int8_t offset) override;
 
@@ -64,6 +64,14 @@ public:
 	UIType getUIContextType() override { return UIType::INSTRUMENT_CLIP; }
 	UIModControllableContext getUIModControllableContext() override { return UIModControllableContext::CLIP; }
 	void checkNewInstrument(Instrument* newInstrument);
+
+	/// @brief The layout-refresh tail shared by KeyboardScreen's two acquisition consumers.
+	///
+	/// selectLayout() itself is private; this is the seam LoadInstrumentPresetUI's completions call
+	/// through, on the interaction tier, once the instrument has actually been created
+	/// (PresetConsumer::KeyboardNewInstrument) or swapped (PresetConsumer::KeyboardChangeType). Each of
+	/// those has its own completion and its own currency guard -- this is only the leaf they share.
+	void completeLayoutRefresh() { selectLayout(0); }
 
 private:
 	bool opened() override;

@@ -1,0 +1,468 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "storage/smsysex_pending.h"
+
+#include "io/stall_bound.h"
+#include "libdeluge/file_bytes.h"
+#include "storage/byte_channel.h"
+
+#include <cstring>
+#include <string>
+
+namespace deluge::storage {
+
+namespace {
+
+/// How long the current request may go refused while the channel finishes nothing before this stops asking the
+/// channel, in microseconds.
+///
+/// The channel is single-flight across all operation kinds, so another consumer's operation in
+/// flight refuses this one. Retrying is right -- the handler is re-entered every tick anyway -- but
+/// an unbounded retry would let a wedged channel stall the SysEx queue behind one request. A channel that keeps
+/// finishing work is busy, not wedged, so its refusals do not count.
+///
+/// As long as the stall bound below. After boot the synchronous arm refuses to run, so giving up on
+/// a channel that is merely busy would answer the host with an error for a request that would have
+/// succeeded a few ticks later.
+constexpr uint64_t kMaxRefusalUs = kSysExStallUs;
+// A refusal by an orphaned protected answer ends only when its span does, and nothing wakes this then: the refusal
+// bound's deadline run asks first, so it must come well after the span.
+static_assert(uint64_t{DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS} * 1000 * 3 <= kMaxRefusalUs,
+              "the byte channel's protected-answer span must be well inside the SysEx refusal bound");
+
+PathOp g_op = PathOp::None;
+std::string g_pathA;
+std::string g_pathB;
+DelugeTimestamp g_stamp{};
+uint8_t g_stage = 0;
+
+/// The offset an offset-addressed operation works at.
+uint32_t g_offset = 0;
+/// A write's payload, or a read's answer. One buffer for both directions because only one operation
+/// is ever pending.
+uint8_t g_block[DELUGE_FILE_BYTES_BLOCK];
+/// How many of `g_block` are meaningful: a write's length going out, a read's length coming back.
+uint32_t g_blockLen = 0;
+/// A `Stat`'s size or a `WriteAt`'s byte count. See @ref pathOpResultValue.
+uint32_t g_resultValue = 0;
+
+/// Whether the request has been issued (as opposed to started but still refused).
+bool g_issued = false;
+/// How long the current request has been refused or re-asked while the channel finished nothing.
+deluge::io::StallBound g_refusalBound{kMaxRefusalUs};
+/// How long the operation in flight has sat PENDING. A separate bound from @ref kMaxRefusalUs, because it guards a
+/// different failure: a refusal is instant and means "busy", but a channel whose driver is not running answers
+/// PENDING forever, which is neither a refusal nor an answer.
+deluge::io::StallBound g_pendingBound{kSysExStallUs};
+
+/// The synchronous arm's answer, read on the tick after the one that ran (or refused) it.
+bool g_inlineDone = false;
+deluge::io::Status g_inlineStatus = deluge::io::Status::OK;
+
+/// Whether the channel should carry this operation, or the synchronous arm should.
+bool viaChannel() {
+	return deluge::storage::bytes::usingByteChannel() && !g_refusalBound.expired() && !g_pendingBound.expired();
+}
+
+/// Copy `from` to `to` synchronously, block by block.
+///
+/// Only the inline arm reaches this; the channel arm does not come here at all. The destination's
+/// parent is created by the open below, so no separate path-creation retry is needed.
+deluge::io::Status copyInline(const std::string& from, const std::string& to) {
+	auto src = deluge::io::File::open(from, DELUGE_FILE_READ);
+	if (!src.has_value()) {
+		return src.error();
+	}
+	auto dst = deluge::io::File::open(to, DELUGE_FILE_WRITE_CREATE);
+	if (!dst.has_value()) {
+		(void)src->close();
+		return dst.error();
+	}
+	deluge::io::Status status = deluge::io::Status::OK;
+	for (;;) {
+		auto read = src->read(std::span{reinterpret_cast<std::byte*>(g_block), DELUGE_FILE_BYTES_BLOCK});
+		if (!read.has_value()) {
+			status = read.error();
+			break;
+		}
+		if (read->empty()) {
+			break;
+		}
+		auto written = dst->write(*read);
+		if (!written.has_value()) {
+			status = written.error();
+			break;
+		}
+		if (*written != read->size()) {
+			// A short write here is not itself flagged as an error; the copy simply stops.
+			break;
+		}
+	}
+	(void)dst->close();
+	(void)src->close();
+	return status;
+}
+
+/// Run the operation synchronously. Reached only through `runDuringBoot`, so never anywhere a
+/// card wait is disallowed.
+void runInline() {
+	std::expected<void, deluge::io::Status> result{};
+	switch (g_op) {
+	case PathOp::Unlink:
+		result = deluge::io::unlink(g_pathA);
+		break;
+	case PathOp::Rename:
+		result = deluge::io::rename(g_pathA, g_pathB);
+		break;
+	case PathOp::MkdirAll:
+		// One level: callers pass a path whose parent already exists. The channel arm creates every
+		// segment, which is a superset and breaks nothing.
+		result = deluge::io::mkdir(g_pathA);
+		break;
+	case PathOp::SetTime:
+		result = deluge::io::set_time(g_pathA, g_stamp);
+		break;
+	case PathOp::ReadAt: {
+		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
+		if (!file.has_value()) {
+			g_inlineStatus = file.error();
+			g_inlineDone = true;
+			return;
+		}
+		auto seeked = file->seek(g_offset);
+		if (!seeked.has_value()) {
+			g_inlineStatus = seeked.error();
+			(void)file->close();
+			g_inlineDone = true;
+			return;
+		}
+		auto read = file->read(std::span{reinterpret_cast<std::byte*>(g_block), g_blockLen});
+		// A short read is end-of-file, not a failure -- the same rule the channel arm follows.
+		g_blockLen = read.has_value() ? static_cast<uint32_t>(read->size()) : 0;
+		g_inlineStatus = read.has_value() ? deluge::io::Status::OK : read.error();
+		(void)file->close();
+		g_inlineDone = true;
+		return;
+	}
+	case PathOp::WriteAt: {
+		// DELUGE_FILE_READ, not WRITE_CREATE, for the reason the Rust arm gives at length: the create
+		// mode truncates, which would erase the file on every block.
+		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
+		if (!file.has_value() && file.error() == deluge::io::Status::NOT_FOUND) {
+			auto created = deluge::io::File::open(g_pathA, DELUGE_FILE_WRITE_CREATE);
+			if (created.has_value()) {
+				(void)created->close();
+			}
+			file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
+		}
+		if (!file.has_value()) {
+			g_inlineStatus = file.error();
+			g_inlineDone = true;
+			return;
+		}
+		auto seeked = file->seek(g_offset);
+		if (!seeked.has_value()) {
+			g_inlineStatus = seeked.error();
+			(void)file->close();
+			g_inlineDone = true;
+			return;
+		}
+		auto written = file->write(std::span{reinterpret_cast<const std::byte*>(g_block), g_blockLen});
+		g_resultValue = written.has_value() ? static_cast<uint32_t>(*written) : 0;
+		g_inlineStatus = written.has_value() ? deluge::io::Status::OK : written.error();
+		(void)file->close();
+		g_inlineDone = true;
+		return;
+	}
+	case PathOp::Stat: {
+		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_READ);
+		if (!file.has_value()) {
+			g_inlineStatus = file.error();
+			g_inlineDone = true;
+			return;
+		}
+		auto size = file->size();
+		g_resultValue = size.has_value() ? *size : 0;
+		g_inlineStatus = size.has_value() ? deluge::io::Status::OK : size.error();
+		(void)file->close();
+		g_inlineDone = true;
+		return;
+	}
+	case PathOp::CreateEmpty: {
+		// Truncating on purpose here, unlike WriteAt: this IS the create-and-empty step.
+		auto file = deluge::io::File::open(g_pathA, DELUGE_FILE_WRITE_CREATE);
+		g_inlineStatus = file.has_value() ? deluge::io::Status::OK : file.error();
+		if (file.has_value()) {
+			(void)file->close();
+		}
+		g_inlineDone = true;
+		return;
+	}
+	case PathOp::Copy:
+		// The loop, kept HERE and only here. The channel arm has none -- `copy_file` is one request
+		// and the loop runs in Rust -- but a build without the channel must still be able to copy a
+		// file, so the fallback keeps the walk. Same division as the browser's recursive mkdir: the
+		// channel arm is loop-free, the inline arm is not.
+		g_inlineStatus = copyInline(g_pathA, g_pathB);
+		g_inlineDone = true;
+		return;
+	case PathOp::None:
+		return;
+	}
+	g_inlineStatus = result.has_value() ? deluge::io::Status::OK : result.error();
+	g_inlineDone = true;
+}
+
+/// Issue the request on whichever arm is in force.
+void issue() {
+	using deluge::storage::bytes::ByteIo;
+	if (viaChannel()) {
+		ByteIo accepted = ByteIo::Failed;
+		switch (g_op) {
+		case PathOp::Unlink:
+			accepted = deluge::storage::bytes::requestUnlink(g_pathA.c_str());
+			break;
+		case PathOp::Rename:
+			accepted = deluge::storage::bytes::requestRename(g_pathA.c_str(), g_pathB.c_str());
+			break;
+		case PathOp::MkdirAll:
+			accepted = deluge::storage::bytes::requestMkdirAll(g_pathA.c_str());
+			break;
+		case PathOp::SetTime:
+			accepted = deluge::storage::bytes::requestSetTime(g_pathA.c_str(), g_stamp);
+			break;
+		case PathOp::ReadAt:
+			accepted = deluge::storage::bytes::requestReadAt(g_pathA.c_str(), g_offset, g_blockLen);
+			break;
+		case PathOp::WriteAt:
+			accepted = deluge::storage::bytes::requestWriteAt(g_pathA.c_str(), g_offset,
+			                                                  reinterpret_cast<const char*>(g_block), g_blockLen);
+			break;
+		case PathOp::Stat:
+			accepted = deluge::storage::bytes::requestStat(g_pathA.c_str());
+			break;
+		case PathOp::Copy:
+			accepted = deluge::storage::bytes::requestCopy(g_pathA.c_str(), g_pathB.c_str());
+			break;
+		case PathOp::CreateEmpty:
+			// The whole-file write with no bytes: it creates the parent, creates the file and
+			// truncates it, which is precisely what an open-for-write meant.
+			accepted = deluge::storage::bytes::requestWrite(g_pathA.c_str(), "", 0);
+			break;
+		case PathOp::None:
+			return;
+		}
+		if (accepted == ByteIo::Pending) {
+			g_issued = true;
+			// The span starts at the issue, not at the first collect: a job that runs only when woken would
+			// otherwise have no deadline to wait for while the channel never answers.
+			(void)g_pendingBound.tick(deluge_file_bytes_progress());
+		}
+		else {
+			(void)g_refusalBound.tick(deluge_file_bytes_progress());
+		}
+		return;
+	}
+	g_inlineDone = false;
+	if (!deluge::storage::bytes::runDuringBoot([](void*) { runInline(); }, nullptr)) {
+		// Refused: after boot, only a channel that stopped answering reaches here. The host
+		// is told the operation timed out rather than left waiting for a reply that never comes.
+		g_inlineStatus = deluge::io::Status::TIMEOUT;
+		g_inlineDone = true;
+	}
+	g_issued = true;
+}
+
+} // namespace
+
+bool pathOpPending() {
+	return g_op != PathOp::None;
+}
+
+bool pathOpStart(PathOp op, const char* a, const char* b, DelugeTimestamp stamp) {
+	g_op = op;
+	g_pathA = (a != nullptr) ? a : "";
+	g_pathB = (b != nullptr) ? b : "";
+	g_stamp = stamp;
+	g_issued = false;
+	g_refusalBound.reset();
+	g_pendingBound.reset();
+	g_inlineDone = false;
+	issue();
+	if (!g_issued) {
+		// Refused on the first attempt. Left PENDING deliberately rather than cleared: the handler is
+		// re-entered next tick, sees the record, and `pathOpCollect` issues again.
+		return false;
+	}
+	return true;
+}
+
+bool pathOpStartBlock(PathOp op, const char* path, uint32_t offset, const uint8_t* bytes, uint32_t len) {
+	if (len > DELUGE_FILE_BYTES_BLOCK) {
+		len = DELUGE_FILE_BYTES_BLOCK;
+	}
+	g_op = op;
+	g_pathA = (path != nullptr) ? path : "";
+	g_pathB.clear();
+	g_offset = offset;
+	g_blockLen = len;
+	g_resultValue = 0;
+	if (bytes != nullptr && len > 0) {
+		// COPIED, so the caller's decode buffer is free the instant this returns -- a resumed handler
+		// re-parses and re-decodes into that same buffer.
+		memcpy(g_block, bytes, len);
+	}
+	g_issued = false;
+	g_refusalBound.reset();
+	g_pendingBound.reset();
+	g_inlineDone = false;
+	issue();
+	return g_issued;
+}
+
+std::optional<deluge::io::Status> pathOpCollectBlock(uint8_t* outBuf, uint32_t* outLen) {
+	auto outcome = pathOpCollect();
+	if (!outcome.has_value()) {
+		return std::nullopt;
+	}
+	if (*outcome == deluge::io::Status::OK && outBuf != nullptr && outLen != nullptr) {
+		memcpy(outBuf, g_block, g_blockLen);
+		*outLen = g_blockLen;
+	}
+	return outcome;
+}
+
+uint32_t pathOpResultValue() {
+	return g_resultValue;
+}
+
+std::optional<deluge::io::Status> pathOpCollect() {
+	using deluge::storage::bytes::ByteIo;
+	if (g_op == PathOp::None) {
+		return std::nullopt;
+	}
+	if (!g_issued) {
+		issue(); // a previous tick's request was refused
+		return std::nullopt;
+	}
+
+	if (!viaChannel()) {
+		if (!g_inlineDone) {
+			return std::nullopt;
+		}
+		return g_inlineStatus;
+	}
+
+	DelugeStatus status = DELUGE_OK;
+	ByteIo outcome = ByteIo::Failed;
+	switch (g_op) {
+	case PathOp::Unlink:
+		outcome = deluge::storage::bytes::collectUnlink(g_pathA.c_str(), &status);
+		break;
+	case PathOp::Rename:
+		outcome = deluge::storage::bytes::collectRename(g_pathB.c_str(), &status);
+		break;
+	case PathOp::MkdirAll:
+		outcome = deluge::storage::bytes::collectMkdirAll(g_pathA.c_str(), &status);
+		break;
+	case PathOp::SetTime:
+		outcome = deluge::storage::bytes::collectSetTime(g_pathA.c_str(), &status);
+		break;
+	case PathOp::ReadAt:
+		outcome = deluge::storage::bytes::collectReadAt(g_pathA.c_str(), reinterpret_cast<char*>(g_block),
+		                                                DELUGE_FILE_BYTES_BLOCK, &g_blockLen, &status);
+		break;
+	case PathOp::WriteAt:
+		outcome = deluge::storage::bytes::collectWriteAt(g_pathA.c_str(), &g_resultValue, &status);
+		break;
+	case PathOp::Stat:
+		outcome = deluge::storage::bytes::collectStat(g_pathA.c_str(), &g_resultValue, &status);
+		break;
+	case PathOp::Copy:
+		outcome = deluge::storage::bytes::collectCopy(g_pathB.c_str(), &status);
+		break;
+	case PathOp::CreateEmpty:
+		outcome = deluge::storage::bytes::collectWrite(g_pathA.c_str(), &status);
+		break;
+	case PathOp::None:
+		return std::nullopt;
+	}
+
+	switch (outcome) {
+	case ByteIo::Ready:
+		return deluge::io::Status::OK;
+	case ByteIo::Failed:
+		return deluge::io::to_status(status);
+	case ByteIo::Pending:
+		if (g_pendingBound.tick(deluge_file_bytes_progress())) {
+			// The channel accepted and never answered. Re-issue on the synchronous arm, which
+			// `viaChannel` now refuses to bypass, now rather than on a later run: nothing would wake one.
+			g_issued = false;
+			issue();
+		}
+		return std::nullopt;
+	case ByteIo::Unknown:
+		// Dropped, or displaced before we took it. Ask again. An unlink or rename answer is protected from
+		// displacement while this polls, up to the byte channel's age bound, so a rerun of either happens only
+		// after a card change dropped it unrun, or past that bound; the other operations here reach the same
+		// state run twice.
+		// Asked again now: nothing would wake a later run for it.
+		g_issued = false;
+		(void)g_refusalBound.tick(deluge_file_bytes_progress());
+		issue();
+		return std::nullopt;
+	}
+	return std::nullopt;
+}
+
+uint64_t pathOpDeadlineUs() {
+	if (g_op == PathOp::None) {
+		return deluge::runtime::kNever;
+	}
+	if (!g_issued) {
+		// Refused: the channel freeing up wakes the job, and the refusal bound's deadline is when it stops asking.
+		return g_refusalBound.deadlineUs();
+	}
+	if (!viaChannel()) {
+		// The synchronous arm has already run it; only the collect is left.
+		return 0;
+	}
+	return g_pendingBound.deadlineUs();
+}
+
+void pathOpClear() {
+	g_op = PathOp::None;
+	g_stage = 0;
+	g_offset = 0;
+	g_blockLen = 0;
+	g_resultValue = 0;
+	g_issued = false;
+	g_refusalBound.reset();
+	g_pendingBound.reset();
+	g_inlineDone = false;
+}
+
+uint8_t pathOpStage() {
+	return g_stage;
+}
+
+void pathOpSetStage(uint8_t stage) {
+	g_stage = stage;
+}
+
+} // namespace deluge::storage

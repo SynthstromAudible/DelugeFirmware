@@ -17,11 +17,11 @@
 
 #include "cartridge.h"
 #include "dsp/dx/engine.h"
-#include "fatfs.hpp"
 #include "gui/ui/browser/dx_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
+#include "io/file.hpp"
 #include "memory/allocate_unique.h"
 #include "memory/sdram_allocator.h"
 #include "model/song/song.h"
@@ -33,25 +33,21 @@
 #include <etl/vector.h>
 #include <memory>
 
+static bool parseCartridge(std::span<std::byte> readbuffer, DX7Cartridge* data);
+
 static bool openFile(std::string_view path, DX7Cartridge* data) {
 	using namespace deluge;
 	using enum deluge::l10n::String;
 	constexpr size_t minSize = kSmallSysexSize;
 
-	FatFS::FileInfo fno = D_TRY_CATCH(FatFS::stat(path), error, {
-		return false; // fail quickly if file doesn't exist
+	io::File file = D_TRY_CATCH_MOVE(io::File::open(path, DELUGE_FILE_READ), error, {
+		return false; // fail quickly if the file doesn't exist / can't open
 	});
 
-	FSIZE_t filesize = fno.fsize;
+	uint32_t filesize = D_TRY_CATCH(file.size(), error, { return false; });
 	if (filesize < minSize) {
 		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
 	}
-
-	// Open the file
-	FatFS::File file = D_TRY_CATCH(FatFS::File::open(path, FA_READ), error, {
-		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_READ_ERROR));
-		return false;
-	});
 
 	l10n::String error = EMPTY_STRING;
 	int readsize = std::min((int)filesize, 8192);
@@ -61,15 +57,26 @@ static bool openFile(std::string_view path, DX7Cartridge* data) {
 		return false;
 	});
 
-	std::span<std::byte> readbuffer = D_TRY_CATCH(file.read({buffer.get(), filesize}), error, {
-		return false; //
-	});
+	std::span<std::byte> readbuffer =
+	    D_TRY_CATCH(file.read(std::span<std::byte>(buffer.get(), static_cast<size_t>(readsize))), error, {
+		    return false; //
+	    });
+
+	return parseCartridge(readbuffer, data);
+}
+
+/// Everything from the size check onward: no file, no card, just bytes. Both arms end here, so the
+/// popups and the checksum-tolerance rule have exactly one home.
+static bool parseCartridge(std::span<std::byte> readbuffer, DX7Cartridge* data) {
+	using namespace deluge;
+	using enum deluge::l10n::String;
+	constexpr size_t minSize = kSmallSysexSize;
 
 	if (readbuffer.size() < minSize) {
 		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
 	}
 
-	error = data->load(readbuffer);
+	l10n::String error = data->load(readbuffer);
 	if (error != EMPTY_STRING) {
 		// Allow loading to continue for checksum errors, but fail for other errors
 		if (error != deluge::l10n::String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL) {
@@ -85,18 +92,16 @@ namespace deluge::gui::menu_item {
 DxCartridge dxCartridge{l10n::String::STRING_FOR_DX_CARTRIDGE};
 
 void DxCartridge::beginSession(MenuItem* navigatedBackwardFrom) {
+	loadPatch();
 	readValueAgain();
 }
 
-void DxCartridge::readValueAgain() {
+// Unpacks the currently-selected program into the live DX patch and hard-cuts any sounding voices.
+// Only call this when the selected patch actually changes - NOT from a plain redraw, otherwise an
+// audition note gets cut every time the menu refreshes (e.g. mod-encoder press, display change).
+void DxCartridge::loadPatch() {
 	if (pd == nullptr) {
 		return;
-	}
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
 	}
 
 	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
@@ -113,6 +118,13 @@ void DxCartridge::readValueAgain() {
 	}
 }
 
+void DxCartridge::readValueAgain() {
+	if (pd == nullptr) {
+		return;
+	}
+	renderUIsForOled();
+}
+
 void DxCartridge::drawPixelsForOled() {
 	if (pd == nullptr) {
 		return;
@@ -127,13 +139,6 @@ void DxCartridge::drawPixelsForOled() {
 	drawItemsForOled(itemNames, currentValue - scrollPos, scrollPos);
 }
 
-void DxCartridge::drawValue() {
-	char names[32][11];
-	pd->getProgramNames(names);
-
-	display->setScrollingText(names[currentValue]);
-}
-
 bool DxCartridge::tryLoad(std::string_view path) {
 	if (pd == nullptr) {
 		pd = new DX7Cartridge();
@@ -142,6 +147,16 @@ bool DxCartridge::tryLoad(std::string_view path) {
 	scrollPos = 0;
 
 	return openFile(path, pd);
+}
+
+bool DxCartridge::tryLoadFromBuffer(std::span<std::byte> bytes) {
+	if (pd == nullptr) {
+		pd = new DX7Cartridge();
+	}
+	currentValue = 0;
+	scrollPos = 0;
+
+	return parseCartridge(bytes, pd);
 }
 
 void DxCartridge::selectEncoderAction(int32_t offset) {
@@ -156,16 +171,15 @@ void DxCartridge::selectEncoderAction(int32_t offset) {
 
 	currentValue = newValue;
 
-	if (display->haveOLED()) {
-		scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
-	}
+	scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
 
+	loadPatch();
 	readValueAgain(); // redraw
 }
 
 MenuItem* DxCartridge::selectButtonPress() {
 	soundEditor.exitCompletely();
-	return nullptr;
+	return NO_NAVIGATION;
 }
 
 } // namespace deluge::gui::menu_item

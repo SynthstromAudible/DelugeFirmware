@@ -29,9 +29,6 @@ public:
 	    : PatchedParam(newP), IntegerContinuous(newName, title) {}
 	Integer(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
 	    : PatchedParam(newP), IntegerContinuous(newName, title), number_style_{style} {}
-	// 7SEG Only
-	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
-
 	bool usesAffectEntire() override { return true; }
 
 	ParamDescriptor getLearningThing() final { return PatchedParam::getLearningThing(); }
@@ -46,9 +43,7 @@ public:
 	// this button action function definition should not be required as it should be inherited
 	// from the param class, however it does not work if the definition is removed, so there
 	// is likely a multi-inheritance issue that needs to be resolved
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final {
-		return PatchedParam::buttonAction(b, on, inCardRoutine);
-	}
+	ActionResult buttonAction(deluge::hid::Button b, bool on) final { return PatchedParam::buttonAction(b, on); }
 	void horizontalEncoderAction(int32_t offset) final { return PatchedParam::horizontalEncoderAction(offset); }
 
 	deluge::modulation::params::Kind getParamKind() final { return PatchedParam::getParamKind(); }

@@ -1,33 +1,42 @@
 #include "storage/smsysex.h"
-#include "fatfs/ff.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
 #include "io/debug/print.h"
+#include "io/file.hpp"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/sysex.h"
+#include "io/stall_bound.h"
+#include "libdeluge/file_directory.h"
 #include "memory/general_memory_allocator.h"
 #include "processing/engines/audio_engine.h"
-#include "scheduler_api.h"
+#include "storage/byte_channel.h"
+#include "storage/fs_status.h"
+#include "storage/smsysex_pending.h"
+#include "sync/sd_access.h"
+#include "util/boot.h"
 #include "util/containers.h"
 #include "util/pack.h"
+#include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <libdeluge/scheduler.h>
 
 #define MAX_DIR_LINES 25
 
-extern "C" {
-extern uint8_t currentlyAccessingCard;
-}
-DIR sxDIR;
+using deluge::storage::FsWireStatus;
+
+std::optional<deluge::io::Directory> sxDir;
 uint32_t dirOffsetCounter;
 
 JsonSerializer jWriter;
 std::string activeDirName;
+/// How long the directory open for the front `dir` request has gone unanswered. See smSysex::getDirEntries().
+deluge::io::StallBound dirOpenWait{deluge::storage::kSysExStallUs};
 const size_t blockBufferMax = 1024;
 const size_t sysexBufferMax = blockBufferMax + 256;
 uint8_t* writeBlockBuffer = nullptr;
@@ -41,14 +50,119 @@ struct FILdata {
 	uint32_t fSize = 0;
 	uint32_t fPosition = 0; // file offset noted after last read/write operation.
 	bool fileOpen = false;
-	int forWrite = false;
-	FIL file;
+	bool forWrite = false;
+	// A `fid` is a WIRE concept the client owns, and the transfer is offset-addressed, so the path and
+	// position below are everything a block needs -- nothing has to be held open across the ticks a
+	// deferred operation spans.
 };
 
 int32_t FIDcounter = 1;
 uint32_t LRUcounter = 1;
 
 PLACE_SDRAM_BSS FILdata openFiles[MAX_OPEN_FILES];
+
+namespace {
+
+// Freezes the wire's "err" attribute at today's FRESULT-numeric values (now carried by
+// FsWireStatus, see storage/fs_status.h), independent of whatever backend implements
+// file_io.h underneath — this is the permanent abstraction boundary between the companion
+// protocol and deluge::io, not a migration shim. One accepted, documented collapse:
+// Status::NOT_FOUND can't distinguish the original FR_NO_FILE from FR_NO_PATH (both already
+// collapsed into DELUGE_ERR_NOT_FOUND at the boundary's original design); this always
+// produces NoFile. Status::UNSUPPORTED has no real FRESULT analog; InvalidParameter is the
+// closest fit. Status::NOT_EMPTY maps onto the original FRESULT's own FR_DENIED (7, already
+// FsWireStatus::Denied above) — FatFS used that same code for "the target directory is not
+// empty", so this isn't a new wire value, just a second Status producing an existing one.
+FsWireStatus toWireStatus(deluge::io::Status status) {
+	switch (status) {
+	case deluge::io::Status::OK:
+		return FsWireStatus::Ok;
+	case deluge::io::Status::ERR:
+	case deluge::io::Status::IO:
+		return FsWireStatus::DiskErr;
+	case deluge::io::Status::PARAM:
+	case deluge::io::Status::UNSUPPORTED:
+		return FsWireStatus::InvalidParameter;
+	case deluge::io::Status::BUSY:
+		return FsWireStatus::Locked;
+	case deluge::io::Status::TIMEOUT:
+		return FsWireStatus::Timeout;
+	case deluge::io::Status::NODEV:
+		return FsWireStatus::NotReady;
+	case deluge::io::Status::NOT_FOUND:
+		return FsWireStatus::NoFile;
+	case deluge::io::Status::EXISTS:
+		return FsWireStatus::Exist;
+	case deluge::io::Status::NO_SPACE:
+		return FsWireStatus::Denied;
+	case deluge::io::Status::NO_FILESYSTEM:
+		return FsWireStatus::NoFilesystem;
+	case deluge::io::Status::WRITE_PROTECTED:
+		return FsWireStatus::WriteProtected;
+	case deluge::io::Status::NO_MEMORY:
+		return FsWireStatus::NotEnoughCore;
+	case deluge::io::Status::NOT_EMPTY:
+		return FsWireStatus::Denied;
+	}
+	return FsWireStatus::DiskErr; // unreachable while the switch above stays exhaustive
+}
+
+// The wire's "date"/"time" ints are already FAT DOS-packed WORDs (the
+// companion app speaks FatFS's native format directly) -- this decodes them
+// into the boundary's portable DelugeTimestamp. Returns nullopt when both
+// are zero, matching every existing call site's "date != 0 || time != 0"
+// gate for "no timestamp requested."
+std::optional<DelugeTimestamp> timestampFromWireDateTime(uint32_t date, uint32_t time) {
+	if (date == 0 && time == 0) {
+		return std::nullopt;
+	}
+	DelugeTimestamp ts{};
+	ts.year = static_cast<uint16_t>(1980 + ((date >> 9) & 0x7F));
+	ts.month = static_cast<uint8_t>((date >> 5) & 0x0F);
+	ts.day = static_cast<uint8_t>(date & 0x1F);
+	ts.hour = static_cast<uint8_t>((time >> 11) & 0x1F);
+	ts.minute = static_cast<uint8_t>((time >> 5) & 0x3F);
+	ts.second = static_cast<uint8_t>((time & 0x1F) * 2);
+	return ts;
+}
+
+// Inverse of timestampFromWireDateTime — packs a portable DelugeTimestamp
+// back into the wire's FAT DOS-packed WORD shape for getDirEntries's reply.
+uint16_t wireDateFromTimestamp(const DelugeTimestamp& ts) {
+	return static_cast<uint16_t>(((ts.year - 1980) << 9) | (ts.month << 5) | ts.day);
+}
+
+uint16_t wireTimeFromTimestamp(const DelugeTimestamp& ts) {
+	return static_cast<uint16_t>((ts.hour << 11) | (ts.minute << 5) | (ts.second / 2));
+}
+
+// FAT attribute-byte bit flags for the wire's "attr" field (DOS/FAT fattrib format).
+// Like FsWireStatus, these are frozen wire values inherited from FatFS, not live constants
+// from the FatFS headers.
+constexpr uint8_t kWireAttrReadOnly = 0x01;
+constexpr uint8_t kWireAttrHidden = 0x02;
+constexpr uint8_t kWireAttrSystem = 0x04;
+constexpr uint8_t kWireAttrDirectory = 0x10;
+constexpr uint8_t kWireAttrArchive = 0x20;
+
+// Packs DelugeDirEntry's portable attribute flags back into the wire's raw
+// FatFS fattrib byte shape.
+uint8_t wireAttribFromFlags(const DelugeDirEntry& entry) {
+	uint8_t attrib = 0;
+	if (entry.is_read_only)
+		attrib |= kWireAttrReadOnly;
+	if (entry.is_hidden)
+		attrib |= kWireAttrHidden;
+	if (entry.is_system)
+		attrib |= kWireAttrSystem;
+	if (entry.is_directory)
+		attrib |= kWireAttrDirectory;
+	if (entry.is_archive)
+		attrib |= kWireAttrArchive;
+	return attrib;
+}
+
+} // namespace
 
 const int MaxSysExLength = 1024;
 
@@ -61,6 +175,8 @@ struct SysExDataEntry {
 };
 
 deluge::deque<SysExDataEntry> SysExQ;
+
+deluge::runtime::JobId smSysex::jobId = deluge::runtime::kNoJob;
 
 // The following constants assume that the messageID part ranges from 1 to SYSEX_MSGID_MAX
 // and that SYSEX_MSGID_MAX is 1 less than a power of 2.
@@ -135,110 +251,69 @@ void smSysex::sendMsg(MIDICable& cable, JsonSerializer& writer) {
 	cable.sendSysex((const uint8_t*)bitz, bw);
 };
 
-FILdata* smSysex::openFIL(const char* fPath, int forWrite, uint32_t* fsize, FRESULT* eCode) {
+/// Start the card work an open needs: a size for a read, an empty file for a write.
+///
+/// No handle is opened. What an open MEANS here is "the client may now name this file by fid", and
+/// the transfer that follows is offset-addressed -- so a read needs only the size it must report, and
+/// a write needs only the file to exist and be empty.
+void smSysex::beginOpenFIL(const char* fPath, bool forWrite) {
+	if (forWrite) {
+		// Creates the parent, creates the file, truncates it -- what DELUGE_FILE_WRITE_CREATE meant.
+		// The whole-file write creates the destination's parent itself, so `openFile` needs no separate
+		// retry for a missing path.
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::CreateEmpty, fPath, nullptr, {});
+		return;
+	}
+	(void)deluge::storage::pathOpStartBlock(deluge::storage::PathOp::Stat, fPath, 0, nullptr, 0);
+}
+
+/// Finish an open whose card work has landed, recording the fid the client will use.
+FILdata* smSysex::finishOpenFIL(const char* fPath, bool forWrite, deluge::io::Status status,
+                                deluge::storage::FsWireStatus* eCode) {
+	*eCode = toWireStatus(status);
+	if (status != deluge::io::Status::OK) {
+		return nullptr;
+	}
 	FILdata* fp = findEmptyFIL();
 	fp->fName = fPath;
 	fp->fileID = FIDcounter++;
 	noteFileIdUse(fp);
-	BYTE mode = FA_READ;
-	if (forWrite) {
-		mode = FA_WRITE;
-		if (forWrite == 1)
-			mode |= FA_CREATE_ALWAYS;
-	}
-	FRESULT err = f_open(&fp->file, fPath, mode);
-	*eCode = err;
-	if (err == FRESULT::FR_OK) {
-		fp->fileOpen = true;
-		fp->forWrite = forWrite;
-		fp->fSize = f_size(&fp->file);
-		fp->fPosition = 0;
-		return fp;
-	}
-	return nullptr;
+	// A write starts empty; a read reports the size the stat just measured.
+	fp->fSize = forWrite ? 0 : deluge::storage::pathOpResultValue();
+	fp->fileOpen = true;
+	fp->forWrite = forWrite;
+	fp->fPosition = 0;
+	return fp;
 }
 
-FRESULT smSysex::closeFIL(FILdata* fp) {
-	if (fp == nullptr)
-		return FRESULT::FR_INVALID_OBJECT;
+FsWireStatus smSysex::closeFIL(FILdata* fp) {
+	if (fp == nullptr) {
+		return FsWireStatus::InvalidObject;
+	}
 
-	FRESULT err = f_close(&fp->file);
+	// Nothing to release: no handle was ever held. That is the point of the stateless design, and it
+	// is why this cannot fail.
+	const deluge::io::Status status = deluge::io::Status::OK;
 	fp->fileOpen = false;
-	fp->forWrite = 0;
+	fp->forWrite = false;
 	fp->fSize = 0;
-	return err;
+	return toWireStatus(status);
 }
 
-// Fill in missing directories for the full path name given.
-// Unless the last character in the path is a /, we assume the
-// path given ends with a filename (which we ignore).
-FRESULT smSysex::createPathDirectories(std::string& path, uint32_t date, uint32_t time) {
-	FRESULT errCode;
-	if (path.size() > 256) {
-		return FRESULT::FR_INVALID_PARAMETER;
-	}
-
-	char working[257];
-	char pathPart[257];
-	strcpy(working, path.c_str());
-	// ignore the file name and extension part.
-	int len = strlen(working);
-	int lastSlash;
-	for (lastSlash = len - 1; lastSlash >= 0; lastSlash--) {
-		if (working[lastSlash] == '/')
-			break;
-	}
-	if (lastSlash == 0)
-		return FRESULT::FR_INVALID_PARAMETER;
-
-	int jx = 1; // skip the leading slash.
-	while (jx <= lastSlash) {
-		if (working[jx] == '/') {
-			DIR wDIR;
-			working[jx] = 0;
-			strcpy(pathPart, working);
-			working[jx] = '/';
-			if (strlen(pathPart)) {
-				errCode = f_opendir(&wDIR, (TCHAR*)pathPart);
-				if (errCode == FRESULT::FR_NO_PATH) {
-					errCode = f_mkdir((TCHAR*)pathPart);
-					if (errCode == FRESULT::FR_OK && (date != 0 || time != 0)) {
-						FILINFO finfo;
-						finfo.fdate = date;
-						finfo.ftime = time;
-						errCode = f_utime(pathPart, &finfo);
-					}
-				}
-				else if (errCode == 0) {
-					errCode = f_closedir(&wDIR);
-				}
-				else {
-					return errCode;
-				}
-			}
-		}
-		jx++;
-	}
-	return errCode;
-}
-
-void smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
-	bool forWrite = false;
-	std::string path;
-	int32_t rn = 0;
+bool smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
+	std::string path;
+	bool forWrite = false;
 	uint32_t date = 0;
 	uint32_t time = 0;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "write")) {
-			forWrite = reader.readTagOrAttributeValueInt();
+			forWrite = reader.readTagOrAttributeValueInt() != 0;
 		}
 		else if (!strcmp(tagName, "path")) {
 			reader.readTagOrAttributeValueString(path);
 		}
-		// Since you can't change the date/time of an open file, we use date/time
-		// only for created directoris.
 		else if (!strcmp(tagName, "date")) {
 			date = reader.readTagOrAttributeValueInt();
 		}
@@ -249,35 +324,41 @@ void smSysex::openFile(MIDICable& cable, JsonDeserializer& reader) {
 			reader.exitTag();
 		}
 	}
-
 	reader.match('}');
-	bool pathCreateTried = false;
-retry:
-	FRESULT errCode;
-	uint32_t fSize = 0;
+	(void)date;
+	(void)time;
 
-	FILdata* fp = openFIL(path.c_str(), forWrite, &fSize, &errCode);
+	if (path.empty()) {
+		return true;
+	}
 
-	if (fp != nullptr) {
-		fSize = fp->fSize;
+	// An open-for-write is a whole-file write of zero bytes, which creates the destination's parent
+	// itself -- so there is nothing left for a createPathDirectories retry to fix.
+	if (!deluge::storage::pathOpPending()) {
+		beginOpenFIL(path.c_str(), forWrite);
+		return false;
 	}
-	if (forWrite && !pathCreateTried && errCode == FRESULT::FR_NO_PATH) { // was the path missing?
-		createPathDirectories(path, date, time);
-		pathCreateTried = true;
-		goto retry;
+	auto outcome = deluge::storage::pathOpCollectBlock(nullptr, nullptr);
+	if (!outcome.has_value()) {
+		return false;
 	}
+	FsWireStatus errCode = FsWireStatus::Ok;
+	FILdata* fp = finishOpenFIL(path.c_str(), forWrite, *outcome, &errCode);
+	const uint32_t fSize = (fp != nullptr) ? fp->fSize : 0;
+	deluge::storage::pathOpClear();
 
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^open", false, true);
 	jWriter.writeAttribute("fid", fp != nullptr ? fp->fileID : 0);
 	jWriter.writeAttribute("size", fSize);
-	jWriter.writeAttribute("err", errCode);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 	jWriter.closeTag(true);
 
 	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
 	int32_t fid = 0;
 	char const* tagName;
 	reader.match('{');
@@ -292,20 +373,19 @@ void smSysex::closeFile(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('}');
 
 	FILdata* fd = entryForFID(fid);
-	FRESULT errCode = closeFIL(fd);
+	FsWireStatus errCode = closeFIL(fd);
 
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^close", false, true);
 	jWriter.writeAttribute("fid", (uint32_t)fid);
-	jWriter.writeAttribute("err", errCode);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 	jWriter.closeTag(true);
 
 	sendMsg(cable, jWriter);
+	return true; // nothing to wait for: closing releases no handle
 }
 
-void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
-	FRESULT errCode = FRESULT::FR_OK;
-
+bool smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	std::string path;
 	reader.match('{');
@@ -319,23 +399,31 @@ void smSysex::deleteFile(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	const char* pathVal = path.c_str();
-	const TCHAR* pathTC = (const TCHAR*)pathVal;
-
-	if (pathTC && strlen(pathTC) > 0) {
-		D_PRINTLN(pathTC);
-		errCode = f_unlink(pathTC);
-		startReply(jWriter, reader);
-		jWriter.writeOpeningTag("^delete", false, true);
-		jWriter.writeAttribute("err", errCode);
-		jWriter.closeTag(true);
-		sendMsg(cable, jWriter);
+	if (path.empty()) {
+		return true; // nothing asked for; nothing to reply to
 	}
+	D_PRINTLN(path.c_str());
+
+	if (!deluge::storage::pathOpPending()) {
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Unlink, path.c_str(), nullptr, {});
+		return false; // re-entered next tick, where this record is found and collected
+	}
+	auto outcome = deluge::storage::pathOpCollect();
+	if (!outcome.has_value()) {
+		return false; // still running
+	}
+	deluge::storage::pathOpClear();
+
+	FsWireStatus errCode = toWireStatus(*outcome);
+	startReply(jWriter, reader);
+	jWriter.writeOpeningTag("^delete", false, true);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
+	jWriter.closeTag(true);
+	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
-	FRESULT errCode = FRESULT::FR_OK;
-
+bool smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	std::string path;
 	uint32_t date = 0;
@@ -357,30 +445,43 @@ void smSysex::createDirectory(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	const char* pathVal = path.c_str();
-	const TCHAR* pathTC = (const TCHAR*)pathVal;
-
-	if (pathTC && strlen(pathTC) > 0) {
-		D_PRINTLN(pathTC);
-		errCode = f_mkdir(pathTC);
-		if (errCode == FRESULT::FR_OK && (date != 0 || time != 0)) {
-			FILINFO finfo;
-			finfo.fdate = date;
-			finfo.ftime = time;
-			errCode = f_utime(pathTC, &finfo);
-		}
-		startReply(jWriter, reader);
-		jWriter.writeOpeningTag("^mkdir", false, true);
-		jWriter.writeAttribute("path", pathVal);
-		jWriter.writeAttribute("err", errCode);
-		jWriter.closeTag(true);
-		sendMsg(cable, jWriter);
+	if (path.empty()) {
+		return true; // nothing asked for
 	}
+	D_PRINTLN(path.c_str());
+	auto timestamp = timestampFromWireDateTime(date, time);
+
+	// TWO operations in sequence, so this is the one handler that needs a stage. Stage 0 creates the
+	// directory; stage 1 stamps it, but only if the creation succeeded and a timestamp was supplied.
+	if (!deluge::storage::pathOpPending()) {
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::MkdirAll, path.c_str(), nullptr, {});
+		deluge::storage::pathOpSetStage(0);
+		return false;
+	}
+	auto outcome = deluge::storage::pathOpCollect();
+	if (!outcome.has_value()) {
+		return false;
+	}
+	deluge::io::Status status = *outcome;
+
+	if (deluge::storage::pathOpStage() == 0 && status == deluge::io::Status::OK && timestamp.has_value()) {
+		deluge::storage::pathOpClear();
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::SetTime, path.c_str(), nullptr, *timestamp);
+		deluge::storage::pathOpSetStage(1);
+		return false; // the stamp's own outcome is what the reply carries
+	}
+	deluge::storage::pathOpClear();
+
+	startReply(jWriter, reader);
+	jWriter.writeOpeningTag("^mkdir", false, true);
+	jWriter.writeAttribute("path", path.c_str());
+	jWriter.writeAttribute("err", static_cast<uint8_t>(toWireStatus(status)));
+	jWriter.closeTag(true);
+	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
-	FRESULT errCode = FRESULT::FR_OK;
-
+bool smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	std::string fromName;
 	std::string toName;
@@ -398,33 +499,42 @@ void smSysex::rename(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	const char* fromVal = fromName.c_str();
-	const TCHAR* fromTC = (const TCHAR*)fromVal;
-	const char* toVal = toName.c_str();
-	const TCHAR* toTC = (const TCHAR*)toVal;
+	if (fromName.empty() || toName.empty()) {
+		return true; // nothing asked for
+	}
+	{
+		D_PRINTLN(fromName.c_str());
+		D_PRINTLN(toName.c_str());
+		if (!deluge::storage::pathOpPending()) {
+			(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Rename, fromName.c_str(), toName.c_str(), {});
+			return false;
+		}
+		auto outcome = deluge::storage::pathOpCollect();
+		if (!outcome.has_value()) {
+			return false;
+		}
+		deluge::storage::pathOpClear();
 
-	if (fromTC && strlen(fromTC) && toTC && strlen(toTC)) {
-		D_PRINTLN(fromTC);
-		D_PRINTLN(toTC);
-		errCode = f_rename(fromTC, toTC);
+		FsWireStatus errCode = toWireStatus(*outcome);
 		startReply(jWriter, reader);
 		jWriter.writeOpeningTag("^rename", false, true);
-		jWriter.writeAttribute("from", fromVal);
-		jWriter.writeAttribute("to", toVal);
-		jWriter.writeAttribute("err", errCode);
+		jWriter.writeAttribute("from", fromName.c_str());
+		jWriter.writeAttribute("to", toName.c_str());
+		jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 		jWriter.closeTag(true);
 		sendMsg(cable, jWriter);
 	}
+	return true;
 }
 
 // Returns a block of directory entries as a Json array.
-void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 	std::string path;
 	path = "/";
 	uint32_t lineOffset = 0;
 	uint32_t linesWanted = 20;
 
-	FRESULT errCode = FRESULT::FR_OK;
+	FsWireStatus errCode = FsWireStatus::Ok;
 	char const* tagName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -446,22 +556,40 @@ void smSysex::getDirEntries(MIDICable& cable, JsonDeserializer& reader) {
 		linesWanted = MAX_DIR_LINES;
 	// We should pick up on path changes and out-of-order offset requests.
 
-	const char* pathVal = path.c_str();
-	const TCHAR* pathTC = (const TCHAR*)pathVal;
-	if (lineOffset == 0 || strcmp(activeDirName.c_str(), pathVal) || lineOffset != dirOffsetCounter) {
-		errCode = f_opendir(&sxDIR, pathTC);
-		if (errCode != FRESULT::FR_OK)
+	if (lineOffset == 0 || activeDirName != path || lineOffset != dirOffsetCounter) {
+		// The OPEN goes through the directory channel -- a separate channel from the byte one this
+		// handler otherwise uses. Only the open touches the card: `readdir` walks the snapshot the
+		// open took, in memory.
+		auto opened = openDirectoryForSysex(path.c_str(), &errCode);
+		if (!opened.has_value()) {
+			if (errCode == FsWireStatus::Ok) {
+				// Still opening, so this request stays at the front and is re-entered next tick -- but not for good. An
+				// open the channel never answers would leave it, and every request queued behind it, unanswered.
+				if (!dirOpenWait.tick()) {
+					return false;
+				}
+				errCode = FsWireStatus::Timeout;
+			}
+			dirOpenWait.reset();
+			// The reply carries no entries: nothing of an earlier listing may go back as this request's contents.
+			sxDir.reset();
+			activeDirName.clear();
 			goto errorFound;
+		}
+		dirOpenWait.reset();
+		sxDir = std::move(*opened);
 		dirOffsetCounter = 0;
-		activeDirName = pathVal;
+		activeDirName = path;
 		if (lineOffset > 0) {
-			FILINFO fno;
 			for (uint32_t ix = 0; ix < lineOffset; ++ix) {
-				errCode = f_readdir(&sxDIR, &fno);
-				if (errCode != FRESULT::FR_OK)
+				auto entry = sxDir->read();
+				if (!entry.has_value()) {
+					errCode = toWireStatus(entry.error());
 					break;
-				if (fno.altname[0] == 0)
+				}
+				if (!entry->has_value()) {
 					break;
+				}
 				dirOffsetCounter++;
 			}
 		}
@@ -473,19 +601,18 @@ errorFound:;
 	jWriter.writeOpeningTag("^dir", false, true);
 	jWriter.writeArrayStart("list", true, false);
 
-	for (uint32_t ix = 0; ix < linesWanted; ++ix) {
-		FILINFO fno;
-		FRESULT err = f_readdir(&sxDIR, &fno);
-		if (err != FRESULT::FR_OK)
+	for (uint32_t ix = 0; ix < linesWanted && sxDir.has_value(); ++ix) {
+		auto entry = sxDir->read();
+		if (!entry.has_value() || !entry->has_value()) {
 			break;
-		if (fno.altname[0] == 0)
-			break;
+		}
+		const DelugeDirEntry& fno = **entry;
 
 		jWriter.writeOpeningTag(NULL, true);
-		jWriter.writeAttribute("name", fno.fname);
-		jWriter.writeAttribute("size", fno.fsize);
-		jWriter.writeAttribute("date", fno.fdate);
-		jWriter.writeAttribute("time", fno.ftime);
+		jWriter.writeAttribute("name", fno.name);
+		jWriter.writeAttribute("size", fno.size);
+		jWriter.writeAttribute("date", wireDateFromTimestamp(fno.modified_time));
+		jWriter.writeAttribute("time", wireTimeFromTimestamp(fno.modified_time));
 
 		// AM_RDO  0x01 Read only
 		// AM_HID  0x02 Hidden
@@ -493,18 +620,53 @@ errorFound:;
 
 		// AM_DIR  0x10 Directory
 		// AM_ARC  0x20 Archive
-		jWriter.writeAttribute("attr", fno.fattrib);
+		jWriter.writeAttribute("attr", wireAttribFromFlags(fno));
 
 		jWriter.closeTag();
 		dirOffsetCounter++;
 	}
 	jWriter.writeArrayEnding("list", true, false);
-	jWriter.writeAttribute("err", errCode);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 	jWriter.closeTag(true);
 	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
+/// Open `path` through the directory channel, or synchronously when it is not in use.
+std::optional<deluge::io::Directory> smSysex::openDirectoryForSysex(const char* path, FsWireStatus* outCode) {
+	*outCode = FsWireStatus::Ok;
+	if (!deluge::boot::finished()) {
+		// Blocking is legal during boot, when there is no channel driver running to wait for.
+		deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Sysex);
+		auto opened = deluge::io::Directory::open(path);
+		if (!opened.has_value()) {
+			*outCode = toWireStatus(opened.error());
+			return std::nullopt;
+		}
+		return std::move(*opened);
+	}
+
+	DelugeHandle handle = DELUGE_HANDLE_NONE;
+	DelugeStatus status = DELUGE_OK;
+	switch (deluge_file_directory_collect(path, &handle, &status)) {
+	case DELUGE_CHANNEL_READY:
+		// The handle is ours now, and closing it is not optional -- `adopt` is what puts it back
+		// under RAII, and `sxDir` holds it until the next open replaces it.
+		return deluge::io::Directory::adopt(handle);
+	case DELUGE_CHANNEL_UNKNOWN:
+		// "Request it (again)" -- the documented meaning, and where the FIRST request is issued.
+		deluge_file_directory_request(path, false);
+		return std::nullopt;
+	case DELUGE_CHANNEL_PENDING:
+		return std::nullopt;
+	case DELUGE_CHANNEL_FAILED:
+	default:
+		*outCode = toWireStatus(deluge::io::to_status(status));
+		return std::nullopt;
+	}
+}
+
+bool smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t addr = 0;
 	uint32_t size = blockBufferMax;
@@ -531,33 +693,42 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('}');
 
 	FILdata* fp = entryForFID(fid);
-	FRESULT errCode = FR_OK;
+	FsWireStatus errCode = FsWireStatus::Ok;
 
-	if (fp == nullptr) {
-		errCode = FRESULT::FR_NOT_ENABLED;
+	if (fp == nullptr || !fp->fileOpen) {
+		errCode = FsWireStatus::NotEnabled;
 	}
-	UINT actuallyRead = 0;
 	uint8_t* srcAddr = (uint8_t*)addr;
-	if (errCode == FRESULT::FR_OK) {
+	if (errCode == FsWireStatus::Ok) {
 		if (!readBlockBuffer && fp) {
 			readBlockBuffer = (uint8_t*)deluge::memory::alloc_sdram(blockBufferMax);
 		}
 
 		if (readBlockBuffer && fp) {
 			noteFileIdUse(fp);
-			// If file position requested is not what we expect, seek to requested.
-			if (fp->fPosition != addr) {
-				errCode = f_lseek(&fp->file, addr);
+			// One request carrying the path and the address. The seek is gone: the operation is
+			// offset-addressed, so there is no position to move and nothing held open between blocks.
+			if (!deluge::storage::pathOpPending()) {
+				(void)deluge::storage::pathOpStartBlock(deluge::storage::PathOp::ReadAt, fp->fName.c_str(), addr,
+				                                        nullptr, size);
+				return false;
 			}
-			if (errCode == FRESULT::FR_OK) {
-				errCode = f_read(&fp->file, readBlockBuffer, size, &actuallyRead);
-				size = actuallyRead;
+			uint32_t got = 0;
+			auto outcome = deluge::storage::pathOpCollectBlock(readBlockBuffer, &got);
+			if (!outcome.has_value()) {
+				return false;
+			}
+			deluge::storage::pathOpClear();
+			if (*outcome == deluge::io::Status::OK) {
+				// A SHORT count is end-of-file, not a failure -- the client detects the end that way.
+				size = got;
 				srcAddr = readBlockBuffer;
-				fp->fPosition = addr + actuallyRead;
+				fp->fPosition = addr + got;
 			}
 			else {
-				D_PRINTLN("lseek issue: %d", errCode);
+				size = 0;
 			}
+			errCode = toWireStatus(*outcome);
 		}
 	}
 	else {
@@ -568,7 +739,7 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 	jWriter.writeAttribute("fid", fid);
 	jWriter.writeAttribute("addr", addr);
 	jWriter.writeAttribute("size", size);
-	jWriter.writeAttribute("err", errCode);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 	jWriter.closeTag(true);
 
 	jWriter.writeByte(0); // spacer between Json and encoded block.
@@ -596,9 +767,10 @@ void smSysex::readBlock(MIDICable& cable, JsonDeserializer& reader) {
 		jWriter.writeBlock(working, pktSize + 1);
 	}
 	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t fileId = 0;
 	uint32_t addr = 0;
@@ -626,7 +798,6 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	reader.match('}');
 	reader.match('}'); // skip box too.
 
-	// We should be on the separator character, check to make
 	char aChar;
 	if (reader.peekChar(&aChar) && aChar != 0) {
 		D_PRINTLN("Missing Separater error in writeBlock");
@@ -634,39 +805,47 @@ void smSysex::writeBlock(MIDICable& cable, JsonDeserializer& reader) {
 	uint32_t decodedSize = decodeDataFromReader(reader, writeBlockBuffer, size);
 	D_PRINTLN("Decoded block len: %d", decodedSize);
 
-	// Here is where we actually write the buffer out.
-	FRESULT errCode = FRESULT::FR_OK;
+	FsWireStatus errCode = FsWireStatus::Ok;
 	FILdata* fp = entryForFID(fileId);
 
-	if (fp == nullptr) {
-		errCode = FRESULT::FR_NOT_ENABLED;
+	if (fp == nullptr || !fp->fileOpen) {
+		errCode = FsWireStatus::NotEnabled;
 	}
-	if (writeBlockBuffer && (fp != nullptr)) {
-		if (addr != fp->fPosition) {
-			errCode = f_lseek(&fp->file, addr);
+	if (writeBlockBuffer && (fp != nullptr) && fp->fileOpen) {
+		// One request carrying the path, the address and the decoded bytes. The decode above happens
+		// on every entry, which is why it must stay before this: a resumed handler re-parses and
+		// re-decodes into the same buffer, and the request copies from it.
+		if (!deluge::storage::pathOpPending()) {
+			(void)deluge::storage::pathOpStartBlock(deluge::storage::PathOp::WriteAt, fp->fName.c_str(), addr,
+			                                        writeBlockBuffer, decodedSize);
+			return false;
 		}
-		if (errCode == FRESULT::FR_OK) {
+		auto outcome = deluge::storage::pathOpCollectBlock(nullptr, nullptr);
+		if (!outcome.has_value()) {
+			return false;
+		}
+		const uint32_t written = deluge::storage::pathOpResultValue();
+		deluge::storage::pathOpClear();
+		if (*outcome == deluge::io::Status::OK) {
 			noteFileIdUse(fp);
-			UINT actuallyWritten = 0;
-			errCode = f_write(&fp->file, writeBlockBuffer, decodedSize, &actuallyWritten);
-			size = actuallyWritten;
-			fp->fPosition = addr + actuallyWritten;
+			size = written;
+			fp->fPosition = addr + written;
 		}
+		errCode = toWireStatus(*outcome);
 	}
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^write", false, true);
 	jWriter.writeAttribute("fid", fileId);
 	jWriter.writeAttribute("addr", addr);
 	jWriter.writeAttribute("size", size);
-	jWriter.writeAttribute("err", errCode);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 	jWriter.closeTag(true);
 
 	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
-
-	FRESULT errCode;
+bool smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	char const* tagName;
 	uint32_t date = 0;
 	uint32_t time = 0;
@@ -689,22 +868,30 @@ void smSysex::updateTime(MIDICable& cable, JsonDeserializer& reader) {
 	}
 	reader.match('}');
 
-	if (!path.empty() && (date != 0 || time != 0)) {
-		FILINFO finfo;
-		finfo.fdate = date;
-		finfo.ftime = time;
-		const char* pathVal = path.c_str();
-		const TCHAR* pathTC = (const TCHAR*)pathVal;
-		errCode = f_utime(pathTC, &finfo);
+	FsWireStatus errCode;
+	auto timestamp = timestampFromWireDateTime(date, time);
+	if (!path.empty() && timestamp.has_value()) {
+		if (!deluge::storage::pathOpPending()) {
+			(void)deluge::storage::pathOpStart(deluge::storage::PathOp::SetTime, path.c_str(), nullptr, *timestamp);
+			return false;
+		}
+		auto outcome = deluge::storage::pathOpCollect();
+		if (!outcome.has_value()) {
+			return false;
+		}
+		deluge::storage::pathOpClear();
+		errCode = toWireStatus(*outcome);
 	}
 	else {
-		errCode = FRESULT::FR_INVALID_PARAMETER;
+		// No I/O at all on this path, so nothing to wait for: reply immediately, as before.
+		errCode = FsWireStatus::InvalidParameter;
 	}
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^utime", false, true);
-	jWriter.writeAttribute("err", errCode);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 	jWriter.closeTag(true);
 	sendMsg(cable, jWriter);
+	return true;
 }
 
 // A session ID or sid is a number used by clients to keep track of which messages belong to who.
@@ -771,14 +958,65 @@ void smSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 
 	SysExDataEntry& de = SysExQ.emplace_back(cable, len);
 	memcpy(de.data, data, len);
+	// The job has no gap and no wake: a message sitting in the queue with nobody asking for a run would
+	// never get one.
+	deluge::runtime::appLoop.request(jobId);
+}
+
+// smSysex is a namespace (no instance state), so what little state the pump needs lives at file
+// scope. processFrontSysEx() is the parse+handle+reply body; handleNextSysEx() is the per-tick
+// trigger. processFrontSysEx() returns whether the front entry finished (and was popped), which is
+// what handleNextSysEx() needs to tell "more queued behind the one just answered" apart from "this
+// one is still in flight".
+namespace smSysex {
+bool processFrontSysEx();
 }
 
 void smSysex::handleNextSysEx() {
 
-	if (SysExQ.empty())
+	if (SysExQ.empty()) {
 		return;
-	if (currentlyAccessingCard != 0)
+	}
+	if (deluge::sync::sd_busy()) {
+		// Not refused for good: the back-off is on the card being busy, not on this request, so ask for
+		// another run once that has had a chance to pass.
+		deluge::runtime::appLoop.requestAt(jobId, deluge::runtime::nowUs() + 1000);
 		return;
+	}
+
+	// Called DIRECTLY, on the interaction tier. Parsing and replying touch no card; each path operation
+	// goes through the channel after boot, or runs inline before it -- see `smsysex_pending.h`.
+	//
+	// No single-flight guard is needed: a direct call cannot overlap itself. The pending path operation
+	// is the single-flight state, and the front entry staying unpopped is what makes the next tick resume
+	// the same request rather than start another.
+	//
+	// `sd_busy()` is a back-off while any filesystem operation is in flight anywhere, not what makes this
+	// call safe: neither arm touches FatFS from this stack.
+	const bool done = processFrontSysEx();
+	if (SysExQ.empty()) {
+		// Drained: nothing left to arm a run for.
+		return;
+	}
+	if (done) {
+		// The front entry answered and was popped, and another is waiting behind it: drain it too, one
+		// message per run, rather than making it wait for the next wake.
+		deluge::runtime::appLoop.request(jobId);
+	}
+	else {
+		// The front entry waits on a channel, so it stays queued and is re-parsed on the run the channel's
+		// answer wakes (DELUGE_WAKE_STORAGE). The wait's stall bound is when it gives up if no answer comes.
+		uint64_t deadline = std::min(deluge::storage::pathOpDeadlineUs(), dirOpenWait.deadlineUs());
+		if (deadline == deluge::runtime::kNever) {
+			// Every handler that returns "not done" waits on one of the two above; one that did not would never
+			// run again, so it is polled instead.
+			deadline = deluge::runtime::nowUs() + 1000;
+		}
+		deluge::runtime::appLoop.requestAt(jobId, deadline);
+	}
+}
+
+bool smSysex::processFrontSysEx() {
 
 	SysExDataEntry& de = SysExQ.front();
 
@@ -788,64 +1026,73 @@ void smSysex::handleNextSysEx() {
 	JsonDeserializer parser(de.data + 2, de.len - 2);
 	parser.setReplySeqNum(msgSeqNum);
 
+	// `done` is false only while a handler has a path operation in flight. Every other handler finishes
+	// within its tick.
+	bool done = true;
+
 	parser.match('{');
 	while (*(tagName = parser.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "open")) {
-			openFile(de.cable, parser);
-			goto done;
+			done = openFile(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "close")) {
-			closeFile(de.cable, parser);
-			goto done;
+			done = closeFile(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "dir")) {
-			getDirEntries(de.cable, parser);
-			goto done;
+			done = getDirEntries(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "read")) {
-			readBlock(de.cable, parser);
-			goto done;
+			done = readBlock(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "write")) {
-			writeBlock(de.cable, parser);
-			goto done; // Already skipped end.
+			done = writeBlock(de.cable, parser);
+			goto finished; // Already skipped end.
 		}
 		else if (!strcmp(tagName, "delete")) {
-			deleteFile(de.cable, parser);
-			goto done;
+			done = deleteFile(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "mkdir")) {
-			createDirectory(de.cable, parser);
-			goto done;
+			done = createDirectory(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "rename")) {
-			rename(de.cable, parser);
-			goto done;
+			done = rename(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "copy")) {
-			copyFile(de.cable, parser);
-			goto done;
+			done = copyFile(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "move")) {
-			moveFile(de.cable, parser);
-			goto done;
+			done = moveFile(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "utime")) {
-			updateTime(de.cable, parser);
-			goto done;
+			done = updateTime(de.cable, parser);
+			goto finished;
 		}
 		else if (!strcmp(tagName, "session")) {
 			assignSession(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		else if (!strcmp(tagName, "ping")) {
 			doPing(de.cable, parser);
-			goto done;
+			goto finished;
 		}
 		parser.exitTag();
 	}
-done:
-	SysExQ.pop_front();
+finished:
+	// Popped only when the handler says so. Leaving the entry in place is what makes the next tick
+	// re-enter this same request -- it re-parses the unchanged bytes and finds its pending operation.
+	if (done) {
+		SysExQ.pop_front();
+	}
+	return done;
 }
 
 // Helper function to parse file operation parameters
@@ -871,157 +1118,161 @@ bool smSysex::parseFileOpParams(JsonDeserializer& reader, FileOpParams& params) 
 	}
 	reader.match('}');
 
-	return params.getFromTC() && strlen(params.getFromTC()) && params.getToTC() && strlen(params.getToTC());
+	return !params.fromName.empty() && !params.toName.empty();
 }
 
-// Helper function to set file timestamp
-void smSysex::setFileTimestamp(const TCHAR* path, uint32_t date, uint32_t time) {
-	if (date != 0 || time != 0) {
-		FILINFO finfo;
-		finfo.fdate = date;
-		finfo.ftime = time;
-		f_utime(path, &finfo);
+/// Copy `from` to `to`, and stamp the result if a timestamp was supplied.
+///
+/// Two operations in sequence, so callers drive it with `pathOpStage`. `PathOp::Copy` is one request,
+/// and the read/write loop runs in Rust; the copy creates its destination's parent itself, so no
+/// separate retry for a missing path is needed.
+///
+/// @return true when finished, with `*outCode` set; false while an operation is still in flight.
+bool smSysex::performFileCopy(const FileOpParams& params, FsWireStatus* outCode) {
+	if (!deluge::storage::pathOpPending()) {
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Copy, params.getFromPath(), params.getToPath(), {});
+		deluge::storage::pathOpSetStage(0);
+		return false;
 	}
-}
-
-// Helper function to perform file copy operation
-FRESULT smSysex::performFileCopy(const FileOpParams& params) {
-	FRESULT errCode = FRESULT::FR_OK;
-	const TCHAR* fromTC = params.getFromTC();
-	const TCHAR* toTC = params.getToTC();
-
-	D_PRINTLN(fromTC);
-	D_PRINTLN(toTC);
-
-	// Create destination directory if needed
-	bool pathCreateTried = false;
-retry_copy:
-	// Open source file for reading
-	FIL srcFile, dstFile;
-	errCode = f_open(&srcFile, fromTC, FA_READ);
-	if (errCode == FRESULT::FR_OK) {
-		// Open destination file for writing
-		errCode = f_open(&dstFile, toTC, FA_WRITE | FA_CREATE_ALWAYS);
-		if (errCode == FRESULT::FR_NO_PATH && !pathCreateTried) {
-			// Try to create the destination directory
-			// Don't set timestamps on directories - let them use current time
-			std::string toNameCopy = params.toName;
-			createPathDirectories(toNameCopy, 0, 0);
-			pathCreateTried = true;
-			f_close(&srcFile);
-			goto retry_copy;
-		}
-
-		if (errCode == FRESULT::FR_OK) {
-			// Copy file contents
-			uint8_t* copyBuffer = nullptr;
-			if (!readBlockBuffer) {
-				readBlockBuffer = (uint8_t*)deluge::memory::alloc_sdram(blockBufferMax);
-			}
-			copyBuffer = readBlockBuffer;
-
-			if (copyBuffer) {
-				UINT bytesRead, bytesWritten;
-				do {
-					errCode = f_read(&srcFile, copyBuffer, blockBufferMax, &bytesRead);
-					if (errCode == FRESULT::FR_OK && bytesRead > 0) {
-						errCode = f_write(&dstFile, copyBuffer, bytesRead, &bytesWritten);
-						if (errCode != FRESULT::FR_OK || bytesWritten != bytesRead) {
-							break;
-						}
-					}
-				} while (errCode == FRESULT::FR_OK && bytesRead == blockBufferMax);
-			}
-			else {
-				errCode = FRESULT::FR_NOT_ENOUGH_CORE;
-			}
-
-			f_close(&dstFile);
-
-			// Set timestamp if provided and copy was successful
-			if (errCode == FRESULT::FR_OK && params.hasTimestamp()) {
-				setFileTimestamp(toTC, params.date, params.time);
-			}
-		}
-		f_close(&srcFile);
+	auto outcome = deluge::storage::pathOpCollect();
+	if (!outcome.has_value()) {
+		return false;
 	}
+	const uint8_t stage = deluge::storage::pathOpStage();
+	deluge::storage::pathOpClear();
 
-	return errCode;
+	if (stage == 0 && *outcome == deluge::io::Status::OK && params.hasTimestamp()) {
+		auto timestamp = timestampFromWireDateTime(params.date, params.time);
+		if (timestamp.has_value()) {
+			(void)deluge::storage::pathOpStart(deluge::storage::PathOp::SetTime, params.getToPath(), nullptr,
+			                                   *timestamp);
+			deluge::storage::pathOpSetStage(1);
+			return false;
+		}
+	}
+	*outCode = toWireStatus(*outcome);
+	return true;
 }
 
-void smSysex::copyFile(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::copyFile(MIDICable& cable, JsonDeserializer& reader) {
 	FileOpParams params;
 
 	if (!parseFileOpParams(reader, params)) {
-		return;
+		return true;
 	}
 
-	FRESULT errCode = performFileCopy(params);
+	FsWireStatus errCode = FsWireStatus::Ok;
+	if (!performFileCopy(params, &errCode)) {
+		return false;
+	}
 
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^copy", false, true);
 	jWriter.writeAttribute("from", params.getFromPath());
 	jWriter.writeAttribute("to", params.getToPath());
-	jWriter.writeAttribute("err", errCode);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 	jWriter.closeTag(true);
 	sendMsg(cable, jWriter);
+	return true;
 }
 
-void smSysex::moveFile(MIDICable& cable, JsonDeserializer& reader) {
+bool smSysex::moveFile(MIDICable& cable, JsonDeserializer& reader) {
 	FileOpParams params;
 
 	if (!parseFileOpParams(reader, params)) {
-		return;
+		return true;
 	}
 
-	FRESULT errCode = FRESULT::FR_OK;
-	const TCHAR* fromTC = params.getFromTC();
-	const TCHAR* toTC = params.getToTC();
+	D_PRINTLN(params.fromName.c_str());
+	D_PRINTLN(params.toName.c_str());
 
-	D_PRINTLN(fromTC);
-	D_PRINTLN(toTC);
+	// A sequence, so it uses the stage the way createDirectory does:
+	//   0  rename, which works when source and destination share a filesystem
+	//   1  the rename's timestamp, when one was supplied
+	//   2  the copy fallback, for a rename that could not be done
+	//   3  the copy's source unlink -- a move is only done when the source is gone
+	//   4  cleaning up the destination when that unlink failed, so a failed move leaves nothing behind
+	static FsWireStatus errCode = FsWireStatus::Ok;
+	static FsWireStatus deleteResult = FsWireStatus::Ok;
 
-	// Try rename first (works if source and destination are on same filesystem)
-	errCode = f_rename(fromTC, toTC);
-
-	// If rename failed due to missing path, try creating directories
-	if (errCode == FRESULT::FR_NO_PATH) {
-		// Don't set timestamps on directories - let them use current time
-		std::string toNameCopy = params.toName;
-		createPathDirectories(toNameCopy, 0, 0);
-		errCode = f_rename(fromTC, toTC);
+	if (!deluge::storage::pathOpPending()) {
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Rename, params.getFromPath(), params.getToPath(),
+		                                   {});
+		deluge::storage::pathOpSetStage(0);
+		return false;
 	}
+	auto outcome = deluge::storage::pathOpCollect();
+	if (!outcome.has_value()) {
+		return false;
+	}
+	const uint8_t stage = deluge::storage::pathOpStage();
+	deluge::storage::pathOpClear();
 
-	// If rename still fails (e.g., cross-filesystem move), fall back to copy+delete
-	if (errCode != FRESULT::FR_OK) {
-		// Use the shared copy function
-		errCode = performFileCopy(params);
-
-		// If copy was successful, delete the source file
-		if (errCode == FRESULT::FR_OK) {
-			FRESULT deleteResult = f_unlink(fromTC);
-
-			// For move operation, both copy and delete must succeed
-			if (deleteResult != FRESULT::FR_OK) {
-				D_PRINTLN("Move: copy succeeded but delete failed: %d", deleteResult);
-				// Clean up the destination file since move failed
-				f_unlink(toTC);
-				errCode = deleteResult;
+	switch (stage) {
+	case 0:
+		errCode = toWireStatus(*outcome);
+		if (*outcome == deluge::io::Status::OK) {
+			// Rename was successful, set timestamp if provided
+			if (params.hasTimestamp()) {
+				auto timestamp = timestampFromWireDateTime(params.date, params.time);
+				if (timestamp.has_value()) {
+					(void)deluge::storage::pathOpStart(deluge::storage::PathOp::SetTime, params.getToPath(), nullptr,
+					                                   *timestamp);
+					deluge::storage::pathOpSetStage(1);
+					return false;
+				}
 			}
+			break; // renamed, nothing further
 		}
-	}
-	else {
-		// Rename was successful, set timestamp if provided
-		if (params.hasTimestamp()) {
-			setFileTimestamp(toTC, params.date, params.time);
+		// The rename could not be done -- across filesystems, or with the destination's path missing.
+		// Fall back to copy-then-delete. The copy creates the destination's parent itself, so no
+		// separate retry is needed.
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Copy, params.getFromPath(), params.getToPath(), {});
+		deluge::storage::pathOpSetStage(2);
+		return false;
+
+	case 1:
+		// The rename's timestamp; its failure does not unmake the move.
+		break;
+
+	case 2:
+		errCode = toWireStatus(*outcome);
+		if (*outcome != deluge::io::Status::OK) {
+			break; // the copy failed; nothing to clean up, since the destination was never written
 		}
+		// If copy was successful, delete the source file
+		(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Unlink, params.getFromPath(), nullptr, {});
+		deluge::storage::pathOpSetStage(3);
+		return false;
+
+	case 3:
+		// For move operation, both copy and delete must succeed
+		if (*outcome != deluge::io::Status::OK) {
+			deleteResult = toWireStatus(*outcome);
+			D_PRINTLN("Move: copy succeeded but delete failed: %d", static_cast<uint8_t>(deleteResult));
+			// Clean up the destination file since move failed
+			(void)deluge::storage::pathOpStart(deluge::storage::PathOp::Unlink, params.getToPath(), nullptr, {});
+			deluge::storage::pathOpSetStage(4);
+			return false;
+		}
+		break;
+
+	case 4:
+		// The cleanup's own outcome is deliberately discarded; `errCode` reports the DELETE that
+		// failed.
+		errCode = deleteResult;
+		break;
+
+	default:
+		break;
 	}
 
 	startReply(jWriter, reader);
 	jWriter.writeOpeningTag("^move", false, true);
 	jWriter.writeAttribute("from", params.getFromPath());
 	jWriter.writeAttribute("to", params.getToPath());
-	jWriter.writeAttribute("err", errCode);
+	jWriter.writeAttribute("err", static_cast<uint8_t>(errCode));
 	jWriter.closeTag(true);
 	sendMsg(cable, jWriter);
+	return true;
 }

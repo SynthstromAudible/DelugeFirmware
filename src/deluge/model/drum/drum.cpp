@@ -28,6 +28,7 @@
 #include "model/note/note_row.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
+#include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
@@ -177,4 +178,9 @@ justSend:
 	}
 
 	expressionValueChangesMustBeDoneSmoothly = false;
+}
+
+void Drum::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
+	(void)walkSampleDemands(load);
 }

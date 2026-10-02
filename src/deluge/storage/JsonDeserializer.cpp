@@ -15,37 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+// A tokenizer, and nothing more: it knows tags, attributes and bytes. The object model (Song, Kit,
+// Sound, the drums, the clips) is the business of whoever reads THROUGH this, never of the reader
+// itself -- which is what lets a host test link the parser without linking the instrument model
+// behind it.
 #include "definitions_cxx.hpp"
-#include "fatfs/fatfs.hpp"
-#include "gui/ui/sound_editor.h"
-#include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
-#include "model/clip/instrument_clip.h"
-#include "model/drum/gate_drum.h"
-#include "model/drum/midi_drum.h"
-#include "model/instrument/cv_instrument.h"
-#include "model/instrument/kit.h"
-#include "model/instrument/midi_instrument.h"
-#include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
-#include "modulation/midi/midi_param_collection.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
+#include "util/c_string.h"
 #include "util/firmware_version.h"
-#include "util/functions.h"
-#include "util/try.h"
-#include "version.h"
 #include <string.h>
-
-extern "C" {
-#include "fatfs/diskio.h"
-#include "fatfs/ff.h"
-}
 
 /*******************************************************************************
 
@@ -138,7 +120,6 @@ char const* JsonDeserializer::readQuotedString() {
 	}
 
 getOut:
-	readDone();
 	stringBuffer[charPos] = 0;
 	return stringBuffer;
 }
@@ -233,8 +214,6 @@ void JsonDeserializer::skipUntilChar(char endChar) {
 	} while (fileReadBufferCurrentPos == currentReadBufferEndPos && readFileClusterIfNecessary());
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
-
-	readDone();
 }
 
 // A non-destructive (to the fileClusterBuffer contents) routine to read into a std::string object.
@@ -264,7 +243,6 @@ Error JsonDeserializer::readStringUntilChar(std::string& string, char endChar) {
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
 
-	readDone();
 	readState = JsonState::ValueRead;
 	return Error::NONE;
 }
@@ -304,8 +282,6 @@ char const* JsonDeserializer::readUntilChar(char endChar) {
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
 
-	readDone();
-
 	stringBuffer[charPos] = 0;
 	return stringBuffer;
 }
@@ -334,7 +310,6 @@ char const* JsonDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChar
 		// If we were able to just read the whole thing in one go, just return a pointer to the chars within the
 		// existing buffer
 		if (numCharsHere == numChars) {
-			readDone();
 			readState = JsonState::ValueRead;
 			return &fileClusterBuffer[bufferPosAtStart];
 		}
@@ -347,7 +322,6 @@ char const* JsonDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChar
 
 			// And if we've now got all the chars we needed, return
 			if (charPos == numChars) {
-				readDone();
 				readState = JsonState::ValueRead;
 				return stringBuffer;
 			}
@@ -536,7 +510,7 @@ void JsonDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 	// matching closing character. This can involve counting open and close characters until
 	// we get a match.
 	D_PRINTLN("Unread value detected");
-	readState == JsonState::ValueRead; // declare victory prematurely.
+	readState = JsonState::ValueRead; // declare victory prematurely.
 	skipWhiteSpace();
 	char leadingChar, trailingChar, currentChar, balanceCtr = 1;
 	readChar(&leadingChar);
@@ -566,8 +540,7 @@ void JsonDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 	}
 }
 
-Error JsonDeserializer::openJsonFile(FilePointer* filePointer, char const* firstTagName, char const* altTagName,
-                                     bool ignoreIncorrectFirmware) {
+Error JsonDeserializer::openJsonFile(char const* firstTagName, char const* altTagName, bool ignoreIncorrectFirmware) {
 
 	AudioEngine::logAction("openJsonFile");
 

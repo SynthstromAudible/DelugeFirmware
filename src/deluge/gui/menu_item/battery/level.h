@@ -16,10 +16,10 @@
  */
 #pragma once
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
 #include "model/settings/runtime_feature_settings.h"
 #include <cstdio>
 // External battery voltage variable from deluge.cpp
@@ -30,7 +30,7 @@ class Level final : public MenuItem {
 public:
 	using MenuItem::MenuItem;
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShowBatteryLevel);
 	}
 	void drawPixelsForOled() override {
@@ -45,15 +45,9 @@ public:
 		lastBatteryMV = batteryMV;
 		voltageCheckCounter = 0;
 
-		drawValue();
+		renderUIsForOled();
 		// Start the timer for updates
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
-	}
-
-	void drawValue() {
-		char buffer[50];
-		getBatteryString(buffer);
-		display->setScrollingText(buffer);
 	}
 
 	ActionResult timerCallback() override {
@@ -68,7 +62,7 @@ public:
 			voltageCheckCounter = 0;
 		}
 
-		drawValue();
+		renderUIsForOled();
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 		return ActionResult::DEALT_WITH;
 	}

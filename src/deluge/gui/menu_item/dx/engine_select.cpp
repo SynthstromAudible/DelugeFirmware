@@ -37,7 +37,7 @@ void DxEngineSelect::beginSession(MenuItem* navigatedBackwardFrom) {
 void DxEngineSelect::readValueAgain() {
 	patch = soundEditor.currentSource->ensureDxPatch();
 	currentValue = patch->engineMode;
-	drawValue();
+	renderUIsForOled();
 }
 
 constexpr int numValues = 3;
@@ -47,37 +47,17 @@ void DxEngineSelect::drawPixelsForOled() {
 	drawItemsForOled(itemNames, currentValue, 0);
 }
 
-void DxEngineSelect::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		static const char* items[] = {"AUTO", "MODR", "VINT"};
-		display->setScrollingText(items[currentValue]);
-	}
-}
-
 void DxEngineSelect::selectEncoderAction(int32_t offset) {
 	int32_t newValue = currentValue + offset;
 
-	if (display->haveOLED()) {
-		if (newValue >= numValues || newValue < 0) {
-			return;
-		}
-	}
-	else {
-		if (newValue >= numValues) {
-			newValue %= numValues;
-		}
-		else if (newValue < 0) {
-			newValue = (newValue % numValues + numValues) % numValues;
-		}
+	if (newValue >= numValues || newValue < 0) {
+		return;
 	}
 
 	patch->setEngineMode(newValue);
 	soundEditor.currentSource->seedDocDxPatch(); // M3 owner-5: reflect the engine-mode change into the DOM record
 	currentValue = newValue;
-	drawValue();
+	renderUIsForOled();
 }
 
 MenuItem* DxEngineSelect::selectButtonPress() {

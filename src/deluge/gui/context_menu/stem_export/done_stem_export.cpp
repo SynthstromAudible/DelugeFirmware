@@ -20,10 +20,6 @@
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
 
-extern "C" {
-#include "fatfs/ff.h"
-}
-
 namespace deluge::gui::context_menu {
 
 DoneStemExport doneStemExport{};
@@ -36,14 +32,8 @@ char const* DoneStemExport::getTitle() {
 std::span<char const*> DoneStemExport::getOptions() {
 	using enum l10n::String;
 
-	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
-		return {options, 1};
-	}
-	else {
-		static char const* options[] = {l10n::get(STRING_FOR_DONE_EXPORT_STEMS)};
-		return {options, 1};
-	}
+	static char const* options[] = {l10n::get(STRING_FOR_OK)};
+	return {options, 1};
 }
 
 bool DoneStemExport::acceptCurrentOption() {

@@ -35,11 +35,10 @@ public:
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	bool setupScroll(uint32_t oldScroll) override;
-	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
 	[[nodiscard]] bool supportsTriplets() const override { return false; }
 	ClipMinder* toClipMinder() override { return this; }
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	void graphicsRoutine() override;
@@ -52,7 +51,7 @@ public:
 	void adjustLoopLength(int32_t newLength);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult editClipLengthWithoutTimestretching(int32_t offset);
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	ActionResult timerCallback() override;
 	uint32_t getMaxLength() override;
 	uint32_t getMaxZoom() override;

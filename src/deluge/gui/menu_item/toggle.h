@@ -11,7 +11,6 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
 	void selectEncoderAction(int32_t offset) override;
 
-	virtual void drawValue();
 	void drawPixelsForOled();
 	void displayToggleValue();
 	void renderInHorizontalMenu(const SlotPosition& slot) override;

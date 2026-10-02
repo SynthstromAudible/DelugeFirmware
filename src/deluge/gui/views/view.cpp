@@ -92,6 +92,8 @@
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include "util/functions.h"
+#include "util/lookuptables/preset_tables.h"
 #include <iterator>
 
 namespace params = deluge::modulation::params;
@@ -142,7 +144,7 @@ void View::focusRegained() {
 
 extern GlobalMIDICommand pendingGlobalMIDICommandNumClustersWritten;
 
-ActionResult View::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult View::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	GlobalMIDICommand newGlobalMidiCommand;
@@ -152,9 +154,6 @@ ActionResult View::buttonAction(deluge::hid::Button b, bool on, bool inCardRouti
 	if (b == TAP_TEMPO) {
 
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			if (on) {
 				deleteMidiCommandOnRelease = true;
 				endMidiLearnPressSession(MidiLearn::TAP_TEMPO_BUTTON);
@@ -189,10 +188,6 @@ doEndMidiLearnPressSession:
 
 	// MIDI learn button
 	else if (b == LEARN) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		if (on) {
 			startMIDILearn();
 		}
@@ -203,10 +198,6 @@ doEndMidiLearnPressSession:
 
 	// Play button for MIDI learn
 	else if (b == PLAY && currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		if (on) {
 			deleteMidiCommandOnRelease = true;
 			endMidiLearnPressSession(MidiLearn::PLAY_BUTTON);
@@ -219,10 +210,6 @@ doEndMidiLearnPressSession:
 
 	// Record button for MIDI learn
 	else if (b == RECORD && currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		if (on) {
 			deleteMidiCommandOnRelease = true;
 			endMidiLearnPressSession(MidiLearn::RECORD_BUTTON);
@@ -252,10 +239,6 @@ doEndMidiLearnPressSession:
 			// Press release
 			else {
 				if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON) {
-					if (inCardRoutine) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
-
 					currentUIMode = UI_MODE_NONE;
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
@@ -290,9 +273,6 @@ doEndMidiLearnPressSession:
 				if (currentUIMode == UI_MODE_NONE) {
 
 					if (Buttons::isShiftButtonPressed()) {
-						if (inCardRoutine) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-						}
 						bool available = context_menu::clearSong.setupAndCheckAvailability();
 						if (available) {
 							openUI(&context_menu::clearSong);
@@ -310,9 +290,6 @@ doEndMidiLearnPressSession:
 			// Press release
 			else {
 				if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON) {
-					if (inCardRoutine) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
 					currentUIMode = UI_MODE_NONE;
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
@@ -368,10 +345,6 @@ doEndMidiLearnPressSession:
 cant:
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
-			}
-
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			// If no scaling currently, start it, if we're on a Clip-minder screen
@@ -460,11 +433,6 @@ possiblyRevert:
 				return ActionResult::DEALT_WITH;
 			}
 
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
-			display->setNextTransitionDirection(1);
 			soundEditor.setup();
 			openUI(&soundEditor);
 		}
@@ -890,8 +858,8 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		}
 	}
 
-	// let's see if we're browsing for a song
-	bool inSongBrowser = getCurrentUI() == &loadSongUI;
+	// Browsing for a song, or a song load in flight (which has taken every UI down): its popup stays up.
+	bool inSongBrowser = loadSongUI.isLoadingSong();
 
 	if (!editingParamInPerformanceView && !editingParamInMenu && !inSongBrowser) {
 		PatchSource source1 = PatchSource::NONE;
@@ -1039,33 +1007,27 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 
 			etl::string<30> paramDisplayName;
 			if (source2 == PatchSource::NONE) {
-				paramDisplayName.append(getSourceDisplayNameForOLED(source1));
+				paramDisplayName.append(getSourceDisplayName(source1));
 			}
 			else {
 				paramDisplayName.append(sourceToStringShort(source1));
 			}
-			if (display->haveOLED()) {
-				paramDisplayName.append(" -> ");
-			}
-			else {
-				paramDisplayName.append(" - ");
-			}
+			paramDisplayName.append(" -> ");
 
 			if (source2 != PatchSource::NONE) {
 				paramDisplayName.append(sourceToStringShort(source2));
-				if (display->haveOLED()) {
-					paramDisplayName.append(" -> ");
-				}
-				else {
-					paramDisplayName.append(" - ");
-				}
+				paramDisplayName.append(" -> ");
 			}
 
-			paramDisplayName.append(modulation::params::getPatchedParamShortName(modelStackWithParam->paramId));
+			paramDisplayName.append(modulation::params::getPatchedParamShortName(
+			    modelStackWithParam->paramId, (ModControllableAudio*)activeModControllableModelStack.modControllable));
 			strncpy(parameterName, paramDisplayName.c_str(), 29);
 		}
 		else {
-			strncpy(parameterName, getParamDisplayName(kind, modelStackWithParam->paramId), 29);
+			strncpy(parameterName,
+			        getParamDisplayName(kind, modelStackWithParam->paramId,
+			                            (ModControllableAudio*)activeModControllableModelStack.modControllable),
+			        29);
 		}
 	}
 }
@@ -1126,7 +1088,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	etl::string<40> parameter_value;
 
 	// On OLED, display the name of the parameter on the first line of the popup
-	if (display->haveOLED()) {
+	{
 		if (kind == params::Kind::PATCH_CABLE) {
 			parameter_name.append(sourceToStringShort(source1));
 			parameter_name.append("->");
@@ -1134,7 +1096,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 				parameter_name.append(sourceToStringShort(source2));
 				parameter_name.append("->");
 			}
-			parameter_name.append(modulation::params::getPatchedParamShortName(paramID));
+			parameter_name.append(modulation::params::getPatchedParamShortName(
+			    paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 		else if (isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT) {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
@@ -1162,7 +1125,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 		}
 		else {
-			const char* name = getParamDisplayName(kind, paramID);
+			const char* name = getParamDisplayName(
+			    kind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 				parameter_name.append(name);
 			}
@@ -1200,15 +1164,10 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	// if turning arpeggiator rhythm mod encoder
 	else if (isParamArpRhythm(kind, paramID)) {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
-		if (display->haveOLED()) {
-			char name[12];
-			// Index: Name
-			snprintf(name, sizeof(name), "%d: %s", current_display_value, arpRhythmPatternNames[current_display_value]);
-			parameter_value.append(name);
-		}
-		else {
-			parameter_value.append(arpRhythmPatternNames[current_display_value]);
-		}
+		char name[12];
+		// Index: Name
+		snprintf(name, sizeof(name), "%d: %s", current_display_value, arpRhythmPatternNames[current_display_value]);
+		parameter_value.append(name);
 	}
 	else {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
@@ -1216,7 +1175,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	}
 
 	// Check if we need to update the notification (avoid excessive updates)
-	if (display->haveOLED()) {
+	{
 
 		// Check if notification popup is active and if the parameter info has changed
 		bool has_param_info_changed = true;
@@ -1261,7 +1220,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 
 		// Only update notification if parameter info has changed AND we can take display ownership AND enough time has
-		// elapsed
+		// elapsed.
 		if (has_param_info_changed && can_take_display_ownership && has_min_time_elapsed) {
 			display->displayNotification(parameter_name.c_str(), parameter_value.c_str());
 
@@ -1283,6 +1242,22 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 			last_display_update_time = current_time;
 			last_actual_display_time = current_time; // Track when we actually updated the display
+			hasPendingModEncoderValuePopup = false;
+			uiTimerManager.unsetTimer(TimerName::MOD_ENCODER_POPUP_FLUSH);
+		}
+		else if (has_param_info_changed && can_take_display_ownership && !has_min_time_elapsed) {
+			// We have a newer value but we're still inside the rate-limit window.
+			// Queue this exact popup payload so the timer callback can display it as soon as throttling allows.
+			hasPendingModEncoderValuePopup = true;
+			pendingPopupKind = kind;
+			pendingPopupParamID = paramID;
+			pendingPopupKnobPos = newKnobPos;
+			pendingPopupSource1 = source1;
+			pendingPopupSource2 = source2;
+
+			uint32_t time_since_last_actual_display = current_time - last_actual_display_time;
+			uint32_t samples_until_flush = MIN_UPDATE_INTERVAL - time_since_last_actual_display;
+			uiTimerManager.setTimerSamples(TimerName::MOD_ENCODER_POPUP_FLUSH, samples_until_flush);
 		}
 		// Even if no display update needed, refresh timer if same parameter is being adjusted
 		else if (current_param_owns_display && display->hasPopupOfType(PopupType::NOTIFICATION)) {
@@ -1290,9 +1265,17 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			last_display_update_time = current_time;
 		}
 	}
-	else {
-		display->displayPopup(parameter_value.c_str());
+}
+
+void View::flushPendingModEncoderValuePopup() {
+	// Timer callback for deferred popup delivery: if the latest value was throttled,
+	// replay it once the minimum update interval has elapsed.
+	if (!hasPendingModEncoderValuePopup) {
+		return;
 	}
+
+	displayModEncoderValuePopup(pendingPopupKind, pendingPopupParamID, pendingPopupKnobPos, pendingPopupSource1,
+	                            pendingPopupSource2);
 }
 
 // convert deluge internal knobPos range to same range as used by menu's.
@@ -1331,11 +1314,6 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they
 	// can't
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (display->have7SEG()) {
-			if (on) {
-				display->displayPopup("CANT");
-			}
-		}
 		return;
 	}
 
@@ -1726,22 +1704,18 @@ void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool update
 }
 
 void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, int32_t knobPos, bool isAutomation) {
-	MIDIFollowChannelType feedbackChannelType = midiFollow.getChannelTypeForFeedback();
-	if (feedbackChannelType != MIDIFollowChannelType::NONE) {
-		int32_t channel = midiEngine.midiFollowChannelType[util::to_underlying(feedbackChannelType)].channelOrZone;
-		if (channel != MIDI_CHANNEL_NONE) {
-			// check if we're dealing with a clip context param (don't send feedback for song params)
-			if (isClipContext()) {
-				if (modelStackWithParam && modelStackWithParam->autoParam) {
-					params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-					int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-					if (ccNumber != MIDI_CC_NONE) {
-						midiFollow.sendCCForMidiFollowFeedback(channel, ccNumber, knobPos);
-					}
+	if (midiFollow.isFeedbackEnabled()) {
+		// check if we're dealing with a clip context param (don't send feedback for song params)
+		if (isClipContext()) {
+			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
+				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
+				if (ccNumber != MIDI_CC_NONE) {
+					midiFollow.sendCCForMidiFollowFeedback(ccNumber, knobPos);
 				}
-				else {
-					midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(channel, isAutomation);
-				}
+			}
+			else {
+				midiFollow.sendCCWithoutModelStackForMidiFollowFeedback(isAutomation);
 			}
 		}
 	}
@@ -1939,6 +1913,12 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 	sendMidiFollowFeedback();
 }
 
+void View::releaseActiveModControllable() {
+	activeModControllableModelStack.modControllable = nullptr;
+	activeModControllableModelStack.setTimelineCounter(nullptr);
+	activeModControllableModelStack.paramManager = nullptr;
+}
+
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 
 	modPos = pos;
@@ -2100,7 +2080,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 	// hook to render display for OLED and 7SEG when in Automation View
 	if (getCurrentUI() == &automationView && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		if (automationView.inAutomationEditor()) {
-			automationView.displayAutomation(true, !display->have7SEG());
+			automationView.displayAutomation(true, true);
 		}
 		else {
 			automationView.renderDisplay();
@@ -2108,7 +2088,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		return;
 	}
 
-	if (display->haveOLED()) {
+	{
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		hid::display::OLED::clearMainImage();
 
@@ -2126,7 +2106,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 	char const* nameToDraw = nullptr;
 
 	if (!isNameEmpty) {
-		if (display->haveOLED()) {
+		{
 			nameToDraw = name;
 oledDrawString:
 			deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
@@ -2167,48 +2147,9 @@ oledDrawString:
 				                                              false);
 			}
 		}
-		else {
-			bool andAHalf;
-			if (display->getEncodedPosFromLeft(99999, name, &andAHalf) > kNumericDisplayLength) { // doBlink &&
-				display->setScrollingText(name, 0, kInitialFlashTime + kFlashTime);
-			}
-			else {
-				// If numeric-looking, we might want to align right.
-				bool alignRight = false;
-				uint8_t dotPos = 255;
-
-				char const* charPos = name;
-				if (*charPos == '0') { // If first digit is 0, then no more digits allowed.
-					charPos++;
-				}
-				else { // Otherwise, up to 3 digits allowed.
-					while (*charPos >= '0' && *charPos <= '9' && charPos < (name + 3)) {
-						charPos++;
-					}
-				}
-
-				if (charPos != name) { // We are required to have found at least 1 digit.
-					if (*charPos == 0) {
-yesAlignRight:
-						alignRight = true;
-						if (!editedByUser) {
-							dotPos = 3;
-						}
-					}
-					else if ((*charPos >= 'a' && *charPos <= 'z') || (*charPos >= 'A' && *charPos <= 'Z')) {
-						charPos++;
-						if (*charPos == 0) {
-							goto yesAlignRight;
-						}
-					}
-				}
-
-				display->setText(name, alignRight, dotPos, doBlink);
-			}
-		}
 	}
 	else if (outputType == OutputType::MIDI_OUT) {
-		if (display->haveOLED()) {
+		{
 			if (channel < 16) {
 				slotToString(channel + 1, channelSuffix, buffer, 1);
 				goto oledOutputBuffer;
@@ -2222,21 +2163,9 @@ yesAlignRight:
 				goto oledDrawString;
 			}
 		}
-		else {
-			if (channel < 16) {
-				display->setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
-			}
-			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-				char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-				display->setText(text, false, 255, doBlink);
-			}
-			else {
-				display->setText("Transpose", false, 255, doBlink);
-			}
-		}
 	}
 	else if (outputType == OutputType::CV) {
-		if (display->haveOLED()) {
+		{
 			if (channel < both) {
 				intToString(channel + 1, buffer);
 			}
@@ -2246,14 +2175,6 @@ yesAlignRight:
 oledOutputBuffer:
 			nameToDraw = buffer;
 			goto oledDrawString;
-		}
-		else {
-			if (channel < both) {
-				display->setTextAsNumber(channel + 1, 255, doBlink);
-			}
-			else {
-				display->setText("Both");
-			}
 		}
 	}
 }
@@ -2307,8 +2228,6 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		return;
 	}
 
-	int32_t oldSubMode = currentUIMode; // We may have been holding down a clip in Session View
-
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
@@ -2316,6 +2235,36 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 	OutputType outputType = clip->output->type;
 
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E057", "H057");
+
+	// MIDI/CV read no card -- run them inline so this stays fully synchronous for
+	// those types. Only Synth/Kit reaches the directory.
+	if (outputType == OutputType::MIDI_OUT || outputType == OutputType::CV) {
+		completeNavigateThroughPresetsForInstrumentClip(offset, clip, doBlink);
+		return;
+	}
+
+	deluge::storage::PresetRequest request{
+	    .consumer = deluge::storage::PresetConsumer::ViewNavigateClipPreset,
+	    .outputType = outputType,
+	    .offset = offset,
+	    .doBlink = doBlink,
+	    .dirPath = ((Instrument*)clip->output)->dirPath,
+	    .oldInstrument = (Instrument*)clip->output,
+	    .clip = clip,
+	};
+	// A dropped gesture leaves the clip on the preset it already had; nothing to undo, and the next
+	// encoder tick dispatches again. See dispatchPresetAcquisition()'s doc.
+	(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed, with `acquired` set;
+// MIDI/CV are called inline with it null.
+void View::completeNavigateThroughPresetsForInstrumentClip(int32_t offset, InstrumentClip* clip, bool doBlink,
+                                                           const deluge::storage::AcquireResult* acquired) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+
+	OutputType outputType = clip->output->type;
 
 	// Work out availabilityRequirement. This can't change as presets are navigated through... I don't think?
 	Availability availabilityRequirement;
@@ -2341,8 +2290,15 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 		// CV
 		if (outputType == OutputType::CV) {
 			while (true) {
+				auto oldChannel = newChannel;
 				newChannel = CVInstrument::navigateChannels(newChannel, offset);
-
+				int channelToSearch = newChannel;
+				if (newChannel == CVInstrumentMode::both) {
+					// in this case we just need to make sure the one were not about to give up is free
+					// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
+					// change and this doesn't matter much
+					channelToSearch = oldNonAudioInstrument->getChannel() == 0 ? 1 : 0;
+				}
 				if (newChannel == oldNonAudioInstrument->getChannel()) {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS));
 					return;
@@ -2351,21 +2307,21 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 				if (availabilityRequirement == Availability::ANY) {
 					break;
 				}
+				// check if we can move this clip to another instrument that has a vacant spot in this section
 				else if (availabilityRequirement == Availability::INSTRUMENT_AVAILABLE_IN_SESSION) {
-					int channelToSearch = newChannel;
-					if (newChannel == CVInstrumentMode::both) {
-						// in this case we just need to make sure the one were not about to give up is free
-						// there probably should be a gatekeeper managing the cv/gate resources but that's a lot to
-						// change and this doesn't matter much
-						channelToSearch = oldNonAudioInstrument->getChannel() == 0 ? 1 : 0;
-					}
 					if (!modelStack->song->doesNonAudioSlotHaveActiveClipInSession(outputType, channelToSearch)) {
 						break;
 					}
 				}
+				// or if we want to move the whole instrument over
 				else if (availabilityRequirement == Availability::INSTRUMENT_UNUSED) {
-					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, newChannel, -1, nullptr, nullptr,
-					                                                   false)) {
+					if (oldChannel == both && oldInstrumentCanBeReplaced) {
+						// both blocks 1 and 2 but we're about to give one up, so that means it's available
+						break;
+					}
+					// in this case we're replacing the whole instrument so same logic applies as above,
+					if (!modelStack->song->getInstrumentFromPresetSlot(outputType, channelToSearch, -1, nullptr,
+					                                                   nullptr, false)) {
 						break;
 					}
 				}
@@ -2538,21 +2494,25 @@ gotAnInstrument:
 	// Or if we're on a Kit or Synth...
 	else {
 
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, availabilityRequirement, false);
-		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
+		// Acquired by InstrumentLoad: walked and loaded on this tier.
+		if (acquired == nullptr) {
+			return;
+		}
+		if (acquired->error == Error::NO_ERROR_BUT_GET_OUT) {
 getOut:
 			display->removeWorkingAnimation();
 			return;
 		}
-		if (results.error != Error::NONE) {
-			display->displayError(results.error);
+		if (acquired->error != Error::NONE) {
+			display->displayError(acquired->error);
 			goto getOut;
 		}
 
-		newInstrument = results.fileItem->instrument;
-		bool instrumentAlreadyInSong = results.fileItem->instrumentAlreadyInSong;
-		Browser::emptyFileItems();
+		newInstrument = acquired->instrument;
+		bool instrumentAlreadyInSong = acquired->alreadyInSong;
+		if (acquired->wasHibernating) {
+			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
+		}
 
 		// For Kits, ensure that every SoundDrum has a ParamManager somewhere
 #if ALPHA_OR_BETA_VERSION
@@ -2566,7 +2526,7 @@ getOut:
 						if (!modelStack->song->findParamManagerForDrum(
 						        kit, soundDrum)) { // If no ParamManager with a NoteRow somewhere...
 
-							if (results.loadedFromFile) {
+							if (acquired->loadedFromFile) {
 								FREEZE_WITH_ERROR("E103");
 							}
 							else if (instrumentAlreadyInSong) {
@@ -2637,7 +2597,8 @@ getOut:
 }
 
 // Returns whether success
-bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink) {
+bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCounter* modelStack, bool doBlink,
+                            deluge::storage::PresetConsumer consumer) {
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
@@ -2653,7 +2614,40 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 		return false;
 	}
 
-	Instrument* newInstrument = clip->changeOutputType(modelStack, newOutputType);
+	// MIDI/CV read no card -- run them inline so the gesture's bool is still a
+	// real answer for those types. Only Synth/Kit reaches the directory. Routed through the SAME
+	// per-consumer completion the dispatched arm below uses, so a caller's redraw/LED tail runs from
+	// exactly one place regardless of which arm actually ran -- never from here directly, or it would
+	// run a second time when a future caller's completion also runs it (see completeChangeOutputTypeFor()).
+	if (newOutputType == OutputType::MIDI_OUT || newOutputType == OutputType::CV) {
+		return completeChangeOutputTypeFor(consumer, newOutputType, clip, doBlink);
+	}
+
+	deluge::storage::PresetRequest request{
+	    .consumer = consumer,
+	    .outputType = newOutputType,
+	    .availability = Availability::ANY,
+	    .doBlink = doBlink,
+	    .dirPath = getInstrumentFolder(newOutputType),
+	    .oldInstrument = (Instrument*)clip->output,
+	    .clip = clip,
+	};
+	// The acquisition may still fail once it runs; the gesture itself was accepted, so report
+	// success here and let the completion surface any error, exactly as goIntoFolder() does.
+	return loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+}
+
+// Synth/Kit arrive here from InstrumentLoad once the acquisition has landed; MIDI/CV inline.
+// InstrumentClip::changeOutputType() does its own branch on output type. Core swap + View-level redraw
+// only -- no caller-specific tail; see completeChangeOutputTypeFor() for those.
+bool View::completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
+                                    const deluge::storage::AcquireResult* acquired) {
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
+
+	Instrument* newInstrument = (acquired != nullptr)
+	                                ? clip->applyChangeOutputType(modelStack, newOutputType, *acquired)
+	                                : clip->changeOutputType(modelStack, newOutputType);
 	if (!newInstrument) {
 		return false;
 	}
@@ -2663,6 +2657,89 @@ bool View::changeOutputType(OutputType newOutputType, ModelStackWithTimelineCoun
 	displayOutputName(newInstrument, doBlink, clip);
 
 	return true;
+}
+
+// The router changeOutputType() uses for BOTH its arms (see the doc above the MIDI/CV branch): each
+// consumer's completion runs completeChangeOutputType() as its first step, then whatever redraw/LED
+// tail its own caller needs. changeOutputType()'s bool return is not safe to gate that tail on: the
+// Synth/Kit arm can return `true` for a DISPATCHED (not yet complete) acquisition. Distinct
+// consumers, distinct completions, on purpose: guessing a single shared "refresh" from whatever UI
+// happens to be current at completion time is exactly how this class of regression happens (three
+// different callers, three different tails).
+bool View::completeChangeOutputTypeFor(deluge::storage::PresetConsumer consumer, OutputType newOutputType,
+                                       InstrumentClip* clip, bool doBlink,
+                                       const deluge::storage::AcquireResult* acquired) {
+	using deluge::storage::PresetConsumer;
+	// Exhaustive, deliberately no `default:` -- a `default:` here would silently route any consumer a
+	// future task adds into InstrumentClipView's tail instead of failing to build, which is precisely
+	// the failure this switch exists to prevent.
+	switch (consumer) {
+	case PresetConsumer::ViewChangeType:
+		// InstrumentClipView::changeOutputType() -- the KIT/SYNTH buttons on InstrumentClipView,
+		// AutomationView and KeyboardScreen, plus InstrumentClipView's own MIDI/CV buttons. Runs the
+		// full tail: InstrumentClipMinder's LEDs, plus recolour + repaint.
+		return instrumentClipView.completeChangeOutputType(newOutputType, clip, doBlink, acquired);
+	case PresetConsumer::ViewChangeTypeMinder: {
+		// InstrumentClipMinder::changeOutputType() reached DIRECTLY, bypassing InstrumentClipView --
+		// today only KeyboardScreen's own MIDI/CV buttons (keyboard_screen.cpp:525,533 call the
+		// unqualified, non-virtual changeOutputType(), which resolves to InstrumentClipMinder's own
+		// version since KeyboardScreen never overrides it). InstrumentClipView was never in that call
+		// chain, so its recolour/repaint never ran for this path either -- only the LEDs did.
+		bool success = completeChangeOutputType(newOutputType, clip, doBlink, acquired);
+		if (success) {
+			// InstrumentClipMinder::setLedStates() reads only global state (getCurrentOutputType(),
+			// getCurrentInstrumentClip(), getCurrentUI()) -- it never touches `this` -- so which
+			// InstrumentClipMinder-derived instance runs it is interchangeable. instrumentClipView is
+			// used here only because it is already referenced nearby, NOT because this path runs
+			// through it; the explicit `InstrumentClipMinder::` qualifier is load-bearing the same way
+			// it is in InstrumentClipView::completeChangeOutputType() -- an unqualified call would
+			// resolve to instrumentClipView's own (different) setLedStates() override.
+			instrumentClipView.InstrumentClipMinder::setLedStates();
+		}
+		return success;
+	}
+	case PresetConsumer::KeyboardChangeType: {
+		// KeyboardScreen's own KIT/SYNTH buttons with neither shift nor FM held. Identical to
+		// ViewChangeType -- the call chain really does go through InstrumentClipView -- PLUS the
+		// keyboard layout refresh. Its own consumer rather than a flag on ViewChangeType, because
+		// every other caller of that arm has no keyboard layout to refresh and must not get one.
+		bool success = instrumentClipView.completeChangeOutputType(newOutputType, clip, doBlink, acquired);
+		// Gated on the clip still being current, exactly as the KeyboardNewInstrument arm is: unlike
+		// the LED/redraw tail beside it, selectLayout() both READS and WRITES per-clip model state
+		// (keyboardState.currentLayout) through getCurrentInstrumentClip(). `clip` already survived
+		// runAcquisitionFollowUp()'s liveness guard; comparing it against what is current NOW is what
+		// makes the write land on the clip the gesture was made on, rather than on whichever clip the
+		// user moved to while the swap was in flight.
+		if (success && getCurrentInstrumentClip() == clip) {
+			keyboardScreen.completeLayoutRefresh();
+		}
+		return success;
+	}
+	case PresetConsumer::SessionRowsChangeType:
+		return sessionView.completeChangeOutputTypeRows(newOutputType, clip, doBlink, acquired);
+	case PresetConsumer::ArrangerNewInstrument:
+	case PresetConsumer::ArrangerChangeType:
+	case PresetConsumer::ArrangerNavigate:
+	case PresetConsumer::SessionChangeType:
+	case PresetConsumer::SessionNavigate:
+	case PresetConsumer::SessionNewTrack:
+	case PresetConsumer::SessionNewTrackEnter:
+	case PresetConsumer::SessionNewTrackSelect:
+	case PresetConsumer::SessionNewTrackClone:
+	case PresetConsumer::ViewNavigateClipPreset:
+	case PresetConsumer::BlankSongPreset:
+	case PresetConsumer::MinderNewInstrument:
+	case PresetConsumer::ViewNewInstrument:
+	case PresetConsumer::KeyboardNewInstrument:
+		// Not a changeOutputType() consumer -- listed explicitly, never folded into a `default:`, so
+		// -Werror=switch keeps flagging every PresetConsumer this router does not yet know how to
+		// route. changeOutputType() itself never passes any of these; reached only if a future caller
+		// misuses the `consumer` parameter, in which case falling back to the core swap with no extra
+		// tail is the safe choice.
+		return completeChangeOutputType(newOutputType, clip, doBlink, acquired);
+	}
+	FREEZE_WITH_ERROR("VCTC"); // Unreachable: the switch above is exhaustive over PresetConsumer.
+	return false;
 }
 
 void View::instrumentChanged(ModelStackWithTimelineCounter* modelStack, Instrument* newInstrument) {
@@ -2748,9 +2825,6 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 
 	switch (currentUIMode) {
 	case UI_MODE_MIDI_LEARN:
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
 			RootUI* rootUI = getRootUI();
@@ -2805,7 +2879,6 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 		}
 		break;
 
-	// No break
 	case UI_MODE_CLIP_PRESSED_IN_SONG_VIEW:
 		// fall through into UI_MODE_STUTTERING so you can toggle clip status while holding a clip
 		[[fallthrough]];

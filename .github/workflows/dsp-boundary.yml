@@ -1,0 +1,31 @@
+name: DSP-next Boundary
+
+# L0 guardrail for the synth untangling (Phase 1): the clean DSP library
+# (src/deluge/dsp-next) must not reach upward into the application, the legacy
+# dsp/ library, or the HAL/BSP. No allowlist — it is clean by construction.
+# See docs/dev/synth_phase1_l0_plan.md and scripts/check_dsp_boundary.py.
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+  merge_group:
+  workflow_dispatch:
+
+jobs:
+  dsp-boundary-check:
+    name: dsp-next L0 boundary check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check dsp-next stays within the L0 boundary
+        run: python3 scripts/check_dsp_boundary.py

@@ -1,47 +1,47 @@
-//! Eviction value: the policy that decides which resident chunk dies first when
-//! the pool needs space. A computed *rank* (not a hand-assigned category — see
-//! docs/dev/resource_manager.md), compared lexicographically; the **smallest rank
-//! is evicted first**.
+//! Eviction policy: which resident chunk is evicted first when the pool needs space.
 //!
-//! Inputs (replacing the old 10 `StealableQueue`s):
-//!   - **relevance** — is the asset soft-referenced by the project? (kept last)
-//!   - **reconstruction cost per byte freed** — evicting a big cheap chunk reclaims
-//!     more memory for less rebuild than a small dear one, so it dies first
-//!   - **recency** — least-recently-used dies first (tiebreak)
+//! [`evict_rank`] computes a rank compared lexicographically; the smallest is evicted first. Its
+//! inputs, in order:
 //!
-//! Leased / dirty chunks are never candidates — that's enforced by the caller, so
-//! it isn't part of the rank.
+//! - **relevance** — is the asset soft-referenced by the project? Referenced assets go last.
+//! - **reconstruction cost per byte freed** — a big cheap chunk goes before a small dear one.
+//! - **recency** — least-recently-used goes first.
+//!
+//! Leased and dirty chunks are never candidates; the caller filters them out.
 
-/// Reconstruction-cost ladder — ascending = dearer to *rebuild* (NOT "kept longer"; how long a chunk
-/// stays resident is `cost / size`, see `evict_rank`). Plain `u32` so it crosses the C ABI without a C
-/// `enum` (avoids the `-fshort-enums` ABI trap). Replaces the old hand-assigned 10 `StealableQueue`s;
-/// the value function only compares it numerically, so the ladder is just a sensible ordering of real
-/// rebuild expense. Keep these *pure rebuild-expense* — memory-yield is the value function's job (size).
-pub const COST_FREE: u32 = 0; // zero-fill / scratch (cheapest; e.g. a grain buffer)
-pub const COST_IO: u32 = 1; // native sample cluster — one storage read
-pub const COST_IO_CONVERTED: u32 = 2; // sample cluster needing format conversion — read + re-convert
-pub const COST_CPU: u32 = 3; // DSP recompute — a repitch cache / wavetable band
-pub const COST_CPU_PERC: u32 = 4; // perc cache — the heavier time-stretch recompute
-pub const COST_OBJECT: u32 = 2; // an AudioFile object — re-scan the file header + recreate the descriptor
-                                // (read + parse ≈ a converted read). It's *cost* that's modest; the
-                                // object stays resident because it's TINY (high cost/byte), via the value
-                                // function's size term — not via an inflated cost. NB: a *held* object is
-                                // hard-leased (never a candidate); this only orders DEAD (unleased) chunks.
+// Reconstruction-cost ladder: ascending means dearer to rebuild, not "kept longer" — residency is
+// decided by cost per byte (see `evict_rank`), so keep these pure rebuild expense. Plain `u32`
+// rather than a C enum to avoid the `-fshort-enums` ABI trap.
 
-/// Fixed-point shift for the cost-per-byte ratio (see `evict_rank`). Large enough that the cheapest
-/// cost (1) over the largest realistic chunk (a 32 KB cluster, and bigger caches) keeps bits of
-/// resolution to rank against dearer/smaller chunks; small enough that `cost << SHIFT` stays well
-/// within `u64` (max cost · 2^32 ≪ 2^64).
+/// Zero-fill or scratch memory, e.g. a grain buffer.
+pub const COST_FREE: u32 = 0;
+/// A native sample cluster: one storage read.
+pub const COST_IO: u32 = 1;
+/// A sample cluster needing format conversion: read plus re-convert.
+pub const COST_IO_CONVERTED: u32 = 2;
+/// A DSP recompute, e.g. a repitch cache or a wavetable band.
+pub const COST_CPU: u32 = 3;
+/// A perc cache: the heavier time-stretch recompute.
+pub const COST_CPU_PERC: u32 = 4;
+/// An `AudioFile` object: re-scan the header and recreate the descriptor (about a converted read).
+///
+/// The cost is modest on purpose; the object stays resident because it is tiny (high cost per
+/// byte), not through an inflated cost. A held object is leased and never a candidate at all.
+pub const COST_OBJECT: u32 = 2;
+
+/// Fixed-point shift for the cost-per-byte ratio in [`evict_rank`].
+///
+/// Large enough that cost 1 over the largest realistic chunk keeps resolution; small enough that
+/// `cost << SHIFT` stays well within `u64`.
 const COST_PER_BYTE_SHIFT: u32 = 32;
 
-/// Lexicographic evict rank; smaller is evicted first.
-/// `(referenced, cost_per_byte, recency)` → evict un-referenced before referenced, then the lowest
-/// **reconstruction-cost-per-byte-freed**, then least-recently-used. Dividing `cost` by `size`
-/// separates the two things the old flat `cost` conflated — how dear a chunk is to *rebuild* vs. how
-/// much memory evicting it *reclaims* — so a tiny-but-pricey object (an AudioFile descriptor) sorts
-/// *after* the fat cheap clusters it would otherwise tie with, with no inflated cost. With uniform
-/// sizes (the cluster case) it reduces to the plain `cost` ordering. `size == 0` is treated as 1 (a
-/// degenerate chunk frees nothing → ranks high → evicted last; never divides by zero).
+/// Returns the lexicographic eviction rank `(referenced, cost_per_byte, recency)`; smaller is
+/// evicted first.
+///
+/// Dividing `cost` by `size` separates how dear a chunk is to rebuild from how much memory evicting
+/// it reclaims, so a tiny but pricey object sorts after the large cheap clusters. With uniform
+/// sizes it reduces to plain `cost` order. `size == 0` is treated as 1, so such a chunk ranks high
+/// and is evicted last.
 #[inline]
 pub fn evict_rank(soft_refs: u32, cost: u32, size: u32, recency: u64) -> (u8, u64, u64) {
     let referenced = u8::from(soft_refs > 0);
@@ -77,8 +77,8 @@ mod tests {
 
     #[test]
     fn big_cheap_freed_before_small_dear() {
-        // The crux of size-awareness: a big chunk reclaims far more memory per unit rebuild-cost, so
-        // it's evicted before a tiny dear one — even though its flat `cost` is higher.
+        // The crux of size-awareness: a big chunk reclaims far more memory per unit rebuild-cost,
+        // so it's evicted before a tiny dear one — even though its flat `cost` is higher.
         let big = evict_rank(0, COST_CPU_PERC, CLUSTER, 0); // dear recompute, but 32 KB
         let small = evict_rank(0, COST_OBJECT, 256, 0); // cheap-ish rescan, but a few hundred bytes
         assert!(

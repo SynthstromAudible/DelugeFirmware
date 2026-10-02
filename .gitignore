@@ -31,9 +31,33 @@ __pycache__
 .*.swo
 .session.vim
 
+# script scratch area
+/scratch*
+
 .idea
+.junie
 *.srctrl*
 
 .deluge_hex_key
-**/target/
+**/target*/
 /deluge_host_out.wav
+/sim/build/
+/sim/deluge_host_out.wav
+
+# Local Claude Code config / skills (not shared)
+.claude/
+
+# Superpowers process artifacts (specs, plans, ledger) — local, not shared
+.superpowers/
+docs/superpowers/
+/rtt-rust.log
+/rtt-bench.log
+/rtt.log
+tools/__pycache__/
+__pycache__/
+
+# Local deluge-sdk path override for the Rust BSP (see src/bsp/rust/local-sdk.toml)
+/src/bsp/rust/local-sdk.toml
+
+# Stems golden_vt_render copies out of its card image when GOLDEN_STEM_OUT is unset
+/golden_stems/

@@ -2,71 +2,56 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Cortex-Debug Load/Run Debug",
-      "preLaunchTask": "Build Debug",
+      // Rust/Embassy BSP firmware: the C++ Deluge app running on the Rust
+      // HAL/BSP (src/bsp/rust). It is RAM-linked at 0x20020000 and owns its own
+      // startup (deluge-sdk's rza1l-hal), so it needs the SDK's J-Link recipe —
+      // JLinkScript + cp15 (MMU/cache off via SCTLR=0x00C50078, VBAR=0x20000000)
+      // + SVC/IRQ-FIQ-masked CPSR=0x1DF — NOT the C++ image's plain reset/load.
+      // Build is the preLaunchTask ("Build RelWithDebInfo": `dbt build relwithdebinfo`, which builds
+      // the C++ app objects before cargo links them — cargo can't see .cpp edits).
+      // The JLinkScript comes from the sibling deluge-sdk clone (~/GitHub/deluge-sdk).
+      "name": "deluge firmware (RelWithDebInfo)",
       "type": "cortex-debug",
       "request": "launch",
-      "cwd": "${workspaceRoot}",
-      "executable": "${workspaceRoot}/build/Debug/deluge.elf",
-      "windows": {
-        "serverpath": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe", 
-      },
-      "servertype": "jlink",
-      "device": "R7S721020",
-      "interface": "swd",
-      //"runToEntryPoint": "main",
-      "svdFile": "${workspaceRoot}/contrib/rza1.svd",
-      "overrideLaunchCommands": [
-        "monitor reset",
-        "load"
-      ],
-      "overrideResetCommands": [
-        "monitor reset",
-        "load"
-      ],
-      "overrideRestartCommands": [
-        "monitor reset",
-        "load"
-      ],
-      "rttConfig": {
-        "enabled": true,
-        "address": "auto",
-        "decoders": [
-          {
-            "port": 0,
-            "timestamp": true,
-            "type": "console"
-          }
-        ]
-      },
-    },
-    {
-      "name": "Cortex-Debug Load/Run RelWithDebInfo",
       "preLaunchTask": "Build RelWithDebInfo",
-      "type": "cortex-debug",
-      "request": "launch",
       "cwd": "${workspaceRoot}",
       "executable": "${workspaceRoot}/build/RelWithDebInfo/deluge.elf",
       "windows": {
-        "serverpath": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe", 
+        "serverpath": "C:\\Program Files\\SEGGER\\JLink\\JLinkGDBServerCL.exe",
+      },
+      "linux": {
+        "serverpath": "/usr/bin/JLinkGDBServerCLExe",
       },
       "servertype": "jlink",
       "device": "R7S721020",
       "interface": "swd",
-      //"runToEntryPoint": "main",
       "svdFile": "${workspaceRoot}/contrib/rza1.svd",
+      "serverArgs": [
+        "-jlinkscriptfile",
+        "${workspaceFolder}/../deluge-sdk/rza1_debug.JLinkScript"
+      ],
       "overrideLaunchCommands": [
         "monitor reset",
-        "load"
+        "monitor cp15 1, 0, 0, 0 = 0x00C50078",
+        "monitor cp15 12, 0, 0, 0 = 0x20000000",
+        "load",
+        "set $cpsr = 0x1DF"
       ],
       "overrideResetCommands": [
         "monitor reset",
-        "load"
+        "monitor cp15 1, 0, 0, 0 = 0x00C50078",
+        "monitor cp15 12, 0, 0, 0 = 0x20000000",
+        "load",
+        "set $cpsr = 0x1DF"
       ],
       "overrideRestartCommands": [
         "monitor reset",
-        "load"
+        "monitor cp15 1, 0, 0, 0 = 0x00C50078",
+        "monitor cp15 12, 0, 0, 0 = 0x20000000",
+        "load",
+        "set $cpsr = 0x1DF"
       ],
+      "runToEntryPoint": "main",
       "rttConfig": {
         "enabled": true,
         "address": "auto",
@@ -74,127 +59,11 @@
           {
             "port": 0,
             "timestamp": true,
-            "type": "console"
+            "type": "console",
+            "logfile": "${workspaceFolder}/rtt-rust.log"
           }
         ]
       },
-    },
-    {
-      "name": "CppDBG Attach Debug",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceRoot}/build/debug/deluge7SEG.elf",
-      "MIMode": "gdb",
-      "miDebuggerPath": "arm-none-eabi-gdb",
-      "windows": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe",
-        "debugServerPath": "C:/Program Files/SEGGER/JLink/JLinkGDBServerCL.exe",
-      },
-      "debugServerArgs": "-select USB -device R7S721020 -endian little -if SWD -speed auto -noir -LocalhostOnly -nologtofile -port 3333 -SWOPort 2332 -TelnetPort 2333",
-      "serverStarted": "Connected to target",
-      "linux": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
-      },
-      "miDebuggerServerAddress": "localhost:3333",
-      "externalConsole": true,
-      "useExtendedRemote": true,
-      "cwd": "${workspaceRoot}",
-      "svdPath": "${workspaceRoot}/contrib/rza1.svd",
-    },
-    {
-      "name": "CppDBG Load/Run Debug",
-      "type": "cppdbg",
-      "preLaunchTask": "Build Debug",
-      "request": "launch",
-      "cwd": "${workspaceRoot}",
-      "program": "${workspaceRoot}/build/debug/deluge.elf",
-      "MIMode": "gdb",
-      "miDebuggerPath": "arm-none-eabi-gdb",
-      "windows": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe",
-        "debugServerPath": "C:/Program Files/SEGGER/JLink/JLinkGDBServerCL.exe",
-      },
-      "debugServerArgs": "-select USB -device R7S721020 -endian little -if SWD -speed auto -noir -LocalhostOnly -nologtofile -port 3333 -SWOPort 2332 -TelnetPort 2333",
-      "serverStarted": "Connected to target",
-      "linux": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
-      },
-      "miDebuggerServerAddress": "localhost:3333",
-      "useExtendedRemote": true,
-      "targetArchitecture": "arm",
-      "svdPath": "${workspaceRoot}/contrib/rza1.svd",
-      "customLaunchSetupCommands": [
-        {
-          "text": "-gdb-set target-async on"
-        },
-        {
-          "text": "-target-select extended-remote localhost:3333"
-        },
-        {
-          "text": "cd ${workspaceRoot}"
-        },
-        {
-          "text": "monitor reset"
-        },
-        {
-          "text": "-file-exec-and-symbols build/Debug/deluge.elf"
-        },
-        {
-          "text": "-target-download"
-        },
-      ]
-    },
-    {
-      "name": "CppDBG Load/Run RelWithDebInfo",
-      "type": "cppdbg",
-      "preLaunchTask": "Build RelWithDebInfo",
-      "request": "launch",
-      "cwd": "${workspaceRoot}",
-      "program": "${workspaceRoot}/build/RelWithDebInfo/deluge.elf",
-      "MIMode": "gdb",
-      "miDebuggerPath": "arm-none-eabi-gdb",
-      "windows": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/win32-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb.exe",
-        "debugServerPath": "C:/Program Files/SEGGER/JLink/JLinkGDBServerCL.exe",
-      },
-      "debugServerArgs": "-select USB -device R7S721020 -endian little -if SWD -speed auto -noir -LocalhostOnly -nologtofile -port 3333 -SWOPort 2332 -TelnetPort 2333",
-      "serverStarted": "Connected to target",
-      "linux": {
-        "miDebuggerPath": "${workspaceRoot}/toolchain/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-gdb"
-      },
-      "miDebuggerServerAddress": "localhost:3333",
-      "useExtendedRemote": true,
-      "targetArchitecture": "arm",
-      "svdPath": "${workspaceRoot}/contrib/rza1.svd",
-      "customLaunchSetupCommands": [
-        {
-          "text": "-gdb-set target-async on"
-        },
-        {
-          "text": "-target-select extended-remote localhost:3333"
-        },
-        {
-          "text": "cd ${workspaceRoot}"
-        },
-        {
-          "text": "monitor reset"
-        },
-        {
-          "text": "-file-exec-and-symbols build/RelWithDebInfo/deluge.elf"
-        },
-        {
-          "text": "-target-download"
-        },
-      ]
-    },
-    {
-      "name": "Debug Tests",
-      "type": "cppdbg",
-      "request": "launch",
-      "program": "${workspaceRoot}/tests/RunAllTests",
-      "MIMode": "gdb",
-      "cwd": "${workspaceRoot}",
-      "miDebuggerPath": "gdb",
     },
     {
       // NOTE: Do not try `load`ing the program using this config
@@ -208,25 +77,6 @@
         "gdb-remote localhost:3333"
       ],
     },
-    {
-      "name": "Cortex-Debug OpenOCD",
-      "preLaunchTask": "Build Debug",
-      "type": "cortex-debug",
-      "request": "launch",
-      "cwd": "${workspaceRoot}",
-      "executable": "${workspaceRoot}/build/Debug/deluge.elf",
-      "serverpath": "${workspaceRoot}/toolchain/win32-x64/openocd/bin/openocd.exe",
-      "servertype": "openocd",
-      "configFiles": [
-        "/interface/cmsis-dap.cfg",
-        "${workspaceRoot}/contrib/renesas-rz-a1lu.cfg",
-      ],
-      "device": "R7S721020",
-      "runToEntryPoint": "main",
-      "svdFile": "${workspaceRoot}/contrib/rza1.svd",
-      "rttConfig": {
-        "enabled": true,
-      },
-    },
+
   ]
 }

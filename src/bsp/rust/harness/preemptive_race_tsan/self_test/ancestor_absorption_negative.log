@@ -1,0 +1,36 @@
+Self-test fixture (ancestor_absorption_negative): synthesizes a HYPOTHETICAL, NOT-YET-real
+storage race to prove the Lens 2 classifier does not silently absorb a genuinely new race via
+a shared ANCESTOR frame. The write side's ancestor chain (deluge_app_render ->
+AudioEngine::routine() -> AudioEngine::routine_task() -> scheduler.rs) is copied verbatim
+from a real 2026-08-06 fresh-run finding (logs/run_1.log's audio_engine.cpp:562:3 instance);
+only the LEAF (the actual racing access, frames #0-#1 below) is hypothetical: a
+deluge_resource::chunk::StreamedChunk::fill / Manager::evict_chunk storage-path memcpy, with
+NO src/lib/printf.c or core::str::validations frame anywhere in the block. Expected verdict:
+uncatalogued (see ancestor_absorption_negative.expect) -- this MUST fail the gate, because
+under the pre-fix full-block-matching bug (commit 4a42871dd, before the 2026-08-06 fix round)
+this exact block would have matched `src/deluge/processing/engines/audio_engine\.cpp` via the
+ancestor frames alone and been silently classified "known".
+WARNING: ThreadSanitizer: data race (pid=999999)
+  Write of size 64 at 0x555555555000 by thread T1:
+    #0 deluge_resource::chunk::StreamedChunk::fill /home/kate/GitHub/DelugeFirmware/crates/deluge_resource/src/chunk.rs:212:9 (deluge-rust+0x2345678) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+    #1 deluge_resource::manager::Manager::evict_chunk /home/kate/GitHub/DelugeFirmware/crates/deluge_resource/src/manager.rs:401:5 (deluge-rust+0x3456789) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+    #2 deluge_app_render /home/kate/GitHub/DelugeFirmware/src/deluge/processing/engines/audio_engine.cpp:562:3 (deluge-rust+0xa141fc) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+    #3 deluge_audio_drive /home/kate/GitHub/DelugeFirmware/src/bsp/rust/src/audio_host.rs:215:9 (deluge-rust+0x389640) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+    #4 AudioEngine::routine() /home/kate/GitHub/DelugeFirmware/src/deluge/processing/engines/audio_engine.cpp:1073:22 (deluge-rust+0xa13a2d) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+    #5 AudioEngine::routine_task() /home/kate/GitHub/DelugeFirmware/src/deluge/processing/engines/audio_engine.cpp:1043:2 (deluge-rust+0xa180ee) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+    #6 deluge_rust::scheduler::__task_runner_task::__task_runner_task_inner_function::{closure#0} /home/kate/GitHub/DelugeFirmware/src/bsp/rust/src/scheduler.rs:482:13 (deluge-rust+0x3ec15b) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+
+  Previous read of size 64 at 0x555555555000 by thread T2:
+    #0 SampleLowLevelReader::moveOnToNextCluster /home/kate/GitHub/DelugeFirmware/src/deluge/model/sample/sample_low_level_reader.cpp:88:20 (deluge-rust+0x4567890) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+    #1 Voice::render /home/kate/GitHub/DelugeFirmware/src/deluge/model/voice/voice.cpp:512:33 (deluge-rust+0x5678901) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+    #2 deluge_app_render /home/kate/GitHub/DelugeFirmware/src/deluge/processing/engines/audio_engine.cpp:562:3 (deluge-rust+0xa141fc) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+    #3 AudioEngine::routine() /home/kate/GitHub/DelugeFirmware/src/deluge/processing/engines/audio_engine.cpp:1073:22 (deluge-rust+0xa13a2d) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+
+  Thread T1 'deluge-audio' (tid=1, running) created by main thread at:
+    #0 pthread_create <null> (deluge-rust+0x2f016a) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+
+  Thread T2 'deluge-bsp-host' (tid=2, running) created by main thread at:
+    #0 pthread_create <null> (deluge-rust+0x2f016a) (BuildId: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)
+
+SUMMARY: ThreadSanitizer: data race /home/kate/GitHub/DelugeFirmware/crates/deluge_resource/src/chunk.rs:212:9 in deluge_resource::chunk::StreamedChunk::fill
+==================

@@ -45,7 +45,16 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Collect media
 		saveSongUI.collectingSamples = true;
-		return saveSongUI.performSave();
+		// collectingSamples is set immediately above, so it is live state: snapshot it rather than
+		// letting the save read it back on a later tick. Returns "accepted"; the completion closes.
+		return saveSongUI.dispatchSave({
+		    .consumer = deluge::storage::SaveConsumer::SaveSongOrInstrumentAccept,
+		    .mayOverwrite = false,
+		    .collectingSamples = true,
+		    .filePath = saveSongUI.getCurrentFilePath(),
+		    .enteredText = Browser::enteredText,
+		    .dirPath = Browser::currentDir,
+		});
 
 	case 1: { // Create folder
 		Browser* browser = (Browser*)getUIUpOneLevel();
@@ -61,8 +70,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 	case 2: { // Delete file
 		bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
-		if (available) { // It always will be - but we gotta check.
-			display->setNextTransitionDirection(1);
+		if (available) {                       // It always will be - but we gotta check.
 			openUI(&context_menu::deleteFile); // Might fail
 		}
 		return available;

@@ -34,6 +34,7 @@
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "io/file.hpp"
 #include "mem_functions.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
@@ -46,6 +47,8 @@
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/byte_channel.h"
+#include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/functions.h"
@@ -292,10 +295,6 @@ void PerformanceView::focusRegained() {
 
 	updateLayoutChangeStatus();
 
-	if (display->have7SEG()) {
-		redrawNumericDisplay();
-	}
-
 	uiNeedsRendering(this);
 }
 
@@ -472,7 +471,7 @@ void PerformanceView::renderViewDisplay() {
 	}
 
 	if (defaultEditingMode) {
-		if (display->haveOLED()) {
+		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
 
@@ -508,19 +507,9 @@ void PerformanceView::renderViewDisplay() {
 
 			deluge::hid::display::OLED::markChanged();
 		}
-		else {
-			char const* editingModeType;
-			if (editingParam) {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
-			}
-			else {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
-			}
-			display->setScrollingText(editingModeType);
-		}
 	}
 	else {
-		if (display->haveOLED()) {
+		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
 
@@ -538,9 +527,6 @@ void PerformanceView::renderViewDisplay() {
 
 			deluge::hid::display::OLED::markChanged();
 		}
-		else {
-			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW));
-		}
 	}
 	onFXDisplay = false;
 }
@@ -555,8 +541,11 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 	if (editingParam) {
 		// display parameter name
 		char parameterName[30];
-		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
-		if (display->haveOLED()) {
+		strncpy(parameterName,
+		        getParamDisplayName(paramKind, paramID,
+		                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable),
+		        29);
+		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
 
@@ -571,18 +560,18 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 
 			deluge::hid::display::OLED::markChanged();
 		}
-		else {
-			display->setScrollingText(parameterName);
-		}
 	}
 	else {
-		if (display->haveOLED()) {
+		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
 
 			// display parameter name
 			char parameterName[30];
-			strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+			strncpy(parameterName,
+			        getParamDisplayName(paramKind, paramID,
+			                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable),
+			        29);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;
@@ -622,34 +611,6 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 
 			deluge::hid::display::OLED::markChanged();
 		}
-		// 7Seg Display
-		else {
-			if (params::isParamQuantizedStutter(
-			        paramKind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
-				char const* buffer;
-				if (knobPos < -39) { // 4ths stutter: no leds turned on
-					buffer = "4ths";
-				}
-				else if (knobPos < -14) { // 8ths stutter: 1 led turned on
-					buffer = "8ths";
-				}
-				else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
-					buffer = "16th";
-				}
-				else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
-					buffer = "32nd";
-				}
-				else { // 64ths stutter: all 4 leds turned on
-					buffer = "64th";
-				}
-				display->setText(buffer, true);
-			}
-			else {
-				char buffer[5];
-				intToString(knobPos, buffer);
-				display->setText(buffer, true);
-			}
-		}
 	}
 
 	onFXDisplay = true;
@@ -680,10 +641,6 @@ bool PerformanceView::possiblyRefreshPerformanceViewDisplay(params::Kind kind, i
 void PerformanceView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	renderViewDisplay();
 	sessionView.renderOLED(canvas);
-}
-
-void PerformanceView::redrawNumericDisplay() {
-	sessionView.redrawNumericDisplay();
 }
 
 void PerformanceView::setLedStates() {
@@ -723,7 +680,7 @@ void PerformanceView::setCentralLEDStates() {
 	}
 }
 
-ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -739,9 +696,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 	if (b == CLIP_VIEW) {
 		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))
 		    && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			releaseViewOnExit(modelStack);
 			// only allow transitioning from performance view to clip in session view
 			if (currentSong->persistentView.lastClipInstanceEnteredStartPos == -1) {
@@ -758,9 +712,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 #else
 	else if (b == SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
 #endif
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		bool lastSessionButtonActiveState = sessionButtonActive;
 		sessionButtonActive = on;
 
@@ -838,7 +789,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			defaultEditingMode = false;
 			editingParam = false;
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
-			display->setNextTransitionDirection(-1);
 			close();
 		}
 	}
@@ -871,12 +821,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 				return ActionResult::DEALT_WITH;
 			}
 
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			if (!defaultEditingMode) {
-				display->setNextTransitionDirection(1);
 				if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
 					openUI(&soundEditor);
 				}
@@ -907,7 +852,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 					editingParam = false;
 					indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 
-					display->setNextTransitionDirection(-1);
 					close();
 				}
 				else {
@@ -922,7 +866,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 						resetPerformanceView(modelStack);
 					}
 					if (!inEditingMode) {
-						display->setNextTransitionDirection(1);
 						openUI(&performanceView);
 					}
 					else {
@@ -975,7 +918,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 
 	else {
 		ActionResult buttonActionResult;
-		buttonActionResult = TimelineView::buttonAction(b, on, inCardRoutine);
+		buttonActionResult = TimelineView::buttonAction(b, on);
 
 		// release stutter if you press play - stutter needs to be turned on after playback is running
 		// re-render grid, display if undoing/redoing an action (e.g. you previously loaded layout)
@@ -1576,12 +1519,12 @@ ActionResult PerformanceView::horizontalEncoderAction(int32_t offset) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult PerformanceView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult PerformanceView::verticalEncoderAction(int32_t offset) {
 	if (currentSong->persistentView.lastClipInstanceEnteredStartPos == -1) {
-		return sessionView.verticalEncoderAction(offset, inCardRoutine);
+		return sessionView.verticalEncoderAction(offset);
 	}
 	else {
-		return arrangerView.verticalEncoderAction(offset, inCardRoutine);
+		return arrangerView.verticalEncoderAction(offset);
 	}
 }
 
@@ -1713,12 +1656,43 @@ void PerformanceView::savePerformanceViewLayout() {
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
 void PerformanceView::writeDefaultsToFile() {
+	if (deluge::storage::bytes::usingByteChannel()) {
+		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
+		// dies at the end of this scope, which is safe because `submitWrite` copies.
+		XMLSerializer writer;
+		writer.setMemoryBased();
+		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
+		serialiseDefaults(writer);
+		if (deluge::storage::bytes::submitWrite(PERFORM_DEFAULTS_XML, writer.getBufferPtr(),
+		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
+			// Cleared here rather than on the collect: this flag means "the layout in memory matches
+			// what we last asked to be stored", and the ask has happened. Waiting for the collect
+			// would leave a second, identical write to be made by whatever checks this next.
+			anyChangesToSave = false;
+			return;
+		}
+		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
+		// blocking is legal; after boot it is refused and nothing is written.
+	}
+	// A refusal leaves `anyChangesToSave` set, so the layout still reads as unsaved.
+	(void)deluge::storage::bytes::runDuringBoot(
+	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->writeDefaultsInline(); }, this);
+}
+
+void PerformanceView::writeDefaultsInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// PerformanceView.xml
 	Error error = StorageManager::createXMLFile(PERFORM_DEFAULTS_XML, smSerializer, true);
 	if (error != Error::NONE) {
 		return;
 	}
-	Serializer& writer = GetSerializer();
+	serialiseDefaults(GetSerializer());
+	GetSerializer().closeFileAfterWriting();
+
+	anyChangesToSave = false;
+}
+
+void PerformanceView::serialiseDefaults(Serializer& writer) {
 	//<defaults>
 	writer.writeOpeningTagBeginning(PERFORM_DEFAULTS_TAG);
 	writer.writeOpeningTagEnd();
@@ -1732,10 +1706,6 @@ void PerformanceView::writeDefaultsToFile() {
 	writer.writeClosingTag(PERFORM_DEFAULTS_FXVALUES_TAG);
 
 	writer.writeClosingTag(PERFORM_DEFAULTS_TAG);
-
-	writer.closeFileAfterWriting();
-
-	anyChangesToSave = false;
 }
 
 /// creates "FX1 - FX16 tags"
@@ -1858,40 +1828,107 @@ void PerformanceView::readDefaultsFromBackedUpFile() {
 
 /// read defaults from XML
 void PerformanceView::readDefaultsFromFile() {
+	// The channel first. The view reads its defaults when it is opened -- after boot -- so the layout
+	// lands a few ticks after the view opens either way.
+	if (deluge::storage::bytes::usingByteChannel()) {
+		if (successfullyReadDefaultsFromFile) {
+			return;
+		}
+		// The pre-1.3 file at the card root is migrated by the channel, as the inline arm renames it.
+		if (deluge::storage::bytes::submitRead(PERFORM_DEFAULTS_XML, "PerformanceView.XML",
+		                                       &PerformanceView::parseDefaultsBytes, &PerformanceView::defaultsAbsent,
+		                                       this, &PerformanceView::defaultsReadDone)) {
+			return;
+		}
+	}
+	// The body where blocking is legal. The document is staged whole and walked over memory through
+	// `activeDeserializer`, so nothing here holds the card open across a parse.
+	(void)deluge::storage::bytes::runDuringBoot(
+	    [](void* ctx) { static_cast<PerformanceView*>(ctx)->readDefaultsInline(); }, this);
+}
+
+void PerformanceView::parseDefaultsBytes(void* ctx, char* bytes, uint32_t len) {
+	// `activeDeserializer` goes back on EVERY path, the failed open included -- see
+	// `RuntimeFeatureSettings::parseSettingsBytes`, which carries the full reasoning.
+	auto* self = static_cast<PerformanceView*>(ctx);
+	FileDeserializer* previous = activeDeserializer;
+	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false, PERFORM_DEFAULTS_TAG)
+	    != Error::NONE) {
+		// A document that will not open lands on the default layout, as the inline arm's failed open does.
+		activeDeserializer = previous;
+		self->loadDefaultLayout();
+		return;
+	}
+	Deserializer& reader = *activeDeserializer;
+	char const* tagName;
+	// step into the <defaultFXValues> tag
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, PERFORM_DEFAULTS_FXVALUES_TAG)) {
+			self->readDefaultFXValuesFromFile();
+		}
+		reader.exitTag();
+	}
+	activeDeserializer = previous;
+	self->successfullyReadDefaultsFromFile = true;
+}
+
+void PerformanceView::defaultsAbsent(void* ctx) {
+	// Absent in both locations: the inline arm's `WriteDefaults` case, which ends on the default layout.
+	static_cast<PerformanceView*>(ctx)->loadDefaultLayout();
+}
+
+void PerformanceView::defaultsReadDone(void* ctx, deluge::storage::bytes::SettingsOutcome outcome) {
+	// An unreadable card is the inline arm's `UseInMemoryOnly`: the default layout for this session, nothing written.
+	if (outcome == deluge::storage::bytes::SettingsOutcome::Unreadable) {
+		static_cast<PerformanceView*>(ctx)->loadDefaultLayout();
+	}
+}
+
+void PerformanceView::readDefaultsInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	// no need to keep reading from SD card after first load
 	if (successfullyReadDefaultsFromFile) {
 		return;
 	}
 
-	FilePointer fp;
 	// PerformanceView.XML
-	bool success = StorageManager::fileExists(PERFORM_DEFAULTS_XML, &fp);
-	if (!success) {
-		// since we changed the file path for the PerformanceView.XML in c1.3, it's possible
-		// that a PerformanceView file may exists in the root of the SD card
-		// if so, let's move it to the new SETTINGS folder (but first make sure folder exists)
-		FRESULT result = f_mkdir(SETTINGS_FOLDER);
-		if (result == FR_OK || result == FR_EXIST) {
-			result = f_rename("PerformanceView.XML", PERFORM_DEFAULTS_XML);
-			if (result == FR_OK) {
-				// this means we moved it
-				// now let's open it
-				success = StorageManager::fileExists(PERFORM_DEFAULTS_XML, &fp);
+	switch (deluge::storage::bootstrap_action(StorageManager::fileExists(PERFORM_DEFAULTS_XML))) {
+	case deluge::storage::Bootstrap::Load:
+		break; // fall through to parsing, exactly as today
+
+	case deluge::storage::Bootstrap::WriteDefaults: {
+		// Genuinely absent: since we changed the file path for the PerformanceView.XML in c1.3,
+		// it's possible that a PerformanceView file may exist in the root of the SD card; if so,
+		// let's move it to the new SETTINGS folder (but first make sure folder exists).
+		auto result = deluge::io::mkdir(SETTINGS_FOLDER);
+		if (result.has_value() || result.error() == deluge::io::Status::EXISTS) {
+			auto renamed = deluge::io::rename("PerformanceView.XML", PERFORM_DEFAULTS_XML);
+			if (renamed.has_value()) {
+				// this means we moved it; confirm the migration actually landed before trusting
+				// the new path.
+				if (deluge::storage::bootstrap_action(StorageManager::fileExists(PERFORM_DEFAULTS_XML))
+				    == deluge::storage::Bootstrap::Load) {
+					break; // fall through to parsing
+				}
 			}
 		}
-		if (!success) {
-			loadDefaultLayout();
-			return;
-		}
+		loadDefaultLayout();
+		return;
+	}
+
+	case deluge::storage::Bootstrap::UseInMemoryOnly:
+		// Existence unknown: use in-memory defaults for this session and write nothing.
+		loadDefaultLayout();
+		return;
 	}
 
 	//<defaults>
-	Error error = StorageManager::openXMLFile(&fp, smDeserializer, PERFORM_DEFAULTS_TAG);
+	Error error = StorageManager::openDocumentSynchronously(PERFORM_DEFAULTS_XML, PERFORM_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		loadDefaultLayout();
 		return;
 	}
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	// step into the <defaultFXValues> tag
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1900,7 +1937,8 @@ void PerformanceView::readDefaultsFromFile() {
 		}
 		reader.exitTag();
 	}
-	smDeserializer.closeWriter();
+	activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
 
 	successfullyReadDefaultsFromFile = true;
 }
@@ -1929,7 +1967,7 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 	tagNameFX[0] = 'F';
 	tagNameFX[1] = 'X';
 
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	// loop through all FX number tags
 	//<FX#>
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -1948,7 +1986,7 @@ void PerformanceView::readDefaultFXValuesFromFile() {
 
 void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<param>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_PARAM_TAG)) {
@@ -1971,7 +2009,7 @@ void PerformanceView::readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay) {
 /// rowColour, rowTailColour)
 void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 	char const* paramName;
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	char const* tagName = reader.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
@@ -1990,7 +2028,7 @@ void PerformanceView::readDefaultFXParamFromFile(int32_t xDisplay) {
 void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 	char const* tagName;
 	char rowNumber[5];
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	// loop through all row <#> number tags
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// find the row number that the tag corresponds to
@@ -2023,7 +2061,7 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(int32_t xDisplay) {
 void PerformanceView::readDefaultFXHoldStatusFromFile(int32_t xDisplay) {
 	char const* tagName;
 	// loop through the hold tags
-	Deserializer& reader = smDeserializer;
+	Deserializer& reader = *activeDeserializer;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		//<status>
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {

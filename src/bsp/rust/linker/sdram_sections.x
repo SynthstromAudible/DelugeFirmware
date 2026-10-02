@@ -3,7 +3,7 @@
  * the C++ .init_array, and define the boundary symbols the app's
  * GeneralMemoryAllocator reads (general_memory_allocator.cpp):
  *
- *   stealable    = [__sdram_bss_end, deluge_memory_external_end())   -- SDRAM
+ *   stealable    = [__sdram_bss_end, RUST_SDRAM_BASE)                -- SDRAM
  *   internal     = [__heap_start,    program_stack_start)            -- SRAM
  *   internal_sml = [__frunk_bss_end, __frunk_slack_end)              -- SRAM (frunk)
  *
@@ -30,11 +30,20 @@ SECTIONS {
     } > SDRAM AT> RAM
     PROVIDE(__sdram_init_lma = LOADADDR(.sdram_init));
 
-    /* SDRAM zero-init region (NOLOAD) — start of the SDRAM "stealable" heap. */
+    /* SDRAM zero-init region (NOLOAD) — start of the SDRAM "stealable" heap.
+     *
+     * The boundary symbols are defined unconditionally, NOT with PROVIDE. PROVIDE
+     * emits a symbol only if something still references it, which made the symbol
+     * table mirror the optimiser instead of describing the layout: when the boot's
+     * zeroing loop was silently optimised away (see boot_mem.rs's `zero`), the
+     * `_start` symbols simply vanished from the ELF and nothing failed. Defining
+     * them outright means they always describe the region, so `nm` can be trusted
+     * and a future disappearance of the zeroing shows up as dead code rather than
+     * as a missing symbol nobody looks for. */
     .sdram_bss (NOLOAD) : {
-        PROVIDE(__sdram_bss_start = .);
+        __sdram_bss_start = .;
         *(.sdram_bss .sdram_bss*)
-        PROVIDE(__sdram_bss_end = .);
+        __sdram_bss_end = .;
     } > SDRAM
 
     /* ---- Internal (SRAM) ---- */
@@ -42,11 +51,11 @@ SECTIONS {
      * metadata arrays live in .frunk_bss; the trailing slack is the
      * "small internal" allocation heap [__frunk_bss_end, __frunk_slack_end). */
     .frunk_bss (NOLOAD) : ALIGN(16) {
-        PROVIDE(__frunk_bss_start = .);
+        __frunk_bss_start = .; /* unconditional, as for .sdram_bss above */
         *(.frunk_bss .frunk_bss*)
-        PROVIDE(__frunk_bss_end = .);
+        __frunk_bss_end = .;
         . += 0x8000; /* 32 KB small-internal heap */
-        PROVIDE(__frunk_slack_end = .);
+        __frunk_slack_end = .;
     } > RAM
 
     /* C++ global constructors — loadable in SRAM, iterated by the Rust boot. */

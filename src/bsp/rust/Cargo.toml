@@ -1,18 +1,17 @@
-# deluge-bsp-rust: the Rust/Embassy firmware image (Cargo-top). Implements the
-# <libdeluge/...> C-ABI boundary for the Synthstrom Deluge (Renesas RZ/A1L) on
-# top of the sibling deluge-sdk HAL+BSP, OWNS reset/main/_start + the Embassy
-# executor, and links the portable C++ application (built by CMake into
-# libdeluge_app.a) — running deluge_main() in one Embassy task.
-#
-# Standalone crate (NOT a workspace member). The path deps below sit inside the
-# deluge-sdk Cargo workspace, so their `workspace = true` embassy pins resolve
-# against that workspace and stay version-locked.
+# The Deluge firmware image: implements the libdeluge C ABI on the deluge-sdk HAL+BSP, owns reset
+# and the Embassy executors, and links the C++ application (libdeluge_app.a). Standalone crate, not
+# a workspace member.
 [package]
 name = "deluge-bsp-rust"
 version = "0.1.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 publish = false
+build = "build/main.rs"
+
+[lib]
+name = "deluge_bsp_rust"
+path = "src/lib.rs"
 
 [[bin]]
 name = "deluge-rust"
@@ -20,53 +19,128 @@ path = "src/main.rs"
 test = false
 
 [dependencies]
-# Sibling deluge-sdk HAL + BSP + allocators (DelugeFirmware and deluge-sdk cloned
-# side by side). The HAL is memory-map facts only; the general-purpose Rust heaps
-# now live in deluge-alloc.
-deluge-bsp = { path = "../../../../deluge-sdk/crates/deluge-bsp" }
-deluge-alloc = { path = "../../../../deluge-sdk/crates/deluge-alloc" }
-rza1l-hal = { path = "../../../../deluge-sdk/crates/rza1l-hal" }
-
-# Embassy runtime — versions match deluge-sdk's workspace pins.
-embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread", "executor-interrupt"] }
-embassy-time = { version = "0.5.1", features = ["tick-hz-1_000_000"] }
 embassy-sync = "0.8.0"
 embassy-futures = "0.1.2"
+log = "0.4"
+rtt-target = { version = "0.6", features = ["log"], optional = true }
+heapless = { version = "0.8", default-features = false }
+
+# The header decoder the audio loader walks headers through, and whose C ABI the app calls.
+deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
+deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = ["native_fill"] }
+
+# deluge-sdk, pinned by revision. `dbt build` and `dbt sim` pass `src/bsp/rust/local-sdk.toml`
+# (gitignored) via `cargo --config` when it exists, to build against a sibling checkout instead.
+# The `flash` feature enables `deluge_bsp::flash`, which the settings sector reads need.
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", features = [
+    "flash",
+] }
+rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
+
+# The filesystem `storage::efatfs::portable` drives on every build. The 0.7 `embedded-io-async` is
+# the one whose `Read`/`Seek`/`Write` `embedded_fatfs::File` implements (the block-device crates
+# use 0.6; both versions are in the graph).
+embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = false, features = ["lfn", "alloc"] }
+embedded-io-async = "0.7.0"
+
+# Device (armv7a-none-eabihf). `platform-cortex-ar` here and `platform-std` on host are mutually
+# exclusive in embassy-executor, so the two executors live in disjoint `[target]` sections.
+[target.'cfg(target_os = "none")'.dependencies]
+deluge-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de" }
+
+# The device storage stack under the filesystem: `BlockDevice` over the SD driver, `BufStream`.
+block-device-driver = { path = "../../../crates/block-device-driver" }
+block-device-adapters = { path = "../../../crates/block-device-adapters" }
+aligned = "0.4"
+# The TLSF allocator behind the `#[global_allocator]` that `embedded-fatfs`'s `alloc` needs. Renamed
+# because it and deluge-sdk's `deluge-alloc` both normalise to `deluge_alloc`.
+fs_alloc = { package = "deluge_alloc", path = "../../../crates/deluge_alloc" }
+
+# The C-ABI crates the C++ app calls (residency/allocator, sample source/reader/stream). Their
+# `#[no_mangle]` definitions have no C++ fallback, and lib.rs's `extern crate`s keep them on the
+# link line. `deluge_resource` is linked directly, not via the `deluge_rust` umbrella, whose
+# `#[panic_handler]` would collide with ours.
+deluge_resource = { path = "../../../crates/deluge_resource" }
+deluge_sample_source = { path = "../../../crates/deluge_sample_source", features = ["c_abi"] }
+deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", features = ["c_abi"] }
+deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", features = ["c_abi"] }
+
+# Embassy versions match deluge-sdk's workspace pins.
+embassy-executor = { version = "0.10.0", features = ["nightly", "platform-cortex-ar", "executor-thread", "executor-interrupt"] }
+embassy-time = { version = "0.5.1", features = ["tick-hz-1_000_000"] }
 embassy-usb = "0.6.0"
 embassy-usb-driver = "0.2.2"
 
 cortex-ar = "0.3"
 critical-section = "1"
-log = "0.4"
-rtt-target = { version = "0.6", features = ["log"], optional = true }
+
+# Host (x86/std): the std-thread executor, so the scheduler also runs off-hardware (e.g. under
+# ThreadSanitizer).
+[target.'cfg(not(target_os = "none"))'.dependencies]
+embassy-executor = { version = "0.10.0", features = ["nightly"] }
+embassy-time = "0.5.1"
+critical-section = { version = "1", features = ["std"] }
+env_logger = { version = "0.11", optional = true }
+# The host C++ app (`host_app`) calls the same C-ABI crates.
+deluge_resource = { path = "../../../crates/deluge_resource", optional = true }
+deluge_sample_source = { path = "../../../crates/deluge_sample_source", optional = true }
+deluge_sample_reader = { path = "../../../crates/deluge_sample_reader", optional = true }
+deluge_sample_stream = { path = "../../../crates/deluge_sample_stream", optional = true }
+
+# The block-device stack under the host mount (`host_app`). A std host has a default allocator, so
+# no `fs_alloc` is needed.
+block-device-driver = { path = "../../../crates/block-device-driver", optional = true }
+block-device-adapters = { path = "../../../crates/block-device-adapters", optional = true }
+aligned = { version = "0.4", optional = true }
+# The desktop simulator window for `sim`.
+deluge-simulator = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "fc74570c2fbe0f5fd0bd67996438b3ddbe4ee5de", optional = true }
 
 [features]
-default = ["rtt"]
-## RTT (SEGGER Real-Time Transfer) logging over a debug probe. Selects the
-## rza1l_rtt.x linker script (via build.rs) + registers the log logger.
+default = ["host-runtime"]
+
+## The host binary's runtime: embassy's std executor and time driver. A harness with its own
+## executor and time driver (golden_vt_render) depends on this crate without it. The device
+## executor is exclusive with it, so device builds pass `--no-default-features --features rtt`.
+host-runtime = [
+    "embassy-executor/platform-std",
+    "embassy-executor/executor-thread",
+    "embassy-time/std",
+    "dep:env_logger",
+]
+
+## RTT logging over a debug probe: selects the rza1l_rtt.x linker script and registers the logger.
 rtt = ["dep:rtt-target", "rza1l-hal/rtt"]
 
+## Link the host-built C++ app into the host binary: bindgen the libdeluge headers for the host
+## ABI and export the C-ABI crates' symbols it calls.
+host_app = [
+    "dep:deluge_resource",
+    "dep:deluge_sample_source",
+    "deluge_sample_source/c_abi",
+    "dep:deluge_sample_reader",
+    "deluge_sample_reader/c_abi",
+    "dep:deluge_sample_stream",
+    "deluge_sample_stream/c_abi",
+    "dep:block-device-driver",
+    "dep:block-device-adapters",
+    "dep:aligned",
+]
+
+## The emulator (`dbt sim`): the host app runs as the brain of deluge-sdk's desktop simulator, in
+## one process. See docs/superpowers/specs/2026-09-29-embassy-emulator-design.md.
+sim = ["host_app", "dep:deluge-simulator", "deluge-bsp/sim-link"]
+
 [build-dependencies]
-# Generate Rust signatures + POD types from the canonical libdeluge C headers so
-# the boundary can't drift (type mismatch = compile error).
+# Generates the Rust side of the libdeluge headers, so the boundary cannot drift.
 bindgen = "0.70"
 
-# Redirect embassy-executor to the local fork that ports the InterruptExecutor to
-# platform-cortex-ar (GIC SGI pender). Same version (0.10.0), so this patch applies
-# across the whole graph (this crate + the deluge-sdk path-deps), keeping the
-# Executor/Spawner types identical everywhere.
+# The embassy fork that ports the InterruptExecutor to platform-cortex-ar (GIC SGI pender). Same
+# version, so it replaces embassy-executor across the whole graph.
 #
-# The integrated timer queue is *intrusive*: embassy-executor stores a
-# `TimerQueueItem` in each task header (via embassy-executor-timer-queue), and
-# embassy-time-queue-utils reads it back through `TimerQueueItem::from_embassy_waker`.
-# `embassy-executor-timer-queue` carries no `links` key, so without these extra
-# patches Cargo silently links TWO copies — the fork's (writing the task header,
-# pulled in by the forked embassy-executor) and crates.io's (reading it, pulled in
-# by the unpatched embassy-time-queue-utils the HAL driver uses). The two item
-# types don't match, so `schedule_wake` reads a garbage item, thinks the task is
-# already queued, and returns false → the hardware alarm is never armed → every
-# `Timer::await` hangs forever. Patch the whole intrusive timer-queue pair to the
-# fork so a single, consistent `TimerQueueItem` type is used on both sides.
+# The integrated timer queue is intrusive: the executor stores a `TimerQueueItem` in each task
+# header and embassy-time-queue-utils reads it back. `embassy-executor-timer-queue` has no `links`
+# key, so without patching the whole trio Cargo links two copies, the item types disagree, the alarm
+# is never armed, and every `Timer` await hangs.
 [patch.crates-io]
 embassy-executor = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
 embassy-executor-timer-queue = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }

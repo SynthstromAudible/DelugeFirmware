@@ -22,9 +22,10 @@ ClipIteratorBase ClipIteratorBase::operator++(int) {
 
 void ClipIteratorBase::deleteClip(InstrumentRemoval instrumentRemoval) {
 	Clip* clip = (*array)[index];
-	currentSong->deleteClipObject(clip, false, instrumentRemoval);
-	// This shifts all others down by one.
+	// Out of the array first, so nothing walking the song reaches the clip once it is handed to the render. This
+	// shifts all others down by one.
 	array->erase(array->begin() + index);
+	currentSong->deleteClipObject(clip, false, instrumentRemoval);
 	// By decreementing the index and doing next we force the type filter
 	// to run again. We don't actually need to loop backwards -- only
 	// forwards.

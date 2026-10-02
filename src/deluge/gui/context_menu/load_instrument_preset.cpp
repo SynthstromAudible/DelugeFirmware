@@ -36,7 +36,6 @@ std::span<char const*> LoadInstrumentPreset::getOptions() {
 }
 
 bool LoadInstrumentPreset::acceptCurrentOption() {
-	Error error;
 
 	switch (currentOption) {
 	/*
@@ -44,12 +43,14 @@ bool LoadInstrumentPreset::acceptCurrentOption() {
 		return true;
 		*/
 	default: // Clone
-		error = loadInstrumentPresetUI.performLoad(true);
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return true;
-		}
-		loadInstrumentPresetUI.close();
+		// Never report failure to ContextMenu::buttonAction() synchronously: the clone reports its own once it knows.
+		loadInstrumentPresetUI.requestClone([](Error cloneError) {
+			if (cloneError != Error::NONE) {
+				display->displayError(cloneError);
+				return;
+			}
+			loadInstrumentPresetUI.close();
+		});
 		return true;
 	}
 }

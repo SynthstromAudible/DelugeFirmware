@@ -33,6 +33,9 @@ class Action;
 class Drum;
 class ModelStack;
 class ModelStackWithNoteRow;
+namespace deluge::storage {
+struct AcquireResult;
+}
 
 class ArrangerView final : public TimelineView {
 public:
@@ -43,8 +46,8 @@ public:
 	ActionResult handleEditPadAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult handleStatusPadAction(int32_t y, int32_t velocity, UI* ui);
 	ActionResult handleAuditionPadAction(int32_t y, int32_t velocity, UI* ui);
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	void selectEncoderAction(int8_t offset) override;
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 
@@ -78,6 +81,32 @@ public:
 	uint32_t getGreyedOutRowsNotRepresentingOutput(Output* output) override;
 	void playbackEnded() override;
 	void clipNeedsReRendering(Clip* clip) override;
+
+	/// @brief The new-instrument pad gesture's follow-up, run by InstrumentLoad once the acquisition has landed.
+	///
+	/// Runs the WHOLE remainder of the pad press, not just the row placement: the audition sub-mode,
+	/// the output name, the note and the mod-controllable all live here, because the pad handler
+	/// returns the instant it dispatches and on the Embassy backing there is no Output on the row yet
+	/// for it to act on. The audition half is gated on the finger still being down on the same pad --
+	/// nothing else records a release for this gesture, since the press never entered
+	/// UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION in the first place.
+	/// @param yPressed yPressedEffective captured at dispatch (see PresetRequest).
+	/// @param yPressedRaw The audition-pad row the press landed on, before that clamp -- what the pad
+	///        matrix is asked about.
+	/// @param ui The UI the press came through, whose rows the repaint marks; null falls back to this
+	///        view, matching exitSubModeWithoutAction().
+	/// @param acquired The Synth InstrumentLoad acquired, or why there is none.
+	void completeNewInstrument(int32_t yPressed, int32_t yPressedRaw, UI* ui,
+	                           const deluge::storage::AcquireResult& acquired);
+	/// @brief changeOutputType()'s follow-up: inline for MIDI/CV, which read no card; for Synth/Kit, on the interaction
+	///        tier once InstrumentLoad has acquired the Instrument.
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
+	void completeChangeOutputType(OutputType newOutputType, Instrument* oldInstrument, int32_t yPressed,
+	                              const deluge::storage::AcquireResult* acquired = nullptr);
+	/// @brief navigateThroughPresets()'s follow-up; see completeChangeOutputType() for the tier split.
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
+	void completeNavigateThroughPresets(int32_t offset, Output* output, int32_t yPressed,
+	                                    const deluge::storage::AcquireResult* acquired = nullptr);
 	void exitSubModeWithoutAction(UI* ui = nullptr);
 	bool transitionToArrangementEditor();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
@@ -152,7 +181,25 @@ private:
 	void changeOutputToAudio();
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,
 	                        uint8_t occupancyMask[], int32_t renderWidth, int32_t ignoreI);
-	Instrument* createNewInstrument(OutputType newOutputType, bool* instrumentAlreadyInSong);
+	/// @brief Take the Synth a new-instrument gesture acquired: off the hibernation list, and set up without a clip.
+	/// @return The Instrument, or nullptr when the acquisition failed (its error shown).
+	Instrument* createNewInstrument(bool* instrumentAlreadyInSong, const deluge::storage::AcquireResult& acquired);
+	/// @brief The new-instrument acquisition gesture: ask InstrumentLoad for an acquisition to
+	///        create a SYNTH Instrument for the empty row at `yPressed` and place it on screen (see
+	///        completeNewInstrument(), which applies what it acquired).
+	///
+	/// This is the pad press's own `if (!output)` branch (auditionPadAction), factored out so the
+	/// song-preview A/B harness's BrowserListingAbProbe can drive the SAME gesture entry point a pad
+	/// press uses, rather than restating it. `yPressedEffective` is always written (the clamp runs
+	/// before dispatch) and captured into the request as `yPressed` -- the completion must not read
+	/// the member back. `outputsOnScreen[yPressedEffective]` is left untouched by
+	/// this call; it is written once (if ever) by completeNewInstrument(), which is also where the
+	/// rest of the press lives -- the handler returns straight after this and reads nothing back.
+	/// @param yPressed The row the gesture was pressed on, before clamping.
+	/// @param ui The UI the pad press came through -- ArrangerView, AutomationView or PerformanceView
+	///        all drive these pads. Carried to the completion so its repaint marks the UI that is
+	///        actually on screen; null means this view.
+	void beginNewInstrumentAcquisition(int32_t yPressed, UI* ui = nullptr);
 	uint32_t doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t whichRows, RGB* image,
 	                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth,
 	                        int32_t imageWidth);
@@ -169,6 +216,9 @@ private:
 	void deleteClipInstance(Output* output, ClipInstance* clipInstance);
 	void createNewClipForClipInstance(Output* output, ClipInstance* clipInstance);
 	void recordEditPadPress(Output* output, ClipInstance* clipInstance, int32_t x, int32_t y, int32_t xScroll);
+
+	friend class BrowserListingAbProbe;
+	friend class PresetAcquireProbe; // the preset-load gate's AQ legs drive the row audition's navigation
 };
 
 extern ArrangerView arrangerView;

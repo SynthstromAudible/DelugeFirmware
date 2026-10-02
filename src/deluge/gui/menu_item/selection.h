@@ -30,8 +30,6 @@ public:
 	enum class OptType { FULL, SHORT };
 	virtual deluge::vector<std::string_view> getOptions(OptType optType = OptType::FULL) = 0;
 
-	void drawValue() override;
-
 	void drawPixelsForOled() override;
 	size_t size() override { return this->getOptions().size(); }
 

@@ -1,0 +1,5 @@
+# Covers every package beneath this directory: rustup searches upward from the directory cargo
+# runs in. A harness that needs a different toolchain carries its own file.
+[toolchain]
+channel = "nightly"
+components = ["rust-src", "clippy", "rustfmt"]

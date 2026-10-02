@@ -21,10 +21,10 @@
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
-#include "model/iterance/iterance.h"
 #include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_node.h"
+#include "sequence/iterance.h"
 #include "util/c_string.h"
 
 class InstrumentClip;
@@ -77,15 +77,43 @@ public:
 
 	// BUTTON ACTION button press / release handling
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	ActionResult handleScaleButtonAction(bool on, bool inCardRoutine);
-	bool handleInstrumentChange(OutputType outputType);
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
+	// Used to reveal Session macros only after the Session button has passed the long-press threshold.
+	ActionResult timerCallback() override;
+	ActionResult handleScaleButtonAction(bool on);
+	/// @brief Handle a shift/FM or plain instrument-change gesture for @p outputType.
+	///
+	/// This routes to one of TWO different acquisitions depending on whether shift/FM is held, and
+	/// they need separate consumers: each caller's tail runs from its own completion, and the two
+	/// branches have different ones. KeyboardScreen is the caller that has a tail for both (its layout
+	/// refresh), so it overrides both; every other caller keeps the defaults.
+	/// @param outputType The type to switch to.
+	/// @param newInstrumentConsumer Which completion the shift/FM createNewInstrument() branch runs.
+	/// @param changeTypeConsumer Which completion the plain changeOutputType() branch runs.
+	/// @return Whichever branch ran returns: always false for the shift/FM branch, or whether the
+	///         gesture was accepted for the plain branch.
+	bool handleInstrumentChange(
+	    OutputType outputType,
+	    deluge::storage::PresetConsumer newInstrumentConsumer = deluge::storage::PresetConsumer::ViewNewInstrument,
+	    deluge::storage::PresetConsumer changeTypeConsumer = deluge::storage::PresetConsumer::ViewChangeType);
 
 	// PAD ACTION pad press / release handling
 
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
+	/// @brief The Drum Randomizer's gesture: snapshot which rows to randomize, close the gate, and ask
+	///        deluge::gui::randomizeDrums for the walk.
+	///
+	/// Decides without touching the card whether any candidate row could be randomized at all.
+	/// @return `DEALT_WITH` once the walk is asked for, or `NOT_DEALT_WITH` if no candidate row is eligible, which
+	///         falls through to a regular edit pad press, as when this gesture does not apply.
 	ActionResult potentiallyRandomizeDrumSamples();
-	ActionResult potentiallyRandomizeDrumSample(Kit* kit, Drum* drum, char* chosenFilename);
+	/// @brief Whether @p drum can be randomized at all: a SoundDrum whose first range has a holder naming a file.
+	///
+	/// Card-free, so the gesture can decide before any scan whether it will do anything; the walk asks it again of
+	/// each row it reaches.
+	/// @param drum Drum to test.
+	/// @return True if `drum` is a SoundDrum with a `MultiRange` and an `AudioFileHolder` with a non-empty `filePath`.
+	static bool drumIsRandomizable(Drum* drum);
 	ActionResult commandEnterNoteVelocityEditor(int32_t x, int32_t y);
 	ActionResult commandLearnMutePad(int32_t y, int32_t velocity);
 	ActionResult commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType, int32_t yDisplay,
@@ -112,13 +140,13 @@ public:
 	ActionResult commandChangeRootNote(uint8_t yDisplay);
 
 	/// VERTICAL ENCODER ACTION related
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	ActionResult commandTransposeKey(int32_t offset, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int32_t offset) override;
+	ActionResult commandTransposeKey(int32_t offset);
 	void commandTransposeScreen(int32_t offset, bool inOctave);
 	void commandShiftColour(int32_t offset);
-	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow = false,
+	ActionResult scrollVertical(int32_t scrollAmount, bool draggingNoteRow = false,
 	                            ModelStackWithTimelineCounter* modelStack = nullptr);
-	ActionResult scrollVertical_limit(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow,
+	ActionResult scrollVertical_limit(int32_t scrollAmount, bool draggingNoteRow,
 	                                  ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool isKit,
 	                                  bool preventOverScrolling, int32_t& noteRowToShiftI, int32_t& noteRowToSwapWithI);
 	void scrollVertical_potentiallySwitchOffAuditionedNotes(bool draggingNoteRow,
@@ -188,7 +216,6 @@ public:
 	void cancelAllAuditioning();
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 
-	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void notifyPlaybackBegun() override;
 	void openedInBackground();
@@ -220,8 +247,49 @@ public:
 	void setLedStates();
 	uint32_t getSquareWidth(int32_t square, int32_t effectiveLength);
 	void drawNoteCode(uint8_t yDisplay);
-	bool createNewInstrument(OutputType instrumentType, bool is_fm = false);
-	bool changeOutputType(OutputType newOutputType);
+	/// @brief Dispatch the shift/FM "create a new instrument" gesture. Always returns false: the
+	///        acquisition reads the card, so this always either dispatches or is rejected by the
+	///        clip-not-empty guard -- there is no synchronous "yes, created" to report. The tail that
+	///        would otherwise gate on that return (KeyboardScreen's SYNTH/KIT handlers) instead runs
+	///        from the `consumer`'s completion (see PresetConsumer::KeyboardNewInstrument).
+	/// @param instrumentType SYNTH or KIT.
+	/// @param is_fm Whether the new Synth should be FM (DX7). Ignored for KIT.
+	/// @param consumer Which completion runs the tail once the acquisition actually completes; default
+	///        `ViewNewInstrument` is for this class's own and AutomationView's shift/FM buttons.
+	/// @return Always false.
+	bool
+	createNewInstrument(OutputType instrumentType, bool is_fm = false,
+	                    deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewNewInstrument);
+	/// @brief createNewInstrument()'s follow-up, reached from LoadInstrumentPresetUI::
+	///        runAcquisitionFollowUp()'s `ViewNewInstrument`/`KeyboardNewInstrument` arms, once the
+	///        acquisition has landed. Runs InstrumentClipMinder::createNewInstrument() (reads no card)
+	///        then this class's own recolour/repaint/enterDrumCreator tail.
+	/// @param clip The dispatch-time snapshot (PresetRequest::clip); acted on directly, never
+	///        re-fetched via getCurrentInstrumentClip() -- see createNewInstrument()'s doc for why.
+	/// @param newOutputType SYNTH or KIT.
+	/// @param is_dx Whether the new Synth should be FM (DX7). Ignored for KIT.
+	/// @param acquired The unused slot name InstrumentLoad's walk found, or why there is none.
+	/// @return Whether an instrument was actually created.
+	bool completeNewInstrument(InstrumentClip* clip, OutputType newOutputType, bool is_dx,
+	                           const deluge::storage::AcquireResult& acquired);
+	/// @brief Change the current clip's output type through this class's fuller tail.
+	/// @param newOutputType The type to switch to.
+	/// @param consumer Which completion runs the tail. Defaults to `ViewChangeType`, this class's own;
+	///        KeyboardScreen passes `KeyboardChangeType`, which is that tail plus a layout refresh.
+	/// @return Whether the gesture was ACCEPTED -- for Synth/Kit that means dispatched, not swapped.
+	bool changeOutputType(OutputType newOutputType,
+	                      deluge::storage::PresetConsumer consumer = deluge::storage::PresetConsumer::ViewChangeType);
+	/// @brief changeOutputType()'s follow-up, reached via View::completeChangeOutputTypeFor()'s
+	///        `ViewChangeType` and `KeyboardChangeType` arms -- from InstrumentLoad once the acquisition
+	///        has landed for Synth/Kit, inline for MIDI/CV. Runs InstrumentClipMinder::changeOutputType()'s LED tail
+	///        (setLedStates(), inherited) AND this class's own recolour/repaint tail.
+	/// @param newOutputType The type that was switched to.
+	/// @param clip The clip the gesture was made on (Song-owned; safe while the acquisition is out).
+	/// @param doBlink Whether the redrawn output name should blink.
+	/// @param acquired Synth/Kit: what InstrumentLoad acquired. nullptr for MIDI/CV.
+	/// @return Whether the swap actually succeeded.
+	bool completeChangeOutputType(OutputType newOutputType, InstrumentClip* clip, bool doBlink,
+	                              const deluge::storage::AcquireResult* acquired = nullptr);
 	Sound* getSoundForNoteRow(NoteRow* noteRow, ParamManagerForTimeline** getParamManager);
 	void someAuditioningHasEnded(bool recalculateLastAuditionedNoteOnScreen);
 	bool getAffectEntire() override;
@@ -274,13 +342,16 @@ public:
 	void exitNoteEditor();
 	void handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on);
 	void deselectNoteAndGoUpOneLevel();
-	ActionResult handleNoteEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult handleNoteEditorVerticalEncoderAction(int32_t offset);
 	ActionResult handleNoteEditorHorizontalEncoderAction(int32_t offset);
-	ActionResult handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult handleNoteEditorButtonAction(deluge::hid::Button b, bool on);
 
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
 	int32_t lastSelectedNoteXDisplay;
 	int32_t lastSelectedNoteYDisplay;
+	// True while the currently-selected Note Editor note has had its audition explicitly silenced by
+	// pressing its pad a second time.
+	bool noteEditorAuditionMuted = false;
 
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange);
@@ -316,9 +387,9 @@ public:
 	                         bool selectedDrumOnly);
 	void patternPreview();
 	void patternClear();
-	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
-	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on);
 
 	// adjust note row parameters
 	int32_t setNoteRowProbabilityWithOffset(int32_t offset);
@@ -349,6 +420,8 @@ public:
 	// public for velocity keyboard view to access
 	void enterDrumCreator(ModelStackWithNoteRow* modelStack, bool doRecording = false);
 
+	ModControllableAudio* getModControllableAudioOrNone() override;
+
 private:
 	bool doneAnyNudgingSinceFirstEditPadPress{};
 	bool offsettingNudgeNumberDisplay{};
@@ -362,6 +435,9 @@ private:
 
 	int32_t quantizeAmount{};
 	uint32_t timeSongButtonPressed{};
+	// Set once a held Session button passes the long-press threshold, so short presses never flash macro colours into
+	// the sidebar on their way to Session view.
+	bool sessionMacroSidebarActive{};
 
 	std::array<RGB, kDisplayHeight> rowColour{};
 	std::array<RGB, kDisplayHeight> rowTailColour{};

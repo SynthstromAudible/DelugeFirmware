@@ -18,27 +18,53 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/latest_wins.h"
+#include "storage/preset_acquisition.h"
 
 class Instrument;
 class InstrumentClip;
 class Output;
 
+namespace deluge::gui {
+class ConfirmPreset;
+class PresetWalk;
+class SlotNameScan;
+} // namespace deluge::gui
+
 class LoadInstrumentPresetUI final : public LoadUI {
+private:
+	/// InstrumentLoad runs the browser's own loads, and calls back into its card-free prologue and its swap.
+	friend class deluge::gui::InstrumentLoad;
+	/// PresetWalk makes the folder reads the preset search is built out of, which are the browser's
+	/// own protected ones. It is a separate class rather than a member because it outlives a single
+	/// call -- the whole point is that it can stop between folders.
+	friend class deluge::gui::PresetWalk;
+	/// SlotNameScan makes the one folder read a new instrument's slot name comes from -- the same protected read
+	/// PresetWalk uses, for the same reason.
+	friend class deluge::gui::SlotNameScan;
+	/// ConfirmPreset makes the change-type's folder reads -- the same protected read, for the same reason.
+	friend class deluge::gui::ConfirmPreset;
+
 public:
 	LoadInstrumentPresetUI() = default;
 	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	void instrumentEdited(Instrument* instrument);
-	Error performLoad(bool doClone = false);
-	Error performLoadSynthToKit();
+	ActionResult verticalEncoderAction(int32_t offset) override;
+	/// @brief Clone the selected preset: a new Instrument under an unused variation of its name, as the long-press
+	///        menu asks. The browser's gate is closed until the clone ends.
+	/// @param completion Told how the clone ended: Error::NONE once it is swapped in.
+	void requestClone(void (*completion)(Error error));
+	void selectEncoderAction(int8_t offset) override;
+	/// @brief Close the browser, cancelling any load still out: whatever last swapped in stays.
+	void close() override;
 	ActionResult timerCallback() override;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
@@ -48,13 +74,6 @@ public:
 	}
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
-	std::expected<FileItem*, Error>
-	findAnUnlaunchedPresetIncludingWithinSubfolders(Song* song, OutputType outputType,
-	                                                Availability availabilityRequirement);
-	std::expected<FileItem*, Error> confirmPresetOrNextUnlaunchedOne(OutputType outputType, std::string* searchName,
-	                                                                 Availability availabilityRequirement);
-	PresetNavigationResult doPresetNavigation(int32_t offset, Instrument* oldInstrument,
-	                                          Availability availabilityRequirement, bool doBlink);
 	void setupLoadInstrument(OutputType newOutputType, Instrument* instrumentToReplace_,
 	                         InstrumentClip* instrumentClipToLoadFor_) {
 		Browser::outputTypeToLoad = newOutputType;
@@ -79,19 +98,112 @@ public:
 	UIType getUIType() override { return UIType::LOAD_INSTRUMENT_PRESET; }
 	bool canDisplayFavourites() override { return true; }
 
+	/// @brief How many preset acquisitions have actually RUN since boot: walks InstrumentLoad has queued.
+	///
+	/// A request superseded or refused before its walk is queued is never counted. Read by the song-preview A/B
+	/// harness's acquisition stage to tell a coalesced gesture from a dropped one, and to prove a CV switch dispatches
+	/// NOTHING.
+	/// @return The running acquisition-run count.
+	[[nodiscard]] static int32_t presetAcquisitionsRun() { return presetAcquisitionsRun_; }
+
+	/// @brief Whether a preset acquisition is in flight or queued on InstrumentLoad.
+	[[nodiscard]] bool presetAcquisitionInFlight() const;
+
+	/// @brief Whether a preset load is in flight or queued.
+	[[nodiscard]] bool scrollLoadInFlight() const;
+
+	/// @brief The ticket of the browser's most recent scroll-load: the load BACK cancels while it is still out.
+	[[nodiscard]] deluge::gui::LoadTicket scrollLoadTicket() const { return scrollLoadTicket_; }
+
+	/// @brief Ask InstrumentLoad for one instrument acquisition: its walk and its load run on the interaction
+	///        tier, and the gesture's follow-up runs once the Instrument is ready.
+	///
+	/// The caller builds `request` from live state HERE, the only point where reading it is safe; the acquisition then
+	/// acts only on that snapshot. Callers ask ONLY on the Synth/Kit arm: MIDI and CV read no card.
+	///
+	/// The return means "the gesture was ACCEPTED", never "the acquisition finished". A caller that has nothing to do
+	/// with a refused gesture writes an explicit `(void)`: for a pad press or an encoder turn there is nothing left
+	/// half-applied, and the user's next press asks again.
+	///
+	/// @param request The snapshot; see PresetRequest.
+	/// @return false when the gesture is refused: a creation is already queued (see
+	///         deluge::storage::isCreationConsumer()), and is never replaced.
+	[[nodiscard]] bool dispatchPresetAcquisition(const deluge::storage::PresetRequest& request);
+
 protected:
 	void enterKeyPress() override;
 	void folderContentsReady(int32_t entryDirection) override;
 	void currentFileChanged(int32_t movementDirection) override;
+	void onBrowserOpened() override;
+	void onListingFailed(Error error) override;
+	ActionResult backButtonAction() override;
 
 private:
 	bool showingAuditionPads();
-	Error setupForOutputType();
+	std::string setupForOutputType();
+	void finishArrivedInFolder(char const* defaultDir);
 	void changeOutputType(OutputType newOutputType);
 	void revertToInitialPreset();
 	void exitAction() override;
 	bool isInstrumentInList(Instrument* searchInstrument, Output* list);
 	bool findUnusedSlotVariation(std::string* oldName, std::string* newName);
+
+	/// @brief The snapshot a load of the current file is asked for with. Taken when it is asked for, the only point
+	///        at which the browser's live list and entered text may be read for it.
+	[[nodiscard]] deluge::gui::InstrumentLoadTarget snapshotTarget(int32_t movementDirection);
+	/// @brief The card-free prologue of a load: nothing to load, reuse an existing or hibernating Instrument, or read
+	///        the preset (with a clone's name found). Reads instrumentToReplace live, as the load it follows left it.
+	deluge::gui::InstrumentLoadDecision decideLoad(const deluge::gui::InstrumentLoadRequest& request);
+	/// @brief Swap @p newInstrument in for instrumentToReplace, in one pass, as @p decision says.
+	/// @return Error::NONE, or the swap's failure.
+	Error swapInstrument(const deluge::gui::InstrumentLoadRequest& request,
+	                     const deluge::gui::InstrumentLoadDecision& decision, Instrument* newInstrument);
+	/// @brief Replace the kit row's drum with @p newDrum, in one pass.
+	/// @return Error::NONE, or FILE_CORRUPTED when the new drum has no param manager.
+	Error swapKitRow(const deluge::gui::InstrumentLoadRequest& request, SoundDrum* newDrum);
+	/// @brief Put @p initialInstrument back on the clip, as @p target says: the tail every revert ends with, whether
+	///        the original came from memory or off the card.
+	void swapRevert(const deluge::gui::RevertTarget& target, Instrument* initialInstrument);
+	/// @brief A scroll-load's end: records the error, and shows it.
+	static void onScrollLoaded(Error error);
+	/// @brief A commit's end: shows an error, or recalculates a kit's colours and closes the browser.
+	static void onCommitLoaded(Error error);
+
+	/// @brief Runs one acquisition's consumer follow-up with what InstrumentLoad acquired.
+	/// @param request The snapshot the acquisition was asked for with; see PresetRequest.
+	/// @param acquired The Instrument (or, for a new instrument, the slot name), or why there is none.
+	void runAcquisitionFollowUp(const deluge::storage::PresetRequest& request,
+	                            const deluge::storage::AcquireResult& acquired);
+
+	/// @brief An acquisition's card-free prologue, as InstrumentLoad starts it: which walk, from where.
+	/// @param request The gesture.
+	/// @param walk Filled with the walk to run.
+	/// @return false when there is nothing to acquire (the gesture's Instrument has gone, or its clip already has the
+	///         type); the request then ends telling no one.
+	bool beginAcquisition(const deluge::storage::PresetRequest& request, deluge::storage::AcquireWalkSpec* walk);
+
+	/// @brief Hand an acquired Instrument to its gesture's follow-up. A preset parsed from the card that the follow-up
+	///        did not take (its Instrument gone since, or its clip or track not made) is deleted.
+	void deliverAcquisition(const deluge::storage::PresetRequest& request,
+	                        const deluge::storage::AcquireResult& acquired);
+
+	/// @brief Whether `instrument` is still one of currentSong's live outputs.
+	///
+	/// `PresetRequest::oldInstrument` is Song-owned, so it never dangles across the op's yields -- but lifetime is
+	/// not currency. Under coalescing, two rapid change-type/navigate gestures on the same row both snapshot the
+	/// SAME `oldInstrument` pointer, because the second reads live state (outputsOnScreen) before the first
+	/// gesture's op has completed. If the first op replaces or hibernates that Instrument, a coalesced follow-up
+	/// for the second gesture must not act on it as though it were still the row's live output -- this is what
+	/// re-validates that before any such follow-up runs. Reused by every consumer that carries an `oldInstrument`.
+	/// @param instrument The snapshot's `oldInstrument`; null is not "still live" (callers should
+	///                    skip this check for consumers that never set it).
+	/// @return true if `instrument` is still in currentSong's live output list.
+	bool isRequestInstrumentStillLive(Instrument* instrument);
+
+	// Tells changeOutputType()'s Open listing apart from opened()'s in the shared onBrowserOpened()/
+	// onListingFailed() hooks (see changeOutputType()'s comment).
+	bool changingOutputType_{};
+	OutputType outputTypeBeforeChange_{};
 
 	InstrumentClip* instrumentClipToLoadFor{}; // Can be NULL - if called from Arranger.
 	Instrument* instrumentToReplace{}; // The Instrument that's actually successfully loaded and assigned to the Clip.
@@ -102,6 +214,8 @@ private:
 	int32_t noteRowIndex{};
 	NoteRow* noteRow{};
 	Error currentInstrumentLoadError;
+	/// The browser's most recent scroll-load; see scrollLoadTicket().
+	deluge::gui::LoadTicket scrollLoadTicket_{};
 
 	int16_t initialChannel{};
 	int8_t initialChannelSuffix{};
@@ -112,6 +226,9 @@ private:
 
 	std::string initialName{};
 	std::string initialDirPath{};
+
+	/// @brief Backing counter for presetAcquisitionsRun(). Incremented by InstrumentLoad as it queues a walk.
+	static inline int32_t presetAcquisitionsRun_{};
 };
 
 extern LoadInstrumentPresetUI loadInstrumentPresetUI;

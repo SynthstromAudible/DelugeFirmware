@@ -26,14 +26,23 @@
 #ifndef LIBDELUGE_SIGNALS_H
 #define LIBDELUGE_SIGNALS_H
 
+#include "abi.h"
 #include "types.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/// A named board digital line. Boards implement the subset they have.
-typedef enum DelugeSignal {
+/// @brief A named board digital line. Boards implement the subset they have.
+///
+/// @note Fixed underlying type (`: uint8_t`): this enum crosses the C-ABI FFI boundary, so its
+///       width must be pinned explicitly rather than left to the compiler's default
+///       (arm-none-eabi defaults to `-fshort-enums`, laying it out as 1 byte, while a host/bindgen
+///       build without that flag would otherwise emit a wider `int`-sized enum) — an explicit
+///       underlying type is authoritative in C and C++ regardless of `-fshort-enums`, so every
+///       build target agrees.
+typedef enum DelugeSignal : uint8_t {
 	// Outputs
 	DELUGE_SIGNAL_SYNC_LED = 0,    ///< external-clock "synced" indicator LED
 	DELUGE_SIGNAL_BATTERY_LED = 1, ///< low-battery indicator LED (open-drain)
@@ -50,10 +59,10 @@ typedef enum DelugeSignal {
 
 /// Drive an output `signal` high/low (`on`). The board handles any inversion
 /// (e.g. open-drain LEDs) internally; `on` is the logical "asserted" state. [task]
-void deluge_signal_write(DelugeSignal signal, bool on);
+void deluge_signal_write(DelugeSignal signal, bool on) DELUGE_NOEXCEPT;
 
 /// Read the current level of an input `signal`. [task]
-bool deluge_signal_read(DelugeSignal signal);
+bool deluge_signal_read(DelugeSignal signal) DELUGE_NOEXCEPT;
 
 // ---------------------------------------------------------------------------
 // Battery voltage sense. The board owns the ADC channel and conversion; the app
@@ -62,10 +71,10 @@ bool deluge_signal_read(DelugeSignal signal);
 
 /// If a battery-voltage conversion has completed, store its raw reading in
 /// `*out` and return true; otherwise return false. [task]
-bool deluge_battery_read_raw(uint16_t* out);
+bool deluge_battery_read_raw(uint16_t* out) DELUGE_NOEXCEPT;
 
 /// Arm the next battery-voltage conversion. [task]
-void deluge_battery_start_conversion(void);
+void deluge_battery_start_conversion(void) DELUGE_NOEXCEPT;
 
 // ---------------------------------------------------------------------------
 // MIDI/gate output timer. A board one-shot that fires midiAndGateTimerGoneOff()
@@ -78,13 +87,13 @@ void deluge_battery_start_conversion(void);
 
 /// True if the output timer is already armed (an output ISR is pending). The app
 /// checks this before arming, or before emitting output inline, so it never
-/// races the scheduled ISR. [task] [isr]
-bool deluge_midi_gate_timer_pending(void);
+/// races the scheduled ISR. [task] [audio]
+bool deluge_midi_gate_timer_pending(void) DELUGE_NOEXCEPT;
 
 /// Arm the output timer to fire midiAndGateTimerGoneOff() `samples_from_now`
 /// audio samples in the future. Call only when !deluge_midi_gate_timer_pending().
-/// [task]
-void deluge_midi_gate_timer_arm(uint32_t samples_from_now);
+/// [audio]
+void deluge_midi_gate_timer_arm(uint32_t samples_from_now) DELUGE_NOEXCEPT;
 
 // ---------------------------------------------------------------------------
 // Runtime-provided callbacks (inverse direction: the app implements, the
@@ -94,7 +103,7 @@ void deluge_midi_gate_timer_arm(uint32_t samples_from_now);
 
 /// Fired from the MIDI/gate output timer ISR: the scheduled gate/clock output
 /// time has arrived and the app should emit pending events. [isr]
-void midiAndGateTimerGoneOff(void);
+void midiAndGateTimerGoneOff(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

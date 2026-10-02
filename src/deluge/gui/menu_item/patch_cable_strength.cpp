@@ -70,10 +70,8 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void PatchCableStrength::endSession() {
-	if (display->haveOLED()) {
-		setLedState(IndicatorLED::MIDI, false);
-		setLedState(IndicatorLED::CV, false);
-	}
+	setLedState(IndicatorLED::MIDI, false);
+	setLedState(IndicatorLED::CV, false);
 }
 
 void PatchCableStrength::renderOLED() {
@@ -122,7 +120,8 @@ void PatchCableStrength::renderOLED() {
 		}
 
 		// Draw the destination name
-		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.getJustTheParam()),
+		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.getJustTheParam(),
+		                                                              soundEditor.currentModControllable),
 		                 leftPadding, y, kTextSpacingX, kTextSizeYUpdated);
 	}
 
@@ -307,11 +306,6 @@ PatchSource PatchCableStrength::getPatchSource() {
 }
 
 MenuItem* PatchCableStrength::selectButtonPress() {
-	// Cancel the polarity popup on the 7SEG
-	if (display->have7SEG() && display->hasPopup()) {
-		display->cancelPopup();
-		return NO_NAVIGATION;
-	}
 	// If shift held down, delete automation
 	if (Buttons::isShiftButtonPressed()) {
 		return Automation::selectButtonPress();
@@ -320,18 +314,18 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 	return &source_selection::rangeMenu;
 }
 
-ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on) {
 	using namespace hid::button;
 
 	static auto polarity_map = std::map<hid::Button, Polarity>{{MIDI, Polarity::BIPOLAR}, {CV, Polarity::UNIPOLAR}};
-	if (on && display->haveOLED() && polarity_map.contains(b) && PatchCable::hasPolarity(getS())) {
+	if (on && polarity_map.contains(b) && PatchCable::hasPolarity(getS())) {
 		polarity_in_the_ui_ = polarity_map[b];
 		setPatchCablePolarity(polarity_in_the_ui_);
 		updatePolarityUI();
 		return ActionResult::DEALT_WITH;
 	}
 
-	return Automation::buttonAction(b, on, inCardRoutine);
+	return Automation::buttonAction(b, on);
 }
 
 void PatchCableStrength::selectEncoderAction(int32_t offset) {
@@ -340,12 +334,7 @@ void PatchCableStrength::selectEncoderAction(int32_t offset) {
 		setPatchCablePolarity(polarity_in_the_ui_);
 		updatePolarityUI();
 
-		if (display->haveOLED()) {
-			Buttons::selectButtonPressUsedUp = true;
-		}
-		else {
-			display->popupText(polarityToStringShort(polarity_in_the_ui_).data());
-		}
+		Buttons::selectButtonPressUsedUp = true;
 		return;
 	}
 
@@ -398,22 +387,10 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 }
 
 void PatchCableStrength::updatePolarityUI() {
-	if (display->haveOLED()) {
-		const bool hasPolarity = PatchCable::hasPolarity(getS());
-		setLedState(IndicatorLED::MIDI, hasPolarity && polarity_in_the_ui_ == Polarity::BIPOLAR);
-		setLedState(IndicatorLED::CV, hasPolarity && polarity_in_the_ui_ == Polarity::UNIPOLAR);
-		renderUIsForOled();
-	}
-	else {
-		// update additional dot on 7seg
-		drawActualValue();
-	}
-}
-
-void PatchCableStrength::appendAdditionalDots(std::vector<uint8_t>& dotPositions) {
-	if (polarity_in_the_ui_ == Polarity::UNIPOLAR) {
-		dotPositions.push_back(3);
-	}
+	const bool hasPolarity = PatchCable::hasPolarity(getS());
+	setLedState(IndicatorLED::MIDI, hasPolarity && polarity_in_the_ui_ == Polarity::BIPOLAR);
+	setLedState(IndicatorLED::CV, hasPolarity && polarity_in_the_ui_ == Polarity::UNIPOLAR);
+	renderUIsForOled();
 }
 
 } // namespace deluge::gui::menu_item

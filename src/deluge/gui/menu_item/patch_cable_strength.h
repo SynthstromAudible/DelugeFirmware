@@ -43,9 +43,10 @@ public:
 	virtual PatchSource getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	MenuItem* selectButtonPress() final;
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(hid::Button b, bool on) override;
 	void selectEncoderAction(int32_t offset) override;
 	void horizontalEncoderAction(int32_t offset) override;
+	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 
 	modulation::params::Kind getParamKind();
 	uint32_t getParamIndex();
@@ -53,8 +54,6 @@ public:
 
 	// OLED Only
 	void renderOLED() override;
-	// 7SEG only
-	void appendAdditionalDots(std::vector<uint8_t>& dotPositions) override;
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }

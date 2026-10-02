@@ -53,12 +53,10 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return !soundEditor.editingGateDrumRow();
 	}
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 };

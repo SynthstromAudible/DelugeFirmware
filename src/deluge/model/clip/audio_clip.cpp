@@ -39,15 +39,14 @@
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
 #include "util/fixedpoint.h"
 #include <new>
 
 namespace params = deluge::modulation::params;
 
-extern "C" {
-extern uint8_t currentlyAccessingCard;
-}
+extern "C" {}
 
 AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song, loadedId) {
 	// M3 owner-4 (ctor-binding): the base Clip ctor has already minted/bound id_ and docClip_. Bind this clip's
@@ -68,10 +67,12 @@ AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song
 
 AudioClip::~AudioClip() {
 	// M3 owner-4: drop this clip's DOM descriptor record so the store doesn't accumulate dead entries. Mirrors the
-	// docClip_ removal in ~Clip: guarded on currentSong (nulled first during whole-song teardown, when the entire
-	// project — audio_clip_structure included — is destroyed wholesale) and on docAudioClip_ being bound.
+	// docClip_ removal in ~Clip: guarded on the clip being currentSong's (a whole song is torn down with currentSong
+	// null or already another song, and its entire project — audio_clip_structure included — goes with it) and on
+	// docAudioClip_ being bound.
 	if (currentSong && docAudioClip_ != nullptr) {
-		if (std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*this)) {
+		std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*this);
+		if (addr && currentSong->project.resolveClip(*addr) == docClip_) {
 			currentSong->project.removeDocAudioClip(*addr);
 		}
 	}
@@ -195,9 +196,14 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 	bool shouldRecordMarginsNow =
 	    FlashStorage::audioClipRecordMargins && inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
+	// unless we're doing a tempoless recording we want to ignore the threshold setting
+	bool tempoless_recording =
+	    currentPlaybackMode->wantsToDoTempolessRecord(modelStack->getTimelineCounter()->getLastProcessedPos());
 
+	// recorder needs more config settings
 	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
-	                                       shouldRecordMarginsNow, buttonPressLatency, false, outputRecordingFrom);
+	                                       shouldRecordMarginsNow, buttonPressLatency, false, outputRecordingFrom,
+	                                       {.neverUseThreshold = not tempoless_recording});
 	if (!recorder) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -253,8 +259,11 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	originalLength = loopLength();
 	setSampleFilePath(recorder->sample->filePath.c_str());
 	sampleHolder.setAudioFile(recorder->sample, sampleControls.isCurrentlyReversed(), true,
-	                          CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after
-	                                              // endSyncedRecording(), which puts some final values in the Sample
+	                          CLUSTER_ENQUEUE); // Enqueues a fetch of the first Cluster(s) - the recorder's private
+	                                            // capture buffers aren't shared residency, so cluster 0 is cold at
+	                                            // finalize and needs an active fetch, not just a reason claim. Must
+	                                            // call this after endSyncedRecording(), which puts some final values
+	                                            // in the Sample
 
 	// M3 owner-4: setAudioFile (manuallySelected) just set startPos/endPos on the sampleHolder cache but not the
 	// record; reflect the resolved window into docAudioClip_ so save persists the recorded length, not a stale zone.
@@ -363,7 +372,7 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 			// the envelope finishes releasing), then we'd absolutely better reset that envelope because there's no
 			// other way any sound's going to come out!
 			bool shouldResetEnvelope = !voiceSample
-			                           || (((AudioOutput*)output)->envelope.state >= EnvelopeStage::RELEASE
+			                           || (((AudioOutput*)output)->envelope.stage() >= Envelope::Stage::RELEASE
 			                               && !doingLateStart); // Come to think of it, would doingLateStart ever (or
 			                                                    // normally) be true if we're at play pos 0?
 
@@ -445,7 +454,19 @@ doUnassignment:
 
 			voiceSample->noteOn(&guide, 0, 1);
 			voiceSample->forAudioClip = true;
-			voiceSample->setupClusersForInitialPlay(&guide, ((Sample*)sampleHolder.audioFile), 0, false, 1);
+			{
+				RegionOutcome outcome =
+				    voiceSample->setupClusersForInitialPlay(&guide, ((Sample*)sampleHolder.audioFile), 0, false, 1);
+				// Anything but Ready arms the late-start retry, which covers both remaining outcomes:
+				// Loading is a present-but-not-yet-loaded cold cluster (e.g. a just-finalized recording's
+				// cluster 0, freshly enqueued but not yet fetched), and Unavailable would otherwise fall
+				// through with no valid region. AudioClips do not use VoiceSample::pendingSamplesLate, so
+				// this -- not the unison-source deferral -- is their retry path; render()'s
+				// attemptLateSampleStart waits for the data either way.
+				if (outcome != RegionOutcome::Ready) {
+					doingLateStart = true;
+				}
+			}
 
 possiblyResetEnvelopeAndGetOut:
 			if (shouldResetEnvelope) {
@@ -510,7 +531,8 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 	// If already time stretching, no need to do anything - that'll take care of the new play-position.
 	// Also can only do this if envelope not releasing, which (possibly not anymore since I fixed other bug) it can
 	// still be if this is our second quick successive <>+play starting playback partway through Clip
-	if (voiceSample && voiceSample->timeStretcher && ((AudioOutput*)output)->envelope.state < EnvelopeStage::RELEASE) {
+	if (voiceSample && voiceSample->timeStretcher
+	    && ((AudioOutput*)output)->envelope.stage() < Envelope::Stage::RELEASE) {
 		return;
 	}
 
@@ -525,7 +547,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		// TODO: probably not super necessary now we've got time-stretching taking care of sorta doing a crossfade,
 		// above. We'd only actually need to do any such fade manually if we weren't time-stretching before, and we're
 		// also not going to be after (though it'd be hard to predict whether we're going to be after)
-		((AudioOutput*)output)->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+		((AudioOutput*)output)->envelope.unconditionalRelease(Envelope::Stage::FAST_RELEASE);
 	}
 
 	// Otherwise, get a new VoiceSample
@@ -582,7 +604,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 
 	// First, if we're still attempting to do a "late start", see if we can do that (perhaps not if relevant audio data
 	// hasn't loaded yet)
-	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.stage() < Envelope::Stage::FAST_RELEASE) {
 		uint64_t numSamplesIn = guide.getSyncedNumSamplesIn();
 
 		LateStartAttemptStatus result = voiceSample->attemptLateSampleStart(&guide, sample, numSamplesIn);
@@ -749,12 +771,11 @@ justDontTimeStretch:
 
 		// We want to do a fast release *before* the end, to finish right as the end is reached. So that any waveform
 		// after the end isn't heard.
-		// TODO: in an ideal world, would we only do this if there actually is some waveform "margin" after the end that
-		// we want to avoid hearing, and otherwise just do the release right at the end (does that already happen, I
-		// forgot?) It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of
-		// the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the
-		// margin.
-		if (static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+		// NOTE: only do this if there actually is some waveform "margin" after the end or before the beginning (if
+		// reversed) that we want to avoid hearing. Otherwise just do the release right at the start/end
+		if (static_cast<AudioOutput*>(this->output)->envelope.stage() < Envelope::Stage::FAST_RELEASE
+		    && ((guide.playDirection == 1) ? (sampleHolder.endPos < sample->lengthInSamples)
+		                                   : (sampleHolder.startPos != 0))) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
@@ -768,7 +789,8 @@ justDontTimeStretch:
 
 				if (timeTilLoop < 1024) {
 					static_cast<AudioOutput*>(this->output)
-					    ->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE, 8192); // Let's make it extra fast?
+					    ->envelope.unconditionalRelease(Envelope::Stage::FAST_RELEASE,
+					                                    8192); // Let's make it extra fast?
 				}
 			}
 		}
@@ -847,7 +869,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 			if (doingLateStart) {
 				// If waiting to do a late start, and we're not waiting for a past bit to fade out, well there's no
 				// sound right now, so just cut out.
-				if (((AudioOutput*)output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+				if (((AudioOutput*)output)->envelope.stage() < Envelope::Stage::FAST_RELEASE) {
 					unassignVoiceSample(false);
 				}
 
@@ -859,7 +881,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 			}
 			else {
 				// Or normal case - do a fade when we weren't going to before. And no late start is or was happening.
-				((AudioOutput*)output)->envelope.unconditionalRelease(EnvelopeStage::FAST_RELEASE);
+				((AudioOutput*)output)->envelope.unconditionalRelease(Envelope::Stage::FAST_RELEASE);
 			}
 		}
 	}
@@ -1216,6 +1238,7 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	// M3 owner-4 complete: every persistent AudioClip field is DOM-authoritative and read straight from docAudioClip_
 	// below — no rebuild-at-save sync remains.
+	writer.writeAttribute("clipName", name.c_str());
 	writer.writeAttribute("trackName", output->name.c_str());
 
 	writer.writeAttribute("filePath", docAudioClip_->file_path.c_str());
@@ -1291,7 +1314,11 @@ someError:
 	                   // element is entered implicitly); mirrors InstrumentClip::readFromFile.
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 
-		if (!strcmp(tagName, "trackName")) {
+		if (!strcmp(tagName, "clipName")) {
+			reader.readTagOrAttributeValueString(name);
+		}
+
+		else if (!strcmp(tagName, "trackName")) {
 			reader.readTagOrAttributeValueString(outputNameWhileLoading);
 		}
 
@@ -1377,12 +1404,18 @@ Error AudioClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 	return Error::NONE;
 }
 
-void AudioClip::loadSample(bool mayActuallyReadFile) {
-	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile);
-	name = sampleHolder.filePath.c_str();
-	if (error != Error::NONE) {
-		display->displayError(error);
-	}
+void AudioClip::loadSample(bool mayActuallyReadFile, deluge::storage::AudioLoadContext* context) {
+	deluge::storage::BlockingSampleLoad load{mayActuallyReadFile, context};
+	(void)walkSampleDemands(load);
+}
+
+deluge::storage::Walk AudioClip::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
+	visitor.demand({.holder = &sampleHolder,
+	                .reversed = sampleControls.isCurrentlyReversed(),
+	                .clusterLoadInstruction = CLUSTER_ENQUEUE,
+	                .makeWaveTableWorkAtAllCosts = false,
+	                .clipToName = this});
+	return deluge::storage::Walk::Continue;
 }
 
 // Keeps same ParamManager
@@ -1556,7 +1589,9 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		setSampleStartPos(newStartPos);
 		setSampleEndPos(newStartPos + length);
 
-		sampleHolder.claimClusterReasons(sampleControls.isCurrentlyReversed(), CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
+		// Clip-shift prefetch must never block the UI on a card read — enqueue and let the loader
+		// fill it. Playback tolerates a not-yet-loaded cluster (same as the realtime path).
+		sampleHolder.claimClusterReasons(sampleControls.isCurrentlyReversed(), CLUSTER_ENQUEUE);
 
 		if (active) {
 			expectEvent();

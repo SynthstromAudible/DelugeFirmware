@@ -1,6 +1,8 @@
 import argparse
-from pathlib import Path
 import shutil
+import sys
+from pathlib import Path
+
 import util
 
 TARGET_DEVICE = "R7S721020"
@@ -117,8 +119,6 @@ def get_openocd_target(target: str, protocol: str) -> str:
             target = OPENOCD_TARGET_DEVICE_SWD
             if protocol != "swd":
                 print("Warning! Interface unsupported, falling back to SWD")
-    else:
-        target = target
 
     return target
 
@@ -142,6 +142,6 @@ def main() -> int:
 
 if __name__ == "__main__":
     try:
-        exit(main())
+        sys.exit(main())
     except KeyboardInterrupt:
-        exit(130)
+        sys.exit(130)

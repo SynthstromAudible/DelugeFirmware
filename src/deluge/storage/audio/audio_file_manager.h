@@ -18,14 +18,14 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "storage/audio/audio_file_vector.h"
+#include "storage/audio/audio_load_context.h"
 #include "storage/cluster/cluster.h"
 #include "util/c_string.h"
 #include <array>
+#include <cstddef>
 #include <cstdint>
-
-extern "C" {
-#include "fatfs/ff.h"
-}
+#include <optional>
+#include <string_view>
 
 class Sample;
 class SampleCache;
@@ -33,12 +33,10 @@ class SampleCache;
 class SampleRecorder;
 class Output;
 
-enum class AlternateLoadDirStatus {
-	NONE_SET,
-	NOT_FOUND,
-	MIGHT_EXIST,
-	DOES_EXIST,
-};
+/// A finished async header parse (libdeluge/audio_load.h). Forward-declared rather than included: the
+/// C ABI header is only needed where the collector is actually implemented (audio_file_manager.cpp),
+/// not by every translation unit that talks to the manager.
+struct DelugeAudioLoadResult;
 
 char const* const audioRecordingFolderNames[] = {
     "SAMPLES/CLIPS",
@@ -86,24 +84,55 @@ public:
 	AudioFileVector audioFiles;
 
 	void init();
-	AudioFile* getAudioFileFromFilename(std::string& fileName, bool mayReadCard, Error* error, FilePointer* filePointer,
-	                                    AudioFileType type, bool makeWaveTableWorkAtAllCosts = false);
-	bool loadCluster(Cluster& cluster, int32_t minNumReasonsAfter = 0);
-	// The pure data read extracted from loadCluster (the future resource-manager materialize Source):
-	// sector count + disk_read + conversion + inter-cluster boundary fixups, with no orchestration
-	// (card-state guards, clusterBeingLoaded, the loading reason, and the loadingQueue stay in loadCluster).
-	bool readClusterData(Cluster& cluster, [[maybe_unused]] int32_t minNumReasonsAfter);
-	void loadAnyEnqueuedClusters(int32_t maxNum = 128, bool mayProcessUserActionsBetween = false);
-	void removeReasonFromCluster(Cluster& cluster, char const* errorCode, bool deletingSong = false);
+	/// @brief Get the AudioFile for @p fileName: from memory if it is already resident, otherwise from
+	///        the card.
+	///
+	/// @param fileName                    The path to load. May be rewritten to the alternate location
+	///                                    the file was actually found at (see resolveFileSize).
+	/// @param mayReadCard                 false makes this an in-memory lookup only: a miss returns
+	///                                    nullptr and leaves @p error untouched.
+	/// @param error                       Set on failure. Also set to Error::LOAD_IN_PROGRESS -- which
+	///                                    is NOT a failure -- when the async loader has been asked for
+	///                                    this file and has not finished yet; see @p asyncMode.
+	/// @param type                        Which concrete AudioFile subclass is wanted.
+	/// @param makeWaveTableWorkAtAllCosts Force wavetable interpretation even without the tag/length
+	///                                    hints that normally identify one.
+	/// @param asyncMode                   Whether a card miss may go to the async loader (libdeluge/audio_load.h)
+	///                                    instead of the blocking load: see deluge::storage::AsyncLoadMode. Only
+	///                                    honoured for AudioFileType::SAMPLE. A caller passing anything but
+	///                                    Blocking MUST handle Error::LOAD_IN_PROGRESS -- returning to its own loop
+	///                                    and asking again on a later tick, without re-requesting or reporting a
+	///                                    failure. Defaulted to Blocking: every caller that does not opt in keeps
+	///                                    the synchronous behaviour it was written against.
+	/// @param context                     The load this lookup belongs to: where else to look for the file, and
+	///                                    what the load has learnt about that folder so far. Null for a lookup
+	///                                    that belongs to no song, synth or kit load.
+	/// @return The AudioFile, held by no reason (the caller leases it), or nullptr with @p error set.
+	AudioFile*
+	getAudioFileFromFilename(std::string& fileName, bool mayReadCard, Error* error, AudioFileType type,
+	                         bool makeWaveTableWorkAtAllCosts = false,
+	                         deluge::storage::AsyncLoadMode asyncMode = deluge::storage::AsyncLoadMode::Blocking,
+	                         deluge::storage::AudioLoadContext* context = nullptr);
 
 	bool ensureEnoughMemoryForOneMoreAudioFile();
 
 	void slowRoutine();
 
-	Error setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength, std::string& oldPath);
-	Error setupAlternateAudioFileDir(std::string& newPath, char const* rootDir,
-	                                 const char* songFilenameWithoutExtension);
-	bool loadingQueueHasAnyLowestPriorityElements();
+	// Background "waveform overview" pre-scan (issue #4460): see implementation for details.
+	void backgroundWaveformOverviewScan();
+	// How many clusters to investigate per slowRoutine call. Kept small to avoid card/audio contention.
+	// One cluster per idle tick: each investigate can trigger a synchronous card read, so keep this at 1
+	// to avoid chaining reads against playback streaming (#4460).
+	static constexpr int32_t kOverviewScanClustersPerCall = 1;
+	int32_t overviewScanFileIndex = 0; // Round-robin cursor over audioFiles for the overview pre-scan
+	bool overviewScanAllDone =
+	    false; // Set once every loaded sample is fully pre-scanned; re-armed on load/reset (#4460)
+
+	Error setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength, const std::string& oldPath) const;
+	/// @brief Whether the SD card is currently unusable for streaming (ejected, disabled, or not
+	///        initialized) — the loader pump's card-down gate.
+	/// @return `true` if the card cannot be read right now.
+	[[nodiscard]] bool cardUnavailableForStreaming() const;
 	/// If songname isn't supplied the file is placed in the main recording folder and named as samples/folder/REC###.
 	/// If song and channel are supplied then it's placed in samples/folder/song/channel_###
 	Error getUnusedAudioRecordingFilePath(std::string& filePath, std::string* tempFilePathForRecording,
@@ -111,6 +140,22 @@ public:
 	                                      std::string* songName);
 	void deleteAnyTempRecordedSamplesFromMemory();
 	void deleteUnusedAudioFileFromMemory(AudioFile& audioFile, int32_t i);
+
+	/// @brief Drop every resident AudioFile nothing holds a lease on. Returns how many went.
+	///
+	/// Residency is normally ended by memory pressure, but a streamed Sample also pins a
+	/// scarce *file handle* for its whole residency, and handles run out first: previewing
+	/// samples in the browser leaves each one cached, so the handle table fills while the
+	/// heap is still nearly empty and opening the next stream fails with
+	/// Error::TOO_MANY_OPEN_STREAMS. This gives that resource the reclaim path it was
+	/// missing — see SampleStream::open_read_stream(), and AudioFileManager::answerFailedLoadResult()
+	/// which runs the same reclaim when the ASYNC loader's own open hits the full table (it cannot
+	/// call this itself: it runs on an executor that must make no synchronous C++ call).
+	///
+	/// Safe because `leaseCount() > 0` is what it skips on, which covers a playing voice, a
+	/// recorder, a project reference and the protect-during-setup lease held by a sample
+	/// mid-load. Cheap to over-call: with nothing reclaimable it just walks the list.
+	int32_t releaseUnleasedAudioFiles();
 	void deleteUnusedAudioFileFromMemoryIndexUnknown(AudioFile& audioFile);
 	bool tryToDeleteAudioFileFromMemoryIfItExists(char const* filePath);
 
@@ -120,52 +165,370 @@ public:
 	void adoptAudioFileObject(AudioFile* audioFile);
 	void destroyAudioFileObject(AudioFile& audioFile);
 
-	void thingBeginningLoading(ThingType newThingType);
-	void thingFinishedLoading();
-
 	void setCardRead() { cardReadOnce = true; }
-	void setCardEjected() { cardEjected = true; }
 
-	Cluster* clusterBeingLoaded{};
-	int32_t minNumReasonsForClusterBeingLoaded{}; // Only valid when clusterBeingLoaded is set. And this exists for bug
-	                                              // hunting only.
+	/// @brief Mark the card gone, and discard everything every loader read from it.
+	///
+	/// Out of line, and not merely for the flush's sake: what a loader holds is keyed by the nominal
+	/// path with no record of which card produced it, so a header parsed from one card and collected
+	/// after another is inserted binds the NEW card's file to the OLD card's geometry -- a load that
+	/// reports no error and plays the wrong thing.
+	///
+	/// The flush is card-scoped rather than loader-scoped (libdeluge/card.h's deluge_card_flush):
+	/// one ejection invalidates every loader at once, and they share one card generation to say so.
+	/// What makes a stale result unusable is that stamp, compared when the result is TAKEN -- never
+	/// this call's table clears, which are best-effort and may not land at all, and never an
+	/// argument about which tier the two sides run on. A loader owns its own executor on device but
+	/// a plain thread on a host build, so any claim of the form "these two cannot run at once" is
+	/// false on some configuration that ships this code.
+	///
+	/// The re-insert path (reinitEjectedCard) is deliberately NOT the hook: flushing there would
+	/// leave the window open for as long as the slot stayed empty.
+	void setCardEjected();
 
-	std::string alternateAudioFileLoadPath{};
-	AlternateLoadDirStatus alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
-	ThingType thingTypeBeingLoaded = ThingType::NONE;
-	DIR alternateLoadDir{};
+	/// @brief Re-initialise the SD card if it is currently marked ejected, clearing the flag on success.
+	///
+	/// Remounts the filesystem, and is called directly from slowRoutine() on the interaction tier.
+	/// Re-checks the ejected flag itself, so a call that arrives after re-init is a safe no-op.
+	void reinitEjectedCard();
+
+	/// Set when the card came back with a cluster size larger than this boot sized its buffers for:
+	/// the card cannot be used again until reboot, and resolveFileSize refuses every load with
+	/// Error::SD_CARD before touching it. Public alongside this class's other card/load state (rather
+	/// than private like `cardEjected`, which has its own setter) so the async-load gate that must
+	/// honour it can be exercised.
+	bool cardDisabled = false;
 
 	std::array<int32_t, kNumAudioRecordingFolders> highestUsedAudioRecordingNumber{};
 	std::bitset<kNumAudioRecordingFolders> highestUsedAudioRecordingNumberNeedsReChecking{};
 	void firstCardRead();
 
+	// The no-I/O halves of buildAudioFileFromCard's SAMPLE path, public because the C ABI calls them
+	// directly around an async open + header parse. Each validates/finalizes on its own -- a direct
+	// caller gets the same guarantees buildAudioFileFromCard's callers always did.
+	Sample* beginSampleFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
+	                            uint64_t sizeBytes, Error* error);
+	AudioFile* finishSampleFromCard(Sample* sampleFile, uint64_t sizeBytes, Error* error);
+
+	/// @brief Resolve @p context's alternate-dir status from `MIGHT_EXIST` to `DOES_EXIST` or `NOT_FOUND`. I/O:
+	///        opens the context's alternate directory. Public, and split out of resolveFileSize (its only
+	///        other caller), so the C ABI can run this probe on its own before
+	///        proposeLoadCandidates() -- that function only proposes the alternate-dir candidates once
+	///        this status is DOES_EXIST, so calling it while still MIGHT_EXIST silently yields an
+	///        incomplete list (see proposeLoadCandidates's doc comment).
+	///
+	/// A no-op when the status is already anything other than MIGHT_EXIST: returns immediately, true
+	/// only for DOES_EXIST, without touching the card.
+	///
+	/// @post Returning true implies the status is DOES_EXIST, i.e. never MIGHT_EXIST.
+	///       The async collector's one-shot retry rests on that: it asks again only when this both
+	///       returned true AND left MIGHT_EXIST behind, so the same load cannot keep probing. An edit
+	///       that returned true without assigning the status would turn that into a per-tick probe.
+	///
+	/// @param context The load whose alternate directory to probe. Its status is updated.
+	/// @param error   Set to Error::FILE_UNREADABLE if the probe finds the directory genuinely absent, or
+	///                Error::SD_CARD if presence couldn't be determined (left untouched otherwise).
+	/// @return true once the alternate dir is known to exist (already, or newly resolved); false
+	///         otherwise.
+	bool resolveAlternateLoadDirStatus(deluge::storage::AudioLoadContext& context, Error* error);
+
+	/// @brief Whether @p path is one the async loader can accept at all.
+	///
+	/// Its two permanent refusals -- a path that is not valid UTF-8, and one that does not fit its
+	/// fixed-capacity buffer -- are checked before a request is made, so such a path is never
+	/// requested. Unlike a full queue, re-requesting one of those cannot ever succeed, so reporting
+	/// Error::LOAD_IN_PROGRESS for it would leave the load neither completing nor failing. The
+	/// synchronous path has neither limit.
+	///
+	/// The rule this applies is the Rust side's (`cstr_to_path`/`decode_candidates`, audio_loader.rs)
+	/// and the two must not drift apart -- a LOOSER rule here is the wait described above coming back.
+	/// Public so the shared corpus in path_admission_corpus.inc, which the Rust side asserts against
+	/// too, can be run against it directly rather than inferred through a load.
+	///
+	/// @param path A nominal path, or one candidate slot.
+	/// @return true if the loader would accept it; false if the caller must take the synchronous path.
+	[[nodiscard]] static bool admissibleAsyncLoadPath(std::string_view path);
+
+	/// Upper bound on how many candidate paths proposeLoadCandidates() can propose: the alternate dir's
+	/// "collect media" flattened name, its bare-filename fallback, and the regular path.
+	static constexpr size_t kMaxLoadCandidates = 3;
+
+	/// @brief Decide, in priority order and without touching the card, which path(s) a load of
+	///        @p filePath should try.
+	///
+	/// The single source of candidate policy for BOTH backings, which is what keeps them in step: the
+	/// synchronous path calls this from resolveFileSize, and the async path calls it from
+	/// requestAsyncSampleLoad and hands the result to the Rust loader AS DATA (the loader never calls
+	/// this -- it cannot; it runs on an executor that must make no synchronous C++ call at all, and
+	/// this allocates). Whichever backing runs, the try order came from here.
+	///
+	/// When the alternate load dir is known to exist (@p context's status is
+	/// AlternateLoadDirStatus::DOES_EXIST), up to three candidates are proposed, in try order: (1) only
+	/// for a @p filePath under "SAMPLES/", the "collect media" flattened form (the original path, with
+	/// each '/' after "SAMPLES/" replaced by '_'); (2) unconditionally, the bare filename in the
+	/// alternate dir -- tried even when (1) applied and would miss, since it also lets users drop files
+	/// straight into an instrument's alternate folder; (3) the regular path. Otherwise only the regular
+	/// path is proposed (one candidate).
+	///
+	/// If the flattened-name construction (1) fails, no candidates are proposed at all (matching the
+	/// original code's hard-stop on that failure, rather than silently falling back to the weaker
+	/// candidates) -- see resolveFileSize's caller-side note on the error code this produces.
+	///
+	/// Incomplete on its own when the status is AlternateLoadDirStatus::MIGHT_EXIST -- the state at the
+	/// start of every song/preset load, before anything has probed whether the alternate dir actually
+	/// exists. In that state this proposes only the regular path, silently rather than as an error.
+	/// Reaching the alternate-dir candidates needs resolveAlternateLoadDirStatus() -- an I/O probe
+	/// (`deluge::io::Directory::open` on the context's alternate directory) that cannot live in this
+	/// I/O-free function -- to have promoted the status first, and then a second call here.
+	///
+	/// **Where that probe belongs is AFTER a miss, not before the first call.** resolveFileSize runs
+	/// it only once every proposed candidate has actually failed to open, and requestAsyncSampleLoad
+	/// deliberately does the same rather than resolving up front: the status is per-LOAD state, shared
+	/// by every file of the load, so promoting it early flips the try order for every later sample of
+	/// the load INCLUDING the synchronous ones, which still promote only after a real miss. See
+	/// requestAsyncSampleLoad's own comment and answerFailedLoadResult, which is where the async side's
+	/// post-miss probe lives.
+	///
+	/// @param context  The load: its alternate directory, what it knows about that directory, and what is
+	///                 being loaded.
+	/// @param filePath The nominal path a load was asked for.
+	/// @param out      Array of at least @p max entries to fill with candidates, in try order. Entries
+	///                 at or past the returned count (when it exceeds @p max) are left untouched --
+	///                 check the return value against @p max before reading @p out, the same as
+	///                 `snprintf`'s return-vs-buffer-size contract.
+	/// @param max      Capacity of @p out (pass kMaxLoadCandidates for the full list).
+	/// @return How many candidates were proposed in total. This can exceed @p max, in which case only
+	///         the first @p max were written to @p out -- the return value, not @p max, is how a caller
+	///         detects that. Never silently drops the tail.
+	[[nodiscard]] size_t proposeLoadCandidates(const deluge::storage::AudioLoadContext& context,
+	                                           const std::string& filePath, std::string* out, size_t max) const;
+
+	/// @brief Collect a PROBING context's folder answer, if there is one. Does nothing in any other status.
+	///
+	/// Called by every AsyncLoadMode::AsyncOnly sample lookup, and by the async sample load for a wavetable that waits
+	/// on the probe, which may be the only demand left to collect it.
+	///
+	/// - Pending: still out.
+	/// - Ready: DOES_EXIST or NOT_FOUND.
+	/// - Unknown (never asked, dropped by a busy channel, or a stale answer from a card that has gone): ask again.
+	/// - Failed: could not tell, which is not absence: back to MIGHT_EXIST.
+	///
+	/// @param context The load.
+	/// @param error   Set to Error::SD_CARD when the answer was Failed or could not be asked for again.
+	/// @return false when the lookup must answer @p error.
+	bool collectFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
+
+	/// @brief WaveTables converted from a fully cached resident Sample, over the process's life.
+	[[nodiscard]] int32_t waveTablesConverted() const { return waveTablesConverted_; }
+	/// @brief WaveTables built by reading the file from the card, over the process's life.
+	[[nodiscard]] int32_t waveTablesBuiltFromCard() const { return waveTablesBuiltFromCard_; }
+	/// @brief Clusters held pinned while a conversion ran, summed over conversions: the evidence the pins exist.
+	[[nodiscard]] int32_t conversionPinnedClusters() const { return conversionPinnedClusters_; }
+
 private:
+	/// @brief Convert @p sample into a WaveTable from memory, if every one of its audio clusters is cached.
+	///
+	/// Peeks every cluster (loading and pinning nothing), then pins them all for the conversion and releases them
+	/// on every path. One synchronous call over pinned memory: it never waits for a cluster.
+	/// @return The WaveTable (held by no reason); std::nullopt when not every cluster is resident (build from the
+	///         card); or nullptr with @p error set when the Sample cannot be a WaveTable at all.
+	std::optional<AudioFile*> tryConvertResidentSample(Sample& sample, bool makeWaveTableWorkAtAllCosts, Error* error);
+
+	int32_t waveTablesConverted_ = 0;
+	int32_t waveTablesBuiltFromCard_ = 0;
+	int32_t conversionPinnedClusters_ = 0;
+
+	/// @brief getAudioFileFromFilename() without its host-only load trace (see storage/audio/load_trace.h). The
+	///        public function traces its entry and exit and calls this.
+	AudioFile* getAudioFileFromFilenameUntraced(deluge::storage::AudioLoadContext& context, std::string& fileName,
+	                                            bool mayReadCard, Error* error, AudioFileType type,
+	                                            bool makeWaveTableWorkAtAllCosts,
+	                                            deluge::storage::AsyncLoadMode asyncMode);
+
+	/// The bare-filename alternate-dir candidate shared by proposeLoadCandidates() and
+	/// getAudioFileFromFilename()'s in-memory search. Deliberately just the string construction, not a
+	/// routed call to proposeLoadCandidates(): that function's alternate candidates only exist when the
+	/// context's status is `DOES_EXIST` (about to do I/O, so it's worth being sure first), while
+	/// the in-memory search is a free sorted-vector lookup that also checks under `MIGHT_EXIST` (no I/O
+	/// cost to being speculative) and skips `ThingType::SONG` entirely -- a genuinely different subset,
+	/// not a duplicate to collapse. If this naming rule ever changes, change it here once.
+	std::string alternateDirBareNameCandidate(const deluge::storage::AudioLoadContext& context,
+	                                          const std::string& filePath) const;
+
+	/// @brief The resident AudioFile of @p type at @p filePath, given the index audioFiles.search()
+	///        returned for that path (with foundExact).
+	///
+	/// A Sample and a WaveTable of the same file share a path, and audioFiles is sorted by path, so
+	/// they sit adjacent and a search for the path can land on either -- hence the neighbour check
+	/// rather than just a type test on the hit itself.
+	///
+	/// @param audioFileI A search() index that matched @p filePath exactly.
+	/// @return The AudioFile of the wanted type, or nullptr if only the other type is resident.
+	AudioFile* matchingResidentAudioFile(int32_t audioFileI, const std::string& filePath, AudioFileType type) const;
+
+	/// @brief Answer a card miss through the async loader (libdeluge/audio_load.h) instead of the
+	///        blocking card path: collect a finished parse and build the Sample from it, or ask for
+	///        one.
+	///
+	/// Deliberately keeps NO in-flight table of its own. The loader already keys its queue, its
+	/// in-flight set and its results by path, and reports DELUGE_CHANNEL_PENDING for a path it is
+	/// already working on -- a second table here would be a second thing that has to agree with that
+	/// one.
+	///
+	/// @param context  The load this lookup belongs to.
+	/// @param filePath The nominal path being loaded; the key the loader reports results under. For a synth's
+	///                 or kit's load, rewritten to the copy in its own folder when the file was found there, as
+	///                 resolveFileSize rewrites it.
+	/// @param error    Set only when this answers the call (see the return value).
+	/// @param asyncMode AsyncOrBlocking or AsyncOnly, as the lookup was asked: see answerFailedLoadResult().
+	/// @return std::nullopt if this load is not the loader's to answer, and the caller must fall
+	///         through to the synchronous path -- which includes a result that asked for a re-request
+	///         no request could be formed for. Otherwise the call is answered: the published Sample,
+	///         or nullptr with @p error set -- to the loader's verdict on the file, to a build
+	///         failure, or to Error::LOAD_IN_PROGRESS (not a failure: ask again on a later tick).
+	std::optional<AudioFile*> collectAsyncSampleLoad(deluge::storage::AudioLoadContext& context, std::string& filePath,
+	                                                 Error* error, deluge::storage::AsyncLoadMode asyncMode);
+
+	/// @brief The candidates key of the request this load made, or would make, for @p filePath.
+	///
+	/// What the collect presents, so it takes only the answer to its own candidates. A path the load asked for while
+	/// its folder was unresolved (listed in requestedUnresolved under AsyncOnly) was asked for with its own path
+	/// alone; any other is asked for with what the folder's status now proposes. Only AsyncOnly keeps that list, so
+	/// under AsyncOrBlocking a request made before the status moved is presented with the new list's key, misses its
+	/// answer, and is asked again with the new list.
+	///
+	/// @param context   The load this lookup belongs to.
+	/// @param filePath  The nominal path being loaded.
+	/// @param asyncMode AsyncOrBlocking or AsyncOnly, as the lookup was asked.
+	/// @return The key, or 0 (which no request carries) when no candidate list can be formed.
+	static uint32_t requestedCandidatesKey(const deluge::storage::AudioLoadContext& context,
+	                                       const std::string& filePath, deluge::storage::AsyncLoadMode asyncMode);
+
+	/// @brief Answer a collected result that carries a failure verdict: either ask again with the
+	///        alternate dir resolved, or report the verdict.
+	///
+	/// "No candidate opened" (Error::FILE_UNREADABLE) with the alternate load dir still unresolved is
+	/// the one case that earns another attempt -- it is precisely where resolveFileSize runs its own
+	/// probe. A parse verdict (FILE_UNSUPPORTED, FILE_CORRUPTED) is the file's own answer and is
+	/// reported as-is: probing there would load a DIFFERENT file and call it success where the
+	/// synchronous path fails, and promote the alternate-dir status for the rest of the load with it.
+	///
+	/// @param context     The load this lookup belongs to. Its status is updated if this probes.
+	/// @param filePath    The nominal path being loaded.
+	/// @param resultError The result's error byte (never Error::NONE).
+	/// @param error       Set to the verdict, or to Error::LOAD_IN_PROGRESS if this asks again.
+	/// @param asyncMode   Under AsyncOnly, "no candidate opened" is answered by answerUnreadableAsyncOnly() instead.
+	/// @return std::nullopt if the load must fall through to the synchronous path (a re-request that
+	///         could not be formed); otherwise nullptr with @p error set.
+	std::optional<AudioFile*> answerFailedLoadResult(deluge::storage::AudioLoadContext& context,
+	                                                 const std::string& filePath, uint8_t resultError, Error* error,
+	                                                 deluge::storage::AsyncLoadMode asyncMode);
+
+	/// @brief Answer an AsyncLoadMode::AsyncOnly lookup whose request opened no candidate.
+	///
+	/// Under MIGHT_EXIST the load does not yet know whether its folder exists, so this starts the folder's probe
+	/// (startFolderProbe()), where the synchronous path probes after its own miss. While the probe is out the miss
+	/// waits, listed. A request listed in the context's requestedUnresolved carried only the file's own path, so once
+	/// the folder is known to exist it is asked for again with the folder's candidates; any other miss is final.
+	///
+	/// @param context  The load. Its status is updated if this probes, and the path leaves its list.
+	/// @param filePath The nominal path being loaded.
+	/// @param error    Set to Error::LOAD_IN_PROGRESS if this asks again or waits for the probe; to Error::SD_CARD if
+	///                 the probe could not be asked for; otherwise to Error::FILE_UNREADABLE.
+	/// @return std::nullopt if the re-request could not be formed; otherwise nullptr with @p error set.
+	std::optional<AudioFile*> answerUnreadableAsyncOnly(deluge::storage::AudioLoadContext& context,
+	                                                    const std::string& filePath, Error* error);
+
+	/// @brief Ask the byte channel whether a load's folder exists, and put the context in PROBING.
+	///
+	/// No card I/O on the calling tier: the answer is collected by the next AsyncLoadMode::AsyncOnly lookup that
+	/// finds the context in PROBING (collectFolderProbe()).
+	///
+	/// @param context The load. PROBING once the request is out; MIGHT_EXIST if it could not be made.
+	/// @param error   Set to Error::SD_CARD when the request could not be made (a folder path the channel cannot key).
+	/// @return false when the request could not be made, and the lookup must answer @p error.
+	bool startFolderProbe(deluge::storage::AudioLoadContext& context, Error* error);
+
+	/// @brief Build and publish a Sample from a collected parse result. No I/O beyond the one
+	///        read-stream open (see sample_build::bindReadStream).
+	///
+	/// Runs the whole build the loader is not allowed to run itself -- begin, bind, apply the parsed
+	/// geometry, publish -- checking every step, and abandoning the build on any failure so nothing is
+	/// left adopted-but-unpublished. See storage/audio/sample_build.h's ownership note.
+	///
+	/// @param filePath The nominal path (the AudioFile's own path; @p result carries the alternate
+	///                 location the bytes were actually found at, if any).
+	/// @param result   A DELUGE_CHANNEL_READY result whose own error is Error::NONE -- a verdict is
+	///                 answered by answerFailedLoadResult instead.
+	/// @param error    Set on failure (never left at Error::NONE when this returns nullptr).
+	/// @return The published Sample, or nullptr with @p error set.
+	AudioFile* buildSampleFromLoadResult(const std::string& filePath, const DelugeAudioLoadResult& result,
+	                                     Error* error);
+
+	/// @brief admissibleAsyncLoadPath() over every slot of a candidate buffer.
+	/// @param candidates    `numCandidates * DELUGE_PATH_MAX` bytes, one NUL-terminated path per slot.
+	/// @param numCandidates How many slots to check.
+	/// @return true if every candidate is one the loader would accept.
+	[[nodiscard]] static bool admissibleAsyncCandidates(const char* candidates, uint32_t numCandidates);
+
+	/// @brief Ask the async loader to load @p filePath, with the candidates the current alternate-dir
+	///        status proposes.
+	///
+	/// Deliberately does NOT resolve that status first, even though resolving is what unlocks the
+	/// alternate-dir candidates. The context's status is per-LOAD state, not per-sample: promoting
+	/// it here would make every later sample of the same load try the alternate dir first, including
+	/// the ones that never come near this function, while the synchronous path still promotes only
+	/// after a regular-path miss. The probe therefore happens where the synchronous path puts it --
+	/// after every proposed candidate has missed, in buildSampleFromLoadResult's verdict branch, which
+	/// then asks again with the candidates the probe unlocked. It stays on this tier either way: the
+	/// loader task runs where it may only await, and may not call into C++ at all.
+	///
+	/// @param context   The load this lookup belongs to. Under AsyncOnly and MIGHT_EXIST, the path joins its
+	///                  requestedUnresolved list.
+	/// @param filePath  The nominal path to load.
+	/// @param error     Set to Error::LOAD_IN_PROGRESS when a request was made (or dropped -- see the
+	///                  implementation).
+	/// @param asyncMode AsyncOrBlocking or AsyncOnly, as the lookup was asked.
+	/// @return std::nullopt if no request could be formed at all, and the caller must fall through to
+	///         the synchronous path; otherwise nullptr with @p error set.
+	std::optional<AudioFile*> requestAsyncSampleLoad(deluge::storage::AudioLoadContext& context,
+	                                                 const std::string& filePath, Error* error,
+	                                                 deluge::storage::AsyncLoadMode asyncMode);
+
 	bool cardReadOnce{false};
 	bool cardEjected{};
-	bool cardDisabled = false;
 
 	uint32_t clusterSizeAtBoot{0};
 
 	void cardReinserted();
-	// Resolve a not-already-resident audio file to an on-card FilePointer: use `suppliedFilePointer` if given,
-	// else search the alternate load dir (long then short name) and/or the regular path via FatFS. Sets
-	// `effectiveFilePointer` (+ `usingAlternateLocation`, and may rewrite `filePath` for preset alternates) and
-	// returns true on success; returns false on not-found / card-unavailable (with `*error` set, except the
-	// !mayReadCard case which leaves it untouched, as before).
-	bool resolveFilePointer(std::string& filePath, FilePointer* suppliedFilePointer, bool mayReadCard,
-	                        std::string& usingAlternateLocation, FilePointer& effectiveFilePointer, Error* error);
-	// Convert an already-in-memory Sample into a WaveTable (the caller wanted a wavetable but only the Sample
-	// form is resident). Returns the new WaveTable (held by no reason), or nullptr with `*error` set if it
-	// can't be a wavetable (stereo, or not wavetable-looking unless insisted) or alloc/setup fails.
-	AudioFile* convertSampleToWaveTable(Sample& foundSample, bool makeWaveTableWorkAtAllCosts, Error* error);
-	// Construct an AudioFile from a resolved file: alloc + adopt the object, build it (Sample: FAT-walk the
-	// cluster table + stream-parse via ClusterByteSource; WaveTable: parse + setup via DeserializerByteSource),
-	// insert into `audioFiles` and finalize. Returns the loaded object (held by no reason — the caller leases
-	// it), or nullptr with `*error` set. The file-resolution that produced `effectiveFilePointer` /
-	// `usingAlternateLocation` is the caller's job.
+	// Resolve a not-already-resident audio file's size by path: opens proposeLoadCandidates()'s
+	// candidates, in order, until one exists. Sets `sizeBytes` (+ `usingAlternateLocation`, and may
+	// rewrite `filePath` for preset alternates) and returns true on success; returns false on not-found /
+	// card-unavailable (with `*error` set, except the !mayReadCard case, which leaves it untouched).
+	// NB: if proposeLoadCandidates() produced zero candidates (its flattened-name construction
+	// failed), this reports the generic Error::FILE_UNREADABLE rather than that specific error code --
+	// proposeLoadCandidates has no error channel to carry it. Currently unreachable in practice: the
+	// construction it calls (setupAlternateAudioFilePath) can't actually fail.
+	bool resolveFileSize(deluge::storage::AudioLoadContext& context, std::string& filePath, bool mayReadCard,
+	                     std::string& usingAlternateLocation, uint64_t& sizeBytes, Error* error);
+	/// @brief Construct an AudioFile from a resolved file: alloc + adopt the object, build it, insert it
+	///        into audioFiles, and finalize.
+	///
+	/// Sample: FAT-walk the cluster table and raw header parse via FileByteSource. WaveTable: parse + setup
+	/// via FileByteSource. The file-resolution that produced @p sizeBytes / @p
+	/// usingAlternateLocation is the caller's job.
+	/// @param filePath                   The file's (nominal/display) path.
+	/// @param usingAlternateLocation     Alternate-load-dir path segment the bytes actually live at, or
+	///                                   empty if resolved at `filePath` directly.
+	/// @param sizeBytes                  The resolved on-card file's size, in bytes.
+	/// @param type                       Which concrete AudioFile subclass to build.
+	/// @param makeWaveTableWorkAtAllCosts Force wavetable interpretation even without the tag/length hints
+	///                                    that normally identify one.
+	/// @param error                      Set on failure.
+	/// @return The loaded object, held by no reason (the caller leases it), or nullptr with @p error set.
 	AudioFile* buildAudioFileFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
-	                                  FilePointer& effectiveFilePointer, AudioFileType type,
-	                                  bool makeWaveTableWorkAtAllCosts, Error* error);
+	                                  uint64_t sizeBytes, AudioFileType type, bool makeWaveTableWorkAtAllCosts,
+	                                  Error* error);
 };
 
 extern AudioFileManager audioFileManager;

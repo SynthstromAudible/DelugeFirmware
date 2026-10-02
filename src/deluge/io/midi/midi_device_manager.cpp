@@ -24,6 +24,7 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
+#include "io/file.hpp"
 #include "io/midi/cable_types/din.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "io/midi/device_specific/specific_midi_device.h"
@@ -32,9 +33,12 @@
 #include "libdeluge/midi_io.h" // deluge_midi_init/_usb_port/_write/_write_space, deluge_midi_poll_usb_host_event
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
+#include "storage/byte_channel.h"
+#include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
 #include <algorithm>
+#include <new>
 #include <strings.h>
 
 #pragma GCC diagnostic push
@@ -43,6 +47,9 @@
 
 #define SETTINGS_FOLDER "SETTINGS"
 #define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
+/// Where the file lived before c1.3, at the card root. Migrated into the path above on a read that
+/// finds nothing there.
+#define LEGACY_MIDI_DEVICES_XML "MIDIDevices.XML"
 
 PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[DELUGE_USB_NUM_CONTROLLERS][MAX_NUM_USB_MIDI_DEVICES];
 
@@ -290,17 +297,12 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
-	if (display->haveOLED()) {
-		std::string text;
-		text = device->name;
-		text.append(" attached");
-		Error error = Error::NONE;
-		if (error == Error::NONE) {
-			consoleTextIfAllBootedUp(text.c_str());
-		}
-	}
-	else {
-		consoleTextIfAllBootedUp("MIDI");
+	std::string text;
+	text = device->name;
+	text.append(" attached");
+	Error error = Error::NONE;
+	if (error == Error::NONE) {
+		consoleTextIfAllBootedUp(text.c_str());
 	}
 }
 
@@ -447,26 +449,78 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 	}
 }
 
+/// @brief `writeDevicesToFile`'s body, run where blocking on the card is legal.
+void writeDevicesInline();
+/// @brief `readDevicesFromFile`'s body, run where blocking on the card is legal.
+void readDevicesInline();
+/// @brief Walk an already-opened document into the in-memory device table.
+///
+/// Shared by both arms: the inline arm's reader is a file, the channel arm's is the bytes the channel
+/// delivered, and neither difference reaches here.
+void parseDevices(Deserializer& reader);
+/// @brief Write the device table into an already-opened serialiser, file- or memory-backed.
+void serialiseDevices(Serializer& writer);
+/// @brief `deluge::storage::bytes::ParseFn` for @ref parseDevices.
+void parseDevicesBytes(void* ctx, char* bytes, uint32_t len);
+
+/// @brief Whether any port or hosted device has settings worth putting in the file.
+///
+/// Factored out of `writeDevicesInline` so the dispatcher can ask it before choosing an arm: a
+/// "nothing worth writing" answer means DELETE the file, and this channel carries no unlink.
+bool anythingWorthWriting() {
+	if (dinMIDIPorts.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
+	    || upstreamUSBMIDICable2.worthWritingToFile()) {
+		return true;
+	}
+	for (MIDICableUSBHosted* device : hostedMIDIDevices) {
+		if (device->worthWritingToFile()) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void writeDevicesToFile() {
+	if (deluge::storage::bytes::usingByteChannel() && anyChangesToSave && !anythingWorthWriting()) {
+		// Nothing worth keeping: remove the file -- the unlink the inline arm below makes inline, carried by the
+		// channel instead. A file that is already gone counts as removed.
+		if (deluge::storage::bytes::submitUnlink(MIDI_DEVICES_XML)) {
+			anyChangesToSave = false;
+			return;
+		}
+	}
+	if (deluge::storage::bytes::usingByteChannel() && anyChangesToSave && anythingWorthWriting()) {
+		// Serialise into memory -- no card contact at all -- and hand the bytes over. The serialiser
+		// dies at the end of this scope, which is safe because `submitWrite` copies.
+		XMLSerializer writer;
+		writer.setMemoryBased();
+		writer.write(StorageManager::kXmlDocumentHead); // the inline arm gets this from createXMLFile
+		serialiseDevices(writer);
+		if (deluge::storage::bytes::submitWrite(MIDI_DEVICES_XML, writer.getBufferPtr(),
+		                                        static_cast<uint32_t>(writer.bytesWritten()))) {
+			// Cleared here rather than on the collect, for the reason `PerformanceView` gives: the
+			// flag means "the table in memory matches what we last asked to be stored", and the ask
+			// has happened.
+			anyChangesToSave = false;
+			return;
+		}
+		// Not taken: too large for the channel (a busy channel queues instead). The body below runs only where
+		// blocking is legal; after boot it is refused and nothing is written.
+	}
+	// A refusal leaves `anyChangesToSave` set, so the next save retries.
+	(void)deluge::storage::bytes::runDuringBoot([](void*) { writeDevicesInline(); }, nullptr);
+}
+
+void writeDevicesInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
 	if (!anyChangesToSave) {
 		return;
 	}
 	anyChangesToSave = false;
 
-	bool anyWorthWritting = dinMIDIPorts.worthWritingToFile() || upstreamUSBMIDICable1.worthWritingToFile()
-	                        || upstreamUSBMIDICable2.worthWritingToFile();
-	if (!anyWorthWritting) {
-		for (MIDICableUSBHosted* device : hostedMIDIDevices) {
-			if (device->worthWritingToFile()) {
-				anyWorthWritting = true;
-				break;
-			}
-		}
-	}
-
-	if (!anyWorthWritting) {
+	if (!anythingWorthWriting()) {
 		// If still here, nothing worth writing. Delete the file if there was one.
-		f_unlink(MIDI_DEVICES_XML); // May give error, but no real consequence from that.
+		deluge::io::unlink(MIDI_DEVICES_XML); // May give error, but no real consequence from that.
 		return;
 	}
 
@@ -475,7 +529,11 @@ void writeDevicesToFile() {
 		return;
 	}
 
-	Serializer& writer = GetSerializer();
+	serialiseDevices(GetSerializer());
+	GetSerializer().closeFileAfterWriting();
+}
+
+void serialiseDevices(Serializer& writer) {
 	writer.writeOpeningTagBeginning("midiDevices");
 	writer.writeFirmwareVersion();
 	writer.writeEarliestCompatibleFirmwareVersion("4.0.0");
@@ -500,42 +558,104 @@ void writeDevicesToFile() {
 	}
 
 	writer.writeClosingTag("midiDevices");
-
-	writer.closeFileAfterWriting();
 }
 
 bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
-void readDevicesFromFile() {
+void factoryReset(bool showPopup) {
+	if (showPopup) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RESET_MIDI_DEVICES));
+	}
+
+	// May give an error (e.g. no such file), but there is no real consequence from that.
+	(void)deluge::io::unlink(MIDI_DEVICES_XML);
+
+	new (&upstreamUSBMIDICable1) MIDICableUSBUpstream{0, false, true};
+	new (&upstreamUSBMIDICable2) MIDICableUSBUpstream{1, true, false};
+	new (&upstreamUSBMIDICable3) MIDICableUSBUpstream{2, false, false};
+	new (&dinMIDIPorts) MIDICableDINPorts{};
+
+	recountSmallestMPEZones();
+	anyChangesToSave = false;
+	successfullyReadDevicesFromFile = false;
+	readDevicesFromFile();
+}
+
+bool readDevicesFromFile(deluge::storage::bytes::DoneFn onDone) {
+	if (deluge::storage::bytes::usingByteChannel()) {
+		if (successfullyReadDevicesFromFile) {
+			return false; // Yup, we only want to do this once -- and nothing was submitted, so nothing will report
+		}
+		if (deluge::storage::bytes::submitRead(MIDI_DEVICES_XML, LEGACY_MIDI_DEVICES_XML, &parseDevicesBytes,
+		                                       /*onAbsent=*/nullptr, nullptr, onDone)) {
+			return true;
+		}
+		// Not taken (a busy channel queues instead): the body below runs only where blocking is legal, which
+		// here is nowhere, so the table in memory stands.
+	}
+	// No blocking arm -- see readSettingsFromFile for why. The device table in memory stands.
+	return false;
+}
+
+void parseDevicesBytes(void* /*ctx*/, char* bytes, uint32_t len) {
+	// `activeDeserializer` goes back on EVERY path, the failed open included -- see
+	// `RuntimeFeatureSettings::parseSettingsBytes`, which carries the full reasoning.
+	FileDeserializer* previous = activeDeserializer;
+	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false, "midiDevices")
+	    == Error::NONE) {
+		parseDevices(*activeDeserializer);
+		successfullyReadDevicesFromFile = true;
+	}
+	activeDeserializer = previous;
+}
+
+void readDevicesInline() {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Settings);
+	// Blocks on the card, so legal only before boot finishes. Nothing calls this: readDevicesFromFile()
+	// has no blocking arm.
 	if (successfullyReadDevicesFromFile) {
 		return; // Yup, we only want to do this once
 	}
 
-	FilePointer fp;
-	bool success = StorageManager::fileExists(MIDI_DEVICES_XML, &fp);
-	if (!success) {
-		// since we changed the file path for the MIDIDevices.XML in c1.3, it's possible
-		// that a MIDIDevice file may exists in the root of the SD card
-		// if so, let's move it to the new SETTINGS folder (but first make sure folder exists)
-		FRESULT result = f_mkdir(SETTINGS_FOLDER);
-		if (result == FR_OK || result == FR_EXIST) {
-			result = f_rename("MIDIDevices.XML", MIDI_DEVICES_XML);
-			if (result == FR_OK) {
-				// this means we moved it
-				// now let's open it
-				success = StorageManager::fileExists(MIDI_DEVICES_XML, &fp);
+	switch (deluge::storage::bootstrap_action(StorageManager::fileExists(MIDI_DEVICES_XML))) {
+	case deluge::storage::Bootstrap::Load:
+		break; // fall through to parsing, exactly as today
+
+	case deluge::storage::Bootstrap::WriteDefaults: {
+		// Genuinely absent: since we changed the file path for the MIDIDevices.XML in c1.3, it's
+		// possible that a MIDIDevice file may exist in the root of the SD card; if so, let's move
+		// it to the new SETTINGS folder (but first make sure folder exists).
+		auto result = deluge::io::mkdir(SETTINGS_FOLDER);
+		if (result.has_value() || result.error() == deluge::io::Status::EXISTS) {
+			auto renamed = deluge::io::rename(LEGACY_MIDI_DEVICES_XML, MIDI_DEVICES_XML);
+			if (renamed.has_value()) {
+				// this means we moved it; confirm the migration actually landed before trusting
+				// the new path.
+				if (deluge::storage::bootstrap_action(StorageManager::fileExists(MIDI_DEVICES_XML))
+				    == deluge::storage::Bootstrap::Load) {
+					break; // fall through to parsing
+				}
 			}
 		}
-		if (!success) {
-			return;
-		}
+		return;
 	}
 
-	Error error = StorageManager::openXMLFile(&fp, smDeserializer, "midiDevices");
+	case deluge::storage::Bootstrap::UseInMemoryOnly:
+		// Existence unknown: use in-memory defaults for this session and write nothing.
+		return;
+	}
+
+	Error error = StorageManager::openDocumentSynchronously(MIDI_DEVICES_XML, "midiDevices");
 	if (error != Error::NONE) {
 		return;
 	}
-	Deserializer& reader = *activeDeserializer;
+	parseDevices(*activeDeserializer);
+	activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
+	successfullyReadDevicesFromFile = true;
+}
+
+void parseDevices(Deserializer& reader) {
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "dinPorts")) {
@@ -557,21 +677,17 @@ void readDevicesFromFile() {
 		reader.exitTag();
 	}
 
-	activeDeserializer->closeWriter();
-
 	recountSmallestMPEZones();
 
 	soundEditor.mpeZonesPotentiallyUpdated();
-
-	successfullyReadDevicesFromFile = true;
 }
 
 void readAHostedDeviceFromFile(Deserializer& reader) {
 	MIDICableUSBHosted* device = nullptr;
 
 	std::string name;
-	uint16_t vendorId;
-	uint16_t productId;
+	uint16_t vendorId = 0;
+	uint16_t productId = 0;
 
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -657,6 +773,19 @@ checkDevice:
 
 			if (device) {
 				device->is_relative = reader.readTagOrAttributeValueInt();
+			}
+		}
+		else if (!strcmp(tagName, "midi_thru")) {
+			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
+			if (!device) {
+				if (!name.empty() || vendorId) {
+					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
+					                                                productId); // Will return NULL if error.
+				}
+			}
+
+			if (device) {
+				device->midi_thru = reader.readTagOrAttributeValueInt() != 0;
 			}
 		}
 

@@ -37,11 +37,6 @@ protected:
 	void processBackspace() override;
 	// bool predictExtendedText();
 	virtual void predictExtendedTextFromMemory() {}
-	void convertToPrefixFormatIfPossible();
-	void enterKeyPress() override;
-	std::string getCurrentFilenameWithoutExtension();
-
-	static bool currentFileHasSuffixFormatNameImplied;
 
 	// Although this is only needed by the child class LoadInstrumentPresetUI, we cut a
 	// corner by including it here so our functions can set it to NULL, which is needed.

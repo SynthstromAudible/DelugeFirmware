@@ -1,5 +1,4 @@
-# nextest CI profile: emit JUnit XML so the Rust test results feed the same
-# publish-unit-test-result pipeline as the C++ CppUTest/CTest suites.
-# `cargo nextest run --profile ci` writes target/nextest/ci/junit.xml.
+# `cargo nextest run --profile ci` writes JUnit XML to target/nextest/ci/junit.xml, for CI's
+# test-result publishing.
 [profile.ci.junit]
 path = "junit.xml"

@@ -74,6 +74,13 @@ public:
 	// and drives eviction. Returns nullptr only if the slab/manager couldn't be created (OOM).
 	DelugeResource* resourceManager();
 
+	/// @brief The cluster slab, creating it and the resource manager on first use.
+	/// @return The cluster slab, or `nullptr` only on OOM.
+	DelugeSlab* clusterSlab() {
+		ensureClusterSystem();
+		return clusterSlab_;
+	}
+
 	// Free an SDRAM block: if it's a cluster slot, release it through the slab
 	// (clearing the table entry too); otherwise free it from the heap directly.
 	void freeSdram(void* address);

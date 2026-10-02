@@ -69,7 +69,6 @@ public:
 			performanceView.resetPerformanceView(modelStack);
 		}
 
-		display->setNextTransitionDirection(1);
 		openUI(&performanceView);
 		return NO_NAVIGATION;
 	}

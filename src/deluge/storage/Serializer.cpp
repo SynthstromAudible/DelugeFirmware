@@ -16,7 +16,6 @@
  */
 
 #include "definitions_cxx.hpp"
-#include "fatfs/fatfs.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
@@ -42,11 +41,6 @@
 #include "version.h"
 #include <string.h>
 
-extern "C" {
-#include "fatfs/diskio.h"
-#include "fatfs/ff.h"
-}
-
 /*******************************************************************************
 
     XMLSerializer
@@ -67,6 +61,8 @@ XMLSerializer::XMLSerializer() {
 
 void XMLSerializer::reset() {
 	resetWriter();
+	// FileWriter's counter is separate from this serializer's private counter.
+	indentAmount = 0;
 }
 
 void XMLSerializer::write(char const* output) {
@@ -74,7 +70,7 @@ void XMLSerializer::write(char const* output) {
 }
 
 void XMLSerializer::writeTag(char const* tag, int32_t number, bool box) {
-	char* buffer = shortStringBuffer;
+	char buffer[12];
 	intToString(number, buffer);
 	writeTag(tag, buffer, box);
 }

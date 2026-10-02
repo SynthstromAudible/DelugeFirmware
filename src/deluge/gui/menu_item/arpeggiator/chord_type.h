@@ -59,12 +59,10 @@ public:
 		}
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingKitRow() && !soundEditor.editingGateDrumRow();
 	}
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;

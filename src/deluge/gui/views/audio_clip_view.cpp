@@ -54,9 +54,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 
-extern "C" {
-extern uint8_t currentlyAccessingCard;
-}
+extern "C" {}
 
 using namespace deluge::gui;
 
@@ -88,9 +86,6 @@ void AudioClipView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
 
-	if (display->have7SEG()) {
-		view.displayOutputName(getCurrentOutput(), false);
-	}
 #ifdef currentClipStatusButtonX
 	view.drawCurrentClipPad(getCurrentClip());
 #endif
@@ -107,6 +102,9 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	}
 
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
+		return true;
+	}
+	if (maybeRenderShortcutsOverview(whichRows, image, occupancyMask, drawUndefinedArea)) {
 		return true;
 	}
 
@@ -256,6 +254,10 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth 
 		if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
 			armed |= view.renderMacros(macroColumn, y, -1, image, occupancyMask);
 		}
+
+		if (occupancyMask) {
+			PadLEDs::refreshSidebarOccupancy(image[y], occupancyMask[y]);
+		}
 	}
 	if (armed) {
 		view.flashPlayEnable();
@@ -326,9 +328,10 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 
 // If you want your specialized button logic (session view, clip view, etc.),
 // put that here. Otherwise call the parent:
-ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
+	maybeStartShortcutOverview(b, on);
 	ActionResult result;
 
 	// Song view button
@@ -344,9 +347,6 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 		else {
 			if (!isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
 				return ActionResult::DEALT_WITH;
-			}
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			exitUIMode(UI_MODE_HOLDING_SONG_BUTTON);
 			if ((int32_t)(AudioEngine::audioSampleTimer - timeSongButtonPressed) > kShortPressTime) {
@@ -364,17 +364,13 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool in
 	// Clip view button
 	else if (b == CLIP_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			changeRootUI(&automationView);
 		}
 	}
 
 	else if (b == PLAY) {
 dontDeactivateMarker:
-		return ClipView::buttonAction(b, on, inCardRoutine);
+		return ClipView::buttonAction(b, on);
 	}
 
 	else if (b == RECORD) {
@@ -389,9 +385,6 @@ dontDeactivateMarker:
 		// removing time stretching by re-calculating clip length based on length of audio sample
 		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 			if (on && currentUIMode == UI_MODE_NONE) {
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
 				setClipLengthEqualToSampleLength();
 			}
 		}
@@ -404,10 +397,6 @@ dontDeactivateMarker:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			if (!soundEditor.setup(getCurrentClip())) {
 				return ActionResult::DEALT_WITH;
 			}
@@ -421,10 +410,6 @@ dontDeactivateMarker:
 	// Back button to clear Clip
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			// Clear Clip
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
@@ -452,21 +437,18 @@ dontDeactivateMarker:
 		}
 	}
 	else {
-
 		result = ClipMinder::buttonAction(b, on);
 		if (result == ActionResult::NOT_DEALT_WITH) {
-			result = ClipView::buttonAction(b, on, inCardRoutine);
+			result = ClipView::buttonAction(b, on);
 		}
 
-		if (result != ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 deactivateMarkerIfNecessary:
-			if (endMarkerVisible) {
-				endMarkerVisible = false;
-				if (getCurrentUI() == this) {
-					uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
-				}
-				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		if (endMarkerVisible) {
+			endMarkerVisible = false;
+			if (getCurrentUI() == this) {
+				uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			}
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 
 		return result;
@@ -483,10 +465,6 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 		else {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			// Maybe go to SoundEditor
 			ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
 			if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
@@ -578,9 +556,6 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 	else if (x == kDisplayWidth) {
 		if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			// render that you're holding the macro
 			if (on) {
 				uiNeedsRendering(this, 0, 0xFFFFFFFF);
@@ -810,6 +785,7 @@ doReRender:
 }
 
 ActionResult AudioClipView::horizontalEncoderAction(int32_t offset) {
+	stopShortcutOverview();
 	// Shift and x pressed - edit length of clip without timestretching
 	if (isNoUIModeActive() && Buttons::isButtonPressed(deluge::hid::button::X_ENC) && Buttons::isShiftButtonPressed()) {
 		return editClipLengthWithoutTimestretching(offset);
@@ -830,10 +806,6 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 	// If we're not scrolled all the way to the right, go there now
 	if (scrollRightToEndOfLengthIfNecessary(getCurrentClip()->loopLength())) {
 		return ActionResult::DEALT_WITH;
-	}
-
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	int32_t oldLength = getCurrentClip()->loopLength();
@@ -859,12 +831,9 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult AudioClipView::verticalEncoderAction(int32_t offset) {
+	stopShortcutOverview();
 	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-		if (inCardRoutine && !allowSomeUserActionsEvenWhenInCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-		}
-
 		// Shift colour spectrum
 		getCurrentAudioClip()->setColourOffset(getCurrentAudioClip()->colourOffset() + offset);
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -877,10 +846,6 @@ bool AudioClipView::setupScroll(uint32_t oldScroll) {
 		return false;
 	}
 	return ClipView::setupScroll(oldScroll);
-}
-
-void AudioClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
-	memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 }
 
 uint32_t AudioClipView::getMaxLength() {

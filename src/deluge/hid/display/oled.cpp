@@ -20,12 +20,14 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/screensaver.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
 #include "io/midi/sysex.h"
 #include "libdeluge/clock.h"
 #include "libdeluge/display.h"
 #include "playback/playback_handler.h"
+#include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "util/c_string.h"
@@ -38,8 +40,6 @@ extern "C" {
 #include "gui/fonts/fonts.h"
 extern void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
-
-extern uint8_t usbInitializationPeriodComplete;
 
 namespace deluge::hid::display {
 
@@ -269,6 +269,10 @@ bool OLED::isPermanentPopupPresent() {
 	return drawnPermanentPopup;
 }
 
+bool OLED::isWorkingAnimationPresent() {
+	return working_animation_count != 0;
+}
+
 void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int32_t minX, int32_t maxX) {
 	uint8_t sourceMask = ~destMask;
 	uint8_t* __restrict__ source = &sourceRow[minX];
@@ -334,16 +338,40 @@ void OLED::sendMainImage() {
 
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
-	if (numConsoleItems) {
-		copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
-		                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
-		                               OLED_MAIN_HEIGHT_PIXELS - 1);
-		oledCurrentImage = &console.hackGetImageStore()[0];
+	if (Screensaver::isActive()) {
+		// Point at the screensaver canvas before the dirty guard below, not after. This
+		// global is also read independently by the sysex display mirror
+		// (HIDSysex::sendOLEDData / sendOLEDDataDelta), which runs on its own schedule --
+		// if it were still pointed at `main` here, that mirror would show the live UI while
+		// the panel itself is showing the screensaver.
+		oledCurrentImage = &Screensaver::getCanvas().hackGetImageStore()[0];
+
+		if (!Screensaver::consumeFrameDirty()) {
+			// Some other timer marked the display dirty while we're showing. Nothing
+			// about our frame changed, so swallow it rather than re-pushing an
+			// identical frame.
+			//
+			// This guard is load-bearing, not an optimization: scrolling text re-arms
+			// itself every 5-15ms and calls sendMainImage() directly, forever, while
+			// idle. Without this check, an idle Deluge sitting on a side-scrolling menu
+			// label would push a full unchanged frame at that rate over the SPI bus we
+			// share with CV output.
+			needsSending = false;
+			return;
+		}
 	}
-	if (oledPopupWidth) {
-		copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
-		                               popupMaxY);
-		oledCurrentImage = &popup.hackGetImageStore()[0];
+	else {
+		if (numConsoleItems) {
+			copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
+			                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
+			                               OLED_MAIN_HEIGHT_PIXELS - 1);
+			oledCurrentImage = &console.hackGetImageStore()[0];
+		}
+		if (oledPopupWidth) {
+			copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
+			                               popupMaxY);
+			oledCurrentImage = &popup.hackGetImageStore()[0];
+		}
 	}
 
 #if OLED_LOG_TIMING
@@ -691,6 +719,7 @@ void updateWorkingAnimation() {
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::LoadingAnimation);
 	loading = !strcmp(word, "Loading");
 	if (working_animation_count) {
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
@@ -702,6 +731,7 @@ void OLED::displayWorkingAnimation(char const* word) {
 }
 
 void OLED::removeWorkingAnimation() {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::LoadingAnimation);
 	// return; // infinite animation duration for debugging purposes
 	if (hasPopupOfType(PopupType::NOTIFICATION)) {
 		removePopup();
@@ -763,44 +793,6 @@ void OLED::displayNotification(std::string_view param_title, std::optional<std::
 
 	markChanged();
 	uiTimerManager.setTimer(TimerName::DISPLAY, 2000);
-}
-
-void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
-	clearMainImage();
-	for (int i = 0; i < 4; i++) {
-		int ix = 33 * i + 1;
-		const int dy = 17;
-
-		const int horz[] = {6, 0, 3};
-		for (int y = 0; y < 3; y++) {
-			if (display[i] & (1 << horz[y])) {
-				int ybase = 7 + dy * y;
-				main.invertArea(ix + 3, 15, ybase + 0, ybase + 0);
-				main.invertArea(ix + 2, 17, ybase + 1, ybase + 1);
-				main.invertArea(ix + 3, 15, ybase + 2, ybase + 2);
-			}
-		}
-
-		const int vert[] = {1, 2, 5, 4};
-		for (int x = 0; x < 2; x++) {
-			int xside = x * 2 - 1;
-			for (int y = 0; y < 2; y++) {
-				if (display[i] & (1 << vert[2 * x + y])) {
-					int xbase = ix + 18 * x + 1;
-					int ybase = 10 + dy * y;
-					int yside = y * -2 + 1;
-					main.invertArea(xbase + xside, 1, ybase + yside, ybase + 13 + yside);
-					main.invertArea(xbase, 1, ybase + 0, ybase + 13);
-					main.invertArea(xbase - xside, 1, ybase + 1, ybase + 12);
-				}
-			}
-		}
-
-		if (display[i] & (1 << 7)) {
-			main.invertArea(ix + 21, 3, 41, 43);
-		}
-	}
-	markChanged();
 }
 
 #define CONSOLE_ANIMATION_FRAME_TIME_SAMPLES (6 * 44) // 6
@@ -1182,8 +1174,24 @@ extern std::string_view getErrorMessage(Error);
 void OLED::displayError(Error error) {
 	char const* message = nullptr;
 	switch (error) {
+	// Nothing to report: neither is a failure. LOAD_IN_PROGRESS gets a label of its own below rather
+	// than sharing this body, because reaching here with it is a caller's bug worth showing.
 	case Error::NONE:
 	case Error::ABORTED_BY_USER:
+		return;
+
+	// Not a failure: the async loader has this file and has not finished. A caller that gets it asks
+	// again on a later tick, so nothing should ever reach here with it -- and if something does, the
+	// user must not be shown a popup that reads as a failed load.
+	case Error::LOAD_IN_PROGRESS:
+#if ALPHA_OR_BETA_VERSION
+		// Say so on the way out. A converted caller that forgets to ask again produces exactly this
+		// and nothing else: no sound, no waveform, no error -- indistinguishable from the user not
+		// having asked for anything. Returning SILENTLY is what made the missing re-drive invisible
+		// through nine gates; the next one to forget gets a line in the log instead.
+		D_PRINTLN("displayError(LOAD_IN_PROGRESS): a deferred load reached the display -- its caller "
+		          "is reporting the deferral instead of asking again");
+#endif
 		return;
 	default:
 		message = getErrorMessage(error).data();

@@ -25,6 +25,9 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "model/voice/voice.h"
+#ifdef DELUGE_HOST
+#include "harness/streaming_underrun.h"
+#endif
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
@@ -191,48 +194,80 @@ LateStartAttemptStatus VoiceSample::attemptLateSampleStart(SamplePlaybackGuide* 
 
 	int32_t finalClusterIndex = voiceSource->getFinalClusterIndex(sample, cache); // Think this is right...
 
-	int32_t clusterIndex = startAtClusterIndex;
-
-	// We load our new Clusters into a secondary array first, to preserve the reason-holding power of whatever is
-	// already in our main one until we unassign them below
-	std::array<Cluster*, kNumClustersLoadedAhead> newClusters{};
-
-	for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-
-		// Grab it.
-		newClusters[l] = sample->clusters[clusterIndex].getCluster(sample, clusterIndex, CLUSTER_ENQUEUE);
-
-		// If failure (would only happen in insanely rare case where there's no free RAM)
-		if (l == 0 && !newClusters[l]) {
-			return LateStartAttemptStatus::FAILURE;
-		}
-
-		// If that was the final Cluster, that's all we need to do
-		if (clusterIndex == finalClusterIndex) {
-			break;
-		}
-
-		clusterIndex += voiceSource->playDirection;
-	}
-
-	// Remove all old reasons - there might be some if this function has been called multiple times while we wait for
-	// Clusters to load
+	// Release any residency left by a previous (re)start attempt before probing afresh -- releasing
+	// before acquiring is what lets the outgoing Cluster be the one reused for the new region under
+	// RAM pressure. The port cursor (source_->current/pending/prefetch), not a per-reader cluster
+	// array, carries the leases across a defer.
 	unassignAllReasons(false);
 
-	// Copy in the new reasons we just made
-	std::ranges::copy(newClusters, clusters.begin());
+	// Open the region-port cursor if this is the first residency op for the sample: late-start can
+	// be the very first residency op (before any assignClusters), so source_ would otherwise be null
+	// -> acquire_ex returns UNAVAILABLE -> a spurious FAILURE. assignClusters opens the cursor the
+	// same way.
+	ensureSource(sample);
 
-	// TODO: lots of this code is kinda tied to there being just two clusters looked-ahead (wait, not any more right?)
+	// Residency DECISION through the region port. Full mapping + the golden-unreachable divergences:
+	// docs/superpowers/specs/2026-07-24-task5-latestart-tristate-mapping.md. acquire_ex fetches the
+	// start cluster, RETAINS its lease as `pending` while LOADING (so the fill survives the defer/retry),
+	// and on READY pins it as `current` and prefetches the neighbour.
+	//
+	// Priority 0 == MOST urgent (the loader queue serves the lowest value first). This voice is
+	// already waiting to start -- the note-on deferred rather than dropped because its first cluster
+	// was still loading -- so its cluster is the most urgent load in the system. It previously passed
+	// 0xFFFFFFFF, the LOWEST urgency, which queued a waiting voice behind every speculative prefetch.
+	DelugeSampleRegion region{};
+	DelugeRegionState state0 =
+	    deluge_sample_region_acquire_ex(source_, startAtClusterIndex, voiceSource->playDirection, 0u, &region);
 
-	// If the first Cluster has loaded...
-	if (clusters[0]->loaded) {
+	// UNAVAILABLE: neither found nor constructed a chunk (no free RAM, or out of range) -- a FAILURE.
+	if (state0 == DELUGE_REGION_UNAVAILABLE) {
+		return LateStartAttemptStatus::FAILURE;
+	}
+
+	// LOADING falls through to the single WAIT site below; its lease is retained by the port as
+	// `pending`. READY means the start cluster is loaded -- decide on the neighbour.
+	if (state0 == DELUGE_REGION_READY) {
 
 		uint32_t bytesPosWithinCluster = startAtByte & (Cluster::size - 1);
 
-		// If there's no second Cluster, or it's fully loaded... we're good to go!
-		if (!clusters[1] || clusters[1]->loaded) {
+		// The look-ahead neighbour, unless the start cluster IS the final one -- then there is no
+		// neighbour. A pure indexed query: acquire_ex already prefetched the neighbour on the READY path
+		// above, so this just reads its state.
+		bool hasNeighbour = (static_cast<int32_t>(startAtClusterIndex) != finalClusterIndex);
+		DelugeRegionState stateN =
+		    hasNeighbour
+		        ? deluge_sample_region_state(source_, static_cast<uint32_t>(static_cast<int32_t>(startAtClusterIndex)
+		                                                                    + voiceSource->playDirection))
+		        : DELUGE_REGION_UNAVAILABLE;
+
+		// No neighbour, neighbour READY, or neighbour UNAVAILABLE (out of range / RAM-failed prefetch) is
+		// good-to-go -- a missing neighbour from any cause is fine. Only a LOADING neighbour gives pause.
+		if (stateN != DELUGE_REGION_LOADING) {
 goodToGo:
-			setupForPlayPosMovedIntoNewCluster(voiceSource, sample, bytesPosWithinCluster, sample->byteDepth);
+			// Commit the note-start by establishing the reader's steady-state residency for the start
+			// cluster through setupClustersForPlayFromByte() -> assignClusters(), which sets region_ (so
+			// setupReassessmentLocation's interpolation-window base sources from a matching
+			// region_.payload_base) and takes the reader's independent region lease the steady-state
+			// consumers expect. The DECISION above already acquired the start region through the port
+			// (source_->current is pinned, neighbour prefetched); this re-acquires the SAME index, which the
+			// port makes idempotent -- acquire_ex drops the duplicate lease get_cluster adds when src->current
+			// already holds the chunk (see the cursor's acquire_ex in deluge_sample_source), so the two
+			// acquires net one lease, and the standing prefetch is already the neighbour so it is not
+			// re-fetched. The priority passed below no longer matches the decision acquire's (which is
+			// now 0, most-urgent); it does not need to, because this re-acquire hits the already-pinned
+			// `current` and so enqueues nothing whose ordering the value could affect. startAtByte >>
+			// Cluster::size_magnitude == startAtClusterIndex and startAtByte & (Cluster::size-1) == the
+			// byte-within-cluster, so setupForPlayPosMovedIntoNewCluster() lands on the correct byte-within-cluster
+			// position.
+			if (setupClustersForPlayFromByte(voiceSource, sample, static_cast<int32_t>(startAtByte),
+			                                 static_cast<int32_t>(0xFFFFFFFFU))
+			    != RegionOutcome::Ready) {
+				// The start cluster was resident-and-loaded a few statements ago (checked above), so a false
+				// here is a shouldn't-happen (reclaimed in the zero-gap, or out of range). Take the same
+				// defer-and-retry the not-loaded checks below take — never a drop — and converge on the single
+				// WAIT/noteUnderrunWait site so it stays "exactly one place".
+				goto waitForResidency;
+			}
 
 			pendingSamplesLate = 0;
 
@@ -258,7 +293,15 @@ goodToGo:
 
 	// If still here, that didn't work, so we have to wait, and come back later when hopefully some loading has taken
 	// place
+waitForResidency:
 	pendingSamplesLate += numSamples;
+#ifdef DELUGE_HOST
+	// The streaming-underrun harness's primary signal: this is the single convergence point for both
+	// residency misses above - the start cluster still LOADING, or its neighbour LOADING and we're too
+	// far into the start cluster to spare it the time - so one counter increment here captures either
+	// miss as one WAIT-class underrun (voice playback deferred, not dropped).
+	deluge::harness::noteUnderrunWait();
+#endif
 	return LateStartAttemptStatus::WAIT;
 }
 
@@ -352,8 +395,21 @@ bool VoiceSample::weShouldBeTimeStretchingNow(Sample* sample, SamplePlaybackGuid
 
 bool VoiceSample::stopReadingFromCache() {
 	// Have to check Cluster is loaded, because we chose not to check this before, cos we didn't know if we'd actually
-	// be reading from it
-	if (!clusters[0] || !clusters[0]->loaded) {
+	// be reading from it.
+	// The cache-fallback residency check, expressed against the region port. The reader's
+	// `region_` is only ever populated by a successful (loaded) acquire — assignClusters / moveOnToNextCluster take a
+	// `true`/READY return, the cache-resync stores only on DELUGE_REGION_READY — so a held region is by construction
+	// a loaded chunk. The residency check therefore reduces exactly to `!hasCurrentRegion()`, matching the drop
+	// decision at moveOnToNextCluster's sibling UNASSIGN-class site. This no-arg path has no play-direction/priority
+	// to drive a re-acquire, so it reads the port's residency state directly.
+	if (!hasCurrentRegion()) {
+#ifdef DELUGE_HOST
+		// The streaming-underrun harness's UNASSIGN-class signal: the cache-stop path found the
+		// Cluster it needs to fall back to isn't loaded (or isn't even held), so the caller
+		// (stopUsingCache -> e.g. AudioClip::resumePlayback) is about to do an instant voice
+		// unassign rather than merely deferring - a dropped voice, harder than a WAIT.
+		deluge::harness::noteUnderrunUnassign();
+#endif
 		return false; // If it's not loaded we're screwed - do instant unassign
 	}
 
@@ -418,6 +474,9 @@ bool VoiceSample::render(SamplePlaybackGuide* guide, int32_t* __restrict__ outpu
                          int32_t timeStretchRatio, int32_t amplitude, int32_t amplitudeIncrement,
                          int32_t interpolationBufferSize, InterpolationMode desiredInterpolationMode,
                          int32_t priorityRating) {
+#ifdef DELUGE_HOST
+	deluge::harness::noteVoiceRender();
+#endif
 
 	int32_t playDirection = guide->playDirection;
 
@@ -706,12 +765,13 @@ readCachedWindow:
 		int32_t cachedClusterIndex = cacheBytePos >> Cluster::size_magnitude;
 		int32_t bytePosWithinCluster = cacheBytePos & (Cluster::size - 1);
 
-		Cluster* cacheCluster = cache->getCluster(cachedClusterIndex);
+		ComputedChunk* cacheCluster = cache->getCluster(cachedClusterIndex);
 		if (ALPHA_OR_BETA_VERSION
 		    && !cacheCluster) { // If it got stolen - but we should have already detected this above
 			FREEZE_WITH_ERROR("E157");
 		}
-		int32_t* __restrict__ readPos = (int32_t*)&cacheCluster->data[bytePosWithinCluster - 4 + kCacheByteDepth];
+		int32_t* __restrict__ readPos =
+		    (int32_t*)cacheCluster->frame_read_origin(bytePosWithinCluster, kCacheByteDepth);
 
 		int32_t sampleRead[2]; // Somehow works out a tiny bit faster having it as an array
 
@@ -822,7 +882,7 @@ readCachedWindow:
 		// But, if we're more than 1 cluster outside of the waveform, let's just not be silly.
 		if (uncachedClusterIndex < sample->getFirstClusterIndexWithAudioData() - 1
 		    || uncachedClusterIndex > sample->getFirstClusterIndexWithNoAudioData()) {
-			unassignAllReasons(false); // Remember, this doesn't cut the voice - just sets clusters[0] to NULL.
+			unassignAllReasons(false); // Remember, this doesn't cut the voice - just clears the current region.
 			currentPlayPos = nullptr;
 		}
 
@@ -839,27 +899,56 @@ readCachedWindow:
 			}
 
 			// If uncached Cluster has changed, update queue
-			if (!clusters[0] || clusters[0]->clusterIndex != uncachedClusterIndex) {
+			if (!hasCurrentRegion() || static_cast<int32_t>(region_.region_index) != uncachedClusterIndex) {
+				// The cache-resync's residency comes from the region port, on the reader's OWN cursor, so
+				// `region_` tracks the CACHE position rather than the pre-cache one.
+				//
+				// Drop the old reasons FIRST: releasing before acquiring is what lets the outgoing Cluster
+				// be the one stolen to satisfy the new region under RAM pressure. unassignAllReasons() also
+				// clears `region_`, so the two never disagree.
 				unassignAllReasons(false); // We're going to set new "reasons".
 
-				int32_t nextUncachedClusterIndex = uncachedClusterIndex;
-				for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-					clusters[l] = sample->clusters[nextUncachedClusterIndex].getCluster(
-					    sample, nextUncachedClusterIndex, CLUSTER_ENQUEUE);
-					if (!clusters[l]) {
-						break;
+				// The cursor is normally already open (playback got here through assignClusters), but a
+				// reader can be reused for a different Sample, so re-establish it the same way
+				// assignClusters does before touching the port.
+				ensureSource(sample);
+
+				// Skip the acquire while the port already holds a reservation IN FLIGHT for this exact
+				// index. DELUGE_REGION_LOADING keeps the lease (so the fill progresses and the chunk
+				// can't be stolen), and once it lands this same test reports READY and the acquire below
+				// promotes it. UNAVAILABLE means nothing is in flight, so a fresh acquire is needed.
+				if (deluge_sample_region_state(source_, static_cast<uint32_t>(uncachedClusterIndex))
+				    != DELUGE_REGION_LOADING) {
+					// Priority 0 == MOST urgent: this resync feeds the render in progress. It previously
+					// passed 0xFFFFFFFF to keep the resync out of the caller's priority ordering, but
+					// that value is the LOWEST urgency in the queue -- the opposite of what data needed
+					// for the current render should get.
+					DelugeSampleRegion region;
+					if (deluge_sample_region_acquire_ex(source_, static_cast<uint32_t>(uncachedClusterIndex),
+					                                    static_cast<int8_t>(playDirection), 0u, &region)
+					    == DELUGE_REGION_READY) {
+						// Retain the acquired region and take the reader's own INDEPENDENT lease on it (via
+						// region_.lease), as assignClusters/moveOnToNextCluster do, so unassignAllReasons's
+						// uniform release stays self-consistent.
+						deluge_sample_region_retain(region.lease);
+						region_ = region;
 					}
-					if (nextUncachedClusterIndex == finalClusterIndex) {
-						break; // If no more Clusters
-					}
-					nextUncachedClusterIndex += playDirection;
+					// Not READY: region_ stays empty and currentPlayPos is cleared below. The port
+					// retains that same single lease as `pending`, and the one consumer that acts on
+					// it -- stopReadingFromCache -- treats "no region" and "held but not loaded" as
+					// the same instant-unassign.
 				}
+				// The uncachedClusterIndex + playDirection neighbour is the port's standing prefetch, taken
+				// by the acquire above with the same priority: same Cluster made resident, same single
+				// lease, held by the cursor -- identical to the trade assignClusters makes. The port
+				// prefetches whenever the neighbour is in range of the stream, so it can reach one Cluster
+				// past `finalClusterIndex` -- the same accepted difference assignClusters already carries.
 			}
 
-			if (clusters[0]) {
+			if (hasCurrentRegion()) {
 				oscPos = uncachedSamplePosBig & 16777215;
 				int32_t uncachedBytePosWithinCluster = uncachedBytePos - uncachedClusterIndex * Cluster::size;
-				currentPlayPos = &clusters[0]->data[uncachedBytePosWithinCluster];
+				currentPlayPos = reinterpret_cast<char*>(region_.payload_base) + uncachedBytePosWithinCluster;
 				currentPlayPos = currentPlayPos - 4 + sample->byteDepth;
 			}
 			else {
@@ -926,12 +1015,12 @@ uncachedPlayback:
 				}
 			}
 
-			Cluster* cacheCluster = cache->getCluster(cacheClusterIndex);
+			ComputedChunk* cacheCluster = cache->getCluster(cacheClusterIndex);
 			if (ALPHA_OR_BETA_VERSION && !cacheCluster) {
 				// Check that the Cluster hasn't been stolen - but this should have been detected right at the start
 				FREEZE_WITH_ERROR("E166");
 			}
-			cacheWritePos = &cacheCluster->data[bytePosWithinCluster];
+			cacheWritePos = reinterpret_cast<char*>(cacheCluster->payload().data()) + bytePosWithinCluster;
 
 			int32_t cachingBytesTilClusterEnd = Cluster::size - bytePosWithinCluster;
 			int32_t cachingBytesTilUncachedReadEnd = std::min(cachingBytesTilClusterEnd, cachingBytesTilLoopEnd);
@@ -1413,9 +1502,12 @@ headsFinishedReading:
 					// if (timeStretcher->bufferFillingMode == BUFFER_FILLING_OLDER) D_PRINTLN(" - was filling older");
 					timeStretcher->newerHeadReadingFromBuffer = false;
 					timeStretcher->bufferFillingMode = BUFFER_FILLING_NEWER;
+					// STALE: SampleLowLevelReader::cloneFrom no longer exists (replaced by the copy ctor /
+					// adoptResidencyFrom). This whole TIME_STRETCH_ENABLE_BUFFER block is never compiled and is
+					// pending removal; do not treat this call as live.
 					cloneFrom(&timeStretcher->olderPartReader, false);
-					if (!clusters[0])
-						D_PRINTLN("no clusters[0]");
+					if (!hasCurrentRegion())
+						D_PRINTLN("no current region");
 				}
 
 				else if (timeStretcher->playHeadStillActive[PLAY_HEAD_OLDER]

@@ -21,6 +21,7 @@
 #include "dsp/dx/engine.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
+#include "memory/memory_allocator_interface.h"
 #include "model/sample/sample.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -49,6 +50,12 @@ Source::Source() {
 }
 
 Source::~Source() {
+	// destruct dxPatch if it was allocated
+	if (dxPatch != nullptr) {
+		dxPatch->~DxPatch();
+		delugeDealloc(dxPatch);
+		dxPatch = nullptr;
+	}
 }
 
 void Source::bindDocSource(deluge::project::DocSource* d) {
@@ -176,12 +183,13 @@ void Source::recalculateFineTuner() {
 }
 
 // This function has to give the same result as Sound::renderingVoicesInStereo(). The duplication is for optimization.
-bool Source::renderInStereo(Sound* s, SampleHolder* sampleHolder) {
+bool Source::renderInStereo(OscType oscType, uint8_t unisonStereoSpread, uint8_t numUnison,
+                            SampleHolder* sampleHolder) {
 	if (!AudioEngine::renderInStereo) {
 		return false;
 	}
 
-	if (s->unisonStereoSpread && s->numUnison > 1) {
+	if (unisonStereoSpread && numUnison > 1) {
 		return true;
 	}
 
@@ -199,20 +207,18 @@ void Source::detachAllAudioFiles() {
 	}
 }
 
-Error Source::loadAllSamples(bool mayActuallyReadFiles) {
+deluge::storage::Walk Source::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
-		AudioEngine::logAction("Source::loadAllSamples");
-		if (!(e & 3)) { // 3 works, 7 occasionally drops voices - for multisampled synths
-			AudioEngine::routineWithClusterLoading();
+		if (visitor.rangeCheckpoint(e) == deluge::storage::Walk::Stop) {
+			return deluge::storage::Walk::Stop;
 		}
-		if (mayActuallyReadFiles && shouldAbortLoading()) {
-			return Error::ABORTED_BY_USER;
-		}
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.isCurrentlyReversed(), false,
-		                                                     mayActuallyReadFiles, CLUSTER_ENQUEUE, nullptr, true);
+		visitor.demand({.holder = ranges.getElement(e)->getAudioFileHolder(),
+		                .reversed = sampleControls.isCurrentlyReversed(),
+		                .clusterLoadInstruction = CLUSTER_ENQUEUE,
+		                .makeWaveTableWorkAtAllCosts = true});
 	}
 
-	return Error::NONE;
+	return deluge::storage::Walk::Continue;
 }
 
 // Only to be called if already determined that oscType == OscType::SAMPLE

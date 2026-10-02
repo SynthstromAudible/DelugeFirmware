@@ -1,0 +1,204 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "definitions_cxx.hpp"
+#include "io/stall_bound.h"
+#include "storage/audio/audio_load_context.h"
+#include "storage/audio/sample_load_walk.h"
+
+#include <cstdint>
+#include <string>
+#include <string_view>
+#include <variant>
+#include <vector>
+
+class AudioClip;
+class AudioFileHolder;
+class Drum;
+class Output;
+class Song;
+
+namespace deluge::storage {
+
+/// @brief A sample load a consumer ticks until it ends: every demand of a song, an output, a drum, an audio clip or
+///        one holder, found through the async loader, with no sample read from the card on the calling tier.
+///
+/// Each tick() walks the root again, and each demand settles one way:
+/// - a holder that already has a file, or names none, is left as it is;
+/// - a sample is asked of the loader (AsyncLoadMode::AsyncOnly): a file that has arrived is bound and its after-bind
+///   step run; a file still loading is asked for again on the next tick; any other answer leaves the holder empty,
+///   remembered so it is not asked for again;
+/// - a wavetable is looked up synchronously, on the calling tier, once the previous tick's walk left no sample in
+///   flight. Its lookup may probe the load's folder on a miss, which must not happen before the samples have asked.
+///
+/// The load ends Loaded when a walk leaves nothing in flight, and Failed when the card cannot be read or its walks
+/// settle nothing for kMaxStalledUs; holders bound before then stay bound. The end sticks: later ticks return it
+/// without walking.
+///
+/// The consumer owns the object, the root and the context, keeps all three alive while ticking, and does not change
+/// the root's tree between ticks. Dropping the object cancels the load, and tells the loader to discard the answers it
+/// still owes the load: each was found with this load's candidates, and the next lookup of the same path may be
+/// another load's, with other candidates.
+class AsyncSampleLoad final : private SampleLoadVisitor {
+public:
+	/// @brief Where a load is.
+	enum class State : uint8_t {
+		Loading, ///< Something is still in flight: tick again.
+		Loaded,  ///< Every demand has settled.
+		Failed,  ///< The load ended early: see Reason.
+	};
+
+	/// @brief Why a load ended early.
+	enum class Reason : uint8_t {
+		None,         ///< It did not.
+		CardUnusable, ///< The card cannot be read (ejected, disabled or not mounted), or no async loader backs loads.
+		Stalled,      ///< For kMaxStalledUs, walks left something in flight and settled nothing new.
+	};
+
+	/// @brief What a tick reports.
+	struct Progress {
+		State state = State::Loading;
+		Reason reason = Reason::None;
+		int32_t bound = 0;          ///< Holders the last walk found with a file.
+		int32_t emptyHolders = 0;   ///< Holders the last walk found settled with no file.
+		int32_t inFlight = 0;       ///< Demands the last walk left still loading.
+		int32_t wavetableReads = 0; ///< Synchronous wavetable lookups, over the whole load.
+		int32_t ticks = 0;          ///< Ticks that walked.
+		/// Walks in a row, up to the last, that left something in flight and settled nothing.
+		int32_t stalledTicks = 0;
+		uint64_t stalledUs = 0;    ///< Microseconds from the first of those walks to the last.
+		Error error = Error::NONE; ///< The first lookup error of a holder that settled empty, over the whole load.
+	};
+
+	/// @brief How long walks may leave something in flight and settle nothing new before the load ends Failed,
+	///        Reason::Stalled, in microseconds.
+	///
+	/// The bound the slicer's audition and the sample browser's preview give a load before giving up, measured here for
+	/// the whole load rather than per file: any demand that settles, bound or empty, starts the span again, so a large
+	/// load on a slow card keeps loading, and only a load that has stopped moving ends. 18 s, five channel stall
+	/// bounds: long enough for a card that is slow but still answering, short enough that a dead one is reported.
+	static constexpr uint64_t kMaxStalledUs = 18'000'000;
+
+	/// @brief Every sample a song needs: each output's, then each audio clip's.
+	[[nodiscard]] static AsyncSampleLoad forSong(Song& song, AudioLoadContext* context);
+	/// @brief Only what a song's active clips need to sound (Song::walkCrucialSampleDemands()).
+	[[nodiscard]] static AsyncSampleLoad forCrucialSong(Song& song, AudioLoadContext* context);
+	/// @brief Every sample an output's sounds need. A kit or synth reached under no context also looks in its own
+	///        folder, as a load that may read the card does.
+	[[nodiscard]] static AsyncSampleLoad forOutput(Output& output, AudioLoadContext* context);
+	/// @brief Every sample a drum's sound needs.
+	[[nodiscard]] static AsyncSampleLoad forDrum(Drum& drum, AudioLoadContext* context);
+	/// @brief An audio clip's sample, with the clip named after it.
+	[[nodiscard]] static AsyncSampleLoad forAudioClip(AudioClip& clip, AudioLoadContext* context);
+	/// @brief One demand, with no walk around it.
+	[[nodiscard]] static AsyncSampleLoad forHolder(const SampleDemand& demand, AudioLoadContext* context);
+
+	/// @brief Walk the root once more and settle what can be settled. Runs on the calling tier.
+	/// @return The load's progress after this walk; once the load has ended, that end.
+	Progress tick();
+
+	/// @brief What the last tick() returned.
+	[[nodiscard]] const Progress& progress() const { return progress_; }
+
+	/// @brief When a consumer that runs only when woken should tick a load still Loading again, on the app loop's
+	///        clock (µs).
+	///
+	/// 0, meaning at once, when the last walk settled something, or left a wavetable waiting only for samples that
+	/// walk found settled: the next walk can move without anything arriving. Otherwise everything in flight waits on a
+	/// storage channel, whose answer raises DELUGE_WAKE_STORAGE, and this is the stall bound's deadline, so a channel
+	/// that never answers still ends the load. kNever once the load has ended.
+	[[nodiscard]] uint64_t nextTickUs() const;
+
+private:
+	struct SongRoot {
+		Song* song;
+	};
+	struct CrucialSongRoot {
+		Song* song;
+	};
+	using Root = std::variant<SongRoot, CrucialSongRoot, Output*, Drum*, AudioClip*, SampleDemand>;
+
+	AsyncSampleLoad(Root root, AudioLoadContext* context);
+
+	/// @brief The sample paths a walk left with the loader. Destroyed or assigned over, it tells the loader to discard
+	///        each one's answer (deluge_audio_load_forget). Move-only, so only one object ever forgets a path.
+	class OutstandingRequests {
+	public:
+		OutstandingRequests() = default;
+		OutstandingRequests(OutstandingRequests&& other) noexcept;
+		OutstandingRequests& operator=(OutstandingRequests&& other) noexcept;
+		OutstandingRequests(const OutstandingRequests&) = delete;
+		OutstandingRequests& operator=(const OutstandingRequests&) = delete;
+		~OutstandingRequests();
+
+		/// @brief Note @p path as asked of the loader and not yet answered.
+		void add(const std::string& path) { paths_.push_back(path); }
+		/// @brief Drop every path without telling the loader: the walk that starts now notes again what is out.
+		void reset() { paths_.clear(); }
+
+	private:
+		void forgetAll() noexcept;
+		std::vector<std::string> paths_{};
+	};
+
+	Walk rangeCheckpoint(int32_t rangeIndex) override;
+	Walk drumCheckpoint() override;
+	void clipCheckpoint() override;
+	void beginInstrumentScope(std::string_view dirPath, std::string_view name, ThingType thing,
+	                          ScopeRule rule) override;
+	void endInstrumentScope() override;
+	void demand(const SampleDemand& demand) override;
+
+	Root root_;
+	/// The context the consumer passed.
+	AudioLoadContext* callerContext_;
+	/// The context each lookup runs under: callerContext_, or ownFolder_ while an instrument's scope holds it.
+	AudioLoadContext* context_;
+	/// The instrument folder a walk opened. Kept for the load's life, not one walk's, so what a lookup learnt about the
+	/// folder survives to the next tick.
+	AudioLoadContext ownFolder_{};
+	/// Whether any walk has opened ownFolder_.
+	bool ownFolderMade_{false};
+	/// context_ as it was when ownFolder_ was opened in this walk.
+	AudioLoadContext* contextOutsideOwnFolder_{nullptr};
+	/// How many instrument scopes this walk has open.
+	int32_t scopeDepth_{0};
+	/// The scope depth ownFolder_ is open at in this walk, or -1 when it is not open.
+	int32_t ownFolderDepth_{-1};
+	/// Holders settled with no file. Never asked for again.
+	std::vector<const AudioFileHolder*> settledEmpty_{};
+	/// Whether the previous walk left no sample in flight. False before the first walk.
+	bool samplesSettled_{false};
+	/// Samples this walk left in flight.
+	int32_t samplesInFlight_{0};
+	/// Whether this walk left a wavetable waiting for the samples to settle, rather than for its folder's probe.
+	bool wavetableAwaitsSamples_{false};
+	/// Whether the next walk can move with nothing arriving first: see nextTickUs().
+	bool retickNow_{false};
+	/// The samples the last walk left in flight.
+	OutstandingRequests outstanding_{};
+	/// How many demands had settled, bound or empty, after the previous walk.
+	int32_t settledBefore_{0};
+	/// Measures the walks in a row that leave something in flight and settle nothing new; expires once they have gone
+	/// on for kMaxStalledUs. See @ref Reason::Stalled.
+	deluge::io::StallBound stalledBound_{kMaxStalledUs};
+	Progress progress_{};
+};
+
+} // namespace deluge::storage

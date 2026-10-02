@@ -4,6 +4,20 @@ Above all, thank you for your interest in both the Synthstrom Deluge and being a
 
 Please see also, the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
+## LLM usage
+
+This is ultimately a human project. Having an LLM code a fun feature for your own use is great but that 
+does not mean we will include it in our supported firmware. 
+While we welcome the use of LLM assistance (and we all use it) you must put in the effort to ensure your code is explainable and maintainable. 
+A good measure before submitting is ensuring you can read and understand your code clearly enough to hand write a PR description explaining what it does and why. 
+If we feel like we are talking to an LLM we will just close PRs.
+
+As a bare minimum:
+* do not use an agent to open PRs or comment on them
+* do not use an LLM to write PR descriptions 
+* do not open PRs with test plans you have not followed
+
+
 ## Bug reports
 
 Even if you are not a software developer you can contribute immensely by informing us about bugs and other problems you
@@ -52,6 +66,30 @@ appreciated.
   the [Code of Conduct](CODE_OF_CONDUCT.md).
 * Final decisions about merging of Pull requests is up to the code owners, see [Governance](GOVERNANCE.md).
 * If you have a contribution to make then review the [Guidelines for Repository Contributions](/docs/dev/guidelines.md). 
+
+## Adding a Runtime Feature Setting (Community Feature)
+
+When introducing a new feature or behavior modification that should be toggleable by users, add a runtime feature setting by following these steps:
+
+1. **Declare the Setting Enum**:
+   - In `src/deluge/model/settings/runtime_feature_settings.h`, add your setting identifier to `enum RuntimeFeatureSettingType` before `MaxElement` (e.g. `ShortcutOverlay`).
+   - If your setting has more states than simple On/Off, define a corresponding enum (e.g., `RuntimeFeatureState...`).
+
+2. **Add Localization (l10n) Strings**:
+   - `src/deluge/gui/l10n/strings.h`: Add a `STRING_FOR_COMMUNITY_FEATURE_...` identifier to `enum class String`.
+   - `src/deluge/gui/l10n/english.json`: Add the key and the OLED display name string.
+   - `src/deluge/gui/l10n/seven_segment.json`: If supported on 7-segment displays, add the 4-character abbreviation.
+   - Run `./dbt build` (or `python3 src/deluge/gui/l10n/generate.py ...`) to regenerate `g_english.cpp` and `g_seven_segment.cpp`.
+
+3. **Initialize the Setting**:
+   - In `src/deluge/model/settings/runtime_feature_settings.cpp`, inside `RuntimeFeatureSettings::init()`, configure the setting using `SetupOnOffSetting(...)` (or custom setup function), providing the setting slot, the l10n string identifier, the XML attribute name for `CommunityFeatures.XML`, and the default state.
+
+4. **Create the Associated Menu Item**:
+   - In `src/deluge/gui/menu_item/runtime_feature/settings.cpp`, instantiate a `SettingToggle` (or `OledOnlySettingToggle` if OLED-only) instance for your setting type.
+   - Add a pointer to this menu instance into the `subMenuEntries` array.
+
+5. **Guard the Feature in Code**:
+   - Include `model/settings/runtime_feature_settings.h` where needed and check `runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::YourSetting)` or `runtimeFeatureSettings.get(RuntimeFeatureSettingType::YourSetting)`.
 
 ## Additional Developer Resources
 

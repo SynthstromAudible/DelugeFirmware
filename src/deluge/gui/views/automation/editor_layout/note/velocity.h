@@ -52,8 +52,8 @@ private:
 	                      uint8_t squareType, int32_t value);
 
 public:
-	void displayParameterValueOLED(deluge::hid::display::oled_canvas::Canvas& canvas, int32_t yPos, int32_t knobPosLeft,
-	                               int32_t knobPosRight);
+	void displayParameterValue(deluge::hid::display::oled_canvas::Canvas& canvas, int32_t yPos, int32_t knobPosLeft,
+	                           int32_t knobPosRight);
 };
 
 // }; // namespace deluge::gui::views::automation::editor_layout::note

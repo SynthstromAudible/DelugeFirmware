@@ -24,11 +24,9 @@ public:
 	using Integer::Integer;
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuValue; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow();
 	}
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

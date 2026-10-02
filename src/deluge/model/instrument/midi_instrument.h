@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
 #include "util/containers.h"
+#include "util/string.h"
 #include <array>
 #include <string_view>
 
@@ -62,9 +63,10 @@ public:
 
 	// midi device definition file
 	/// reading
-	Error readDeviceDefinitionFile(Deserializer& reader, bool readFromPresetOrSong);
+	Error readDeviceDefinitionFile(Deserializer& reader);
 	void readDeviceDefinitionFileNameFromPresetOrSong(Deserializer& reader);
 	Error readCCLabelsFromFile(Deserializer& reader);
+	Error readHideUnlabeledCCFromFile(Deserializer& reader);
 	/// writing
 	void writeDeviceDefinitionFile(Serializer& writer, bool writeFileNameToPresetOrSong);
 	void writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer);
@@ -74,12 +76,13 @@ public:
 	void setNameForCC(int32_t cc, std::string_view name);
 	/// definition file
 	std::string deviceDefinitionFileName{};
-	bool loadDeviceDefinitionFile = false;
+	bool hideUnlabeledCC = false;
 
 	void sendMIDIPGM() override;
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
 
+	int32_t getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC = false);
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
 	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
 	                         int32_t stopAt);
@@ -132,6 +135,10 @@ public:
 		return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel";
 	}
 	char const* getSubSlotXMLTag() override { return "suffix"; }
+
+	/// Appends a CC name/number to buf for the given CC assignment.
+	/// @return True if a user-defined custom name was appended rather than the bare CC number.
+	bool appendCCName(etl::istring& buf, int32_t cc);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

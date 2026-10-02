@@ -34,7 +34,6 @@ public:
 	void readValueAgain() final;
 	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
-	void drawValue();
 
 	int32_t currentValue = 0;
 	DxPatch* patch{};

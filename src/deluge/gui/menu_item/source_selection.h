@@ -33,8 +33,6 @@ public:
 	void readValueAgain() final;
 	void drawPixelsForOled() final;
 
-	// 7seg only
-	void drawValue() override;
 	PatchSource s;
 
 protected:

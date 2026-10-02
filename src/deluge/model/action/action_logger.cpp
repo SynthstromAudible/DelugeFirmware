@@ -320,9 +320,7 @@ void ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDispl
 
 // Returns whether anything was reverted.
 // doNavigation and updateVisually are only false when doing one of those undo-Clip-resize things as part of another
-// Clip resize. You must not call this during the card routine - though I've lost track of the exact reason why not - is
-// it just because we could then be in the middle of executing whichever function accessed the card and we don't know if
-// things will break?
+// Clip resize.
 bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
 	D_PRINTLN("ActionLogger::revert");
 
@@ -782,9 +780,6 @@ void ActionLogger::deleteLog(int32_t time) {
 	}
 }
 
-// You must not call this during the card routine - though I've lost track of the exact reason why not - is it just
-// because we could then be in the middle of executing whichever function accessed the card and we don't know if things
-// will break?
 void ActionLogger::undo() {
 
 	// Before we go and revert the most recent Action, there are a few recording-related states we first want to have a
@@ -828,9 +823,6 @@ displayUndoMessage:
 	}
 }
 
-// You must not call this during the card routine - though I've lost track of the exact reason why not - is it just
-// because we could then be in the middle of executing whichever function accessed the card and we don't know if things
-// will break?
 void ActionLogger::redo() {
 	if (revert(AFTER)) {
 #ifdef redoLedX

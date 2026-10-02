@@ -1,7 +1,13 @@
 cmake_minimum_required(VERSION 3.23)
 cmake_policy(SET CMP0135 NEW)
 
-set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/scripts/cmake/CMakeToolchainDeluge.cmake)
+# Default to the GCC toolchain, but let -DCMAKE_TOOLCHAIN_FILE=... win. An
+# unconditional set() here shadows the cache variable the command line creates,
+# so an alternative toolchain (e.g. the clang prototype) was silently ignored
+# and the build fell back to GCC while appearing to succeed.
+if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE ${CMAKE_CURRENT_LIST_DIR}/scripts/cmake/CMakeToolchainDeluge.cmake)
+endif()
 
 project(Deluge
     LANGUAGES CXX C ASM
@@ -9,6 +15,7 @@ project(Deluge
 )
 include(FetchContent)
 include(ProcessorCount)
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/ccache.cmake)
 ProcessorCount(HOST_NUM_CORES)
 
 # Create our version string
@@ -61,18 +68,23 @@ else()
     set(EXECUTABLE_VERSION_SUFFIX "")
 endif(ENABLE_VERSIONED_OUTPUT)
 
-# RTT option
-option(ENABLE_RTT "Enable RTT output" ON)
+# Optimization level for the DEBUG config. -Og by default (debuggable). The Rust/Embassy device build
+# can raise this to -O2, because it must link DEBUG objects -- Release's slim-LTO objects are
+# unreadable to its linker. Whether -Og is actually too slow for real-time audio on hardware is
+# UNMEASURED; see the use site for what is and is not known.
+set(DELUGE_DEBUG_OPT_LEVEL "-Og" CACHE STRING "Optimization flag for the Debug config (e.g. -Og, -O2)")
 
 # SYSEX Load option
-option(ENABLE_SYSEX_LOAD "Enable loading firmware over midi sysex" OFF)
 
 # MATRIX DRIVER pad logging
 option(ENABLE_MATRIX_DEBUG "Enable logging of pad events" OFF)
 
 # Colored output
 set(CMAKE_COLOR_DIAGNOSTICS ON)
-add_compile_options($<$<CXX_COMPILER_ID:Clang>:-fansi-escape-codes>)
+# COMPILE_LANG_AND_ID, not CXX_COMPILER_ID: the latter queries the CXX compiler
+# whatever language is being compiled, so with a clang C++ compiler the flag also
+# lands on the ASM command line — which fails if ASM is assembled by GCC.
+add_compile_options($<$<COMPILE_LANG_AND_ID:CXX,Clang>:-fansi-escape-codes>)
 
 # ##### Documentation generation #######
 # check if Doxygen is installed
@@ -163,21 +175,75 @@ add_compile_options(
     # Debug symbols, also for release so we get a full ELF
     $<$<CONFIG:DEBUG,RELEASE,RELWITHDEBINFO>:-ggdb3> # Include
 
-    # Optimization level
-    $<$<CONFIG:DEBUG>:-Og>
+    # Optimization level.
+    #
+    # DELUGE_DEBUG_OPT_LEVEL sets the Debug config's optimisation level. The default stays -Og so Debug builds
+    # remain debuggable; -O2 gives an optimized image without LTO.
+    #
+    # This comment used to assert that -Og (plus the unconditional -fno-inline-functions below) is "far
+    # too slow for real-time audio on the RZ/A1L", citing 15-19 ms routine latencies and continuous voice
+    # culling. That claim is RETRACTED as unsupported -- not disproven, but not established either, and it
+    # should not be repeated until someone measures it. Both cited symptoms come from wall-clock
+    # instruments that a halted core corrupts, and every observation behind them was taken with a debug
+    # probe attached:
+    #
+    #   - The latency figure is `current_time - last_call_time` in deluge_app_render
+    #     (audio_engine.cpp) -- ENTRY-TO-ENTRY period, not compute time. Anything that stops the core
+    #     between two renders inflates it while the code runs exactly as fast as before.
+    #   - Culling keys off `dspTime = getAverageRunTimeForTask(routine_task_id) * 44100`
+    #     (AudioEngine::setDireness), the measured elapsed run time of the render task. A probe halt
+    #     landing inside a render inflates that too.
+    #
+    # So the two are not independent confirmations; they are one apparatus reported twice, and neither
+    # separates "the code got slower" from "the core stopped". probe-rs is independently suspected of
+    # stalling this target (it is why tools/deluge_jlink.py exists), and deluge_app_render's own warning
+    # already had to be rate-limited once because unthrottled logging turned the latency figure into a
+    # measurement of the logging.
+    #
+    # To settle it: flash ONE -Og image and run it under tools/deluge_run.py (probe-rs) and then
+    # tools/deluge_jlink.py (J-Link), same SD card, comparing the "Audio routine latency high" lines and
+    # cull counts. If J-Link reports nominal figures, the slowness was the probe and -Og is usable.
+    $<$<CONFIG:DEBUG>:${DELUGE_DEBUG_OPT_LEVEL}>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-O2>
 
-    # does not block inlining, just blocks considering all functions for inlining
+    # GCC-only spellings: clang errors on -fsplit-loops and ignores -funswitch-loops with a
+    # warning. The shipping image is the clang one, so these must stay gated.
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-fsplit-loops>
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-funswitch-loops>
+
+        # does not block inlining, just blocks considering all functions for inlining
     # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
+    #
+    # Applies to clang too, despite meaning something stronger there: GCC disables
+    # only its -finline-functions pass (verified at -O2: -finline-small-functions,
+    # -findirect-inlining, -finline-functions-called-once, -fearly-inlining and
+    # -fpartial-inlining all stay enabled), whereas clang stamps the `noinline`
+    # ATTRIBUTE on every definition. Gating it off for clang was measured and is
+    # worse on every axis — see the note in src/bsp/rust/.cargo/config.toml.
     -fno-inline-functions
 
     # Link time optimizations
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
+    #
+    # Split by compiler. Clang emits ThinLTO bitcode, which the Rust device link
+    # (lld) reads directly, so the device build uses real LTO in Release. GCC's
+    # slim-LTO objects are for the GCC tree's own compile only; nothing links them. -flto=auto,
+    # -fuse-linker-plugin, -flto-partition and -fdevirtualize-at-ltrans are all
+    # GCC spellings clang rejects.
+    $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-flto=auto>
+#        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-save-temps=obj>
+
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-fuse-linker-plugin>
+    # this makes the optimization better at the cost of linking being REALLY slow
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-flto-partition=none>
+
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-fdevirtualize-at-ltrans>
+
+    # COMPILE_LANGUAGE guard: CXX_COMPILER_ID is true whatever language is being
+    # compiled, and assembly goes through arm-none-eabi-gcc, which rejects
+    # -flto=thin.
+        $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:Clang>,$<COMPILE_LANGUAGE:C,CXX>>:-flto=thin>
     -ffunction-sections
     -fdata-sections
-    -DUSE_TASK_MANAGER
 
     # C++ stuff
     $<$<COMPILE_LANGUAGE:CXX>:-fno-rtti>
@@ -191,58 +257,6 @@ add_compile_options(
 
 # Add libraries
 add_subdirectory(lib)
-
-# Add the main executable target
-add_executable(deluge)
-
-# Link external libraries
-target_link_libraries(deluge PUBLIC
-        argon
-        etl::etl
-        deluge_foundation # foundation tier (formatting, timer-count, panic contract)
-        deluge_midi       # MIDI protocol library (message + USB-MIDI event spec)
-)
-
-# --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource) -
-# Build the umbrella as an armv7a no_std staticlib and link it into the device
-# image. Only for the cross build; the host-sim and unit tests link their own
-# (i686/x86_64) variant of the same workspace. cpu/fpu/float-abi are matched in
-# crates/.cargo/config.toml; build-std uses the nightly + rust-src pinned by
-# crates/rust-toolchain.toml. The umbrella owns the single panic handler and
-# re-exports the deluge_alloc + deluge_resource C ABIs.
-if (CMAKE_CROSSCOMPILING)
-    set(DELUGE_RUST_WS ${CMAKE_CURRENT_SOURCE_DIR}/crates)
-    set(DELUGE_RUST_TARGET armv7a-none-eabihf)
-    set(DELUGE_RUST_CARGO_LIB
-        ${DELUGE_RUST_WS}/target/${DELUGE_RUST_TARGET}/release/libdeluge_rust.a)
-    # Stage the staticlib into a per-config path so Ninja Multi-Config doesn't emit
-    # colliding rules for one shared output. The release build is config-independent;
-    # cargo no-ops after the first config.
-    set(DELUGE_RUST_STAGED ${CMAKE_BINARY_DIR}/$<CONFIG>/libdeluge_rust.a)
-    file(GLOB_RECURSE DELUGE_RUST_SOURCES CONFIGURE_DEPENDS
-        ${DELUGE_RUST_WS}/deluge_alloc/src/*.rs
-        ${DELUGE_RUST_WS}/deluge_resource/src/*.rs
-        ${DELUGE_RUST_WS}/deluge_rust/src/*.rs)
-    add_custom_command(
-        OUTPUT ${DELUGE_RUST_STAGED}
-        COMMAND cargo build -p deluge_rust --release --target ${DELUGE_RUST_TARGET}
-                -Z build-std=core -Z build-std-features=compiler-builtins-mem
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${DELUGE_RUST_CARGO_LIB} ${DELUGE_RUST_STAGED}
-        WORKING_DIRECTORY ${DELUGE_RUST_WS}
-        DEPENDS
-            ${DELUGE_RUST_SOURCES}
-            ${DELUGE_RUST_WS}/Cargo.lock
-            ${DELUGE_RUST_WS}/Cargo.toml
-            ${DELUGE_RUST_WS}/deluge_alloc/Cargo.toml
-            ${DELUGE_RUST_WS}/deluge_resource/Cargo.toml
-            ${DELUGE_RUST_WS}/deluge_rust/Cargo.toml
-        COMMENT "Building Rust deluge_rust staticlib (${DELUGE_RUST_TARGET})"
-        VERBATIM
-    )
-    add_custom_target(deluge_rust_rs DEPENDS ${DELUGE_RUST_STAGED})
-    add_dependencies(deluge deluge_rust_rs)
-    target_link_libraries(deluge PUBLIC ${DELUGE_RUST_STAGED})
-endif ()
 
 option(MAINTAINER_MODE "Enables all warnings and errors" OFF)
 
@@ -277,8 +291,6 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-Wstack-usage=2000>
 )
 
-target_compile_options(deluge PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})
-
 # Freestanding UndefinedBehaviorSanitizer layer (see src/deluge/io/debug/ubsan_handlers.cpp). Off by default; enable
 # with -DDELUGE_UBSAN=ON. We compile with -fsanitize=undefined but do NOT add it to link options - there is no libubsan
 # on bare metal, the __ubsan_handle_* hooks are provided in-tree. `alignment` is excluded because the custom allocator
@@ -290,16 +302,6 @@ target_compile_options(deluge PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})
 option(DELUGE_UBSAN "Enable the freestanding UndefinedBehaviorSanitizer layer" OFF)
 set(DELUGE_UBSAN_SOURCE_DIRS "memory;util/container"
     CACHE STRING "Semicolon-separated subdirs under src/deluge to instrument when DELUGE_UBSAN is ON")
-if(DELUGE_UBSAN)
-    target_compile_definitions(deluge PUBLIC DELUGE_UBSAN=1)
-    foreach(_ubsan_dir ${DELUGE_UBSAN_SOURCE_DIRS})
-        file(GLOB_RECURSE _ubsan_srcs CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/deluge/${_ubsan_dir}/*.cpp)
-        if(_ubsan_srcs)
-            set_source_files_properties(${_ubsan_srcs} TARGET_DIRECTORY deluge
-                PROPERTIES COMPILE_OPTIONS "-fsanitize=undefined;-fno-sanitize=alignment")
-        endif()
-    endforeach()
-endif()
 
 # GCC static analyzer (-fanalyzer). Off by default; enable with -DDELUGE_ANALYZER=ON. This is a compile-time (not
 # runtime) pass: it walks each function's paths looking for leaks, use-after-free, double-free, mismatched alloc/dealloc
@@ -312,118 +314,30 @@ endif()
 option(DELUGE_ANALYZER "Run GCC's -fanalyzer over selected source dirs" OFF)
 set(DELUGE_ANALYZER_SOURCE_DIRS "memory;util/container"
     CACHE STRING "Semicolon-separated subdirs under src/deluge to analyze when DELUGE_ANALYZER is ON")
-if(DELUGE_ANALYZER)
-    foreach(_an_dir ${DELUGE_ANALYZER_SOURCE_DIRS})
-        file(GLOB_RECURSE _an_srcs CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/deluge/${_an_dir}/*.cpp)
-        if(_an_srcs)
-            set_source_files_properties(${_an_srcs} TARGET_DIRECTORY deluge
-                PROPERTIES COMPILE_OPTIONS "-fanalyzer")
-        endif()
-    endforeach()
-endif()
-
-set_target_properties(deluge
-    PROPERTIES
-        C_STANDARD ${DELUGE_C_STANDARD}
-        C_STANDARD_REQUIRED ON
-        CXX_STANDARD ${DELUGE_CXX_STANDARD}
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS ON
-        SUFFIX "${EXECUTABLE_VERSION_SUFFIX}.elf"
-)
-
-set(BIN_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.bin)
-set(HEX_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.hex)
-set(MAP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.map)
-
-# set(OBJDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.objdump)
-set(NMDUMP_FILE $<CONFIG>/deluge${EXECUTABLE_VERSION_SUFFIX}.nmdump)
-
-# add link options to generate memory map
-target_link_options(deluge PUBLIC
-
-    -T ${PROJECT_SOURCE_DIR}/linker_script_rz_a1l.ld
-    LINKER:-Map=${MAP_FILE}
-    LINKER:--cref
-    LINKER:--gc-sections
-    LINKER:--entry=start # Set the entrypoint to 'start' (see RZA1/compiler/asm/start.S)
-
-    # Enabled to generate a full ELF, objcopy will do the stripping
-    # $<$<CONFIG:RELEASE>:LINKER:--strip-all> # Strip
-    -nostartfiles # Don't emit startfiles
-
-    # Print details
-    LINKER:--warn-common
-    LINKER:--stats
-
-    # $<$<CXX_COMPILER_ID:GNU>:LINKER:--print-memory-usage>
-
-    # Link-Time Optimization
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
-
-    # Coloring
-    $<$<CXX_COMPILER_ID:GNU>:-fdiagnostics-color=always>
-)
-
-# generate .bin firmware file
-add_custom_command(TARGET deluge
-    POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O binary -S $<TARGET_FILE:deluge> ${BIN_FILE}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Objcopying deluge to firmware ${BIN_FILE}"
-        BYPRODUCTS ${BIN_FILE})
-
-# generate .hex firmware file
-add_custom_command(TARGET deluge
-    POST_BUILD
-        COMMAND ${CMAKE_OBJCOPY} -O ihex -S $<TARGET_FILE:deluge> ${HEX_FILE}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Objcopying deluge to firmware ${HEX_FILE}"
-        BYPRODUCTS ${HEX_FILE})
-
-# # generate .objdump file
-# add_custom_command(TARGET deluge
-# POST_BUILD
-# COMMAND ${CMAKE_OBJDUMP} -t $<TARGET_FILE:deluge> > ${OBJDUMP_FILE}
-# WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-# COMMENT "Objdumping deluge firmware ${OBJDUMP_FILE}"
-# DEPENDS deluge
-# BYPRODUCTS ${OBJDUMP_FILE})
-
-# generate .nmdump file
-add_custom_command(TARGET deluge
-    POST_BUILD
-        COMMAND ${CMAKE_NM} -t d -S -C -r --special-syms --size-sort $<TARGET_FILE:deluge> > ${NMDUMP_FILE}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "NM dumping deluge firmware ${NMDUMP_FILE}"
-        BYPRODUCTS ${NMDUMP_FILE}
-)
-
-# Print size
-add_custom_command(TARGET deluge
-    POST_BUILD
-        COMMAND ${CMAKE_SIZE} $<TARGET_FILE:deluge>
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
-
-# Clean up artefacts
-set_target_properties(deluge
-    PROPERTIES
-        ADDITIONAL_CLEAN_FILES ${BIN_FILE} ${MAP_FILE} ${HEX_FILE}
-)
 
 # Deluge sources
 add_subdirectory(src)
 
-# find_program(PRETTYSIZE_CMD prettysize prettysize.py)
+# DELUGE_UBSAN / DELUGE_ANALYZER apply their target-scoped properties here, after add_subdirectory(src) has
+# created deluge_app (src/deluge/CMakeLists.txt) -- target_compile_definitions() and set_source_files_properties()
+# TARGET_DIRECTORY both require the target to already exist.
+if(DELUGE_UBSAN)
+    target_compile_definitions(deluge_app PUBLIC DELUGE_UBSAN=1)
+    foreach(_ubsan_dir ${DELUGE_UBSAN_SOURCE_DIRS})
+        file(GLOB_RECURSE _ubsan_srcs CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/deluge/${_ubsan_dir}/*.cpp)
+        if(_ubsan_srcs)
+            set_source_files_properties(${_ubsan_srcs} TARGET_DIRECTORY deluge_app
+                PROPERTIES COMPILE_OPTIONS "-fsanitize=undefined;-fno-sanitize=alignment")
+        endif()
+    endforeach()
+endif()
 
-# if(NOT PRETTYSIZE_CMD STREQUAL "PRETTYSIZE_CMD-NOTFOUND")
-# add_custom_command(
-# TARGET deluge POST_BUILD
-# COMMAND prettysize
-# -l ${CMAKE_CURRENT_LIST_DIR}/linker_script_rz_a1l.ld
-# -s ${CMAKE_SIZE} $<TARGET_FILE:deluge>
-# WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-# COMMENT "Displaying usage graph for deluge")
-# endif()
+if(DELUGE_ANALYZER)
+    foreach(_an_dir ${DELUGE_ANALYZER_SOURCE_DIRS})
+        file(GLOB_RECURSE _an_srcs CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/deluge/${_an_dir}/*.cpp)
+        if(_an_srcs)
+            set_source_files_properties(${_an_srcs} TARGET_DIRECTORY deluge_app
+                PROPERTIES COMPILE_OPTIONS "-fanalyzer")
+        endif()
+    endforeach()
+endif()

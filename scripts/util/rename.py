@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 # Copyright Kate Whitlock (2023)
+import argparse
 import os
 import re
-import argparse
 
 
 def snake_case(name):

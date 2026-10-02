@@ -21,6 +21,7 @@
 #include "model/favourite/favourite_manager.h"
 #include "util/c_string.h"
 #include <cstdint>
+#include <optional>
 
 class QwertyUI : public UI {
 public:
@@ -34,18 +35,21 @@ public:
 		return true;
 	}
 
-	static bool predictionInterrupted;
 	static std::string enteredText;
 
 protected:
 	bool opened() override;
-	virtual bool predictExtendedText() { return true; } // Returns whether we're allowed that new character.
+	/// @brief Predict the rest of a filename from what has been typed.
+	/// @param editPosOnFailure If set, what `enteredTextEditPos` should become when the prediction
+	///        ultimately fails. Passed ONLY by the caller that undoes the typed character on a false
+	///        return; a prediction can now finish on a later tick, long after that caller returned, so
+	///        the undo has to travel with the request rather than be applied by the caller.
+	/// @return Whether we're allowed that new character. A prediction that has merely SUSPENDED
+	///         returns true: the character stays and the prediction fills in on a later tick.
+	virtual bool predictExtendedText(std::optional<int32_t> editPosOnFailure = std::nullopt) { return true; }
 	void drawKeys();
-	virtual void processBackspace(); // May be called in card routine
+	virtual void processBackspace();
 	virtual void enterKeyPress() = 0;
-
-	// This may be called in card routine so long as either !currentFileExists (which is always the case in a
-	// processBackspace()), or we are not LoadSongUI
 
 	char const* title{};
 	void drawTextForOLEDEditing(int32_t textStartX, int32_t xPixelMax, int32_t yPixel, int32_t maxChars,

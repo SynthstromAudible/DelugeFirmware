@@ -1,0 +1,22 @@
+# Byte-identical gate for the sample range reader (`deluge_sample_reader`). Standalone crate, not a
+# workspace member. Pure Rust: the oracle reads resident chunk payloads through
+# `deluge_sample_fill::chunk`.
+[package]
+name = "region-read-differential"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "GPL-3.0-or-later"
+
+[dev-dependencies]
+# The reader under test.
+deluge_sample_reader = { path = "../../../../crates/deluge_sample_reader" }
+# A real resource manager over a real heap.
+deluge_resource = { path = "../../../../crates/deluge_resource" }
+# `native_finish` runs the real convert/stitch/publish tail, so the chunks' trailing-slack bytes
+# are really stitched rather than hand-seeded.
+deluge_sample_fill = { path = "../../../../crates/deluge_sample_fill", features = ["native_fill"] }
+deluge_alloc = { path = "../../../../crates/deluge_alloc" }
+# The test binary's host stand-ins for `deluge_resource`'s C-ABI critical-section primitives
+# need a registered `critical-section` implementation.
+critical-section = { version = "1", features = ["std"] }

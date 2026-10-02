@@ -26,19 +26,6 @@
 
 namespace deluge::gui::menu_item::unpatched_param {
 
-void Pan::drawValue() {    // TODO: should really combine this with the "patched" version
-	uint8_t drawDot = 255; // soundEditor.doesParamHaveAnyCables(getP()) ? 3 : 255;
-	char buffer[5];
-	intToString(std::abs(this->getValue()), buffer, 1);
-	if (this->getValue() < 0) {
-		strcat(buffer, "L");
-	}
-	else if (this->getValue() > 0) {
-		strcat(buffer, "R");
-	}
-	display->setText(buffer, true, drawDot);
-}
-
 int32_t Pan::getFinalValue() {
 	return computeFinalValueForPan(this->getValue());
 }

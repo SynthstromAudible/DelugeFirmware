@@ -49,7 +49,7 @@ MatrixDriver::MatrixDriver() {
 	PadLEDs::init();
 }
 
-void MatrixDriver::noPressesHappening(bool inCardRoutine) {
+void MatrixDriver::noPressesHappening() {
 
 	// Correct any misunderstandings
 
@@ -72,14 +72,7 @@ ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 #if ENABLE_MATRIX_DEBUG
 	D_PRINT("UI=%s,PAD_X=%d,PAD_Y=%d,VEL=%d", getCurrentUI()->getUIName(), x, y, velocity);
 #endif
-	auto ui = getCurrentUI();
-	if (ui == nullptr) {
-		return ActionResult::DEALT_WITH; // only happens when booting
-	}
-	ActionResult result = getCurrentUI()->padAction(x, y, velocity);
-	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
+	getCurrentUI()->padAction(x, y, velocity);
 	return ActionResult::DEALT_WITH;
 }
 

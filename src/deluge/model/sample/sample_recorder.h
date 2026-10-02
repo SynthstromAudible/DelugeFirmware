@@ -17,13 +17,22 @@
 
 #pragma once
 
+#include "model/sample/recorder_create_policy.h"
+#include "model/sample/recorder_finalize_policy.h"
+#include "model/sample/recorder_write_policy.h"
+
 #include "definitions_cxx.hpp"
 #include "dsp/envelope_follower/absolute_value.h"
 #include "dsp/stereo_sample.h"
-#include "fatfs/fatfs.hpp"
+#include "io/stream.hpp"
+#include "memory/fast_allocator.h"
+#include "util/segmented_vector.h"
+#include <array>
+#include <atomic>
 #include <cstddef>
 #include <gsl/gsl>
 #include <optional>
+#include <span>
 #include <string>
 
 enum class MonitoringAction {
@@ -44,17 +53,20 @@ enum class RecorderStatus {
 };
 
 class Sample;
-class Cluster;
 class AudioClip;
 class Output;
+struct RecorderConfig {
+	bool neverUseThreshold = false;
+};
+
 class SampleRecorder {
 public:
 	SampleRecorder() = default;
 	~SampleRecorder();
 	Error setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
 	            bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
-	            Output* outputRecordingFrom);
-	void setRecordingThreshold();
+	            Output* outputRecordingFrom, RecorderConfig config = {});
+	void setRecordingThreshold(RecorderConfig config);
 	void feedAudio(std::span<StereoSample> input, bool applyGain = false, uint8_t gainToApply = 5);
 	Error cardRoutine();
 	void endSyncedRecording(int32_t buttonLatencyForTempolessRecording);
@@ -80,12 +92,33 @@ public:
 
 	int32_t firstUnwrittenClusterIndex = 0;
 
-	// Put things in valid state so if we get destructed before any recording, it's all ok
-	int32_t currentRecordClusterIndex = -1;
+	/// The cluster index whose write is owed to the channel or in flight on it, or -1 when none is.
+	///
+	/// Its buffer stays in `bufferTable_` and must NOT be recycled or freed until the write is settled -- the
+	/// channel holds a raw pointer into it rather than a copy. `cardRoutine()` settles this before anything
+	/// else runs, which is the whole of the buffer-lifetime contract: every path through this recorder passes
+	/// through there, including the abort path, whose `detachSample()` frees capture buffers well before the
+	/// stream is closed.
+	int32_t inFlightClusterIndex_ = -1;
+	/// Byte count of the owed write, so the collect can tell a complete write from a short one without the
+	/// caller having to remember what it asked for.
+	uint32_t inFlightNumBytes_ = 0;
+	/// Whether the channel has accepted the owed write. False while it is only owed: not asked yet, refused,
+	/// or answered UNKNOWN.
+	bool inFlightIssued_ = false;
+	/// How long the owed write has been unproductive: refusals, UNKNOWNs and PENDINGs. Bounded by
+	/// `deluge::storage::kMaxUnproductiveUs`; see `recorder_write_policy.h` for why a stall bound is not
+	/// optional.
+	deluge::storage::UnproductiveSpan writeSpan_;
 
-	// Note! If this is NULL, that means that currentRecordClusterIndex refers to a cluster that never got created (cos
-	// some error or max file size reached)
-	Cluster* currentRecordCluster = nullptr;
+	/// @brief Index of the cluster currently being written to. Starts at -1 so a recorder destructed
+	///        before any recording began is still in a valid state.
+	///
+	/// @note Atomic: the producer (audio) publishes a completed buffer via a release store at
+	///       createNextCluster; the consumer (card routine) reads it acquire as its drain bound -- the index
+	///       into our own private bufferTable_ (see below), not a shared residency table. See
+	///       docs/dev/known-concurrency-bugs.md (B3).
+	std::atomic<int32_t> currentRecordClusterIndex = -1;
 
 	uint32_t audioFileNumber{};
 	AudioRecordingFolder folderID;
@@ -98,7 +131,15 @@ public:
 	// This will be the temp file path if there is one.
 	std::string filePathCreated{};
 
-	RecorderStatus status = RecorderStatus::CAPTURING_DATA;
+	/// @brief This recorder's current lifecycle state; see RecorderStatus.
+	///
+	/// @note Atomic: the finishCapturing (audio) -> ABORTED (either thread) transitions are release
+	///       stores; the card routine's cardRoutine() decision reads are acquire loads, so seeing
+	///       FINISHED_CAPTURING_BUT_STILL_WRITING (or ABORTED) also makes visible the producer's final
+	///       currentRecordClusterIndex/payload writes before the card routine takes over as producer in
+	///       finalizeRecordedFile(). See docs/dev/known-concurrency-bugs.md (B3).
+	std::atomic<RecorderStatus> status = RecorderStatus::CAPTURING_DATA;
+	static_assert(std::atomic<RecorderStatus>::is_always_lock_free);
 	AudioInputChannel mode;
 	Output* outputRecordingFrom{}; // for when recording from a specific output
 
@@ -117,6 +158,7 @@ public:
 	bool pointerHeldElsewhere = false;
 	bool capturedTooMuch = false;
 	bool thresholdRecording = false;
+	uint32_t minThresholdMargin = 0;
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
 	bool recordingClippedRecently{};
@@ -138,22 +180,315 @@ public:
 
 	int32_t* sourcePos{};
 
-	std::optional<FatFS::File> file{};
+	/// @warning A start-here for `highsiderr`-adjacent audio bugs. When this member's type last
+	/// changed, SampleRecorder's object size and allocation timing changed with it, and one
+	/// `highsiderr` TRACK-mode golden fixture showed small-magnitude PCM differences against an
+	/// A/B (same file size and WAV structure, converging back to identical near the end). The
+	/// write-dispatch logic was confirmed structurally identical across that change, so the
+	/// differences were attributed to the layout/allocation-timing shift interacting with this
+	/// fixture's documented fragility under unrelated code-shape changes, and knowingly accepted
+	/// rather than bisected further -- the proposed isolation test (padding SampleRecorder back to
+	/// its old size) was never run. `highsiderr` is separately known to flip on ANY codegen change,
+	/// which is consistent with that reading but does not confirm it.
+	std::optional<deluge::io::Stream> file;
+
+public:
+	/// @brief Whether a cluster write is owed to the channel or in flight on it right now.
+	[[nodiscard]] bool writePending() const { return inFlightClusterIndex_ >= 0; }
+
+	/// Diagnostic accessors, for the harness's wedge reporting only.
+	[[nodiscard]] uint8_t finalizePhaseForDiag() const { return static_cast<uint8_t>(finalizePhase_); }
+	[[nodiscard]] bool finalizeIssuedForDiag() const { return finalizeIssued_; }
+	[[nodiscard]] uint8_t abortPhaseForDiag() const { return static_cast<uint8_t>(abortPhase_); }
+	[[nodiscard]] bool openInFlightForDiag() const { return openInFlight(); }
+	/// @brief The status the create's last channel open failed with, or DELUGE_OK when it has not failed.
+	[[nodiscard]] DelugeStatus createOpenErrorForDiag() const { return createOpenError_; }
+
+	/// @brief How many cluster writes have gone through the channel, process-wide.
+	///
+	/// The difference between the channel being used and the channel merely being compiled. Every
+	/// fallback in this path is correct and silent, so a channel that never worked would leave every
+	/// gate green and every recording intact.
+	[[nodiscard]] static int32_t writeChannelServedOps();
+
+	/// @brief How many of the recorder's channel requests were refused, process-wide.
+	///
+	/// The busy gate's evidence that the recorder really was refused, so the arm it took next is the one
+	/// being measured.
+	[[nodiscard]] static int32_t channelRefusals();
+
+	/// @brief Whether this recorder may be freed: its status is terminal, no cluster write is owed, its file
+	///        is closed, and any abort cleanup has finished.
+	///
+	/// A terminal status alone is not enough. A card error ends a take while its last write may still be
+	/// outstanding, and freeing the recorder then frees the buffer the driver is writing from; a recorder
+	/// freed with its file open closes it synchronously.
+	[[nodiscard]] bool settled() const;
+	/// @brief Whether the card routine's next tick can only wait on the channel.
+	///
+	/// True while an operation it asked for is unanswered, and while one that was refused or answered UNKNOWN waits
+	/// to be asked again; the channel's next answer wakes the app for both, and the recorder's stall bound ends the
+	/// wait if none comes. False when the next tick moves on by itself (it asks for the next phase's operation, or
+	/// writes the next cluster), and when there is no card work left.
+	[[nodiscard]] bool waitsOnChannel() const;
 
 private:
-	void setExtraBytesOnPreviousCluster(Cluster* currentCluster, int32_t currentClusterIndex);
-	Error writeCluster(int32_t clusterIndex, size_t numBytes);
-	Error alterFile(MonitoringAction action, int32_t lshiftAmount, uint32_t idealFileSizeBeforeAction,
+private:
+	/// @param mayUseChannel false forces the synchronous arm. The channel is used only when this is true and
+	///        boot has finished: before it nothing is running to answer.
+	Error writeCluster(int32_t clusterIndex, size_t numBytes, bool mayUseChannel);
+	/// @brief Ask the channel for the owed write.
+	/// @return Whether the channel accepted it. A refusal leaves the write owed and counts an unproductive tick.
+	bool issueOwedWrite();
+	/// @brief Settle the in-flight cluster write, if there is one.
+	///
+	/// Call as the FIRST thing in `cardRoutine()`. Nothing that could free a capture buffer or close
+	/// the stream may run while a write is outstanding.
+	/// @return true when the caller must return immediately -- the write has not landed yet.
+	bool pumpInFlightWrite();
 
-	                uint64_t dataLengthAfterAction);
-	Error finalizeRecordedFile();
+	/// @brief What one call to @ref advanceCreate achieved.
+	enum class CreateStep : uint8_t { Pending, Done, Failed };
+
+	/// @brief Advance the file-creation machine by one phase. Never blocks after boot.
+	///
+	/// Retry state lives in @ref deluge::storage::CreatePhase, which @ref deluge::storage::nextCreatePhase
+	/// can be tested against directly.
+	CreateStep advanceCreate();
+	/// @brief The channel accepted this phase's request: collect it from the next tick.
+	CreateStep createAccepted();
+	/// @brief The channel refused this phase's request: ask again next tick, or fail at the bound.
+	CreateStep createRefused();
+	/// @brief Run deluge::storage::nextCreatePhase on this tick's answer; a phase change restarts the bound.
+	CreateStep createTransition(uint8_t collected, bool spaceExhausted = false, bool pathReady = false);
+
+	/// @name Create machine state
+	/// @{
+	deluge::storage::CreatePhase createPhase_ = deluge::storage::CreatePhase::Stats;
+	bool createIssued_ = false;
+	/// Whether the channel is opening this recorder's file: the create's open, or finalize's reopen to alter it. The
+	/// abort waits such an open out, since its answer is a handle only this recorder can close.
+	[[nodiscard]] bool openInFlight() const {
+		return (createIssued_ && createPhase_ == deluge::storage::CreatePhase::Open)
+		       || (finalizeIssued_ && finalizePhase_ == deluge::storage::FinalizePhase::OpenForAlter);
+	}
+	/// The path of the open this recorder last asked the channel for: the create's, or finalize's reopen. The channel
+	/// keys an open's answer by its path, and the abort, which drains whichever open is in flight, knows it only by
+	/// this.
+	std::string openPath_;
+	bool createTriedMakeFolder_ = false;
+	bool createOpenNotFound_ = false;
+	/// The status the create's last channel open failed with; DELUGE_OK until one fails.
+	DelugeStatus createOpenError_ = DELUGE_OK;
+	/// How long this phase's request has been unproductive. See deluge::storage::kMaxUnproductiveUs.
+	deluge::storage::UnproductiveSpan createSpan_;
+	/// This phase's request was still pending past the bound: the create fails on its answer.
+	bool createFailing_ = false;
+	/// The resolved recording path, and the temp path when one applies. Members because they are
+	/// produced by PathSearch and consumed after Open, several ticks later.
+	std::string createFilePath_{};
+	std::string createTempFilePath_{};
+	/// The parent folder MakeFolder creates. One `mkdir_all` covers every missing level.
+	std::string createFolderPath_{};
+	DelugeStreamMode createStreamMode_ = DELUGE_STREAM_WRITE_CREATE;
+	/// @}
+
+	/// @brief What one call to @ref advanceFinalize achieved.
+	enum class FinalizeStep : uint8_t {
+		/// An operation is outstanding, or another phase remains. Come back next tick.
+		Pending,
+		/// Finalize is complete; the caller runs its status transitions.
+		Done,
+		/// Finalize failed; the caller sets `hadCardError`.
+		Failed,
+	};
+
+	/// @brief Advance the finalize machine by one phase. Never blocks.
+	///
+	/// Each call issues at most one channel operation and returns, so the whole of finishing a recording --
+	/// header patch, alteration, truncate and close -- goes through the channel after boot.
+	FinalizeStep advanceFinalize();
+	/// @brief The channel accepted this phase's request: collect it from the next tick.
+	FinalizeStep finalizeAccepted();
+	/// @brief The channel refused this phase's request: ask again next tick, or fail at the bound.
+	FinalizeStep finalizeRefused();
+	/// @brief Run deluge::storage::nextFinalizePhase on this tick's answer; a phase change restarts the bound.
+	FinalizeStep finalizeTransition(uint8_t collected);
+
+	/// @brief Where the abort cleanup has got to.
+	enum class AbortPhase : uint8_t {
+		/// Detach the sample and free the capture buffers. Memory only; runs once.
+		Detach,
+		/// Close the recording stream, flushing its deferred directory entry.
+		CloseStream,
+		/// Delete the file. MUST NOT be entered until the close is terminal.
+		Unlink,
+		/// Cleanup finished; the caller makes its status transition.
+		Done,
+	};
+
+	/// @brief Advance the abort cleanup by one phase. Never blocks.
+	/// @return true while more remains -- come back next tick.
+	bool advanceAbort();
+
+	AbortPhase abortPhase_ = AbortPhase::Detach;
+	/// Whether the current abort phase has issued its operation yet.
+	bool abortIssued_ = false;
+	/// How long the unlink has been refused or unkeyed. The close has no such bound; see advanceAbort().
+	deluge::storage::UnproductiveSpan abortSpan_;
+
+	/// @brief Close a failed take's file, through the channel wherever the channel is usable. Never blocks
+	///        after boot.
+	///
+	/// A take that failed skips finalize, so nothing else closes its stream, and the stream's destructor would
+	/// close it synchronously on whatever tier frees the recorder.
+	/// @return true while the close is outstanding -- come back next tick.
+	bool closeFailedTake();
+	/// Whether @ref closeFailedTake has issued its close and not yet collected it.
+	bool failedCloseIssued_ = false;
+
+	/// @name Finalize phase bodies
+	/// The per-phase work bodies @ref advanceFinalize drives.
+	/// @{
+	void finalizePrologueOnce();
+	Error finalizeWriteFinalPartial();
+	void finalizeDecide();
+	/// @brief Apply the per-frame transform to the batch sitting in @ref alterBatchBuf_, in place.
+	void transformBatchInPlace(uint32_t batchFrames);
+	/// @brief How many frames this batch covers.
+	[[nodiscard]] uint32_t alterBatchFrames() const;
+	Error finalizeBookkeeping();
+	/// Whether @ref finalizePrologueOnce has run; it must not repeat across the drain's many ticks.
+	bool finalizePrologueDone_ = false;
+	/// @}
+
+	/// @name Finalize machine state
+	/// Cross-tick state for @ref advanceFinalize. Owned by it alone.
+	/// @{
+	deluge::storage::FinalizePhase finalizePhase_ = deluge::storage::FinalizePhase::DrainClusters;
+	/// Whether the current phase has issued its operation yet. Distinguishes "issue it" from
+	/// "collect it" without needing a second phase per operation.
+	bool finalizeIssued_ = false;
+	/// How long this phase's request has been unproductive. See deluge::storage::kMaxUnproductiveUs.
+	deluge::storage::UnproductiveSpan finalizeSpan_;
+	/// This phase's request was still pending past the bound: finalize fails on its answer.
+	bool finalizeFailing_ = false;
+	bool finalizeAltering_ = false;
+	bool finalizeNeedTruncate_ = false;
+	bool finalizeNeedHeaderPatch_ = false;
+	MonitoringAction finalizeAction_ = MonitoringAction::NONE;
+	int32_t finalizeLshift_ = 0;
+	uint32_t finalizeIdealSizeBefore_ = 0;
+	uint64_t finalizeDataLenAfter_ = 0;
+	uint32_t finalizeTruncateTo_ = 0;
+	uint32_t finalizeHeaderLen_ = 0;
+	/// @name Alteration loop state
+	/// The whole of what the positional transform carries between ticks: six scalars and one buffer.
+	/// @{
+	uint32_t alterReadCursor_ = 0;
+	uint32_t alterWriteCursor_ = 0;
+	uint32_t alterFramesDone_ = 0;
+	uint32_t alterNumFrames_ = 0;
+	uint32_t alterInputFrameBytes_ = 3;
+
+	/// One buffer, not two: the transform runs IN PLACE. Output is 3 bytes per frame and input is 3
+	/// or 6, so within a batch the write position is always at or behind the read position -- frame
+	/// `i` reads `i*inputFrameBytes` and writes `i*3`, and `i*3+2 < i*6` for every `i >= 1`, while
+	/// frame 0 writes only after it has read. Processing FORWARD is therefore safe.
+	///
+	/// A member rather than a stack buffer because the channel reads into it asynchronously: a stack
+	/// buffer would be freed under the driver.
+	std::array<std::byte, 256 * 6> alterBatchBuf_{};
+	/// @}
+
+	/// The header sector, read back and patched across two ticks. A member because the channel reads
+	/// into it asynchronously -- a stack buffer would be freed under the driver.
+	std::array<std::byte, 512> headerScratch_{};
+	/// @}
+	/// @brief Write a cluster synchronously, blocking. Legal only before boot finishes.
+	Error writeClusterSynchronously(int32_t clusterIndex, size_t numBytes);
+	/// @brief Recycle a written cluster's buffer and clear its table slot.
+	void finishCluster(int32_t clusterIndex);
 	Error createNextCluster();
-	Error writeAnyCompletedClusters();
 	void finishCapturing();
-	void updateDataLengthInFirstCluster(Cluster* cluster);
+	void updateDataLengthInHeader(std::span<std::byte> headerBuf);
 	void totalSampleLengthNowKnown(uint32_t totalLength, uint32_t loopEndPointSamples = 0);
 	void detachSample();
-	Error truncateFileDownToSize(uint32_t newFileSize);
-	Error writeOneCompletedCluster();
+	Error writeOneCompletedCluster(bool mayUseChannel);
+
+	/// @brief Minimal fixed-capacity lock-free SPSC ring of recycled buffer pointers.
+	///
+	/// Private to SampleRecorder rather than deluge::util::SpscRing -- that header declares `namespace
+	/// deluge::util`, which collides with this codebase's separate top-level `namespace util`
+	/// (util/misc.h) wherever both become visible in the same translation unit, and sample_recorder.h
+	/// is included far too widely to risk that.
+	/// @note Same release/acquire discipline as deluge::util::SpscRing (see that header's doc for the
+	///       full reasoning): the producer (card routine, recycleBuffer()) release-stores tail_ after writing
+	///       a slot; the consumer (audio thread, allocateBuffer()) acquire-loads tail_ before reading a
+	///       slot and release-stores head_ after freeing it, which the producer acquire-loads to know
+	///       the slot is free again.
+	class RecycleRing {
+	public:
+		static constexpr std::size_t kCapacity = 16; // must be a power of two
+
+		/// @brief Push @p value onto the ring.
+		/// @param value The buffer pointer to recycle.
+		/// @return True on success; false if the ring is full.
+		[[nodiscard]] bool try_push(std::byte* value) {
+			const std::size_t tail = tail_.load(std::memory_order_relaxed);
+			const std::size_t head = head_.load(std::memory_order_acquire);
+			if (tail - head == kCapacity) {
+				return false; // full
+			}
+			slots_[tail & kMask] = value;
+			tail_.store(tail + 1, std::memory_order_release);
+			return true;
+		}
+
+		/// @brief Pop the oldest recycled buffer off the ring.
+		/// @param out Set to the popped buffer pointer on success; left untouched on failure.
+		/// @return True on success; false if the ring is empty.
+		[[nodiscard]] bool try_pop(std::byte*& out) {
+			const std::size_t head = head_.load(std::memory_order_relaxed);
+			const std::size_t tail = tail_.load(std::memory_order_acquire);
+			if (head == tail) {
+				return false; // empty
+			}
+			out = slots_[head & kMask];
+			head_.store(head + 1, std::memory_order_release);
+			return true;
+		}
+
+	private:
+		static constexpr std::size_t kMask = kCapacity - 1;
+		std::array<std::byte*, kCapacity> slots_{};
+		std::atomic<std::size_t> head_{0};
+		std::atomic<std::size_t> tail_{0};
+	};
+
+	/// @brief The recorder's own private capture buffers -- Cluster::size (+ trailing overshoot slack)
+	///        plain allocations, never registered with the shared residency table.
+	///
+	/// Maps a buffer's logical index (the same index space `currentRecordClusterIndex`/
+	/// `firstUnwrittenClusterIndex` already walk) to its physical storage.
+	/// @note Growth (audio-thread-only, single-writer) is pre-`reserve`d up front in setup() so it
+	///       never reallocates the segment-pointer index concurrently with the card routine's `operator[]`
+	///       reads -- same B2 discipline the shared table used to require.
+	deluge::SegmentedVector<std::byte*, 256, deluge::memory::fast_allocator> bufferTable_{};
+
+	/// @brief Recycles a flushed buffer's memory back for reuse: the card routine pushes after a successful
+	///        write_at, the audio thread pops when it needs a fresh buffer.
+	///
+	/// @note Either side of this ring can "miss" without correctness cost -- a full push just frees
+	///       the buffer outright, an empty pop just allocates fresh -- so buffer *reuse* is
+	///       best-effort while buffer *availability* (the audio thread never blocks/drops) is
+	///       unconditional.
+	RecycleRing freeBuffers_{};
+	std::byte* currentRecordBuffer = nullptr; ///< the buffer at bufferTable_[currentRecordClusterIndex]
+
+	[[nodiscard]] std::byte* allocateBuffer();
+	void recycleBuffer(std::byte* buffer);
+	void releaseCaptureBuffers();
+
 	AbsValueFollower envelopeFollower{};
 };

@@ -28,13 +28,20 @@ public:
 	Error setupWithInstrument(Instrument* newInstrument, bool hibernating);
 	[[nodiscard]] std::string getFilenameWithExtension() const;
 	[[nodiscard]] std::string getFilenameWithoutExtension() const;
-	[[nodiscard]] std::string getDisplayNameWithoutExtension() const;
 
-	char const* displayName{}; // Usually points to filePointer.get(), but for "numeric" files, will cut off the prefix,
-	                           // e.g. "SONG". And I think this always includes the file extension...
+	/// @brief Text shown to the user for this entry, and the sort/search key. Always includes the extension.
+	///
+	/// Derived on every call rather than cached. It used to be a `char const*` initialised to
+	/// `filename.c_str()`, which made it a raw alias into a std::string stored *inside* this object: every
+	/// reallocation of the owning `Browser::fileItems` vector moved the FileItems, and the cached pointer
+	/// went on referring to the old, freed buffer — which by then held another entry's text. Because
+	/// `searchFileItems()` sorts and binary-searches on this key and
+	/// `setEnteredTextFromCurrentFilename()` assigns from it, the browser sorted, matched and labelled
+	/// rows using freed memory, so the highlighted entry showed a different file's name than the row it
+	/// sat on (and `getCurrentFileItem()` — hence LOAD — could resolve to the wrong file).
+	[[nodiscard]] const std::string& displayName() const { return filename; }
 
 	std::string filename{}; // May or may not include file extension. (Or actually I think it always does now...)
-	FilePointer filePointer{.sclust = 0, .objsize = 0};
 	Instrument* instrument = nullptr;
 	bool maybeExistsOnCard{true}; // only false when made through setupWithInstrument through an unsaved instrument
 	bool isFolder{};

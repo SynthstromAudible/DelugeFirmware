@@ -22,10 +22,12 @@
 #include "definitions_cxx.hpp"
 #include "deluge_resource.h" // resource manager: the sole SDRAM reclaim coordinator
 #include "io/debug/log.h"
+#include "libdeluge/sample_stream.h" // deluge_streamed_chunk_payload_offset(): Rust chunk's slot geometry
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h" // setCardRead() — commit the cluster size before slab sizing
-#include "storage/cluster/cluster.h"          // sizeof(Cluster) + Cluster::size for the slab slot
-#include <cstdlib>                            // getenv/strtol for the sim-only DELUGE_SIM_HEAP_PAD knob
+#include "storage/cluster/cluster.h"          // kChunkPayloadOffset/kChunkTrailingGuard + Cluster::size: slab slot
+#include <algorithm>
+#include <cstdlib> // getenv/strtol for the sim-only DELUGE_SIM_HEAP_PAD knob
 #include <cstring>
 
 namespace {
@@ -70,7 +72,14 @@ bool GeneralMemoryAllocator::ensureClusterSystem() {
 	// before we size the slab. Uniform slots of that size accommodate every cluster for the session;
 	// a smaller reinserted card simply under-fills its slots.
 	audioFileManager.setCardRead();
-	size_t slot = sizeof(Cluster) + Cluster::size;
+	// Slot geometry (cluster.h): [chunk header][front guard][Cluster::size payload][trailing guard].
+	// The uniform slab slot must fit BOTH chunk roles: the C++ ComputedChunk (its payload sits at
+	// kChunkPayloadOffset) and the Rust-owned streamed chunk (its own payload offset, reported across
+	// the C-ABI). Each role stores its own payload pointer at construction, so their offsets may
+	// differ; the slot just fits the larger of the two front regions (payload_ = base + offset never
+	// then reaches past base + slot for either role).
+	size_t chunkOffset = std::max<size_t>(kChunkPayloadOffset, deluge_streamed_chunk_payload_offset());
+	size_t slot = chunkOffset + Cluster::size + kChunkTrailingGuard;
 	size_t slabCapacity = (deluge::memory::sdram_size() / slot) + 1; // table never the limiter
 	clusterSlab_ = deluge_slab_create_unmanaged(deluge::memory::sdram_heap(), slot, slabCapacity);
 	if (clusterSlab_ == nullptr) {
@@ -159,6 +168,11 @@ void* GeneralMemoryAllocator::allocInternal(uint32_t requiredSize) {
 
 // requiredSize 0 means get biggest allocation available.
 void* GeneralMemoryAllocator::alloc(uint32_t requiredSize, bool mayUseOnChipRam) {
+#ifdef DELUGE_HOST
+	if (deluge::memory::injectedAllocationFailure(requiredSize)) {
+		return nullptr; // host-only test seam (memory/heaps.h)
+	}
+#endif
 
 	if (lock) {
 		return nullptr; // Prevent any weird loops in the reclaim hook, which mostly would only be bad cos they

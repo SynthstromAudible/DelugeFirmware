@@ -1,0 +1,14 @@
+{
+ "Cordae": {
+  "frames": 384000,
+  "peak": 2147483392,
+  "rms_db": -17.61,
+  "sha256": "a27897024554141ffcd0cef78fdc6f47ad521472087f8e679c82214ca6241f5b"
+ },
+ "RS_STREAM": {
+  "frames": 384000,
+  "peak": 142067968,
+  "rms_db": -31.24,
+  "sha256": "0b8279f4f0847a043d25bf27a5fdd9f02acf156a4d306a013e55b7cc7bacb674"
+ }
+}

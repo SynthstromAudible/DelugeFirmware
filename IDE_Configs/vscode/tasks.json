@@ -103,6 +103,28 @@
 			}
 		},
 		{
+			// Upload without a debug session: probe-rs flashes, resets, and
+			// streams RTT to the terminal. tools/deluge_run.py adds the
+			// wall-clock timeout + clean teardown probe-rs itself lacks
+			// (`probe-rs run` streams until Ctrl-C). 300s is "long enough to
+			// play with it"; Ctrl-C ends the capture early and detaches the
+			// core properly. NOTE: probe-rs' RTT reader can miss the Rust log
+			// path on this RZ/A1L — the cortex-debug + JLink launch config is
+			// the reliable RTT capture (see tools/deluge_run.py's header).
+			"type": "shell",
+			"label": "Flash + run firmware (RTT)",
+			"command": "tools/deluge_run.py build/RelWithDebInfo/deluge.elf --timeout 300 --fail-on 'panicked at'",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"dependsOn": "Build RelWithDebInfo",
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "always",
+				"panel": "dedicated"
+			}
+		},
+		{
 			"type": "process",
 			"label": "Run JLink GDB Server",
 			"problemMatcher": [],

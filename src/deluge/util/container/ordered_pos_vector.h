@@ -18,7 +18,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "libdeluge/system.h"
 #include "util/containers.h"
+#include "util/structural_edit_probe.h"
 #include <algorithm>
 #include <cstring>
 #include <expected>
@@ -51,19 +53,36 @@ public:
 	OrderedPosVector() = default;
 	~OrderedPosVector() = default;
 	OrderedPosVector(OrderedPosVector&&) noexcept = default;
-	OrderedPosVector& operator=(OrderedPosVector&&) noexcept = default;
+	/// @brief A structural edit when this vector is one the render walks (a note-row drag swaps two rows' vectors).
+	OrderedPosVector& operator=(OrderedPosVector&& other) noexcept {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
+		elements_ = std::move(other.elements_);
+		return *this;
+	}
 	// Deep copy (element-wise, via the backing vector). May throw deluge::exception on OOM, like the
 	// container's other allocating ops; the fallible clone factories that call it catch and convert to
 	// std::expected.
 	OrderedPosVector(OrderedPosVector const& other) : elements_(other.elements_) {}
+	/// @brief The copy is made outside the section, and the old elements destroyed outside it: only the handover is
+	/// masked.
 	OrderedPosVector& operator=(OrderedPosVector const& other) {
-		elements_ = other.elements_;
+		fast_vector<T> copy = other.elements_;
+		{
+			AudioExcludedSection section; // the render walks this container: see noteEdit()
+			noteEdit();
+			elements_.swap(copy);
+		}
 		return *this;
 	}
 
 	/// Forget the current contents *without* freeing them. Only for use when this object is a byte-copy of
 	/// another instance and so doesn't own what it points at (the legacy cloning idiom).
-	void init() { new (&elements_) fast_vector<T>(); }
+	void init() {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
+		new (&elements_) fast_vector<T>();
+	}
 
 	using iterator = typename fast_vector<T>::iterator;
 	using const_iterator = typename fast_vector<T>::const_iterator;
@@ -77,6 +96,8 @@ public:
 
 	/// Inserts numToInsert default-constructed elements at index i.
 	std::expected<void, Error> insertAt(int32_t i, int32_t numToInsert = 1) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
 		try {
 			if constexpr (std::is_copy_constructible_v<T>) {
 				elements_.insert(elements_.begin() + i, numToInsert, T{});
@@ -111,6 +132,8 @@ public:
 
 	/// Reserves room for this many elements beyond the current size.
 	std::expected<void, Error> reserveExtra(int32_t numAdditionalElementsNeeded) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
 		try {
 			elements_.reserve(elements_.size() + numAdditionalElementsNeeded);
 		} catch (deluge::exception&) {
@@ -119,7 +142,11 @@ public:
 		return {};
 	}
 
-	void swap(OrderedPosVector& other) noexcept { elements_.swap(other.elements_); }
+	void swap(OrderedPosVector& other) noexcept {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
+		elements_.swap(other.elements_);
+	}
 
 	iterator begin() { return elements_.begin(); }
 	iterator end() { return elements_.end(); }
@@ -151,8 +178,16 @@ public:
 	}
 
 	/// Erases by iterator (returns the iterator following the removed range, as std containers do)
-	iterator erase(iterator first, iterator last) { return elements_.erase(first, last); }
-	iterator erase(iterator at) { return elements_.erase(at); }
+	iterator erase(iterator first, iterator last) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
+		return elements_.erase(first, last);
+	}
+	iterator erase(iterator at) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
+		return elements_.erase(at);
+	}
 
 	/// Batch lower-bound search: each term is replaced with the index of the first element whose key is >= it.
 	/// The terms must be in ascending order.
@@ -173,6 +208,8 @@ public:
 
 	/// Moves the element at iFrom so it sits at iTo, shuffling those in between along by one.
 	void repositionElement(int32_t iFrom, int32_t iTo) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
 		if (iFrom < iTo) {
 			std::rotate(elements_.begin() + iFrom, elements_.begin() + iFrom + 1, elements_.begin() + iTo + 1);
 		}
@@ -182,6 +219,8 @@ public:
 	}
 
 	void deleteAtKey(int32_t key) {
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
 		auto it = find_key(key);
 		if (it != elements_.end()) {
 			elements_.erase(it);
@@ -191,7 +230,15 @@ public:
 	// Standard container surface
 	[[nodiscard]] size_t size() const { return elements_.size(); }
 	[[nodiscard]] bool empty() const { return elements_.empty(); }
-	void clear() { elements_.clear(); }
+	/// @brief The elements are destroyed outside the section: only the buffer handover is masked.
+	void clear() {
+		fast_vector<T> old;
+		{
+			AudioExcludedSection section; // the render walks this container: see noteEdit()
+			noteEdit();
+			old.swap(elements_);
+		}
+	}
 	T& operator[](size_t i) { return elements_[i]; }
 	T const& operator[](size_t i) const { return elements_[i]; }
 	T& front() { return elements_.front(); }
@@ -202,6 +249,8 @@ public:
 	/// keeping the array sorted by rotating the elements correspondingly.
 	void shiftHorizontal(int32_t amount, int32_t effectiveLength) {
 		static_assert(keyIsWritable, "shiftHorizontal writes keys; needs a data-member key, not a getter");
+		AudioExcludedSection section; // the render walks this container: see noteEdit()
+		noteEdit();
 		if (elements_.empty()) {
 			return;
 		}
@@ -237,7 +286,8 @@ public:
 		std::rotate(elements_.begin(), elements_.begin() + cutoffIndex, elements_.end());
 	}
 
-	/// Tiles the contents (all of which must lie before wrapPoint) out to endPos. Returns false on OOM.
+	/// @brief Tiles the contents (all of which must lie before wrapPoint) out to endPos. Returns false on OOM.
+	/// The tiled contents are built in a new buffer outside the section; only the handover is masked.
 	bool generateRepeats(int32_t wrapPoint, int32_t endPos) {
 		static_assert(keyIsWritable, "generateRepeats writes keys; needs a data-member key, not a getter");
 		if (elements_.empty()) {
@@ -252,8 +302,10 @@ public:
 		int32_t oldNum = firstAtOrAfter(wrapPoint);
 		int32_t newNum = oldNum * numCompleteRepeats + iEndPosWithinFirstRepeat;
 
+		fast_vector<T> tiled;
 		try {
-			elements_.resize(newNum);
+			tiled = elements_;
+			tiled.resize(newNum);
 		} catch (deluge::exception&) {
 			return false;
 		}
@@ -263,11 +315,16 @@ public:
 				if (r == numCompleteRepeats && i >= iEndPosWithinFirstRepeat) {
 					break;
 				}
-				elements_[i + oldNum * r] = elements_[i];
-				elements_[i + oldNum * r].*keyMember = elements_[i].*keyMember + wrapPoint * r;
+				tiled[i + oldNum * r] = tiled[i];
+				tiled[i + oldNum * r].*keyMember = tiled[i].*keyMember + wrapPoint * r;
 			}
 		}
 
+		{
+			AudioExcludedSection section; // the render walks this container: see noteEdit()
+			noteEdit();
+			elements_.swap(tiled);
+		}
 		return true;
 	}
 
@@ -286,6 +343,12 @@ public:
 	}
 
 protected:
+	/// Every structural edit (insert, erase, reorder, reallocate, clone) runs inside an AudioExcludedSection
+	/// (libdeluge/system.h): the audio render walks these vectors (a clip's note rows, a row's notes, automation nodes,
+	/// an output's clip instances) and, on the device, preempts thread mode at any instruction. Each edit also reports
+	/// to the probe (util/structural_edit_probe.h), which counts any made outside a section.
+	static void noteEdit() { noteStructuralEdit(StructuralContainer::ORDERED_POS_VECTOR); }
+
 	fast_vector<T> elements_{};
 };
 

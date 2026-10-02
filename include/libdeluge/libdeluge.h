@@ -23,20 +23,44 @@
 #ifndef LIBDELUGE_H
 #define LIBDELUGE_H
 
+#include "abi.h"
+#include "alloc.h"
+#include "app.h"
+#include "audio_format.h"
 #include "audio_io.h"
+#include "audio_load.h"
 #include "block_device.h"
 #include "board.h"
+#include "boot.h"
+#include "card.h"
+#include "channel.h"
 #include "clock.h"
 #include "control_surface.h"
 #include "cv_gate.h"
 #include "display.h"
+#include "encoder_io.h"
+#include "fault.h"
+#include "file_bytes.h"
+#include "file_directory.h"
+#include "file_io.h"
+#include "file_prefix.h"
+#include "file_stream.h"
+#include "flash.h"
 #include "memory.h"
 #include "midi_io.h"
+#include "sample_reader.h"
+#include "sample_source.h"
+#include "sample_stream.h"
+#include "scheduler.h"
+#include "signals.h"
+#include "storage_busy.h"
+#include "stream_io.h"
+#include "streaming_fill.h"
 #include "system.h"
+#include "tier.h"
 #include "types.h"
 
-/* app.h is the inbound half (implemented by the app, called by the platform);
- * include it explicitly where those entry points are defined. scheduler.h is
- * included where task scheduling is used. */
+/* Including the umbrella is always correct. Including one header is a
+ * build-time economy, not a boundary. */
 
 #endif // LIBDELUGE_H

@@ -27,25 +27,23 @@
 namespace deluge::gui::menu_item {
 
 void EditName::beginSession(MenuItem* navigatedBackwardFrom) {
-	RenameUI* ui;
-
-	// Figure out which rename UI we need, and do any necessary setup.
 	Clip* clip = getCurrentClip();
-	Output* output = getCurrentOutput();
-	if (output->type == OutputType::AUDIO) {
-		// XXX: Before naming clips was implemented, we made name shortcut inside
-		// audio clips name the output. This should probably open a context menu to
-		// select the naming target, since being able to name audio clips as well
-		// would be quite nice...
-		renameOutputUI.output = output;
-		ui = &renameOutputUI;
-	}
-	else if (output->type == OutputType::KIT && !getRootUI()->getAffectEntire()) {
-		ui = &renameDrumUI;
-	}
-	else {
+	RenameUI* ui = nullptr;
+
+	switch (target_) {
+	case Target::CLIP:
 		renameClipUI.clip = clip;
 		ui = &renameClipUI;
+		break;
+
+	case Target::DRUM:
+		ui = &renameDrumUI;
+		break;
+
+	case Target::AUDIO_OUTPUT:
+		renameOutputUI.output = getCurrentOutput();
+		ui = &renameOutputUI;
+		break;
 	}
 
 	// Done, go for it.

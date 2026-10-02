@@ -1,14 +1,10 @@
 # Host-sim build for the portable Deluge application.
 #
 # A NATIVE build (x86-64 / ARM64), separate from the arm-none-eabi firmware build.
-# It assembles the SAME deluge_app library + the portable libs against the host BSP
-# (src/bsp/host), so it is both the definitive proof the app has no transitive HAL
-# dependency (no RZA1/ on the include path) and the substrate for host CI + the
-# audio WAV-diff harness.
-#
-#   cmake -B build-sim -S sim -G Ninja && cmake --build build-sim
-#   ./build-sim/deluge_host_boundary    # BSP-boundary smoke target
-#   ./build-sim/deluge_host             # the full application (in progress)
+# It builds the SAME deluge_app library + the portable libs for the host, which
+# the Embassy host harnesses and `dbt sim` link (tests/: the `host-app` build
+# product, built into build/host-app). Nothing links here: the harnesses' build
+# scripts archive these objects.
 
 cmake_minimum_required(VERSION 3.24)
 
@@ -56,6 +52,8 @@ endif()
 # VERSION mirrors the firmware top-level (project(Deluge VERSION ...)) so the
 # generated util/firmware_version.h gets non-empty PROJECT_VERSION_* components.
 project(DelugeHostSim VERSION 1.3.0 LANGUAGES C CXX)
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/ccache.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/../cmake/deps.cmake)
 
 set(REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/..)
 
@@ -79,16 +77,11 @@ set(CMAKE_CXX_EXTENSIONS ON)
 cmake_path(SET SHARED_INCLUDE ${REPO_ROOT}/src)
 
 # ---------------------------------------------------------------------------
-# Target matrix. Rather than enumerate modes, derive two orthogonal facts:
-#   DELUGE_SIM_M32          build 32-bit x86 — the firmware's pointer model, and the golden
-#                           reference. Only the plain Linux-x86 host; never on macOS (no 32-bit
-#                           runtime), an arm64 host, or the explicit 64-bit modes.
-#   DELUGE_SIM_NEON_NATIVE  the SIMD backend is real NEON (<arm_neon.h> exists) rather than
-#                           SIMDe's x86 emulation — true on the arm-linux cross and on any
-#                           arm64/aarch64 host (e.g. Apple Silicon).
+# Target matrix. DELUGE_SIM_NEON_NATIVE: the SIMD backend is real NEON (<arm_neon.h> exists)
+# rather than SIMDe's x86 emulation — true on the arm-linux cross and on any arm64/aarch64 host
+# (e.g. Apple Silicon).
 # Host configurations:
-#   default (Linux x86)     -m32, SIMDe portable-C fallbacks. Bit-matches the firmware.
-#   DELUGE_SIM_X64=ON       x86-64 Linux, SIMDe on real SSE/AVX. 64-bit-pointer-clean.
+#   default (Linux x86-64)  SIMDe on real SSE/AVX.
 #   DELUGE_SIM_ARM=ON       arm-linux/NEON cross (32-bit armv7), run under qemu.
 #   macOS (auto)            native 64-bit; Apple Silicon uses native NEON, Intel Macs use SIMDe.
 # ---------------------------------------------------------------------------
@@ -96,25 +89,8 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
     set(DELUGE_SIM_ARM64_HOST ON) # native 64-bit ARM host (Apple Silicon, arm64 Linux)
 endif()
 
-if(NOT DELUGE_SIM_ARM AND NOT DELUGE_SIM_X64 AND NOT APPLE AND NOT DELUGE_SIM_ARM64_HOST)
-    set(DELUGE_SIM_M32 ON)
-endif()
-
 if(DELUGE_SIM_ARM OR DELUGE_SIM_ARM64_HOST)
     set(DELUGE_SIM_NEON_NATIVE ON) # real <arm_neon.h>, no SIMDe
-endif()
-
-if(DELUGE_SIM_M32)
-    add_compile_options(-m32)
-    add_link_options(-m32)
-
-    # Use SSE for float math instead of the 32-bit x87 default. x87 evaluates float
-    # intermediates at 80-bit extended precision, which silently diverges from the
-    # firmware's strict IEEE-754 single-precision VFP — enough to perturb marginally
-    # stable float feedback loops (e.g. the Mutable reverb) away from the device's
-    # behaviour. -mfpmath=sse keeps host float arithmetic bit-comparable to the target.
-    # (64-bit hosts already default to SSE / use NEON, so this only applies to the -m32 build.)
-    add_compile_options(-msse2 -mfpmath=sse)
 endif()
 
 # Char signedness matches the firmware (ARM default is unsigned; be explicit).
@@ -128,15 +104,6 @@ add_compile_options(-g)
 # Clang-specific host-sim adjustments (default host toolchain is GCC; Clang/AppleClang are
 # supported alternatives — note macOS reports "AppleClang", hence MATCHES not STREQUAL).
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    if(DELUGE_SIM_M32)
-        # The -m32 sim links against GCC's runtime, but a multilib system may ship no 32-bit
-        # libgcc_s.so link stub (only libgcc_s.so.1). GCC resolves -lgcc_s via collect2; Clang
-        # does not, and the link fails with "cannot find -lgcc_s". Link libgcc statically to drop
-        # the shared -lgcc_s dependency at link time (only meaningful on the 32-bit x86 path; macOS
-        # clang has no libgcc at all).
-        add_link_options(-static-libgcc)
-    endif()
-
     # validateParams() (modulation/params/param.cpp) does O(N^2) constexpr string matching in
     # a static_assert. That exceeds Clang's default -fconstexpr-steps budget; GCC's equivalent
     # -fconstexpr-ops-limit default is far higher, so it compiles there. Raise the ceiling.
@@ -144,36 +111,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
     # A mainline clang on macOS (COMPILER_ID "Clang", i.e. NOT AppleClang) compiles against its
     # own newer libc++ headers but would otherwise link/run against the older libc++ in the macOS
-    # SDK — a header/runtime mismatch for the C++26 library bits. Use the keg's libc++
-    # (<llvm>/bin/clang++ → <llvm>/lib/c++).
-    #
-    # We link it *statically* when the archives are present, for two reasons:
-    #   1. Runtime version: no rpath juggling to reach the keg's newer C++26 runtime.
-    #   2. Allocator unification (the important one). The app replaces global operator new/delete
-    #      to route every allocation through GeneralMemoryAllocator (the SDRAM pools). With libc++
-    #      as a *dylib*, macOS two-level namespace binds the dylib's own internal allocations to
-    #      libc++abi's operator new (system malloc), NOT to our override — so a std:: buffer
-    #      allocated by app code (a GMA pointer, inside host_sdram) but grown/freed by an
-    #      out-of-line libc++ function reaches system free() on a GMA pointer and aborts with
-    #      "pointer being freed was not allocated". Static linking dissolves the dylib boundary so
-    #      the override preempts process-wide, exactly as ELF symbol interposition does on Linux.
+    # SDK — a header/runtime mismatch for the C++26 library bits. Point the linker + rpath at the
+    # keg's libc++ (<llvm>/bin/clang++ → <llvm>/lib/c++). Harmless if the dir is absent.
     if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH _sim_llvm_bin)
         cmake_path(GET _sim_llvm_bin PARENT_PATH _sim_llvm_prefix)
-        set(_sim_libcxx_a "${_sim_llvm_prefix}/lib/c++/libc++.a")
-        # libc++abi.a lives beside libc++.a on newer kegs, else one level up in lib/.
-        find_library(_sim_libcxxabi_a NAMES c++abi
-            PATHS "${_sim_llvm_prefix}/lib/c++" "${_sim_llvm_prefix}/lib" NO_DEFAULT_PATH)
-        if(EXISTS "${_sim_libcxx_a}" AND _sim_libcxxabi_a)
-            # -nostdlib++ drops the driver's default -lc++; we supply the static archives instead.
-            # ld64 resolves archive members regardless of order, so no ordering dance is needed.
-            add_link_options(-nostdlib++ "${_sim_libcxx_a}" "${_sim_libcxxabi_a}")
-        elseif(EXISTS "${_sim_llvm_prefix}/lib/c++")
-            # Fallback: dynamic keg libc++ (archives absent). NOTE: the operator new/delete override
-            # will NOT interpose libc++-internal allocations here — cross-boundary frees can abort.
-            message(WARNING "sim: static libc++ archives not found under ${_sim_llvm_prefix}/lib; "
-                            "falling back to dynamic libc++ (operator new/delete override will not "
-                            "interpose libc++-internal allocations — may abort in malloc).")
+        if(EXISTS "${_sim_llvm_prefix}/lib/c++")
             add_link_options("-L${_sim_llvm_prefix}/lib/c++" "LINKER:-rpath,${_sim_llvm_prefix}/lib/c++")
         endif()
     endif()
@@ -211,30 +154,14 @@ endif()
 # resolve to <simde/arm/neon.h>. Native-NEON hosts (the arm-linux cross, Apple Silicon, arm64
 # Linux) have a real <arm_neon.h> and skip all of this.
 if(NOT DELUGE_SIM_NEON_NATIVE)
-    # SIMDe provides the NEON intrinsics on non-ARM hosts — argon's <arm/neon.h> and the compat
-    # <arm_neon.h> shim resolve into it. Fetch it (pinned) rather than depending on a system package,
-    # so the host-sim builds anywhere without a distro simde install. v0.8.2 matches the version this
-    # was developed against, so the portable-NEON emulation (and thus the golden captures) is unchanged.
-    include(FetchContent)
-    FetchContent_Declare(simde
-        GIT_REPOSITORY https://github.com/simd-everywhere/simde
-        GIT_TAG v0.8.2
-        GIT_SHALLOW TRUE
-    )
+    # SIMDe provides the NEON intrinsics on non-ARM hosts. It is fetched at the pinned revision (cmake/deps.cmake)
+    # rather than taken from a system package, so the portable-NEON emulation, and with it the golden captures, is
+    # the same on every host.
     FetchContent_MakeAvailable(simde)
     # Repo layout is ${simde_SOURCE_DIR}/simde/{arm,x86,...}: the root resolves <simde/arm/neon.h>
     # (the compat shim), the simde/ subdir resolves argon's bare <arm/neon.h>. Both are added below.
     set(SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
 
-    if(DELUGE_SIM_M32)
-        # Force SIMDe to its portable-C fallbacks instead of native x86 intrinsics. Under -m32 SIMDe's
-        # native path drags in GCC's AVX512/FMA <immintrin.h> sub-headers, which don't parse in 32-bit
-        # mode. The portable path is bit-accurate to NEON (the whole point of SIMDe) and deterministic —
-        # exactly what we want for host CI + the audio WAV-diff reference; the speed hit is irrelevant here.
-        # Must be global: argon includes <simde/arm/neon.h> directly, not via our compat shim.
-        # On x86-64 we drop this and let SIMDe lower to real SSE/AVX.
-        add_compile_definitions(SIMDE_NO_NATIVE)
-    endif()
 endif()
 
 # The app includes <execution>. On host glibc libstdc++ the parallel STL backend is oneTBB,
@@ -242,12 +169,6 @@ endif()
 # (real _mm_* functions vs SIMDe's _mm_* #defines). The firmware target has no TBB; mirror that
 # by selecting libstdc++'s serial parallel backend (std::execution::par runs serially — fine here).
 add_compile_definitions(_GLIBCXX_USE_TBB_PAR_BACKEND=0)
-
-# Use the cooperative task scheduler (registerTasks + startTaskManager), exactly as the
-# firmware does — the `#else mainLoop()` path in deluge_main is legacy/dead on real hardware
-# and doesn't pump the scheduler (so MIDI/playback/UI tasks never run). Matching the firmware
-# execution model is both more faithful and what makes input (e.g. MIDI) reach the engine.
-add_compile_definitions(USE_TASK_MANAGER)
 
 # Zero every block at allocation / pool-reuse / operator new (see memory/general_memory_allocator.cpp,
 # object_pool.h, operators.cpp). On the SoC, SDRAM is never cleared, so the firmware's many
@@ -267,11 +188,16 @@ add_compile_definitions(DELUGE_HOST)
 # reason_check reports — is visible when reproducing issues on the sim.
 add_compile_definitions(ENABLE_TEXT_OUTPUT=1)
 
+# Both sim references take the scalar DX7 operator kernel: the firmware's NEON asm
+# kernel (neon_fm_kernel.s) computes sine by polynomial approximation — legitimately
+# different output from the scalar LUT path — so the arm-linux reference must not
+# use it or x86 and ARM golden renders of DX7 presets could never match.
+add_compile_definitions(DELUGE_DX_SCALAR)
+
 if(DELUGE_SIM_NEON_NATIVE)
     # Real NEON (arm-linux cross or an arm64 host): the toolchain provides <arm_neon.h>; argon's
     # <arm/neon.h> and the SIMDe compat shim are unused.
     include_directories(BEFORE ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include)
-    set(HOST_INCLUDE_DIRS ${REPO_ROOT}/include ${REPO_ROOT}/crates/deluge_resource/include ${REPO_ROOT}/src)
 else()
     include_directories(BEFORE
         ${CMAKE_CURRENT_LIST_DIR}/compat # <arm_neon.h> -> SIMDe shim
@@ -280,29 +206,10 @@ else()
         ${SIMDE_INCLUDE_DIR}               # compat shim's <simde/arm/neon.h> -> SIMDe
         ${SIMDE_INCLUDE_DIR}/simde         # argon's bare <arm/neon.h> -> SIMDe
     )
-    set(HOST_INCLUDE_DIRS
-        ${CMAKE_CURRENT_LIST_DIR}/compat # arm_neon.h -> SIMDe shim
-        ${REPO_ROOT}/include             # <libdeluge/...> boundary
-        ${REPO_ROOT}/crates/deluge_resource/include # deluge_resource.h (Rust resource manager C ABI)
-        ${REPO_ROOT}/src                 # SHARED_INCLUDE
-    )
 endif()
 
 # ===========================================================================
-# Stage 1: boundary smoke target (host BSP + a main that exercises it).
-# ===========================================================================
-add_executable(deluge_host_boundary
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_main.c
-)
-target_include_directories(deluge_host_boundary PRIVATE ${HOST_INCLUDE_DIRS})
-find_library(RT_LIB rt)
-if(RT_LIB)
-    target_link_libraries(deluge_host_boundary PRIVATE ${RT_LIB})
-endif()
-
-# ===========================================================================
-# Stage 2: the full application.
+# The application.
 # ===========================================================================
 
 # NE10 (int32 FFT) — native, via SIMDe. deluge_app links the target name `NE10`,
@@ -333,418 +240,7 @@ add_subdirectory(${REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/foundation) # d
 add_subdirectory(${REPO_ROOT}/src/deluge-project ${CMAKE_BINARY_DIR}/deluge-project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi
 add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
-add_subdirectory(${REPO_ROOT}/src/fatfs      ${CMAKE_BINARY_DIR}/fatfs)      # fatfs
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
+add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only
 
-# --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource) -
-# Build the umbrella as a host staticlib matching the sim's word size and link it
-# into the sim executables. The deluge_app allocator (heaps + the GMA coordinator)
-# is unconditionally backed by it; the legacy C++ MemoryRegion path has been retired.
-# Pick the Rust std target triple to match the C++ host ABI (word size + platform).
-if(APPLE AND DELUGE_SIM_ARM64_HOST)
-    set(SIM_RUST_TARGET aarch64-apple-darwin) # Apple Silicon
-elseif(APPLE)
-    set(SIM_RUST_TARGET x86_64-apple-darwin) # Intel Mac
-elseif(DELUGE_SIM_ARM64_HOST)
-    set(SIM_RUST_TARGET aarch64-unknown-linux-gnu) # arm64 Linux
-elseif(DELUGE_SIM_ARM)
-    set(SIM_RUST_TARGET armv7-unknown-linux-gnueabihf) # 32-bit armv7 hardfloat cross, run under qemu
-elseif(DELUGE_SIM_X64)
-    set(SIM_RUST_TARGET x86_64-unknown-linux-gnu)
-else()
-    set(SIM_RUST_TARGET i686-unknown-linux-gnu) # the default -m32 sim
-endif()
-set(SIM_RUST_WS ${REPO_ROOT}/crates)
-set(SIM_RUST_LIB ${SIM_RUST_WS}/target/${SIM_RUST_TARGET}/release/libdeluge_rust.a)
-file(GLOB_RECURSE SIM_RUST_SOURCES CONFIGURE_DEPENDS
-    ${SIM_RUST_WS}/deluge_alloc/src/*.rs
-    ${SIM_RUST_WS}/deluge_resource/src/*.rs
-    ${SIM_RUST_WS}/deluge_rust/src/*.rs)
-# Under the ASan sim build, turn on the allocator's poison hooks so use-after-free
-# within a heap is caught (the __asan_*_memory_region calls resolve from libasan at
-# the final C++ link). The feature is a no-op in the crate otherwise.
-set(SIM_RUST_FEATURES "")
-if(DELUGE_SIM_SANITIZE)
-    set(SIM_RUST_FEATURES --features deluge_rust/asan)
-endif()
-add_custom_command(
-    OUTPUT ${SIM_RUST_LIB}
-    COMMAND cargo build -p deluge_rust --release --target ${SIM_RUST_TARGET} ${SIM_RUST_FEATURES}
-    WORKING_DIRECTORY ${SIM_RUST_WS}
-    DEPENDS ${SIM_RUST_SOURCES}
-        ${SIM_RUST_WS}/Cargo.lock
-        ${SIM_RUST_WS}/Cargo.toml ${SIM_RUST_WS}/deluge_alloc/Cargo.toml
-        ${SIM_RUST_WS}/deluge_resource/Cargo.toml ${SIM_RUST_WS}/deluge_rust/Cargo.toml
-    COMMENT "Building Rust deluge_rust staticlib (${SIM_RUST_TARGET})"
-    VERBATIM
-)
-add_custom_target(sim_deluge_rust_build DEPENDS ${SIM_RUST_LIB})
-add_library(deluge_rust_sim STATIC IMPORTED GLOBAL)
-set_target_properties(deluge_rust_sim PROPERTIES IMPORTED_LOCATION ${SIM_RUST_LIB})
-add_dependencies(deluge_rust_sim sim_deluge_rust_build)
-# Libs the host Rust std staticlib references; linked into the sim executables below.
-set(SIM_ALLOC_LINK deluge_rust_sim pthread dl m)
-if(APPLE)
-    # host_pcm.c's native CoreAudio (AudioQueue) audio backend.
-    list(APPEND SIM_ALLOC_LINK "-framework AudioToolbox")
-endif()
-
-# The host executable: the portable app + the host BSP + the scheduler. deluge_app
-# is an OBJECT lib (its objects embed here); deluge_scheduler is STATIC (resolves
-# against them). host_main drives the boundary for now; it becomes the host runtime
-# loop (deluge_app_init/render/tick) as the app is brought up.
-add_executable(deluge_host
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_main.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-)
-# host_debug.cpp reaches into the app's reason_check (memory/reason_check.h) for the host-sim leak triggers - allowed
-# (the boundary check only forbids the app depending on the BSP, not the reverse), so put src/deluge on the path.
-target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(deluge_host PRIVATE ${RT_LIB})
-endif()
-
-# deluge_render: the headless "project -> stems" utility. Same app + host BSP as
-# deluge_host, but its own main()/render-driver (host_render_main.cpp) instead of
-# host_main.c, and it drives the existing offline StemExport engine against a FAT
-# disk image (the shared host_platform.c diskio backend). Requires mtools at runtime
-# (--project packing). See host_render_main.cpp for usage.
-add_executable(deluge_render
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_render_main.cpp
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-)
-# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) + reaches the app's reason_check;
-# src/deluge on the path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
-target_include_directories(deluge_render PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_render PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(deluge_render PRIVATE ${RT_LIB})
-endif()
-
-# deluge_loadcheck: headless "load these audio files, print their parsed descriptors" utility — the Tier-2
-# regression net for the file-loading redesign. Same app + host BSP as deluge_render, with its own
-# main()/driver (host_loadcheck_main.cpp) that drives AudioFileManager::getAudioFileFromFilename (and so
-# ClusterByteSource + the parser) against a FAT image. Requires mtools at runtime (--project packing).
-add_executable(deluge_loadcheck
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_loadcheck_main.cpp
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-)
-# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) + reaches the app's reason_check;
-# src/deluge on the path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
-target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
-endif()
-
-# Phase-0 song round-trip driver (load -> save -> reload -> save fixed point).
-# See tests/golden/songs_run.py and docs/dev/project_model_extraction.md.
-add_executable(song_roundtrip
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/golden/song_roundtrip.cpp
-)
-# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) — the linked deluge_app references
-# deluge_audio_drive, so the symbol must be defined. src/deluge on the path for memory/reason_check.h (the
-# boundary check only forbids app→BSP, not BSP→app).
-target_include_directories(song_roundtrip PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(song_roundtrip PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(song_roundtrip PRIVATE ${RT_LIB})
-endif()
-
-# JSON round-trip: XML-load -> JSON-save -> JSON-load -> JSON-save fixed point. Exercises the JSON side
-# of the record-first deserializer (JsonSerializer + parseJson + ValueTreeDeserializer JSON mode).
-add_executable(json_roundtrip
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/golden/json_roundtrip.cpp
-)
-target_include_directories(json_roundtrip PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(json_roundtrip PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(json_roundtrip PRIVATE ${RT_LIB})
-endif()
-
-# Edit-aware round-trip: load -> DOM-first edit a song-global param -> save -> reload -> assert persisted.
-# Exercises the Phase 2 DOM-authoritative edit loop that the load->save golden harness can't see.
-add_executable(song_edit_roundtrip
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/golden/song_edit_roundtrip.cpp
-)
-target_include_directories(song_edit_roundtrip PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(song_edit_roundtrip PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(song_edit_roundtrip PRIVATE ${RT_LIB})
-endif()
-
-# Lean differential record-playback harness (M2-D/E gate retirement): drives the engine's live automation
-# recording path natively + deterministically; param_record_run.py diffs stdout vs a committed baseline.
-add_executable(param_record_diff
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/golden/param_record_diff.cpp
-)
-target_include_directories(param_record_diff PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(param_record_diff PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(param_record_diff PRIVATE ${RT_LIB})
-endif()
-
-add_executable(audio_clip_edit_diff
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/golden/audio_clip_edit_diff.cpp
-)
-target_include_directories(audio_clip_edit_diff PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(audio_clip_edit_diff PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(audio_clip_edit_diff PRIVATE ${RT_LIB})
-endif()
-
-# M1d Edit undo/redo hook (docs/dev/project_model_migration_plan.md): drives SetParamValue/apply over a loaded
-# song and self-checks addressFor resolution + real ActionLogger undo/redo. No baseline (self-checking).
-add_executable(edit_undo_redo
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/golden/edit_undo_redo.cpp
-)
-target_include_directories(edit_undo_redo PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(edit_undo_redo PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(edit_undo_redo PRIVATE ${RT_LIB})
-endif()
-
-# XML replay differential harness (docs/superpowers/specs/2026-07-09-deserializer-step2a-xml-to-value-design.md,
-# Component 3): runs a fixed readFromFile-shaped script against both the real XMLDeserializer (ground truth) and
-# ValueTreeDeserializer in XML mode over parseXml() output, asserting token-for-token identical transcripts.
-add_executable(xml_replay_diff
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/golden/xml_replay_diff.cpp
-)
-target_include_directories(xml_replay_diff PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(xml_replay_diff PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(xml_replay_diff PRIVATE ${RT_LIB})
-endif()
-
-# Param/automation DOM projection round-trip (docs/dev/param_automation_dom.md, Phase 1).
-# Exercises DocAutoParam <-> live AutoParam against the real engine container + host allocator; runs on
-# x86 (build-sim) and ARM (build-sim-arm via qemu) for the dual-arch coverage the design doc calls for.
-add_executable(param_projection_test
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/projection/param_automation_test.cpp
-)
-# host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) — the linked deluge_app references
-# deluge_audio_drive, so the symbol must be defined. src/deluge on the path for memory/reason_check.h (the
-# boundary check only forbids app→BSP, not BSP→app).
-target_include_directories(param_projection_test PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(param_projection_test PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(param_projection_test PRIVATE ${RT_LIB})
-endif()
-
-# Clone/undo deep-independence harness (the golden-blind safety net for the clone-idiom retirement).
-add_executable(param_clone_test
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/projection/param_clone_test.cpp
-)
-target_include_directories(param_clone_test PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(param_clone_test PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(param_clone_test PRIVATE ${RT_LIB})
-endif()
-
-# Edit substrate unit harness (M1a/M1b, docs/dev/project_model_migration_plan.md): dispatcher
-# contract, the SetParamValue pilot's mutation + Consequence/coalescence/undo behaviour.
-add_executable(edit_test
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/projection/edit_test.cpp
-)
-target_include_directories(edit_test PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(edit_test PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(edit_test PRIVATE ${RT_LIB})
-endif()
-
-# M4a cost microbench: the incremental model-first ParamSnapshot::applyPatch vs the full
-# projectFromStoreAfterRead rebuild (the fallback). Not a pass/fail gate — prints a comparison table that feeds
-# the north-star's incremental-vs-rebuild granularity question. Returns 0 always.
-add_executable(param_snapshot_bench
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/projection/param_snapshot_bench.cpp
-)
-target_include_directories(param_snapshot_bench PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(param_snapshot_bench PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(param_snapshot_bench PRIVATE ${RT_LIB})
-endif()
-
-# Clip-clone INTEGRATION test: duplicates a real InstrumentClip via InstrumentClip::clone() on a loaded Song —
-# the golden-blind edit path the unit harness can't reach (clone() needs a live Song + ModelStack). Takes a
-# song XML path (like song_edit_roundtrip); driven over the corpus by clip_clone_run.py.
-add_executable(clip_clone_roundtrip
-    ${REPO_ROOT}/src/bsp/host/host_bsp.c
-    ${REPO_ROOT}/src/bsp/host/host_platform.c
-    ${REPO_ROOT}/src/bsp/host/host_audio.c
-    ${REPO_ROOT}/src/bsp/host/host_link.c
-    ${REPO_ROOT}/src/bsp/host/host_pcm.c
-    ${REPO_ROOT}/src/bsp/host/host_midi.c
-    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
-    ${REPO_ROOT}/tests/golden/clip_clone_roundtrip.cpp
-)
-target_include_directories(clip_clone_roundtrip PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
-target_link_libraries(clip_clone_roundtrip PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
-if(RT_LIB)
-    target_link_libraries(clip_clone_roundtrip PRIVATE ${RT_LIB})
-endif()
-
-# ---------------------------------------------------------------------------
-enable_testing()
-
-add_test(NAME param_projection_test COMMAND param_projection_test)
-add_test(NAME param_clone_test COMMAND param_clone_test)
-add_test(NAME edit_test COMMAND edit_test)
-
-# Layout-invariance guard (CTest). Render each fixture at two heap-pad layouts
-# (DELUGE_SIM_HEAP_PAD via scripts/golden_mixdown.sh padsweep) and assert the
-# outputs are bit-identical — proving no render depends on allocation addresses.
-# This is the regression net for the shared-PRNG / overread class of layout-
-# coupled bug (a passing `golden check` does NOT prove this; it's pinned to one
-# layout). The real backup songs live only on the developer's machine
-# (DELUGE_BACKUP), so each test SKIPs (exit 77) when its fixture is absent — a
-# fixtureless CI runner skips rather than fails. Slow (two full renders each);
-# build deluge_render first, then opt in with `ctest -L padsweep`.
-foreach(fixture cordae highsiderr icoustic)
-    add_test(
-        NAME padsweep_${fixture}
-        COMMAND ${CMAKE_COMMAND} -E env
-                FIXTURE=${fixture} PADS=64 NO_BUILD=1 BUILD_DIR=${CMAKE_BINARY_DIR}
-                bash ${REPO_ROOT}/scripts/golden_mixdown.sh padsweep
-    )
-    set_tests_properties(padsweep_${fixture} PROPERTIES
-        SKIP_RETURN_CODE 77
-        LABELS padsweep
-        TIMEOUT 1200
-    )
-endforeach()
-
-# CTest gate: serialization round-trip must match committed fixtures.
-# The song corpus is bring-your-own (out-of-repo); set DELUGE_SONG_CORPUS to a
-# songs dir to run it. Without a corpus the runner exits 77 -> SKIPPED, so CI
-# without songs stays green.
-add_test(
-    NAME song_roundtrip
-    COMMAND ${Python_EXECUTABLE} ${REPO_ROOT}/tests/golden/songs_run.py
-            --binary $<TARGET_FILE:song_roundtrip>
-)
-set_tests_properties(song_roundtrip PROPERTIES SKIP_RETURN_CODE 77)
-
-# CTest gate: the live automation-recording path must reproduce its committed baseline. Like song_roundtrip the
-# corpus is bring-your-own (DELUGE_SONG_CORPUS); without it the runner exits 77 -> SKIPPED. This is the
-# behaviour-preservation net for the recording seam (M2-D.3) that the load->save golden structurally cannot see.
-add_test(
-    NAME param_record_diff
-    COMMAND ${Python_EXECUTABLE} ${REPO_ROOT}/tests/golden/param_record_run.py
-            --binary $<TARGET_FILE:param_record_diff>
-)
-set_tests_properties(param_record_diff PROPERTIES SKIP_RETURN_CODE 77)
-
-# CTest gate: the AudioClip descriptor edit + save/reload path must reproduce its committed baseline (owner-4
-# inversion net). BYO corpus (DELUGE_SONG_CORPUS); without it the runner exits 77 -> SKIPPED. Covers the runtime
-# edit + derive-at-load surfaces the load->save golden structurally cannot see.
-add_test(
-    NAME audio_clip_edit_diff
-    COMMAND ${Python_EXECUTABLE} ${REPO_ROOT}/tests/golden/audio_clip_edit_run.py
-            --binary $<TARGET_FILE:audio_clip_edit_diff>
-)
-set_tests_properties(audio_clip_edit_diff PROPERTIES SKIP_RETURN_CODE 77)
-
-# M1d: self-checking Edit undo/redo over the BYO corpus (exit 77 -> SKIPPED without DELUGE_SONG_CORPUS).
-add_test(
-    NAME edit_undo_redo
-    COMMAND ${Python_EXECUTABLE} ${REPO_ROOT}/tests/golden/edit_undo_redo_run.py
-            --binary $<TARGET_FILE:edit_undo_redo>
-)
-set_tests_properties(edit_undo_redo PROPERTIES SKIP_RETURN_CODE 77)

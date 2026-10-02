@@ -20,7 +20,9 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/reversion.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -63,10 +65,12 @@
 #include "model/sample/sample_holder.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/sync.h"
+#include "modulation/sync.h"
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/render_requests.h"
+#include "playback/trigger_clock_input.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -77,6 +81,7 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "sync/sd_access.h"
 #include "util/cfunctions.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
@@ -94,7 +99,6 @@ extern void songLoaded(Song* song);
 
 GlobalMIDICommand pendingGlobalMIDICommand = GlobalMIDICommand::NONE; // -1 means none
 int32_t pendingGlobalMIDICommandNumClustersWritten;
-extern uint8_t currentlyAccessingCard;
 
 // FineTempoKnob variable
 int32_t tempoKnobMode = 1;
@@ -121,10 +125,6 @@ PlaybackHandler::PlaybackHandler() {
 	skipMidiClocks = 0;
 }
 
-extern "C" uint32_t triggerClockRisingEdgeTimes[];
-extern "C" uint32_t triggerClockRisingEdgesReceived;
-extern "C" uint32_t triggerClockRisingEdgesProcessed;
-
 void PlaybackHandler::midiRoutine() {
 	if ((stemExport.processStarted && stemExport.renderOffline)) [[unlikely]] {
 		//  todo - should add the ability to block the task in the task manager instead but whatever
@@ -141,13 +141,13 @@ void PlaybackHandler::midiRoutine() {
 
 // This function will be called repeatedly, at all times, to see if it's time to do a tick, and such
 void PlaybackHandler::routine() {
-
+	if ((stemExport.processStarted && stemExport.renderOffline)) [[unlikely]] {
+		//  todo - should add the ability to block the task in the task manager instead but whatever
+		return;
+	}
 	// Check analog clock input
-	if (triggerClockRisingEdgesProcessed != triggerClockRisingEdgesReceived) {
-		uint32_t time =
-		    triggerClockRisingEdgeTimes[triggerClockRisingEdgesProcessed & (TRIGGER_CLOCK_INPUT_NUM_TIMES_STORED - 1)];
-		triggerClockRisingEdgesProcessed++;
-		analogClockRisingEdge(time);
+	if (const auto stamp = deluge::playback::triggerClockEdges.pop()) {
+		analogClockRisingEdge(*stamp);
 	}
 
 	// If we're playing synced to analog clock input, auto-start mode, and there hasn't been a rising edge for a while,
@@ -159,34 +159,45 @@ void PlaybackHandler::routine() {
 }
 
 void PlaybackHandler::slowRoutine() {
+	// A next-song held back by an input take goes once the take is over: the recorder asks for this job's run as it
+	// finishes one.
+	if (nextSongPending_ && !audioRecorder.inputTakeInProgress()) {
+		nextSongPending_ = false;
+		currentSong->loadNextSong();
+	}
+
 	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
-	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && !currentlyAccessingCard) {
+	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && deluge::sync::sd_busy()) {
+		deluge::runtime::appLoop.requestAt(slowJob, deluge::runtime::nowUs() + kSlowRetryUs);
+		return;
+	}
+	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE) {
 
 		D_PRINTLN("actioning pending command -----------------------------------------");
 
+		// Snapshot which command (UNDO vs REDO) and clear the pending flag now, before handing it over. A
+		// reversion whose samples have to be loaded outlives this call, and slowRoutine() can be re-entered
+		// before it ends — e.g. from this same job's own next run (deluge.cpp). Clearing
+		// pendingGlobalMIDICommand here means a re-entrant call sees NONE and does nothing, instead of asking
+		// for the same command twice.
+		GlobalMIDICommand command = pendingGlobalMIDICommand;
+		pendingGlobalMIDICommand = GlobalMIDICommand::NONE;
+
 		if (actionLogger.allowedToDoReversion()) {
-
-			switch (pendingGlobalMIDICommand) {
-			case GlobalMIDICommand::UNDO:
-				actionLogger.undo();
-				break;
-
-			case GlobalMIDICommand::REDO:
-				actionLogger.redo();
-				break;
-
-			// we're explicitly only interedted in UNDO and REDO
-			default:;
-			}
 
 			if (ALPHA_OR_BETA_VERSION && pendingGlobalMIDICommandNumClustersWritten) {
 				char buffer[12];
 				intToString(pendingGlobalMIDICommandNumClustersWritten, buffer);
 				display->displayPopup(buffer);
 			}
-		}
 
-		pendingGlobalMIDICommand = GlobalMIDICommand::NONE;
+			// The reversion runs on the interaction tier: it loads the files its consequences will bind
+			// first, then reverts card-free. One already in flight refuses this one rather than queueing
+			// it -- see deluge::gui::Reversion.
+			(void)deluge::gui::reversion.request(command == GlobalMIDICommand::REDO
+			                                         ? deluge::gui::Reversion::Direction::Redo
+			                                         : deluge::gui::Reversion::Direction::Undo);
+		}
 	}
 }
 
@@ -234,12 +245,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					arrangementPosToStartAtOnSwitch = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 				}
 				session.armForSwitchToArrangement();
-				if (display->haveOLED()) {
-					renderUIsForOled();
-				}
-				else {
-					sessionView.redrawNumericDisplay();
-				}
+				renderUIsForOled();
 				display->cancelPopup();
 			}
 
@@ -739,49 +745,48 @@ void PlaybackHandler::actionTimerTickPart2() {
 
 	// If not in count-in...
 	if (!ticksLeftInCountIn) {
-
 		currentSong->resyncLFOs();
-		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
-			// Trigger clock output ticks
-			if (cvEngine.isTriggerClockOutputEnabled()) {
-				// Do any trigger clock output ticks up to and including now
-				uint32_t internalTicksPer;
-				uint32_t analogOutTicksPer;
-				getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
-				uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
-				uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
+	}
 
-				// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
-				// immediately otherwise set it to be done by the audio engine
-				if (fractionNextAnalogOutTick < fractionLastTimerTick) {
-					doTriggerClockOutTick();
-					fractionNextAnalogOutTick += internalTicksPer;
-				}
-				// Schedule another trigger clock output tick
-				scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick,
-				                                       fractionNextAnalogOutTick);
+	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
+		// Trigger clock output ticks
+		if (cvEngine.isTriggerClockOutputEnabled()) {
+			// Do any trigger clock output ticks up to and including now
+			uint32_t internalTicksPer;
+			uint32_t analogOutTicksPer;
+			getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
+			uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
+			uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
+
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
+			// immediately otherwise set it to be done by the audio engine
+			if (fractionNextAnalogOutTick < fractionLastTimerTick) {
+				doTriggerClockOutTick();
+				fractionNextAnalogOutTick += internalTicksPer;
+			}
+			// Schedule another trigger clock output tick
+			scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick, fractionNextAnalogOutTick);
+		}
+
+		// MIDI clock output ticks
+		if (currentlySendingMIDIOutputClocks()) {
+			// Do any MIDI clock output ticks up to and including now
+			uint32_t internalTicksPer;
+			uint32_t midiClockOutTicksPer;
+			getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
+			uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
+
+			uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
+			// immediately otherwise set it to be done by the audio engine
+			if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
+				doMIDIClockOutTick();
+				fractionNextMIDIClockOutTick += midiClockOutTicksPer;
 			}
 
-			// MIDI clock output ticks
-			if (currentlySendingMIDIOutputClocks()) {
-				// Do any MIDI clock output ticks up to and including now
-				uint32_t internalTicksPer;
-				uint32_t midiClockOutTicksPer;
-				getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
-				uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
-
-				uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
-				// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
-				// immediately otherwise set it to be done by the audio engine
-				if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
-					doMIDIClockOutTick();
-					fractionNextMIDIClockOutTick += midiClockOutTicksPer;
-				}
-
-				// Schedule another MIDI clock output tick
-				scheduleMIDIClockOutTickParamsKnown(midiClockOutTicksPer, fractionLastTimerTick,
-				                                    fractionNextMIDIClockOutTick);
-			}
+			// Schedule another MIDI clock output tick
+			scheduleMIDIClockOutTickParamsKnown(midiClockOutTicksPer, fractionLastTimerTick,
+			                                    fractionNextMIDIClockOutTick);
 		}
 	}
 }
@@ -1000,6 +1005,9 @@ void PlaybackHandler::actionSwungTick() {
 			lastSwungTickActioned = 0;
 			swungTicksTilNextEvent = 0;
 
+			lastTriggerClockOutTickDone = -1;
+			lastMIDIClockOutTickDone = -1;
+
 			// May not call audio routine during this, cos that'd try doing ticks before everything's set up
 			currentPlaybackMode->resetPlayPos(
 			    posToNextContinuePlaybackFrom); // Have to do this after calling AudioEngine::routine()
@@ -1096,6 +1104,10 @@ void PlaybackHandler::scheduleSwungTick() {
 // This may be called when there already is one scheduled, to reschedule it, if the tempo has changed
 void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 
+	// Tick-based MIDI/CV interpolation can produce a zero next-event interval via
+	// ParamManagerForTimeline::processCurrentPos. That value can propagate into swungTicksTilNextEvent
+	// during playback scheduling (see Clip::processCurrentPos). Clamp here so we always advance at least one swung
+	// tick instead of re-actioning the current tick forever.
 	if (swungTicksTilNextEvent < 1) {
 		swungTicksTilNextEvent = 1; // Shouldn't ultimately be necessary, but...
 	}
@@ -1396,10 +1408,12 @@ goAgain:
 
 	// Or if it has happened...
 	else {
-		if (timeSinceLastInputTick >= timePerInputTickMovingAverage) {
-			timeSinceLastInputTick = timePerInputTickMovingAverage - 1;
+		// Zero until the first input tick sets the moving average; clamped so the division below stays finite.
+		const uint32_t timePerInputTick = std::max<uint32_t>(timePerInputTickMovingAverage, 1);
+		if (timeSinceLastInputTick >= timePerInputTick) {
+			timeSinceLastInputTick = timePerInputTick - 1;
 		}
-		currentInputTick = (float)timeSinceLastInputTick / timePerInputTickMovingAverage + lastInputTickReceived;
+		currentInputTick = (float)timeSinceLastInputTick / timePerInputTick + lastInputTickReceived;
 	}
 
 gotCurrentInputTick:
@@ -1451,8 +1465,6 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	if (currentSong) {
 
-		currentSong->stopAllAuditioning();
-
 		// If playing...
 		if (isEitherClockActive()) {
 
@@ -1500,11 +1512,10 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	// Swap stuff over
 	AudioEngine::killAllVoices(true);
-	midiFollow.clearStoredClips(); // need to clear clip pointers stored for previous song
+	Song* const outgoing = currentSong;
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
-	loadSongUI.deletedPartsOfOldSong = false;
 
 	currentSong->sendAllMIDIPGMs();
 	AudioEngine::getReverbParamsFromSong(currentSong);
@@ -1551,8 +1562,9 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	AudioEngine::bypassCulling = true;
 
-	display->displayLoadingAnimationText("Loading"); // More loading might need to happen now, or still be happening
-	currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
+	// What the swap changes that only the interaction tier writes -- the knobs, MIDI follow's stored clips, the load's
+	// mode and animation: done at once on the interaction tier, asked for on the render (an armed launch).
+	deluge::playback::songSwappedOut(outgoing);
 	AudioEngine::logAction("PlaybackHandler::doSongSwap end");
 }
 
@@ -1762,6 +1774,14 @@ void PlaybackHandler::clockMessageReceived(uint32_t time) {
 }
 
 void PlaybackHandler::scheduleSwungTickFromExternalClock() {
+	// Tick-based MIDI/CV interpolation can produce a zero next-event interval via
+	// ParamManagerForTimeline::processCurrentPos. That value can propagate into swungTicksTilNextEvent
+	// during playback scheduling (see Clip::processCurrentPos). Clamp here so we always advance at least one swung
+	// tick instead of re-actioning the current tick forever.
+	if (swungTicksTilNextEvent < 1) {
+		swungTicksTilNextEvent = 1;
+	}
+
 	uint64_t nextSwungTick = lastSwungTickActioned + swungTicksTilNextEvent;
 	uint64_t internalTickPositionForNextSwungTickTimes50;
 	if (!currentSong->hasAnySwing()) {
@@ -1916,7 +1936,10 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 
 		uint32_t thisTimePerInternalTick = timeLastInputTickTook * inputTicksPer / internalTicksPer;
 
-		veryCurrentTimePerInternalTickInverse = 2147483647 / ((thisTimePerInternalTick * 3) >> 1);
+		// Zero when two input ticks land before audioSampleTimer has advanced at all between them; clamped to
+		// avoid dividing by zero below.
+		const uint32_t divisor = std::max<uint32_t>((thisTimePerInternalTick * 3) >> 1, 1);
+		veryCurrentTimePerInternalTickInverse = 2147483647 / divisor;
 
 		// Lowpass
 		int32_t distanceToGo = thisTimePerInternalTick - lowpassedTimePerInternalTick;
@@ -1944,7 +1967,8 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			slowpassedTimePerInternalTick = lowpassedTimePerInternalTick << slowpassedTimePerInternalTickSlowness;
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick;
 
-			stickyCurrentTimePerInternalTickInverse = 2147483647 / ((stickyTimePerInternalTick * 3) >> 1);
+			stickyCurrentTimePerInternalTickInverse =
+			    2147483647 / std::max<uint32_t>((stickyTimePerInternalTick * 3) >> 1, 1);
 		}
 		else if ((slowpassedTimePerInternalTick >> (slowpassedTimePerInternalTickSlowness + 2))
 		             > multiply_32x32_rshift32(1084479242, stickyTimePerInternalTick)
@@ -1954,15 +1978,19 @@ void PlaybackHandler::inputTick(bool fromTriggerClock, uint32_t time) {
 			stickyTimePerInternalTick = lowpassedTimePerInternalTick =
 			    slowpassedTimePerInternalTick >> slowpassedTimePerInternalTickSlowness;
 
-			stickyCurrentTimePerInternalTickInverse = 2147483647 / ((stickyTimePerInternalTick * 3) >> 1);
+			stickyCurrentTimePerInternalTickInverse =
+			    2147483647 / std::max<uint32_t>((stickyTimePerInternalTick * 3) >> 1, 1);
 		}
 	}
 
 	// Calculating time per input tick for the purpose of scheduling internal ticks. TODO: this code largely mirrors
 	// what the tempo magnitude matching code above does - could be combined. Or not?
 	if (numInputTickTimesCounted) {
-		timePerInputTickMovingAverage =
-		    (uint32_t)(timeThisInputTick - timeLastInputTicks[numInputTickTimesCounted - 1]) / numInputTickTimesCounted;
+		// Zero when the counted input ticks span less time than their count, as two ticks sharing one stamp do
+		// right after playback starts; clamped because the tick position divides by it.
+		timePerInputTickMovingAverage = std::max<uint32_t>(
+		    (uint32_t)(timeThisInputTick - timeLastInputTicks[numInputTickTimesCounted - 1]) / numInputTickTimesCounted,
+		    1);
 		resetTimePerInternalTickMovingAverage();
 	}
 
@@ -2096,16 +2124,14 @@ void PlaybackHandler::resyncMIDIClockOutTicksToInternalTicks() {
 /** On OLED displayes both Swing amount and interval, on 7seg only the interval. */
 void PlaybackHandler::commandDisplaySwingInterval() {
 	etl::string<30> text;
-	if (display->haveOLED()) {
-		text.append("Swing: ");
-		if (currentSong->project.groove.swing_amount == 0) {
-			text.append("off");
-		}
-		else {
-			deluge::string::appendInt(text, currentSong->project.groove.swing_amount + 50);
-		}
-		text.append("\n");
+	text.append("Swing: ");
+	if (currentSong->project.groove.swing_amount == 0) {
+		text.append("off");
 	}
+	else {
+		deluge::string::appendInt(text, currentSong->project.groove.swing_amount + 50);
+	}
+	text.append("\n");
 	syncValueToString(currentSong->project.groove.swing_interval, text, currentSong->getInputTickMagnitude());
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
@@ -2117,25 +2143,15 @@ void PlaybackHandler::commandClearTempoAutomation() {
 /** On OLED displayes both Swing amount and interval, on 7seg only the amount. */
 void PlaybackHandler::commandDisplaySwingAmount() {
 	etl::string<30> text;
-	if (display->haveOLED()) {
-		text.append("Swing: ");
-		if (currentSong->project.groove.swing_amount == 0) {
-			text.append("off");
-		}
-		else {
-			deluge::string::appendInt(text, currentSong->project.groove.swing_amount + 50);
-		}
-		text.append("\n");
-		syncValueToString(currentSong->project.groove.swing_interval, text, currentSong->getInputTickMagnitude());
+	text.append("Swing: ");
+	if (currentSong->project.groove.swing_amount == 0) {
+		text.append("off");
 	}
 	else {
-		if (currentSong->project.groove.swing_amount == 0) {
-			text.append("OFF");
-		}
-		else {
-			deluge::string::appendInt(text, currentSong->project.groove.swing_amount + 50);
-		}
+		deluge::string::appendInt(text, currentSong->project.groove.swing_amount + 50);
 	}
+	text.append("\n");
+	syncValueToString(currentSong->project.groove.swing_interval, text, currentSong->getInputTickMagnitude());
 	display->popupTextTemporary(text.c_str(), PopupType::SWING);
 }
 
@@ -2303,7 +2319,7 @@ void PlaybackHandler::tempoEncoderAction(int8_t offset, bool encoderButtonPresse
 	else {
 		if (!isExternalClockActive()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			bool isOLEDSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
 			if (display->hasPopupOfType(PopupType::TEMPO) || isOLEDSessionView) {
 				// Truth table for how we decide between adjusting coarse and fine tempo:
 				//
@@ -2478,80 +2494,19 @@ void PlaybackHandler::getTempoStringForOLED(float tempoBPM, etl::istring& buffer
 void PlaybackHandler::displayTempoBPM(float tempoBPM) {
 	// The 7-seg needs to work so much harder there's no point trying to share the code.
 	etl::string<27> text;
-	if (display->haveOLED()) {
-		UI* currentUI = getCurrentUI();
-		// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
-		if ((currentUI == &sessionView || currentUI == &arrangerView)
-		    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
-			sessionView.lastDisplayedTempo = tempoBPM;
-			getTempoStringForOLED(tempoBPM, text);
-			sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
-			deluge::hid::display::OLED::markChanged();
-		}
-		else {
-			text.append("Tempo: ");
-			getTempoStringForOLED(tempoBPM, text);
-			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
-		}
+	UI* currentUI = getCurrentUI();
+	// if we're currently in song or arranger view, we'll render tempo on the display instead of a popup
+	if ((currentUI == &sessionView || currentUI == &arrangerView)
+	    && !deluge::hid::display::OLED::isPermanentPopupPresent()) {
+		sessionView.lastDisplayedTempo = tempoBPM;
+		getTempoStringForOLED(tempoBPM, text);
+		sessionView.displayTempoBPM(deluge::hid::display::OLED::main, text, true);
+		deluge::hid::display::OLED::markChanged();
 	}
 	else {
-		if (tempoBPM >= 9999.5) {
-			return display->popupTextTemporary("FAST", PopupType::TEMPO);
-		}
-
-		int32_t divisor = 1;
-		int32_t dotMask = (1 << 7);
-
-		if (tempoBPM >= 999.95) {}
-		else if (tempoBPM >= 99.995) {
-			divisor = 10;
-			dotMask |= (1 << 1);
-		}
-		else if (tempoBPM >= 9.9995) {
-			divisor = 100;
-			dotMask |= (1 << 2);
-		}
-		else {
-			divisor = 1000;
-			dotMask |= (1 << 3);
-		}
-
-		int32_t roundedBigger = tempoBPM * divisor + 0.5; // This will now be a 4 digit number
-		double roundedSmallerAgain = (double)roundedBigger / divisor;
-
-		bool isPerfect = false;
-
-		// It might get supplied here as a 0, even if it's actually very slightly above that, but we don't want do
-		// display that as an integer
-		if (roundedBigger != 0 && !isExternalClockActive()) {
-
-			// Compare to current tempo to see if 100% accurate
-			double roundedSmallerHere = roundedSmallerAgain;
-			if (currentSong->project.transport.inside_world_tick_magnitude > 0) {
-				roundedSmallerHere *= ((uint32_t)1 << (currentSong->project.transport.inside_world_tick_magnitude));
-			}
-			double newTempoSamples = (double)110250 / roundedSmallerHere;
-			if (currentSong->project.transport.inside_world_tick_magnitude < 0) {
-				newTempoSamples *= ((uint32_t)1 << (-currentSong->project.transport.inside_world_tick_magnitude));
-			}
-
-			uint64_t newTimePerTimerTickBig = newTempoSamples * 4294967296 + 0.5;
-
-			isPerfect = (currentSong->project.transport.samples_per_timer_tick_big == newTimePerTimerTickBig);
-		}
-
-		int32_t roundedTempoBPM = roundedSmallerAgain + 0.5;
-
-		// If perfect and integer...
-		if (isPerfect && roundedBigger == roundedTempoBPM * divisor) {
-			deluge::string::appendInt(text, roundedTempoBPM);
-			display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
-		}
-		else {
-			deluge::string::appendInt(text, roundedBigger, 4);
-			// This is what popupTextTemporary() does, except for passing in the dotMask
-			display->displayPopup(text.c_str(), 3, false, dotMask, 1, PopupType::TEMPO);
-		}
+		text.append("Tempo: ");
+		getTempoStringForOLED(tempoBPM, text);
+		display->popupTextTemporary(text.c_str(), PopupType::TEMPO);
 	}
 }
 
@@ -2697,7 +2652,6 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 				if (!sampleHolder->audioFile) {
 					continue; // Could maybe happen if some error?
 				}
-
 				foundAnyYet = true;
 				uint64_t loopLengthSamples = sampleHolder->getDurationInSamples(true);
 				action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
@@ -2869,6 +2823,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 					// routine - which is locked cos we're in it!
 					pendingGlobalMIDICommand = command;
 					pendingGlobalMIDICommandNumClustersWritten = 0;
+					deluge::runtime::appLoop.request(slowJob);
 				}
 				break;
 
@@ -2877,7 +2832,16 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 				break;
 
 			case GlobalMIDICommand::NEXT_SONG:
-				currentSong->loadNextSong();
+				// A song load takes down every UI over the song, the recorder's included, and arms the swap
+				// that retires the song an input take attaches to: held back until the take ends, the take
+				// attaches where it was recorded and the next song follows (see slowRoutine()).
+				if (audioRecorder.inputTakeInProgress()) {
+					nextSongPending_ = true;
+					display->displayPopup("Next song after take");
+				}
+				else {
+					currentSong->loadNextSong();
+				}
 				break;
 
 			case GlobalMIDICommand::SHIFT:
@@ -3078,14 +3042,9 @@ void PlaybackHandler::switchToArrangement() {
 	arrangement.setupPlayback();
 	arrangement.resetPlayPos(arrangementPosToStartAtOnSwitch);
 	arrangerView.reassessWhetherDoingAutoScroll();
-	if (display->haveOLED()) {
-		if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
-		    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-			renderUIsForOled();
-		}
-	}
-	else {
-		sessionView.redrawNumericDisplay();
+	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+		renderUIsForOled();
 	}
 
 	if (getCurrentUI() == &sessionView) {

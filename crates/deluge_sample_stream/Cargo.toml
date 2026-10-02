@@ -1,0 +1,29 @@
+# The streaming-file slot registry behind the `deluge_sample_stream_*` C ABI
+# (`libdeluge/sample_stream.h`). A plain `no_std` rlib with no `#[panic_handler]`: the final
+# artifact provides one.
+[package]
+name = "deluge_sample_stream"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+publish = false
+
+[lib]
+name = "deluge_sample_stream"
+crate-type = ["rlib"]
+
+[dependencies]
+deluge_sample_fill = { path = "../deluge_sample_fill" }
+# The slot table's blocking mutex. Its callers never run on the audio render ISR, so a plain
+# critical-section mutex is enough; no embassy-executor.
+embassy-sync = "0.8.0"
+
+[dev-dependencies]
+# `cargo test` links standalone and needs a `critical-section` impl for `REGISTRY`; the firmware
+# build gets one from the BSP.
+critical-section = { version = "1", features = ["std"] }
+
+[features]
+## Export the C ABI (`#[no_mangle]`). The BSP and the unit-test umbrella turn it on; the crate's own
+## tests leave it off, since the exports call symbols only a final link provides.
+c_abi = []

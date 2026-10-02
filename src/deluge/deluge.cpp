@@ -19,9 +19,14 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/folder_import.h"
+#include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
+#include "gui/ui/load/load_pattern_ui.h"
 #include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/reversion.h"
 #include "gui/ui/save/save_instrument_preset_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/sound_editor.h"
@@ -36,13 +41,15 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
+#include "hid/display/screensaver.h"
+#include "hid/display/seven_segment_tombstone.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
+#include "io/file.hpp"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
@@ -51,45 +58,45 @@
 #include "libdeluge/board.h"
 #include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
+#include "libdeluge/file_io.h"
 #include "libdeluge/signals.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/favourite/favourite_manager.h"
 #include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param_manager.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
-#include "scheduler_api.h"
+#include "processing/stem_export/stem_export.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/audio_file_manager.h"
+#include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
 #include "storage/smsysex.h"
+#include "storage/startup_song.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
-#include "util/pack.h"
+#include <libdeluge/scheduler.h>
 #include <stdlib.h>
 
-extern "C" {
-#include "fatfs/ff.h"
-}
-
 namespace encoders = deluge::hid::encoders;
-
-extern uint8_t currentlyAccessingCard;
-
-extern "C" void disk_timerproc(UINT msPassed);
 
 Song* currentSong = nullptr;
 Song* preLoadedSong = nullptr;
 
-bool allowSomeUserActionsEvenWhenInCardRoutine = false;
-
-extern "C" void midiAndGateTimerGoneOff(void) {
-	cvEngine.updateGateOutputs();
-	midiEngine.flushMIDI();
+extern "C" void midiAndGateTimerGoneOff(void) noexcept {
+	try {
+		cvEngine.updateGateOutputs();
+		midiEngine.flushMIDI();
+	} catch (...) {
+		// An interrupt has no caller to report to. What was not sent stays pending for the next flush.
+	}
 }
 
 uint32_t timeNextGraphicsTick = 0;
@@ -109,8 +116,6 @@ void batteryLEDBlink() {
 }
 
 void inputRoutine() {
-	disk_timerproc(UI_MS_PER_REFRESH);
-
 	// Check if mono output cable plugged in
 	bool outputPluggedInL = deluge_signal_read(DELUGE_SIGNAL_LINE_OUT_DETECT_L);
 	bool outputPluggedInR = deluge_signal_read(DELUGE_SIGNAL_LINE_OUT_DETECT_R);
@@ -197,121 +202,80 @@ makeBattLEDSolid:
 }
 
 bool alreadyDoneScroll = false;
-bool waitingForSDRoutineToEnd = false;
 
-// An input event whose action returned REMIND_ME_OUTSIDE_CARD_ROUTINE: held here
-// and re-dispatched once the SD routine ends (the pull-model replacement for the
-// old uartPutCharBack back-pressure).
-static DelugeInputEvent heldInputEvent;
-
-extern uint8_t anythingInitiallyAttachedAsUSBHost;
-
-bool closedPeripheral = false;
+namespace {
+/// When the console-text quiet window ends, in µs on the BSP clock: one second after boot, then
+/// wherever setTimeUSBInitializationEnds moves it.
+deluge::runtime::Micros usbInitializationEndsUs = 1'000'000;
+} // namespace
 
 extern "C" {
-/// Wait for one second
-uint32_t timeUSBInitializationEnds = kSampleRate;
-uint8_t usbInitializationPeriodComplete = 0;
-
 void setTimeUSBInitializationEnds(int32_t timeFromNow) {
-	timeUSBInitializationEnds = AudioEngine::audioSampleTimer + timeFromNow;
-	usbInitializationPeriodComplete = 0;
-}
+	usbInitializationEndsUs =
+	    deluge::runtime::nowUs() + static_cast<deluge::runtime::Micros>(timeFromNow) * 1'000'000 / kSampleRate;
 }
 
-extern "C" void openUSBHost(void);
-extern "C" void closeUSBHost();
-extern "C" void openUSBPeripheral();
-extern "C" void closeUSBPeripheral(void);
+bool usbInitializationPeriodComplete() {
+	return deluge::runtime::nowUs() >= usbInitializationEndsUs;
+}
+}
 
 uint32_t picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
+
+namespace Deluge {
+void factoryReset() {
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	FlashStorage::factoryReset(false);
+	runtimeFeatureSettings.factoryReset(false);
+	midiFollow.factoryReset(false);
+	MIDIDeviceManager::factoryReset(false);
+}
+} // namespace Deluge
 
 bool isShortPress(uint32_t pressTime) {
 	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
 }
 
-// Dispatch one decoded input event. Returns false if it must be retried once the
-// SD routine ends (the event is stashed in heldInputEvent and
-// waitingForSDRoutineToEnd is set); true once handled.
-static bool dispatchInputEvent(const DelugeInputEvent& ev) {
+// Dispatch one decoded input event.
+static void dispatchInputEvent(const DelugeInputEvent& ev) {
 	switch (ev.kind) {
 	case DELUGE_EVENT_PAD: {
+		deluge::hid::display::Screensaver::noteActivity();
 		// value is the velocity; 255 means "use the instrument default", 0 a release.
-		ActionResult result = matrixDriver.padAction(ev.x, ev.y, ev.value);
+		matrixDriver.padAction(ev.x, ev.y, ev.value);
 		if (ev.value) {
 			Buttons::ignoreCurrentShiftForSticky();
-		}
-		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-			heldInputEvent = ev;
-			waitingForSDRoutineToEnd = true;
-			return false;
 		}
 		break;
 	}
 	case DELUGE_EVENT_BUTTON: {
-		auto b = deluge::hid::button::fromXY(ev.x, ev.y);
-		ActionResult result = Buttons::buttonAction(b, ev.value, isSDRoutineActive());
-		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-			heldInputEvent = ev;
-			waitingForSDRoutineToEnd = true;
-			return false;
-		}
+		deluge::hid::display::Screensaver::noteActivity();
+		Buttons::buttonAction(deluge::hid::button::fromXY(ev.x, ev.y), ev.value);
 		break;
 	}
 	case DELUGE_EVENT_NO_PRESSES:
-		if (!isSDRoutineActive()) {
-			matrixDriver.noPressesHappening(isSDRoutineActive());
-			Buttons::noPressesHappening(isSDRoutineActive());
-		}
+		// The safety net that releases any pad the firmware still thinks is held (e.g. because a release
+		// event was lost under load); see issue #3168.
+		matrixDriver.noPressesHappening();
+		Buttons::noPressesHappening();
 		break;
 	default:
 		break; // ENCODER events do not arrive on this channel
 	}
-	return true;
 }
 
 bool readButtonsAndPads() {
+	bool anything = false;
 
-	if (!usbInitializationPeriodComplete && (int32_t)(AudioEngine::audioSampleTimer - timeUSBInitializationEnds) >= 0) {
-		usbInitializationPeriodComplete = 1;
-	}
-
-	/*
-	if (!inSDRoutine && !closedPeripheral && !anythingInitiallyAttachedAsUSBHost && AudioEngine::audioSampleTimer >=
-	(44100 << 1)) { D_PRINTLN("closing peripheral"); closeUSBPeripheral(); D_PRINTLN("switching back to host");
-	    openUSBHost();
-	    closedPeripheral = true;
-	}
-	*/
-
-	if (waitingForSDRoutineToEnd) {
-		if (isSDRoutineActive()) {
-			return false;
-		}
-		D_PRINTLN("got to end of sd routine");
-		waitingForSDRoutineToEnd = false;
-		// Re-dispatch the event we deferred; it may defer again.
-		if (!dispatchInputEvent(heldInputEvent)) {
-			return false;
-		}
-	}
-
+	// Drain the queue: the BSP wakes this job once for a burst.
 	DelugeInputEvent ev;
-	bool anything = deluge_control_poll_event(&ev);
-	if (anything) {
-		if (!dispatchInputEvent(ev)) {
-			return false;
-		}
+	while (deluge_control_poll_event(&ev)) {
+		anything = true;
+		dispatchInputEvent(ev);
 	}
 
-	// OLED transfer-ack: the input decode consumed the PIC ack, so pump the next
-	// low-level OLED transfer here rather than off a raw byte.
-	if (deluge_display_consume_transfer_ack() && deluge::hid::display::have_oled_screen) {
-		uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
-	}
-
-	if (!isSDRoutineActive() && Buttons::shiftHasChanged()
+	if (Buttons::shiftHasChanged()
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
 		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
 	}
@@ -358,9 +322,7 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 }
 
 void setupBlankSong() {
@@ -387,243 +349,203 @@ void setupBlankSong() {
 
 	setUIForLoadedSong(currentSong);
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	deluge::gui::instrumentLoad.songMadeCurrent();
 }
 
-/// Can only happen after settings, which includes default settings, have been read
-void setupStartupSong() {
+// Which conditional task fires once the SD card is ready. Normally the settings prelude, which
+// reads the three settings files through the channel and THEN arms the startup-song loader above;
+// headless hosts override this before deluge_app_init() runs (see deluge_startup_skip_settings_prelude()).
+// A plain firmware or interactive-host build never touches it, so behaviour is unchanged on-device.
+void (*startupConditionalTask)() = deluge::storage::armStartupSettings;
 
-	auto startupSongMode = FlashStorage::defaultStartupSongMode;
-	auto defaultSongFullPath = "SONGS/DEFAULT.XML";
-	auto filename =
-	    startupSongMode == StartupSongMode::TEMPLATE ? defaultSongFullPath : runtimeFeatureSettings.getStartupSong();
-	std::string failSafePath;
-	failSafePath.append("SONGS/__STARTUP_OFF_CHECK_");
-	auto size = strlen(filename) + 1;
-	// The messages we show to the user are mostly plain language, but
-	// for non-user facing errors we use codes. All messages are < 20 chars.
-	if (size > 2048) {
-		display->consoleText("Startup path too long");
-		return;
-	}
+/// @brief Opt a non-Deluge host out of the boot-settings prelude, leaving only the startup song.
+///
+/// A host that drives its own scenario and never services the byte channel cannot complete work
+/// submitted to it: the prelude's reads (and, when MIDI_FOLLOW.XML is absent, the write its
+/// `onAbsent` performs) sit in the single-slot channel forever and wedge whatever else needs it.
+/// Measured: the offline stem drain hung for 900s against a cold card image, and finished in 37s
+/// with nothing submitted.
 
-	char replaced[sizeof(char) * strlen(filename) + 1]; // +1 for NULL terminator
-	replace_char(replaced, filename, '/', '_');
-	failSafePath.append(replaced);
-
-	if (StorageManager::fileExists(failSafePath.c_str())) {
-		// canary exists, previous boot failed?
-		display->consoleText("Startup fault F1");
-		return; // no cleanup, keep canary!
-	}
-	switch (startupSongMode) {
-	case StartupSongMode::TEMPLATE: {
-		if (!StorageManager::fileExists(defaultSongFullPath)) {
-			display->consoleText("Creating template");
-			currentSong->writeTemplateSong(defaultSongFullPath);
-		}
-	}
-		[[fallthrough]];
-	case StartupSongMode::LASTOPENED:
-		[[fallthrough]];
-	case StartupSongMode::LASTSAVED: {
-		// Create canary
-		FIL f;
-		if (f_open(&f, failSafePath.c_str(), FA_CREATE_ALWAYS | FA_WRITE) == FR_OK) {
-			f_close(&f);
-		}
-		else {
-			// Could not create canary, not a user-facing error so code is fine.
-			// We're going to skip the startup song to avoid any issues.
-			display->consoleText("Startup fault F2");
-			return; // no canary, no cleanup
-		}
-		// Handle missing song
-		if (!StorageManager::fileExists(filename)) {
-			if (startupSongMode == StartupSongMode::TEMPLATE) {
-				// we tried to create it earlier, but didn't happen?
-				display->consoleText("Startup fault F3");
-				// cleanup, this wasn't a crash
-				f_unlink(failSafePath.c_str());
-				return;
-			}
-			display->consoleText("Song missing");
-			// user didn't ask for the template, but if it exists let's use it instead
-			if (StorageManager::fileExists(defaultSongFullPath)) {
-				display->consoleText("Using template");
-				filename = defaultSongFullPath;
-				startupSongMode = StartupSongMode::TEMPLATE;
-			}
-			else {
-				// cleanup, this wasn't a crash
-				f_unlink(failSafePath.c_str());
-				return;
-			}
-		}
-		// Load song, if we got this far!
-		void* songMemory = deluge::memory::alloc_fast(sizeof(Song));
-		currentSong->setSongFullPath(filename);
-		if (openUI(&loadSongUI)) {
-			loadSongUI.performLoad();
-			if (startupSongMode == StartupSongMode::TEMPLATE) {
-				// Wipe the name so the Save action asks you for a new song
-				currentSong->project.metadata.name.clear();
-			}
-		}
-		else {
-			// what just failed??
-			display->consoleText("Startup fault F4");
-		}
-		// ...but we got this far, cleanup
-		f_unlink(failSafePath.c_str());
-	} break;
-	case StartupSongMode::BLANK:
-		[[fallthrough]];
-	default:
-		return;
-	}
+extern "C" void deluge_startup_skip_settings_prelude() noexcept {
+	startupConditionalTask = deluge::storage::armStartupSong;
 }
 
-// Which conditional task fires once the SD card is ready. Normally the startup-song
-// loader above; the headless stem-render utility (src/bsp/host/host_render_main.cpp)
-// overrides this with its own driver before deluge_main() runs. A plain firmware or
-// interactive-host build never touches it, so behaviour is unchanged on-device.
-TaskHandle startupConditionalTask = setupStartupSong;
+namespace {
+using deluge::runtime::appLoop;
+using deluge::runtime::kNever;
+using deluge::runtime::Micros;
 
-extern "C" void usb_pstd_pcd_task(void);
-extern "C" void usb_cstd_usb_task(void);
+constexpr Micros us(double seconds) {
+	return static_cast<Micros>(seconds * 1'000'000.0);
+}
 
-extern "C" volatile uint32_t usbLock;
+deluge::runtime::JobId startupJob = deluge::runtime::kNoJob;
 
-extern "C" void usb_main_host(void);
+#if ENABLE_TEXT_OUTPUT
+/// Jobs whose worst run is at least this long are reported: this long is how late a single run
+/// can make every other job, the playback and MIDI routines included.
+constexpr Micros kReportRunAtLeast = 1000;
 
-void registerTasks() {
-	// addRepeatingTask arguments are:
-	//
-	// - priority (lower = more important)
-	// - min time between calls
-	// - target time between calls
-	// - max time between calls
-	//
-	// Scheduling algorithm is in chooseBestTask(), briefly:
-	// - keep track of average time a task takes
-	// - run the least important task that can finish before
-	//   a more important task needs to start
-	//
-	// Explicit gaps at 10, 20, 30, 40 for dynamic tasks.
-	//
-	// p++ for priorities, so we can be sure the lexical order
-	// here is always priority order.
+/// Prints each job whose worst run since the last report reached kReportRunAtLeast or that threw,
+/// then starts a new window. Debug builds only; its output goes wherever D_PRINTLN does (RTT on the
+/// device).
+void reportJobStats() {
+	for (deluge::runtime::JobId id = 0; id < appLoop.size(); ++id) {
+		const auto s = appLoop.stats(id);
+		if (s.maxRun >= kReportRunAtLeast || s.failures != 0) {
+			D_PRINTLN("job %s: worst %llu us over %lu runs, %lu failed (last %llu us)", s.name,
+			          static_cast<unsigned long long>(s.maxRun), static_cast<unsigned long>(s.runs),
+			          static_cast<unsigned long>(s.failures), static_cast<unsigned long long>(s.lastRun));
+		}
+	}
+	appLoop.resetStats();
+}
+#endif
 
-	// 0-9: High priority (10 for dyn tasks)
-	uint8_t p = 0;
-	AudioEngine::routine_task_id = addRepeatingTask(&(AudioEngine::routine_task), p++, 8 / 44100., 64 / 44100.,
-	                                                128 / 44100., "audio  routine", RESOURCE_NONE);
-	addRepeatingTask(MidiEngine::check_incoming_usb, p++, 0.0005, 0.0005, 0.001, "check usb midi", RESOURCE_USB);
+/// Polls for the card, then runs the startup task once.
+void startupWhenCardReady() {
+	if (isCardReady()) {
+		startupConditionalTask();
+		appLoop.cancel(startupJob);
+	}
+}
+} // namespace
 
-	// this will block itself unless an encoder is actually moved so can have a fast rate
-	encoders::EncoderTaskID = addRepeatingTask(&(encoders::interpretEncodersTask), p++, 0.001, 0.001, 0.002,
-	                                           "interpret encoders fast", RESOURCE_NONE);
-	// formerly part of audio routine, updates midi and clock
-	addRepeatingTask([]() { playbackHandler.routine(); }, p++, 0.0005, 0.001, 0.002, "playback routine", RESOURCE_NONE);
-	midiEngine.routine_task_id = addRepeatingTask([]() { playbackHandler.midiRoutine(); }, p++, 0.0005, 0.001, 0.002,
-	                                              "midi routine", RESOURCE_SD | RESOURCE_USB);
-	addRepeatingTask([]() { audioFileManager.loadAnyEnqueuedClusters(128, false); }, p++, 0.0001, 0.0001, 0.0002,
-	                 "load clusters", RESOURCE_NONE);
-	// handles sd card recorders
-	// named "slow" but isn't actually, it handles audio recording setup
-	addRepeatingTask(&AudioEngine::slowRoutine, p++, 0.001, 0.005, 0.05, "audio slow", RESOURCE_NONE);
-	addRepeatingTask(&(readButtonsAndPadsOnce), p++, 0.005, 0.005, 0.01, "buttons and pads", RESOURCE_NONE);
+// The app's jobs, which the BSP's app loop runs (runtime/app_loop.h): in registration order, one at a
+// time. A job runs when its gap has passed since its last run ended, or when a reason it listens for
+// arrives. The render is not a job: the BSP's audio tier drives it (deluge_app_audio_tick).
+void registerJobs() {
+	appLoop.add("interpret encoders", &encoders::interpretEncodersTask, kNever, DELUGE_WAKE_ENCODERS);
+	// Updates MIDI and clock.
+	appLoop.add("playback routine", [] { playbackHandler.routine(); }, us(0.0015), 0);
+	appLoop.add("midi routine", [] { playbackHandler.midiRoutine(); }, us(0.0015), 0);
+	// Named "slow" but isn't: it handles audio recording setup.
+	appLoop.add("audio slow", &AudioEngine::slowRoutine, us(0.006), 0);
+	// Frees what deleted outputs and drums handed to the render, once it has run two blocks past them. Runs when
+	// something is handed over, and again while anything is still waiting -- see AudioEngine::reclaimRoutine.
+	AudioEngine::reclaimJob = appLoop.add("reclaim retired", &AudioEngine::reclaimRoutine, kNever, 0);
+	// Anything handed over before the job existed asked for nobody's run.
+	appLoop.request(AudioEngine::reclaimJob);
+	// Runs only when the BSP has queued pad or button events, and drains them all.
+	appLoop.add("buttons and pads", &readButtonsAndPadsOnce, kNever, DELUGE_WAKE_INPUT);
+	appLoop.add("pending UI", &doAnyPendingUIRendering, us(0.02), 0);
 
-	// 11-19: Medium priority (20 for dyn tasks)
-	p = 11;
+	// Advances a song load past a wait it has finished. Cheap when no load is in flight. It runs one phase of the
+	// load and returns; the load's card I/O goes through the channels. It runs when a load begins, when a storage
+	// channel answers, and at the time the phase it is parked in asks for -- see LoadSongUI::armNextRun.
+	loadSongUI.jobId = appLoop.add("song load", [] { loadSongUI.loadRoutine(); }, kNever, DELUGE_WAKE_STORAGE);
+	// The startup song's load can begin before the job exists.
+	appLoop.request(loadSongUI.jobId);
 
-	// 30 Hz update desired?
-	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
+	// A staged document save builds itself on this tier and then stores it in one operation. Like the
+	// song load above, it parks between steps and needs something to bring it back -- and returning to
+	// the run loop is the only reason the storage driver can make progress at all.
+	// It runs when a save starts, when the channel answers, and at the stall bound's deadline of the wait it is on --
+	// see SaveUI::saveJob.
+	SaveUI::saveJob = appLoop.add("document save", [] { SaveUI::saveRoutine(); }, kNever, DELUGE_WAKE_STORAGE);
+	// The sample browser's claim is a phase machine on this tier, and like the save above it waits between steps and
+	// needs something to bring it back, whichever UI is on top. It runs when a claim is asked for, when a storage
+	// channel answers, and at the time its wait asks for -- see SampleClaim::armNextRun.
+	deluge::gui::sampleClaim.jobId =
+	    appLoop.add("sample claim", [] { deluge::gui::sampleClaim.routine(); }, kNever, DELUGE_WAKE_STORAGE);
+	// The browser's folder import is the same kind of machine, and its context menu is on top while it runs, so it has
+	// no graphics routine of its own to be ticked from either. It runs when an import is asked for, when a storage
+	// channel answers, and at the time its wait asks for -- see FolderImport::armNextRun.
+	deluge::gui::folderImport.jobId =
+	    appLoop.add("folder import", [] { deluge::gui::folderImport.routine(); }, kNever, DELUGE_WAKE_STORAGE);
+	// The preset browser's own loads are the same kind of machine; the clone menu can be on top while one is out.
+	// Undo and redo are the same kind of machine: the reversion's samples are loaded here before it runs. It runs when
+	// a reversion is asked for, when a storage channel answers, and at its pre-load's next tick -- see
+	// Reversion::routine.
+	deluge::gui::reversion.jobId =
+	    appLoop.add("reversion", [] { deluge::gui::reversion.routine(); }, kNever, DELUGE_WAKE_STORAGE);
+	// The pattern browser's reads are the same kind of machine, and a load from Enter lands after the browser has
+	// closed. They share this job: one job per UI surface. It runs when either is asked for a load, when a storage
+	// channel answers, and at the time their waits ask for -- see InstrumentLoad::armNextRun and
+	// LoadPatternUI::loadRoutine.
+	deluge::gui::instrumentLoad.jobId = appLoop.add(
+	    "instrument load",
+	    [] {
+		    deluge::gui::instrumentLoad.routine();
+		    loadPatternUI.loadRoutine();
+	    },
+	    kNever, DELUGE_WAKE_STORAGE);
+	loadPatternUI.jobId = deluge::gui::instrumentLoad.jobId;
+	// The boot song is built before the job exists, and a blank one asks for its first preset from the job's run.
+	deluge::gui::instrumentLoad.songMadeCurrent();
+	// Drives whatever a settings read or write handed to the byte channel: a request/collect state machine whose
+	// caller returned long ago, with no UI tick of its own to resume from. It runs when a submission asks for it, when
+	// the channel answers, and at its stall bound's deadline -- see deluge::storage::bytes::serviceJob.
+	deluge::storage::bytes::serviceJob = appLoop.add(
+	    "settings io",
+	    [] {
+		    deluge::storage::bytes::serviceRoutine();
+		    // The favourites bank rides the same channel and applies what an operation produced on THIS tier, so
+		    // it runs straight after the channel has been driven.
+		    favouritesManager.serviceRoutine();
+		    // A staged document released mid-read is parked until the byte channel lets go of it, which wakes
+		    // this job; free it then.
+		    StorageManager::reapOrphanedStaging();
+	    },
+	    kNever, DELUGE_WAKE_STORAGE);
+	// A submission made before the job existed asked for nobody's run.
+	appLoop.request(deluge::storage::bytes::serviceJob);
 
-	// Check for and handle queued SysEx traffic
-	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.",
-	                 RESOURCE_SD);
+	// Advances the startup fail-safe's phases. Beside the two above for the same reason: it is a
+	// request/collect state machine whose caller returned long ago, and it has no UI tick of its own
+	// to resume from. Cheap and reentrant once the machine reaches Done.
+	deluge::storage::startupSongJob =
+	    appLoop.add("startup failsafe", [] { deluge::storage::startupSongRoutine(); }, kNever, DELUGE_WAKE_STORAGE);
 
-	// 21-29: Low priority (30 for dyn tasks)
-	p = 21;
+	// Same shape for stem export: each pass runs one phase of the export and returns, so the
+	// UI keeps running for the whole export - which is what makes cancelling it possible at all.
+	// It runs when an export starts or is aborted, when a storage channel answers or the streaming loader drains, and
+	// at the time the phase it is parked in asks for: at once while an offline render has blocks to go and is not
+	// waiting on the card -- see StemExport::armNextRun.
+	stemExport.jobId = appLoop.add("stem export", [] { stemExport.exportRoutine(); }, kNever, DELUGE_WAKE_STORAGE);
+
+	// Runs only when a SysEx message is queued, when a storage channel answers (a path operation or directory open
+	// it waits on), or when the job itself asks for another run (a back-off, or the deadline of the wait it is on): see
+	// smSysex::sysexReceived and smSysex::handleNextSysEx.
+	smSysex::jobId =
+	    appLoop.add("Handle pending SysEx traffic.", [] { smSysex::handleNextSysEx(); }, kNever, DELUGE_WAKE_STORAGE);
+
 	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
 	// if recordings are finished
-	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, p++, 0.1, 0.1, 0.2, "audio file slow", RESOURCE_SD);
-	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow", RESOURCE_NONE);
-	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
-	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "playback slow routine",
-	                 RESOURCE_SD);
-	// 31-39: Idle priority (40 for dyn tasks)
-	p = 31;
-	addRepeatingTask(&deluge_control_flush, p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
-	if (hid::display::have_oled_screen) {
-		addRepeatingTask(&deluge_display_service, p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
-	}
-	// needs to be called very frequently,
-	// handles animations and checks on the timers for any infrequent actions
-	// long term this should probably be made into an idle task
-	addRepeatingTask([]() { uiTimerManager.routine(); }, p++, 0.0001, 0.0007, 0.01, "ui routine", RESOURCE_NONE);
-
-	// addRepeatingTask([]() { AudioEngine::routineWithClusterLoading(true); }, 0, 1 / 44100., 16 / 44100., 32 / 44100.,
-	// true); addRepeatingTask(&(AudioEngine::routine), 0, 16 / 44100., 64 / 44100., true);
+	appLoop.add("audio file slow", [] { audioFileManager.slowRoutine(); }, us(0.2), 0);
+	// It can call finishRecording(), which frees the SampleRecorder. Jobs run one at a time on this tier, so no other
+	// job is part-way through using that recorder when it does.
+	appLoop.add("audio recorder slow", [] { audioRecorder.slowRoutine(); }, us(0.1), 0);
+	// An audio-input take: ends it on a card error, attaches its sample once it settles, and keeps the recorder's
+	// status line current. Requested when a take starts, and asks for its own next run while the take is in progress
+	// -- see AudioRecorder::tick. It and the job above never finish the same take: each owns one kind of source.
+	audioRecorder.jobId = appLoop.add("audio recorder", [] { audioRecorder.tick(); }, kNever, 0);
+	// Actions undo/redo MIDI commands that had to wait for the card. Requested where a command is made to wait, and
+	// again while the card is busy -- see PlaybackHandler::slowRoutine.
+	playbackHandler.slowJob = appLoop.add("playback slow routine", [] { playbackHandler.slowRoutine(); }, kNever, 0);
+	// Runs the UI timers (animations, blinks, the graphics routine) at the next one's time: routine() and
+	// setTimer() ask for the job's next run themselves.
+	uiTimerManager.jobId = appLoop.add("ui routine", [] { uiTimerManager.routine(); }, kNever, 0);
+	// Boot armed its timers before the job existed, so nothing has asked for its first run yet.
+	appLoop.request(uiTimerManager.jobId);
+	startupJob = appLoop.add("startup/render", &startupWhenCardReady, us(0.004), 0);
+#if ENABLE_TEXT_OUTPUT
+	appLoop.add("job stats", &reportJobStats, us(10.0), 0);
+#endif
 }
-// One cooperative slice of the run loop. The libdeluge platform calls this
-// repeatedly (app.h: deluge_app_tick) — under Embassy it runs inside a task that
-// yields between ticks, so the BSP's async tasks can run. mainLoop() below is the
-// equivalent bare-metal superloop (host / task-manager-free builds).
-extern "C" void deluge_app_tick(void) {
-	uiTimerManager.routine();
-
-	// Flush stuff - we just have to do this, regularly
-	if (hid::display::have_oled_screen) {
-		deluge_display_service();
-	}
-	deluge_control_flush();
-
-	AudioEngine::routineWithClusterLoading(true);
-
-	int32_t count = 0;
-	while (readButtonsAndPads() && count < 16) {
-		if (!(count & 3)) {
-			AudioEngine::routineWithClusterLoading(true);
-		}
-		count++;
-	}
-
-	bool anything = encoders::interpretEncoders();
-	if (anything) {
-		AudioEngine::routineWithClusterLoading(true);
-	}
-
-	doAnyPendingUIRendering();
-
-	AudioEngine::routineWithClusterLoading(true);
-
-	// Only actually needs calling a couple of times per second, but we can't put it in uiTimerManager cos that gets
-	// called in card routine
-	audioFileManager.slowRoutine();
-	AudioEngine::slowRoutine();
-
-	audioRecorder.slowRoutine();
-}
-
-void mainLoop() {
-	while (1) {
-		deluge_app_tick();
-	}
-}
-// Shared one-time bring-up: everything up to (but not including) starting the
-// run loop / task manager. Factored out so both the bare-metal entry
-// (deluge_main, below) and the libdeluge cooperative entry (deluge_app_init)
-// reuse it without duplicating boot or reordering encoder init.
+// One-time bring-up: everything up to (but not including) registering the tasks.
 static void deluge_boot(const DelugeBoard* board) {
 	(void)board;
-	bool have_oled = deluge_board_probe_oled();
+
+	if (!deluge_board_probe_oled()) {
+		// This firmware does not support 7-segment hardware. Tell the user and stop,
+		// before we bring up audio, SD, or the task manager.
+		deluge_control_init();
+		deluge::hid::display::tombstoneAndHalt();
+	}
 
 	// Give the control surface its startup configuration.
-	if (have_oled) {
-		deluge_control_enable_oled();
-	}
+	deluge_control_enable_oled();
 
 	deluge_control_init();
 
@@ -637,17 +559,10 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	// One-time board bring-up: GPIO directions + initial state, the CV DAC SPI,
 	// and (when an OLED is fitted) its shared-SPI plumbing.
-	deluge_board_init_early(have_oled);
+	deluge_board_init_early(true);
 
-	if (have_oled) {
-		deluge_display_init(); // Set up OLED now
-		display = new deluge::hid::display::OLED;
-	}
-	else {
-		display = new deluge::hid::display::SevenSegment;
-	}
-	// remember the physical display type
-	deluge::hid::display::have_oled_screen = have_oled;
+	deluge_display_init(); // Set up OLED now
+	display = new deluge::hid::display::OLED;
 
 	// Setup audio output on SSI0
 	deluge_board_init_audio();
@@ -656,15 +571,9 @@ static void deluge_boot(const DelugeBoard* board) {
 	makeTestRecording();
 #endif
 
-	// encoders::init() is deferred until after registerTasks() below: it hands the encoder
-	// edge source the scheduler id of the encoder task to wake on movement (the task blocks
-	// itself between rotations), and that id isn't assigned until the task is registered.
-
 #if TEST_GENERAL_MEMORY_ALLOCATION
 	GeneralMemoryAllocator::get().test();
 #endif
-
-	init_crc_table();
 
 	// Setup for gate output
 	cvEngine.init();
@@ -695,46 +604,24 @@ static void deluge_boot(const DelugeBoard* board) {
 	D_PRINTLN("PIC firmware version reported: %d", picFirmwareVersion);
 
 	if (bootInfo.factory_reset_requested) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
-		FlashStorage::resetSettings();
-		FlashStorage::writeSettings();
+		Deluge::factoryReset();
 	}
 
 	FlashStorage::readSettings();
 
 	runtimeFeatureSettings.init();
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
-	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
-		deluge::hid::display::swapDisplayType();
-	}
-
 	// Assign each ConnectedUSBMIDIDevice its boundary MIDI port and initialise the
 	// MIDI transport before the USB stack can drive any MIDI transfers.
 	MIDIDeviceManager::init();
 
-	usbLock = 1;
-	openUSBHost();
-
-	// If nothing was plugged in to us as host, we'll go peripheral
-	// Ideally I'd like to repeatedly switch between host and peripheral mode anytime there's no USB connection.
-	// To do that, I'd really need to know at any point in time whether the user had just made a connection, just then,
-	// that hadn't fully initialized yet. I think I sorta have that for host, but not for peripheral yet.
-	if (!anythingInitiallyAttachedAsUSBHost) {
-		D_PRINTLN("switching from host to peripheral");
-		closeUSBHost();
-		openUSBPeripheral();
-	}
-
-	usbLock = 0;
-
-	// Hopefully we can read these files now
-	runtimeFeatureSettings.readSettingsFromFile();
-	MIDIDeviceManager::readDevicesFromFile();
-	midiFollow.readDefaultsFromFile();
+	// The three settings files are NOT read here. They are read by the settings prelude
+	// (storage/startup_song.h) behind the same card-ready trigger as the startup song, through the
+	// byte channel. Boot therefore touches the card not at all, and the UI starts without waiting
+	// for it -- which is what lets the reads' blocking arms be deleted, and with them the boot
+	// window that `deluge::boot::finished()` names.
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
 	setupBlankSong(); // we always need to do this
-	addConditionalTask(startupConditionalTask, 100, isCardReady, "startup/render", RESOURCE_SD | RESOURCE_SD_ROUTINE);
 
 #ifdef TEST_VECTOR
 	NoteVector noteVector;
@@ -751,108 +638,56 @@ static void deluge_boot(const DelugeBoard* board) {
 	noteVector.testDuplicates();
 #endif
 
-#ifdef TEST_SD_WRITE
-
-	FIL fil; // File object
-	FATFS fs;
-	DIR dp;
-	FRESULT result; //	 FatFs return code
-	int32_t sdTotalBytesWritten;
-
-	int32_t count = 0;
-
-	while (true) {
-
-		display->setTextAsNumber(count);
-
-		int32_t fileNumber = (uint32_t)getNoise() % 10000;
-		int32_t fileSize = (uint32_t)getNoise() % 1000000;
-
-		char fileName[20];
-		strcpy(fineName, "TEST/") intToString(fileNumber, &fileName[5], 4);
-		strcat(fileName, ".TXT");
-
-		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
-		if (result) {
-			display->setText("AAAA");
-			while (1) {}
-		}
-
-		sdTotalBytesWritten = 0;
-
-		while (sdTotalBytesWritten < fileSize) {
-			UINT bytesWritten = 0;
-			result = f_write(&fil, &miscStringBuffer, 256, &bytesWritten);
-
-			if (bytesWritten != 256) {
-				display->setText("BBBB");
-				while (1) {}
-			}
-
-			sdTotalBytesWritten += 256;
-		}
-
-		f_close(&fil);
-
-		count++;
-	}
-#endif
-
 	inputRoutine();
 
 	uiTimerManager.setTimer(TimerName::GRAPHICS_ROUTINE, 50);
+
+	// Settings have been read and the UI is up: start the idle countdown.
+	deluge::hid::display::Screensaver::settingsChanged();
 
 	D_PRINTLN("going into main loop");
 	deluge_board_unlock_data_cache();
 	// (The SD-routine reentrancy flag is scheduler-owned and starts clear; no reset needed here.)
 }
 
-// libdeluge cooperative entry (app.h), Embassy BSP only (host / bare-metal use
-// deluge_main below). The platform calls deluge_app_init() once at startup; on
-// the Embassy BSP the scheduler_api.h C ABI is backed by the Embassy executor
-// (one task per registered task — see src/bsp/rust/src/scheduler.rs), so we
-// registerTasks() here and the runners drive the app. There is no inline
-// deluge_app_tick() loop: addRepeatingTask spawns an Embassy task immediately.
-// registerTasks() must precede encoders::init() — the encoder edge source needs
-// the (now-assigned) encoder task id to wake the self-blocking encoder task.
-extern "C" void deluge_app_init(const DelugeBoard* board) {
-	deluge_boot(board);
-	registerTasks();
-	encoders::init();
+// libdeluge entry (app.h). The platform calls deluge_app_init() once at startup. When it returns, the
+// BSP's audio tier starts calling deluge_app_audio_tick() and its app loop deluge_app_service(),
+// which runs the jobs registerJobs() added.
+extern "C" void deluge_app_init(const DelugeBoard* board) noexcept {
+	try {
+		deluge_boot(board);
+		registerJobs();
+		// The BSP's audio tier starts rendering once this returns.
+		AudioEngine::renderDrivenByTier.store(true, std::memory_order_release);
+	} catch (...) {
+		// A boot that ran out of memory cannot go on; freeze with a code rather than terminate silently. The throw may
+		// come before the display exists, which freezeWithError() handles.
+		FREEZE_WITH_ERROR("BOOT");
+	}
 }
 
-// Bare-metal / host entry: boot once, then run forever — either under the
-// OSLikeStuff task manager or the inline superloop. (The Embassy BSP uses
-// deluge_app_init()/deluge_app_tick() above instead of this.)
-extern "C" int32_t deluge_main(void) {
-	deluge_boot(deluge_board());
-#ifdef USE_TASK_MANAGER
-	registerTasks();
-	encoders::init(); // after registerTasks(): the encoder edge source needs the (now-assigned) encoder task id to wake
-	startTaskManager();
-#else
-	encoders::init(); // mainLoop() reads encoders inline, so the wake id is unused, but the IO still needs init
-	mainLoop();
-#endif
-	return 0;
+extern "C" uint64_t deluge_app_service(uint64_t now_us, DelugeWake reasons) noexcept {
+	try {
+		// Before any job reads interaction-owned state the render's work changes: do what it asked for since the last
+		// job.
+		deluge::playback::applyRenderRequests();
+		return appLoop.service(now_us, reasons);
+	} catch (...) {
+		// appLoop.service() already catches a throwing job's own body, so this is something else --
+		// e.g. a bad reasons value hitting undefined behaviour above the job loop. There is no job to
+		// charge the failure to, so just keep the clock moving: ask for another pass right away rather
+		// than leave the app loop stalled.
+		return now_us;
+	}
 }
-
-// The storage-wait hooks (yieldingRoutineForSD / yieldingRoutineWithTimeoutForSD) and the
-// old conditionless routineForSD() pump have all moved down into the scheduler foundation
-// (OSLikeStuff/task_scheduler/task_scheduler_c_api.cpp) or been retired: they are pure
-// concurrency logic and named no app code beyond the manual audio/UI pump, which the task
-// manager makes redundant (audio/UI run as registered tasks). The HAL now yields *down* to
-// the scheduler during storage busy-waits rather than calling *up* into the application.
 
 // Card-detect is now pull-based: AudioFileManager::slowRoutine() polls
 // deluge_block_poll_card_event() instead of the BSP calling up into the app.
 
 extern "C" void setNumeric(char* text) {
-	display->setText(text);
 }
 
 extern "C" void setNumericNumber(int32_t number) {
-	display->setTextAsNumber(number);
 }
 
 extern "C" void routineWithClusterLoading() {
@@ -864,16 +699,16 @@ void deleteOldSongBeforeLoadingNew() {
 
 	currentSong->stopAllAuditioning();
 
-	AudioEngine::killAllVoices(true); // Need to do this now that we're not bothering getting the old Song's
-	                                  // Instruments detached and everything on delete
+	// Kept although the render's let-go of the song below ends its Sounds' voices: this also cuts the sound of the
+	// song's audio outputs (AudioOutput::cutAllSound()), which that let-go does not touch.
+	AudioEngine::killAllVoices(true);
 
-	view.activeModControllableModelStack.modControllable = nullptr;
-	view.activeModControllableModelStack.setTimelineCounter(nullptr);
-	view.activeModControllableModelStack.paramManager = nullptr;
+	view.releaseActiveModControllable();
 
+	// Hand the old song to the render, then wait -- bounded, on the render -- until it has been freed, so the new song
+	// is built in the memory it gave back. The wait runs no other interaction task, so none sees currentSong null.
 	Song* toDelete = currentSong;
 	currentSong = nullptr;
-	void* toDealloc = dynamic_cast<void*>(toDelete);
-	toDelete->~Song();
-	delugeDealloc(toDelete);
+	AudioEngine::retire(toDelete);
+	AudioEngine::awaitRetired();
 }

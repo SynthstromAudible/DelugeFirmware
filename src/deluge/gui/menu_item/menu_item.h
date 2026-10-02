@@ -75,9 +75,7 @@ public:
 	///
 	/// This is called with `(b == SELECT_ENC && on)` immediately after the menu is entered, or after
 	/// \ref selectButtonPress is called and returns `NO_NAVIGATION`.
-	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
-		return ActionResult::NOT_DEALT_WITH;
-	}
+	virtual ActionResult buttonAction(deluge::hid::Button b, bool on) { return ActionResult::NOT_DEALT_WITH; }
 	/// @brief Handle horizontal encoder movement.
 	///
 	/// @param offset must be either -1 or 1, jumping is not supported by many children.
@@ -262,7 +260,7 @@ public:
 	/// @param sound Sound we would edit if we were to be entered.
 	/// @param whichThing Source index within the sound. Usually ignored, but matters for e.g. oscillator and FM
 	/// modulator parameters.
-	virtual bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) { return true; }
+	virtual bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const { return true; }
 
 	/// Internal helper which can draw the standard deluge::gui::menu_item::Submenu layout.
 	static void drawItemsForOled(std::span<std::string_view> options, int32_t selectedOption, int32_t offset = 0);

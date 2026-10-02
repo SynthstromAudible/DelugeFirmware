@@ -37,8 +37,6 @@ public:
 	uint32_t getParamIndex() final { return PatchedParam::getParamIndex(); }
 	uint8_t shouldDrawDotOnName() final { return PatchedParam::shouldDrawDotOnName(); }
 
-	void drawValue() final { Decimal::drawValue(); }
-
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
 		return PatchedParam::shouldBlinkPatchingSourceShortcut(s, colour);
 	}

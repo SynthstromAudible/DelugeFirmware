@@ -57,21 +57,11 @@ bool LoadPatternUI::opened() {
 		return false;
 	}
 
-	Error error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
-	error = createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
-	if (error != Error::NONE) {
-		display->displayError(error);
-		return false;
-	}
+	// Fire-and-forget: these only ensure the default folders exist, and the listing reports a card
+	// failure if one persists. See Browser::createFoldersRecursiveIfNotExists.
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER);
+	(void)createFoldersRecursiveIfNotExists(PATTERN_MELODIC_DEFAULT_FOLDER);
 
 	actionLogger.getNewAction(ActionType::PATTERN_PASTE, ActionAddition::ALLOWED);
 	overwriteExisting = true;
@@ -100,21 +90,17 @@ bool LoadPatternUI::opened() {
 	favouritesChanged();
 	currentDir = defaultDir.c_str();
 
-	error = beginSlotSession(); // Requires currentDir to be set. (Not anymore?)
+	Error error = beginSlotSession(); // Requires currentDir to be set.
 	if (error != Error::NONE) {
 		display->displayError(error);
 		return false;
 	}
 
-	error = setupForLoadingPattern(); // Sets currentDir.
-	if (error != Error::NONE) {
-		renderingNeededRegardlessOfUI(); // Because unlike many UIs we've already gone and drawn the QWERTY interface on
-		                                 // the pads, in call to setupForLoadingMidiDeviceDefinition().
-		display->displayError(error);
-		return false;
-	}
-
-	focusRegained();
+	std::string searchFilename = setupForLoadingPattern(); // Sets currentDir.
+	// The listing happens async: dispatch it and return optimistically. Failure goes through the
+	// base Browser::onListingFailed() (displayError + close()) once the listing completes.
+	beginListing(
+	    {.action = ListingAction::Open, .direction = 0, .filenameToStartAt = searchFilename, .defaultDir = defaultDir});
 
 	return true;
 }
@@ -152,15 +138,16 @@ void LoadPatternUI::currentFileChanged(int32_t movementDirection) {
 	}
 }
 
+// Computes the icon state and currentDir, and returns the filename to search for within it (always
+// empty here). Does NOT perform the listing itself - opened() combines this with defaultDir to
+// dispatch an async Open listing; the post-listing tail lives in onBrowserOpened().
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
-Error LoadPatternUI::setupForLoadingPattern() {
+std::string LoadPatternUI::setupForLoadingPattern() {
 	enteredText.clear();
 
-	if (display->haveOLED()) {
-		fileIcon = deluge::hid::display::OLED::midiIcon;
-		fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
-		fileIconPt2Width = 1;
-	}
+	fileIcon = deluge::hid::display::OLED::midiIcon;
+	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
+	fileIconPt2Width = 1;
 
 	std::string searchFilename;
 
@@ -170,20 +157,17 @@ Error LoadPatternUI::setupForLoadingPattern() {
 		searchFilename.append(".XML");
 	}
 
-	Error error = arrivedInNewFolder(0, searchFilename.c_str(), defaultDir.c_str());
-	if (error != Error::NONE) {
-		return error;
-	}
+	return searchFilename;
+}
 
+void LoadPatternUI::onBrowserOpened() {
 	currentLabelLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
 
 	drawKeys();
 
-	if (display->have7SEG()) {
-		displayText(false);
-	}
-
-	return Error::NONE;
+	// Runs here so it happens after the listing actually completes, matching the Save* browsers'
+	// convention.
+	focusRegained();
 }
 
 void LoadPatternUI::folderContentsReady(int32_t entryDirection) {
@@ -197,14 +181,9 @@ void LoadPatternUI::enterKeyPress() {
 
 	// If it's a directory...
 	if (currentFileItem->isFolder) {
-
-		Error error = goIntoFolder(currentFileItem->filename.c_str());
-
-		if (error != Error::NONE) {
-			display->displayError(error);
-			close(); // Don't use goBackToSoundEditor() because that would do a left-scroll
-			return;
-		}
+		// goIntoFolder() begins a listing that graphicsRoutine() runs over later ticks; failure is handled by
+		// the base Browser::onListingFailed() (displayError + close()) once the listing completes.
+		goIntoFolder(currentFileItem->filename.c_str());
 	}
 
 	else {
@@ -214,7 +193,7 @@ void LoadPatternUI::enterKeyPress() {
 	}
 }
 
-ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Load button
@@ -225,7 +204,8 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 	else if (b == PLAY) {
 		// Need to use special preview mode for this as on constant playing, big Midi files can lead to stucked notes
 		FileItem* currentFileItem = getCurrentFileItem();
-		if (!currentFileItem->isFolder) {
+		// No item while a listing is in flight.
+		if (currentFileItem != nullptr && !currentFileItem->isFolder) {
 			if (on) {
 				previewOnly = true;
 
@@ -254,7 +234,7 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 				return ActionResult::DEALT_WITH;
 			}
 		}
-		return LoadUI::buttonAction(b, on, inCardRoutine);
+		return LoadUI::buttonAction(b, on);
 	}
 }
 
@@ -273,7 +253,7 @@ Error LoadPatternUI::performLoad() {
 	if (currentFileItem == nullptr) {
 		// Make it say "NONE" on numeric Deluge, for
 		// consistency with old times.
-		return display->haveOLED() ? Error::FILE_NOT_FOUND : Error::NO_FURTHER_FILES_THIS_DIRECTION;
+		return Error::FILE_NOT_FOUND;
 	}
 
 	if (currentFileItem->isFolder) {
@@ -294,13 +274,70 @@ Error LoadPatternUI::performLoad() {
 	fileName.append(enteredText.c_str());
 	fileName.append(".XML");
 
-	Error error = StorageManager::loadPatternFile(&currentFileItem->filePointer, &fileName, overwriteExisting,
-	                                              noScaling, previewOnly, selectedDrumOnly);
+	requestRead({.path = std::move(fileName),
+	             .previewOnly = previewOnly,
+	             .overwriteExisting = overwriteExisting,
+	             .noScaling = noScaling,
+	             .selectedDrumOnly = selectedDrumOnly});
+	return Error::NONE;
+}
+
+void LoadPatternUI::requestRead(PatternRead read) {
+	// The newest request wins.
+	dropRead();
+	active_ = std::move(read);
+	// Before boot the read is inline and lands here; after it, this issues the first channel request.
+	loadRoutine();
+	// The run above may have been made outside the loop's pass, where a time it asked for wakes nothing.
+	if (active_.has_value()) {
+		deluge::runtime::appLoop.request(jobId);
+	}
+}
+
+void LoadPatternUI::dropRead() {
+	// Safe mid-read: releaseStaging() keeps a buffer the channel is still reading into until the read has finished.
+	StorageManager::releaseStaging(&staging_);
+	active_.reset();
+}
+
+void LoadPatternUI::loadRoutine() {
+	if (!active_.has_value()) {
+		return;
+	}
+	// The staged open points activeDeserializer at the staged bytes, which are freed below.
+	FileDeserializer* const previous = activeDeserializer;
+	const StorageManager::StagedOpen opened =
+	    StorageManager::openDocumentStaged(active_->path.c_str(), "pattern", "", &staging_);
+	if (opened == StorageManager::StagedOpen::Deferred) {
+		const uint64_t next = StorageManager::stagingNextRunUs(staging_);
+		if (next == 0) {
+			deluge::runtime::appLoop.request(jobId);
+		}
+		else {
+			deluge::runtime::appLoop.requestAt(jobId, next);
+		}
+		return;
+	}
+	const PatternRead read = *active_;
+	Error error = Error::FILE_NOT_FOUND;
+	if (opened == StorageManager::StagedOpen::Opened) {
+		error = StorageManager::parsePatternDocument(read.overwriteExisting, read.noScaling, read.previewOnly,
+		                                             read.selectedDrumOnly);
+	}
+	activeDeserializer = previous;
+	dropRead();
 
 	if (error != Error::NONE) {
 		display->displayError(currentLabelLoadError);
-		return error;
+		return;
 	}
+	renderingNeededRegardlessOfUI();
+}
 
-	return Error::NONE;
+void LoadPatternUI::close() {
+	// A load from Enter lands after the browser closes; a preview does not.
+	if (active_.has_value() && active_->previewOnly) {
+		dropRead();
+	}
+	LoadUI::close();
 }

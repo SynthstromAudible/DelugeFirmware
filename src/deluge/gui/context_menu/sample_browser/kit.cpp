@@ -18,6 +18,7 @@
 #include "gui/context_menu/sample_browser/kit.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/slicer.h"
 #include "hid/display/display.h"
@@ -26,6 +27,16 @@
 
 namespace deluge::gui::context_menu::sample_browser {
 Kit kit{};
+
+namespace {
+/// Closes just the ContextMenu when the folder import it asked for fails. An import that succeeds closes everything,
+/// including this menu, itself.
+void closeOnFailure(bool success) {
+	if (!success) {
+		kit.close();
+	}
+}
+} // namespace
 
 char const* Kit::getTitle() {
 	using enum l10n::String;
@@ -53,9 +64,11 @@ bool Kit::isCurrentOptionAvailable() {
 bool Kit::acceptCurrentOption() {
 	switch (currentOption) {
 	case 0: // Import whole folder
-		return sampleBrowser.importFolderAsKit();
-	default: // Slicer
-		display->setNextTransitionDirection(1);
+		// Never report failure to ContextMenu::buttonAction() synchronously (it would close this menu at once): the
+		// import reports its own once it knows it.
+		sampleBrowser.requestFolderImport(deluge::gui::FolderImportKind::Kit, &closeOnFailure);
+		return true;
+	default: // Slicer — unaffected, no pitch detection involved.
 		openUI(&slicer);
 		return true;
 	}

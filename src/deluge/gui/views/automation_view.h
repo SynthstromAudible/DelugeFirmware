@@ -84,6 +84,7 @@ public:
 	                         TimelineView* timelineView, bool tripletsOnHere, int32_t xDisplay);
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
+	void clipNeedsReRendering(Clip* clip) override;
 	void renderDisplay(int32_t knobPosLeft = kNoSelection, int32_t knobPosRight = kNoSelection,
 	                   bool modEncoderAction = false);
 	void displayAutomation(bool padSelected = false, bool updateDisplay = true);
@@ -93,7 +94,7 @@ public:
 	}
 
 	// button action
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 
 	// pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -108,7 +109,7 @@ public:
 	int32_t navSysId;
 
 	// vertical encoder action
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	void potentiallyVerticalScrollToSelectedDrum(InstrumentClip* clip, Output* output);
 
 	// mod encoder action
@@ -172,6 +173,8 @@ public:
 	int32_t rightPadSelectedY;
 	int32_t lastPadSelectedKnobPos;
 
+	bool isNoteVelocityEditorShortcut(int32_t x, int32_t y);
+
 private:
 	// button action functions
 	void handleSessionButtonAction(Clip* clip, bool on);
@@ -216,13 +219,8 @@ private:
 	                              OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
 	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
 	                              bool isMIDICVDrum);
-	void renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
-	                       int32_t knobPosRight = kNoSelection);
-	void renderAutomationOverviewDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
-	                                         OutputType outputType);
-	void renderDisplay7SEG(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
-	                       bool modEncoderAction = false);
-	void renderAutomationOverviewDisplay7SEG(Output* output, OutputType outputType);
+	void renderAutomationOverviewDisplay(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
+	                                     OutputType outputType);
 
 	// Horizontal Encoder Action
 	void shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,

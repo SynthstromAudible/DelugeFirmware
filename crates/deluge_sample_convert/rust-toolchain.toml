@@ -1,0 +1,6 @@
+# Matches crates/rust-toolchain.toml minus its extra `targets`, which this host-only crate would
+# otherwise download for nothing (rustup would find the parent file, since the crate sits beneath
+# crates/ even though it is outside the workspace).
+[toolchain]
+channel = "nightly"
+components = ["rust-src", "clippy", "rustfmt"]

@@ -18,8 +18,15 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/l10n/strings.h"
 #include "util/misc.h"
+#include <cstddef>
+
+// l10n::String is only a return type below (SpecificFilter::getMorphName, defined out-of-line in the .cpp), so
+// forward-declare it rather than pulling gui/l10n/strings.h — this header is included by the synth-side VoiceConfig
+// and must stay free of gui/.
+namespace deluge::l10n {
+enum class String : size_t;
+}
 
 // non namespaced
 enum class FilterMode {
@@ -31,9 +38,8 @@ enum class FilterMode {
 	HPLADDER,
 	OFF, // Keep last as a sentinel. Signifies that the filter is not on, used for filter reset logic
 };
-constexpr int32_t kNumFilterModes = util::to_underlying(FilterMode::OFF);
+constexpr int32_t kNumFilterModes = util::to_underlying(FilterMode::OFF) + 1;
 constexpr FilterMode kLastLadder = FilterMode::TRANSISTOR_24DB_DRIVE;
-// Off is not an LPF mode but is used to reset filters
 constexpr int32_t kNumLPFModes = util::to_underlying(FilterMode::SVF_NOTCH) + 1;
 constexpr FilterMode lastLpfMode = FilterMode::SVF_NOTCH;
 constexpr FilterMode firstHPFMode = FilterMode::SVF_BAND;
@@ -110,19 +116,8 @@ public:
 
 	specificFilterType getType() { return type; }
 
-	[[nodiscard]] l10n::String getMorphName(bool shortName = false) const {
-
-		switch (family) {
-		case FilterFamily::LP_LADDER:
-			return l10n::String::STRING_FOR_DRIVE;
-		case FilterFamily::HP_LADDER:
-			return l10n::String::STRING_FOR_FM;
-		case FilterFamily::SVF:
-			return shortName ? l10n::String::STRING_FOR_MORPH_SHORT : l10n::String::STRING_FOR_MORPH;
-		default:
-			return l10n::String::STRING_FOR_NONE;
-		};
-	};
+	// Defined out-of-line in filter_config.cpp so this header needn't pull gui/l10n/strings.h (it's synth-included).
+	[[nodiscard]] l10n::String getMorphName(bool shortName = false) const;
 
 	SpecificFilter& incrementMode() {
 		type = (type + 1) % numForVariant[util::to_underlying(family)];

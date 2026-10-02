@@ -17,27 +17,32 @@
 
 #pragma once
 
-#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "dsp/compressor/rms_feedback.h"
 #include "dsp/envelope_follower/absolute_value.h"
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"
 #include "model/output.h"
+#include "runtime/app_loop.h"
+#include "util/audio_owned_list.h"
 #include "util/containers.h"
+#include <atomic>
+#include <cstddef>
 #include <cstdint>
+#include <libdeluge/scheduler.h>
 #include <memory>
 
-extern "C" {
-#include "fatfs/ff.h"
-}
-
 class Song;
-class StereoSample;
+namespace deluge::dsp {
+struct StereoSample;
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 class Instrument;
 class Sound;
 class ParamManagerForTimeline;
+namespace deluge::synth {
 class LiveInputBuffer;
+}
 class SampleRecorder;
 class Voice;
 class VoiceSample;
@@ -50,6 +55,7 @@ class Metronome;
 class RMSFeedbackCompressor;
 class ModelStackWithSoundFlags;
 class SoundDrum;
+class Clip;
 class AbsValueFollower;
 
 namespace deluge::dsp {
@@ -139,13 +145,16 @@ namespace AudioEngine {
 using VoicePool = deluge::memory::ObjectPool<Voice, deluge::memory::fast_allocator>;
 using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
-void routine();
-void routine_task();
-void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
+uint32_t routine();
+bool routine_task();
+void routineWithClusterLoading();
 void runRoutine();
 
 void init();
-void previewSample(std::string_view path, FilePointer* filePointer, bool shouldActuallySound);
+/// @brief Sound the preview drum, with whatever sample its first range holds.
+///
+/// The note-on half of a preview: the sample browser loads the sample through its own tick, then calls this.
+void soundPreview();
 void stopAnyPreviewing();
 
 void songSwapAboutToHappen();
@@ -160,9 +169,44 @@ void voiceSampleUnassigned(VoiceSample* voiceSample);
 TimeStretcher* solicitTimeStretcher();
 void timeStretcherUnassigned(TimeStretcher* timeStretcher);
 
-LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
+deluge::synth::LiveInputBuffer* getOrCreateLiveInputBuffer(OscType inputType, bool mayCreate);
 void slowRoutine();
 void doRecorderCardRoutines();
+/// @brief Run the recorder card-write drain (doRecorderCardRoutines()) inline. Counts the drains after boot:
+///        the gates' evidence that the drain runs off the storage tier.
+void requestRecorderCardRoutines();
+
+/// @brief How many recorder drains ran after boot, when their card writes go through the stream channel.
+///
+/// The evidence that the drain itself ran on that path. A served count alone says writes were served,
+/// not which drain issued them.
+[[nodiscard]] int32_t recorderDrainTicks();
+
+/// @brief How many finalize ticks have run.
+///
+/// The evidence that finishing a recording ran through the finalize machine at all. Distinct from
+/// @ref recorderDrainTicks, which only says the drain did.
+[[nodiscard]] int32_t finalizeTicks();
+
+/// @brief How many create ticks have run.
+///
+/// The evidence that creating a recording's file ran through the create machine at all.
+[[nodiscard]] int32_t createTicks();
+
+/// @brief How many document-staging attempts ran after boot, through the byte channel.
+///
+/// The evidence that the song load's card read goes through the channels. Reading zero after a song
+/// load means the load took its bytes some other way, which is the whole thing this is here to disprove.
+[[nodiscard]] int32_t songStageTicks();
+
+/// @brief Record one staging attempt made after boot.
+void noteSongStageTick();
+
+/// @brief Record one create tick.
+void noteCreateTick();
+
+/// @brief Record one finalize tick.
+void noteFinalizeTick();
 
 int32_t getNumSamplesLeftToOutputFromPreviousRender();
 
@@ -170,7 +214,7 @@ void registerSideChainHit(int32_t strength);
 
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency,
-                               bool shouldNormalize, Output* outputRecordingFrom);
+                               bool shouldNormalize, Output* outputRecordingFrom, RecorderConfig config = {});
 void discardRecorder(SampleRecorder* recorder);
 bool isAnyInternalRecordingHappening();
 
@@ -208,7 +252,8 @@ extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
 extern SideChain reverbSidechain;
 extern uint32_t timeThereWasLastSomeReverb;
-extern deluge::fast_vector<Sound*> sounds;
+/// Every live Sound. Changed only by Sound's constructor and destructor, walked by the render: see AudioOwnedList.
+extern deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
 extern deluge::dsp::Reverb reverb;
 extern uint32_t nextVoiceState;
 extern SoundDrum* sampleForPreview;
@@ -222,9 +267,62 @@ extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
-extern TaskID routine_task_id;
+/// Set once the BSP's audio tier drives the render (at the end of deluge_app_init). From then on
+/// runRoutine() leaves rendering to the tier, which preempts its caller.
+extern std::atomic<bool> renderDrivenByTier;
 void feedReverbBackdoorForGrain(int index, q31_t value);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
 bool allowedToStartVoice();
+
+/// @brief [interaction] Hand a drum the caller has already taken out of its kit over to the render, which ends its
+///        voices and deregisters it at the top of a following block. It is destroyed and freed at the first
+///        retire() or reclaim-task tick after the render has let go of it and two blocks have begun since the
+///        handover -- so no earlier than two blocks later, and as late as the interaction tier's next such call.
+///        Replaces `drum->~SoundDrum(); delugeDealloc(...)`: the caller must not touch @p drum afterwards.
+void retire(SoundDrum* drum);
+/// @brief [interaction] As above, for an output the caller has already unlinked from the song's lists. A synth's Sound
+///        and every SoundDrum of a kit are let go by the render; every output kind is destroyed as above.
+void retire(Output* output);
+/// @brief [interaction] As above, for a clip the caller has already prepared for destruction
+///        (Clip::prepareForDestruction()) and taken out of its song's arrays and clip instances. The references the
+///        interaction tier itself reads -- the current song's currentClip and syncScalingClip, and the view's active
+///        ModControllable model stack -- are cleared here, synchronously, before the handover. At the top of a
+///        following block the render then nulls whatever it wrote itself in between (currentClip, syncScalingClip,
+///        any of the current song's clips' beingRecordedFromClip, the view's stack), and the clip is destroyed as
+///        above. An AudioClip must no longer be recording (i001 on alpha/beta builds).
+void retire(Clip* clip);
+/// @brief [interaction] As above, for a whole song the caller has already replaced as currentSong (E458 if it is still
+///        current). The view's active model stack is dropped at once if it names the song or anything it owns. At the
+///        top of a following block the render lets go of every Sound of every output the song owns (voices ended,
+///        Sounds deregistered), and the song is then destroyed as above: ~Song() destroys its clips and outputs
+///        directly, since nothing can reach them any more.
+void retire(Song* song);
+/// @brief [interaction] Block until every retired object has been destroyed (retiredPending() == 0), waiting on the
+///        render with deluge_audio_await_block() between reclaims. Interaction tier only (E455 otherwise).
+///        Bounded: freezes with E459 after 250 ms or 1000 waits for a block, whichever comes first. For a
+///        stopped-clock song load or clear, which must free the old song before it builds the new one, and for a
+///        swap's finish, whose sample-load retry needs the old song's memory back.
+void awaitRetired();
+/// @brief [interaction] Destroy every retired object the render has let go of, once two blocks have begun since it
+///        was handed over. Called by @ref reclaimRoutine and, before each handover, by retire().
+void reclaimRetired();
+/// @brief How often @ref reclaimRoutine looks again while retired objects are still waiting, in µs: about five render
+///        blocks, so an object is freed soon after the two blocks it waits for.
+inline constexpr deluge::runtime::Micros kReclaimRecheckUs = 15'000;
+/// @brief The job that runs @ref reclaimRoutine. Requested by every handover to the render; it asks for its own next
+///        run while anything is still waiting.
+extern deluge::runtime::JobId reclaimJob;
+/// @brief [interaction] reclaimRetired(), then a run @ref kReclaimRecheckUs from now while retiredPending() > 0.
+void reclaimRoutine();
+/// @brief [interaction] How many retired objects are still waiting to be destroyed. Test/diagnostic hook.
+std::size_t retiredPending();
+/// @brief [interaction] How many retired objects were destroyed while a Sound of theirs was still in the Sound
+///        registry -- before the render let go of it. Always 0 unless the retirement's ordering is broken.
+std::size_t retireViolations();
+#ifdef DELUGE_HOST
+/// @brief [interaction] Host-only measurement: the longest block-top let-go of retired objects since the last reset, in
+///        host wall-clock microseconds. @p reset zeroes it and returns the value it replaced.
+uint32_t retireDrainMicrosMax(bool reset);
+#endif
 } // namespace AudioEngine

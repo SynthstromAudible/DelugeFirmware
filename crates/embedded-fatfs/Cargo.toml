@@ -1,0 +1,59 @@
+[workspace]
+# Empty table: detaches this vendored crate from any parent Cargo workspace
+# (in particular `crates/Cargo.toml`, whose lockfile feeds the firmware build).
+# This directory is its own workspace root.
+
+[package]
+name = "embedded-fatfs"
+version = "0.1.0"
+edition = "2021"
+repository = "https://github.com/mabezdev/embedded-fatfs"
+readme = "README.md"
+rust-version = "1.75"
+keywords = ["fat", "filesystem", "no_std"]
+categories = ["filesystem"]
+license = "MIT"
+description = """
+FAT filesystem library.
+"""
+exclude = [
+    "resources/*",
+]
+
+[features]
+# Use Rust std library
+std = ["embedded-io-async/std", "dep:tokio", "dep:embedded-io-adapters"]
+# LFN (Long File Name) support
+lfn = []
+# Use dynamic allocation. When used without std please enable core_io/collections
+alloc = []
+# Full Unicode support. Disabling it reduces code size by avoiding Unicode-aware character case conversion
+unicode = []
+# enable log support
+log = ["dep:log"]
+# enable defmt support
+defmt = ["dep:defmt"]
+# panic when dropping dirty files, files should be flushed before hand
+dirty-file-panic = []
+
+# Default features
+default = ["chrono", "lfn", "unicode", "log"]
+
+[dependencies]
+# core deps
+bitflags = "1.0"
+embedded-io-async = "0.7.0"
+
+# optional deps
+embedded-io-adapters = { version = "0.7", package = "embedded-io-adapters", features = ["tokio-1"], optional = true }
+chrono = { version = "0.4", default-features = false, features = ["clock"], optional = true }
+tokio = { version = "1", default-features = false, optional = true }
+elain = { version = "0.3", optional = true }
+log = { version = "0.4", optional = true }
+defmt = { version = "0.3", optional = true }
+
+[dev-dependencies]
+env_logger = "0.9"
+embedded-fatfs = { path = ".", features = [ "std", "alloc" ] }
+tokio = { version = "1", default-features = false, features = ["fs", "rt-multi-thread", "macros", "io-util"] }
+anyhow = "1"

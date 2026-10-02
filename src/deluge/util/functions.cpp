@@ -17,26 +17,22 @@
 
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
-#include "fatfs/fatfs.hpp"
-#include "fatfs/ff.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
-#include "hid/encoders.h"
 #include "libdeluge/clock.h"
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/name_compare.h"
 #include <cmath>
 #include <cstdint>
 #include <string.h>
 
 namespace params = deluge::modulation::params;
-namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using params::kNumParams;
 
@@ -45,213 +41,12 @@ const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modLedY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 
-int32_t paramRanges[kNumParams];
-int32_t paramNeutralValues[kNumParams];
+// paramRanges/paramNeutralValues, getParamRange/getParamNeutralValue, functionsInit, the getFinalParameterValue*
+// family, getExp and lookupReleaseRate moved verbatim to util/param_functions.cpp (gui-free), so the synth core
+// links them without pulling gui. Declarations remain visible via util/param_functions.h (re-exported by
+// util/functions.h).
 
-// This is just the range of the user-defined "preset" value, it doesn't apply to the outcome of patch cables
-int32_t getParamRange(int32_t p) {
-	switch (p) {
-	case params::LOCAL_ENV_0_ATTACK:
-	case params::LOCAL_ENV_1_ATTACK:
-	case params::LOCAL_ENV_2_ATTACK:
-	case params::LOCAL_ENV_3_ATTACK:
-		return 536870912 * 1.5;
-
-	case params::GLOBAL_DELAY_RATE:
-		return 536870912;
-
-	case params::LOCAL_PITCH_ADJUST:
-	case params::LOCAL_OSC_A_PITCH_ADJUST:
-	case params::LOCAL_OSC_B_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-		return 536870912;
-
-	case params::LOCAL_LPF_FREQ:
-		return 536870912 * 1.4;
-
-		// For phase width, we have this higher (than I previously did) because these are hibrid params, meaning that
-		// with a source (e.g. LFO) patched to them, the might have up to 1073741824 added to them
-		// - which would take us to the max user "preset value", which is what we want for phase width
-	default:
-		return 1073741824;
-	}
-}
-
-int32_t getParamNeutralValue(int32_t p) {
-	switch (p) {
-	case params::LOCAL_OSC_A_VOLUME:
-	case params::LOCAL_OSC_B_VOLUME:
-	case params::GLOBAL_VOLUME_POST_REVERB_SEND:
-	case params::LOCAL_NOISE_VOLUME:
-	case params::GLOBAL_REVERB_AMOUNT:
-	case params::GLOBAL_VOLUME_POST_FX:
-	case params::LOCAL_VOLUME:
-		return 134217728;
-
-	case params::LOCAL_MODULATOR_0_VOLUME:
-	case params::LOCAL_MODULATOR_1_VOLUME:
-		return 33554432;
-
-	case params::LOCAL_LPF_FREQ:
-		return 2000000;
-	case params::LOCAL_HPF_FREQ:
-		return 2672947;
-
-	case params::GLOBAL_LFO_FREQ_1:
-	case params::GLOBAL_LFO_FREQ_2:
-	case params::LOCAL_LFO_LOCAL_FREQ_1:
-	case params::LOCAL_LFO_LOCAL_FREQ_2:
-	case params::GLOBAL_MOD_FX_RATE:
-		return 121739; // lfoRateTable[userValue];
-
-	case params::LOCAL_LPF_RESONANCE:
-	case params::LOCAL_HPF_RESONANCE:
-	case params::LOCAL_LPF_MORPH:
-	case params::LOCAL_HPF_MORPH:
-	case params::LOCAL_FOLD:
-		return 25 * 10737418; // Room to be quadrupled
-
-	case params::LOCAL_PAN:
-	case params::LOCAL_OSC_A_PHASE_WIDTH:
-	case params::LOCAL_OSC_B_PHASE_WIDTH:
-		return 0;
-
-	case params::LOCAL_ENV_0_ATTACK:
-	case params::LOCAL_ENV_1_ATTACK:
-	case params::LOCAL_ENV_2_ATTACK:
-	case params::LOCAL_ENV_3_ATTACK:
-		return 4096; // attackRateTable[userValue];
-
-	case params::LOCAL_ENV_0_RELEASE:
-	case params::LOCAL_ENV_1_RELEASE:
-	case params::LOCAL_ENV_2_RELEASE:
-	case params::LOCAL_ENV_3_RELEASE:
-		return 140 << 9; // releaseRateTable[userValue];
-
-	case params::LOCAL_ENV_0_DECAY:
-	case params::LOCAL_ENV_1_DECAY:
-	case params::LOCAL_ENV_2_DECAY:
-	case params::LOCAL_ENV_3_DECAY:
-		return 70 << 9; // releaseRateTable[userValue] >> 1;
-
-	case params::LOCAL_ENV_0_SUSTAIN:
-	case params::LOCAL_ENV_1_SUSTAIN:
-	case params::LOCAL_ENV_2_SUSTAIN:
-	case params::LOCAL_ENV_3_SUSTAIN:
-	case params::GLOBAL_DELAY_FEEDBACK:
-		return 1073741824; // 536870912;
-
-	case params::LOCAL_MODULATOR_0_FEEDBACK:
-	case params::LOCAL_MODULATOR_1_FEEDBACK:
-	case params::LOCAL_CARRIER_0_FEEDBACK:
-	case params::LOCAL_CARRIER_1_FEEDBACK:
-		return 5931642;
-
-	case params::GLOBAL_DELAY_RATE:
-	case params::GLOBAL_ARP_RATE:
-	case params::LOCAL_PITCH_ADJUST:
-	case params::LOCAL_OSC_A_PITCH_ADJUST:
-	case params::LOCAL_OSC_B_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-		return kMaxSampleValue; // Means we have space to 8x (3-octave-shift) the pitch if we want... (wait, I've since
-		                        // made it 16x smaller)
-
-	case params::GLOBAL_MOD_FX_DEPTH:
-		return 526133494; // 2% lower than 536870912
-
-	default:
-		return 0;
-	}
-}
-
-void functionsInit() {
-
-	for (int32_t p = 0; p < kNumParams; p++) {
-		paramRanges[p] = getParamRange(p);
-	}
-
-	for (int32_t p = 0; p < kNumParams; p++) {
-		paramNeutralValues[p] = getParamNeutralValue(p);
-	}
-}
-
-int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue) {
-	// Allows for max output values of +- 1073741824, which the panning code understands as the full range from left to
-	// right
-	int32_t preLimits = (paramNeutralValue >> 2) + (patchedValue >> 1);
-	return signed_saturate<32 - 3>(preLimits) << 2;
-}
-
-int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue) {
-
-	// patchedValue's range is ideally +- 536870912, but may get up to 1610612736 due to multiple patch cables having
-	// been multiplied
-
-	// No need for max/min here - it's already been taken care of in patchAllCablesToParameter(),
-	// ... or if we got here from patchSourceToAllExclusiveCables(), there's no way it could have been too big
-	int32_t positivePatchedValue = patchedValue + 536870912;
-
-	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4").
-	// 536870912 represents "1".
-
-	// If this parameter is a volume one, then apply a parabola curve to the patched value, at this late stage
-	/*
-	if (isVolumeParam) {
-	    // But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at
-	1073741824 ("2") if (positivePatchedValue >= 1073741824) positivePatchedValue = 2147483647; else {
-	        //int32_t madeSmaller = positivePatchedValue >> 15;
-	        //positivePatchedValue = (madeSmaller * madeSmaller) << 1;
-	        positivePatchedValue = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
-	    }
-	}
-	*/
-
-	// This is a temporary (?) fix I've done to allow FM modulator amounts to get past where I clipped off volume
-	// params. So now volumes can get higher too. Problem? Not sure.
-
-	// But, our output value can't get bigger than 2147483647 ("4"), which means we have to clip our input off at
-	// 1073741824 ("2")
-	positivePatchedValue = (positivePatchedValue >> 16) * (positivePatchedValue >> 15);
-
-	// return multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue) << 5;
-
-	// Must saturate, otherwise mod fx depth can easily overflow
-	return lshiftAndSaturate<5>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
-}
-
-int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue) {
-
-	// patchedValue's range is ideally +- 536870912 ('1'), but may get up to 1610612736 ('3') due to multiple patch
-	// cables having been multiplied
-
-	// No need for max/min here - it's already been taken care of in patchAllCablesToParameter(),
-	// ... or if we got here from patchSourceToAllExclusiveCables(), there's no way it could have been too big
-	int32_t positivePatchedValue = patchedValue + 536870912;
-
-	// positivePatchedValue's range is ideally 0 ("0") to 1073741824 ("2"), but potentially up to 2147483647 ("4").
-	// 536870912 represents "1".
-
-	// Must saturate, otherwise sustain level can easily overflow
-	return lshiftAndSaturate<3>(multiply_32x32_rshift32(positivePatchedValue, paramNeutralValue));
-}
-
-int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValue) {
-	return getExp(paramNeutralValue, patchedValue);
-}
-
-int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p) {
-	// TODO: this is horribly hard-coded, but works for now
-	if (params::LOCAL_ENV_0_DECAY <= p && p <= params::LOCAL_ENV_3_RELEASE) {
-		return multiply_32x32_rshift32(paramNeutralValue, lookupReleaseRate(patchedValue));
-	}
-	if (params::LOCAL_ENV_0_ATTACK <= p && p <= params::LOCAL_ENV_3_ATTACK) {
-		patchedValue = -patchedValue;
-	}
-
-	return getFinalParameterValueExp(paramNeutralValue, patchedValue);
-}
+// getFinalParameterValue* moved to util/param_functions.cpp.
 
 int32_t cableToLinearParamShortcut(int32_t sourceValue) {
 	return sourceValue >> 2;
@@ -313,7 +108,7 @@ char const* sourceToString(PatchSource source) {
 	}
 }
 
-char const* getSourceDisplayNameForOLED(PatchSource s) {
+char const* getSourceDisplayName(PatchSource s) {
 	using enum l10n::String;
 	auto lang = l10n::chosenLanguage;
 
@@ -485,80 +280,7 @@ doInterval:
 	}
 }
 
-int32_t interpolateTable(uint32_t input, int32_t numBitsInInput, const uint16_t* table, int32_t numBitsInTableSize) {
-	int32_t whichValue = input >> (numBitsInInput - numBitsInTableSize);
-	int32_t value1 = table[whichValue];
-	int32_t value2 = table[whichValue + 1];
-
-	int32_t rshiftAmount = numBitsInInput - 15 - numBitsInTableSize;
-	uint32_t rshifted;
-	if (rshiftAmount >= 0) {
-		rshifted = input >> rshiftAmount;
-	}
-	else {
-		rshifted = input << (-rshiftAmount);
-	}
-
-	int32_t strength2 = rshifted & 32767;
-	int32_t strength1 = 32768 - strength2;
-	return value1 * strength1 + value2 * strength2;
-}
-
-uint32_t interpolateTableInverse(int32_t tableValueBig, int32_t numBitsInLookupOutput, const uint16_t* table,
-                                 int32_t numBitsInTableSize) {
-	int32_t tableValue = tableValueBig >> 15;
-	int32_t tableSize = 1 << numBitsInTableSize;
-
-	int32_t tableDirection = (table[0] < table[tableSize]) ? 1 : -1;
-
-	// Check we're not off either end of the table
-	if ((tableValue - table[0]) * tableDirection <= 0) {
-		return 0;
-	}
-	if ((tableValue - table[tableSize]) * tableDirection >= 0) {
-		return (1 << numBitsInLookupOutput) - 1;
-	}
-
-	int32_t rangeStart = 0;
-	int32_t rangeEnd = tableSize;
-
-	while (rangeStart + 1 < rangeEnd) {
-
-		int32_t examinePos = (rangeStart + rangeEnd) >> 1;
-		if ((tableValue - table[examinePos]) * tableDirection >= 0) {
-			rangeStart = examinePos;
-		}
-		else {
-			rangeEnd = examinePos;
-		}
-	}
-
-	uint32_t output = rangeStart << (numBitsInLookupOutput - numBitsInTableSize);
-	output += (uint64_t)(tableValueBig - ((uint16_t)table[rangeStart] << 15))
-	          * (1 << (numBitsInLookupOutput - numBitsInTableSize))
-	          / (((uint16_t)table[rangeStart + 1] - (uint16_t)table[rangeStart]) << 15);
-
-	return output;
-}
-
-int32_t getDecay8(uint32_t input, uint8_t numBitsInInput) {
-	return interpolateTable(input, numBitsInInput, decayTableSmall8);
-}
-
-int32_t getDecay4(uint32_t input, uint8_t numBitsInInput) {
-	return interpolateTable(input, numBitsInInput, decayTableSmall4);
-}
-
-int32_t getExp(int32_t presetValue, int32_t adjustment) {
-
-	int32_t magnitudeIncrease = (adjustment >> 26) + 2;
-
-	// Do "fine" adjustment - change less than one doubling
-	int32_t adjustedPresetValue =
-	    multiply_32x32_rshift32(presetValue, interpolateTable(adjustment & 67108863, 26, expTableSmall));
-
-	return increaseMagnitudeAndSaturate(adjustedPresetValue, magnitudeIncrease);
-}
+// getExp moved to util/param_functions.cpp.
 
 int32_t quickLog(uint32_t input) {
 
@@ -628,35 +350,6 @@ char const* getOutputTypeName(OutputType outputType, int32_t channel) {
 	default:
 		return "None";
 	}
-}
-
-void byteToHex(uint8_t number, char* buffer) {
-	buffer[0] = halfByteToHexChar(number >> 4);
-	buffer[1] = halfByteToHexChar(number & 15);
-	buffer[2] = 0;
-}
-
-uint8_t hexToByte(char const* firstChar) {
-	uint8_t value = 0;
-
-	if (*firstChar >= 48 && *firstChar < 58) {
-		value += *firstChar - 48;
-	}
-	else {
-		value += *firstChar - 55;
-	}
-
-	*firstChar++;
-	value <<= 4;
-
-	if (*firstChar >= 48 && *firstChar < 58) {
-		value += *firstChar - 48;
-	}
-	else {
-		value += *firstChar - 55;
-	}
-
-	return value;
 }
 
 // May give wrong result for -2147483648
@@ -1188,7 +881,7 @@ ArpOctaveMode stringToArpOctaveMode(char const* string) {
 		return ArpOctaveMode::DOWN;
 	}
 	else if (!strcmp(string, "upDown")) {
-		return ArpOctaveMode::RANDOM;
+		return ArpOctaveMode::UP_DOWN;
 	}
 	else if (!strcmp(string, "alt")) {
 		return ArpOctaveMode::ALTERNATE;
@@ -1374,23 +1067,7 @@ bool isAiffFilename(char const* filename) {
 	return (dotPos != NULL && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
 }
 
-int32_t lookupReleaseRate(int32_t input) {
-	int32_t magnitude = 24;
-	int32_t whichValue = input >> magnitude;                           // 25
-	int32_t howMuchFurther = (input << (31 - magnitude)) & 2147483647; // 6
-	whichValue += 32;                                                  // Put it in the range 0 to 64
-	if (whichValue < 0) {
-		return releaseRateTable64[0];
-	}
-	else if (whichValue >= 64) {
-		return releaseRateTable64[64];
-	}
-	int32_t value1 = releaseRateTable64[whichValue];
-	int32_t value2 = releaseRateTable64[whichValue + 1];
-	return (multiply_32x32_rshift32(value2, howMuchFurther)
-	        + multiply_32x32_rshift32(value1, 2147483647 - howMuchFurther))
-	       << 1;
-}
+// lookupReleaseRate moved to util/param_functions.cpp.
 
 // Gets param *preset* value. Should be labelled better
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
@@ -1624,228 +1301,6 @@ int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int
 	return value;
 }
 
-struct ComparativeNoteNumber {
-	int32_t noteNumber;
-	int32_t stringLength;
-};
-
-// Returns 100000 if the string is not a note name.
-// The returned number is *not* a MIDI note. It's arbitrary, used for comparisons only.
-// noteChar has been made lowercase, which is why we can't just take it from the string.
-ComparativeNoteNumber getComparativeNoteNumberFromChars(char const* string, char noteChar, bool octaveStartsFromA) {
-	char const* stringStart = string;
-	ComparativeNoteNumber toReturn{};
-
-	toReturn.noteNumber = noteChar - 'a';
-
-	if (!octaveStartsFromA) {
-		toReturn.noteNumber -= 2;
-		if (toReturn.noteNumber < 0) {
-			toReturn.noteNumber += 7;
-		}
-	}
-
-	toReturn.noteNumber *= 3; // To make room for flats and sharps, below.
-
-	string++;
-	if (*string == 'b') {
-		toReturn.noteNumber--;
-		string++;
-	}
-	else if (*string == '#') {
-		toReturn.noteNumber++;
-		string++;
-	}
-
-	bool numberIsNegative = false;
-	if (*string == '-') {
-		numberIsNegative = true;
-		string++;
-	}
-
-	if (*string < '1' || *string > '9') { // There has to be at least some number there if we're to consider this a note
-		                                  // name. And it can't start with 0.
-		toReturn.noteNumber = 100000;
-		toReturn.stringLength = 0;
-		return toReturn;
-	}
-
-	int32_t number = *string - '0';
-	string++;
-
-	while (true) {
-
-		if (*string >= '0' && *string <= '9') {
-			number *= 10;
-			number += *string - '0';
-			string++;
-		}
-		else {
-			if (numberIsNegative) {
-				number = -number;
-			}
-			toReturn.noteNumber += number * 36;
-			toReturn.stringLength = string - stringStart;
-			return toReturn;
-		}
-	}
-}
-
-// You must set this at some point before calling strcmpspecial. This isn't implemented as an argument because
-// sometimes you want to set it way up the call tree, and passing it all the way down is a pain.
-bool shouldInterpretNoteNames;
-
-bool octaveStartsFromA; // You must set this if setting shouldInterpretNoteNames to true.
-
-// Returns positive if first > second
-// Returns negative if first < second
-int32_t strcmpspecial(char const* first, char const* second) {
-
-	int32_t resultIfGetToEndOfBothStrings = 0;
-
-	while (true) {
-		bool firstIsFinished = (*first == 0);
-		bool secondIsFinished = (*second == 0);
-
-		if (firstIsFinished && secondIsFinished) {
-			return resultIfGetToEndOfBothStrings; // If both are finished
-		}
-
-		if (firstIsFinished || secondIsFinished) { // If just one is finished
-			return (int32_t)*first - (int32_t)*second;
-		}
-
-		bool firstIsNumber = (*first >= '0' && *first <= '9');
-		bool secondIsNumber = (*second >= '0' && *second <= '9');
-
-		// If they're both numbers...
-		if (firstIsNumber && secondIsNumber) {
-
-			// If we haven't yet seen a differing number of leading zeros in a number, see if that exists here.
-			if (!resultIfGetToEndOfBothStrings) {
-				char const* firstHere = first;
-				char const* secondHere = second;
-				while (true) {
-					char firstChar = *firstHere;
-					char secondChar = *secondHere;
-					bool firstDigitIsLeadingZero = (firstChar == '0');
-					bool secondDigitIsLeadingZero = (secondChar == '0');
-
-					if (firstDigitIsLeadingZero && secondDigitIsLeadingZero) { // If both are zeros, look at next chars.
-						firstHere++;
-						secondHere++;
-						continue;
-					}
-
-					// else if (!firstDigitIsLeadingZero || !secondDigitIsLeadingZero) break;	// If both are not
-					// zeros, we're done.
-					//  Actually, the same end result is achieved without that line.
-
-					// If we're still here, one is a leading zero and the other isn't.
-					resultIfGetToEndOfBothStrings =
-					    (int32_t)firstChar
-					    - (int32_t)secondChar; // Will still end up as zero when that needs to happen.
-					break;
-				}
-			}
-
-			int32_t firstNumber = *first - '0';
-			int32_t secondNumber = *second - '0';
-			first++;
-			second++;
-
-			while (*first >= '0' && *first <= '9') {
-				firstNumber *= 10;
-				firstNumber += *first - '0';
-				first++;
-			}
-
-			while (*second >= '0' && *second <= '9') {
-				secondNumber *= 10;
-				secondNumber += *second - '0';
-				second++;
-			}
-
-			int32_t difference = firstNumber - secondNumber;
-			if (difference) {
-				return difference;
-			}
-		}
-
-		// Otherwise, if not both numbers...
-		else {
-
-			char firstChar = *first;
-			char secondChar = *second;
-
-			// Make lowercase
-			if (firstChar >= 'A' && firstChar <= 'Z') {
-				firstChar += 32;
-			}
-			if (secondChar >= 'A' && secondChar <= 'Z') {
-				secondChar += 32;
-			}
-
-			// If we're doing note ordering...
-			if (shouldInterpretNoteNames) {
-				ComparativeNoteNumber firstResult{}, secondResult{};
-				firstResult.noteNumber = 100000;
-				firstResult.stringLength = 0;
-				secondResult.noteNumber = 100000;
-				secondResult.stringLength = 0;
-
-				if (firstChar >= 'a' && firstChar <= 'g') {
-					firstResult = getComparativeNoteNumberFromChars(first, firstChar, octaveStartsFromA);
-				}
-
-				if (secondChar >= 'a' && secondChar <= 'g') {
-					secondResult = getComparativeNoteNumberFromChars(second, secondChar, octaveStartsFromA);
-				}
-
-				if (firstResult.noteNumber == secondResult.noteNumber) {
-					if (!firstResult.stringLength && !secondResult.stringLength) {
-						goto doNormal;
-					}
-					first += firstResult.stringLength;
-					second += secondResult.stringLength;
-				}
-				else {
-					return firstResult.noteNumber - secondResult.noteNumber;
-				}
-			}
-
-			else {
-doNormal:
-				// If they're the same, carry on
-				if (firstChar == secondChar) {
-					first++;
-					second++;
-				}
-
-				// Otherwise...
-				else {
-					// Dot then underscore comes first
-					if (firstChar == '.') {
-						return -1;
-					}
-					else if (secondChar == '.') {
-						return 1; // We know they're not both the same - see above.
-					}
-
-					if (firstChar == '_') {
-						return -1;
-					}
-					else if (secondChar == '_') {
-						return 1;
-					}
-
-					return (int32_t)firstChar - (int32_t)secondChar;
-				}
-			}
-		}
-	}
-}
-
 void replace_char(char* out_str, const char* in_str, char find, char replace) {
 	strcpy(out_str, in_str);
 	auto* current_pos = strchr(out_str, find);
@@ -1911,11 +1366,14 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
 		char accidential = useSharps ? '#' : FLAT_CHAR;
-		*thisChar = display->haveOLED() ? accidential : '.';
+		*thisChar = accidential;
 		thisChar++;
 	}
 	if (appendOctaveNo) {
-		intToString(octave, thisChar, 1);
+		intToString(octave, thisChar, 1); // terminates the string for us
+	}
+	else {
+		*thisChar = 0;
 	}
 
 	if (getLengthWithoutDot) {
@@ -2015,11 +1473,6 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 	return count;
 }
 
-bool shouldAbortLoading() {
-	return (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
-	        && (encoders::select.pending() || QwertyUI::predictionInterrupted));
-}
-
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {
 	// Given a note length and a tick magnitude, figure out the _note magnitude_
 	int32_t noteMagnitude = -5 - tickMagnitude;
@@ -2037,66 +1490,29 @@ void getNoteLengthNameFromMagnitude(etl::istring& noteLengthBuf, int32_t magnitu
 	// Positive magnitudes are bars, negative magnitudes are divisions of bars.
 	uint32_t division = (uint32_t)1 << (0 - magnitude);
 
-	if (display->haveOLED()) {
-		if (magnitude < 0) {
-			deluge::string::appendInt(noteLengthBuf, division);
-			// this is not fully general but since division are always a power of 2, it works out in practice (no need
-			// for "rd")
-			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
-			noteLengthBuf.append(suffix);
-			if (notesString != nullptr) {
-				noteLengthBuf.append(notesString);
-			}
-		}
-		else {
-			uint32_t numBars = (uint32_t)1 << magnitude;
-			deluge::string::appendInt(noteLengthBuf, numBars);
-			if (clarifyPerColumn) {
-				if (numBars == 1) {
-					noteLengthBuf.append(" bar (per column)");
-				}
-				else {
-					noteLengthBuf.append(" bars (per column)");
-				}
-			}
-			else {
-				noteLengthBuf.append("-bar");
-			}
+	if (magnitude < 0) {
+		deluge::string::appendInt(noteLengthBuf, division);
+		// this is not fully general but since division are always a power of 2, it works out in practice (no need
+		// for "rd")
+		char const* suffix = ((division % 10) == 2) ? "nd" : "th";
+		noteLengthBuf.append(suffix);
+		if (notesString != nullptr) {
+			noteLengthBuf.append(notesString);
 		}
 	}
 	else {
-		if (magnitude < 0) {
-			if (division <= 9999) {
-				deluge::string::appendInt(noteLengthBuf, division);
-				if (division == 2 || division == 32) {
-					noteLengthBuf.append("ND");
-				}
-				else if (division <= 99) {
-					noteLengthBuf.append("TH");
-				}
-				else if (division <= 999) {
-					noteLengthBuf.append("T");
-				}
+		uint32_t numBars = (uint32_t)1 << magnitude;
+		deluge::string::appendInt(noteLengthBuf, numBars);
+		if (clarifyPerColumn) {
+			if (numBars == 1) {
+				noteLengthBuf.append(" bar (per column)");
 			}
 			else {
-				noteLengthBuf.append("TINY");
+				noteLengthBuf.append(" bars (per column)");
 			}
 		}
 		else {
-			uint32_t numBars = (uint32_t)1 << magnitude;
-			if (numBars <= 9999) {
-				deluge::string::appendInt(noteLengthBuf, numBars);
-				auto size = noteLengthBuf.size();
-				if (size == 1) {
-					noteLengthBuf.append("BAR");
-				}
-				else if (size <= 3) {
-					noteLengthBuf.append("B");
-				}
-			}
-			else {
-				noteLengthBuf.append("BIG");
-			}
+			noteLengthBuf.append("-bar");
 		}
 	}
 }
@@ -2129,54 +1545,24 @@ bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, i
 	return true;
 }
 
-Error fresultToDelugeErrorCode(FRESULT result) {
-	switch (result) {
-	case FR_OK:
+Error delugeStatusToError(DelugeStatus status) {
+	switch (status) {
+	case DELUGE_OK:
 		return Error::NONE;
-
-	case FR_NO_FILESYSTEM:
-		return Error::SD_CARD_NO_FILESYSTEM;
-
-	case FR_NO_FILE:
+	case DELUGE_ERR_NOT_FOUND:
 		return Error::FILE_NOT_FOUND;
-
-	case FR_NO_PATH:
-		return Error::FOLDER_DOESNT_EXIST;
-
-	case FR_WRITE_PROTECTED:
-		return Error::WRITE_PROTECTED;
-
-	case FR_NOT_ENOUGH_CORE:
-		return Error::INSUFFICIENT_RAM;
-
-	case FR_EXIST:
+	case DELUGE_ERR_EXISTS:
 		return Error::FILE_ALREADY_EXISTS;
-
-	default:
-		return Error::SD_CARD;
-	}
-}
-
-Error fatfsErrorToDelugeError(FatFS::Error result) {
-	switch (result) {
-	case FatFS::Error::NO_FILESYSTEM:
+	case DELUGE_ERR_NO_SPACE:
+		return Error::SD_CARD_FULL;
+	case DELUGE_ERR_NO_FILESYSTEM:
 		return Error::SD_CARD_NO_FILESYSTEM;
-
-	case FatFS::Error::NO_FILE:
-		return Error::FILE_NOT_FOUND;
-
-	case FatFS::Error::NO_PATH:
-		return Error::FOLDER_DOESNT_EXIST;
-
-	case FatFS::Error::WRITE_PROTECTED:
+	case DELUGE_ERR_WRITE_PROTECTED:
 		return Error::WRITE_PROTECTED;
-
-	case FatFS::Error::NOT_ENOUGH_CORE:
+	case DELUGE_ERR_NODEV:
+		return Error::SD_CARD_NOT_PRESENT;
+	case DELUGE_ERR_NO_MEMORY:
 		return Error::INSUFFICIENT_RAM;
-
-	case FatFS::Error::EXIST:
-		return Error::FILE_ALREADY_EXISTS;
-
 	default:
 		return Error::SD_CARD;
 	}

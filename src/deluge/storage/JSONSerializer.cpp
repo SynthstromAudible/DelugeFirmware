@@ -16,7 +16,6 @@
  */
 
 #include "definitions_cxx.hpp"
-#include "fatfs/fatfs.hpp"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
@@ -42,11 +41,6 @@
 #include "version.h"
 #include <string.h>
 
-extern "C" {
-#include "fatfs/diskio.h"
-#include "fatfs/ff.h"
-}
-
 /*******************************************************************************
 
     JsonSerializer
@@ -59,6 +53,8 @@ JsonSerializer::JsonSerializer() {
 
 void JsonSerializer::reset() {
 	resetWriter();
+	// Reset formatting as well as comma state when reusing a writer.
+	indentAmount = 0;
 	firstItemHasBeenWritten = false;
 }
 
@@ -68,7 +64,7 @@ void JsonSerializer::write(char const* output) {
 }
 
 void JsonSerializer::writeTag(char const* tag, int32_t number, bool box) {
-	char* buffer = shortStringBuffer;
+	char buffer[12];
 	intToString(number, buffer);
 	writeTag(tag, buffer, box, false);
 }

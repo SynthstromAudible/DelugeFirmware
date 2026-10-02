@@ -19,10 +19,10 @@
 
 #ifdef __cplusplus
 
-#include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
 #include "playback/playback_handler.h"
+#include <libdeluge/scheduler.h>
 
 class MIDICable;
 class MIDIDrum;
@@ -92,23 +92,24 @@ public:
 	///
 	/// @param bend Bend amount. Only the lower 14 bits are used
 	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter);
-	void sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter);
-	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode, int32_t filter);
+	/// @param value Pressure amount. Saturated into 0-127
+	void sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter);
+	/// @param value Pressure amount. Saturated into 0-127
+	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
 
 	// If bit "16" (actually bit 4) is 1, this is a program change. (Wait, still?)
 	LearnedMIDI globalMIDICommands[kNumGlobalMIDICommands]{};
 
 	bool midiThru;
-	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypesIncludingTracks]{}; // A, B, C, Track, NONE, Track 1-16
-	MIDIFollowChannelType midiFollowFeedbackChannelType;                            // A, B, C, Track, NONE
+	LearnedMIDI midiFollowChannelType[kNumMIDIFollowChannelTypesIncludingTracks]{}; // A, B, C, Track 1-16
+	MIDIFollowFeedbackChannelType midiFollowFeedbackChannelType; // NONE, A, B, C, Track, Track + A/B/C
 	uint8_t midiFollowKitRootNote;
 	bool midiFollowDisplayParam;
 	MIDIFollowFeedbackAutomationMode midiFollowFeedbackAutomation;
 	bool midiFollowFeedbackFilter;
 	MIDITakeoverMode midiTakeover;
 	bool midiSelectKitRow;
-	TaskID routine_task_id{};
 
 	// shared buffer for formatting sysex messages.
 	// Not safe for use in interrupts.
@@ -156,6 +157,10 @@ extern MidiEngine midiEngine;
 extern "C" {
 #endif
 extern uint16_t g_usb_usbmode;
+/// App-owned re-entrancy guard against `MidiEngine::check_incoming_usb` re-entering
+/// `deluge_midi_service`; see midi_engine.cpp's definition for the full rationale.
+/// Declared once here; every user includes this header rather than re-declaring it.
+extern volatile uint32_t usbLock;
 #ifdef __cplusplus
 }
 #endif

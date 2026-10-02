@@ -48,8 +48,10 @@ void ClipView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
 }
 
-ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
+
+	maybeStartShortcutOverview(b, on);
 
 	// Horizontal encoder button press-down - don't let it do its zoom level thing if zooming etc not currently
 	// accessible
@@ -67,7 +69,7 @@ ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardR
 	}
 #endif
 	else {
-		return ClipNavigationTimelineView::buttonAction(b, on, inCardRoutine);
+		return ClipNavigationTimelineView::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -154,6 +156,7 @@ Action* ClipView::shortenClip(int32_t newLength) {
 
 ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
+	stopShortcutOverview();
 	// Shift button pressed - edit length
 	if (isNoUIModeActive() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)
 	    && Buttons::isShiftButtonPressed()) {
@@ -173,10 +176,6 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		// Or if still here, we've already scrolled far-right
 
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		Action* action = nullptr;
 
 		uint32_t newLength = changeClipLength(offset, oldLength, action);
@@ -194,9 +193,6 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	             && Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW))) {
 		// Just be safe - maybe not necessary
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 
 		int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
 		int32_t shiftAmount = offset * squareSize;
@@ -367,4 +363,53 @@ int32_t ClipView::getTickSquare() {
 	}
 
 	return newTickSquare;
+}
+
+void ClipView::maybeStartShortcutOverview(deluge::hid::Button b, bool on) {
+	// ignore whether it was on to handle sticky shift (shift off doesn't mean sticky shift is off)
+	if (b == hid::button::SHIFT && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay)) {
+		exitedShortcutOverview = false;
+		uiNeedsRendering(this);
+	}
+	else {
+		stopShortcutOverview();
+	}
+}
+
+void ClipView::stopShortcutOverview() {
+	exitedShortcutOverview = true;
+
+	if (renderedShortcutOverview) {
+		uiNeedsRendering(this);
+	}
+}
+
+bool ClipView::shouldRenderShortcutsOverview() const {
+	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ShortcutOverlay) && Buttons::isShiftButtonPressed()
+	       and not exitedShortcutOverview;
+}
+
+bool ClipView::maybeRenderShortcutsOverview(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+                                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+                                            bool drawUndefinedArea) {
+	if (shouldRenderShortcutsOverview()) {
+		renderedShortcutOverview = true;
+		D_PRINTLN("rendering shortcuts for %x", getModControllableAudioOrNone());
+		SoundEditor::renderMainShortcutsOnly(getModControllableAudioOrNone(), image, occupancyMask,
+		                                     SoundEditor::shouldEditKitAffectEntire());
+		return true;
+	}
+	if (renderedShortcutOverview) {
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
+			if (whichRows & (1 << yDisplay)) {
+				// clear this row of the pad image
+				std::fill(image[yDisplay], image[yDisplay] + kDisplayWidth + kSideBarWidth, gui::colours::black);
+				if (occupancyMask) {
+					memset(occupancyMask[yDisplay], 0, kDisplayWidth + kSideBarWidth);
+				}
+			}
+		}
+		renderedShortcutOverview = false;
+	}
+	return false;
 }

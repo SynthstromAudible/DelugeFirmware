@@ -141,7 +141,9 @@ bool deserializeSections(Arrangement& arrangement, Deserializer& reader, char co
 			}
 
 			if (id < kMaxNumSections) {
-				if (channel < 16 && note < 128) {
+				// channel may be a plain channel (0-15), an MPE zone (16-17), or CC-encoded
+				// (channel + IS_A_CC) — see LearnedMIDI::channelOrZone.
+				if (channel < IS_A_PC && note < 128) {
 					arrangement.sections[id].launch_midi_command.cable = cable;
 					arrangement.sections[id].launch_midi_command.channelOrZone = channel;
 					arrangement.sections[id].launch_midi_command.noteOrCC = note;

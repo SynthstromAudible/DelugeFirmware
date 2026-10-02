@@ -27,4 +27,11 @@ public:
 	void deleteNoteRowAtIndex(int32_t index, int32_t numToDelete = 1);
 	// Deep copies go through copy-assignment (`dst = src`), inherited from OrderedPosVector — each NoteRow is
 	// copy-constructed (its param manager + notes deep-copied). Throws deluge::exception on OOM.
+
+	/// @brief Swap two rows in place (a note-row drag).
+	///
+	/// @note A structural edit: the render walks the rows.
+	/// @param a Index of the first row.
+	/// @param b Index of the second row.
+	void swapRows(int32_t a, int32_t b);
 };

@@ -24,6 +24,10 @@ public:
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode) const;
 	/** Steps a note up/down by `increment` scale degrees, optionally wrapping within the octave. */
 	int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave) const;
+	/** Steps a note up/down by `increment` scale degrees when `inKey`, else by `increment` semitones. */
+	int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, bool inKey) const;
+	/** Steps a note up/down by `increment` semitones, optionally wrapping within the octave. */
+	int32_t incrementYNoteNoKey(int32_t yNote, int32_t increment, bool inOctave) const;
 	/** Whether the mode note at `yVisualWithinOctave` may be nudged by `newOffset` without colliding. */
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) const;
 	/** The preset Scale implied by this key's mode notes (NUM_PRESET_SCALES if it is a user scale). */

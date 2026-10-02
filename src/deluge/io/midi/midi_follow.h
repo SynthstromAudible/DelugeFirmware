@@ -20,8 +20,10 @@
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable.h"
 #include "modulation/params/param.h"
+#include "storage/byte_channel.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"
+#include <array>
 #include <cstdint>
 
 class AudioClip;
@@ -39,8 +41,28 @@ namespace params = deluge::modulation::params;
 class MidiFollow final {
 public:
 	MidiFollow();
+	void factoryReset(bool showPopup = true);
 	void writeDefaultsToFile();
-	void readDefaultsFromFile();
+	/// @brief writeDefaultsToFile's body, run where blocking on the card is legal.
+	void writeDefaultsInline();
+	/// @brief Read the follow defaults, preferring the channel.
+	/// @param onDone Told how the channel operation ended, when the channel took it.
+	/// @return Whether the CHANNEL accepted the read -- i.e. whether @p onDone will be called.
+	bool readDefaultsFromFile(deluge::storage::bytes::DoneFn onDone = nullptr);
+	/// @brief readDefaultsFromFile's body, run where blocking on the card is legal.
+	void readDefaultsInline();
+	/// @brief Put the in-memory follow settings into their out-of-the-box state.
+	///
+	/// What must be true whether the file turns up or not, so both arms do it before reading.
+	void resetToDefaults();
+	/// @brief Walk an already-opened document into the in-memory follow settings.
+	void parseDefaults(Deserializer& reader);
+	/// @brief Write the follow settings into an already-opened serialiser, file- or memory-backed.
+	void serialiseDefaults(Serializer& writer);
+	/// @brief `deluge::storage::bytes::ParseFn` for @ref parseDefaults.
+	static void parseDefaultsBytes(void* ctx, char* bytes, uint32_t len);
+	/// @brief `deluge::storage::bytes::AbsentFn`: no MIDIFollow.XML, so write one.
+	static void writeDefaultsAbsent(void* ctx);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                                Clip* clip, int32_t soundParamId, int32_t globalParamId,
@@ -57,7 +79,11 @@ public:
 	void aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru,
 	                        ModelStack* modelStack);
 
-	void clearStoredClips();
+	/// @brief [interaction] Forget every clip stored for a note-off that is not one of currentSong's. Called by the
+	///        interaction tier's side of a song swap (deluge::playback::songSwappedOut()), so no note-off reaches a
+	///        swapped-out song's clip, while one a handler sent to the incoming song's clip still finds it.
+	void forgetClipsNotOfCurrentSong();
+	/// @brief [interaction] Forget @p clip, which is being deleted, wherever it is stored for a note-off.
 	void removeClip(Clip* clip);
 
 	// midi CC mappings
@@ -74,9 +100,10 @@ public:
 	uint32_t timeAutomationFeedbackLastSent{};
 
 	// public so it can be called from View::sendMidiFollowFeedback
-	MIDIFollowChannelType getChannelTypeForFeedback();
-	void sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation = false);
-	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
+	bool isFeedbackEnabled();
+	void sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation = false);
+	/// Resolve the configured MIDI Follow feedback targets and send a learned CC value to each one.
+	void sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos);
 
 	void handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber,
 	                      int32_t ccValue);
@@ -140,7 +167,18 @@ private:
 
 	MIDIMatchType checkMidiFollowMatch(MIDICable& cable, uint8_t channel);
 	MIDIMatchType checkMidiFollowMatchForSpecificTrack(MIDICable& cable, uint8_t channel, int32_t specific_track_index);
-	bool isFeedbackEnabled();
+
+	static constexpr size_t kMaxMIDIFollowFeedbackTargets = 2;
+	using FeedbackChannelTypes = std::array<MIDIFollowChannelType, kMaxMIDIFollowFeedbackTargets>;
+	size_t getChannelTypesForFeedback(FeedbackChannelTypes& feedbackChannelTypes);
+	MIDIFollowChannelType getChannelTypeForTrackFeedback();
+	bool addChannelTypeForFeedback(FeedbackChannelTypes& feedbackChannelTypes, size_t& numChannelTypes,
+	                               MIDIFollowChannelType feedbackChannelType);
+	/// Send a learned CC value to each already-resolved feedback target.
+	void sendCCForMidiFollowFeedback(FeedbackChannelTypes const& feedbackChannelTypes, size_t numChannelTypes,
+	                                 int32_t ccNumber, int32_t knobPos);
+	/// Send a learned CC value to one feedback target channel.
+	void sendCCForMidiFollowFeedback(MIDIFollowChannelType feedbackChannelType, int32_t ccNumber, int32_t knobPos);
 
 	// Saving
 
@@ -172,6 +210,9 @@ private:
 	// string tags / values
 	char const* getNameFromChannelType(MIDIFollowChannelType type);
 	MIDIFollowChannelType getChannelTypeFromName(char const* name);
+
+	char const* getNameFromFeedbackChannelType(MIDIFollowFeedbackChannelType type);
+	MIDIFollowFeedbackChannelType getFeedbackChannelTypeFromName(char const* name);
 
 	char const* getNameFromFeedbackAutomationMode(MIDIFollowFeedbackAutomationMode mode);
 	MIDIFollowFeedbackAutomationMode getFeedbackAutomationModeFromName(char const* name);

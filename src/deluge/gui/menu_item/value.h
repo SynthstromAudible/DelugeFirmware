@@ -51,21 +51,13 @@ public:
 protected:
 	virtual void writeCurrentValue() {}
 
-	// 7SEG ONLY
-	virtual void drawValue() = 0;
-
 private:
 	T value_;
 };
 
 template <typename T>
 void Value<T>::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (display->haveOLED()) {
-		readCurrentValue();
-	}
-	else {
-		readValueAgain();
-	}
+	readCurrentValue();
 }
 
 template <typename T>
@@ -78,23 +70,13 @@ void Value<T>::selectEncoderAction(int32_t offset) {
 
 	// For MenuItems referring to an AutoParam (so UnpatchedParam and PatchedParam), ideally we wouldn't want to render
 	// the display here, because that'll happen soon anyway due to a setting of TIMER_DISPLAY_AUTOMATION.
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue(); // Probably not necessary either...
-	}
+	renderUIsForOled();
 }
 
 template <typename T>
 void Value<T>::readValueAgain() {
 	readCurrentValue();
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 } // namespace deluge::gui::menu_item

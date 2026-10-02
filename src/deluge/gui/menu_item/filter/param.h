@@ -39,7 +39,7 @@ public:
 
 	[[nodiscard]] std::string_view getName() const override { return info.getMorphNameOr(Integer::getName()); }
 	[[nodiscard]] std::string_view getTitle() const override { return info.getMorphNameOr(Integer::getTitle()); }
-	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return info.isOn();
 	}
 	[[nodiscard]] FilterInfo const& getFilterInfo() const { return info; }
@@ -84,7 +84,7 @@ public:
 
 	[[nodiscard]] std::string_view getName() const override { return info.getMorphNameOr(UnpatchedParam::getName()); }
 	[[nodiscard]] std::string_view getTitle() const override { return info.getMorphNameOr(UnpatchedParam::getTitle()); }
-	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+	[[nodiscard]] bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		return info.isOn();
 	}
 	void getColumnLabel(etl::istring& label) override {

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014 Synthstrom Audible Limited
+ * Copyright © 2014-2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,58 +14,13 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-
-// Ok, creating a class for this is absolutely stupid, but I was a noob at the time! It doesn't add any performance
-// overhead though.
-
 #pragma once
 
+// StereoSample now lives in dsp-next (deluge::dsp::StereoSample) so it's library-resident. This legacy header is a
+// compat shim: it aliases the global ::StereoSample to the dsp-next type, so the app's existing (unqualified)
+// usages keep working unchanged while sites migrate to deluge::dsp::StereoSample one at a time. (It also keeps
+// re-exporting util/functions.h, which the old header pulled in and some includers relied on transitively.)
+#include "dsp-next/core/stereo_sample.h"
 #include "util/functions.h"
 
-struct StereoSample {
-	[[gnu::always_inline]] static constexpr StereoSample fromMono(q31_t sampleValue) {
-		return StereoSample{
-		    .l = sampleValue,
-		    .r = sampleValue,
-		};
-	}
-
-	[[gnu::always_inline]] void addMono(q31_t sampleValue) {
-		l += sampleValue;
-		r += sampleValue;
-	}
-
-	// Amplitude is probably Q2.29?
-	[[gnu::always_inline]] void addPannedMono(q31_t sampleValue, int32_t amplitudeL, int32_t amplitudeR) {
-		l += (multiply_32x32_rshift32(sampleValue, amplitudeL) << 2);
-		r += (multiply_32x32_rshift32(sampleValue, amplitudeR) << 2);
-	}
-
-	[[gnu::always_inline]] void addStereo(q31_t sampleValueL, q31_t sampleValueR) {
-		l += sampleValueL;
-		r += sampleValueR;
-	}
-
-	[[gnu::always_inline]] constexpr StereoSample operator+(const StereoSample& rhs) const {
-		return StereoSample{
-		    .l = l + rhs.l,
-		    .r = r + rhs.r,
-		};
-	}
-	[[gnu::always_inline]] constexpr StereoSample& operator+=(const StereoSample& rhs) {
-		l = l + rhs.l;
-		r = r + rhs.r;
-		return *this;
-	}
-
-	// Amplitude is probably Q2.29?
-	[[gnu::always_inline]] void addPannedStereo(q31_t sampleValueL, q31_t sampleValueR, int32_t amplitudeL,
-	                                            int32_t amplitudeR) {
-		l += (multiply_32x32_rshift32(sampleValueL, amplitudeL) << 2);
-		r += (multiply_32x32_rshift32(sampleValueR, amplitudeR) << 2);
-	}
-
-	// Sean: don't initialize l and r to 0 as this introduces performance issues
-	q31_t l;
-	q31_t r;
-};
+using StereoSample = deluge::dsp::StereoSample;

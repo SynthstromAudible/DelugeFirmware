@@ -19,19 +19,20 @@
 ///
 /// The application's allocator asks the BSP where the usable RAM regions are
 /// instead of hard-coding `EXTERNAL_MEMORY_END` etc. The BSP also exposes the
-/// cache clean/invalidate operations needed for DMA coherency, replacing inline
-/// `RZA1/cache` calls and the `PLACE_SDRAM_*` linker-section knowledge in
-/// `definitions.h`.
+/// cache clean/invalidate operations needed for DMA coherency.
 #ifndef LIBDELUGE_MEMORY_H
 #define LIBDELUGE_MEMORY_H
 
+#include "abi.h"
 #include "types.h"
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef enum DelugeMemoryKind {
+/// @brief Kind of memory region a DelugeMemoryRegion describes.
+typedef enum DelugeMemoryKind : uint8_t {
 	DELUGE_MEM_FAST_INTERNAL = 0, ///< small, low-latency on-chip SRAM
 	DELUGE_MEM_LARGE_EXTERNAL = 1 ///< large external SDRAM
 } DelugeMemoryKind;
@@ -43,29 +44,14 @@ typedef struct DelugeMemoryRegion {
 } DelugeMemoryRegion;
 
 /// Number of allocatable memory regions the board provides. [task]
-uint8_t deluge_memory_region_count(void);
+uint8_t deluge_memory_region_count(void) DELUGE_NOEXCEPT;
 
 /// Describe region `index` (0..count-1). [task]
-DelugeStatus deluge_memory_region(uint8_t index, DelugeMemoryRegion* out);
-
-/// Bounds (addresses) of the board's memory regions, for code that must reason
-/// about which region a pointer lies in — allocators, region-aware containers.
-/// [task] [audio] [isr]
-uintptr_t deluge_memory_external_end(void);   ///< one past the large external region
-uintptr_t deluge_memory_internal_begin(void); ///< base of the fast internal region
+DelugeStatus deluge_memory_region(uint8_t index, DelugeMemoryRegion* out) DELUGE_NOEXCEPT;
 
 /// A writable scratch address whose contents are never read (a "bit bucket"),
 /// for discarding streamed writes. [task] [audio] [isr]
-void* deluge_memory_scratch(void);
-
-/// Cache line size in bytes (alignment unit for DMA-coherent buffers). [task]
-uint32_t deluge_cache_line_size(void);
-
-/// Clean (flush) the cache for `[addr, addr+size)` before a device reads it. [task] [isr]
-void deluge_cache_clean(const void* addr, uint32_t size);
-
-/// Invalidate the cache for `[addr, addr+size)` after a device wrote it. [task] [isr]
-void deluge_cache_invalidate(const void* addr, uint32_t size);
+void* deluge_memory_scratch(void) DELUGE_NOEXCEPT;
 
 #ifdef __cplusplus
 }

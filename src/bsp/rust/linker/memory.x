@@ -1,6 +1,6 @@
 /* Board memory layout for the Synthstrom Deluge (RZ/A1L) — RTT disabled.
- * INCLUDE'd by rza1l.x (from the rza1l-hal crate). Matches the C++ firmware's
- * linker_script_rz_a1l.ld and deluge-sdk's controller-firmware/memory.x. */
+ * INCLUDE'd by rza1l.x (from the rza1l-hal crate). Matches deluge-sdk's
+ * controller-firmware/memory.x. */
 
 MEMORY {
     /* 2.875 MB on-chip SRAM (pages 0-4, non-retention banks).

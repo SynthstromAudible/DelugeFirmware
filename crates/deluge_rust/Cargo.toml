@@ -1,9 +1,4 @@
-# deluge_rust — the umbrella staticlib for the Deluge Rust core. It links into the
-# firmware / sim / tests and re-exports the C ABIs of the member libraries:
-#   - deluge_alloc    : TLSF + slab allocator (libdeluge/alloc.h)
-#   - deluge_resource : cached-asset / resource manager (deluge_resource.h)
-# It owns the single `#[panic_handler]` for the whole no_std dependency graph, so
-# the member crates stay plain rlibs and compose without duplicate-symbol clashes.
+# Umbrella staticlib linked by the C++ unit-test tree; re-exports the member crates' C ABIs.
 [package]
 name = "deluge_rust"
 version = "0.1.0"
@@ -13,15 +8,38 @@ publish = false
 
 [lib]
 name = "deluge_rust"
-# staticlib: the artifact linked into the C++ firmware / sim / conformance tests.
-# rlib: lets the umbrella participate in cargo test if ever needed.
 crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 deluge_alloc = { path = "../deluge_alloc" }
 deluge_resource = { path = "../deluge_resource" }
+# Unconditional: the app's sample and wavetable header parsing calls it, with no C++ fallback.
+deluge_audio_format = { path = "../deluge_audio_format" }
+# The sample crates below are optional, pulled in only by `sample_abi`.
+deluge_sample_source = { path = "../deluge_sample_source", optional = true }
+deluge_sample_fill = { path = "../deluge_sample_fill", optional = true }
+# std-backed implementation for `deluge_sample_fill`'s context-table mutex.
+critical-section = { version = "1", optional = true }
+deluge_sample_reader = { path = "../deluge_sample_reader", optional = true }
+deluge_sample_stream = { path = "../deluge_sample_stream", optional = true }
 
 [features]
-# Forward the allocator's AddressSanitizer poisoning (host-sim ASan build only).
-# The sim enables this with `--features deluge_rust/asan` under DELUGE_SIM_SANITIZE.
+## Forwards the allocator's AddressSanitizer poisoning. Opt-in, for a link built with
+## `-fsanitize=address`; no build enables it.
 asan = ["deluge_alloc/asan"]
+## Exports the sample crates' C ABIs (source cursor, fill, reader, stream slots); the
+## `sample_reader` spec's separate umbrella build enables it. Each member's `c_abi` feature is what
+## emits its `#[no_mangle]` symbols; the dependency alone would compile them dead.
+sample_abi = [
+    "dep:deluge_sample_source",
+    "deluge_sample_source/c_abi",
+    "dep:deluge_sample_fill",
+    "deluge_sample_fill/native_fill",
+    "deluge_sample_fill/app_convert",
+    "dep:critical-section",
+    "critical-section/std",
+    "dep:deluge_sample_reader",
+    "deluge_sample_reader/c_abi",
+    "dep:deluge_sample_stream",
+    "deluge_sample_stream/c_abi",
+]

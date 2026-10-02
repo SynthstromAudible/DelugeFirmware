@@ -56,9 +56,7 @@ AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 }
 
 AudioOutput::~AudioOutput() {
-	if (outputRecordingFrom) {
-		outputRecordingFrom->setRenderingToAudioOutput(false, nullptr);
-	}
+	releaseMonitoringClaim();
 }
 
 void AudioOutput::cloneFrom(ModControllableAudio* other) {
@@ -85,9 +83,7 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	if (inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
 		outputRecordingFrom = ao->outputRecordingFrom;
 		// now steal the monitoring of the original track if necessary (i.e. we're a looper or sampler)
-		if (mode != AudioOutputMode::player) {
-			outputRecordingFrom->setRenderingToAudioOutput(true, this);
-		}
+		updateMonitoringClaim();
 	}
 }
 
@@ -109,7 +105,7 @@ void AudioOutput::resetEnvelope() {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 
 		bool directlyToDecay = (activeAudioClip->attack() == -2147483648);
-		envelope.noteOn(directlyToDecay);
+		envelope.noteOn(directlyToDecay, 2147483647);
 	}
 	amplitudeLastTime = 0;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
@@ -120,6 +116,11 @@ bool AudioOutput::modeAllowsMonitoring() const {
 		return false;
 	}
 	if (mode == AudioOutputMode::sampler) {
+		// Reachable with a null activeClip via the SPECIFIC_OUTPUT branch, which renders a record-source output
+		// directly and so bypasses the inValidState guard in Song::renderAudio.
+		if (!activeClip) {
+			return false;
+		}
 		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
 		return activeAudioClip.isEmpty();
 	}
@@ -149,7 +150,7 @@ renderEnvelope:
 			int32_t amplitudeLocal =
 			    (envelope.render(render.size(), attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
 
-			if (envelope.state >= EnvelopeStage::OFF) {
+			if (envelope.stage() >= Envelope::Stage::OFF) {
 				if (activeAudioClip.doingLateStart) {
 					resetEnvelope();
 					goto renderEnvelope;
@@ -257,8 +258,11 @@ renderEnvelope:
 			}
 		}
 	}
+	// Only render the record-source if it has an active clip: Output::renderOutput is documented to be called only
+	// when there's an activeClip, but this branch bypasses the inValidState guard in Song::renderAudio.
 	else if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
-	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && (outputRecordingFrom != nullptr)) {
+	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && (outputRecordingFrom != nullptr)
+	         && (outputRecordingFrom->getActiveClip() != nullptr)) {
 		rendered = true;
 		std::byte modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);

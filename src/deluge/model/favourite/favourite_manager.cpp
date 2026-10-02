@@ -16,127 +16,118 @@
  */
 
 #include "model/favourite/favourite_manager.h"
+
+#include "gui/l10n/l10n.h"
+#include "gui/ui/ui.h"
+#include "hid/display/display.h"
+#include "io/file.hpp"
+#include "storage/existence_policy.h"
+#include "storage/storage_manager.h"
+
 #include <cstdint>
+#include <span>
 #include <string.h>
 
 FavouritesManager favouritesManager{};
+
+namespace {
+
+using deluge::favourites::BankState;
+using deluge::favourites::FavouritesIntent;
+using deluge::storage::bytes::SettingsOutcome;
+
+/// Write a save's snapshot, blocking. Legal only before boot finishes: only runIntentInline(), run by
+/// runDuringBoot(), reaches it.
+bool writeSnapshot(const std::string& path, const std::string& bytes) {
+	auto created = StorageManager::createFile(path.c_str(), true);
+	if (!created.has_value()) {
+		return false;
+	}
+	auto written =
+	    created->write(std::span<const std::byte>(reinterpret_cast<const std::byte*>(bytes.data()), bytes.size()));
+	const bool whole = written.has_value() && *written == bytes.size();
+	const bool closed = created->close().has_value();
+	return whole && closed;
+}
+
+} // namespace
 
 FavouritesManager::FavouritesManager() {
 	resetFavourites();
 }
 
-FavouritesManager::~FavouritesManager() {
-	if (!currentCategory.empty()) {
-		saveFavouriteBank();
+std::vector<FavouritesManager::Favorite> FavouritesManager::emptyBank() {
+	std::vector<Favorite> bank(kNumFavourites);
+	for (uint8_t i = 0; i < kNumFavourites; i++) {
+		bank[i].position = i;
 	}
-}
-void FavouritesManager::close() {
-	if (unsavedChanges) {
-		saveFavouriteBank();
-	}
-	resetFavourites();
-	currentCategory.clear();
-	currentFavouriteNumber = std::nullopt;
+	return bank;
 }
 
 // Reset all favourite slots to their default (no colour/filename), with position = slot index.
 void FavouritesManager::resetFavourites() {
-	favourites.clear();
-	favourites.resize(kNumFavourites);
-	for (uint8_t i = 0; i < kNumFavourites; i++) {
-		favourites[i].position = i;
-	}
+	favourites = emptyBank();
 }
 
-void FavouritesManager::setCategory(const std::string& category) {
-	// Save the current category's bank before switching - must happen before currentCategory changes, or it'd be
-	// saved under the new category's filename.
-	if (unsavedChanges && !currentCategory.empty()) {
-		saveFavouriteBank();
-	}
-	currentCategory = category;
-	currentBankNumber = 0;
-	currentFavouriteNumber = std::nullopt;
-	loadFavouritesBank();
+std::string FavouritesManager::bankPath(const std::string& category, uint8_t bank) {
+	return "SETTINGS/FAVOURITES/" + category + "_Bank" + std::to_string(bank) + ".xml";
 }
 
 std::string FavouritesManager::getFilenameForSave() const {
-	return "SETTINGS/FAVOURITES/" + currentCategory + "_Bank" + std::to_string(currentBankNumber) + ".xml";
+	return bankPath(currentCategory, currentBankNumber);
 }
 
-void FavouritesManager::loadFavouritesBank() {
+void FavouritesManager::setCategory(const std::string& category) {
+	// Save the outgoing bank before the category changes, or it would be saved under the new name.
+	if (unsavedChanges && bankState_ == BankState::Loaded) {
+		queueSaveOfCurrentBank();
+	}
+	currentCategory = category;
+	currentBankNumber = 0;
+	requestLoad();
+}
+
+void FavouritesManager::selectFavouritesBank(uint8_t bankNumber) {
+	if (bankNumber > 15) {
+		return;
+	}
+	if (unsavedChanges && bankState_ == BankState::Loaded) {
+		queueSaveOfCurrentBank();
+	}
+	currentBankNumber = bankNumber;
+	requestLoad();
+}
+
+void FavouritesManager::close() {
+	if (unsavedChanges && bankState_ == BankState::Loaded) {
+		queueSaveOfCurrentBank();
+	}
+	generation_++; // any load still coming belongs to a bank nobody is looking at
 	resetFavourites();
-	std::string filePath = getFilenameForSave();
-	FilePointer fileToLoad{};
-	bool fileExists = StorageManager::fileExists(filePath.c_str(), &fileToLoad);
-	if (!fileExists) {
-		// Create an empty bank file and keep the in-memory defaults.
-		saveFavouriteBank();
-		return;
-	}
-	std::string path;
-	path = filePath.c_str();
-	Error error = StorageManager::loadFavouriteFile(&fileToLoad, &path);
-	if (error != Error::NONE) {
-		resetFavourites();
-	}
+	currentCategory.clear();
+	currentFavouriteNumber = std::nullopt;
+	unsavedChanges = false;
+	bankState_ = BankState::Loaded;
 }
 
-Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader) {
-	reader.match('{');
-	char const* tagName;
-	std::string fileName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "favourite")) {
-			// Bound the index read from the file: favourites is sized to 16, so a corrupt/out-of-range
-			// position must not index past the end (was an unchecked favourites[i] OOB write).
-			int32_t position = -1;
-			while (*(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "position")) {
-					position = reader.readTagOrAttributeValueInt();
-					if (position >= 0 && position < (int32_t)favourites.size()) {
-						favourites[position].position = position;
-					}
-					else {
-						position = -1;
-					}
-				}
-				else if (!strcmp(tagName, "colour")) {
-					int32_t colour = reader.readTagOrAttributeValueInt();
-					if (position >= 0) {
-						favourites[position].colour = static_cast<uint8_t>(colour);
-					}
-				}
-				else if (!strcmp(tagName, "instrumentPresetFolder")) {
-					reader.readTagOrAttributeValueString(fileName);
-					if (position >= 0) {
-						favourites[position].filename = fileName.c_str();
-					}
-				}
-			}
-		}
-	}
-	return Error::NONE;
+void FavouritesManager::requestLoad() {
+	generation_++;
+	resetFavourites();
+	currentFavouriteNumber = std::nullopt;
+	unsavedChanges = false;
+	bankState_ = BankState::Loading;
+	deluge::favourites::enqueueIntent(waiting_, FavouritesIntent{.kind = FavouritesIntent::Kind::Load,
+	                                                             .path = getFilenameForSave(),
+	                                                             .generation = generation_});
+	deluge::runtime::appLoop.request(deluge::storage::bytes::serviceJob);
 }
 
-void FavouritesManager::saveFavouriteBank() const {
-	if (currentCategory.empty()) {
-		return;
-	}
-
-	std::string filePath = getFilenameForSave();
-	Error error = StorageManager::createXMLFile(filePath.c_str(), smSerializer, true, true);
-	if (error != Error::FILE_ALREADY_EXISTS && error != Error::NONE) {
-		return;
-	}
-
-	if (favourites.empty()) {
-		return;
-	}
-
-	Serializer& writer = GetSerializer();
-
-	char buffer[9];
+std::string FavouritesManager::serialiseBank() const {
+	XMLSerializer writer;
+	writer.setMemoryBased();
+	// Both the channel and inline write arms produce this same snapshot, head included, so their files are
+	// byte-identical.
+	writer.write(StorageManager::kXmlDocumentHead);
 	writer.writeArrayStart("favourites");
 	for (const auto& fav : favourites) {
 		if (fav.colour.has_value()) {
@@ -148,44 +139,78 @@ void FavouritesManager::saveFavouriteBank() const {
 		}
 	}
 	writer.writeArrayEnding("favourites");
-	error = writer.closeFileAfterWriting();
-	unsavedChanges = false;
-	return;
+	return std::string(writer.getBufferPtr(), static_cast<size_t>(writer.bytesWritten()));
 }
 
-void FavouritesManager::selectFavouritesBank(uint8_t bankNumber) {
-	if (bankNumber > 15)
+void FavouritesManager::queueSaveOfCurrentBank() {
+	if (currentCategory.empty()) {
 		return;
-	if (unsavedChanges) {
-		saveFavouriteBank();
 	}
-	currentBankNumber = bankNumber;
-	currentFavouriteNumber = std::nullopt;
-	loadFavouritesBank();
+	deluge::favourites::enqueueIntent(
+	    waiting_,
+	    FavouritesIntent{.kind = FavouritesIntent::Kind::Save, .path = getFilenameForSave(), .bytes = serialiseBank()});
+	unsavedChanges = false;
+	deluge::runtime::appLoop.request(deluge::storage::bytes::serviceJob);
+}
+
+Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader, std::vector<Favorite>& into) {
+	reader.match('{');
+	char const* tagName;
+	std::string fileName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "favourite")) {
+			// Bound the index read from the file: a corrupt/out-of-range position must not index past the end.
+			int32_t position = -1;
+			while (*(tagName = reader.readNextTagOrAttributeName())) {
+				if (!strcmp(tagName, "position")) {
+					position = reader.readTagOrAttributeValueInt();
+					if (position >= 0 && position < (int32_t)into.size()) {
+						into[position].position = position;
+					}
+					else {
+						position = -1;
+					}
+				}
+				else if (!strcmp(tagName, "colour")) {
+					int32_t colour = reader.readTagOrAttributeValueInt();
+					if (position >= 0) {
+						into[position].colour = static_cast<uint8_t>(colour);
+					}
+				}
+				else if (!strcmp(tagName, "instrumentPresetFolder")) {
+					reader.readTagOrAttributeValueString(fileName);
+					if (position >= 0) {
+						into[position].filename = fileName.c_str();
+					}
+				}
+			}
+		}
+	}
+	return Error::NONE;
 }
 
 void FavouritesManager::setFavorite(uint8_t position, uint8_t colour, const std::string& filename) {
-	if (position >= kNumFavourites)
+	if (position >= kNumFavourites || !deluge::favourites::editAllowed(bankState_)) {
 		return;
-	if (favourites.size() <= position) {
-		favourites.resize(kNumFavourites);
 	}
 	currentFavouriteNumber = position;
 	favourites[position] = Favorite(position, static_cast<uint8_t>(colour), filename);
-	saveFavouriteBank();
+	queueSaveOfCurrentBank();
 }
 
 void FavouritesManager::unsetFavorite(uint8_t position) {
-	if (position >= kNumFavourites)
+	if (position >= kNumFavourites || !deluge::favourites::editAllowed(bankState_)) {
 		return;
+	}
 	currentFavouriteNumber = position;
 	favourites[position] = Favorite(position, std::nullopt, "");
-	saveFavouriteBank();
+	queueSaveOfCurrentBank();
 }
 
 bool FavouritesManager::isEmpty(uint8_t position) const {
-	if (position >= kNumFavourites || favourites.size() <= position)
+	if (position >= kNumFavourites || favourites.size() <= position) {
 		return true;
+	}
 	return !favourites[position].colour.has_value();
 }
 
@@ -194,24 +219,169 @@ std::array<std::optional<uint8_t>, kNumFavourites> FavouritesManager::getFavouri
 	for (uint8_t i = 0; i < kNumFavourites && i < favourites.size(); i++) {
 		colours[i] = favourites[i].colour;
 	}
-	return colours; // Copy elision makes this efficient
+	return colours;
 }
 
 void FavouritesManager::changeColour(uint8_t position, int32_t offset) {
+	if (!deluge::favourites::editAllowed(bankState_)) {
+		return;
+	}
 	if (position < kNumFavourites && favourites.size() > position && favourites[position].colour.has_value()) {
 		// NB: 16 here is the colour-palette size (wrapping the colour value 0-15), not kNumFavourites.
 		favourites[position].colour = ((favourites[position].colour.value() + offset) % 16 + 16) % 16;
 		unsavedChanges = true;
-		return;
 	}
-	return;
 }
 
 const std::string& FavouritesManager::getFavoriteFilename(uint8_t position) {
-	static const std::string emptyString = ""; // Safe default value
+	static const std::string emptyString = "";
 	currentFavouriteNumber = position;
 	if (position >= kNumFavourites || favourites.size() <= position || !favourites[position].colour.has_value()) {
-		return emptyString; // Return a reference to an empty string instead of nullptr
+		return emptyString;
 	}
 	return favourites[position].filename;
+}
+
+void FavouritesManager::serviceRoutine() {
+	if (inFlight_.active && inFlight_.resultReady.load(std::memory_order_acquire)) {
+		applyResult();
+	}
+	if (!inFlight_.active && !waiting_.empty()) {
+		issueNext();
+	}
+	// An intent that ended without the channel (run inline, or refused) has a result to apply now, and one that
+	// ended with it has made room for the next. One the channel holds is brought back by the channel's own job.
+	if ((inFlight_.active && inFlight_.resultReady.load(std::memory_order_acquire))
+	    || (!inFlight_.active && !waiting_.empty())) {
+		deluge::runtime::appLoop.request(deluge::storage::bytes::serviceJob);
+	}
+}
+
+void FavouritesManager::issueNext() {
+	namespace bytes = deluge::storage::bytes;
+	inFlight_.intent = std::move(waiting_.front());
+	waiting_.pop_front();
+	inFlight_.active = true;
+	inFlight_.resultReady.store(false, std::memory_order_release);
+	inFlight_.outcome = SettingsOutcome::Unreadable;
+	inFlight_.scratch.clear();
+	intentsIssued_++;
+
+	const FavouritesIntent& intent = inFlight_.intent;
+	if (bytes::usingByteChannel()) {
+		const bool taken =
+		    intent.kind == FavouritesIntent::Kind::Load
+		        ? bytes::submitRead(intent.path.c_str(), nullptr, &parseBankBytes, nullptr, this, &channelDone)
+		        : bytes::submitWrite(intent.path.c_str(), intent.bytes.data(),
+		                             static_cast<uint32_t>(intent.bytes.size()), &channelDone, this);
+		if (taken) {
+			return;
+		}
+		// Not taken: too large for the channel (a busy channel queues instead).
+	}
+
+	if (bytes::runDuringBoot(&runIntentInline, this)) {
+		return;
+	}
+	// Refused: after boot, with an intent the channel would not take. End it now, as a failure, so the
+	// bank is never left in flight and a failed save still shows the card error.
+	inFlight_.outcome =
+	    intent.kind == FavouritesIntent::Kind::Load ? SettingsOutcome::Unreadable : SettingsOutcome::WriteFailed;
+	inFlight_.resultReady.store(true, std::memory_order_release);
+}
+
+void FavouritesManager::parseBankBytes(void* ctx, char* bytes, uint32_t len) {
+	auto* self = static_cast<FavouritesManager*>(ctx);
+	self->inFlight_.scratch = emptyBank();
+	// activeDeserializer goes back on EVERY path -- see MidiFollow::parseDefaultsBytes. A memory parse does no
+	// card I/O, so nothing else can reach the card mid-parse underneath this.
+	FileDeserializer* previous = activeDeserializer;
+	if (StorageManager::openDelugeBuffer(std::span{reinterpret_cast<uint8_t*>(bytes), len}, false, "favourites")
+	    == Error::NONE) {
+		(void)loadFavouritesFromFile(*activeDeserializer, self->inFlight_.scratch);
+	}
+	// A document that will not open leaves the scratch empty with outcome Parsed: a corrupt bank resets to
+	// empty and carries on, matching the inline arm's handling of FILE_CORRUPTED.
+	activeDeserializer = previous;
+}
+
+void FavouritesManager::channelDone(void* ctx, SettingsOutcome outcome) {
+	auto* self = static_cast<FavouritesManager*>(ctx);
+	self->inFlight_.outcome = outcome;
+	self->channelCompletions_++;
+	self->inFlight_.resultReady.store(true, std::memory_order_release);
+	deluge::runtime::appLoop.request(deluge::storage::bytes::serviceJob);
+}
+
+void FavouritesManager::runIntentInline(void* ctx) {
+	deluge::storage::bytes::noteIoTier(deluge::storage::bytes::IoTier::Favourites);
+	auto* self = static_cast<FavouritesManager*>(ctx);
+	InFlight& inFlight = self->inFlight_;
+	if (inFlight.intent.kind == FavouritesIntent::Kind::Load) {
+		loadInline(inFlight);
+	}
+	else {
+		inFlight.outcome = writeSnapshot(inFlight.intent.path, inFlight.intent.bytes) ? SettingsOutcome::Written
+		                                                                              : SettingsOutcome::WriteFailed;
+	}
+	self->inlineCompletions_.fetch_add(1, std::memory_order_acq_rel);
+	inFlight.resultReady.store(true, std::memory_order_release);
+}
+
+void FavouritesManager::loadInline(InFlight& inFlight) {
+	const char* path = inFlight.intent.path.c_str();
+	// Unknown is never absent: see the spec's data loss path 1.
+	switch (deluge::storage::presence_of(StorageManager::fileExists(path))) {
+	case deluge::storage::Presence::Absent:
+		inFlight.outcome = SettingsOutcome::Absent;
+		return;
+	case deluge::storage::Presence::Undeterminable:
+		inFlight.outcome = SettingsOutcome::Unreadable;
+		return;
+	case deluge::storage::Presence::Present:
+		break;
+	}
+	inFlight.scratch = emptyBank();
+	Error error = StorageManager::openFavouriteFile(path);
+	if (error == Error::FILE_CORRUPTED) {
+		inFlight.outcome = SettingsOutcome::Parsed; // corrupt: reset to empty and carry on
+		return;
+	}
+	if (error != Error::NONE) {
+		inFlight.outcome = SettingsOutcome::Unreadable;
+		return;
+	}
+	(void)loadFavouritesFromFile(*activeDeserializer, inFlight.scratch);
+	const bool closed = activeDeserializer->closeWriter();
+	StorageManager::releaseDocumentStaging();
+	if (!closed) {
+		inFlight.scratch = emptyBank();
+	}
+	inFlight.outcome = closed ? SettingsOutcome::Parsed : SettingsOutcome::Unreadable;
+}
+
+void FavouritesManager::applyResult() {
+	const FavouritesIntent& intent = inFlight_.intent;
+	const SettingsOutcome outcome = inFlight_.outcome;
+	if (intent.kind == FavouritesIntent::Kind::Load) {
+		if (deluge::favourites::loadIsCurrent(intent.generation, generation_)) {
+			bankState_ = deluge::favourites::stateAfterLoad(outcome);
+			if (outcome == SettingsOutcome::Parsed) {
+				favourites = std::move(inFlight_.scratch);
+			}
+			else {
+				resetFavourites();
+			}
+			getCurrentUI()->favouritesBankApplied();
+		}
+		// else: an answer for a bank the user has since left. Discarded.
+	}
+	else if (outcome == SettingsOutcome::WriteFailed) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SD_CARD_ERROR));
+		// Retried by the next save or close of this bank, if it is still the one on screen.
+		if (!currentCategory.empty() && bankState_ == BankState::Loaded && intent.path == getFilenameForSave()) {
+			unsavedChanges = true;
+		}
+	}
+	inFlight_.active = false;
 }

@@ -1,0 +1,26 @@
+[package]
+name = "region-source-differential"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "GPL-3.0-or-later"
+
+# Payload-offset gate for the region cursor (`deluge_sample_source::cursor::SampleSource` over
+# `ManagerResidency`). Standalone crate, not a workspace member. It drives the cursor over a real
+# streamed chunk whose payload sits at a non-zero offset from its manager backing, so resolving the
+# chunk header instead of the payload is byte-detectable.
+
+[dependencies]
+
+[dev-dependencies]
+# The cursor under test.
+deluge_sample_source = { path = "../../../../crates/deluge_sample_source" }
+# The real manager and asset `ManagerResidency` sits on, and the test heap.
+deluge_resource = { path = "../../../../crates/deluge_resource" }
+fs_alloc = { package = "deluge_alloc", path = "../../../../crates/deluge_alloc" }
+# `deluge_sample_fill::chunk`: streamed-chunk construction and payload resolution. No
+# `native_fill`; this gate never runs the fill.
+deluge_sample_fill = { path = "../../../../crates/deluge_sample_fill" }
+# Backs `tests/real_chunk_gate.rs`'s host stand-ins for the C-ABI critical-section primitives
+# `deluge_resource::sync::Masked` calls.
+critical-section = { version = "1", features = ["std"] }

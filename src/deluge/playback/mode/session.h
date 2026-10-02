@@ -45,6 +45,10 @@ public:
 	void scheduleFillEvent(Clip* clip, int64_t atTickCount);
 	void cancelAllLaunchScheduling();
 	void launchSchedulingMightNeedCancelling();
+	/// @brief [interaction] Show how many repeats are left until the armed launch: the load's popup while an armed song
+	///        swap waits, otherwise the session's OLED. The render asks for this through
+	///        deluge::playback::launchRepeatCounted().
+	void showLaunchRepeatsRemaining();
 	void reSyncClipToSongTicks(Clip* clip);
 	void reSyncClip(ModelStackWithTimelineCounter* modelStack, bool mustSetPosToSomething = false,
 	                bool mayResumeClip = true) override;
@@ -93,6 +97,7 @@ public:
 	int32_t getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) override;
 	bool willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* modelStack) override;
 	bool willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* modelStack) override;
+	// this is probably the only time we want an audio clip to use threshold sampling?
 	bool wantsToDoTempolessRecord(int32_t newPos) override;
 
 	uint8_t lastSectionArmed; // 255 means none. 254 means the action was switch-off-all-sections

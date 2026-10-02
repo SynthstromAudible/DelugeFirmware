@@ -49,6 +49,10 @@ void UI::graphicsRoutine() {
 	}
 }
 
+void UI::displayOrLanguageChanged() {
+	renderUIsForOled();
+}
+
 void UI::close() {
 	closeUI(this);
 }
@@ -58,7 +62,23 @@ static std::array<UI*, kUiNavigationHistoryLength> uiNavigationHierarchy;
 
 int32_t numUIsOpen = 0; // Will be 0 again during song load / swap
 
-UI* lastUIBeforeNullifying = nullptr;
+namespace {
+/// @brief What getCurrentUI() reports while the UI stack is empty: a UI that acts on nothing.
+///
+/// The stack is empty while a song load or a song clear has taken every UI down, until the incoming song's root UI is
+/// set. The UIs that were open belong to the outgoing song, which the load frees before it puts a UI back, so none of
+/// them may be handed input, timers or rendering. Callers that only ask what the current UI is find no match here;
+/// callers that act on it act on this, which does nothing -- except the mod encoders and mod buttons, which go to the
+/// view as every UI's do by default: the view keeps the playing song's sound under the knobs until the swap, and the
+/// swap's interaction side lets go of it (deluge::playback::songSwappedOut()).
+class EmptyStackUI final : public UI {
+public:
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}
+	UIType getUIType() override { return UIType::NONE; }
+};
+
+EmptyStackUI emptyStackUI;
+} // namespace
 
 /**
  * @brief Get the greyout rows and columns for the current UI
@@ -110,9 +130,7 @@ void changeRootUI(UI* newUI) {
 	PadLEDs::reassessGreyout();
 	newUI->opened(); // These all can't fail, I guess.
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 }
 
 // Only called when setting up blank song, so don't worry about this
@@ -126,15 +144,17 @@ void setRootUILowLevel(UI* newUI) {
 bool changeUISideways(UI* newUI) {
 	newUI = newUI->getUI();
 	bool success = changeUIAtLevel(newUI, numUIsOpen - 1);
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 	return success;
 }
 
+bool uiStackEmpty() {
+	return numUIsOpen == 0;
+}
+
 UI* getCurrentUI() {
-	if (numUIsOpen == 0) {
-		return lastUIBeforeNullifying; // Very ugly work-around to stop everything breaking
+	if (uiStackEmpty()) {
+		return &emptyStackUI;
 	}
 	return uiNavigationHierarchy[numUIsOpen - 1];
 }
@@ -190,15 +210,21 @@ void closeUI(UI* uiToClose) {
 		}
 	}
 
+	// Not on the stack -- already closed, never opened, or the root. The loop above then ends at u == 0,
+	// or below it with nothing open, and the lines below would read uiNavigationHierarchy[-1] and call
+	// focusRegained() through whatever is there. clear_song.cpp documents the same failure worked around
+	// locally; this closes it for every caller.
+	if (u < 1) {
+		return;
+	}
+
 	UI* newUI = uiNavigationHierarchy[u - 1];
 	numUIsOpen = u;
 
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	newUI->focusRegained();
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 
 	bool redrawMainPadsOrig = redrawMainPads;
 	bool redrawSidebarOrig = redrawSidebar;
@@ -241,9 +267,7 @@ bool openUI(UI* newUI) {
 		oldUI->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if
 		                        // they wish?
 	}
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 	return success;
 }
 
@@ -258,7 +282,6 @@ bool isUIOpen(UI* ui) {
 bool doesOLEDNeedRendering = false;
 
 void nullifyUIs() {
-	lastUIBeforeNullifying = getCurrentUI();
 	numUIsOpen = 0;
 	doesOLEDNeedRendering = false;
 }
@@ -384,12 +407,9 @@ void doAnyPendingUIRendering() {
 		return; // Trialling the *2 to fix flickering when flicking through presets very fast
 	}
 
-	pendingUIRenderingLock = true;
-
+	ReentryLockHold hold{pendingUIRenderingLock};
 	doAnyPendingGridRendering();
 	doAnyPendingOLEDRendering();
-
-	pendingUIRenderingLock = false;
 }
 
 uint32_t currentUIMode = 0;
@@ -485,6 +505,8 @@ EnumStringMap<UIType, util::to_underlying(UIType::UI_TYPE_COUNT)> uiTypeMap = {
       {UIType::SOUND_EDITOR, "sound_editor"}}}};
 
 const char* UI::getUIName() {
-	return uiTypeMap(getUIType());
+	const UIType type = getUIType();
+	// The empty stack's UI has no entry in the map.
+	return type == UIType::NONE ? "none" : uiTypeMap(type);
 }
 #endif

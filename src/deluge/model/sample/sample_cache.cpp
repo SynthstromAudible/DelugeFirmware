@@ -34,12 +34,13 @@
 // discards higher-index siblings, so only the highest may be evicted).
 static void sampleCacheConstruct(void* /*ctx*/, void* owner, uint32_t index, void* dest) {
 	auto* sampleCache = static_cast<SampleCache*>(owner);
-	auto* cluster = new (dest) Cluster();
+	auto* cluster = new (dest) ComputedChunk();
+	cluster->payload_ = reinterpret_cast<std::byte*>(dest) + kChunkPayloadOffset; // slot-provenance payload
 	cluster->type = Cluster::Type::SAMPLE_CACHE;
 	cluster->sampleCache = sampleCache;
-	cluster->clusterIndex = index;
-	cluster->resourceSlot = deluge_resource_slot_of(GeneralMemoryAllocator::get().resourceManager(), dest);
-	// cache clusters are unleased (leaseCount() == 0) until the reader pins one.
+	cluster->cluster_index = index;
+	cluster->resource_slot = deluge_resource_slot_of(GeneralMemoryAllocator::get().resourceManager(), dest);
+	// cache clusters are unleased (deluge::cluster::lease_count(resource_slot) == 0) until the reader pins one.
 }
 
 static void sampleCacheEvict(void* /*ctx*/, void* owner, uint32_t index) {
@@ -144,10 +145,10 @@ void SampleCache::clusterStolen(int32_t clusterIndex) {
 // return. Destruct the Cluster object + drop our pointer, then run clusterStolen's truncation
 // (no higher siblings to discard, so it doesn't cascade).
 void SampleCache::onCacheEvict(int32_t clusterIndex) {
-	Cluster* cluster = clusters[clusterIndex];
+	ComputedChunk* cluster = clusters[clusterIndex];
 	clusters[clusterIndex] = nullptr;
 	if (cluster != nullptr) {
-		cluster->~Cluster(); // manager frees the slot
+		cluster->~ComputedChunk(); // manager frees the slot
 	}
 	clusterStolen(clusterIndex); // truncate writeBytePos (clusters[clusterIndex] already null)
 }
@@ -164,9 +165,9 @@ void SampleCache::unlinkClusters(int32_t startAtIndex, bool beingDestructed) {
 
 		// Owner-driven drop (truncation): destruct the object and drop the chunk directly
 		// (no on_evict — we're managing our own pointer here).
-		Cluster* cluster = clusters[i];
+		ComputedChunk* cluster = clusters[i];
 		clusters[i] = nullptr;
-		cluster->~Cluster();
+		cluster->~ComputedChunk();
 		deluge_resource_evict_chunk(mgr, cluster);
 	}
 }
@@ -219,17 +220,17 @@ bool SampleCache::setupNewCluster(int32_t clusterIndex) {
 	// + leases it; release immediately so it's resident-but-unleased (evictable from birth).
 	// The cache writes into it; reads check the pointer.
 	DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
-	void* p = deluge_resource_request(mgr, resourceAssetId, clusterIndex, sizeof(Cluster) + Cluster::size);
+	void* p = deluge_resource_request(mgr, resourceAssetId, clusterIndex, kSlabBackedSizeIgnored);
 	if (p == nullptr) {
 		D_PRINTLN("allocation fail");
 		return false;
 	}
 	deluge_resource_release(mgr, p);
-	clusters[clusterIndex] = reinterpret_cast<Cluster*>(p);
+	clusters[clusterIndex] = reinterpret_cast<ComputedChunk*>(p);
 	return true;
 }
 
-Cluster* SampleCache::getCluster(int32_t clusterIndex) {
+ComputedChunk* SampleCache::getCluster(int32_t clusterIndex) {
 	// Manager-owned: recency (not a manual queue reorder) keeps later clusters first to evict;
 	// tail-first ordering enforces the prefix dependency. Just mark it used.
 	if (clusters[clusterIndex] != nullptr) {

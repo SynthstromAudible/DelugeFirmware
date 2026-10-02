@@ -21,7 +21,6 @@ namespace deluge::gui::menu_item::patched_param {
 class Pan : public Integer {
 public:
 	using Integer::Integer;
-	void drawValue() override;
 
 protected:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }

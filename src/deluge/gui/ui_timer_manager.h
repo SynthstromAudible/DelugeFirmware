@@ -17,9 +17,26 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
+#include "runtime/app_loop.h"
 #include "util/misc.h"
+#include <algorithm>
 #include <array>
 #include <cstdint>
+
+/// How long the "ui routine" job waits before it runs again, in µs, when the next timer is
+/// @p remainingSamples away on the render's sample clock (zero or less: already due).
+///
+/// At least 1 ms: a timer that asked to be reminded keeps its past trigger time, and without a
+/// floor the job would spin on it. At most 100 ms: the sample clock runs ahead of the loop's clock
+/// during an offline export and stops when the render does, so a long wait is re-read against it.
+constexpr deluge::runtime::Micros uiTimerRunDelayUs(int64_t remainingSamples) {
+	constexpr int64_t kMinUs = 1'000;
+	constexpr int64_t kMaxUs = 100'000;
+	return static_cast<deluge::runtime::Micros>(
+	    std::clamp<int64_t>(remainingSamples * 1'000'000 / kSampleRate, kMinUs, kMaxUs));
+}
+
 enum class TimerName {
 	DISPLAY,
 	MIDI_LEARN_FLASH,
@@ -47,7 +64,10 @@ enum class TimerName {
 	PAD_SELECTION_SHORTCUT_BLINK,
 	NOTE_ROW_BLINK,
 	LOADING_ANIMATION,
+	MOD_ENCODER_POPUP_FLUSH,
 	SELECTED_CLIP_PULSE,
+	/// Idle countdown before the screensaver appears, then its frame clock while it shows
+	SCREENSAVER,
 	/// Total number of timers
 	NUM_TIMERS
 };
@@ -67,12 +87,16 @@ public:
 	void unsetTimer(TimerName which);
 
 	bool isTimerSet(TimerName which);
-	void setTimerByOtherTimer(TimerName which, TimerName fromTimer);
+
+	/// The "ui routine" job, which runs routine() at the next timer's time.
+	deluge::runtime::JobId jobId = deluge::runtime::kNoJob;
 
 private:
 	uint32_t timeNextEvent{};
 	std::array<Timer, util::to_underlying(TimerName::NUM_TIMERS)> timers_{};
 	void workOutNextEventTime();
+	/// Asks for the job's next run at the next timer's time; from another tier, for a run as soon as possible.
+	void requestRun();
 
 public:
 	[[gnu::always_inline]] inline Timer& getTimer(TimerName which) { return timers_[util::to_underlying(which)]; }

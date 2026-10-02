@@ -36,7 +36,6 @@
 #include "model/drum/drum_name.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
-#include "model/iterance/iterance.h"
 #include "model/note/note.h"
 #include "model/output.h"
 #include "model/scale/note_set.h"
@@ -51,17 +50,22 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
+#include "sequence/iterance.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
+#include "util/const_functions.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/string.h"
 #include "util/try.h"
+#include <array>
 #include <cmath>
 #include <iterator>
 #include <new>
 #include <ranges>
+
+#include "playback/mode/playback_mode.h"
 
 namespace params = deluge::modulation::params;
 
@@ -767,6 +771,8 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			ticksTilNextNoteRowEvent = loopLength() - lastProcessedPos;
 		}
 
+		// see if it's starting or ending - might be needed for iterance
+		bool ending = not currentPlaybackMode->willClipContinuePlayingAtEnd(modelStack);
 		static PendingNoteOnList pendingNoteOnList; // Making this static, which it really should have always been,
 		                                            // actually didn't help max stack usage at all somehow...
 		pendingNoteOnList.count = 0;
@@ -925,7 +931,7 @@ doNewProbability:
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
 					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
 
-					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount());
+					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount(), ending);
 				}
 
 				// lastly, if after checking iteration we still have a note on
@@ -1010,7 +1016,13 @@ void InstrumentClip::toggleNoteRowMute(ModelStackWithNoteRow* modelStack) {
 ModelStackWithNoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, ModelStackWithTimelineCounter* modelStack) {
 	int32_t noteRowIndex;
 	NoteRow* noteRow = getNoteRowOnScreen(yDisplay, modelStack->song, &noteRowIndex);
-	int32_t noteRowId;
+	// Initialised, not left indeterminate. `ModelStackWithNoteRow::noteRowId` is documented
+	// "valid and mandatory, iff noteRow is set" (model_stack.h), so on the null path below no
+	// conforming consumer reads this value — but passing an uninitialised local is still UB, and
+	// UB is exactly what a codegen change converts from "harmless garbage nobody looked at" into
+	// an observable fault. 0 is arbitrary and deliberately so: any defined value satisfies the
+	// contract, and picking one costs nothing.
+	int32_t noteRowId = 0;
 	if (noteRow) {
 		noteRowId = getNoteRowId(noteRow, noteRowIndex);
 	}
@@ -1042,7 +1054,11 @@ NoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_
 ModelStackWithNoteRow* InstrumentClip::getNoteRowForYNote(int32_t yNote, ModelStackWithTimelineCounter* modelStack) {
 	int32_t noteRowIndex;
 	NoteRow* noteRow = getNoteRowForYNote(yNote, &noteRowIndex);
-	int32_t noteRowId;
+	// Initialised, not left indeterminate — same reasoning as `getNoteRowOnScreen`'s sibling fix:
+	// this function's own comment advertises a null `noteRow`, `ModelStackWithNoteRow::noteRowId` is
+	// documented "valid and mandatory, iff noteRow is set", and passing an uninitialised local is UB
+	// regardless of whether a conforming consumer reads it.
+	int32_t noteRowId = 0;
 	if (noteRow) {
 		noteRowId = getNoteRowId(noteRow, noteRowIndex);
 	}
@@ -1420,97 +1436,125 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 	setColourOffset(colourOffset() - semitones);
 }
 
-void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,
+bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,
                                           ModelStackWithTimelineCounter* modelStack) {
-	// This method is limited to no more than an octave of "change", currently used
-	// by the "hold and turn vertical encoder" and "shift + hold and turn vertical
-	// encoder" shorcuts.
+	// This method transposes every note row by up to an octave per call, currently
+	// used by the "hold and turn vertical encoder" and "shift + hold and turn
+	// vertical encoder" shortcuts. Returns false, changing nothing, if the clip holds no
+	// notes, or if the transpose would push one out of the playable range.
 
 	if (!direction) {
 		// It's not clear if we ever get "zero" as direction of change, but let's
 		// make sure we behave sensibly in that case as well.
-		return;
+		return false;
 	}
+
+	// A Kit's rows are drums rather than pitches, and isScrollWithinRange() below must
+	// not be called for one.
+	if (output->type == OutputType::KIT) {
+		return false;
+	}
+
+	int32_t numRows = std::ssize(noteRows);
+	if (!numRows) {
+		return false;
+	}
+
+	const MusicalKey& key = modelStack->song->project.scale.key;
+	int32_t numModeNotes = key.modeNotes.count();
 
 	int32_t change = direction > 0 ? 1 : -1;
 	if (type == VerticalNudgeType::OCTAVE) {
-		if (isScaleModeClip()) {
-			change *= modelStack->song->project.scale.key.modeNotes.count();
+		change *= isScaleModeClip() ? numModeNotes : 12;
+	}
+
+	// The semitone shift each note row will receive, indexed by the row's interval above
+	// the key's root. Every entry moves in the same direction as `change`, but rows can
+	// move by differing amounts, since scale degrees are unevenly spaced.
+	std::array<int32_t, 12> shiftForInterval;
+
+	if (!isScaleModeClip() || std::abs(change) == numModeNotes) {
+		// Non scale clip (semitone or octave jumps), or a scale clip moving a whole
+		// octave: every row moves by the same fixed amount.
+		shiftForInterval.fill(isScaleModeClip() ? ((change > 0) ? 12 : -12) : change);
+	}
+	else {
+		// Scale clip changing less than an octave, transpose by scale note jumps
+		for (int32_t interval = 0; interval < 12; interval++) {
+			int32_t degree = key.modeNotes.degreeOf(interval);
+			int32_t newDegree;
+			if (degree >= 0) {
+				newDegree = degree + change;
+			}
+			else {
+				// Out of scale, so it sits between two degrees: land it on the
+				// neighbouring degree in the direction we're travelling.
+				int32_t degreesBelow = key.modeNotes.degreesBelow(interval);
+				newDegree = (change > 0) ? degreesBelow + change - 1 : degreesBelow + change;
+			}
+			// A degree outside the scale's bounds wraps into the octave above or below.
+			int32_t wrappedDegree = mod(newDegree, numModeNotes);
+			int32_t octaves = (newDegree - wrappedDegree) / numModeNotes;
+			shiftForInterval[interval] = key.modeNotes[wrappedDegree] + 12 * octaves - interval;
 		}
-		else {
-			change *= 12;
+	}
+
+	auto shiftFor = [&](NoteRow* noteRow) { return shiftForInterval[key.intervalOf(noteRow->getNoteCode())]; };
+
+	// Reject the whole transpose if it would push any note out of the playable range,
+	// matching the limit that vertical scrolling enforces. We scan every row for the
+	// resulting extreme note rather than assuming the top/bottom row stays the extreme,
+	// because rows can shift by differing amounts.
+	//
+	// Only rows that actually hold notes get a vote, the same way the screen transpose
+	// picks its rows. An empty row is just grid state with no note to push anywhere, and
+	// songs written before this range check existed can carry empty rows far outside
+	// 0-127 (transposing used to be unbounded), where they would otherwise veto every
+	// transpose of the clip forever.
+	bool anyNotesFound = false;
+	int32_t extremeNewYNote = 0;
+	for (int32_t i = 0; i < numRows; i++) {
+		NoteRow* thisNoteRow = &noteRows[i];
+		if (thisNoteRow->hasNoNotes()) {
+			continue;
 		}
+		int32_t newYNote = thisNoteRow->y() + shiftFor(thisNoteRow);
+		if (!anyNotesFound || (change > 0 ? newYNote > extremeNewYNote : newYNote < extremeNewYNote)) {
+			extremeNewYNote = newYNote;
+			anyNotesFound = true;
+		}
+	}
+	// Nothing to transpose, and moving the rows and the scroll in step would be invisible
+	// anyway. Bail out rather than advance yScroll unbounded, as the empty-clip case above.
+	if (!anyNotesFound) {
+		return false;
+	}
+	if (!isScrollWithinRange(change, extremeNewYNote)) {
+		return false;
 	}
 
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
-	if (!this->isScaleModeClip()) {
-		// Non scale clip, transpose directly by semitone jumps
-		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
-			NoteRow* thisNoteRow = &noteRows[i];
-			// transpose by semitones or by octave
-			thisNoteRow->setY(thisNoteRow->y() + change);
+	for (int32_t i = 0; i < std::ssize(noteRows);) {
+		NoteRow* thisNoteRow = &noteRows[i];
+		int32_t newYNote = thisNoteRow->y() + shiftFor(thisNoteRow);
+
+		// An empty row carried off the end of the note code range can never hold a note
+		// again, whatever the output type, so drop it rather than let it drift further
+		// out. That's what drains the stale rows described above.
+		if (thisNoteRow->hasNoNotes() && (newYNote < 0 || newYNote > kMaxMIDIValue)) {
+			unbindNoteRowStructure(noteRows[i]);
+			noteRows.deleteNoteRowAtIndex(i);
+			continue;
 		}
+
+		thisNoteRow->setY(newYNote);
+		i++;
 	}
-	else {
-		// Scale clip, transpose by scale note jumps
 
-		// wanting to change a full octave
-		if (std::abs(change) == modelStack->song->project.scale.key.modeNotes.count()) {
-			int32_t changeInSemitones = (change > 0) ? 12 : -12;
-			for (int32_t i = 0; i < std::ssize(noteRows); i++) {
-				NoteRow* thisNoteRow = &noteRows[i];
-				// transpose by semitones or by octave
-				thisNoteRow->setY(thisNoteRow->y() + changeInSemitones);
-			}
-		}
-
-		// wanting to change less than an octave
-		else {
-			for (int32_t i = 0; i < std::ssize(noteRows); i++) {
-				MusicalKey key = modelStack->song->project.scale.key;
-				NoteRow* thisNoteRow = &noteRows[i];
-				int32_t changeInSemitones = 0;
-				int32_t yNoteWithinOctave = key.intervalOf(thisNoteRow->getNoteCode());
-				int32_t oldModeNoteIndex = 0;
-				for (; oldModeNoteIndex < key.modeNotes.count(); oldModeNoteIndex++) {
-					if (key.modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
-						break;
-					}
-				}
-				int32_t newModeNoteIndex =
-				    (oldModeNoteIndex + change + modelStack->song->project.scale.key.modeNotes.count())
-				    % modelStack->song->project.scale.key.modeNotes.count();
-
-				int32_t s = 0;
-				if ((change > 0 && newModeNoteIndex > oldModeNoteIndex)
-				    || (change < 0 && newModeNoteIndex < oldModeNoteIndex)) {
-					// within the same octave
-					changeInSemitones = modelStack->song->project.scale.key.modeNotes[newModeNoteIndex]
-					                    - modelStack->song->project.scale.key.modeNotes[oldModeNoteIndex];
-					s = 1;
-				}
-				else {
-					if (change > 0) {
-						// go up an octave
-						changeInSemitones = modelStack->song->project.scale.key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->project.scale.key.modeNotes[oldModeNoteIndex] + 12;
-						s = 2;
-					}
-					else {
-						// go down an octave
-						changeInSemitones = modelStack->song->project.scale.key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->project.scale.key.modeNotes[oldModeNoteIndex] - 12;
-						s = 3;
-					}
-				}
-				// transpose by semitones
-				thisNoteRow->setY(thisNoteRow->y() + changeInSemitones);
-			}
-		}
-	}
 	yScroll += change;
+	return true;
 }
 
 // Lock rendering before calling this!
@@ -1763,9 +1807,6 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
                                        InstrumentRemoval instrumentRemovalInstruction,
                                        InstrumentClip* favourClipForCloningParamManager, bool keepNoteRowsWithMIDIInput,
                                        bool giveMidiAssignmentsToNewInstrument) {
-
-	bool shouldBackUpExpressionParamsToo = false;
-
 	// If switching to Kit
 	if (newInstrument->type == OutputType::KIT) {
 
@@ -1774,10 +1815,6 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 
 			// Makes sure all NoteRows onscreen are populated, and deletes any empty NoteRows not onscreen.
 			prepareToEnterKitMode(modelStack->song);
-
-			shouldBackUpExpressionParamsToo =
-			    true; // If switching from non-Kit to Kit, expression params won't get used, so store them with the
-			          // backup in case the old MelodicInstrument gets used again later. Actually is this ideal?
 		}
 	}
 
@@ -1800,9 +1837,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 		expectNoFurtherTicks(modelStack->song); // Still necessary? Probably.
 	}
 
+	// Also unassigns NoteRows and remembers Drum names.
 	detachFromOutput(modelStack, true, (newInstrument->type == OutputType::KIT), false, keepNoteRowsWithMIDIInput,
 	                 giveMidiAssignmentsToNewInstrument,
-	                 shouldBackUpExpressionParamsToo); // Will unassignAllNoteRowsFromDrums(), and remember Drum names
+	                 false); // Keep channel expression on the Clip across output-type changes.
 
 	Error error =
 	    setInstrument(newInstrument, modelStack->song, newParamManager,
@@ -3345,17 +3383,43 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 				// its NoteRow?
 				if (clipIsActive && noteRow->drum) {
 
+					// This check is ALPHA_OR_BETA_VERSION-only, so it compiles out on a release build: a drum with
+					// genuinely active voices could still reach the SoundDrum branch below on release. What actually
+					// guards that build is AudioEngine::retire()'s let-go, which kills a drum's voices
+					// unconditionally before it is ever destroyed.
 					if (ALPHA_OR_BETA_VERSION && noteRow->drum->type == DrumType::SOUND
 					    && static_cast<SoundDrum*>(noteRow->drum)->hasActiveVoices()) {
 						FREEZE_WITH_ERROR("E176");
 					}
 
 					Drum* drum = noteRow->drum;
-					kit->removeDrum(drum);
 
-					void* toDealloc = dynamic_cast<void*>(drum);
-					drum->~Drum();
-					delugeDealloc(toDealloc);
+					if (drum->type == DrumType::SOUND) {
+						auto* soundDrum = static_cast<SoundDrum*>(drum);
+						// We're about to delete this NoteRow, so there is no note to stop -- and no killAllVoices
+						// either: the render only ever reaches a drum in the kit's renderingDrums, so take
+						// it out before removing it, as InstrumentClipView::deleteDrum and
+						// LoadInstrumentPresetUI::swapKitRow do. Its voices are ended by the render when it lets go
+						// of the retired drum, below.
+						kit->renderingDrums.remove(soundDrum);
+						kit->removeDrum(soundDrum);
+						// Out of the kit for good: the render's let-go of the drum must not write back into the
+						// kit's renderingDrums, which may be freed by then (SoundDrum::setSkippingRendering
+						// skips a null kit). Erase again first: a sequencer note-on between the first erase and here
+						// re-inserts the drum, and after this nothing can name it.
+						kit->renderingDrums.remove(soundDrum);
+						soundDrum->kit = nullptr;
+						AudioEngine::retire(soundDrum);
+					}
+					else {
+						// MIDI and gate drums have no voices and are never in renderingDrums: there is
+						// nothing for the render to let go of, so destroy them directly.
+						kit->removeDrum(drum);
+
+						void* toDealloc = dynamic_cast<void*>(drum);
+						drum->~Drum();
+						delugeDealloc(toDealloc);
+					}
 				}
 
 				unbindNoteRowStructure(noteRows[i]);
@@ -3850,8 +3914,6 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	Availability availabilityRequirement;
 	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this, &availabilityRequirement);
 
-	bool shouldReplaceWholeInstrument;
-
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E061", "H061");
 
 	backupPresetSlot();
@@ -3874,52 +3936,60 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		}
 	}
 
-	// Synth / Kit
+	// Synth / Kit: acquired by InstrumentLoad, see beginChangeOutputType() and applyChangeOutputType().
 	else {
-		std::string newName;
-		Error error;
-
-		newName = backedUpInstrumentName[newOutputTypeAsIdx];
-		Browser::currentDir = backedUpInstrumentDirPath[newOutputTypeAsIdx];
-
-		if (Browser::currentDir.empty()) {
-			Browser::currentDir = getInstrumentFolder(newOutputType);
-		}
-
-		FileItem* fileItem = D_TRY_CATCH(
-		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement),
-		    error, {
-			    display->displayError(error);
-			    return nullptr;
-		    });
-
-		newInstrument = fileItem->instrument;
-		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-		instrumentAlreadyInSong = newInstrument && fileItem->instrumentAlreadyInSong;
-
-		if (!newInstrument) {
-			std::string newPresetName = fileItem->getDisplayNameWithoutExtension();
-			error =
-			    StorageManager::loadInstrumentFromFile(modelStack->song, nullptr, newOutputType, false, &newInstrument,
-			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);
-		}
-
-		Browser::emptyFileItems();
-
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return nullptr;
-		}
-
-		if (isHibernating) {
-			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
-		}
-
-		display->displayLoadingAnimationText("Loading");
-		newInstrument->loadAllAudioFiles(true);
+		return nullptr;
 	}
 
-	shouldReplaceWholeInstrument = (canReplaceWholeInstrument && !instrumentAlreadyInSong);
+	return finishChangeOutputType(modelStack, newOutputType, newInstrument, instrumentAlreadyInSong,
+	                              canReplaceWholeInstrument);
+}
+
+bool InstrumentClip::beginChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+                                           deluge::storage::AcquireWalkSpec* walk) {
+	if (output->type == newOutputType) {
+		return false;
+	}
+
+	actionLogger.deleteAllLogs(); // Can't undo past this!
+
+	Availability availabilityRequirement;
+	(void)modelStack->song->shouldOldOutputBeReplaced(this, &availabilityRequirement);
+
+	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E061", "H061");
+
+	backupPresetSlot();
+
+	const size_t newOutputTypeAsIdx = static_cast<size_t>(newOutputType);
+	*walk = {.walk = deluge::storage::AcquireWalk::Confirm,
+	         .outputType = newOutputType,
+	         .availability = availabilityRequirement,
+	         .dirPath = backedUpInstrumentDirPath[newOutputTypeAsIdx],
+	         .name = backedUpInstrumentName[newOutputTypeAsIdx]};
+	if (walk->dirPath.empty()) {
+		walk->dirPath = getInstrumentFolder(newOutputType);
+	}
+	return true;
+}
+
+Instrument* InstrumentClip::applyChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+                                                  const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		display->displayError(acquired.error);
+		return nullptr;
+	}
+	bool canReplaceWholeInstrument = modelStack->song->shouldOldOutputBeReplaced(this);
+	if (acquired.wasHibernating) {
+		modelStack->song->removeInstrumentFromHibernationList(acquired.instrument);
+	}
+	return finishChangeOutputType(modelStack, newOutputType, acquired.instrument, acquired.alreadyInSong,
+	                              canReplaceWholeInstrument);
+}
+
+Instrument* InstrumentClip::finishChangeOutputType(ModelStackWithTimelineCounter* modelStack, OutputType newOutputType,
+                                                   Instrument* newInstrument, bool instrumentAlreadyInSong,
+                                                   bool canReplaceWholeInstrument) {
+	bool shouldReplaceWholeInstrument = (canReplaceWholeInstrument && !instrumentAlreadyInSong);
 
 	// If replacing whole Instrument
 	if (shouldReplaceWholeInstrument) {

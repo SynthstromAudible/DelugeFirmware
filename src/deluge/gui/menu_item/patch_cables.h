@@ -16,7 +16,6 @@ public:
 
 	void drawPixelsForOled() final;
 	int scrollPos = 0; // Each instance needs to store this separately
-	void drawValue();
 
 	void renderOptions();
 	void blinkShortcuts();

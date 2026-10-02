@@ -18,6 +18,7 @@
 #include "gui/context_menu/sample_browser/synth.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
@@ -25,9 +26,21 @@
 #include "processing/source.h"
 #include "storage/file_item.h"
 #include "util/functions.h"
+#include <cstdint>
 
 namespace deluge::gui::context_menu::sample_browser {
 Synth synth{};
+
+namespace {
+
+/// Closes just the ContextMenu when a claim or the folder import it asked for fails. One that succeeds closes
+/// everything, including this menu, itself.
+void closeOnFailure(bool success) {
+	if (!success) {
+		synth.close();
+	}
+}
+} // namespace
 
 char const* Synth::getTitle() {
 	using enum l10n::String;
@@ -80,20 +93,25 @@ bool Synth::isCurrentOptionAvailable() {
 }
 
 bool Synth::acceptCurrentOption() {
-
+	// Never report failure to ContextMenu::buttonAction() synchronously (it would close this menu at once): a claim,
+	// and the import, report theirs once they know it.
 	switch (currentOption) {
 	case 0: // Multisamples
-		return sampleBrowser.importFolderAsMultisamples();
+		sampleBrowser.requestFolderImport(deluge::gui::FolderImportKind::Multisamples, &closeOnFailure);
+		break;
 	case 1: // Basic
-		return sampleBrowser.claimCurrentFile(0, 0, 0);
+		sampleBrowser.requestClaim(0, 0, 0, &closeOnFailure);
+		break;
 	case 2: // Single-cycle
-		return sampleBrowser.claimCurrentFile(2, 2, 1);
-	case 3:                                             // WaveTable
-		return sampleBrowser.claimCurrentFile(1, 1, 2); // Could probably also be 0,0,2
+		sampleBrowser.requestClaim(2, 2, 1, &closeOnFailure);
+		break;
+	case 3:                                                   // WaveTable
+		sampleBrowser.requestClaim(1, 1, 2, &closeOnFailure); // Could probably also be 0,0,2
+		break;
 	default:
 		__builtin_unreachable();
-		return false;
 	}
+	return true;
 }
 
 ActionResult Synth::padAction(int32_t x, int32_t y, int32_t on) {

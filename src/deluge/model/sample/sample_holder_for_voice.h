@@ -31,11 +31,8 @@ public:
 	SampleHolderForVoice(SampleHolderForVoice&& other) noexcept
 	    : SampleHolder(std::move(other)), loopStartPos(other.loopStartPos), loopEndPos(other.loopEndPos),
 	      transpose(other.transpose), cents(other.cents), loopLocked(other.loopLocked), fineTuner(other.fineTuner),
-	      startMSec(other.startMSec), endMSec(other.endMSec) {
-		for (size_t i = 0; i < kNumClustersLoadedAhead; i++) {
-			clustersForLoopStart[i] = std::exchange(other.clustersForLoopStart[i], nullptr);
-		}
-	}
+	      startMSec(other.startMSec), endMSec(other.endMSec),
+	      clustersForLoopStart_(std::exchange(other.clustersForLoopStart_, nullptr)) {}
 	SampleHolderForVoice& operator=(SampleHolderForVoice&& other) noexcept {
 		SampleHolder::operator=(std::move(other));
 		loopStartPos = other.loopStartPos;
@@ -46,9 +43,7 @@ public:
 		fineTuner = other.fineTuner;
 		startMSec = other.startMSec;
 		endMSec = other.endMSec;
-		for (size_t i = 0; i < kNumClustersLoadedAhead; i++) {
-			clustersForLoopStart[i] = std::exchange(other.clustersForLoopStart[i], nullptr);
-		}
+		clustersForLoopStart_ = std::exchange(other.clustersForLoopStart_, nullptr);
 		return *this;
 	}
 	~SampleHolderForVoice() override;
@@ -56,8 +51,10 @@ public:
 	void setCents(int32_t newCents);
 	void recalculateFineTuner();
 	void claimClusterReasons(bool reversed, int32_t clusterLoadInstruction = CLUSTER_ENQUEUE) override;
-	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool doingSingleCycle = false,
-	                                        bool rangeCoversJustOneNote = false, bool thatOneNote = 0);
+	/// @brief Set the transpose from the sample's midiNote, which its detection has already settled; an unset or failed
+	///        note leaves the transpose alone. @p thatOneNote is the MIDI key a range covering just one note covers.
+	void setTransposeAccordingToSamplePitch(bool minimizeOctaves = false, bool rangeCoversJustOneNote = false,
+	                                        int32_t thatOneNote = 0);
 	uint32_t getMSecLimit(Source* source);
 
 	/// In samples. 0 means not set.
@@ -73,7 +70,10 @@ public:
 	bool loopLocked;
 	PhaseIncrementFineTuner fineTuner;
 
-	Cluster* clustersForLoopStart[kNumClustersLoadedAhead]{};
+	/// Passive lookahead reservation anchored at this voice's loop-start marker; pins a small window
+	/// of cluster residency around the loop point, mirroring SampleHolder::clustersForStart_.
+	/// `nullptr` when not yet opened (or after being released).
+	DelugeSampleReservation* clustersForLoopStart_ = nullptr;
 
 	// These two now only exist for loading in data from old files
 	uint32_t startMSec;

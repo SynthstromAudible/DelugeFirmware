@@ -28,7 +28,7 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool opened() override;
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,
@@ -41,18 +41,18 @@ public:
 		return true;
 	}
 
-	Error performLoad(bool doClone = false);
-
 	// ui
 	UIType getUIType() override { return UIType::LOAD_MIDI_DEVICE_DEFINITION; }
 
 protected:
 	void folderContentsReady(int32_t entryDirection) override;
 	void enterKeyPress() override;
+	void onBrowserOpened() override;
 
 private:
-	Error setupForLoadingMidiDeviceDefinition();
-	Error currentLabelLoadError = Error::NONE;
+	std::string setupForLoadingMidiDeviceDefinition();
+	/// @brief The Select's end: the browser closes when the definition was read, and stays open on a card error.
+	static void definitionLoaded(Error error);
 };
 
 extern LoadMidiDeviceDefinitionUI loadMidiDeviceDefinitionUI;

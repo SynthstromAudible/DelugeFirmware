@@ -17,8 +17,9 @@
 
 #include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/root_ui.h"
+#include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -38,6 +39,8 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
+#include <atomic>
+#include <initializer_list>
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -83,19 +86,79 @@ Clip::Clip(ClipType newType, Song& song, uint32_t loadedId) : type(newType) {
 	sequenceDirectionMode = SequenceDirection::FORWARD;
 }
 
-Clip::~Clip() {
-	// currentSong is null while the old song is being torn down in deleteOldSongBeforeLoadingNew() (it's nulled before
-	// the delete), so guard against it - getCurrentClip() dereferences currentSong.
-	if (currentSong && getCurrentClip() == this) {
-		currentSong->setCurrentClip(nullptr);
+namespace {
+/// Clips destroyed while a reference the render reads between blocks still pointed at them. Always on; relaxed,
+/// because it is evidence, not synchronisation: a Clip may be destroyed on one tier while the count is read on another.
+std::atomic<int32_t> g_clipsDestroyedWhileReferenced{0};
+
+/// Whether @p output is in @p song's main or hibernating list. Compares pointers only, so an output already freed is
+/// never dereferenced.
+bool outputIsInSong(Song const& song, Output const* output) {
+	for (Output const* o = song.project.media.first_output; o != nullptr; o = o->next) {
+		if (o == output) {
+			return true;
+		}
 	}
+	for (Output const* o = song.project.media.first_hibernating_instrument; o != nullptr; o = o->next) {
+		if (o == output) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// Whether anything the render reads between blocks still points at @p clip: the current song's currentClip or
+/// syncScalingClip, another of its clips' beingRecordedFromClip, the view's active ModControllable timeline counter,
+/// or the activeClip of an output the current song still holds. Only the current song is looked at: the render reaches
+/// clips through currentSong alone.
+bool renderStillReferences(Clip* clip) {
+	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == static_cast<TimelineCounter*>(clip)) {
+		return true;
+	}
+	if (currentSong == nullptr) {
+		return false;
+	}
+	if (currentSong->getCurrentClip() == clip || currentSong->project.transport.sync_scaling_clip == clip) {
+		return true;
+	}
+	for (ClipArray const* array :
+	     {&currentSong->project.clips.session_clips, &currentSong->project.clips.arrangement_only_clips}) {
+		for (Clip const* other : *array) {
+			if (other != clip && other->beingRecordedFromClip == clip) {
+				return true;
+			}
+		}
+	}
+	return clip->output != nullptr && outputIsInSong(*currentSong, clip->output)
+	       && clip->output->getActiveClip() == clip;
+}
+} // namespace
+
+int32_t Clip::clipsDestroyedWhileReferenced() {
+	return g_clipsDestroyedWhileReferenced.load(std::memory_order_relaxed);
+}
+
+Clip::~Clip() {
+	// A deleted clip reaches here through AudioEngine::retire(), after the render let go of everything it held of it,
+	// or from ~Song(), once the whole song is unreachable (currentSong is null or already another song). Either way
+	// nothing the render reads may still point here.
+	if (renderStillReferences(this)) {
+		g_clipsDestroyedWhileReferenced.fetch_add(1, std::memory_order_relaxed);
+	}
+#if ALPHA_OR_BETA_VERSION
+	if (currentSong != nullptr && currentSong->getCurrentClip() == this) {
+		FREEZE_WITH_ERROR("E457");
+	}
+#endif
 	// M3 owner-1: drop this clip's DOM structural record so the tree store doesn't accumulate dead entries. Guarded on
-	// currentSong: during whole-song teardown it is nulled first and the entire project (clip_structure included) is
-	// destroyed wholesale, so no per-clip removal is needed then. An undoable delete keeps the Clip object alive in its
+	// the record being currentSong's: a whole song is torn down with currentSong null or already another song (whose
+	// clip ids may collide with this one's), and its entire project (clip_structure included) goes with it, so no
+	// per-clip removal is needed then. An undoable delete keeps the Clip object alive in its
 	// consequence, so ~Clip — hence this removal — runs only when the clip is genuinely gone (the DocClip survives
 	// across undo/redo, matching the object).
 	if (currentSong && isDomBound()) {
-		if (std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*this)) {
+		std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*this);
+		if (addr && currentSong->project.resolveClip(*addr) == docClip_) {
 			currentSong->project.removeDocClip(*addr);
 		}
 	}
@@ -543,6 +606,11 @@ void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
 		int32_t maxLength = arrangementRecordPos - clipInstance->pos;
 
 		if (maxLength <= 0) { // Shouldn't normally go below 0...
+			// This can run on the render (arrangement recording's ticks). There, deletingClipInstanceForClip() would
+			// freeze with E455: with no action it discards the undo logs and deletes the clip at once, and both hand
+			// clips to AudioEngine::retire(), which only the interaction tier may call. Believed unreachable: it needs
+			// the output's last instance to start at or after the record position, and arrangement recording clears
+			// the instances from that position on before it begins a new one.
 			song->deletingClipInstanceForClip(output, clipInstance->clip, nullptr, false); // Calls audio routine...
 			clipInstanceI--;
 			goto setupClipInstance;
@@ -792,7 +860,12 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 			setLoopLength(loopLength() + originalLength);
 
-			sessionView.clipNeedsReRendering(this);
+			// Whichever view is showing this Clip needs to re-render, not just SessionView - e.g. in a clip view, the
+			// area drawn as being past the end of the Clip just shrank.
+			RootUI* rootUI = getRootUI();
+			if (rootUI) {
+				rootUI->clipNeedsReRendering(this);
+			}
 
 			// For InstrumentClips only, we record and make undoable the length-change here. For AudioClips, on the
 			// other hand, it happens in one go at the end of the recording - because for those, if recording is aborted

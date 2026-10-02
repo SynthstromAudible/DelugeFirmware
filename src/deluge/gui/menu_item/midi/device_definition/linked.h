@@ -48,7 +48,7 @@ public:
 		}
 	}
 
-	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const {
 		Output* output = getCurrentOutput();
 		return (output && output->type == OutputType::MIDI_OUT);
 	}
@@ -69,7 +69,7 @@ public:
 			// locate last occurence of "/" in string
 			char* fileName = strrchr((char*)fullPath, '/');
 
-			image.drawString(++fileName, kTextSpacingX, yPixel + kTextSpacingY, kTextSpacingX, kTextSpacingY);
+			image.drawString(++fileName, kTextSpacingX, yPixel + (kTextSpacingY * 2), kTextSpacingX, kTextSpacingY);
 		}
 		else {
 			image.drawGraphicMultiLine(deluge::hid::display::OLED::uncheckedBoxIcon, startX, yPixel,

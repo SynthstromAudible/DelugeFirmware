@@ -1,8 +1,7 @@
 #![no_main]
 
-//! Fuzz target: drive the allocator with a fuzzer-chosen alloc/free/realloc
-//! sequence and assert every invariant after each op. A violation panics, which
-//! libFuzzer records as a crash with the reproducing input.
+//! Fuzz target: drives the allocator with a fuzzer-chosen alloc/free/realloc sequence and checks
+//! every invariant after each op. A violation panics, which libFuzzer records as a crash.
 
 use libfuzzer_sys::fuzz_target;
 

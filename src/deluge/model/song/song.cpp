@@ -51,6 +51,7 @@
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/cv_instrument.h"
+#include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
@@ -65,12 +66,15 @@
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "playback/render_requests.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "storage/audio/blocking_sample_load.h"
+#include "storage/byte_channel.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
@@ -79,6 +83,8 @@
 #include "util/lookuptables/lookuptables.h"
 #include "util/string.h"
 #include "util/try.h"
+#include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <hid/buttons.h>
 #include <iterator>
@@ -152,7 +158,15 @@ OutputType getCurrentOutputType() {
 using namespace deluge;
 using deluge::project::SessionMacroKind;
 
+namespace {
+/// AudioEngine::retiredPending() when the last Song was constructed. Relaxed, because it is evidence, not
+/// synchronisation (see Song::retiredPendingAtLastConstruction()).
+std::atomic<int32_t> g_retiredPendingAtLastConstruction{-1};
+} // namespace
+
 Song::Song() {
+	g_retiredPendingAtLastConstruction.store(static_cast<int32_t>(AudioEngine::retiredPending()),
+	                                         std::memory_order_relaxed);
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	project.transport.inside_world_tick_magnitude = FlashStorage::defaultMagnitude;
 	project.transport.inside_world_tick_magnitude_offset_from_bpm = 0;
@@ -229,7 +243,49 @@ Song::Song() {
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
+namespace {
+/// Songs destroyed while the render could still reach them. Always on; relaxed, because it is evidence, not
+/// synchronisation: a Song may be destroyed on one tier while the count is read on another.
+std::atomic<int32_t> g_songsDestroyedWhileReachable{0};
+
+/// Whether @p sound is still in the Sound registry the render walks.
+bool soundRegistered(Sound const* sound) {
+	return AudioEngine::sounds.walk([sound](const auto& all) { return std::ranges::find(all, sound) != all.end(); });
+}
+
+/// Whether any Sound of an output in the list starting at @p first is still in the Sound registry.
+bool anySoundRegistered(Output const* first) {
+	for (Output const* output = first; output != nullptr; output = output->next) {
+		if (output->type == OutputType::SYNTH) {
+			if (soundRegistered(static_cast<SoundInstrument const*>(output))) {
+				return true;
+			}
+		}
+		else if (output->type == OutputType::KIT) {
+			for (Drum const* d = static_cast<Kit const*>(output)->firstDrum; d != nullptr; d = d->next) {
+				if (d->type == DrumType::SOUND && soundRegistered(static_cast<SoundDrum const*>(d))) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+} // namespace
+
+int32_t Song::songsDestroyedWhileReachable() {
+	return g_songsDestroyedWhileReachable.load(std::memory_order_relaxed);
+}
+
+int32_t Song::retiredPendingAtLastConstruction() {
+	return g_retiredPendingAtLastConstruction.load(std::memory_order_relaxed);
+}
+
 Song::~Song() {
+	if (currentSong == this || anySoundRegistered(project.media.first_output)
+	    || anySoundRegistered(project.media.first_hibernating_instrument)) {
+		g_songsDestroyedWhileReachable.fetch_add(1, std::memory_order_relaxed);
+	}
 
 	// Delete existing Clips, if any
 	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
@@ -265,6 +321,7 @@ Song::~Song() {
 #include "gui/menu_item/integer_range.h"
 #include "gui/menu_item/key_range.h"
 #include "libdeluge/system.h"
+#include "util/structural_edit_probe.h"
 extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
@@ -325,13 +382,30 @@ void Song::setupDefault() {
 	thresholdRecordingMode = FlashStorage::defaultThresholdRecordingMode;
 }
 
+/// Report a splice of this song's output or hibernation list to the structural-edit probe. Every splice runs inside an
+/// AudioExcludedSection, so the render never walks a half-relinked list. Only the current song's lists are walked by
+/// the render, so a splice to any other song (one being built by a load, or torn down at reclaim)
+/// is not counted.
+static void noteOutputListEdit(const Song* song) {
+	if (song == currentSong) {
+		deluge::noteStructuralEdit(deluge::StructuralContainer::OUTPUT_LIST);
+	}
+}
+
 void Song::deleteAllOutputs(Output** prevPointer) {
 
 	while (*prevPointer) {
 		AudioEngine::logAction("s6");
 		AudioEngine::routineWithClusterLoading();
 		Output* toDelete = *prevPointer;
-		*prevPointer = toDelete->next;
+		{
+			AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+			noteOutputListEdit(this);
+			*prevPointer = toDelete->next;
+		}
+
+		// toDelete is already unlinked, so this only visits outputs that are still alive
+		clearRecordingFromReferencesTo(toDelete);
 
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Output();
@@ -358,6 +432,35 @@ void Song::deleteAllBackedUpParamManagersWithClips() {
 	}
 }
 
+bool Song::completeBlankPreset(const deluge::storage::AcquireResult& acquired) {
+	if (acquired.instrument == nullptr || blankPresetClip == nullptr || blankPresetInstrument == nullptr) {
+		// Nothing on the card to take: the default synth stays, and the walk's error is not shown.
+		return false;
+	}
+	if (acquired.alreadyInSong || acquired.instrument == blankPresetInstrument) {
+		// The walk landed on an Instrument the song already holds: there is nothing to swap, and replaceInstrument()
+		// freezes (i009) on an Instrument already in its output list.
+		return false;
+	}
+	if (blankPresetClip->output != blankPresetInstrument || blankPresetInstrument->editedByUser
+	    || project.clips.session_clips.getIndexForClip(blankPresetClip) < 0) {
+		// The user got to the clip first. The delivery's cleanup deletes the preset, which was never added here.
+		return false;
+	}
+	// replaceInstrument() hands the replaced Instrument's MIDI input to its replacement, which keeps a clip's input
+	// when the user changes its preset. The default synth has an input only if the user learned one before the preset
+	// arrived; otherwise the preset keeps the input it was saved with.
+	const bool defaultSynthHasInput = blankPresetInstrument->midiInput.containsSomething();
+	const LearnedMIDI presetInput = acquired.instrument->midiInput;
+	replaceInstrument(blankPresetInstrument, acquired.instrument);
+	if (!defaultSynthHasInput) {
+		acquired.instrument->midiInput = presetInput;
+	}
+	blankPresetInstrument = nullptr;
+	blankPresetClip = nullptr;
+	return true;
+}
+
 bool Song::mayDoubleTempo() {
 	return ((project.transport.samples_per_timer_tick_big >> 33) > kMinTimePerTimerTick);
 }
@@ -379,50 +482,23 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 	ParamManager newParamManager; // Deliberate don't set up.
 
-	Instrument* newInstrument = nullptr;
+	// The built-in default synth, with no card read at all. The first SYNTHS preset replaces it once the interaction
+	// tier is running: this runs before that tier exists (boot), and in clear-song on a Song that is not yet current,
+	// so blankPresetPending is how it asks. See InstrumentLoad::routine() and completeBlankPreset().
+	Instrument* newInstrument = StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
 
-	std::expected<FileItem*, Error> result;
+	// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
 
-	Error error;
-	error = StorageManager::initSD(); // Still want this here?
-	if (error != Error::NONE) {
-		goto couldntLoad;
+	// If that failed (really unlikely) we're really screwed
+	if (!newInstrument) {
+		display->displayError(Error::INSUFFICIENT_RAM);
+		while (1) {}
 	}
 
-	Browser::currentDir = "SYNTHS";
+	newInstrument->setDirPath("SYNTHS");
+	newInstrument->setName("0");
 
-	result = loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(nullptr, OutputType::SYNTH,
-	                                                                                Availability::ANY);
-	if (result) {
-		std::string newPresetName = result.value()->getDisplayNameWithoutExtension();
-		error =
-		    StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false, &newInstrument,
-		                                           &result.value()->filePointer, &newPresetName, &Browser::currentDir);
-
-		Browser::emptyFileItems();
-		if (error != Error::NONE) {
-			goto couldntLoad;
-		}
-	}
-	else {
-couldntLoad:
-		newInstrument = StorageManager::createNewInstrument(OutputType::SYNTH, &newParamManager);
-
-		// TODO: Clean this up and get rid of infinite loop traps (proper error recovery)
-
-		// If that failed (really unlikely) we're really screwed
-		if (!newInstrument) {
-			display->displayError(Error::INSUFFICIENT_RAM);
-			while (1) {}
-		}
-
-		newInstrument->setDirPath("SYNTHS");
-
-		newInstrument->setName("0");
-
-		((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
-		display->displayError(error); // E.g. show the CARD error.
-	}
+	((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
 
 	newInstrument->loadAllAudioFiles(true);
 
@@ -431,6 +507,10 @@ couldntLoad:
 	addOutput(newInstrument);
 
 	runtimeView.currentClip = firstClip;
+
+	blankPresetPending = true;
+	blankPresetInstrument = newInstrument;
+	blankPresetClip = firstClip;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -973,17 +1053,6 @@ Clip* Song::getNextSessionClipWithOutput(int32_t offset, Output* output, Clip* p
 			return clip;
 		}
 	}
-}
-
-void Song::writeTemplateSong(const char* templatePath) {
-	project.metadata.name = "DEFAULT";
-	Error error = StorageManager::createXMLFile(templatePath, smSerializer, false, false);
-	if (error != Error::NONE) {
-		return;
-	}
-	deluge::project::saveSong(*this, GetSerializer());
-	GetSerializer().closeFileAfterWriting(templatePath, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n",
-	                                      "\n</song>\n");
 }
 
 void Song::writeToFile(Serializer& writer) {
@@ -1716,7 +1785,11 @@ loadOutput:
 							return error;
 						}
 						((Instrument*)newOutput)->mightExistOnCard = true;
-						*lastPointer = newOutput;
+						{
+							AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+							noteOutputListEdit(this);
+							*lastPointer = newOutput;
+						}
 						lastPointer = &newOutput->next;
 						reader.match('}');
 					}
@@ -2400,41 +2473,44 @@ readClip:
 
 // Needs to be in a separate function than the above because the main song XML file needs to be closed first before
 // this is called, because this will open other (sample) files
-void Song::loadAllSamples(bool mayActuallyReadFiles) {
+void Song::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
+	walkSampleDemands(load);
+}
 
+void Song::walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
-		thisOutput->loadAllAudioFiles(mayActuallyReadFiles);
+		(void)thisOutput->walkSampleDemands(visitor); // An abort stops only that output's walk.
 	}
 
 	// NOTE: Using AllClips instead of AudioClips to ensure we call into the audio engine during
 	// the scan, instead of only when we find audio clips!
-	uint32_t c = 0;
 	for (Clip* clip : AllClips::everywhere(this)) {
-		// If not reading files, high chance that we'll be searching through memory a lot and not reading the card
-		// (which would call the audio routine), so we'd better call the audio routine here.
-		if (!mayActuallyReadFiles && !(c++ & 7)) { // 31 bad. 15 seems to pass. 7 to be safe
-			AudioEngine::logAction("Song::loadAllSamples");
-			AudioEngine::routineWithClusterLoading();
-		}
+		visitor.clipCheckpoint();
 		if (clip->type == ClipType::AUDIO) {
-			((AudioClip*)clip)->loadSample(mayActuallyReadFiles);
+			(void)((AudioClip*)clip)->walkSampleDemands(visitor);
 		}
 	}
 }
 
-void Song::loadCrucialSamplesOnly() {
+void Song::loadCrucialSamplesOnly(deluge::storage::AudioLoadContext* context) {
+	deluge::storage::BlockingSampleLoad load{true, context};
+	walkCrucialSampleDemands(load);
+}
+
+void Song::walkCrucialSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 	// TODO: This searches just as much as loadAllSamples, why does this not need to call into the
 	// audio engine? Is the searching actually ok, and only the loadSample() counts should be considered
 	// for calling into the audio engine?
 	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput->getActiveClip() && isClipActive(thisOutput->getActiveClip())) {
-			thisOutput->loadCrucialAudioFilesOnly();
+			(void)thisOutput->walkCrucialSampleDemands(visitor);
 		}
 	}
 
 	for (AudioClip* clip : AudioClips::everywhere(this)) {
 		if (clip->isActiveOnOutput()) {
-			clip->loadSample(true);
+			(void)clip->walkSampleDemands(visitor);
 		}
 	}
 }
@@ -3165,13 +3241,27 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 	std::optional<uint32_t> treeParamId = clip->id();
 
 	if (!songBeingDestroyedToo) {
+#if ALPHA_OR_BETA_VERSION
+		// Callers must remove any ClipInstances referencing this Clip first, or the arrangement is left pointing at
+		// freed memory - and pickAnActiveClipIfPossible() would pick this Clip back up mid-destruction (E411/E412).
+		if (clip->output && clip->output->clipHasInstance(clip)) {
+			FREEZE_WITH_ERROR("E455");
+		}
+#endif
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
 
 		clip->prepareForDestruction(modelStack, instrumentRemovalInstruction);
+
+		// The render may still hold the clip from block to block (currentClip, syncScalingClip, another clip's
+		// beingRecordedFromClip, the view's active timeline counter): it lets go of those at its next block, and only
+		// then is the clip freed.
+		AudioEngine::retire(clip);
+		return;
 	}
 
+	// From ~Song(): the whole song is unreachable, so nothing the render reads can reach the clip.
 #if ALPHA_OR_BETA_VERSION
 	if (clip->type == ClipType::AUDIO) {
 		if (((AudioClip*)clip)->recorder) {
@@ -3295,8 +3385,12 @@ uint32_t Song::getTimePerTimerTickRounded() {
 void Song::addOutput(Output* output, bool atStart) {
 
 	if (atStart) {
-		output->next = project.media.first_output;
-		project.media.first_output = output;
+		{
+			AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+			noteOutputListEdit(this);
+			output->next = project.media.first_output;
+			project.media.first_output = output;
+		}
 
 		persistentView.arrangementYScroll++;
 	}
@@ -3305,8 +3399,10 @@ void Song::addOutput(Output* output, bool atStart) {
 		while (*prevPointer) {
 			prevPointer = &(*prevPointer)->next;
 		}
-		*prevPointer = output;
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
 		output->next = nullptr;
+		*prevPointer = output;
 	}
 
 	if (output->soloingInArrangementMode) {
@@ -3362,7 +3458,11 @@ int32_t Song::removeOutputFromMainList(
 		outputIndex++;
 	}
 
-	*prevPointer = output->next;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		*prevPointer = output->next;
+	}
 
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 
@@ -3397,6 +3497,33 @@ allDone:
 // Hibernates or deletes old one.
 // Any audio routine calls that happen during the course of this function won't have access to either the old or new
 // Instrument, because neither will be in the master list when they happen
+void Song::moveOutput(Output* output, int32_t direction) {
+	if (direction >= 0) {
+		Output** prevPointer = &project.media.first_output;
+		while (*prevPointer != output) {
+			prevPointer = &((*prevPointer)->next);
+		}
+		Output* higher = output->next;
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		*prevPointer = higher;
+		output->next = higher->next;
+		higher->next = output;
+	}
+	else {
+		Output** prevPointer = &project.media.first_output;
+		while ((*prevPointer)->next != output) {
+			prevPointer = &((*prevPointer)->next);
+		}
+		Output* lower = (*prevPointer);
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		*prevPointer = output;
+		lower->next = output->next;
+		output->next = lower;
+	}
+}
+
 void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool keepNoteRowsWithMIDIInput) {
 	for (Output* thisOutput = project.media.first_output; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == newOutput) {
@@ -3417,8 +3544,12 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// Remove the oldInstrument from the list of Instruments
 	Output** prevPointer;
 	for (prevPointer = &project.media.first_output; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
-	newOutput->next = oldOutput->next;
-	*prevPointer = oldOutput->next;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		newOutput->next = oldOutput->next;
+		*prevPointer = oldOutput->next;
+	}
 
 	Clip* favourClipForCloningParamManager = nullptr;
 
@@ -3536,7 +3667,11 @@ traverseClips:
 	deleteOrAddToHibernationListOutput(oldOutput);
 
 	// Put the newInstrument into the master list
-	*prevPointer = newOutput;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		*prevPointer = newOutput;
+	}
 	if (outputRecordingOldOutput) {
 		((AudioOutput*)outputRecordingOldOutput)->setOutputRecordingFrom(newOutput);
 	}
@@ -3576,7 +3711,19 @@ deleteIt:
 	}
 }
 
+// Call before an Output is destructed. Output only remembers the one AudioOutput that monitors it, but any number of
+// AudioOutputs can be recording from it (a cloned overdub copies the pointer without taking over the monitoring), and
+// each of those would be left pointing at freed memory.
+void Song::clearRecordingFromReferencesTo(Output* output) {
+	for (Output* other = project.media.first_output; other; other = other->next) {
+		if (other != output && other->getOutputRecordingFrom() == output) {
+			other->clearRecordingFrom();
+		}
+	}
+}
+
 void Song::deleteOutput(Output* output) {
+	clearRecordingFromReferencesTo(output);
 	for (int y = 0; y < 8; y++) {
 		auto& m = project.arrangement.session_macros[y];
 		if (m.kind == SessionMacroKind::OUTPUT_CYCLE && m.output == output) {
@@ -3585,12 +3732,30 @@ void Song::deleteOutput(Output* output) {
 	}
 
 	output->deleteBackedUpParamManagers(this);
-	void* toDealloc = dynamic_cast<void*>(output);
-	output->~Output();
-	delugeDealloc(toDealloc);
+
+	// The destructor runs later (retire, below: no earlier than two render blocks from now), so undo here what it would
+	// otherwise undo late on other objects: detach a sample recorder, give up a monitoring claim on the output this one
+	// records from, and clear the pointer of an output recording this one. Each of those objects can be freed in the
+	// meantime (a song swap destroys every output at once), and ~Output/~AudioOutput would then write into freed
+	// memory.
+	output->removeRecorder();
+	output->clearRecordingFrom();
+	if (Output* recordingThis = output->getOutputRecordingThis()) {
+		recordingThis->clearRecordingFrom();
+	}
+	// The DOM record goes now too: by the time ~Output runs, currentSong may be another song whose output ids collide.
+	if (output->docOutput_ != nullptr) {
+		removeDocOutput(output);
+		output->docOutput_ = nullptr;
+	}
+
+	AudioEngine::retire(output);
 }
 
 void Song::moveInstrumentToHibernationList(Instrument* instrument) {
+
+	// Hibernated instruments stay allocated but leave the active output list, so audio tracks must stop targeting them.
+	clearRecordingFromReferencesTo(instrument);
 
 	removeOutputFromMainList(instrument);
 
@@ -3604,8 +3769,12 @@ void Song::moveInstrumentToHibernationList(Instrument* instrument) {
 
 void Song::addInstrumentToHibernationList(Instrument* instrument) {
 	instrument->prepareForHibernationOrDeletion();
-	instrument->next = project.media.first_hibernating_instrument;
-	project.media.first_hibernating_instrument = instrument;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		instrument->next = project.media.first_hibernating_instrument;
+		project.media.first_hibernating_instrument = instrument;
+	}
 	instrument->setActiveClip(nullptr); // Just be sure!
 	instrument->inValidState = false;
 }
@@ -3621,6 +3790,8 @@ void Song::removeInstrumentFromHibernationList(Instrument* instrument) {
 		}
 	}
 
+	AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+	noteOutputListEdit(this);
 	*prevPointer = (Instrument*)instrument->next;
 }
 
@@ -3651,7 +3822,11 @@ void Song::deleteHibernatingInstrumentWithSlot(OutputType outputType, char const
 		if (instrument->type == outputType) {
 
 			if (!strcasecmp(name, instrument->name.c_str())) {
-				*prevPointer = (Instrument*)instrument->next;
+				{
+					AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+					noteOutputListEdit(this);
+					*prevPointer = (Instrument*)instrument->next;
+				}
 
 				deleteOutput(instrument);
 
@@ -4322,6 +4497,7 @@ void Song::stopAllMIDIAndGateNotesPlaying() {
 }
 
 void Song::stopAllAuditioning() {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::Auditioning);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
@@ -4718,31 +4894,9 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 		view.displayOutputName(oldNonAudioInstrument);
 	}
 
-	// Or if we're on a Kit or Synth...
+	// A Kit or Synth: acquired by InstrumentLoad, and applied by applyNavigateThroughPresets().
 	else {
-		PresetNavigationResult results =
-		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
-		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
-removeWorkingAnimationAndGetOut:
-			if (display->haveOLED()) {
-				auto oled = static_cast<deluge::hid::display::OLED*>(display);
-				oled->consoleTimerEvent();
-				oled->removeWorkingAnimation();
-			}
-			return output;
-		}
-		else if (results.error != Error::NONE) {
-			display->displayError(results.error);
-			goto removeWorkingAnimationAndGetOut;
-		}
-
-		Instrument* newInstrument = results.fileItem->instrument;
-		Browser::emptyFileItems();
-
-		currentSong->replaceInstrument(oldInstrument, newInstrument);
-
-		oldInstrument = newInstrument;
-		display->removeLoadingAnimation();
+		return output;
 	}
 
 	currentSong->instrumentSwapped(oldInstrument);
@@ -4750,6 +4904,31 @@ removeWorkingAnimationAndGetOut:
 	currentSong->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
 
 	return oldInstrument;
+}
+
+Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		if (acquired.error != Error::NO_ERROR_BUT_GET_OUT) {
+			display->displayError(acquired.error);
+		}
+		auto oled = static_cast<deluge::hid::display::OLED*>(display);
+		oled->consoleTimerEvent();
+		oled->removeWorkingAnimation();
+		return oldInstrument;
+	}
+	Instrument* newInstrument = acquired.instrument;
+	if (acquired.wasHibernating) {
+		removeInstrumentFromHibernationList(newInstrument);
+	}
+
+	replaceInstrument(oldInstrument, newInstrument);
+	display->removeLoadingAnimation();
+
+	instrumentSwapped(newInstrument);
+
+	ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E064", "H064");
+
+	return newInstrument;
 }
 
 void Song::instrumentSwapped(Instrument* newInstrument) {
@@ -4855,55 +5034,29 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 gotAnInstrument: {}
 	}
 
-	// Synth or Kit
+	// Synth or Kit: acquired by InstrumentLoad, and applied by applyChangeOutputType().
 	else {
-		Browser::currentDir = getInstrumentFolder(newOutputType);
-
-		FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
-		                                     this, newOutputType, Availability::INSTRUMENT_UNUSED),
-		                                 error, {
-			                                 display->displayError(error);
-			                                 return nullptr;
-		                                 });
-
-		newInstrument = fileItem->instrument;
-		bool isHibernating = newInstrument && !fileItem->instrumentAlreadyInSong;
-
-		Error error = Error::NONE;
-		if (!newInstrument) {
-			std::string newPresetName = fileItem->getDisplayNameWithoutExtension();
-			error =
-			    StorageManager::loadInstrumentFromFile(this, nullptr, newOutputType, false, &newInstrument,
-			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);
-		}
-
-		Browser::emptyFileItems();
-
-		if (error != Error::NONE) {
-			display->displayError(error);
-			return nullptr;
-		}
-
-		if (isHibernating) {
-			removeInstrumentFromHibernationList(newInstrument);
-		}
-
-		display->displayLoadingAnimationText("Loading");
-
-		newInstrument->loadAllAudioFiles(true);
-
-		display->removeWorkingAnimation();
+		return nullptr;
 	}
 
-#if ALPHA_OR_BETA_VERSION
-	display->setText("A002");
-#endif
 	replaceInstrument(oldInstrument, newInstrument);
-#if ALPHA_OR_BETA_VERSION
-	if (display->have7SEG()) {
-		view.displayOutputName(newInstrument);
+
+	instrumentSwapped(newInstrument);
+
+	return newInstrument;
+}
+
+Instrument* Song::applyChangeOutputType(Instrument* oldInstrument, const deluge::storage::AcquireResult& acquired) {
+	if (acquired.error != Error::NONE) {
+		display->displayError(acquired.error);
+		return nullptr;
 	}
-#endif
+	Instrument* newInstrument = acquired.instrument;
+	if (acquired.wasHibernating) {
+		removeInstrumentFromHibernationList(newInstrument);
+	}
+
+	replaceInstrument(oldInstrument, newInstrument);
 
 	instrumentSwapped(newInstrument);
 
@@ -5066,8 +5219,12 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	Output** prevPointer;
 	for (prevPointer = &project.media.first_output; *prevPointer != oldOutput; prevPointer = &(*prevPointer)->next) {}
-	newOutput->next = oldOutput->next;
-	*prevPointer = newOutput;
+	{
+		AudioExcludedSection section; // the render walks this list: see noteOutputListEdit()
+		noteOutputListEdit(this);
+		newOutput->next = oldOutput->next;
+		*prevPointer = newOutput;
+	}
 
 	// Migrate all ClipInstances from oldInstrument to newInstrument
 	newOutput->clipInstances.swap(oldOutput->clipInstances);
@@ -5403,11 +5560,15 @@ bool Song::hasAnyPendingNextOverdubs() {
 	return false;
 }
 
-int32_t Song::countAudioClips() const {
+int32_t Song::countAudioVoices() const {
 	int32_t i = 0;
 	for (Output* output = project.media.first_output; output; output = output->next) {
 		if (output->type == OutputType::AUDIO) {
-			if (output->getActiveClip()) {
+			// this checks whether the audio output is skipping rendering
+			// to be rendering, the audio output must have:
+			// a) an active clip; and
+			// b) is monitoring and/or has a voice sample assigned
+			if (!(AudioOutput*)output->isSkippingRendering()) {
 				AudioClip* clip = (AudioClip*)output->getActiveClip();
 				// this seems to be the only way to find whether the voice is sounding
 				if (isClipActive(clip)) {
@@ -5705,7 +5866,7 @@ void Song::midiCableBendRangeUpdatedViaMessage(ModelStack* modelStack, MIDICable
 	}
 }
 
-Error Song::addInstrumentsToFileItems(OutputType outputType) {
+Error Song::addInstrumentsToFileItems(deluge::gui::browser::FileListing& into, OutputType outputType) {
 	bool doingHibernatingOnes;
 	Output* thisOutput;
 	if (false) {
@@ -5728,11 +5889,13 @@ doHibernatingInstruments:
 		Instrument* thisInstrument = (Instrument*)thisOutput;
 
 		// If different path, it's not relevant.
-		if (!(thisInstrument->dirPath == Browser::currentDir)) {
+		// The folder being READ, not where the browser is: this merge runs from inside readFolder, and a
+		// walk reading a subfolder must not pick up Instruments from the browser's own directory.
+		if (!(thisInstrument->dirPath == into.dir())) {
 			continue;
 		}
 
-		FileItem* thisItem = loadInstrumentPresetUI.getNewFileItem();
+		FileItem* thisItem = into.newItem();
 
 		if (!thisItem) {
 			return Error::INSUFFICIENT_RAM;
@@ -5758,16 +5921,14 @@ void Song::getCurrentRootNoteAndScaleName(etl::istring& buffer) {
 	noteCodeToString(currentSong->project.scale.key.rootNote, noteName, &isNatural);
 
 	buffer.append(noteName);
-	if (display->haveOLED()) {
-		buffer.append(" ");
-		buffer.append(getScaleName(project.scale.key.getCurrentScale()));
-	}
+	buffer.append(" ");
+	buffer.append(getScaleName(project.scale.key.getCurrentScale()));
 }
 
 void Song::displayCurrentRootNoteAndScaleName() {
 	etl::string<40> popupMsg;
 	getCurrentRootNoteAndScaleName(popupMsg);
-	if (display->haveOLED()) {
+	{
 		UI* currentUI = getCurrentUI();
 		bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
 		// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
@@ -5813,23 +5974,13 @@ void Song::adjustMasterTransposeInterval(int32_t interval) {
 void Song::displayMasterTransposeInterval() {
 	etl::string<40> popupMsg;
 
-	if (display->haveOLED()) {
-		popupMsg.append("Transpose Interval: \n");
-		if (masterTransposeInterval == 0) {
-			popupMsg.append("Encoder");
-		}
-		else {
-			deluge::string::appendInt(popupMsg, masterTransposeInterval);
-			popupMsg.append(" Semitones");
-		}
+	popupMsg.append("Transpose Interval: \n");
+	if (masterTransposeInterval == 0) {
+		popupMsg.append("Encoder");
 	}
 	else {
-		if (masterTransposeInterval == 0) {
-			popupMsg.append("ENC");
-		}
-		else {
-			deluge::string::appendInt(popupMsg, masterTransposeInterval);
-		}
+		deluge::string::appendInt(popupMsg, masterTransposeInterval);
+		popupMsg.append(" Semitones");
 	}
 	display->displayPopup(popupMsg.c_str());
 }
@@ -5890,9 +6041,7 @@ void Song::changeThresholdRecordingMode(int8_t offset) {
 
 void Song::displayThresholdRecordingMode() {
 	etl::string<40> popupMsg;
-	if (display->haveOLED()) {
-		popupMsg.append("Threshold: ");
-	}
+	popupMsg.append("Threshold: ");
 
 	switch (currentSong->thresholdRecordingMode) {
 	case ThresholdRecordingMode::OFF:

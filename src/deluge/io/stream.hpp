@@ -1,0 +1,121 @@
+#pragma once
+
+#include "io/file.hpp" // reuses deluge::io::Status / to_status / to_deluge_status
+#include "libdeluge/channel.h"
+#include "libdeluge/stream_io.h"
+
+#include <cstdint>
+#include <expected>
+#include <optional>
+#include <span>
+#include <string_view>
+#include <utility>
+
+namespace deluge::io {
+
+class Stream {
+public:
+	Stream(Stream&) = delete;
+	Stream(Stream&& other) noexcept : handle_(std::exchange(other.handle_, DELUGE_HANDLE_NONE)) {}
+	Stream& operator=(Stream&) = delete;
+	Stream& operator=(Stream&& other) noexcept {
+		if (this != &other) {
+			if (handle_ != DELUGE_HANDLE_NONE) {
+				// Route through close() rather than the raw C-ABI so the handle teardown
+				// lives in exactly one place -- see stream.cpp's close().
+				(void)close();
+			}
+			handle_ = std::exchange(other.handle_, DELUGE_HANDLE_NONE);
+		}
+		return *this;
+	}
+	~Stream() {
+		if (handle_ != DELUGE_HANDLE_NONE) {
+			(void)close();
+		}
+	}
+
+	[[nodiscard]] static std::expected<Stream, Status> open(std::string_view path, DelugeStreamMode mode);
+	std::expected<uint32_t, Status> write_at(uint32_t byte_offset, std::span<const std::byte> buffer);
+
+	/// @brief Ask for @p buffer to be written at @p byte_offset, without blocking.
+	///
+	/// @param byte_offset Absolute offset within the file.
+	/// @param buffer      Caller-owned. Must stay alive and unmodified until @ref collect_write_at
+	///                    returns a terminal status. NOT copied -- the pointer crosses the boundary,
+	///                    the bytes do not.
+	/// @return false when the request was refused (a write is already in flight for this stream, or
+	///         the channel is not running). The caller must take its synchronous arm.
+	[[nodiscard]] bool request_write_at(uint32_t byte_offset, std::span<const std::byte> buffer);
+
+	/// @brief Collect the in-flight write, if it has finished.
+	/// @param out_written Written only on `DELUGE_CHANNEL_READY`, with the true byte count.
+	/// @return a `DELUGE_CHANNEL_*` value.
+	[[nodiscard]] DelugeChannelStatus collect_write_at(uint32_t* out_written);
+
+	/// @brief Ask for @p path to be opened, without blocking.
+	///
+	/// Static because there is no Stream yet: @ref collect_open constructs one on success.
+	/// @return false when refused (another operation is in flight, or the channel is not running).
+	[[nodiscard]] static bool request_open(std::string_view path, DelugeStreamMode mode);
+
+	/// @brief Collect the open of @p path, constructing the Stream in @p out on success.
+	/// @param path  The path @ref request_open was given. An answer for another path is left for its own caller.
+	/// @param out   Engaged ONLY on `DELUGE_CHANNEL_READY`. An optional rather than a `Stream*`
+	///              because Stream has no valid empty state -- there is nothing to overwrite until the
+	///              handle actually exists.
+	/// @param error Written ONLY on `DELUGE_CHANNEL_FAILED`, with the status the open failed with. May be null.
+	/// @return a `DELUGE_CHANNEL_*` value.
+	[[nodiscard]] static DelugeChannelStatus collect_open(std::string_view path, std::optional<Stream>* out,
+	                                                      DelugeStatus* error = nullptr);
+
+	/// @brief Ask for @p dst.size() bytes at @p byte_offset to be read, without blocking.
+	///
+	/// Reads through this stream's OWN write context, bounded by its live (not yet flushed) size --
+	/// the async counterpart of @ref read_at_via.
+	/// @param dst Caller-owned. Must stay alive and unmodified until @ref collect_read_at returns a
+	///            terminal status. NOT copied.
+	[[nodiscard]] bool request_read_at(uint32_t byte_offset, std::span<std::byte> dst);
+
+	/// @brief Collect the read.
+	/// @param out_read Written only on READY, with the true count, which may be short at EOF.
+	[[nodiscard]] DelugeChannelStatus collect_read_at(uint32_t* out_read);
+
+	/// @brief Ask for this stream's file to be truncated to @p new_size, without blocking.
+	[[nodiscard]] bool request_truncate(uint32_t new_size);
+
+	/// @brief Collect the truncate.
+	[[nodiscard]] DelugeChannelStatus collect_truncate();
+
+	/// @brief Ask for this stream to be closed, without blocking.
+	///
+	/// A caller that will DELETE this file must wait for @ref collect_close to report a TERMINAL
+	/// status before unlinking: closing is what flushes the directory entry deferred for the whole
+	/// recording, and unlinking first leaks the cluster chain.
+	[[nodiscard]] bool request_close();
+
+	/// @brief Collect the close. Disengages this Stream on a terminal status, so the destructor
+	///        cannot close it a second time.
+	[[nodiscard]] DelugeChannelStatus collect_close();
+	/// @brief Read up to @p dst.size() bytes at absolute @p byte_offset back through this stream's
+	///        OWN open write context, bounded by its live (not yet flushed to disk) size.
+	///
+	/// Used by `SampleRecorder::alterFile()` (a positional read/write pass over its own open write
+	/// context) and `finalizeRecordedFile()`'s header patch-back. Backed by
+	/// `deluge_efatfs_stream_read_at_via`. EOF-honest -- the returned count may be short of
+	/// @p dst.size().
+	/// @param byte_offset Absolute byte offset into the stream to read from.
+	/// @param dst          Buffer to read into; up to its full size may be filled.
+	/// @return The number of bytes actually read (may be less than dst.size() at EOF), or a Status
+	///         error.
+	std::expected<uint32_t, Status> read_at_via(uint32_t byte_offset, std::span<std::byte> dst);
+	std::expected<void, Status> truncate(uint32_t new_size);
+	std::expected<uint32_t, Status> size();
+	std::expected<void, Status> close();
+
+private:
+	explicit Stream(DelugeHandle handle) : handle_(handle) {}
+	DelugeHandle handle_ = DELUGE_HANDLE_NONE;
+};
+
+} // namespace deluge::io

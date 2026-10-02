@@ -28,8 +28,24 @@
 // The host-sim build (DELUGE_HOST) gets its NEON types from SIMDe via the compat
 // <arm_neon.h> shim — including SIMDe *and* the hand-rolled typedefs below would be a
 // redefinition clash under clang — so route the host build through "arm_neon.h" too.
-// Only a bare-metal clang firmware build (no SIMDe) falls through to the manual typedefs.
-#if !defined(__clang__) || defined(DELUGE_HOST)
+// That leaves only a bare-metal clang build reaching the manual typedefs — and even
+// then only when __ARM_NEON is undefined. Any clang invocation carrying the device
+// flags defines __ARM_NEON (the armv7a-none-eabihf/cortex-a9 target implies it, with
+// or without an explicit -mfpu) and pulls in clang's own <arm_neon.h>, which would
+// collide with the typedefs below (211 redefinitions) — so route that through the
+// real header too.
+//
+// A host build that reaches NEON through SIMDe without being the host-sim (the unit
+// tree's specs, via deluge_test_neon) has SIMDe on its include path, and the compat
+// <arm_neon.h> resolves to it: route that through the header as well.
+//
+// What is left is tooling parsing a translation unit WITHOUT those flags: clangd
+// falling back to a guessed command line for a file with no compile_commands.json
+// entry, which lands on the host target and so leaves __ARM_NEON undefined. The
+// manual typedefs exist for that case alone. Note this branch is NOT what clangd
+// takes for a file the database does cover — there it sees --target and reads the
+// real header, same as the compiler.
+#if !defined(__clang__) || defined(DELUGE_HOST) || defined(__ARM_NEON) || __has_include(<simde/arm/neon.h>)
 #include "arm_neon.h" // IWYU pragma: export
 #else
 

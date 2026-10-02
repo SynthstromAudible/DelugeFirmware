@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "libdeluge/sample_reader.h"
 #include "model/sample/sample_low_level_reader.h"
 #include <cstdint>
 
@@ -30,7 +31,7 @@ class VoiceSample;
 class Voice;
 class VoiceSamplePlaybackGuide;
 class VoiceUnisonPartSource;
-class Cluster;
+struct ComputedChunk; ///< Computed/cached chunk — perc-cache + sample-cache scratch (see storage/cluster/cluster.h).
 class Sample;
 class SampleCache;
 
@@ -50,7 +51,12 @@ public:
 	            int32_t timeStretchRatio, int32_t phaseIncrement, uint64_t combinedIncrement, int32_t playDirection,
 	            LoopType loopingType, int32_t priorityRating);
 
-	void rememberPercCacheCluster(Cluster* cluster);
+	/// @brief Record @p cluster as one of the two most-recently-needed perc-cache chunks, taking a lease.
+	///
+	/// No-op if already remembered; otherwise releases the lease on the older of the two remembered
+	/// chunks before recording the new one.
+	/// @param cluster The computed chunk to remember.
+	void rememberPercCacheCluster(ComputedChunk* cluster);
 	void updateClustersForPercLookahead(Sample* sample, uint32_t sourceBytePos, int32_t playDirection);
 
 	int32_t getSamplePos(int32_t playDirection);
@@ -93,35 +99,18 @@ public:
 	uint64_t bufferSamplesWritten; // Hopefully we can do away with the need for this
 #endif
 
-	Cluster* clustersForPercLookahead[kNumClustersLoadedAhead]{};
+	/// @note Perc lookahead — pins the small forward/backward window of upcoming source-audio
+	///       clusters the time-stretcher's older-head search needs resident (see
+	///       updateClustersForPercLookahead), through the reservation handle (sample_reader.h).
+	DelugeSampleReservation* percLookahead_ = nullptr;
 
-	Cluster* percCacheClustersNearby[2]{}; // Remembers and acts as a "reason" for the two most recently needed /
-	                                       // accessed Clusters, basically
+	ComputedChunk* percCacheClustersNearby[2]{}; ///< Reason-holder for the two most recently needed/accessed
+	                                             ///< perc-cache chunks.
 
 private:
 	bool setupNewPlayHead(Sample* sample, VoiceSample* voiceSample, SamplePlaybackGuide* guide, int32_t newHeadBytePos,
 	                      int32_t additionalOscPos, int32_t priorityRating, LoopType loopingType);
 };
 
-inline int32_t getTotalDifferenceAbs(int32_t* totals1, int32_t* totals2) {
-	int32_t totalDifferenceAbs = 0;
-	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
-		int32_t differenceAbsHere = totals2[i] - totals1[i];
-		if (differenceAbsHere < 0)
-			differenceAbsHere = -differenceAbsHere;
-		totalDifferenceAbs += differenceAbsHere;
-	}
-	return totalDifferenceAbs;
-}
-
-inline int32_t getTotalChange(int32_t* totals1, int32_t* totals2) {
-	int32_t totalChange = 0;
-	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
-		totalChange += totals2[i];
-	}
-
-	for (int32_t i = 0; i < TimeStretch::Crossfade::kNumMovingAverages; i++) {
-		totalChange -= totals1[i];
-	}
-	return totalChange;
-}
+// The crossfade window-match helpers (getTotalDifferenceAbs / getTotalChange) moved to
+// dsp-next/fixed/timestretch/crossfade.h as deluge::dsp::fixed::totalDifferenceAbs / totalChange.

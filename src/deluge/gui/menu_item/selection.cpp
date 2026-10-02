@@ -5,16 +5,6 @@
 #include "hid/display/oled.h"
 
 namespace deluge::gui::menu_item {
-void Selection::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	if (display->have7SEG()) {
-		const auto options = this->getOptions();
-		display->setScrollingText(options[this->getValue()].data());
-	}
-}
-
 void Selection::drawPixelsForOled() {
 	int32_t current = getValue();
 	// Earliest item that might be on the screen.
@@ -41,12 +31,7 @@ void Selection::drawPixelsForOled() {
 
 // renders check box on OLED and dot on 7seg
 void Selection::displayToggleValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawName();
-	}
+	renderUIsForOled();
 }
 
 // handles rendering of the community features menu items that are identified as toggles

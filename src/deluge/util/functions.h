@@ -19,14 +19,15 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
-#include "fatfs/ff.h"
-#include "gui/colour/colour.h"         // IWYU pragma: export todo: this probably shouldn't be exported from here
+#include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
 #include "util/cfunctions.h" // IWYU pragma: export - minimal set of functions which need c linkage
 #include "util/etl_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/name_compare.h"    // IWYU pragma: export - strcmpspecial and friends used to live here
+#include "util/param_functions.h" // IWYU pragma: export — param scaling/patching math (split out for the synth core)
 #include "util/waves.h"
 #include <bit>
 #include <cstdint>
@@ -42,72 +43,13 @@ extern const uint8_t modButtonY[];
 
 extern uint8_t subModeToReturnTo;
 
-extern int32_t paramRanges[];
-extern int32_t paramNeutralValues[];
-
 void functionsInit();
 
 char const* getThingName(OutputType outputType);
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
-// bits must be *less* than 32! I.e. 31 or less
-[[gnu::always_inline]] inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
-
-	// Despite having this switch at the per-audio-sample level, it doesn't introduce any slowdown compared to just
-	// always saturating by the same amount!
-	switch (bits) {
-	case 31:
-		return signed_saturate<31>(val);
-	case 30:
-		return signed_saturate<30>(val);
-	case 29:
-		return signed_saturate<29>(val);
-	case 28:
-		return signed_saturate<28>(val);
-	case 27:
-		return signed_saturate<27>(val);
-	case 26:
-		return signed_saturate<26>(val);
-	case 25:
-		return signed_saturate<25>(val);
-	case 24:
-		return signed_saturate<24>(val);
-	case 23:
-		return signed_saturate<23>(val);
-	case 22:
-		return signed_saturate<22>(val);
-	case 21:
-		return signed_saturate<21>(val);
-	case 20:
-		return signed_saturate<20>(val);
-	case 19:
-		return signed_saturate<19>(val);
-	case 18:
-		return signed_saturate<18>(val);
-	case 17:
-		return signed_saturate<17>(val);
-	case 16:
-		return signed_saturate<16>(val);
-	case 15:
-		return signed_saturate<15>(val);
-	case 14:
-		return signed_saturate<14>(val);
-	case 13:
-		return signed_saturate<13>(val);
-	default:
-		return signed_saturate<12>(val);
-	}
-}
-
-template <uint8_t lshift>
-[[gnu::always_inline]] inline int32_t lshiftAndSaturate(int32_t val) {
-	return signed_saturate<32 - lshift>(val) << lshift;
-}
-
-// lshift must be greater than 0! Not 0
-[[gnu::always_inline]] inline int32_t lshiftAndSaturateUnknown(int32_t val, uint8_t lshift) {
-	return signed_saturate_operand_unknown(val, 32 - lshift) << lshift;
-}
+// signed_saturate_operand_unknown / lshiftAndSaturate / lshiftAndSaturateUnknown now live in
+// util/param_functions.h (included above), split out so the synth core needn't pull this heavy header.
 
 // charsToIntegerConstant / swapEndianness* / memToUIntOrError / ConvertFromIeeeExtended now live in
 // util/audio_format_helpers.h (included above), so the parser can depend on them without this heavy header.
@@ -197,14 +139,11 @@ LaunchStyle stringToLaunchStyle(char const* string);
 
 char const* getInstrumentFolder(OutputType outputType);
 
-int32_t getExp(int32_t presetValue, int32_t adjustment);
-
 bool isAudioFilename(char const* filename);
 bool isAiffFilename(char const* filename);
 
 char const* getFileNameFromEndOfPath(char const* filePathChars);
 
-int32_t lookupReleaseRate(int32_t input);
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex);
 int32_t instantTan(int32_t input);
@@ -215,14 +154,12 @@ int32_t cableToLinearParamShortcut(int32_t sourceValue);
 int32_t cableToExpParamShortcut(int32_t sourceValue);
 
 class Sound;
+namespace deluge::dsp {
 struct StereoSample;
-int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p);
+} // namespace deluge::dsp
+using StereoSample = deluge::dsp::StereoSample;
 
-char const* getSourceDisplayNameForOLED(PatchSource s);
+char const* getSourceDisplayName(PatchSource s);
 
 char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
@@ -230,10 +167,6 @@ char const* sourceToStringShort(PatchSource source);
 
 int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
-
-int32_t interpolateTable(uint32_t input, int32_t numBitsInInput, const uint16_t* table, int32_t numBitsInTableSize = 8);
-uint32_t interpolateTableInverse(int32_t tableValueBig, int32_t numBitsInLookupOutput, const uint16_t* table,
-                                 int32_t numBitsInTableSize = 8);
 
 // input must not have any extra bits set than numBitsInInput specifies
 // Output of this function (unlike the regular 1d one) is only +- 1073741824
@@ -298,9 +231,6 @@ template <unsigned saturationAmount>
 	return toReturn;
 }
 
-int32_t getDecay8(uint32_t input, uint8_t numBitsInInput);
-int32_t getDecay4(uint32_t input, uint8_t numBitsInInput);
-
 #define znew (z = 36969 * (z & 65535) + (z >> 16))
 #define wnew (w = 18000 * (w & 65535) + (w >> 16))
 #define MWC (int32_t)((znew << 16) + wnew)
@@ -323,44 +253,13 @@ inline q31_t sampleTriangleDistribution() {
 
 void seedRandom();
 
-extern bool shouldInterpretNoteNames;
-extern bool octaveStartsFromA;
-
 int32_t random(int32_t upperLimit);
 bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
 
 uint32_t getOscInitialPhaseForZero(OscType waveType);
 int32_t fastPythag(int32_t x, int32_t y);
-int32_t strcmpspecial(char const* first, char const* second);
 int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
 int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
-
-// intensity is out of 65536 now
-// occupancyMask is out of 64 now
-inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& square, uint8_t* occupancyMask,
-                      int32_t occupancyFromWhichColourCame) {
-
-	int32_t modifiedIntensity = intensity; //(intensity * occupancyFromWhichColourCame) >> 6; // Out of 65536
-
-	// Make new colour being drawn into this square marginalise the colour already in the square
-	int32_t colourRemainingAmount = 65536;
-
-	// We know how much colour we want to add to this square, so constrain any existing colour to the remaining "space"
-	// that it may still occupy
-	int32_t maxOldOccupancy = (65536 - modifiedIntensity) >> 10;
-
-	// If the square has more colour in it than it's allowed to retain, then plan to reduce it
-	if (*occupancyMask > maxOldOccupancy) {
-		colourRemainingAmount = (maxOldOccupancy << 16) / *occupancyMask; // out of 65536
-	}
-
-	// Add the new colour, reducing the old if that's what we're doing
-	int32_t newOccupancyMaskValue =
-	    rshift_round(*occupancyMask * colourRemainingAmount, 16) + rshift_round(modifiedIntensity, 10);
-	*occupancyMask = std::min<int32_t>(64, newOccupancyMaskValue);
-
-	return RGB::blend2(square, squareColour, colourRemainingAmount, modifiedIntensity);
-}
 
 [[gnu::always_inline]] inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
 	if (magnitude >= 0) {
@@ -369,12 +268,7 @@ inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& squ
 	return number >> (-magnitude);
 }
 
-[[gnu::always_inline]] inline int32_t increaseMagnitudeAndSaturate(int32_t number, int32_t magnitude) {
-	if (magnitude > 0) {
-		return lshiftAndSaturateUnknown(number, magnitude);
-	}
-	return number >> (-magnitude);
-}
+// increaseMagnitudeAndSaturate moved to util/param_functions.h (re-exported via the include above).
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = nullptr,
@@ -400,17 +294,12 @@ int32_t memcasecmp(char const* first, char const* second, int32_t size);
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b);
 void dimColour(uint8_t colour[3]);
 bool charCaseEqual(char firstChar, char secondChar);
-bool shouldAbortLoading();
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude);
 /// buffer must have at least 5 characters on 7seg, or 30 for OLED
 void getNoteLengthNameFromMagnitude(etl::istring& buf, int32_t magnitude, char const* durrationSuffix = "-notes",
                                     bool clarifyPerColumn = false);
 bool doesFilenameFitPrefixFormat(char const* fileName, char const* filePrefix, int32_t prefixLength);
-Error fresultToDelugeErrorCode(FRESULT result);
-namespace FatFS {
-enum class Error;
-}
-Error fatfsErrorToDelugeError(FatFS::Error result);
+Error delugeStatusToError(DelugeStatus status);
 
 [[gnu::always_inline]] inline void writeInt16(char** address, uint16_t number) {
 	*(uint16_t*)*address = number;

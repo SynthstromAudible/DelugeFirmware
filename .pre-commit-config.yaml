@@ -4,9 +4,9 @@ repos:
     hooks:
       - id: actionlint
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.9.4
+    rev: v0.16.0
     hooks:
-      - id: ruff
+      - id: ruff-check
         args: [--fix]
       - id: ruff-format
   - repo: https://github.com/pre-commit/mirrors-clang-format
@@ -24,14 +24,37 @@ repos:
         entry: cargo fmt --manifest-path crates/Cargo.toml --all --check --
         language: system
         types: [rust]
-        files: ^crates/.*\.rs$
+        files: ^crates/(?!deluge_sample_convert/).*\.rs$
+        pass_filenames: false
+      - id: cargo-fmt-sample-convert
+        # deluge_sample_convert is a production dependency of the Rust BSP, but
+        # it's deliberately excluded from the crates/ workspace (build.rs
+        # cc-compiles app C++ and it has a std test harness, so it can't share
+        # the workspace's no_std/panic=abort profiles). `cargo fmt --all` above
+        # happens to still reach it today, incidentally, because a workspace
+        # member (deluge_sample_fill) path-deps on it -- but that's not
+        # deliberate coverage: drop that dependency and it silently stops being
+        # checked. Give it its own hook against its own manifest instead, same
+        # as the BSP/harness split below.
+        name: rustfmt (deluge_sample_convert)
+        entry: cargo fmt --manifest-path crates/deluge_sample_convert/Cargo.toml --check --
+        language: system
+        types: [rust]
+        files: ^crates/deluge_sample_convert/.*\.rs$
         pass_filenames: false
       - id: cargo-fmt-bsp
         name: rustfmt (bsp)
         entry: cargo fmt --manifest-path src/bsp/rust/Cargo.toml --check --
         language: system
         types: [rust]
-        files: ^src/bsp/rust/.*\.rs$
+        files: ^src/bsp/rust/(?!harness/).*\.rs$
+        pass_filenames: false
+      - id: cargo-fmt-harness
+        name: rustfmt (harness)
+        entry: bash -c 'for m in tests/component/differential/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do cargo fmt --manifest-path "$m" --check -- || exit 1; done'
+        language: system
+        types: [rust]
+        files: ^(tests/component/differential/|src/bsp/rust/harness/).*\.rs$
         pass_filenames: false
       - id: libdeluge-boundary
         name: libdeluge platform boundary
@@ -40,6 +63,26 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/|scripts/(check_platform_boundary\.py|platform_boundary_allowlist\.txt))
+      - id: check-abi-surface
+        name: every declared libdeluge function has a definition, a signature pin, a context tag and DELUGE_NOEXCEPT
+        entry: python3 scripts/check_abi_surface.py --check --pins --tags --noexcept
+        language: system
+        pass_filenames: false
+        files: ^(include/libdeluge/|src/bsp/rust/src/|src/bsp/rust/harness/|src/bsp/rust/build/|src/bsp/rust/Cargo\.toml|crates/|scripts/check_abi_surface\.py)
+      - id: dsp-next-boundary
+        name: dsp-next L0 boundary
+        description: src/deluge/dsp-next must not include app layers, the legacy dsp/, or the HAL/BSP
+        entry: python3 scripts/check_dsp_boundary.py
+        language: system
+        pass_filenames: false
+        files: ^(src/deluge/dsp-next/|scripts/check_dsp_boundary\.py)
+      - id: synth-boundary
+        name: synth core boundary
+        description: src/deluge/synth must not include app layers (model/processing/gui/storage/...), the legacy dsp/, or the HAL/BSP
+        entry: python3 scripts/check_synth_boundary.py
+        language: system
+        pass_filenames: false
+        files: ^(src/deluge/synth/|scripts/(check_synth_boundary\.py|synth_boundary_allowlist\.txt))
 # - repo: local
 
 #   hooks:

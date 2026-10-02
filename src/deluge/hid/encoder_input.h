@@ -27,13 +27,11 @@ extern uint32_t timeModEncoderLastTurned[];
 
 /// Translate accumulated encoder ticks into UI actions.
 ///
-/// @param skipActioning  When true, drains and clears encoder state but suppresses most UI actions
-///                       (used during SD card I/O and audio engine yield paths).
 /// @return true if any encoder produced an action this call.
-bool interpretEncoders(bool skipActioning = false);
+bool interpretEncoders();
 
-/// Scheduler task entry point: actions any pending encoder movement, then re-blocks itself so it
-/// won't run again until the encoder IRQ unblocks it.
+/// The encoder job: actions any pending encoder movement. It runs only when an encoder edge wakes
+/// the app loop with DELUGE_WAKE_ENCODERS.
 void interpretEncodersTask();
 
 } // namespace deluge::hid::encoders
