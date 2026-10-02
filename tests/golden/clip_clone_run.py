@@ -3,41 +3,50 @@
 
 Duplicates a real InstrumentClip via InstrumentClip::clone() for each song that has one, asserting the clone is
 deep-independent + structurally correct and that the reverse-flatten path runs. This covers the golden-blind
-edit path (the load->save golden never clones) that the param_clone_test unit harness can't reach (clone()
+edit path (the load->save golden never clones) that the param_clone unit driver can't reach (clone()
 needs a live Song + ModelStack).
 
-  DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/golden/clip_clone_run.py --binary ./build-sim/clip_clone_roundtrip
+The driver is the clip_clone_roundtrip scenario of golden_vt_render (driver.py); `./dbt test clip-clone-roundtrip`
+runs this.
 
-Per-song exit codes from the binary: 0=all clone assertions passed, 3=skip (no instrument clip with notes),
-1=song didn't load in the minimal harness (skip — loader limitation, not a clone defect), 4=assertion failed.
-This runner FAILS only on rc==4 (a real clone regression).
+  DELUGE_SONG_CORPUS=/path/to/SONGS python3 tests/golden/clip_clone_run.py
+
+Per-song exit codes from the driver: 0=all clone assertions passed, 3=skip (no instrument clip with notes),
+1=song didn't load (skip — loader limitation, not a clone defect), 4=assertion failed. A run that ends the
+harness before printing LOADED is a load-path defect, not a clone one, and is counted as a load skip.
+This runner FAILS only on rc==4 or an end AFTER the load (a real clone regression).
 """
 
 import argparse
 import os
-import subprocess
 import sys
 
+import driver
 
-def main():
+
+def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--binary", default="./build-sim/clip_clone_roundtrip")
-    ap.add_argument("--corpus", default=os.environ.get("DELUGE_SONG_CORPUS", ""))
-    args = ap.parse_args()
-    if not args.corpus:
-        print("set DELUGE_SONG_CORPUS or pass --corpus", file=sys.stderr)
-        return 2
+    ap.add_argument("--binary", default=str(driver.default_binary()))
+    ap.add_argument("--wrapper", default="")
+    ap.add_argument("--corpus", default=driver.default_corpus() or "")
+    ap.add_argument("--timeout", type=int, default=120)
+    args = ap.parse_args(argv)
+    if not os.path.isdir(args.corpus):
+        print("SKIP: no song corpus (DELUGE_SONG_CORPUS)")
+        return 77
 
-    songs = []
-    for root, _dirs, files in os.walk(args.corpus):
-        for name in sorted(files):
-            if name.upper().endswith(".XML"):
-                songs.append(os.path.join(root, name))
-    songs.sort()
-
+    songs = driver.find_songs(args.corpus)
     cloned = skip_noclip = skip_load = regressions = 0
     for song in songs:
-        r = subprocess.run([args.binary, song], capture_output=True, text=True)
+        # Direct, so a LOADED printed before a crash is still seen.
+        r = driver.run(
+            args.binary,
+            "clip_clone_roundtrip",
+            [song],
+            args.timeout,
+            args.wrapper,
+            direct=True,
+        )
         loaded = (
             "LOADED" in r.stdout
         )  # printed after a successful load, before any clone
@@ -46,14 +55,12 @@ def main():
         elif r.returncode == 3:
             skip_noclip += 1
         elif r.returncode == 1 or not loaded:
-            # rc==1 is a clean load-error return; a crash (e.g. abort) before the LOADED marker is a
-            # load-path defect in the deserializer, not a clone regression — count as a load skip.
             skip_load += 1
-        else:  # crashed/failed AFTER load -> a real clone-path regression
+        else:  # failed or ended AFTER load -> a real clone-path regression
             regressions += 1
             print(f"REGRESS rc={r.returncode} {os.path.basename(song)}")
             print(r.stdout.strip())
-            print(r.stderr.strip())
+            print(r.stderr.strip()[-2000:])
 
     print("=" * 60)
     print(
