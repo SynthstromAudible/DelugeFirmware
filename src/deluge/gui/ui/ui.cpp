@@ -388,11 +388,9 @@ void doAnyPendingUIRendering() {
 		return; // Trialling the *2 to fix flickering when flicking through presets very fast
 	}
 
-	pendingUIRenderingLock = true;
+	ReentryLockHold hold{pendingUIRenderingLock};
 	doAnyPendingGridRendering();
 	doAnyPendingOLEDRendering();
-
-	pendingUIRenderingLock = false;
 }
 
 uint32_t currentUIMode = 0;

@@ -2398,9 +2398,8 @@ bool SessionView::setupScroll(uint32_t oldScroll) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return false;
 	}
-	// Ok I'm sorta pretending that this is definitely previously false, though only one caller of this function
-	// actually checks for that. Should be ok-ish though...
-	pendingUIRenderingLock = true;
+	// The lock is a flag, not a count: holding it here assumes no render already holds it.
+	ReentryLockHold hold{pendingUIRenderingLock};
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
 
@@ -2432,8 +2431,6 @@ noTransition:
 			PadLEDs::transitionTakingPlaceOnRow[yDisplay] = false;
 		}
 	}
-
-	pendingUIRenderingLock = false;
 
 	return anyMoved;
 }

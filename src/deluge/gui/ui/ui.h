@@ -28,7 +28,22 @@ class RootUI;
 class TimelineView;
 
 extern uint32_t currentUIMode;
+
+/// Set while pad and OLED rendering (or a session-view scroll setup) is running, so a nested render or a
+/// horizontal-encoder action arriving inside it is refused rather than re-entering.
 extern bool pendingUIRenderingLock;
+
+/// Holds a re-entry lock for its lifetime: sets the flag on construction and clears it on every exit path.
+class ReentryLockHold {
+public:
+	explicit ReentryLockHold(bool& lock) : lock_{lock} { lock_ = true; }
+	~ReentryLockHold() { lock_ = false; }
+	ReentryLockHold(const ReentryLockHold&) = delete;
+	ReentryLockHold& operator=(const ReentryLockHold&) = delete;
+
+private:
+	bool& lock_;
+};
 
 // Exclusive UI modes - only one of these can be active at a time.
 #define UI_MODE_NONE 0
