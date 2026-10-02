@@ -19,9 +19,11 @@
 
 #include <cstdint>
 
-/// @brief An audio-input recording take, started from the sound editor's recorder menu item, runs while the rest of the
-/// app keeps going: DIN MIDI notes and clock delivered during the take are handled during it (RT-TAKE), and the take,
-/// ended with BACK, attaches its sample to the source it was recorded for (RT-ATTACH).
+/// @brief Audio-input recording takes, each started from the sound editor's recorder menu item. A take runs while the
+/// rest of the app keeps going: DIN MIDI notes and clock delivered during it are handled during it (RT-TAKE), and BACK
+/// attaches its sample to the source it was recorded for (RT-ATTACH). No take starts while a load that can replace the
+/// clip's output is in flight (RT-REFUSED); a take whose recorder UI is closed under it (RT-CLOSED), or whose synth is
+/// replaced under it (RT-REPLACED), is dropped and attached to nothing, and the next take starts (RT-SECOND).
 extern "C" {
 void deluge_scenario_recorder_take_begin(void);
 bool deluge_scenario_recorder_take_complete(void);

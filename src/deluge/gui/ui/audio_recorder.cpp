@@ -19,15 +19,23 @@
 #include "definitions_cxx.hpp"
 #include "extern.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
+#include "gui/ui/browser/sample_claim.h"
+#include "gui/ui/load/instrument_load.h"
+#include "gui/ui/load/load_pattern_ui.h"
+#include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/reversion.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/randomize_drums.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
@@ -35,6 +43,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 #include "processing/stem_export/stem_export.h"
 #include "runtime/app_loop.h"
@@ -43,6 +52,7 @@
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
 #include "util/c_string.h"
+#include <iterator>
 #include <string.h>
 
 AudioRecorder audioRecorder{};
@@ -64,6 +74,11 @@ bool AudioRecorder::opened() {
 
 	// If we're already recording (probably the output) then no!
 	if (recordingSource > AudioInputChannel::NONE) {
+		return false;
+	}
+
+	// Refused, like the browsers refuse their input, while something could swap out what the take would attach to.
+	if (anOutputMayBeReplaced()) {
 		return false;
 	}
 
@@ -102,6 +117,14 @@ bool AudioRecorder::opened() {
 		indicator_leds::blinkLed(IndicatorLED::BACK);
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
 
+		Clip* clip = getCurrentClip();
+		target_ = {
+		    .clip = clip,
+		    .output = clip != nullptr ? clip->output : nullptr,
+		    .sound = soundEditor.currentSound,
+		    .range = soundEditor.currentMultiRange,
+		    .sourceIndex = soundEditor.currentSourceIndex,
+		};
 		deluge::runtime::appLoop.request(jobId);
 	}
 
@@ -189,6 +212,67 @@ void AudioRecorder::slowRoutine() {
 	}
 }
 
+bool AudioRecorder::anOutputMayBeReplaced() {
+	using namespace deluge::gui;
+	return instrumentLoad.inFlight() || loadPatternUI.loadInFlight() || reversion.inFlight()
+	       || loadSongUI.isLoadInFlight() || randomizeDrums.inFlight() || sampleClaim.inFlight()
+	       || folderImport.inFlight();
+}
+
+bool AudioRecorder::targetStillHeld() const {
+	const TakeTarget& t = target_;
+	if (currentSong == nullptr || t.clip == nullptr || t.output == nullptr || t.sound == nullptr
+	    || t.range == nullptr) {
+		return false;
+	}
+	if (soundEditor.currentSound != t.sound || soundEditor.currentMultiRange != t.range
+	    || soundEditor.currentSourceIndex != t.sourceIndex) {
+		return false;
+	}
+	// Addresses only until each is found among the song's own: the clip, then its output.
+	if (currentSong->sessionClips.getIndexForClip(t.clip) < 0
+	    && currentSong->arrangementOnlyClips.getIndexForClip(t.clip) < 0) {
+		return false;
+	}
+	if (t.clip->output != t.output) {
+		return false;
+	}
+	bool outputInSong = false;
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+		if (output == t.output) {
+			outputInSong = true;
+			break;
+		}
+	}
+	if (!outputInSong) {
+		return false;
+	}
+
+	bool soundHeld = false;
+	if (t.output->type == OutputType::SYNTH) {
+		soundHeld = static_cast<Sound*>(static_cast<SoundInstrument*>(t.output)) == t.sound;
+	}
+	else if (t.output->type == OutputType::KIT) {
+		for (Drum* drum = static_cast<Kit*>(t.output)->firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->type == DrumType::SOUND && static_cast<Sound*>(static_cast<SoundDrum*>(drum)) == t.sound) {
+				soundHeld = true;
+				break;
+			}
+		}
+	}
+	if (!soundHeld) {
+		return false;
+	}
+
+	Source& source = t.sound->sources[t.sourceIndex];
+	for (int32_t i = 0; i < std::ssize(source.ranges); i++) {
+		if (source.ranges.getElement(i) == t.range) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool AudioRecorder::inputTakeInProgress() const {
 	return recorder != nullptr && recordingSource > AudioInputChannel::NONE
 	       && recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
@@ -199,14 +283,14 @@ void AudioRecorder::tick() {
 		return;
 	}
 
-	if (getCurrentUI() == this) {
-		// A card error ends the take. Stop capturing, then wait for the recorder to close its file and for the
-		// driver to answer anything it was given: freeing it any earlier frees memory the driver may still be
-		// writing from.
-		if (recorder->hadCardError) {
-			endRecordingSoon(kInternalButtonPressLatency);
-		}
+	// A card error ends the take, whichever UI is on top. Stop capturing, then wait for the recorder to close its
+	// file and for the driver to answer anything it was given: freeing it any earlier frees memory the driver may
+	// still be writing from.
+	if (recorder->hadCardError) {
+		endRecordingSoon(kInternalButtonPressLatency);
+	}
 
+	if (getCurrentUI() == this) {
 		if (recorder->settled()) {
 			finishInputTake();
 			return;
@@ -232,6 +316,7 @@ void AudioRecorder::tick() {
 		endRecordingSoon(kInternalButtonPressLatency);
 		if (recorder->settled()) {
 			finishRecording();
+			target_ = {};
 			return;
 		}
 	}
@@ -240,7 +325,8 @@ void AudioRecorder::tick() {
 }
 
 void AudioRecorder::finishInputTake() {
-	if (recorder->status != RecorderStatus::ABORTED && !recorder->hadCardError) {
+	// A take whose sound was replaced or freed under it stays on the card, attached to nothing.
+	if (recorder->status != RecorderStatus::ABORTED && !recorder->hadCardError && targetStillHeld()) {
 		// Attach the Sample to the Source right away.
 		soundEditor.currentSound->killAllVoices();
 		soundEditor.currentSource->setOscType(OscType::SAMPLE);
@@ -249,6 +335,7 @@ void AudioRecorder::finishInputTake() {
 		    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
 	}
 	finishRecording();
+	target_ = {};
 
 	close();
 }

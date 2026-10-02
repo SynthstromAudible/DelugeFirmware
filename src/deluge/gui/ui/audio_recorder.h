@@ -22,7 +22,11 @@
 #include "hid/button.h"
 #include "runtime/app_loop.h"
 
+class Clip;
+class MultiRange;
+class Output;
 class SampleRecorder;
+class Sound;
 
 class AudioRecorder final : public UI {
 public:
@@ -72,10 +76,28 @@ public:
 	UIType getUIType() override { return UIType::AUDIO_RECORDER; }
 
 private:
+	/// What an input take records for: the sound editor's sound, source and range as the take started, and the clip
+	/// and output that held that sound. Compared by address only; never dereferenced unless still held.
+	struct TakeTarget {
+		Clip* clip = nullptr;
+		Output* output = nullptr;
+		Sound* sound = nullptr;
+		MultiRange* range = nullptr;
+		int32_t sourceIndex = 0;
+	};
+
+	/// Whether a machine that can replace a clip's output, or a sound's sample, is in flight. A take does not start
+	/// then: what it would attach to could be swapped out from under it.
+	[[nodiscard]] static bool anOutputMayBeReplaced();
+	/// Whether @ref target_ is still in the current song, and still what the sound editor is editing.
+	[[nodiscard]] bool targetStillHeld() const;
 	/// Whether an audio-input take is in progress: the takes tick() owns.
 	[[nodiscard]] bool inputTakeInProgress() const;
-	/// Ends a settled input take: attaches its sample unless it was aborted or hit a card error, then closes.
+	/// Ends a settled input take: attaches its sample unless it was aborted, hit a card error or lost its target,
+	/// then closes.
 	void finishInputTake();
+
+	TakeTarget target_{};
 	void finishRecording();
 	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
 	                          bool writeLoopPoints = false, bool shouldNormalize = true);

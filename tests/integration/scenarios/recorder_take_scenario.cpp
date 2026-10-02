@@ -27,19 +27,28 @@
 #include "hid/button.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
+#include "model/clip/instrument_clip.h"
+#include "model/clip/instrument_clip_minder.h"
+#include "model/instrument/instrument.h"
 #include "model/output.h"
 #include "model/sample/sample.h"
+#include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
+#include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multi_range.h"
+#include "storage/preset_acquisition.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <string>
 #include <unistd.h>
@@ -60,14 +69,32 @@ void deluge_host_test_input(bool on);
 
 namespace {
 
-enum class Stage : uint8_t { Loading, Open, Take, Ending, Report, Done };
+/// The legs, in the order they run. Each starts its take from the recorder menu item, the user's gesture.
+enum class Stage : uint8_t {
+	Loading,
+	MidiOpen,       ///< midi_during_take: open the take and arm the DIN script.
+	MidiTake,       ///< ...MIDI must be handled while the take runs.
+	MidiEnding,     ///< ...BACK ends it; the sample is attached as before.
+	RefuseStart,    ///< refused_during_load: a new-synth acquisition is in flight; the recorder must refuse a take.
+	RefuseSettle,   ///< ...the acquisition finishes.
+	ClosedRun,      ///< closed_mid_take: the UI stack is replaced under a running take.
+	ClosedWait,     ///< ...the take is dropped: nothing attached, the recorder free.
+	SecondRun,      ///< ...a second take starts and runs.
+	SecondEnding,   ///< ...and attaches as usual.
+	ReplacedRun,    ///< output_replaced_mid_take: the clip's synth is replaced under a running take.
+	ReplacedEnding, ///< ...BACK ends the take, which must attach to nothing.
+	Report,
+	Done,
+};
 
 /// Steps the blank song's preset load is given. A step is about two virtual milliseconds.
 constexpr int32_t kMaxLoadSteps = 20000;
 /// Steps the take is given to read every scripted byte: the script spans about a second and a half of audio.
 constexpr int32_t kMaxTakeSteps = 5000;
-/// Steps the take is given to settle once BACK has ended it.
-constexpr int32_t kMaxEndingSteps = 5000;
+/// Steps a take, or a load, is given to settle.
+constexpr int32_t kMaxSettleSteps = 5000;
+/// Steps a take runs before something is done to it: long enough for its file to exist.
+constexpr int32_t kRunSteps = 100;
 
 /// MIDI clock at 120 BPM: 24 pulses a quarter note, so one every 919 frames at 44.1 kHz.
 constexpr uint64_t kClockFrames = 919;
@@ -81,17 +108,108 @@ bool g_stepDone = false;
 int32_t g_failures = 0;
 int32_t g_steps = 0;
 
+Clip* g_clip = nullptr;
 Sound* g_sound = nullptr;
+Output* g_outputBefore = nullptr;
 MultiRange* g_range = nullptr;
+std::string g_recordingPath;
+std::string g_scriptPath;
 int32_t g_events = 0;
 int32_t g_voicesMax = 0;
 bool g_externalClockSeen = false;
 bool g_recordingShown = false;
-bool g_popupShown = false;
+bool g_clipSeen = false;
+bool g_clipConsumed = false;
 
 void fail(const char* marker, const char* what) {
 	printf("%s FAIL %s\n", marker, what);
 	g_failures++;
+}
+
+bool inputTake() {
+	return audioRecorder.recordingSource == AudioInputChannel::LEFT
+	       || audioRecorder.recordingSource == AudioInputChannel::STEREO;
+}
+
+bool takeOver() {
+	return !isUIOpen(&audioRecorder) && audioRecorder.recordingSource == AudioInputChannel::NONE;
+}
+
+/// The recording's file path, once the recorder has made the file.
+void notePath() {
+	if (audioRecorder.recorder != nullptr && audioRecorder.recorder->sample != nullptr
+	    && !audioRecorder.recorder->sample->filePath.empty()) {
+		g_recordingPath = audioRecorder.recorder->sample->filePath;
+	}
+}
+
+/// How many holders keep the recording at @p path loaded, or -1 when no such file is resident.
+int64_t leasesOn(const std::string& path) {
+	for (AudioFile* file : audioFileManager.audioFiles) {
+		if (file != nullptr && file->filePath == path) {
+			return file->leaseCount();
+		}
+	}
+	return -1;
+}
+
+/// The clip view in front of the song's first clip, with the clip's synth set back to an oscillator.
+bool frontClip(const char* marker) {
+	g_clip = currentSong->sessionClips.empty() ? nullptr : currentSong->sessionClips[0];
+	if (g_clip == nullptr || g_clip->output == nullptr || g_clip->output->type != OutputType::SYNTH) {
+		fail(marker, "the song has no synth clip to record into");
+		return false;
+	}
+	currentSong->setCurrentClip(g_clip);
+	changeRootUI(&instrumentClipView);
+	return true;
+}
+
+/// The user's gesture: the sound editor opened on the first source's recorder item. The item sits in a horizontal
+/// menu, so setup() opens that menu focused on it, and the user's Select enters it.
+void openRecorder() {
+	const bool setup = soundEditor.setup(g_clip, &sample0RecorderMenu, 0);
+	g_sound = soundEditor.currentSound;
+	g_range = soundEditor.currentMultiRange;
+	if (setup && openUI(&soundEditor) && getCurrentUI() == &soundEditor) {
+		soundEditor.enterSubmenu(&sample0RecorderMenu);
+	}
+}
+
+/// Starts a take for @p marker's leg; false (with the failure reported) when none is running under the recorder UI.
+bool startTake(const char* marker) {
+	if (!frontClip(marker)) {
+		return false;
+	}
+	static_cast<Sound*>(static_cast<SoundInstrument*>(g_clip->output))->sources[0].setOscType(OscType::SAW);
+	g_recordingPath.clear();
+	openRecorder();
+	const bool recorderOnTop = getCurrentUI() == &audioRecorder;
+	printf("%s-OPEN recorderOnTop=%d source=%d\n", marker, recorderOnTop ? 1 : 0,
+	       static_cast<int>(audioRecorder.recordingSource));
+	if (!recorderOnTop || !inputTake() || g_sound == nullptr || g_range == nullptr) {
+		fail(marker, "the recorder item did not leave an input take running under the recorder UI");
+		return false;
+	}
+	g_steps = 0;
+	return true;
+}
+
+void pressBack() {
+	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true, false);
+	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false, false);
+}
+
+/// Waits for the take to be over; false while it runs, and after reporting a take that never settles.
+bool waitOver(const char* marker) {
+	if (takeOver()) {
+		return true;
+	}
+	if (++g_steps > kMaxSettleSteps) {
+		fail(marker, "the take never settled");
+		g_stage = Stage::Report;
+	}
+	return false;
 }
 
 /// Writes the take's DIN script: a MIDI Start, two bars of clock, one note on channel 1 (which MIDI follow sends to
@@ -134,75 +252,53 @@ void stepLoading() {
 		return;
 	}
 	g_steps = 0;
-	g_stage = Stage::Open;
+	deluge_host_test_input(true);
+	g_stage = Stage::MidiOpen;
 }
 
-/// The user's gesture: the synth's clip in front, the sound editor opened on the first source's recorder item. The
-/// item's session opens the recorder, which starts the take; the gesture must then return, with the take running.
-void stepOpen() {
-	Clip* clip = currentSong->sessionClips.empty() ? nullptr : currentSong->sessionClips[0];
-	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::SYNTH) {
-		fail("RT-OPEN", "the blank song has no synth clip to record into");
+void stepMidiOpen() {
+	if (!startTake("RT")) {
 		g_stage = Stage::Report;
 		return;
 	}
-	currentSong->setCurrentClip(clip);
-	changeRootUI(&instrumentClipView);
-	deluge_host_test_input(true);
-
-	// The item sits in a horizontal menu: setup() opens that menu focused on it, and the user's Select enters it.
-	const bool setup = soundEditor.setup(clip, &sample0RecorderMenu, 0);
-	g_sound = soundEditor.currentSound;
-	g_range = soundEditor.currentMultiRange;
-	const bool opened = setup && openUI(&soundEditor);
-	if (opened && getCurrentUI() == &soundEditor) {
-		soundEditor.enterSubmenu(&sample0RecorderMenu);
-	}
-	const bool recorderOnTop = getCurrentUI() == &audioRecorder;
-	const bool inputTake = audioRecorder.recordingSource == AudioInputChannel::LEFT
-	                       || audioRecorder.recordingSource == AudioInputChannel::STEREO;
-	printf("RT-OPEN setup=%d opened=%d recorderOnTop=%d source=%d\n", setup ? 1 : 0, opened ? 1 : 0,
-	       recorderOnTop ? 1 : 0, static_cast<int>(audioRecorder.recordingSource));
-	if (!recorderOnTop || !inputTake || g_sound == nullptr || g_range == nullptr) {
-		fail("RT-OPEN", "the recorder item did not leave an input take running under the recorder UI");
-		g_stage = Stage::Report;
-		return;
-	}
-
-	const std::string script = writeScript();
-	g_events = script.empty() ? -1 : deluge_host_midi_script_start(script.c_str());
+	g_scriptPath = writeScript();
+	g_events = g_scriptPath.empty() ? -1 : deluge_host_midi_script_start(g_scriptPath.c_str());
 	if (g_events <= 0) {
 		fail("RT-TAKE", "the DIN script could not be written or armed");
-		g_stage = Stage::Ending;
-		(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true, false);
+		pressBack();
+		g_stage = Stage::MidiEnding;
 		return;
 	}
-	g_steps = 0;
-	g_stage = Stage::Take;
+	g_stage = Stage::MidiTake;
 }
 
 /// While the take runs, MIDI must be handled: every scripted byte read, the note sounding, the clock followed.
-void stepTake() {
-	const bool takeRunning =
-	    getCurrentUI() == &audioRecorder && audioRecorder.recordingSource > AudioInputChannel::NONE;
-	if (!takeRunning) {
+void stepMidiTake() {
+	if (getCurrentUI() != &audioRecorder || !inputTake()) {
 		fail("RT-TAKE", "the take ended before BACK was pressed");
-		g_stage = Stage::Ending;
+		g_stage = Stage::MidiEnding;
 		return;
 	}
 	g_voicesMax = std::max(g_voicesMax, static_cast<int32_t>(AudioEngine::getNumVoices()));
 	g_externalClockSeen = g_externalClockSeen || playbackHandler.isExternalClockActive();
 	g_recordingShown = g_recordingShown || audioRecorder.updatedRecordingStatus;
-	g_popupShown = g_popupShown || display->hasPopup();
+	// The render raises the clipping flag and only the recorder's own step lowers it, so a flag seen raised and then
+	// lowered shows that step ran mid-take.
+	if (audioRecorder.recorder != nullptr) {
+		const bool clipped = audioRecorder.recorder->recordingClippedRecently;
+		g_clipConsumed = g_clipConsumed || (g_clipSeen && !clipped);
+		g_clipSeen = g_clipSeen || clipped;
+	}
 
 	const uint32_t released = deluge_host_midi_script_released();
 	const bool allRead = released == static_cast<uint32_t>(g_events);
 	if (!allRead && ++g_steps <= kMaxTakeSteps) {
 		return;
 	}
-	printf("RT-TAKE events=%d released=%u voicesMax=%d externalClock=%d recordingShown=%d popupShown=%d steps=%d\n",
-	       g_events, released, g_voicesMax, g_externalClockSeen ? 1 : 0, g_recordingShown ? 1 : 0, g_popupShown ? 1 : 0,
-	       g_steps);
+	printf("RT-TAKE events=%d released=%u voicesMax=%d externalClock=%d recordingShown=%d clippingConsumed=%d "
+	       "steps=%d\n",
+	       g_events, released, g_voicesMax, g_externalClockSeen ? 1 : 0, g_recordingShown ? 1 : 0,
+	       g_clipConsumed ? 1 : 0, g_steps);
 	if (!allRead) {
 		fail("RT-TAKE", "the app did not read the DIN bytes delivered during the take");
 	}
@@ -212,26 +308,19 @@ void stepTake() {
 	if (!g_externalClockSeen) {
 		fail("RT-TAKE", "MIDI Start and clock delivered during the take did not start playback on the external clock");
 	}
-	// The test input is a full-scale sawtooth, so the take clips every block, and the recorder shows the clipping
-	// popup in preference to the Waiting to Recording change. Either shows the recorder's own step ran mid-take.
-	if (!g_recordingShown && !g_popupShown) {
-		fail("RT-TAKE", "the recorder showed neither clipping nor the Waiting to Recording change during the take");
+	// The test input is a full-scale sawtooth, so the take clips every block, and the recorder shows clipping in
+	// preference to the Waiting to Recording change. Either shows the recorder's own step ran mid-take.
+	if (!g_recordingShown && !g_clipConsumed) {
+		fail("RT-TAKE", "the recorder handled neither clipping nor the Waiting to Recording change during the take");
 	}
-
-	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true, false);
-	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false, false);
+	pressBack();
 	g_steps = 0;
-	g_stage = Stage::Ending;
+	g_stage = Stage::MidiEnding;
 }
 
 /// BACK ends the take; once it has settled the recorder attaches the sample to the source and closes.
-void stepEnding() {
-	const bool over = !isUIOpen(&audioRecorder) && audioRecorder.recordingSource == AudioInputChannel::NONE;
-	if (!over) {
-		if (++g_steps > kMaxEndingSteps) {
-			fail("RT-ATTACH", "the take never settled after BACK");
-			g_stage = Stage::Report;
-		}
+void stepMidiEnding() {
+	if (!waitOver("RT-ATTACH")) {
 		return;
 	}
 	const Source& source = g_sound->sources[0];
@@ -250,6 +339,156 @@ void stepEnding() {
 	else if (frames == 0 || sample->filePath.rfind("SAMPLES/RECORD/", 0) != 0) {
 		fail("RT-ATTACH", "the attached sample is empty or not a recording");
 	}
+	if (playbackHandler.isEitherClockActive()) {
+		playbackHandler.endPlayback();
+	}
+	g_steps = 0;
+	g_stage = Stage::RefuseStart;
+}
+
+/// A new-synth gesture on the clip view (an Acquire) swaps the clip's output when it lands, so the recorder must not
+/// start a take while it is in flight.
+void stepRefuseStart() {
+	if (!frontClip("RT-REFUSED")) {
+		g_stage = Stage::Report;
+		return;
+	}
+	(void)instrumentClipView.createNewInstrument(OutputType::SYNTH, false);
+	const bool loading = deluge::gui::instrumentLoad.inFlight();
+	openRecorder();
+	const bool recorderOnTop = getCurrentUI() == &audioRecorder;
+	printf("RT-REFUSED loadInFlight=%d recorderOnTop=%d source=%d\n", loading ? 1 : 0, recorderOnTop ? 1 : 0,
+	       static_cast<int>(audioRecorder.recordingSource));
+	if (!loading) {
+		fail("RT-REFUSED", "the acquisition was not in flight when the recorder was opened, so nothing was tested");
+	}
+	if (recorderOnTop || audioRecorder.recordingSource != AudioInputChannel::NONE) {
+		fail("RT-REFUSED", "the recorder started a take while a preset load that can replace its sound was in flight");
+		if (recorderOnTop) {
+			pressBack();
+		}
+	}
+	g_steps = 0;
+	g_stage = Stage::RefuseSettle;
+}
+
+void stepRefuseSettle() {
+	if (deluge::gui::instrumentLoad.inFlight() || !takeOver()) {
+		if (++g_steps > kMaxSettleSteps) {
+			fail("RT-REFUSED", "the acquisition or the refused take never settled");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	g_stage = startTake("RT-CLOSED") ? Stage::ClosedRun : Stage::Report;
+}
+
+/// A song load or a cleared song replaces the whole UI stack, the recorder's included, under a running take.
+void stepClosedRun() {
+	notePath();
+	if (++g_steps < kRunSteps) {
+		return;
+	}
+	nullifyUIs();
+	changeRootUI(&instrumentClipView);
+	g_steps = 0;
+	g_stage = Stage::ClosedWait;
+}
+
+void stepClosedWait() {
+	if (!waitOver("RT-CLOSED")) {
+		return;
+	}
+	const Source& source = g_sound->sources[0];
+	const int64_t leases = leasesOn(g_recordingPath);
+	printf("RT-CLOSED source=%d osc=%d path=%s leases=%lld steps=%d\n", static_cast<int>(audioRecorder.recordingSource),
+	       static_cast<int>(source.oscType), g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
+	if (source.oscType == OscType::SAMPLE) {
+		fail("RT-CLOSED", "a take whose recorder UI was closed under it switched the source to SAMPLE");
+	}
+	if (g_recordingPath.empty() || leases > 0) {
+		fail("RT-CLOSED", "a take whose recorder UI was closed under it was attached to something");
+	}
+	g_stage = startTake("RT-SECOND") ? Stage::SecondRun : Stage::Report;
+}
+
+void stepSecondRun() {
+	if (++g_steps < kRunSteps) {
+		return;
+	}
+	pressBack();
+	g_steps = 0;
+	g_stage = Stage::SecondEnding;
+}
+
+void stepSecondEnding() {
+	if (!waitOver("RT-SECOND")) {
+		return;
+	}
+	const bool attached = g_sound->sources[0].oscType == OscType::SAMPLE && g_range->getAudioFileHolder() != nullptr
+	                      && g_range->getAudioFileHolder()->audioFile != nullptr;
+	printf("RT-SECOND attached=%d\n", attached ? 1 : 0);
+	if (!attached) {
+		fail("RT-SECOND", "the take after a dropped one did not attach its sample");
+	}
+	g_stage = startTake("RT-REPLACED") ? Stage::ReplacedRun : Stage::Report;
+}
+
+/// The synth being recorded for is replaced on its clip mid-take, by the new-synth gesture's own step
+/// (InstrumentClipMinder::createNewInstrument(), which an acquisition reaches only on the clip view). No gesture
+/// reaches it while the recorder is on top: this test seam stands for any swap the refusal cannot cover once a take
+/// runs. The old synth is marked edited so it hibernates rather than being freed: an attach to it is then a wrong
+/// attach that the leg can see, not a use after free.
+void stepReplacedRun() {
+	notePath();
+	if (++g_steps < kRunSteps) {
+		return;
+	}
+	g_outputBefore = g_clip->output;
+	static_cast<Instrument*>(g_outputBefore)->editedByUser = true;
+	deluge::storage::AcquireResult acquired;
+	acquired.name = "SYNT999";
+	(void)instrumentClipView.InstrumentClipMinder::createNewInstrument(static_cast<InstrumentClip*>(g_clip),
+	                                                                   OutputType::SYNTH, false, acquired);
+	if (getCurrentUI() == &audioRecorder) {
+		pressBack();
+	}
+	g_steps = 0;
+	g_stage = Stage::ReplacedEnding;
+}
+
+/// Whether @p output is on the song's hibernation list: alive, and out of the song.
+bool hibernating(const Output* output) {
+	for (Output* o = currentSong->firstHibernatingInstrument; o != nullptr; o = o->next) {
+		if (o == output) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void stepReplacedEnding() {
+	if (!waitOver("RT-REPLACED")) {
+		return;
+	}
+	const bool replaced = g_clip->output != g_outputBefore;
+	const bool oldAlive = hibernating(g_outputBefore);
+	// Read only while it is known to be alive.
+	const OscType oldOsc = oldAlive ? g_sound->sources[0].oscType : OscType::SAW;
+	const int64_t leases = leasesOn(g_recordingPath);
+	printf("RT-REPLACED replaced=%d oldHibernating=%d oldOsc=%d path=%s leases=%lld steps=%d\n", replaced ? 1 : 0,
+	       oldAlive ? 1 : 0, static_cast<int>(oldOsc), g_recordingPath.c_str(), static_cast<long long>(leases),
+	       g_steps);
+	if (!replaced || !oldAlive) {
+		fail("RT-REPLACED", "the synth was not replaced and kept alive, so nothing was tested");
+	}
+	if (oldOsc == OscType::SAMPLE) {
+		fail("RT-REPLACED", "the replaced synth's source was switched to SAMPLE");
+	}
+	// Attaching takes a lease on the recording; a dropped take holds none.
+	if (g_recordingPath.empty() || leases > 0) {
+		fail("RT-REPLACED", "a take whose sound was replaced under it was attached to something");
+	}
 	g_stage = Stage::Report;
 }
 
@@ -257,6 +496,9 @@ void report() {
 	deluge_host_test_input(false);
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
+	}
+	if (!g_scriptPath.empty()) {
+		std::remove(g_scriptPath.c_str());
 	}
 	printf("RT-RESULT failures=%d\n", g_failures);
 	g_stage = Stage::Done;
@@ -272,13 +514,18 @@ void deluge_scenario_recorder_take_begin(void) {
 	g_stepDone = false;
 	g_failures = 0;
 	g_steps = 0;
+	g_clip = nullptr;
 	g_sound = nullptr;
 	g_range = nullptr;
+	g_outputBefore = nullptr;
+	g_recordingPath.clear();
+	g_scriptPath.clear();
 	g_events = 0;
 	g_voicesMax = 0;
 	g_externalClockSeen = false;
 	g_recordingShown = false;
-	g_popupShown = false;
+	g_clipSeen = false;
+	g_clipConsumed = false;
 }
 
 bool deluge_scenario_recorder_take_complete(void) {
@@ -291,14 +538,38 @@ void deluge_scenario_recorder_take_dispatch_step(void) {
 	case Stage::Loading:
 		stepLoading();
 		break;
-	case Stage::Open:
-		stepOpen();
+	case Stage::MidiOpen:
+		stepMidiOpen();
 		break;
-	case Stage::Take:
-		stepTake();
+	case Stage::MidiTake:
+		stepMidiTake();
 		break;
-	case Stage::Ending:
-		stepEnding();
+	case Stage::MidiEnding:
+		stepMidiEnding();
+		break;
+	case Stage::RefuseStart:
+		stepRefuseStart();
+		break;
+	case Stage::RefuseSettle:
+		stepRefuseSettle();
+		break;
+	case Stage::ClosedRun:
+		stepClosedRun();
+		break;
+	case Stage::ClosedWait:
+		stepClosedWait();
+		break;
+	case Stage::SecondRun:
+		stepSecondRun();
+		break;
+	case Stage::SecondEnding:
+		stepSecondEnding();
+		break;
+	case Stage::ReplacedRun:
+		stepReplacedRun();
+		break;
+	case Stage::ReplacedEnding:
+		stepReplacedEnding();
 		break;
 	case Stage::Report:
 		report();

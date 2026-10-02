@@ -8,7 +8,7 @@ bound, and reports a run that hits it as the freeze rather than as a crash.
 """
 
 # Wall-clock seconds. A passing run takes a few seconds.
-TIMEOUT_S = 300
+TIMEOUT_S = 60
 
 
 def run(gate):
