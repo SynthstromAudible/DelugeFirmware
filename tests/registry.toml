@@ -956,6 +956,194 @@ requires = ["cargo"]
 tier = "pr"
 runtime = "~30s"
 
+# The host drivers (tests/integration/scenarios/drivers/): whole-program checks of the project model, each run as a
+# golden_vt_render scenario on the booted app from the state its process once started in (driver.h). The corpus ones
+# are driven by their runner in tests/golden, through tests/integration/checks/host_driver.py.
+[[harness]]
+name = "param-projection"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "unit"
+status = "gate"
+gates = "the param/automation DOM leaf must agree with the engine it replaces: every DocAutoParam/DocParamSet kernel (projection to and from AutoParam, node edits, region homogenize, nudge, delete, copy/paste, the patch-cable and MIDI-CC collections, param backup, backed params) is run against the real AutoParam/ParamSet as its oracle and must produce the same nodes, values and serialized bytes (param_projection.cpp, self-checking)"
+scenario = "param_projection"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
+name = "param-clone"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "unit"
+status = "gate"
+gates = "cloning the real engine param containers (AutoParam, a ParamManager with patched, unpatched and patch-cable collections) must give deep-independent copies: mutating the source after a clone must not reach the clone (param_clone.cpp, self-checking)"
+scenario = "param_clone"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
+name = "edit-substrate"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "unit"
+status = "gate"
+gates = "the Edit substrate on its own: the dispatcher's wiring, and SetParamValue, DeleteParamAutomation and PasteParamAutomation's mutation, Consequence, coalescence and undo, plus ParamSnapshot staying equivalent to the store through region and scalar edits (edit_substrate.cpp, self-checking)"
+scenario = "edit_substrate"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
+name = "xml-replay-diff"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "differential"
+status = "gate"
+gates = "ValueTreeDeserializer's XML replay must read exactly as XMLDeserializer does: each fragment's readFromFile-shaped script, run against both, must return the same transcript token for token (xml_replay_diff.cpp)"
+scenario = "xml_replay_diff"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
+name = "song-roundtrip"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "gate"
+gates = "what a song saves as must not change unexplained: each fixtured song in tests/golden/songs_fixtures.json (the committed synthetic songs always, the corpus songs when DELUGE_SONG_CORPUS has them) is loaded, saved, reloaded and saved again; the two saves must be identical (the canonical fixed point) and the first must hash to its fixture. A changed hash is a change to the saved project model, to justify and re-record (tests/golden/songs_run.py --update)"
+scenario = "song_roundtrip"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+runtime = "~10s"
+
+[[harness]]
+name = "json-roundtrip"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the JSON read path must be faithful to the JSON write path: every corpus song is loaded from XML, saved as JSON, the JSON loaded back through parseJson and the Value tree and saved as JSON again, and the two JSON documents must be byte-identical (a song that does not load from XML is skipped)"
+scenario = "json_roundtrip"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~10s"
+
+[[harness]]
+name = "song-edit-roundtrip"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a DOM-first edit must persist: for every corpus song, a sentinel value and automation written to a song-global param's DOM store must come back from save and reload in both the store and the engine; on the way, every loaded clip, drum, patch-cable set and MIDI CC set must be bound to its tree store and resolve by its durable id (resolveParam == docForParam)"
+scenario = "song_edit_roundtrip"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~10s"
+
+[[harness]]
+name = "param-record-diff"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "gate"
+gates = "the engine's live automation recording must reproduce its committed baselines (tests/golden/param_record_baselines): a scripted run of values recorded into a song-global param through setCurrentValueInResponseToUserInput and processCurrentPos, then undone, redone, saved and reloaded, must print the same nodes byte for byte"
+scenario = "param_record_diff"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~5s"
+
+[[harness]]
+name = "audio-clip-edit-diff"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "gate"
+gates = "an AudioClip's descriptor edits, their undo, and a save and reload must reproduce the committed baseline (tests/golden/audio_clip_edit_baselines) byte for byte, with each clip's DocAudioClip matching the engine's cache after every step"
+scenario = "audio_clip_edit_diff"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~5s"
+
+[[harness]]
+name = "edit-undo-redo"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "every reified Edit applied to a loaded corpus song must resolve through a live DOM address and come back exactly through the real undo and redo (ActionLogger::revert): the driver applies each Edit kind and checks the state after apply, undo and redo (self-checking; a song that does not load is skipped)"
+scenario = "edit_undo_redo"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~10s"
+
+[[harness]]
+name = "clip-clone-roundtrip"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "InstrumentClip::clone() of a loaded corpus song's clip must be a distinct, deep-independent copy with the source's note rows and notes, freshly allocated param collections and DOM-bound stores; a reverse clip's flatten-reversing clone must run and come out FORWARD; a runtime clone's clip-level FX must relocate into the tree on its first doc(); and no owner may reach doc()'s engine fallback (a song without an instrument clip with notes, or one that does not load, is skipped)"
+scenario = "clip_clone_roundtrip"
+check = "tests/integration/checks/host_driver.py"
+builds = ["golden-vt-render"]
+requires = ["song-xml-corpus"]
+tier = "nightly"
+runtime = "~10s"
+
+[[harness]]
+name = "param-snapshot-bench"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "benchmark"
+status = "investigative"
+gates = "nothing: it times ParamSnapshot::applyPatch (one lane) against the full projectFromStoreAfterRead rebuild for the same single-param edits, and prints the table (DRV-OUT lines) that answers the incremental-vs-rebuild granularity question"
+scenario = "param_snapshot_bench"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "manual"
+runtime = "~2s"
+
 [[harness]]
 name = "registry-selftest"
 path = "scripts/tasks"
