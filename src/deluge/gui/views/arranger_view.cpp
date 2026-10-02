@@ -3056,10 +3056,6 @@ ActionResult ArrangerView::horizontalScrollOneSquare(int32_t direction) {
 
 	if (new_x_scroll != currentSong->xScroll[NAVIGATION_ARRANGEMENT]) {
 
-		if (dragging_clip_instance && isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		currentSong->xScroll[NAVIGATION_ARRANGEMENT] = new_x_scroll;
 
 		if (dragging_clip_instance) {

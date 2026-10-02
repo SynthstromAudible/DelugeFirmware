@@ -2034,10 +2034,6 @@ ActionResult AutomationView::handleAuditionPadAction(InstrumentClip* instrumentC
 // not used with Audio Clip Automation View or Arranger Automation View
 ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* output, OutputType outputType,
                                                int32_t yDisplay, int32_t velocity, bool shiftButtonDown) {
-	if (isSDRoutineActive() && !deluge::sync::user_actions_permitted()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allowable sometimes if in card routine.
-	}
-
 	if (instrumentClipView.editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
 		// in case we were editing quantize/humanize
 		actionLogger.closeAction(ActionType::NOTE_NUDGE);

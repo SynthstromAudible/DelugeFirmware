@@ -264,7 +264,7 @@ static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 	case DELUGE_EVENT_BUTTON: {
 		deluge::hid::display::Screensaver::noteActivity();
 		auto b = deluge::hid::button::fromXY(ev.x, ev.y);
-		ActionResult result = Buttons::buttonAction(b, ev.value, isSDRoutineActive());
+		ActionResult result = Buttons::buttonAction(b, ev.value, false);
 		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 			heldInputEvent = ev;
 			waitingForSDRoutineToEnd = true;
@@ -273,17 +273,10 @@ static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 		break;
 	}
 	case DELUGE_EVENT_NO_PRESSES:
-		// This is the safety net that releases any pad the firmware still thinks is held (e.g. because a
-		// release event was lost under load). It must not be dropped while the SD routine holds the lock -
-		// otherwise stuck notes persist until the pad is pressed again (see issue #3168). Defer it, exactly
-		// like pad/button events above, so it runs once the routine ends.
-		if (isSDRoutineActive()) {
-			heldInputEvent = ev;
-			waitingForSDRoutineToEnd = true;
-			return false;
-		}
-		matrixDriver.noPressesHappening(isSDRoutineActive());
-		Buttons::noPressesHappening(isSDRoutineActive());
+		// The safety net that releases any pad the firmware still thinks is held (e.g. because a release
+		// event was lost under load); see issue #3168.
+		matrixDriver.noPressesHappening(false);
+		Buttons::noPressesHappening(false);
 		break;
 	default:
 		break; // ENCODER events do not arrive on this channel
@@ -294,7 +287,7 @@ static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 namespace {
 deluge::runtime::JobId inputJob = deluge::runtime::kNoJob;
 
-/// How soon a held event, or a shift change the card routine kept from the LED, is tried again.
+/// How soon a held event is tried again.
 constexpr deluge::runtime::Micros kInputRetryUs = 10'000;
 
 /// Asks for another run of the input job: a held event has no new input to wake it.
@@ -306,10 +299,6 @@ void retryInputSoon() {
 bool readButtonsAndPads() {
 	bool anything = false;
 	if (waitingForSDRoutineToEnd) {
-		if (isSDRoutineActive()) {
-			retryInputSoon();
-			return false;
-		}
 		D_PRINTLN("got to end of sd routine");
 		waitingForSDRoutineToEnd = false;
 		// Re-dispatch the event we deferred; it may defer again.
@@ -331,12 +320,8 @@ bool readButtonsAndPads() {
 		}
 	}
 
-	if (isSDRoutineActive()) {
-		// A shift change made now reaches the LED only once the card routine has ended.
-		retryInputSoon();
-	}
-	else if (Buttons::shiftHasChanged()
-	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
+	if (Buttons::shiftHasChanged()
+	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::LightShiftLed) == RuntimeFeatureStateToggle::On) {
 		indicator_leds::setLedState(indicator_leds::LED::SHIFT, Buttons::isShiftButtonPressed());
 	}
 

@@ -192,7 +192,7 @@ void AudioRecorder::slowRoutine() {
 	// routine - the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves
 	// that cardRoutine() running on freed memory (then freeing it a second time). The Embassy scheduler runs
 	// cardRoutine() inline and to completion, so it is never suspended part-way; this guard covers the rest.
-	if (isSDRoutineActive() || deluge::sync::sd_busy()) {
+	if (deluge::sync::sd_busy()) {
 		return;
 	}
 

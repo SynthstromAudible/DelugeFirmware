@@ -98,10 +98,6 @@ void KeyboardScreen::killColumnSwitchKey(int32_t column) {
 	}
 }
 ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
-	if (isSDRoutineActive() && !deluge::sync::user_actions_permitted()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
-	}
-
 	// Handle overruling shortcut presses
 	ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
 	if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {

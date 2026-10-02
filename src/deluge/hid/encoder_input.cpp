@@ -46,10 +46,10 @@ static int32_t nextSDTestDirection = 1;
 static uint32_t encodersWaitingForCardRoutineEnd;
 
 void interpretEncodersTask() {
-	interpretEncoders(false);
+	interpretEncoders();
 }
 
-bool interpretEncoders(bool skipActioning) {
+bool interpretEncoders() {
 	// Fold the raw A-pin edges the board's ISR has accumulated since last time into each encoder.
 	// Detent reduction (DetentedEncoder) and gold-knob velocity (ContinuousEncoder) happen in
 	// applyEdges; this runs in task context now, not the ISR. The board's edge index order matches
@@ -66,16 +66,12 @@ bool interpretEncoders(bool skipActioning) {
 		return false;
 	}
 
-	skipActioning |= isSDRoutineActive(); // if the "sd routine" is yielding then always defer actioning encoders
 	bool anything = false;
 
-	if (!skipActioning) {
-		encodersWaitingForCardRoutineEnd = 0;
-	}
+	encodersWaitingForCardRoutineEnd = 0;
 
 #if SD_TEST_MODE_ENABLED
-	if (!skipActioning && playbackHandler.isEitherClockActive()
-	    && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
+	if (playbackHandler.isEitherClockActive() && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 
 		if (getRandom255() < 96)
 			nextSDTestDirection *= -1;
@@ -91,15 +87,6 @@ bool interpretEncoders(bool skipActioning) {
 	for (int32_t e = 0; e < (int32_t)kNumFunctionEncoders; e++) {
 		// 0=scrollY 1=scrollX 2=tempo 3=select
 		DetentedEncoder* const funcPtrs[] = {&scrollY, &scrollX, &tempo, &select};
-		bool isScrollY = (e == 0);
-		if (!isScrollY) {
-
-			// Basically disables all function encoders during SD routine
-			if (skipActioning && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-				continue;
-			}
-		}
-
 		if (encodersWaitingForCardRoutineEnd & (1 << e)) {
 			continue;
 		}
@@ -136,7 +123,7 @@ checkResult:
 					PadLEDs::changeDimmerInterval(detentDelta);
 				}
 				else {
-					result = getCurrentUI()->verticalEncoderAction(detentDelta, skipActioning);
+					result = getCurrentUI()->verticalEncoderAction(detentDelta, false);
 					goto checkResult;
 				}
 				break;
@@ -174,31 +161,29 @@ checkResult:
 		}
 	}
 
-	if (!skipActioning || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-		// Mod knobs
-		for (int32_t e = 0; e < 2; e++) {
-			// 0=mod0 (lower gold), 1=mod1 (upper gold)
-			auto& encoder = modEncoderAt(e);
+	// Mod knobs
+	for (int32_t e = 0; e < 2; e++) {
+		// 0=mod0 (lower gold), 1=mod1 (upper gold)
+		auto& encoder = modEncoderAt(e);
 
-			int8_t offset = encoder.take();
+		int8_t offset = encoder.take();
 
-			// If encoder turned...
-			if (offset != 0) {
-				anything = true;
+		// If encoder turned...
+		if (offset != 0) {
+			anything = true;
 
-				// Do it, only if
-				if (offset + modEncoderInitialTurnDirection[e] != 0) {
-					int8_t offset_accelerated = offset * encoder.calcNextKnobSpeed(offset);
+			// Do it, only if
+			if (offset + modEncoderInitialTurnDirection[e] != 0) {
+				int8_t offset_accelerated = offset * encoder.calcNextKnobSpeed(offset);
 
-					getCurrentUI()->modEncoderAction(e, offset_accelerated);
+				getCurrentUI()->modEncoderAction(e, offset_accelerated);
 
-					modEncoderInitialTurnDirection[e] = 0;
-				}
+				modEncoderInitialTurnDirection[e] = 0;
+			}
 
-				// Otherwise, write this off as an accidental wiggle
-				else {
-					modEncoderInitialTurnDirection[e] = offset;
-				}
+			// Otherwise, write this off as an accidental wiggle
+			else {
+				modEncoderInitialTurnDirection[e] = offset;
 			}
 		}
 	}

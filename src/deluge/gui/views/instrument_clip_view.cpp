@@ -4952,10 +4952,6 @@ void InstrumentClipView::setSelectedDrum(Drum* drum, bool shouldRedrawStuff, Kit
 
 ActionResult InstrumentClipView::auditionPadAction(int32_t velocity, int32_t yDisplay, bool shiftButtonDown) {
 	exitUIMode(UI_MODE_DRAGGING_KIT_NOTEROW);
-	if (isSDRoutineActive() && !deluge::sync::user_actions_permitted()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allowable sometimes if in card routine.
-	}
-
 	if (editedAnyPerNoteRowStuffSinceAuditioningBegan && !velocity) {
 		actionLogger.closeAction(ActionType::NOTE_NUDGE);
 	}

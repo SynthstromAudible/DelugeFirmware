@@ -134,12 +134,7 @@ bool horizontalEncoderActionLock = false;
 
 ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-
-	// These next two, I had here before adding the actual SD lock check / remind-later above. Maybe they're not still
-	// necessary? If either was true, wouldn't isSDRoutineActive() be true also for us to have gotten here?
+	// Re-entry guards: a render of the new navigation level can be pending, or this action can be running already.
 	if (pendingUIRenderingLock) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Would possibly prefer to have this case cause it to
 		                                                     // still come back later and do it, but oh well

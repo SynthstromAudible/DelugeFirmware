@@ -1526,63 +1526,60 @@ uint32_t routine() {
 		renders = deluge_audio_drive();
 	}
 	else {
-		if (!isSDRoutineActive()) {
-			// An offline render is by definition NOT paced by real time, so the work done per
-			// audioRoutine call must never be bounded by the wall clock: the block count per call
-			// must not depend on host speed, host load, or how long the work inside each iteration
-			// happens to take. That count decides how rendering interleaves with the cluster loader,
-			// the SD routine and the recorder's cluster write-out, which decides eviction and
-			// underrun behaviour, which changes the rendered audio -- fragile enough that adding a
-			// bare fprintf to an unrelated translation unit could tip a call's block count and flip a
-			// fixture's rendered payload.
-			//
-			// So the batch is bounded by a fixed block count. Do not reintroduce any time-based bound
-			// here (the real-time branch above is the one that legitimately paces off the clock).
-			//
-			// The batch is still a batch - the point of looping is to amortise the surrounding
-			// machinery (the loader pump and the slow/recorder routines run between audioRoutine
-			// calls, see StemExport::renderWait) rather than pay it per 32 frames. The size is one
-			// output-buffer quantum, SSI_TX_BUFFER_NUM_SAMPLES frames: the same amount of audio the
-			// real-time path produces per driver pass, so the offline cadence matches the one the rest
-			// of the engine is built around - and now it is identical on every host and on the device.
-			constexpr size_t kOfflineFramesPerBlock = 32;
-			constexpr int32_t kOfflineBlocksPerRoutine = SSI_TX_BUFFER_NUM_SAMPLES / kOfflineFramesPerBlock;
-			for (int32_t block = 0; block < kOfflineBlocksPerRoutine; ++block) {
-				size_t numSamples = kOfflineFramesPerBlock;
-				tickSongFinalizeWindows(numSamples);
+		// An offline render is by definition NOT paced by real time, so the work done per
+		// audioRoutine call must never be bounded by the wall clock: the block count per call
+		// must not depend on host speed, host load, or how long the work inside each iteration
+		// happens to take. That count decides how rendering interleaves with the cluster loader,
+		// the SD routine and the recorder's cluster write-out, which decides eviction and
+		// underrun behaviour, which changes the rendered audio -- fragile enough that adding a
+		// bare fprintf to an unrelated translation unit could tip a call's block count and flip a
+		// fixture's rendered payload.
+		//
+		// So the batch is bounded by a fixed block count. Do not reintroduce any time-based bound
+		// here (the real-time branch above is the one that legitimately paces off the clock).
+		//
+		// The batch is still a batch - the point of looping is to amortise the surrounding
+		// machinery (the loader pump and the slow/recorder routines run between audioRoutine
+		// calls, see StemExport::renderWait) rather than pay it per 32 frames. The size is one
+		// output-buffer quantum, SSI_TX_BUFFER_NUM_SAMPLES frames: the same amount of audio the
+		// real-time path produces per driver pass, so the offline cadence matches the one the rest
+		// of the engine is built around - and now it is identical on every host and on the device.
+		constexpr size_t kOfflineFramesPerBlock = 32;
+		constexpr int32_t kOfflineBlocksPerRoutine = SSI_TX_BUFFER_NUM_SAMPLES / kOfflineFramesPerBlock;
+		for (int32_t block = 0; block < kOfflineBlocksPerRoutine; ++block) {
+			size_t numSamples = kOfflineFramesPerBlock;
+			tickSongFinalizeWindows(numSamples);
 
-				numSamplesLastTime = numSamples;
-				renderAudioForStemExport(numSamples);
-				sideChainHitPending = 0;
-				audioSampleTimer += numSamples;
-				// Drains the just-rendered block to any OUTPUT-mode recorder
-				// and keeps the DAC fed (deluge_app_render's offline path).
-				deluge_audio_drive();
+			numSamplesLastTime = numSamples;
+			renderAudioForStemExport(numSamples);
+			sideChainHitPending = 0;
+			audioSampleTimer += numSamples;
+			// Drains the just-rendered block to any OUTPUT-mode recorder
+			// and keeps the DAC fed (deluge_app_render's offline path).
+			deluge_audio_drive();
 
-				// Write out the recorder's completed clusters so they can't be stolen. There's no recorder at all
-				// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
-				// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
-				// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
-				SampleRecorder* recorder = audioRecorder.recorder;
-				if (recorder != nullptr) {
-					// Each call writes at most one cluster, and we don't render (so can't produce new ones) until
-					// the drain finishes. The slack covers calls that return without reaching this recorder at all:
-					// doRecorderCardRoutines() abandons its traversal whenever a recorder was recently created.
-					int32_t callsRemaining =
-					    recorder->currentRecordClusterIndex - recorder->firstUnwrittenClusterIndex + 8;
+			// Write out the recorder's completed clusters so they can't be stolen. There's no recorder at all
+			// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
+			// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
+			// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
+			SampleRecorder* recorder = audioRecorder.recorder;
+			if (recorder != nullptr) {
+				// Each call writes at most one cluster, and we don't render (so can't produce new ones) until
+				// the drain finishes. The slack covers calls that return without reaching this recorder at all:
+				// doRecorderCardRoutines() abandons its traversal whenever a recorder was recently created.
+				int32_t callsRemaining = recorder->currentRecordClusterIndex - recorder->firstUnwrittenClusterIndex + 8;
 
-					while (callsRemaining-- > 0) {
-						if (recorder->hadCardError || recorder->status >= RecorderStatus::COMPLETE
-						    || recorder->firstUnwrittenClusterIndex >= recorder->currentRecordClusterIndex) {
-							break;
-						}
+				while (callsRemaining-- > 0) {
+					if (recorder->hadCardError || recorder->status >= RecorderStatus::COMPLETE
+					    || recorder->firstUnwrittenClusterIndex >= recorder->currentRecordClusterIndex) {
+						break;
+					}
 
-						doRecorderCardRoutines();
+					doRecorderCardRoutines();
 
-						// doRecorderCardRoutines() can finish and free recorders - don't trust the pointer after it
-						if (audioRecorder.recorder != recorder) {
-							break;
-						}
+					// doRecorderCardRoutines() can finish and free recorders - don't trust the pointer after it
+					if (audioRecorder.recorder != recorder) {
+						break;
 					}
 				}
 			}
@@ -2055,11 +2052,6 @@ void requestRecorderCardRoutines() {
 }
 
 void slowRoutine() {
-	if (isSDRoutineActive()) {
-		// can happen if the SD routine is yielding
-		return;
-	}
-
 	// Re-align the input stream's latency window if an audio glitch (or
 	// start-up) made us miss a whole output-ring cycle. Ring geometry is the
 	// board's business; skipped input simply never reaches the input ring.
@@ -2138,10 +2130,10 @@ errorAfterAllocation:
 // THIS recorder's own cardRoutine() suspended mid-transfer" -- the two differ, since filesystem work is serialised but
 // not attributed to a caller, and nothing on the BSP tracks the second. A busy signal here is informative, not proof
 // this recorder is the one suspended, so log it rather than freeze a beta build on what may be an unrelated
-// operation. (isSDRoutineActive() is always false on Embassy; see scheduler.rs.)
+// operation.
 void discardRecorder(SampleRecorder* recorder) {
-	if (ALPHA_OR_BETA_VERSION && (isSDRoutineActive() || deluge::sync::sd_busy())) {
-		D_PRINTLN("discardRecorder: isSDRoutineActive()/sd_busy() was true on entry");
+	if (ALPHA_OR_BETA_VERSION && deluge::sync::sd_busy()) {
+		D_PRINTLN("discardRecorder: sd_busy() was true on entry");
 	}
 
 	int32_t count = 0;

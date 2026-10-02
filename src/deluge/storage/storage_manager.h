@@ -637,5 +637,5 @@ extern FirmwareVersion song_firmware_version;
 extern const bool writeJsonFlag;
 
 inline bool isCardReady() {
-	return !isSDRoutineActive() && Error::NONE == StorageManager::initSD();
+	return Error::NONE == StorageManager::initSD();
 }
