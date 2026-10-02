@@ -107,8 +107,10 @@ public:
 	/// @brief [interaction] Apply, in order, every change to the active model stack the render has asked for since the
 	///        last call.
 	///
-	/// Called before every app-loop job (deluge_app_service()) and by AudioEngine::retire() before it hands anything
-	/// over, so no request is left naming an object once the interaction tier has let go of it.
+	/// Called before every app-loop job (deluge_app_service()), by AudioEngine::retire(Clip*) and retire(Song*) before
+	/// they hand anything over (requests name only songs and clips), so no request is left naming an object once the
+	/// interaction tier has let go of it, and by songSwappedOut() and recordingMovedToClip() on the interaction tier
+	/// before their own change. Interaction tier only: it is the queue's one consumer.
 	void applyPostedStackRequests();
 	void cycleThroughReverbPresets();
 	char const* getReverbPresetDisplayName(int32_t preset);

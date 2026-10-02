@@ -18,6 +18,7 @@
 // View::activeModControllableModelStack's hand-over: only the interaction tier writes the stack, and the render asks
 // it for changes through the queue below.
 
+#include "foundation/panic.h"
 #include "gui/views/view.h"
 #include "libdeluge/tier.h"
 #include "model/clip/clip.h"
@@ -70,7 +71,8 @@ struct StackRequest {
 };
 
 /// [render] -> [interaction] The render's requests, in order. A song swap posts one, and a recording into the arranger
-/// one per clip whose loop ends in a block, so 16 is far more than a stretch between two jobs fills.
+/// one per clip whose loop ends in a block. A job can span many blocks (an AudioEngine::awaitRetired() wait, a card
+/// wait), so the ring can fill; that is benign: the dropped request turns into a release of the knobs.
 deluge::util::SpscRing<StackRequest, 16> g_stackRequests;
 /// [render] -> [interaction] Set when a request found the queue full and was dropped: the interaction tier then
 /// releases the stack, since it can no longer tell what the dropped request would have left it naming.
@@ -95,33 +97,58 @@ void applyStackRequest(View& v, StackRequest const& request) {
 	}
 }
 
-/// [render] or [interaction] On the render, queue @p request for View::applyPostedStackRequests(), or if the queue is
-/// full ask for a release instead. The queue has one producer, the render; on the interaction tier the change is made
-/// at once.
-void postStackRequest(View& v, StackRequest const& request) {
-	if (deluge_tier_current() != DELUGE_TIER_AUDIO) {
-		applyStackRequest(v, request);
-		return;
-	}
+/// [render] Queue @p request for View::applyPostedStackRequests(), or if the queue is full ask for a release instead.
+/// The render is the queue's one producer.
+void postStackRequest(StackRequest const& request) {
 	if (!g_stackRequests.try_push(request)) {
 		g_stackRequestsOverflowed.store(true, std::memory_order_release);
 	}
 }
+
+/// The stack has one writer, the interaction tier, and the queue one producer, the render: any other tier here is a
+/// call made from the wrong place.
+void wrongTier() {
+	FREEZE_WITH_ERROR("E464");
+}
 } // namespace
 
 void View::songSwappedOut(Song* outgoing) {
-	if (deluge_tier_current() != DELUGE_TIER_AUDIO) {
+	switch (deluge_tier_current()) {
+	case DELUGE_TIER_INTERACTION:
+		// What the render asked for first, so none of it lands after this change.
+		applyPostedStackRequests();
 		releaseActiveModControllable();
 		return;
+	case DELUGE_TIER_AUDIO:
+		postStackRequest({.kind = StackRequest::Kind::SONG_SWAPPED_OUT, .song = outgoing});
+		return;
+	default:
+		wrongTier();
 	}
-	postStackRequest(*this, {.kind = StackRequest::Kind::SONG_SWAPPED_OUT, .song = outgoing});
 }
 
 void View::recordingMovedToClip(Clip* from, Clip* to) {
-	postStackRequest(*this, {.kind = StackRequest::Kind::RECORDING_MOVED, .from = from, .to = to});
+	StackRequest const request{.kind = StackRequest::Kind::RECORDING_MOVED, .from = from, .to = to};
+	switch (deluge_tier_current()) {
+	case DELUGE_TIER_INTERACTION:
+		// What the render asked for first: a queued move on to @p from must land before this move away from it.
+		applyPostedStackRequests();
+		applyStackRequest(*this, request);
+		return;
+	case DELUGE_TIER_AUDIO:
+		postStackRequest(request);
+		return;
+	default:
+		wrongTier();
+	}
 }
 
 void View::applyPostedStackRequests() {
+	// The queue's one consumer.
+	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
+		wrongTier();
+		return;
+	}
 	// Every object a request names is still alive here: a swapped-out song is freed only after
 	// AudioEngine::retire(Song*), and a clip only after AudioEngine::retire(Clip*), both of which apply the requests
 	// first.

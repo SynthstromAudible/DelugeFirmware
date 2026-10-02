@@ -169,7 +169,7 @@ void letGoOfSound(Sound& sound) {
 	AudioEngine::sounds.remove(&sound);
 }
 
-/// [interaction] Stop the view's active ModControllable model stack naming @p clip. Compares only.
+/// [interaction] Stop the view's active ModControllable model stack naming @p clip. Dereferences nothing.
 void clearViewIfClip(Clip const* clip) {
 	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
 		view.releaseActiveModControllable();
@@ -2141,8 +2141,6 @@ deluge::util::SnapshotDomain& renderDomain() {
 void retire(SoundDrum* drum) {
 	// First, so a stream of retires frees what earlier ones handed over.
 	reclaimRetired();
-	// No request the render posted for the view's active stack may outlive what it names.
-	view.applyPostedStackRequests();
 	handOver(RetireRequest{.drum = drum}, drum, [](void* p) {
 		auto* d = static_cast<SoundDrum*>(p);
 		checkLetGoBeforeDestroy(nullptr, d);
@@ -2155,8 +2153,6 @@ void retire(SoundDrum* drum) {
 void retire(Output* output) {
 	// First, so a stream of retires frees what earlier ones handed over.
 	reclaimRetired();
-	// No request the render posted for the view's active stack may outlive what it names.
-	view.applyPostedStackRequests();
 	handOver(RetireRequest{.output = output}, output, [](void* p) {
 		auto* o = static_cast<Output*>(p);
 		checkLetGoBeforeDestroy(o, nullptr);
