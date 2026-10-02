@@ -292,7 +292,18 @@ void AudioRecorder::tick() {
 		endRecordingSoon(kInternalButtonPressLatency);
 	}
 
-	if (getCurrentUI() == this) {
+	if (!isUIOpen(this)) {
+		// The recorder UI was closed under the take, so the sound editor's source may no longer be the one it was
+		// recording for: end the take and keep it on the card, attached to nothing. Asked first: a nullified UI stack
+		// still reports the recorder as the current UI.
+		endRecordingSoon(kInternalButtonPressLatency);
+		if (recorder->settled()) {
+			finishRecording();
+			target_ = {};
+			return;
+		}
+	}
+	else if (getCurrentUI() == this) {
 		if (recorder->settled()) {
 			finishInputTake();
 			return;
@@ -310,16 +321,6 @@ void AudioRecorder::tick() {
 			deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX, kTextBigSizeY);
 			deluge::hid::display::OLED::sendMainImage();
 			updatedRecordingStatus = true;
-		}
-	}
-	else if (!isUIOpen(this)) {
-		// The recorder UI was closed under the take, so the sound editor's source may no longer be the one it was
-		// recording for: end the take and keep it on the card, attached to nothing.
-		endRecordingSoon(kInternalButtonPressLatency);
-		if (recorder->settled()) {
-			finishRecording();
-			target_ = {};
-			return;
 		}
 	}
 
@@ -351,6 +352,8 @@ void AudioRecorder::finishRecording() {
 	recorder = nullptr;
 	recordingSource = AudioInputChannel::NONE;
 	display->removeLoadingAnimation();
+	// Every take ends here, so a MIDI next-song held back for it goes now (PlaybackHandler::slowRoutine()).
+	deluge::runtime::appLoop.request(playbackHandler.slowJob);
 }
 
 ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on) {

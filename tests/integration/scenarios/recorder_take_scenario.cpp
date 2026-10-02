@@ -85,10 +85,12 @@ enum class Stage : uint8_t {
 	MidiEnding,     ///< ...BACK ends it; the sample is attached as before.
 	RefuseStart,    ///< refused_during_load: a new-synth acquisition is in flight; the recorder must refuse a take.
 	RefuseSettle,   ///< ...the acquisition finishes.
-	ClosedRun,      ///< closed_mid_take: the UI stack is replaced under a running take.
+	ClosedRun,      ///< closed_mid_take: the UI stack is replaced under a running take, as a cleared song does.
 	ClosedWait,     ///< ...the take is dropped: nothing attached, the recorder free.
 	SecondRun,      ///< ...a second take starts and runs.
 	SecondEnding,   ///< ...and attaches as usual.
+	NulledRun,      ///< nullified_mid_take: the UI stack is nullified under a running take, with nothing put back.
+	NulledWait,     ///< ...the take is dropped all the same.
 	ReplacedRun,    ///< output_replaced_mid_take: the clip's synth is replaced under a running take.
 	ReplacedEnding, ///< ...BACK ends the take, which must attach to nothing.
 	NextListing,    ///< next_song_mid_take: the load browser lists SONGS, as a song loaded from it leaves it.
@@ -438,7 +440,7 @@ void stepRefuseSettle() {
 	g_stage = startTake("RT-CLOSED") ? Stage::ClosedRun : Stage::Report;
 }
 
-/// A song load or a cleared song replaces the whole UI stack, the recorder's included, under a running take.
+/// A cleared song replaces the whole UI stack, the recorder's included, under a running take.
 void stepClosedRun() {
 	notePath();
 	if (++g_steps < kRunSteps) {
@@ -486,6 +488,33 @@ void stepSecondEnding() {
 	if (!attached) {
 		fail("RT-SECOND", "the take after a dropped one did not attach its sample");
 	}
+	g_stage = startTake("RT-NULLED") ? Stage::NulledRun : Stage::Report;
+}
+
+/// The UI stack nullified and nothing opened in its place: getCurrentUI() then still reports the recorder, which must
+/// not keep the take running as though it were on top.
+void stepNulledRun() {
+	notePath();
+	if (++g_steps < kRunSteps) {
+		return;
+	}
+	nullifyUIs();
+	g_steps = 0;
+	g_stage = Stage::NulledWait;
+}
+
+void stepNulledWait() {
+	if (!waitOver("RT-NULLED")) {
+		return;
+	}
+	const Source& source = g_sound->sources[0];
+	const int64_t leases = leasesOn(g_recordingPath);
+	printf("RT-NULLED source=%d osc=%d path=%s leases=%lld steps=%d\n", static_cast<int>(audioRecorder.recordingSource),
+	       static_cast<int>(source.oscType), g_recordingPath.c_str(), static_cast<long long>(leases), g_steps);
+	if (g_recordingPath.empty() || leases > 0) {
+		fail("RT-NULLED", "a take whose UI stack was nullified under it was attached to something");
+	}
+	changeRootUI(&instrumentClipView);
 	g_stage = startTake("RT-REPLACED") ? Stage::ReplacedRun : Stage::Report;
 }
 
@@ -752,6 +781,12 @@ void deluge_scenario_recorder_take_dispatch_step(void) {
 		break;
 	case Stage::SecondEnding:
 		stepSecondEnding();
+		break;
+	case Stage::NulledRun:
+		stepNulledRun();
+		break;
+	case Stage::NulledWait:
+		stepNulledWait();
 		break;
 	case Stage::ReplacedRun:
 		stepReplacedRun();
