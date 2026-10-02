@@ -280,8 +280,12 @@ fn request(path: &str, candidates: &[&str]) -> LoadRequest {
     LoadRequest {
         path: path_of(path),
         candidates: list,
+        candidates_key: KEY,
     }
 }
+
+/// The candidates key the tests request and collect with unless a test is about keys.
+const KEY: u32 = 0x5EED;
 
 /// The alternate path a result reports, as a `String`.
 fn alternate_of(result: &LoadResult) -> String {
@@ -686,7 +690,7 @@ fn table_with(paths: &[&str]) -> ResultTable {
 
 /// Takes under [`CARD`]. The generation tests below pass the generation explicitly.
 fn take(table: &mut ResultTable, path: &str) -> Option<LoadResult> {
-    take_from(table, path, CARD)
+    take_from(table, path, 0, CARD)
 }
 
 /// A published result is taken exactly once; returning it twice could build a `Sample` twice.
@@ -784,6 +788,105 @@ fn taking_from_the_middle_keeps_the_eviction_order() {
     assert!(take(&mut table, "ord/y").is_some());
 }
 
+// Candidates keys
+
+/// A result whose candidates key is `key`.
+fn keyed(error: u8, key: u32) -> LoadResult {
+    let mut result = LoadResult::failed(error);
+    result.candidates_key = key;
+    result
+}
+
+/// Answers for one path under two candidate lists are both kept, and each is taken only by its own key. A collector
+/// presenting another key finds nothing and leaves the answer where it is.
+#[test]
+fn answers_for_one_path_under_different_candidates_are_kept_apart() {
+    let mut table = ResultTable::new();
+    publish_into(
+        &mut table,
+        path_of("keys/A.wav"),
+        keyed(DELUGE_ERROR_FILE_UNREADABLE, 1),
+        CARD,
+    );
+    publish_into(
+        &mut table,
+        path_of("keys/A.wav"),
+        keyed(DELUGE_ERROR_NONE, 2),
+        CARD,
+    );
+    assert_eq!(
+        table.len(),
+        2,
+        "a second key's answer must not replace the first's"
+    );
+    assert!(
+        take_from(&mut table, "keys/A.wav", 3, CARD).is_none(),
+        "a key nobody asked with takes nothing"
+    );
+    assert_eq!(
+        table.len(),
+        2,
+        "a take for another key leaves both answers in place"
+    );
+    let second = take_from(&mut table, "keys/A.wav", 2, CARD).expect("its own answer");
+    assert_eq!(second.error, DELUGE_ERROR_NONE);
+    assert_eq!(second.candidates_key, 2);
+    let first = take_from(&mut table, "keys/A.wav", 1, CARD).expect("its own answer");
+    assert_eq!(first.error, DELUGE_ERROR_FILE_UNREADABLE);
+    assert!(table.is_empty());
+}
+
+/// Re-publishing under the same path and key still replaces the entry.
+#[test]
+fn republishing_under_the_same_key_replaces_only_that_answer() {
+    let mut table = ResultTable::new();
+    publish_into(
+        &mut table,
+        path_of("keys/B.wav"),
+        keyed(DELUGE_ERROR_FILE_UNREADABLE, 1),
+        CARD,
+    );
+    publish_into(
+        &mut table,
+        path_of("keys/B.wav"),
+        keyed(DELUGE_ERROR_FILE_CORRUPTED, 2),
+        CARD,
+    );
+    publish_into(
+        &mut table,
+        path_of("keys/B.wav"),
+        keyed(DELUGE_ERROR_NONE, 1),
+        CARD,
+    );
+    assert_eq!(table.len(), 2);
+    assert_eq!(
+        take_from(&mut table, "keys/B.wav", 1, CARD).unwrap().error,
+        DELUGE_ERROR_NONE
+    );
+    assert_eq!(
+        take_from(&mut table, "keys/B.wav", 2, CARD).unwrap().error,
+        DELUGE_ERROR_FILE_CORRUPTED
+    );
+}
+
+/// Every result the driver returns, found or not, carries its request's candidates key.
+#[test]
+fn every_result_carries_its_requests_candidates_key() {
+    let ops = FakeOps::new().with_file("keyed/found.wav", minimal_wav());
+    let mut found = request("keyed/found.wav", &["keyed/found.wav"]);
+    found.candidates_key = 0xABCD_0001;
+    let result = block_on(load_io_once(&ops, &found));
+    assert_eq!(result.error, DELUGE_ERROR_NONE);
+    assert_eq!(result.candidates_key, 0xABCD_0001);
+
+    let mut missing = request("keyed/missing.wav", &["keyed/missing.wav"]);
+    missing.candidates_key = 0xABCD_0002;
+    let result = block_on(load_io_once(&ops, &missing));
+    assert_eq!(result.error, DELUGE_ERROR_FILE_UNREADABLE);
+    assert_eq!(result.candidates_key, 0xABCD_0002);
+    ops.assert_settled();
+}
+
 // The generation stamp on the resident entry
 //
 // A stale entry can stay resident: `flush_tables`' clears are `try_lock`ed, and a publish can pass
@@ -797,7 +900,7 @@ fn taking_from_the_middle_keeps_the_eviction_order() {
 fn an_entry_from_a_previous_card_is_dropped_not_returned() {
     let mut table = table_with(&["gen/A.wav"]);
     assert!(
-        take_from(&mut table, "gen/A.wav", CARD + 1).is_none(),
+        take_from(&mut table, "gen/A.wav", 0, CARD + 1).is_none(),
         "a result parsed from the previous card must not be collectable"
     );
     assert!(
@@ -805,7 +908,7 @@ fn an_entry_from_a_previous_card_is_dropped_not_returned() {
         "the stale entry must be dropped from the table, not merely withheld"
     );
     assert!(
-        take_from(&mut table, "gen/A.wav", CARD).is_none(),
+        take_from(&mut table, "gen/A.wav", 0, CARD).is_none(),
         "and it must not be recoverable by asking under its own old generation"
     );
 }
@@ -840,13 +943,13 @@ fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
     );
 
     assert!(
-        take_from(&mut table, "gen/late.wav", CARD + 1).is_none(),
+        take_from(&mut table, "gen/late.wav", 0, CARD + 1).is_none(),
         "a result stamped before the flush must not be collectable after it"
     );
     // Positive control: a check that refused everything after a flush would pass the assertion
     // above while wedging the loader.
     assert_eq!(
-        take_from(&mut table, "gen/fresh.wav", CARD + 1)
+        take_from(&mut table, "gen/fresh.wav", 0, CARD + 1)
             .expect("a load that began on the current card must be collectable")
             .error,
         DELUGE_ERROR_FILE_CORRUPTED
@@ -924,12 +1027,17 @@ mod live_pipeline {
     /// What `collect` seeds `out` with. `0xFF` is not a real error code (the largest is 34).
     const UNTOUCHED: u8 = 0xFF;
 
+    /// Collects with the candidates key [`publish`] stamps.
     fn collect(path: &str) -> (u8, LoadResult) {
+        collect_keyed(path, 0)
+    }
+
+    fn collect_keyed(path: &str, candidates_key: u32) -> (u8, LoadResult) {
         let key = CString::new(path).unwrap();
         let mut out = LoadResult::failed(UNTOUCHED);
         // SAFETY: `key` is a valid NUL-terminated C string and `out` a live,
         // writable `LoadResult`.
-        let status = unsafe { deluge_audio_load_collect(key.as_ptr(), &mut out) };
+        let status = unsafe { deluge_audio_load_collect(key.as_ptr(), candidates_key, &mut out) };
         (status, out)
     }
 
@@ -957,6 +1065,10 @@ mod live_pipeline {
             result.alternate_path.iter().all(|&byte| byte == 0),
             "`out.alternate_path` must not be written unless the status is READY"
         );
+        assert_eq!(
+            result.candidates_key, 0,
+            "`out.candidates_key` must not be written unless the status is READY"
+        );
     }
 
     /// Publishes as the loader task would for a load that began under the current card generation.
@@ -974,6 +1086,7 @@ mod live_pipeline {
                 key.as_ptr(),
                 buffer.as_ptr().cast::<core::ffi::c_char>(),
                 candidates.len() as u32,
+                KEY,
             )
         }
     }
@@ -982,6 +1095,39 @@ mod live_pipeline {
         let key = CString::new(path).unwrap();
         // SAFETY: `key` is a valid NUL-terminated C string.
         unsafe { deluge_audio_load_forget(key.as_ptr()) };
+    }
+
+    /// Two live loads of one path with different candidate lists: the one whose request is out waits for it, the other
+    /// waits too (the path is in flight), then finds nothing for its own candidates and asks; the answer stays for the
+    /// load whose candidates found it.
+    #[test]
+    fn a_collect_for_other_candidates_leaves_the_answer_for_its_own() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        const FEWER: u32 = 0x0F;
+        const MORE: u32 = 0x3F;
+        block_on(mark_in_flight(Some(path_of("pair/A.wav"))));
+        assert_eq!(
+            collect_keyed("pair/A.wav", MORE).0,
+            DELUGE_CHANNEL_PENDING,
+            "any request out for the path is waited for"
+        );
+        publish("pair/A.wav", keyed(DELUGE_ERROR_FILE_UNREADABLE, FEWER));
+        block_on(mark_in_flight(None));
+
+        let (status, out) = collect_keyed("pair/A.wav", MORE);
+        assert_eq!(
+            status, DELUGE_CHANNEL_UNKNOWN,
+            "a miss for fewer candidates is not this collector's answer"
+        );
+        assert_out_untouched(&out);
+
+        let (status, out) = collect_keyed("pair/A.wav", FEWER);
+        assert_eq!(
+            status, DELUGE_CHANNEL_READY,
+            "the answer must still be there for the load that asked with its candidates"
+        );
+        assert_eq!(out.error, DELUGE_ERROR_FILE_UNREADABLE);
+        assert_eq!(out.candidates_key, FEWER);
     }
 
     /// A request dropped while in flight: its answer is discarded when it is published, so the next collect of the
@@ -1167,6 +1313,7 @@ mod live_pipeline {
                 key.as_ptr(),
                 buffer.as_ptr().cast::<core::ffi::c_char>(),
                 0xFFFF_FFFF,
+                KEY,
             )
         };
         assert!(!accepted, "the sentinel must refuse the request");

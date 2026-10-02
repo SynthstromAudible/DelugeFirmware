@@ -991,7 +991,9 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
                                                                    std::string& filePath, Error* error,
                                                                    deluge::storage::AsyncLoadMode asyncMode) {
 	DelugeAudioLoadResult result{};
-	switch (deluge_audio_load_collect(filePath.c_str(), &result)) {
+	// Only the answer to this load's own candidates: another live load of the same path may have asked with others.
+	switch (
+	    deluge_audio_load_collect(filePath.c_str(), requestedCandidatesKey(context, filePath, asyncMode), &result)) {
 
 	case DELUGE_CHANNEL_READY:
 		if (result.error != static_cast<uint8_t>(Error::NONE)) {
@@ -1010,7 +1012,8 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
 
 	case DELUGE_CHANNEL_PENDING:
 		// Queued or in flight. Not a failure, and NOT a reason to request again -- the loader is
-		// already working on this exact path (which is why this keeps no in-flight table of its own).
+		// already working on this exact path (which is why this keeps no in-flight table of its own). If
+		// that work is another load's, for other candidates, this one asks once the loader is done with it.
 		*error = Error::LOAD_IN_PROGRESS;
 		return nullptr;
 
@@ -1028,6 +1031,31 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(deluge::stora
 		// Never requested, or its result was collected/evicted already. Ask (again).
 		return requestAsyncSampleLoad(context, filePath, error, asyncMode);
 	}
+}
+
+uint32_t AudioFileManager::requestedCandidatesKey(const deluge::storage::AudioLoadContext& context,
+                                                  const std::string& filePath,
+                                                  deluge::storage::AsyncLoadMode asyncMode) {
+	namespace sample_build = deluge::storage::sample_build;
+	std::array<char, kMaxLoadCandidates * DELUGE_PATH_MAX> candidates{};
+	// A path listed as asked for while the folder was unresolved was asked for with its own path alone -- what
+	// proposeLoadCandidates() gives for any status but DOES_EXIST -- whatever the status has become since.
+	if (asyncMode == deluge::storage::AsyncLoadMode::AsyncOnly
+	    && std::ranges::find(context.requestedUnresolved, filePath) != context.requestedUnresolved.end()) {
+		if (filePath.size() + 1 > DELUGE_PATH_MAX) {
+			return 0;
+		}
+		std::memcpy(candidates.data(), filePath.data(), filePath.size());
+		return sample_build::candidatesKey(candidates.data(), 1);
+	}
+	const uint32_t proposed =
+	    sample_build::candidates(&context, filePath, candidates.data(), static_cast<uint32_t>(kMaxLoadCandidates));
+	if (proposed == DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED || proposed == 0) {
+		// No request can be formed from this list either (requestAsyncSampleLoad declines it), so no key matches.
+		return 0;
+	}
+	return sample_build::candidatesKey(candidates.data(),
+	                                   std::min<uint32_t>(proposed, static_cast<uint32_t>(kMaxLoadCandidates)));
 }
 
 std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(deluge::storage::AudioLoadContext& context,
@@ -1337,7 +1365,8 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(deluge::stora
 			listed.erase(entry);
 		}
 	}
-	(void)deluge_audio_load_request(filePath.c_str(), candidates.data(), numCandidates);
+	(void)deluge_audio_load_request(filePath.c_str(), candidates.data(), numCandidates,
+	                                deluge::storage::sample_build::candidatesKey(candidates.data(), numCandidates));
 
 	// A dropped request (a full queue) is reported exactly like an accepted one, by contract: the
 	// caller has been told LOAD_IN_PROGRESS, so it asks again on a later tick, by which time the queue

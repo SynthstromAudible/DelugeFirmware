@@ -148,6 +148,15 @@ bool resolveAlternateDir(AudioLoadContext* context, Error* error) noexcept;
 [[nodiscard]] uint32_t candidates(const AudioLoadContext* context, std::string_view filePath, char* out,
                                   uint32_t maxCandidates) noexcept;
 
+/// @brief The key a request and its collect present for a candidate list (see `deluge_audio_load_request`).
+///
+/// Two lists of the same paths in the same order have the same key. Never 0, so 0 can stand for "no list".
+///
+/// @param candidates    The candidate buffer, laid out as @ref candidates writes it.
+/// @param numCandidates How many slots of @p candidates to read.
+/// @return The list's key.
+[[nodiscard]] uint32_t candidatesKey(const char* candidates, uint32_t numCandidates) noexcept;
+
 /// @brief Open the Sample's streaming read handle: the actual file the audio engine reads clusters
 ///        from during playback. I/O.
 ///

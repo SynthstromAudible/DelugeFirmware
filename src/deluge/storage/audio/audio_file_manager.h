@@ -389,6 +389,19 @@ private:
 	std::optional<AudioFile*> collectAsyncSampleLoad(deluge::storage::AudioLoadContext& context, std::string& filePath,
 	                                                 Error* error, deluge::storage::AsyncLoadMode asyncMode);
 
+	/// @brief The candidates key of the request this load made, or would make, for @p filePath.
+	///
+	/// What the collect presents, so it takes only the answer to its own candidates. A path the load asked for while
+	/// its folder was unresolved (listed in requestedUnresolved under AsyncOnly) was asked for with its own path
+	/// alone; any other is asked for with what the folder's status now proposes.
+	///
+	/// @param context   The load this lookup belongs to.
+	/// @param filePath  The nominal path being loaded.
+	/// @param asyncMode AsyncOrBlocking or AsyncOnly, as the lookup was asked.
+	/// @return The key, or 0 (which no request carries) when no candidate list can be formed.
+	static uint32_t requestedCandidatesKey(const deluge::storage::AudioLoadContext& context,
+	                                       const std::string& filePath, deluge::storage::AsyncLoadMode asyncMode);
+
 	/// @brief Answer a collected result that carries a failure verdict: either ask again with the
 	///        alternate dir resolved, or report the verdict.
 	///
