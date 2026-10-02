@@ -195,6 +195,20 @@ protected:
 };
 
 // UIs
+
+/// @brief True while a song load or a song clear has taken every UI down (nullifyUIs()), until the incoming song's
+///        root UI is set.
+///
+/// Input dispatchers ask this to route the gestures the load itself answers -- arming its swap, and the armed swap's
+/// loop count -- to the load rather than to getCurrentUI().
+bool uiStackEmpty();
+
+/// @brief The UI on top of the stack.
+///
+/// Never null. While uiStackEmpty(), it is a UI that acts on nothing: the UIs that were open belong to the song being
+/// replaced, which may already be freed. It compares unequal to every real UI, reports no clip minder, timeline view
+/// or view underneath, and drops input, timers and rendering, except the mod encoders and mod buttons, which go
+/// to the view.
 UI* getCurrentUI();
 RootUI* getRootUI();
 UI* getUIUpOneLevel(int32_t numLevelsUp);

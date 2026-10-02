@@ -491,8 +491,8 @@ void stepSecondEnding() {
 	g_stage = startTake("RT-NULLED") ? Stage::NulledRun : Stage::Report;
 }
 
-/// The UI stack nullified and nothing opened in its place: getCurrentUI() then still reports the recorder, which must
-/// not keep the take running as though it were on top.
+/// The UI stack nullified and nothing opened in its place, as a song load leaves it until the new song's UI is up: the
+/// take must not keep running as though the recorder were still on top.
 void stepNulledRun() {
 	notePath();
 	if (++g_steps < kRunSteps) {

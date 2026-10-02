@@ -283,19 +283,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on) {
 			}
 		}
 		else {
-			// If all essential samples are already loaded, we can arm right away
-			if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
-				bool result = session.armForSongSwap();
-
-				// If arming couldn't really be done, and song has already swapped...
-				if (!result) {
-					currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
-				}
-				else {
-					currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-					displayArmedPopup();
-				}
-			}
+			(void)loadButtonAction(b, on);
 		}
 	}
 	else if (b == KEYBOARD && on) {
@@ -312,6 +300,33 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on) {
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+ActionResult LoadSongUI::loadButtonAction(deluge::hid::Button b, bool on) {
+	using namespace deluge::hid::button;
+	if (b != LOAD && b != SELECT_ENC) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	// Released with every essential sample loaded: the swap the load is waiting on can be armed.
+	if (!on && currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
+		// Not armable, because the song has already swapped...
+		if (!session.armForSongSwap()) {
+			currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
+		}
+		else {
+			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
+			displayArmedPopup();
+		}
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+void LoadSongUI::armedSelectEncoderAction(int8_t offset) {
+	if (currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
+		return;
+	}
+	session.numRepeatsTilLaunch = std::clamp<int32_t>(session.numRepeatsTilLaunch + offset, 1, 9999);
+	displayLoopsRemainingPopup();
 }
 
 bool LoadSongUI::isLoadingSong() {
@@ -980,15 +995,7 @@ void LoadSongUI::beginPreviewScrollIn(int32_t movementDirection) {
 void LoadSongUI::selectEncoderAction(int8_t offset) {
 
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-		session.numRepeatsTilLaunch += offset;
-		if (session.numRepeatsTilLaunch < 1) {
-			session.numRepeatsTilLaunch = 1;
-		}
-		else if (session.numRepeatsTilLaunch > 9999) {
-			session.numRepeatsTilLaunch = 9999;
-		}
-		// renderUIsForOled();
-		displayLoopsRemainingPopup();
+		armedSelectEncoderAction(offset);
 	}
 
 	else {

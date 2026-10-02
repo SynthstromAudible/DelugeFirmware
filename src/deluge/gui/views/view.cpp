@@ -1889,6 +1889,12 @@ void View::setActiveModControllableWithoutTimelineCounter(ModControllable* modCo
 	sendMidiFollowFeedback();
 }
 
+void View::releaseActiveModControllable() {
+	activeModControllableModelStack.modControllable = nullptr;
+	activeModControllableModelStack.setTimelineCounter(nullptr);
+	activeModControllableModelStack.paramManager = nullptr;
+}
+
 void View::setModRegion(uint32_t pos, uint32_t length, int32_t noteRowId) {
 
 	modPos = pos;

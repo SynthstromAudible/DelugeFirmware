@@ -18,6 +18,7 @@
 #include "hid/encoder_input.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -134,6 +135,10 @@ bool interpretEncoders() {
 					if (currentSong) {
 						currentSong->changeThresholdRecordingMode(saturatedDelta);
 					}
+				}
+				// With every UI taken down by a load, the select encoder sets the armed swap's loop count.
+				else if (uiStackEmpty()) {
+					loadSongUI.armedSelectEncoderAction(saturatedDelta);
 				}
 				else {
 					getCurrentUI()->selectEncoderAction(saturatedDelta);

@@ -56,6 +56,22 @@ public:
 	void selectEncoderAction(int8_t offset) override;
 	void queueLoadNextSongIfAvailable(int8_t offset);
 
+	/// @brief The LOAD and Select buttons as the load in flight answers them: released while the swap waits on them,
+	///        they arm it.
+	///
+	/// A load takes every UI down for its whole length, this one included, so while uiStackEmpty() the button
+	/// dispatcher sends presses here rather than to getCurrentUI(). A load started by holding LOAD in this browser
+	/// waits on that release; so does a MIDI NEXT_SONG that arrives with LOAD held.
+	///
+	/// @return DEALT_WITH for LOAD and Select, whatever the load's state; NOT_DEALT_WITH for every other button.
+	ActionResult loadButtonAction(deluge::hid::Button b, bool on);
+
+	/// @brief The select encoder as the load in flight answers it: while the swap is armed, it sets how many more
+	///        times the playing song loops before the swap. Does nothing otherwise.
+	///
+	/// Sent here by the encoder dispatcher while uiStackEmpty(), for the reason loadButtonAction() is.
+	void armedSelectEncoderAction(int8_t offset);
+
 	/// @brief Starts loading the highlighted song and returns without waiting for it to finish.
 	///
 	/// The load is a phase machine on the interaction tier: the song is staged and its samples loaded a tick at

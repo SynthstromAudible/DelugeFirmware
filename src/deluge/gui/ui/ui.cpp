@@ -62,7 +62,23 @@ static std::array<UI*, kUiNavigationHistoryLength> uiNavigationHierarchy;
 
 int32_t numUIsOpen = 0; // Will be 0 again during song load / swap
 
-UI* lastUIBeforeNullifying = nullptr;
+namespace {
+/// @brief What getCurrentUI() reports while the UI stack is empty: a UI that acts on nothing.
+///
+/// The stack is empty while a song load or a song clear has taken every UI down, until the incoming song's root UI is
+/// set. The UIs that were open belong to the outgoing song, which the load frees before it puts a UI back, so none of
+/// them may be handed input, timers or rendering. Callers that only ask what the current UI is find no match here;
+/// callers that act on it act on this, which does nothing -- except the mod encoders and mod buttons, which go to the
+/// view as every UI's do by default: the view keeps the playing song's sound under the knobs until the swap, and lets
+/// go of it there (PlaybackHandler::doSongSwap()).
+class EmptyStackUI final : public UI {
+public:
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}
+	UIType getUIType() override { return UIType::NONE; }
+};
+
+EmptyStackUI emptyStackUI;
+} // namespace
 
 /**
  * @brief Get the greyout rows and columns for the current UI
@@ -132,9 +148,13 @@ bool changeUISideways(UI* newUI) {
 	return success;
 }
 
+bool uiStackEmpty() {
+	return numUIsOpen == 0;
+}
+
 UI* getCurrentUI() {
-	if (numUIsOpen == 0) {
-		return lastUIBeforeNullifying; // Very ugly work-around to stop everything breaking
+	if (uiStackEmpty()) {
+		return &emptyStackUI;
 	}
 	return uiNavigationHierarchy[numUIsOpen - 1];
 }
@@ -262,7 +282,6 @@ bool isUIOpen(UI* ui) {
 bool doesOLEDNeedRendering = false;
 
 void nullifyUIs() {
-	lastUIBeforeNullifying = getCurrentUI();
 	numUIsOpen = 0;
 	doesOLEDNeedRendering = false;
 }
@@ -486,6 +505,8 @@ EnumStringMap<UIType, util::to_underlying(UIType::UI_TYPE_COUNT)> uiTypeMap = {
       {UIType::SOUND_EDITOR, "sound_editor"}}}};
 
 const char* UI::getUIName() {
-	return uiTypeMap(getUIType());
+	const UIType type = getUIType();
+	// The empty stack's UI has no entry in the map.
+	return type == UIType::NONE ? "none" : uiTypeMap(type);
 }
 #endif

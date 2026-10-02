@@ -78,6 +78,11 @@ public:
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter,
 	                                             bool shouldSendMidiFeedback = true);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
+	/// @brief Leave the mod encoders on nothing until a UI gives them something again.
+	///
+	/// For when the song the active mod controllable belongs to stops being the current one: that song is freed next,
+	/// and the knobs, which reach the view whichever UI is on top, must not reach into it.
+	void releaseActiveModControllable();
 	void cycleThroughReverbPresets();
 	char const* getReverbPresetDisplayName(int32_t preset);
 	int32_t getCurrentReverbPreset();

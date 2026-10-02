@@ -699,9 +699,7 @@ void deleteOldSongBeforeLoadingNew() {
 	// song's audio outputs (AudioOutput::cutAllSound()), which that let-go does not touch.
 	AudioEngine::killAllVoices(true);
 
-	view.activeModControllableModelStack.modControllable = nullptr;
-	view.activeModControllableModelStack.setTimelineCounter(nullptr);
-	view.activeModControllableModelStack.paramManager = nullptr;
+	view.releaseActiveModControllable();
 
 	// Hand the old song to the render, then wait -- bounded, on the render -- until it has been freed, so the new song
 	// is built in the memory it gave back. The wait runs no other interaction task, so none sees currentSong null.

@@ -130,7 +130,8 @@ ActionResult buttonAction(deluge::hid::Button b, bool on) {
 		}
 	}
 
-	result = getCurrentUI()->buttonAction(b, on);
+	// With every UI taken down by a load, the only UI behaviour a button still has is the one the load answers.
+	result = uiStackEmpty() ? loadSongUI.loadButtonAction(b, on) : getCurrentUI()->buttonAction(b, on);
 
 	if (result == ActionResult::DEALT_WITH) {
 		goto dealtWith;
