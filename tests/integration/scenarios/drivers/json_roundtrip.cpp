@@ -1,6 +1,7 @@
 // JSON round-trip fixture (deserializer step 2b): exercises the JSON side of the record-first
 // deserializer end-to-end -- JsonSerializer output, parseJson, and ValueTreeDeserializer JSON mode --
-// which the corpus (all XML) otherwise never touches.
+// which the corpus (all XML) otherwise never touches. Run as the json_roundtrip scenario
+// (scenarios/drivers/driver.h):
 //
 //   json_roundtrip <song.XML>
 //
@@ -16,16 +17,14 @@
 // trip; 1 = load error; 2 = usage/IO; 3 = JSON fixed-point mismatch.
 
 #include "deluge-project/serialization.h"
-#include "hid/display/display.h"
-#include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
+#include "scenarios/drivers/tree_load.h"
 #include "storage/parse_json.h"
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
-#include "tree_load.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -33,7 +32,15 @@
 #include <cstring>
 #include <optional>
 #include <string_view>
-#include <unistd.h>
+
+#include "scenarios/drivers/driver.h"
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
 
 // JSON counterpart of openTreeFile: JSON objects have an explicit '{' the caller descends through
 // (XMLDeserializer::openJsonFile does match('{') before reading names), so enter the root object first,
@@ -63,9 +70,9 @@ static Song* freshSong() {
 // Save `song` to `out` as JSON via JsonSerializer. Returns the serialized length.
 static long saveJson(Song* song, char* out, uint32_t outCap) {
 	song->setCurrentClip(nullptr); // drop transient view state, as song_roundtrip does
-	smJsonSerializer.setMemoryBuffer(out, outCap);
+	deluge::scenarios::driver::beginCapture(smJsonSerializer);
 	deluge::project::saveSong(*song, smJsonSerializer);
-	return smJsonSerializer.bytesWritten();
+	return deluge::scenarios::driver::endCapture(smJsonSerializer, out, outCap);
 }
 
 // Load a song from XML bytes via the Value tree (parseXml -> ValueTreeDeserializer{Xml}). `xml` must be
@@ -82,6 +89,7 @@ static Song* loadFromXml(char* xml, size_t xmlLen, Error* loadErr) {
 		if (e == Error::NONE) {
 			e = deluge::project::loadSong(*song, adapter);
 		}
+		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -104,6 +112,7 @@ static Song* loadFromJson(char* json, size_t jsonLen, Error* loadErr) {
 		if (e == Error::NONE) {
 			e = deluge::project::loadSong(*song, adapter);
 		}
+		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -113,16 +122,17 @@ static Song* loadFromJson(char* json, size_t jsonLen, Error* loadErr) {
 	return song;
 }
 
-int main(int argc, char** argv) {
+int json_roundtrip_main(int argc, char** argv, Io driverIo) {
+	io = driverIo;
 	if (argc < 2) {
-		std::fprintf(stderr, "usage: %s <song.XML>\n", argv[0]);
+		std::fprintf(io.err, "usage: %s <song.XML>\n", argv[0]);
 		return 2;
 	}
 	const char* songPath = argv[1];
 
 	FILE* f = std::fopen(songPath, "rb");
 	if (!f) {
-		std::fprintf(stderr, "cannot open %s\n", songPath);
+		std::fprintf(io.err, "cannot open %s\n", songPath);
 		return 2;
 	}
 	std::fseek(f, 0, SEEK_END);
@@ -138,8 +148,6 @@ int main(int argc, char** argv) {
 	orig[fileLen] = 0;
 	std::fclose(f);
 
-	display = new deluge::hid::display::SevenSegment;
-
 	// Select JSON output. GetSerializer() (used by every deep write site: Output/Sound/MIDI/etc.) and the
 	// prologue/file-creation paths all key off this global, so it -- not the serializer argument -- is what
 	// makes the whole save emit JSON. Reads go through the Value tree and ignore it.
@@ -149,8 +157,8 @@ int main(int argc, char** argv) {
 	Error e;
 	Song* song1 = loadFromXml(orig, fileLen, &e);
 	if (!song1) {
-		std::fprintf(stderr, "LOADFAIL xml -> Error %d\n", (int)e);
-		_exit(1);
+		std::fprintf(io.err, "LOADFAIL xml -> Error %d\n", (int)e);
+		return 1;
 	}
 	long nA = saveJson(song1, jsonA, kCap);
 	if (const char* dump = getenv("JSON_DUMP")) { // debug aid: write the intermediate JSON for inspection
@@ -165,8 +173,8 @@ int main(int argc, char** argv) {
 	std::memcpy(jsonAcopy, jsonA, nA);
 	Song* song2 = loadFromJson(jsonAcopy, nA, &e);
 	if (!song2) {
-		std::fprintf(stderr, "LOADFAIL json -> Error %d\n", (int)e);
-		_exit(1);
+		std::fprintf(io.err, "LOADFAIL json -> Error %d\n", (int)e);
+		return 1;
 	}
 	long nB = saveJson(song2, jsonB, kCap);
 	if (const char* dump = getenv("JSON_DUMP2")) {
@@ -179,9 +187,13 @@ int main(int argc, char** argv) {
 
 	// (5) require jsonA == jsonB
 	bool settled = (nA == nB) && (std::memcmp(jsonA, jsonB, nA) == 0);
-	std::fprintf(stderr, "jsonA=%ld jsonB=%ld %s\n", nA, nB, settled ? "SETTLED" : "MISMATCH");
+	std::fprintf(io.err, "jsonA=%ld jsonB=%ld %s\n", nA, nB, settled ? "SETTLED" : "MISMATCH");
 	if (!settled) {
-		_exit(3);
+		return 3;
 	}
-	_exit(0);
+	return 0;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(json_roundtrip, json_roundtrip_main)

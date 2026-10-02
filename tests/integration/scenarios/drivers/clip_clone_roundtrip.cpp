@@ -1,6 +1,6 @@
 // Clip-clone INTEGRATION test: loads a real song and duplicates an InstrumentClip through the actual
 // InstrumentClip::clone() path — the golden-blind edit path the load->save golden structurally cannot see, and
-// that the unit harness (param_clone_test) cannot reach because clone() needs a live Song + ModelStack.
+// that the unit driver (param_clone) cannot reach because clone() needs a live Song + ModelStack.
 //
 //   clip_clone_roundtrip <song.XML>
 //
@@ -16,8 +16,6 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/serialization.h"
-#include "hid/display/display.h"
-#include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
@@ -35,12 +33,25 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <unistd.h>
+
+#include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/tree_load.h"
+#include "storage/parse_xml.h"
+#include "storage/value_tree_deserializer.h"
+#include <optional>
+#include <string_view>
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
 
 int failures = 0;
 static void check(bool ok, const char* what) {
 	if (!ok) {
-		std::fprintf(stderr, "FAIL: %s\n", what);
+		std::fprintf(io.err, "FAIL: %s\n", what);
 		failures++;
 	}
 }
@@ -84,7 +95,7 @@ static int32_t sweepDoc(Song* song) {
 			if (mc == nullptr) {
 				continue;
 			}
-			char buf[MODEL_STACK_MAX_SIZE];
+			char buf[MODEL_STACK_MAX_SIZE]{};
 			ModelStackWithThreeMainThings* m3 =
 			    setupModelStackWithThreeMainThingsButNoNoteRow(buf, song, mc, clip, &clip->paramManager);
 			touch(m3->getUnpatchedAutoParamFromId(0));
@@ -99,7 +110,7 @@ static int32_t sweepDoc(Song* song) {
 					    || !nr.paramManager.containsAnyMainParamCollections()) {
 						continue;
 					}
-					char dbuf[MODEL_STACK_MAX_SIZE];
+					char dbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* dm3 = setupModelStackWithThreeMainThingsIncludingNoteRow(
 					    dbuf, song, clip, n, &nr, static_cast<SoundDrum*>(nr.drum)->toModControllable(),
 					    &nr.paramManager);
@@ -119,11 +130,19 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);
 
-	XMLDeserializer reader((uint8_t*)xml, xmlLen);
-	activeDeserializer = &reader; // gate AudioEngine yields off (callRoutines == false)
-	Error e = reader.openXMLFile(nullptr, "song");
-	if (e == Error::NONE) {
-		e = deluge::project::loadSong(*song, reader);
+	// Through the Value tree, as a song load is: parse the whole XML, then replay it. The tree reader's
+	// shouldCallRoutines() is false, which gates the AudioEngine yields off for the load.
+	std::optional<deluge::storage::Value> tree =
+	    deluge::storage::parseXml(std::string_view(reinterpret_cast<const char*>(xml), xmlLen));
+	Error e = Error::FILE_CORRUPTED;
+	if (tree) {
+		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		activeReader = &adapter;
+		e = openTreeFile(adapter, "song");
+		if (e == Error::NONE) {
+			e = deluge::project::loadSong(*song, adapter);
+		}
+		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -152,14 +171,15 @@ static InstrumentClip* findClipWithNotes(Song* song, int32_t* rowWithNotes) {
 	return nullptr;
 }
 
-int main(int argc, char** argv) {
+int clip_clone_roundtrip_main(int argc, char** argv, Io driverIo) {
+	io = driverIo;
 	if (argc < 2) {
-		std::fprintf(stderr, "usage: %s <song.XML>\n", argv[0]);
+		std::fprintf(io.err, "usage: %s <song.XML>\n", argv[0]);
 		return 2;
 	}
 	FILE* f = std::fopen(argv[1], "rb");
 	if (!f) {
-		std::fprintf(stderr, "cannot open %s\n", argv[1]);
+		std::fprintf(io.err, "cannot open %s\n", argv[1]);
 		return 2;
 	}
 	std::fseek(f, 0, SEEK_END);
@@ -170,19 +190,17 @@ int main(int argc, char** argv) {
 	orig[fileLen] = 0;
 	std::fclose(f);
 
-	display = new deluge::hid::display::SevenSegment;
-
 	Error e1;
 	Song* song = load_song(orig, fileLen, &e1);
 	if (!song) {
-		std::fprintf(stderr, "LOADFAIL -> Error %d\n", (int)e1);
-		_exit(1);
+		std::fprintf(io.err, "LOADFAIL -> Error %d\n", (int)e1);
+		return 1;
 	}
 
 	// Marker: the song loaded. Anything that aborts before this is a load-path issue, not a clone defect;
 	// the runner uses this to attribute crashes correctly.
-	std::fprintf(stdout, "LOADED\n");
-	std::fflush(stdout);
+	std::fprintf(io.out, "LOADED\n");
+	std::fflush(io.out);
 
 	// Phase C: if the song has an AudioClip, clone it and assert the clone's unpatched params are DOM-bound
 	// (AudioClip::clone runs bindDomStore) with a live borrow — the golden-blind audio-clip clone path. Run
@@ -203,7 +221,7 @@ int main(int argc, char** argv) {
 			}
 		}
 		if (srcAudio != nullptr) {
-			std::fprintf(stderr, "audio clips: seen=%d, cloning one\n", audioClipsSeen);
+			std::fprintf(io.err, "audio clips: seen=%d, cloning one\n", audioClipsSeen);
 			char acMem[256];
 			ModelStackWithTimelineCounter* acStack = setupModelStackWithTimelineCounter(acMem, song, srcAudio);
 			Error ace = srcAudio->clone(acStack, /*shouldFlattenReversing=*/false);
@@ -220,9 +238,9 @@ int main(int argc, char** argv) {
 				check(scalarOk(cloneUnp), "audio clone: store scalar == engine (read-authority preserved)");
 			}
 			if (failures != 0) {
-				std::fprintf(stderr, "clip_clone (audio): %d failure(s)\n", failures);
-				std::fflush(stderr);
-				_exit(4);
+				std::fprintf(io.err, "clip_clone (audio): %d failure(s)\n", failures);
+				std::fflush(io.err);
+				return 4;
 			}
 		}
 	}
@@ -271,58 +289,47 @@ int main(int argc, char** argv) {
 				// drumRows may legitimately be 0 (a kit whose drum managers are all parked in ParamBackup / empty
 				// rows — those bind on restore via NoteRow::setDrum, not at clone). Non-vacuous coverage comes
 				// from kits that DO have live drum rows (e.g. Kitchen Clave: 17).
-				std::fprintf(stderr, "kit clone: sound-drum rows=%d\n", drumRows);
+				std::fprintf(io.err, "kit clone: sound-drum rows=%d\n", drumRows);
 
-				// S5-b (runtime relocation): the clone is a RUNTIME-created clip with no id/sessionId, so its
-				// clip-level FX still live in an engine-owned INLINE store — doc() must lazily mint a session id and
-				// relocate that store into the session tree (relocateAndResolve), making the owner id-addressable
-				// instead of hitting the paramCollection fallback. Because the clone SHARES the source Kit's output
-				// (which kept its loaded id), this is the MIXED case: a id instrument carrying a session
-				// clip (clip_is_session=true) — the only coverage for it. Distinguish relocation from the fallback by
-				// asserting the store became TREE-resident (backed_params entry), not merely bound.
+				// S5-b (runtime relocation): the clone is a RUNTIME-created clip, so its clip-level FX still live in
+				// an engine-owned INLINE store — doc() must relocate that store into the tree (relocateAndResolve),
+				// keyed by the clone's durable id, making the owner id-addressable instead of hitting the
+				// paramCollection fallback. Distinguish relocation from the fallback by asserting the store became
+				// TREE-resident (backed_params entry), not merely bound.
 				{
-					// Force the MIXED case deterministically: give the clone's (source-shared) output a id so it
-					// reads as a SAVED instrument carrying a runtime (session) clip. Without this the corpus kits have
-					// no output id and only the both-session runtime path fires (already proven). addressFor
-					// prefers the id, so this exercises OwnerId::instrument + clip_is_session=true.
+					// The clone shares the source Kit's output; give it an id if the song never saved one, so the
+					// owner has an address.
 					if (!kClone->output->id().has_value()) {
 						kClone->output->setId(0x5EED0001);
 					}
 					ParamSet* fx = kClone->paramManager.getUnpatchedParamSet();
-					char sbuf[MODEL_STACK_MAX_SIZE];
+					char sbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* sm3 = setupModelStackWithThreeMainThingsButNoNoteRow(
 					    sbuf, song, static_cast<Kit*>(kClone->output)->toModControllable(), kClone,
 					    &kClone->paramManager);
 					ModelStackWithAutoParam* msap = sm3->getUnpatchedAutoParamFromId(0);
-					check(kClone->sessionId() == 0, "kit clone: no session id before first doc()");
 					if (msap != nullptr && msap->autoParam != nullptr) {
 						deluge::project::DocAutoParam* resolved = msap->doc(); // triggers lazy relocation
-						uint32_t sid = kClone->sessionId();
-						check(sid != 0, "kit clone: doc() minted a session id for the runtime clip");
-						std::optional<uint32_t> kitSerial = kClone->output->id();
-						deluge::project::OwnerId owner =
-						    kitSerial.has_value()
-						        ? deluge::project::OwnerId::instrument(*kitSerial)
-						        : deluge::project::OwnerId::instrumentSession(kClone->output->sessionId());
-						deluge::project::DocParamManager* mgr =
-						    song->project.backed_params.find(owner, sid, /*clip_is_session=*/true);
+						uint32_t cid = kClone->id();
+						check(cid != 0, "kit clone: the runtime clip carries a durable id");
+						deluge::project::OwnerId owner = deluge::project::OwnerId::instrument(*kClone->output->id());
+						deluge::project::DocParamManager* mgr = song->project.backed_params.find(owner, cid);
 						check(mgr != nullptr && mgr->unpatched.has_value(),
-						      "kit clone: doc() relocated clip-level FX into the session tree (not the fallback)");
+						      "kit clone: doc() relocated clip-level FX into the tree (not the fallback)");
 						if (mgr != nullptr && mgr->unpatched.has_value()) {
 							check(fx->domStore() == &mgr->unpatched.value(),
 							      "kit clone: engine FX set rebound at the tree slot");
 							check(resolved == &mgr->unpatched->params[0],
 							      "kit clone: doc() id-resolves the relocated store");
 						}
-						std::fprintf(stderr, "kit clone: runtime relocation OK (sid=%u, %s case)\n", sid,
-						             kitSerial.has_value() ? "mixed serial-owner+session-clip" : "both-session");
+						std::fprintf(io.err, "kit clone: runtime relocation OK (clip id=%u)\n", cid);
 					}
 				}
 			}
 			if (failures != 0) {
-				std::fprintf(stderr, "clip_clone (kit): %d failure(s)\n", failures);
-				std::fflush(stderr);
-				_exit(4);
+				std::fprintf(io.err, "clip_clone (kit): %d failure(s)\n", failures);
+				std::fflush(io.err);
+				return 4;
 			}
 		}
 	}
@@ -331,21 +338,21 @@ int main(int argc, char** argv) {
 	// owner — none may reach the engine fallback. Placed before the note-clone SKIP so it runs for every corpus song.
 	{
 		int32_t swept = sweepDoc(song);
-		std::fprintf(stderr, "doc() totality sweep: %d (owner,collection) pairs, fallback hits=%u\n", swept,
+		std::fprintf(io.err, "doc() totality sweep: %d (owner,collection) pairs, fallback hits=%u\n", swept,
 		             deluge::edits::docFallbackHits);
 		check(deluge::edits::docFallbackHits == 0,
 		      "doc() totality: an owner reached the engine fallback (not id-addressed)");
 		if (failures != 0) {
-			std::fflush(stderr);
-			_exit(4);
+			std::fflush(io.err);
+			return 4;
 		}
 	}
 
 	int32_t row = 0;
 	InstrumentClip* src = findClipWithNotes(song, &row);
 	if (!src) {
-		std::fprintf(stderr, "SKIP: no instrument clip with notes in %s\n", argv[1]);
-		_exit(3);
+		std::fprintf(io.err, "SKIP: no instrument clip with notes in %s\n", argv[1]);
+		return 3;
 	}
 
 	int32_t srcRowCount = std::ssize(src->noteRows);
@@ -400,7 +407,7 @@ int main(int argc, char** argv) {
 	// --- 2. Reverse-flatten clone ---------------------------------------------------------------------
 	// Force the source into REVERSE and clone with flattening: the flatten path (NoteRow::flattenReverse +
 	// ParamManager::flattenReverseAutomation) must run end-to-end, flip the clone's direction to FORWARD, and
-	// preserve the note count. (Exact reversed positions are unit-tested at the AutoParam level in param_clone_test.)
+	// preserve the note count. (Exact reversed positions are unit-tested at the AutoParam level in param_clone.)
 	src->sequenceDirectionMode = SequenceDirection::REVERSE;
 	char modelStackMemory2[256];
 	ModelStackWithTimelineCounter* modelStack2 = setupModelStackWithTimelineCounter(modelStackMemory2, song, src);
@@ -415,11 +422,15 @@ int main(int argc, char** argv) {
 	}
 
 	if (failures == 0) {
-		std::fprintf(stdout, "clip_clone: OK (%s, rows=%d, notes=%d)\n", argv[1], srcRowCount, srcNoteCount);
-		std::fflush(stdout);
-		_exit(0);
+		std::fprintf(io.out, "clip_clone: OK (%s, rows=%d, notes=%d)\n", argv[1], srcRowCount, srcNoteCount);
+		std::fflush(io.out);
+		return 0;
 	}
-	std::fprintf(stderr, "clip_clone: %d failure(s)\n", failures);
-	std::fflush(stderr);
-	_exit(4);
+	std::fprintf(io.err, "clip_clone: %d failure(s)\n", failures);
+	std::fflush(io.err);
+	return 4;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(clip_clone_roundtrip, clip_clone_roundtrip_main)

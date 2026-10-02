@@ -1,6 +1,6 @@
-// Phase-0 round-trip driver: load a Deluge song XML headless, re-serialize it,
-// and check the canonical fixed point. Safety net for the project-model
-// extraction (docs/dev/project_model_extraction.md, Phase 0).
+// Phase-0 round-trip driver: load a Deluge song XML, re-serialize it, and check the canonical fixed point. Safety
+// net for the project-model extraction (docs/dev/project_model_extraction.md, Phase 0). Run as the song_roundtrip
+// scenario (scenarios/drivers/driver.h):
 //
 //   song_roundtrip <song.XML> [gen1_out_path]
 //
@@ -11,23 +11,21 @@
 //
 // Exit: 0 = settled; 1 = load error; 2 = usage/IO; 3 = fixed-point mismatch.
 //
-// The load/save path is deliberately exercised with no audio engine, display
-// hardware, USB, or SD — only the allocator (host BSP) + a stub display. The
-// firmware's load<->execution couplings are gated/neutralised here, not faked:
-//   - AudioEngine yields gated via FileReader::callRoutines (in-memory read).
+// The song is loaded beside the booted one, from the host file and never through the card. The firmware's
+// load<->execution couplings are gated, not faked:
+//   - AudioEngine yields gated via the active reader's shouldCallRoutines() (in-memory read).
 //   - View selection cleared before save (writeToFile serialises UI state).
 // See the design doc for the full list.
 
 #include "deluge-project/serialization.h"
-#include "hid/display/display.h"
-#include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
+#include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/tree_load.h"
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
-#include "tree_load.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -35,12 +33,15 @@
 #include <cstring>
 #include <optional>
 #include <string_view>
-#include <unistd.h>
+
+namespace {
+
+using deluge::scenarios::driver::Io;
 
 // load(xml) -> save into `out`. Returns serialized length, or -1 on load error
 // (code in *loadErr). `xml` must be writable (the reader null-terminates tokens
 // in place).
-static long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap, Error* loadErr) {
+long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap, Error* loadErr) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
 	song->paramManager.setupUnpatched();
@@ -68,6 +69,7 @@ static long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap,
 		if (e == Error::NONE) {
 			e = deluge::project::loadSong(*song, adapter);
 		}
+		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -76,19 +78,19 @@ static long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap,
 	currentSong = song; // load complete; some deep write paths consult the global
 
 	// Clear the transient view selection before saving: writeToFile() otherwise serializes
-	// "selected"/"beingEdited" for the current clip and consults the (null, headless) root UI.
+	// "selected"/"beingEdited" for the current clip and consults the root UI.
 	// That is view state, not project data — dropping it yields a view-independent canonical
 	// form that still round-trips to a fixed point.
 	song->setCurrentClip(nullptr);
 
-	smSerializer.setMemoryBuffer(out, outCap);
+	deluge::scenarios::driver::beginCapture(smSerializer);
 	deluge::project::saveSong(*song, smSerializer);
-	return smSerializer.bytesWritten();
+	return deluge::scenarios::driver::endCapture(smSerializer, out, outCap);
 }
 
-int main(int argc, char** argv) {
+int song_roundtrip_main(int argc, char** argv, Io io) {
 	if (argc < 2) {
-		std::fprintf(stderr, "usage: %s <song.XML> [gen1_out_path]\n", argv[0]);
+		std::fprintf(io.err, "usage: %s <song.XML> [gen1_out_path]\n", argv[0]);
 		return 2;
 	}
 	const char* songPath = argv[1];
@@ -96,7 +98,7 @@ int main(int argc, char** argv) {
 
 	FILE* f = std::fopen(songPath, "rb");
 	if (!f) {
-		std::fprintf(stderr, "cannot open %s\n", songPath);
+		std::fprintf(io.err, "cannot open %s\n", songPath);
 		return 2;
 	}
 	std::fseek(f, 0, SEEK_END);
@@ -112,36 +114,37 @@ int main(int argc, char** argv) {
 	orig[fileLen] = 0;
 	std::fclose(f);
 
-	// Give defensive display->popup paths a real target so they don't deref null.
-	display = new deluge::hid::display::SevenSegment;
-
 	Error e1, e2;
 	long n1 = load_then_save(orig, fileLen, gen1, kCap, &e1);
 	if (n1 < 0) {
-		std::fprintf(stderr, "LOADFAIL original -> Error %d\n", (int)e1);
-		_exit(1);
+		std::fprintf(io.err, "LOADFAIL original -> Error %d\n", (int)e1);
+		return 1;
 	}
 
 	std::memcpy(gen1copy, gen1, n1);
 	long n2 = load_then_save(gen1copy, n1, gen2, kCap, &e2);
 	if (n2 < 0) {
-		std::fprintf(stderr, "LOADFAIL gen1 -> Error %d\n", (int)e2);
-		_exit(1);
+		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", (int)e2);
+		return 1;
 	}
 
 	bool settled = (n1 == n2) && (std::memcmp(gen1, gen2, n1) == 0);
-	std::fprintf(stderr, "in=%ld gen1=%ld gen2=%ld %s\n", fileLen, n1, n2, settled ? "SETTLED" : "MISMATCH");
+	std::fprintf(io.err, "in=%ld gen1=%ld gen2=%ld %s\n", fileLen, n1, n2, settled ? "SETTLED" : "MISMATCH");
 	if (!settled) {
-		_exit(3);
+		return 3;
 	}
 
 	if (outPath) {
 		FILE* of = std::fopen(outPath, "wb");
 		if (!of || std::fwrite(gen1, 1, n1, of) != (size_t)n1) {
-			std::fprintf(stderr, "cannot write %s\n", outPath);
-			_exit(2);
+			std::fprintf(io.err, "cannot write %s\n", outPath);
+			return 2;
 		}
 		std::fclose(of);
 	}
-	_exit(0);
+	return 0;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(song_roundtrip, song_roundtrip_main)

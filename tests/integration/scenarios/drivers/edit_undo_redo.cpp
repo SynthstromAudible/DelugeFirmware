@@ -3,11 +3,11 @@
 //   edit_undo_redo <song.XML>
 //
 // Drives the EDIT path (deluge::edits::SetParamValue -> apply) over a REAL loaded song, proving what the
-// song-less edit_test unit harness cannot: that a loaded-song edit resolves through a live DOM address
+// song-less edit_substrate unit driver cannot: that a loaded-song edit resolves through a live DOM address
 // (addressFor -> ParamAddress, resolveParam == doc()) and that the REAL undo/redo path (ActionLogger::revert)
 // restores state. Self-checking (no baseline): exit 0 = all pass, 1 = load error, 2 = usage/IO, 3 = check failed.
 //
-// Undo is feasible headless here (unlike edit_test's empty song): a loaded song has real clips, so getNewAction's
+// Undo is feasible headless here (unlike edit_substrate's empty song): a loaded song has real clips, so getNewAction's
 // clip snapshot allocates and the Action opens; revert only MOVES Actions between queues (no consequence free ->
 // no audio-engine pump). recording=OFF so the pre-log opens the Action. Assertions compare currentValue + nodes,
 // NOT doc()->current_value (store-scalar undo is M3+).
@@ -16,8 +16,6 @@
 #include "deluge-project/param_address.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/serialization.h"
-#include "hid/display/display.h"
-#include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/action/action.h"
@@ -71,11 +69,11 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
+#include "scenarios/drivers/tree_load.h"
 #include "sequence/iterance.h"
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
-#include "tree_load.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -85,6 +83,15 @@
 #include <string_view>
 #include <vector>
 
+#include "scenarios/drivers/driver.h"
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
+
 namespace params = deluge::modulation::params;
 
 namespace {
@@ -92,7 +99,7 @@ namespace {
 int failures = 0;
 void check(bool ok, const char* what) {
 	if (!ok) {
-		fprintf(stderr, "CHECK FAIL: %s\n", what);
+		std::fprintf(io.err, "CHECK FAIL: %s\n", what);
 		failures++;
 	}
 }
@@ -116,6 +123,7 @@ Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 		if (e == Error::NONE) {
 			e = deluge::project::loadSong(*song, adapter);
 		}
+		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -155,9 +163,9 @@ bool equalSnapshot(const Snapshot& a, const Snapshot& b) {
 
 // Script apply(SetParamValue) -> undo -> redo over one resolved param lane, asserting the invariants.
 void scriptEditUndoRedo(const char* label, Song* song, ModelStackWithAutoParam* msap) {
-	printf("# target %s\n", label);
+	std::fprintf(io.out, "# target %s\n", label);
 
-	// (1) The edit resolves through a LIVE DOM address (not the engine fallback) — the coverage edit_test lacks.
+	// (1) The edit resolves through a LIVE DOM address (not the engine fallback) — the coverage edit_substrate lacks.
 	std::optional<deluge::project::ParamAddress> addr = deluge::edits::addressFor(*msap);
 	check(addr.has_value(), "addressFor resolves a real ParamAddress");
 	if (!addr) {
@@ -201,7 +209,7 @@ bool noteAtPos(NoteRow* noteRow, int32_t pos) {
 // with its own length — robust against attemptNoteAdd's overlap rules (no guessing a free pos). Shared by the
 // melodic (M2b) and kit (M2c) targets.
 void driveNoteEdits(Song* song, InstrumentClip* clip, NoteRow* noteRow, int32_t rowIndex, const char* label) {
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	int32_t noteRowId = clip->getNoteRowId(noteRow, rowIndex);
 	ModelStackWithNoteRow* ms = setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(noteRowId, noteRow);
 	check(deluge::edits::noteRowAddressFor(*ms).has_value(), "note: noteRowAddressFor resolves");
@@ -256,13 +264,13 @@ void noteTarget(Song* song) {
 		}
 		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
 			if (!ic->noteRows[r].notes.empty()) {
-				printf("# target note-add-remove\n");
+				std::fprintf(io.out, "# target note-add-remove\n");
 				driveNoteEdits(song, ic, &ic->noteRows[r], r, "melodic");
 				return;
 			}
 		}
 	}
-	printf("# no-addressable-melodic-notes\n");
+	std::fprintf(io.out, "# no-addressable-melodic-notes\n");
 }
 
 // M2c: first KIT InstrumentClip SOUND-drum note-row with a note (row keyed by drum id).
@@ -280,13 +288,13 @@ void kitNoteTarget(Song* song) {
 			NoteRow& nr = ic->noteRows[r];
 			if (!nr.notes.empty() && nr.drum != nullptr && nr.drum->type == DrumType::SOUND
 			    && nr.drum->id().has_value()) {
-				printf("# target kit-note-add-remove\n");
+				std::fprintf(io.out, "# target kit-note-add-remove\n");
 				driveNoteEdits(song, ic, &nr, r, "kit");
 				return;
 			}
 		}
 	}
-	printf("# no-addressable-kit-notes\n");
+	std::fprintf(io.out, "# no-addressable-kit-notes\n");
 }
 
 // M2c: set a melodic note-row's independent length via SetNoteRowLength, undo/redo. ConsequenceNoteRowLength's
@@ -308,13 +316,13 @@ void lengthTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-addressable-melodic-row\n");
+		std::fprintf(io.out, "# no-addressable-melodic-row\n");
 		return;
 	}
-	printf("# target noterow-length\n");
+	std::fprintf(io.out, "# target noterow-length\n");
 	song->setCurrentClip(clip); // ConsequenceNoteRowLength::revert resolves the row via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, 0), noteRow);
 
@@ -369,13 +377,13 @@ void shiftTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-addressable-melodic-notes-for-shift\n");
+		std::fprintf(io.out, "# no-addressable-melodic-notes-for-shift\n");
 		return;
 	}
-	printf("# target noterow-shift\n");
+	std::fprintf(io.out, "# target noterow-shift\n");
 	song->setCurrentClip(clip);
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -421,13 +429,13 @@ void euclideanTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-addressable-melodic-notes-for-euclidean\n");
+		std::fprintf(io.out, "# no-addressable-melodic-notes-for-euclidean\n");
 		return;
 	}
-	printf("# target noterow-euclidean\n");
+	std::fprintf(io.out, "# target noterow-euclidean\n");
 	song->setCurrentClip(clip); // undoJustOneConsequencePerNoteRow / note-array revert resolve via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -503,13 +511,13 @@ void repeatTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-addressable-melodic-notes-for-repeat\n");
+		std::fprintf(io.out, "# no-addressable-melodic-notes-for-repeat\n");
 		return;
 	}
-	printf("# target noterow-repeat\n");
+	std::fprintf(io.out, "# target noterow-repeat\n");
 	song->setCurrentClip(clip); // secret-undo / note-array revert resolve the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -570,13 +578,13 @@ void nudgeTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-addressable-melodic-notes-for-nudge\n");
+		std::fprintf(io.out, "# no-addressable-melodic-notes-for-nudge\n");
 		return;
 	}
-	printf("# target noterow-nudge\n");
+	std::fprintf(io.out, "# target noterow-nudge\n");
 	song->setCurrentClip(clip); // note-array + automation reverts resolve the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -629,13 +637,13 @@ void clipShiftTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-addressable-clip-with-notes-for-shift\n");
+		std::fprintf(io.out, "# no-addressable-clip-with-notes-for-shift\n");
 		return;
 	}
-	printf("# target clip-shift\n");
+	std::fprintf(io.out, "# target clip-shift\n");
 	song->setCurrentClip(clip); // ConsequenceClipHorizontalShift::revert resolves the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 
 	std::vector<int32_t> before = notePositions(noteRow);
@@ -682,13 +690,13 @@ void clipClearTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-addressable-clip-with-notes-for-clear\n");
+		std::fprintf(io.out, "# no-addressable-clip-with-notes-for-clear\n");
 		return;
 	}
-	printf("# target clip-clear\n");
+	std::fprintf(io.out, "# target clip-clear\n");
 	song->setCurrentClip(clip); // clear's undo Consequences resolve the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 
 	int32_t before = totalNotes(clip);
@@ -726,13 +734,13 @@ void clipMultiplyTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-addressable-clip-for-multiply\n");
+		std::fprintf(io.out, "# no-addressable-clip-for-multiply\n");
 		return;
 	}
-	printf("# target clip-multiply\n");
+	std::fprintf(io.out, "# target clip-multiply\n");
 	song->setCurrentClip(clip); // multiply's undo Consequences resolve the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 
 	int32_t lenBefore = clip->loopLength();
@@ -757,7 +765,7 @@ void clipMultiplyTarget(Song* song) {
 
 // M2d: set the song-global swing amount via SetSwing, undo/redo. Every song has a groove, so this always runs.
 void swingTarget(Song* song) {
-	printf("# target swing\n");
+	std::fprintf(io.out, "# target swing\n");
 	int8_t before = song->project.groove.swing_amount;
 	int8_t target = (before == 20) ? 21 : 20; // any value != current, within -49..49
 
@@ -792,10 +800,10 @@ void clipLengthTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-addressable-clip-for-set-length\n");
+		std::fprintf(io.out, "# no-addressable-clip-for-set-length\n");
 		return;
 	}
-	printf("# target clip-set-length\n");
+	std::fprintf(io.out, "# target clip-set-length\n");
 	song->setCurrentClip(clip); // ConsequenceClipLength::revert resolves the clip via getCurrentClip()
 
 	int32_t before = clip->loopLength();
@@ -876,10 +884,10 @@ void audioClipMarkerTarget(Song* song) {
 		clip = ac;
 	}
 	if (clip == nullptr) {
-		printf("# no-forward-sample-clip-for-marker-drag\n");
+		std::fprintf(io.out, "# no-forward-sample-clip-for-marker-drag\n");
 		return;
 	}
-	printf("# target audio-clip-marker-drag\n");
+	std::fprintf(io.out, "# target audio-clip-marker-drag\n");
 	song->setCurrentClip(clip); // ConsequenceClipLength::revert resolves the clip via getCurrentClip()
 
 	// getSample() (audio_clip_view.cpp:65-71) casts sampleHolder.audioFile to Sample*; it's null here for the
@@ -978,10 +986,10 @@ void audioClipSetSampleTarget(Song* song) {
 		clip = ac;
 	}
 	if (clip == nullptr) {
-		printf("# no-blank-audio-clip-for-set-sample\n");
+		std::fprintf(io.out, "# no-blank-audio-clip-for-set-sample\n");
 		return;
 	}
-	printf("# target audio-clip-set-sample\n");
+	std::fprintf(io.out, "# target audio-clip-set-sample\n");
 
 	check(clip->sampleHolder.filePath.empty(), "set-sample: baseline clip has no sample (sampleHolder)");
 	check(clip->docAudioClip_->file_path.empty(), "set-sample: baseline clip has no sample (docAudioClip_)");
@@ -1019,7 +1027,7 @@ void audioClipSetSampleTarget(Song* song) {
 
 // M2d: set the song tempo via SetTempo (the grab-from-clip structural path), undo/redo. Song-global, always runs.
 void tempoTarget(Song* song) {
-	printf("# target tempo\n");
+	std::fprintf(io.out, "# target tempo\n");
 	uint64_t before = song->project.transport.samples_per_timer_tick_big;
 	// Doubling the samples-per-tick halves the tempo — a guaranteed-different value.
 	double target = (double)(before >> 32) * 2.0 + 1.0;
@@ -1062,19 +1070,19 @@ void pasteTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-empty-addressable-row-for-paste\n");
+		std::fprintf(io.out, "# no-empty-addressable-row-for-paste\n");
 		return;
 	}
 	// The pasted pos = xScroll + round(0 * 1) = xScroll; it must land inside the row for a note to appear.
 	int32_t xScroll = song->persistentView.xScroll[0];
 	if (xScroll < 0 || xScroll >= clip->loopLength()) {
-		printf("# paste-xscroll-out-of-range\n");
+		std::fprintf(io.out, "# paste-xscroll-out-of-range\n");
 		return;
 	}
-	printf("# target paste\n");
+	std::fprintf(io.out, "# target paste\n");
 	song->setCurrentClip(clip);
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -1127,16 +1135,16 @@ void kitAddTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-kit-clip-for-add\n");
+		std::fprintf(io.out, "# no-kit-clip-for-add\n");
 		return;
 	}
-	printf("# target kit-add\n");
+	std::fprintf(io.out, "# target kit-add\n");
 	song->setCurrentClip(clip);
 	auto* kit = static_cast<Kit*>(clip->output);
 	int32_t rowIndex = 0;
 	NoteRow* noteRow = &clip->noteRows[rowIndex];
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -1174,15 +1182,15 @@ void kitRemoveTarget(Song* song) {
 		}
 	}
 	if (clip == nullptr) {
-		printf("# no-kit-sound-drum-for-remove\n");
+		std::fprintf(io.out, "# no-kit-sound-drum-for-remove\n");
 		return;
 	}
-	printf("# target kit-remove\n");
+	std::fprintf(io.out, "# target kit-remove\n");
 	song->setCurrentClip(clip);
 	auto* kit = static_cast<Kit*>(clip->output);
 	int32_t before = drumCount(kit);
 
-	char mem[MODEL_STACK_MAX_SIZE];
+	char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::RemoveKitRow edit{deluge::edits::kitRowAddressFor(*kit, *drum), drum, ms};
@@ -1205,10 +1213,10 @@ void arrangementTarget(Song* song) {
 		}
 	}
 	if (output == nullptr) {
-		printf("# no-arrangement-clip-instance\n");
+		std::fprintf(io.out, "# no-arrangement-clip-instance\n");
 		return;
 	}
-	printf("# target arrangement\n");
+	std::fprintf(io.out, "# target arrangement\n");
 	int32_t before = inst->length;
 	int32_t newLength = before + 24; // any different length; pos + clip held fixed for an unambiguous revert
 
@@ -1242,10 +1250,10 @@ InstrumentClip* firstAddressableClip(Song* song) {
 void launchStyleTarget(Song* song) {
 	InstrumentClip* clip = firstAddressableClip(song);
 	if (clip == nullptr) {
-		printf("# no-addressable-clip-for-launchstyle\n");
+		std::fprintf(io.out, "# no-addressable-clip-for-launchstyle\n");
 		return;
 	}
-	printf("# target launch-style\n");
+	std::fprintf(io.out, "# target launch-style\n");
 	LaunchStyle before = clip->launchStyle();
 	LaunchStyle target = (before == LaunchStyle::FILL) ? LaunchStyle::ONCE : LaunchStyle::FILL;
 
@@ -1263,10 +1271,10 @@ void launchStyleTarget(Song* song) {
 void colourTarget(Song* song) {
 	InstrumentClip* clip = firstAddressableClip(song);
 	if (clip == nullptr) {
-		printf("# no-addressable-clip-for-colour\n");
+		std::fprintf(io.out, "# no-addressable-clip-for-colour\n");
 		return;
 	}
-	printf("# target colour\n");
+	std::fprintf(io.out, "# target colour\n");
 	int16_t before = clip->colourOffset();
 
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
@@ -1281,7 +1289,7 @@ void colourTarget(Song* song) {
 // Plan A: after load + assignSessionIds + the M3 load-binding pass, EVERY clip is id-addressable and bound to a
 // DocClip.
 void universalIdsTarget(Song* song) {
-	printf("# target universal-ids\n");
+	std::fprintf(io.out, "# target universal-ids\n");
 	int32_t clips = 0, addressable = 0, bound = 0;
 	auto checkArray = [&](auto& arr) {
 		for (int32_t c = 0; c < std::ssize(arr); c++) {
@@ -1307,10 +1315,10 @@ void universalIdsTarget(Song* song) {
 void sectionTarget(Song* song) {
 	InstrumentClip* clip = firstAddressableClip(song);
 	if (clip == nullptr) {
-		printf("# no-addressable-clip-for-section\n");
+		std::fprintf(io.out, "# no-addressable-clip-for-section\n");
 		return;
 	}
-	printf("# target section\n");
+	std::fprintf(io.out, "# target section\n");
 	uint8_t target = (clip->section() == 2) ? 3 : 2; // any two distinct valid section indices
 
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
@@ -1324,16 +1332,16 @@ void sectionTarget(Song* song) {
 
 } // namespace
 
-int main(int argc, char** argv) {
+int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
+	io = driverIo;
 	if (argc < 2) {
-		fprintf(stderr, "usage: %s <song.XML>\n", argv[0]);
+		std::fprintf(io.err, "usage: %s <song.XML>\n", argv[0]);
 		return 2;
 	}
-	display = new deluge::hid::display::SevenSegment;
 
 	FILE* f = std::fopen(argv[1], "rb");
 	if (!f) {
-		fprintf(stderr, "cannot open %s\n", argv[1]);
+		std::fprintf(io.err, "cannot open %s\n", argv[1]);
 		return 2;
 	}
 	std::fseek(f, 0, SEEK_END);
@@ -1341,7 +1349,7 @@ int main(int argc, char** argv) {
 	std::fseek(f, 0, SEEK_SET);
 	char* xml = (char*)std::malloc(sz + 1);
 	if (std::fread(xml, 1, sz, f) != (size_t)sz) {
-		fprintf(stderr, "read error\n");
+		std::fprintf(io.err, "read error\n");
 		return 2;
 	}
 	xml[sz] = 0;
@@ -1350,22 +1358,22 @@ int main(int argc, char** argv) {
 	Error loadErr = Error::NONE;
 	Song* song = load_song(xml, sz, &loadErr);
 	if (!song) {
-		fprintf(stderr, "load error %d\n", (int)loadErr);
+		std::fprintf(io.err, "load error %d\n", (int)loadErr);
 		return 1;
 	}
 	playbackHandler.recording = RecordingMode::OFF;
 
-	printf("# edit_undo_redo: %s\n", argv[1]);
+	std::fprintf(io.out, "# edit_undo_redo: %s\n", argv[1]);
 
 	universalIdsTarget(song); // first, on the pristine loaded song (before any target mutates clip/drum membership)
 
 	// Target 1 — song-global UNPATCHED_VOLUME (OwnerId::song()). Always present.
 	{
-		char msMem[MODEL_STACK_MAX_SIZE];
+		char msMem[MODEL_STACK_MAX_SIZE]{};
 		ModelStackWithThreeMainThings* ms3 = song->setupModelStackWithSongAsTimelineCounter(msMem);
 		ModelStackWithAutoParam* msap = ms3->getUnpatchedAutoParamFromId(params::UNPATCHED_VOLUME);
 		if (!msap || !msap->autoParam) {
-			fprintf(stderr, "no song-global UNPATCHED_VOLUME param\n");
+			std::fprintf(io.err, "no song-global UNPATCHED_VOLUME param\n");
 			return 3;
 		}
 		scriptEditUndoRedo("song-global", song, msap);
@@ -1392,14 +1400,14 @@ int main(int argc, char** argv) {
 			}
 		}
 		if (instClip == nullptr) {
-			printf("# no-instrument-clip\n");
+			std::fprintf(io.out, "# no-instrument-clip\n");
 		}
 		else {
 			// Find the first unpatched param on this clip that resolves to a live instrument address (a relocated
 			// lane). Unlike the song-global invariant, the instrument target is best-effort per song.
 			int32_t chosenPid = -1;
 			for (int32_t pid = 0; pid < params::kMaxNumUnpatchedParams && chosenPid < 0; pid++) {
-				char pm[MODEL_STACK_MAX_SIZE];
+				char pm[MODEL_STACK_MAX_SIZE]{};
 				ModelStackWithThreeMainThings* p3 = setupModelStackWithThreeMainThingsButNoNoteRow(
 				    pm, song, instClip->output->toModControllable(), instClip, &instClip->paramManager);
 				ModelStackWithAutoParam* pmsap = p3->getUnpatchedAutoParamFromId(pid);
@@ -1412,10 +1420,10 @@ int main(int argc, char** argv) {
 				}
 			}
 			if (chosenPid < 0) {
-				printf("# instrument-param-not-addressed\n");
+				std::fprintf(io.out, "# instrument-param-not-addressed\n");
 			}
 			else {
-				char instMem[MODEL_STACK_MAX_SIZE];
+				char instMem[MODEL_STACK_MAX_SIZE]{};
 				ModelStackWithThreeMainThings* i3 = setupModelStackWithThreeMainThingsButNoNoteRow(
 				    instMem, song, instClip->output->toModControllable(), instClip, &instClip->paramManager);
 				scriptEditUndoRedo("instrument-clip", song, i3->getUnpatchedAutoParamFromId(chosenPid));
@@ -1449,3 +1457,7 @@ int main(int argc, char** argv) {
 	std::free(xml);
 	return failures ? 3 : 0;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(edit_undo_redo, edit_undo_redo_main)

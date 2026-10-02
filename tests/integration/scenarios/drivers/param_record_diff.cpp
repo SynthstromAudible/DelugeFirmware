@@ -22,14 +22,14 @@
 // the recording seam.
 //
 // PROVENANCE: this harness already earned its keep — driving a live Song timeline (which the
-// param_projection_test oracle's NoteRow stack never does) surfaced a real firmware bug in the M2-C
+// param_projection oracle's NoteRow stack never does) surfaced a real firmware bug in the M2-C
 // homogenizeRegion forward (an unconditional Song->Clip cast for recordingLinearly; ASan global-buffer-overflow),
 // fixed in 0ec566d82.
 //
 // SCOPE (current): a scripted live-record sequence on a song-global param, PLUS undo/redo (swapState) and
 // save/reload persistence. Remaining follow-up — a finite-loop InstrumentClip target (the scenario that also
 // exercises homogenizeRegion's recordingLinearly forward-wrap branch; that branch's *logic* is already covered
-// by the param_projection_test homogenizeRegion oracle's finite-effLen + wrap cases, so this would add
+// by the param_projection homogenizeRegion oracle's finite-effLen + wrap cases, so this would add
 // integration confirmation, not new logic). It needs more setup than the song-global path: the clip must be
 // made active (Clip::isPlayingAutomationNow() checks currentSong->isClipActive(this)), and clip recording uses
 // RecordingMode::NORMAL, whose getNewAction actually allocates an Action (vs ARRANGEMENT returning null) — so
@@ -37,7 +37,6 @@
 
 #include "deluge-project/param_automation.h"
 #include "deluge-project/serialization.h"
-#include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -46,10 +45,10 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "scenarios/drivers/tree_load.h"
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
-#include "tree_load.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -58,12 +57,21 @@
 #include <optional>
 #include <string_view>
 
-namespace params = deluge::modulation::params;
+#include "scenarios/drivers/driver.h"
 
 // A live scheduler global (playback_handler.cpp). When true, PlaybackHandler::expectEvent() no-ops instead of
-// calling scheduleSwungTick() — which would reach into the RT scheduler that this harness deliberately does not
+// calling scheduleSwungTick() — which would reach into the RT scheduler that this driver deliberately does not
 // run. Setting it true is exactly right here: we drive "ticks" manually, so there is no next event to schedule.
 extern bool currentlyActioningSwungTickOrResettingPlayPos;
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
+
+namespace params = deluge::modulation::params;
 
 // Same native load as song_edit_roundtrip: build a Song, deserialize, set currentSong. `xml` must be writable
 // (the reader null-terminates in place) and outlive all uses.
@@ -85,6 +93,7 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 		if (e == Error::NONE) {
 			e = deluge::project::loadSong(*song, adapter);
 		}
+		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -101,12 +110,13 @@ static void dumpParam(const char* label, ModelStackWithAutoParam* msap) {
 	// M2-E: the nodes are owner-resolved via the ModelStack (the song-global param is bound to the DOM store), not
 	// read off the engine AutoParam — which no longer holds a pointer into DOM node data.
 	const auto& nodes = msap->doc()->nodes;
-	printf("%s cv=%ld nodes=%d:", label, (long)msap->autoParam->getCurrentValue(), (int)std::ssize(nodes));
+	std::fprintf(io.out, "%s cv=%ld nodes=%d:", label, (long)msap->autoParam->getCurrentValue(),
+	             (int)std::ssize(nodes));
 	for (int32_t i = 0; i < std::ssize(nodes); i++) {
 		const ParamNode& n = nodes[i];
-		printf(" (%ld,%ld,%c)", (long)n.pos, (long)n.value, n.interpolated ? 'i' : 's');
+		std::fprintf(io.out, " (%ld,%ld,%c)", (long)n.pos, (long)n.value, n.interpolated ? 'i' : 's');
 	}
-	printf("\n");
+	std::fprintf(io.out, "\n");
 }
 
 // Save `song` to an in-memory XML buffer, reload it into a fresh Song, re-fetch the song-global param, and dump
@@ -114,9 +124,9 @@ static void dumpParam(const char* label, ModelStackWithAutoParam* msap) {
 static void dumpAfterSaveReload(Song* song) {
 	const uint32_t cap = 16u * 1024 * 1024;
 	char* buf = (char*)malloc(cap);
-	smSerializer.setMemoryBuffer(buf, cap);
+	deluge::scenarios::driver::beginCapture(smSerializer);
 	deluge::project::saveSong(*song, smSerializer);
-	long n = smSerializer.bytesWritten();
+	long n = deluge::scenarios::driver::endCapture(smSerializer, buf, cap);
 
 	char* copy = (char*)malloc(n + 1);
 	memcpy(copy, buf, n);
@@ -125,15 +135,15 @@ static void dumpAfterSaveReload(Song* song) {
 	Error e = Error::NONE;
 	Song* reloaded = load_song(copy, n, &e);
 	if (!reloaded) {
-		printf("after-reload LOAD-FAILED err=%d\n", (int)e);
+		std::fprintf(io.out, "after-reload LOAD-FAILED err=%d\n", (int)e);
 		free(buf);
 		return;
 	}
-	char msMem[MODEL_STACK_MAX_SIZE];
+	char msMem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithThreeMainThings* ms3 = reloaded->setupModelStackWithSongAsTimelineCounter(msMem);
 	ModelStackWithAutoParam* msap = ms3->getUnpatchedAutoParamFromId(params::UNPATCHED_VOLUME);
 	if (!msap || !msap->autoParam) {
-		printf("after-reload NO-PARAM\n");
+		std::fprintf(io.out, "after-reload NO-PARAM\n");
 		free(buf);
 		return;
 	}
@@ -141,15 +151,16 @@ static void dumpAfterSaveReload(Song* song) {
 	free(buf);
 }
 
-int main(int argc, char** argv) {
+int param_record_diff_main(int argc, char** argv, Io driverIo) {
+	io = driverIo;
 	if (argc < 2) {
-		fprintf(stderr, "usage: %s <song.XML>\n", argv[0]);
+		std::fprintf(io.err, "usage: %s <song.XML>\n", argv[0]);
 		return 2;
 	}
 
 	FILE* f = fopen(argv[1], "rb");
 	if (!f) {
-		fprintf(stderr, "cannot open %s\n", argv[1]);
+		std::fprintf(io.err, "cannot open %s\n", argv[1]);
 		return 2;
 	}
 	fseek(f, 0, SEEK_END);
@@ -157,7 +168,7 @@ int main(int argc, char** argv) {
 	fseek(f, 0, SEEK_SET);
 	char* xml = (char*)malloc(sz + 1);
 	if (fread(xml, 1, sz, f) != (size_t)sz) {
-		fprintf(stderr, "read error\n");
+		std::fprintf(io.err, "read error\n");
 		return 2;
 	}
 	xml[sz] = 0;
@@ -166,7 +177,7 @@ int main(int argc, char** argv) {
 	Error loadErr = Error::NONE;
 	Song* song = load_song(xml, sz, &loadErr);
 	if (!song) {
-		fprintf(stderr, "load error %d\n", (int)loadErr);
+		std::fprintf(io.err, "load error %d\n", (int)loadErr);
 		return 1;
 	}
 
@@ -181,11 +192,11 @@ int main(int argc, char** argv) {
 	AudioEngine::audioSampleTimer = 0;
 
 	// Build the song-global unpatched-param ModelStackWithAutoParam via the engine's own helper.
-	char msMem[MODEL_STACK_MAX_SIZE];
+	char msMem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithThreeMainThings* ms3 = song->setupModelStackWithSongAsTimelineCounter(msMem);
 	ModelStackWithAutoParam* msap = ms3->getUnpatchedAutoParamFromId(params::UNPATCHED_VOLUME);
 	if (!msap || !msap->autoParam) {
-		fprintf(stderr, "could not build ModelStackWithAutoParam for UNPATCHED_VOLUME\n");
+		std::fprintf(io.err, "could not build ModelStackWithAutoParam for UNPATCHED_VOLUME\n");
 		return 3;
 	}
 	AutoParam& ap = *msap->autoParam;
@@ -198,8 +209,8 @@ int main(int argc, char** argv) {
 		                                   params::UNPATCHED_VOLUME};
 		deluge::project::DocAutoParam* viaAddress = song->project.resolveParam(addr);
 		if (viaAddress == nullptr || viaAddress != msap->doc()) {
-			fprintf(stderr, "S1 FAIL: song-global not id-addressed (resolveParam=%p doc=%p)\n", (void*)viaAddress,
-			        (void*)msap->doc());
+			std::fprintf(io.err, "S1 FAIL: song-global not id-addressed (resolveParam=%p doc=%p)\n", (void*)viaAddress,
+			             (void*)msap->doc());
 			return 3;
 		}
 	}
@@ -218,7 +229,7 @@ int main(int argc, char** argv) {
 	    {36, 1500000000, 100}, {48, 200000000, 100}, {60, -800000000, 100},
 	};
 
-	printf("# param_record_diff: %s\n", argv[1]);
+	std::fprintf(io.out, "# param_record_diff: %s\n", argv[1]);
 	dumpParam("initial", msap);
 
 	// Capture the pre-record state (empty nodes + initial value) for the undo test below. AutoParamState is the
@@ -237,8 +248,8 @@ int main(int argc, char** argv) {
 	// can read the store. After the recorded edits, the store's current_value must equal the engine cursor. To
 	// stderr so the stdout baseline is unaffected.
 	if (msap->doc()->current_value != ap.getCurrentValue()) {
-		fprintf(stderr, "PHASE1 FAIL: store current_value=%ld != engine currentValue=%ld\n",
-		        (long)msap->doc()->current_value, (long)ap.getCurrentValue());
+		std::fprintf(io.err, "PHASE1 FAIL: store current_value=%ld != engine currentValue=%ld\n",
+		             (long)msap->doc()->current_value, (long)ap.getCurrentValue());
 		return 3;
 	}
 
@@ -256,3 +267,7 @@ int main(int argc, char** argv) {
 	free(xml);
 	return 0;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(param_record_diff, param_record_diff_main)

@@ -28,10 +28,10 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/song/song.h"
+#include "scenarios/drivers/tree_load.h"
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
-#include "tree_load.h"
 #include "util/misc.h"
 
 #include <cstdint>
@@ -40,6 +40,15 @@
 #include <cstring>
 #include <optional>
 #include <string_view>
+
+#include "scenarios/drivers/driver.h"
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
 
 // Same native load as param_record_diff / song_edit_roundtrip: build a Song, deserialize via the record-first
 // Value tree, set currentSong. `xml` must be writable and outlive all uses.
@@ -59,6 +68,7 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 		if (e == Error::NONE) {
 			e = deluge::project::loadSong(*song, adapter);
 		}
+		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -78,12 +88,14 @@ static const char* clipFilePath(const AudioClip* c) {
 // Canonical, deterministic one-line snapshot of one audio clip's engine-observable descriptor state -- the fields
 // the render path reads and writeDataToFile serialises. Order + formatting are fixed for byte-comparison.
 static void dumpClip(const char* label, int32_t idx, const AudioClip* c) {
-	printf("%s[%d] path=%s start=%llu end=%llu tr=%d cents=%d interp=%d psi=%d rev=%d attack=%ld prio=%d overdub=%d\n",
-	       label, idx, clipFilePath(c), (unsigned long long)c->sampleHolder.startPos,
-	       (unsigned long long)c->sampleHolder.endPos, (int)c->sampleHolder.transpose, (int)c->sampleHolder.cents,
-	       (int)util::to_underlying(c->sampleControls.interpolationMode),
-	       (int)c->sampleControls.pitchAndSpeedAreIndependent, (int)c->sampleControls.isCurrentlyReversed(),
-	       (long)c->attack(), (int)util::to_underlying(c->voicePriority()), (int)c->overdubsShouldCloneOutput);
+	std::fprintf(
+	    io.out,
+	    "%s[%d] path=%s start=%llu end=%llu tr=%d cents=%d interp=%d psi=%d rev=%d attack=%ld prio=%d overdub=%d\n",
+	    label, idx, clipFilePath(c), (unsigned long long)c->sampleHolder.startPos,
+	    (unsigned long long)c->sampleHolder.endPos, (int)c->sampleHolder.transpose, (int)c->sampleHolder.cents,
+	    (int)util::to_underlying(c->sampleControls.interpolationMode),
+	    (int)c->sampleControls.pitchAndSpeedAreIndependent, (int)c->sampleControls.isCurrentlyReversed(),
+	    (long)c->attack(), (int)util::to_underlying(c->voicePriority()), (int)c->overdubsShouldCloneOutput);
 }
 
 // Dump every audio clip in the song's session list, in order, under `label`.
@@ -110,7 +122,7 @@ static bool checkDocMatchesEngine(Song* song) {
 		AudioClip* c = static_cast<AudioClip*>(arr[i]);
 		const deluge::project::DocAudioClip* d = c->docAudioClip_;
 		if (d == nullptr) {
-			fprintf(stderr, "DOC-CHECK clip[%d]: docAudioClip_ is null\n", i);
+			std::fprintf(io.err, "DOC-CHECK clip[%d]: docAudioClip_ is null\n", i);
 			ok = false;
 			continue;
 		}
@@ -121,7 +133,7 @@ static bool checkDocMatchesEngine(Song* song) {
 		    || d->end_pos != c->sampleHolder.endPos || d->transpose != c->sampleHolder.transpose
 		    || d->cents != c->sampleHolder.cents || d->overdubs_should_clone != c->overdubsShouldCloneOutput
 		    || d->reversed != c->sampleControls.reversed) {
-			fprintf(stderr, "DOC-CHECK clip[%d]: DocAudioClip disagrees with engine cache\n", i);
+			std::fprintf(io.err, "DOC-CHECK clip[%d]: DocAudioClip disagrees with engine cache\n", i);
 			ok = false;
 		}
 	}
@@ -133,9 +145,9 @@ static bool checkDocMatchesEngine(Song* song) {
 static Error saveReloadDump(Song* song) {
 	const uint32_t cap = 16u * 1024 * 1024;
 	char* buf = (char*)malloc(cap);
-	smSerializer.setMemoryBuffer(buf, cap);
+	deluge::scenarios::driver::beginCapture(smSerializer);
 	deluge::project::saveSong(*song, smSerializer);
-	long n = smSerializer.bytesWritten();
+	long n = deluge::scenarios::driver::endCapture(smSerializer, buf, cap);
 
 	char* copy = (char*)malloc(n + 1);
 	memcpy(copy, buf, n);
@@ -144,7 +156,7 @@ static Error saveReloadDump(Song* song) {
 	Error e = Error::NONE;
 	Song* reloaded = load_song(copy, n, &e);
 	if (!reloaded) {
-		printf("after-reload LOAD-FAILED err=%d\n", (int)e);
+		std::fprintf(io.out, "after-reload LOAD-FAILED err=%d\n", (int)e);
 		free(buf);
 		return Error::FILE_CORRUPTED;
 	}
@@ -154,15 +166,16 @@ static Error saveReloadDump(Song* song) {
 	return result;
 }
 
-int main(int argc, char** argv) {
+int audio_clip_edit_diff_main(int argc, char** argv, Io driverIo) {
+	io = driverIo;
 	if (argc < 2) {
-		fprintf(stderr, "usage: %s <song.XML>\n", argv[0]);
+		std::fprintf(io.err, "usage: %s <song.XML>\n", argv[0]);
 		return 2;
 	}
 
 	FILE* f = fopen(argv[1], "rb");
 	if (!f) {
-		fprintf(stderr, "cannot open %s\n", argv[1]);
+		std::fprintf(io.err, "cannot open %s\n", argv[1]);
 		return 2;
 	}
 	fseek(f, 0, SEEK_END);
@@ -170,7 +183,7 @@ int main(int argc, char** argv) {
 	fseek(f, 0, SEEK_SET);
 	char* xml = (char*)malloc(sz + 1);
 	if (fread(xml, 1, sz, f) != (size_t)sz) {
-		fprintf(stderr, "read error\n");
+		std::fprintf(io.err, "read error\n");
 		return 2;
 	}
 	xml[sz] = 0;
@@ -179,14 +192,14 @@ int main(int argc, char** argv) {
 	Error loadErr = Error::NONE;
 	Song* song = load_song(xml, sz, &loadErr);
 	if (!song) {
-		fprintf(stderr, "load error %d\n", (int)loadErr);
+		std::fprintf(io.err, "load error %d\n", (int)loadErr);
 		return 1;
 	}
 
-	printf("# audio_clip_edit_diff: %s\n", argv[1]);
+	std::fprintf(io.out, "# audio_clip_edit_diff: %s\n", argv[1]);
 	dumpAllAudioClips("initial", song);
 	if (!checkDocMatchesEngine(song)) {
-		fprintf(stderr, "initial DOC-CHECK failed\n");
+		std::fprintf(io.err, "initial DOC-CHECK failed\n");
 		return 3;
 	}
 
@@ -201,7 +214,7 @@ int main(int argc, char** argv) {
 		}
 	}
 	if (clip == nullptr) {
-		fprintf(stderr, "no audio clip in %s\n", argv[1]);
+		std::fprintf(io.err, "no audio clip in %s\n", argv[1]);
 		return 3;
 	}
 
@@ -230,3 +243,7 @@ int main(int argc, char** argv) {
 	free(xml);
 	return 0;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(audio_clip_edit_diff, audio_clip_edit_diff_main)

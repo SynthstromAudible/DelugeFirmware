@@ -27,6 +27,7 @@
 #include "scenarios/clock_input_scenario.h"
 #include "scenarios/container_guard_scenario.h"
 #include "scenarios/document_save_channel_scenario.h"
+#include "scenarios/drivers/driver_scenarios.h"
 #include "scenarios/favourites_channel_scenario.h"
 #include "scenarios/idle_job_rates_scenario.h"
 #include "scenarios/load_cancel_scenario.h"
@@ -63,6 +64,9 @@ namespace {
 
 // Alphabetical. clip_lifetime's onAppInit clears the song before the render has run a block (CL-EPOCH0).
 constexpr DelugeScenario kScenarios[] = {
+    {"audio_clip_edit_diff", nullptr, &deluge_scenario_audio_clip_edit_diff_begin,
+     &deluge_scenario_audio_clip_edit_diff_complete, &deluge_scenario_audio_clip_edit_diff_dispatch_step,
+     &deluge_scenario_audio_clip_edit_diff_step_done, &deluge_scenario_audio_clip_edit_diff_failures},
     {"audio_header_dump", nullptr, &deluge_scenario_audio_header_dump_begin,
      &deluge_scenario_audio_header_dump_complete, &deluge_scenario_audio_header_dump_dispatch_step,
      &deluge_scenario_audio_header_dump_step_done, &deluge_scenario_audio_header_dump_failures},
@@ -75,6 +79,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"clear_song_undo", nullptr, &deluge_scenario_clear_song_undo_begin, &deluge_scenario_clear_song_undo_complete,
      &deluge_scenario_clear_song_undo_dispatch_step, &deluge_scenario_clear_song_undo_step_done,
      &deluge_scenario_clear_song_undo_failures},
+    {"clip_clone_roundtrip", nullptr, &deluge_scenario_clip_clone_roundtrip_begin,
+     &deluge_scenario_clip_clone_roundtrip_complete, &deluge_scenario_clip_clone_roundtrip_dispatch_step,
+     &deluge_scenario_clip_clone_roundtrip_step_done, &deluge_scenario_clip_clone_roundtrip_failures},
     {"clip_lifetime", &deluge_scenario_clip_lifetime_boot, &deluge_scenario_clip_lifetime_begin,
      &deluge_scenario_clip_lifetime_complete, &deluge_scenario_clip_lifetime_dispatch_step,
      &deluge_scenario_clip_lifetime_step_done, &deluge_scenario_clip_lifetime_failures},
@@ -87,12 +94,21 @@ constexpr DelugeScenario kScenarios[] = {
     {"document_save_channel", nullptr, &deluge_scenario_document_save_channel_begin,
      &deluge_scenario_document_save_channel_complete, &deluge_scenario_document_save_channel_dispatch_step,
      &deluge_scenario_document_save_channel_step_done, &deluge_scenario_document_save_channel_failures},
+    {"edit_substrate", nullptr, &deluge_scenario_edit_substrate_begin, &deluge_scenario_edit_substrate_complete,
+     &deluge_scenario_edit_substrate_dispatch_step, &deluge_scenario_edit_substrate_step_done,
+     &deluge_scenario_edit_substrate_failures},
+    {"edit_undo_redo", nullptr, &deluge_scenario_edit_undo_redo_begin, &deluge_scenario_edit_undo_redo_complete,
+     &deluge_scenario_edit_undo_redo_dispatch_step, &deluge_scenario_edit_undo_redo_step_done,
+     &deluge_scenario_edit_undo_redo_failures},
     {"favourites_channel", nullptr, &deluge_scenario_favourites_channel_begin,
      &deluge_scenario_favourites_channel_complete, &deluge_scenario_favourites_channel_dispatch_step,
      &deluge_scenario_favourites_channel_step_done, &deluge_scenario_favourites_channel_failures},
     {"idle_job_rates", nullptr, &deluge_scenario_idle_job_rates_begin, &deluge_scenario_idle_job_rates_complete,
      &deluge_scenario_idle_job_rates_dispatch_step, &deluge_scenario_idle_job_rates_step_done,
      &deluge_scenario_idle_job_rates_failures},
+    {"json_roundtrip", nullptr, &deluge_scenario_json_roundtrip_begin, &deluge_scenario_json_roundtrip_complete,
+     &deluge_scenario_json_roundtrip_dispatch_step, &deluge_scenario_json_roundtrip_step_done,
+     &deluge_scenario_json_roundtrip_failures},
     {"load_cancel", nullptr, &deluge_scenario_load_cancel_begin, &deluge_scenario_load_cancel_complete,
      &deluge_scenario_load_cancel_dispatch_step, &deluge_scenario_load_cancel_step_done,
      &deluge_scenario_load_cancel_failures},
@@ -102,6 +118,18 @@ constexpr DelugeScenario kScenarios[] = {
     {"offset_io", nullptr, &deluge_scenario_offset_io_begin, &deluge_scenario_offset_io_complete,
      &deluge_scenario_offset_io_dispatch_step, &deluge_scenario_offset_io_step_done,
      &deluge_scenario_offset_io_failures},
+    {"param_clone", nullptr, &deluge_scenario_param_clone_begin, &deluge_scenario_param_clone_complete,
+     &deluge_scenario_param_clone_dispatch_step, &deluge_scenario_param_clone_step_done,
+     &deluge_scenario_param_clone_failures},
+    {"param_projection", nullptr, &deluge_scenario_param_projection_begin, &deluge_scenario_param_projection_complete,
+     &deluge_scenario_param_projection_dispatch_step, &deluge_scenario_param_projection_step_done,
+     &deluge_scenario_param_projection_failures},
+    {"param_record_diff", nullptr, &deluge_scenario_param_record_diff_begin,
+     &deluge_scenario_param_record_diff_complete, &deluge_scenario_param_record_diff_dispatch_step,
+     &deluge_scenario_param_record_diff_step_done, &deluge_scenario_param_record_diff_failures},
+    {"param_snapshot_bench", nullptr, &deluge_scenario_param_snapshot_bench_begin,
+     &deluge_scenario_param_snapshot_bench_complete, &deluge_scenario_param_snapshot_bench_dispatch_step,
+     &deluge_scenario_param_snapshot_bench_step_done, &deluge_scenario_param_snapshot_bench_failures},
     {"path_operations", nullptr, &deluge_scenario_path_operations_begin, &deluge_scenario_path_operations_complete,
      &deluge_scenario_path_operations_dispatch_step, &deluge_scenario_path_operations_step_done,
      &deluge_scenario_path_operations_failures},
@@ -135,12 +163,18 @@ constexpr DelugeScenario kScenarios[] = {
     {"settings_channel", nullptr, &deluge_scenario_settings_channel_begin, &deluge_scenario_settings_channel_complete,
      &deluge_scenario_settings_channel_dispatch_step, &deluge_scenario_settings_channel_step_done,
      &deluge_scenario_settings_channel_failures},
+    {"song_edit_roundtrip", nullptr, &deluge_scenario_song_edit_roundtrip_begin,
+     &deluge_scenario_song_edit_roundtrip_complete, &deluge_scenario_song_edit_roundtrip_dispatch_step,
+     &deluge_scenario_song_edit_roundtrip_step_done, &deluge_scenario_song_edit_roundtrip_failures},
     {"song_load_channel", nullptr, &deluge_scenario_song_load_channel_begin,
      &deluge_scenario_song_load_channel_complete, &deluge_scenario_song_load_channel_dispatch_step,
      &deluge_scenario_song_load_channel_step_done, &deluge_scenario_song_load_channel_failures},
     {"song_preview_ab", nullptr, &deluge_scenario_song_preview_ab_begin, &deluge_scenario_song_preview_ab_complete,
      &deluge_scenario_song_preview_ab_dispatch_step, &deluge_scenario_song_preview_ab_step_done,
      &deluge_scenario_song_preview_ab_failures},
+    {"song_roundtrip", nullptr, &deluge_scenario_song_roundtrip_begin, &deluge_scenario_song_roundtrip_complete,
+     &deluge_scenario_song_roundtrip_dispatch_step, &deluge_scenario_song_roundtrip_step_done,
+     &deluge_scenario_song_roundtrip_failures},
     {"song_save_channel", nullptr, &deluge_scenario_song_save_channel_begin,
      &deluge_scenario_song_save_channel_complete, &deluge_scenario_song_save_channel_dispatch_step,
      &deluge_scenario_song_save_channel_step_done, &deluge_scenario_song_save_channel_failures},
@@ -158,6 +192,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"ui_timer_deadline", nullptr, &deluge_scenario_ui_timer_deadline_begin,
      &deluge_scenario_ui_timer_deadline_complete, &deluge_scenario_ui_timer_deadline_dispatch_step,
      &deluge_scenario_ui_timer_deadline_step_done, &deluge_scenario_ui_timer_deadline_failures},
+    {"xml_replay_diff", nullptr, &deluge_scenario_xml_replay_diff_begin, &deluge_scenario_xml_replay_diff_complete,
+     &deluge_scenario_xml_replay_diff_dispatch_step, &deluge_scenario_xml_replay_diff_step_done,
+     &deluge_scenario_xml_replay_diff_failures},
 };
 
 /// A step is an interaction-tier entry into the app, as an app-loop job is: like deluge_app_service(), it first

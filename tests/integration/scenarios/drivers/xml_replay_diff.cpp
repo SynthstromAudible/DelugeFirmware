@@ -5,9 +5,10 @@
 //   1. XMLDeserializer{fragmentBytes}, and
 //   2. ValueTreeDeserializer{*parseXml(fragmentBytes), SourceFormat::Xml},
 // and the two return-transcripts must match token-for-token. XML mode is developed by making these
-// pass. This links only in the host-sim environment (XMLDeserializer is not available to CppSpec).
+// pass. It runs as the xml_replay_diff scenario (scenarios/drivers/driver.h): XMLDeserializer is not
+// available to CppSpec.
 //
-// Build+run:  cmake --build build-sim --target xml_replay_diff && build-sim/xml_replay_diff
+// Run:  ./dbt test xml-replay-diff
 
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
@@ -17,6 +18,15 @@
 #include <cstring>
 #include <string>
 #include <vector>
+
+#include "scenarios/drivers/driver.h"
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
 
 using deluge::storage::parseXml;
 using deluge::storage::SourceFormat;
@@ -63,7 +73,7 @@ void diff(const char* label, const char* xml, Script script) {
 
 	auto tree = parseXml(xml);
 	if (!tree) {
-		printf("FAIL %s: parseXml returned nullopt\n", label);
+		std::fprintf(io.out, "FAIL %s: parseXml returned nullopt\n", label);
 		failures++;
 		return;
 	}
@@ -74,20 +84,21 @@ void diff(const char* label, const char* xml, Script script) {
 
 	if (a != b) {
 		failures++;
-		printf("FAIL %s: transcripts differ (xml=%zu adapter=%zu)\n", label, a.size(), b.size());
+		std::fprintf(io.out, "FAIL %s: transcripts differ (xml=%zu adapter=%zu)\n", label, a.size(), b.size());
 		for (size_t i = 0; i < a.size() || i < b.size(); i++) {
-			printf("  [%zu] xml=%-24s | adapter=%s\n", i, i < a.size() ? a[i].c_str() : "<end>",
-			       i < b.size() ? b[i].c_str() : "<end>");
+			std::fprintf(io.out, "  [%zu] xml=%-24s | adapter=%s\n", i, i < a.size() ? a[i].c_str() : "<end>",
+			             i < b.size() ? b[i].c_str() : "<end>");
 		}
 	}
 	else {
-		printf("ok   %s (%zu tokens)\n", label, a.size());
+		std::fprintf(io.out, "ok   %s (%zu tokens)\n", label, a.size());
 	}
 }
 
 } // namespace
 
-int main() {
+int xml_replay_diff_main(int /*argc*/, char** /*argv*/, Io driverIo) {
+	io = driverIo;
 	// (1) A single attribute-only, self-closing element. Two attributes read back-to-back (no exitTag
 	// between them -- legal for attributes, whose value-read leaves the cursor at the next attribute).
 	diff("attr-only", R"(<clip section="0" length="384"/>)", [](Deserializer& r, Transcript& t) {
@@ -327,6 +338,10 @@ int main() {
 		m(r, t, '}');
 	});
 
-	printf(failures ? "XML_REPLAY_DIFF: %d FAIL\n" : "XML_REPLAY_DIFF: OK\n", failures);
+	std::fprintf(io.out, failures ? "XML_REPLAY_DIFF: %d FAIL\n" : "XML_REPLAY_DIFF: OK\n", failures);
 	return failures ? 1 : 0;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(xml_replay_diff, xml_replay_diff_main)
