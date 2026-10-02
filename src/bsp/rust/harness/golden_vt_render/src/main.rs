@@ -1364,10 +1364,12 @@ fn main() {
     // loop's virtual clock, so the sample clock keeps the device's pace: one block per 2,902 µs.
     // idle_job_rates counts the ui routine's runs, which follow the same timers, so it keeps that pace too.
     // recorder_take records the test input signal and plays a DIN script during the take, both of which follow the
-    // render, so it renders every block at the device's pace too.
+    // render, so it renders every block at the device's pace too. stale_ui plays a DIN script and waits on an armed
+    // song swap, which the playing song's loop launches, and on the UI timers it sets while the swap waits.
     if scenario == "ui_timer_deadline"
         || scenario == "idle_job_rates"
         || scenario == "recorder_take"
+        || scenario == "stale_ui"
     {
         audio_host::set_realtime_render(true);
         render::set_period_override_us(2902, 0);
@@ -1377,9 +1379,8 @@ fn main() {
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {
             "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard"
-            | "audio_header_dump" | "ui_timer_deadline" | "idle_job_rates" | "recorder_take" => {
-                memory_card::install(None)
-            }
+            | "audio_header_dump" | "ui_timer_deadline" | "idle_job_rates" | "recorder_take"
+            | "stale_ui" => memory_card::install(None),
             "audio_load_ab" => fill_audio_load_ab_card(),
             "song_preview_ab" => fill_song_preview_ab_card(&repo_root),
             "song_save_channel" => fill_song_save_card(),

@@ -1,0 +1,540 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include "scenarios/stale_ui_scenario.h"
+
+#include "definitions_cxx.hpp"
+#include "gui/ui/browser/browser.h"
+#include "gui/ui/load/instrument_load.h"
+#include "gui/ui/load/load_song_ui.h"
+#include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
+#include "gui/ui_timer_manager.h"
+#include "gui/views/instrument_clip_view.h"
+#include "gui/views/view.h"
+#include "hid/button.h"
+#include "hid/buttons.h"
+#include "hid/encoder_input.h"
+#include "hid/encoders.h"
+#include "hid/matrix/matrix_driver.h"
+#include "io/file.hpp"
+#include "io/midi/midi_engine.h"
+#include "model/clip/clip.h"
+#include "model/output.h"
+#include "model/song/song.h"
+#include "playback/mode/session.h"
+#include "playback/playback_handler.h"
+#include "util/misc.h"
+
+#include <cstdint>
+#include <cstdio>
+#include <filesystem>
+#include <span>
+#include <string>
+#include <string_view>
+#include <unistd.h>
+
+// See staging_release_scenario.cpp: the app's printf alias has no provider in this harness.
+#ifdef printf
+#undef printf
+#endif
+
+// The harness's DIN note script (audio/host.rs).
+extern "C" {
+int32_t deluge_host_midi_script_start(const char* path);
+uint32_t deluge_host_midi_script_released(void);
+}
+
+namespace {
+
+/// A UI that counts every call made into it after it has left the UI stack. Anything that reaches it then is acting
+/// on a UI the user can no longer see, against whatever song it was opened over.
+class StaleProbeUI final : public UI {
+public:
+	int32_t stale = 0;
+	int32_t calls = 0;
+
+	ActionResult padAction(int32_t, int32_t, int32_t) override {
+		note();
+		return ActionResult::DEALT_WITH;
+	}
+	ActionResult buttonAction(deluge::hid::Button, bool) override {
+		note();
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	ActionResult horizontalEncoderAction(int32_t) override {
+		note();
+		return ActionResult::DEALT_WITH;
+	}
+	ActionResult verticalEncoderAction(int32_t) override {
+		note();
+		return ActionResult::DEALT_WITH;
+	}
+	void selectEncoderAction(int8_t) override { note(); }
+	void modEncoderAction(int32_t, int32_t) override { note(); }
+	void modButtonAction(uint8_t, bool) override { note(); }
+	void modEncoderButtonAction(uint8_t, bool) override { note(); }
+	void graphicsRoutine() override { note(); }
+	ActionResult timerCallback() override {
+		note();
+		return ActionResult::DEALT_WITH;
+	}
+	ActionResult exitUI() override {
+		note();
+		return ActionResult::DEALT_WITH;
+	}
+	void scrollFinished() override { note(); }
+	bool renderMainPads(uint32_t, RGB image[][kDisplayWidth + kSideBarWidth], uint8_t[][kDisplayWidth + kSideBarWidth],
+	                    bool) override {
+		if (image != nullptr) {
+			note();
+		}
+		return true;
+	}
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override { note(); }
+	UIType getUIType() override { return UIType::NONE; }
+
+private:
+	void note() {
+		calls++;
+		if (!isUIOpen(this)) {
+			stale++;
+		}
+	}
+};
+
+StaleProbeUI g_probe;
+
+enum class Stage : uint8_t {
+	Loading,     ///< The blank song's preset load.
+	Listing,     ///< The load browser lists SONGS, as a song loaded from it leaves it.
+	InertRun,    ///< inert_while_empty: a probe UI on top, MIDI NEXT_SONG, input and timers during the load.
+	EditorSetup, ///< retired_song: the loaded song is given a synth clip.
+	EditorRun,   ///< ...the sound editor on top, NEXT_SONG, and the swap watched.
+	HoldStart,   ///< hold_load_to_launch: LOAD pressed in the load browser and held through the load.
+	HoldRelease, ///< ...released once the load waits on it; the swap must arm and the load end.
+	Report,
+	Done,
+};
+
+/// Steps the blank song's preset load is given. A step is about two virtual milliseconds.
+constexpr int32_t kMaxLoadSteps = 20000;
+/// Steps a listing, or a whole song load, is given to settle.
+constexpr int32_t kMaxSettleSteps = 20000;
+
+constexpr const char* kSongA = "SONGS/SUA.XML";
+constexpr const char* kSongB = "SONGS/SUB.XML";
+constexpr const char* kSongText = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n\tfirmwareVersion=\"c1.3.0\"\n"
+                                  "\tearliestCompatibleFirmware=\"4.1.0-alpha\"\n>\n</song>\n";
+constexpr uint8_t kNextSongNote = 0x30;
+
+Stage g_stage = Stage::Loading;
+bool g_stepDone = false;
+int32_t g_failures = 0;
+int32_t g_steps = 0;
+
+std::string g_scriptPath;
+int32_t g_events = 0;
+Song* g_songBefore = nullptr;
+Clip* g_clipBefore = nullptr;
+/// Compared by address only: once the old song is freed, nothing it held may be dereferenced.
+const void* g_modBefore = nullptr;
+bool g_loadSeen = false;
+
+/// inert_while_empty: what was delivered while the stack was empty, and what reached a UI from before the load.
+int32_t g_emptySteps = 0;
+int32_t g_staleCurrent = 0;
+bool g_repeatsTried = false;
+bool g_repeatsMoved = false;
+
+/// retired_song: steps seen before and after the swap with the stack empty, and what they found.
+int32_t g_preSwapSteps = 0;
+int32_t g_postSwapSteps = 0;
+int32_t g_staleEditor = 0;
+int32_t g_staleView = 0;
+
+/// hold_load_to_launch.
+bool g_unarmedSeen = false;
+
+void fail(const char* marker, const char* what) {
+	printf("%s FAIL %s\n", marker, what);
+	g_failures++;
+}
+
+bool stackEmpty() {
+	return getRootUI() == nullptr;
+}
+
+void writeSong(const char* path) {
+	if (auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE); file.has_value()) {
+		const std::string_view text{kSongText};
+		(void)file->write(std::as_bytes(std::span{text.data(), text.size()}));
+	}
+}
+
+/// The DIN script: one press of the note the learned NEXT_SONG command listens for.
+std::string writeNextSongScript() {
+	std::error_code error;
+	const std::filesystem::path path =
+	    std::filesystem::temp_directory_path(error) / ("deluge-stale-ui-" + std::to_string(::getpid()) + ".notes");
+	if (error) {
+		return {};
+	}
+	FILE* file = std::fopen(path.c_str(), "w");
+	if (file == nullptr) {
+		return {};
+	}
+	std::fprintf(file, "0 90 %02X 64\n2000 80 %02X 00\n", kNextSongNote, kNextSongNote);
+	std::fclose(file);
+	return path.string();
+}
+
+/// The clip view in front of the song's first clip.
+Clip* frontClip(const char* marker) {
+	Clip* clip = currentSong->sessionClips.empty() ? nullptr : currentSong->sessionClips[0];
+	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::SYNTH) {
+		fail(marker, "the song has no synth clip");
+		return nullptr;
+	}
+	currentSong->setCurrentClip(clip);
+	changeRootUI(&instrumentClipView);
+	return clip;
+}
+
+/// A load is over once its completion has run and the song it brought in is in front of a root UI.
+bool loadOver() {
+	return !loadSongUI.loadInFlight() && currentSong != g_songBefore && !stackEmpty();
+}
+
+/// Every kind of input and UI timer the app delivers, through the app's own dispatchers.
+void deliverEverything() {
+	using namespace deluge::hid;
+	(void)Buttons::buttonAction(button::SYNTH, true);
+	(void)Buttons::buttonAction(button::SYNTH, false);
+	(void)matrixDriver.padAction(3, 3, 64);
+	(void)matrixDriver.padAction(3, 3, 0);
+	encoders::functionEncoderAt(1).applyEdges(2); // scrollX
+	encoders::functionEncoderAt(0).applyEdges(2); // scrollY
+	encoders::modEncoderAt(0).applyEdges(1);
+	(void)encoders::interpretEncoders();
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 1);
+	uiTimerManager.setTimer(TimerName::BACK_MENU_EXIT, 1);
+}
+
+void stepLoading() {
+	if (currentSong->blankPresetPending || deluge::gui::instrumentLoad.acquisitionInFlight()) {
+		if (++g_steps > kMaxLoadSteps) {
+			fail("SU-SETUP", "the blank song's preset load never finished");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	if (frontClip("SU-SETUP") == nullptr) {
+		g_stage = Stage::Report;
+		return;
+	}
+	(void)deluge::io::mkdir("SONGS");
+	writeSong(kSongA);
+	writeSong(kSongB);
+	currentSong->setSongFullPath(kSongA);
+	(void)openUI(&loadSongUI);
+	g_steps = 0;
+	g_stage = Stage::Listing;
+}
+
+/// The browser's listing is what NEXT_SONG walks. It is left the way a song loaded from the browser leaves it.
+void stepListing() {
+	if (Browser::isListingInProgress()) {
+		loadSongUI.graphicsRoutine();
+		if (++g_steps > kMaxSettleSteps) {
+			fail("SU-SETUP", "the load browser's listing never finished");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	for (int32_t t = 0; currentUIMode == UI_MODE_VERTICAL_SCROLL && t < kDisplayHeight * 4; t++) {
+		(void)loadSongUI.timerCallback();
+	}
+	FileItem* const item = Browser::getCurrentFileItem();
+	const bool listed = item != nullptr && !item->isFolder;
+	closeUI(&loadSongUI);
+	currentUIMode = UI_MODE_NONE;
+	if (!listed) {
+		fail("SU-SETUP", "the load browser did not list a song for NEXT_SONG to move on to, so nothing was tested");
+		g_stage = Stage::Report;
+		return;
+	}
+	auto& command = midiEngine.globalMIDICommands[util::to_underlying(GlobalMIDICommand::NEXT_SONG)];
+	command.cable = nullptr;
+	command.channelOrZone = 0;
+	command.noteOrCC = kNextSongNote;
+
+	// inert_while_empty: NEXT_SONG moves on only while the song plays.
+	playbackHandler.setupPlaybackUsingInternalClock(0, false);
+	if (frontClip("SU-INERT") == nullptr || !openUI(&g_probe) || getCurrentUI() != &g_probe) {
+		fail("SU-INERT", "the probe UI could not be opened over the clip view");
+		g_stage = Stage::Report;
+		return;
+	}
+	g_probe.stale = 0;
+	g_probe.calls = 0;
+	g_songBefore = currentSong;
+	g_scriptPath = writeNextSongScript();
+	g_events = g_scriptPath.empty() ? -1 : deluge_host_midi_script_start(g_scriptPath.c_str());
+	if (g_events <= 0) {
+		fail("SU-INERT", "the DIN script could not be written or armed");
+		g_stage = Stage::Report;
+		return;
+	}
+	g_steps = 0;
+	g_stage = Stage::InertRun;
+}
+
+/// While the load has the stack empty, deliver every kind of input and timer; none may reach the probe.
+void stepInertRun() {
+	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
+	if (loadSongUI.loadInFlight() && stackEmpty()) {
+		g_emptySteps++;
+		if (getCurrentUI() == &g_probe) {
+			g_staleCurrent++;
+		}
+		deliverEverything();
+		// The armed swap's loop count is the select encoder's to change, whichever UI the load took down.
+		if (!g_repeatsTried && currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
+			g_repeatsTried = true;
+			const int32_t before = session.numRepeatsTilLaunch;
+			deluge::hid::encoders::functionEncoderAt(3).applyEdges(2);
+			(void)deluge::hid::encoders::interpretEncoders();
+			g_repeatsMoved = session.numRepeatsTilLaunch == before + 1;
+		}
+	}
+	if (!loadOver()) {
+		if (++g_steps > kMaxSettleSteps) {
+			fail("SU-INERT", "the MIDI NEXT_SONG load never ended");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	printf("SU-INERT loadSeen=%d emptySteps=%d staleCurrent=%d probeStale=%d probeCalls=%d steps=%d\n",
+	       g_loadSeen ? 1 : 0, g_emptySteps, g_staleCurrent, g_probe.stale, g_probe.calls, g_steps);
+	if (!g_loadSeen || g_emptySteps == 0) {
+		fail("SU-INERT", "no step saw the load with the UI stack empty, so nothing was tested");
+	}
+	if (g_staleCurrent != 0) {
+		fail("SU-INERT", "getCurrentUI() reported a UI from before the load while the stack was empty");
+	}
+	if (g_probe.stale != 0) {
+		fail("SU-INERT", "input or a UI timer reached a UI the load had taken down");
+	}
+	printf("SU-REPEATS tried=%d moved=%d repeats=%d\n", g_repeatsTried ? 1 : 0, g_repeatsMoved ? 1 : 0,
+	       static_cast<int>(session.numRepeatsTilLaunch));
+	if (!g_repeatsTried) {
+		fail("SU-REPEATS", "the swap was never armed while the stack was empty, so nothing was tested");
+	}
+	else if (!g_repeatsMoved) {
+		fail("SU-REPEATS", "the select encoder did not change the armed swap's loop count");
+	}
+	if (isUIOpen(&g_probe)) {
+		fail("SU-INERT", "the probe UI is still on the stack after the load");
+	}
+	g_steps = 0;
+	g_stage = Stage::EditorSetup;
+}
+
+/// The song NEXT_SONG brought in has no clips; give it the built-in default synth clip a new song starts with. The
+/// preset that would replace that synth is not asked for: its arrival would swap the clip's output mid-leg.
+void stepEditorSetup() {
+	if (currentSong->sessionClips.empty()) {
+		(void)currentSong->ensureAtLeastOneSessionClip();
+		currentSong->blankPresetPending = false;
+	}
+	Clip* clip = frontClip("SU-RETIRED");
+	if (clip == nullptr) {
+		g_stage = Stage::Report;
+		return;
+	}
+	if (!playbackHandler.isEitherClockActive()) {
+		playbackHandler.setupPlaybackUsingInternalClock(0, false);
+	}
+	if (!soundEditor.setup(clip) || !openUI(&soundEditor) || getCurrentUI() != &soundEditor) {
+		fail("SU-RETIRED", "the sound editor could not be opened on the synth clip");
+		g_stage = Stage::Report;
+		return;
+	}
+	g_songBefore = currentSong;
+	g_clipBefore = clip;
+	g_modBefore = clip->output->toModControllable();
+	g_loadSeen = false;
+	currentSong->loadNextSong();
+	g_steps = 0;
+	g_stage = Stage::EditorRun;
+}
+
+/// Once the outgoing song has been swapped out it is on its way to being freed; nothing the empty stack reaches may
+/// still point into it.
+void stepEditorRun() {
+	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
+	if (loadSongUI.loadInFlight() && stackEmpty()) {
+		const bool swapped = currentSong != g_songBefore;
+		(swapped ? g_postSwapSteps : g_preSwapSteps)++;
+		if (getCurrentUI() == &soundEditor) {
+			g_staleEditor++;
+		}
+		if (swapped
+		    && (view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_clipBefore
+		        || view.activeModControllableModelStack.modControllable == g_modBefore)) {
+			g_staleView++;
+		}
+	}
+	if (!loadOver()) {
+		if (++g_steps > kMaxSettleSteps) {
+			fail("SU-RETIRED", "the NEXT_SONG load never ended");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	printf("SU-RETIRED loadSeen=%d preSwap=%d postSwap=%d staleEditor=%d staleView=%d steps=%d\n", g_loadSeen ? 1 : 0,
+	       g_preSwapSteps, g_postSwapSteps, g_staleEditor, g_staleView, g_steps);
+	if (g_preSwapSteps == 0 || g_postSwapSteps == 0) {
+		fail("SU-RETIRED", "no step saw the stack empty on both sides of the swap, so nothing was tested");
+	}
+	if (g_staleEditor != 0) {
+		fail("SU-RETIRED", "input would have reached the sound editor on the outgoing song while the stack was empty");
+	}
+	if (g_staleView != 0) {
+		fail("SU-RETIRED", "the view still pointed into the swapped-out song");
+	}
+	// hold_load_to_launch: the load browser, on the song now current.
+	(void)openUI(&loadSongUI);
+	g_steps = 0;
+	g_stage = Stage::HoldStart;
+}
+
+/// LOAD pressed in the browser starts the load, and held, keeps the swap waiting for its release.
+void stepHoldStart() {
+	if (Browser::isListingInProgress()) {
+		loadSongUI.graphicsRoutine();
+		if (++g_steps > kMaxSettleSteps) {
+			fail("SU-HOLD", "the load browser's listing never finished");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	for (int32_t t = 0; currentUIMode == UI_MODE_VERTICAL_SCROLL && t < kDisplayHeight * 4; t++) {
+		(void)loadSongUI.timerCallback();
+	}
+	g_songBefore = currentSong;
+	g_loadSeen = false;
+	(void)Buttons::buttonAction(deluge::hid::button::LOAD, true);
+	g_steps = 0;
+	g_stage = Stage::HoldRelease;
+}
+
+void stepHoldRelease() {
+	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
+	if (!g_unarmedSeen && currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
+		g_unarmedSeen = true;
+		(void)Buttons::buttonAction(deluge::hid::button::LOAD, false);
+	}
+	if (!loadOver()) {
+		if (++g_steps > kMaxSettleSteps) {
+			printf("SU-HOLD loadSeen=%d unarmedSeen=%d mode=%u steps=%d\n", g_loadSeen ? 1 : 0, g_unarmedSeen ? 1 : 0,
+			       currentUIMode, g_steps);
+			fail("SU-HOLD", "the load held on LOAD never ended once LOAD was released");
+			if (Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
+				(void)Buttons::buttonAction(deluge::hid::button::LOAD, false);
+			}
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	printf("SU-HOLD loadSeen=%d unarmedSeen=%d steps=%d\n", g_loadSeen ? 1 : 0, g_unarmedSeen ? 1 : 0, g_steps);
+	if (!g_loadSeen || !g_unarmedSeen) {
+		fail("SU-HOLD", "the load never waited on the held LOAD button, so nothing was tested");
+	}
+	g_stage = Stage::Report;
+}
+
+void report() {
+	if (playbackHandler.isEitherClockActive()) {
+		playbackHandler.endPlayback();
+	}
+	if (!g_scriptPath.empty()) {
+		std::remove(g_scriptPath.c_str());
+	}
+	printf("SU-RESULT failures=%d\n", g_failures);
+	g_stage = Stage::Done;
+}
+
+} // namespace
+
+extern "C" {
+
+void deluge_scenario_stale_ui_begin(void) {
+	setvbuf(stdout, nullptr, _IOLBF, 0);
+	g_stage = Stage::Loading;
+	g_stepDone = false;
+	g_failures = 0;
+	g_steps = 0;
+}
+
+bool deluge_scenario_stale_ui_complete(void) {
+	return g_stage == Stage::Done;
+}
+
+void deluge_scenario_stale_ui_dispatch_step(void) {
+	g_stepDone = false;
+	switch (g_stage) {
+	case Stage::Loading:
+		stepLoading();
+		break;
+	case Stage::Listing:
+		stepListing();
+		break;
+	case Stage::InertRun:
+		stepInertRun();
+		break;
+	case Stage::EditorSetup:
+		stepEditorSetup();
+		break;
+	case Stage::EditorRun:
+		stepEditorRun();
+		break;
+	case Stage::HoldStart:
+		stepHoldStart();
+		break;
+	case Stage::HoldRelease:
+		stepHoldRelease();
+		break;
+	case Stage::Report:
+		report();
+		break;
+	case Stage::Done:
+		break;
+	}
+	g_stepDone = true;
+}
+
+bool deluge_scenario_stale_ui_step_done(void) {
+	return g_stepDone;
+}
+
+int32_t deluge_scenario_stale_ui_failures(void) {
+	return g_failures;
+}
+
+} // extern "C"
