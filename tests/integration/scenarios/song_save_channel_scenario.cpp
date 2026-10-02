@@ -71,8 +71,8 @@ public:
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void pressEnter() { saveSongUI.enterKeyPress(); }
 	static void pressBack() {
-		(void)saveSongUI.buttonAction(deluge::hid::button::BACK, true, false);
-		(void)saveSongUI.buttonAction(deluge::hid::button::BACK, false, false);
+		(void)saveSongUI.buttonAction(deluge::hid::button::BACK, true);
+		(void)saveSongUI.buttonAction(deluge::hid::button::BACK, false);
 	}
 	static bool overwritePromptOpen() { return getCurrentUI() == &deluge::gui::context_menu::overwriteFile; }
 	static void confirmOverwrite() { (void)deluge::gui::context_menu::overwriteFile.acceptCurrentOption(); }

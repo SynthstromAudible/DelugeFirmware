@@ -25,7 +25,7 @@ public:
 	SavePatternUI();
 	bool opened() override;
 
-	ActionResult saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult saveScreenButtonAction(deluge::hid::Button b, bool on) override;
 
 	void endSession() {};
 	bool serializeForSave(XMLSerializer& into) override;

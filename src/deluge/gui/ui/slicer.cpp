@@ -248,7 +248,7 @@ ActionResult Slicer::horizontalEncoderAction(int32_t offset) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult Slicer::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult Slicer::verticalEncoderAction(int32_t offset) {
 	if (slicerMode == SLICER_MODE_MANUAL) {
 
 		manualSlicePoints[currentSlice].transpose += offset;
@@ -291,7 +291,7 @@ void Slicer::selectEncoderAction(int8_t offset) {
 	renderUIsForOled();
 }
 
-ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	if (currentUIMode != UI_MODE_NONE || !on) {
@@ -354,9 +354,6 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 	}
 
 	if (b == SELECT_ENC) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 
 		// Committing ends in sampleBrowser.exitAndNeverDeleteDrum() → close(), i.e. the slicer is gone by the time a
 		// held audition could land, and the drums it would sound through have been rebuilt underneath it.
@@ -394,9 +391,6 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 	}
 
 	else if (b == BACK) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		// Leaving the slicer: close() pops it off the UI stack, so graphicsRoutine() stops running and a held audition
 		// would otherwise sit held until the next visit.
 		cancelPreview();

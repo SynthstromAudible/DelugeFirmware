@@ -55,9 +55,9 @@ public:
 	LoadInstrumentPresetUI() = default;
 	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	/// @brief Clone the selected preset: a new Instrument under an unused variation of its name, as the long-press
 	///        menu asks. The browser's gate is closed until the clone ends.
 	/// @param completion Told how the clone ended: Error::NONE once it is swapped in.

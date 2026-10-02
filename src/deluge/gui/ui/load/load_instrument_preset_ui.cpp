@@ -631,7 +631,7 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 	}
 }
 
-ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 	// Refused while a commit is in flight: InstrumentLoad closes the browser's gate until it ends.
 	if (deluge::gui::instrumentLoad.commitInFlight()) {
@@ -653,9 +653,6 @@ doChangeOutputType:
 			return ActionResult::DEALT_WITH;
 		}
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			changeOutputType(newOutputType);
 		}
 	}
@@ -679,7 +676,7 @@ doChangeOutputType:
 	}
 
 	else {
-		return LoadUI::buttonAction(b, on, inCardRoutine);
+		return LoadUI::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -691,10 +688,6 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		return ActionResult::DEALT_WITH;
 	}
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
-
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // The below needs to access the card.
-		}
 
 		currentUIMode = UI_MODE_NONE;
 
@@ -1333,9 +1326,6 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 	else if (x == kDisplayWidth) {
 potentiallyExit:
 		if (on && !currentUIMode) {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			exitAction();
 		}
 	}
@@ -1347,20 +1337,20 @@ potentiallyExit:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset) {
 	// Refused while a commit is in flight: InstrumentLoad closes the browser's gate until it ends.
 	if (deluge::gui::instrumentLoad.commitInFlight()) {
 		return ActionResult::DEALT_WITH;
 	}
 	if (Buttons::isShiftButtonPressed()) {
-		LoadUI::verticalEncoderAction(offset, false);
+		LoadUI::verticalEncoderAction(offset);
 	}
 	if (showingAuditionPads()) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+		ActionResult result = instrumentClipView.verticalEncoderAction(offset);
 
 		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 			return result;

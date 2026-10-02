@@ -262,11 +262,11 @@ void reportLeg() {
 void actOverHeldRead() {
 	using namespace deluge::hid::button;
 	if (g_leg == Leg::Discard) {
-		(void)loadPatternUI.buttonAction(BACK, true, false);
+		(void)loadPatternUI.buttonAction(BACK, true);
 	}
 	else {
-		(void)loadPatternUI.buttonAction(SELECT_ENC, true, false);
-		(void)loadPatternUI.buttonAction(SELECT_ENC, false, false);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, true);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, false);
 	}
 }
 
@@ -275,19 +275,19 @@ void act() {
 	using namespace deluge::hid::button;
 	switch (g_leg) {
 	case Leg::Load:
-		(void)loadPatternUI.buttonAction(SELECT_ENC, true, false);
-		(void)loadPatternUI.buttonAction(SELECT_ENC, false, false);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, true);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, false);
 		break;
 	case Leg::Preview:
 		// Press and release: the press previews, and each edge toggles playback, so the pair leaves it stopped.
-		(void)loadPatternUI.buttonAction(PLAY, true, false);
-		(void)loadPatternUI.buttonAction(PLAY, false, false);
+		(void)loadPatternUI.buttonAction(PLAY, true);
+		(void)loadPatternUI.buttonAction(PLAY, false);
 		break;
 	case Leg::Discard:
 	case Leg::Supersede:
 		// The preview first; the second press waits in Stage::Hold until the channel holds the preview's buffer.
-		(void)loadPatternUI.buttonAction(PLAY, true, false);
-		(void)loadPatternUI.buttonAction(PLAY, false, false);
+		(void)loadPatternUI.buttonAction(PLAY, true);
+		(void)loadPatternUI.buttonAction(PLAY, false);
 		break;
 	default:
 		break;

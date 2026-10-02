@@ -66,7 +66,7 @@ void TimelineView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 	memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 }
 
-ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Horizontal encoder button
@@ -92,9 +92,6 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Triplets button
 	else if (b == TRIPLETS) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			tripletsButtonPressed();
 		}
 	}
@@ -117,7 +114,7 @@ ActionResult TimelineView::buttonAction(deluge::hid::Button b, bool on, bool inC
 #endif
 
 	else {
-		return view.buttonAction(b, on, inCardRoutine);
+		return view.buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;

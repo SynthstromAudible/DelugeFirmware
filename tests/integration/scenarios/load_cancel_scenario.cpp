@@ -154,8 +154,8 @@ bool waitMore(const char* marker, const char* what) {
 }
 
 void pressBack() {
-	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true, false);
-	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false, false);
+	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true);
+	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false);
 }
 
 /// Ticks the browser while its listing runs, and says whether it still is.

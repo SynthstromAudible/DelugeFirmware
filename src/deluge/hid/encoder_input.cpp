@@ -108,10 +108,9 @@ bool interpretEncoders() {
 
 			case 1: // scrollX
 				result = getCurrentUI()->horizontalEncoderAction(detentDelta);
-				// Actually, after coding this up, I realise I actually have it above stopping the X encoder from even
-				// getting here during the SD routine. Ok so we'll leave it that way, in addition to me having made all
-				// the horizontalEncoderAction() calls SD-routine-safe
 checkResult:
+				// A handler that cannot act yet (TimelineView's re-entry guards) asks to be reminded: keep the
+				// detents for the next pass.
 				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 					encodersWaitingForCardRoutineEnd |= (1 << e);
 					fe.restore(detentDelta); // Put it back for next time
@@ -123,7 +122,7 @@ checkResult:
 					PadLEDs::changeDimmerInterval(detentDelta);
 				}
 				else {
-					result = getCurrentUI()->verticalEncoderAction(detentDelta, false);
+					result = getCurrentUI()->verticalEncoderAction(detentDelta);
 					goto checkResult;
 				}
 				break;

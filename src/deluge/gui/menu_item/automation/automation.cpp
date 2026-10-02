@@ -58,7 +58,7 @@ MenuItem* Automation::selectButtonPress() {
 	return nullptr; // Navigate back
 }
 
-ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult Automation::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	bool clipMinder = rootUIIsClipMinderScreen();
@@ -127,7 +127,7 @@ ActionResult Automation::buttonAction(deluge::hid::Button b, bool on, bool inCar
 		else if (b == X_ENC) {
 			// Horizontal encoder button to zoom in/out of underlying automation view
 			if (rootUI == &automationView) {
-				automationView.buttonAction(b, on, inCardRoutine);
+				automationView.buttonAction(b, on);
 				return ActionResult::DEALT_WITH;
 			}
 		}

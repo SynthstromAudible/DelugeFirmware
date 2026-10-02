@@ -106,17 +106,17 @@ bool SaveUI::anySaveInFlight() {
 	return saveInFlight_ || saveSongUI.collectInFlight() || saveSongUI.docInFlight();
 }
 
-ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on) {
 	if (anySaveInFlight()) {
 		// The save screen ignores the press, but it is NOT dealt with: the global handlers behind this still
 		// run. None of them can close this screen, and swallowing them would lose a SHIFT release -- leaving
 		// shift held after the save -- and take PLAY and RECORD away for as long as a save runs.
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	return saveScreenButtonAction(b, on, inCardRoutine);
+	return saveScreenButtonAction(b, on);
 }
 
-ActionResult SaveUI::saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SaveUI::saveScreenButtonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Save button
@@ -125,7 +125,7 @@ ActionResult SaveUI::saveScreenButtonAction(deluge::hid::Button b, bool on, bool
 	}
 
 	// Pressing on select encoder button will go through here
-	return SlotBrowser::buttonAction(b, on, inCardRoutine);
+	return SlotBrowser::buttonAction(b, on);
 }
 
 ActionResult SaveUI::exitUI() {
@@ -143,11 +143,11 @@ ActionResult SaveUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	return SlotBrowser::padAction(x, y, velocity);
 }
 
-ActionResult SaveUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult SaveUI::verticalEncoderAction(int32_t offset) {
 	if (anySaveInFlight()) {
 		return ActionResult::DEALT_WITH;
 	}
-	return SlotBrowser::verticalEncoderAction(offset, inCardRoutine);
+	return SlotBrowser::verticalEncoderAction(offset);
 }
 
 ActionResult SaveUI::horizontalEncoderAction(int32_t offset) {

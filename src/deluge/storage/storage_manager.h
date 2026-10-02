@@ -21,7 +21,6 @@
 #include "extern.h"
 #include "io/file.hpp"
 #include "io/stall_bound.h"
-#include "libdeluge/scheduler.h" // isSDRoutineActive()
 #include "modulation/sync.h"
 #include "util/firmware_version.h"
 

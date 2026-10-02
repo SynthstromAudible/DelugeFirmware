@@ -53,7 +53,7 @@ class View {
 public:
 	View();
 	void focusRegained();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on);
 	void setTimeBaseScaleLedState();
 	void setLedStates();
 

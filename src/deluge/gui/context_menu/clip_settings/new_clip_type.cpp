@@ -142,7 +142,7 @@ bool NewClipType::acceptCurrentOption() {
 		b = CV;
 	}
 
-	sessionView.clipCreationButtonPressed(b, 1, isSDRoutineActive()); // let the grid handle this
+	sessionView.clipCreationButtonPressed(b, 1); // let the grid handle this
 
 	return true;
 }
@@ -154,14 +154,14 @@ ActionResult NewClipType::padAction(int32_t x, int32_t y, int32_t on) {
 	return result;
 }
 
-ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	if (b == SELECT_ENC) {
 		acceptCurrentOption();
 	}
 	else {
-		sessionView.clipCreationButtonPressed(b, on, inCardRoutine); // let the grid handle this
+		sessionView.clipCreationButtonPressed(b, on); // let the grid handle this
 	}
 
 	close();

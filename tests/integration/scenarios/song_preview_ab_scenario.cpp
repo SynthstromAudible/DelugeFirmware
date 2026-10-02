@@ -318,7 +318,7 @@ public:
 	static void sessionButtonChangeOutputType(deluge::hid::button::Button b) {
 		currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 		sessionView.selectedClipYDisplay = 0;
-		(void)sessionView.buttonAction(b, true, false);
+		(void)sessionView.buttonAction(b, true);
 	}
 
 	/// Drives SessionView's REAL empty-pad "create a clip here" gesture, through padAction() in Rows

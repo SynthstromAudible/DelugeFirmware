@@ -28,7 +28,7 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool opened() override;
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth] = nullptr,

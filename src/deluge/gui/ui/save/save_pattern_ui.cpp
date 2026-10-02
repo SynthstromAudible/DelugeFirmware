@@ -111,7 +111,7 @@ void SavePatternUI::onBrowserOpened() {
 	focusRegained();
 }
 
-ActionResult SavePatternUI::saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SavePatternUI::saveScreenButtonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Load button
@@ -126,7 +126,7 @@ ActionResult SavePatternUI::saveScreenButtonAction(deluge::hid::Button b, bool o
 				return ActionResult::DEALT_WITH;
 			}
 		}
-		return SaveUI::saveScreenButtonAction(b, on, inCardRoutine);
+		return SaveUI::saveScreenButtonAction(b, on);
 	}
 }
 

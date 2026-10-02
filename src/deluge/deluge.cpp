@@ -203,9 +203,10 @@ makeBattLEDSolid:
 bool alreadyDoneScroll = false;
 bool waitingForSDRoutineToEnd = false;
 
-// An input event whose action returned REMIND_ME_OUTSIDE_CARD_ROUTINE: held here
-// and re-dispatched once the SD routine ends (the pull-model replacement for the
-// old uartPutCharBack back-pressure).
+// An input event whose action returned REMIND_ME_OUTSIDE_CARD_ROUTINE, held here and
+// re-dispatched on a later run of the input job. TimelineView::horizontalEncoderAction()'s
+// re-entry guards (a render of the new navigation level still pending, or the action
+// already running) are what ask for that.
 static DelugeInputEvent heldInputEvent;
 
 namespace {
@@ -242,9 +243,9 @@ bool isShortPress(uint32_t pressTime) {
 	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
 }
 
-// Dispatch one decoded input event. Returns false if it must be retried once the
-// SD routine ends (the event is stashed in heldInputEvent and
-// waitingForSDRoutineToEnd is set); true once handled.
+// Dispatch one decoded input event. Returns false if its action asked to be reminded
+// later (the event is stashed in heldInputEvent and waitingForSDRoutineToEnd is set);
+// true once handled.
 static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 	switch (ev.kind) {
 	case DELUGE_EVENT_PAD: {
@@ -264,7 +265,7 @@ static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 	case DELUGE_EVENT_BUTTON: {
 		deluge::hid::display::Screensaver::noteActivity();
 		auto b = deluge::hid::button::fromXY(ev.x, ev.y);
-		ActionResult result = Buttons::buttonAction(b, ev.value, false);
+		ActionResult result = Buttons::buttonAction(b, ev.value);
 		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 			heldInputEvent = ev;
 			waitingForSDRoutineToEnd = true;
@@ -275,8 +276,8 @@ static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 	case DELUGE_EVENT_NO_PRESSES:
 		// The safety net that releases any pad the firmware still thinks is held (e.g. because a release
 		// event was lost under load); see issue #3168.
-		matrixDriver.noPressesHappening(false);
-		Buttons::noPressesHappening(false);
+		matrixDriver.noPressesHappening();
+		Buttons::noPressesHappening();
 		break;
 	default:
 		break; // ENCODER events do not arrive on this channel

@@ -93,11 +93,9 @@ public:
 	UI();
 
 	virtual ActionResult padAction(int32_t x, int32_t y, int32_t velocity) { return ActionResult::DEALT_WITH; }
-	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
-		return ActionResult::NOT_DEALT_WITH;
-	}
+	virtual ActionResult buttonAction(deluge::hid::Button b, bool on) { return ActionResult::NOT_DEALT_WITH; }
 	virtual ActionResult horizontalEncoderAction(int32_t offset) { return ActionResult::DEALT_WITH; }
-	virtual ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) { return ActionResult::DEALT_WITH; }
+	virtual ActionResult verticalEncoderAction(int32_t offset) { return ActionResult::DEALT_WITH; }
 	virtual void selectEncoderAction(int8_t offset) {}
 	virtual void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	virtual void modButtonAction(uint8_t whichButton, bool on);

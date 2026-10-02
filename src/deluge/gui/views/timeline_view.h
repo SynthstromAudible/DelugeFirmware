@@ -45,7 +45,7 @@ public:
 	// calculateZoomPinSquares().
 	virtual void tellMatrixDriverWhichRowsContainSomethingZoomable();
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	void displayZoomLevel(bool justPopup = false);
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void displayScrollPos();

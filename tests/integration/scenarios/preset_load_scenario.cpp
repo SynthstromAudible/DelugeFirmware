@@ -548,8 +548,8 @@ bool listingBusy() {
 /// The Select encoder's press and release on the current UI, as a user's short press delivers them.
 void pressSelect() {
 	using namespace deluge::hid::button;
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, false, false);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, false);
 }
 
 /// The kit clip's first drum and its NoteRow, or nulls.
@@ -796,8 +796,8 @@ void tickGate() {
 	}
 	using namespace deluge::hid::button;
 	const OutputType typeBefore = Browser::outputTypeToLoad;
-	(void)getCurrentUI()->buttonAction(KIT, true, false);
-	(void)getCurrentUI()->buttonAction(KIT, false, false);
+	(void)getCurrentUI()->buttonAction(KIT, true);
+	(void)getCurrentUI()->buttonAction(KIT, false);
 	g_gateTypeRefused = Browser::outputTypeToLoad == typeBefore;
 	const FileItem* item = loadInstrumentPresetUI.getCurrentFileItem();
 	const std::string before = item != nullptr ? item->filename.c_str() : "";
@@ -824,7 +824,7 @@ void actLeg() {
 	}
 	if (g_leg == Leg::Clone || g_leg == Leg::Race) {
 		// A long press on Select: the press, then what the UI timer's callback does once it has been held.
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
 		(void)static_cast<UI&>(loadInstrumentPresetUI).timerCallback();
 		const bool menuOnTop = getCurrentUI() == &deluge::gui::context_menu::loadInstrumentPreset;
 		printf("PL-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
@@ -1397,8 +1397,8 @@ bool actAcquire() {
 		if (!focusClip(g_aqClip)) {
 			return fail(leg, "the new-track gesture made no clip");
 		}
-		(void)instrumentClipView.buttonAction(KIT, true, false);
-		(void)instrumentClipView.buttonAction(KIT, false, false);
+		(void)instrumentClipView.buttonAction(KIT, true);
+		(void)instrumentClipView.buttonAction(KIT, false);
 		return true;
 	case Leg::AqNavigate:
 		if (g_aqAct == 0) {
@@ -1451,8 +1451,8 @@ bool actAcquire() {
 			return fail(leg, "the new-track gesture made no clip");
 		}
 		if ((g_aqAct % 2) == 0) {
-			(void)instrumentClipView.buttonAction(SYNTH, true, false);
-			(void)instrumentClipView.buttonAction(SYNTH, false, false);
+			(void)instrumentClipView.buttonAction(SYNTH, true);
+			(void)instrumentClipView.buttonAction(SYNTH, false);
 			return true;
 		}
 		auto* clip = static_cast<InstrumentClip*>(g_aqClip);
@@ -1469,8 +1469,8 @@ bool actAcquire() {
 			clip->backedUpInstrumentDirPath[kitIdx] = kChangeMissingDir;
 			clip->backedUpInstrumentName[kitIdx] = kChangeNamed;
 		}
-		(void)instrumentClipView.buttonAction(KIT, true, false);
-		(void)instrumentClipView.buttonAction(KIT, false, false);
+		(void)instrumentClipView.buttonAction(KIT, true);
+		(void)instrumentClipView.buttonAction(KIT, false);
 		return true;
 	}
 	case Leg::AqNavWrap: {
@@ -1498,8 +1498,8 @@ bool actAcquire() {
 		g_slotStallOutputBefore = g_aqClip->output;
 		g_aqNameBefore = g_aqClip->output->name;
 		deluge_file_directory_set_latency_ms(kStallHoldMs);
-		(void)instrumentClipView.buttonAction(KIT, true, false);
-		(void)instrumentClipView.buttonAction(KIT, false, false);
+		(void)instrumentClipView.buttonAction(KIT, true);
+		(void)instrumentClipView.buttonAction(KIT, false);
 		return true;
 	}
 	case Leg::AqNavStall: {

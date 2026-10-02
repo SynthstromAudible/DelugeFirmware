@@ -33,9 +33,9 @@
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult timerCallback() override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 
 	/// @brief Per-tick surface for the song preview: re-asks for one that has not landed yet.
 	///

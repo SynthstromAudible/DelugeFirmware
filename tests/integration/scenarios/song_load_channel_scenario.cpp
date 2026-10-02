@@ -289,8 +289,8 @@ void runTick() {
 			}
 			break;
 		}
-		(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true, false);
-		(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false, false);
+		(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true);
+		(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false);
 		const bool dropped = !loadSongUI.loadInFlight();
 		const bool browserStayed = getCurrentUI() == &loadSongUI && currentUIMode == UI_MODE_NONE;
 		const bool songKept = currentSong == g_songBefore && currentSong->insideWorldTickMagnitude == kDecoyMagnitude;

@@ -351,13 +351,13 @@ void AudioRecorder::finishRecording() {
 	display->removeLoadingAnimation();
 }
 
-ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	if (!on) {
 		// allow turning off fill mode if it was active while entering audio recorder
 		if (b == SYNC_SCALING && currentSong->isFillModeActive()) {
-			return getRootUI()->buttonAction(b, on, inCardRoutine);
+			return getRootUI()->buttonAction(b, on);
 		}
 		return ActionResult::NOT_DEALT_WITH;
 	}
@@ -366,9 +366,6 @@ ActionResult AudioRecorder::buttonAction(deluge::hid::Button b, bool on, bool in
 	// they wait - that'd be a tangle.
 	if ((b == BACK) || (b == SELECT_ENC) || (b == RECORD)) {
 
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		endRecordingSoon(kInternalButtonPressLatency);
 	}
 	else {

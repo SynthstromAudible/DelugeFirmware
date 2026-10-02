@@ -221,9 +221,6 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 	else if (y == kQwertyHomeRow && x >= 14 && x < 16) {
 		if (on) {
 			if (!currentUIMode) {
-				if (isSDRoutineActive()) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
 				enterKeyPress();
 			}
 		}
@@ -275,51 +272,38 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 				// If this char was already predicted, that's easy and we can just move forward
 				if (charCaseEqual(enteredText.c_str()[enteredTextEditPos], newChar)) {
 
-					// Not while the card is being accessed - e.g. if loading song visual preview
-					if (isSDRoutineActive()) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
-
 					enteredTextEditPos++;
 				}
 
 				// Otherwise, char is all new, so add it on
 				else {
+					// If char is a letter...
+					if (newChar >= 'A' && newChar <= 'Z') {
 
-					// If the card is being accessed (e.g. samples being buffered), come back soon, because we couldn't
-					// do anything like a "prediction" right now
-					if (isSDRoutineActive()) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
-					else {
-						// If char is a letter...
-						if (newChar >= 'A' && newChar <= 'Z') {
-
-							// If following another letter, make it lowercase
-							if (enteredTextEditPos > 0) {
-								char prevChar = enteredText.c_str()[enteredTextEditPos - 1];
-								if ((prevChar >= 'A' && prevChar <= 'Z') || (prevChar >= 'a' && prevChar <= 'z')) {
-									newChar += 32;
-								}
+						// If following another letter, make it lowercase
+						if (enteredTextEditPos > 0) {
+							char prevChar = enteredText.c_str()[enteredTextEditPos - 1];
+							if ((prevChar >= 'A' && prevChar <= 'Z') || (prevChar >= 'a' && prevChar <= 'z')) {
+								newChar += 32;
 							}
 						}
+					}
 
-						char stringToConcat[2];
-						stringToConcat[0] = newChar;
-						stringToConcat[1] = 0;
+					char stringToConcat[2];
+					stringToConcat[0] = newChar;
+					stringToConcat[1] = 0;
 
-						enteredText.resize(enteredTextEditPos);
-						enteredText.append(stringToConcat);
+					enteredText.resize(enteredTextEditPos);
+					enteredText.append(stringToConcat);
 
-						enteredTextEditPos++;
+					enteredTextEditPos++;
 
-						// The one call site that undoes the typed character on failure, so the one that
-						// passes an undo position: a prediction can now finish on a later tick, long
-						// after this returns, and the undo has to travel with the request.
-						bool success = predictExtendedText(enteredTextEditPos - 1);
-						if (!success) {
-							enteredTextEditPos--;
-						}
+					// The one call site that undoes the typed character on failure, so the one that
+					// passes an undo position: a prediction can now finish on a later tick, long
+					// after this returns, and the undo has to travel with the request.
+					bool success = predictExtendedText(enteredTextEditPos - 1);
+					if (!success) {
+						enteredTextEditPos--;
 					}
 				}
 

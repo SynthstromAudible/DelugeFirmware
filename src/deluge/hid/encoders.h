@@ -39,7 +39,7 @@ public:
 	/// Returns the accumulated signed detent count and resets pos to 0.
 	int32_t take();
 
-	/// Puts a value back (used by the SD card-routine retry path).
+	/// Puts a value back (used when a handler asks to be reminded later).
 	/// fetch_add rather than store so a detent that arrived from the IRQ since take() isn't clobbered.
 	void restore(int32_t val) { pos.fetch_add(val, std::memory_order_relaxed); }
 

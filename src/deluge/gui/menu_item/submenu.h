@@ -42,7 +42,7 @@ public:
 	void updateDisplay();
 	void selectEncoderAction(int32_t offset) override;
 	MenuItem* selectButtonPress() final;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	void readValueAgain() final { updateDisplay(); }
 	void unlearnAction() final;
 	bool usesAffectEntire() override;

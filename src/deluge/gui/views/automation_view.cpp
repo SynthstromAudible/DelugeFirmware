@@ -1080,10 +1080,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 
 // button action
 
-ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
+ActionResult AutomationView::buttonAction(hid::Button b, bool on) {
 
 	using namespace hid::button;
 
@@ -1101,7 +1098,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
-		return instrumentClipView.handleScaleButtonAction(on, inCardRoutine);
+		return instrumentClipView.handleScaleButtonAction(on);
 	}
 
 	// Song view button
@@ -1198,16 +1195,16 @@ passToOthers:
 
 		ActionResult result;
 		if (onArrangerView) {
-			result = TimelineView::buttonAction(b, on, inCardRoutine);
+			result = TimelineView::buttonAction(b, on);
 		}
 		else if (isAudioClip) {
 			result = ClipMinder::buttonAction(b, on);
 		}
 		else {
-			result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
+			result = InstrumentClipMinder::buttonAction(b, on);
 		}
 		if (result == ActionResult::NOT_DEALT_WITH) {
-			result = ClipView::buttonAction(b, on, inCardRoutine);
+			result = ClipView::buttonAction(b, on);
 		}
 
 		// when you press affect entire, the parameter selection needs to reset
@@ -1612,9 +1609,6 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 // handles shortcut pad action for automation (e.g. when you press shift + pad on the grid)
 // everything else is pretty much the same as instrument clip view
 ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	Clip* clip = getCurrentClip();
 
@@ -2150,9 +2144,6 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 // shift automations left / right
 // adjust velocity in note editor
 ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
-	}
 
 	if (inAutomationEditor()) {
 		// exit multi pad press selection but keep single pad press selection (if it's selected)
@@ -2264,10 +2255,7 @@ void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelS
 // vertical encoder action
 // no change compared to instrument clip view version
 // not used with Audio Clip Automation View
-ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
+ActionResult AutomationView::verticalEncoderAction(int32_t offset) {
 
 	if (onArrangerView) {
 		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
@@ -2300,7 +2288,7 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 		}
 		// If user not wanting to move a noteCode, they want to transpose the key
 		else if (!currentUIMode && outputType != OutputType::KIT) {
-			ActionResult result = instrumentClipView.commandTransposeKey(offset, inCardRoutine);
+			ActionResult result = instrumentClipView.commandTransposeKey(offset);
 			// if we're in note editor transposing will the change note selected
 			// so we want to re-render the display to show the updated note
 			if (inNoteEditor()) {
@@ -2320,7 +2308,7 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset, bool inCardRo
 			if ((!instrumentClipView.shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress
 			     || (!isUIModeActive(UI_MODE_NOTES_PRESSED) && !isUIModeActive(UI_MODE_AUDITIONING)))
 			    && (!(isUIModeActive(UI_MODE_NOTES_PRESSED) && inNoteEditor()))) {
-				instrumentClipView.scrollVertical(offset, inCardRoutine, false, modelStack);
+				instrumentClipView.scrollVertical(offset, false, modelStack);
 
 				// if we're in note editor scrolling vertically will change note selected
 				// so we want to re-render the display to show the updated note
@@ -2351,7 +2339,7 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 
 				int32_t yScrollAdjustment = noteRowIndex - lastAuditionedYDisplayScrolled;
 
-				instrumentClipView.scrollVertical(yScrollAdjustment, isSDRoutineActive(), false, modelStack);
+				instrumentClipView.scrollVertical(yScrollAdjustment, false, modelStack);
 			}
 		}
 	}

@@ -55,24 +55,17 @@ bool ConfigureSongMacros::acceptCurrentOption() {
 	return false; // return false so you exit out of the context menu
 }
 
-ActionResult ConfigureSongMacros::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ConfigureSongMacros::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
-
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	if (b == BACK) {
 		sessionView.exitMacrosConfigMode();
 	}
 
-	return ContextMenu::buttonAction(b, on, inCardRoutine);
+	return ContextMenu::buttonAction(b, on);
 }
 
 ActionResult ConfigureSongMacros::padAction(int32_t x, int32_t y, int32_t on) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 	// don't allow user to switch modes
 	if (x <= kDisplayWidth) {
 		return sessionView.gridHandlePads(x, y, on);
@@ -99,16 +92,10 @@ void ConfigureSongMacros::renderOLED(deluge::hid::display::oled_canvas::Canvas& 
 }
 
 ActionResult ConfigureSongMacros::horizontalEncoderAction(int32_t offset) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 	return sessionView.gridHandleScroll(offset, 0);
 }
 
-ActionResult ConfigureSongMacros::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
+ActionResult ConfigureSongMacros::verticalEncoderAction(int32_t offset) {
 	return sessionView.gridHandleScroll(0, offset);
 }
 

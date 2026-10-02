@@ -568,8 +568,8 @@ void finishScroll() {
 /// The Select encoder's press and release on the current UI, as a user's short press delivers them.
 void pressSelect() {
 	using namespace deluge::hid::button;
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, false, false);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, false);
 }
 
 /// Make @p clip current under @p rootUI, set the sound editor up on its first source's file selector, and open the
@@ -1186,10 +1186,10 @@ void tickRandomizeGate() {
 	// Requests that reached the randomizer: what the gate stops. (A scan count cannot tell -- a second walk would not
 	// have scanned yet in this window.)
 	const int32_t requestsBefore = deluge::gui::randomizeDrums.requestsReceived();
-	(void)Buttons::buttonAction(LOAD, true, false);
+	(void)Buttons::buttonAction(LOAD, true);
 	(void)instrumentClipView.padAction(15, 2, 1);
 	(void)instrumentClipView.padAction(15, 2, 0);
-	(void)Buttons::buttonAction(LOAD, false, false);
+	(void)Buttons::buttonAction(LOAD, false);
 	g_rdGateSecondWalkRefused = deluge::gui::randomizeDrums.requestsReceived() == requestsBefore;
 	g_rdGateEditRefused = !pressGateEditPad();
 }
@@ -1215,11 +1215,11 @@ void tickImportGate() {
 	// Requests that reached the import: what the gate stops. (A listing count cannot tell -- a second import would not
 	// have listed yet in this window.)
 	const int32_t requestsBefore = deluge::gui::folderImport.requestsReceived();
-	(void)getCurrentUI()->buttonAction(BACK, true, false);
-	(void)getCurrentUI()->buttonAction(BACK, false, false);
+	(void)getCurrentUI()->buttonAction(BACK, true);
+	(void)getCurrentUI()->buttonAction(BACK, false);
 	g_imGateBackRefused = getCurrentUI() == &menu;
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, false, false);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, false);
 	g_imGateSecondRefused = deluge::gui::folderImport.requestsReceived() == requestsBefore;
 }
 
@@ -1227,16 +1227,16 @@ void tickImportGate() {
 /// held too when @p affectEntire, then the pad. Buttons::buttonAction is what sets the held state a press reads.
 void pressRandomize(bool affectEntire) {
 	using namespace deluge::hid::button;
-	(void)Buttons::buttonAction(LOAD, true, false);
+	(void)Buttons::buttonAction(LOAD, true);
 	if (affectEntire) {
-		(void)Buttons::buttonAction(AFFECT_ENTIRE, true, false);
+		(void)Buttons::buttonAction(AFFECT_ENTIRE, true);
 	}
 	(void)instrumentClipView.padAction(15, 2, 1);
 	(void)instrumentClipView.padAction(15, 2, 0);
 	if (affectEntire) {
-		(void)Buttons::buttonAction(AFFECT_ENTIRE, false, false);
+		(void)Buttons::buttonAction(AFFECT_ENTIRE, false);
 	}
-	(void)Buttons::buttonAction(LOAD, false, false);
+	(void)Buttons::buttonAction(LOAD, false);
 }
 
 void actLeg() {
@@ -1273,7 +1273,7 @@ void actLeg() {
 		// Auto-load on (the Load button toggles it as it is released), then the file's preview asked for again, as the
 		// cursor arriving on it asks: its landing asks for the auto-load claim.
 		g_supersedeFired = false;
-		(void)getCurrentUI()->buttonAction(LOAD, false, false);
+		(void)getCurrentUI()->buttonAction(LOAD, false);
 		sampleBrowser.previewFile(legFile(), 0);
 		return;
 	}
@@ -1306,7 +1306,7 @@ void actLeg() {
 			deluge_audio_load_set_latency_ms(kStallHoldMs);
 		}
 		// A long press on Select opens the context menu for the kind of instrument the browser is choosing for.
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
 		(void)static_cast<UI&>(sampleBrowser).timerCallback();
 		deluge::gui::ContextMenu* menu =
 		    (g_leg == Leg::ImportKit || g_leg == Leg::ImportGate)
@@ -1315,19 +1315,19 @@ void actLeg() {
 		const bool menuOnTop = getCurrentUI() == menu;
 		menu->currentOption = kImportOption;
 		printf("SC-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
 		return;
 	}
 	if (g_leg == Leg::WaveTable || g_leg == Leg::WaveTableResident || g_leg == Leg::WaveTableConverted) {
 		using namespace deluge::hid::button;
 		// A long press on Select: the press, then what the UI timer's callback does once it has been held.
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
 		(void)static_cast<UI&>(sampleBrowser).timerCallback();
 		auto& menu = deluge::gui::context_menu::sample_browser::synth;
 		const bool menuOnTop = getCurrentUI() == &menu;
 		menu.currentOption = kWaveTableOption;
 		printf("SC-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
 		return;
 	}
 	if (g_leg == Leg::SliceManual) {
@@ -1335,7 +1335,7 @@ void actLeg() {
 		const bool opened = openUI(&slicer);
 		// The mode button, as a user switches the slicer to manual; the points as pad presses on a playing voice add
 		// them, which a scenario cannot sound.
-		(void)slicer.buttonAction(X_ENC, true, false);
+		(void)slicer.buttonAction(X_ENC, true);
 		for (int32_t i = 0; i < kManualSliceCount; i++) {
 			slicer.manualSlicePoints[i] = kManualSlices[i];
 		}
@@ -1343,7 +1343,7 @@ void actLeg() {
 		slicer.currentSlice = 0;
 		printf("SC-SETUP leg=slice-manual slicerOpened=%d slicerOnTop=%d manual=%d\n", opened ? 1 : 0,
 		       getCurrentUI() == &slicer ? 1 : 0, slicer.slicerMode == SLICER_MODE_MANUAL ? 1 : 0);
-		(void)slicer.buttonAction(SELECT_ENC, true, false);
+		(void)slicer.buttonAction(SELECT_ENC, true);
 		// The live points change before the slice runs, as an encoder turn or a pad press can while its load is out:
 		// the drums must still be painted from the points as they were when Select was pressed.
 		slicer.manualSlicePoints[0].transpose = 24;
@@ -1360,7 +1360,7 @@ void actLeg() {
 	slicer.numClips = kSliceRegions;
 	printf("SC-SETUP leg=slice slicerOpened=%d slicerOnTop=%d\n", opened ? 1 : 0, getCurrentUI() == &slicer ? 1 : 0);
 	using namespace deluge::hid::button;
-	(void)slicer.buttonAction(SELECT_ENC, true, false);
+	(void)slicer.buttonAction(SELECT_ENC, true);
 }
 
 /// Whether the leg's claim or slice has ended: a claim that succeeds closes the browser, and a slice closes the slicer.
@@ -1485,7 +1485,7 @@ void checkLeg() {
 			g_failures++;
 		}
 		// Auto-load off again, and out of the browser, which auto-load leaves open.
-		(void)getCurrentUI()->buttonAction(deluge::hid::button::LOAD, false, false);
+		(void)getCurrentUI()->buttonAction(deluge::hid::button::LOAD, false);
 		sampleBrowser.exitAndNeverDeleteDrum();
 		break;
 	}

@@ -85,7 +85,7 @@ public:
 	void setLedStates();
 
 	// button action
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 
 	// pad action
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
@@ -94,7 +94,7 @@ public:
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 
 	// vertical encoder action
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 
 	// mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;

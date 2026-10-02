@@ -196,8 +196,8 @@ bool startTake(const char* marker) {
 }
 
 void pressBack() {
-	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true, false);
-	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false, false);
+	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true);
+	(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false);
 }
 
 /// Waits for the take to be over; false while it runs, and after reporting a take that never settles.

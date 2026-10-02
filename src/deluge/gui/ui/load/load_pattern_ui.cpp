@@ -193,7 +193,7 @@ void LoadPatternUI::enterKeyPress() {
 	}
 }
 
-ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Load button
@@ -234,7 +234,7 @@ ActionResult LoadPatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 				return ActionResult::DEALT_WITH;
 			}
 		}
-		return LoadUI::buttonAction(b, on, inCardRoutine);
+		return LoadUI::buttonAction(b, on);
 	}
 }
 

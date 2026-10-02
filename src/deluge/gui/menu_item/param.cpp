@@ -36,8 +36,8 @@ MenuItem* Param::selectButtonPress() {
 	return Automation::selectButtonPress();
 }
 
-ActionResult Param::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
-	return Automation::buttonAction(b, on, inCardRoutine);
+ActionResult Param::buttonAction(deluge::hid::Button b, bool on) {
+	return Automation::buttonAction(b, on);
 }
 
 void Param::horizontalEncoderAction(int32_t offset) {

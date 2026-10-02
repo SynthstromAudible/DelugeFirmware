@@ -63,9 +63,9 @@ public:
 	/// the browser.
 	virtual void close();
 	virtual std::string getCurrentFilePath() = 0;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	void currentFileDeleted();
 	Error goIntoFolder(char const* folderName);
 	Error createFolder();

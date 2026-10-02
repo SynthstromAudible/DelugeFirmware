@@ -75,9 +75,9 @@ public:
 	deluge::gui::menu_item::RangeEdit editingRangeEdge;
 	bool haveRenderedPads{false};
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
@@ -194,8 +194,8 @@ private:
 	void setLedStates();
 	ActionResult handleAutomationViewPadAction(int32_t x, int32_t y, int32_t velocity);
 	bool isEditingAutomationViewParam();
-	void handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine, MenuItem* previousItem,
-	                                    MenuItem* currentItem, bool isHorizontalMenu);
+	void handlePotentialParamMenuChange(deluge::hid::Button b, MenuItem* previousItem, MenuItem* currentItem,
+	                                    bool isHorizontalMenu);
 
 	uint8_t sourceShortcutBlinkFrequencies[2][kDisplayHeight]{};
 	uint8_t sourceShortcutBlinkColours[2][kDisplayHeight]{};

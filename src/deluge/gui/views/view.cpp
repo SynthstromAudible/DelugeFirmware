@@ -138,7 +138,7 @@ void View::focusRegained() {
 
 extern GlobalMIDICommand pendingGlobalMIDICommandNumClustersWritten;
 
-ActionResult View::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult View::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	GlobalMIDICommand newGlobalMidiCommand;
@@ -148,9 +148,6 @@ ActionResult View::buttonAction(deluge::hid::Button b, bool on, bool inCardRouti
 	if (b == TAP_TEMPO) {
 
 		if (currentUIMode == UI_MODE_MIDI_LEARN) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			if (on) {
 				deleteMidiCommandOnRelease = true;
 				endMidiLearnPressSession(MidiLearn::TAP_TEMPO_BUTTON);
@@ -185,9 +182,6 @@ doEndMidiLearnPressSession:
 
 	// MIDI learn button
 	else if (b == LEARN) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 
 		if (on) {
 			startMIDILearn();
@@ -199,9 +193,6 @@ doEndMidiLearnPressSession:
 
 	// Play button for MIDI learn
 	else if (b == PLAY && currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 
 		if (on) {
 			deleteMidiCommandOnRelease = true;
@@ -215,9 +206,6 @@ doEndMidiLearnPressSession:
 
 	// Record button for MIDI learn
 	else if (b == RECORD && currentUIMode == UI_MODE_MIDI_LEARN) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 
 		if (on) {
 			deleteMidiCommandOnRelease = true;
@@ -248,9 +236,6 @@ doEndMidiLearnPressSession:
 			// Press release
 			else {
 				if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON) {
-					if (inCardRoutine) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
 
 					currentUIMode = UI_MODE_NONE;
 
@@ -286,9 +271,6 @@ doEndMidiLearnPressSession:
 				if (currentUIMode == UI_MODE_NONE) {
 
 					if (Buttons::isShiftButtonPressed()) {
-						if (inCardRoutine) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-						}
 						bool available = context_menu::clearSong.setupAndCheckAvailability();
 						if (available) {
 							openUI(&context_menu::clearSong);
@@ -306,9 +288,6 @@ doEndMidiLearnPressSession:
 			// Press release
 			else {
 				if (currentUIMode == UI_MODE_HOLDING_LOAD_BUTTON) {
-					if (inCardRoutine) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
 					currentUIMode = UI_MODE_NONE;
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {
@@ -364,10 +343,6 @@ doEndMidiLearnPressSession:
 cant:
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
-			}
-
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			// If no scaling currently, start it, if we're on a Clip-minder screen
@@ -454,10 +429,6 @@ possiblyRevert:
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
-			}
-
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			soundEditor.setup();
@@ -2823,9 +2794,6 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 
 	switch (currentUIMode) {
 	case UI_MODE_MIDI_LEARN:
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		view.clipStatusMidiLearnPadPressed(on, clip);
 		if (!on) {
 			RootUI* rootUI = getRootUI();

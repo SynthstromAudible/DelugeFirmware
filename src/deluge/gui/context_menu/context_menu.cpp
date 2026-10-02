@@ -22,7 +22,6 @@
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
-#include "libdeluge/scheduler.h" // isSDRoutineActive()
 #include "storage/flash_storage.h"
 
 namespace deluge::gui {
@@ -136,14 +135,11 @@ void ContextMenu::selectEncoderAction(int8_t offset) {
 const uint32_t buttonAndPadActionUIModes[] = {UI_MODE_STEM_EXPORT, UI_MODE_CLIP_PRESSED_IN_SONG_VIEW,
                                               UI_MODE_MIDI_LEARN, 0};
 
-ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	if (b == BACK) {
 		if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 getOut:
 			close();
 		}
@@ -152,9 +148,6 @@ getOut:
 	else if (b == SELECT_ENC) {
 probablyAcceptCurrentOption:
 		if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			bool success = acceptCurrentOption();
 			if (!success) {
 				goto getOut;
@@ -179,9 +172,6 @@ void ContextMenu::drawCurrentOption() {
 
 ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && isUIModeWithinRange(buttonAndPadActionUIModes)) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		close();
 	}
 

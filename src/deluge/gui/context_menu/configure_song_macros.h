@@ -29,11 +29,11 @@ public:
 	bool setupAndCheckAvailability();
 	bool acceptCurrentOption() override;
 	bool canSeeViewUnderneath() override { return true; }
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 };
 

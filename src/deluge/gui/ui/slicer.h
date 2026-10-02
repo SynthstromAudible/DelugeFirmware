@@ -43,14 +43,14 @@ public:
 	void focusRegained() override;
 	bool canSeeViewUnderneath() override { return false; }
 	void selectEncoderAction(int8_t offset) override;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) override;
 	void graphicsRoutine() override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 
 	void stopAnyPreviewing();
 	/// @brief Audition a slice while its pad is held, or silence it when the pad is lifted.

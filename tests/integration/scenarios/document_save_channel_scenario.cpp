@@ -75,8 +75,8 @@ public:
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void pressEnter() { saveInstrumentPresetUI.enterKeyPress(); }
 	static void pressBack() {
-		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, true, false);
-		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, false, false);
+		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, true);
+		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, false);
 	}
 	static std::string targetPath() { return Browser::currentDir + "/" + Browser::enteredText + ".XML"; }
 	static bool overwritePromptOpen() { return getCurrentUI() == &deluge::gui::context_menu::overwriteFile; }

@@ -29,7 +29,7 @@ namespace deluge::gui::menu_item {
 class Automation {
 public:
 	MenuItem* selectButtonPress();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on);
 	virtual ModelStackWithAutoParam* getModelStackWithParam(void* memory) = 0;
 	virtual PatchSource getPatchSource() { return PatchSource::NONE; }
 	void selectAutomationViewParameter(bool clipMinder);

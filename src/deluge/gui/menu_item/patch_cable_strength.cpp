@@ -308,7 +308,7 @@ MenuItem* PatchCableStrength::selectButtonPress() {
 	return &source_selection::rangeMenu;
 }
 
-ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on) {
 	using namespace hid::button;
 
 	static auto polarity_map = std::map<hid::Button, Polarity>{{MIDI, Polarity::BIPOLAR}, {CV, Polarity::UNIPOLAR}};
@@ -319,7 +319,7 @@ ActionResult PatchCableStrength::buttonAction(hid::Button b, bool on, bool inCar
 		return ActionResult::DEALT_WITH;
 	}
 
-	return Automation::buttonAction(b, on, inCardRoutine);
+	return Automation::buttonAction(b, on);
 }
 
 void PatchCableStrength::selectEncoderAction(int32_t offset) {

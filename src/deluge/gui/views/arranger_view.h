@@ -46,8 +46,8 @@ public:
 	ActionResult handleEditPadAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult handleStatusPadAction(int32_t y, int32_t velocity, UI* ui);
 	ActionResult handleAuditionPadAction(int32_t y, int32_t velocity, UI* ui);
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	void selectEncoderAction(int8_t offset) override;
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 

@@ -96,17 +96,17 @@ public:
 		return getCurrentUI() == &deluge::gui::context_menu::deleteFile;
 	}
 	/// Accept the delete menu, as the select button does.
-	static void acceptDelete() { (void)getCurrentUI()->buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
+	static void acceptDelete() { (void)getCurrentUI()->buttonAction(deluge::hid::button::SELECT_ENC, true); }
 	/// A BACK press and release, a pad press and release, and a select-encoder turn: each would otherwise close the
 	/// menu or move it. Stops as soon as the menu is no longer on top, so nothing reaches the browser underneath.
 	static void pokeDeleteMenu() {
 		using namespace deluge::hid::button;
 		UI* menu = &deluge::gui::context_menu::deleteFile;
 		if (getCurrentUI() == menu) {
-			(void)menu->buttonAction(BACK, true, false);
+			(void)menu->buttonAction(BACK, true);
 		}
 		if (getCurrentUI() == menu) {
-			(void)menu->buttonAction(BACK, false, false);
+			(void)menu->buttonAction(BACK, false);
 		}
 		if (getCurrentUI() == menu) {
 			(void)menu->padAction(0, 0, 64);

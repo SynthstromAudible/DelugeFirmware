@@ -188,7 +188,7 @@ void ArrangerView::goToSongView() {
 	changeRootUI(&sessionView);
 }
 
-ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// when stem export process has started,
@@ -202,9 +202,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Song button
 	if (b == SESSION_VIEW) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			if (currentUIMode == UI_MODE_NONE) {
 				goToSongView();
 			}
@@ -217,9 +214,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Clip button
 	else if (b == CLIP_VIEW) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			if (currentUIMode == UI_MODE_NONE) {
 				automationView.onArrangerView = true;
 				changeRootUI(&automationView);
@@ -230,9 +224,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			currentSong->affectEntire = !currentSong->affectEntire;
 			// setLedStates();
 			view.setActiveModControllableTimelineCounter(currentSong);
@@ -266,9 +257,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
 				}
 				else {
-					if (inCardRoutine) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
 					if (stemExport.exportMixdown) {
 						stemExport.startStemExportProcess(StemExportType::MIXDOWN);
 					}
@@ -309,9 +297,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	else if (b == SAVE
 	         && (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION
 	             || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW)) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		if (on) {
 			deleteOutput();
 		}
@@ -320,9 +305,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 	// Select encoder button
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			changeOutputToAudio();
 		}
 		// open Song FX menu
@@ -338,10 +320,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 
 doChangeOutputType:
 		if (on && currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && !Buttons::isShiftButtonPressed()) {
-
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			Output* output = outputsOnScreen[yPressedEffective];
 
@@ -407,9 +385,6 @@ doActualSimpleChange:
 	// Back button with <> button held
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			clearArrangement();
 		}
 	}
@@ -433,7 +408,7 @@ doActualSimpleChange:
 	}
 
 	else {
-		return TimelineView::buttonAction(b, on, inCardRoutine);
+		return TimelineView::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -1007,9 +982,6 @@ void ArrangerView::auditionEnded() {
 }
 
 ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	// don't interact with sidebar if VU Meter is displayed
 	// and you're in the volume/pan mod knob mode (0)
@@ -3136,10 +3108,6 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 			}
 		}
 
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		actionLogger.deleteAllLogs();
 
 		currentSong->arrangementYScroll += direction;
@@ -3163,7 +3131,7 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
                                                   UI_MODE_HOLDING_ARRANGEMENT_ROW, UI_MODE_VIEWING_RECORD_ARMING, 0};
 
-ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult ArrangerView::verticalEncoderAction(int32_t offset) {
 
 	if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		if (currentUIMode == UI_MODE_NONE) {
@@ -3171,9 +3139,6 @@ ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRout
 		}
 	}
 	else if (isUIModeWithinRange(verticalEncoderUIModes)) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-		}
 
 		return verticalScrollOneSquare(offset);
 	}

@@ -253,14 +253,14 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	maybeStartShortcutOverview(b, on);
 
 	// Scale mode button
 	if (b == SCALE_MODE && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
-		return handleScaleButtonAction(on, inCardRoutine);
+		return handleScaleButtonAction(on);
 	}
 
 	// Song view button
@@ -282,9 +282,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 				return ActionResult::DEALT_WITH;
 			}
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			exitUIMode(UI_MODE_HOLDING_SONG_BUTTON);
 
 			bool sidebarNeedsClearing = sessionMacroSidebarActive;
@@ -306,9 +303,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	else if (b == CLIP_VIEW) {
 		D_PRINTLN("InstrumentClipView::buttonAction(CLIP_VIEW) %d", (int)b);
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			D_PRINTLN("- yes");
 			changeRootUI(&automationView);
 		}
@@ -320,9 +314,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	// Keyboard button
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			changeRootUI(&keyboardScreen);
 		}
@@ -333,9 +324,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		if (!on && currentUIMode == UI_MODE_NONE) {
 			// if another button wasn't pressed while cross screen was held
 			if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
 
 				if (getCurrentInstrumentClip()->wrapEditing) {
 					getCurrentInstrumentClip()->wrapEditing = false;
@@ -358,10 +346,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		if (on && getCurrentOutputType() == OutputType::KIT && audioRecorder.recordingSource == AudioInputChannel::NONE
 		    && playbackHandler.recording == RecordingMode::OFF
 		    && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
-
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -432,9 +416,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	// Back button if adding Drum
 	else if (b == BACK && currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			currentUIMode = UI_MODE_NONE;
 			uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
@@ -444,9 +425,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	// Load / Kit button if creating new NoteRow for Drum
 	else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW && ((b == LOAD) || (b == KIT))) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			currentUIMode = UI_MODE_NONE;
 
@@ -474,9 +452,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			// Auditioning drum
 			if (getCurrentOutputType() == OutputType::KIT) {
@@ -513,9 +488,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	// allowed in the InstrumentClipView
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			handleInstrumentChange(OutputType::KIT);
 		}
@@ -524,9 +496,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	else if (b == SYNTH && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
 	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			if (currentUIMode == UI_MODE_NONE) {
 				handleInstrumentChange(OutputType::SYNTH);
@@ -541,9 +510,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	else if (b == MIDI && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
 	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			if (currentUIMode == UI_MODE_NONE) {
 				changeOutputType(OutputType::MIDI_OUT);
@@ -566,9 +532,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 	else if (b == CV) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			if (currentUIMode == UI_MODE_NONE) {
 				changeOutputType(OutputType::CV);
@@ -593,10 +556,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		InstrumentClip* clip = getCurrentInstrumentClip();
 
 		if (on && numEditPadPresses == 1 && getCurrentOutputType() == OutputType::KIT && clip->getNumNoteRows() >= 2) {
-
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			int32_t i;
 			for (i = 0; i < kEditPadPressBufferSize; i++) {
@@ -668,9 +627,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	         && Buttons::isButtonPressed(KIT) && getCurrentOutputType() == OutputType::KIT
 	         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DeleteUnusedKitRows)
 	             == RuntimeFeatureStateToggle::On)) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 
 		if (on) {
 			InstrumentClip* clip = getCurrentInstrumentClip();
@@ -710,9 +666,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 
 	// Horizontal encoder button if learn button pressed. Make sure you let the "off" action slide past to the Editor
 	else if (b == X_ENC && on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 
 		if (Buttons::isShiftButtonPressed()) {
 			pasteNotes();
@@ -733,9 +686,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 		// If user wants to "multiple" Clip contents
 		if (on && Buttons::isShiftButtonPressed() && !isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
 			if (isNoUIModeActive()) {
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
 				if (Buttons::isButtonPressed(deluge::hid::button::CROSS_SCREEN_EDIT)) {
 					pasteNotes(false);
 				}
@@ -801,9 +751,6 @@ doCancelPopup:
 				if (getCurrentOutputType() == OutputType::KIT) {
 					for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 						if (yDisplay != lastAuditionedYDisplay && auditionPadIsPressed[yDisplay]) {
-							if (inCardRoutine) {
-								return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-							}
 
 							actionLogger.deleteAllLogs();
 							cancelAllAuditioning();
@@ -852,12 +799,12 @@ doCancelPopup:
 	}
 	else {
 passToOthers:
-		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
+		ActionResult result = InstrumentClipMinder::buttonAction(b, on);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
 		}
 
-		return ClipView::buttonAction(b, on, inCardRoutine);
+		return ClipView::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -876,10 +823,7 @@ ActionResult InstrumentClipView::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::handleScaleButtonAction(bool on, bool inCardRoutine) {
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
+ActionResult InstrumentClipView::handleScaleButtonAction(bool on) {
 
 	// Kits can't do scales!
 	if (getCurrentOutputType() == OutputType::KIT) {
@@ -1888,10 +1832,6 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 	    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::DrumRandomizer) == RuntimeFeatureStateToggle::On
 	    && getCurrentOutputType() == OutputType::KIT && Buttons::isButtonPressed(deluge::hid::button::LOAD)) {
 
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		ActionResult result = potentiallyRandomizeDrumSamples();
 		if (result == ActionResult::DEALT_WITH) {
 			return result;
@@ -1900,9 +1840,6 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 
 	// Edit pad action...
 	if (x < kDisplayWidth) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 
 		// Perhaps the user wants to enter the SoundEditor via a shortcut. They can do this by holding an audition pad
 		// too - but this gets deactivated if they've done any "euclidean" or per-NoteRow editing already by holding
@@ -1988,9 +1925,6 @@ possiblyAuditionPad:
 
 			// Changing the scale:
 			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) [[unlikely]] {
-				if (isSDRoutineActive()) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
 
 				if (velocity && getCurrentOutputType() != OutputType::KIT) { // We probably couldn't have got this far
 					                                                         // if it was a Kit, but let's just check
@@ -2126,9 +2060,6 @@ ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32
 }
 
 ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	if (getCurrentOutputType() != OutputType::KIT) {
 		return ActionResult::DEALT_WITH;
@@ -2146,9 +2077,6 @@ ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity
 
 ActionResult InstrumentClipView::commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType,
                                                          int32_t y, int32_t velocity) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	if (outputType == OutputType::KIT) {
 		NoteRow* thisNoteRow = clip->getNoteRowOnScreen(y, currentSong);
@@ -2186,9 +2114,6 @@ ActionResult InstrumentClipView::commandSaveKitRow(InstrumentClip* clip, Output*
 }
 
 ActionResult InstrumentClipView::commandActivateSongMacro(int32_t y, int32_t velocity) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 	// render that you're holding the macro
 	if (velocity) {
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
@@ -3532,14 +3457,14 @@ void InstrumentClipView::deselectNoteAndGoUpOneLevel() {
 	}
 }
 
-ActionResult InstrumentClipView::handleNoteEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult InstrumentClipView::handleNoteEditorVerticalEncoderAction(int32_t offset) {
 	// if you're holding down vertical encoder, don't de-select because that lets you edit
 	// note repeats
 	if (!Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		deselectNoteAndGoUpOneLevel();
 	}
 
-	return verticalEncoderAction(offset, inCardRoutine);
+	return verticalEncoderAction(offset);
 }
 
 ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t offset) {
@@ -3548,18 +3473,18 @@ ActionResult InstrumentClipView::handleNoteEditorHorizontalEncoderAction(int32_t
 	return horizontalEncoderAction(offset);
 }
 
-ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult InstrumentClipView::handleNoteEditorButtonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// to allow you to switch between items in horizontal menu
 	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
-		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+		return soundEditor.getCurrentMenuItem()->buttonAction(b, on);
 	}
 
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
-		return buttonAction(b, on, inCardRoutine);
+		return buttonAction(b, on);
 	}
 	// to allow you to toggle playback on / off
 	// to allow you to toggle shift on / off
@@ -3719,7 +3644,7 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 	}
 }
 
-ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_t offset) {
 	bool isHoldingVerticalEncoder = Buttons::isButtonPressed(deluge::hid::button::Y_ENC);
 	bool isInHorizontalMenu = runtimeFeatureSettings.get(HorizontalMenus) == On;
 
@@ -3735,7 +3660,7 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 		actionLogger.closeAction(ActionType::NOTEROW_ROTATE);
 	}
 
-	ActionResult result = verticalEncoderAction(offset, inCardRoutine);
+	ActionResult result = verticalEncoderAction(offset);
 
 	// if you're not pressing vertical encoder, then you did some vertical scrolling
 	// if you're in a parameter menu or in the horizontal note row editor menu, update value displayed
@@ -3751,10 +3676,6 @@ ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_
 ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int32_t offset) {
 	if (!isUIModeActive(UI_MODE_AUDITIONING)) {
 		return ActionResult::DEALT_WITH;
-	}
-
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
 	}
 
 	if (Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
@@ -3786,18 +3707,18 @@ ActionResult InstrumentClipView::handleNoteRowEditorHorizontalEncoderAction(int3
 	return ClipView::horizontalEncoderAction(offset);
 }
 
-ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// to allow you to switch between items in horizontal menu
 	if (util::one_of<hid::Button>(b, {SYNTH, KIT, MIDI, CV})) {
-		return soundEditor.getCurrentMenuItem()->buttonAction(b, on, inCardRoutine);
+		return soundEditor.getCurrentMenuItem()->buttonAction(b, on);
 	}
 
 	// to allow you to zoom in / out
 	// to allow you to toggle fill
 	if (b == X_ENC || b == SYNC_SCALING) {
-		return buttonAction(b, on, inCardRoutine);
+		return buttonAction(b, on);
 	}
 	// to allow you to toggle affect entire on / off in kits
 	if (on && b == AFFECT_ENTIRE) {
@@ -4164,7 +4085,7 @@ void InstrumentClipView::recalculateColour(uint8_t yDisplay) {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_RECALCULATE_COLOUR);
 }
 
-ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow,
+ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool draggingNoteRow,
                                                 ModelStackWithTimelineCounter* modelStack) {
 
 	if (modelStack == nullptr) {
@@ -4191,14 +4112,10 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 	// we don't want to over-scroll so that selected row is not a valid note row
 	bool preventOverScrolling = inNoteRowEditor || inAutomationNoteEditor;
 	// check if we've reached vertical scrolling limit
-	ActionResult result = scrollVertical_limit(scrollAmount, inCardRoutine, draggingNoteRow, modelStack, clip, isKit,
+	ActionResult result = scrollVertical_limit(scrollAmount, draggingNoteRow, modelStack, clip, isKit,
 	                                           preventOverScrolling, noteRowToShiftI, noteRowToSwapWithI);
 	if (result == ActionResult::DEALT_WITH) {
 		return result;
-	}
-
-	if (inCardRoutine && (draggingNote || draggingNoteRow)) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
 	bool currentClipIsActive = currentSong->isClipActive(clip);
@@ -4245,7 +4162,7 @@ ActionResult InstrumentClipView::scrollVertical(int32_t scrollAmount, bool inCar
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::scrollVertical_limit(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow,
+ActionResult InstrumentClipView::scrollVertical_limit(int32_t scrollAmount, bool draggingNoteRow,
                                                       ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip,
                                                       bool isKit, bool preventOverScrolling, int32_t& noteRowToShiftI,
                                                       int32_t& noteRowToSwapWithI) {
@@ -6057,12 +5974,9 @@ static const uint32_t verticalScrollUIModes[] = {
     UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, UI_MODE_DRAGGING_KIT_NOTEROW, 0,
 };
 
-ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset) {
 
 	exitedShortcutOverview = true;
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-	}
 
 	bool inNoteRowEditor = getCurrentUI() == &soundEditor && soundEditor.inNoteRowEditor();
 
@@ -6092,7 +6006,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 
 		// If user not wanting to move a noteCode, they want to transpose the key
 		else if (!currentUIMode && getCurrentOutputType() != OutputType::KIT) {
-			return commandTransposeKey(offset, inCardRoutine);
+			return commandTransposeKey(offset);
 		}
 	}
 
@@ -6108,7 +6022,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 			if (!shouldIgnoreVerticalScrollKnobActionIfNotAlsoPressedForThisNotePress
 			    || (!isUIModeActive(UI_MODE_NOTES_PRESSED) && !isUIModeActive(UI_MODE_AUDITIONING))) {
 				bool draggingNoteRow = (isUIModeActive(UI_MODE_DRAGGING_KIT_NOTEROW));
-				return scrollVertical(offset, inCardRoutine, draggingNoteRow, modelStack);
+				return scrollVertical(offset, draggingNoteRow, modelStack);
 			}
 		}
 	}
@@ -6116,10 +6030,7 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCa
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult InstrumentClipView::commandTransposeKey(int32_t offset, bool inCardRoutine) {
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
+ActionResult InstrumentClipView::commandTransposeKey(int32_t offset) {
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
@@ -6377,9 +6288,6 @@ static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDI
 ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 	exitedShortcutOverview = true;
 	uiNeedsRendering(this);
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Just be safe - maybe not necessary
-	}
 
 	// If holding down notes
 	if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
@@ -7353,11 +7261,8 @@ void InstrumentClipView::commandEuclidean(int32_t offset) {
 	    // If in kit mode, then we can do it
 	    if (getCurrentOutputType() == OutputType::KIT) {
 
-	        if (inCardRoutine)
-	            return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-
 	        cutAuditionedNotesToOne();
-	        return scrollVertical(offset, inCardRoutine, true); // Will delete action log in this case
+	        return scrollVertical(offset, true); // Will delete action log in this case
 	    }
 
 	    // Otherwise, remind the user why they can't

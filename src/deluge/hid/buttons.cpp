@@ -72,7 +72,7 @@ bool considerCrossScreenReleaseForCrossScreenMode;
 
 bool buttonStates[NUM_BUTTON_COLS + 1][NUM_BUTTON_ROWS]; // The extra col is for "fake" buttons
 
-ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Must happen up here before it's actioned, because if its action accesses SD card, we might multiple-enter this
@@ -131,7 +131,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		}
 	}
 
-	result = getCurrentUI()->buttonAction(b, on, inCardRoutine);
+	result = getCurrentUI()->buttonAction(b, on);
 
 	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -153,7 +153,6 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 
 			else {
 
-				// if (inCardRoutine) return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				playbackHandler.playButtonPressed(kInternalButtonPressLatency);
 
 				// Begin output-recording simultaneously with playback
@@ -312,11 +311,11 @@ bool shiftHasChanged() {
 }
 
 // Correct any misunderstandings
-void noPressesHappening(bool inCardRoutine) {
+void noPressesHappening() {
 	for (int32_t x = 0; x < NUM_BUTTON_COLS; x++) {
 		for (int32_t y = 0; y < NUM_BUTTON_ROWS; y++) {
 			if (buttonStates[x][y]) {
-				buttonAction(deluge::hid::button::fromXY(x, y), false, inCardRoutine);
+				buttonAction(deluge::hid::button::fromXY(x, y), false);
 			}
 		}
 	}

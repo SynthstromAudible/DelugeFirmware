@@ -34,11 +34,11 @@ public:
 	bool opened() override;
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	// A take consumes the pads and encoders: none of them may act on what is underneath while it runs.
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override { return ActionResult::DEALT_WITH; }
 	ActionResult horizontalEncoderAction(int32_t offset) override { return ActionResult::DEALT_WITH; }
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override { return ActionResult::DEALT_WITH; }
+	ActionResult verticalEncoderAction(int32_t offset) override { return ActionResult::DEALT_WITH; }
 	void selectEncoderAction(int8_t offset) override {}
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override {}
 

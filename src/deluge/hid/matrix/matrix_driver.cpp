@@ -49,7 +49,7 @@ MatrixDriver::MatrixDriver() {
 	PadLEDs::init();
 }
 
-void MatrixDriver::noPressesHappening(bool inCardRoutine) {
+void MatrixDriver::noPressesHappening() {
 
 	// Correct any misunderstandings
 

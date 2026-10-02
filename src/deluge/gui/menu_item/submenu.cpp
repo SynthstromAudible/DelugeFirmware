@@ -197,12 +197,12 @@ MenuItem* Submenu::selectButtonPress() {
 	return *current_item_;
 }
 
-ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult Submenu::buttonAction(deluge::hid::Button b, bool on) {
 	if (shouldForwardButtons()) {
-		return (*current_item_)->buttonAction(b, on, inCardRoutine);
+		return (*current_item_)->buttonAction(b, on);
 	}
 	else {
-		return MenuItem::buttonAction(b, on, inCardRoutine);
+		return MenuItem::buttonAction(b, on);
 	}
 }
 

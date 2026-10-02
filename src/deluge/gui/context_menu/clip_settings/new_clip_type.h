@@ -32,7 +32,7 @@ public:
 	bool setupAndCheckAvailability();
 	bool canSeeViewUnderneath() override { return true; }
 	bool acceptCurrentOption() override; // If returns false, will cause UI to exit
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	void updateSelectedOption();
 	void updateOutputToCreate();
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;

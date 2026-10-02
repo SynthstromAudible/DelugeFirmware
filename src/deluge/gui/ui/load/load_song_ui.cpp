@@ -253,7 +253,7 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 	}
 }
 
-ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	if (listingInProgress_) {
@@ -271,9 +271,6 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	if ((b == LOAD) || (b == SELECT_ENC)) {
 		if (on) {
 			if (!currentUIMode) {
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
 
 				enterKeyPress();
 			}
@@ -304,7 +301,7 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 		}
 	}
 	else {
-		return LoadUI::buttonAction(b, on, inCardRoutine);
+		return LoadUI::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -1033,16 +1030,13 @@ goAgain:
 	}
 }
 
-ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult LoadSongUI::verticalEncoderAction(int32_t offset) {
 	if (!currentUIMode && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
 	    && offset < 0) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		exitAction(); // Exit if your scroll down
 	}
 	if (Buttons::isShiftButtonPressed()) {
-		return LoadUI::verticalEncoderAction(offset, false);
+		return LoadUI::verticalEncoderAction(offset);
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -1313,9 +1307,6 @@ ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 	// If QWERTY not visible yet, make it visible now
 	if (!qwertyVisible) {
 		if (on && !currentUIMode) {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			qwertyVisible = true;
 			displayText(false); // This will also draw the QWERTY keys
 

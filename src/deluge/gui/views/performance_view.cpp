@@ -677,7 +677,7 @@ void PerformanceView::setCentralLEDStates() {
 	}
 }
 
-ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -693,9 +693,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 	if (b == CLIP_VIEW) {
 		if (on && ((currentUIMode == UI_MODE_NONE) || isUIModeActive(UI_MODE_STUTTERING))
 		    && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			releaseViewOnExit(modelStack);
 			// only allow transitioning from performance view to clip in session view
 			if (currentSong->lastClipInstanceEnteredStartPos == -1) {
@@ -712,9 +709,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 #else
 	else if (b == SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
 #endif
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		bool lastSessionButtonActiveState = sessionButtonActive;
 		sessionButtonActive = on;
 
@@ -823,10 +817,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 				return ActionResult::DEALT_WITH;
 			}
 
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			if (!defaultEditingMode) {
 				if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
 					openUI(&soundEditor);
@@ -924,7 +914,7 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 
 	else {
 		ActionResult buttonActionResult;
-		buttonActionResult = TimelineView::buttonAction(b, on, inCardRoutine);
+		buttonActionResult = TimelineView::buttonAction(b, on);
 
 		// release stutter if you press play - stutter needs to be turned on after playback is running
 		// re-render grid, display if undoing/redoing an action (e.g. you previously loaded layout)
@@ -1522,12 +1512,12 @@ ActionResult PerformanceView::horizontalEncoderAction(int32_t offset) {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult PerformanceView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult PerformanceView::verticalEncoderAction(int32_t offset) {
 	if (currentSong->lastClipInstanceEnteredStartPos == -1) {
-		return sessionView.verticalEncoderAction(offset, inCardRoutine);
+		return sessionView.verticalEncoderAction(offset);
 	}
 	else {
-		return arrangerView.verticalEncoderAction(offset, inCardRoutine);
+		return arrangerView.verticalEncoderAction(offset);
 	}
 }
 

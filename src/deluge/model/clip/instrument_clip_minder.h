@@ -85,7 +85,7 @@ public:
 	                           const deluge::storage::AcquireResult& acquired);
 	void setLedStates();
 	virtual void focusRegained();
-	virtual ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	virtual ActionResult buttonAction(deluge::hid::Button b, bool on);
 	void calculateDefaultRootNote();
 	void drawActualNoteCode(int16_t noteCode);
 	void cycleThroughScales();

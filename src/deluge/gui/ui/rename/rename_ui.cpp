@@ -90,15 +90,12 @@ ActionResult RenameUI::exitUI() {
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
-ActionResult RenameUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult RenameUI::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Back button
 	if (b == BACK) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			exitUI();
 		}
 	}
@@ -106,9 +103,6 @@ ActionResult RenameUI::buttonAction(deluge::hid::Button b, bool on, bool inCardR
 	// Select encoder button
 	else if (b == SELECT_ENC) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			enterKeyPress();
 		}
 	}
@@ -129,15 +123,12 @@ ActionResult RenameUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 	// Otherwise, exit
 	if (on && !currentUIMode) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		exitUI();
 	}
 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult RenameUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult RenameUI::verticalEncoderAction(int32_t offset) {
 	return ActionResult::DEALT_WITH;
 }

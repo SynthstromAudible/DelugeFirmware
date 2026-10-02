@@ -67,11 +67,11 @@ bool HorizontalMenu::focusChild(const MenuItem* child) {
 	return result;
 }
 
-ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on) {
 	using namespace hid::button;
 
 	if (!on) {
-		return Submenu::buttonAction(b, on, inCardRoutine);
+		return Submenu::buttonAction(b, on);
 	}
 
 	static double last_navigation_buttons_press_time = 0.0;
@@ -103,7 +103,7 @@ ActionResult HorizontalMenu::buttonAction(hid::Button b, bool on, bool inCardRou
 		return ActionResult::DEALT_WITH;
 	}
 
-	return Submenu::buttonAction(b, on, inCardRoutine);
+	return Submenu::buttonAction(b, on);
 }
 
 void HorizontalMenu::renderOLED() {

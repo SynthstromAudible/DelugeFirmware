@@ -161,13 +161,13 @@ void DeleteFile::closeMenus() {
 	}
 }
 
-ActionResult DeleteFile::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult DeleteFile::buttonAction(deluge::hid::Button b, bool on) {
 	if (pending_) {
 		// Ignored but NOT dealt with, as a save screen mid-save does: the global handlers behind this still run, none
 		// of them can close this menu, and swallowing them would lose a SHIFT release.
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	return ContextMenuForSaving::buttonAction(b, on, inCardRoutine);
+	return ContextMenuForSaving::buttonAction(b, on);
 }
 
 ActionResult DeleteFile::padAction(int32_t x, int32_t y, int32_t velocity) {
@@ -177,11 +177,11 @@ ActionResult DeleteFile::padAction(int32_t x, int32_t y, int32_t velocity) {
 	return ContextMenuForSaving::padAction(x, y, velocity);
 }
 
-ActionResult DeleteFile::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult DeleteFile::verticalEncoderAction(int32_t offset) {
 	if (pending_) {
 		return ActionResult::DEALT_WITH;
 	}
-	return ContextMenuForSaving::verticalEncoderAction(offset, inCardRoutine);
+	return ContextMenuForSaving::verticalEncoderAction(offset);
 }
 
 ActionResult DeleteFile::horizontalEncoderAction(int32_t offset) {
