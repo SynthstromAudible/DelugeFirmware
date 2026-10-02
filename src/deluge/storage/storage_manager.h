@@ -387,10 +387,14 @@ extern JsonSerializer smJsonSerializer;
 extern JsonDeserializer smJsonDeserializer;
 extern Serializer& GetSerializer();
 extern FileDeserializer* activeDeserializer;
-// The reader readFromFile is currently consuming. Same object as activeDeserializer for file-backed
-// loads, but a base pointer so an in-memory ValueTreeDeserializer (record-first deserializer) can be
-// the active reader too. The audio-yield gate consults this to decide whether to pump the engine.
+// The reader readFromFile is currently consuming: a streaming reader, or a TreeDocument's tree reader for the
+// span of its parse (deluge::storage::ActiveReaderScope). The audio-yield gate consults this to decide whether
+// to pump the engine.
 extern Deserializer* activeReader;
+
+namespace deluge::storage {
+class TreeDocument;
+}
 
 namespace StorageManager {
 
@@ -435,23 +439,6 @@ Error createJsonFile(char const* pathName, JsonSerializer& writer, bool mayOverw
 ///       which left pointing here IS @p buffer). Copy that function's save/restore, not just this call.
 Error openDelugeBuffer(std::span<uint8_t> buffer, bool isJson, char const* firstTagName, char const* altTagName = "",
                        bool ignoreIncorrectFirmware = false);
-
-/// @brief Parse an in-memory Deluge document into a Value tree and position a tree reader inside its root tag.
-///
-/// The record-first counterpart of openDelugeBuffer(): the whole document is parsed up front (JSON or XML per
-/// @p isJson) into `smSongTree`, and `activeReader` is pointed at a ValueTreeDeserializer over it, entered at
-/// @p firstTagName -- the same post-condition openDelugeBuffer() leaves for a streaming reader. Unlike
-/// openDelugeBuffer(), @p buffer is only read, never perforated, and it may be released as soon as this returns:
-/// the tree owns its own copies. `activeDeserializer` is left untouched.
-///
-/// @return Error::NONE, Error::FILE_CORRUPTED if the bytes did not parse or held no @p firstTagName, or the
-///         firmware-tag check's error. On any failure `activeReader` is left on the file reader.
-/// @note Pair every call with releaseTreeReader() once the read is done, success or not.
-Error openDelugeBufferTree(std::span<const uint8_t> buffer, bool isJson, char const* firstTagName,
-                           char const* altTagName = "", bool ignoreIncorrectFirmware = false);
-
-/// @brief Free the tree openDelugeBufferTree() parsed, and point `activeReader` back at the file reader.
-void releaseTreeReader();
 
 /// @brief Outcome of one attempt to stage a document and open it for parsing.
 enum class StagedOpen : uint8_t {
@@ -524,8 +511,19 @@ StagedOpen openDocumentStaged(char const* path, char const* firstTagName, char c
 ///
 /// Same arms, same Deferred/Failed answers and the same StagingState contract; Opened here means only that all of
 /// the file's bytes are in `state->buffer`, untouched -- for a caller that parses them some other way
-/// (openDelugeBufferTree()).
+/// (deluge::storage::TreeDocument::open()).
 StagedOpen stageDocument(char const* path, StagingState* state);
+
+/// @brief Stage @p path and open it as a Value tree in @p document: stageDocument() plus TreeDocument::open().
+///
+/// The opener for every document whose readers take tags from the tree (presets, kit rows, MIDI device
+/// definitions). Same Deferred/Failed answers as stageDocument(); on Opened the staged bytes are already freed,
+/// since the tree holds its own copies, and @p document is positioned inside @p firstTagName (or @p altTagName).
+/// A file that does not parse fails here, before the caller has changed anything.
+/// @param state    Caller-owned staging, as for stageDocument().
+/// @param document Caller-owned; release it once the parse is done.
+StagedOpen openDocumentStagedTree(char const* path, char const* firstTagName, char const* altTagName,
+                                  StagingState* state, deluge::storage::TreeDocument& document);
 
 /// @brief When a caller that runs only when woken asks again after openDocumentStaged() answered Deferred, on the app
 ///        loop's clock (µs).
@@ -562,6 +560,14 @@ void reapOrphanedStaging();
 ///
 /// @return Error::NONE, Error::FILE_NOT_FOUND if it could not be staged, or Error::FILE_CORRUPTED.
 Error openDocumentSynchronously(char const* path, char const* firstTagName, char const* altTagName = "");
+
+/// @brief openDocumentStagedTree()'s blocking arm: read @p path whole and open it as a Value tree in @p document.
+///
+/// For the inline readers that need a tree (the harness's preset fixtures). Uses no shared slot: the bytes are
+/// freed before this returns.
+/// @return Error::NONE, the read's error, or Error::FILE_CORRUPTED.
+Error openDocumentTreeSynchronously(char const* path, char const* firstTagName, char const* altTagName,
+                                    deluge::storage::TreeDocument& document);
 
 /// @brief Whether @p path names a JSON document rather than an XML one.
 ///
@@ -616,11 +622,12 @@ bool checkSDPresent();
 bool checkSDInitialized();
 
 Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParamManager = nullptr);
-/// @brief Read an Instrument from the document `activeDeserializer` has open, and close it.
+/// @brief Read an Instrument from @p document.
 ///
-/// The parse half of a staged read: it opens nothing and frees no staging, so a caller that staged the document itself
-/// (openDocumentStaged(), or the harness's own fixture loader) parses it on its own tier. On any failure the Instrument
-/// it made is deleted again.
+/// The parse half of a staged read: it opens nothing and releases nothing, so a caller that opened the document itself
+/// (openDocumentStagedTree(), or the harness's own fixture loader) parses it on its own tier and releases it after. On
+/// any failure the Instrument it made is deleted again.
+/// @param document               The preset, opened as a Value tree inside its root tag.
 /// @param song                   The song the Instrument will belong to.
 /// @param clip                   The clip it is being loaded for, if any.
 /// @param outputType             Which kind of Instrument the document must hold.
@@ -629,8 +636,9 @@ Instrument* createNewInstrument(OutputType newOutputType, ParamManager* getParam
 /// @param name          The Instrument's name.
 /// @param dirPath       The folder the preset is in.
 /// @return Error::NONE, or why the document could not be read into an Instrument.
-Error parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outputType, bool mayReadSamplesFromFiles,
-                              Instrument** getInstrument, std::string* name, std::string* dirPath);
+Error parseInstrumentDocument(deluge::storage::TreeDocument& document, Song* song, InstrumentClip* clip,
+                              OutputType outputType, bool mayReadSamplesFromFiles, Instrument** getInstrument,
+                              std::string* name, std::string* dirPath);
 /// @brief The root tag, and its accepted alternative, of an @p outputType preset document.
 /// @param outputType   Which kind of Instrument the document must hold.
 /// @param firstTagName Set to the expected root tag.
@@ -638,13 +646,15 @@ Error parseInstrumentDocument(Song* song, InstrumentClip* clip, OutputType outpu
 void instrumentDocumentTags(OutputType outputType, char const** firstTagName, char const** altTagName);
 Instrument* createNewNonAudioInstrument(OutputType outputType, int32_t slot, int32_t subSlot);
 
-/// @brief Read a device definition into @p midiInstrument from the document `activeDeserializer` has open, and close
-///        it. The parse half of a staged definition read; it opens nothing and frees no staging.
+/// @brief Read a device definition into @p midiInstrument from @p document. The parse half of a staged definition
+///        read; it opens nothing and releases nothing.
+/// @param document       The definition, opened as a Value tree inside its root tag.
 /// @param midiInstrument The instrument to read the definition into.
 /// @param fileName       Set to the definition's file name.
 /// @param updateFileName Whether @p fileName should be updated.
 /// @return Error::NONE, or why the definition could not be read.
-Error parseMidiDeviceDefinitionDocument(MIDIInstrument* midiInstrument, std::string* fileName, bool updateFileName);
+Error parseMidiDeviceDefinitionDocument(deluge::storage::TreeDocument& document, MIDIInstrument* midiInstrument,
+                                        std::string* fileName, bool updateFileName);
 
 /// @brief Paste the pattern the document `activeDeserializer` has open into the current clip, and close it. The parse
 ///        half of a staged pattern read; it opens nothing and frees no staging.
@@ -658,15 +668,17 @@ Error parsePatternDocument(bool overwriteExisting, bool noScaling, bool previewO
 Error openFavouriteFile(char const* path);
 
 Drum* createNewDrum(DrumType drumType);
-/// @brief Read a synth preset into a new SoundDrum from the document `activeDeserializer` has open, and close it.
+/// @brief Read a synth preset into a new SoundDrum from @p document.
 ///
-/// The parse half of a staged synth-to-row read; it opens nothing and frees no staging. On success a drum already in
+/// The parse half of a staged synth-to-row read; it opens nothing and releases nothing. On success a drum already in
 /// @p getInstrument is deleted and replaced by the new one; on failure the new drum is deleted.
+/// @param document      The synth preset, opened as a Value tree inside its root tag.
 /// @param song          The song the drum will belong to.
 /// @param clip          The clip it is being loaded for.
 /// @param getInstrument The drum slot to fill.
 /// @return Error::NONE, or why the document could not be read into a drum.
-Error parseSynthDrumDocument(Song* song, InstrumentClip* clip, SoundDrum** getInstrument);
+Error parseSynthDrumDocument(deluge::storage::TreeDocument& document, Song* song, InstrumentClip* clip,
+                             SoundDrum** getInstrument);
 
 Error checkSpaceOnCard();
 } // namespace StorageManager

@@ -2755,8 +2755,7 @@ someError:
 		// is read tree-natively in InstrumentClip::readShellFromTree (readFromTree slice 4).
 
 		else if (!strcmp(tagName, "soundMidiCommand")) { // Only for pre V2.0 song files
-			soundMidiCommand.readChannelFromTree(
-			    *static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue(), reader);
+			soundMidiCommand.readChannelFromTree(*deluge::storage::treeReaderOf(reader).currentValue(), reader);
 		}
 
 		else if (!strcmp(tagName, "modKnobs")) { // Pre V2.0 only - for compatibility
@@ -2953,8 +2952,7 @@ createNewParamManager:
 			// repeated "noteRow" keys; parseJson gives an Array of {noteRow:{…}} boxes -- handle both. The trailing
 			// reader.exitTag() below skips the streaming noteRows element.
 			int32_t minY = -32768;
-			const deluge::storage::Value* rowsNode =
-			    static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue();
+			const deluge::storage::Value* rowsNode = deluge::storage::treeReaderOf(reader).currentValue();
 			if (rowsNode != nullptr) {
 				const bool asArray = rowsNode->isArray();
 				const size_t count = asArray ? rowsNode->items().size() : rowsNode->entries().size();

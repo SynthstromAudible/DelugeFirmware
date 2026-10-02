@@ -2349,8 +2349,7 @@ readClip:
 			// Durable-id Step 3: read the clip's shell (id + the three pure DocClip fields) tree-natively from the
 			// Value node, construct the clip WITH its file id (the ctor binds clip_structure[id]), then delegate the
 			// rest to the streaming readFromFile. The moved tags no longer have handlers there, so they are skipped.
-			const deluge::storage::Value* clipNode =
-			    static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue();
+			const deluge::storage::Value* clipNode = deluge::storage::treeReaderOf(reader).currentValue();
 			uint32_t loadedId = 0;
 			if (clipNode != nullptr) {
 				if (const deluge::storage::Value* n = clipNode->find("id")) {

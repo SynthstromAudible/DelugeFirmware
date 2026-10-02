@@ -119,7 +119,7 @@ void LearnedMIDI::readFromTree(const deluge::storage::Value& node, Deserializer&
 		}
 	}
 	if (const Value* n = node.find("device")) {
-		static_cast<deluge::storage::ValueTreeDeserializer&>(reader).readChildObject(
+		deluge::storage::treeReaderOf(reader).readChildObject(
 		    *n, [&] { cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader); });
 	}
 	if (midiMessageType != MIDI_MESSAGE_NONE) {

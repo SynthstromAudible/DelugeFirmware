@@ -1423,7 +1423,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		}
 		else if (readTagFromFile(reader, tagName)) {}
 		else {
-			result = activeDeserializer->tryReadingFirmwareTagFromFile(tagName, false);
+			result = reader.tryReadingFirmwareTagFromFile(tagName, false);
 			if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
 				return result;
 			}

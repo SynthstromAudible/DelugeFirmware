@@ -27,6 +27,7 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
+#include "storage/tree_document.h"
 #include "util/functions.h"
 
 namespace deluge::harness {
@@ -37,14 +38,14 @@ Error loadPresetFixture(Song* song, OutputType outputType, Instrument** getInstr
 	char const* altTagName = nullptr;
 	StorageManager::instrumentDocumentTags(outputType, &firstTagName, &altTagName);
 
-	Error error = StorageManager::openDocumentSynchronously(path, firstTagName, altTagName);
+	deluge::storage::TreeDocument document;
+	Error error = StorageManager::openDocumentTreeSynchronously(path, firstTagName, altTagName, document);
 	if (error != Error::NONE) {
 		return error;
 	}
 
-	error = StorageManager::parseInstrumentDocument(song, nullptr, outputType, false, getInstrument, name, dirPath);
-	StorageManager::releaseDocumentStaging();
-	return error;
+	return StorageManager::parseInstrumentDocument(document, song, nullptr, outputType, false, getInstrument, name,
+	                                               dirPath);
 }
 
 namespace {

@@ -347,6 +347,8 @@ SoundDrum* addSampleDrum(Kit& kit, Clip* clip, const char* name, const char* sam
 	if (load) {
 		(void)holder->loadFile(false, false, true);
 	}
+	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
+	drum->sources[0].seedDocRanges();
 	currentSong->project.param_backup.backUp(drum, clip, &paramManager, true);
 	return drum;
 }
@@ -397,6 +399,7 @@ bool buildSong() {
 	auto* audioClip = static_cast<AudioClip*>(audioClipBase);
 	audioClip->sampleHolder.filePath = kClipSample;
 	audioClip->loadSample(true);
+	audioClip->syncSampleRecordFromEngine(); // the save writes the clip's record, not the holder
 
 	printf("SLT-SETUP built synth=%d wavetable=%d kitDrum=%d audioClip=%d\n",
 	       sampleHolder->audioFile != nullptr ? 1 : 0, waveTableHolder->audioFile != nullptr ? 1 : 0,
@@ -816,6 +819,7 @@ bool buildCrucialSong() {
 	synthBHolder->setAudioFile(nullptr);
 	synthBHolder->filePath = kCrucialSynthSample;
 	(void)synthBHolder->loadFile(false, false, true);
+	synthB->sources[0].seedDocRanges(); // the save writes the source's record, not the holder
 
 	// A second audio clip, on a track of its own: its track's active clip, but not playing.
 	Clip* audioClipBase = sessionView.createNewClip(OutputType::AUDIO, 5);
@@ -826,6 +830,7 @@ bool buildCrucialSong() {
 	audioClipB->activeIfNoSolo = false;
 	audioClipB->sampleHolder.filePath = kCrucialClipSample;
 	audioClipB->loadSample(true);
+	audioClipB->syncSampleRecordFromEngine(); // the save writes the clip's record, not the holder
 
 	int32_t playing = 0;
 	for (Clip* clip : currentSong->project.clips.session_clips) {

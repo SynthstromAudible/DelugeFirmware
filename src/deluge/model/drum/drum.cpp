@@ -97,13 +97,11 @@ bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 		reader.exitTag("name");
 	}
 	else if (!strcmp(tagName, "midiMuteCommand")) {
-		muteMIDICommand.readNoteFromTree(*static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue(),
-		                                 reader);
+		muteMIDICommand.readNoteFromTree(*deluge::storage::treeReaderOf(reader).currentValue(), reader);
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "midiInput")) {
-		midiInput.readNoteFromTree(*static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue(),
-		                           reader);
+		midiInput.readNoteFromTree(*deluge::storage::treeReaderOf(reader).currentValue(), reader);
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "id")) {

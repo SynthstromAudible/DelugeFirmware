@@ -487,6 +487,8 @@ SoundDrum* addSampleDrum(Kit& kit, const char* name, const char* samplePath) {
 		return nullptr;
 	}
 	holder->filePath = samplePath;
+	// A bound source saves its ranges from its record: reseed it, as the sample browser's claim does.
+	drum->sources[0].seedDocRanges();
 	currentSong->project.param_backup.backUp(drum, nullptr, &paramManager, true);
 	return drum;
 }

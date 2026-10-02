@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "foundation/panic.h"
 #include "storage/deserializer.h"
 #include "storage/value.h"
 
@@ -77,6 +78,8 @@ public:
 	// In-memory: the whole tree is already resident, so there is never anything to yield to. This
 	// gates the AudioEngine render loop off during a tree-backed load (via the active-reader gate).
 	[[nodiscard]] bool shouldCallRoutines() const override { return false; }
+
+	[[nodiscard]] ValueTreeDeserializer* asTreeReader() override { return this; }
 
 	/// The Value node this cursor is currently positioned at -- the child element/value most recently
 	/// produced by readNextTagOrAttributeName() (null before the first read or once exhausted). Lets a
@@ -170,5 +173,17 @@ private:
 	// consumed since the last exitTag() reconciliation. Unused in JSON mode.
 	int32_t callerDepth_ = 0;
 };
+
+/// @brief The tree reader @p reader must be, for a reader that takes a tag's fields from its Value node.
+///
+/// Every document whose readers call this is opened as a TreeDocument, so a streaming reader here is a caller
+/// that opened its document the wrong way: freeze rather than read a tree out of a byte stream.
+inline ValueTreeDeserializer& treeReaderOf(Deserializer& reader) {
+	ValueTreeDeserializer* tree = reader.asTreeReader();
+	if (tree == nullptr) {
+		FREEZE_WITH_ERROR("TRE1");
+	}
+	return *tree;
+}
 
 } // namespace deluge::storage

@@ -22,6 +22,10 @@
 #include <cstdint>
 #include <string>
 
+namespace deluge::storage {
+class ValueTreeDeserializer;
+}
+
 class Deserializer {
 public:
 	virtual bool prepareToReadTagOrAttributeValueOneCharAtATime() = 0;
@@ -47,4 +51,8 @@ public:
 	/// in-memory readers (e.g. the ValueTreeDeserializer), which have nothing to yield to. The
 	/// audio-yield gate (AudioEngine::routineWithClusterLoading) consults the reader currently in use.
 	[[nodiscard]] virtual bool shouldCallRoutines() const { return true; }
+
+	/// The tree reader behind this interface, or null for a streaming reader. Readers that take a tag's
+	/// fields from its Value node reach it through deluge::storage::treeReaderOf(), which checks.
+	[[nodiscard]] virtual deluge::storage::ValueTreeDeserializer* asTreeReader() { return nullptr; }
 };

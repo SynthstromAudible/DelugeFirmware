@@ -3496,7 +3496,7 @@ getOut: {}
 Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& node, int32_t* minY,
                             InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos) {
 	using deluge::storage::Value;
-	auto& treeReader = static_cast<deluge::storage::ValueTreeDeserializer&>(reader);
+	auto& treeReader = deluge::storage::treeReaderOf(reader);
 	drum = (Drum*)0xFFFFFFFF; // "no drum" sentinel, resolved to a real drum later
 	int32_t newBendRange = -1;
 	Error error = Error::NONE;

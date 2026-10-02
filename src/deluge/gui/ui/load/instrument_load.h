@@ -29,6 +29,7 @@
 #include "storage/latest_wins.h"
 #include "storage/preset_acquisition.h"
 #include "storage/storage_manager.h"
+#include "storage/tree_document.h"
 
 #include <cstdint>
 #include <optional>
@@ -279,9 +280,9 @@ private:
 	///        follow-up, unless @p deliver is false), and start what was queued behind it.
 	/// @return Whether a queued load was started, and so whether to step again.
 	bool finish(Error error, bool deliver = true);
-	/// @brief Stage @p path as a @p firstTagName document; restores `activeDeserializer` on a failure.
+	/// @brief Stage @p path and open it as a @p firstTagName tree document in `document_`; releases both on a failure.
 	StorageManager::StagedOpen stage(const char* path, const char* firstTagName, const char* altTagName);
-	/// @brief Free the staging, and put back `activeDeserializer` as it was before the staging opened.
+	/// @brief Free the staging and the tree document. Safe when neither is held.
 	void releaseStaging();
 	/// @brief The output type the load in flight parses.
 	[[nodiscard]] OutputType outputTypeToParse() const;
@@ -316,8 +317,8 @@ private:
 	/// µs: 18 s, far past any real staging, so only a channel that has stopped finishing work fails the load.
 	static constexpr uint64_t kStagingStallUs = 18'000'000;
 	StorageManager::StagingState staging_{.stallBound = deluge::io::StallBound{kStagingStallUs}};
-	bool stagingOpen_{false}; ///< A staging has begun and not been released.
-	FileDeserializer* previousDeserializer_{nullptr};
+	bool stagingOpen_{false};                  ///< A staging has begun and not been released.
+	deluge::storage::TreeDocument document_{}; ///< The staged document, parsed; held from Opened until the parse ends.
 	Instrument* newInstrument_{nullptr};
 	SoundDrum* newDrum_{nullptr};
 	std::optional<deluge::storage::AsyncSampleLoad> load_{};

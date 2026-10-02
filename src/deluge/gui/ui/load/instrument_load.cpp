@@ -507,11 +507,10 @@ StorageManager::StagedOpen InstrumentLoad::stage(const char* path, const char* f
 	if (!stagingOpen_) {
 		// Counted for the preset-load gate (PL-TIER, AQ-TIER): a document read.
 		documentReads_++;
-		previousDeserializer_ = activeDeserializer;
 		stagingOpen_ = true;
 	}
 	const StorageManager::StagedOpen opened =
-	    StorageManager::openDocumentStaged(path, firstTagName, altTagName, &staging_);
+	    StorageManager::openDocumentStagedTree(path, firstTagName, altTagName, &staging_, document_);
 	if (opened == StorageManager::StagedOpen::Failed) {
 		releaseStaging();
 	}
@@ -523,8 +522,7 @@ void InstrumentLoad::releaseStaging() {
 		return;
 	}
 	StorageManager::releaseStaging(&staging_);
-	// The memory reader openDocumentStaged() left in activeDeserializer reads the bytes just freed.
-	activeDeserializer = previousDeserializer_;
+	document_.release();
 	stagingOpen_ = false;
 }
 
@@ -571,15 +569,15 @@ bool InstrumentLoad::stepParse() {
 	std::string name = acquire ? walked_.name : revert ? active_.revert.name : active_.target.name;
 	std::string dirPath = acquire ? walked_.dirPath : revert ? active_.revert.dirPath : active_.target.dirPath;
 	if (!acquire && active_.target.loadingSynthToKitRow) {
-		error = StorageManager::parseSynthDrumDocument(currentSong, loadInstrumentPresetUI.instrumentClipToLoadFor,
-		                                               &newDrum_);
+		error = StorageManager::parseSynthDrumDocument(document_, currentSong,
+		                                               loadInstrumentPresetUI.instrumentClipToLoadFor, &newDrum_);
 	}
 	else {
 		InstrumentClip* clip = acquire  ? nullptr
 		                       : revert ? active_.revert.clip
 		                                : loadInstrumentPresetUI.instrumentClipToLoadFor;
-		error = StorageManager::parseInstrumentDocument(currentSong, clip, outputTypeToParse(), false, &newInstrument_,
-		                                                &name, &dirPath);
+		error = StorageManager::parseInstrumentDocument(document_, currentSong, clip, outputTypeToParse(), false,
+		                                                &newInstrument_, &name, &dirPath);
 	}
 	releaseStaging();
 	if (error != Error::NONE) {
@@ -665,8 +663,8 @@ bool InstrumentLoad::stepMidiDef() {
 	case StorageManager::StagedOpen::Opened: {
 		// The Instrument keeps the file it was read from: the definition browser opens on it next time.
 		std::string fileName = active_.definition.path;
-		const Error error =
-		    StorageManager::parseMidiDeviceDefinitionDocument(active_.definition.instrument, &fileName, true);
+		const Error error = StorageManager::parseMidiDeviceDefinitionDocument(document_, active_.definition.instrument,
+		                                                                      &fileName, true);
 		releaseStaging();
 		return finish(error);
 	}

@@ -411,7 +411,7 @@ void LoadSongUI::endLoad(SongLoadOutcome outcome) {
 	// The backstop for the staged song: every way a load can end passes through here, so a buffer that
 	// survived an early return is freed exactly once and the next load starts from a clear path.
 	releaseSongStaging();
-	StorageManager::releaseTreeReader();
+	songDocument_.release();
 	stagingPath_.clear();
 	stagingPrevious_ = nullptr;
 	stagingWait_.reset();
@@ -508,10 +508,9 @@ void LoadSongUI::runStageSegment() {
 	case StorageManager::StagedOpen::Opened:
 		// Record-first load: parse the whole document into a Value tree now, while nothing has been destroyed,
 		// so a corrupt file still leaves the browser open. BEGIN replays the tree to readFromFile.
-		if (StorageManager::openDelugeBufferTree(std::span<const uint8_t>(songStaging_.buffer, songStaging_.size),
-		                                         StorageManager::documentIsJson(stagingPath_.c_str()), "song")
+		if (songDocument_.open(std::span<const uint8_t>(songStaging_.buffer, songStaging_.size),
+		                       StorageManager::documentIsJson(stagingPath_.c_str()), "song")
 		    != Error::NONE) {
-			StorageManager::releaseTreeReader();
 			activeDeserializer = stagingPrevious_;
 			releaseSongStaging();
 			display->displayError(Error::FILE_CORRUPTED);
@@ -648,7 +647,7 @@ void LoadSongUI::runBeginSegment() {
 	// every exit restores it all the same.
 	Error error = Error::NONE;
 	if (songStaging_.buffer == nullptr) {
-		StorageManager::releaseTreeReader();
+		songDocument_.release();
 		activeDeserializer = stagingPrevious_;
 		releaseSongStaging();
 		display->displayError(Error::FILE_CORRUPTED);
@@ -699,7 +698,7 @@ ramError:
 
 someError:
 		display->displayError(error);
-		StorageManager::releaseTreeReader();
+		songDocument_.release();
 		releaseSongStaging();
 		activeDeserializer = stagingPrevious_;
 fail:
@@ -756,10 +755,12 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = deluge::project::loadSong(*preLoadedSong, *activeReader);
-	// The tree is only needed during the read: free it and restore the file reader as the active reader
-	// (re-enabling the audio-yield gate) for both the success and failure paths.
-	StorageManager::releaseTreeReader();
+	{
+		deluge::storage::ActiveReaderScope reading(songDocument_.reader());
+		error = deluge::project::loadSong(*preLoadedSong, songDocument_.reader());
+	}
+	// The tree is only needed during the read.
+	songDocument_.release();
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}

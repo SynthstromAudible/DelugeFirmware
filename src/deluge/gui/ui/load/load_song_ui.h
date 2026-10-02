@@ -26,6 +26,7 @@
 #include "storage/audio/audio_load_context.h"
 #include "storage/deferred_load.h"
 #include "storage/song_preview.h" // SongPreviewOutcome, held as the last render's result
+#include "storage/tree_document.h"
 
 #include <cstdint>
 #include <string>
@@ -350,6 +351,9 @@ private:
 	/// progress at all. The walk also NUL-terminates inside these bytes, so they must outlive the
 	/// PARSE and not merely the open -- see StorageManager::openDelugeBuffer().
 	StorageManager::StagingState songStaging_{};
+	/// The staged song, parsed: opened at the end of STAGE, so a corrupt file fails before anything is torn down,
+	/// and replayed and released by BEGIN.
+	deluge::storage::TreeDocument songDocument_{};
 
 	/// @brief The path STAGE is filling from, pinned once.
 	///

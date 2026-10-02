@@ -360,8 +360,7 @@ doReadDrum:
 			reader.exitTag("selectedDrumIndex");
 		}
 		else if (!strcmp(tagName, "MIDIInput")) {
-			midiInput.readNoteFromTree(*static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue(),
-			                           reader);
+			midiInput.readNoteFromTree(*deluge::storage::treeReaderOf(reader).currentValue(), reader);
 			reader.exitTag();
 		}
 		else {
@@ -410,8 +409,7 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 	// rather than minting a throwaway that the later "id" tag would orphan. A drum with no id (old song / standalone)
 	// mints in adoptDrum exactly as before.
 	if (song != nullptr) {
-		if (const deluge::storage::Value* drumNode =
-		        static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue()) {
+		if (const deluge::storage::Value* drumNode = deluge::storage::treeReaderOf(reader).currentValue()) {
 			if (const deluge::storage::Value* idNode = drumNode->find("id")) {
 				newDrum->setId(static_cast<uint32_t>(stringToInt(idNode->str().c_str())));
 			}
