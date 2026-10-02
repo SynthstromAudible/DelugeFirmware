@@ -56,6 +56,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 #include <cstdint>
 #include <span>
@@ -705,9 +706,13 @@ fail:
 			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 		}
 		// Otherwise the old song survived (a load during playback deletes it only once the swap is done), but its UIs
-		// were taken down above: put its root UI back, or nothing would take input again.
-		else if (uiStackEmpty()) {
-			setUIForLoadedSong(currentSong);
+		// were taken down above: put its root UI back, or nothing would take input again. No swap is coming to replace
+		// it, so the render's reverb update may walk it again.
+		else {
+			currentSong->soundsDeletedForSwap.store(false, std::memory_order_release);
+			if (uiStackEmpty()) {
+				setUIForLoadedSong(currentSong);
+			}
 		}
 
 		display->removeWorkingAnimation();

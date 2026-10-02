@@ -40,6 +40,7 @@
 #include "util/c_string.h"
 #include "util/containers.h"
 #include "util/etl_string.h"
+#include <atomic>
 #include <utility>
 
 class MidiCommand;
@@ -135,6 +136,11 @@ public:
 	Instrument* blankPresetInstrument = nullptr; ///< The default synth the preset would replace.
 	InstrumentClip* blankPresetClip = nullptr;   ///< The clip that synth was built for.
 	/// @}
+	/// [interaction] -> [render] Set by AudioEngine::songSwapAboutToHappen() before it deletes the sounds that will not
+	/// sound until a swap replaces this song; cleared again only if the swap never comes (a failed load). The render's
+	/// reverb update reads it and leaves the reverb as it is while it is set. A property of the song, so a swap needs
+	/// no write: the incoming song's is clear.
+	std::atomic<bool> soundsDeletedForSwap{false};
 	void transposeAllScaleModeClips(int32_t interval);
 	void transposeAllScaleModeClips(int32_t offset, bool chromatic);
 	bool anyScaleModeClips();

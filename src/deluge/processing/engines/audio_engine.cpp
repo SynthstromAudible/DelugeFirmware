@@ -536,6 +536,8 @@ void killAllVoices(bool deletingSong) {
 void songSwapAboutToHappen() {
 	// Otherwise, a timer might get called and try to access Clips that we may have deleted below
 	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
+	// Before the deletion, so the render's reverb update never walks the outputs while they go.
+	currentSong->soundsDeletedForSwap.store(true, std::memory_order_release);
 	logAction("a1");
 	currentSong->deleteSoundsWhichWontSound();
 	logAction("a2");
@@ -1740,8 +1742,8 @@ void updateReverbParams() {
 	// If reverb sidechain on "auto" settings...
 	if (reverbSidechainVolume < 0) {
 
-		// Just leave everything as is if parts deleted cos loading new song
-		if (loadSongUI.isLoadingSong() && loadSongUI.deletedPartsOfOldSong) {
+		// Just leave everything as is while the current song's parts are deleted ahead of a swap to a new one
+		if (currentSong->soundsDeletedForSwap.load(std::memory_order_acquire)) {
 			return;
 		}
 
