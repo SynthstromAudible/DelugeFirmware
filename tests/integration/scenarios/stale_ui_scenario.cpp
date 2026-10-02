@@ -847,10 +847,11 @@ void report() {
 	const int32_t loadWrites = renderInteractionWrites(InteractionOwned::InstrumentLoadNotified);
 	const int32_t modeWrites = renderInteractionWrites(InteractionOwned::UiMode);
 	const int32_t flagWrites = renderInteractionWrites(InteractionOwned::LoadSongFlag);
+	const int32_t auditionWrites = renderInteractionWrites(InteractionOwned::Auditioning);
 	deluge::playback::watchRenderInteractionWrites(false);
-	printf("SU-SWAP renderWrites midiFollow=%d animation=%d instrumentLoad=%d uiMode=%d loadFlag=%d\n", followWrites,
-	       animationWrites, loadWrites, modeWrites, flagWrites);
-	if (followWrites + animationWrites + loadWrites + modeWrites + flagWrites != 0) {
+	printf("SU-SWAP renderWrites midiFollow=%d animation=%d instrumentLoad=%d uiMode=%d loadFlag=%d audition=%d\n",
+	       followWrites, animationWrites, loadWrites, modeWrites, flagWrites, auditionWrites);
+	if (followWrites + animationWrites + loadWrites + modeWrites + flagWrites + auditionWrites != 0) {
 		fail("SU-SWAP", "the render wrote state only the interaction tier writes");
 	}
 	if (!g_scriptPath.empty()) {
