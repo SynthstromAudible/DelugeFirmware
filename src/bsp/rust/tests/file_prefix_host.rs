@@ -493,6 +493,7 @@ mod live_pipeline {
         mark_in_flight, publish_result,
     };
     use super::{block_on, card};
+    use deluge_bsp_rust::app_loop;
     use deluge_bsp_rust::channel::{
         DELUGE_CHANNEL_FAILED, DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN,
     };
@@ -596,6 +597,28 @@ mod live_pipeline {
         assert_eq!(collect("SONGS/OTHER.XML").0, DELUGE_CHANNEL_UNKNOWN);
         block_on(mark_in_flight(None));
         assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_CHANNEL_UNKNOWN);
+    }
+
+    /// Clearing the in-flight mark wakes the app (`DELUGE_WAKE_STORAGE`); marking it does not.
+    /// `reset`'s own flush also wakes the app, so the reading is cleared after it.
+    #[test]
+    fn finishing_a_read_wakes_the_app() {
+        let _guard = reset();
+        app_loop::reset_reasons_for_test();
+        block_on(mark_in_flight(Some(
+            PrefixPath::try_from("SONGS/WAKE.XML").unwrap(),
+        )));
+        assert_eq!(
+            app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+            0,
+            "marking a read in flight must not wake the app early"
+        );
+        block_on(mark_in_flight(None));
+        assert_ne!(
+            app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+            0,
+            "clearing the in-flight mark must wake the app"
+        );
     }
 
     #[test]

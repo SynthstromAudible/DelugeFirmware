@@ -37,6 +37,8 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
+#include "model/sample/recorder_write_policy.h"
+#include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -49,6 +51,7 @@
 #include "util/etl_string.h"
 #include "util/functions.h"
 #include "util/string.h"
+#include <algorithm>
 #include <iterator>
 #include <libdeluge/scheduler.h>
 #include <new>
@@ -61,8 +64,8 @@ StemExport stemExport{};
 
 /// How many audio blocks one offline pass renders before returning to the run loop.
 ///
-/// Offline export has no scheduler driving the audio routine, so the pass drives it directly - routing
-/// each block back through the scheduler instead would cap a headless render at about realtime.
+/// Offline export has no audio tier driving the audio routine, so the pass drives it directly - routing
+/// each block back through the audio tier instead would cap a headless render at about realtime.
 /// Batching keeps that direct-drive throughput while still letting go often enough for the fill task,
 /// the UI, and a cancellation to get a look in. A pass also stops early the moment the loader queue has
 /// work, so this bound only matters while nothing needs filling.
@@ -131,25 +134,69 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	exportIndex = (exportTotal != 0 && totalNumStemsToExport != 0) ? elementCount - 1 : -1;
 
 	exportPhase = ExportPhase::NEXT_ELEMENT;
+	deluge::runtime::appLoop.request(jobId);
 }
 
 void StemExport::exportRoutine() {
+	// A new run: the in-run guard counts only this run's pumps. Across runs the time bound decides.
+	stemSearchPumps_ = 0;
 	switch (exportPhase) {
 	case ExportPhase::NONE:
 		return;
 
 	case ExportPhase::NEXT_ELEMENT:
 		startNextElement();
-		return;
+		break;
 
 	case ExportPhase::AWAIT_ELEMENT:
 		driveElement();
-		return;
+		break;
 
 	case ExportPhase::FINISH:
 		finishExport();
+		break;
+	}
+	armNextRun();
+}
+
+void StemExport::armNextRun() {
+	using deluge::runtime::appLoop;
+	if (exportPhase == ExportPhase::NONE) {
 		return;
 	}
+	if (exportPhase != ExportPhase::AWAIT_ELEMENT) {
+		appLoop.request(jobId);
+		return;
+	}
+	const uint64_t now = deluge::runtime::nowUs();
+	if (!renderOffline) {
+		appLoop.requestAt(jobId, now + kLiveRecheckUs);
+		return;
+	}
+	const CardHold hold = cardHold();
+	if (!exportAwaitingDrain && hold != CardHold::WaitsOnCard) {
+		// NotHeld: the batch is spent, render on. MovesOn: the recorder's next card tick moves on by itself, and no
+		// answer will wake the job for it.
+		appLoop.request(jobId);
+		return;
+	}
+	// Each wait below is answered by a DELUGE_WAKE_STORAGE. The time is the run that looks again without one.
+	uint64_t next = deluge::runtime::kNever;
+	if (stemSearchActive_) {
+		// The stem-folder search, on the byte channel. A refused request is asked again after kRefusedRecheckUs, since
+		// an answer that ages out of the channel raises no wake; past the search's own bound the run gives it up.
+		next = std::min(stemSearchStall_.deadlineUs(), now + deluge::storage::bytes::kRefusedRecheckUs);
+	}
+	else if (hold == CardHold::WaitsOnCard) {
+		// The recorder's card work. Every answer wakes the job, but the "audio slow" job drives the same card routine
+		// on its own gap, and a take it fails at the recorder's stall bound settles without a wake: look again then.
+		next = now + deluge::storage::kMaxUnproductiveUs;
+	}
+	if (exportAwaitingDrain) {
+		// Parked at the drain point. The loader wakes the app only on a whole drain: ask for the drain again soon.
+		next = std::min(next, now + kDrainRecheckUs);
+	}
+	appLoop.requestAt(jobId, next);
 }
 
 void StemExport::startNextElement() {
@@ -173,10 +220,11 @@ void StemExport::startNextElement() {
 
 /// One pass of the wait an element's recording needs.
 ///
-/// Live, there is nothing to do but look: the scheduler is already running the audio routine, playback
-/// and the recorder. Offline there is no scheduler driving them, so this drives them itself - but in a
-/// BOUNDED batch, returning to the run loop either when the batch is spent or as soon as the loader
-/// queue has work, since the fill task that serves it only runs once we let go.
+/// Live, there is nothing to do but look: the audio tier is already running the audio routine, and the
+/// app loop's own jobs already run playback and the recorder. Offline there is nothing driving them, so
+/// this drives them itself - but in a BOUNDED batch, returning to the run loop either when the batch is
+/// spent or as soon as the loader queue has work, since the fill task that serves it only runs once we
+/// let go.
 void StemExport::driveElement() {
 	// elementFinished() is NOT a pure predicate - it drives stopOutputRecording(), which is what
 	// eventually ends the recording. It must be evaluated exactly once per render iteration: asking a
@@ -206,11 +254,16 @@ void StemExport::driveElement() {
 
 			AudioEngine::slowRoutine();
 			audioRecorder.slowRoutine();
+			// Rendering on while the export waits on the card only buffers more audio in RAM: end the batch here,
+			// between two whole render iterations, and resume once the channel has answered.
+			if (cardHold() != CardHold::NotHeld) {
+				break;
+			}
 		}
 	}
 	else {
-		// Live: the scheduler is already running the audio routine, playback and the recorder, so all
-		// this pass does is take that one look.
+		// Live: the audio tier is already running the audio routine, and the app loop's own jobs
+		// already run playback and the recorder, so all this pass does is take that one look.
 		finished = elementFinished();
 	}
 
@@ -228,6 +281,24 @@ void StemExport::driveElement() {
 	}
 
 	exportPhase = ExportPhase::AWAIT_ELEMENT;
+}
+
+StemExport::CardHold StemExport::cardHold() const {
+	if (stemSearchActive_) {
+		return CardHold::WaitsOnCard;
+	}
+	const SampleRecorder* recorder = audioRecorder.recorder;
+	if (recorder == nullptr || recorder->hadCardError || recorder->settled()) {
+		return CardHold::NotHeld;
+	}
+	const bool captureOver =
+	    recorder->status.load(std::memory_order_acquire) >= RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING;
+	const int32_t owed =
+	    recorder->currentRecordClusterIndex.load(std::memory_order_acquire) - recorder->firstUnwrittenClusterIndex;
+	if (!captureOver && owed <= kMaxOwedClusters) {
+		return CardHold::NotHeld;
+	}
+	return recorder->waitsOnChannel() ? CardHold::WaitsOnCard : CardHold::MovesOn;
 }
 
 void StemExport::finishExport() {
@@ -268,6 +339,8 @@ void StemExport::abortStemExportProcess(deluge::l10n::String reason) {
 	highestUsedStemFolderNumber++;
 	display->displayPopup(deluge::l10n::get(reason), 6);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
+	// The export sees the cancel on its next run, wherever it is parked.
+	deluge::runtime::appLoop.request(jobId);
 }
 
 /// Simulate pressing record and play in order to trigger resampling of out output that ends when loop ends
@@ -870,6 +943,11 @@ Error StemExport::getUnusedStemRecordingFilePath(std::string* filePath, AudioRec
 	return Error::NONE;
 }
 
+bool StemExport::stemSearchStalled() {
+	const bool timedOut = stemSearchStall_.tick();
+	return timedOut || ++stemSearchPumps_ >= kMaxInRunPumps;
+}
+
 /// gets folder path in SAMPLES/EXPORTS to write stems to
 /// within the STEMS folder, it will try to create a folder with the name of the SONG
 /// if it cannot create a folder with the SONG name because it already exists, it will continue creating folder path
@@ -981,6 +1059,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 			stemSearchIssued_ = false;
 			stemSearchCandidatesTried_ = 0;
 			stemSearchStall_.reset();
+			stemSearchPumps_ = 0;
 			stemSearchCandidatePath_ = tempPathForSearch;
 		}
 
@@ -1000,7 +1079,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectExists(stemSearchCandidatePath_.c_str(), &present, &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						if (!stemSearchStall_.tick()) {
+						if (!stemSearchStalled()) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestExists(stemSearchCandidatePath_.c_str());
 							}
@@ -1028,7 +1107,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 					    deluge::storage::bytes::collectMkdirAll(stemSearchCandidatePath_.c_str(), &outStatus);
 					if (io == deluge::storage::bytes::ByteIo::Unknown
 					    || io == deluge::storage::bytes::ByteIo::Pending) {
-						if (!stemSearchStall_.tick()) {
+						if (!stemSearchStalled()) {
 							if (io == deluge::storage::bytes::ByteIo::Unknown) {
 								(void)deluge::storage::bytes::requestMkdirAll(stemSearchCandidatePath_.c_str());
 							}
@@ -1070,6 +1149,7 @@ Error StemExport::getUnusedStemRecordingFolderPath(std::string* filePath, AudioR
 				stemSearchCandidatePath_.append(deluge::string::fromInt(highestUsedStemFolderNumber, 2));
 			}
 			stemSearchStall_.reset();
+			stemSearchPumps_ = 0;
 			stemSearchPhase_ = next;
 		}
 

@@ -1,15 +1,15 @@
 //! `libdeluge/audio_io.h` on host: renders each block for real, into a null sink or (with `sim`)
 //! the emulator's audio device, which plays it and paces the render in real time.
 //!
-//! The app's priority-0 task (`AudioEngine::routine_task`) calls [`deluge_audio_drive`], which
-//! calls `deluge_app_render` and discards the block unless it is captured
-//! ([`deluge_host_capture_start`]). The host runtime routes that task onto a separate
-//! `"deluge-audio"` executor thread (`scheduler::set_audio_spawner`), the stand-in for the
-//! device's preemptive audio executor; single-executor harnesses such as `golden_vt_render` do
-//! not, and run it inline instead (see `should_skip_render`).
+//! The render task ([`crate::audio::render::render_task`]) ticks the app, whose
+//! `AudioEngine::routine_task` calls [`deluge_audio_drive`], which calls `deluge_app_render` and
+//! discards the block unless it is captured ([`deluge_host_capture_start`]). The host runtime
+//! spawns that task on a separate `"deluge-audio"` executor thread ([`set_audio_executor`]), the
+//! stand-in for the device's preemptive audio executor; single-executor harnesses such as
+//! `golden_vt_render` spawn it on their one executor instead (see `should_skip_render`).
 //!
-//! `AudioEngine::runRoutine()` also calls the drive once during `deluge_boot()`, before the task
-//! is registered, on the boot thread rather than `"deluge-audio"`.
+//! `AudioEngine::runRoutine()` also calls the drive during boot, before the render task's first
+//! tick, on the boot thread rather than `"deluge-audio"`.
 //!
 //! The render buffers are `static mut`: only the render touches them, one block at a time.
 //!
@@ -47,9 +47,19 @@ static DRIVE_COUNT: AtomicU64 = AtomicU64::new(0);
 /// without flooding the log at ~344 blocks a second.
 const LOG_EVERY: u64 = 500;
 
-/// Set once a render runs on the `"deluge-audio"` thread, i.e. the priority-0 task was routed
-/// through `scheduler::set_audio_spawner`.
+/// Set once a render runs on the `"deluge-audio"` thread, i.e. the render task was spawned on the
+/// audio executor.
 static AUDIO_THREAD_RENDER_SEEN: AtomicBool = AtomicBool::new(false);
+
+/// Whether the render has an executor of its own (the threaded host app's `"deluge-audio"`
+/// thread) rather than sharing a single-executor harness's one.
+static AUDIO_EXECUTOR: AtomicBool = AtomicBool::new(false);
+
+/// Marks the render as having an executor of its own. Call from that executor's thread, before
+/// `deluge_app_init`.
+pub fn set_audio_executor() {
+    AUDIO_EXECUTOR.store(true, Ordering::Relaxed);
+}
 
 /// Returns whether a render has run on the `"deluge-audio"` thread; the host runtime's boot check
 /// requires it.
@@ -78,8 +88,8 @@ fn render_mode() -> bool {
 /// - on the `"deluge-audio"` thread, the normal render path;
 /// - when [`render_after_boot`] or [`REALTIME_RENDER`] asks for every block.
 ///
-/// Otherwise — after boot on a single-executor harness, where the priority-0 task runs on the
-/// same executor as everything else — the call is skipped: nothing consumes that block's output.
+/// Otherwise — after boot on a single-executor harness, where the render task runs on the same
+/// executor as everything else — the call is skipped: nothing consumes that block's output.
 fn should_skip_render() -> bool {
     if !crate::boot::finished() || render_after_boot() || REALTIME_RENDER.load(Ordering::Relaxed) {
         return false;
@@ -363,12 +373,12 @@ pub fn drive_count() -> u64 {
 ///
 /// - With an audio executor (the `"deluge-audio"` thread): sleeps briefly and lets that thread
 ///   render; rendering here would run a second render alongside it.
-/// - On a single-executor harness: the audio task cannot run while the caller waits, so this runs
+/// - On a single-executor harness: the render task cannot run while the caller waits, so this runs
 ///   [`deluge_audio_drive`] inline. After boot that skips the render but still runs its block-start
 ///   step (`deluge_app_render_skipped`), which releases what was handed over.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_await_block() {
-    if crate::scheduler::has_audio_executor() {
+    if AUDIO_EXECUTOR.load(Ordering::Relaxed) {
         std::thread::sleep(std::time::Duration::from_millis(1));
     } else {
         let _ = deluge_audio_drive();

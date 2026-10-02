@@ -42,6 +42,7 @@ use embassy_time_driver::Driver as _;
 mod clock;
 
 use deluge_bsp_rust::audio::host as audio_host;
+use deluge_bsp_rust::audio::render;
 use deluge_bsp_rust::channel::{
     audio_loader, file_bytes, file_directory, file_prefix, file_stream,
 };
@@ -49,7 +50,7 @@ use deluge_bsp_rust::deluge_bsp;
 use deluge_bsp_rust::peripherals::{board, control, display};
 use deluge_bsp_rust::storage::efatfs::host as efatfs_host;
 use deluge_bsp_rust::storage::{memory_card, sd, sd_image, streaming_loader};
-use deluge_bsp_rust::{boot, scheduler, sys, tier_meter};
+use deluge_bsp_rust::{app_loop, boot, sys, tier_meter};
 
 /// A stepped scenario, as `tests/integration/scenarios/scenario_table.h` declares it: found by
 /// name, then driven by [`run_stepped_scenario`]: `begin` once, then `dispatch_step` and
@@ -128,7 +129,7 @@ async fn boot_task() {
     // The stem export (GOLDEN_SCENARIO unset) needs no boot settings, and the settings prelude's
     // reads (and its write when MIDI_FOLLOW.XML is absent) would occupy the single-slot byte
     // channel the export's folder search uses. Scenarios keep the prelude, which exercises it.
-    // Must precede deluge_app_init, which registers the task.
+    // Must precede deluge_app_init, which registers the startup job.
     if std::env::var("GOLDEN_SCENARIO")
         .unwrap_or_default()
         .is_empty()
@@ -137,12 +138,11 @@ async fn boot_task() {
         unsafe { sys::deluge_startup_skip_settings_prelude() };
     }
 
-    log::info!("golden_vt_render: deluge_app_init() (registers + spawns task runners)");
-    // SAFETY: called once, after `scheduler::set_spawner` (in main) and before anything else
-    // touches the app or scheduler state.
+    log::info!("golden_vt_render: deluge_app_init() (registers the app's jobs)");
+    // SAFETY: called once, before anything else touches the app state.
     unsafe { sys::deluge_app_init(board::deluge_board()) };
-    // A stepped scenario's hook for this moment: the task runners deluge_app_init spawned have not
-    // been polled, so the render has not run yet.
+    // A stepped scenario's hook for this moment: boot has not been marked finished, so neither the
+    // app loop nor the render has run yet.
     if let Some(on_app_init) =
         stepped_scenario(&std::env::var("GOLDEN_SCENARIO").unwrap_or_default())
             .and_then(|scenario| scenario.on_app_init)
@@ -152,9 +152,9 @@ async fn boot_task() {
     }
     boot::mark_finished();
     BOOT_MOUNTED.store(true, Ordering::Release);
-    log::info!("golden_vt_render: boot+mount complete; scheduler running");
+    log::info!("golden_vt_render: boot+mount complete; app loop running");
 
-    // The scheduler's task runners, spawned by deluge_app_init, own the app's work.
+    // The app loop runs the app's jobs from here on.
     core::future::pending::<()>().await
 }
 
@@ -1246,6 +1246,24 @@ fn fill_preset_load_card() {
     memory_card::install(Some(&root));
 }
 
+/// Stages the load-cancel scenario's card: the samples its six synth presets name, in `SAMPLES/LC/`, and an empty
+/// `SYNTHS/` the scenario writes the presets into through the firmware's serialisers.
+fn fill_load_cancel_card() {
+    let root = std::env::temp_dir().join("deluge-load-cancel-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES").join("LC");
+    for dir in [&samples, &root.join("SYNTHS")] {
+        std::fs::create_dir_all(dir).expect("creating the load-cancel fixture directories");
+    }
+    write_sine_wav(&samples.join("LCA.WAV"), 1, 22_050, 440.0);
+    write_sine_wav(&samples.join("LCB.WAV"), 1, 22_050, 330.0);
+    write_sine_wav(&samples.join("LCC.WAV"), 1, 22_050, 550.0);
+    write_sine_wav(&samples.join("LCD.WAV"), 1, 22_050, 660.0);
+    write_sine_wav(&samples.join("LCE.WAV"), 1, 22_050, 770.0);
+    write_sine_wav(&samples.join("LCF.WAV"), 1, 22_050, 880.0);
+    memory_card::install(Some(&root));
+}
+
 /// Stages the `clear_song_undo` scenario's card: the samples its preset and audio clip use, and the
 /// empty folders the scenario writes into through the firmware.
 fn fill_clear_song_undo_card() {
@@ -1332,23 +1350,37 @@ fn main() {
         .to_path_buf();
     // render_song and render_preset play as the device does: every block rendered on the audio
     // tier after boot, one 128-frame block per 2,902 virtual microseconds, so their timing checks
-    // compare against the device's audio period. Both must be set before deluge_app_init registers
-    // the audio task.
+    // compare against the device's audio period. Set before the render task is spawned.
     if scenario == "render_song" || scenario == "render_preset" {
         audio_host::set_realtime_render(true);
-        scheduler::set_audio_period_override_us(2902, 0);
+        render::set_period_override_us(2902, 0);
     }
     // clock_input's analog-clock transport times its input ticks by AudioEngine::audioSampleTimer,
     // which only real rendering advances. It has no golden timing, so no period override.
     if scenario == "clock_input" {
         audio_host::set_realtime_render(true);
     }
+    // ui_timer_deadline compares UI timers, which run on AudioEngine::audioSampleTimer, with the app
+    // loop's virtual clock, so the sample clock keeps the device's pace: one block per 2,902 µs.
+    // idle_job_rates counts the ui routine's runs, which follow the same timers, so it keeps that pace too.
+    // recorder_take records the test input signal and plays a DIN script during the take, both of which follow the
+    // render, so it renders every block at the device's pace too. stale_ui plays a DIN script and waits on an armed
+    // song swap, which the playing song's loop launches, and on the UI timers it sets while the swap waits.
+    if scenario == "ui_timer_deadline"
+        || scenario == "idle_job_rates"
+        || scenario == "recorder_take"
+        || scenario == "stale_ui"
+    {
+        audio_host::set_realtime_render(true);
+        render::set_period_override_us(2902, 0);
+    }
     // The card: a memory disk holding the scenario's fixture tree, unless DELUGE_SD_IMAGE names an
     // image file.
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {
             "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard"
-            | "audio_header_dump" => memory_card::install(None),
+            | "audio_header_dump" | "ui_timer_deadline" | "idle_job_rates" | "recorder_take"
+            | "stale_ui" => memory_card::install(None),
             "audio_load_ab" => fill_audio_load_ab_card(),
             "song_preview_ab" => fill_song_preview_ab_card(&repo_root),
             "song_save_channel" => fill_song_save_card(),
@@ -1357,6 +1389,7 @@ fn main() {
             "sample_load_tree" => fill_sample_load_tree_card(),
             "sample_claim" => fill_sample_claim_card(),
             "preset_load" => fill_preset_load_card(),
+            "load_cancel" => fill_load_cancel_card(),
             "load_policy" => fill_load_policy_card(),
             "clear_song_undo" => fill_clear_song_undo_card(),
             "song_load_channel" => fill_song_load_channel_card(),
@@ -1382,15 +1415,15 @@ fn main() {
     let executor: &'static raw::Executor =
         Box::leak(Box::new(raw::Executor::new(std::ptr::null_mut())));
     let spawner = executor.spawner();
-    scheduler::set_spawner(spawner);
 
-    // The host runtime's BSP tasks, without its separate audio thread: with no
-    // `scheduler::set_audio_spawner`, the priority-0 audio task runs on this one executor.
+    // The host runtime's BSP tasks, without its separate audio thread: the render task shares this
+    // one executor.
     spawner.spawn(control::pic_pump().unwrap());
     spawner.spawn(control::pad_render().unwrap());
-    spawner.spawn(control::encoder_wake_pump().unwrap());
+    spawner.spawn(app_loop::app_loop().unwrap());
     spawner.spawn(display::oled_render().unwrap());
     spawner.spawn(boot_task().unwrap());
+    spawner.spawn(render::render_task().unwrap());
     // The async cluster-fill task, which owns the loader queue.
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
     // The channel workers. Without each, every request on its channel waits forever.

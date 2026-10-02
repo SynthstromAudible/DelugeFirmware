@@ -348,7 +348,18 @@ bool LoadInstrumentPresetUI::scrollLoadInFlight() const {
 // Every non-reload encoder tick asks for the file the cursor lands on. The machine coalesces latest-wins, so a fast
 // scroll cancels each load it leaves and only loads where the user settles.
 void LoadInstrumentPresetUI::currentFileChanged(int32_t movementDirection) {
-	deluge::gui::instrumentLoad.request({.target = snapshotTarget(movementDirection), .completion = &onScrollLoaded});
+	scrollLoadTicket_ = deluge::gui::instrumentLoad.request(
+	    {.target = snapshotTarget(movementDirection), .completion = &onScrollLoaded});
+}
+
+ActionResult LoadInstrumentPresetUI::backButtonAction() {
+	// BACK while the preset under the cursor is still loading drops that load, and any older scroll-load it was queued
+	// to replace: the clip keeps what it had, and the browser stays where it is. Once nothing of the browser's is
+	// loading, BACK goes up a folder or out, as in every browser.
+	if (deluge::gui::instrumentLoad.cancel(scrollLoadTicket_) == deluge::gui::CancelResult::Cancelled) {
+		return ActionResult::DEALT_WITH;
+	}
+	return LoadUI::backButtonAction();
 }
 
 void LoadInstrumentPresetUI::onScrollLoaded(Error error) {
@@ -409,13 +420,14 @@ void LoadInstrumentPresetUI::selectEncoderAction(int8_t offset) {
 }
 
 void LoadInstrumentPresetUI::close() {
-	deluge::gui::instrumentLoad.cancel();
+	deluge::gui::instrumentLoad.cancelBrowserLoads();
 	LoadUI::close();
 }
 
 bool LoadInstrumentPresetUI::dispatchPresetAcquisition(const deluge::storage::PresetRequest& request) {
-	return deluge::gui::instrumentLoad.request(
-	    {.kind = deluge::gui::InstrumentLoadRequest::Kind::Acquire, .preset = request});
+	return deluge::gui::instrumentLoad
+	    .request({.kind = deluge::gui::InstrumentLoadRequest::Kind::Acquire, .preset = request})
+	    .accepted();
 }
 
 bool LoadInstrumentPresetUI::presetAcquisitionInFlight() const {
@@ -619,7 +631,7 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 	}
 }
 
-ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadInstrumentPresetUI::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 	// Refused while a commit is in flight: InstrumentLoad closes the browser's gate until it ends.
 	if (deluge::gui::instrumentLoad.commitInFlight()) {
@@ -641,9 +653,6 @@ doChangeOutputType:
 			return ActionResult::DEALT_WITH;
 		}
 		if (on && currentUIMode == UI_MODE_NONE) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			changeOutputType(newOutputType);
 		}
 	}
@@ -667,7 +676,7 @@ doChangeOutputType:
 	}
 
 	else {
-		return LoadUI::buttonAction(b, on, inCardRoutine);
+		return LoadUI::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -679,10 +688,6 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		return ActionResult::DEALT_WITH;
 	}
 	if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
-
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // The below needs to access the card.
-		}
 
 		currentUIMode = UI_MODE_NONE;
 
@@ -1291,7 +1296,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 // Previously called "exitAndResetInstrumentToInitial()". Does just that.
 void LoadInstrumentPresetUI::exitAction() {
 	// A load still out would swap in behind the revert.
-	deluge::gui::instrumentLoad.cancel();
+	deluge::gui::instrumentLoad.cancelBrowserLoads();
 	revertToInitialPreset();
 	LoadUI::exitAction();
 }
@@ -1321,9 +1326,6 @@ ActionResult LoadInstrumentPresetUI::padAction(int32_t x, int32_t y, int32_t on)
 	else if (x == kDisplayWidth) {
 potentiallyExit:
 		if (on && !currentUIMode) {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			exitAction();
 		}
 	}
@@ -1335,24 +1337,20 @@ potentiallyExit:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset) {
 	// Refused while a commit is in flight: InstrumentLoad closes the browser's gate until it ends.
 	if (deluge::gui::instrumentLoad.commitInFlight()) {
 		return ActionResult::DEALT_WITH;
 	}
 	if (Buttons::isShiftButtonPressed()) {
-		LoadUI::verticalEncoderAction(offset, false);
+		LoadUI::verticalEncoderAction(offset);
 	}
 	if (showingAuditionPads()) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
-
-		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-			return result;
-		}
+		ActionResult result = instrumentClipView.verticalEncoderAction(offset);
 
 		if (getRootUI() == &keyboardScreen) {
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);

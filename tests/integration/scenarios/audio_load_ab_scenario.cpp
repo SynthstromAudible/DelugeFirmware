@@ -24,7 +24,9 @@
 #include "io/file.hpp"                             // the card swap's unlink + rename
 #include "libdeluge/audio_load.h"                  // deluge_audio_load_set_latency_ms
 #include "model/sample/sample.h"
-#include "scenarios/load_invariants.h" // checkLoadInvariants -- shared with load_policy
+#include "runtime/app_loop.h"                // nowUs, the stall bounds' clock
+#include "scenarios/load_invariants.h"       // checkLoadInvariants -- shared with load_policy
+#include "storage/audio/async_sample_load.h" // AsyncSampleLoad::kMaxStalledUs
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h" // bytes::interactionTierIo
 
@@ -245,7 +247,7 @@ constexpr int32_t kCancelTicks = 64;
 //
 // AB-PREVIEW-STALL. The preview stage proves a deferred preview is asked for again until it lands; this one
 // proves that asking again ENDS. A preview whose load is held far past its load's stall bound
-// (AsyncSampleLoad::kMaxStalledTicks) must give up -- nothing pending, nothing drawn, one give-up counted -- rather
+// (AsyncSampleLoad::kMaxStalledUs) must give up -- nothing pending, nothing drawn, one give-up counted -- rather
 // than be asked for on every frame for as long as the card takes not to answer. The hold is the loader's host latency
 // knob, which delays each load after it is marked in flight, so every collect during it answers PENDING, as a card that
 // never answers would.
@@ -254,11 +256,13 @@ constexpr int32_t kCancelTicks = 64;
 /// stage's doing.
 constexpr const char* kStallPath = "SAMPLES/STALL.WAV";
 
-/// How long the loader holds each load during the stall: far past the bound, at about 2 virtual ms a tick.
-constexpr uint32_t kStallHoldMs = 30000;
+/// How long, in virtual time, the stall stage waits for the preview to give up before calling it wedged: the load's
+/// own bound and a margin.
+constexpr uint64_t kStallWindowUs = deluge::storage::AsyncSampleLoad::kMaxStalledUs + 2'000'000;
 
-/// graphicsRoutine() calls the stall stage may make before the preview is called wedged. Far past the bound.
-constexpr int32_t kMaxStallTicks = 2000;
+/// How long the loader holds each load during the stall: past the whole wait, so every collect in it answers PENDING.
+constexpr uint32_t kStallHoldMs = 30000;
+static_assert(uint64_t{kStallHoldMs} * 1000 > kStallWindowUs, "the hold must outlast the stall stage's wait");
 
 /// graphicsRoutine() calls after the wait ends, with the hold lifted, in which nothing may be pending again.
 constexpr int32_t kStallSettleTicks = 64;
@@ -392,6 +396,10 @@ int32_t g_dsStallComplete = 0;
 int32_t g_dsStallTicks = 0;
 /// graphicsRoutine() calls made while the stalled preview was pending.
 int32_t g_stallTicks = 0;
+/// When the stall stage asked for its preview, on the stall bound's clock.
+uint64_t g_stallStartUs = 0;
+/// How long the stall stage waited before the preview gave up, or the whole window.
+uint64_t g_stallWaitedUs = 0;
 /// graphicsRoutine() calls made after the wait ended.
 int32_t g_stallSettleTicks = 0;
 /// SampleBrowser::previewGiveUps() when the stage began.
@@ -835,17 +843,19 @@ void runOneStallTick() {
 		g_stallTier = markTier();
 		// The ONE user-driven action of this stage. The load it asks for is held from here on.
 		sampleBrowser.previewFile(kStallPath, /*movementDirection=*/0);
+		g_stallStartUs = deluge::runtime::nowUs();
 		g_stallStep = StallStep::Wait;
 		return;
 
 	case StallStep::Wait:
 		// Read at the top of the tick, before graphicsRoutine() ticks the load again.
-		if (sampleBrowser.previewLoadPending() && g_stallTicks < kMaxStallTicks) {
+		if (sampleBrowser.previewLoadPending() && deluge::runtime::nowUs() - g_stallStartUs < kStallWindowUs) {
 			g_stallTicks++;
 			sampleBrowser.graphicsRoutine();
 			return;
 		}
 		g_stallPendingAtEnd = sampleBrowser.previewLoadPending();
+		g_stallWaitedUs = deluge::runtime::nowUs() - g_stallStartUs;
 		deluge_audio_load_set_latency_ms(0);
 		g_stallStep = StallStep::Settle;
 		return;
@@ -869,7 +879,9 @@ void finishStallStage() {
 	const int32_t giveUps = sampleBrowser.previewGiveUps() - g_stallGiveUpsBefore;
 	const bool drawn = stallHasDrawn();
 	const bool pendingAfter = sampleBrowser.previewLoadPending();
-	printf("AB-PREVIEW-STALL ticks=%d giveUps=%d pendingAtEnd=%d drawn=%d pendingAfter=%d\n", g_stallTicks, giveUps,
+	printf("AB-PREVIEW-STALL ticks=%d waitedUs=%llu boundUs=%llu giveUps=%d pendingAtEnd=%d drawn=%d pendingAfter=%d\n",
+	       g_stallTicks, static_cast<unsigned long long>(g_stallWaitedUs),
+	       static_cast<unsigned long long>(deluge::storage::AsyncSampleLoad::kMaxStalledUs), giveUps,
 	       g_stallPendingAtEnd ? 1 : 0, drawn ? 1 : 0, pendingAfter ? 1 : 0);
 
 	if (g_stallPendingAtEnd || giveUps != 1) {
@@ -1189,6 +1201,8 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_cancelTicks = 0;
 	g_stallStep = StallStep::Start;
 	g_stallTicks = 0;
+	g_stallStartUs = 0;
+	g_stallWaitedUs = 0;
 	g_stallSettleTicks = 0;
 	g_stallGiveUpsBefore = 0;
 	g_stallPendingAtEnd = false;

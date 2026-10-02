@@ -91,6 +91,8 @@ public:
 
 	/// @brief Whether a cancelled walk is still waiting for its open to report.
 	[[nodiscard]] bool draining() const { return phase_ == Phase::Draining; }
+	/// @brief Whether a walk is running or draining: it may still change a drum's sample.
+	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle; }
 	/// @brief Walks that ended on a load that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
 	/// @}

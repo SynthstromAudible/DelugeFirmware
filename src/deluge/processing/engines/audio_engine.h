@@ -23,8 +23,10 @@
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"
 #include "model/output.h"
+#include "runtime/app_loop.h"
 #include "util/audio_owned_list.h"
 #include "util/containers.h"
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <libdeluge/scheduler.h>
@@ -143,8 +145,8 @@ namespace AudioEngine {
 using VoicePool = deluge::memory::ObjectPool<Voice, deluge::memory::fast_allocator>;
 using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
-void routine();
-void routine_task();
+uint32_t routine();
+bool routine_task();
 void routineWithClusterLoading();
 void runRoutine();
 
@@ -265,7 +267,9 @@ extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
 extern StereoFloatSample approxRMSLevel;
 extern AbsValueFollower envelopeFollower;
-extern TaskID routine_task_id;
+/// Set once the BSP's audio tier drives the render (at the end of deluge_app_init). From then on
+/// runRoutine() leaves rendering to the tier, which preempts its caller.
+extern std::atomic<bool> renderDrivenByTier;
 void feedReverbBackdoorForGrain(int index, q31_t value);
 
 /// returns whether a voice is allowed to start right now - otherwise it should be deferred to the next tick
@@ -301,8 +305,16 @@ void retire(Song* song);
 ///        swap's finish, whose sample-load retry needs the old song's memory back.
 void awaitRetired();
 /// @brief [interaction] Destroy every retired object the render has let go of, once two blocks have begun since it
-///        was handed over. Called by a repeating scheduler task and, before each handover, by retire().
+///        was handed over. Called by @ref reclaimRoutine and, before each handover, by retire().
 void reclaimRetired();
+/// @brief How often @ref reclaimRoutine looks again while retired objects are still waiting, in µs: about five render
+///        blocks, so an object is freed soon after the two blocks it waits for.
+inline constexpr deluge::runtime::Micros kReclaimRecheckUs = 15'000;
+/// @brief The job that runs @ref reclaimRoutine. Requested by every handover to the render; it asks for its own next
+///        run while anything is still waiting.
+extern deluge::runtime::JobId reclaimJob;
+/// @brief [interaction] reclaimRetired(), then a run @ref kReclaimRecheckUs from now while retiredPending() > 0.
+void reclaimRoutine();
 /// @brief [interaction] How many retired objects are still waiting to be destroyed. Test/diagnostic hook.
 std::size_t retiredPending();
 /// @brief [interaction] How many retired objects were destroyed while a Sound of theirs was still in the Sound

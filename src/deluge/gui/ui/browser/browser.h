@@ -63,9 +63,9 @@ public:
 	/// the browser.
 	virtual void close();
 	virtual std::string getCurrentFilePath() = 0;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	void currentFileDeleted();
 	Error goIntoFolder(char const* folderName);
 	Error createFolder();
@@ -157,6 +157,17 @@ public:
 
 	/// @brief The error the most recent of those failures reported. For gates only.
 	[[nodiscard]] static Error lastListingFailure();
+
+	/// @brief How long a directory open may go unanswered by the channel before the listing gives up, in
+	///        microseconds: 9 s, two and a half channel stall bounds, long enough for a slow card and short enough that
+	///        a dead one ends the listing with an error.
+	static constexpr uint64_t kDirectoryStallUs = 9'000'000;
+
+	/// @brief When the directory open in hand gives up if the channel does not answer it first, on the app loop's
+	///        clock (µs); kNever when no open is waiting. A caller that runs only when woken and was told
+	///        Error::LISTING_DEFERRED asks for a run at this time: the channel's answer raises DELUGE_WAKE_STORAGE
+	///        sooner.
+	[[nodiscard]] static uint64_t directoryWaitDeadlineUs();
 
 	/// @brief How many reloads -- the scroll past a culled window's edge -- have started. For gates only.
 	[[nodiscard]] static int32_t reloadsRun();

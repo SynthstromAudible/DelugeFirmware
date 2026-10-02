@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "runtime/app_loop.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/latest_sample_load.h"
 
@@ -55,8 +56,13 @@ public:
 	/// @brief Whether a reversion is in flight.
 	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle; }
 
-	/// @brief Advance the reversion as far as it can go without waiting. Called by the "reversion" repeating task.
+	/// @brief Advance the reversion as far as it can go without waiting, then ask for the job's next run while a
+	///        pre-load is out. Called by the "reversion" job.
 	void routine();
+
+	/// @brief The job routine() runs on, woken by DELUGE_WAKE_STORAGE. It runs when a reversion is asked for, when a
+	///        storage channel answers, and at the pre-load's next tick (LatestSampleLoad::nextTickUs()).
+	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
 
 	/// @name Counts for the clear-song-undo gate.
 	/// @{

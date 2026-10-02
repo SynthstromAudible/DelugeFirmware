@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2026 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,25 +14,17 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-#include "sync/storage_op.h"
 
-namespace {
-// The permit state, owned entirely by this module. Was the file-scope global
-// allowSomeUserActionsEvenWhenInCardRoutine (now deleted).
-bool g_user_actions_permitted = false;
-} // namespace
+#pragma once
 
-namespace deluge::sync {
+#include <cstdint>
 
-StorageOp::StorageOp() : prev_permit_{g_user_actions_permitted} {
-	g_user_actions_permitted = true;
-}
-StorageOp::~StorageOp() {
-	g_user_actions_permitted = prev_permit_;
-}
-
-bool user_actions_permitted() {
-	return g_user_actions_permitted;
-}
-
-} // namespace deluge::sync
+/// @brief An idle app loop runs each job only as often as it has work: after boot settles, every job's runs over ten
+/// seconds of the app's clock are printed as a rate (IR-JOB), and the wake-driven jobs must not have run at all.
+extern "C" {
+void deluge_scenario_idle_job_rates_begin(void);
+bool deluge_scenario_idle_job_rates_complete(void);
+void deluge_scenario_idle_job_rates_dispatch_step(void);
+bool deluge_scenario_idle_job_rates_step_done(void);
+int32_t deluge_scenario_idle_job_rates_failures(void);
+} // extern "C"

@@ -26,6 +26,8 @@
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/file.hpp"
+#include "io/midi/midi_device_manager.h"
+#include "io/midi/midi_engine.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -80,7 +82,7 @@ constexpr int32_t kMaxClearTicks = 2000;
 constexpr int32_t kUndoSettleTicks = 40;
 
 /// Which undo leg is running. They share one set-sample fixture and differ in what they ask of the reversion.
-enum class UnLeg : uint8_t { Sample, Redo, Plain, Refuse, Missing, Done };
+enum class UnLeg : uint8_t { Sample, Redo, Plain, Refuse, Missing, Midi, Done };
 
 enum class Stage : uint8_t { Fixture, Settle, UnSetup, UnAct, UnWait, UnCheck, Clear, Wait, Report, Summary, Done };
 Stage g_stage = Stage::Fixture;
@@ -226,6 +228,25 @@ void pressCommand(GlobalMIDICommand command) {
 	playbackHandler.slowRoutine();
 }
 
+/// The learned note the MIDI leg's UNDO arrives on.
+constexpr int32_t kUndoMidiChannel = 14;
+constexpr int32_t kUndoMidiNote = 100;
+
+/// A MIDI note learned as UNDO, delivered as the midi routine delivers it. tryGlobalMIDICommands() only makes the
+/// command wait, and nothing here runs the routine that actions it: the "playback slow routine" job has to be asked
+/// for.
+void sendMidiUndo() {
+	LearnedMIDI& learned = midiEngine.globalMIDICommands[static_cast<int32_t>(GlobalMIDICommand::UNDO)];
+	learned.clear();
+	learned.channelOrZone = kUndoMidiChannel;
+	learned.noteOrCC = kUndoMidiNote;
+	g_unAcceptedCommands++;
+	bool doingMidiThru = false;
+	playbackHandler.noteMessageReceived(MIDIDeviceManager::dinMIDIPorts, true, kUndoMidiChannel, kUndoMidiNote, 64,
+	                                    &doingMidiThru);
+	learned.clear();
+}
+
 /// CS-TIER: the clear ran where the caller stands, and read no card of its own.
 void checkTier() {
 	const int32_t reads = g_readsOnReturn - g_readsBefore;
@@ -315,6 +336,14 @@ void checkUndoLeg() {
 			g_failures++;
 		}
 		break;
+	case UnLeg::Midi:
+		printf("UN-MIDI swing=%d wanted=%d commands=%d ticks=%d\n", static_cast<int>(currentSong->swingAmount),
+		       static_cast<int>(g_unSwingBefore), g_unAcceptedCommands, g_unTicks);
+		if (currentSong->swingAmount != g_unSwingBefore) {
+			printf("UN-MIDI FAIL a MIDI UNDO left waiting by the midi routine was never actioned\n");
+			g_failures++;
+		}
+		break;
 	case UnLeg::Done:
 		break;
 	}
@@ -327,7 +356,8 @@ bool setupUndoLeg() {
 		return setupSampleChange(kUndoSampleA, kUndoSampleB, 1);
 	case UnLeg::Redo:
 		return true;
-	case UnLeg::Plain: {
+	case UnLeg::Plain:
+	case UnLeg::Midi: {
 		// An action with no sample in it at all: a swing change reads no card on either tier, and the song's swing
 		// is what the undo has to put back.
 		g_unSwingBefore = currentSong->swingAmount;
@@ -430,15 +460,21 @@ void runTick() {
 		break;
 	case Stage::UnAct: {
 		const std::string before = boundPath();
-		pressCommand(g_unLeg == UnLeg::Redo ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO);
+		if (g_unLeg == UnLeg::Midi) {
+			sendMidiUndo();
+		}
+		else {
+			pressCommand(g_unLeg == UnLeg::Redo ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO);
+		}
 		if (g_unLeg == UnLeg::Refuse) {
 			// A second command in the same tick, while the first is still out.
 			pressCommand(GlobalMIDICommand::REDO);
 		}
 		// "Landed in the press" means the model had already moved when the press returned: the swing restored for
 		// the plain leg, the clip's file changed for the others.
-		g_unLandedInPress =
-		    (g_unLeg == UnLeg::Plain) ? (currentSong->swingAmount == g_unSwingBefore) : (boundPath() != before);
+		g_unLandedInPress = (g_unLeg == UnLeg::Plain || g_unLeg == UnLeg::Midi)
+		                        ? (currentSong->swingAmount == g_unSwingBefore)
+		                        : (boundPath() != before);
 		printf("UN-PROBE leg=%d pressed commands=%d landedInPress=%d\n", static_cast<int>(g_unLeg),
 		       g_unAcceptedCommands, g_unLandedInPress ? 1 : 0);
 		g_stage = Stage::UnWait;

@@ -35,6 +35,7 @@
 #include <cstring>
 #include <new>
 #include <string>
+#include <utility>
 
 namespace {
 
@@ -213,6 +214,17 @@ void AsyncSampleLoad::endInstrumentScope() {
 }
 void AsyncSampleLoad::demand(const SampleDemand& /*demand*/) {
 }
+
+// The mock never asks the loader for anything, so there is nothing to forget.
+AsyncSampleLoad::OutstandingRequests::OutstandingRequests(OutstandingRequests&& other) noexcept
+    : paths_{std::exchange(other.paths_, {})} {
+}
+AsyncSampleLoad::OutstandingRequests&
+AsyncSampleLoad::OutstandingRequests::operator=(OutstandingRequests&& other) noexcept {
+	paths_ = std::exchange(other.paths_, {});
+	return *this;
+}
+AsyncSampleLoad::OutstandingRequests::~OutstandingRequests() = default;
 
 } // namespace deluge::storage
 

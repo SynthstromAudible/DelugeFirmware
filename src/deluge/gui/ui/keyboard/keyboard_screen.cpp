@@ -41,7 +41,6 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
-#include "sync/storage_op.h"
 #include <cstring>
 #include <optional>
 
@@ -98,10 +97,6 @@ void KeyboardScreen::killColumnSwitchKey(int32_t column) {
 	}
 }
 ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
-	if (isSDRoutineActive() && !deluge::sync::user_actions_permitted()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow some of the time when in card routine.
-	}
-
 	// Handle overruling shortcut presses
 	ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, velocity);
 	if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
@@ -168,10 +163,6 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// Handle setting root note
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		// We probably couldn't have got this far if it was a Kit, but let's just check
 		if (getCurrentOutputType() != OutputType::KIT && lastNotesState.count == 0 && currentNotesState.count == 1) {
 			toggleScaleModeOnButtonRelease = false;
@@ -300,7 +291,7 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 			enterUIMode(UI_MODE_AUDITIONING);
 
-			// Begin resampling - yup this is even allowed if we're in the card routine!
+			// Begin resampling
 			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
 			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
 				audioRecorder.beginOutputRecording();
@@ -392,12 +383,8 @@ void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrumen
 	}
 }
 
-ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
-
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	// Scale mode button
 	if (b == SCALE_MODE) {
@@ -563,10 +550,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
 			Output* output = instrumentClip->output;
 
@@ -591,23 +574,18 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	else {
-		ActionResult result = InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
+		ActionResult result = InstrumentClipMinder::buttonAction(b, on);
 		if (result != ActionResult::NOT_DEALT_WITH) {
 			return result;
 		}
 
-		// This might potentially do something while inCardRoutine but the condition above discards the call anyway
-		return view.buttonAction(b, on, inCardRoutine);
+		return view.buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (inCardRoutine && !deluge::sync::user_actions_permitted()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-	}
-
+ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset) {
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 		getCurrentInstrumentClip()->colourOffset += offset;
 		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();

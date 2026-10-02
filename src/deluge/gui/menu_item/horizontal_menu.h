@@ -49,7 +49,7 @@ public:
 	    : Submenu(newName, newTitle, newItems), paging{}, layout(layout) {}
 
 	RenderingStyle renderingStyle() const override;
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(hid::Button b, bool on) override;
 	void selectEncoderAction(int32_t offset) override;
 	void renderOLED() override;
 	void beginSession(MenuItem* navigatedBackwardFrom) override;

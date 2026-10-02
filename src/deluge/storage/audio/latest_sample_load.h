@@ -77,6 +77,11 @@ public:
 	/// @brief Whether a load is held.
 	[[nodiscard]] bool pending() const { return load_.has_value(); }
 
+	/// @brief When to tick the held load again (AsyncSampleLoad::nextTickUs()); kNever when none is held.
+	[[nodiscard]] uint64_t nextTickUs() const {
+		return load_.has_value() ? load_->nextTickUs() : deluge::runtime::kNever;
+	}
+
 	/// @brief Tick the held load once.
 	/// @return nullopt when no load is held or it is still loading; otherwise its outcome, and the load is released.
 	std::optional<Outcome> tick() {

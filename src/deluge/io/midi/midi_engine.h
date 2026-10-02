@@ -110,7 +110,6 @@ public:
 	bool midiFollowFeedbackFilter;
 	MIDITakeoverMode midiTakeover;
 	bool midiSelectKitRow;
-	TaskID routine_task_id{};
 
 	// shared buffer for formatting sysex messages.
 	// Not safe for use in interrupts.

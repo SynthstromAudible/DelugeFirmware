@@ -42,13 +42,9 @@ namespace {
 /// unsampled synth and nothing for a `loadAllSamples()` call to do, so none is made. This runs where its caller
 /// stands, and the whole operation is over when it returns.
 ///
-/// The UI-mode gate around it stays, and is still load-bearing: `nullifyUIs()` below drops `numUIsOpen` to 0, during
-/// which `getCurrentUI()` falls back to `lastUIBeforeNullifying` -- the (now-stale) clearSong singleton (ui.cpp's
-/// documented "ugly work-around to stop everything breaking"). buttons.cpp routes presses to
-/// `getCurrentUI()->buttonAction()` unconditionally, so without the mode a BACK press reaching
-/// `ContextMenu::buttonAction()` -> `close()` -> `closeUI(&clearSong)` would index `uiNavigationHierarchy[-2]`
-/// (OOB/UB). Running synchronously leaves no window for such a press to arrive in, and the mode keeps the invariant
-/// stated next to the code that nullifies the UIs.
+/// It takes every UI down (`nullifyUIs()`) before the old song goes, and puts the new song's root UI up at the end.
+/// In between, getCurrentUI() reports the empty stack's inert UI, so nothing that runs then reaches this menu or a view
+/// of the song being freed.
 void runAccept() {
 	if (playbackHandler.playbackState
 	    && (playbackHandler.isInternalClockActive() || currentPlaybackMode == &arrangement)) {
@@ -129,8 +125,8 @@ bool ClearSong::acceptCurrentOption() {
 	// sequence itself, including the UI teardown, and there is no failure branch to report -- this doesn't read
 	// ensureAtLeastOneSessionClip()'s bool either.
 	//
-	// The gate closes around the call rather than inside it: `runAccept()` nullifies the UIs, and a press must not
-	// reach ContextMenu::buttonAction() while that is true. See runAccept()'s comment.
+	// The gate closes around the call: nothing that checks the UI mode may start a gesture on either song while
+	// runAccept() replaces one with the other.
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	runAccept();
 	currentUIMode = UI_MODE_NONE;

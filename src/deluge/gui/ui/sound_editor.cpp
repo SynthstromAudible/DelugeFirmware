@@ -519,7 +519,7 @@ void SoundEditor::enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFro
 	beginScreen(navigatedBackwardFrom);
 }
 
-ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	Clip* clip = nullptr;
@@ -542,10 +542,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 		    || currentUIMode == UI_MODE_STUTTERING) {
 			if (!on && !Buttons::selectButtonPressUsedUp) {
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
-
 				MenuItem* currentMenuItem = getCurrentMenuItem();
 				MenuItem* newItem = currentMenuItem->selectButtonPress();
 				if (newItem) {
@@ -582,7 +578,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					goUpOneLevel();
 				}
 
-				handlePotentialParamMenuChange(b, inCardRoutine, currentMenuItem, getCurrentMenuItem(), false);
+				handlePotentialParamMenuChange(b, currentMenuItem, getCurrentMenuItem(), false);
 
 				if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 				    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
@@ -613,10 +609,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 		    || currentUIMode == UI_MODE_STUTTERING) {
 			if (on) {
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
-
 				MenuItem* currentMenuItem = getCurrentMenuItem();
 
 				// Special case if we're editing a range
@@ -626,7 +618,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 					goUpOneLevel();
 				}
 
-				handlePotentialParamMenuChange(b, inCardRoutine, currentMenuItem, getCurrentMenuItem(), false);
+				handlePotentialParamMenuChange(b, currentMenuItem, getCurrentMenuItem(), false);
 
 				if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 				    && getCurrentMenuItem()->usesAffectEntire() && editingKit()) {
@@ -642,9 +634,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Save button
 	else if (b == SAVE) {
 		if (on && (currentUIMode == UI_MODE_NONE) && !inSettingsMenu() && isUIInstrumentClipView) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			if (Buttons::isShiftButtonPressed()) {
 				if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
 					menu_item::multiRangeMenu.deletePress();
@@ -658,9 +647,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 	// MIDI learn button
 	else if (b == LEARN) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		if (on) {
 			if (!currentUIMode) {
 				if (!getCurrentMenuItem()->allowsLearnMode()) {
@@ -694,9 +680,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Affect-entire button
 	else if (b == AFFECT_ENTIRE && isUIInstrumentClipView && !inNoteEditor() && !inNoteRowEditor()) {
 		if (editingKitRow() && getCurrentMenuItem()->usesAffectEntire()) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			if (on) {
 				if (currentUIMode == UI_MODE_NONE) {
 					indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE, 255, 1);
@@ -711,17 +694,13 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			}
 		}
 		else {
-			return instrumentClipView.InstrumentClipMinder::buttonAction(b, on, inCardRoutine);
+			return instrumentClipView.InstrumentClipMinder::buttonAction(b, on);
 		}
 	}
 
 	// Keyboard button
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE && isUIInstrumentClipView) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			if (getRootUI() == &keyboardScreen) {
 				if (clip->onAutomationClipView) {
 					swapOutRootUILowLevel(&automationView);
@@ -770,11 +749,11 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	}
 
 	else if (inNoteEditor()) {
-		return instrumentClipView.handleNoteEditorButtonAction(b, on, inCardRoutine);
+		return instrumentClipView.handleNoteEditorButtonAction(b, on);
 	}
 
 	else if (inNoteRowEditor()) {
-		return instrumentClipView.handleNoteRowEditorButtonAction(b, on, inCardRoutine);
+		return instrumentClipView.handleNoteRowEditorButtonAction(b, on);
 	}
 
 	// allow toggling fill mode while in the sound editor menu
@@ -797,7 +776,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			selectedItem = asHorizontal->getCurrentItem();
 		}
 
-		ActionResult result = currentMenuItem->buttonAction(b, on, inCardRoutine);
+		ActionResult result = currentMenuItem->buttonAction(b, on);
 
 		// were we in a horizontal menu previously? if so, let's check if menu selection changed
 		if (asHorizontal != nullptr) {
@@ -813,7 +792,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 
 			// potentially swap out automation view UI / handle parameter change in horizontal menu
 			if (on && asHorizontal != nullptr) {
-				handlePotentialParamMenuChange(SELECT_ENC, inCardRoutine, selectedItem, asHorizontal->getCurrentItem(),
+				handlePotentialParamMenuChange(SELECT_ENC, selectedItem, asHorizontal->getCurrentItem(),
 				                               true);
 			}
 		}
@@ -828,7 +807,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 /// (may not have changed if we were holding shift to delete automation)
 /// potentially enter and refresh automation view if entering a new param menu
 /// potentially exit automation view / switch to automation overview if exiting param menu
-void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inCardRoutine, MenuItem* previousItem,
+void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, MenuItem* previousItem,
                                                  MenuItem* currentItem, bool isHorizontalMenu) {
 	using namespace deluge::hid::button;
 	// currentItem is null once the sound editor has closed entirely (see exitCompletely()).
@@ -848,7 +827,7 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inC
 			if (getRootUI() == &automationView) {
 				// if on menu view, swap out root UI to previous UI
 				if (automationView.onMenuView) {
-					previousItem->buttonAction(b, true, inCardRoutine);
+					previousItem->buttonAction(b, true);
 				}
 				// if not on menu view, go back to overview
 				else {
@@ -861,7 +840,7 @@ void SoundEditor::handlePotentialParamMenuChange(deluge::hid::Button b, bool inC
 		// if we're entering a param menu
 		else if (currentMenuIsParam == true) {
 			// enter automation view and update parameter selection
-			currentItem->buttonAction(b, true, inCardRoutine);
+			currentItem->buttonAction(b, true);
 		}
 	}
 }
@@ -891,12 +870,7 @@ ActionResult SoundEditor::exitCompletely() {
 
 	if (inSettingsMenu()) {
 		// First, save settings
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-		else {
-			uiTimerManager.unsetTimer(TimerName::BACK_MENU_EXIT);
-		}
+		uiTimerManager.unsetTimer(TimerName::BACK_MENU_EXIT);
 		display->displayLoadingAnimationText("Saving settings");
 
 		FlashStorage::writeSettings();
@@ -1431,9 +1405,6 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 
 	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
 
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		const MenuItem* item = nullptr;
 
@@ -1535,7 +1506,7 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 							if (getRootUI() == &automationView) {
 								// if automation view is open in the background
 								// potentially refresh grid if opening a new patch cable menu
-								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, isSDRoutineActive());
+								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on);
 							}
 								   }
 
@@ -1657,7 +1628,7 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 		if (getRootUI() == &automationView) {
 			// if automation view is open in the background
 			// potentially refresh grid if opening a new parameter menu
-			getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, isSDRoutineActive());
+			getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on);
 		}
 	}
 }
@@ -1665,10 +1636,6 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 extern uint16_t batteryMV;
 
 ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-
 	RootUI* rootUI = getRootUI();
 
 	if (!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()) {
@@ -1796,17 +1763,17 @@ bool SoundEditor::isEditingAutomationViewParam() {
 	return (editingParamInAutomationArrangerView || editingParamInAutomationClipView);
 }
 
-ActionResult SoundEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult SoundEditor::verticalEncoderAction(int32_t offset) {
 	if (inNoteEditor()) {
-		return instrumentClipView.handleNoteEditorVerticalEncoderAction(offset, inCardRoutine);
+		return instrumentClipView.handleNoteEditorVerticalEncoderAction(offset);
 	}
 	else if (inNoteRowEditor()) {
-		return instrumentClipView.handleNoteRowEditorVerticalEncoderAction(offset, inCardRoutine);
+		return instrumentClipView.handleNoteRowEditorVerticalEncoderAction(offset);
 	}
 	else if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 		return ActionResult::DEALT_WITH;
 	}
-	return getRootUI()->verticalEncoderAction(offset, inCardRoutine);
+	return getRootUI()->verticalEncoderAction(offset);
 }
 
 bool SoundEditor::pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) {

@@ -77,10 +77,10 @@ public:
 
 	// BUTTON ACTION button press / release handling
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	// Used to reveal Session macros only after the Session button has passed the long-press threshold.
 	ActionResult timerCallback() override;
-	ActionResult handleScaleButtonAction(bool on, bool inCardRoutine);
+	ActionResult handleScaleButtonAction(bool on);
 	/// @brief Handle a shift/FM or plain instrument-change gesture for @p outputType.
 	///
 	/// This routes to one of TWO different acquisitions depending on whether shift/FM is held, and
@@ -140,13 +140,13 @@ public:
 	ActionResult commandChangeRootNote(uint8_t yDisplay);
 
 	/// VERTICAL ENCODER ACTION related
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	ActionResult commandTransposeKey(int32_t offset, bool inCardRoutine);
+	ActionResult verticalEncoderAction(int32_t offset) override;
+	ActionResult commandTransposeKey(int32_t offset);
 	void commandTransposeScreen(int32_t offset, bool inOctave);
 	void commandShiftColour(int32_t offset);
-	ActionResult scrollVertical(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow = false,
+	ActionResult scrollVertical(int32_t scrollAmount, bool draggingNoteRow = false,
 	                            ModelStackWithTimelineCounter* modelStack = nullptr);
-	ActionResult scrollVertical_limit(int32_t scrollAmount, bool inCardRoutine, bool draggingNoteRow,
+	ActionResult scrollVertical_limit(int32_t scrollAmount, bool draggingNoteRow,
 	                                  ModelStackWithTimelineCounter* modelStack, InstrumentClip* clip, bool isKit,
 	                                  bool preventOverScrolling, int32_t& noteRowToShiftI, int32_t& noteRowToSwapWithI);
 	void scrollVertical_potentiallySwitchOffAuditionedNotes(bool draggingNoteRow,
@@ -342,9 +342,9 @@ public:
 	void exitNoteEditor();
 	void handleNoteEditorEditPadAction(int32_t x, int32_t y, int32_t on);
 	void deselectNoteAndGoUpOneLevel();
-	ActionResult handleNoteEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult handleNoteEditorVerticalEncoderAction(int32_t offset);
 	ActionResult handleNoteEditorHorizontalEncoderAction(int32_t offset);
-	ActionResult handleNoteEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult handleNoteEditorButtonAction(deluge::hid::Button b, bool on);
 
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
 	int32_t lastSelectedNoteXDisplay;
@@ -387,9 +387,9 @@ public:
 	                         bool selectedDrumOnly);
 	void patternPreview();
 	void patternClear();
-	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine);
+	ActionResult handleNoteRowEditorVerticalEncoderAction(int32_t offset);
 	ActionResult handleNoteRowEditorHorizontalEncoderAction(int32_t offset);
-	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult handleNoteRowEditorButtonAction(deluge::hid::Button b, bool on);
 
 	// adjust note row parameters
 	int32_t setNoteRowProbabilityWithOffset(int32_t offset);

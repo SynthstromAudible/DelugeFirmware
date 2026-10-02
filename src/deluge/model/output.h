@@ -168,8 +168,7 @@ public:
 	/// @param mayActuallyReadFiles false confines the load to files already in memory.
 	/// @param context              The load this belongs to, or null: a kit or synth then also looks in its own
 	///                             folder, when reading.
-	/// @return Error::ABORTED_BY_USER if the user aborted the load; otherwise Error::NONE.
-	Error loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
+	void loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context = nullptr);
 	/// @brief Report every audio file this output's sounds name to @p visitor, in load order. Loads nothing.
 	virtual deluge::storage::Walk walkSampleDemands(deluge::storage::SampleLoadVisitor& visitor) {
 		return deluge::storage::Walk::Continue;

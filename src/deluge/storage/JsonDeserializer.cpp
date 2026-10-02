@@ -120,7 +120,6 @@ char const* JsonDeserializer::readQuotedString() {
 	}
 
 getOut:
-	readDone();
 	stringBuffer[charPos] = 0;
 	return stringBuffer;
 }
@@ -215,8 +214,6 @@ void JsonDeserializer::skipUntilChar(char endChar) {
 	} while (fileReadBufferCurrentPos == currentReadBufferEndPos && readFileClusterIfNecessary());
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
-
-	readDone();
 }
 
 // A non-destructive (to the fileClusterBuffer contents) routine to read into a std::string object.
@@ -246,7 +243,6 @@ Error JsonDeserializer::readStringUntilChar(std::string& string, char endChar) {
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
 
-	readDone();
 	readState = JsonState::ValueRead;
 	return Error::NONE;
 }
@@ -286,8 +282,6 @@ char const* JsonDeserializer::readUntilChar(char endChar) {
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
 
-	readDone();
-
 	stringBuffer[charPos] = 0;
 	return stringBuffer;
 }
@@ -316,7 +310,6 @@ char const* JsonDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChar
 		// If we were able to just read the whole thing in one go, just return a pointer to the chars within the
 		// existing buffer
 		if (numCharsHere == numChars) {
-			readDone();
 			readState = JsonState::ValueRead;
 			return &fileClusterBuffer[bufferPosAtStart];
 		}
@@ -329,7 +322,6 @@ char const* JsonDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChar
 
 			// And if we've now got all the chars we needed, return
 			if (charPos == numChars) {
-				readDone();
 				readState = JsonState::ValueRead;
 				return stringBuffer;
 			}

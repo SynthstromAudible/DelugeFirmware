@@ -44,6 +44,7 @@ class ModelStackWithThreeMainThings;
 class ParamManagerForTimeline;
 class LearnedMIDI;
 class Kit;
+class Song;
 
 // A view is where the user can interact with the pads - song view, Clip view, automation view and keyboard view.
 // (Is that still a good description? This class is a bit of a mishmash of poorly organised code, sorry.)
@@ -53,7 +54,7 @@ class View {
 public:
 	View();
 	void focusRegained();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on);
 	void setTimeBaseScaleLedState();
 	void setLedStates();
 
@@ -78,6 +79,24 @@ public:
 	void setActiveModControllableTimelineCounter(TimelineCounter* playPositionCounter,
 	                                             bool shouldSendMidiFeedback = true);
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
+	/// @brief [interaction] Leave the mod encoders on nothing until a UI gives them something again.
+	///
+	/// For when what the active mod controllable belongs to is about to go -- a song swapped out or deleted, a clip
+	/// freed -- since the knobs reach the view whichever UI is on top. Writes only the model stack; the knob
+	/// indicators and mod LEDs are left to the caller.
+	void releaseActiveModControllable();
+	/// @brief [interaction] Whether the active model stack names @p song or anything it owns: the song itself, one of
+	///        its clips, or one of its outputs (main or hibernating) as the ModControllable.
+	///
+	/// Walks only what the song owns -- its clip arrays and output lists -- and compares; it follows none of the song's
+	/// per-clip reference fields (currentClip, syncScalingClip, beingRecordedFromClip), which may name clips already
+	/// freed. @p song must be alive.
+	bool activeModControllableNamesSong(Song* song) const;
+	/// @brief [interaction] The recording of the arrangement-only clip @p from has moved on to its clone @p to: point
+	///        the active model stack at @p to, if it still names @p from. The ModControllable (the output) stays.
+	///
+	/// The render asks for this through deluge::playback::recordingMovedToClip().
+	void followRecordingToClip(Clip* from, Clip* to);
 	void cycleThroughReverbPresets();
 	char const* getReverbPresetDisplayName(int32_t preset);
 	int32_t getCurrentReverbPreset();
@@ -168,6 +187,10 @@ public:
 	// deceivingly this is used only while learning drums
 	Kit* kitPressedForMIDILearn{};
 
+	/// What the mod encoders, mod buttons and MIDI follow act on. [interaction] Written only by the interaction tier,
+	/// whose handlers read it across many instructions; the render reads only its pointers' values, to compare, and
+	/// asks for any change through deluge::playback::songSwappedOut() or recordingMovedToClip()
+	/// (playback/render_requests.h).
 	ModelStackWithThreeMainThings activeModControllableModelStack{};
 	uint8_t dummy[MODEL_STACK_MAX_SIZE - sizeof(ModelStackWithThreeMainThings)]{};
 
@@ -203,6 +226,28 @@ public:
 	bool isClipContext();
 
 	int32_t calculateKnobPosForModEncoderTurn(deluge::modulation::params::Kind kind, int32_t knobPos, int32_t offset);
+
+#if defined(DELUGE_HOST)
+	/// @brief Host only: start or stop counting the render blocks that change activeModControllableModelStack, and
+	///        reset the count. Off by default, so a threaded host render never reads the stack for it.
+	static void watchRenderStackWrites(bool on);
+	/// @brief Host only: how many render blocks changed activeModControllableModelStack while watched.
+	static int32_t renderStackWrites();
+	/// @brief Host only: put around a render block; counts it when the stack differs at its end from its start.
+	///        Reads the stack on the render: a probe for the single-executor golden_vt_render, not for use under the
+	///        TSan lens.
+	class RenderBlockStackWatch {
+	public:
+		RenderBlockStackWatch();
+		~RenderBlockStackWatch();
+		RenderBlockStackWatch(const RenderBlockStackWatch&) = delete;
+		RenderBlockStackWatch& operator=(const RenderBlockStackWatch&) = delete;
+
+	private:
+		bool watching_;
+		void const* before_[4]{};
+	};
+#endif
 
 private:
 	void pretendModKnobsUntouchedForAWhile();

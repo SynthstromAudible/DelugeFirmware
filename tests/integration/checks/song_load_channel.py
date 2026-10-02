@@ -12,6 +12,11 @@ What the checks cover (tests/integration/scenarios/song_load_channel_scenario.cp
     SL-CHANNEL   the staging read was served by the channel -- the async arm ran.
     SL-TICKED    the staging ran through the channels after boot: `channelTicks` counts staging attempts after boot,
                  through the channels. The gate's actual claim.
+    SL-CANCEL    BACK while a load stages drops it, leaves the current song playing, and parks the staging buffer the
+                 byte channel still writes into (checked in the scenario, reported through SL-RESULT).
+    SL-REFUSED   a cancel once the load is past STAGE is refused and the load completes (likewise).
+    SL-*-LASTOPENED  with the startup-song mode LASTOPENED, the cancelled load writes no settings file and the
+                 completed one does (likewise).
 
 The registry entry requires each marker. This module checks the result line itself, because a failed result does not
 stop the channel checks: every one of the three that fails is reported.

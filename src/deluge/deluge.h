@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -29,11 +30,13 @@ extern void routineWithClusterLoading(void);
 extern void logAudioAction(char const* string);
 
 extern void consoleTextIfAllBootedUp(char const* text);
-// libdeluge/scheduler.h's predicate type, repeated because deluge.h is included very widely (incl. vendored libs)
-// and must not depend on the boundary headers.
-typedef bool (*RunCondition)();
 
+/// Starts a console-text quiet window that ends @p timeFromNow samples from now.
 extern void setTimeUSBInitializationEnds(int32_t timeFromNow);
+
+/// Whether the console-text quiet window (one second after boot, or one setTimeUSBInitializationEnds
+/// started) has ended.
+extern bool usbInitializationPeriodComplete(void);
 
 #ifdef __cplusplus
 }

@@ -25,7 +25,6 @@
 #include "model/song/song.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
-#include "util/functions.h"
 
 #include <algorithm>
 #include <utility>
@@ -44,6 +43,30 @@ struct Overloaded : Fs... {
 
 AsyncSampleLoad::AsyncSampleLoad(Root root, AudioLoadContext* context)
     : root_{std::move(root)}, callerContext_{context}, context_{context} {
+}
+
+AsyncSampleLoad::OutstandingRequests::OutstandingRequests(OutstandingRequests&& other) noexcept
+    : paths_{std::exchange(other.paths_, {})} {
+}
+
+AsyncSampleLoad::OutstandingRequests&
+AsyncSampleLoad::OutstandingRequests::operator=(OutstandingRequests&& other) noexcept {
+	if (this != &other) {
+		forgetAll();
+		paths_ = std::exchange(other.paths_, {});
+	}
+	return *this;
+}
+
+AsyncSampleLoad::OutstandingRequests::~OutstandingRequests() {
+	forgetAll();
+}
+
+void AsyncSampleLoad::OutstandingRequests::forgetAll() noexcept {
+	for (const std::string& path : paths_) {
+		deluge_audio_load_forget(path.c_str());
+	}
+	paths_.clear();
 }
 
 AsyncSampleLoad AsyncSampleLoad::forSong(Song& song, AudioLoadContext* context) {
@@ -87,7 +110,8 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	progress_.emptyHolders = 0;
 	progress_.inFlight = 0;
 	samplesInFlight_ = 0;
-	aborted_ = false;
+	outstanding_.reset();
+	wavetableAwaitsSamples_ = false;
 	context_ = callerContext_;
 	scopeDepth_ = 0;
 	ownFolderDepth_ = -1;
@@ -105,23 +129,22 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 
 	samplesSettled_ = (samplesInFlight_ == 0);
 	// Progress is a demand settled since the previous walk, bound or empty. A walk that settles nothing while something
-	// is still in flight counts toward the bound; one that settles anything starts the count again.
+	// is still in flight counts toward the bound; one that settles anything starts the span again.
 	const int32_t settled = progress_.bound + progress_.emptyHolders;
 	const bool madeProgress = (settled > settledBefore_);
 	settledBefore_ = settled;
 	bool stalled = false;
 	if (progress_.inFlight > 0 && !madeProgress) {
 		stalled = stalledBound_.tick();
+		progress_.stalledTicks++;
 	}
 	else {
 		stalledBound_.reset();
+		progress_.stalledTicks = 0;
 	}
-	progress_.stalledTicks = stalledBound_.ticks();
-	if (aborted_) {
-		progress_.state = State::Failed;
-		progress_.reason = Reason::Aborted;
-	}
-	else if (progress_.inFlight == 0) {
+	progress_.stalledUs = stalledBound_.elapsedUs();
+	retickNow_ = madeProgress || (wavetableAwaitsSamples_ && samplesInFlight_ == 0);
+	if (progress_.inFlight == 0) {
 		progress_.state = State::Loaded;
 	}
 	else if (stalled) {
@@ -131,23 +154,23 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	return progress_;
 }
 
-Walk AsyncSampleLoad::stopIfAborted() {
-	// Every lookup this load makes may read the card, so the abort is always asked, as the blocking driver asks it
-	// when reading.
-	if (aborted_ || shouldAbortLoading()) {
-		aborted_ = true;
-		return Walk::Stop;
+uint64_t AsyncSampleLoad::nextTickUs() const {
+	if (progress_.state != State::Loading) {
+		return deluge::runtime::kNever;
 	}
-	return Walk::Continue;
+	if (retickNow_ || progress_.ticks == 0) {
+		return 0;
+	}
+	return stalledBound_.deadlineUs();
 }
 
 Walk AsyncSampleLoad::rangeCheckpoint(int32_t /*rangeIndex*/) {
 	// No audio routine: nothing this load does holds the calling tier long enough to need one.
-	return stopIfAborted();
+	return Walk::Continue;
 }
 
 Walk AsyncSampleLoad::drumCheckpoint() {
-	return stopIfAborted();
+	return Walk::Continue;
 }
 
 void AsyncSampleLoad::clipCheckpoint() {
@@ -178,11 +201,6 @@ void AsyncSampleLoad::endInstrumentScope() {
 }
 
 void AsyncSampleLoad::demand(const SampleDemand& demand) {
-	if (aborted_) {
-		// A song walks its audio clips with no checkpoint between them: nothing more is looked up after an abort.
-		return;
-	}
-
 	AudioFileHolder& holder = *demand.holder;
 	if (holder.audioFile != nullptr) {
 		progress_.bound++;
@@ -208,6 +226,7 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 		probing = (context_->alternateDirStatus == AlternateLoadDirStatus::PROBING);
 	}
 	if (waveTable && (!samplesSettled_ || probing)) {
+		wavetableAwaitsSamples_ = wavetableAwaitsSamples_ || !probing;
 		progress_.inFlight++;
 		return;
 	}
@@ -222,6 +241,7 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 	if (error == Error::LOAD_IN_PROGRESS) {
 		progress_.inFlight++;
 		samplesInFlight_++;
+		outstanding_.add(holder.filePath);
 		return;
 	}
 

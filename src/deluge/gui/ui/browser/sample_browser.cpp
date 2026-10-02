@@ -454,7 +454,7 @@ ActionResult SampleBrowser::backButtonAction() {
 	return Browser::backButtonAction();
 }
 
-ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 	// Refused while an explicit claim or a folder import is in flight: each closes the browser's gate until it ends.
 	if (sampleClaim.explicitInFlight() || folderImport.inFlight()) {
@@ -469,10 +469,6 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 				if (!currentFileItem->isFolder) { // This is an additional requirement only present in this class
 
 					AudioEngine::stopAnyPreviewing();
-
-					if (inCardRoutine) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
 
 					// Ensure sample isn't used in current song
 					std::string filePath = getCurrentFilePath();
@@ -514,14 +510,9 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		}
 		AudioEngine::stopAnyPreviewing();
 
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		bool success = changeUISideways(&audioRecorder); // If this fails, we will become the current UI again
 		if (success) {
 			renderingNeededRegardlessOfUI();
-			audioRecorder.process();
 		}
 	}
 
@@ -542,7 +533,7 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		}
 	}
 	else {
-		return Browser::buttonAction(b, on, inCardRoutine);
+		return Browser::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -929,9 +920,6 @@ ActionResult SampleBrowser::padAction(int32_t x, int32_t y, int32_t on) {
 possiblyExit:
 		if (on && !currentUIMode) {
 			AudioEngine::stopAnyPreviewing();
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			exitAction();
 		}
 	}
@@ -940,10 +928,6 @@ possiblyExit:
 		// If qwerty not visible yet, make it visible
 		if (!qwertyVisible) {
 			if (on && !currentUIMode) {
-				if (isSDRoutineActive()) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
-
 				qwertyVisible = true;
 
 				uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
@@ -1015,12 +999,6 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	// Or, maybe we want to scroll or zoom around the waveform...
 	if (currentlyShowingSamplePreview
 	    && (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || waveformBasicNavigator.isZoomedIn())) {
-
-		// We're quite likely going to need to read the SD card to do either scrolling or zooming
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		// Zoom
 		if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 			if (isUIModeWithinRange(zoomUIModes)) {
@@ -1055,20 +1033,20 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	}
 }
 
-ActionResult SampleBrowser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult SampleBrowser::verticalEncoderAction(int32_t offset) {
 	// Refused while an explicit claim or a folder import is in flight: each closes the browser's gate until it ends.
 	if (sampleClaim.explicitInFlight() || folderImport.inFlight()) {
 		return ActionResult::DEALT_WITH;
 	}
 
 	if (Buttons::isShiftButtonPressed()) {
-		return Browser::verticalEncoderAction(offset, false);
+		return Browser::verticalEncoderAction(offset);
 	}
 	if (getRootUI() == &instrumentClipView) {
 		if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)) {
 			return ActionResult::DEALT_WITH;
 		}
-		return instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
+		return instrumentClipView.verticalEncoderAction(offset);
 	}
 
 	return ActionResult::DEALT_WITH;

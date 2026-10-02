@@ -56,11 +56,11 @@ public:
 	bool opened() override;
 	void focusRegained() override;
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	ActionResult clipCreationButtonPressed(hid::Button i, bool on, bool routine);
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
+	ActionResult clipCreationButtonPressed(hid::Button i, bool on);
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void removeClip(Clip* clip);
@@ -309,14 +309,27 @@ private:
 	/// @param yDisplay The pad row the press is on.
 	void beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yDisplay);
 
-	/// @brief Whether the pad that started a dispatched new-track gesture is still held.
+	/// @brief Where the pad that started a new-track gesture is, as completeNewTrack() finds it.
+	enum class NewTrackPress : uint8_t {
+		None,   ///< Let go other than as a tap, or no gesture: the completion only makes the clip.
+		Held,   ///< Still down: the completion holds the clip, as a press on an existing clip does.
+		Tapped, ///< Let go as a tap before the clip existed: the completion enters it, as that tap would have.
+	};
+
+	/// @brief The new-track pad's state for completeNewTrack().
 	///
-	/// Set when padAction() dispatches, cleared by the matching release. The completion enters the
-	/// held-clip UI mode only while this is true: with the acquisition deferred, the release can be
-	/// consumed BEFORE the clip exists, and a completion that then set UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
-	/// would leave the view stuck holding a clip nobody is pressing -- the next unrelated pad press
-	/// would clone it instead of selecting it.
-	bool newTrackPressHeld_{false};
+	/// Set to Held when padAction() starts the gesture, and moved on by the release. With the acquisition deferred
+	/// the release can be consumed BEFORE the clip exists, and a completion that then set
+	/// UI_MODE_CLIP_PRESSED_IN_SONG_VIEW would leave the view stuck holding a clip nobody is pressing -- the next
+	/// unrelated pad press would clone it instead of selecting it. A release that would have been a tap on the
+	/// clip is kept as Tapped instead, so the tap's shortcut into the clip still happens once it exists, if the song
+	/// view is still idle then. Only the press's own pad moves it on, only the completion for that pad consumes it,
+	/// and a dispatch that is refused puts back the state it replaced.
+	NewTrackPress newTrackPress_{NewTrackPress::None};
+	/// @brief The new-track press's pad and time on the audio clock, to tell its release apart as a tap.
+	int32_t newTrackPressX_{0};
+	int32_t newTrackPressY_{0};
+	uint32_t newTrackPressTime_{0};
 
 	// Members regarding rendering different layouts
 private:

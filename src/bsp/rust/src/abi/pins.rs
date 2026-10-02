@@ -159,6 +159,7 @@ abi_const!(
     crate::channel::file_bytes::MAX_PATH_CHARS + 1 => DELUGE_PATH_MAX,
     crate::channel::file_bytes::MAX_BYTES => DELUGE_FILE_BYTES_MAX_BYTES,
     crate::channel::file_bytes::BLOCK_BYTES => DELUGE_FILE_BYTES_BLOCK,
+    crate::channel::file_bytes::PROTECTED_ANSWER_SPAN_MS => DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS,
     crate::channel::file_bytes::NO_FILESYSTEM => DelugeStatus_DELUGE_ERR_NO_FILESYSTEM,
     crate::channel::file_bytes::NO_MEMORY => DelugeStatus_DELUGE_ERR_NO_MEMORY,
     crate::channel::file_bytes::ERR_IO => DelugeStatus_DELUGE_ERR_IO,

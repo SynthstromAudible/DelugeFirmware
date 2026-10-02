@@ -75,8 +75,8 @@ public:
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void pressEnter() { saveInstrumentPresetUI.enterKeyPress(); }
 	static void pressBack() {
-		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, true, false);
-		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, false, false);
+		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, true);
+		(void)saveInstrumentPresetUI.buttonAction(deluge::hid::button::BACK, false);
 	}
 	static std::string targetPath() { return Browser::currentDir + "/" + Browser::enteredText + ".XML"; }
 	static bool overwritePromptOpen() { return getCurrentUI() == &deluge::gui::context_menu::overwriteFile; }
@@ -125,9 +125,13 @@ constexpr const char* kAccountName = "DSACCT01";
 /// DS-HELD's preset: a new name, so the save takes the direct path.
 constexpr const char* kHeldName = "DSHELD01";
 /// How long the byte channel holds the document write in DS-HELD, in virtual milliseconds: far past the save's
-/// 600-tick stall bound however fast the save is ticked. Lifted once the write lands, so the read-back that follows
-/// is not held too.
+/// stall bound. Applied to document writes only (`deluge_file_bytes_set_write_from_latency_ms`), so the read-back
+/// that follows the write is not held: the save runs its next step as soon as the write answers, with no scenario
+/// tick in between in which a channel-wide hold could be lifted.
 constexpr uint32_t kHeldLatencyMs = 10000;
+/// How long the byte channel holds each operation while DS-BACKMIDSAVE presses BACK, in virtual milliseconds. The save
+/// runs on its own job, as soon as the channel answers, so without a hold it can finish before the next scenario tick.
+constexpr uint32_t kBackLatencyMs = 20;
 /// Byte-channel latency while the accounting save verifies: long enough to remove the file between the write
 /// landing and the read-back's first answer.
 constexpr uint32_t kAccountLatencyMs = 50;
@@ -327,6 +331,7 @@ void runTick() {
 		if (Instrument* instrument = getCurrentInstrument(); instrument != nullptr) {
 			g_nameBefore = instrument->name;
 		}
+		deluge_file_bytes_set_latency_ms(kBackLatencyMs);
 		DocumentSaveChannelProbe::pressEnter();
 		g_stage = Stage::SaveBack;
 		break;
@@ -360,6 +365,7 @@ void runTick() {
 		else {
 			printf("DS-EXITMIDSAVE exit=skipped\n");
 		}
+		deluge_file_bytes_set_latency_ms(0);
 		g_stage = Stage::SaveWait;
 		break;
 	}
@@ -1009,20 +1015,15 @@ void runTick() {
 		g_heldCompletedBefore = SaveUI::stagedSavesCompleted();
 		g_heldVerifiedBefore = SaveUI::stagedSavesVerified();
 		g_heldWriteServedBefore = SaveUI::writeChannelServedOps();
-		deluge_file_bytes_set_latency_ms(kHeldLatencyMs);
+		deluge_file_bytes_set_write_from_latency_ms(kHeldLatencyMs);
 		DocumentSaveChannelProbe::pressEnter();
 		g_waitTicks = 0;
 		g_stage = Stage::HeldWait;
 		break;
 	}
 	case Stage::HeldWait: {
-		if (SaveUI::writeChannelServedOps() > g_heldWriteServedBefore) {
-			// The held write has landed. Its read-back counts waiting against the stall bound, as it should, so it
-			// runs at the card's own pace.
-			deluge_file_bytes_set_latency_ms(0);
-		}
 		if (!SaveUI::saveInFlight() || ++g_waitTicks > kMaxWaitTicks) {
-			deluge_file_bytes_set_latency_ms(0);
+			deluge_file_bytes_set_write_from_latency_ms(0);
 			g_stage = Stage::HeldCheck;
 		}
 		break;

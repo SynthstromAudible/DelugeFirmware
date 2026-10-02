@@ -1,12 +1,22 @@
 //! Host tests for the byte channel's pure parts: answer keying, card-generation stamps and
 //! displacement in [`BytesSlot`], `copy_out`, request admission and the work-buffer claim.
 
+use deluge_bsp_rust::app_loop;
 use deluge_bsp_rust::channel::file_bytes;
+use embassy_time::{Duration, Instant};
 
 use file_bytes::{
     ByteOp, ByteOutcome, ByteRequest, ByteTake, BytesPath, BytesSlot, ClaimOnce, CopyOut,
-    FileTimestamp, copy_out, drain, publish_into, take_from,
+    FileTimestamp, copy_out, drain, mark_in_flight, publish_into, take_from,
 };
+
+/// The protected-answer span the channel enforces.
+const SPAN: Duration = file_bytes::PROTECTED_ANSWER_SPAN;
+
+/// The instant `us` microseconds after the clock's start.
+fn at(us: u64) -> Instant {
+    Instant::from_micros(us)
+}
 
 /// Nonzero: a publish that dropped its stamp would leave 0.
 const CARD: u32 = 3;
@@ -530,7 +540,7 @@ fn only_renames_unlinks_and_caller_buffer_writes_are_not_idempotent() {
 fn an_uncollected_rename_answer_refuses_a_new_request() {
     let mut slot = BytesSlot::new();
     publish_into(&mut slot, ByteOp::Rename, SETTINGS, ByteOutcome::Done, CARD);
-    assert!(!slot.admits_new_request(CARD));
+    assert!(!slot.admits_new_request(CARD, at(0)));
 }
 
 #[test]
@@ -543,22 +553,64 @@ fn a_collected_answer_no_longer_refuses() {
         ByteOutcome::Wrote(5),
         CARD,
     );
-    assert!(!slot.admits_new_request(CARD));
+    assert!(!slot.admits_new_request(CARD, at(0)));
     assert_eq!(
         take_from(&mut slot, ByteOp::WriteFrom, SETTINGS, CARD),
         ByteTake::Ready(ByteOutcome::Wrote(5))
     );
-    assert!(slot.admits_new_request(CARD));
+    assert!(slot.admits_new_request(CARD, at(0)));
 }
 
 #[test]
-fn an_abandoned_answer_ages_out_after_its_bound() {
+fn an_abandoned_answer_ages_out_after_its_span() {
     let mut slot = BytesSlot::new();
     publish_into(&mut slot, ByteOp::Unlink, SETTINGS, ByteOutcome::Done, CARD);
-    for _ in 0..file_bytes::PROTECTED_ANSWER_REFUSALS {
-        assert!(!slot.admits_new_request(CARD));
+    assert!(!slot.admits_new_request(CARD, at(1_000)));
+    assert!(!slot.admits_new_request(CARD, at(1_000) + SPAN - Duration::from_micros(1)));
+    assert!(slot.admits_new_request(CARD, at(1_000) + SPAN));
+}
+
+/// However many callers ask inside the span, the answer is still protected: the span is a time,
+/// so callers asking often cannot free it any sooner than callers asking rarely.
+#[test]
+fn many_refusals_inside_the_span_do_not_free_the_answer() {
+    let mut slot = BytesSlot::new();
+    publish_into(
+        &mut slot,
+        ByteOp::WriteFrom,
+        SETTINGS,
+        ByteOutcome::Wrote(5),
+        CARD,
+    );
+    for i in 0..10_000u64 {
+        assert!(!slot.admits_new_request(CARD, at(i)), "refusal {i}");
     }
-    assert!(slot.admits_new_request(CARD));
+}
+
+/// The span starts at the first refusal, not at the publish: an answer that sat unasked for a long
+/// time still protects its owner for the whole span once someone asks.
+#[test]
+fn the_span_starts_at_the_first_refusal() {
+    let mut slot = BytesSlot::new();
+    publish_into(&mut slot, ByteOp::Rename, SETTINGS, ByteOutcome::Done, CARD);
+    let first = at(5_000_000);
+    assert!(!slot.admits_new_request(CARD, first));
+    assert!(!slot.admits_new_request(CARD, first + SPAN / 2));
+    assert!(slot.admits_new_request(CARD, first + SPAN));
+}
+
+#[test]
+fn taking_a_protected_answer_that_refused_someone_is_reported() {
+    let mut slot = BytesSlot::new();
+    publish_into(&mut slot, ByteOp::Unlink, SETTINGS, ByteOutcome::Done, CARD);
+    assert!(!slot.has_refused());
+    assert!(!slot.admits_new_request(CARD, at(0)));
+    assert!(slot.has_refused());
+    assert_eq!(
+        take_from(&mut slot, ByteOp::Unlink, SETTINGS, CARD),
+        ByteTake::Ready(ByteOutcome::Done)
+    );
+    assert!(!slot.has_refused());
 }
 
 #[test]
@@ -571,25 +623,24 @@ fn an_idempotent_answer_is_still_displaceable() {
         ByteOutcome::Size(9),
         CARD,
     );
-    assert!(slot.admits_new_request(CARD));
+    assert!(slot.admits_new_request(CARD, at(0)));
 }
 
 #[test]
 fn an_answer_from_a_departed_card_does_not_refuse() {
     let mut slot = BytesSlot::new();
     publish_into(&mut slot, ByteOp::Rename, SETTINGS, ByteOutcome::Done, CARD);
-    assert!(slot.admits_new_request(CARD + 1));
+    assert!(slot.admits_new_request(CARD + 1, at(0)));
 }
 
 #[test]
-fn a_republish_restarts_the_age_bound() {
+fn a_republish_restarts_the_span() {
     let mut slot = BytesSlot::new();
     publish_into(&mut slot, ByteOp::Unlink, SETTINGS, ByteOutcome::Done, CARD);
-    for _ in 0..file_bytes::PROTECTED_ANSWER_REFUSALS {
-        assert!(!slot.admits_new_request(CARD));
-    }
+    assert!(!slot.admits_new_request(CARD, at(0)));
+    assert!(slot.admits_new_request(CARD, at(0) + SPAN));
     publish_into(&mut slot, ByteOp::Rename, SETTINGS, ByteOutcome::Done, CARD);
-    assert!(!slot.admits_new_request(CARD));
+    assert!(!slot.admits_new_request(CARD, at(0) + SPAN * 2));
 }
 
 /// A caller-buffer request from a gone card is dropped unrun, so its buffer is never named as
@@ -678,4 +729,28 @@ fn a_stale_request_of_every_kind_is_dropped_at_take() {
             "{request:?}"
         );
     }
+}
+
+// `mark_in_flight` over the process-wide `IN_FLIGHT` static; no C ABI call and no task running.
+
+/// Clearing the in-flight mark wakes the app (`DELUGE_WAKE_STORAGE`); marking it does not. No test
+/// runs the task, so `mark_in_flight` is driven directly, as the other channel tests do.
+#[test]
+fn finishing_an_operation_wakes_the_app() {
+    app_loop::reset_reasons_for_test();
+    embassy_futures::block_on(mark_in_flight(Some((
+        ByteOp::Read,
+        BytesPath::try_from(SETTINGS).unwrap(),
+    ))));
+    assert_eq!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "marking an operation in flight must not wake the app early"
+    );
+    embassy_futures::block_on(mark_in_flight(None));
+    assert_ne!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "clearing the in-flight mark must wake the app"
+    );
 }

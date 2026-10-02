@@ -635,8 +635,9 @@ void deluge_scenario_offset_io_dispatch_step(void) {
 		return;
 	}
 	g_stepDone = false;
-	// The SysEx pump. In the firmware this is a repeating task registered in `deluge.cpp`; here the
-	// scenario owns the tick, so without this call a queued request would never be processed.
+	// The SysEx pump. In the firmware this job runs only when something requests it (a queued message, a
+	// back-off, a resumed path operation); here the scenario owns the tick, so without this call a queued
+	// request would never be processed.
 	smSysex::handleNextSysEx();
 	runTick();
 	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.

@@ -42,10 +42,10 @@ public:
 	/// mid-save -- after which the save's own close() ran against a UI stack it was no longer on. They
 	/// are refused while any save is in flight, and they are final so no save screen can bypass that.
 	/// @{
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) final;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) final;
 	ActionResult exitUI() final;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) final;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) final;
+	ActionResult verticalEncoderAction(int32_t offset) final;
 	ActionResult horizontalEncoderAction(int32_t offset) final;
 	void selectEncoderAction(int8_t offset) final;
 	/// @}
@@ -54,13 +54,20 @@ public:
 	[[nodiscard]] static bool anySaveInFlight();
 
 protected:
+	/// @brief Note that the machine being run ends this run waiting: on the channel's DELUGE_WAKE_STORAGE, and at the
+	///        latest at @p deadlineUs (a stall bound's deadline, or a write-from's re-check).
+	static void waitUntil(uint64_t deadlineUs);
+	/// Set by @ref waitUntil during the machine's step; a machine still in flight that did not set it runs again at
+	/// once.
+	static inline bool waitedThisRun_{};
+
 	// void displayText(bool blinkImmediately) final;
 	void enterKeyPress() final;
 	/// @brief A save screen's own button handling, reached only when no save is in flight.
 	///
 	/// Override THIS, not buttonAction(): buttonAction() is final so that the in-flight refusal cannot be
 	/// skipped by a screen that handles BACK itself before forwarding.
-	virtual ActionResult saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+	virtual ActionResult saveScreenButtonAction(deluge::hid::Button b, bool on);
 	static bool currentFolderIsEmpty;
 
 	/// The save round-trip gate drives the REAL ENTER gesture rather than the save machinery underneath
@@ -157,8 +164,15 @@ public:
 	[[nodiscard]] static int32_t verifyChannelServedOps() { return verifyChannelServedOps_; }
 	[[nodiscard]] static int32_t verifyInlineServedOps() { return verifyInlineServedOps_; }
 
-	/// @brief Drive a staged save one step. Registered as a repeating task in deluge.cpp.
+	/// @brief Drive a staged save one step, and the song save's collection and document machines. Run by
+	///        @ref saveJob.
 	static void saveRoutine();
+
+	/// @brief The job that runs @ref saveRoutine, set by `registerJobs`.
+	///
+	/// It has no gap and listens for `DELUGE_WAKE_STORAGE`: a save's start requests it, and each run asks for the next
+	/// one it needs -- at once when a machine can move again, or at the stall bound's deadline of the wait it is on.
+	static inline deluge::runtime::JobId saveJob{deluge::runtime::kNoJob};
 
 	/// @brief Whether a staged save is mid-flight. For gates; NOT the same as the UI being open.
 	[[nodiscard]] static bool saveInFlight() { return saveInFlight_; }
@@ -183,6 +197,8 @@ private:
 		FINISH,    ///< Running the caller's completion.
 	};
 
+	/// @brief Run the staged save's current phase.
+	static void runStagedStep();
 	void runSerializePhase();
 	void runWritePhase();
 	void runFinishPhase();

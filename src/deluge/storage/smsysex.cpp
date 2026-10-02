@@ -21,6 +21,7 @@
 #include "util/boot.h"
 #include "util/containers.h"
 #include "util/pack.h"
+#include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <libdeluge/scheduler.h>
@@ -34,8 +35,8 @@ uint32_t dirOffsetCounter;
 
 JsonSerializer jWriter;
 std::string activeDirName;
-/// Consecutive ticks the directory open for the front `dir` request has gone unanswered. See smSysex::getDirEntries().
-deluge::io::StallBound dirOpenWait;
+/// How long the directory open for the front `dir` request has gone unanswered. See smSysex::getDirEntries().
+deluge::io::StallBound dirOpenWait{deluge::storage::kSysExStallUs};
 const size_t blockBufferMax = 1024;
 const size_t sysexBufferMax = blockBufferMax + 256;
 uint8_t* writeBlockBuffer = nullptr;
@@ -174,6 +175,8 @@ struct SysExDataEntry {
 };
 
 deluge::deque<SysExDataEntry> SysExQ;
+
+deluge::runtime::JobId smSysex::jobId = deluge::runtime::kNoJob;
 
 // The following constants assume that the messageID part ranges from 1 to SYSEX_MSGID_MAX
 // and that SYSEX_MSGID_MAX is 1 less than a power of 2.
@@ -955,13 +958,18 @@ void smSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 
 	SysExDataEntry& de = SysExQ.emplace_back(cable, len);
 	memcpy(de.data, data, len);
+	// The job has no gap and no wake: a message sitting in the queue with nobody asking for a run would
+	// never get one.
+	deluge::runtime::appLoop.request(jobId);
 }
 
 // smSysex is a namespace (no instance state), so what little state the pump needs lives at file
 // scope. processFrontSysEx() is the parse+handle+reply body; handleNextSysEx() is the per-tick
-// trigger.
+// trigger. processFrontSysEx() returns whether the front entry finished (and was popped), which is
+// what handleNextSysEx() needs to tell "more queued behind the one just answered" apart from "this
+// one is still in flight".
 namespace smSysex {
-void processFrontSysEx();
+bool processFrontSysEx();
 }
 
 void smSysex::handleNextSysEx() {
@@ -970,6 +978,9 @@ void smSysex::handleNextSysEx() {
 		return;
 	}
 	if (deluge::sync::sd_busy()) {
+		// Not refused for good: the back-off is on the card being busy, not on this request, so ask for
+		// another run once that has had a chance to pass.
+		deluge::runtime::appLoop.requestAt(jobId, deluge::runtime::nowUs() + 1000);
 		return;
 	}
 
@@ -982,10 +993,30 @@ void smSysex::handleNextSysEx() {
 	//
 	// `sd_busy()` is a back-off while any filesystem operation is in flight anywhere, not what makes this
 	// call safe: neither arm touches FatFS from this stack.
-	processFrontSysEx();
+	const bool done = processFrontSysEx();
+	if (SysExQ.empty()) {
+		// Drained: nothing left to arm a run for.
+		return;
+	}
+	if (done) {
+		// The front entry answered and was popped, and another is waiting behind it: drain it too, one
+		// message per run, rather than making it wait for the next wake.
+		deluge::runtime::appLoop.request(jobId);
+	}
+	else {
+		// The front entry waits on a channel, so it stays queued and is re-parsed on the run the channel's
+		// answer wakes (DELUGE_WAKE_STORAGE). The wait's stall bound is when it gives up if no answer comes.
+		uint64_t deadline = std::min(deluge::storage::pathOpDeadlineUs(), dirOpenWait.deadlineUs());
+		if (deadline == deluge::runtime::kNever) {
+			// Every handler that returns "not done" waits on one of the two above; one that did not would never
+			// run again, so it is polled instead.
+			deadline = deluge::runtime::nowUs() + 1000;
+		}
+		deluge::runtime::appLoop.requestAt(jobId, deadline);
+	}
 }
 
-void smSysex::processFrontSysEx() {
+bool smSysex::processFrontSysEx() {
 
 	SysExDataEntry& de = SysExQ.front();
 
@@ -1061,6 +1092,7 @@ finished:
 	if (done) {
 		SysExQ.pop_front();
 	}
+	return done;
 }
 
 // Helper function to parse file operation parameters

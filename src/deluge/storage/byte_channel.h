@@ -17,7 +17,10 @@
 
 #pragma once
 
+#include "io/stall_bound.h"
+#include "libdeluge/file_bytes.h"
 #include "libdeluge/types.h"
+#include "runtime/app_loop.h"
 
 #include <cstdint>
 
@@ -411,7 +414,7 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 /// @brief How many caller ticks the submit machine's pending request has been refused by the channel, in total.
 ///
 /// Observational: a gate reads it to prove that a submission was held off behind other work for longer than the stall
-/// bound (`deluge::io::kChannelStallTicks`) and still completed.
+/// bound (`deluge::io::kChannelStallUs`) and still completed.
 [[nodiscard]] int32_t refusedTicks();
 
 /// @brief Whether the seam has nothing in flight and nothing waiting.
@@ -420,11 +423,33 @@ bool submitUnlink(const char* path, DoneFn onDone = nullptr, void* ctx = nullptr
 /// proxy for an operation finishing and not the thing itself.
 [[nodiscard]] bool idle();
 
+/// @brief How often a caller waiting on its own `write_from` collects it again when nothing has woken it, in
+///        microseconds.
+///
+/// A document write copies from its caller's buffer and cannot be cancelled, so that wait never gives up: the caller
+/// keeps the buffer until the write answers, however long the card takes. Its answer raises `DELUGE_WAKE_STORAGE`;
+/// this re-check only guards against a lost wake, so the caller does not sleep forever on one.
+inline constexpr uint64_t kWriteFromRecheckUs = 250'000;
+
+/// @brief How long after the byte channel refused a request its caller asks again if nothing wakes it sooner, in
+///        microseconds: the protected-answer span, past which an orphaned answer no longer refuses (and raises no
+///        wake as it ages out), plus a margin. A request refused behind an operation in flight is woken sooner, by
+///        that operation's answer.
+inline constexpr uint64_t kRefusedRecheckUs = (uint64_t{DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS} + 50) * 1000;
+static_assert(kRefusedRecheckUs < deluge::io::kChannelStallUs, "the re-ask must come well before the stall bound");
+
+/// @brief The job that runs @ref serviceRoutine, set by `registerJobs`.
+///
+/// It has no gap and listens for `DELUGE_WAKE_STORAGE`: every submission requests it, and each run asks for the next
+/// one it needs -- at once when the machine can move again, or at the stall bound's deadline while it waits on the
+/// channel.
+extern deluge::runtime::JobId serviceJob;
+
 /// @brief Drive whatever @ref submitRead, @ref submitWrite and @ref submitMkdirAll handed over, one operation
 ///        at a time, oldest first.
 ///
-/// Registered as a repeating task in `deluge.cpp`, and called by the settings-channel gate's own tick. Cheap and
-/// reentrant when there is nothing pending.
+/// Run by @ref serviceJob, and called by the settings-channel gate's own tick. Cheap and reentrant when there is
+/// nothing pending.
 void serviceRoutine();
 
 /// @}

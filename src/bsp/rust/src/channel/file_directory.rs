@@ -513,12 +513,17 @@ async fn take_next_request() -> Option<(DirRequest, u32)> {
     Some((request, generation))
 }
 
-/// Records (or clears) the path being opened right now.
+/// Records (or clears) the path being opened right now. Clearing it wakes the app
+/// (`DELUGE_WAKE_STORAGE`): the open's result is visible once this returns.
 ///
 /// The task calls this while holding the `REQUEST` lock. Host tests call it directly to reach
 /// [`deluge_file_directory_collect`]'s IN_FLIGHT branch without running the task.
 pub async fn mark_in_flight(path: Option<DirPath>) {
+    let done = path.is_none();
     *IN_FLIGHT.lock().await = path;
+    if done {
+        crate::app_loop::wake(crate::app_loop::WAKE_STORAGE);
+    }
 }
 
 /// Publishes one finished open into the live `RESULT` slot, stamped with `generation`, unless

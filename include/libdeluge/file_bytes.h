@@ -50,17 +50,23 @@
 /// intents, and a dropped write is gone where a dropped directory listing is merely re-asked. The caller must retry
 /// a refused write, and this is the one place this channel deliberately differs from @ref file_directory.h.
 ///
-/// **Waiting on a busy channel.** A caller that is refused, or kept PENDING, should count its waiting ticks against
-/// @ref deluge_file_bytes_progress rather than against the clock: the channel may legitimately be busy for a long
-/// time with someone else's copy, and only a channel whose progress mark has stopped moving is wedged.
+/// **Waiting on a busy channel.** The channel raises `DELUGE_WAKE_STORAGE` when it finishes or drops an operation,
+/// and when an answer that refused someone is taken, so a refused or PENDING caller runs again then rather than
+/// polling. It bounds the wait against @ref deluge_file_bytes_progress rather than against the clock alone
+/// (`deluge::io::StallBound::tick(uint32_t)`): the channel may legitimately be busy for a long time with someone
+/// else's copy, and only a channel whose progress mark has stopped moving is wedged. A wake-driven caller also asks to
+/// run at its bound's deadline, so a channel that never wakes it still ends the wait.
 ///
 /// **Collect what you ask for.** A rename, unlink or write-from cannot safely run twice -- a second rename reports
 /// NOT_FOUND for a rename that happened, and a second exclusive write finds its own file -- so an answer of one of
-/// those kinds is protected: until its owner collects it, the channel refuses every other caller's request, up to
-/// `PROTECTED_ANSWER_REFUSALS` (300) of them, after which the owner is taken to have gone and the answer may be
-/// displaced. A caller that requests one of these operations must therefore keep polling its collect until it is
-/// terminal. One that stops holds every other consumer off for those 300 refusals. Every other kind's uncollected
-/// answer is displaced by the next operation to finish, and its owner reads UNKNOWN and asks again.
+/// those kinds is protected: until its owner collects it, the channel refuses every other caller's request, for up to
+/// @ref DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS from the first request it refuses, after which the owner is taken to
+/// have gone and the answer may be displaced. A caller that requests one of these operations must therefore collect
+/// it as soon as it is woken (`DELUGE_WAKE_STORAGE`). One that stops holds every other consumer off for that span.
+/// Taking an answer that refused someone raises `DELUGE_WAKE_STORAGE`, so a refused caller asks again then. An answer
+/// that ages out raises nothing, so a refused caller must also ask again on its own within the span plus a margin,
+/// and in any case before it judges its own stall bound. Every other kind's uncollected answer is displaced by the
+/// next operation to finish, and its owner reads UNKNOWN and asks again.
 ///
 /// **Two operations borrow the caller's buffer instead of copying.**
 /// @ref deluge_file_bytes_request_read_into and @ref deluge_file_bytes_request_write_from carry a whole document,
@@ -69,7 +75,8 @@
 /// request or is replaced by one: while the channel is busy, each is refused.
 ///
 /// **What a collect answers**, in @ref channel.h's vocabulary:
-/// - @ref DELUGE_CHANNEL_PENDING: requested, or running. Ask again on a later tick; do NOT re-request.
+/// - @ref DELUGE_CHANNEL_PENDING: requested, or running. Collect again when woken (`DELUGE_WAKE_STORAGE`) or at the
+///   wait's deadline; do NOT re-request.
 /// - @ref DELUGE_CHANNEL_READY: the operation completed and its answer was removed from the slot. For a read,
 ///   `out_buf` holds the file's bytes and `out_len` their count; for a write or a rename, the bytes reached the
 ///   card. A second collect for the same path answers UNKNOWN.
@@ -134,13 +141,20 @@ extern "C" {
 /// and the image stopped linking. Keep this one small.
 #define DELUGE_FILE_BYTES_BLOCK 1024u
 
+/// @brief How long an uncollected rename, unlink or write-from answer may refuse other requests, in milliseconds,
+///        counted from the first request it refuses.
+///
+/// Past it, the answer's owner is taken to have gone and a new request may displace it. Nothing is raised when that
+/// happens, so a caller refused by such an answer asks again on its own no later than this plus a margin.
+#define DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS 100u
+
 /// @brief Ask for the whole of `path` to be read, and return immediately. [task]
 ///
 /// Silently dropped -- refused, with nothing to report it -- when the path is NULL or over long, or while the
 /// channel is busy: a request is already queued (this path's own included), an operation is in flight, an
 /// uncollected rename, unlink or write-from answer is waiting for its owner, or the channel was mid-update at the
 /// instant of the call. There is no failure a caller could act on that re-requesting does not already cover: the
-/// collect it runs next tick reports @ref DELUGE_CHANNEL_PENDING if this path's read is the one in flight, and
+/// collect it runs next reports @ref DELUGE_CHANNEL_PENDING if this path's read is the one in flight, and
 /// @ref DELUGE_CHANNEL_UNKNOWN, whose documented meaning is "ask again", otherwise.
 ///
 /// @param path NUL-terminated path of the file to read. Copied out before this returns.
@@ -537,6 +551,15 @@ void deluge_file_bytes_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 /// host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
 /// @param ms Milliseconds of simulated delay per chunk.
 void deluge_file_bytes_set_chunk_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+
+/// @brief Host harness only: make every @ref deluge_file_bytes_request_write_from operation wait @p ms milliseconds
+/// before it touches the card, on top of @ref deluge_file_bytes_set_latency_ms. [task]
+///
+/// Holds a save's document write without holding the existence checks, read-backs and renames around it, which a
+/// save gives up on past its stall bound. 0 (the default) means no wait. Declared only for host builds, and defined
+/// only by the Rust BSP's `host_app` build; never in a device image.
+/// @param ms Milliseconds of simulated delay per document write.
+void deluge_file_bytes_set_write_from_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
 #endif
 
 #ifdef __cplusplus

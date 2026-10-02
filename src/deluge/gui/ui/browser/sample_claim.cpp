@@ -113,6 +113,8 @@ void SampleClaim::request(ClaimRequest request) {
 	}
 	queued_ = std::move(request);
 	routine();
+	// The run above may have been made outside the loop's pass, where a time it asked for wakes nothing.
+	deluge::runtime::appLoop.request(jobId);
 }
 
 void SampleClaim::cancelAutoLoad() {
@@ -150,8 +152,30 @@ void SampleClaim::routine() {
 			phase_ = Phase::Start;
 		}
 		if (!step()) {
+			armNextRun();
 			return;
 		}
+	}
+}
+
+void SampleClaim::armNextRun() {
+	using deluge::runtime::appLoop;
+	switch (phase_) {
+	case Phase::LoadSample: {
+		const uint64_t next = load_.nextTickUs();
+		if (next == 0) {
+			appLoop.request(jobId);
+		}
+		else {
+			appLoop.requestAt(jobId, next);
+		}
+		break;
+	}
+	case Phase::AwaitPitch:
+		appLoop.requestAt(jobId, deluge::runtime::nowUs() + deluge::sample::kScanRecheckUs);
+		break;
+	default:
+		break;
 	}
 }
 

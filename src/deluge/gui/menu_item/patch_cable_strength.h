@@ -43,7 +43,7 @@ public:
 	virtual PatchSource getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	MenuItem* selectButtonPress() final;
-	ActionResult buttonAction(hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(hid::Button b, bool on) override;
 	void selectEncoderAction(int32_t offset) override;
 	void horizontalEncoderAction(int32_t offset) override;
 	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }

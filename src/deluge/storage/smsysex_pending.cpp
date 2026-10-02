@@ -28,18 +28,22 @@ namespace deluge::storage {
 
 namespace {
 
-/// How many consecutive refusals, on caller ticks on which the channel finished nothing, before this stops asking
-/// the channel.
+/// How long the current request may go refused while the channel finishes nothing before this stops asking the
+/// channel, in microseconds.
 ///
 /// The channel is single-flight across all operation kinds, so another consumer's operation in
 /// flight refuses this one. Retrying is right -- the handler is re-entered every tick anyway -- but
 /// an unbounded retry would let a wedged channel stall the SysEx queue behind one request. A channel that keeps
 /// finishing work is busy, not wedged, so its refusals do not count.
 ///
-/// As many as the stall bound below. After boot the synchronous arm refuses to run, so giving up on
+/// As long as the stall bound below. After boot the synchronous arm refuses to run, so giving up on
 /// a channel that is merely busy would answer the host with an error for a request that would have
 /// succeeded a few ticks later.
-constexpr int32_t kMaxRefusals = 600;
+constexpr uint64_t kMaxRefusalUs = kSysExStallUs;
+// A refusal by an orphaned protected answer ends only when its span does, and nothing wakes this then: the refusal
+// bound's deadline run asks first, so it must come well after the span.
+static_assert(uint64_t{DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS} * 1000 * 3 <= kMaxRefusalUs,
+              "the byte channel's protected-answer span must be well inside the SysEx refusal bound");
 
 PathOp g_op = PathOp::None;
 std::string g_pathA;
@@ -59,12 +63,12 @@ uint32_t g_resultValue = 0;
 
 /// Whether the request has been issued (as opposed to started but still refused).
 bool g_issued = false;
-/// Refusals and re-asks of the current request, counted only on caller ticks on which the channel finished nothing.
-deluge::io::StallBound g_refusalBound{kMaxRefusals};
-/// How long the operation in flight has sat PENDING. A separate bound from @ref kMaxRefusals, because it guards a
+/// How long the current request has been refused or re-asked while the channel finished nothing.
+deluge::io::StallBound g_refusalBound{kMaxRefusalUs};
+/// How long the operation in flight has sat PENDING. A separate bound from @ref kMaxRefusalUs, because it guards a
 /// different failure: a refusal is instant and means "busy", but a channel whose driver is not running answers
 /// PENDING forever, which is neither a refusal nor an answer.
-deluge::io::StallBound g_pendingBound;
+deluge::io::StallBound g_pendingBound{kSysExStallUs};
 
 /// The synchronous arm's answer, read on the tick after the one that ran (or refused) it.
 bool g_inlineDone = false;
@@ -265,6 +269,9 @@ void issue() {
 		}
 		if (accepted == ByteIo::Pending) {
 			g_issued = true;
+			// The span starts at the issue, not at the first collect: a job that runs only when woken would
+			// otherwise have no deadline to wait for while the channel never answers.
+			(void)g_pendingBound.tick(deluge_file_bytes_progress());
 		}
 		else {
 			(void)g_refusalBound.tick(deluge_file_bytes_progress());
@@ -404,8 +411,9 @@ std::optional<deluge::io::Status> pathOpCollect() {
 	case ByteIo::Pending:
 		if (g_pendingBound.tick(deluge_file_bytes_progress())) {
 			// The channel accepted and never answered. Re-issue on the synchronous arm, which
-			// `viaChannel` now refuses to bypass.
+			// `viaChannel` now refuses to bypass, now rather than on a later run: nothing would wake one.
 			g_issued = false;
+			issue();
 		}
 		return std::nullopt;
 	case ByteIo::Unknown:
@@ -413,11 +421,28 @@ std::optional<deluge::io::Status> pathOpCollect() {
 		// displacement while this polls, up to the byte channel's age bound, so a rerun of either happens only
 		// after a card change dropped it unrun, or past that bound; the other operations here reach the same
 		// state run twice.
+		// Asked again now: nothing would wake a later run for it.
 		g_issued = false;
 		(void)g_refusalBound.tick(deluge_file_bytes_progress());
+		issue();
 		return std::nullopt;
 	}
 	return std::nullopt;
+}
+
+uint64_t pathOpDeadlineUs() {
+	if (g_op == PathOp::None) {
+		return deluge::runtime::kNever;
+	}
+	if (!g_issued) {
+		// Refused: the channel freeing up wakes the job, and the refusal bound's deadline is when it stops asking.
+		return g_refusalBound.deadlineUs();
+	}
+	if (!viaChannel()) {
+		// The synchronous arm has already run it; only the collect is left.
+		return 0;
+	}
+	return g_pendingBound.deadlineUs();
 }
 
 void pathOpClear() {

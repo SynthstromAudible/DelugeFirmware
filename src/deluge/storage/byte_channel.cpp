@@ -22,8 +22,10 @@
 #include "io/file.hpp"
 #include "io/stall_bound.h"
 #include "libdeluge/file_bytes.h"
+#include "runtime/app_loop.h"
 #include "util/boot.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <deque>
@@ -235,12 +237,11 @@ void holdPath(const char* path) {
 	std::memcpy(g_pending.path, path, std::strlen(path) + 1);
 }
 
-/// How many caller ticks the pending operation has spent refused or waiting for an answer while the channel finished
-/// nothing.
+/// How long the pending operation has spent refused or waiting for an answer while the channel finished nothing.
 ///
 /// A channel whose driver is not running answers PENDING, or refuses, forever -- which is neither an answer nor a
 /// failure. Without this bound a submitted operation is polled until the end of time and never happens, silently:
-/// the caller was told the channel took it, so it does not fall back either. Counted against the channel's progress
+/// the caller was told the channel took it, so it does not fall back either. Measured against the channel's progress
 /// mark, so an operation refused behind another caller's long copy waits for it rather than failing.
 deluge::io::StallBound g_pendingBound;
 
@@ -395,6 +396,7 @@ bool submitRead(const char* path, const char* legacyPath, ParseFn parse, AbsentF
 	                              .onAbsent = onAbsent,
 	                              .onDone = onDone,
 	                              .ctx = ctx});
+	deluge::runtime::appLoop.request(serviceJob);
 	return true;
 }
 
@@ -403,6 +405,7 @@ bool submitMkdirAll(const char* path, DoneFn onDone, void* ctx) {
 		return false;
 	}
 	g_waiting.push_back(WaitingOp{.first = Step::MkdirAllRequest, .path = path, .onDone = onDone, .ctx = ctx});
+	deluge::runtime::appLoop.request(serviceJob);
 	return true;
 }
 
@@ -411,6 +414,7 @@ bool submitUnlink(const char* path, DoneFn onDone, void* ctx) {
 		return false;
 	}
 	g_waiting.push_back(WaitingOp{.first = Step::UnlinkRequest, .path = path, .onDone = onDone, .ctx = ctx});
+	deluge::runtime::appLoop.request(serviceJob);
 	return true;
 }
 
@@ -436,19 +440,63 @@ bool submitWrite(const char* path, const char* bytes, uint32_t len, DoneFn onDon
 	                              .onDone = onDone,
 	                              .ctx = ctx,
 	                              .bytes = std::vector<char>(bytes, bytes + len)});
+	deluge::runtime::appLoop.request(serviceJob);
 	return true;
 }
 
-void serviceRoutine() {
+namespace {
+
+/// Whether @p step asks the channel for something, as opposed to waiting for its answer.
+bool asksChannel(Step step) {
+	switch (step) {
+	case Step::ReadRequest:
+	case Step::RenameRequest:
+	case Step::ReadRetryRequest:
+	case Step::WriteRequest:
+	case Step::MkdirAllRequest:
+	case Step::UnlinkRequest:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/// Ask for the job's next run after one step, which began at @p before.
+///
+/// A request step the machine has just moved to asks at once. One it was already on was refused, and a collect step
+/// waits for its answer: either way the channel's DELUGE_WAKE_STORAGE brings the job back when it finishes something
+/// (an operation, or the take of an answer that was holding it), and the stall bound's deadline brings it back to
+/// give up if the channel never does.
+void armNextRun(Step before) {
+	using deluge::runtime::appLoop;
+	if (g_pending.step == Step::Idle) {
+		if (!g_waiting.empty()) {
+			appLoop.request(serviceJob);
+		}
+		return;
+	}
+	if (asksChannel(g_pending.step) && g_pending.step != before) {
+		appLoop.request(serviceJob);
+		return;
+	}
+	if (asksChannel(g_pending.step)) {
+		// Refused. The stall bound is judged before the request is asked again, so its deadline run would give up
+		// without asking; and an uncollected answer that refused it raises no wake when it ages out. Ask again once
+		// that answer's span has passed.
+		appLoop.requestAt(serviceJob,
+		                  std::min(g_pendingBound.deadlineUs(), deluge::runtime::nowUs() + kRefusedRecheckUs));
+		return;
+	}
+	appLoop.requestAt(serviceJob, g_pendingBound.deadlineUs());
+}
+
+/// One step of the operation in flight.
+void advancePending() {
 	DelugeStatus status = DELUGE_OK;
 	uint32_t len = 0;
 
-	// The oldest waiting submission starts here, and only here: a callback that submits from inside the step
-	// machine below only appends, so nothing re-enters it.
-	promoteHead();
-
-	// One tick's grace accounting, before any of the steps below. A step that returns without
-	// finishing has spent a tick; enough of those and the channel is not going to answer.
+	// The stall accounting, before any of the steps below. A step that returns without finishing has
+	// waited another tick; once the channel has finished nothing for the whole bound, it is not going to answer.
 	if (g_pending.step != Step::Idle && g_pendingBound.tick(deluge_file_bytes_progress())) {
 		abandonChannel();
 		return;
@@ -641,6 +689,19 @@ void serviceRoutine() {
 		}
 		return;
 	}
+}
+
+} // namespace
+
+deluge::runtime::JobId serviceJob = deluge::runtime::kNoJob;
+
+void serviceRoutine() {
+	// The oldest waiting submission starts here, and only here: a callback that submits from inside the step
+	// machine below only appends, so nothing re-enters it.
+	promoteHead();
+	const Step before = g_pending.step;
+	advancePending();
+	armNextRun(before);
 }
 
 int32_t channelServedOps() {

@@ -29,12 +29,11 @@ namespace deluge::storage {
 /// @brief The blocking driver: loads each demand of a walk as it arrives, on the calling tier, in walk order.
 ///
 /// It makes a walk do exactly what the model tree's own loads did, call for call:
-/// - a source range: the audio routine on every fourth range, then the abort check when reading;
-/// - a kit's drum: the abort check when reading;
+/// - a source range: the audio routine on every fourth range;
 /// - a song's clip: the audio routine on every eighth clip, only when not reading;
 /// - a kit or synth: its own folder becomes the load's context when no context is in effect (see ScopeRule);
 /// - a demand: the lookup (AudioFileHolder::acquire), the bind (AudioFileHolder::setAudioFile), then the after-bind
-///   step. A failed lookup stops nothing; only an abort stops a walk.
+///   step. Nothing stops a walk: a failed lookup leaves its holder empty and the walk goes on.
 class BlockingSampleLoad final : public SampleLoadVisitor {
 public:
 	/// @param mayReadCard false confines every lookup to files already in memory.
@@ -49,15 +48,7 @@ public:
 	void endInstrumentScope() override;
 	void demand(const SampleDemand& demand) override;
 
-	/// @brief What a walk's result means to a caller that returns an Error: only an abort stops a walk.
-	[[nodiscard]] static Error errorFor(Walk walk) {
-		return (walk == Walk::Stop) ? Error::ABORTED_BY_USER : Error::NONE;
-	}
-
 private:
-	/// @brief Walk::Stop when the load may read the card and the user has asked to abort it.
-	[[nodiscard]] Walk stopIfAborted() const;
-
 	bool mayReadCard_;
 	/// The context each lookup runs under: the caller's, or ownFolder_ while an instrument's scope holds it.
 	AudioLoadContext* context_;

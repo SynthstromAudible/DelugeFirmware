@@ -136,7 +136,7 @@ justSend:
 	expressionValueChangesMustBeDoneSmoothly = false;
 }
 
-Error Drum::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+void Drum::loadAllSamples(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
 	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
-	return deluge::storage::BlockingSampleLoad::errorFor(walkSampleDemands(load));
+	(void)walkSampleDemands(load);
 }

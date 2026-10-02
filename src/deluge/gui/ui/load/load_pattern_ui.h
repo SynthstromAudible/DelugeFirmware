@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
+#include "runtime/app_loop.h"
 #include "storage/storage_manager.h"
 
 #include <optional>
@@ -32,7 +33,7 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool opened() override;
 
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	void selectEncoderAction(int8_t offset) override;
 
@@ -53,9 +54,15 @@ public:
 	/// @return Error::FILE_NOT_FOUND when nothing is selected, otherwise Error::NONE.
 	Error performLoad();
 
-	/// @brief Advance the pattern read in flight, if there is one. A repeating task, so that a load outlives the
-	///        browser that asked for it: Enter closes the browser at once and the pattern lands after.
+	/// @brief Advance the pattern read in flight, if there is one, then ask for the job's next run while it waits. Run
+	///        by its own job, so that a load outlives the browser that asked for it: Enter closes the browser at once
+	///        and the pattern lands after.
 	void loadRoutine();
+
+	/// @brief The job loadRoutine() runs on, woken by DELUGE_WAKE_STORAGE: the "instrument load" job, shared with the
+	///        preset browser's loads. It runs when a read is asked for, when a storage channel answers, and at the
+	///        staging's next run (StorageManager::stagingNextRunUs()).
+	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
 
 	/// @brief Whether a pattern read is in flight.
 	[[nodiscard]] bool loadInFlight() const { return active_.has_value(); }
@@ -100,8 +107,11 @@ private:
 	};
 	/// The read @ref loadRoutine is advancing.
 	std::optional<PatternRead> active_;
+	/// How long the read may go without the byte channel finishing anything before it gives up, in µs: 18 s, the same
+	/// allowance as the preset loads that share its job.
+	static constexpr uint64_t kStagingStallUs = 18'000'000;
 	/// The active read's bytes.
-	StorageManager::StagingState staging_{};
+	StorageManager::StagingState staging_{.stallBound = deluge::io::StallBound{kStagingStallUs}};
 
 	void requestRead(PatternRead read);
 	/// Stop the active read and free its staging.

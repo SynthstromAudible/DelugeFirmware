@@ -49,8 +49,8 @@ after it:
                     that drum to the render (AudioEngine::retire(SoundDrum*)) instead of destroying it on the spot.
                     CL-SAVE says what the drum was doing at the save and how many bytes it wrote; CL-DANGLING (inKit=,
                     renderingActive=) whether the kit still holds it afterwards.
-    CL-EPOCH0       first, at boot: Create New Song right after deluge_app_init() returns, before the scheduler has run
-                    the render task once. epoch= is the render's block count so far: 1, the block boot renders inline
+    CL-EPOCH0       first, at boot: Create New Song right after deluge_app_init() returns, before the audio tier has
+                    rendered a block. epoch= is the render's block count so far: 1, the block boot renders inline
                     from setupBlankSong() (a song exists only from there on, so epoch 0 with a song to clear is never
                     reachable). With no render running, the clear's bounded wait must drive the render itself
                     (deluge_audio_await_block()) and return (returned=1, pending=0) rather than hang. At epoch 0,
@@ -68,8 +68,8 @@ after it:
                     flash, which walks the current song's clips) and a MIDI note arrives on the DIN port. A regression
                     guard that the clear or load left currentSong set (song=1) and usable. It runs after the operation
                     returns, so it says nothing about the wait inside it: that no interaction task runs while
-                    currentSong is null holds by construction (the wait runs no scheduler), and no leg can observe that
-                    window.
+                    currentSong is null holds by construction (the wait runs no app-loop pass), and no leg can observe
+                    that window.
     CL-SONGSWAP     the same load with the clock running and a synth sounding: the load arms a swap
                     (Session::armForSongSwap()), the render launches it (doSongSwap()), and
                     LoadSongUI::runFinishSegment() hands the old song to the render.

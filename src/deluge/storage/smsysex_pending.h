@@ -43,6 +43,12 @@
 /// starting or resuming.
 namespace deluge::storage {
 
+/// How long a SysEx request may wait on a channel with nothing to show for it before it gives up, in microseconds.
+///
+/// Shorter than the other callers' bound (`deluge::io::kChannelStallUs`): the SysEx job asks every 0.4 ms, and a
+/// request that waits holds every request queued behind it.
+inline constexpr uint64_t kSysExStallUs = 300'000;
+
 /// Which path operation is in flight.
 enum class PathOp : uint8_t {
 	None,
@@ -105,6 +111,16 @@ bool pathOpStartBlock(PathOp op, const char* path, uint32_t offset, const uint8_
 /// @return `nullopt` while it is still running; its outcome once terminal. The caller then sends its
 ///         reply and calls @ref pathOpClear.
 [[nodiscard]] std::optional<deluge::io::Status> pathOpCollect();
+
+/// @brief When the operation started and not yet collected next needs a run if nothing wakes it, in microseconds
+/// on `deluge::runtime::nowUs()`'s clock.
+///
+/// While the operation waits on the byte channel, its answer (or the channel freeing up for a refused request) raises
+/// `DELUGE_WAKE_STORAGE`; this is the stall bound's deadline for the wait, so a channel that never answers is still
+/// given up on in time.
+/// @return 0 when the operation has finished on the synchronous arm and only needs collecting; the deadline of the
+///         bound for the wait in force; `deluge::runtime::kNever` when no operation is pending.
+[[nodiscard]] uint64_t pathOpDeadlineUs();
 
 /// @brief Forget the operation, so the next one may start.
 ///

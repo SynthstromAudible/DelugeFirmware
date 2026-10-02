@@ -34,9 +34,7 @@ public:
 	// this button action function definition should not be required as it should be inherited
 	// from the param class, however it does not work if the definition is removed, so there
 	// is likely a multi-inheritance issue that needs to be resolved
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
-		return Param::buttonAction(b, on, inCardRoutine);
-	}
+	ActionResult buttonAction(deluge::hid::Button b, bool on) { return Param::buttonAction(b, on); }
 	void horizontalEncoderAction(int32_t offset) { return Param::horizontalEncoderAction(offset); }
 
 	ParamDescriptor getLearningThing() override;

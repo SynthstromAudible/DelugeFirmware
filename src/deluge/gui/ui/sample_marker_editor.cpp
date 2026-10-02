@@ -338,10 +338,6 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 
 ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
 
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-
 	if (currentUIMode != UI_MODE_AUDITIONING) { // Don't want to do this while auditioning - too easy to do by mistake
 		ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
 		if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
@@ -644,15 +640,12 @@ doRender:
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Back button
 	if (b == BACK) {
 		if (on && !currentUIMode) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			exitUI();
 		}
 	}
@@ -728,9 +721,6 @@ ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 	}
 
 	// We're quite likely going to need to read the SD card to do either scrolling or zooming
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	MarkerColumn* colsToSend = nullptr;
 	MarkerColumn cols[kNumMarkerTypes];
@@ -868,18 +858,14 @@ ActionResult SampleMarkerEditor::timerCallback() {
 	return ActionResult::DEALT_WITH;
 }
 
-ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset) {
 	if (Buttons::isShiftButtonPressed() || Buttons::isButtonPressed(deluge::hid::button::X_ENC)
 	    || getCurrentClip()->type == ClipType::AUDIO) {
 		return ActionResult::DEALT_WITH;
 	}
 
 	// Must say these buttons were not pressed, or else editing might take place
-	ActionResult result = instrumentClipView.verticalEncoderAction(offset, inCardRoutine);
-
-	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return result;
-	}
+	ActionResult result = instrumentClipView.verticalEncoderAction(offset);
 
 	if (getRootUI() == &keyboardScreen) {
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);

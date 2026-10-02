@@ -44,7 +44,7 @@ void ClipView::focusRegained() {
 	ClipNavigationTimelineView::focusRegained();
 }
 
-ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	maybeStartShortcutOverview(b, on);
@@ -65,7 +65,7 @@ ActionResult ClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardR
 	}
 #endif
 	else {
-		return ClipNavigationTimelineView::buttonAction(b, on, inCardRoutine);
+		return ClipNavigationTimelineView::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -167,10 +167,6 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 
 		// Or if still here, we've already scrolled far-right
 
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-
 		Action* action = nullptr;
 
 		uint32_t newLength = changeClipLength(offset, oldLength, action);
@@ -188,9 +184,6 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 	         || (isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)
 	             && Buttons::isButtonPressed(deluge::hid::button::CLIP_VIEW))) {
 		// Just be safe - maybe not necessary
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 
 		int32_t squareSize = getPosFromSquare(1) - getPosFromSquare(0);
 		int32_t shiftAmount = offset * squareSize;

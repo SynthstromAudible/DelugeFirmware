@@ -101,10 +101,6 @@ public:
 	/// @brief Whether a staged document write is in flight. NOT the same as the UI being open.
 	[[nodiscard]] bool docInFlight() const { return docPhase_ != DocPhase::NONE; }
 
-	/// @brief Whether the save has reached its document write and not yet asked the channel for it: the next document
-	///        step requests the write. Lets a gate hold that write alone, and not the steps before it.
-	[[nodiscard]] bool docWriteAboutToIssue() const { return docPhase_ == DocPhase::WRITE && !docWriteIssued_; }
-
 	/// @brief Document steps the CHANNEL served, and the ones the INLINE arm served before boot finished.
 	///
 	/// Reported together and held to account for each other by the gate: on a build where half the
@@ -130,10 +126,10 @@ public:
 	/// @brief Ticks on which a document step went through a channel, after boot.
 	[[nodiscard]] static int32_t channelDocumentTicks() { return channelDocumentTicks_; }
 
-	/// @brief The document machine's stall bound, in caller ticks of that machine (`deluge::io::kChannelStallTicks`).
+	/// @brief The document machine's stall bound, in microseconds (`deluge::io::kChannelStallUs`).
 	///
 	/// Read-only, for a gate that must hold a document step past it to prove the save does not give up.
-	[[nodiscard]] int32_t documentStallLimit() const { return docStallBound_.limit(); }
+	[[nodiscard]] uint64_t documentStallLimitUs() const { return docStallBound_.limitUs(); }
 
 	/// @brief How many times the staging buffer doubled for the last staged document.
 	///

@@ -23,6 +23,7 @@
 #include "storage/audio/sample_load_walk.h"
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -46,13 +47,14 @@ namespace deluge::storage {
 /// - a wavetable is looked up synchronously, on the calling tier, once the previous tick's walk left no sample in
 ///   flight. Its lookup may probe the load's folder on a miss, which must not happen before the samples have asked.
 ///
-/// The load ends Loaded when a walk leaves nothing in flight, and Failed when the user aborts it, the card cannot be
-/// read, or kMaxStalledTicks walks in a row settle nothing; holders bound before then stay bound. The end sticks: later
-/// ticks return it without walking.
+/// The load ends Loaded when a walk leaves nothing in flight, and Failed when the card cannot be read or its walks
+/// settle nothing for kMaxStalledUs; holders bound before then stay bound. The end sticks: later ticks return it
+/// without walking.
 ///
 /// The consumer owns the object, the root and the context, keeps all three alive while ticking, and does not change
-/// the root's tree between ticks. Dropping the object cancels the load; a request still in flight stays with the
-/// loader, where a later lookup collects it or an eject discards it.
+/// the root's tree between ticks. Dropping the object cancels the load, and tells the loader to discard the answers it
+/// still owes the load: each was found with this load's candidates, and the next lookup of the same path may be
+/// another load's, with other candidates.
 class AsyncSampleLoad final : private SampleLoadVisitor {
 public:
 	/// @brief Where a load is.
@@ -65,9 +67,8 @@ public:
 	/// @brief Why a load ended early.
 	enum class Reason : uint8_t {
 		None,         ///< It did not.
-		Aborted,      ///< The user aborted it: shouldAbortLoading() answered true at a checkpoint.
 		CardUnusable, ///< The card cannot be read (ejected, disabled or not mounted), or no async loader backs loads.
-		Stalled,      ///< kMaxStalledTicks walks in a row left something in flight and settled nothing new.
+		Stalled,      ///< For kMaxStalledUs, walks left something in flight and settled nothing new.
 	};
 
 	/// @brief What a tick reports.
@@ -79,18 +80,20 @@ public:
 		int32_t inFlight = 0;       ///< Demands the last walk left still loading.
 		int32_t wavetableReads = 0; ///< Synchronous wavetable lookups, over the whole load.
 		int32_t ticks = 0;          ///< Ticks that walked.
-		int32_t stalledTicks =
-		    0; ///< Walks in a row, up to the last, that left something in flight and settled nothing.
+		/// Walks in a row, up to the last, that left something in flight and settled nothing.
+		int32_t stalledTicks = 0;
+		uint64_t stalledUs = 0;    ///< Microseconds from the first of those walks to the last.
 		Error error = Error::NONE; ///< The first lookup error of a holder that settled empty, over the whole load.
 	};
 
-	/// @brief Walks in a row that may leave something in flight and settle nothing new before the load ends Failed,
-	///        Reason::Stalled.
+	/// @brief How long walks may leave something in flight and settle nothing new before the load ends Failed,
+	///        Reason::Stalled, in microseconds.
 	///
-	/// The bound the slicer's audition gives a load (its kMaxPreviewWaitAttempts), and the sample browser's preview's
-	/// give-up, counted here for the whole load rather than per file: any demand that settles, bound or empty, starts
-	/// the count again, so a large load on a slow card keeps loading, and only a load that has stopped moving ends.
-	static constexpr int32_t kMaxStalledTicks = deluge::io::kChannelStallTicks;
+	/// The bound the slicer's audition and the sample browser's preview give a load before giving up, measured here for
+	/// the whole load rather than per file: any demand that settles, bound or empty, starts the span again, so a large
+	/// load on a slow card keeps loading, and only a load that has stopped moving ends. 18 s, five channel stall
+	/// bounds: long enough for a card that is slow but still answering, short enough that a dead one is reported.
+	static constexpr uint64_t kMaxStalledUs = 18'000'000;
 
 	/// @brief Every sample a song needs: each output's, then each audio clip's.
 	[[nodiscard]] static AsyncSampleLoad forSong(Song& song, AudioLoadContext* context);
@@ -113,6 +116,15 @@ public:
 	/// @brief What the last tick() returned.
 	[[nodiscard]] const Progress& progress() const { return progress_; }
 
+	/// @brief When a consumer that runs only when woken should tick a load still Loading again, on the app loop's
+	///        clock (µs).
+	///
+	/// 0, meaning at once, when the last walk settled something, or left a wavetable waiting only for samples that
+	/// walk found settled: the next walk can move without anything arriving. Otherwise everything in flight waits on a
+	/// storage channel, whose answer raises DELUGE_WAKE_STORAGE, and this is the stall bound's deadline, so a channel
+	/// that never answers still ends the load. kNever once the load has ended.
+	[[nodiscard]] uint64_t nextTickUs() const;
+
 private:
 	struct SongRoot {
 		Song* song;
@@ -124,6 +136,27 @@ private:
 
 	AsyncSampleLoad(Root root, AudioLoadContext* context);
 
+	/// @brief The sample paths a walk left with the loader. Destroyed or assigned over, it tells the loader to discard
+	///        each one's answer (deluge_audio_load_forget). Move-only, so only one object ever forgets a path.
+	class OutstandingRequests {
+	public:
+		OutstandingRequests() = default;
+		OutstandingRequests(OutstandingRequests&& other) noexcept;
+		OutstandingRequests& operator=(OutstandingRequests&& other) noexcept;
+		OutstandingRequests(const OutstandingRequests&) = delete;
+		OutstandingRequests& operator=(const OutstandingRequests&) = delete;
+		~OutstandingRequests();
+
+		/// @brief Note @p path as asked of the loader and not yet answered.
+		void add(const std::string& path) { paths_.push_back(path); }
+		/// @brief Drop every path without telling the loader: the walk that starts now notes again what is out.
+		void reset() { paths_.clear(); }
+
+	private:
+		void forgetAll() noexcept;
+		std::vector<std::string> paths_{};
+	};
+
 	Walk rangeCheckpoint(int32_t rangeIndex) override;
 	Walk drumCheckpoint() override;
 	void clipCheckpoint() override;
@@ -131,9 +164,6 @@ private:
 	                          ScopeRule rule) override;
 	void endInstrumentScope() override;
 	void demand(const SampleDemand& demand) override;
-
-	/// @brief Walk::Stop, remembering the abort, once the user has asked to abort the load.
-	[[nodiscard]] Walk stopIfAborted();
 
 	Root root_;
 	/// The context the consumer passed.
@@ -157,13 +187,17 @@ private:
 	bool samplesSettled_{false};
 	/// Samples this walk left in flight.
 	int32_t samplesInFlight_{0};
-	/// Whether this walk met an abort.
-	bool aborted_{false};
+	/// Whether this walk left a wavetable waiting for the samples to settle, rather than for its folder's probe.
+	bool wavetableAwaitsSamples_{false};
+	/// Whether the next walk can move with nothing arriving first: see nextTickUs().
+	bool retickNow_{false};
+	/// The samples the last walk left in flight.
+	OutstandingRequests outstanding_{};
 	/// How many demands had settled, bound or empty, after the previous walk.
 	int32_t settledBefore_{0};
-	/// Counts the walks in a row that leave something in flight and settle nothing new; expires at kMaxStalledTicks of
-	/// them. See @ref Reason::Stalled.
-	deluge::io::StallBound stalledBound_{kMaxStalledTicks};
+	/// Measures the walks in a row that leave something in flight and settle nothing new; expires once they have gone
+	/// on for kMaxStalledUs. See @ref Reason::Stalled.
+	deluge::io::StallBound stalledBound_{kMaxStalledUs};
 	Progress progress_{};
 };
 

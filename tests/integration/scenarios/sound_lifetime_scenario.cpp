@@ -528,7 +528,7 @@ void runTick() {
 		break;
 	case Stage::Reclaim: {
 		// Every leg's deletion handed its objects to the render, which frees them two blocks later: once the
-		// render has run a few more blocks (and the scheduler's reclaim task with them), nothing may be pending.
+		// render has run a few more blocks (and the app loop's reclaim job with them), nothing may be pending.
 		renderBlocks(1);
 		if (++g_ticks < kSettleTicks) {
 			break;

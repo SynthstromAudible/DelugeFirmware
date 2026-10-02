@@ -40,6 +40,7 @@
 
 #include "libdeluge/control_surface.h"
 #include "libdeluge/display.h"
+#include "libdeluge/tier.h"
 
 UITimerManager uiTimerManager{};
 extern void inputRoutine();
@@ -53,6 +54,7 @@ void UITimerManager::routine() {
 
 	int32_t timeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (timeTilNextEvent >= 0) {
+		requestRun();
 		return;
 	}
 
@@ -139,20 +141,13 @@ void UITimerManager::routine() {
 					PadLEDs::timerRoutine();
 					break;
 
-				case TimerName::UI_SPECIFIC: {
-					ActionResult result = getCurrentUI()->timerCallback();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-						timer.active = true; // Come back soon and try again.
-					}
+				case TimerName::UI_SPECIFIC:
+					getCurrentUI()->timerCallback();
 					break;
-				}
-				case TimerName::BACK_MENU_EXIT: {
-					ActionResult result = getCurrentUI()->exitUI();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-						timer.active = true;
-					}
+
+				case TimerName::BACK_MENU_EXIT:
+					getCurrentUI()->exitUI();
 					break;
-				}
 
 				case TimerName::DISPLAY_AUTOMATION:
 					if (((getCurrentUI() == &automationView) || (getRootUI() == &automationView))
@@ -248,6 +243,7 @@ void UITimerManager::routine() {
 	}
 
 	workOutNextEventTime();
+	requestRun();
 }
 
 void UITimerManager::setTimer(TimerName which, int32_t ms) {
@@ -262,19 +258,25 @@ void UITimerManager::setTimerSamples(TimerName which, int32_t samples) {
 	int32_t oldTimeTilNextEvent = (uint32_t)(timeNextEvent - AudioEngine::audioSampleTimer);
 	if (samples < oldTimeTilNextEvent) {
 		timeNextEvent = timer.triggerTime;
+		requestRun();
 	}
-}
-
-void UITimerManager::setTimerByOtherTimer(TimerName which, TimerName fromTimer) {
-	auto& timer = getTimer(which);
-	auto& srcTimer = getTimer(fromTimer);
-	timer.triggerTime = srcTimer.triggerTime;
-	timer.active = true;
 }
 
 void UITimerManager::unsetTimer(TimerName which) {
 	getTimer(which).active = false;
 	workOutNextEventTime();
+	requestRun();
+}
+
+void UITimerManager::requestRun() {
+	// The render can arm a timer too (its voice-culling alert blinks an LED), and requestAt() is for the interaction
+	// tier only. request() is safe from any tier: the job runs next pass and asks for its own deadline then.
+	if (deluge_tier_current() != DELUGE_TIER_INTERACTION) {
+		deluge::runtime::appLoop.request(jobId);
+		return;
+	}
+	const auto remaining = static_cast<int32_t>(timeNextEvent - AudioEngine::audioSampleTimer);
+	deluge::runtime::appLoop.requestAt(jobId, deluge::runtime::nowUs() + uiTimerRunDelayUs(remaining));
 }
 
 bool UITimerManager::isTimerSet(TimerName which) {

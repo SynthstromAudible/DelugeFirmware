@@ -136,6 +136,8 @@ typedef struct DelugeAudioLoadResult {
 	/// path does (`SampleStream::open_read_stream`). Collapsing them sent a full table probing the
 	/// alternate directory and answering with a different file.
 	uint8_t error;
+	/// The `candidates_key` of the request this answers: the candidate list the verdict was reached with.
+	uint32_t candidates_key;
 } DelugeAudioLoadResult;
 
 /// @brief Queue @p file_path for the async loader and wake it. Returns immediately; never waits. [task]
@@ -158,26 +160,49 @@ typedef struct DelugeAudioLoadResult {
 /// @param num_candidates How many slots of @p candidates to read. Anything above
 ///                       `AudioFileManager::kMaxLoadCandidates` is ignored;
 ///                       `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` is refused.
+/// @param candidates_key The requester's key for this candidate list
+///                       (`deluge::storage::sample_build::candidatesKey`), opaque to the loader. The answer
+///                       is collected only by a collect that presents the same key: two loads of one path
+///                       whose candidate lists differ can reach different verdicts, and neither may take the
+///                       other's.
 /// @return true if the request was accepted. false if it was dropped (the queue is full, the path
 ///         is not valid UTF-8, or there are no candidates) -- the caller has already been told
 ///         `LOAD_IN_PROGRESS`, so its next tick re-requests.
-bool deluge_audio_load_request(const char* file_path, const char* candidates, uint32_t num_candidates) DELUGE_NOEXCEPT;
+bool deluge_audio_load_request(const char* file_path, const char* candidates, uint32_t num_candidates,
+                               uint32_t candidates_key) DELUGE_NOEXCEPT;
 
-/// @brief Collect the finished parse for @p file_path, if one is ready. Never waits. [task]
+/// @brief Collect the finished parse for @p file_path made with @p candidates_key's candidates, if one is
+///        ready. Never waits. [task]
 ///
 /// On `DELUGE_CHANNEL_READY` the result is written to @p out and removed from the loader, so the
 /// caller now owns it and must act on it: build and publish the `Sample` from it (or fail the load
 /// with `result.error`). That build is I/O-free apart from opening the Sample's own read stream,
 /// because the size and the geometry are already resolved here.
 ///
+/// @param file_path      The nominal path passed to @ref deluge_audio_load_request. Must not be NULL.
+/// @param candidates_key The key of the candidate list the caller would request @p file_path with. Only an
+///                       answer to a request made with the same key is handed over; another key's answer is
+///                       left for its own collector.
+/// @param out            Written only when this returns `DELUGE_CHANNEL_READY`. Must not be NULL.
+/// @return @ref DELUGE_CHANNEL_PENDING while the path is queued or in flight under any key: ask again next
+///         tick, and do NOT re-request. @ref DELUGE_CHANNEL_READY once a result was written to @p out and
+///         removed from the loader, so a second collect for the path and key answers UNKNOWN.
+///         @ref DELUGE_CHANNEL_UNKNOWN when the loader holds nothing for the path and key -- never requested,
+///         already collected, evicted by later loads, or answered only for other candidates -- so request it
+///         again.
+DelugeChannelStatus deluge_audio_load_collect(const char* file_path, uint32_t candidates_key,
+                                              DelugeAudioLoadResult* out) DELUGE_NOEXCEPT;
+
+/// @brief Discard the answer the loader still owes for @p file_path, if it owes one. Never waits. [task]
+///
+/// For a requester that drops its load with a request still out. Nobody is left to collect that answer, so once this is
+/// called it is thrown away when it arrives, or at its collect if it already has, rather than holding a result slot
+/// until later loads evict it. The mark is per path, whatever the candidates key: a collect that meets it answers
+/// `DELUGE_CHANNEL_UNKNOWN`, so a requester still waiting on the same path asks again and pays one more read. A path
+/// with nothing outstanding is left alone, and the next request of a path ends what this did to it.
+///
 /// @param file_path The nominal path passed to @ref deluge_audio_load_request. Must not be NULL.
-/// @param out       Written only when this returns `DELUGE_CHANNEL_READY`. Must not be NULL.
-/// @return @ref DELUGE_CHANNEL_PENDING while the path is queued or in flight: ask again next tick, and
-///         do NOT re-request. @ref DELUGE_CHANNEL_READY once a result was written to @p out and removed
-///         from the loader, so a second collect for the path answers UNKNOWN.
-///         @ref DELUGE_CHANNEL_UNKNOWN when the loader knows nothing about the path -- never requested,
-///         already collected, or evicted by later loads -- so request it again.
-DelugeChannelStatus deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* out) DELUGE_NOEXCEPT;
+void deluge_audio_load_forget(const char* file_path) DELUGE_NOEXCEPT;
 
 /* Discarding what this loader parsed from a card that has been ejected is deluge_card_flush
  * (card.h), not a call of this header's own: the ejection invalidates every loader at once, and
@@ -191,6 +216,15 @@ DelugeChannelStatus deluge_audio_load_collect(const char* file_path, DelugeAudio
 /// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
 /// @param ms Milliseconds of simulated delay per load.
 void deluge_audio_load_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+
+/// @brief Host harness only: how much the loader holds for @p file_path, under any candidates key. [task]
+///
+/// Counts the path's queued requests, its in-flight load and its published answers, so a gate can see that nothing
+/// is left for a path whatever candidates it was asked with. A table the loader holds at that moment counts as one
+/// entry. Declared only for host builds, and defined only by the Rust BSP's `host_app` build.
+/// @param file_path The nominal path. Must not be NULL.
+/// @return The number of entries held for the path.
+uint32_t deluge_audio_load_held_for_path(const char* file_path) DELUGE_NOEXCEPT;
 #endif
 
 #ifdef __cplusplus

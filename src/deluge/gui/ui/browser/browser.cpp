@@ -68,15 +68,14 @@ int32_t g_unusedSlotCalls = 0;
 int32_t g_totalDirectoryOpens = 0;
 /// See Browser::directoryRequests().
 int32_t g_directoryRequests = 0;
-/// Consecutive ticks the directory open in hand has gone unanswered by the channel. See
-/// Browser::openDirectoryForListing().
-deluge::io::StallBound g_directoryWait;
+/// How long the directory open in hand has gone unanswered by the channel. See Browser::openDirectoryForListing().
+deluge::io::StallBound g_directoryWait{Browser::kDirectoryStallUs};
 
-/// Count one unanswered tick of the open in hand.
+/// Note one unanswered tick of the open in hand.
 ///
 /// Giving up needs no cleanup: the channel copied the path at the request, and an answer that arrives later holds one
 /// directory handle only until the next publish displaces it and the driver closes it.
-/// @return Whether the open has now gone unanswered for the whole bound, in which case the count starts again.
+/// @return Whether the open has now gone unanswered for the whole bound, in which case the span starts again.
 bool waitedPastBound() {
 	if (!g_directoryWait.tick()) {
 		return false;
@@ -303,6 +302,10 @@ bool Browser::restoreListing() {
 	qwertyVisible = saved.qwertyVisible;
 	listingRestore_.reset();
 	return true;
+}
+
+uint64_t Browser::directoryWaitDeadlineUs() {
+	return g_directoryWait.deadlineUs();
 }
 
 void Browser::runPendingListing() {
@@ -1702,7 +1705,7 @@ FileItem* Browser::getCurrentFileItem() {
 }
 
 // This and its individual contents are frequently overridden by child classes.
-ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult Browser::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Select encoder
@@ -1719,9 +1722,6 @@ ActionResult Browser::buttonAction(deluge::hid::Button b, bool on, bool inCardRo
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_FOLDERS_CANNOT_BE_DELETED_ON_THE_DELUGE));
 					return ActionResult::DEALT_WITH;
-				}
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 				}
 				// deletes the underlying item
 				goIntoDeleteFileContextMenu();
@@ -1751,9 +1751,6 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 
 	if (isFavouritesVisible() && inFavouriteOrBanksColumn && y == favouriteRow) {
 		if (on) {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			// The bank this row shows may still be arriving, or may not have been readable. Neither may be
 			// edited -- saving a bank that never loaded replaces the favourites still on the card -- and
 			// recalling from one would recall nothing.
@@ -1794,9 +1791,6 @@ ActionResult Browser::padAction(int32_t x, int32_t y, int32_t on) {
 	}
 	else if (isBanksVisible() && inFavouriteOrBanksColumn && y == favouriteBankRow) {
 		if (on) {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			favouritesManager.selectFavouritesBank(x);
 			favouritesChanged();
 			return ActionResult::DEALT_WITH;
@@ -1812,7 +1806,7 @@ void Browser::favouritesChanged() {
 	renderFavourites();
 }
 
-ActionResult Browser::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult Browser::verticalEncoderAction(int32_t offset) {
 	if (isFavouritesVisible()) {
 		if (Buttons::isShiftButtonPressed()) {
 			if (favouritesManager.bankState() == deluge::favourites::BankState::Unavailable) {
@@ -1835,9 +1829,6 @@ ActionResult Browser::mainButtonAction(bool on) {
 	// Press down
 	if (on) {
 		if (currentUIMode == UI_MODE_NONE) {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			uiTimerManager.setTimer(TimerName::UI_SPECIFIC, LONG_PRESS_DURATION);
 			currentUIMode = UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS;
 		}
@@ -1846,9 +1837,6 @@ ActionResult Browser::mainButtonAction(bool on) {
 	// Release press
 	else {
 		if (currentUIMode == UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS) {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			currentUIMode = UI_MODE_NONE;
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			enterKeyPress();
@@ -1863,9 +1851,6 @@ ActionResult Browser::mainButtonAction(bool on) {
 ActionResult Browser::backButtonAction() {
 	if (listingInProgress_) {
 		return ActionResult::DEALT_WITH;
-	}
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 	// goUpOneDirectoryLevel() checks for the root-of-tree case synchronously (see its comment) and returns
 	// NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP without dispatching, so pressing Back at the root is handled

@@ -18,10 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/load/cancel_result.h"
 #include "gui/ui/load/confirm_preset.h"
 #include "gui/ui/load/preset_navigation.h"
 #include "gui/ui/load/preset_walk.h"
 #include "gui/ui/load/slot_name_scan.h"
+#include "playback/render_requests.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/latest_wins.h"
 #include "storage/preset_acquisition.h"
@@ -72,6 +75,14 @@ struct MidiDefinitionTarget {
 	MIDIInstrument* instrument{}; ///< The Instrument to read it into. Song-owned, so it outlives a relisting.
 };
 
+/// @brief Identifies one request() to InstrumentLoad, so a cancel can name the load it means.
+struct LoadTicket {
+	uint32_t generation = 0; ///< 0 names no load: what a refused request returns.
+
+	/// @brief Whether the request was taken: queued or started, rather than refused.
+	[[nodiscard]] bool accepted() const { return generation != 0; }
+};
+
 /// @brief One preset load: the browser's own, an acquisition a gesture outside the browser asked for, the revert the
 ///        browser's exit leaves behind, or a MIDI device definition.
 struct InstrumentLoadRequest {
@@ -95,6 +106,8 @@ struct InstrumentLoadRequest {
 	RevertTarget revert{};
 	/// MidiDefinition only: the definition file, and the MIDI Instrument it is read into.
 	MidiDefinitionTarget definition{};
+	/// Set by InstrumentLoad::request(): the generation its LoadTicket names.
+	uint32_t generation = 0;
 };
 
 /// @brief What the browser decided about a load before any card work: done already, reuse an Instrument, or read one.
@@ -121,7 +134,8 @@ struct AcquireSnapshot {
 
 /// @brief Preset loads on the interaction tier: the browser's own, and every change-type and navigate acquisition.
 ///
-/// A phase machine, advanced by request() and by routine() from its own repeating task.
+/// A phase machine, advanced by request() and by routine() from its own job, which runs when a load is asked for, when
+/// a storage channel answers, and at the time the wait it is on asks for (see armNextRun()).
 /// - **Browse** (a synth, kit or MIDI preset into the browser's clip, a synth preset into a kit row, or a clone):
 ///   the browser's prologue decides; the document is staged through the byte channel and parsed on this tier; the
 ///   samples load through one AsyncSampleLoad over the new Instrument (or drum); the browser swaps it in, in one pass.
@@ -149,18 +163,51 @@ struct AcquireSnapshot {
 /// released only while still that mode; a scroll-load or an acquisition never closes it. A sample load that fails or
 /// stops moving keeps the Instrument: it is swapped in or handed over with the unanswered holders empty, and the card
 /// error is shown once.
+///
+/// A load can also be cancelled outright, by the ticket its request() returned (cancel()): it is dropped as a
+/// superseded one is, at once, and its completion is told nothing. The loads a newer request may not replace refuse a
+/// cancel too.
 class InstrumentLoad {
 public:
 	/// @brief Ask for a load, and run one pass.
-	/// @return false when the request is refused: a creation is queued, and is never replaced.
-	bool request(const InstrumentLoadRequest& request);
+	/// @return The ticket naming this load, or a ticket that is not accepted() when the request is refused: a
+	///         creation is queued, and is never replaced.
+	LoadTicket request(const InstrumentLoadRequest& request);
 
-	/// @brief Abandon the browser's load in flight and any browser load queued behind it, telling no one. An
-	///        acquisition is not the browser's, and is left alone.
-	void cancel();
+	/// @brief Cancel the load @p ticket names, in flight or queued: it is dropped as a superseded load is, and its
+	///        completion is told nothing. A load queued behind it starts; a load in flight that a queued one was to
+	///        replace is dropped with it.
+	///
+	/// Called from an input handler, which runs as a job of its own and so never in the middle of a phase step.
+	/// @return Cancelled; Refused for a creation, a revert or a device definition, which always complete; Stale when
+	///         the load has finished or a newer request replaced it (even one still queued behind it), in which case
+	///         nothing changes.
+	CancelResult cancel(LoadTicket ticket);
 
-	/// @brief Advance the load as far as it can go without waiting. Called by the "instrument load" repeating task.
+	/// @brief Abandon the browser's load in flight and any browser load queued behind it, telling no one: the
+	///        browser is closing. An acquisition, a revert or a device definition is not the browser's, and is left
+	///        alone.
+	void cancelBrowserLoads();
+
+	/// @brief The ticket of the load in flight, or one naming no load while none is.
+	[[nodiscard]] LoadTicket currentTicket() const {
+		return {.generation = (phase_ != Phase::Idle) ? active_.generation : 0};
+	}
+
+	/// @brief Advance the load as far as it can go without waiting, then ask for the job's next run. Called by the
+	///        "instrument load" job.
 	void routine();
+
+	/// @brief The job routine() runs on, woken by DELUGE_WAKE_STORAGE. Shared with the pattern browser's reads.
+	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
+
+	/// @brief [interaction] Ask for a run of the job: a song just made current may be a blank one asking for its first
+	///        preset (Song::blankPresetPending), which routine() asks for. A swap the render makes asks for it through
+	///        deluge::playback::songSwappedOut().
+	void songMadeCurrent() const {
+		deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::InstrumentLoadNotified);
+		deluge::runtime::appLoop.request(jobId);
+	}
 
 	/// @brief Whether a load is in flight or queued.
 	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle; }
@@ -179,6 +226,8 @@ public:
 	[[nodiscard]] int32_t sampleLoads() const { return sampleLoads_; }
 	/// @brief Loads cancelled by a newer request.
 	[[nodiscard]] int32_t supersessions() const { return supersessions_; }
+	/// @brief cancel() calls that answered Cancelled.
+	[[nodiscard]] int32_t cancellations() const { return cancellations_; }
 	/// @brief Sample loads that stopped moving (AsyncSampleLoad's stall bound).
 	[[nodiscard]] int32_t giveUps() const { return giveUps_; }
 	/// @brief UnusedSlot walks begun -- the slot name a new blank instrument takes.
@@ -221,6 +270,8 @@ private:
 	/// @brief Cancel the load in flight for the request queued behind it, and start that.
 	/// @return true: step again.
 	bool supersede();
+	/// @brief Drop the load in flight, telling no one, and start whatever was queued behind it.
+	void dropActive();
 	/// @brief Undo what the load in flight holds that the song does not: its staging, its sample load, a walk's
 	///        result still to come, and an Instrument or drum parsed but neither swapped in nor handed over.
 	void abandon();
@@ -238,6 +289,10 @@ private:
 	void beginSampleLoad(Instrument& instrument);
 	/// @brief Show the name a navigate's walk landed on, before its preset loads.
 	void echoNavigation() const;
+	/// @brief Ask for the job's next run for whatever the load waits on: at once when a walk is armed but not yet
+	///        ticked, otherwise the soonest of the walk's directory open, the staging's next run
+	///        (StorageManager::stagingNextRunUs()) and the sample load's next tick. An idle load asks for none.
+	void armNextRun();
 
 	/// @brief Advance an inline walk, from routine() rather than from the phase machine.
 	void tickWalkHere();
@@ -249,13 +304,18 @@ private:
 	void finishWalkHere();
 
 	Phase phase_{Phase::Idle};
+	/// The generation the next request() is given; never 0, which names no load.
+	uint32_t nextGeneration_{1};
 	deluge::storage::LatestWins<InstrumentLoadRequest> coalescer_{};
 	InstrumentLoadRequest active_{};
 	InstrumentLoadDecision decision_{};
 
 	/// @name What the load in flight holds.
 	/// @{
-	StorageManager::StagingState staging_{};
+	/// How long the preset's staging may go without the byte channel finishing anything before the load gives up, in
+	/// µs: 18 s, far past any real staging, so only a channel that has stopped finishing work fails the load.
+	static constexpr uint64_t kStagingStallUs = 18'000'000;
+	StorageManager::StagingState staging_{.stallBound = deluge::io::StallBound{kStagingStallUs}};
 	bool stagingOpen_{false}; ///< A staging has begun and not been released.
 	FileDeserializer* previousDeserializer_{nullptr};
 	Instrument* newInstrument_{nullptr};
@@ -272,6 +332,9 @@ private:
 	/// Set as a walk is queued and cleared by the walk as it ends: a walk still out, perhaps an abandoned load's, is
 	/// waited for before another is queued, so the two never share @ref walkOut_ and @ref walked_.
 	bool walkRunning_{false};
+	/// The walk out has been armed and not yet ticked: routine() ticks it at its start, so the next run must come at
+	/// once.
+	bool walkUnticked_{false};
 	/// The Unlaunched search, a folder at a time. Holds its OWN listing, so it reads folders without
 	/// touching what the browser is showing.
 	PresetWalk walk_machine_{};
@@ -293,6 +356,7 @@ private:
 	int32_t documentReads_{0};
 	int32_t sampleLoads_{0};
 	int32_t supersessions_{0};
+	int32_t cancellations_{0};
 	int32_t giveUps_{0};
 	int32_t slotScans_{0};
 	int32_t navigationsRun_{0};

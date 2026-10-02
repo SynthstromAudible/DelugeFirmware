@@ -79,7 +79,11 @@ public:
 	void aftertouchReceived(MIDICable& cable, int32_t channel, int32_t value, int32_t noteCode, bool* doingMidiThru,
 	                        ModelStack* modelStack);
 
-	void clearStoredClips();
+	/// @brief [interaction] Forget every clip stored for a note-off that is not one of currentSong's. Called by the
+	///        interaction tier's side of a song swap (deluge::playback::songSwappedOut()), so no note-off reaches a
+	///        swapped-out song's clip, while one a handler sent to the incoming song's clip still finds it.
+	void forgetClipsNotOfCurrentSong();
+	/// @brief [interaction] Forget @p clip, which is being deleted, wherever it is stored for a note-off.
 	void removeClip(Clip* clip);
 
 	// midi CC mappings

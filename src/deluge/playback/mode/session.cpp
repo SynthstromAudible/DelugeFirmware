@@ -35,6 +35,7 @@
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
+#include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
@@ -795,6 +796,17 @@ void Session::scheduleFillEvent(Clip* clip, int64_t atTickCount) {
 
 void Session::cancelAllLaunchScheduling() {
 	launchEventAtSwungTickCount = 0;
+}
+
+void Session::showLaunchRepeatsRemaining() {
+	RootUI* rootUI = getRootUI();
+	if (loadSongUI.isLoadingSong()) {
+		loadSongUI.displayLoopsRemainingPopup();
+	}
+	else if ((rootUI == &sessionView || rootUI == &performanceView)
+	         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+		renderUIsForOled();
+	}
 }
 
 void Session::launchSchedulingMightNeedCancelling() {
@@ -2369,14 +2381,7 @@ traverseClips:
 		else {
 
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
-			RootUI* rootUI = getRootUI();
-			if (loadSongUI.isLoadingSong()) {
-				loadSongUI.displayLoopsRemainingPopup();
-			}
-			else if ((rootUI == &sessionView || rootUI == &performanceView)
-			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-				renderUIsForOled();
-			}
+			deluge::playback::launchRepeatCounted();
 		}
 	}
 
@@ -2481,10 +2486,8 @@ void Session::doTickForward(int32_t posIncrement) {
 				Clip* newClip = (Clip*)modelStackWithTimelineCounter->getTimelineCounter();
 				newClip->processCurrentPos(modelStackWithTimelineCounter, 0);
 
-				if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-					view.activeModControllableModelStack.setTimelineCounter(newClip);
-					view.activeModControllableModelStack.paramManager = &newClip->paramManager;
-				}
+				// The knobs follow the recording on to the new clip, if they were on the old one.
+				deluge::playback::recordingMovedToClip(clip, newClip);
 			}
 		}
 	}

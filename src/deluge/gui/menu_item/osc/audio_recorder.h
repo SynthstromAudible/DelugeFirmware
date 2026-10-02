@@ -53,8 +53,6 @@ public:
 			}
 			return uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		}
-
-		audioRecorder.process();
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t) const override {

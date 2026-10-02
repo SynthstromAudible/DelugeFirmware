@@ -86,7 +86,7 @@ void deluge_control_set_led(uint8_t led, bool on) DELUGE_NOEXCEPT;
 /// LED). [task]
 void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t count) DELUGE_NOEXCEPT;
 
-/// Flush any batched surface output (pad/LED) to the hardware. [task]
+/// No-op: the BSP's pad writer sends the refresh itself once its output queue drains. [task]
 void deluge_control_flush(void) DELUGE_NOEXCEPT;
 
 /// One-time control-surface bring-up: configure the board's input controller

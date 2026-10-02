@@ -41,6 +41,7 @@
 #include "model/song/song.h"                               // currentSong, getNonAudioInstrumentToSwitchTo
 #include "modulation/params/param_manager.h"               // ParamManagerForTimeline, for the preset fixture writer
 #include "processing/sound/sound_instrument.h"             // setupAsBlankSynth(), for the preset fixture writer
+#include "runtime/app_loop.h"                              // nowUs, the stall bounds' clock
 #include "storage/DX7Cartridge.h"                          // the bank's layout and checksum
 #include "storage/audio/audio_file_manager.h"
 #include "storage/byte_channel.h"
@@ -317,7 +318,7 @@ public:
 	static void sessionButtonChangeOutputType(deluge::hid::button::Button b) {
 		currentUIMode = UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
 		sessionView.selectedClipYDisplay = 0;
-		(void)sessionView.buttonAction(b, true, false);
+		(void)sessionView.buttonAction(b, true);
 	}
 
 	/// Drives SessionView's REAL empty-pad "create a clip here" gesture, through padAction() in Rows
@@ -335,7 +336,7 @@ public:
 	}
 
 	/// Whether the empty-pad gesture is still waiting for its acquisition's completion to hold the pad.
-	static bool newTrackPressHeld() { return sessionView.newTrackPressHeld_; }
+	static bool newTrackPressHeld() { return sessionView.newTrackPress_ != SessionView::NewTrackPress::None; }
 
 	/// Drives the grid new-track gesture's ENTER continuation, resuming from the state the clip-type
 	/// picker leaves behind and going through exitTrackCreation()'s real funnel.
@@ -578,6 +579,12 @@ bool g_caseStarted = false;
 /// Whether the case in progress has settled and is waiting only for its reference decode.
 bool g_caseSettled = false;
 int32_t g_caseTicks = 0;
+/// When the stall case in progress started, on the stall bounds' clock.
+uint64_t g_stallStartUs = 0;
+/// Whether the stall case in progress has waited its whole window.
+bool stallWindowPassed(uint64_t windowUs) {
+	return deluge::runtime::nowUs() - g_stallStartUs >= windowUs;
+}
 int32_t g_caseDeferrals = 0;
 int32_t g_failures = 0;
 bool g_stepDone = true;
@@ -806,7 +813,8 @@ void startCase(const char* dir, const char* filename) {
 }
 
 /// Drive one tick of a case in progress. @return true once it has settled or wedged.
-bool driveCase(const char* label) {
+/// @param windowUs How long, in virtual time, the case may wait before it is called wedged; 0 for kMaxCaseTicks.
+bool driveCase(const char* label, uint64_t windowUs = 0) {
 	g_caseTicks++;
 	if (SongPreviewAbProbe::pending()) {
 		g_caseDeferrals++;
@@ -817,7 +825,7 @@ bool driveCase(const char* label) {
 	if (caseSettled()) {
 		return true;
 	}
-	if (g_caseTicks >= kMaxCaseTicks) {
+	if (windowUs == 0 ? g_caseTicks >= kMaxCaseTicks : stallWindowPassed(windowUs)) {
 		printf("FAIL [songPreviewAB/%s]: still waiting after %d graphicsRoutine() tick(s) with no further "
 		       "input -- a deferred preview nothing asks for again is blank, errorless and silent\n",
 		       label, g_caseTicks);
@@ -2388,7 +2396,7 @@ void runAcquireTick() {
 			}
 		}
 		// The gesture's own tail, which runs from completeNewTrack() a tick later, off the caller's stack.
-		// The probe forced UI_MODE_NONE before the press, and newTrackPressHeld_ was never cleared (no
+		// The probe forced UI_MODE_NONE before the press, and newTrackPress_ was left held (no
 		// release was injected), so the held mode being set proves beginHoldingClipPress() actually ran
 		// after the acquisition.
 		if (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW) {
@@ -2686,11 +2694,19 @@ constexpr const char* kByPathPresent = "LISTTEST/SONG005.XML";
 constexpr const char* kByPathPresentName = "SONG005";
 constexpr const char* kByPathAbsent = "LISTTEST/SONG999.XML";
 
-/// How long the stall cases hold every directory open, in milliseconds of the harness's virtual clock: far past the
-/// browser's 600-tick bound, since each tick sleeps at least a millisecond.
+/// How long the stall cases hold every directory open, in milliseconds of the harness's virtual clock.
 constexpr uint32_t kStallHoldMs = 30000;
-/// Ticks a stall case waits for the browser to give up: well above the bound, well below the hold.
-constexpr int32_t kMaxStallTicks = 2000;
+/// The margin a stall case waits past the bound it proves before calling the give-up missing.
+constexpr uint64_t kStallMarginUs = 2'000'000;
+/// How long, in virtual time, a listing stall case waits for the browser to give up: its bound and a margin.
+constexpr uint64_t kListingStallWindowUs = Browser::kDirectoryStallUs + kStallMarginUs;
+/// How long the DX stall case waits for the cartridge load to give up: its bound and a margin.
+constexpr uint64_t kDxStallWindowUs = DxSyxBrowser::kCartridgeStallUs + kStallMarginUs;
+/// How long the preview stall case waits for the preview to give up: its bound and a margin.
+constexpr uint64_t kPreviewStallWindowUs = LoadSongUI::kPreviewStallUs + kStallMarginUs;
+static_assert(uint64_t{kStallHoldMs} * 1000 > kListingStallWindowUs && uint64_t{kStallHoldMs} * 1000 > kDxStallWindowUs
+                  && uint64_t{kStallHoldMs} * 1000 > kPreviewStallWindowUs,
+              "every hold must outlast the wait for the give-up it holds for");
 
 /// Turns the forward reload may take to reach the window's edge: LISTTEST holds 25 songs against a 20-entry window, so
 /// no position in the window is more than 20 turns from its last entry.
@@ -3030,6 +3046,7 @@ void runByPathTick() {
 		deluge_file_directory_set_latency_ms(kStallHoldMs);
 		g_reloadTurns = 1;
 		g_byPathTicks = 0;
+		g_stallStartUs = deluge::runtime::nowUs();
 		g_listingFailuresBefore = Browser::listingFailures();
 		if (!beginReloadTurn(-1)) {
 			printf("SP-RELOAD-STALL FAIL turning up from %s began no reload\n", kReloadFirstName);
@@ -3044,7 +3061,8 @@ void runByPathTick() {
 		if (BrowserListingAbProbe::inProgress()) {
 			BrowserListingAbProbe::tick();
 			if (BrowserListingAbProbe::inProgress()) {
-				if (++g_byPathTicks > kMaxStallTicks) {
+				++g_byPathTicks;
+				if (stallWindowPassed(kListingStallWindowUs)) {
 					printf("SP-RELOAD-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_byPathTicks);
 					g_failures++;
 					finishByPathStage();
@@ -3078,6 +3096,7 @@ void runByPathTick() {
 		// the browser's bound: the listing must give up with the card error and leave the browser open on what it had.
 		deluge_file_directory_set_latency_ms(kStallHoldMs);
 		g_byPathTicks = 0;
+		g_stallStartUs = deluge::runtime::nowUs();
 		g_listingFailuresBefore = Browser::listingFailures();
 		g_byPathBefore = takeListingSnapshot();
 		(void)loadSongUI.setFileByFullPath(OutputType::NONE, kByPathPresent);
@@ -3088,7 +3107,8 @@ void runByPathTick() {
 		if (BrowserListingAbProbe::inProgress()) {
 			BrowserListingAbProbe::tick();
 			if (BrowserListingAbProbe::inProgress()) {
-				if (++g_byPathTicks > kMaxStallTicks) {
+				++g_byPathTicks;
+				if (stallWindowPassed(kListingStallWindowUs)) {
 					printf("SP-LISTING-STALL FAIL inside: still waiting after %d ticks -- it never gave up\n",
 					       g_byPathTicks);
 					g_failures++;
@@ -3120,6 +3140,7 @@ void runByPathTick() {
 			loadSongUI.close();
 		}
 		g_byPathTicks = 0;
+		g_stallStartUs = deluge::runtime::nowUs();
 		g_listingFailuresBefore = Browser::listingFailures();
 		if (!openUI(&loadSongUI)) {
 			printf("SP-LISTING-STALL FAIL entry: the load browser did not open\n");
@@ -3134,7 +3155,8 @@ void runByPathTick() {
 		if (BrowserListingAbProbe::inProgress()) {
 			BrowserListingAbProbe::tick();
 			if (BrowserListingAbProbe::inProgress()) {
-				if (++g_byPathTicks > kMaxStallTicks) {
+				++g_byPathTicks;
+				if (stallWindowPassed(kListingStallWindowUs)) {
 					printf("SP-LISTING-STALL FAIL entry: still waiting after %d ticks -- it never gave up\n",
 					       g_byPathTicks);
 					g_failures++;
@@ -3329,11 +3351,12 @@ void runDxTick() {
 	}
 
 	case DxStep::StallEnter:
-		// SP-DX-STALL. The same bank, with every prefix read held far past the load's 600-tick bound: Enter must give
+		// SP-DX-STALL. The same bank, with every prefix read held far past the load's bound: Enter must give
 		// up with the read-error popup, clear the flag and leave the browser open. The hold outlasts this stage, and
 		// the preview stall after it wants one too.
 		deluge_file_prefix_set_latency_ms(kStallHoldMs);
 		g_dxTicks = 0;
+		g_stallStartUs = deluge::runtime::nowUs();
 		g_dxGiveUpsBefore = DxSyxBrowser::cartridgeGiveUps();
 		dxBrowser.enterKeyPress();
 		if (!DxSyxBrowser::cartridgeLoadInFlight()) {
@@ -3349,7 +3372,8 @@ void runDxTick() {
 		if (DxSyxBrowser::cartridgeLoadInFlight()) {
 			dxBrowser.graphicsRoutine();
 			if (DxSyxBrowser::cartridgeLoadInFlight()) {
-				if (++g_dxTicks > kMaxStallTicks) {
+				++g_dxTicks;
+				if (stallWindowPassed(kDxStallWindowUs)) {
 					printf("SP-DX-STALL FAIL still waiting after %d ticks -- it never gave up\n", g_dxTicks);
 					g_failures++;
 					finishDxStage();
@@ -3376,7 +3400,7 @@ void runDxTick() {
 
 // ── Stage: a preview whose read never answers ───────────────────────────────
 //
-// SP-PREVIEW-STALL. A song's prefix read held far past the preview's 600-tick bound, with a scroll-in parked as a
+// SP-PREVIEW-STALL. A song's prefix read held far past the preview's bound, with a scroll-in parked as a
 // cursor move parks one: the browser must give up with the card error, draw blank, and release the scroll-in, rather
 // than leave the pads scrolled out. After the DX stage, which leaves prefix reads alone or held; before the by-path
 // stage, which uses only the directory channel.
@@ -3389,12 +3413,13 @@ void runPreviewStallTick() {
 	case PreviewStallStep::Start:
 		deluge_file_prefix_set_latency_ms(kStallHoldMs);
 		SongPreviewAbProbe::parkScrollIn(1);
+		g_stallStartUs = deluge::runtime::nowUs();
 		startCase(kSongsDir, kCases[0].filename);
 		g_previewStallStep = PreviewStallStep::Wait;
 		return;
 
 	case PreviewStallStep::Wait: {
-		if (!driveCase("preview-stall")) {
+		if (!driveCase("preview-stall", kPreviewStallWindowUs)) {
 			return;
 		}
 		const uint32_t crc = imageCrc();

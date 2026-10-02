@@ -20,6 +20,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/sync_level.h"
 #include "gui/ui/audio_recorder.h"
+#include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/reversion.h"
 #include "gui/ui/sound_editor.h"
@@ -65,6 +66,7 @@
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "playback/render_requests.h"
 #include "playback/trigger_clock_input.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
@@ -154,14 +156,25 @@ void PlaybackHandler::routine() {
 }
 
 void PlaybackHandler::slowRoutine() {
+	// A next-song held back by an input take goes once the take is over: the recorder asks for this job's run as it
+	// finishes one.
+	if (nextSongPending_ && !audioRecorder.inputTakeInProgress()) {
+		nextSongPending_ = false;
+		currentSong->loadNextSong();
+	}
+
 	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
-	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && !deluge::sync::sd_busy()) {
+	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && deluge::sync::sd_busy()) {
+		deluge::runtime::appLoop.requestAt(slowJob, deluge::runtime::nowUs() + kSlowRetryUs);
+		return;
+	}
+	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE) {
 
 		D_PRINTLN("actioning pending command -----------------------------------------");
 
 		// Snapshot which command (UNDO vs REDO) and clear the pending flag now, before handing it over. A
 		// reversion whose samples have to be loaded outlives this call, and slowRoutine() can be re-entered
-		// before it ends — e.g. from this same repeating task's own next tick (deluge.cpp). Clearing
+		// before it ends — e.g. from this same job's own next run (deluge.cpp). Clearing
 		// pendingGlobalMIDICommand here means a re-entrant call sees NONE and does nothing, instead of asking
 		// for the same command twice.
 		GlobalMIDICommand command = pendingGlobalMIDICommand;
@@ -1440,8 +1453,6 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	if (currentSong) {
 
-		currentSong->stopAllAuditioning();
-
 		// If playing...
 		if (isEitherClockActive()) {
 
@@ -1486,11 +1497,10 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	// Swap stuff over
 	AudioEngine::killAllVoices(true);
-	midiFollow.clearStoredClips(); // need to clear clip pointers stored for previous song
+	Song* const outgoing = currentSong;
 	currentSong = preLoadedSong;
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	preLoadedSong = nullptr;
-	loadSongUI.deletedPartsOfOldSong = false;
 
 	currentSong->sendAllMIDIPGMs();
 	AudioEngine::getReverbParamsFromSong(currentSong);
@@ -1537,8 +1547,9 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	AudioEngine::bypassCulling = true;
 
-	display->displayLoadingAnimationText("Loading"); // More loading might need to happen now, or still be happening
-	currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
+	// What the swap changes that only the interaction tier writes -- the knobs, MIDI follow's stored clips, the load's
+	// mode and animation: done at once on the interaction tier, asked for on the render (an armed launch).
+	deluge::playback::songSwappedOut(outgoing);
 	AudioEngine::logAction("PlaybackHandler::doSongSwap end");
 }
 
@@ -2807,6 +2818,7 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 					// routine - which is locked cos we're in it!
 					pendingGlobalMIDICommand = command;
 					pendingGlobalMIDICommandNumClustersWritten = 0;
+					deluge::runtime::appLoop.request(slowJob);
 				}
 				break;
 
@@ -2815,7 +2827,16 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 				break;
 
 			case GlobalMIDICommand::NEXT_SONG:
-				currentSong->loadNextSong();
+				// A song load takes down every UI over the song, the recorder's included, and arms the swap
+				// that retires the song an input take attaches to: held back until the take ends, the take
+				// attaches where it was recorded and the next song follows (see slowRoutine()).
+				if (audioRecorder.inputTakeInProgress()) {
+					nextSongPending_ = true;
+					display->displayPopup("Next song after take");
+				}
+				else {
+					currentSong->loadNextSong();
+				}
 				break;
 
 			case GlobalMIDICommand::SHIFT:

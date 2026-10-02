@@ -32,6 +32,7 @@
 #include "hid/button.h"
 #include "io/file.hpp"
 #include "libdeluge/audio_load.h"     // deluge_audio_load_set_latency_ms
+#include "libdeluge/file_bytes.h"     // deluge_file_bytes_set_latency_ms
 #include "libdeluge/file_directory.h" // deluge_file_directory_set_latency_ms
 #include "memory/fast_allocator.h"
 #include "model/clip/clip.h"
@@ -79,14 +80,17 @@ public:
 	static void setExtensions(char const** extensions) { Browser::allowedFileExtensions = extensions; }
 
 	/// An empty pad pressed in Rows layout: the new-track gesture, making a track of @p type.
-	static void pressEmptyRow(int32_t yDisplay, OutputType type = OutputType::SYNTH) {
+	static void pressEmptyRow(int32_t yDisplay, OutputType type = OutputType::SYNTH, int32_t velocity = 1) {
 		currentSong->sessionLayout = SessionLayoutType::SessionLayoutTypeRows;
 		currentSong->songViewYScroll = 0;
 		currentUIMode = UI_MODE_NONE;
 		FlashStorage::defaultUseLastClipType = true;
 		sessionView.lastTypeCreated = type;
-		(void)sessionView.padAction(0, yDisplay, 1);
+		(void)sessionView.padAction(0, yDisplay, velocity);
 	}
+
+	/// The pad at @p yDisplay let go, in Rows layout.
+	static void releaseRow(int32_t yDisplay) { (void)sessionView.padAction(0, yDisplay, 0); }
 
 	/// Let go of whatever clip press a gesture left held, and go back to Rows layout.
 	static void releasePress() {
@@ -206,6 +210,10 @@ constexpr const char* kStallSample = "SAMPLES/PLS/PLSTALL.WAV";
 /// How long the loader holds each load in the supersession and gate legs, and in the stall leg.
 constexpr uint32_t kHoldMs = 400;
 constexpr uint32_t kStallHoldMs = 30000;
+/// How long the byte channel holds each operation while a leg needs a document read still out on its next tick: the
+/// revert's and the blank song's preset, each staged in a few operations. The load runs when its channel answers, so
+/// with no hold it can land before the scenario ticks again.
+constexpr uint32_t kDocumentHoldMs = 20;
 /// Scenario ticks the stall leg's commit may take to give up before it is called wedged: far past its stall bound.
 constexpr int32_t kMaxStallTicks = 20000;
 
@@ -254,6 +262,10 @@ enum class Leg : uint8_t {
 	AqSupersede,
 	AqRefuse,
 	AqClone,
+	/// The new-track pad let go before its acquisition lands: quickly (a tap enters the clip), not at all (the clip
+	/// is held), slowly (neither), quickly with another clip held since (the held gesture keeps the UI), and quickly
+	/// with a second press queued behind it (that press's completion holds its own clip).
+	AqTap,
 	AqNavWrap,
 	AqChangeCases,
 	RevertCard,
@@ -362,6 +374,8 @@ const char* legName(Leg leg) {
 		return "aq-refuse";
 	case Leg::AqClone:
 		return "aq-clone";
+	case Leg::AqTap:
+		return "aq-tap";
 	case Leg::AqNavWrap:
 		return "aq-nav-wrap";
 	case Leg::AqChangeCases:
@@ -460,26 +474,10 @@ bool writeInstrumentDocument(Instrument& instrument, const char* path, const cha
 	return error == Error::NONE || fail(legName(g_leg), "a preset file could not be closed");
 }
 
-/// A synth preset whose first oscillator plays @p samplePath, written through the firmware's new-synth and save
-/// paths (never hand-written: a content-empty preset corrupts the heap on the load that rejects it). The synth is
-/// leaked: it is never added to the song.
+/// A synth preset whose first oscillator plays @p samplePath (see deluge::harness::writeSampleSynthPreset()).
 bool writeSampleSynthPreset(const char* path, const char* samplePath) {
-	ParamManagerForTimeline paramManager;
-	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
-	if (instrument == nullptr) {
-		return fail(legName(g_leg), "no synth for a preset");
-	}
-	auto* synth = static_cast<SoundInstrument*>(instrument);
-	synth->setupAsBlankSynth(&paramManager, false);
-	synth->sources[0].setOscType(OscType::SAMPLE);
-	AudioFileHolder* holder = firstHolder(synth->sources[0]);
-	if (holder == nullptr) {
-		return fail(legName(g_leg), "a preset synth has no sample range");
-	}
-	holder->filePath = samplePath;
-	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
-	                                &paramManager, true);
-	return writeInstrumentDocument(*instrument, path, "\n</sound>\n");
+	return deluge::harness::writeSampleSynthPreset(path, samplePath)
+	       || fail(legName(g_leg), "a synth preset could not be written");
 }
 
 /// A sample drum, the way the slicer builds one, added to @p kit.
@@ -559,8 +557,8 @@ bool listingBusy() {
 /// The Select encoder's press and release on the current UI, as a user's short press delivers them.
 void pressSelect() {
 	using namespace deluge::hid::button;
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
-	(void)getCurrentUI()->buttonAction(SELECT_ENC, false, false);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
+	(void)getCurrentUI()->buttonAction(SELECT_ENC, false);
 }
 
 /// The kit clip's first drum and its NoteRow, or nulls.
@@ -642,6 +640,7 @@ const char* legPreset() {
 	case Leg::AqSupersede:
 	case Leg::AqRefuse:
 	case Leg::AqClone:
+	case Leg::AqTap:
 	case Leg::AqNavWrap:
 	case Leg::AqChangeCases:
 	case Leg::AqStall:
@@ -792,6 +791,7 @@ void tickRevert() {
 	g_revertTried = true;
 	g_revertClosedAtOnce = !isUIOpen(&loadInstrumentPresetUI);
 	g_revertGateClosed = currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+	deluge_file_bytes_set_latency_ms(0);
 }
 
 /// The gate leg's first wait tick: while the commit is still out, an output-type button and an encoder turn.
@@ -806,8 +806,8 @@ void tickGate() {
 	}
 	using namespace deluge::hid::button;
 	const OutputType typeBefore = Browser::outputTypeToLoad;
-	(void)getCurrentUI()->buttonAction(KIT, true, false);
-	(void)getCurrentUI()->buttonAction(KIT, false, false);
+	(void)getCurrentUI()->buttonAction(KIT, true);
+	(void)getCurrentUI()->buttonAction(KIT, false);
 	g_gateTypeRefused = Browser::outputTypeToLoad == typeBefore;
 	const FileItem* item = loadInstrumentPresetUI.getCurrentFileItem();
 	const std::string before = item != nullptr ? item->filename.c_str() : "";
@@ -819,6 +819,10 @@ void tickGate() {
 void actLeg() {
 	using namespace deluge::hid::button;
 	if (isRevertLeg(g_leg)) {
+		if (g_leg == Leg::RevertCard) {
+			// The original's document is still being read on the first wait tick, where the gate is looked at.
+			deluge_file_bytes_set_latency_ms(kDocumentHoldMs);
+		}
 		// The mute pad, which is what backs out of the browser (padAction()'s potentiallyExit).
 		(void)getCurrentUI()->padAction(kDisplayWidth, 0, 1);
 		return;
@@ -830,7 +834,7 @@ void actLeg() {
 	}
 	if (g_leg == Leg::Clone || g_leg == Leg::Race) {
 		// A long press on Select: the press, then what the UI timer's callback does once it has been held.
-		(void)getCurrentUI()->buttonAction(SELECT_ENC, true, false);
+		(void)getCurrentUI()->buttonAction(SELECT_ENC, true);
 		(void)static_cast<UI&>(loadInstrumentPresetUI).timerCallback();
 		const bool menuOnTop = getCurrentUI() == &deluge::gui::context_menu::loadInstrumentPreset;
 		printf("PL-SETUP leg=%s menuOnTop=%d\n", legName(g_leg), menuOnTop ? 1 : 0);
@@ -1138,6 +1142,7 @@ void checkLeg() {
 	case Leg::AqSupersede:
 	case Leg::AqRefuse:
 	case Leg::AqClone:
+	case Leg::AqTap:
 	case Leg::AqNavWrap:
 	case Leg::AqChangeCases:
 	case Leg::AqStall:
@@ -1212,6 +1217,11 @@ int32_t g_aqLoadsBefore = 0;
 bool g_aqTurned = false;
 bool g_aqHeavySwapped = false;
 TierMark g_aqTierMark{};
+/// AQ-TAP: the synth presets written for its tracks, one per track its acts make.
+constexpr int32_t kTapPresetCount = 6;
+/// AQ-TAP: the row its press is on, and whether it has been let go.
+int32_t g_tapRow = 0;
+bool g_tapReleased = false;
 
 bool isAcquireLeg(Leg leg) {
 	switch (leg) {
@@ -1221,6 +1231,7 @@ bool isAcquireLeg(Leg leg) {
 	case Leg::AqSupersede:
 	case Leg::AqRefuse:
 	case Leg::AqClone:
+	case Leg::AqTap:
 	case Leg::AqNavWrap:
 	case Leg::AqChangeCases:
 	case Leg::AqStall:
@@ -1236,6 +1247,7 @@ bool isAcquireLeg(Leg leg) {
 /// How many gestures the leg makes, one after another.
 int32_t acquireActs(Leg leg) {
 	return leg == Leg::AqChangeCases                      ? 6
+	       : leg == Leg::AqTap                            ? 5
 	       : leg == Leg::AqNavigate                       ? 3
 	       : (leg == Leg::AqNew || leg == Leg::AqNavWrap) ? 2
 	                                                      : 1;
@@ -1315,6 +1327,20 @@ void prepareAcquire() {
 		g_aqClip = nullptr; // the song was cleared by the blank-song legs; the act picks its own clip
 	}
 	g_aqTierMark = markAcquireTier();
+	if (g_leg == Leg::AqTap) {
+		// A synth preset for each track the leg makes, sorting after AQSA and before every PL preset, so its new
+		// tracks take these rather than the presets later legs load by name.
+		buildFixture([] {
+			bool ok = true;
+			for (int32_t i = 0; ok && i < kTapPresetCount; i++) {
+				char path[32];
+				snprintf(path, sizeof(path), "SYNTHS/AQT%d.XML", static_cast<int>(i));
+				ok = writeSampleSynthPreset(path, kAqSynthSample);
+			}
+			printf("AQ-PROBE prepared tapPresets=%d\n", ok ? 1 : 0);
+		});
+		return;
+	}
 	if (g_leg != Leg::AqNew) {
 		return;
 	}
@@ -1403,8 +1429,8 @@ bool actAcquire() {
 		if (!focusClip(g_aqClip)) {
 			return fail(leg, "the new-track gesture made no clip");
 		}
-		(void)instrumentClipView.buttonAction(KIT, true, false);
-		(void)instrumentClipView.buttonAction(KIT, false, false);
+		(void)instrumentClipView.buttonAction(KIT, true);
+		(void)instrumentClipView.buttonAction(KIT, false);
 		return true;
 	case Leg::AqNavigate:
 		if (g_aqAct == 0) {
@@ -1437,6 +1463,34 @@ bool actAcquire() {
 		PresetAcquireProbe::pressEmptyRow(emptyRow() + 1, OutputType::KIT);
 		PresetAcquireProbe::pressEmptyRow(emptyRow() + 2, OutputType::SYNTH);
 		return true;
+	case Leg::AqTap:
+		// Each act presses the first empty row on the idle song view. The tap and the slow release let go in the same
+		// tick, before the acquisition the press dispatched has landed; the slow one after a press longer than a tap,
+		// on the audio clock the pad handler times presses by. Nothing renders in this scenario, so that clock is moved
+		// by hand. The busy tap then holds the song's first clip before the preset lands; the queued tap is followed
+		// by a second new-track press, held, whose acquisition queues behind the first.
+		changeRootUI(&sessionView);
+		g_tapRow = emptyRow();
+		g_tapReleased = false;
+		PresetAcquireProbe::pressEmptyRow(g_tapRow);
+		if (g_aqAct != 1) {
+			if (g_aqAct == 2) {
+				AudioEngine::audioSampleTimer += kShortPressTime + 1;
+			}
+			PresetAcquireProbe::releaseRow(g_tapRow);
+			g_tapReleased = true;
+			if (!loadInstrumentPresetUI.presetAcquisitionInFlight()) {
+				printf("AQ-TAP FAIL the acquisition landed before the pad was let go, so nothing was tested\n");
+				g_failures++;
+			}
+		}
+		if (g_aqAct == 3) {
+			(void)sessionView.padAction(0, 0, 1);
+		}
+		if (g_aqAct == 4) {
+			PresetAcquireProbe::pressEmptyRow(g_tapRow + 1);
+		}
+		return true;
 	case Leg::AqClone:
 		if (g_aqClip == nullptr) {
 			return fail(leg, "the new-track gesture made no clip");
@@ -1457,8 +1511,8 @@ bool actAcquire() {
 			return fail(leg, "the new-track gesture made no clip");
 		}
 		if ((g_aqAct % 2) == 0) {
-			(void)instrumentClipView.buttonAction(SYNTH, true, false);
-			(void)instrumentClipView.buttonAction(SYNTH, false, false);
+			(void)instrumentClipView.buttonAction(SYNTH, true);
+			(void)instrumentClipView.buttonAction(SYNTH, false);
 			return true;
 		}
 		auto* clip = static_cast<InstrumentClip*>(g_aqClip);
@@ -1475,8 +1529,8 @@ bool actAcquire() {
 			clip->backedUpInstrumentDirPath[kitIdx] = kChangeMissingDir;
 			clip->backedUpInstrumentName[kitIdx] = kChangeNamed;
 		}
-		(void)instrumentClipView.buttonAction(KIT, true, false);
-		(void)instrumentClipView.buttonAction(KIT, false, false);
+		(void)instrumentClipView.buttonAction(KIT, true);
+		(void)instrumentClipView.buttonAction(KIT, false);
 		return true;
 	}
 	case Leg::AqNavWrap: {
@@ -1504,8 +1558,8 @@ bool actAcquire() {
 		g_slotStallOutputBefore = g_aqClip->output;
 		g_aqNameBefore = g_aqClip->output->name;
 		deluge_file_directory_set_latency_ms(kStallHoldMs);
-		(void)instrumentClipView.buttonAction(KIT, true, false);
-		(void)instrumentClipView.buttonAction(KIT, false, false);
+		(void)instrumentClipView.buttonAction(KIT, true);
+		(void)instrumentClipView.buttonAction(KIT, false);
 		return true;
 	}
 	case Leg::AqNavStall: {
@@ -1709,6 +1763,48 @@ void checkAcquireAct() {
 		}
 		break;
 	}
+	case Leg::AqTap: {
+		static constexpr const char* kTapGestures[] = {"tap", "hold", "slow", "busy", "queued"};
+		const size_t wantAdded = (g_aqAct == 4) ? 2 : 1;
+		// The queued act's held press is the second track's; every other act's press is the only track's.
+		Clip* const made = (added.size() == wantAdded) ? added[wantAdded - 1] : nullptr;
+		const bool current = made != nullptr && currentSong->getCurrentClip() == made;
+		const bool entered = current && currentUIMode == UI_MODE_INSTRUMENT_CLIP_EXPANDING;
+		const bool held = current && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
+		printf("AQ-TAP gesture=%s clipsAdded=%d released=%d entered=%d held=%d mode=%d runs=%d name=%s\n",
+		       kTapGestures[g_aqAct], static_cast<int32_t>(added.size()), g_tapReleased ? 1 : 0, entered ? 1 : 0,
+		       held ? 1 : 0, static_cast<int>(currentUIMode), runs,
+		       made != nullptr && made->output != nullptr ? made->output->name.c_str() : "");
+		if (made == nullptr) {
+			aqFail("AQ-TAP", "the new-track press made no track");
+		}
+		else if (g_aqAct == 0 && !entered) {
+			aqFail("AQ-TAP", "a new-track pad tapped before its preset landed did not enter the clip once it did");
+		}
+		else if (g_aqAct == 1 && !held) {
+			aqFail("AQ-TAP", "a new-track pad still held when its preset landed did not hold the clip");
+		}
+		else if (g_aqAct == 2 && (entered || held)) {
+			aqFail("AQ-TAP",
+			       "a new-track pad let go slowly before its preset landed entered or held the clip once it did");
+		}
+		else if (g_aqAct == 3
+		         && (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || currentSong->getCurrentClip() == made)) {
+			aqFail("AQ-TAP", "a new-track tap whose preset landed while another clip was held took the UI from that "
+			                 "gesture");
+		}
+		else if (g_aqAct == 4 && !held) {
+			aqFail("AQ-TAP", "a queued new-track press still held when its preset landed did not hold its own clip: "
+			                 "the first track's completion took its press");
+		}
+		if (g_aqAct == 1) {
+			PresetAcquireProbe::releaseRow(g_tapRow);
+		}
+		PresetAcquireProbe::releasePress();
+		changeRootUI(&sessionView);
+		currentUIMode = UI_MODE_NONE;
+		break;
+	}
 	case Leg::AqClone: {
 		int32_t synths = 0;
 		int32_t kits = 0;
@@ -1885,8 +1981,11 @@ void runAcquireTick() {
 			g_aqStep = AqStep::Act;
 			break;
 		}
-		if (g_leg != Leg::AqSlotStall && g_leg != Leg::AqNavStall && g_leg != Leg::AqChangeStall) {
-			checkAcquireTier(); // a slot scan loads nothing, which AQ-TIER would call a leg that did no work
+		if (g_leg != Leg::AqSlotStall && g_leg != Leg::AqNavStall && g_leg != Leg::AqChangeStall
+		    && g_leg != Leg::AqTap) {
+			// A slot scan loads nothing, which AQ-TIER would call a leg that did no work; AQ-TAP's tracks may find
+			// every synth preset already in the song.
+			checkAcquireTier();
 		}
 		nextLeg();
 		break;
@@ -2150,8 +2249,10 @@ void runBlankTick() {
 		g_blankReadsBefore = deluge::gui::instrumentLoad.documentReads();
 		g_blankEdited = false;
 		if (g_leg == Leg::BlankEdited) {
-			// The preset's sample is held, so the default synth can be edited while the song's request is still out.
+			// The preset's document and sample are held, so the default synth can be edited while the song's request is
+			// still out.
 			deluge_audio_load_set_latency_ms(kHoldMs);
+			deluge_file_bytes_set_latency_ms(kDocumentHoldMs);
 		}
 		(void)deluge::gui::context_menu::clearSong.acceptCurrentOption();
 		printf("PL-PROBE leg=%s cleared=1\n", legName(g_leg));
@@ -2168,6 +2269,7 @@ void runBlankTick() {
 				instrument->editedByUser = true;
 				g_blankEdited = true;
 				deluge_audio_load_set_latency_ms(0);
+				deluge_file_bytes_set_latency_ms(0);
 			}
 		}
 		const bool acquired = LoadInstrumentPresetUI::presetAcquisitionsRun() > g_blankRunsBefore;
@@ -2189,6 +2291,8 @@ void runBlankTick() {
 }
 
 void nextLeg() {
+	// A leg's document hold ends with it, however the leg ended.
+	deluge_file_bytes_set_latency_ms(0);
 	g_leg = static_cast<Leg>(static_cast<uint8_t>(g_leg) + 1);
 	g_walkStep = WalkMachineStep::ArmFound;
 	g_step = Step::Prepare;

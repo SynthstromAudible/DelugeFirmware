@@ -441,10 +441,9 @@ void deluge_scenario_favourites_channel_dispatch_step(void) {
 		return;
 	}
 	g_stepDone = false;
-	// The firmware drives both from the "settings io" task; here the scenario owns the tick. Channel first,
-	// so an answer it delivers is applied by the bank in the same tick.
-	deluge::storage::bytes::serviceRoutine();
-	favouritesManager.serviceRoutine();
+	// No direct call to either service routine here: this harness's `app_loop` task runs the real "settings io" job,
+	// which runs only when an intent, a submission or the channel's answer asks for it. Pumping them from here every
+	// tick would let the gate pass with those requests deleted.
 	runTick();
 	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
 	g_stepDone = true;

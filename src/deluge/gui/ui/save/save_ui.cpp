@@ -26,10 +26,12 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "libdeluge/file_bytes.h"
+#include "storage/byte_channel.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
 #include "storage/temp_swap.h"
 #include "util/boot.h"
+#include <algorithm>
 #include <optional>
 #include <span>
 
@@ -104,17 +106,17 @@ bool SaveUI::anySaveInFlight() {
 	return saveInFlight_ || saveSongUI.collectInFlight() || saveSongUI.docInFlight();
 }
 
-ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SaveUI::buttonAction(deluge::hid::Button b, bool on) {
 	if (anySaveInFlight()) {
 		// The save screen ignores the press, but it is NOT dealt with: the global handlers behind this still
 		// run. None of them can close this screen, and swallowing them would lose a SHIFT release -- leaving
 		// shift held after the save -- and take PLAY and RECORD away for as long as a save runs.
 		return ActionResult::NOT_DEALT_WITH;
 	}
-	return saveScreenButtonAction(b, on, inCardRoutine);
+	return saveScreenButtonAction(b, on);
 }
 
-ActionResult SaveUI::saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SaveUI::saveScreenButtonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// Save button
@@ -123,7 +125,7 @@ ActionResult SaveUI::saveScreenButtonAction(deluge::hid::Button b, bool on, bool
 	}
 
 	// Pressing on select encoder button will go through here
-	return SlotBrowser::buttonAction(b, on, inCardRoutine);
+	return SlotBrowser::buttonAction(b, on);
 }
 
 ActionResult SaveUI::exitUI() {
@@ -141,11 +143,11 @@ ActionResult SaveUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	return SlotBrowser::padAction(x, y, velocity);
 }
 
-ActionResult SaveUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult SaveUI::verticalEncoderAction(int32_t offset) {
 	if (anySaveInFlight()) {
 		return ActionResult::DEALT_WITH;
 	}
-	return SlotBrowser::verticalEncoderAction(offset, inCardRoutine);
+	return SlotBrowser::verticalEncoderAction(offset);
 }
 
 ActionResult SaveUI::horizontalEncoderAction(int32_t offset) {
@@ -239,19 +241,42 @@ bool SaveUI::dispatchSave(const deluge::storage::SaveRequest& request) {
 ///
 /// The borrow is why every exit calls releaseStagedWriter(): left in memory mode, the shared
 /// serialiser silently stops reaching the card for everyone after this save.
+void SaveUI::waitUntil(uint64_t deadlineUs) {
+	waitedThisRun_ = true;
+	// A wait here is for an answer, which raises its own wake, or after a refused request, which raises none once
+	// the answer that refused it ages out of the channel. The re-check bounds the second, so a refused save asks
+	// again after the protected span rather than at the stall deadline.
+	deluge::runtime::appLoop.requestAt(
+	    saveJob, std::min(deadlineUs, deluge::runtime::nowUs() + deluge::storage::bytes::kRefusedRecheckUs));
+}
+
 void SaveUI::saveRoutine() {
+	// A machine still in flight after its step either waits (see waitUntil) or has more to do at once.
+	bool moreNow = false;
 	// The song save's sample collection runs on its own machine, for the reason its enum is separate:
 	// its flow is not a staged document write and sharing one would make both harder to follow.
 	if (saveSongUI.collectInFlight()) {
+		waitedThisRun_ = false;
 		saveSongUI.collectRoutine();
+		moreNow |= saveSongUI.collectInFlight() && !waitedThisRun_;
 	}
 	// The song's document write runs on a machine of its own, entered when the collection finishes.
 	if (saveSongUI.docInFlight()) {
+		waitedThisRun_ = false;
 		saveSongUI.docRoutine();
+		moreNow |= saveSongUI.docInFlight() && !waitedThisRun_;
 	}
-	if (phaseOwner_ == nullptr) {
-		return;
+	if (phaseOwner_ != nullptr && savePhase_ != SavePhase::NONE) {
+		waitedThisRun_ = false;
+		runStagedStep();
+		moreNow |= phaseOwner_ != nullptr && savePhase_ != SavePhase::NONE && !waitedThisRun_;
 	}
+	if (moreNow) {
+		deluge::runtime::appLoop.request(saveJob);
+	}
+}
+
+void SaveUI::runStagedStep() {
 	switch (savePhase_) {
 	case SavePhase::NONE:
 		return;
@@ -274,9 +299,13 @@ void SaveUI::saveRoutine() {
 }
 
 bool SaveUI::deferStagedSave() {
-	// Every step of a staged save waits on the byte channel, so only the ticks on which it finished nothing count:
+	// Every step of a staged save waits on the byte channel, so only a span in which it finished nothing counts:
 	// a save held off by a long copy waits for it, and a wedged channel still fails the save.
-	return !stallBound_.tick(deluge_file_bytes_progress());
+	if (stallBound_.tick(deluge_file_bytes_progress())) {
+		return false;
+	}
+	waitUntil(stallBound_.deadlineUs());
+	return true;
 }
 
 void SaveUI::runSerializePhase() {
@@ -349,6 +378,8 @@ void SaveUI::runWritePhase() {
 		}
 		writeIssued_ = true;
 		stallBound_.reset();
+		// Only its answer ends this wait, re-checked in case its wake is lost: see the PENDING branch below.
+		waitUntil(deluge::runtime::nowUs() + deluge::storage::bytes::kWriteFromRecheckUs);
 		return;
 	}
 
@@ -358,15 +389,19 @@ void SaveUI::runWritePhase() {
 	if (collected == DELUGE_CHANNEL_PENDING) {
 		// Waited out however long the card takes, and not counted against the stall bound: the write is copying
 		// from the staged document and cannot be cancelled, so giving up would release the serialiser under it and
-		// remove a temp file it still has open.
+		// remove a temp file it still has open. Its answer brings the job back, re-checked in case that wake is lost.
+		waitUntil(deluge::runtime::nowUs() + deluge::storage::bytes::kWriteFromRecheckUs);
 		return;
 	}
 	if (collected == DELUGE_CHANNEL_UNKNOWN) {
-		// Never keyed, so nothing is coming. Re-issue rather than wait forever.
+		// Never keyed, so nothing is coming. Re-issue rather than wait forever -- at once, since no answer will wake
+		// it.
 		writeIssued_ = false;
 		if (!deferStagedSave()) {
 			endStagedSave(false);
+			return;
 		}
+		deluge::runtime::appLoop.request(saveJob);
 		return;
 	}
 	writeIssued_ = false;

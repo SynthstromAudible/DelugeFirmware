@@ -24,6 +24,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
 #include "io/file.hpp"
+#include "libdeluge/file_bytes.h" // deluge_file_bytes_set_latency_ms
 #include "libdeluge/tier.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -59,6 +60,8 @@ constexpr int32_t kVelocity = 100;
 /// How many ticks a leg is given to land its notes. A converted load stages the file over a handful of ticks; this is
 /// far past that, and short enough that a load which never lands fails in seconds.
 constexpr int32_t kLegTicks = 4000;
+/// How long the byte channel holds each operation in the legs that act over a read the channel holds, in ms.
+constexpr uint32_t kHoldMs = 20;
 
 /// The legs, in order. Each starts from a cleared clip and a freshly opened browser.
 enum class Leg : uint8_t {
@@ -209,12 +212,12 @@ const char* legName(Leg leg) {
 	}
 }
 
-/// Tick what the device ticks: the browser's graphics routine while it is open, and the pattern read's repeating task.
+/// Tick the browser's graphics routine while it is open. The pattern read runs on its own job, which the app loop runs
+/// when the read is asked for and when the channel answers.
 void tickLoad() {
 	if (getCurrentUI() == &loadPatternUI) {
 		loadPatternUI.graphicsRoutine();
 	}
-	loadPatternUI.loadRoutine();
 }
 
 /// Whether the leg has finished: no pattern read left in flight.
@@ -259,11 +262,11 @@ void reportLeg() {
 void actOverHeldRead() {
 	using namespace deluge::hid::button;
 	if (g_leg == Leg::Discard) {
-		(void)loadPatternUI.buttonAction(BACK, true, false);
+		(void)loadPatternUI.buttonAction(BACK, true);
 	}
 	else {
-		(void)loadPatternUI.buttonAction(SELECT_ENC, true, false);
-		(void)loadPatternUI.buttonAction(SELECT_ENC, false, false);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, true);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, false);
 	}
 }
 
@@ -272,19 +275,19 @@ void act() {
 	using namespace deluge::hid::button;
 	switch (g_leg) {
 	case Leg::Load:
-		(void)loadPatternUI.buttonAction(SELECT_ENC, true, false);
-		(void)loadPatternUI.buttonAction(SELECT_ENC, false, false);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, true);
+		(void)loadPatternUI.buttonAction(SELECT_ENC, false);
 		break;
 	case Leg::Preview:
 		// Press and release: the press previews, and each edge toggles playback, so the pair leaves it stopped.
-		(void)loadPatternUI.buttonAction(PLAY, true, false);
-		(void)loadPatternUI.buttonAction(PLAY, false, false);
+		(void)loadPatternUI.buttonAction(PLAY, true);
+		(void)loadPatternUI.buttonAction(PLAY, false);
 		break;
 	case Leg::Discard:
 	case Leg::Supersede:
 		// The preview first; the second press waits in Stage::Hold until the channel holds the preview's buffer.
-		(void)loadPatternUI.buttonAction(PLAY, true, false);
-		(void)loadPatternUI.buttonAction(PLAY, false, false);
+		(void)loadPatternUI.buttonAction(PLAY, true);
+		(void)loadPatternUI.buttonAction(PLAY, false);
 		break;
 	default:
 		break;
@@ -377,6 +380,10 @@ void runTick() {
 		break;
 
 	case Stage::Act:
+		if (g_leg == Leg::Discard || g_leg == Leg::Supersede) {
+			// The read runs when its channel answers, so with no hold it can land before the next tick looks for it.
+			deluge_file_bytes_set_latency_ms(kHoldMs);
+		}
 		act();
 		g_ticks = 0;
 		g_stage = (g_leg == Leg::Discard || g_leg == Leg::Supersede) ? Stage::Hold : Stage::Await;
@@ -389,10 +396,12 @@ void runTick() {
 		if (loadPatternUI.readIssued()) {
 			printf("PT-HELD leg=%s ticks=%d\n", legName(g_leg), g_ticks);
 			actOverHeldRead();
+			deluge_file_bytes_set_latency_ms(0);
 			g_ticks = 0;
 			g_stage = Stage::Await;
 		}
 		else if (++g_ticks >= kLegTicks || !loadPatternUI.loadInFlight()) {
+			deluge_file_bytes_set_latency_ms(0);
 			fail("the preview's read was never held by the channel");
 			g_stage = Stage::Report;
 		}

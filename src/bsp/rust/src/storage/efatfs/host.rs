@@ -836,8 +836,8 @@ pub extern "C" fn deluge_efatfs_mkdir(path: *const c_char) -> DelugeStatus {
 
 /// Deletes a file or empty directory.
 ///
-/// `pub(crate)` so the byte channel's driver can await it: the startup fail-safe reaches it from a
-/// scheduler task, which may not wait on the card through the spinning C ABI.
+/// `pub(crate)` so the byte channel's driver can await it: the startup fail-safe reaches it from an app-loop job,
+/// which may not wait on the card through the spinning C ABI.
 pub(crate) async fn task_unlink(path: &str) -> Result<(), DelugeStatus> {
     match with_fs(async |fs| portable::unlink(fs, path).await).await {
         Some(result) => result,
@@ -901,8 +901,8 @@ pub extern "C" fn deluge_efatfs_rename(
 /// Sets a file or directory's modification time from decomposed fields (packed by
 /// [`portable::pack_timestamp`]).
 ///
-/// `pub(crate)` so the byte channel's driver can await it: the SysEx file protocol reaches it from
-/// a scheduler task, which may not wait on the card through the spinning C ABI.
+/// `pub(crate)` so the byte channel's driver can await it: the SysEx file protocol reaches it from an
+/// app-loop job, which may not wait on the card through the spinning C ABI.
 pub(crate) async fn task_set_time(
     path: &str,
     year: u16,

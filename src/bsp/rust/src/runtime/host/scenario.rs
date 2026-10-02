@@ -49,7 +49,7 @@ pub struct ScenarioConfig {
 /// defaults, and the caller decides what counts as failure.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct ScenarioResult {
-    /// Boot reached `registerTasks()`, so `currentSong` exists.
+    /// Boot finished, so `currentSong` exists.
     pub boot_ready: bool,
     /// `deluge_scenario_begin_song_load` returned true.
     pub song_load_dispatched: bool,
@@ -100,11 +100,8 @@ pub async fn run(cfg: ScenarioConfig) -> ScenarioResult {
     let mut result = ScenarioResult::default();
 
     // This may be polled before the task that calls `deluge_app_init()`, so wait for boot to
-    // reach `registerTasks()` before touching app state.
-    result.boot_ready = wait_for(cfg.step_timeout, || {
-        crate::scheduler::registered_task_count() > 0
-    })
-    .await;
+    // finish before touching app state.
+    result.boot_ready = wait_for(cfg.step_timeout, || crate::boot::finished()).await;
     if !result.boot_ready {
         return result;
     }

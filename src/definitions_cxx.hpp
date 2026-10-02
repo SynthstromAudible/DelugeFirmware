@@ -462,6 +462,7 @@ enum class Error {
 	NO_FURTHER_FILES_THIS_DIRECTION,
 	FILE_ALREADY_EXISTS,
 	FILE_NOT_FOUND,
+	/// Nothing returns it. Kept so every value after it, which crosses the libdeluge ABI as a byte, keeps its number.
 	ABORTED_BY_USER,
 	MAX_FILE_SIZE_REACHED,
 	SD_CARD_FULL,
@@ -892,7 +893,6 @@ constexpr AudioInputChannel AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION = AudioInp
 enum class ActionResult {
 	DEALT_WITH,
 	NOT_DEALT_WITH,
-	REMIND_ME_OUTSIDE_CARD_ROUTINE,
 	ACTIONED_AND_CAUSED_CHANGE,
 };
 

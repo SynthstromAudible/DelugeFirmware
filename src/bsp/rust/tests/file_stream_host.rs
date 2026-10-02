@@ -1,7 +1,8 @@
 //! Host tests for the stream channel's answer slot: keying by kind, handle and path,
 //! card-generation stamps, orphaned `Open` handles, and `still_coming`.
 
-use deluge_bsp_rust::channel::file_stream_slot;
+use deluge_bsp_rust::app_loop;
+use deluge_bsp_rust::channel::{file_stream, file_stream_slot};
 
 use file_stream_slot::{AnswerSlot, MAX_PATH_CHARS, OpKey, OpKind, Take};
 
@@ -185,4 +186,29 @@ fn a_queued_or_running_operation_is_still_coming() {
 #[test]
 fn an_operation_in_neither_slot_is_not_coming() {
     assert!(!file_stream_slot::still_coming(Some(false), Some(false)));
+}
+
+// `mark_in_flight` over the process-wide `IN_FLIGHT` static; no C ABI call and no task running.
+
+/// Clearing the in-flight mark wakes the app (`DELUGE_WAKE_STORAGE`); marking it does not. No test
+/// runs the task, so `mark_in_flight` is driven directly, as the other channel tests do.
+#[test]
+fn finishing_an_operation_wakes_the_app() {
+    app_loop::reset_reasons_for_test();
+    embassy_futures::block_on(file_stream::mark_in_flight(Some(key(
+        OpKind::ReadAt,
+        1,
+        "",
+    ))));
+    assert_eq!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "marking an operation in flight must not wake the app early"
+    );
+    embassy_futures::block_on(file_stream::mark_in_flight(None));
+    assert_ne!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "clearing the in-flight mark must wake the app"
+    );
 }

@@ -57,24 +57,17 @@ bool MidiLearnMode::acceptCurrentOption() {
 	return false; // return false so you exit out of the context menu
 }
 
-ActionResult MidiLearnMode::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult MidiLearnMode::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
-
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	if (b == BACK) {
 		sessionView.exitMidiLearnMode();
 	}
 
-	return ContextMenu::buttonAction(b, on, inCardRoutine);
+	return ContextMenu::buttonAction(b, on);
 }
 
 ActionResult MidiLearnMode::padAction(int32_t x, int32_t y, int32_t on) {
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 	// don't allow user to switch modes
 	if (x <= kDisplayWidth) {
 		return sessionView.padAction(x, y, on);
@@ -95,8 +88,8 @@ ActionResult MidiLearnMode::horizontalEncoderAction(int32_t offset) {
 	return sessionView.horizontalEncoderAction(offset);
 }
 
-ActionResult MidiLearnMode::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	return sessionView.verticalEncoderAction(offset, inCardRoutine);
+ActionResult MidiLearnMode::verticalEncoderAction(int32_t offset) {
+	return sessionView.verticalEncoderAction(offset);
 }
 
 } // namespace deluge::gui::context_menu

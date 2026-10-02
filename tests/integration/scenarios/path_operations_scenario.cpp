@@ -36,6 +36,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 // The headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded `printf_`.
 // That implementation emits through `putchar_`, which the Rust BSP builds do not define -- this harness
@@ -95,17 +96,17 @@ public:
 		return getCurrentUI() == &deluge::gui::context_menu::deleteFile;
 	}
 	/// Accept the delete menu, as the select button does.
-	static void acceptDelete() { (void)getCurrentUI()->buttonAction(deluge::hid::button::SELECT_ENC, true, false); }
+	static void acceptDelete() { (void)getCurrentUI()->buttonAction(deluge::hid::button::SELECT_ENC, true); }
 	/// A BACK press and release, a pad press and release, and a select-encoder turn: each would otherwise close the
 	/// menu or move it. Stops as soon as the menu is no longer on top, so nothing reaches the browser underneath.
 	static void pokeDeleteMenu() {
 		using namespace deluge::hid::button;
 		UI* menu = &deluge::gui::context_menu::deleteFile;
 		if (getCurrentUI() == menu) {
-			(void)menu->buttonAction(BACK, true, false);
+			(void)menu->buttonAction(BACK, true);
 		}
 		if (getCurrentUI() == menu) {
-			(void)menu->buttonAction(BACK, false, false);
+			(void)menu->buttonAction(BACK, false);
 		}
 		if (getCurrentUI() == menu) {
 			(void)menu->padAction(0, 0, 64);
@@ -148,6 +149,11 @@ public:
 
 	void sendSysex(const uint8_t* data, int32_t len) override {
 		lastReply.assign(reinterpret_cast<const char*>(data), static_cast<size_t>(len));
+		// Kept in ARRIVAL order, beside `lastReply`: `sysex_queue_drains` (below) queues several
+		// requests before any of them is answered, and the job answering them may now run several in
+		// a row -- reactively, not on this gate's own tick -- before the gate looks again. `lastReply`
+		// alone would have already been overwritten by the time that happens; the history has not.
+		history.push_back(lastReply);
 		replies++;
 	}
 
@@ -156,6 +162,7 @@ public:
 	void writeReferenceAttributesToFile(Serializer& /*writer*/) override {}
 
 	std::string lastReply;
+	std::vector<std::string> history;
 	int32_t replies = 0;
 };
 
@@ -192,6 +199,16 @@ constexpr int32_t kVerbCount = static_cast<int32_t>(sizeof(kVerbs) / sizeof(kVer
 /// Comfortably above the handler's own worst case once it is resumable and its channel arm has a
 /// stall bound. A cap below that would report a legitimate slow fallback as a wedge.
 constexpr int32_t kMaxVerbTicks = 5000;
+
+/// `sysex_queue_drains`: the sequence numbers of three `ping` requests queued back-to-back, before any
+/// of them is handled -- as three messages arriving within one midi-routine run would be. `ping` has no
+/// path operation, so this isolates the queue drain itself from the resumable-handler machinery the
+/// verb stages above already cover. Distinct from the verb stages' 1..5 so a mixed-up reply is obvious.
+constexpr uint8_t kQueueSeqs[] = {21, 22, 23};
+constexpr int32_t kQueueCount = static_cast<int32_t>(sizeof(kQueueSeqs) / sizeof(kQueueSeqs[0]));
+
+/// How many ticks the three queued pings have to all come back before the gate calls it wedged.
+constexpr int32_t kMaxQueueTicks = 5000;
 
 /// The nested path the mkdir_all stage creates. None of its three segments exists at the start, which
 /// is what makes it a test of the WALK rather than of one mkdir.
@@ -233,6 +250,8 @@ enum class Stage : uint8_t {
 	FixtureCheck,
 	Verb,
 	VerbCheck,
+	QueueBurst,
+	QueueCheck,
 	Nested,
 	NestedCheck,
 	DeleteOpen,
@@ -266,6 +285,13 @@ int32_t g_repliesBefore = 0;
 int32_t g_nestedTicks = 0;
 int32_t g_nestedCreated = -1;
 int32_t g_nestedIdempotent = -1;
+
+/// `sysex_queue_drains` state: how many of `g_cable.replies` predate the burst, how many ticks it has
+/// waited, and the sequence number out of each reply as it arrives, in the order they arrived.
+int32_t g_queueRepliesBefore = 0;
+int32_t g_queueTicks = 0;
+uint8_t g_queueOrder[kQueueCount] = {0};
+int32_t g_queueOrderCount = 0;
 
 using deluge::gui::context_menu::DeleteFile;
 
@@ -328,6 +354,19 @@ void sendVerb(const VerbCase& verb) {
 	buffer[0] = 0;
 	buffer[1] = static_cast<uint8_t>(1 + g_verbIndex); // a distinct sequence number per verb
 	memcpy(buffer + 2, verb.json, jsonLen);
+	smSysex::sysexReceived(g_cable, buffer, static_cast<int32_t>(jsonLen + 2));
+}
+
+/// Feed a `ping` request in as a real SysEx message carrying `seq`, which the reply echoes back
+/// unchanged (see `smSysex::startReply`) -- the one piece of evidence `sysex_queue_drains` needs to
+/// recover the order replies came back in.
+void sendPing(uint8_t seq) {
+	uint8_t buffer[16];
+	const char* json = R"({"ping":{}})";
+	const size_t jsonLen = strlen(json);
+	buffer[0] = 0;
+	buffer[1] = seq;
+	memcpy(buffer + 2, json, jsonLen);
 	smSysex::sysexReceived(g_cable, buffer, static_cast<int32_t>(jsonLen + 2));
 }
 
@@ -434,7 +473,50 @@ void runTick() {
 			g_failures++;
 		}
 		g_verbIndex++;
-		g_stage = (g_verbIndex < kVerbCount) ? Stage::Verb : Stage::Nested;
+		g_stage = (g_verbIndex < kVerbCount) ? Stage::Verb : Stage::QueueBurst;
+		break;
+	}
+
+	case Stage::QueueBurst:
+		g_queueRepliesBefore = static_cast<int32_t>(g_cable.history.size());
+		g_queueTicks = 0;
+		g_queueOrderCount = 0;
+		// All three queued before this tick's `handleNextSysEx` call has a chance to run again -- the
+		// gate for `sysex_queue_drains`: messages that arrive together must still each get answered, in
+		// the order they arrived, not just the first. The job may now answer all three reactively,
+		// before this scenario's own tick looks again -- see `LoopbackCable::history`.
+		for (uint8_t seq : kQueueSeqs) {
+			sendPing(seq);
+		}
+		g_stage = Stage::QueueCheck;
+		break;
+
+	case Stage::QueueCheck: {
+		const int32_t gained = static_cast<int32_t>(g_cable.history.size()) - g_queueRepliesBefore;
+		while (g_queueOrderCount < gained && g_queueOrderCount < kQueueCount) {
+			const std::string& reply = g_cable.history[g_queueRepliesBefore + g_queueOrderCount];
+			g_queueOrder[g_queueOrderCount] = static_cast<uint8_t>(static_cast<unsigned char>(reply[6]));
+			g_queueOrderCount++;
+		}
+		if (g_queueOrderCount < kQueueCount && ++g_queueTicks < kMaxQueueTicks) {
+			break;
+		}
+		const bool allReplied = g_queueOrderCount == kQueueCount;
+		bool inOrder = allReplied;
+		for (int32_t i = 0; allReplied && i < kQueueCount; i++) {
+			inOrder = inOrder && (g_queueOrder[i] == kQueueSeqs[i]);
+		}
+		printf("PO-QUEUE replied=%d order=%d\n", allReplied ? 1 : 0, inOrder ? 1 : 0);
+		if (!allReplied) {
+			printf("PO-QUEUE FAIL only %d of %d queued messages were answered within %d ticks\n", g_queueOrderCount,
+			       kQueueCount, kMaxQueueTicks);
+			g_failures++;
+		}
+		else if (!inOrder) {
+			printf("PO-QUEUE FAIL replies came back out of order\n");
+			g_failures++;
+		}
+		g_stage = Stage::Nested;
 		break;
 	}
 
@@ -772,9 +854,12 @@ void deluge_scenario_path_operations_dispatch_step(void) {
 		return;
 	}
 	g_stepDone = false;
-	// The SysEx pump. In the firmware this is a repeating task registered in `deluge.cpp`; here the
-	// scenario owns the tick, so without this call a queued request would never be processed.
-	smSysex::handleNextSysEx();
+	// No direct call to smSysex::handleNextSysEx() here, deliberately: this harness's `app_loop` task
+	// (src/bsp/rust/src/app_loop.rs) already drives the real job, and `sysex_queue_drains` (below)
+	// exists to prove THAT path -- a message queued via sysexReceived must make the job ask for its
+	// own run, or nothing would ever process it. A direct call here would make every request below
+	// pass even with that self-request deleted, which is exactly the regression this gate exists to
+	// catch.
 	runTick();
 	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
 	g_stepDone = true;

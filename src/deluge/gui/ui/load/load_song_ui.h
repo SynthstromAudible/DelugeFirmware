@@ -17,9 +17,11 @@
 
 #pragma once
 
+#include "gui/ui/load/cancel_result.h"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "io/stall_bound.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/audio/audio_load_context.h"
 #include "storage/deferred_load.h"
@@ -28,12 +30,18 @@
 #include <cstdint>
 #include <string>
 
+/// @brief How a song load ended, as its completion is told.
+enum class SongLoadOutcome : uint8_t {
+	Loaded,    ///< The new song is the current song.
+	NotLoaded, ///< Cancelled, failed, or never started: no new song came in.
+};
+
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult timerCallback() override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 
 	/// @brief Per-tick surface for the song preview: re-asks for one that has not landed yet.
 	///
@@ -48,6 +56,22 @@ public:
 	void selectEncoderAction(int8_t offset) override;
 	void queueLoadNextSongIfAvailable(int8_t offset);
 
+	/// @brief The LOAD and Select buttons as the load in flight answers them: released while the swap waits on them,
+	///        they arm it.
+	///
+	/// A load takes every UI down for its whole length, this one included, so while uiStackEmpty() the button
+	/// dispatcher sends presses here rather than to getCurrentUI(). A load started by holding LOAD in this browser
+	/// waits on that release; so does a MIDI NEXT_SONG that arrives with LOAD held.
+	///
+	/// @return DEALT_WITH for LOAD and Select, whatever the load's state; NOT_DEALT_WITH for every other button.
+	ActionResult loadButtonAction(deluge::hid::Button b, bool on);
+
+	/// @brief The select encoder as the load in flight answers it: while the swap is armed, it sets how many more
+	///        times the playing song loops before the swap. Does nothing otherwise.
+	///
+	/// Sent here by the encoder dispatcher while uiStackEmpty(), for the reason loadButtonAction() is.
+	void armedSelectEncoderAction(int8_t offset);
+
 	/// @brief Starts loading the highlighted song and returns without waiting for it to finish.
 	///
 	/// The load is a phase machine on the interaction tier: the song is staged and its samples loaded a tick at
@@ -55,16 +79,42 @@ public:
 	/// Rather than blocking across any of those, each step parks the load in a phase; @ref loadRoutine observes
 	/// the phase from the run loop and advances it once it can move.
 	///
-	/// @param onComplete Run once the load has finished, whether it succeeded, failed, or never started.
-	///                   Runs on the interaction tier. Null for callers with no follow-up work. Must outlive
+	/// @param onComplete Run once the load has finished, whether it succeeded, failed, or never started, and told
+	///                   which. Runs on the interaction tier. Null for callers with no follow-up work. Must outlive
 	///                   the load, so pass a free function or a captureless lambda.
-	void beginLoad(void (*onComplete)() = nullptr);
+	void beginLoad(void (*onComplete)(SongLoadOutcome) = nullptr);
 
-	/// @brief Advances an in-flight load past a wait it has finished. Cheap no-op when none is in flight.
+	/// @brief Advances an in-flight load past a wait it has finished, then asks for the job's next run.
 	///
-	/// Registered as a repeating task by registerTasks(), so every entry point - both browser gestures,
-	/// the startup song, and the host harness drivers - is driven from one place.
+	/// A cheap no-op when none is in flight.
+	///
+	/// Run by its own job (@ref jobId), so every entry point - both browser gestures, the startup song, and the host
+	/// harness drivers - is driven from one place.
 	void loadRoutine();
+
+	/// @brief The job loadRoutine() runs on, woken by DELUGE_WAKE_STORAGE. It runs when a load begins, when a storage
+	///        channel answers, and at the time the phase it is parked in asks for (see armNextRun()).
+	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
+
+	/// @brief How soon a load waiting on something that raises no wake looks again, in µs.
+	///
+	/// Three waits have no wake of their own: the browser's listing (STAGE), which finishes on the UI timers' job; the
+	/// streaming loader's lowest-priority entries (SETTLE), which it wakes the app for only once its whole queue drains
+	/// -- playback streaming can keep that from happening, and a failed read re-enqueued at the lowest priority stops
+	/// the drain without a wake; and the arming (AWAIT_ARM), which the load button, the arm itself and the swap the
+	/// playback routine launches each change. 6 ms is short enough that each is noticed within a couple of render
+	/// blocks.
+	static constexpr uint64_t kRecheckUs = 6'000;
+
+	/// @brief Drop the load in flight, if it can still be dropped without touching the current song.
+	///
+	/// Only STAGE can be dropped, its wait for the browser's listing included: until then the load holds nothing but
+	/// the staged bytes, which endLoad() frees, or parks while the byte channel still writes into them. From BEGIN on
+	/// the outgoing song may already be deleted, so a cancel there could not put it back.
+	///
+	/// @return Cancelled when the load was dropped: the loading animation is taken down and the completion runs.
+	///         Refused from BEGIN on, and the load carries on. Stale when no load is in flight.
+	deluge::gui::CancelResult cancelLoad();
 
 	/// @brief True from @ref beginLoad until the load's completion has run.
 	[[nodiscard]] bool isLoadInFlight() const { return performingLoad; }
@@ -80,6 +130,10 @@ public:
 	[[nodiscard]] bool loadInFlight() const { return performingLoad; }
 
 	bool deletedPartsOfOldSong{};
+
+	/// @brief How long a song preview's read may go unanswered before the preview gives up, in microseconds: 9 s, the
+	///        channel stall bound scaled to the graphics routine that re-asks, every 15 ms.
+	static constexpr uint64_t kPreviewStallUs = 9'000'000;
 
 	// ui
 	UIType getUIType() override { return UIType::LOAD_SONG; }
@@ -189,6 +243,10 @@ private:
 	/// the two members above to a reference decode. See tests/integration/scenarios/song_preview_ab_scenario.cpp.
 	friend class SongPreviewAbProbe;
 
+	/// The song-load channel gate, which cancels a load at a known phase and with the staging read outstanding. See
+	/// tests/integration/scenarios/song_load_channel_scenario.cpp.
+	friend class SongLoadChannelProbe;
+
 	/// A row-major pad image of the shape both preview decoders write into.
 	using PreviewImage = RGB (*)[kDisplayWidth + kSideBarWidth];
 
@@ -224,13 +282,13 @@ private:
 	/// `currentFileChanged` ticked again, so two columns were copied out of an unfilled store.
 	int32_t pendingScrollDirection_{0};
 
-	/// @brief Consecutive collects that found the current preview's read unanswered (UNKNOWN or PENDING), and the
-	///        attempt they were counted for.
+	/// @brief How long the collects have found the current preview's read unanswered (UNKNOWN or PENDING), and the
+	///        attempt they were measured for.
 	///
 	/// At the bound the preview gives up with the card error: the pads cannot stay scrolled out for as long as a
-	/// card takes not to answer. A different attempt, or an answered read, starts the count again.
+	/// card takes not to answer. A different attempt, or an answered read, starts the span again.
 	/// @{
-	deluge::io::StallBound previewWait_;
+	deluge::io::StallBound previewWait_{kPreviewStallUs};
 	uint32_t previewWaitGeneration_{0};
 	std::string previewWaitPath_;
 	/// @}
@@ -307,20 +365,22 @@ private:
 	/// document of its own.
 	FileDeserializer* stagingPrevious_{nullptr};
 
-	/// @brief How many consecutive ticks STAGE waits for the browser's listing before giving up. A bound, not a
+	/// @brief How long STAGE waits for the browser's listing before giving up, in microseconds. A bound, not a
 	///        timeout: a listing settles in a handful of ticks when it settles at all, and an empty folder must end
 	///        the load with an error rather than spinning forever. More than three channel stall bounds
-	///        (`deluge::io::kChannelStallTicks`), so the listing's own directory open, which that bound limits, gives
+	///        (`deluge::io::kChannelStallUs`), so the listing's own directory open, which that bound limits, gives
 	///        up and reports first.
-	static constexpr int32_t kMaxStagingWaitTicks = 2000;
-	static_assert(kMaxStagingWaitTicks > 3 * deluge::io::kChannelStallTicks,
+	static constexpr uint64_t kMaxStagingWaitUs = 12'000'000;
+	static_assert(kMaxStagingWaitUs > 3 * deluge::io::kChannelStallUs,
 	              "the directory open the listing waits on must give up before the staging wait does");
+	static_assert(kMaxStagingWaitUs > Browser::kDirectoryStallUs,
+	              "the listing's directory open, bounded by Browser::kDirectoryStallUs, must give up first");
 
-	/// @brief Consecutive ticks STAGE has waited for the browser's listing. Bounded.
-	deluge::io::StallBound stagingWait_{kMaxStagingWaitTicks};
+	/// @brief How long STAGE has waited for the browser's listing. Bounded.
+	deluge::io::StallBound stagingWait_{kMaxStagingWaitUs};
 
 	/// @brief Completion handed to @ref beginLoad, cleared as it runs.
-	void (*loadOnComplete_)(){nullptr};
+	void (*loadOnComplete_)(SongLoadOutcome){nullptr};
 
 	/// @name The load's steps, split at the two waits. Each runs on the interaction tier.
 	/// @{
@@ -332,6 +392,13 @@ private:
 
 	/// @brief Advance @ref essentialLoad_ one walk. Ends the phase, and the load's first stretch, when it ends.
 	void tickEssential();
+
+	/// @brief Ask for the job's next run for the phase the load is parked in: at once for a phase that can move now,
+	///        the staging's next run (StorageManager::stagingNextRunUs()), a sample load's next tick, SETTLE's
+	///        deadline, and @ref kRecheckUs for the waits that raise no wake. An idle load asks for none.
+	void armNextRun();
+	/// @brief Advance the phase the load is parked in, once.
+	void runPhase();
 	/// @}
 
 	/// @brief Fill @ref songStaging_ on the interaction tier, a tick at a time. See its definition.
@@ -357,8 +424,8 @@ private:
 	void tickFinish();
 	/// @}
 
-	/// @brief Ends the load: clears the phase and runs the caller's completion exactly once.
-	void endLoad();
+	/// @brief Ends the load: clears the phase and runs the caller's completion exactly once, with @p outcome.
+	void endLoad(SongLoadOutcome outcome);
 
 	bool performingLoad;
 	bool scrollingIntoSlot{};

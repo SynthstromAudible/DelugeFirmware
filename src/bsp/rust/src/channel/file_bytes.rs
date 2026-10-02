@@ -56,6 +56,7 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::mutex::MutexGuard;
 use embassy_sync::signal::Signal;
+use embassy_time::{Duration, Instant};
 
 /// The longest path this channel keys on, in bytes of text: [`DELUGE_PATH_MAX`] less the NUL.
 pub(crate) const MAX_PATH_CHARS: usize = DELUGE_PATH_MAX - 1;
@@ -192,25 +193,48 @@ pub fn non_idempotent(op: ByteOp) -> bool {
     matches!(op, ByteOp::Rename | ByteOp::Unlink | ByteOp::WriteFrom)
 }
 
-/// How many new requests an uncollected answer of a [`non_idempotent`] kind refuses before the
-/// channel gives up on its owner and lets a new request displace it.
+/// How long an uncollected answer of a [`non_idempotent`] kind may go on refusing new requests
+/// before the channel gives up on its owner and lets a new request displace it. Measured from the
+/// first request it refused, so never shorter than from its publish.
 ///
-/// Each caller asks at most once per tick and gives up after `kChannelStallTicks` (600) refusals;
-/// half that frees the channel well before any caller it holds off gives up. An owner still polling
-/// takes its answer on its next tick, so an answer that ages out belongs to an owner that has gone.
-pub const PROTECTED_ANSWER_REFUSALS: u32 = 300;
+/// A time, not a count of refusals, because callers ask when something wakes them rather than on
+/// every tick: a count would take longer to reach the fewer callers there were asking, and could
+/// outlast a refused caller's own bound.
+///
+/// Ordered against both sides:
+/// - Well before any refused caller gives up. The shortest bound among the byte channel's callers
+///   is 0.3 s (SysEx's `deluge::storage::kSysExStallUs`, the startup prelude's and the recorder's
+///   `kMaxUnproductiveUs`); the rest use the 3.6 s channel bound (`deluge::io::kChannelStallUs`)
+///   or longer. An answer that ages out raises no wake, so what admits a refused caller is its own
+///   re-ask after the span: either a re-ask it makes before judging its bound (SysEx, the startup
+///   fail-safe and the saves ask first, so their deadline run, at least 0.3 s after their first
+///   refusal, is admitted), or a re-ask it schedules within the span plus a margin (the settings
+///   machine, which judges its bound before asking, re-asks within 150 ms). Either way the span
+///   must be well inside the shortest bound, as a third of it is.
+/// - Well after any owner still collecting has taken it. Every owner of these answers (document,
+///   preset and startup-song saves, SysEx path operations, the recorder's abort) collects on the
+///   `DELUGE_WAKE_STORAGE` the publish raises or on a job tick of at most 6 ms, so an answer that
+///   ages out belongs to an owner that has gone. This assumes no long synchronous job runs between
+///   a refused requester and the answer's owner, which would hold the owner off past the span
+///   while it is still collecting. If one does, the answer ages out unclaimed and the requester
+///   simply re-asks after `kRefusedRecheckUs`.
+pub const PROTECTED_ANSWER_SPAN: Duration = Duration::from_millis(PROTECTED_ANSWER_SPAN_MS);
+
+/// [`PROTECTED_ANSWER_SPAN`] in milliseconds, pinned against
+/// `DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS`, which C++ callers schedule their re-ask by.
+pub const PROTECTED_ANSWER_SPAN_MS: u64 = 100;
 
 /// Whether an answer of kind `held`, stamped `stamp`, holds the channel against a new request asked
-/// under `generation`, after it has already refused `refusals` requests.
+/// under `generation`, when it has been refusing requests for `refusing_for`.
 pub fn answer_blocks(
     held: Option<ByteOp>,
     stamp: Option<u32>,
     generation: u32,
-    refusals: u32,
+    refusing_for: Duration,
 ) -> bool {
     match (held, stamp) {
         (Some(op), Some(stamp)) => {
-            non_idempotent(op) && stamp == generation && refusals < PROTECTED_ANSWER_REFUSALS
+            non_idempotent(op) && stamp == generation && refusing_for < PROTECTED_ANSWER_SPAN
         }
         _ => false,
     }
@@ -275,15 +299,16 @@ impl PartialEq<(ByteOp, &str)> for ByteKey {
 // No byte outcome carries a handle, so the default `orphan` (always `None`) is right.
 impl crate::channel::Answer for ByteOutcome {}
 
-/// The byte channel's answer slot: a [`crate::channel::AnswerSlot`] plus the protected answer's
-/// refusal count.
+/// The byte channel's answer slot: a [`crate::channel::AnswerSlot`] plus when the protected answer
+/// first refused a request.
 ///
 /// Passed to [`publish_into`], [`take_from`] and [`drain`] by reference rather than reached as a
 /// static, so the slot logic is unit-tested without the live `RESULT`.
 pub struct BytesSlot {
     inner: crate::channel::AnswerSlot<ByteKey, ByteOutcome>,
-    /// Requests the answer held has refused. See [`PROTECTED_ANSWER_REFUSALS`].
-    refusals: u32,
+    /// When the answer held first refused a request, or `None` if it has refused none. See
+    /// [`PROTECTED_ANSWER_SPAN`].
+    refusing_since: Option<Instant>,
 }
 
 impl BytesSlot {
@@ -291,7 +316,7 @@ impl BytesSlot {
     pub const fn new() -> Self {
         Self {
             inner: crate::channel::AnswerSlot::new(),
-            refusals: 0,
+            refusing_since: None,
         }
     }
     /// Whether the slot holds no answer.
@@ -299,15 +324,24 @@ impl BytesSlot {
         self.inner.is_empty()
     }
 
-    /// Whether a new request asked under `generation` may enter the channel, as far as the answer
-    /// held goes. A refusal counts toward [`PROTECTED_ANSWER_REFUSALS`].
-    pub fn admits_new_request(&mut self, generation: u32) -> bool {
+    /// Whether a new request asked under `generation` at `now` may enter the channel, as far as the
+    /// answer held goes. The first refusal starts [`PROTECTED_ANSWER_SPAN`].
+    pub fn admits_new_request(&mut self, generation: u32, now: Instant) -> bool {
         let held = self.inner.key().map(|k| k.op);
-        if answer_blocks(held, self.inner.generation(), generation, self.refusals) {
-            self.refusals += 1;
+        let refusing_for = self
+            .refusing_since
+            .map_or(Duration::MIN, |since| now.saturating_duration_since(since));
+        if answer_blocks(held, self.inner.generation(), generation, refusing_for) {
+            self.refusing_since.get_or_insert(now);
             return false;
         }
         true
+    }
+
+    /// Whether the answer held has refused a request, so taking it should wake the caller it held
+    /// off.
+    pub fn has_refused(&self) -> bool {
+        self.refusing_since.is_some()
     }
 }
 
@@ -366,7 +400,7 @@ impl ClaimOnce {
 /// held.
 ///
 /// Anything displaced is an uncollected answer that was not holding the channel (idempotent, past
-/// [`PROTECTED_ANSWER_REFUSALS`], or from a gone card); its owner reads UNKNOWN and asks again. It
+/// [`PROTECTED_ANSWER_SPAN`], or from a gone card); its owner reads UNKNOWN and asks again. It
 /// owns nothing to release.
 ///
 /// An over-long key (unreachable through the FFI, which refuses such paths) leaves the slot empty.
@@ -378,7 +412,7 @@ pub fn publish_into(
     generation: u32,
 ) {
     slot.inner.drain();
-    slot.refusals = 0;
+    slot.refusing_since = None;
     let Ok(path) = BytesPath::try_from(key) else {
         debug_assert!(false, "an over-long key cannot reach a publish");
         return;
@@ -403,16 +437,20 @@ pub enum ByteTake {
 /// `try_lock`ed and may not land. A key match with a stale stamp is removed as well as withheld; a
 /// key mismatch leaves the slot alone for the operation it belongs to.
 pub fn take_from(slot: &mut BytesSlot, op: ByteOp, path: &str, generation: u32) -> ByteTake {
-    match slot.inner.take(&(op, path), generation) {
+    let taken = match slot.inner.take(&(op, path), generation) {
         crate::channel::Take::Ready(outcome) => ByteTake::Ready(outcome),
         crate::channel::Take::Absent { .. } => ByteTake::Absent,
+    };
+    if slot.inner.is_empty() {
+        slot.refusing_since = None;
     }
+    taken
 }
 
 /// Empties the slot, as `flush_tables` does on an ejection.
 pub fn drain(slot: &mut BytesSlot) {
     slot.inner.drain();
-    slot.refusals = 0;
+    slot.refusing_since = None;
 }
 
 // ── The driver ──────────────────────────────────────────────────────────────
@@ -824,6 +862,20 @@ pub extern "C" fn deluge_file_bytes_set_chunk_latency_ms(ms: u32) {
     CHUNK_LATENCY_MS.store(ms, Ordering::Relaxed);
 }
 
+/// Milliseconds each [`ByteOp::WriteFrom`] waits before it touches the card, on top of
+/// [`LATENCY_MS`]; see [`deluge_file_bytes_set_write_from_latency_ms`].
+#[cfg(feature = "host_app")]
+static WRITE_FROM_LATENCY_MS: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// Host harness knob: makes every document write (`write_from`) wait `ms` milliseconds before it
+/// touches the card, and no other operation, so a test can hold a save's write past its stall
+/// bound while the steps around it run at the card's own pace. 0, the default, means no wait.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_file_bytes_set_write_from_latency_ms(ms: u32) {
+    WRITE_FROM_LATENCY_MS.store(ms, Ordering::Relaxed);
+}
+
 // ── The request entry points ────────────────────────────────────────────────
 
 /// Requests a whole-file read of `path` (up to [`MAX_BYTES`]).
@@ -1143,8 +1195,8 @@ pub extern "C" fn deluge_file_bytes_holds(buffer: *const core::ffi::c_void) -> b
 /// A queued or in-flight operation always makes the channel busy. An uncollected answer does not,
 /// or a caller that gave up mid-poll would wedge the channel for everyone: a publish displaces it,
 /// and its owner reads UNKNOWN and asks again. The exception is a [`non_idempotent`] answer stamped
-/// for this card, whose rerun would misreport: it refuses new requests, up to
-/// [`PROTECTED_ANSWER_REFUSALS`] of them.
+/// for this card, whose rerun would misreport: it refuses new requests for up to
+/// [`PROTECTED_ANSWER_SPAN`].
 ///
 /// `payload` (empty for every kind but the two buffered writes) is copied into the request buffer
 /// in the same lock hold that stores the request, so the task never takes a request without its
@@ -1162,7 +1214,7 @@ fn enqueue_request(request: ByteRequest, payload: &[u8]) -> bool {
     // retried.
     let admitted = RESULT
         .try_lock()
-        .is_ok_and(|mut result| result.admits_new_request(generation));
+        .is_ok_and(|mut result| result.admits_new_request(generation, Instant::now()));
     if !admitted {
         return false;
     }
@@ -1714,11 +1766,21 @@ fn probe_with<R>(
     let Ok(mut result) = RESULT.try_lock() else {
         return Probe::Pending;
     };
+    let held_someone_off = result.has_refused();
     // The generation is read here, at the take: the collector's view of the card now in the slot,
     // which decides an answer's fate whether or not the flush managed to take this lock.
     match take_from(&mut result, op, path, crate::storage::card::generation()) {
         // `ready` runs with the guard held, so it reads the bytes published with this entry.
-        ByteTake::Ready(outcome) => Probe::Ready(ready(outcome, result_bytes(&mut result))),
+        ByteTake::Ready(outcome) => {
+            let probed = Probe::Ready(ready(outcome, result_bytes(&mut result)));
+            drop(result);
+            if held_someone_off {
+                // The answer refused another caller, which now waits for a wake; the channel is
+                // free once this returns.
+                crate::app_loop::wake(crate::app_loop::WAKE_STORAGE);
+            }
+            probed
+        }
         ByteTake::Absent => Probe::Unknown,
     }
 }
@@ -2157,13 +2219,19 @@ async fn file_bytes_task_body() {
     loop {
         while let Some(taken) = take_next_request(work).await {
             let Some((request, generation)) = taken else {
+                // Dropped unrun (an earlier card's request); IN_FLIGHT was never set for it, but
+                // `mark_in_flight(None)` still wakes the app for this drop.
+                mark_in_flight(None).await;
                 note_progress();
                 continue;
             };
             // After the take, so a collect during the wait answers PENDING, as for a slow card.
             #[cfg(feature = "host_app")]
             {
-                let ms = LATENCY_MS.load(Ordering::Relaxed);
+                let mut ms = LATENCY_MS.load(Ordering::Relaxed);
+                if request.key().0 == ByteOp::WriteFrom {
+                    ms = ms.saturating_add(WRITE_FROM_LATENCY_MS.load(Ordering::Relaxed));
+                }
                 if ms > 0 {
                     embassy_time::Timer::after_millis(u64::from(ms)).await;
                 }
@@ -2217,11 +2285,16 @@ async fn take_next_request(work: &mut [u8; MAX_BYTES]) -> Option<Option<(ByteReq
 }
 
 /// Records (or clears) the operation running right now. The task sets it while still holding the
-/// `REQUEST` lock.
+/// `REQUEST` lock. Clearing it wakes the app (`DELUGE_WAKE_STORAGE`): the operation's result, or
+/// its absence, is visible once this returns.
 ///
 /// Public so the host tests, which do not run the task, can drive the collects' in-flight branch.
 pub async fn mark_in_flight(entry: Option<(ByteOp, BytesPath)>) {
+    let done = entry.is_none();
     *IN_FLIGHT.lock().await = entry;
+    if done {
+        crate::app_loop::wake(crate::app_loop::WAKE_STORAGE);
+    }
 }
 
 /// Publishes one finished operation into `RESULT`, stamped with the card generation it began
@@ -2288,5 +2361,6 @@ abi_pin!(
 #[cfg(feature = "host_app")]
 abi_pin!(
     deluge_file_bytes_set_latency_ms,
-    deluge_file_bytes_set_chunk_latency_ms
+    deluge_file_bytes_set_chunk_latency_ms,
+    deluge_file_bytes_set_write_from_latency_ms
 );

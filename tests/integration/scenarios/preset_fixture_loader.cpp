@@ -19,7 +19,13 @@
 
 #include "gui/views/session_view.h"
 #include "model/instrument/instrument.h"
+#include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
+#include "modulation/params/param_manager.h"
+#include "processing/sound/sound_instrument.h"
+#include "processing/source.h"
+#include "storage/audio/audio_file_holder.h"
+#include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
@@ -77,6 +83,32 @@ Clip* createNewInstrumentClip(OutputType outputType, int32_t yDisplay, const cha
 		return nullptr;
 	}
 	return sessionView.createNewInstrumentClipAcquired(outputType, yDisplay, &acquired);
+}
+
+bool writeSampleSynthPreset(const char* path, const char* samplePath) {
+	ParamManagerForTimeline paramManager;
+	Instrument* instrument = StorageManager::createNewInstrument(OutputType::SYNTH, &paramManager);
+	if (instrument == nullptr) {
+		return false;
+	}
+	auto* synth = static_cast<SoundInstrument*>(instrument);
+	synth->setupAsBlankSynth(&paramManager, false);
+	synth->sources[0].setOscType(OscType::SAMPLE);
+	MultiRange* range = synth->sources[0].getOrCreateFirstRange();
+	AudioFileHolder* holder = (range != nullptr) ? range->getAudioFileHolder() : nullptr;
+	if (holder == nullptr) {
+		return false;
+	}
+	holder->filePath = samplePath;
+	currentSong->backUpParamManager(static_cast<ModControllableAudio*>(instrument->toModControllable()), nullptr,
+	                                &paramManager, true);
+	if (StorageManager::createXMLFile(path, smSerializer, /*mayOverwrite=*/true, /*displayErrors=*/false)
+	    != Error::NONE) {
+		return false;
+	}
+	instrument->writeToFile(nullptr, currentSong);
+	return GetSerializer().closeFileAfterWriting(path, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n", "\n</sound>\n")
+	       == Error::NONE;
 }
 
 } // namespace deluge::harness

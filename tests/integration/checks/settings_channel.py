@@ -14,8 +14,8 @@ while counting every settings operation that began on the interaction tier.
     SC-UNLINK     a MIDI device table with nothing worth keeping removes its file through the channel.
     SC-PERF       performance view's defaults, read after boot, are read through the channel.
     SC-OVERSIZE   a settings write over that bound is refused after boot: counted, not written, not dispatched.
-    SC-BUSY       a settings write refused behind a long copy that keeps making progress -- refused on more ticks
-                  than the stall bound -- waits for it and lands, rather than giving up on a channel that is busy.
+    SC-BUSY       a settings write refused behind a long copy that keeps making progress -- held for longer than
+                  the stall bound -- waits for it and lands, rather than giving up on a channel that is busy.
     SC-FALLBACK   a busy channel queues -- nothing a burst submits is refused.
     SC-CHANNEL    the channel SERVED operations. The byte channel has no feature switch, so there is no second build
                   to compare against; this counter is what says the async arm ran rather than merely compiled -- a

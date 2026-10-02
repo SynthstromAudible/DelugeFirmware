@@ -28,11 +28,14 @@
 #include "scenarios/container_guard_scenario.h"
 #include "scenarios/document_save_channel_scenario.h"
 #include "scenarios/favourites_channel_scenario.h"
+#include "scenarios/idle_job_rates_scenario.h"
+#include "scenarios/load_cancel_scenario.h"
 #include "scenarios/load_policy_scenario.h"
 #include "scenarios/offset_io_scenario.h"
 #include "scenarios/path_operations_scenario.h"
 #include "scenarios/pattern_load_scenario.h"
 #include "scenarios/preset_load_scenario.h"
+#include "scenarios/recorder_take_scenario.h"
 #include "scenarios/render_preset_scenario.h"
 #include "scenarios/render_song_scenario.h"
 #include "scenarios/sample_claim_scenario.h"
@@ -45,9 +48,16 @@
 #include "scenarios/song_save_channel_scenario.h"
 #include "scenarios/sound_lifetime_scenario.h"
 #include "scenarios/staging_release_scenario.h"
+#include "scenarios/stale_ui_scenario.h"
 #include "scenarios/startup_failsafe_scenario.h"
+#include "scenarios/ui_timer_deadline_scenario.h"
 
+#include "playback/render_requests.h"
+
+#include <array>
 #include <cstring>
+#include <iterator>
+#include <utility>
 
 namespace {
 
@@ -80,6 +90,12 @@ constexpr DelugeScenario kScenarios[] = {
     {"favourites_channel", nullptr, &deluge_scenario_favourites_channel_begin,
      &deluge_scenario_favourites_channel_complete, &deluge_scenario_favourites_channel_dispatch_step,
      &deluge_scenario_favourites_channel_step_done, &deluge_scenario_favourites_channel_failures},
+    {"idle_job_rates", nullptr, &deluge_scenario_idle_job_rates_begin, &deluge_scenario_idle_job_rates_complete,
+     &deluge_scenario_idle_job_rates_dispatch_step, &deluge_scenario_idle_job_rates_step_done,
+     &deluge_scenario_idle_job_rates_failures},
+    {"load_cancel", nullptr, &deluge_scenario_load_cancel_begin, &deluge_scenario_load_cancel_complete,
+     &deluge_scenario_load_cancel_dispatch_step, &deluge_scenario_load_cancel_step_done,
+     &deluge_scenario_load_cancel_failures},
     {"load_policy", nullptr, &deluge_scenario_load_policy_begin, &deluge_scenario_load_policy_complete,
      &deluge_scenario_load_policy_dispatch_step, &deluge_scenario_load_policy_step_done,
      &deluge_scenario_load_policy_failures},
@@ -95,6 +111,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"preset_load", nullptr, &deluge_scenario_preset_load_begin, &deluge_scenario_preset_load_complete,
      &deluge_scenario_preset_load_dispatch_step, &deluge_scenario_preset_load_step_done,
      &deluge_scenario_preset_load_failures},
+    {"recorder_take", nullptr, &deluge_scenario_recorder_take_begin, &deluge_scenario_recorder_take_complete,
+     &deluge_scenario_recorder_take_dispatch_step, &deluge_scenario_recorder_take_step_done,
+     &deluge_scenario_recorder_take_failures},
     {"render_preset", nullptr, &deluge_scenario_render_preset_begin, &deluge_scenario_render_preset_complete,
      &deluge_scenario_render_preset_dispatch_step, &deluge_scenario_render_preset_step_done,
      &deluge_scenario_render_preset_failures},
@@ -131,15 +150,37 @@ constexpr DelugeScenario kScenarios[] = {
     {"staging_release", nullptr, &deluge_scenario_staging_release_begin, &deluge_scenario_staging_release_complete,
      &deluge_scenario_staging_release_dispatch_step, &deluge_scenario_staging_release_step_done,
      &deluge_scenario_staging_release_failures},
+    {"stale_ui", nullptr, &deluge_scenario_stale_ui_begin, &deluge_scenario_stale_ui_complete,
+     &deluge_scenario_stale_ui_dispatch_step, &deluge_scenario_stale_ui_step_done, &deluge_scenario_stale_ui_failures},
     {"startup_failsafe", nullptr, &deluge_scenario_startup_failsafe_begin, &deluge_scenario_startup_failsafe_complete,
      &deluge_scenario_startup_failsafe_dispatch_step, &deluge_scenario_startup_failsafe_step_done,
      &deluge_scenario_startup_failsafe_failures},
+    {"ui_timer_deadline", nullptr, &deluge_scenario_ui_timer_deadline_begin,
+     &deluge_scenario_ui_timer_deadline_complete, &deluge_scenario_ui_timer_deadline_dispatch_step,
+     &deluge_scenario_ui_timer_deadline_step_done, &deluge_scenario_ui_timer_deadline_failures},
 };
+
+/// A step is an interaction-tier entry into the app, as an app-loop job is: like deluge_app_service(), it first
+/// does what the render has asked of the interaction tier (deluge::playback::applyRenderRequests()).
+template <std::size_t I>
+void dispatchStepAsInteractionEntry() {
+	deluge::playback::applyRenderRequests();
+	kScenarios[I].dispatchStep();
+}
+
+template <std::size_t... I>
+constexpr std::array<DelugeScenario, sizeof...(I)> withInteractionEntries(std::index_sequence<I...>) {
+	return {DelugeScenario{kScenarios[I].name, kScenarios[I].onAppInit, kScenarios[I].begin, kScenarios[I].complete,
+	                       &dispatchStepAsInteractionEntry<I>, kScenarios[I].stepDone, kScenarios[I].failures}...};
+}
+
+/// The rows the driver is given.
+constexpr auto kEntries = withInteractionEntries(std::make_index_sequence<std::size(kScenarios)>{});
 
 } // namespace
 
 extern "C" const DelugeScenario* deluge_scenario_find(const char* name) {
-	for (const DelugeScenario& scenario : kScenarios) {
+	for (const DelugeScenario& scenario : kEntries) {
 		if (std::strcmp(scenario.name, name) == 0) {
 			return &scenario;
 		}

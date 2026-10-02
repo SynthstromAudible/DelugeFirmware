@@ -152,6 +152,7 @@ static_assert(offsetof(DelugeAudioLoadResult, geometry) == 0);
 static_assert(offsetof(DelugeAudioLoadResult, size_bytes) == 40);
 static_assert(offsetof(DelugeAudioLoadResult, alternate_path) == 48);
 static_assert(offsetof(DelugeAudioLoadResult, error) == 304);
+static_assert(offsetof(DelugeAudioLoadResult, candidates_key) == 308);
 
 // The remaining values the Rust side hand-duplicates from this header. DELUGE_PATH_MAX is also the
 // stride of the candidate buffer and the width of DelugeAudioLoadResult::alternate_path, so a change
@@ -420,6 +421,20 @@ uint32_t candidates(const AudioLoadContext* context, std::string_view filePath, 
 	} catch (...) {
 		return DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED; // `out` is not trustworthy either way.
 	}
+}
+
+uint32_t candidatesKey(const char* candidates, uint32_t numCandidates) noexcept {
+	// 32-bit FNV-1a over each slot's path and its NUL, so a list and the same paths split differently hash apart.
+	uint32_t hash = 0x811C9DC5u;
+	const auto mix = [&hash](unsigned char byte) { hash = (hash ^ byte) * 0x01000193u; };
+	for (uint32_t i = 0; i < numCandidates; i++) {
+		const char* slot = candidates + (static_cast<size_t>(i) * DELUGE_PATH_MAX);
+		for (size_t j = 0; j < DELUGE_PATH_MAX && slot[j] != '\0'; j++) {
+			mix(static_cast<unsigned char>(slot[j]));
+		}
+		mix(0);
+	}
+	return (hash != 0) ? hash : 1;
 }
 
 Error bindReadStream(SampleBuild* build, std::string_view path) noexcept {

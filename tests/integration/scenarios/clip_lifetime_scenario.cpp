@@ -82,8 +82,8 @@ constexpr int32_t kNote = 60;
 /// The render block the scenario drives. Nothing else renders here: the golden harness skips the audio task's own
 /// render once boot has finished, and the internal clock's ticks are actioned inside the render.
 constexpr uint32_t kRenderBlockFrames = 128;
-/// Blocks rendered with the clip playing before its deletion (at least), and after it: one per step, so the scheduler's
-/// tasks (the retirement's reclaim among them) run between them.
+/// Blocks rendered with the clip playing before its deletion (at least), and after it: one per step, so the app
+/// loop's jobs (the retirement's reclaim among them) run between them.
 constexpr int32_t kBlocksBefore = 8;
 constexpr int32_t kBlocksAfter = 8;
 /// The most blocks rendered waiting for the render to action a timer tick of this playback past tick 0.
@@ -1014,8 +1014,8 @@ bool songLegOver() {
 /// before it deletes the old song), then a MIDI note arrives on the DIN port and is let go of. A regression guard for
 /// "the clear or load left currentSong null or pointing at the old song" -- it runs after the operation returns. It is
 /// not evidence about the wait inside it: that no interaction task runs while currentSong is null holds by
-/// construction (awaitRetired() runs no scheduler; on this harness the render step runs inline), and nothing here can
-/// observe that window.
+/// construction (awaitRetired() runs no app-loop pass; on this harness the render step runs inline), and nothing here
+/// can observe that window.
 void runInteractionAfterLoad() {
 	g_step = "uiTimer";
 	uiTimerManager.setTimer(TimerName::PLAY_ENABLE_FLASH, 0);
@@ -1321,11 +1321,12 @@ Leg firstLeg() {
 	return Leg::Done;
 }
 
-/// EPOCH0: Create New Song at boot, before the scheduler has run the render task once. epoch= is how many blocks the
+/// EPOCH0: Create New Song at boot, before the audio tier has rendered a block. epoch= is how many blocks the
 /// render has begun: 1, the block boot itself renders inline from setupBlankSong() (setUIForLoadedSong() -> the
-/// audio routine, before the render task exists), which is also where the first Song appears -- so epoch 0 with a song
-/// to clear is never reachable. With nothing scheduling the render, the clear's bounded wait for the old song to be
-/// freed must drive the render itself and return, with nothing left waiting, rather than hang.
+/// audio routine, before the audio tier is driving the render), which is also where the first Song appears -- so
+/// epoch 0 with a song to clear is never reachable. With the audio tier not yet driving the render, the clear's
+/// bounded wait for the old song to be freed must drive the render itself and return, with nothing left waiting,
+/// rather than hang.
 void runEpoch0() {
 	g_leg = Leg::Epoch0;
 	const auto epoch = static_cast<unsigned long long>(AudioEngine::renderDomain().audio_epoch());

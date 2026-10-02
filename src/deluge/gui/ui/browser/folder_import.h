@@ -22,6 +22,7 @@
 #include "model/sample/pitch_scan.h"
 #include "model/sample/recorder_write_policy.h" // UnproductiveSpan
 #include "model/sample/sample_holder.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/latest_sample_load.h"
 
 #include <cstdint>
@@ -49,11 +50,12 @@ struct FolderImportRequest {
 /// @brief The sample browser's folder import: every audio file in a folder, as a kit's drums or a synth's multisample
 ///        ranges.
 ///
-/// A phase machine on the interaction tier, advanced by request() and by routine() from its own repeating task. One
-/// directory-channel open lists the folder's audio filenames; each file then loads in turn through
-/// LatestSampleLoad on a scratch holder, and the machine keeps the sample with a reason of its own. For Multisamples,
-/// every pitch detection, including the correction pass's re-detections, is a PitchScan ticked here, which never waits
-/// for the card. Sorting, the corrections' arithmetic and every model change happen on this tier; the finishes are the
+/// A phase machine on the interaction tier, advanced by request() and by routine() from its own job, which runs when an
+/// import is asked for, when a storage channel answers, and at the time the wait it is on asks for (see armNextRun()).
+/// One directory-channel open lists the folder's audio filenames; each file then loads in turn through LatestSampleLoad
+/// on a scratch holder, and the machine keeps the sample with a reason of its own. For Multisamples, every pitch
+/// detection, including the correction pass's re-detections, is a PitchScan ticked here, which never waits for the
+/// card. Sorting, the corrections' arithmetic and every model change happen on this tier; the finishes are the
 /// importers' own bodies.
 ///
 /// request() closes UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES with the "Working" animation; the import releases it, if
@@ -69,8 +71,12 @@ public:
 	/// @brief Abandon an import: drop a detection in progress, release its samples and its gate, and go idle.
 	void cancel();
 
-	/// @brief Advance the import as far as it can go without waiting. Called by the "folder import" repeating task.
+	/// @brief Advance the import as far as it can go without waiting, then ask for the job's next run. Called by the
+	///        "folder import" job.
 	void routine();
+
+	/// @brief The job routine() runs on, woken by DELUGE_WAKE_STORAGE.
+	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
 
 	/// @brief Whether an import is in flight.
 	[[nodiscard]] bool inFlight() const { return phase_ != Phase::Idle; }
@@ -124,6 +130,10 @@ private:
 	void settleSortArea();
 	/// @brief Remove this import's reason from every sample it kept, and free the sort area.
 	void releaseSamples();
+	/// @brief Ask for the job's next run for the wait the import stopped on: the listing's open (at once before it is
+	///        asked for, then its bound's end), the load's next tick, or a pitch detection's re-check. An idle import
+	///        asks for none.
+	void armNextRun();
 	/// @brief End with @p error: release the samples, show the error, and end unsuccessfully.
 	void abort(Error error);
 	/// @brief Release the gate and the animation, go idle, and tell the completion @p success.

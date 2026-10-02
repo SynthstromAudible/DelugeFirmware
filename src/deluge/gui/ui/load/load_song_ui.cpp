@@ -32,6 +32,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "libdeluge/file_prefix.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -53,7 +54,10 @@
 #include "util/try.h"
 #include <libdeluge/scheduler.h>
 
+#include <algorithm>
 #include <array>
+#include <atomic>
+#include <cmath>
 #include <cstdint>
 #include <span>
 #include <string.h>
@@ -209,6 +213,18 @@ void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 	PadLEDs::sendOutSidebarColours();
 }
 
+namespace {
+/// @brief The completion of a load the user asked for: with LASTOPENED, record the song in the settings file.
+///
+/// Only a load that brought a song in records one. The current song after any other ending is the one that was
+/// already there, or a blank stand-in after a failure, and neither is a song the user just opened.
+void recordLastOpened(SongLoadOutcome outcome) {
+	if (outcome == SongLoadOutcome::Loaded && FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+		runtimeFeatureSettings.writeSettingsToFile();
+	}
+}
+} // namespace
+
 void LoadSongUI::enterKeyPress() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -228,11 +244,7 @@ void LoadSongUI::enterKeyPress() {
 		// Start the load and return: loadRoutine() advances it from the run loop, and it parks at each
 		// point it has to wait, so this handler never blocks. The post-load settings
 		// write travels with it as the completion.
-		beginLoad([]() {
-			if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-				runtimeFeatureSettings.writeSettingsToFile();
-			}
-		});
+		beginLoad(recordLastOpened);
 	}
 }
 
@@ -251,10 +263,14 @@ void LoadSongUI::displayLoopsRemainingPopup() {
 	}
 }
 
-ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	if (listingInProgress_) {
+		// BACK still cancels a load that is staging; the listing carries on either way.
+		if (b == BACK && on && !currentUIMode) {
+			(void)cancelLoad();
+		}
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -265,27 +281,11 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	if ((b == LOAD) || (b == SELECT_ENC)) {
 		if (on) {
 			if (!currentUIMode) {
-				if (inCardRoutine) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
-
 				enterKeyPress();
 			}
 		}
 		else {
-			// If all essential samples are already loaded, we can arm right away
-			if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
-				bool result = session.armForSongSwap();
-
-				// If arming couldn't really be done, and song has already swapped...
-				if (!result) {
-					currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
-				}
-				else {
-					currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
-					displayArmedPopup();
-				}
-			}
+			(void)loadButtonAction(b, on);
 		}
 	}
 	else if (b == KEYBOARD && on) {
@@ -298,10 +298,37 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 		}
 	}
 	else {
-		return LoadUI::buttonAction(b, on, inCardRoutine);
+		return LoadUI::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
+}
+
+ActionResult LoadSongUI::loadButtonAction(deluge::hid::Button b, bool on) {
+	using namespace deluge::hid::button;
+	if (b != LOAD && b != SELECT_ENC) {
+		return ActionResult::NOT_DEALT_WITH;
+	}
+	// Released with every essential sample loaded: the swap the load is waiting on can be armed.
+	if (!on && currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
+		// Not armable, because the song has already swapped...
+		if (!session.armForSongSwap()) {
+			currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
+		}
+		else {
+			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
+			displayArmedPopup();
+		}
+	}
+	return ActionResult::DEALT_WITH;
+}
+
+void LoadSongUI::armedSelectEncoderAction(int8_t offset) {
+	if (currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
+		return;
+	}
+	session.numRepeatsTilLaunch = std::clamp<int32_t>(session.numRepeatsTilLaunch + offset, 1, 9999);
+	displayLoopsRemainingPopup();
 }
 
 bool LoadSongUI::isLoadingSong() {
@@ -359,10 +386,8 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 				AudioEngine::logAction("beginLoad");
 				// See enterKeyPress. The completion owns the post-load settings write AND the
 				// UI-mode reset, so there is nothing left to do here.
-				beginLoad([]() {
-					if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-						runtimeFeatureSettings.writeSettingsToFile();
-					}
+				beginLoad([](SongLoadOutcome outcome) {
+					recordLastOpened(outcome);
 					currentUIMode = UI_MODE_NONE;
 				});
 				return;
@@ -375,7 +400,7 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	currentUIMode = UI_MODE_NONE;
 }
 
-void LoadSongUI::endLoad() {
+void LoadSongUI::endLoad(SongLoadOutcome outcome) {
 	essentialLoad_.reset();
 	restLoad_.reset();
 	loadPhase_ = LoadPhase::NONE;
@@ -390,15 +415,15 @@ void LoadSongUI::endLoad() {
 	stagingWait_.reset();
 
 	// Cleared before the call so a completion that starts another load doesn't inherit this one's.
-	void (*onComplete)() = loadOnComplete_;
+	void (*onComplete)(SongLoadOutcome) = loadOnComplete_;
 	loadOnComplete_ = nullptr;
 	if (onComplete != nullptr) {
-		onComplete();
+		onComplete(outcome);
 	}
 }
 
 // Before calling this, you must set loadButtonReleased.
-void LoadSongUI::beginLoad(void (*onComplete)()) {
+void LoadSongUI::beginLoad(void (*onComplete)(SongLoadOutcome)) {
 	// The browser stays live and interactive for the whole of STAGE, which for a large song is many
 	// ticks. enterKeyPress() calls straight in here, and only queueLoadNextSongIfAvailable() checks
 	// this flag on the way. A second ENTER would re-enter, find stagingPath_ already pinned, and carry
@@ -433,9 +458,11 @@ void LoadSongUI::beginLoad(void (*onComplete)()) {
 	loadPhase_ = LoadPhase::STAGE;
 
 	// Attempt it once here rather than waiting for the next loadRoutine() pass. Boot loads the startup
-	// song before the repeating tasks are running, so a beginLoad() that only parked would never be
+	// song before the jobs are running, so a beginLoad() that only parked would never be
 	// picked up and the device would sit at the splash screen forever.
 	runStageSegment();
+	// The run above may have been made outside the loop's pass, where a time it asked for wakes nothing.
+	deluge::runtime::appLoop.request(jobId);
 }
 
 /// @brief Fill @ref songStaging_ from the card, a tick at a time, then move the load on to BEGIN.
@@ -454,7 +481,7 @@ void LoadSongUI::runStageSegment() {
 		if (Browser::isListingInProgress() || item == nullptr) {
 			if (stagingWait_.tick()) {
 				display->displayError(Error::FILE_NOT_FOUND);
-				endLoad();
+				endLoad(SongLoadOutcome::NotLoaded);
 			}
 			return;
 		}
@@ -473,7 +500,7 @@ void LoadSongUI::runStageSegment() {
 		activeDeserializer = stagingPrevious_;
 		releaseSongStaging();
 		display->displayError(Error::FILE_CORRUPTED);
-		endLoad();
+		endLoad(SongLoadOutcome::NotLoaded);
 		return;
 
 	case StorageManager::StagedOpen::Opened:
@@ -492,6 +519,58 @@ void LoadSongUI::releaseSongStaging() {
 }
 
 void LoadSongUI::loadRoutine() {
+	runPhase();
+	armNextRun();
+}
+
+void LoadSongUI::armNextRun() {
+	using deluge::runtime::appLoop;
+	const uint64_t now = deluge::runtime::nowUs();
+	uint64_t next = deluge::runtime::kNever;
+	switch (loadPhase_) {
+	case LoadPhase::NONE:
+		return;
+	case LoadPhase::STAGE:
+		if (stagingPath_.empty()) {
+			// Waiting for the browser's listing.
+			next = std::min(stagingWait_.deadlineUs(), now + kRecheckUs);
+		}
+		else {
+			next = StorageManager::stagingNextRunUs(songStaging_);
+		}
+		break;
+	case LoadPhase::BEGIN:
+	case LoadPhase::ARM:
+		next = 0;
+		break;
+	case LoadPhase::ESSENTIAL:
+		next = essentialLoad_.has_value() ? essentialLoad_->nextTickUs() : 0;
+		break;
+	case LoadPhase::SETTLE: {
+		// settleDeadline_ is on getSystemTime(), the clock the app loop's is rounded from: round up past it.
+		const uint64_t deadline = static_cast<uint64_t>(std::ceil(settleDeadline_ * 1'000'000.0)) + 1;
+		next = std::min(deadline, now + kRecheckUs);
+		break;
+	}
+	case LoadPhase::AWAIT_ARM:
+		next = now + kRecheckUs;
+		if (restLoad_.has_value()) {
+			next = std::min(next, restLoad_->nextTickUs());
+		}
+		break;
+	case LoadPhase::FINISH:
+		next = restLoad_.has_value() ? restLoad_->nextTickUs() : 0;
+		break;
+	}
+	if (next == 0) {
+		appLoop.request(jobId);
+	}
+	else if (next != deluge::runtime::kNever) {
+		appLoop.requestAt(jobId, next);
+	}
+}
+
+void LoadSongUI::runPhase() {
 	switch (loadPhase_) {
 	case LoadPhase::NONE:
 		return;
@@ -542,8 +621,6 @@ void LoadSongUI::loadRoutine() {
 }
 
 void LoadSongUI::runBeginSegment() {
-	actionLogger.deleteAllLogs();
-
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
@@ -562,9 +639,16 @@ void LoadSongUI::runBeginSegment() {
 		activeDeserializer = stagingPrevious_;
 		releaseSongStaging();
 		display->displayError(Error::FILE_CORRUPTED);
-		endLoad();
+		endLoad(SongLoadOutcome::NotLoaded);
 		return;
 	}
+
+	// Every UI is about to be taken down, and none will hear the releases of pads still held: end each held gesture
+	// now, through the UIs that started it, while the song it plays is still alive. Before the mode below, which
+	// would hide an audition from the release that ends it, and before the undo history goes: a release can record an
+	// action (a tap on a note deletes it), and none may outlive the song it would revert.
+	matrixDriver.noPressesHappening();
+	actionLogger.deleteAllLogs();
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -582,8 +666,9 @@ void LoadSongUI::runBeginSegment() {
 		deleteOldSongBeforeLoadingNew();
 	}
 	else {
-		// Note: this is dodgy, but in this case we don't reset view.activeControllableClip here - we let the user keep
-		// fiddling with it. It won't get deleted.
+		// The view keeps the playing song's mod controllable, so the knobs go on adjusting the song that is still
+		// playing -- until the swap, whose interaction side lets go of it (deluge::playback::songSwappedOut()) before
+		// FINISH frees it.
 		AudioEngine::logAction("arming for song swap");
 		AudioEngine::songSwapAboutToHappen();
 		AudioEngine::logAction("song swap armed");
@@ -621,10 +706,19 @@ fail:
 			setupBlankSong();
 			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 		}
+		// Otherwise the old song survived (a load during playback deletes it only once the swap is done), but its UIs
+		// were taken down above: put its root UI back, or nothing would take input again. No swap is coming to replace
+		// it, so the render's reverb update may walk it again.
+		else {
+			currentSong->soundsDeletedForSwap.store(false, std::memory_order_release);
+			if (uiStackEmpty()) {
+				setUIForLoadedSong(currentSong);
+			}
+		}
 
 		display->removeWorkingAnimation();
 		currentUIMode = UI_MODE_NONE;
-		endLoad();
+		endLoad(SongLoadOutcome::NotLoaded);
 		return;
 	}
 
@@ -765,6 +859,13 @@ void LoadSongUI::tickRest() {
 }
 
 void LoadSongUI::runFinishSegment() {
+	// The swap's interaction side let go of the knobs (deluge::playback::songSwappedOut()); nothing is under them until
+	// the new song's UI is up, so the panel must not go on showing the old song's values. Here rather than at the swap,
+	// which an armed launch runs on the audio tier.
+	indicator_leds::clearKnobIndicatorLevels();
+	for (auto led : indicator_leds::modLed) {
+		indicator_leds::setLedState(led, false);
+	}
 	// To override our popup if we did one. (Still necessary?)
 	deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 	// The swap's been done and the first tick of the new song has been done; any samples wanting data
@@ -773,6 +874,10 @@ void LoadSongUI::runFinishSegment() {
 	// Delete the old song
 	AudioEngine::logAction("deleting old song");
 	if (loadToDelete_ != nullptr) {
+		// No action may outlive the song it would revert. The knobs went on adjusting the outgoing song until the swap,
+		// and a handler the render preempted at the swap finished on it; the empty UI stack keeps the action logger
+		// from recording any of that, and this keeps it so whatever the logger's own rule becomes.
+		actionLogger.deleteAllLogs();
 		// Handed to the render, which lets go of it before it is freed.
 		AudioEngine::retire(loadToDelete_);
 		// Wait until it is freed: the retry below loads samples into the RAM the old song gives back.
@@ -807,7 +912,7 @@ void LoadSongUI::tickFinish() {
 
 	display->removeWorkingAnimation();
 
-	endLoad();
+	endLoad(SongLoadOutcome::Loaded);
 }
 
 ActionResult LoadSongUI::timerCallback() {
@@ -918,15 +1023,7 @@ void LoadSongUI::beginPreviewScrollIn(int32_t movementDirection) {
 void LoadSongUI::selectEncoderAction(int8_t offset) {
 
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-		session.numRepeatsTilLaunch += offset;
-		if (session.numRepeatsTilLaunch < 1) {
-			session.numRepeatsTilLaunch = 1;
-		}
-		else if (session.numRepeatsTilLaunch > 9999) {
-			session.numRepeatsTilLaunch = 9999;
-		}
-		// renderUIsForOled();
-		displayLoopsRemainingPopup();
+		armedSelectEncoderAction(offset);
 	}
 
 	else {
@@ -973,16 +1070,13 @@ goAgain:
 	}
 }
 
-ActionResult LoadSongUI::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult LoadSongUI::verticalEncoderAction(int32_t offset) {
 	if (!currentUIMode && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC) && !Buttons::isShiftButtonPressed()
 	    && offset < 0) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		exitAction(); // Exit if your scroll down
 	}
 	if (Buttons::isShiftButtonPressed()) {
-		return LoadUI::verticalEncoderAction(offset, false);
+		return LoadUI::verticalEncoderAction(offset);
 	}
 	return ActionResult::DEALT_WITH;
 }
@@ -1009,7 +1103,34 @@ void LoadSongUI::exitAction() {
 	timerCallback();
 }
 
+deluge::gui::CancelResult LoadSongUI::cancelLoad() {
+	using deluge::gui::CancelResult;
+	switch (loadPhase_) {
+	case LoadPhase::NONE:
+		return CancelResult::Stale;
+	case LoadPhase::STAGE:
+		// The staged bytes are all the load holds, and the deserializer is not pointed at them until the phase
+		// ends, so endLoad()'s release is the whole of the undo.
+		display->removeWorkingAnimation();
+		endLoad(SongLoadOutcome::NotLoaded);
+		return CancelResult::Cancelled;
+	default:
+		return CancelResult::Refused;
+	}
+}
+
 ActionResult LoadSongUI::backButtonAction() {
+	// BACK while a load is in flight means that load, not the browser: dropped while it is still staging, and
+	// otherwise ignored, since leaving the browser or relisting its folder under a load would pull the UI out from
+	// under it.
+	switch (cancelLoad()) {
+	case deluge::gui::CancelResult::Cancelled:
+	case deluge::gui::CancelResult::Refused:
+		return ActionResult::DEALT_WITH;
+	case deluge::gui::CancelResult::Stale:
+		break;
+	}
+
 	// Back either leaves the browser or goes up a directory. Either way the song this was hovering is
 	// no longer the selection, and neither outcome asks for a replacement preview to supersede one
 	// already being read -- the same shape as the folder branch in drawSongPreview(). Going up
@@ -1226,9 +1347,6 @@ ActionResult LoadSongUI::padAction(int32_t x, int32_t y, int32_t on) {
 	// If QWERTY not visible yet, make it visible now
 	if (!qwertyVisible) {
 		if (on && !currentUIMode) {
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			qwertyVisible = true;
 			displayText(false); // This will also draw the QWERTY keys
 

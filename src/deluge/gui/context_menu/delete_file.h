@@ -44,9 +44,9 @@ public:
 	/// Each of these could take the menu away before the channel answers. They are refused while a delete is pending,
 	/// as a save screen refuses input mid-save.
 	/// @{
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	void selectEncoderAction(int8_t offset) override;
 	ActionResult exitUI() override;

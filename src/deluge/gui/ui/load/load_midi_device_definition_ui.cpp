@@ -173,7 +173,7 @@ void LoadMidiDeviceDefinitionUI::enterKeyPress() {
 	     .definition = {.path = fileName, .instrument = (MIDIInstrument*)getCurrentOutput()}});
 }
 
-ActionResult LoadMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult LoadMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 	// Refused while a definition is in flight: InstrumentLoad closes the browser's gate until it ends.
 	if (deluge::gui::instrumentLoad.commitInFlight()) {
@@ -194,7 +194,7 @@ ActionResult LoadMidiDeviceDefinitionUI::buttonAction(deluge::hid::Button b, boo
 			}
 		}
 
-		return LoadUI::buttonAction(b, on, inCardRoutine);
+		return LoadUI::buttonAction(b, on);
 	}
 }
 

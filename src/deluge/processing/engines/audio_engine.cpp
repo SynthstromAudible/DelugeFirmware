@@ -56,6 +56,7 @@
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "playback/render_requests.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
@@ -169,47 +170,11 @@ void letGoOfSound(Sound& sound) {
 	AudioEngine::sounds.remove(&sound);
 }
 
-/// Point the view's active ModControllable model stack at nothing.
-void clearViewModelStack() {
-	view.activeModControllableModelStack.modControllable = nullptr;
-	view.activeModControllableModelStack.setTimelineCounter(nullptr);
-	view.activeModControllableModelStack.paramManager = nullptr;
-}
-
-/// [interaction] or [render] Stop the view's active ModControllable model stack naming @p clip. Compares only.
+/// [interaction] Stop the view's active ModControllable model stack naming @p clip. Dereferences nothing.
 void clearViewIfClip(Clip const* clip) {
 	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-		clearViewModelStack();
+		view.releaseActiveModControllable();
 	}
-}
-
-/// Whether the view's active ModControllable model stack names anything @p song owns: the song itself, one of its
-/// clips, or one of its outputs as the ModControllable. Walks only what the song owns -- its clip arrays and output
-/// lists -- and compares; it follows none of the song's per-clip reference fields (currentClip, syncScalingClip,
-/// beingRecordedFromClip), which may name clips already freed.
-bool viewNamesSong(Song* song) {
-	ModelStackWithThreeMainThings& stack = view.activeModControllableModelStack;
-	TimelineCounter const* counter = stack.getTimelineCounterAllowNull();
-	if (counter == song || stack.modControllable == &song->globalEffectable) {
-		return true;
-	}
-	for (ClipArray const* array : {&song->sessionClips, &song->arrangementOnlyClips}) {
-		for (Clip const* clip : *array) {
-			if (counter == clip) {
-				return true;
-			}
-		}
-	}
-	if (stack.modControllable != nullptr) {
-		for (Output* first : {song->firstOutput, static_cast<Output*>(song->firstHibernatingInstrument)}) {
-			for (Output* output = first; output != nullptr; output = output->next) {
-				if (stack.modControllable == output->toModControllable()) {
-					return true;
-				}
-			}
-		}
-	}
-	return false;
 }
 
 /// [render] Drop every reference the render keeps from block to block to a retired clip. The caller already unlinked
@@ -218,7 +183,8 @@ bool viewNamesSong(Song* song) {
 /// is the catch for what the render itself may have written between the retire and this let-go: another clip's
 /// beingRecordedFromClip and syncScalingClip (the recording ticks), and currentClip (session.cpp's new-recording
 /// hand-over). Only the current song is looked at: the render reaches clips through currentSong alone, and a song that
-/// is no longer current takes its references with it.
+/// is no longer current takes its references with it. The view's active stack needs no catch: only the interaction
+/// tier writes it, and retire() applied the render's requests for it before clearing it.
 void letGoOfClip(Clip* clip) {
 	if (currentSong != nullptr) {
 		if (currentSong->getCurrentClip() == clip) {
@@ -235,14 +201,13 @@ void letGoOfClip(Clip* clip) {
 			}
 		}
 	}
-	clearViewIfClip(clip);
 }
 
 /// [render] Let go of a retired song: end the voices of, and deregister, every Sound of every output it owns (its
-/// main and hibernating lists, as Song::deleteAllOutputs() walks them), then drop the view's reference to it or to
-/// anything it owns. AudioEngine::retire(Song*) already dropped that reference on the interaction tier; this is the
-/// catch. The song is no longer current, so the render reaches none of its clips through currentSong; its own
-/// currentClip, syncScalingClip and beingRecordedFromClip fields are left alone -- they may name clips already freed.
+/// main and hibernating lists, as Song::deleteAllOutputs() walks them). AudioEngine::retire(Song*) already dropped the
+/// view's reference to it on the interaction tier, the only tier that writes it. The song is no longer current, so
+/// the render reaches none of its clips through currentSong; its own currentClip, syncScalingClip and
+/// beingRecordedFromClip fields are left alone -- they may name clips already freed.
 void letGoOfSong(Song* song) {
 	// A song can hold hundreds of Sounds (every drum of every kit), and this runs inside one block. Taking each out of
 	// the registry on its own would scan the registry once per Sound; mark them instead, then take every marked one
@@ -273,9 +238,6 @@ void letGoOfSong(Song* song) {
 	}
 	if (anyMarked) {
 		AudioEngine::sounds.remove_if([](Sound const* sound) { return sound->letGoWithSong; });
-	}
-	if (viewNamesSong(song)) {
-		clearViewModelStack();
 	}
 }
 
@@ -365,6 +327,7 @@ void handOver(RetireRequest r, void* object, void (*destroy)(void*)) {
 	r.sequence = ++retireSequencePushed;
 	pushOrOverflow(r);
 	retireList.retire(object, destroy, r.sequence);
+	deluge::runtime::appLoop.request(AudioEngine::reclaimJob);
 }
 
 /// [render] The render's block-start lifetime step: advance the epoch, then let go of everything retired since the
@@ -520,7 +483,7 @@ bool doMonitoring;
 MonitoringAction monitoringAction;
 
 deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
-TaskID routine_task_id = -1;
+std::atomic<bool> renderDrivenByTier{false};
 
 // You must set up dynamic memory allocation before calling this, because of its call to setupWithPatching()
 void init() {
@@ -574,6 +537,8 @@ void killAllVoices(bool deletingSong) {
 void songSwapAboutToHappen() {
 	// Otherwise, a timer might get called and try to access Clips that we may have deleted below
 	uiTimerManager.unsetTimer(TimerName::PLAY_ENABLE_FLASH);
+	// Before the deletion, so the render's reverb update never walks the outputs while they go.
+	currentSong->soundsDeletedForSwap.store(true, std::memory_order_release);
 	logAction("a1");
 	currentSong->deleteSoundsWhichWontSound();
 	logAction("a2");
@@ -731,14 +696,9 @@ void routineWithClusterLoading() {
 }
 
 void runRoutine() {
-	// check if we've setup the audio routine task
-	if (routine_task_id != -1) [[likely]] {
-		// run AudioEngine::routine() task so that scheduler is aware
-		runTask(AudioEngine::routine_task_id);
-	}
-	// otherwise call audio routine directly (necessary otherwise Deluge freezes on boot)
-	else {
-		ignoreForStats();
+	// Once the audio tier drives the render it runs on its own cadence and preempts this caller, and
+	// rendering here too would run two renders at once. Before that, during boot, render here.
+	if (!renderDrivenByTier.load(std::memory_order_acquire)) {
 		routine();
 	}
 }
@@ -830,7 +790,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(getAverageRunTimeForTask(routine_task_id) * 44100.);
+	auto dspTime = (int32_t)(deluge_audio_render_time_average() * 44100.);
 	size_t nonDSP = numSamples - dspTime;
 	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
 	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
@@ -884,7 +844,6 @@ void flushMIDIGateBuffers();
 void renderAudio(size_t numSamples);
 void renderAudioForStemExport(size_t numSamples);
 void dumpAudioLog();
-bool calledFromScheduler = false;
 
 static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t frames);
 
@@ -900,6 +859,10 @@ extern "C" void deluge_app_render_skipped(void) noexcept {
 	try {
 		// The render's own work, excluded like a rendered block (see deluge_app_render()).
 		AudioExcludedSection renderBlock;
+#if defined(DELUGE_HOST)
+		View::RenderBlockStackWatch stackWatch;
+		deluge::playback::RenderBlockInteractionWatch interactionWatch;
+#endif
 		renderRetirementStep();
 	} catch (...) {
 		// Nothing to report to: whatever this step did not let go of stays retired, and the next block's step takes it.
@@ -913,6 +876,12 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	// the device's guarantee: an interaction-tier structural edit to a container the render walks (each runs in its
 	// own section) and a render block never overlap.
 	AudioExcludedSection renderBlock;
+#if defined(DELUGE_HOST)
+	// For the harness: whether this block changed the view's active model stack, or other state only the interaction
+	// tier may write.
+	View::RenderBlockStackWatch stackWatch;
+	deluge::playback::RenderBlockInteractionWatch interactionWatch;
+#endif
 	// Marks this thread as rendering, for the host's count of the render's heap allocations (it must make none).
 	struct RenderBlockMark {
 		RenderBlockMark() { deluge::memory::noteRenderBlock(true); }
@@ -1065,6 +1034,19 @@ extern "C" void deluge_app_render(const DelugeStereoSample* in, DelugeStereoSamp
 		if (out != nullptr) {
 			memset(out, 0, frames * sizeof(DelugeStereoSample));
 		}
+	}
+}
+
+extern "C" bool deluge_app_audio_tick() noexcept {
+	try {
+		return AudioEngine::routine_task();
+	} catch (...) {
+		// routine() may have thrown after setting audioRoutineLocked and before clearing it; left set,
+		// that reentrancy guard would make every future tick return false and silence audio for good.
+		// Clear it here so the next tick renders. Nothing else to report to: this tick counts as one
+		// that rendered nothing.
+		AudioEngine::audioRoutineLocked = false;
+		return false;
 	}
 }
 
@@ -1473,35 +1455,28 @@ void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWh
 	}
 }
 
-void routine_task() {
+bool routine_task() {
 	// An offline export owns the rendering: it drives routine() itself, as fast as it can, and the
 	// block count per call is what decides how rendering interleaves with the cluster loader and the
-	// recorder's write-out. A second, scheduler-paced caller rendering into the same recorder changes
-	// that interleaving and so changes the exported audio. There is also nothing for this task to do -
-	// an offline render is by definition not paced by the real-time clock.
+	// recorder's write-out. A second, tier-paced caller rendering into the same recorder changes that
+	// interleaving and so changes the exported audio.
 	if (stemExport.renderingOffline()) {
-		ignoreForStats();
-		return;
+		return false;
 	}
-
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
-		ignoreForStats();
-		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
-		        // called from within this!
+		return false;
 	}
-	calledFromScheduler = true;
-	routine();
-	calledFromScheduler = false;
+	return routine() > 0;
 }
-void routine() {
+uint32_t routine() {
 
 	logAction("AudioDriver::routine");
 
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
-		return; // Prevents this from being called again from inside any e.g. memory allocation routines that get
-		        // called from within this!
+		return 0; // Prevents this from being called again from inside any e.g. memory allocation routines that get
+		          // called from within this!
 	}
 
 	audioRoutineLocked = true;
@@ -1518,72 +1493,67 @@ void routine() {
 #endif
 
 	numRoutines = 0;
+	uint32_t renders = 0;
 	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
 		// The BSP flushes previously-rendered audio toward the DAC and calls
 		// deluge_app_render() for as many new frames as its pacing policy asks.
-		uint32_t renders = deluge_audio_drive();
-		if (renders == 0 && calledFromScheduler) {
-			ignoreForStats();
-		}
+		renders = deluge_audio_drive();
 	}
 	else {
-		if (!isSDRoutineActive()) {
-			// An offline render is by definition NOT paced by real time, so the work done per
-			// audioRoutine call must never be bounded by the wall clock: the block count per call
-			// must not depend on host speed, host load, or how long the work inside each iteration
-			// happens to take. That count decides how rendering interleaves with the cluster loader,
-			// the SD routine and the recorder's cluster write-out, which decides eviction and
-			// underrun behaviour, which changes the rendered audio -- fragile enough that adding a
-			// bare fprintf to an unrelated translation unit could tip a call's block count and flip a
-			// fixture's rendered payload.
-			//
-			// So the batch is bounded by a fixed block count. Do not reintroduce any time-based bound
-			// here (the real-time branch above is the one that legitimately paces off the clock).
-			//
-			// The batch is still a batch - the point of looping is to amortise the surrounding
-			// machinery (the loader pump and the slow/recorder routines run between audioRoutine
-			// calls, see StemExport::renderWait) rather than pay it per 32 frames. The size is one
-			// output-buffer quantum, SSI_TX_BUFFER_NUM_SAMPLES frames: the same amount of audio the
-			// real-time path produces per driver pass, so the offline cadence matches the one the rest
-			// of the engine is built around - and now it is identical on every host and on the device.
-			constexpr size_t kOfflineFramesPerBlock = 32;
-			constexpr int32_t kOfflineBlocksPerRoutine = SSI_TX_BUFFER_NUM_SAMPLES / kOfflineFramesPerBlock;
-			for (int32_t block = 0; block < kOfflineBlocksPerRoutine; ++block) {
-				size_t numSamples = kOfflineFramesPerBlock;
-				tickSongFinalizeWindows(numSamples);
+		// An offline render is by definition NOT paced by real time, so the work done per
+		// audioRoutine call must never be bounded by the wall clock: the block count per call
+		// must not depend on host speed, host load, or how long the work inside each iteration
+		// happens to take. That count decides how rendering interleaves with the cluster loader,
+		// the SD routine and the recorder's cluster write-out, which decides eviction and
+		// underrun behaviour, which changes the rendered audio -- fragile enough that adding a
+		// bare fprintf to an unrelated translation unit could tip a call's block count and flip a
+		// fixture's rendered payload.
+		//
+		// So the batch is bounded by a fixed block count. Do not reintroduce any time-based bound
+		// here (the real-time branch above is the one that legitimately paces off the clock).
+		//
+		// The batch is still a batch - the point of looping is to amortise the surrounding
+		// machinery (the loader pump and the slow/recorder routines run between audioRoutine
+		// calls, see StemExport::renderWait) rather than pay it per 32 frames. The size is one
+		// output-buffer quantum, SSI_TX_BUFFER_NUM_SAMPLES frames: the same amount of audio the
+		// real-time path produces per driver pass, so the offline cadence matches the one the rest
+		// of the engine is built around - and now it is identical on every host and on the device.
+		constexpr size_t kOfflineFramesPerBlock = 32;
+		constexpr int32_t kOfflineBlocksPerRoutine = SSI_TX_BUFFER_NUM_SAMPLES / kOfflineFramesPerBlock;
+		for (int32_t block = 0; block < kOfflineBlocksPerRoutine; ++block) {
+			size_t numSamples = kOfflineFramesPerBlock;
+			tickSongFinalizeWindows(numSamples);
 
-				numSamplesLastTime = numSamples;
-				renderAudioForStemExport(numSamples);
-				sideChainHitPending = 0;
-				audioSampleTimer += numSamples;
-				// Drains the just-rendered block to any OUTPUT-mode recorder
-				// and keeps the DAC fed (deluge_app_render's offline path).
-				deluge_audio_drive();
+			numSamplesLastTime = numSamples;
+			renderAudioForStemExport(numSamples);
+			sideChainHitPending = 0;
+			audioSampleTimer += numSamples;
+			// Drains the just-rendered block to any OUTPUT-mode recorder
+			// and keeps the DAC fed (deluge_app_render's offline path).
+			deluge_audio_drive();
 
-				// Write out the recorder's completed clusters so they can't be stolen. There's no recorder at all
-				// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
-				// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
-				// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
-				SampleRecorder* recorder = audioRecorder.recorder;
-				if (recorder != nullptr) {
-					// Each call writes at most one cluster, and we don't render (so can't produce new ones) until
-					// the drain finishes. The slack covers calls that return without reaching this recorder at all:
-					// doRecorderCardRoutines() abandons its traversal whenever a recorder was recently created.
-					int32_t callsRemaining =
-					    recorder->currentRecordClusterIndex - recorder->firstUnwrittenClusterIndex + 8;
+			// Write out the recorder's completed clusters so they can't be stolen. There's no recorder at all
+			// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
+			// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
+			// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
+			SampleRecorder* recorder = audioRecorder.recorder;
+			if (recorder != nullptr) {
+				// Each call writes at most one cluster, and we don't render (so can't produce new ones) until
+				// the drain finishes. The slack covers calls that return without reaching this recorder at all:
+				// doRecorderCardRoutines() abandons its traversal whenever a recorder was recently created.
+				int32_t callsRemaining = recorder->currentRecordClusterIndex - recorder->firstUnwrittenClusterIndex + 8;
 
-					while (callsRemaining-- > 0) {
-						if (recorder->hadCardError || recorder->status >= RecorderStatus::COMPLETE
-						    || recorder->firstUnwrittenClusterIndex >= recorder->currentRecordClusterIndex) {
-							break;
-						}
+				while (callsRemaining-- > 0) {
+					if (recorder->hadCardError || recorder->status >= RecorderStatus::COMPLETE
+					    || recorder->firstUnwrittenClusterIndex >= recorder->currentRecordClusterIndex) {
+						break;
+					}
 
-						doRecorderCardRoutines();
+					doRecorderCardRoutines();
 
-						// doRecorderCardRoutines() can finish and free recorders - don't trust the pointer after it
-						if (audioRecorder.recorder != recorder) {
-							break;
-						}
+					// doRecorderCardRoutines() can finish and free recorders - don't trust the pointer after it
+					if (audioRecorder.recorder != recorder) {
+						break;
 					}
 				}
 			}
@@ -1591,6 +1561,7 @@ void routine() {
 	}
 	audioRoutineLocked = false;
 	routineBeenCalled = true;
+	return renders;
 }
 
 int32_t getNumSamplesLeftToOutputFromPreviousRender() {
@@ -1775,8 +1746,8 @@ void updateReverbParams() {
 	// If reverb sidechain on "auto" settings...
 	if (reverbSidechainVolume < 0) {
 
-		// Just leave everything as is if parts deleted cos loading new song
-		if (loadSongUI.isLoadingSong() && loadSongUI.deletedPartsOfOldSong) {
+		// Just leave everything as is while the current song's parts are deleted ahead of a swap to a new one
+		if (currentSong->soundsDeletedForSwap.load(std::memory_order_acquire)) {
 			return;
 		}
 
@@ -2055,11 +2026,6 @@ void requestRecorderCardRoutines() {
 }
 
 void slowRoutine() {
-	if (isSDRoutineActive()) {
-		// can happen if the SD routine is yielding
-		return;
-	}
-
 	// Re-align the input stream's latency window if an audio glitch (or
 	// start-up) made us miss a whole output-ring cycle. Ring geometry is the
 	// board's business; skipped input simply never reaches the input ring.
@@ -2138,10 +2104,10 @@ errorAfterAllocation:
 // THIS recorder's own cardRoutine() suspended mid-transfer" -- the two differ, since filesystem work is serialised but
 // not attributed to a caller, and nothing on the BSP tracks the second. A busy signal here is informative, not proof
 // this recorder is the one suspended, so log it rather than freeze a beta build on what may be an unrelated
-// operation. (isSDRoutineActive() is always false on Embassy; see scheduler.rs.)
+// operation.
 void discardRecorder(SampleRecorder* recorder) {
-	if (ALPHA_OR_BETA_VERSION && (isSDRoutineActive() || deluge::sync::sd_busy())) {
-		D_PRINTLN("discardRecorder: isSDRoutineActive()/sd_busy() was true on entry");
+	if (ALPHA_OR_BETA_VERSION && deluge::sync::sd_busy()) {
+		D_PRINTLN("discardRecorder: sd_busy() was true on entry");
 	}
 
 	int32_t count = 0;
@@ -2213,7 +2179,9 @@ void retire(Clip* clip) {
 	// The references the interaction tier itself reads and writes are cleared here, at once, as ~Clip() used to: no
 	// handler that runs before the render's next block may see the retired (detached, possibly output-less) clip as
 	// the current clip or the view's active one, nor copy it somewhere nothing clears. letGoOfClip() is the catch for
-	// what the render writes itself before it lets go.
+	// what the render writes itself before it lets go. The render's requests are applied first, so none is left naming
+	// this clip (a recording moved on to it, or from it) once it is freed.
+	deluge::playback::applyRenderRequests();
 	if (currentSong != nullptr) {
 		if (currentSong->getCurrentClip() == clip) {
 			currentSong->setCurrentClip(nullptr);
@@ -2238,11 +2206,12 @@ void retire(Song* song) {
 	// First, so a stream of retires frees what earlier ones handed over.
 	reclaimRetired();
 	// As retire(Clip*): the view's active model stack is the one reference the interaction tier's own handlers read
-	// that may still name the old song or something it owns (an armed swap leaves it on the old song's clip). Drop it
-	// now, so no handler running before the render's next block reaches the old song through it. letGoOfSong() is the
-	// catch.
-	if (viewNamesSong(song)) {
-		clearViewModelStack();
+	// that may still name the old song or something it owns (an armed swap on the render only asks for it to be
+	// dropped). Apply what the render asked for, then drop it, so no handler reaches the old song through it and no
+	// request is left naming the song once it is freed.
+	deluge::playback::applyRenderRequests();
+	if (view.activeModControllableNamesSong(song)) {
+		view.releaseActiveModControllable();
 	}
 	handOver(RetireRequest{.song = song}, song, [](void* p) {
 		auto* s = static_cast<Song*>(p);
@@ -2318,6 +2287,15 @@ uint32_t retireDrainMicrosMax(bool reset) {
 	             : retireDrainMicrosMax_.load(std::memory_order_relaxed);
 }
 #endif
+
+deluge::runtime::JobId reclaimJob = deluge::runtime::kNoJob;
+
+void reclaimRoutine() {
+	reclaimRetired();
+	if (retiredPending() > 0) {
+		deluge::runtime::appLoop.requestAt(reclaimJob, deluge::runtime::nowUs() + kReclaimRecheckUs);
+	}
+}
 
 std::size_t retiredPending() {
 	// Every retired object not yet destroyed is in the list, whether or not its request has reached the render.

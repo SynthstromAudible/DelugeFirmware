@@ -12,7 +12,6 @@ What the checks cover (tests/integration/scenarios/sample_load_tree_scenario.cpp
                 - The audio clip's sample stays resident and is claimed by the load's memory-only pass.
                 - Each preset's sample resolves to the preset's own folder, with its path rewritten there.
     SLT-CLIP    the audio clip's name after the load is its sample's path.
-    SLT-KIT     an abort raised after the kit preset's first drum binds stops the load: the second drum stays empty.
     SLT-SONG / SLT-SYNTH / SLT-KIT
                 how many times each load called routineWithClusterLoading, the cadence that keeps audio running.
     LT          the load trace: one line per call into the traced leaf functions, while a load runs.
@@ -20,9 +19,11 @@ What the checks cover (tests/integration/scenarios/sample_load_tree_scenario.cpp
                 clips need first), that its armed swap happened, and every holder bound to its collected copy after.
     LTC         the crucial load's trace, kept apart from LT so the LT lines stay comparable with earlier runs.
     SLT-ASYNC   each load again through the async sample load, ticked from the interaction tier with every file it binds
-                dropped from memory first: SLTSONG2's crucial and full walks, the synth preset, and the kit preset with
-                its abort. Each must end as its blocking load did, with no sample read from the card on the interaction
-                tier. Then the song twice more: with the folder's exists probe held until every sample request has
+                dropped from memory first: SLTSONG2's crucial and full walks, the synth preset, and the kit preset. The
+                first three must end as their blocking loads did. The kit's load is dropped after its first drum binds,
+                as a cancelled preset load is: only that drum may be bound, with one lease on its file and no file built
+                for the other, and the loader keeps no answer for either, even once every request it left has answered. No load may read a sample from the card on
+                the interaction tier. Then the song twice more: with the folder's exists probe held until every sample request has
                 come back (each miss must wait for it), and with the card ejected while the probe is out (the load must
                 end on the unusable card, and a second load on the same context must bind everything once the card is
                 back, never taking the old card's answer for the new card's). And the synth preset with the loader held
@@ -30,6 +31,9 @@ What the checks cover (tests/integration/scenarios/sample_load_tree_scenario.cpp
                 second load must bind the preset's sample once the hold is lifted. Last, a song load dropped with its
                 folder probe still out, and a load of only its wavetable on the same context: the wavetable must still
                 bind to its collected copy, with no sample left to collect the answer.
+                And the kit's second drum, loaded on a context that has learnt the kit's folder after a load of the
+                same drum on no context was dropped with its request out: it must bind to its copy in the kit's folder,
+                not take the dropped request's miss as its own.
 
 The registry entry requires each marker and the result line. This module runs the scenario itself so that, pass or
 fail, it can write the run's traces out.
@@ -59,7 +63,7 @@ def run(gate):
         if line.startswith("SLT-") or re.match(r"TIER-SYNC(-AT)? ", line):
             gate.say(line)
     gate.say(
-        "PASS — every holder resolved where the fixture put its file, the abort stopped the kit load, and the"
+        "PASS — every holder resolved where the fixture put its file, the dropped kit load bound no more, and the"
     )
     gate.say(
         "       audio clip kept its sample's name; a load while playing bound only what the playing clips need"

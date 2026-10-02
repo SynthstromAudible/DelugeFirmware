@@ -75,7 +75,6 @@
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"
-#include "sync/storage_op.h"
 #include "util/c_string.h"
 #include "util/cfunctions.h"
 #include "util/etl_string.h"
@@ -199,7 +198,7 @@ void SessionView::focusRegained() {
 	}
 }
 
-ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
 
 	// when stem export process has started,
@@ -211,10 +210,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	OutputType newOutputType;
 
 	if (currentUIMode == UI_MODE_CREATING_CLIP) {
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
-		return clipCreationButtonPressed(b, on, inCardRoutine);
+		return clipCreationButtonPressed(b, on);
 	}
 
 	// Clip-view button
@@ -223,9 +219,6 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		if (on
 		    && ((currentUIMode == UI_MODE_NONE) || (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && isGridView))
 		    && playbackHandler.recording != RecordingMode::ARRANGEMENT) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 			transitionToViewForClip(); // May fail if no currentClip
 		}
 	}
@@ -238,9 +231,6 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 #else
 	else if (b == SESSION_VIEW && !Buttons::isShiftButtonPressed()) {
 #endif
-		if (inCardRoutine) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-		}
 		bool lastSessionButtonActiveState = sessionButtonActive;
 		sessionButtonActive = on;
 
@@ -413,9 +403,6 @@ moveAfterClipInstance:
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_EXPORT_STEMS));
 				}
 				else {
-					if (inCardRoutine) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
 					stemExport.startStemExportProcess(StemExportType::CLIP);
 					return ActionResult::DEALT_WITH;
 				}
@@ -485,10 +472,6 @@ moveAfterClipInstance:
 				return ActionResult::DEALT_WITH;
 			}
 
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			Clip* clip = getClipForLayout();
 
 			if (clip != nullptr) {
@@ -502,10 +485,6 @@ moveAfterClipInstance:
 	// Select encoder button
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on) {
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
-
 			if (currentUIMode == UI_MODE_HOLDING_SECTION_PAD) {
 				if (performActionOnSectionPadRelease) {
 					beginEditingSectionRepeatsNum();
@@ -565,10 +544,6 @@ changeOutputType:
 			if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 				return ActionResult::DEALT_WITH;
-			}
-
-			if (inCardRoutine) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
 			Clip* clip = getClipForLayout();
@@ -696,7 +671,7 @@ doActualSimpleChange:
 	}
 	else {
 notDealtWith:
-		return TimelineView::buttonAction(b, on, inCardRoutine);
+		return TimelineView::buttonAction(b, on);
 	}
 
 	return ActionResult::DEALT_WITH;
@@ -791,10 +766,6 @@ holdingRecord:
 							return ActionResult::DEALT_WITH;
 						}
 
-						if (isSDRoutineActive()) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-						}
-
 						int32_t clipIndex = yDisplay + currentSong->songViewYScroll + 1;
 
 						// If source clip currently recording, arm it to stop (but not if tempoless recording)
@@ -847,9 +818,6 @@ holdingRecord:
 					// If it's a pending overdub, delete it
 					else if (clip->isPendingOverdub) {
 removePendingOverdub:
-						if (isSDRoutineActive()) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Possibly not quite necessary...
-						}
 
 						removeClip(getClipOnScreen(yDisplay));
 						session.justAbortedSomeLinearRecording();
@@ -870,9 +838,6 @@ removePendingOverdub:
 
 					if (Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
 						return ActionResult::DEALT_WITH;
-					}
-					if (isSDRoutineActive()) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
 					// if (possiblyCreatePendingNextOverdub(clipIndex, OverdubType::EXTENDING)) return
@@ -900,10 +865,17 @@ removePendingOverdub:
 					// The dispatch itself carries no answer, so this returns ActionResult::DEALT_WITH
 					// regardless.
 					//
-					// The pad is down right now on BOTH paths, so the held marker is set for both: the
-					// synchronous one cannot see a release in between, so it always finds it true and
-					// enters the held mode.
-					newTrackPressHeld_ = true;
+					// The pad is down right now on BOTH paths, so the press is marked held for both: the
+					// synchronous one cannot see a release in between, so it always finds it held and
+					// enters the held mode. What it replaces is kept, for a refused dispatch to put back.
+					const NewTrackPress pressBefore = newTrackPress_;
+					const int32_t pressXBefore = newTrackPressX_;
+					const int32_t pressYBefore = newTrackPressY_;
+					const uint32_t pressTimeBefore = newTrackPressTime_;
+					newTrackPress_ = NewTrackPress::Held;
+					newTrackPressX_ = xDisplay;
+					newTrackPressY_ = yDisplay;
+					newTrackPressTime_ = AudioEngine::audioSampleTimer;
 					if (toCreate == OutputType::SYNTH || toCreate == OutputType::KIT) {
 						deluge::storage::PresetRequest request{
 						    .consumer = deluge::storage::PresetConsumer::SessionNewTrack,
@@ -917,11 +889,15 @@ removePendingOverdub:
 						    .shiftHeld = Buttons::isShiftButtonPressed(),
 						    .dirPath = getInstrumentFolder(toCreate),
 						};
-						// A dropped gesture creates nothing, which is what the pad already showed. The held
-						// marker outliving it is harmless: only completeNewTrack() reads it, and the next
-						// new-track press sets it afresh before dispatching. See
+						// A refused gesture creates nothing, which is what the pad already showed, and its press
+						// must not stand in for the one still waiting on its own completion. See
 						// dispatchPresetAcquisition()'s doc.
-						(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+						if (!loadInstrumentPresetUI.dispatchPresetAcquisition(request)) {
+							newTrackPress_ = pressBefore;
+							newTrackPressX_ = pressXBefore;
+							newTrackPressY_ = pressYBefore;
+							newTrackPressTime_ = pressTimeBefore;
+						}
 						return ActionResult::DEALT_WITH;
 					}
 					completeNewTrack(toCreate, xDisplay, yDisplay, clipIndex, Buttons::isShiftButtonPressed());
@@ -939,10 +915,6 @@ removePendingOverdub:
 						return ActionResult::DEALT_WITH;
 					}
 
-					if (isSDRoutineActive()) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-					}
-
 					actionLogger.deleteAllLogs();
 					cloneClip(selectedClipYDisplay, yDisplay);
 					goto justEndClipPress;
@@ -954,9 +926,6 @@ removePendingOverdub:
 
 					// AudioClip
 					if (clip->type == ClipType::AUDIO) {
-						if (isSDRoutineActive()) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-						}
 						if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
 							view.endMIDILearn();
 						}
@@ -969,9 +938,6 @@ removePendingOverdub:
 					else {
 midiLearnMelodicInstrumentAction:
 
-						if (isSDRoutineActive()) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-						}
 						view.instrumentMidiLearnPadPressed(on, (Instrument*)clip->output);
 					}
 				}
@@ -989,18 +955,16 @@ midiLearnMelodicInstrumentAction:
 					    ->endStutter((ParamManagerForTimeline*)view.activeModControllableModelStack.paramManager);
 				}
 
+				// A song load releases held pads before it takes the UIs down; the tap must not enter a clip then.
 				if (performActionOnPadRelease && xDisplay == selectedClipPressXDisplay
-				    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime) {
+				    && AudioEngine::audioSampleTimer - selectedClipTimePressed < kShortPressTime
+				    && !loadSongUI.isLoadingSong()) {
 
 					// Not allowed if recording arrangement
 					if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
 						display->displayPopup(
 						    deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
 						goto justEndClipPress;
-					}
-
-					if (isSDRoutineActive()) {
-						return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 					}
 
 					// Enter Clip
@@ -1013,12 +977,6 @@ midiLearnMelodicInstrumentAction:
 				else {
 					if (yDisplay == selectedClipPressYDisplay && xDisplay == selectedClipPressXDisplay) {
 justEndClipPress:
-						if (isSDRoutineActive()) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // If in card routine, might mean
-							                                                     // it's still loading an Instrument
-							                                                     // they selected,
-						}
-
 						// check if we just created a clip and whether we changed the clip type before releasing the
 						// press
 						if (createClip) {
@@ -1042,29 +1000,22 @@ justEndClipPress:
 				}
 			}
 
-			// In all other cases, then if also inside card routine, do get it to remind us after. Especially
-			// important because it could be that the user has actually pressed down on a pad, that's caused a new
-			// clip to be created and preset to load, which is still loading right now, but the uiMode hasn't been
-			// set to "holding down" yet and control hasn't been released back to the user, and this is the user
-			// releasing their press, so we definitely want to be reminded of this later after the above has
-			// happened.
+			// Any other release.
 			else {
-				if (isSDRoutineActive()) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
-				// Only NOW is this release actually being consumed. The pad that may have started a
-				// deferred new-track acquisition is up, so completeNewTrack() must not enter the
-				// held-clip mode when it eventually runs -- nothing would ever leave it (see
-				// newTrackPressHeld_'s doc). Deliberately BELOW the reminder above: while the card is
-				// busy -- which is exactly the acquisition's own window -- padAction() is re-delivered
-				// once it finishes, by which time the completion has entered the held mode and the
-				// quick-tap "enter the clip" shortcut still works. Clearing before that check would
-				// throw the shortcut away for nothing.
+				// The pad that may have started a deferred new-track acquisition is up, so completeNewTrack()
+				// must not enter the held-clip mode when it eventually runs -- nothing would ever leave it (see
+				// newTrackPress_'s doc). Let go within a tap's length, it is kept as the tap it would have
+				// been on an existing clip, timed the same way as the branch above. Only that pad's own
+				// release counts: another pad's leaves it held.
 				//
-				// Not cleared in the two branches above either: reaching them means either the
-				// completion has already run (it clears the marker itself on every path) or another
+				// Not touched in the two branches above either: reaching them means either the
+				// completion has already run (it resets the state itself on every path) or another
 				// gesture owns the UI mode.
-				newTrackPressHeld_ = false;
+				if (newTrackPress_ == NewTrackPress::Held && xDisplay == newTrackPressX_
+				    && yDisplay == newTrackPressY_) {
+					const bool tap = AudioEngine::audioSampleTimer - newTrackPressTime_ < kShortPressTime;
+					newTrackPress_ = tap ? NewTrackPress::Tapped : NewTrackPress::None;
+				}
 			}
 		}
 	}
@@ -1074,9 +1025,6 @@ justEndClipPress:
 
 		if (playbackHandler.playbackState && currentPlaybackMode == &arrangement) {
 			if (currentUIMode == UI_MODE_NONE) {
-				if (isSDRoutineActive()) {
-					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-				}
 				playbackHandler.switchToSession();
 			}
 		}
@@ -1113,9 +1061,6 @@ justEndClipPress:
 
 					switch (currentUIMode) {
 					case UI_MODE_MIDI_LEARN:
-						if (isSDRoutineActive()) {
-							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-						}
 						view.sectionMidiLearnPadPressed(on, clip->section);
 						break;
 
@@ -1462,7 +1407,7 @@ ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 	return ClipNavigationTimelineView::horizontalEncoderAction(offset);
 }
 
-ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
+ActionResult SessionView::verticalEncoderAction(int32_t offset) {
 
 	if (currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 		currentSong->commandTranspose(offset);
@@ -1470,10 +1415,6 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 	else if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
 	         || currentUIMode == UI_MODE_VIEWING_RECORD_ARMING
 	         || getCurrentUI() == &deluge::gui::context_menu::midiLearnMode) {
-
-		if (inCardRoutine && !deluge::sync::user_actions_permitted()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
-		}
 
 		// Change row colour by pressing row & shift - same shortcut as in clip view.
 		if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW
@@ -1492,9 +1433,6 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 
 		if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 			// For safety, is used in verticalScrollOneSquare on clip copy
-			if (isSDRoutineActive()) {
-				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-			}
 
 			return gridHandleScroll(0, offset);
 		}
@@ -1540,10 +1478,6 @@ ActionResult SessionView::verticalScrollOneSquare(int32_t direction) {
 			if (oldIndex <= 0) {
 				return ActionResult::DEALT_WITH;
 			}
-		}
-
-		if (isSDRoutineActive()) {
-			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
 		actionLogger.deleteAllLogs();
@@ -1759,9 +1693,14 @@ void SessionView::beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yD
 void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex,
                                    bool shiftHeld, const deluge::storage::AcquireResult* acquired) {
 	Clip* clip = createNewInstrumentClip(type, yDisplay, acquired);
+	// The press state is this gesture's only if it was made on this gesture's pad: a later new-track press, queued
+	// behind this one, overwrites it, and is left for its own completion. Ours is over whatever happens below.
+	NewTrackPress press = NewTrackPress::None;
+	if (xDisplay == newTrackPressX_ && yDisplay == newTrackPressY_) {
+		press = newTrackPress_;
+		newTrackPress_ = NewTrackPress::None;
+	}
 	if (!clip) {
-		// The gesture is over: nothing was created, so nothing will be held.
-		newTrackPressHeld_ = false;
 		return;
 	}
 
@@ -1783,18 +1722,35 @@ void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yD
 	selectedClipYDisplay = clipIndex - currentSong->songViewYScroll;
 	requestRendering(this, 0, 1 << selectedClipYDisplay);
 
-	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-		// Only enter the held mode if the pad is still down. On the dispatched path the release can
-		// already have been consumed while the acquisition was in flight, and nothing would ever leave
-		// a held mode entered after it (see newTrackPressHeld_'s doc). The synchronous path always
-		// finds it set, so it always enters the held mode too.
-		if (newTrackPressHeld_) {
-			newTrackPressHeld_ = false;
-			beginHoldingClipPress(clip, xDisplay, yDisplay);
-		}
+	if (currentSong->sessionLayout != SessionLayoutType::SessionLayoutTypeRows) {
+		return;
 	}
-	else {
-		newTrackPressHeld_ = false;
+	// Only enter the held mode if the pad is still down. On the dispatched path the release can already have been
+	// consumed while the acquisition was in flight, and nothing would ever leave a held mode entered after it (see
+	// newTrackPress_'s doc). The synchronous path always finds it held, so it always enters the held mode too.
+	switch (press) {
+	case NewTrackPress::None:
+		return;
+	case NewTrackPress::Held:
+		beginHoldingClipPress(clip, xDisplay, yDisplay);
+		return;
+	case NewTrackPress::Tapped:
+		// Only onto an idle song view: a gesture made since the release owns the UI now, and the clip is just made.
+		if (getCurrentUI() != this || currentUIMode != UI_MODE_NONE) {
+			return;
+		}
+		// What the press and its quick release would have done had the clip been there: hold it, then the
+		// quick-release branch of padAction().
+		beginHoldingClipPress(clip, xDisplay, yDisplay);
+		if (playbackHandler.recording == RecordingMode::ARRANGEMENT) {
+			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RECORDING_TO_ARRANGEMENT));
+			createClip = false;
+			clipPressEnded();
+			return;
+		}
+		transitionToViewForClip(clip);
+		createClip = false;
+		return;
 	}
 }
 
@@ -2482,9 +2438,8 @@ bool SessionView::setupScroll(uint32_t oldScroll) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
 		return false;
 	}
-	// Ok I'm sorta pretending that this is definitely previously false, though only one caller of this function
-	// actually checks for that. Should be ok-ish though...
-	pendingUIRenderingLock = true;
+	// The lock is a flag, not a count: holding it here assumes no render already holds it.
+	ReentryLockHold hold{pendingUIRenderingLock};
 
 	uint32_t xZoom = currentSong->xZoom[NAVIGATION_CLIP];
 
@@ -2516,8 +2471,6 @@ noTransition:
 			PadLEDs::transitionTakingPlaceOnRow[yDisplay] = false;
 		}
 	}
-
-	pendingUIRenderingLock = false;
 
 	return anyMoved;
 }
@@ -2639,7 +2592,7 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	return true;
 }
 
-// Returns false if can't because in card routine
+// Returns false if the clip's row could not be fully rendered.
 bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
                             uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	Clip* clip = getClipOnScreen(yDisplay);
@@ -2940,7 +2893,6 @@ void SessionView::transitionToSessionView() {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 }
 
-// Might be called during card routine! So renders might fail. Not too likely
 void SessionView::finishedTransitioningHere() {
 	AudioEngine::routineWithClusterLoading();
 
@@ -4031,9 +3983,6 @@ void SessionView::gridToggleClipPlay(Clip* clip, bool instant) {
 ActionResult SessionView::gridHandlePads(int32_t x, int32_t y, int32_t on) {
 	// Except for the path to sectionPadAction in the original function all paths contained this check. Can probably
 	// be refactored
-	if (isSDRoutineActive()) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION || currentUIMode == UI_MODE_IMPLODE_ANIMATION
 	    || loadSongUI.isLoadingSong()) {
@@ -4254,7 +4203,7 @@ void SessionView::setupTrackCreation() const { // start clip creation, blink LED
 	openUI(&context_menu::clip_settings::newClipType);
 }
 
-ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on, bool routine) {
+ActionResult SessionView::clipCreationButtonPressed(hid::Button i, bool on) {
 	using namespace deluge::hid::button;
 	OutputType toCreate = buttonToOutputType(i);
 	if (toCreate != OutputType::NONE) {

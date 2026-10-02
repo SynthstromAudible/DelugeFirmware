@@ -4,10 +4,21 @@
 
 use core::ffi::c_void;
 use std::cell::{Cell, RefCell};
+use std::sync::{Mutex, MutexGuard};
 
+use deluge_bsp_rust::app_loop;
 use deluge_bsp_rust::storage::streaming_loader;
 
 use streaming_loader::{FillOps, StreamingFillDescriptor, fill_once};
+
+/// `fill_once` now wakes the app (`DELUGE_WAKE_STORAGE`) through the process-wide `REASONS`
+/// whenever it drains a queue, which every test here does at least once; tests run on parallel
+/// threads, so every test takes this lock, not only the one that reads `REASONS`.
+static TEST_LOCK: Mutex<()> = Mutex::new(());
+
+fn serial() -> MutexGuard<'static, ()> {
+    TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+}
 
 /// One call `FakeOps` observed; tests assert on the sequence.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -198,6 +209,7 @@ fn one_chunk(id: usize, begin_ok: bool) -> FakeChunk {
 
 #[test]
 fn fill_once_happy_path_drains_one_cluster() {
+    let _guard = serial();
     let ops = FakeOps::new(vec![one_chunk(0, true)], /* read_result = */ true);
     ops.enqueue(0, 10);
 
@@ -232,6 +244,7 @@ fn fill_once_happy_path_drains_one_cluster() {
 /// stops without another `next()`.
 #[test]
 fn fill_once_read_failure_reenqueues_lowest_and_stops() {
+    let _guard = serial();
     let mut chunk = one_chunk(0, true);
     chunk.lease_count = 1; // still wanted
     let ops = FakeOps::new(vec![chunk], /* read_result = */ false);
@@ -263,6 +276,7 @@ fn fill_once_read_failure_reenqueues_lowest_and_stops() {
 /// so the whole queue drains.
 #[test]
 fn fill_once_read_failure_unleased_drops_and_continues() {
+    let _guard = serial();
     let mut first = one_chunk(0, true);
     first.lease_count = 0; // dropped to 0 reasons while loading
     let mut second = one_chunk(1, true);
@@ -307,6 +321,7 @@ fn fill_once_read_failure_unleased_drops_and_continues() {
 
 #[test]
 fn fill_once_skips_chunk_when_begin_not_ok() {
+    let _guard = serial();
     let ops = FakeOps::new(
         vec![one_chunk(0, false), one_chunk(1, true)],
         /* read_result = */ true,
@@ -346,6 +361,7 @@ fn fill_once_skips_chunk_when_begin_not_ok() {
 /// efatfs read is not exercised here.
 #[test]
 fn fill_once_efatfs_handle_plumbs_descriptor_into_read() {
+    let _guard = serial();
     let num_sectors = 2u32;
     let byte_offset = 4096u32;
     let read_len = (num_sectors as usize) * 512;
@@ -389,6 +405,7 @@ fn fill_once_efatfs_handle_plumbs_descriptor_into_read() {
 
 #[test]
 fn fill_once_skips_unloadable_chunk() {
+    let _guard = serial();
     let mut unloadable = one_chunk(0, true);
     unloadable.unloadable = true;
     let ops = FakeOps::new(
@@ -423,4 +440,36 @@ fn fill_once_skips_unloadable_chunk() {
     );
     // The unloadable chunk isn't left pinned.
     assert!(!ops.chunk_by_id(0).queue_leased.get());
+}
+
+/// `fill_once` wakes the app (`DELUGE_WAKE_STORAGE`) when it leaves the queue drained, but not on
+/// the re-enqueue path, where one chunk is still waiting for a retry.
+#[test]
+fn fill_once_wakes_the_app_only_when_the_queue_drains() {
+    let _guard = serial();
+    let ops = FakeOps::new(vec![one_chunk(0, true)], /* read_result = */ true);
+    ops.enqueue(0, 10);
+    app_loop::reset_reasons_for_test();
+
+    embassy_futures::block_on(fill_once(&ops));
+
+    assert_ne!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "a drained queue must wake the app"
+    );
+
+    let mut chunk = one_chunk(1, true);
+    chunk.lease_count = 1; // still wanted, so the failed read re-enqueues it
+    let ops = FakeOps::new(vec![chunk], /* read_result = */ false);
+    ops.enqueue(1, 10);
+    app_loop::reset_reasons_for_test();
+
+    embassy_futures::block_on(fill_once(&ops));
+
+    assert_eq!(
+        app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+        0,
+        "a re-enqueued chunk awaiting retry must not wake the app"
+    );
 }

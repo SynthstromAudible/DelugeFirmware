@@ -45,8 +45,8 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 	bool opened() override;
 	void focusRegained() override;
-	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
+	ActionResult buttonAction(deluge::hid::Button b, bool on) override;
+	ActionResult verticalEncoderAction(int32_t offset) override;
 	ActionResult horizontalEncoderAction(int32_t offset) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool canSeeViewUnderneath() override;
@@ -121,7 +121,7 @@ public:
 
 	/// @brief How many previews gave up on a load that stopped moving.
 	///
-	/// A preview whose load ends stalled (AsyncSampleLoad::kMaxStalledTicks walks in a row with nothing settled) gives
+	/// A preview whose load ends stalled (AsyncSampleLoad::kMaxStalledUs of walks with nothing settled) gives
 	/// up with the card error; see finishPreviewLoad(). Exposed for the A/B gate, which holds a load far past the
 	/// bound.
 	[[nodiscard]] int32_t previewGiveUps() const { return previewGiveUps_; }

@@ -25,6 +25,7 @@
 #include "io/stall_bound.h"
 #include "libdeluge/file_bytes.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "runtime/app_loop.h"
 #include "storage/byte_channel.h"
 
 #include <cstdio>
@@ -83,15 +84,18 @@ constexpr int32_t kMaxWaitTicks = 20000;
 constexpr int32_t kOversizeEntries = 600;
 
 /// The busy stage's hold: a copy of this many chunks, each waiting this long, keeps the channel busy with work that
-/// progresses for kBusyChunks * kBusyChunkLatencyMs virtual milliseconds (5 s). At one scenario step per two virtual
-/// milliseconds, and the app's own "settings io" task beside it, that is thousands of refused ticks for a write
-/// queued behind it -- far past `deluge::io::kChannelStallTicks`, which the check requires rather than assumes.
+/// progresses for kBusyChunks * kBusyChunkLatencyMs virtual milliseconds (5 s), so a write queued behind it is held
+/// past the channel stall bound (`deluge::io::kChannelStallUs`) -- which the check measures rather than assumes.
 constexpr uint32_t kBusyChunks = 100;
 constexpr uint32_t kBusyChunkLatencyMs = 50;
 /// The value the write held behind the copy carries. Differs from every value the earlier stages leave.
 constexpr uint32_t kBusyValue = 6;
 constexpr const char* kBusySource = "SCBUSY.BIN";
 constexpr const char* kBusyCopy = "SCBUSYCP.BIN";
+/// SC-ORPHAN: a file whose removal is requested on the byte channel and never collected, so its answer -- protected,
+/// since a rerun removal would misreport -- is orphaned and refuses the settings write until it ages out.
+constexpr const char* kOrphanPath = "SCORPHAN.BIN";
+constexpr uint32_t kOrphanValue = 7;
 
 /// What every settings document must begin with. Spelled out here rather than taken from the code under test, so
 /// a change that altered the constant and the check together could not pass.
@@ -139,6 +143,10 @@ enum class Stage : uint8_t {
 	BusyWait,
 	BusyReadWait,
 	BusyCheck,
+	OrphanStart,
+	OrphanWait,
+	OrphanReadWait,
+	OrphanCheck,
 	Fallback,
 	Restore,
 	RestoreWait,
@@ -170,6 +178,12 @@ int32_t g_tierBefore = 0;
 int32_t g_refusedBefore = 0;
 /// How many ticks the busy stage's write was refused, taken once the seam went idle.
 int32_t g_busyRefused = 0;
+/// When the busy stage submitted its write, and how long, in virtual time, it took to land.
+uint64_t g_busyStartUs = 0;
+uint64_t g_busyHeldUs = 0;
+int32_t g_orphanRefused = 0;
+uint64_t g_orphanStartUs = 0;
+uint64_t g_orphanHeldUs = 0;
 /// The DIN ports' clock setting as the scenario found it. The head stage changes it to make the MIDI device table
 /// worth writing; the restore puts it back.
 bool g_originalSendClock = true;
@@ -593,6 +607,7 @@ void runTick() {
 		g_refusedBefore = deluge::storage::bytes::refusedTicks();
 		runtimeFeatureSettings.set(kProbeSetting, kBusyValue);
 		runtimeFeatureSettings.writeSettingsToFile();
+		g_busyStartUs = deluge::runtime::nowUs();
 		g_waitTicks = 0;
 		g_stage = Stage::BusyWait;
 		break;
@@ -605,6 +620,7 @@ void runTick() {
 		}
 		deluge_file_bytes_set_chunk_latency_ms(0);
 		g_busyRefused = deluge::storage::bytes::refusedTicks() - g_refusedBefore;
+		g_busyHeldUs = deluge::runtime::nowUs() - g_busyStartUs;
 		runtimeFeatureSettings.set(kProbeSetting, kScrubValue);
 		runtimeFeatureSettings.readSettingsFromFile();
 		g_stage = Stage::BusyReadWait;
@@ -619,19 +635,20 @@ void runTick() {
 		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
 		std::vector<uint8_t> copied;
 		const bool copyThere = readWholeFile(kBusyCopy, copied);
-		printf("SC-BUSY value=%u refused=%d bound=%d copyBytes=%zu\n", value, g_busyRefused,
-		       deluge::io::kChannelStallTicks, copyThere ? copied.size() : size_t{0});
-		// The value first: a write that gave up was refused on at most the stall bound's ticks, so the precondition
-		// below cannot tell a failed write from a hold too short to prove anything.
+		printf("SC-BUSY value=%u refused=%d heldUs=%llu boundUs=%llu copyBytes=%zu\n", value, g_busyRefused,
+		       static_cast<unsigned long long>(g_busyHeldUs),
+		       static_cast<unsigned long long>(deluge::io::kChannelStallUs), copyThere ? copied.size() : size_t{0});
+		// The value first: a write that gave up was held for at most the stall bound, so the precondition below
+		// cannot tell a failed write from a hold too short to prove anything.
 		if (value != kBusyValue) {
 			printf("SC-BUSY FAIL a settings write held behind a long copy did not land (read %u, wanted %u)\n", value,
 			       kBusyValue);
 			g_failures++;
 		}
-		else if (g_busyRefused <= deluge::io::kChannelStallTicks) {
-			printf("SC-BUSY FAIL the write was refused on only %d ticks, within the stall bound; nothing was held past "
+		else if (g_busyHeldUs <= deluge::io::kChannelStallUs) {
+			printf("SC-BUSY FAIL the write was held for only %llu us, within the stall bound; nothing was held past "
 			       "it, so this proves nothing\n",
-			       g_busyRefused);
+			       static_cast<unsigned long long>(g_busyHeldUs));
 			g_failures++;
 		}
 		if (!copyThere || copied.size() != size_t{kBusyChunks} * DELUGE_FILE_BYTES_BLOCK) {
@@ -640,6 +657,74 @@ void runTick() {
 		}
 		(void)deluge::io::unlink(kBusySource);
 		(void)deluge::io::unlink(kBusyCopy);
+		g_stage = Stage::OrphanStart;
+		break;
+	}
+
+	case Stage::OrphanStart: {
+		// A settings write refused by an answer nobody will collect must be admitted once that answer ages out
+		// (DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS), and land -- not sleep until its own stall bound and give up.
+		// Nothing wakes it when the answer ages out, so this is the machine's own re-ask that is under test.
+		if (!deluge::storage::bytes::idle()) {
+			waitIdleThen("SC-ORPHAN", Stage::OrphanStart, Stage::Fallback);
+			break;
+		}
+		auto orphan = deluge::io::File::open(kOrphanPath, DELUGE_FILE_WRITE_CREATE);
+		if (orphan.has_value()) {
+			(void)orphan->close();
+		}
+		if (!orphan.has_value() || !deluge_file_bytes_request_unlink(kOrphanPath)) {
+			printf("SC-ORPHAN FAIL could not issue the removal whose answer is orphaned\n");
+			g_failures++;
+			g_stage = Stage::Fallback;
+			break;
+		}
+		g_refusedBefore = deluge::storage::bytes::refusedTicks();
+		runtimeFeatureSettings.set(kProbeSetting, kOrphanValue);
+		runtimeFeatureSettings.writeSettingsToFile();
+		g_orphanStartUs = deluge::runtime::nowUs();
+		g_waitTicks = 0;
+		g_stage = Stage::OrphanWait;
+		break;
+	}
+
+	case Stage::OrphanWait:
+		if (!deluge::storage::bytes::idle()) {
+			waitIdleThen("SC-ORPHAN", Stage::OrphanWait, Stage::OrphanCheck);
+			break;
+		}
+		g_orphanRefused = deluge::storage::bytes::refusedTicks() - g_refusedBefore;
+		g_orphanHeldUs = deluge::runtime::nowUs() - g_orphanStartUs;
+		runtimeFeatureSettings.set(kProbeSetting, kScrubValue);
+		runtimeFeatureSettings.readSettingsFromFile();
+		g_stage = Stage::OrphanReadWait;
+		break;
+
+	case Stage::OrphanReadWait:
+		waitIdleThen("SC-ORPHAN", Stage::OrphanCheck, Stage::OrphanCheck);
+		break;
+
+	case Stage::OrphanCheck: {
+		const uint32_t value = runtimeFeatureSettings.get(kProbeSetting);
+		printf("SC-ORPHAN value=%u refused=%d heldUs=%llu spanMs=%u boundUs=%llu\n", value, g_orphanRefused,
+		       static_cast<unsigned long long>(g_orphanHeldUs), DELUGE_FILE_BYTES_PROTECTED_ANSWER_SPAN_MS,
+		       static_cast<unsigned long long>(deluge::io::kChannelStallUs));
+		if (g_orphanRefused == 0) {
+			printf("SC-ORPHAN FAIL the write was never refused; the orphaned answer held nothing, so this proves "
+			       "nothing\n");
+			g_failures++;
+		}
+		else if (value != kOrphanValue) {
+			printf("SC-ORPHAN FAIL a settings write refused by an orphaned answer did not land once it aged out "
+			       "(read %u, wanted %u)\n",
+			       value, kOrphanValue);
+			g_failures++;
+		}
+		else if (g_orphanHeldUs >= deluge::io::kChannelStallUs) {
+			printf("SC-ORPHAN FAIL the write waited out its stall bound rather than the answer's span\n");
+			g_failures++;
+		}
+		(void)deluge::io::unlink(kOrphanPath);
 		g_stage = Stage::Fallback;
 		break;
 	}
@@ -736,6 +821,11 @@ void deluge_scenario_settings_channel_begin(void) {
 	g_orderIllegal = 0;
 	g_refusedBefore = 0;
 	g_busyRefused = 0;
+	g_busyStartUs = 0;
+	g_busyHeldUs = 0;
+	g_orphanRefused = 0;
+	g_orphanStartUs = 0;
+	g_orphanHeldUs = 0;
 }
 
 bool deluge_scenario_settings_channel_complete(void) {
@@ -747,10 +837,9 @@ void deluge_scenario_settings_channel_dispatch_step(void) {
 		return;
 	}
 	g_stepDone = false;
-	// The channel's pump. In the firmware this is a repeating task registered in `deluge.cpp`; here
-	// the scenario owns the tick, so without this call the channel arm would be requested and never
-	// collected -- and a dead channel would pass.
-	deluge::storage::bytes::serviceRoutine();
+	// No direct call to deluge::storage::bytes::serviceRoutine() here: this harness's `app_loop` task runs the real
+	// "settings io" job, which runs only when a submission or the channel's answer asks for it. Pumping it from here
+	// every tick would let the gate pass with those requests deleted.
 	runTick();
 	// Nothing this tick queued runs anywhere else: the step is done when the tick returns.
 	g_stepDone = true;

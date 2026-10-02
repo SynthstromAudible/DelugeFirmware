@@ -27,6 +27,7 @@
 #include "libdeluge/clock.h"
 #include "libdeluge/display.h"
 #include "playback/playback_handler.h"
+#include "playback/render_requests.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/flash_storage.h"
 #include "util/c_string.h"
@@ -39,8 +40,6 @@ extern "C" {
 #include "gui/fonts/fonts.h"
 extern void v7_dma_flush_range(uint32_t start, uint32_t end);
 }
-
-extern uint8_t usbInitializationPeriodComplete;
 
 namespace deluge::hid::display {
 
@@ -720,6 +719,7 @@ void updateWorkingAnimation() {
 }
 
 void OLED::displayWorkingAnimation(char const* word) {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::LoadingAnimation);
 	loading = !strcmp(word, "Loading");
 	if (working_animation_count) {
 		uiTimerManager.unsetTimer(TimerName::LOADING_ANIMATION);
@@ -731,6 +731,7 @@ void OLED::displayWorkingAnimation(char const* word) {
 }
 
 void OLED::removeWorkingAnimation() {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::LoadingAnimation);
 	// return; // infinite animation duration for debugging purposes
 	if (hasPopupOfType(PopupType::NOTIFICATION)) {
 		removePopup();
@@ -1173,10 +1174,8 @@ extern std::string_view getErrorMessage(Error);
 void OLED::displayError(Error error) {
 	char const* message = nullptr;
 	switch (error) {
-	// Nothing to report. ABORTED_BY_USER in particular is ROUTINE -- scrolling the preset browser
-	// while its sample load runs produces it on every interrupted load -- so this pair must stay
-	// silent, which is why LOAD_IN_PROGRESS gets a label of its own below rather than sharing this
-	// body: a diagnostic that also fires on ordinary user aborts is noise a reader learns to skip.
+	// Nothing to report: neither is a failure. LOAD_IN_PROGRESS gets a label of its own below rather
+	// than sharing this body, because reaching here with it is a caller's bug worth showing.
 	case Error::NONE:
 	case Error::ABORTED_BY_USER:
 		return;

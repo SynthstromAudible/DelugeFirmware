@@ -21,7 +21,6 @@
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/qwerty_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/save/save_ui.h"
 #include "gui/ui/ui.h"
@@ -46,12 +45,14 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
+#include "runtime/app_loop.h"
 #include "scenarios/preset_fixture_loader.h"
 #include "storage/audio/async_sample_load.h"
 #include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/audio/load_trace.h"
+#include "storage/audio/sample_build.h"
 #include "storage/audio/sample_load_walk.h"
 #include "storage/byte_channel.h"
 #include "storage/multi_range/multi_range.h"
@@ -126,6 +127,7 @@ constexpr const char* kKitPresetPath = "KITS/SLTPKIT.XML";
 constexpr const char* kKitPresetSampleA = "SAMPLES/SLTPKA.WAV";
 constexpr const char* kKitPresetResolvedA = "KITS/SLTPKIT/SLTPKA.WAV";
 constexpr const char* kKitPresetSampleB = "SAMPLES/SLTPKB.WAV";
+constexpr const char* kKitPresetResolvedB = "KITS/SLTPKIT/SLTPKB.WAV";
 
 // The crucial-only load's song, SLTSONG2: SLTSONG1's synth, kit and audio clip (all playing), plus a second kit whose
 // three drums cover the kit filter, a second synth whose clip is not playing, and a second audio clip that is not
@@ -157,27 +159,32 @@ constexpr int32_t kMaxWaitTicks = 200000;
 /// while a load walks the tree. Pinned so a walk that drops or adds a call is seen.
 ///
 /// These calls keep the audio engine running while a load walks the tree; a ticked walk also returns to the run
-/// loop, so the count reflects how the walk is structured, not a property of the tree.
-constexpr int32_t kSongRoutines = 39;
+/// loop, so the count reflects how the walk is structured, not a property of the tree. The background waveform
+/// overview scan runs untraced (AudioFileManager::slowRoutine), so its calls, which fall wherever the app loop
+/// happens to run it, are not counted.
+constexpr int32_t kSongRoutines = 38;
 constexpr int32_t kSynthRoutines = 2;
-constexpr int32_t kKitRoutines = 3;
-constexpr int32_t kCrucialRoutines = 84;
+constexpr int32_t kKitRoutines = 4;
+constexpr int32_t kCrucialRoutines = 76;
 
 /// Milliseconds the loader holds each load during an async leg, so each load spans several scenario ticks.
 constexpr uint32_t kAsyncLatencyMs = 20;
 /// Scenario ticks an async leg may take before it is called wedged. Every leg finishes well inside this.
 constexpr int32_t kMaxAsyncTicks = 4000;
 /// Synchronous wavetable lookups each async leg makes, in leg order (crucial, song, synth, kit, race, card-gone, stall,
-/// probe-orphan): one per wavetable holder its walk reaches. Measured, and pinned.
-constexpr std::array<int32_t, 8> kAsyncWavetableReads{1, 1, 0, 0, 1, 1, 0, 1};
+/// probe-orphan, dropped-answer, live-pair): one per wavetable holder its walk reaches. Measured, and pinned.
+constexpr std::array<int32_t, 10> kAsyncWavetableReads{1, 1, 0, 0, 1, 1, 0, 1, 0, 0};
 /// Milliseconds the byte channel holds each operation in the probe-race leg: long enough that every sample request of
 /// the song comes back while the folder's exists probe is still out.
 constexpr uint32_t kRaceProbeLatencyMs = 600;
 /// Milliseconds the byte channel holds each operation in the card-gone leg, so the probe is still out at the eject.
 constexpr uint32_t kCardGoneProbeLatencyMs = 400;
-/// Milliseconds the loader holds each load in the stall leg: longer than AsyncSampleLoad::kMaxStalledTicks scenario
-/// ticks, so the first load stalls, and over well before a second load's bound runs out.
-constexpr uint32_t kStallHoldMs = 1600;
+/// Milliseconds the loader holds each load in the stall leg: longer than AsyncSampleLoad::kMaxStalledUs, so the first
+/// load stalls, and over well before a second load's bound runs out.
+constexpr uint32_t kStallHoldMs = static_cast<uint32_t>(deluge::storage::AsyncSampleLoad::kMaxStalledUs / 1000) + 2000;
+/// How long, in virtual time, the stall leg may take before it is called wedged: the first load's bound, the second
+/// load's, and a margin. The leg waits in time because its bound is time.
+constexpr uint64_t kStallLegWindowUs = 2 * deluge::storage::AsyncSampleLoad::kMaxStalledUs + 2'000'000;
 
 enum class Stage : uint8_t {
 	SongKit,
@@ -239,9 +246,10 @@ const char* g_traceLabel = "";
 /// whose lines go to a file of their own.
 const char* g_tracePrefix = "LT";
 int32_t g_traceRoutines = 0;
-/// Raise the abort the first time a holder is bound with a file, so a walk that checks for it stops after one load.
-bool g_abortArmed = false;
-bool g_abortRaised = false;
+/// While the async kit leg runs, set the first time a holder is bound with a file: the leg then drops its load after
+/// that tick, as a cancelled preset load is dropped.
+bool g_dropArmed = false;
+bool g_dropAsked = false;
 
 void snapshotCrucial();
 
@@ -280,9 +288,8 @@ void traceSink(const char* line) {
 	if (std::strcmp(line, "crucial end") == 0) {
 		snapshotCrucial();
 	}
-	if (g_abortArmed && !g_abortRaised && std::strncmp(line, "bind ", 5) == 0 && std::strstr(line, " file=1")) {
-		QwertyUI::predictionInterrupted = true;
-		g_abortRaised = true;
+	if (g_dropArmed && !g_dropAsked && std::strncmp(line, "bind ", 5) == 0 && std::strstr(line, " file=1")) {
+		g_dropAsked = true;
 	}
 }
 
@@ -629,13 +636,11 @@ void loadSynthPreset() {
 	openTrace("synth");
 	Error error =
 	    deluge::harness::loadPresetFixture(currentSong, OutputType::SYNTH, &instrument, kSynthPresetPath, &name, &dir);
-	Error loadError = Error::NONE;
 	if (error == Error::NONE) {
-		loadError = instrument->loadAllAudioFiles(true);
+		instrument->loadAllAudioFiles(true);
 	}
 	g_synthRoutines = closeTrace();
-	printf("SLT-SYNTH error=%d loadError=%d routines=%d\n", static_cast<int>(error), static_cast<int>(loadError),
-	       g_synthRoutines);
+	printf("SLT-SYNTH error=%d routines=%d\n", static_cast<int>(error), g_synthRoutines);
 	if (error != Error::NONE || instrument == nullptr) {
 		printf("SLT-SYNTH FAIL the synth preset did not load\n");
 		g_failures++;
@@ -647,36 +652,22 @@ void loadSynthPreset() {
 	g_refSynth = snapshot(outputDemands(*instrument));
 }
 
-void loadKitPresetWithAbort() {
+void loadKitPreset() {
 	std::string name = kKitPresetName;
 	std::string dir = kKitPresetDir;
 	Instrument* instrument = nullptr;
 	openTrace("kit");
 	Error error =
 	    deluge::harness::loadPresetFixture(currentSong, OutputType::KIT, &instrument, kKitPresetPath, &name, &dir);
-	Error loadError = Error::NONE;
 	if (error == Error::NONE) {
-		const auto modeBefore = currentUIMode;
-		currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-		QwertyUI::predictionInterrupted = false;
-		g_abortArmed = true;
-		g_abortRaised = false;
-		loadError = instrument->loadAllAudioFiles(true);
-		g_abortArmed = false;
-		QwertyUI::predictionInterrupted = false;
-		currentUIMode = modeBefore;
+		instrument->loadAllAudioFiles(true);
 	}
 	g_kitRoutines = closeTrace();
-	printf("SLT-KIT error=%d loadError=%d abortRaised=%d routines=%d\n", static_cast<int>(error),
-	       static_cast<int>(loadError), g_abortRaised ? 1 : 0, g_kitRoutines);
+	printf("SLT-KIT error=%d routines=%d\n", static_cast<int>(error), g_kitRoutines);
 	if (error != Error::NONE || instrument == nullptr) {
 		printf("SLT-KIT FAIL the kit preset did not load\n");
 		g_failures++;
 		return;
-	}
-	if (loadError != Error::ABORTED_BY_USER || !g_abortRaised) {
-		printf("SLT-KIT FAIL the abort raised after the first drum did not stop the load\n");
-		g_failures++;
 	}
 	int32_t index = 0;
 	for (Drum* drum = static_cast<Kit*>(instrument)->firstDrum; drum != nullptr; drum = drum->next, index++) {
@@ -684,12 +675,8 @@ void loadKitPresetWithAbort() {
 			continue;
 		}
 		AudioFileHolder* holder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
-		if (index == 0) {
-			reportHolder("kit", "preset-drum-a", holder, kKitPresetResolvedA, true, "");
-		}
-		else {
-			reportHolder("kit", "preset-drum-b", holder, kKitPresetSampleB, false, "");
-		}
+		reportHolder("kit", (index == 0) ? "preset-drum-a" : "preset-drum-b", holder,
+		             (index == 0) ? kKitPresetResolvedA : kKitPresetResolvedB, true, "");
 	}
 	g_refKitInstrument = instrument;
 	g_refKit = snapshot(outputDemands(*instrument));
@@ -939,11 +926,24 @@ void checkCrucialLoad() {
 // ── The async loads ──────────────────────────────────────────────────────────
 //
 // Each load above runs again through AsyncSampleLoad, ticked from dispatch_step on the interaction tier: SLTSONG2's
-// crucial walk and full walk, the synth preset, and the kit preset with its abort.
+// crucial walk and full walk, the synth preset, and the kit preset, whose load is dropped after its first bind.
 // Before each, every file the load binds is dropped from memory, so each must come through the async loader, and the
-// loader holds every load kAsyncLatencyMs so each spans several ticks. Each must end as its blocking load did.
+// loader holds every load kAsyncLatencyMs so each spans several ticks. Each must end as its blocking load did, but the
+// kit, which binds only its first drum.
 
-enum class AsyncLeg : uint8_t { Crucial, Song, Synth, Kit, Race, CardGone, Stall, Orphan, Done };
+enum class AsyncLeg : uint8_t {
+	Crucial,
+	Song,
+	Synth,
+	Kit,
+	Race,
+	CardGone,
+	Stall,
+	Orphan,
+	DroppedAnswer,
+	LivePair,
+	Done
+};
 
 const char* asyncLegName(AsyncLeg leg) {
 	switch (leg) {
@@ -963,6 +963,10 @@ const char* asyncLegName(AsyncLeg leg) {
 		return "stall";
 	case AsyncLeg::Orphan:
 		return "probe-orphan";
+	case AsyncLeg::DroppedAnswer:
+		return "dropped-answer";
+	case AsyncLeg::LivePair:
+		return "live-pair";
 	case AsyncLeg::Done:
 		break;
 	}
@@ -987,8 +991,6 @@ const char* asyncReasonName(deluge::storage::AsyncSampleLoad::Reason reason) {
 	switch (reason) {
 	case Reason::None:
 		return "None";
-	case Reason::Aborted:
-		return "Aborted";
 	case Reason::CardUnusable:
 		return "CardUnusable";
 	case Reason::Stalled:
@@ -1005,6 +1007,13 @@ Instrument* g_asyncInstrument = nullptr;
 deluge::storage::AudioLoadContext g_asyncContext{};
 std::optional<deluge::storage::AsyncSampleLoad> g_asyncLoad;
 int32_t g_asyncTicks = 0;
+/// When the leg in progress started, on the stall bounds' clock.
+uint64_t g_asyncStartUs = 0;
+/// When the leg's previous tick ran, and the longest gap between two of its ticks so far.
+uint64_t g_asyncLastTickUs = 0;
+uint64_t g_asyncMaxGapUs = 0;
+/// The longest gap between two ticks of the stall leg's first load: the most its give-up may overrun the bound by.
+uint64_t g_stallMaxGapUs = 0;
 int32_t g_sampleOpensBefore = 0;
 int32_t g_probesBefore = 0;
 /// The leg's AsyncOnly sample lookups that reached the blocking card read, and that probed the folder, on the
@@ -1023,6 +1032,8 @@ AlternateLoadDirStatus g_cardGoneStatusAfter = AlternateLoadDirStatus::NONE_SET;
 
 /// The synth leg's instrument, which holds the preset's file until the stall leg reads the preset again.
 Instrument* g_asyncSynthInstrument = nullptr;
+/// The kit leg's instrument, which holds its first drum's file until the dropped-answer leg reads the kit again.
+Instrument* g_asyncKitInstrument = nullptr;
 /// Where the stall leg is: its first load is ticked until it ends, then the loader's hold is lifted and a second load
 /// of the same instrument runs to its end.
 enum class StallStep : uint8_t { AwaitFirst, AwaitSecond };
@@ -1037,15 +1048,65 @@ OrphanStep g_orphanStep = OrphanStep::AwaitProbing;
 /// The song's wavetable holder, as its walk demands it.
 deluge::storage::SampleDemand g_orphanDemand{};
 
+/// Where the kit leg is: its load is ticked until a holder binds, then dropped, as a cancelled preset load is; then the
+/// leg goes on past every request the dropped load left with the loader, ticking the load if it is still there.
+enum class KitStep : uint8_t { AwaitBind, AfterDrop };
+KitStep g_kitStep = KitStep::AwaitBind;
+/// The kit load's progress on the tick it was dropped after.
+deluge::storage::AsyncSampleLoad::Progress g_kitAtDrop{};
+/// When the kit leg's load was dropped.
+uint64_t g_kitDroppedUs = 0;
+/// How long the kit leg goes on after its drop: every request the load left answers well inside it.
+constexpr uint64_t kKitAfterDropUs = 20ULL * kAsyncLatencyMs * 1000;
+/// Holders the kit leg's load has bound when it is dropped: the first, and only the first.
+constexpr int32_t kKitBoundAtDrop = 1;
+
+/// Where the dropped-answer leg is.
+/// - Learn: a load of the kit's first drum, on a kit context, runs to its end; its miss teaches the context that the
+///   kit's folder exists.
+/// - Foreign: a load of the second drum on no context asks the loader for the drum's own path alone, and is dropped
+///   after that first tick.
+/// - Answer: the leg waits past the dropped request's answer.
+/// - Known: a load of the second drum on the context that knows the folder runs to its end. The dropped request's
+///   answer, a miss for fewer candidates than this load would ask with, must not be taken for its own.
+enum class DroppedStep : uint8_t { Learn, Foreign, Answer, Known };
+DroppedStep g_droppedStep = DroppedStep::Learn;
+/// The kit context the learn and known loads share.
+deluge::storage::AudioLoadContext g_droppedContext{};
+/// The kit's two drums, as its walk demands them.
+std::vector<deluge::storage::SampleDemand> g_droppedDemands{};
+/// When the foreign load was dropped.
+uint64_t g_droppedUs = 0;
+/// The learn load's end, and the context's folder status right after it.
+deluge::storage::AsyncSampleLoad::Progress g_droppedLearn{};
+AlternateLoadDirStatus g_droppedStatusAfterLearn = AlternateLoadDirStatus::NONE_SET;
+
+/// Where the live-pair leg is.
+/// - Learn: as the dropped-answer leg's, a load of the kit's first drum on a kit context learns the kit's folder.
+/// - Pair: two live loads of the second drum. The foreign one, on no context, asks first, for the drum's own path
+///   alone; the known one, on the context that knows the folder, is ticked first from then on, so it is the first to
+///   look once the foreign request answers. That answer, a miss for fewer candidates than the known load would ask
+///   with, must not be taken for its own.
+enum class PairStep : uint8_t { Learn, Pair };
+PairStep g_pairStep = PairStep::Learn;
+deluge::storage::AudioLoadContext g_pairContext{};
+std::vector<deluge::storage::SampleDemand> g_pairDemands{};
+/// The live-pair leg's foreign load, live beside the known one in g_asyncLoad.
+std::optional<deluge::storage::AsyncSampleLoad> g_pairForeign;
+deluge::storage::AsyncSampleLoad::Progress g_pairLearn{};
+AlternateLoadDirStatus g_pairStatusAfterLearn = AlternateLoadDirStatus::NONE_SET;
+
 /// Drop the reference instrument's files, and read the preset again into a fresh instrument for the async leg.
-void reloadPreset(Instrument* reference, const char* residentPath, OutputType type, const char* path,
-                  const char* presetName, const char* presetDir) {
+void reloadPreset(Instrument* reference, std::initializer_list<const char*> residentPaths, OutputType type,
+                  const char* path, const char* presetName, const char* presetDir) {
 	if (reference != nullptr) {
 		unbindAll(outputDemands(*reference));
 	}
-	if (!audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(residentPath)) {
-		printf("SLT-ASYNC FAIL %s is still referenced and could not be released\n", residentPath);
-		g_failures++;
+	for (const char* residentPath : residentPaths) {
+		if (!audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(residentPath)) {
+			printf("SLT-ASYNC FAIL %s is still referenced and could not be released\n", residentPath);
+			g_failures++;
+		}
 	}
 	std::string name = presetName;
 	std::string dir = presetDir;
@@ -1070,17 +1131,28 @@ void releaseForAsyncLeg() {
 		releaseCrucialSongFiles();
 		break;
 	case AsyncLeg::Synth:
-		reloadPreset(g_refSynthInstrument, kSynthPresetResolved, OutputType::SYNTH, kSynthPresetPath, kSynthPresetName,
-		             kSynthPresetDir);
+		reloadPreset(g_refSynthInstrument, {kSynthPresetResolved}, OutputType::SYNTH, kSynthPresetPath,
+		             kSynthPresetName, kSynthPresetDir);
 		g_asyncSynthInstrument = g_asyncInstrument;
 		break;
 	case AsyncLeg::Kit:
-		reloadPreset(g_refKitInstrument, kKitPresetResolvedA, OutputType::KIT, kKitPresetPath, kKitPresetName,
-		             kKitPresetDir);
+		reloadPreset(g_refKitInstrument, {kKitPresetResolvedA, kKitPresetResolvedB}, OutputType::KIT, kKitPresetPath,
+		             kKitPresetName, kKitPresetDir);
+		g_asyncKitInstrument = g_asyncInstrument;
+		break;
+	case AsyncLeg::DroppedAnswer:
+		// A fresh read of the kit, so each drum names its sample under SAMPLES/ again.
+		reloadPreset(g_asyncKitInstrument, {kKitPresetResolvedA, kKitPresetResolvedB}, OutputType::KIT, kKitPresetPath,
+		             kKitPresetName, kKitPresetDir);
+		break;
+	case AsyncLeg::LivePair:
+		g_pairForeign.reset();
+		reloadPreset(g_asyncInstrument, {kKitPresetResolvedA, kKitPresetResolvedB}, OutputType::KIT, kKitPresetPath,
+		             kKitPresetName, kKitPresetDir);
 		break;
 	case AsyncLeg::Stall:
 		// The synth leg's instrument still holds the preset's file; the stall leg reads the preset into another.
-		reloadPreset(g_asyncSynthInstrument, kSynthPresetResolved, OutputType::SYNTH, kSynthPresetPath,
+		reloadPreset(g_asyncSynthInstrument, {kSynthPresetResolved}, OutputType::SYNTH, kSynthPresetPath,
 		             kSynthPresetName, kSynthPresetDir);
 		break;
 	case AsyncLeg::Done:
@@ -1124,15 +1196,52 @@ bool beginAsyncLeg() {
 		// No context: the preset's own folder is the load's, as it is for the blocking preset load.
 		g_asyncLoad.emplace(AsyncSampleLoad::forOutput(*g_asyncInstrument, nullptr));
 		break;
+	case AsyncLeg::DroppedAnswer:
+		if (g_asyncInstrument == nullptr) {
+			return false;
+		}
+		g_droppedDemands = outputDemands(*g_asyncInstrument);
+		if (g_droppedDemands.size() != 2) {
+			printf("SLT-ASYNC FAIL leg=dropped-answer the kit has %zu drums with samples, not 2\n",
+			       g_droppedDemands.size());
+			g_failures++;
+			return false;
+		}
+		g_droppedContext =
+		    deluge::storage::AudioLoadContext::forInstrument(kKitPresetDir, kKitPresetName, ThingType::KIT);
+		g_droppedStep = DroppedStep::Learn;
+		g_droppedLearn = {};
+		g_droppedStatusAfterLearn = AlternateLoadDirStatus::NONE_SET;
+		g_asyncLoad.emplace(AsyncSampleLoad::forHolder(g_droppedDemands[0], &g_droppedContext));
+		openTrace("dropped-answer", "LTA");
+		break;
+	case AsyncLeg::LivePair:
+		if (g_asyncInstrument == nullptr) {
+			return false;
+		}
+		g_pairDemands = outputDemands(*g_asyncInstrument);
+		if (g_pairDemands.size() != 2) {
+			printf("SLT-ASYNC FAIL leg=live-pair the kit has %zu drums with samples, not 2\n", g_pairDemands.size());
+			g_failures++;
+			return false;
+		}
+		g_pairContext = deluge::storage::AudioLoadContext::forInstrument(kKitPresetDir, kKitPresetName, ThingType::KIT);
+		g_pairStep = PairStep::Learn;
+		g_pairLearn = {};
+		g_pairStatusAfterLearn = AlternateLoadDirStatus::NONE_SET;
+		g_pairForeign.reset();
+		g_asyncLoad.emplace(AsyncSampleLoad::forHolder(g_pairDemands[0], &g_pairContext));
+		openTrace("live-pair", "LTA");
+		break;
 	case AsyncLeg::Done:
 		return false;
 	}
 	if (g_asyncLeg == AsyncLeg::Kit) {
-		// The same abort as the blocking kit load: raised the first time a holder is bound with a file.
 		openTrace("async-kit", "LTA");
-		QwertyUI::predictionInterrupted = false;
-		g_abortArmed = true;
-		g_abortRaised = false;
+		g_dropArmed = true;
+		g_dropAsked = false;
+		g_kitStep = KitStep::AwaitBind;
+		g_kitAtDrop = {};
 	}
 	if (g_asyncLeg == AsyncLeg::Race || g_asyncLeg == AsyncLeg::CardGone) {
 		// Only the folder probe's lines: the race leg counts the lookups that waited for the probe, and the card-gone
@@ -1156,6 +1265,9 @@ bool beginAsyncLeg() {
 	g_probesBefore = deluge::storage::bytes::interactionTierIo(deluge::storage::bytes::IoTier::SampleLoadProbe);
 	deluge_audio_load_set_latency_ms((g_asyncLeg == AsyncLeg::Stall) ? kStallHoldMs : kAsyncLatencyMs);
 	g_asyncTicks = 0;
+	g_asyncStartUs = deluge::runtime::nowUs();
+	g_asyncLastTickUs = 0;
+	g_asyncMaxGapUs = 0;
 	return true;
 }
 
@@ -1203,10 +1315,84 @@ bool stepStall(const deluge::storage::AsyncSampleLoad::Progress& progress) {
 	// The first load has ended. Lift the hold and load the same instrument again: the request the first load left in
 	// flight answers once its hold runs out, well inside the second load's bound.
 	g_stallFirst = progress;
+	g_stallMaxGapUs = g_asyncMaxGapUs;
 	deluge_audio_load_set_latency_ms(0);
 	g_asyncLoad.emplace(AsyncSampleLoad::forOutput(*g_asyncInstrument, nullptr));
 	g_stallStep = StallStep::AwaitSecond;
 	return false;
+}
+
+/// The kit leg's step around a tick of its load. False while the leg goes on after its drop.
+bool stepKit(const deluge::storage::AsyncSampleLoad::Progress& progress) {
+	if (g_kitStep == KitStep::AwaitBind) {
+		if (!g_dropAsked) {
+			return true;
+		}
+		g_dropArmed = false;
+		g_kitAtDrop = progress;
+		g_kitDroppedUs = deluge::runtime::nowUs();
+		g_kitStep = KitStep::AfterDrop;
+		g_asyncLoad.reset();
+		return false;
+	}
+	return deluge::runtime::nowUs() - g_kitDroppedUs >= kKitAfterDropUs;
+}
+
+/// The dropped-answer leg's steps around a tick of its load. False while the leg is between its loads.
+bool stepDropped(const deluge::storage::AsyncSampleLoad::Progress& progress) {
+	using deluge::storage::AsyncSampleLoad;
+	switch (g_droppedStep) {
+	case DroppedStep::Learn:
+		if (progress.state == AsyncSampleLoad::State::Loading) {
+			return false;
+		}
+		g_droppedLearn = progress;
+		g_droppedStatusAfterLearn = g_droppedContext.alternateDirStatus;
+		g_asyncLoad.emplace(AsyncSampleLoad::forHolder(g_droppedDemands[1], nullptr));
+		g_droppedStep = DroppedStep::Foreign;
+		return false;
+	case DroppedStep::Foreign:
+		// One tick has asked the loader; the owner drops the load with its request out.
+		g_asyncLoad.reset();
+		g_droppedUs = deluge::runtime::nowUs();
+		g_droppedStep = DroppedStep::Answer;
+		return false;
+	case DroppedStep::Answer:
+		if (deluge::runtime::nowUs() - g_droppedUs < kKitAfterDropUs) {
+			return false;
+		}
+		g_asyncLoad.emplace(AsyncSampleLoad::forHolder(g_droppedDemands[1], &g_droppedContext));
+		g_droppedStep = DroppedStep::Known;
+		return false;
+	case DroppedStep::Known:
+		break;
+	}
+	return true;
+}
+
+/// The live-pair leg's steps around a tick of its load (the known one, once both are live). False until both loads of
+/// the pair have ended.
+bool stepPair(const deluge::storage::AsyncSampleLoad::Progress& progress) {
+	using deluge::storage::AsyncSampleLoad;
+	switch (g_pairStep) {
+	case PairStep::Learn:
+		if (progress.state == AsyncSampleLoad::State::Loading) {
+			return false;
+		}
+		g_pairLearn = progress;
+		g_pairStatusAfterLearn = g_pairContext.alternateDirStatus;
+		// The foreign load asks first; the known one then finds that request outstanding.
+		g_pairForeign.emplace(AsyncSampleLoad::forHolder(g_pairDemands[1], nullptr));
+		(void)g_pairForeign->tick();
+		g_asyncLoad.emplace(AsyncSampleLoad::forHolder(g_pairDemands[1], &g_pairContext));
+		g_pairStep = PairStep::Pair;
+		return false;
+	case PairStep::Pair:
+		break;
+	}
+	const bool foreignEnded =
+	    !g_pairForeign.has_value() || g_pairForeign->tick().state != AsyncSampleLoad::State::Loading;
+	return foreignEnded && progress.state != AsyncSampleLoad::State::Loading;
 }
 
 /// The probe-orphan leg's step around a tick of its load. False while the leg is between its two loads.
@@ -1231,32 +1417,52 @@ bool stepOrphan(const deluge::storage::AsyncSampleLoad::Progress& progress) {
 	return true;
 }
 
+/// Whether the leg in progress may keep ticking before it is called wedged: kStallLegWindowUs of virtual time for the
+/// stall leg, kMaxAsyncTicks ticks for every other.
+bool asyncLegWithinCap() {
+	if (g_asyncLeg == AsyncLeg::Stall) {
+		return deluge::runtime::nowUs() - g_asyncStartUs < kStallLegWindowUs;
+	}
+	return g_asyncTicks < kMaxAsyncTicks;
+}
+
 /// One tick of the leg's load, on the interaction tier. True once the load has ended, or has run past its bound.
 bool tickAsyncLeg() {
-	const auto modeBefore = currentUIMode;
-	if (g_asyncLeg == AsyncLeg::Kit) {
-		// The preset browser's load mode, in which shouldAbortLoading() sees the abort.
-		currentUIMode = UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED;
-	}
 	if (g_asyncLeg == AsyncLeg::CardGone && g_cardGoneStep == CardGoneStep::EjectAndTick) {
 		// The eject, on this tier and in the same step as the tick after it, so nothing puts the card back in between.
 		// setCardEjected() flushes the loader's and the byte channel's tables, as the card-detect routine's call does.
 		audioFileManager.setCardEjected();
 	}
-	const deluge::storage::AsyncSampleLoad::Progress progress = g_asyncLoad->tick();
-	currentUIMode = modeBefore;
+	// The kit and dropped-answer legs go on for a while after their owner has dropped the load.
+	const deluge::storage::AsyncSampleLoad::Progress progress =
+	    g_asyncLoad.has_value() ? g_asyncLoad->tick() : deluge::storage::AsyncSampleLoad::Progress{};
 	g_asyncTicks++;
-	if (g_asyncLeg == AsyncLeg::CardGone && !stepCardGone(progress) && g_asyncTicks < kMaxAsyncTicks) {
+	const uint64_t tickUs = deluge::runtime::nowUs();
+	if (g_asyncLastTickUs != 0 && tickUs - g_asyncLastTickUs > g_asyncMaxGapUs) {
+		g_asyncMaxGapUs = tickUs - g_asyncLastTickUs;
+	}
+	g_asyncLastTickUs = tickUs;
+	if (g_asyncLeg == AsyncLeg::CardGone && !stepCardGone(progress) && asyncLegWithinCap()) {
 		return false;
 	}
-	if (g_asyncLeg == AsyncLeg::Stall && !stepStall(progress) && g_asyncTicks < kMaxAsyncTicks) {
+	if (g_asyncLeg == AsyncLeg::Stall && !stepStall(progress) && asyncLegWithinCap()) {
 		return false;
 	}
-	if (g_asyncLeg == AsyncLeg::Orphan && !stepOrphan(progress) && g_asyncTicks < kMaxAsyncTicks) {
+	if (g_asyncLeg == AsyncLeg::Orphan && !stepOrphan(progress) && asyncLegWithinCap()) {
 		return false;
 	}
-	const bool ended = (progress.state != deluge::storage::AsyncSampleLoad::State::Loading);
-	if (!ended && g_asyncTicks < kMaxAsyncTicks) {
+	if (g_asyncLeg == AsyncLeg::Kit && !stepKit(progress) && asyncLegWithinCap()) {
+		return false;
+	}
+	if (g_asyncLeg == AsyncLeg::DroppedAnswer && !stepDropped(progress) && asyncLegWithinCap()) {
+		return false;
+	}
+	if (g_asyncLeg == AsyncLeg::LivePair && !stepPair(progress) && asyncLegWithinCap()) {
+		return false;
+	}
+	const bool ended = (g_asyncLeg == AsyncLeg::Kit && g_kitStep == KitStep::AfterDrop)
+	                   || (progress.state != deluge::storage::AsyncSampleLoad::State::Loading);
+	if (!ended && asyncLegWithinCap()) {
 		return false;
 	}
 	deluge_audio_load_set_latency_ms(0);
@@ -1270,8 +1476,10 @@ bool tickAsyncLeg() {
 		(void)closeTrace();
 	}
 	if (g_asyncLeg == AsyncLeg::Kit) {
-		g_abortArmed = false;
-		QwertyUI::predictionInterrupted = false;
+		g_dropArmed = false;
+		(void)closeTrace();
+	}
+	if (g_asyncLeg == AsyncLeg::DroppedAnswer || g_asyncLeg == AsyncLeg::LivePair) {
 		(void)closeTrace();
 	}
 	g_asyncSampleOpens =
@@ -1339,11 +1547,22 @@ void checkAsyncCrucial() {
 	}
 }
 
-/// The kit leg: stopped by its abort after as many drums as the blocking load bound, each from the kit's own folder.
+/// How many holders keep the sample at @p path loaded, or -1 when it is not resident.
+int64_t leasesOn(const char* path) {
+	for (AudioFile* file : audioFileManager.audioFiles) {
+		if (file != nullptr && file->filePath == path) {
+			return file->leaseCount();
+		}
+	}
+	return -1;
+}
+
+/// The kit leg: dropped after its first bind, as a cancelled preset load is, it bound that drum and no other, from the
+/// kit's own folder, even after every request it left had answered; and no file was built for the drum it dropped.
 /// Which drum binds first depends on which result the loader returns first, so its identity is reported, not required.
 void checkAsyncKit() {
 	const std::vector<HolderOutcome> got = snapshot(outputDemands(*g_asyncInstrument));
-	const auto wantBound = std::ranges::count_if(g_refKit, [](const HolderOutcome& outcome) { return outcome.bound; });
+	const int32_t wantBound = kKitBoundAtDrop;
 	int32_t gotBound = 0;
 	for (size_t i = 0; i < got.size(); i++) {
 		const HolderOutcome& outcome = got[i];
@@ -1359,9 +1578,57 @@ void checkAsyncKit() {
 		}
 	}
 	if (gotBound != wantBound || got.size() != g_refKit.size()) {
-		printf("SLT-ASYNC FAIL leg=kit bound %d of %zu drums; the blocking load bound %d of %zu\n", gotBound,
-		       got.size(), static_cast<int32_t>(wantBound), g_refKit.size());
+		printf("SLT-ASYNC FAIL leg=kit bound %d of %zu drums; the load dropped after its first bind binds %d of %zu\n",
+		       gotBound, got.size(), wantBound, g_refKit.size());
 		g_failures++;
+	}
+	// One lease on each file a drum holds, and none on a file the dropped load did not bind.
+	int64_t leases = 0;
+	int32_t resident = 0;
+	for (const char* path : {kKitPresetResolvedA, kKitPresetResolvedB}) {
+		const int64_t on = leasesOn(path);
+		printf("SLT-ASYNC lease leg=kit path=%s leases=%lld\n", path, static_cast<long long>(on));
+		if (on >= 0) {
+			resident++;
+			leases += on;
+		}
+	}
+	if (resident != wantBound || leases != wantBound) {
+		printf("SLT-ASYNC FAIL leg=kit %d file(s) resident with %lld lease(s); wanted only the bound drum's, once\n",
+		       resident, static_cast<long long>(leases));
+		g_failures++;
+	}
+	if (g_kitStep != KitStep::AfterDrop || g_asyncLoad.has_value()) {
+		printf("SLT-ASYNC FAIL leg=kit the load was not dropped after its first bind\n");
+		g_failures++;
+	}
+	// The loader keeps no answer the dropped load was owed, for the next lookup of either drum's path to take: under
+	// either candidate list the kit's folder gives, before it is known to exist and after.
+	for (const char* path : {kKitPresetSampleA, kKitPresetSampleB}) {
+		// Under any key at all, read before the collects below can take anything: those ask only with the lists this
+		// leg's loads could have used.
+		const uint32_t held = deluge_audio_load_held_for_path(path);
+		DelugeChannelStatus status = DELUGE_CHANNEL_UNKNOWN;
+		for (const AlternateLoadDirStatus folder :
+		     {AlternateLoadDirStatus::MIGHT_EXIST, AlternateLoadDirStatus::DOES_EXIST}) {
+			auto context =
+			    deluge::storage::AudioLoadContext::forInstrument(kKitPresetDir, kKitPresetName, ThingType::KIT);
+			context.alternateDirStatus = folder;
+			std::array<char, AudioFileManager::kMaxLoadCandidates * DELUGE_PATH_MAX> candidates{};
+			const uint32_t count = deluge::storage::sample_build::candidates(
+			    &context, path, candidates.data(), static_cast<uint32_t>(AudioFileManager::kMaxLoadCandidates));
+			const uint32_t key = deluge::storage::sample_build::candidatesKey(candidates.data(), count);
+			DelugeAudioLoadResult result{};
+			const DelugeChannelStatus answer = deluge_audio_load_collect(path, key, &result);
+			if (answer != DELUGE_CHANNEL_UNKNOWN) {
+				status = answer;
+			}
+		}
+		printf("SLT-ASYNC loader leg=kit path=%s status=%d held=%u\n", path, static_cast<int>(status), held);
+		if (status != DELUGE_CHANNEL_UNKNOWN || held != 0) {
+			printf("SLT-ASYNC FAIL leg=kit the loader kept an answer for %s after its load was dropped\n", path);
+			g_failures++;
+		}
 	}
 }
 
@@ -1393,24 +1660,84 @@ void checkCardGone() {
 /// nothing bound. The second load, once the hold was lifted, is compared with the blocking load by the caller.
 void checkStall() {
 	using deluge::storage::AsyncSampleLoad;
-	printf("SLT-ASYNC probe leg=stall first=%s/%s ticks=%d stalledTicks=%d bound=%d inFlight=%d\n",
+	printf("SLT-ASYNC probe leg=stall first=%s/%s ticks=%d stalledTicks=%d stalledUs=%llu bound=%d inFlight=%d\n",
 	       asyncStateName(g_stallFirst.state), asyncReasonName(g_stallFirst.reason), g_stallFirst.ticks,
-	       g_stallFirst.stalledTicks, g_stallFirst.bound, g_stallFirst.inFlight);
+	       g_stallFirst.stalledTicks, static_cast<unsigned long long>(g_stallFirst.stalledUs), g_stallFirst.bound,
+	       g_stallFirst.inFlight);
 	if (g_stallFirst.state != AsyncSampleLoad::State::Failed
 	    || g_stallFirst.reason != AsyncSampleLoad::Reason::Stalled) {
 		printf("SLT-ASYNC FAIL leg=stall the held load did not end Failed/Stalled\n");
 		g_failures++;
 	}
-	if (g_stallFirst.stalledTicks != AsyncSampleLoad::kMaxStalledTicks
-	    || g_stallFirst.ticks != AsyncSampleLoad::kMaxStalledTicks) {
-		printf("SLT-ASYNC FAIL leg=stall the held load did not end on the bound's walk (%d)\n",
-		       AsyncSampleLoad::kMaxStalledTicks);
+	// On the bound's walk: the first walk at or past the bound, so short of it by less than one gap between walks.
+	if (g_stallFirst.stalledUs < AsyncSampleLoad::kMaxStalledUs
+	    || g_stallFirst.stalledUs >= AsyncSampleLoad::kMaxStalledUs + g_stallMaxGapUs
+	    || g_stallFirst.stalledTicks != g_stallFirst.ticks) {
+		printf("SLT-ASYNC FAIL leg=stall the held load did not end on the bound's walk: stalled %llu us, wanted at "
+		       "least %llu us and under %llu us (the bound plus the longest gap between walks)\n",
+		       static_cast<unsigned long long>(g_stallFirst.stalledUs),
+		       static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs),
+		       static_cast<unsigned long long>(AsyncSampleLoad::kMaxStalledUs + g_stallMaxGapUs));
 		g_failures++;
 	}
 	if (g_stallFirst.bound != 0) {
 		printf("SLT-ASYNC FAIL leg=stall the held load bound a holder\n");
 		g_failures++;
 	}
+}
+
+/// The dropped-answer leg: the learn load bound the first drum and learnt the folder; the known load then bound the
+/// second drum to its copy in the kit's folder, though the loader had answered a dropped request for the same path,
+/// made with fewer candidates, before it asked.
+void checkDroppedAnswer() {
+	using deluge::storage::AsyncSampleLoad;
+	printf("SLT-ASYNC probe leg=dropped-answer learn=%s/%s learnBound=%d statusAfterLearn=%d\n",
+	       asyncStateName(g_droppedLearn.state), asyncReasonName(g_droppedLearn.reason), g_droppedLearn.bound,
+	       static_cast<int>(g_droppedStatusAfterLearn));
+	if (g_droppedLearn.state != AsyncSampleLoad::State::Loaded || g_droppedLearn.bound != 1
+	    || g_droppedStatusAfterLearn != AlternateLoadDirStatus::DOES_EXIST) {
+		printf("SLT-ASYNC FAIL leg=dropped-answer the first drum's load did not bind it and learn the kit's folder, so "
+		       "this leg proves nothing\n");
+		g_failures++;
+	}
+	const AudioFileHolder* holder = g_droppedDemands.size() == 2 ? g_droppedDemands[1].holder : nullptr;
+	const bool bound = holder != nullptr && holder->audioFile != nullptr;
+	printf("SLT-ASYNC holder leg=dropped-answer path=%s bound=%d\n", holder != nullptr ? holder->filePath.c_str() : "",
+	       bound ? 1 : 0);
+	if (!bound || holder->filePath != kKitPresetResolvedB) {
+		printf("SLT-ASYNC FAIL leg=dropped-answer the second drum was not bound to %s: the dropped request's answer "
+		       "was taken for the load that came after it\n",
+		       kKitPresetResolvedB);
+		g_failures++;
+	}
+}
+
+/// The live-pair leg: the learn load bound the first drum and learnt the folder; the known load then bound the second
+/// drum to its copy in the kit's folder, though a live load of the same path, asking with fewer candidates, had its
+/// answer come back first.
+void checkLivePair() {
+	using deluge::storage::AsyncSampleLoad;
+	printf("SLT-ASYNC probe leg=live-pair learn=%s/%s learnBound=%d statusAfterLearn=%d\n",
+	       asyncStateName(g_pairLearn.state), asyncReasonName(g_pairLearn.reason), g_pairLearn.bound,
+	       static_cast<int>(g_pairStatusAfterLearn));
+	if (g_pairLearn.state != AsyncSampleLoad::State::Loaded || g_pairLearn.bound != 1
+	    || g_pairStatusAfterLearn != AlternateLoadDirStatus::DOES_EXIST) {
+		printf("SLT-ASYNC FAIL leg=live-pair the first drum's load did not bind it and learn the kit's folder, so this "
+		       "leg proves nothing\n");
+		g_failures++;
+	}
+	const AudioFileHolder* holder = g_pairDemands.size() == 2 ? g_pairDemands[1].holder : nullptr;
+	const bool bound = holder != nullptr && holder->audioFile != nullptr;
+	const char* foreign = !g_pairForeign.has_value() ? "none" : asyncStateName(g_pairForeign->progress().state);
+	printf("SLT-ASYNC holder leg=live-pair path=%s bound=%d foreign=%s\n",
+	       holder != nullptr ? holder->filePath.c_str() : "", bound ? 1 : 0, foreign);
+	if (!bound || holder->filePath != kKitPresetResolvedB) {
+		printf("SLT-ASYNC FAIL leg=live-pair the second drum was not bound to %s: the other live load's answer was "
+		       "taken for this one's\n",
+		       kKitPresetResolvedB);
+		g_failures++;
+	}
+	g_pairForeign.reset();
 }
 
 /// The probe-orphan leg: the wavetable-only load ended bound to its collected copy in the song's folder.
@@ -1431,26 +1758,27 @@ void checkOrphan() {
 void checkAsyncLeg() {
 	using deluge::storage::AsyncSampleLoad;
 	const char* leg = asyncLegName(g_asyncLeg);
-	if (!g_asyncLoad.has_value()) {
+	if (!g_asyncLoad.has_value() && g_asyncLeg != AsyncLeg::Kit) {
 		printf("SLT-ASYNC leg=%s state=none\n", leg);
 		printf("SLT-ASYNC FAIL leg=%s had nothing to load\n", leg);
 		g_failures++;
 		return;
 	}
-	const AsyncSampleLoad::Progress& progress = g_asyncLoad->progress();
+	// The kit leg's owner dropped its load: what it reported on its last tick.
+	const AsyncSampleLoad::Progress& progress = g_asyncLoad.has_value() ? g_asyncLoad->progress() : g_kitAtDrop;
 	const auto index = static_cast<size_t>(g_asyncLeg);
 	printf("SLT-ASYNC leg=%s state=%s reason=%s ticks=%d bound=%d empty=%d inFlight=%d wavetableReads=%d "
 	       "sampleOpens=%d probes=%d\n",
 	       leg, asyncStateName(progress.state), asyncReasonName(progress.reason), progress.ticks, progress.bound,
 	       progress.emptyHolders, progress.inFlight, progress.wavetableReads, g_asyncSampleOpens, g_asyncProbes);
 
-	const bool wantAborted = (g_asyncLeg == AsyncLeg::Kit);
-	const bool endedRight = wantAborted ? (progress.state == AsyncSampleLoad::State::Failed
-	                                       && progress.reason == AsyncSampleLoad::Reason::Aborted)
+	// The kit leg's load is dropped while it still has a drum to load.
+	const bool wantDropped = (g_asyncLeg == AsyncLeg::Kit);
+	const bool endedRight = wantDropped ? (progress.state == AsyncSampleLoad::State::Loading)
 	                                    : (progress.state == AsyncSampleLoad::State::Loaded);
 	if (!endedRight) {
-		printf("SLT-ASYNC FAIL leg=%s ended %s/%s; the blocking load ended %s\n", leg, asyncStateName(progress.state),
-		       asyncReasonName(progress.reason), wantAborted ? "by its abort" : "loaded");
+		printf("SLT-ASYNC FAIL leg=%s ended %s/%s; wanted %s\n", leg, asyncStateName(progress.state),
+		       asyncReasonName(progress.reason), wantDropped ? "dropped while still Loading" : "loaded");
 		g_failures++;
 	}
 	if (g_asyncSampleOpens != 0) {
@@ -1500,6 +1828,12 @@ void checkAsyncLeg() {
 		break;
 	case AsyncLeg::Orphan:
 		checkOrphan();
+		break;
+	case AsyncLeg::DroppedAnswer:
+		checkDroppedAnswer();
+		break;
+	case AsyncLeg::LivePair:
+		checkLivePair();
 		break;
 	case AsyncLeg::Done:
 		break;
@@ -1650,7 +1984,7 @@ void runTick() {
 		g_stage = Stage::KitPreset;
 		break;
 	case Stage::KitPreset:
-		buildFixture(loadKitPresetWithAbort);
+		buildFixture(loadKitPreset);
 		g_stage = Stage::CrucialKit;
 		break;
 	case Stage::CrucialKit:
@@ -1729,6 +2063,9 @@ void runTick() {
 		}
 		g_crucialClockAtLoad = playbackHandler.isEitherClockActive();
 		openTrace("crucial", "LTC");
+		// Each load is held, so the rest pass is still walking on the first tick the swap can be armed on: the load
+		// runs as the loader answers, and an unheld rest pass can finish between two scenario ticks.
+		deluge_audio_load_set_latency_ms(kAsyncLatencyMs);
 		loadSongUI.beginLoad();
 		g_waitTicks = 0;
 		g_stage = Stage::CrucialWait;
@@ -1750,6 +2087,7 @@ void runTick() {
 						((holder->audioFile != nullptr) ? g_crucialBoundAtArm : g_crucialUnboundAtArm)++;
 					});
 				}
+				deluge_audio_load_set_latency_ms(0);
 			}
 			renderWhileArmed();
 		}
@@ -1757,11 +2095,14 @@ void runTick() {
 			g_crucialSwapTick = g_waitTicks;
 		}
 		if (!loadSongUI.loadInFlight()) {
+			// The hold ends with the leg, whether or not the arm tick was ever reached.
+			deluge_audio_load_set_latency_ms(0);
 			g_crucialRoutines = closeTrace();
 			playbackHandler.endPlayback();
 			g_stage = Stage::CrucialCheck;
 		}
 		else if (++g_waitTicks > kMaxCrucialWaitTicks) {
+			deluge_audio_load_set_latency_ms(0);
 			(void)closeTrace();
 			printf("SLT-CRUCIAL FAIL the crucial song's load never finished\n");
 			g_failures++;
@@ -1857,8 +2198,21 @@ void deluge_scenario_sample_load_tree_begin(void) {
 	g_asyncSynthInstrument = nullptr;
 	g_stallStep = StallStep::AwaitFirst;
 	g_stallFirst = {};
+	g_stallMaxGapUs = 0;
 	g_orphanStep = OrphanStep::AwaitProbing;
 	g_orphanDemand = {};
+	g_dropArmed = false;
+	g_dropAsked = false;
+	g_kitStep = KitStep::AwaitBind;
+	g_kitAtDrop = {};
+	g_kitDroppedUs = 0;
+	g_asyncKitInstrument = nullptr;
+	g_droppedStep = DroppedStep::Learn;
+	g_droppedContext = {};
+	g_droppedDemands.clear();
+	g_droppedUs = 0;
+	g_droppedLearn = {};
+	g_droppedStatusAfterLearn = AlternateLoadDirStatus::NONE_SET;
 }
 
 bool deluge_scenario_sample_load_tree_complete(void) {

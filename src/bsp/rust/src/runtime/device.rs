@@ -9,7 +9,7 @@ use embassy_executor::{Executor, InterruptExecutor, Spawner};
 use crate::channel::{audio_loader, file_bytes, file_directory, file_prefix, file_stream};
 use crate::peripherals::{board, control, cv_gate, display, signals, usb};
 use crate::storage::{sd, streaming_loader};
-use crate::{boot, boot_mem, scheduler, sys};
+use crate::{boot, boot_mem, sys};
 
 /// The Rust global allocator, which `embedded-fatfs`'s `alloc` feature needs.
 ///
@@ -32,7 +32,7 @@ fn panic(_info: &PanicInfo) -> ! {
 
 static mut EXECUTOR: MaybeUninit<Executor> = MaybeUninit::uninit();
 
-/// The preemptive executor for audio: the scheduler routes the priority-0 task here.
+/// The preemptive executor for audio: it runs [`crate::audio::render::render_task`].
 ///
 /// It runs in a GIC SGI handler above thread mode, so a thread-mode storage spin cannot starve
 /// audio, and below the hard-RT ISRs (OSTM, MTU2 gate, MIDI), which preempt it.
@@ -180,8 +180,10 @@ pub fn start() -> ! {
     // precede any use of the interrupt executors.
     embassy_executor::set_gicd_base(0xE820_1000);
 
-    // Must precede `deluge_app_init`, whose `registerTasks()` adds the priority-0 task.
-    scheduler::set_audio_spawner(AUDIO_EXEC.start(AUDIO_SGI));
+    // The render task waits for boot to finish before its first tick.
+    AUDIO_EXEC
+        .start(AUDIO_SGI)
+        .spawn(crate::audio::render::render_task().unwrap());
     unsafe { rza1l_hal::gic::enable(AUDIO_SGI as u16) };
 
     STREAM_EXEC
@@ -195,12 +197,8 @@ pub fn start() -> ! {
         (*p).assume_init_mut()
     };
     executor.run(move |spawner: Spawner| {
-        // For the task runners `registerTasks()` spawns through the scheduler's C ABI.
-        scheduler::set_spawner(spawner);
         // Decodes pad and button input.
         spawner.spawn(control::pic_pump().unwrap());
-        // Wakes the app's self-blocking encoder task on encoder movement.
-        spawner.spawn(control::encoder_wake_pump().unwrap());
         // The sole PIC transmitter: drains the LED/pad output queue.
         spawner.spawn(control::pad_render().unwrap());
         // SSD1309 init and frame streaming over RSPI0.
@@ -214,6 +212,8 @@ pub fn start() -> ! {
         spawner.spawn(usb::midi_rx_task(usb_midi.ep_out).unwrap());
         spawner.spawn(usb::midi_tx_task(usb_midi.ep_in).unwrap());
         spawner.spawn(app_task().unwrap());
+        // Runs the app's jobs once boot has finished.
+        spawner.spawn(crate::app_loop::app_loop().unwrap());
         // Re-identifies the card after a swap. Its own task because `sd::init()` needs
         // embassy-time timers, which a blocking storage call cannot run.
         spawner.spawn(sd::card_service().unwrap());
@@ -222,8 +222,7 @@ pub fn start() -> ! {
 
 /// Boots the C++ app, then parks.
 ///
-/// `deluge_app_init` calls `registerTasks()`, which spawns one Embassy task per Deluge task
-/// through the [`scheduler`] C ABI; those runners drive the app from then on.
+/// Once `deluge_app_init` returns, the render task and the app loop drive the app.
 #[embassy_executor::task]
 async fn app_task() {
     use embassy_time::Timer;
@@ -282,11 +281,10 @@ async fn app_task() {
         }
     }
 
-    log::info!("deluge-rust: deluge_app_init() (registers + spawns task runners)");
-    // The task runners `registerTasks()` spawns start once this task yields.
+    log::info!("deluge-rust: deluge_app_init() (registers the app's jobs)");
     unsafe { sys::deluge_app_init(board::deluge_board()) };
     boot::mark_finished();
-    log::info!("deluge-rust: scheduler running");
+    log::info!("deluge-rust: boot finished");
 
     core::future::pending::<()>().await
 }

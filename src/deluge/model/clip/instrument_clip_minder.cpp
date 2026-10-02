@@ -330,12 +330,8 @@ void InstrumentClipMinder::focusRegained() {
 	MIDITranspose::exitScaleModeForMIDITransposeClips();
 }
 
-ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) {
 	using namespace deluge::hid::button;
-
-	if (inCardRoutine) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
 
 	// If holding save button...
 	if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON && on) {

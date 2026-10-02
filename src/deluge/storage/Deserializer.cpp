@@ -113,7 +113,6 @@ skipToNextTag:
 	}
 
 getOut:
-	readDone();
 
 	if (false) {
 skipPastRest:
@@ -202,7 +201,6 @@ doReadName:
 
 		if (false) {
 reachedNameEnd:
-			readDone();
 			haveReachedNameEnd = true;
 			// If possible, just return a pointer to the chars within the existing buffer
 			if (!charPos && fileReadBufferCurrentPos < currentReadBufferEndPos) {
@@ -391,8 +389,6 @@ void XMLDeserializer::skipUntilChar(char endChar) {
 	} while (fileReadBufferCurrentPos == currentReadBufferEndPos && readFileClusterIfNecessary());
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
-
-	readDone();
 }
 
 // Returns memory error. If error, caller must deal with the fact that the end-character hasn't been reached
@@ -421,7 +417,6 @@ Error XMLDeserializer::readStringUntilChar(std::string& string, char endChar) {
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
 
-	readDone();
 	return Error::NONE;
 }
 
@@ -456,8 +451,6 @@ char const* XMLDeserializer::readUntilChar(char endChar) {
 
 	fileReadBufferCurrentPos++; // Gets us past the endChar
 
-	readDone();
-
 	stringBuffer[charPos] = 0;
 	return stringBuffer;
 }
@@ -486,7 +479,6 @@ char const* XMLDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChars
 		// If we were able to just read the whole thing in one go, just return a pointer to the chars within the
 		// existing buffer
 		if (numCharsHere == numChars) {
-			readDone();
 			return &fileClusterBuffer[bufferPosAtStart];
 		}
 
@@ -498,7 +490,6 @@ char const* XMLDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChars
 
 			// And if we've now got all the chars we needed, return
 			if (charPos == numChars) {
-				readDone();
 				return stringBuffer;
 			}
 		}
@@ -536,7 +527,6 @@ char XMLDeserializer::readNextCharOfTagOrAttributeValue() {
 		else {
 			xmlArea = IN_TAG_PAST_NAME; // Could be ' or "
 		}
-		readDone();
 		return 0;
 	}
 	return thisChar;

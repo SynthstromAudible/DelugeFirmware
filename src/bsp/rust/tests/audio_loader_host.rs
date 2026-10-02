@@ -9,6 +9,7 @@
 use std::cell::{Cell, RefCell};
 use std::ffi::CString;
 
+use deluge_bsp_rust::app_loop;
 use deluge_bsp_rust::channel::audio_loader;
 
 use deluge_bsp_rust::storage::card;
@@ -16,13 +17,15 @@ use deluge_bsp_rust::storage::card;
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
     DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,
-    LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult, OpenVerdict, RESULT_SLOTS,
-    ResultTable, decode_candidates, load_io_once, publish_into, take_from,
+    FORGET_SLOTS, ForgetMarks, LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult,
+    OpenVerdict, RESULT_SLOTS, ResultTable, decode_candidates, load_io_once, path_hash,
+    publish_into, take_from,
 };
 
 // The live request/collect pipeline; see `live_pipeline` below.
 use audio_loader::{
-    deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
+    deluge_audio_load_collect, deluge_audio_load_forget, deluge_audio_load_request,
+    forget_marks_for_test, mark_in_flight, publish_result,
 };
 use card::deluge_card_flush;
 use deluge_bsp_rust::channel::{
@@ -277,8 +280,12 @@ fn request(path: &str, candidates: &[&str]) -> LoadRequest {
     LoadRequest {
         path: path_of(path),
         candidates: list,
+        candidates_key: KEY,
     }
 }
+
+/// The candidates key the tests request and collect with unless a test is about keys.
+const KEY: u32 = 0x5EED;
 
 /// The alternate path a result reports, as a `String`.
 fn alternate_of(result: &LoadResult) -> String {
@@ -683,7 +690,7 @@ fn table_with(paths: &[&str]) -> ResultTable {
 
 /// Takes under [`CARD`]. The generation tests below pass the generation explicitly.
 fn take(table: &mut ResultTable, path: &str) -> Option<LoadResult> {
-    take_from(table, path, CARD)
+    take_from(table, path, 0, CARD)
 }
 
 /// A published result is taken exactly once; returning it twice could build a `Sample` twice.
@@ -781,6 +788,105 @@ fn taking_from_the_middle_keeps_the_eviction_order() {
     assert!(take(&mut table, "ord/y").is_some());
 }
 
+// Candidates keys
+
+/// A result whose candidates key is `key`.
+fn keyed(error: u8, key: u32) -> LoadResult {
+    let mut result = LoadResult::failed(error);
+    result.candidates_key = key;
+    result
+}
+
+/// Answers for one path under two candidate lists are both kept, and each is taken only by its own key. A collector
+/// presenting another key finds nothing and leaves the answer where it is.
+#[test]
+fn answers_for_one_path_under_different_candidates_are_kept_apart() {
+    let mut table = ResultTable::new();
+    publish_into(
+        &mut table,
+        path_of("keys/A.wav"),
+        keyed(DELUGE_ERROR_FILE_UNREADABLE, 1),
+        CARD,
+    );
+    publish_into(
+        &mut table,
+        path_of("keys/A.wav"),
+        keyed(DELUGE_ERROR_NONE, 2),
+        CARD,
+    );
+    assert_eq!(
+        table.len(),
+        2,
+        "a second key's answer must not replace the first's"
+    );
+    assert!(
+        take_from(&mut table, "keys/A.wav", 3, CARD).is_none(),
+        "a key nobody asked with takes nothing"
+    );
+    assert_eq!(
+        table.len(),
+        2,
+        "a take for another key leaves both answers in place"
+    );
+    let second = take_from(&mut table, "keys/A.wav", 2, CARD).expect("its own answer");
+    assert_eq!(second.error, DELUGE_ERROR_NONE);
+    assert_eq!(second.candidates_key, 2);
+    let first = take_from(&mut table, "keys/A.wav", 1, CARD).expect("its own answer");
+    assert_eq!(first.error, DELUGE_ERROR_FILE_UNREADABLE);
+    assert!(table.is_empty());
+}
+
+/// Re-publishing under the same path and key still replaces the entry.
+#[test]
+fn republishing_under_the_same_key_replaces_only_that_answer() {
+    let mut table = ResultTable::new();
+    publish_into(
+        &mut table,
+        path_of("keys/B.wav"),
+        keyed(DELUGE_ERROR_FILE_UNREADABLE, 1),
+        CARD,
+    );
+    publish_into(
+        &mut table,
+        path_of("keys/B.wav"),
+        keyed(DELUGE_ERROR_FILE_CORRUPTED, 2),
+        CARD,
+    );
+    publish_into(
+        &mut table,
+        path_of("keys/B.wav"),
+        keyed(DELUGE_ERROR_NONE, 1),
+        CARD,
+    );
+    assert_eq!(table.len(), 2);
+    assert_eq!(
+        take_from(&mut table, "keys/B.wav", 1, CARD).unwrap().error,
+        DELUGE_ERROR_NONE
+    );
+    assert_eq!(
+        take_from(&mut table, "keys/B.wav", 2, CARD).unwrap().error,
+        DELUGE_ERROR_FILE_CORRUPTED
+    );
+}
+
+/// Every result the driver returns, found or not, carries its request's candidates key.
+#[test]
+fn every_result_carries_its_requests_candidates_key() {
+    let ops = FakeOps::new().with_file("keyed/found.wav", minimal_wav());
+    let mut found = request("keyed/found.wav", &["keyed/found.wav"]);
+    found.candidates_key = 0xABCD_0001;
+    let result = block_on(load_io_once(&ops, &found));
+    assert_eq!(result.error, DELUGE_ERROR_NONE);
+    assert_eq!(result.candidates_key, 0xABCD_0001);
+
+    let mut missing = request("keyed/missing.wav", &["keyed/missing.wav"]);
+    missing.candidates_key = 0xABCD_0002;
+    let result = block_on(load_io_once(&ops, &missing));
+    assert_eq!(result.error, DELUGE_ERROR_FILE_UNREADABLE);
+    assert_eq!(result.candidates_key, 0xABCD_0002);
+    ops.assert_settled();
+}
+
 // The generation stamp on the resident entry
 //
 // A stale entry can stay resident: `flush_tables`' clears are `try_lock`ed, and a publish can pass
@@ -794,7 +900,7 @@ fn taking_from_the_middle_keeps_the_eviction_order() {
 fn an_entry_from_a_previous_card_is_dropped_not_returned() {
     let mut table = table_with(&["gen/A.wav"]);
     assert!(
-        take_from(&mut table, "gen/A.wav", CARD + 1).is_none(),
+        take_from(&mut table, "gen/A.wav", 0, CARD + 1).is_none(),
         "a result parsed from the previous card must not be collectable"
     );
     assert!(
@@ -802,7 +908,7 @@ fn an_entry_from_a_previous_card_is_dropped_not_returned() {
         "the stale entry must be dropped from the table, not merely withheld"
     );
     assert!(
-        take_from(&mut table, "gen/A.wav", CARD).is_none(),
+        take_from(&mut table, "gen/A.wav", 0, CARD).is_none(),
         "and it must not be recoverable by asking under its own old generation"
     );
 }
@@ -837,18 +943,77 @@ fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
     );
 
     assert!(
-        take_from(&mut table, "gen/late.wav", CARD + 1).is_none(),
+        take_from(&mut table, "gen/late.wav", 0, CARD + 1).is_none(),
         "a result stamped before the flush must not be collectable after it"
     );
     // Positive control: a check that refused everything after a flush would pass the assertion
     // above while wedging the loader.
     assert_eq!(
-        take_from(&mut table, "gen/fresh.wav", CARD + 1)
+        take_from(&mut table, "gen/fresh.wav", 0, CARD + 1)
             .expect("a load that began on the current card must be collectable")
             .error,
         DELUGE_ERROR_FILE_CORRUPTED
     );
     assert!(table.is_empty());
+}
+
+// Forget marks
+
+/// A mark is taken once: the answer it discards is the one owed when it was made.
+#[test]
+fn a_forget_mark_is_taken_once() {
+    let mut marks = ForgetMarks::new();
+    marks.mark("forget/A.wav", |_| true);
+    marks.mark("forget/A.wav", |_| true);
+    assert_eq!(marks.len(), 1, "marking a path twice holds one mark");
+    assert!(!marks.take("forget/B.wav"), "another path has no mark");
+    assert!(marks.take("forget/A.wav"));
+    assert!(!marks.take("forget/A.wav"), "a taken mark is gone");
+    assert!(marks.is_empty());
+}
+
+/// A full table drops a mark whose path is no longer outstanding in preference to an older one that still is, and
+/// falls back to the oldest only when every mark is outstanding.
+#[test]
+fn a_full_forget_table_keeps_live_marks_over_stale_ones() {
+    let paths: Vec<String> = (0..=FORGET_SLOTS)
+        .map(|i| format!("forget/full/{i}.wav"))
+        .collect();
+    let fill = |marks: &mut ForgetMarks, owed: &dyn Fn(u32) -> bool| {
+        for path in &paths {
+            marks.mark(path, owed);
+        }
+    };
+
+    // The oldest mark is live and the second is stale: the stale one goes.
+    let mut marks = ForgetMarks::new();
+    for path in &paths[..FORGET_SLOTS] {
+        marks.mark(path, |_| true);
+    }
+    assert_eq!(marks.len(), FORGET_SLOTS);
+    let stale = path_hash(&paths[1]);
+    marks.mark(&paths[FORGET_SLOTS], |hash| hash != stale);
+    assert_eq!(marks.len(), FORGET_SLOTS);
+    assert!(marks.take(&paths[0]), "a live mark must survive eviction");
+    assert!(
+        !marks.take(&paths[1]),
+        "the stale mark must be the one dropped"
+    );
+    assert!(
+        marks.take(&paths[FORGET_SLOTS]),
+        "the newest mark must be kept"
+    );
+
+    // Every mark live: the oldest goes.
+    let mut marks = ForgetMarks::new();
+    fill(&mut marks, &|_| true);
+    assert_eq!(marks.len(), FORGET_SLOTS);
+    assert!(
+        !marks.take(&paths[0]),
+        "with all live, the oldest is dropped"
+    );
+    assert!(marks.take(&paths[FORGET_SLOTS]));
+    assert!(marks.take(&paths[1]));
 }
 
 // The live pipeline: request, in flight, collect, through the real C ABI over the process-wide
@@ -862,12 +1027,17 @@ mod live_pipeline {
     /// What `collect` seeds `out` with. `0xFF` is not a real error code (the largest is 34).
     const UNTOUCHED: u8 = 0xFF;
 
+    /// Collects with the candidates key [`publish`] stamps.
     fn collect(path: &str) -> (u8, LoadResult) {
+        collect_keyed(path, 0)
+    }
+
+    fn collect_keyed(path: &str, candidates_key: u32) -> (u8, LoadResult) {
         let key = CString::new(path).unwrap();
         let mut out = LoadResult::failed(UNTOUCHED);
         // SAFETY: `key` is a valid NUL-terminated C string and `out` a live,
         // writable `LoadResult`.
-        let status = unsafe { deluge_audio_load_collect(key.as_ptr(), &mut out) };
+        let status = unsafe { deluge_audio_load_collect(key.as_ptr(), candidates_key, &mut out) };
         (status, out)
     }
 
@@ -895,6 +1065,10 @@ mod live_pipeline {
             result.alternate_path.iter().all(|&byte| byte == 0),
             "`out.alternate_path` must not be written unless the status is READY"
         );
+        assert_eq!(
+            result.candidates_key, 0,
+            "`out.candidates_key` must not be written unless the status is READY"
+        );
     }
 
     /// Publishes as the loader task would for a load that began under the current card generation.
@@ -912,8 +1086,128 @@ mod live_pipeline {
                 key.as_ptr(),
                 buffer.as_ptr().cast::<core::ffi::c_char>(),
                 candidates.len() as u32,
+                KEY,
             )
         }
+    }
+
+    fn forget(path: &str) {
+        let key = CString::new(path).unwrap();
+        // SAFETY: `key` is a valid NUL-terminated C string.
+        unsafe { deluge_audio_load_forget(key.as_ptr()) };
+    }
+
+    /// Two live loads of one path with different candidate lists: the one whose request is out waits for it, the other
+    /// waits too (the path is in flight), then finds nothing for its own candidates and asks; the answer stays for the
+    /// load whose candidates found it.
+    #[test]
+    fn a_collect_for_other_candidates_leaves_the_answer_for_its_own() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        const FEWER: u32 = 0x0F;
+        const MORE: u32 = 0x3F;
+        block_on(mark_in_flight(Some(path_of("pair/A.wav"))));
+        assert_eq!(
+            collect_keyed("pair/A.wav", MORE).0,
+            DELUGE_CHANNEL_PENDING,
+            "any request out for the path is waited for"
+        );
+        publish("pair/A.wav", keyed(DELUGE_ERROR_FILE_UNREADABLE, FEWER));
+        block_on(mark_in_flight(None));
+
+        let (status, out) = collect_keyed("pair/A.wav", MORE);
+        assert_eq!(
+            status, DELUGE_CHANNEL_UNKNOWN,
+            "a miss for fewer candidates is not this collector's answer"
+        );
+        assert_out_untouched(&out);
+
+        let (status, out) = collect_keyed("pair/A.wav", FEWER);
+        assert_eq!(
+            status, DELUGE_CHANNEL_READY,
+            "the answer must still be there for the load that asked with its candidates"
+        );
+        assert_eq!(out.error, DELUGE_ERROR_FILE_UNREADABLE);
+        assert_eq!(out.candidates_key, FEWER);
+    }
+
+    /// A request dropped while in flight: its answer is discarded when it is published, so the next collect of the
+    /// path is `UNKNOWN` and its caller asks with its own candidates.
+    #[test]
+    fn a_forgotten_in_flight_request_publishes_nothing() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        block_on(mark_in_flight(Some(path_of("forget/inflight.wav"))));
+        forget("forget/inflight.wav");
+        publish(
+            "forget/inflight.wav",
+            LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE),
+        );
+        block_on(mark_in_flight(None));
+        let (status, out) = collect("forget/inflight.wav");
+        assert_eq!(
+            status, DELUGE_CHANNEL_UNKNOWN,
+            "a dropped request's answer must not reach the next collect of its path"
+        );
+        assert_out_untouched(&out);
+
+        // Positive control: the mark is spent, so the next request's answer is collected.
+        publish("forget/inflight.wav", LoadResult::failed(DELUGE_ERROR_NONE));
+        assert_eq!(collect("forget/inflight.wav").0, DELUGE_CHANNEL_READY);
+    }
+
+    /// A request dropped once its answer was already published: the answer is discarded at the collect.
+    #[test]
+    fn a_forgotten_published_answer_is_discarded_at_the_collect() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        publish(
+            "forget/published.wav",
+            LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE),
+        );
+        forget("forget/published.wav");
+        let (status, out) = collect("forget/published.wav");
+        assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
+        assert_out_untouched(&out);
+        assert_eq!(collect("forget/published.wav").0, DELUGE_CHANNEL_UNKNOWN);
+
+        publish(
+            "forget/published.wav",
+            LoadResult::failed(DELUGE_ERROR_NONE),
+        );
+        assert_eq!(
+            collect("forget/published.wav").0,
+            DELUGE_CHANNEL_READY,
+            "the mark must be spent by the answer it discarded"
+        );
+    }
+
+    /// Forgetting a path the loader owes nothing leaves no mark, so a later answer is not lost.
+    #[test]
+    fn forgetting_a_path_with_nothing_outstanding_changes_nothing() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let before = forget_marks_for_test();
+        forget("forget/nothing.wav");
+        assert_eq!(forget_marks_for_test(), before);
+        publish("forget/nothing.wav", LoadResult::failed(DELUGE_ERROR_NONE));
+        assert_eq!(collect("forget/nothing.wav").0, DELUGE_CHANNEL_READY);
+    }
+
+    /// A new request for a path clears a mark left for it, so the mark cannot discard the new request's answer.
+    #[test]
+    fn a_new_request_clears_a_spent_mark() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        block_on(mark_in_flight(Some(path_of("forget/respent.wav"))));
+        forget("forget/respent.wav");
+        // The owed answer never arrives (its slot was cleared), so the mark outlives it.
+        block_on(mark_in_flight(None));
+        let marked = forget_marks_for_test();
+        assert!(marked >= 1, "the in-flight request must have been marked");
+        assert!(request_load("forget/respent.wav", &["forget/respent.wav"]));
+        assert_eq!(
+            forget_marks_for_test(),
+            marked - 1,
+            "the request must clear the path's mark"
+        );
+        // Drain the queue, so this test leaves it as it found it.
+        deluge_card_flush();
     }
 
     /// A path never asked about is `UNKNOWN`; `PENDING` would make the caller wait forever.
@@ -945,6 +1239,39 @@ mod live_pipeline {
         assert_eq!(collect("inflight/B.wav").0, DELUGE_CHANNEL_UNKNOWN);
         block_on(mark_in_flight(None));
         assert_eq!(collect("inflight/A.wav").0, DELUGE_CHANNEL_UNKNOWN);
+    }
+
+    /// Clearing the in-flight mark wakes the app (`DELUGE_WAKE_STORAGE`); marking it does not.
+    #[test]
+    fn finishing_a_load_wakes_the_app() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        app_loop::reset_reasons_for_test();
+        block_on(mark_in_flight(Some(path_of("wake/A.wav"))));
+        assert_eq!(
+            app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+            0,
+            "marking a load in flight must not wake the app early"
+        );
+        block_on(mark_in_flight(None));
+        assert_ne!(
+            app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+            0,
+            "clearing the in-flight mark must wake the app"
+        );
+    }
+
+    /// A card flush wakes the app (`DELUGE_WAKE_STORAGE`) too: queued and in-flight work for the
+    /// old card is gone, and a job waiting on one of those drops must not sleep through it.
+    #[test]
+    fn a_flush_wakes_the_app() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        app_loop::reset_reasons_for_test();
+        deluge_card_flush();
+        assert_ne!(
+            app_loop::reasons_for_test() & app_loop::WAKE_STORAGE,
+            0,
+            "a card flush must wake the app"
+        );
     }
 
     /// A result published while its path is still marked in flight reports `PENDING` (one extra
@@ -986,6 +1313,7 @@ mod live_pipeline {
                 key.as_ptr(),
                 buffer.as_ptr().cast::<core::ffi::c_char>(),
                 0xFFFF_FFFF,
+                KEY,
             )
         };
         assert!(!accepted, "the sentinel must refuse the request");

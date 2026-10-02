@@ -18,10 +18,9 @@
 #include "hid/encoders.h"
 #include "libdeluge/encoder_io.h"
 #include <algorithm>
+#include <libdeluge/scheduler.h>
 
 namespace deluge::hid::encoders {
-
-TaskID EncoderTaskID = -1;
 
 // ── DetentedEncoder ────────────────────────────────────────────────────────
 
@@ -93,15 +92,6 @@ DetentedEncoder& functionEncoderAt(size_t i) {
 ContinuousEncoder& modEncoderAt(size_t i) {
 	static ContinuousEncoder* const table[] = {&mod0, &mod1};
 	return *table[i];
-}
-
-// ── Lifecycle ──────────────────────────────────────────────────────────────
-
-void init() {
-	// The board owns the encoder pins + edge ISRs; it wakes our task on movement.
-	// Gold-knob (MOD_0/MOD_1) vs detented behaviour is now expressed by the
-	// ContinuousEncoder / DetentedEncoder types, so there's no per-encoder mode to set here.
-	deluge_encoder_io_init(EncoderTaskID);
 }
 
 } // namespace deluge::hid::encoders

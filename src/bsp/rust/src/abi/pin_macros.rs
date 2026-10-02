@@ -11,8 +11,8 @@
 /// - `abi_pin!(a, b)` pins `a` and `b` in scope at the invocation.
 /// - `abi_pin!(in path::to::module: a, b)` pins `a` and `b` defined in that module: another crate's
 ///   exports, or a crate's own `extern "C"` declaration of a header function.
-/// - `abi_pin!(sys_name => local_name)` pins an export whose Rust name is not its C name:
-///   `r#yield`, which bindgen declares as `yield_` because `yield` is a Rust keyword.
+/// - `abi_pin!(sys_name => local_name)` pins an export whose Rust name is not its C name, such as
+///   one bindgen renames with a trailing underscore because the C name is a Rust keyword.
 macro_rules! abi_pin {
     ($sys:ident => $local:ident) => {
         const _: () = { let _ = [crate::sys::$sys, $local]; };

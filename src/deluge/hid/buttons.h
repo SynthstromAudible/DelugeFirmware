@@ -23,13 +23,13 @@
 
 namespace Buttons {
 
-ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine);
+ActionResult buttonAction(deluge::hid::Button b, bool on);
 void commandToggleShift(bool on);
 bool isButtonPressed(deluge::hid::Button b);
 bool isAnyOfButtonsPressed(std::initializer_list<deluge::hid::Button> buttons);
 bool isShiftButtonPressed();
 bool isShiftStuck();
-void noPressesHappening(bool inCardRoutine);
+void noPressesHappening();
 void ignoreCurrentShiftForSticky();
 const char* getButtonName(deluge::hid::Button b);
 

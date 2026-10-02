@@ -1,5 +1,6 @@
 #include "definitions_cxx.hpp"
 #include "io/midi/midi_device_manager.h"
+#include "runtime/app_loop.h"
 #include "storage/storage_manager.h"
 
 #include "io/file.hpp"
@@ -11,6 +12,11 @@ struct FILdata;
 namespace smSysex {
 
 const uint32_t MAX_PATH_NAME_LEN = 255;
+
+/// The SysEx job's id in `deluge::runtime::appLoop`, set by `registerJobs`. The job has no gap: it runs
+/// when `sysexReceived` or `handleNextSysEx` itself asks for it, and on `DELUGE_WAKE_STORAGE` while a
+/// request waits on a channel, so a message gets a run instead of waiting for the next poll.
+extern deluge::runtime::JobId jobId;
 
 // Helper structure for file operation parameters
 struct FileOpParams {

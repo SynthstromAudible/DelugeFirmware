@@ -6,7 +6,9 @@
 //! encoder GPIO/GIC setup runs in the device runtime's pre-executor window, with IRQs masked.
 #![allow(non_snake_case)]
 
-use core::sync::atomic::{AtomicBool, AtomicI8, AtomicU16, Ordering};
+#[cfg(not(target_os = "none"))]
+use core::sync::atomic::AtomicU32;
+use core::sync::atomic::{AtomicBool, AtomicU16, Ordering};
 
 use deluge_bsp::{encoder, pic};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -100,9 +102,26 @@ pub async fn pic_pump() {
             _ => None,
         };
         if let Some(ev) = mapped {
-            let _ = EVENTS.try_send(ev);
+            queue_event(ev);
         }
     }
+}
+
+/// Queues `ev` for the app and wakes its loop with `WAKE_INPUT`; drops it when [`EVENTS`] is full.
+///
+/// The wake is the only way the driver hears of input: it has no level check on [`EVENTS`].
+pub fn queue_event(ev: DelugeInputEvent) {
+    if EVENTS.try_send(ev).is_ok() {
+        crate::app_loop::wake(crate::app_loop::WAKE_INPUT);
+    }
+}
+
+/// Queues `ev` without waking the app's loop; returns false when [`EVENTS`] is full. A host test
+/// seam: it stages a burst that the driver hears of only through one later wake.
+#[cfg(not(target_os = "none"))]
+#[doc(hidden)]
+pub fn queue_event_without_wake(ev: DelugeInputEvent) -> bool {
+    EVENTS.try_send(ev).is_ok()
 }
 
 /// Maps a PIC pad id to a grid event at (x, y), as the app's `Pad(uint8_t)` does.
@@ -223,37 +242,82 @@ const BYTES_PER_CMD: u32 = 49;
 /// Sized so a full grid and sidebar redraw (≈10–18 commands) leaves plenty free: the app gates
 /// redraws on [`deluge_control_pad_output_space`], derived from the free slot count.
 static OUT: Channel<CriticalSectionRawMutex, PicOut, 64> = Channel::new();
-/// Set by any output op; [`deluge_control_flush`] turns it into a single refresh, so an idle tick
-/// sends nothing.
+/// Set by any output op; [`pad_render`] clears it with a single refresh once `OUT` drains, so an
+/// idle batch sends nothing extra.
 static OUTPUT_DIRTY: AtomicBool = AtomicBool::new(false);
 
-/// Background task: the sole PIC transmitter. Drains `OUT`, yielding between sends so the RX
-/// pump and the app keep running.
+/// Counts [`refresh`] calls, so a host test can check pad_render sent exactly one PIC refresh
+/// after a batch drained. The host stand-in for the PIC UART (`pic::tx`) only logs, so this is the
+/// one place that call is otherwise observable off-target.
+#[cfg(not(target_os = "none"))]
+static REFRESH_COUNT: AtomicU32 = AtomicU32::new(0);
+
+/// Current value of [`REFRESH_COUNT`]. Host test seam.
+#[cfg(not(target_os = "none"))]
+#[doc(hidden)]
+pub fn refresh_count_for_test() -> u32 {
+    REFRESH_COUNT.load(Ordering::Relaxed)
+}
+
+/// Resets [`REFRESH_COUNT`] to 0. Host test seam.
+#[cfg(not(target_os = "none"))]
+#[doc(hidden)]
+pub fn reset_refresh_count_for_test() {
+    REFRESH_COUNT.store(0, Ordering::Relaxed);
+}
+
+/// Background task: the sole PIC transmitter. Drains `OUT`, yielding between sends so the RX pump
+/// and the app keep running.
+///
+/// Every [`enqueue`] runs synchronously inside the app job that called it, and this task runs on
+/// the same thread executor, so once `OUT` is found empty that job's whole batch has been sent —
+/// exactly the moment to trigger the PIC's refresh, which [`refresh`] does once per batch rather
+/// than once per command. The refresh is sent from here, after the queue is known empty, so it
+/// cannot be dropped by a full queue the way a `try_send` from the app's side could be.
 #[embassy_executor::task]
 pub async fn pad_render() {
     // A command sent mid-handshake would go out at the wrong baud rate; boot-time commands wait
     // in OUT.
     pic::wait_ready().await;
     loop {
-        match OUT.receive().await {
-            PicOut::Columns { idx, colours } => pic::set_column_pair_rgb(idx, &colours).await,
-            PicOut::Led { id, on } => {
-                if on {
-                    pic::led_on(id).await
-                } else {
-                    pic::led_off(id).await
-                }
-            }
-            PicOut::Indicator { knob, levels } => pic::set_gold_knob_indicators(knob, levels).await,
-            PicOut::RefreshTime(ms) => pic::set_refresh_time(ms).await,
-            PicOut::Refresh => pic::done_sending_rows().await,
-            PicOut::ScrollSetup(flags) => pic::setup_horizontal_scroll(flags).await,
-            PicOut::ScrollRow { row, colour } => pic::send_scroll_row(row, colour).await,
-            PicOut::ScrollVertical { up, colours, count } => {
-                pic::vertical_scroll(up, &colours[..(count as usize).min(18)]).await
-            }
+        send(OUT.receive().await).await;
+        while let Ok(cmd) = OUT.try_receive() {
+            send(cmd).await;
+        }
+        if OUTPUT_DIRTY.swap(false, Ordering::Relaxed) {
+            refresh().await;
         }
     }
+}
+
+/// Sends one queued control-surface output operation to the PIC.
+async fn send(cmd: PicOut) {
+    match cmd {
+        PicOut::Columns { idx, colours } => pic::set_column_pair_rgb(idx, &colours).await,
+        PicOut::Led { id, on } => {
+            if on {
+                pic::led_on(id).await
+            } else {
+                pic::led_off(id).await
+            }
+        }
+        PicOut::Indicator { knob, levels } => pic::set_gold_knob_indicators(knob, levels).await,
+        PicOut::RefreshTime(ms) => pic::set_refresh_time(ms).await,
+        PicOut::Refresh => refresh().await,
+        PicOut::ScrollSetup(flags) => pic::setup_horizontal_scroll(flags).await,
+        PicOut::ScrollRow { row, colour } => pic::send_scroll_row(row, colour).await,
+        PicOut::ScrollVertical { up, colours, count } => {
+            pic::vertical_scroll(up, &colours[..(count as usize).min(18)]).await
+        }
+    }
+}
+
+/// Sends the PIC's "done sending rows" command, which triggers its display refresh. The sole
+/// place that happens, so [`REFRESH_COUNT`] on host counts every one.
+async fn refresh() {
+    pic::done_sending_rows().await;
+    #[cfg(not(target_os = "none"))]
+    REFRESH_COUNT.fetch_add(1, Ordering::Relaxed);
 }
 
 #[inline]
@@ -362,60 +426,10 @@ pub extern "C" fn deluge_control_pad_output_space() -> u32 {
     OUT.free_capacity() as u32 * BYTES_PER_CMD
 }
 
-/// Flushes batched surface output: queues one refresh if anything was queued since the last
-/// flush.
+/// No-op: [`pad_render`] sends the PIC refresh when its output queue drains, so the app has
+/// nothing to flush. The ABI function exists because the app calls it after pad/LED bursts.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_flush() {
-    if OUTPUT_DIRTY.swap(false, Ordering::Relaxed) {
-        let _ = OUT.try_send(PicOut::Refresh);
-    }
-}
-
-/// The scheduler task id of the app's encoder task, from [`deluge_encoder_io_init`]; -1 until
-/// then. [`encoder_wake_pump`] unblocks it on movement.
-static ENCODER_WAKE_TASK: AtomicI8 = AtomicI8::new(-1);
-
-/// Records `wake_task`, the app's encoder task, for [`encoder_wake_pump`] to wake.
-///
-/// The GPIO/GIC bring-up already ran in the pre-executor window (it must precede interrupt
-/// enable). The app's `interpretEncodersTask` blocks itself after each run and relies on the board
-/// to unblock it when an encoder moves; without the wake the encoders go dead.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_encoder_io_init(wake_task: i8) {
-    ENCODER_WAKE_TASK.store(wake_task, Ordering::Relaxed);
-    log::info!("deluge-rust: deluge_encoder_io_init (encoder wake task id={wake_task})");
-}
-
-/// Background task: bridges the encoder edge ISRs to the scheduler.
-///
-/// Waits on `encoder::ENCODER_WAKER` and unblocks the app's encoder task so it drains the edges.
-/// Without it, encoder input never reaches the app.
-#[embassy_executor::task]
-pub async fn encoder_wake_pump() {
-    loop {
-        // Register the waker before checking the deltas so an ISR in the gap can't be missed.
-        core::future::poll_fn(|cx| {
-            encoder::ENCODER_WAKER.register(cx.waker());
-            if encoder::ENCODER_DELTAS
-                .iter()
-                .any(|d| d.load(Ordering::Relaxed) != 0)
-            {
-                core::task::Poll::Ready(())
-            } else {
-                core::task::Poll::Pending
-            }
-        })
-        .await;
-
-        let id = ENCODER_WAKE_TASK.load(Ordering::Relaxed);
-        if id >= 0 {
-            crate::scheduler::unblockTask(id);
-        }
-        // Bound the unblock rate and let the encoder task drain the deltas before the re-check
-        // (else this spins until it runs). 1 ms is imperceptible for knob turns.
-        embassy_time::Timer::after(embassy_time::Duration::from_millis(1)).await;
-    }
-}
+pub extern "C" fn deluge_control_flush() {}
 
 abi_pin!(
     deluge_control_flush,
@@ -430,6 +444,5 @@ abi_pin!(
     deluge_control_set_led,
     deluge_control_set_pad_columns,
     deluge_control_set_refresh_time,
-    deluge_encoder_io_init,
     deluge_encoder_take_edges,
 );

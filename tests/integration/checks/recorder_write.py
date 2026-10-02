@@ -37,10 +37,14 @@ What each check covers, and why each is separate:
                 missing folder is worth the folder retry. Its openStatus must be NO_FILESYSTEM (-11).
   RW-DRAIN      that the offline stem-export path still drains to completion. That loop calls the card routine in a
                 bounded loop expecting each call to COMPLETE a write.
+  RW-DRAIN-STEMS  that the drain's TRACK export actually wrote its stems: one WAV per track of the fixture (Cordae's
+                eight kits), each with audio in its `data` chunk. A drain whose folder search gives up records nothing
+                and still terminates, so RW-DRAIN alone passes without a stem ever being written; a stem that is only a
+                header is a recording whose card writes never landed.
 
-NOT covered: the stem-export folder search. Its machine is exercised only by the offline render RW-DRAIN runs, which
-starts the export after boot, so the search takes its CHANNEL arm there; no check reads its outcome beyond the render
-terminating, and its inline arm is not exercised at all. There is no stem case among the `ticked_` cases: routing a
+The stem-export folder search's CHANNEL arm is exercised by the offline render RW-DRAIN runs, which starts the export
+after boot, and RW-DRAIN-STEMS checks its outcome. NOT covered: the search's inline arm, which runs only before boot
+finishes. There is no stem case among the `ticked_` cases: routing a
 harness recording down the stem path needs more engine state than `processStarted` + `currentStemExportType` +
 `lastFolderNameForStemExport`, and a case that silently records to RESAMPLE while calling itself a stem case is worse
 than none.
@@ -50,6 +54,26 @@ against.
 """
 
 import re
+import struct
+from pathlib import Path
+
+# The stems the offline drain's TRACK export of the Cordae fixture writes: one per kit track.
+_DRAIN_STEMS = 8
+
+
+def _wav_data_bytes(path: Path) -> int:
+    """The length of `path`'s RIFF `data` chunk, or 0 when it has none."""
+    raw = path.read_bytes()
+    if len(raw) < 12 or raw[:4] != b"RIFF" or raw[8:12] != b"WAVE":
+        return 0
+    pos = 12
+    while pos + 8 <= len(raw):
+        chunk_id = raw[pos : pos + 4]
+        (size,) = struct.unpack_from("<I", raw, pos + 4)
+        if chunk_id == b"data":
+            return size
+        pos += 8 + size + (size & 1)
+    return 0
 
 
 def _largest(lines: list[str], pattern: str) -> int:
@@ -203,6 +227,24 @@ def run(gate):
         )
         for line in drain.err.splitlines()[:20]:
             gate.say(line)
+    else:
+        stems_dir = gate.tmp / "drain-stems"
+        stems = sorted(stems_dir.rglob("*.WAV")) if stems_dir.is_dir() else []
+        empty = [stem.name for stem in stems if _wav_data_bytes(stem) == 0]
+        if not stems:
+            gate.fail(
+                "RW-DRAIN-STEMS — the TRACK export terminated without writing a stem"
+            )
+        elif len(stems) != _DRAIN_STEMS:
+            gate.fail(
+                f"RW-DRAIN-STEMS — the TRACK export wrote {len(stems)} stems, expected {_DRAIN_STEMS}"
+            )
+        elif empty:
+            gate.fail(
+                f"RW-DRAIN-STEMS — stems with no audio in their data chunk: {', '.join(empty)}"
+            )
+        else:
+            gate.say(f"RW-DRAIN-STEMS stems={len(stems)}")
 
     if gate.failures:
         gate.say("recorder write: FAILED")

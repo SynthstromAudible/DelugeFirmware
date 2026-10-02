@@ -119,6 +119,7 @@ void FavouritesManager::requestLoad() {
 	deluge::favourites::enqueueIntent(waiting_, FavouritesIntent{.kind = FavouritesIntent::Kind::Load,
 	                                                             .path = getFilenameForSave(),
 	                                                             .generation = generation_});
+	deluge::runtime::appLoop.request(deluge::storage::bytes::serviceJob);
 }
 
 std::string FavouritesManager::serialiseBank() const {
@@ -149,6 +150,7 @@ void FavouritesManager::queueSaveOfCurrentBank() {
 	    waiting_,
 	    FavouritesIntent{.kind = FavouritesIntent::Kind::Save, .path = getFilenameForSave(), .bytes = serialiseBank()});
 	unsavedChanges = false;
+	deluge::runtime::appLoop.request(deluge::storage::bytes::serviceJob);
 }
 
 Error FavouritesManager::loadFavouritesFromFile(Deserializer& reader, std::vector<Favorite>& into) {
@@ -247,6 +249,12 @@ void FavouritesManager::serviceRoutine() {
 	if (!inFlight_.active && !waiting_.empty()) {
 		issueNext();
 	}
+	// An intent that ended without the channel (run inline, or refused) has a result to apply now, and one that
+	// ended with it has made room for the next. One the channel holds is brought back by the channel's own job.
+	if ((inFlight_.active && inFlight_.resultReady.load(std::memory_order_acquire))
+	    || (!inFlight_.active && !waiting_.empty())) {
+		deluge::runtime::appLoop.request(deluge::storage::bytes::serviceJob);
+	}
 }
 
 void FavouritesManager::issueNext() {
@@ -302,6 +310,7 @@ void FavouritesManager::channelDone(void* ctx, SettingsOutcome outcome) {
 	self->inFlight_.outcome = outcome;
 	self->channelCompletions_++;
 	self->inFlight_.resultReady.store(true, std::memory_order_release);
+	deluge::runtime::appLoop.request(deluge::storage::bytes::serviceJob);
 }
 
 void FavouritesManager::runIntentInline(void* ctx) {
