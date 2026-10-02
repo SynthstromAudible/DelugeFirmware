@@ -35,7 +35,6 @@ public:
 		return true;
 	}
 
-	static bool predictionInterrupted;
 	static std::string enteredText;
 
 protected:

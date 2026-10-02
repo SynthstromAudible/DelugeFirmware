@@ -20,14 +20,11 @@
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
-#include "gui/ui/qwerty_ui.h"
 #include "hid/display/display.h"
-#include "hid/encoders.h"
 #include "libdeluge/clock.h"
 #include "modulation/arpeggiator.h"
 #include "processing/audio_output.h"
 #include "processing/sound/sound.h"
-#include "storage/audio/load_trace.h"
 #include "storage/flash_storage.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h"
@@ -36,7 +33,6 @@
 #include <string.h>
 
 namespace params = deluge::modulation::params;
-namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using params::kNumParams;
 
@@ -1475,13 +1471,6 @@ int32_t getHowManyCharsAreTheSame(char const* a, char const* b) {
 		b++;
 	}
 	return count;
-}
-
-bool shouldAbortLoading() {
-	const bool abort = (currentUIMode == UI_MODE_LOADING_BUT_ABORT_IF_SELECT_ENCODER_TURNED
-	                    && (encoders::select.pending() || QwertyUI::predictionInterrupted));
-	DELUGE_LOAD_TRACE("abort=%d", abort ? 1 : 0);
-	return abort;
 }
 
 int32_t getNoteMagnitudeFfromNoteLength(uint32_t noteLength, int32_t tickMagnitude) {

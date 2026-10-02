@@ -1171,10 +1171,8 @@ extern std::string_view getErrorMessage(Error);
 void OLED::displayError(Error error) {
 	char const* message = nullptr;
 	switch (error) {
-	// Nothing to report. ABORTED_BY_USER in particular is ROUTINE -- scrolling the preset browser
-	// while its sample load runs produces it on every interrupted load -- so this pair must stay
-	// silent, which is why LOAD_IN_PROGRESS gets a label of its own below rather than sharing this
-	// body: a diagnostic that also fires on ordinary user aborts is noise a reader learns to skip.
+	// Nothing to report: neither is a failure. LOAD_IN_PROGRESS gets a label of its own below rather
+	// than sharing this body, because reaching here with it is a caller's bug worth showing.
 	case Error::NONE:
 	case Error::ABORTED_BY_USER:
 		return;

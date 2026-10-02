@@ -590,7 +590,7 @@ for (int32_t i = 0; i < std::ssize(clipInstances); i++) {
     ClipInstance* thisInstance = &clipInstances[i];
 */
 
-Error Output::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
+void Output::loadAllAudioFiles(bool mayActuallyReadFiles, deluge::storage::AudioLoadContext* context) {
 	deluge::storage::BlockingSampleLoad load{mayActuallyReadFiles, context};
-	return deluge::storage::BlockingSampleLoad::errorFor(walkSampleDemands(load));
+	(void)walkSampleDemands(load);
 }

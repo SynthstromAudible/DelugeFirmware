@@ -25,7 +25,6 @@
 #include "model/song/song.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
-#include "util/functions.h"
 
 #include <algorithm>
 #include <utility>
@@ -88,7 +87,6 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	progress_.inFlight = 0;
 	samplesInFlight_ = 0;
 	wavetableAwaitsSamples_ = false;
-	aborted_ = false;
 	context_ = callerContext_;
 	scopeDepth_ = 0;
 	ownFolderDepth_ = -1;
@@ -121,11 +119,7 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	}
 	progress_.stalledUs = stalledBound_.elapsedUs();
 	retickNow_ = madeProgress || (wavetableAwaitsSamples_ && samplesInFlight_ == 0);
-	if (aborted_) {
-		progress_.state = State::Failed;
-		progress_.reason = Reason::Aborted;
-	}
-	else if (progress_.inFlight == 0) {
+	if (progress_.inFlight == 0) {
 		progress_.state = State::Loaded;
 	}
 	else if (stalled) {
@@ -145,23 +139,13 @@ uint64_t AsyncSampleLoad::nextTickUs() const {
 	return stalledBound_.deadlineUs();
 }
 
-Walk AsyncSampleLoad::stopIfAborted() {
-	// Every lookup this load makes may read the card, so the abort is always asked, as the blocking driver asks it
-	// when reading.
-	if (aborted_ || shouldAbortLoading()) {
-		aborted_ = true;
-		return Walk::Stop;
-	}
+Walk AsyncSampleLoad::rangeCheckpoint(int32_t /*rangeIndex*/) {
+	// No audio routine: nothing this load does holds the calling tier long enough to need one.
 	return Walk::Continue;
 }
 
-Walk AsyncSampleLoad::rangeCheckpoint(int32_t /*rangeIndex*/) {
-	// No audio routine: nothing this load does holds the calling tier long enough to need one.
-	return stopIfAborted();
-}
-
 Walk AsyncSampleLoad::drumCheckpoint() {
-	return stopIfAborted();
+	return Walk::Continue;
 }
 
 void AsyncSampleLoad::clipCheckpoint() {
@@ -192,11 +176,6 @@ void AsyncSampleLoad::endInstrumentScope() {
 }
 
 void AsyncSampleLoad::demand(const SampleDemand& demand) {
-	if (aborted_) {
-		// A song walks its audio clips with no checkpoint between them: nothing more is looked up after an abort.
-		return;
-	}
-
 	AudioFileHolder& holder = *demand.holder;
 	if (holder.audioFile != nullptr) {
 		progress_.bound++;

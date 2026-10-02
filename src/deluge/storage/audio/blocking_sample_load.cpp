@@ -21,7 +21,6 @@
 #include "model/clip/audio_clip.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_holder.h"
-#include "util/functions.h"
 
 namespace deluge::storage {
 
@@ -29,20 +28,16 @@ BlockingSampleLoad::BlockingSampleLoad(bool mayReadCard, AudioLoadContext* conte
     : mayReadCard_{mayReadCard}, context_{context} {
 }
 
-Walk BlockingSampleLoad::stopIfAborted() const {
-	return (mayReadCard_ && shouldAbortLoading()) ? Walk::Stop : Walk::Continue;
-}
-
 Walk BlockingSampleLoad::rangeCheckpoint(int32_t rangeIndex) {
 	AudioEngine::logAction("Source::loadAllSamples");
 	if (!(rangeIndex & 3)) { // 3 works, 7 occasionally drops voices - for multisampled synths
 		AudioEngine::routineWithClusterLoading();
 	}
-	return stopIfAborted();
+	return Walk::Continue;
 }
 
 Walk BlockingSampleLoad::drumCheckpoint() {
-	return stopIfAborted();
+	return Walk::Continue;
 }
 
 void BlockingSampleLoad::clipCheckpoint() {

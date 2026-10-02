@@ -22,7 +22,7 @@
 ///
 /// Exists so a restructuring of how samples are loaded can be shown to make the same calls, in the same order, as
 /// the code it replaces. The hooks sit in leaf functions that the restructuring leaves in place:
-/// `AudioFileManager::getAudioFileFromFilename`, `AudioEngine::routineWithClusterLoading`, `shouldAbortLoading` and
+/// `AudioFileManager::getAudioFileFromFilename`, `AudioEngine::routineWithClusterLoading` and
 /// `AudioFileHolder::setAudioFile`. Each hook emits one line to the sink, when one is installed.
 ///
 /// Compiled only under `DELUGE_HOST`. Everywhere else @ref DELUGE_LOAD_TRACE expands to nothing and its arguments
