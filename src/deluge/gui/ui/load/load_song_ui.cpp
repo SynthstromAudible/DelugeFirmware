@@ -257,6 +257,10 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on, bool inCar
 	using namespace deluge::hid::button;
 
 	if (listingInProgress_) {
+		// BACK still cancels a load that is staging; the listing carries on either way.
+		if (b == BACK && on && !currentUIMode) {
+			(void)cancelLoad();
+		}
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -1065,7 +1069,34 @@ void LoadSongUI::exitAction() {
 	timerCallback();
 }
 
+deluge::gui::CancelResult LoadSongUI::cancelLoad() {
+	using deluge::gui::CancelResult;
+	switch (loadPhase_) {
+	case LoadPhase::NONE:
+		return CancelResult::Stale;
+	case LoadPhase::STAGE:
+		// The staged bytes are all the load holds, and the deserializer is not pointed at them until the phase
+		// ends, so endLoad()'s release is the whole of the undo.
+		display->removeWorkingAnimation();
+		endLoad();
+		return CancelResult::Cancelled;
+	default:
+		return CancelResult::Refused;
+	}
+}
+
 ActionResult LoadSongUI::backButtonAction() {
+	// BACK while a load is in flight means that load, not the browser: dropped while it is still staging, and
+	// otherwise ignored, since leaving the browser or relisting its folder under a load would pull the UI out from
+	// under it.
+	switch (cancelLoad()) {
+	case deluge::gui::CancelResult::Cancelled:
+	case deluge::gui::CancelResult::Refused:
+		return ActionResult::DEALT_WITH;
+	case deluge::gui::CancelResult::Stale:
+		break;
+	}
+
 	// Back either leaves the browser or goes up a directory. Either way the song this was hovering is
 	// no longer the selection, and neither outcome asks for a replacement preview to supersede one
 	// already being read -- the same shape as the folder branch in drawSongPreview(). Going up

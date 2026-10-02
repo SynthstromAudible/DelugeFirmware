@@ -18,17 +18,22 @@
 #include "scenarios/song_load_channel_scenario.h"
 
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/load/cancel_result.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/save/save_song_ui.h"
 #include "gui/ui/save/save_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
+#include "hid/button.h"
+#include "hid/display/oled.h"
 #include "io/file.hpp"
+#include "libdeluge/file_bytes.h" // deluge_file_bytes_set_latency_ms
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/storage_manager.h"
@@ -71,6 +76,17 @@ public:
 	}
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void pressEnter() { saveSongUI.enterKeyPress(); }
+
+	/// Whether the song load is staging with its whole-file read outstanding: the byte channel holds the buffer.
+	static bool stagingReadOutstanding() {
+		return loadSongUI.loadPhase_ == LoadSongUI::LoadPhase::STAGE && loadSongUI.songStaging_.issued;
+	}
+	/// Whether the song load is past STAGE: BEGIN or later.
+	static bool pastStaging() {
+		return loadSongUI.loadPhase_ != LoadSongUI::LoadPhase::NONE
+		       && loadSongUI.loadPhase_ != LoadSongUI::LoadPhase::STAGE;
+	}
+	static int32_t phase() { return static_cast<int32_t>(loadSongUI.loadPhase_); }
 };
 
 namespace {
@@ -99,6 +115,10 @@ enum class Stage : uint8_t {
 	Decoy,
 	LoadBack,
 	LoadBackListing,
+	CancelStart,
+	CancelWait,
+	CancelAfter,
+	RefuseStart,
 	LoadBackWait,
 	Report,
 	Done,
@@ -121,6 +141,20 @@ bool g_fixtureBound = false;
 constexpr int32_t kMaxLoadTicks = 200000;
 /// Ticks to wait for the save's file to appear before calling it absent.
 constexpr int32_t kMaxSaveTicks = 20000;
+
+/// How long the byte channel holds each operation in the cancel-in-STAGE leg, so the staging read is still
+/// outstanding when BACK is pressed. A tick is about a virtual millisecond.
+constexpr uint32_t kHoldMs = 300;
+/// Ticks the cancel-in-STAGE leg runs on after BACK, past every hold, to see that nothing of the dropped load comes
+/// back.
+constexpr int32_t kAfterTicks = 1000;
+
+/// cancel_in_stage: the song before the load, and the staging buffers parked when BACK was pressed.
+Song* g_songBefore = nullptr;
+int32_t g_orphansBefore = 0;
+int32_t g_cancelTicks = 0;
+/// cancel_after_begin: whether a cancel was tried past STAGE, and how it answered.
+bool g_refuseTried = false;
 
 bool fileExists(const char* path) {
 	return deluge::io::File::open(path, DELUGE_FILE_READ).has_value();
@@ -215,15 +249,128 @@ void runTick() {
 			}
 			break;
 		}
+		// The browser's scroll-in runs on the UI timer, which nothing fires in the harness; BACK is a browser gesture
+		// only once it has finished.
+		for (int32_t t = 0; currentUIMode == UI_MODE_VERTICAL_SCROLL && t < kDisplayHeight * 4; t++) {
+			(void)loadSongUI.timerCallback();
+		}
+		if (currentUIMode != UI_MODE_NONE) {
+			// Still waiting to scroll in, or mid-scroll: ask again next tick.
+			if (++g_loadTicks > kMaxLoadTicks) {
+				printf("SL-CANCEL FAIL the load browser never finished scrolling in (mode=%d)\n",
+				       static_cast<int>(currentUIMode));
+				g_failures++;
+				g_stage = Stage::Report;
+			}
+			break;
+		}
+		g_stage = Stage::CancelStart;
+		break;
+	}
+	case Stage::CancelStart: {
+		// cancel_in_stage: the song plays while the load stages, with the byte channel holding its read.
+		playbackHandler.setupPlaybackUsingInternalClock(0, false);
+		g_songBefore = currentSong;
+		g_orphansBefore = StorageManager::orphanedStagingCount();
+		deluge_file_bytes_set_latency_ms(kHoldMs);
+		loadSongUI.beginLoad();
+		g_cancelTicks = 0;
+		g_stage = Stage::CancelWait;
+		break;
+	}
+	case Stage::CancelWait: {
+		if (!SongLoadChannelProbe::stagingReadOutstanding()) {
+			if (++g_cancelTicks > kMaxLoadTicks || !loadSongUI.loadInFlight()) {
+				printf("SL-CANCEL FAIL the load never reached its staging read (phase=%d inFlight=%d)\n",
+				       SongLoadChannelProbe::phase(), loadSongUI.loadInFlight() ? 1 : 0);
+				g_failures++;
+				deluge_file_bytes_set_latency_ms(0);
+				g_stage = Stage::Report;
+			}
+			break;
+		}
+		(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, true, false);
+		(void)getCurrentUI()->buttonAction(deluge::hid::button::BACK, false, false);
+		const bool dropped = !loadSongUI.loadInFlight();
+		const bool browserStayed = getCurrentUI() == &loadSongUI && currentUIMode == UI_MODE_NONE;
+		const bool songKept = currentSong == g_songBefore && currentSong->insideWorldTickMagnitude == kDecoyMagnitude;
+		const bool playing = playbackHandler.isEitherClockActive();
+		const bool animation = deluge::hid::display::OLED::isWorkingAnimationPresent();
+		const int32_t parked = StorageManager::orphanedStagingCount() - g_orphansBefore;
+		printf("SL-CANCEL-BACK dropped=%d browserStayed=%d songKept=%d playing=%d animation=%d parked=%d\n",
+		       dropped ? 1 : 0, browserStayed ? 1 : 0, songKept ? 1 : 0, playing ? 1 : 0, animation ? 1 : 0, parked);
+		if (!dropped || !browserStayed) {
+			printf(
+			    "SL-CANCEL FAIL BACK while the song load staged did not drop it and leave the browser where it was\n");
+			g_failures++;
+		}
+		if (!songKept || !playing || animation) {
+			printf("SL-CANCEL FAIL the cancel did not leave the current song playing with nothing shown\n");
+			g_failures++;
+		}
+		if (parked != 1) {
+			printf("SL-CANCEL FAIL the staging buffer the byte channel still writes was not parked\n");
+			g_failures++;
+		}
+		deluge_file_bytes_set_latency_ms(0);
+		g_cancelTicks = 0;
+		g_stage = Stage::CancelAfter;
+		break;
+	}
+	case Stage::CancelAfter: {
+		if (++g_cancelTicks < kAfterTicks) {
+			break;
+		}
+		const bool songKept = currentSong == g_songBefore && currentSong->insideWorldTickMagnitude == kDecoyMagnitude;
+		const bool playing = playbackHandler.isEitherClockActive();
+		const bool browserStayed = getCurrentUI() == &loadSongUI;
+		const int32_t parked = StorageManager::orphanedStagingCount() - g_orphansBefore;
+		const deluge::gui::CancelResult idle = loadSongUI.cancelLoad();
+		printf("SL-CANCEL songKept=%d playing=%d browserStayed=%d inFlight=%d parked=%d idleCancel=%d\n",
+		       songKept ? 1 : 0, playing ? 1 : 0, browserStayed ? 1 : 0, loadSongUI.loadInFlight() ? 1 : 0, parked,
+		       static_cast<int>(idle));
+		if (!songKept || !playing || !browserStayed || loadSongUI.loadInFlight()) {
+			printf("SL-CANCEL FAIL the cancelled load came back, or the current song stopped playing\n");
+			g_failures++;
+		}
+		if (parked != 0) {
+			printf("SL-CANCEL FAIL the parked staging buffer was not freed once the byte channel let it go\n");
+			g_failures++;
+		}
+		if (idle != deluge::gui::CancelResult::Stale) {
+			printf("SL-CANCEL FAIL a cancel with no load in flight was not Stale\n");
+			g_failures++;
+		}
+		playbackHandler.endPlayback();
+		g_stage = Stage::RefuseStart;
+		break;
+	}
+	case Stage::RefuseStart: {
+		// cancel_after_begin: the load that brings the song back is asked to cancel once it is past STAGE.
 		loadSongUI.beginLoad();
 		g_stage = Stage::LoadBackWait;
 		break;
 	}
 	case Stage::LoadBackWait: {
+		if (!g_refuseTried && SongLoadChannelProbe::pastStaging()) {
+			g_refuseTried = true;
+			const int32_t phase = SongLoadChannelProbe::phase();
+			const deluge::gui::CancelResult result = loadSongUI.cancelLoad();
+			const bool carriesOn = loadSongUI.loadInFlight() && SongLoadChannelProbe::pastStaging();
+			printf("SL-REFUSED phase=%d result=%d carriesOn=%d\n", phase, static_cast<int>(result), carriesOn ? 1 : 0);
+			if (result != deluge::gui::CancelResult::Refused || !carriesOn) {
+				printf("SL-REFUSED FAIL a cancel past STAGE was not refused, or stopped the load\n");
+				g_failures++;
+			}
+		}
 		// loadInFlight(), NOT isLoadingSong(): the latter is true merely because the load UI is
 		// showing, so with the browser open it would never go false and this gate would hang rather
 		// than report.
 		if (!loadSongUI.loadInFlight()) {
+			if (!g_refuseTried) {
+				printf("SL-REFUSED FAIL the load finished before a cancel past STAGE could be tried\n");
+				g_failures++;
+			}
 			g_stage = Stage::Report;
 			break;
 		}
@@ -304,6 +451,10 @@ void deluge_scenario_song_load_channel_begin(void) {
 	g_loadTicks = 0;
 	g_saveTicks = 0;
 	g_fixtureBound = false;
+	g_songBefore = nullptr;
+	g_orphansBefore = 0;
+	g_cancelTicks = 0;
+	g_refuseTried = false;
 }
 
 bool deluge_scenario_song_load_channel_complete(void) {

@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "gui/ui/load/cancel_result.h"
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "io/stall_bound.h"
@@ -82,6 +83,16 @@ public:
 	/// playback routine launches each change. 6 ms is short enough that each is noticed within a couple of render
 	/// blocks.
 	static constexpr uint64_t kRecheckUs = 6'000;
+
+	/// @brief Drop the load in flight, if it can still be dropped without touching the current song.
+	///
+	/// Only STAGE can be dropped, its wait for the browser's listing included: until then the load holds nothing but
+	/// the staged bytes, which endLoad() frees, or parks while the byte channel still writes into them. From BEGIN on
+	/// the outgoing song may already be deleted, so a cancel there could not put it back.
+	///
+	/// @return Cancelled when the load was dropped: the loading animation is taken down and the completion runs.
+	///         Refused from BEGIN on, and the load carries on. Stale when no load is in flight.
+	deluge::gui::CancelResult cancelLoad();
 
 	/// @brief True from @ref beginLoad until the load's completion has run.
 	[[nodiscard]] bool isLoadInFlight() const { return performingLoad; }
@@ -209,6 +220,10 @@ private:
 	/// The host song-preview gate, which drives the real drawSongPreview()/graphicsRoutine() pair and holds
 	/// the two members above to a reference decode. See tests/integration/scenarios/song_preview_ab_scenario.cpp.
 	friend class SongPreviewAbProbe;
+
+	/// The song-load channel gate, which cancels a load at a known phase and with the staging read outstanding. See
+	/// tests/integration/scenarios/song_load_channel_scenario.cpp.
+	friend class SongLoadChannelProbe;
 
 	/// A row-major pad image of the shape both preview decoders write into.
 	using PreviewImage = RGB (*)[kDisplayWidth + kSideBarWidth];

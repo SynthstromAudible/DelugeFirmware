@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/load/cancel_result.h"
 #include "gui/ui/load/confirm_preset.h"
 #include "gui/ui/load/preset_navigation.h"
 #include "gui/ui/load/preset_walk.h"
@@ -79,13 +80,6 @@ struct LoadTicket {
 
 	/// @brief Whether the request was taken: queued or started, rather than refused.
 	[[nodiscard]] bool accepted() const { return generation != 0; }
-};
-
-/// @brief How InstrumentLoad::cancel() answered.
-enum class CancelResult : uint8_t {
-	Cancelled, ///< the load was dropped: nothing it staged or parsed is kept
-	Refused,   ///< this kind of load always completes (creation, revert, MIDI definition)
-	Stale,     ///< the ticket's load has finished or a newer request replaced it
 };
 
 /// @brief One preset load: the browser's own, an acquisition a gesture outside the browser asked for, the revert the
