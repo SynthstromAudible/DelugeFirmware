@@ -1081,7 +1081,6 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 // button action
 
 ActionResult AutomationView::buttonAction(hid::Button b, bool on) {
-
 	using namespace hid::button;
 
 	Clip* clip = getCurrentClip();
@@ -2254,7 +2253,6 @@ void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelS
 // no change compared to instrument clip view version
 // not used with Audio Clip Automation View
 ActionResult AutomationView::verticalEncoderAction(int32_t offset) {
-
 	if (onArrangerView) {
 		if (Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
 			currentSong->commandTranspose(offset);

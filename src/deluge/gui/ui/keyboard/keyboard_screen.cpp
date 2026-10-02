@@ -586,7 +586,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on) {
 }
 
 ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset) {
-
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
 		getCurrentInstrumentClip()->colourOffset += offset;
 		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();

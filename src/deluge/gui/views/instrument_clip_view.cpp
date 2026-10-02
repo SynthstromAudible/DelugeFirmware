@@ -812,7 +812,6 @@ ActionResult InstrumentClipView::timerCallback() {
 }
 
 ActionResult InstrumentClipView::handleScaleButtonAction(bool on) {
-
 	// Kits can't do scales!
 	if (getCurrentOutputType() == OutputType::KIT) {
 		if (on) {
@@ -6015,7 +6014,6 @@ ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset) {
 }
 
 ActionResult InstrumentClipView::commandTransposeKey(int32_t offset) {
-
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 

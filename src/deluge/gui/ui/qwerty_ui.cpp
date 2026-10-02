@@ -230,7 +230,6 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 	else if (x >= 3 && x < 14 && y >= kQwertyHomeRow - 2 && y <= kQwertyHomeRow + 2) {
 		if (on) {
 			if (!currentUIMode) {
-
 				char newChar =
 				    keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)][kQwertyHomeRow - y + 2][x - 3];
 				if (newChar == 0) {

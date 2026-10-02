@@ -999,9 +999,6 @@ ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	// Or, maybe we want to scroll or zoom around the waveform...
 	if (currentlyShowingSamplePreview
 	    && (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) || waveformBasicNavigator.isZoomedIn())) {
-
-		// We're quite likely going to need to read the SD card to do either scrolling or zooming
-
 		// Zoom
 		if (isUIModeActive(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)) {
 			if (isUIModeWithinRange(zoomUIModes)) {
