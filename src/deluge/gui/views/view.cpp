@@ -851,8 +851,8 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		}
 	}
 
-	// let's see if we're browsing for a song
-	bool inSongBrowser = getCurrentUI() == &loadSongUI;
+	// Browsing for a song, or a song load in flight (which has taken every UI down): its popup stays up.
+	bool inSongBrowser = loadSongUI.isLoadingSong();
 
 	if (!editingParamInPerformanceView && !editingParamInMenu && !inSongBrowser) {
 		PatchSource source1 = PatchSource::NONE;

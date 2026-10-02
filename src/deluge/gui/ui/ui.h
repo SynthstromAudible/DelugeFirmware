@@ -197,7 +197,7 @@ protected:
 // UIs
 
 /// @brief True while a song load or a song clear has taken every UI down (nullifyUIs()), until the incoming song's
-///        root UI is set.
+///        root UI is set -- and at boot, before the first root UI is set.
 ///
 /// Input dispatchers ask this to route the gestures the load itself answers -- arming its swap, and the armed swap's
 /// loop count -- to the load rather than to getCurrentUI().

@@ -80,8 +80,9 @@ public:
 	void setActiveModControllableWithoutTimelineCounter(ModControllable* modControllable, ParamManager* paramManager);
 	/// @brief Leave the mod encoders on nothing until a UI gives them something again.
 	///
-	/// For when the song the active mod controllable belongs to stops being the current one: that song is freed next,
-	/// and the knobs, which reach the view whichever UI is on top, must not reach into it.
+	/// For when what the active mod controllable belongs to is about to go -- a song swapped out or deleted, a clip
+	/// freed -- since the knobs reach the view whichever UI is on top. Writes only the model stack, so the render may
+	/// call it too; the knob indicators and mod LEDs are the caller's to update.
 	void releaseActiveModControllable();
 	void cycleThroughReverbPresets();
 	char const* getReverbPresetDisplayName(int32_t preset);

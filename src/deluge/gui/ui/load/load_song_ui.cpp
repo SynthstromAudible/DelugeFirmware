@@ -32,6 +32,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "hid/matrix/matrix_driver.h"
 #include "libdeluge/file_prefix.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
@@ -643,6 +644,11 @@ void LoadSongUI::runBeginSegment() {
 		return;
 	}
 
+	// Every UI is about to be taken down, and none will hear the releases of pads still held: end each held gesture
+	// now, through the UIs that started it, while the song it plays is still alive. Before the mode below, which
+	// would hide an audition from the release that ends it.
+	matrixDriver.noPressesHappening();
+
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
@@ -659,8 +665,8 @@ void LoadSongUI::runBeginSegment() {
 		deleteOldSongBeforeLoadingNew();
 	}
 	else {
-		// Note: this is dodgy, but in this case we don't reset view.activeControllableClip here - we let the user keep
-		// fiddling with it. It won't get deleted.
+		// The view keeps the playing song's mod controllable, so the knobs go on adjusting the song that is still
+		// playing -- until the swap, which lets go of it (PlaybackHandler::doSongSwap()) before FINISH frees it.
 		AudioEngine::logAction("arming for song swap");
 		AudioEngine::songSwapAboutToHappen();
 		AudioEngine::logAction("song swap armed");
@@ -697,6 +703,11 @@ fail:
 		if (!currentSong) {
 			setupBlankSong();
 			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
+		}
+		// Otherwise the old song survived (a load during playback deletes it only once the swap is done), but its UIs
+		// were taken down above: put its root UI back, or nothing would take input again.
+		else if (uiStackEmpty()) {
+			setUIForLoadedSong(currentSong);
 		}
 
 		display->removeWorkingAnimation();

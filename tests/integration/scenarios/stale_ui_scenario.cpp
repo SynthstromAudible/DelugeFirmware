@@ -28,12 +28,14 @@
 #include "gui/views/view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
+#include "hid/display/display.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "hid/matrix/matrix_driver.h"
 #include "io/file.hpp"
 #include "io/midi/midi_engine.h"
 #include "model/clip/clip.h"
+#include "model/instrument/instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
@@ -120,13 +122,16 @@ private:
 StaleProbeUI g_probe;
 
 enum class Stage : uint8_t {
-	Loading,     ///< The blank song's preset load.
-	Listing,     ///< The load browser lists SONGS, as a song loaded from it leaves it.
-	InertRun,    ///< inert_while_empty: a probe UI on top, MIDI NEXT_SONG, input and timers during the load.
-	EditorSetup, ///< retired_song: the loaded song is given a synth clip.
-	EditorRun,   ///< ...the sound editor on top, NEXT_SONG, and the swap watched.
-	HoldStart,   ///< hold_load_to_launch: LOAD pressed in the load browser and held through the load.
-	HoldRelease, ///< ...released once the load waits on it; the swap must arm and the load end.
+	Loading,       ///< The blank song's preset load.
+	Listing,       ///< The load browser lists SONGS, as a song loaded from it leaves it.
+	InertRun,      ///< inert_while_empty: a probe UI on top, MIDI NEXT_SONG, input and timers during the load.
+	EditorSetup,   ///< retired_song: the loaded song is given a synth clip.
+	EditorRun,     ///< ...the sound editor on top, NEXT_SONG, and the swap watched.
+	AuditionSetup, ///< held_audition: an audition pad held on the clip view when NEXT_SONG arrives.
+	AuditionRun,   ///< ...the note must end when the UIs are taken down, not at the swap.
+	HoldStart,     ///< hold_load_to_launch: LOAD pressed in the load browser and held through the load.
+	HoldRelease,   ///< ...released once the load waits on it; the swap must arm and the load end.
+	FailedRun,     ///< failed_load: NEXT_SONG onto a song that cannot be read; the surviving song gets its UI back.
 	Report,
 	Done,
 };
@@ -140,7 +145,15 @@ constexpr const char* kSongA = "SONGS/SUA.XML";
 constexpr const char* kSongB = "SONGS/SUB.XML";
 constexpr const char* kSongText = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n\tfirmwareVersion=\"c1.3.0\"\n"
                                   "\tearliestCompatibleFirmware=\"4.1.0-alpha\"\n>\n</song>\n";
+/// A song whose parse fails after the load has taken every UI down: its one clip names an instrument it does not
+/// have, which the song's read reports as corrupt.
+constexpr const char* kUnreadableSongText =
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n\tfirmwareVersion=\"c1.3.0\"\n"
+    "\tearliestCompatibleFirmware=\"4.1.0-alpha\"\n>\n\t<sessionClips>\n"
+    "\t\t<instrumentClip instrumentPresetName=\"SUMISSING\" />\n\t</sessionClips>\n</song>\n";
 constexpr uint8_t kNextSongNote = 0x30;
+/// The clip view's audition column.
+constexpr int32_t kAuditionX = kDisplayWidth + 1;
 
 Stage g_stage = Stage::Loading;
 bool g_stepDone = false;
@@ -160,6 +173,12 @@ int32_t g_emptySteps = 0;
 int32_t g_staleCurrent = 0;
 bool g_repeatsTried = false;
 bool g_repeatsMoved = false;
+/// The armed swap's LOADING popup, and whether a knob turn left it up.
+bool g_popupTried = false;
+bool g_popupKept = false;
+/// A mod encoder button pressed before the swap and released after it.
+bool g_modButtonPressed = false;
+bool g_modButtonReleased = false;
 
 /// retired_song: steps seen before and after the swap with the stack empty, and what they found.
 int32_t g_preSwapSteps = 0;
@@ -170,6 +189,13 @@ int32_t g_staleView = 0;
 /// hold_load_to_launch.
 bool g_unarmedSeen = false;
 
+/// held_audition: the instrument auditioned (compared, and read only while its song is current), and what the first
+/// step with the stack empty found.
+Instrument* g_auditioned = nullptr;
+bool g_auditionChecked = false;
+bool g_padStillPressed = false;
+bool g_stillAuditioning = false;
+
 void fail(const char* marker, const char* what) {
 	printf("%s FAIL %s\n", marker, what);
 	g_failures++;
@@ -179,9 +205,8 @@ bool stackEmpty() {
 	return getRootUI() == nullptr;
 }
 
-void writeSong(const char* path) {
+void writeSong(const char* path, std::string_view text = kSongText) {
 	if (auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE); file.has_value()) {
-		const std::string_view text{kSongText};
 		(void)file->write(std::as_bytes(std::span{text.data(), text.size()}));
 	}
 }
@@ -320,6 +345,21 @@ void stepInertRun() {
 			deluge::hid::encoders::functionEncoderAt(3).applyEdges(2);
 			(void)deluge::hid::encoders::interpretEncoders();
 			g_repeatsMoved = session.numRepeatsTilLaunch == before + 1;
+			// That put the LOADING popup up; a knob turn on the still-playing song must leave it there.
+			g_popupTried = true;
+			deluge::hid::encoders::modEncoderAt(0).applyEdges(1);
+			(void)deluge::hid::encoders::interpretEncoders();
+			g_popupKept = display->hasPopupOfType(PopupType::LOADING);
+		}
+		// A mod encoder button held across the swap: pressed on the playing song, released once it is swapped out.
+		const bool swapped = currentSong != g_songBefore;
+		if (!swapped && !g_modButtonPressed) {
+			g_modButtonPressed = true;
+			(void)Buttons::buttonAction(deluge::hid::button::MOD_ENCODER_0, true);
+		}
+		else if (swapped && g_modButtonPressed && !g_modButtonReleased) {
+			g_modButtonReleased = true;
+			(void)Buttons::buttonAction(deluge::hid::button::MOD_ENCODER_0, false);
 		}
 	}
 	if (!loadOver()) {
@@ -329,10 +369,14 @@ void stepInertRun() {
 		}
 		return;
 	}
-	printf("SU-INERT loadSeen=%d emptySteps=%d staleCurrent=%d probeStale=%d probeCalls=%d steps=%d\n",
-	       g_loadSeen ? 1 : 0, g_emptySteps, g_staleCurrent, g_probe.stale, g_probe.calls, g_steps);
+	printf("SU-INERT loadSeen=%d emptySteps=%d staleCurrent=%d probeStale=%d probeCalls=%d modButton=%d/%d steps=%d\n",
+	       g_loadSeen ? 1 : 0, g_emptySteps, g_staleCurrent, g_probe.stale, g_probe.calls, g_modButtonPressed ? 1 : 0,
+	       g_modButtonReleased ? 1 : 0, g_steps);
 	if (!g_loadSeen || g_emptySteps == 0) {
 		fail("SU-INERT", "no step saw the load with the UI stack empty, so nothing was tested");
+	}
+	if (!g_modButtonReleased) {
+		fail("SU-INERT", "no mod encoder button was held across the swap, so that was not tested");
 	}
 	if (g_staleCurrent != 0) {
 		fail("SU-INERT", "getCurrentUI() reported a UI from before the load while the stack was empty");
@@ -347,6 +391,10 @@ void stepInertRun() {
 	}
 	else if (!g_repeatsMoved) {
 		fail("SU-REPEATS", "the select encoder did not change the armed swap's loop count");
+	}
+	printf("SU-POPUP tried=%d kept=%d\n", g_popupTried ? 1 : 0, g_popupKept ? 1 : 0);
+	if (g_popupTried && !g_popupKept) {
+		fail("SU-POPUP", "a knob turn during the load replaced its LOADING popup");
 	}
 	if (isUIOpen(&g_probe)) {
 		fail("SU-INERT", "the probe UI is still on the stack after the load");
@@ -418,6 +466,63 @@ void stepEditorRun() {
 	if (g_staleView != 0) {
 		fail("SU-RETIRED", "the view still pointed into the swapped-out song");
 	}
+	g_steps = 0;
+	g_stage = Stage::AuditionSetup;
+}
+
+/// An audition pad held on the clip view, on a playing song, when NEXT_SONG arrives.
+void stepAuditionSetup() {
+	if (currentSong->sessionClips.empty()) {
+		(void)currentSong->ensureAtLeastOneSessionClip();
+		currentSong->blankPresetPending = false;
+	}
+	Clip* clip = frontClip("SU-AUDITION");
+	if (clip == nullptr) {
+		g_stage = Stage::Report;
+		return;
+	}
+	if (!playbackHandler.isEitherClockActive()) {
+		playbackHandler.setupPlaybackUsingInternalClock(0, false);
+	}
+	g_auditioned = static_cast<Instrument*>(clip->output);
+	(void)matrixDriver.padAction(kAuditionX, 0, 64);
+	if (!instrumentClipView.auditionPadIsPressed[0] || !g_auditioned->isAnyAuditioningHappening()) {
+		fail("SU-AUDITION", "the audition pad did not start an audition, so nothing was tested");
+		(void)matrixDriver.padAction(kAuditionX, 0, 0);
+		g_stage = Stage::Report;
+		return;
+	}
+	g_songBefore = currentSong;
+	g_loadSeen = false;
+	currentSong->loadNextSong();
+	g_steps = 0;
+	g_stage = Stage::AuditionRun;
+}
+
+void stepAuditionRun() {
+	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
+	if (!g_auditionChecked && loadSongUI.loadInFlight() && stackEmpty() && currentSong == g_songBefore) {
+		g_auditionChecked = true;
+		g_padStillPressed = instrumentClipView.auditionPadIsPressed[0] != 0 || matrixDriver.isPadPressed(kAuditionX, 0);
+		g_stillAuditioning = g_auditioned->isAnyAuditioningHappening();
+	}
+	if (!loadOver()) {
+		if (++g_steps > kMaxSettleSteps) {
+			fail("SU-AUDITION", "the NEXT_SONG load never ended");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	// The finger lifts once the new song's UI is up.
+	(void)matrixDriver.padAction(kAuditionX, 0, 0);
+	printf("SU-AUDITION checked=%d padStillPressed=%d stillAuditioning=%d steps=%d\n", g_auditionChecked ? 1 : 0,
+	       g_padStillPressed ? 1 : 0, g_stillAuditioning ? 1 : 0, g_steps);
+	if (!g_auditionChecked) {
+		fail("SU-AUDITION", "no step saw the stack empty before the swap, so nothing was tested");
+	}
+	if (g_padStillPressed || g_stillAuditioning) {
+		fail("SU-AUDITION", "an audition held when the load took the UIs down was still sounding or pressed after it");
+	}
 	// hold_load_to_launch: the load browser, on the song now current.
 	(void)openUI(&loadSongUI);
 	g_steps = 0;
@@ -465,6 +570,42 @@ void stepHoldRelease() {
 	printf("SU-HOLD loadSeen=%d unarmedSeen=%d steps=%d\n", g_loadSeen ? 1 : 0, g_unarmedSeen ? 1 : 0, g_steps);
 	if (!g_loadSeen || !g_unarmedSeen) {
 		fail("SU-HOLD", "the load never waited on the held LOAD button, so nothing was tested");
+	}
+	// failed_load: whichever song NEXT_SONG moves on to cannot be read.
+	writeSong(kSongA, kUnreadableSongText);
+	writeSong(kSongB, kUnreadableSongText);
+	if (!playbackHandler.isEitherClockActive()) {
+		playbackHandler.setupPlaybackUsingInternalClock(0, false);
+	}
+	g_songBefore = currentSong;
+	g_loadSeen = false;
+	currentSong->loadNextSong();
+	g_loadSeen = loadSongUI.loadInFlight();
+	printf("SU-FAILED-START inFlight=%d stackEmpty=%d playing=%d\n", g_loadSeen ? 1 : 0, stackEmpty() ? 1 : 0,
+	       playbackHandler.isEitherClockActive() ? 1 : 0);
+	g_steps = 0;
+	g_stage = Stage::FailedRun;
+}
+
+/// The load fails once it has taken every UI down; the song that survives it must be put back in front of the user.
+void stepFailedRun() {
+	g_loadSeen = g_loadSeen || loadSongUI.loadInFlight();
+	if (loadSongUI.loadInFlight()) {
+		if (++g_steps > kMaxSettleSteps) {
+			fail("SU-FAILED", "the load of an unreadable song never ended");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	const bool survived = currentSong == g_songBefore;
+	const bool restored = !stackEmpty() && getCurrentUI() == getRootUI();
+	printf("SU-FAILED loadSeen=%d survived=%d restored=%d steps=%d\n", g_loadSeen ? 1 : 0, survived ? 1 : 0,
+	       restored ? 1 : 0, g_steps);
+	if (!g_loadSeen || !survived) {
+		fail("SU-FAILED", "the unreadable song did not fail to load with the old song kept, so nothing was tested");
+	}
+	else if (!restored) {
+		fail("SU-FAILED", "after a failed load the surviving song has no UI to take input");
 	}
 	g_stage = Stage::Report;
 }
@@ -514,11 +655,20 @@ void deluge_scenario_stale_ui_dispatch_step(void) {
 	case Stage::EditorRun:
 		stepEditorRun();
 		break;
+	case Stage::AuditionSetup:
+		stepAuditionSetup();
+		break;
+	case Stage::AuditionRun:
+		stepAuditionRun();
+		break;
 	case Stage::HoldStart:
 		stepHoldStart();
 		break;
 	case Stage::HoldRelease:
 		stepHoldRelease();
+		break;
+	case Stage::FailedRun:
+		stepFailedRun();
 		break;
 	case Stage::Report:
 		report();

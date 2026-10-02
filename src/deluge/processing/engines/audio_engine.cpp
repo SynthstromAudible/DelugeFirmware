@@ -169,17 +169,10 @@ void letGoOfSound(Sound& sound) {
 	AudioEngine::sounds.remove(&sound);
 }
 
-/// Point the view's active ModControllable model stack at nothing.
-void clearViewModelStack() {
-	view.activeModControllableModelStack.modControllable = nullptr;
-	view.activeModControllableModelStack.setTimelineCounter(nullptr);
-	view.activeModControllableModelStack.paramManager = nullptr;
-}
-
 /// [interaction] or [render] Stop the view's active ModControllable model stack naming @p clip. Compares only.
 void clearViewIfClip(Clip const* clip) {
 	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip) {
-		clearViewModelStack();
+		view.releaseActiveModControllable();
 	}
 }
 
@@ -275,7 +268,7 @@ void letGoOfSong(Song* song) {
 		AudioEngine::sounds.remove_if([](Sound const* sound) { return sound->letGoWithSong; });
 	}
 	if (viewNamesSong(song)) {
-		clearViewModelStack();
+		view.releaseActiveModControllable();
 	}
 }
 
@@ -2234,7 +2227,7 @@ void retire(Song* song) {
 	// now, so no handler running before the render's next block reaches the old song through it. letGoOfSong() is the
 	// catch.
 	if (viewNamesSong(song)) {
-		clearViewModelStack();
+		view.releaseActiveModControllable();
 	}
 	handOver(RetireRequest{.song = song}, song, [](void* p) {
 		auto* s = static_cast<Song*>(p);
