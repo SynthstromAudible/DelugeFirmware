@@ -542,7 +542,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on) {
 		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 		    || currentUIMode == UI_MODE_STUTTERING) {
 			if (!on && !Buttons::selectButtonPressUsedUp) {
-
 				MenuItem* currentMenuItem = getCurrentMenuItem();
 				MenuItem* newItem = currentMenuItem->selectButtonPress();
 				if (newItem) {
@@ -610,7 +609,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on) {
 		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
 		    || currentUIMode == UI_MODE_STUTTERING) {
 			if (on) {
-
 				MenuItem* currentMenuItem = getCurrentMenuItem();
 
 				// Special case if we're editing a range
@@ -703,7 +701,6 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on) {
 	// Keyboard button
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE && isUIInstrumentClipView) {
-
 			if (getRootUI() == &keyboardScreen) {
 				if (clip->onAutomationClipView) {
 					swapOutRootUILowLevel(&automationView);
@@ -1639,7 +1636,6 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 extern uint16_t batteryMV;
 
 ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
-
 	RootUI* rootUI = getRootUI();
 
 	if (!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()) {

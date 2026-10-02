@@ -314,7 +314,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 	// Keyboard button
 	else if (b == KEYBOARD) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-
 			changeRootUI(&keyboardScreen);
 		}
 	}
@@ -324,7 +323,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 		if (!on && currentUIMode == UI_MODE_NONE) {
 			// if another button wasn't pressed while cross screen was held
 			if (Buttons::considerCrossScreenReleaseForCrossScreenMode) {
-
 				if (getCurrentInstrumentClip()->wrapEditing) {
 					getCurrentInstrumentClip()->wrapEditing = false;
 				}
@@ -416,7 +414,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 	// Back button if adding Drum
 	else if (b == BACK && currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW) {
 		if (on) {
-
 			currentUIMode = UI_MODE_NONE;
 			uiNeedsRendering(this, 0, 1 << yDisplayOfNewNoteRow);
 		}
@@ -425,7 +422,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 	// Load / Kit button if creating new NoteRow for Drum
 	else if (currentUIMode == UI_MODE_ADDING_DRUM_NOTEROW && ((b == LOAD) || (b == KIT))) {
 		if (on) {
-
 			currentUIMode = UI_MODE_NONE;
 
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -452,7 +448,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 		if (on) {
-
 			// Auditioning drum
 			if (getCurrentOutputType() == OutputType::KIT) {
 				cutAuditionedNotesToOne();
@@ -488,7 +483,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 	// allowed in the InstrumentClipView
 	else if (b == KIT && currentUIMode == UI_MODE_NONE) {
 		if (on) {
-
 			handleInstrumentChange(OutputType::KIT);
 		}
 	}
@@ -496,7 +490,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 	else if (b == SYNTH && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
 	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
-
 			if (currentUIMode == UI_MODE_NONE) {
 				handleInstrumentChange(OutputType::SYNTH);
 			}
@@ -510,7 +503,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 	else if (b == MIDI && currentUIMode != UI_MODE_HOLDING_SAVE_BUTTON
 	         && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		if (on) {
-
 			if (currentUIMode == UI_MODE_NONE) {
 				changeOutputType(OutputType::MIDI_OUT);
 
@@ -532,7 +524,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 
 	else if (b == CV) {
 		if (on) {
-
 			if (currentUIMode == UI_MODE_NONE) {
 				changeOutputType(OutputType::CV);
 			}
@@ -627,7 +618,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 	         && Buttons::isButtonPressed(KIT) && getCurrentOutputType() == OutputType::KIT
 	         && (runtimeFeatureSettings.get(RuntimeFeatureSettingType::DeleteUnusedKitRows)
 	             == RuntimeFeatureStateToggle::On)) {
-
 		if (on) {
 			InstrumentClip* clip = getCurrentInstrumentClip();
 
@@ -666,7 +656,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on) {
 
 	// Horizontal encoder button if learn button pressed. Make sure you let the "off" action slide past to the Editor
 	else if (b == X_ENC && on && Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-
 		if (Buttons::isShiftButtonPressed()) {
 			pasteNotes();
 		}
@@ -751,7 +740,6 @@ doCancelPopup:
 				if (getCurrentOutputType() == OutputType::KIT) {
 					for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 						if (yDisplay != lastAuditionedYDisplay && auditionPadIsPressed[yDisplay]) {
-
 							actionLogger.deleteAllLogs();
 							cancelAllAuditioning();
 							InstrumentClip* clip = getCurrentInstrumentClip();
@@ -1840,7 +1828,6 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 
 	// Edit pad action...
 	if (x < kDisplayWidth) {
-
 		// Perhaps the user wants to enter the SoundEditor via a shortcut. They can do this by holding an audition pad
 		// too - but this gets deactivated if they've done any "euclidean" or per-NoteRow editing already by holding
 		// down that audition pad, because if they've done that, they're probably not intending to deliberately go into
@@ -1925,7 +1912,6 @@ possiblyAuditionPad:
 
 			// Changing the scale:
 			else if (isUIModeActiveExclusively(UI_MODE_SCALE_MODE_BUTTON_PRESSED)) [[unlikely]] {
-
 				if (velocity && getCurrentOutputType() != OutputType::KIT) { // We probably couldn't have got this far
 					                                                         // if it was a Kit, but let's just check
 					toggleScaleModeOnButtonRelease = false;
@@ -2060,7 +2046,6 @@ ActionResult InstrumentClipView::commandEnterNoteVelocityEditor(int32_t x, int32
 }
 
 ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity) {
-
 	if (getCurrentOutputType() != OutputType::KIT) {
 		return ActionResult::DEALT_WITH;
 	}
@@ -2077,7 +2062,6 @@ ActionResult InstrumentClipView::commandLearnMutePad(int32_t y, int32_t velocity
 
 ActionResult InstrumentClipView::commandLearnAuditionPad(InstrumentClip* clip, Output* output, OutputType outputType,
                                                          int32_t y, int32_t velocity) {
-
 	if (outputType == OutputType::KIT) {
 		NoteRow* thisNoteRow = clip->getNoteRowOnScreen(y, currentSong);
 		if (!thisNoteRow || !thisNoteRow->drum) {

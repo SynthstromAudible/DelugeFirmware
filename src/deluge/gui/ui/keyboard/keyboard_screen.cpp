@@ -163,7 +163,6 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// Handle setting root note
 	if (currentUIMode == UI_MODE_SCALE_MODE_BUTTON_PRESSED) {
-
 		// We probably couldn't have got this far if it was a Kit, but let's just check
 		if (getCurrentOutputType() != OutputType::KIT && lastNotesState.count == 0 && currentNotesState.count == 1) {
 			toggleScaleModeOnButtonRelease = false;
@@ -551,7 +550,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on) {
 	         && (!playbackHandler.isEitherClockActive() || !playbackHandler.ticksLeftInCountIn)) {
 
 		if (on) {
-
 			InstrumentClip* instrumentClip = getCurrentInstrumentClip();
 			Output* output = instrumentClip->output;
 

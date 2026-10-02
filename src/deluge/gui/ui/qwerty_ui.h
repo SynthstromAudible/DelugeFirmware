@@ -48,11 +48,8 @@ protected:
 	///         returns true: the character stays and the prediction fills in on a later tick.
 	virtual bool predictExtendedText(std::optional<int32_t> editPosOnFailure = std::nullopt) { return true; }
 	void drawKeys();
-	virtual void processBackspace(); // May be called in card routine
+	virtual void processBackspace();
 	virtual void enterKeyPress() = 0;
-
-	// This may be called in card routine so long as either !currentFileExists (which is always the case in a
-	// processBackspace()), or we are not LoadSongUI
 
 	char const* title{};
 	void drawTextForOLEDEditing(int32_t textStartX, int32_t xPixelMax, int32_t yPixel, int32_t maxChars,

@@ -141,20 +141,13 @@ void UITimerManager::routine() {
 					PadLEDs::timerRoutine();
 					break;
 
-				case TimerName::UI_SPECIFIC: {
-					ActionResult result = getCurrentUI()->timerCallback();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-						timer.active = true; // Come back soon and try again.
-					}
+				case TimerName::UI_SPECIFIC:
+					getCurrentUI()->timerCallback();
 					break;
-				}
-				case TimerName::BACK_MENU_EXIT: {
-					ActionResult result = getCurrentUI()->exitUI();
-					if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-						timer.active = true;
-					}
+
+				case TimerName::BACK_MENU_EXIT:
+					getCurrentUI()->exitUI();
 					break;
-				}
 
 				case TimerName::DISPLAY_AUTOMATION:
 					if (((getCurrentUI() == &automationView) || (getRootUI() == &automationView))

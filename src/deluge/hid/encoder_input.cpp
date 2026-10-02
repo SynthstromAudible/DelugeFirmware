@@ -43,8 +43,6 @@ static int8_t modEncoderInitialTurnDirection[2];
 static uint32_t timeNextSDTestAction = 0;
 static int32_t nextSDTestDirection = 1;
 
-static uint32_t encodersWaitingForCardRoutineEnd;
-
 void interpretEncodersTask() {
 	interpretEncoders();
 }
@@ -68,8 +66,6 @@ bool interpretEncoders() {
 
 	bool anything = false;
 
-	encodersWaitingForCardRoutineEnd = 0;
-
 #if SD_TEST_MODE_ENABLED
 	if (playbackHandler.isEitherClockActive() && (int32_t)(AudioEngine::audioSampleTimer - timeNextSDTestAction) >= 0) {
 
@@ -87,9 +83,6 @@ bool interpretEncoders() {
 	for (int32_t e = 0; e < (int32_t)kNumFunctionEncoders; e++) {
 		// 0=scrollY 1=scrollX 2=tempo 3=select
 		DetentedEncoder* const funcPtrs[] = {&scrollY, &scrollX, &tempo, &select};
-		if (encodersWaitingForCardRoutineEnd & (1 << e)) {
-			continue;
-		}
 
 		auto& fe = *funcPtrs[e];
 		if (fe.pending()) {
@@ -102,19 +95,10 @@ bool interpretEncoders() {
 			// receive the full accumulated delta for natural acceleration.
 			auto saturatedDelta = static_cast<int8_t>(std::clamp(detentDelta, (int32_t)-128, (int32_t)127));
 
-			ActionResult result;
-
 			switch (e) {
 
 			case 1: // scrollX
-				result = getCurrentUI()->horizontalEncoderAction(detentDelta);
-checkResult:
-				// A handler that cannot act yet (TimelineView's re-entry guards) asks to be reminded: keep the
-				// detents for the next pass.
-				if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-					encodersWaitingForCardRoutineEnd |= (1 << e);
-					fe.restore(detentDelta); // Put it back for next time
-				}
+				getCurrentUI()->horizontalEncoderAction(detentDelta);
 				break;
 
 			case 0: // scrollY
@@ -122,8 +106,7 @@ checkResult:
 					PadLEDs::changeDimmerInterval(detentDelta);
 				}
 				else {
-					result = getCurrentUI()->verticalEncoderAction(detentDelta);
-					goto checkResult;
+					getCurrentUI()->verticalEncoderAction(detentDelta);
 				}
 				break;
 

@@ -55,8 +55,7 @@ bool shiftCurrentlyPressed = false;
  */
 bool shiftCurrentlyStuck = false;
 /**
- * Flag that's used to manage shift illumination. We can't directly write to the PIC in the button routines because we
- * might be in the card routine, this flag lets the main loop handle illuminating the button when required.
+ * Set when shift's state changes; the input job lights the shift LED from it once it has drained its queue.
  */
 bool shiftHasChangedSinceLastCheck;
 /**
@@ -133,10 +132,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on) {
 
 	result = getCurrentUI()->buttonAction(b, on);
 
-	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
-	else if (result == ActionResult::DEALT_WITH) {
+	if (result == ActionResult::DEALT_WITH) {
 		goto dealtWith;
 	}
 

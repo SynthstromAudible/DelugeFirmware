@@ -1352,10 +1352,6 @@ ActionResult LoadInstrumentPresetUI::verticalEncoderAction(int32_t offset) {
 
 		ActionResult result = instrumentClipView.verticalEncoderAction(offset);
 
-		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-			return result;
-		}
-
 		if (getRootUI() == &keyboardScreen) {
 			uiNeedsRendering(this, 0, 0xFFFFFFFF);
 		}

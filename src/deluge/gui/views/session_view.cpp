@@ -485,7 +485,6 @@ moveAfterClipInstance:
 	// Select encoder button
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on) {
-
 			if (currentUIMode == UI_MODE_HOLDING_SECTION_PAD) {
 				if (performActionOnSectionPadRelease) {
 					beginEditingSectionRepeatsNum();
@@ -2552,7 +2551,7 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 	return true;
 }
 
-// Returns false if can't because in card routine
+// Returns false if the clip's row could not be fully rendered.
 bool SessionView::renderRow(ModelStack* modelStack, uint8_t yDisplay, RGB thisImage[kDisplayWidth + kSideBarWidth],
                             uint8_t thisOccupancyMask[kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
 	Clip* clip = getClipOnScreen(yDisplay);
@@ -2853,7 +2852,6 @@ void SessionView::transitionToSessionView() {
 	iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_TRANSITION_TO_SESSION_VIEW);
 }
 
-// Might be called during card routine! So renders might fail. Not too likely
 void SessionView::finishedTransitioningHere() {
 	AudioEngine::routineWithClusterLoading();
 

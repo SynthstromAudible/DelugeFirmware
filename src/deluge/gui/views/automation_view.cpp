@@ -1609,7 +1609,6 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 // handles shortcut pad action for automation (e.g. when you press shift + pad on the grid)
 // everything else is pretty much the same as instrument clip view
 ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
-
 	Clip* clip = getCurrentClip();
 
 	if (clip->type == ClipType::AUDIO) {
@@ -2144,7 +2143,6 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 // shift automations left / right
 // adjust velocity in note editor
 ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
-
 	if (inAutomationEditor()) {
 		// exit multi pad press selection but keep single pad press selection (if it's selected)
 		multiPadPressSelected = false;

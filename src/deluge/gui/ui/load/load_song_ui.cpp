@@ -271,7 +271,6 @@ ActionResult LoadSongUI::buttonAction(deluge::hid::Button b, bool on) {
 	if ((b == LOAD) || (b == SELECT_ENC)) {
 		if (on) {
 			if (!currentUIMode) {
-
 				enterKeyPress();
 			}
 		}

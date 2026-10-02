@@ -182,7 +182,6 @@ doEndMidiLearnPressSession:
 
 	// MIDI learn button
 	else if (b == LEARN) {
-
 		if (on) {
 			startMIDILearn();
 		}
@@ -193,7 +192,6 @@ doEndMidiLearnPressSession:
 
 	// Play button for MIDI learn
 	else if (b == PLAY && currentUIMode == UI_MODE_MIDI_LEARN) {
-
 		if (on) {
 			deleteMidiCommandOnRelease = true;
 			endMidiLearnPressSession(MidiLearn::PLAY_BUTTON);
@@ -206,7 +204,6 @@ doEndMidiLearnPressSession:
 
 	// Record button for MIDI learn
 	else if (b == RECORD && currentUIMode == UI_MODE_MIDI_LEARN) {
-
 		if (on) {
 			deleteMidiCommandOnRelease = true;
 			endMidiLearnPressSession(MidiLearn::RECORD_BUTTON);
@@ -236,7 +233,6 @@ doEndMidiLearnPressSession:
 			// Press release
 			else {
 				if (currentUIMode == UI_MODE_HOLDING_SAVE_BUTTON) {
-
 					currentUIMode = UI_MODE_NONE;
 
 					if ((int32_t)(AudioEngine::audioSampleTimer - timeSaveButtonPressed) < kShortPressTime) {

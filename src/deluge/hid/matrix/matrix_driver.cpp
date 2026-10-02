@@ -76,10 +76,7 @@ ActionResult MatrixDriver::padAction(int32_t x, int32_t y, int32_t velocity) {
 	if (ui == nullptr) {
 		return ActionResult::DEALT_WITH; // only happens when booting
 	}
-	ActionResult result = getCurrentUI()->padAction(x, y, velocity);
-	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
-	}
+	ui->padAction(x, y, velocity);
 	return ActionResult::DEALT_WITH;
 }
 

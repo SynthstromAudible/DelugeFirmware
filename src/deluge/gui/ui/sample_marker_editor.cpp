@@ -867,10 +867,6 @@ ActionResult SampleMarkerEditor::verticalEncoderAction(int32_t offset) {
 	// Must say these buttons were not pressed, or else editing might take place
 	ActionResult result = instrumentClipView.verticalEncoderAction(offset);
 
-	if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-		return result;
-	}
-
 	if (getRootUI() == &keyboardScreen) {
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}

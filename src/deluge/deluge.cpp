@@ -201,13 +201,6 @@ makeBattLEDSolid:
 }
 
 bool alreadyDoneScroll = false;
-bool waitingForSDRoutineToEnd = false;
-
-// An input event whose action returned REMIND_ME_OUTSIDE_CARD_ROUTINE, held here and
-// re-dispatched on a later run of the input job. TimelineView::horizontalEncoderAction()'s
-// re-entry guards (a render of the new navigation level still pending, or the action
-// already running) are what ask for that.
-static DelugeInputEvent heldInputEvent;
 
 namespace {
 /// When the console-text quiet window ends, in µs on the BSP clock: one second after boot, then
@@ -243,34 +236,21 @@ bool isShortPress(uint32_t pressTime) {
 	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
 }
 
-// Dispatch one decoded input event. Returns false if its action asked to be reminded
-// later (the event is stashed in heldInputEvent and waitingForSDRoutineToEnd is set);
-// true once handled.
-static bool dispatchInputEvent(const DelugeInputEvent& ev) {
+// Dispatch one decoded input event.
+static void dispatchInputEvent(const DelugeInputEvent& ev) {
 	switch (ev.kind) {
 	case DELUGE_EVENT_PAD: {
 		deluge::hid::display::Screensaver::noteActivity();
 		// value is the velocity; 255 means "use the instrument default", 0 a release.
-		ActionResult result = matrixDriver.padAction(ev.x, ev.y, ev.value);
+		matrixDriver.padAction(ev.x, ev.y, ev.value);
 		if (ev.value) {
 			Buttons::ignoreCurrentShiftForSticky();
-		}
-		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-			heldInputEvent = ev;
-			waitingForSDRoutineToEnd = true;
-			return false;
 		}
 		break;
 	}
 	case DELUGE_EVENT_BUTTON: {
 		deluge::hid::display::Screensaver::noteActivity();
-		auto b = deluge::hid::button::fromXY(ev.x, ev.y);
-		ActionResult result = Buttons::buttonAction(b, ev.value);
-		if (result == ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
-			heldInputEvent = ev;
-			waitingForSDRoutineToEnd = true;
-			return false;
-		}
+		Buttons::buttonAction(deluge::hid::button::fromXY(ev.x, ev.y), ev.value);
 		break;
 	}
 	case DELUGE_EVENT_NO_PRESSES:
@@ -282,43 +262,16 @@ static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 	default:
 		break; // ENCODER events do not arrive on this channel
 	}
-	return true;
 }
-
-namespace {
-deluge::runtime::JobId inputJob = deluge::runtime::kNoJob;
-
-/// How soon a held event is tried again.
-constexpr deluge::runtime::Micros kInputRetryUs = 10'000;
-
-/// Asks for another run of the input job: a held event has no new input to wake it.
-void retryInputSoon() {
-	deluge::runtime::appLoop.requestAt(inputJob, deluge::runtime::nowUs() + kInputRetryUs);
-}
-} // namespace
 
 bool readButtonsAndPads() {
 	bool anything = false;
-	if (waitingForSDRoutineToEnd) {
-		D_PRINTLN("got to end of sd routine");
-		waitingForSDRoutineToEnd = false;
-		// Re-dispatch the event we deferred; it may defer again.
-		if (!dispatchInputEvent(heldInputEvent)) {
-			retryInputSoon();
-			return false;
-		}
-		anything = true;
-	}
 
-	// Drain the queue: the BSP wakes this job once for a burst. A deferred event stops the drain, and
-	// the events behind it wait for the retry so they stay in order.
+	// Drain the queue: the BSP wakes this job once for a burst.
 	DelugeInputEvent ev;
 	while (deluge_control_poll_event(&ev)) {
 		anything = true;
-		if (!dispatchInputEvent(ev)) {
-			retryInputSoon();
-			return false;
-		}
+		dispatchInputEvent(ev);
 	}
 
 	if (Buttons::shiftHasChanged()
@@ -473,7 +426,7 @@ void registerJobs() {
 	// Anything handed over before the job existed asked for nobody's run.
 	appLoop.request(AudioEngine::reclaimJob);
 	// Runs only when the BSP has queued pad or button events, and drains them all.
-	inputJob = appLoop.add("buttons and pads", &readButtonsAndPadsOnce, kNever, DELUGE_WAKE_INPUT);
+	appLoop.add("buttons and pads", &readButtonsAndPadsOnce, kNever, DELUGE_WAKE_INPUT);
 	appLoop.add("pending UI", &doAnyPendingUIRendering, us(0.02), 0);
 
 	// Advances a song load past a wait it has finished. Cheap when no load is in flight. It runs one phase of the

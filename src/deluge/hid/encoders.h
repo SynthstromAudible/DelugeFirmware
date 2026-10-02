@@ -39,10 +39,6 @@ public:
 	/// Returns the accumulated signed detent count and resets pos to 0.
 	int32_t take();
 
-	/// Puts a value back (used when a handler asks to be reminded later).
-	/// fetch_add rather than store so a detent that arrived from the IRQ since take() isn't clobbered.
-	void restore(int32_t val) { pos.fetch_add(val, std::memory_order_relaxed); }
-
 private:
 	int32_t edgeAccumulator = 0; ///< Accumulates A-pin edges until we have a full detent click. IRQ-only.
 	std::atomic_int32_t pos = 0; ///< Written by the IRQ (applyEdges), drained by the encoder task.

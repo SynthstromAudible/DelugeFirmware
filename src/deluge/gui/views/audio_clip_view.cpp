@@ -359,7 +359,6 @@ ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on) {
 	// Clip view button
 	else if (b == CLIP_VIEW) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-
 			changeRootUI(&automationView);
 		}
 	}
@@ -393,7 +392,6 @@ dontDeactivateMarker:
 	// Select button, without shift
 	else if (b == SELECT_ENC && !Buttons::isShiftButtonPressed()) {
 		if (on && currentUIMode == UI_MODE_NONE) {
-
 			if (!soundEditor.setup(getCurrentClip())) {
 				return ActionResult::DEALT_WITH;
 			}
@@ -407,7 +405,6 @@ dontDeactivateMarker:
 	// Back button to clear Clip
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
-
 			// Clear Clip
 			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
 
@@ -434,21 +431,18 @@ dontDeactivateMarker:
 		}
 	}
 	else {
-
 		result = ClipMinder::buttonAction(b, on);
 		if (result == ActionResult::NOT_DEALT_WITH) {
 			result = ClipView::buttonAction(b, on);
 		}
 
-		if (result != ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE) {
 deactivateMarkerIfNecessary:
-			if (endMarkerVisible) {
-				endMarkerVisible = false;
-				if (getCurrentUI() == this) {
-					uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
-				}
-				uiNeedsRendering(this, 0xFFFFFFFF, 0);
+		if (endMarkerVisible) {
+			endMarkerVisible = false;
+			if (getCurrentUI() == this) {
+				uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			}
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		}
 
 		return result;
@@ -465,7 +459,6 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 			}
 		}
 		else {
-
 			// Maybe go to SoundEditor
 			ActionResult soundEditorResult = soundEditor.potentialShortcutPadAction(x, y, on);
 			if (soundEditorResult != ActionResult::NOT_DEALT_WITH) {
@@ -816,7 +809,6 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 ActionResult AudioClipView::verticalEncoderAction(int32_t offset) {
 	stopShortcutOverview();
 	if (!currentUIMode && Buttons::isShiftButtonPressed() && !Buttons::isButtonPressed(deluge::hid::button::Y_ENC)) {
-
 		// Shift colour spectrum
 		getCurrentAudioClip()->colourOffset += offset;
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);

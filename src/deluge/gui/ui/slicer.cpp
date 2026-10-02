@@ -354,7 +354,6 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on) {
 	}
 
 	if (b == SELECT_ENC) {
-
 		// Committing ends in sampleBrowser.exitAndNeverDeleteDrum() → close(), i.e. the slicer is gone by the time a
 		// held audition could land, and the drums it would sound through have been rebuilt underneath it.
 		cancelPreview();

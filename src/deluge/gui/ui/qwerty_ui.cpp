@@ -271,7 +271,6 @@ ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 
 				// If this char was already predicted, that's easy and we can just move forward
 				if (charCaseEqual(enteredText.c_str()[enteredTextEditPos], newChar)) {
-
 					enteredTextEditPos++;
 				}
 
