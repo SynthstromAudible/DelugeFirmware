@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// libdeluge/scheduler.h — the BSP clock the app reads, and the storage-routine flag.
+/// libdeluge/scheduler.h — the BSP clock the app reads.
 ///
 /// The app's work runs as jobs in its own loop (src/deluge/runtime/app_loop.h), which the BSP drives
 /// through deluge_app_service (app.h); the render runs on the BSP's audio tier
@@ -26,9 +26,6 @@
 
 #include "abi.h"
 #include <stdint.h>
-#ifndef __cplusplus
-#include <stdbool.h>
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,11 +40,6 @@ typedef int64_t dTime;
 /// boot. [task] [audio]
 double getSystemTime() DELUGE_NOEXCEPT;
 
-/// True while a slow-storage (SD / SPI-flash / USB) busy-wait is yielding to the runtime.
-/// The application reads it to gate user actions that must not run re-entrantly inside a
-/// storage routine. Owned by the BSP's runtime concurrency layer, not the app — on Embassy this is
-/// a runtime flag. Read from plain tasks and from inside the render's own driving task. [task] [audio]
-bool isSDRoutineActive(void) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }
 #endif
