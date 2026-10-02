@@ -40,7 +40,7 @@ open	src/deluge/gui/ui/ui.cpp	^setRootUILowLevel\(UI\*\)$	audio×interaction	sta
 open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderReverb\(unsigned long\)$	audio×interaction	state: global 'AudioEngine::mustUpdateReverbParamsBeforeNextRender'
 open	src/deluge/processing/engines/audio_engine.cpp	^_ZZN11AudioEngine12getNumVoicesEvENK3\$_0clIP5SoundEEDaT_$	audio×interaction	state: global 'deluge_rust::services::HOST_INTERNAL' — AudioEngine::sounds / Sound::voices_ walked by audio while mutated; SEGV in 2/10 triage runs — C2
 open	src/deluge/deluge.cpp	^deleteOldSongBeforeLoadingNew\(\)$	audio×interaction	state: global 'currentSong'
-open	src/deluge/dsp/reverb/freeverb/freeverb.hpp	^deluge::dsp::reverb::Freeverb::ProcessOne\(int, StereoSample&\)$	audio×interaction	state: global 'AudioEngine::reverb'
+open	src/deluge/dsp/reverb/freeverb/freeverb.hpp	^deluge::dsp::reverb::Freeverb::ProcessOne\(int, (deluge::dsp::)?StereoSample&\)$	audio×interaction	state: global 'AudioEngine::reverb'
 open	src/deluge/gui/ui/audio_recorder.cpp	^AudioRecorder::beginOutputRecording\(AudioRecordingFolder, AudioInputChannel, bool, bool\)$	audio×interaction	state: global 'AudioEngine::bypassCulling'
 open	src/deluge/gui/ui/ui.cpp	^nullifyUIs\(\)$	audio×interaction	state: global 'numUIsOpen'
 open	src/deluge/io/debug/resource_clock.cpp	^deluge_debug_now_frames$	audio×storage	state: global 'AudioEngine::audioSampleTimer'
