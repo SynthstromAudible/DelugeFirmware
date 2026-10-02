@@ -57,6 +57,7 @@ constexpr std::array kWakeDriven = {
     "stem export",
     "Handle pending SysEx traffic.",
     "playback slow routine",
+    "audio recorder",
 };
 /// The job whose rate is bounded rather than zero.
 constexpr const char* kUiJob = "ui routine";

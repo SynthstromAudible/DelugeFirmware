@@ -21,13 +21,11 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
-#include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
-#include "libdeluge/control_surface.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -39,6 +37,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 #include "processing/stem_export/stem_export.h"
+#include "runtime/app_loop.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
@@ -47,8 +46,6 @@
 #include <string.h>
 
 AudioRecorder audioRecorder{};
-
-#include "libdeluge/display.h"
 
 AudioRecorder::AudioRecorder() {
 	recordingSource = AudioInputChannel::NONE;
@@ -104,6 +101,8 @@ bool AudioRecorder::opened() {
 		indicator_leds::setLedState(IndicatorLED::SCALE_MODE, false);
 		indicator_leds::blinkLed(IndicatorLED::BACK);
 		indicator_leds::blinkLed(IndicatorLED::RECORD, 255, 1);
+
+		deluge::runtime::appLoop.request(jobId);
 	}
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
@@ -190,19 +189,17 @@ void AudioRecorder::slowRoutine() {
 	}
 }
 
-void AudioRecorder::process() {
-	while (true) {
-		AudioEngine::routineWithClusterLoading();
+bool AudioRecorder::inputTakeInProgress() const {
+	return recorder != nullptr && recordingSource > AudioInputChannel::NONE
+	       && recordingSource < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
+}
 
-		uiTimerManager.routine();
+void AudioRecorder::tick() {
+	if (!inputTakeInProgress()) {
+		return;
+	}
 
-		deluge_display_service();
-		deluge_control_flush();
-
-		readButtonsAndPads();
-
-		AudioEngine::slowRoutine();
-
+	if (getCurrentUI() == this) {
 		// A card error ends the take. Stop capturing, then wait for the recorder to close its file and for the
 		// driver to answer anything it was given: freeing it any earlier frees memory the driver may still be
 		// writing from.
@@ -210,42 +207,50 @@ void AudioRecorder::process() {
 			endRecordingSoon(kInternalButtonPressLatency);
 		}
 
-		// If recording has finished...
 		if (recorder->settled()) {
-
-			if (recorder->status == RecorderStatus::ABORTED || recorder->hadCardError) {}
-
-			else {
-				// We want to attach that Sample to a Source right away...
-				soundEditor.currentSound->killAllVoices();
-				soundEditor.currentSource->setOscType(OscType::SAMPLE);
-				soundEditor.currentMultiRange->getAudioFileHolder()->filePath = recorder->sample->filePath;
-				soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
-				    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
-			}
-			finishRecording();
-
-			close();
+			finishInputTake();
 			return;
 		}
 
-		// Or if recording's ongoing...
-		else {
-			if (recorder->recordingClippedRecently) {
-				recorder->recordingClippedRecently = false;
+		if (recorder->recordingClippedRecently) {
+			recorder->recordingClippedRecently = false;
 
-				if (!display->hasPopup()) {
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
-				}
-			}
-			else if (!updatedRecordingStatus && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
-				deluge::hid::display::OLED::clearMainImage();
-				deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX, kTextBigSizeY);
-				deluge::hid::display::OLED::sendMainImage();
-				updatedRecordingStatus = true;
+			if (!display->hasPopup()) {
+				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
 			}
 		}
+		else if (!updatedRecordingStatus && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
+			deluge::hid::display::OLED::clearMainImage();
+			deluge::hid::display::OLED::main.drawStringCentred("Recording", 19, kTextBigSpacingX, kTextBigSizeY);
+			deluge::hid::display::OLED::sendMainImage();
+			updatedRecordingStatus = true;
+		}
 	}
+	else if (!isUIOpen(this)) {
+		// The recorder UI was closed under the take, so the sound editor's source may no longer be the one it was
+		// recording for: end the take and keep it on the card, attached to nothing.
+		endRecordingSoon(kInternalButtonPressLatency);
+		if (recorder->settled()) {
+			finishRecording();
+			return;
+		}
+	}
+
+	deluge::runtime::appLoop.requestAt(jobId, deluge::runtime::nowUs() + kTickUs);
+}
+
+void AudioRecorder::finishInputTake() {
+	if (recorder->status != RecorderStatus::ABORTED && !recorder->hadCardError) {
+		// Attach the Sample to the Source right away.
+		soundEditor.currentSound->killAllVoices();
+		soundEditor.currentSource->setOscType(OscType::SAMPLE);
+		soundEditor.currentMultiRange->getAudioFileHolder()->filePath = recorder->sample->filePath;
+		soundEditor.currentMultiRange->getAudioFileHolder()->setAudioFile(
+		    recorder->sample, soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true);
+	}
+	finishRecording();
+
+	close();
 }
 
 // Returns error code

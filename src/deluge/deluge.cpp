@@ -576,6 +576,10 @@ void registerJobs() {
 	// It can call finishRecording(), which frees the SampleRecorder. Jobs run one at a time on this tier, so no other
 	// job is part-way through using that recorder when it does.
 	appLoop.add("audio recorder slow", [] { audioRecorder.slowRoutine(); }, us(0.1), 0);
+	// An audio-input take: ends it on a card error, attaches its sample once it settles, and keeps the recorder's
+	// status line current. Requested when a take starts, and asks for its own next run while the take is in progress
+	// -- see AudioRecorder::tick. It and the job above never finish the same take: each owns one kind of source.
+	audioRecorder.jobId = appLoop.add("audio recorder", [] { audioRecorder.tick(); }, kNever, 0);
 	// Actions undo/redo MIDI commands that had to wait for the card. Requested where a command is made to wait, and
 	// again while the card is busy -- see PlaybackHandler::slowRoutine.
 	playbackHandler.slowJob = appLoop.add("playback slow routine", [] { playbackHandler.slowRoutine(); }, kNever, 0);

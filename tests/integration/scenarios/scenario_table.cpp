@@ -34,6 +34,7 @@
 #include "scenarios/path_operations_scenario.h"
 #include "scenarios/pattern_load_scenario.h"
 #include "scenarios/preset_load_scenario.h"
+#include "scenarios/recorder_take_scenario.h"
 #include "scenarios/render_preset_scenario.h"
 #include "scenarios/render_song_scenario.h"
 #include "scenarios/sample_claim_scenario.h"
@@ -100,6 +101,9 @@ constexpr DelugeScenario kScenarios[] = {
     {"preset_load", nullptr, &deluge_scenario_preset_load_begin, &deluge_scenario_preset_load_complete,
      &deluge_scenario_preset_load_dispatch_step, &deluge_scenario_preset_load_step_done,
      &deluge_scenario_preset_load_failures},
+    {"recorder_take", nullptr, &deluge_scenario_recorder_take_begin, &deluge_scenario_recorder_take_complete,
+     &deluge_scenario_recorder_take_dispatch_step, &deluge_scenario_recorder_take_step_done,
+     &deluge_scenario_recorder_take_failures},
     {"render_preset", nullptr, &deluge_scenario_render_preset_begin, &deluge_scenario_render_preset_complete,
      &deluge_scenario_render_preset_dispatch_step, &deluge_scenario_render_preset_step_done,
      &deluge_scenario_render_preset_failures},

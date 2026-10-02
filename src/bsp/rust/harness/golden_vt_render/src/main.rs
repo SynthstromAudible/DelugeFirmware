@@ -1345,7 +1345,12 @@ fn main() {
     // ui_timer_deadline compares UI timers, which run on AudioEngine::audioSampleTimer, with the app
     // loop's virtual clock, so the sample clock keeps the device's pace: one block per 2,902 µs.
     // idle_job_rates counts the ui routine's runs, which follow the same timers, so it keeps that pace too.
-    if scenario == "ui_timer_deadline" || scenario == "idle_job_rates" {
+    // recorder_take records the test input signal and plays a DIN script during the take, both of which follow the
+    // render, so it renders every block at the device's pace too.
+    if scenario == "ui_timer_deadline"
+        || scenario == "idle_job_rates"
+        || scenario == "recorder_take"
+    {
         audio_host::set_realtime_render(true);
         render::set_period_override_us(2902, 0);
     }
@@ -1354,7 +1359,7 @@ fn main() {
     if std::env::var_os("DELUGE_SD_IMAGE").is_none() {
         match scenario.as_str() {
             "recorder_roundtrip" | "sound_lifetime" | "clip_lifetime" | "container_guard"
-            | "audio_header_dump" | "ui_timer_deadline" | "idle_job_rates" => {
+            | "audio_header_dump" | "ui_timer_deadline" | "idle_job_rates" | "recorder_take" => {
                 memory_card::install(None)
             }
             "audio_load_ab" => fill_audio_load_ab_card(),

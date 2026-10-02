@@ -5427,9 +5427,6 @@ doDisplayError:
 
 	if (doRecording) {
 		success = openUI(&audioRecorder);
-		if (success) {
-			audioRecorder.process();
-		}
 	}
 	else {
 		success = openUI(&sampleBrowser);

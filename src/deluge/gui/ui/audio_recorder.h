@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
+#include "runtime/app_loop.h"
 
 class SampleRecorder;
 
@@ -30,10 +31,24 @@ public:
 	bool getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) override;
 
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
+	// A take consumes the pads and encoders: none of them may act on what is underneath while it runs.
+	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override { return ActionResult::DEALT_WITH; }
+	ActionResult horizontalEncoderAction(int32_t offset) override { return ActionResult::DEALT_WITH; }
+	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override { return ActionResult::DEALT_WITH; }
+	void selectEncoderAction(int8_t offset) override {}
+	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override {}
+
 	bool beginOutputRecording(AudioRecordingFolder folder = AudioRecordingFolder::RESAMPLE,
 	                          AudioInputChannel channel = AudioInputChannel::OUTPUT, bool writeLoopPoints = false,
 	                          bool shouldNormalize = true);
-	void process();
+	/// @brief One step of an audio-input take, run by its own job (@ref jobId).
+	///
+	/// While the recorder UI is on top it ends a take that hit a card error, attaches a settled take's sample to the
+	/// sound editor's source and closes, and otherwise shows clipping and the Waiting to Recording change. It asks for
+	/// its own next run every @ref kTickUs until the take is over, so it costs nothing while no input take runs.
+	/// Internal-source takes (resampling, stem export) are slowRoutine()'s, and this never touches them.
+	void tick();
+	/// @brief Finishes a settled internal-source take. Never touches an input take, which tick() finishes.
 	void slowRoutine();
 	bool isCurrentlyResampling();
 
@@ -47,10 +62,20 @@ public:
 
 	bool updatedRecordingStatus = false;
 
+	/// The job that runs tick().
+	deluge::runtime::JobId jobId{deluge::runtime::kNoJob};
+	/// The interval between tick() runs while an input take is in progress, in µs: the clipping popup and the status
+	/// line follow the take this closely.
+	static constexpr deluge::runtime::Micros kTickUs = 10'000;
+
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_RECORDER; }
 
 private:
+	/// Whether an audio-input take is in progress: the takes tick() owns.
+	[[nodiscard]] bool inputTakeInProgress() const;
+	/// Ends a settled input take: attaches its sample unless it was aborted or hit a card error, then closes.
+	void finishInputTake();
 	void finishRecording();
 	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
 	                          bool writeLoopPoints = false, bool shouldNormalize = true);

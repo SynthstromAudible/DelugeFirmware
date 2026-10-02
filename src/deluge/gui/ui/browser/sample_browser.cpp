@@ -521,7 +521,6 @@ ActionResult SampleBrowser::buttonAction(deluge::hid::Button b, bool on, bool in
 		bool success = changeUISideways(&audioRecorder); // If this fails, we will become the current UI again
 		if (success) {
 			renderingNeededRegardlessOfUI();
-			audioRecorder.process();
 		}
 	}
 
