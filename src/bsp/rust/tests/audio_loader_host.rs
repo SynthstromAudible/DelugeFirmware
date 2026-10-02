@@ -17,13 +17,15 @@ use deluge_bsp_rust::storage::card;
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
     DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,
-    LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult, OpenVerdict, RESULT_SLOTS,
-    ResultTable, decode_candidates, load_io_once, publish_into, take_from,
+    FORGET_SLOTS, ForgetMarks, LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult,
+    OpenVerdict, RESULT_SLOTS, ResultTable, decode_candidates, load_io_once, publish_into,
+    take_from,
 };
 
 // The live request/collect pipeline; see `live_pipeline` below.
 use audio_loader::{
-    deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
+    deluge_audio_load_collect, deluge_audio_load_forget, deluge_audio_load_request,
+    forget_marks_for_test, mark_in_flight, publish_result,
 };
 use card::deluge_card_flush;
 use deluge_bsp_rust::channel::{
@@ -852,6 +854,43 @@ fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
     assert!(table.is_empty());
 }
 
+// Forget marks
+
+/// A mark is taken once: the answer it discards is the one owed when it was made.
+#[test]
+fn a_forget_mark_is_taken_once() {
+    let mut marks = ForgetMarks::new();
+    marks.mark("forget/A.wav");
+    marks.mark("forget/A.wav");
+    assert_eq!(marks.len(), 1, "marking a path twice holds one mark");
+    assert!(!marks.take("forget/B.wav"), "another path has no mark");
+    assert!(marks.take("forget/A.wav"));
+    assert!(!marks.take("forget/A.wav"), "a taken mark is gone");
+    assert!(marks.is_empty());
+}
+
+/// A full table drops its oldest mark, not the newest: the newest belongs to the load just dropped.
+#[test]
+fn a_full_forget_table_drops_its_oldest_mark() {
+    let mut marks = ForgetMarks::new();
+    let paths: Vec<String> = (0..=FORGET_SLOTS)
+        .map(|i| format!("forget/full/{i}.wav"))
+        .collect();
+    for path in &paths {
+        marks.mark(path);
+    }
+    assert_eq!(marks.len(), FORGET_SLOTS);
+    assert!(
+        !marks.take(&paths[0]),
+        "the oldest mark must be the one dropped"
+    );
+    assert!(
+        marks.take(&paths[FORGET_SLOTS]),
+        "the newest mark must be kept"
+    );
+    assert!(marks.take(&paths[1]));
+}
+
 // The live pipeline: request, in flight, collect, through the real C ABI over the process-wide
 // statics.
 mod live_pipeline {
@@ -915,6 +954,92 @@ mod live_pipeline {
                 candidates.len() as u32,
             )
         }
+    }
+
+    fn forget(path: &str) {
+        let key = CString::new(path).unwrap();
+        // SAFETY: `key` is a valid NUL-terminated C string.
+        unsafe { deluge_audio_load_forget(key.as_ptr()) };
+    }
+
+    /// A request dropped while in flight: its answer is discarded when it is published, so the next collect of the
+    /// path is `UNKNOWN` and its caller asks with its own candidates.
+    #[test]
+    fn a_forgotten_in_flight_request_publishes_nothing() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        block_on(mark_in_flight(Some(path_of("forget/inflight.wav"))));
+        forget("forget/inflight.wav");
+        publish(
+            "forget/inflight.wav",
+            LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE),
+        );
+        block_on(mark_in_flight(None));
+        let (status, out) = collect("forget/inflight.wav");
+        assert_eq!(
+            status, DELUGE_CHANNEL_UNKNOWN,
+            "a dropped request's answer must not reach the next collect of its path"
+        );
+        assert_out_untouched(&out);
+
+        // Positive control: the mark is spent, so the next request's answer is collected.
+        publish("forget/inflight.wav", LoadResult::failed(DELUGE_ERROR_NONE));
+        assert_eq!(collect("forget/inflight.wav").0, DELUGE_CHANNEL_READY);
+    }
+
+    /// A request dropped once its answer was already published: the answer is discarded at the collect.
+    #[test]
+    fn a_forgotten_published_answer_is_discarded_at_the_collect() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        publish(
+            "forget/published.wav",
+            LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE),
+        );
+        forget("forget/published.wav");
+        let (status, out) = collect("forget/published.wav");
+        assert_eq!(status, DELUGE_CHANNEL_UNKNOWN);
+        assert_out_untouched(&out);
+        assert_eq!(collect("forget/published.wav").0, DELUGE_CHANNEL_UNKNOWN);
+
+        publish(
+            "forget/published.wav",
+            LoadResult::failed(DELUGE_ERROR_NONE),
+        );
+        assert_eq!(
+            collect("forget/published.wav").0,
+            DELUGE_CHANNEL_READY,
+            "the mark must be spent by the answer it discarded"
+        );
+    }
+
+    /// Forgetting a path the loader owes nothing leaves no mark, so a later answer is not lost.
+    #[test]
+    fn forgetting_a_path_with_nothing_outstanding_changes_nothing() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let before = forget_marks_for_test();
+        forget("forget/nothing.wav");
+        assert_eq!(forget_marks_for_test(), before);
+        publish("forget/nothing.wav", LoadResult::failed(DELUGE_ERROR_NONE));
+        assert_eq!(collect("forget/nothing.wav").0, DELUGE_CHANNEL_READY);
+    }
+
+    /// A new request for a path clears a mark left for it, so the mark cannot discard the new request's answer.
+    #[test]
+    fn a_new_request_clears_a_spent_mark() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        block_on(mark_in_flight(Some(path_of("forget/respent.wav"))));
+        forget("forget/respent.wav");
+        // The owed answer never arrives (its slot was cleared), so the mark outlives it.
+        block_on(mark_in_flight(None));
+        let marked = forget_marks_for_test();
+        assert!(marked >= 1, "the in-flight request must have been marked");
+        assert!(request_load("forget/respent.wav", &["forget/respent.wav"]));
+        assert_eq!(
+            forget_marks_for_test(),
+            marked - 1,
+            "the request must clear the path's mark"
+        );
+        // Drain the queue, so this test leaves it as it found it.
+        deluge_card_flush();
     }
 
     /// A path never asked about is `UNKNOWN`; `PENDING` would make the caller wait forever.

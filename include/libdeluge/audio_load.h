@@ -179,6 +179,19 @@ bool deluge_audio_load_request(const char* file_path, const char* candidates, ui
 ///         already collected, or evicted by later loads -- so request it again.
 DelugeChannelStatus deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* out) DELUGE_NOEXCEPT;
 
+/// @brief Discard the answer the loader still owes for @p file_path, if it owes one. Never waits. [task]
+///
+/// For a requester that drops its load with a request still out. The answer is keyed by path alone, but it was found
+/// with the dropped request's candidates; kept, the next collect of the same path would take it, and a later load whose
+/// candidates differ would read a miss for fewer candidates as its own. So once this is called, the outstanding answer
+/// is thrown away when it arrives, or at its collect if it already has, and that collect answers
+/// `DELUGE_CHANNEL_UNKNOWN`, so its caller asks again with its own candidates. A requester still waiting on the same
+/// path pays one more read. A path with nothing outstanding is left alone, and the next request of a path ends what
+/// this did to it.
+///
+/// @param file_path The nominal path passed to @ref deluge_audio_load_request. Must not be NULL.
+void deluge_audio_load_forget(const char* file_path) DELUGE_NOEXCEPT;
+
 /* Discarding what this loader parsed from a card that has been ejected is deluge_card_flush
  * (card.h), not a call of this header's own: the ejection invalidates every loader at once, and
  * they share one card generation to say so. Deliberately not a doc comment -- it documents an

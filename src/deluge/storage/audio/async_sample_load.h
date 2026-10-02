@@ -23,6 +23,7 @@
 #include "storage/audio/sample_load_walk.h"
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -51,8 +52,9 @@ namespace deluge::storage {
 /// without walking.
 ///
 /// The consumer owns the object, the root and the context, keeps all three alive while ticking, and does not change
-/// the root's tree between ticks. Dropping the object cancels the load; a request still in flight stays with the
-/// loader, where a later lookup collects it or an eject discards it.
+/// the root's tree between ticks. Dropping the object cancels the load, and tells the loader to discard the answers it
+/// still owes the load: each was found with this load's candidates, and the next lookup of the same path may be
+/// another load's, with other candidates.
 class AsyncSampleLoad final : private SampleLoadVisitor {
 public:
 	/// @brief Where a load is.
@@ -134,6 +136,27 @@ private:
 
 	AsyncSampleLoad(Root root, AudioLoadContext* context);
 
+	/// @brief The sample paths a walk left with the loader. Destroyed or assigned over, it tells the loader to discard
+	///        each one's answer (deluge_audio_load_forget). Move-only, so only one object ever forgets a path.
+	class OutstandingRequests {
+	public:
+		OutstandingRequests() = default;
+		OutstandingRequests(OutstandingRequests&& other) noexcept;
+		OutstandingRequests& operator=(OutstandingRequests&& other) noexcept;
+		OutstandingRequests(const OutstandingRequests&) = delete;
+		OutstandingRequests& operator=(const OutstandingRequests&) = delete;
+		~OutstandingRequests();
+
+		/// @brief Note @p path as asked of the loader and not yet answered.
+		void add(const std::string& path) { paths_.push_back(path); }
+		/// @brief Drop every path without telling the loader: the walk that starts now notes again what is out.
+		void reset() { paths_.clear(); }
+
+	private:
+		void forgetAll() noexcept;
+		std::vector<std::string> paths_{};
+	};
+
 	Walk rangeCheckpoint(int32_t rangeIndex) override;
 	Walk drumCheckpoint() override;
 	void clipCheckpoint() override;
@@ -168,6 +191,8 @@ private:
 	bool wavetableAwaitsSamples_{false};
 	/// Whether the next walk can move with nothing arriving first: see nextTickUs().
 	bool retickNow_{false};
+	/// The samples the last walk left in flight.
+	OutstandingRequests outstanding_{};
 	/// How many demands had settled, bound or empty, after the previous walk.
 	int32_t settledBefore_{0};
 	/// Measures the walks in a row that leave something in flight and settle nothing new; expires once they have gone

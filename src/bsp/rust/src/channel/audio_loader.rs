@@ -37,6 +37,7 @@
 //! `tests/audio_loader_host.rs` drives the driver through an in-memory [`LoadOps`]. The tables live
 //! in `.bss`, on-chip SRAM shared with the C++ `FAST_INTERNAL` heap.
 
+use core::cell::RefCell;
 use core::ffi::{CStr, c_char};
 use core::mem::MaybeUninit;
 
@@ -44,6 +45,7 @@ use crate::channel::{
     DELUGE_CHANNEL_PENDING, DELUGE_CHANNEL_READY, DELUGE_CHANNEL_UNKNOWN, DELUGE_PATH_MAX,
     DelugeChannelStatus,
 };
+use embassy_sync::blocking_mutex::Mutex as BlockingMutex;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
@@ -268,6 +270,99 @@ static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<LoadPath>> = Mutex::new(
 /// duplicates.
 static RESULTS: Mutex<CriticalSectionRawMutex, ResultTable> = Mutex::new(heapless::Deque::new());
 
+/// Forget marks held at once: more than every entry the queue, the in-flight slot and the result table can hold
+/// together, so a mark is only ever displaced by a mark for a path that is no longer outstanding.
+pub const FORGET_SLOTS: usize = 32;
+
+const _: () = assert!(
+    FORGET_SLOTS > LOAD_QUEUE_DEPTH + 1 + RESULT_SLOTS,
+    "every outstanding path must be able to hold a forget mark at once"
+);
+
+/// Paths whose requester dropped its load while the loader still owed it an answer.
+///
+/// That answer is discarded, at publish or at the take, instead of being kept for the next collect of the same
+/// path: the next requester may be another load whose candidates differ, and a miss for fewer candidates would be
+/// taken as its own final miss. Each mark is a hash of the path, so a table of them costs no path buffers; two
+/// paths that collide cost at most one redundant read, never a wrong answer. A request for a marked path clears the
+/// mark: a request is made only once a collect has found nothing outstanding for it, so the mark it clears is spent.
+#[derive(Default)]
+pub struct ForgetMarks {
+    marks: heapless::Vec<u32, FORGET_SLOTS>,
+}
+
+impl ForgetMarks {
+    /// Returns an empty table.
+    pub const fn new() -> Self {
+        Self {
+            marks: heapless::Vec::new(),
+        }
+    }
+
+    /// Marks `path`. A full table drops its oldest mark first.
+    pub fn mark(&mut self, path: &str) {
+        let hash = path_hash(path);
+        if self.marks.contains(&hash) {
+            return;
+        }
+        if self.marks.is_full() {
+            self.marks.remove(0);
+        }
+        let _ = self.marks.push(hash);
+    }
+
+    /// Removes `path`'s mark. Returns whether there was one.
+    pub fn take(&mut self, path: &str) -> bool {
+        let hash = path_hash(path);
+        match self.marks.iter().position(|&mark| mark == hash) {
+            Some(index) => {
+                self.marks.remove(index);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Removes every mark.
+    pub fn clear(&mut self) {
+        self.marks.clear();
+    }
+
+    /// How many marks are held.
+    pub fn len(&self) -> usize {
+        self.marks.len()
+    }
+
+    /// Whether no mark is held.
+    pub fn is_empty(&self) -> bool {
+        self.marks.is_empty()
+    }
+}
+
+/// 32-bit FNV-1a of `path`: a forget mark's key.
+fn path_hash(path: &str) -> u32 {
+    path.bytes().fold(0x811C_9DC5, |hash, byte| {
+        (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
+    })
+}
+
+/// The live forget marks. A critical-section lock, never contended for longer than one table operation, so
+/// [`deluge_audio_load_forget`] and [`enqueue_request`] can take it from C++ in any context without waiting, and the
+/// loader can take it while it holds [`RESULTS`].
+static FORGOTTEN: BlockingMutex<CriticalSectionRawMutex, RefCell<ForgetMarks>> =
+    BlockingMutex::new(RefCell::new(ForgetMarks::new()));
+
+/// Removes `path`'s forget mark. Returns whether there was one.
+fn take_forget_mark(path: &str) -> bool {
+    FORGOTTEN.lock(|marks| marks.borrow_mut().take(path))
+}
+
+/// How many forget marks the live table holds. For host tests, which cannot otherwise see a mark a request cleared.
+#[doc(hidden)]
+pub fn forget_marks_for_test() -> usize {
+    FORGOTTEN.lock(|marks| marks.borrow().len())
+}
+
 /// Clears the queue, the in-flight mark and the result table.
 ///
 /// Called by `deluge_card_flush` after it bumps the card generation. It runs synchronously from
@@ -287,6 +382,7 @@ pub(crate) fn flush_tables() {
     if let Ok(mut results) = RESULTS.try_lock() {
         results.clear();
     }
+    FORGOTTEN.lock(|marks| marks.borrow_mut().clear());
 }
 
 /// Milliseconds `audio_load_task` waits after marking each load in flight. See
@@ -349,6 +445,9 @@ pub unsafe extern "C" fn deluge_audio_load_request(
 /// Pushes a decoded request onto [`QUEUE`] and wakes the loader. `try_lock`s: it is called
 /// synchronously from C++ in any context and must never wait.
 fn enqueue_request(request: LoadRequest) -> bool {
+    // Nothing is outstanding for this path, or the collect before this request would not have answered UNKNOWN: any
+    // mark it has is spent, and must not discard the answer to this request.
+    let _ = take_forget_mark(&request.path);
     let Ok(mut queue) = QUEUE.try_lock() else {
         return false;
     };
@@ -406,6 +505,37 @@ pub unsafe extern "C" fn deluge_audio_load_collect(
     }
 }
 
+/// Discards the answer the loader still owes for `file_path`, if it owes one. See `audio_load.h`.
+///
+/// Marks the path only while something for it is queued, in flight or published (a contended table counts as
+/// outstanding, as in [`probe`]), so a path with nothing outstanding leaves no mark. Never waits.
+///
+/// # Safety
+///
+/// `file_path` must be a valid NUL-terminated C string.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_audio_load_forget(file_path: *const c_char) {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
+        return;
+    };
+    if is_outstanding(&path) {
+        FORGOTTEN.lock(|marks| marks.borrow_mut().mark(&path));
+    }
+}
+
+/// Whether the loader still owes `path` an answer: queued, in flight or published. Read in [`probe`]'s order, and
+/// `true` on contention, for the same reasons.
+fn is_outstanding(path: &str) -> bool {
+    if is_queued(path) || is_in_flight(path) {
+        return true;
+    }
+    match RESULTS.try_lock() {
+        Ok(results) => results.iter().any(|entry| entry.key == path),
+        Err(_) => true,
+    }
+}
+
 /// What one forward pass over the pipeline found.
 ///
 /// Produced by a single pass: separate "ready?" and "still coming?" passes would let the loader
@@ -433,6 +563,8 @@ fn probe(path: &str, out: &mut MaybeUninit<LoadResult>) -> Probe {
     // The generation is read at the take: the collector's own view of which card is in the slot.
     // See [`take_from`].
     match take_from(&mut results, path, crate::storage::card::generation()) {
+        // Published before its requester dropped it: owed to no one.
+        Some(_) if take_forget_mark(path) => Probe::Unknown,
         Some(result) => {
             out.write(result);
             Probe::Ready
@@ -540,6 +672,10 @@ pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) 
     let mut table = RESULTS.lock().await;
     if generation != crate::storage::card::generation() {
         // Read from a card that has gone; the collector gets `UNKNOWN` and re-requests.
+        return;
+    }
+    if take_forget_mark(&key) {
+        // Its requester dropped the load; see [`ForgetMarks`].
         return;
     }
     publish_into(&mut table, key, result, generation);
@@ -873,6 +1009,10 @@ async fn take_next_request() -> Option<(LoadRequest, u32)> {
     Some((request, generation))
 }
 
-abi_pin!(deluge_audio_load_collect, deluge_audio_load_request);
+abi_pin!(
+    deluge_audio_load_collect,
+    deluge_audio_load_forget,
+    deluge_audio_load_request
+);
 #[cfg(feature = "host_app")]
 abi_pin!(deluge_audio_load_set_latency_ms);

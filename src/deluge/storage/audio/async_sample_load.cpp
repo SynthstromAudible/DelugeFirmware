@@ -45,6 +45,30 @@ AsyncSampleLoad::AsyncSampleLoad(Root root, AudioLoadContext* context)
     : root_{std::move(root)}, callerContext_{context}, context_{context} {
 }
 
+AsyncSampleLoad::OutstandingRequests::OutstandingRequests(OutstandingRequests&& other) noexcept
+    : paths_{std::exchange(other.paths_, {})} {
+}
+
+AsyncSampleLoad::OutstandingRequests&
+AsyncSampleLoad::OutstandingRequests::operator=(OutstandingRequests&& other) noexcept {
+	if (this != &other) {
+		forgetAll();
+		paths_ = std::exchange(other.paths_, {});
+	}
+	return *this;
+}
+
+AsyncSampleLoad::OutstandingRequests::~OutstandingRequests() {
+	forgetAll();
+}
+
+void AsyncSampleLoad::OutstandingRequests::forgetAll() noexcept {
+	for (const std::string& path : paths_) {
+		deluge_audio_load_forget(path.c_str());
+	}
+	paths_.clear();
+}
+
 AsyncSampleLoad AsyncSampleLoad::forSong(Song& song, AudioLoadContext* context) {
 	return AsyncSampleLoad{SongRoot{&song}, context};
 }
@@ -86,6 +110,7 @@ AsyncSampleLoad::Progress AsyncSampleLoad::tick() {
 	progress_.emptyHolders = 0;
 	progress_.inFlight = 0;
 	samplesInFlight_ = 0;
+	outstanding_.reset();
 	wavetableAwaitsSamples_ = false;
 	context_ = callerContext_;
 	scopeDepth_ = 0;
@@ -216,6 +241,7 @@ void AsyncSampleLoad::demand(const SampleDemand& demand) {
 	if (error == Error::LOAD_IN_PROGRESS) {
 		progress_.inFlight++;
 		samplesInFlight_++;
+		outstanding_.add(holder.filePath);
 		return;
 	}
 
