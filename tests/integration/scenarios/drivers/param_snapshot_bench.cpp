@@ -1,4 +1,5 @@
-// M4a Task 4 — host-sim cost microbench. Compares the two snapshot-update granularities on the param cursor:
+// M4a Task 4 — host cost microbench, run as the param_snapshot_bench scenario. Compares the two snapshot-update
+// granularities on the param cursor:
 //   A. incremental patch — ParamSnapshot::applyPatch, which touches ONE addressed lane (resolveParam + write);
 //   B. full rebuild      — write the store then ParamSet::projectFromStoreAfterRead, which re-derives the WHOLE
 //                          owner's param set (getNumParams() lanes), the fallback the north-star says the
@@ -23,11 +24,19 @@
 #include "modulation/params/param_set.h"
 #include <cstring>
 
-#include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
+
+#include "scenarios/drivers/driver.h"
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
 
 namespace {
 using Clock = std::chrono::steady_clock;
@@ -37,7 +46,7 @@ double elapsedMs(Clock::time_point a, Clock::time_point b) {
 }
 
 // Build a ModelStackWithAutoParam over `pm`'s unpatched set, bound to `song` + `clip` so its address resolves and
-// doc() relocates the set into the model tree (the on-device situation). Mirrors edit_test's makeStack + setup.
+// doc() relocates the set into the model tree (the on-device situation). Mirrors edit_substrate's makeStack + setup.
 ModelStackWithAutoParam* makeResolvableStack(char* buf, ParamManagerForTimeline& pm, int32_t paramId, ::Song* song,
                                              TimelineCounter* clip) {
 	std::memset(buf, 0, MODEL_STACK_MAX_SIZE);
@@ -54,8 +63,8 @@ ModelStackWithAutoParam* makeResolvableStack(char* buf, ParamManagerForTimeline&
 }
 } // namespace
 
-int main() {
-	display = new deluge::hid::display::SevenSegment;
+int param_snapshot_bench_main(int /*argc*/, char** /*argv*/, Io driverIo) {
+	io = driverIo;
 
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
@@ -73,12 +82,12 @@ int main() {
 	ParamManagerForTimeline pm;
 	pm.setupUnpatched();
 	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithAutoParam* ms = makeResolvableStack(buf, pm, kParam, song, audioClip);
 
 	std::optional<deluge::project::ParamAddress> addrOpt = deluge::edits::addressFor(*ms);
 	if (!addrOpt.has_value()) {
-		std::fprintf(stderr, "param_snapshot_bench: could not build a resolvable ParamAddress\n");
+		std::fprintf(io.err, "param_snapshot_bench: could not build a resolvable ParamAddress\n");
 		return 0;
 	}
 	deluge::project::ParamAddress addr = *addrOpt;
@@ -89,10 +98,10 @@ int main() {
 	deluge::project::DocParamSet* storeSet = engineSet->domStore();
 	const int32_t numParams = engineSet->getNumParams();
 
-	std::fprintf(stdout,
+	std::fprintf(io.out,
 	             "param_snapshot_bench: incremental applyPatch (1 lane) vs full projectFromStoreAfterRead (%d lanes)\n",
 	             numParams);
-	std::fprintf(stdout,
+	std::fprintf(io.out,
 	             "  each strategy applies the same number of single-param edits; ratio = full / incremental\n\n");
 
 	constexpr int32_t kEdits = 200000;
@@ -129,10 +138,10 @@ int main() {
 		double aNs = aMs * 1e6 / kEdits;
 		double bNs = bMs * 1e6 / kEdits;
 
-		std::fprintf(stdout, "edits=%d nodes/lane=%d\n", kEdits, nodeCount);
-		std::fprintf(stdout, "  %-20s %10.2f ms   %10.1f ns/edit\n", "incremental_patch", aMs, aNs);
-		std::fprintf(stdout, "  %-20s %10.2f ms   %10.1f ns/edit\n", "full_rebuild", bMs, bNs);
-		std::fprintf(stdout, "  %-20s %9.1fx\n\n", "ratio (full/incr)", aMs > 0.0 ? bMs / aMs : 0.0);
+		std::fprintf(io.out, "edits=%d nodes/lane=%d\n", kEdits, nodeCount);
+		std::fprintf(io.out, "  %-20s %10.2f ms   %10.1f ns/edit\n", "incremental_patch", aMs, aNs);
+		std::fprintf(io.out, "  %-20s %10.2f ms   %10.1f ns/edit\n", "full_rebuild", bMs, bNs);
+		std::fprintf(io.out, "  %-20s %9.1fx\n\n", "ratio (full/incr)", aMs > 0.0 ? bMs / aMs : 0.0);
 	}
 
 	// Also report the incremental REGION patch cost (scales with nodes, unlike the scalar patch) for reference.
@@ -148,9 +157,13 @@ int main() {
 		deluge::snapshot::ParamSnapshot::applyPatch(song->project, addr, i, 0, 96, rc);
 	}
 	Clock::time_point r1 = Clock::now();
-	std::fprintf(stdout, "reference: incremental REGION patch (homogenize [0,96), effLen 128)\n");
-	std::fprintf(stdout, "  %-20s %10.2f ms   %10.1f ns/edit\n", "region_patch", elapsedMs(r0, r1),
+	std::fprintf(io.out, "reference: incremental REGION patch (homogenize [0,96), effLen 128)\n");
+	std::fprintf(io.out, "  %-20s %10.2f ms   %10.1f ns/edit\n", "region_patch", elapsedMs(r0, r1),
 	             elapsedMs(r0, r1) * 1e6 / kEdits);
 
 	return 0;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(param_snapshot_bench, param_snapshot_bench_main)

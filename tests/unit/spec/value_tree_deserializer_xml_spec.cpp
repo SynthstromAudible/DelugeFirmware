@@ -5,8 +5,9 @@
 
 // Coarse mechanics guard for ValueTreeDeserializer's XML replay mode (SourceFormat::Xml) over a
 // hand-built, all-ordered-maps tree of the kind parseXml() produces. Ground-truth fidelity against
-// the real XMLDeserializer lives in the host-sim differential harness (tests/golden/xml_replay_diff.cpp,
-// which cannot link into CppSpec); this just pins the tree-walk mechanics in the fast suite.
+// the real XMLDeserializer lives in the xml-replay-diff driver
+// (tests/integration/scenarios/drivers/xml_replay_diff.cpp, which cannot link into CppSpec); this just pins the
+// tree-walk mechanics in the fast suite.
 
 // clang-format off
 describe value_tree_deserializer_xml("ValueTreeDeserializer (XML mode)", ${

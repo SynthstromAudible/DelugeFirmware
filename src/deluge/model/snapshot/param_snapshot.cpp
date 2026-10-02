@@ -43,9 +43,9 @@ ParamSnapshot::applyPatch(deluge::project::Song& model, const deluge::project::P
 
 	// Region path (nonzero length + a live timeline counter): reproduce AutoParam::setValueForRegion's node/value
 	// mutation exactly, via the DOM kernel proven bit-equivalent to it across the full engine==DOM matrix in
-	// tests/projection/param_automation_test.cpp. The kernel writes doc->nodes and — when the playhead is inside
-	// the edited region, or playback is stopped — doc->current_value, and returns the engine's `automationChanged`
-	// (nullopt when pos is at/past effectiveLength).
+	// tests/integration/scenarios/drivers/param_projection.cpp. The kernel writes doc->nodes and — when the playhead is
+	// inside the edited region, or playback is stopped — doc->current_value, and returns the engine's
+	// `automationChanged` (nullopt when pos is at/past effectiveLength).
 	const RegionContext& r = *region;
 	return deluge::project::setValueForRegion(*doc, static_cast<uint32_t>(pos), static_cast<uint32_t>(length), value,
 	                                          r.effectiveLength, r.interpolateLeftNode, r.interpolateRightNode,

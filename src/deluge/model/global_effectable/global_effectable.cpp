@@ -791,7 +791,7 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                                                   int32_t* valuesForOverride) {
 	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
-	// (verified in param_projection_test). serializeGlobalEffectableParamAttributes emits the global flat
+	// (verified in the param-projection driver). serializeGlobalEffectableParamAttributes emits the global flat
 	// attrs around the shared ModControllableAudio attrs and the community attrs.
 	deluge::project::DocParamSet unpatched =
 	    deluge::project::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
@@ -842,7 +842,7 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
                                             ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 	// Read the GlobalEffectable param block from the value DOM (deluge::project). The DOM reader handles
 	// the current format plus the legacy nested `morph` member of <lpf>/<hpf>, so the former hand-written
-	// dispatch collapses to one call; verified by the golden round-trip and param_projection_test.
+	// dispatch collapses to one call; verified by the golden round-trip and the param-projection driver.
 	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 	return deluge::project::readGlobalEffectableParamTag(reader, tagName, *unpatchedParams, *unpatchedParamsSummary,

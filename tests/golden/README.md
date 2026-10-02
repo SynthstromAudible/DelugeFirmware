@@ -25,20 +25,19 @@ output breaks it and must be justified + re-baselined.
 
 ### How it runs
 
-`song_roundtrip` (built by the host-sim) loads each song **headless** — no audio
-engine, display hardware, USB, or SD; just the allocator + a stub display. The
-firmware's load↔execution couplings are gated, not faked (AudioEngine yields via
-`FileReader::callRoutines`; view selection cleared before save). It emits `gen1`;
-the runner hashes it (SHA-256) and compares to `songs_fixtures.json`.
+`song_roundtrip` is a host driver (tests/integration/scenarios/drivers/): golden_vt_render runs it on the
+booted app as the `song_roundtrip` scenario, one song per run, from the state the driver's own process once
+started in (no current song, the random streams at their seeds, the settings unread). The song is read from the
+host file and loaded through the Value tree beside the booted one; view selection is cleared before save. It
+emits `gen1`; the runner hashes it (SHA-256) and compares to `songs_fixtures.json`.
 
 ```sh
-cmake -B build-sim -S sim -G Ninja
-cmake --build build-sim --target song_roundtrip
+./dbt test -n song-roundtrip                           # build golden_vt_render
 export DELUGE_SONG_CORPUS=~/path/to/SONGS              # your songs dir (BYO, see below)
 python3 tests/golden/songs_run.py                      # check fixtured songs (exit 1 on regression)
 python3 tests/golden/songs_run.py --update             # discover+re-baseline (walks the corpus)
 python3 tests/golden/songs_run.py --filter Bass        # subset (substring on path)
-ctest --test-dir build-sim -R song_roundtrip           # same, via CTest
+./dbt test song-roundtrip                              # same, as the registry gate
 ```
 
 In check mode the runner iterates the **committed fixtures** (the contract) and
@@ -51,13 +50,13 @@ mismatch.
 
 Only the **hashes** (`songs_fixtures.json`) are committed; the song `.XML` files
 stay out-of-repo (privacy/licensing). Point the runner at your songs via
-`$DELUGE_SONG_CORPUS` or `--corpus` (default `tests/golden/songs/`, gitignored).
+`$DELUGE_SONG_CORPUS` or `--corpus` (default `$DELUGE_BACKUP/SONGS`, else `~/Deluge Backup/SONGS`).
 Fixtures are keyed by path **relative to the corpus root**, so anyone with the
 same songs at the same relative layout can verify the exact same hashes.
 
-When none of the fixtured songs are present, the check **SKIPs** (exit 77; CTest
-reports *Skipped*) — so CI / contributors without the corpus stay green while the
-gate still protects anyone who has the songs.
+Fixtured songs that are not present are *ABSENT* and skipped, so CI and contributors
+without the corpus still check the committed synthetic songs, while the gate protects
+anyone who has the rest.
 
 ### The ARM-NEON oracle
 
@@ -66,9 +65,8 @@ x86 runs SIMDe; firmware runs NEON. Fixtures are only trustworthy if both agree
 but it's cheap insurance against width/format bugs):
 
 ```sh
-cmake -B build-sim-arm -S sim -G Ninja -DCMAKE_TOOLCHAIN_FILE=$PWD/sim/arm-linux-toolchain.cmake
-cmake --build build-sim-arm --target song_roundtrip
-python3 tests/golden/songs_run.py --binary build-sim-arm/song_roundtrip \
+./dbt test -n golden-synth-arm                         # the qemu-arm build of golden_vt_render
+python3 tests/golden/songs_run.py --binary <that build's golden_vt_render> \
     --wrapper 'qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9'
 ```
 

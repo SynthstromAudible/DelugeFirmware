@@ -19,8 +19,6 @@
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
 #include "deluge-project/serialization.h"
-#include "hid/display/display.h"
-#include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
@@ -45,7 +43,20 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <unistd.h>
+
+#include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/tree_load.h"
+#include "storage/parse_xml.h"
+#include "storage/value_tree_deserializer.h"
+#include <optional>
+#include <string_view>
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
 
 namespace params = deluge::modulation::params;
 
@@ -57,11 +68,19 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);
 
-	XMLDeserializer reader((uint8_t*)xml, xmlLen);
-	activeDeserializer = &reader; // gate AudioEngine yields off (callRoutines == false)
-	Error e = reader.openXMLFile(nullptr, "song");
-	if (e == Error::NONE) {
-		e = deluge::project::loadSong(*song, reader);
+	// Through the Value tree, as a song load is: parse the whole XML, then replay it. The tree reader's
+	// shouldCallRoutines() is false, which gates the AudioEngine yields off for the load.
+	std::optional<deluge::storage::Value> tree =
+	    deluge::storage::parseXml(std::string_view(reinterpret_cast<const char*>(xml), xmlLen));
+	Error e = Error::FILE_CORRUPTED;
+	if (tree) {
+		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		activeReader = &adapter;
+		e = openTreeFile(adapter, "song");
+		if (e == Error::NONE) {
+			e = deluge::project::loadSong(*song, adapter);
+		}
+		activeReader = &smDeserializer;
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {
@@ -72,9 +91,10 @@ static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 	return song;
 }
 
-int main(int argc, char** argv) {
+int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
+	io = driverIo;
 	if (argc < 2) {
-		std::fprintf(stderr, "usage: %s <song.XML>\n", argv[0]);
+		std::fprintf(io.err, "usage: %s <song.XML>\n", argv[0]);
 		return 2;
 	}
 	const char* songPath = argv[1];
@@ -87,7 +107,7 @@ int main(int argc, char** argv) {
 
 	FILE* f = std::fopen(songPath, "rb");
 	if (!f) {
-		std::fprintf(stderr, "cannot open %s\n", songPath);
+		std::fprintf(io.err, "cannot open %s\n", songPath);
 		return 2;
 	}
 	std::fseek(f, 0, SEEK_END);
@@ -104,14 +124,12 @@ int main(int argc, char** argv) {
 	orig[fileLen] = 0;
 	std::fclose(f);
 
-	display = new deluge::hid::display::SevenSegment;
-
 	// 1+2. Load, then DOM-first edit the song-global param.
 	Error e1;
 	Song* song = load_song(orig, fileLen, &e1);
 	if (!song) {
-		std::fprintf(stderr, "LOADFAIL original -> Error %d\n", (int)e1);
-		_exit(1);
+		std::fprintf(io.err, "LOADFAIL original -> Error %d\n", (int)e1);
+		return 1;
 	}
 
 	// Phase C gate: every loaded AudioClip's unpatched set must be BOUND to a DOM store (bindDomStore ran in
@@ -161,22 +179,22 @@ int main(int argc, char** argv) {
 		auto bothScalarOk = [&](ParamManagerForTimeline& pm) {
 			return scalarOkSet(pm.getUnpatchedParamSet()) && scalarOkSet(pm.getPatchedParamSet());
 		};
-		int32_t audioSeen = 0, audioBound = 0, audioScalarOk = 0, audioSessionSeen = 0, audioSessionOk = 0;
+		int32_t audioSeen = 0, audioBound = 0, audioScalarOk = 0, audioIdSeen = 0, audioIdOk = 0;
 		int32_t synthSeen = 0, synthBound = 0, synthScalarOk = 0;
 		int32_t kitSeen = 0, kitBound = 0, kitScalarOk = 0, drumSeen = 0, drumBound = 0, drumScalarOk = 0;
 		int32_t cableSeen = 0, cableBound = 0, cableScalarOkCount = 0;
-		// S5-b.3: no-id synth/kit clip-level (INSTRUMENT) + per-drum (DRUM) owners must resolve via session
-		// addressing (resolveParam == docForParam), i.e. doc() id-resolves them, not the fallback.
-		int32_t instSessionSeen = 0, instSessionOk = 0, drumSessionSeen = 0, drumSessionOk = 0;
-		int32_t midiSessionSeen = 0, midiSessionOk = 0; // S5-b.2: no-id MIDI clip CC automation
-		auto instSessionResolves = [&](Clip* clip, ParamSet* set) {
-			if (clip->id() || clip->sessionId() == 0 || clip->output->sessionId() == 0) {
-				return; // not on the both-session path (deferred mixed case / id path)
+		// S5-b.3: synth/kit clip-level (INSTRUMENT) + per-drum (DRUM) owners must resolve by durable id
+		// (resolveParam == docForParam), i.e. doc() id-resolves them, not the fallback.
+		int32_t instIdSeen = 0, instIdOk = 0, drumIdSeen = 0, drumIdOk = 0;
+		int32_t midiIdSeen = 0, midiIdOk = 0; // S5-b.2: MIDI clip CC automation
+		auto instIdResolves = [&](Clip* clip, ParamSet* set) {
+			if (!clip->output->id()) {
+				return; // an output not yet given its id has no address to resolve
 			}
-			instSessionSeen++;
-			deluge::project::ParamAddress addr{deluge::project::OwnerId::instrumentSession(clip->output->sessionId()),
-			                                   set->getParamKind(), 0, clip->sessionId(), /*clip_is_session=*/true};
-			instSessionOk += (song->project.resolveParam(addr) == set->docForParam(0)) ? 1 : 0;
+			instIdSeen++;
+			deluge::project::ParamAddress addr{deluge::project::OwnerId::instrument(*clip->output->id()),
+			                                   set->getParamKind(), 0, clip->id()};
+			instIdOk += (song->project.resolveParam(addr) == set->docForParam(0)) ? 1 : 0;
 		};
 		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
 		                                     &song->project.clips.arrangement_only_clips};
@@ -191,21 +209,19 @@ int main(int argc, char** argv) {
 					ParamSet* u = clip->paramManager.getUnpatchedParamSet();
 					audioBound += isLiveBound(u) ? 1 : 0;
 					audioScalarOk += scalarOkSet(u) ? 1 : 0;
-					// S5-b.1: a no-id audio clip must be SESSION-addressed — resolveParam(clipSession) must
-					// return the SAME store lane as docForParam, proving doc() id-resolves it (not the fallback).
-					if (!clip->id() && clip->sessionId() != 0) {
-						audioSessionSeen++;
-						deluge::project::ParamAddress addr{deluge::project::OwnerId::clipSession(clip->sessionId()),
-						                                   u->getParamKind(), 0, std::nullopt};
-						audioSessionOk += (song->project.resolveParam(addr) == u->docForParam(0)) ? 1 : 0;
-					}
+					// S5-b.1: an audio clip must be id-addressed — resolveParam(clip id) must return the SAME
+					// store lane as docForParam, proving doc() id-resolves it (not the fallback).
+					audioIdSeen++;
+					deluge::project::ParamAddress addr{deluge::project::OwnerId::clip(clip->id()), u->getParamKind(), 0,
+					                                   std::nullopt};
+					audioIdOk += (song->project.resolveParam(addr) == u->docForParam(0)) ? 1 : 0;
 				}
 				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 				         && clip->output->type == OutputType::SYNTH) {
 					synthSeen++; // a synth clip binds BOTH its unpatched and patched sets
 					synthBound += bothBound(clip->paramManager) ? 1 : 0;
 					synthScalarOk += bothScalarOk(clip->paramManager) ? 1 : 0;
-					instSessionResolves(clip, clip->paramManager.getUnpatchedParamSet());
+					instIdResolves(clip, clip->paramManager.getUnpatchedParamSet());
 					if (clip->paramManager.getPatchCableSet()->numPatchCables > 0) {
 						cableSeen++; // ...and its patch cables
 						cableBound += cablesBound(clip->paramManager) ? 1 : 0;
@@ -218,7 +234,7 @@ int main(int argc, char** argv) {
 					ParamSet* ku = clip->paramManager.getUnpatchedParamSet();
 					kitBound += isLiveBound(ku) ? 1 : 0;
 					kitScalarOk += scalarOkSet(ku) ? 1 : 0;
-					instSessionResolves(clip, ku);
+					instIdResolves(clip, ku);
 					InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
 					for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
 						NoteRow& nr = ic->noteRows[n];
@@ -227,13 +243,12 @@ int main(int argc, char** argv) {
 							drumSeen++; // a SoundDrum row binds unpatched + patched
 							drumBound += bothBound(nr.paramManager) ? 1 : 0;
 							drumScalarOk += bothScalarOk(nr.paramManager) ? 1 : 0;
-							if (!nr.drum->id() && nr.drum->sessionId() != 0 && clip->sessionId() != 0) {
-								drumSessionSeen++;
+							if (nr.drum->id()) {
+								drumIdSeen++;
 								ParamSet* du = nr.paramManager.getUnpatchedParamSet();
-								deluge::project::ParamAddress addr{
-								    deluge::project::OwnerId::drumSession(nr.drum->sessionId()), du->getParamKind(), 0,
-								    clip->sessionId(), /*clip_is_session=*/true};
-								drumSessionOk += (song->project.resolveParam(addr) == du->docForParam(0)) ? 1 : 0;
+								deluge::project::ParamAddress addr{deluge::project::OwnerId::drum(*nr.drum->id()),
+								                                   du->getParamKind(), 0, clip->id()};
+								drumIdOk += (song->project.resolveParam(addr) == du->docForParam(0)) ? 1 : 0;
 							}
 							if (nr.paramManager.getPatchCableSet()->numPatchCables > 0) {
 								cableSeen++; // ...and its patch cables
@@ -244,66 +259,66 @@ int main(int argc, char** argv) {
 					}
 				}
 				else if (clip->output != nullptr && clip->output->type == OutputType::MIDI_OUT) {
-					// S5-b.2: a no-id MIDI clip's CC automation must session-resolve (Kind::MIDI, by cc).
+					// S5-b.2: a MIDI clip's CC automation must id-resolve (Kind::MIDI, by cc).
 					MIDIParamCollection* midi = clip->paramManager.getMIDIParamCollection();
-					if (midi != nullptr && !clip->id() && clip->sessionId() != 0) {
+					if (midi != nullptr) {
 						for (int32_t i = 0; i < std::ssize(midi->params); i++) {
-							midiSessionSeen++;
-							deluge::project::ParamAddress addr{deluge::project::OwnerId::clipSession(clip->sessionId()),
+							midiIdSeen++;
+							deluge::project::ParamAddress addr{deluge::project::OwnerId::clip(clip->id()),
 							                                   params::Kind::MIDI, midi->params[i].cc, std::nullopt};
-							midiSessionOk += (song->project.resolveParam(addr) == midi->docForParam(i)) ? 1 : 0;
+							midiIdOk += (song->project.resolveParam(addr) == midi->docForParam(i)) ? 1 : 0;
 						}
 					}
 				}
 			}
 		}
-		std::fprintf(stderr,
+		std::fprintf(io.err,
 		             "audio: %d/%d (scalarOk %d) | synth: %d/%d (scalarOk %d) | kit: %d/%d (scalarOk %d) | "
 		             "drums: %d/%d (scalarOk %d) | patchCables: %d/%d (scalarOk %d)\n",
 		             audioBound, audioSeen, audioScalarOk, synthBound, synthSeen, synthScalarOk, kitBound, kitSeen,
 		             kitScalarOk, drumBound, drumSeen, drumScalarOk, cableBound, cableSeen, cableScalarOkCount);
 		if (audioSeen != audioBound || synthSeen != synthBound || kitSeen != kitBound || drumSeen != drumBound
 		    || cableSeen != cableBound) {
-			std::fprintf(stderr, "PHASE C: a clip/drum loaded UNBOUND (borrow not live)\n");
-			_exit(3);
+			std::fprintf(io.err, "PHASE C: a clip/drum loaded UNBOUND (borrow not live)\n");
+			return 3;
 		}
 		if (audioScalarOk != audioSeen) {
-			std::fprintf(stderr, "Flip Option I FAIL: an audio clip's store current_value != engine (read not "
+			std::fprintf(io.err, "Flip Option I FAIL: an audio clip's store current_value != engine (read not "
 			                     "DOM-authoritative)\n");
-			_exit(3);
+			return 3;
 		}
-		std::fprintf(stderr, "audio session-addressed (S5-b.1): %d/%d\n", audioSessionOk, audioSessionSeen);
-		if (audioSessionOk != audioSessionSeen) {
-			std::fprintf(stderr, "S5-b.1 FAIL: a no-id audio clip did not resolve via session addressing "
+		std::fprintf(io.err, "audio id-addressed (S5-b.1): %d/%d\n", audioIdOk, audioIdSeen);
+		if (audioIdOk != audioIdSeen) {
+			std::fprintf(io.err, "S5-b.1 FAIL: an audio clip did not resolve by its id "
 			                     "(resolveParam != docForParam) — doc() would hit the engine fallback\n");
-			_exit(3);
+			return 3;
 		}
-		std::fprintf(stderr, "instrument/drum session-addressed (S5-b.3): inst %d/%d, drum %d/%d\n", instSessionOk,
-		             instSessionSeen, drumSessionOk, drumSessionSeen);
-		if (instSessionOk != instSessionSeen || drumSessionOk != drumSessionSeen) {
-			std::fprintf(stderr, "S5-b.3 FAIL: a no-id instrument/drum owner did not resolve via session "
-			                     "addressing (resolveParam != docForParam) — doc() would hit the engine fallback\n");
-			_exit(3);
+		std::fprintf(io.err, "instrument/drum id-addressed (S5-b.3): inst %d/%d, drum %d/%d\n", instIdOk, instIdSeen,
+		             drumIdOk, drumIdSeen);
+		if (instIdOk != instIdSeen || drumIdOk != drumIdSeen) {
+			std::fprintf(io.err, "S5-b.3 FAIL: an instrument/drum owner did not resolve by its id "
+			                     "(resolveParam != docForParam) — doc() would hit the engine fallback\n");
+			return 3;
 		}
-		std::fprintf(stderr, "MIDI-clip session-addressed (S5-b.2): %d/%d\n", midiSessionOk, midiSessionSeen);
-		if (midiSessionOk != midiSessionSeen) {
-			std::fprintf(stderr, "S5-b.2 FAIL: a no-id MIDI clip CC did not session-resolve\n");
-			_exit(3);
+		std::fprintf(io.err, "MIDI-clip id-addressed (S5-b.2): %d/%d\n", midiIdOk, midiIdSeen);
+		if (midiIdOk != midiIdSeen) {
+			std::fprintf(io.err, "S5-b.2 FAIL: a MIDI clip CC did not resolve by its clip's id\n");
+			return 3;
 		}
 		if (kitScalarOk != kitSeen) {
-			std::fprintf(stderr, "Flip Option I FAIL: a kit clip's store current_value != engine (read not "
+			std::fprintf(io.err, "Flip Option I FAIL: a kit clip's store current_value != engine (read not "
 			                     "DOM-authoritative)\n");
-			_exit(3);
+			return 3;
 		}
 		if (synthScalarOk != synthSeen || drumScalarOk != drumSeen) {
-			std::fprintf(stderr, "Flip Option I FAIL: a synth/drum clip's store current_value != engine (read not "
+			std::fprintf(io.err, "Flip Option I FAIL: a synth/drum clip's store current_value != engine (read not "
 			                     "DOM-authoritative)\n");
-			_exit(3);
+			return 3;
 		}
 		if (cableScalarOkCount != cableSeen) {
-			std::fprintf(stderr, "Flip Option I FAIL: a patch cable's store current_value != engine (read not "
+			std::fprintf(io.err, "Flip Option I FAIL: a patch cable's store current_value != engine (read not "
 			                     "DOM-authoritative)\n");
-			_exit(3);
+			return 3;
 		}
 	}
 
@@ -338,15 +353,15 @@ int main(int argc, char** argv) {
 			auto* si = new SoundInstrument();
 			ParamManagerForTimeline pm;
 			if (pm.setupWithPatching() != Error::NONE) {
-				std::fprintf(stderr, "new-synth pm setup fail\n");
-				_exit(3);
+				std::fprintf(io.err, "new-synth pm setup fail\n");
+				return 3;
 			}
 			Sound::initParams(&pm);
 			static_cast<Sound*>(si)->setupAsDefaultSynth(&pm);
 			if (!setScalarOk(pm)) {
-				std::fprintf(stderr, "Flip Option I FAIL: setupAsDefaultSynth store != engine (new-synth save "
+				std::fprintf(io.err, "Flip Option I FAIL: setupAsDefaultSynth store != engine (new-synth save "
 				                     "would persist wrong values)\n");
-				_exit(3);
+				return 3;
 			}
 		}
 		// setupAsSample — param setters + a velocity->volume patch cable created via PatchCable::setup().
@@ -354,18 +369,18 @@ int main(int argc, char** argv) {
 			auto* si = new SoundInstrument();
 			ParamManagerForTimeline pm;
 			if (pm.setupWithPatching() != Error::NONE) {
-				std::fprintf(stderr, "new-sample pm setup fail\n");
-				_exit(3);
+				std::fprintf(io.err, "new-sample pm setup fail\n");
+				return 3;
 			}
 			Sound::initParams(&pm);
 			static_cast<Sound*>(si)->setupAsSample(&pm);
 			if (!setScalarOk(pm) || !cableScalarOk(pm)) {
-				std::fprintf(stderr, "Flip Option I FAIL: setupAsSample store != engine (new-sample save would "
+				std::fprintf(io.err, "Flip Option I FAIL: setupAsSample store != engine (new-sample save would "
 				                     "persist wrong values)\n");
-				_exit(3);
+				return 3;
 			}
 		}
-		std::fprintf(stderr, "new-instrument setup scalarOk: OK\n");
+		std::fprintf(io.err, "new-instrument setup scalarOk: OK\n");
 	}
 
 	// The store is populated by the <songParams> read; seed it from the engine if the song had none.
@@ -375,8 +390,8 @@ int main(int argc, char** argv) {
 	}
 	deluge::project::DocParamSet& store = *song->project.global_fx.params.unpatched;
 	if (pVal >= (int32_t)store.params.size() || pAuto >= (int32_t)store.params.size()) {
-		std::fprintf(stderr, "STORE TOO SMALL (%zu params)\n", store.params.size());
-		_exit(3);
+		std::fprintf(io.err, "STORE TOO SMALL (%zu params)\n", store.params.size());
+		return 3;
 	}
 	// DOM-first edits on the store: a scalar value + an automation lane (two nodes).
 	store.params[pVal].current_value = kSentinel;
@@ -390,9 +405,9 @@ int main(int argc, char** argv) {
 	AutoParam& engAuto = song->paramManager.getUnpatchedParamSet()->params[pAuto];
 	if (engVal.currentValue != kSentinel
 	    || song->paramManager.getUnpatchedParamSet()->docForParam(pAuto)->nodes.size() != 2) {
-		std::fprintf(stderr, "EDIT DID NOT LAND engVal=%d autoNodes=%zu\n", engVal.currentValue,
+		std::fprintf(io.err, "EDIT DID NOT LAND engVal=%d autoNodes=%zu\n", engVal.currentValue,
 		             song->paramManager.getUnpatchedParamSet()->docForParam(pAuto)->nodes.size());
-		_exit(3);
+		return 3;
 	}
 
 	// Flip Phase 2 guard: DIVERGE the engine scalar from the store scalar for pVal, so that persistence PROVES the
@@ -402,17 +417,17 @@ int main(int argc, char** argv) {
 	engVal.currentValue = 0x0BADF00D;
 
 	// 3. Save.
-	smSerializer.setMemoryBuffer(gen1, kCap);
+	deluge::scenarios::driver::beginCapture(smSerializer);
 	deluge::project::saveSong(*song, smSerializer);
-	long n1 = smSerializer.bytesWritten();
+	long n1 = deluge::scenarios::driver::endCapture(smSerializer, gen1, kCap);
 
 	// 4. Reload the saved bytes.
 	std::memcpy(gen1copy, gen1, n1);
 	Error e2;
 	Song* reloaded = load_song(gen1copy, n1, &e2);
 	if (!reloaded) {
-		std::fprintf(stderr, "LOADFAIL gen1 -> Error %d\n", (int)e2);
-		_exit(1);
+		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", (int)e2);
+		return 1;
 	}
 
 	// M2-G S2b: the save (gen1) assigns ids, so on reload every audio clip's unpatched params must be
@@ -438,10 +453,10 @@ int main(int argc, char** argv) {
 				}
 			}
 		}
-		std::fprintf(stderr, "audio clips tree-resident: %d/%d\n", treeResident, audioClips);
+		std::fprintf(io.err, "audio clips tree-resident: %d/%d\n", treeResident, audioClips);
 		if (audioClips > 0 && treeResident != audioClips) {
-			std::fprintf(stderr, "S2b FAIL: an audio clip is not tree-resident after reload\n");
-			_exit(3);
+			std::fprintf(io.err, "S2b FAIL: an audio clip is not tree-resident after reload\n");
+			return 3;
 		}
 	}
 
@@ -474,10 +489,10 @@ int main(int argc, char** argv) {
 				}
 			}
 		}
-		std::fprintf(stderr, "instrument-shared clips tree-resident: %d/%d\n", treeResident, sharedClips);
+		std::fprintf(io.err, "instrument-shared clips tree-resident: %d/%d\n", treeResident, sharedClips);
 		if (sharedClips > 0 && treeResident != sharedClips) {
-			std::fprintf(stderr, "S3c/S3d FAIL: a synth/kit clip is not tree-resident after reload\n");
-			_exit(3);
+			std::fprintf(io.err, "S3c/S3d FAIL: a synth/kit clip is not tree-resident after reload\n");
+			return 3;
 		}
 	}
 
@@ -516,10 +531,10 @@ int main(int argc, char** argv) {
 				}
 			}
 		}
-		std::fprintf(stderr, "drum rows tree-resident: %d/%d\n", treeResident, drumRows);
+		std::fprintf(io.err, "drum rows tree-resident: %d/%d\n", treeResident, drumRows);
 		if (drumRows > 0 && treeResident != drumRows) {
-			std::fprintf(stderr, "S3e FAIL: a SoundDrum row is not tree-resident after reload\n");
-			_exit(3);
+			std::fprintf(io.err, "S3e FAIL: a SoundDrum row is not tree-resident after reload\n");
+			return 3;
 		}
 	}
 
@@ -569,10 +584,10 @@ int main(int argc, char** argv) {
 				}
 			}
 		}
-		std::fprintf(stderr, "expression (MPE) sets tree-resident: %d/%d\n", treeResident, mpeSets);
+		std::fprintf(io.err, "expression (MPE) sets tree-resident: %d/%d\n", treeResident, mpeSets);
 		if (mpeSets > 0 && treeResident != mpeSets) {
-			std::fprintf(stderr, "S4a FAIL: an expression set is not tree-resident after reload\n");
-			_exit(3);
+			std::fprintf(io.err, "S4a FAIL: an expression set is not tree-resident after reload\n");
+			return 3;
 		}
 	}
 
@@ -600,12 +615,12 @@ int main(int argc, char** argv) {
 					return msap->doc() == pm.getUnpatchedParamSet()->docForParam(0);
 				};
 				// Kit clip-level FX (no noteRow): expect an OwnerId::instrument(kit output) address.
-				char buf[MODEL_STACK_MAX_SIZE];
+				char buf[MODEL_STACK_MAX_SIZE]{};
 				ModelStackWithThreeMainThings* m3 = setupModelStackWithThreeMainThingsButNoNoteRow(
 				    buf, reloaded, static_cast<Kit*>(clip->output)->toModControllable(), clip, &clip->paramManager);
 				if (!consistent(clip->paramManager, m3->getUnpatchedAutoParamFromId(0))) {
-					std::fprintf(stderr, "S3g FAIL: kit clip-level doc() != bound store (misclassified)\n");
-					_exit(3);
+					std::fprintf(io.err, "S3g FAIL: kit clip-level doc() != bound store (misclassified)\n");
+					return 3;
 				}
 				// Each SoundDrum NoteRow (noteRow set): expect an OwnerId::drum(drum id) address.
 				InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
@@ -615,18 +630,18 @@ int main(int argc, char** argv) {
 					    || !nr.paramManager.containsAnyMainParamCollections()) {
 						continue;
 					}
-					char dbuf[MODEL_STACK_MAX_SIZE];
+					char dbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* dm3 = setupModelStackWithThreeMainThingsIncludingNoteRow(
 					    dbuf, reloaded, clip, n, &nr, static_cast<SoundDrum*>(nr.drum)->toModControllable(),
 					    &nr.paramManager);
 					if (!consistent(nr.paramManager, dm3->getUnpatchedAutoParamFromId(0))) {
-						std::fprintf(stderr, "S3g FAIL: drum doc() != bound store (misclassified as kit-level)\n");
-						_exit(3);
+						std::fprintf(io.err, "S3g FAIL: drum doc() != bound store (misclassified as kit-level)\n");
+						return 3;
 					}
 				}
 			}
 		}
-		std::fprintf(stderr, "kit/drum doc()==bound-store checks: %d\n", checked);
+		std::fprintf(io.err, "kit/drum doc()==bound-store checks: %d\n", checked);
 	}
 
 	// M2-G S4b: every reloaded synth/drum manager's patch cables must be (a) tree-resident — the engine cable set
@@ -636,6 +651,7 @@ int main(int argc, char** argv) {
 	// cable that save (which never resolves via doc()) would silently miss.
 	{
 		int32_t cableSets = 0, treeResident = 0, addrChecks = 0;
+		bool misOwned = false;
 		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
 		                               &reloaded->project.clips.arrangement_only_clips};
 		auto checkCables = [&](ParamManagerForTimeline& pm, const deluge::project::OwnerId& owner,
@@ -655,8 +671,8 @@ int main(int argc, char** argv) {
 				deluge::project::ParamAddress addr{owner, deluge::modulation::params::Kind::PATCH_CABLE, packedId,
 				                                   clipId};
 				if (reloaded->project.resolveParam(addr) != pcs->docForParam(c)) {
-					std::fprintf(stderr, "S4b FAIL: patch-cable doc() != bound store (mis-encoded/mis-owned)\n");
-					_exit(3);
+					misOwned = true;
+					return;
 				}
 				addrChecks++;
 			}
@@ -687,11 +703,15 @@ int main(int argc, char** argv) {
 				}
 			}
 		}
-		std::fprintf(stderr, "patch-cable sets tree-resident: %d/%d (doc()==bound-store checks: %d)\n", treeResident,
+		if (misOwned) {
+			std::fprintf(io.err, "S4b FAIL: patch-cable doc() != bound store (mis-encoded/mis-owned)\n");
+			return 3;
+		}
+		std::fprintf(io.err, "patch-cable sets tree-resident: %d/%d (doc()==bound-store checks: %d)\n", treeResident,
 		             cableSets, addrChecks);
 		if (cableSets > 0 && treeResident != cableSets) {
-			std::fprintf(stderr, "S4b FAIL: a synth/drum patch-cable set is not tree-resident after reload\n");
-			_exit(3);
+			std::fprintf(io.err, "S4b FAIL: a synth/drum patch-cable set is not tree-resident after reload\n");
+			return 3;
 		}
 	}
 
@@ -727,18 +747,18 @@ int main(int argc, char** argv) {
 					deluge::project::ParamAddress addr{deluge::project::OwnerId::clip(*clipId),
 					                                   deluge::modulation::params::Kind::MIDI, cc, std::nullopt};
 					if (reloaded->project.resolveParam(addr) != midi->docForParam(i)) {
-						std::fprintf(stderr, "S4c FAIL: MIDI doc() != bound store (mis-keyed cc)\n");
-						_exit(3);
+						std::fprintf(io.err, "S4c FAIL: MIDI doc() != bound store (mis-keyed cc)\n");
+						return 3;
 					}
 					addrChecks++;
 				}
 			}
 		}
-		std::fprintf(stderr, "MIDI CC sets tree-resident: %d/%d (doc()==bound-store checks: %d)\n", treeResident,
+		std::fprintf(io.err, "MIDI CC sets tree-resident: %d/%d (doc()==bound-store checks: %d)\n", treeResident,
 		             midiSets, addrChecks);
 		if (midiSets > 0 && treeResident != midiSets) {
-			std::fprintf(stderr, "S4c FAIL: a MIDI_OUT CC set is not tree-resident after reload\n");
-			_exit(3);
+			std::fprintf(io.err, "S4c FAIL: a MIDI_OUT CC set is not tree-resident after reload\n");
+			return 3;
 		}
 	}
 
@@ -808,15 +828,15 @@ int main(int argc, char** argv) {
 		}
 
 		if (plantedCable || plantedMidi) {
-			smSerializer.setMemoryBuffer(gen2, kCap);
+			deluge::scenarios::driver::beginCapture(smSerializer);
 			deluge::project::saveSong(*reloaded, smSerializer);
-			long n2 = smSerializer.bytesWritten();
+			long n2 = deluge::scenarios::driver::endCapture(smSerializer, gen2, kCap);
 			std::memcpy(gen2copy, gen2, n2);
 			Error e3;
 			Song* reloaded2 = load_song(gen2copy, n2, &e3);
 			if (reloaded2 == nullptr) {
-				std::fprintf(stderr, "S6-fix: LOADFAIL gen2 -> Error %d\n", (int)e3);
-				_exit(1);
+				std::fprintf(io.err, "S6-fix: LOADFAIL gen2 -> Error %d\n", (int)e3);
+				return 1;
 			}
 			auto findClip = [&](std::optional<uint32_t> id) -> Clip* {
 				if (!id.has_value()) {
@@ -836,20 +856,20 @@ int main(int argc, char** argv) {
 			if (plantedCable) {
 				Clip* rc = findClip(cableClipId);
 				if (rc == nullptr || !scanCableForMark(rc)) {
-					std::fprintf(stderr, "S6-fix FAIL: patch-cable automation edit LOST on save (read stale inline "
+					std::fprintf(io.err, "S6-fix FAIL: patch-cable automation edit LOST on save (read stale inline "
 					                     "amount_, not the tree)\n");
-					_exit(3);
+					return 3;
 				}
 			}
 			if (plantedMidi) {
 				Clip* rc = findClip(midiClipId);
 				if (rc == nullptr || !scanMidiForMark(rc)) {
-					std::fprintf(stderr, "S6-fix FAIL: MIDI CC automation edit LOST on save (writeToFile read stale "
+					std::fprintf(io.err, "S6-fix FAIL: MIDI CC automation edit LOST on save (writeToFile read stale "
 					                     "nodes_, not the tree)\n");
-					_exit(3);
+					return 3;
 				}
 			}
-			std::fprintf(stderr, "S6-fix: tree-authoritative save OK (cable=%d midi=%d)\n", plantedCable ? 1 : 0,
+			std::fprintf(io.err, "S6-fix: tree-authoritative save OK (cable=%d midi=%d)\n", plantedCable ? 1 : 0,
 			             plantedMidi ? 1 : 0);
 		}
 	}
@@ -875,16 +895,16 @@ int main(int argc, char** argv) {
 				}
 				deluge::project::setNodeAtPos(*midi->docForParam(0), 21, 0x0B0B0B, false);
 				if (midi->docForParam(0)->nodes.size() == 0) {
-					std::fprintf(stderr, "S6-fix ops: planted node missing (setup error)\n");
-					_exit(3);
+					std::fprintf(io.err, "S6-fix ops: planted node missing (setup error)\n");
+					return 3;
 				}
 				midi->stripAutomation();
 				if (midi->docForParam(0)->nodes.size() != 0) {
-					std::fprintf(stderr, "S6-fix FAIL: MIDI stripAutomation did not clear the TREE lane (op read "
+					std::fprintf(io.err, "S6-fix FAIL: MIDI stripAutomation did not clear the TREE lane (op read "
 					                     "stale inline nodes_)\n");
-					_exit(3);
+					return 3;
 				}
-				std::fprintf(stderr, "S6-fix ops: MIDI stripAutomation hit the tree OK\n");
+				std::fprintf(io.err, "S6-fix ops: MIDI stripAutomation hit the tree OK\n");
 				goto opsChecked;
 			}
 		}
@@ -893,8 +913,8 @@ opsChecked:;
 
 	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.
 	if (!reloaded->project.global_fx.params.unpatched) {
-		std::fprintf(stderr, "reloaded store EMPTY\n");
-		_exit(3);
+		std::fprintf(io.err, "reloaded store EMPTY\n");
+		return 3;
 	}
 	deluge::project::DocParamSet& rstore = *reloaded->project.global_fx.params.unpatched;
 	int32_t storeVal = rstore.params[pVal].current_value;
@@ -910,10 +930,14 @@ opsChecked:;
 	bool autoEngOk = engNodes.size() == 2 && engNodes[0].value == 111 && engNodes[1].value == -222;
 
 	bool persisted = valOk && autoStoreOk && autoEngOk;
-	std::fprintf(stderr,
+	std::fprintf(io.err,
 	             "value p=%d sentinel=0x%08X reloaded store=0x%08X engine=0x%08X | automation p=%d storeNodes=%zu "
 	             "engNodes=%zu | %s\n",
 	             pVal, kSentinel, storeVal, engineVal, pAuto, storeNodes.size(), engNodes.size(),
 	             persisted ? "PERSISTED" : "LOST");
-	_exit(persisted ? 0 : 3);
+	return persisted ? 0 : 3;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(song_edit_roundtrip, song_edit_roundtrip_main)

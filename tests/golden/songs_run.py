@@ -11,23 +11,25 @@ hash gen1 (SHA-256) and compare against songs_fixtures.json. A hash change means
 the serialized project model changed — a refactor in the extraction must justify
 and re-baseline it (--update). Mirrors the audio golden harness conventions.
 
+The driver is the song_roundtrip scenario of golden_vt_render (driver.py), and `./dbt test song-roundtrip` runs
+this check (tests/integration/checks/song_roundtrip.py).
+
 CORPUS IS BRING-YOUR-OWN. Only the hashes (songs_fixtures.json) live in the repo;
 the song .XML files stay out-of-repo (privacy/licensing). Point the runner at a
-corpus via $DELUGE_SONG_CORPUS or --corpus (default: tests/golden/songs/, which
-is gitignored). When none of the fixtured songs are present locally, the check
+corpus via $DELUGE_SONG_CORPUS or --corpus (default: driver.default_corpus()).
+When none of the fixtured songs are present locally, the check
 SKIPs (exit 77) instead of failing — so CI without the corpus stays green.
 
 Usage:
-    cmake -B build-sim -S sim -G Ninja && cmake --build build-sim --target song_roundtrip
+    ./dbt test -n song-roundtrip                      # build golden_vt_render
     export DELUGE_SONG_CORPUS=~/path/to/SONGS
     python3 tests/golden/songs_run.py                 # check fixtured songs (exit 1 on regression)
     python3 tests/golden/songs_run.py --update        # discover+re-baseline (walks the corpus)
     python3 tests/golden/songs_run.py --filter Bass   # subset (substring match)
 
-ARM-NEON oracle (must agree with x86 on the *same* fixtures):
-    cmake -B build-sim-arm -S sim -G Ninja -DCMAKE_TOOLCHAIN_FILE=$PWD/sim/arm-linux-toolchain.cmake
-    cmake --build build-sim-arm --target song_roundtrip
-    python3 tests/golden/songs_run.py --binary build-sim-arm/song_roundtrip \
+ARM-NEON oracle (must agree with x86 on the *same* fixtures): the qemu-arm build of golden_vt_render.
+    ./dbt test -n golden-synth-arm
+    python3 tests/golden/songs_run.py --binary <its golden_vt_render> \
         --wrapper 'qemu-arm -L /usr/arm-linux-gnueabihf -cpu cortex-a9'
 """
 
@@ -36,13 +38,13 @@ import hashlib
 import json
 import os
 import shlex
-import subprocess
 import sys
 import tempfile
 
+import driver
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
-DEFAULT_CORPUS = os.path.join(HERE, "songs")
 FIXTURES = os.path.join(HERE, "songs_fixtures.json")
 # Committed, privacy-clean synthetic songs that exercise rare structures the BYO corpus may lack
 # (e.g. a sync-scale clip). Their fixture keys are prefixed "synthetic/" and resolve against HERE,
@@ -60,16 +62,13 @@ def run_driver(cmd_prefix, binary, song, timeout):
     with tempfile.NamedTemporaryFile(suffix=".XML", delete=False) as tf:
         out_path = tf.name
     try:
-        r = subprocess.run(
-            cmd_prefix + [binary, song, out_path], capture_output=True, timeout=timeout
-        )
-        tail = (r.stderr.decode(errors="replace").strip().splitlines() or [""])[-1]
+        r = driver.run(binary, "song_roundtrip", [song, out_path], timeout, cmd_prefix)
+        tail = (r.stderr.strip().splitlines() or [""])[-1]
         digest = None
         if r.returncode == EXIT_SETTLED:
-            digest = hashlib.sha256(open(out_path, "rb").read()).hexdigest()
+            with open(out_path, "rb") as fh:
+                digest = hashlib.sha256(fh.read()).hexdigest()
         return r.returncode, digest, tail
-    except subprocess.TimeoutExpired:
-        return -1, None, "TIMEOUT"
     finally:
         os.unlink(out_path)
 
@@ -83,17 +82,13 @@ def find_songs(corpus):
     return sorted(out)
 
 
-def main():
+def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument(
-        "--binary", default=os.path.join(REPO, "build-sim", "song_roundtrip")
-    )
+    ap.add_argument("--binary", default=str(driver.default_binary()))
     ap.add_argument(
         "--wrapper", default="", help="run the binary under this (e.g. qemu-arm ...)"
     )
-    ap.add_argument(
-        "--corpus", default=os.environ.get("DELUGE_SONG_CORPUS", DEFAULT_CORPUS)
-    )
+    ap.add_argument("--corpus", default=driver.default_corpus() or "")
     ap.add_argument(
         "--filter", default="", help="only songs whose path contains this substring"
     )
@@ -106,12 +101,10 @@ def main():
         "--update", action="store_true", help="discover+re-baseline (walks the corpus)"
     )
     ap.add_argument("--timeout", type=int, default=60)
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     if not os.path.exists(args.binary):
-        sys.exit(
-            f"driver not built: {args.binary}\n  cmake --build build-sim --target song_roundtrip"
-        )
+        sys.exit(f"driver not built: {args.binary}\n  ./dbt test -n song-roundtrip")
     pre = shlex.split(args.wrapper)
 
     fixtures = {}

@@ -1,7 +1,7 @@
 // Unit harness for the Edit substrate (M1a/M1b, docs/dev/project_model_migration_plan.md):
 // dispatcher wiring, then the SetParamValue pilot, its Consequence production, coalescence, and
-// undo. Runs in the sim environment (real UnpatchedParamSet + ActionLogger + host allocator) on
-// x86 (build-sim) and ARM (build-sim-arm via qemu).
+// undo. Runs as the edit_substrate scenario (scenarios/drivers/driver.h): the real UnpatchedParamSet,
+// ActionLogger and allocator, on x86 and, through the qemu-arm build of golden_vt_render, on ARM.
 //
 // Exit: 0 = all checks pass, 1 = a failure.
 
@@ -11,21 +11,34 @@
 
 #include "deluge-project/param_edit.h" // setNodeAtPos
 #include "deluge-project/song.h"       // deluge::project::Song::resolveParam (equivalence spec)
+#include "memory/general_memory_allocator.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/consequence/consequence.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/paste_param_automation.h"
 #include "model/edits/set_param_value.h"
+#include "model/global_effectable/global_effectable.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/snapshot/param_snapshot.h"
+#include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include <cstring>
+
+#include "scenarios/drivers/driver.h"
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
 
 namespace {
 
@@ -33,7 +46,7 @@ int failures = 0;
 
 void check(bool ok, const char* what) {
 	if (!ok) {
-		std::fprintf(stderr, "FAIL: %s\n", what);
+		std::fprintf(io.err, "FAIL: %s\n", what);
 		failures++;
 	}
 }
@@ -63,7 +76,7 @@ void testDispatcher(deluge::edits::Context& ctx) {
 }
 
 // Build a ModelStackWithAutoParam over a real UnpatchedParamSet, song-less (=> addressFor()
-// nullopt; doc() falls back to the collection's own store) — the param_automation_test pattern,
+// nullopt; doc() falls back to the collection's own store) — the param_projection pattern,
 // but with a real collection so remotelySwapParamState/undo is the real engine path.
 ModelStackWithAutoParam* makeStack(char* buf, ParamManagerForTimeline& pm, int32_t paramId) {
 	std::memset(buf, 0, MODEL_STACK_MAX_SIZE);
@@ -83,7 +96,7 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 
 	ParamManagerForTimeline pm;
 	pm.setupUnpatched();
-	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
 
 	int32_t oldValue = ms->autoParam->getCurrentValue();
@@ -163,7 +176,7 @@ void testSetParamValueRegionAndFlag(deluge::edits::Context& ctx) {
 
 	ParamManagerForTimeline pm;
 	pm.setupUnpatched();
-	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
 
 	int32_t target = ms->autoParam->getCurrentValue() + 250;
@@ -182,7 +195,7 @@ void testDeleteParamAutomation(deluge::edits::Context& ctx) {
 
 	ParamManagerForTimeline pm;
 	pm.setupUnpatched();
-	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
 
 	deluge::project::setNodeAtPos(*ms->doc(), 0, 100, false);
@@ -207,7 +220,7 @@ void testPasteParamAutomation(deluge::edits::Context& ctx) {
 
 	ParamManagerForTimeline pm;
 	pm.setupUnpatched();
-	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
 	// paste needs getLoopLength(); a no-timeline stack gets it from the noteRow's independent loop length.
 	// song stays null (makeStack memset) so addressFor short-circuits to nullopt -> collection store.
@@ -252,7 +265,7 @@ void testInlinePokeCharacterization(deluge::edits::Context& ctx, TimelineCounter
 	constexpr int32_t kParam = 3;
 	ParamManagerForTimeline pm;
 	pm.setupUnpatched();
-	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
 
 	// (a) SCALAR edit (length 0): setValuePossiblyForRegion -> setCurrentValueInResponseToUserInput. song stays
@@ -270,7 +283,7 @@ void testInlinePokeCharacterization(deluge::edits::Context& ctx, TimelineCounter
 
 	// (b) REGION edit (nonzero length + timeline counter): setValuePossiblyForRegion -> setValueForRegion, whose
 	//     node/current_value mutation is a proven-equivalent DOM kernel deluge::project::setValueForRegion (see the
-	//     exhaustive engine==DOM matrix in param_automation_test.cpp). The region dispatch needs
+	//     exhaustive engine==DOM matrix in param_projection.cpp). The region dispatch needs
 	//     timelineCounterIsSet(); getLoopLength() is satisfied by a NoteRow with an independent loop length (no
 	//     Song deref). song stays null so addressFor -> nullopt -> the same collection store the scalar half used.
 	NoteRow nr;
@@ -312,7 +325,7 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	// normally stamped by GlobalEffectable::initParams). Set it so the address resolves in the model tree
 	// (slotInManager keys the unpatched slot by UNPATCHED_SOUND/UNPATCHED_GLOBAL).
 	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
 	ms->song = engineSong;
 	ms->setTimelineCounter(clipTC);
@@ -373,7 +386,7 @@ void testRegionFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	ParamManagerForTimeline pm;
 	pm.setupUnpatched();
 	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
 	ms->song = engineSong;
 	ms->setTimelineCounter(clipTC);
@@ -420,7 +433,7 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	ParamManagerForTimeline pm;
 	pm.setupUnpatched();
 	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
 	ms->song = engineSong;
 	ms->setTimelineCounter(clipTC);
@@ -454,14 +467,9 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
 // engine mutation path (ActionLogger snapshots off currentSong->project.clips).
-#include "hid/display/seven_segment.h"
-#include "memory/general_memory_allocator.h"
-#include "model/clip/audio_clip.h"
-#include "model/global_effectable/global_effectable.h"
-#include "model/song/song.h"
 
-int main() {
-	display = new deluge::hid::display::SevenSegment;
+int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
+	io = driverIo;
 
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
 	Song* song = new (mem) Song();
@@ -489,7 +497,11 @@ int main() {
 	testRegionFlipViaApply(ctx, song, audioClip);
 
 	if (failures == 0) {
-		std::fprintf(stdout, "edit_test: OK\n");
+		std::fprintf(io.out, "edit_substrate: OK\n");
 	}
 	return failures ? 1 : 0;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(edit_substrate, edit_substrate_main)

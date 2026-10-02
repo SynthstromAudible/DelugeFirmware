@@ -5,7 +5,7 @@
 #include <cstring>
 
 // Position an in-memory ValueTreeDeserializer (record-first deserializer, step 2b) at the given root
-// element's content, mirroring XMLDeserializer::openXMLFile(nullptr, firstTag): read top-level tags,
+// element's content, mirroring XMLDeserializer::openXMLFile(firstTag): read top-level tags,
 // consuming firmware-version tags along the way, until `firstTag` is reached -- leaving the reader
 // positioned inside that element exactly as the streaming reader does. Returns Error::NONE on success
 // or Error::FILE_CORRUPTED if the element is never found. Shared by the load-via-tree golden harnesses.

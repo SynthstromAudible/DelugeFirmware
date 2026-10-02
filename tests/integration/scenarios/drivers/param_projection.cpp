@@ -1,10 +1,11 @@
 // Projection round-trip test for the param/automation DOM leaf, DocAutoParam
 // (docs/dev/param_automation_dom.md, Phase 1).
 //
-// Runs in the sim environment (real AutoParam + the host allocator), so it exercises the projection
-// against the actual firmware engine container — and runs on x86 (build-sim) and ARM (build-sim-arm via
-// qemu), the dual-arch coverage the design doc calls for. (A CppSpec unit spec can't host this: AutoParam
-// pulls in the whole app, and the firmware containers don't build under the bare spec toolchain.)
+// Runs as the param_projection scenario (scenarios/drivers/driver.h): the real AutoParam and the app's
+// allocator, so it exercises the projection against the actual firmware engine container, on x86 and,
+// through the qemu-arm build of golden_vt_render, on ARM -- the dual-arch coverage the design doc calls for.
+// (A CppSpec unit spec can't host this: AutoParam pulls in the whole app, and the firmware containers don't
+// build under the bare spec toolchain.)
 //
 // Exit: 0 = all round-trips faithful, 1 = a mismatch.
 
@@ -29,14 +30,21 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/storage_manager.h"
-
-namespace params = deluge::modulation::params;
-
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
-#include <unistd.h>
 #include <vector>
+
+#include "scenarios/drivers/driver.h"
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
+
+namespace params = deluge::modulation::params;
 
 using deluge::project::DocAutoParam;
 using deluge::project::fromDocAutoParam;
@@ -54,7 +62,7 @@ int failures = 0;
 
 void check(bool ok, const char* what) {
 	if (!ok) {
-		std::fprintf(stderr, "FAIL: %s\n", what);
+		std::fprintf(io.err, "FAIL: %s\n", what);
 		failures++;
 	}
 }
@@ -183,7 +191,8 @@ void authorStoreFromEngine(ParamManagerForTimeline& pm) {
 
 } // namespace
 
-int main() {
+int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
+	io = driverIo;
 	// Filter-mode serialization must round-trip for EVERY FilterMode, including the OFF sentinel. Regression
 	// guard for a layout-dependent OOB read: filterMap was sized kNumFilterModes (which excludes OFF), so
 	// lpfTypeToString(FilterMode::OFF) read one past the array and emitted adjacent garbage ("H2L"), which
@@ -253,7 +262,7 @@ int main() {
 		                        bool reversed) -> int32_t {
 			// Only AutoParam::getValueAtPos's getLoopLength() call touches the ModelStack; a NoteRow with a
 			// non-zero loopLengthIfIndependent short-circuits it, so no Song/TimelineCounter is required.
-			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
@@ -314,7 +323,7 @@ int main() {
 
 		auto engineDistance = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc, int32_t pos, int32_t loopLength,
 		                         bool reversed) -> int32_t {
-			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
@@ -519,7 +528,7 @@ int main() {
 		auto engineHomogenize = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc, int32_t startPos,
 		                           int32_t length, int32_t startValue, bool interpL, bool interpR, int32_t effLen,
 		                           bool reversed, int32_t cut) -> int32_t {
-			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
@@ -669,7 +678,7 @@ int main() {
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
 				(void)(&apDoc)->nodes.reserveExtra(4);
-				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
 				bindOracle(ms, &ap, &apDoc);
@@ -694,7 +703,7 @@ int main() {
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
 				(void)(&apDoc)->nodes.reserveExtra(4);
-				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
 				bindOracle(ms, &ap, &apDoc);
@@ -945,7 +954,7 @@ int main() {
 
 		std::vector<deluge::project::DocPatchCable> recovered;
 		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
-		reader.openXMLFile(nullptr, "song");
+		reader.openXMLFile("song");
 		const char* tag;
 		while (*(tag = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tag, "patchCables")) {
@@ -1074,7 +1083,7 @@ int main() {
 		UnpatchedParamSet* unp2 = pm2.getUnpatchedParamSet();
 		ParamCollectionSummary* sum2 = pm2.getUnpatchedParamSetSummary();
 		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
-		reader.openXMLFile(nullptr, "params");
+		reader.openXMLFile("params");
 		const char* tag;
 		while (*(tag = reader.readNextTagOrAttributeName())) {
 			if (!deluge::project::readModControllableParamTag(reader, tag, *unp2, *sum2, 2147483647)) {
@@ -1172,7 +1181,7 @@ int main() {
 		UnpatchedParamSet* unp2 = pm2.getUnpatchedParamSet();
 		ParamCollectionSummary* sum2 = pm2.getUnpatchedParamSetSummary();
 		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
-		reader.openXMLFile(nullptr, "params");
+		reader.openXMLFile("params");
 		const char* tag;
 		while (*(tag = reader.readNextTagOrAttributeName())) {
 			if (!deluge::project::readGlobalEffectableParamTag(reader, tag, *unp2, *sum2, 2147483647)) {
@@ -1208,7 +1217,7 @@ int main() {
 		UnpatchedParamSet* unp3 = pm3.getUnpatchedParamSet();
 		ParamCollectionSummary* sum3 = pm3.getUnpatchedParamSetSummary();
 		XMLDeserializer legacyReader(reinterpret_cast<uint8_t*>(legacyBuf), legacyLen);
-		legacyReader.openXMLFile(nullptr, "params");
+		legacyReader.openXMLFile("params");
 		while (*(tag = legacyReader.readNextTagOrAttributeName())) {
 			if (!deluge::project::readGlobalEffectableParamTag(legacyReader, tag, *unp3, *sum3, 2147483647)) {
 				legacyReader.exitTag();
@@ -1274,7 +1283,7 @@ int main() {
 		ExpressionParamSet* e2 = pm2.getOrCreateExpressionParamSet();
 		ParamCollectionSummary* esum2 = pm2.getExpressionParamSetSummary();
 		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
-		reader.openXMLFile(nullptr, "song");
+		reader.openXMLFile("song");
 		const char* tag;
 		while (*(tag = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tag, "expressionData")) {
@@ -1305,7 +1314,7 @@ int main() {
 		std::strcpy(legacyBuf, legacyXml);
 		int legacyLen = static_cast<int>(std::strlen(legacyBuf));
 		XMLDeserializer legacyReader(reinterpret_cast<uint8_t*>(legacyBuf), legacyLen);
-		legacyReader.openXMLFile(nullptr, "expressionData");
+		legacyReader.openXMLFile("expressionData");
 		e3->readFromFile(legacyReader, esum3, 2147483647);
 		check(e3->params[2].currentValue == 0x00001A2B, "expr-rt legacy channelPressure loads");
 	}
@@ -1390,7 +1399,7 @@ int main() {
 		ParamCollectionSummary* psum2 = pm2.getPatchedParamSetSummary();
 		ParamCollectionSummary* usum2 = pm2.getUnpatchedParamSetSummary();
 		XMLDeserializer reader(reinterpret_cast<uint8_t*>(rtBuf), rtLen);
-		reader.openXMLFile(nullptr, "soundParams");
+		reader.openXMLFile("soundParams");
 		const char* tag;
 		while (*(tag = reader.readNextTagOrAttributeName())) {
 			if (!deluge::project::readSoundParamTag(reader, tag, *pp2, *psum2, *up2, *usum2, 2147483647)) {
@@ -1506,7 +1515,7 @@ int main() {
 		ParamCollectionSummary* sumEng = pmEng.getUnpatchedParamSetSummary();
 		{
 			XMLDeserializer reader(reinterpret_cast<uint8_t*>(bufA), rtLen);
-			reader.openXMLFile(nullptr, "params");
+			reader.openXMLFile("params");
 			const char* tag;
 			while (*(tag = reader.readNextTagOrAttributeName())) {
 				if (!deluge::project::readGlobalEffectableParamTag(reader, tag, *unpEng, *sumEng, 2147483647)) {
@@ -1522,7 +1531,7 @@ int main() {
 		}
 		{
 			XMLDeserializer reader(reinterpret_cast<uint8_t*>(bufB), rtLen);
-			reader.openXMLFile(nullptr, "params");
+			reader.openXMLFile("params");
 			const char* tag;
 			while (*(tag = reader.readNextTagOrAttributeName())) {
 				if (!deluge::project::readGlobalEffectableParamTagToDoc(reader, tag, store, 2147483647)) {
@@ -1823,7 +1832,7 @@ int main() {
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
 				(void)(&apDoc)->nodes.reserveExtra(4);
-				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
 				bindOracle(ms, &ap, &apDoc);
@@ -1955,7 +1964,7 @@ int main() {
 
 				// M2-E: nudge now resolves nodes via modelStack->doc(); with action=nullptr it uses no other
 				// modelStack field, so a minimal stack carrying only autoParam suffices.
-				alignas(ModelStackWithAutoParam) char nbuf[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char nbuf[MODEL_STACK_MAX_SIZE]{};
 				auto* nms = reinterpret_cast<ModelStackWithAutoParam*>(nbuf);
 				bindOracle(nms, &ap, &apDoc);
 				ap.nudgeNonInterpolatingNodesAtPos(nc.pos, nc.offset, lengthBeforeLoop, nullptr, nms);
@@ -2062,7 +2071,7 @@ int main() {
 							// mid-op reallocation; the DOM port is index-based and immune).
 							(void)(&apDoc)->nodes.reserveExtra(4);
 
-							alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+							alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 							auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 							ms->song = nullptr;
 							ms->setTimelineCounter(nullptr);
@@ -2126,7 +2135,7 @@ int main() {
 	// always true, but playbackHandler is idle in this harness, so the notify is a safe no-op).
 	//
 	// NOTE for the integrator: this block requires an added top-of-file include in
-	// tests/projection/param_automation_test.cpp:
+	// param_projection.cpp:
 	//   #include "modulation/automation/copied_param_automation.h"
 	// (needed to construct a real ::CopiedParamAutomation on the stack; not transitively included today).
 	{
@@ -2201,7 +2210,7 @@ int main() {
 					::CopiedParamAutomation ca; // engine automation clipboard carrier
 					CopiedAutomation domCopied;
 
-					alignas(ModelStackWithAutoParam) char cbuf[MODEL_STACK_MAX_SIZE];
+					alignas(ModelStackWithAutoParam) char cbuf[MODEL_STACK_MAX_SIZE]{};
 					NoteRow cnr;
 					ModelStackWithAutoParam* cms = lightStack(cbuf, loopLen, cnr);
 					bindOracle(cms, &ap, &apDoc);
@@ -2242,7 +2251,7 @@ int main() {
 							}
 							(void)ap2Doc->nodes.reserveExtra(4);
 
-							alignas(ModelStackWithAutoParam) char pbuf[MODEL_STACK_MAX_SIZE];
+							alignas(ModelStackWithAutoParam) char pbuf[MODEL_STACK_MAX_SIZE]{};
 							NoteRow pnr;
 							ModelStackWithAutoParam* msap = fullStack(pbuf, loopLen, pnr, pm);
 							ap2.paste(pc.startPos, pc.endPos, pc.scaleFactor, msap, &ca, isPatchCable);
@@ -2338,7 +2347,7 @@ int main() {
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
 				(void)(&apDoc)->nodes.reserveExtra(4);
-				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
 				bindOracle(ms, &ap, &apDoc);
@@ -2530,7 +2539,7 @@ int main() {
 				// reallocation (the DOM port is index-based and immune) — same guard the blocks above use.
 				(void)(&apDoc)->nodes.reserveExtra(4);
 
-				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 				auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 				ms->song = nullptr;
 				ms->setTimelineCounter(nullptr);
@@ -2574,13 +2583,15 @@ int main() {
 	}
 
 	if (failures == 0) {
-		std::fprintf(stdout, "param_automation projection: OK\n");
-		std::fflush(stdout);
-		// _exit (not return) to skip deluge_app's global static destructors, which assume a fully
-		// set-up app (e.g. a non-null display) — the same reason the golden harness uses _exit.
-		_exit(0);
+		std::fprintf(io.out, "param_automation projection: OK\n");
+		std::fflush(io.out);
+		return 0;
 	}
-	std::fprintf(stderr, "param_automation projection: %d failure(s)\n", failures);
-	std::fflush(stderr);
-	_exit(1);
+	std::fprintf(io.err, "param_automation projection: %d failure(s)\n", failures);
+	std::fflush(io.err);
+	return 1;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(param_projection, param_projection_main)

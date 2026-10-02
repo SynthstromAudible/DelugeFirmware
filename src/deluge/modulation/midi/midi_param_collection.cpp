@@ -405,7 +405,7 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 
 void MIDIParamCollection::writeToFile(Serializer& writer) {
 	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
-	// (verified in param_projection_test). toDocMidiParams reads each CC's live nodes via docForParam (the bound
+	// (verified in the param-projection driver). toDocMidiParams reads each CC's live nodes via docForParam (the bound
 	// tree entry when bound), so this is the last owner block to move fully onto the DOM serializers.
 	deluge::project::serializeMidiParams(deluge::project::toDocMidiParams(*this), writer, true);
 }

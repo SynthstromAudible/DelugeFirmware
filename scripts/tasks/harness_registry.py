@@ -38,6 +38,10 @@ PROBES = {
         "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs, "
         "or have the golden fixtures already rebuilt in DELUGE_GOLDEN_DIR (default ~/.cache/deluge-golden)"
     ),
+    "song-xml-corpus": (
+        "set DELUGE_SONG_CORPUS to a directory of .XML songs, or have them in DELUGE_BACKUP's SONGS "
+        "(default ~/Deluge Backup/SONGS) -- the songs themselves, not fixtures rebuilt from them"
+    ),
 }
 
 
@@ -247,6 +251,13 @@ def probe(requirement: str, root: Path) -> bool:
                 )
             )
             return golden.is_dir() and any(golden.glob("*_proj"))
+        case "song-xml-corpus":
+            # Where tests/golden/driver.py's default_corpus() looks.
+            candidates = [os.environ.get("DELUGE_SONG_CORPUS")]
+            if os.environ.get("DELUGE_BACKUP"):
+                candidates.append(str(Path(os.environ["DELUGE_BACKUP"]) / "SONGS"))
+            candidates.append(str(Path.home() / "Deluge Backup" / "SONGS"))
+            return any(c and Path(c).is_dir() for c in candidates)
         case _:
             return False
 

@@ -5,7 +5,8 @@
 // runs undo. This test is the safety net: it clones the real engine containers (AutoParam,
 // ParamManager with patched + unpatched + patch-cable collections) against the host allocator, mutates
 // the source, and asserts the clone is DEEP-INDEPENDENT (the source mutation does not leak into the
-// clone). It runs on x86 (build-sim) and ARM (build-sim-arm via qemu).
+// clone). It runs as the param_clone scenario (scenarios/drivers/driver.h), on x86 and, through the qemu-arm
+// build of golden_vt_render, on ARM.
 //
 // It is written to pass on the CURRENT byte-copy clone idiom, then guards the retirement to real copy
 // semantics: any task in the retirement that breaks deep independence fails here.
@@ -24,13 +25,21 @@
 
 #include <cstdint>
 #include <cstdio>
-#include <unistd.h>
+
+#include "scenarios/drivers/driver.h"
+
+namespace {
+
+using deluge::scenarios::driver::Io;
+
+/// Where this driver's prints go: what its process wrote to stdout and stderr.
+Io io{};
 
 int failures = 0;
 
 void check(bool ok, const char* what) {
 	if (!ok) {
-		std::fprintf(stderr, "FAIL: %s\n", what);
+		std::fprintf(io.err, "FAIL: %s\n", what);
 		failures++;
 	}
 }
@@ -45,7 +54,8 @@ void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, b
 	}
 }
 
-int main() {
+int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
+	io = driverIo;
 	// (a) M2-F: AutoParam is a pure cursor — copy carries only currentValue (node storage lives in the DOM, and
 	// is exercised by the ParamManager/ParamSet clone blocks below).
 	{
@@ -240,13 +250,15 @@ int main() {
 	}
 
 	if (failures == 0) {
-		std::fprintf(stdout, "param_clone: OK\n");
-		std::fflush(stdout);
-		// _exit (not return) to skip deluge_app's global static destructors, which assume a fully
-		// set-up app — the same reason the projection/golden harnesses use _exit.
-		_exit(0);
+		std::fprintf(io.out, "param_clone: OK\n");
+		std::fflush(io.out);
+		return 0;
 	}
-	std::fprintf(stderr, "param_clone: %d failure(s)\n", failures);
-	std::fflush(stderr);
-	_exit(1);
+	std::fprintf(io.err, "param_clone: %d failure(s)\n", failures);
+	std::fflush(io.err);
+	return 1;
 }
+
+} // namespace
+
+DELUGE_DRIVER_SCENARIO(param_clone, param_clone_main)

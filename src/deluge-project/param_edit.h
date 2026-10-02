@@ -104,7 +104,7 @@ void transposeCCValuesToChannelPressure(DocAutoParam& p);
 /// that's 0, or if there are no nodes). `current_value` is left untouched — only the node array is rebuilt,
 /// mirroring positions around the loop and re-deriving each node's value/interpolated flag from its old
 /// neighbours. Faithful port of AutoParam::flattenReverse; the reversed-position math itself is covered by
-/// param_clone_test.
+/// the param-clone driver.
 void flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength);
 
 /// Trim the timeline to `newLength`: nodes at or beyond `newLength` are dropped. If dropping the tail would
