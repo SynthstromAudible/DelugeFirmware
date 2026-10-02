@@ -271,7 +271,9 @@ static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<LoadPath>> = Mutex::new(
 static RESULTS: Mutex<CriticalSectionRawMutex, ResultTable> = Mutex::new(heapless::Deque::new());
 
 /// Forget marks held at once: more than every entry the queue, the in-flight slot and the result table can hold
-/// together, so a mark is only ever displaced by a mark for a path that is no longer outstanding.
+/// together. A full table drops a mark whose path is no longer outstanding, which always exists while at most that
+/// many paths are outstanding; a mark for an outstanding path is dropped only if the table holds nothing else
+/// (possible only under contention, where every path counts as outstanding).
 pub const FORGET_SLOTS: usize = 32;
 
 const _: () = assert!(
@@ -299,14 +301,18 @@ impl ForgetMarks {
         }
     }
 
-    /// Marks `path`. A full table drops its oldest mark first.
-    pub fn mark(&mut self, path: &str) {
+    /// Marks `path`. A full table drops the oldest mark `owed` reports as no longer outstanding, so a stale mark
+    /// never costs a live one; if `owed` reports every mark outstanding, it drops the oldest.
+    ///
+    /// `owed` is given a mark's hash, since the table keeps no paths.
+    pub fn mark(&mut self, path: &str, owed: impl Fn(u32) -> bool) {
         let hash = path_hash(path);
         if self.marks.contains(&hash) {
             return;
         }
         if self.marks.is_full() {
-            self.marks.remove(0);
+            let victim = self.marks.iter().position(|&mark| !owed(mark)).unwrap_or(0);
+            self.marks.remove(victim);
         }
         let _ = self.marks.push(hash);
     }
@@ -339,8 +345,9 @@ impl ForgetMarks {
     }
 }
 
-/// 32-bit FNV-1a of `path`: a forget mark's key.
-fn path_hash(path: &str) -> u32 {
+/// 32-bit FNV-1a of `path`: a forget mark's key. Public for host tests that stand in for [`ForgetMarks::mark`]'s `owed`.
+#[doc(hidden)]
+pub fn path_hash(path: &str) -> u32 {
     path.bytes().fold(0x811C_9DC5, |hash, byte| {
         (hash ^ u32::from(byte)).wrapping_mul(0x0100_0193)
     })
@@ -520,7 +527,7 @@ pub unsafe extern "C" fn deluge_audio_load_forget(file_path: *const c_char) {
         return;
     };
     if is_outstanding(&path) {
-        FORGOTTEN.lock(|marks| marks.borrow_mut().mark(&path));
+        FORGOTTEN.lock(|marks| marks.borrow_mut().mark(&path, hash_is_outstanding));
     }
 }
 
@@ -532,6 +539,33 @@ fn is_outstanding(path: &str) -> bool {
     }
     match RESULTS.try_lock() {
         Ok(results) => results.iter().any(|entry| entry.key == path),
+        Err(_) => true,
+    }
+}
+
+/// Whether any path whose [`path_hash`] is `hash` is queued, in flight or published. Contention reports `true`, as
+/// in [`is_outstanding`]. Never waits.
+fn hash_is_outstanding(hash: u32) -> bool {
+    let queued = match QUEUE.try_lock() {
+        Ok(queue) => queue.iter().any(|request| path_hash(&request.path) == hash),
+        Err(_) => return true,
+    };
+    if queued {
+        return true;
+    }
+    match IN_FLIGHT.try_lock() {
+        Ok(in_flight) => {
+            if in_flight
+                .as_deref()
+                .is_some_and(|path| path_hash(path) == hash)
+            {
+                return true;
+            }
+        }
+        Err(_) => return true,
+    }
+    match RESULTS.try_lock() {
+        Ok(results) => results.iter().any(|entry| path_hash(&entry.key) == hash),
         Err(_) => true,
     }
 }

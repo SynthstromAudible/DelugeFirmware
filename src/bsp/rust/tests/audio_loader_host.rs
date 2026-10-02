@@ -18,8 +18,8 @@ use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
     DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,
     FORGET_SLOTS, ForgetMarks, LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult,
-    OpenVerdict, RESULT_SLOTS, ResultTable, decode_candidates, load_io_once, publish_into,
-    take_from,
+    OpenVerdict, RESULT_SLOTS, ResultTable, decode_candidates, load_io_once, path_hash,
+    publish_into, take_from,
 };
 
 // The live request/collect pipeline; see `live_pipeline` below.
@@ -860,8 +860,8 @@ fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
 #[test]
 fn a_forget_mark_is_taken_once() {
     let mut marks = ForgetMarks::new();
-    marks.mark("forget/A.wav");
-    marks.mark("forget/A.wav");
+    marks.mark("forget/A.wav", |_| true);
+    marks.mark("forget/A.wav", |_| true);
     assert_eq!(marks.len(), 1, "marking a path twice holds one mark");
     assert!(!marks.take("forget/B.wav"), "another path has no mark");
     assert!(marks.take("forget/A.wav"));
@@ -869,25 +869,47 @@ fn a_forget_mark_is_taken_once() {
     assert!(marks.is_empty());
 }
 
-/// A full table drops its oldest mark, not the newest: the newest belongs to the load just dropped.
+/// A full table drops a mark whose path is no longer outstanding in preference to an older one that still is, and
+/// falls back to the oldest only when every mark is outstanding.
 #[test]
-fn a_full_forget_table_drops_its_oldest_mark() {
-    let mut marks = ForgetMarks::new();
+fn a_full_forget_table_keeps_live_marks_over_stale_ones() {
     let paths: Vec<String> = (0..=FORGET_SLOTS)
         .map(|i| format!("forget/full/{i}.wav"))
         .collect();
-    for path in &paths {
-        marks.mark(path);
+    let fill = |marks: &mut ForgetMarks, owed: &dyn Fn(u32) -> bool| {
+        for path in &paths {
+            marks.mark(path, owed);
+        }
+    };
+
+    // The oldest mark is live and the second is stale: the stale one goes.
+    let mut marks = ForgetMarks::new();
+    for path in &paths[..FORGET_SLOTS] {
+        marks.mark(path, |_| true);
     }
     assert_eq!(marks.len(), FORGET_SLOTS);
+    let stale = path_hash(&paths[1]);
+    marks.mark(&paths[FORGET_SLOTS], |hash| hash != stale);
+    assert_eq!(marks.len(), FORGET_SLOTS);
+    assert!(marks.take(&paths[0]), "a live mark must survive eviction");
     assert!(
-        !marks.take(&paths[0]),
-        "the oldest mark must be the one dropped"
+        !marks.take(&paths[1]),
+        "the stale mark must be the one dropped"
     );
     assert!(
         marks.take(&paths[FORGET_SLOTS]),
         "the newest mark must be kept"
     );
+
+    // Every mark live: the oldest goes.
+    let mut marks = ForgetMarks::new();
+    fill(&mut marks, &|_| true);
+    assert_eq!(marks.len(), FORGET_SLOTS);
+    assert!(
+        !marks.take(&paths[0]),
+        "with all live, the oldest is dropped"
+    );
+    assert!(marks.take(&paths[FORGET_SLOTS]));
     assert!(marks.take(&paths[1]));
 }
 
