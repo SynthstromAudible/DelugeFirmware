@@ -34,9 +34,18 @@ fn main() {
         device::link(&repo_root, &manifest_dir, &out_dir);
     } else if env::var("CARGO_FEATURE_HOST_APP").is_ok() {
         // The bindgen target follows the build target: struct layouts differ between x86-64 and the
-        // 32-bit arm-linux target the golden harness also runs on.
+        // 32-bit arm-linux target the golden harness also runs on. Built from the target's cfgs
+        // rather than `TARGET`, which names a custom target spec (the TSan harness's
+        // `x86_64-unknown-linux-gnu-tsan`) by a name clang does not accept as a triple.
         println!("cargo::rustc-cfg=has_app");
-        let target = env::var("TARGET").unwrap();
+        let cfg = |key: &str| env::var(format!("CARGO_CFG_TARGET_{key}")).unwrap_or_default();
+        let target = format!(
+            "{}-unknown-{}-{}{}",
+            cfg("ARCH"),
+            cfg("OS"),
+            cfg("ENV"),
+            cfg("ABI")
+        );
         bindgen::run(&repo_root, &manifest_dir, &out_dir, &target, true);
         // Link arguments reach only this package's own binary, which needs `host-runtime`. Without
         // it this crate is a harness's library, and the harness links the app itself.
