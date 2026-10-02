@@ -52,7 +52,7 @@
 #include "scenarios/startup_failsafe_scenario.h"
 #include "scenarios/ui_timer_deadline_scenario.h"
 
-#include "gui/views/view.h"
+#include "playback/render_requests.h"
 
 #include <array>
 #include <cstring>
@@ -161,10 +161,10 @@ constexpr DelugeScenario kScenarios[] = {
 };
 
 /// A step is an interaction-tier entry into the app, as an app-loop job is: like deluge_app_service(), it first
-/// applies what the render has asked of the view's active model stack.
+/// does what the render has asked of the interaction tier (deluge::playback::applyRenderRequests()).
 template <std::size_t I>
 void dispatchStepAsInteractionEntry() {
-	view.applyPostedStackRequests();
+	deluge::playback::applyRenderRequests();
 	kScenarios[I].dispatchStep();
 }
 

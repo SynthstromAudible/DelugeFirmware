@@ -30,6 +30,7 @@
 #include "hid/button.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
+#include "hid/display/oled.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "hid/matrix/matrix_driver.h"
@@ -37,11 +38,13 @@
 #include "io/midi/midi_engine.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/clip/clip_array.h"
 #include "model/instrument/instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "playback/render_requests.h"
 #include "util/misc.h"
 
 #include <cstdint>
@@ -56,6 +59,9 @@
 #ifdef printf
 #undef printf
 #endif
+
+// MIDI follow's stored clips, one per note, for the note-off (io/midi/midi_follow.cpp).
+extern Clip* clipForLastNoteReceived[kMaxMIDIValue + 1];
 
 // The harness's DIN note script (audio/host.rs).
 extern "C" {
@@ -210,6 +216,16 @@ Clip* g_movedTo = nullptr;
 /// View::renderStackWrites() when the running leg began, so a leg's line says which leg the render wrote in.
 int32_t g_stackWritesAtLegStart = 0;
 
+/// retired_song, swap_work: the note MIDI follow is given a stored clip of the outgoing song for, the swap's
+/// instrument-load notifications before the leg, and what the first interaction-tier entry after the swap found.
+constexpr int32_t kPlantedNote = 60;
+int32_t g_madeCurrentAtLegStart = 0;
+bool g_swapWorkChecked = false;
+int32_t g_staleFollowClips = 0;
+uint32_t g_modeAfterSwap = 0;
+bool g_animationAfterSwap = false;
+int32_t g_madeCurrentAfterSwap = 0;
+
 /// The note pad tapped just before NEXT_SONG: its release deletes the note and records an undo action.
 constexpr int32_t kNoteX = 0;
 constexpr int32_t kNoteY = 3;
@@ -222,6 +238,25 @@ void fail(const char* marker, const char* what) {
 
 bool stackEmpty() {
 	return getRootUI() == nullptr;
+}
+
+/// MIDI follow's stored clips that are not one of the current song's: each would send a note-off into another song.
+/// Compared by address only.
+int32_t staleFollowClips() {
+	int32_t stale = 0;
+	for (Clip* stored : clipForLastNoteReceived) {
+		if (stored == nullptr) {
+			continue;
+		}
+		bool ofCurrentSong = false;
+		for (ClipArray const* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
+			for (Clip const* clip : *array) {
+				ofCurrentSong = ofCurrentSong || clip == stored;
+			}
+		}
+		stale += ofCurrentSong ? 0 : 1;
+	}
+	return stale;
 }
 
 void writeSong(const char* path, std::string_view text = kSongText) {
@@ -453,6 +488,10 @@ void stepEditorSetup() {
 	g_clipBefore = clip;
 	g_modBefore = clip->output->toModControllable();
 	g_stackWritesAtLegStart = View::renderStackWrites();
+	// swap_work: a note-on MIDI follow sent to the outgoing song's clip, whose note-off has not come yet.
+	clipForLastNoteReceived[kPlantedNote] = clip;
+	g_madeCurrentAtLegStart =
+	    deluge::playback::interactionOwnedWrites(deluge::playback::InteractionOwned::InstrumentLoadNotified);
 	g_loadSeen = false;
 	currentSong->loadNextSong();
 	g_steps = 0;
@@ -474,6 +513,17 @@ void stepEditorRun() {
 		        || view.activeModControllableModelStack.modControllable == g_modBefore)) {
 			g_staleView++;
 		}
+		// swap_work: the first interaction-tier entry after an armed swap the render made. Each is one, as every
+		// app-loop job is, so what it finds is what any MIDI handler or other job would.
+		if (swapped && !g_swapWorkChecked) {
+			g_swapWorkChecked = true;
+			g_staleFollowClips = staleFollowClips();
+			g_modeAfterSwap = currentUIMode;
+			g_animationAfterSwap = deluge::hid::display::OLED::isWorkingAnimationPresent();
+			g_madeCurrentAfterSwap =
+			    deluge::playback::interactionOwnedWrites(deluge::playback::InteractionOwned::InstrumentLoadNotified)
+			    - g_madeCurrentAtLegStart;
+		}
 	}
 	if (!loadOver()) {
 		if (++g_steps > kMaxSettleSteps) {
@@ -493,6 +543,27 @@ void stepEditorRun() {
 	}
 	if (g_staleView != 0) {
 		fail("SU-RETIRED", "the view still pointed into the swapped-out song");
+	}
+	const bool loadingMode = g_modeAfterSwap == UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
+	printf("SU-SWAPWORK checked=%d staleFollowClips=%d loadingMode=%d animation=%d madeCurrent=%d\n",
+	       g_swapWorkChecked ? 1 : 0, g_staleFollowClips, loadingMode ? 1 : 0, g_animationAfterSwap ? 1 : 0,
+	       g_madeCurrentAfterSwap);
+	if (!g_swapWorkChecked) {
+		fail("SU-SWAPWORK", "no step saw the load in flight after the swap, so nothing was tested");
+	}
+	else {
+		if (g_staleFollowClips != 0) {
+			fail("SU-SWAPWORK", "MIDI follow still stored a swapped-out song's clip for a note-off");
+		}
+		if (!loadingMode) {
+			fail("SU-SWAPWORK", "the swap did not put the load in its new-song-playing mode");
+		}
+		if (!g_animationAfterSwap) {
+			fail("SU-SWAPWORK", "the swap did not show the loading animation");
+		}
+		if (g_madeCurrentAfterSwap <= 0) {
+			fail("SU-SWAPWORK", "the instrument load was not told a song was made current");
+		}
 	}
 	g_steps = 0;
 	g_stage = Stage::AuditionSetup;
@@ -769,6 +840,19 @@ void report() {
 		fail("SU-STACK",
 		     "a render block changed the view's active model stack, which only the interaction tier writes");
 	}
+	using deluge::playback::InteractionOwned;
+	using deluge::playback::renderInteractionWrites;
+	const int32_t followWrites = renderInteractionWrites(InteractionOwned::MidiFollowStoredClips);
+	const int32_t animationWrites = renderInteractionWrites(InteractionOwned::LoadingAnimation);
+	const int32_t loadWrites = renderInteractionWrites(InteractionOwned::InstrumentLoadNotified);
+	const int32_t modeWrites = renderInteractionWrites(InteractionOwned::UiMode);
+	const int32_t flagWrites = renderInteractionWrites(InteractionOwned::LoadSongFlag);
+	deluge::playback::watchRenderInteractionWrites(false);
+	printf("SU-SWAP renderWrites midiFollow=%d animation=%d instrumentLoad=%d uiMode=%d loadFlag=%d\n", followWrites,
+	       animationWrites, loadWrites, modeWrites, flagWrites);
+	if (followWrites + animationWrites + loadWrites + modeWrites + flagWrites != 0) {
+		fail("SU-SWAP", "the render wrote state only the interaction tier writes");
+	}
 	if (!g_scriptPath.empty()) {
 		std::remove(g_scriptPath.c_str());
 	}
@@ -788,6 +872,7 @@ void deluge_scenario_stale_ui_begin(void) {
 	g_steps = 0;
 	// Every render block of the run, both armed swaps and the arranger recording among them.
 	View::watchRenderStackWrites(true);
+	deluge::playback::watchRenderInteractionWrites(true);
 }
 
 bool deluge_scenario_stale_ui_complete(void) {
