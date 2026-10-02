@@ -216,6 +216,15 @@ void deluge_audio_load_forget(const char* file_path) DELUGE_NOEXCEPT;
 /// Declared only for host builds, and defined only by the Rust BSP's `host_app` build; never in a device image.
 /// @param ms Milliseconds of simulated delay per load.
 void deluge_audio_load_set_latency_ms(uint32_t ms) DELUGE_NOEXCEPT;
+
+/// @brief Host harness only: how much the loader holds for @p file_path, under any candidates key. [task]
+///
+/// Counts the path's queued requests, its in-flight load and its published answers, so a gate can see that nothing
+/// is left for a path whatever candidates it was asked with. A table the loader holds at that moment counts as one
+/// entry. Declared only for host builds, and defined only by the Rust BSP's `host_app` build.
+/// @param file_path The nominal path. Must not be NULL.
+/// @return The number of entries held for the path.
+uint32_t deluge_audio_load_held_for_path(const char* file_path) DELUGE_NOEXCEPT;
 #endif
 
 #ifdef __cplusplus

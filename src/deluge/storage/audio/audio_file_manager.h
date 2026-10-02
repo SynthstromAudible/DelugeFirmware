@@ -393,7 +393,9 @@ private:
 	///
 	/// What the collect presents, so it takes only the answer to its own candidates. A path the load asked for while
 	/// its folder was unresolved (listed in requestedUnresolved under AsyncOnly) was asked for with its own path
-	/// alone; any other is asked for with what the folder's status now proposes.
+	/// alone; any other is asked for with what the folder's status now proposes. Only AsyncOnly keeps that list, so
+	/// under AsyncOrBlocking a request made before the status moved is presented with the new list's key, misses its
+	/// answer, and is asked again with the new list.
 	///
 	/// @param context   The load this lookup belongs to.
 	/// @param filePath  The nominal path being loaded.

@@ -417,6 +417,31 @@ pub extern "C" fn deluge_audio_load_set_latency_ms(ms: u32) {
     LATENCY_MS.store(ms, core::sync::atomic::Ordering::Relaxed);
 }
 
+/// Host harness knob: how many entries the loader holds for `file_path` under any candidates key —
+/// queued, in flight, published. A table locked at that moment counts as one. See `audio_load.h`.
+///
+/// # Safety
+///
+/// `file_path` must be a valid NUL-terminated C string.
+#[cfg(feature = "host_app")]
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn deluge_audio_load_held_for_path(file_path: *const c_char) -> u32 {
+    // SAFETY: the caller's contract, above.
+    let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
+        return 0;
+    };
+    let queued = QUEUE.try_lock().map_or(1, |queue| {
+        queue.iter().filter(|request| request.path == path).count()
+    });
+    let in_flight = IN_FLIGHT.try_lock().map_or(1, |in_flight| {
+        usize::from(in_flight.as_deref() == Some(path.as_str()))
+    });
+    let published = RESULTS.try_lock().map_or(1, |results| {
+        results.iter().filter(|entry| entry.key == path).count()
+    });
+    u32::try_from(queued + in_flight + published).unwrap_or(u32::MAX)
+}
+
 /// Queues `file_path` for the async loader and wakes it. See `audio_load.h`.
 ///
 /// Returns `false` if the request is malformed or the queue is full or contended; never waits.
@@ -1098,4 +1123,7 @@ abi_pin!(
     deluge_audio_load_request
 );
 #[cfg(feature = "host_app")]
-abi_pin!(deluge_audio_load_set_latency_ms);
+abi_pin!(
+    deluge_audio_load_set_latency_ms,
+    deluge_audio_load_held_for_path
+);

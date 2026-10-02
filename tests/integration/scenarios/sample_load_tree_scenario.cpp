@@ -1605,6 +1605,9 @@ void checkAsyncKit() {
 	// The loader keeps no answer the dropped load was owed, for the next lookup of either drum's path to take: under
 	// either candidate list the kit's folder gives, before it is known to exist and after.
 	for (const char* path : {kKitPresetSampleA, kKitPresetSampleB}) {
+		// Under any key at all, read before the collects below can take anything: those ask only with the lists this
+		// leg's loads could have used.
+		const uint32_t held = deluge_audio_load_held_for_path(path);
 		DelugeChannelStatus status = DELUGE_CHANNEL_UNKNOWN;
 		for (const AlternateLoadDirStatus folder :
 		     {AlternateLoadDirStatus::MIGHT_EXIST, AlternateLoadDirStatus::DOES_EXIST}) {
@@ -1621,8 +1624,8 @@ void checkAsyncKit() {
 				status = answer;
 			}
 		}
-		printf("SLT-ASYNC loader leg=kit path=%s status=%d\n", path, static_cast<int>(status));
-		if (status != DELUGE_CHANNEL_UNKNOWN) {
+		printf("SLT-ASYNC loader leg=kit path=%s status=%d held=%u\n", path, static_cast<int>(status), held);
+		if (status != DELUGE_CHANNEL_UNKNOWN || held != 0) {
 			printf("SLT-ASYNC FAIL leg=kit the loader kept an answer for %s after its load was dropped\n", path);
 			g_failures++;
 		}
