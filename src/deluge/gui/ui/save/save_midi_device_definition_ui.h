@@ -27,7 +27,6 @@ public:
 	bool opened() override;
 
 	ActionResult saveScreenButtonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
-	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
 	void endSession() {};
 	bool serializeForSave(XMLSerializer& into) override;
 	[[nodiscard]] bool savesStagedDocument() const override { return true; }

@@ -31,7 +31,6 @@ public:
 	}
 	bool opened() override;
 	// void selectEncoderAction(int8_t offset);
-	void verticalEncoderAction(int32_t offset, bool encoderButtonPressed, bool shiftButtonPressed) {};
 	void endSession() {};
 	bool serializeForSave(XMLSerializer& into) override;
 	[[nodiscard]] bool savesStagedDocument() const override { return true; }
