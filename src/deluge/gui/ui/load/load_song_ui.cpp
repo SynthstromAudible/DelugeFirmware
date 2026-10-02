@@ -868,6 +868,10 @@ void LoadSongUI::runFinishSegment() {
 	// Delete the old song
 	AudioEngine::logAction("deleting old song");
 	if (loadToDelete_ != nullptr) {
+		// No action may outlive the song it would revert. The knobs went on adjusting the outgoing song until the swap,
+		// and a handler the render preempted at the swap finished on it; the empty UI stack keeps the action logger
+		// from recording any of that, and this keeps it so whatever the logger's own rule becomes.
+		actionLogger.deleteAllLogs();
 		// Handed to the render, which lets go of it before it is freed.
 		AudioEngine::retire(loadToDelete_);
 		// Wait until it is freed: the retry below loads samples into the RAM the old song gives back.

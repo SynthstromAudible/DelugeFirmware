@@ -412,6 +412,13 @@ void stepInertRun() {
 		fail("SU-REPEATS", "the select encoder did not change the armed swap's loop count");
 	}
 	printf("SU-POPUP tried=%d kept=%d\n", g_popupTried ? 1 : 0, g_popupKept ? 1 : 0);
+	// The knobs went on adjusting the outgoing song while it played, before and across the swap; an action they
+	// logged would revert into that song after the load freed it.
+	const bool undoEmpty = actionLogger.firstAction[0] == nullptr && actionLogger.firstAction[1] == nullptr;
+	printf("SU-KNOBUNDO undoEmpty=%d\n", undoEmpty ? 1 : 0);
+	if (!undoEmpty) {
+		fail("SU-KNOBUNDO", "an action logged by a knob turn on the outgoing song survived the load");
+	}
 	if (g_popupTried && !g_popupKept) {
 		fail("SU-POPUP", "a knob turn during the load replaced its LOADING popup");
 	}
