@@ -211,6 +211,18 @@ void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 	PadLEDs::sendOutSidebarColours();
 }
 
+namespace {
+/// @brief The completion of a load the user asked for: with LASTOPENED, record the song in the settings file.
+///
+/// Only a load that brought a song in records one. The current song after any other ending is the one that was
+/// already there, or a blank stand-in after a failure, and neither is a song the user just opened.
+void recordLastOpened(SongLoadOutcome outcome) {
+	if (outcome == SongLoadOutcome::Loaded && FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+		runtimeFeatureSettings.writeSettingsToFile();
+	}
+}
+} // namespace
+
 void LoadSongUI::enterKeyPress() {
 
 	FileItem* currentFileItem = getCurrentFileItem();
@@ -230,11 +242,7 @@ void LoadSongUI::enterKeyPress() {
 		// Start the load and return: loadRoutine() advances it from the run loop, and it parks at each
 		// point it has to wait, so this handler never blocks. The post-load settings
 		// write travels with it as the completion.
-		beginLoad([]() {
-			if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-				runtimeFeatureSettings.writeSettingsToFile();
-			}
-		});
+		beginLoad(recordLastOpened);
 	}
 }
 
@@ -361,10 +369,8 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 				AudioEngine::logAction("beginLoad");
 				// See enterKeyPress. The completion owns the post-load settings write AND the
 				// UI-mode reset, so there is nothing left to do here.
-				beginLoad([]() {
-					if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-						runtimeFeatureSettings.writeSettingsToFile();
-					}
+				beginLoad([](SongLoadOutcome outcome) {
+					recordLastOpened(outcome);
 					currentUIMode = UI_MODE_NONE;
 				});
 				return;
@@ -377,7 +383,7 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	currentUIMode = UI_MODE_NONE;
 }
 
-void LoadSongUI::endLoad() {
+void LoadSongUI::endLoad(SongLoadOutcome outcome) {
 	essentialLoad_.reset();
 	restLoad_.reset();
 	loadPhase_ = LoadPhase::NONE;
@@ -392,15 +398,15 @@ void LoadSongUI::endLoad() {
 	stagingWait_.reset();
 
 	// Cleared before the call so a completion that starts another load doesn't inherit this one's.
-	void (*onComplete)() = loadOnComplete_;
+	void (*onComplete)(SongLoadOutcome) = loadOnComplete_;
 	loadOnComplete_ = nullptr;
 	if (onComplete != nullptr) {
-		onComplete();
+		onComplete(outcome);
 	}
 }
 
 // Before calling this, you must set loadButtonReleased.
-void LoadSongUI::beginLoad(void (*onComplete)()) {
+void LoadSongUI::beginLoad(void (*onComplete)(SongLoadOutcome)) {
 	// The browser stays live and interactive for the whole of STAGE, which for a large song is many
 	// ticks. enterKeyPress() calls straight in here, and only queueLoadNextSongIfAvailable() checks
 	// this flag on the way. A second ENTER would re-enter, find stagingPath_ already pinned, and carry
@@ -458,7 +464,7 @@ void LoadSongUI::runStageSegment() {
 		if (Browser::isListingInProgress() || item == nullptr) {
 			if (stagingWait_.tick()) {
 				display->displayError(Error::FILE_NOT_FOUND);
-				endLoad();
+				endLoad(SongLoadOutcome::NotLoaded);
 			}
 			return;
 		}
@@ -477,7 +483,7 @@ void LoadSongUI::runStageSegment() {
 		activeDeserializer = stagingPrevious_;
 		releaseSongStaging();
 		display->displayError(Error::FILE_CORRUPTED);
-		endLoad();
+		endLoad(SongLoadOutcome::NotLoaded);
 		return;
 
 	case StorageManager::StagedOpen::Opened:
@@ -618,7 +624,7 @@ void LoadSongUI::runBeginSegment() {
 		activeDeserializer = stagingPrevious_;
 		releaseSongStaging();
 		display->displayError(Error::FILE_CORRUPTED);
-		endLoad();
+		endLoad(SongLoadOutcome::NotLoaded);
 		return;
 	}
 
@@ -680,7 +686,7 @@ fail:
 
 		display->removeWorkingAnimation();
 		currentUIMode = UI_MODE_NONE;
-		endLoad();
+		endLoad(SongLoadOutcome::NotLoaded);
 		return;
 	}
 
@@ -863,7 +869,7 @@ void LoadSongUI::tickFinish() {
 
 	display->removeWorkingAnimation();
 
-	endLoad();
+	endLoad(SongLoadOutcome::Loaded);
 }
 
 ActionResult LoadSongUI::timerCallback() {
@@ -1071,7 +1077,7 @@ deluge::gui::CancelResult LoadSongUI::cancelLoad() {
 		// The staged bytes are all the load holds, and the deserializer is not pointed at them until the phase
 		// ends, so endLoad()'s release is the whole of the undo.
 		display->removeWorkingAnimation();
-		endLoad();
+		endLoad(SongLoadOutcome::NotLoaded);
 		return CancelResult::Cancelled;
 	default:
 		return CancelResult::Refused;

@@ -36,6 +36,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_holder.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include <cstdio>
 #include <string>
@@ -76,6 +77,8 @@ public:
 	}
 	static void typeName(const char* name) { Browser::enteredText = name; }
 	static void pressEnter() { saveSongUI.enterKeyPress(); }
+	/// The load browser's ENTER on a song: the gesture whose completion writes "last opened".
+	static void pressLoadEnter() { loadSongUI.enterKeyPress(); }
 
 	/// Whether the song load is staging with its whole-file read outstanding: the byte channel holds the buffer.
 	static bool stagingReadOutstanding() {
@@ -120,6 +123,7 @@ enum class Stage : uint8_t {
 	CancelAfter,
 	RefuseStart,
 	LoadBackWait,
+	LastOpenedWait,
 	Report,
 	Done,
 };
@@ -155,6 +159,11 @@ int32_t g_orphansBefore = 0;
 int32_t g_cancelTicks = 0;
 /// cancel_after_begin: whether a cancel was tried past STAGE, and how it answered.
 bool g_refuseTried = false;
+/// The startup-song mode before the cancel-in-STAGE leg set LASTOPENED, put back after it.
+StartupSongMode g_startupModeBefore = StartupSongMode::BLANK;
+
+/// Where the settings that carry "last opened" live. A load that never happened must not write them.
+constexpr const char* kSettingsPath = "SETTINGS/CommunityFeatures.XML";
 
 bool fileExists(const char* path) {
 	return deluge::io::File::open(path, DELUGE_FILE_READ).has_value();
@@ -272,8 +281,14 @@ void runTick() {
 		playbackHandler.setupPlaybackUsingInternalClock(0, false);
 		g_songBefore = currentSong;
 		g_orphansBefore = StorageManager::orphanedStagingCount();
+		// With LASTOPENED, a finished load records the song in the settings file. Start without one, so a write
+		// for a load that never happened shows up as the file appearing.
+		g_startupModeBefore = FlashStorage::defaultStartupSongMode;
+		FlashStorage::defaultStartupSongMode = StartupSongMode::LASTOPENED;
+		(void)deluge::io::unlink(kSettingsPath);
 		deluge_file_bytes_set_latency_ms(kHoldMs);
-		loadSongUI.beginLoad();
+		// The real ENTER, so the load carries the completion that gesture gives it.
+		SongLoadChannelProbe::pressLoadEnter();
 		g_cancelTicks = 0;
 		g_stage = Stage::CancelWait;
 		break;
@@ -341,13 +356,20 @@ void runTick() {
 			printf("SL-CANCEL FAIL a cancel with no load in flight was not Stale\n");
 			g_failures++;
 		}
+		const bool settingsWritten = fileExists(kSettingsPath);
+		printf("SL-CANCEL-LASTOPENED settingsWritten=%d\n", settingsWritten ? 1 : 0);
+		if (settingsWritten) {
+			printf("SL-CANCEL FAIL the cancelled load recorded \"last opened\" for a song that never loaded\n");
+			g_failures++;
+		}
 		playbackHandler.endPlayback();
 		g_stage = Stage::RefuseStart;
 		break;
 	}
 	case Stage::RefuseStart: {
-		// cancel_after_begin: the load that brings the song back is asked to cancel once it is past STAGE.
-		loadSongUI.beginLoad();
+		// cancel_after_begin: the load that brings the song back is asked to cancel once it is past STAGE. Through
+		// the real ENTER as well, still with LASTOPENED: this load completes, and must record the song.
+		SongLoadChannelProbe::pressLoadEnter();
 		g_stage = Stage::LoadBackWait;
 		break;
 	}
@@ -371,7 +393,8 @@ void runTick() {
 				printf("SL-REFUSED FAIL the load finished before a cancel past STAGE could be tried\n");
 				g_failures++;
 			}
-			g_stage = Stage::Report;
+			g_cancelTicks = 0;
+			g_stage = Stage::LastOpenedWait;
 			break;
 		}
 		if (++g_loadTicks > kMaxLoadTicks) {
@@ -379,6 +402,21 @@ void runTick() {
 			g_failures++;
 			g_stage = Stage::Report;
 		}
+		break;
+	}
+	case Stage::LastOpenedWait: {
+		// The settings write is handed to the byte channel as the load ends; give it time to land.
+		if (++g_cancelTicks < kAfterTicks) {
+			break;
+		}
+		const bool settingsWritten = fileExists(kSettingsPath);
+		printf("SL-LOADED-LASTOPENED settingsWritten=%d\n", settingsWritten ? 1 : 0);
+		if (!settingsWritten) {
+			printf("SL-LOADED FAIL the completed load did not record \"last opened\"\n");
+			g_failures++;
+		}
+		FlashStorage::defaultStartupSongMode = g_startupModeBefore;
+		g_stage = Stage::Report;
 		break;
 	}
 	case Stage::Report: {
@@ -455,6 +493,7 @@ void deluge_scenario_song_load_channel_begin(void) {
 	g_orphansBefore = 0;
 	g_cancelTicks = 0;
 	g_refuseTried = false;
+	g_startupModeBefore = StartupSongMode::BLANK;
 }
 
 bool deluge_scenario_song_load_channel_complete(void) {

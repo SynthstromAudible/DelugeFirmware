@@ -684,7 +684,8 @@ void advanceStartup() {
 			// that ends there calls finishStartupSong() before returning, which moves this machine on to
 			// removing the canary. Entering Done afterwards would undo that and leave the canary on the card.
 			enter(StartupPhase::Done);
-			loadSongUI.beginLoad(&finishStartupSong);
+			// The canary comes off however the load ended: a failure has already fallen back to a blank song.
+			loadSongUI.beginLoad([](SongLoadOutcome) { finishStartupSong(); });
 			return;
 		}
 		// what just failed??

@@ -30,6 +30,12 @@
 #include <cstdint>
 #include <string>
 
+/// @brief How a song load ended, as its completion is told.
+enum class SongLoadOutcome : uint8_t {
+	Loaded,    ///< The new song is the current song.
+	NotLoaded, ///< Cancelled, failed, or never started: no new song came in.
+};
+
 class LoadSongUI final : public LoadUI {
 public:
 	LoadSongUI();
@@ -57,10 +63,10 @@ public:
 	/// Rather than blocking across any of those, each step parks the load in a phase; @ref loadRoutine observes
 	/// the phase from the run loop and advances it once it can move.
 	///
-	/// @param onComplete Run once the load has finished, whether it succeeded, failed, or never started.
-	///                   Runs on the interaction tier. Null for callers with no follow-up work. Must outlive
+	/// @param onComplete Run once the load has finished, whether it succeeded, failed, or never started, and told
+	///                   which. Runs on the interaction tier. Null for callers with no follow-up work. Must outlive
 	///                   the load, so pass a free function or a captureless lambda.
-	void beginLoad(void (*onComplete)() = nullptr);
+	void beginLoad(void (*onComplete)(SongLoadOutcome) = nullptr);
 
 	/// @brief Advances an in-flight load past a wait it has finished, then asks for the job's next run.
 	///
@@ -358,7 +364,7 @@ private:
 	deluge::io::StallBound stagingWait_{kMaxStagingWaitUs};
 
 	/// @brief Completion handed to @ref beginLoad, cleared as it runs.
-	void (*loadOnComplete_)(){nullptr};
+	void (*loadOnComplete_)(SongLoadOutcome){nullptr};
 
 	/// @name The load's steps, split at the two waits. Each runs on the interaction tier.
 	/// @{
@@ -402,8 +408,8 @@ private:
 	void tickFinish();
 	/// @}
 
-	/// @brief Ends the load: clears the phase and runs the caller's completion exactly once.
-	void endLoad();
+	/// @brief Ends the load: clears the phase and runs the caller's completion exactly once, with @p outcome.
+	void endLoad(SongLoadOutcome outcome);
 
 	bool performingLoad;
 	bool scrollingIntoSlot{};
