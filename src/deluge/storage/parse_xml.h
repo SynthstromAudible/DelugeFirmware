@@ -8,6 +8,9 @@ namespace deluge::storage {
 
 /// Parses one Deluge-format XML document into a format-agnostic Value tree.
 ///
+/// The document is a Map of its top-level elements, in order: the root, and in older files the
+/// firmwareVersion / earliestCompatibleFirmware elements written as its siblings ahead of it.
+///
 /// An element becomes a Map; each attribute `name="val"` becomes a Scalar
 /// entry (name -> val), in document order; a text-only element with no
 /// attributes and no child elements (`<n>text</n>`) becomes a Scalar entry
@@ -28,7 +31,7 @@ namespace deluge::storage {
 /// permitted.
 ///
 /// Returns std::nullopt on any malformed input (unterminated tags, mismatched
-/// open/close names, trailing garbage after the root element, etc).
+/// open/close names, non-element text between or after the top-level elements, etc).
 [[nodiscard]] std::optional<Value> parseXml(std::string_view xml);
 
 } // namespace deluge::storage

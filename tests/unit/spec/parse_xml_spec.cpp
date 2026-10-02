@@ -58,6 +58,16 @@ describe parse_xml("deluge::storage::parseXml", ${
 		expect(v->find("p")->find("c")->find("v")->str()).to_equal(std::string("3"));
 		expect(v->find("p")->find("a")).to_equal(nullptr); // the stray "attribute" text is gone
 	});
+	it("keeps top-level siblings in order (older files' firmware tags ahead of the root)", _{
+		auto v = parseXml("<?xml version=\"1.0\"?>\n<firmwareVersion>2.0.0</firmwareVersion>\n"
+		                  "<earliestCompatibleFirmware>2.0.0</earliestCompatibleFirmware>\n<sound><a>1</a></sound>\n");
+		expect(v.has_value()).to_be_true();
+		expect(v->entries().size()).to_equal(std::size_t{3});
+		expect(v->entries()[0].first).to_equal(std::string("firmwareVersion"));
+		expect(v->entries()[2].first).to_equal(std::string("sound"));
+		expect(v->find("sound")->find("a")->str()).to_equal(std::string("1"));
+		expect(parseXml("<a/>garbage").has_value()).to_be_false();
+	});
 	it("accepts digit-started names (Deluge numeric CC labels)", _{
 		// XMLDeserializer accepts any non-delimiter char in a name; Deluge writes <ccLabels 0="" 2=""/>.
 		auto v = parseXml(R"(<ccLabels 0="a" 2="b" 127="c"/>)");

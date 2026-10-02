@@ -17,17 +17,18 @@ public:
 	explicit Parser(std::string_view xml) : text_(xml) {}
 
 	[[nodiscard]] std::optional<Value> parseDocument() {
-		skipMisc();
-		auto root = parseElement();
-		if (!root) {
-			return std::nullopt;
-		}
-		skipMisc();
-		if (pos_ != text_.size()) {
-			return std::nullopt; // trailing garbage after the root element
-		}
+		// One or more top-level elements, each a document entry in order: older files carry firmwareVersion and
+		// earliestCompatibleFirmware as siblings ahead of the root, as XMLDeserializer reads them.
 		Value doc = Value::makeMap();
-		doc.set(std::move(root->first), std::move(root->second));
+		skipMisc();
+		do {
+			auto element = parseElement();
+			if (!element) {
+				return std::nullopt; // includes trailing non-element text
+			}
+			doc.set(std::move(element->first), std::move(element->second));
+			skipMisc();
+		} while (pos_ != text_.size());
 		return doc;
 	}
 
