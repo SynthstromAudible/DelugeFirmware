@@ -234,6 +234,8 @@ public:
 	/// @brief Host only: how many render blocks changed activeModControllableModelStack while watched.
 	static int32_t renderStackWrites();
 	/// @brief Host only: put around a render block; counts it when the stack differs at its end from its start.
+	///        Reads the stack on the render: a probe for the single-executor golden_vt_render, not for use under the
+	///        TSan lens.
 	class RenderBlockStackWatch {
 	public:
 		RenderBlockStackWatch();

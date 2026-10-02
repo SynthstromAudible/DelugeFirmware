@@ -667,7 +667,8 @@ void LoadSongUI::runBeginSegment() {
 	}
 	else {
 		// The view keeps the playing song's mod controllable, so the knobs go on adjusting the song that is still
-		// playing -- until the swap, which lets go of it (PlaybackHandler::doSongSwap()) before FINISH frees it.
+		// playing -- until the swap, whose interaction side lets go of it (deluge::playback::songSwappedOut()) before
+		// FINISH frees it.
 		AudioEngine::logAction("arming for song swap");
 		AudioEngine::songSwapAboutToHappen();
 		AudioEngine::logAction("song swap armed");
@@ -858,9 +859,9 @@ void LoadSongUI::tickRest() {
 }
 
 void LoadSongUI::runFinishSegment() {
-	// The swap let go of the knobs (PlaybackHandler::doSongSwap()); nothing is under them until the new song's UI is
-	// up, so the panel must not go on showing the old song's values. Here rather than at the swap, which an armed
-	// launch runs on the audio tier.
+	// The swap's interaction side let go of the knobs (deluge::playback::songSwappedOut()); nothing is under them until
+	// the new song's UI is up, so the panel must not go on showing the old song's values. Here rather than at the swap,
+	// which an armed launch runs on the audio tier.
 	indicator_leds::clearKnobIndicatorLevels();
 	for (auto led : indicator_leds::modLed) {
 		indicator_leds::setLedState(led, false);

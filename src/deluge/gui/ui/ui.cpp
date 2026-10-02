@@ -69,8 +69,8 @@ namespace {
 /// set. The UIs that were open belong to the outgoing song, which the load frees before it puts a UI back, so none of
 /// them may be handed input, timers or rendering. Callers that only ask what the current UI is find no match here;
 /// callers that act on it act on this, which does nothing -- except the mod encoders and mod buttons, which go to the
-/// view as every UI's do by default: the view keeps the playing song's sound under the knobs until the swap, and lets
-/// go of it there (PlaybackHandler::doSongSwap()).
+/// view as every UI's do by default: the view keeps the playing song's sound under the knobs until the swap, and the
+/// swap's interaction side lets go of it (deluge::playback::songSwappedOut()).
 class EmptyStackUI final : public UI {
 public:
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas&) override {}

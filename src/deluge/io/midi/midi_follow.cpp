@@ -48,6 +48,7 @@
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/etl_string.h"
+#include <algorithm>
 #include <cstdlib>
 
 using namespace deluge;
@@ -715,14 +716,9 @@ void MidiFollow::forgetClipsNotOfCurrentSong() {
 		if (stored == nullptr) {
 			continue;
 		}
-		bool ofCurrentSong = false;
-		if (currentSong != nullptr) {
-			for (ClipArray const* array : {&currentSong->sessionClips, &currentSong->arrangementOnlyClips}) {
-				for (Clip const* clip : *array) {
-					ofCurrentSong = ofCurrentSong || clip == stored;
-				}
-			}
-		}
+		const bool ofCurrentSong = currentSong != nullptr
+		                           && (std::ranges::contains(currentSong->sessionClips, stored)
+		                               || std::ranges::contains(currentSong->arrangementOnlyClips, stored));
 		if (!ofCurrentSong) {
 			stored = nullptr;
 		}
