@@ -32,11 +32,12 @@ namespace deluge::playback {
 /// @brief [render] or [interaction] A song swap has taken @p outgoing out of play and made its successor current: do
 ///        the interaction tier's side of the swap.
 ///
-/// That side is: let go of the view's active model stack, forget MIDI follow's stored clips from the outgoing song,
-/// tell the instrument load a song was made current, and show the load's LOADING mode and animation. On the interaction
-/// tier it is done at once. On the render it is posted, and done before the interaction tier's next job: until then an
-/// interaction handler the render preempted sees everything still naming @p outgoing, which stays alive until the
-/// interaction tier hands it to AudioEngine::retire(Song*) -- which applies the requests first.
+/// That side is: stop the outgoing song's auditioning, let go of the view's active model stack, forget MIDI follow's
+/// stored clips from the outgoing song, tell the instrument load a song was made current, and show the load's LOADING
+/// mode and animation. On the interaction tier it is done at once. On the render it is posted, and done before the
+/// interaction tier's next job: until then an interaction handler the render preempted sees everything still naming @p
+/// outgoing, which stays alive until the interaction tier hands it to AudioEngine::retire(Song*) -- which applies the
+/// requests first.
 /// @param outgoing the song swapped out, or nullptr when there was none (it was already retired)
 void songSwappedOut(Song* outgoing);
 
@@ -64,6 +65,7 @@ enum class InteractionOwned : uint8_t {
 	InstrumentLoadNotified, ///< InstrumentLoad::songMadeCurrent()
 	UiMode,                 ///< currentUIMode
 	LoadSongFlag,           ///< LoadSongUI::deletedPartsOfOldSong
+	Auditioning,            ///< Song::stopAllAuditioning()
 	kCount,
 };
 

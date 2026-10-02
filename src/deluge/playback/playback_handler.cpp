@@ -1453,8 +1453,6 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	if (currentSong) {
 
-		currentSong->stopAllAuditioning();
-
 		// If playing...
 		if (isEitherClockActive()) {
 

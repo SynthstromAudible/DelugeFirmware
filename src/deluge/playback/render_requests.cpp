@@ -26,6 +26,7 @@
 #include "hid/display/display.h"
 #include "io/midi/midi_follow.h"
 #include "libdeluge/tier.h"
+#include "model/song/song.h"
 #include "playback/mode/session.h"
 #include "util/spsc_ring.h"
 
@@ -65,6 +66,11 @@ std::atomic<bool> g_swapDropped{false};
 
 /// [interaction] The interaction tier's side of a song swap. currentSong is already the incoming song.
 void songSwapInteractionSide(Song* outgoing, bool posted) {
+	// Auditioning is the interaction tier's: input and MIDI handlers start and end it. The outgoing song is alive until
+	// its retire, which applies the requests first.
+	if (outgoing != nullptr) {
+		outgoing->stopAllAuditioning();
+	}
 	// Posted, the knobs are let go of only if they still name the outgoing song: an interaction job the render
 	// preempted may have put them on the incoming one since. At the swap itself, nothing else can be under them.
 	if (!posted || (outgoing != nullptr && view.activeModControllableNamesSong(outgoing))) {

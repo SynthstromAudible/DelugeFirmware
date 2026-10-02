@@ -55,6 +55,7 @@
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
+#include "playback/render_requests.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
@@ -4439,6 +4440,7 @@ void Song::stopAllMIDIAndGateNotesPlaying() {
 }
 
 void Song::stopAllAuditioning() {
+	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::Auditioning);
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
