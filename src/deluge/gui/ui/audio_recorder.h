@@ -75,6 +75,9 @@ public:
 	// ui
 	UIType getUIType() override { return UIType::AUDIO_RECORDER; }
 
+	/// Whether an audio-input take is in progress: the takes tick() owns.
+	[[nodiscard]] bool inputTakeInProgress() const;
+
 private:
 	/// What an input take records for: the sound editor's sound, source and range as the take started, and the clip
 	/// and output that held that sound. Compared by address only; never dereferenced unless still held.
@@ -91,8 +94,6 @@ private:
 	[[nodiscard]] static bool anOutputMayBeReplaced();
 	/// Whether @ref target_ is still in the current song, and still what the sound editor is editing.
 	[[nodiscard]] bool targetStillHeld() const;
-	/// Whether an audio-input take is in progress: the takes tick() owns.
-	[[nodiscard]] bool inputTakeInProgress() const;
 	/// Ends a settled input take: attaches its sample unless it was aborted, hit a card error or lost its target,
 	/// then closes.
 	void finishInputTake();

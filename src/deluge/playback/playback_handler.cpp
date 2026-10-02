@@ -154,10 +154,25 @@ void PlaybackHandler::routine() {
 	}
 }
 
+/// @brief Whether @p command is a song change that has to wait for an audio-input take to end.
+///
+/// A song load takes down every UI over the song, the recorder's included, and arms the swap that retires the song
+/// the take is attaching to. Held back until the take ends, the take attaches where it was recorded and the next song
+/// follows.
+static bool nextSongMustWait(GlobalMIDICommand command) {
+	return command == GlobalMIDICommand::NEXT_SONG && audioRecorder.inputTakeInProgress();
+}
+
 void PlaybackHandler::slowRoutine() {
 	// See if any MIDI commands are pending which couldn't be actioned before (see comments in tryGlobalMIDICommands())
-	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE && deluge::sync::sd_busy()) {
+	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE
+	    && (deluge::sync::sd_busy() || nextSongMustWait(pendingGlobalMIDICommand))) {
 		deluge::runtime::appLoop.requestAt(slowJob, deluge::runtime::nowUs() + kSlowRetryUs);
+		return;
+	}
+	if (pendingGlobalMIDICommand == GlobalMIDICommand::NEXT_SONG) {
+		pendingGlobalMIDICommand = GlobalMIDICommand::NONE;
+		currentSong->loadNextSong();
 		return;
 	}
 	if (pendingGlobalMIDICommand != GlobalMIDICommand::NONE) {
@@ -2822,7 +2837,15 @@ bool PlaybackHandler::tryGlobalMIDICommands(MIDICable& cable, int32_t channel, i
 				break;
 
 			case GlobalMIDICommand::NEXT_SONG:
-				currentSong->loadNextSong();
+				if (nextSongMustWait(command)) {
+					// Pended until the take is over: see nextSongMustWait().
+					pendingGlobalMIDICommand = command;
+					pendingGlobalMIDICommandNumClustersWritten = 0;
+					deluge::runtime::appLoop.request(slowJob);
+				}
+				else {
+					currentSong->loadNextSong();
+				}
 				break;
 
 			case GlobalMIDICommand::SHIFT:

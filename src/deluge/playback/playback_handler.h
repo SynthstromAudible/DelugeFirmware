@@ -82,12 +82,12 @@ public:
 	void setMidiInClockEnabled(bool newValue);
 	int32_t getActualArrangementRecordPos();
 	int32_t getArrangementRecordPosAtLastActionedSwungTick();
-	/// @brief Action an undo or redo MIDI command that had to wait, unless the card is busy, in which case it asks for
-	///        the job's run again in @ref kSlowRetryUs.
+	/// @brief Action a MIDI command that had to wait -- an undo or redo, or a next-song held back by an input take --
+	///        unless it still has to, in which case it asks for the job's run again in @ref kSlowRetryUs.
 	void slowRoutine();
 	/// @brief The job slowRoutine() runs on: requested where a command is made to wait.
 	deluge::runtime::JobId slowJob{deluge::runtime::kNoJob};
-	/// @brief How soon a command held back by a busy card is tried again, in µs.
+	/// @brief How soon a command held back by a busy card or an input take is tried again, in µs.
 	static constexpr deluge::runtime::Micros kSlowRetryUs = 1'000;
 	void scheduleSwungTickFromExternalClock();
 	int32_t getNumSwungTicksInSinceLastTimerTick(uint32_t* timeRemainder = nullptr);
