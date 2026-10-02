@@ -79,7 +79,19 @@ void watchRenderInteractionWrites(bool on);
 int32_t renderInteractionWrites(InteractionOwned what);
 /// @brief Host only: writes to @p what on any tier, watched or not.
 int32_t interactionOwnedWrites(InteractionOwned what);
+/// @brief Host only: fill the request queue at the render's next song swap, so the swap's place in it is lost and
+///        only its own slot carries it.
+void floodRenderRequestsAtNextSwap();
+/// @brief Host only: how many of the render's requests found the queue full.
+int32_t renderRequestOverflows();
+/// @brief Host only: whether the outgoing song of the last swap whose interaction side ran still had an output
+///        auditioning after it (1) or not (0), or -1 if no swap's side has run since the last call.
+int32_t outgoingAuditioningAfterLastSwap();
 /// @brief Host only: put around a render block; counts it as a render write to each plain global it changed.
+///
+/// Reads currentUIMode and LoadSongUI::deletedPartsOfOldSong, plain globals the interaction tier writes, on the render:
+/// a harness probe for the single-executor golden_vt_render, not for use under the TSan lens, where it would itself be
+/// a race.
 class RenderBlockInteractionWatch {
 public:
 	RenderBlockInteractionWatch();
