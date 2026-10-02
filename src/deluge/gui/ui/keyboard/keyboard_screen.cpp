@@ -41,7 +41,6 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
-#include "sync/storage_op.h"
 #include <cstring>
 #include <optional>
 
@@ -600,7 +599,7 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 }
 
 ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
-	if (inCardRoutine && !deluge::sync::user_actions_permitted()) {
+	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
 

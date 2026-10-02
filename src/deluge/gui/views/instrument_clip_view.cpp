@@ -89,7 +89,6 @@
 #include "storage/audio/audio_file_holder.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
-#include "sync/storage_op.h"
 #include "util/comparison.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
@@ -6061,7 +6060,7 @@ static const uint32_t verticalScrollUIModes[] = {
 ActionResult InstrumentClipView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
 	exitedShortcutOverview = true;
-	if (inCardRoutine && !deluge::sync::user_actions_permitted()) {
+	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE; // Allow sometimes.
 	}
 

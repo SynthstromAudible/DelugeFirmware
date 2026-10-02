@@ -91,7 +91,6 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_range.h"
 #include "storage/storage_manager.h"
-#include "sync/storage_op.h"
 #include "util/cfunctions.h"
 #include "util/comparison.h"
 #include "util/functions.h"
