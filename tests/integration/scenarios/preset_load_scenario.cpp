@@ -263,7 +263,8 @@ enum class Leg : uint8_t {
 	AqRefuse,
 	AqClone,
 	/// The new-track pad let go before its acquisition lands: quickly (a tap enters the clip), not at all (the clip
-	/// is held), and slowly (neither).
+	/// is held), slowly (neither), quickly with another clip held since (the held gesture keeps the UI), and quickly
+	/// with a second press queued behind it (that press's completion holds its own clip).
 	AqTap,
 	AqNavWrap,
 	AqChangeCases,
@@ -1216,6 +1217,8 @@ int32_t g_aqLoadsBefore = 0;
 bool g_aqTurned = false;
 bool g_aqHeavySwapped = false;
 TierMark g_aqTierMark{};
+/// AQ-TAP: the synth presets written for its tracks, one per track its acts make.
+constexpr int32_t kTapPresetCount = 6;
 /// AQ-TAP: the row its press is on, and whether it has been let go.
 int32_t g_tapRow = 0;
 bool g_tapReleased = false;
@@ -1243,10 +1246,11 @@ bool isAcquireLeg(Leg leg) {
 
 /// How many gestures the leg makes, one after another.
 int32_t acquireActs(Leg leg) {
-	return leg == Leg::AqChangeCases                       ? 6
-	       : (leg == Leg::AqNavigate || leg == Leg::AqTap) ? 3
-	       : (leg == Leg::AqNew || leg == Leg::AqNavWrap)  ? 2
-	                                                       : 1;
+	return leg == Leg::AqChangeCases                      ? 6
+	       : leg == Leg::AqTap                            ? 5
+	       : leg == Leg::AqNavigate                       ? 3
+	       : (leg == Leg::AqNew || leg == Leg::AqNavWrap) ? 2
+	                                                      : 1;
 }
 
 /// What the acquisition legs count: InstrumentLoad's own reads and loads, which is all there is to count now.
@@ -1323,6 +1327,20 @@ void prepareAcquire() {
 		g_aqClip = nullptr; // the song was cleared by the blank-song legs; the act picks its own clip
 	}
 	g_aqTierMark = markAcquireTier();
+	if (g_leg == Leg::AqTap) {
+		// A synth preset for each track the leg makes, sorting after AQSA and before every PL preset, so its new
+		// tracks take these rather than the presets later legs load by name.
+		buildFixture([] {
+			bool ok = true;
+			for (int32_t i = 0; ok && i < kTapPresetCount; i++) {
+				char path[32];
+				snprintf(path, sizeof(path), "SYNTHS/AQT%d.XML", static_cast<int>(i));
+				ok = writeSampleSynthPreset(path, kAqSynthSample);
+			}
+			printf("AQ-PROBE prepared tapPresets=%d\n", ok ? 1 : 0);
+		});
+		return;
+	}
 	if (g_leg != Leg::AqNew) {
 		return;
 	}
@@ -1446,9 +1464,12 @@ bool actAcquire() {
 		PresetAcquireProbe::pressEmptyRow(emptyRow() + 2, OutputType::SYNTH);
 		return true;
 	case Leg::AqTap:
-		// Each act presses the first empty row. The tap and the slow release let go in the same tick, before the
-		// acquisition the press dispatched has landed; the slow one after a press longer than a tap, on the audio
-		// clock the pad handler times presses by. Nothing renders in this scenario, so that clock is moved by hand.
+		// Each act presses the first empty row on the idle song view. The tap and the slow release let go in the same
+		// tick, before the acquisition the press dispatched has landed; the slow one after a press longer than a tap,
+		// on the audio clock the pad handler times presses by. Nothing renders in this scenario, so that clock is moved
+		// by hand. The busy tap then holds the song's first clip before the preset lands; the queued tap is followed
+		// by a second new-track press, held, whose acquisition queues behind the first.
+		changeRootUI(&sessionView);
 		g_tapRow = emptyRow();
 		g_tapReleased = false;
 		PresetAcquireProbe::pressEmptyRow(g_tapRow);
@@ -1462,6 +1483,12 @@ bool actAcquire() {
 				printf("AQ-TAP FAIL the acquisition landed before the pad was let go, so nothing was tested\n");
 				g_failures++;
 			}
+		}
+		if (g_aqAct == 3) {
+			(void)sessionView.padAction(0, 0, 1);
+		}
+		if (g_aqAct == 4) {
+			PresetAcquireProbe::pressEmptyRow(g_tapRow + 1);
 		}
 		return true;
 	case Leg::AqClone:
@@ -1737,14 +1764,17 @@ void checkAcquireAct() {
 		break;
 	}
 	case Leg::AqTap: {
-		static constexpr const char* kTapGestures[] = {"tap", "hold", "slow"};
-		Clip* const made = (added.size() == 1) ? added[0] : nullptr;
+		static constexpr const char* kTapGestures[] = {"tap", "hold", "slow", "busy", "queued"};
+		const size_t wantAdded = (g_aqAct == 4) ? 2 : 1;
+		// The queued act's held press is the second track's; every other act's press is the only track's.
+		Clip* const made = (added.size() == wantAdded) ? added[wantAdded - 1] : nullptr;
 		const bool current = made != nullptr && currentSong->getCurrentClip() == made;
 		const bool entered = current && currentUIMode == UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 		const bool held = current && currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW;
-		printf("AQ-TAP gesture=%s clipsAdded=%d released=%d entered=%d held=%d mode=%d runs=%d\n",
+		printf("AQ-TAP gesture=%s clipsAdded=%d released=%d entered=%d held=%d mode=%d runs=%d name=%s\n",
 		       kTapGestures[g_aqAct], static_cast<int32_t>(added.size()), g_tapReleased ? 1 : 0, entered ? 1 : 0,
-		       held ? 1 : 0, static_cast<int>(currentUIMode), runs);
+		       held ? 1 : 0, static_cast<int>(currentUIMode), runs,
+		       made != nullptr && made->output != nullptr ? made->output->name.c_str() : "");
 		if (made == nullptr) {
 			aqFail("AQ-TAP", "the new-track press made no track");
 		}
@@ -1757,6 +1787,15 @@ void checkAcquireAct() {
 		else if (g_aqAct == 2 && (entered || held)) {
 			aqFail("AQ-TAP",
 			       "a new-track pad let go slowly before its preset landed entered or held the clip once it did");
+		}
+		else if (g_aqAct == 3
+		         && (currentUIMode != UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || currentSong->getCurrentClip() == made)) {
+			aqFail("AQ-TAP", "a new-track tap whose preset landed while another clip was held took the UI from that "
+			                 "gesture");
+		}
+		else if (g_aqAct == 4 && !held) {
+			aqFail("AQ-TAP", "a queued new-track press still held when its preset landed did not hold its own clip: "
+			                 "the first track's completion took its press");
 		}
 		if (g_aqAct == 1) {
 			PresetAcquireProbe::releaseRow(g_tapRow);

@@ -867,7 +867,11 @@ removePendingOverdub:
 					//
 					// The pad is down right now on BOTH paths, so the press is marked held for both: the
 					// synchronous one cannot see a release in between, so it always finds it held and
-					// enters the held mode.
+					// enters the held mode. What it replaces is kept, for a refused dispatch to put back.
+					const NewTrackPress pressBefore = newTrackPress_;
+					const int32_t pressXBefore = newTrackPressX_;
+					const int32_t pressYBefore = newTrackPressY_;
+					const uint32_t pressTimeBefore = newTrackPressTime_;
 					newTrackPress_ = NewTrackPress::Held;
 					newTrackPressX_ = xDisplay;
 					newTrackPressY_ = yDisplay;
@@ -885,11 +889,15 @@ removePendingOverdub:
 						    .shiftHeld = Buttons::isShiftButtonPressed(),
 						    .dirPath = getInstrumentFolder(toCreate),
 						};
-						// A dropped gesture creates nothing, which is what the pad already showed. The press
-						// state outliving it is harmless: only completeNewTrack() reads it, and the next
-						// new-track press sets it afresh before dispatching. See
+						// A refused gesture creates nothing, which is what the pad already showed, and its press
+						// must not stand in for the one still waiting on its own completion. See
 						// dispatchPresetAcquisition()'s doc.
-						(void)loadInstrumentPresetUI.dispatchPresetAcquisition(request);
+						if (!loadInstrumentPresetUI.dispatchPresetAcquisition(request)) {
+							newTrackPress_ = pressBefore;
+							newTrackPressX_ = pressXBefore;
+							newTrackPressY_ = pressYBefore;
+							newTrackPressTime_ = pressTimeBefore;
+						}
 						return ActionResult::DEALT_WITH;
 					}
 					completeNewTrack(toCreate, xDisplay, yDisplay, clipIndex, Buttons::isShiftButtonPressed());
@@ -994,15 +1002,16 @@ justEndClipPress:
 			else {
 				// The pad that may have started a deferred new-track acquisition is up, so completeNewTrack()
 				// must not enter the held-clip mode when it eventually runs -- nothing would ever leave it (see
-				// newTrackPress_'s doc). Let go on its own pad within a tap's length, it is kept as the tap
-				// it would have been on an existing clip, timed the same way as the branch above.
+				// newTrackPress_'s doc). Let go within a tap's length, it is kept as the tap it would have
+				// been on an existing clip, timed the same way as the branch above. Only that pad's own
+				// release counts: another pad's leaves it held.
 				//
 				// Not touched in the two branches above either: reaching them means either the
 				// completion has already run (it resets the state itself on every path) or another
 				// gesture owns the UI mode.
-				if (newTrackPress_ == NewTrackPress::Held) {
-					const bool tap = xDisplay == newTrackPressX_ && yDisplay == newTrackPressY_
-					                 && AudioEngine::audioSampleTimer - newTrackPressTime_ < kShortPressTime;
+				if (newTrackPress_ == NewTrackPress::Held && xDisplay == newTrackPressX_
+				    && yDisplay == newTrackPressY_) {
+					const bool tap = AudioEngine::audioSampleTimer - newTrackPressTime_ < kShortPressTime;
 					newTrackPress_ = tap ? NewTrackPress::Tapped : NewTrackPress::None;
 				}
 			}
@@ -1682,9 +1691,13 @@ void SessionView::beginHoldingClipPress(Clip* clip, int32_t xDisplay, int32_t yD
 void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yDisplay, int32_t clipIndex,
                                    bool shiftHeld, const deluge::storage::AcquireResult* acquired) {
 	Clip* clip = createNewInstrumentClip(type, yDisplay, acquired);
-	const NewTrackPress press = newTrackPress_;
-	// The gesture is over whatever happens below.
-	newTrackPress_ = NewTrackPress::None;
+	// The press state is this gesture's only if it was made on this gesture's pad: a later new-track press, queued
+	// behind this one, overwrites it, and is left for its own completion. Ours is over whatever happens below.
+	NewTrackPress press = NewTrackPress::None;
+	if (xDisplay == newTrackPressX_ && yDisplay == newTrackPressY_) {
+		press = newTrackPress_;
+		newTrackPress_ = NewTrackPress::None;
+	}
 	if (!clip) {
 		return;
 	}
@@ -1720,6 +1733,10 @@ void SessionView::completeNewTrack(OutputType type, int32_t xDisplay, int32_t yD
 		beginHoldingClipPress(clip, xDisplay, yDisplay);
 		return;
 	case NewTrackPress::Tapped:
+		// Only onto an idle song view: a gesture made since the release owns the UI now, and the clip is just made.
+		if (getCurrentUI() != this || currentUIMode != UI_MODE_NONE) {
+			return;
+		}
 		// What the press and its quick release would have done had the clip been there: hold it, then the
 		// quick-release branch of padAction().
 		beginHoldingClipPress(clip, xDisplay, yDisplay);

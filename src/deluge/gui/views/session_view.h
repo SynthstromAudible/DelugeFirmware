@@ -322,7 +322,9 @@ private:
 	/// the release can be consumed BEFORE the clip exists, and a completion that then set
 	/// UI_MODE_CLIP_PRESSED_IN_SONG_VIEW would leave the view stuck holding a clip nobody is pressing -- the next
 	/// unrelated pad press would clone it instead of selecting it. A release that would have been a tap on the
-	/// clip is kept as Tapped instead, so the tap's shortcut into the clip still happens once it exists.
+	/// clip is kept as Tapped instead, so the tap's shortcut into the clip still happens once it exists, if the song
+	/// view is still idle then. Only the press's own pad moves it on, only the completion for that pad consumes it,
+	/// and a dispatch that is refused puts back the state it replaced.
 	NewTrackPress newTrackPress_{NewTrackPress::None};
 	/// @brief The new-track press's pad and time on the audio clock, to tell its release apart as a tap.
 	int32_t newTrackPressX_{0};
