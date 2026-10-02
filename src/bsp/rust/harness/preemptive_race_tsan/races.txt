@@ -103,11 +103,13 @@ open	src/deluge/modulation/automation/auto_param.cpp	^AutoParam::processCurrentP
 open	src/deluge/modulation/params/param_collection_summary.h	^ParamCollectionSummary::resetInterpolationRecord\(int\)$	audio×interaction	state: a param collection's interpolation record, reset by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
 open	src/deluge/modulation/params/param_manager.cpp	^ParamManagerForTimeline::processCurrentPos\(ModelStackWithThreeMainThings\*, int, bool, bool, bool\)$	audio×interaction	state: a param manager's play position, set by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
 open	src/deluge/modulation/params/param_set.cpp	^ParamSet::processCurrentPos\(ModelStackWithParamCollection\*, int, bool, bool, bool\)$	audio×interaction	state: a param set's play position, set by setupPlayback while the render's tick reads it (first seen after the heap exclusion, 2026-09-28)
+open	src/deluge/gui/ui/ui.cpp	^uiStackEmpty\(\)$	audio×interaction	state: global 'numUIsOpen' (the render's getCurrentUI() read, from renderSamplePreview, reaches it through uiStackEmpty())
+open	src/deluge/processing/engines/audio_engine.cpp	^AudioEngine::renderAppBlock\(DelugeStereoSample const\*, DelugeStereoSample\*, unsigned int\)$	audio×interaction	state: global 'AudioEngine::audioSampleTimer' (the render's per-block advance; read by the interaction tier's input and timer routines)
 # Index by shared state (state → entries). The second invariant's to-do list.
 #   Sound::voices_ (C2b): the getNumVoices lambda, terminateOneVoice. (AudioEngine::sounds itself: fixed by C2a,
 #     AudioOwnedList — its getNumVoices() entry removed.)
 #   Render-routine globals (audioSampleTimer, routineBeenCalled, renderingBufferOutputPos, renderInStereo,
-#     bypassCulling, audioRoutineLocked): deluge_app_render, AudioEngine::routine, routine_task, routineWithClusterLoading,
+#     bypassCulling, audioRoutineLocked): deluge_app_render, AudioEngine::renderAppBlock, AudioEngine::routine, routine_task, routineWithClusterLoading,
 #     getNumSamplesLeftToOutputFromPreviousRender, UITimerManager::workOutNextEventTime, deluge_debug_now_frames, PadLEDs::reassessGreyout,
 #     Sound::renderingVoicesInStereo, inputRoutine, AudioRecorder::beginOutputRecording, PlaybackHandler::doSongSwap,
 #     WaveformRenderer::advanceOverviewScan
@@ -115,7 +117,7 @@ open	src/deluge/modulation/params/param_set.cpp	^ParamSet::processCurrentPos\(Mo
 #     updateReverbParams, getReverbParamsFromSong, renderReverb, freeverb Comb::process, Freeverb::ProcessOne
 #   The current song (currentSong, loadSongUI): renderAudio, deleteOldSongBeforeLoadingNew, LoadSongUI::isLoadingSong; playbackHandler: setupPlayback, setupPlaybackUsingInternalClock;
 #     Output::setActiveClip
-#   The UI navigation stack (uiNavigationHierarchy, numUIsOpen): getCurrentUI, openUI, setRootUILowLevel, nullifyUIs,
+#   The UI navigation stack (uiNavigationHierarchy, numUIsOpen): getCurrentUI, uiStackEmpty, openUI, setRootUILowLevel, nullifyUIs,
 #     changeRootUI
 #   The recorder list and monitoring (AudioEngine::firstRecorder, audioRecorder): getNewRecorder, setMonitoringMode,
 #     Song::renderAudio, SampleRecorder::feedAudio, AudioRecorder::setupRecordingToFile, AudioEngine::outputStage
