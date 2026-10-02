@@ -25,6 +25,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/button.h"
 #include "hid/buttons.h"
@@ -135,6 +136,8 @@ enum class Stage : uint8_t {
 	HoldStart,     ///< hold_load_to_launch: LOAD pressed in the load browser and held through the load.
 	HoldRelease,   ///< ...released once the load waits on it; the swap must arm and the load end.
 	FailedRun,     ///< failed_load: NEXT_SONG onto a song that cannot be read; the surviving song gets its UI back.
+	ArrangeSetup,  ///< arrangement_record: an audio clip recorded into the arranger, the knobs on its recording.
+	ArrangeRun,    ///< ...the render moves the recording on to a new clip at the loop end; the knobs must follow.
 	Report,
 	Done,
 };
@@ -198,6 +201,15 @@ Instrument* g_auditioned = nullptr;
 bool g_auditionChecked = false;
 bool g_padStillPressed = false;
 bool g_stillAuditioning = false;
+/// arrangement_record: the session clip recorded from, the arrangement-only clip the knobs were put on, and what the
+/// render moved the recording on to.
+Clip* g_recordedFrom = nullptr;
+Clip* g_recordingInto = nullptr;
+Clip* g_movedTo = nullptr;
+
+/// View::renderStackWrites() when the running leg began, so a leg's line says which leg the render wrote in.
+int32_t g_stackWritesAtLegStart = 0;
+
 /// The note pad tapped just before NEXT_SONG: its release deletes the note and records an undo action.
 constexpr int32_t kNoteX = 0;
 constexpr int32_t kNoteY = 3;
@@ -433,6 +445,7 @@ void stepEditorSetup() {
 	g_songBefore = currentSong;
 	g_clipBefore = clip;
 	g_modBefore = clip->output->toModControllable();
+	g_stackWritesAtLegStart = View::renderStackWrites();
 	g_loadSeen = false;
 	currentSong->loadNextSong();
 	g_steps = 0;
@@ -462,8 +475,9 @@ void stepEditorRun() {
 		}
 		return;
 	}
-	printf("SU-RETIRED loadSeen=%d preSwap=%d postSwap=%d staleEditor=%d staleView=%d steps=%d\n", g_loadSeen ? 1 : 0,
-	       g_preSwapSteps, g_postSwapSteps, g_staleEditor, g_staleView, g_steps);
+	printf("SU-RETIRED loadSeen=%d preSwap=%d postSwap=%d staleEditor=%d staleView=%d renderWrites=%d steps=%d\n",
+	       g_loadSeen ? 1 : 0, g_preSwapSteps, g_postSwapSteps, g_staleEditor, g_staleView,
+	       View::renderStackWrites() - g_stackWritesAtLegStart, g_steps);
 	if (g_preSwapSteps == 0 || g_postSwapSteps == 0) {
 		fail("SU-RETIRED", "no step saw the stack empty on both sides of the swap, so nothing was tested");
 	}
@@ -662,12 +676,91 @@ void stepFailedRun() {
 	else if (!restored) {
 		fail("SU-FAILED", "after a failed load the surviving song has no UI to take input");
 	}
+	g_steps = 0;
+	g_stage = Stage::ArrangeSetup;
+}
+
+/// The session view's own gesture for recording into the arranger -- RECORD held, SESSION pressed, the clock
+/// stopped -- with a new audio clip launched. The knobs are put on the clip, and a knob turn then moves them on to the
+/// arrangement-only clip the arranger records it into (View::getModelStackWithParam()).
+void stepArrangeSetup() {
+	using namespace deluge::hid;
+	if (playbackHandler.isEitherClockActive()) {
+		playbackHandler.endPlayback();
+	}
+	if (currentSong->sessionClips.empty()) {
+		(void)currentSong->ensureAtLeastOneSessionClip();
+		currentSong->blankPresetPending = false;
+	}
+	changeRootUI(&sessionView);
+	// A row past the last clip: the new clip goes on the end.
+	Clip* clip = sessionView.createNewAudioClipForHarness(1000);
+	if (clip == nullptr || getCurrentUI() != &sessionView) {
+		fail("SU-ARRANGE", "no audio clip in front of the session view, so nothing was tested");
+		g_stage = Stage::Report;
+		return;
+	}
+	clip->activeIfNoSolo = true;
+	(void)Buttons::buttonAction(button::RECORD, true);
+	(void)Buttons::buttonAction(button::SESSION_VIEW, true);
+	(void)Buttons::buttonAction(button::SESSION_VIEW, false);
+	(void)Buttons::buttonAction(button::RECORD, false);
+	if (playbackHandler.recording != RecordingMode::ARRANGEMENT || !playbackHandler.isEitherClockActive()) {
+		fail("SU-ARRANGE", "RECORD and SESSION did not start recording into the arranger, so nothing was tested");
+		g_stage = Stage::Report;
+		return;
+	}
+	view.setActiveModControllableTimelineCounter(clip);
+	encoders::modEncoderAt(0).applyEdges(1);
+	(void)encoders::interpretEncoders();
+	Clip* into = static_cast<Clip*>(view.activeModControllableModelStack.getTimelineCounterAllowNull());
+	if (into == nullptr || into == clip || into->beingRecordedFromClip != clip) {
+		fail("SU-ARRANGE", "the knob turn did not move the knobs on to the clip the arranger records into");
+		g_stage = Stage::Report;
+		return;
+	}
+	g_recordedFrom = clip;
+	g_recordingInto = into;
+	g_stackWritesAtLegStart = View::renderStackWrites();
+	g_steps = 0;
+	g_stage = Stage::ArrangeRun;
+}
+
+/// At the clip's loop end the render clones the clip it records from into a new arrangement-only clip and records on
+/// into that. Once the interaction tier has run, the knobs must be on the new clip, with its params.
+void stepArrangeRun() {
+	Clip* active = g_recordedFrom->output->getActiveClip();
+	if (active == g_recordingInto || active == nullptr || active->beingRecordedFromClip != g_recordedFrom) {
+		if (++g_steps > kMaxSettleSteps) {
+			fail("SU-ARRANGE", "the recording never moved on to a new clip, so nothing was tested");
+			g_stage = Stage::Report;
+		}
+		return;
+	}
+	g_movedTo = active;
+	ModelStackWithThreeMainThings const& stack = view.activeModControllableModelStack;
+	const bool followed = stack.getTimelineCounterAllowNull() == g_movedTo;
+	const bool params = stack.paramManager == &g_movedTo->paramManager;
+	const bool output = stack.modControllable == g_movedTo->output->toModControllable();
+	printf("SU-ARRANGE moved=1 followed=%d params=%d output=%d renderWrites=%d steps=%d\n", followed ? 1 : 0,
+	       params ? 1 : 0, output ? 1 : 0, View::renderStackWrites() - g_stackWritesAtLegStart, g_steps);
+	if (!followed || !params || !output) {
+		fail("SU-ARRANGE", "the knobs did not follow the recording on to the new clip");
+	}
+	playbackHandler.endPlayback();
 	g_stage = Stage::Report;
 }
 
 void report() {
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
+	}
+	const int32_t renderWrites = View::renderStackWrites();
+	View::watchRenderStackWrites(false);
+	printf("SU-STACK renderWrites=%d\n", renderWrites);
+	if (renderWrites != 0) {
+		fail("SU-STACK",
+		     "a render block changed the view's active model stack, which only the interaction tier writes");
 	}
 	if (!g_scriptPath.empty()) {
 		std::remove(g_scriptPath.c_str());
@@ -686,6 +779,8 @@ void deluge_scenario_stale_ui_begin(void) {
 	g_stepDone = false;
 	g_failures = 0;
 	g_steps = 0;
+	// Every render block of the run, both armed swaps and the arranger recording among them.
+	View::watchRenderStackWrites(true);
 }
 
 bool deluge_scenario_stale_ui_complete(void) {
@@ -730,6 +825,12 @@ void deluge_scenario_stale_ui_dispatch_step(void) {
 		break;
 	case Stage::FailedRun:
 		stepFailedRun();
+		break;
+	case Stage::ArrangeSetup:
+		stepArrangeSetup();
+		break;
+	case Stage::ArrangeRun:
+		stepArrangeRun();
 		break;
 	case Stage::Report:
 		report();

@@ -239,6 +239,26 @@ public:
 
 	int32_t calculateKnobPosForModEncoderTurn(deluge::modulation::params::Kind kind, int32_t knobPos, int32_t offset);
 
+#if defined(DELUGE_HOST)
+	/// @brief Host only: start or stop counting the render blocks that change activeModControllableModelStack, and
+	///        reset the count. Off by default, so a threaded host render never reads the stack for it.
+	static void watchRenderStackWrites(bool on);
+	/// @brief Host only: how many render blocks changed activeModControllableModelStack while watched.
+	static int32_t renderStackWrites();
+	/// @brief Host only: put around a render block; counts it when the stack differs at its end from its start.
+	class RenderBlockStackWatch {
+	public:
+		RenderBlockStackWatch();
+		~RenderBlockStackWatch();
+		RenderBlockStackWatch(const RenderBlockStackWatch&) = delete;
+		RenderBlockStackWatch& operator=(const RenderBlockStackWatch&) = delete;
+
+	private:
+		bool watching_;
+		void const* before_[4]{};
+	};
+#endif
+
 private:
 	void pretendModKnobsUntouchedForAWhile();
 	void instrumentBeenEdited();

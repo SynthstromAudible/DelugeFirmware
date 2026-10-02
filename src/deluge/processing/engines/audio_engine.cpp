@@ -856,6 +856,9 @@ extern "C" void deluge_app_render_skipped(void) noexcept {
 	try {
 		// The render's own work, excluded like a rendered block (see deluge_app_render()).
 		AudioExcludedSection renderBlock;
+#if defined(DELUGE_HOST)
+		View::RenderBlockStackWatch stackWatch;
+#endif
 		renderRetirementStep();
 	} catch (...) {
 		// Nothing to report to: whatever this step did not let go of stays retired, and the next block's step takes it.
@@ -869,6 +872,10 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	// the device's guarantee: an interaction-tier structural edit to a container the render walks (each runs in its
 	// own section) and a render block never overlap.
 	AudioExcludedSection renderBlock;
+#if defined(DELUGE_HOST)
+	// For the harness: whether this block changed the view's active model stack, which only the interaction tier may.
+	View::RenderBlockStackWatch stackWatch;
+#endif
 	// Marks this thread as rendering, for the host's count of the render's heap allocations (it must make none).
 	struct RenderBlockMark {
 		RenderBlockMark() { deluge::memory::noteRenderBlock(true); }
