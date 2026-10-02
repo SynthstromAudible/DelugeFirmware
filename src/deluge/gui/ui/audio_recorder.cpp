@@ -70,15 +70,17 @@ bool AudioRecorder::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 bool AudioRecorder::opened() {
 	updatedRecordingStatus = false;
 
+	// Refused, like the browsers refuse their input, while something could swap out what the take would attach to.
+	// Checked before the undo log is wiped, so a refusal leaves the user's history intact.
+	if (anOutputMayBeReplaced()) {
+		display->displayPopup("Loading");
+		return false;
+	}
+
 	actionLogger.deleteAllLogs();
 
 	// If we're already recording (probably the output) then no!
 	if (recordingSource > AudioInputChannel::NONE) {
-		return false;
-	}
-
-	// Refused, like the browsers refuse their input, while something could swap out what the take would attach to.
-	if (anOutputMayBeReplaced()) {
 		return false;
 	}
 

@@ -26,6 +26,8 @@
 #include "gui/views/instrument_clip_view.h"
 #include "hid/button.h"
 #include "hid/display/display.h"
+#include "model/action/action.h"
+#include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
@@ -355,10 +357,22 @@ void stepRefuseStart() {
 	}
 	(void)instrumentClipView.createNewInstrument(OutputType::SYNTH, false);
 	const bool loading = deluge::gui::instrumentLoad.inFlight();
+	// An undo-log entry the refusal must leave alone: the recorder's other opens wipe the log.
+	if (actionLogger.firstAction[BEFORE] == nullptr) {
+		(void)actionLogger.getNewAction(ActionType::TEMPO_CHANGE);
+	}
+	Action* const loggedBefore = actionLogger.firstAction[BEFORE];
 	openRecorder();
 	const bool recorderOnTop = getCurrentUI() == &audioRecorder;
-	printf("RT-REFUSED loadInFlight=%d recorderOnTop=%d source=%d\n", loading ? 1 : 0, recorderOnTop ? 1 : 0,
-	       static_cast<int>(audioRecorder.recordingSource));
+	const bool logKept = loggedBefore != nullptr && actionLogger.firstAction[BEFORE] == loggedBefore;
+	printf("RT-REFUSED loadInFlight=%d recorderOnTop=%d source=%d undoLogKept=%d\n", loading ? 1 : 0,
+	       recorderOnTop ? 1 : 0, static_cast<int>(audioRecorder.recordingSource), logKept ? 1 : 0);
+	if (loggedBefore == nullptr) {
+		fail("RT-REFUSED", "no undo-log entry could be made before the recorder was opened, so nothing was tested");
+	}
+	else if (!logKept) {
+		fail("RT-REFUSED", "a refused take wiped the undo log");
+	}
 	if (!loading) {
 		fail("RT-REFUSED", "the acquisition was not in flight when the recorder was opened, so nothing was tested");
 	}
