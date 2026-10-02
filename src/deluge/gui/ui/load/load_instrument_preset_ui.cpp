@@ -1270,16 +1270,15 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 		AudioEngine::retire(soundDrumToReplace);
 	}
 	soundDrumToReplace = newDrum;
-
-	// The name is the real on-card name (display-agnostic), taken from the snapshot, so it can't pick up whatever the
-	// user has since scrolled onto.
-	soundDrumToReplace->setName(request.target.name);
 	soundDrumToReplace->path = request.target.dirPath.c_str();
 	Error error = Error::NONE;
 	ParamManager* paramManager =
 	    currentSong->project.param_backup.getPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
 	if (paramManager) {
 		kitToLoadFor->addDrum(soundDrumToReplace);
+		// The name lives in the DocDrum addDrum just bound. It is the real on-card name (display-agnostic), taken from
+		// the snapshot, so it can't pick up whatever the user has since scrolled onto.
+		soundDrumToReplace->setName(request.target.name);
 		// don't back up the param manager since we can't use the backup anyway
 		noteRow->setDrum(soundDrumToReplace, kitToLoadFor, modelStackWithNoteRow, instrumentClipToLoadFor, paramManager,
 		                 false);
