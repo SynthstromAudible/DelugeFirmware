@@ -139,7 +139,7 @@ void ParamSet::tickSamples(int32_t numSamples, ModelStackWithParamCollection* mo
 	AutoParam* param = &params[p];
 
 	int32_t oldValue = param->getCurrentValue();
-	bool shouldNotify = param->tickSamples(numSamples);
+	bool shouldNotify = param->tickSamples(numSamples, shouldInterpolateWithFloat(modelStack->addParamId(p)));
 	if (shouldNotify) { // Should always actually be true...
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
@@ -154,7 +154,7 @@ void ParamSet::tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelS
 	AutoParam* param = &params[p];
 
 	int32_t oldValue = param->getCurrentValue();
-	bool shouldNotify = param->tickTicks(numTicks);
+	bool shouldNotify = param->tickTicks(numTicks, shouldInterpolateWithFloat(modelStack->addParamId(p)));
 	if (shouldNotify) { // Should always actually be true...
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
@@ -374,7 +374,7 @@ void ParamSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack)
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating);
 
-	params[p].notifyPingpongOccurred();
+	params[p].notifyPingpongOccurred(shouldInterpolateWithFloat(modelStack->addParamId(p)));
 
 	FOR_EACH_PARAM_END
 }

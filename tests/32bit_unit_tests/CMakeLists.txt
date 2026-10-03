@@ -81,6 +81,8 @@ target_compile_options(MemoryManagerTests PUBLIC
 add_executable(SmallPointerTests
         RunAllTests.cpp
         container/open_addressing_hash_table.cpp
+        container/lazy_param_node_vector.cpp
+        ../../src/deluge/modulation/params/param_node_vector.cpp
 )
 
 add_test(NAME SmallPointerTests COMMAND SmallPointerTests)

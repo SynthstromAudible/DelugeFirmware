@@ -64,7 +64,8 @@ void MIDIParamCollection::tickTicks(int32_t numTicks, ModelStackWithParamCollect
 
 		if (param->hasInterpolationIncrement()) {
 			int32_t oldValue = param->getCurrentValue();
-			bool shouldNotify = param->tickTicks(numTicks);
+			bool shouldNotify =
+			    param->tickTicks(numTicks, shouldInterpolateWithFloat(modelStack->addParamId(midiParam->cc)));
 			if (shouldNotify) { // Should always actually be true...
 				ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam->cc, param);
 				notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
@@ -313,7 +314,7 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 
 	for (int32_t i = 0; i < params.getNumElements(); i++) {
 		MIDIParam* midiParam = params.getElement(i);
-		midiParam->param.notifyPingpongOccurred();
+		midiParam->param.notifyPingpongOccurred(shouldInterpolateWithFloat(modelStack->addParamId(midiParam->cc)));
 	}
 }
 

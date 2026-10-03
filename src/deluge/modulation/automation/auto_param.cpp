@@ -776,21 +776,28 @@ getOut:
 /// identifies if a parameter is currently interpolating
 /// the value increment is used to increment / decrement the parameters current value
 bool AutoParam::hasInterpolationIncrement() {
-	return valueIncrementPerHalfTick != 0 || value_increment_per_half_tick_float != 0.0f;
+	// Works for either type of increment, since we never store a float increment of -0.0f
+	return valueIncrementPerHalfTick != 0;
 }
 
 /// resets interpolation increment to zero (can happen if we reached parameter value limits)
 /// or if we've reached another node in which case we'll be re-calculating the increment
 void AutoParam::resetInterpolationIncrement() {
 	valueIncrementPerHalfTick = 0;
-	value_increment_per_half_tick_float = 0.0f;
 	interpolation_increment_remainder_float = 0.0f;
 }
 
 /// reverse the interpolation increment in case we're now interpolating backwards to the previous node
-void AutoParam::reverseInterpolationIncrement() {
-	valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
-	value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
+void AutoParam::reverseInterpolationIncrement(bool use_float_interpolation) {
+	if (!hasInterpolationIncrement()) {
+		return; // Negating a float 0 would give -0.0f, which hasInterpolationIncrement() would see as non-zero
+	}
+	if (use_float_interpolation) [[unlikely]] {
+		value_increment_per_half_tick_float = -value_increment_per_half_tick_float;
+	}
+	else {
+		valueIncrementPerHalfTick = -valueIncrementPerHalfTick;
+	}
 	interpolation_increment_remainder_float = -interpolation_increment_remainder_float;
 }
 
@@ -939,7 +946,7 @@ static int32_t saturatingIncrement(int32_t incrementPerHalfTick, int64_t halfTic
 	return (int32_t)std::clamp<int64_t>(increment, INT32_MIN, INT32_MAX);
 }
 
-bool AutoParam::tickSamples(int32_t numSamples) {
+bool AutoParam::tickSamples(int32_t numSamples, bool use_float_interpolation) {
 	// if we don't have any interpolation to apply, return false
 	if (!hasInterpolationIncrement()) {
 		return false;
@@ -948,7 +955,7 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 	int32_t value_increment = 0;
 
 	// non-float interpolation
-	if (valueIncrementPerHalfTick != 0) [[likely]] {
+	if (!use_float_interpolation) [[likely]] {
 		value_increment = saturatingIncrement(
 		    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()),
 		    (int64_t)6 * numSamples);
@@ -965,7 +972,7 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 	return applyValueIncrement(value_increment);
 }
 
-bool AutoParam::tickTicks(int32_t numTicks) {
+bool AutoParam::tickTicks(int32_t numTicks, bool use_float_interpolation) {
 	// if we don't have any interpolation to apply, return false
 	if (!hasInterpolationIncrement()) {
 		return false;
@@ -975,7 +982,7 @@ bool AutoParam::tickTicks(int32_t numTicks) {
 	int64_t half_ticks = (int64_t)numTicks * 2;
 
 	// non-float interpolation
-	if (valueIncrementPerHalfTick != 0) [[likely]] {
+	if (!use_float_interpolation) [[likely]] {
 		value_increment = saturatingIncrement(valueIncrementPerHalfTick, half_ticks);
 	}
 	// float interpolation
@@ -1569,8 +1576,8 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 		int32_t numNodes = nodes.getNumElements();
 
 		if (reverseDirectionWithLength && numNodes) {
-			// Sneakily and temporarily clone this - still pointing to the old AutoParam's nodes' memory.
-			ParamNodeVector oldNodes = nodes;
+			// Still belongs to the AutoParam we were cloned from, so we mustn't modify or free it.
+			ParamNodeVector& oldNodes = *nodes.get();
 			nodes.init();
 
 			error = nodes.insertAtIndex(0, numNodes);
@@ -1611,10 +1618,6 @@ Error AutoParam::beenCloned(bool copyAutomation, int32_t reverseDirectionWithLen
 					oldNodeToLeftValue = oldNode->value;
 				}
 			}
-
-			// Because this is about to get destructed, we need to stop it pointing to the old
-			// AutoParam's nodes' memory, cos we don't want that getting deallocated.
-			oldNodes.init();
 		}
 
 		else {
@@ -1954,7 +1957,7 @@ addNewNodeAt0IfNecessary:
 				// Or, if we need to snapshot, work with that
 			}
 			else {
-				ParamNodeVector newNodes;
+				LazyParamNodeVector newNodes;
 				Error error = newNodes.insertAtIndex(0, newNumNodes);
 				if (error != Error::NONE) {
 					goto basicTrim;
@@ -2891,8 +2894,8 @@ setNodeValue:
 	nodes.testSequentiality("E334");
 }
 
-void AutoParam::notifyPingpongOccurred() {
-	reverseInterpolationIncrement();
+void AutoParam::notifyPingpongOccurred(bool use_float_interpolation) {
+	reverseInterpolationIncrement(use_float_interpolation);
 }
 
 void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength,

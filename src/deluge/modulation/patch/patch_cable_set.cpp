@@ -469,6 +469,8 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	for (int32_t c = numUsablePatchCables; c < numPatchCables - 1; c++) {
 		if (patchCables[c].destinationParamDescriptor.isNull()) {
 			memcpy(&patchCables[c], &patchCables[numPatchCables - 1], sizeof(PatchCable));
+			// The moved cable's automation now belongs to slot c - don't let the old slot free it too
+			patchCables[numPatchCables - 1].param.nodes.init();
 			break;
 		}
 	}
@@ -575,7 +577,7 @@ void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollectio
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
 	int32_t oldValue = param->getCurrentValue();
-	bool shouldNotify = param->tickSamples(numSamples);
+	bool shouldNotify = param->tickSamples(numSamples, shouldInterpolateWithFloat(modelStackWithAutoParam));
 	if (shouldNotify) { // Should always actually be true...
 		notifyParamModifiedInSomeWay(modelStackWithAutoParam, oldValue, false, true, true);
 	}
@@ -1175,7 +1177,8 @@ void PatchCableSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelS
 	ParamCollection::notifyPingpongOccurred(modelStack);
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating)
-	patchCables[c].param.notifyPingpongOccurred();
+	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+	patchCables[c].param.notifyPingpongOccurred(shouldInterpolateWithFloat(modelStack->addParamId(paramId)));
 	FOR_EACH_PARAM_END
 }
 
