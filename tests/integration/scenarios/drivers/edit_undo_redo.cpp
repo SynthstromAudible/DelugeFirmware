@@ -1263,8 +1263,7 @@ void launchStyleTarget(Song* song) {
 	check(clip->launchStyle() == target, "launch-style: accessor set");
 	// Loaded clips are bound: the accessor reads the tree DocClip, so resolveClip agrees.
 	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
-	check(doc != nullptr && doc->launch_style == static_cast<uint8_t>(target),
-	      "launch-style: DocClip matches accessor");
+	check(doc != nullptr && doc->launch_style == target, "launch-style: DocClip matches accessor");
 }
 
 // M3 owner-1 slice 2: nudge a clip's colour via SetClipColour (apply-only, non-undoable) + shadow check.

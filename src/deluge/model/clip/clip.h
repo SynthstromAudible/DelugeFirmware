@@ -230,8 +230,8 @@ public:
 	[[nodiscard]] uint32_t id() const { return id_; }
 
 	/// M3 owner-1: clip launch style lives in the DOM DocClip (see loopLength()).
-	[[nodiscard]] LaunchStyle launchStyle() const { return static_cast<LaunchStyle>(docClip_->launch_style); }
-	void setLaunchStyle(LaunchStyle s) { docClip_->launch_style = static_cast<uint8_t>(s); }
+	[[nodiscard]] LaunchStyle launchStyle() const { return docClip_->launch_style; }
+	void setLaunchStyle(LaunchStyle s) { docClip_->launch_style = s; }
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput{};
 

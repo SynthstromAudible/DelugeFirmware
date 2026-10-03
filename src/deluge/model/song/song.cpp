@@ -2382,7 +2382,8 @@ readClip:
 					newClip->setColourOffset(stringToInt(n->str().c_str()));
 				}
 				if (const deluge::storage::Value* n = clipNode->find("launchStyle")) {
-					newClip->setLaunchStyle(stringToLaunchStyle(n->str().c_str()));
+					newClip->setLaunchStyle(
+					    deluge::project::parse_launch_style(n->str()).value_or(LaunchStyle::DEFAULT));
 				}
 				// loopLength (durable-id readFromTree slice 2): "length" is the current attribute name, "trackLength"
 				// the legacy alias. Clamp to >=1 and seed originalLength, matching the old readTagFromFile handler.
@@ -2412,7 +2413,8 @@ readClip:
 					newClip->activeIfNoSolo = (stringToInt(n->str().c_str()) == 2);
 				}
 				if (const deluge::storage::Value* n = clipNode->find("sequenceDirection")) {
-					newClip->sequenceDirectionMode = stringToSequenceDirectionMode(n->str().c_str());
+					newClip->sequenceDirectionMode =
+					    deluge::project::parse_sequence_direction(n->str()).value_or(SequenceDirection::FORWARD);
 				}
 
 				// Selection / sync-scale hints (readFromTree slice 3): read the flag, then perform the same Song-state

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/doc_note.h"
+#include "deluge-project/sequence_direction.h"
 #include <cstdint>
 #include <optional>
 #include <vector>
@@ -31,7 +32,7 @@ struct DocNoteRow {
 	int16_t y{0};
 	int32_t loop_length_if_independent{0}; ///< 0 = obeys the parent clip's loop length
 	int8_t colour_offset{0};
-	uint8_t sequence_direction{0}; ///< SequenceDirection enum underlying value
+	SequenceDirection sequence_direction{SequenceDirection::FORWARD};
 	bool muted{false};
 
 	/// M3 owner-2/3 join (dual-write phase): the durable id of this row's drum (`Drum::id()`), or nullopt if the row

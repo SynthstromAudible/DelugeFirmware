@@ -18,6 +18,8 @@
 #pragma once
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
+#include "deluge-project/launch_style.h"
+#include "deluge-project/sequence_direction.h"
 #include "engine-api/types/interpolation_mode.h"
 #include "engine-api/types/voice_priority.h"
 #include "sequence/iterance.h"
@@ -926,12 +928,7 @@ enum class LoopType {
 	TIMESTRETCHER_LEVEL_IF_ACTIVE, // Will cause low-level looping if no time-stretching;
 };
 
-enum class SequenceDirection {
-	FORWARD,
-	REVERSE,
-	PINGPONG,
-	OBEY_PARENT,
-};
+using deluge::project::SequenceDirection;
 constexpr auto kNumSequenceDirections = util::to_underlying(SequenceDirection::OBEY_PARENT);
 
 enum class AudioFileType {
@@ -1111,7 +1108,7 @@ enum class ClipType {
 	AUDIO,
 };
 
-enum class LaunchStyle { DEFAULT, FILL, ONCE };
+using deluge::project::LaunchStyle;
 
 enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
 constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;

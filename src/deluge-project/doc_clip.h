@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/doc_note_row.h"
+#include "deluge-project/launch_style.h"
 #include <cstdint>
 #include <list>
 
@@ -30,12 +31,11 @@ namespace deluge::project {
 /// AUTHORITATIVE: the `Clip` has no own copies of these fields — its accessors (`loopLength()`/`colourOffset()`/
 /// `section()`/`launchStyle()`) read and write this record directly through the clip's bound `docClip_` (durable-id
 /// Step 3). Save reads it (via those accessors), load writes it (`readShellFromTree` + setters); the ownership
-/// inversion for clip structure is complete. `launch_style` stores the `LaunchStyle` enum's underlying value to
-/// keep this model header engine-light.
+/// inversion for clip structure is complete.
 struct DocClip {
 	int32_t loop_length{0};
 	int16_t colour_offset{-60}; ///< matches the engine Clip default
-	uint8_t launch_style{0};    ///< LaunchStyle underlying value (0 = DEFAULT)
+	LaunchStyle launch_style{LaunchStyle::DEFAULT};
 	uint8_t section{0};
 
 	/// M3 owner-2: per-note-row structural records, one per engine NoteRow. A std::list for STABLE element

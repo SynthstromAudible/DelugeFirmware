@@ -3523,7 +3523,8 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		drum = (Drum*)(0xFFFFFFFE - gateChannel);
 	}
 	if (const Value* n = node.find("sequenceDirection")) {
-		setSequenceDirectionModeRaw(stringToSequenceDirectionMode(n->str().c_str()));
+		setSequenceDirectionModeRaw(
+		    deluge::project::parse_sequence_direction(n->str()).value_or(SequenceDirection::FORWARD));
 	}
 	if (const Value* n = node.find("bendRange")) {
 		newBendRange = stringToInt(n->str().c_str());
@@ -3717,7 +3718,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 		writer.writeAttribute("length", loopLengthIfIndependent());
 	}
 	if (sequenceDirectionMode() != SequenceDirection::OBEY_PARENT) {
-		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode()));
+		writer.writeAttribute("sequenceDirection", deluge::project::to_string(sequenceDirectionMode()).data());
 	}
 
 	if (!notes.empty()) {

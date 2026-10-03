@@ -1279,7 +1279,7 @@ void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 	d.y = nr.y();
 	d.loop_length_if_independent = nr.loopLengthIfIndependent();
 	d.colour_offset = nr.colourOffset();
-	d.sequence_direction = static_cast<uint8_t>(nr.sequenceDirectionMode());
+	d.sequence_direction = nr.sequenceDirectionMode();
 	d.muted = nr.muted();
 	// M3 owner-2/3 join: seed the drum_id shadow. `nr.drum` is a real pointer/nullptr here (bind runs at create/clone
 	// or pre-readFromTree, never while a load sentinel is stashed); a later setDrum/reconnection corrects it.

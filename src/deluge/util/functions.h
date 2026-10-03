@@ -132,11 +132,6 @@ ArpMpeModSource stringToArpMpeModSource(char const* string);
 char const* inputChannelToString(AudioInputChannel inputChannel);
 AudioInputChannel stringToInputChannel(char const* string);
 
-char const* sequenceDirectionModeToString(SequenceDirection sequenceDirectionMode);
-SequenceDirection stringToSequenceDirectionMode(char const* string);
-char const* launchStyleToString(LaunchStyle launchStyle);
-LaunchStyle stringToLaunchStyle(char const* string);
-
 char const* getInstrumentFolder(OutputType outputType);
 
 bool isAudioFilename(char const* filename);

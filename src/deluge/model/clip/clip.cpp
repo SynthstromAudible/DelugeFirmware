@@ -754,7 +754,7 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("isArmedForRecording", armedForRecording);
 	writer.writeAttribute("length", loopLength());
 	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
-		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
+		writer.writeAttribute("sequenceDirection", deluge::project::to_string(sequenceDirectionMode).data());
 	}
 	writer.writeAttribute("colourOffset", colourOffset());
 	if (section() != 255) {
@@ -775,7 +775,7 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("isSyncScaleClip", 1);
 	}
 	if (launchStyle() != LaunchStyle::DEFAULT) {
-		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle()));
+		writer.writeAttribute("launchStyle", deluge::project::to_string(launchStyle()).data());
 	}
 }
 

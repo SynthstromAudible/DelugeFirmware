@@ -227,13 +227,12 @@ public:
 	// public setSequenceDirectionMode(ModelStack*, ...) below routes its field write through
 	// setSequenceDirectionModeRaw.
 	SequenceDirection sequenceDirectionMode() const {
-		return docNoteRow_ != nullptr ? static_cast<SequenceDirection>(docNoteRow_->sequence_direction)
-		                              : sequenceDirectionMode_;
+		return docNoteRow_ != nullptr ? docNoteRow_->sequence_direction : sequenceDirectionMode_;
 	}
 	void setSequenceDirectionModeRaw(SequenceDirection v) {
 		sequenceDirectionMode_ = v;
 		if (docNoteRow_ != nullptr) {
-			docNoteRow_->sequence_direction = static_cast<uint8_t>(v);
+			docNoteRow_->sequence_direction = v;
 		}
 	}
 	uint32_t getLivePos(ModelStackWithNoteRow const* modelStack);
