@@ -30,6 +30,7 @@
 #include "hid/led/indicator_leds.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/choke_group.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
@@ -39,6 +40,7 @@
 #include "processing/engines/audio_engine.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
+#include <array>
 #include <new>
 #include <string.h>
 
@@ -73,6 +75,7 @@ StemExport::StemExport() {
 	includeKitFX = false;
 	renderOffline = true;
 	exportMixdown = false;
+	exportChokeGroups = false;
 
 	timePlaybackStopped = 0xFFFFFFFF;
 	timeThereWasLastSomeActivity = 0xFFFFFFFF;
@@ -114,6 +117,9 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 	}
 	else if (stemExportType == StemExportType::DRUM) {
 		elementsProcessed = exportDrumStems(stemExportType);
+	}
+	else if (stemExportType == StemExportType::CHOKE_GROUP) {
+		elementsProcessed = exportChokeGroupStems(stemExportType);
 	}
 	else if (stemExportType == StemExportType::MIXDOWN) {
 		elementsProcessed = exportMixdownStem(stemExportType);
@@ -182,7 +188,9 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 			}
 		}
 		bool normalization =
-		    currentStemExportType == StemExportType::DRUM ? allowNormalizationForDrums : allowNormalization;
+		    (currentStemExportType == StemExportType::DRUM || currentStemExportType == StemExportType::CHOKE_GROUP)
+		        ? allowNormalizationForDrums
+		        : allowNormalization;
 		audioRecorder.beginOutputRecording(AudioRecordingFolder::STEMS, channel, writeLoopEndPos(), normalization);
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
 			stopRecording = true;
@@ -507,7 +515,8 @@ void StemExport::getLoopEndPointInSamplesForAudioFile(int32_t loopLength) {
 /// we're only writing loop end marker to clip and drum stems
 bool StemExport::writeLoopEndPos() {
 	if (processStarted
-	    && (currentStemExportType == StemExportType::CLIP || currentStemExportType == StemExportType::DRUM)) {
+	    && (currentStemExportType == StemExportType::CLIP || currentStemExportType == StemExportType::DRUM
+	        || currentStemExportType == StemExportType::CHOKE_GROUP)) {
 		return true;
 	}
 	return false;
@@ -568,6 +577,51 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 	return totalNumClips;
 }
 
+namespace {
+/// shared eligibility filter for both per-drum (DRUM) and per-choke-group (CHOKE_GROUP) stem
+/// export: 1) the note row is not muted, 2) the note row is not empty (it has notes), 3) it has a
+/// drum assigned to it, 4) the drum assigned to it is a sound drum
+bool isEligibleForDrumStemExport(NoteRow* noteRow) {
+	return noteRow != nullptr && noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND && !noteRow->muted
+	       && !noteRow->hasNoNotes();
+}
+
+/// True once disarmAllDrumsForStemExport() has run: exportStem carries forward the same eligibility
+/// decision isEligibleForDrumStemExport() made, and survives the mute pass that follows it.
+bool isArmedForStemExport(NoteRow* noteRow) {
+	return noteRow != nullptr && noteRow->exportStem;
+}
+
+/// The choke group a drum belongs to for export purposes, or 0 for "belongs to none".
+///
+/// chokeGroup is only meaningful in CHOKE mode - the field's own comment says so - but every drum
+/// carries one, defaulting to 1. Reading it without checking the mode would put every Poly, Mono
+/// and Auto drum in the kit into group 1 and render them together into a single file named after a
+/// choke group they were never in. A drum that isn't choking anything belongs to no group and is
+/// exported on its own.
+uint8_t exportChokeGroupOf(SoundDrum* soundDrum) {
+	return soundDrum->polyphonic == PolyphonyMode::CHOKE ? SoundDrum::effectiveChokeGroup(soundDrum->chokeGroup) : 0;
+}
+
+/// How many drums in `group` this export would render. The eligibility half is the caller's,
+/// because the answer differs either side of disarmAllDrumsForStemExport().
+template <typename IsEligibleFn>
+int32_t countRowsInChokeGroup(InstrumentClip* clip, int32_t totalNumNoteRows, uint8_t group, IsEligibleFn isEligible) {
+	int32_t count = 0;
+	for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
+		NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+		if (!isEligible(thisNoteRow)) {
+			continue;
+		}
+		auto* soundDrum = static_cast<SoundDrum*>(thisNoteRow->drum);
+		if (exportChokeGroupOf(soundDrum) == group) {
+			count++;
+		}
+	}
+	return count;
+}
+} // namespace
+
 /// disarms and prepares all the drums so that they can be exported
 int32_t StemExport::disarmAllDrumsForStemExport() {
 	// when we begin stem export, we haven't exported any drums yet, so initialize these variables
@@ -587,14 +641,7 @@ int32_t StemExport::disarmAllDrumsForStemExport() {
 		for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
 			NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
 			if (thisNoteRow != nullptr) {
-				/* export drum stem if all these conditions are met:
-				    1) the note row is not muted
-				    2) the note row is not empty (it has notes)
-				    3) it has a drum assigned to it
-				    4) the drum assigned to it is a sound drum
-				*/
-				if (thisNoteRow->drum != nullptr && thisNoteRow->drum->type == DrumType::SOUND && !thisNoteRow->muted
-				    && !thisNoteRow->hasNoNotes()) {
+				if (isEligibleForDrumStemExport(thisNoteRow)) {
 					thisNoteRow->exportStem = true;
 					totalNumStemsToExport++;
 				}
@@ -692,8 +739,246 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 	return totalNumNoteRows;
 }
 
+/// Fills `groupBundles` with which of the 8 choke groups hold more than one exportable CHOKE-mode
+/// drum, and returns how many that is. Those groups render as one stem each; every other exportable
+/// drum renders on its own, exactly as a plain per-drum export would do. Recomputed rather than
+/// cached because it is eight cheap passes over the NoteRows, done once per export.
+uint8_t StemExport::findBundlingChokeGroups(InstrumentClip* clip, int32_t totalNumNoteRows,
+                                            std::array<bool, deluge::drum::kMaxChokeGroup + 1>& groupBundles) {
+	groupBundles.fill(false);
+	return deluge::drum::countBundlingChokeGroups([&](uint8_t group) {
+		int32_t count = countRowsInChokeGroup(clip, totalNumNoteRows, group, isArmedForStemExport);
+		groupBundles[group] = count > 1;
+		return count;
+	});
+}
+
+/// True when `chokeGroup` is one of the groups being rendered as a bundle. Bound-checked, so a
+/// stored group number from outside 1-8 - which only a corrupted file could produce - reads as
+/// "not bundled" rather than off the end of the table.
+bool StemExport::chokeGroupIsBundled(const std::array<bool, deluge::drum::kMaxChokeGroup + 1>& groupBundles,
+                                     uint8_t chokeGroup) {
+	return chokeGroup >= deluge::drum::kMinChokeGroup && chokeGroup <= deluge::drum::kMaxChokeGroup
+	       && groupBundles[chokeGroup];
+}
+
+/// disarms and prepares all the drums for choke-group stem export, and works out how many files
+/// that will produce. Reuses disarmAllDrumsForStemExport() for the per-NoteRow eligibility filter
+/// and the initial "mute everything" pass: the difference between DRUM and CHOKE_GROUP export is
+/// only that drums sharing a choke group are rendered together instead of separately, not which
+/// drums are eligible in the first place.
+int32_t StemExport::disarmAllChokeGroupsForStemExport() {
+	int32_t totalNumNoteRows = disarmAllDrumsForStemExport();
+
+	InstrumentClip* clip = getCurrentInstrumentClip();
+
+	// disarmAllDrumsForStemExport() left totalNumStemsToExport as the number of exportable NoteRows,
+	// one file each. Every bundling group replaces its own rows with a single file, so take those
+	// rows back out and add one file per bundle.
+	std::array<bool, deluge::drum::kMaxChokeGroup + 1> groupBundles{};
+	uint8_t numBundles = findBundlingChokeGroups(clip, totalNumNoteRows, groupBundles);
+
+	int32_t rowsInBundles = 0;
+	for (uint8_t group = deluge::drum::kMinChokeGroup; group <= deluge::drum::kMaxChokeGroup; group++) {
+		if (groupBundles[group]) {
+			rowsInBundles += countRowsInChokeGroup(clip, totalNumNoteRows, group, isArmedForStemExport);
+		}
+	}
+
+	totalNumStemsToExport = totalNumStemsToExport - rowsInBundles + numBundles;
+
+	return totalNumNoteRows;
+}
+
+/// Arms every exportable NoteRow in `group` so they record together as one stem, and reports the
+/// loop length their stem should run for. Returns false when the group holds no exportable rows.
+bool StemExport::armChokeGroupRows(InstrumentClip* clip, int32_t totalNumNoteRows, uint8_t group,
+                                   int32_t* groupLoopLength) {
+	bool groupHasEligibleRow = false;
+	*groupLoopLength = 0;
+
+	for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
+		NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+		if (!isArmedForStemExport(thisNoteRow)) {
+			continue;
+		}
+		auto* soundDrum = static_cast<SoundDrum*>(thisNoteRow->drum);
+		if (exportChokeGroupOf(soundDrum) != group) {
+			continue;
+		}
+		groupHasEligibleRow = true;
+		thisNoteRow->muted = false;
+		*groupLoopLength = std::max(*groupLoopLength, noteRowLoopLength(clip, thisNoteRow));
+	}
+
+	return groupHasEligibleRow;
+}
+
+/// Undoes armChokeGroupRows() for one group, so the next stem records on its own.
+void StemExport::muteChokeGroupRows(InstrumentClip* clip, int32_t totalNumNoteRows, uint8_t group) {
+	for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
+		NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+		if (!isArmedForStemExport(thisNoteRow)) {
+			continue;
+		}
+		auto* soundDrum = static_cast<SoundDrum*>(thisNoteRow->drum);
+		if (exportChokeGroupOf(soundDrum) == group) {
+			thisNoteRow->muted = true;
+		}
+	}
+}
+
+int32_t StemExport::noteRowLoopLength(InstrumentClip* clip, NoteRow* noteRow) {
+	return noteRow->loopLengthIfIndependent != 0 ? noteRow->loopLengthIfIndependent : clip->loopLength;
+}
+
+/// Records one already-armed unit - a bundled choke group, or a single drum - and waits for it to
+/// finish. Pass `drum` for a single drum with `chokeGroup` 0, or `chokeGroup` 1-8 with a null
+/// `drum` for a bundle; that pair is what setWavFileNameForStemExport() names the file from.
+/// Returns whether a file was actually written, which is what advances the trailing number.
+bool StemExport::recordOneChokeGroupStem(StemExportType stemExportType, InstrumentClip* clip, Output* output,
+                                         SoundDrum* drum, uint8_t chokeGroup, int32_t fileIndex, int32_t loopLength) {
+	// set the loop length that this stem export should be stopped at
+	loopLengthToStopStemExport = loopLength;
+	getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
+
+	if (!startCurrentStemExport(stemExportType, output, clip->activeIfNoSolo, fileIndex,
+	                            /*exportStem=*/true, drum, chokeGroup)) {
+		return false;
+	}
+
+	// wait until recording is done and playback is turned off
+	yield([]() {
+		// if you haven't found silence yet and playback has stopped
+		// check for silence so you can stop recording
+		if (stemExport.stopRecording) {
+			stemExport.stopOutputRecording();
+		}
+		return !(playbackHandler.recording != RecordingMode::OFF
+		         || audioRecorder.recordingSource > AudioInputChannel::NONE || playbackHandler.isEitherClockActive());
+	});
+
+	finishCurrentStemExport(stemExportType, clip->activeIfNoSolo);
+	return true;
+}
+
+/// Renders each bundling choke group as one stem, its drums sounding together. Returns the file
+/// index to carry on from, so the trailing number in the file names keeps running across both
+/// passes of exportChokeGroupStems().
+int32_t StemExport::exportBundledChokeGroups(StemExportType stemExportType, InstrumentClip* clip, Output* output,
+                                             int32_t totalNumNoteRows,
+                                             const std::array<bool, deluge::drum::kMaxChokeGroup + 1>& groupBundles,
+                                             int32_t fileIndex) {
+	for (uint8_t group = deluge::drum::kMinChokeGroup; group <= deluge::drum::kMaxChokeGroup; group++) {
+		// in the event that stem exporting is cancelled while iterating, break out of the loop
+		if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+			break;
+		}
+		if (!groupBundles[group]) {
+			continue;
+		}
+
+		int32_t groupLoopLength = 0;
+		if (!armChokeGroupRows(clip, totalNumNoteRows, group, &groupLoopLength)) {
+			continue;
+		}
+
+		if (recordOneChokeGroupStem(stemExportType, clip, output, /*drum=*/nullptr, group, fileIndex,
+		                            groupLoopLength)) {
+			fileIndex++;
+		}
+
+		muteChokeGroupRows(clip, totalNumNoteRows, group);
+	}
+
+	return fileIndex;
+}
+
+/// Renders every drum that isn't in a bundling group on its own, exactly as a plain per-drum export
+/// would. Returns the file index to carry on from.
+int32_t StemExport::exportUngroupedDrums(StemExportType stemExportType, InstrumentClip* clip, Output* output,
+                                         int32_t totalNumNoteRows,
+                                         const std::array<bool, deluge::drum::kMaxChokeGroup + 1>& groupBundles,
+                                         int32_t fileIndex) {
+	for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
+		if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+			break;
+		}
+
+		NoteRow* thisNoteRow = clip->noteRows.getElement(idxNoteRow);
+		if (!isArmedForStemExport(thisNoteRow)) {
+			continue;
+		}
+		auto* soundDrum = static_cast<SoundDrum*>(thisNoteRow->drum);
+		if (chokeGroupIsBundled(groupBundles, exportChokeGroupOf(soundDrum))) {
+			continue;
+		}
+
+		thisNoteRow->muted = false;
+		if (recordOneChokeGroupStem(stemExportType, clip, output, soundDrum, /*chokeGroup=*/0, fileIndex,
+		                            noteRowLoopLength(clip, thisNoteRow))) {
+			fileIndex++;
+		}
+		thisNoteRow->muted = true;
+	}
+
+	return fileIndex;
+}
+
+/// Divides a kit clip into export units and renders one file each. A choke group holding more than
+/// one drum is one unit - its drums must record together or the choking that defines the group
+/// never happens, which is exactly what soloing each drum in turn would destroy. Every other drum
+/// is its own unit, the same as a plain per-drum export, because nothing needs to be in the room
+/// with it. Every exportable drum therefore appears in exactly one file, and the files together
+/// account for the whole kit.
+int32_t StemExport::exportChokeGroupStems(StemExportType stemExportType) {
+	// need to disarm all the other clips so that we can export just this kit clip
+	int32_t totalNumClips = disarmAllClipsForStemExport();
+	// prepare all the drums for stem export, and work out how many files that comes to
+	int32_t totalNumNoteRows = disarmAllChokeGroupsForStemExport();
+
+	if (totalNumNoteRows != 0 && totalNumStemsToExport != 0) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Output* output = clip->output;
+
+		std::array<bool, deluge::drum::kMaxChokeGroup + 1> groupBundles{};
+		findBundlingChokeGroups(clip, totalNumNoteRows, groupBundles);
+
+		// Counts the files actually written, so the trailing number in each name runs 000, 001, ...
+		int32_t fileIndex = exportBundledChokeGroups(stemExportType, clip, output, totalNumNoteRows, groupBundles, 0);
+		exportUngroupedDrums(stemExportType, clip, output, totalNumNoteRows, groupBundles, fileIndex);
+	}
+
+	// set drum mutes back to their previous state (before exporting stems)
+	restoreAllDrumMutes(totalNumNoteRows);
+	// set clip mutes back to their previous state (before exporting stems)
+	restoreAllClipMutes(totalNumClips);
+
+	return totalNumNoteRows;
+}
+
+/// read-only check for whether choke-group export would produce anything different from a plain
+/// per-drum export of the same kit clip, i.e. whether any choke group holds more than one
+/// exportable drum. If none does, every drum would be rendered on its own either way, so there is
+/// nothing to choose and the option is not worth surfacing. Unlike
+/// disarmAllChokeGroupsForStemExport(), this does not touch NoteRow mute state or the exportStem
+/// flags, so it is safe to call from menu navigation (isRelevant()).
+bool StemExport::currentKitHasBundlingChokeGroup() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (clip == nullptr || clip->output == nullptr || clip->output->type != OutputType::KIT) {
+		return false;
+	}
+
+	int32_t totalNumNoteRows = clip->noteRows.getNumElements();
+
+	uint8_t bundlingGroups = deluge::drum::countBundlingChokeGroups([&](uint8_t group) {
+		return countRowsInChokeGroup(clip, totalNumNoteRows, group, isEligibleForDrumStemExport);
+	});
+	return bundlingGroups > 0;
+}
+
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState,
-                                        int32_t indexNumber, bool exportStem, SoundDrum* drum) {
+                                        int32_t indexNumber, bool exportStem, SoundDrum* drum, uint8_t chokeGroup) {
 	updateScrollPosition(stemExportType, indexNumber + 1);
 
 	// exclude empty clips / outputs, muted outputs (arranger), MIDI and CV outputs
@@ -701,8 +986,9 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 		return false;
 	}
 
-	if (stemExportType == StemExportType::CLIP) {
-		// unmute clip for recording
+	if (stemExportType == StemExportType::CLIP || stemExportType == StemExportType::CHOKE_GROUP) {
+		// unmute clip for recording (for CHOKE_GROUP, the individual NoteRows in this group were
+		// already unmuted by the caller before this function was called)
 		muteState = true; // clip->activeIfNoSolo
 	}
 	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::DRUM) {
@@ -714,7 +1000,7 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 	uiNeedsRendering(getCurrentUI());
 
 	// set wav file name for stem to be exported
-	if (!setWavFileNameForStemExport(stemExportType, output, indexNumber, drum)) {
+	if (!setWavFileNameForStemExport(stemExportType, output, indexNumber, drum, chokeGroup)) {
 		abortStemExportProcess(deluge::l10n::String::STRING_FOR_STEM_NAME_TOO_LONG);
 		return false;
 	}
@@ -733,7 +1019,7 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 /// update recording mode if it needs to be updated
 /// increment number of stems exported so progress can be displayed
 void StemExport::finishCurrentStemExport(StemExportType stemExportType, bool& muteState) {
-	if (stemExportType == StemExportType::CLIP) {
+	if (stemExportType == StemExportType::CLIP || stemExportType == StemExportType::CHOKE_GROUP) {
 		// mute clip for recording
 		muteState = false; // clip->activeIfNoSolo
 	}
@@ -798,6 +1084,13 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 		currentSong->xScroll[NAVIGATION_CLIP] = 0;
 		getCurrentInstrumentClip()->yScroll = indexNumber - kDisplayHeight;
 	}
+	else if (stemExportType == StemExportType::CHOKE_GROUP) {
+		// A choke group spans however many rows share it, scattered anywhere in the kit, so no single
+		// row represents the stem being exported - scrolling to one would just make the display jump
+		// somewhere arbitrary. Reset the horizontal scroll like the other kit case and leave the
+		// vertical position where the user had it; the progress readout names the group.
+		currentSong->xScroll[NAVIGATION_CLIP] = 0;
+	}
 }
 
 /// display how many stems we've exported so far
@@ -829,6 +1122,9 @@ void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
 	}
 	else if (stemExportType == StemExportType::DRUM) {
 		exportStatus.append(" drums");
+	}
+	else if (stemExportType == StemExportType::CHOKE_GROUP) {
+		exportStatus.append(" choke groups");
 	}
 	deluge::hid::display::OLED::drawPermanentPopupLookingText(exportStatus.c_str());
 	deluge::hid::display::OLED::markChanged();
@@ -957,6 +1253,10 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 	case StemExportType::DRUM:
 		// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/DRUMS
 		error = tempPath.concatenate("/DRUMS");
+		break;
+	case StemExportType::CHOKE_GROUP:
+		// tempPath =  SAMPLES/EXPORTS/*INSERT SONG NAME*/CHOKE_GROUPS
+		error = tempPath.concatenate("/CHOKE_GROUPS");
 		break;
 	case StemExportType::MIXDOWN:
 		[[fallthrough]];
@@ -1087,9 +1387,11 @@ constexpr int32_t kMaxStemFileNameChars = FF_MAX_LFN;
 /// example: /SYNTH_TRACK_BASS SYNTH_TEMPO_ROOT NOTE-SCALE_00000.WAV
 /// example: /MIXDOWN_TEMPO_ROOT NOTE-SCALE.WAV
 /// example: /KIT_DRUM_808 KIT_SNARE_ROOT NOTE_SCALE_00000.WAV
+/// example: /KIT_CHOKE_GROUP_808 KIT_ChokeGroup3_ROOT NOTE-SCALE_002.WAV  (a bundled group)
+/// example: /KIT_CHOKE_GROUP_808 KIT_SNARE_ROOT NOTE-SCALE_003.WAV        (a drum on its own)
 /// this wavFileName is then concatenate to the filePath name to export the WAV file
 bool StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber,
-                                             SoundDrum* drum) {
+                                             SoundDrum* drum, uint8_t chokeGroup) {
 	// wavFileNameForStemExport = "/"
 	Error error = wavFileNameForStemExport.set("/");
 	if (error != Error::NONE) {
@@ -1133,6 +1435,9 @@ bool StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		else if (stemExportType == StemExportType::DRUM) {
 			exportType = "DRUM";
 		}
+		else if (stemExportType == StemExportType::CHOKE_GROUP) {
+			exportType = "CHOKE_GROUP";
+		}
 
 		// wavFileNameForStemExport = /OutputType_StemExportType_OutputName
 		outputName = output->name.get();
@@ -1160,6 +1465,28 @@ bool StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	else if (stemExportType == StemExportType::DRUM) {
 		length = snprintf(fileName, sizeof(fileName), "%s_%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType,
 		                  outputName, drum->drumName.c_str(), tempo, noteName, scaleName, fileNumber);
+	}
+	// A choke-group export writes two shapes of name, because it writes two shapes of file: a
+	// bundled group is named for the group, and a drum exported on its own is named for the drum,
+	// exactly as the plain per-drum export names it. chokeGroup 0 is the caller's way of saying
+	// "this unit is one drum". The trailing index counts files written from 000 either way - it is
+	// not the group number, since most kits leave gaps in the 1-8 range.
+	//
+	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_ChokeGroupN_tempo_noteName-scaleName_###.WAV
+	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_DrumName_tempo_noteName-scaleName_###.WAV
+	else if (stemExportType == StemExportType::CHOKE_GROUP) {
+		if (chokeGroup >= deluge::drum::kMinChokeGroup && drum == nullptr) {
+			length = snprintf(fileName, sizeof(fileName), "%s_%s_%s_ChokeGroup%d_%dBPM_%s-%s_%03d.WAV", outputType,
+			                  exportType, outputName, chokeGroup, tempo, noteName, scaleName, fileNumber);
+		}
+		else if (drum != nullptr) {
+			length = snprintf(fileName, sizeof(fileName), "%s_%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType,
+			                  outputName, drum->drumName.c_str(), tempo, noteName, scaleName, fileNumber);
+		}
+		else {
+			// neither a group nor a drum - nothing sensible to name the file after
+			return false;
+		}
 	}
 	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_tempo_noteName-scaleName_###.WAV
 	else {

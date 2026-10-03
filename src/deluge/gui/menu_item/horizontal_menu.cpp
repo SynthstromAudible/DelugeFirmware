@@ -250,7 +250,7 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 			content_height -= label_height;
 		}
 
-		if (layout == FIXED && !isItemRelevant(item)) {
+		if (layout == FIXED && !is_relevant) {
 			// Draw a dash as a value indicating that the item is disabled
 			image.drawStringCentered("-", current_x, base_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
 			                         kTextTitleSizeY, box_width);
@@ -445,7 +445,7 @@ void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 	int32_t position_on_page = 0;
 
 	// Find the target item on the next / previous page
-	for (const auto it : std::views::filter(items, [&](auto i) { return layout == FIXED || isItemRelevant(i); })) {
+	for (const auto it : std::views::filter(items, [&](auto i) { return occupiesColumn(i, isItemRelevant(i)); })) {
 		const auto slots_count = it->getOccupiedSlots();
 
 		// Check if we need to move to the next page
@@ -470,6 +470,17 @@ void HorizontalMenu::selectMenuItem(int32_t page_number, int32_t item_pos) {
 	}
 }
 
+bool HorizontalMenu::occupiesColumn(const MenuItem* item, bool isRelevant) const {
+	if (isRelevant) {
+		return true;
+	}
+	// DYNAMIC drops irrelevant items outright. FIXED normally keeps them as a "-" placeholder so the
+	// columns stay put - but an item that asks to disappear entirely while it's irrelevant mustn't
+	// hold its column either: a reserved-but-blank slot still shoves its neighbours along, and can
+	// cost a whole extra page for something nothing can select.
+	return layout == FIXED && !item->hideWhenIrrelevant();
+}
+
 HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items, const MenuItem* currentItem) {
 	static std::vector<MenuItem*> visible_page_items;
 	visible_page_items.clear();
@@ -490,8 +501,7 @@ HorizontalMenu::Paging& HorizontalMenu::preparePaging(std::span<MenuItem*> items
 			// Read value beforehand
 			item->readCurrentValue();
 		}
-		// Skip non-relevant items in dynamic mode
-		if (layout != FIXED && !is_relevant) {
+		if (!occupiesColumn(item, is_relevant)) {
 			continue;
 		}
 

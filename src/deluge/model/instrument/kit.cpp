@@ -905,9 +905,9 @@ bool Kit::offerReceivedPitchBendToLearnedParams(MIDICable& cable, uint8_t channe
 	return messageUsed;
 }
 
-void Kit::choke() {
+void Kit::choke(uint8_t triggeringChokeGroup) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
-		thisDrum->choke(nullptr);
+		thisDrum->choke(nullptr, triggeringChokeGroup);
 	}
 }
 

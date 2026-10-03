@@ -3377,6 +3377,14 @@
               "oled": "Shortcut Overlay",
               "code": "OVER",
               "children": []
+            },
+            {
+              "varName": "menuChokeGroups",
+              "token": "STRING_FOR_COMMUNITY_FEATURE_CHOKE_GROUPS",
+              "oled": "Choke Groups",
+              "code": "CGRP",
+              "children": [],
+              "tag": "c1.3"
             }
           ],
           "tag": "c1.0"
@@ -15307,6 +15315,14 @@
               "tag": "c1.1"
             },
             {
+              "varName": "chokeGroupMenu",
+              "token": "STRING_FOR_CHOKE_GROUP",
+              "oled": "CHOKE GROUP",
+              "code": "CGRP",
+              "children": [],
+              "tag": "c1.3"
+            },
+            {
               "varName": "portaMenu",
               "token": "STRING_FOR_PORTAMENTO",
               "oled": "Portamento",
@@ -15652,6 +15668,29 @@
                         }
                       ],
                       "tag": "c1.2"
+                    },
+                    {
+                      "varName": "configureExportChokeGroupsMenu",
+                      "token": "STRING_FOR_CONFIGURE_EXPORT_STEMS_CHOKE_GROUPS",
+                      "oled": "Export Choke Groups",
+                      "code": "CHGR",
+                      "children": [
+                        {
+                          "varName": "virtualToggle_configureExportChokeGroupsMenu_0",
+                          "token": "STRING_FOR_DISABLED",
+                          "oled": "Disabled",
+                          "code": "OFF",
+                          "children": []
+                        },
+                        {
+                          "varName": "virtualToggle_configureExportChokeGroupsMenu_1",
+                          "token": "STRING_FOR_ENABLED",
+                          "oled": "Enabled",
+                          "code": "ON",
+                          "children": []
+                        }
+                      ],
+                      "tag": "c1.3"
                     }
                   ],
                   "tag": "c1.3"
@@ -25498,6 +25537,14 @@
               "tag": "c1.1"
             },
             {
+              "varName": "chokeGroupMenu",
+              "token": "STRING_FOR_CHOKE_GROUP",
+              "oled": "CHOKE GROUP",
+              "code": "CGRP",
+              "children": [],
+              "tag": "c1.3"
+            },
+            {
               "varName": "portaMenu",
               "token": "STRING_FOR_PORTAMENTO",
               "oled": "Portamento",
@@ -30330,5 +30377,5 @@
     "noteRowEditorMenu": "noteRowEditorRootMenu",
     "songClipSettingsMenu": "songClipSettingsMenu"
   },
-  "generatedAt": "2026-09-15T04:25:04.035Z"
+  "generatedAt": "2026-09-25T23:58:44.204Z"
 }
