@@ -739,7 +739,9 @@ int32_t getPreviousCharSpacingAdjustmentInPixels(uint8_t previous_char, uint8_t 
 	}
 
 	// add 1px spacing around the hyphen character to make it feel more spaced out
-	if (text_height == 10 && (previous_char == '-' || current_char == '-')) {
+	// don't add space if the hyphen is preceeded or succeeded by a space
+	if (text_height == 10
+	    && ((previous_char == '-' && current_char != ' ') || (previous_char != ' ' && current_char == '-'))) {
 		return 1;
 	}
 
