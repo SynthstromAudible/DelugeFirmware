@@ -1,11 +1,9 @@
-# deluge_project — the project-model library.
+# deluge_project — the project model: a song's persistent musical state as host data (deluge::project).
 #
-# The boundary for the modern, idiomatic, object-oriented C++23 project model
-# (deluge::project::Song): the persistent musical document, extracted out of the
-# legacy ::Song god-object (docs/dev/project_model_extraction.md). Mirrors the
-# deluge_dsp library: a STATIC lib linked into deluge_app, with the src/deluge
-# headers and SHARED_INCLUDE on its private include path so it can name the model
-# types (Clip, Output, …) as fields migrate in.
+# Standalone: it depends only on the standalone libraries below (plus foundation/panic.h), and
+# scripts/check_library_boundary.py holds it to that with no allowlist. What a host supplies — the memory model
+# containers use, its out-of-memory exception, and the edit guard around structural edits the render may observe —
+# comes through the link-time hooks in model_memory.h and edit_guard.h.
 
 file(GLOB_RECURSE deluge_project_SOURCES CONFIGURE_DEPENDS
   ${CMAKE_CURRENT_LIST_DIR}/*.cpp
@@ -13,28 +11,14 @@ file(GLOB_RECURSE deluge_project_SOURCES CONFIGURE_DEPENDS
 
 add_library(deluge_project STATIC ${deluge_project_SOURCES})
 
-target_include_directories(deluge_project PRIVATE
-  ${CMAKE_CURRENT_LIST_DIR}/../deluge
-  ${SHARED_INCLUDE}
-  # As heavyweight app types migrate in by value (e.g. GlobalEffectableForSong), their headers reach
-  # across the app's include environment — generated firmware_version.h, the <libdeluge/...> boundary,
-  # OSLikeStuff (scheduler_api.h), the resource-manager C ABI. Compile against deluge_app's include
-  # directories so those all resolve. Include dirs only (no link dependency), so this is not a cycle
-  # with deluge_app PUBLIC-linking deluge_project; the generator expression resolves after both targets
-  # are defined.
-  $<TARGET_PROPERTY:deluge_app,INTERFACE_INCLUDE_DIRECTORIES>
-)
-# Consumers (deluge_app) name this library's headers as "deluge-project/...".
-target_include_directories(deluge_project PUBLIC ${SHARED_INCLUDE})
+# Headers are included as "deluge-project/..."; the include root is src/ (this directory's parent).
+target_include_directories(deluge_project PUBLIC ${CMAKE_CURRENT_LIST_DIR}/..)
+target_compile_features(deluge_project PUBLIC cxx_std_23)
+if(DEFINED DELUGE_CXX_STANDARD)
+  set_target_properties(deluge_project PROPERTIES CXX_STANDARD ${DELUGE_CXX_STANDARD} CXX_STANDARD_REQUIRED ON
+                                                  CXX_EXTENSIONS ON)
+endif()
 
-set_target_properties(deluge_project
-    PROPERTIES
-        CXX_STANDARD ${DELUGE_CXX_STANDARD}
-        CXX_STANDARD_REQUIRED ON
-        CXX_EXTENSIONS ON
-)
-
-target_link_libraries(deluge_project PRIVATE etl::etl)
-target_link_libraries(deluge_project PUBLIC deluge_engine_types)
+target_link_libraries(deluge_project PUBLIC deluge_engine_types deluge_serialization deluge_music_theory)
 
 target_compile_options(deluge_project PUBLIC ${DELUGE_COMMON_COMPILE_OPTIONS})

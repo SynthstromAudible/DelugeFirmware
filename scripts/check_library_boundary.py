@@ -175,6 +175,11 @@ LIBRARIES: dict[str, Library] = {
     "music-theory": Library(
         REPO / "src" / "music-theory", "music-theory/", ("foundation/panic.h",)
     ),
+    "model": Library(
+        REPO / "src" / "deluge-project",
+        "deluge-project/",
+        ("engine-api/types/", "serialization/", "music-theory/", "foundation/panic.h"),
+    ),
 }
 
 

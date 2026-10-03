@@ -17,10 +17,10 @@
 
 #pragma once
 
-#include "model/scale/musical_key.h"
-#include "model/scale/note_set.h"
-#include "model/scale/preset_scales.h"
-#include "model/scale/scale_mapper.h"
+#include "music-theory/musical_key.h"
+#include "music-theory/note_set.h"
+#include "music-theory/preset_scales.h"
+#include "music-theory/scale_mapper.h"
 #include <bitset>
 
 namespace deluge::project {
@@ -29,12 +29,12 @@ namespace deluge::project {
 /// disabled, the user-defined scale, and the mapper that computes note remappings on a scale change.
 /// A component of deluge::project::Song.
 struct ScaleSettings {
-	MusicalKey key;
-	std::bitset<NUM_PRESET_SCALES> disabled_preset_scales;
+	deluge::music::MusicalKey key;
+	std::bitset<deluge::music::NUM_PRESET_SCALES> disabled_preset_scales;
 	/// The song's user scale (empty when none is defined). Serialized as the "userScale" tag.
-	NoteSet user_scale_notes;
+	deluge::music::NoteSet user_scale_notes;
 	/// Computes per-note remappings when the scale changes; effectively private state of that path.
-	ScaleMapper scale_mapper;
+	deluge::music::ScaleMapper scale_mapper;
 
 	/// Whether a user scale is currently defined.
 	[[nodiscard]] bool hasUserScale() const { return !user_scale_notes.isEmpty(); }
