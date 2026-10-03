@@ -1,11 +1,11 @@
-#include "model/scale/musical_key.h"
-#include "definitions_cxx.hpp"
-#include "io/debug/log.h"
-#include "util/const_functions.h"
+#include "music-theory/musical_key.h"
+#include "music-theory/modulo.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <cstdlib>
+
+namespace deluge::music {
 
 MusicalKey::MusicalKey() {
 	modeNotes.add(0);
@@ -13,7 +13,7 @@ MusicalKey::MusicalKey() {
 }
 
 uint8_t MusicalKey::intervalOf(int32_t noteCode) const {
-	return mod(noteCode - rootNote, 12);
+	return detail::mod(noteCode - rootNote, 12);
 }
 
 int8_t MusicalKey::degreeOf(int32_t noteCode) const {
@@ -53,7 +53,6 @@ int32_t MusicalKey::getYNoteFromYVisual(int32_t yVisual, bool inKeyMode) const {
 }
 
 int32_t MusicalKey::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave) const {
-	D_PRINTLN("Incrementing note %i by %i", yNote, increment);
 	auto inc = std::clamp<int32_t>(increment, -1, 1);
 	auto num_scale_notes = modeNotes.count();
 	int32_t y_note_relative_to_root = yNote - rootNote;
@@ -131,3 +130,5 @@ bool MusicalKey::mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset) 
 Scale MusicalKey::getCurrentScale() const {
 	return getScale(modeNotes);
 }
+
+} // namespace deluge::music

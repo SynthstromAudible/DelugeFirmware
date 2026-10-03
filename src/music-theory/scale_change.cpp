@@ -1,5 +1,7 @@
-#include "model/scale/scale_change.h"
-#include "model/scale/note_set.h"
+#include "music-theory/scale_change.h"
+#include "music-theory/note_set.h"
+
+namespace deluge::music {
 
 NoteSet ScaleChange::applyTo(NoteSet notes) const {
 	NoteSet newSet;
@@ -11,3 +13,5 @@ NoteSet ScaleChange::applyTo(NoteSet notes) const {
 	}
 	return newSet;
 }
+
+} // namespace deluge::music

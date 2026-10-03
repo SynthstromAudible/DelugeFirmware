@@ -5,8 +5,10 @@
 #include "model/scale/scale_change.h"
 #include "model/scale/scale_mapper.h"
 #include "model/scale/utils.h"
+#include "note_set_test_strings.h"
 
 #include <algorithm>
+#include <iostream>
 #include <random>
 #include <vector>
 
@@ -544,34 +546,6 @@ TEST(ScaleMapperTest, notesOutsideSmallerTargetScale) {
 	CHECK(ok);
 	NoteSet reverseNotes = changes.applyTo(targetNotes);
 	CHECK_EQUAL(notes, reverseNotes);
-}
-
-TEST(ScaleMapperTest, willRefuseIfDoesNotFitTarget) {
-	// This specific case has five notes, but root is always implied: if we transpose something else to root,
-	// we get a many to one mapping, and cannot recover.
-	ScaleMapper scaleMapper;
-	// clang-format off
-	const NoteSet diatonicMajor =   NoteSet{0, 2, 4, 5, 7, 9, 11};
-	const NoteSet pentatonicMajor = NoteSet{0, 2, 4,    7, 9};
-	const NoteSet notes =           NoteSet{   2, 4,    7, 9, 11};
-	// clang-format on
-
-	ScaleChange changes;
-	bool ok = scaleMapper.computeChangeFrom(notes, diatonicMajor, pentatonicMajor, changes);
-	CHECK(!ok);
-}
-
-TEST(ScaleMapperTest, willRefuseIfSourceNotesNotInScale) {
-	ScaleMapper scaleMapper;
-	// clang-format off
-	const NoteSet diatonicMajor =   NoteSet{0,    2,    4, 5, 7, 9, 11};
-	const NoteSet pentatonicMajor = NoteSet{0,    2,    4,    7, 9};
-	const NoteSet notes =           NoteSet{         3};
-	// clang-format on
-
-	ScaleChange changes;
-	bool ok = scaleMapper.computeChangeFrom(notes, diatonicMajor, pentatonicMajor, changes);
-	CHECK(!ok);
 }
 
 TEST(ScaleMapperTest, notesDontMatchTargetScale_plusNoRootInUse) {

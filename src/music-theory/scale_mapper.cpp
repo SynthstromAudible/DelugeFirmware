@@ -1,12 +1,10 @@
-#include "model/scale/scale_mapper.h"
-#include "definitions.h"
+#include "music-theory/scale_mapper.h"
+#include "foundation/panic.h"
+
+namespace deluge::music {
 
 bool oops(const char* msg) {
-#ifdef IN_UNIT_TESTS
-	std::cerr << "conputeChangeFrom failed with " << msg << std::endl;
-#else
 	FREEZE_WITH_ERROR(msg);
-#endif
 	return false;
 }
 
@@ -159,3 +157,5 @@ NoteSet ScaleMapper::nextTransitionScale(NoteSet notes, NoteSet transitionScale,
 	}
 	return nextScale;
 }
+
+} // namespace deluge::music

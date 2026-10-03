@@ -1,7 +1,6 @@
 #pragma once
 
-#include <cstdint>
+// The scale theory lives in deluge_music_theory; this keeps the app's existing includes working.
+#include "music-theory/utils.h"
 
-/** Determines if two semitone values refer to the same chromatic note.
- */
-bool isSameNote(int16_t a, int16_t b);
+using deluge::music::isSameNote;

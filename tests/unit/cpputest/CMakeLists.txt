@@ -32,13 +32,13 @@ file(GLOB_RECURSE deluge_SOURCES
         # For value scaling
         ../../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests
-        ../../../src/deluge/model/scale/musical_key.cpp
-        ../../../src/deluge/model/scale/note_set.cpp
-        ../../../src/deluge/model/scale/preset_scales.cpp
-        ../../../src/deluge/model/scale/utils.cpp
-        ../../../src/deluge/model/scale/preset_scales.cpp
-        ../../../src/deluge/model/scale/scale_change.cpp
-        ../../../src/deluge/model/scale/scale_mapper.cpp
+        ../../../src/music-theory/musical_key.cpp
+        ../../../src/music-theory/note_set.cpp
+        ../../../src/music-theory/preset_scales.cpp
+        ../../../src/music-theory/utils.cpp
+        ../../../src/music-theory/preset_scales.cpp
+        ../../../src/music-theory/scale_change.cpp
+        ../../../src/music-theory/scale_mapper.cpp
         # For clip iterator tests
         ../../../src/deluge/model/song/clip_iterators.cpp
         # For sync tests

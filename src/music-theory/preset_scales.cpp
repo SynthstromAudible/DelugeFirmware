@@ -1,5 +1,7 @@
-#include "model/scale/preset_scales.h"
-#include "model/scale/note_set.h"
+#include "music-theory/preset_scales.h"
+#include "music-theory/note_set.h"
+
+namespace deluge::music {
 
 std::array<char const*, NUM_SCALELIKE> scalelikeNames = {
 #define DEF(id, name, notes) name,
@@ -96,3 +98,5 @@ uint8_t scaleToFlashStorageCode(Scale scale) {
 	}
 	return FLASH_CODE_NO_SCALE;
 }
+
+} // namespace deluge::music

@@ -172,6 +172,9 @@ LIBRARIES: dict[str, Library] = {
     "serialization": Library(
         REPO / "src" / "serialization", "serialization/", ("foundation/panic.h",)
     ),
+    "music-theory": Library(
+        REPO / "src" / "music-theory", "music-theory/", ("foundation/panic.h",)
+    ),
 }
 
 

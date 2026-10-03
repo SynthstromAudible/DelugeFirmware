@@ -101,7 +101,7 @@ fn archive_app_objects(
         panic!(
             "C++ app objects not found at {}. Build them first:\n  \
              cmake --build {} --target deluge_app NE10 eyalroz_printf \
-             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_foundation deluge_serialization deluge_project deluge_midi",
+             deluge_dsp deluge_dsp_fixed deluge_dsp_float deluge_foundation deluge_serialization deluge_music_theory deluge_project deluge_midi",
             app_objs_dir.display(),
             build_dir.display()
         );
@@ -136,7 +136,7 @@ fn archive_app_objects(
 /// Emits the app archive and its static libraries as one `--start-group`, because the references
 /// are mutual: the C++ app calls the `deluge_*` services, and this crate calls `deluge_app_init`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
-    let deps: [(&str, &str); 9] = [
+    let deps: [(&str, &str); 10] = [
         ("src/NE10", "libNE10.a"),
         ("src/lib", "libeyalroz_printf.a"),
         ("src/deluge/dsp", "libdeluge_dsp.a"),
@@ -144,6 +144,7 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
         ("src/deluge/dsp-next", "libdeluge-dsp-float.a"),
         ("src/foundation", "libdeluge_foundation.a"),
         ("src/serialization", "libdeluge_serialization.a"),
+        ("src/music-theory", "libdeluge_music_theory.a"),
         ("src/deluge-project", "libdeluge_project.a"),
         ("src/midi", "libdeluge_midi.a"),
     ];

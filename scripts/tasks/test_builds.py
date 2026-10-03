@@ -57,6 +57,7 @@ HOST_APP_TARGETS = [
     "deluge_dsp_float",
     "deluge_foundation",
     "deluge_serialization",
+    "deluge_music_theory",
     "deluge_project",
     "deluge_midi",
 ]
