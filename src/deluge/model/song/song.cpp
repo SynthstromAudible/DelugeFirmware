@@ -170,7 +170,7 @@ Song::Song() {
 	outputClipInstanceListIsCurrentlyInvalid = false;
 	project.transport.inside_world_tick_magnitude = FlashStorage::defaultMagnitude;
 	project.transport.inside_world_tick_magnitude_offset_from_bpm = 0;
-	project.transport.sync_scaling_clip = nullptr;
+	live.sync_scaling_clip = nullptr;
 	runtimeView.currentClip = nullptr;
 	project.metadata.slot = deluge::project::kNoSlot;
 	project.metadata.sub_slot = -1;
@@ -794,10 +794,10 @@ bool Song::areAllClipsInSectionPlaying(int32_t section) {
 }
 
 uint32_t Song::getInputTickScale() {
-	if (!project.transport.sync_scaling_clip) {
+	if (!live.sync_scaling_clip) {
 		return 3;
 	}
-	uint32_t inputTickScale = project.transport.sync_scaling_clip->loopLength();
+	uint32_t inputTickScale = live.sync_scaling_clip->loopLength();
 	while (!(inputTickScale & 1)) {
 		inputTickScale >>= 1;
 	}
@@ -805,12 +805,12 @@ uint32_t Song::getInputTickScale() {
 }
 
 Clip* Song::getSyncScalingClip() {
-	return project.transport.sync_scaling_clip;
+	return live.sync_scaling_clip;
 }
 
 void Song::setInputTickScaleClip(Clip* clip) {
 	uint32_t oldScale = getInputTickScale();
-	project.transport.sync_scaling_clip = clip;
+	live.sync_scaling_clip = clip;
 	inputTickScalePotentiallyJustChanged(oldScale);
 }
 
@@ -887,7 +887,7 @@ void Song::loadNextSong() {
 void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip) {
 	uint32_t oldLength = clip->loopLength();
 
-	if (clip == project.transport.sync_scaling_clip) {
+	if (clip == live.sync_scaling_clip) {
 		uint32_t oldScale = getInputTickScale();
 		clip->setLoopLength(newLength);
 		inputTickScalePotentiallyJustChanged(oldScale);
@@ -940,7 +940,7 @@ void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 	clip->increaseLengthWithRepeats(modelStack, oldLength << 1, IndependentNoteRowLengthIncrease::DOUBLE, false,
 	                                action);
 
-	if (clip == project.transport.sync_scaling_clip) {
+	if (clip == live.sync_scaling_clip) {
 		inputTickScalePotentiallyJustChanged(oldScale);
 	}
 
@@ -2205,8 +2205,8 @@ skipInstance:
 			if (runtimeView.currentClip == clip) {
 				runtimeView.currentClip = nullptr;
 			}
-			if (project.transport.sync_scaling_clip == clip) {
-				project.transport.sync_scaling_clip = nullptr;
+			if (live.sync_scaling_clip == clip) {
+				live.sync_scaling_clip = nullptr;
 			}
 
 			live.clips.arrangement_only_clips.erase(live.clips.arrangement_only_clips.begin() + c);
@@ -2222,10 +2222,9 @@ skipInstance:
 		project.global_fx.global_effectable.compensateVolumeForResonance(&paramManager);
 	}
 
-	if (project.transport.sync_scaling_clip) {
-		Clip* newInputTickScaleClip = project.transport.sync_scaling_clip;
-		project.transport.sync_scaling_clip =
-		    nullptr; // We shouldn't have set this manually earlier, anyway - we just saved hassle
+	if (live.sync_scaling_clip) {
+		Clip* newInputTickScaleClip = live.sync_scaling_clip;
+		live.sync_scaling_clip = nullptr; // We shouldn't have set this manually earlier, anyway - we just saved hassle
 		setInputTickScaleClip(newInputTickScaleClip);
 	}
 
@@ -2438,7 +2437,7 @@ readClip:
 					syncNode = clipNode->find("isSyncScaleTrack"); // legacy alias
 				}
 				if (syncNode != nullptr && stringToInt(syncNode->str().c_str())) {
-					project.transport.sync_scaling_clip = newClip;
+					live.sync_scaling_clip = newClip;
 				}
 
 				// muteMidiCommand: a nested <note> object, read tree-natively via LearnedMIDI::readFromTree. Covered by
@@ -5612,7 +5611,7 @@ void Song::swapClips(Clip* newClip, Clip* oldClip, int32_t clipIndex) {
 	live.clips.session_clips[clipIndex] = newClip;
 
 	if (oldClip == getSyncScalingClip()) {
-		project.transport.sync_scaling_clip = newClip;
+		live.sync_scaling_clip = newClip;
 	}
 
 	if (oldClip == runtimeView.currentClip) {

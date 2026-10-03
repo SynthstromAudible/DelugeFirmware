@@ -882,8 +882,7 @@ void printDangling() {
 	const bool inSong = currentSong->live.clips.session_clips.getIndexForClip(g_victim) >= 0
 	                    || currentSong->live.clips.arrangement_only_clips.getIndexForClip(g_victim) >= 0;
 	printf("CL-DANGLING leg=%s current=%d sync=%d view=%d recordSource=%d inSong=%d\n", legName(g_leg),
-	       currentSong->getCurrentClip() == clip ? 1 : 0,
-	       currentSong->project.transport.sync_scaling_clip == clip ? 1 : 0,
+	       currentSong->getCurrentClip() == clip ? 1 : 0, currentSong->live.sync_scaling_clip == clip ? 1 : 0,
 	       view.activeModControllableModelStack.getTimelineCounterAllowNull() == clip ? 1 : 0, recordSource ? 1 : 0,
 	       inSong ? 1 : 0);
 }
@@ -925,9 +924,9 @@ void cleanUpLeg() {
 	if (view.activeModControllableModelStack.getTimelineCounterAllowNull() == victim) {
 		view.setActiveModControllableTimelineCounter(g_home);
 	}
-	if (currentSong->project.transport.sync_scaling_clip == victim) {
+	if (currentSong->live.sync_scaling_clip == victim) {
 		// Not setInputTickScaleClip(): that reads the old clip's length.
-		currentSong->project.transport.sync_scaling_clip = nullptr;
+		currentSong->live.sync_scaling_clip = nullptr;
 	}
 	if (g_leg == Leg::SyncScale) {
 		// Whether the leg or the render dropped the sync-scaling clip, the tick scale it set is still in place.
@@ -1103,7 +1102,7 @@ void runTick() {
 		if (isClipLeg(g_leg)) {
 			printf("CL-PROBE leg=%s playing=%d ticks=%d voices=%d current=%d sync=%d view=%d recordSource=%d\n",
 			       legName(g_leg), playing ? 1 : 0, ticks, voices, currentSong->getCurrentClip() == g_victim ? 1 : 0,
-			       currentSong->project.transport.sync_scaling_clip == g_victim ? 1 : 0,
+			       currentSong->live.sync_scaling_clip == g_victim ? 1 : 0,
 			       view.activeModControllableModelStack.getTimelineCounterAllowNull() == g_victim ? 1 : 0,
 			       (g_recorder != nullptr && g_recorder->beingRecordedFromClip == g_victim) ? 1 : 0);
 		}

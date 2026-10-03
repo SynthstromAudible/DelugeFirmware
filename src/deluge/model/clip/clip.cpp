@@ -118,7 +118,7 @@ bool renderStillReferences(Clip* clip) {
 	if (currentSong == nullptr) {
 		return false;
 	}
-	if (currentSong->getCurrentClip() == clip || currentSong->project.transport.sync_scaling_clip == clip) {
+	if (currentSong->getCurrentClip() == clip || currentSong->live.sync_scaling_clip == clip) {
 		return true;
 	}
 	for (ClipArray const* array :
@@ -591,7 +591,7 @@ Error Clip::resumeOriginalClipFromThisClone(ModelStackWithTimelineCounter* model
 bool Clip::deleteSoundsWhichWontSound(Song* song) {
 	return (output->isSkippingRendering() && !song->isClipActive(this)
 	        && this != view.activeModControllableModelStack.getTimelineCounterAllowNull()
-	        && this != song->project.transport.sync_scaling_clip);
+	        && this != song->live.sync_scaling_clip);
 }
 
 void Clip::beginInstance(Song* song, int32_t arrangementRecordPos) {
@@ -1074,7 +1074,7 @@ Error Clip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack, int3
 }
 
 bool Clip::wantsToBeginLinearRecording(Song* song) {
-	return (armedForRecording && song->project.transport.sync_scaling_clip != this);
+	return (armedForRecording && song->live.sync_scaling_clip != this);
 }
 
 void Clip::setSequenceDirectionMode(ModelStackWithTimelineCounter* modelStack, SequenceDirection newMode) {

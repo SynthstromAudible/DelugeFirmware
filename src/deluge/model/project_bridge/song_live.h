@@ -9,6 +9,8 @@
 struct SongLive {
 	deluge::bridge::Clips clips;     ///< the session grid and the arrangement-only clips
 	deluge::bridge::MediaPool media; ///< the output list and the hibernating instruments
+	/// Clip whose loop length scales external input ticks (the sync master).
+	Clip* sync_scaling_clip{nullptr};
 	/// Parked ParamManagers, keyed by (ModControllableAudio, Clip); for a given ModControllableAudio the null-Clip
 	/// entry sorts first. Node-based, so a ParamManager never moves in memory.
 	deluge::bridge::ParamBackup param_backup;
