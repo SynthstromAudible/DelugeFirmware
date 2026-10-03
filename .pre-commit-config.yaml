@@ -89,7 +89,7 @@ repos:
         entry: python3 scripts/check_engine_types_boundary.py
         language: system
         pass_filenames: false
-        files: ^(src/engine-api/types/|scripts/check_engine_types_boundary\.py)
+        files: ^(src/engine-api/types/|scripts/(check|test_check)_engine_types_boundary\.py)
 # - repo: local
 
 #   hooks:

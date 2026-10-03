@@ -1145,6 +1145,18 @@ tier = "manual"
 runtime = "~2s"
 
 [[harness]]
+name = "engine-types-boundary-selftest"
+path = "scripts"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the engine-api types boundary check rejects every way an app header could slip in: a non-standard <header>, path traversal, an include it cannot parse (a macro or a comment), and any C-family file suffix"
+run = ["python3", "-m", "unittest", "test_check_engine_types_boundary"]
+tier = "pr"
+runtime = "~1s"
+
+[[harness]]
 name = "registry-selftest"
 path = "scripts/tasks"
 level = "unit"
