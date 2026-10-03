@@ -67,6 +67,16 @@ describe ordered_pos_vector("the model's sorted container", ${
 		expect(test::counts.depth).to_equal(0);
 	});
 
+	it("brackets a resize with the host's guard", _ {
+		OrderedPosVector<ParamNode> nodes;
+		(void)nodes.insertSorted(5);
+		test::counts = {};
+		nodes.resize(64);
+		expect(test::counts.edits).to_equal(1);
+		expect(test::counts.unguarded_edits).to_equal(0);
+		expect(test::counts.exits).to_equal(test::counts.enters);
+	});
+
 	it("reports exhausted memory as an AllocError, leaving the contents as they were", _ {
 		OrderedPosVector<ParamNode> nodes;
 		(void)nodes.insertSorted(3);
