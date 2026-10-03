@@ -46,7 +46,9 @@ public:
 		};
 	}
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->lfoConfig[lfoId_].waveType); }
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentSound->snapshot().lfoConfig[lfoId_].waveType);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<LFOType>();
@@ -82,7 +84,7 @@ public:
 		oled_canvas::Canvas& image = OLED::main;
 
 		const Icon& icon = [&] {
-			switch (soundEditor.currentSound->lfoConfig[lfoId_].waveType) {
+			switch (soundEditor.currentSound->snapshot().lfoConfig[lfoId_].waveType) {
 			case LFOType::SINE:
 				return OLED::sineIcon;
 			case LFOType::TRIANGLE:

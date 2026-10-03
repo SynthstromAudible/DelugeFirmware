@@ -33,8 +33,8 @@ public:
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
 	void readCurrentValue() override {
-		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->lfoConfig[lfoId_].syncType,
-		                                            soundEditor.currentSound->lfoConfig[lfoId_].syncLevel));
+		this->setValue(syncTypeAndLevelToMenuOption(soundEditor.currentSound->snapshot().lfoConfig[lfoId_].syncType,
+		                                            soundEditor.currentSound->snapshot().lfoConfig[lfoId_].syncLevel));
 	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {

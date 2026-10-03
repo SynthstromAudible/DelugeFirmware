@@ -110,6 +110,11 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		expect(snap.oscillatorSync == d.oscillator_sync, "oscillatorSync");
 		expect(snap.voicePriority == static_cast<VoicePriority>(d.voice_priority), "voicePriority");
 		expect(snap.modulator1ToModulator0 == d.modulator1_to_modulator0, "modulator1ToModulator0");
+		for (int32_t l = 0; l < LFO_COUNT; l++) {
+			expect(snap.lfoConfig[l].waveType == static_cast<LFOType>(d.lfo_wave_type[l]), "lfoConfig.waveType");
+			expect(snap.lfoConfig[l].syncType == static_cast<SyncType>(d.lfo_sync_type[l]), "lfoConfig.syncType");
+			expect(snap.lfoConfig[l].syncLevel == static_cast<SyncLevel>(d.lfo_sync_level[l]), "lfoConfig.syncLevel");
+		}
 		for (int32_t i = 0; i < 2; i++) {
 			expect(snap.modulatorTranspose[i] == d.modulator_transpose[i], "modulatorTranspose");
 			expect(snap.oscRetriggerPhase[i] == d.osc_retrigger_phase[i], "oscRetriggerPhase");
@@ -172,6 +177,21 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		              && d.modulator_retrigger_phase[1] == before.modulatorRetriggerPhase[1] + 5,
 		          "setModulatorRetriggerPhase");
 		sound.setModulatorRetriggerPhase(1, before.modulatorRetriggerPhase[1]);
+		const LFOConfig lfo = before.lfoConfig[LFO2_ID];
+		const LFOType otherWave = lfo.waveType == LFOType::SQUARE ? LFOType::SAW : LFOType::SQUARE;
+		sound.setLfoWaveType(LFO2_ID, otherWave);
+		roundTrip(sound.snapshot().lfoConfig[LFO2_ID].waveType == otherWave
+		              && static_cast<LFOType>(d.lfo_wave_type[LFO2_ID]) == otherWave,
+		          "setLfoWaveType");
+		sound.setLfoWaveType(LFO2_ID, lfo.waveType);
+		const SyncLevel otherLevel = lfo.syncLevel == SYNC_LEVEL_8TH ? SYNC_LEVEL_16TH : SYNC_LEVEL_8TH;
+		sound.setLfoSync(LFO2_ID, SYNC_TYPE_TRIPLET, otherLevel);
+		roundTrip(sound.snapshot().lfoConfig[LFO2_ID].syncType == SYNC_TYPE_TRIPLET
+		              && sound.snapshot().lfoConfig[LFO2_ID].syncLevel == otherLevel
+		              && static_cast<SyncType>(d.lfo_sync_type[LFO2_ID]) == SYNC_TYPE_TRIPLET
+		              && static_cast<SyncLevel>(d.lfo_sync_level[LFO2_ID]) == otherLevel,
+		          "setLfoSync");
+		sound.setLfoSync(LFO2_ID, lfo.syncType, lfo.syncLevel);
 	}
 	std::fprintf(io.err, "M4b snapshot coherence %s: %d bound sounds, %d mismatches\n", label, sounds, bad);
 	return bad;

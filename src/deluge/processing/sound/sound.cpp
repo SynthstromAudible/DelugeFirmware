@@ -1005,12 +1005,11 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 	else if (!strcmp(tagName, "lfo1")) {
 		// Set default values in case they are not configured.
-		lfoConfig[LFO1_ID].syncLevel = SYNC_LEVEL_NONE;
-		lfoConfig[LFO1_ID].syncType = SYNC_TYPE_EVEN;
+		setLfoSync(LFO1_ID, SYNC_TYPE_EVEN, SYNC_LEVEL_NONE);
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
-				lfoConfig[LFO1_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
+				setLfoWaveType(LFO1_ID, stringToLFOType(reader.readTagOrAttributeValue()));
 				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
@@ -1020,12 +1019,14 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				lfoConfig[LFO1_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				setLfoSync(LFO1_ID, (SyncType)reader.readTagOrAttributeValueInt(),
+				           snapshot_.lfoConfig[LFO1_ID].syncLevel);
 				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				lfoConfig[LFO1_ID].syncLevel =
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
+				setLfoSync(
+				    LFO1_ID, snapshot_.lfoConfig[LFO1_ID].syncType,
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
 				reader.exitTag("syncLevel");
 			}
 			else {
@@ -1038,12 +1039,11 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 	else if (!strcmp(tagName, "lfo2")) {
 		// Set default values in case they are not configured.
-		lfoConfig[LFO2_ID].syncLevel = SYNC_LEVEL_NONE;
-		lfoConfig[LFO2_ID].syncType = SYNC_TYPE_EVEN;
+		setLfoSync(LFO2_ID, SYNC_TYPE_EVEN, SYNC_LEVEL_NONE);
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
-				lfoConfig[LFO2_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
+				setLfoWaveType(LFO2_ID, stringToLFOType(reader.readTagOrAttributeValue()));
 				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
@@ -1053,12 +1053,14 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				lfoConfig[LFO2_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				setLfoSync(LFO2_ID, (SyncType)reader.readTagOrAttributeValueInt(),
+				           snapshot_.lfoConfig[LFO2_ID].syncLevel);
 				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				lfoConfig[LFO2_ID].syncLevel =
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
+				setLfoSync(
+				    LFO2_ID, snapshot_.lfoConfig[LFO2_ID].syncType,
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
 				reader.exitTag("syncLevel");
 			}
 			else {
@@ -1071,12 +1073,11 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 	else if (!strcmp(tagName, "lfo3")) {
 		// Set default values in case they are not configured.
-		lfoConfig[LFO3_ID].syncLevel = SYNC_LEVEL_NONE;
-		lfoConfig[LFO3_ID].syncType = SYNC_TYPE_EVEN;
+		setLfoSync(LFO3_ID, SYNC_TYPE_EVEN, SYNC_LEVEL_NONE);
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
-				lfoConfig[LFO3_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
+				setLfoWaveType(LFO3_ID, stringToLFOType(reader.readTagOrAttributeValue()));
 				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
@@ -1086,12 +1087,14 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				lfoConfig[LFO3_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				setLfoSync(LFO3_ID, (SyncType)reader.readTagOrAttributeValueInt(),
+				           snapshot_.lfoConfig[LFO3_ID].syncLevel);
 				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				lfoConfig[LFO3_ID].syncLevel =
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
+				setLfoSync(
+				    LFO3_ID, snapshot_.lfoConfig[LFO3_ID].syncType,
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
 				reader.exitTag("syncLevel");
 			}
 			else {
@@ -1104,12 +1107,11 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 	else if (!strcmp(tagName, "lfo4")) {
 		// Set default values in case they are not configured.
-		lfoConfig[LFO4_ID].syncLevel = SYNC_LEVEL_NONE;
-		lfoConfig[LFO4_ID].syncType = SYNC_TYPE_EVEN;
+		setLfoSync(LFO4_ID, SYNC_TYPE_EVEN, SYNC_LEVEL_NONE);
 		reader.match('{');
 		while (*(tagName = reader.readNextTagOrAttributeName())) {
 			if (!strcmp(tagName, "type")) {
-				lfoConfig[LFO4_ID].waveType = stringToLFOType(reader.readTagOrAttributeValue());
+				setLfoWaveType(LFO4_ID, stringToLFOType(reader.readTagOrAttributeValue()));
 				reader.exitTag("type");
 			}
 			else if (!strcmp(tagName, "rate")) {
@@ -1119,12 +1121,14 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("rate");
 			}
 			else if (!strcmp(tagName, "syncType")) {
-				lfoConfig[LFO4_ID].syncType = (SyncType)reader.readTagOrAttributeValueInt();
+				setLfoSync(LFO4_ID, (SyncType)reader.readTagOrAttributeValueInt(),
+				           snapshot_.lfoConfig[LFO4_ID].syncLevel);
 				reader.exitTag("syncType");
 			}
 			else if (!strcmp(tagName, "syncLevel")) {
-				lfoConfig[LFO4_ID].syncLevel =
-				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt());
+				setLfoSync(
+				    LFO4_ID, snapshot_.lfoConfig[LFO4_ID].syncType,
+				    (SyncLevel)song->convertSyncLevelFromFileValueToInternalValue(reader.readTagOrAttributeValueInt()));
 				reader.exitTag("syncLevel");
 			}
 			else {
@@ -1597,12 +1601,12 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::GLOBAL_LFO_FREQ_1:
-		return (lfoConfig[LFO1_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
-		                                                         : PatchCableAcceptance::DISALLOWED;
+		return (snapshot_.lfoConfig[LFO1_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                                   : PatchCableAcceptance::DISALLOWED;
 
 	case params::GLOBAL_LFO_FREQ_2:
-		return (lfoConfig[LFO3_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
-		                                                         : PatchCableAcceptance::DISALLOWED;
+		return (snapshot_.lfoConfig[LFO3_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                                   : PatchCableAcceptance::DISALLOWED;
 
 		// Nothing may patch to post-fx volume. This is for manual control only. The sidechain patches to post-reverb
 		// volume, and everything else patches to per-voice, "local" volume
@@ -2572,8 +2576,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		params.sourceValues[patchSourceLFOGlobalUnderlying] = globalLFO1.render(
-		    output.size(), lfoConfig[LFO1_ID], getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
+		params.sourceValues[patchSourceLFOGlobalUnderlying] =
+		    globalLFO1.render(output.size(), snapshot_.lfoConfig[LFO1_ID],
+		                      getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1));
 		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
@@ -2585,8 +2590,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		params.sourceValues[patchSourceLFOGlobalUnderlying] = globalLFO3.render(
-		    output.size(), lfoConfig[LFO3_ID], getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
+		params.sourceValues[patchSourceLFOGlobalUnderlying] =
+		    globalLFO3.render(output.size(), snapshot_.lfoConfig[LFO3_ID],
+		                      getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2));
 		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
@@ -2734,12 +2740,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .filterRoute = filterRoute,
 		    .volumeNeutralValueForUnison = volumeNeutralValueForUnison,
 		    .synthMode = getSynthMode(),
-		    .lfo2Config = lfoConfig[LFO2_ID],
-		    .lfo4Config = lfoConfig[LFO4_ID],
-		    .lfo2SyncedPhaseIncrement =
-		        (lfoConfig[LFO2_ID].syncLevel == SYNC_LEVEL_NONE) ? 0 : getSyncedLFOPhaseIncrement(lfoConfig[LFO2_ID]),
-		    .lfo4SyncedPhaseIncrement =
-		        (lfoConfig[LFO4_ID].syncLevel == SYNC_LEVEL_NONE) ? 0 : getSyncedLFOPhaseIncrement(lfoConfig[LFO4_ID]),
+		    .lfo2Config = snapshot_.lfoConfig[LFO2_ID],
+		    .lfo4Config = snapshot_.lfoConfig[LFO4_ID],
+		    .lfo2SyncedPhaseIncrement = (snapshot_.lfoConfig[LFO2_ID].syncLevel == SYNC_LEVEL_NONE)
+		                                    ? 0
+		                                    : getSyncedLFOPhaseIncrement(snapshot_.lfoConfig[LFO2_ID]),
+		    .lfo4SyncedPhaseIncrement = (snapshot_.lfoConfig[LFO4_ID].syncLevel == SYNC_LEVEL_NONE)
+		                                    ? 0
+		                                    : getSyncedLFOPhaseIncrement(snapshot_.lfoConfig[LFO4_ID]),
 		    .hasFilters = thisHasFilters,
 		    .expressionSourcesChangedAtSynthLevel = expressionSourcesChangedAtSynthLevel,
 		    .monophonicExpressionValues = monophonicExpressionValues,
@@ -2957,7 +2965,7 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 }
 
 uint32_t Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param) {
-	LFOConfig& config = lfoConfig[lfoId];
+	const LFOConfig& config = snapshot_.lfoConfig[lfoId];
 	if (config.syncLevel == SYNC_LEVEL_NONE) {
 		return params.paramFinalValues[param - params::FIRST_GLOBAL];
 	}
@@ -2986,13 +2994,13 @@ void Sound::resyncGlobalLFOs() {
 		return; // no clock, no sync
 	}
 	// TOOD: convert to a guard clause. Now avoiding re-indenting the whole function.
-	if (lfoConfig[LFO1_ID].syncLevel != SYNC_LEVEL_NONE) {
+	if (snapshot_.lfoConfig[LFO1_ID].syncLevel != SYNC_LEVEL_NONE) {
 
 		timeStartedSkippingRenderingLFO =
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO1.setGlobalInitialPhase(lfoConfig[LFO1_ID]);
+		globalLFO1.setGlobalInitialPhase(snapshot_.lfoConfig[LFO1_ID]);
 
 		uint32_t timeSinceLastTick;
 
@@ -3000,8 +3008,8 @@ void Sound::resyncGlobalLFOs() {
 
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
-			uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - lfoConfig[LFO1_ID].syncLevel);
-			switch (lfoConfig[LFO1_ID].syncType) {
+			uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - snapshot_.lfoConfig[LFO1_ID].syncLevel);
+			switch (snapshot_.lfoConfig[LFO1_ID].syncType) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
 				break;
@@ -3023,13 +3031,13 @@ void Sound::resyncGlobalLFOs() {
 			}
 		}
 	}
-	if (lfoConfig[LFO3_ID].syncLevel != SYNC_LEVEL_NONE) {
+	if (snapshot_.lfoConfig[LFO3_ID].syncLevel != SYNC_LEVEL_NONE) {
 
 		timeStartedSkippingRenderingLFO =
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO3.setGlobalInitialPhase(lfoConfig[LFO3_ID]);
+		globalLFO3.setGlobalInitialPhase(snapshot_.lfoConfig[LFO3_ID]);
 
 		uint32_t timeSinceLastTick;
 
@@ -3037,8 +3045,8 @@ void Sound::resyncGlobalLFOs() {
 
 		// If we're right at the first tick, no need to do anything else!
 		if (lastInternalTickDone || timeSinceLastTick) {
-			uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - lfoConfig[LFO3_ID].syncLevel);
-			switch (lfoConfig[LFO3_ID].syncType) {
+			uint32_t numInternalTicksPerPeriod = 3 << (SYNC_LEVEL_256TH - snapshot_.lfoConfig[LFO3_ID].syncLevel);
+			switch (snapshot_.lfoConfig[LFO3_ID].syncType) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
 				break;
@@ -4094,9 +4102,9 @@ void Sound::seedDocSoundScalars() {
 		d.modulator_retrigger_phase[i] = snapshot_.modulatorRetriggerPhase[i];
 	}
 	for (int32_t i = 0; i < LFO_COUNT; i++) {
-		d.lfo_wave_type[i] = static_cast<uint8_t>(lfoConfig[i].waveType);
-		d.lfo_sync_type[i] = static_cast<uint8_t>(lfoConfig[i].syncType);
-		d.lfo_sync_level[i] = static_cast<uint8_t>(lfoConfig[i].syncLevel);
+		d.lfo_wave_type[i] = static_cast<uint8_t>(snapshot_.lfoConfig[i].waveType);
+		d.lfo_sync_type[i] = static_cast<uint8_t>(snapshot_.lfoConfig[i].syncType);
+		d.lfo_sync_level[i] = static_cast<uint8_t>(snapshot_.lfoConfig[i].syncLevel);
 	}
 }
 
@@ -4117,6 +4125,11 @@ void Sound::projectSnapshot() {
 	}
 	for (int32_t s = 0; s < kNumSources; s++) {
 		snapshot_.oscRetriggerPhase[s] = docSound_->osc_retrigger_phase[s];
+	}
+	for (int32_t l = 0; l < LFO_COUNT; l++) {
+		snapshot_.lfoConfig[l].waveType = static_cast<LFOType>(docSound_->lfo_wave_type[l]);
+		snapshot_.lfoConfig[l].syncType = static_cast<SyncType>(docSound_->lfo_sync_type[l]);
+		snapshot_.lfoConfig[l].syncLevel = static_cast<SyncLevel>(docSound_->lfo_sync_level[l]);
 	}
 }
 
@@ -4254,17 +4267,24 @@ void Sound::assignModulatorTranspose(int32_t m, int16_t value) {
 	}
 }
 void Sound::setLfoWaveType(int32_t lfoId, LFOType value) {
-	lfoConfig[lfoId].waveType = value;
 	if (docSound_ != nullptr) {
 		docSound_->lfo_wave_type[lfoId] = static_cast<uint8_t>(value);
+		snapshot_.lfoConfig[lfoId].waveType = static_cast<LFOType>(docSound_->lfo_wave_type[lfoId]);
+	}
+	else {
+		snapshot_.lfoConfig[lfoId].waveType = value;
 	}
 }
 void Sound::setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel) {
-	lfoConfig[lfoId].syncType = syncType;
-	lfoConfig[lfoId].syncLevel = syncLevel;
 	if (docSound_ != nullptr) {
 		docSound_->lfo_sync_type[lfoId] = static_cast<uint8_t>(syncType);
 		docSound_->lfo_sync_level[lfoId] = static_cast<uint8_t>(syncLevel);
+		snapshot_.lfoConfig[lfoId].syncType = static_cast<SyncType>(docSound_->lfo_sync_type[lfoId]);
+		snapshot_.lfoConfig[lfoId].syncLevel = static_cast<SyncLevel>(docSound_->lfo_sync_level[lfoId]);
+	}
+	else {
+		snapshot_.lfoConfig[lfoId].syncType = syncType;
+		snapshot_.lfoConfig[lfoId].syncLevel = syncLevel;
 	}
 }
 
@@ -4313,13 +4333,16 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	// LFOs (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
 	auto lfoWave = [&](int32_t id) {
-		return docSound_ != nullptr ? static_cast<LFOType>(docSound_->lfo_wave_type[id]) : lfoConfig[id].waveType;
+		return docSound_ != nullptr ? static_cast<LFOType>(docSound_->lfo_wave_type[id])
+		                            : snapshot_.lfoConfig[id].waveType;
 	};
 	auto lfoSyncLevel = [&](int32_t id) {
-		return docSound_ != nullptr ? static_cast<SyncLevel>(docSound_->lfo_sync_level[id]) : lfoConfig[id].syncLevel;
+		return docSound_ != nullptr ? static_cast<SyncLevel>(docSound_->lfo_sync_level[id])
+		                            : snapshot_.lfoConfig[id].syncLevel;
 	};
 	auto lfoSyncType = [&](int32_t id) {
-		return docSound_ != nullptr ? static_cast<SyncType>(docSound_->lfo_sync_type[id]) : lfoConfig[id].syncType;
+		return docSound_ != nullptr ? static_cast<SyncType>(docSound_->lfo_sync_type[id])
+		                            : snapshot_.lfoConfig[id].syncType;
 	};
 
 	writer.writeOpeningTagBeginning("lfo1");

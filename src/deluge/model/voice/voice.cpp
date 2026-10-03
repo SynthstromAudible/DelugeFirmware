@@ -164,10 +164,12 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 	}
 
 	// Setup and render local LFO
-	lfo2.setLocalInitialPhase(sound.lfoConfig[LFO2_ID]);
-	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] = lfo2.render(0, sound.lfoConfig[LFO2_ID], 0);
-	lfo4.setLocalInitialPhase(sound.lfoConfig[LFO4_ID]);
-	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] = lfo4.render(0, sound.lfoConfig[LFO4_ID], 0);
+	lfo2.setLocalInitialPhase(sound.snapshot().lfoConfig[LFO2_ID]);
+	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
+	    lfo2.render(0, sound.snapshot().lfoConfig[LFO2_ID], 0);
+	lfo4.setLocalInitialPhase(sound.snapshot().lfoConfig[LFO4_ID]);
+	params.sourceValues[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
+	    lfo4.render(0, sound.snapshot().lfoConfig[LFO4_ID], 0);
 
 	// Setup some sources which won't change for the duration of this note
 	params.sourceValues[util::to_underlying(PatchSource::VELOCITY)] =

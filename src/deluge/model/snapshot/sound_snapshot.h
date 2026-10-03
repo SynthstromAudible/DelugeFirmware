@@ -17,7 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp" // SynthMode, VoicePriority, kNumSources, kNumModulators
+#include "definitions_cxx.hpp" // SynthMode, VoicePriority, kNumSources, kNumModulators, LFO_COUNT
+#include "synth/lfo.h"         // LFOConfig
 
 #include <array>
 #include <cstdint>
@@ -42,6 +43,8 @@ struct SoundSnapshot {
 	std::array<uint32_t, kNumSources> oscRetriggerPhase{0xFFFFFFFF, 0xFFFFFFFF};
 	/// DocSound::modulator_retrigger_phase; same encoding as oscRetriggerPhase
 	std::array<uint32_t, kNumModulators> modulatorRetriggerPhase{};
+	/// DocSound::lfo_wave_type / lfo_sync_type / lfo_sync_level per LFO. The LFO phase state stays on the engine.
+	std::array<LFOConfig, LFO_COUNT> lfoConfig{};
 };
 
 } // namespace deluge::snapshot
