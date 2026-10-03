@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp" // SynthMode
+
 #include <cstdint>
 
 namespace deluge::snapshot {
@@ -30,6 +32,7 @@ namespace deluge::snapshot {
 /// GlobalEffectable, with no DocSound) write the snapshot directly and never save.
 struct SoundSnapshot {
 	int16_t transpose{0}; ///< master semitone transpose (DocSound::transpose); read per-voice-start (Voice::render)
+	SynthMode synthMode{SynthMode::SUBTRACTIVE}; ///< DocSound::synth_mode; selects the subtractive/ring-mod/FM render
 };
 
 } // namespace deluge::snapshot

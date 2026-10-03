@@ -327,7 +327,7 @@ activenessDetermined:
 			if (unisonParts[u].sources[s].active) {
 				bool success =
 				    unisonParts[u].sources[s].noteOn(this, source, &guides[s], samplesLate, sound.oscRetriggerPhase[s],
-				                                     resetEnvelopes, sound.synthMode, velocity);
+				                                     resetEnvelopes, sound.getSynthMode(), velocity);
 				if (!success) [[unlikely]] {
 					return false; // This shouldn't really ever happen I don't think really...
 				}
@@ -624,7 +624,7 @@ void Voice::noteOff(ParamManagerForTimeline* paramManager, bool noteTailsAllowed
 		previouslyIgnoredNoteOff = true;
 	}
 
-	if (sound.synthMode != SynthMode::FM) {
+	if (sound.getSynthMode() != SynthMode::FM) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			if (sound.sources[s].oscType == OscType::SAMPLE && guides[s].loopEndPlaybackAtByte) {
 				for (int32_t u = 0; u < sound.numUnison; u++) {

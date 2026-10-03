@@ -43,7 +43,7 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
-					if (soundDrum->synthMode == SynthMode::FM) {
+					if (soundDrum->getSynthMode() == SynthMode::FM) {
 						soundDrum->setModulator1ToModulator0(current_value);
 					}
 				}
@@ -64,7 +64,7 @@ public:
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return sound->synthMode == SynthMode::FM;
+		return sound->getSynthMode() == SynthMode::FM;
 	}
 };
 

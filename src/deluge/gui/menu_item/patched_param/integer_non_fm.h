@@ -24,7 +24,7 @@ public:
 	using Integer::Integer;
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->synthMode != SynthMode::FM);
+		return (sound->getSynthMode() != SynthMode::FM);
 	}
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }

@@ -380,7 +380,7 @@ void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 		return;
 	}
 
-	if (synthMode == SynthMode::FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		patchCableSet->patchCables[patchCableSet->numPatchCables++].setup(
 		    PatchSource::Y, params::LOCAL_MODULATOR_0_VOLUME, getParamFromUserValue(params::PATCH_CABLE, 15));
 	}
@@ -538,8 +538,8 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 	else if (!strcmp(tagName, "mode")) {
 		char const* contents = reader.readTagOrAttributeValue();
-		if (synthMode != SynthMode::RINGMOD) { // Compatibility with old XML files
-			synthMode = stringToSynthMode(contents);
+		if (getSynthMode() != SynthMode::RINGMOD) { // Compatibility with old XML files
+			assignSynthMode(stringToSynthMode(contents));
 		}
 		// Uart::print("synth mode set to: ");
 		// Uart::println(synthMode);
@@ -856,7 +856,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	else if (!strcmp(tagName, "ringMod")) {
 		int32_t contents = reader.readTagOrAttributeValueInt();
 		if (contents == 1) {
-			synthMode = SynthMode::RINGMOD;
+			assignSynthMode(SynthMode::RINGMOD);
 		}
 		reader.exitTag("ringMod");
 	}
@@ -1494,7 +1494,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		                                                                      : PatchCableAcceptance::EDITABLE;
 
 	case params::LOCAL_CARRIER_0_FEEDBACK:
-		if (synthMode != SynthMode::FM) {
+		if (getSynthMode() != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (isSourceActiveEver(0, paramManager)
@@ -1519,7 +1519,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		                                                                      : PatchCableAcceptance::EDITABLE;
 
 	case params::LOCAL_CARRIER_1_FEEDBACK:
-		if (synthMode != SynthMode::FM) {
+		if (getSynthMode() != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (isSourceActiveEver(1, paramManager)
@@ -1529,7 +1529,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::LOCAL_NOISE_VOLUME:
-		if (synthMode == SynthMode::FM) {
+		if (getSynthMode() == SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (patchedParams->params[params::LOCAL_NOISE_VOLUME].containsSomething(
@@ -1559,7 +1559,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 
 	case params::LOCAL_MODULATOR_0_VOLUME:
 	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
-		if (synthMode != SynthMode::FM) {
+		if (getSynthMode() != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].containsSomething(
@@ -1568,7 +1568,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::LOCAL_MODULATOR_0_FEEDBACK:
-		if (synthMode != SynthMode::FM) {
+		if (getSynthMode() != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].containsSomething(
@@ -1580,7 +1580,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 
 	case params::LOCAL_MODULATOR_1_VOLUME:
 	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-		if (synthMode != SynthMode::FM) {
+		if (getSynthMode() != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].containsSomething(
@@ -1589,7 +1589,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::LOCAL_MODULATOR_1_FEEDBACK:
-		if (synthMode != SynthMode::FM) {
+		if (getSynthMode() != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].containsSomething(
@@ -1639,7 +1639,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
-	if (!((synthMode == SynthMode::RINGMOD) || (modelStackWithSoundFlags->checkSourceEverActive(0))
+	if (!((getSynthMode() == SynthMode::RINGMOD) || (modelStackWithSoundFlags->checkSourceEverActive(0))
 	      || (modelStackWithSoundFlags->checkSourceEverActive(1))
 	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
 	          *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648))))
@@ -1780,7 +1780,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 
 			// If FM, or no active sources are samples, or still sounding after fast-release, unassign
 			bool needs_unassign = //<
-			    synthMode == SynthMode::FM
+			    getSynthMode() == SynthMode::FM
 			    || std::ranges::any_of(std::views::iota(0, kNumSources),
 			                           [&](int32_t s) {
 				                           return isSourceActiveCurrently(s, paramManager)
@@ -2107,7 +2107,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 	}
 
 	// After that if not subtractive (so no samples) or there's some noise, we definitely can have tails
-	if (synthMode != SynthMode::SUBTRACTIVE
+	if (getSynthMode() != SynthMode::SUBTRACTIVE
 	    || modelStack->paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
 	        *modelStack->paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648)) {
 		return true;
@@ -2133,7 +2133,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 
 int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength, int32_t note) {
 
-	if (synthMode == SynthMode::FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		return 0;
 	}
 
@@ -2156,7 +2156,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 // Returns sample length in samples
 int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, int32_t note, bool* anyLooping) {
 
-	if (synthMode == SynthMode::FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		return 0;
 	}
 
@@ -2197,7 +2197,7 @@ int32_t Sound::hasCutOrLoopModeSamples(ParamManagerForTimeline* paramManager, in
 
 bool Sound::hasCutModeSamples(ParamManagerForTimeline* paramManager) {
 
-	if (synthMode == SynthMode::FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		return false;
 	}
 
@@ -2228,7 +2228,7 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 		return true;
 	}
 
-	if (synthMode == SynthMode::FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		return false;
 	}
 
@@ -2266,14 +2266,14 @@ bool Sound::allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimelin
 }
 
 bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramManager) {
-	return (synthMode == SynthMode::RINGMOD
+	return (getSynthMode() == SynthMode::RINGMOD
 	        || getSmoothedPatchedParamValue(params::LOCAL_OSC_A_VOLUME + s, *paramManager) != -2147483648)
-	       && (synthMode == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
+	       && (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
-	return (synthMode == SynthMode::RINGMOD
+	return (getSynthMode() == SynthMode::RINGMOD
 	        || paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].containsSomething(
 	            *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_OSC_A_VOLUME + s), -2147483648)
 	        || renderingOscillatorSyncEver(paramManager));
@@ -2281,12 +2281,12 @@ bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager*
 
 bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
 	return isSourceActiveEverDisregardingMissingSample(s, paramManager)
-	       && (synthMode == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
+	       && (getSynthMode() == SynthMode::FM || sources[s].oscType != OscType::SAMPLE
 	           || sources[s].hasAtLeastOneAudioFileLoaded());
 }
 
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
-	return (synthMode != SynthMode::FM
+	return (getSynthMode() != SynthMode::FM
 	        && paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
 	            *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648));
 }
@@ -2295,23 +2295,23 @@ bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManag
 	if (!oscillatorSync) {
 		return false;
 	}
-	if (synthMode == SynthMode::FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		return false;
 	}
 	return (getSmoothedPatchedParamValue(params::LOCAL_OSC_B_VOLUME, *paramManager) != -2147483648
-	        || synthMode == SynthMode::RINGMOD);
+	        || getSynthMode() == SynthMode::RINGMOD);
 }
 
 bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 	if (!oscillatorSync) {
 		return false;
 	}
-	if (synthMode == SynthMode::FM) {
+	if (getSynthMode() == SynthMode::FM) {
 		return false;
 	}
 	return (paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_B_VOLUME].containsSomething(
 	            *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_OSC_B_VOLUME), -2147483648)
-	        || synthMode == SynthMode::RINGMOD);
+	        || getSynthMode() == SynthMode::RINGMOD);
 }
 
 void Sound::sampleZoneChanged(MarkerType markerType, int32_t s, ModelStackWithSoundFlags* modelStack) {
@@ -3298,11 +3298,9 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 
 	killAllVoices(); // This saves a lot of potential problems, to do with samples playing. E002 was being caused
 
-	SynthMode oldSynthMode = synthMode;
-	synthMode = value;
-	if (docSound_ != nullptr) {
-		docSound_->synth_mode = static_cast<uint8_t>(value);
-	}
+	SynthMode oldSynthMode = getSynthMode();
+	assignSynthMode(value);
+	const SynthMode synthMode = getSynthMode();
 
 	// Change mod knob functions over. Switching *to* FM...
 	if (synthMode == SynthMode::FM && oldSynthMode != SynthMode::FM) {
@@ -3399,11 +3397,11 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 
 	// Effective volume has changed. Need to pass that change onto Voices
 	for (const ActiveVoice& voice : voices_) {
-		if (synthMode == SynthMode::SUBTRACTIVE) {
+		if (getSynthMode() == SynthMode::SUBTRACTIVE) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				bool sourceEverActive = modelStack->checkSourceEverActive(s);
 
-				if (sourceEverActive && synthMode != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
+				if (sourceEverActive && getSynthMode() != SynthMode::FM && sources[s].oscType == OscType::SAMPLE
 				    && voice->guides[s].audioFileHolder && voice->guides[s].audioFileHolder->audioFile) {
 
 					// For samples, set the current play pos for the new unison part, if num unison went up
@@ -3535,7 +3533,7 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 	}
 
 	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
-	if (synthMode == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
+	if (getSynthMode() == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
 		hpfMode = FilterMode::OFF;
 		lpfMode = FilterMode::OFF;
 	}
@@ -3581,7 +3579,7 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {
 
 	// If it was an old-firmware file, we need to compensate for resonance
-	if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && synthMode != SynthMode::FM) {
+	if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && getSynthMode() != SynthMode::FM) {
 		if (modelStack->paramManager->resonanceBackwardsCompatibilityProcessed) {
 			return;
 		}
@@ -3891,14 +3889,14 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 
 	writer.writeOpeningTagBeginning(tagName);
 
-	if (synthMode != SynthMode::FM) {
+	if (getSynthMode() != SynthMode::FM) {
 		writer.writeAttribute(
 		    "type", oscTypeToString(dsrc != nullptr ? static_cast<OscType>(dsrc->osc_type) : source->oscType));
 	}
 
 	// If (multi)sample...
 	if (source->oscType == OscType::SAMPLE
-	    && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
+	    && getSynthMode() != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
 		writer.writeAttribute("loopMode",
 		                      dsrc != nullptr ? dsrc->repeat_mode : util::to_underlying(source->repeatMode));
 		writer.writeAttribute("reversed", dsrc != nullptr ? dsrc->reversed : source->sampleControls.reversed);
@@ -3990,7 +3988,7 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		                      docSound_ != nullptr ? docSound_->osc_retrigger_phase[s] : oscRetriggerPhase[s]);
 
 		// Sub-option for (multi)wavetable
-		if (source->oscType == OscType::WAVETABLE && synthMode != SynthMode::FM) {
+		if (source->oscType == OscType::WAVETABLE && getSynthMode() != SynthMode::FM) {
 
 			// M3 owner-5 slice G3: emit wavetable ranges from the authoritative DocSource record when bound (cache
 			// fallback only for an unbound Sound). Wavetable ranges carry just top_note + file_path (no zone).
@@ -4032,7 +4030,8 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			}
 		}
 		else if (source->oscType == OscType::DX7
-		         && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
+		         && getSynthMode()
+		                != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
 			if (source->dxPatch) {
 				DxPatch* patch = source->dxPatch;
 				// M3 owner-5: read the authoritative record when bound (cache fallback only for an unbound Sound).
@@ -4083,7 +4082,7 @@ void Sound::seedDocSoundScalars() {
 	// Slice C top-level scalars (native fields kept as hot caches; record is authoritative for save). SoundDrums bind
 	// before parse, so this re-seed at doneReadingFromFile is what captures their loaded values into the record.
 	d.polyphonic = static_cast<uint8_t>(polyphonic);
-	d.synth_mode = static_cast<uint8_t>(synthMode);
+	d.synth_mode = static_cast<uint8_t>(snapshot_.synthMode);
 	d.transpose = snapshot_.transpose; // M4b: transpose lives on the snapshot; the record seeds from it (bind-time)
 	d.num_unison = numUnison;
 	d.unison_detune = unisonDetune;
@@ -4109,6 +4108,7 @@ void Sound::projectSnapshot() {
 		return;
 	}
 	snapshot_.transpose = docSound_->transpose;
+	snapshot_.synthMode = static_cast<SynthMode>(docSound_->synth_mode);
 }
 
 void Sound::seedModKnobsRecord() {
@@ -4181,6 +4181,16 @@ void Sound::setPolyphonic(PolyphonyMode value) {
 		docSound_->polyphonic = static_cast<uint8_t>(value);
 	}
 }
+void Sound::assignSynthMode(SynthMode value) {
+	if (docSound_ != nullptr) {
+		docSound_->synth_mode = static_cast<uint8_t>(value);
+		snapshot_.synthMode = static_cast<SynthMode>(docSound_->synth_mode);
+	}
+	else {
+		snapshot_.synthMode = value;
+	}
+}
+
 void Sound::setTranspose(int16_t value) {
 	// M4b: bound → write the authoritative record then reproject the read-view (a derivation, not a dual-write);
 	// unbound (preview / GlobalEffectable) → write the snapshot directly (no record).
@@ -4232,7 +4242,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	// FM gate below reads savedSynthMode too, so the whole modulator block projects from the model.
 	PolyphonyMode savedPolyphonic =
 	    docSound_ != nullptr ? static_cast<PolyphonyMode>(docSound_->polyphonic) : polyphonic;
-	SynthMode savedSynthMode = docSound_ != nullptr ? static_cast<SynthMode>(docSound_->synth_mode) : synthMode;
+	SynthMode savedSynthMode = docSound_ != nullptr ? static_cast<SynthMode>(docSound_->synth_mode) : getSynthMode();
 	int16_t savedTranspose = docSound_ != nullptr ? docSound_->transpose : snapshot_.transpose;
 
 	writer.writeAttribute("polyphonic", polyphonyModeToString(savedPolyphonic));
@@ -4759,7 +4769,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 
 	// Switching between LPF, HPF and EQ
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
-		if (on && synthMode != SynthMode::FM) {
+		if (on && getSynthMode() != SynthMode::FM) {
 			ourModKnob->paramDescriptor.setToHaveParamOnly(params::LOCAL_HPF_FREQ);
 			// Switch resonance too
 			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
@@ -4782,7 +4792,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 	}
 
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)) {
-		if (on && synthMode != SynthMode::FM) {
+		if (on && getSynthMode() != SynthMode::FM) {
 			ourModKnob->paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_TREBLE);
 			// Switch resonance too
 			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
@@ -4805,7 +4815,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 	}
 
 	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START + params::UNPATCHED_TREBLE)) {
-		if (on && synthMode != SynthMode::FM) {
+		if (on && getSynthMode() != SynthMode::FM) {
 			ourModKnob->paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
 			// Switch resonance too
 			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(

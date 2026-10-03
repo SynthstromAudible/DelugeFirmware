@@ -28,7 +28,7 @@ namespace deluge::gui::menu_item {
 class SynthModeSelection final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->synthMode); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->getSynthMode()); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<::SynthMode>();

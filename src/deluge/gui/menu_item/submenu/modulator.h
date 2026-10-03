@@ -24,7 +24,7 @@ public:
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		Sound* sound = static_cast<Sound*>(modControllable);
-		return (sound->synthMode == SynthMode::FM);
+		return (sound->getSynthMode() == SynthMode::FM);
 	}
 };
 
