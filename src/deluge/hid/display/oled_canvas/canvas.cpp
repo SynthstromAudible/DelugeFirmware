@@ -720,18 +720,6 @@ constexpr auto kKerningRules = std::to_array<KerningRule>({
     {.text_height = 20, .previous_char = '2', .current_char = '7', .adjustment = -1},
 });
 
-constexpr bool kerningRulesFullySpecified() {
-	for (const KerningRule& rule : kKerningRules) {
-		if (rule.text_height == 0 || rule.previous_char == 0 || rule.current_char == 0) {
-			return false;
-		}
-	}
-	return true;
-}
-
-static_assert(kerningRulesFullySpecified(),
-              "kKerningRules has default-initialized entries; update the declared array size to match rule count.");
-
 int32_t getPreviousCharSpacingAdjustmentInPixels(uint8_t previous_char, uint8_t current_char, int32_t text_height) {
 	// don't adjust spacing around a space character
 	if (previous_char == ' ' || current_char == ' ') {
