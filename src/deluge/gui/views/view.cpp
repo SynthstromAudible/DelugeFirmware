@@ -2940,6 +2940,17 @@ void View::flashPlayDisable() {
 #endif
 }
 
+namespace {
+/// The clip a session macro names, or nullptr if it names none the song holds.
+Clip* macroClip(const SessionMacro& m) {
+	return m.clip_id ? currentSong->clipForId(*m.clip_id) : nullptr;
+}
+/// The output a session macro names, or nullptr if it names none the song holds.
+Output* macroOutput(const SessionMacro& m) {
+	return m.output_id ? currentSong->outputForId(*m.output_id) : nullptr;
+}
+} // namespace
+
 bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB image[][kDisplayWidth + kSideBarWidth],
                         uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	uint8_t brightness = 1;
@@ -2954,14 +2965,19 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 
 	SessionMacro& m = currentSong->project.arrangement.session_macros[y];
 	switch (m.kind) {
-	case SessionMacroKind::CLIP_LAUNCH:
-		if (m.clip->activeIfNoSolo) {
+	case SessionMacroKind::CLIP_LAUNCH: {
+		Clip* clip = macroClip(m);
+		if (clip == nullptr) {
+			image[y][column] = {dark, dark, dark};
+			break;
+		}
+		if (clip->activeIfNoSolo) {
 			image[y][column] = {0, light, 0};
 		}
 		else {
 			image[y][column] = {light, 0, 0};
 		}
-		if (m.clip->armState != ArmState::OFF) {
+		if (clip->armState != ArmState::OFF) {
 			armed = true;
 			if (view.clipArmFlashOn) {
 				image[y][column] = {0, 0, 0};
@@ -2969,6 +2985,7 @@ bool View::renderMacros(int32_t column, uint32_t y, int32_t selectedMacro, RGB i
 		}
 
 		break;
+	}
 	case SessionMacroKind::OUTPUT_CYCLE:
 		image[y][column] = {0, 64, light};
 		break;
@@ -3001,19 +3018,24 @@ void View::activateMacro(uint32_t y) {
 
 	SessionMacro& m = currentSong->project.arrangement.session_macros[y];
 	switch (m.kind) {
-	case SessionMacroKind::CLIP_LAUNCH:
+	case SessionMacroKind::CLIP_LAUNCH: {
+		Clip* clip = macroClip(m);
+		if (clip == nullptr) {
+			break;
+		}
 		if (Buttons::isButtonPressed(deluge::hid::button::AFFECT_ENTIRE)) {
-			if (getCurrentClip() != m.clip) {
-				sessionView.transitionToViewForClip(m.clip);
+			if (getCurrentClip() != clip) {
+				sessionView.transitionToViewForClip(clip);
 			}
 		}
 		else {
-			session.toggleClipStatus(m.clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+			session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}
 		break;
+	}
 
 	case SessionMacroKind::OUTPUT_CYCLE: {
-		Clip* nextClip = findNextClipForOutput(m.output);
+		Clip* nextClip = findNextClipForOutput(macroOutput(m));
 		if (nextClip) {
 			session.toggleClipStatus(nextClip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
 		}

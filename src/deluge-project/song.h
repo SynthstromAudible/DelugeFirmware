@@ -53,9 +53,6 @@ namespace deluge::project {
 ///     `clips` is an ordered list of non-owning `Clip*`; `global_fx` holds live DSP
 ///     state. None of these is serializable *as data* — they are the running engine.
 ///
-/// The split is not perfectly clean: some value-tier data still embeds raw runtime pointers
-/// (`SessionMacro::clip`/`output`), which a document model would replace with stable IDs. That
-/// embedded-pointer case is exactly what the Level-3 projection probe should measure first.
 class Song {
 public:
 	Song();

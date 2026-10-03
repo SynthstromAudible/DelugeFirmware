@@ -3365,10 +3365,10 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 	if (gridModeActive == SessionGridModeMacros && selectedMacro >= 0) {
 		auto& macro = currentSong->project.arrangement.session_macros[selectedMacro];
 		if (macro.kind == SessionMacroKind::CLIP_LAUNCH) {
-			macroActive = (macro.clip == clip);
+			macroActive = (macro.clip_id == clip->id());
 		}
 		else if (macro.kind == SessionMacroKind::OUTPUT_CYCLE) {
-			macroActive = (macro.output == clip->output);
+			macroActive = (macro.output_id.has_value() && macro.output_id == clip->output->id());
 		}
 		else if (macro.kind == SessionMacroKind::SECTION) {
 			macroActive = (macro.section == clip->section());
@@ -4546,8 +4546,8 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 			gridFirstPressedX = x;
 			gridFirstPressedY = y;
 			macro.kind = SessionMacroKind::CLIP_LAUNCH;
-			macro.clip = clip;
-			macro.output = clip->output;
+			macro.clip_id = clip->id();
+			macro.output_id = clip->output->id();
 			macro.section = clip->section();
 		}
 		else {

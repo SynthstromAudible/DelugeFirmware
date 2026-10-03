@@ -648,6 +648,24 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// below (reloaded store == engine == kSentinel) would fail.
 	engVal.currentValue = 0x0BADF00D;
 
+	// Session macros name their clip and output by id: aim two at the last session clip and the first output, and
+	// require that they name the same clip and output after the reload.
+	std::optional<uint32_t> macroClipId;
+	std::optional<uint32_t> macroOutputId;
+	if (!song->project.clips.session_clips.empty()) {
+		Clip* target = song->project.clips.session_clips[song->project.clips.session_clips.size() - 1];
+		auto& m = song->project.arrangement.session_macros[6];
+		m.kind = deluge::project::SessionMacroKind::CLIP_LAUNCH;
+		m.clip_id = target->id();
+		macroClipId = target->id();
+	}
+	if (Output* target = song->project.media.first_output; target != nullptr && target->id().has_value()) {
+		auto& m = song->project.arrangement.session_macros[7];
+		m.kind = deluge::project::SessionMacroKind::OUTPUT_CYCLE;
+		m.output_id = target->id();
+		macroOutputId = target->id();
+	}
+
 	// 3. Save.
 	deluge::scenarios::driver::beginCapture(smSerializer);
 	deluge::bridge::saveSong(*song, smSerializer);
@@ -663,6 +681,23 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	}
 	if (checkSoundSnapshots(*reloaded, "reload") != 0) {
 		return 3;
+	}
+
+	if (macroClipId) {
+		const auto& m = reloaded->project.arrangement.session_macros[6];
+		if (m.kind != deluge::project::SessionMacroKind::CLIP_LAUNCH || m.clip_id != macroClipId
+		    || reloaded->clipForId(*macroClipId) == nullptr) {
+			std::fprintf(io.err, "MACRO FAIL: the clip-launch macro lost its clip %u\n", *macroClipId);
+			return 3;
+		}
+	}
+	if (macroOutputId) {
+		const auto& m = reloaded->project.arrangement.session_macros[7];
+		if (m.kind != deluge::project::SessionMacroKind::OUTPUT_CYCLE || m.output_id != macroOutputId
+		    || reloaded->outputForId(*macroOutputId) == nullptr) {
+			std::fprintf(io.err, "MACRO FAIL: the output-cycle macro lost its output %u\n", *macroOutputId);
+			return 3;
+		}
 	}
 
 	// M2-G S2b: the save (gen1) assigns ids, so on reload every audio clip's unpatched params must be

@@ -185,15 +185,15 @@ void serializeMacros(const Arrangement& arrangement, Serializer& writer) {
 			// Reference the target clip by its stable serial id (resolve via Song::clipForId on load),
 			// so the macro survives clip reordering. A clip is always saved before the macros, so its
 			// id is assigned by now.
-			if (m.clip != nullptr) {
+			if (m.clip_id) {
 				writer.writeAttribute("kind", "clip_launch");
-				writer.writeAttribute("clipId", m.clip->id());
+				writer.writeAttribute("clipId", *m.clip_id);
 			}
 			break;
 		case SessionMacroKind::OUTPUT_CYCLE:
-			if (m.output != nullptr && m.output->id().has_value()) {
+			if (m.output_id) {
 				writer.writeAttribute("kind", "output_cycle");
-				writer.writeAttribute("outputId", *m.output->id());
+				writer.writeAttribute("outputId", *m.output_id);
 			}
 			break;
 		case SessionMacroKind::SECTION:
@@ -238,17 +238,21 @@ bool deserializeMacros(Arrangement& arrangement, Deserializer& reader, ::Song& s
 					}
 				}
 				else if (!strcmp(tagName, "clipId")) {
-					m.clip = song.clipForId(reader.readTagOrAttributeValueInt());
+					if (Clip* clip = song.clipForId(reader.readTagOrAttributeValueInt())) {
+						m.clip_id = clip->id();
+					}
 				}
 				else if (!strcmp(tagName, "clip")) {
 					// Legacy pre-id format: a positional index into the session clips.
 					int32_t index = reader.readTagOrAttributeValueInt();
 					if (index >= 0 && index < std::ssize(song.project.clips.session_clips)) {
-						m.clip = song.project.clips.session_clips[index];
+						m.clip_id = song.project.clips.session_clips[index]->id();
 					}
 				}
 				else if (!strcmp(tagName, "outputId")) {
-					m.output = song.outputForId(reader.readTagOrAttributeValueInt());
+					if (Output* output = song.outputForId(reader.readTagOrAttributeValueInt())) {
+						m.output_id = output->id();
+					}
 				}
 				else if (!strcmp(tagName, "output")) {
 					// Legacy pre-id format: a positional index into the output list.
@@ -260,15 +264,17 @@ bool deserializeMacros(Arrangement& arrangement, Deserializer& reader, ::Song& s
 						}
 						index--;
 					}
-					m.output = thisOutput;
+					if (thisOutput != nullptr) {
+						m.output_id = thisOutput->id();
+					}
 				}
 				else if (!strcmp(tagName, "section")) {
 					m.section = reader.readTagOrAttributeValueInt();
 				}
 			}
 
-			if ((m.kind == SessionMacroKind::CLIP_LAUNCH && m.clip == nullptr)
-			    || (m.kind == SessionMacroKind::OUTPUT_CYCLE && m.output == nullptr)) {
+			if ((m.kind == SessionMacroKind::CLIP_LAUNCH && !m.clip_id)
+			    || (m.kind == SessionMacroKind::OUTPUT_CYCLE && !m.output_id)) {
 				m.kind = SessionMacroKind::NO_MACRO;
 			}
 		}

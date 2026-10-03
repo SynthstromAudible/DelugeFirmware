@@ -21,9 +21,7 @@
 #include "io/midi/learned_midi.h" // LearnedMIDI (held by value in Section)
 #include <array>
 #include <cstdint>
-
-class Clip;
-class Output;
+#include <optional>
 
 namespace deluge::project {
 
@@ -43,11 +41,12 @@ enum class SessionMacroKind : int8_t {
 	NUM_KINDS,
 };
 
-/// One assignable session macro: its kind plus the clip/output/section it targets.
+/// One assignable session macro: its kind plus the clip, output and section it targets. The clip and output are named
+/// by their stable song ids, so a macro survives reordering; empty means no target.
 struct SessionMacro {
 	SessionMacroKind kind{SessionMacroKind::NO_MACRO};
-	Clip* clip{nullptr};
-	Output* output{nullptr};
+	std::optional<uint32_t> clip_id;
+	std::optional<uint32_t> output_id;
 	uint8_t section{0};
 };
 

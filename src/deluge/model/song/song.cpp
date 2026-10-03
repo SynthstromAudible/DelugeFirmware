@@ -3734,7 +3734,7 @@ void Song::deleteOutput(Output* output) {
 	clearRecordingFromReferencesTo(output);
 	for (int y = 0; y < 8; y++) {
 		auto& m = project.arrangement.session_macros[y];
-		if (m.kind == SessionMacroKind::OUTPUT_CYCLE && m.output == output) {
+		if (m.kind == SessionMacroKind::OUTPUT_CYCLE && m.output_id.has_value() && m.output_id == output->id()) {
 			m.kind = SessionMacroKind::NO_MACRO;
 		}
 	}
@@ -5431,7 +5431,7 @@ void Song::removeSessionClipLowLevel(Clip* clip, int32_t clipIndex) {
 
 	for (int y = 0; y < 8; y++) {
 		auto& m = project.arrangement.session_macros[y];
-		if (m.kind == SessionMacroKind::CLIP_LAUNCH && m.clip == clip) {
+		if (m.kind == SessionMacroKind::CLIP_LAUNCH && m.clip_id == clip->id()) {
 			m.kind = SessionMacroKind::NO_MACRO;
 		}
 	}

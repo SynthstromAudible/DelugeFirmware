@@ -50,17 +50,21 @@ bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 	}
 
 	m.kind = static_cast<SessionMacroKind>(kindIndex);
-	m.clip = nullptr;
-	m.output = nullptr;
+	m.clip_id.reset();
+	m.output_id.reset();
 	m.section = 0;
 
 	switch (m.kind) {
 	case SessionMacroKind::CLIP_LAUNCH:
-		m.clip = getCurrentClip();
+		if (Clip* clip = getCurrentClip()) {
+			m.clip_id = clip->id();
+		}
 		break;
 
 	case SessionMacroKind::OUTPUT_CYCLE:
-		m.output = getCurrentOutput();
+		if (Output* output = getCurrentOutput()) {
+			m.output_id = output->id();
+		}
 		break;
 
 	case SessionMacroKind::SECTION:
