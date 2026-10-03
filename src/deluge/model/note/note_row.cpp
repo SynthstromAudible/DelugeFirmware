@@ -3747,6 +3747,10 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		    (SoundDrum*)drum, (Clip*)modelStack->getTimelineCounter(), &paramManager,
 		    false); // Don't steal expression params - we'll keep them here with this NoteRow.
 	}
+	else if (!backupOldParamManager) {
+		// Not backing up, so nothing else owns the main collections - free them rather than leaking them
+		paramManager.destructAndForgetMainParamCollections();
+	}
 	paramManager.forgetParamCollections();
 
 	drum = (SoundDrum*)newDrum; // Better set this temporarily for this call. See comment above for why we can't
