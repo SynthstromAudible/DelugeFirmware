@@ -111,6 +111,8 @@ public:
 	void loadPerformanceViewLayout();
 	void updateLayoutChangeStatus();
 	void resetPerformanceView(ModelStackWithThreeMainThings* modelStack);
+	void writeSettingsToFile(Serializer& writer);
+	void readSettingsFromFile(Deserializer& reader);
 	bool defaultEditingMode;
 	bool editingParam; // if you're not editing a param, you're editing a value
 
@@ -166,11 +168,11 @@ private:
 	void loadDefaultLayout();
 	void readDefaultsFromBackedUpFile();
 	void readDefaultsFromFile();
-	void readDefaultFXValuesFromFile();
-	void readDefaultFXParamAndRowValuesFromFile(int32_t xDisplay);
-	void readDefaultFXParamFromFile(int32_t xDisplay);
-	void readDefaultFXRowNumberValuesFromFile(int32_t xDisplay);
-	void readDefaultFXHoldStatusFromFile(int32_t xDisplay);
+	void readDefaultFXValuesFromFile(Deserializer& reader, bool initializeHeldEffects = true);
+	void readDefaultFXParamAndRowValuesFromFile(Deserializer& reader, int32_t xDisplay, bool initializeHeldEffects);
+	void readDefaultFXParamFromFile(Deserializer& reader, int32_t xDisplay);
+	void readDefaultFXRowNumberValuesFromFile(Deserializer& reader, int32_t xDisplay);
+	void readDefaultFXHoldStatusFromFile(Deserializer& reader, int32_t xDisplay, bool initializeHeldEffects);
 	void initializeHeldFX(int32_t xDisplay);
 	bool successfullyReadDefaultsFromFile;
 	bool anyChangesToSave;
