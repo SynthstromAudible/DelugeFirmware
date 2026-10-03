@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp" // SynthMode, VoicePriority, kNumSources, kNumModulators, LFO_COUNT
 #include "synth/lfo.h"         // LFOConfig
+#include "util/phase_increment_fine_tuner.h"
 
 #include <array>
 #include <cstdint>
@@ -34,6 +35,8 @@ namespace deluge::snapshot {
 /// GlobalEffectable, with no DocSound) write the snapshot directly and never save.
 struct SoundSnapshot {
 	int16_t transpose{0}; ///< master semitone transpose (DocSound::transpose); read per-voice-start (Voice::render)
+	int8_t cents{0};      ///< master fine tune (DocSound::cents), cents
+	PhaseIncrementFineTuner fineTuner;           ///< derived from cents: the master transpose's fine detune
 	SynthMode synthMode{SynthMode::SUBTRACTIVE}; ///< DocSound::synth_mode; selects the subtractive/ring-mod/FM render
 	bool oscillatorSync{false};                  ///< DocSound::oscillator_sync
 	VoicePriority voicePriority{VoicePriority::MEDIUM}; ///< DocSound::voice_priority; ranks voices for stealing

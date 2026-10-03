@@ -158,8 +158,6 @@ public:
 	uint8_t maxVoiceCount = 8;
 
 	// M4b: `transpose` retired into the SoundSnapshot read-view (see snapshot_ / getTranspose()).
-	int8_t cents = 0;
-	PhaseIncrementFineTuner fineTuner;
 
 	uint8_t numUnison = 1;
 	int8_t unisonDetune = 8;

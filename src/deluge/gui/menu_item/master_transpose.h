@@ -33,8 +33,8 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override {
-		this->setValue(
-		    computeCurrentValueForTranspose(soundEditor.currentSound->getTranspose(), soundEditor.currentSound->cents));
+		this->setValue(computeCurrentValueForTranspose(soundEditor.currentSound->getTranspose(),
+		                                               soundEditor.currentSound->snapshot().cents));
 	}
 	void writeCurrentValue() override {
 

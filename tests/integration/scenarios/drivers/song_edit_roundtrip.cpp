@@ -37,6 +37,7 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/phase_increment_fine_tuner.h"
 
 #include <array>
 #include <cstdint>
@@ -59,6 +60,19 @@ using deluge::scenarios::driver::Io;
 Io io{};
 
 namespace params = deluge::modulation::params;
+
+/// A tuner set up for @p cents the way Sound does (a cent is 42949672 in the tuner's detune scale).
+PhaseIncrementFineTuner centsTuner(int32_t cents) {
+	PhaseIncrementFineTuner tuner;
+	tuner.setup(cents * 42949672);
+	return tuner;
+}
+
+/// Whether two tuners detune a phase increment identically.
+bool sameTuning(PhaseIncrementFineTuner a, PhaseIncrementFineTuner b) {
+	constexpr int32_t kProbe = 1 << 24;
+	return a.detune(kProbe) == b.detune(kProbe);
+}
 
 /// Each bound Sound of @p song: a synth instrument's, or a kit's sound drum's, live or hibernating.
 template <typename F>
@@ -110,6 +124,8 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		expect(snap.oscillatorSync == d.oscillator_sync, "oscillatorSync");
 		expect(snap.voicePriority == static_cast<VoicePriority>(d.voice_priority), "voicePriority");
 		expect(snap.modulator1ToModulator0 == d.modulator1_to_modulator0, "modulator1ToModulator0");
+		expect(snap.cents == d.cents, "cents");
+		expect(sameTuning(snap.fineTuner, centsTuner(d.cents)), "fineTuner");
 		for (int32_t l = 0; l < LFO_COUNT; l++) {
 			expect(snap.lfoConfig[l].waveType == static_cast<LFOType>(d.lfo_wave_type[l]), "lfoConfig.waveType");
 			expect(snap.lfoConfig[l].syncType == static_cast<SyncType>(d.lfo_sync_type[l]), "lfoConfig.syncType");
@@ -192,6 +208,12 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		              && static_cast<SyncLevel>(d.lfo_sync_level[LFO2_ID]) == otherLevel,
 		          "setLfoSync");
 		sound.setLfoSync(LFO2_ID, lfo.syncType, lfo.syncLevel);
+		const int8_t otherCents = static_cast<int8_t>(before.cents == 25 ? -25 : 25);
+		sound.set_cents(otherCents);
+		roundTrip(sound.snapshot().cents == otherCents && d.cents == otherCents
+		              && sameTuning(sound.snapshot().fineTuner, centsTuner(otherCents)),
+		          "set_cents");
+		sound.set_cents(before.cents);
 	}
 	std::fprintf(io.err, "M4b snapshot coherence %s: %d bound sounds, %d mismatches\n", label, sounds, bad);
 	return bad;

@@ -41,6 +41,7 @@ struct DocSound {
 	uint8_t polyphonic{0}; ///< PolyphonyMode underlying
 	uint8_t synth_mode{0}; ///< SynthMode underlying
 	int16_t transpose{0};
+	int8_t cents{0}; ///< master fine tune, cents (-50..50); stacks on transpose
 	uint8_t num_unison{0};
 	int8_t unison_detune{0};
 	uint8_t unison_stereo_spread{0};

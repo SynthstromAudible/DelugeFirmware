@@ -684,7 +684,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 		reader.exitTag("transpose");
 	}
 	else if (!strcmp(tagName, "cents")) {
-		cents = reader.readTagOrAttributeValueInt();
+		set_cents(static_cast<int8_t>(reader.readTagOrAttributeValueInt()));
 		reader.exitTag("cents");
 	}
 
@@ -3240,13 +3240,19 @@ void Sound::doneReadingFromFile() {
 
 // Set cents for master transpose
 void Sound::set_cents(int8_t new_cents) {
-	cents = new_cents;
+	if (docSound_ != nullptr) {
+		docSound_->cents = new_cents;
+		snapshot_.cents = docSound_->cents;
+	}
+	else {
+		snapshot_.cents = new_cents;
+	}
 	recalculateFineTuner();
 }
 
 // Setup master transpose
 void Sound::recalculateFineTuner() {
-	fineTuner.setup((int32_t)cents * 42949672);
+	snapshot_.fineTuner.setup((int32_t)snapshot_.cents * 42949672);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -4090,7 +4096,8 @@ void Sound::seedDocSoundScalars() {
 	// before parse, so this re-seed at doneReadingFromFile is what captures their loaded values into the record.
 	d.polyphonic = static_cast<uint8_t>(polyphonic);
 	d.synth_mode = static_cast<uint8_t>(snapshot_.synthMode);
-	d.transpose = snapshot_.transpose; // M4b: transpose lives on the snapshot; the record seeds from it (bind-time)
+	d.transpose = snapshot_.transpose;
+	d.cents = snapshot_.cents; // M4b: transpose lives on the snapshot; the record seeds from it (bind-time)
 	d.num_unison = numUnison;
 	d.unison_detune = unisonDetune;
 	d.unison_stereo_spread = unisonStereoSpread;
@@ -4115,6 +4122,8 @@ void Sound::projectSnapshot() {
 		return;
 	}
 	snapshot_.transpose = docSound_->transpose;
+	snapshot_.cents = docSound_->cents;
+	recalculateFineTuner();
 	snapshot_.synthMode = static_cast<SynthMode>(docSound_->synth_mode);
 	snapshot_.oscillatorSync = docSound_->oscillator_sync;
 	snapshot_.voicePriority = static_cast<VoicePriority>(docSound_->voice_priority);
@@ -4314,8 +4323,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	if (savedTranspose != 0) {
 		writer.writeAttribute("transpose", savedTranspose);
 	}
-	if (cents != 0) {
-		writer.writeAttribute("cents", cents);
+	const int8_t savedCents = docSound_ != nullptr ? docSound_->cents : snapshot_.cents;
+	if (savedCents != 0) {
+		writer.writeAttribute("cents", savedCents);
 	}
 
 	ModControllableAudio::writeAttributesToFile(writer);
