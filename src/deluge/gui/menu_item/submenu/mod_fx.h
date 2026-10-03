@@ -36,7 +36,7 @@ public:
 		}
 
 		// On other pages user can tweak params related to the selected mod fx type, so we show the type name
-		const ModFXType modFxType = soundEditor.currentModControllable->modFXType_;
+		const ModFXType modFxType = soundEditor.currentModControllable->modControllableSnapshot().modFXType;
 		return modfx::getModNames()[static_cast<uint8_t>(modFxType)];
 	}
 };

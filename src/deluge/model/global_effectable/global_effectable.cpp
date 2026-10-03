@@ -43,10 +43,10 @@ namespace params = deluge::modulation::params;
 
 GlobalEffectable::GlobalEffectable() {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_GLOBAL;
-	lpfMode = FilterMode::TRANSISTOR_24DB;
+	setLpfMode(FilterMode::TRANSISTOR_24DB);
 	filterSet.reset();
 
-	modFXType_ = ModFXType::NONE;
+	assignModFXType(ModFXType::NONE);
 	currentModFXParam = ModFXParam::FEEDBACK;
 	currentFilterType = FilterType::LPF;
 
@@ -204,15 +204,15 @@ void GlobalEffectable::displayModFXSettings(bool on) {
 char const* GlobalEffectable::getModFXTypeDisplayName() {
 	auto modTypeCount = kNumModFXTypes;
 
-	modFXType_ = static_cast<ModFXType>(util::to_underlying(modFXType_) % modTypeCount);
+	assignModFXType(static_cast<ModFXType>(util::to_underlying(modControllableSnapshot_.modFXType) % modTypeCount));
 
-	return modfx::modFXToString(modFXType_);
+	return modfx::modFXToString(modControllableSnapshot_.modFXType);
 }
 
 char const* GlobalEffectable::getModFXParamDisplayName() {
 	currentModFXParam = static_cast<ModFXParam>(util::to_underlying(currentModFXParam) % kNumModFXParams);
 
-	return modfx::getParamName(modFXType_, currentModFXParam);
+	return modfx::getParamName(modControllableSnapshot_.modFXType, currentModFXParam);
 }
 
 // Returns whether Instrument changed
@@ -237,7 +237,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		if (whichModEncoder == 1) {
 			if (on) {
 				auto modTypeCount = kNumModFXTypes;
-				setModFXType(static_cast<ModFXType>((util::to_underlying(modFXType_) + 1) % modTypeCount));
+				setModFXType(static_cast<ModFXType>((util::to_underlying(modControllableSnapshot_.modFXType) + 1)
+				                                    % modTypeCount));
 				ensureModFXParamIsValid();
 
 				// if mod button is pressed, update mod button pop up
@@ -701,24 +702,26 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichM
 }
 
 ModFXType GlobalEffectable::getModFXType() {
-	return modFXType_;
+	return modControllableSnapshot_.modFXType;
 }
 
 void GlobalEffectable::ensureModFXParamIsValid() {
 	while (true) {
 		if (currentModFXParam == ModFXParam::DEPTH) {
-			if (modFXType_ == ModFXType::FLANGER) {
+			if (modControllableSnapshot_.modFXType == ModFXType::FLANGER) {
 				goto ohNo;
 			}
 		}
 		else if (currentModFXParam == ModFXParam::OFFSET) {
-			if (modFXType_ != ModFXType::CHORUS && modFXType_ != ModFXType::CHORUS_STEREO
-			    && modFXType_ != ModFXType::GRAIN) {
+			if (modControllableSnapshot_.modFXType != ModFXType::CHORUS
+			    && modControllableSnapshot_.modFXType != ModFXType::CHORUS_STEREO
+			    && modControllableSnapshot_.modFXType != ModFXType::GRAIN) {
 				goto ohNo;
 			}
 		}
 		else { // ModFXParam::FEEDBACK
-			if (modFXType_ == ModFXType::CHORUS || modFXType_ == ModFXType::CHORUS_STEREO) {
+			if (modControllableSnapshot_.modFXType == ModFXType::CHORUS
+			    || modControllableSnapshot_.modFXType == ModFXType::CHORUS_STEREO) {
 				goto ohNo;
 			}
 		}
@@ -752,16 +755,16 @@ void GlobalEffectable::setupFilterSetConfig(int32_t* postFXVolume, ParamManager*
 	    getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH],
 	                                 cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH)));
 
-	bool doLPF = (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
+	bool doLPF = (modControllableSnapshot_.lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
 	              || unpatchedParams->getValue(params::UNPATCHED_LPF_FREQ) < 2147483602
 	              || unpatchedParams->getValue(params::UNPATCHED_LPF_MORPH) > NEGATIVE_ONE_Q31);
 	bool doHPF = unpatchedParams->getValue(params::UNPATCHED_HPF_FREQ) > NEGATIVE_ONE_Q31
 	             || unpatchedParams->getValue(params::UNPATCHED_HPF_MORPH) > NEGATIVE_ONE_Q31;
-	FilterMode lpfModeForRender = doLPF ? lpfMode : FilterMode::OFF;
-	FilterMode hpfModeForRender = doHPF ? hpfMode : FilterMode::OFF;
-	*postFXVolume =
-	    filterSet.setConfig(lpfFrequency, lpfResonance, lpfModeForRender, lpfMorph, hpfFrequency, hpfResonance,
-	                        hpfModeForRender, hpfMorph, *postFXVolume, filterRoute, false, NULL);
+	FilterMode lpfModeForRender = doLPF ? modControllableSnapshot_.lpfMode : FilterMode::OFF;
+	FilterMode hpfModeForRender = doHPF ? modControllableSnapshot_.hpfMode : FilterMode::OFF;
+	*postFXVolume = filterSet.setConfig(lpfFrequency, lpfResonance, lpfModeForRender, lpfMorph, hpfFrequency,
+	                                    hpfResonance, hpfModeForRender, hpfMorph, *postFXVolume,
+	                                    modControllableSnapshot_.filterRoute, false, NULL);
 }
 
 [[gnu::hot]] void GlobalEffectable::processFilters(std::span<StereoSample> buffer) {
@@ -874,7 +877,7 @@ Error GlobalEffectable::readTagFromFile(Deserializer& reader, char const* tagNam
 	}
 
 	else if (!strcmp(tagName, "modFXType")) {
-		modFXType_ = stringToFXType(reader.readTagOrAttributeValue());
+		assignModFXType(stringToFXType(reader.readTagOrAttributeValue()));
 		reader.exitTag("modFXType");
 	}
 
@@ -922,7 +925,7 @@ void GlobalEffectable::compensateVolumeForResonance(ParamManagerForTimeline* par
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
-	ModFXType modFXTypeNow = modFXType_;
+	ModFXType modFXTypeNow = modControllableSnapshot_.modFXType;
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 

@@ -31,7 +31,9 @@ class Type : public Selection {
 public:
 	using Selection::Selection;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->modFXType_); }
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentModControllable->modControllableSnapshot().modFXType);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<ModFXType>();

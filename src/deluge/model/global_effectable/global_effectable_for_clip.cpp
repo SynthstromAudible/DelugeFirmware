@@ -114,7 +114,7 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
 	// Render saturation
-	if (clippingAmount != 0u) {
+	if (modControllableSnapshot_.clippingAmount != 0u) {
 		int32_t shiftAmount = getShiftAmountForSaturation();
 		for (StereoSample& sample : global_effectable_audio) {
 			sample.l = saturate(sample.l, &lastSaturationTanHWorkingValue[0], shiftAmount);

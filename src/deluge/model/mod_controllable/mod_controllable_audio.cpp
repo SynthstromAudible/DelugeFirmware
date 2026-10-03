@@ -65,15 +65,9 @@ ModControllableAudio::ModControllableAudio() {
 	bassOnlyR = 0;
 
 	// Filters
-	lpfMode = FilterMode::TRANSISTOR_24DB;
-	hpfMode = FilterMode::HPLADDER;
-	filterRoute = FilterRoute::HIGH_TO_LOW;
 
 	// Sample rate reduction
 	sampleRateReductionOnLastTime = false;
-
-	// Saturation
-	clippingAmount = 0;
 
 	SyncLevel syncLevel;
 	Song* song = preLoadedSong;
@@ -97,13 +91,13 @@ ModControllableAudio::~ModControllableAudio() {
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
-	lpfMode = other->lpfMode;
-	hpfMode = other->hpfMode;
-	clippingAmount = other->clippingAmount;
-	modFXType_ = other->modFXType_;
+	setLpfMode(other->modControllableSnapshot_.lpfMode);
+	setHpfMode(other->modControllableSnapshot_.hpfMode);
+	setClippingAmount(other->modControllableSnapshot_.clippingAmount);
+	assignModFXType(other->modControllableSnapshot_.modFXType);
 	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
 	trebleFreq = other->trebleFreq;
-	filterRoute = other->filterRoute;
+	setFilterRoute(other->modControllableSnapshot_.filterRoute);
 	sidechain.cloneFrom(&other->sidechain);
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
 	delay = other->delay;
@@ -441,11 +435,16 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	// M3 owner-5 slice F: read the authoritative record when bound (a Sound); an unbound owner (GlobalEffectable, no
 	// record yet) keeps reading the native fields, so the flip is transparent for it.
 	bool bound = docModControllable_ != nullptr;
-	ModFXType savedModFXType = bound ? static_cast<ModFXType>(docModControllable_->mod_fx_type) : modFXType_;
-	FilterMode savedLpfMode = bound ? static_cast<FilterMode>(docModControllable_->lpf_mode) : lpfMode;
-	FilterMode savedHpfMode = bound ? static_cast<FilterMode>(docModControllable_->hpf_mode) : hpfMode;
-	FilterRoute savedFilterRoute = bound ? static_cast<FilterRoute>(docModControllable_->filter_route) : filterRoute;
-	uint8_t savedClippingAmount = bound ? docModControllable_->clipping_amount : clippingAmount;
+	ModFXType savedModFXType =
+	    bound ? static_cast<ModFXType>(docModControllable_->mod_fx_type) : modControllableSnapshot_.modFXType;
+	FilterMode savedLpfMode =
+	    bound ? static_cast<FilterMode>(docModControllable_->lpf_mode) : modControllableSnapshot_.lpfMode;
+	FilterMode savedHpfMode =
+	    bound ? static_cast<FilterMode>(docModControllable_->hpf_mode) : modControllableSnapshot_.hpfMode;
+	FilterRoute savedFilterRoute =
+	    bound ? static_cast<FilterRoute>(docModControllable_->filter_route) : modControllableSnapshot_.filterRoute;
+	uint8_t savedClippingAmount =
+	    bound ? docModControllable_->clipping_amount : modControllableSnapshot_.clippingAmount;
 
 	writer.writeAttribute("modFXType", (char*)fxTypeToString(savedModFXType));
 	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(savedLpfMode));
@@ -460,30 +459,65 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 void ModControllableAudio::bindDocModControllable(deluge::project::DocModControllable* d) {
 	docModControllable_ = d;
 	seedDocModControllable();
+	projectModControllableSnapshot();
+}
+
+void ModControllableAudio::projectModControllableSnapshot() {
+	if (docModControllable_ == nullptr) {
+		return;
+	}
+	const deluge::project::DocModControllable& d = *docModControllable_;
+	modControllableSnapshot_.clippingAmount = d.clipping_amount;
+	modControllableSnapshot_.lpfMode = static_cast<FilterMode>(d.lpf_mode);
+	modControllableSnapshot_.hpfMode = static_cast<FilterMode>(d.hpf_mode);
+	modControllableSnapshot_.filterRoute = static_cast<FilterRoute>(d.filter_route);
+	modControllableSnapshot_.modFXType = static_cast<ModFXType>(d.mod_fx_type);
+}
+
+void ModControllableAudio::assignModFXType(ModFXType value) {
+	if (docModControllable_ != nullptr) {
+		docModControllable_->mod_fx_type = static_cast<uint8_t>(value);
+		modControllableSnapshot_.modFXType = static_cast<ModFXType>(docModControllable_->mod_fx_type);
+	}
+	else {
+		modControllableSnapshot_.modFXType = value;
+	}
 }
 
 void ModControllableAudio::setClippingAmount(uint8_t value) {
-	clippingAmount = value;
 	if (docModControllable_ != nullptr) {
 		docModControllable_->clipping_amount = value;
+		modControllableSnapshot_.clippingAmount = docModControllable_->clipping_amount;
+	}
+	else {
+		modControllableSnapshot_.clippingAmount = value;
 	}
 }
 void ModControllableAudio::setLpfMode(FilterMode value) {
-	lpfMode = value;
 	if (docModControllable_ != nullptr) {
 		docModControllable_->lpf_mode = static_cast<uint8_t>(value);
+		modControllableSnapshot_.lpfMode = static_cast<FilterMode>(docModControllable_->lpf_mode);
+	}
+	else {
+		modControllableSnapshot_.lpfMode = value;
 	}
 }
 void ModControllableAudio::setHpfMode(FilterMode value) {
-	hpfMode = value;
 	if (docModControllable_ != nullptr) {
 		docModControllable_->hpf_mode = static_cast<uint8_t>(value);
+		modControllableSnapshot_.hpfMode = static_cast<FilterMode>(docModControllable_->hpf_mode);
+	}
+	else {
+		modControllableSnapshot_.hpfMode = value;
 	}
 }
 void ModControllableAudio::setFilterRoute(FilterRoute value) {
-	filterRoute = value;
 	if (docModControllable_ != nullptr) {
 		docModControllable_->filter_route = static_cast<uint8_t>(value);
+		modControllableSnapshot_.filterRoute = static_cast<FilterRoute>(docModControllable_->filter_route);
+	}
+	else {
+		modControllableSnapshot_.filterRoute = value;
 	}
 }
 void ModControllableAudio::setDelayPingPong(bool value) {
@@ -558,11 +592,11 @@ void ModControllableAudio::seedDocModControllable() {
 		return;
 	}
 	deluge::project::DocModControllable& d = *docModControllable_;
-	d.clipping_amount = clippingAmount;
-	d.lpf_mode = static_cast<uint8_t>(lpfMode);
-	d.hpf_mode = static_cast<uint8_t>(hpfMode);
-	d.filter_route = static_cast<uint8_t>(filterRoute);
-	d.mod_fx_type = static_cast<uint8_t>(modFXType_);
+	d.clipping_amount = modControllableSnapshot_.clippingAmount;
+	d.lpf_mode = static_cast<uint8_t>(modControllableSnapshot_.lpfMode);
+	d.hpf_mode = static_cast<uint8_t>(modControllableSnapshot_.hpfMode);
+	d.filter_route = static_cast<uint8_t>(modControllableSnapshot_.filterRoute);
+	d.mod_fx_type = static_cast<uint8_t>(modControllableSnapshot_.modFXType);
 	d.delay.ping_pong = delay.pingPong;
 	d.delay.analog = delay.analog;
 	d.delay.sync_type = static_cast<uint8_t>(delay.syncType);
@@ -701,20 +735,20 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	int32_t p;
 
 	if (!strcmp(tagName, "lpfMode")) {
-		lpfMode = stringToLPFType(reader.readTagOrAttributeValue());
+		setLpfMode(stringToLPFType(reader.readTagOrAttributeValue()));
 		reader.exitTag("lpfMode");
 	}
 	else if (!strcmp(tagName, "hpfMode")) {
-		hpfMode = stringToLPFType(reader.readTagOrAttributeValue());
+		setHpfMode(stringToLPFType(reader.readTagOrAttributeValue()));
 		reader.exitTag("hpfMode");
 	}
 	else if (!strcmp(tagName, "filterRoute")) {
-		filterRoute = stringToFilterRoute(reader.readTagOrAttributeValue());
+		setFilterRoute(stringToFilterRoute(reader.readTagOrAttributeValue()));
 		reader.exitTag("filterRoute");
 	}
 
 	else if (!strcmp(tagName, "clippingAmount")) {
-		clippingAmount = reader.readTagOrAttributeValueInt();
+		setClippingAmount(reader.readTagOrAttributeValueInt());
 		reader.exitTag("clippingAmount");
 	}
 
@@ -1391,28 +1425,24 @@ char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFil
 }
 
 void ModControllableAudio::switchLPFMode() {
-	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
-	if (docModControllable_ != nullptr) {
-		docModControllable_->lpf_mode = static_cast<uint8_t>(lpfMode); // M3 owner-5: reflect the toggle into the record
-	}
+	setLpfMode(static_cast<FilterMode>((util::to_underlying(modControllableSnapshot_.lpfMode) + 1) % kNumLPFModes));
 }
 
 // for future use with FM
 void ModControllableAudio::switchLPFModeWithOff() {
-	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
-	switch (lpfMode) {
+	FilterMode mode =
+	    static_cast<FilterMode>((util::to_underlying(modControllableSnapshot_.lpfMode) + 1) % kNumLPFModes);
+	switch (mode) {
 	case FilterMode::OFF:
-		lpfMode = FilterMode::TRANSISTOR_12DB;
+		mode = FilterMode::TRANSISTOR_12DB;
 		break;
 	case lastLpfMode:
-		lpfMode = FilterMode::OFF;
+		mode = FilterMode::OFF;
 		break;
 	default:
-		lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1));
+		mode = static_cast<FilterMode>((util::to_underlying(mode) + 1));
 	}
-	if (docModControllable_ != nullptr) {
-		docModControllable_->lpf_mode = static_cast<uint8_t>(lpfMode); // M3 owner-5: reflect the toggle into the record
-	}
+	setLpfMode(mode);
 }
 
 char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFilterType) {
@@ -1429,7 +1459,7 @@ char const* ModControllableAudio::getFilterModeDisplayName(FilterType currentFil
 char const* ModControllableAudio::getLPFModeDisplayName() {
 
 	using enum deluge::l10n::String;
-	switch (lpfMode) {
+	switch (modControllableSnapshot_.lpfMode) {
 	case FilterMode::TRANSISTOR_12DB:
 		return l10n::get(STRING_FOR_12DB_LADDER);
 	case FilterMode::TRANSISTOR_24DB:
@@ -1447,29 +1477,24 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 
 void ModControllableAudio::switchHPFMode() {
 	// this works fine, the offset to the first hpf doesn't matter with the modulus
-	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
-	if (docModControllable_ != nullptr) {
-		docModControllable_->hpf_mode = static_cast<uint8_t>(hpfMode); // M3 owner-5: reflect the toggle into the record
-	}
+	setHpfMode(static_cast<FilterMode>((util::to_underlying(modControllableSnapshot_.hpfMode) + 1) % kNumHPFModes
+	                                   + kFirstHPFMode));
 }
 
 // for future use with FM
 void ModControllableAudio::switchHPFModeWithOff() {
-	switch (hpfMode) {
+	switch (modControllableSnapshot_.hpfMode) {
 	case FilterMode::OFF:
-		hpfMode = firstHPFMode;
+		setHpfMode(firstHPFMode);
 		break;
 	default:
-		hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1));
-	}
-	if (docModControllable_ != nullptr) {
-		docModControllable_->hpf_mode = static_cast<uint8_t>(hpfMode); // M3 owner-5: reflect the toggle into the record
+		setHpfMode(static_cast<FilterMode>((util::to_underlying(modControllableSnapshot_.hpfMode) + 1)));
 	}
 }
 
 char const* ModControllableAudio::getHPFModeDisplayName() {
 	using enum deluge::l10n::String;
-	switch (hpfMode) {
+	switch (modControllableSnapshot_.hpfMode) {
 	case FilterMode::HPLADDER:
 		return l10n::get(STRING_FOR_HPLADDER);
 	case FilterMode::SVF_BAND:
@@ -1488,10 +1513,10 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 }
 
 void ModControllableAudio::clearModFXMemory() {
-	if (modFXType_ == ModFXType::GRAIN) {
+	if (modControllableSnapshot_.modFXType == ModFXType::GRAIN) {
 		grainFX->clearGrainFXBuffer();
 	}
-	else if (modFXType_ != ModFXType::NONE) {
+	else if (modControllableSnapshot_.modFXType != ModFXType::NONE) {
 		modfx.resetMemory();
 	}
 }
@@ -1499,10 +1524,7 @@ void ModControllableAudio::clearModFXMemory() {
 bool ModControllableAudio::setModFXType(ModFXType newType) {
 	// For us ModControllableAudios, this is really simple. Memory gets allocated in
 	// GlobalEffectable::processFXForGlobalEffectable(). This function is overridden in Sound
-	modFXType_ = newType;
-	if (docModControllable_ != nullptr) {
-		docModControllable_->mod_fx_type = static_cast<uint8_t>(newType);
-	}
+	assignModFXType(newType);
 	return true;
 }
 

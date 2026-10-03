@@ -27,6 +27,7 @@
 #include "model/mod_controllable/ModFXProcessor.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
+#include "model/snapshot/mod_controllable_snapshot.h"
 #include "modulation/knob.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
@@ -68,6 +69,16 @@ public:
 	/// Copy the non-param structural fields native->record (guarded on docModControllable_). The load-bridge: run at
 	/// bind and re-run once parsing is done (the owner's doneReadingFromFile), mirroring the DocSound scalar seed.
 	void seedDocModControllable();
+	/// The derived read-view of the effect configuration; the render reads it. Always present: an unbound owner writes
+	/// it directly.
+	deluge::snapshot::ModControllableSnapshot modControllableSnapshot_{};
+	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
+		return modControllableSnapshot_;
+	}
+	/// Re-derive modControllableSnapshot_ from docModControllable_ (no-op when unbound).
+	void projectModControllableSnapshot();
+	/// Store the mod-FX type without setModFXType()'s owner-specific setup — for the load path and cloneFrom().
+	void assignModFXType(ModFXType value);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);
@@ -140,13 +151,8 @@ public:
 	StutterConfig stutterConfig;
 
 	bool sampleRateReductionOnLastTime;
-	uint8_t clippingAmount; // Song probably doesn't currently use this?
-	FilterMode lpfMode;
-	FilterMode hpfMode;
-	FilterRoute filterRoute;
 
 	// Mod FX
-	ModFXType modFXType_;
 	ModFXProcessor modfx{};
 	RMSFeedbackCompressor compressor;
 	GranularProcessor* grainFX{nullptr};

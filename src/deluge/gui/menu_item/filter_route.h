@@ -27,7 +27,9 @@ namespace deluge::gui::menu_item {
 class FilterRouting final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue<::FilterRoute>(soundEditor.currentModControllable->filterRoute); }
+	void readCurrentValue() override {
+		this->setValue<::FilterRoute>(soundEditor.currentModControllable->modControllableSnapshot().filterRoute);
+	}
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
@@ -42,7 +44,8 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
-					if (soundDrum->lpfMode != FilterMode::OFF && soundDrum->hpfMode != FilterMode::OFF) {
+					if (soundDrum->modControllableSnapshot().lpfMode != FilterMode::OFF
+					    && soundDrum->modControllableSnapshot().hpfMode != FilterMode::OFF) {
 						soundDrum->setFilterRoute(current_value);
 					}
 				}

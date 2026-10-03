@@ -30,7 +30,9 @@ class Clipping final : public IntegerWithOff {
 public:
 	using IntegerWithOff::IntegerWithOff;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentModControllable->clippingAmount); }
+	void readCurrentValue() override {
+		this->setValue(soundEditor.currentModControllable->modControllableSnapshot().clippingAmount);
+	}
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();

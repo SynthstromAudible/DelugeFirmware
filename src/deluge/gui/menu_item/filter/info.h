@@ -41,19 +41,21 @@ public:
 	FilterInfo(FilterSlot slot_, FilterParamType type_) : slot{slot_}, type{type_} {}
 	::FilterMode getMode() const {
 		if (slot == FilterSlot::LPF) {
-			return soundEditor.currentModControllable->lpfMode;
+			return soundEditor.currentModControllable->modControllableSnapshot().lpfMode;
 		}
 		else {
-			return soundEditor.currentModControllable->hpfMode;
+			return soundEditor.currentModControllable->modControllableSnapshot().hpfMode;
 		}
 	}
 	int32_t getModeValue() const {
 		if (slot == FilterSlot::HPF) {
-			return util::to_underlying(soundEditor.currentModControllable->hpfMode) - kFirstHPFMode;
+			return util::to_underlying(soundEditor.currentModControllable->modControllableSnapshot().hpfMode)
+			       - kFirstHPFMode;
 		}
 		else {
 			// Off is located past the HPFLadder, which isn't an option for the low pass filter (should it be?)
-			int32_t selection = util::to_underlying(soundEditor.currentModControllable->lpfMode);
+			int32_t selection =
+			    util::to_underlying(soundEditor.currentModControllable->modControllableSnapshot().lpfMode);
 			return std::min(selection, kNumLPFModes);
 		}
 	}

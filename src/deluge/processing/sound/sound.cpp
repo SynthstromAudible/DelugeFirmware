@@ -128,9 +128,9 @@ Sound::Sound() : patcher(kPatcherConfigForSound, params.sourceValues, params.par
 	// audio-engine overhaul introduces, and that work is expected to delete this reserve.
 	voices_.reserve(AudioEngine::VoicePool::get().capacity());
 
-	modFXType_ = ModFXType::NONE;
+	assignModFXType(ModFXType::NONE);
 
-	lpfMode = FilterMode::TRANSISTOR_24DB; // Good for samples, I think
+	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
 
 	postReverbVolumeLastTime = -1; // Special state to make it grab the actual value the first time it's rendered
 
@@ -266,7 +266,7 @@ void Sound::initParams(ParamManager* paramManager) {
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	polyphonic = PolyphonyMode::AUTO;
-	lpfMode = FilterMode::TRANSISTOR_24DB;
+	setLpfMode(FilterMode::TRANSISTOR_24DB);
 
 	sources[0].oscType = OscType::SAMPLE;
 	sources[1].oscType = OscType::SAMPLE;
@@ -339,7 +339,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	setupDefaultExpressionPatching(paramManager);
 
-	lpfMode = FilterMode::TRANSISTOR_24DB; // Good for samples, I think
+	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
 
 	sources[0].oscType = OscType::SAW;
 	sources[1].transpose = -12;
@@ -426,7 +426,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 }
 
 ModFXType Sound::getModFXType() {
-	return modFXType_;
+	return modControllableSnapshot_.modFXType;
 }
 
 // Returns false if not enough ram
@@ -446,7 +446,7 @@ bool Sound::setModFXType(ModFXType newType) {
 		disableGrain();
 	}
 
-	modFXType_ = newType;
+	assignModFXType(newType);
 	if (docModControllable_ != nullptr) {
 		docModControllable_->mod_fx_type = static_cast<uint8_t>(newType);
 	}
@@ -1171,7 +1171,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 				reader.exitTag("resonance");
 			}
 			else if (!strcmp(tagName, "mode")) { // For old, pre- October 2016 files
-				lpfMode = stringToLPFType(reader.readTagOrAttributeValue());
+				setLpfMode(stringToLPFType(reader.readTagOrAttributeValue()));
 				reader.exitTag("mode");
 			}
 			else {
@@ -1546,7 +1546,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_LPF_FREQ:
 	case params::LOCAL_LPF_MORPH:
 	case params::LOCAL_LPF_RESONANCE:
-		if (lpfMode == FilterMode::OFF) {
+		if (modControllableSnapshot_.lpfMode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -1554,7 +1554,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_HPF_FREQ:
 	case params::LOCAL_HPF_MORPH:
 	case params::LOCAL_HPF_RESONANCE:
-		if (hpfMode == FilterMode::OFF) {
+		if (modControllableSnapshot_.hpfMode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -2359,7 +2359,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if ((modFXType_ != ModFXType::NONE) || compressor.getThreshold() > 0) {
+			if ((modControllableSnapshot_.modFXType != ModFXType::NONE) || compressor.getThreshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
 				if (!startSkippingRenderingAtTime) {
@@ -2372,7 +2372,7 @@ doCutModFXTail:
 					}
 
 					int32_t waitSamplesModfx = 0;
-					switch (modFXType_) {
+					switch (modControllableSnapshot_.modFXType) {
 					case ModFXType::CHORUS:
 						[[fallthrough]];
 					case ModFXType::CHORUS_STEREO:
@@ -2710,7 +2710,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		q31_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager);
 		q31_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
 		bool doLPF = thisHasFilters
-		             && (lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
+		             && (modControllableSnapshot_.lpfMode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                 || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)
 		                 || (lpfFreq < 0x7FFFFFD2) || (lpfMorph > std::numeric_limits<q31_t>::min()));
 		bool doHPF =
@@ -2736,9 +2736,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
 		const VoiceConfig voiceConfig{
-		    .lpfMode = lpfMode,
-		    .hpfMode = hpfMode,
-		    .filterRoute = filterRoute,
+		    .lpfMode = modControllableSnapshot_.lpfMode,
+		    .hpfMode = modControllableSnapshot_.hpfMode,
+		    .filterRoute = modControllableSnapshot_.filterRoute,
 		    .volumeNeutralValueForUnison = volumeNeutralValueForUnison,
 		    .synthMode = getSynthMode(),
 		    .lfo2Config = snapshot_.lfoConfig[LFO2_ID],
@@ -2752,7 +2752,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .hasFilters = thisHasFilters,
 		    .expressionSourcesChangedAtSynthLevel = expressionSourcesChangedAtSynthLevel,
 		    .monophonicExpressionValues = monophonicExpressionValues,
-		    .clippingAmount = clippingAmount,
+		    .clippingAmount = modControllableSnapshot_.clippingAmount,
 		    .doingOscSync = renderingOscillatorSyncCurrently(paramManager),
 		    .engineRenderingInStereo = AudioEngine::renderInStereo,
 		    .numUnison = snapshot_.numUnison,
@@ -2851,8 +2851,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	int32_t modFXRate = params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL];
 
 	processSRRAndBitcrushing(sound_stereo, &postFXVolume, paramManager);
-	processFX(sound_stereo, modFXType_, modFXRate, modFXDepth, delayWorkingState, &postFXVolume, paramManager,
-	          !voices_.empty(), reverbSendAmount >> 1);
+	processFX(sound_stereo, modControllableSnapshot_.modFXType, modFXRate, modFXDepth, delayWorkingState, &postFXVolume,
+	          paramManager, !voices_.empty(), reverbSendAmount >> 1);
 	processStutter(sound_stereo, paramManager);
 
 	processReverbSendAndVolume(sound_stereo, reverbBuffer, postFXVolume, postReverbVolume, reverbSendAmount, 0, true);
@@ -3230,6 +3230,7 @@ void Sound::doneReadingFromFile() {
 		seedDocSoundScalars();
 		seedModKnobsRecord();
 		seedDocModControllable();
+		projectModControllableSnapshot();
 		projectSnapshot(); // M4b: refresh the render read-view from the now-final record (SoundDrum load-bridge)
 		for (int32_t s = 0; s < kNumSources; s++) {
 			sources[s].seedDocSourceScalars();
@@ -3335,8 +3336,8 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 			}
 		}
 		// switch the filters off so they don't render unless deliberately enabled
-		lpfMode = FilterMode::OFF;
-		hpfMode = FilterMode::OFF;
+		setLpfMode(FilterMode::OFF);
+		setHpfMode(FilterMode::OFF);
 	}
 
 	// ... and switching *from* FM...
@@ -3349,11 +3350,11 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 			}
 		}
 		// switch the filters back on if needed
-		if (lpfMode == FilterMode::OFF) {
-			lpfMode = FilterMode::TRANSISTOR_24DB;
+		if (modControllableSnapshot_.lpfMode == FilterMode::OFF) {
+			setLpfMode(FilterMode::TRANSISTOR_24DB);
 		}
-		if (hpfMode == FilterMode::OFF) {
-			hpfMode = FilterMode::HPLADDER;
+		if (modControllableSnapshot_.hpfMode == FilterMode::OFF) {
+			setHpfMode(FilterMode::HPLADDER);
 		}
 	}
 
@@ -3473,7 +3474,7 @@ bool Sound::anyNoteIsOn() {
 }
 
 bool Sound::hasFilters() {
-	return (lpfMode != FilterMode::OFF || hpfMode != FilterMode::OFF);
+	return (modControllableSnapshot_.lpfMode != FilterMode::OFF || modControllableSnapshot_.hpfMode != FilterMode::OFF);
 }
 
 void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
@@ -3539,8 +3540,8 @@ Error Sound::readFromFile(Deserializer& reader, ModelStackWithModControllable* m
 
 	// old FM patches can have a filter mode saved in them even though it wouldn't have rendered at the time
 	if (getSynthMode() == SynthMode::FM && song_firmware_version < FirmwareVersion::community({1, 2, 0})) {
-		hpfMode = FilterMode::OFF;
-		lpfMode = FilterMode::OFF;
+		setHpfMode(FilterMode::OFF);
+		setLpfMode(FilterMode::OFF);
 	}
 
 	// If we actually got a paramManager, we can do resonance compensation on it
