@@ -26,6 +26,7 @@
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "io/midi/midi_queue_manager.h"
 #include "io/midi/sysex.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
@@ -87,7 +88,7 @@ void usbSendCompleteAsHost(int32_t ip) {
 	connectedDevice->numBytesSendingNow = 0; // We just do this instead from caller on A1 (see comment above)
 
 	// check if there was more to send on the same device, then resume sending
-	bool has_more = connectedDevice->consumeSendData();
+	bool has_more = connectedDevice->consume_queued_messages();
 	if (has_more) {
 		// TODO: do some cooperative scheduling here. so if there is a flood of data
 		// on connected device 1 and we just want to send a few notes on device 2,
@@ -154,7 +155,7 @@ void usbSendCompleteAsPeripheral(int32_t ip) {
 		return;
 	}
 
-	bool has_more = connectedDevice->consumeSendData();
+	bool has_more = connectedDevice->consume_queued_messages();
 	if (has_more) {
 		// this is already the case:
 		// anyUSBSendingStillHappening[ip] = 1;
@@ -166,8 +167,7 @@ void usbSendCompleteAsPeripheral(int32_t ip) {
 		                     connectedDevice->numBytesSendingNow);
 	}
 	else {
-		// this effectively serves as a lock, does the sending part of the device, including the read part of the
-		// ring buffer "belong" to ongoing/scheduled interrupts. Document this better.
+		// No queued follow-up transfer, so release the peripheral send-in-progress guard.
 		anyUSBSendingStillHappening[0] = 0;
 	}
 }
@@ -259,6 +259,8 @@ MidiEngine::MidiEngine() {
 	}
 
 	eventStackTop_ = eventStack_.begin();
+	// Start DIN pacing "now" and with no preloaded send allowance.
+	connectedDINMIDIDevice.reset_serial_state(AudioEngine::audioSampleTimer);
 }
 
 void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume) {
@@ -325,7 +327,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 		if (aPeripheral) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][0];
 
-			if (!connectedDevice->consumeSendData()) {
+			if (!connectedDevice->consume_queued_messages()) {
 				continue;
 			}
 
@@ -392,7 +394,7 @@ void MidiEngine::flushUSBMIDIOutput() {
 				ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 
 				if (connectedDevice->cable[0]) {
-					connectedDevice->consumeSendData();
+					connectedDevice->consume_queued_messages();
 				}
 				if (d == newStopSendingAfter) {
 					break;
@@ -415,7 +417,12 @@ getOut: {}
 }
 
 bool MidiEngine::anythingInOutputBuffer() {
-	return anythingInUSBOutputBuffer || (bool)uartGetTxBufferFullnessByItem(UART_ITEM_MIDI);
+	// Report pending outbound MIDI from all layers:
+	// 1) USB messages queued or an in-flight USB send that needs follow-up scheduling,
+	// 2) MidiQueueManager serial-priority lanes waiting to flush into UART, and
+	// 3) bytes already accepted by the UART TX FIFO but not yet transmitted.
+	return anythingInUSBOutputBuffer || connectedDINMIDIDevice.has_serial_data()
+	       || (bool)uartGetTxBufferFullnessByItem(UART_ITEM_MIDI);
 }
 
 void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter) {
@@ -437,18 +444,29 @@ void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velo
 }
 
 void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter) {
-	sendMidi(source, MIDIMessage::cc(channel, 123, 0), filter);
+	// Must not be overtaken by the notes queued after it, or it silences them instead of the notes it
+	// was meant to stop. NoteBound puts it on the notes lane, which is FIFO.
+	MIDIMessage message = MIDIMessage::cc(channel, 123, 0);
+	message.intent = MIDIIntent::NoteBound;
+	sendMidi(source, message, filter);
 }
 
-/// Saturate a value into the 7 bits a MIDI data byte gets. Callers derive these from internal 32-bit parameter values,
-/// which can land outside 0-127; letting one through sets bit 7 and the receiver reads it as a status byte instead - if
-/// it falls in 0xF8-0xFF that's a spurious System Real-Time message (see #4821).
+/// @brief Saturate a value into the 7 bits a MIDI data byte can carry.
+///
+/// Callers derive these from internal 32-bit parameter values, which can land outside 0-127. Letting
+/// one through sets bit 7, so the receiver reads it as a status byte instead of data; a value landing
+/// in 0xF8-0xFF would show up as a spurious System Real-Time message.
+/// @param value Value to clamp; expected range is 0-127, but any int32_t is accepted.
+/// @return @p value clamped to [0, 127] and narrowed to a MIDI data byte.
 static uint8_t toDataByte(int32_t value) {
 	return static_cast<uint8_t>(std::clamp<int32_t>(value, 0, 127));
 }
 
-void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter) {
-	sendMidi(source, MIDIMessage::cc(channel, cc, toDataByte(value)), filter);
+void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter,
+                        MIDIIntent intent) {
+	MIDIMessage message = MIDIMessage::cc(channel, cc, toDataByte(value));
+	message.intent = intent;
+	sendMidi(source, message, filter);
 }
 
 void MidiEngine::sendClock(MIDISource source, bool sendUSB, int32_t howMany) {
@@ -487,12 +505,17 @@ void MidiEngine::sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, 
 	sendMidi(source, MIDIMessage::programChange(channel, pgm), filter);
 }
 
-void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter) {
-	sendMidi(source, MIDIMessage::pitchBend(channel, bend), filter);
+void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter, MIDIIntent intent) {
+	MIDIMessage message = MIDIMessage::pitchBend(channel, bend);
+	message.intent = intent;
+	sendMidi(source, message, filter);
 }
 
-void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter) {
-	sendMidi(source, MIDIMessage::channelAftertouch(channel, toDataByte(value)), filter);
+void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter,
+                                       MIDIIntent intent) {
+	MIDIMessage message = MIDIMessage::channelAftertouch(channel, toDataByte(value));
+	message.intent = intent;
+	sendMidi(source, message, filter);
 }
 
 void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode,
@@ -550,9 +573,8 @@ uint32_t setupUSBMessage(MIDIMessage message) {
 
 void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	// TODO: Differentiate between ports on usb midi
-	bool isSystemMessage = message.isSystemMessage();
 
-	// formats message per USB midi spec on virtual cable 0
+	// Format the MIDI message as a USB-MIDI event with virtual cable 0.
 	uint32_t fullMessage = setupUSBMessage(message);
 	for (int32_t ip = 0; ip < USB_NUM_USBIP; ip++) {
 		int32_t potentialNumDevices = getPotentialNumConnectedUSBMIDIDevices(ip);
@@ -571,10 +593,12 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 					// or if it's a message that this channel wants
 					if (connectedDevice->cable[p]->wantsToOutputMIDIOnChannel(message, filter)) {
 
-						// Or with the port to add the cable number to the full message. This
-						// is a bit hacky but it works
-						uint32_t channeled_message = fullMessage | (p << 4);
-						connectedDevice->bufferMessage(channeled_message);
+						// Add this port's USB virtual cable number into event byte 0.
+						uint32_t usb_cable_message = fullMessage | (p << 4);
+						if (connectedDevice->enqueue_message(usb_cable_message, message.intent)
+						    && anyUSBSendingStillHappening[0] == 0) {
+							flushUSBMIDIOutput();
+						}
 					}
 				}
 			}
@@ -585,22 +609,21 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 // Warning - this will sometimes (not always) be called in an ISR
 void MidiEngine::flushMIDI() {
 	flushUSBMIDIOutput();
+	// Drain prioritized DIN queues using the current audio-timer tick as the pacing clock.
+	connectedDINMIDIDevice.consume_queued_messages(AudioEngine::audioSampleTimer);
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
 
 void MidiEngine::sendSerialMidi(MIDIMessage message) {
+	connectedDINMIDIDevice.enqueue_message(message);
+}
 
-	uint8_t statusByte = message.channel | (message.statusType << 4);
-	int32_t messageLength = bytesPerStatusMessage(statusByte);
-	bufferMIDIUart(statusByte);
+void MidiEngine::sendSerialSysex(uint8_t const* data, int32_t len) {
+	(void)connectedDINMIDIDevice.enqueue_sysex(data, len);
+}
 
-	if (messageLength >= 2) {
-		bufferMIDIUart(message.data1);
-
-		if (messageLength == 3) {
-			bufferMIDIUart(message.data2);
-		}
-	}
+size_t MidiEngine::serialSendBufferSpace() const {
+	return connectedDINMIDIDevice.send_buffer_space();
 }
 
 bool MidiEngine::checkIncomingSerialMidi() {

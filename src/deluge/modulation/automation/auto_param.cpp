@@ -931,9 +931,15 @@ bool AutoParam::applyValueIncrement(int32_t value_increment) {
 	return (currentValue != oldValue);
 }
 
-/// multiplies a per-half-tick increment by a number of half ticks, clamping to the int32 range rather than wrapping.
-/// A steep increment (a short segment covering a big value change) times a large number of skipped ticks overflows an
-/// int32 easily, and a wrapped increment sends currentValue in the wrong direction entirely.
+/// @brief Multiply a per-half-tick increment by a half-tick count, saturating to the int32 range rather than
+///        wrapping.
+///
+/// A steep increment (a short segment covering a big value change) multiplied by a large number of skipped
+/// half ticks overflows int32 easily, and a wrapped result would send the value in the wrong direction
+/// entirely -- so the product is clamped instead of a plain multiply.
+/// @param incrementPerHalfTick Value increment applied per half tick.
+/// @param halfTicks Number of half ticks elapsed.
+/// @return The increment, saturated to [INT32_MIN, INT32_MAX].
 static int32_t saturatingIncrement(int32_t incrementPerHalfTick, int64_t halfTicks) {
 	int64_t increment = (int64_t)incrementPerHalfTick * halfTicks;
 	return (int32_t)std::clamp<int64_t>(increment, INT32_MIN, INT32_MAX);
