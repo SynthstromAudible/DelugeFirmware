@@ -25,7 +25,7 @@ public:
 	double advance(int8_t offset, double time) { return advance(offset, time, Tuning{}); }
 	double advance(int8_t offset, double time, Tuning tuning) {
 		const double elapsed = time - last_time_;
-		if (elapsed >= tuning.reset_after || elapsed < 0.0 || offset != last_offset_) {
+		if (elapsed >= tuning.reset_after || elapsed < 0.0 || (offset > 0) != (last_offset_ > 0)) {
 			// too much time passed, or the knob direction changed, reset the speed
 			speed_ = 0.0;
 		}
@@ -33,7 +33,8 @@ public:
 			// moving in the same direction, update speed
 			speed_ = speed_ * (1.0 - tuning.acceleration) + tuning.acceleration / elapsed;
 		}
-		// last_time and last_offset keep track of our time and direction
+		// last_time and last_offset keep track of our time and direction. Only the sign of the offset
+		// matters: fast rotation mixes single- and multi-tick batches in the same direction.
 		last_time_ = time;
 		last_offset_ = offset;
 		return std::clamp(speed_ * tuning.speed_scale, tuning.min_multiplier, tuning.max_multiplier);

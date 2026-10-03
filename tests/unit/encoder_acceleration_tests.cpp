@@ -80,11 +80,11 @@ TEST(EncoderAccelerationTest, DirectionChangeResetsAcceleration) {
 }
 
 // A differently sized input batch must start a new acceleration run rather than inherit momentum.
-TEST(EncoderAccelerationTest, ChangedTickCountResetsAcceleration) {
+TEST(EncoderAccelerationTest, ChangedTickCountInSameDirectionKeepsAccelerating) {
 	acceleration.advance(1, 1.0);
 	acceleration.advance(1, 1.01);
 
-	DOUBLES_EQUAL(1.0, acceleration.advance(2, 1.02), 0.000001);
+	DOUBLES_EQUAL(2.85, acceleration.advance(2, 1.02), 0.000001);
 }
 
 // A pause at or beyond the reset threshold must return the multiplier to one.
@@ -143,20 +143,28 @@ TEST(EncoderAccelerationTest, ExplicitResetClearsHorizontalMenuAcceleration) {
 
 TEST_GROUP(GoldEncoderQuadratureTest){};
 
-// A fully observed positive quadrature cycle must report all four gold-encoder transitions.
-TEST(GoldEncoderQuadratureTest, CompletePositiveCycleCountsBothAEdges) {
+// A fully observed positive cycle must confirm every edge except the last, which waits for the next edge.
+TEST(GoldEncoderQuadratureTest, CompletePositiveCycleConfirmsAllButLastEdge) {
 	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true}, EncoderPins{true, true},
 	                               EncoderPins{true, false}, EncoderPins{false, false}};
 
-	CHECK_EQUAL(4, readGoldEncoderMovement(states, true));
+	CHECK_EQUAL(3, readGoldEncoderMovement(states, true));
 }
 
-// A fully observed reverse quadrature cycle must report four transitions with negative polarity.
-TEST(GoldEncoderQuadratureTest, CompleteNegativeCycleCountsBothAEdges) {
+// A fully observed reverse cycle must confirm the same number of edges with negative polarity.
+TEST(GoldEncoderQuadratureTest, CompleteNegativeCycleConfirmsAllButLastEdge) {
 	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{true, false}, EncoderPins{true, true},
 	                               EncoderPins{false, true}, EncoderPins{false, false}};
 
-	CHECK_EQUAL(-4, readGoldEncoderMovement(states, true));
+	CHECK_EQUAL(-3, readGoldEncoderMovement(states, true));
+}
+
+// Continuing into the next cycle must confirm the final edge, giving four edges per cycle.
+TEST(GoldEncoderQuadratureTest, NextEdgeConfirmsFourthEdgeOfCycle) {
+	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true},  EncoderPins{true, true},
+	                               EncoderPins{true, false},  EncoderPins{false, false}, EncoderPins{false, true}};
+
+	CHECK_EQUAL(4, readGoldEncoderMovement(states, true));
 }
 
 // The per-encoder wiring inversion flag must reverse the decoded direction.
@@ -164,36 +172,84 @@ TEST(GoldEncoderQuadratureTest, InvertedWiringReversesDirection) {
 	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true}, EncoderPins{true, true},
 	                               EncoderPins{true, false}, EncoderPins{false, false}};
 
-	CHECK_EQUAL(-4, readGoldEncoderMovement(states, true, true));
+	CHECK_EQUAL(-3, readGoldEncoderMovement(states, true, true));
 }
 
-// Polling must report a slow B-only transition that cannot generate an A-pin interrupt.
-TEST(GoldEncoderQuadratureTest, PollReportsSlowBOnlyTransition) {
-	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true}};
+// A slow B-only transition, which cannot generate an A-pin interrupt, must be confirmed by a later poll.
+TEST(GoldEncoderQuadratureTest, PollConfirmsSlowBTransition) {
+	QuadratureDecoder decoder;
+	decoder.initialize(false, false);
+
+	CHECK_EQUAL(0, decoder.observe(false, true));
+	CHECK_EQUAL(1, decoder.observe(true, true));
+}
+
+// A single edge must not report movement until the other pin confirms it.
+TEST(GoldEncoderQuadratureTest, SingleEdgeIsNotReportedUntilConfirmed) {
+	QuadratureDecoder decoder;
+	decoder.initialize(false, false);
+
+	CHECK_EQUAL(0, decoder.observeAEdge(true, false));
+	CHECK_EQUAL(-1, decoder.observe(true, true));
+}
+
+// B flickering around one transition must not report movement.
+TEST(GoldEncoderQuadratureTest, BPinChatterDoesNotReportMovement) {
+	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true}, EncoderPins{false, false},
+	                               EncoderPins{false, true}, EncoderPins{false, false}};
+
+	CHECK_EQUAL(0, readGoldEncoderMovement(states, true));
+}
+
+// A flickering around one transition must not report movement, with or without intermediate polls.
+TEST(GoldEncoderQuadratureTest, APinChatterDoesNotReportMovement) {
+	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{true, false}, EncoderPins{false, false},
+	                               EncoderPins{true, false}, EncoderPins{false, false}};
+
+	CHECK_EQUAL(0, readGoldEncoderMovement(states, true));
+	CHECK_EQUAL(0, readGoldEncoderMovement(states, false));
+}
+
+// A pin flickering after real movement must not add or remove confirmed edges.
+TEST(GoldEncoderQuadratureTest, ChatterAfterMovementDoesNotChangeCount) {
+	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true}, EncoderPins{true, true},
+	                               EncoderPins{false, true},  EncoderPins{true, true},  EncoderPins{false, true},
+	                               EncoderPins{true, true}};
 
 	CHECK_EQUAL(1, readGoldEncoderMovement(states, true));
 }
 
-// One slow A-edge interrupt must report exactly one tick rather than speculatively reporting two.
-TEST(GoldEncoderQuadratureTest, OneSlowAEdgeReportsExactlyOneTick) {
-	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{true, false}};
+// Turning back to the start must net to zero once the reversal is confirmed.
+TEST(GoldEncoderQuadratureTest, ReversalNetsToZeroOnceConfirmed) {
+	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true},  EncoderPins{true, true},
+	                               EncoderPins{false, true},  EncoderPins{false, false}, EncoderPins{true, false}};
 
-	CHECK_EQUAL(-1, readGoldEncoderMovement(states, true));
+	CHECK_EQUAL(0, readGoldEncoderMovement(states, true));
 }
 
-// A delayed A interrupt must recover an unobserved preceding B transition as a two-edge movement.
-TEST(GoldEncoderQuadratureTest, DelayedAInterruptRecoversUnpolledBAndAEdges) {
+// A delayed A interrupt must replay the unobserved preceding B transition, confirming it.
+TEST(GoldEncoderQuadratureTest, DelayedAInterruptRecoversUnpolledBEdge) {
 	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true}, EncoderPins{true, true}};
 
-	CHECK_EQUAL(2, readGoldEncoderMovement(states, false));
+	CHECK_EQUAL(1, readGoldEncoderMovement(states, false));
 }
 
-// Two A interrupts must recover a complete fast cycle even when no intermediate B polls occur.
-TEST(GoldEncoderQuadratureTest, FastCompleteCycleReportsEveryTransitionWithoutIntermediatePolls) {
+// A interrupts alone must decode a fast cycle exactly as if every transition had been polled.
+TEST(GoldEncoderQuadratureTest, FastCompleteCycleMatchesPolledCycle) {
 	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true}, EncoderPins{true, true},
 	                               EncoderPins{true, false}, EncoderPins{false, false}};
 
-	CHECK_EQUAL(4, readGoldEncoderMovement(states, false));
+	CHECK_EQUAL(readGoldEncoderMovement(states, true), readGoldEncoderMovement(states, false));
+}
+
+// A poll that sees both bits changed must leave the movement for the pending A interrupt to resolve.
+TEST(GoldEncoderQuadratureTest, AmbiguousPollLeavesMovementForPendingAInterrupt) {
+	QuadratureDecoder decoder;
+	decoder.initialize(false, false);
+
+	CHECK_EQUAL(0, decoder.observe(true, true));
+	CHECK_EQUAL(1, decoder.observeAEdge(true, true));
+	CHECK_EQUAL(1, decoder.observe(true, false));
 }
 
 TEST_GROUP(BlackEncoderQuadratureTest){};
@@ -251,8 +307,9 @@ TEST(BlackEncoderQuadratureTest, PartialCyclePersistsAcrossDrains) {
 // Reversing before a detent completes must cancel buffered edges without producing movement.
 TEST(BlackEncoderQuadratureTest, ReversalCancelsPartialCycle) {
 	DetentedEncoder encoder;
-	encoder.apply_edges(3);
-	encoder.apply_edges(-3);
+	encoder.apply_edges(2);
+	CHECK_EQUAL(0, encoder.take());
+	encoder.apply_edges(-2);
 
 	CHECK_EQUAL(0, encoder.take());
 }
@@ -294,4 +351,14 @@ TEST(BlackEncoderQuadratureTest, InvertedWiringReversesDetentDirection) {
 	                               EncoderPins{true, false}, EncoderPins{false, false}};
 
 	CHECK_EQUAL(-1, readBlackEncoderMovement(states, true, true));
+}
+
+// A pin flickering while the knob rests in a detent must not produce extra detents.
+TEST(BlackEncoderQuadratureTest, ChatterAtRestDoesNotReportExtraDetents) {
+	constexpr std::array states = {EncoderPins{false, false}, EncoderPins{false, true},  EncoderPins{true, true},
+	                               EncoderPins{true, false},  EncoderPins{false, false}, EncoderPins{true, false},
+	                               EncoderPins{false, false}, EncoderPins{true, false},  EncoderPins{false, false}};
+
+	CHECK_EQUAL(1, readBlackEncoderMovement(states, true));
+	CHECK_EQUAL(1, readBlackEncoderMovement(states, false));
 }

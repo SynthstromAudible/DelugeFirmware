@@ -26,7 +26,8 @@
 namespace deluge::hid::encoders {
 
 /// Black function encoders (SCROLL_X/Y, TEMPO, SELECT) are detented.
-/// Four quadrature edges = one detent click.
+/// Four quadrature edges = one detent click. The decoder confirms each edge one edge late,
+/// so a click is reported once more than two edges have accumulated, as in 1.x.
 class DetentedEncoder {
 public:
 	DetentedEncoder() = default;
@@ -35,8 +36,15 @@ public:
 
 	void apply_edges(int8_t edges) {
 		edge_accumulator += edges;
-		int8_t ticks = edge_accumulator / 4;
-		edge_accumulator -= ticks * 4;
+		int32_t ticks = 0;
+		while (edge_accumulator > 2) {
+			edge_accumulator -= 4;
+			++ticks;
+		}
+		while (edge_accumulator < -2) {
+			edge_accumulator += 4;
+			--ticks;
+		}
 		pos.fetch_add(ticks, std::memory_order_relaxed);
 	}
 
@@ -56,6 +64,7 @@ private:
 };
 
 /// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity.
+/// Four quadrature edges per cycle, matching 1.x.
 class ContinuousEncoder {
 public:
 	ContinuousEncoder() = default;
