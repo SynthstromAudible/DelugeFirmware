@@ -2,7 +2,7 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""Tests for check_engine_types_boundary.py: what the no-allowlist check must accept and reject."""
+"""Tests for check_library_boundary.py: what each library's no-allowlist check must accept and reject."""
 
 from __future__ import annotations
 
@@ -10,16 +10,25 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from check_engine_types_boundary import violations
+from check_library_boundary import LIBRARIES, Library, violations
+
+ENGINE_TYPES = LIBRARIES["engine-types"]
+WITH_DEPENDENCY = Library(
+    root=Path("unused"),
+    own_prefix="b/",
+    may_include=("engine-api/types/", "foundation/panic.h"),
+)
 
 
-class EngineTypesBoundaryTest(unittest.TestCase):
-    def check(self, text: str, name: str = "probe.h") -> list[str]:
+class LibraryBoundaryTest(unittest.TestCase):
+    def check(
+        self, text: str, name: str = "probe.h", library: Library = ENGINE_TYPES
+    ) -> list[str]:
         with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp) / "types"
+            root = Path(tmp) / "lib"
             root.mkdir()
             (root / name).write_text(text)
-            return violations(root)
+            return violations(library, root)
 
     def test_accepts_standard_headers_and_its_own(self):
         text = '#pragma once\n#include <cstdint>\n#include <optional>\n#include "engine-api/types/sync.h"\n'
@@ -65,6 +74,37 @@ class EngineTypesBoundaryTest(unittest.TestCase):
                     ),
                     1,
                 )
+
+    def test_accepts_a_declared_dependency_by_prefix_or_exact_path(self):
+        text = '#include "engine-api/types/sync.h"\n#include "foundation/panic.h"\n#include "b/x.h"\n'
+        self.assertEqual(self.check(text, library=WITH_DEPENDENCY), [])
+
+    def test_rejects_an_undeclared_neighbour_of_a_declared_dependency(self):
+        self.assertEqual(
+            len(
+                self.check(
+                    '#include "foundation/string_format.h"\n', library=WITH_DEPENDENCY
+                )
+            ),
+            1,
+        )
+        self.assertEqual(
+            len(
+                self.check('#include "engine-api/other/x.h"\n', library=WITH_DEPENDENCY)
+            ),
+            1,
+        )
+
+    def test_rejects_traversal_through_a_declared_dependency(self):
+        self.assertEqual(
+            len(
+                self.check(
+                    '#include "engine-api/types/../../deluge/x.h"\n',
+                    library=WITH_DEPENDENCY,
+                )
+            ),
+            1,
+        )
 
 
 if __name__ == "__main__":
