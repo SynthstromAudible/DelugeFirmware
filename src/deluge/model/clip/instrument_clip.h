@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/keyboard/state_data.h"
 #include "gui/views/instrument_clip_view.h"
+#include "io/midi/midi_routing.h"
 #include "model/note/note_row_vector.h"
 #include "modulation/arpeggiator.h"
 
@@ -127,6 +128,10 @@ public:
 	int8_t backedUpInstrumentSubSlot[4]{};
 	String backedUpInstrumentName[2];
 	String backedUpInstrumentDirPath[2];
+
+	uint8_t backedUpMIDIOutputDevice{deluge::io::midi::kMIDIOutputDeviceMatchUnspecified};
+	String backedUpMIDIOutputDeviceName;
+	bool backedUpMIDIOutputDeviceWasSpecified{false};
 
 	bool affectEntire;
 
